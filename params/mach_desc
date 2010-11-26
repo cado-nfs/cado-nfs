@@ -14,19 +14,19 @@
 # ================================
 #
 # tmpdir and bindir are mandatory:
-# 	tmpdir = directory containing the relations during the calculation on a machine.
-# 	bindir = directory containing the binary files on a machine.
+#     tmpdir = directory containing the relations during the calculation
+#              on a machine.
+#     bindir = directory containing the binary files on a machine.
 # cores is the number of cores used on a machine for the sieve defaults to 1.
-#	For example: if cores=5 and $param{'sieve_max_threads'}=2 then 3 jobs will be run on
-#	the machine (2+2+1).
+#     For example: if cores=5 and $param{'sieve_max_threads'}=2 then 3 jobs
+#     will be run on the machine (2+2+1).
 # poly_cores (optional) defaults to cores.
-# mpi=1 (optional) after machine name for use MPI in linear algebra on this machine,
-# 	default mpi=0. If mpi=0 for all machines, then the linear algebra will be run:
-# 	- on localhost
-# 	- or if you are on grid'5000, on all reserve machines (uniq $OAR_NODEFILE)
-# 	For use MPI, CADO-NFS must be compiled with a MPI library, check that the path
-# 	of the MPI library is in the file local.sh (for example: MPI=/usr/lib64/openmpi).
-# 	The path $param{'wdir'} must be visible on each machine.
+# mpi=1 (optional) after machine name for use MPI in linear algebra on this
+#     machine, default mpi=0. If mpi=0 for all machines, then the linear
+#     algebra will be run on localhost
+#     For use MPI, CADO-NFS must be compiled with a MPI library, check that
+#     the path of the MPI library is in the file local.sh (for example:
+#     MPI=/usr/lib64/openmpi).
 #
 #
 # Changing the list during a computation:
@@ -57,12 +57,15 @@
 #  - change tmpdir for this machine
 #  - put the previous value of cores.
 #
-# Examples:
+
+
+# Example:
 # ========
+
 [caramel]
 # WARNING: $HOME is substitued locally!
 tmpdir=/localdisk/tmp
-bindir=$HOME/Recherche/cado/trunk/dist/src
+bindir=$HOME/cado/trunk/dist/src
 
 cores=12
 poly_cores=9
@@ -76,13 +79,16 @@ merguez mpi=1
 chipolata mpi=1
 
 
-[lix]
-# WARNING: $HOME is substitued locally!
-tmpdir=/localdisk/tmp
-bindir=/users/crypto/gaudry/cado
+[cacao]
+tmpdir=/local/tmp
+bindir=/users/crypto/toto/cado-nfs
 
 cores=2
-    beaufort
+    priam
+    achille
+cores=4
+    meringue
+    quiche
 
 
 # vim: set tw=0:
