@@ -58,7 +58,8 @@
 # file params/params.c91 is an example where a lot of comments have been
 # added, describing the role of each parameter.
 #
-# An important parameter, though, is machines=/path/to/mach_desc. It
+# An important parameter, though, is machines=/path/to/mach_desc. (If not
+# given, the mach_desc file is searched in the current directory.) It
 # tells cadofactor.pl the list of available computing ressources for this
 # factorization. If you just want to run it on your local computer, the
 # minimal mach_desc file looks like:
@@ -87,7 +88,7 @@
 # an ssh-agent running is recommended. See README for a few more things
 # about SSH configuration.
 #
-# If cado-nfs was compiled with MPI suppport, the communications between
+# If cado-nfs was compiled with MPI suppport, the communication between
 # machines during the linear algebra step is done using MPI. Otherwise,
 # the linear algebra is done sequentially.
 #
@@ -111,15 +112,15 @@
 # Therefore, for non-trivial factorization, the host machine that runs
 # cadofactor.pl must have enough memory.
 #
-# The cadofactor.pl script writes in <wdir> all its intermediate data and
+# The cadofactor.pl script writes in <workdir> all its intermediate data and
 # some diagnostics. Notice in particular the two following files:
-#   - <wdir>/<name>.cmd  
+#   - <workdir>/<name>.cmd  
 #     It contains all the shell commands that are run by the script
 #     with full arguments, so that it is easy to reproduce part of
 #     the computation.
-#   - <wdir>/*.log
+#   - <workdir>/*.log
 #     Contains log files of various steps.
-#   - <wdir>/<bwc>/
+#   - <workdir>/<bwc>/
 #     This directory is specific to the linear algebra step.
 #
 # cadofactor.pl is supposed to resist to a crash of the host or remote
@@ -150,12 +151,11 @@
 #   some parameters in this file or on the cadofactor.pl command line.
 #   If the paramfile does not exist then you must create it.
 # $ $CADO_DIR/cadofactor.pl params=params.c155 wdir=$HOME/c155 name=rsa155 \
-#    machines=mach_desc \
 #    n=10941738641570527421809707322040357612003732945449205990913842131476349984288934784717997257891267332497625752899781833797076537244027146743531593354333897
 #
 #
 # To factorize an integer with SNFS (on several machines):
-# ==============================================================================
+# ========================================================
 # 
 # Before starting the factorization, you must configure ssh (cf README)
 # for all the machines.
@@ -175,7 +175,7 @@
 #    name=snfs<size> machines=mach_desc n=<n>
 # $ touch snfs<size>.polysel_done
 # $ $CADO_DIR/cadofactor.pl params=params.c<size> wdir=$HOME/snfs  \
-#    name=snfs<size> machines=mach_desc n=<n>
+#    name=snfs<size> n=<nnn>
 
 use Cwd qw(abs_path);
 use File::Basename;
