@@ -19,15 +19,12 @@
 # Example: cadofactor.pl wdir=... name=... n=...
 
 name=c59
-#wdir=/tmp/noise        # directory where temporary files are put
-#bindir=$HOME/cado      # where to find cado binaries
 parallel=1              # do we use parallel computation?
 delay=30                # time in seconds between two checks
 
 machines=mach_desc      # file describing available computers for parallel
                         # computation
 
-#n=71641520761751435455133616475667090434063332228247871795429
 
 ###########################################################################
 # Polynomial selection with Kleinjung's algorithm
@@ -117,5 +114,3 @@ bwc_interval=100        # checkpointing interval for bwc.
 nkermax=30              # maximal size of computed kernel
 nchar=50                # number of characters
 
-# Used for employing this parameter file as a test.
-#expected_factorization=200429218120815554269743635437,357440504101388365610785389017

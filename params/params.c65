@@ -19,8 +19,6 @@
 # Example: cadofactor.pl wdir=... name=... n=...
 
 name=c65
-#wdir=/tmp/noise        # directory where temporary files are put
-#bindir=$HOME/cado      # where to find cado binaries
 parallel=1              # do we use parallel computation?
 delay=30                # time in seconds between two checks
 

@@ -6,9 +6,7 @@
 # General parameters
 ###########################################################################
 
-#wdir=/localdisk/tmp/rsa100 # directory where temporary files are put
 name=rsa100             # basename for temporary files
-#bindir=$CADO           # where to find cado binaries
 parallel=1              # do we use parallel computation?
 delay=120               # time in seconds between two checks
 

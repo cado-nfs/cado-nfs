@@ -18,7 +18,6 @@
 # Example: cadofactor.pl wdir=... name=... n=...
 
 name=c111
-#bindir=$HOME/svn/cado/dist/bin      # where to find cado binaries
 parallel=1           # do we use parallel computation?
 delay=300
 

@@ -14,9 +14,7 @@
 # General parameters
 ###########################################################################
 
-#wdir=/tmp/noise        # directory where temporary files are put
 name=dl30               # basename for temporary files
-#bindir=$HOME/cado      # where to find cado binaries
 parallel=1              # do we use parallel computation?
 delay=120               # time in seconds between two checks
 
@@ -112,6 +110,5 @@ bwc_interval=100        # checkpointing interval for bwc.
 nkermax=30              # maximal size of computed kernel
 nchar=50                # number of characters
 
-# Used for employing this parameter file as a test.
 expected_factorization=200429218120815554269743635437,357440504101388365610785389017
 
