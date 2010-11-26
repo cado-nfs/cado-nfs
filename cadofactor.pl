@@ -23,36 +23,36 @@
 # 02110-1301, USA.
 #
 # 
-# NB:
-# ===
+# Preamble:
+# =========
 #
 # For a small factorization, it is possible to use the factor.sh script
 # (easier to use) which runs the factorization only on the local machine.
-# Using this strict is recommended for larger factorizations involving
+# Using this script is recommended for larger factorizations involving
 # several machines.
 #
 # Usage:
 # ======
 #
-# cadofactor.pl param=<paramfile> wdir=<...> n=<...> ...
+# cadofactor.pl params=<paramfile> wdir=<workdir> n=<nnn> ...
 # 
 # where:
 #   <paramfile> is a file describing the choice of parameters for the
-#               algorithm. It depends essentially only on the size of 
-#               the input number, but it also contain non-algorithmic
+#               algorithm. It depends essentially on the size of 
+#               the input number, but it also contains non-algorithmic
 #               information, like the nice level you want, and the name
-#               of the file where to find the list of machines to use.
-#               The distribution comes with a list of default paramfiles
-#               that you can use.
-#   <wdir>      a directory where cadofactor.pl will put all the
+#               of the file where to find the list of available machines.
+#               In the params/ subdirectory of the cado-nfs distribution
+#               there is a list of default paramfiles that you can use.
+#   <workdir>   a directory where cadofactor.pl will put all the
 #               intermediate information (relation files, log files, etc)
-#   <n>         the number you want to factor. 
+#   <nnn>       the number you want to factor. 
 #
 # At the end of the command line, you can add parameters, in the form
 # x=my_choice_for_x. If they were defined in <paramfile>, they will
 # be overriden. It is useful if you choose for <paramfile> one of the 
 # default files in the params/ directory. You can then override some
-# parameter without editing the file.
+# parameters without editing the file.
 #
 # The possible parameters in a <paramfile> are not listed here. The 
 # file params/params.c91 is an example where a lot of comments have been
@@ -70,6 +70,14 @@
 #   params/mach_desc
 # It allows in particular to tell exactly how many cores there are to be
 # used on each computer.
+# 
+# Remark: the meaning of tmpdir is different from wdir. wdir is the main
+# working directory, whereas tmpdir (which can be different on each computer)
+# is a scratch space for individual tasks. Typically, during sieving,
+# tmpdir on each machine will contain minimal data on the current
+# factorization and the relation file that is currently being produced by
+# the siever; this file is imported in wdir when cadofactor.pl discovers
+# that the individual sieving task has finished.
 #
 # Communications between nodes:
 # =============================
@@ -79,38 +87,39 @@
 # an ssh-agent running is recommended. See README for a few more things
 # about SSH configuration.
 #
-# The communications between machines during the linear algebra step is
-# done using MPI (if cado-nfs was compiled with MPI suppport). 
+# If cado-nfs was compiled with MPI suppport, the communications between
+# machines during the linear algebra step is done using MPI. Otherwise,
+# the linear algebra is done sequentially.
 #
 # What happens when it runs?
 # ==========================
 #
 # After parsing (and checking) the parameters and the command line, the
-# script starts running jobs of available ressources. It periodically
-# checks if the tasks are finished and if it is the case, it import the 
-# resulting data and start new jobs.
+# script starts running jobs on available ressources. It periodically
+# checks if the tasks are finished and if it is the case, it imports the 
+# resulting data and starts new jobs.
 #
 # The filtering phase is currently fully sequential, and is run on the 
-# host machine that run cadofactor.pl. The same is true for the square
+# host machine that runs cadofactor.pl. The same is true for the square
 # root task.
 #
 # The linear algebra can be run in parallel if MPI is activated at
 # compilation and if the mach_desc file contains machines that are
-# explicitly marked as supporting mpi. Otherwise it is also run on the
-# host machine.
+# explicitly marked as supporting MPI (see params/mach_desc for an
+# example). Otherwise it is also run on the host machine.
 # 
 # Therefore, for non-trivial factorization, the host machine that runs
 # cadofactor.pl must have enough memory.
 #
-# The cadofactor.pl script write in $wdir all its intermediate data and
+# The cadofactor.pl script writes in <wdir> all its intermediate data and
 # some diagnostics. Notice in particular the two following files:
-#   - $wdir/$name.cmd  
+#   - <wdir>/<name>.cmd  
 #     It contains all the shell commands that are run by the script
 #     with full arguments, so that it is easy to reproduce part of
 #     the computation.
-#   - $wdir/*.log
+#   - <wdir>/*.log
 #     Contains log files of various steps.
-#   - $wdir/$bwc/
+#   - <wdir>/<bwc>/
 #     This directory is specific to the linear algebra step.
 #
 # cadofactor.pl is supposed to resist to a crash of the host or remote
@@ -140,7 +149,7 @@
 #   It is not necessary to edit the paramfile but you can choose to modify
 #   some parameters in this file or on the cadofactor.pl command line.
 #   If the paramfile does not exist then you must create it.
-# $ $CADO_DIR/cadofactor.pl params.c155 wdir=$HOME/c155 name=rsa155 \
+# $ $CADO_DIR/cadofactor.pl params=params.c155 wdir=$HOME/c155 name=rsa155 \
 #    machines=mach_desc \
 #    n=10941738641570527421809707322040357612003732945449205990913842131476349984288934784717997257891267332497625752899781833797076537244027146743531593354333897
 #
@@ -162,11 +171,11 @@
 #   If the paramfile does not exist then you must create it.
 # $ cp <polynomial choosen in the cado format> snfs<size>.poly
 #   The polynomial file must also contain the sieve parameters.
-# $ $CADO_DIR/cadofactor.pl params.c<size> wdir=$HOME/snfs name=snfs<size> \
-#    machines=mach_desc n=<n>
+# $ $CADO_DIR/cadofactor.pl params=params.c<size> wdir=$HOME/snfs  \
+#    name=snfs<size> machines=mach_desc n=<n>
 # $ touch snfs<size>.polysel_done
-# $ $CADO_DIR/cadofactor.pl params.c<size> wdir=$HOME/snfs name=snfs<size> \
-#    machines=mach_desc n=<n>
+# $ $CADO_DIR/cadofactor.pl params=params.c<size> wdir=$HOME/snfs  \
+#    name=snfs<size> machines=mach_desc n=<n>
 
 use Cwd qw(abs_path);
 use File::Basename;
