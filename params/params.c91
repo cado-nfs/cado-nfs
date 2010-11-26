@@ -1,22 +1,20 @@
 ###########################################################################
 #     Parameter file for Cado-NFS
 ###########################################################################
-# See params/params.c91 for an example which contains some documentation.
+
+# This file is a sample parameter file for a 91-digit gnfs input
 
 # Anything after a # is a comment, until end of line.
 # Any empty line is ignored
 #
-#
 # Each parameter should be on an individual line, like
 #   param0=42.17
 
-# This file is a sample parameter file for a 91-digit gnfs input
-
 # Some parameters apply to all steps of the algorithm (General parameters
 # below), and are related to the execution environment. Some other
-# parameters control the many different tunables of the execution fo the
+# parameters control the many different tunables of the execution of the
 # algorithm. Such parameters are relevant to only one of the steps of NFS, and
-# are thus listed under the selection related to the corresponding
+# are thus listed under the section related to the corresponding
 # binary. Each of the section corresponding to one step in particular
 # also contains a couple of parameters relative to the execution
 # environment (for that step only).
@@ -156,7 +154,7 @@ qrange=20000            # The size of an elementary sieving task
     # parameter controls the size of individual tasks.
     
 checkrange=1
-    # Each time <checkrange> new files have been imported by
+    # Each time <checkrange> new relations have been imported by
     # cadofactor.pl, a test is done to see whether enough relations have
     # been collected or not. It is usual to set it to 1 (= always do the
     # check) for small factorizations, but obviously it would be
