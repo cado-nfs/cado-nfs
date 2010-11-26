@@ -282,7 +282,8 @@ void tuneutoom(long tabsz)
 	printf("%ld ", sa);
 	fflush(stdout);
 	TIME(TK[0], gf2x_mul21(c, a, sa, b, t));
-	if (sa >= MINI_GF2X_MUL_TOOMU_THRESHOLD) {
+        if (0) {
+	// if (sa >= MINI_GF2X_MUL_TOOMU_THRESHOLD) {
 	    TIME(T3[0], gf2x_mul_tc3u(d, a, sa, b, t));
 	    checku(c, d, sa + sb);
 	}

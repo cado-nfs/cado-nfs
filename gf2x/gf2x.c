@@ -160,10 +160,10 @@ void gf2x_mul_r(unsigned long * c,
     if (sa == sb) {
         // Avoid copy in common case
         gf2x_mul_toom(dst, a, b, sa, pool->stk);
-    } else if ((sa == (sb + 1) / 2) && gf2x_best_utoom(sb)) {
-        // Another common case
-        // due to GCD algorithm
-        gf2x_mul_tc3u(dst, b, sb, a, pool->stk);
+//    } else if ((sa == (sb + 1) / 2) && gf2x_best_utoom(sb)) {
+//        // Another common case
+//        // due to GCD algorithm
+//        gf2x_mul_tc3u(dst, b, sb, a, pool->stk);
     } else {
         unsigned long *v = pool->stk + gf2x_toomspace(sa);
 
