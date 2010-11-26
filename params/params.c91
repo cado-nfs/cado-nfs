@@ -1,6 +1,7 @@
 ###########################################################################
 #     Parameter file for Cado-NFS
 ###########################################################################
+# See params/params.c91 for an example which contains some documentation.
 
 # Anything after a # is a comment, until end of line.
 # Any empty line is ignored
@@ -8,86 +9,193 @@
 #
 # Each parameter should be on an individual line, like
 #   param0=42.17
-#
+
+# This file is a sample parameter file for a 91-digit gnfs input
+
+# Some parameters apply to all steps of the algorithm (General parameters
+# below), and are related to the execution environment. Some other
+# parameters control the many different tunables of the execution fo the
+# algorithm. Such parameters are relevant to only one of the steps of NFS, and
+# are thus listed under the selection related to the corresponding
+# binary. Each of the section corresponding to one step in particular
+# also contains a couple of parameters relative to the execution
+# environment (for that step only).
 
 ###########################################################################
 # General parameters
 ###########################################################################
 
-# Sample parameter file for a 91-digit gnfs input
-# Example: cadofactor.pl wdir=... name=... n=...
+# General parameters are relevant to the cadofactor.pl script only.
 
+# This script may be used as: cadofactor.pl wdir=... name=... n=...
 
+# - location and name of files -
+    # All files created by cadofactor.pl will be put into <wdir> and its
+    # subdirectories.
 name=c91
+    # All files created by cadofactor will be prefixed by this name.
+    
+# - parallel computation -
 parallel=1              # do we use parallel computation?
-delay=60                # time in seconds between two checks
-
 machines=mach_desc      # file describing available computers for parallel
                         # computation
-
+    # The cadofactor.pl script has the ability to spawn jobs on many
+    # machines using ssh, in a master/slave manner. For this to work, a
+    # machines description file is mandatory.
+    # It is not mandatory for all the slave machines to be able to access
+    # the <wdir> directory. Rather, slave jobs put their temporary data
+    # in the <tmpdir> specified on a per-(group of)machine basis in the
+    # machines description file.
+    
 ###########################################################################
 # Polynomial selection with Kleinjung's algorithm
 ###########################################################################
 
+# - first step of polyselect: algebraic polynomial (f) -
 degree=4                # degree of the algebraic polynomial
-kjdelay=60              # time between two checks
-selectnice=4            # nice level for selection
-
-## Most important parameters of polyselect
 kjM=4e16                # maximum norm allowed
-kjl=5                   # minimal number of primes in lc(g)
+    # Setting a small norm is demanding more to the polynomial selection
+    # step. A excessively small value will discard all polynomials.
+    # Appropriate tuning of this maximum norm require some acquaintance
+    # with the polynomial selection algorithm. A rough way to choose a
+    # good maximum norm might be to try the polyselect code with large
+    # kjM at first, and lower the bound until the fraction of polynomials
+    # being checked is small enough.
 kjadmin=1               # min value for lc(f)
 kjadmax=2e5             # max value for lc(f)
 kjadrange=5e4           # individual tasks
-
-## Other parameters of polyselect
-kjkeep=100              # number of preselected polynomials
-kjkmax=18               # rotation is bounded by 2^kmax
+    # Polynomial selection is split into several individual tasks. The
+    # complete range from kjadmin to kjadmax has to be covered for the
+    # polynomial selection to complete. The number of individual tasks is
+    # obviously (kjadmax-kjadmin)/kjadrange
 kjincr=60               # forced divisor of lc(f)
-kjpb=512                # bound on primes allowed in lc(g)
+    # This factor is usually a smooth number, which forces roots in the
+    # algebraic polynomial. 60 is a good start, 210 is popular as well.
+    
+# - first step of polyselect: linear polynomial (g) -
+kjl=5                   # minimal number of primes in lc(g)
+    # the rational polynomial in Kleinjung's algorithm has the form
+    # g_1x-g_0, where g_1 is composite. This parameter fixes the maximum
+    # number of prime factors in g_1. This controls how many candidate
+    # polynomials are tested simultaneously (larger means more). This
+    # parameter affects the memory footprint of polyselect.
+    
+kjpb=512                # upper bound on primes allowed in lc(g)
 kjp0max=10000           # bound on the additional factor in lc(g)
+    # note that kjl and kjpb must be compatible. kjp0max refers to the
+    # ``P0 variation'' as referred to in the article describing
+    # Kleinjung's algorithm. (kjpb and kjp0max are parameters of
+    # secondary importance).
+
+# - second step of polyselect (rotation) -
+    # After a first selection step, the few best polynomials are kept and
+    # modified by a procedure called ``rotation'', in order to select the
+    # winning polynomial.
+kjkeep=100              # number of preselected polynomials
+    # Only the best <kjkeep> polynomials out of the first step (for each
+    # individual job) are kept.  The winning candidate it taken among
+    # these candidates
+kjkmax=18               # rotation is bounded by 2^kmax
+    # This controls the computational effort put into the rotation step.
+
+# - runtime environment parameters for polyselect -
+kjdelay=60              # time between two checks
+    # The existence of result files from polyselect jobs is checked at
+    # regular intervals. Tune this parameter to check more/less
+    # frequently.
+selectnice=4            # nice level for polyselect
+    # This sets the posix ``nice level'' for polyselect jobs. If you
+    # don't know what it is, you may leave as is, or set to 0.
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
 # (r,a) means rational or algebraic side
-# rlim/alim is the bound for sieving
-# lpbr/lpba is the (base 2 log of the) large prime bound
-# mfbr/mfba is the (base 2 log of the) limit for the cofactor we try to
-#                                      split into large primes.
-# rlambda/alambda is the early-abort ratio: if after sieving the
-#                                      approximate norm is more than
-#                                      lambda times lpb, we reject.
 rlim=200000
 alim=400000
+    # rlim/alim are the factor base bounds. The number of rational (resp.
+    # algebraic) primes is roughly rlim/log(rlim) (resp. alim/log(rlim))
 lpbr=24
 lpba=24
+    # lpbr/lpba is the (base 2 log of the) large prime bound
 mfbr=48
 mfba=48
+    # mfbr/mfba is the (base 2 log of the) limit for the cofactor we try
+    # to split into large primes.
 rlambda=2.1
 alambda=2.2
+    # rlambda/alambda is the early-abort ratio: if after sieving, and
+    # subtracting from the base 2 log of the norm the contribution of the
+    # sieved primes, the remaining approximate of the base 2 log of the
+    # norm is larger than lambda times lpb, we reject.
+    # Note that this has in particular the effect that if e.g. rlambda <
+    # some integer k+1, then at most k large primes are allowed on the
+    # rational side. It is customary, when at most k large primes are
+    # allowed, to set rlambda to e.g. k + 0.2, in order to compensate for
+    # inaccuracies due to sieving.
 
 I=11                    # Sieving range in lattice siever
+    # The lattice siever sieves over a range in the (i,j) plane which is
+    # 2^I times 2^(I-1), to put things simply (some rescaling may change
+    # this, but the size of the sieve area remains constant). Increasing
+    # I by 1 multiplies the amount of required RAM for the siever by a
+    # factor of 4.
+ratq=0
 qmin=400000             # Start of the special-q range
+    # The ratq parameters specifies whether or not the special q is to be
+    # taken on the rational side (ratq=1) or on the algebraic side
+    # (ratq=0).  qmin is usually above the corresponding factor base
+    # bound, but this is not a requirement.
+    # ratq should be set on the side where the largest norms are
+    # expected. As a very rough rule of thumb, this means ratq=0 for gnfs
+    # runs, and on some occasions ratq=1 for snfs runs.
+
 qrange=20000            # The size of an elementary sieving task
-checkrange=1            # We check if we have enough after each step
-                        # of that many relations found.
-sievenice=10            # nice level for the sieving jobs
+    # The sieving process is split into many individual tasks. This
+    # parameter controls the size of individual tasks.
+    
+checkrange=1
+    # Each time <checkrange> new files have been imported by
+    # cadofactor.pl, a test is done to see whether enough relations have
+    # been collected or not. It is usual to set it to 1 (= always do the
+    # check) for small factorizations, but obviously it would be
+    # counter-productive to do this check too often for large
+    # factorizations. Note that this check is performed on the host
+    # running the cadofactor.pl script, and does require a significant
+    # amount of RAM.
+ 
 sieve_max_threads=2
+    # The lattice siever program las may run in a multithreaded manner.
+    # This keeps the amount of memory used constant, and just runs
+    # faster.
+
+# - runtime environment -
+delay=60                # time in seconds between two checks
+    # The existence of result files from siever jobs is checked at
+    # regular intervals. Tune this parameter to check more/less
+    # frequently.
+sievenice=10            # nice level for the sieving jobs
+    # This sets the posix ``nice level'' for polyselect jobs. If you
+    # don't know what it is, you may leave as is, or set to 0.
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
 excesspurge=50000       # minimal excess we want before pruning
-excess=1                # minimal excess we want after purge
+    # This parameter also controls at which moment we choose to stop
+    # sieving before entering the filtering step.
+
+keep=160                # excess wanted after merge
+    # This will force the linear system to be solved to have exactly this
+    # dimension
+ 
 keeppurge=160           # maximal excess wanted after purge
                         # (purge shrinks if needed)
-keep=160                # excess wanted after merge
-maxlevel=15             # ???
-cwmax=100               # ???
-rwmax=100               # ???
+maxlevel=15             # perform up to <maxlevel>-way merges
+cwmax=100               # maximum column weight
+rwmax=100               # maximum row weight
 ratio=1.1               # ???
 bwstrat=1
 
@@ -95,11 +203,14 @@ bwstrat=1
 # Linear algebra
 ###########################################################################
 
+# - runtime environment -
+# cadofactor.pl supports only running the linear system solving on the
+# host running cadofactor.pl itself, using posix threads. More advanced
+# usage has to go by hand.
 bwmt=2x2                # Multithreading level of Block-Wiedemann ; Use
                         # <m>x<n> for bwc, or only one integer for bw.
                         # Note that this will be substituted with 1x1
                         # unless PTHREADS have been enabled.
-linalg=bwc              # Choose linalg algorithm
 bwc_interval=100        # checkpointing interval for bwc.
 
 ###########################################################################

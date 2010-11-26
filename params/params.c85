@@ -1,6 +1,7 @@
 ###########################################################################
 #     Parameter file for Cado-NFS
 ###########################################################################
+# See params/params.c91 for an example which contains some documentation.
 
 # Anything after a # is a comment, until end of line.
 # Any empty line is ignored
@@ -80,7 +81,6 @@ sieve_max_threads=2
 ###########################################################################
 
 excesspurge=20000       # minimal excess we want before pruning
-excess=1                # minimal excess wanted after purge
                         # (don't start merge otherwise)
 keeppurge=160           # maximal excess wanted after purge
                         # (purge shrinks if needed)
@@ -102,7 +102,6 @@ bwmt=2x2                # Multithreading level of Block-Wiedemann ; Use
                         # <m>x<n> for bwc, or only one integer for bw.
                         # Note that this will be substituted with 1x1
                         # unless PTHREADS have been enabled.
-linalg=bwc              # Choose linalg algorithm
 bwc_interval=100        # checkpointing interval for bwc.
 
 ###########################################################################
