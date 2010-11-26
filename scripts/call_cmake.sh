@@ -125,9 +125,9 @@ if ! [ "$cmake_path" ] ; then
             read INSTALL_CMAKE
         else
             echo "No input terminal, assuming yes"
-            INSTALL_CMAKE=yes
+            INSTALL_CMAKE=y
         fi
-        if [ ! $INSTALL_CMAKE = "y" ]; then
+        if [ ! "$INSTALL_CMAKE" = "y" ]; then
             echo "Please install a compatible version of Cmake."
             exit 1
         fi
