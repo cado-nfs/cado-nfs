@@ -72,22 +72,7 @@ If just the dimension of kernel is wanted, set ker=NULL.
 
 
 /* Look on which computer we are */
-#ifdef __alpha__
-#define MACHINE_WORD_SIZE (64)
-#define BYTE_PER_WORD (8)
-#else
-#ifdef __i386__
-#define MACHINE_WORD_SIZE (32)
-#define BYTE_PER_WORD (4)
-#else
-#ifdef __x86_64__
-#define MACHINE_WORD_SIZE (64)
-#define BYTE_PER_WORD (8)
-#else
-#error unknown cpu
-#endif
-#endif
-#endif
+#define MACHINE_WORD_SIZE GMP_LIMB_BITS
 
 /* If the flag below is set, the interface to kernel() changes slightly, as the
  * mp_limb_t ** ker argument is expected to hold space for pointers BUT

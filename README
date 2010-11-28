@@ -1,3 +1,13 @@
+Quick install:
+==============
+
+in most cases the following should work to factor the number 903...693
+using two cores:
+
+1) make
+2) ./factor.sh 90377629292003121684002147101760858109247336549001090677693 -t 2
+
+More details follow.
 
 Supported platforms:
 ====================
@@ -22,7 +32,7 @@ Required software tools:
 
 *) GMP (http://gmplib.org): usually installed in most Linux distributions
 *) The GCC compiler works ; some others might, but it is untested. C and
-   C++ are required.
+   C++ are required, with C99 support.
 *) GNU make and CMake for building (CMake is installed on the fly if missing
    (requires an Internet connection))
 *) Support for posix threads.
@@ -37,14 +47,15 @@ Optionally:
 Configure
 =========
 
-if your site needs tweaks, set such tweaks using environment variables,
+Normally you have nothing to do to configure cado-nfs.
+
+However if your site needs tweaks, set such tweaks using environment variables,
 or via the shell script local.sh ; you may start with
 
 cp local.sh.example local.sh
 
-Edit according to your local settings and your taste. local.sh.example
-gives documentation on the recognized environment variables and their
-effect.
+Edit according to your local settings and your taste: local.sh.example
+gives documentation on the recognized environment variables and their effect.
 
 Note that tweaks in local.sh are global (relevant to all sub-directories
 of the cado-nfs tree, not to a particular directory).
@@ -73,6 +84,11 @@ cores to use on the current machine (for sieving and linear algebra).
 If the number of cores is strictly greater than 2, it is more efficient
 to use ssh to distribute the polynomial selection and sieve on localhost.
 To configure ssh, see the next section.
+
+Note: you might add the -v option at the end of the command line, to see more
+details about the different stages of the factorization:
+
+./factor.sh 90377629292003121684002147101760858109247336549001090677693 -t 2 -v
 
 For a larger factorization (distributed on several machines),
 please use directly the main script cadofactor.pl (doc included in the script).

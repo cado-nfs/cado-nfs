@@ -70,6 +70,10 @@ my $assume_yes = 0;
 # Whether to replace ``remote'' accesses to localhost by localhost.
 my $elide_localhost = 0;
 
+my $ssh = 'ssh';
+if (exists($ENV{'OAR_JOBID'})) { $ssh="/usr/bin/oarsh"; }
+if (exists $ENV{'SSH'}) { $ssh=$ENV{'SSH'}; }
+
 # Pads a string with spaces to match the speficied width
 sub pad {
     my $str = "" . shift;
@@ -443,30 +447,20 @@ sub read_machines {
     close FILE;
 
     if ( $param{'mpi'} ) {
-            chop $param{'hosts'};
-            open FILE, "< $param{'bindir'}/linalg/bwc/bwc.pl"
-                    or die "Cannot open `$param{'bindir'}/linalg/bwc/bwc.pl' for reading: $!.\n";
-            while (<FILE>) {
-                    next unless /^my \$mpiexec='';$/;
-                    die "CADO-NFS has not been compiled with MPI flag.\n".
-                    "Please add the path of the MPI library in the file local.sh ".
-                    "(for example: MPI=/usr/lib64/openmpi) and recompile.\n";
-            } 
-            close FILE;
-    } else {
-            if (exists($ENV{'OAR_JOBID'}) &&
-               cmd("uniq $ENV{'OAR_NODEFILE'} | wc -l")->{'out'} > 1) {
-                    open FILE, "> $param{'machines'}.tmp"
-                            or die "Cannot open `$param{'machines'}.tmp' for writing: $!.\n";
-                    print FILE "tmpdir=$vars{'tmpdir'}\n";
-                    print FILE "bindir=$param{'bindir'}\n";
-                    print FILE "mpi=1\n";
-                    close FILE;
-                    cmd( "uniq $ENV{'OAR_NODEFILE'} >> $param{'machines'}.tmp" );
-                    read_machines( "$param{'machines'}.tmp" );
-            }
-            # TODO: Support other scheduling environments.
+        chop $param{'hosts'};
+        open FILE, "< $param{'bindir'}/linalg/bwc/bwc.pl"
+                or die "Cannot open `$param{'bindir'}/linalg/bwc/bwc.pl' for reading: $!.\n";
+        while (<FILE>) {
+                next unless /^my \$mpiexec='';$/;
+                die "CADO-NFS has not been compiled with MPI flag.\n".
+                "Please add the path of the MPI library in the file local.sh ".
+                "(for example: MPI=/usr/lib64/openmpi) and recompile.\n";
+        } 
+        close FILE;
     }
+    # We used to reconstruct a mach_desc file here based on e.g.
+    # OAR_NODEFILE. This is fragile. We prefer to keep this out of the
+    # job of cadofactor.
 }
 
 
@@ -614,12 +608,8 @@ sub remote_cmd {
     # don't ask for a password: we don't want to fall into interactive mode
     # all the time (especially not in the middle of the night!)
     # use public-key authentification instead!
-    my $rsh = 'ssh';
-    if (exists($ENV{'OAR_JOBID'})) {
-        $rsh="/usr/bin/oarsh";
-    }
 
-    $cmd = "env $rsh -q ".
+    $cmd = "env $ssh -q ".
            "-o ConnectTimeout=$opt->{'timeout'} ".
            "-o ServerAliveInterval=".int($opt->{'timeout'}/3)." ".
            "-o PasswordAuthentication=no ".
@@ -815,7 +805,7 @@ sub send_file {
 
     # Try to upload the file
     $ret = remote_cmd($host, "env mkdir -p $m->{'tmpdir'} 2>&1");
-    $ret = cmd("env rsync --timeout=30 $param{'wdir'}/$file ".
+    $ret = cmd("env rsync -e $ssh --timeout=30 $param{'wdir'}/$file ".
                "$host:$m->{'tmpdir'}/ 2>&1", { cmdlog => 1 })
         unless $ret->{'status'};
 
@@ -834,7 +824,7 @@ sub send_file {
 sub get_job_output {
     my ($job, $keep) = (@_);
 
-    my $ret = cmd("env rsync --timeout=30 $job->{'host'}:$job->{'file'} ".
+    my $ret = cmd("env rsync -e $ssh --timeout=30 $job->{'host'}:$job->{'file'} ".
                   "$param{'wdir'}/ 2>&1", { cmdlog => 1 });
     my $status = 1;
     if ($ret->{'status'}) {

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <stddef.h>
 #include <signal.h>
 #include <string.h>
 #include <math.h>

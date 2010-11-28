@@ -21,6 +21,7 @@
 #ifndef GF2X_IMPL_H_
 #define GF2X_IMPL_H_
 
+#include "macros.h"
 #include "gf2x.h"
 #include "gf2x/gf2x-config.h"
 #include "gf2x/gf2x-thresholds.h"
@@ -35,14 +36,6 @@
 
 #ifndef GF2X_WORDSIZE
 #define GF2X_WORDSIZE  (8 * SIZEOF_UNSIGNED_LONG)
-#endif
-
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
 #endif
 
 /* These flags are for internal use */

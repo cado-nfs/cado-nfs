@@ -22,6 +22,7 @@
 #include <stdio.h>
 #endif
 #include <limits.h>
+#include "macros.h"
 #include "ularith.h"
 
 #ifndef ASSERT
@@ -38,13 +39,6 @@
 
 /*********************************************************************/
 /* Helper macros */
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
-#endif
 
 /* A macro for function renaming. All functions here start with 
    modredc2ul2_ */

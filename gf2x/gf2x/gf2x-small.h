@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009
+   Copyright 2007, 2008, 2009, 2010
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -23,20 +23,13 @@
 #ifndef GF2X_SMALL_H_
 #define GF2X_SMALL_H_
 
+#include "macros.h"
 #include "gf2x.h"
 
 #include "gf2x/gf2x-thresholds.h"
 
 /* functions here will end up as static functions, therefore we prefer to
  * avoid the warning relative to the fact that they are unused. */
-
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
-#endif
 
 #ifdef __cplusplus
 extern "C" {

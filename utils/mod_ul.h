@@ -15,6 +15,7 @@
 /**********************************************************************/
 #include <assert.h>
 #include <limits.h>
+#include "macros.h"
 #include "ularith.h"
 
 #ifndef ASSERT
@@ -30,14 +31,7 @@
 #endif
 
 /*********************************************************************/
-/* Helper macros */
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
-#endif
+/* Helper macros, see also ularith.h */
 
 /* A macro for function renaming. All functions here start with modul_ */
 #define MODUL_RENAME(x) modul_##x
@@ -596,26 +590,31 @@ modul_addredcsemi_ul (residueul_t r, const residueul_t a,
                       const modulusul_t m)
 {
   unsigned long slow, shigh, tlow;
-  unsigned char sb;
   
   ASSERT_EXPENSIVE(a[0] <= m[0]);
   slow = b;
 #if defined(__x86_64__) && defined(__GNUC__)
-   __asm__ ( "addq %2, %0\n\t" /* cy * 2^w + slow = a + b */
-            "setne %1\n\t"     /* if (slow != 0) sb = 1 */
-            "adcb $0, %1\n"    /* sb += cy */
-            : "+&r" (slow), "=qm" (sb)
-            : "rm" (a[0])
-            : "cc");
-  shigh = sb;
+  {
+    unsigned char sb;
+    __asm__ ( "addq %2, %0\n\t" /* cy * 2^w + slow = a + b */
+	      "setne %1\n\t"     /* if (slow != 0) sb = 1 */
+	      "adcb $0, %1\n"    /* sb += cy */
+	      : "+&r" (slow), "=qm" (sb)
+	      : "rm" (a[0])
+	      : "cc");
+    shigh = sb;
+  }
 #elif defined(__i386__) && defined(__GNUC__)
-   __asm__ ( "addl %2, %0\n\t"
-            "setne %1\n\t"
-            "adcb $0, %1\n"
-            : "+&r" (slow), "=qm" (sb)
-            : "rm" (a[0])
-            : "cc");
-  shigh = sb;
+  {
+    unsigned char sb;
+    __asm__ ( "addl %2, %0\n\t"
+	      "setne %1\n\t"
+	      "adcb $0, %1\n"
+	      : "+&r" (slow), "=qm" (sb)
+	      : "rm" (a[0])
+	      : "cc");
+    shigh = sb;
+  }
 #else
   shigh = 0UL;
   ularith_add_ul_2ul (&slow, &shigh, a[0]);

@@ -8,7 +8,7 @@
 #include "macros.h"
 
 /* This is by increasing order of priority */
-enum parameter_origin { PARAMETER_FROM_FILE, PARAMETER_FROM_CMDLINE, };
+enum parameter_origin { PARAMETER_FROM_FILE, PARAMETER_FROM_CMDLINE };
 
 struct parameter_s {
     char * key;

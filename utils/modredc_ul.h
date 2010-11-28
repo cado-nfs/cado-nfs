@@ -15,6 +15,7 @@
 /**********************************************************************/
 #include <assert.h>
 #include <limits.h>
+#include "macros.h"
 #include "ularith.h"
 
 #ifndef ASSERT
@@ -31,13 +32,6 @@
 
 /*********************************************************************/
 /* Helper macros */
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
-#endif
 
 /* A macro for function renaming. All functions here start with modul_ */
 #define MODREDCUL_RENAME(x) modredcul_##x
@@ -594,12 +588,12 @@ modredcul_sub (residueredcul_t r, const residueredcul_t a,
   /* Seems to be faster than the one below */
   {
     unsigned long t = 0UL, tr;
-    if ((tr = a[0] - b[n]) > a[0])
-      t = m;
+    if ((tr = a[0] - b[0]) > a[0])
+      t = m[0].m;
     r[0] = tr + t;
   }
 #else
-  r[0] = (a[0] < b[0]) ? (a[0] - b[0] + m[0]) : (a[0] - b[0]);
+  r[0] = (a[0] < b[0]) ? (a[0] - b[0] + m[0].m) : (a[0] - b[0]);
 #endif
 
 #ifdef MODTRACE

@@ -142,7 +142,7 @@ static void mul_o64_T6464(uint64_t * w, uint64_t a, mat64_srcptr b);
 
 
 /* level 1 */
-
+#ifdef  HAVE_SSE2
 static inline void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
 {
     int i;
@@ -174,6 +174,7 @@ static inline void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B
 	*Cw++ = c;
     }
 }
+#endif
 
 static inline void mul_6464_6464_v2(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
 {
@@ -227,7 +228,7 @@ static inline void addmul_To64_o64_lsb_sse_v0(uint64_t * r, uint64_t a, uint64_t
 	a >>= 2;
     }
 }
-
+#ifdef  HAVE_SSE2
 static inline void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)
 {
     /* Avec des sse-2 */
@@ -243,6 +244,7 @@ static inline void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t
 	a >>= 2;
     }
 }
+#endif
 
 static inline void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64_srcptr w)
 {
@@ -774,7 +776,7 @@ static inline void mul_N64_T6464_transB(uint64_t *C,
     free(tb);
 }
 
-
+#ifdef  HAVE_SSE2
 static inline void mul_N64_6464_sse(uint64_t *C,
 		 const uint64_t *A,
 		 const uint64_t *B, unsigned long m)
@@ -812,6 +814,7 @@ static inline void mul_N64_6464_sse(uint64_t *C,
 	*C++ = c;
     }
 }
+#endif
 
 static inline void mul_64N_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, unsigned long n)
 {
@@ -854,6 +857,54 @@ static inline void mul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsi
     }
 }
 
+#ifdef  HAVE_SSE2
+static inline void mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, unsigned int n, unsigned int K)
+{
+    memset(w, 0, 64 * K * sizeof(uint64_t));
+    for(unsigned int i = 0 ; i < n ; i++) {
+        __v2di * w0 = (__v2di*) w;
+        // TODO: It's possible to expand more, and use a __v2di
+        // mb[4][2], or even [4]. This wouldn't change the code much
+        // (see the u128 version), and is likely to speed things up a
+        // wee bit maybe.
+        __v2di mb[4] = {
+            (__v2di) {0, 0},
+            (__v2di) {*v, 0},
+            (__v2di) {0, *v},
+            (__v2di) {*v, *v},
+        };
+        v++;
+        __v2di *sw = w0;
+        for(unsigned int k = 0 ; k < K ; k++) {
+            uint64_t a = *u++;
+            for (unsigned int j = 0; j < 64; j += 2) {
+                *sw ^= mb[a & 3];
+                a >>= 2;
+                sw ++;
+            }
+        }
+    }
+}
+#endif
+
+static inline void mul_TN64K_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K)
+{
+    uint64_t idx, i, rA;
+    uint64_t rx;
+
+    memset(b, 0, 64 * K * sizeof(uint64_t));
+    for(idx = 0; idx < ncol; idx++) {
+        rx = x[idx];
+        uint64_t* pb = b;
+        for(unsigned int j = 0 ; j < K ; j++) {
+            rA = *A++;
+            for(i = 0; i < 64; i++) {
+                *pb++ ^= rx & -(rA & 1);
+                rA >>= 1;
+            }
+        }
+    }
+}
 #if 0   /* haven't checked yet what the funny-named functions actually do... *//*{{{*/
 static inline void TVUBit_v2(unsigned long m,
 	       unsigned long n,
@@ -1832,7 +1883,7 @@ void mat64_copy(mat64_ptr b, mat64_srcptr a)
     memcpy(b,a,sizeof(mat64));
 }
 
-
+/* {{{ PLUQ stuff */
 int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
 {
     const int m = 64;
@@ -2139,6 +2190,7 @@ void check_pluq(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m, int n)
         ASSERT_ALWAYS(mat64_is_uppertriangular(puq[i*(n/64)+i]));
     }
 }
+/* }}} */
 
 void level3_gauss_tests_N(int n __attribute__((unused)))
 {
@@ -2191,7 +2243,7 @@ int main()
         free(r);
     }
 
-    if (0) {
+    if (1) {
         uint64_t * r = (uint64_t *) malloc(64 * sizeof(uint64_t));
         uint64_t * a = (uint64_t *) malloc(n * sizeof(uint64_t));
         uint64_t * w = (uint64_t *) malloc(n * sizeof(uint64_t));

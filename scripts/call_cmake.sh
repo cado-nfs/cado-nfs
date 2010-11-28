@@ -111,7 +111,7 @@ elif ! [[ "`$cmake_path --version`" =~ ^cmake\ version\ 2.[678] ]] ; then
     echo "CMake found, but not with version 2.6 or 2.7 or 2.8" >&2
     cmake_path=
 elif [[ "`$cmake_path --version`" =~ ^cmake\ version\ 2.6-patch\ [012] ]] ; then
-    echo "CMake found, but not with early, buggy 2.6 version" >&2
+    echo "CMake found, but with early, buggy 2.6 version" >&2
     cmake_path=
 fi
 if ! [ "$cmake_path" ] ; then

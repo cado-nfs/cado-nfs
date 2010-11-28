@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "macros.h"
+#include "gmp.h" /* for GMP_LIMB_BITS */
 
 #ifdef __cplusplus
 extern "C" {

@@ -13,6 +13,8 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <gmp.h>
+#include "macros.h"
 
 /* <limits.h> defines LONG_BIT only with _XOPEN_SOURCE defined, but if 
    another header (such as <stdio.h>) already included <features.h> before 
@@ -45,14 +47,6 @@
 #define ASSERT_EXPENSIVE(x) ASSERT(x)
 #else
 #define ASSERT_EXPENSIVE(x)
-#endif
-
-#ifndef	MAYBE_UNUSED
-#if defined(__GNUC__)
-#define MAYBE_UNUSED __attribute__ ((unused))
-#else
-#define MAYBE_UNUSED
-#endif
 #endif
 
 /* On 32 bit x86, the general constrains for, e.g., the source operand
@@ -436,7 +430,10 @@ ularith_div_2ul_ul_ul (unsigned long *q, unsigned long *r,
             : "0" (a1), "1" (a2), "rm" (b)
             : "cc");
 #else
-  abort ();
+  mp_limb_t A[2] = {a1, a2};
+  ASSERT(sizeof(unsigned long) == sizeof(mp_limb_t));
+  r[0] = mpn_divmod_1 (A, A, 2, b);
+  q[0] = A[0];
 #endif
 }
 
@@ -464,7 +461,9 @@ ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
             : "1" (a2), "rm" (b)
             : "cc");
 #else
-  abort ();
+  mp_limb_t A[2] = {a1, a2};
+  ASSERT(sizeof(unsigned long) == sizeof(mp_limb_t));
+  r[0] = mpn_divmod_1 (A, A, 2, b);
 #endif
 }
 

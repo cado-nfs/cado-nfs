@@ -1,7 +1,11 @@
 #ifndef ABASE_BINARY_DOTPROD_BACKENDS_H_
 #define ABASE_BINARY_DOTPROD_BACKENDS_H_
 
+/* TODO: there's some duplicated code between here and matops.c */
+
 #ifdef  need_dotprod_64K_64
+
+#ifdef  HAVE_SSE2
 #include <emmintrin.h>
 /* u has n rows of 64K bits
  * v has n rows of 64 bits.
@@ -39,9 +43,32 @@ static inline void dotprod_64K_64(
         }
     }
 }
+#else
+static inline void dotprod_64K_64(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
+{
+    uint64_t idx, i, rA;
+    uint64_t rx;
+
+    /* This has been tested once, seems to work ok */
+
+    memset(b, 0, 64 * K * sizeof(uint64_t));
+    for(idx = 0; idx < ncol; idx++) {
+        rx = x[idx];
+        uint64_t* pb = b;
+        for(unsigned int j = 0 ; j < K ; j++) {
+            rA = *A++;
+            for(i = 0; i < 64; i++) {
+                *pb++ ^= rx & -(rA & 1);
+                rA >>= 1;
+            }
+        }
+    }
+}
+#endif
 #endif
 
 #ifdef  need_dotprod_64K_128
+#ifdef HAVE_SSE2
 /* u has n rows of 64K bits
  * v has n rows of 128 bits.
  * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 128 bits.
@@ -82,6 +109,30 @@ static inline void dotprod_64K_128(
         }
     }
 }
+#else
+static inline void dotprod_64K_128(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
+{
+    uint64_t idx, i, rA;
+    uint64_t rx[2];
+
+    abort();    // untested.
+
+    memset(b, 0, 64 * K * sizeof(uint64_t));
+    for(idx = 0; idx < ncol; idx++) {
+        rx[0] = *x++;
+        rx[1] = *x++;
+        uint64_t* pb = b;
+        for(unsigned int j = 0 ; j < K ; j++) {
+            rA = *A++;
+            for(i = 0; i < 64; i++) {
+                *pb++ ^= rx[0] & -(rA & 1);
+                *pb++ ^= rx[1] & -(rA & 1);
+                rA >>= 1;
+            }
+        }
+    }
+}
+#endif
 #endif
 
 #ifdef  need_dotprod_64K_64L
@@ -127,6 +178,7 @@ static void dotprod_64K_64L(
 /* multiply the n times 64K-bit vector u by the 64K by
  * 64L matrix v -- n must be even. Result is put in w.
  */
+#ifdef HAVE_SSE2
 #include <emmintrin.h>
 static inline void vaddmul_tiny_64K_64L(
             uint64_t * w,
@@ -168,6 +220,41 @@ static inline void vaddmul_tiny_64K_64L(
         w0 += 2 * L; w1 += 2 * L;
     }
 }
+#else   /* HAVE_SSE2 */
+static inline void vaddmul_tiny_64K_64L(
+            uint64_t * w,
+            const uint64_t * u,
+            const uint64_t * v,
+            unsigned int n,
+            unsigned int K,
+            unsigned int L)
+{
+    /* This is just a direct translation of the sse version. Has been
+     * tested once. */
+    uint64_t * u0 = (uint64_t *) u;
+    uint64_t * w0 = (uint64_t *) w;
+    for (unsigned int j = 0; j < n; j ++ ) {
+        const uint64_t * v0 = v;
+        for(unsigned int l = 0 ; l < L ; l++) {
+            uint64_t rx = 0;
+            const uint64_t * vv = v0;
+            for(unsigned int k = 0 ; k < K ; k++) {
+                uint64_t a = u0[k];
+                for (unsigned int i = 0; i < 64; i++) {
+                    rx ^= (*vv & -(a & (uint64_t) 1));
+                    a >>= 1;
+                    vv += L;
+                }
+            }
+            /* Because L > 1, the destination words are not contiguous */
+            w0[l] ^= rx;
+            v0++; /* next column in v */
+        }
+        u0 += K;
+        w0 += L;
+    }
+}
+#endif
 #endif
 
 #ifdef need_vtranspose_64K_64L

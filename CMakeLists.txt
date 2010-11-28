@@ -2,7 +2,7 @@
 project(CADO_NFS)
 
 # May be overridden by environment.
-set(CADO_VERSION "1.0-rc1")
+set(CADO_VERSION "1.0-rc3")
 
 #####################################################################
 # cmake version -- set_property requires 2.6. Note that haters of progress

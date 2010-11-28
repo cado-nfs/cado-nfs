@@ -84,11 +84,31 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define iceildiv(x,y)	(((x)+(y)-1)/(y))
 #endif
 
+#define LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
+#define LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && LEXGE2(Y,Z,B,C)))
+#define LEXLE2(X,Y,A,B) LEXGE2(A,B,X,Y)
+#define LEXLE3(X,Y,Z,A,B,C) LEXGE3(A,B,C,X,Y,Z)
+
+#define GNUC_VERSION(X,Y,Z)     \
+    defined(__GNUC__) &&        \
+(__GNUC__ == X && __GNUC_MINOR__ == Y && __GNUC_PATCHLEVEL__ == Z)
+#define GNUC_VERSION_ATLEAST(X,Y,Z)     \
+    defined(__GNUC__) &&        \
+LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+#define GNUC_VERSION_ATMOST(X,Y,Z)     \
+    defined(__GNUC__) &&        \
+LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+
+#ifndef MAYBE_UNUSED
+#if GNUC_VERSION_ATLEAST(3,4,0)
+#define MAYBE_UNUSED __attribute__ ((unused))
+#else
+#define MAYBE_UNUSED
+#endif
+#endif
+
 #if defined(__GNUC__)
 
-#ifndef	MAYBE_UNUSED
-#define MAYBE_UNUSED __attribute__ ((unused))
-#endif
 #ifndef NO_INLINE
 #define NO_INLINE __attribute__ ((noinline))
 #endif
@@ -102,9 +122,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define ATTR_PRINTF(a,b) __attribute__((format(printf,a,b)))
 #endif
 #else
-#ifndef	MAYBE_UNUSED
-#define MAYBE_UNUSED
-#endif
 #ifndef NO_INLINE
 #define NO_INLINE
 #endif
@@ -125,21 +142,5 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef	UNLIKELY
 #define UNLIKELY(x)	EXPECT(x,0)
 #endif
-
-#define LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
-#define LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && LEXGE2(Y,Z,B,C)))
-#define LEXLE2(X,Y,A,B) LEXGE2(A,B,X,Y)
-#define LEXLE3(X,Y,Z,A,B,C) LEXGE3(A,B,C,X,Y,Z)
-
-#define GNUC_VERSION(X,Y,Z)     \
-    defined(__GNUC__) &&        \
-(__GNUC__ == X && __GNUC_MINOR__ == Y && __GNUC_PATCHLEVEL__ == Z)
-#define GNUC_VERSION_ATLEAST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
-LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
-#define GNUC_VERSION_ATMOST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
-LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
-
 
 #endif	/* CADO_MACROS_H_ */
