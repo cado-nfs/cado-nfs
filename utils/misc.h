@@ -2,8 +2,9 @@
 #define CADO_UTILS_MISC_H_
 
 #include <stddef.h>
+#include <limits.h>
 #include "macros.h"
-#include "gmp.h" /* for GMP_LIMB_BITS */
+#include <gmp.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,8 +35,8 @@ next_multiple_of_powerof2(unsigned long n, unsigned long k)
     ASSERT((k & (k-1)) == 0);
     return ((n-1)|(k-1)) + 1;
 }
-/* those builtins seem to have appeared in 3.4 (april 2004) */
-#if defined(__GNUC__) && (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
+/* those builtins seem to have appeared in 3.4 (April 2004) */
+#if GNUC_VERSION_ATLEAST(3,4,0)
 #define clzl(x)         __builtin_clzl(x)
 #define ctzl(x)         __builtin_ctzl(x)
 #else
@@ -55,9 +56,14 @@ static inline int clzl(unsigned long x)
         res = GMP_LIMB_BITS - 2 - a + t[x];
         return res;
 }
+
+/* the following code is correct because if x = 0...0abc10...0, then
+   -x = ~x + 1, where ~x = 1...1(1-a)(1-b)(1-c)01...1, thus
+   -x = 1...1(1-a)(1-b)(1-c)10...0, and x & (-x) = 0...000010...0 */
 static inline int ctzl(unsigned long x)
 {
-	return GMP_LIMB_BITS - clzl(x & - x);
+  ASSERT(GMP_LIMB_BITS == sizeof(unsigned long) * CHAR_BIT);
+  return (GMP_LIMB_BITS - 1) - clzl(x & - x);
 }
 #endif
 

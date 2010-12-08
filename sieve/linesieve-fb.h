@@ -10,7 +10,6 @@
 #define LINESIEVE_FB_H
 
 #include <stdio.h>
-#include "cado.h"
 #include "cado_poly.h"
 #include "fb.h"
 
@@ -57,5 +56,12 @@ void 		fb_extract_small (factorbase_t, const unsigned int, const int,
                                   const int);
 int             fb_check (factorbase_t, cado_poly, int);
 void            fb_clear (factorbase_t);
+
+/* Number of blocking levels for small factor base primes, should
+   correspond to cache levels. Sieving will be done in SIEVE_BLOCKING + 1
+   passes: SIEVE_BLOCKING passes updating directly, and one pass with
+   bucket sorting. Bucket sorting not implemented atm. */
+#define SIEVE_BLOCKING 2
+static const unsigned long CACHESIZES[SIEVE_BLOCKING] = {32768, 1048576};
 
 #endif  /* LINESIEVE_FB_H */

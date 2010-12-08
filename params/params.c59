@@ -73,6 +73,7 @@ alambda=1.2
 I=11                    # Sieving range in lattice siever
 qmin=200000             # Start of the special-q range
 qrange=2000             # The size of an elementary sieving task
+firstcheck=200000       # We start to do filtering after that many relations
 checkrange=50000        # We check if we have enough after each step
                         # of that many relations found.
 sievenice=10            # nice level for the sieving jobs

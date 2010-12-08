@@ -1,7 +1,7 @@
 /* arithmetic on polynomials over Z/pZ, with coefficients represented by
    the same type as in mod_ul.[ch] ; most presumably an unsigned long */
 
-#define _XOPEN_SOURCE   /* lrand48 and friends */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "mod_ul.h"

@@ -1,6 +1,4 @@
-#define __STDC_CONSTANT_MACROS	/* be nice with C++ compilers */
-#define __STDC_FORMAT_MACROS	/* be nice with C++ compilers */
-
+#include "cado.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

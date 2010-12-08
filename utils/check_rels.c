@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 2  /* popen/pclose with -std=c99, -pedantic or -ansi */
+#include "cado.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -7,7 +7,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <gmp.h>
-#include "cado.h"
 #include "utils.h"
 
 void norm(mpz_t *f, int deg, mpz_t r, long a, unsigned long b)

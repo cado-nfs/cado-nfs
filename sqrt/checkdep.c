@@ -1,8 +1,9 @@
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
 #include <string.h>
-#include "cado.h"
+#include "macros.h"
 
 static void
 printVec (int *vec, int ncols)

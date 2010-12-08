@@ -82,8 +82,17 @@ m: 29506931142426628023257550385021294340054764681825893027768721114850381094216
 
 */
 
-
+#include "cado.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "utils.h"
+#include "auxiliary.h"
+#include "murphyE.h"
+#include "rho.h"
 #include "rootsieve5.h"
+
 #define MAX_LINE_LENGTH 4096
 #define PI 3.14159265358979324
 #define MAX_DEGREE 6

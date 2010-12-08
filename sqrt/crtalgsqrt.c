@@ -1,5 +1,3 @@
-#define _BSD_SOURCE     /* M_LN2 */
-#define _POSIX_C_SOURCE 200112L
 /*
  * Program: crtalgsqrt
  * Authors: E. Thomé.
@@ -44,6 +42,7 @@
  *   valgrind. I don't understand.
  */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +60,6 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#include "cado.h"
 #include "utils.h"
 #include "modul_poly.h"
 #include "powers_of_p.h"
@@ -2029,8 +2027,8 @@ void crtalgsqrt_knapsack_prepare(struct crtalgsqrt_knapsack * cks, size_t lc_exp
     unsigned int nelems = cks->ks->nelems = glob.m * glob.n;
     unsigned int k1 = nelems / 2;
     unsigned int k2 = nelems - k1;
-    uint64_t n1 = (1UL << k1);
-    uint64_t n2 = (1UL << k2);
+    uint64_t n1 = UINT64_C(1) << k1;
+    uint64_t n2 = UINT64_C(1) << k2;
     char buf[16];
 
     fprintf(stderr,

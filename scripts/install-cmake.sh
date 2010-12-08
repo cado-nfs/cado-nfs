@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This installs cmake if it is not found in the current system
 
 name=cmake
-version=2.6.3
+version=2.8.3
 package=${name}-${version}.tar.gz
-url=http://www.cmake.org/files/v2.6/${package}
+url=http://www.cmake.org/files/v2.8/${package}
 
 prefix="$1"
 shift

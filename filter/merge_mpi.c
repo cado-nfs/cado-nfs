@@ -2,7 +2,7 @@
   MPI section
  */
 
-#define _BSD_SOURCE // to have gethostname... [thanks to ET]
+#include "cado.h"
 
 #include <stdio.h>
 #include <stdlib.h>

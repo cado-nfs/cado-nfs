@@ -1,7 +1,7 @@
+#include "cado.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "cado.h"
 #include "params.h"
 #include "cado_poly.h"
 

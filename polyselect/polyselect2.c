@@ -822,7 +822,7 @@ one_thread (void* args)
   tab_t *tab = (tab_t*) args;
 
   newAlgo (tab[0]->N, tab[0]->d, tab[0]->ad);
-  pthread_exit (NULL);
+  return NULL;
 }
 
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */

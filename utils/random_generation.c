@@ -1,4 +1,4 @@
-#define _BSD_SOURCE     /* For random() */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

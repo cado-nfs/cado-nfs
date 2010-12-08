@@ -25,12 +25,12 @@
    Prime Numbers, A Computational Perspective, Sections 6.2.4, 6.2.5, 6.2.6]
  */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <gmp.h>
 #include <math.h> /* for log */
-#include "cado.h"
 #include "utils.h"
 
 /* Although the functions in plain_poly are not readily available in the

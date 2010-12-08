@@ -10,9 +10,8 @@
    function (add, mul, etc), and possibly underscore and specification of 
    what argument types the function takes (_ul, etc). */
 
-#ifndef __MODREDC_15UL_H
-
-#define __MODREDC_15UL_H
+#ifndef MODREDC_15UL_H
+#define MODREDC_15UL_H
 
 /**********************************************************************/
 #include <assert.h>
@@ -1147,4 +1146,4 @@ int modredc15ul_isprime (const modulusredc15ul_t);
 int modredc15ul_inv (residueredc15ul_t, const residueredc15ul_t, 
 		     const modulusredc15ul_t);
 int modredc15ul_jacobi (const residueredc15ul_t, const modulusredc15ul_t);
-#endif
+#endif  /* MODREDC_15UL_H */

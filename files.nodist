@@ -50,7 +50,6 @@ scripts/cpu_time.sh
 scripts/check_file_lists.pl
 scripts/dist.sh
 sieve/CMakeLists-nodist.txt
-sieve/README.sieve
 sieve/ecm/CMakeLists-nodist.txt
 sieve/linesieve.c
 sieve/linesieve.h
@@ -88,7 +87,6 @@ filter/CMakeLists-nodist.txt
 filter/refresh-purged.c
 params/params.dl30
 params/params.rsa100
-params/README.params
 params/rsa155.poly
 params/rsa155.poly2
 params/rsa155.poly3
@@ -96,3 +94,5 @@ params/rsa155.poly4
 params/rsa180.poly
 params/rsa190.poly
 params/mach_desc.rsa100
+scripts/check_all_gcc.sh
+scripts/gcc-script.sh

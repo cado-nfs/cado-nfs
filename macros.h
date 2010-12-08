@@ -101,6 +101,13 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 
 #ifndef MAYBE_UNUSED
 #if GNUC_VERSION_ATLEAST(3,4,0)
+/* according to
+ * http://gcc.gnu.org/onlinedocs/gcc-3.1.1/gcc/Variable-Attributes.html#Variable%20Attributes
+ * the 'unused' attribute already existed in 3.1.1 ; however the rules
+ * for its usage remained quirky until 3.4.0, so we prefer to stick to
+ * the more modern way of using the unused attribute, and recommend
+ * setting the -Wno-unused flag for pre-3.4 versions of gcc
+ */
 #define MAYBE_UNUSED __attribute__ ((unused))
 #else
 #define MAYBE_UNUSED

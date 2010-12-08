@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L /* pclose */
+#include "cado.h"
 #include <string.h>
 #include <errno.h>
 #include "purgedfile.h"

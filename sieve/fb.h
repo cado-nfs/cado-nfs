@@ -6,7 +6,7 @@
 #define FB_H
 
 #include <stdio.h>
-#include "cado.h"
+#include <gmp.h>
 
 /* Data types */
 

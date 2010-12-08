@@ -1,5 +1,5 @@
-#ifndef __FACUL_DOIT_H
-#define __FACUL_DOIT_H
+#ifndef FACUL_DOIT_H
+#define FACUL_DOIT_H
 
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
@@ -16,4 +16,4 @@ int facul_doit_15ul (unsigned long *, const modulusredc15ul_t,
 int facul_doit_2ul2 (unsigned long *, const modulusredc2ul2_t, 
 		     const facul_strategy_t *, const int);
 
-#endif
+#endif /* FACUL_DOIT_H */

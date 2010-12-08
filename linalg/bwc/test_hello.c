@@ -1,6 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE
-
+#include "cado.h"
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>

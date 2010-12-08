@@ -422,14 +422,17 @@ sub read_machines {
 					if !$desc{$k};
             }
             $desc{'tmpdir'} =~ s/%s/$param{'name'}/g;
+            die "the directory tmpdir=$desc{'tmpdir'} or bindir=$desc{'bindir'} don't exist on $host.\n"
+            if ( remote_cmd($host, "env test -d $desc{'tmpdir'} " .
+                " && test -d $desc{'bindir'}")->{'status'} );
             $desc{'cores'}  = 1 unless defined $desc{'cores'};
             $desc{'poly_cores'} = $desc{'cores'} 
                     unless defined $desc{'poly_cores'};
             $desc{'mpi'} = 0 unless defined $desc{'mpi'};
             if ( $desc{'mpi'} ) {
-                    die "the directory wdir or bindir don't exist on $host.\n"
-                    if ( remote_cmd($host, "env test -d $param{'wdir'} && test ".
-                                    "-d $param{'bindir'}")->{'status'} );
+                    die "the directory wdir don't exist on $host.\n"
+                    if ( remote_cmd($host,
+                            "env test -d $param{'wdir'} ")->{'status'} );
             }
             while ( $desc{'mpi'} ) {
                     $desc{'mpi'}--;
@@ -713,8 +716,8 @@ sub is_job_alive {
 }
 
 # Gets the status of a job.
-# Returns 1 if the job is still running, 0 if the job finished, or -1 if
-# the job died.
+# Returns 1 if the job is still running, 0 if the job finished, -1 if
+# the job died, or -2 if the file was not found.
 # The job is said to have finished if the last line of the output file
 # matches against a given pattern.
 # If we're unable to determine the job status, we asssume that it's
@@ -740,8 +743,9 @@ sub job_status {
         info "Finished!\n";
         $status = 0;
     } elsif (!$ret->{'status'} && $ret->{'out'} =~ /No such file or directory$/) {
-        die "The executable was not found. Make sure the `bindir' parameter ".
+        warn "The file was not found. Make sure the `tmpdir' parameter ".
             "is valid for host `$job->{'host'}'.\n";
+        $status = -2;
     } elsif (!$ret->{'status'} && $ret->{'out'} =~ /BUG/) {
 		die $ret->{'out'};
     } else {
@@ -804,7 +808,6 @@ sub send_file {
     $tab_level++;
 
     # Try to upload the file
-    $ret = remote_cmd($host, "env mkdir -p $m->{'tmpdir'} 2>&1");
     $ret = cmd("env rsync -e $ssh --timeout=30 $param{'wdir'}/$file ".
                "$host:$m->{'tmpdir'}/ 2>&1", { cmdlog => 1 })
         unless $ret->{'status'};
@@ -1082,13 +1085,20 @@ sub distribute_task {
                     if ($status == 1) {
                         # Job is still alive: keep it in the list
                         push @new_jobs, $job;
-                    } elsif ($status == 0 || $opt->{'partial'}) {
-                        # Job is (partially) terminated: mark it as done
+                    } elsif ($status == 0) {
+                        # Job is terminated: mark it as done
                         delete $job->{'pid'};
                         push @done, $job;
-                    } else {
-                        # Job is dead: remove its output file on the host
-                        remote_cmd($job->{'host'}, "env rm -f $job->{'file'}");
+                    } elsif ($status == -1) {
+                        # Job is dead
+                        if ($opt->{'partial'}) {
+                          # mark it as done
+                          delete $job->{'pid'};
+                          push @done, $job;
+                        } else {
+                          # remove its output file on the host
+                          remote_cmd($job->{'host'}, "env rm -f $job->{'file'}");
+                        }
                     }
                     $tab_level--;
                 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Run cadofactor.pl on the current machine
 #
@@ -97,13 +97,7 @@ for ((i=1; i<=4; i=i+1)) ; do
   if [ -f $file ] ; then 
     break
   fi
-  if [ $i -eq 1 ]; then
-    size=`expr $size + 1`
-  elif [ $i -eq 2 ]; then
-    size=`expr $size - 2`
-  elif [ $i -eq 3 ]; then
-    size=`expr $size + 3`
-  fi
+  size=`expr $size + \( 2 \* \( $i % 2 \) - 1 \) \* $i`
 done
 
 if [ ! -f $file ] ; then
@@ -125,6 +119,8 @@ if [ -z "$CADO_USEHOST" ] ; then
 else
    host=`hostname --short`
 fi
+
+mkdir $t/tmp
 
 cat > $t/mach_desc <<EOF
 [local]

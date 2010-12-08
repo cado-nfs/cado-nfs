@@ -1,8 +1,9 @@
-#define _POSIX_C_SOURCE 200112L	/* fileno */
+#include "cado.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "balancing_file_source.h"
+#include "utils.h"
 
 // there's presently no provision for tweaking the following parameter,
 // but adding it is clearly a completely trivial matter.
@@ -17,7 +18,7 @@ size_t file_source_get(file_source_ptr f, uint32_t ** p, size_t avail)
         avail = disk_io_window_size;
         *p = f->buf;
     }
-    size_t n = fread(*p, sizeof(uint32_t), avail, f->f);
+    size_t n = fread32_little(*p, avail, f->f);
     f->b->pos += n;
     if (n == 0) {
         if (ferror(f->f)) {

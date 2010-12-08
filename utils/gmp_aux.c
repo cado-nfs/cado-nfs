@@ -1,8 +1,9 @@
 /* auxiliary routines on GMP data-types */
 
+#include "cado.h"
 #include <stdint.h>
 #include "gmp_aux.h"
-#include "cado.h"
+#include "macros.h"
 
 /* Set z to q. Warning: on 32-bit machines, we cannot use mpz_set_ui! */
 void

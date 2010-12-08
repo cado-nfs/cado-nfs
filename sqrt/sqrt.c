@@ -1,5 +1,4 @@
-#define _GNU_SOURCE    /* asprintf */
-#define _DARWIN_C_SOURCE        /* asprintf */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
@@ -12,7 +11,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "cado.h"
 #include "utils.h"
 #include "purgedfile.h"
 
@@ -124,7 +122,7 @@ static long PeakMemusage() {
 static void
 my_mpz_mul (mpz_t a, mpz_t b, mpz_t c)
 {
-  int large, st;
+  int large, st = 0;
 
   large = mpz_size (b) + mpz_size (c) >= 5000000;
   if (large)
@@ -200,8 +198,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol, mpz_t Np)
 {
   char depname[200];
   char ratname[200];
-  sprintf(depname, "%s.%03d", prefix, numdep);
-  sprintf(ratname, "%s.rat.%03d", prefix, numdep);
+  snprintf(depname, sizeof(depname), "%s.%03d", prefix, numdep);
+  snprintf(ratname, sizeof(ratname), "%s.rat.%03d", prefix, numdep);
   FILE *depfile = NULL;
   FILE *ratfile;
   //int sign;
@@ -998,8 +996,8 @@ calculateGcd(const char *prefix, int numdep, mpz_t Np)
 {
     char ratname[200];
     char algname[200];
-    sprintf(ratname, "%s.rat.%03d", prefix, numdep);
-    sprintf(algname, "%s.alg.%03d", prefix, numdep);
+    snprintf(ratname, sizeof(ratname), "%s.rat.%03d", prefix, numdep);
+    snprintf(algname, sizeof(algname), "%s.alg.%03d", prefix, numdep);
     FILE *ratfile = NULL;
     FILE *algfile = NULL;
     int found = 0;
@@ -1133,7 +1131,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     unsigned int dep_counts[64]={0,};
 
     for(int i = 0 ; i < 64 ; i++) {
-        uint64_t m = 1UL << i;
+        uint64_t m = UINT64_C(1) << i;
         if (sanity & m)
             dep_masks[nonzero_deps++] = m;
     }

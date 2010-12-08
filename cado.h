@@ -24,17 +24,40 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef CADO_H
 #define CADO_H
 
-#include <gmp.h>
+/* The purpose of this header is to define some feature macros, which
+ * tweak the behaviour of include files. Our intent is to define here in
+ * a unique place the required macros exposing the functions we like to
+ * have.
+ *
+ * It is necessary that this file appears only on top of the compilation
+ * units, and before any other header. We promise to never include
+ * another header file as a side-effect of this one (except
+ * cado_config.h, which makes sense to include here as well).
+ */
+
+#if !(defined(__OpenBSD__) || defined(__FreeBSD__))
+#define _POSIX_C_SOURCE 200112L /* strtoumax */
+/* POSIX: popen/pclose with -std=c99, -pedantic or -ansi (requires
+ * _POSIX_C_SOURCE==2 ?) fileno */
+#define _XOPEN_SOURCE   600     /* posix_memalign lrand48 */
+#define _BSD_SOURCE     /* M_LN2 gethostname strdup random */
+#define _ISOC99_SOURCE  /* Sometimes there's link trickery which causes fscanf to be linked in *only* when this is defined */
+#ifndef __cplusplus
+#define _GNU_SOURCE         /* asprintf vasprintf */
+#endif
+#define _DARWIN_C_SOURCE    /* asprintf ; getpagesize ; _ANSI_SOURCE must be undefined */
+#else
+/* OpenBSD and FreeBSD expose *all* functions by default, and feature
+ * macros are (apparently) used the other way around to restrict the
+ * exposed interfaces.
+ */
+#endif
+
+#ifdef __cplusplus
+#define __STDC_LIMIT_MACROS
+#define __STDC_FORMAT_MACROS    /* PRIu32 in lingen_mat_types.hpp */
+#endif
 
 #include "cado_config.h"
-
-#include "macros.h"
-
-/* merge has some pressure on I/O, so having hex here speeds up the process a
- * bit */
-/* TODO: This has to go. Some functions write to .purged, or parse it.
- * They should all be merged into purgedfile.c, and this #define (if
- * kept) would go there instead. */
-#define PURGE_INT_FORMAT "%x"
 
 #endif  /* CADO_H_ */

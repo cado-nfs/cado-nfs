@@ -8,12 +8,11 @@
  */
 
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "cado.h"
-
+#include "macros.h"
 #include "sparse.h"
 
 #define DEBUG 0

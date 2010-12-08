@@ -17,14 +17,14 @@
 #     tmpdir = directory containing the relations during the calculation
 #              on a machine.
 #     bindir = directory containing the binary files on a machine.
-# cores is the number of cores used on a machine for the sieve defaults to 1.
+# cores is the number of cores used on a machine for the sieve (default is 1).
 #     For example: if cores=5 and $param{'sieve_max_threads'}=2 then 3 jobs
 #     will be run on the machine (2+2+1).
 # poly_cores (optional) defaults to cores.
-# mpi=1 (optional) after machine name for use MPI in linear algebra on this
+# mpi=1 (optional) after machine name for using MPI in linear algebra on this
 #     machine, default mpi=0. If mpi=0 for all machines, then the linear
-#     algebra will be run on localhost
-#     For use MPI, CADO-NFS must be compiled with a MPI library, check that
+#     algebra will be run on localhost.
+#     To use MPI, CADO-NFS must be compiled with a MPI library, check that
 #     the path of the MPI library is in the file local.sh (for example:
 #     MPI=/usr/lib64/openmpi).
 #
@@ -32,16 +32,24 @@
 # Changing the list during a computation:
 # =======================================
 #
+# The mach_desc file is read once and for all by cadofactor.pl at the very
+# beginning. However, cadofactor.pl is (supposed to be) robust to being killed
+# and restarted. So to force a modification in mach_desc to be taken into
+# account, you just have to kill and restart cadofactor.pl.
+#
+# Here is a rough description of the expected behaviour when you change
+# mach_desc.
+#
 # If during a computation you want to add a machine, you just have to add
-# appropriate line. Next time cadofactor.pl will check if there are finished
-# jobs, it will also start new ones on the new machine. You can also increase
-# the number of cores of an already listed machine. 
+# an appropriate line.  You can also increase the number of cores of an
+# already listed machine. Such changes require cadofactor.pl to be interrupted
+# and re-run (which resumes the computation from where it has been left off).
 #
 # If you need to stop the jobs on a machine, you can put cores=0 after its
 # name. Once the current job is finished on the machine, no new job will be
 # started again. Do not remove the machine name of the list, otherwise
 # cadofactor.pl won't know where to look for tmp data to import result.
-# If you can not wait for the job to be finished, feel free to kill it after
+# If you cannot wait for the job to be finished, feel free to kill it after
 # having put cores=0 in this file: cadofactor.pl will eventually detect that
 # the job is dead and import the partial result file.
 #
@@ -49,13 +57,15 @@
 # script will let the job finish but won't start new ones until the number of 
 # jobs becomes less than the value of cores.
 #
-# If you need to change the tmpdir during a computation, this is more tricky, 
-# since cadofactor.pl assumes that all the jobs on a machine run with the same
-# tmpdir. Therefore, you have do it like so:
+# If you need to change tmpdir or bindir during a computation, this is
+# more tricky, since cadofactor.pl assumes that all the jobs on a machine
+# run with the same tmpdir. Therefore, you have do it like so:
 #  - put cores=0 for the target machine
+#  - restart cadofactor.pl
 #  - wait until all running jobs of the machine are finished
-#  - change tmpdir for this machine
+#  - change tmpdir / bindir for this machine
 #  - put the previous value of cores.
+#  - restart cadofactor.pl
 #
 
 
@@ -63,7 +73,7 @@
 # ========
 
 [caramel]
-# WARNING: $HOME is substitued locally!
+# WARNING: $HOME is substituted locally!
 tmpdir=/localdisk/tmp
 bindir=$HOME/cado/trunk/dist/src
 
@@ -89,6 +99,3 @@ cores=2
 cores=4
     meringue
     quiche
-
-
-# vim: set tw=0:

@@ -1,4 +1,4 @@
-#define _ISOC99_SOURCE  /* I've seen fscanf requiring this to be linked in ! */
+#include "cado.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>

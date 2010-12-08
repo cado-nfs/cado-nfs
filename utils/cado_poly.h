@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <gmp.h>
 
-#include "cado.h"
 #include "params.h"
 
 /* The maximum degree of polynomials supported. Used for statically 

@@ -1,8 +1,4 @@
-#ifndef __cplusplus
-#define _GNU_SOURCE         /* asprintf */
-#endif
-#define __STDC_FORMAT_MACROS    /* PRIu32 in lingen_mat_types.hpp */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
+#include "cado.h"
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -34,7 +30,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "bwc_config.h"
-#include "cado.h"
 #include "utils.h"
 #include "bw-common.h"
 #include "filenames.h"
@@ -1252,9 +1247,9 @@ static unsigned int pi_deg_bound(unsigned int d)/*{{{*/
      * different columns to be quite even. Only at the end of the computation
      * does it begin to go live.
      *
-     * The + 10 excess here is sort of a safety net.
+     * The + 11 excess here is sort of a safety net.
      */
-    return iceildiv(d * m, (m + n)) + 10;
+    return iceildiv(d * m, (m + n)) + 11;
 }/*}}}*/
 
 /*
@@ -1510,12 +1505,19 @@ static bool go_recursive(polmat& pi, recursive_tree_timer_t& tim)
     if (t < t0 + llen) {
         ASSERT(finished_early);
     }
+    if (pi_l_deg >= (int) expected_pi_deg) {
+        printf("%-8u" "deg(pi_l) = %d >= %u ; escaping\n",
+                t, pi_l_deg, expected_pi_deg);
+        finished_early=1;
+    }
+
     if (finished_early) {
         printf("%-8u" "deg(pi_l) = %d ; escaping\n",
                 t, pi_l_deg);
         pi.swap(pi_left);
         return true;
     }
+
 
     tmiddle = t;
 
@@ -1534,6 +1536,10 @@ static bool go_recursive(polmat& pi, recursive_tree_timer_t& tim)
      *
      * ./doit.pl msize=500 dimk=99 mn=8 vectoring=8 modulus=2 dens=4
      * multisols=1 tidy=0 seed=714318 dump=1
+     *
+     * Another case which failed (20101129) on a 64-bit Core 2:
+     * cadofactor.pl params=params.c100 n=8629007704268343292699373415320999727349017259324300710654086838576679934757298577716056231336635221 bwmt=4x3
+     * (increasing the safety net in pi_deg_bound from +10 to +11 made it work)
      */
     ASSERT_ALWAYS(pi_l_deg < (int) expected_pi_deg);
 #if 0

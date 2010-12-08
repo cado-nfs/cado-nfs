@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+#include "cado.h"
 #include "bwc_config.h"
 #include "xymats.h"
 

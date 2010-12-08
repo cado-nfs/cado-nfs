@@ -1,7 +1,7 @@
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cado.h"
 #include "utils.h"
 #include "auxiliary.h" /* for common routines with polyselect.c */
 

@@ -3,7 +3,6 @@
  *****************************************************************/
 
 #include <stdint.h>
-#include "cado.h"
 #include "utils/misc.h" /* for ctzl */
 
 static inline unsigned long

@@ -1,33 +1,8 @@
 #include "utils.h"
 
-#if 0
-/* old code */
-#define RED(l,h) do {                                                   \
-        /* Compute crc mod x^32 + x^7 + x^6 + x^2 + 1 */                \
-        l ^= h ^ h << 2 ^ h << 6 ^ h << 7;                              \
-        h  = h >> 30 ^ h >> 26 ^ h >> 25;                               \
-        /* h is at most 7 bits now. */                                  \
-        l ^= h ^ h << 2 ^ h << 6 ^ h << 7;                              \
-        h = 0;                                                          \
-} while (0)
-
-uint32_t crc32(unsigned long * c, int n)
-{
-    uint32_t v = 0UL;
-    for(int i = 0 ; i < n ; ) {
-        unsigned long cj = *c++;
-        { uint32_t h = v, l = cj; RED(l,h); i++; v = l; if (i == n) break; }
-        if (ULONG_BITS == 64) {
-            /* wait, there's more ! */
-            cj >>= 32;
-            { uint32_t h = v, l = cj; RED(l,h); i++; v = l; if (i == n) break; }
-        }
-    }
-    return v;
-}
-#endif
-
-/* new code */
+/* This computes checksum or arbitrary data ranges. The data is piped
+ * through an LFSR over GF(2^32) with a suitable defining polynomial.
+ */
 
 uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr l, uint32_t c)
 {
@@ -35,7 +10,13 @@ uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr l, uint32_t c)
 
     uint32_t w = 0;
 
-    w = (c >> (31^l->r)) ^ (c << (31&-l->r));
+    // FIXME. We used to have 31^l->r, which very much seems to be a typo
+    // for 31&l->r. Unfortunately, ``fixing'' this would mean changing
+    // behaviour on our main platform, so for the time being we change
+    // this in a compatible way so as to reach the same output on non-x86
+    // hardware (which wraps around shift counts, not a guaranteed
+    // behaviour everywhere).
+    w = (c >> (31&(31^l->r))) ^ (c << (31&-l->r));
     l->i--;
     l->r+=11;
     l->i &= 31;
@@ -63,9 +44,9 @@ void cado_crc_lfsr_init(cado_crc_lfsr l)
 
 void cado_crc_lfsr_clear(cado_crc_lfsr l MAYBE_UNUSED) { }
 
-uint32_t cado_crc_lfsr_turn(cado_crc_lfsr l, void * data, unsigned int count)
+uint32_t cado_crc_lfsr_turn(cado_crc_lfsr l, const void * data, unsigned int count)
 {
-    uint8_t * ptr = (uint8_t *) data;
+    const uint8_t * ptr = (const uint8_t *) data;
     uint32_t w = 0;
 
     for( ; count-- ; ) {
@@ -74,7 +55,27 @@ uint32_t cado_crc_lfsr_turn(cado_crc_lfsr l, void * data, unsigned int count)
     return w;
 }
 
-uint32_t crc32(void * data, size_t count)
+/* This version yields the same checksum regardless of the endianness */
+uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr l, const uint32_t * data, unsigned int count)
+{
+    ASSERT_ALWAYS(sizeof(uint32_t) == 4);
+    int twist[sizeof(uint32_t)];
+    for(unsigned int j = 0 ; j < sizeof(uint32_t) ; j++) {
+        const uint32_t c = 0x03020100;
+        twist[((uint8_t *)&c)[j]]=j;
+    }
+    uint32_t w = 0;
+
+    for( ; count-- ; data++) {
+        const uint8_t * ptr = (const uint8_t *) data;
+        for(unsigned int j = 0 ; j < sizeof(uint32_t) ; j++) {
+            w = cado_crc_lfsr_turn1(l, ptr[twist[j]]);
+        }
+    }
+    return w;
+}
+
+uint32_t crc32(const void * data, size_t count)
 {
     cado_crc_lfsr l;
     cado_crc_lfsr_init(l);

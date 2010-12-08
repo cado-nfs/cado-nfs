@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <gmp.h>
-#include "utils.h"
-#include "auxiliary.h"
-#include "murphyE.h"
-#include "rho.h"
-#include "cado.h"
 
 /* At most consider so much */
 #define NP 46

@@ -1,4 +1,4 @@
-#define _BSD_SOURCE
+#include "cado.h"
 #define xxxWITH_BARRETT
 
 #include <gmp.h>

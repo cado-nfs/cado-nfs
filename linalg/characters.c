@@ -74,8 +74,7 @@
 // This is done on a heuristic basis, taking the first 4k coordinates
 // only.
 
-#define _GNU_SOURCE     /* asprintf */
-#define _DARWIN_C_SOURCE        /* asprintf */
+#include "cado.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,11 +86,18 @@
 
 #include "mod_ul.c"
 
-#include "cado.h"
+#include "cado-endian.h"
 #include "utils.h"
 #include "blockmatrix.h"
 #include "gauss.h"
 #include "worker-threads.h"
+
+#if defined(__FreeBSD__) && (__FreeBSD__ <= 7)
+/* pthread_cond_wait seems to be buggy on FreeBSD 7 (shard.starfyre.net) */
+#define NTHREADS 1
+#else
+#define NTHREADS 16
+#endif
 
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
@@ -364,11 +370,11 @@ read_heavyblock_matrix_binary(const char * heavyblockname)
 
     for(unsigned int i = 0 ; i < nrows ; i++) {
         uint32_t len;
-        int r = fread(&len, sizeof(uint32_t), 1, f);
+        int r = fread32_little(&len, 1, f);
         ASSERT_ALWAYS(r == 1);
         for( ; len-- ; ) {
             uint32_t v;
-            r = fread(&v, sizeof(uint32_t), 1, f); ASSERT_ALWAYS(r == 1);
+            r = fread32_little(&v, 1, f); ASSERT_ALWAYS(r == 1);
             res->mb[(i/64) + (v/64) * res->nrblocks][i%64] ^= ((uint64_t)1) << (v%64);
         }
     }
@@ -430,10 +436,12 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix kb, blockmatrix t)
     unsigned int tiny_ncols = t->ncols;
     unsigned int tiny_limbs_per_row = iceildiv(tiny_ncols, 64);
     unsigned int tiny_limbs_per_col = iceildiv(tiny_nrows, 64);
+    unsigned int tiny_chars = FLAT_BYTES_WITH_READAHEAD(t->nrows, t->ncols);
+    unsigned int tiny_64bit_words = tiny_chars / sizeof(uint64_t);
 
     /* we need some readahead zones because of the block matrix structure */
-    uint64_t * tiny = malloc(FLAT_BYTES_WITH_READAHEAD(t->nrows, t->ncols));
-    memset(tiny, 0, FLAT_BYTES_WITH_READAHEAD(t->nrows, t->ncols));
+    uint64_t * tiny = malloc (tiny_chars);
+    memset(tiny, 0, tiny_chars);
     
     blockmatrix_copy_to_flat(tiny, tiny_limbs_per_row, 0, 0, t);
 
@@ -443,6 +451,7 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix kb, blockmatrix t)
     /* we need some readahead zones because of the block matrix structure */
     uint64_t * kerdata = malloc(FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows));
     memset(kerdata, 0, FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows));
+    unsigned int kerdata_64bit_words = FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows) / sizeof(uint64_t);
 
 
     uint64_t ** myker = (uint64_t **) malloc(tiny_nrows * sizeof(uint64_t *));
@@ -451,15 +460,22 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix kb, blockmatrix t)
         myker[i] = kerdata + i * tiny_limbs_per_col;
     /* gauss.c knows about mp_limb_t's only */
     ASSERT_ALWAYS(sizeof(uint64_t) % sizeof(mp_limb_t) == 0);
+    swap_words_if_needed (tiny, tiny_64bit_words);
     int dim = kernel((mp_limb_t *) tiny,
             (mp_limb_t **) myker,
             tiny_nrows, tiny_ncols,
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_row,
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_col);
+    swap_words_if_needed (tiny, tiny_64bit_words); /* FIXME: this is maybe not
+                                                      needed since tiny is
+                                                      destroyed, but keep it
+                                                      for debugging */
+    swap_words_if_needed(kerdata, kerdata_64bit_words);
     free(tiny);
     /* Now take back our kernel to block format, and multiply. Exciting. */
     if (kb)
-    blockmatrix_copy_transpose_from_flat(kb, kerdata, tiny_limbs_per_col, 0, 0);
+      blockmatrix_copy_transpose_from_flat(kb, kerdata, tiny_limbs_per_col,
+                                           0, 0);
     free(myker);
     free(kerdata);
     return dim;
@@ -482,8 +498,10 @@ blockmatrix blockmatrix_column_reduce(blockmatrix m, unsigned int max_rows_to_co
 
     uint64_t * sdata = (uint64_t *) malloc(tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
     memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t *));
+    unsigned int sdata_64bit_words = tiny_nrows * tiny_limbs_per_col;
     free(t);
 
+    swap_words_if_needed (tiny, tiny_nlimbs);
     int rank = spanned_basis(
             (mp_limb_t *) sdata,
             (mp_limb_t *) tiny,
@@ -493,6 +511,8 @@ blockmatrix blockmatrix_column_reduce(blockmatrix m, unsigned int max_rows_to_co
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_col,
             NULL
             );
+    swap_words_if_needed (tiny, tiny_nlimbs);
+    swap_words_if_needed (sdata, sdata_64bit_words);
     free(tiny);
 
     blockmatrix s = blockmatrix_alloc(m->ncols, rank);
@@ -546,7 +566,7 @@ int main(int argc, char **argv)
     ASSERT_ALWAYS(purgedname != NULL);
     ASSERT_ALWAYS(indexname != NULL);
 
-    struct worker_threads_group * g = worker_threads_init(16);
+    struct worker_threads_group * g = worker_threads_init (NTHREADS);
     chars = create_characters (nchars, pol);
     int nchars2 = iceildiv(nchars, 64) * 64;
     double tt=wct_seconds();
@@ -571,7 +591,6 @@ int main(int argc, char **argv)
           fprintf(stderr, "done reading heavy block of size %u x %u at %.1f\n",
                   h->nrows, h->ncols, wct_seconds()-tt);
     ASSERT_ALWAYS(h->nrows == small_nrows);
-
 
     /* Now do dot products of these matrices by the kernel vectors
      * supplied on input */

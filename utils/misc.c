@@ -1,8 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE		/* asprintf */
-#define _DARWIN_C_SOURCE	/* asprintf ; getpagesize */
-#define _XOPEN_SOURCE   600     /* sometimes useful for posix_memalign */
-
+#include "cado.h"       /* feature macros, no includes */
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>

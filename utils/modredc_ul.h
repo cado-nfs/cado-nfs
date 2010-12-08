@@ -8,9 +8,8 @@
    function (add, mul, etc), and possibly underscore and specification of 
    what argument types the function takes (_ul, etc). */
 
-#ifndef __MODREDC_UL_H
-
-#define __MODREDC_UL_H
+#ifndef MODREDC_UL_H
+#define MODREDC_UL_H
 
 /**********************************************************************/
 #include <assert.h>
@@ -790,4 +789,4 @@ int modredcul_inv (residueredcul_t, const residueredcul_t,
 		   const modulusredcul_t);
 int modredcul_jacobi (const residueredcul_t, const modulusredcul_t);
 
-#endif
+#endif  /* MODREDC_UL_H */

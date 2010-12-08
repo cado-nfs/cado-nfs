@@ -1,5 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE     /* for MMAP_ANONYMOUS when using electric_alloc */
+#include "cado.h"
 #include "bwc_config.h"
 #include "xdotprod.h"
 #include "bw-common.h"

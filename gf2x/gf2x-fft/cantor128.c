@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <limits.h>
 
 #include "cantor128.h"
 #include "gf2x.h"
@@ -54,7 +55,7 @@ size_t * findex;
 /*
  * Basic function for Kelt
  */
-#if GMP_LIMB_BITS == 32                 
+#if GF2X_WORDSIZE == 32                 
 #define Kadd(a0,a1,a2)  do {            \
     a0[0] = a1[0] ^ a2[0];              \
     a0[1] = a1[1] ^ a2[1];              \
@@ -96,7 +97,7 @@ size_t * findex;
  * is hardcoded for 32- and 64-bit architecture.
  */
 static void Kmul(Kdst_elt a0, Ksrc_elt a1, Ksrc_elt a2) {
-#if GMP_LIMB_BITS == 32
+#if GF2X_WORDSIZE == 32
     unsigned long tmp[8];
     gf2x_mul4(tmp, a1, a2);
     {
@@ -250,7 +251,7 @@ static void Kmul(Kdst_elt a0, Ksrc_elt a1, Ksrc_elt a2) {
 // The following is (the begining of) a solution.
 // NB: the defining polynomial for GF(2^128) is x^128 + x^7 + x^2 + x + 1
 
-#if GMP_LIMB_BITS == 32
+#if GF2X_WORDSIZE == 32
 #define BETA(x,y,z,t) { x, y, z, t, }
 #else
 #define BETA(x,y,z,t) { y << 32 | x, t << 32 | z }
@@ -1121,6 +1122,37 @@ static inline void mulSi(unsigned int k, Kelt * f, size_t L, Kelt beta)
     }
 }
 
+#if GNUC_VERSION_ATLEAST(3,4,0)
+#define clzl(x)         __builtin_clzl(x)
+#define ctzl(x)         __builtin_ctzl(x)
+#else
+/* provide slow fallbacks */
+static inline int clzl(unsigned long x)
+{
+        static const int t[4] = { 2, 1, 0, 0 };
+        int a = 0;
+        int res;
+#if (GF2X_WORDSIZE == 64)
+        if (x >> 32) { a += 32; x >>= 32; }
+#endif  
+        if (x >> 16) { a += 16; x >>= 16; }
+        if (x >>  8) { a +=  8; x >>=  8; }
+        if (x >>  4) { a +=  4; x >>=  4; }
+        if (x >>  2) { a +=  2; x >>=  2; }
+        res = GF2X_WORDSIZE - 2 - a + t[x];
+        return res;
+}
+
+/* the following code is correct because if x = 0...0abc10...0, then
+   -x = ~x + 1, where ~x = 1...1(1-a)(1-b)(1-c)01...1, thus
+   -x = 1...1(1-a)(1-b)(1-c)10...0, and x & (-x) = 0...000010...0 */
+static inline int ctzl(unsigned long x)
+{
+  ASSERT(GF2X_WORDSIZE == sizeof(unsigned long) * CHAR_BIT);
+  return (GF2X_WORDSIZE - 1) - clzl(x & - x);
+}
+#endif
+
 // Reduce f (with 1UL<<k coeffs) modulo the product of s_i corresponding
 // to length.
 static inline void reduceModTrunc(Kelt * f, unsigned int k, size_t length)
@@ -1146,7 +1178,7 @@ static inline void reduceModTrunc(Kelt * f, unsigned int k, size_t length)
 
     // go up, reconstructing general rem
     len = length;
-    i = __builtin_ctz(len);
+    i = ctzl(len);
     len >>= i;
     pf = f + length;
     ii = 1UL << i;
@@ -1202,16 +1234,7 @@ void interpolateK_trunc(Kelt * f, unsigned int k, size_t length)
     reduceModTrunc(f, k, length);
 }
 
-#if (GMP_LIMB_BITS == 64)
-/* Assume that ulongs are 64 bits */
-#define ULONG_BITS 64
-#elif (GMP_LIMB_BITS == 32)
-#define ULONG_BITS 32
-#else
-#error "define GMP_LIMB_BITS"
-#endif
-
-#if (ULONG_BITS == 64)
+#if (GF2X_WORDSIZE == 64)
 void decomposeK(Kelt * f, unsigned long * F, size_t Fl, int k)
 {
     size_t i;
@@ -1231,7 +1254,7 @@ void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k MAYBE_UNUSED)
     for (i = 1; i < Fl ; ++i)
         F[i] = f[i][0] ^ f[i - 1][1];
 }
-#elif (ULONG_BITS == 32)
+#elif (GF2X_WORDSIZE == 32)
 
 /* not thoroughly tested */
 
@@ -1271,7 +1294,7 @@ void recomposeK(unsigned long * F, Kelt * f, size_t Fl, unsigned int k MAYBE_UNU
     }
 }
 #else
-#error "define ULONG_BITS"
+#error "define GF2X_WORDSIZE"
 #endif
 
 /* nF is a number of coefficients == number of bits ; a.k.a. degree + 1 */
@@ -1282,7 +1305,7 @@ void c128_init(c128_info_t p, size_t nF, size_t nG, ...)
     size_t n;
 
     /* Since internally we're working with 64-bit data, then it's really
-     * a hard 64 here, not ULONG_BITS : We're just deciding on the order
+     * a hard 64 here, not GF2X_WORDSIZE : We're just deciding on the order
      * of things.
      */
     size_t Fl = (nF + 63) / 64;
@@ -1302,14 +1325,14 @@ void c128_init(c128_info_t p, size_t nF, size_t nG, ...)
 /* nF is a number of coefficients */
 void c128_dft(const c128_info_t p, c128_ptr x, unsigned long * F, size_t nF)
 {
-    size_t Fl = (nF + ULONG_BITS - 1) / ULONG_BITS;
-    if (nF % ULONG_BITS) {
+    size_t Fl = (nF + GF2X_WORDSIZE - 1) / GF2X_WORDSIZE;
+    if (nF % GF2X_WORDSIZE) {
         /* Just as we are computing this assertion, we could easily mask out
          * the bits ourselves. However, our interface mandates that the high
          * bits be cleared in any case. So make sure we properly enforce this
          * constraint.
          */
-        assert((F[Fl-1] & ~((1UL << (nF % ULONG_BITS)) - 1)) == 0);
+        assert((F[Fl-1] & ~((1UL << (nF % GF2X_WORDSIZE)) - 1)) == 0);
     }
     decomposeK(x,F,Fl,p->k);
 #ifdef  CANTOR_GM
@@ -1362,7 +1385,7 @@ void c128_ift(
         size_t nH,
         c128_ptr h)
 {
-    size_t Hl = (nH + ULONG_BITS - 1) / ULONG_BITS;
+    size_t Hl = (nH + GF2X_WORDSIZE - 1) / GF2X_WORDSIZE;
 
     // fill in with zeros to facilitate interpolation
     memset(h + p->n, 0, ((1UL << p->k) - p->n) * sizeof(Kelt));
@@ -1385,8 +1408,8 @@ void mulCantor128(unsigned long * H, unsigned long * F, size_t Fl, unsigned long
     c128_info_t order;
     c128_t * f, * g;
 
-    size_t nF = Fl * ULONG_BITS;
-    size_t nG = Gl * ULONG_BITS;
+    size_t nF = Fl * GF2X_WORDSIZE;
+    size_t nG = Gl * GF2X_WORDSIZE;
 
     c128_init(order, nF, nG);
 

@@ -1,6 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE
-
+#include "cado.h"
 #include <stdio.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
@@ -87,12 +85,35 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         // Otherwise, it's on the right.
         setup_x_random(xvecs, bw->m, my_nx, mmt->n[bw->dir], pi);
 
+        /* Random generation + save is better done as writing random data
+         * to a file followed by reading it: this way, seeding works
+         * better.
+         */
+        if (pi->m->trank == 0) {
+            char * filename;
+
+            int rc = asprintf(&filename, COMMON_VECTOR_ITERATE_PATTERN, Y_FILE_BASE, 0, mmt->bal->h->checksum);
+
+            abt * y = abinit(abase, mmt->n[!bw->dir]);
+            abrandom(abase, y, mmt->n[!bw->dir]);
+            FILE * f = fopen(filename, "w");
+            ASSERT_ALWAYS(f);
+            rc = fwrite(y, sizeof(abt), mmt->n[!bw->dir], f);
+            ASSERT_ALWAYS(rc == (int) mmt->n[!bw->dir]);
+            fclose(f);
+            abclear(abase, y, mmt->n[!bw->dir]);
+            free(filename);
+        }
+        matmul_top_load_vector(mmt, Y_FILE_BASE, bw->dir, 0);
+
+#if 0
         // Compute y.
         matmul_top_fill_random_source(mmt, bw->dir);
 
         // we need to save this starting vector for later use if it turns out
         // that we need to save it for real.
         matmul_top_save_vector(mmt, Y_FILE_BASE, bw->dir, 0);
+#endif
 
         // We must compute x^T M y, x^T M^2 y, and so on.
         // XXX Note that x^Ty does not count here, because it does nto

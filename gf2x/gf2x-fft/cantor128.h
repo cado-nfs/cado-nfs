@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include "cado.h"
+#include "gf2x.h"
+#include "gf2x/gf2x-impl.h"  /* for GF2X_WORDSIZE */
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,9 +28,9 @@ typedef struct c128_info_struct c128_info_t[1];
 typedef struct c128_info_struct * c128_info_ptr;
 typedef const struct c128_info_struct * c128_info_srcptr;
 
-#if GMP_LIMB_BITS == 32
+#if GF2X_WORDSIZE == 32
 typedef unsigned long c128_t[4];
-#elif GMP_LIMB_BITS == 64
+#elif GF2X_WORDSIZE == 64
 typedef unsigned long c128_t[2];
 #else 
 #error "Do not know how to define c128_t"

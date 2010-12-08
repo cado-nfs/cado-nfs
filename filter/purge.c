@@ -56,9 +56,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
                     prime ideal).
 */
 
-#define _POSIX_C_SOURCE 200112L /* pclose */
-#define _GNU_SOURCE     /* asprintf */
-#define _DARWIN_C_SOURCE     /* asprintf */
+#include "cado.h"
 #include <gmp.h>
 #include "mod_ul.c"
 #include <stdio.h>

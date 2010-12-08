@@ -20,7 +20,7 @@ please consider making those additions public too, so that others may
 benefit from your work.	
        				   --jasonp@boo.net 4/3/09
 --------------------------------------------------------------------*/
-#define _BSD_SOURCE
+#include "cado.h"
 #include <stdint.h>
 #include <math.h>
 #include <float.h>

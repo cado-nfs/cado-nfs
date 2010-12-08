@@ -202,25 +202,27 @@ facul_doit (unsigned long *factors, const modulus_t m,
       /* Determine for certain if the cofactor is prime */
       if (!cfprime)
 	{
-	  
 	  if (mod_intbits (n) <= MODREDCUL_MAXBITS)
 	    {
 	      cf_arith = 0;
 	      modredcul_initmod_uls (cfm_ul, n);
 	      cfprime = primetest_ul (cfm_ul);
             }
-	  else if (mod_intbits (n) <= MODREDC15UL_MAXBITS)
+	  else if (MOD_SIZE >= MODREDC15UL_SIZE && 
+	           mod_intbits (n) <= MODREDC15UL_MAXBITS)
 	    {
 	      cf_arith = 1;
 	      modredc15ul_initmod_uls (cfm_15ul, n);
 	      cfprime = primetest_15ul (cfm_15ul);
             }
-          else
+          else if (MOD_SIZE >= MODREDC2UL2_SIZE)
             {
               cf_arith = 2;
 	      modredc2ul2_initmod_uls (cfm_2ul2, n);
 	      cfprime = primetest_2ul2 (cfm_2ul2);
             }
+          else
+            abort ();
 
 	  if (cfprime && mod_intcmp_ul (n, strategy->lpb) > 0)
 	    {

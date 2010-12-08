@@ -37,7 +37,7 @@ selectnice=4            # nice level for selection
 kjM=6e22                # maximum norm allowed
 kjl=7                   # minimal number of primes in lc(g)
 kjadmin=1               # min value for lc(f)
-kjadmax=3e8             # max value for lc(f)
+kjadmax=3e9             # max value for lc(f)
 kjadrange=6e7           # individual tasks
 
 ## Other parameters of polyselect

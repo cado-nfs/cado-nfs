@@ -11,7 +11,6 @@
 #include <string.h>
 
 /* I know it's ugly */
-#include <alloca.h>
 #include "bwc_config.h"
 #include "macros.h"
 #include "random_generation.h"

@@ -48,12 +48,20 @@ get_override(CXX                  CMAKE_CXX_COMPILER)
 get_override(CADO_VERSION         CADO_VERSION)
 get_override(MPI                  MPI)
 
+if(EXISTS ${CADO_NFS_SOURCE_DIR}/files.dist)
+    set(EXCLUDE_FROM_RELEASE_BUILD )
+else(EXISTS ${CADO_NFS_SOURCE_DIR}/files.dist)
+    set(EXCLUDE_FROM_RELEASE_BUILD EXCLUDE_FROM_ALL)
+endif(EXISTS ${CADO_NFS_SOURCE_DIR}/files.dist)
+
 #####################################################################
 # Add the CFLAGS that are needed in all cases.
+# Append them at the *end* of the parameter list so as to allow tweaking
+# of e.g. warnings by the user-defined overrides.
 
 if(CMAKE_COMPILER_IS_GNUCC)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g -W -Wall")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -W -Wall")
+    set (CMAKE_C_FLAGS   "-std=c99 -g -W -Wall ${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-g -W -Wall ${CMAKE_CXX_FLAGS}")
 endif(CMAKE_COMPILER_IS_GNUCC)
 
 #####################################################################
@@ -81,6 +89,9 @@ include(${CADO_NFS_SOURCE_DIR}/config/sse2.cmake)
 include(${CADO_NFS_SOURCE_DIR}/config/sse41.cmake)
 include(${CADO_NFS_SOURCE_DIR}/config/gcc-assembly.cmake)
 include(${CADO_NFS_SOURCE_DIR}/config/curl.cmake)
+include(${CADO_NFS_SOURCE_DIR}/config/alloca.cmake)
+include(${CADO_NFS_SOURCE_DIR}/config/cabsl.cmake)
+include(${CADO_NFS_SOURCE_DIR}/config/log2.cmake)
 
 ######################################################################
 # Try to detect whether pthreads and/or MPI are available.

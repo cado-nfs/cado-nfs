@@ -1,4 +1,4 @@
-#define _BSD_SOURCE
+#include "cado.h"
 
 /* This program is the simplest interface to the bare matrix
  * multiplication routine. It's meant to provide an easy way of benching,

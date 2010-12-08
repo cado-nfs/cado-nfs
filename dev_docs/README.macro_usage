@@ -1,4 +1,4 @@
-Here are the useful macros that are defined by cado.h and their
+Here are the useful macros that are defined by macros.h and their
 semantics:
 
 ASSERT(x)       
@@ -28,7 +28,7 @@ Usage of asserts:
 
         You are of course allowed to add your own additional assert
         variants in a specific file, (like ASSERT_EXPENSIVE), but they
-        should not go to cado.h. 
+        should not go to macros.h. 
 
 
 ABS(x)
@@ -56,6 +56,14 @@ MAYBE_UNUSED
             int n MAYBE_UNUSED;
         or for a static function:
             MAYBE_UNUSED static inline void foo() { print("Foo\n"); }
+        Note that MAYBE_UNUSED, as described here, can be used only for
+        gcc 3.4 and later. Earlier versions (3.1 to 3.3) did have the
+        unused attribute, but the rules for the placement of the
+        attribute were different. For the record:
+            int first_arg(int x, int MAYBE_UNUSED y) { blah blah }
+        and, for a function, in two steps:
+            static inline void foo() MAYBE_UNUSED;
+            static inline void foo() { blah blah }
 
 LIKELY(x)
 UNLIKELY(x)

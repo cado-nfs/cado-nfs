@@ -1,5 +1,5 @@
 
-add_executable(linesieve linesieve.c fb.c linesieve-fb.c sieve_config.h)
+add_executable(linesieve linesieve.c fb.c linesieve-fb.c)
 target_link_libraries (linesieve utils m)
 install(TARGETS linesieve RUNTIME DESTINATION bin/linesieve)
 

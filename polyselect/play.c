@@ -1,5 +1,4 @@
-#define _XOPEN_SOURCE
-
+#include "cado.h"
 #include <stdio.h>
 #include <math.h>
 #include <sys/types.h>

@@ -1,10 +1,10 @@
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h> /* for PRIx64 macro and strtoumax */
 #include <math.h>   // for ceiling, floor in cfrac
-#include "cado.h"
 #include "fb.h"
 #include "utils.h"           /* lots of stuff */
 #include "basicnt.h"         /* ctzl bin_gcd */
@@ -17,6 +17,13 @@
 #include <emmintrin.h>
 #endif
 
+#ifndef HAVE_LOG2
+static double
+log2 (double x)
+{
+  return log (x) / log (2.0);
+}
+#endif
 
 /* As its name says, this is a ugly hack that initializes all lognorms to the
    maximal value (255) on the rational side. But it seems to work well, and to
@@ -3669,6 +3676,13 @@ main (int argc0, char *argv0[])
     if (cpoly->skew <= 0.0)
       {
         fprintf (stderr, "Error, please provide a positive skewness\n");
+        exit (EXIT_FAILURE);
+      }
+
+    /* check that nb_threads (-mt nnn) is positive */
+    if (nb_threads <= 0)
+      {
+        fprintf (stderr, "Error, please provide a positive number of threads\n");
         exit (EXIT_FAILURE);
       }
 

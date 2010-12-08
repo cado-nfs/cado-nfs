@@ -1,9 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-
-#define _BSD_SOURCE /* for strdup */
-#define _GNU_SOURCE         /* asprintf */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
-
+#include "cado.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1112,7 +1107,7 @@ int pi_save_file(pi_wiring_ptr w, const char * name, void * buf, size_t mysize)
             close(fd);
             goto pi_save_file_leader_init_done;
         }
-        recvbuf = mmap(NULL, wsiz, PROT_WRITE, MAP_SHARED, fd, 0);
+        recvbuf = mmap(NULL, wsiz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (recvbuf == MAP_FAILED) {
             fprintf(stderr, "mmap(%s): %s\n",
                     name, strerror(errno));
@@ -1207,7 +1202,7 @@ int pi_save_file_2d(parallelizing_info_ptr pi, int d, const char * name, void * 
             close(fd);
             goto pi_save_file_2d_leader_init_done;
         }
-        recvbuf = mmap(NULL, wsiz, PROT_WRITE, MAP_SHARED, fd, 0);
+        recvbuf = mmap(NULL, wsiz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (recvbuf == MAP_FAILED) {
             fprintf(stderr, "mmap(%s): %s\n",
                     name, strerror(errno));

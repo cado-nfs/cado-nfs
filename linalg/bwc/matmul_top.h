@@ -155,7 +155,9 @@ extern void matmul_top_init(matmul_top_data_ptr mmt,
 
 
 extern void matmul_top_clear(matmul_top_data_ptr mmt, abobj_ptr abase);
+#if 0
 extern void matmul_top_fill_random_source(matmul_top_data_ptr mmt, int d);
+#endif
 extern void matmul_top_load_vector(matmul_top_data_ptr mmt, const char * name, int d, unsigned int iter);
 extern void matmul_top_save_vector(matmul_top_data_ptr mmt, const char * name, int d, unsigned int iter);
 extern void matmul_top_mul_cpu(matmul_top_data_ptr mmt, int d);

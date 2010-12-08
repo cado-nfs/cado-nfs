@@ -1,8 +1,4 @@
-#define _BSD_SOURCE     /* strdup */
-#define _GNU_SOURCE         /* vasprintf */
-#define _POSIX_C_SOURCE 200112L /* strtoumax */
-#define _DARWIN_C_SOURCE    /* for vasprintf. _ANSI_SOURCE must be undefined */
-
+#include "cado.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>              /* isdigit isspace */
@@ -312,9 +308,9 @@ int param_list_configure_knob(param_list pl, const char * knob, int * ptr)
     char * tmp = (char *) malloc(strlen(knob)+2);
     tmp[0]='-';
     if (knob[1] == '-') { // have -- in the knob
-        strcpy(tmp, knob);
+        strncpy(tmp, knob, strlen(knob) + 1);
     } else {
-        strcpy(tmp+1, knob);
+        strncpy(tmp+1, knob, strlen(knob) + 1);
     }
     // put the -- version
     pl->knobs[pl->nknobs]->knob = strdup(tmp);

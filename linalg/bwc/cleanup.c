@@ -1,5 +1,4 @@
-#define _GNU_SOURCE     /* asprintf */
-#define _DARWIN_C_SOURCE        /* asprintf */
+#include "cado.h"
 
 #include <stdio.h>
 #include <stdlib.h>

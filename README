@@ -41,7 +41,7 @@ Required software tools:
 
 Optionally:
 *) Support for curl library.
-*) Support for MPI.
+*) Support for MPI (see local.sh.example).
 
 
 Configure
@@ -126,7 +126,7 @@ rational side if this is more appropriate for your number.
 
 The default square root algorithm does not work in some very rare cases
 that could possibly occur with SNFS polynomials (a degree 4 polynomial
-with Galois group Z/2 x Z/2 is the only reasonnable example, next case is
+with Galois group Z/2 x Z/2 is the only reasonable example, next case is
 for degree 8). The CRT approach is a workaround. See crtaglsqrt.c . 
 
 Factoring with two non-linear polynomials:

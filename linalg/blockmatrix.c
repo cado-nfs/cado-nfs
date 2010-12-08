@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <gmp.h>
 
 #include "blockmatrix.h"
 #include "bit_matrices.h"
 #include "macros.h"
+#include "cado-endian.h"
 
 blockmatrix blockmatrix_alloc(unsigned int nrows, unsigned int ncols)
 {
@@ -87,8 +89,8 @@ void blockmatrix_print(blockmatrix b, const char *vname)
 	    if (i + ii)
 		fprintf(f,",\n");
 	    for (unsigned int j = 0; j < b->ncols; j += 64) {
+                mat64_ptr bl = b->mb[i / 64 + (j / 64) * b->stride];
 		for (unsigned int jj = 0; jj < 64 && j + jj < b->ncols; jj++) {
-		    mat64_ptr bl = b->mb[i / 64 + (j / 64) * b->stride];
 		    if (j + jj)
 			fprintf(f,",");
 		    fprintf(f,"%"PRIu64, (bl[ii] >> jj) & ((uint64_t)1));
@@ -197,6 +199,46 @@ void blockmatrix_copy_transpose_to_flat(uint64_t * tiny, unsigned int stride,
     }
 }
 
+/* swap characters in a 64-bit word if necessary */
+static uint64_t
+u64_convert_to_little_endian (uint64_t v)
+{
+#if CADO_BYTE_ORDER == 1234 /* little endian: nothing to do */
+  return v;
+#elif CADO_BYTE_ORDER == 4321
+  return ((v & 255) << 56) + (((v >> 8) & 255) << 48)
+    + (((v >> 16) & 255) << 40) + (((v >> 24) & 255) << 32)
+    + (((v >> 32) & 255) << 24) + (((v >> 40) & 255) << 16)
+    + (((v >> 48) & 255) << 8) + ((v >> 56) & 255);
+#else
+#error "neither little nor big endian: implement me"
+#endif
+}
+static uint64_t
+u64_convert_from_little_endian (uint64_t v)
+{
+    return u64_convert_to_little_endian(v);
+}
+
+/* if mp_limb_t has 32 bits and we are on a big-endian machine, swap
+   32-bit words */
+void
+swap_words_if_needed (uint64_t *v MAYBE_UNUSED, unsigned long n MAYBE_UNUSED)
+{
+#if CADO_BYTE_ORDER == 1234
+  /* do nothing */
+#elif CADO_BYTE_ORDER == 4321
+  if (GMP_LIMB_BITS == 32)
+    {
+      unsigned long i;
+      for (i = 0; i < n; i++)
+        v[i] = (v[i] >> 32) + ((v[i] & 4294967295UL) << 32);
+    }
+#else
+#error "neither little nor big endian: implement me"
+#endif
+}
+
 void blockmatrix_copy_transpose_from_flat(blockmatrix m, uint64_t * tiny, unsigned int stride, int i0, int j0)
 {
     for(unsigned int i = 0 ; i < m->nrblocks ; i++) {
@@ -222,7 +264,11 @@ void blockmatrix_copy_from_flat(blockmatrix m, uint64_t * tiny, unsigned int str
     }
 }
 
-void blockmatrix_read_from_flat_file(blockmatrix k, int i0, int j0, const char * name, unsigned int fnrows, unsigned int fncols)
+/* reads matrix from file 'name',  considering the input as little endian */
+void
+blockmatrix_read_from_flat_file (blockmatrix k, int i0, int j0,
+                                 const char * name, unsigned int fnrows,
+                                 unsigned int fncols)
 {
     FILE * f = fopen(name, "r");
     ASSERT_ALWAYS(f);
@@ -236,7 +282,8 @@ void blockmatrix_read_from_flat_file(blockmatrix k, int i0, int j0, const char *
             uint64_t v;
             int rc = fread(&v, sizeof(uint64_t), 1, f);
             ASSERT_ALWAYS(rc == 1);
-            k->mb[((i0+r)/64) + ((j0+g)/64) * k->stride][(i0+r)%64] = v;
+            k->mb[((i0+r)/64) + ((j0+g)/64) * k->stride][(i0+r)%64] = 
+              u64_convert_from_little_endian (v);
         }
     }
     fclose(f);
@@ -288,6 +335,7 @@ void blockmatrix_write_to_flat_file(const char * name, blockmatrix k, int i0, in
         for(unsigned int g = 0 ; g < fncols ; g+=64) {
             uint64_t v;
             v = k->mb[((i0+r)/64) + ((j0+g)/64) * k->stride][(i0+r)%64];
+            v = u64_convert_to_little_endian (v);
             int rc = fwrite(&v, sizeof(uint64_t), 1, f);
             ASSERT_ALWAYS(rc == 1);
         }

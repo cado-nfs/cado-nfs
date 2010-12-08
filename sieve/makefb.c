@@ -1,8 +1,8 @@
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp() */
 #include <math.h> /* for sqrt and floor */
-#include "cado.h"
 #include "utils.h"
 
 

@@ -8,23 +8,24 @@ target_link_libraries(sqrt utils m)
 
 install(TARGETS sqrt RUNTIME DESTINATION bin/sqrt)
 
-add_executable(checkdep checkdep.c)
+add_executable(checkdep ${EXCLUDE_FROM_RELEASE_BUILD} checkdep.c)
 target_link_libraries(checkdep utils)
 
-install(TARGETS sqrt checkdep RUNTIME DESTINATION bin/sqrt)
+install(TARGETS sqrt RUNTIME DESTINATION bin/sqrt)
 
 # crtalgsqrt requires both threads and mpi.
 if(${WITH_PTHREADS})
 add_definitions(-DWITH_PTHREADS)
 
-add_executable(crtalgsqrt crtalgsqrt.c powers_of_p.cpp polyroots.c
-    knapsack.c)
+if (HAVE_CABSL)
+add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.c powers_of_p.cpp
+    polyroots.c knapsack.c)
 target_link_libraries(crtalgsqrt utils m ${pthread_libs})
 
 set_target_properties(crtalgsqrt PROPERTIES
     COMPILE_FLAGS "--mpi"
     LINK_FLAGS "--mpi")
-
+endif(HAVE_CABSL)
 endif(${WITH_PTHREADS})
 
 # add_executable(dispatch dispatch.cpp)

@@ -21,30 +21,20 @@ include_directories (ecm)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
 
-# XXX TODO: sieve_config.h is dead -- remove it, place relevant #defines in
-# the source file instead. Then remove the custom command below as well as
-# references to sieve_config.h here and in the companion file
-# CMakeLists-nodist.txt
-
-add_custom_command(OUTPUT sieve_config.h
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/sieve_config_h.in ${CMAKE_CURRENT_BINARY_DIR}/sieve_config.h)
-
-set_source_files_properties(sieve_config.h PROPERTIES GENERATED true)
-
 add_executable (makefb makefb.c)
 target_link_libraries (makefb utils m)
 
-add_executable (las las.c fb.c trialdiv.c sieve_config.h)
+add_executable (las las.c fb.c trialdiv.c)
 target_link_libraries (las facul utils m ${pthread_libs})
 
-#add_executable (las-copper las-copper.c fb.c trialdiv.c sieve_config.h)
+#add_executable (las-copper las-copper.c fb.c trialdiv.c)
 #target_link_libraries (las-copper facul utils m pthread)
 
 add_executable(trialdiv EXCLUDE_FROM_ALL trialdiv.c)
 target_link_libraries (trialdiv utils)
 set_property(TARGET trialdiv APPEND PROPERTY COMPILE_FLAGS -DTESTDRIVE)
 
-add_executable(freerel freerel.c fb.c sieve_config.h)
+add_executable(freerel freerel.c fb.c)
 target_link_libraries(freerel utils m)
 
 add_subdirectory(ecm)

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
 #include <string.h>
 
@@ -89,7 +90,7 @@ int main(int argc, char * argv[])
                 assert(c < ncols);
                 w ^= vec[c];
             }
-            printf("%016lx\n", w);
+            printf("%016" PRIx64 "\n", w);
         }
     } else {
         unsigned long rrows;
@@ -129,7 +130,7 @@ int main(int argc, char * argv[])
         assert(nrows == rrows);
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
-            printf("%016lx\n", vec[k]);
+            printf("%016" PRIx64 "\n", vec[k]);
         }
     }
 

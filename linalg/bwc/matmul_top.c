@@ -1,7 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE         /* asprintf */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
-
+#include "cado.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -280,6 +277,11 @@ broadcast_down_generic(matmul_top_data_ptr mmt, size_t stride, mmt_generic_vec_p
     }
 }
 
+#if 0
+/* no longer used -- was only used by prep.
+ * It's not buggy, but making this work in a context where we have
+ * multiple threads is tricky.
+ */
 void matmul_top_fill_random_source_generic(matmul_top_data_ptr mmt, size_t stride, mmt_generic_vec_ptr v, int d)
 {
     if (v == NULL) v = (mmt_generic_vec_ptr) mmt->wr[d]->v;
@@ -294,6 +296,7 @@ void matmul_top_fill_random_source_generic(matmul_top_data_ptr mmt, size_t strid
     // reconcile all cells which correspond to the same vertical block.
     broadcast_down_generic(mmt, stride, v, d);
 }
+#endif
 
 /* It really something relevant to the pirow communicator. Turn it so */
 static void save_vector_toprow_generic(matmul_top_data_ptr mmt, size_t stride, mmt_generic_vec_ptr v, const char * name, int d, unsigned int iter)
@@ -946,10 +949,16 @@ reduce_across(matmul_top_data_ptr mmt, int d)
     // circumstances after this step.
 }
 
+#if 0
+/* no longer used -- was only used by prep.
+ * It's not buggy, but making this work in a context where we have
+ * multiple threads is tricky.
+ */
 void matmul_top_fill_random_source(matmul_top_data_ptr mmt, int d)
 {
     matmul_top_fill_random_source_generic(mmt, abbytes(mmt->abase, 1), NULL, d);
 }
+#endif
 
 #if 0
 static void mmt_debug_writeout(matmul_top_data_ptr mmt, int d, const char * name)

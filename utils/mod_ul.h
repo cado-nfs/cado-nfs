@@ -7,10 +7,8 @@
   (add, mul, etc), and possibly underscore and specification of what argument
   types the function takes (_ul, etc). */
 
-
-#ifndef __MOD_UL_H
-
-#define __MOD_UL_H
+#ifndef MOD_UL_H
+#define MOD_UL_H
 
 /**********************************************************************/
 #include <assert.h>
@@ -798,4 +796,4 @@ int modul_jacobi (const residueul_t, const modulusul_t);
 /* Cruft: this belongs in modredc_*.h, not here  */
 unsigned long modul_invmodlong (unsigned long n);
 
-#endif  /* MOD_UL_H__ */
+#endif  /* MOD_UL_H */

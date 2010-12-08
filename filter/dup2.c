@@ -28,14 +28,13 @@
    We store j % 2^32 at the next empty cell after index i in the hash-table.
 */
 
-#define _GNU_SOURCE  /* in ordre to have asprintf */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>     // for unlink
 #include <inttypes.h>
 #include <ctype.h>  // for isspace
-#include "cado.h"
 #include "utils.h"
 #include "relation.h"
 

@@ -152,6 +152,15 @@ qmin=400000             # Start of the special-q range
 qrange=20000            # The size of an elementary sieving task
     # The sieving process is split into many individual tasks. This
     # parameter controls the size of individual tasks.
+
+firstcheck=1500000      # Start of filtering tries
+    # We only try to do filtering (and thus check if we have enough relations)
+    # once we have accumulated <firstcheck> relations (including duplicates).
+    # A rule of thumb is to use 1.6*N/log(N) if N=2^n when lpba=lpbr=n, or
+    # 0.8*2^lpba/log(2^lpba) + 0.8*2^lpbrlog(2^lpbr) when lpba <> lpbr.
+    # The default value is 1, which means that with checkrange=1 filtering
+    # tries are done at the very beginning of the sieving.
+    # Make sure to update <firstcheck> whenever you update lpba or lpbr.
     
 checkrange=1
     # Each time <checkrange> new relations have been imported by

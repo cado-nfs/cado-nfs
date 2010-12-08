@@ -39,10 +39,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    a factor sqrt(area), with area = 1e16.
 */
 
+#include "cado.h"
 #define PI 3.14159265358979324
 
 #include <math.h>
-#include "cado.h"
 #include "utils.h"
 #include "auxiliary.h"
 #include "rho.h"

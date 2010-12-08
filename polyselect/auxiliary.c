@@ -19,13 +19,13 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h> /* for DBL_MAX */
 #include <math.h>
 #include "gmp.h"
 #include "macros.h" /* for ASSERT_ALWAYS */
-#include "cado.h"
 #include "utils.h"
 #include "auxiliary.h"
 #include "rootsieve.h"

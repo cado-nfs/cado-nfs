@@ -12,8 +12,7 @@
    Input can be in gzipped or bzipped format.
 */
 
-#define _GNU_SOURCE     /* asprintf */
-#define _DARWIN_C_SOURCE     /* asprintf */
+#include "cado.h"
 
 #define NSLICES_LOG 2
 #define NSLICES (1 << NSLICES_LOG)
@@ -32,7 +31,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "cado.h"
 #include "macros.h"
 #include "utils.h"
 #include "relation.h"

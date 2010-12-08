@@ -10,7 +10,7 @@ endif (${WITH_MPI})
 
 add_library(mf mf.c)
 target_link_libraries(mf balancing utils)
-add_executable(mf_scan mf_scan.c)
+add_executable(mf_scan ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan.c)
 target_link_libraries(mf_scan mf)
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
@@ -20,12 +20,14 @@ target_link_libraries(mf_bal mf m)
 
 configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
 
-add_executable(test_hello EXCLUDE_FROM_ALL test_hello.c parallelizing_info.c)
-set_target_properties(test_hello PROPERTIES
-        COMPILE_FLAGS "--mpi"
-        LINK_FLAGS "--mpi")
+# test_hello does not compile. harmless
+#add_executable(test_hello ${EXCLUDE_FROM_RELEASE_BUILD} test_hello.c parallelizing_info.c)
+#target_link_libraries(test_hello utils)
+#set_target_properties(test_hello PROPERTIES
+#    COMPILE_FLAGS "--mpi"
+#    LINK_FLAGS "--mpi")
 
-add_executable(random random.c)
+add_executable(random ${EXCLUDE_FROM_RELEASE_BUILD} random.c)
 
 # balancing.c itself is in fact standalone, and lightweight. We prefer to
 # avoid having the whole thing entangled with too many dependencies all
@@ -38,9 +40,8 @@ add_executable(split split.c bw-common.c balancing.c)
 
 add_executable(acollect acollect.c bw-common.c)
 
-install(TARGETS random split acollect RUNTIME DESTINATION bin/linalg/bwc)
+install(TARGETS split acollect RUNTIME DESTINATION bin/linalg/bwc)
 
-target_link_libraries(test_hello utils)
 target_link_libraries(random utils m)
 target_link_libraries(split utils)
 # target_link_libraries(shell utils ${pthread_libs})
@@ -84,9 +85,9 @@ set_target_properties(bwc_base PROPERTIES
         COMPILE_FLAGS "--mpi"
         LINK_FLAGS "--mpi")
 
-add_executable(mf_twistvec mf_twistvec.c)
+add_executable(mf_twistvec ${EXCLUDE_FROM_RELEASE_BUILD} mf_twistvec.c)
 target_link_libraries(mf_twistvec bwc_base)
-install(TARGETS mf_twistvec RUNTIME DESTINATION bin/linalg/bwc)
+# install(TARGETS mf_twistvec RUNTIME DESTINATION bin/linalg/bwc)
 
 add_executable(mf_untwistvec mf_untwistvec.c)
 target_link_libraries(mf_untwistvec bwc_base)
@@ -187,7 +188,7 @@ install(TARGETS lingen RUNTIME DESTINATION bin/linalg/bwc)
 target_link_libraries(lingen bwc_base utils gf2x-fft gf2x cantor128)
 add_dependencies(lingen gf2x-build)
 
-add_executable(short_matmul EXCLUDE_FROM_ALL short_matmul.c)
+add_executable(short_matmul ${EXCLUDE_FROM_RELEASE_BUILD} short_matmul.c)
 
 add_executable(cleanup cleanup.c ../blockmatrix.c ../bit_matrices.c
     ../gauss.c)

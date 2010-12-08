@@ -1,7 +1,5 @@
-
-#ifndef _STAGE2_H
-
-#define _STAGE2_H
+#ifndef STAGE2_H
+#define STAGE2_H
 
 #define NEXT_D 254
 #define NEXT_PASS 255
@@ -21,4 +19,4 @@ typedef struct {
 void stage2_make_plan (stage2_plan_t *, unsigned int, unsigned int, int);
 void stage2_clear_plan (stage2_plan_t *);
 
-#endif
+#endif  /* STAGE2_H */

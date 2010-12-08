@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <stdint.h>
 
+/* merge has some pressure on I/O, so having hex here speeds up the process a
+ * bit.
+ * TODO: This has to go, obviously. Some functions write to .purged, or
+ * parse it.  They should all be merged into purgedfile.c, and this
+ * #define (if kept) would go there instead. */
+#define PURGE_INT_FORMAT "%x"
+
 struct purgedfile_stream_s {
     FILE * source;
     int nrows, ncols;

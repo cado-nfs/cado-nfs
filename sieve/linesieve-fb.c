@@ -2,7 +2,6 @@
  *                Functions for the factor base                  *
  *****************************************************************/
 
-#include "sieve_config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>

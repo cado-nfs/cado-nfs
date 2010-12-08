@@ -1,6 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE         /* asprintf */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
+#include "cado.h"
 
 /* This is a very silly program which merely reads the matrix and then
  * exits. It must come before the prep program, and coalescing this one

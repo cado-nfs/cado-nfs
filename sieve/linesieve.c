@@ -1,4 +1,4 @@
-#include "sieve_config.h"
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -8,7 +8,6 @@
 #include <math.h>
 #include <ctype.h>
 #include <time.h>
-#include "cado.h"
 #include "linesieve.h"
 #include "mod_ul.h"
 #include "fb.h"
@@ -36,12 +35,14 @@
 #define uc_sub(a,b) ((unsigned char) ((a)-(b)))
 #define add_error(a) ((unsigned char) ((a) + SIEVE_PERMISSIBLE_ERROR))
 
+/* Define WANT_ASSERT_EXPENSIVE (either on the command line or within
+ * this file) to hunt for bugs */
+
 #ifdef  WANT_ASSERT_EXPENSIVE
 #define ASSERT_EXPENSIVE(x)     ASSERT_ALWAYS(x)
 #else
 #define ASSERT_EXPENSIVE(x)     /**/
 #endif
-
 
 unsigned long skipped_ahead_too_far;
 

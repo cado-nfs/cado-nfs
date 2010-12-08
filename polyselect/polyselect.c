@@ -141,12 +141,12 @@ See the scripts "dist/src/new_run.X" where X is c59 or c79.
 
 */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h> /* for log, pow, fabs */
-#include "cado.h"
 #include "utils.h"
 #include "auxiliary.h" /* for common routines with polyselect.c */
 
@@ -931,7 +931,7 @@ enumerate (unsigned int *Q, int lQ, int l, double max_adm1, double max_adm2,
                 }
               else /* case p0 > 1 */
                 {
-                  unsigned long inv;
+                  static unsigned long inv;
 
                   if (i == 0)
                     {

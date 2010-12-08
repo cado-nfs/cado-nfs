@@ -1,6 +1,7 @@
+#include "cado.h"
 #include <stdint.h>
-#include <cado.h>
 #include "gcd_uint64.h"
+#include "macros.h"
 
 uint64_t
 gcd_uint64 (uint64_t a, uint64_t b)

@@ -1,5 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-
+#include "cado.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

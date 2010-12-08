@@ -1,8 +1,4 @@
-#define _GNU_SOURCE         /* asprintf */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
-#define _XOPEN_SOURCE   600
-#define _POSIX_C_SOURCE 200112L /* statvfs is posix ! */
-
+#include "cado.h"
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>

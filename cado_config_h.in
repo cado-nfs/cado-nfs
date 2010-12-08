@@ -22,3 +22,6 @@
 #cmakedefine    HAVE_SSE2
 
 #cmakedefine    HAVE_SSE41
+#cmakedefine    HAVE_ALLOCA_H
+#cmakedefine    HAVE_CABSL
+#cmakedefine    HAVE_LOG2

@@ -1,8 +1,8 @@
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
 #include <assert.h>
-#include "cado.h"
 #include "auxiliary.h"
 #include "murphyE.h"
 #include "rootsieve.h"

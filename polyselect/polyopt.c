@@ -16,6 +16,7 @@
 */
 
 /* standard header files */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

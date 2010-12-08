@@ -221,7 +221,7 @@ AC_MSG_CHECKING([warning verbosity option])
       then
         ac_compile_warnings_opt='-Wall -W'
       fi
-      CXXFLAGS="$CXXFLAGS $ac_compile_warnings_opt"
+      CXXFLAGS="$ac_compile_warnings_opt $CXXFLAGS"
       ac_compile_warnings_msg="$ac_compile_warnings_opt for C++"
     fi
 
@@ -231,7 +231,7 @@ AC_MSG_CHECKING([warning verbosity option])
     then
       ac_compile_warnings_opt='-Wall -W'
     fi
-    CFLAGS="$CFLAGS $ac_compile_warnings_opt"
+    CFLAGS="$ac_compile_warnings_opt $CFLAGS"
     ac_compile_warnings_msg="$ac_compile_warnings_msg $ac_compile_warnings_opt for C"
   fi
   fi

@@ -1,5 +1,5 @@
-#ifndef __FACUL_H
-#define __FACUL_H
+#ifndef FACUL_H
+#define FACUL_H
 
 #include <stdio.h>
 #include <gmp.h>
@@ -37,4 +37,4 @@ void facul_clear_strategy (facul_strategy_t *);
 void facul_print_stats (FILE *);
 int facul (unsigned long *, const mpz_t, const facul_strategy_t *);
 
-#endif
+#endif /* FACUL_H */

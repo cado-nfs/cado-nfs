@@ -1,6 +1,4 @@
-#define _BSD_SOURCE     /* strdup */
-#define _POSIX_C_SOURCE 200112L
-
+#include "cado.h"
 #include "readbuffer.h"
 #include <string.h>
 #include <stdlib.h>

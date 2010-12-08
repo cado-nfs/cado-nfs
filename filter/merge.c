@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
   PhD thesis, University of Leiden, 2002, 108 pages.
  */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp */

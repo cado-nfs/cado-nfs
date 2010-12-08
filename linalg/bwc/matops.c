@@ -27,6 +27,7 @@
  */
 
 
+#include "cado.h"       /* HAVE_* macros ! */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -40,7 +41,6 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "cado.h"       /* HAVE_* macros ! */
 
 #ifdef  HAVE_SSE41
 #include <smmintrin.h>  // sse 4.1 _mm_cmpeq_epi64
@@ -129,16 +129,16 @@ static inline uint64_t nibrev(uint64_t a)
 }/*}}}*/
 
 /* prototypes for the functions defined */
-static void mul_6464_6464(mat64 C, mat64 A, mat64 B);
-static void add_6464_6464(mat64_ptr C, mat64_srcptr A, mat64_srcptr B);
-static void mul_o64_6464(uint64_t *r, uint64_t a, mat64_srcptr w);
-static void mul_N64_6464(uint64_t *C, const uint64_t *A,
+static inline void mul_6464_6464(mat64 C, mat64 A, mat64 B);
+static inline void add_6464_6464(mat64_ptr C, mat64_srcptr A, mat64_srcptr B);
+static inline void mul_o64_6464(uint64_t *r, uint64_t a, mat64_srcptr w);
+static inline void mul_N64_6464(uint64_t *C, const uint64_t *A,
 		 const uint64_t *B, unsigned long m);
-static void mul_N64_T6464(uint64_t *C, const uint64_t *A,
+static inline void mul_N64_T6464(uint64_t *C, const uint64_t *A,
                    const uint64_t *B, unsigned long m);
-static void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w);
-static void mul_o64_6464(uint64_t * r, uint64_t a, mat64_srcptr w);
-static void mul_o64_T6464(uint64_t * w, uint64_t a, mat64_srcptr b);
+static inline void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w);
+static inline void mul_o64_6464(uint64_t * r, uint64_t a, mat64_srcptr w);
+static inline void mul_o64_T6464(uint64_t * w, uint64_t a, mat64_srcptr b);
 
 
 /* level 1 */
@@ -214,7 +214,7 @@ static inline void addmul_To64_o64_msb(uint64_t * r, uint64_t a, uint64_t w)
     }
 }
 
-static inline void addmul_To64_o64_lsb_sse_v0(uint64_t * r, uint64_t a, uint64_t w)
+static inline void addmul_To64_o64_lsb_packof2(uint64_t * r, uint64_t a, uint64_t w)
 {
     /* À peu près comme la méthode 1, mais pas mieux */
     typedef uint64_t mvec_t[2];
@@ -1438,7 +1438,11 @@ static inline void mul_N64_6464(uint64_t *C,
 		 const uint64_t *A,
 		 const uint64_t *B, unsigned long m)
 {
+#ifdef  HAVE_SSE2
     mul_N64_6464_sse(C,A,B,m);
+#else
+    mul_N64_6464_lookup4(C,A,B,m);
+#endif
 }
 static inline void mul_N64_T6464(uint64_t *C,
                    const uint64_t *A,
@@ -1448,7 +1452,11 @@ static inline void mul_N64_T6464(uint64_t *C,
 }
 static inline void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w)
 {
+#ifdef HAVE_SSE2
     addmul_To64_o64_lsb_sse_v1(r,a,w);
+#else
+    addmul_To64_o64_lsb_packof2(r,a,w);
+#endif
 }
 static inline void mul_o64_6464(uint64_t * r, uint64_t a, mat64_srcptr w)
 {
@@ -1605,9 +1613,11 @@ void level1_mul_tests_N_list(l1_data_ptr D)
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
     TIME1N(2, mul_N64_6464_transB, (r,a,w,n));
 
+#ifdef  HAVE_SSE2
     mul_N64_6464_sse(r, a, w, n);
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
     TIME1N(2, mul_N64_6464_sse, (r,a,w,n));
+#endif
 
     mul_N64_6464_lookup4(r, a, w, n);
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
@@ -1702,9 +1712,11 @@ void level1_mul_tests_64_list(l1_data_ptr D)
     SCOPE_L1_DATA_MEMBERS(D);
     assert(n == 64);
 
+#ifdef  HAVE_SSE2
     mul_6464_6464_sse(r, a, w);
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
     TIME1(1, mul_6464_6464_sse, (r, a, w));
+#endif
 
     mul_6464_6464_v2(r, a, w);
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
@@ -2237,8 +2249,10 @@ int main()
         printf("-- level-1 benches, misc --\n");
         TIME1(1, addmul_To64_o64_lsb, (r, a, w));
         TIME1(1, addmul_To64_o64_msb, (r, a, w));
-        TIME1(1, addmul_To64_o64_lsb_sse_v0, (r, a, w));
+        TIME1(1, addmul_To64_o64_lsb_packof2, (r, a, w));
+#ifdef  HAVE_SSE2
         TIME1(1, addmul_To64_o64_lsb_sse_v1, (r, a, w));
+#endif
         TIME1(1, addmul_To64_o64, (r, a, w));
         free(r);
     }

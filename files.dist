@@ -123,7 +123,7 @@ linalg/readmat.h
 linalg/rowset_heap.cpp
 linalg/rowset_heap.h
 linalg/transpose.c
-local.sh.Macintosh.home
+local.sh.macosx-leopard
 local.sh.example
 macros.h
 filter/CMakeLists.txt
@@ -237,7 +237,6 @@ sieve/CMakeLists.txt
 sieve/Makefile
 sieve/basicnt.h
 sieve/bucket.h
-sieve/sieve_config_h.in
 sieve/ecm/CMakeLists.txt
 sieve/ecm/Makefile
 sieve/ecm/ecm.c
@@ -368,6 +367,7 @@ cado_mpi_config_h.in
 config/asm_sample.c
 config/sse2.c
 config/sse2.cmake
+config/alloca.cmake
 config/gcc-assembly.cmake
 config/search_for_function.cmake
 config/pthreads.cmake
@@ -435,6 +435,7 @@ gf2x/NEWS
 gf2x/README
 gf2x/TODO
 gf2x/aclocal.m4
+gf2x/macros.h
 gf2x/already_tuned/generic/gf2x-thresholds.h
 gf2x/already_tuned/generic/gf2x_mul2.h
 gf2x/already_tuned/generic/gf2x_mul3.h
@@ -579,3 +580,8 @@ gf2x/tests/check-mul.res
 gf2x/tests/do-check-mul.sh
 gf2x/toom.c
 gf2x/version.sh.in
+utils/fix-endianness.c
+utils/fix-endianness.h
+utils/cado-endian.h
+config/cabsl.cmake
+config/log2.cmake

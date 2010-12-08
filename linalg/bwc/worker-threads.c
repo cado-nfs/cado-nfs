@@ -15,7 +15,8 @@ static void * thread_job(void * ti)
     unsigned int res = 0;
 
     for( ; ; ) {
-        pthread_cond_wait(&tg->cond_in,&tg->mu);
+        int rc = pthread_cond_wait(&tg->cond_in,&tg->mu);
+	ASSERT_ALWAYS(rc == 0);
         tg->working++;
         pthread_mutex_unlock(&tg->mu);
 
@@ -32,7 +33,8 @@ static void * thread_job(void * ti)
         if (res == tg->n) {
             tg->done = 0;
             tg->working = 0;
-            pthread_cond_signal(&tg->cond_out);
+            rc = pthread_cond_signal(&tg->cond_out);
+	    ASSERT_ALWAYS(rc == 0);
         }
     }
 
@@ -47,11 +49,13 @@ void worker_threads_do(struct worker_threads_group * tg, worker_func_t f, void *
     tg->arg = arg;
     /* This mutex is associated to the cond_in and cond_out conditions.  */
     pthread_mutex_lock(&tg->mu);
-    pthread_cond_broadcast(&tg->cond_in);
+    int rc = pthread_cond_broadcast(&tg->cond_in);
+    ASSERT_ALWAYS(rc == 0);
     /* All threads are now working */
     /* Now switch to the outgoing condition, wait for the last thread to
      * release us */
-    pthread_cond_wait(&tg->cond_out,&tg->mu);
+    rc = pthread_cond_wait(&tg->cond_out,&tg->mu);
+    ASSERT_ALWAYS(rc == 0);
     pthread_mutex_unlock(&tg->mu);
 }
 
@@ -83,7 +87,8 @@ struct worker_threads_group * worker_threads_init(unsigned int n)
      * hassle of defining an extra data member for it. */
     pthread_mutex_lock(&tg->mu);
     for( ; tg->working != n ; ) {
-        pthread_cond_wait(&tg->cond_out, &tg->mu);
+        int rc = pthread_cond_wait(&tg->cond_out, &tg->mu);
+	ASSERT_ALWAYS(rc == 0);
     }
     pthread_mutex_unlock(&tg->mu);
 

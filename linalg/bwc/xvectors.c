@@ -1,9 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-/* ugly but useful for c++ compilers to recognize inttypes.h */
-#define __STDC_FORMAT_MACROS
-#define _GNU_SOURCE         /* asprintf */
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
-
+#include "cado.h"
 #include <stdio.h>
 #include <inttypes.h>
 #include "bwc_config.h"

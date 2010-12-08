@@ -16,7 +16,7 @@
      6         p <= 18917          p <= 1239850223
 */
 
-#define _XOPEN_SOURCE   /* For lrand48 and so on */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>

@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 500
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>

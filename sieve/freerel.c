@@ -5,13 +5,13 @@
  * 
  */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
 #include <gmp.h>
-#include "cado.h"
 #include "mod_ul.c"
 #include "utils.h"
 #include "sieve/fb.h"

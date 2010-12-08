@@ -1,15 +1,9 @@
-#ifndef __cplusplus
-#define _GNU_SOURCE         /* asprintf */
-#endif
-#define _DARWIN_C_SOURCE    /* for asprintf. _ANSI_SOURCE must be undefined */
-
-#define __STDC_LIMIT_MACROS
-#define __STDC_FORMAT_MACROS
 /* Manage the in-memory data for the matrix */
 
 /* It's in C++ because the STL is handy, but that's really all there is
  * to it ; a conversion to C would not be extremely difficult */
 
+#include "cado.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>

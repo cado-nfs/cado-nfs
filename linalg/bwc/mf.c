@@ -1,5 +1,4 @@
-#define _DARWIN_C_SOURCE        /* asprintf */
-#define _GNU_SOURCE     /* asprintf */
+#include "cado.h"
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,7 +155,7 @@ void matrix_read_pass(
                 }
                 if (rc == EOF) abort_unexpected_eof();
             } else {
-                rc = fread(&w, sizeof(uint32_t), 1, m_in->f);
+                rc = fread32_little(&w, 1, m_in->f);
                 if (rc == 0 && feof(m_in->f)) break;
             }
         } else {
@@ -181,7 +180,7 @@ void matrix_read_pass(
                     if (!can_seek) {
                         for(j = 0 ; j < w ; j++) {
                             uint32_t c;
-                            rc = fread(&c, sizeof(uint32_t), 1, m_in->f);
+                            rc = fread32_little(&c, 1, m_in->f);
                             if (!rc) abort_unexpected_eof();
                         }
                     }
@@ -208,7 +207,7 @@ void matrix_read_pass(
                     if (m_out->ascii) {
                         fprintf(m_out->f, "%" PRIu32, w);
                     } else {
-                        rc = fwrite(&w, sizeof(uint32_t), 1, m_out->f);
+                        rc = fwrite32_little(&w, 1, m_out->f);
                     }
                 }
                 /* Otherwise we have to defer */
@@ -236,7 +235,7 @@ void matrix_read_pass(
                     rc = fscanf(m_in->f, "%" SCNu32, &c);
                     if (rc == EOF) abort_unexpected_eof();
                 } else {
-                    rc = fread(&c, sizeof(uint32_t), 1, m_in->f);
+                    rc = fread32_little(&c, 1, m_in->f);
                     if (!rc) abort_unexpected_eof();
                 }
             } else {
@@ -262,7 +261,7 @@ void matrix_read_pass(
                         if (m_out->ascii) {
                             fprintf(m_out->f, " %"PRIu32, c);
                         } else {
-                            rc = fwrite(&c, sizeof(uint32_t), 1, m_out->f);
+                            rc = fwrite32_little(&c, 1, m_out->f);
                         }
                     }
                     // otherwise it's too early, size hasn't been written yet.
@@ -294,8 +293,8 @@ void matrix_read_pass(
                         fprintf(m_out->f, " %"PRIu32, temp->p[j]);
                     }
                 } else {
-                    rc = fwrite(&w, sizeof(uint32_t), 1, m_out->f);
-                    rc = fwrite(temp->p, sizeof(uint32_t), w, m_out->f);
+                    rc = fwrite32_little(&w, 1, m_out->f);
+                    rc = fwrite32_little(temp->p, w, m_out->f);
                 }
             } else {
                 // fix this up. It's the only thing we have to do.
@@ -313,7 +312,7 @@ void matrix_read_pass(
                 if (rw_out->ascii) {
                     fprintf(rw_out->f, "%"PRIu32"\n", w);
                 } else {
-                    rc = fwrite(&w, sizeof(uint32_t), 1, rw_out->f);
+                    rc = fwrite32_little(&w, 1, rw_out->f);
                 }
             }
         }/*}}}*/
@@ -344,7 +343,7 @@ row_done:
                     fprintf(cw_out->f, "%"PRIu32"\n", cw_out->p[j]);
                 }
             } else {
-                rc = fwrite(cw_out->p, sizeof(uint32_t), cw_out->size, cw_out->f);
+                rc = fwrite32_little(cw_out->p, cw_out->size, cw_out->f);
             }
         }
     }

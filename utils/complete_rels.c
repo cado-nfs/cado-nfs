@@ -1,4 +1,5 @@
 /* complete_rels: same as complete_rels, but completes small factors if omitted */
+#include "cado.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -7,7 +8,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <gmp.h>
-#include "cado.h"
 #include "utils.h"
 
 void

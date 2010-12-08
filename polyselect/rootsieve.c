@@ -19,10 +19,10 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> /* for log */
-#include "cado.h"
 #include "utils.h"
 #include "modul_poly.h"
 #include "auxiliary.h"

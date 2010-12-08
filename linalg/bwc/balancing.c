@@ -1,7 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _BSD_SOURCE     /* strdup */
-#define _GNU_SOURCE		/* asprintf */
-#define _DARWIN_C_SOURCE	/* asprintf */
+#include "cado.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -21,10 +18,12 @@ void balancing_finalize(balancing_ptr bal)
         bal->tcols = bal->trows = MAX(bal->h->nrows, bal->h->ncols);
     }
     if (bal->h->flags & FLAG_ROWPERM) {
-        w = cado_crc_lfsr_turn(l, bal->rowperm, bal->trows * sizeof(uint32_t));
+        // w = cado_crc_lfsr_turn(l, bal->rowperm, bal->trows * sizeof(uint32_t));
+        w = cado_crc_lfsr_turn32_little(l, bal->rowperm, bal->trows);
     }
     if (bal->h->flags & FLAG_COLPERM) {
-        w = cado_crc_lfsr_turn(l, bal->colperm, bal->tcols * sizeof(uint32_t));
+        // w = cado_crc_lfsr_turn(l, bal->colperm, bal->tcols * sizeof(uint32_t));
+        w = cado_crc_lfsr_turn32_little(l, bal->colperm, bal->tcols);
     }
     cado_crc_lfsr_clear(l);
     bal->h->checksum = w;
@@ -43,12 +42,22 @@ void balancing_write_inner(balancing_ptr bal, const char * filename)
         perror(filename);
         abort();
     }
-    int rc = fwrite(&bal->h, sizeof(struct balancing_header_s), 1, pfile);
+    int rc = 0;
+    /* Any change to the balancing_header structure must propagate here */
+    ASSERT_ALWAYS(sizeof(struct balancing_header_s) == 32);
+    rc += fwrite32_little(&bal->h->nh, 1, pfile);
+    rc += fwrite32_little(&bal->h->nv, 1, pfile);
+    rc += fwrite32_little(&bal->h->nrows, 1, pfile);
+    rc += fwrite32_little(&bal->h->ncols, 1, pfile);
+    rc += fwrite64_little(&bal->h->ncoeffs, 1, pfile);
+    rc += fwrite32_little(&bal->h->checksum, 1, pfile);
+    rc += fwrite32_little(&bal->h->flags, 1, pfile);
+    ASSERT_ALWAYS(rc == 7);
     if (bal->h->flags & FLAG_ROWPERM) {
-        rc = fwrite(bal->rowperm, sizeof(uint32_t), bal->trows, pfile);
+        rc = fwrite32_little(bal->rowperm, bal->trows, pfile);
     }
     if (bal->h->flags & FLAG_COLPERM) {
-        rc = fwrite(bal->colperm, sizeof(uint32_t), bal->tcols, pfile);
+        rc = fwrite32_little(bal->colperm, bal->tcols, pfile);
     }
     fclose(pfile);
 }
@@ -90,8 +99,16 @@ void balancing_write(balancing_ptr bal, const char * mfile, const char * suggest
 
 void balancing_read_header_inner(balancing_ptr bal, FILE * pfile)
 {
-    int rc = fread(&bal->h, sizeof(struct balancing_header_s), 1, pfile);
-    ASSERT_ALWAYS(rc == 1);
+    int rc = 0;
+    ASSERT_ALWAYS(sizeof(struct balancing_header_s) == 32);
+    rc += fread32_little(&bal->h->nh, 1, pfile);
+    rc += fread32_little(&bal->h->nv, 1, pfile);
+    rc += fread32_little(&bal->h->nrows, 1, pfile);
+    rc += fread32_little(&bal->h->ncols, 1, pfile);
+    rc += fread64_little(&bal->h->ncoeffs, 1, pfile);
+    rc += fread32_little(&bal->h->checksum, 1, pfile);
+    rc += fread32_little(&bal->h->flags, 1, pfile);
+    ASSERT_ALWAYS(rc == 7);
     bal->trows = bal->h->nrows;
     bal->tcols = bal->h->ncols;
     if (bal->h->flags & FLAG_PADDING) {
@@ -133,12 +150,12 @@ void balancing_read(balancing_ptr bal, const char * filename)
     }
     if (bal->h->flags & FLAG_ROWPERM) {
         bal->rowperm = malloc(bal->trows * sizeof(uint32_t));
-        int rc = fread(bal->rowperm, sizeof(uint32_t), bal->trows, pfile);
+        int rc = fread32_little(bal->rowperm, bal->trows, pfile);
         ASSERT_ALWAYS(rc == (int) bal->trows);
     }
     if (bal->h->flags & FLAG_COLPERM) {
         bal->colperm = malloc(bal->tcols * sizeof(uint32_t));
-        int rc = fread(bal->colperm, sizeof(uint32_t), bal->tcols, pfile);
+        int rc = fread32_little(bal->colperm, bal->tcols, pfile);
         ASSERT_ALWAYS(rc == (int) bal->tcols);
     }
     fclose(pfile);

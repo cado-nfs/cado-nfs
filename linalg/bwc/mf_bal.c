@@ -1,5 +1,4 @@
-#define _GNU_SOURCE     /* asprintf */
-#define _DARWIN_C_SOURCE     /* asprintf */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -388,7 +387,7 @@ int main(int argc, char * argv[])
     bal->colperm = malloc(maxdim * sizeof(uint32_t) * 2);
     double t_cw;
     t_cw = -wct_seconds();
-    size_t nc = fread(bal->colperm, sizeof(uint32_t), bal->h->ncols, fcw);
+    size_t nc = fread32_little(bal->colperm, bal->h->ncols, fcw);
     if (nc < bal->h->ncols) {
         fprintf(stderr, "%s: short column count\n", cwfile);
         exit(1);

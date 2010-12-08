@@ -1,6 +1,4 @@
-#define _GNU_SOURCE		/* asprintf */
-#define _DARWIN_C_SOURCE	/* asprintf */
-#define _POSIX_C_SOURCE 200112L	/* fileno */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

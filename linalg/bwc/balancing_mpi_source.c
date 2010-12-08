@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+#include "cado.h"
 #include <string.h>
 
 #include "select_mpi.h"

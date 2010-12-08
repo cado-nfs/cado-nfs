@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L /* pclose */
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h> /* for PRId64 */
@@ -6,7 +6,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include "cado.h"
 #include "mod_ul.h"
 #include "relation.h"
 #include "gzip.h"

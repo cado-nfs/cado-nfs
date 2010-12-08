@@ -1,8 +1,8 @@
+#include "cado.h"
 #include <gmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cado.h"
 #include "utils.h"
 
 /* store in invm the value of floor(B^(2k)/m), where m has k limbs,

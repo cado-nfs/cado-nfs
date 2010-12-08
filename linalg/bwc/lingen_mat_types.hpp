@@ -1,5 +1,7 @@
+#if !(defined(__OpenBSD__) || defined(__FreeBSD__))
 #ifndef __STDC_FORMAT_MACROS
 #error "Please define __STDC_FORMAT_MACROS before including lingen_mattypes.h"
+#endif
 #endif
 
 #ifndef LINGEN_MAT_TYPES_HPP_

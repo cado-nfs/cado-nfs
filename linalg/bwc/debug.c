@@ -1,6 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
-#define _GNU_SOURCE         /* vasprintf */
-#define _DARWIN_C_SOURCE    /* for vasprintf. _ANSI_SOURCE must be undefined */
+#include "cado.h"
 
 #include <stdio.h>
 #include <stdarg.h>

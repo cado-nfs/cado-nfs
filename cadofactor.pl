@@ -160,6 +160,10 @@
 # Before starting the factorization, you must configure ssh (cf README)
 # for all the machines.
 #
+# NOTE: it is required that the integer to be factored (denoted n in the
+# *.poly file) is *exactly* the resultant of the two given polynomials
+# (by their coefficients c0, c1, ... and Y0, Y1, ...)
+#
 # $ mkdir $HOME/snfs
 # $ cd $HOME/snfs
 # $ cp $CADO_DIR/params/mach_desc .
