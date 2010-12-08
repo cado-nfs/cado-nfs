@@ -336,6 +336,8 @@ sub read_param {
 
     # checking mandatory parameters
     if ($opt->{'strict'}) {
+        die "The paramater `n' must be an integer larger than 1.\n"
+          if ($param->{'n'} < 2);
         for my $k ("wdir", "name", "kjadmin", "kjadmax") {
             die "The parameter `$k' is mandatory.\n" if !$param->{$k};
         }
@@ -2059,7 +2061,7 @@ sub dup {
     if (@new_files) {
         my $new_files = join " ",
             (map "$param{'wdir'}/$_", sort @new_files);
-        info "split new files in $nslices slices...";
+        info "split new files in $nslices slices..." if ($verbose);
         cmd("$param{'bindir'}/filter/dup1 ".
             "-out $param{'prefix'}.nodup ".
             "-filelist $param{'prefix'}.newfilelist ".
@@ -2077,7 +2079,7 @@ sub dup {
 
     my $K = int ( 100 + (1.2 * $nrels / $nslices) );
     for (my $i=0; $i < $nslices; $i++) {
-        info "removing duplicates on slice $i...";
+        info "removing duplicates on slice $i..." if ($verbose);
         cmd("$param{'bindir'}/filter/dup2 ".
             "-K $K -out $param{'prefix'}.nodup/$i ".
             "-filelist $param{'prefix'}.filelist ".

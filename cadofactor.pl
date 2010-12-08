@@ -161,8 +161,8 @@
 # for all the machines.
 #
 # NOTE: it is required that the integer to be factored (denoted n in the
-# *.poly file) is *exactly* the resultant of the two given polynomials
-# (by their coefficients c0, c1, ... and Y0, Y1, ...)
+# *.poly file) divides the resultant of the two polynomials (given by their
+# coefficients c0, c1, ... and Y0, Y1, ...)
 #
 # $ mkdir $HOME/snfs
 # $ cd $HOME/snfs

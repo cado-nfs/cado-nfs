@@ -31,6 +31,8 @@ Required software tools:
 ========================
 
 *) GMP (http://gmplib.org): usually installed in most Linux distributions
+   (on some Linux distributions you need to install libgmp*-dev
+    including gmp.h, which is not installed by default)
 *) The GCC compiler works ; some others might, but it is untested. C and
    C++ are required, with C99 support.
 *) GNU make and CMake for building (CMake is installed on the fly if missing
@@ -116,6 +118,14 @@ ssh localhost
 you should end up with a new shell on your machine, without having to
 type any password/passphrase.
 
+Most of the recent Linux distributions will run an ssh-agent for you. But
+if this is not the case with your distribution, or if you are running
+cadofactor.pl inside a ``screen'' in order to logout of your desktop, you
+will need to run the ssh-agent by hand (see man ssh-agent). As a short
+recipe, you can type:
+   eval `ssh-agent`
+   ssh-add
+
 Factoring with SNFS:
 ====================
 
@@ -155,3 +165,10 @@ under Windows:
 
 * you might try to use MPIR (mpir.org) instead of GMP. MPIR is a fork of GMP,
   which claims to be more portable under Windows.
+
+Known problems:
+===============
+
+* under FreeBSD, GCC 4.2.1 is known to miscompile CADO-NFS (GCC 4.5.1 is ok)
+
+* under CentOS, GCC 4.1.2 is known to miscompile CADO-NFS (GCC 4.4.0 is ok)

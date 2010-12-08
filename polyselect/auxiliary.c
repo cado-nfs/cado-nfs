@@ -1027,13 +1027,14 @@ special_val0 (mpz_t *f, int d, unsigned long p)
 {
   double v;
   mpz_t c, *g, *h;
-  int i, r0, nroots;
+  int i, r0, nroots, v0;
   unsigned long *roots, r;
   mpz_array_t *G = NULL, *H;
 
   mpz_init (c);
   content_poly (c, f, d);
   for (v = 0.0; mpz_divisible_ui_p (c, p); v++, mpz_divexact_ui (c, c, p));
+  v0 = (int) v;
 
   /* g <- f/p^v */
   if (v != 0.0)
@@ -1061,7 +1062,6 @@ special_val0 (mpz_t *f, int d, unsigned long p)
   roots = (unsigned long*) malloc (d * sizeof (unsigned long));
   FATAL_ERROR_CHECK(roots == NULL, "not enough memory");
 
-
   nroots = poly_roots_ulong (roots, g, d, p);
   ASSERT (nroots <= d);
   for (r0 = 0, i = 0; i < nroots; i++)
@@ -1073,10 +1073,23 @@ special_val0 (mpz_t *f, int d, unsigned long p)
       else /* hard case */
 	{
 	  /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
-	     to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p) */
+	     to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
+	     Warning: we can have h = f, and thus an infinite loop, when
+	     the p-valuation of f is d, and f has a single root r/(1-p) of
+	     multiplicity d.
+	     Moreover if f(x) = c*p^d*(x-r+b*p)^d, where c is coprime to p,
+	     then h(x) = f(p*x+r)/p^d = c*p^d*(x+b)^d, and most likely after
+	     at most p iterations we'll go back to f(x), thus we should avoid
+	     all cases where f(x) has a root of multiplicity d, but how to
+	     check that efficiently? And which value to return in such a case?
+	  */
 	  poly_shift_divp (h, d, r - r0, p);
 	  r0 = r;
-	  v += special_val0 (h, d, p) / (double) p;
+	  if (v0 != d) /* this should catch all the cases where f(x) has a
+			  root of multiplicity d, but also more cases.
+			  In those cases we avoid an infinite loop, but the
+			  result is probably wrong. */
+	    v += special_val0 (h, d, p) / (double) p;
 	}
     }
   free (roots);
