@@ -3,6 +3,8 @@
 # run as
 # ssh gcc64 < gcc-script.sh
 
+set -e
+
 remote_cmake_path=/home/zimmerma/bin
 VERSION=1.0
 cado_tree=$HOME/cado-nfs-$VERSION
