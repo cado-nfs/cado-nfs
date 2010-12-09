@@ -20,7 +20,7 @@ fi
 
 echo "Checking out remote tree"
 #svn co -q svn://scm.gforge.inria.fr/svn/cado-nfs/trunk $cado_tree
-wget -q http://www.loria.fr/~zimmerma/cado-nfs-1.0-rc3.tar.gz -O- | tar xzf -
+wget -q http://www.loria.fr/~zimmerma/cado-nfs-1.0.tar.gz -O- | tar xzf -
 
 cd $cado_tree
 
