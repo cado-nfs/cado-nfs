@@ -68,8 +68,10 @@ Compile:
 
 make
 
-It may or may not be relevant to do ``make install'' as well ; at the
-moment consider ``make install'' to be broken.
+It may or may not be relevant to do ``make install'' as well ; by default
+``make install'' will install binaries in installed/bin (with respect to
+current directory), thus replace ./factor.sh by installed/bin/factor.sh.
+
 
 Run a factorization on current machine:
 =======================================
@@ -172,3 +174,24 @@ Known problems:
 * under FreeBSD, GCC 4.2.1 is known to miscompile CADO-NFS (GCC 4.5.1 is ok)
 
 * under CentOS, GCC 4.1.2 is known to miscompile CADO-NFS (GCC 4.4.0 is ok)
+
+Contact, links:
+===============
+
+The website of the project is hosted at:
+   http://cado-nfs.gforge.inria.fr/
+
+You can get the latest development version with:
+   svn checkout svn://scm.gforge.inria.fr/svn/cado-nfs
+
+There are two mailing-lists associated to Cado-nfs:
+  - cado-nfs-commits: if you want to receive an email each time a
+    modification to the development version is committed to the
+    repository.
+  - cado-nfs-discuss: for general discussions about cado-nfs. 
+Instructions about how to subscribe are available at
+   http://gforge.inria.fr/mail/?group_id=2065
+
+If you find a bug, if you have a problem to compile, if you want to
+factor a large number and seek for advice for tuning the parameters, then
+the cado-nfs-discuss list is the right place to ask.
