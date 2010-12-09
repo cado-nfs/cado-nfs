@@ -1,8 +1,12 @@
 
 project(CADO_NFS)
 
-# May be overridden by environment.
-set(CADO_VERSION "1.0")
+set(CADO_VERSION_MAJOR  1)
+set(CADO_VERSION_MINOR  0)
+set(CADO_VERSION_STRING  "${CADO_VERSION_MAJOR}.${CADO_VERSION_MINOR}")
+
+# CADO_DIST_ARCHIVE_NAME may be overridden by environment.
+set(CADO_DIST_ARCHIVE_NAME "cado-nfs-${CADO_VERSION_STRING}")
 
 #####################################################################
 # cmake version -- set_property requires 2.6. Note that haters of progress
@@ -45,7 +49,7 @@ get_override(CFLAGS               CMAKE_C_FLAGS)
 get_override(CXXFLAGS             CMAKE_CXX_FLAGS)
 get_override(CC                   CMAKE_C_COMPILER)
 get_override(CXX                  CMAKE_CXX_COMPILER)
-get_override(CADO_VERSION         CADO_VERSION)
+get_override(CADO_DIST_ARCHIVE_NAME         CADO_DIST_ARCHIVE_NAME)
 get_override(MPI                  MPI)
 
 if(EXISTS ${CADO_NFS_SOURCE_DIR}/files.dist)
@@ -178,7 +182,7 @@ add_subdirectory (linalg)
 add_subdirectory (filter)
 add_subdirectory (linalg/bwc)
 
-set(package_basename cado-nfs-${CADO_VERSION})
+set(package_basename ${CADO_DIST_ARCHIVE_NAME})
 
 add_custom_target(dist
     COMMAND scripts/dist.sh ${package_basename}

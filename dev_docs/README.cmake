@@ -93,9 +93,9 @@ Several new meta-targets are defined.
 
 * make dist
 
-This target expectably build a cado-nfs-<version>.tar.gz file. If the
-CADO_VERSION environment variable is set, it is used instead of the default
-string configured in CMakeLists.txt
+This target expectably build a cado-nfs-<version>.tar.gz file. This
+archive name may be forced to an arbitrary user-defined value by setting
+the environment variable CADO_DIST_ARCHIVE_NAME.
 
 What goes in the distribution, what doesn't ?
 

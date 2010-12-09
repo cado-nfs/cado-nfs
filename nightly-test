@@ -42,23 +42,23 @@ else
     SCM=scm
 fi
 
-CADO_VERSION=snapshot-`date +%Y%m%d%H%M`
-export CADO_VERSION
+CADO_DIST_ARCHIVE_NAME=cado-nfs-snapshot-`date +%Y%m%d%H%M`
+export CADO_DIST_ARCHIVE_NAME
 
 # first build a tarball
 make -C $SCM dist
 
 # now extract the tarball and test it
-tar zxf $SCM/cado-nfs-$CADO_VERSION.tar.gz
+tar zxf $SCM/$CADO_DIST_ARCHIVE_NAME.tar.gz
 
 # If the cado repository contains a local.sh for this machine, use it.
 h=`hostname`
 if [ -f "$SCM/local.sh.$h" ] ; then
     echo "Using local.sh.$h"
-    cp -f $SCM/local.sh.$h  cado-nfs-$CADO_VERSION/local.sh
+    cp -f $SCM/local.sh.$h  $CADO_DIST_ARCHIVE_NAME/local.sh
 fi
 
-cd cado-nfs-$CADO_VERSION
+cd $CADO_DIST_ARCHIVE_NAME
 echo -n "Starting compilation at: "
 date
 make "$@"

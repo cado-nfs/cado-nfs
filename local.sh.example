@@ -101,7 +101,7 @@
 # tested. Therefore it cannot be expected to work.
 
 ############################################################
-# CADO_VERSION: set package version
+# CADO_VERSION_STRING: set package version
 #
 # This is relevant only for the development tree. It is documented here
 # for completeness, but cado-nfs tarballs lack the scripts which

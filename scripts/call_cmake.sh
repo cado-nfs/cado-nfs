@@ -64,7 +64,7 @@ export CFLAGS
 export CXXFLAGS
 export CC
 export CXX
-export CADO_VERSION
+export CADO_DIST_ARCHIVE_NAME
 export MPI
 export GF2X_CONFIGURE_EXTRA
 export GMP
@@ -93,7 +93,7 @@ if [ "$1" = "show" ] ; then
     echo "CC=\"$CC\""
     echo "CXX=\"$CXX\""
     echo "PREFIX=\"$PREFIX\""
-    echo "CADO_VERSION=\"$CADO_VERSION\""
+    echo "CADO_DIST_ARCHIVE_NAME=\"$CADO_DIST_ARCHIVE_NAME\""
     echo "MPI=\"$MPI\""
     echo "GF2X_CONFIGURE_EXTRA=\"$GF2X_CONFIGURE_EXTRA\""
     echo "PTHREADS=\"$PTHREADS\""

@@ -1,9 +1,10 @@
 
 /* CADO_REV indicates the scm-level revision */
-#cmakedefine    CADO_REV        "@CADO_REV@"
+#define    CADO_REV        "@CADO_REV@"
 
-/* CADO_VERSION corresponds to the coarser-grain version of the tarball */
-#cmakedefine    CADO_VERSION    "@CADO_VERSION@"
+#define CADO_VERSION_MAJOR     @CADO_VERSION_MAJOR@
+#define CADO_VERSION_MINOR     @CADO_VERSION_MINOR@
+#define CADO_VERSION_STRING    "@CADO_VERSION_STRING@"
 
 #define CFLAGS      "@CMAKE_C_FLAGS@"
 #define CXXFLAGS    "@CMAKE_CXX_FLAGS@"
