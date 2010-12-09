@@ -175,6 +175,10 @@ Known problems:
 
 * under CentOS, GCC 4.1.2 is known to miscompile CADO-NFS (GCC 4.4.0 is ok)
 
+* under OpenBSD and GCC 3.3.5, using two threads in the siever (-mt 2)
+  produces non-deterministic Segmentation Faults, probably due to broken
+  pthreads. Using -mt 1 works.
+
 Contact, links:
 ===============
 
