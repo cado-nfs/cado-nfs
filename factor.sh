@@ -67,7 +67,8 @@ for ((i=1; i<=4; i=i+1)) ; do
   if [ -d "$cado_prefix/$example_subdir" ] ; then
       # We're called in the install tree.
       if [ -f "$cado_prefix/$example_subdir/params.c$size" ] ; then
-          file="$cado_prefix/$example_subdir/params.c$size" 
+          file="$cado_prefix/$example_subdir/params.c$size"
+          cputime="$cado_prefix/scripts/cpu_time.sh"
       fi
       bindir="$cado_prefix/bin"
       cadofactor="$bindir/cadofactor.pl"
@@ -75,6 +76,7 @@ for ((i=1; i<=4; i=i+1)) ; do
       # Otherwise we're called from the source tree (or we hope so)
       if [ -f "@CADO_NFS_SOURCE_DIR@/params/params.c$size" ] ; then
           file="@CADO_NFS_SOURCE_DIR@/params/params.c$size"
+          cputime="@CADO_NFS_SOURCE_DIR@/scripts/cpu_time.sh"
       fi
       cadofactor="@CADO_NFS_SOURCE_DIR@/cadofactor.pl"
       # Make the path absolute.
@@ -88,6 +90,8 @@ for ((i=1; i<=4; i=i+1)) ; do
       eval `$call_cmake show`
       if [ -f "${up_path}params/params.c$size" ] ; then
           file="${up_path}params/params.c$size"
+          cwd=$(cd "`dirname $0`" ; pwd)
+          cputime="$cwd/scripts/cpu_time.sh"
       fi
       cadofactor="${up_path}cadofactor.pl"
       # Make the path absolute.
@@ -140,6 +144,11 @@ else
 fi
 
 rc=$?
+
+# Print timings
+
+cd $t
+$cputime
 
 #########################################################################
 # Check result, clean up the mess afterwards.
