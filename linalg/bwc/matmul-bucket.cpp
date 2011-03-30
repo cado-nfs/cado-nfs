@@ -604,15 +604,27 @@ void split_large_slice_in_vblocks(builder * mb, large_slice_t * L, large_slice_r
         size_t nf = n + 2 * np;
         V.auxc.reserve(258);
         V.auxc.push_back(V.j1 - V.j0);
-        V.t8c.resize(3 * nf);
-        uint8_t * q = ptrbegin(V.t8c);
         /* XXX Notice that the reader process will consider as a j0 index
          * the farthest possible index from the previous vblock, which
          * means that we _must_ start with a zero in the main block here
          * no matter what -- even if with regard to the way data is set
          * up at the upper level (huge unique vblock), we would have had
          * a positive integer. This digression does not apply to the
-         * first vblock. */
+         * first vblock.
+         *
+         * In the case where we're starting with a padding coefficient,
+         * then we might actually end up needing to cancel out _several_
+         * coefficients, since the padding coeffs need to be cancelled as
+         * well.
+         */
+        if (vblocknum) {
+            for( ; nf >= 2 ; mp+=4, nf-=2) {
+                if (mp[0] != 255 || mp[1] || mp[2] || mp[3])
+                    break;
+            }
+        }
+        V.t8c.resize(3 * nf);
+        uint8_t * q = ptrbegin(V.t8c);
         memcpy(q, mp, 2 * nf * sizeof(uint8_t));
         if (vblocknum) {
             q[0] = 0;
