@@ -18,16 +18,15 @@ Supported platforms:
 ====================
 
  - The primary development platform is x86_64 linux with gcc 4.4 or
-   later, the most common processor being Intel core2-like. Other 64-bit
-   microarchitectures and processors are checked regularly.
+   later, the most common processor being Intel Core2-like and Nehalem.
+   Other 64-bit microarchitectures and processors are checked regularly.
 
 Anything else than the primary platform perhaps works, perhaps does not work.
 
  - Mac OS X Leopard and Snow Leopard have been tested to work at least
-   once, provided some additional tools and libraries (see below) have
-   been installed, notably for Leopard. ABI selection is sometimes
+   once with GMP-5.0.2 (see section "Install"). ABI selection is sometimes
    tricky.
- - 32-bit linux with gcc-4.4 or later is supposed to work.
+ - 32-bit Linux/BSD with gcc-4.1 or later is supposed to work.
  - Windows is not supported (see a longer note at the end of this file).
 
 Required software tools:
