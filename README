@@ -219,10 +219,9 @@ under Windows:
 Known problems:
 ===============
 
-* under Debian Etch amd64, GCC 4.1.2 is known to miscompile CADO-NFS (Lenny and
-  Squeeze are ok)
-* under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
-  work, please use bwmt=1x1 option in factor.sh or cadofactor.pl.
+* under Debian Etch amd64, GCC 4.1.2 is known to miscompile CADO-NFS.
+* under NetBSD 5.1 amd64 with GCC 4.1.3, Pthreads in the linear algebra step
+  seem not to work, please use bwmt=1x1 option in factor.sh or cadofactor.pl.
 
 Contact, links:
 ===============
