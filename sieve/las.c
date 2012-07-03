@@ -168,6 +168,50 @@ static void sieve_info_init(sieve_info_ptr si, param_list pl)
 	exit(EXIT_FAILURE);
     }
 
+    if ((tmp = param_list_lookup_string(pl, "target")) != NULL) {
+        mpz_t target;
+        mpz_init(target);
+        param_list_parse_mpz(pl, "target", target);
+
+        for(int i = 0 ; i < 2 ; i++) {
+            mpz_init(si->euclid_U[0][i]);
+            mpz_init(si->euclid_U[1][i]);
+        }
+        /* U00 * t + something * p = U01 */
+        /* U10 * t + something * p = U11 */
+        mpz_set_ui(si->euclid_U[0][0], 0);
+        mpz_set(si->euclid_U[0][1], si->cpoly->n);
+        mpz_set_ui(si->euclid_U[1][0], 1);
+        mpz_set(si->euclid_U[1][1], target);
+
+        mpz_t sqrt_p;
+        mpz_init(sqrt_p);
+        mpz_sqrt(sqrt_p, si->cpoly->n);
+
+        mpz_t q;
+        mpz_init(q);
+        while (mpz_cmp(si->euclid_U[0][1], sqrt_p) >= 0) {
+            mpz_fdiv_qr(q, si->euclid_U[0][1], si->euclid_U[0][1], si->euclid_U[1][1]);
+            mpz_submul(si->euclid_U[0][0], si->euclid_U[1][0], q);
+            mpz_swap(si->euclid_U[0][0], si->euclid_U[1][0]);
+            mpz_swap(si->euclid_U[0][1], si->euclid_U[1][1]);
+        }
+        mpz_clear(q);
+
+        mpz_clear(sqrt_p);
+        mpz_clear(target);
+
+        sidenames[0] = "numerator";
+        sidenames[1] = "denominator";
+
+        si->cpoly->pols[0]->degree = 1;
+        mpz_set(si->cpoly->pols[0]->f[0], si->euclid_U[0][1]);
+        mpz_set(si->cpoly->pols[0]->f[1], si->euclid_U[1][1]);
+        si->cpoly->pols[1]->degree = 1;
+        mpz_set(si->cpoly->pols[1]->f[0], si->euclid_U[0][0]);
+        mpz_set(si->cpoly->pols[1]->f[1], si->euclid_U[1][0]);
+    }
+
     param_list_parse_int(pl, "I", &si->logI);
     si->I = 1 << si->logI;
     si->J = 1 << (si->logI - 1);
@@ -259,6 +303,10 @@ sieve_info_update (sieve_info_ptr si)
 static void
 sieve_info_clear (sieve_info_ptr si)
 {
+    for(int i = 0 ; i < 2 ; i++) {
+        if (si->euclid_U[0][i]) mpz_clear(si->euclid_U[0][i]);
+        if (si->euclid_U[1][i]) mpz_clear(si->euclid_U[1][i]);
+    }
   if (si->outputname)
       gzip_close(si->output, si->outputname);
   sieve_info_clear_unsieve_data(si);
@@ -2079,6 +2127,8 @@ main (int argc0, char *argv0[])
         usage(argv0[0],NULL);
     }
 
+    int descent = param_list_lookup_string(pl, "target") != NULL;
+
     fbfilename = param_list_lookup_string(pl, "fb");
     statsfilename = param_list_lookup_string (pl, "stats");
     sievestatsfilename = param_list_lookup_string (pl, "sievestats");
@@ -2099,26 +2149,28 @@ main (int argc0, char *argv0[])
     param_list_parse_double(pl, "percent", &bench_percent);
 
     /* {{{ perform some basic checking */
-    if (fbfilename == NULL) usage(argv0[0], "fb");
-    if (q0 == 0) usage(argv0[0], "q0");
+    if (!descent) {
+        if (fbfilename == NULL) usage(argv0[0], "fb");
+        if (q0 == 0) usage(argv0[0], "q0");
 
-    /* if -rho is given, we sieve only for q0, thus -q1 is not allowed */
-    if (rho != 0 && q1 != 0)
-      {
-        fprintf (stderr, "Error, -q1 and -rho are mutually exclusive\n");
-        exit (EXIT_FAILURE);
-      }
+        /* if -rho is given, we sieve only for q0, thus -q1 is not allowed */
+        if (rho != 0 && q1 != 0)
+          {
+            fprintf (stderr, "Error, -q1 and -rho are mutually exclusive\n");
+            exit (EXIT_FAILURE);
+          }
 
-    /* if -q1 is not given, sieve only for q0 */
-    if (q1 == 0)
-      q1 = q0 + 1;
+        /* if -q1 is not given, sieve only for q0 */
+        if (q1 == 0)
+          q1 = q0 + 1;
 
-    /* check that q1 fits into an unsigned long */
-    if (q1 > (uint64_t) ULONG_MAX)
-      {
-        fprintf (stderr, "Error, q1=%" PRIu64 " exceeds ULONG_MAX\n", q1);
-        exit (EXIT_FAILURE);
-      }
+        /* check that q1 fits into an unsigned long */
+        if (q1 > (uint64_t) ULONG_MAX)
+          {
+            fprintf (stderr, "Error, q1=%" PRIu64 " exceeds ULONG_MAX\n", q1);
+            exit (EXIT_FAILURE);
+          }
+    }
     /* }}} */
 
     /* this does not depend on the special-q */
@@ -2269,39 +2321,55 @@ main (int argc0, char *argv0[])
     reorder_fb(si, 0);
     reorder_fb(si, 1);
 
-    while (q0 < q1) {
-        while (nroots == 0) { /* {{{ go to next prime and generate roots */
-            q0 = uint64_nextprime (q0);
-            if (q0 >= q1)
-                goto end;  // breaks two whiles.
-            si->q = q0;
-            if (si->ratq)
-                nroots = poly_roots_uint64 (roots, si->cpoly->rat->f, 1, q0);
-            else
-                nroots = poly_roots_uint64 (roots, si->cpoly->alg->f, si->cpoly->alg->degree, q0);
-            if (nroots > 0) {
-                fprintf (si->output, "### q=%" PRIu64 ": root%s", q0,
-                        (nroots == 1) ? "" : "s");
-                for (i = 1; i <= (int) nroots; i++)
-                    fprintf (si->output, " %" PRIu64, roots[nroots-i]);
-                fprintf (si->output, "\n");
+
+    if (descent) {
+        q0 = 0;
+        q1 = 1;
+    }
+
+    while (q0 + sq < q1) {
+        if (!descent) {
+            while (nroots == 0) { /* {{{ go to next prime and generate roots */
+                q0 = uint64_nextprime (q0);
+                if (q0 >= q1)
+                    goto end;  // breaks two whiles.
+                si->q = q0;
+                if (si->ratq)
+                    nroots = poly_roots_uint64 (roots, si->cpoly->rat->f, 1, q0);
+                else
+                    nroots = poly_roots_uint64 (roots, si->cpoly->alg->f, si->cpoly->alg->degree, q0);
+                if (nroots > 0) {
+                    fprintf (si->output, "### q=%" PRIu64 ": root%s", q0,
+                            (nroots == 1) ? "" : "s");
+                    for (i = 1; i <= (int) nroots; i++)
+                        fprintf (si->output, " %" PRIu64, roots[nroots-i]);
+                    fprintf (si->output, "\n");
+                }
             }
+            /* }}} */
+
+            /* computes a0, b0, a1, b1 from q, rho, and the skewness */
+            si->rho = roots[--nroots];
+            if (rho != 0 && si->rho != rho) /* if -rho, wait for wanted root */
+                continue;
+            if (SkewGauss (si, si->cpoly->skew) != 0)
+                continue;
+            /* FIXME: maybe we can discard some special q's if a1/a0 is too large,
+               see http://www.mersenneforum.org/showthread.php?p=130478 */
+
+            fprintf (si->output, "# Sieving q=%" PRIu64 "; rho=%" PRIu64
+                    "; a0=%d; b0=%d; a1=%d; b1=%d\n",
+                     si->q, si->rho, si->a0, si->b0, si->a1, si->b1);
+            sq ++;
+        } else {
+            si->a0 = 1;
+            si->a1 = 0;
+            si->b0 = 0;
+            si->b1 = 1;
+            si->q = 1;
+            si->rho = 0;
         }
-        /* }}} */
 
-        /* computes a0, b0, a1, b1 from q, rho, and the skewness */
-        si->rho = roots[--nroots];
-        if (rho != 0 && si->rho != rho) /* if -rho, wait for wanted root */
-            continue;
-        if (SkewGauss (si, si->cpoly->skew) != 0)
-            continue;
-        /* FIXME: maybe we can discard some special q's if a1/a0 is too large,
-           see http://www.mersenneforum.org/showthread.php?p=130478 */
-
-        fprintf (si->output, "# Sieving q=%" PRIu64 "; rho=%" PRIu64
-                "; a0=%d; b0=%d; a1=%d; b1=%d\n",
-                 si->q, si->rho, si->a0, si->b0, si->a1, si->b1);
-        sq ++;
 
         /* checks the value of J,
          * precompute the skewed polynomials of f(x) and g(x), and also

@@ -102,6 +102,12 @@ struct sieve_info_s {
     facul_strategy_t *strategy;
 
     unsigned int degree;
+
+    /* Only for the descent. Excerpts from the Euclidean algorithm
+     */
+    /* U[0]: middle remainders */
+    /* U[1]: next remainders */
+    mpz_t euclid_U[2][2];
 };
 
 typedef struct sieve_info_s sieve_info[1];
