@@ -2149,6 +2149,9 @@ main (int argc0, char *argv0[])
             fbprime_t *leading_div;
             tfb = seconds ();
             leading_div = factor_small (pol->f[pol->degree], pol->lim);
+            /* FIXME: fbfilename should allow *distinct* file names, of
+             * course, for each side (think about the bi-algebraic case)
+             */
             fprintf(stderr, "Reading %s factor base from %s\n", sidenames[side], fbfilename);
             sis->fb = fb_read(fbfilename, sis->scale * LOG_SCALE, 0);
             ASSERT_ALWAYS(sis->fb != NULL);
