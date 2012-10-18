@@ -2212,7 +2212,7 @@ main (int argc0, char *argv0[])
              * course, for each side (think about the bi-algebraic case)
              */
             fprintf(stderr, "Reading %s factor base from %s\n", sidenames[side], fbfilename);
-            sis->fb = fb_read(fbfilename, sis->scale * LOG_SCALE, 0);
+            sis->fb = fb_read(fbfilename, sis->scale * LOG_SCALE, 0, pol->lim, apow_lim);
             ASSERT_ALWAYS(sis->fb != NULL);
             tfb = seconds () - tfb;
             fprintf (si->output, 

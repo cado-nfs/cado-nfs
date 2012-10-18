@@ -2058,7 +2058,7 @@ main (int argc, char **argv)
   if (sieve_a)
     {
       /* Read the factor base for the algebraic side from file */
-      fba->fullfb = fb_read (fbfilename, log_scale, verbose);
+      fba->fullfb = fb_read (fbfilename, log_scale, verbose, 0, 0);
       if (fba->fullfb == NULL)
 	{
 	  fprintf (stderr, "Could not read factor base\n");
