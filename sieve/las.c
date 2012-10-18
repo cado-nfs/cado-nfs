@@ -51,6 +51,9 @@ static double MAYBE_UNUSED exp2 (double x)
  */
 pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER; 
 
+int timed = 0;
+double tt_qstart;
+
 static const int bucket_region = 1 << LOG_BUCKET_REGION;
 
 /* for cofactorization statistics */
@@ -1614,6 +1617,9 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
                  * the order of factors in printed relations. It's not so
                  * handy.
                  */
+                if (timed) {
+                    fprintf (si->output, "(%.2e) ", seconds() - tt_qstart);
+                }
                 fprintf (si->output, "%" PRId64 ",%" PRIu64, a, b);
                 for(int z = 0 ; z < 2 ; z++) {
                     int side = RATIONAL_SIDE ^ z;
@@ -2090,6 +2096,7 @@ main (int argc0, char *argv0[])
     param_list_configure_switch(pl, "-ratq", &si->ratq);
     param_list_configure_switch(pl, "-bench", &bench);
     param_list_configure_switch(pl, "-bench2", &bench2);
+    param_list_configure_switch(pl, "-timed", &timed);
     param_list_configure_alias(pl, "-skew", "-S");
 
     argv++, argc--;
@@ -2332,6 +2339,9 @@ main (int argc0, char *argv0[])
             si->rho = roots[--nroots];
             if (rho != 0 && si->rho != rho) /* if -rho, wait for wanted root */
                 continue;
+
+            tt_qstart = seconds();
+
             if (SkewGauss (si, si->cpoly->skew) != 0)
                 continue;
             /* FIXME: maybe we can discard some special q's if a1/a0 is too large,
