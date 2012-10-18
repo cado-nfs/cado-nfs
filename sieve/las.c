@@ -2161,37 +2161,41 @@ main (int argc0, char *argv0[])
 
     si->bench=bench + bench2;
 
-    sieve_side_info_ptr rat = si->sides[RATIONAL_SIDE];
-    sieve_side_info_ptr alg = si->sides[ALGEBRAIC_SIDE];
-
-    /* {{{ Read algebraic factor base */
-    {
-      fbprime_t *leading_div;
-      tfb = seconds ();
-      leading_div = factor_small (si->cpoly->alg->f[si->cpoly->alg->degree], si->cpoly->alg->lim);
-      alg->fb = fb_read(fbfilename, alg->scale * LOG_SCALE, 0);
-      ASSERT_ALWAYS(alg->fb != NULL);
-      tfb = seconds () - tfb;
-      fprintf (si->output, 
-               "# Reading algebraic factor base of %zuMb took %1.1fs\n", 
-               fb_size (alg->fb) >> 20, tfb);
-      free (leading_div);
-    }
-    /* }}} */
-    /* {{{ Prepare rational factor base */
-    {
-        tfb = seconds ();
-        if (rpow_lim >= si->bucket_thresh)
-          {
-            rpow_lim = si->bucket_thresh - 1;
-            printf ("# rpowthresh reduced to %d\n", rpow_lim);
-          }
-        rat->fb = fb_make_linear ((const mpz_t *) si->cpoly->rat->f, (fbprime_t) si->cpoly->rat->lim,
-                                 rpow_lim, rat->scale * LOG_SCALE, 
-                                 si->verbose, 1, si->output);
-        tfb = seconds () - tfb;
-        fprintf (si->output, "# Creating rational factor base of %zuMb took %1.1fs\n",
-                 fb_size (rat->fb) >> 20, tfb);
+    /* {{{ Read (algebraic) or compute (rational) factor bases */
+    for(int side = 0 ; side < 2 ; side++) {
+        cado_poly_side_ptr pol = si->cpoly->pols[side];
+        sieve_side_info_ptr sis = si->sides[side];
+        if (pol->degree > 1) {
+            fbprime_t *leading_div;
+            tfb = seconds ();
+            leading_div = factor_small (pol->f[pol->degree], pol->lim);
+            /* FIXME: fbfilename should allow *distinct* file names, of
+             * course, for each side (think about the bi-algebraic case)
+             */
+            fprintf(stderr, "Reading %s factor base from %s\n", sidenames[side], fbfilename);
+            sis->fb = fb_read(fbfilename, sis->scale * LOG_SCALE, 0);
+            ASSERT_ALWAYS(sis->fb != NULL);
+            tfb = seconds () - tfb;
+            fprintf (si->output, 
+                    "# Reading %s factor base of %zuMb took %1.1fs\n",
+                    sidenames[side],
+                    fb_size (sis->fb) >> 20, tfb);
+            free (leading_div);
+        } else {
+            tfb = seconds ();
+            if (rpow_lim >= si->bucket_thresh)
+              {
+                rpow_lim = si->bucket_thresh - 1;
+                printf ("# rpowthresh reduced to %d\n", rpow_lim);
+              }
+            sis->fb = fb_make_linear ((const mpz_t *) pol->f,
+                                    (fbprime_t) pol->lim,
+                                     rpow_lim, sis->scale * LOG_SCALE, 
+                                     si->verbose, 1, si->output);
+            tfb = seconds () - tfb;
+            fprintf (si->output, "# Creating rational factor base of %zuMb took %1.1fs\n",
+                     fb_size (sis->fb) >> 20, tfb);
+        }
     }
     /* }}} */
 
