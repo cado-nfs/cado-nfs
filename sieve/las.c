@@ -2369,7 +2369,7 @@ main (int argc0, char *argv0[])
             /* FIXME: maybe we can discard some special q's if a1/a0 is too large,
                see http://www.mersenneforum.org/showthread.php?p=130478 */
 
-            gmp_fprintf (si->output, "# Sieving q=%Zd; rho=%Zd; a0=%d; b0=%d; a1=%d; b1=%d\n",
+            gmp_fprintf (si->output, "# Sieving q=%Zd; rho=%Zd; a0=%"PRId64"; b0=%"PRId64"; a1=%"PRId64"; b1=%"PRId64"\n",
                      si->q, si->rho, si->a0, si->b0, si->a1, si->b1);
             sq ++;
         } else {

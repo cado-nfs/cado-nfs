@@ -52,6 +52,22 @@ mpz_get_uint64 (mpz_t z)
   return q;
 }
 
+int64_t
+mpz_get_int64 (mpz_t z)
+{
+    if (sizeof (long int) == 8) {
+        return mpz_get_si (z);
+    } else {
+        uint64_t q;
+        int64_t sign = mpz_sgn(z);
+        ASSERT_ALWAYS (sizeof (long int) == 4);
+        q = mpz_get_ui (z); /* get the low word of z */
+        mpz_div_2exp (z, z, 32);
+        q += (uint64_t) mpz_get_ui (z) << 32;
+        return q * sign;
+    }
+}
+
 void
 mpz_mul_uint64 (mpz_t a, mpz_t b, uint64_t c)
 {

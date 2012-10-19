@@ -67,13 +67,13 @@ fb_root_in_qlattice (const fbprime_t p, const fbprime_t R,
 
     if (LIKELY(R < p)) /* Root in a,b-plane is affine */
       {
-	aux1 = ((int64_t)R)*((int64_t)si->b1) - ((int64_t)si->a1);
-	aux2 = ((int64_t)si->a0) - ((int64_t)R)*((int64_t)si->b0);
+	aux1 = ((int64_t)R)*si->b1 - si->a1;
+	aux2 = si->a0 - ((int64_t)R)*si->b0;
       }
     else /* Root in a,b-plane is projective */
       {
-	aux1 = ((int64_t)si->b1) - ((int64_t)(R - p))*((int64_t)si->a1);
-	aux2 = ((int64_t)(R - p))*((int64_t)si->a0) - ((int64_t)si->b0);
+	aux1 = si->b1 - ((int64_t)(R - p))*si->a1;
+	aux2 = ((int64_t)(R - p))*si->a0 - si->b0;
       }
     u = redc_32(aux1, p, invp); /* 0 <= u < p */
     v = redc_32(aux2, p, invp); /* 0 <= den < p */

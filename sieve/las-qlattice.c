@@ -125,8 +125,8 @@ int qlattice_safetyguard(sieve_info_ptr si, double skewness)
     double maxab1 = MAX(fabs(si->a1), fabs(si->b1) * skewness);
     double maxab0 = MAX(fabs(si->a0), fabs(si->b0) * skewness);
     if (maxab0 > maxab1) {
-        int32_t oa[2] = { si->a0, si->a1 };
-        int32_t ob[2] = { si->b0, si->b1 };
+        int64_t oa[2] = { si->a0, si->a1 };
+        int64_t ob[2] = { si->b0, si->b1 };
         si->a0 = oa[1]; si->a1 = oa[0];
         si->b0 = ob[1]; si->b1 = ob[0];
         maxab1 = maxab0;
@@ -149,7 +149,7 @@ int qlattice_safetyguard(sieve_info_ptr si, double skewness)
     return 0;
 }
 
-int SkewGauss32(sieve_info_ptr si, double skewness)
+int SkewGauss(sieve_info_ptr si, double skewness)
 {
     mpz_t sigma;
     mpz_init(sigma);
@@ -162,19 +162,19 @@ int SkewGauss32(sieve_info_ptr si, double skewness)
     mpz_init_set_ui(b[1], 1);
     generic_skew_gauss(a, b, sigma);
     int fits = 1;
-    fits = fits && mpz_cmp_si(a[0], INT32_MIN) >= 0;
-    fits = fits && mpz_cmp_si(b[0], INT32_MIN) >= 0;
-    fits = fits && mpz_cmp_si(a[1], INT32_MIN) >= 0;
-    fits = fits && mpz_cmp_si(b[1], INT32_MIN) >= 0;
-    fits = fits && mpz_cmp_si(a[0], INT32_MAX) <= 0;
-    fits = fits && mpz_cmp_si(b[0], INT32_MAX) <= 0;
-    fits = fits && mpz_cmp_si(a[1], INT32_MAX) <= 0;
-    fits = fits && mpz_cmp_si(b[1], INT32_MAX) <= 0;
+    fits = fits && mpz_cmp_si(a[0], INT64_MIN) >= 0;
+    fits = fits && mpz_cmp_si(b[0], INT64_MIN) >= 0;
+    fits = fits && mpz_cmp_si(a[1], INT64_MIN) >= 0;
+    fits = fits && mpz_cmp_si(b[1], INT64_MIN) >= 0;
+    fits = fits && mpz_cmp_si(a[0], INT64_MAX) <= 0;
+    fits = fits && mpz_cmp_si(b[0], INT64_MAX) <= 0;
+    fits = fits && mpz_cmp_si(a[1], INT64_MAX) <= 0;
+    fits = fits && mpz_cmp_si(b[1], INT64_MAX) <= 0;
     if (fits) {
-        si->a0 = mpz_get_si(a[0]);
-        si->a1 = mpz_get_si(a[1]);
-        si->b0 = mpz_get_si(b[0]);
-        si->b1 = mpz_get_si(b[1]);
+        si->a0 = mpz_get_int64(a[0]);
+        si->a1 = mpz_get_int64(a[1]);
+        si->b0 = mpz_get_int64(b[0]);
+        si->b1 = mpz_get_int64(b[1]);
         qlattice_safetyguard(si, skewness);
     }
     mpz_clear(a[0]);
@@ -184,69 +184,4 @@ int SkewGauss32(sieve_info_ptr si, double skewness)
     mpz_clear(sigma);
     /* FIXME: That error convention looks odd */
     return fits ? 0 : 1;
-}
-
-/* return non-zero when the reduced lattice has entries that do not
-   fit into int32_t, otherwise return 0 */
-int
-SkewGauss_old (sieve_info_ptr si, double skewness)
-{
-  double a[2], b[2], q, maxab0, maxab1;
-
-  a[0] = mpz_get_d(si->q);
-  ASSERT_ALWAYS(a[0] < 9007199254740992.0); /* si->q should be less than 2^53
-                                               so that a[0] is exact */
-  b[0] = 0.0;
-  a[1] = mpz_get_d(si->rho);
-  b[1] = skewness;
-  ASSERT(b[1] != 0);
-  while (1)
-    {
-      /* reduce vector (a[0], b[0]) with respect to (a[1], b[1]) */
-      q = (a[0] * a[1] + b[0] * b[1]) / (a[1] * a[1] + b[1] * b[1]);
-      q = rint (q);
-      if (q == 0.0)
-        break;
-      a[0] -= q * a[1];
-      b[0] -= q * b[1];
-
-      /* reduce vector (a[1], b[1]) with respect to (a[0], b[0]) */
-      q = (a[0] * a[1] + b[0] * b[1]) / (a[0] * a[0] + b[0] * b[0]);
-      q = rint (q);
-      if (q == 0.0)
-        break;
-      a[1] -= q * a[0];
-      b[1] -= q * b[0];
-    }
-  if (!(fits_int32_t(a[0]) && fits_int32_t(b[0] / skewness) &&
-	fits_int32_t(a[1]) && fits_int32_t(b[1] / skewness)))
-    return 1;
-  /* now b[0], b[1] should be of the form i*skewness, but this might not be
-     exact due to rounding errors, thus we round them to the nearest integer */
-  maxab0 = fabs (a[0]) > fabs (b[0]) ? fabs (a[0]) : fabs (b[0]);
-  maxab1 = fabs (a[1]) > fabs (b[1]) ? fabs (a[1]) : fabs (b[1]);
-  if (maxab0 <= maxab1)
-    {
-      si->a0 = (int32_t) a[0];
-      si->b0 = (int32_t) rint (b[0] / skewness);
-      si->a1 = (int32_t) a[1];
-      si->b1 = (int32_t) rint (b[1] / skewness);
-    }
-  else /* swap (a0,b0) and (a1,b1) */
-    {
-      si->a1 = (int32_t) a[0];
-      si->b1 = (int32_t) rint (b[0] / skewness);
-      si->a0 = (int32_t) a[1];
-      si->b0 = (int32_t) rint (b[1] / skewness);
-      maxab1 = maxab0;
-    }
-
-  qlattice_safetyguard(si, skewness);
-
-  return 0;
-}
-
-int SkewGauss(sieve_info_ptr si, double skewness)
-{
-    return SkewGauss32(si, skewness);
 }
