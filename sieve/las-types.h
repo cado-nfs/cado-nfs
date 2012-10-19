@@ -84,8 +84,8 @@ struct sieve_info_s {
     int logI; // such that I = 1<<logI
 
     // description of the q-lattice
-    uint64_t q;
-    uint64_t rho;
+    mpz_t q;
+    mpz_t rho;
     int32_t a0, b0, a1, b1;
 
     // parameters for bucket sieving

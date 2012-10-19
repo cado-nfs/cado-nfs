@@ -559,7 +559,7 @@ get_maxnorm_aux (double *g, const unsigned int d, double s)
        and is attained in (a) or (c).
 */
 static double
-get_maxnorm (cado_poly cpoly, sieve_info_ptr si, uint64_t q0)
+get_maxnorm (cado_poly cpoly, sieve_info_ptr si, double q0d)
 {
   unsigned int d = cpoly->alg->degree, k;
   double *fd; /* double-precision coefficients of f */
@@ -606,11 +606,11 @@ get_maxnorm (cado_poly cpoly, sieve_info_ptr si, uint64_t q0)
   /* multiply by (B*I)^d and divide by q0 if sieving on alg side */
   tmp = max_norm * pow (si->B * (double) si->I, (double) d);
   if (!si->ratq)
-      tmp /= (double) q0;
+      tmp /= q0d;
   return log2(tmp);
 }
 
-void sieve_info_init_norm_data(sieve_info_ptr si, unsigned long q0)
+void sieve_info_init_norm_data(sieve_info_ptr si, mpz_srcptr q0)
 {
     for (int side = 0; side < 2; side++) {
         int d = si->cpoly->pols[side]->degree;
@@ -624,6 +624,7 @@ void sieve_info_init_norm_data(sieve_info_ptr si, unsigned long q0)
 
 
 
+    double q0d = mpz_get_d(q0);
 
   double r, scale;
   unsigned char alg_bound, rat_bound;
@@ -631,8 +632,8 @@ void sieve_info_init_norm_data(sieve_info_ptr si, unsigned long q0)
   sieve_side_info_ptr alg = si->sides[ALGEBRAIC_SIDE];
 
   /* initialize bounds for the norm computation, see lattice.tex */
-  si->B = sqrt (2.0 * (double) q0 / (si->cpoly->skew * sqrt (3.0)));
-  alg->logmax = get_maxnorm (si->cpoly, si, q0); /* log2(max norm) */
+  si->B = sqrt (2.0 * q0d / (si->cpoly->skew * sqrt (3.0)));
+  alg->logmax = get_maxnorm (si->cpoly, si, q0d); /* log2(max norm) */
 
   /* We want some margin, (see below), so that we can set 255 to discard
    * non-survivors.*/
@@ -654,7 +655,7 @@ void sieve_info_init_norm_data(sieve_info_ptr si, unsigned long q0)
         + fabs (mpz_get_d (si->cpoly->rat->f[0]));
   scale *= si->B * (double) si->I;
   if (si->ratq)
-      scale /= (double) q0;
+      scale /= q0d;
   rat->logmax = scale = log2 (scale);
   /* on the rational side, we want that the non-reports on the algebraic
      side, which are set to 255, remain over the report bound R, even if
@@ -697,7 +698,7 @@ void sieve_info_update_norm_data(sieve_info_ptr si)
         mp_poly_homography(s->fij, ps->f, ps->degree, H);
         double invq = 1.0;
         if (si->ratq == (side == RATIONAL_SIDE))
-            invq /= si->q;
+            invq /= mpz_get_d(si->q);
         for (int k = 0; k <= ps->degree; k++)
             s->fijd[k] = mpz_get_d(s->fij[k]) * invq;
     }
