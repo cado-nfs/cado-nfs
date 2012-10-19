@@ -49,13 +49,28 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
     else if (y >= p)
         y -= p;
 #ifndef NDEBUG
-    if (y >= p) {
+    if (UNLIKELY(y >= p)) {
         fprintf(stderr, "BUG in redc_32. x = %" PRId64
                 " p = %u, invp = %u, y = %d\n", x, p, invp, y);
+        if (x < 0) {
+            fprintf(stderr, "x/2^32 = -%"PRId64, (-x)>>32);
+            if (((-x)>>32) < p) {
+                fprintf(stderr, ", within bounds\n");
+            } else {
+                fprintf(stderr, ", OUT OF BOUNDS\n");
+            }
+        } else {
+            fprintf(stderr, "x/2^32 = -%"PRId64, x>>32);
+            if ((x>>32) < p) {
+                fprintf(stderr, ", within bounds\n");
+            } else {
+                fprintf(stderr, ", OUT OF BOUNDS\n");
+            }
+        }
         ASSERT(0);
+        /* TODO: Fall back to safer code ? */
     }
 #endif
-
     return y;
 }
 
