@@ -637,38 +637,33 @@ void sieve_info_init_norm_data(sieve_info_ptr si, mpz_srcptr q0)
 
   /* We want some margin, (see below), so that we can set 255 to discard
    * non-survivors.*/
+  r = si->cpoly->alg->lambda * (double) si->cpoly->alg->lpb;
   scale = alg->logmax + si->cpoly->alg->lambda * (double) si->cpoly->alg->lpb;
 
   fprintf (si->output, "# Alg. side: log2(maxnorm)=%1.2f logbase=%1.6f",
            alg->logmax, exp2 (scale / LOG_MAX));
   // second guard, due to the 255 trick!
-  scale = (LOG_MAX - GUARD) / scale;
-  alg_bound = (unsigned char) (si->cpoly->alg->lambda * (double) si->cpoly->alg->lpb *  scale)
-            + GUARD;
+  alg->scale = scale = (LOG_MAX - GUARD) / scale;
+  alg_bound = (unsigned char) (r *  scale) + GUARD;
   fprintf (si->output, " bound=%u\n", alg_bound);
   sieve_info_init_lognorm (alg->Bound, alg_bound, si->cpoly->alg->lim, si->cpoly->alg->lpb,
                            scale);
-  alg->scale = scale;
 
   /* similar bound on the rational size: |a| <= s*I*B and |b| <= I*B */
-  scale = fabs (mpz_get_d (si->cpoly->rat->f[1])) * si->cpoly->skew
+  double x = fabs (mpz_get_d (si->cpoly->rat->f[1])) * si->cpoly->skew
         + fabs (mpz_get_d (si->cpoly->rat->f[0]));
-  scale *= si->B * (double) si->I;
+  x *= si->B * (double) si->I;
   if (si->ratq)
-      scale /= q0d;
-  rat->logmax = scale = log2 (scale);
-  /* on the rational side, we want that the non-reports on the algebraic
-     side, which are set to 255, remain over the report bound R, even if
-     the rational norm is totally smooth. For this, we simply add R to the
-     maximal lognorm to compute the log base */
-  r = si->cpoly->rat->lambda * (double) si->cpoly->rat->lpb; /* base-2 logarithm of the
-                                                report bound */
-  fprintf (si->output, "# Rat. side: log2(maxnorm)=%1.2f ", rat->logmax);
-  fprintf (si->output, "logbase=%1.6f", exp2 (scale / LOG_MAX ));
+      x /= q0d;
+  rat->logmax = log2 (x);
+
+  scale = rat->logmax + si->cpoly->rat->lambda * (double) si->cpoly->rat->lpb;
+  fprintf (si->output, "# Rat. side: log2(maxnorm)=%1.2f logbase=%1.6f",
+          rat->logmax, exp2 (scale / LOG_MAX ));
   /* we subtract again GUARD to avoid that non-reports overlap the report
      region due to roundoff errors */
-  rat->scale = LOG_MAX / scale;
-  rat_bound = (unsigned char) (r * rat->scale) + GUARD;
+  rat->scale = scale = (LOG_MAX - GUARD) / scale;
+  rat_bound = (unsigned char) (r *  scale) + GUARD;
   fprintf (si->output, " bound=%u\n", rat_bound);
   sieve_info_init_lognorm (rat->Bound, rat_bound, si->cpoly->rat->lim, si->cpoly->rat->lpb,
                            rat->scale);
