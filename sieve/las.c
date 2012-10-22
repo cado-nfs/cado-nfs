@@ -874,7 +874,7 @@ fill_in_buckets(thread_data_ptr th, int side, where_am_I_ptr w MAYBE_UNUSED)
         fbprime_t r, R;
 
         R = fb_iterator_get_r(t);
-        r = fb_root_in_qlattice_31bits(p, R, t->fb->invp, si);
+        r = fb_root_in_qlattice_generic(p, R, t->fb->invp, si);
         // TODO: should be line sieved in the non-bucket phase?
         // Or should we have a bucket line siever?
         if (UNLIKELY(r == 0))
