@@ -479,7 +479,7 @@ invmod (uint64_t *pa, uint64_t b)
 // a is modified in place
 // return 1 on succes, 0 on failure
 NOPROFILE_INLINE int
-invmod_REDC(uint64_t *pa, uint64_t b) {
+invmod_redc_32(uint64_t *pa, uint64_t b) {
 #if LOOKUP_TRAILING_ZEROS
   static const unsigned char trailing_zeros[256] =
     {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
@@ -668,10 +668,10 @@ fb_root_in_qlattice (const fbprime_t p, const fbprime_t R,
     v = redc_32(aux2, p, invp); /* 0 <= den < p */
 
     add = 0;
-    if (UNLIKELY(!invmod_REDC(&v, p)))
+    if (UNLIKELY(!invmod_redc_32(&v, p)))
       {
 	/* root in i,j-plane is projective */
-	if (UNLIKELY(!invmod_REDC(&u, p)))
+	if (UNLIKELY(!invmod_redc_32(&u, p)))
           {
             fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
             exit (1); /* Should never happen! */
