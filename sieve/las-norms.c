@@ -640,7 +640,7 @@ void sieve_info_init_norm_data(sieve_info_ptr si, mpz_srcptr q0)
   scale = alg->logmax + si->cpoly->alg->lambda * (double) si->cpoly->alg->lpb;
 
   fprintf (si->output, "# Alg. side: log2(maxnorm)=%1.2f logbase=%1.6f",
-           scale, exp2 (scale / LOG_MAX));
+           alg->logmax, exp2 (scale / LOG_MAX));
   // second guard, due to the 255 trick!
   scale = (LOG_MAX - GUARD) / scale;
   alg_bound = (unsigned char) (si->cpoly->alg->lambda * (double) si->cpoly->alg->lpb *  scale)
@@ -663,7 +663,7 @@ void sieve_info_init_norm_data(sieve_info_ptr si, mpz_srcptr q0)
      maximal lognorm to compute the log base */
   r = si->cpoly->rat->lambda * (double) si->cpoly->rat->lpb; /* base-2 logarithm of the
                                                 report bound */
-  fprintf (si->output, "# Rat. side: log2(maxnorm)=%1.2f ", scale);
+  fprintf (si->output, "# Rat. side: log2(maxnorm)=%1.2f ", rat->logmax);
   fprintf (si->output, "logbase=%1.6f", exp2 (scale / LOG_MAX ));
   /* we subtract again GUARD to avoid that non-reports overlap the report
      region due to roundoff errors */
