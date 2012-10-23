@@ -1545,7 +1545,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
                         lim, a, b);
 
                 pass = check_leftover_norm (norm[side], lpb,
-                                         BB[side], BBB[side], BBBB[side], mfb);
+                        BB[side], BBB[side], BBBB[side], mfb);
 #ifdef TRACE_K
                 if (trace_on_spot_ab(a, b)) {
                     gmp_fprintf(stderr, "# checked leftover norm=%Zd on %s side for (%"PRId64",%"PRIu64"): %d\n",norm[side],sidenames[side],a,b,pass);
@@ -1555,30 +1555,30 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
             if (!pass) continue;
 
             if (stats != 0)
-              {
+            {
                 cof_rat_bitsize = mpz_sizeinbase (norm[RATIONAL_SIDE], 2);
                 cof_alg_bitsize = mpz_sizeinbase (norm[ALGEBRAIC_SIDE], 2);
                 if (stats == 1) /* learning phase */
-                  /* no need to use a mutex here: either we use one thread only
-                     to compute the cofactorization data and if several threads
-                     the order is irrelevant. The only problem that can happen
-                     is when two threads increase the value at the same time,
-                     and it is increased by 1 instead of 2, but this should
-                     happen rarely. */
-                  cof_call[cof_rat_bitsize][cof_alg_bitsize] ++;
+                    /* no need to use a mutex here: either we use one thread only
+                       to compute the cofactorization data and if several threads
+                       the order is irrelevant. The only problem that can happen
+                       is when two threads increase the value at the same time,
+                       and it is increased by 1 instead of 2, but this should
+                       happen rarely. */
+                    cof_call[cof_rat_bitsize][cof_alg_bitsize] ++;
                 else /* stats == 2: we use the learning data */
-                  {
+                {
                     /* we store the initial number of cofactorization calls in
                        cof_call[0][0] and the remaining nb in cof_succ[0][0] */
                     cof_call[0][0] ++;
                     /* Warning: the <= also catches cases when succ=call=0 */
                     if ((double) cof_succ[cof_rat_bitsize][cof_alg_bitsize] <
-                        (double) cof_call[cof_rat_bitsize][cof_alg_bitsize] *
-                        stats_prob)
-                      continue;
+                            (double) cof_call[cof_rat_bitsize][cof_alg_bitsize] *
+                            stats_prob)
+                        continue;
                     cof_succ[0][0] ++;
-                  }
-              }
+                }
+            }
 
             /* if norm[RATIONAL_SIDE] is above BLPrat, then it might not
              * be smooth. We factor it first. Otherwise we factor it
@@ -1597,7 +1597,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
             /* yippee: we found a relation! */
 
             if (stats == 1) /* learning phase */
-              cof_succ[cof_rat_bitsize][cof_alg_bitsize] ++;
+                cof_succ[cof_rat_bitsize][cof_alg_bitsize] ++;
 
 #ifdef UNSIEVE_NOT_COPRIME
             ASSERT (bin_gcd_safe (a, b) == 1);
@@ -1666,6 +1666,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
             /* Build histogram of lucky S[x] values */
             th->rep->report_sizes[S[RATIONAL_SIDE][x]][S[ALGEBRAIC_SIDE][x]]++;
         }
+
     }
 
     th->rep->survivors1 += surv;
@@ -2335,6 +2336,7 @@ main (int argc0, char *argv0[])
     }
 
     while (mpz_cmp(q0, q1) < 0) {
+        double qt0 = seconds();
         if (!descent) {
             while (nroots == 0) { /* {{{ go to next prime and generate roots */
                 mpz_nextprime(q0, q0);
@@ -2380,7 +2382,6 @@ main (int argc0, char *argv0[])
             mpz_set_ui(si->q, 1);
             mpz_set_ui(si->rho, 0);
         }
-
 
         /* checks the value of J,
          * precompute the skewed polynomials of f(x) and g(x), and also
@@ -2461,6 +2462,14 @@ main (int argc0, char *argv0[])
                 fprintf (si->output, "coprime: %lu\n", rep->survivors2);
             }
             gmp_fprintf (si->output, "# %lu relation(s) for (%Zd,%Zd))\n", rep->reports, si->q, si->rho);
+            qt0 = seconds() - qt0;
+            double qtts = qt0 - rep->tn[0] - rep->tn[1] - rep->ttf;
+            fprintf (si->output, "# Time for this special-q: %1.4fs [norm %1.4f+%1.4f, sieving %1.4f"
+                    " (%1.4f + %1.4f),"
+                    " factor %1.4f]\n", qt0,
+                    rep->tn[RATIONAL_SIDE],
+                    rep->tn[ALGEBRAIC_SIDE],
+                    qtts, rep->ttsm, qtts-rep->ttsm, rep->ttf);
             rep_bench += rep->reports;
             las_report_accumulate(report, rep);
             las_report_clear(rep);
