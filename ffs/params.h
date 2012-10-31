@@ -103,6 +103,10 @@ extern int param_list_parse_ulong(param_list, const char *, unsigned long *);
 extern int param_list_parse_uint64(param_list, const char *, uint64_t *);
 extern int param_list_parse_double(param_list, const char *, double *);
 extern int param_list_parse_string(param_list, const char *, char *, size_t);
+extern int param_list_lookup_string_list(param_list pl, const char * key, const char ** r,
+                                        size_t n, const char * sep);
+extern void param_list_restore_string_list(param_list pl, const char * key, const char ** r,
+                                           size_t n, const char * sep);
 #ifndef NO_GMP
 extern int param_list_parse_mpz(param_list, const char *, mpz_ptr);
 #endif

@@ -662,12 +662,58 @@ int param_list_parse_string(param_list pl, const char * key, char * r, size_t n)
     if (r && strlen(value) > n-1) {
         fprintf(stderr, "Parse error:"
                 " parameter for key %s does not fit within string buffer"
-                " of length %lu\n", key, (unsigned long) n);
+                " of length %zu\n", key, n);
         exit(1);
     }
     if (r)
         strncpy(r, value, n);
     return pl->p[v]->seen;
+}
+
+int param_list_lookup_string_list(param_list pl, const char * key, const char ** r,
+                                  size_t n, const char * sep)
+{
+  int v = assoc(pl, key);
+  if (v < 0)
+    return 0;
+  char * value = pl->p[v]->value;
+  pl->p[v]->parsed=1;
+  char * end, ** res = malloc(n * sizeof(char *));
+  for (size_t i = 0; i < n; res[i++] = NULL);
+  size_t parsed = 0;
+  for( ;; ) {
+    res[parsed] = value;
+    end = strstr(value, sep);
+    if (parsed++ == n)
+      break;
+    if (end == NULL)
+      break;
+    *end = '\0';
+    value = end + strlen(sep);
+  }
+  if (end != NULL) {
+    fprintf(stderr, "Parse error: parameter for key %s"
+            " must match %%s(%s%%s){0,%zu}; got %s\n",
+            key, sep, n-1, pl->p[v]->value);
+    exit(1);
+  }
+  if (r)
+    memcpy(r, res, n * sizeof(char *));
+  free(res);
+  return parsed;
+}
+
+void param_list_restore_string_list(param_list pl, const char * key, const char ** r,
+                                    size_t n, const char * sep)
+{
+  int v = assoc(pl, key);
+  if (v < 0)
+    return;
+  char * value = pl->p[v]->value;
+  for (size_t i = 0; i < n-1; ++i, value += strlen(sep)) {
+    value += strlen(r[i]);
+    *value = *sep;
+  }
 }
 
 int param_list_parse_int_list(param_list pl, const char * key, int * r, size_t n, const char * sep)
