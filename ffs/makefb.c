@@ -12,6 +12,8 @@
 
 #define MAX_FFS_DEG 10
 
+#define MAX_NPOL 16
+
 // TODO: we use sq_t as the basic type, because this is the one used
 // within the fq_t implementation. The latter choice is probably not
 // right, but we leave it for the moment.
@@ -433,12 +435,12 @@ void usage(const char *argv0, const char * missing)
     fprintf(stderr, "  Command line options have the form '-optname optval'\n");
     fprintf(stderr, "  and take the form 'optname=optval' in the optionfile\n");
     fprintf(stderr, "List of options (a * means mandatory, default value in []):\n");
-    fprintf(stderr, "  pol0             function field polynomial on side 0\n");
-    fprintf(stderr, "  pol1             function field polynomial on side 1\n");
-    fprintf(stderr, "  fb0              factor base file on side 0\n");
-    fprintf(stderr, "  fb1              factor base file on side 1\n");
-    fprintf(stderr, "  fbb0             factor base bound on side 0\n");
-    fprintf(stderr, "  fbb1             factor base bound on side 1\n");
+    fprintf(stderr, "  pol0             function field polynomial(s) on side 0\n");
+    fprintf(stderr, "  pol1             function field polynomial(s) on side 1\n");
+    fprintf(stderr, "  fb0              factor base file(s) on side 0\n");
+    fprintf(stderr, "  fb1              factor base file(s) on side 1\n");
+    fprintf(stderr, "  fbb0             factor base bound(s) on side 0\n");
+    fprintf(stderr, "  fbb1             factor base bound(s) on side 1\n");
     fprintf(stderr, "  side             compute fb only for given side\n");
     fprintf(stderr, "  powerlim [1]     put powers up to given degree\n");
     fprintf(stderr, "  gf               indicate the base field for sanity check\n");
@@ -485,30 +487,32 @@ int main(int argc, char **argv)
 
     param_list_parse_int(pl, "powerlim", &powerlim);
 
-    int side = 0;
+    int side = 0, npol[2];
 
-    ffspol_t ffspol[2];
-    int fbb[2] = {0, 0};
+    ffspol_t ffspol[2][MAX_NPOL];
 
     // read function field polynomials
-    {
-        const char * polstr;
-        ffspol_init(ffspol[0]);
-        ffspol_init(ffspol[1]);
-        polstr = param_list_lookup_string(pl, "pol0");
-        if (polstr != NULL) {
-            side += 1;
-            ffspol_set_str(ffspol[0], polstr);
+    for (int i = 0; i < 2; ++i) {
+        const char * polstr[MAX_NPOL];
+        npol[i] = param_list_lookup_string_list(pl, i ? "pol1" : "pol0",
+                                                polstr, MAX_NPOL, ";");
+        if (npol[i]) {
+          side |= 1<<i;
+          for (int j = 0; j < npol[i]; ++j) {
+            ffspol_init(ffspol[i][j]);
+            ffspol_set_str(ffspol[i][j], polstr[j]);
+          }
         }
-        polstr = param_list_lookup_string(pl, "pol1");
-        if (polstr != NULL) {
-            side += 2;
-            ffspol_set_str(ffspol[1], polstr);
-        }
-        if (side == 0) {
-            fprintf(stderr, "Please provide at least one polynomial\n");
-            usage(argv0, NULL);
-        }
+        param_list_restore_string_list(pl, i ? "pol1" : "pol0",
+                                       polstr, npol[i], ";");
+    }
+    if (side == 0) {
+        fprintf(stderr, "Please provide at least one polynomial\n");
+        usage(argv0, NULL);
+    }
+    if (npol[0] > 1 && npol[1] > 1) {
+      fprintf(stderr, "Both sides cannot have multiple polynomials\n");
+      exit(EXIT_FAILURE);
     }
 
     // The side parameter can disable one side.
@@ -525,32 +529,36 @@ int main(int argc, char **argv)
         side = 2;
     }
 
-    // Side 0
-    if (side & 1) {
-        param_list_parse_int(pl, "fbb0", &fbb[0]);
-        if (fbb[0] == 0)
-            usage(argv0, "fbb0");
-        const char *filename;
-        filename = param_list_lookup_string(pl, "fb0");
-        if (filename == NULL)
-            usage(argv0, "fb0");
-        makefb(ffspol[0], fbb[0], filename, powerlim);
-    }
-
-    // Side 1
-    if (side & 2) {
-        param_list_parse_int(pl, "fbb1", &fbb[1]);
-        if (fbb[1] == 0)
-            usage(argv0, "fbb1");
-        const char *filename;
-        filename = param_list_lookup_string(pl, "fb1");
-        if (filename == NULL)
-            usage(argv0, "fb1");
-        makefb(ffspol[1], fbb[1], filename, powerlim);
+    // Process each side.
+    for (int i = 0; i < 2; ++i) {
+      if (side & (1<<i)) {
+        int fbb[MAX_NPOL];
+        int n = param_list_parse_int_list(pl, i ? "fbb1" : "fbb0",
+                                          fbb, npol[i], ";");
+        if (!n)
+            usage(argv0, i ? "fbb1" : "fbb0");
+        for (; n < npol[i]; ++n)
+          fbb[n] = fbb[n-1];
+        const char *filename[MAX_NPOL];
+        n = param_list_lookup_string_list(pl, i ? "fb1" : "fb0",
+                                          filename, npol[i], ";");
+        if (!n)
+            usage(argv0, i ? "fb1" : "fb0");
+        if (n != npol[i]) {
+          fprintf(stderr, "Not enough factor base files specified "
+                  "for side %d\n", i);
+          exit(EXIT_FAILURE);
+        }
+        for (int j = 0; j < npol[i]; ++j)
+          makefb(ffspol[i][j], fbb[j], filename[j], powerlim);
+        param_list_restore_string_list(pl, i ? "fb1" : "fb0",
+                                       filename, npol[i], ";");
+      }
     }
 
     param_list_clear(pl);
-    ffspol_clear(ffspol[0]);
-    ffspol_clear(ffspol[1]);
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < npol[i]; ++j)
+        ffspol_clear(ffspol[i][j]);
     return 0;
 }
