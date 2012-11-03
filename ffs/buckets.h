@@ -23,6 +23,8 @@ typedef       __replayable_bucket_struct *replayable_bucket_ptr;
 typedef const __replayable_bucket_struct *replayable_bucket_srcptr;
 #else
 typedef void *replayable_bucket_t;
+typedef void *replayable_bucket_ptr;
+typedef void *replayable_bucket_srcptr;
 #endif
 
 
@@ -59,7 +61,8 @@ void buckets_clear(buckets_ptr buckets);
 unsigned bucket_region_size();
 
 // Print information about the buckets.
-void print_bucket_info(buckets_srcptr buckets0, buckets_srcptr buckets1);
+void print_bucket_info(buckets_t *buckets0, unsigned npol0,
+                       buckets_t *buckets1, unsigned npol1);
 
 // Fill the buckets with updates corresponding to divisibility by elements of
 // the factor base.

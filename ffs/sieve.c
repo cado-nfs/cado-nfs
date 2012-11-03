@@ -25,9 +25,9 @@
 
 int factor_survivor(fppol_t a, fppol_t b,
         MAYBE_UNUSED ijpos_t pos, 
-        MAYBE_UNUSED replayable_bucket_t *buckets,
-        MAYBE_UNUSED large_factor_base_t *FB,
-        ffspol_t* F, int *B, qlat_t qlat) 
+        MAYBE_UNUSED replayable_bucket_srcptr *buckets,
+        MAYBE_UNUSED large_factor_base_srcptr *FB,
+        ffspol_srcptr *F, int *B, qlat_t qlat, int pol) 
 {
     fppol_t Nab;
     fppol_init(Nab);
@@ -111,6 +111,7 @@ int factor_survivor(fppol_t a, fppol_t b,
         }
     }
 
+    printf("%d:", pol);
     fppol_out(stdout, a); printf(",");
     fppol_out(stdout, b); printf(":");
     for (int twice = 0; twice < 2; twice++) {
@@ -294,6 +295,7 @@ void stats_yield_print_ci(stats_yield_srcptr stats_yield)
 
 #define SQSIDE_DEFAULT 0
 #define FIRSTSIEVE_DEFAULT 0
+#define MAX_NPOL 16
 
 void usage(const char *argv0, const char * missing)
 {
@@ -301,18 +303,18 @@ void usage(const char *argv0, const char * missing)
     fprintf(stderr, "  Command line options have the form '-optname optval'\n");
     fprintf(stderr, "  and take the form 'optname=optval' in the optionfile\n");
     fprintf(stderr, "List of options (a * means mandatory, default value in []):\n");
-    fprintf(stderr, "  pol0 *           function field polynomial on side 0\n");
-    fprintf(stderr, "  pol1 *           function field polynomial on side 1\n");
-    fprintf(stderr, "  fb0  *           factor base file on side 0\n");
-    fprintf(stderr, "  fb1  *           factor base file on side 1\n");
-    fprintf(stderr, "  fbb0 *           factor base bound on side 0\n");
-    fprintf(stderr, "  fbb1 *           factor base bound on side 1\n");
+    fprintf(stderr, "  pol0 *           function field polynomial(s) on side 0\n");
+    fprintf(stderr, "  pol1 *           function field polynomial(s) on side 1\n");
+    fprintf(stderr, "  fb0  *           factor base file(s) on side 0\n");
+    fprintf(stderr, "  fb1  *           factor base file(s) on side 1\n");
+    fprintf(stderr, "  fbb0 *           factor base bound(s) on side 0\n");
+    fprintf(stderr, "  fbb1 *           factor base bound(s) on side 1\n");
     fprintf(stderr, "  I    *           degree bound for i\n");
     fprintf(stderr, "  J    *           degree bound for j\n");
-    fprintf(stderr, "  lpb0 *           large prime bound on side 0\n");
-    fprintf(stderr, "  lpb1 *           large prime bound on side 1\n");
-    fprintf(stderr, "  thresh0 [2*lpb0] survivor threshold on side 0\n");
-    fprintf(stderr, "  thresh1 [2*lpb1] survivor threshold on side 1\n");
+    fprintf(stderr, "  lpb0 *           large prime bound(s) on side 0\n");
+    fprintf(stderr, "  lpb1 *           large prime bound(s) on side 1\n");
+    fprintf(stderr, "  thresh0 [2*lpb0] survivor threshold(s) on side 0\n");
+    fprintf(stderr, "  thresh1 [2*lpb1] survivor threshold(s) on side 1\n");
     fprintf(stderr, "  q    *           q-poly of the special-q\n");
     fprintf(stderr, "  rho  *           rho-poly of the special-q\n");
     fprintf(stderr, "  longq    *       variant of -q to use if q is large\n");
@@ -341,14 +343,15 @@ void usage(const char *argv0, const char * missing)
 
 int main(int argc, char **argv)
 {
-    ffspol_t ffspol[2]; 
+    int npol[2];
+    ffspol_t ffspol[2][MAX_NPOL];
     qlat_t qlat;
-    large_factor_base_t LFB[2];
-    small_factor_base_t SFB[2];
-    int fbb[2] = {0, 0};
+    large_factor_base_t LFB[2][MAX_NPOL];
+    small_factor_base_t SFB[2][MAX_NPOL];
+    int fbb[2][MAX_NPOL];
     int I=0, J=0;  
-    int lpb[2] = {0, 0};  
-    unsigned int threshold[2] = {0, 0};  
+    int lpb[2][MAX_NPOL] = {{0},{0}};
+    unsigned int threshold[2][MAX_NPOL] = {{0},{0}};
     char *argv0 = argv[0];
     int want_sublat = 0;
     int sqside = SQSIDE_DEFAULT;
@@ -403,36 +406,48 @@ int main(int argc, char **argv)
     }
 
     // read function field polynomials
-    {
-        const char * polstr;
-        ffspol_init(ffspol[0]);
-        ffspol_init(ffspol[1]);
-        polstr = param_list_lookup_string(pl, "pol0");
-        if (polstr == NULL) usage(argv0, "pol0");
-        ffspol_set_str(ffspol[0], polstr);
-        polstr = param_list_lookup_string(pl, "pol1");
-        if (polstr == NULL) usage(argv0, "pol1");
-        ffspol_set_str(ffspol[1], polstr);
+    for (int i = 0; i < 2; ++i) {
+        const char * polstr[MAX_NPOL];
+        npol[i] = param_list_lookup_string_list(pl, i ? "pol1" : "pol0",
+                                                polstr, MAX_NPOL, ";");
+        if (!npol[i]) usage(argv0, i ? "pol1" : "pol0");
+        for (int j = 0; j < npol[i]; ++j) {
+          ffspol_init(ffspol[i][j]);
+          ffspol_set_str(ffspol[i][j], polstr[j]);
+        }
+        param_list_restore_string_list(pl, i ? "pol1" : "pol0",
+                                       polstr, npol[i], ";");
     }
+    if (npol[0] > 1 && npol[1] > 1) {
+      fprintf(stderr, "Both sides cannot have multiple polynomials\n");
+      exit(EXIT_FAILURE);
+    }
+
     // read various bounds
     param_list_parse_int(pl, "sqt", &sqt); 
     param_list_parse_int(pl, "S", &skewness); 
     param_list_parse_int(pl, "I", &I); 
     param_list_parse_int(pl, "J", &J); 
-    param_list_parse_int(pl, "lpb0", &lpb[0]);
-    param_list_parse_int(pl, "lpb1", &lpb[1]);
-    param_list_parse_int(pl, "fbb0", &fbb[0]);
-    param_list_parse_int(pl, "fbb1", &fbb[1]);
-    param_list_parse_uint(pl, "thresh0", &threshold[0]);
-    param_list_parse_uint(pl, "thresh1", &threshold[1]);
     if (I == 0) usage(argv0, "I");
     if (J == 0) usage(argv0, "J");
-    if (lpb[0] == 0) usage(argv0, "lpb0");
-    if (lpb[1] == 0) usage(argv0, "lpb1");
-    if (threshold[0] == 0) 
-        threshold[0] = 2*lpb[0];
-    if (threshold[1] == 0) 
-        threshold[1] = 2*lpb[1];
+
+    for (int i = 0; i < 2; ++i) {
+        int n = param_list_parse_int_list(pl, i ? "lpb1" : "lpb0",
+                                          lpb[i], npol[i], ";");
+        if (!n) usage(argv0, i ? "lpb1" : "lpb0");
+        for (; n < npol[i]; ++n)
+          lpb[i][n] = lpb[i][n-1];
+        n = param_list_parse_int_list(pl, i ? "fbb1" : "fbb0",
+                                  fbb[i], npol[i], ";");
+        if (!n) fbb[i][n++] = 0;
+        for (; n < npol[i]; ++n)
+          fbb[i][n] = fbb[i][n-1];
+        n = param_list_parse_int_list(pl, i ? "thresh1" : "thresh0",
+                                      (int *)threshold[i], npol[i], ";");
+        if (!n) threshold[i][n++] = 2*lpb[i][0];
+        for (; n < npol[i]; ++n)
+          threshold[i][n] = threshold[i][n-1];
+    }
 
     // Check if we want to be in "longq" mode
     {
@@ -498,7 +513,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "Could not parse q1: %s\n", sqstr);
                 exit(EXIT_FAILURE);
             }
-            if (sq_deg(q1) > lpb[0]) {
+            if (sq_deg(q1) > lpb[0][0]) {
                 fprintf(stderr, "WARNING: not a good idea to have special-q beyond the large prime bound!\n");
             }
         } else {
@@ -560,7 +575,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Could not parse rho: %s\n", sqstr);
                     exit(EXIT_FAILURE);
                 }
-                if (sq_deg(qlat->q) > lpb[0]) {
+                if (sq_deg(qlat->q) > lpb[0][0]) {
                     fprintf(stderr, "WARNING: not a good idea to have a special-q beyond the large prime bound!\n");
                 }
             }
@@ -572,10 +587,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "sqside must be 0 or 1\n");
         exit(EXIT_FAILURE);
     }
+    if (npol[sqside] > 1) {
+      fprintf(stderr, "Side for sqside cannot have multiple polynomials\n");
+      exit(EXIT_FAILURE);
+    }
     param_list_parse_int(pl, "firstsieve", &firstsieve);
     if (firstsieve != 0 && firstsieve != 1) {
         fprintf(stderr, "firstsieve must be 0 or 1\n");
         exit(EXIT_FAILURE);
+    }
+    if (npol[firstsieve] > 1) {
+      fprintf(stderr, "Side for firstsieve cannot have multiple polynomials\n");
+      exit(EXIT_FAILURE);
     }
  
 #ifdef USE_F2
@@ -607,59 +630,69 @@ int main(int argc, char **argv)
     J -= sublat->deg;
 
     // Read the factor bases
-    {
-        const char *filename;
+    for (int i = 0; i < 2; ++i) {
+        const char *filename[MAX_NPOL];
         int noerr;
-        for (int i = 0; i < 2; ++i) {
-            char param[4] = {'f', 'b', '0', '\0'};
-            if (i == 1) 
-                param[2] = '1';
-            filename = param_list_lookup_string(pl, param);
-            if (filename == NULL) usage(argv0, param);
+        int n = param_list_lookup_string_list(pl, i ? "fb1" : "fb0",
+                                              filename, npol[i], ";");
+        if (!n) usage(argv0, i ? "fb1" : "fb0");
+        if (n != npol[i]) {
+          fprintf(stderr, "Not enough factor base files specified "
+                  "for side %d\n", i);
+          exit(EXIT_FAILURE);
+        }
+        for (int j = 0; j < npol[i]; ++j) {
             double tm = seconds();
-            noerr = factor_base_init(LFB[i], SFB[i], filename, I, fbb[i],
-                    I, J, sublat);
-            fprintf(stdout, "# Reading factor base %d took %1.1f s\n", 
-                    i, seconds()-tm);
+            noerr = factor_base_init(LFB[i][j], SFB[i][j], filename[j],
+                                     I, fbb[i][j], I, J, sublat);
+            fprintf(stdout, "# Reading factor base %d [%d] took %1.1f s\n",
+                    i, j, seconds()-tm);
             if (!noerr) {
-                fprintf(stderr, "Could not read %s: %s\n", param, filename);
+                fprintf(stderr, "Could not read fb%d[%d]: %s\n",
+                        i, j, filename[j]);
                 exit(EXIT_FAILURE);
             }
-
         }
+        param_list_restore_string_list(pl, i ? "fb1" : "fb0",
+                                       filename, npol[i], ";");
     }
 
     param_list_clear(pl);
 
     // Allocate storage space for the buckets.
-    buckets_t buckets[2];
-    buckets_init(buckets[0], I, J, expected_hit_number(LFB[0], I, J),
-            I, 1+factor_base_max_degp(LFB[0]));
-    buckets_init(buckets[1], I, J, expected_hit_number(LFB[1], I, J),
-            I, 1+factor_base_max_degp(LFB[1]));
-    ASSERT_ALWAYS(buckets[0]->n == buckets[1]->n);
-    print_bucket_info(buckets[0], buckets[1]);
+    buckets_t buckets[2][MAX_NPOL];
+    for (int i = 0; i < 2; ++i) {
+      for (int j = 0; j < npol[i]; ++j) {
+        buckets_init(buckets[i][j], I, J, expected_hit_number(LFB[i][j], I, J),
+                     I, 1+factor_base_max_degp(LFB[i][j]));
+      }
+    }
+    for (int j = 0; j < npol[1-sqside]; ++j)
+      ASSERT_ALWAYS(buckets[sqside][0]->n == buckets[1-sqside][j]->n);
+    print_bucket_info(buckets[0], npol[0], buckets[1], npol[1]);
     fflush(stdout);
 
 #ifdef BUCKET_RESIEVE
-    replayable_bucket_t replayable_bucket[2];
-    replayable_bucket[0]->b = (__replayable_update_struct *)
-        malloc((buckets[0]->max_size) * sizeof(__replayable_update_struct));
-    replayable_bucket[1]->b = (__replayable_update_struct *)
-        malloc((buckets[1]->max_size) * sizeof(__replayable_update_struct));
-    ASSERT_ALWAYS(replayable_bucket[0]->b != NULL);
-    ASSERT_ALWAYS(replayable_bucket[1]->b != NULL);
-#else
-    void * replayable_bucket = NULL;
+    replayable_bucket_t replayable_bucket[2][MAX_NPOL];
+    for (int i = 0; i < 2; ++i) {
+      for (int j = 0; j < npol[i]; ++j) {
+        replayable_bucket[i][j]->b = (__replayable_update_struct *)
+          malloc((buckets[i][j]->max_size)*sizeof(__replayable_update_struct));
+        ASSERT_ALWAYS(replayable_bucket[i][j]->b != NULL);
+      }
+    }
 #endif
 
     // Size of a bucket region.
     unsigned size = bucket_region_size();
 
     // Allocate space for a bucket region.
-    uint8_t *S;
-    S = (uint8_t *) malloc(size*sizeof(uint8_t));
-    ASSERT_ALWAYS(S != NULL);
+    // In the case of Smithcopper, allocate a second bucket region.
+    uint8_t *S[2];
+    S[0] = (uint8_t *)malloc(size*sizeof(uint8_t));
+    S[1] = (uint8_t *)malloc(size*sizeof(uint8_t));
+    ASSERT_ALWAYS(S[0] != NULL);
+    ASSERT_ALWAYS(S[1] != NULL);
 
     qlat->side = sqside; 
 
@@ -675,7 +708,7 @@ int main(int argc, char **argv)
     int no_rels_sq = 0;
     
     sq_t * roots;
-    roots = (sq_t *) malloc (ffspol[sqside]->deg * sizeof(sq_t));
+    roots = (sq_t *) malloc (ffspol[sqside][0]->deg * sizeof(sq_t));
     ASSERT_ALWAYS(roots != NULL);
     int nroots = 0; // number of roots still to work on for current q.
 
@@ -689,7 +722,7 @@ int main(int argc, char **argv)
             sq_set(roots[0], qlat->rho);
         } else {
             if (sq_is_irreducible(q0)) {
-                nroots = sq_roots(roots, q0, ffspol[sqside]);
+                nroots = sq_roots(roots, q0, ffspol[sqside][0]);
                 sq_set(qlat->q, q0);
                 printf("############################################\n");
                 printf("# Roots for q = "); 
@@ -718,7 +751,7 @@ int main(int argc, char **argv)
                 do {
                     sq_monic_set_next(q0, q0, 64);
                 } while (!sq_is_irreducible(q0));
-                nroots = sq_roots(roots, q0, ffspol[sqside]);
+                nroots = sq_roots(roots, q0, ffspol[sqside][0]);
             } while (nroots == 0);
 
             if (want_reliable_nrels) {
@@ -816,7 +849,7 @@ int main(int argc, char **argv)
         int nrels = 0;
 
         // Check the given special-q
-        if (!is_valid_sq(qlat, ffspol[sqside])) {
+        if (!is_valid_sq(qlat, ffspol[sqside][0])) {
             if (want_longq) {
                 fprintf(stderr, "Error: the longrho is not a root mod longq\n");
                 exit(EXIT_FAILURE);
@@ -854,7 +887,8 @@ int main(int argc, char **argv)
 
         // Precompute all the data for small factor base elements.
         for (int i = 0; i < 2; ++i)
-            small_factor_base_precomp(SFB[i], I, J, qlat);
+          for (int j = 0; j < npol[i]; ++j)
+            small_factor_base_precomp(SFB[i][j], I, J, qlat);
 
         // Loop on all sublattices
         // In the no_sublat case, this loops degenerates into one pass, since
@@ -871,22 +905,23 @@ int main(int argc, char **argv)
 #endif
             // Fill the buckets.
             t_buck_fill -= seconds();
-            buckets_fill(buckets[0], LFB[0], sublat, I, J, qlat);
-            buckets_fill(buckets[1], LFB[1], sublat, I, J, qlat);
+            for (int i = 0; i < 2; ++i)
+              for (int j = 0; j < npol[i]; ++j)
+                buckets_fill(buckets[i][j], LFB[i][j], sublat, I, J, qlat);
             t_buck_fill += seconds();
 
             // j0 is the first valid line in the current bucket region.
             ij_t j0;
             ij_set_zero(j0);
 	    ijpos_t pos0 = 0;
-            for (unsigned k = 0; k < buckets[0]->n;
+            for (unsigned k = 0; k < buckets[0][0]->n;
                  ++k, pos0 += size) {
               // Skip empty bucket regions.
               if (ijvec_get_start_pos(j0, I, J) >= pos0+size)
                 continue;
 
               // Init the bucket region.
-              memset(S, 0, size*sizeof(uint8_t));
+              memset(S[0], 0, size*sizeof(uint8_t));
 
               // Kill trivial positions.
               // When there are no sublattices:
@@ -895,11 +930,11 @@ int main(int argc, char **argv)
               // When using sublattices, just the position (0,0)
               {
                 if (UNLIKELY(!k)) {
-                  S[0] = 255;  // that's (0,0)
+                  S[0][0] = 255;  // that's (0,0)
                   if (!use_sublat(sublat)) {
                     ij_t i;
                     for (ij_set_one(i); ij_set_next(i, i, I); )
-                      S[ijvec_get_offset(i, I)] = 255;
+                      S[0][ijvec_get_offset(i, I)] = 255;
                   }
                 }
                 if (!use_sublat(sublat)) {
@@ -911,110 +946,146 @@ int main(int argc, char **argv)
                     ijpos_t pos = ijvec_get_start_pos(j, I, J) - pos0;
                     if (pos >= size)
                       break;
-                    S[pos] = 255;
+                    S[0][pos] = 255;
                   }
                 }
               }
+
+              // Initialize pointers.
+#ifdef BUCKET_RESIEVE
+              replayable_bucket_srcptr replayable_bucket_p[2] = {
+                replayable_bucket[0][0], replayable_bucket[1][0]
+              };
+#else
+              void *replayable_bucket_p = NULL;
+#endif
+              large_factor_base_srcptr LFB_p[2] = { LFB[0][0], LFB[1][0] };
+              ffspol_srcptr ffspol_p[2] = { ffspol[0][0], ffspol[1][0] };
+              int lpb_p[2] = { lpb[0][0], lpb[1][0] };
 
               for (int twice = 0; twice < 2; twice++) {
                 // Select the side to be sieved
                 int side = (firstsieve)?(1-twice):twice;
-
-                // Norm initialization.
-                // convention: if a position contains 255, it must stay like
-                // this. It means that the other side is hopeless.
-                t_norms -= seconds();
-                init_norms(S, ffspol[side], I, J, j0, pos0, size,
-                           qlat, qlat->side == side, sublat, side);
-                t_norms += seconds();
-
-                // Line sieve.
-                unsigned int sublat_thr;
-                t_sieve -= seconds();
-                sieveSFB(S, &sublat_thr, SFB[side], I, J,
-                        j0, pos0, size, sublat);
-                t_sieve += seconds();
-
-                // Apply the updates from the corresponding bucket.
-                t_buck_apply -= seconds();
-                bucket_apply(S, buckets[side], k);
-                t_buck_apply += seconds();
-
-                // since (0,0) is divisible by everyone, its position might
-                // have been clobbered.
-                if (!k && !use_sublat(sublat)) S[0] = 255;
-
-                // mark survivors
-                // no need to check if this is a valid position
-                for (unsigned i = 0; i < size; ++i) {
-                  if (S[i] > (threshold[side] + sublat_thr)>>SCALE) {
-                    S[i] = 255; 
-#ifdef TRACE_POS
-                    if (i + pos0 == TRACE_POS) {
-                        fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", i + pos0);
-                        fprintf(stderr, "above threshold.\n");
+                for (int pol = 0; pol < npol[side]; ++pol) {
+                  // If necessary, copy the S array after the first side into
+                  // the one used for the second side.
+                  if (twice) {
+                    if (pol < npol[side]-1)
+                      memcpy(S[1], S[0], size*sizeof(uint8_t));
+                    else {
+                      uint8_t *Stmp = S[1]; S[1] = S[0]; S[0] = Stmp;
                     }
-#endif
-                  } else {
-                    S[i] = 0;
-#ifdef TRACE_POS
-                    if (i + pos0 == TRACE_POS) {
-                        fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", i + pos0);
-                        fprintf(stderr, "below threshold.\n");
-                    }
-#endif
                   }
-                }
-              }
+
+                  // Norm initialization.
+                  // convention: if a position contains 255, it must stay like
+                  // this. It means that the other side is hopeless.
+                  t_norms -= seconds();
+                  init_norms(S[twice], ffspol[side][pol], I, J, j0, pos0,
+                             size, qlat, qlat->side == side, sublat, side);
+                  t_norms += seconds();
+
+                  // Line sieve.
+                  unsigned int sublat_thr;
+                  t_sieve -= seconds();
+                  sieveSFB(S[twice], &sublat_thr, SFB[side][pol], I, J,
+                           j0, pos0, size, sublat);
+                  t_sieve += seconds();
+
+                  // Apply the updates from the corresponding bucket.
+                  t_buck_apply -= seconds();
+                  bucket_apply(S[twice], buckets[side][pol], k);
+                  t_buck_apply += seconds();
+
+                  // since (0,0) is divisible by everyone, its position might
+                  // have been clobbered.
+                  if (!k && !use_sublat(sublat)) S[twice][0] = 255;
+
+                  // mark survivors
+                  // no need to check if this is a valid position
+                  for (unsigned i = 0; i < size; ++i) {
+                    if (S[twice][i] > (threshold[side][pol] + sublat_thr)>>SCALE) {
+                      S[twice][i] = 255;
+#ifdef TRACE_POS
+                      if (i + pos0 == TRACE_POS) {
+                          fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", i + pos0);
+                          fprintf(stderr, "above threshold.\n");
+                      }
+#endif
+                    } else {
+                      S[twice][i] = 0;
+#ifdef TRACE_POS
+                      if (i + pos0 == TRACE_POS) {
+                          fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", i + pos0);
+                          fprintf(stderr, "below threshold.\n");
+                      }
+#endif
+                    }
+                  }
 
 #ifdef BUCKET_RESIEVE
-              // prepare replayable buckets
-              bucket_prepare_replay(replayable_bucket[0], buckets[0], S, k);
-              bucket_prepare_replay(replayable_bucket[1], buckets[1], S, k);
+                  // prepare replayable buckets
+                  bucket_prepare_replay(replayable_bucket[twice][pol],
+                                        buckets[twice][pol], S[twice], k);
 #endif
 
-              t_cofact -= seconds();
-              // survivors cofactorization
-              {
-                fppol_t a, b;
-                ij_t i, j, g;
-                ij_t hati, hatj;
-                fppol_init(a);
-                fppol_init(b);
+                  // No cofactorization after the first side.
+                  if (!twice) continue;
 
-                int rci, rcj = 1;
-                for (ij_set(j, j0); rcj; rcj = ij_monic_set_next(j, j, J)) {
-                  ijpos_t start = ijvec_get_start_pos(j, I, J) - pos0;
-                  if (start >= size)
-                    break;
-                  rci = 1;
-                  for (ij_set_zero(i); rci; rci = ij_set_next(i, i, I)) {
-                    ijpos_t pos = start + ijvec_get_offset(i, I);
+                  t_cofact -= seconds();
+                  // survivors cofactorization
+                  {
+                    fppol_t a, b;
+                    ij_t i, j, g;
+                    ij_t hati, hatj;
+                    fppol_init(a);
+                    fppol_init(b);
 
-                    if (S[pos] != 255) {
+                    int rci, rcj = 1;
+                    for (ij_set(j, j0); rcj; rcj = ij_monic_set_next(j, j, J)) {
+                      ijpos_t start = ijvec_get_start_pos(j, I, J) - pos0;
+                      if (start >= size)
+                        break;
+                      rci = 1;
+                      for (ij_set_zero(i); rci; rci = ij_set_next(i, i, I)) {
+                        ijpos_t pos = start + ijvec_get_offset(i, I);
+
+                        if (S[1][pos] != 255) {
 #ifdef TRACE_POS
-                      if (pos + pos0 == TRACE_POS) {
-                        fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", pos+pos0);
-                        fprintf(stderr,
-                           "entering cofactorization, S[pos] = %d\n",
-                           S[pos]);
-                        }
+                          if (pos + pos0 == TRACE_POS) {
+                            fprintf(stderr, "TRACE_POS(%" PRIu64 "): ", pos+pos0);
+                            fprintf(stderr,
+                               "entering cofactorization, S[1][pos] = %d\n",
+                               S[1][pos]);
+                            }
 #endif 
-                      ij_convert_sublat(hati, hatj, i, j, sublat);
-                      ij_gcd(g, hati, hatj);
-                      if (ij_deg(g) != 0 && ij_deg(hati)>0  && ij_deg(hatj)>0)
-                        continue;
-                      ij2ab(a, b, hati, hatj, qlat);
-                      nrels += factor_survivor(a, b, pos, replayable_bucket,
-                              LFB, ffspol, lpb, qlat);
+                          ij_convert_sublat(hati, hatj, i, j, sublat);
+                          ij_gcd(g, hati, hatj);
+                          if (ij_deg(g) != 0 && ij_deg(hati)>0  && ij_deg(hatj)>0)
+                            continue;
+                          ij2ab(a, b, hati, hatj, qlat);
+                          nrels += factor_survivor(a, b, pos,
+                              replayable_bucket_p, LFB_p, ffspol_p, lpb_p,
+                              qlat, pol);
+                        }
+                      }
                     }
+                    if (pol == npol[side]-1)
+                      ij_set(j0, j);
+                    fppol_clear(a);
+                    fppol_clear(b);
                   }
+                  t_cofact += seconds();
+
+                  // Update pointers.
+#ifdef BUCKET_RESIEVE
+                  ++replayable_bucket_p[1-sqside];
+#endif
+                  ++LFB_p[1-sqside];
+                  ++ffspol_p[1-sqside];
+                  lpb_p[1-sqside] = lpb[1-sqside][pol];
                 }
-                ij_set(j0, j);
-                fppol_clear(a);
-                fppol_clear(b);
               }
-              t_cofact += seconds();
             }
 
         }  // End of loop on sublattices.
@@ -1048,16 +1119,18 @@ int main(int argc, char **argv)
         stats_yield_push(stats_yield, nrels, t_tot, qlat);
     } while (1); // End of loop over special-q's
 
-    free(S);
-    factor_base_clear(LFB[0], SFB[0]);
-    factor_base_clear(LFB[1], SFB[1]);
-    buckets_clear(buckets[0]);
-    buckets_clear(buckets[1]);
-    free(roots);
+    for (int i = 0; i < 2; ++i) {
+      free(S[i]);
+      for (int j = 0; j < npol[i]; ++j) {
+        factor_base_clear(LFB[i][j], SFB[i][j]);
+        buckets_clear(buckets[i][j]);
 #ifdef BUCKET_RESIEVE
-    free(replayable_bucket[0]->b);
-    free(replayable_bucket[1]->b);
+        free(replayable_bucket[i][j]->b);
 #endif
+        ffspol_clear(ffspol[i][j]);
+      }
+    }
+    free(roots);
 
     if (!want_longq && !bench) {
     tot_time = seconds()-tot_time;
@@ -1087,8 +1160,6 @@ int main(int argc, char **argv)
 #endif
     }
 
-    ffspol_clear(ffspol[0]);
-    ffspol_clear(ffspol[1]);
     stats_yield_clear(stats_yield);
 
     return EXIT_SUCCESS;
