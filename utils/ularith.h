@@ -605,4 +605,242 @@ ularith_invmod (const unsigned long n)
   return r;
 }
 
+
+// 3-word arith
+
+/* Add an unsigned long to two unsigned longs with carry propagation from 
+   low word (r1) to high word (r2). Any carry out from high word is lost. */
+
+static inline void
+ularith_add_ul_3ul (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+
+  r = *r1;
+  s = r + a;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r1 = t;
+  s = *r2;
+  t = s + cy;
+  cy = t < s;
+  *r2 = t;
+  s = *r3;
+  t = s + cy;
+  cy = t < s;
+  *r3 = t;
+}
+
+
+/* Add two unsigned longs to two unsigned longs with carry propagation from 
+   low word (r1) to high word (r2). Any carry out from high word is lost. */
+
+static inline void
+ularith_add_3ul_3ul (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a1, const unsigned long a2, const unsigned long a3)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+
+  r = *r1;
+  s = r + a1;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r1 = t;
+  r = *r2;
+  s = r + a2;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r2 = t;
+  r = *r3;
+  s = r + a3;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r3 = t;
+}
+
+/* Adds two unsigned longs from two unsigned longs with carry propagation 
+   from low word (r1) to high word (r2). Returns 1 if there was a carry out 
+   from high word, otherwise returns 0. */
+
+static inline char
+ularith_add_3ul_3ul_cy (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a1, const unsigned long a2, const unsigned long a3)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+
+  r = *r1;
+  s = r + a1;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r1 = t;
+  r = *r2;
+  s = r + a2;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r2 = t;
+  r = *r3;
+  s = r + a3;
+  cy1 = s < r;
+  t = s + cy;
+  cy2 = t < s;
+  cy = cy1 | cy2;
+  *r3 = t;
+  return cy;
+}
+
+/* Subtract an unsigned long from two unsigned longs with borrow propagation 
+   from low word (r1) to high word (r2). Any borrow out from high word is 
+   lost. */
+
+static inline void
+ularith_sub_ul_3ul (unsigned long *r1, unsigned long *r2, unsigned long *r3, 
+			const unsigned long a)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+  r = *r1;
+  s = r - a;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r1 = t;
+
+  s = *r2;
+  t = s - cy;
+  cy = t > s;
+  *r2 = t;
+  s = *r3;
+  t = s - cy;
+  cy = t > s;
+  *r3 = t;
+}
+
+
+/* Subtract two unsigned longs from two unsigned longs with borrow propagation 
+   from low word (r1) to high word (r2). Any borrow out from high word is 
+   lost. */
+
+static inline void
+ularith_sub_3ul_3ul (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a1, const unsigned long a2, const unsigned long a3)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+
+  r = *r1;
+  s = r - a1;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r1 = t;
+  r = *r2;
+  s = r - a2;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r2 = t;
+  r = *r3;
+  s = r - a3;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r3 = t;
+}
+
+/* Subtract two unsigned longs from two unsigned longs with borrow propagation 
+   from low word (r1) to high word (r2). Returns 1 if there was a borrow out 
+   from high word, otherwise returns 0. */
+
+static inline char
+ularith_sub_3ul_3ul_cy (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a1, const unsigned long a2, const unsigned long a3)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  cy = 0;
+
+  r = *r1;
+  s = r - a1;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r1 = t;
+  r = *r2;
+  s = r - a2;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r2 = t;
+  r = *r3;
+  s = r - a3;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  *r3 = t;
+  return cy;
+}
+
+/* Subtract only if result is non-negative */
+
+static inline void
+ularith_sub_3ul_3ul_ge (unsigned long *r1, unsigned long *r2, unsigned long *r3,
+        const unsigned long a1, const unsigned long a2, const unsigned long a3)
+{
+  unsigned long r, s, t, cy, cy1, cy2;
+  unsigned long t1, t2, t3;
+  cy = 0;
+
+  r = *r1;
+  s = r - a1;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  t1 = t;
+  r = *r2;
+  s = r - a2;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  t2 = t;
+  r = *r3;
+  s = r - a3;
+  cy1 = s > r;
+  t = s - cy;
+  cy2 = t > s;
+  cy = cy1 | cy2;
+  t3 = t;
+  if (!cy)
+    {
+      *r1 = t1;
+      *r2 = t2;
+      *r3 = t3;
+    }
+}
+
+
+
 #endif /* ifndef UL_ARITH_H__ */

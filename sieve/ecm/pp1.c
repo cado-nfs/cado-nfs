@@ -380,9 +380,8 @@ pp1_stage2 (residue_t r, const residue_t X, const stage2_plan_t *plan,
   mod_clear (t, m);
 }
 
-
 int  
-pp1 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
+pp1_27 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
 {
   residue_t b, two, save, t;
   unsigned int i;
@@ -398,6 +397,59 @@ pp1 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
   /* Compute 2/7 (mod N) */
   mod_set (b, two, m);
   mod_div7 (b, b, m);
+  
+  pp1_stage1 (b, plan->bc, two, m);
+  /* Backtracking for the 2's in the exponent */
+  mod_set (t, b, m);
+  for (i = 0; i < plan->exp2; i++)
+    {
+      pp1_double (b, b, two, m);
+#if PP1_BACKTRACKING
+      if (mod_equal (b, two, m))
+        {
+          mod_set (b, t, m);
+          bt = 1;
+          break;
+        }
+      mod_set (t, b, m);
+#endif
+    }
+  mod_sub (t, b, two, m);
+  mod_gcd (f, t, m);
+
+  if (mod_intcmp_ul(f, 1UL) == 0 && plan->stage2.B2 > plan->B1)
+    {
+      pp1_stage2 (t, b, &(plan->stage2), two, m);
+      mod_gcd (f, t, m);
+    }
+  
+  mod_clear (b, m);
+  mod_clear (save, m);
+  mod_clear (two, m);
+  mod_clear (t, m);
+
+  return bt;
+}
+
+int  
+pp1_65 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
+{
+  residue_t b, two, save, t;
+  unsigned int i;
+  int bt = 0;
+
+  mod_init_noset0 (b, m);
+  mod_init_noset0 (two, m);
+  mod_init_noset0 (save, m);
+  mod_init_noset0 (t, m);
+  mod_set1 (two, m);
+  mod_add (two, two, two, m);
+  
+  /* Compute 6/5 (mod N) */
+  mod_set (b, two, m);
+  mod_add (b, b, two, m);
+  mod_add (b, b, two, m);
+  mod_div5 (b, b, m);
   
   pp1_stage1 (b, plan->bc, two, m);
   /* Backtracking for the 2's in the exponent */

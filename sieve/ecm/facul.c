@@ -29,6 +29,133 @@ unsigned long stats_found_n[STATS_LEN] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
+/* Try a strategy for large lpb's. 
+   In that case, n is ignored. This is not a bug. It is more the
+   job of this function to decide the number of curves to run.
+   */
+static facul_strategy_t *
+facul_make_strategy_large (const int n, const unsigned long fbb, 
+		     const unsigned long lpb)
+{
+  facul_strategy_t *strategy;
+  facul_method_t *methods;
+  int i;
+
+  int B1B2[144][2] = {
+      {315, 5355}, {315, 5355}, {315, 5355},
+      {315, 5355}, {315, 5355}, {315, 5355},
+      {450, 6825}, {450, 6825}, {450, 6825}, 
+      {450, 6825}, {450, 6825}, {450, 6825}, 
+      {525, 8085}, {525, 8085}, {525, 8085},
+      {525, 8085}, {525, 8085}, {525, 8085},
+      {750, 9555}, {750, 9555}, {750, 9555}, 
+      {750, 9555}, {750, 9555}, {750, 9555}, 
+      {1250, 13965}, {1250, 13965}, {1250, 13965}, 
+      {1250, 13965}, {1250, 13965}, {1250, 13965}, 
+      {2000, 17325}, {2000, 17325}, {2000, 17325},
+      {2000, 17325}, {2000, 17325}, {2000, 17325},
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
+  };
+  // the number of curves is nb_curves[lpb-35] 
+  int nb_curves[60] = {
+      12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18,
+      19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25,
+      26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32,
+  };
+
+  int nn;
+  /*
+  if (lpb < 35) 
+      nn = nb_curves[0];
+  else if (lpb > 74)
+//      nn = nb_curves[39];
+      nn = 45;
+  else
+      nn = nb_curves[lpb - 35];
+      */
+  nn = 144;
+
+  printf("prout\n");
+
+  strategy = malloc (sizeof (facul_strategy_t));
+  strategy->lpb = lpb;
+  /* Store fbb^2 in fbb2 */
+  ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
+
+  methods = malloc ((nn + 4) * sizeof (facul_method_t));
+  strategy->methods = methods;
+
+  /* run one P-1 curve with B1=315 and B2=2205 */
+  methods[0].method = PM1_METHOD;
+  methods[0].plan = malloc (sizeof (pm1_plan_t));
+  pm1_make_plan (methods[0].plan, 315, 2205, 0);
+
+  /* run one P+1 curve with B1=525 and B2=3255 */
+  methods[1].method = PP1_27_METHOD;
+  methods[1].plan = malloc (sizeof (pp1_plan_t));
+  pp1_make_plan (methods[1].plan, 525, 3255, 0);
+
+  /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
+  methods[2].method = EC_METHOD;
+  methods[2].plan = malloc (sizeof (ecm_plan_t));
+  ecm_make_plan (methods[2].plan, 105, 3255, MONTY12, 2, 1, 0);
+  
+  if (nn > 0)
+    {
+      methods[3].method = EC_METHOD;
+      methods[3].plan = malloc (sizeof (ecm_plan_t));
+      ecm_make_plan (methods[3].plan, 315, 5355, BRENT12, 11, 1, 0);
+    }
+
+  for (i = 4; i < nn + 3; i++)
+    {
+      methods[i].method = EC_METHOD;
+      methods[i].plan = malloc (sizeof (ecm_plan_t));
+      ecm_make_plan (methods[i].plan, B1B2[i-4][0], B1B2[i-4][1],
+              MONTY12, i - 1, 1, 0);
+    }
+
+  methods[nn + 3].method = 0;
+  methods[nn + 3].plan = NULL;
+
+  return strategy;
+}
+
 
 /* Make a simple minded strategy for factoring. We start with P-1 and
    P+1 (with x0=2/7), then an ECM curve with low bounds, then a bunch of
@@ -41,6 +168,8 @@ facul_strategy_t *
 facul_make_strategy (const int n, const unsigned long fbb, 
 		     const unsigned long lpb)
 {
+  //if (lpb >= 35)
+    return facul_make_strategy_large(n, fbb, lpb);
   facul_strategy_t *strategy;
   facul_method_t *methods;
   int i;
@@ -59,7 +188,7 @@ facul_make_strategy (const int n, const unsigned long fbb,
   pm1_make_plan (methods[0].plan, 315, 2205, 0);
 
   /* run one P+1 curve with B1=525 and B2=3255 */
-  methods[1].method = PP1_METHOD;
+  methods[1].method = PP1_27_METHOD;
   methods[1].plan = malloc (sizeof (pp1_plan_t));
   pp1_make_plan (methods[1].plan, 525, 3255, 0);
 
@@ -99,7 +228,8 @@ facul_clear_strategy (facul_strategy_t *strategy)
     {
       if (methods[i].method == PM1_METHOD)
         pm1_clear_plan (methods[i].plan);
-      else if (methods[i].method == PP1_METHOD)
+      else if (methods[i].method == PP1_27_METHOD
+              || methods[i].method == PP1_65_METHOD)
 	pp1_clear_plan (methods[i].plan);
       else if (methods[i].method == EC_METHOD)
 	ecm_clear_plan (methods[i].plan);
@@ -155,7 +285,7 @@ void facul_print_stats (FILE *stream)
 int
 facul (unsigned long *factors, const mpz_t N, const facul_strategy_t *strategy)
 {
-  modintredc2ul2_t n;
+  modintredc3ul_t n;
   int i, found = 0;
   
 #ifdef PARI
@@ -169,18 +299,18 @@ facul (unsigned long *factors, const mpz_t N, const facul_strategy_t *strategy)
   
   /* If the composite does not fit into our modular arithmetic, return
      no factor */
-  if (mpz_sizeinbase (N, 2) > MODREDC2UL2_MAXBITS)
+  if (mpz_sizeinbase (N, 2) > MODREDC3UL_MAXBITS)
     return 0;
   
   {
     size_t written;
     mpz_export (n, &written, -1, sizeof(unsigned long), 0, 0, N);
-    for (i = written; i < MODREDC2UL2_SIZE; i++)
+    for (i = written; i < MODREDC3UL_SIZE; i++)
       n[i] = 0UL;
   }
   
   /* Use the fastest modular arithmetic that's large enough for this input */
-  i = modredc2ul2_intbits (n);
+  i = modredc3ul_intbits (n);
   if (i <= MODREDCUL_MAXBITS)
     {
       modulusredcul_t m;
@@ -195,13 +325,22 @@ facul (unsigned long *factors, const mpz_t N, const facul_strategy_t *strategy)
       found = facul_doit_15ul (factors, m, strategy, 0);
       modredc15ul_clearmod (m);
     }
-  else 
+  else if (i <= MODREDC2UL2_MAXBITS)
     {
       modulusredc2ul2_t m;
-      ASSERT (i <= MODREDC2UL2_MAXBITS);
       modredc2ul2_initmod_uls (m, n);
       found = facul_doit_2ul2 (factors, m, strategy, 0);
       modredc2ul2_clearmod (m);
+    }
+  else 
+    {
+      if (i < MODREDC3UL_MINBITS)  // 127 and 128 bits are not covered!
+        return 0; 
+      modulusredc3ul_t m;
+      ASSERT (i <= MODREDC3UL_MAXBITS);
+      modredc3ul_initmod_uls (m, n);
+      found = facul_doit_3ul (factors, m, strategy, 0);
+      modredc3ul_clearmod (m);
     }
   
   if (found > 1)

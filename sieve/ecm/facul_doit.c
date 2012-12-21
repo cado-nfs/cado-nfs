@@ -42,6 +42,9 @@ facul_doit (unsigned long *factors, const modulus_t m,
 #if     MOD_MAXBITS > MODREDC15UL_MAXBITS
   modulusredc2ul2_t fm_2ul2, cfm_2ul2; /* Modulus for factor and cofactor */
 #endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+  modulusredc3ul_t fm_3ul, cfm_3ul; /* Modulus for factor and cofactor */
+#endif
   int i, found = 0, bt, fprime, cfprime;
   enum {
       CHOOSE_UL,
@@ -50,6 +53,9 @@ facul_doit (unsigned long *factors, const modulus_t m,
 #endif
 #if     MOD_MAXBITS > MODREDC15UL_MAXBITS
       CHOOSE_2UL2,
+#endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+      CHOOSE_3UL,
 #endif
   } f_arith = CHOOSE_UL, cf_arith = CHOOSE_UL;
   
@@ -64,16 +70,18 @@ facul_doit (unsigned long *factors, const modulus_t m,
          machine-dependent. However it would be better if the early abort
          test depends on the size of the number we are trying to factor,
          since for a large number we can invest more in cofactorization. */
-      if (i > 3 && mod_intbits (n) > 64)
-        break;
+//      if (i > 3 && mod_intbits (n) > 64)
+//        break;
       
       if (i < STATS_LEN)
 	  stats_called[i]++;
       
       if (strategy->methods[i].method == PM1_METHOD)
 	bt = pm1 (f, m, (pm1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == PP1_METHOD)
-	bt = pp1 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
+      else if (strategy->methods[i].method == PP1_27_METHOD)
+	bt = pp1_27 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
+      else if (strategy->methods[i].method == PP1_65_METHOD)
+	bt = pp1_65 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
       else if (strategy->methods[i].method == EC_METHOD)
 	bt = ecm (f, m, (ecm_plan_t *) (strategy->methods[i].plan));
       else 
@@ -213,6 +221,14 @@ facul_doit (unsigned long *factors, const modulus_t m,
 	      fprime = primetest_2ul2 (fm_2ul2);
             }
 #endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+	  else if (mod_intbits (f) <= MODREDC3UL_MAXBITS)
+            {
+              f_arith = CHOOSE_3UL;
+	      modredc3ul_initmod_uls (fm_3ul, f);
+	      fprime = primetest_3ul (fm_3ul);
+            }
+#endif
           else
               abort();
 
@@ -246,6 +262,14 @@ facul_doit (unsigned long *factors, const modulus_t m,
               cf_arith = CHOOSE_2UL2;
 	      modredc2ul2_initmod_uls (cfm_2ul2, n);
 	      cfprime = primetest_2ul2 (cfm_2ul2);
+            }
+#endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+	  else if (mod_intbits (n) <= MODREDC3UL_MAXBITS)
+            {
+              cf_arith = CHOOSE_3UL;
+	      modredc3ul_initmod_uls (cfm_3ul, n);
+	      cfprime = primetest_3ul (cfm_3ul);
             }
 #endif
           else
@@ -282,6 +306,11 @@ facul_doit (unsigned long *factors, const modulus_t m,
                   f2 = facul_doit_2ul2 (factors + found, fm_2ul2, strategy, i);
                   break;
 #endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+              case CHOOSE_3UL:
+                  f2 = facul_doit_3ul (factors + found, fm_3ul, strategy, i);
+                  break;
+#endif
           }
           
 	  if (f2 == FACUL_NOT_SMOOTH)
@@ -310,6 +339,11 @@ facul_doit (unsigned long *factors, const modulus_t m,
 #if     MOD_MAXBITS > MODREDC15UL_MAXBITS
               case CHOOSE_2UL2:
                   f2 = facul_doit_2ul2 (factors + found, cfm_2ul2, strategy, i + 1);
+                  break;
+#endif
+#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
+              case CHOOSE_3UL:
+                  f2 = facul_doit_3ul (factors + found, cfm_3ul, strategy, i + 1);
                   break;
 #endif
           }

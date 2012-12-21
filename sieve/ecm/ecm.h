@@ -1,6 +1,7 @@
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
 #include "modredc_2ul2.h"
+#include "modredc_3ul.h"
 #include "stage2.h"
 
 #define BRENT12 0
@@ -38,6 +39,13 @@ unsigned long ell_pointorder_2ul2 (const residueredc2ul2_t, const int,
                                    const modulusredc2ul2_t, const int);
 unsigned long ellM_curveorder_jacobi_2ul2 (residueredc2ul2_t, residueredc2ul2_t, 
                                            modulusredc2ul2_t);
+int ecm_3ul (modintredc3ul_t, const modulusredc3ul_t, const ecm_plan_t *);
+unsigned long ell_pointorder_3ul (const residueredc3ul_t, const int, 
+                                   const unsigned long, const unsigned long,
+                                   const modulusredc3ul_t, const int);
+unsigned long ellM_curveorder_jacobi_3ul (residueredc3ul_t, residueredc3ul_t, 
+                                           modulusredc3ul_t);
+
 void ecm_make_plan (ecm_plan_t *, const unsigned int, const unsigned int, 
 		    const int, const unsigned long, const int, const int);
 void ecm_clear_plan (ecm_plan_t *);

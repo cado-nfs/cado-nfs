@@ -93,7 +93,8 @@ void print_help (char *programname)
   printf ("Run factoring method on numbers in interval [<start>, <stop>], or from file\n");
   printf ("<start> and <stop> must be given unless -inp or -inpraw is used\n");
   printf ("-pm1 <B1> <B2>      Run P-1 with B1, B2\n");
-  printf ("-pp1 <B1> <B2>      Run P+1 with B1, B2\n");
+  printf ("-pp1_27 <B1> <B2>   Run P+1 with B1, B2, x0=2/7\n");
+  printf ("-pp1_65 <B1> <B2>   Run P+1 with B1, B2, x0=6/5\n");
   printf ("-ecm <B1> <B2> <s>  Run ECM with B1, B2 and parameter s, using BRENT12 curve\n");
   printf ("-ecmm12 <B1> <B2> <s>  Same, but using Montgomery torsion 12 curve\n");
   printf ("-ecmm16 <B1> <B2> <s>  Same, but using Montgomery torsion 16 curve\n");
@@ -172,13 +173,28 @@ int main (int argc, char **argv)
 	  argc -= 3;
 	  argv += 3;
 	}
-      else if (argc > 3 && strcmp (argv[1], "-pp1") == 0 && 
+      else if (argc > 3 && strcmp (argv[1], "-pp1_27") == 0 && 
 	       nr_methods < MAX_METHODS)
 	{
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PP1_METHOD;
+	  strategy->methods[nr_methods].method = PP1_27_METHOD;
+	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
+	  ASSERT (strategy->methods[nr_methods].plan != NULL);
+	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
+			 (verbose >= 3));
+	  nr_methods++;
+	  argc -= 3;
+	  argv += 3;
+	}
+      else if (argc > 3 && strcmp (argv[1], "-pp1_65") == 0 && 
+	       nr_methods < MAX_METHODS)
+	{
+	  unsigned long B1, B2;
+	  B1 = strtoul (argv[2], NULL, 10);
+	  B2 = strtoul (argv[3], NULL, 10);
+	  strategy->methods[nr_methods].method = PP1_65_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
 	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 

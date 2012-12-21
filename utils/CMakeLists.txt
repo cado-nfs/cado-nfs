@@ -7,6 +7,7 @@ set (sources
         hashpair.c poly.c crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c cut_n_roots.c memusage.c
         cachesize_cpuid.c cachesize_guess.c
+        modredc_3ul.c
 )
 
 # the utils library is used by some shared objects (prominently the
@@ -31,6 +32,7 @@ add_executable(test_mod_ul ${EXCLUDE_FROM_RELEASE_BUILD} test_mod_ul.c)
 add_executable(test_modredc_ul ${EXCLUDE_FROM_RELEASE_BUILD} test_modredc_ul.c)
 add_executable(test_modredc_15ul ${EXCLUDE_FROM_RELEASE_BUILD} test_modredc_15ul.c)
 add_executable(test_modredc_2ul2 ${EXCLUDE_FROM_RELEASE_BUILD} test_modredc_2ul2.c)
+add_executable(test_modredc_3ul ${EXCLUDE_FROM_RELEASE_BUILD} test_modredc_3ul.c)
 add_executable(test-rootfinder ${EXCLUDE_FROM_RELEASE_BUILD} test-rootfinder.c)
 add_executable(gmp_prob_prime gmp_prob_prime.c)
 add_executable(gmp_nextprime gmp_nextprime.c)
@@ -46,6 +48,7 @@ target_link_libraries(test_mod_ul utils)
 target_link_libraries(test_modredc_ul utils)
 target_link_libraries(test_modredc_15ul utils)
 target_link_libraries(test_modredc_2ul2 utils)
+target_link_libraries(test_modredc_3ul utils)
 target_link_libraries(test-rootfinder utils)
 target_link_libraries(gmp_prob_prime gmp)
 target_link_libraries(gmp_nextprime gmp)

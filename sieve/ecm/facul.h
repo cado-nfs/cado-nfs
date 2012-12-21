@@ -5,8 +5,9 @@
 #include <gmp.h>
 
 #define PM1_METHOD 1
-#define PP1_METHOD 2
-#define EC_METHOD 3
+#define PP1_27_METHOD 2
+#define PP1_65_METHOD 3
+#define EC_METHOD 4
 
 #define FACUL_NOT_SMOOTH (-1)
 
