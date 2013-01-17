@@ -49,15 +49,62 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
     else if (y >= p)
         y -= p;
 #ifndef NDEBUG
-    if (y >= p) {
+    if (UNLIKELY(y >= p)) {
         fprintf(stderr, "BUG in redc_32. x = %" PRId64
                 " p = %u, invp = %u, y = %d\n", x, p, invp, y);
+        if (x < 0) {
+            fprintf(stderr, "x/2^32 = -%"PRId64, (-x)>>32);
+            if (((-x)>>32) < p) {
+                fprintf(stderr, ", within bounds\n");
+            } else {
+                fprintf(stderr, ", OUT OF BOUNDS\n");
+            }
+        } else {
+            fprintf(stderr, "x/2^32 = -%"PRId64, x>>32);
+            if ((x>>32) < p) {
+                fprintf(stderr, ", within bounds\n");
+            } else {
+                fprintf(stderr, ", OUT OF BOUNDS\n");
+            }
+        }
         ASSERT(0);
+        /* TODO: Fall back to safer code ? */
     }
 #endif
-
     return y;
 }
+
+#ifdef   HAVE_GCC_STYLE_AMD64_ASM
+/* This does a full mul, and should grok slightly larger bounds than the
+ * version above. Presumably, as long as x fits within 64 bits, (63 bits,
+ * with sign), things should be ok. (TODO: check).
+ */
+static inline uint64_t
+redc_64(const int64_t x, const uint32_t p, const uint64_t invp)
+{
+    int64_t t = ((uint64_t)x)*invp;
+    uint64_t u;
+    /* Need the high part of a 64x64 mul */
+    __asm__ (
+            "    mulq    %[p]\n"
+            "    addq    %[x], %%rax\n"
+            "    adcq    $0, %%rdx\n"
+            : "=&d" (u)
+            : "a" (t), [x] "rm" (x), [p] "r" ((uint64_t) p));
+    /* As per the early clobber on rdx, x can't be put in there.
+     * Furthermore, since t goes to rax, x doesn't go there either. Thus
+     * it is reasonable to assume that it is still unmodified after the
+     * asm block */
+    u-=x<0;     /* FIXME. Can I get around this ? */
+    if ((int64_t)u < 0)
+        u += p;
+    else if (u >= p)
+        u -= p;
+    return u;
+}
+#else
+#error "Please implement me !"
+#endif
 
 MAYBE_UNUSED
 static inline fbprime_t
@@ -95,6 +142,9 @@ invmod (uint64_t *pa, uint64_t b)
 }
 
 
+/* TODO: this is a close cousin of modredcul_inv, but the latter does
+ * 64-bit redc */
+
 /* Define to 0 or 1. Table lookup seems to be slightly faster than
    ctzl() on Opteron and slightly slower on Core2, but doesn't really
    make much difference in either case. */
@@ -106,7 +156,7 @@ invmod (uint64_t *pa, uint64_t b)
 // a is modified in place
 // return 1 on succes, 0 on failure
 NOPROFILE_INLINE int
-invmod_REDC(uint64_t *pa, uint64_t b) {
+invmod_redc_32(uint64_t *pa, uint64_t b) {
 #if LOOKUP_TRAILING_ZEROS
   static const unsigned char trailing_zeros[256] =
     {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
@@ -118,6 +168,7 @@ invmod_REDC(uint64_t *pa, uint64_t b) {
      6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
      5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
 #endif
+
   uint64_t a, u, v, fix, p = b;
   int t, lsh;
   a = *pa;
@@ -197,6 +248,68 @@ invmod_REDC(uint64_t *pa, uint64_t b) {
     }
   *pa = u;
   return 1;
+}
+
+/* Only used for together with redc_64 */
+NOPROFILE_INLINE int
+invmod_redc_64(uint64_t *pa, uint64_t b)
+{
+    uint64_t a, u, v, fix, p = b;
+    int t, lsh;
+    a = *pa;
+
+    if (UNLIKELY(*pa == 0)) return 0; /* or we get infinite loop */
+    if (UNLIKELY(b % 2UL == 0)) return invmod(pa, b);
+
+    fix = (b+1)>>1;
+
+    ASSERT (a < b);
+
+    u = 1; v = 0; t = 0;
+
+    // make a odd
+    lsh = ctzl(a);
+    a >>= lsh;
+    t += lsh;
+    /* v <<= lsh; ??? v is 0 here */
+
+    // Here a and b are odd, and a < b
+    do {
+        do {
+            b -= a; v += u;
+            lsh = ctzl(b);
+            b >>= lsh;
+            t += lsh;
+            u <<= lsh;
+        } while (a<b);
+        if (UNLIKELY(a == b))
+            break;
+        do {
+            a -= b; u += v;
+            lsh = ctzl(a);
+            a >>= lsh;
+            t += lsh;
+            v <<= lsh;
+        } while (b < a);
+    } while (a != b);
+    if (a != 1)
+        return 0;
+
+    // Here, the inverse of a is u/2^t mod b.
+    while (t > 64) {
+        unsigned long sig = u & 1UL;
+        u >>= 1;
+        u += fix & -sig;
+        --t;
+    }
+    while (t < 64) {
+        u <<= 1;
+        if (u >= p)
+            u -= p;
+        t ++;
+    }
+    *pa = u;
+    return 1;
 }
 
 fbprime_t is_prime_power(fbprime_t q);

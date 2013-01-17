@@ -840,7 +840,7 @@ fill_in_buckets(thread_data_ptr th, int side, where_am_I_ptr w MAYBE_UNUSED)
 
         /* If we sieve for special-q's smaller than the factor
            base bound, the prime p might equal the special-q prime q. */
-        if (UNLIKELY(p == si->q))
+        if (UNLIKELY(mpz_cmp_ui(si->q, p) == 0))
             continue;
 
         const uint32_t I = si->I;
@@ -853,7 +853,7 @@ fill_in_buckets(thread_data_ptr th, int side, where_am_I_ptr w MAYBE_UNUSED)
         fbprime_t r, R;
 
         R = fb_iterator_get_r(t);
-        r = fb_root_in_qlattice(p, R, t->fb->invp, si);
+        r = fb_root_in_qlattice_generic(p, R, t->fb->invp, si);
         // TODO: should be line sieved in the non-bucket phase?
         // Or should we have a bucket line siever?
         if (UNLIKELY(r == 0))
@@ -1308,10 +1308,23 @@ check_leftover_norm (mpz_t n, size_t lpb, mpz_t BB, mpz_t BBB, mpz_t BBBB,
   return 1;
 }
 
+struct sorted_bucket_report {
+    int x;
+    uint8_t res;
+};
+
+typedef int (*sortfunc_t) (const void * a, const void * b);
+
+int cmp_sbr(const struct sorted_bucket_report * a, const struct sorted_bucket_report * b)
+{
+    return (b->res < a->res) - (a->res < b->res);
+}
+
+
 /* Adds the number of sieve reports to *survivors,
    number of survivors with coprime a, b to *coprimes */
 
-NOPROFILE_STATIC int
+    NOPROFILE_STATIC int
 factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_ptr w MAYBE_UNUSED)
 {
     sieve_info_ptr si = th->si;
@@ -1370,24 +1383,25 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
 #ifdef UNSIEVE_NOT_COPRIME
     unsieve_not_coprime (SS, N, si);
 #endif
-    
+
+    int sbrsize = 0;
     for (int x = 0; x < bucket_region; ++x)
-      {
+    {
 #ifdef TRACE_K /* {{{ */
-          if (trace_on_spot_Nx(N, x)) {
-              fprintf(stderr, "# alg->Bound[%u]=%u, rat->Bound[%u]=%u\n",
-                      alg_S[trace_Nx.x], alg->Bound[alg_S[x]],
-                      rat_S[trace_Nx.x], rat->Bound[rat_S[x]]);
-          }
+        if (trace_on_spot_Nx(N, x)) {
+            fprintf(stderr, "# alg->Bound[%u]=%u, rat->Bound[%u]=%u\n",
+                    alg_S[trace_Nx.x], alg->Bound[alg_S[x]],
+                    rat_S[trace_Nx.x], rat->Bound[rat_S[x]]);
+        }
 #endif /* }}} */
         unsigned int X;
         unsigned int i, j;
 
         if (!sieve_info_test_lognorm(alg->Bound, rat->Bound, alg_S[x], rat_S[x], 126))
-          {
+        {
             SS[x] = 255;
             continue;
-          }
+        }
         th->rep->survivor_sizes[rat_S[x]][alg_S[x]]++;
         surv++;
 
@@ -1396,7 +1410,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
         j = X >> si->logI;
 #ifndef UNSIEVE_NOT_COPRIME
         if (bin_gcd_safe (i, j) != 1)
-          {
+        {
 #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
                 fprintf(stderr, "# Slot [%u] in bucket %u has non coprime (i,j)=(%d,%u)\n",
@@ -1405,9 +1419,10 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
 #endif
             SS[x] = 255;
             continue;
-          }
+        }
 #endif
-      }
+        sbrsize++;
+    }
 
     /* Copy those bucket entries that belong to sieving survivors and
        store them with the complete prime */
@@ -1441,6 +1456,11 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
     const int together = sizeof(unsigned long);
 #endif
 
+    /* Store winning x's, and sort by residues in sieve arrays
+     * (smallest first) */
+    struct sorted_bucket_report * sbr = malloc(sbrsize * sizeof(struct sorted_bucket_report));
+    int nsbr = 0;
+
     for (int xul = 0; xul < bucket_region; xul += together) {
 #ifdef TRACE_K
         if ((unsigned int) N == trace_Nx.N && (unsigned int) xul <= trace_Nx.x && (unsigned int) xul + sizeof (unsigned long) > trace_Nx.x) {
@@ -1458,195 +1478,211 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
         for (int x = xul; x < xul + (int) together; ++x) {
             if (SS[x] == 255) continue;
 
-            int64_t a;
-            uint64_t b;
-
-            // Compute algebraic and rational norms.
-            NxToAB (&a, &b, N, x, si);
-
-#ifdef TRACE_K
-            if (trace_on_spot_ab(a, b)) {
-                fprintf(stderr, "# about to print relation for (%"PRId64",%"PRIu64")\n",a,b);
-            }
-#endif
-            /* since a,b both even were not sieved, either a or b should be odd */
-            // ASSERT((a | b) & 1);
-            if (UNLIKELY(((a | b) & 1) == 0))
-            {
-                pthread_mutex_lock(&io_mutex);
-                fprintf (stderr, "# Error: a and b both even for N = %d, x = %d,\n"
-                        "i = %d, j = %d, a = %ld, b = %lu\n",
-                        N, x, ((x + N*bucket_region) & (si->I - 1))
-                        - (si->I >> 1),
-                        (x + N*bucket_region) >> si->logI,
-                        (long) a, (unsigned long) b);
-                abort();
-                pthread_mutex_unlock(&io_mutex);
-            }
-
-            /* Since the q-lattice is exactly those (a, b) with
-               a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
-            if (b == 0 || (b >= si->q && b % si->q == 0))
-                continue;
-
-            copr++;
-
-            /* For hunting missed relations */
-#if 0
-            if (a == -6537753 && b == 1264)
-                fprintf (stderr, "# Have relation %ld,%lu at bucket nr %d, "
-                        "x = %d, K = %lu\n", 
-                        a, b, N, x, (unsigned long) N * bucket_region + x);
-#endif
-
-            int pass = 1;
-
-            for(int z = 0 ; pass && z < 2 ; z++) {
-                int side = RATIONAL_SIDE ^ z;   /* start with rational */
-                mpz_t * f = cpoly->pols[side]->f;
-                int deg = cpoly->pols[side]->degree;
-                int lim = cpoly->pols[side]->lim;
-                int lpb = cpoly->pols[side]->lpb;
-                int mfb = cpoly->pols[side]->mfb;
-
-                // Trial divide rational norm
-                mp_poly_homogeneous_eval_siui (norm[side], f, deg, a, b);
-                if (si->ratq == (side == RATIONAL_SIDE))
-                    mpz_divexact_ui (norm[side], norm[side], si->q);
-#ifdef TRACE_K
-                if (trace_on_spot_ab(a, b)) {
-                    gmp_fprintf(stderr, "# start trial division for norm=%Zd on %s side for (%"PRId64",%"PRIu64")\n",norm[side],sidenames[side],a,b);
-                }
-#endif
-                trial_div (&factors[side], norm[side], N, x,
-                        si->sides[side]->fb,
-                        &primes[side], si->sides[side]->trialdiv_data,
-                        lim, a, b);
-
-                pass = check_leftover_norm (norm[side], lpb,
-                                         BB[side], BBB[side], BBBB[side], mfb);
-#ifdef TRACE_K
-                if (trace_on_spot_ab(a, b)) {
-                    gmp_fprintf(stderr, "# checked leftover norm=%Zd on %s side for (%"PRId64",%"PRIu64"): %d\n",norm[side],sidenames[side],a,b,pass);
-                }
-#endif
-            }
-            if (!pass) continue;
-
-            if (stats != 0)
-              {
-                cof_rat_bitsize = mpz_sizeinbase (norm[RATIONAL_SIDE], 2);
-                cof_alg_bitsize = mpz_sizeinbase (norm[ALGEBRAIC_SIDE], 2);
-                if (stats == 1) /* learning phase */
-                  /* no need to use a mutex here: either we use one thread only
-                     to compute the cofactorization data and if several threads
-                     the order is irrelevant. The only problem that can happen
-                     is when two threads increase the value at the same time,
-                     and it is increased by 1 instead of 2, but this should
-                     happen rarely. */
-                  cof_call[cof_rat_bitsize][cof_alg_bitsize] ++;
-                else /* stats == 2: we use the learning data */
-                  {
-                    /* we store the initial number of cofactorization calls in
-                       cof_call[0][0] and the remaining nb in cof_succ[0][0] */
-                    cof_call[0][0] ++;
-                    /* Warning: the <= also catches cases when succ=call=0 */
-                    if ((double) cof_succ[cof_rat_bitsize][cof_alg_bitsize] <
-                        (double) cof_call[cof_rat_bitsize][cof_alg_bitsize] *
-                        stats_prob)
-                      continue;
-                    cof_succ[0][0] ++;
-                  }
-              }
-
-            /* if norm[RATIONAL_SIDE] is above BLPrat, then it might not
-             * be smooth. We factor it first. Otherwise we factor it
-             * last.
-             */
-            int first = mpz_cmp(norm[RATIONAL_SIDE], BLPrat) > 0 ? RATIONAL_SIDE : ALGEBRAIC_SIDE;
-
-            for(int z = 0 ; pass && z < 2 ; z++) {
-                int side = first ^ z;
-                int rat = (side == RATIONAL_SIDE);
-                int lpb = rat ? cpoly->rat->lpb : cpoly->alg->lpb;
-                pass = factor_leftover_norm(norm[side], lpb, f[side], m[side], si->strategy);
-            }
-            if (!pass) continue;
-
-            /* yippee: we found a relation! */
-
-            if (stats == 1) /* learning phase */
-              cof_succ[cof_rat_bitsize][cof_alg_bitsize] ++;
-
-#ifdef UNSIEVE_NOT_COPRIME
-            ASSERT (bin_gcd_safe (a, b) == 1);
-#endif
-
-            relation_t rel[1];
-            memset(rel, 0, sizeof(rel));
-            rel->a = a;
-            rel->b = b; 
-            for (int side = 0; side < 2; side++) {
-                for(int i = 0 ; i < factors[side].n ; i++)
-                    relation_add_prime(rel, side, factors[side].fac[i]);
-                for (unsigned int i = 0; i < f[side]->length; ++i) {
-                    if (!mpz_fits_ulong_p(f[side]->data[i]))
-                        fprintf(stderr, "Warning: misprinted relation because of large prime of %zu bits at (%"PRId64",%"PRIu64")\n",
-                                mpz_sizeinbase(f[side]->data[i], 2), a, b);
-                    for (unsigned int j = 0; j < m[side]->data[i]; j++) {
-                        relation_add_prime(rel, side, mpz_get_ui(f[side]->data[i]));
-                    }
-                }
-            }
-            relation_compress_rat_primes(rel);
-            relation_compress_alg_primes(rel);
-
-#ifdef TRACE_K
-            if (trace_on_spot_ab(a, b)) {
-                fprintf(stderr, "# Relation for (%"PRId64",%"PRIu64") printed\n", a, b);
-            }
-#endif
-            if (!si->bench) {
-                pthread_mutex_lock(&io_mutex);
-#if 0
-                fprint_relation(si->output, rel);
-#else
-                /* This code will be dropped soon. The thing is
-                 * that las is a moving target for the moment, and
-                 * going through the fprint_relation code above changes
-                 * the order of factors in printed relations. It's not so
-                 * handy.
-                 */
-                if (timed) {
-                    fprintf (si->output, "(%.2e) ", seconds() - tt_qstart);
-                }
-                fprintf (si->output, "%" PRId64 ",%" PRIu64, a, b);
-                for(int z = 0 ; z < 2 ; z++) {
-                    int side = RATIONAL_SIDE ^ z;
-                    fprintf (si->output, ":");
-                    int comma = factor_list_fprint (si->output, factors[side]);
-                    for (unsigned int i = 0; i < f[side]->length; ++i) {
-                        for (unsigned int j = 0; j < m[side]->data[i]; j++) {
-                            if (comma++) fprintf (si->output, ",");
-                            gmp_fprintf (si->output, "%Zx", f[side]->data[i]);
-                        }
-                    }
-                    if (si->ratq == (side == RATIONAL_SIDE)) {
-                        if (comma++) fprintf (si->output, ",");
-                        fprintf (si->output, "%" PRIx64 "", si->q);
-                    }
-                }
-                fprintf (si->output, "\n");
-                fflush (si->output);
-#endif
-                pthread_mutex_unlock(&io_mutex);
-            }
-            clear_relation(rel);
-            cpt++;
-            /* Build histogram of lucky S[x] values */
-            th->rep->report_sizes[S[RATIONAL_SIDE][x]][S[ALGEBRAIC_SIDE][x]]++;
+            sbr[nsbr].x = x;
+            sbr[nsbr].res = SS[x];
+            nsbr++;
         }
     }
+    ASSERT_ALWAYS(nsbr == sbrsize);
+
+    // qsort(sbr, nsbr, sizeof(struct sorted_bucket_report), (sortfunc_t) &cmp_sbr);
+    for(int i = 0 ; i < nsbr ; i++) {
+        int x = sbr[i].x;
+        int64_t a;
+        uint64_t b;
+
+        // Compute algebraic and rational norms.
+        NxToAB (&a, &b, N, x, si);
+
+#ifdef TRACE_K
+        if (trace_on_spot_ab(a, b)) {
+            fprintf(stderr, "# about to print relation for (%"PRId64",%"PRIu64")\n",a,b);
+        }
+#endif
+        /* since a,b both even were not sieved, either a or b should be odd */
+        // ASSERT((a | b) & 1);
+        if (UNLIKELY(((a | b) & 1) == 0))
+        {
+            pthread_mutex_lock(&io_mutex);
+            fprintf (stderr, "# Error: a and b both even for N = %d, x = %d,\n"
+                    "i = %d, j = %d, a = %ld, b = %lu\n",
+                    N, x, ((x + N*bucket_region) & (si->I - 1))
+                    - (si->I >> 1),
+                    (x + N*bucket_region) >> si->logI,
+                    (long) a, (unsigned long) b);
+            abort();
+            pthread_mutex_unlock(&io_mutex);
+        }
+
+        /* Since the q-lattice is exactly those (a, b) with
+           a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
+        if (b == 0 || (mpz_cmp_ui(si->q, b) <= 0 && b % mpz_get_ui(si->q) == 0))
+            continue;
+
+        copr++;
+
+        /* For hunting missed relations */
+#if 0
+        if (a == -6537753 && b == 1264)
+            fprintf (stderr, "# Have relation %ld,%lu at bucket nr %d, "
+                    "x = %d, K = %lu\n", 
+                    a, b, N, x, (unsigned long) N * bucket_region + x);
+#endif
+
+        int pass = 1;
+
+        for(int z = 0 ; pass && z < 2 ; z++) {
+            int side = RATIONAL_SIDE ^ z;   /* start with rational */
+            mpz_t * f = cpoly->pols[side]->f;
+            int deg = cpoly->pols[side]->degree;
+            int lim = cpoly->pols[side]->lim;
+            int lpb = cpoly->pols[side]->lpb;
+            int mfb = cpoly->pols[side]->mfb;
+
+            // Trial divide rational norm
+            mp_poly_homogeneous_eval_siui (norm[side], f, deg, a, b);
+            if (si->ratq == (side == RATIONAL_SIDE))
+                mpz_divexact (norm[side], norm[side], si->q);
+#ifdef TRACE_K
+            if (trace_on_spot_ab(a, b)) {
+                gmp_fprintf(stderr, "# start trial division for norm=%Zd on %s side for (%"PRId64",%"PRIu64")\n",norm[side],sidenames[side],a,b);
+            }
+#endif
+            trial_div (&factors[side], norm[side], N, x,
+                    si->sides[side]->fb,
+                    &primes[side], si->sides[side]->trialdiv_data,
+                    lim, a, b);
+
+            pass = check_leftover_norm (norm[side], lpb,
+                    BB[side], BBB[side], BBBB[side], mfb);
+#ifdef TRACE_K
+            if (trace_on_spot_ab(a, b)) {
+                gmp_fprintf(stderr, "# checked leftover norm=%Zd on %s side for (%"PRId64",%"PRIu64"): %d\n",norm[side],sidenames[side],a,b,pass);
+            }
+#endif
+        }
+        if (!pass) continue;
+
+        if (stats != 0)
+        {
+            cof_rat_bitsize = mpz_sizeinbase (norm[RATIONAL_SIDE], 2);
+            cof_alg_bitsize = mpz_sizeinbase (norm[ALGEBRAIC_SIDE], 2);
+            if (stats == 1) /* learning phase */
+                /* no need to use a mutex here: either we use one thread only
+                   to compute the cofactorization data and if several threads
+                   the order is irrelevant. The only problem that can happen
+                   is when two threads increase the value at the same time,
+                   and it is increased by 1 instead of 2, but this should
+                   happen rarely. */
+                cof_call[cof_rat_bitsize][cof_alg_bitsize] ++;
+            else /* stats == 2: we use the learning data */
+            {
+                /* we store the initial number of cofactorization calls in
+                   cof_call[0][0] and the remaining nb in cof_succ[0][0] */
+                cof_call[0][0] ++;
+                /* Warning: the <= also catches cases when succ=call=0 */
+                if ((double) cof_succ[cof_rat_bitsize][cof_alg_bitsize] <
+                        (double) cof_call[cof_rat_bitsize][cof_alg_bitsize] *
+                        stats_prob)
+                    continue;
+                cof_succ[0][0] ++;
+            }
+        }
+
+        /* if norm[RATIONAL_SIDE] is above BLPrat, then it might not
+         * be smooth. We factor it first. Otherwise we factor it
+         * last.
+         */
+        int first = mpz_cmp(norm[RATIONAL_SIDE], BLPrat) > 0 ? RATIONAL_SIDE : ALGEBRAIC_SIDE;
+
+        for(int z = 0 ; pass && z < 2 ; z++) {
+            int side = first ^ z;
+            int rat = (side == RATIONAL_SIDE);
+            int lpb = rat ? cpoly->rat->lpb : cpoly->alg->lpb;
+            pass = factor_leftover_norm(norm[side], lpb, f[side], m[side], si->strategy);
+        }
+        if (!pass) continue;
+
+        /* yippee: we found a relation! */
+
+        if (stats == 1) /* learning phase */
+            cof_succ[cof_rat_bitsize][cof_alg_bitsize] ++;
+
+#ifdef UNSIEVE_NOT_COPRIME
+        ASSERT (bin_gcd_safe (a, b) == 1);
+#endif
+
+        relation_t rel[1];
+        memset(rel, 0, sizeof(rel));
+        rel->a = a;
+        rel->b = b; 
+        for (int side = 0; side < 2; side++) {
+            for(int i = 0 ; i < factors[side].n ; i++)
+                relation_add_prime(rel, side, factors[side].fac[i]);
+            for (unsigned int i = 0; i < f[side]->length; ++i) {
+                if (!mpz_fits_ulong_p(f[side]->data[i]))
+                    fprintf(stderr, "Warning: misprinted relation because of large prime of %zu bits at (%"PRId64",%"PRIu64")\n",
+                            mpz_sizeinbase(f[side]->data[i], 2), a, b);
+                for (unsigned int j = 0; j < m[side]->data[i]; j++) {
+                    relation_add_prime(rel, side, mpz_get_ui(f[side]->data[i]));
+                }
+            }
+        }
+    }
+        relation_compress_rat_primes(rel);
+        relation_compress_alg_primes(rel);
+
+#ifdef TRACE_K
+        if (trace_on_spot_ab(a, b)) {
+            fprintf(stderr, "# Relation for (%"PRId64",%"PRIu64") printed\n", a, b);
+        }
+#endif
+        if (!si->bench) {
+            pthread_mutex_lock(&io_mutex);
+#if 0
+            fprint_relation(si->output, rel);
+#else
+            /* This code will be dropped soon. The thing is
+             * that las is a moving target for the moment, and
+             * going through the fprint_relation code above changes
+             * the order of factors in printed relations. It's not so
+             * handy.
+             */
+            if (timed) {
+                fprintf (si->output, "(%.2e) ", seconds() - tt_qstart);
+            }
+            fprintf (si->output, "%" PRId64 ",%" PRIu64, a, b);
+            for(int z = 0 ; z < 2 ; z++) {
+                int side = RATIONAL_SIDE ^ z;
+                fprintf (si->output, ":");
+                int comma = factor_list_fprint (si->output, factors[side]);
+                for (unsigned int i = 0; i < f[side]->length; ++i) {
+                    for (unsigned int j = 0; j < m[side]->data[i]; j++) {
+                        if (comma++) fprintf (si->output, ",");
+                        gmp_fprintf (si->output, "%Zx", f[side]->data[i]);
+                    }
+                }
+                if (si->ratq == (side == RATIONAL_SIDE)) {
+                    if (comma++) fprintf (si->output, ",");
+                    gmp_fprintf (si->output, "%Zx", si->q);
+                }
+            }
+            fprintf (si->output, "\n");
+            fflush (si->output);
+#endif
+            pthread_mutex_unlock(&io_mutex);
+        }
+        clear_relation(rel);
+        cpt++;
+        /* Build histogram of lucky S[x] values */
+        th->rep->report_sizes[S[RATIONAL_SIDE][x]][S[ALGEBRAIC_SIDE][x]]++;
+    }
+
+    fprintf(si->output, "# %d in sbr table\n", sbrsize);
+
+    free(sbr);
+
+    
 
     th->rep->survivors1 += surv;
     th->rep->survivors2 += copr;
@@ -2066,8 +2102,8 @@ main (int argc0, char *argv0[])
     sieve_info si;
     const char *fbfilename = NULL;
     double t0, tfb, tts;
-    uint64_t q0 = 0, q1 = 0, rho = 0;
-    uint64_t *roots;
+    mpz_t q0, q1, rho;
+    mpz_t *roots;
     unsigned long nroots;
     int rpow_lim = 0, apow_lim = 0;
     int i;
@@ -2120,9 +2156,12 @@ main (int argc0, char *argv0[])
     statsfilename = param_list_lookup_string (pl, "stats");
     sievestatsfilename = param_list_lookup_string (pl, "sievestats");
 
-    param_list_parse_uint64(pl, "q0", &q0);
-    param_list_parse_uint64(pl, "q1", &q1);
-    param_list_parse_uint64(pl, "rho", &rho);
+    mpz_init_set_ui(q0,0);
+    mpz_init_set_ui(q1,0);
+    mpz_init_set_ui(rho,0);
+    param_list_parse_mpz(pl, "q0", q0);
+    param_list_parse_mpz(pl, "q1", q1);
+    param_list_parse_mpz(pl, "rho", rho);
 
     param_list_parse_int(pl, "rpowlim", &rpow_lim);
     param_list_parse_int(pl, "apowlim", &apow_lim);
@@ -2138,25 +2177,18 @@ main (int argc0, char *argv0[])
     /* {{{ perform some basic checking */
     if (!descent) {
         if (fbfilename == NULL) usage(argv0[0], "fb");
-        if (q0 == 0) usage(argv0[0], "q0");
+        if (mpz_cmp_ui(q0,0) == 0) usage(argv0[0], "q0");
 
         /* if -rho is given, we sieve only for q0, thus -q1 is not allowed */
-        if (rho != 0 && q1 != 0)
+        if (mpz_cmp_ui(rho,0) != 0 && mpz_cmp_ui(q1,0) != 0)
           {
             fprintf (stderr, "Error, -q1 and -rho are mutually exclusive\n");
             exit (EXIT_FAILURE);
           }
 
         /* if -q1 is not given, sieve only for q0 */
-        if (q1 == 0)
-          q1 = q0 + 1;
-
-        /* check that q1 fits into an unsigned long */
-        if (q1 > (uint64_t) ULONG_MAX)
-          {
-            fprintf (stderr, "Error, q1=%" PRIu64 " exceeds ULONG_MAX\n", q1);
-            exit (EXIT_FAILURE);
-          }
+        if (mpz_cmp_ui(q1, 0) == 0)
+            mpz_add_ui(q1, q0, 1);
     }
     /* }}} */
 
@@ -2250,9 +2282,13 @@ main (int argc0, char *argv0[])
     las_report_init(report);
 
     /* special q (and root rho) */
-    roots = (uint64_t *) malloc (si->cpoly->alg->degree * sizeof (uint64_t));
+    roots = (mpz_t *) malloc (si->cpoly->alg->degree * sizeof (mpz_t));
+    for(int i = 0 ; i < si->cpoly->alg->degree  ; i++) {
+        mpz_init(roots[i]);
+    }
+
     ASSERT_ALWAYS(roots);
-    q0 --; /* so that nextprime gives q0 if q0 is prime */
+    mpz_sub_ui(q0, q0, 1); /* so that nextprime gives q0 if q0 is prime */
     nroots = 0;
 
     if (stats != 0)
@@ -2310,35 +2346,38 @@ main (int argc0, char *argv0[])
 
 
     if (descent) {
-        q0 = 0;
-        q1 = 1;
+        mpz_set_ui(q0, 0);
+        mpz_set_ui(q1, 1);
     }
 
-    while (q0 + sq < q1) {
+    while (mpz_cmp(q0, q1) < 0) {
+        double qt0 = seconds();
         if (!descent) {
             while (nroots == 0) { /* {{{ go to next prime and generate roots */
-                q0 = uint64_nextprime (q0);
-                if (q0 >= q1)
+                mpz_nextprime(q0, q0);
+                if (mpz_cmp(q0, q1) >= 0)
                     goto end;  // breaks two whiles.
-                si->q = q0;
+                mpz_set(si->q, q0);
                 if (si->ratq)
-                    nroots = poly_roots_uint64 (roots, si->cpoly->rat->f, 1, q0);
+                    nroots = poly_roots(roots, si->cpoly->rat->f, 1, q0);
                 else
-                    nroots = poly_roots_uint64 (roots, si->cpoly->alg->f, si->cpoly->alg->degree, q0);
+                    nroots = poly_roots(roots, si->cpoly->alg->f, si->cpoly->alg->degree, q0);
                 if (nroots > 0) {
-                    fprintf (si->output, "### q=%" PRIu64 ": root%s", q0,
+                    gmp_fprintf (si->output, "### q=%Zd: root%s", q0,
                             (nroots == 1) ? "" : "s");
                     for (i = 1; i <= (int) nroots; i++)
-                        fprintf (si->output, " %" PRIu64, roots[nroots-i]);
+                        gmp_fprintf (si->output, " %Zd", roots[nroots-i]);
                     fprintf (si->output, "\n");
                 }
             }
             /* }}} */
 
             /* computes a0, b0, a1, b1 from q, rho, and the skewness */
-            si->rho = roots[--nroots];
-            if (rho != 0 && si->rho != rho) /* if -rho, wait for wanted root */
+            mpz_set(si->rho, roots[--nroots]);
+            if (mpz_cmp_ui(rho,0) != 0 && mpz_cmp(si->rho, rho) != 0) {
+                /* if -rho was given on the command line, wait for wanted root */
                 continue;
+            }
 
             tt_qstart = seconds();
 
@@ -2347,8 +2386,7 @@ main (int argc0, char *argv0[])
             /* FIXME: maybe we can discard some special q's if a1/a0 is too large,
                see http://www.mersenneforum.org/showthread.php?p=130478 */
 
-            fprintf (si->output, "# Sieving q=%" PRIu64 "; rho=%" PRIu64
-                    "; a0=%d; b0=%d; a1=%d; b1=%d\n",
+            gmp_fprintf (si->output, "# Sieving q=%Zd; rho=%Zd; a0=%"PRId64"; b0=%"PRId64"; a1=%"PRId64"; b1=%"PRId64"\n",
                      si->q, si->rho, si->a0, si->b0, si->a1, si->b1);
             sq ++;
         } else {
@@ -2356,10 +2394,9 @@ main (int argc0, char *argv0[])
             si->a1 = 0;
             si->b0 = 0;
             si->b1 = 1;
-            si->q = 1;
-            si->rho = 0;
+            mpz_set_ui(si->q, 1);
+            mpz_set_ui(si->rho, 0);
         }
-
 
         /* checks the value of J,
          * precompute the skewed polynomials of f(x) and g(x), and also
@@ -2439,7 +2476,15 @@ main (int argc0, char *argv0[])
                 fprintf (si->output, " %lu survivors after algebraic sieve, ", rep->survivors1);
                 fprintf (si->output, "coprime: %lu\n", rep->survivors2);
             }
-            fprintf (si->output, "# %lu relation(s) for (%" PRIu64 ",%" PRIu64")\n", rep->reports, si->q, si->rho);
+            gmp_fprintf (si->output, "# %lu relation(s) for (%Zd,%Zd))\n", rep->reports, si->q, si->rho);
+            qt0 = seconds() - qt0;
+            double qtts = qt0 - rep->tn[0] - rep->tn[1] - rep->ttf;
+            fprintf (si->output, "# Time for this special-q: %1.4fs [norm %1.4f+%1.4f, sieving %1.4f"
+                    " (%1.4f + %1.4f),"
+                    " factor %1.4f]\n", qt0,
+                    rep->tn[RATIONAL_SIDE],
+                    rep->tn[ALGEBRAIC_SIDE],
+                    qtts, rep->ttsm, qtts-rep->ttsm, rep->ttf);
             rep_bench += rep->reports;
             las_report_accumulate(report, rep);
             las_report_clear(rep);
@@ -2449,20 +2494,29 @@ main (int argc0, char *argv0[])
 
         /* {{{ bench stats */
         if (bench) {
-            uint64_t newq0 = (uint64_t) (skip_factor*((double) q0));
-            uint64_t savq0 = q0;
-            t_bench = seconds() - t_bench;
+            mpz_t newq0, savq0;
+            mpz_init_set(savq0, q0);
+            mpz_init_set(newq0, q0);
+            {
+                mpq_t nq;
+                mpq_init(nq);
+                mpq_set_d(nq, skip_factor);
+                mpz_mul(mpq_numref(nq), mpq_numref(nq), q0);
+                mpz_fdiv_q(newq0, mpq_numref(nq), mpq_denref(nq));
+                mpq_clear(nq);
+            }
             // print some estimates for special-q's between q0 and the next
             int nb_q = 1;
             do {
-                q0 = uint64_nextprime (q0);
+                mpz_nextprime(q0, q0);
                 nb_q ++;
-            } while (q0 < newq0);
-            q0 = newq0;
+            } while (mpz_cmp(q0, newq0) < 0);
+            mpz_set(q0, newq0);
             nroots=0;
-            fprintf(si->output,
-                    "# Stats for q=%" PRIu64 ": %d reports in %1.1f s\n",
-                    savq0, rep_bench, t_bench);
+            t_bench = seconds() - t_bench;
+            gmp_fprintf(si->output,
+                    "# Stats for q=%Zd: %d reports in %1.1f s\n",
+                    savq0, rep_bench, t0);
             fprintf(si->output,
                     "# Estimates for next %d q's: %d reports in %1.0f s, %1.2f s/r\n",
                     nb_q, nb_q*rep_bench, t_bench*nb_q, t_bench/((double)rep_bench));
@@ -2473,6 +2527,8 @@ main (int argc0, char *argv0[])
                     bench_tot_rep, bench_tot_time,
                     (double) bench_tot_time / (double) bench_tot_rep);
             t_bench = seconds();
+            mpz_clear(newq0);
+            mpz_clear(savq0);
         }
         /* }}} */
         /* {{{ bench stats */
@@ -2487,11 +2543,11 @@ main (int argc0, char *argv0[])
                 double relperq = (double)rep_bench / (double)nbq_bench;
                 double est_rep = (double)rep_bench;
                 do {
-                    q0 = uint64_nextprime (q0);
+                    mpz_nextprime(q0, q0);
                     est_rep += relperq;
                 } while (est_rep <= BENCH2 / bench_percent);
-                fprintf(si->output,
-                        "# Extrapolate to %ld reports up to q = %" PRIu64 "\n",
+                gmp_fprintf(si->output,
+                        "# Extrapolate to %ld reports up to q = %Zd\n",
                         (long) est_rep, q0);
                 bench_tot_time += t_bench / bench_percent;
                 bench_tot_rep += BENCH2 / bench_percent;
@@ -2589,10 +2645,17 @@ end:
 
     free(si->sides[0]->fb);
     free(si->sides[1]->fb);
+    for(int i = 0 ; i < si->cpoly->alg->degree  ; i++) {
+        mpz_clear(roots[i]);
+    }
     free (roots);
     las_report_clear(report);
 
     sieve_info_clear (si);
+
+    mpz_clear(q0);
+    mpz_clear(q1);
+    mpz_clear(rho);
 
     param_list_clear(pl);
 

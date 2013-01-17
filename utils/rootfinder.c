@@ -84,6 +84,17 @@ int poly_roots_uint64(uint64_t * r, mpz_t * f, int d, uint64_t p)
     return n;
 }
 
+typedef int (*sortfunc_t) (const void *, const void *);
+
+static int compare_mpz_ptrs(
+        const mpz_t * a,
+        const mpz_t * b)
+{
+    if (mpz_cmp(*a, *b) < 0) return -1;
+    if (mpz_cmp(*b, *a) < 0) return 1;
+    return 0;
+}
+
 
 int poly_roots(mpz_t * r, mpz_t * f, int d, mpz_t p)
 {
@@ -111,6 +122,8 @@ int poly_roots(mpz_t * r, mpz_t * f, int d, mpz_t p)
     } else {
       int n;
       n = poly_roots_mpz (r, f, d, p);
+      if (r && n)
+          qsort(r, n, sizeof(mpz_t), (sortfunc_t) &compare_mpz_ptrs);
       return n;
     }
 }

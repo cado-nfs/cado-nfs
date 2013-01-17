@@ -22,8 +22,8 @@
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE
 #define MAX_THREADS 16
-#define INIT_FACTOR 7UL
-//#define DEBUG_POLYSELECT2L
+#define INIT_FACTOR 7
+// #define DEBUG_POLYSELECT2L
 
 #ifdef NEW_ROOTSIEVE
 #include "ropt.h"
@@ -46,6 +46,10 @@ const char *out = NULL; /* output file for msieve input (msieve.dat.m) */
 cado_poly best_poly, curr_poly;
 double best_E = 0.0; /* Murphy's E (the larger the better) */
 int seed = 0; /* seed */
+
+int argc0;
+char ** argv0;
+double st0;
 
 /* read-write global variables */
 pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
@@ -383,6 +387,10 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
   pthread_mutex_unlock (&lock);
 #endif
 
+  fprintf(stderr, "# Found match with norm = %.1f\n", logmu);
+
+  double preopt_logmu = logmu;
+
   /* if the polynomial has norm < "-maxnorm", we optimize it */
   if (logmu <= max_norm)
   {
@@ -431,7 +439,6 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
     for (i = 10; i > 0 && logmu < best_logmu[i-1]; i--)
       best_logmu[i] = best_logmu[i-1];
     best_logmu[i] = logmu;
-
 #ifdef MAX_THREADS
     pthread_mutex_lock (&lock);
 #endif
@@ -462,6 +469,9 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
     {
       best_E = E;
       cado_poly_set (best_poly, curr_poly);
+      double alpha = get_alpha (curr_poly->alg->f, curr_poly->alg->degree, ALPHA_BOUND);
+      fprintf(stderr, "# Best polynomial found so far, logmu=%.2f (was %.2f), alpha=%.2f, logmu+alpha=%.2f\n", logmu, preopt_logmu, alpha, logmu+alpha);
+      print_cadopoly_extra (stdout, best_poly, argc0, argv0, st0, 1 /* raw */);
     }
     if (out != NULL) /* msieve output */
     {
@@ -2022,10 +2032,11 @@ usage (const char *argv, const char * missing)
 int
 main (int argc, char *argv[])
 {
-  int argc0 = argc;
-  char **argv0 = argv;
+  argc0 = argc;
+  argv0 = argv;
   const char *save = NULL, *resume = NULL;
-  double st0 = seconds (), maxtime = DBL_MAX;
+  st0 = seconds ();
+  double maxtime = DBL_MAX;
   mpz_t N;
   unsigned int d = 0;
   unsigned long P, admin = 0, admax = ULONG_MAX;

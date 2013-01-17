@@ -3,7 +3,7 @@
 #include "modredc_ul_default.h"
 #include "mod_ul_common.c"
 
-#if defined(__GNUC__) && (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
+#if GNUC_VERSION_ATLEAST(3,4,0)
 /* Opteron prefers LOOKUP_TRAILING_ZEROS 1,
    Core2 prefers LOOKUP_TRAILING_ZEROS 0 */
 #ifndef LOOKUP_TRAILING_ZEROS
