@@ -28,7 +28,6 @@
 #include "gcd_int64.h"
 #include "gcd_uint64.h"
 #include "discriminant.h"
-#include "random_generation.h"
 #include "mpz_array.h"
 #include "gzip.h"
 #include "hashpair.h"

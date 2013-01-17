@@ -10,6 +10,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
@@ -356,7 +357,7 @@ int main(int argc, char * argv[])
     fprintf (stderr, "total %" PRIu64 " coeffs\n", ncoeffs_total);
     /* }}} */
 
-    setup_seeding(1);
+    srand(1);
     /* {{{ Do checks if requested */
     for(int t = 0; t < ba->nchecks ; t++) {
         /* create deterministic test values */

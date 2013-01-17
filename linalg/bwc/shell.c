@@ -10,6 +10,7 @@
 #include "params.h"
 #include "bw-common-mpi.h"
 #include "filenames.h"
+#include "misc.h"
 
 int command_argc;
 char ** command_argv;
@@ -65,7 +66,7 @@ void * shell_prog(parallelizing_info_ptr pi, param_list pl MAYBE_UNUSED, void * 
             exit(1);
         }
     } else {
-        int status;
+        int status = 0;
         waitpid(child,&status,0);
         if (WIFEXITED(status)) {
             int rc;

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include "bwc_config.h"
 #include "macros.h"
 #include "utils.h"
@@ -166,7 +167,8 @@ int main(int argc, char * argv[])
 
     int seed = 0;
     param_list_parse_int(pl, "seed", &seed);
-    if (seed) setup_seeding(seed);
+
+    srand(seed ? seed : time(NULL));
 
     param_list_parse_int(pl, "c", &maxcoeff);
 

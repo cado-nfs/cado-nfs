@@ -294,7 +294,8 @@ return_q_rq ( qroots_t SQ_R,
               unsigned long *idx_q,
               unsigned long k,
               mpz_t qqz,
-              mpz_t rqqz )
+              mpz_t rqqz,
+              unsigned long lq )
 {
   unsigned long i, j, idv_q[k], idv_rq[k];
   uint64_t q = 1;
@@ -315,7 +316,7 @@ return_q_rq ( qroots_t SQ_R,
 #endif
 
   /* crt roots */
-  crt_sq (qqz, rqqz, idv_q, idv_rq);
+  crt_sq (qqz, rqqz, idv_q, idv_rq, lq);
 
   return q;
 }

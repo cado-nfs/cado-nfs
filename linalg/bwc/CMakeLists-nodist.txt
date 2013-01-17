@@ -25,12 +25,13 @@ set_target_properties(mf_dobal PROPERTIES
 add_executable(mf_twistvec mf_twistvec.c)
 target_link_libraries(mf_twistvec bwc_base)
 
-add_executable(shell
-    shell.c)
+if(HAVE_WAITPID)        # unavailable under mingw
+add_executable(shell shell.c)
 set_target_properties(shell
     PROPERTIES
     COMPILE_FLAGS "--mpi"
     LINK_FLAGS "--mpi")
 target_link_libraries(shell bwc_base)
+endif(HAVE_WAITPID)
 
 # vim: ft=cmake:

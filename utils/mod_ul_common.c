@@ -1,8 +1,8 @@
-/* This file defines some functions that work more or less the same 
+/* This file defines some functions that work more or less the same
    with mod_ul.h and modredc_ul.h. I.e. mod_div3() and mod_gcd() work
-   unchanged with plain and Montgomery representation (so we can work on 
-   the stored residue directly, whatever its representation is); 
-   mod_jacobi() converts to plain "unsigned long" first, the others use 
+   unchanged with plain and Montgomery representation (so we can work on
+   the stored residue directly, whatever its representation is);
+   mod_jacobi() converts to plain "unsigned long" first, the others use
    only mod_*() inline functions.
    Speed-critical functions need to be rewritten in assembly for REDC,
    but this is a start.
@@ -23,7 +23,7 @@ mod_div3 (residue_t r, const residue_t a, const modulus_t m)
     return 0;
 
   mod_init_noset0 (t, m);
-  
+
   mod_set (t, a, m);
   if (a3 != 0UL)
     {
@@ -34,17 +34,17 @@ mod_div3 (residue_t r, const residue_t a, const modulus_t m)
     }
 
   /* Now t[0] == a+k*m (mod 2^w) so that a+k*m is divisible by 3.
-     (a+k*m)/3 < 2^w, so doing a division (mod 2^w) produces the 
+     (a+k*m)/3 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
-  
+
 #if LONG_BIT == 32
     t[0] *= 0xaaaaaaabUL; /* 1/3 (mod 2^32) */
-#elif LONG_BIT == 64 
+#elif LONG_BIT == 64
     t[0] *= 0xaaaaaaaaaaaaaaabUL; /* 1/3 (mod 2^64) */
 #else
 #error LONG_BIT is neither 32 nor 64
 #endif
-  
+
 #ifdef WANT_ASSERT_EXPENSIVE
   mod_sub (r, a, t, m);
   mod_sub (r, r, t, m);
@@ -73,7 +73,7 @@ mod_div5 (residue_t r, const residue_t a, const modulus_t m)
   m5 = ml % 5UL;
   if (m5 == 0)
     return 0;
-      
+
   mod_init_noset0 (t, m);
   mod_set (t, a, m);
   if (a5 != 0UL)
@@ -85,17 +85,17 @@ mod_div5 (residue_t r, const residue_t a, const modulus_t m)
     }
 
   /* Now t[0] == a+k*m (mod 2^w) so that a+k*m is divisible by 5.
-     (a+k*m)/5 < 2^w, so doing a division (mod 2^w) produces the 
+     (a+k*m)/5 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
-  
+
 #if LONG_BIT == 32
     t[0] *= 0xcccccccdUL; /* 1/5 (mod 2^32) */
-#elif LONG_BIT == 64 
+#elif LONG_BIT == 64
     t[0] *= 0xcccccccccccccccdUL; /* 1/5 (mod 2^64) */
 #else
 #error LONG_BIT is neither 32 nor 64
 #endif
-  
+
 #ifdef WANT_ASSERT_EXPENSIVE
   ASSERT_EXPENSIVE (t[0] < mod_getmod_ul (m));
   mod_sub (r, a, t, m);
@@ -108,7 +108,7 @@ mod_div5 (residue_t r, const residue_t a, const modulus_t m)
 
   mod_set (r, t, m);
   mod_clear (t, m);
-  
+
   return 1;
 }
 
@@ -127,7 +127,7 @@ mod_div7 (residue_t r, const residue_t a, const modulus_t m)
   m7 = ml % 7UL;
   if (m7 == 0)
     return 0;
-  
+
   mod_init_noset0 (t, m);
   mod_set (t, a, m);
   if (a7 != 0UL)
@@ -139,17 +139,17 @@ mod_div7 (residue_t r, const residue_t a, const modulus_t m)
     }
 
   /* Now t[0] == a+k*m (mod 2^w) so that a+k*m is divisible by 7.
-     (a+k*m)/7 < 2^w, so doing a division (mod 2^w) produces the 
+     (a+k*m)/7 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
-  
+
 #if LONG_BIT == 32
     t[0] *= 0xb6db6db7UL; /* 1/7 (mod 2^32) */
-#elif LONG_BIT == 64 
+#elif LONG_BIT == 64
     t[0] *= 0x6db6db6db6db6db7UL; /* 1/7 (mod 2^64) */
 #else
 #error LONG_BIT is neither 32 nor 64
 #endif
-  
+
 #ifdef WANT_ASSERT_EXPENSIVE
   ASSERT_EXPENSIVE (t[0] < mod_getmod_ul (m));
   mod_sub (r, a, t, m);
@@ -164,7 +164,7 @@ mod_div7 (residue_t r, const residue_t a, const modulus_t m)
 
   mod_set (r, t, m);
   mod_clear (t, m);
-  
+
   return 1;
 }
 
@@ -176,7 +176,7 @@ mod_div11 (residue_t r, const residue_t a, const modulus_t m)
   residue_t t;
   const unsigned long a11 = a[0] % 11UL;
   /* inv11[i] = -1/i (mod 11) */
-  const unsigned long inv11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1}; 
+  const unsigned long inv11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1};
 
   ASSERT_EXPENSIVE (a[0] < mod_getmod_ul (m));
 
@@ -184,7 +184,7 @@ mod_div11 (residue_t r, const residue_t a, const modulus_t m)
   m11 = ml % 11UL;
   if (m11 == 0)
     return 0;
-  
+
   mod_init_noset0 (t, m);
   mod_set (t, a, m);
   if (a11 != 0UL)
@@ -196,17 +196,17 @@ mod_div11 (residue_t r, const residue_t a, const modulus_t m)
     }
 
   /* Now t[0] == a+k*m (mod 2^w) so that a+k*m is divisible by 11.
-     (a+k*m)/11 < 2^w, so doing a division (mod 2^w) produces the 
+     (a+k*m)/11 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
-  
+
 #if LONG_BIT == 32
     t[0] *= 0xba2e8ba3UL; /* 1/11 (mod 2^32) */
-#elif LONG_BIT == 64 
+#elif LONG_BIT == 64
     t[0] *= 0x2e8ba2e8ba2e8ba3UL; /* 1/11 (mod 2^64) */
 #else
 #error LONG_BIT is neither 32 nor 64
 #endif
-  
+
   mod_set (r, t, m);
   mod_clear (t, m);
 
@@ -221,7 +221,7 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
   residue_t t;
   const unsigned long a13 = a[0] % 13UL;
   /* inv13[i] = -1/i (mod 13) */
-  const unsigned long inv13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1}; 
+  const unsigned long inv13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1};
 
   ASSERT_EXPENSIVE (a[0] < mod_getmod_ul (m));
 
@@ -229,7 +229,7 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
   m13 = ml % 13UL;
   if (m13 == 0)
     return 0;
-  
+
   mod_init_noset0 (t, m);
   mod_set (t, a, m);
   if (a13 != 0UL)
@@ -241,17 +241,17 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
     }
 
   /* Now t[0] == a+k*m (mod 2^w) so that a+k*m is divisible by 13.
-     (a+k*m)/13 < 2^w, so doing a division (mod 2^w) produces the 
+     (a+k*m)/13 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
-  
+
 #if LONG_BIT == 32
     t[0] *= 0xc4ec4ec5UL; /* 1/13 (mod 2^32) */
-#elif LONG_BIT == 64 
+#elif LONG_BIT == 64
     t[0] *= 0x4ec4ec4ec4ec4ec5UL; /* 1/13 (mod 2^64) */
 #else
 #error LONG_BIT is neither 32 nor 64
 #endif
-  
+
   mod_set (r, t, m);
   mod_clear (t, m);
 
@@ -259,17 +259,17 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
 }
 
 
-void 
+void
 mod_gcd (modint_t g, const residue_t r, const modulus_t m)
 {
   unsigned long a, b, t;
 
-  a = r[0]; /* This works the same for "a" in plain or Montgomery 
+  a = r[0]; /* This works the same for "a" in plain or Montgomery
                representation */
   b = mod_getmod_ul (m);
   /* ASSERT (a < b); Should we require this? */
   ASSERT (b > 0UL);
-  
+
   if (a >= b)
     a %= b;
 
@@ -287,7 +287,7 @@ mod_gcd (modint_t g, const residue_t r, const modulus_t m)
 
 /* Compute r = b^e. Here, e is an unsigned long */
 void
-mod_pow_ul (residue_t r, const residue_t b, const unsigned long e, 
+mod_pow_ul (residue_t r, const residue_t b, const unsigned long e,
             const modulus_t m)
 {
   unsigned long mask;
@@ -364,8 +364,8 @@ mod_2pow_ul (residue_t r, const unsigned long e, const modulus_t m)
       mask >>= 1;
     }
   mod_set (r, t, m);
-  mod_clear (t, m); 
-  mod_clear (u, m); 
+  mod_clear (t, m);
+  mod_clear (u, m);
 }
 
 
@@ -401,15 +401,15 @@ mod_3pow_ul (residue_t r, const unsigned long e, const modulus_t m)
       mask >>= 1;
     }
   mod_set (r, t, m);
-  mod_clear (t, m); 
-  mod_clear (u, m); 
+  mod_clear (t, m);
+  mod_clear (u, m);
 }
 
 
-/* Compute r = b^e. Here e is a multiple precision integer 
+/* Compute r = b^e. Here e is a multiple precision integer
    sum_{i=0}^{e_nrwords} e[i] * (machine word base)^i */
 void
-mod_pow_mp (residue_t r, const residue_t b, const unsigned long *e, 
+mod_pow_mp (residue_t r, const residue_t b, const unsigned long *e,
             const int e_nrwords, const modulus_t m)
 {
   unsigned long mask;
@@ -445,11 +445,11 @@ mod_pow_mp (residue_t r, const residue_t b, const unsigned long *e,
 
 
 /* Computes 2^e (mod m), where e is a multiple precision integer.
-   Requires e != 0. The value of 2 in Montgomery representation 
+   Requires e != 0. The value of 2 in Montgomery representation
    (i.e. 2*2^w (mod m) must be passed. */
 
 void
-mod_2pow_mp (residue_t r, const unsigned long *e, const int e_nrwords, 
+mod_2pow_mp (residue_t r, const unsigned long *e, const int e_nrwords,
              const modulus_t m)
 {
   residue_t t, u;
@@ -478,7 +478,7 @@ mod_2pow_mp (residue_t r, const unsigned long *e, const int e_nrwords,
         }
       mask = ~0UL - (~0UL >> 1);
     }
-    
+
   mod_set (r, t, m);
   mod_clear (t, m);
   mod_clear (u, m);
@@ -489,7 +489,7 @@ mod_2pow_mp (residue_t r, const unsigned long *e, const int e_nrwords,
    V_e(x + 1/x) = x^e + 1/x^e. Here e is an unsigned long. */
 
 void
-mod_V_ul (residue_t r, const residue_t b, const unsigned long e, 
+mod_V_ul (residue_t r, const residue_t b, const unsigned long e,
 	  const modulus_t m)
 {
   unsigned long mask;
@@ -548,11 +548,11 @@ mod_V_ul (residue_t r, const residue_t b, const unsigned long e,
 
 
 /* Compute r = V_e(b), where V_e(x) is the Chebyshev polynomial defined by
-   V_e(x + 1/x) = x^e + 1/x^e. Here e is a multiple precision integer 
+   V_e(x + 1/x) = x^e + 1/x^e. Here e is a multiple precision integer
    sum_{i=0}^{e_nrwords} e[i] * (machine word base)^i */
 
 void
-mod_V_mp (residue_t r, const residue_t b, const unsigned long *e, 
+mod_V_mp (residue_t r, const residue_t b, const unsigned long *e,
           const int e_nrwords, const modulus_t m)
 {
   unsigned long mask;
@@ -612,7 +612,7 @@ mod_V_mp (residue_t r, const residue_t b, const unsigned long *e,
    zero otherwise. Requires -1 (mod m) in minusone. */
 
 static inline int
-find_minus1 (residue_t r1, const residue_t minusone, const int po2, 
+find_minus1 (residue_t r1, const residue_t minusone, const int po2,
              const modulus_t m)
 {
   int i;
@@ -666,12 +666,12 @@ mod_sprp (const residue_t b, const modulus_t m)
 
   /* Now r1 == b^mm1 (mod m) */
 #if defined(PARI)
-  printf ("(Mod(%lu,%lu) ^ %lu) == %lu /* PARI */\n", 
+  printf ("(Mod(%lu,%lu) ^ %lu) == %lu /* PARI */\n",
 	  mod_get_ul (b, m), mod_getmod_ul (m), mm1, mod_get_ul (r1, m));
 #endif
-  
+
   i = find_minus1 (r1, minusone, po2, m);
-  
+
   mod_clear (r1, m);
   mod_clear (minusone, m);
   return i;
@@ -696,7 +696,7 @@ mod_sprp2 (const modulus_t m)
 
   /* If m == 1,7 (mod 8), then 2 is a quadratic residue, and we must find
      -1 with one less squaring. This does not reduce the number of
-     pseudo-primes because strong pseudo-primes are also Euler pseudo-primes, 
+     pseudo-primes because strong pseudo-primes are also Euler pseudo-primes,
      but makes identifying composites a little faster on avarage. */
   if (mm1 % 8 == 1 || mm1 % 8 == 7)
     po2--;
@@ -720,10 +720,10 @@ mod_sprp2 (const modulus_t m)
 
   /* Now r == b^mm1 (mod m) */
 #if defined(PARI)
-  printf ("(Mod(2,%lu) ^ %lu) == %lu /* PARI */\n", 
+  printf ("(Mod(2,%lu) ^ %lu) == %lu /* PARI */\n",
 	  mod_getmod_ul (m), mm1, mod_get_ul (r, m));
 #endif
-  
+
   i = find_minus1 (r, minusone, po2, m);
 
   mod_clear (r, m);
@@ -739,7 +739,7 @@ mod_isprime (const modulus_t m)
   const unsigned long n = mod_getmod_ul (m);
   unsigned long mm1;
   int r = 0, po2;
-  
+
   if (n == 1UL)
     return 0;
 
@@ -756,7 +756,7 @@ mod_isprime (const modulus_t m)
   mm1 = n - 1UL;
   po2 = ularith_ctz (mm1);
   mm1 >>= po2;
-  
+
   mod_init_noset0 (b, m);
   mod_init_noset0 (minusone, m);
   mod_init_noset0 (r1, m);
@@ -769,7 +769,7 @@ mod_isprime (const modulus_t m)
      and one less squaring must suffice. This does not strengthen the
      test but saves one squaring for composite input */
   if (n % 8 == 7)
-    { 
+    {
       if (!mod_is1 (r1, m))
         goto end;
     }
@@ -800,7 +800,7 @@ mod_isprime (const modulus_t m)
 	  r = (n != 314821UL);
 	  goto end;
         }
-      
+
       /* b is still 7 here */
       mod_add (b, b, b, m); /* 14 */
       mod_sub (b, b, minusone, m); /* 15 */
@@ -817,7 +817,7 @@ mod_isprime (const modulus_t m)
 	  r = 1;
 	  goto end;
         }
-      
+
       mod_set1 (b, m);
       mod_add (b, b, b, m);
       mod_add (b, b, b, m);
@@ -825,15 +825,15 @@ mod_isprime (const modulus_t m)
       mod_pow_ul (r1, b, mm1, m);   /* r = 5^mm1 mod m */
       if (!find_minus1 (r1, minusone, po2, m))
 	goto end; /* Not prime */
-	  
+	
           /* These are the base 5,7,61 SPSP < 10^13 and n == 1 (mod 3) */
-	  r = (n != 30926647201UL && n != 45821738881UL && 
-	       n != 74359744201UL && n != 90528271681UL && 
-	       n != 110330267041UL && n != 373303331521UL && 
-	       n != 440478111067UL && n != 1436309367751UL && 
-	       n != 1437328758421UL && n != 1858903385041UL && 
-	       n != 4897239482521UL && n != 5026103290981UL && 
-	       n != 5219055617887UL && n != 5660137043641UL && 
+	  r = (n != 30926647201UL && n != 45821738881UL &&
+	       n != 74359744201UL && n != 90528271681UL &&
+	       n != 110330267041UL && n != 373303331521UL &&
+	       n != 440478111067UL && n != 1436309367751UL &&
+	       n != 1437328758421UL && n != 1858903385041UL &&
+	       n != 4897239482521UL && n != 5026103290981UL &&
+	       n != 5219055617887UL && n != 5660137043641UL &&
 	       n != 6385803726241UL);
 #else
 	      r = 1;
@@ -842,18 +842,18 @@ mod_isprime (const modulus_t m)
   else
     {
       /* Case n % 3 == 0, 2 */
-      
+
       mod_3pow_ul (r1, mm1, m);   /* r = 3^mm1 mod m */
       if (!find_minus1 (r1, minusone, po2, m))
 	goto end; /* Not prime */
-      
-      if (n < 102690677UL && n != 5173601UL && n != 16070429UL && 
+
+      if (n < 102690677UL && n != 5173601UL && n != 16070429UL &&
           n != 54029741UL)
         {
 	  r = 1;
 	  goto end;
 	}
-      
+
       mod_set1 (b, m);
       mod_add (b, b, b, m);
       mod_add (b, b, b, m);
@@ -864,14 +864,14 @@ mod_isprime (const modulus_t m)
 
 #if (ULONG_MAX > 4294967295UL)
       /* These are the base 3,5 SPSP < 10^13 with n == 2 (mod 3) */
-      r = (n != 244970876021UL && n != 405439595861UL && 
+      r = (n != 244970876021UL && n != 405439595861UL &&
 	   n != 1566655993781UL && n != 3857382025841UL &&
 	   n != 4074652846961UL && n != 5783688565841UL);
 #else
       r = 1;
 #endif
     }
- 
+
  end:
 #if defined(PARI)
   printf ("isprime(%lu) == %d /* PARI */\n", n, r);
@@ -882,38 +882,276 @@ mod_isprime (const modulus_t m)
   return r;
 }
 
+#if 1
+
 int
 mod_jacobi (const residue_t a_par, const modulus_t m_par)
 {
-  unsigned long a, m, s;
-  int t = 1;
+  unsigned long x, m;
+  unsigned int s, j;
 
-  /* We probably could stay in Montgomery representation here,
-     a_par = a * 2^w, w even, so 2^w is a square and won't change
-     the quadratic character */
-  a = mod_get_ul (a_par, m_par);
+  /* Get residue in Montgomery form directly without converting */
+  x = a_par[0];
   m = mod_getmod_ul (m_par);
-  ASSERT (a < m);
-  
-  while (a != 0UL)
-  {
-    while (a % 2UL == 0UL)
-    {
-      a /= 2UL;
-      if (m % 8UL == 3UL || m % 8UL == 5UL)
-        t = -t;
+  ASSERT (x < m);
+  ASSERT(m % 2 == 1);
+
+  j = ularith_ctz(x);
+  x = x >> j;
+  /* If we divide by an odd power of 2, and 2 is a QNR, flip sign */
+  /* 2 is a QNR (mod m) iff m = 3,5 (mod 8)
+     m = 1 = 001b:   1
+     m = 3 = 011b:  -1
+     m = 5 = 101b:  -1
+     m = 7 = 111b:   1
+     Hence we can store in s the exponent of -1, i.e., s=0 for jacobi()=1
+     and s=1 for jacobi()=-1, and update s ^= (m>>1) & (m>>2) & 1.
+     We can do the &1 at the very end.
+     In fact, we store the exponent of -1 in the second bit of s.
+     The s ^= ((j<<1) & (m ^ (m>>1))) still needs 2 shift but one of them can
+     be done with LEA, and f = s ^ (x&m) needs no shift */
+
+  s = ((j<<1) & (m ^ (m>>1)));
+
+  while (x > 1) {
+    /* Here, x < m, x and m are odd */
+
+    /* Implicitly swap by reversing roles of x and m in next loop */
+    /* Flip sign if both are 3 (mod 4) */
+    s = s ^ (x&m);
+
+    /* Make m smaller by subtracting and shifting */
+    do {
+      m -= x; /* Difference is even */
+      if (m == 0)
+        break;
+      /* Make odd again */
+      j = ularith_ctz(m);
+      s ^= ((j<<1) & (x ^ (x>>1)));
+      m >>= j;
+    } while (m >= x);
+
+    if (m <= 1) {
+      x = m;
+      break;
     }
-    s = a; a = m; m = s; /* swap */
-    if (a % 4UL == 3UL && m % 4UL == 3UL)
-      t = -t;
-    a %= m;
+
+    /* Flip sign if both are 3 (mod 4) */
+    /* Implicitly swap again */
+    s = s ^ (x&m);
+
+    /* Make x<m  by subtracting and shifting */
+    do {
+      x -= m; /* Difference is even */
+      if (x == 0)
+        break;
+      /* Make odd again */
+      j = ularith_ctz(x);
+      s ^= ((j<<1) & (m ^ (m>>1)));
+      x >>= j;
+    } while (x >= m);
   }
-  if (m != 1UL)
-    t = 0;
-  
-#ifdef MODTRACE
-  printf ("kronecker(%lu, %lu) == %d\n", 
-          mod_get_ul (a_par, m_par), mod_getmod_ul (m_par), t);
-#endif
-  return t;
+
+  if (x == 0)
+    return 0;
+  return ((s & 2) == 0) ? 1 : -1;
 }
+
+#else
+
+/*
+#!/usr/bin/env python3
+# Python program to create mult.h
+
+def rate(k,b):
+  # The 0.25 magic constant here tries to estimate the ratio m/x, 
+  # to minimize (x+c*m)/2^b
+  r = (abs(k)*0.25 + 1.)/2**b
+  # print ("rate(" + str(k) + ", " + str(b) + ") = " + str(r))
+  return(r)
+
+def bestb(k):
+  best_b = 0
+  best_r = 1
+  best_c = 0
+  for b in range(1, 8):
+    c = k % (2**b)
+    r = rate(c, b) 
+    if r < best_r: 
+      best_r=r 
+      best_b = b 
+      best_c = c
+    c = - (2**b - c)
+    r = rate(c, b)
+    if r < best_r: 
+      best_r=r 
+      best_b = b 
+      best_c = c
+  # print ("bestb(" + str(k) + ") = " + str(best_b))
+  return([k, best_b, best_c, 1/best_r])
+
+
+r = [str(-bestb(2*i+1)[2]) for i in range(0, 128) ]
+print("static char mult[128] = {" + ", ".join(r) + "};")
+*/
+
+#include "mult.h"
+static unsigned char invmod8[256] = {
+0, 1, 0, 171, 0, 205, 0, 183, 0, 57, 0, 163, 0, 197, 0, 239, 0, 241, 0, 27, 0, 61, 0, 167, 0, 41, 0, 19, 0, 53, 0, 223, 0, 225, 0, 139, 0, 173, 0, 151, 0, 25, 0, 131, 0, 165, 0, 207, 0, 209, 0, 251, 0, 29, 0, 135, 0, 9, 0, 243, 0, 21, 0, 191, 0, 193, 0, 107, 0, 141, 0, 119, 0, 249, 0, 99, 0, 133, 0, 175, 0, 177, 0, 219, 0, 253, 0, 103, 0, 233, 0, 211, 0, 245, 0, 159, 0, 161, 0, 75, 0, 109, 0, 87, 0, 217, 0, 67, 0, 101, 0, 143, 0, 145, 0, 187, 0, 221, 0, 71, 0, 201, 0, 179, 0, 213, 0, 127, 0, 129, 0, 43, 0, 77, 0, 55, 0, 185, 0, 35, 0, 69, 0, 111, 0, 113, 0, 155, 0, 189, 0, 39, 0, 169, 0, 147, 0, 181, 0, 95, 0, 97, 0, 11, 0, 45, 0, 23, 0, 153, 0, 3, 0, 37, 0, 79, 0, 81, 0, 123, 0, 157, 0, 7, 0, 137, 0, 115, 0, 149, 0, 63, 0, 65, 0, 235, 0, 13, 0, 247, 0, 121, 0, 227, 0, 5, 0, 47, 0, 49, 0, 91, 0, 125, 0, 231, 0, 105, 0, 83, 0, 117, 0, 31, 0, 33, 0, 203, 0, 237, 0, 215, 0, 89, 0, 195, 0, 229, 0, 15, 0, 17, 0, 59, 0, 93, 0, 199, 0, 73, 0, 51, 0, 85, 0, 255
+};
+
+static inline int
+s_val(unsigned int s) {
+  return ((s & 2) == 0) ? 1 : -1;
+}
+
+static int
+mod_jacobi1 (const residue_t a_par, const modulus_t m_par)
+{
+  unsigned long x, m;
+  unsigned int s, j;
+
+  x = mod_get_ul (a_par, m_par);
+  m = mod_getmod_ul (m_par);
+  ASSERT (x < m);
+  ASSERT(m % 2 == 1);
+
+  j = ularith_ctz(x);
+  x = x >> j;
+
+  s = ((j<<1) & (m ^ (m>>1)));
+
+  while (x > 1) {
+    unsigned long t;
+    unsigned char inv;
+
+    // printf ("kronecker(%lu, %lu) == %d * kronecker(%lu, %lu)\n",
+    //        mod_get_ul(a_par, m_par), mod_getmod_ul (m_par), s_val(s), x, m);
+    /* Here x < m. Swap to make x > m */
+    t = m;
+    m = x; 
+    x = t;
+    s = s ^ (x&m);
+
+    /* Now x > m */
+    inv = invmod8[(unsigned char)m];
+    do {
+      /* Do a REDC-like step. We want a multiplier k such that the low 
+         8 bits of x+k*m are all zero. 
+         That is, we want k = -x/m (mod 2^8). */
+      unsigned char k;
+      unsigned long t1;
+      long int c, t2;
+      // const unsigned long old_x = x;
+      
+      k = inv * (unsigned char)x;
+      // ASSERT_ALWAYS((k & 1) == 1);
+      c = mult[k / 2];
+      
+      /* Compute x+cm */
+      long tmp = c >> 63;
+      ularith_mul_ul_ul_2ul (&t1, (unsigned long *)&t2, (c ^ tmp) - tmp, m);
+      t2 ^= tmp;
+      t1 ^= tmp;
+      ularith_add_ul_2ul (&t1, (unsigned long *)&t2, x-tmp);
+      tmp = ((long) t2) >> 63;
+      
+      t2 ^= tmp;
+      t1 ^= tmp;
+      s ^= m & tmp;
+      ularith_add_ul_2ul (&t1, (unsigned long *)&t2, -tmp);
+      // ASSERT_ALWAYS(t2 >= 0);
+
+      if (t1 == 0) {
+        if (t2 == 0) {
+          x = 0;
+          break;
+        }
+        t1 = t2;
+        /* Divided by 2^64 which is square, so no adjustment to s */
+        t2 = 0;
+      }
+
+      j = ularith_ctz(t1);
+      ularith_shrd (&t1, t2, j);
+      // ASSERT_ALWAYS((t2 >> j) == 0);
+      x = t1;
+      s ^= ((j<<1) & (m ^ (m>>1)));
+      // ASSERT_ALWAYS(x < old_x);
+      // printf ("%f\n", (double)old_x / (double)x);
+    } while (x >= m);
+  }
+
+  if (x == 0)
+    return 0;
+  return s_val(s);
+}
+
+int
+mod_jacobi (const residue_t a_par, const modulus_t m_par)
+{
+  unsigned long x, m;
+  unsigned int s, j;
+
+  x = mod_get_ul (a_par, m_par);
+  m = mod_getmod_ul (m_par);
+  ASSERT (x < m);
+  ASSERT(m % 2 == 1);
+
+  if ((LONG_MAX - x) / 50 < m)
+    return mod_jacobi1 (a_par, m_par);
+
+  j = ularith_ctz(x);
+  x = x >> j;
+
+  s = ((j<<1) & (m ^ (m>>1)));
+
+  while (x > 1) {
+    unsigned long t;
+    unsigned char inv;
+
+    // printf ("kronecker(%lu, %lu) == %d * kronecker(%lu, %lu)\n",
+    //        mod_get_ul(a_par, m_par), mod_getmod_ul (m_par), s_val(s), x, m);
+    /* Here x < m. Swap to make x > m */
+    t = m;
+    m = x; 
+    x = t;
+    s = s ^ (x&m);
+
+    /* Now x > m */
+    inv = invmod8[(unsigned char)m];
+    do {
+      /* Do a REDC-like step. We want a multiplier k such that the low 
+         8 bits of x+k*m are all zero. 
+         That is, we want k = -x/m (mod 2^8). */
+      unsigned char k;
+      long int c;
+      // const unsigned long old_x = x;
+      
+      k = inv * x;
+      // ASSERT_ALWAYS((k & 1) == 1);
+      c = mult[k / 2];
+      
+      c = x + c*m;
+      x = c;
+      c >>= 63;
+      x = (x ^ c) - c;
+      
+      if (x == 0) {
+        break;
+      }
+      s ^= m & c;
+
+      j = ularith_ctz(x);
+      x >>= j;
+      s ^= ((j<<1) & (m ^ (m>>1)));
+      // printf ("%f\n", (double)old_x / (double)x);
+    } while (x >= m);
+  }
+
+  if (x == 0)
+    return 0;
+  return s_val(s);
+}
+
+#endif

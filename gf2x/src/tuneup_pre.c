@@ -29,7 +29,9 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>
+#endif
 #include <string.h>
 
 /* gf2x is used for checking correctness -- not otherwise */

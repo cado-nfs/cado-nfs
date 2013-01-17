@@ -513,8 +513,9 @@ plain_poly_roots_naive (plain_poly_coeff_t *r, plain_poly_t f, const plain_poly_
    Assumes 0 <= a < p.
  */
 static void
-plain_poly_powmod_ui (plain_poly_t g, plain_poly_t fp, plain_poly_t h, plain_poly_coeff_t a,
-		     plain_poly_coeff_t e, plain_poly_coeff_t p)
+plain_poly_powmod_ui (plain_poly_t g, plain_poly_t fp, plain_poly_t h,
+                      plain_poly_coeff_t a, plain_poly_coeff_t e,
+                      plain_poly_coeff_t p)
 {
   int k = nbits (e);
 
@@ -546,8 +547,8 @@ plain_poly_general_powmod_ui (plain_poly_t g, plain_poly_t fp, plain_poly_t h,
   int k = nbits (e);
   plain_poly_t g_sav;
 
-  plain_poly_init(g_sav, g->degree);
-  plain_poly_set(g_sav, g);
+  plain_poly_init (g_sav, g->degree);
+  plain_poly_set (g_sav, g);
 
   plain_poly_make_monic (fp, p);
 
@@ -569,7 +570,8 @@ plain_poly_general_powmod_ui (plain_poly_t g, plain_poly_t fp, plain_poly_t h,
    Assumes p is odd, and deg(f) >= 1.
 */
 static int
-plain_poly_cantor_zassenhaus (plain_poly_coeff_t *r, plain_poly_t f, plain_poly_coeff_t p, int depth)
+plain_poly_cantor_zassenhaus (plain_poly_coeff_t *r, plain_poly_t f,
+                              plain_poly_coeff_t p, int depth)
 {
   plain_poly_coeff_t a;
   plain_poly_t q, h, ff;
@@ -619,9 +621,7 @@ plain_poly_cantor_zassenhaus (plain_poly_coeff_t *r, plain_poly_t f, plain_poly_
   return n;
 }
 
-typedef int (*sortfunc_t) (const void *, const void *);
-
-int plain_poly_coeff_cmp(
+static int plain_poly_coeff_cmp(
         const plain_poly_coeff_t * a,
         const plain_poly_coeff_t * b)
 {
@@ -797,7 +797,7 @@ int plain_poly_is_irreducible(plain_poly_t fp, const plain_poly_coeff_t p) {
     plain_poly_sub_x (gmx, g, p);
 
     /* h <- gcd (fp, x^(p^i)-x) */
-    plain_poly_set(h, fp);
+    plain_poly_set (h, fp);
     plain_poly_gcd (h, gmx, p);
 
     if (h->degree > 0)

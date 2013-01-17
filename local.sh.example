@@ -122,8 +122,8 @@
 #
 # Example values:
 # GMP=
-# GMP=/usr/local/gmp-4.3.0
-# GMP=$HOME/gmp-4.3.0
+# GMP=/usr/local/gmp-5.1.0
+# GMP=$HOME/gmp-5.1.0
 #
 # It does not matter whether $GMP points to the ``prefix'' where some GMP
 # version has been installed (with make install), or whether $GMP points

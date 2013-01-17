@@ -4,30 +4,6 @@
 #include "modredc_2ul_common.c"
 
 
-#if defined(__GNUC__) && (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
-/* Opteron prefers LOOKUP_TRAILING_ZEROS 1, 
-   Core2 prefers LOOKUP_TRAILING_ZEROS 0 */
-#ifndef LOOKUP_TRAILING_ZEROS
-#define LOOKUP_TRAILING_ZEROS 1
-#endif
-#else
-/* If we have no ctzl, we always use the table lookup */
-#define LOOKUP_TRAILING_ZEROS 1
-#endif
-
-#if LOOKUP_TRAILING_ZEROS
-static const unsigned char trailing_zeros[256] = 
-  {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-   5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
-#endif
-
-
 #define PARI 0
 #if PARI
 #define MODINV_PRINT_PARI_M \
@@ -92,13 +68,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
   MODINV_PRINT_PARI_INVARIANT_B;
 
   /* make a odd */
-#if LOOKUP_TRAILING_ZEROS
-  do {
-    lsh = trailing_zeros [(unsigned char) a[0]];
-    modredc15ul_intshr (a, a, lsh);
-    t += lsh;
-  } while (lsh == 8);
-#else
   if (a[0] == 0UL)
     {
       /* x86 bsf gives undefined result for zero input */
@@ -110,7 +79,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
   lsh = ularith_ctz (a[0]);
   modredc15ul_intshr (a, a, lsh);
   t += lsh;
-#endif
 
   // Here a and b are odd, and a < b
   do {
@@ -131,15 +99,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
       MODINV_PRINT_PARI_INVARIANT_A;
       MODINV_PRINT_PARI_INVARIANT_B;
 
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) b[0]];
-	ASSERT_EXPENSIVE ((b[0] & ((1UL << lsh) - 1UL)) == 0UL);
-	modredc15ul_intshr (b, b, lsh);
-	t += lsh;
-	modredc15ul_intshl (u, u, lsh);
-      } while (lsh == 8);
-#else
       if (b[0] == 0UL)
 	{
 	  b[0] = b[1]; /* b[0] can be odd now, so lsh might be 0 below! */
@@ -158,7 +117,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
       modredc15ul_intshr (b, b, lsh);
       t += lsh;
       modredc15ul_intshl (u, u, lsh);
-#endif
       MODINV_PRINT_PARI_INVARIANT_A;
       MODINV_PRINT_PARI_INVARIANT_B;
     } while (modredc15ul_intlt (a, b)); /* ~50% branch taken :( */
@@ -180,15 +138,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
       MODINV_PRINT_PARI_INVARIANT_A;
       MODINV_PRINT_PARI_INVARIANT_B;
       
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) a[0]];
-        ASSERT_EXPENSIVE ((a[0] & ((1UL << lsh) - 1UL)) == 0UL);
-	modredc15ul_intshr (a, a, lsh);
-	t += lsh;
-	modredc15ul_intshl (v, v, lsh);
-      } while (lsh == 8);
-#else
       if (a[0] == 0UL)
 	{
 	  a[0] = a[1];
@@ -206,7 +155,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
 	modredc15ul_intshr (a, a, lsh);
 	t += lsh;
 	modredc15ul_intshl (v, v, lsh);
-#endif
 	MODINV_PRINT_PARI_INVARIANT_A;
 	MODINV_PRINT_PARI_INVARIANT_B;
     } while (modredc15ul_intlt (b, a)); /* about 50% branch taken :( */

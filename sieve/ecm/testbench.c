@@ -21,8 +21,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <gmp.h>
 #include "facul.h"
 #include "pm1.h"
@@ -31,6 +29,7 @@
 #include "modredc_ul.h"
 #include "modredc_ul_default.h"
 #include "getprime.h"
+#include "timing.h"
 
 #define MAX_METHODS 20
 
@@ -124,7 +123,6 @@ int main (int argc, char **argv)
   unsigned long fbb = 0, lpb = ~(0UL);
   char *inp_fn = NULL;
   FILE *inp;
-  struct rusage usage;
   mpz_t N, cof;
   facul_strategy_t *strategy;
   int nr_methods = 0;
@@ -134,11 +132,10 @@ int main (int argc, char **argv)
   int do_pointorder = 0;
   unsigned long po_sigma = 0, po_parameterization = 0;
   int inp_raw = 0;
-  int got_usage;
   int strat = 0;
   int extra_primes = 0;
   unsigned long *primmod = NULL, *hitsmod = NULL;
-  double starttime;
+  uint64_t starttime, endtime;
 
   strategy = malloc (sizeof(facul_strategy_t));
   strategy->methods = malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
@@ -375,12 +372,7 @@ int main (int argc, char **argv)
       else
 	i = start;
       
-      got_usage = getrusage(RUSAGE_SELF, &usage);
-      if (got_usage == 0)
-        starttime = (double) usage.ru_utime.tv_sec * 1000000. +
-                    (double) usage.ru_utime.tv_usec;
-      else
-        starttime = 0.;
+      starttime = microseconds();
 
       /* The main loop */
       while (i <= stop)
@@ -415,12 +407,7 @@ int main (int argc, char **argv)
 	exit (EXIT_FAILURE);
       }
 
-    got_usage = getrusage(RUSAGE_SELF, &usage);
-    if (got_usage == 0)
-      starttime = (double) usage.ru_utime.tv_sec * 1000000. +
-                  (double) usage.ru_utime.tv_usec;
-    else
-      starttime = 0.;
+    starttime = microseconds();
 
     /* Read lines from inp */
     while (!feof(inp) && inpstop-- > 0)
@@ -448,10 +435,9 @@ int main (int argc, char **argv)
     fclose (inp);
   }
   
-
   facul_clear_strategy (strategy);
 
-  got_usage = getrusage(RUSAGE_SELF, &usage);
+  endtime = microseconds();
 
   if (!quiet)
     {
@@ -460,12 +446,9 @@ int main (int argc, char **argv)
       printf ("Ratio: %f\n", (double)hits / (double)total);
     }
   
-  if (!quiet && got_usage == 0)
+  if (!quiet && endtime > starttime)
     {
-      double usrtime;
-      usrtime = (double) usage.ru_utime.tv_sec * 1000000. +
-                (double) usage.ru_utime.tv_usec;
-      usrtime -= starttime;
+      double usrtime = endtime - starttime;
       printf ("Total time: %.2f s, per call: %f usec, per factor: %f usec\n",
               usrtime / 1000000., usrtime / (double) total, 
               usrtime / (double) hits);

@@ -19,7 +19,9 @@
    Boston, MA 02110-1301, USA.
 */
 #include <sys/types.h>    /* for cputime */
+#ifdef HAVE_RESOURCE_H
 #include <sys/resource.h> /* for cputime */
+#endif
 #include <stdint.h>
 #include "timing.h"
 

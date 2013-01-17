@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <limits.h>
 #include <errno.h>
 #include "macros.h"
@@ -22,7 +23,7 @@ extern "C" {
   do {									\
     size_t mysize;							\
     if (!(A = malloc (mysize = (T) * sizeof(*(A))))) {			\
-      fprintf (stderr, "%s: malloc error (%lu MB): %s\n",		\
+      fprintf (stderr, "%s: malloc error (%zu MB): %s\n",		\
 	       M, mysize>>20, strerror(errno));				\
       exit (1);								\
     }									\
@@ -38,7 +39,15 @@ static inline void* pointer_arith(void * a, ptrdiff_t q) {
 static inline const void* pointer_arith_const(const void * a, ptrdiff_t q) {
     return (const void*)(((const char*)a)+q);
 }
-extern char * cado_strndup(const char * a, size_t n);
+
+/* MinGW's string.h does not declare a prototype for strdup if __STRICT_ANSI__
+   is defined */
+#if !defined(HAVE_STRDUP) || (defined(__MINGW32__) && defined(__STRICT_ANSI__))
+char * strdup(const char *s);
+#endif
+#ifndef HAVE_STRNDUP
+char * strndup(const char * a, size_t n);
+#endif
 
 extern char * derived_filename(const char * prefix, const char * what, const char * ext);
 extern int has_suffix(const char * path, const char * sfx);
@@ -110,6 +119,20 @@ static inline int ctzl(unsigned long x)
 #define HAVE_ctzl_fallback
 #endif
 #endif  /* HAVE_ctzl */
+
+#ifdef MINGW
+int printf_subst_zu (const char *format, ...);
+int fprintf_subst_zu (FILE *stream, const char *format, ...);
+int sprintf_subst_zu (char *str, const char *format, ...);
+int snprintf_subst_zu (char *str, const size_t size, const char *format, ...)
+#endif
+
+#ifndef HAVE_ASPRINTF
+extern int asprintf(char **, const char *, ...);
+extern int vasprintf(char **, const char *, va_list);
+#endif  /* HAVE_ASPRINTF */
+
+
 
 #ifdef __cplusplus
 }

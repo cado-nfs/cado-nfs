@@ -7,7 +7,6 @@
 #include "trialdiv.h"
 #include "getprime.h"
 #include <sys/time.h>
-#include <sys/resource.h>
 
 int main (int argc, char **argv)
 {
@@ -18,7 +17,6 @@ int main (int argc, char **argv)
   int i, len = 1, nr_primes = 1000, nr_N = 100000;
   unsigned long expect = 0, nr_div = 0;
   mpz_t M, N, pk, t1, t2;
-  struct rusage usage;
   double usrtime;
   int verbose = 0;
   
@@ -106,9 +104,7 @@ int main (int argc, char **argv)
       mpz_add_ui (N, N, 1UL);
     }
   
-  getrusage(RUSAGE_SELF, &usage);
-  usrtime = (double) usage.ru_utime.tv_sec * 1000000. +
-      (double) usage.ru_utime.tv_usec;
+  usrtime = microseconds();
 
   mpz_clear (t1);
   mpz_clear (t2);

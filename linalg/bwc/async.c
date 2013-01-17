@@ -358,7 +358,9 @@ void block_control_signals()
     /* Only the master thread receives control signals */
     sigset_t sset[1];
     sigemptyset(sset);
+#ifdef HAVE_SIGHUP
     sigaddset(sset, SIGHUP);
+#endif
     // sigaddset(sset, SIGINT);
     my_pthread_sigmask(SIG_BLOCK, sset, NULL);
 }
@@ -366,7 +368,9 @@ void block_control_signals()
 void sighandler(int sig)
 {
     int caught = 0;
+#ifdef HAVE_SIGHUP
     if (sig == SIGHUP) hup_caught = caught = 1;
+#endif
     // if (sig == SIGINT) int_caught = caught = 1;
     /* Of course, everybody is allowed to print this. */
     if (caught) printf("Signal caught, wait before it is acknowledged\n");
@@ -374,15 +378,21 @@ void sighandler(int sig)
 
 void catch_control_signals()
 {
+#ifdef HAVE_SIGACTION
     struct sigaction sa[1];
     memset(sa, 0, sizeof(sa));
     sa->sa_handler = sighandler;
+#ifdef HAVE_SIGHUP
     sigaction(SIGHUP, sa, NULL);
+#endif
     // sigaction(SIGINT, sa, NULL);
+#endif
 
     sigset_t sset[1];
     sigemptyset(sset);
+#ifdef HAVE_SIGHUP
     sigaddset(sset, SIGHUP);
+#endif
     // sigaddset(sset, SIGINT);
     my_pthread_sigmask(SIG_UNBLOCK, sset, NULL);
 }

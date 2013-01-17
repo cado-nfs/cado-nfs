@@ -26,10 +26,27 @@
 #cmakedefine    HAVE_CABSL
 #cmakedefine    HAVE_LOG2
 #cmakedefine    HAVE_EXP2
+#cmakedefine    HAVE_RESOURCE_H
+#cmakedefine    HAVE_UTSNAME_H
+#cmakedefine    HAVE_MMAN_H
+#cmakedefine    HAVE_STATVFS_H
+#cmakedefine    HAVE_WAIT_H
+#cmakedefine    HAVE_SIGHUP
+#cmakedefine    HAVE_GETRUSAGE
+#cmakedefine    HAVE_GETC_UNLOCKED
+#cmakedefine    HAVE_NANOSLEEP
+#cmakedefine    HAVE_USLEEP
+#cmakedefine    HAVE_POPEN
+#cmakedefine    HAVE_PCLOSE
+#cmakedefine    HAVE_LRAND48
+#cmakedefine    HAVE_STRDUP
+#cmakedefine    HAVE_STRNDUP
+#cmakedefine    HAVE_WAITPID
 
 #cmakedefine    HAVE_SYNC_FETCH
+#cmakedefine    HAVE_ASPRINTF
+#cmakedefine    HAVE_MINGW
 
 #cmakedefine    VOLATILE_IF_GCC_UBUNTU_BUG
 
 #cmakedefine    ENABLE_MPFQ_PRIME_FIELDS_FOR_DLOG
-

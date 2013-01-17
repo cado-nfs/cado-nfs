@@ -50,8 +50,8 @@ random_modulus (modint_t m)
   mod_intset_ul (m, 0UL);
   for (i = 0; i < MOD_SIZE; i++)
     {
-      m[i] = (unsigned long) random() + 
-	(RAND_MAX + 1UL) * (unsigned long) random();
+      m[i] = (unsigned long) rand () +
+	(RAND_MAX + 1UL) * (unsigned long) rand ();
     }
   m[0] |= 1UL;
 
@@ -77,8 +77,8 @@ random_integer (modint_t z)
 
   for (i = 0; i < MOD_SIZE; i++)
     {
-      z[i] = (unsigned long) random() + 
-	(RAND_MAX + 1UL) * (unsigned long) random();
+      z[i] = (unsigned long) rand () +
+	(RAND_MAX + 1UL) * (unsigned long) rand ();
     }
 }
 
@@ -455,7 +455,7 @@ tests_mod_pow_ul (int iter)
   for (i = 0; i < iter; i++)
     {
       random_modulus (tm);
-      e = (unsigned long) random();
+      e = (unsigned long) rand ();
 
       /* Test 0, 1 and -1 residue */
       mod_intset_ul (tr, 0UL);
@@ -531,7 +531,7 @@ tests_mod_2pow_ul (int iter)
       test_mod_2pow_ul (tm, 3UL);
       test_mod_2pow_ul (tm, 4UL);
       test_mod_2pow_ul (tm, ~0UL);
-      e = (unsigned long) random();
+      e = (unsigned long) rand ();
       test_mod_2pow_ul (tm, e);
     }
 }
@@ -688,7 +688,7 @@ int main(int argc, char **argv)
   int iter = 10000;
 
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == 'r')
-    srandom (time (NULL)); /* Seed RNG with nr of seconds since epoch */
+    srand (time (NULL)); /* Seed RNG with nr of seconds since epoch */
   else if (argc > 1)
     iter = atoi (argv[1]);
 

@@ -22,7 +22,10 @@
 # 02110-1301, USA.
 
 package cadofct;
-use parent qw(Exporter);
+BEGIN {
+    require Exporter;
+    push @ISA, qw/Exporter/;
+}
 our @EXPORT=qw(%param $tab_level &read_machines &parse_param &do_polysel_bench
 &do_sieve_bench &do_factbase &do_init &do_task &banner &info &last_line
 &format_dhms);
@@ -274,7 +277,7 @@ for (my $i = 0; $i < @default_param; $i += 2) {
 }
 
 
-# Merge second hash into first hash. Value of a key in first hash remains 
+# Merge second hash into first hash. Value of a key in first hash remains
 # unchanged in case of collision
 sub merge_hash {
   die unless ref $_[0] eq 'HASH' && ref $_[1] eq 'HASH';

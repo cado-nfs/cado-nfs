@@ -4,7 +4,6 @@
 #include "parallelizing_info.h"
 #include "matmul_top.h"
 #include "select_mpi.h"
-#include "random_generation.h"
 #include "gauss.h"
 #include "gauss.h"
 #include "params.h"
@@ -76,7 +75,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         serialize_threads(pi->m);
 
         if (tcan_print) {
-            printf("// Generating new x,y vector pair (trial # %u -- seed %lu)\n", ntri, (unsigned long) myrand());
+            printf("// Generating new x,y vector pair (trial # %u -- seed %lu)\n", ntri, (unsigned long) rand());
         }
         if (ntri >= my_nx * 10) {
             ++my_nx;
@@ -232,10 +231,10 @@ int main(int argc, char * argv[])
     bw_common_init_mpi(bw, pl, &argc, &argv);
     if (param_list_warn_unused(pl)) usage();
 
-    if (bw->seed) setup_seeding(bw->seed);
-
     setvbuf(stdout,NULL,_IONBF,0);
     setvbuf(stderr,NULL,_IONBF,0);
+    
+    srand(bw->seed ? bw->seed : time(NULL));
 
     pi_go(prep_prog, pl, 0);
 

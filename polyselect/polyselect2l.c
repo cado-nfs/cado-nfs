@@ -7,15 +7,14 @@
 
   "-nq xxx" denotes the number of special-q's trials for each ad;
 
-  "-lq xxx" denotes the number of small factors (<= 251) in the special-q
-  (see SPECIAL_Q[] in polyselect2l_str.c);
-
   "-maxnorm xxx" only optimize raw polynomials with size <= xxx.
   If the raw polynomial is not good enough, we will still stream
   it to STDERR for further reference.
 
   Please report bugs to shi.bai AT anu.edu.au.
 */
+
+#define EMIT_ADDRESSABLE_shash_add
 
 #include "polyselect2l.h"
 
@@ -29,15 +28,12 @@
 #include "ropt.h"
 #endif
 
-#define BATCH_SIZE 20 /* number of special-q per batch */
-
-#define LQ_DEFAULT 1 /* default number of factors in special-q part */
+#define BATCH_SIZE 20 /* number of special (q, r) per batch */
 
 /* Read-Only */
 uint32_t *Primes = NULL;
 unsigned long lenPrimes = 1; // length of Primes[]
 int nq = INT_MAX;
-int lq = LQ_DEFAULT;
 double max_norm = DBL_MAX; /* maximal wanted norm (before rotation) */
 const double exp_rot[] = {0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 0};
 static int verbose = 0;
@@ -45,7 +41,6 @@ static unsigned long incr = DEFAULT_INCR;
 const char *out = NULL; /* output file for msieve input (msieve.dat.m) */
 cado_poly best_poly, curr_poly;
 double best_E = 0.0; /* Murphy's E (the larger the better) */
-int seed = 0; /* seed */
 
 int argc0;
 char ** argv0;
@@ -57,7 +52,8 @@ pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
 int tot_found = 0; /* total number of polynomials */
 int found = 0; /* number of polynomials below maxnorm */
 double potential_collisions = 0.0, aver_opt_lognorm = 0.0,
-  aver_raw_lognorm = 0.0, aver_lognorm_ratio = 0.0;
+  aver_raw_lognorm = 0.0, aver_lognorm_ratio = 0.0,
+  var_opt_lognorm = 0.0, var_raw_lognorm = 0.0;
 double min_raw_lognorm = DBL_MAX, max_raw_lognorm = 0.0;
 double min_opt_lognorm = DBL_MAX, max_opt_lognorm = 0.0;
 unsigned long collisions = 0;
@@ -91,10 +87,11 @@ void
 crt_sq ( mpz_t qqz,
          mpz_t r,
          unsigned long *q,
-         unsigned long *rq )
+         unsigned long *rq,
+         unsigned long lq )
 {
   mpz_t prod, pprod, mod, inv, sum;
-  int i;
+  unsigned long i;
   unsigned long qq[lq];
 
   mpz_init_set_ui (prod, 1);
@@ -131,8 +128,8 @@ crt_sq ( mpz_t qqz,
 /* check that l/2 <= d*m0/P^2, where l = p1 * p2 * q with P <= p1, p2 <= 2P
    q is the product of special-q primes. It suffices to check that
    q <= d*m0/(2P^4). */
-static void
-check_parameters (mpz_t m0, unsigned long d)
+static int
+check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
 {
   double maxq = 1.0, maxP;
   int k = lq;
@@ -142,10 +139,9 @@ check_parameters (mpz_t m0, unsigned long d)
 
   maxP = (double) Primes[lenPrimes - 1];
   if (2.0 * pow (maxP, 4.0) * maxq >= (double) d * mpz_get_d (m0))
-    {
-      fprintf (stderr, "Error, too large value of -lq parameter\n");
-      exit (1);
-    }
+      return 0;
+
+  return 1;
 }
 
 /* print poly info */
@@ -376,6 +372,7 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
   collisions ++;
   tot_found ++;
   aver_raw_lognorm += logmu;
+  var_raw_lognorm += logmu * logmu;
   if (d == 6) {
     aver_lognorm_ratio += logmu0c4/logmu0c3;
   }
@@ -444,6 +441,7 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
 #endif
     collisions_good ++;
     aver_opt_lognorm += logmu;
+    var_opt_lognorm += logmu * logmu;
     if (logmu < min_opt_lognorm)
       min_opt_lognorm = logmu;
     if (logmu > max_opt_lognorm)
@@ -728,6 +726,7 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
   collisions ++;
   tot_found ++;
   aver_raw_lognorm += logmu;
+  var_raw_lognorm += logmu * logmu;
   if (d == 6) {
     aver_lognorm_ratio += logmu0c4/logmu0c3;
   }
@@ -792,6 +791,7 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
 #endif
     collisions_good ++;
     aver_opt_lognorm += logmu;
+    var_opt_lognorm += logmu * logmu;
     if (logmu < min_opt_lognorm)
       min_opt_lognorm = logmu;
     if (logmu > max_opt_lognorm)
@@ -899,7 +899,7 @@ static inline unsigned long
 collision_on_p ( header_t header,
                  proots_t R )
 {
-  unsigned long i, j, nprimes, p, nrp, c = 0;
+  unsigned long i, j, nprimes, p, nrp, c = 0, tot_roots = 0;
   uint64_t *rp;
   int64_t ppl = 0, u, umax;
   double pc1;
@@ -940,11 +940,11 @@ collision_on_p ( header_t header,
           continue;
         }
 
-      mpz_mod_ui (f[0], header->Ntilde, p);
-      mpz_neg (f[0], f[0]); /* f = x^d - N */
-      st -= cputime ();
-      nrp = poly_roots_uint64 (rp, f, header->d, p);
-      st += cputime ();
+      st -= milliseconds ();
+      nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d,
+                              p);
+      st += milliseconds ();
+      tot_roots += nrp;
       roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
       proots_add (R, nrp, rp, nprimes);
       for (j = 0; j < nrp; j++, c++)
@@ -960,7 +960,7 @@ collision_on_p ( header_t header,
   free (rp);
 
   if (verbose > 2)
-    fprintf (stderr, "# computing p-roots took %dms\n", st);
+    fprintf (stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
 
   if (found) /* do the real work */
     {
@@ -987,7 +987,7 @@ collision_on_p ( header_t header,
             }
         }
 #ifdef DEBUG_POLYSELECT2L
-      fprintf (stderr, "# collision_on_p took %dms\n", cputime () - st);
+      fprintf (stderr, "# collision_on_p took %dms\n", milliseconds () - st);
       fprintf (stderr, "# p hash_size: %u for ad = %lu\n", H->size, header->ad);
 #endif
 
@@ -1020,16 +1020,19 @@ collision_on_each_sq ( header_t header,
                        unsigned long *inv_qq )
 {
   shash_t H;
-  uint64_t **cur;
-  long *pc, *pcnr;
+  uint64_t **cur1, **cur2, *ccur1, *ccur2;
+  long *pc, *epc;
   double pc2;
   uint64_t pp;
-  int64_t ppl, umax, neg_umax, u, v;
+  int64_t ppl, neg_umax, umax, v1, v2, nv;
   unsigned long p, nprimes, c;
-  unsigned int vpnr, nr, j;
+  uint8_t vpnr, *pnr, nr, j;
+  uint32_t *pprimes, i;
   int found;
+  MAYBE_UNUSED uint64_t cpt = 0, cpt1 = 0, cpt2 = 0, cpt3 = 0;
+
 #ifdef DEBUG_POLYSELECT2L
-  int st = cputime();
+  int st = milliseconds();
 #endif
 #if SHASH_NBUCKETS == 256
 #define CURRENT(V) (H->current + (uint8_t) (V))
@@ -1040,6 +1043,7 @@ collision_on_each_sq ( header_t header,
   uint64_t t1, t2;
   static uint64_t sum1 = 0, sum2 = 0;
   */
+
   shash_init (H, 4 * lenPrimes);
 
   /*
@@ -1047,92 +1051,182 @@ collision_on_each_sq ( header_t header,
   */
 
   pc = (long *) inv_qq;
-  umax = (int64_t) Primes[lenPrimes - 1];
+  nv = *pc;
+  pprimes = Primes - 1;
+  pnr = R->nr;
+  R->nr[R->size] = 0xff; /* I use guard to end */
+  umax = Primes[lenPrimes - 1];
   umax *= umax;
   neg_umax = -umax;
-  for (nprimes = 0; LIKELY(nprimes < lenPrimes); nprimes++) {
 
-    if (!(vpnr = R->nr[nprimes])) continue;
-    pcnr = pc + vpnr;
-    ppl = (long) Primes[nprimes];
-    ppl *= ppl;
+  /* This define inserts 2 values v1 and v2 with a interlace.
+     The goal is to have a little time to read ccurX from L0
+     cache before to use it. The best seems a
+     three read interlacing in fact, two seems too short. */
+#define INSERT_2I(I1,I2)                                                \
+  do {                                                                  \
+    cur1 = CURRENT(I1); ccur1 = *cur1;					\
+    cur2 = CURRENT(I2); ccur2 = *cur2;					\
+    *ccur1++ = I1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;	\
+    *ccur2++ = I2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;	\
+  } while (0)
+  /* This version is slow because ccur1 is used immediatly after
+     it has been read from L0 cache -> 3 ticks of latency on P4 Nehalem. */
+#define INSERT_I(I)						\
+  do {								\
+    cur1 = CURRENT(I); ccur1 = *cur1; *ccur1++ = I;		\
+    __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;		\
+  } while (0)
+
+#if 0 /* Old algo */
+
+  for (;;) {
     do {
-      v = *pc++;
-      u = v - ppl;
-      while (v < umax) {
-	/* Careful. If the loop is unrolled, use at least 12-16 occurencies,
-	   or gcc optimiser does stupid slower << optimizations >> */
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl; if (v >= umax) break;
-	cur = CURRENT(v); *(*cur)++ = v; __builtin_prefetch(*cur, 1, 3);
-	v += ppl;
+      vpnr = *pnr++;
+      pprimes++;
+    } while (!vpnr);
+    if (UNLIKELY(vpnr == 0xff)) break;
+    ppl = *pprimes;
+    __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
+    __builtin_prefetch(((void *) pprimes) + 0x100, 0, 3);
+    __builtin_prefetch(((void *) pc) + 0x280, 0, 3);
+    ppl *= ppl;
+    epc = pc + vpnr;
+    for (;;) {
+      /* v2 = nv [- ppl] insertions == nv + [ppl] insertions -/+ 1;
+	 max inserts == 4+4, min == 1+1. */
+      v1 = nv;       cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 = v1 - ppl; cur2 = CURRENT(v2); ccur2 = *cur2;
+      nv = *++pc;
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl; v2 -= ppl;
+      if (v1 > umax)     goto l1v2;
+      if (v2 < neg_umax) goto l1v1;
+      INSERT_2I(v1,v2); v1 += ppl; v2 -= ppl;
+      if (v1 > umax)     goto l1v2;
+      if (v2 < neg_umax) goto l1v1;
+      INSERT_2I(v1,v2); v1 += ppl; v2 -= ppl;
+      if (LIKELY(v1 > umax))
+      l1v2: if (LIKELY(v2 < neg_umax))
+	  if (LIKELY(pc != epc)) continue; else break;
+	else {
+	  INSERT_I(v2); if (LIKELY(pc != epc)) continue; else break;
+	}
+      else if (LIKELY(v2 < neg_umax)) {
+      l1v1: INSERT_I(v1); if (LIKELY(pc != epc)) continue; else break;
       }
-      while (u > neg_umax) {
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl; if (u <= neg_umax) break;
-	cur = CURRENT(u); *(*cur)++ = u; __builtin_prefetch(*cur, 1, 3);
-	u -= ppl;
+      else {
+	INSERT_2I(v1,v2); if (LIKELY(pc != epc)) continue; else break;
       }
-    } while (pc != pcnr);
+    }
   }
-  for (j = 0; j < SHASH_NBUCKETS; j++)
-    assert (H->current[j] <= H->base[j+1]);
+    
+#else /* New Algo */
+
+  int64_t b;
+  b = (int64_t) ((double) umax * 0.3333333333333333);
+  do {
+    do {
+      vpnr = *pnr++;
+      pprimes++;
+    } while (!vpnr);
+    if (UNLIKELY(vpnr == 0xff)) goto bend;
+    ppl = *pprimes;
+    __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
+    __builtin_prefetch(((void *) pprimes) + 0x80, 0, 3);
+    __builtin_prefetch(((void *) pc) + 0x100, 0, 3);
+    ppl *= ppl;
+    epc = pc + vpnr;
+    if (UNLIKELY(ppl > b)) { b = umax >> 1; goto iter2; }
+    do {
+      v1 = nv;                    cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 = v1 - ppl;              cur2 = CURRENT(v2); ccur2 = *cur2;
+      nv = *++pc; 
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl;                  cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 -= ppl;                  cur2 = CURRENT(v2); ccur2 = *cur2;
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl;                  cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 -= ppl;                  cur2 = CURRENT(v2); ccur2 = *cur2;
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl; v2 -= ppl;
+      if (LIKELY (v1 > umax)) {
+	if (UNLIKELY (v2 >= neg_umax)) INSERT_I(v2);
+      } else if (UNLIKELY (v2 >= neg_umax)) INSERT_2I(v1, v2);
+      else INSERT_I(v1);
+    } while (pc != epc);
+  } while (1);
+  
+  do {
+    do {
+      vpnr = *pnr++;
+      pprimes++;
+    } while (!vpnr);
+    if (UNLIKELY(vpnr == 0xff)) goto bend;
+    ppl = *pprimes;
+    __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
+    __builtin_prefetch(((void *) pprimes) + 0x100, 0, 3);
+    __builtin_prefetch(((void *) pc) + 0x280, 0, 3);
+    ppl *= ppl;
+    epc = pc + vpnr;
+  iter2:
+    if (UNLIKELY(ppl > b)) goto iter1;
+    do {
+      v1 = nv;                    cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 = v1 - ppl;              cur2 = CURRENT(v2); ccur2 = *cur2;
+      nv = *++pc;
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl;                  cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 -= ppl;                  cur2 = CURRENT(v2); ccur2 = *cur2;
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl; v2 -= ppl;
+      if (LIKELY (v1 > umax)) {
+	if (UNLIKELY (v2 >= neg_umax)) INSERT_I(v2);
+      } else if (UNLIKELY (v2 >= neg_umax)) INSERT_2I(v1, v2);
+      else INSERT_I(v1);
+    } while (pc != epc);
+  } while (1);
+
+  do {
+    do {
+      vpnr = *pnr++;
+      pprimes++;
+    } while (!vpnr);
+    if (UNLIKELY(vpnr == 0xff)) goto bend;
+    ppl = *pprimes;
+    __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
+    __builtin_prefetch(((void *) pprimes) + 0x100, 0, 3);
+    __builtin_prefetch(((void *) pc) + 0x280, 0, 3);
+    ppl *= ppl;
+    epc = pc + vpnr;
+  iter1:
+    do {
+      v1 = nv;                    cur1 = CURRENT(v1); ccur1 = *cur1;
+      v2 = v1 - ppl;              cur2 = CURRENT(v2); ccur2 = *cur2;
+      nv = *++pc; 
+      *ccur1++ = v1; __builtin_prefetch(ccur1, 1, 3); *cur1 = ccur1;
+      *ccur2++ = v2; __builtin_prefetch(ccur2, 1, 3); *cur2 = ccur2;
+      v1 += ppl; v2 -= ppl;
+      if (LIKELY (v1 > umax)) {
+	if (UNLIKELY (v2 >= neg_umax)) INSERT_I(v2);
+      } else if (UNLIKELY (v2 >= neg_umax)) INSERT_2I(v1, v2);
+      else INSERT_I(v1);
+    } while (pc != epc);
+  } while (1);
+
+ bend:
+#endif
+#undef INSERT_2I
+#undef INSERT_I
+
+  /* fprintf (stderr, "%lu %lu %lu %lu\n", cpt, cpt1, cpt2, cpt3); */
+  for (i = 0; i < SHASH_NBUCKETS; i++) assert (H->current[i] <= H->base[i+1]);
 
   /*
   t2 = cputicks();
@@ -1163,12 +1257,12 @@ collision_on_each_sq ( header_t header,
           nr = R->nr[nprimes];
           for (j = 0; j < nr; j++, c++)
             {
-              u = (long) inv_qq[c];
-              for (v = u; v < umax; v += ppl)
-                hash_add (H, p, v, header->m0, header->ad, header->d,
+              v1 = (long) inv_qq[c];
+              for (v2 = v1; v2 < umax; v2 += ppl)
+                hash_add (H, p, v2, header->m0, header->ad, header->d,
                           header->N, q, rqqz);
-              for (v = ppl - u; v < umax; v += ppl)
-                hash_add (H, p, -v, header->m0, header->ad, header->d,
+              for (v2 = ppl - v1; v2 < umax; v2 += ppl)
+                hash_add (H, p, -v2, header->m0, header->ad, header->d,
                           header->N, q, rqqz);
             }
         }
@@ -1176,7 +1270,7 @@ collision_on_each_sq ( header_t header,
     }
 
 #ifdef DEBUG_POLYSELECT2L
-  fprintf (stderr, "# inner collision_on_each_sq took %dms\n", cputime () - st);
+  fprintf (stderr, "# inner collision_on_each_sq took %dms\n", milliseconds () - st);
   fprintf (stderr, "# - q hash_size (q=%lu): %u\n", q, H->size);
 #endif
 
@@ -1206,7 +1300,10 @@ collision_on_each_sq_r ( header_t header,
                          unsigned long number_pr,
                          int count )
 {
-  unsigned int i, nr, *pnr;
+  if (count == 0)
+    return;
+
+  uint8_t i, nr, *pnr;
   unsigned long nprimes, p, c = 0, rp, rqi;
   int k;
   uint64_t pp;
@@ -1217,10 +1314,13 @@ collision_on_each_sq_r ( header_t header,
     fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
     exit (1);
   }
-  for (k = 0; k < count; k++)
-    tinv_qq[k] = malloc (number_pr * sizeof (unsigned long));
+  for (k = 0; k < count; k++) {
+    /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
+    tinv_qq[k] = malloc ((number_pr + 1) * sizeof (unsigned long));
+    tinv_qq[k][number_pr] = 0;
+  }
 
-  int st = cputime();
+  int st = milliseconds();
   pnr = R->nr;
 
   /* for each rp, compute (rp-rq)*1/q^2 (mod p^2) */
@@ -1264,9 +1364,9 @@ collision_on_each_sq_r ( header_t header,
   }
 
   if (verbose > 2) {
-    fprintf (stderr, "#  substage: batch %d many (rp-rq)*1/q^2 took %dms\n",
-             count, cputime () - st);
-    st = cputime();
+    fprintf (stderr, "#  substage: batch %d many (rp-rq)*1/q^2 took %lums\n",
+             count, milliseconds () - st);
+    st = milliseconds();
   }
 
   /* core function to find collisions */
@@ -1275,8 +1375,8 @@ collision_on_each_sq_r ( header_t header,
   }
 
   if (verbose > 2)
-    fprintf (stderr, "#  substage: collision-detection %d many rq took %dms\n",
-             count, cputime () - st);
+    fprintf (stderr, "#  substage: collision-detection %d many rq took %lums\n",
+             count, milliseconds () - st);
 
   for (k = 0; k < count; k++)
     free (tinv_qq[k]);
@@ -1315,7 +1415,8 @@ aux_return_rq ( qroots_t SQ_R,
                 unsigned int *idx_nr,
                 unsigned long k,
                 mpz_t qqz,
-                mpz_t rqqz )
+                mpz_t rqqz,
+                unsigned long lq )
 {
   unsigned long i, q[k], rq[k];
 
@@ -1326,7 +1427,7 @@ aux_return_rq ( qroots_t SQ_R,
   }
 
   /* crt roots */
-  crt_sq (qqz, rqqz, q, rq);
+  crt_sq (qqz, rqqz, q, rq, lq);
 
   return;
 }
@@ -1341,11 +1442,13 @@ collision_on_batch_sq_r ( header_t header,
                           unsigned long *idx_q,
                           unsigned long *inv_qq,
                           unsigned long number_pr,
-                          int *curr_nq )
+                          int *curr_nq, 
+                          unsigned long lq )
 {
-  int i, count;
+  int count;
   unsigned int ind_qr[lq]; /* indices of roots for each small q */
   unsigned int len_qnr[lq]; /* for each small q, number of roots */
+  unsigned long i;
   mpz_t qqz, rqqz[BATCH_SIZE];
 
   mpz_init (qqz);
@@ -1370,21 +1473,24 @@ collision_on_batch_sq_r ( header_t header,
 
   /* we proceed with BATCH_SIZE many rq for each time */
   i = count = 0;
-  int re = 1;
+  int re = 1, num_rq;
   while (re) {
     /* compute BATCH_SIZE such many rqqz[] */
-    for (count = 0; count < BATCH_SIZE; count ++, (*curr_nq)++)
-      {
-        aux_return_rq (SQ_R, idx_q, ind_qr, lq, qqz, rqqz[count]);
+    num_rq = 0;
+    for (count = 0; count < BATCH_SIZE; count ++)
+    {
+        aux_return_rq (SQ_R, idx_q, ind_qr, lq, qqz, rqqz[count], lq);
         re = aux_nextcomb (ind_qr, lq, len_qnr);
+        (*curr_nq)++;
+        num_rq ++;
         if ((*curr_nq) >= nq)
           re = 0;
         if (!re)
           break;
-      }
-
+    }
+    
     /* core function for a fixed qq and several rqqz[] */
-    collision_on_each_sq_r (header, R, q, rqqz, inv_qq, number_pr, count);
+    collision_on_each_sq_r (header, R, q, rqqz, inv_qq, number_pr, num_rq);
   }
 
   mpz_clear (qqz);
@@ -1393,124 +1499,70 @@ collision_on_batch_sq_r ( header_t header,
 }
 
 
-/* batch SQ inversion, write 1/q[i]^2 (mod p^2) to invqq[i][lenPrimes] */
+/* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i] */
 static inline void
 collision_on_batch_sq ( header_t header,
                         proots_t R,
                         qroots_t SQ_R,
-                        unsigned long *q,
-                        unsigned long size,
-                        unsigned long **idx_q,
-                        unsigned long number_pr )
+                        unsigned long q,
+                        unsigned long *idx_q,
+                        unsigned long number_pr,
+                        unsigned long lq )
 {
-  if (size == 0)
-    return;
-
-  unsigned int i, nr;
+  unsigned nr;
   int curr_nq = 0;
   uint64_t pp;
   unsigned long nprimes, p;
-  unsigned long **invqq = malloc (size * sizeof (unsigned long *));
-
-  if (invqq) {
-    for (i = 0; i < size; i++)
-      invqq[i] = malloc (lenPrimes * sizeof (unsigned long));
-  }
-  else {
+  unsigned long *invqq = malloc (lenPrimes * sizeof (unsigned long));
+  if (!invqq) {
     fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
     exit (1);
   }
 
-  int st = cputime();
+  int st = milliseconds();
 
-  /* Step 1: batch inversion */
+  /* Step 1: inversion */
   for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
 
     p = Primes[nprimes];
-    pp = p*p;
     if ((header->d * header->ad) % p == 0)
       continue;
     nr = R->nr[nprimes];
     if (nr == 0)
       continue;
+    pp = p * p;
 
     modulusredcul_t modpp;
-    residueredcul_t qprod[size], tmp_modul, tmp2_modul;
-    residueredcul_t res_rp, res_tmp;
+    residueredcul_t qq, tmp;
+    modredcul_initmod_ul (modpp, pp);
+    modredcul_init (qq, modpp);
+    modredcul_init (tmp, modpp);
 
-    modredcul_initmod_ul_raw (modpp, pp);
-    modredcul_init (tmp_modul, modpp);
-    modredcul_init (tmp2_modul, modpp);
-    modredcul_init (res_rp, modpp);
-    modredcul_init (res_tmp, modpp);
-    for (i = 0; i < size; i++)
-      modredcul_init (qprod[i], modpp);
+    /* q^2/B (mod pp) */
+    modredcul_intset_ul (tmp, q);
+    modredcul_sqr (qq, tmp, modpp);
+    /* B/q^2 (mod pp) */
+    modredcul_intinv (tmp, qq, modpp);
+    invqq[nprimes] = modredcul_intget_ul (tmp, modpp);
 
-    // (size-1) multiplications
-    modredcul_intset_ul (qprod[0], q[0]); /* qprod[0] = q[0] */
-
-    for (i = 1; i < size; i ++)
-    {
-      modredcul_intset_ul (tmp_modul, q[i]);
-      modredcul_mul (qprod[i], tmp_modul, qprod[i-1], modpp);
-      /* qprod[i] = q[0] * ... * q[i] / B^i */
-    }
-    modredcul_frommontgomery (qprod[size-1], qprod[size-1], modpp);
-    /* qprod[size-1] = q[0] * ... * q[size-1] / B^size */
-    modredcul_intinv (tmp_modul, qprod[size-1], modpp);
-    /* tmp_modul = B^size / (q[0] * ... * q[size-1]) */
-
-    // for each q in a batch
-    for (i = size - 1; i > 0; i --)
-    {
-      /* tmp_modul = B^(i+1) / (q[0] * ... * q[i])
-         qprod[i-1] = q[0] * ... * q[i-1] / B^(i-1) */
-      modredcul_mul (tmp2_modul, qprod[i-1], tmp_modul, modpp);
-      /* tmp2_modul = B / q[i] */
-      modredcul_sqr (tmp2_modul, tmp2_modul, modpp);
-      /* B / q[i]^2 */
-      invqq[i][nprimes] = modredcul_intget_ul (tmp2_modul, modpp);
-      modredcul_intset_ul (tmp2_modul, q[i]);
-      modredcul_mul (tmp_modul, tmp2_modul, tmp_modul, modpp);
-      /* now tmp_modul = B^i / (q[0] * ... * q[i-1]) */
-    }
-
-    /* tmp_modul = B / q[0] */
-    modredcul_sqr (tmp_modul, tmp_modul, modpp);
-    /* now tmp_modul = B / q[0]^2 mod p^2 */
-    invqq[0][nprimes] = modredcul_intget_ul (tmp_modul, modpp);
-
-    modredcul_clear (res_rp, modpp);
-    modredcul_clear (res_tmp, modpp);
-    modredcul_clear (tmp_modul, modpp);
-    modredcul_clear (tmp2_modul, modpp);
-    for (i = 0; i < size; i++)
-      modredcul_clear (qprod[i], modpp);
+    modredcul_clear (tmp, modpp);
+    modredcul_clear (qq, modpp);
     modredcul_clearmod (modpp);
-
-  } // next prime p
+  }
 
   if (verbose > 2)
-    fprintf (stderr, "# stage (batch SQ inversion) for %lu primes took %dms\n",
-             lenPrimes, cputime () - st);
+    fprintf (stderr, "# stage (1/q^2 inversion) for %lu primes took %lums\n",
+             lenPrimes, milliseconds () - st);
 
   /* Step 2: find collisions on q. */
-  int st2 = cputime();
+  int st2 = milliseconds();
 
-  for (i = 0; i < size; i ++)
-    {
-      collision_on_batch_sq_r (header, R, SQ_R, q[i], idx_q[i],
-                               invqq[i], number_pr, &curr_nq);
-      if (curr_nq >= nq)
-        break;
-    }
-
+  collision_on_batch_sq_r ( header, R, SQ_R, q, idx_q, invqq, number_pr,
+                            &curr_nq, lq );
   if (verbose > 2)
-    fprintf (stderr, "#  stage (special-q) for %d special-q's took %dms\n",
-             curr_nq, cputime() - st2);
+    fprintf (stderr, "#  stage (special-q) for %d special-q's took %lums\n",
+             curr_nq, milliseconds() - st2);
 
-  for (i = 0; i < size; i++)
-    free (invqq[i]);
   free (invqq);
 }
 
@@ -1521,78 +1573,46 @@ collision_on_sq ( header_t header,
                   proots_t R,
                   unsigned long c )
 {
-  unsigned long i, j, tbatch_size;
+  int prod = 1;
+  unsigned int i;
+  unsigned long j, lq = 0UL;
+  qroots_t SQ_R;
 
   /* init special-q roots */
-  qroots_t SQ_R;
   qroots_init (SQ_R);
   comp_sq_roots (header, SQ_R);
   //qroots_print (SQ_R);
 
-  /* correctness of binom(N, K) */
-  unsigned long K = lq, N = SQ_R->size;
-  if (N == 0 || N < K) {
-    fprintf (stderr, "# Info: binomial(%lu, %lu) error in "
-             "collision_on_sq(). ad=%"PRIu64".\n", N, K, header->ad);
-    qroots_clear (SQ_R);
-    return;
+  /* find a suitable lq */
+  for (i = 0; i < SQ_R->size; i++) {
+    if (prod < nq) {
+      if (!check_parameters (header->m0, header->d, lq))
+        break;
+      prod *= SQ_R->nr[i];
+      lq ++;
+    }
   }
 
-  /* tbatch_size is the actual number of sq in a batch inversion */
-  tbatch_size = binom (N, K);
-  if (tbatch_size > BATCH_SIZE)
-    tbatch_size = BATCH_SIZE;
+  /* lq < 8 for the moment */
+  if (lq > 7)
+    lq = 7;
+  if (lq < 1)
+    lq = 1;
 
-  unsigned long idx_q_tmp[K];
-  unsigned long **idx_q = malloc (tbatch_size * sizeof (unsigned long *));
-  if (idx_q) {
-    for (i = 0; i < tbatch_size; i++)
-      idx_q[i] = malloc (K * sizeof (unsigned long));
-  }
-  else {
-    fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
-    exit (1);
-  }
+  unsigned long q, idx_q[lq];
+  mpz_t qqz;
+  mpz_init (qqz);
 
-  unsigned long q[tbatch_size];
-  mpz_t qqz[tbatch_size];
-  for (i = 0; i < tbatch_size; i++)
-    mpz_init (qqz[i]);
-
-  /* one batch of sq inversion should be more than sufficient */
-  first_comb (K, idx_q_tmp);
-  //print_comb (K, idx_q_tmp);
-  q[0] = return_q_norq (SQ_R, idx_q_tmp, K, qqz[0]);
-  for (j = 0; j < K; j ++)
-    idx_q[0][j] = idx_q_tmp[j];
-
-  for (i = 1; i < tbatch_size; i++) {
-    next_comb (N, K, idx_q_tmp);
-    for (j = 0; j < K; j ++)
-      idx_q[i][j] = idx_q_tmp[j];
-    q[i] = return_q_norq (SQ_R, idx_q_tmp, K, qqz[i]);
-    //print_comb (K, idx_q_tmp);
-  }
-
-#ifdef DEBUG_POLYSELECT2L
-  fprintf (stderr, "# Info: n=%lu, k=%lu, (n,k)=%lu"
-           ", maxnq=%d, nq=%lu\n", N, K, binom(N, K), nq, tbatch_size);
-  for (i = 0; i < tbatch_size; i++)
-    gmp_fprintf (stderr, "q[%lu]: %lu, qq: %Zd\n",
-                 i, q[i], qqz[i]);
-#endif
+  for (j = 0; j < lq; j ++)
+    idx_q[j] = j;
+  q = return_q_norq (SQ_R, idx_q, lq, qqz);
 
   /* collision batch */
-  collision_on_batch_sq (header, R, SQ_R, q, tbatch_size, idx_q, c);
+  collision_on_batch_sq (header, R, SQ_R, q, idx_q, c, lq);
 
   /* clean */
-  for (i = 0; i < tbatch_size; i++) {
-    mpz_clear (qqz[i]);
-    free (idx_q[i]);
-  }
-  free (idx_q);
+  mpz_clear (qqz);
   qroots_clear (SQ_R);
-
   return;
 }
 
@@ -1633,7 +1653,7 @@ gmp_collision_on_p ( header_t header,
   hash_init (H, INIT_FACTOR * lenPrimes);
 
 #ifdef DEBUG_POLYSELECT2L
-  int st = cputime();
+  int st = milliseconds();
 #endif
 
   umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
@@ -1650,9 +1670,7 @@ gmp_collision_on_p ( header_t header,
 
     /* we want p^2 | N - (m0 + i)^d, thus
        (m0 + i)^d = N (mod p^2) or m0 + i = N^(1/d) mod p^2 */
-    mpz_mod_ui (f[0], header->Ntilde, p);
-    mpz_neg (f[0], f[0]); /* f = x^d - N */
-    nrp = poly_roots_uint64 (rp, f, header->d, p);
+    nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d, p);
     roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
     proots_add (R, nrp, rp, nprimes);
     for (j = 0; j < nrp; j++, c++) {
@@ -1666,7 +1684,7 @@ gmp_collision_on_p ( header_t header,
   }
 
 #ifdef DEBUG_POLYSELECT2L
-  fprintf (stderr, "# collision_on_p took %dms\n", cputime () - st);
+  fprintf (stderr, "# collision_on_p took %dms\n", milliseconds () - st);
   fprintf (stderr, "# p hash_size: %u for ad = %lu\n", H->size, header->ad);
 #endif
 
@@ -1701,7 +1719,7 @@ gmp_collision_on_each_sq ( header_t header,
   double pc2;
 
 #ifdef DEBUG_POLYSELECT2L
-  int st = cputime();
+  int st = milliseconds();
 #endif
 
   hash_t H;
@@ -1737,7 +1755,7 @@ gmp_collision_on_each_sq ( header_t header,
 
 #ifdef DEBUG_POLYSELECT2L
   fprintf (stderr, "# inner collision_on_each_sq took %dms\n",
-	   cputime () - st);
+	   milliseconds () - st);
   fprintf (stderr, "# - q hash_size (q=%lu): %u\n", q, H->size);
 #endif
 
@@ -1758,7 +1776,7 @@ gmp_collision_on_batch_sq ( header_t header,
 			    mpz_t *qqz,
 			    mpz_t *rqqz,
 			    unsigned long size,
-			    unsigned long number_pr )
+          unsigned long number_pr )
 {
   if (size == 0)
     return;
@@ -1836,9 +1854,9 @@ gmp_collision_on_batch_sq ( header_t header,
 
   /* Step 2: find collisions on q. */
   for (i = 0; i < size; i ++) {
-    //int st2 = cputime();
+    //int st2 = milliseconds();
     gmp_collision_on_each_sq (header, R, q[i], rqqz[i], invqq[i]);
-    //printf ("# outer collision_on_each_sq took %dms\n", cputime () - st2);
+    //printf ("# outer collision_on_each_sq took %dms\n", milliseconds () - st2);
   }
 
   for (i = 0; i < size; i++)
@@ -1861,6 +1879,7 @@ gmp_collision_on_sq ( header_t header,
 		      unsigned long c )
 {
   // init special-q roots
+  int lq = 2; // fixed for the moment
   qroots_t SQ_R;
   qroots_init (SQ_R);
   comp_sq_roots (header, SQ_R);
@@ -1911,17 +1930,17 @@ gmp_collision_on_sq ( header_t header,
       // enumerate first combination
       first_comb (K, idx_q);
       //print_comb (K, idx_q);
-      q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l]);
+      q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l], lq);
 
       for (l = 1; l < BATCH_SIZE; l++) {
         next_comb (N, K, idx_q);
-        q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l]);
+        q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l], lq);
       }
     }
     else {
       for (l = 0; l < BATCH_SIZE; l++) {
         next_comb (N, K, idx_q);
-        q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l]);
+        q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l], lq);
       }
     }
 
@@ -1940,7 +1959,7 @@ gmp_collision_on_sq ( header_t header,
   // tail batch
   for (l = 0; l < (tot % BATCH_SIZE); l++) {
     next_comb (N, K, idx_q);
-    q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l]);
+    q[l] = return_q_rq (SQ_R, idx_q, K, qqz[l], rqqz[l], lq);
 
 #ifdef DEBUG_POLYSELECT2L
     gmp_fprintf (stderr, "q: %lu, qq: %Zd, rqq: %Zd\n",
@@ -1968,16 +1987,17 @@ newAlgo (mpz_t N, unsigned long d, uint64_t ad)
   proots_t R;
 
   header_init (header, N, d, ad);
-  check_parameters (header->m0, d);
   proots_init (R, lenPrimes);
 
   if (sizeof (unsigned long int) == 8) {
     c = collision_on_p (header, R);
-    collision_on_sq (header, R, c);
+    if (nq > 0)
+      collision_on_sq (header, R, c);
   }
   else {
     c = gmp_collision_on_p (header, R);
-    gmp_collision_on_sq (header, R, c);
+    if (nq > 0)
+      gmp_collision_on_sq (header, R, c);
   }
 
   proots_clear (R, lenPrimes);
@@ -2011,9 +2031,6 @@ usage (const char *argv, const char * missing)
   fprintf (stderr, "-degree nnn  --- wanted polynomial degree\n");
   fprintf (stderr, "-nq nnn      --- maximum number of special-q's considered\n");
   fprintf (stderr, "                 for each ad (default %d)\n", INT_MAX);
-  fprintf (stderr, "-lq nnn      --- number of factors in the special-q"
-           " (default %d)\n", LQ_DEFAULT);
-  fprintf (stderr, "-seed nnn    --- seed for srand (default by time(NULL))\n");
   fprintf (stderr, "-save xxx    --- save state in file xxx\n");
   fprintf (stderr, "-resume xxx  --- resume state from file xxx\n");
   fprintf (stderr, "-maxnorm xxx --- only optimize polynomials with norm <= xxx\n");
@@ -2088,8 +2105,6 @@ main (int argc, char *argv[])
 
   param_list_parse_int (pl, "t", &nthreads);
   param_list_parse_int (pl, "nq", &nq);
-  param_list_parse_int (pl, "lq", &lq);
-  param_list_parse_int (pl, "seed", &seed);
   param_list_parse_int (pl, "s", &target_time);
   incr_target_time = target_time;
   param_list_parse_uint (pl, "degree", &d);
@@ -2109,15 +2124,10 @@ main (int argc, char *argv[])
   if (d <= 0) usage(argv0[0], "degree");
 
   /* check lq and nq */
-  if (lq < 1 || nq < 1) {
-    fprintf (stderr, "Error, number of factors in special-q "
-             "should >= 1 and/or number of special-q's should >=1\n");
+  if (nq < 0) {
+    fprintf (stderr, "Error, number of special-q's should >= 0\n");
     exit (1);
   }
-
-  /* check seed */
-  if (seed == 0)
-    seed = time (NULL);
 
   /* check nthreads */
 #ifdef MAX_THREADS
@@ -2173,14 +2183,13 @@ main (int argc, char *argv[])
     exit (1);
   }
 
-  st = cputime ();
+  st = milliseconds ();
   lenPrimes = initPrimes (P, &Primes);
 
-  printf ( "# Info: initializing %lu P primes took %dms, seed=%d,"
+  printf ( "# Info: initializing %lu P primes took %lums,"
            " rawonly=%d, nq=%d, target_time=%d\n",
            lenPrimes,
-           cputime () - st,
-           seed,
+           milliseconds () - st,
            raw,
            nq,
            target_time / 1000 );
@@ -2222,9 +2231,6 @@ main (int argc, char *argv[])
 
   while (admin <= admax && seconds () - st0 <= maxtime)
   {
-    srand (seed); /* reset the random seed for each ad, so that we can
-                     reproduce a polynomial found without starting from
-                     the very beginning */
     for (i = 0; i < nthreads ; i++)
     {
       tries ++;
@@ -2262,17 +2268,22 @@ main (int argc, char *argv[])
       fclose (fp);
     }
 
-    if (cputime () > target_time || verbose > 0)
+    if (milliseconds () > (unsigned long) target_time || verbose > 0)
     {
-      printf ("# Stat: ad=%lu, exp. coll.=%1.2f (%0.2e/s), got %lu with %lu good ones, av. lognorm=%1.2f, av. raw. lognorm=%1.2f, time=%dms\n",
+      double mean = aver_opt_lognorm / collisions_good;
+      double rawmean = aver_raw_lognorm / collisions;
+
+      printf ("# Stat: ad=%lu, exp. coll.=%1.2f (%0.2e/s), got %lu with %lu good ones, av. lognorm=%1.2f (min=%1.2f,std=%1.2f), av. raw. lognorm=%1.2f (min=%1.2f,std=%1.2f), time=%lums\n",
               admin,
               potential_collisions,
-              1000.0 * (double) potential_collisions / cputime (),
+              1000.0 * (double) potential_collisions / milliseconds (),
               collisions,
               collisions_good,
-              aver_opt_lognorm / collisions_good,
-              aver_raw_lognorm / collisions,
-              cputime () );
+              mean, min_opt_lognorm,
+              sqrt (var_opt_lognorm / collisions_good - mean * mean),
+              rawmean, min_raw_lognorm,
+              sqrt (var_raw_lognorm / collisions - rawmean * rawmean),
+              milliseconds () );
       fflush (stdout);
       target_time += incr_target_time;
     }
@@ -2283,15 +2294,19 @@ main (int argc, char *argv[])
     {
       printf ("# Stat: potential collisions=%1.2f (%1.2e/s)\n",
               potential_collisions, 1000.0 * potential_collisions
-              / (double) cputime ());
+              / (double) milliseconds ());
       if (collisions > 0)
         {
-          printf ("# Stat: raw lognorm (min/av/max): %1.2f/%1.2f/%1.2f\n",
-                  min_raw_lognorm, aver_raw_lognorm / collisions, max_raw_lognorm);
+          double mean = aver_opt_lognorm / collisions_good;
+          double rawmean = aver_raw_lognorm / collisions;
+
+          printf ("# Stat: raw lognorm (min/av/max/std): %1.2f/%1.2f/%1.2f/%1.2f\n",
+                  min_raw_lognorm, rawmean, max_raw_lognorm,
+                  sqrt (var_raw_lognorm / collisions - rawmean * rawmean));
           if (collisions_good > 0)
-            printf ("# Stat: optimized lognorm (min/av/max): %1.2f/%1.2f/%1.2f\n",
-                    min_opt_lognorm, aver_opt_lognorm / collisions_good,
-                    max_opt_lognorm);
+            printf ("# Stat: optimized lognorm (min/av/max/std): %1.2f/%1.2f/%1.2f/%1.2f\n",
+                    min_opt_lognorm, mean, max_opt_lognorm,
+                    sqrt (var_opt_lognorm / collisions_good - mean * mean));
           printf ("# Stat: av. g0/adm2 ratio: %.3e\n",
                   total_adminus2 / (double) collisions);
           if (d == 6)

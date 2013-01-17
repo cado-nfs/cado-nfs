@@ -400,6 +400,17 @@ modul_add (residueul_t r, const residueul_t a, const residueul_t b,
 
 MAYBE_UNUSED
 static inline void
+modul_add1 (residueul_t r, const residueul_t a, const modulusul_t m)
+{
+  ASSERT_EXPENSIVE (a[0] < m[0]);
+  r[0] = a[0] + 1;
+  if (r[0] == m[0])
+    r[0] = 0;
+}
+
+
+MAYBE_UNUSED
+static inline void
 modul_add_ul (residueul_t r, const residueul_t a, const unsigned long b, 
 	      const modulusul_t m)
 {
@@ -521,7 +532,7 @@ modul_frommontgomery (residueul_t r, const residueul_t a,
                       const unsigned long invm, const modulusul_t m)
 {
   unsigned long tlow, thigh;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, a[0], invm); /* FIXME: why not IMUL? */
+  tlow = a[0] * invm;
   ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
   r[0] = thigh + (a[0] != 0UL ? 1UL : 0UL);
 }

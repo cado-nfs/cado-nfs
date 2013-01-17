@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <sys/resource.h>
 #include <gmp.h>		// for random
 
 #include "cantor128.h"
@@ -31,9 +30,7 @@ extern int mulcount;
 // cputime in millisec.
 static int cputime()
 {
-    struct rusage rus;
-    getrusage(0, &rus);
-    return rus.ru_utime.tv_sec * 1000 + rus.ru_utime.tv_usec / 1000;
+    return milliseconds();
 }
 
 

@@ -1,3 +1,14 @@
+/* If you have a X86-64 machine, define this uses a ASM code
+   for hash_find_collision. This ASM code is pretty fast, but
+   the C code has been modified to help gcc optimizer at its
+   maximum, so if you use gcc 4.6, it's not really useful to
+   define this. */
+/* #define SHASH_FC_X86 */
+
+#define TOKENPASTE(x, y) x ## y
+#define TOKENPASTE2(x, y) TOKENPASTE(x, y)
+#define LABEL_UNIQUE TOKENPASTE2(Label, __LINE__)
+
 /* Data struct used for polyselect2l */
 #include "polyselect2l_str.h"
 
@@ -151,8 +162,9 @@ proots_init ( proots_t R,
   R->size = size;
 
   /* length of nr&roots is known now. lengths of roots[i] are TBD. */
-  R->nr = (unsigned int *) malloc (size * sizeof (unsigned int));
-  R->roots = (uint64_t **) malloc (size * sizeof (uint64_t*));
+  /* +1 for R->nr for end guard in collision_on_each_sq */
+  R->nr = (uint8_t *) malloc ((size + 1) * sizeof (*(R->nr)));
+  R->roots = (uint64_t **) malloc (size * sizeof (*(R->roots)));
 
   if (R->nr == NULL || R->roots == NULL) {
     fprintf (stderr, "Error, cannot allocate memory in proots_init().\n");
@@ -269,7 +281,7 @@ qroots_rearrange (qroots_t R)
           max = j;
         }
       }
-      
+
       tmpq = R->q[i];
       tmpnr = R->nr[i];
       for (k = 0; k < MAX_DEGREE; k ++)
@@ -370,9 +382,9 @@ shash_init (shash_t H, unsigned int init_size)
   init_size += init_size / 10 + 128; /* use 10% margin */
   if (init_size > init_size0)
     init_size = init_size0;
-  H->alloc = init_size * (SHASH_NBUCKETS + 1) + 5;
+  H->alloc = init_size * (SHASH_NBUCKETS + 1) + 8;
   /* + init_size for guard for the last buckets to avoid seg fault */
-  /* + 5 for extreme guard when init_size is too small */
+  /* + 8 for extreme guard (ASM X86 needs 8, C needs 5 when init_size is too small */
   H->mem = (uint64_t*) malloc (H->alloc * sizeof (uint64_t));
   if (!H->mem)
     {
@@ -387,7 +399,7 @@ shash_init (shash_t H, unsigned int init_size)
     }
   /* Trick for prefetch T in shash_find_collision after the end
      of the last bucket. */
-  memset (H->base[SHASH_NBUCKETS], 0, sizeof(**(H->base) * 5));
+  memset (H->base[SHASH_NBUCKETS], 0, sizeof(**(H->base) * 8));
 }
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
@@ -422,23 +434,518 @@ hash_add (hash_t H, unsigned long p, int64_t i, mpz_t m0, uint64_t ad,
   H->size ++;
 }
 
+MAYBE_UNUSED static inline uint8_t shash_find_collision_heart (uint64_t *Hj, uint64_t *Hjm, uint32_t *T, uint32_t mask) {
+  uint8_t ret;
+/* Parameters :
+   %0: result. 1 = bad, 0 = OK.
+   %1: *Hj, in register.
+   %2: *Hjm, in memory (to have a free register).
+   %3: *T, in register.
+   %4: mask << 2, because of uint32_t (sizeof = 4) in T. Register.
+   %5: LN2SHASH_NBUCKETS-2. Constant. -2 for the same reason.
+   The registers ring buffer is in R8 to R15.
+*/
+  __asm__ __volatile__ (
+    "movq (%1), %%rax\n"
+    "mov %%rax, %%r8\n"
+    "shr $0x20, %%rax\n"
+    "add %%r8, %%rax\n"
+    "shr %5, %%r8\n"
+    "and %4, %%r8d\n"
+    "prefetcht0 (%3, %%r8, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r8\n"
+
+    "movq 0x08(%1), %%rax\n"
+    "mov %%rax, %%r9\n"
+    "shr $0x20, %%rax\n"
+    "add %%r9, %%rax\n"
+    "shr %5, %%r9\n"
+    "and %4, %%r9d\n"
+    "prefetcht0 (%3, %%r9, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r9\n"
+
+    "movq 0x10(%1), %%rax\n"
+    "mov %%rax, %%r10\n"
+    "shr $0x20, %%rax\n"
+    "add %%r10, %%rax\n"
+    "shr %5, %%r10\n"
+    "and %4, %%r10d\n"
+    "prefetcht0 (%3, %%r10, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r10\n"
+
+    "movq 0x18(%1), %%rax\n"
+    "mov %%rax, %%r11\n"
+    "shr $0x20, %%rax\n"
+    "add %%r11, %%rax\n"
+    "shr %5, %%r11\n"
+    "and %4, %%r11d\n"
+    "prefetcht0 (%3, %%r11, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r11\n"
+
+    "movq 0x20(%1), %%rax\n"
+    "mov %%rax, %%r12\n"
+    "shr $0x20, %%rax\n"
+    "add %%r12, %%rax\n"
+    "shr %5, %%r12\n"
+    "and %4, %%r12d\n"
+    "prefetcht0 (%3, %%r12, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r12\n"
+
+    "movq 0x28(%1), %%rax\n"
+    "mov %%rax, %%r13\n"
+    "shr $0x20, %%rax\n"
+    "add %%r13, %%rax\n"
+    "shr %5, %%r13\n"
+    "and %4, %%r13d\n"
+    "prefetcht0 (%3, %%r13, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r13\n"
+
+    "movq 0x30(%1), %%rax\n"
+    "mov %%rax, %%r14\n"
+    "shr $0x20, %%rax\n"
+    "add %%r14, %%rax\n"
+    "shr %5, %%r14\n"
+    "and %4, %%r14d\n"
+    "prefetcht0 (%3, %%r14, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r14\n"
+
+    "movq 0x38(%1), %%rax\n"
+    "mov %%rax, %%r15\n"
+    "shr $0x20, %%rax\n"
+    "add %%r15, %%rax\n"
+    "shr %5, %%r15\n"
+    "and %4, %%r15d\n"
+    "prefetcht0 (%3, %%r15, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r15\n"
+
+    "add $0x40, %1\n"
+    "cmp %2, %1\n"
+    "jae 1f\n"
+    /****************************************/
+    "0:\n"
+    "prefetcht0 0x280(%1)\n"
+    
+    "mov %%r8d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r8\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 00f\n"
+    "01:\n"
+    "movl %%r8d, (%3, %%rax, 1)\n"
+    "movq (%1), %%rax\n"
+    "mov %%rax, %%r8\n"
+    "shr $0x20, %%rax\n"
+    "add %%r8, %%rax\n"
+    "shr %5, %%r8\n"
+    "and %4, %%r8d\n"
+    "prefetcht0 (%3, %%r8, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r8\n"
+
+    "mov %%r9d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r9\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 10f\n"
+    "11:\n"
+    "movl %%r9d, (%3, %%rax, 1)\n"
+    "movq 0x08(%1), %%rax\n"
+    "mov %%rax, %%r9\n"
+    "shr $0x20, %%rax\n"
+    "add %%r9, %%rax\n"
+    "shr %5, %%r9\n"
+    "and %4, %%r9d\n"
+    "prefetcht0 (%3, %%r9, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r9\n"
+
+    "mov %%r10d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r10\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 20f\n"
+    "21:\n"
+    "movl %%r10d, (%3, %%rax, 1)\n"
+    "movq 0x10(%1), %%rax\n"
+    "mov %%rax, %%r10\n"
+    "shr $0x20, %%rax\n"
+    "add %%r10, %%rax\n"
+    "shr %5, %%r10\n"
+    "and %4, %%r10d\n"
+    "prefetcht0 (%3, %%r10, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r10\n"
+
+    "mov %%r11d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r11\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 30f\n"
+    "31:\n"
+    "movl %%r11d, (%3, %%rax, 1)\n"
+    "movq 0x18(%1), %%rax\n"
+    "mov %%rax, %%r11\n"
+    "shr $0x20, %%rax\n"
+    "add %%r11, %%rax\n"
+    "shr %5, %%r11\n"
+    "and %4, %%r11d\n"
+    "prefetcht0 (%3, %%r11, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r11\n"
+
+    "mov %%r12d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r12\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 40f\n"
+    "41:\n"
+    "movl %%r12d, (%3, %%rax, 1)\n"
+    "movq 0x20(%1), %%rax\n"
+    "mov %%rax, %%r12\n"
+    "shr $0x20, %%rax\n"
+    "add %%r12, %%rax\n"
+    "shr %5, %%r12\n"
+    "and %4, %%r12d\n"
+    "prefetcht0 (%3, %%r12, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r12\n"
+
+    "mov %%r13d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r13\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 50f\n"
+    "51:\n"
+    "movl %%r13d, (%3, %%rax, 1)\n"
+    "movq 0x28(%1), %%rax\n"
+    "mov %%rax, %%r13\n"
+    "shr $0x20, %%rax\n"
+    "add %%r13, %%rax\n"
+    "shr %5, %%r13\n"
+    "and %4, %%r13d\n"
+    "prefetcht0 (%3, %%r13, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r13\n"
+
+    "mov %%r14d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r14\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 60f\n"
+    "61:\n"
+    "movl %%r14d, (%3, %%rax, 1)\n"
+    "movq 0x30(%1), %%rax\n"
+    "mov %%rax, %%r14\n"
+    "shr $0x20, %%rax\n"
+    "add %%r14, %%rax\n"
+    "shr %5, %%r14\n"
+    "and %4, %%r14d\n"
+    "prefetcht0 (%3, %%r14, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r14\n"
+
+    "mov %%r15d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r15\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 70f\n"
+    "71:\n"
+    "movl %%r15d, (%3, %%rax, 1)\n"
+    "movq 0x38(%1), %%rax\n"
+    "mov %%rax, %%r15\n"
+    "shr $0x20, %%rax\n"
+    "add %%r15, %%rax\n"
+    "shr %5, %%r15\n"
+    "and %4, %%r15d\n"
+    "prefetcht0 (%3, %%r15, 1)\n"
+    "shl $0x20, %%rax\n"
+    "or %%rax, %%r15\n"
+
+    "add $0x40, %1\n"
+    "cmp %2, %1\n"
+    "jb 0b\n"
+    /************************************************/
+    "1:\n"
+    "mov %1, %%rax\n"
+    "sub %2, %%rax\n"
+    "and $0x38, %%rax\n"
+    "jmp *00000f(,%%rax,1)\n"
+    ".balign 8\n"
+    "00000:\n"
+    ".quad 1000\n"
+    ".quad 1001\n"
+    ".quad 1002\n"
+    ".quad 1003\n"
+    ".quad 1004\n"
+    ".quad 1005\n"
+    ".quad 1006\n"
+    ".quad 1007\n"
+    /****************************/
+    /* In main loop, 8 cases when *Th != 0 */
+    
+    ".balign 8\n"
+    "00:\n"
+    "cmp %%r8d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 00b\n"
+    "jmp 01b\n"
+
+    ".balign 8\n"
+    "10:\n"
+    "cmp %%r9d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 10b\n"
+    "jmp 11b\n"
+
+    ".balign 8\n"
+    "20:\n"
+    "cmp %%r10d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 20b\n"
+    "jmp 21b\n"
+
+    ".balign 8\n"
+    "30:\n"
+    "cmp %%r11d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 30b\n"
+    "jmp 31b\n"
+
+    ".balign 8\n"
+    "40:\n"
+    "cmp %%r12d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 40b\n"
+    "jmp 41b\n"
+
+    ".balign 8\n"
+    "50:\n"
+    "cmp %%r13d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 50b\n"
+    "jmp 51b\n"
+
+    ".balign 8\n"
+    "60:\n"
+    "cmp %%r14d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 60b\n"
+    "jmp 61b\n"
+
+    ".balign 8\n"
+    "70:\n"
+    "cmp %%r15d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 70b\n"
+    "jmp 71b\n"
+
+    /****************************/
+    /* In the switch, 8 cases when (*Th) != 0 */
+    "000:\n"
+    "cmp %%r8d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 000b\n"
+    "jmp 001f\n"
+
+    "100:\n"
+    "cmp %%r9d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 100b\n"
+    "jmp 101f\n"
+
+    "200:\n"
+    "cmp %%r10d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 200b\n"
+    "jmp 201f\n"
+
+    "300:\n"
+    "cmp %%r11d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 300b\n"
+    "jmp 301f\n"
+
+    "400:\n"
+    "cmp %%r12d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 400b\n"
+    "jmp 401f\n"
+
+    "500:\n"
+    "cmp %%r13d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 500b\n"
+    "jmp 501f\n"
+
+    "600:\n"
+    "cmp %%r14d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 600b\n"
+    "jmp 601f\n"
+
+    "700:\n"
+    "cmp %%r15d, %%ebx\n"
+    "je 3f\n"
+    "add $0x4, %%rax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 700b\n"
+    "jmp 701f\n"
+    /****************************/
+    "3:\n"
+    "mov $0x1, %%al\n"
+    "jmp 2f\n"
+    /***************************/
+    /* 8 cases of the end switch */
+    "0000:\n"
+    "mov %%r15d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r15\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 700b\n"
+    "701:\n"
+    "movl %%r15d, (%3, %%rax, 1)\n"
+
+    "1001:\n"
+    "mov %%r14d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r14\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 600b\n"
+    "601:\n"
+    "movl %%r14d, (%3, %%rax, 1)\n"
+
+    "1002:\n"
+    "mov %%r13d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r13\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 500b\n"
+    "501:\n"
+    "movl %%r13d, (%3, %%rax, 1)\n"
+
+    "1003:\n"
+    "mov %%r12d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r12\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 400b\n"
+    "401:\n"
+    "movl %%r12d, (%3, %%rax, 1)\n"
+
+    "1004:\n"
+    "mov %%r11d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r11\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 300b\n"
+    "301:\n"
+    "movl %%r11d, (%3, %%rax, 1)\n"
+
+    "1005:\n"
+    "mov %%r10d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r10\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 200b\n"
+    "201:\n"
+    "movl %%r10d, (%3, %%rax, 1)\n"
+
+    "1006:\n"
+    "mov %%r9d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r9\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 100\n"
+    "101:\n"
+    "movl %%r9d, (%3, %%rax, 1)\n"
+
+    "1007:\n"
+    "mov %%r8d, %%eax\n"
+    "movl (%3, %%rax, 1), %%ebx\n"
+    "shr $0x20, %%r8\n"
+    "test %%ebx, %%ebx\n"
+    "jnz 000b\n"
+    "001:\n"
+    "movl %%r8d, (%3, %%rax, 1)\n"
+
+    /* The End */
+    "xor %%al, %%al\n"
+    "2:\n"
+    "mov %%al, %0\n"
+    : "=g"(ret)
+    : "r"(Hj), "g"(Hjm), "r"(T), "r"(mask<<2), "i"(LN2SHASH_NBUCKETS-2)
+    : "%rax", "%rbx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15");
+  return(ret);
+}
+
 int
 shash_find_collision (shash_t H)
 {
   static uint32_t size = 0, mask;
   uint64_t *Hj, *Hjm;
-  uint32_t *Th0, *Th1, *Th2, *Th3, *Th4, *T, *Tend;
-  uint64_t i0, i1, i2, i3, i4;
+  uint32_t *T;
   uint32_t k;
-  unsigned int key;
-  
+
 #define SHASH_RESEARCH(TH,I)				\
   do {							\
     key = ((I) >> 32) + (I);				\
-    while (UNLIKELY(*TH)) {				\
+    if (UNLIKELY(*TH)) do {				\
       if (UNLIKELY(*TH == key)) { free (T); return 1; }	\
-      TH++; if (UNLIKELY(TH == Tend)) TH = T;		\
-    }							\
+    } while (*(++TH));					\
     *TH = key;						\
   } while (0)
 
@@ -448,19 +955,19 @@ shash_find_collision (shash_t H)
     TH = T + ((I >> LN2SHASH_NBUCKETS) & mask); \
     __builtin_prefetch(TH, 1, 3);		\
   } while (0)					\
-  
+
   if (!size) {
     size = H->balloc << 1;
     /* round up to power of 2 */
     size --;
     while (size & (size - 1))
       size &= size - 1;
-    size <<= 1;
+    size <<= 2;
     ASSERT_ALWAYS((size & (size - 1)) == 0);
     mask = size - 1;
+    size += 16; /* Guard to avoid to test the end of hash_table when ++TH */
   }
   T = (uint32_t*) malloc (size * sizeof(*T));
-  Tend = T + size;
   for (k = 0; k < SHASH_NBUCKETS; k++) {
     Hj = H->base[k];
     Hjm = H->current[k];
@@ -469,6 +976,16 @@ shash_find_collision (shash_t H)
     /* Here, a special guard at the end of shash_init allows
        until Hjm[SHASH_BUCKETS-1] + 5.
        So, it's not needed to test if Hj + 4 < Hjm to avoid prefetch problem. */
+#ifdef SHASH_FC_X86
+    if (shash_find_collision_heart(Hj, Hjm, T, mask)) {
+      free (T);
+      return (1);
+    }
+#else
+    uint32_t *Th0, *Th1, *Th2, *Th3, *Th4;
+    uint64_t i0, i1, i2, i3, i4;
+    unsigned int key;
+
     SHASH_TH_I(Th0, i0, 0);
     SHASH_TH_I(Th1, i1, 1);
     SHASH_TH_I(Th2, i2, 2);
@@ -476,8 +993,7 @@ shash_find_collision (shash_t H)
     SHASH_TH_I(Th4, i4, 4);
     Hj += 5;
     while (LIKELY(Hj < Hjm)) {
-      __builtin_prefetch(Hj, 0, 3);
-      __builtin_prefetch(((void *) Hj) + 32, 0, 3);
+      __builtin_prefetch(((void *) Hj) + 0x280, 0, 3);
       SHASH_RESEARCH(Th0, i0); SHASH_TH_I(Th0, i0, 0);
       SHASH_RESEARCH(Th1, i1); SHASH_TH_I(Th1, i1, 1);
       SHASH_RESEARCH(Th2, i2); SHASH_TH_I(Th2, i2, 2);
@@ -492,6 +1008,7 @@ shash_find_collision (shash_t H)
     case 3: SHASH_RESEARCH(Th1, i1);
     case 4: SHASH_RESEARCH(Th0, i0);
     }
+#endif
   }
   free (T);
   return 0;
@@ -500,101 +1017,82 @@ shash_find_collision (shash_t H)
 #undef SHASH_RESEARCH
 
 /* return non-zero iff there is a collision */
-#define PREFETCH 16
+#define PREFETCH 256
 int
-shash_find_collision_old (shash_t H)
+MAYBE_UNUSED shash_find_collision_old (shash_t H)
 {
   static uint32_t size = 0, mask;
-  struct {
-    uint32_t *Th, key;
-  } data[PREFETCH], *pdata, *edata, *ldata;
+  uint64_t data[PREFETCH], *pdata, *edata, *ldata;
   uint32_t *Th;
   uint32_t key;
   uint64_t *Hj, *Hjm;
-  uint32_t *T, *Tend;
+  uint32_t *T;
   uint64_t i;
   unsigned int j, k, l;
   
   if (!size) {
-    size = H->balloc + (H->balloc >> 1);
+    size = H->balloc << 1;
     /* round up to power of 2 */
     size --;
     while (size & (size - 1))
       size &= size - 1;
-    size <<= 1;
+    size <<= 2;
     ASSERT_ALWAYS((size & (size - 1)) == 0);
-    mask = size - 1;
+    mask = (size - 1);
+    size += 16;
   }
   T = (uint32_t*) malloc (size * sizeof(*T));
-  Tend = T + size;
   edata = data + PREFETCH;
-  for (k = 0; k <SHASH_NBUCKETS; k++) {
+  for (k = 0; k < SHASH_NBUCKETS; k++) {
     Hj = H->base[k];
     Hjm = H->current[k];
     if (Hj == Hjm) continue;
     memset (T, 0, size * sizeof(*T));
     pdata = data;
     j = Hjm - Hj;
+    for (l = 0; l < PREFETCH * 8; l += 64)
+      __builtin_prefetch(((void *) data) + l, 1, 3);
     if (j > PREFETCH) j = PREFETCH;
     for (l = 0; l < j; l++) {
       i = Hj[l];
-      data[l].Th = T + ((i >> LN2SHASH_NBUCKETS) & mask);
-      __builtin_prefetch(pdata->Th, 1, 0);
-      data[l].key = (i >> 32) + i;
+      key = (uint32_t) ((i >> 32) + i);
+      i = (i >> LN2SHASH_NBUCKETS) & mask;
+      __builtin_prefetch (T + i, 1, 3);
+      i = (i << 32) + key;
+      data[l] = i;
     }
     Hj += j;
     if (LIKELY(j == PREFETCH)) {
       while (LIKELY(Hj != Hjm)) {
+	__builtin_prefetch(((void *) Hj) + 0x280, 0, 3);
+	i = *pdata;
+	key = (uint32_t) i;
+	Th = T + (i >> 32);
+	if (UNLIKELY(*Th)) do {
+	  if (UNLIKELY(*Th == key)) { free (T); return 1; }
+	} while (*(++Th));
+	*Th = key;
 	i = *Hj++;
-	Th = pdata->Th;
-	pdata->Th = T + ((i >> LN2SHASH_NBUCKETS) & mask);
-	__builtin_prefetch(pdata->Th, 1, 0);
-	key = pdata->key;
-	pdata->key = (i >> 32) + i;
-	pdata++;
+	key = (uint32_t) ((i >> 32) + i);
+	i = (i >> LN2SHASH_NBUCKETS) & mask;
+	__builtin_prefetch (T + i, 1, 3);
+	i = (i << 32) + key;
+	*pdata++ = i;
 	if (UNLIKELY (pdata == edata)) pdata = data;
-	if (LIKELY(!*Th))
-	  *Th = key;
-	else
-	  {
-	    do {
-	      if (UNLIKELY(*Th == key))
-		{
-		  free (T);
-		  return 1;
-		}
-	      Th++;
-	      if (UNLIKELY(Th == Tend))
-		Th = T;
-	    } while (*Th);
-	    *Th = key;
-	  }
       }
       ldata = pdata;
     }
     else
       ldata = data + l;
     do {
-      Th = pdata->Th;
-      key = pdata->key;
-      pdata++;
+      i = *pdata++;
+      key = (uint32_t) i;
+      Th = T + (i >> 32);
       if (UNLIKELY (pdata == edata)) pdata = data;
-      if (LIKELY(!*Th))
-	*Th = key;
-      else
-        {
-          do {
-            if (UNLIKELY(*Th == key))
-              {
-                free (T);
-                return 1;
-              }
-            Th++;
-            if (UNLIKELY(Th == Tend))
-              Th = T;
-          } while (UNLIKELY(*Th));
-          *Th = key;
-        }
+      if (UNLIKELY(*Th)) do {
+	if (UNLIKELY(*Th == key)) { free (T); return 1; }
+      } while (*(++Th));
+      *Th = key;
     } while (LIKELY(ldata != pdata));
   }
   free (T);

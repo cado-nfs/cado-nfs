@@ -797,7 +797,7 @@ newAlgo (mpz_t N, unsigned long d, unsigned long ad)
 						 modul_set_ul_reduced (inv, qq, pp);
 						 modul_inv (inv, inv, pp);
 						 modul_mul (k, k, inv, pp);
-	      
+
 						 /* only consider k and k - pp */
 						 u = (long) modul_get_ul (k, pp);
 #ifdef CONSIDER_ONLY_TWO_ROOTS
@@ -919,8 +919,8 @@ main (int argc, char *argv[])
 	 double st0 = seconds (), maxtime = DBL_MAX;
 	 mpz_t N;
 	 unsigned int d = 0;
-	 unsigned long P, admin = 0, admax = ULONG_MAX;
-	 int tries = 0, i, nthreads = 1, target_time = TARGET_TIME;
+	 unsigned long P, admin = 0, admax = ULONG_MAX, target_time = TARGET_TIME;
+	 int tries = 0, i, nthreads = 1;
 	 tab_t *T;
 	 FILE *fp;
 #ifdef MAX_THREADS
@@ -1191,11 +1191,11 @@ main (int argc, char *argv[])
 			   fclose (fp);
 		  }
 
-		  if (cputime () > target_time || verbose > 0)
+		  if (milliseconds () > target_time || verbose > 0)
 		  {
-			   printf ("# ad=%lu time=%dms exp. coll.=%1.1f, got %lu (%0.3f/s), av. lognorm=%1.2f\n",
-					   admin, cputime (), potential_collisions,
-					   collisions, 1000.0 * (double) collisions / cputime (),
+			   printf ("# ad=%lu time=%lums exp. coll.=%1.1f, got %lu (%0.3f/s), av. lognorm=%1.2f\n",
+					   admin, milliseconds (), potential_collisions,
+					   collisions, 1000.0 * (double) collisions / milliseconds (),
 					   aver_lognorm / collisions);
 			   if (verbose > 1)
 					stats_sq ();
@@ -1208,7 +1208,7 @@ main (int argc, char *argv[])
 			 tries, tot_found, found);
 	 printf ("# potential collisions=%1.2e (%1.2e/s)\n",
 			 potential_collisions, 1000.0 * potential_collisions
-			 / (double) cputime ());
+			 / (double) milliseconds ());
 
 	 /* print best 10 values of logmu */
 	 printf ("# best logmu:");

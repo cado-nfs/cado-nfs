@@ -967,25 +967,7 @@ mod_jacobi (const residue_t a_par, const modulus_t m_par)
     
     /* m is odd here */
     if (mod_intcmp (a, m) >= 0)
-      {
-        if (a[1] == 0UL)
-          {
-            a[0] %= m[0];
-          }
-        else
-          {
-            /* FIXME, slow and stupid */
-            modint_t t;
-            mod_intset (t, m);
-            while (mod_intcmp (t, a) < 0)
-              mod_intshl (t, t, 1);
-            while (mod_intcmp (a, m) >= 0)
-              {
-		ularith_sub_2ul_2ul_ge (&(a[0]), &(a[1]), t[0], t[1]);
-                mod_intshr (t, t, 1);
-              }
-          }
-      }
+      mod_intmod (a, a, m);
   }
   if (m[1] != 0UL || m[0] != 1UL)
     t = 0;

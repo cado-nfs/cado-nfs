@@ -5,13 +5,16 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#ifdef HAVE_STATVFS_H
 #include <sys/statvfs.h>
+#endif
 #include <dlfcn.h>
 
 
 #include "bwc_config.h"
 #include "matmul.h"
 #include "matmul-libnames.h"
+#include "misc.h"
 
 #define MATMUL_DEFAULT_IMPL "bucket"
 
@@ -128,6 +131,8 @@ static void save_to_local_copy(matmul_ptr mm)
     }
     unsigned long fsize = sbuf->st_size;
 
+#ifdef HAVE_STATVFS_H
+    /* Check for remaining space on the filesystem */
     char * dirname = strdup(mm->local_cache_copy);
     char * last_slash = strrchr(dirname, '/');
     if (last_slash == NULL) {
@@ -140,23 +145,22 @@ static void save_to_local_copy(matmul_ptr mm)
 
     struct statvfs sf[1];
     rc = statvfs(dirname, sf);
-    if (rc < 0) {
-        fprintf(stderr, "Cannot do statvfs on %s: %s\n", dirname, strerror(errno));
-        free(dirname);
+    if (rc >= 0) {
+        unsigned long mb = sf->f_bsize * sf->f_bavail;
+
+        if (fsize > mb * 0.5) {
+            fprintf(stderr, "Copying %s to %s would occupy %lu MB out of %lu MB available, so more than 50%%. Skipping copy\n",
+                    mm->cachefile_name, dirname, fsize >> 20, mb >> 20);
+            free(dirname);
+            return;
+        }
+        fprintf(stderr, "%lu MB available on %s\n", mb >> 20, dirname);
+    } else {
+        fprintf(stderr, "Cannot do statvfs on %s (skipping check for available disk space): %s\n", dirname, strerror(errno));
     }
-    unsigned long mb = sf->f_bsize;
-    mb *= sf->f_bavail;
-
-
-    if (fsize > mb * 0.5) {
-        fprintf(stderr, "Copying %s to %s would occupy %lu MB out of %lu MB available, so more than 50%%. Skipping copy\n",
-                mm->cachefile_name, dirname, fsize >> 20, mb >> 20);
-        free(dirname);
-        return;
-    }
-    fprintf(stderr, "%lu MB available on %s\n", mb >> 20, dirname);
-
     free(dirname);
+#endif
+
 
     fprintf(stderr, "Also saving cache data to %s (%lu MB)\n", mm->local_cache_copy, fsize >> 20);
 

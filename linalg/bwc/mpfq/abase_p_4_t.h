@@ -18,17 +18,26 @@
                                   ],
                  'member_templates_restrict' => {
                                                   'p_1' => [
-                                                             'p_1'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_1'
+                                                             }
                                                            ],
                                                   'p_4' => [
-                                                             'p_4'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_4'
+                                                             }
                                                            ],
                                                   'u64k2' => [
                                                                'u64k1',
                                                                'u64k2'
                                                              ],
                                                   'p_3' => [
-                                                             'p_3'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_3'
+                                                             }
                                                            ],
                                                   'u64k1' => $vbase_stuff->{'member_templates_restrict'}{'u64k2'}
                                                 },
@@ -127,7 +136,7 @@
                   'name' => 'abase_vbase',
                   'global_prefix' => 'abase_'
                 };
- family=[p_4] */
+ family=[HASH(0x175a1f8)] */
 
 
 /* Functions operating on the field structure */

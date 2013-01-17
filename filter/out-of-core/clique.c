@@ -22,7 +22,7 @@
    -remove nnn : the number of "cliques" to be removed
 */
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE     /* FIXME. Include directly cado.h instead */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,7 +30,6 @@
 #include <pthread.h>
 #include <assert.h>
 #include <sys/types.h>
-#include <sys/resource.h>
 #include <sys/time.h>
 #include <fcntl.h>
 #include <math.h>
@@ -177,16 +176,6 @@ compute_delay_stat ()
   for (h = (Hsize>>24), i = 0; h; h >>=1, i++);
   return (i) ? (double) (i<<6) : 32.;
   */
-}
-
-double
-cputime ()
-{
-  struct rusage rus;
-
-  getrusage (RUSAGE_SELF, &rus);
-  /* This overflows a 32 bit signed int after 2147483s = 24.85 days */
-  return rus.ru_utime.tv_sec + rus.ru_utime.tv_usec / 1000000.0;
 }
 
 double
@@ -858,7 +847,7 @@ est_excess (double a)
 static void*
 stat () {
   uint64_t *hd, *he, h, wt[16];
-  long st = cputime (), rt = realtime ();
+  long st = seconds (), rt = realtime ();
   unsigned long nideal, nsingl, ndupli;
   double est_ideals;
   int dum;
@@ -882,7 +871,7 @@ stat () {
   ndupli = wt[2];
   for (hd = &(wt[2]); hd < &(wt[16]); nideal += *hd++);
   fprintf (stderr, "   Stat() took %lds (cpu), %lds (real)\n",
-           (unsigned long) (cputime () - st), (unsigned long) (realtime () - rt));
+           (unsigned long) (seconds () - st), (unsigned long) (realtime () - rt));
   est_ideals = estimate_ideals ((double) M, (double) nideal);
   fprintf (stderr, "   Read at least %lu rels (%lu/s), %lu ideals (%.2f%%), %lu singletons, %lu of weight 2\n",
            nrels, (unsigned long) (nrels / (rt - wct0)),
@@ -901,7 +890,7 @@ stat_mt (int nthreads)
   tab_t *T;
   pthread_t tid[MAX_THREADS];
   unsigned long nideal = 0, nsingl = 0, ndupli = 0;
-  long st = cputime (), rt = realtime ();
+  long st = seconds (), rt = realtime ();
   double est_ideals;
 
   T = malloc (nthreads * sizeof (tab_t));
@@ -920,7 +909,7 @@ stat_mt (int nthreads)
     }
   free (T);
   fprintf (stderr, "   Stat_mt() took %lds (cpu), %lds (real)\n",
-           (unsigned long) (cputime () - st), (unsigned long) (realtime () - rt));
+           (unsigned long) (seconds () - st), (unsigned long) (realtime () - rt));
   est_ideals = estimate_ideals ((double) M, (double) nideal);
   fprintf (stderr, "   Read %lu rels (%lu/s), %lu ideals (%.2f%%), %lu singletons, %lu of weight 2\n",
            nrels, (unsigned long) (nrels / (rt - wct0)),
@@ -939,7 +928,7 @@ pass1 (int nthreads, char *filelist)
   int i, j = 0, nbt = 0, notload, nbf, notfirst = 0, avoidwarning = 0;
   tab_t *T;
   pthread_t tid[MAX_THREADS+1], sid;
-  double st = cputime(), rt = realtime(), crt, art,
+  double st = seconds(), rt = realtime(), crt, art,
     delay_stat = compute_delay_stat();
   size_t lpg;
 
@@ -1001,7 +990,7 @@ pass1 (int nthreads, char *filelist)
       fprintf (stderr, "Pass1; rels: load %lu; krels/s: %lu; time: %lus cpu, %lus real\n",
 	       nrels,
 	       (unsigned long) (nrels / ((art - rt) * 1000)),
-	       (unsigned long) (cputime() - st),
+	       (unsigned long) (seconds() - st),
 	       (unsigned long) (art - rt));
       j = 0;
     }
@@ -1022,7 +1011,7 @@ pass1 (int nthreads, char *filelist)
   fprintf (stderr, "\n*** Pass 1, final stats: *** \n");
   stat_mt (nthreads);
   fprintf (stderr, "Pass 1 took %lds (cpu), %lds (real)\n",
-           (unsigned long) (cputime () - st), (unsigned long) (realtime () - rt));
+           (unsigned long) (seconds () - st), (unsigned long) (realtime () - rt));
   sem_destroy(&sem_pt);
   fclose (f);
   free (T);
@@ -1040,7 +1029,7 @@ pass2 (int nthreads, char *filelist)
   char g[ARG_MAX], *pg;
   tab_t *T;
   pthread_t tid[MAX_THREADS+1];
-  double st = cputime(), rt = realtime(), art;
+  double st = seconds(), rt = realtime(), art;
   size_t lpg;
   uint64_t h;
   int i, j = 0, notload, nbt = 0, nbf, avoidwarning = 0;
@@ -1101,7 +1090,7 @@ pass2 (int nthreads, char *filelist)
 	       nrels, remains,
 	       (100.0 * remains) / nrels,
 	       (unsigned long) (nrels / ((art - rt) * 1000)),
-	       (unsigned long) (cputime() - st),
+	       (unsigned long) (seconds() - st),
 	       (unsigned long) (art - rt));
       j = 0;
     }
@@ -1113,7 +1102,7 @@ pass2 (int nthreads, char *filelist)
 	   nrels, remains,
 	   (100.0 * remains) / nrels,
 	   (unsigned long) (nrels / ((art - rt) * 1000)),
-	   (unsigned long) (cputime() - st),
+	   (unsigned long) (seconds() - st),
 	   (unsigned long) (art - rt));
   sem_destroy(&sem_pt);
   fclose (f);
@@ -1141,7 +1130,7 @@ pass3 (int nthreads, char *filelist)
   int i, j = 0, k = 0, nbt = 0, notload, avoidwarning = 0;
   tab_t *T;
   pthread_t tid[MAX_THREADS+1];
-  double st = cputime(), rt = realtime(), art;
+  double st = seconds(), rt = realtime(), art;
   size_t lg;
 
   fprintf (stderr, "\n"
@@ -1191,7 +1180,7 @@ pass3 (int nthreads, char *filelist)
 	       nrels, remains,
 	       (100.0 * remains) / nrels,
 	       (unsigned long) (nrels / ((art - rt) * 1000)),
-	       (unsigned long) (cputime() - st),
+	       (unsigned long) (seconds() - st),
 	       (unsigned long) (art - rt));
       j = k = 0;
     }
@@ -1203,7 +1192,7 @@ pass3 (int nthreads, char *filelist)
 	   nrels, remains,
 	   (100.0 * remains) / nrels,
 	   (unsigned long) (nrels / ((art - rt) * 1000)),
-	   (unsigned long) (cputime() - st),
+	   (unsigned long) (seconds() - st),
 	   (unsigned long) (art - rt));
   sem_destroy(&sem_pt);
   fclose (f);

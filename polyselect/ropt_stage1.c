@@ -864,7 +864,7 @@ ropt_stage1 ( ropt_poly_t poly,
 
   /* return the nbest sublattices to pqueue ranked by the size of u */
   if (param->verbose >= 2)
-    st = cputime ();
+    st = milliseconds ();
 
   re = return_best_sublattice ( poly,
                                 s1param,
@@ -878,8 +878,8 @@ ropt_stage1 ( ropt_poly_t poly,
   }
 
   if (param->verbose >= 2)
-    gmp_fprintf ( stderr, "# Info: find best sublattices took %dms\n",
-                  cputime () - st );
+    gmp_fprintf ( stderr, "# Info: find best sublattices took %lums\n",
+                  milliseconds () - st );
 
   /* fuv is f+(u*x+v)*g */
   fuv = (mpz_t*) malloc ((poly->d + 1) * sizeof (mpz_t));
@@ -891,7 +891,7 @@ ropt_stage1 ( ropt_poly_t poly,
     mpz_init_set (fuv[i], poly->f[i]);
 
   if (param->verbose >= 2)
-    st = cputime ();
+    st = milliseconds ();
   
   /* put pqueue into the global alpha_pqueue ranked by parial alpha */
   for (i = 1; i < pqueue->used; i ++) {
@@ -937,8 +937,8 @@ ropt_stage1 ( ropt_poly_t poly,
   }
 
   if (param->verbose >= 2)
-    gmp_fprintf ( stderr, "# Info: rank above sublattices took %dms\n",
-                  cputime () - st );
+    gmp_fprintf ( stderr, "# Info: rank above sublattices took %lums\n",
+                  milliseconds () - st );
 
   /* free priority queue */
   free_sublattice_pq (&pqueue);

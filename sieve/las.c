@@ -1628,7 +1628,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
                 }
             }
         }
-    }
+
         relation_compress_rat_primes(rel);
         relation_compress_alg_primes(rel);
 

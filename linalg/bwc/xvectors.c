@@ -33,7 +33,7 @@ void setup_x_random(uint32_t * xs,
         for(unsigned int i = 0 ; i < m ; i++) {
             for(;;) {
                 for(unsigned int j = 0 ; j < nx ; j++) {
-                    xs[i*nx+j] = myrand() % nr;
+                    xs[i*nx+j] = rand() % nr;
                 }
                 /* Make sure that there's no collision. Not that it
                  * matters so much, but at times the X vector is set with

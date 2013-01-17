@@ -7,4 +7,4 @@ search_for_function(exp2 HAVE_EXP2)
 
 search_for_function(cabsl HAVE_CABSL)
 
-set(math_libs ${CMAKE_REQUIRED_LIBRARIES})
+set(math_libs ${CMAKE_REQUIRED_LIBRARIES_EXTRA})

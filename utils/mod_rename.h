@@ -35,6 +35,7 @@
 #undef mod_is0
 #undef mod_is1
 #undef mod_add
+#undef mod_add1
 #undef mod_add_ul
 #undef mod_sub
 #undef mod_sub_ul
@@ -98,6 +99,7 @@
 #define mod_is0              MOD_RENAME(is0)
 #define mod_is1              MOD_RENAME(is1)
 #define mod_add              MOD_RENAME(add)
+#define mod_add1             MOD_RENAME(add1)
 #define mod_add_ul           MOD_RENAME(add_ul)
 #define mod_sub              MOD_RENAME(sub)
 #define mod_sub_ul           MOD_RENAME(sub_ul)

@@ -904,7 +904,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   tmpBmin = s2param->Bmin;
 
   /* for each i -> each u = A + MOD * i */
-  int st = cputime ();
+  int st = milliseconds ();
   do {
 
     /* fo reach block of size size_B_block */
@@ -1045,8 +1045,8 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
                   local_E_pqueue->used - 1,
                   info->ave_MurphyE,
                   s2param->A, s2param->B );
-    fprintf ( stderr, "# Stat: root sieve took %dms\n",
-              cputime () - st );
+    fprintf ( stderr, "# Stat: root sieve took %lums\n",
+              milliseconds () - st );
   }
 
   /* free */

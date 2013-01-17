@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include "macros.h"
 
 #ifdef HAVE_GCC_STYLE_AMD64_ASM
 
@@ -509,9 +510,8 @@ cachesize_cpuid (int verbose)
 #else
 
 int
-cachesize_cpuid (int verbose)
+cachesize_cpuid (int verbose MAYBE_UNUSED)
 {
-  verbose = 0;
   return -1;
 }
 

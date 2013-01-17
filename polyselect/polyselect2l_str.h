@@ -24,6 +24,18 @@
 # endif
 #endif
 
+/* For the moment, this value is static. But it's highly critical for
+   performance in the shash table cribble:
+   * 10 (or 9) seems the best for an Intel nehalem (?).
+   * 6 seems the best for Intel Core2 (?).
+   * 7 seems the best for AMD (?).
+   So, the next optimization will include real time tests to
+   evaluate the best value.
+   NOTA: The good range is between 6 and 10. Don't use values <= 4!
+   Values >= 12 are not interesting.
+*/
+#define LN2SHASH_NBUCKETS 8
+
 /* hash table slots */
 typedef struct
 {
@@ -46,7 +58,6 @@ typedef struct
 } __hash_struct;
 typedef __hash_struct hash_t[1];
 
-#define LN2SHASH_NBUCKETS 9
 #define SHASH_NBUCKETS (1<<LN2SHASH_NBUCKETS)
 
 typedef struct
@@ -73,7 +84,7 @@ typedef __tab_struct tab_t[1];
 typedef struct
 {
   unsigned long size;    /* used size */
-  unsigned int *nr;     /* number of roots of x^d = N (mod p) */
+  uint8_t *nr;     /* number of roots of x^d = N (mod p) */
   uint64_t **roots; /* roots of (m0+x)^d = N (mod p^2) */
 } __proots_struct;
 typedef __proots_struct proots_t[1];
@@ -102,7 +113,10 @@ typedef _header_struct header_t[1];
 
 /* inline functions */
 
-INLINE void
+#ifndef EMIT_ADDRESSABLE_shash_add
+INLINE
+#endif
+void
 shash_add (shash_t H, uint64_t i)
 {
   /*

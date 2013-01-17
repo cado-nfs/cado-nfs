@@ -679,15 +679,13 @@ Montgomery12_curve_from_k (residue_t A, residue_t x, const unsigned long k,
 
   if (k == 2)
     {
-      mod_add (v, one, one, m); /* v = 2 */
-      mod_add (v, v, one, m);   /* v = 3 */
-      mod_add (v, v, v, m);     /* v = 6 */
+      mod_add (a, one, one, m); /* a = 2 */
+      mod_add1 (a, a, m);       /* a = 3 */
+      mod_add (v, a, a, m);     /* v = 6 */
       mod_add (v, v, v, m);     /* v = 12 */
-      mod_add (v, v, one, m);   /* v = 13 */
+      mod_add1 (v, v, m);       /* v = 13 */
       mod_neg (v, v, m);        /* v = -13 */
       mod_div3 (v, v, m);       /* v = -13/3 = 1/a */
-      mod_add (a, one, one, m); /* a = 2 */
-      mod_add (a, a, one, m);   /* a = 3 */
       mod_neg (a, a, m);        /* a = -3 */
       mod_div13 (a, a, m);      /* a = -3/13 */
     }
@@ -695,21 +693,17 @@ Montgomery12_curve_from_k (residue_t A, residue_t x, const unsigned long k,
     {
 #if 0
       mod_set_ul (v, 37UL, m);
-#else
-      /* Addition chain for 37. Slightly faster than the mod_set_ul(). 
-	 Maybe I should just pre-compute 2^(k*LONG_BIT) in Montgomery 
-	 form for fast conversion in mod_set_ul(). */
-      mod_add (v, one, one, m); /* v = 2 */
-      mod_add (v, v, v, m);     /* v = 4 */
-      mod_add (u, v, one, m);   /* u = 5 */
-      mod_add (v, v, v, m);     /* v = 8 */
-      mod_add (v, v, v, m);     /* v = 16 */
-      mod_add (v, v, v, m);     /* v = 32 */
-      mod_add (v, v, u, m);     /* v = 37 */
-#endif
       mod_div2 (v, v, m);
       mod_div2 (v, v, m);
       mod_div7 (v, v, m);      /* v = 37/28 = 1/a */
+#else
+      mod_div2 (v, one, m);	/* v = 1/2 */
+      mod_div2 (v, v, m);	/* v = 1/4 */
+      mod_add1 (v, v, m);       /* v = 5/4 */
+      mod_add1 (v, v, m);       /* v = 9/4 */
+      mod_div7 (v, v, m);       /* v = 9/28 */
+      mod_add1 (v, v, m);       /* v = 37/28 = 1/a */
+#endif
       /* TODO: Write a mod_div37()? Or a general mod_div_n() for small n? */
       if (mod_inv (a, v, m) == 0)  /* a = 28/37 */
         {
@@ -1303,7 +1297,7 @@ ecm_stage2 (residue_t r, const ellM_point_t P, const stage2_plan_t *plan,
   /* Init the accumulator to Pj[0], which contains the product of
      the Z-coordinates of all the precomputed points, except Pj_z[0]
      which is equal to P, and we know that one is coprime to the modulus. 
-     Maybe one of the oters was zero (mod p) for some prime factor p. */
+     Maybe one of the others was zero (mod p) for some prime factor p. */
 
   mod_set (a, Pj_x[0], m);
   mod_init_noset0 (a_bk, m); /* Backup value of a, in case we get a == 0 */

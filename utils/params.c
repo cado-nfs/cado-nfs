@@ -9,6 +9,7 @@
 
 #include "params.h"
 #include "macros.h"
+#include "misc.h"
 
 void param_list_init(param_list pl)
 {
