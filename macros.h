@@ -136,6 +136,9 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #ifndef ATTR_PRINTF
 #define ATTR_PRINTF(a,b) __attribute__((format(printf,a,b)))
 #endif
+#ifndef ATTRIBUTE
+#define ATTRIBUTE(x) __attribute__ (x)
+#endif
 #else
 #ifndef NO_INLINE
 #define NO_INLINE
@@ -149,6 +152,9 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #ifndef ATTR_PRINTF
 #define ATTR_PRINTF(a,b) /**/
 #endif
+#ifndef ATTRIBUTE
+#define ATTRIBUTE(x)
+#endif
 #endif
 
 #ifndef	LIKELY
@@ -156,6 +162,34 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #endif
 #ifndef	UNLIKELY
 #define UNLIKELY(x)	EXPECT(x,0)
+#endif
+
+/* Portability macros */
+
+/* MS VS and MinGW use the MS RTL (called MSVCRT for MinGW) which does not
+   know the "%zu" format, they use "%Iu" instead. On MinGW, we use wrapper 
+   functions that rewrite the %zu format accordingly, so the bulk of the
+   code can continue to use C99 syntax.
+   We do these renames only if stdio.h has been parsed before this file.
+   Header files that need a certain include order are ugly, but that never
+   stopped us and renaming printf() before parsing stdio.h would be "bad." 
+   This way, when the renames are needed but don't happen, with any luck 
+   gcc will complain about not understanding "%zu". */
+#if defined(MINGW) && defined(_STDIO_H)
+#define PRISIZ "Iu"
+#define printf printf_subst_zu
+#define fprintf fprintf_subst_zu
+#define sprintf sprintf_subst_zu
+#define snprintf snprintf_subst_zu
+#endif
+
+/* Handles portability cases which can be solved with a simple rename, 
+   such as using the slower getc() instead of getc_unlocked() */
+#ifndef HAVE_GETC_UNLOCKED
+#define getc_unlocked getc
+#endif
+#ifndef HAVE_LRAND48
+#define lrand48 rand
 #endif
 
 #endif	/* CADO_MACROS_H_ */

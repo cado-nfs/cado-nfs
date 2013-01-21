@@ -894,7 +894,7 @@ fb_extract_bycost (const factorbase_degn_t *fb, const fbprime_t plim,
 }
 
 factorbase_degn_t *
-fb_read (const char *filename, const double log_scale, const int verbose)
+fb_read (const char *filename, const double log_scale, const int verbose, const fbprime_t lim, fbprime_t powlim)
 {
     factorbase_degn_t *fb = NULL, *fb_cur, *fb_new;
     FILE *fbfile;
@@ -976,7 +976,7 @@ fb_read (const char *filename, const double log_scale, const int verbose)
         } else {
             p = 0;
         }
-        if (p != 0) {
+        if (p) {
             fbprime_t cof = q;
             while (cof % p == 0)
                 cof /= p;
@@ -987,10 +987,15 @@ fb_read (const char *filename, const double log_scale, const int verbose)
                         q, linenr);
                 break;                       
             }
-        }
-        else
+            if (powlim && q >= powlim)
+                break;
+        } else {
             p = q; /* If q is prime, p = q */
+            if (lim && q >= lim)
+                break;
+        }
         fb_cur->p = q;
+
 
         /* read the multiple of logp, if any */
         /* this must be of the form  q:nlogp,oldlogp: ... */

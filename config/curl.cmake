@@ -46,11 +46,12 @@ find_path   (CURL_INCDIR curl/curl.h HINTS ${CURL_INCDIR_HINTS} DOC "cURL header
 find_library(CURL_LIB    curl   HINTS ${CURL_LIBDIR_HINTS} DOC "cURL library")
 # Yeah. CMake docs defines the ``PATH'' to a file as being its dirname. Very
 # helpful documentation there :-((
-get_filename_component(CURL_LIBDIR ${CURL_LIB} PATH)
 message(STATUS "CURL_INCDIR=${CURL_INCDIR}")
-message(STATUS "CURL_LIBDIR=${CURL_LIBDIR}")
+message(STATUS "CURL_LIB=${CURL_LIB}")
 string(COMPARE NOTEQUAL "${CURL_INCDIR}" CURL_INCDIR-NOTFOUND CURL_INCDIR_OK)
-string(COMPARE NOTEQUAL "${CURL_LIBDIR}" CURL_LIBDIR-NOTFOUND CURL_LIBDIR_OK)
+string(COMPARE NOTEQUAL "${CURL_LIB}" CURL_LIB-NOTFOUND CURL_LIBDIR_OK)
+
+get_filename_component(CURL_LIBDIR ${CURL_LIB} PATH)
 
 if(CURL_INCDIR_OK AND CURL_LIBDIR_OK)
 include_directories(${CURL_INCDIR})

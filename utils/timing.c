@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>		/* for cputime */
+#ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
+#endif
 #include <sys/time.h>	/* for gettimeofday */
 #include "timing.h"
 #include "memusage.h"
@@ -11,6 +13,7 @@
 uint64_t
 microseconds (void)
 {
+#ifdef HAVE_GETRUSAGE
     struct rusage res[1];
     getrusage(RUSAGE_SELF, res);
     uint64_t r;
@@ -18,12 +21,16 @@ microseconds (void)
     r *= (uint64_t) 1000000UL;
     r += (uint64_t) res->ru_utime.tv_usec;
     return r;
+#else
+    return 0;
+#endif
 }
 
 /* only consider user time of the current thread */
 uint64_t
 microseconds_thread (void)
 {
+#ifdef HAVE_GETRUSAGE
     struct rusage ru[1];
     uint64_t r;
 
@@ -36,13 +43,16 @@ microseconds_thread (void)
     r *= (uint64_t) 1000000UL;
     r += (uint64_t) ru->ru_utime.tv_usec;
     return r;
+#else
+    return 0;
+#endif
 }
 
 /* cputime */
-int
-cputime (void)
+unsigned long 
+milliseconds (void)
 {
-    return (int) (microseconds() / (uint64_t) 1000);
+    return (unsigned long) (microseconds() / (uint64_t) 1000);
 }
 
 double
@@ -60,11 +70,15 @@ seconds_thread (void)
 void
 seconds_user_sys (double * res)
 {
+#ifdef HAVE_GETRUSAGE
     struct rusage ru[1];
 
     getrusage (RUSAGE_SELF, ru);
     res[0] = ru->ru_utime.tv_sec +  (double) ru->ru_utime.tv_usec / 1.0e6;
     res[1] = ru->ru_stime.tv_sec +  (double) ru->ru_stime.tv_usec / 1.0e6;
+#else
+    res[0] = res[1] = 0.;
+#endif
 }
 
 /* returns the number of seconds since the Epoch (1970-01-01 00:00:00 +0000).

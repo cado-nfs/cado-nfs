@@ -24,17 +24,26 @@ static int abase_p_3_impl_mpi_use_count;   /* several stacked init()/clear() pai
                                   ],
                  'member_templates_restrict' => {
                                                   'p_1' => [
-                                                             'p_1'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_1'
+                                                             }
                                                            ],
                                                   'p_4' => [
-                                                             'p_4'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_4'
+                                                             }
                                                            ],
                                                   'u64k2' => [
                                                                'u64k1',
                                                                'u64k2'
                                                              ],
                                                   'p_3' => [
-                                                             'p_3'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_3'
+                                                             }
                                                            ],
                                                   'u64k1' => $vbase_stuff->{'member_templates_restrict'}{'u64k2'}
                                                 },
@@ -133,7 +142,7 @@ static int abase_p_3_impl_mpi_use_count;   /* several stacked init()/clear() pai
                   'name' => 'abase_vbase',
                   'global_prefix' => 'abase_'
                 };
- family=[p_3] */
+ family=[HASH(0x1759fe8)] */
 
 
 /* Functions operating on the field structure */

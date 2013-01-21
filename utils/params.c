@@ -9,6 +9,7 @@
 
 #include "params.h"
 #include "macros.h"
+#include "misc.h"
 
 void param_list_init(param_list pl)
 {
@@ -759,10 +760,10 @@ int param_list_parse_mpz(param_list pl, const char * key, mpz_ptr r)
     int rc;
     char * value = pl->p[v]->value;
     if (r) {
-        rc = gmp_sscanf(value, "%Zd%n", r, &nread);
+        rc = gmp_sscanf(value, "%Zi%n", r, &nread);
     } else {
         /* scan even when the result is not wanted */
-        rc = gmp_sscanf(value, "%*Zd%n", &nread);
+        rc = gmp_sscanf(value, "%*Zi%n", &nread);
     }
     if (rc != 1 || value[nread] != '\0') {
         fprintf(stderr, "Parse error: parameter for key %s is not an mpz: %s\n",

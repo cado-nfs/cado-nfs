@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "cado.h"
 #include "fake_fft.h"
 #include "gf2x.h"
 #include "utils.h"

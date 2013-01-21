@@ -3,34 +3,10 @@
 #include "modredc_ul_default.h"
 #include "mod_ul_common.c"
 
-#if defined(__GNUC__) && (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
-/* Opteron prefers LOOKUP_TRAILING_ZEROS 1,
-   Core2 prefers LOOKUP_TRAILING_ZEROS 0 */
-#ifndef LOOKUP_TRAILING_ZEROS
-#define LOOKUP_TRAILING_ZEROS 0
-#endif
-#define ctzl(x) __builtin_ctzl(x)
-#define clzl(x) __builtin_clzl(x)
-#else
-/* If we have no ctzl(), we always use the table lookup */
-#define LOOKUP_TRAILING_ZEROS 1
-#endif
-
 int
 modredcul_inv (residueredcul_t r, const residueredcul_t A,
                const modulusredcul_t m)
 {
-#if LOOKUP_TRAILING_ZEROS
-  static const unsigned char trailing_zeros[256] =
-    {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
-#endif
   unsigned long x = m[0].m, y, u, v;
   int t, lsh;
 
@@ -54,17 +30,9 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
   u = 1UL; v = 0UL;
 
   // make y odd
-#if LOOKUP_TRAILING_ZEROS
-  do {
-    lsh = trailing_zeros [(unsigned char) y];
-    y >>= lsh;
-    t += lsh;
-  } while (lsh == 8);
-#else
-  lsh = ctzl(y);
+  lsh = ularith_ctz(y);
   y >>= lsh;
   t += lsh;
-#endif
   /* v <<= lsh; ??? v is 0 here */
 
   // Here y and x are odd, and y < x
@@ -72,20 +40,13 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
     /* Here, y and x are odd, 0 < y < x, u is odd and v is even */
     do {
       x -= y; v += u;
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) x];
-	x >>= lsh;
-	t += lsh;
-	u <<= lsh;
-      } while (lsh == 8 && x != 0);
-#else
-      lsh = ctzl(x);
+      if (x == 0)
+        break;
+      lsh = ularith_ctz(x);
       ASSERT_EXPENSIVE (lsh > 0);
       x >>= lsh;
       t += lsh;
       u <<= lsh;
-#endif
     } while (x > y); /* ~50% branch taken :( */
     /* Here, y and x are odd, 0 < x =< y, u is even and v is odd */
 
@@ -97,20 +58,13 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
     /* Here, y and x are odd, 0 < x < y, u is even and v is odd */
     do {
       y -= x; u += v;
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) y];
-	y >>= lsh;
-	t += lsh;
-	v <<= lsh;
-      } while (lsh == 8 && y != 0);
-#else
-      lsh = ctzl(y);
+      if (y == 0)
+        break;
+      lsh = ularith_ctz(y);
       ASSERT_EXPENSIVE (lsh > 0);
       y >>= lsh;
       t += lsh;
       v <<= lsh;
-#endif
     } while (x < y); /* about 50% branch taken :( */
     /* Here, y and x are odd, 0 < y =< x, u is odd and v is even */
     /* y is the one that got reduced, test if we're done */
@@ -170,17 +124,6 @@ int
 modredcul_intinv (residueredcul_t r, const residueredcul_t A,
                const modulusredcul_t m)
 {
-#if LOOKUP_TRAILING_ZEROS
-  static const unsigned char trailing_zeros[256] =
-    {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
-#endif
   unsigned long x = m[0].m, y, u, v;
   int t, lsh;
 
@@ -196,17 +139,9 @@ modredcul_intinv (residueredcul_t r, const residueredcul_t A,
   u = 1UL; v = 0UL;
 
   // make y odd
-#if LOOKUP_TRAILING_ZEROS
-  do {
-    lsh = trailing_zeros [(unsigned char) y];
-    y >>= lsh;
-    t += lsh;
-  } while (lsh == 8);
-#else
-  lsh = ctzl(y);
+  lsh = ularith_ctz(y);
   y >>= lsh;
   t += lsh;
-#endif
   /* v <<= lsh; ??? v is 0 here */
 
   // Here y and x are odd, and y < x
@@ -214,20 +149,11 @@ modredcul_intinv (residueredcul_t r, const residueredcul_t A,
     /* Here, y and x are odd, 0 < y < x, u is odd and v is even */
     do {
       x -= y; v += u;
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) x];
-	x >>= lsh;
-	t += lsh;
-	u <<= lsh;
-      } while (lsh == 8 && x != 0);
-#else
-      lsh = ctzl(x);
+      lsh = ularith_ctz(x);
       ASSERT_EXPENSIVE (lsh > 0);
       x >>= lsh;
       t += lsh;
       u <<= lsh;
-#endif
     } while (x > y); /* ~50% branch taken :( */
     /* Here, y and x are odd, 0 < x =< y, u is even and v is odd */
 
@@ -239,20 +165,11 @@ modredcul_intinv (residueredcul_t r, const residueredcul_t A,
     /* Here, y and x are odd, 0 < x < y, u is even and v is odd */
     do {
       y -= x; u += v;
-#if LOOKUP_TRAILING_ZEROS
-      do {
-	lsh = trailing_zeros [(unsigned char) y];
-	y >>= lsh;
-	t += lsh;
-	v <<= lsh;
-      } while (lsh == 8 && y != 0);
-#else
-      lsh = ctzl(y);
+      lsh = ularith_ctz(y);
       ASSERT_EXPENSIVE (lsh > 0);
       y >>= lsh;
       t += lsh;
       v <<= lsh;
-#endif
     } while (x < y); /* about 50% branch taken :( */
     /* Here, y and x are odd, 0 < y =< x, u is odd and v is even */
     /* y is the one that got reduced, test if we're done */

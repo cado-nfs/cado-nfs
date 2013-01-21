@@ -23,9 +23,9 @@ hashInit (hashtable_t *H, HR_T n, unsigned int verbose)
   SMALLOC(H->hc, H->hm, "hashInit 1");
   SMALLOC(H->ht, H->hm, "hashInit 2");
   if (verbose) fprintf (stderr, "Hash table:\n"
-			"Hash (p,r) uses %lu-bit type, hash index uses %lu-bit type,\n"
+			"Hash (p,r) uses %zu-bit type, hash index uses %zu-bit type,\n"
 			"Allocated hash table of total size %lu MB\n",
-			sizeof(HT_T), sizeof(HR_T),
+			sizeof(HT_T) * CHAR_BIT, sizeof(HR_T) * CHAR_BIT,
 			(unsigned long) (H->hm * (sizeof(HC_T) + sizeof(ht_t))) >> 20);
   H->hr = NULL;
   hashClear (H);

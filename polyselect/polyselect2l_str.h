@@ -34,8 +34,7 @@
    NOTA: The good range is between 6 and 10. Don't use values <= 4!
    Values >= 12 are not interesting.
 */
-#define LN2SHASH_NBUCKETS 10
-
+#define LN2SHASH_NBUCKETS 8
 
 /* hash table slots */
 typedef struct
@@ -114,7 +113,10 @@ typedef _header_struct header_t[1];
 
 /* inline functions */
 
-INLINE void
+#ifndef EMIT_ADDRESSABLE_shash_add
+INLINE
+#endif
+void
 shash_add (shash_t H, uint64_t i)
 {
   /*

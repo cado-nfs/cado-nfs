@@ -39,7 +39,7 @@ typedef struct {
   plain_poly_coeff_t *coeff;  /* coefficient list */
 } plain_poly_struct;
 typedef plain_poly_struct plain_poly_t[1];
-
+typedef int (*sortfunc_t) (const void *, const void *);
 
 #ifdef __cplusplus
 extern "C" {

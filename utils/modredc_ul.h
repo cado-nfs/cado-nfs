@@ -592,6 +592,14 @@ modredcul_add (residueredcul_t r, const residueredcul_t a,
 
 MAYBE_UNUSED
 static inline void
+modredcul_add1 (residueredcul_t r, const residueredcul_t a,
+                const modulusredcul_t m)
+{
+  modredcul_add(r, a, m[0].one, m);
+}
+
+MAYBE_UNUSED
+static inline void
 modredcul_add_ul (residueredcul_t r, const residueredcul_t a,
                   const unsigned long b, const modulusredcul_t m)
 {

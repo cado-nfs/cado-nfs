@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include "assert.h"
 #include "select_mpi.h"
-#include "random_generation.h"
 #include "abase_vbase.h"
 #ifdef	MPFQ_LAST_GENERATED_TAG
 #undef	MPFQ_LAST_GENERATED_TAG
@@ -29,24 +28,32 @@
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */
-/* Active handler: simd_flat */
 /* Options used: w=64 k=2 tag=u64k2 vbase_stuff={
                  'vc:includes' => [
                                     '<stdarg.h>'
                                   ],
                  'member_templates_restrict' => {
                                                   'p_1' => [
-                                                             'p_1'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_1'
+                                                             }
                                                            ],
                                                   'p_4' => [
-                                                             'p_4'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_4'
+                                                             }
                                                            ],
                                                   'u64k2' => [
                                                                'u64k1',
                                                                'u64k2'
                                                              ],
                                                   'p_3' => [
-                                                             'p_3'
+                                                             {
+                                                               'cpp_ifdef' => 'COMPILE_MPFQ_PRIME_FIELDS',
+                                                               'tag' => 'p_3'
+                                                             }
                                                            ],
                                                   'u64k1' => $vbase_stuff->{'member_templates_restrict'}{'u64k2'}
                                                 },
@@ -378,7 +385,9 @@ void abase_u64k2_set_zero(abase_u64k2_dst_field K MAYBE_UNUSED, abase_u64k2_dst_
 static inline
 void abase_u64k2_random(abase_u64k2_dst_field K MAYBE_UNUSED, abase_u64k2_dst_elt r)
 {
-    myrand_area(r, sizeof(abase_u64k2_elt));
+        for(unsigned int i = 0 ; i < sizeof(abase_u64k2_elt) ; i++) {
+            ((unsigned char*)r)[i] = rand();
+        }
 }
 
 /* *simd_char2::code_for_add */

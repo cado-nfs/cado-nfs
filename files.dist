@@ -1,8 +1,8 @@
 # This file gives the exact contents of the distribution. If a directory is
-# are *NOT* recognized (by the fascist sanity check program).
 # mentioned (with a trailing slash), then all its children are included. Note
 # that the union of this file and its companion files.nodist must agree with
 # the list of files known to the SCM.  A further word of caution: wildcards
+# are *NOT* recognized (by the fascist sanity check program).
 AUTHORS
 CMakeLists.txt
 COPYING
@@ -24,17 +24,20 @@ config/gcc-ubuntu-bug.c
 config/gcc-ubuntu-bug.cmake
 config/gmp.cmake
 config/math.cmake
+config/posix.cmake
 config/mpi.cmake
 config/pthreads.cmake
 config/rusage_thread.c
 config/rusage_thread.cmake
 config/search_for_function.cmake
+config/variables.cmake
 config/sse2.c
 config/sse2.cmake
 config/sse41.c
 config/sse41.cmake
 config/sync_fetch.c
 config/sync_fetch.cmake
+config/mingw.cmake
 factor.sh
 filter/CMakeLists.txt
 filter/Makefile
@@ -707,8 +710,6 @@ utils/poly.h
 utils/prempt.h
 utils/purgedfile.c
 utils/purgedfile.h
-utils/random_generation.c
-utils/random_generation.h
 utils/random_integer.c
 utils/relation.c
 utils/relation.h
@@ -731,6 +732,8 @@ utils/ularith.h
 utils/usp.c
 utils/usp.h
 utils/utils.h
+utils/roots_mod.c
+utils/test_roots_mod.c
 linalg/bwc/mpfq/abase_p_3.c
 linalg/bwc/mpfq/abase_p_3.h
 linalg/bwc/mpfq/abase_p_3_t.c
@@ -739,3 +742,5 @@ linalg/bwc/plingen.c
 linalg/bwc/plingen.h
 linalg/bwc/polymat.c
 linalg/bwc/polymat.h
+config/asprintf.c
+config/asprintf.cmake

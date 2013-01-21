@@ -1,11 +1,14 @@
 /* This is (almost) standalone */
 #define _POSIX_C_SOURCE 200112L
 
+#include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_UTSNAME_H
 #include <sys/utsname.h>
+#endif
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
@@ -70,27 +73,34 @@ void share_file(const char * fname, int root, size_t total, MPI_Comm comm)
 int main(int argc, char * argv[])
 {
     struct stat sbuf[1];
+#ifdef HAVE_UTSNAME_H
     struct utsname u[1];
+    char *nodename = u[0].nodename;
+#else
+    char *nodename = "Unknown node name";
+#endif
 
+#ifdef HAVE_UTSNAME_H
     uname(u);
+#endif
     MPI_Init(&argc, &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("node %d/%d on %s\n", rank,size,u->nodename);
+    printf("node %d/%d on %s\n", rank,size,nodename);
 
     int duplicate=0;
-    size_t minname=sizeof(u->nodename);
-    size_t maxname=sizeof(u->nodename);
+    size_t minname=strlen(nodename) + 1;
+    size_t maxname=strlen(nodename) + 1;
     MPI_Allreduce(MPI_IN_PLACE, &maxname, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &minname, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     ASSERT_ALWAYS(minname == maxname);
-    char * allnames = malloc(size * sizeof(u->nodename));
-    MPI_Allgather(u->nodename, sizeof(u->nodename), MPI_BYTE, allnames, sizeof(u->nodename), MPI_BYTE, MPI_COMM_WORLD);
+    char * allnames = malloc(size * maxname);
+    MPI_Allgather(nodename, maxname, MPI_BYTE, allnames, maxname, MPI_BYTE, MPI_COMM_WORLD);
     for(int i = 0 ; i < rank ; i++) {
-        if (memcmp(allnames + i * sizeof(u->nodename), u->nodename, sizeof(u->nodename)) == 0) {
+        if (memcmp(allnames + i * maxname, nodename, maxname) == 0) {
             fprintf(stderr, "%s on node %d/%d duplicates node %d/%d\n",
-                    u->nodename, rank, size, i, size);
+                    nodename, rank, size, i, size);
             duplicate=1;
         }
     }
@@ -101,7 +111,7 @@ int main(int argc, char * argv[])
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
     if (!duplicate)
-    printf("reduced node %d/%d on %s\n", rank,size,u->nodename);
+    printf("reduced node %d/%d on %s\n", rank,size,nodename);
 
     for(int i = 1 ; i < argc && !duplicate; i++) {
         int rc;

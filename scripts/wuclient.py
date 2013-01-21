@@ -150,6 +150,8 @@ class Workunit_Processor(Workunit):
         self.wu = Workunit(wu_text)
         self.WUid = self.wu.get_id()
         log (1, " done, workunit ID is " + self.WUid)
+        self.stdout = []
+        self.stderr = []
 
     def  __str__(self):
         return "Processor for Workunit:\n" + self.wu.__str__()
@@ -177,15 +179,34 @@ class Workunit_Processor(Workunit):
         for (counter, command) in enumerate(self.wu.data["COMMAND"]):
             command = Template(command).safe_substitute(SETTINGS)
             log (0, "Running command for workunit " + self.wu.get_id() + ": " + command)
+
+            # If niceness command line parameter was set, call self.renice() in
+            # child process, before executing command
             if int(SETTINGS["NICENESS"]) > 0:
                 renice_func = self.renice
             else:
                 renice_func = None
-            rc = subprocess.call(command, shell=True, preexec_fn = renice_func)
-            if rc != 0:
-                log (0, "Command exited with exit code " + str(rc)) 
+
+            # Run the command
+            child = subprocess.Popen(command, shell=True, stdout = subprocess.PIPE, 
+                stderr = subprocess.PIPE, preexec_fn = renice_func)
+            # Wait for command to finish executing, capturing stdout and stderr 
+            # in output tuple
+            (child_stdout, child_stderr) = child.communicate()
+
+            if len(child_stdout) > 0:
+                self.stdout.append(child_stdout)
+            else:
+                self.stdout.append(None)
+            if len(child_stderr) > 0:
+                self.stderr.append(child_stderr)
+            else:
+                self.stderr.append(None)
+
+            if child.returncode != 0:
+                log (0, "Command exited with exit code " + str(child.returncode)) 
                 self.failedcommand = counter
-                self.exitcode = rc
+                self.exitcode = child.returncode
                 return False
             else:
                 log (1, "Command exited successfully")
@@ -212,6 +233,15 @@ class Workunit_Processor(Workunit):
                 result.add_header('Content-Disposition', 'form-data', name="results", 
                                   filename=f)
                 postdata.attach(result)
+        for (name, arr) in (("stdout", self.stdout), ("stderr", self.stderr)):
+            for (counter, f) in enumerate(arr):
+                if not f is None:
+                    log (1, "Adding " + name + " for command " + str(counter) + " to upload")
+                    result = MIMEApplication(f, _encoder=email.encoders.encode_noop)
+                    result.add_header('Content-Disposition', 'form-data', name="results", 
+                                      filename=name + str(counter))
+                    postdata.attach(result)
+        
         if self.debug >= 2:
             print("Headers of postdata as a dictionary:")
             print(dict(postdata.items()))
@@ -234,7 +264,16 @@ class Workunit_Processor(Workunit):
             print(postdata3)
         url = SETTINGS["SERVER"] + "/" + SETTINGS["POSTRESULTPATH"]
         request = urllib.request.Request(url, data=postdata3, headers=dict(postdata.items()))
-        conn = urllib.request.urlopen(request)
+        conn = None;
+        while conn is None:
+            try:
+                conn = urllib.request.urlopen(request)
+            except (urllib.error.URLError) as e:
+                conn = None
+                wait = float(SETTINGS["DOWNLOADRETRY"])
+                log(0, "Upload of result failed, " + str(e))
+                log(0, "Waiting " + str(wait) + " seconds before retrying")
+                time.sleep(wait)
         log (1, "Server response:")
         for line in conn:
             log(1, line)

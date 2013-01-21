@@ -1,11 +1,11 @@
 /* Some functions for modular arithmetic with residues and modulus in
    unsigned long variables. The modulus can be up to 2 unsigned longs 
-   in size with the two most significant bits zert (meaning 62 bits if 
+   in size with the two most significant bits zero (meaning 62 bits if 
    unsigned long has 32 bits, or 126 bits if unsigned long has 64 bits).
    Moduli must be odd and have the upper word non-zero. Residues are stored 
    in Montgomery form, reduction after multiplication is done with REDC. 
-   Due to inlining, this file must be included in the caller's source code with 
-   #include */
+   Due to inlining, this file must be included in the caller's source code 
+   with #include */
 
 /* Naming convention: all function start with modredc2ul2, for 
    MODulus REDC 2 Unsigned Longs minus 2 bits, followed by underscore, 
@@ -68,6 +68,8 @@ modredc2ul2_add (residueredc2ul2_t r, const residueredc2ul2_t a,
 static inline void
 modredc2ul2_get_uls (modintredc2ul2_t r, const residueredc2ul2_t s, 
 		     const modulusredc2ul2_t m MAYBE_UNUSED);
+static inline void
+modredc2ul2_intset (modintredc2ul2_t r, const modintredc2ul2_t s);
 
 MAYBE_UNUSED
 static inline void
@@ -76,16 +78,15 @@ modredc2ul2_tomontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 {
   int i;
 
-  r[0] = s[0];
-  r[1] = s[1];
+  modredc2ul2_intset (r, s);
   /* TODO FIXME: ridiculously slow */
-  for (i = 0; i < 2 * LONG_BIT; i++)
+  for (i = 0; i < (MODREDC2UL2_SIZE * LONG_BIT); i++)
     modredc2ul2_add (r, r, r, m);
 }
 
 
-/* Do a one-word REDC, i.e., r == s / 2^LONG_BIT (mod m), r < m. 
-   If m > 2^w, r < 2m. If s<m, then r<m */
+/* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^LONG_BIT. 
+   If m > w, r < 2m. If s<m, then r<m */
 MAYBE_UNUSED
 static inline void
 modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
@@ -102,7 +103,7 @@ modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
   ularith_mul_ul_ul_2ul (&(t[0]), &(t[3]), k, m[0].m[1]); /* t[3] < 2^w-1 */
   ularith_add_2ul_2ul (&(t[1]), &(t[2]), t[0], t[3]);     /* t[2] < 2^w */
 
-  /* r = (k*m + s) / wb, k <= wb-1. If s < m, then r < m */
+  /* r = (k*m + s) / w, k <= w-1. If s < m, then r < m */
   r[0] = t[1];
   r[1] = t[2];
 }
@@ -114,7 +115,7 @@ static inline void
 modredc2ul2_frommontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 			    const modulusredc2ul2_t m)
 {
-  unsigned long t[2];
+  residueredc2ul2_t t;
   
   /* Do two REDC steps */
   modredc2ul2_redc1 (t, s, m);
@@ -260,24 +261,30 @@ modredc2ul2_intdivexact (modintredc2ul2_t r, const modintredc2ul2_t n,
 {
   modintredc2ul2_t n1, d1;
   unsigned long invf, r0, k0, k1;
+  int i;
 #ifdef WANT_ASSERT_EXPENSIVE
   unsigned long s0 = n[0], s1 = n[1];
 #endif
   
-  n1[0] = n[0];
-  n1[1] = n[1];
-  d1[0] = d[0];
-  d1[1] = d[1];
+  modredc2ul2_intset (n1, n);
+  modredc2ul2_intset (d1, d);
 
-  /* Make d odd. TODO: use ctzl */
-  while (d1[0] % 2 == 0UL)
+  /* Make d odd */
+  if (d1[0] == 0UL)
     {
-      ASSERT_EXPENSIVE (n1[0] % 2 == 0UL);
-      ularith_shrd (&(d1[0]), d1[1], 1);
-      d1[1] >>= 1;
-      ularith_shrd (&(n1[0]), n1[1], 1);
-      n1[1] >>= 1;
+      ASSERT (n1[0] == 0UL);
+      d1[0] = d1[1];
+      d1[1] = 0UL;
+      n1[0] = n1[1];
+      n1[1] = 0UL;
     }
+  ASSERT(d1[0] != 0UL);
+  i = ularith_ctz (d1[0]);
+  ularith_shrd (&(d1[0]), d1[1], i);
+  d1[1] >>= i;
+  ASSERT((n1[0] & ((1UL << i) - 1UL)) == 0UL);
+  ularith_shrd (&(n1[0]), n1[1], i);
+  n1[1] >>= i;
   
   invf = ularith_invmod (d1[0]);
   r0 = invf * n1[0];
@@ -540,7 +547,7 @@ static inline unsigned long
 modredc2ul2_get_ul (const residueredc2ul2_t s, 
 		    const modulusredc2ul2_t m MAYBE_UNUSED)
 {
-  unsigned long t[2];
+  residueredc2ul2_t t;
   ASSERT_EXPENSIVE (modredc2ul2_intlt (s, m[0].m));
   modredc2ul2_frommontgomery (t, s, m);
   ASSERT (t[1] == 0UL);
@@ -619,7 +626,7 @@ modredc2ul2_sub (residueredc2ul2_t r, const residueredc2ul2_t a,
     
     __asm__ (
 	     "subq %4, %0\n\t"
-	     "sbbq %5, %1\n\t"    /* r -= b */
+	     "sbbq %5, %1\n\t"    /* t -= b */
 	     "cmovncq %6, %2\n\t" /* If !carry, s = 0 */
 	     "cmovncq %6, %3\n"
 	     : "+&r" (t1), "+&r" (t2), "+&r" (s1), "+r" (s2)
@@ -642,6 +649,15 @@ modredc2ul2_sub (residueredc2ul2_t r, const residueredc2ul2_t a,
     r[1] = t2;
   }
 #endif
+}
+
+
+MAYBE_UNUSED
+static inline void
+modredc2ul2_add1 (residueredc2ul2_t r, const residueredc2ul2_t a, 
+		  const modulusredc2ul2_t m)
+{
+  modredc2ul2_add(r, a, m[0].one, m);
 }
 
 
@@ -683,15 +699,10 @@ modredc2ul2_neg (residueredc2ul2_t r, const residueredc2ul2_t a,
 		 const modulusredc2ul2_t m)
 {
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
-  if (a[0] == 0UL && a[1] == 0UL)
+  if (modredc2ul2_is0 (a, m))
     modredc2ul2_set (r, a, m);
   else
-    {
-      unsigned long t1 = m[0].m[0], t2 = m[0].m[1];
-      ularith_sub_2ul_2ul (&t1, &t2, a[0], a[1]);
-      r[0] = t1;
-      r[1] = t2;
-    }
+    modredc2ul2_intsub (r, m[0].m, a);
 }
 
 
@@ -704,9 +715,8 @@ modredc2ul2_div2 (residueredc2ul2_t r, const residueredc2ul2_t a,
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
   modredc2ul2_intset (r, a);
   if (r[0] % 2UL == 1UL)
-    ularith_add_2ul_2ul (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
-  ularith_shrd (&(r[0]), r[1], 1);
-  r[1] >>= 1;
+    modredc2ul2_intadd (r, r, m[0].m);
+  modredc2ul2_intshr (r, r, 1);
 }
 
 
@@ -1061,8 +1071,7 @@ modredc2ul2_divn (residueredc2ul2_t r, const residueredc2ul2_t a,
 #endif
   modredc2ul2_init_noset0 (t, m);
   modredc2ul2_init_noset0 (t2, m);
-  t[1] = a[1];
-  t[0] = a[0];
+  modredc2ul2_set (t, a, m);
   
   /* Make t[1]:t[0] == a+km (mod w^2) with a+km divisible by n */
   /* We want a+km == 0 (mod n), so k = -a*m^{-1} (mod n) */

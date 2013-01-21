@@ -185,13 +185,6 @@ void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void *
     return;
 }
 
-/* Does the same for a batch of N (a,b) pairs. */
-void eval_64chars_batch(uint64_t * W, int64_t * A, uint64_t *B, alg_prime_t * chars, cado_poly_ptr pol, unsigned int n, struct worker_threads_group * g)
-{
-    struct charbatch ss = { .W=W,.A=A,.B=B,.chars=chars,.pol=pol,.n=n };
-    worker_threads_do(g, eval_64chars_batch_thread, &ss);
-}
-
 static alg_prime_t * create_characters(int nchars, int nratchars, cado_poly pol)
 {
     unsigned long p;
@@ -286,8 +279,10 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
             A[bs] = ps->a;
             B[bs] = ps->b;
         }
+        struct charbatch ss = { .W=W,.A=A,.B=B,.pol=pol,.n=bs };
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
-            eval_64chars_batch(W, A, B, chars + cg, pol, bs, g);
+            ss.chars = chars + cg;
+            worker_threads_do(g, eval_64chars_batch_thread, &ss);
             for(int z = 0 ; z < bs ; z++) {
                 *blockmatrix_subrow_ptr(res, i+z, cg) = W[z];
             }

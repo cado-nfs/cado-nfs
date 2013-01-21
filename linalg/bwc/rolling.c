@@ -13,6 +13,7 @@
 #include "params.h"
 #include "async.h"
 #include "filenames.h"
+#include "misc.h"
 
 #include "rolling.h"
 #include "bw-common.h"

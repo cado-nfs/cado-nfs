@@ -9,6 +9,7 @@
 #include "params.h"
 #include "xvectors.h"
 #include "xymats.h"
+#include "misc.h"
 #include "bw-common-mpi.h"
 #include "async.h"
 // #include "rusage.h"

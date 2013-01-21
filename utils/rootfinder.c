@@ -12,16 +12,17 @@
 
 /* put in r[0], ..., r[n-1] the roots of f (of degree d) modulo p,
    and the return value n is the number of roots (without multiplicities) */
-int poly_roots_ulong(unsigned long * r, mpz_t * f, int d, unsigned long p)
+int
+poly_roots_ulong (unsigned long *r, mpz_t *f, int d, unsigned long p)
 {
     int n;
 
-    if (plain_poly_fits(d, p)) {
+    if (plain_poly_fits (d, p)) {
         plain_poly_coeff_t * rr;
         int i;
 
         if (r == NULL)
-            return plain_poly_roots(NULL, f, d, p);
+          return plain_poly_roots(NULL, f, d, p);
 
         rr = (plain_poly_coeff_t *) malloc(d * sizeof(plain_poly_coeff_t));
         n = plain_poly_roots(rr, f, d, p);
@@ -64,26 +65,42 @@ int poly_roots_long(long * r, mpz_t * f, int d, unsigned long p)
     return poly_roots_ulong((unsigned long *) r, f, d, p);
 }
 
-int poly_roots_uint64(uint64_t * r, mpz_t * f, int d, uint64_t p)
+int
+poly_roots_uint64 (uint64_t * r, mpz_t * f, int d, uint64_t p)
 {
     FATAL_ERROR_CHECK(p >= ULONG_MAX, "poly_roots_uint64 is a stub");
     /* This is glue around poly_roots_ulong, nothing more. When uint64
      * means asking a lot more than ulong, we miss code. */
-    unsigned long * rr;
-    int i,n;
+    unsigned long *rr;
+    int i, n;
 
     if (r == NULL)
-        return poly_roots_ulong(NULL, f, d, p);
+      return poly_roots_ulong(NULL, f, d, p);
 
-    rr = (unsigned long *) malloc(d * sizeof(unsigned long));
-    n = poly_roots_ulong((unsigned long *) rr, f, d, p);
-    for(i = 0 ; i < n ; i++) {
-        r[i] = rr[i];
-    }
-    free(rr);
+    if (sizeof (unsigned long) != sizeof (uint64_t))
+      rr = (unsigned long *) malloc(d * sizeof(unsigned long));
+    else
+      rr = (unsigned long *) r;
+    n = poly_roots_ulong (rr, f, d, p);
+    if (sizeof (unsigned long) != sizeof (uint64_t))
+      {
+        for(i = 0 ; i < n ; i++)
+          r[i] = rr[i];
+        free (rr);
+      }
     return n;
 }
 
+typedef int (*sortfunc_t) (const void *, const void *);
+
+static int compare_mpz_ptrs(
+        const mpz_t * a,
+        const mpz_t * b)
+{
+    if (mpz_cmp(*a, *b) < 0) return -1;
+    if (mpz_cmp(*b, *a) < 0) return 1;
+    return 0;
+}
 
 int poly_roots(mpz_t * r, mpz_t * f, int d, mpz_t p)
 {
@@ -111,6 +128,8 @@ int poly_roots(mpz_t * r, mpz_t * f, int d, mpz_t p)
     } else {
       int n;
       n = poly_roots_mpz (r, f, d, p);
+      if (r && n)
+          qsort(r, n, sizeof(mpz_t), (sortfunc_t) &compare_mpz_ptrs);
       return n;
     }
 }

@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+       "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Get work units or report results</title>
+</head>
+<body>
+<h1>Request a work unit</h1>
+<form action="cgi-bin/getwu" method="get">
+  <p>Client ID:
+  <input name="clientid" type="text" size="20" accept="text/*" />
+  </p>
+  <input type="submit" value="Get WU" />
+</form>
+<hr>
+<h1>Upload result of a work unit</h1>
+<form action="cgi-bin/upload.py" method="post" enctype="multipart/form-data">
+  <p>Work unit identifier:
+  <input name="WUid" type="text" size="20" accept="text/*" />
+  </p>
+  <p>Client ID:
+  <input name="clientid" type="text" size="20" accept="text/*" />
+  </p>
+  <p>Choose the results file to upload:<br>
+    <input name="results" type="file" size="50" accept="text/*" />
+  </p>
+  <input type="submit" value="Send" />
+</form>
+<hr>
+<h1>Status</h1>
+<a href="cgi-bin/status">All workunits</a><br/>
+<a href="cgi-bin/status?status=1&timeassigned<now(-60)">Assigned workunits older than 1h</a><br/>
+<a href="cgi-bin/status?status=2">Workunits received OK</a><br />
+<a href="cgi-bin/status?status=3">Workunits received with error code</a><br />
+<form action="cgi-bin/status" method="get">
+  <p>
+    <select name="field1" size="1">
+      <option>wuid</option>
+      <option>status</option>
+      <option>timecreated</option>
+      <option>timeassigned</option>
+      <option>assignedclient</option>
+      <option>timeresult</option>
+      <option>resultclient</option>
+      <option>errorcode</option>
+      <option>failedcommand</option>
+      <option>timeverified</option>
+      <option>priority</option>
+    </select>
+    <select name="op1" size="1">
+      <option>=</option>
+      <option>&lt;</option>
+      <option>&le;</option>
+      <option>&ge;</option>
+      <option>&gt;</option>
+      <option>&ne;</option>
+    </select>
+  <input name="cal1" type="text" size="20" accept="text/*" />
+  </p>
+
+  <input type="submit" value="Work unit status" />
+</form>
+</body>
+</html>

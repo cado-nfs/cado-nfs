@@ -9,7 +9,7 @@ extern "C" {
 
 extern uint64_t microseconds (void);
 extern uint64_t microseconds_thread (void);
-extern int cputime (void);
+extern unsigned long milliseconds (void);
 extern double seconds (void);
 extern double seconds_thread (void);
 extern void seconds_user_sys (double *);

@@ -39,7 +39,8 @@ static void * thread_job(void * ti)
         }
     }
 
-    pthread_mutex_unlock(&tg->mu);
+    /* No need to unlock the mutex, since the break is issued with the
+     * mutex already unlocked !!! */
 
     return NULL;
 }

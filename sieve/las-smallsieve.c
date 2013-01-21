@@ -6,6 +6,7 @@
 #include "las-debug.h"
 #include "las-qlattice.h"
 #include "basicnt.h"
+#include "misc.h"
 
 /* It's defined as a global variable in las.c */
 extern pthread_mutex_t io_mutex;
@@ -223,7 +224,7 @@ void small_sieve_init(small_sieve_data_t *ssd, const factorbase_degn_t *fb,
             if ((fb->p&1)==0) event |= SSP_POW2;
             ssd->logp[index] = fb->plog;
             WHERE_AM_I_UPDATE(w, r, fb->roots[nr]);
-            r = fb_root_in_qlattice (p, fb->roots[nr], fb->invp, si);
+            r = fb_root_in_qlattice_generic (p, fb->roots[nr], fb->invp, si);
             /* If this root is somehow interesting (projective in (a,b) or
                in (i,j) plane), print a message */
             if (verbose && (fb->roots[nr] >= p || r >= p))

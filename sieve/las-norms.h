@@ -39,7 +39,7 @@ init_alg_norms_bucket_region (unsigned char *alg_S,
 /* This prepares the auxiliary data which is used by
  * init_rat_norms_bucket_region and init_alg_norms_bucket_region
  */
-void sieve_info_init_norm_data(sieve_info_ptr si, unsigned long q0);
+void sieve_info_init_norm_data(sieve_info_ptr si, mpz_srcptr q0);
 
 void sieve_info_clear_norm_data(sieve_info_ptr si);
 

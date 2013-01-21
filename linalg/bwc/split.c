@@ -13,6 +13,7 @@
 #include "bw-common.h"
 #include "params.h"
 #include "balancing.h"
+#include "misc.h"
 
 char * ifile;
 char * ofile_fmt;

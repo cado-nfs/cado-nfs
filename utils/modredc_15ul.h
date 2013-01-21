@@ -667,6 +667,15 @@ modredc15ul_sub (residueredc15ul_t r, const residueredc15ul_t a,
 
 MAYBE_UNUSED
 static inline void
+modredc15ul_add1 (residueredc15ul_t r, const residueredc15ul_t a, 
+		  const modulusredc15ul_t m)
+{
+  modredc15ul_add(r, a, m[0].one, m);
+}
+
+
+MAYBE_UNUSED
+static inline void
 modredc15ul_add_ul (residueredc15ul_t r, const residueredc15ul_t a,
 		    const unsigned long b, const modulusredc15ul_t m)
 {

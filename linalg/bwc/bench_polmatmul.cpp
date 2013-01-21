@@ -297,7 +297,7 @@ static inline unsigned long MASK(size_t x) { return (1UL << R(x)) - 1UL; }
 
 unsigned long * tidy_data(unsigned long * data, size_t n1)
 {
-    unsigned long * p = data + (random() % (DATA_POOL_SIZE/2));
+    unsigned long * p = data + (rand() % (DATA_POOL_SIZE/2));
     if (R(n1)) p[I(n1)]&=MASK(n1);
     return p;
 }
@@ -781,7 +781,7 @@ int main(int argc, char * argv[])
      * the cache sizes */
     unsigned long * data ;
     data = (unsigned long *) malloc(DATA_POOL_SIZE * sizeof(unsigned long));
-    for(unsigned int i = 0 ; i < DATA_POOL_SIZE ; i++) data[i] = random();
+    for(unsigned int i = 0 ; i < DATA_POOL_SIZE ; i++) data[i] = rand();
 
     printf("Some timings are in microseconds\n");
     printf("Matrix size %lu\n", N);

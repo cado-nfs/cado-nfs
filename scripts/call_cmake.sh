@@ -9,16 +9,16 @@
 # The location of the build tree is, by default,
 # $cado_source_tree/build/`hostname`, but customizing it is easy.
 
-up_path=${0%%scripts/call_cmake.sh}
+up_path="${0%%scripts/call_cmake.sh}"
 if [ "$up_path" = "$0" ] ; then
     echo "Error: call_cmake.sh must be called with a path ending in scripts/call_cmake.sh" >&2
     exit 1
 elif [ "$up_path" = "" ] ; then
     up_path=./
 fi
-called_from=`pwd`
-absolute_path_of_source=`cd $up_path ; pwd`
-relative_path_of_cwd=${called_from##$absolute_path_of_source}
+called_from="`pwd`"
+absolute_path_of_source="`cd "$up_path" ; pwd`"
+relative_path_of_cwd="${called_from##$absolute_path_of_source}"
 
 ########################################################################
 # Set some default variables which can be overridden from local.sh
@@ -26,6 +26,8 @@ relative_path_of_cwd=${called_from##$absolute_path_of_source}
 # The default behaviour
 # build_tree="/tmp/cado-build-`id -un`"
 : ${build_tree:="${up_path}build/`hostname`"}
+
+# Joe gets confused by " in prev line; this line fixes it
 
 # By default, we also avoid /usr/local ; of course, it may be overridden.
 # Note that cmake does not really have phony targets, so one must avoid
@@ -76,10 +78,11 @@ export CURL
 export CURL_INCDIR
 export CURL_LIBDIR
 export GF2X_CONFIGURE_EXTRA_FLAGS
+export CMAKE_DUMP_VARIABLES
 
 if [ "$1" = "tidy" ] ; then
     echo "Wiping out $build_tree"
-    rm -rf $build_tree
+    rm -rf "$build_tree"
     exit 0
 fi
 
@@ -99,6 +102,7 @@ if [ "$1" = "show" ] ; then
     echo "MPI=\"$MPI\""
     echo "GF2X_CONFIGURE_EXTRA=\"$GF2X_CONFIGURE_EXTRA\""
     echo "PTHREADS=\"$PTHREADS\""
+    echo "CMAKE_GENERATOR=\"$CMAKE_GENERATOR\""
     exit 0
 fi
 
@@ -109,10 +113,10 @@ if [ "$?" != "0" ] || ! [ -x "$cmake_path" ] ; then
     echo "CMake not found" >&2
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
-elif ! [[ "`$cmake_path --version`" =~ ^cmake\ version\ 2.[678] ]] ; then
+elif ! [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ 2.[678] ]] ; then
     echo "CMake found, but not with version 2.6 or 2.7 or 2.8" >&2
     cmake_path=
-elif [[ "`$cmake_path --version`" =~ ^cmake\ version\ 2.6-patch\ [012] ]] ; then
+elif [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ 2.6-patch\ [012] ]] ; then
     echo "CMake found, but with early, buggy 2.6 version" >&2
     cmake_path=
 fi
@@ -134,18 +138,23 @@ if ! [ "$cmake_path" ] ; then
             exit 1
         fi
         echo "Need to get cmake first -- this takes long !"
-        cd $up_path
+        cd "$up_path"
         if ! scripts/install-cmake.sh "$cmake_companion_install_location" ; then
             echo "cmake install Failed, sorry" >&2
             exit 1
         fi
-        cd $called_from
+        cd "$called_from"
     fi
 fi
 
 if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
-    mkdir -p $build_tree
-    (cd $build_tree ; $cmake_path $absolute_path_of_source)
+    mkdir -p "$build_tree"
+    if [ ! "x$CMAKE_GENERATOR" == "x" ] ; then
+      CMAKE_GENERATOR_OPT="-G$CMAKE_GENERATOR"
+    else
+      unset CMAKE_GENERATOR_OPT
+    fi
+    (cd "$build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" "$absolute_path_of_source")
 fi
 
 if [ "$1" = "cmake" ] ; then
@@ -157,4 +166,4 @@ fi
 # --no-print-directory option -- but it's not the right cure here).
 # env | grep -i make
 unset MAKELEVEL
-(cd $build_tree$relative_path_of_cwd ; make "$@")
+(cd "$build_tree$relative_path_of_cwd" ; make "$@")

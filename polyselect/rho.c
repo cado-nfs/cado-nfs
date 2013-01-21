@@ -1,6 +1,6 @@
 /* Approximation of Dickman's rho function.
 
-Copyright 2010 Paul Zimmermann
+Copyright 2010, 2012 Paul Zimmermann
 
 This file is part of CADO-NFS.
 
@@ -24,8 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdlib.h>
 #include <math.h>
 
-/* return an approximation of rho(x) with relative error <= 7.5e-9
-   for x <= 10, and an absolute error <= 1.2e-12 for x > 10. */
+/* return an approximation of rho(x) with relative error <= 2.1e-6 (about)
+   for x <= 15, and an absolute error <= 3.5e-21 for x > 15. */
 double
 dickman_rho (double x)
 {
@@ -146,7 +146,77 @@ dickman_rho (double x)
       return .17063527516986966493e-9+(-.30739839907061929947e-9+(.27401311519313991860e-9+(-.16103964872970941164e-9+(.70152211692303181302e-10+(-.24143747383189013980e-10+(.68287507297199575436e-11+(-.16282751120203734207e-11+(.33676191519721199042e-12+(-.63207992345353337190e-13+.88821884863349801119e-14*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
     }
 
-  /* for x > 10, Dickman's function differs from the approximation
-     below by at most 1.2e-12 */
-  return 0.277017183772596 * pow (x, -x);
+  if (x <= 11.0) /* 10 < x <= 11 */
+    {
+      x = 2 * x - 21.0; /* -1 <= x <= 1 */
+      /* the following approximation was computed with Sage:
+	 f10 = dickman_rho.power_series(10, 64)
+	 then using Maple:
+         Digits:=20:
+	 p:=numapprox[minimax](f10,x=-1..1,10,1/f10);
+	 It gives a relative error less than 1.2e-8
+	 (numapprox[infnorm](f10/p-1,x=-1..1)) */
+      return .43559526824795217852e-11+(-.81254892374415436871e-11+(.75124702775657186758e-11+(-.45879032842537328635e-11+(.20810226978994617073e-11+(-.74742298793568571039e-12+(.22118242218483402875e-12+(-.55382747996458896000e-13+(.12115887170289387926e-13+(-.24203055184086403014e-14+.35552802442946562758e-15*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
+    }
+
+  if (x <= 12.0) /* 11 < x <= 12 */
+    {
+      x = 2 * x - 23.0; /* -1 <= x <= 1 */
+      /* the following approximation was computed with Sage:
+	 f11 = dickman_rho.power_series(11, 64)
+	 then using Maple:
+         Digits:=20:
+	 p:=numapprox[minimax](f11,x=-1..1,10,1/f11);
+	 It gives a relative error less than 1.9e-8
+	 (numapprox[infnorm](f11/p-1,x=-1..1)) */
+      return .98476431801651331809e-13+(-.18938919931166529838e-12+(.18075808708049625725e-12+(-.11411568663771621858e-12+(.53590743602960963021e-13+(-.19960828074558456070e-13+(.61359820303119421751e-14+(-.15991457117787536411e-14+(.36597592489986488593e-15+(-.76983023521613912765e-16+.11772293634695154788e-16*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
+    }
+
+  if (x <= 13.0) /* 12 < x <= 13 */
+    {
+      x = 2 * x - 25.0; /* -1 <= x <= 1 */
+      /* the following approximation was computed with Sage:
+	 f12 = dickman_rho.power_series(12, 80)
+	 then using Maple:
+         Digits:=20:
+	 p:=numapprox[minimax](f12,x=-1..1,10,1/f12);
+	 It gives a relative error less than 2.7e-8
+	 (numapprox[infnorm](f12/p-1,x=-1..1)) */
+      return .19934633853036819003e-14+(-.39390567960226078379e-14+(.38665626810909948382e-14+(-.25132152019284365490e-14+(.12165850034414917031e-14+(-.46768237317409899068e-15+(.14856141016839901209e-15+(-.40061895880500065473e-16+(.95227478488277343487e-17+(-.20899104913735568600e-17+.32985921210508602052e-18*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
+    }
+
+  if (x <= 14.0) /* 13 < x <= 14 */
+    {
+      x = 2 * x - 27.0; /* -1 <= x <= 1 */
+      /* the following approximation was computed with Sage:
+	 f13 = dickman_rho.power_series(13, 80)
+	 then using Maple:
+         Digits:=20:
+	 p:=numapprox[minimax](f13,x=-1..1,10,1/f13);
+	 It gives a relative error less than 3.7e-8
+	 (numapprox[infnorm](f13/p-1,x=-1..1)) */
+      return .36468388101796492224e-16+(-.73831973563371575758e-16+(.74312671625965740134e-16+(-.49570201041373844974e-16+(.24648267921024808625e-16+(-.97426560588907822003e-17+(.31850597161723004412e-17+(-.88485037859050841047e-18+(.21736499712587315716e-18+(-.49450337815428832609e-19+.80095079043879918725e-20*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
+    }
+
+  if (x <= 15.0) /* 14 < x <= 15 */
+    {
+      x = 2 * x - 29.0; /* -1 <= x <= 1 */
+      /* the following approximation was computed with Sage:
+	 f14 = dickman_rho.power_series(14, 80)
+	 then using Maple:
+         Digits:=20:
+	 p:=numapprox[minimax](f14,x=-1..1,10,1/f14);
+	 It gives a relative error less than 4.9e-8
+	 (numapprox[infnorm](f14/p-1,x=-1..1)) */
+      return .60765132830145007969e-18+(-.12575309504369141043e-17+(.12946451399018573828e-17+(-.88393035077609716488e-18+(.45020751129961007194e-18+(-.18241967694434985090e-18+(.61176824835640845709e-19+(-.17448876291034641413e-19+(.44127731900971228254e-20+(-.10358811834763113453e-20+.17156332924774738971e-21*x)*x)*x)*x)*x)*x)*x)*x)*x)*x;
+    }
+
+  /* for x > 15, Dickman's function differs from the approximation
+     below by at most 3.5e-21 */
+  {
+    static int count = 0;
+    if (count ++ == 0)
+      fprintf (stderr, "# Warning: Dickman rho is imprecise for x > 15\n");
+  }
+  return 0.0332357434363490 * pow (x, -x);
 }

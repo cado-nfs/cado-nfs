@@ -52,7 +52,7 @@ unsigned char	fb_log (double, double, double);
 factorbase_degn_t * 	fb_make_linear (const mpz_t *, const fbprime_t, 
 					const fbprime_t, const double, 
 					const int, const int, FILE *);
-factorbase_degn_t *	fb_read (const char *, const double, const int);
+factorbase_degn_t *	fb_read (const char *, const double, const int, const fbprime_t, fbprime_t);
 fbprime_t	*fb_extract_bycost (const factorbase_degn_t *, 
                                     const fbprime_t, const fbprime_t costlim);
 size_t          fb_size (const factorbase_degn_t *);                   

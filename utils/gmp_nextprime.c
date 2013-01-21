@@ -6,16 +6,14 @@
 int
 main (int argc, char *argv[])
 {
-  unsigned long p;
   if (argc != 2) {
       fprintf(stderr, "Usage: nextprime p\n");
       exit(1);
   }
 
-  p = strtoul (argv[1], NULL, 10);
   mpz_t P;
-
-  mpz_init_set_ui (P, p);
+  mpz_init(P);
+  mpz_set_str(P, argv[1], 0);
   mpz_nextprime (P, P);
   gmp_printf ("%Zd\n", P);
   mpz_clear (P);

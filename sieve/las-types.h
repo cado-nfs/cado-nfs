@@ -84,9 +84,9 @@ struct sieve_info_s {
     int logI; // such that I = 1<<logI
 
     // description of the q-lattice
-    uint64_t q;
-    uint64_t rho;
-    int32_t a0, b0, a1, b1;
+    mpz_t q;
+    mpz_t rho;
+    int64_t a0, b0, a1, b1;
 
     // parameters for bucket sieving
     unsigned int td_thresh;
@@ -102,6 +102,12 @@ struct sieve_info_s {
     facul_strategy_t *strategy;
 
     unsigned int degree;
+
+    /* Only for the descent. Excerpts from the Euclidean algorithm
+     */
+    /* U[0]: middle remainders */
+    /* U[1]: next remainders */
+    mpz_t euclid_U[2][2];
 };
 
 typedef struct sieve_info_s sieve_info[1];

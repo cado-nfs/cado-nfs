@@ -63,9 +63,9 @@
    finds that gcc optimizes away the whole asm block and simply
    leaves a constant). */
 #ifdef VOLATILE_IF_GCC_UBUNTU_BUG
-#define VOLATILE __volatile__
+#define __VOLATILE __volatile__
 #else
-#define VOLATILE
+#define __VOLATILE
 #endif
 
 /* Increases r if a != 0 */
@@ -460,7 +460,7 @@ ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
            "X" (*r), "X" (a1), "X" (a2), "X" (b));
 #endif
 #ifdef HAVE_GCC_STYLE_AMD64_ASM
-  __asm__ VOLATILE ( "divq %3"
+  __asm__ __VOLATILE ( "divq %3"
             : "+a" (a1), "=d" (*r)
             : "1" (a2), "rm" (b)
             : "cc");
@@ -547,12 +547,24 @@ ularith_ctz (const unsigned long a)
   ASSERT_EXPENSIVE (a != 0UL);
   return __builtin_ctzl(a);
 #else
-  unsigned long t = a;
-  int i;
+  static const unsigned char trailing_zeros[256] =
+    {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+     5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
+  char lsh, t = 0;
+  unsigned long y = a;
   ASSERT_EXPENSIVE (a != 0UL);
-  for (i = 0; (t & 1UL) == 0UL; i++)
-    t >>= 1;
-  return i;
+  do {
+    lsh = trailing_zeros [(unsigned char) y];
+    y >>= lsh;
+    t += lsh;
+  } while (lsh == 8);
+  return (int) t;
 #endif
 }
 
@@ -842,5 +854,40 @@ ularith_sub_3ul_3ul_ge (unsigned long *r1, unsigned long *r2, unsigned long *r3,
 }
 
 
+/* Integer (truncated) square root of n */
+static inline unsigned long
+ularith_sqrt (const unsigned long n)
+{
+  int i;
+  unsigned long xs, c, d, s2;
+  const unsigned int l = sizeof (unsigned long) * 8 - 1 - __builtin_clzl(n);
 
+  d = n; /* d = n - x^2 */
+  xs = 0UL;
+  s2 = 1UL << (l - l % 2);
+
+  for (i = l / 2; i != 0; i--)
+    {
+      /* Here, s2 = 1 << (2*i) */
+      /* xs = x << (i + 1), the value of x shifted left i+1 bits */
+
+      c = xs + s2; /* c = (x + 2^i) ^ 2 - x^2 = 2^(i+1) * x + 2^(2*i) */
+      xs >>= 1; /* Now xs is shifted only i positions */
+      if (d >= c)
+        {
+          d -= c;
+          xs |= s2; /* x |= 1UL << i <=> xs |= 1UL << (2*i) */
+        }
+      s2 >>= 2;
+    }
+
+  c = xs + s2;
+  xs >>= 1;   
+  if (d >= c) 
+    xs |= s2;
+  
+  return xs;
+}
+
+#undef __VOLATILE
 #endif /* ifndef UL_ARITH_H__ */

@@ -118,8 +118,14 @@ set_target_properties(bwc_base PROPERTIES
         LINK_FLAGS "--mpi")
 
 target_link_libraries(bwc_mpfq gmp utils)
+if (ENABLE_MPFQ_PRIME_FIELDS_FOR_DLOG)
+    set_target_properties(bwc_mpfq PROPERTIES
+        COMPILE_FLAGS "--mpi -DCOMPILE_MPFQ_PRIME_FIELDS")
+else (ENABLE_MPFQ_PRIME_FIELDS_FOR_DLOG)
+    set_target_properties(bwc_mpfq PROPERTIES
+        COMPILE_FLAGS "--mpi")
+endif (ENABLE_MPFQ_PRIME_FIELDS_FOR_DLOG)
 set_target_properties(bwc_mpfq PROPERTIES
-        COMPILE_FLAGS "--mpi"
         LINK_FLAGS "--mpi")
 
 set(matmul_basic_sources    matmul-basic.c)

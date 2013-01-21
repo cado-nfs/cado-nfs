@@ -10,6 +10,7 @@
 */
 
 /* To avoid the warning: implicit declaration of nanosleep for c99 compliant */
+#include "cado.h"
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
 #endif
@@ -24,6 +25,21 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
+
+#ifndef HAVE_NANOSLEEP
+  int nanosleep(const struct timespec *req, struct timespec *rem) {
+    if (rem == NULL) {
+      /* Dummy to shut up the warning */
+    }
+#ifdef HAVE_USLEEP
+    unsigned long usec = req->tv_sec * 1000000UL + req->tv_nsec / 1000UL;
+    usleep(usec);
+#else
+    sleep(req->tv_sec);
+#endif
+    return 0;
+  }
+#endif
 
 /* These variables are used by pthread and main */
 static volatile uint64_t ab_cptp = 0, ab_cptc = 0;   /* Main counters */

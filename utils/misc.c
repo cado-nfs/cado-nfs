@@ -8,20 +8,40 @@
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
+/* For MinGW Build */
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
 
 #include "cado_config.h"
 #include "macros.h"
 #include "misc.h"
 
-/* Not every libc has this, and providing a workalike is very easy */
-
-char *cado_strndup(const char *a, size_t n)
+#ifndef HAVE_STRDUP
+char *strdup(const char * const s)
 {
-    char *r = malloc(n+1);
-    memcpy(r, a, MIN(strlen(a),n)+1);
-    r[n] = '\0';
+    const size_t size = strlen(s) + 1;
+    char *r = (char *) malloc(size * sizeof(char));
+    if (r != NULL)
+        memcpy(r, s, size);
     return r;
 }
+#endif
+
+
+#ifndef HAVE_STRNDUP
+/* Not every libc has this, and providing a workalike is very easy */
+char *strndup(const char * const a, const size_t n)
+{
+    const size_t size = MIN(strlen(a), n) + 1;
+    char *r = (char *) malloc(size * sizeof(char));
+    if (r != NULL) {
+        memcpy(r, a, size);
+        r[size] = '\0';
+    }
+    return r;
+}
+#endif
 
 void
 *malloc_check (const size_t x)
@@ -76,16 +96,29 @@ void free_aligned(void * p, size_t size MAYBE_UNUSED, size_t alignment MAYBE_UNU
 #endif
 }
 
+static long
+pagesize (void)
+{
+#if defined(_WIN32) || defined(_WIN64)
+  /* cf http://en.wikipedia.org/wiki/Page_%28computer_memory%29 */
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
+#else
+  return sysconf (_SC_PAGESIZE);
+#endif
+}
+
 void *malloc_pagealigned(size_t sz)
 {
-    void *p = malloc_aligned(sz, sysconf(_SC_PAGESIZE));
+    void *p = malloc_aligned (sz, pagesize ());
     ASSERT_ALWAYS(p != NULL);
     return p;
 }
 
 void free_pagealigned(void * p, size_t sz)
 {
-    free_aligned(p, sz, sysconf(_SC_PAGESIZE));
+    free_aligned(p, sz, pagesize ());
 }
 
 int has_suffix(const char * path, const char * sfx)
@@ -209,7 +242,13 @@ int mkdir_with_parents(const char * dir, int fatal)
                 if (fatal) exit(1);
                 return -errno;
             }
-            rc = mkdir(tmp, 0777);
+/* MinGW's mkdir has only one argument,
+   cf http://lists.gnu.org/archive/html/bug-gnulib/2008-04/msg00259.html */
+#if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
+            rc = mkdir (tmp);
+#else
+            rc = mkdir (tmp, 0777);
+#endif
             if (rc < 0) {
                 fprintf(stderr, "mkdir(%s): %s\n", tmp, strerror(errno));
                 free(tmp);
@@ -221,3 +260,127 @@ int mkdir_with_parents(const char * dir, int fatal)
     free(tmp);
     return 0;
 }
+
+
+#ifdef MINGW
+
+#ifndef PRISIZ
+#error MINGW is defined, but PRISIZ is not
+#endif
+
+/* We call only v*printf(), so no infinite recursion even with rename in 
+   effect here */
+
+static const char *
+subst_zu(const char *s)
+{
+    char *r = strdup(s);
+    const char *prisiz = PRISIZ;
+    const size_t l = strlen(r);
+    size_t i;
+    
+    ASSERT_ALWAYS(strlen(prisiz) == 2);
+    ASSERT_ALWAYS(r != NULL);
+    for (i = 0; i + 2 < l; i++)
+        if (r[i] == '%' && r[i+1] == 'z' && r[i+2] == 'u') {
+            r[i+1] = prisiz[0];
+            r[i+2] = prisiz[1];
+        }
+    return r;
+}
+
+int
+printf_subst_zu (const char *format, ...)
+{
+  va_list ap;
+  const char *subst_format;
+  int r;
+  
+  va_start (ap, format);
+  subst_format = subst_zu (format);  
+  r = vprintf (subst_format, ap);
+  free ((void *)subst_format);
+  va_end (ap);
+  return r;
+}
+
+int
+fprintf_subst_zu (FILE *stream, const char *format, ...)
+{
+  va_list ap;
+  const char *subst_format;
+  int r;
+  
+  va_start (ap, format);
+  subst_format = subst_zu (format);  
+  r = vfprintf (stream, subst_format, ap);
+  free ((void *)subst_format);
+  va_end (ap);
+  return r;
+}
+
+int
+sprintf_subst_zu (char *str, const char *format, ...)
+{
+  va_list ap;
+  const char *subst_format;
+  int r;
+  
+  va_start (ap, format);
+  subst_format = subst_zu (format);  
+  r = vsprintf (str, subst_format, ap);
+  free ((void *)subst_format);
+  va_end (ap);
+  return r;
+}
+
+int
+snprintf_subst_zu (char *str, const size_t size, const char *format, ...)
+{
+  va_list ap;
+  const char *subst_format;
+  int r;
+  
+  va_start (ap, format);
+  subst_format = subst_zu (format);  
+  r = vsnprintf (str, size, subst_format, ap);
+  free ((void *)subst_format);
+  va_end (ap);
+  return r;
+}
+
+#endif
+
+#ifndef HAVE_ASPRINTF
+/* Copied and improved from
+ * http://mingw-users.1079350.n2.nabble.com/Query-regarding-offered-alternative-to-asprintf-td6329481.html
+ */
+int vasprintf( char **sptr, const char *fmt, va_list argv )
+{
+    int wanted = vsnprintf( *sptr = NULL, 0, fmt, argv );
+    if (wanted<0)
+        return -1;
+    *sptr = malloc(1 + wanted);
+    if (!*sptr)
+        return -1;
+    /* MinGW (the primary user of this code) can't grok %zu, so we have
+     * to rewrite the format */
+    const char *subst_format;
+    subst_format = subst_zu (format);  
+    int rc = vsnprintf(*sptr, 1+wanted, subst_zu, argv );
+    free ((void *)subst_format);
+    return rc;
+}
+
+int asprintf( char **sptr, const char *fmt, ... )
+{
+    int retval;
+    va_list argv;
+    va_start(argv, fmt);
+    retval = vasprintf(sptr, fmt, argv);
+    va_end(argv);
+    return retval;
+}
+#endif  /* HAVE_ASPRINTF */
+
+
