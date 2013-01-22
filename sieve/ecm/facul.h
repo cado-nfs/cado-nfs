@@ -33,7 +33,7 @@ typedef struct {
 
 
 facul_strategy_t * facul_make_strategy (const int n, const unsigned long fbb, 
-					const unsigned long lpb);
+					const unsigned int lpb);
 void facul_clear_strategy (facul_strategy_t *);
 void facul_print_stats (FILE *);
 int facul (unsigned long *, const mpz_t, const facul_strategy_t *);

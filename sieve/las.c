@@ -2276,7 +2276,7 @@ main (int argc0, char *argv0[])
 
     sieve_info_init_trialdiv(si); /* Init refactoring stuff */
     si->strategy = facul_make_strategy (15, MIN(si->cpoly->rat->lim, si->cpoly->alg->lim),
-                                       1UL << MIN(si->cpoly->rat->lpb, si->cpoly->alg->lpb));
+                                       MIN(si->cpoly->rat->lpb, si->cpoly->alg->lpb));
 
     las_report report;
     las_report_init(report);

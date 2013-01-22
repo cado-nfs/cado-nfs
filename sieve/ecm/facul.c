@@ -29,68 +29,63 @@ unsigned long stats_found_n[STATS_LEN] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
+/* A chain constructed with basicstrat.c, with fbb=18 */
+static const int STRATEGY_CHAIN[40][3] = {
+  { PM1_METHOD    ,  125, 1785 }, 
+  { PP1_27_METHOD ,  180, 3885 }, 
+  { EC_METHOD    ,  125, 3045 }, 
+  { PM1_METHOD    ,  385, 11445 }, 
+  { EC_METHOD    ,  125, 6195 }, 
+  { EC_METHOD    ,  150, 6195 }, 
+  { PP1_65_METHOD ,  815, 20475 }, 
+  { EC_METHOD    ,  220, 9345 }, 
+  { EC_METHOD    ,  265, 11445 }, 
+  { EC_METHOD    ,  385, 16905 }, 
+  { EC_METHOD    ,  385, 16905 }, 
+  { PM1_METHOD    ,  2460, 62895 }, 
+  { EC_METHOD    ,  385, 16905 }, 
+  { EC_METHOD    ,  385, 16905 }, 
+  { EC_METHOD    ,  385, 16905 }, 
+  { EC_METHOD    ,  465, 20475 }, 
+  { EC_METHOD    ,  465, 20475 }, 
+  { EC_METHOD    ,  465, 20475 }, 
+  { EC_METHOD    ,  465, 20475 }, 
+  { EC_METHOD    ,  675, 29925 }, 
+  { EC_METHOD    ,  675, 29925 }, 
+  { EC_METHOD    ,  675, 29925 }, 
+  { PP1_27_METHOD ,  4260, 131565 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  815, 36015 }, 
+  { EC_METHOD    ,  980, 43365 }, 
+  { EC_METHOD    ,  980, 43365 }, 
+  { EC_METHOD    ,  980, 43365 }, 
+  { EC_METHOD    ,  980, 43365 }, 
+};
+
+
 /* Try a strategy for large lpb's. 
    In that case, n is ignored. This is not a bug. It is more the
    job of this function to decide the number of curves to run.
    */
 static facul_strategy_t *
-facul_make_strategy_large (const int n, const unsigned long fbb, 
-		     const unsigned long lpb)
+facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb, 
+		     const unsigned int lpb)
 {
   facul_strategy_t *strategy;
   facul_method_t *methods;
   int i;
 
-  int B1B2[144][2] = {
-      {315, 5355}, {315, 5355}, {315, 5355},
-      {315, 5355}, {315, 5355}, {315, 5355},
-      {450, 6825}, {450, 6825}, {450, 6825}, 
-      {450, 6825}, {450, 6825}, {450, 6825}, 
-      {525, 8085}, {525, 8085}, {525, 8085},
-      {525, 8085}, {525, 8085}, {525, 8085},
-      {750, 9555}, {750, 9555}, {750, 9555}, 
-      {750, 9555}, {750, 9555}, {750, 9555}, 
-      {1250, 13965}, {1250, 13965}, {1250, 13965}, 
-      {1250, 13965}, {1250, 13965}, {1250, 13965}, 
-      {2000, 17325}, {2000, 17325}, {2000, 17325},
-      {2000, 17325}, {2000, 17325}, {2000, 17325},
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-      {4000, 29925}, {4000, 29925}, {4000, 29925}, 
-  };
   // the number of curves is nb_curves[lpb-35] 
   int nb_curves[60] = {
       12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18,
@@ -99,59 +94,49 @@ facul_make_strategy_large (const int n, const unsigned long fbb,
   };
 
   int nn;
-  /*
   if (lpb < 35) 
       nn = nb_curves[0];
   else if (lpb > 74)
-//      nn = nb_curves[39];
-      nn = 45;
+      nn = nb_curves[39];
   else
       nn = nb_curves[lpb - 35];
-      */
-  nn = 144;
-
-  printf("prout\n");
 
   strategy = malloc (sizeof (facul_strategy_t));
-  strategy->lpb = lpb;
+  strategy->lpb = 1UL << lpb;
   /* Store fbb^2 in fbb2 */
   ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
 
-  methods = malloc ((nn + 4) * sizeof (facul_method_t));
+  methods = malloc ((1+nn) * sizeof (facul_method_t));
   strategy->methods = methods;
 
-  /* run one P-1 curve with B1=315 and B2=2205 */
-  methods[0].method = PM1_METHOD;
-  methods[0].plan = malloc (sizeof (pm1_plan_t));
-  pm1_make_plan (methods[0].plan, 315, 2205, 0);
+  for (i = 0; i < nn; ++i) {
+      int type = STRATEGY_CHAIN[i][0];
+      int B1   = STRATEGY_CHAIN[i][1];
+      int B2   = STRATEGY_CHAIN[i][2];
+      methods[i].method = type;
+      if (type == PM1_METHOD) {
+          methods[i].plan = malloc (sizeof (pm1_plan_t));
+          pm1_make_plan (methods[i].plan, B1, B2, 0);
+      } else if (type == PP1_27_METHOD || type == PP1_65_METHOD) {
+          methods[i].plan = malloc (sizeof (pp1_plan_t));
+          pp1_make_plan (methods[i].plan, B1, B2, 0);
+      } else {
+          methods[i].plan = malloc (sizeof (ecm_plan_t));
+          ecm_make_plan (methods[i].plan, B1, B2, MONTY12, i+2, 1, 0);
+      }
+  }
 
-  /* run one P+1 curve with B1=525 and B2=3255 */
-  methods[1].method = PP1_27_METHOD;
-  methods[1].plan = malloc (sizeof (pp1_plan_t));
-  pp1_make_plan (methods[1].plan, 525, 3255, 0);
+  // Use Brent sigma=11 for the first ECM
+  i = 0;
+  while (methods[i].method != EC_METHOD)
+      i++;
+  ecm_clear_plan(methods[i].plan);
+  ecm_make_plan (methods[i].plan, STRATEGY_CHAIN[i][1],
+          STRATEGY_CHAIN[i][2], BRENT12, 11, 1, 0);
 
-  /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
-  methods[2].method = EC_METHOD;
-  methods[2].plan = malloc (sizeof (ecm_plan_t));
-  ecm_make_plan (methods[2].plan, 105, 3255, MONTY12, 2, 1, 0);
-  
-  if (nn > 0)
-    {
-      methods[3].method = EC_METHOD;
-      methods[3].plan = malloc (sizeof (ecm_plan_t));
-      ecm_make_plan (methods[3].plan, 315, 5355, BRENT12, 11, 1, 0);
-    }
-
-  for (i = 4; i < nn + 3; i++)
-    {
-      methods[i].method = EC_METHOD;
-      methods[i].plan = malloc (sizeof (ecm_plan_t));
-      ecm_make_plan (methods[i].plan, B1B2[i-4][0], B1B2[i-4][1],
-              MONTY12, i - 1, 1, 0);
-    }
-
-  methods[nn + 3].method = 0;
-  methods[nn + 3].plan = NULL;
+  // Sentinel
+  methods[nn].method = 0;
+  methods[nn].plan = NULL;
 
   return strategy;
 }
@@ -166,16 +151,16 @@ facul_make_strategy_large (const int n, const unsigned long fbb,
 
 facul_strategy_t *
 facul_make_strategy (const int n, const unsigned long fbb, 
-		     const unsigned long lpb)
+		     const unsigned int lpb)
 {
-  //if (lpb >= 35)
+  if (lpb >= 35)
     return facul_make_strategy_large(n, fbb, lpb);
   facul_strategy_t *strategy;
   facul_method_t *methods;
   int i;
   
   strategy = malloc (sizeof (facul_strategy_t));
-  strategy->lpb = lpb;
+  strategy->lpb = 1UL<<lpb;
   /* Store fbb^2 in fbb2 */
   ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
 
