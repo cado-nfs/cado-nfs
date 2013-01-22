@@ -1106,6 +1106,14 @@ modredc3ul_sub (residueredc3ul_t r, const residueredc3ul_t a,
 #endif
 }
 
+MAYBE_UNUSED
+static inline void
+modredc3ul_add1 (residueredc3ul_t r, const residueredc3ul_t a, 
+		  const modulusredc3ul_t m)
+{
+  modredc3ul_add(r, a, m[0].one, m);
+}
+
 
 MAYBE_UNUSED
 static inline void
