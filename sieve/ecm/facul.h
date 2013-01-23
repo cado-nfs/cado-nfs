@@ -25,7 +25,8 @@ typedef struct {
    prime factor > lpb. */
 
 typedef struct {
-  unsigned long lpb;        /* Large prime bound as an unsigned long 
+  unsigned int lpb_bits;
+  unsigned long lpb[2];      /* Large prime bound as an unsigned long 
 			       (the integer value, not the bit size!) */
   unsigned long fbb2[2];    /* The factor basis bound squared */
   facul_method_t *methods;  /* List of methods to try */

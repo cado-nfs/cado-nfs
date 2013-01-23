@@ -1678,7 +1678,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
         th->rep->report_sizes[S[RATIONAL_SIDE][x]][S[ALGEBRAIC_SIDE][x]]++;
     }
 
-    fprintf(si->output, "# %d in sbr table\n", sbrsize);
+//    fprintf(si->output, "# %d in sbr table\n", sbrsize);
 
     free(sbr);
 
@@ -1750,7 +1750,10 @@ factor_leftover_norm (mpz_t n, unsigned int l,
   /* If n < L, we know that n is prime, since all primes < B have been
      removed, and L < B^2 in general, where B is the factor base bound,
      thus we only need a primality test when n > L. */
-  if (BITSIZE(n) <= l)
+  if (BITSIZE(n) <= l &&
+          ( (strategy->fbb2[1] > strategy->lpb[1]) ||
+            (strategy->fbb2[1] == strategy->lpb[1] &&
+             strategy->fbb2[0] == strategy->lpb[0]) ) )
     {
       append_mpz_to_array (factors, n);
       append_uint32_to_array (multis, 1);
@@ -1764,7 +1767,6 @@ factor_leftover_norm (mpz_t n, unsigned int l,
 */
 
   /* use the facul library */
-  // gmp_printf ("facul: %Zd\n", n);
   facul_code = facul (ul_factors, n, strategy);
 
   if (facul_code == FACUL_NOT_SMOOTH)
@@ -1779,7 +1781,8 @@ factor_leftover_norm (mpz_t n, unsigned int l,
 	{
 	  unsigned long r;
 	  mpz_t t;
-	  if (ul_factors[i] > (1UL << l)) /* Larger than large prime bound? */
+	  if ((l < LONG_BIT) && (ul_factors[i] > (1UL << l)))
+              /* Larger than large prime bound? */
 	    return 0;
 	  r = mpz_tdiv_q_ui (n, n, ul_factors[i]);
 	  ASSERT_ALWAYS (r == 0UL);

@@ -87,6 +87,7 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
   int i;
 
   // the number of curves is nb_curves[lpb-35] 
+  // TODO: Change that!!!!
   int nb_curves[60] = {
       12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18,
       19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25,
@@ -100,9 +101,23 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
       nn = nb_curves[39];
   else
       nn = nb_curves[lpb - 35];
+  // FIXME: for the moment, activate always maximal number of curves.
+  nn = 40;
 
   strategy = malloc (sizeof (facul_strategy_t));
-  strategy->lpb = 1UL << lpb;
+  strategy->lpb_bits = lpb;
+  if (lpb < LONG_BIT) {
+      strategy->lpb[0] = 1UL << lpb;
+      strategy->lpb[1] = 0UL;
+  } else {
+      int ll = lpb - LONG_BIT;
+      if (ll >= LONG_BIT) {
+          fprintf(stderr, "Sorry, this large prime bound is too large\n");
+          abort();
+      }
+      strategy->lpb[0] = 0UL;
+      strategy->lpb[1] = 1UL << ll;
+  }
   /* Store fbb^2 in fbb2 */
   ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
 
@@ -160,7 +175,19 @@ facul_make_strategy (const int n, const unsigned long fbb,
   int i;
   
   strategy = malloc (sizeof (facul_strategy_t));
-  strategy->lpb = 1UL<<lpb;
+  strategy->lpb_bits = lpb;
+  if (lpb < LONG_BIT) {
+      strategy->lpb[0] = 1UL << lpb;
+      strategy->lpb[1] = 0UL;
+  } else {
+      int ll = lpb - LONG_BIT;
+      if (ll >= LONG_BIT) {
+          fprintf(stderr, "Sorry, this large prime bound is too large\n");
+          abort();
+      }
+      strategy->lpb[0] = 0UL;
+      strategy->lpb[1] = 1UL << ll;
+  }
   /* Store fbb^2 in fbb2 */
   ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
 
@@ -320,7 +347,10 @@ facul (unsigned long *factors, const mpz_t N, const facul_strategy_t *strategy)
   else 
     {
       if (i < MODREDC3UL_MINBITS)  // 127 and 128 bits are not covered!
-        return 0; 
+      {
+          printf("# Warning: can not factor numbers of 127 and 128 bits!\n");
+          return 0; 
+      }
       modulusredc3ul_t m;
       ASSERT (i <= MODREDC3UL_MAXBITS);
       modredc3ul_initmod_uls (m, n);

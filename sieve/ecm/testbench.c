@@ -140,7 +140,9 @@ int main (int argc, char **argv)
 
   strategy = malloc (sizeof(facul_strategy_t));
   strategy->methods = malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
-  strategy->lpb = ~(0UL);
+  strategy->lpb[0] = ~(0UL);
+  strategy->lpb[1] = 0UL;
+  strategy->lpb_bits = LONG_BIT;
   strategy->fbb2[0] = 0UL;
   strategy->fbb2[1] = 0UL;
 
@@ -357,7 +359,7 @@ int main (int argc, char **argv)
   if (strat)
     {
       facul_clear_strategy (strategy);
-      strategy = facul_make_strategy (15, fbb, (lpb == 0) ? 0 : 1UL << lpb);
+      strategy = facul_make_strategy (15, fbb, lpb);
     }
   else
     {
