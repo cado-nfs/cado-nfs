@@ -1,0 +1,36 @@
+p := NextPrime(Random(2^384));
+h := Random(p);
+T := 2^30;
+
+
+function MyXGCD(a, b, T)
+    ainit := a; binit := b;
+    bound := Floor(Sqrt(b*T));
+    x := 0; lastx := 1;
+    y := 1; lasty := 0;
+    while AbsoluteValue(b) gt bound do 
+        q := a div b;
+        r := a mod b;
+        a := b; b := r;
+        newx := lastx - q*x;
+        lastx := x; x := newx;
+        newy := lasty - q*y;
+        lasty := y; y := newy;
+    end while;
+    return [ [ b, x ], [ a, lastx ] ];
+end function;
+
+
+gg := MyXGCD(h, p, T);
+
+m := Integers()!GF(p)!(-gg[2][1]/gg[1][1]);
+
+str := Sprintf("n: %o\n", p);
+str := str cat Sprintf("Y1: %o\n", gg[1][1]);
+str := str cat Sprintf("Y0: %o\n", gg[2][1]);
+str := str cat Sprintf("c1: %o\n", gg[1][2]);
+str := str cat Sprintf("c0: %o\n", gg[2][2]);
+str := str cat Sprintf("m: %o\n", m);
+str := str cat "skew: 1.0\n" cat "rlim: 50000\n" cat "alim: 100000\n"
+        cat "lpbr: 22\n" cat "lpba: 22\n" cat "mfbr: 24\n"
+        cat "mfba: 24\n" cat "rlambda: 1.2\n" cat "alambda: 1.2\n";
