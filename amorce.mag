@@ -31,6 +31,9 @@ str := str cat Sprintf("Y0: %o\n", gg[2][1]);
 str := str cat Sprintf("c1: %o\n", gg[1][2]);
 str := str cat Sprintf("c0: %o\n", gg[2][2]);
 str := str cat Sprintf("m: %o\n", m);
-str := str cat "skew: 1.0\n" cat "rlim: 50000\n" cat "alim: 100000\n"
-        cat "lpbr: 22\n" cat "lpba: 22\n" cat "mfbr: 24\n"
-        cat "mfba: 24\n" cat "rlambda: 1.2\n" cat "alambda: 1.2\n";
+str := str cat "skew: 1.0\n" cat "rlim: 4000000\n" cat "alim: 4000000\n"
+        cat "lpbr: 72\n" cat "lpba: 72\n" cat "mfbr: 126\n"
+        cat "mfba: 126\n" cat "rlambda: 1.8\n" cat "alambda: 1.8\n"
+        cat "# q0: 1000000000 I: 12\n";
+
+str;

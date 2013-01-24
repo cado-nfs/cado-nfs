@@ -1621,7 +1621,7 @@ factor_survivors (thread_data_ptr th, int N, unsigned char * S[2], where_am_I_pt
                 relation_add_prime(rel, side, factors[side].fac[i]);
             for (unsigned int i = 0; i < f[side]->length; ++i) {
                 if (!mpz_fits_ulong_p(f[side]->data[i]))
-                    fprintf(stderr, "Warning: misprinted relation because of large prime of %zu bits at (%"PRId64",%"PRIu64")\n",
+                    fprintf(stderr, "Warning: maybe misprinted relation because of large prime of %zu bits at (%"PRId64",%"PRIu64")\n",
                             mpz_sizeinbase(f[side]->data[i], 2), a, b);
                 for (unsigned int j = 0; j < m[side]->data[i]; j++) {
                     relation_add_prime(rel, side, mpz_get_ui(f[side]->data[i]));

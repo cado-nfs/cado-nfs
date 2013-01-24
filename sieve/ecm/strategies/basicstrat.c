@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     ppm1_history->pp1_success7 = zero_hist;
     ppm1_history->pp1_success11 = zero_hist;
 
-    for (int i = 0; i < 30; ++i) {
+    for (int i = 0; i < 60; ++i) {
         cofac_method_srcptr method;
         method = get_method_naive(cofac_range, prior,
                 acc_failure1, acc_failure5, acc_failure7,
@@ -62,21 +62,22 @@ int main(int argc, char **argv)
             acc_failure7[j] *= (1-method->success7[j]);
             acc_failure11[j] *= (1-method->success11[j]);
         }
+        printf("{ ");
         switch (method->type) {
             case ECM:
-                printf("ECM");
+                printf("EC_METHOD");
                 break;
             case PM1:
-                printf("PM1");
+                printf("PM1_METHOD");
                 break;
             case PP1_27:
-                printf("PP1_27");
+                printf("PP1_27_METHOD");
                 break;
             case PP1_65:
-                printf("PP1_65");
+                printf("PP1_65_METHOD");
                 break;
         }
-        printf("\t%d,%d\n", method->B1, method->B2);
+        printf(",\t%d,%d },\n", method->B1, method->B2);
     }
     // final Baysian thm
     printf("bits: prob_to_find_p(i) prob_still_exist_p(i)\n");

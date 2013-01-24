@@ -70,7 +70,7 @@ facul_doit (unsigned long *factors, const modulus_t m,
           // We failed to factor this number !
           // Let's declare it NON_SMOOTH.
           found = FACUL_NOT_SMOOTH;
-          printf("# Warning: Running out of methods\n");
+//          printf("# Warning: Running out of methods\n");
           break;
       }
 

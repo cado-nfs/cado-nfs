@@ -30,7 +30,9 @@ unsigned long stats_found_n[STATS_LEN] = {
 };
 
 /* A chain constructed with basicstrat.c, with fbb=18 */
-static const int STRATEGY_CHAIN[40][3] = {
+#if 0
+#define CHAIN_LEN 40
+static const int STRATEGY_CHAIN[CHAIN_LEN][3] = {
   { PM1_METHOD    ,  125, 1785 }, 
   { PP1_27_METHOD ,  180, 3885 }, 
   { EC_METHOD    ,  125, 3045 }, 
@@ -72,6 +74,71 @@ static const int STRATEGY_CHAIN[40][3] = {
   { EC_METHOD    ,  980, 43365 }, 
   { EC_METHOD    ,  980, 43365 }, 
 };
+#else
+#define CHAIN_LEN 60
+static const int STRATEGY_CHAIN[CHAIN_LEN][3] = {
+{ PM1_METHOD,   180,1000 },
+{ PP1_27_METHOD,        220,7665 },
+{ PM1_METHOD,   560,13965 },
+{ EC_METHOD,    125,6195 },
+{ EC_METHOD,    150,6195 },
+{ EC_METHOD,    220,9345 },
+{ EC_METHOD,    220,9345 },
+{ PP1_65_METHOD,        980,29925 },
+{ EC_METHOD,    385,16905 },
+{ EC_METHOD,    385,16905 },
+{ EC_METHOD,    385,16905 },
+{ EC_METHOD,    385,16905 },
+{ EC_METHOD,    385,16905 },
+{ PM1_METHOD,   2955,75705 },
+{ EC_METHOD,    465,20475 },
+{ EC_METHOD,    465,20475 },
+{ EC_METHOD,    465,20475 },
+{ EC_METHOD,    465,20475 },
+{ EC_METHOD,    675,29925 },
+{ EC_METHOD,    675,29925 },
+{ EC_METHOD,    675,29925 },
+{ EC_METHOD,    675,29925 },
+{ EC_METHOD,    675,29925 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ PP1_27_METHOD,        4260,131565 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    815,36015 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+{ EC_METHOD,    980,43365 },
+    };
+#endif
 
 
 /* Try a strategy for large lpb's. 
@@ -102,7 +169,7 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
   else
       nn = nb_curves[lpb - 35];
   // FIXME: for the moment, activate always maximal number of curves.
-  nn = 40;
+  nn = CHAIN_LEN;
 
   strategy = malloc (sizeof (facul_strategy_t));
   strategy->lpb_bits = lpb;
@@ -348,7 +415,7 @@ facul (unsigned long *factors, const mpz_t N, const facul_strategy_t *strategy)
     {
       if (i < MODREDC3UL_MINBITS)  // 127 and 128 bits are not covered!
       {
-          printf("# Warning: can not factor numbers of 127 and 128 bits!\n");
+//          printf("# Warning: can not factor numbers of 127 and 128 bits!\n");
           return 0; 
       }
       modulusredc3ul_t m;
