@@ -124,6 +124,7 @@ void update_state(cofac_state_ptr newstate, cofac_state_srcptr state,
 
   // Accumulated failure is just the product of the failure
   // probabilities.
+  // FIXME: This is only true if we are not playing agin p-1 or p+1 !!!
   for (int i = 0; i < 60; ++i) {
     newstate->acc_failure1[i] =(1-method->success1[i])*state->acc_failure1[i];
     newstate->acc_failure5[i] =(1-method->success5[i])*state->acc_failure5[i];

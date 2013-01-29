@@ -66,7 +66,7 @@ tryfactor (mpz_t N, const facul_strategy_t *strategy,
     gmp_printf ("Trying to factor %Zd\n", N);
 
   facul_code = facul (f, N, strategy);
-  
+
   if (printfactors && facul_code > 0)
     {
       int j;
@@ -140,11 +140,16 @@ int main (int argc, char **argv)
 
   strategy = malloc (sizeof(facul_strategy_t));
   strategy->methods = malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
+  strategy->purged_bits = malloc ((MAX_METHODS + 1) * sizeof (unsigned int));
+  strategy->fbb_bits = 0;
+  strategy->ecmb = 100;
+  strategy->mfb = 100;
   strategy->lpb[0] = ~(0UL);
   strategy->lpb[1] = 0UL;
   strategy->lpb_bits = LONG_BIT;
   strategy->fbb2[0] = 0UL;
   strategy->fbb2[1] = 0UL;
+  strategy->early_abort = 0;
 
   /* Parse options */
   mpz_init (N);
@@ -359,7 +364,10 @@ int main (int argc, char **argv)
   if (strat)
     {
       facul_clear_strategy (strategy);
-      strategy = facul_make_strategy (15, fbb, lpb);
+      int ecmb=lpb;
+      int mfb=150;
+      // FIXME: do it the right way!
+      strategy = facul_make_strategy (fbb, lpb, mfb, ecmb);
     }
   else
     {
@@ -404,7 +412,9 @@ int main (int argc, char **argv)
           else
 	    {
               mpz_mul_ui (N, cof, i);
-              if (tryfactor (N, strategy, verbose, printfactors, printnonfactors))
+              int code = tryfactor (N, strategy, verbose, printfactors,
+                      printnonfactors);
+              if (code > 0)
                 {
                   hits++;
                   if (mod > 0)
@@ -446,7 +456,9 @@ int main (int argc, char **argv)
         else
           {
             mpz_mul (N, N, cof);
-            if (tryfactor (N, strategy, verbose, printfactors, printnonfactors))
+            int code = tryfactor (N, strategy, verbose, printfactors,
+                    printnonfactors);
+            if (code > 0)
               hits++;
           }
       }

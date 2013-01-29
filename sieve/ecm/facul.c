@@ -11,6 +11,7 @@
 #include "ecm.h"
 #include "facul.h"
 #include "facul_doit.h"
+#include "mod_ul.h"
 
 /* These global variables are only for statistics. In case of
  * multithreaded sieving, the stats might be wrong...
@@ -29,150 +30,106 @@ unsigned long stats_found_n[STATS_LEN] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-/* A chain constructed with basicstrat.c, with fbb=18 */
-#if 0
-#define CHAIN_LEN 40
-static const int STRATEGY_CHAIN[CHAIN_LEN][3] = {
-  { PM1_METHOD    ,  125, 1785 }, 
-  { PP1_27_METHOD ,  180, 3885 }, 
-  { EC_METHOD    ,  125, 3045 }, 
-  { PM1_METHOD    ,  385, 11445 }, 
-  { EC_METHOD    ,  125, 6195 }, 
-  { EC_METHOD    ,  150, 6195 }, 
-  { PP1_65_METHOD ,  815, 20475 }, 
-  { EC_METHOD    ,  220, 9345 }, 
-  { EC_METHOD    ,  265, 11445 }, 
-  { EC_METHOD    ,  385, 16905 }, 
-  { EC_METHOD    ,  385, 16905 }, 
-  { PM1_METHOD    ,  2460, 62895 }, 
-  { EC_METHOD    ,  385, 16905 }, 
-  { EC_METHOD    ,  385, 16905 }, 
-  { EC_METHOD    ,  385, 16905 }, 
-  { EC_METHOD    ,  465, 20475 }, 
-  { EC_METHOD    ,  465, 20475 }, 
-  { EC_METHOD    ,  465, 20475 }, 
-  { EC_METHOD    ,  465, 20475 }, 
-  { EC_METHOD    ,  675, 29925 }, 
-  { EC_METHOD    ,  675, 29925 }, 
-  { EC_METHOD    ,  675, 29925 }, 
-  { PP1_27_METHOD ,  4260, 131565 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  815, 36015 }, 
-  { EC_METHOD    ,  980, 43365 }, 
-  { EC_METHOD    ,  980, 43365 }, 
-  { EC_METHOD    ,  980, 43365 }, 
-  { EC_METHOD    ,  980, 43365 }, 
-};
-#else
+// A chain constructed with basicstrat of length 60.
+// Second and third integers are B1,B2.
+// Fourth integers gives the bit size of the primes that have been purged
+// at this stage of the chain, with prob > 90%.
 #define CHAIN_LEN 60
-static const int STRATEGY_CHAIN[CHAIN_LEN][3] = {
-{ PM1_METHOD,   180,1000 },
-{ PP1_27_METHOD,        220,7665 },
-{ PM1_METHOD,   560,13965 },
-{ EC_METHOD,    125,6195 },
-{ EC_METHOD,    150,6195 },
-{ EC_METHOD,    220,9345 },
-{ EC_METHOD,    220,9345 },
-{ PP1_65_METHOD,        980,29925 },
-{ EC_METHOD,    385,16905 },
-{ EC_METHOD,    385,16905 },
-{ EC_METHOD,    385,16905 },
-{ EC_METHOD,    385,16905 },
-{ EC_METHOD,    385,16905 },
-{ PM1_METHOD,   2955,75705 },
-{ EC_METHOD,    465,20475 },
-{ EC_METHOD,    465,20475 },
-{ EC_METHOD,    465,20475 },
-{ EC_METHOD,    465,20475 },
-{ EC_METHOD,    675,29925 },
-{ EC_METHOD,    675,29925 },
-{ EC_METHOD,    675,29925 },
-{ EC_METHOD,    675,29925 },
-{ EC_METHOD,    675,29925 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ PP1_27_METHOD,        4260,131565 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    815,36015 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
-{ EC_METHOD,    980,43365 },
+static const int STRATEGY_CHAIN[CHAIN_LEN][4] = {
+{ PM1_METHOD,   180,1000, 14 },
+{ PP1_27_METHOD,        220,7665, 17 },
+{ PM1_METHOD,   560,13965, 20 },
+{ EC_METHOD,    125,6195, 22 },
+{ EC_METHOD,    150,6195, 24 },
+{ EC_METHOD,    220,9345, 25 },
+{ EC_METHOD,    220,9345, 26 },
+{ PP1_65_METHOD,        980,29925, 27 },
+{ EC_METHOD,    385,16905, 28 },
+{ EC_METHOD,    385,16905, 29 },
+{ EC_METHOD,    385,16905, 30 },
+{ EC_METHOD,    385,16905, 30 },
+{ EC_METHOD,    385,16905, 31 },
+{ PM1_METHOD,   2955,75705, 31 },
+{ EC_METHOD,    465,20475, 32 },
+{ EC_METHOD,    465,20475, 32 },
+{ EC_METHOD,    465,20475, 33 },
+{ EC_METHOD,    465,20475, 33 },
+{ EC_METHOD,    675,29925, 34 },
+{ EC_METHOD,    675,29925, 34 },
+{ EC_METHOD,    675,29925, 35 },
+{ EC_METHOD,    675,29925, 35 },
+{ EC_METHOD,    675,29925, 35 },
+{ EC_METHOD,    815,36015, 36 },
+{ EC_METHOD,    815,36015, 36 },
+{ EC_METHOD,    815,36015, 36 },
+{ PP1_27_METHOD,        4260,131565, 37 },
+{ EC_METHOD,    815,36015, 37 },
+{ EC_METHOD,    815,36015, 37 },
+{ EC_METHOD,    815,36015, 38 },
+{ EC_METHOD,    815,36015, 38 },
+{ EC_METHOD,    815,36015, 38 },
+{ EC_METHOD,    815,36015, 39 },
+{ EC_METHOD,    815,36015, 39 },
+{ EC_METHOD,    815,36015, 39 },
+{ EC_METHOD,    980,43365, 39 },
+{ EC_METHOD,    980,43365, 39 },
+{ EC_METHOD,    980,43365, 39 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 40 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 41 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 42 },
+{ EC_METHOD,    980,43365, 43 },
     };
-#endif
 
 
 /* Try a strategy for large lpb's. 
    In that case, n is ignored. This is not a bug. It is more the
    job of this function to decide the number of curves to run.
    */
-static facul_strategy_t *
-facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb, 
-		     const unsigned int lpb)
+facul_strategy_t *
+facul_make_strategy(const unsigned long fbb, const unsigned int lpb, 
+        const unsigned int mfb, const unsigned int ecmb)
 {
   facul_strategy_t *strategy;
   facul_method_t *methods;
   int i;
 
-  // the number of curves is nb_curves[lpb-35] 
-  // TODO: Change that!!!!
-  int nb_curves[60] = {
-      12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18,
-      19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25,
-      26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32,
-  };
-
   int nn;
-  if (lpb < 35) 
-      nn = nb_curves[0];
-  else if (lpb > 74)
-      nn = nb_curves[39];
-  else
-      nn = nb_curves[lpb - 35];
-  // FIXME: for the moment, activate always maximal number of curves.
-  nn = CHAIN_LEN;
+  if ((int)ecmb < STRATEGY_CHAIN[CHAIN_LEN-1][3]) {
+      // The ecm bound is smaller that what our strategy chain
+      // can found. Select the appropriate subchain:
+      nn = 0;
+      while (STRATEGY_CHAIN[nn][3] < (int)ecmb) 
+          nn++;
+  } else {
+      // Otherwise, take the full chain.
+      nn = CHAIN_LEN;
+  }
+  printf("Chose nn = %d\n", nn);
 
   strategy = malloc (sizeof (facul_strategy_t));
+  strategy->early_abort = 1;
   strategy->lpb_bits = lpb;
+  strategy->mfb = mfb;
+  strategy->ecmb = MIN(STRATEGY_CHAIN[nn-1][3], (int)ecmb);
+
   if (lpb < LONG_BIT) {
       strategy->lpb[0] = 1UL << lpb;
       strategy->lpb[1] = 0UL;
@@ -187,9 +144,13 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
   }
   /* Store fbb^2 in fbb2 */
   ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
+  /* Store fbb as a number of bits */
+  strategy->fbb_bits = modul_intbits(&fbb);
 
   methods = malloc ((1+nn) * sizeof (facul_method_t));
   strategy->methods = methods;
+  unsigned int * purged = malloc ((1+nn) * sizeof (unsigned int));
+  strategy->purged_bits = purged;
 
   for (i = 0; i < nn; ++i) {
       int type = STRATEGY_CHAIN[i][0];
@@ -206,6 +167,7 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
           methods[i].plan = malloc (sizeof (ecm_plan_t));
           ecm_make_plan (methods[i].plan, B1, B2, MONTY12, i+2, 1, 0);
       }
+      purged[i] = MAX(STRATEGY_CHAIN[i][3], (int)strategy->fbb_bits);
   }
 
   // Use Brent sigma=11 for the first ECM
@@ -219,79 +181,7 @@ facul_make_strategy_large (const int MAYBE_UNUSED n, const unsigned long fbb,
   // Sentinel
   methods[nn].method = 0;
   methods[nn].plan = NULL;
-
-  return strategy;
-}
-
-
-/* Make a simple minded strategy for factoring. We start with P-1 and
-   P+1 (with x0=2/7), then an ECM curve with low bounds, then a bunch of
-   ECM curves with larger bounds. How many methods to do in total is
-   controlled by the n parameter: P-1, P+1 and the first ECM curve
-   (with small bounds) are always done, then n ECM curves (with larger bounds)
-*/
-
-facul_strategy_t *
-facul_make_strategy (const int n, const unsigned long fbb, 
-		     const unsigned int lpb)
-{
-  if (lpb >= 35)
-    return facul_make_strategy_large(n, fbb, lpb);
-  facul_strategy_t *strategy;
-  facul_method_t *methods;
-  int i;
-  
-  strategy = malloc (sizeof (facul_strategy_t));
-  strategy->lpb_bits = lpb;
-  if (lpb < LONG_BIT) {
-      strategy->lpb[0] = 1UL << lpb;
-      strategy->lpb[1] = 0UL;
-  } else {
-      int ll = lpb - LONG_BIT;
-      if (ll >= LONG_BIT) {
-          fprintf(stderr, "Sorry, this large prime bound is too large\n");
-          abort();
-      }
-      strategy->lpb[0] = 0UL;
-      strategy->lpb[1] = 1UL << ll;
-  }
-  /* Store fbb^2 in fbb2 */
-  ularith_mul_ul_ul_2ul (&(strategy->fbb2[0]), &(strategy->fbb2[1]), fbb, fbb);
-
-  methods = malloc ((n + 4) * sizeof (facul_method_t));
-  strategy->methods = methods;
-
-  /* run one P-1 curve with B1=315 and B2=2205 */
-  methods[0].method = PM1_METHOD;
-  methods[0].plan = malloc (sizeof (pm1_plan_t));
-  pm1_make_plan (methods[0].plan, 315, 2205, 0);
-
-  /* run one P+1 curve with B1=525 and B2=3255 */
-  methods[1].method = PP1_27_METHOD;
-  methods[1].plan = malloc (sizeof (pp1_plan_t));
-  pp1_make_plan (methods[1].plan, 525, 3255, 0);
-
-  /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
-  methods[2].method = EC_METHOD;
-  methods[2].plan = malloc (sizeof (ecm_plan_t));
-  ecm_make_plan (methods[2].plan, 105, 3255, MONTY12, 2, 1, 0);
-  
-  if (n > 0)
-    {
-      methods[3].method = EC_METHOD;
-      methods[3].plan = malloc (sizeof (ecm_plan_t));
-      ecm_make_plan (methods[3].plan, 315, 5355, BRENT12, 11, 1, 0);
-    }
-
-  for (i = 4; i < n + 3; i++)
-    {
-      methods[i].method = EC_METHOD;
-      methods[i].plan = malloc (sizeof (ecm_plan_t));
-      ecm_make_plan (methods[i].plan, 315, 5355, MONTY12, i - 1, 1, 0);
-    }
-
-  methods[n + 3].method = 0;
-  methods[n + 3].plan = NULL;
+  purged[nn] = 0;
 
   return strategy;
 }
@@ -318,6 +208,7 @@ facul_clear_strategy (facul_strategy_t *strategy)
     }
   free (methods);
   methods = NULL;
+  free (strategy->purged_bits);
   free (strategy);
 }
 

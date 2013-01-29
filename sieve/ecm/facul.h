@@ -10,6 +10,7 @@
 #define EC_METHOD 4
 
 #define FACUL_NOT_SMOOTH (-1)
+#define FACUL_NOT_FOUND (-2)
 
 #define STATS_LEN 128
 
@@ -26,15 +27,23 @@ typedef struct {
 
 typedef struct {
   unsigned int lpb_bits;
+  unsigned int fbb_bits;
+  unsigned int ecmb;
+  unsigned int mfb;
   unsigned long lpb[2];      /* Large prime bound as an unsigned long 
 			       (the integer value, not the bit size!) */
   unsigned long fbb2[2];    /* The factor basis bound squared */
   facul_method_t *methods;  /* List of methods to try */
+  unsigned int   *purged_bits; /* Corresponding bit-size of primes that
+                                  have been removed with high proba*/
+  int early_abort;    /* toggle early abort strategy */
 } facul_strategy_t;
 
 
-facul_strategy_t * facul_make_strategy (const int n, const unsigned long fbb, 
-					const unsigned int lpb);
+facul_strategy_t * facul_make_strategy (const unsigned long fbb, 
+        const unsigned int lpb, 
+        const unsigned int mfb, 
+        const unsigned int ecmb);
 void facul_clear_strategy (facul_strategy_t *);
 void facul_print_stats (FILE *);
 int facul (unsigned long *, const mpz_t, const facul_strategy_t *);

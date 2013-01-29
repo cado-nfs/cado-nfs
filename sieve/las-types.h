@@ -101,6 +101,12 @@ struct sieve_info_s {
 
     facul_strategy_t *strategy;
 
+    // Two parameters related to cofactorization. 
+    // TODO: they should be close to mfbr, lpba, and so on, but those are
+    // inside cpoly (which is weird, anyway).
+    int ecmba;
+    int ecmbr;
+
     unsigned int degree;
 
     /* Only for the descent. Excerpts from the Euclidean algorithm

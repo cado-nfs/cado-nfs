@@ -198,6 +198,10 @@ static void sieve_info_init(sieve_info_ptr si, param_list pl)
     si->I = 1 << si->logI;
     si->J = 1 << (si->logI - 1);
 
+    si->ecmba = si->cpoly->alg->lpb;
+    si->ecmbr = si->cpoly->rat->lpb;
+    param_list_parse_int(pl, "ecmbr", &si->ecmbr);
+    param_list_parse_int(pl, "ecmba", &si->ecmba);
 
     fprintf(si->output,
 	    "# Sieving parameters: rlim=%lu alim=%lu lpbr=%d lpba=%d\n",
@@ -207,6 +211,8 @@ static void sieve_info_init(sieve_info_ptr si, param_list pl)
 	    "#                     rat->mfb=%d alg->mfb=%d rlambda=%1.1f alambda=%1.1f\n",
 	    si->cpoly->rat->mfb, si->cpoly->alg->mfb, si->cpoly->rat->lambda,
 	    si->cpoly->alg->lambda);
+    fprintf(si->output, "#                     ecmbr=%d ecmba=%d\n",
+            si->ecmbr, si->ecmba);
     fprintf(si->output, "#                     skewness=%1.1f\n",
 	    si->cpoly->skew);
 
@@ -1769,7 +1775,7 @@ factor_leftover_norm (mpz_t n, unsigned int l,
   /* use the facul library */
   facul_code = facul (ul_factors, n, strategy);
 
-  if (facul_code == FACUL_NOT_SMOOTH)
+  if (facul_code == FACUL_NOT_SMOOTH || facul_code == FACUL_NOT_FOUND)
     return 0;
 
   ASSERT (facul_code == 0 || mpz_cmp_ui (n, ul_factors[0]) != 0);
@@ -2080,6 +2086,8 @@ usage (const char *argv0, const char * missing)
   fprintf (stderr, "          -alg->mfb     nnn   algebraic cofactor bound 2^nnn\n");
   fprintf (stderr, "          -rlambda  nnn   rational lambda value is nnn\n");
   fprintf (stderr, "          -alambda  nnn   algebraic lambda value is nnn\n");
+  fprintf (stderr, "          -ecmbr    nnn   rational ecm bound is nnn\n");
+  fprintf (stderr, "          -ecmba    nnn   algebraic ecm bound is nnn\n");
   fprintf (stderr, "          -S        xxx   skewness value is xxx\n");
   fprintf (stderr, "          -v              be verbose (print some sieving statistics)\n");
   fprintf (stderr, "          -out filename   write relations to filename instead of stdout\n");
@@ -2278,8 +2286,13 @@ main (int argc0, char *argv0[])
     init_norms (si);
 
     sieve_info_init_trialdiv(si); /* Init refactoring stuff */
-    si->strategy = facul_make_strategy (15, MIN(si->cpoly->rat->lim, si->cpoly->alg->lim),
-                                       MIN(si->cpoly->rat->lpb, si->cpoly->alg->lpb));
+    // TODO: should have two strategies: one for each side.
+    // In the meantime, take the min of all parameters.
+    si->strategy = facul_make_strategy (
+            MIN(si->cpoly->rat->lim, si->cpoly->alg->lim),
+            MIN(si->cpoly->rat->lpb, si->cpoly->alg->lpb),
+            MIN(si->cpoly->rat->mfb, si->cpoly->alg->mfb),
+            MIN(si->ecmba, si->ecmbr));
 
     las_report report;
     las_report_init(report);

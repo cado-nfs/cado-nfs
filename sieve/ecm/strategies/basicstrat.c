@@ -56,11 +56,18 @@ int main(int argc, char **argv)
         method = get_method_naive(cofac_range, prior,
                 acc_failure1, acc_failure5, acc_failure7,
                 acc_failure11, ppm1_history);
+        int purged_limit = 0;
         for (int j = 0; j < 60; ++j) {
             acc_failure1[j] *= (1-method->success1[j]);
             acc_failure5[j] *= (1-method->success5[j]);
             acc_failure7[j] *= (1-method->success7[j]);
             acc_failure11[j] *= (1-method->success11[j]);
+            float fail = (acc_failure1[j] + acc_failure5[j] +
+                    acc_failure7[j] + acc_failure11[j]) / 4;
+            // take the largest bit size for which primes of that size
+            // have been found with probability > 90%.
+            if (fail < 0.1) 
+                purged_limit = j;
         }
         printf("{ ");
         switch (method->type) {
@@ -77,7 +84,7 @@ int main(int argc, char **argv)
                 printf("PP1_65_METHOD");
                 break;
         }
-        printf(",\t%d,%d },\n", method->B1, method->B2);
+        printf(",\t%d,%d, %d },\n", method->B1, method->B2, purged_limit);
     }
     // final Baysian thm
     printf("bits: prob_to_find_p(i) prob_still_exist_p(i)\n");

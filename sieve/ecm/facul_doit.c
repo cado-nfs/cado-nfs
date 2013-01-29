@@ -68,8 +68,7 @@ facul_doit (unsigned long *factors, const modulus_t m,
       if (strategy->methods[i].method == 0) {
           // We run out of methods in the strategy. 
           // We failed to factor this number !
-          // Let's declare it NON_SMOOTH.
-          found = FACUL_NOT_SMOOTH;
+          found = FACUL_NOT_FOUND;
 //          printf("# Warning: Running out of methods\n");
           break;
       }
@@ -81,6 +80,43 @@ facul_doit (unsigned long *factors, const modulus_t m,
          since for a large number we can invest more in cofactorization. */
 //      if (i > 3 && mod_intbits (n) > 64)
 //        break;
+
+      // Basic early abort strategy:
+      //   - let b_purged the bit-size of the largest primes that have
+      //   been removed at this point with prob > 90%. 
+      //   - If 2*b_purged > bit_size of remaining cofactor, then abort.
+      //   - If a linear combination of cofac_size and b_purged > some_bound,
+      //     then abort, where "some_bound" must be larger than
+      //     mfb + fbb (start of cofactorization) and larger than
+      //     lpb + ecmb (otherwise ecmb does not make sense). 
+      //
+      if (strategy->early_abort) {
+          int nn = mod_intbits (n);
+          int bb = strategy->purged_bits[i];
+
+          if (2*bb > nn)
+              break;
+
+          int lpb = strategy->lpb_bits;
+          int fbb = strategy->fbb_bits;
+          int mfb = strategy->mfb;
+          int ecmb = strategy->ecmb;
+//          printf("lpb=%d fbb=%d mfb=%d ecmb=%d\n", lpb, fbb, mfb, ecmb);
+
+          int delta_n = (ecmb - fbb) / 2;
+          int delta_b = (mfb - lpb) / 2;
+          // Ugly formula for the linear combination that fits the
+          // conditions above with a margin of delta_n and delta_b
+          // respetcively.
+          // (ecmb-fbb-delta_n)*nn+(-lpb-delta_b+mfb)*bb
+          //   +delta_n*(lpb+delta_b)+fbb*(lpb+delta_b) -mfb*ecmb
+          int crit = (ecmb-fbb-delta_n)*nn+(-lpb-delta_b+mfb)*bb
+              +delta_n*(lpb+delta_b)+fbb*(lpb+delta_b) -mfb*ecmb;
+          if (crit >= 0) {
+//              printf("Abort: nn=%d bb=%d\n", nn, bb);
+              break;
+          }
+      }
       
       if (i < STATS_LEN)
 	  stats_called[i]++;
@@ -299,7 +335,9 @@ facul_doit (unsigned long *factors, const modulus_t m,
         // We expect that large factors are just cofactors, and therefore
         // that there is only one which will be found by caller.
         // FIXME: return mpz_t's, here
+#if MOD_MAXBITS > LONG_BIT
         if (f[1] == 0)
+#endif
           factors[found++] = f[0]; 
       }
       else
@@ -341,7 +379,9 @@ facul_doit (unsigned long *factors, const modulus_t m,
         // We expect that large factors are just cofactors, and therefore
         // that there is only one which will be found by caller.
         // FIXME: return mpz_t's, here
+#if MOD_MAXBITS > LONG_BIT
         if (n[1] == 0)
+#endif
           factors[found++] = n[0]; 
       }
       else
