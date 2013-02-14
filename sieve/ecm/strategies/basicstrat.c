@@ -41,7 +41,7 @@ int main(int argc, char **argv)
         acc_failure11[i] = 1;
     }
 
-    ppm1_history_t ppm1_history;
+    ppm1_history_t ppm1_history, old_ppm1_history;
     ppm1_history->pm1_success1 = zero_hist;
     ppm1_history->pm1_success5 = zero_hist;
     ppm1_history->pm1_success7 = zero_hist;
@@ -51,17 +51,38 @@ int main(int argc, char **argv)
     ppm1_history->pp1_success7 = zero_hist;
     ppm1_history->pp1_success11 = zero_hist;
 
-    for (int i = 0; i < 60; ++i) {
+    for (int i = 0; i < 200; ++i) {
         cofac_method_srcptr method;
+        old_ppm1_history->pm1_success1 = ppm1_history->pm1_success1;
+        old_ppm1_history->pm1_success5 = ppm1_history->pm1_success5;
+        old_ppm1_history->pm1_success7 = ppm1_history->pm1_success7;
+        old_ppm1_history->pm1_success11 = ppm1_history->pm1_success11;
+        old_ppm1_history->pp1_success1 = ppm1_history->pp1_success1;
+        old_ppm1_history->pp1_success5 = ppm1_history->pp1_success5;
+        old_ppm1_history->pp1_success7 = ppm1_history->pp1_success7;
+        old_ppm1_history->pp1_success11 = ppm1_history->pp1_success11;
         method = get_method_naive(cofac_range, prior,
                 acc_failure1, acc_failure5, acc_failure7,
                 acc_failure11, ppm1_history);
         int purged_limit = 0;
         for (int j = 0; j < 60; ++j) {
-            acc_failure1[j] *= (1-method->success1[j]);
-            acc_failure5[j] *= (1-method->success5[j]);
-            acc_failure7[j] *= (1-method->success7[j]);
-            acc_failure11[j] *= (1-method->success11[j]);
+            if (method->type == ECM) {
+                acc_failure1[j] *= (1-method->success1[j]);
+                acc_failure5[j] *= (1-method->success5[j]);
+                acc_failure7[j] *= (1-method->success7[j]);
+                acc_failure11[j] *= (1-method->success11[j]);
+            } else {
+#define DO(a, b, c) do { if (c != 1) { a *= (1-b)/(1-c); } } while (0);
+              DO(acc_failure1[j] , ppm1_history->pm1_success1[j], old_ppm1_history->pm1_success1[j]);
+              DO(acc_failure5[j] , ppm1_history->pm1_success5[j], old_ppm1_history->pm1_success5[j]);
+              DO(acc_failure7[j] , ppm1_history->pm1_success7[j], old_ppm1_history->pm1_success7[j]);
+              DO(acc_failure11[j],ppm1_history->pm1_success11[j], old_ppm1_history->pm1_success11[j]);
+              DO(acc_failure1[j] , ppm1_history->pp1_success1[j], old_ppm1_history->pp1_success1[j]);
+              DO(acc_failure5[j] , ppm1_history->pp1_success5[j], old_ppm1_history->pp1_success5[j]);
+              DO(acc_failure7[j] , ppm1_history->pp1_success7[j], old_ppm1_history->pp1_success7[j]);
+              DO(acc_failure11[j],ppm1_history->pp1_success11[j], old_ppm1_history->pp1_success11[j]);
+#undef DO
+            }
             float fail = (acc_failure1[j] + acc_failure5[j] +
                     acc_failure7[j] + acc_failure11[j]) / 4;
             // take the largest bit size for which primes of that size
