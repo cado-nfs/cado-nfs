@@ -61,7 +61,7 @@ void
 #else
       *(unsigned char *) i = 0;
 #endif
-      i += (size_t) pagesize;
+      i += (size_t) pagesize ();
     }
   }
   return p;
