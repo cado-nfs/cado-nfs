@@ -1032,7 +1032,7 @@ resieve_small_bucket_region (bucket_primes_t *BP, int N, unsigned char *S,
             }
             while (i0 < (unsigned int) bucket_region) {
                 unsigned char *S_ptr = S + i0;
-                if ((i0 >> si->conf->logI) % 2 == 0) { /* Even j coordinate? */
+                if (((i0 & I) == 0) ^ row0_is_oddj) { /* Even j coordinate? */
                     /* Yes, test only odd ii-coordinates */
                     for (ii = 1; ii < I; ii += 2) {
                         if (S_ptr[ii] != 255) {
