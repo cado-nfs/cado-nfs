@@ -1709,10 +1709,11 @@ class SievingTask(ClientServerTask, FilesCreator, HasStatistics,
                     rels = int(match.group(1))
                     f.close()
                     return rels
-        except (IOError, TypeError, structerror) as e:
+        except (IOError, TypeError, structerror, EOFError) as e:
             if isinstance(e, IOError) and str(e) == "Not a gzipped file" or \
                     isinstance(e, TypeError) and str(e).startswith("ord() expected a character") or \
-                    isinstance(e, structerror) and str(e).startswith("unpack requires a bytes object"):
+                    isinstance(e, structerror) and str(e).startswith("unpack requires a bytes object") or \
+                    isinstance(e, EOFError) and str(e).startswith("Compressed file ended before"):
                 self.logger.error("Error reading '%s' (corrupted?): %s", filename, e)
                 return None
             else:
