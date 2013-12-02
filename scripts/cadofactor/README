@@ -8,7 +8,7 @@ parameterfile.
 
 For example, running
 
-./cadofactor.py ../../params/params.c59 N=90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal server.whitelist=0.0.0.0/0
+./cadofactor.py ../../params_py/params.c59 N=90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal server.whitelist=0.0.0.0/0
 
 start the cadofactor script, which also starts the server. It does not start any clients with this command line, so those would have to be started manually:
 
