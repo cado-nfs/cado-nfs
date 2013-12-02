@@ -1046,7 +1046,7 @@ if __name__ == '__main__':
     elif SETTINGS["CERTSHA1"] is None and scheme == "https":
         logging.warn("An https URL was given but no -certsha1 option, NO SSL VALIDATION WILL BE PERFORMED.")
     elif not SETTINGS["CERTSHA1"] is None and scheme == "https":
-        certfilename = os.path.join(SETTINGS["DLDIR"], "server.pem")
+        certfilename = os.path.join(SETTINGS["DLDIR"], "server.%s.pem" % SETTINGS["CERTSHA1"][0:8])
         certfile_exists = os.path.isfile(certfilename)
         if certfile_exists:
             logging.info("Using certificate file stored in %s", certfilename)
@@ -1070,6 +1070,7 @@ if __name__ == '__main__':
             sys.exit(1)
         logging.info("Certificate SHA1 hash matches")
         if not certfile_exists:
+            logging.info("Writing certificate to file %s", certfilename)
             # FIXME: Set umask first?
             with open(certfilename, 'w') as certfile:
                 certfile.write(cert)
