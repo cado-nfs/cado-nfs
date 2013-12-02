@@ -367,7 +367,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             # environment variables to be set according to the CGI
             # specificaton, such as CONTENT_LENGTH.
             # This is really slow if rbufsize == 0.
-            env = self.create_env("upload.py")
+            env = self.create_env("cgi-bin/upload.py")
             upload.do_upload(self.dbfilename, self.uploaddir, 
                     inputfp=self.rfile, output=self.wfile, environ=env)
 
