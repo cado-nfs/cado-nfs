@@ -293,7 +293,8 @@ class Parameters(object):
             (prefix, varname, postfix) = match.groups()
             if not varname in os.environ:
                 raise KeyError('Shell environment variable ${%s} referenced '
-                               'in key %s is not defined' % (varname, fqn))
+                               'in key %s is not defined (maybe not exported?)'
+                               % (varname, fqn))
             value = prefix + os.environ[varname] + postfix
         return value
     
