@@ -291,12 +291,12 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
         """
         # Path in url always starts with '/'
         # print("translate_path(%s)" % path)
-        relpath = self.path.lstrip('/')
+        relpath = path.lstrip('/')
         if relpath in self.registered_filenames:
-            self.log(logging.DEBUG, "Translated path %s to %s", self.path, 
+            self.log(logging.DEBUG, "Translated path %s to %s", path, 
                      self.registered_filenames[relpath])
             return self.registered_filenames[relpath]
-        self.log(logging.DEBUG, "Not translating path %s ", self.path)
+        self.log(logging.DEBUG, "Not translating path %s ", path)
         if self.only_registered:
             return None
         else:
