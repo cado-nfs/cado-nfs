@@ -107,6 +107,13 @@ tasks.verbose = 1
 # clients can (hopefully) finish them
 tasks.wutimeout = 3600 # one hour
 
+# After a total of maxtimedout workunits have timed out, the factorization
+# is aborted, as such a large number of timed out workunits may indicate a
+# problem with the clients. The default is 100. For large factorization on
+# unreliable machines which can be stopped/restarted frequently, this limit
+# is probably too small and should be increased.
+tasks.maxtimedout = 100
+
 # Various tasks refer to the factor base bounds rlim, alim, and to the
 # large prime bounds lpbr, lpba. By adding these value to the root node of
 # the parameter tree, all tasks can find them.

@@ -118,6 +118,14 @@ tasks.threads=2
 # Workunits for this test factorization are quite short, 120s is ok
 tasks.wutimeout = 120
 
+# After a total of maxtimedout workunits have timed out, the factorization
+# is aborted, as such a large number of timed out workunits may indicate a
+# problem with the clients. The default is 100. For large factorization on
+# unreliable machines which can be stopped/restarted frequently, this limit
+# is probably too small and should be increased.
+
+tasks.maxtimedout = 100
+
 
 # P, degree, admin, admax, adrange: Parameters for the polynomial search
 tasks.polyselect.P = 420
