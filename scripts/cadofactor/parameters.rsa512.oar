@@ -22,12 +22,12 @@ tasks.polyselect.P = 500000
 tasks.polyselect.degree = 5
 tasks.polyselect.admin = 0
 tasks.polyselect.admax = 1000000000
-tasks.polyselect.adrange = 1000000
+tasks.polyselect.adrange = 100000
 tasks.polyselect.maxnorm = 50.0
 tasks.polyselect.incr = 30030
 
 tasks.sieve.rels_wanted = 70000000
-tasks.sieve.qrange = 100000
+tasks.sieve.qrange = 10000
 tasks.sieve.I = 13
 tasks.sieve.rlambda=2.1
 tasks.sieve.alambda=3.2
