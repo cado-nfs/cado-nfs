@@ -1042,9 +1042,9 @@ if __name__ == '__main__':
 
     (scheme, netloc) = urlparse(SETTINGS["SERVER"])[0:2]
     if not SETTINGS["CERTSHA1"] is None and scheme != "https":
-        logging.warn("Option -certsha1 makes sense only with an https URL, ignoring it.")
+        logging.warn("Option --certsha1 makes sense only with an https URL, ignoring it.")
     elif SETTINGS["CERTSHA1"] is None and scheme == "https":
-        logging.warn("An https URL was given but no -certsha1 option, NO SSL VALIDATION WILL BE PERFORMED.")
+        logging.warn("An https URL was given but no --certsha1 option, NO SSL VALIDATION WILL BE PERFORMED.")
     elif not SETTINGS["CERTSHA1"] is None and scheme == "https":
         certfilename = os.path.join(SETTINGS["DLDIR"], "server.%s.pem" % SETTINGS["CERTSHA1"][0:8])
         certfile_exists = os.path.isfile(certfilename)
