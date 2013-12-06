@@ -83,3 +83,18 @@ format). Alternatively you can do:
 tasks.sieve.import=@foo
 
 where "foo" is a file containing several names of relation files, one per line.
+
+
+File locking
+============
+
+The SqLite database used by cadofactor makes extensive use of file locking.
+This requires that the underlying file system properly implements POSIX file
+locking. One example of a file system that claims to, but does not, is
+glusterfs, which leads to random SqLite errors. See the thread
+
+http://gluster.org/pipermail/gluster-users/2011-September/031720.html
+
+If you encounter "Database corrupted" or similar errors, try if storing the
+working directory on a local (not network-mounted) file system resolves the
+problem.
