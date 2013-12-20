@@ -32,6 +32,9 @@ target_link_libraries(reconstructlog-dl utils_with_io)
 add_executable(sm sm.c)
 target_link_libraries(sm utils_with_io)
 
-install(TARGETS ${bin_list} RUNTIME DESTINATION bin/filter)
+add_executable(compute_cols EXCLUDE_FROM_ALL compute_cols.c)
+target_link_libraries(compute_cols utils_with_io)
+
+install(TARGETS ${bin_list} compute_cols RUNTIME DESTINATION bin/filter)
 
 include(CMakeLists-nodist.txt OPTIONAL)

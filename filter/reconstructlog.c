@@ -147,19 +147,7 @@ sm_data_free (sm_data_t *d)
 static inline void
 add_sm_contribution (mpz_ptr l, sm_data_t *sm, int64_t a, uint64_t b)
 {
-#ifdef FOR_ALGO_FM
   mpz_add_log_mod_si (l, sm->smlog[0], a, sm->q);
-#else
-  mpz_poly_t SMres;
-  mpz_poly_init(SMres, sm->F->deg);
-  SMres->deg = 0;
-  mpz_poly_setcoeff_si(SMres, 0, 1);
-  sm_single_rel(SMres, a, b, sm->F, sm->smexp, sm->q, sm->q2, sm->invq2);
-  unsigned int i;
-  for (i = 0; i < sm->nbsm && i <= (unsigned int) SMres->deg; i++)
-    mpz_add_log_mod_mpz (l, sm->smlog[i], SMres->coeff[i], sm->q);
-  mpz_poly_free(SMres);
-#endif
 }
 #endif /* ifndef FOR_FFS */
 
@@ -267,11 +255,7 @@ static uint64_t
 write_log (const char *filename, mpz_t *log, mpz_t q, renumber_t tab,
            cado_poly poly, uint64_t known_log)
 {
-#ifdef FOR_ALGO_FM
   uint64_t i, missing = 1;
-#else
-  uint64_t i, missing = 0;
-#endif
   double tt = seconds();
   FILE *f = NULL;
 
@@ -282,13 +266,9 @@ write_log (const char *filename, mpz_t *log, mpz_t q, renumber_t tab,
 
   for (i = 0; i < tab->size; i++)
   {
-#ifdef FOR_ALGO_FM
     if (i==0)
       gmp_fprintf (f, "0 0 0 rat %Zd\n", log[tab->size]);
     else if (mpz_sgn(log[i]) < 0) // we do not know the log if this ideal
-#else
-	  if (mpz_sgn(log[i]) < 0) // we do not know the log if this ideal
-#endif
       missing++;
     else if (tab->table[i] == RENUMBER_SPECIAL_VALUE)
     {
