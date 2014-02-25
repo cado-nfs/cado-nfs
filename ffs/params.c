@@ -44,7 +44,7 @@ void param_list_clear(param_list pl)
         free(pl->knobs[i]->knob);
     }
     free(pl->knobs);
-    memset(pl, 0, sizeof(pl));
+    memset(pl, 0, sizeof(pl[0]));
 }
 
 static void make_room(param_list pl, unsigned int more)
