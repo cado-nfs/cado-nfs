@@ -431,11 +431,12 @@ int main(int argc, char **argv)
     if (I == 0) usage(argv0, "I");
     if (J == 0) usage(argv0, "J");
 
+    int npol_max = npol[0] >= npol[1] ? npol[0] : npol[1];
     for (int i = 0; i < 2; ++i) {
         int n = param_list_parse_int_list(pl, i ? "lpb1" : "lpb0",
-                                          lpb[i], npol[i], ";");
+                                          lpb[i], npol_max, ";");
         if (!n) usage(argv0, i ? "lpb1" : "lpb0");
-        for (; n < npol[i]; ++n)
+        for (; n < npol_max; ++n)
           lpb[i][n] = lpb[i][n-1];
         n = param_list_parse_int_list(pl, i ? "fbb1" : "fbb0",
                                   fbb[i], npol[i], ";");
@@ -1083,7 +1084,8 @@ int main(int argc, char **argv)
 #endif
                   ++LFB_p[1-sqside];
                   ++ffspol_p[1-sqside];
-                  lpb_p[1-sqside] = lpb[1-sqside][pol];
+                  lpb_p[0] = lpb[0][pol];
+                  lpb_p[1] = lpb[1][pol];
                 }
               }
             }
