@@ -698,10 +698,10 @@ int main(int argc, char **argv)
     qlat->side = sqside; 
 
     double tot_time = seconds();
-    double tot_norms = 0;
-    double tot_sieve = 0;
-    double tot_buck_fill = 0;
-    double tot_buck_apply = 0;
+    double tot_norms[2] = {0,0};
+    double tot_sieve[2] = {0,0};
+    double tot_buck_fill[2] = {0,0};
+    double tot_buck_apply[2] = {0,0};
     double tot_cofact = 0;
 
     int tot_nrels = 0;
@@ -842,10 +842,10 @@ int main(int argc, char **argv)
 
         double t_tot = seconds();
 
-        double t_norms = 0;
-        double t_sieve = 0;
-        double t_buck_fill = 0;
-        double t_buck_apply = 0;
+        double t_norms[2] = {0,0};
+        double t_sieve[2] = {0,0};
+        double t_buck_fill[2] = {0,0};
+        double t_buck_apply[2] = {0,0};
         double t_cofact = 0;
         int nrels = 0;
 
@@ -905,11 +905,12 @@ int main(int argc, char **argv)
             }
 #endif
             // Fill the buckets.
-            t_buck_fill -= seconds();
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < 2; ++i) {
+              t_buck_fill[i] -= seconds();
               for (int j = 0; j < npol[i]; ++j)
                 buckets_fill(buckets[i][j], LFB[i][j], sublat, I, J, qlat);
-            t_buck_fill += seconds();
+              t_buck_fill[i] += seconds();
+            }
 
             // j0 is the first valid line in the current bucket region.
             ij_t j0;
@@ -981,22 +982,22 @@ int main(int argc, char **argv)
                   // Norm initialization.
                   // convention: if a position contains 255, it must stay like
                   // this. It means that the other side is hopeless.
-                  t_norms -= seconds();
+                  t_norms[twice] -= seconds();
                   init_norms(S[twice], ffspol[side][pol], I, J, j0, pos0,
                              size, qlat, qlat->side == side, sublat, side);
-                  t_norms += seconds();
+                  t_norms[twice] += seconds();
 
                   // Line sieve.
                   unsigned int sublat_thr;
-                  t_sieve -= seconds();
+                  t_sieve[twice] -= seconds();
                   sieveSFB(S[twice], &sublat_thr, SFB[side][pol], I, J,
                            j0, pos0, size, sublat);
-                  t_sieve += seconds();
+                  t_sieve[twice] += seconds();
 
                   // Apply the updates from the corresponding bucket.
-                  t_buck_apply -= seconds();
+                  t_buck_apply[twice] -= seconds();
                   bucket_apply(S[twice], buckets[side][pol], k);
-                  t_buck_apply += seconds();
+                  t_buck_apply[twice] += seconds();
 
                   // since (0,0) is divisible by everyone, its position might
                   // have been clobbered.
@@ -1097,19 +1098,23 @@ int main(int argc, char **argv)
                 "in %1.1f s\n", nrels, t_tot);
         fprintf(stdout,
                 "# Time of main steps: "
-                "%1.2f s      (norms);                "
-                "%1.2f s (sieve);\n"
+                "%1.2f + %1.2f s           (norms);                "
+                "%1.2f + %1.2f s (sieve);\n"
                 "#                     "
-                "%1.2f+%1.2f s (buckets: fill+apply);  "
-                "%1.2f s (cofact).\n",
-                t_norms, t_sieve, t_buck_fill, t_buck_apply, t_cofact);
+                "%1.2f+%1.2f + %1.2f+%1.2f s (buckets: fill+apply);  "
+                "%1.2f s        (cofact).\n",
+                t_norms[0], t_norms[1], t_sieve[0], t_sieve[1],
+                t_buck_fill[0], t_buck_fill[1],
+                t_buck_apply[0], t_buck_apply[1], t_cofact);
         fprintf(stdout, "# Yield: %1.5f s/rel\n", t_tot/nrels);
         fflush(stdout);
         tot_nrels += nrels;
-        tot_norms   += t_norms;
-        tot_sieve   += t_sieve;
-        tot_buck_apply += t_buck_apply;
-        tot_buck_fill += t_buck_fill;
+        for (int i = 0; i < 2; ++i) {
+          tot_norms[i]   += t_norms[i];
+          tot_sieve[i]   += t_sieve[i];
+          tot_buck_apply[i] += t_buck_apply[i];
+          tot_buck_fill[i] += t_buck_fill[i];
+        }
         tot_cofact  += t_cofact;
 
         if (nrels == 0) {
@@ -1140,13 +1145,14 @@ int main(int argc, char **argv)
     fprintf(stdout, "#   Total time: %1.1f s\n", tot_time);
     fprintf(stdout,
                 "# Time of main steps: "
-                "%1.2f s      (norms);                "
-                "%1.2f s (sieve);\n"
+                "%1.2f + %1.2f s           (norms);                "
+                "%1.2f + %1.2f s (sieve);\n"
                 "#                     "
-                "%1.2f+%1.2f s (buckets: fill+apply);  "
-                "%1.2f s (cofact).\n",
-        tot_norms, tot_sieve,
-        tot_buck_fill, tot_buck_apply, tot_cofact);
+                "%1.2f+%1.2f + %1.2f+%1.2f s (buckets: fill+apply);  "
+                "%1.2f s        (cofact).\n",
+        tot_norms[0], tot_norms[1], tot_sieve[0], tot_sieve[1],
+        tot_buck_fill[0], tot_buck_fill[1],
+        tot_buck_apply[0], tot_buck_apply[1], tot_cofact);
  
     fprintf(stdout, "#   Computed %d special-q\n", tot_sq);
     fprintf(stdout, "#   %d relations found (%1.1f rel/sq)\n",
