@@ -27,7 +27,7 @@ int factor_survivor(fppol_t a, fppol_t b,
         MAYBE_UNUSED ijpos_t pos, 
         MAYBE_UNUSED replayable_bucket_srcptr *buckets,
         MAYBE_UNUSED large_factor_base_srcptr *FB,
-        ffspol_srcptr *F, int *B, qlat_t qlat, int pol) 
+        ffspol_srcptr *F, int *B, qlat_t qlat, const char *prefix) 
 {
     fppol_t Nab;
     fppol_init(Nab);
@@ -111,7 +111,8 @@ int factor_survivor(fppol_t a, fppol_t b,
         }
     }
 
-    printf("%d:", pol);
+    if (prefix)
+      printf("%s:", prefix);
     fppol_out(stdout, a); printf(",");
     fppol_out(stdout, b); printf(":");
     for (int twice = 0; twice < 2; twice++) {
@@ -322,6 +323,7 @@ void usage(const char *argv0, const char * missing)
     fprintf(stderr, "  q0   *           lower bound for special-q range\n");
     fprintf(stderr, "  q1   *           upper bound for special-q range\n");
     fprintf(stderr, "  sqt  [3]         skip special-q whose defect is sqt or more\n");
+    fprintf(stderr, "  prefix           prefix all relations with this/these string(s)\n");
     fprintf(stderr, "  bench            bench-mode. Takes parameter of the form deg0-deg1\n");
     fprintf(stderr, "                   and estimates the time and number of rels for corresping sq.\n");
     fprintf(stderr, "                   q0 and q1 are ignored.\n");
@@ -352,6 +354,7 @@ int main(int argc, char **argv)
     int I=0, J=0;  
     int lpb[2][MAX_NPOL] = {{0},{0}};
     unsigned int threshold[2][MAX_NPOL] = {{0},{0}};
+    char *prefix[MAX_NPOL] = { NULL };
     char *argv0 = argv[0];
     int want_sublat = 0;
     int sqside = SQSIDE_DEFAULT;
@@ -523,6 +526,23 @@ int main(int argc, char **argv)
         }
     }
 
+    // read prefixes
+    {
+        const char *pfx[MAX_NPOL];
+        int n = param_list_lookup_string_list(pl, "prefix", pfx, npol_max, ";");
+        if (n || npol_max > 1) {
+          for (int i = 0; i < n; ++i) {
+            prefix[i] = (char *)malloc(strlen(pfx[i])+1);
+            strcpy(prefix[i], pfx[i]);
+          }
+          for (; n < npol_max; ++n) {
+            prefix[n] = (char *)malloc(5);
+            snprintf(prefix[n], 5, "%d", n);
+          }
+        }
+        param_list_restore_string_list(pl, "prefix", pfx, npol_max, ";");
+    }
+
     // want to bench ?
 #if FP_SIZE == 2
 #define BENCH_RANGE 10
@@ -646,11 +666,15 @@ int main(int argc, char **argv)
             double tm = seconds();
             noerr = factor_base_init(LFB[i][j], SFB[i][j], filename[j],
                                      I, fbb[i][j], I, J, sublat);
-            fprintf(stdout, "# Reading factor base %d [%d] took %1.1f s\n",
-                    i, j, seconds()-tm);
+            fprintf(stdout, "# Reading factor base %d", i);
+            if (npol[i] > 1 && prefix[j])
+                fprintf(stdout, " [%s]", prefix[j]);
+            fprintf(stdout, " took %1.1f s\n", seconds()-tm);
             if (!noerr) {
-                fprintf(stderr, "Could not read fb%d[%d]: %s\n",
-                        i, j, filename[j]);
+                fprintf(stderr, "Could not read fb%d", i);
+                if (npol[i] > 1 && prefix[j])
+                    fprintf(stderr, "[%s]", prefix[j]);
+                fprintf(stderr, ": %s\n", filename[j]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -670,7 +694,7 @@ int main(int argc, char **argv)
     }
     for (int j = 0; j < npol[1-sqside]; ++j)
       ASSERT_ALWAYS(buckets[sqside][0]->n == buckets[1-sqside][j]->n);
-    print_bucket_info(buckets[0], npol[0], buckets[1], npol[1]);
+    print_bucket_info(buckets[0], npol[0], buckets[1], npol[1], prefix);
     fflush(stdout);
 
 #ifdef BUCKET_RESIEVE
@@ -1068,7 +1092,7 @@ int main(int argc, char **argv)
                           ij2ab(a, b, hati, hatj, qlat);
                           nrels += factor_survivor(a, b, pos,
                               replayable_bucket_p, LFB_p, ffspol_p, lpb_p,
-                              qlat, pol);
+                              qlat, prefix[pol]);
                         }
                       }
                     }

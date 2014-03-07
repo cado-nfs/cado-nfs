@@ -62,7 +62,8 @@ unsigned bucket_region_size();
 
 // Print information about the buckets.
 void print_bucket_info(buckets_t *buckets0, unsigned npol0,
-                       buckets_t *buckets1, unsigned npol1);
+                       buckets_t *buckets1, unsigned npol1,
+                       char **prefix);
 
 // Fill the buckets with updates corresponding to divisibility by elements of
 // the factor base.

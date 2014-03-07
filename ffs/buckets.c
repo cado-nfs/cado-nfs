@@ -194,13 +194,16 @@ unsigned bucket_region_size()
 
 // Print information about the buckets.
 void print_bucket_info(buckets_t *buckets0, unsigned npol0,
-                       buckets_t *buckets1, unsigned npol1)
+                       buckets_t *buckets1, unsigned npol1,
+                       char **prefix)
 {
   printf("#   nb of buckets   = %u\n", buckets0[0]->n);
   for (unsigned i = 0; i < 2; ++i) {
     for (unsigned j = 0; j < (i ? npol1 : npol0); ++j) {
-      printf("#   size of buckets on side %u [%u] = %u\n", i, j,
-             (i ? buckets1 : buckets0)[j]->max_size);
+      printf("#   size of buckets on side %u", i);
+      if ((i ? npol1 : npol0) > 1 && prefix[j])
+        printf(" [%s]", prefix[j]);
+      printf(" = %u\n", (i ? buckets1 : buckets0)[j]->max_size);
     }
   }
   printf("#   size of bucket-region (ie, 2^UPDATE_POS_BITS) = %d\n",
