@@ -296,7 +296,7 @@ void stats_yield_print_ci(stats_yield_srcptr stats_yield)
 
 #define SQSIDE_DEFAULT 0
 #define FIRSTSIEVE_DEFAULT 0
-#define MAX_NPOL 16
+#define MAX_NPOL 100
 
 void usage(const char *argv0, const char * missing)
 {
@@ -1130,7 +1130,7 @@ int main(int argc, char **argv)
                 "in %1.1f s\n", nrels_all, t_tot);
         fprintf(stdout, "# Time of main steps (in seconds):\n");
         fprintf(stdout, "# Side         Norms   Sieve  B-fill B-apply  Cofact"
-                        "   Total   #rels   Yield (s/rel)\n");
+                        "   Total   #rels   Total yield (S0+S1)\n");
         for (int i = 0; i < 2; ++i) {
           int side = firstsieve ? 1-i : i;
           for (int j = 0; j < npol[side]; ++j) {
@@ -1142,11 +1142,17 @@ int main(int argc, char **argv)
             fprintf(stdout, " %7.2f %7.2f %7.2f %7.2f", t_norms[side][j],
                     t_sieve[side][j], t_buck_fill[side][j], t_buck_apply[side][j]);
             if (i) {
-              double t = t_norms[0][j] + t_norms[1][j] + t_sieve[0][j] + t_sieve[1][j] +
-                         t_buck_fill[0][j] + t_buck_fill[1][j] +
-                         t_buck_apply[0][j] + t_buck_apply[1][j] + t_cofact[j];
-              fprintf(stdout, " %7.2f %7.2f %7d %15.6f",
-                      t_cofact[j], t, nrels[j], t/nrels[j]);
+              double t = t_norms[side][j] + t_sieve[side][j] +
+                         t_buck_fill[side][j] + t_buck_apply[side][j] + t_cofact[j];
+              fprintf(stdout, " %7.2f %7.2f %7d", t_cofact[j], t, nrels[j]);
+              t += t_norms[1-side][0] + t_sieve[1-side][0] +
+                   t_buck_fill[1-side][0] + t_buck_apply[1-side][0];
+              fprintf(stdout, " %13.6f s/rel", t/nrels[j]);
+            }
+            else {
+              double t = t_norms[side][0] + t_sieve[side][0] +
+                         t_buck_fill[side][0] + t_buck_apply[side][0];
+              fprintf(stdout, " %7s %7.2f", "", t);
             }
             fprintf(stdout, "\n");
           }
@@ -1193,7 +1199,7 @@ int main(int argc, char **argv)
     fprintf(stdout, "#   Total time: %1.1f s\n", tot_time);
     fprintf(stdout, "# Time of main steps (in seconds):\n");
     fprintf(stdout, "# Side         Norms   Sieve  B-fill B-apply  Cofact"
-                    "   Total   #rels   Yield (s/rel)\n");
+                    "   Total   #rels   Total yield (S0+S1)\n");
     for (int i = 0; i < 2; ++i) {
       int side = firstsieve ? 1-i : i;
       for (int j = 0; j < npol[side]; ++j) {
@@ -1205,11 +1211,17 @@ int main(int argc, char **argv)
         fprintf(stdout, " %7.2f %7.2f %7.2f %7.2f", tot_norms[side][j],
                 tot_sieve[side][j], tot_buck_fill[side][j], tot_buck_apply[side][j]);
         if (i) {
-          double t = tot_norms[0][j] + tot_norms[1][j] + tot_sieve[0][j] + tot_sieve[1][j] +
-                     tot_buck_fill[0][j] + tot_buck_fill[1][j] +
-                     tot_buck_apply[0][j] + tot_buck_apply[1][j] + tot_cofact[j];
-          fprintf(stdout, " %7.2f %7.2f %7d %15.6f",
-                  tot_cofact[j], t, tot_nrels[j], t/tot_nrels[j]);
+          double t = tot_norms[side][j] + tot_sieve[side][j] +
+                     tot_buck_fill[side][j] + tot_buck_apply[side][j] + tot_cofact[j];
+          fprintf(stdout, " %7.2f %7.2f %7d", tot_cofact[j], t, tot_nrels[j]);
+          t += tot_norms[1-side][0] + tot_sieve[1-side][0] +
+               tot_buck_fill[1-side][0] + tot_buck_apply[1-side][0] +
+          fprintf(stdout, " %13.6f s/rel", t/tot_nrels[j]);
+        }
+        else {
+          double t = tot_norms[side][0] + tot_sieve[side][0] +
+                     tot_buck_fill[side][0] + tot_buck_apply[side][0];
+          fprintf(stdout, " %7s %7.2f", "", t);
         }
         fprintf(stdout, "\n");
       }
