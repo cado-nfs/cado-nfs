@@ -11,7 +11,13 @@ endif()
 
 # Test that the version is something sane
 # First get the version string from "python --version"
-execute_process(COMMAND "${PYTHON_EXECUTABLE}" --version ERROR_VARIABLE _VERSION OUTPUT_QUIET ERROR_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND "${PYTHON_EXECUTABLE}" --version OUTPUT_VARIABLE PYTHON_OUT ERROR_VARIABLE PYTHON_ERR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_STRIP_TRAILING_WHITESPACE)
+if ("${PYTHON_OUT}" MATCHES "Python")
+  set(_VERSION "${PYTHON_OUT}")
+else()
+  set(_VERSION "${PYTHON_ERR}")
+endif()
+
 string(REPLACE "Python " "" PYTHON_VERSION_STRING "${_VERSION}")
 string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" PYTHON_VERSION_MAJOR "${PYTHON_VERSION_STRING}")
 string(REGEX REPLACE "^[0-9]+\\.([0-9])+\\.[0-9]+.*" "\\1" PYTHON_VERSION_MINOR "${PYTHON_VERSION_STRING}")
