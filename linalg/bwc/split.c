@@ -82,7 +82,7 @@ int main(int argc, char * argv[])
         fprintf(stderr, "Please select one of --split-y or --split-f\n");
         usage();
     }
-    if (nsplits == 0) {
+    if (nsplits <= 0) {
         fprintf(stderr, "Please indicate the splitting points\n");
         usage();
     }
