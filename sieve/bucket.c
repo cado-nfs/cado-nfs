@@ -5,6 +5,8 @@
 #include "memory.h"
 #include "las-config.h"
 
+#define PRINT_ALLOC 1
+
 /* sz is the size of a bucket for an array of buckets. In bytes, a bucket
    size is sz * sr, with sr = sizeof of one element of the bucket (a record).
    If sz * sr is a multiple of the page, and if the buckets array is filled
