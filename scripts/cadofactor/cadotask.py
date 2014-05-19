@@ -980,6 +980,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         self.logger.message("%s: Received notification for wuid=%s, rc=%d, "
                             "output_files=[%s]",
                             self.name, wuid, rc, ", ".join(output_files))
+        (name, task, identifier, attempt) = self.split_wuname(wuid)
+        if name != self.params["name"] or task != self.name:
+            # This notification is not for me
+            self.logger.message("Notification %s is not for me", wuid)
+            return
+        self.logger.message("Notification %s is for me", wuid)
         if rc != 0:
             self.logger.debug("Return code is: %d", rc)
         if stdout:
@@ -988,12 +994,6 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
             self.logger.debug("stderr is: %s", stderr)
         if output_files:
             self.logger.message("Output files are: %s", ", ".join(output_files))
-        (name, task, identifier, attempt) = self.split_wuname(wuid)
-        if name != self.params["name"] or task != self.name:
-            # This notification is not for me
-            self.logger.message("Notification %s is not for me", wuid)
-            return
-        self.logger.message("Notification %s is for me", wuid)
         return identifier
     
     def send_notification(self, key, value):
