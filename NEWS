@@ -1,6 +1,7 @@
 Main changes between cado-nfs-2.0 and cado-nfs-2.1:
 * Polynomial selection now runs in two separate phases, size optimization
   and root optimization, with improved parameters
+* Unit tests added, please run "make check" after building
 * Various small speed-ups
 * Various bug-fixes
 * The wuclient2.py script no longer requires an external download tool
