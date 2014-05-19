@@ -243,7 +243,7 @@ tasks.filter.merge.forbw = 3 # forbw=0: stops the merge when the weight of the
 			     # forbw=3: stops when the average number of
                              #    non-zero coefficients c/N exceeds coverNmax
                              #    (default 100)
-tasks.merge.coverNmax = 100
+tasks.filter.merge.coverNmax = 100
 tasks.filter.purge.required_excess=0.1 # Controls extra sieving:
                                        # completes the filtering only when
                                        # the relative excess (excess divided

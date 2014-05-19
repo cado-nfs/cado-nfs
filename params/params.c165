@@ -49,7 +49,6 @@ tasks.filter.purge.keep = 160
 tasks.filter.maxlevel = 25
 tasks.filter.ratio = 1.1
 tasks.filter.merge.forbw = 3
-tasks.merge.coverNmax = 100
 
 ###########################################################################
 # Linear algebra
