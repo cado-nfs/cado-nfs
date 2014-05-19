@@ -257,6 +257,11 @@ int main(int argc, char * argv[])
             !quiet,
             withcoeffs);
 
+    if (m_out->f && m_out->ascii) {
+        fprintf(stderr, "\nWarning: output matrix is headerless\n");
+    }
+
+
     if (rwfile) fclose(rw->f);
     if (cwfile) fclose(cw->f);
     if (mfile) fclose(m_in->f);

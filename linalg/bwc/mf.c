@@ -298,7 +298,7 @@ void matrix_read_pass(
                         if (m_out->ascii) {
                             fprintf(m_out->f, " %" PRIu32, c);
                             if (withcoeffs) {
-                                fprintf(m_out->f, " %" PRId32, coeff);
+                                fprintf(m_out->f, ":%" PRId32, coeff);
                             }
                         } else {
                             rc = fwrite32_little(&c, 1, m_out->f);
