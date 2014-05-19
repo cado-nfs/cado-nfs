@@ -3541,7 +3541,7 @@ class NmbrthryTask(Task):
         # Update the state entries atomically
         self.state.update(update)
 
-        self.logger.info("Will computing Dlog modulo %s", self.state["ell"])
+        self.logger.info("Will compute Dlog modulo %s", self.state["ell"])
         self.logger.debug("Exit NmbrthryTask.run(" + self.name + ")")
         return True
 
