@@ -2251,19 +2251,22 @@ class FactorBaseTask(Task):
             # We use .gzip by default, unless set to no in parameters
             use_gz = ".gz" if self.params["gzip"] else ""
             outputfilename = self.workdir.make_filename("roots" + use_gz)
-
-            # Run command to generate factor base/free relations file
-            self.progparams[0].setdefault("maxbits", self.params["I"] - 1)
-            (stdoutpath, stderrpath) = \
-                    self.make_std_paths(cadoprograms.MakeFB.name)
-            p = cadoprograms.MakeFB(poly=polyfilename,
-                                    out=str(outputfilename),
-                                    stdout=str(stdoutpath),
-                                    stderr=str(stderrpath),
-                                    **self.progparams[0])
-            message = self.submit_command(p, "", log_errors=True)
-            if message.get_exitcode(0) != 0:
-                raise Exception("Program failed")
+            
+            if outputfilename.isfile():
+                self.logger.info("%s already exists, not creating it", outputfilename)
+            else:
+                # Run command to generate factor base/free relations file
+                self.progparams[0].setdefault("maxbits", self.params["I"] - 1)
+                (stdoutpath, stderrpath) = \
+                        self.make_std_paths(cadoprograms.MakeFB.name)
+                p = cadoprograms.MakeFB(poly=polyfilename,
+                                        out=str(outputfilename),
+                                        stdout=str(stdoutpath),
+                                        stderr=str(stderrpath),
+                                        **self.progparams[0])
+                message = self.submit_command(p, "", log_errors=True)
+                if message.get_exitcode(0) != 0:
+                    raise Exception("Program failed")
             
             self.state["outputfile"] = outputfilename.get_wdir_relative()
             self.logger.info("Finished")
