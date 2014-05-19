@@ -15,6 +15,7 @@ function usage() {
   echo "           found in a directory in PATH on the slave nodes."
   echo "-py <interpreter>: Force <interpreter> as the Python interpreter for running"
   echo "                   wuclient2.py on slave nodes. Default: empty."
+  echo '-n <n>: Use "numactl --cpunodebind=", cycling through [0, <n>-1] per client'
 }
 
 
@@ -38,6 +39,8 @@ fi
 NRCLIENTS=1
 SCRIPTPATH=""
 unset COMMAND
+NUMA_NODE=0
+USE_NUMACTL=false
 while [ -n "$1" ]
 do
   if [ "$1" = "-s" ]
@@ -56,6 +59,11 @@ do
     # specified or not, even when any of the paths include whitespace.
     COMMAND[0]="$2"
     shift 2
+  elif [ "$1" = "-n" ]
+  then
+    USE_NUMACTL=true
+    NR_CPUS="$2"
+    shift 2
   else
     break
   fi
@@ -69,6 +77,12 @@ then
 fi
 # Add the path of wuclient to COMMAND
 COMMAND=("${COMMAND[@]}" "${SCRIPTPATH}wuclient2.py")
+
+if "$USE_NUMACTL"
+then
+  # Prefix with "numactl" and leave one parameter for --cpunodebind=, to be filled in later
+  COMMAND=("numactl" "" "${COMMAND[@]}")
+fi
 
 HAVE_SERVER=false
 for ARG in "$@"
@@ -90,10 +104,16 @@ NODES=`cat "$OAR_NODE_FILE" | uniq | tr '\n' ' '`
 
 echo "Starting $NRCLIENTS clients each on $NODES with parameters: $@"
 
-for NODE in `cat "$OAR_NODE_FILE" | uniq`
+for NODE in $NODES
 do 
     for I in `seq 1 "$NRCLIENTS"`
     do
+    	if "$USE_NUMACTL"
+    	then
+    	  # Fill in the --cpunodebind= parameter
+    	  COMMAND[1]="--cpunodebind=$NUMA_NODE"
+    	  NUMA_NODE="$(( (NUMA_NODE + 1) % NR_CPUS ))"
+    	fi
         echo "Running command: oarsh $NODE ${COMMAND[@]} $@"
         oarsh "$NODE" "${COMMAND[@]}" "$@" &
     done
