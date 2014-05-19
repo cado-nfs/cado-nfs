@@ -13,6 +13,7 @@ set -x
 : ${Mv=1}
 : ${Th=2}
 : ${Tv=2}
+# Set the "matrix" variable in order to work on a real matrix.
 : ${random_matrix_size=1000}
 # there is no random_matrix_coeffs_per_row ; see random_matrix.c
 : ${random_matrix_maxcoeff=10}
@@ -47,7 +48,8 @@ top=`dirname $0`/../..
 if ! [ "$bindir" ] ; then
     eval "export $buildopts"
     make -s -C $top -j 4
-    make -s -C $top -j 4 plingen_p_$nwords
+    make -s -C $top -j 4 plingen_pz
+    # make -s -C $top -j 4 plingen_p_$nwords
     eval `make -s -C $top show`
     bindir=$top/$build_tree/linalg/bwc
 fi
@@ -64,11 +66,25 @@ mkdir $wdir
 
 # -c 10 imposes a bound on the coefficients.
 
-$bindir/random_matrix  ${random_matrix_size} -c ${random_matrix_maxcoeff} --kright ${random_matrix_minkernel} > $mats/t${random_matrix_size}p.txt
-matrix_txt=$mats/t${random_matrix_size}p.txt
-matrix=$mats/t${random_matrix_size}p.bin
+if ! [ "$matrix" ] ; then
+    $bindir/random_matrix  ${random_matrix_size} -c ${random_matrix_maxcoeff} --kright ${random_matrix_minkernel} > $mats/t${random_matrix_size}p.txt
+    matrix_txt=$mats/t${random_matrix_size}p.txt
+    matrix=$mats/t${random_matrix_size}p.bin
 
-$bindir/mf_scan  --ascii-in --withcoeffs --mfile $matrix_txt  --freq --binary-out --ofile $matrix
+    $bindir/mf_scan  --ascii-in --withcoeffs --mfile $matrix_txt  --freq --binary-out --ofile $matrix
+else
+    case "$matrix" in
+        *.txt)
+            matrix_txt="$matrix"
+            matrix="${matrix}.bin"
+            $bindir/mf_scan  --ascii-in --withcoeffs --mfile $matrix_txt  --freq --binary-out --ofile $matrix
+            ;;
+        *.bin)
+            matrix_txt="${matrix}.txt"
+            $bindir/mf_scan  --binary-in --withcoeffs --mfile $matrix --ascii-out -freq --ofile $matrix_txt
+            ;;
+    esac
+fi
 
 nullspace=right
 interval=50
