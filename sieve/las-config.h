@@ -185,7 +185,7 @@
 /* Should we use a cache-line buffer when converting kilo-bucket updates to
    regular bucket updates? Requires SSE2 if enabled. */
 #ifdef HAVE_SSE2
-// #define USE_CACHEBUFFER 1
+#define USE_CACHEBUFFER 1
 #endif 
 
 #include <stdio.h>
