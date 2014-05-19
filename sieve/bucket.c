@@ -122,11 +122,16 @@ init_k_bucket_array(const uint32_t n_bucket, const uint64_t size_bucket, const u
   init_bucket_array_common(n_bucket, size_bucket, diff_logp, BA);
   init_k_bucket_array_common(BA, kBA);
   
-  BA->big_size = kBA->bucket_size * (kBA->n_bucket * sizeof(k_bucket_update_t) + sizeof(bucket_update_t));
+  size_t kba_len = kBA->bucket_size * sizeof(k_bucket_update_t);
+  kba_len = iceildiv(kba_len, 8) * 7;
+  kba_len = iceildiv(kba_len, 64) * 64;
+
+  BA->big_size = kBA->n_bucket * kba_len + kBA->bucket_size * sizeof(bucket_update_t);
 
 #ifdef PRINT_ALLOC
-  printf("# Allocating %zu bytes for %" PRIu32 " kilo-buckets of %" PRIu64 " k-update entries of %zu bytes each and one bucket of %" PRIu64 " update entries of %zu bytes each\n",
-         BA->big_size, kBA->n_bucket, kBA->bucket_size, sizeof(k_bucket_update_t), kBA->bucket_size, sizeof(bucket_update_t));
+  printf("# BA->big_size = %zu, kBA->n_bucket = %" PRIu32 ", kBA->bucket_size = %zu, sizeof(k_bucket_update_t) = %zu, BA->bucket_size = %zu, BA->n_bucket = %" PRIu32 ", sizeof(bucket_update_t) = %zu\n",
+         BA->big_size, kBA->n_bucket, kBA->bucket_size, sizeof(k_bucket_update_t), BA->bucket_size, BA->n_bucket, sizeof(bucket_update_t));
+  fflush(stdout);
 #endif
   uint8_t *big_data = physical_malloc (BA->big_size, 1);
 
@@ -135,7 +140,7 @@ init_k_bucket_array(const uint32_t n_bucket, const uint64_t size_bucket, const u
 
   bucket_start_init((void **) kBA->bucket_start, (void **) (kBA->bucket_start + kBA->n_bucket),
 		    (size_t) big_data + kBA->bucket_size * sizeof(bucket_update_t),
-		    kBA->bucket_size * sizeof(k_bucket_update_t));
+		    kba_len);
 
   memset (mBA, 0, sizeof(*mBA));
 
