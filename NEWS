@@ -6,6 +6,8 @@ Main changes between cado-nfs-2.0 and cado-nfs-2.1:
 * Various bug-fixes
 * The wuclient2.py script no longer requires an external download tool
   (wget or curl) to download securely via SSL under Python 2
+* better support of DL in GF(p); still not fully automatic, nor
+  independent of third-party software. See README.dlp.
 
 Main changes between cado-nfs-1.1 and cado-nfs-2.0:
 
