@@ -861,8 +861,11 @@ class WuAccess(object): # {
             msg = "Workunit %s has status %s (%s), expected %s (%s)" % \
                   (wu["wuid"], wu_status, WuStatus.get_name(wu_status), 
                    status, WuStatus.get_name(status))
-            logger.error ("WuAccess._checkstatus(): %s", msg)
-            raise StatusUpdateError(msg)
+            if status is WuStatus.ASSIGNED and wu_status is WuStatus.CANCELLED:
+                logger.warning ("WuAccess._checkstatus(): %s, presumably timed out", msg)
+            else:
+                logger.error ("WuAccess._checkstatus(): %s", msg)
+                raise StatusUpdateError(msg)
 
     # Which fields should be None for which status
     should_be_unset = {
