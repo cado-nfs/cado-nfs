@@ -411,7 +411,7 @@ sorted_insert_double(double *array, const size_t len, const double value)
 
 /* return 1 if the polynomial is ok and among the best ones,
    otherwise return 0 */
-int
+static int
 optimize_raw_poly (double *logmu, mpz_poly_t F, mpz_t *g,
                    const unsigned long d, mpz_t N, double *E)
 {
@@ -431,7 +431,7 @@ optimize_raw_poly (double *logmu, mpz_poly_t F, mpz_t *g,
 
   /* optimize size */
   opt_found ++;
-  optimize (F, g, 0, 1);
+  optimize (F, g, verbose, 1);
 
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   *logmu = L2_lognorm (F, skew);

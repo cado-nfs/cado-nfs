@@ -2132,26 +2132,31 @@ optimize_aux (mpz_poly_ptr f, mpz_t *g, int verbose, int use_rotation)
             }
         } /* use_rotation */
 
-      if (changedt == 1)
-        mpz_mul_2exp (kt, kt, 1);       /* kt <- 2*kt */
-      else if (mpz_cmp_ui (kt, 1) > 0)
-        mpz_div_2exp (kt, kt, 1);       /* kt <- kt/2 */
-      if (changed == 1)
-        mpz_mul_2exp (k, k, 1);       /* k <- 2*k */
-      else if (mpz_cmp_ui (k, 1) > 0)
-        mpz_div_2exp (k, k, 1);       /* k <- k/2 */
-      if (changed2 == 1)
-        mpz_mul_2exp (k2, k2, 1);       /* k2 <- 2*k2 */
-      else if (mpz_cmp_ui (k2, 1) > 0)
-        mpz_div_2exp (k2, k2, 1);       /* k2 <- k2/2 */
-      if (changed1 == 1)
-        mpz_mul_2exp (k1, k1, 1);       /* k1 <- 2*k1 */
-      else if (mpz_cmp_ui (k1, 1) > 0)
-        mpz_div_2exp (k1, k1, 1);       /* k1 <- k1/2 */
       if (changedt == 0 && changed == 0 && changed2 == 0 && changed1 == 0 &&
           mpz_cmp_ui (kt, 1) == 0 && mpz_cmp_ui (k, 1) == 0 &&
           mpz_cmp_ui (k2, 1) == 0 && mpz_cmp_ui (k1, 1) == 0)
         break;
+
+      if (changedt == 1)
+        mpz_mul_2exp (kt, kt, 1);       /* kt <- 2*kt */
+      else if (mpz_cmp_ui (kt, 1) > 0)
+        mpz_div_2exp (kt, kt, 1);       /* kt <- kt/2 */
+
+      if (changed == 1)
+        mpz_mul_2exp (k, k, 1);       /* k <- 2*k */
+      else if (mpz_cmp_ui (k, 1) > 0)
+        mpz_div_2exp (k, k, 1);       /* k <- k/2 */
+
+      if (changed2 == 1)
+        mpz_mul_2exp (k2, k2, 1);       /* k2 <- 2*k2 */
+      else if (mpz_cmp_ui (k2, 1) > 0)
+        mpz_div_2exp (k2, k2, 1);       /* k2 <- k2/2 */
+
+      if (changed1 == 1)
+        mpz_mul_2exp (k1, k1, 1);       /* k1 <- 2*k1 */
+      else if (mpz_cmp_ui (k1, 1) > 0)
+        mpz_div_2exp (k1, k1, 1);       /* k1 <- k1/2 */
+
       if (count++ > 10000) /* avoid an infinite loop due to the random
                               choices when logmu=logmu0 */
         break;
@@ -2160,7 +2165,7 @@ optimize_aux (mpz_poly_ptr f, mpz_t *g, int verbose, int use_rotation)
   if (verbose > 0)
     {
       gmp_fprintf (stderr, "# ad=%Zd: optimized lognorm from %.2f to %.2f\n",
-                   f[d], logmu00, logmu0);
+                   f->coeff[d], logmu00, logmu0);
       gmp_fprintf (stderr, "# (rotation %Zd*x^2+%Zd*x+%Zd, translation %Zd)\n",
                    khitot, lamtot, mutot, ktot);
       if (verbose > 1)
