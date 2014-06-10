@@ -130,14 +130,14 @@ the shared library mechanism).
 
 (3) $PREFIX/bin/factor.sh
     This calls binaries from $PREFIX/bin, and loads parameter files from
-    $PREFIX/share/cado-nfs-2.0/examples
+    $PREFIX/share/cado-nfs-2.1/examples
 
 Linux, BSD: All three methods work
 MacOS X:
     For any invocation to work, the LD_LIBRARY_PATH or DYLD_LIBRARY_PATH
     variable must be set up properly. The easiest method is to do make
     install, and include in these environment variables the directory
-    $PREFIX/lib/cado-nfs-2.0.
+    $PREFIX/lib/cado-nfs-2.1.
 
 Run a factorization on current machine:
 =======================================
