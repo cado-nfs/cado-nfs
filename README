@@ -24,13 +24,12 @@ Supported platforms:
 
 Anything else than the primary platform perhaps works, perhaps does not work.
 
- - Mac OS X Leopard and Snow Leopard have been tested to work at least
-   once, provided some additional tools and libraries (see below) have
-   been installed, notably for Leopard. ABI selection is sometimes
-   tricky.
- - 32-bit linux with gcc-4.4 or later is supposed to work.
- - Windows is only partly supported (see a longer note at the end of this
-   file).
+ - Mac OS X Mavericks have been successfully tested with both Apple's gcc and
+   clang. Leopard and Snow Leopard have been tested to work at least once,
+   provided some additional tools and libraries (see below) have been installed,
+   notably for Leopard. ABI selection is sometimes tricky.  - 32-bit linux with
+   gcc-4.4 or later is supposed to work.  - Windows is only partly supported
+   (see a longer note at the end of this file).
 
 Required software tools:
 ========================
