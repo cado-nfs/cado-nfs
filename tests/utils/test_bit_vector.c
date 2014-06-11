@@ -71,7 +71,7 @@ test_bit_vector_read_from_file (void)
 
   /* create a random bit vector */
   n = 1 + (lrand48 () %  (3 * BV_BITS));
-  bit_vector_init (b, n);
+  bit_vector_init_set (b, n, 0);
   for (i = 0; i < n; i++)
     if (lrand48 () & 1)
       bit_vector_flipbit (b, i);
