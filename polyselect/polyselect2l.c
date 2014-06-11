@@ -430,7 +430,9 @@ optimize_raw_poly (double *logmu, mpz_poly_t F, mpz_t *g,
   mpz_clear (t);
 
   /* optimize size */
+  mutex_lock (&lock);
   opt_found ++;
+  mutex_unlock (&lock);
   optimize (F, g, verbose, 1);
 
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
