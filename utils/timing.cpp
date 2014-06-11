@@ -1,4 +1,5 @@
 #include "cado.h"
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>		/* for cputime */
@@ -204,8 +205,11 @@ void timingstats_dict_clear(timingstats_dict_ptr p)
 
 void timingstats_dict_add(timingstats_dict_ptr p, const char * key, struct rusage * r)
 {
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&lock);
     real_timingstats_dict_t& s(*static_cast<real_timingstats_dict_t*>(*p));
     s.insert(std::make_pair(std::string(key), *r));
+    pthread_mutex_unlock(&lock);
 }
 
 void timingstats_dict_add_mythread(timingstats_dict_ptr p, const char * key)
@@ -229,7 +233,7 @@ void timingstats_dict_add_myprocess(timingstats_dict_ptr p, const char * key)
 
 void timingstats_dict_disp(timingstats_dict_ptr p)
 {
-    real_timingstats_dict_t& s(*static_cast<real_timingstats_dict_t*>(*p));
+    real_timingstats_dict_t const& s(*static_cast<real_timingstats_dict_t*>(*p));
     /* multimap is sorted */
     typedef real_timingstats_dict_t::const_iterator it_t;
     for(it_t i = s.begin(), j ; i != s.end() ; i = j) {
