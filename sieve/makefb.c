@@ -469,8 +469,6 @@ main (int argc, char *argv[])
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
     }
-  param_list_clear(pl);
-
   if (side == ALGEBRAIC_SIDE)
       makefb_with_powers (outputfile, cpoly->alg, alim, maxbits);
   else
@@ -480,6 +478,8 @@ main (int argc, char *argv[])
   if (outfilename != NULL) {
     fclose_maybe_compressed(outputfile, outfilename);
   }
+
+  param_list_clear(pl);
 
   return 0;
 }
