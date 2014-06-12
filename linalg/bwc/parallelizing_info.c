@@ -1538,6 +1538,7 @@ int pi_load_file(pi_wiring_ptr w, const char * name, unsigned int iter, void * b
                 cd[j] += ts[j];
             }
         }
+        free(trecvbuf);
         if (w->jrank == 0) {
             free(tsendbuf);
         }
