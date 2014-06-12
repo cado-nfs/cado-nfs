@@ -317,7 +317,9 @@ ssize_t ringbuf_feed_stream(ringbuf_ptr r, FILE * f)
  */
 int ringbuf_strchr(ringbuf_ptr r, int c, size_t offset)
 {
+    pthread_mutex_lock(r->mx);
     ASSERT_ALWAYS(offset <= r->avail_to_read);
+    pthread_mutex_unlock(r->mx);
     size_t tail = r->alloc - (r->rhead - r->p);
     int s = offset;
     for(; (size_t) s < tail ; s++) {
