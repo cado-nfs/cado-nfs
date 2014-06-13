@@ -22,6 +22,8 @@ using namespace std;
 
 #include "cado_config.h"
 
+#include "portability.h"
+
 #include "abase.h"
 #include "matmul-common.h"
 
