@@ -153,6 +153,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 exit(1);
             }
         }
+        vec_clear_generic(pi->m, dp0, A->groupsize(A));
+        vec_clear_generic(pi->m, dp1, A->groupsize(A));
     }
 
     matmul_top_clear(mmt);
