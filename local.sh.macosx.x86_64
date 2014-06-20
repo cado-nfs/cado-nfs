@@ -1,12 +1,20 @@
 ############################################################
-# This is an example local.sh file for a machine which says:
-# Darwin <hostname> 12.5.0 Darwin Kernel Version 12.5.0: Sun
+# This is an example local.sh file for x86_64 i386
+# machines running OS X
+
+# Examples
+
+# Darwin <hostname> 12.5.0 Darwin Kernel Version 12.5.0: \
 # Sep 29 13:33:47 PDT 2013; \
-# root:xnu-2050.48.12~1/RELEASE_X86_64 x86_64 i386
+# root:xnu-2050.48.12~1/RELEASE_X86_64 x86_64 i386 \
 # MacBookPro9,2 Darwin
-#
-# IOW a MacIntel with a 64-bit kernel running mountain lion (10.8.5)
-#
+
+
+# Darwin <hostname> 13.2.0 Darwin Kernel Version 13.2.0: \
+# Thu Apr 17 23:03:13 PDT 2014; \
+# root:xnu-2422.100.13~1/RELEASE_X86_64 x86_64 i386 \
+# MacBookPro9,2 Darwin
+
 
 ############################################################
 # The variables set below are specific to OSX.
