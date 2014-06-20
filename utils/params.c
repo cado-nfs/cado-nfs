@@ -6,12 +6,15 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "params.h"
 #include "macros.h"
 #include "misc.h"
 #include "portability.h"
 #include "modified_files.h"
+
+static pthread_mutex_t mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
 
 void param_list_init(param_list pl)
 {
@@ -171,7 +174,7 @@ int paramcmp(const struct sorting_data * a, const struct sorting_data * b)
 }
 
 /* Sort (for searching), and remove duplicates. */
-void param_list_consolidate(param_list pl)
+static void param_list_consolidate(param_list pl)
 {
     if (pl->consolidated) {
         return;
@@ -581,13 +584,34 @@ static int assoc(param_list pl, const char * key)
     return c-pl->p;
 }
 
+/* Look up an entry in a param_list, and update the parsed flag. It does
+   mutex locking to make look-ups thread safe; the caller must not access
+   any param_list entries by itself. */
+static int
+get_assoc(param_list pl, const char * const key, char ** const value, int * const seen)
+{
+    pthread_mutex_lock(mutex);
+    const int v = assoc(pl, key);
+    const int found = (v >= 0);
+    if (found) {
+        pl->p[v]->parsed = 1;
+        if (value != NULL) {
+            *value = pl->p[v]->value;
+        }
+        if (seen != NULL) {
+            *seen = pl->p[v]->seen;
+        }
+    }
+    pthread_mutex_unlock(mutex);
+    return found;
+}
+
 int param_list_parse_long(param_list pl, const char * key, long * r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
     char * end;
     long res;
     res = strtol(value, &end, 0);
@@ -598,7 +622,7 @@ int param_list_parse_long(param_list pl, const char * key, long * r)
     }
     if (r)
         *r = res;
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_int(param_list pl, const char * key, int * r)
@@ -621,18 +645,17 @@ int param_list_parse_int(param_list pl, const char * key, int * r)
 
 int param_list_parse_int_and_int(param_list pl, const char * key, int * r, const char * sep)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
-    char * end;
+    char *orig_value = value, * end;
     long res[2];
     res[0] = strtol(value, &end, 0);
     if (strncmp(end, sep, strlen(sep)) != 0) {
         fprintf(stderr, "Parse error: parameter for key %s"
                 " must match %%d%s%%d; got %s\n",
-                key, sep, pl->p[v]->value);
+                key, sep, orig_value);
         exit(1);
     }
     value = end + strlen(sep);
@@ -640,14 +663,14 @@ int param_list_parse_int_and_int(param_list pl, const char * key, int * r, const
     if (*end != '\0') {
         fprintf(stderr, "Parse error: parameter for key %s"
                 " must match %%d%s%%d; got %s\n",
-                key, sep, pl->p[v]->value);
+                key, sep, orig_value);
         exit(1);
     }
     if (r) {
         r[0] = res[0];
         r[1] = res[1];
     }
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_intxint(param_list pl, const char * key, int * r)
@@ -658,11 +681,10 @@ int param_list_parse_intxint(param_list pl, const char * key, int * r)
 
 int param_list_parse_ulong(param_list pl, const char * key, unsigned long * r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
     char * end;
     unsigned long res;
     res = strtoul(value, &end, 0);
@@ -674,7 +696,7 @@ int param_list_parse_ulong(param_list pl, const char * key, unsigned long * r)
     }
     if (r)
         *r = res;
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_size_t(param_list pl, const char * key, size_t * r)
@@ -689,11 +711,10 @@ int param_list_parse_size_t(param_list pl, const char * key, size_t * r)
 
 int param_list_parse_int64(param_list pl, const char * key, int64_t * r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
     char * end;
     int64_t res;
     res = strtoimax(value, &end, 0);
@@ -705,16 +726,15 @@ int param_list_parse_int64(param_list pl, const char * key, int64_t * r)
     }
     if (r)
         *r = res;
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_uint64(param_list pl, const char * key, uint64_t * r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
     char * end;
     uint64_t res;
     res = strtoumax(value, &end, 0);
@@ -726,7 +746,7 @@ int param_list_parse_uint64(param_list pl, const char * key, uint64_t * r)
     }
     if (r)
         *r = res;
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_uint(param_list pl, const char * key, unsigned int * r)
@@ -749,11 +769,10 @@ int param_list_parse_uint(param_list pl, const char * key, unsigned int * r)
 
 int param_list_parse_double(param_list pl, const char * key, double * r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
     char * end;
     double res;
     res = strtod(value, &end);
@@ -764,16 +783,15 @@ int param_list_parse_double(param_list pl, const char * key, double * r)
     }
     if (r)
         *r = res;
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_string(param_list pl, const char * key, char * r, size_t n)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    pl->p[v]->parsed=1;
-    char * value = pl->p[v]->value;
     if (r && strlen(value) > n-1) {
         fprintf(stderr, "Parse error:"
                 " parameter for key %s does not fit within string buffer"
@@ -782,17 +800,15 @@ int param_list_parse_string(param_list pl, const char * key, char * r, size_t n)
     }
     if (r)
         strncpy(r, value, n);
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_int_list(param_list pl, const char * key, int * r, size_t n, const char * sep)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    if (!get_assoc(pl, key, &value, NULL))
         return 0;
-    char * value = pl->p[v]->value;
-    pl->p[v]->parsed=1;
-    char * end;
+    char *orig_value = value, * end;
     int * res = malloc(n * sizeof(int));
     memset(res, 0, n * sizeof(int));
     size_t parsed = 0;
@@ -805,7 +821,7 @@ int param_list_parse_int_list(param_list pl, const char * key, int * r, size_t n
         if (strncmp(end, sep, strlen(sep)) != 0) {
             fprintf(stderr, "Parse error: parameter for key %s"
                     " must match %%d(%s%%d)*; got %s\n",
-                    key, sep, pl->p[v]->value);
+                    key, sep, orig_value);
             exit(1);
         }
         value = end + strlen(sep);
@@ -813,7 +829,7 @@ int param_list_parse_int_list(param_list pl, const char * key, int * r, size_t n
     if (*end != '\0') {
         fprintf(stderr, "Parse error: parameter for key %s"
                 " must match %%d(%s%%d){0,%zu}; got %s\n",
-                key, sep, n-1, pl->p[v]->value);
+                key, sep, n-1, orig_value);
         exit(1);
     }
     if (r) {
@@ -825,23 +841,21 @@ int param_list_parse_int_list(param_list pl, const char * key, int * r, size_t n
 
 const char * param_list_lookup_string(param_list pl, const char * key)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return NULL;
-    pl->p[v]->parsed=1;
-    const char * value = pl->p[v]->value;
     return value;
 }
 
 int param_list_parse_mpz(param_list pl, const char * key, mpz_ptr r)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    pl->p[v]->parsed=1;
     unsigned int nread;
     int rc;
-    char * value = pl->p[v]->value;
     if (r) {
         rc = gmp_sscanf(value, "%Zi%n", r, &nread);
     } else {
@@ -853,20 +867,20 @@ int param_list_parse_mpz(param_list pl, const char * key, mpz_ptr r)
                 key, value);
         exit(1);
     }
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_parse_switch(param_list pl, const char * key)
 {
-    int v = assoc(pl, key);
-    if (v < 0)
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
         return 0;
-    pl->p[v]->parsed=1;
-    if (pl->p[v]->value != NULL) {
+    if (value != NULL) {
         fprintf(stderr, "Parse error: option %s accepts no argument\n", key);
         exit(1);
     }
-    return pl->p[v]->seen;
+    return seen;
 }
 
 int param_list_all_consumed(param_list pl, char ** extraneous)
