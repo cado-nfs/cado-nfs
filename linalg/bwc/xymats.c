@@ -70,6 +70,7 @@ void allreduce_generic(mmt_vec_ptr v, pi_wiring_ptr wr, unsigned int n)
     if (wr->trank > 0) {
         v->abase->vec_set(v->abase, v->v, v->all_v[0], n);
     }
+    serialize_threads(wr);
 }
 
 void broadcast_generic_threadlevel(mmt_vec_ptr v, pi_wiring_ptr wr, unsigned int n, unsigned int t0)
