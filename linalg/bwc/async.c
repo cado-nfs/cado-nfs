@@ -151,7 +151,14 @@ static void timing_rare_checks(pi_wiring_ptr wr, struct timing_data * t, int ite
     // serialize_threads(wr);      // bug in thread_broadcast
     void * ptr = &caught_something;
     thread_broadcast(wr, &ptr, 0);
-    caught_something = * (unsigned int *) ptr;
+    /* Thread 0 must not write here, as other threads are reading this
+        memory location without locking, so a thread checker would complain
+        about a race condition. The assignment on thread 0 would amount to
+        caught_something = caught_something; and thus would not affect
+        program behaviour, but the thread checker does not know that. */
+    if (wr->trank != 0) {
+      caught_something = * (unsigned int *) ptr;
+    }
 
     /* ok, got it. Before we possibly leave, make sure everybody has read
      * the data from the pointer. */
