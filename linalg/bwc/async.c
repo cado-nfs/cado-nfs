@@ -232,18 +232,22 @@ void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, 
 
 void pi_allreduce_doubles(parallelizing_info pi, double * x, int n)
 {
-    double total[n];
-    memset(total,0,n*sizeof(double));
-    void * ptr = (void*) total;
-    thread_broadcast(pi->m, &ptr, 0);
-    double * main_total = ptr;
-    my_pthread_mutex_lock(pi->m->th->m);
-    for(int i = 0 ; i < n ; i++)
-        main_total[i] += x[i];
-    my_pthread_mutex_unlock(pi->m->th->m);
+    /* Broadcast master's x */
+    double * master_x = (pi->m->trank == 0) ? x : NULL;
+    thread_broadcast(pi->m, (void **) &master_x, 0);
+    /* Threads other than master add their x to master's x */
+    if (pi->m->trank != 0) {
+        my_pthread_mutex_lock(pi->m->th->m);
+        for(int i = 0 ; i < n ; i++)
+            master_x[i] += x[i];
+        my_pthread_mutex_unlock(pi->m->th->m);
+    }
     serialize_threads(pi->m);
-    for(int i = 0 ; i < n ; i++)
-        x[i] = main_total[i];
+    /* Master has totals in x, everyone else needs to update their x */
+    if (pi->m->trank != 0) {
+        for(int i = 0 ; i < n ; i++)
+            x[i] = master_x[i];
+    }
 }
 
 /* stage=0 for krylov, 1 for mksol */
