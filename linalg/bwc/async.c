@@ -248,6 +248,9 @@ void pi_allreduce_doubles(parallelizing_info pi, double * x, int n)
         for(int i = 0 ; i < n ; i++)
             x[i] = master_x[i];
     }
+    /* as long as we have a read intention on master_x, we should not get
+     * past this barrier */
+    serialize_threads(pi->m);
 }
 
 /* stage=0 for krylov, 1 for mksol */
