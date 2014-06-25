@@ -929,12 +929,12 @@ uint64_t filter_rels2_inner(char ** input_files,
     pthread_t * cons = new pthread_t[ncons];
     for(int j = 0, k = 1 ; j < ncons ; j+=desc[k-1].n, k++) {
         ASSERT_ALWAYS(k < n);
+        cons_args[j].callback_fct = desc[k-1].f;
+        cons_args[j].callback_arg = desc[k-1].arg;
+        cons_args[j].k = k;
+        cons_args[j].inflight = inflight;
+        cons_args[j].stats = stats;
         for(int i = 0 ; i < desc[k-1].n ; i++) {
-            cons_args[j].callback_fct = desc[k-1].f;
-            cons_args[j].callback_arg = desc[k-1].arg;
-            cons_args[j].k = k;
-            cons_args[j].inflight = inflight;
-            cons_args[j].stats = stats;
             /* this calls filter_rels_consumer_thread_arg_s<inflight_t>::f */
             pthread_create(&cons[i+j], NULL, (void *(*)(void*)) &cons_arg_t::f, &cons_args[j]);
         }
