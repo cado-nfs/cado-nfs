@@ -90,11 +90,15 @@ static void prelude(parallelizing_info_ptr pi, struct sfiles_list * s)
 
 int agree_on_flag(pi_wiring_ptr w, int v)
 {
+    static pthread_mutex_t mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
     int * ptr = &v;
     thread_broadcast(w, (void**) &ptr, 0);
     for(unsigned int i = 0 ; i < w->ncores ; i++) {
-        serialize_threads(w);
+        int ptrc = pthread_mutex_lock(mutex);
+        ASSERT_ALWAYS(ptrc == 0);
         * ptr &= v;
+        ptrc = pthread_mutex_lock(mutex);
+        ASSERT_ALWAYS(ptrc == 0);
     }
     serialize_threads(w);
 
