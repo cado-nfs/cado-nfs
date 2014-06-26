@@ -97,7 +97,7 @@ int agree_on_flag(pi_wiring_ptr w, int v)
         int ptrc = pthread_mutex_lock(mutex);
         ASSERT_ALWAYS(ptrc == 0);
         * ptr &= v;
-        ptrc = pthread_mutex_lock(mutex);
+        ptrc = pthread_mutex_unlock(mutex);
         ASSERT_ALWAYS(ptrc == 0);
     }
     serialize_threads(w);
@@ -107,7 +107,9 @@ int agree_on_flag(pi_wiring_ptr w, int v)
         ASSERT_ALWAYS(!err);
     }
     serialize_threads(w);
-    v = *ptr;
+    if (w->trank != 0) {
+        v = *ptr;
+    }
     /* serialize again because the leader must not release its stack
      * before all pals have read it ! */
     serialize_threads(w);
