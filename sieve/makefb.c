@@ -383,6 +383,8 @@ void makefb_with_powers(FILE* outfile, mpz_poly_t F, unsigned long alim,
             fprintf(outfile, "\n");
         entry_list_clear(&L);
     }
+    /* Free getprime() memory */
+    getprime(0);
 }
 
 static void declare_usage(param_list pl)
