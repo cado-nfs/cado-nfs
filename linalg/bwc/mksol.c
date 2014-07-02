@@ -216,7 +216,9 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     if (bw->end == 0) {
         // for mksol we use EOF as an ending indication.
         serialize_threads(pi->m);
-        bw->end = INT_MAX;
+        if (pi->m->trank == 0)
+            bw->end = INT_MAX;
+        serialize_threads(pi->m);
         if (tcan_print) {
             fprintf(stderr, "Target iteration is unspecified ;"
                     " going to end of F file\n");
