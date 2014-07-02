@@ -3450,35 +3450,57 @@ int
 factor_both_leftover_norms(mpz_t *norm, const mpz_t BLPrat, mpz_array_t **f,
                            uint32_array_t **m, sieve_info_srcptr si)
 {
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     unsigned int nbits[2];
     int first, pass = 1;
 
     for (int z = 0; z < 2; z++)
       nbits[z] = mpz_sizeinbase (norm[z], 2);
 
-    if (cof_calls[0][nbits[0]] > 0 && cof_calls[1][nbits[1]] > 0)
+    /* Thread-local copy of cof_calls/cof_fails */
+    double cc[2], cf[2];
+    
+    pthread_mutex_lock(&mutex);
+    cc[0] = cof_calls[0][nbits[0]];
+    cc[1] = cof_calls[1][nbits[1]];
+    cf[0] = cof_fails[0][nbits[0]];
+    cf[1] = cof_fails[1][nbits[1]];
+    pthread_mutex_unlock(&mutex);
+
+    if (cc[0] > 0. && cc[1] > 0.)
       {
-        if (cof_fails[0][nbits[0]] * cof_calls[1][nbits[1]] >
-            cof_fails[1][nbits[1]] * cof_calls[0][nbits[0]])
+        if (cf[0]* cc[1] > cf[1] * cc[0])
           first = 0;
         else
           first = 1;
       }
     else
-      /* if norm[RATIONAL_SIDE] is above BLPrat, then it might not
-       * be smooth. We factor it first. Otherwise we factor it last. */
-      first = mpz_cmp (norm[RATIONAL_SIDE], BLPrat) > 0
-        ? RATIONAL_SIDE : ALGEBRAIC_SIDE;
+      {
+        /* if norm[RATIONAL_SIDE] is above BLPrat, then it might not
+         * be smooth. We factor it first. Otherwise we factor it last. */
+        first = mpz_cmp (norm[RATIONAL_SIDE], BLPrat) > 0
+          ? RATIONAL_SIDE : ALGEBRAIC_SIDE;
+      }
 
+    cc[0] = cc[1] = cf[0] = cf[1] = 0.;
     for (int z = 0 ; pass > 0 && z < 2 ; z++)
       {
         int side = first ^ z;
-        cof_calls[side][nbits[side]] ++;
+        cc[side] ++;
         pass = factor_leftover_norm (norm[side], f[side], m[side],
                                      si, side);
         if (pass <= 0)
-          cof_fails[side][nbits[side]] ++;
+          cf[side] ++;
       }
+    
+    /* Add thread-local statistics to the global arrays */
+    pthread_mutex_lock(&mutex);
+    cof_calls[0][nbits[0]] += cc[0];
+    cof_calls[1][nbits[1]] += cc[1];
+    cof_fails[0][nbits[0]] += cf[0];
+    cof_fails[1][nbits[1]] += cf[1];
+    pthread_mutex_unlock(&mutex);
+
     return pass;
 
 }
