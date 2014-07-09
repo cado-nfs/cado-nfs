@@ -12,10 +12,11 @@ For example, running
 
 starts the cadofactor script, which also starts the server. It does not start any clients with this command line, so those would have to be started manually:
 
-./wuclient2.py --server=http://quiche.loria.fr:8001
+./wuclient2.py --server=https://quiche.loria.fr:8001 --certsha1=[Certificate SHA1]
 
-where the --server parameter should be given the URL of the server, as printed by the cadofactor script.
-You can start an arbitrary number of client scripts, on any machines that can connect to the server via HTTP.
+where the --server and --certsha1 parameters should be given the URL and certificate SHA1 value of the server,
+respectively, as printed by the cadofactor script. You can start an arbitrary number of client scripts, on any
+machines that can connect to the server via HTTP.
 
 If you want to let the server automatically start clients, you need to supply a list of hostnames on which to start clients, e.g.,
 
@@ -26,7 +27,8 @@ to let it start two clients on localhost. The scriptpath parameter must be the p
 
 For complex set-ups, it is preferable to write a parameter file. Some examples are in "parameters", "parameters.oar", and "parameters.rsa512.oar".
 
-The .oar parameter files are meant for cadofactor scripts that run *inside* an OAR submission, as they read the list of slave hostnames from the OAR node file.
+The .oar parameter files are meant for cadofactor scripts that run *inside* an OAR submission on clusters that use OAR as the job scheduler,
+such as Grid5000, as they read the list of slave hostnames from the OAR node file.
 
 For example,
 
@@ -104,7 +106,8 @@ format). Alternatively you can do:
 
 tasks.sieve.import=@foo
 
-where "foo" is a file containing several names of relation files, one per line.
+where "foo" is a file containing several names of relation files, one file
+name per line.
 
 Adjust the tasks.sieve.sieving.qmin parameter accordingly to prevent
 already-sieved special-q ranges from being sieved again.
@@ -136,6 +139,6 @@ line (or in the parameter file):
 
 tasks.filter.purge.required_excess=0.2
 
-If a positive excess is enough:
+If any positive excess is enough:
 
 tasks.filter.purge.required_excess=0.0
