@@ -118,6 +118,7 @@ test_trialdiv (int n, unsigned long iter)
       s = trialdiv (g, N, d, 1);
       ASSERT_ALWAYS (1 <= s && s <= 2); /* s can be max_div+1, i.e., 2 */
       ASSERT_ALWAYS (g[0] == p);
+      trialdiv_clear(d);
     }
   mpz_clear (N);
 }
