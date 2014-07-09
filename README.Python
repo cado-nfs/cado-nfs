@@ -64,26 +64,4 @@ The workunit server and clients use SSL for communication to prevent an
 attacker on the same network from injecting text into workunits which could
 be used to execute arbitrary commands on the client machines. Generating a
 server certificate requires that OpenSSL is installed on the computer
-running the server. Unfortunately, the implementation of SSL in the Python 2
-"ssl" module is incomplete and does not check the validity of the server
-certificate on connecting to the server. When the client is running under
-Python 2, it looks for the "wget" and "curl" command line utilities which
-properly check the server certificate, and uses these for the downloads.
-Unfortunately again, the latest versions of curl under MacOS use Apple's
-SecureTransport SSL library as the back end instead of OpenSSL, and curl
-with SecureTransport does not allow specifying self-signed server
-certificate files on the command line. Currently the only options to resolve
-this are to build version of wget or curl with OpenSSL back-end, or to use
-Python 3 as the Python interpreter of the wuclient2.py script. This can be
-done in the following ways:
-
-- you could change the default Python interpreter to Python 3 by changing
-  the symlink /usr/bin/python or adding a symlink in /usr/local/bin/
-  or in another directory in PATH to point to the Python 3 interpreter.
-  Python 2 scripts that rely on "python" running the Python 2 interpreter
-  will break, however.
-- For clients started by the server, you can specify an interpreter to use
-  with the "runprefix" parameter. E.g., by setting
-  slaves.wuclient.runprefix = /usr/bin/python3
-  in the parameter file, the clients specified in slaves.hostname=... will
-  be started with the Python 3 interpreter.
+running the server.
