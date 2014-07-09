@@ -412,9 +412,9 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
    If Roots is not NULL, put the isolating intervals in Roots[0..nroots-1].
 */
 int
-numberOfRealRoots (mpz_t *p, int n, double T, int verbose, root_struct *Roots)
+numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, root_struct *Roots)
 {
-  int i, nroots;
+  int i, nroots, n = orig_n;
   mpz_t a, R, R1, *r;
   double C, pn, x;
   mpf_t aa;
@@ -483,7 +483,7 @@ numberOfRealRoots (mpz_t *p, int n, double T, int verbose, root_struct *Roots)
   mpz_clear (a);
   mpz_clear (R);
   mpz_clear (R1);
-  for (i = 0; i <= n; i++)
+  for (i = 0; i <= orig_n; i++)
     mpz_clear (r[i]);
   free (r);
 
