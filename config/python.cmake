@@ -10,7 +10,7 @@ if(NOT PYTHON_EXECUTABLE)
 endif()
 
 # Test that the version is something sane
-# First get the version string from "python --version"
+# First get the version string from "python3 --version"
 execute_process(COMMAND "${PYTHON_EXECUTABLE}" --version OUTPUT_VARIABLE PYTHON_OUT ERROR_VARIABLE PYTHON_ERR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_STRIP_TRAILING_WHITESPACE)
 if ("${PYTHON_OUT}" MATCHES "Python")
   set(_VERSION "${PYTHON_OUT}")
@@ -18,26 +18,16 @@ else()
   set(_VERSION "${PYTHON_ERR}")
 endif()
 
-string(REPLACE "Python " "" PYTHON_VERSION_STRING "${_VERSION}")
-string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" PYTHON_VERSION_MAJOR "${PYTHON_VERSION_STRING}")
-string(REGEX REPLACE "^[0-9]+\\.([0-9])+\\.[0-9]+.*" "\\1" PYTHON_VERSION_MINOR "${PYTHON_VERSION_STRING}")
-string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" PYTHON_VERSION_PATCH "${PYTHON_VERSION_STRING}")
+message(STATUS "${PYTHON_EXECUTABLE} --version returned: ${_VERSION}")
 
-# List acceptable Python versions. Although 3.4 is not released at this time,
-# presumably will be ok, too
-set(_Python_ACCEPTED 3.9 3.8 3.7 3.6 3.5 3.4 3.3 3.2)
+string(REPLACE "Python " "" PYTHON_VERSION_STRING "${_VERSION}")
+
+# Minumum acceptable Python version. Let's assume future versions are ok, too.
+set(_Python_MINIMUM_ACCEPTED 3.2)
 
 # Check that the interpreter is one of the accepted versions
-foreach(_TEST_VERSION ${_Python_ACCEPTED})
-  if (${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR} EQUAL _TEST_VERSION)
-    set (_PYTHON_OK 1)
-  endif()
-endforeach()
-
-if (NOT _PYTHON_OK)
-  message(FATAL_ERROR "Did not find a Python interpreter of one of the versions: ${_Python_ACCEPTED}. Please see README.Python")
-else()
-  message(STATUS "Found Python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}.${PYTHON_VERSION_PATCH}: ${PYTHON_EXECUTABLE}")
+if ("${PYTHON_VERSION_STRING}" VERSION_LESS "${_Python_MINIMUM_ACCEPTED}")
+  message(FATAL_ERROR "Did not find a Python interpreter of version at least ${_Python_MINIMUM_ACCEPTED}. Please see README.Python")
 endif()
 
 # Check that importing the sqlite3 module works. Some distros don't have the
