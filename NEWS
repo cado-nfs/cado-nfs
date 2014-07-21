@@ -1,3 +1,8 @@
+Main changes between cado-nfs-2.0 and cado-nfs-2.0.1:
+
+* Accept all Python versions >= 3.2
+* Fix compilation with gcc 4.9
+
 Main changes between cado-nfs-1.1 and cado-nfs-2.0:
 
 * the default parameters in the params subdirectory have been improved
