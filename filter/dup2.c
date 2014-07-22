@@ -85,6 +85,13 @@ static double factor = 1.0;
 
 static int is_for_dl; /* Do we reduce mod 2 or not */
 
+/* For debugging */
+//#define TRACE_HASH_TABLE
+#ifdef TRACE_HASH_TABLE
+#define TRACE_I 42
+#define TRACE_J 17
+#endif
+
 static inline void
 sanity_check (uint32_t i, int64_t a, uint64_t b)
 {
@@ -177,6 +184,9 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
   h = CA_DUP2 * (uint64_t) rel->a + CB_DUP2 * rel->b;
   i = h % K;
   j = (uint32_t) (h >> 32);
+#ifdef TRACE_HASH_TABLE
+  uint32_t old_i = i;
+#endif
 /* Note: in the case where K > 2^32, i and j share some bits.
  * The high bits of i are in j. These bits correspond therefore to far away
  * positions in the tables, and keeping them in j can only help.
@@ -199,6 +209,17 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
     *is_dup = 0;
   }
 
+#ifdef TRACE_HASH_TABLE
+  if (i == TRACE_I && j == TRACE_J)
+  {
+    fprintf (stderr, "TRACE: a = %s%" PRIx64 "\nTRACE: b = %" PRIx64 "\n"
+                     "TRACE: i = %" PRIu32 "\nTRACE: j = %" PRIu32 "\n"
+                     "TRACE: initial value of i was %" PRIu32 "\n"
+                     "TRACE: h = %" PRIx64 "\nTRACE: is_dup = %u\n",
+                     (rel->a < 0) ? "-" : "", (uint64_t) rel->a, rel->b, i,
+                     j, old_i, h, *is_dup);
+  }
+#endif
   return i;
 }
 
@@ -341,7 +362,16 @@ hash_renumbered_rels (void * context_data MAYBE_UNUSED, earlyparsed_relation_ptr
     uint32_t i = insert_relation_in_dup_hashtable (rel, &is_dup);
 
     // They should be no duplicate in already renumbered file
-    ASSERT(!is_dup);
+    if (is_dup)
+    {
+      fprintf (stderr, "Warning, duplicate relation in already renumbered files:"
+                       "\na = %s%" PRIx64 "\nb = %" PRIx64 "\ni = %" PRIu32
+                       "\nj = %" PRIu32 "\n", (rel->a < 0) ? "-" : "",
+                       (uint64_t) rel->a, rel->b, i, H[i]);
+      fprintf (stderr, "This warning may be due to a collision on the hash "
+                       "table or to an actual duplicate relation. If it appears"
+                       "often you should check the input set of relations.");
+    }
 
     if (i < sanity_size)
         sanity_check(i, rel->a, rel->b);
