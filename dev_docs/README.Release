@@ -1,7 +1,9 @@
 Checklist for making a release of CADO-NFS:
 
 1. Update AUTHORS, especially version number
+   -> apply to master too.
 2. Update NEWS
+   -> apply to master too.
 3. Sanity-check parameters files, e.g., for monotonicity where applicable
    scripts/plot_params.sh plots some of the parameters for easy checking
 4. Check that CI builds are clean, and that the slaves are actually running!
@@ -10,6 +12,7 @@ Checklist for making a release of CADO-NFS:
    Do git stash if necessary
 6. Set version number in CMakeLists.txt if necessary (e.g., for
    snapshots and pre-releases)
+   -> When relevant, apply to master too.
 7. Test build and run from (clean) working copy
 7b. Test build and run with CFLAGS=-O3 -DNDEBUG
 8. make dist
@@ -18,3 +21,4 @@ Checklist for making a release of CADO-NFS:
 11. Check that factor.sh works
 12. Check that make install works
 13. Check that factor.sh from install directory works
+14. Make sure that all items in this list have been followed.
