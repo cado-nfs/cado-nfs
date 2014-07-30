@@ -47,7 +47,6 @@ polyselect/twocubics.c
 polyselect/twocubics.h
 polyselect/play.c
 polyselect/rotation_bound.sage
-polyselect/ROOTSIEVE_TODO
 polyselect/E.sage
 polyselect/MurphyE.sage
 polyselect/twoquadratics.sage
