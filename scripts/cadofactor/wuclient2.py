@@ -129,7 +129,7 @@ BUGGY_MIMEENCODER1 = (
 # These Python version have bug type #2
 BUGGY_MIMEENCODER2 = (
     (3,2,4), (3,2,5),
-    (3,3,2), (3,3,3), (3,3,4)
+    (3,3,2), (3,3,3), (3,3,4), (3,3,5)
 )
 
 HAVE_WGET = False
