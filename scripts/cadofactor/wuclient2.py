@@ -292,16 +292,16 @@ def create_daemon(workdir=None, umask=None, keepfd=None):
     # name in handler(). Python3 has 'nonlocal' for that
     sigusr1_received = [False]
     def handler(signum, frame):
-        if signum == signal.SIGUSR1:
+        if signum == signal.SIGUSR2:
             sigusr1_received[0] = True
 
-    # The pid of the original process, used for sending a SIGUSR1 later
+    # The pid of the original process, used for sending a SIGUSR2 later
     original_pid = os.getpid()
 
     # We need to install the signal handler before forking, to guarantee that
     # the original process has the signal handler installed at the time its
     # grand-child sends the signal
-    old_handler = signal.signal(signal.SIGUSR1, handler)
+    old_handler = signal.signal(signal.SIGUSR2, handler)
 
     # Default daemon parameters.
 
@@ -326,7 +326,7 @@ def create_daemon(workdir=None, umask=None, keepfd=None):
 
     if (pid == 0):	# The first child.
         # Un-install the signal handler in the child process
-        signal.signal(signal.SIGUSR1, signal.SIG_DFL)
+        signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
         # To become the session leader of this new session and the process group
         # leader of the new process group, we call os.setsid().  The process is
@@ -392,7 +392,7 @@ def create_daemon(workdir=None, umask=None, keepfd=None):
             # exit() or _exit()?  See below.
             os._exit(0)	# Exit parent (the first child) of the second child.
     else:
-        # Wait for the child to send a SIGUSR1 signal. This gives the grand-
+        # Wait for the child to send a SIGUSR2 signal. This gives the grand-
         # child time to print its PID to stdout, before the original process
         # exits and possibly closes the SSH connection which started the
         # client - we want to read the PID over the SSH connection, after all.
@@ -415,7 +415,7 @@ def create_daemon(workdir=None, umask=None, keepfd=None):
     sys.stdout.flush()
     
     # Tell the original process that it's ok to terminate now
-    os.kill(original_pid, signal.SIGUSR1)
+    os.kill(original_pid, signal.SIGUSR2)
 
     # Close all open file descriptors.  This prevents the child from keeping
     # open any file descriptors inherited from the parent.  There is a variety
