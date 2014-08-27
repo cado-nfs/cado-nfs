@@ -24,6 +24,8 @@ add_test(F9_sievetest_cleanup "${CMAKE_COMMAND}" -E remove -f "${CMAKE_CURRENT_B
 SET_TESTS_PROPERTIES(F9_sievetest PROPERTIES DEPENDS F9_sievetest_cleanup)
 
 add_test(F9_sievetest_unsieve1 bash -c "\"${CMAKE_CURRENT_SOURCE_DIR}/F9.sievetest.sh\" \"${F9_roots}\" \"${las_path}\" \"${CADO_NFS_SOURCE_DIR}\" \"${CMAKE_CURRENT_BINARY_DIR}/F9.checksums\" -unsievethresh 1")
+SET_TESTS_PROPERTIES(F9_sievetest_unsieve1 PROPERTIES DEPENDS F9_makefbtest)
+SET_TESTS_PROPERTIES(F9_sievetest_unsieve1 PROPERTIES DEPENDS F9_sievetest)
 add_test(F9_kbucket_test bash -c "\"${CMAKE_CURRENT_SOURCE_DIR}/F9.sievetest.sh\" \"${F9_roots}\" \"${las_kbucket_path}\" \"${CADO_NFS_SOURCE_DIR}\" \"${CMAKE_CURRENT_BINARY_DIR}/F9.checksums\"")
 SET_TESTS_PROPERTIES(F9_kbucket_test PROPERTIES DEPENDS F9_makefbtest)
 SET_TESTS_PROPERTIES(F9_kbucket_test PROPERTIES DEPENDS F9_sievetest)
