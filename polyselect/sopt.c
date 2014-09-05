@@ -143,7 +143,7 @@ opt_file (FILE *file, int deg, mpz_t N) {
          
          if (!fake) {
            if (mpz_cmp_ui (t, 0) != 0) {
-             fprintf (stderr, "This polynomials have no common root mod N\n");
+             fprintf (stderr, "These polynomials have no common root mod N\n");
              polyprint (f, g, deg, N);
              exit (1);
            }
@@ -154,7 +154,7 @@ opt_file (FILE *file, int deg, mpz_t N) {
 			   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
 			   logmu = L2_lognorm (F, skew);
 			   alpha = get_alpha (F, ALPHA_BOUND);
-			   fprintf (stderr, "\n# Raw polynomial (#%6d):", count + 1);
+			   printf ("\n# Raw polynomial (#%6d):", count + 1);
 			   polyprint (f, g, deg, N);
 			   printf ("# lognorm %1.2f, alpha %1.2f, E %1.2f, %u rroots, skew: %f\n",
 					   logmu, alpha, logmu + alpha, nroots, skew);
@@ -165,7 +165,7 @@ opt_file (FILE *file, int deg, mpz_t N) {
 			   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
 			   logmu = L2_lognorm (F, skew);
 			   alpha = get_alpha (F, ALPHA_BOUND);
-			   fprintf (stderr, "# Optimized polynomial (#%10d): ", count + 1);
+			   printf ("# Optimized polynomial (#%10d): ", count + 1);
 			   polyprint (f, g, deg, N);
 			   printf ("# lognorm %1.2f, alpha %1.2f, E %1.2f, %u rroots, skew: %.2f\n",
 					   logmu, alpha, logmu + alpha, nroots, skew);
@@ -175,7 +175,7 @@ opt_file (FILE *file, int deg, mpz_t N) {
 			   // ignore next polynomial, which is optimized by some old method.
 			   count += 1;
 			   flag = 0UL;
-			   skip = 1UL;
+                           //			   skip = 1UL;
 		  }
 		  /* skip optimized (may be by some old opt method) polynomials,
 			 note, we assume "raw" and "optimized" polys appears
@@ -188,9 +188,9 @@ opt_file (FILE *file, int deg, mpz_t N) {
 		  }
 	 }
 
-	 fprintf(stderr, "\n# total num. of polys: %u\n", count);
-	 fprintf(stderr, "# ave. l2norm: %3.3f\n", ave_logmu / count);
-	 fprintf(stderr, "# ave. alpha: %3.3f\n", ave_alpha / count);
+	 printf("\n# total num. of polys: %u\n", count);
+	 printf("# ave. l2norm: %3.3f\n", ave_logmu / count);
+	 printf("# ave. alpha: %3.3f\n", ave_alpha / count);
 
 	 mpz_clear (g[0]);
 	 mpz_clear (g[1]);
