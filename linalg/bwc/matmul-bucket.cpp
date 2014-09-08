@@ -345,8 +345,8 @@ static inline const char* slice_name(int s) {
 
 struct slice_header_t {
     uint16_t t;
-    uint8_t nchildren;  // w.r.t the tree-like shape of the block structure.
-    uint8_t pad[5];     // make the structure 256-bit wide.
+    uint16_t nchildren;  // w.r.t the tree-like shape of the block structure.
+    uint8_t pad[4];      // make the structure 256-bit wide.
     uint32_t i0, i1;
     uint32_t j0, j1;
     uint64_t ncoeffs;
@@ -2020,8 +2020,8 @@ int MATMUL_NAME(reload_cache)(matmul_ptr mm0)/* {{{ */
     for( ;; ) {
         slice_header_t hdr[1];
         MATMUL_COMMON_READ_ONE16(hdr->t, f);
-        MATMUL_COMMON_READ_ONE8(hdr->nchildren, f);
-        MATMUL_COMMON_READ_MANY8(hdr->pad, 5, f);
+        MATMUL_COMMON_READ_ONE16(hdr->nchildren, f);
+        MATMUL_COMMON_READ_MANY8(hdr->pad, 4, f);
         MATMUL_COMMON_READ_ONE32(hdr->i0, f);
         MATMUL_COMMON_READ_ONE32(hdr->i1, f);
         MATMUL_COMMON_READ_ONE32(hdr->j0, f);
@@ -2063,8 +2063,8 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)/*{{{*/
     for(unsigned int h = 0 ; h < mm->headers.size() ; h++) {
         slice_header_t * hdr = & (mm->headers[h]);
         MATMUL_COMMON_WRITE_ONE16(hdr->t, f);
-        MATMUL_COMMON_WRITE_ONE8(hdr->nchildren, f);
-        MATMUL_COMMON_WRITE_MANY8(hdr->pad, 5, f);
+        MATMUL_COMMON_WRITE_ONE16(hdr->nchildren, f);
+        MATMUL_COMMON_WRITE_MANY8(hdr->pad, 4, f);
         MATMUL_COMMON_WRITE_ONE32(hdr->i0, f);
         MATMUL_COMMON_WRITE_ONE32(hdr->i1, f);
         MATMUL_COMMON_WRITE_ONE32(hdr->j0, f);
@@ -3061,6 +3061,7 @@ static inline void matmul_bucket_mul_small1(struct matmul_bucket_data_s * mm, ve
 
 static inline void matmul_bucket_mul_loop(struct matmul_bucket_data_s * mm, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
 {
+    const char * seen = NULL;
     vector<slice_header_t>::iterator hdr;
 
     for(hdr = mm->headers.begin() ; hdr != mm->headers.end() ; hdr++) {
@@ -3088,16 +3089,22 @@ static inline void matmul_bucket_mul_loop(struct matmul_bucket_data_s * mm, abel
              * thus including all overhead, while the timing for the
              * inner objects is counted from within the subroutines. */
             case SLICE_TYPE_SMALL1_VBLOCK:
+                if (!seen) seen = "SLICE_TYPE_SMALL1_VBLOCK";
             case SLICE_TYPE_DEFER_COLUMN:
+                if (!seen) seen = "SLICE_TYPE_DEFER_COLUMN";
             case SLICE_TYPE_DEFER_ROW:
+                if (!seen) seen = "SLICE_TYPE_DEFER_ROW";
             case SLICE_TYPE_DEFER_CMB:
+                if (!seen) seen = "SLICE_TYPE_DEFER_CMB";
             case SLICE_TYPE_DEFER_DIS:
+                if (!seen) seen = "SLICE_TYPE_DEFER_DIS";
             /* The current implementation no longer accepts data not
              * obeying the header structure, so the default branch also
              * aborts. */
             default:
+                if (!seen) seen = "unkown";
+                fprintf(stderr, "Bogus slice type seen: %s\n", seen);
                 ASSERT_ALWAYS(0);
-                break;
                 break;
         }
         if (hdr->j1 == pos->ncols_t) { pos->i = hdr->i1; }
