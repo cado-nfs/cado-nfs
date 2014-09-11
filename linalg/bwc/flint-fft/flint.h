@@ -30,7 +30,6 @@
 #define ulong ulongxx		/* ensure vendor doesn't typedef ulong */
 #include <sys/param.h>		/* for BSD define */
 #include <gmp.h>
-#include <mpfr.h>
 #include <stdio.h>
 #include <stdlib.h>		/* for alloca on FreeBSD */
 #if !defined(BSD) && !defined(__MINGW64__) && !defined(__MINGW32__)
@@ -191,7 +190,6 @@ static __inline__ void flint_randclear(flint_rand_t state)
 
 /* 
  * We define this here as there is no mpfr.h */
-typedef __mpfr_struct mpfr;
 
 #if WANT_ASSERT
 #define FLINT_ASSERT(param) assert(param)
