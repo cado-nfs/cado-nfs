@@ -69,6 +69,7 @@ sed -e '/config.h/ d' -i flint-fft/flint.h
 sed -e '/gmpcompat.h/ d' -i flint-fft/flint.h
 sed -e '/<mpfr.h>/ d' -i flint-fft/flint.h
 sed -e '/mpfr_struct/ d' -i flint-fft/flint.h
+(echo '/MPFR_VERSION_MAJOR' ; echo .,+2d ; echo wq) | ex flint-fft/flint.h
 
 find flint-fft -name '*.[ch]' | xargs -n 1 indent -kr -i4 -sc -fca -fc1 -lc78
 
