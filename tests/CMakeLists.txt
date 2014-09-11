@@ -79,7 +79,7 @@ endmacro(build_and_run_test)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 add_library (tests STATIC test_iter.c tests_common.c)
-target_link_libraries (tests gmp)
+target_link_libraries (tests ${gmp_libname})
 
 build_test(test_tests_common test_tests_common.c tests)
 run_test(tests_common_1 test_tests_common)
