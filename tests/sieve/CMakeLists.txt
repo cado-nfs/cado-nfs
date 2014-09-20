@@ -6,11 +6,16 @@ add_dependencies(check makefb las las_tracek las_kbucket las_mbucket)
 
 # Get paths to the makefb and las binaries and store in variables
 # makefb_path and las_path, resp.
-get_property(makefb_path TARGET makefb PROPERTY LOCATION)
-get_property(las_path TARGET las PROPERTY LOCATION)
-get_property(las_tracek_path TARGET las_tracek PROPERTY LOCATION)
-get_property(las_kbucket_path TARGET las_kbucket PROPERTY LOCATION)
-get_property(las_mbucket_path TARGET las_mbucket PROPERTY LOCATION)
+# for cmake pre-3.0, we did:
+# get_property(makefb_path TARGET makefb PROPERTY LOCATION)
+
+# now it seems to be forbidden with cmake 3.0+ (see cmake --help-policy
+# CMP0026). The following is probably safe enough.
+set(makefb_path         ${CADO_NFS_BINARY_DIR}/sieve/makefb)
+set(las_path            ${CADO_NFS_BINARY_DIR}/sieve/las)
+set(las_tracek_path     ${CADO_NFS_BINARY_DIR}/sieve/las_tracek)
+set(las_kbucket_path    ${CADO_NFS_BINARY_DIR}/sieve/las_kbucket)
+set(las_mbucket_path    ${CADO_NFS_BINARY_DIR}/sieve/las_mbucket)
 
 set(F9_roots "${CMAKE_CURRENT_BINARY_DIR}/F9.roots")
 add_test(F9_makefbtest "${makefb_path}" -poly "${CADO_NFS_SOURCE_DIR}/params/F9.poly" -alim 2300000 -maxbits 10 -out "${F9_roots}")

@@ -2,7 +2,9 @@
 add_dependencies(check testbench)
 
 # Get path to the testbench binary and store in variable testbench_path
-get_property(testbench_path TARGET testbench PROPERTY LOCATION)
+# see comment in tests/sieve/CMakeLists.txt
+# get_property(testbench_path TARGET testbench PROPERTY LOCATION)
+set(testbench_path ${CADO_NFS_BINARY_DIR}/sieve/ecm/testbench)
 
 add_test(test_factor_pm1 bash -c "\"${CMAKE_CURRENT_SOURCE_DIR}/test_testbench.sh\" \"${testbench_path}\" \"${CMAKE_CURRENT_SOURCE_DIR}/test_factor_pm1_2_100_1000.inp\" -q -vf -vcf -pm1 100 1000")
 add_test(test_factor_pp1_27 bash -c "\"${CMAKE_CURRENT_SOURCE_DIR}/test_testbench.sh\" \"${testbench_path}\" \"${CMAKE_CURRENT_SOURCE_DIR}/test_factor_pp1_27_100_1000.inp\" -q -vf -vcf -pp1_27 100 1000")
