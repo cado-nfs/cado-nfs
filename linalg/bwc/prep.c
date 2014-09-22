@@ -195,7 +195,9 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
             pdimk = &dimk;
         }
         thread_broadcast(pi->m, (void **) &pdimk, 0);
-        dimk = * pdimk;
+        if (pi->m->trank != 0) {
+            dimk = * pdimk;
+        }
 
         if (tcan_print)
             printf("// Dimension of kernel: %d\n", dimk);
