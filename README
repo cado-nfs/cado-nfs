@@ -135,14 +135,14 @@ the shared library mechanism).
 
 (3) $PREFIX/bin/factor.sh
     This calls binaries from $PREFIX/bin, and loads parameter files from
-    $PREFIX/share/cado-nfs-2.1/examples
+    $PREFIX/share/cado-nfs-2.1.1/examples
 
 Linux, BSD: All three methods work
 MacOS X:
     For any invocation to work, the LD_LIBRARY_PATH or DYLD_LIBRARY_PATH
     variable must be set up properly. The easiest method is to do make
     install, and include in these environment variables the directory
-    $PREFIX/lib/cado-nfs-2.1.
+    $PREFIX/lib/cado-nfs-2.1.1.
 
 Run a factorization on current machine:
 =======================================
@@ -281,7 +281,7 @@ under Windows:
 * CygWin provides a Unix-like environment, where compilation should be easy.
   However the binary requires a cygwin.dll file. We have been told of problems
   with shared libraries, the following solves this problem:
-  PATH="installed/lib/cado-nfs-2.1-dev:$PATH" ./factor.sh [...]
+  PATH="installed/lib/cado-nfs-2.1.1:$PATH" ./factor.sh [...]
 
 * if you want a binary without any dependency, you might try MinGW. The INSTALL
   file from GNU MPFR contains detailed instructions on how to compile MPFR
