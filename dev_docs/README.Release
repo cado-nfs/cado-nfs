@@ -22,3 +22,7 @@ Checklist for making a release of CADO-NFS:
 12. Check that make install works
 13. Check that factor.sh from install directory works
 14. Make sure that all items in this list have been followed.
+
+Files which contain the CADO version number and which need to be updated for a release:
+README
+AUTHORS
