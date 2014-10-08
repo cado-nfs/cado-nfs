@@ -3,6 +3,9 @@ Main changes between cado-nfs-2.1 and cado-nfs-2.1.1:
 * Added test-case in wuclient2.py for buggy Python MIME encoder to prevent
   data corruption during file upload under future Python versions
 * Bug fixes to multi-threading in linear algebra code
+* fixed a bug in duplicate suppression, which might produce an error for
+  some collisions corresponding to false duplicates
+* fixed detection of minimal cmake version
 
 Main changes between cado-nfs-2.0 and cado-nfs-2.1:
 * Polynomial selection now runs in two separate phases, size optimization
