@@ -136,7 +136,7 @@ class PolynomialParseException(Exception):
 
 
 class Polynomials(object):
-    r""" A class that represents a polynomial
+    r""" A class that represents a polynomial pair
     
     >>> Polynomials([""])
     Traceback (most recent call last):
@@ -155,11 +155,28 @@ class Polynomials(object):
     'n: 1021\nskew: 1.0\nc0: -1\nc1: 1\nc5: -1\nY0: -4\nY1: 1\n# f(x) = -x^5+x-1\n# g(x) = x-4\n'
     >>> t="n: 1021\npoly0: 1, 2, 3\npoly1: 4, 5, 6\nskew: 1.0\n"
     >>> p=Polynomials(t.splitlines())
+    >>> str(p)
+    'n: 1021\nskew: 1.0\npoly0: 1,2,3\npoly1: 4,5,6\n# poly0 = 3*x^2+2*x+1\n# poly1 = 6*x^2+5*x+4\n'
+    >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\nskew: 1.0\nlognorm: 1.23\n"
+    >>> p=Polynomials(t.splitlines())
+    >>> str(p)
+    'n: 1021\nskew: 1.0\nlognorm: 1.23\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n# f(x) = x^5-x+1\n# g(x) = -x+4\n'
     """
+
+    # These two values have getter properties, because they were once stored
+    # as instance attributes instead of as entries of self.params
+    # Both return 0. if the respective value is not known
+    @property
+    def lognorm(self):
+        return self.params.get("lognorm", 0.)
+
+    @property
+    def MurphyE(self):
+        return self.params.get("MurphyE", 0.)
 
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
-    re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
+    re_polys = re.compile(r"poly(\d+)\s*:(.*)")
     re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
     re_lognorm = re.compile(re_cap_n_fp(r"\s*#\s*lognorm", 1))
     
@@ -170,16 +187,16 @@ class Polynomials(object):
         (
             ("n", (int, True)),
             ("skew", (float, False)),
-            ("type", (str, False))
+            ("type", (str, False)),
+            ("lognorm", (float, False)),
+            ("MurphyE", (float, False))
         ))
     
     def __init__(self, lines):
         """ Parse a polynomial file in the syntax as produced by polyselect2l
             and polyselect_ropt
         """
-        self.MurphyE = 0.
         self.MurphyParams = None
-        self.lognorm = 0.
         self.params = {}
         polyf = Polynomial()
         polyg = Polynomial()
@@ -198,18 +215,13 @@ class Polynomials(object):
                 return True
             return False
 
-        # line = "poly0: 1, 2, 3" => poly[0] = {1, 2, 3} = 1+2*X+3*X^2
+        # line = "poly0: 1, 2, 3" => poly[0] = [1, 2, 3] = 1+2*X+3*X^2
         def match_poly_all(line, regex):
             match = regex.match(line)
             if match:
-                line2 = line.split(":")
                 # get index of poly
-                ip = int(line2[0].split("poly")[1])
-                # get coeffs of 1+2*X+3*X^2
-                line3=line2[1].split(",")
-                pol = Polynomial()
-                for idx in range(len(line3)):
-                    pol[idx] = int(line3[idx]);
+                ip = int(match.group(1))
+                pol = Polynomial(map(int, match.group(2).split(",")))
                 return ip, pol
             return -1, []
 
@@ -219,20 +231,14 @@ class Polynomials(object):
             # extract the value and store it
             match = self.re_Murphy.match(line)
             if match:
-                if self.MurphyParams or self.MurphyE:
-                    raise PolynomialParseException(
-                        "Line '%s' redefines Murphy E value" % line)
                 self.MurphyParams = match.group(1)
-                self.MurphyE = float(match.group(2))
+                self.add_to_params("MurphyE", float(match.group(2)))
                 continue
             # If this is a comment line telling the lognorm,
             # extract the value and store it
             match = self.re_lognorm.match(line)
             if match:
-                if self.lognorm != 0:
-                    raise PolynomialParseException(
-                        "Line '%s' redefines lognorm value" % line)
-                self.lognorm = float(match.group(1))
+                self.add_to_params("lognorm", float(match.group(1)))
                 continue
             # Drop comment, strip whitespace
             line2 = line.split('#', 1)[0].strip()
@@ -244,7 +250,7 @@ class Polynomials(object):
                     match_poly(line, polyg, self.re_pol_g):
                 continue
             # is it in format "poly*: ..."
-            ip,tip=match_poly_all(line, self.re_polys)
+            ip, tip = match_poly_all(line, self.re_polys)
             if ip != -1:
                 tabpoly[ip] = tip
                 continue
@@ -254,20 +260,11 @@ class Polynomials(object):
                 raise PolynomialParseException("Invalid line '%s'" % line)
             key = array[0].strip()
             value = array[1].strip()
-            
-            if not key in self.keys:
-                raise PolynomialParseException("Invalid key '%s' in line '%s'" %
-                                               (key, line))
-            if key in self.params:
-                raise PolynomialParseException("Key %s in line %s has occurred "
-                                               "before" % (key, line))
-            (_type, isrequired) = self.keys[key]
-            self.params[key] = _type(value)
+            self.add_to_params(key, value)
 
         # If no polynomial was found at all (not even partial data), assume
         # that polyselect simply did not find anything in this search range
-        if polyf.degree < 0 and polyg.degree < 0 and self.params == {} and \
-                self.MurphyE == 0.:
+        if polyf.degree < 0 and polyg.degree < 0 and self.params == {}:
             raise PolynomialParseException("No polynomials found")
 
         # Test that all required keys are there
@@ -282,15 +279,27 @@ class Polynomials(object):
         self.tabpoly = tabpoly
         return
 
+    def add_to_params(self, key, value):
+        """ Add a new value to self.params[key]. key must be in self.keys.
+        If value is already defined, or key is not in self.keys, raise
+        Exception.
+        """
+        if not key in self.keys:
+            raise PolynomialParseException("Invalid key '%s'" % key)
+        if key in self.params:
+            raise PolynomialParseException(
+                "Key %s overwritten with value %s, previous value %s"
+                % (key, value, self.params[key]))
+        (_type, isrequired) = self.keys[key]
+        self.params[key] = _type(value)
+
     def __str__(self):
         arr = ["%s: %s\n" % (key, self.params[key])
                for key in self.keys if key in self.params]
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
-                poltmp = self.tabpoly[i]
-                arr += ["poly%d: %s" % (i, poltmp[0])]
-                arr += [","+str(poltmp[j]) for j in range(1, len(poltmp))]
-                arr += "\n"
+                s = ",".join(map(str, self.tabpoly[i]))
+                arr.append("poly%d: %s\n" % (i, s))
         else:
             arr += ["c%d: %d\n" % (idx, coeff) for (idx, coeff)
                     in enumerate(self.polyf) if not coeff == 0]
@@ -301,8 +310,6 @@ class Polynomials(object):
                 arr.append("# MurphyE (%s) = %g\n" % (self.MurphyParams, self.MurphyE))
             else:
                 arr.append("# MurphyE = %g\n" % self.MurphyE)
-        if not self.lognorm == 0.:
-            arr.append("# lognorm %g\n" % self.lognorm)
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
                 arr.append("# poly%d = %s\n" % (i, str(self.tabpoly[i])))
