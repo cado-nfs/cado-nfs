@@ -96,9 +96,9 @@ facul_make_strategy (const unsigned long fbb, const unsigned int lpb,
   pm1_make_plan (methods[0].plan, 315, 2205, verbose);
 
   /* run one P+1 curve with B1=525 and B2=3255 */
-  methods[1].method = PP1_27_METHOD;
+  methods[1].method = PP1_METHOD;
   methods[1].plan = malloc (sizeof (pp1_plan_t));
-  pp1_make_plan (methods[1].plan, 525, 3255, verbose);
+  pp1_make_plan (methods[1].plan, 525, 3255, PP1_2_7, verbose);
 
   /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
   methods[2].method = EC_METHOD;
@@ -146,9 +146,7 @@ facul_clear_strategy (facul_strategy_t *strategy)
     {
       if (methods[i].method == PM1_METHOD)
 	pm1_clear_plan (methods[i].plan);
-      else if (methods[i].method == PP1_27_METHOD)
-	pp1_clear_plan (methods[i].plan);
-      else if (methods[i].method == PP1_65_METHOD)
+      else if (methods[i].method == PP1_METHOD)
 	pp1_clear_plan (methods[i].plan);
       else if (methods[i].method == EC_METHOD)
 	ecm_clear_plan (methods[i].plan);
@@ -334,11 +332,11 @@ get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
 	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
 	    break;
 	}
-      else if (method == PP1_27_METHOD ||
-	       method == PP1_65_METHOD)
+      else if (method == PP1_METHOD)
 	{
 	  pp1_plan_t* plan = (pp1_plan_t*)tab[i].plan;
-	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
+	  if (plan->B1 == B1 && plan->stage2.B2 == B2 &&
+	      (int) plan->parameterization == parameterization)
 	    break;
 	}
       else if (method == EC_METHOD)
@@ -474,11 +472,13 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 	      //method
 	      if (strcmp (res[1], "PM1") == 0)
 		method = PM1_METHOD;
-	      else if (strcmp (res[1], "PP1-27") == 0)
-		method = PP1_27_METHOD;
-	      else if (strcmp (res[1], "PP1-65") == 0)
-		method = PP1_65_METHOD;
-	      else 
+	      else if (strcmp (res[1], "PP1-27") == 0) {
+		method = PP1_METHOD;
+		curve = PP1_2_7;
+              } else if (strcmp (res[1], "PP1-65") == 0) {
+		method = PP1_METHOD;
+		curve = PP1_6_5;
+	      } else 
 		{
 		  method = EC_METHOD;
 		  //curve
@@ -525,11 +525,10 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 		      plan = malloc (sizeof (pm1_plan_t));
 		      pm1_make_plan (plan, B1, B2, verbose);
 		    }
-		  else if (method == PP1_27_METHOD ||
-			   method == PP1_65_METHOD)
+		  else if (method == PP1_METHOD)
 		    {
 		      plan = malloc (sizeof (pp1_plan_t));
-		      pp1_make_plan (plan, B1, B2, verbose);
+		      pp1_make_plan (plan, B1, B2, curve, verbose);
 		    }
 		  else { //method == EC_METHOD
 		    plan = malloc (sizeof (ecm_plan_t));
@@ -643,9 +642,9 @@ facul_make_default_strategy (int n, const int verbose)
   pm1_make_plan (methods[0].plan, 315, 2205, verbose);
 
   /* run one P+1 curve with B1=525 and B2=3255 */
-  methods[1].method = PP1_27_METHOD;
+  methods[1].method = PP1_METHOD;
   methods[1].plan = malloc (sizeof (pp1_plan_t));
-  pp1_make_plan (methods[1].plan, 525, 3255, verbose);
+  pp1_make_plan (methods[1].plan, 525, 3255, PP1_2_7, verbose);
 
   /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
   methods[2].method = EC_METHOD;
@@ -703,9 +702,7 @@ facul_clear_aux_methods (facul_method_t *methods)
     {
       if (methods[i].method == PM1_METHOD)
 	pm1_clear_plan (methods[i].plan);
-      else if (methods[i].method == PP1_27_METHOD)
-	pp1_clear_plan (methods[i].plan);
-      else if (methods[i].method == PP1_65_METHOD)
+      else if (methods[i].method == PP1_METHOD)
 	pp1_clear_plan (methods[i].plan);
       else if (methods[i].method == EC_METHOD)
 	ecm_clear_plan (methods[i].plan);
@@ -857,8 +854,7 @@ facul_clear_strategies (facul_strategies_t *strategies)
 	continue;
       if (fm[j].method == PM1_METHOD)
 	pm1_clear_plan (fm[j].plan);
-      else if (fm[j].method == PP1_27_METHOD ||
-	       fm[j].method == PP1_65_METHOD)
+      else if (fm[j].method == PP1_METHOD)
 	pp1_clear_plan (fm[j].plan);
       else if (fm[j].method == EC_METHOD)
 	ecm_clear_plan (fm[j].plan);
@@ -929,8 +925,7 @@ facul_fprint_strategies (FILE* file, facul_strategies_t* strategies)
 			 "[side=%d, FM=%ld, B1=%d, B2=%d] ", methods[i].side,
 			fm->method, plan->B1, plan->stage2.B2);
 	      }
-	    else if (fm->method == PP1_27_METHOD ||
-		     fm->method == PP1_65_METHOD)
+	    else if (fm->method == PP1_METHOD)
 	      {
 		pp1_plan_t* plan = (pp1_plan_t*) fm->plan;
 		fprintf (file,

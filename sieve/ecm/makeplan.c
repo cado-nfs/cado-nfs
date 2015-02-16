@@ -91,18 +91,22 @@ pm1_clear_plan (pm1_plan_t *plan)
 
 /* Make byte code for addition chain for stage 1, and the parameters for 
    stage 2 */
-
+                    
 void 
 pp1_make_plan (pp1_plan_t *plan, const unsigned int B1, const unsigned int B2,
-	       int verbose)
+	       enum pp1_parameterization_t parameterization, int verbose)
 {
   unsigned int p;
   const double addcost = 10, doublecost = 10, bytecost = 1, changecost = 1;
   const unsigned int compress = 1;
   bc_state_t *bc_state;
+  const char *parameterization_names[2] = {"2/7", "6/5"};
   
   if (verbose)
-    printf("Making plan for P+1 with B1=%u, B2=%u\n", B1, B2);
+    printf("Making plan for P+1 with B1=%u, B2=%u, starting point = %s\n",
+           B1, B2, parameterization_names[parameterization]);
+
+  plan->parameterization = parameterization;
 
   /* Make bytecode for stage 1 */
   plan->exp2 = 0;

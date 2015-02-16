@@ -66,8 +66,7 @@ compute_proba_strategy(tabular_decomp_t * init_tab, strategy_t * strat,
 		double p_fail_one = compute_proba_method_one_decomp (dec, elem);
 		p_fail_all *= p_fail_one;
 		if (elem->method[0] == PM1_METHOD ||
-		    elem->method[0] == PP1_27_METHOD ||
-		    elem->method[0] == PP1_65_METHOD)
+		    elem->method[0] == PP1_METHOD)
 		    //because if you chain PP1||PM1 to PM1||PP1-->they are
 		    //not independant.
 		    p_fail_all = (p_fail_one + p_fail_all) / 2;
@@ -127,8 +126,7 @@ double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, in
 	      compute_proba_method_one_decomp (dec, elem);
 	    proba_fail_all *= proba_fail_method;
 	    if (elem->method[0] == PM1_METHOD ||
-		elem->method[0] == PP1_27_METHOD ||
-		elem->method[0] == PP1_65_METHOD)
+		elem->method[0] == PP1_METHOD)
 	      //because if you chain PP1||PM1 to PM1||PP1-->they are
 	      //not independant.
 	      proba_fail_all = (proba_fail_all + proba_fail_method) / 2;

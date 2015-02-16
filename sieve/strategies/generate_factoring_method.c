@@ -198,10 +198,10 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 	strategy->methods[0].plan = malloc(sizeof(pm1_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
 	pm1_make_plan(strategy->methods[0].plan, B1, B2, 0);
-    } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
+    } else if (method == PP1_METHOD) {
 	strategy->methods[0].plan = malloc(sizeof(pp1_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
-	pp1_make_plan(strategy->methods[0].plan, B1, B2, 0);
+	pp1_make_plan(strategy->methods[0].plan, B1, B2, curve, 0);
     } else if (method == EC_METHOD) {
 	long sigma;
 	if (curve == MONTY16)
@@ -436,7 +436,7 @@ int *choice_parameters(int method, int len_p_min)
 {
     int b1_min, b1_max, b1_step, c_min, c_max, c_step;
     if (method == PM1_METHOD ||
-	method == PP1_27_METHOD || method == PP1_65_METHOD) {
+	method == PP1_METHOD) {
 	if (len_p_min < 20) {
 	    b1_min = 20;
 	    b1_max = 1000;
@@ -710,8 +710,8 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
     int ind_method = 0;
     int ind_curve = 0;
     int curve[3] = {MONTY12, MONTY16, BRENT12};
-    int method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
-    while (ind_method <= 4 && ind_curve < 3) {
+    int method[4] = {PM1_METHOD, PP1_METHOD, EC_METHOD};
+    while (ind_method <= 3 && ind_curve < 3) {
 
 	printf("method = %d, curve = %d\n",
 	       method[ind_method], curve[ind_curve]);

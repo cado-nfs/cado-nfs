@@ -204,11 +204,11 @@ int main (int argc, char **argv)
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PP1_27_METHOD;
+	  strategy->methods[nr_methods].method = PP1_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
 	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
-			 (verbose >= 3));
+			 PP1_2_7, (verbose >= 3));
 	  nr_methods++;
 	  argc -= 3;
 	  argv += 3;
@@ -220,11 +220,11 @@ int main (int argc, char **argv)
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PP1_65_METHOD;
+	  strategy->methods[nr_methods].method = PP1_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
 	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
-			 (verbose >= 3));
+			 PP1_6_5, (verbose >= 3));
 	  nr_methods++;
 	  argc -= 3;
 	  argv += 3;

@@ -48,8 +48,8 @@ tabular_fm_t *generate_methods_cado(const int lpb)
     tabular_fm_add_fm(res, fm);
 
     /* run one P+1 curve with B1=525 and B2=3255 */
-    method[0] = PP1_27_METHOD;	//method
-    method[1] = 0;		//curve
+    method[0] = PP1_METHOD;	//method
+    method[1] = PP1_2_7;	//curve
     method[2] = 525;		//B1
     method[3] = 3255;		//B2
     fm_set_method(fm, method, 4);
@@ -365,8 +365,7 @@ double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * st
 
 	    
 	    if (elem->method[0] == PM1_METHOD ||
-		elem->method[0] == PP1_27_METHOD ||
-		elem->method[0] == PP1_65_METHOD)
+		elem->method[0] == PP1_METHOD)
 	      {
 		//because if you chain PP1||PM1 to PM1||PP1-->they are
 		//not independant.
@@ -997,10 +996,10 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned lo
 		strategy->methods[index_method].plan = malloc(sizeof(pm1_plan_t));
 		ASSERT(strategy->methods[index_method].plan != NULL);
 		pm1_make_plan(strategy->methods[index_method].plan, B1, B2, 0);
-	      } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
+	      } else if (method == PP1_METHOD) {
 		strategy->methods[index_method].plan = malloc(sizeof(pp1_plan_t));
 		ASSERT(strategy->methods[index_method].plan != NULL);
-		pp1_make_plan(strategy->methods[index_method].plan, B1, B2, 0);
+		pp1_make_plan(strategy->methods[index_method].plan, B1, B2, curve, 0);
 	      } else if (method == EC_METHOD) {
 		long sigma;
 		if (curve == MONTY16) {
@@ -1051,8 +1050,7 @@ get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
 	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
 	    break;
 	}
-      else if (method == PP1_27_METHOD ||
-	       method == PP1_65_METHOD)
+      else if (method == PP1_METHOD)
 	{
 	  pp1_plan_t* plan = (pp1_plan_t*)tab[i].plan;
 	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
@@ -1145,11 +1143,10 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 		plan = malloc (sizeof (pm1_plan_t));
 		pm1_make_plan (plan, B1, B2, verbose);
 	      }
-	    else if (method == PP1_27_METHOD ||
-		     method == PP1_65_METHOD)
+	    else if (method == PP1_METHOD)
 	      {
 		plan = malloc (sizeof (pp1_plan_t));
-		pp1_make_plan (plan, B1, B2, verbose);
+		pp1_make_plan (plan, B1, B2, curve, verbose);
 	      }
 	    else { //method == EC_METHOD
 	      plan = malloc (sizeof (ecm_plan_t));

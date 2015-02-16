@@ -293,10 +293,10 @@ void strategy_fprint_design(FILE * output_file, const strategy_t * t)
 
 	fm_t *fm = tmp->tab[i];
 	//method: type, curve
-	if (fm->method[0] == PP1_27_METHOD)
+	if (fm->method[0] == PP1_METHOD && fm->method[1] == PP1_2_7)
 	    fprintf(output_file, "PP1-27, %lu, %lu ] ", fm->method[2],
 		    fm->method[3]);
-	else if (fm->method[0] == PP1_65_METHOD)
+	else if (fm->method[0] == PP1_METHOD && fm->method[1] == PP1_6_5)
 	    fprintf(output_file, "PP1-65, %lu, %lu ] ", fm->method[2],
 		    fm->method[3]);
 	else if (fm->method[0] == PM1_METHOD)

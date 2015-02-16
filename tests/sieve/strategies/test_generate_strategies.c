@@ -53,10 +53,10 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 		strategy->methods[i].plan = malloc(sizeof(pm1_plan_t));
 		ASSERT(strategy->methods[i].plan != NULL);
 		pm1_make_plan(strategy->methods[i].plan, B1, B2, 0);
-	    } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
+	    } else if (method == PP1_METHOD) {
 		strategy->methods[i].plan = malloc(sizeof(pp1_plan_t));
 		ASSERT(strategy->methods[i].plan != NULL);
-		pp1_make_plan(strategy->methods[i].plan, B1, B2, 0);
+		pp1_make_plan(strategy->methods[i].plan, B1, B2, curve, 0);
 	    } else if (method == EC_METHOD) {
 		long sigma;
 		if (curve == MONTY16) {
@@ -337,7 +337,7 @@ int main()
     unsigned long elem1[4] = {PM1_METHOD, 0, 50, 500};
     fm_set_method (pm1, elem1, 4);
     fm_t* pp1 = fm_create ();
-    unsigned long elem2[4] = {PP1_65_METHOD, 0, 70, 700};
+    unsigned long elem2[4] = {PP1_METHOD, PP1_6_5, 70, 700};
     fm_set_method (pp1, elem2, 4);
     fm_t* ecm = fm_create ();
     unsigned long elem3[4] = {EC_METHOD, BRENT12, 80, 1000};

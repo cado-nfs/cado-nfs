@@ -380,7 +380,7 @@ pp1_stage2 (residue_t r, const residue_t X, const stage2_plan_t *plan,
   mod_clear (t, m);
 }
 
-int  
+static int  
 pp1_27 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
 {
   residue_t b, two, save, t;
@@ -431,7 +431,7 @@ pp1_27 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
   return bt;
 }
 
-int  
+static int  
 pp1_65 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
 {
   residue_t b, two, save, t;
@@ -481,5 +481,17 @@ pp1_65 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
   mod_clear (two, m);
   mod_clear (t, m);
 
+  return bt;
+}
+
+int  
+pp1 (modint_t f, const modulus_t m, const pp1_plan_t *plan)
+{
+  int bt;
+  switch (plan->parameterization) {
+    case PP1_2_7: bt = pp1_27 (f, m, plan); break;
+    case PP1_6_5: bt = pp1_65 (f, m, plan); break;
+    default: abort();
+  }
   return bt;
 }

@@ -163,10 +163,8 @@ facul_doit (unsigned long *factors, const modulus_t m,
       
       if (strategy->methods[i].method == PM1_METHOD)
 	bt = pm1 (f, m, (pm1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == PP1_27_METHOD)
-	bt = pp1_27 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == PP1_65_METHOD)
-	bt = pp1_65 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
+      else if (strategy->methods[i].method == PP1_METHOD)
+	bt = pp1 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
       else if (strategy->methods[i].method == EC_METHOD)
 	bt = ecm (f, m, (ecm_plan_t *) (strategy->methods[i].plan));	
       else if (strategy->methods[i].method == MPQS_METHOD)
@@ -419,10 +417,8 @@ facul_doit_onefm (unsigned long* factors, const modulus_t m,
   
   if (method.method == PM1_METHOD)
     bt = pm1 (f, m, (pm1_plan_t *) (method.plan));
-  else if (method.method == PP1_27_METHOD)
-    bt = pp1_27 (f, m, (pp1_plan_t *) (method.plan));
-  else if (method.method == PP1_65_METHOD)
-    bt = pp1_65 (f, m, (pp1_plan_t *) (method.plan));
+  else if (method.method == PP1_METHOD)
+    bt = pp1 (f, m, (pp1_plan_t *) (method.plan));
   else if (method.method == EC_METHOD)
     bt = ecm (f, m, (ecm_plan_t *) (method.plan));
   else if (method.method == MPQS_METHOD)
