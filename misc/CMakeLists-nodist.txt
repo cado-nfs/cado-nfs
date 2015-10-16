@@ -18,4 +18,7 @@ target_link_libraries(convert_poly utils)
 add_executable(convert_rels EXCLUDE_FROM_ALL convert_rels.c)
 target_link_libraries(convert_rels utils)
 
+add_executable(split_renumbered_rels EXCLUDE_FROM_ALL split_renumbered_rels.c)
+target_link_libraries(split_renumbered_rels utils_with_io)
+
 # vim: set ft=cmake:
