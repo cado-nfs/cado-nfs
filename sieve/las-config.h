@@ -83,7 +83,7 @@
  * This activates new command lines arguments: -traceab, -traceij, -traceNx.
  * (see las-coordinates.c for the description of these)
  */
-#define xxxTRACE_K
+#define TRACE_K
 
 /* Define CHECK_UNDERFLOW to check for underflow when subtracting
    the rounded log(p) from sieve array locations */
@@ -158,6 +158,9 @@
  * descent. The mid-term plan is to remove this compile-time flag.
  */
 #define xxxDLP_DESCENT
+
+/* used for a temporary attempt */
+#define DLP_MNFSL
 
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 

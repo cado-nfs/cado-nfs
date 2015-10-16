@@ -75,6 +75,7 @@ uint32_t **cof_succ; /* cof_succ[r][a] is the corresponding number of
 
 /* siever_config stuff */
 
+// FIXME: MNFS
 void siever_config_display(siever_config_srcptr sc)/*{{{*/
 {
     verbose_output_print(0, 1, "# Sieving parameters for q~2^%d on the %s side\n",
@@ -83,7 +84,7 @@ void siever_config_display(siever_config_srcptr sc)/*{{{*/
     verbose_output_print(0, 1,
 	    "# Sieving parameters: lim0=%lu lim1=%lu lpb0=%d lpb1=%d\n",
 	    sc->sides[0]->lim, sc->sides[1]->lim,
-            sc->sides[0]->lpb, sc->sides[1]->lpb);
+	    sc->sides[0]->lpb, sc->sides[1]->lpb);
     verbose_output_print(0, 1,
 	    "#                     mfb0=%d mfb1=%d\n",
 	    sc->sides[0]->mfb, sc->sides[1]->mfb);
@@ -145,7 +146,7 @@ void sieve_info_init_factor_bases(las_info_ptr las, sieve_info_ptr si, param_lis
     double tfb;
     const char * fbcfilename = param_list_lookup_string(pl, "fbc");
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
         mpz_poly_ptr pol = las->cpoly->pols[side];
         sieve_side_info_ptr sis = si->sides[side];
 
@@ -370,7 +371,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
         verbose_output_print(0, 1, "# bucket_region = %" PRIu64 "\n",
                 BUCKET_REGION);
         sieve_info_init_factor_bases(las, si, pl);
-        for (int side = 0; side < 2; side++) {
+        for (int side = 0; side < si->cpoly->nb_polys; side++) {
             sieve_info_print_fb_statistics(las, si, side);
         }
     } else {
@@ -382,7 +383,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
         ASSERT_ALWAYS(las->sievers->conf->bucket_thresh1 == si->conf->bucket_thresh1);
         // Then, copy relevant data from the first sieve_info
         verbose_output_print(0, 1, "# Do not regenerate factor base data: copy it from first siever\n");
-        for (int side = 0; side < 2; side++) {
+        for (int side = 0; side < si->cpoly->nb_polys; side++) {
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->lim == si->conf->sides[side]->lim);
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->powlim == si->conf->sides[side]->powlim);
             sieve_side_info_ptr sis = si->sides[side];
@@ -470,7 +471,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
     if (file != NULL)
       fclose (file);
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
 	/* init_norms (si, side); */ /* only depends on scale, logmax, lognorm_table */
 	sieve_info_init_trialdiv(si, side); /* Init refactoring stuff */
 	mpz_init (si->BB[side]);
@@ -536,7 +537,7 @@ static void sieve_info_update (sieve_info_ptr si, int nb_threads,
   }
 
   /* Update the slices of the factor base according to new log base */
-  for(int side = 0 ; side < 2 ; side++) {
+  for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
       /* The safety factor controls by how much a single slice should fill a
          bucket array at most, i.e., with .5, a single slice should never fill
          a bucket array more than half-way. */
@@ -559,7 +560,7 @@ static void sieve_info_clear (las_info_ptr las, sieve_info_ptr si)/*{{{*/
     clear_j_div(si->j_div);
     si->j_div = NULL;
 
-    for(int s = 0 ; s < 2 ; s++) {
+    for(int s = 0 ; s < si->cpoly->nb_polys ; s++) {
         if (si->sides[s]->strategy != NULL)
 	    facul_clear_strategy (si->sides[s]->strategy);
 	si->sides[s]->strategy = NULL;
@@ -686,7 +687,7 @@ static void las_info_init_hint_table(las_info_ptr las, param_list pl)/*{{{*/
         sc->bucket_thresh1 = las->config_base->bucket_thresh1;
         sc->td_thresh = las->config_base->td_thresh;
         sc->unsieve_thresh = las->config_base->unsieve_thresh;
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las->cpoly->nb_polys ; side++) {
             sc->sides[side]->powlim = las->config_base->sides[side]->powlim;
             sc->sides[side]->ncurves = las->config_base->sides[side]->ncurves;
         }
@@ -879,10 +880,14 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
         }
         param_list_parse_double(pl, "lambda0", &(sc->sides[0]->lambda));
         param_list_parse_double(pl, "lambda1", &(sc->sides[1]->lambda));
+        param_list_parse_double(pl, "lambda2", &(sc->sides[2]->lambda));
         int complete = 1;
         complete &= param_list_parse_int  (pl, "I",    &(sc->logI));
         complete &= param_list_parse_ulong(pl, "lim0", &(sc->sides[0]->lim));
         complete &= param_list_parse_ulong(pl, "lim1", &(sc->sides[1]->lim));
+#ifdef DLP_MNFSL
+        complete &= param_list_parse_ulong(pl, "lim2", &(sc->sides[2]->lim));
+#endif
         if (!complete) {
             /* ok. Now in fact, for the moment we really need these to be
              * specified, because the call to "new fb_interface" of
@@ -901,6 +906,10 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
         complete &= param_list_parse_int(pl, "mfb0",  &(sc->sides[0]->mfb));
         complete &= param_list_parse_int(pl, "lpb1",  &(sc->sides[1]->lpb));
         complete &= param_list_parse_int(pl, "mfb1",  &(sc->sides[1]->mfb));
+#ifdef DLP_MNFSL
+        complete &= param_list_parse_int(pl, "lpb2",  &(sc->sides[2]->lpb));
+        complete &= param_list_parse_int(pl, "mfb2",  &(sc->sides[2]->mfb));
+#endif
         if (!complete) {
             verbose_output_print(0, 1, "# default siever configuration is incomplete ; required parameters are I, lim[01], lpb[01], mfb[01]\n");
 
@@ -923,8 +932,8 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
         param_list_parse_ulong(pl, "bkthresh", &(sc->bucket_thresh));
         param_list_parse_ulong(pl, "bkthresh1", &(sc->bucket_thresh1));
 
-        const char *powlim_params[2] = {"powlim0", "powlim1"};
-        for (int side = 0; side < 2; side++) {
+        const char *powlim_params[NB_POLYS_MAX] = {"powlim0", "powlim1", "powlim2"};
+        for (int side = 0; side < las->cpoly->nb_polys; side++) {
             if (!param_list_parse_ulong(pl, powlim_params[side],
                         &sc->sides[side]->powlim)) {
                 sc->sides[side]->powlim = sc->bucket_thresh - 1;
@@ -934,8 +943,8 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
             }
         }
 
-        const char *ncurves_params[2] = {"ncurves0", "ncurves1"};
-        for (int side = 0; side < 2; side++)
+        const char *ncurves_params[NB_POLYS_MAX] = {"ncurves0", "ncurves1", "ncurves2"};
+        for (int side = 0; side < las->cpoly->nb_polys; side++)
             if (!param_list_parse_int(pl, ncurves_params[side],
                         &sc->sides[side]->ncurves))
                 sc->sides[side]->ncurves = -1;
@@ -2139,10 +2148,10 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     las_report_ptr rep = th->rep;
     int cpt = 0;
     int surv = 0, copr = 0;
-    mpz_t norm[2];
-    factor_list_t factors[2];
-    mpz_array_t *lps[2] = { NULL, };
-    uint32_array_t *lps_m[2] = { NULL, }; /* corresponding multiplicities */
+    mpz_t norm[NB_POLYS_MAX];
+    factor_list_t factors[NB_POLYS_MAX];
+    mpz_array_t *lps[NB_POLYS_MAX] = { NULL, };
+    uint32_array_t *lps_m[NB_POLYS_MAX] = { NULL, }; /* corresponding multiplicities */
     bucket_primes_t primes[2] = {bucket_primes_t(BUCKET_REGION), bucket_primes_t(BUCKET_REGION)};
     bucket_array_complete purged[2] = {bucket_array_complete(BUCKET_REGION), bucket_array_complete(BUCKET_REGION)};
     uint32_t cof_bitsize[2] = {0, 0}; /* placate gcc */
@@ -2150,7 +2159,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     const unsigned long nr_lines = 1U << (LOG_BUCKET_REGION - si->conf->logI);
     unsigned char * S[2] = {th->sides[0].bucket_region, th->sides[1].bucket_region};
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
         lps[side] = alloc_mpz_array (1);
         lps_m[side] = alloc_uint32_array (1);
 
@@ -2335,7 +2344,11 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 
             int i;
             unsigned int j;
-            for(int side = 0 ; pass && side < 2 ; side++) {
+#ifdef DLP_MNFSL
+	    bool ismooth[NB_POLYS_MAX];
+	    int nbsmooth = 0;
+#endif
+            for(int side = 0 ; pass && side < si->cpoly->nb_polys ; side++) {
                 // Trial divide norm on side 'side'
                 /* Compute the norms using the polynomials transformed to 
                    i,j-coordinates. The transformed polynomial on the 
@@ -2370,8 +2383,21 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
                             sidenames[side], a, b, pass);
                 }
 #endif
+#ifdef DLP_MNFSL
+		ismooth[side] = (pass == 0 ? false : true);
+		if(pass == 1)
+		    nbsmooth++;
+		else if(pass == 0){
+		    if(side > 0)
+			pass = 1; /* humf, what a "trick" to force the loop */
+		}
+#endif
             }
-            if (!pass) continue;
+#ifdef DLP_MNFSL
+	    pass = (nbsmooth > 1 ? 1 : 0);
+#endif
+            if (pass == 0)
+		continue;
 
 #ifdef BATCH
 	    verbose_output_start_batch ();
@@ -2486,7 +2512,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     th->rep->survivors1 += surv;
     th->rep->survivors2 += copr;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
         mpz_clear(norm[side]);
         factor_list_clear(&factors[side]);
         clear_uint32_array (lps_m[side]);
@@ -2701,7 +2727,7 @@ void * process_bucket_region(thread_data *th)
         rep->ttf += seconds_thread ();
 
         /* Reset resieving data */
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
             sieve_side_info_ptr s = si->sides[side];
             thread_side_data &ts = th->sides[side];
             small_sieve_skip_stride(s->ssd, ts.ssdpos, skiprows, si);
@@ -2784,6 +2810,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "poly", "polynomial file");
   param_list_decl_usage(pl, "fb0",   "factor base file on the rational side");
   param_list_decl_usage(pl, "fb1",   "(alias fb) factor base file on the algebraic side");
+  param_list_decl_usage(pl, "fb2",   "factor base file on side 2");
   param_list_decl_usage(pl, "fbc",  "factor base cache file");
   param_list_decl_usage(pl, "q0",   "left bound of special-q range");
   param_list_decl_usage(pl, "q1",   "right bound of special-q range");
@@ -2798,16 +2825,22 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "skew", "(alias S) skewness");
   param_list_decl_usage(pl, "lim0", "factor base bound on side 0");
   param_list_decl_usage(pl, "lim1", "factor base bound on side 1");
+  param_list_decl_usage(pl, "lim2", "factor base bound on side 2");
   param_list_decl_usage(pl, "lpb0", "set large prime bound on side 0 to 2^lpb0");
   param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
-  param_list_decl_usage(pl, "mfb0", "set rational cofactor bound on side 0 2^mfb0");
-  param_list_decl_usage(pl, "mfb1", "set rational cofactor bound on side 1 2^mfb1");
+  param_list_decl_usage(pl, "lpb2", "set large prime bound on side 2 to 2^lpb1");
+  param_list_decl_usage(pl, "mfb0", "set rational cofactor bound on side 0 to 2^mfb0");
+  param_list_decl_usage(pl, "mfb1", "set rational cofactor bound on side 1 to 2^mfb1");
+  param_list_decl_usage(pl, "mfb2", "set rational cofactor bound on side 2 to 2^mfb2");
   param_list_decl_usage(pl, "lambda0", "lambda value on side 0");
   param_list_decl_usage(pl, "lambda1", "lambda value on side 1");
+  param_list_decl_usage(pl, "lambda2", "lambda value on side 2");
   param_list_decl_usage(pl, "powlim0", "limit on powers on side 0");
   param_list_decl_usage(pl, "powlim1", "limit on powers on side 1");
+  param_list_decl_usage(pl, "powlim2", "limit on powers on side 2");
   param_list_decl_usage(pl, "ncurves0", "controls number of curves on side 0");
   param_list_decl_usage(pl, "ncurves1", "controls number of curves on side 1");
+  param_list_decl_usage(pl, "ncurves2", "controls number of curves on side 2");
   param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
   param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh");
   param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes p >= bkthresh1");
@@ -3198,7 +3231,8 @@ int main (int argc0, char *argv0[])/*{{{*/
         report->ttbuckets_fill += seconds();
 
         /* Prepare small sieve and re-sieve */
-        for(int side = 0 ; side < 2 ; side++) {
+	/* FIXME: not sure we need to do this for all sides */
+        for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
             sieve_side_info_ptr s = si->sides[side];
 
             small_sieve_init(s->ssd, las, s->fb_smallsieved, si, side);
@@ -3234,6 +3268,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 MIN(max_area, plattice_x_t(BUCKET_REGION_3));
             plattice_enumerate_area<3>::value = max_area;
             precomp_plattice_t precomp_plattice;
+	    /* FIXME: not needed for MNFSL (?) but for MNFSQ */
             for (int side = 0; side < 2; ++side) {
                 for (int level = 1; level < si->toplevel; ++level) {
                     const fb_part * fb = si->sides[side]->fb->get_part(level);
@@ -3268,6 +3303,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             }
 
             // Cleanup precomputed lattice bases.
+	    /* FIXME: same comment for MNFSL vs. MNFSQ */
             for(int side = 0 ; side < 2 ; side++) {
                 for (int level = 1; level < si->toplevel; ++level) {
                     std::vector<plattices_vector_t*> &V =
@@ -3286,7 +3322,7 @@ int main (int argc0, char *argv0[])/*{{{*/
 
         // Cleanup smallsieve data
         for (int i = 0; i < las->nb_threads; ++i) {
-            for(int side = 0 ; side < 2 ; side++) {
+            for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
                 thread_data * th = &workspaces->thrs[i];
                 thread_side_data &ts = th->sides[side];
                 free(ts.ssdpos);
@@ -3355,7 +3391,7 @@ int main (int argc0, char *argv0[])/*{{{*/
 #endif  /* DLP_DESCENT */
 
         /* clear */
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
             small_sieve_clear(si->sides[side]->ssd);
             small_sieve_clear(si->sides[side]->rsd);
         }

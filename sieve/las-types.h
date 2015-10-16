@@ -43,7 +43,7 @@ struct siever_config_s {
         int mfb;           /* bound for residuals is 2^mfbr */
         int ncurves;       /* number of cofactorization curves */
         double lambda;     /* lambda sieve parameter */
-    } sides[2][1];
+    } sides[NB_POLYS_MAX][1];
 };
 typedef struct siever_config_s siever_config[1];
 /* siever_config_*ptr defined in las-forwardtypes.h */
@@ -168,7 +168,7 @@ struct sieve_info_s {
     /* Largest level for which the corresponding fb_part is not empty */
     int toplevel;
 
-    sieve_side_info sides[2];
+    sieve_side_info sides[NB_POLYS_MAX];
 
     facul_strategies_t* strategies;
   
@@ -178,7 +178,7 @@ struct sieve_info_s {
     j_div_srcptr j_div;
 
     /* used in check_leftover_norm */
-    mpz_t BB[2], BBB[2], BBBB[2];
+    mpz_t BB[NB_POLYS_MAX], BBB[NB_POLYS_MAX], BBBB[NB_POLYS_MAX];
 };
 typedef struct sieve_info_s sieve_info[1];
 
