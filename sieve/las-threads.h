@@ -35,7 +35,7 @@ struct thread_side_data : private NonCopyable {
 struct thread_data : private NonCopyable {
   const thread_workspaces *ws;
   int id;
-  thread_side_data sides[2];
+  thread_side_data sides[NB_POLYS_MAX];
   las_info_srcptr las;
   sieve_info_ptr si;
   las_report rep;

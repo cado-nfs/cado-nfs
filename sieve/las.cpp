@@ -383,7 +383,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
         ASSERT_ALWAYS(las->sievers->conf->bucket_thresh1 == si->conf->bucket_thresh1);
         // Then, copy relevant data from the first sieve_info
         verbose_output_print(0, 1, "# Do not regenerate factor base data: copy it from first siever\n");
-        for (int side = 0; side < si->cpoly->nb_polys; side++) {
+        for (int side = 0; side < 2; side++) { // FIXME: MNFS
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->lim == si->conf->sides[side]->lim);
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->powlim == si->conf->sides[side]->powlim);
             sieve_side_info_ptr sis = si->sides[side];
@@ -397,6 +397,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
     }
 
     // Now that fb have been initialized, we can set the toplevel.
+    // FIXME: MNFSL == 2 sievers, MNFSQ = nb_polys sievers
     si->toplevel = MAX(si->sides[0]->fb->get_toplevel(),
             si->sides[1]->fb->get_toplevel());
 
@@ -537,6 +538,7 @@ static void sieve_info_update (sieve_info_ptr si, int nb_threads,
   }
 
   /* Update the slices of the factor base according to new log base */
+  // FIXME: MNFSL should have 2 (?); MNFSQ should have nb_polys?
   for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
       /* The safety factor controls by how much a single slice should fill a
          bucket array at most, i.e., with .5, a single slice should never fill
@@ -2614,6 +2616,7 @@ void * process_bucket_region(thread_data *th)
     las_info_srcptr las = th->las;
     sieve_info_ptr si = th->si;
     uint32_t first_region0_index = th->first_region0_index;
+
     if (si->toplevel == 1) {
         first_region0_index = 0;
     }

@@ -83,7 +83,7 @@
  * This activates new command lines arguments: -traceab, -traceij, -traceNx.
  * (see las-coordinates.c for the description of these)
  */
-#define TRACE_K
+#define xxxTRACE_K
 
 /* Define CHECK_UNDERFLOW to check for underflow when subtracting
    the rounded log(p) from sieve array locations */
