@@ -6,7 +6,8 @@
 #include "cado_poly.h"
 #include "portability.h"
 
-const char * sidenames[NB_POLYS_MAX] = { "side-0", "side-1", };
+// FIXME: make this depend on nb_polys...
+const char * sidenames[NB_POLYS_MAX] = { "side-0", "side-1", "side-2", };
 
 /* Be conservative and allocate two polynomials by default. */
 void cado_poly_init(cado_poly poly)

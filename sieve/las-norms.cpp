@@ -1366,7 +1366,7 @@ sieve_info_update_norm_data_Jmax (sieve_info_ptr si)
   const double B = A/2./skew;
   double Jmax = I/2.;
 
-  for (int side = 0; side < 2; side++) // FIXME: MNFS?
+  for (int side = 0; side < si->cpoly->nb_polys; side++)
     {
       sieve_side_info_ptr s = si->sides[side];
       mpz_poly_ptr ps = si->cpoly->pols[side];
@@ -1504,7 +1504,7 @@ sieve_info_update_norm_data (sieve_info_ptr si, int nb_threads)
 
   /* Update floating point version of both polynomials. They will be used in
    * get_maxnorm_alg(). */
-  for (int side = 0; side < 2; side++) { // FIXME: MNFS?
+  for (int side = 0; side < si->cpoly->nb_polys; side++) {
       sieve_side_info_ptr s = si->sides[side];
       mpz_poly_ptr ps = si->cpoly->pols[side];
       mpz_poly_homography (s->fij, ps, H);
@@ -1521,7 +1521,7 @@ sieve_info_update_norm_data (sieve_info_ptr si, int nb_threads)
   }
 
 
-  for (int side = 0; side < 2; ++side) { // FIXME: MNFS?
+  for (int side = 0; side < si->cpoly->nb_polys; ++side) {
     sieve_side_info_ptr sideptr = si->sides[side];
 
     /* Compute the roots of the polynomial F(i,1) and the roots of its

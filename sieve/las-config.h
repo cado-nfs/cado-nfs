@@ -160,7 +160,7 @@
 #define xxxDLP_DESCENT
 
 /* used for a temporary attempt */
-#define DLP_MNFSL
+#define DLP_MNFSQ
 
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 

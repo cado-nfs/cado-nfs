@@ -44,14 +44,14 @@ void thread_data::init(const thread_workspaces &_ws, const int _id, las_info_src
 void thread_data::pickup_si(sieve_info_ptr _si)
 {
   si = _si;
-  for (int side = 0 ; side < 2 ; side++) {
+  for (int side = 0 ; side < si->cpoly->nb_polys ; side++) {
     sides[side].set_fb(si->sides[side]->fb);
   }
 }
 
 void thread_data::update_checksums()
 {
-  for(int s = 0 ; s < 2 ; s++)
+  for(int s = 0 ; s < si->cpoly->nb_polys ; s++)
     sides[s].update_checksum();
 }
 

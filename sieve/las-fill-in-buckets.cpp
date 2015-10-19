@@ -377,7 +377,7 @@ fill_in_buckets_one_side(thread_pool &pool, thread_workspaces &ws, const fb_part
 void fill_in_buckets_both(thread_pool &pool, thread_workspaces &ws, sieve_info_srcptr si)
 {
   plattice_enumerate_t::set_masks(si->conf->logI);
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < si->cpoly->nb_polys; ++side) {
     switch (si->toplevel) {
       case 1:
         plattice_enumerate_area<1>::value = plattice_x_t(si->J) << si->conf->logI;
@@ -424,7 +424,7 @@ downsort_tree(uint32_t bucket_index,
 
   double max_full MAYBE_UNUSED = 0.0;
 
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < 2; ++side) { // FIXME: MNFS?
     WHERE_AM_I_UPDATE(w, side, side);
     /* FIRST: Downsort what is coming from the level above, for this
      * bucket index */

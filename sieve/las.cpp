@@ -383,7 +383,7 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
         ASSERT_ALWAYS(las->sievers->conf->bucket_thresh1 == si->conf->bucket_thresh1);
         // Then, copy relevant data from the first sieve_info
         verbose_output_print(0, 1, "# Do not regenerate factor base data: copy it from first siever\n");
-        for (int side = 0; side < 2; side++) { // FIXME: MNFS
+        for (int side = 0; side < las->cpoly->nb_polys; side++) {
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->lim == si->conf->sides[side]->lim);
             ASSERT_ALWAYS(las->sievers->conf->sides[side]->powlim == si->conf->sides[side]->powlim);
             sieve_side_info_ptr sis = si->sides[side];
@@ -397,9 +397,9 @@ sieve_info_init_from_siever_config(las_info_ptr las, sieve_info_ptr si, siever_c
     }
 
     // Now that fb have been initialized, we can set the toplevel.
-    // FIXME: MNFSL == 2 sievers, MNFSQ = nb_polys sievers
-    si->toplevel = MAX(si->sides[0]->fb->get_toplevel(),
-            si->sides[1]->fb->get_toplevel());
+    si->toplevel = si->sides[0]->fb->get_toplevel();
+    for(int side = 1; side < si->cpoly->nb_polys; side++)
+	si->toplevel = MAX(si->toplevel, si->sides[side]->fb->get_toplevel());
 
     /* Initialize the number of buckets */
 
@@ -538,7 +538,6 @@ static void sieve_info_update (sieve_info_ptr si, int nb_threads,
   }
 
   /* Update the slices of the factor base according to new log base */
-  // FIXME: MNFSL should have 2 (?); MNFSQ should have nb_polys?
   for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
       /* The safety factor controls by how much a single slice should fill a
          bucket array at most, i.e., with .5, a single slice should never fill
@@ -887,7 +886,7 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
         complete &= param_list_parse_int  (pl, "I",    &(sc->logI));
         complete &= param_list_parse_ulong(pl, "lim0", &(sc->sides[0]->lim));
         complete &= param_list_parse_ulong(pl, "lim1", &(sc->sides[1]->lim));
-#ifdef DLP_MNFSL
+#ifdef DLP_MNFSQ
         complete &= param_list_parse_ulong(pl, "lim2", &(sc->sides[2]->lim));
 #endif
         if (!complete) {
@@ -908,7 +907,7 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
         complete &= param_list_parse_int(pl, "mfb0",  &(sc->sides[0]->mfb));
         complete &= param_list_parse_int(pl, "lpb1",  &(sc->sides[1]->lpb));
         complete &= param_list_parse_int(pl, "mfb1",  &(sc->sides[1]->mfb));
-#ifdef DLP_MNFSL
+#ifdef DLP_MNFSQ
         complete &= param_list_parse_int(pl, "lpb2",  &(sc->sides[2]->lpb));
         complete &= param_list_parse_int(pl, "mfb2",  &(sc->sides[2]->mfb));
 #endif
@@ -1338,7 +1337,7 @@ static void adwg(FILE *output, const char *comment, int *cpt,
 static void remove_galois_factors(relation &rel, int p, int vp){
     int ok = 0;
 
-    for(int side = 0 ; side < 2 ; side++){
+    for(int side = 0 ; side < 2 ; side++){ // FIXME: MNFS
 	for(unsigned int i = 0 ; i < rel.sides[side].size(); i++)
 	    if(mpz_cmp_ui(rel.sides[side][i].p, p) == 0){
 		ok = 1;
@@ -1354,7 +1353,7 @@ static void remove_galois_factors(relation &rel, int p, int vp){
 static void add_galois_factors(relation &rel, int p, int vp){
     int ok[2] = {0, 0};
 
-    for(int side = 0 ; side < 2 ; side++){
+    for(int side = 0 ; side < 2 ; side++){ // FIXME: MNFS
 	for(unsigned int i = 0 ; i < rel.sides[side].size(); i++)
 	    if(mpz_cmp_ui(rel.sides[side][i].p, p) == 0){
 		ok[side] = 1;
@@ -1362,7 +1361,7 @@ static void add_galois_factors(relation &rel, int p, int vp){
 	    }
     }
     // FIXME: are we sure this is safe?
-    for(int side = 0 ; side < 2 ; side++)
+    for(int side = 0 ; side < 2 ; side++) // FIXME: MNFS
 	if(ok[side] == 0)
 	    /* we must add p^vp */
 	    for(int i = 0; i < vp; i++)
@@ -1644,7 +1643,7 @@ int las_todo_feed_qlist(las_info_ptr las, param_list pl)
                    errno = 0;
                    side = strtoul(x, &x, 0);
                    ASSERT_ALWAYS(!errno);
-                   ASSERT_ALWAYS(side < 2);
+                   ASSERT_ALWAYS(side < 2); // FIXME: MNFS
                    break;
         default:
                    fprintf(stderr, "%s: parse error at %s\n",
@@ -2100,7 +2099,7 @@ bool register_contending_relation(las_info_srcptr las, sieve_info_srcptr si, rel
     contender.rel = rel;
     double time_left = 0;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < 2 ; side++) { // FIXME: MNFS
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
             relation::pr const& v(rel.sides[side][i]);
             if (mpz_cmp(si->doing->p, v.p) == 0)
@@ -2154,14 +2153,18 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     factor_list_t factors[NB_POLYS_MAX];
     mpz_array_t *lps[NB_POLYS_MAX] = { NULL, };
     uint32_array_t *lps_m[NB_POLYS_MAX] = { NULL, }; /* corresponding multiplicities */
+    // HERE: find the correct C++ way of doing in the loop!
     bucket_primes_t primes[2] = {bucket_primes_t(BUCKET_REGION), bucket_primes_t(BUCKET_REGION)};
     bucket_array_complete purged[2] = {bucket_array_complete(BUCKET_REGION), bucket_array_complete(BUCKET_REGION)};
-    uint32_t cof_bitsize[2] = {0, 0}; /* placate gcc */
+    uint32_t cof_bitsize[NB_POLYS_MAX];
     const unsigned int first_j = N << (LOG_BUCKET_REGION - si->conf->logI);
     const unsigned long nr_lines = 1U << (LOG_BUCKET_REGION - si->conf->logI);
-    unsigned char * S[2] = {th->sides[0].bucket_region, th->sides[1].bucket_region};
+    unsigned char * S[NB_POLYS_MAX];
 
     for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
+	cof_bitsize[side] = 0;
+	S[side] = th->sides[side].bucket_region;
+
         lps[side] = alloc_mpz_array (1);
         lps_m[side] = alloc_uint32_array (1);
 
@@ -2223,7 +2226,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
        store them with the complete prime */
     /* FIXME: choose a sensible size here */
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < 2 ; side++) { // FIXME: MNFSQ
         WHERE_AM_I_UPDATE(w, side, side);
         // From N we can deduce the bucket_index. They are not the same
         // when there are multiple-level buckets.
@@ -2346,7 +2349,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 
             int i;
             unsigned int j;
-#ifdef DLP_MNFSL
+#ifdef DLP_MNFSQ
 	    bool ismooth[NB_POLYS_MAX];
 	    int nbsmooth = 0;
 #endif
@@ -2385,7 +2388,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
                             sidenames[side], a, b, pass);
                 }
 #endif
-#ifdef DLP_MNFSL
+#ifdef DLP_MNFSQ
 		ismooth[side] = (pass == 0 ? false : true);
 		if(pass == 1)
 		    nbsmooth++;
@@ -2395,7 +2398,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 		}
 #endif
             }
-#ifdef DLP_MNFSL
+#ifdef DLP_MNFSQ
 	    pass = (nbsmooth > 1 ? 1 : 0);
 #endif
             if (pass == 0)
@@ -2625,12 +2628,12 @@ void * process_bucket_region(thread_data *th)
 
     las_report_ptr rep = th->rep;
 
-    unsigned char * S[2];
+    unsigned char * S[NB_POLYS_MAX];
 
     unsigned int skiprows = (BUCKET_REGION >> si->conf->logI)*(las->nb_threads-1);
 
     /* This is local to this thread */
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
         thread_side_data &ts = th->sides[side];
         S[side] = ts.bucket_region;
     }
@@ -2641,6 +2644,7 @@ void * process_bucket_region(thread_data *th)
     /* loop over appropriate set of sieve regions */
     for (uint32_t ii = 0; ii < si->nb_buckets[1]; ii ++)
       {
+	  printf("COUCOU: ii=%d\n", (int)ii);
         uint32_t i = first_region0_index + ii;
         if ((i % las->nb_threads) != (uint32_t)th->id)
             continue;
@@ -2658,8 +2662,9 @@ void * process_bucket_region(thread_data *th)
                 break;
         }
 
-        for (int side = 0; side < 2; side++)
+        for (int side = 0; side < si->cpoly->nb_polys; side++)
           {
+	      printf("GATO: side=%d\n", side);
             WHERE_AM_I_UPDATE(w, side, side);
 
             sieve_side_info_ptr s = si->sides[side];
@@ -2722,7 +2727,7 @@ void * process_bucket_region(thread_data *th)
                       "# Final value on %s side, N=%u rat_S[%u]=%u\n",
                       sidenames[side], w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
-        }
+	  }
 
         /* Factor survivors */
         rep->ttf -= seconds_thread ();
@@ -3017,7 +3022,8 @@ int main (int argc0, char *argv0[])/*{{{*/
     // process_bucket_region uses las->nb_threads while it should
     // sometimes use nr_workspaces.
     const size_t nr_workspaces = las->nb_threads;
-    thread_workspaces *workspaces = new thread_workspaces(nr_workspaces, 2, las);
+    thread_workspaces *workspaces = 
+	new thread_workspaces(nr_workspaces, las->cpoly->nb_polys, las);
 
     las_report report;
     las_report_init(report);
@@ -3178,10 +3184,10 @@ int main (int argc0, char *argv0[])/*{{{*/
         totJ += (double) si->J;
         verbose_output_print(0, 2, "# I=%u; J=%u\n", si->I, si->J);
         if (las->verbose >= 2) {
-            verbose_output_print (0, 1, "# f_0'(x) = ");
-            mpz_poly_fprintf(las->output, si->sides[0]->fij);
-            verbose_output_print (0, 1, "# f_1'(x) = ");
-            mpz_poly_fprintf(las->output, si->sides[1]->fij);
+	    for(int side = 0; side < las->cpoly->nb_polys; side++){
+		verbose_output_print (0, 1, "# f_%d'(x) = ", side);
+		mpz_poly_fprintf(las->output, si->sides[side]->fij);
+	    }
         }
 
 #ifdef TRACE_K
@@ -3234,8 +3240,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         report->ttbuckets_fill += seconds();
 
         /* Prepare small sieve and re-sieve */
-	/* FIXME: not sure we need to do this for all sides */
-        for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
+        for(int side = 0 ; side < si->cpoly->nb_polys; side++){
             sieve_side_info_ptr s = si->sides[side];
 
             small_sieve_init(s->ssd, las, s->fb_smallsieved, si, side);
@@ -3271,8 +3276,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 MIN(max_area, plattice_x_t(BUCKET_REGION_3));
             plattice_enumerate_area<3>::value = max_area;
             precomp_plattice_t precomp_plattice;
-	    /* FIXME: not needed for MNFSL (?) but for MNFSQ */
-            for (int side = 0; side < 2; ++side) {
+            for (int side = 0; side < si->cpoly->nb_polys; ++side) {
                 for (int level = 1; level < si->toplevel; ++level) {
                     const fb_part * fb = si->sides[side]->fb->get_part(level);
                     const fb_slice_interface *slice;
@@ -3306,8 +3310,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             }
 
             // Cleanup precomputed lattice bases.
-	    /* FIXME: same comment for MNFSL vs. MNFSQ */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(int side = 0 ; side < si->cpoly->nb_polys ; side++) {
                 for (int level = 1; level < si->toplevel; ++level) {
                     std::vector<plattices_vector_t*> &V =
                         precomp_plattice[side][level];
