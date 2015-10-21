@@ -2154,8 +2154,8 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     mpz_array_t *lps[NB_POLYS_MAX] = { NULL, };
     uint32_array_t *lps_m[NB_POLYS_MAX] = { NULL, }; /* corresponding multiplicities */
     // HERE: find the correct C++ way of doing in the loop!
-    bucket_primes_t primes[2] = {bucket_primes_t(BUCKET_REGION), bucket_primes_t(BUCKET_REGION)};
-    bucket_array_complete purged[2] = {bucket_array_complete(BUCKET_REGION), bucket_array_complete(BUCKET_REGION)};
+    bucket_primes_t primes[3] = {bucket_primes_t(BUCKET_REGION), bucket_primes_t(BUCKET_REGION), bucket_primes_t(BUCKET_REGION)};
+    bucket_array_complete purged[3] = {bucket_array_complete(BUCKET_REGION), bucket_array_complete(BUCKET_REGION), bucket_array_complete(BUCKET_REGION)};
     uint32_t cof_bitsize[NB_POLYS_MAX];
     const unsigned int first_j = N << (LOG_BUCKET_REGION - si->conf->logI);
     const unsigned long nr_lines = 1U << (LOG_BUCKET_REGION - si->conf->logI);
@@ -2203,67 +2203,77 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
     }
 #endif /* }}} */
 
-    for (unsigned int j = 0; j < nr_lines; j++)
-    {
-        unsigned char * const both_S[2] = {
-            S[0] + (j << si->conf->logI), 
-            S[1] + (j << si->conf->logI)
-        };
-        const unsigned char both_bounds[2] = {
-            si->sides[0]->bound,
-            si->sides[1]->bound,
-        };
-        surv += search_survivors_in_line(both_S, both_bounds,
+    // HERE: side cannot be used twice, and the following loop doesn't
+    // terminate where it should...
+    int mysides[2];
+    for(int side = 1; side < si->cpoly->nb_polys; side++){
+      // working on (0, side) for side > 0; in normal mode, this means 
+      // (0, 1) only; for MNFSL, this is somewhat suboptimal
+      // MNFSQ is another story
+      mysides[0] = 0; mysides[1] = side;
+      for (unsigned int j = 0; j < nr_lines; j++)
+      {
+	  unsigned char * const both_S[2] = {
+	      S[0] + (j << si->conf->logI), 
+	      S[side] + (j << si->conf->logI)
+	  };
+	  const unsigned char both_bounds[2] = {
+	      si->sides[0]->bound,
+	      si->sides[side]->bound,
+	  };
+	  surv += search_survivors_in_line(both_S, both_bounds,
                                          si->conf->logI, j + first_j, N,
                                          si->j_div, si->conf->unsieve_thresh,
                                          si->us);
-        /* Make survivor search create a list of x-coordinates that survived
-           instead of changing sieve array? More localized accesses in
-           purge_bucket() that way */
-    }
+	  /* Make survivor search create a list of x-coordinates that survived
+	     instead of changing sieve array? More localized accesses in
+	     purge_bucket() that way */
+      }
 
-    /* Copy those bucket entries that belong to sieving survivors and
-       store them with the complete prime */
-    /* FIXME: choose a sensible size here */
+      /* Copy those bucket entries that belong to sieving survivors and
+	 store them with the complete prime */
+      /* FIXME: choose a sensible size here */
 
-    for(int side = 0 ; side < 2 ; side++) { // FIXME: MNFSQ
-        WHERE_AM_I_UPDATE(w, side, side);
+      for(int iside = 0 ; iside < 2 ; iside++) {
+	int sid = mysides[iside];
+        WHERE_AM_I_UPDATE(w, iside, iside);
         // From N we can deduce the bucket_index. They are not the same
         // when there are multiple-level buckets.
         uint32_t bucket_index = N % si->nb_buckets[1];
 
         const bucket_array_t<1, shorthint_t> *BA =
-            th->ws->cbegin_BA<1, shorthint_t>(side);
+            th->ws->cbegin_BA<1, shorthint_t>(iside);
         const bucket_array_t<1, shorthint_t> * const BA_end =
-            th->ws->cend_BA<1, shorthint_t>(side);
+            th->ws->cend_BA<1, shorthint_t>(iside);
         for (; BA != BA_end; BA++)  {
-            purged[side].purge(*BA, bucket_index, SS);
+            purged[sid].purge(*BA, bucket_index, SS);
         }
 
         /* Add entries coming from downsorting, if any */
         const bucket_array_t<1, longhint_t> *BAd =
-            th->ws->cbegin_BA<1, longhint_t>(side);
+            th->ws->cbegin_BA<1, longhint_t>(iside);
         const bucket_array_t<1, longhint_t> * const BAd_end =
-            th->ws->cend_BA<1, longhint_t>(side);
+            th->ws->cend_BA<1, longhint_t>(iside);
         for (; BAd != BAd_end; BAd++)  {
-            purged[side].purge(*BAd, bucket_index, SS);
+            purged[sid].purge(*BAd, bucket_index, SS);
         }
 
         /* Resieve small primes for this bucket region and store them 
            together with the primes recovered from the bucket updates */
-        resieve_small_bucket_region (&primes[side], N, SS,
-                th->si->sides[side]->rsd, th->sides[side].rsdpos, si, w);
+        resieve_small_bucket_region (&primes[sid], N, SS,
+                th->si->sides[sid]->rsd, th->sides[sid].rsdpos, si, w);
+	// FIXME: sid or iside above?
 
         /* Sort the entries to avoid O(n^2) complexity when looking for
            primes during trial division */
-        purged[side].sort();
-        primes[side].sort();
-    }
+        purged[sid].sort();
+        primes[sid].sort();
+      }
 
-    /* Scan array one long word at a time. If any byte is <255, i.e. if
-       the long word is != 0xFFFF...FF, examine the bytes 
-       FIXME: We can use SSE to scan 16 bytes at a time, but have to make 
-       sure that SS is 16-aligned first, thus currently disabled. */
+      /* Scan array one long word at a time. If any byte is <255, i.e. if
+	 the long word is != 0xFFFF...FF, examine the bytes 
+	 FIXME: We can use SSE to scan 16 bytes at a time, but have to make 
+	 sure that SS is 16-aligned first, thus currently disabled. */
 #if defined(HAVE_SSE41) && defined(SSE_SURVIVOR_SEARCH)
     const size_t together = sizeof(__m128i);
     __m128i ones128 = (__m128i) {-1,-1};
@@ -2353,6 +2363,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 	    bool ismooth[NB_POLYS_MAX];
 	    int nbsmooth = 0;
 #endif
+	    // HERE: probably completely false...!
             for(int side = 0 ; pass && side < si->cpoly->nb_polys ; side++) {
                 // Trial divide norm on side 'side'
                 /* Compute the norms using the polynomials transformed to 
@@ -2511,6 +2522,7 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
                 break;
 #endif  /* DLP_DESCENT */
         }
+    }
     }
 
     verbose_output_print(0, 3, "# There were %d survivors in bucket %d\n", surv, N);
