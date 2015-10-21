@@ -246,7 +246,12 @@ fill_in_buckets(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
   for (plattices_vector_t::iterator pl_it = plattices_vector->begin();
        pl_it != plattices_vector->end(); pl_it++) {
 
-    const slice_offset_t hint = pl_it->get_hint();
+    // Work with a copy, otherwise we don't get all optimizations.
+    // Maybe with a wise use of the 'restrict' keyword, we might get
+    // what we want, but this is C++11, anyway.
+    plattice_enumerate_t pl(*pl_it);
+
+    const slice_offset_t hint = pl.get_hint();
     WHERE_AM_I_UPDATE(w, h, hint);
 #ifdef TRACE_K
     const fb_slice_interface * slice =
@@ -259,7 +264,7 @@ fill_in_buckets(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
 
     // Handle the rare special cases
     const uint32_t I = si->I;
-    if (UNLIKELY(pl_it->get_inc_c() == 1 && pl_it->get_bound1() == I - 1)) {
+    if (UNLIKELY(pl.get_inc_c() == 1 && pl.get_bound1() == I - 1)) {
         // Projective root: only update is at (1,0).
         if (first_reg) {
             uint64_t x = 1 + (I >> 1);
@@ -267,7 +272,7 @@ fill_in_buckets(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
         }
         continue;
     }
-    if (UNLIKELY(pl_it->get_inc_c() == I && pl_it->get_bound1() == I)) {
+    if (UNLIKELY(pl.get_inc_c() == I && pl.get_bound1() == I)) {
         // Root=0: only update is at (0,1).
         if (first_reg) {
             uint64_t x = I + (I >> 1);
@@ -277,12 +282,14 @@ fill_in_buckets(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
     }
 
     /* Now, do the real work: the filling of the buckets */
-    while (!plattice_enumerate_finished<LEVEL>(pl_it->get_x())) {
-      if (LIKELY(pl_it->probably_coprime()))
-        BA.push_update(pl_it->get_x(), p, hint, slice_index, w);
-      pl_it->next();
+    while (!plattice_enumerate_finished<LEVEL>(pl.get_x())) {
+      if (LIKELY(pl.probably_coprime()))
+        BA.push_update(pl.get_x(), p, hint, slice_index, w);
+      pl.next();
     }
 
+    // save current position, and prepare for next area.
+    pl_it->set_x(pl.get_x());
     pl_it->advance_to_next_area(LEVEL);
   } 
   orig_BA.move(BA);

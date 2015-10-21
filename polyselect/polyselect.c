@@ -125,29 +125,6 @@ crt_sq ( mpz_t qqz,
   mpz_clear (sum);
 }
 
-/* check that l/2 <= d*m0/P^2, where l = p1 * p2 * q with P <= p1, p2 <= 2P
-   q is the product of special-q primes. It suffices to check that
-   q <= d*m0/(2P^4). */
-static int
-check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
-{
-  double maxq = 1.0, maxP;
-  int k = lq;
-
-  while (k > 0)
-    maxq *= (double) SPECIAL_Q[LEN_SPECIAL_Q - 1 - (k--)];
-
-  maxP = (double) Primes[lenPrimes - 1];
-  if (2.0 * pow (maxP, 4.0) * maxq >= (double) d * mpz_get_d (m0))
-    return 0;
-
-  if (maxq > pow (maxP, 2.0))
-    return 0;
-
-  return 1;
-}
-
-
 /* print poly info */
 void
 print_poly_info ( mpz_t *f,
@@ -1322,8 +1299,6 @@ collision_on_sq ( header_t header,
   /* find a suitable lq */
   for (i = 0; i < SQ_R->size; i++) {
     if (prod < nq) {
-      if (!check_parameters (header->m0, header->d, lq))
-        break;
       prod *= header->d; /* We multiply by d instead of SQ_R->nr[i] to limit
                             the number of primes and thus the Y1 value. */
       lq ++;

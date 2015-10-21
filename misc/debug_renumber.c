@@ -87,7 +87,7 @@ main (int argc, char *argv[])
     if (tab->table[i] == RENUMBER_SPECIAL_VALUE)
     {
       int side = renumber_get_side_from_index (tab, i, cpoly);
-      if (i < tab->naddcols)
+      if (renumber_is_additional_column (tab, i))
         printf ("i=%" PRid " tab[i]=#   added column for side %d\n", i, side);
       else
         printf ("i=%" PRid " tab[i]=#   above a bad ideals on side %d\n",
@@ -132,6 +132,7 @@ main (int argc, char *argv[])
   /* Check for all index i if it can retrieved p and r from it and if it can
    * retrieved the same index from this p and r
    */
+  uint64_t nerrors = 0;
   if (check)
   {
 
@@ -147,15 +148,18 @@ main (int argc, char *argv[])
         if (i == j)
           fprintf (stderr, "## %" PRid ": Ok\n", i);
         else
+        {
           fprintf (stderr, "#### %" PRid ": Error, p = %" PRpr " r=%" PRpr " "
                            "give index j = %" PRid "\n", i, p, r, j);
+          nerrors++;
+        }
       }
     }
-
+    fprintf (stderr, "Number of errors: %" PRIu64 "\n", nerrors);
   }
 
   renumber_clear (tab);
   cado_poly_clear (cpoly);
   param_list_clear(pl);
-  return EXIT_SUCCESS;
+  return (nerrors == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -17,10 +17,10 @@ tasks.threads = 2
 tasks.polyselect.degree = 5
 
 tasks.polyselect.P = 10000
-tasks.polyselect.admax = 4e5
-tasks.polyselect.adrange = 4e3
+tasks.polyselect.admax = 1e6
+tasks.polyselect.adrange = 1e4
 tasks.polyselect.incr = 60
-tasks.polyselect.nq = 1000
+tasks.polyselect.nq = 3125
 tasks.polyselect.nrkeep = 100
 
 ###########################################################################

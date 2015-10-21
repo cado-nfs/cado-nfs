@@ -5,11 +5,6 @@
 #include "las-types.h"
 #include "double_poly.h"
 
-/* initializing norms */
-/* Knowing the norm on the rational side is bounded by 2^(2^k), compute
-   lognorms approximations for k bits of exponent + NORM_BITS-k bits
-   of mantissa */
-void init_norms (sieve_info_ptr si, int side);
 
 /* Initialize lognorms for the bucket_region number J. It's a wrapper.
  * For the moment, nothing clever, wrt discarding (a,b) pairs that are

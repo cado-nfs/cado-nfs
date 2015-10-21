@@ -128,30 +128,35 @@ static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
     exit(2);
   }
 
+  /* delta between the current excess and the desired final excess. */
+  int64_t delta_excess = excess - final_excess;
+
   /* If nsteps was not given in the command line, adjust nsteps in
      [1..DEFAULT_PURGE_NSTEPS] so that each step removes at least about 1% wrt
      the number of columns */
   if (nsteps < 0)
   {
-    if ((uint64_t) excess / DEFAULT_PURGE_NSTEPS < mat->ncols / 100)
-      nsteps = 1 + (100 * excess) / mat->ncols;
+    /* If we are less than or equal to the wanted final excess, there is no need
+     * for clique removal, so set nsteps to 0*/
+    if (delta_excess <= 0)
+      nsteps = 0;
+    else if ((uint64_t) delta_excess / DEFAULT_PURGE_NSTEPS < mat->ncols / 100)
+      nsteps = 1 + (100 * delta_excess) / mat->ncols;
     else
       nsteps = DEFAULT_PURGE_NSTEPS;
   }
 
-  int64_t chunk;
+  int64_t chunk = 0;
   if (nsteps > 0)
   {
-    chunk = excess / nsteps;
+    chunk = delta_excess / nsteps;
     fprintf(stdout, "# INFO: number of clique removal steps: %d\n", nsteps);
     fprintf(stdout, "# INFO: At each step, excess will be decreased by "
                     "%" PRId64 "\n", chunk);
     fflush (stdout);
   }
   else
-  {
     fprintf(stdout, "# INFO: No step of clique removal will be done\n");
-  }
 
   /* nsteps steps of clique removal + singletons removal */
   for (count = 0; count < nsteps && excess > 0; count++)

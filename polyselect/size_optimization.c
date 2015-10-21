@@ -299,6 +299,50 @@ sopt_compute_roots_and_extrema_close_to_0 (double *roots_and_extrema,
   }
 }
 
+/* for deg(f) = d and deg(g) = 1: find values k such that
+   f(x+k)[d-2] / g(x+k)[1] ~ f(x+k)[d-3] / g(x+k)[0].
+   In such a way LLL will reduce simultaneously f[d-2] and f[d-3]. */
+static void
+sopt_find_translations_extra (list_mpz_t list_k, mpz_poly_srcptr f,
+                              mpz_poly_srcptr g, const int verbose)
+{
+  int d = f->deg;
+  double cd, cdm1, cdm2, cdm3, g1, g0;
+
+  cd = mpz_get_d (f->coeff[d]);
+  cdm1 = mpz_get_d (f->coeff[d-1]);
+  cdm2 = mpz_get_d (f->coeff[d-2]);
+  cdm3 = mpz_get_d (f->coeff[d-3]);
+  g1 = mpz_get_d (g->coeff[1]);
+  g0 = mpz_get_d (g->coeff[0]);
+
+  double_poly_t res;
+  double roots[3];
+  int nr;
+  double_poly_init (res, 3);
+  /* (cdm2 + (d-1) * cdm1 * k + d*(d-1)/2 * cd * k^2) / g1 =
+     (cdm3 + (d-2) * cdm2 * k + (d-1)*(d-2)/2 * cdm1 * k^2 +
+     d*(d-1)*(d-2)/6 * cd * k^3) / (g0 + g1*k) */
+  res->coeff[0] = cdm2 * g0;
+  res->coeff[1] = (double) (d-1) * cdm1 * g0;
+  res->coeff[2] = (double) (d*(d-1))/2 * cd * g0;
+  res->coeff[1] += cdm2 * g1;
+  res->coeff[2] += (double) (d-1) * cdm1 * g1;
+  res->coeff[3] = (double) (d*(d-1))/2 * cd * g1;
+  res->coeff[0] -= cdm3 * g1;
+  res->coeff[1] -= (double) (d-2) * cdm2 * g1;
+  res->coeff[2] -= (double) ((d-1)*(d-2))/2 * cdm1 * g1;
+  res->coeff[3] -= (double) (d*(d-1)*(d-2))/6 * cd * g1;
+  nr = double_poly_compute_all_roots_with_bound (roots, res, 1e15);
+  for (int i = 0; i < nr; i++)
+    {
+      if (verbose)
+        fprintf (stderr, "# sopt: find_translations_extra %f\n", roots[i]);
+      list_mpz_append_from_rounded_double (list_k, roots[i]);
+    }
+  double_poly_clear (res);
+}
+
 /* For deg(f) = 6 and deg(g) = 1 */
 /* Return in list_k good values of k such that f(x+k) has small coefficients of
    degree 4 and 3. */
@@ -989,7 +1033,6 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   return logmu_opt;
 }
 
-
 #define SOPT_INIT_SIZE_ALLOCATED_TRANSLATIONS 1024
 
 /* Size optimize the polynomial pair (f_raw, g_raw) with rotations and
@@ -1059,6 +1102,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   /*************** generate list of translations to try *****************/
   if (d == 6 || d == 5)
   {
+    sopt_find_translations_extra (list_k, f_raw, g_raw, verbose);
     if (d == 6)
       sopt_find_translations_deg6 (list_k, f_raw, g_raw, verbose);
     else if (d == 5)

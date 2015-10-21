@@ -278,12 +278,11 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
 
 void sm_side_info_print(FILE * out, sm_side_info_srcptr sm)
 {
-    /* check sm->matrix, not sm->nsm, because the user might have set
-     * sm->nsm forcibly to any value, including 0 */
-    if (sm->matrix == NULL) {
+    if (sm->unit_rank == 0) {
         fprintf(out, "# unit rank is 0, no SMs to compute\n");
         return;
     }
+    fprintf(out, "# unit rank is %d\n", sm->unit_rank);
     fprintf(out, "# lifted factors of f modulo ell^2\n");
     for(int i = 0 ; i < sm->fac->size ; i++) {
         gmp_fprintf(out, "# factor %d, exponent ell^%d-1=%Zd:\n# ",
@@ -306,9 +305,11 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
 {
     memset(sm, 0, sizeof(*sm));
 
-    sm->nsm = compute_unit_rank(f0);
+    sm->unit_rank = compute_unit_rank(f0);
+    sm->nsm = sm->unit_rank; /* By default, we compute 'unit_rank' SMs. It can
+                                be modify by the user. */
 
-    if (sm->nsm == 0)
+    if (sm->unit_rank == 0)
         return;
 
     /* initialize all fields */
@@ -358,9 +359,7 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
 
 void sm_side_info_clear(sm_side_info_ptr sm)
 {
-    /* check sm->matrix, not sm->nsm, because the user might have set
-     * sm->nsm forcibly to any value, including 0 */
-    if (sm->matrix == NULL)
+    if (sm->unit_rank == 0)
         return;
 
     for(int i = 0 ; i < sm->f->deg ; i++)

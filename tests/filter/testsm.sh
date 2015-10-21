@@ -14,36 +14,35 @@ poly="${SOURCE_TEST_DIR}/testsm.p59.poly"
 purged="${SOURCE_TEST_DIR}/testsm.p59.purged.gz"
 id="${SOURCE_TEST_DIR}/testsm.p59.index.gz"
 go="2926718140519"
-smexp="8565679074042993029589360"
 
 
-args="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -smexp1 ${smexp} -smexp0 0 -nsm 0"
-args2="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -smexp1 ${smexp} -smexp0 0 -nsm 0,2"
+args="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -nsm 0,4"
+args2="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -nsm 0,2"
 
-#without -nsm (ie nsm = deg F) and -t 1
-if ! "${SM}" ${args} -out "${TMPDIR}/sm.5.1" -t 1 ; then
+#with -nsm 0,4 (ie nsm = deg F-1) and -t 1
+if ! "${SM}" ${args} -out "${TMPDIR}/sm.4.1" -t 1 ; then
   echo "$0: sm binary failed with -t 1 and without -nsm. Files remain in ${TMPDIR}"
   exit 1
 fi
-#without -nsm (ie nsm = deg F) and -t 2
-if ! "${SM}" ${args} -out "${TMPDIR}/sm.5.2" -t 2 ; then
+#with -nsm 0,4 (ie nsm = deg F-1) and -t 1
+if ! "${SM}" ${args} -out "${TMPDIR}/sm.4.2" -t 2 ; then
   echo "$0: sm binary failed with -t 2 and without -nsm. Files remain in ${TMPDIR}"
   exit 1
 fi
 
-#with -nsm 2 and -t 1
+#with -nsm 0,2 and -t 1
 if ! "${SM}" ${args2} -out "${TMPDIR}/sm.2.1" -t 1 ; then
   echo "$0: sm binary failed with -t 1 and -nsm1 2. Files remain in ${TMPDIR}"
   exit 1
 fi
-#with -nsm 2 and -t 2
+#with -nsm 0,2 and -t 2
 if ! "${SM}" ${args2} -out "${TMPDIR}/sm.2.2" -t 2 ; then
   echo "$0: sm binary failed with -t 2 and -nsm1 2. Files remain in ${TMPDIR}"
   exit 1
 fi
 
 
-if ! diff -b "${TMPDIR}/sm.5.1" "${TMPDIR}/sm.5.2" > /dev/null ; then
+if ! diff -b "${TMPDIR}/sm.4.1" "${TMPDIR}/sm.4.2" > /dev/null ; then
   echo "$0: Mono-threaded and multi-threaded versions do not match (without -nsm). Files remain in ${TMPDIR}"
   exit 1
 fi
@@ -53,15 +52,15 @@ if !  diff -b "${TMPDIR}/sm.2.1" "${TMPDIR}/sm.2.2" > /dev/null ; then
   exit 1
 fi
 
-tail -n +2 "${TMPDIR}/sm.5.1" | cut -d ' ' -f1-2 > "${TMPDIR}/sm.5.1.short"
+tail -n +2 "${TMPDIR}/sm.4.1" | cut -d ' ' -f1-2 > "${TMPDIR}/sm.4.1.short"
 tail -n +2 "${TMPDIR}/sm.2.1" > "${TMPDIR}/sm.2.1.short"
 
-if ! diff -b "${TMPDIR}/sm.5.1.short" "${TMPDIR}/sm.2.1.short" > /dev/null ; then
+if ! diff -b "${TMPDIR}/sm.4.1.short" "${TMPDIR}/sm.2.1.short" > /dev/null ; then
   echo "$0: First two SMs computed without -nsm do not match SMs computed with -nsm 0,2). Files remain in ${TMPDIR}"
   exit 1
 fi
 
-rm -f "${TMPDIR}/sm.5.1" "${TMPDIR}/sm.5.2"
+rm -f "${TMPDIR}/sm.4.1" "${TMPDIR}/sm.4.2"
 rm -f "${TMPDIR}/sm.2.1" "${TMPDIR}/sm.2.2"
-rm -f "${TMPDIR}/sm.5.1.short" "${TMPDIR}/sm.2.1.short" 
+rm -f "${TMPDIR}/sm.4.1.short" "${TMPDIR}/sm.2.1.short"
 rmdir "${TMPDIR}"

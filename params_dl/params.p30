@@ -20,7 +20,7 @@ tasks.polyselect.admax = 1000
 tasks.polyselect.incr = 20
 tasks.polyselect.adrange = 100
 tasks.polyselect.P = 260
-tasks.polyselect.nq = 50
+tasks.polyselect.nq = 3
 tasks.polyselect.nrkeep = 2
 tasks.polyselect.ropteffort = 1
 

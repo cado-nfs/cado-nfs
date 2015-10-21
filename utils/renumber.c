@@ -724,6 +724,12 @@ int renumber_is_bad (int *nb, index_t *first, renumber_srcptr rn, p_r_values_t p
   return bad;
 }
 
+int
+renumber_is_additional_column (renumber_srcptr tab, index_t h)
+{
+  return (h < tab->naddcols);
+}
+
 /* This function writes in a string the part of the renumbering table
  * corresponding to the prime p. It returns the number of chars that were
  * written.
@@ -1016,7 +1022,7 @@ renumber_get_side_from_index (renumber_srcptr renumber_info, index_t i,
 
   if (tab[i] == RENUMBER_SPECIAL_VALUE)
   {
-    if (i < renumber_info->naddcols) /* i corresponds to an additional columns. */
+    if (renumber_is_additional_column (renumber_info, i))
     {
       side = 0;
       index_t index_add_col = 0;

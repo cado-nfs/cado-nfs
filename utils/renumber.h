@@ -85,6 +85,7 @@ void renumber_read_table (renumber_ptr, const char *);
 void renumber_clear (renumber_ptr);
 
 int renumber_is_bad(int *, index_t*,renumber_srcptr, p_r_values_t, p_r_values_t, int);
+int renumber_is_additional_column (renumber_srcptr, index_t);
 index_t renumber_get_index_from_p_r (renumber_srcptr, p_r_values_t, p_r_values_t,int);
 void renumber_get_p_r_from_index (renumber_srcptr, p_r_values_t *, p_r_values_t *,
                                                     int *, index_t, cado_poly);

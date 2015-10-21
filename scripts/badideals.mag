@@ -892,28 +892,20 @@ else
         ell := fff[#fff][1];
     end if;
 
-    smexp := [];
     nmaps := [];
     for side := 1 to #polys do 
         f := polys[side];
-        lcm := 1;
-        ff := Factorization(f, GF(ell));
-        for f in ff do
-            lcm := LCM(lcm, ell^Degree(f[1])-1);
-        end for;
 
         nr := #Roots(f, RealField());
         nc := Degree(f)-nr;
         assert IsEven(nc);
-        Append(~smexp, lcm);
         Append(~nmaps, nr + (nc div 2) -1);
     end for;
 
     SetColumns(0);
     printf "ell %o\n", ell;
     for side:=1 to #polys do
-        printf "smexp%o %o\nnmaps%o %o\n", 
-	       		side-1, smexp[side], side-1, nmaps[side];
+        printf "nmaps%o %o\n", side-1, nmaps[side];
     end for;
     exit;
 end if;

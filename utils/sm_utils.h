@@ -6,7 +6,9 @@
 #include "mpz_poly.h"
 
 struct sm_side_info_s {
-    int nsm;
+    int unit_rank;
+    int nsm; /* number of SMs that are going to be computed. By default, is
+                equal to unitrank but can be modify by the user. */
     mpz_t ell;
     mpz_t ell2;
     mpz_t invl2;        /* barrett precomputed inverse.

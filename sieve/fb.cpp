@@ -628,7 +628,7 @@ fb_vector<FB_ENTRY_TYPE>::make_slices(const double scale, const double max_weigh
     /* Maybe the slice's weight is greater than max_weight and we have to make
        the slice smaller */
     double weight;
-    while ((weight = est_weight_sum(cur_slice_start, next_slice_start)) > max_weight) {
+    while ((weight = est_weight(cur_slice_start, next_slice_start)) > max_weight) {
       const size_t old = next_slice_start;
       next_slice_start = cur_slice_start + (next_slice_start - cur_slice_start) / 2;
       verbose_output_print (0, 3, "# Slice %u starting at offset %zu has too "

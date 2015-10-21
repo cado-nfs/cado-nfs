@@ -2521,8 +2521,8 @@ class FreeRelTask(Task):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
-        if self.params["dlp"] and self.progparams[0]["lcideals"] is not None:
-            # default for dlp is lcideals (if not already set)
+        if self.params["dlp"]:
+            # default for dlp is lcideals
             self.progparams[0].setdefault("lcideals", True)
         # Invariant: if we have a result (in self.state["freerelfilename"])
         # then we must also have a polynomial (in self.state["poly"]) and
@@ -3283,7 +3283,7 @@ class PurgeTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, 
-            {"dlp": False, "galois": "none", "gzip": True, "add_ratio": 0.1,
+            {"dlp": False, "galois": "none", "gzip": True, "add_ratio": 0.01,
              "required_excess": 0.1})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
@@ -3799,6 +3799,14 @@ class NmbrthryTask(Task):
     def run(self):
         super().run()
 
+        # Check if we already compute the bad ideals (we check only
+        # one of the files, assuming everything was correct during the
+        # first run).
+        if "badfile" in self.state:
+            self.logger.info("Nmbrthry task has already run, reusing the result.");
+            return True
+
+        # Create output files and start the computation
         badfile = self.workdir.make_filename("badideals")
         badinfofile = self.workdir.make_filename("badidealinfo")
         (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.MagmaNmbrthry.name)
@@ -3817,12 +3825,6 @@ class NmbrthryTask(Task):
             match = re.match(r'ell (\d+)', line)
             if match:
                 update["ell"] = int(match.group(1))
-            match = re.match(r'smexp0 (\d+)', line)
-            if match:
-                update["smexp0"] = int(match.group(1))
-            match = re.match(r'smexp1 (\d+)', line)
-            if match:
-                update["smexp1"] = int(match.group(1))
             match = re.match(r'nmaps0 (\d+)', line)
             if match:
                 update["nmaps0"] = int(match.group(1))
@@ -3839,12 +3841,8 @@ class NmbrthryTask(Task):
         
         if not "ell" in update:
             raise Exception("Stdout does not give ell")
-        if not "smexp0" in update:
-            raise Exception("Stdout does not give smexp0")
         if not "nmaps0" in update:
             raise Exception("Stdout does not give nmaps0")
-        if not "smexp1" in update:
-            raise Exception("Stdout does not give smexp1")
         if not "nmaps1" in update:
             raise Exception("Stdout does not give nmaps1")
         if not badfile.isfile():
@@ -3866,9 +3864,6 @@ class NmbrthryTask(Task):
     
     def get_ell(self):
         return self.state["ell"]
-    
-    def get_smexp(self):
-        return (self.state["smexp0"], self.state["smexp1"])
     
     def get_nmaps(self):
         return (self.state["nmaps0"], self.state["nmaps1"])
@@ -4395,7 +4390,7 @@ class SMTask(Task):
         return "Schirokauer Maps"
     @property
     def programs(self):
-        override = ("ell", "smexp0", "smexp1", "nmaps0", "nmaps1", "out")
+        override = ("ell", "nmaps0", "nmaps1", "out")
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
                  "renumber": Request.GET_RENUMBER_FILENAME,
                  "badidealinfo": Request.GET_BADIDEALINFO_FILENAME,
@@ -4422,13 +4417,10 @@ class SMTask(Task):
             abunitsdirname = self.workdir.make_filename("abunits")
 
             gorder = self.send_request(Request.GET_ELL)
-            smexp = self.send_request(Request.GET_SMEXP)
             
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
             p = cadoprograms.SM(ell=gorder,
-                    smexp0=smexp[0],
-                    smexp1=smexp[1],
                     nmaps0=nmaps[0],
                     nmaps1=nmaps[1],
                     out=smfilename,
@@ -4462,13 +4454,10 @@ class ReconstructLogTask(Task):
         return "Logarithms Reconstruction"
     @property
     def programs(self):
-        input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
-                 "renumber": Request.GET_RENUMBER_FILENAME,
-                 "purged": Request.GET_PURGED_FILENAME,
-                 "ker": Request.GET_KERNEL_FILENAME,
-                 "ideals": Request.GET_IDEAL_FILENAME,
-                 "relsdel": Request.GET_RELSDEL_FILENAME}
-        override = ("dlog",  "ell", "nmaps0", "nmaps1", "nrels", "abunits0", "abunits1")
+        input = {"ker": Request.GET_KERNEL_FILENAME,}
+        override = ("dlog",  "ell", "nmaps0", "nmaps1", "nrels",
+                "abunits0", "abunits1", "poly", "renumber",
+                "purged", "ideals", "relsdel")
         return ((cadoprograms.ReconstructLog, override, input),)
     @property
     def paramnames(self):
@@ -4483,7 +4472,7 @@ class ReconstructLogTask(Task):
     def run(self):
         super().run()
 
-        if not "dlog" in self.state or self.have_new_input_files():
+        if (not "dlog" in self.state) or self.have_new_input_files():
             dlogfilename = self.workdir.make_filename("dlog")
             gorder = self.send_request(Request.GET_ELL)
             nmaps = self.send_request(Request.GET_NMAPS)
@@ -4499,6 +4488,11 @@ class ReconstructLogTask(Task):
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
                     ell=gorder,
+                    poly=self.send_request(Request.GET_POLYNOMIAL_FILENAME),
+                    renumber=self.send_request(Request.GET_RENUMBER_FILENAME),
+                    purged=self.send_request(Request.GET_PURGED_FILENAME),
+                    ideals=self.send_request(Request.GET_IDEAL_FILENAME),
+                    relsdel=self.send_request(Request.GET_RELSDEL_FILENAME),
                     nsm=str(nmaps[0])+","+str(nmaps[1]),
                     nrels=nrels,
 		    abunits0=str(abunitsdirname) + ".0",
@@ -4512,6 +4506,7 @@ class ReconstructLogTask(Task):
             if not dlogfilename.isfile():
                 raise Exception("Output file %s does not exist" % dlogfilename)
             self.state["dlog"] = dlogfilename.get_wdir_relative()
+            self.remember_input_versions()
         self.logger.debug("Exit ReconstructLogTask.run(" + self.name + ")")
         return True
     
@@ -5217,7 +5212,6 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_BADIDEAL_FILENAME] = self.nmbrthry.get_bad_filename
             self.request_map[Request.GET_BADIDEALINFO_FILENAME] = self.nmbrthry.get_badinfo_filename
             self.request_map[Request.GET_NMAPS] = self.nmbrthry.get_nmaps
-            self.request_map[Request.GET_SMEXP] = self.nmbrthry.get_smexp
             self.request_map[Request.GET_ELL] = self.nmbrthry.get_ell
             self.request_map[Request.GET_SM_FILENAME] = self.sm.get_sm_filename
             self.request_map[Request.GET_UNITS_DIRNAME] = self.sm.get_abunits_dirname

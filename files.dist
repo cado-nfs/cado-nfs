@@ -762,8 +762,6 @@ ffs/fppol_set.h
 ffs/fppol_test.c
 ffs/fppol_test.h
 ffs/fq.h
-ffs/filter/README
-ffs/filter/filter.sh
 ffs/norm.c
 ffs/fppol_conv.c
 ffs/gray.h
@@ -880,6 +878,8 @@ params_dl/p60.hint
 params_dl/params.p2dd20
 params_dl/params.p30
 params_dl/p30.hint
+params_dl/p155.hint
+params_dl/params.p155
 scripts/badideals.mag
 scripts/linalg.mag
 scripts/magma-linalg-wrapper.sh

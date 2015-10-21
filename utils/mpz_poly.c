@@ -881,7 +881,9 @@ mpz_poly_translation (mpz_poly_ptr ft, mpz_poly_srcptr f, const mpz_t k)
 {
   int i, j;
   int d = f->deg;
-  mpz_poly_set (ft, f);
+
+  if (ft != f)
+    mpz_poly_set (ft, f);
 
   for (i = d - 1; i >= 0; i--)
     for (j = i; j < d; j++)

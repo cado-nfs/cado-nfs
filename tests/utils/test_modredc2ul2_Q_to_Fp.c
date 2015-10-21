@@ -33,13 +33,18 @@ main (int argc, const char *argv[])
   const int neg = 0;
   modredc2ul2_batch_Q_to_Fp_context_t *context;
 
-  unsigned long p1[2] = {451UL, 72057594037927936UL}, /* 1329227995784915872903807060280345027 */
-                p2[2] = {41UL, 144115188075855872UL}; /* 2658455991569831745807614120560689193 */
+  unsigned long p1[2] = {451UL, 0UL}, p2[2] = {41UL, 0UL};
 
   if (sizeof (unsigned long) == 4)
     {
-      p1[1] = 452984832UL;
-      p2[1] = 184549376UL;
+      p1[1] = 452984832UL; /* p1 = 27*2^56+451 */
+      p2[1] = 184549376UL; /* p2 = 11*2^56+41 */
+    }
+  else
+    {
+      ASSERT_ALWAYS(sizeof (unsigned long) == 8);
+      p1[1] = 1UL << 56; /* p1 = 2^120+415 */
+      p2[1] = 1UL << 57; /* p2 = 2^121+41 */
     }
 
   modintredc2ul2_t num, den;

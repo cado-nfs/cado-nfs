@@ -55,9 +55,6 @@ test_sm (FILE * datafile)
     sm_side_info sm_info;
     sm_side_info_init(sm_info, F, ell);
 
-    gmp_fscanf (datafile, " %*Zi"); // , ell2);
-    gmp_fscanf (datafile, " %*Zi"); // , smexp);
-    
     ret = fscanf(datafile, " %d", &nb_ab);
     ASSERT_ALWAYS (ret == 1);
 
@@ -126,8 +123,6 @@ test_sm (FILE * datafile)
     //     mpz_poly_init(SMc2, degF);
     //     mpz_poly_ptr SSMc[2];
     //     SSMc[0] = &SMc[0]; SSMc[1] = &SMc2[0];
-    //     mpz_ptr Eeps[2];
-    //     Eeps[0] = &smexp[0]; Eeps[1] = &smexp[0];
     if (len_relset == 1 && e[0] == 1 && nb_test_single_rel % FREQ == 0)
     {
       nb_test_single_rel++;

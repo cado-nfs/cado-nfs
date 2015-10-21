@@ -138,8 +138,6 @@ class GeneralClass(object):
         parser.add_argument("--ell", help="Group order (a.k.a. ell)")
         parser.add_argument("--nsm0", help="Number of SM on side 0")
         parser.add_argument("--nsm1", help="Number of SM on side 1")
-        parser.add_argument("--smexp0", help="SM exponent on side 0")
-        parser.add_argument("--smexp1", help="SM exponent on side 1")
         # Those are used both for the middle and lower levels of the
         # descent.
         for side in range(2):
@@ -252,10 +250,6 @@ class GeneralClass(object):
         return self.__get_magma_data("nmaps0")
     def nmaps1(self):
         return self.__get_magma_data("nmaps1")
-    def smexp0(self):
-        return self.__get_magma_data("smexp0")
-    def smexp1(self):
-        return self.__get_magma_data("smexp1")
     def lpb0(self):
         return args.lpb0
     def lpb1(self):
@@ -332,8 +326,6 @@ class GeneralClass(object):
             "-gorder", self.ell(),
             "-sm0", self.nmaps0(),
             "-sm1", self.nmaps1(),
-            "-smexp0", self.smexp0(),
-            "-smexp1", self.smexp1(),
             "-poly", self.poly(),
             "-logformat", "reconstruct",
             "-mt", self.threads()
@@ -980,7 +972,8 @@ class DescentLowerClass(object):
                     ]
         call_that = [str(x) for x in call_that]
         print("command line:\n" + " ".join(call_that))
-        subprocess.check_call(call_that, stderr=subprocess.DEVNULL)
+        with open(os.devnull, 'w') as devnull:
+            subprocess.check_call(call_that, stderr=devnull)
 
         SM = []
         with open(SMfile, 'r') as file:

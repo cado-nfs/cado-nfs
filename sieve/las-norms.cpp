@@ -1549,9 +1549,9 @@ sieve_info_update_norm_data (sieve_info_ptr si, int nb_threads)
 
     /* we want to map 0 <= x < maxlog2 to GUARD <= y < UCHAR_MAX,
        thus y = GUARD + x * (UCHAR_MAX-GUARD)/maxlog2.
-       We require that scale is of the form (int) * 0.1, so that only a small
+       We require that scale is of the form (int) * 0.025, so that only a small
        number of different factor base slicings can occur. */
-    sideptr->scale = (int)(((double) UCHAR_MAX - GUARD) / maxlog2 * 10.)*0.1;
+    sideptr->scale = (int)(((double) UCHAR_MAX - GUARD) / maxlog2 * 40.)*0.025;
     verbose_output_print (0, 1,
         "# Side %d: log2(maxnorm)=%1.2f scale=%1.2f, logbase=%1.6f",
         side, maxlog2, sideptr->scale, exp2 (1. / sideptr->scale));

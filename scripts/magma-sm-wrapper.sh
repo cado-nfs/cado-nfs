@@ -57,18 +57,6 @@ do
   then
     ELL="$2"
     shift 2
-  elif [ "$1" = "-smexp0" ]
-  then
-    SMEXP0="$2"
-    shift 2
-  elif [ "$1" = "-smexp1" ]
-  then
-    SMEXP1="$2"
-    shift 2
-  elif [ "$1" = "-smexp2" ]
-  then
-    SMEXP2="$2"
-    shift 2
   elif [ "$1" = "-nsm0" ]
   then
     NMAPS0="$2"
@@ -125,7 +113,6 @@ else
     nsm0=$NMAPS0
 fi
 nsm="-nsm $nsm0"
-smopts="-smexp0 $SMEXP0"
 if [ $EXPLICIT1 = "yes" ]; then
     nsm1=0
     side=1
@@ -134,7 +121,6 @@ else
     nsm1=$NMAPS1
 fi
 nsm="$nsm,$nsm1"
-smopts="$smopts -smexp1 $SMEXP1"
 ## FIXME: copy-paste without thinking!
 if [ $NSIDES -gt 2 ]; then
     if [ $EXPLICIT2 = "yes" ]; then
@@ -145,7 +131,6 @@ if [ $NSIDES -gt 2 ]; then
 	nsm2=$NMAPS2
     fi
     nsm="$nsm,$nsm2"
-    smopts="$smopts -smexp2 $SMEXP2 -nsm2 $nsm2"
 fi
 
 ## build required SM's

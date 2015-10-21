@@ -371,8 +371,8 @@ protected:
     // order to have it 32 bits for non-top levels.
     plattice_x_t inc_a, inc_c;
     uint32_t bound0, bound1;
-    plattice_x_t x;
     slice_offset_t hint;
+    plattice_x_t x;
 
     static uint32_t maskI;
     static plattice_x_t even_mask;
@@ -393,6 +393,16 @@ public:
         x = plattice_x_t(1) << (logI-1);
     }
 
+    plattice_enumerate_t(const plattice_enumerate_t& src)
+        : hint(src.hint)
+    {
+        inc_a = src.inc_a;
+        inc_c = src.inc_c;
+        bound0 = src.bound0;
+        bound1 = src.bound1;
+        x = src.x;
+    }
+
     void next() {
       uint32_t i = x & maskI;
       if (i >= bound1)
@@ -406,6 +416,7 @@ public:
 
     void advance_to_next_area(int level);
     plattice_x_t get_x() const {return x;}
+    void set_x(plattice_x_t xx) {x = xx;}
     plattice_x_t get_bound1() const {return bound1;}
     plattice_x_t get_inc_c() const {return inc_c;}
     slice_offset_t get_hint() const {return hint;}
