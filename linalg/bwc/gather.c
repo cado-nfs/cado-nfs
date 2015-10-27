@@ -464,7 +464,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             ASSERT_ALWAYS(f2);
             void * data = malloc( A->vec_elt_stride(A, 1));
             for(uint32_t i = 0 ; i < mmt->n0[bw->dir] ; i++) {
-                fread(data, A->vec_elt_stride(A, 1), 1, f);
+                size_t rc = fread(data, A->vec_elt_stride(A, 1), 1, f);
+                ASSERT_ALWAYS(rc == 1);
                 A->fprint(A, f2, data);
                 fprintf(f2, "\n");
             }

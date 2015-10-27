@@ -140,6 +140,7 @@ tabular_strategy_fscan (FILE* file)
   //collect data
   int current_char = fgetc (file);
   int side;
+  int rc;
 
   while (current_char != EOF)
     {
@@ -150,19 +151,24 @@ tabular_strategy_fscan (FILE* file)
 	{
 	  fm_t* elem = fm_create ();
 	  fseek(file, -1, SEEK_CUR);
-	  fscanf (file, "%lu", &elem->method[0]);
+	  rc = fscanf (file, "%lu", &elem->method[0]);
+          ASSERT_ALWAYS(rc == 1);
 	  next_number (file, &current_char);
 
-	  fscanf (file, "%lu", &elem->method[1]);
+	  rc = fscanf (file, "%lu", &elem->method[1]);
+          ASSERT_ALWAYS(rc == 1);
 	  next_number (file, &current_char);
 
-	  fscanf (file, "%lu", &elem->method[2]);
+	  rc = fscanf (file, "%lu", &elem->method[2]);
+          ASSERT_ALWAYS(rc == 1);
 	  next_number (file, &current_char);
 
-	  fscanf (file, "%lu", &elem->method[3]);
+	  rc = fscanf (file, "%lu", &elem->method[3]);
+          ASSERT_ALWAYS(rc == 1);
 	  next_number (file, &current_char);
 
-	  fscanf (file, "%d", &side);
+	  rc = fscanf (file, "%d", &side);
+          ASSERT_ALWAYS(rc == 1);
 	  //go to end of line: 10 = '\t'
 	  while (current_char != 10)
 	    current_char = fgetc (file);
@@ -172,10 +178,12 @@ tabular_strategy_fscan (FILE* file)
 	  fm_free (elem);
 	}
       next_number (file, &current_char);
-      fscanf (file, "%lf", &strat->proba);
+      rc = fscanf (file, "%lf", &strat->proba);
+      ASSERT_ALWAYS(rc == 1);
 
       next_number (file, &current_char);
-      fscanf (file, "%lf", &strat->time);
+      rc = fscanf (file, "%lf", &strat->time);
+      ASSERT_ALWAYS(rc == 1);
 
       next_number (file, &current_char);
       //}}

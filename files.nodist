@@ -135,3 +135,4 @@ sieve/freerel_multipoly.c
 linalg/bwc/lingen.txt
 sieve/CMakeLists-nodist.txt
 sieve/smooth.c
+.mailmap

@@ -76,3 +76,24 @@ tasks.filter.coverNmax = 100
 #
 
 tasks.reconstructlog.partial=false
+
+###########################################################################
+# Individual log
+###########################################################################
+
+tasks.descent.init_I = 11
+tasks.descent.init_ncurves = 10
+tasks.descent.init_lpb = 24
+tasks.descent.init_lim = 100000
+tasks.descent.init_mfb = 48
+tasks.descent.init_tkewness = 200000
+tasks.descent.I = 11
+tasks.descent.lim0 = 100000
+tasks.descent.lim1 = 100000
+tasks.descent.lpb0 = 22
+tasks.descent.lpb1 = 22
+tasks.descent.mfb0 = 44
+tasks.descent.mfb1 = 44
+
+tasks.descent.descent_hint = ${CADO_HINTFILE_DIR}/p60.hint
+

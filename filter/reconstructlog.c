@@ -884,18 +884,18 @@ read_log_format_reconstruct (logtab_ptr log, MAYBE_UNUSED renumber_t renumb,
 
   for (unsigned int nsm = 0; nsm < log->nbsm; nsm++)
   {
-    unsigned int n;
+    unsigned int n, side;
     if (nsm == 0) /* h was already read by previous gmp_fscanf */
     {
-      ret = gmp_fscanf (f, "SM col %u %Zd\n", &n, tmp_log);
-      ASSERT_ALWAYS (ret == 2);
+      ret = gmp_fscanf (f, "SM %u %u %Zd\n", &side, &n, tmp_log);
+      ASSERT_ALWAYS (ret == 3);
     }
     else
     {
-      ret = gmp_fscanf (f, "%" SCNid " SM col %u %Zd\n", &h, &n, tmp_log);
-      ASSERT_ALWAYS (ret == 3);
+      ret = gmp_fscanf (f, "%" SCNid " SM %u %u %Zd\n", &h, &side, &n, tmp_log);
+      ASSERT_ALWAYS (ret == 4);
     }
-    ASSERT_ALWAYS (n == nsm);
+    //    ASSERT_ALWAYS (n == nsm); // obsolete with new coding
     ASSERT_ALWAYS (h == (index_t) nsm + log->nprimes);
     logtab_insert (log, h, tmp_log);
   }
@@ -907,7 +907,8 @@ read_log_format_reconstruct (logtab_ptr log, MAYBE_UNUSED renumber_t renumb,
 
 /* Write values of the known logarithms. */
 static void
-write_log (const char *filename, logtab_ptr log, renumber_t tab, cado_poly poly)
+write_log (const char *filename, logtab_ptr log, renumber_t tab, 
+	   cado_poly poly, sm_side_info *sm_info)
 {
   uint64_t i;
   FILE *f = NULL;
@@ -983,7 +984,14 @@ write_log (const char *filename, logtab_ptr log, renumber_t tab, cado_poly poly)
   {
     ASSERT_ALWAYS (mpz_sgn (log->tab[i+nsm]) >= 0);
     ASSERT_ALWAYS (mpz_cmp (log->tab[i+nsm], log->ell) < 0);
-    gmp_fprintf (f, "%" PRid " SM col %u %Zd\n", i+nsm, nsm, log->tab[i+nsm]);
+    // compute side
+    int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
+    for(side = 0; ((int)nsm) >= nsm_tot; side++){
+	nsm_tot += sm_info[side+1]->nsm;
+	jnsm -= sm_info[side]->nsm;
+    }
+    ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side]->nsm));
+    gmp_fprintf (f, "%" PRid " SM %d %d %Zd\n", i+nsm, side, jnsm, log->tab[i+nsm]);
   }
 
   uint64_t missing = tab->size - nknown;
@@ -1510,7 +1518,7 @@ main(int argc, char *argv[])
 
   /* Writing all the logs in outfile */
   printf ("\n###### Writing logarithms in a file ######\n");
-  write_log (outfilename, log, renumber_table, poly);
+  write_log (outfilename, log, renumber_table, poly, sm_info);
 
   /* freeing and closing */
   logtab_clear (log);

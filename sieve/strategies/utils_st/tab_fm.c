@@ -186,19 +186,23 @@ static fm_t *sub_routine_fm_fscanf(FILE * file, int *current_char)
     double time[len_time];
 
     int ind = 0;
+    int rc;
     while (ind < len_method && *current_char != '|') {
-	fscanf(file, "%lu", &method[ind++]);
+	rc = fscanf(file, "%lu", &method[ind++]);
+        ASSERT_ALWAYS(rc == 1);
 	next_elem(file, current_char);
     }
     next_elem(file, current_char);
 
     fm_set_method(fm, method, ind);
 
-    fscanf(file, "%d", &fm->len_p_min);
+    rc = fscanf(file, "%d", &fm->len_p_min);
+    ASSERT_ALWAYS(rc == 1);
     next_elem(file, current_char);
     ind = 0;
     while (ind < len_proba && *current_char != '|') {
-	fscanf(file, "%lf", &proba[ind++]);
+	rc = fscanf(file, "%lf", &proba[ind++]);
+        ASSERT_ALWAYS(rc == 1);
 	next_elem(file, current_char);
     }
     next_elem(file, current_char);
@@ -207,7 +211,8 @@ static fm_t *sub_routine_fm_fscanf(FILE * file, int *current_char)
 
     ind = 0;
     while (ind < len_time && *current_char != '|') {
-	fscanf(file, "%lf", &time[ind++]);
+	rc = fscanf(file, "%lf", &time[ind++]);
+        ASSERT_ALWAYS(rc == 1);
 	next_elem(file, current_char);
     }
     next_elem(file, current_char);

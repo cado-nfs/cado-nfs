@@ -417,7 +417,7 @@ class LogBase(object):
                 index,p,side,r,*value = line.split()
                 if p == "bad" and side == "ideals":
                     self.badideals.append(int(r))
-                elif p == "SM" and side == "col":
+                elif p == "SM":
                     self.SMs.append(int(value[0]))
                 else:
                     # for rational side, we actually don't have the root.

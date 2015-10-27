@@ -352,19 +352,22 @@ int get_rhs_file_header_stream(FILE * f, uint32_t * p_nrows, unsigned int * p_nr
         rc = fscanf(f, "%" SCNu32, p_nrows);
         ASSERT_ALWAYS(rc == 1);
     } else {
-        fscanf(f, "%*" SCNu32);
+        rc = fscanf(f, "%*" SCNu32);
+        ASSERT_ALWAYS(rc == 0);
     }
     if (p_nrhs) {
         rc = fscanf(f, "%d", p_nrhs);
         ASSERT_ALWAYS(rc == 1);
     } else {
-        fscanf(f, "%*d");
+        rc = fscanf(f, "%*d");
+        ASSERT_ALWAYS(rc == 0);
     }
     if (p_p) {
         rc = gmp_fscanf(f, "%Zd", p_p);
         ASSERT_ALWAYS(rc == 1);
     } else {
-        gmp_fscanf(f, "%*Zd");
+        rc = gmp_fscanf(f, "%*Zd");
+        ASSERT_ALWAYS(rc == 0);
     }
     return 1;
 }

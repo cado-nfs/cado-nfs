@@ -15,11 +15,10 @@
   - only up to 155 digits, by step of 5, starting from 60?
   - want a larger size? see customer service!
 
-[ ] Officially support DLP in GF(p)
+[X] Officially support DLP in GF(p)
 
   - ship parameter file for p155 + hintfile
   - review documentation
-  - what about bad ideals in magma (not-blocking)
 
 [ ] Fix memory issue in las
 
@@ -30,9 +29,21 @@
 
 [ ] Document changes in parameters since 2.1.1
   - tasks.linalg.bwc.mn is gone, for instance
+  - lpb0, lpb1 aka lpbr, lpba, etc.
+
+[ ] Decide about "supported platforms", and update README and webpage
+  - macos?
+  - armv7 / debian ?
 
 [ ] Check the list of bugs and feature requests
 
 [ ] Update the timings on the web page and check we have no regression
 
-[ ] Have the polyselect stage 1 and stage 2 overlap a bit (non-blocking)
+
+------------------------------------------------------------------
+
+Non-blocking:
+
+[ ] Remove Magma dependency for badideals.
+
+[ ] Have the polyselect stage 1 and stage 2 overlap a bit

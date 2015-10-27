@@ -17,16 +17,16 @@ This step is very cheap, so it is possible to run it on any computer.
 In principle, just typing
   ./factor.sh <p> -dlp -ell <ell> target=<target>
 should compute the discrete logarithm of <target> modulo <ell> in
-GF(<p>). Right now, there are parameters only for primes p of around 30
-or 60 digits (to be checked in params_dl/ subdirectory). If no target is
+GF(<p>). Right now, there are parameters only for primes p of around 30,
+60, or 155 digits (to be checked in params_dl/ subdirectory). If no target is
 given, then the output is a file containing the virtual logarithms of all
 the factor base elements.
 
 A direct use of cadofactor.py allows more flexibility. An example of
-parameter file is given in params_dl/param.p59. The main difference is
+parameter file is given in params_dl/param.p60. The main difference is
 the presence of the "dlp=true" line, and the lines related to characters
-and sqrt disappear. The other example params_dl/param.p30, shows how to
-give parameters for the descent.
+and sqrt disappear. There is an additional block of parameters related to
+individual logarithms.
 
 By default, the Magma script will factor p-1 and compute discrete logs
 modulo the largest prime factor ell of p-1. This can be overridden by
@@ -34,6 +34,10 @@ giving explicitly gorder=... in the parameter file.  Note that this
 automatic factoring feature might disappear in the future: you'd better
 consider already that the parameter gorder is mandatory (furthermore, its
 name is likely to change to ell).
+
+After the computation is finished, it is possible to run again the
+cadofactor.py script, with a different target: only the last step will be
+run.
 
 Note: the logarithms are given in an arbitrary base. If you want to
 define them with respect to a specific generator g, then you'll have to
@@ -49,11 +53,7 @@ current descent script will not work.
 See README.nonlinear for an example of importing a polynomial file with 2
 non-linear polynomials.
 
-The main difference with factorization is that there is no need to add
-the nratchars parameters for characters, since the characters binary is
-not used in DLP.
-
-Another important issue is that since the descent is not yet functional
+An important issue is that since the descent is not yet functional
 for this case, the script has no way to check the results if there is no
 linear polynomial. A good idea is to set
   tasks.reconstructlog.partial = false
@@ -71,6 +71,6 @@ logarithm has to be implemented for that case.
 
 For DLP in GF(p^2), things are sligthly more integrated:
   ./factor.sh <p> -dlp -ell <ell> -gfpext 2
-should work for p mod 8 = 7, provided that a parameter file is available
+should work for p = 7 mod 8, provided that a parameter file is available
 for the size of p (at the time of writing this doc, only p of 20 decimal
 digits is supported).

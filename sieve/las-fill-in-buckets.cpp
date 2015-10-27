@@ -226,6 +226,89 @@ transform_n_roots(unsigned long *p, unsigned long *r, fb_iterator t,
 }
 #endif
 
+// At top level, the fill-in of the buckets must interleave
+// the root transforms and the FK walks, otherwise we spend a lot of time
+// doing nothing while waiting for memory.
+// Consequence: we duplicate here the code of make_lattice_bases in fb.cpp
+// FIXME: find a way to refactor that.
+template <int LEVEL, class FB_ENTRY_TYPE>
+void
+fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
+                sieve_info_srcptr const si MAYBE_UNUSED,
+                const fb_slice_interface * const slice,
+                where_am_I_ptr w)
+{
+  bool first_reg = true;
+  bucket_array_t<LEVEL, shorthint_t> BA;  /* local copy. Gain a register + use stack */
+  BA.move(orig_BA);
+  const slice_index_t slice_index = slice->get_index();
+
+  /* Write new set of pointers for the new slice */
+  BA.add_slice_index(slice_index);
+
+  typename FB_ENTRY_TYPE::transformed_entry_t transformed;
+  const unsigned long special_q = mpz_fits_ulong_p(si->qbasis.q) ? mpz_get_ui(si->qbasis.q) : 0;
+
+  slice_offset_t i_entry = 0;
+  const fb_slice<FB_ENTRY_TYPE> * const sl = (const fb_slice<FB_ENTRY_TYPE> * const) slice;
+  for (const FB_ENTRY_TYPE *it = sl->begin(); it != sl->end(); it++, i_entry++) {
+    if (it->p == special_q) /* Assumes it->p != 0 */
+      continue;
+    it->transform_roots(transformed, si->qbasis);
+    for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
+      const fbroot_t r = transformed.get_r(i_root);
+      const bool proj = transformed.get_proj(i_root);
+      /* If proj and r > 0, then r == 1/p (mod p^2), so all hits would be in
+         locations with p | gcd(i,j). */
+      if (LIKELY(!proj || r == 0)) {
+        plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, si->conf->logI);
+        plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, si->conf->logI);
+        // Skip (0,0).
+        ple.next();
+        if (LIKELY(pli.a0 != 0)) {
+          const slice_offset_t hint = ple.get_hint();
+          WHERE_AM_I_UPDATE(w, h, hint);
+#ifdef TRACE_K
+          const fbprime_t p = slice->get_prime(hint); 
+          WHERE_AM_I_UPDATE(w, p, p);
+#else
+          const fbprime_t p = 0;
+#endif
+
+          // Handle the rare special cases
+          const uint32_t I = si->I;
+          if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
+            // Projective root: only update is at (1,0).
+            if (first_reg) {
+              uint64_t x = 1 + (I >> 1);
+              BA.push_update(x, p, hint, slice_index, w);
+            }
+            continue;
+          }
+          if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
+            // Root=0: only update is at (0,1).
+            if (first_reg) {
+              uint64_t x = I + (I >> 1);
+              BA.push_update(x, p, hint, slice_index, w);
+            }
+            continue;
+          }
+
+          /* Now, do the real work: the filling of the buckets */
+          while (!plattice_enumerate_finished<LEVEL>(ple.get_x())) {
+            if (LIKELY(ple.probably_coprime()))
+              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            ple.next();
+          }
+
+        } 
+      }
+    }
+  }
+  orig_BA.move(BA);
+}
+
+
 
 /* {{{ */
 template <int LEVEL>
@@ -336,6 +419,11 @@ fill_in_buckets_one_slice_internal(const task_parameters *const _param)
 }
 
 
+// At top level.
+// We need to interleave the root transforms and the FK walk,
+// otherwise, we spend all the time waiting for memory.
+// Hence the ugly de-templatization.
+// At some point, the code should be re-organized, I'm afraid.
 template<int LEVEL>
 task_result *
 fill_in_buckets_one_slice(const task_parameters *const _param)
@@ -347,16 +435,37 @@ fill_in_buckets_one_slice(const task_parameters *const _param)
     WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
     WHERE_AM_I_UPDATE(w, N, 0);
 
-    /* Do the root transform and lattice basis reduction for this factor base slice */
-    plattices_vector_t *plattices_vector =
-        param->slice->make_lattice_bases(param->si->qbasis, param->si->conf->logI);
     /* Get an unused bucket array that we can write to */
     bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
     /* Fill the buckets */
-    fill_in_buckets<LEVEL>(BA, param->si, plattices_vector, true, w);
+    if (param->slice->is_general())
+      fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 0)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<0> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 1)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<1> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 2)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<2> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 3)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<3> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 4)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<4> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 5)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<5> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 6)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<6> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 7)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<7> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 8)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<8> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 9)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<9> >(BA, param->si, param->slice, w);
+    else if (param->slice->get_nr_roots() == 10)
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<10> >(BA, param->si, param->slice, w);
+    else
+      ASSERT_ALWAYS(0);
     /* Release bucket array again */
     param->ws.release_BA(param->side, BA);
-    delete plattices_vector;
     delete param;
     return new task_result;
 }
