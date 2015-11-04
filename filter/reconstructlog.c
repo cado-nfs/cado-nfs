@@ -907,7 +907,8 @@ read_log_format_reconstruct (logtab_ptr log, MAYBE_UNUSED renumber_t renumb,
 
 /* Write values of the known logarithms. */
 static void
-write_log (const char *filename, logtab_ptr log, renumber_t tab, cado_poly poly)
+write_log (const char *filename, logtab_ptr log, renumber_t tab, cado_poly poly,
+           uint64_t base)
 {
   uint64_t i;
   FILE *f = NULL;
@@ -917,33 +918,34 @@ write_log (const char *filename, logtab_ptr log, renumber_t tab, cado_poly poly)
   f = fopen_maybe_compressed (filename, "w");
   FATAL_ERROR_CHECK(f == NULL, "Cannot open file for writing");
 
-  /* Divide all known logs by 'base' so that the first known non-zero logarithm
-   * is equal to 1.
-   * TODO: make a command line argument to choose this 'base'.
-   */
-  int base_already_set = 0;
-  mpz_t base;
-  mpz_init (base);
-  for (i = 0; i < log->nprimes + log->nbsm; i++)
+  if (base < log->nprimes + log->nbsm && mpz_sgn (log->tab[base]) > 0)
   {
-    if (mpz_sgn(log->tab[i]) > 0) /* The log is known and non-zero */
+    mpz_t inv;
+    mpz_init (inv);
+    /* inv = 1/log->tab[base] mod ell */
+    int ret = mpz_invert (inv, log->tab[base], log->ell);
+    ASSERT_ALWAYS (ret != 0);
+
+    for (i = 0; i < log->nprimes + log->nbsm; i++)
     {
-      if (!base_already_set)
+      if (mpz_sgn(log->tab[i]) > 0) /* The log is known and non-zero */
       {
-        base_already_set = 1;
-        /* base = 1/log->tab[i] mod ell */
-        int ret = mpz_invert (base, log->tab[i], log->ell);
-        ASSERT_ALWAYS (ret != 0);
-        mpz_set_ui (log->tab[i], 1);
-      }
-      else
-      {
-        mpz_mul (log->tab[i], log->tab[i], base);
+        mpz_mul (log->tab[i], log->tab[i], inv);
         mpz_mod (log->tab[i], log->tab[i], log->ell);
       }
     }
+    mpz_clear (inv);
   }
-  mpz_clear (base);
+  else
+  {
+    printf ("Warning, base = %" PRIu64 " was not used because ", base);
+    if (base >= log->nprimes + log->nbsm)
+      printf ("base is not a valid index\n");
+    else if (mpz_sgn (log->tab[base]) < 0)
+      printf ("the logarithm of this ideal is not known\n");
+    else
+      printf ("the logarithm of this ideal is zero\n");
+  }
 
   uint64_t nknown = 0;
   stats_init (stats, stdout, &nknown, nbits(tab->size)-5, "Wrote",
@@ -1210,6 +1212,9 @@ static void declare_usage(param_list pl)
 #endif
   param_list_decl_usage(pl, "mt", "number of threads (default 1)");
   param_list_decl_usage(pl, "wanted", "file containing list of wanted logs");
+  param_list_decl_usage(pl, "base", "divide every logarithms by the logarithm "
+                                    "of the ideal of index 'base', if the "
+                                    "logarithm is not zero (default is base=0)");
   param_list_decl_usage(pl, "force-posix-threads", "(switch)");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
@@ -1234,6 +1239,7 @@ main(int argc, char *argv[])
   int mt = 1;
   int partial = 0;
   int nsm_arg[NB_POLYS_MAX], nsm_tot;
+  uint64_t base = 0;
 
   /* negative value means that the value that will be used is the value
    * computed later by sm_side_info_init */
@@ -1293,6 +1299,7 @@ main(int argc, char *argv[])
   param_list_parse_uint64(pl, "nrels", &nrels_tot);
   param_list_parse_mpz(pl, "gorder", ell);
   param_list_parse_int(pl, "mt", &mt);
+  param_list_parse_uint64(pl, "base", &base);
   const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
 
   /* Some checks on command line arguments */
@@ -1510,7 +1517,7 @@ main(int argc, char *argv[])
 
   /* Writing all the logs in outfile */
   printf ("\n###### Writing logarithms in a file ######\n");
-  write_log (outfilename, log, renumber_table, poly);
+  write_log (outfilename, log, renumber_table, poly, base);
 
   /* freeing and closing */
   logtab_clear (log);
