@@ -36,6 +36,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "new-ideals", "new ideals file");
   param_list_decl_usage(pl, "new-matrix", "new matrix file");
   param_list_decl_usage(pl, "new-sm", "new SM file");
+  param_list_decl_usage(pl, "side-info", "info on sides of rows");
   verbose_decl_usage(pl);
 }
 
@@ -87,6 +88,7 @@ int main(int argc, char **argv)
   const char *newidealsfilename = param_list_lookup_string(pl, "new-ideals");
   const char *newmatrixfilename = param_list_lookup_string(pl, "new-matrix");
   const char *newsmfilename = param_list_lookup_string(pl, "new-sm");
+  const char *sideinfofilename = param_list_lookup_string(pl, "side-info");
 
   param_list_parse_uint64 (pl, "ncols", &ncols);
 
@@ -139,6 +141,11 @@ int main(int argc, char **argv)
     fprintf (stderr, "Error, missing -new-sm command line argument\n");
     usage (pl, argv0);
   }
+  if (sideinfofilename == NULL)
+  {
+    fprintf (stderr, "Error, missing -side-info command line argument\n");
+    usage (pl, argv0);
+  }
 
   cado_poly_init(poly);
   if (!cado_poly_read (poly, polyfilename))
@@ -182,7 +189,7 @@ int main(int argc, char **argv)
     FATAL_ERROR_CHECK (col >= ncols, "Too big value of column number");
     FATAL_ERROR_CHECK (h >= tab->size, "Too big value of index");
     ASSERT_ALWAYS (col == i);
-    
+
     cols_data[i].index = h;
     cols_data[i].side = renumber_get_side_from_index (tab, h, poly);
 
@@ -195,7 +202,6 @@ int main(int argc, char **argv)
   ASSERT_ALWAYS (i == ncols);
   fclose_maybe_compressed (inid, idealsfilename);
 
-  
   outid = fopen_maybe_compressed (newidealsfilename, "w");
   FATAL_ERROR_CHECK (outid == NULL, "Cannot open new-ideals file");
 
@@ -204,7 +210,7 @@ int main(int argc, char **argv)
   /* The columns are already sorted by decreasing weight. Sort them by side
    * while keeping this previous sort. */
   uint64_t next_id = 0;
-  for (int side = 0; side < poly->nb_polys; side++) 
+  for (int side = 0; side < poly->nb_polys; side++)
   {
     printf ("side %d begins at columns %" PRIu64 "\n", side, next_id);
     for (uint64_t i = 0; i < ncols; i++)
@@ -222,6 +228,10 @@ int main(int argc, char **argv)
 
   FILE *inmat = NULL, *outmat = NULL;
   FILE *insm = NULL, *outsm = NULL;
+  FILE *outsideinfo = NULL;
+
+  outsideinfo = fopen_maybe_compressed (sideinfofilename, "w");
+  FATAL_ERROR_CHECK (outsideinfo == NULL, "Cannot open new-ideals file");
 
   inmat = fopen_maybe_compressed (matrixfilename, "r");
   FATAL_ERROR_CHECK (inmat == NULL, "Cannot open matrix file");
@@ -274,6 +284,12 @@ int main(int argc, char **argv)
     ASSERT_ALWAYS (ret == 0);
     fprintf (outmat, "\n");
 
+    fprintf (outsideinfo, "%"PRIu64 "", i);
+    for (uint64_t b = nonvoidside, s = 0; b != 0 ; b>>=1, s++)
+      if (b & ((uint64_t) 1))
+        fprintf (outsideinfo, " %" PRIu64 "", s);
+    fprintf (outsideinfo, "\n");
+
     for(int side = 0, n = 0; side < poly->nb_polys; side++, nonvoidside>>=1)
     {
       for (int k = 0; k < nsm[side]; k++)
@@ -299,6 +315,7 @@ int main(int argc, char **argv)
   ASSERT_ALWAYS (i == nr);
   ASSERT_ALWAYS (feof(inmat));
 
+  fclose_maybe_compressed (outsideinfo, sideinfofilename);
   fclose_maybe_compressed (inmat, matrixfilename);
   fclose_maybe_compressed (outmat, newmatrixfilename);
   fclose_maybe_compressed (insm, smfilename);

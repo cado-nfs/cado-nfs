@@ -35,6 +35,7 @@ MAT_TMP="${WDIR}/${NAME}.replay.matrix.txt"
 IDEALSFILE_TMP="${WDIR}/${NAME}.replay.ideals"
 INDEXFILE="${WDIR}/${NAME}.replay.relsets"
 MAT="${WDIR}/${NAME}.rearrange.matrix.txt"
+SIDEINFO="${WDIR}/${NAME}.rearrange.side.info.txt"
 IDEALSFILE="${WDIR}/${NAME}.rearrange.ideals"
 SMFILE_TMP="${WDIR}/${NAME}.sm"
 SMFILE="${WDIR}/${NAME}.rearrange.sm"
@@ -184,7 +185,7 @@ echo -n "rearrange ... "
 ARGS_REA="-poly ${POLY} -renumber ${RENUMBER}\
           -ideals ${IDEALSFILE_TMP} -new-ideals ${IDEALSFILE}\
           -sm ${SMFILE_TMP} -new-sm ${SMFILE} -nsm ${SM}\
-          -matrix ${MAT_TMP} -new-matrix ${MAT}"
+          -matrix ${MAT_TMP} -new-matrix ${MAT} -side-info ${SIDEINFO}"
 LOG_REA="${WDIR}/${NAME}.rearrange.log"
 ${BUILDDIR}/misc/rearrange_MNFS_matrix ${ARGS_REA} > ${LOG_REA} 2>&1
 check_error "$?"
