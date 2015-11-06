@@ -82,7 +82,19 @@ end if;
 
 // Computing...
 printf "Computing kernel...\n";
+
+if false then
+
 time v := ModularSolution(M, ell : Lanczos := false);
+
+else
+  N := ChangeRing(M, GF(ell));
+  time K := NullspaceOfTranspose (N);
+  d := Dimension(K);
+  printf "Dim(K)=%o\n", d;
+  printf "K:=%m;\n", K;
+  exit;
+end if;
 
 printf "Write result to %o...\n", kerfile;
 SetOutputFile(kerfile: Overwrite:=true);
@@ -90,4 +102,22 @@ for i := 1 to Dimension(Parent(v)) do
     print v[i];
 end for;
 UnsetOutputFile();
+
+printf "Check...\n";
+for i in [1..m] do
+  c := GF(ell) ! 0;
+  for j in Support (M, i) do
+    c := c + v[j]*M[i][j];
+  end for;
+  if c ne 0 then
+    print "# Error", i-1, c;
+  end if;
+end for;
+
+for i in [1..5] do
+    printf "i=%o:", i;
+    for j in Support (M, i) do printf " %o:%o", j-1, M[i][j]; end for;
+    printf "\n";
+end for;
+
 exit;
