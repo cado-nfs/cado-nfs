@@ -21,7 +21,6 @@
 #include "mpz_poly.h"
 #include "size_optimization.h"
 
-#define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define INIT_FACTOR 8UL
 #define PREFIX_HASH
 //#define DEBUG_POLYSELECT
@@ -64,6 +63,8 @@ unsigned long collisions = 0;
 unsigned long collisions_good = 0;
 double *best_opt_logmu, *best_logmu;
 double optimize_time = 0.0;
+mpz_t admin, admax;
+int tries = 0;
 
 static void
 mutex_lock(pthread_mutex_t *lock)
@@ -123,6 +124,17 @@ crt_sq ( mpz_t qqz,
   mpz_clear (mod);
   mpz_clear (inv);
   mpz_clear (sum);
+}
+
+/* check that l <= m0/P^2 where l = p1 * p2 * q with P <= p1, p2 <= 2P
+   and q is the product of special-q primes.
+   This will ensure that we can do rotation by x^(d-3)*g(x), since the
+   expected value of a[d-2] is m0/P^2, and x^(d-3)*g(x) has coefficient
+   l for degree d-2. */
+static int
+check_parameters (mpz_t m0, double q)
+{
+  return pow ((double) Primes[lenPrimes - 1], 4.0) * q < mpz_get_d (m0);
 }
 
 /* print poly info */
@@ -1290,6 +1302,7 @@ collision_on_sq ( header_t header,
   unsigned int i;
   unsigned long j, lq = 0UL;
   qroots_t SQ_R;
+  double sq = 1.0;
 
   /* init special-q roots */
   qroots_init (SQ_R);
@@ -1298,9 +1311,12 @@ collision_on_sq ( header_t header,
 
   /* find a suitable lq */
   for (i = 0; i < SQ_R->size; i++) {
-    if (prod < nq) {
+    if (prod <= nq / (int) header->d) {
+      if (!check_parameters (header->m0, sq * (double) SQ_R->q[i]))
+        break;
       prod *= header->d; /* We multiply by d instead of SQ_R->nr[i] to limit
                             the number of primes and thus the Y1 value. */
+      sq *= (double) SQ_R->q[i];
       lq ++;
     }
   }
@@ -1705,11 +1721,36 @@ newAlgo (mpz_t N, unsigned long d, mpz_t ad)
   header_clear (header);
 }
 
+/* return zero when no more ad is available,
+   otherwise put in ad the next value (i is the thread number). */
+static int
+next_ad (mpz_t ad, int i)
+{
+  int ret;
+
+  mutex_lock (&lock);
+  ret = mpz_cmp (admin, admax) < 0;
+  if (ret)
+    {
+      mpz_set (ad, admin);
+      tries ++;
+      if (verbose >= 1)
+        {
+          gmp_printf ("# thread %d: ad=%Zd\n", i, ad);
+          fflush (stdout);
+        }
+      mpz_add_ui (admin, admin, incr);
+    }
+  mutex_unlock (&lock);
+  return ret;
+}
+
 void*
 one_thread (void* args)
 {
   tab_t *tab = (tab_t*) args;
-  newAlgo (tab[0]->N, tab[0]->d, tab[0]->ad);
+  while (next_ad (tab[0]->ad, tab[0]->thread))
+    newAlgo (tab[0]->N, tab[0]->d, tab[0]->ad);
   return NULL;
 }
 
@@ -1734,7 +1775,6 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "out", "filename for msieve-format output");
   snprintf (str, 200, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
   param_list_decl_usage(pl, "sopteffort", str);
-  snprintf(str, 200, "time interval (seconds) for printing statistics (default %d)", TARGET_TIME / 1000);
   param_list_decl_usage(pl, "s", str);
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
   param_list_decl_usage(pl, "v", "(switch) verbose mode");
@@ -1759,11 +1799,10 @@ main (int argc, char *argv[])
 {
   char **argv0 = argv;
   double st0 = seconds (), maxtime = DBL_MAX;
-  mpz_t N, admin, admax;
+  mpz_t N;
   unsigned int d = 0;
   unsigned long P = 0;
-  int quiet = 0, tries = 0, nthreads = 1, st,
-    target_time = TARGET_TIME, incr_target_time = TARGET_TIME;
+  int quiet = 0, nthreads = 1, st;
   tab_t *T;
   pthread_t tid[MAX_THREADS];
 
@@ -1839,8 +1878,6 @@ main (int argc, char *argv[])
 
   param_list_parse_int (pl, "t", &nthreads);
   param_list_parse_int (pl, "nq", &nq);
-  param_list_parse_int (pl, "s", &target_time);
-  incr_target_time = target_time;
   param_list_parse_uint (pl, "degree", &d);
 
   /* if no -admin is given, mpz_init did set it to 0, which is exactly
@@ -1911,9 +1948,8 @@ main (int argc, char *argv[])
   st = milliseconds ();
   lenPrimes = initPrimes (P, &Primes);
 
-  printf ("# Info: initializing %lu P primes took %lums, nq=%d, "
-          "target_time=%d\n", lenPrimes, milliseconds () - st, nq,
-          target_time / 1000 );
+  printf ("# Info: initializing %lu P primes took %lums, nq=%d\n",
+          lenPrimes, milliseconds () - st, nq);
   printf ( "# Info: estimated peak memory=%.2fMB (%d thread(s),"
            " batch %d inversions on SQ)\n",
            (double) (nthreads * (BATCH_SIZE * 2 + INIT_FACTOR) * lenPrimes
@@ -1952,43 +1988,11 @@ main (int argc, char *argv[])
   if (mpz_cmp_ui (admin, 0) == 0)
     mpz_set_ui (admin, incr);
 
-  while (mpz_cmp (admin, admax) < 0 && seconds () - st0 <= maxtime)
-  {
-    int i;
-    for (i = 0; i < nthreads && mpz_cmp (admin, admax) < 0; i++)
-    {
-      tries ++;
-      if (verbose >= 1)
-        gmp_printf ("# %d ad=%Zd\n", tries, admin);
-      mpz_set (T[i]->ad, admin);
-      pthread_create (&tid[i], NULL, one_thread, (void *) (T+i));
-      mpz_add_ui (admin, admin, incr);
-    }
-    /* we have created i threads, with i = nthreads usually, except at the
-       end of the [admin, admax-1] range where we might have i < nthreads */
-    while (i > 0)
-      pthread_join (tid[--i], NULL);
-
-    if (milliseconds () > (unsigned long) target_time || verbose > 0)
-    {
-      double mean = aver_opt_lognorm / collisions_good;
-      double rawmean = aver_raw_lognorm / collisions;
-
-      gmp_printf ("# Stat: ad=%Zd, exp. coll.=%1.2f (%0.2e/s), got %lu with %lu good ones, av. lognorm=%1.2f (min=%1.2f,std=%1.2f), av. raw. lognorm=%1.2f (min=%1.2f,std=%1.2f), time=%lums\n",
-              admin,
-              potential_collisions,
-              1000.0 * (double) potential_collisions / milliseconds (),
-              collisions,
-              collisions_good,
-              mean, min_opt_lognorm,
-              sqrt (var_opt_lognorm / collisions_good - mean * mean),
-              rawmean, min_raw_lognorm,
-              sqrt (var_raw_lognorm / collisions - rawmean * rawmean),
-              milliseconds () );
-      fflush (stdout);
-      target_time += incr_target_time;
-    }
-  }
+  int i;
+  for (i = 0; i < nthreads; i++)
+    pthread_create (&tid[i], NULL, one_thread, (void *) (T+i));
+  for (i = 0; i < nthreads; i++)
+    pthread_join (tid[i], NULL);
 
   /* finishing up statistics */
   if (verbose >= 0)

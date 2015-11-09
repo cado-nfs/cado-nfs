@@ -10,10 +10,10 @@ name = p60
 
 ## The "dlp" flag tells the main script that we want to do dlog
 dlp = true
-## N is the prime modulo which we want dlogs and gorder is the prime
+## N is the prime modulo which we want dlogs and ell is the prime
 ## factor of N-1 modulo which the computations are done.
 #  N = 53236943330228380237618624445646085674945074907141464418703
-#  gorder = 46188898894770668459
+#  ell = 46188898894770668459
 
 # If you don't want the "full column of 1", uncomment the following line.
 # In particular when both polynomials are not monic, this could help.
@@ -70,10 +70,6 @@ slaves.niceness = 10
 tasks.filter.maxlevel = 15
 tasks.filter.merge.forbw = 3
 tasks.filter.coverNmax = 100
-
-## uncomment to replace sm by explicit units (experimental)
-# tasks.explicit_units = true
-#
 
 tasks.reconstructlog.partial=false
 

@@ -13,9 +13,9 @@ dlp = true
 gfpext = 2
 
 # N is the prime p (inherited from factorization, sorry...)
-# gorder is the factor of N+1 modulo which the computations are done
+# ell is the factor of N+1 modulo which the computations are done
 # N = 100000000000000000039
-# gorder = 164354743277891
+# ell = 164354743277891
 
 ## Flags to (des-)activate the appropriate funcionalities
 #

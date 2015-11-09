@@ -16,8 +16,8 @@ id="${SOURCE_TEST_DIR}/testsm.p59.index.gz"
 go="2926718140519"
 
 
-args="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -nsm 0,4"
-args2="-poly ${poly} -purged ${purged} -index ${id} -gorder ${go} -nsm 0,2"
+args="-poly ${poly} -purged ${purged} -index ${id} -ell ${go} -nsm 0,4"
+args2="-poly ${poly} -purged ${purged} -index ${id} -ell ${go} -nsm 0,2"
 
 #with -nsm 0,4 (ie nsm = deg F-1) and -t 1
 if ! "${SM}" ${args} -out "${TMPDIR}/sm.4.1" -t 1 ; then

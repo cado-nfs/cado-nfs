@@ -39,6 +39,7 @@ AC_SUBST([gf2x_lib_version], [1:2:0])
 
 AM_INIT_AUTOMAKE([1.13])
 
+# disable for releases: AM_MAINTAINER_MODE([disable])
 AM_MAINTAINER_MODE([disable])
 
 LT_INIT()

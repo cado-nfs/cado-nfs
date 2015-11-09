@@ -52,12 +52,12 @@
 # General parameters are relevant to the behaviour of the cadofactor.py script.
 
 # - location and name of files -
-name = c91
+name = c90
 # All files created by cadofactor will be prefixed by this name.
 
-# N: The number to be factored. This c91 here is given only as an example,
+# N: The number to be factored. This c90 here is given only as an example,
 # replace it in this file or override it on the command line
-N = 7484129778122762762905825615590903357866314150303868023217155766667760580146456538241613273
+N = 482940676938975075806475467716373950242726509723517010302524110187257004202892794033435637
 
 # Adjust sourcedir to point to the root of your CADO source directory.
 # This parameter is not actually used by cadofactor directly, but it is
@@ -165,11 +165,13 @@ tasks.polyselect.adrange = 5000		# size of individual tasks
     # (polsel_admax-polsel_admin)/polsel_adrange. Each such task is issued as
     # a workunit to a slave for computation.
 
-tasks.polyselect.nq = 1000
+tasks.polyselect.nq = 256
     # Number of small primes in the leading coefficient of the linear polynomial
     # Safe to leave at the default value
     # Recommended values are powers of the degree, e.g., 625 for degree 5,
-    # or 1296 for degree 6.
+    # or 1296 for degree 6. Here 256 = 4^4 thus the leading coefficient of
+    # the linear polynomial will be q1*q2*q3*q4*p1*p2 where q1,q2,q3,q4 are
+    # small primes, and P <= p1, p2 < 2*P.
 
 
 ###########################################################################
@@ -422,7 +424,7 @@ slaves.niceness = 10		# nice level for the sieving jobs
 # Since this example runs its slaves on localhost, we use a subdirectory
 # of the cadofactor.py working directory, so that all files of both master
 # and clients can be cleaned up easily.
-slaves.basepath = /tmp/c91.wuclients
+slaves.basepath = /tmp/c90.wuclients
 
 # If you want to launch clients on multiple groups of slave machines, with
 # different parameters per group, you can group them by different parameter

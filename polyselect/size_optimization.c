@@ -303,11 +303,32 @@ sopt_compute_roots_and_extrema_close_to_0 (double *roots_and_extrema,
    f(x+k)[d-2] / g(x+k)[1] ~ f(x+k)[d-3] / g(x+k)[0].
    In such a way LLL will reduce simultaneously f[d-2] and f[d-3]. */
 static void
-sopt_find_translations_extra (list_mpz_t list_k, mpz_poly_srcptr f,
+sopt_find_translations_extra (list_mpz_t list_k, mpz_poly_srcptr f0,
                               mpz_poly_srcptr g, const int verbose)
 {
-  int d = f->deg;
+  int d = f0->deg;
   double cd, cdm1, cdm2, cdm3, g1, g0;
+  mpz_poly_t f;
+
+  mpz_poly_init (f, d);
+  mpz_poly_set (f, f0);
+
+  /* Since g[1] and g[0] are of opposite signs, we want f[d-2] and f[d-3] to
+     be of opposite signs too. */
+
+  int count = 0;
+  while (mpz_sgn (f->coeff[d-2]) == mpz_sgn (f->coeff[d-3]) && count < 100)
+    {
+      mpz_t k;
+      count ++;
+      mpz_init (k);
+      if (mpz_sgn (f->coeff[d-3]) == mpz_sgn (g->coeff[0]))
+        mpz_set_si (k, -1);
+      else
+        mpz_set_si (k, 1);
+      mpz_poly_rotation (f, f, g, k, d-3);
+      mpz_clear (k);
+    }
 
   cd = mpz_get_d (f->coeff[d]);
   cdm1 = mpz_get_d (f->coeff[d-1]);
@@ -341,6 +362,7 @@ sopt_find_translations_extra (list_mpz_t list_k, mpz_poly_srcptr f,
       list_mpz_append_from_rounded_double (list_k, roots[i]);
     }
   double_poly_clear (res);
+  mpz_poly_clear (f);
 }
 
 /* For deg(f) = 6 and deg(g) = 1 */

@@ -3822,9 +3822,6 @@ class NmbrthryTask(Task):
         stdout = message.read_stdout(0).decode("utf-8")
         update = {}
         for line in stdout.splitlines():
-            match = re.match(r'ell (\d+)', line)
-            if match:
-                update["ell"] = int(match.group(1))
             match = re.match(r'nmaps0 (\d+)', line)
             if match:
                 update["nmaps0"] = int(match.group(1))
@@ -3839,8 +3836,6 @@ class NmbrthryTask(Task):
         update["badinfofile"] = badinfofile.get_wdir_relative()
         update["badfile"] = badfile.get_wdir_relative()
         
-        if not "ell" in update:
-            raise Exception("Stdout does not give ell")
         if not "nmaps0" in update:
             raise Exception("Stdout does not give nmaps0")
         if not "nmaps1" in update:
@@ -3852,7 +3847,6 @@ class NmbrthryTask(Task):
         # Update the state entries atomically
         self.state.update(update)
 
-        self.logger.info("Will compute Dlog modulo %s", self.state["ell"])
         self.logger.debug("Exit NmbrthryTask.run(" + self.name + ")")
         return True
 
@@ -3861,9 +3855,6 @@ class NmbrthryTask(Task):
     
     def get_bad_filename(self):
         return self.get_state_filename("badfile")
-    
-    def get_ell(self):
-        return self.state["ell"]
     
     def get_nmaps(self):
         return (self.state["nmaps0"], self.state["nmaps1"])
@@ -3879,7 +3870,7 @@ class LinAlgDLPTask_Magma(Task):
         return "Linear Algebra for DLP"
     @property
     def programs(self):
-        return ((cadoprograms.MagmaLinalg, ("ker", "ell", "nmaps"),
+        return ((cadoprograms.MagmaLinalg, ("ker", "nmaps"),
                  {"sparsemat": Request.GET_MERGED_FILENAME,
                   "sm": Request.GET_SM_FILENAME}),)
     @property
@@ -3895,12 +3886,10 @@ class LinAlgDLPTask_Magma(Task):
 
         if not "kerfile" in self.state or self.have_new_input_files():
             kerfile = self.workdir.make_filename("ker")
-            gorder = self.send_request(Request.GET_ELL)
             nmaps = self.send_request(Request.GET_NMAPS)
             nn = nmaps[0] + nmaps[1];
             (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.MagmaLinalg.name)
             p = cadoprograms.MagmaLinalg(ker=kerfile,
-                                   ell=gorder,
                                    nmaps=nn,
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
@@ -3936,7 +3925,7 @@ class LinAlgDLPTask(Task):
         return "Linear Algebra"
     @property
     def programs(self):
-        override = ("complete", "rhs", "prime", "matrix",  "wdir",
+        override = ("complete", "rhs", "matrix",  "wdir",
                 "nullspace", "m", "n")
         return ((cadoprograms.BWC, override,
                  {"merged": Request.GET_MERGED_FILENAME,
@@ -3945,7 +3934,7 @@ class LinAlgDLPTask(Task):
     def paramnames(self):
         # the default value for m and n is to use the number of SMs for
         # n, and then m=2*n
-        return self.join_params(super().paramnames, {"m": 0, "n": 0})
+        return self.join_params(super().paramnames, {"m": 0, "n": 0, "ell": int})
     
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -3981,11 +3970,14 @@ class LinAlgDLPTask(Task):
                 self.logger.info("Using 2*n=%d as default value for m" % m)
             else:
                 m = self.params["m"]
+            if n == 0:
+                self.logger.error("Error: homogeneous Linalg is not implemented")
+                raise Exception("Program failed")
 
             p = cadoprograms.BWC(complete=True,
                                  matrix=matrix,  wdir=wdir,
-                                 prime=self.send_request(Request.GET_ELL),
                                  rhs=smfile,
+                                 prime=self.params["ell"],
                                  mm_impl="basicp",
                                  nullspace="right",
                                  stdout=str(stdoutpath),
@@ -4390,10 +4382,8 @@ class SMTask(Task):
         return "Schirokauer Maps"
     @property
     def programs(self):
-        override = ("ell", "nmaps0", "nmaps1", "out")
+        override = ("nsm", "out")
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
-                 "renumber": Request.GET_RENUMBER_FILENAME,
-                 "badidealinfo": Request.GET_BADIDEALINFO_FILENAME,
                  "purged": Request.GET_PURGED_FILENAME,
                  "index": Request.GET_INDEX_FILENAME}
         return ((cadoprograms.SM, override, input),)
@@ -4414,17 +4404,11 @@ class SMTask(Task):
                 self.logger.info("Number of SM is 0: skipping this part.")
                 return True
             smfilename = self.workdir.make_filename("sm")
-            abunitsdirname = self.workdir.make_filename("abunits")
 
-            gorder = self.send_request(Request.GET_ELL)
-            
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
-            p = cadoprograms.SM(ell=gorder,
-                    nmaps0=nmaps[0],
-                    nmaps1=nmaps[1],
+            p = cadoprograms.SM(nsm=str(nmaps[0])+","+str(nmaps[1]),
                     out=smfilename,
-		    abunits=abunitsdirname,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
@@ -4434,15 +4418,11 @@ class SMTask(Task):
             if not smfilename.isfile():
                 raise Exception("Output file %s does not exist" % smfilename)
             self.state["sm"] = smfilename.get_wdir_relative()
-            self.state["abunits"] = abunitsdirname.get_wdir_relative()
         self.logger.debug("Exit SMTask.run(" + self.name + ")")
         return True
     
     def get_sm_filename(self):
         return self.get_state_filename("sm")
-
-    def get_abunits_dirname(self):
-        return self.get_state_filename("abunits")
 
 class ReconstructLogTask(Task):
     """ Logarithms Reconstruction Task """
@@ -4455,8 +4435,8 @@ class ReconstructLogTask(Task):
     @property
     def programs(self):
         input = {"ker": Request.GET_KERNEL_FILENAME,}
-        override = ("dlog",  "ell", "nmaps0", "nmaps1", "nrels",
-                "abunits0", "abunits1", "poly", "renumber",
+        override = ("dlog", "nmaps0", "nmaps1", "nrels",
+                "poly", "renumber",
                 "purged", "ideals", "relsdel")
         return ((cadoprograms.ReconstructLog, override, input),)
     @property
@@ -4474,20 +4454,16 @@ class ReconstructLogTask(Task):
 
         if (not "dlog" in self.state) or self.have_new_input_files():
             dlogfilename = self.workdir.make_filename("dlog")
-            gorder = self.send_request(Request.GET_ELL)
             nmaps = self.send_request(Request.GET_NMAPS)
 
             nfree = self.send_request(Request.GET_FREEREL_RELCOUNT)
             nunique = self.send_request(Request.GET_UNIQUE_RELCOUNT)
             nrels = nfree+nunique
 
-            abunitsdirname = self.send_request(Request.GET_UNITS_DIRNAME)
-                 
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
-                    ell=gorder,
                     poly=self.send_request(Request.GET_POLYNOMIAL_FILENAME),
                     renumber=self.send_request(Request.GET_RENUMBER_FILENAME),
                     purged=self.send_request(Request.GET_PURGED_FILENAME),
@@ -4495,8 +4471,6 @@ class ReconstructLogTask(Task):
                     relsdel=self.send_request(Request.GET_RELSDEL_FILENAME),
                     nsm=str(nmaps[0])+","+str(nmaps[1]),
                     nrels=nrels,
-		    abunits0=str(abunitsdirname) + ".0",
-		    abunits1=str(abunitsdirname) + ".1",
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
@@ -4986,7 +4960,6 @@ class Request(Message):
     GET_BADIDEAL_FILENAME = object()
     GET_BADIDEALINFO_FILENAME = object()
     GET_SMEXP = object()
-    GET_ELL = object()
     GET_NMAPS = object()
     GET_WU_RESULT = object()
     GET_DB_FILENAME = object()
@@ -5004,7 +4977,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
     def paramnames(self):
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
-        return {"name": str, "workdir": str, "N": int, "dlp": False,
+        return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
                 "gfpext": 1, "trybadwu": False, "target": 0}
     @property
     def title(self):
@@ -5212,9 +5185,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_BADIDEAL_FILENAME] = self.nmbrthry.get_bad_filename
             self.request_map[Request.GET_BADIDEALINFO_FILENAME] = self.nmbrthry.get_badinfo_filename
             self.request_map[Request.GET_NMAPS] = self.nmbrthry.get_nmaps
-            self.request_map[Request.GET_ELL] = self.nmbrthry.get_ell
             self.request_map[Request.GET_SM_FILENAME] = self.sm.get_sm_filename
-            self.request_map[Request.GET_UNITS_DIRNAME] = self.sm.get_abunits_dirname
             self.request_map[Request.GET_RELSDEL_FILENAME] = self.purge.get_relsdel_filename
             self.request_map[Request.GET_KERNEL_FILENAME] = self.linalg.get_virtual_logs_filename
             self.request_map[Request.GET_VIRTUAL_LOGS_FILENAME] = self.linalg.get_virtual_logs_filename
@@ -5272,7 +5243,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             return None
 
         if self.params["dlp"]:
-            ret = [ self.params["N"], self.nmbrthry.get_ell() ] + self.reconstructlog.get_log2log3()
+            ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()
             if self.params["target"]:
                 ret = ret + [self.descent.get_logtarget()]
             return ret

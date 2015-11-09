@@ -27,8 +27,6 @@ Options:
                   - comma-separated list of hosts to use for factorization.
                     With -s <n>, run <n> many scripts per host.
                     Default: localhost
-    -timeout <integer>
-                  - abort computation after this many seconds
     -dlpnokeep    - disable the feature that CADO_DEBUG is set by default
                     in dlp mode
 
@@ -52,32 +50,6 @@ Use of 'auto' for -t and -s:
     keeps all the cores busy. For other multithreaded programs, we use as
     many threads as we have available cores.
 EOF
-}
-
-# If a duration is specified, find the "timeout" binary and store its
-# path and the duration in the TIMEOUT array. If no duration is specified,
-# or if the timeout binary is not found, leave TIMEOUT unset.
-# Returns 1 (false) if a timeout was requested and the binary was not found.
-# Otherwise returns 0 (true).
-# We use an array for TIMEOUT so that we can expand it to exactly 3 words on
-# the resulting command line.
-function find_timeout() {
-    local TIMEOUT_DURATION="$1"
-    test -z "$TIMEOUT_DURATION" && return 0
-    # Maybe it's not a GNU system, but with GNU coreutils installed
-    # with "g" prefix to all binaries
-    for TIMEOUT_NAME in timeout gtimeout
-    do
-        TIMEOUT_BIN="`which timeout 2>/dev/null`"
-        if [ -n "$TIMEOUT_BIN" ]
-        then
-            TIMEOUT[0]="$TIMEOUT_BIN"
-            TIMEOUT[1]="--signal=SIGINT"
-            TIMEOUT[2]="$TIMEOUT_DURATION"
-            return 0
-        fi
-    done
-    return 1
 }
 
 # Set "t" to a temp directory, if not already set.
@@ -122,14 +94,6 @@ while [ "$#" -gt 0 ] ; do
         shift 2
     elif [ "$1" = "-h" ]; then
         hostnames="$2"
-        shift 2
-    elif [ "$1" = "-timeout" ]; then
-        timeout="$2"
-        want_number -timeout "timeout value" $2
-        if ! find_timeout $2
-        then
-            echo "timeout binary not found. Timeout disabled"
-        fi
         shift 2
     elif [ "$1" = "-dlp" ]; then
         dlp=true
@@ -264,7 +228,6 @@ size=${#n}
 
 # we round to the nearest multiple of 5
 size=`expr \( \( $size + 2 \) \/ 5 \) \* 5`
-echo $size
 
 if $dlp ; then
     if [ $gfpext = "1" ]; then
@@ -377,7 +340,7 @@ if [ "$cpubinding_file" ] ; then
 fi
 
 if [ $ell != "1" ]; then
-    args=("${args[@]}" gorder=$ell)
+    args=("${args[@]}" ell=$ell)
 fi
 
 # $PYTHON is there to expand a shell variable having that name, if
@@ -385,9 +348,7 @@ fi
 # one which is named otherwise, or placed in a non-prority location
 # is the path, is preferred. If $PYTHON is empty, this is a no-op
 
-# Same mechanism for TIMEOUT
-
-"${TIMEOUT[@]}" $PYTHON $cadofactor "$t/param" N=$n "${args[@]}"
+$PYTHON $cadofactor "$t/param" N=$n "${args[@]}"
 
 rc=$?
 

@@ -1,3 +1,42 @@
+Main changes between cado-nfs-2.1.1 and cado-nfs-2.2:
+
+* Main algorithmic improvements:
+  - polynomial selection: algorithm of Bai, Bouvier, Kruppa, Zimmermann
+    (Better polynomials for GNFS, 2015) has been implemented.
+  - relation collection: multi-level buckets for better handling of
+    medium-sized primes; cofactorization strategies à la Kleinjung. Both
+    features are experimental, and not activated by default.
+  - linear algebra: support for non-binary base field (for dlp),
+    including the removal of the overhead due to SMs.
+* DLP support: now fully functional over prime fields, including the
+  descent step. Still requires Magma for a small number-theoretic
+  computation at the beginning (dependency will be removed sooner or later).
+  See README.dlp for further details.
+* In local.sh, the customization of the build_tree using the $up_path
+  variable used to be phrased as: build_tree="${up_path}some/sub/path".
+  Now it should be build_tree="${up_path}/some/sub/path", as $up_path no
+  longer embodies a trailing /
+* The polynomial file now supports another format. For giving a
+  polynomial, a line like 
+    poly0=17,42,34,55
+  can be written, to set the polynomial 17+42*x+34*x^2+55*x^3 on side 0.
+  The old format with X, c, Y,... is still supported, with c and X for
+  side 1 and Y for side 0.
+* References to rational or algebraic sides have been reduced (at least
+  internally). This means that several parameters have now aliases
+  corresponding to sizes. For instance, the parameter -lpb1 for las is an
+  alias of -lpba. The common convention is that the rational side (if
+  any) is on side 0, but everything will work if a polynomial file is imported
+  with the rational side on side 1.
+* Various changes in the parameter list for the linear algebra task,
+  in particular, the linalg.bwc.mn=... parameter is replaced by 2
+  separate parameters for m and n. Also the rhs=... parameter allows
+  non-homogeneous system solving (useful for handling SMs with no
+  overhead in DLP mode).
+* An estimated time of arrival (ETA) is now printed during the polynomial
+  selection and sieving steps. It corresponds to the estimate finish time
+  of each of those steps (not the full factorization).
+
 Main changes between cado-nfs-2.1 and cado-nfs-2.1.1:
 
 * Added test-case in wuclient2.py for buggy Python MIME encoder to prevent

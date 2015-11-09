@@ -15,6 +15,7 @@ unset MPIR
 make makefb
 make las
 build/$M/sieve/makefb -lim 500000000 -maxbits 14 -poly /localdisk/tmp/rsa704/rsa704.poly -t 4 > /localdisk/tmp/rsa704/rsa704.roots
+# -bkthresh1 50000000
 build/$M/sieve/las -poly /localdisk/tmp/rsa704/rsa704.poly -lim0 250000000 -lim1 500000000 -lpb0 33 -lpb1 33 -mfb0 66 -mfb1 99 -fb1 /localdisk/tmp/rsa704/rsa704.roots -I 15 -q0 1000000000 -q1 1000010000 -lambda1 3.2 -lambda0 2.1 -powlim1 32767 -powlim0 32767 2>&1 > /localdisk/cado-nfs/rsa704/$rev
 cd $HOME
 /bin/rm -fr $d

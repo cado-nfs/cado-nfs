@@ -26,7 +26,7 @@ to let it start two clients on localhost. The scriptpath parameter must be the p
 
 
 For complex set-ups, it is preferable to write a parameter file. Some examples are in "parameters", "parameters.oar", and "parameters.rsa512.oar".
-The params/params.c91 file contains extensive comments describing the most common parameters.
+The params/params.c90 file contains extensive comments describing the most common parameters.
 
 The .oar parameter files are meant for cadofactor scripts that run *inside* an OAR submission on clusters that use OAR as the job scheduler,
 such as Grid5000, as they read the list of slave hostnames from the OAR node file.

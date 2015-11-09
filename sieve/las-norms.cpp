@@ -768,6 +768,9 @@ void init_exact_degree_X_norms_bucket_region_internal (unsigned char *S, uint32_
     /* These ASM & switch are really ugly. But it's the ONLY way to
        be sure all the line of S is set only with registers. */
     switch (d) {
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
+      /* the Intel compiler icpc fails with "internal error" with the code
+	 below (version 14.0.3 20140422) */
     case 2:
       __asm__ __volatile__ ( BEGIN
       FU(2) U1 U0 LG2ABS FU(2) U1 U0 LG2ABS
@@ -853,6 +856,7 @@ void init_exact_degree_X_norms_bucket_region_internal (unsigned char *S, uint32_
 	[u0]"x"(u[0]), [u1]"x"(u[1]), [u2]"x"(u[2]), [u3]"x"(u[3]), [u4]"x"(u[4]),
         [u5]"x"(u[5]), [u6]"x"(u[6]), [u7]"x"(u[7]), [u8]"x"(u[8]), [u9]"x"(u[9]));
       break;
+#endif
     default:
       do {
 	f = u[d]; for (size_t k = d; k; f = _mm_add_pd(_mm_mul_pd(f,h),u[--k]));

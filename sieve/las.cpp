@@ -1792,7 +1792,12 @@ apply_one_bucket (unsigned char *S,
       uint64_t x0, x1, x2, x3, x4, x5, x6, x7;
       uint16_t x;
 #ifdef HAVE_SSE2
+#if defined(__ICC) || defined(__INTEL_COMPILER)
+      /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45414 */
+      _mm_prefetch(((const char *) it)+256, _MM_HINT_NTA);
+#else
       _mm_prefetch(((unsigned char *) it)+256, _MM_HINT_NTA);
+#endif
 #endif
       x0 = ((uint64_t *) it)[0];
       x1 = ((uint64_t *) it)[1];

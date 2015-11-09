@@ -27,9 +27,11 @@
 
 #include "gf2x/gf2x-config.h"
 
-#include <sys/types.h>    /* for cputime */
+#include <sys/types.h>
 #ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h> /* for cputime */
+#include <sys/resource.h>
+#else
+#include <time.h>
 #endif  /* HAVE_SYS_RESOURCE_H */
 #include <stdint.h>
 #include "timing.h"
@@ -45,6 +47,6 @@ uint64_t microseconds()
         r += (uint64_t) res->ru_utime.tv_usec;
         return r;
 #else
-        return 0;
+        return clock () / (CLOCKS_PER_SEC / 1000000);
 #endif
 }

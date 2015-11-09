@@ -507,7 +507,7 @@ search_survivors_in_line1(unsigned char * const SS[2],
     unsigned int div[6][2], nr_div;
 
     nr_div = extract_j_div(div, j, j_div, 3, td_max);
-    ASSERT(nr_div <= 6);
+    ASSERT_ALWAYS(nr_div <= 6);
 
 #ifdef HAVE_SSE2
     const __m128i sse2_sign_conversion = _mm_set1_epi8(-128);
@@ -574,7 +574,7 @@ search_survivors_in_line3(unsigned char * const SS[2],
     unsigned int nr_div;
 
     nr_div = extract_j_div(div, j, j_div, pmin, td_max);
-    ASSERT(nr_div <= 5);
+    ASSERT_ALWAYS(nr_div <= 5);
 
     patterns[0][0] = patterns[0][1] = patterns[0][2] = 
         _mm_xor_si128(_mm_set1_epi8(bound[0] + 1), sse2_sign_conversion);
@@ -640,7 +640,7 @@ search_survivors_in_line5(unsigned char * const SS[2],
     unsigned int nr_div;
 
     nr_div = extract_j_div(div, j, j_div, pmin, td_max);
-    ASSERT(nr_div <= 5);
+    ASSERT_ALWAYS(nr_div <= 5);
 
     for (int i = 0; i < nr_patterns; i++) {
         patterns[0][i] = _mm_xor_si128(_mm_set1_epi8(bound[0] + 1), sse2_sign_conversion);

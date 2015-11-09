@@ -953,7 +953,7 @@ class MagmaNmbrthry(Program):
                  N: Parameter("p"),
                  badidealinfo: Parameter("badinfofile"),
                  badideals: Parameter("badfile"),
-                 gorder: Parameter("ell")=None,
+                 ell: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1021,22 +1021,16 @@ class BWC(Program):
         super().__init__(locals(), **kwargs)
 
 class SM(Program):
-    binary = "magma-sm-wrapper.sh"
+    binary = "sm"
     name = binary
-    subdir = "scripts"
+    subdir = "filter"
     def __init__(self, *,
                  poly: Parameter(),
-		 renumber: Parameter(),
-		 badidealinfo: Parameter(),
                  purged: Parameter(),
                  index: Parameter(),
                  out: Parameter(),
-                 ell: Parameter("gorder"),
-                 explicit_units0: Toggle()=None,
-                 explicit_units1: Toggle()=None,
-		 abunits: Parameter(),
-                 nmaps0: Parameter("nsm0")=None,
-                 nmaps1: Parameter("nsm1")=None,
+                 ell: Parameter(),
+                 nsm: Parameter()=None,
                  threads: Parameter("t")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
@@ -1046,7 +1040,7 @@ class ReconstructLog(Program):
     name = binary
     subdir = "filter"
     def __init__(self, *,
-                 ell: Parameter("gorder"),
+                 ell: Parameter(),
                  threads: Parameter("mt")=None,
                  ker: Parameter("log", is_input_file=True),
                  dlog: Parameter("out"),
@@ -1058,10 +1052,6 @@ class ReconstructLog(Program):
                  nrels: Parameter(),
                  partial: Toggle()=None,
                  nsm: Parameter(),
-                 explicit_units0: Toggle()=None,
-                 explicit_units1: Toggle()=None,
-    		 abunits0: Parameter(),
-    		 abunits1: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1088,6 +1078,7 @@ class Descent(Program):
                  mfb1: Parameter(prefix="--"),
                  lim0: Parameter(prefix="--"),
                  lim1: Parameter(prefix="--"),
+                 ell: Parameter(prefix="--"),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 

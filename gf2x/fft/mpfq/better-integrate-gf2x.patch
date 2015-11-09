@@ -1,89 +1,21 @@
 diff --git a/fft/mpfq/i386/mpfq_2_128.h b/fft/mpfq/i386/mpfq_2_128.h
-index eefa0d5..9cb92eb 100644
+index 143b97e..4be62f6 100644
 --- a/fft/mpfq/i386/mpfq_2_128.h
 +++ b/fft/mpfq/i386/mpfq_2_128.h
-@@ -11,9 +11,12 @@
+@@ -11,9 +11,11 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#ifdef  HAVE_GF2X
 +#include "gf2x.h"
-+#endif
++#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -1034,139 +1037,74 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
- }
- 
- /* *Mpfq::gf2n::mul::code_for_mul_ur */
-+#ifndef HAVE_GF2X
-+/* include something not too dumb, although we don't really care */
-+static inline void
-+mpfq_2_128_gf2x_mul1 (unsigned long *c, unsigned long a, unsigned long b)
-+{
-+   unsigned long hi, lo, tmp, A[16];
-+   A[0]  = 0;         A[1]  = a;         A[2]  = A[1] << 1; A[3]  = A[2] ^ a;
-+   A[4]  = A[2] << 1; A[5]  = A[4] ^ a;  A[6]  = A[3] << 1; A[7]  = A[6] ^ a;
-+   A[8]  = A[4] << 1; A[9]  = A[8] ^ a;  A[10] = A[5] << 1; A[11] = A[10] ^ a;
-+   A[12] = A[6] << 1; A[13] = A[12] ^ a; A[14] = A[7] << 1; A[15] = A[14] ^ a;
-+   lo = (A[b >> 28] << 4) ^ A[(b >> 24) & 15];
-+   hi = lo >> 24;
-+   lo = (lo << 8) ^ (A[(b >> 20) & 15] << 4) ^ A[(b >> 16) & 15];
-+   hi = (hi << 8) | (lo >> 24);
-+   lo = (lo << 8) ^ (A[(b >> 12) & 15] << 4) ^ A[(b >> 8) & 15];
-+   hi = (hi << 8) | (lo >> 24);
-+   lo = (lo << 8) ^ (A[(b >> 4) & 15] << 4) ^ A[b & 15];
-+   tmp = -((a >> 31) & 1); tmp &= ((b & 0xfefefefe) >> 1); hi = hi ^ tmp;
-+   tmp = -((a >> 30) & 1); tmp &= ((b & 0xfcfcfcfc) >> 2); hi = hi ^ tmp;
-+   tmp = -((a >> 29) & 1); tmp &= ((b & 0xf8f8f8f8) >> 3); hi = hi ^ tmp;
-+   tmp = -((a >> 28) & 1); tmp &= ((b & 0xf0f0f0f0) >> 4); hi = hi ^ tmp;
-+   tmp = -((a >> 27) & 1); tmp &= ((b & 0xe0e0e0e0) >> 5); hi = hi ^ tmp;
-+   tmp = -((a >> 26) & 1); tmp &= ((b & 0xc0c0c0c0) >> 6); hi = hi ^ tmp;
-+   tmp = -((a >> 25) & 1); tmp &= ((b & 0x80808080) >> 7); hi = hi ^ tmp;
-+   c[0] = lo; c[1] = hi;
-+}
-+static inline void mpfq_2_128_gf2x_mul2(unsigned long *c, const unsigned long *a,
-+			     const unsigned long *b)
-+{
-+    unsigned long t;
-+    unsigned long u[2];
-+
-+    mpfq_2_128_gf2x_mul1(c, a[0], b[0]);
-+    mpfq_2_128_gf2x_mul1(c + 2, a[1], b[1]);
-+    t = c[1] ^ c[2];
-+    mpfq_2_128_gf2x_mul1(u, a[0] ^ a[1], b[0] ^ b[1]);
-+    c[1] = c[0] ^ u[0] ^ t;
-+    c[2] = c[3] ^ u[1] ^ t;
-+}
-+static inline void mpfq_2_128_gf2x_mul4(unsigned long *c, const unsigned long *a,
-+		   const unsigned long *b)
-+{
-+    unsigned long aa[2], bb[2], ab[4];
-+    unsigned long lo[4], hi[4];
-+    mpfq_2_128_gf2x_mul2(lo, a, b);
-+    mpfq_2_128_gf2x_mul2(hi, a + 2, b + 2);
-+    aa[0] = a[0] ^ a[2];
-+    aa[1] = a[1] ^ a[3];
-+    bb[0] = b[0] ^ b[2];
-+    bb[1] = b[1] ^ b[3];
-+    unsigned long c24 = lo[2] ^ hi[0];
-+    unsigned long c35 = lo[3] ^ hi[1];
-+    mpfq_2_128_gf2x_mul2(ab, aa, bb);
-+    c[0] = lo[0];
-+    c[1] = lo[1];
-+    c[2] = ab[0] ^ lo[0] ^ c24;
-+    c[3] = ab[1] ^ lo[1] ^ c35;
-+    c[4] = ab[2] ^ hi[2] ^ c24;
-+    c[5] = ab[3] ^ hi[3] ^ c35;
-+    c[6] = hi[2];
-+    c[7] = hi[3];
-+}
-+#endif
-+
+@@ -1037,136 +1038,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
  static inline
  void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_ur t, mpfq_2_128_src_elt s1, mpfq_2_128_src_elt s2)
  {
@@ -217,73 +149,28 @@ index eefa0d5..9cb92eb 100644
 -#undef SHR
 -#undef SHLD
 -#undef SHRD
-+    mpfq_2_128_gf2x_mul4(t, s1, s2);
++    gf2x_mul4(t, s1, s2);
  }
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/i386/mpfq_2_64.h b/fft/mpfq/i386/mpfq_2_64.h
-index 7394af5..22c51e0 100644
+index 08f4cf7..d234625 100644
 --- a/fft/mpfq/i386/mpfq_2_64.h
 +++ b/fft/mpfq/i386/mpfq_2_64.h
-@@ -11,9 +11,12 @@
+@@ -11,9 +11,11 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#ifdef  HAVE_GF2X
 +#include "gf2x.h"
-+#endif
++#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -956,95 +959,51 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
- }
- 
- /* *Mpfq::gf2n::mul::code_for_mul_ur */
-+#ifndef HAVE_GF2X
-+/* include something not too dumb, although we don't really care */
-+static inline void
-+mpfq_2_64_gf2x_mul1 (unsigned long *c, unsigned long a, unsigned long b)
-+{
-+   unsigned long hi, lo, tmp, A[16];
-+   A[0]  = 0;         A[1]  = a;         A[2]  = A[1] << 1; A[3]  = A[2] ^ a;
-+   A[4]  = A[2] << 1; A[5]  = A[4] ^ a;  A[6]  = A[3] << 1; A[7]  = A[6] ^ a;
-+   A[8]  = A[4] << 1; A[9]  = A[8] ^ a;  A[10] = A[5] << 1; A[11] = A[10] ^ a;
-+   A[12] = A[6] << 1; A[13] = A[12] ^ a; A[14] = A[7] << 1; A[15] = A[14] ^ a;
-+   lo = (A[b >> 28] << 4) ^ A[(b >> 24) & 15];
-+   hi = lo >> 24;
-+   lo = (lo << 8) ^ (A[(b >> 20) & 15] << 4) ^ A[(b >> 16) & 15];
-+   hi = (hi << 8) | (lo >> 24);
-+   lo = (lo << 8) ^ (A[(b >> 12) & 15] << 4) ^ A[(b >> 8) & 15];
-+   hi = (hi << 8) | (lo >> 24);
-+   lo = (lo << 8) ^ (A[(b >> 4) & 15] << 4) ^ A[b & 15];
-+   tmp = -((a >> 31) & 1); tmp &= ((b & 0xfefefefe) >> 1); hi = hi ^ tmp;
-+   tmp = -((a >> 30) & 1); tmp &= ((b & 0xfcfcfcfc) >> 2); hi = hi ^ tmp;
-+   tmp = -((a >> 29) & 1); tmp &= ((b & 0xf8f8f8f8) >> 3); hi = hi ^ tmp;
-+   tmp = -((a >> 28) & 1); tmp &= ((b & 0xf0f0f0f0) >> 4); hi = hi ^ tmp;
-+   tmp = -((a >> 27) & 1); tmp &= ((b & 0xe0e0e0e0) >> 5); hi = hi ^ tmp;
-+   tmp = -((a >> 26) & 1); tmp &= ((b & 0xc0c0c0c0) >> 6); hi = hi ^ tmp;
-+   tmp = -((a >> 25) & 1); tmp &= ((b & 0x80808080) >> 7); hi = hi ^ tmp;
-+   c[0] = lo; c[1] = hi;
-+}
-+static inline void mpfq_2_64_gf2x_mul2(unsigned long *c, const unsigned long *a,
-+			     const unsigned long *b)
-+{
-+    unsigned long t;
-+    unsigned long u[2];
-+
-+    mpfq_2_64_gf2x_mul1(c, a[0], b[0]);
-+    mpfq_2_64_gf2x_mul1(c + 2, a[1], b[1]);
-+    t = c[1] ^ c[2];
-+    mpfq_2_64_gf2x_mul1(u, a[0] ^ a[1], b[0] ^ b[1]);
-+    c[1] = c[0] ^ u[0] ^ t;
-+    c[2] = c[3] ^ u[1] ^ t;
-+}
-+#endif
-+
+@@ -959,92 +960,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
  static inline
  void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t, mpfq_2_64_src_elt s1, mpfq_2_64_src_elt s2)
  {
@@ -373,12 +260,12 @@ index 7394af5..22c51e0 100644
 -#undef SHR
 -#undef SHLD
 -#undef SHRD
-+    mpfq_2_64_gf2x_mul2(t, s1, s2);
++    gf2x_mul2(t, s1, s2);
  }
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/mpfq.h b/fft/mpfq/mpfq.h
-index 9240e1b..30d9cc7 100644
+index 88a2f5a..b44e83f 100644
 --- a/fft/mpfq/mpfq.h
 +++ b/fft/mpfq/mpfq.h
 @@ -8,7 +8,15 @@
@@ -398,100 +285,204 @@ index 9240e1b..30d9cc7 100644
  #ifdef __cplusplus
  extern "C" {
 diff --git a/fft/mpfq/x86_64/mpfq_2_128.h b/fft/mpfq/x86_64/mpfq_2_128.h
-index bbb1866..f701c33 100644
+index 91bfc07..ce03587 100644
 --- a/fft/mpfq/x86_64/mpfq_2_128.h
 +++ b/fft/mpfq/x86_64/mpfq_2_128.h
-@@ -11,9 +11,15 @@
+@@ -11,9 +11,11 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#ifdef  HAVE_GF2X
 +#include "gf2x.h"
-+#endif
-+#ifdef HAVE_PCLMUL
-+#include <wmmintrin.h>
-+#endif
++#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -1031,6 +1034,25 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
+@@ -1031,94 +1032,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
  static inline
  void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_ur t, mpfq_2_128_src_elt s1, mpfq_2_128_src_elt s2)
  {
-+#ifdef  HAVE_GF2X
+-#define SHL(x, r) _mm_slli_epi64((x), (r))
+-#define SHR(x, r) _mm_srli_epi64((x), (r))
+-#define SHLD(x, r) _mm_slli_si128((x), (r) >> 3)
+-#define SHRD(x, r) _mm_srli_si128((x), (r) >> 3)
+-#define XOREQ(lop, rop) lop = _mm_xor_si128((lop), (rop))
+-#define PXOR(lop, rop) _mm_xor_si128((lop), (rop))
+-#define PAND(lop, rop) _mm_and_si128((lop), (rop))
+-    
+-        __m128i u;
+-        __m128i t0;
+-        __m128i t1;
+-        __m128i t2;
+-    
+-        __m128i g[16];
+-        __m128i w;
+-        // __m128i m = _mm_set1_epi32(0xeeeeeeee);
+-        __m128i m = _mpfq_mm_set1_epi64_c(0xeeeeeeeeeeeeeeee);
+-        /* sequence update walk */
+-        __m128i b0 = _mm_loadu_si128((__m128i*) s2);
+-        g[ 0] = _mm_setzero_si128();
+-        g[ 1] = b0;
+-        __m128i v1 = _mm_loadu_si128((__m128i*) s1);
+-        w = _mm_sub_epi64(_mm_setzero_si128(), SHR(b0,63));
+-        __m128i v2 = _mm_unpackhi_epi64(v1, v1);
+-        v1 = _mm_unpacklo_epi64(v1, v1);
+-        v1 = SHR(PAND(v1, m), 1); t1 = PAND(v1, w);
+-        g[ 2] = SHL(b0, 1); g[ 3] = PXOR(g[ 2], b0);
+-        v2 = SHR(PAND(v2, m), 1); t2 = PAND(v2, w);
+-        g[ 4] = SHL(g[ 2], 1); g[ 5] = PXOR(g[ 4], b0);
+-        w = _mm_sub_epi64(_mm_setzero_si128(), SHR(g[ 2],63));
+-        g[ 6] = SHL(g[ 3], 1); g[ 7] = PXOR(g[ 6], b0);
+-        v1 = SHR(PAND(v1, m), 1); XOREQ(t1, PAND(v1, w));
+-        g[ 8] = SHL(g[ 4], 1); g[ 9] = PXOR(g[ 8], b0);
+-        v2 = SHR(PAND(v2, m), 1); XOREQ(t2, PAND(v2, w));
+-        g[10] = SHL(g[ 5], 1); g[11] = PXOR(g[10], b0);
+-        w = _mm_sub_epi64(_mm_setzero_si128(), SHR(g[4],63));
+-        g[12] = SHL(g[ 6], 1); g[13] = PXOR(g[12], b0);
+-        v1 = SHR(PAND(v1, m), 1); XOREQ(t1, PAND(v1, w));
+-        g[14] = SHL(g[ 7], 1); g[15] = PXOR(g[14], b0);
+-        v2 = SHR(PAND(v2, m), 1); XOREQ(t2, PAND(v2, w));
+-    
+-    
+-        /* round 0 */
+-        u = g[s1[0]       & 15]; t0  = u;
+-        u = g[s1[0] >>  4 & 15]; XOREQ(t0, SHL(u,  4)); XOREQ(t1, SHR(u, 60));
+-        u = g[s1[0] >>  8 & 15]; XOREQ(t0, SHL(u,  8)); XOREQ(t1, SHR(u, 56));
+-        u = g[s1[0] >> 12 & 15]; XOREQ(t0, SHL(u, 12)); XOREQ(t1, SHR(u, 52));
+-        u = g[s1[0] >> 16 & 15]; XOREQ(t0, SHL(u, 16)); XOREQ(t1, SHR(u, 48));
+-        u = g[s1[0] >> 20 & 15]; XOREQ(t0, SHL(u, 20)); XOREQ(t1, SHR(u, 44));
+-        u = g[s1[0] >> 24 & 15]; XOREQ(t0, SHL(u, 24)); XOREQ(t1, SHR(u, 40));
+-        u = g[s1[0] >> 28 & 15]; XOREQ(t0, SHL(u, 28)); XOREQ(t1, SHR(u, 36));
+-        u = g[s1[0] >> 32 & 15]; XOREQ(t0, SHL(u, 32)); XOREQ(t1, SHR(u, 32));
+-        u = g[s1[0] >> 36 & 15]; XOREQ(t0, SHL(u, 36)); XOREQ(t1, SHR(u, 28));
+-        u = g[s1[0] >> 40 & 15]; XOREQ(t0, SHL(u, 40)); XOREQ(t1, SHR(u, 24));
+-        u = g[s1[0] >> 44 & 15]; XOREQ(t0, SHL(u, 44)); XOREQ(t1, SHR(u, 20));
+-        u = g[s1[0] >> 48 & 15]; XOREQ(t0, SHL(u, 48)); XOREQ(t1, SHR(u, 16));
+-        u = g[s1[0] >> 52 & 15]; XOREQ(t0, SHL(u, 52)); XOREQ(t1, SHR(u, 12));
+-        u = g[s1[0] >> 56 & 15]; XOREQ(t0, SHL(u, 56)); XOREQ(t1, SHR(u,  8));
+-        u = g[s1[0] >> 60 & 15]; XOREQ(t0, SHL(u, 60)); XOREQ(t1, SHR(u,  4));
+-    
+-        /* round 1 */
+-        u = g[s1[1]       & 15]; XOREQ(t1, u);
+-        u = g[s1[1] >>  4 & 15]; XOREQ(t1, SHL(u,  4)); XOREQ(t2, SHR(u, 60));
+-        u = g[s1[1] >>  8 & 15]; XOREQ(t1, SHL(u,  8)); XOREQ(t2, SHR(u, 56));
+-        u = g[s1[1] >> 12 & 15]; XOREQ(t1, SHL(u, 12)); XOREQ(t2, SHR(u, 52));
+-        u = g[s1[1] >> 16 & 15]; XOREQ(t1, SHL(u, 16)); XOREQ(t2, SHR(u, 48));
+-        u = g[s1[1] >> 20 & 15]; XOREQ(t1, SHL(u, 20)); XOREQ(t2, SHR(u, 44));
+-        u = g[s1[1] >> 24 & 15]; XOREQ(t1, SHL(u, 24)); XOREQ(t2, SHR(u, 40));
+-        u = g[s1[1] >> 28 & 15]; XOREQ(t1, SHL(u, 28)); XOREQ(t2, SHR(u, 36));
+-        u = g[s1[1] >> 32 & 15]; XOREQ(t1, SHL(u, 32)); XOREQ(t2, SHR(u, 32));
+-        u = g[s1[1] >> 36 & 15]; XOREQ(t1, SHL(u, 36)); XOREQ(t2, SHR(u, 28));
+-        u = g[s1[1] >> 40 & 15]; XOREQ(t1, SHL(u, 40)); XOREQ(t2, SHR(u, 24));
+-        u = g[s1[1] >> 44 & 15]; XOREQ(t1, SHL(u, 44)); XOREQ(t2, SHR(u, 20));
+-        u = g[s1[1] >> 48 & 15]; XOREQ(t1, SHL(u, 48)); XOREQ(t2, SHR(u, 16));
+-        u = g[s1[1] >> 52 & 15]; XOREQ(t1, SHL(u, 52)); XOREQ(t2, SHR(u, 12));
+-        u = g[s1[1] >> 56 & 15]; XOREQ(t1, SHL(u, 56)); XOREQ(t2, SHR(u,  8));
+-        u = g[s1[1] >> 60 & 15]; XOREQ(t1, SHL(u, 60)); XOREQ(t2, SHR(u,  4));
+-        /* end */
+-        /* store result */
+-        _mm_storeu_si128((__m128i*)t, PXOR(t0, SHLD(t1, 64)));
+-        _mm_storeu_si128((__m128i*)(t+2), PXOR(t2, SHRD(t1, 64)));
+-#undef SHL
+-#undef SHR
+-#undef SHLD
+-#undef SHRD
+-#undef XOREQ
+-#undef PXOR
+-#undef PAND
 +    gf2x_mul2(t, s1, s2);
-+#elif defined(HAVE_PCLMUL)      /* !HAVE_GF2X */
-+#define PXOR(lop, rop) _mm_xor_si128((lop), (rop))
-+#define PZERO    _mm_setzero_si128()
-+    __m128i ss1 = _mm_loadu_si128((__m128i *)s1);
-+    __m128i ss2 = _mm_loadu_si128((__m128i *)s2);
-+    __m128i t00 = _mm_clmulepi64_si128(ss1, ss2, 0);
-+    __m128i t11 = _mm_clmulepi64_si128(ss1, ss2, 0x11);
-+    ss1 = PXOR(ss1, _mm_shuffle_epi32(ss1, _MM_SHUFFLE(1,0,3,2)));
-+    ss2 = PXOR(ss2, _mm_shuffle_epi32(ss2, _MM_SHUFFLE(1,0,3,2)));
-+    __m128i tk = _mm_clmulepi64_si128(ss1, ss2, 0);
-+    tk = PXOR(tk, PXOR(t00, t11));
-+    /* store result */
-+    _mm_storeu_si128((__m128i *)(t),  PXOR(t00, _mm_unpacklo_epi64(PZERO, tk)));
-+    _mm_storeu_si128((__m128i *)(t+2),PXOR(t11, _mm_unpackhi_epi64(tk, PZERO)));
-+#undef PZERO
-+#undef PXOR
-+#else   /* !HAVE_GF2X && !HAVE_PCLMUL */
- #define SHL(x, r) _mm_slli_epi64((x), (r))
- #define SHR(x, r) _mm_srli_epi64((x), (r))
- #define SHLD(x, r) _mm_slli_si128((x), (r) >> 3)
-@@ -1119,6 +1141,7 @@ void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_u
- #undef XOREQ
- #undef PXOR
- #undef PAND
-+#endif   /* !HAVE_GF2X && !HAVE_PCLMUL */
  }
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/x86_64/mpfq_2_64.h b/fft/mpfq/x86_64/mpfq_2_64.h
-index 4cfb9c2..44698b4 100644
+index ebc8d83..6466aa1 100644
 --- a/fft/mpfq/x86_64/mpfq_2_64.h
 +++ b/fft/mpfq/x86_64/mpfq_2_64.h
-@@ -11,9 +11,15 @@
+@@ -11,9 +11,11 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#ifdef  HAVE_GF2X
 +#include "gf2x.h"
-+#endif
-+#ifdef HAVE_PCLMUL
-+#include <wmmintrin.h>
-+#endif
++#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -935,6 +938,13 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
+@@ -935,70 +936,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
  static inline
  void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t, mpfq_2_64_src_elt s1, mpfq_2_64_src_elt s2)
  {
-+#ifdef HAVE_GF2X
-+    gf2x_mul1(t, s1, s2);
-+#elif defined(HAVE_PCLMUL)      /* !HAVE_GF2X */
-+    __m128i ss1 = _mm_setr_epi64((__m64) s1[0], (__m64) 0LL);
-+    __m128i ss2 = _mm_setr_epi64((__m64) s2[0], (__m64) 0LL);
-+    _mm_storeu_si128((__m128i *)(t),  _mm_clmulepi64_si128(ss1, ss2, 0));
-+#else
-        unsigned long hi, lo;
-        unsigned long A[16];
-        unsigned long a = s2[0];
-@@ -999,6 +1005,7 @@ void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t
-        }
-        t[0] = lo;
-        t[1] = hi;
-+#endif
+-       unsigned long hi, lo;
+-       unsigned long A[16];
+-       unsigned long a = s2[0];
+-       unsigned long b = s1[0];
+-    
+-       A[0] = 0;
+-       A[1] = a;
+-       A[2] = A[1] << 1;
+-       A[3] = A[2] ^ A[1];
+-       A[4] = A[2] << 1;
+-       A[5] = A[4] ^ A[1];
+-       A[6] = A[3] << 1;
+-       A[7] = A[6] ^ A[1];
+-       A[8] = A[4] << 1;
+-       A[9] = A[8] ^ A[1];
+-       A[10] = A[5] << 1;
+-       A[11] = A[10] ^ A[1];
+-       A[12] = A[6] << 1;
+-       A[13] = A[12] ^ A[1];
+-       A[14] = A[7] << 1;
+-       A[15] = A[14] ^ A[1];
+-    
+-       lo = (A[b >> 60] << 4) ^ A[(b >> 56) & 15];
+-       hi = lo >> 56;
+-       lo = (lo << 8) ^ (A[(b >> 52) & 15] << 4) ^ A[(b >> 48) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 44) & 15] << 4) ^ A[(b >> 40) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 36) & 15] << 4) ^ A[(b >> 32) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 28) & 15] << 4) ^ A[(b >> 24) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 20) & 15] << 4) ^ A[(b >> 16) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 12) & 15] << 4) ^ A[(b >> 8) & 15];
+-       hi = (hi << 8) | (lo >> 56);
+-       lo = (lo << 8) ^ (A[(b >> 4) & 15] << 4) ^ A[b & 15];
+-    
+-       {
+-         unsigned long tmp;
+-         tmp = -((a >> 63) & 1);
+-         tmp &= ((b & 0xfefefefefefefefe) >> 1);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 62) & 1);
+-         tmp &= ((b & 0xfcfcfcfcfcfcfcfc) >> 2);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 61) & 1);
+-         tmp &= ((b & 0xf8f8f8f8f8f8f8f8) >> 3);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 60) & 1);
+-         tmp &= ((b & 0xf0f0f0f0f0f0f0f0) >> 4);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 59) & 1);
+-         tmp &= ((b & 0xe0e0e0e0e0e0e0e0) >> 5);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 58) & 1);
+-         tmp &= ((b & 0xc0c0c0c0c0c0c0c0) >> 6);
+-         hi = hi ^ tmp;
+-         tmp = -((a >> 57) & 1);
+-         tmp &= ((b & 0x8080808080808080) >> 7);
+-         hi = hi ^ tmp;
+-       }
+-       t[0] = lo;
+-       t[1] = hi;
++    gf2x_mul1(t, s1[0], s2[0]);
  }
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */

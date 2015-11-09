@@ -20,9 +20,9 @@
 // Default number of step of clique removal in purge.
 #define DEFAULT_PURGE_NSTEPS 50
 
-// How many more relations than prime ideals do we want ?
-// Default is 10% more after singleton removal.
-#define DEFAULT_PURGE_REQUIRED_EXCESS 0.1
+// How many more relations than prime ideals do we want?
+// A value of 0.1 means 10% more relations than ideals after singleton removal.
+#define DEFAULT_PURGE_REQUIRED_EXCESS 0.0
 
 // Keep that many more relations (used by purge and merge).
 #define DEFAULT_FILTER_EXCESS 160

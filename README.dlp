@@ -28,13 +28,6 @@ the presence of the "dlp=true" line, and the lines related to characters
 and sqrt disappear. There is an additional block of parameters related to
 individual logarithms.
 
-By default, the Magma script will factor p-1 and compute discrete logs
-modulo the largest prime factor ell of p-1. This can be overridden by
-giving explicitly gorder=... in the parameter file.  Note that this
-automatic factoring feature might disappear in the future: you'd better
-consider already that the parameter gorder is mandatory (furthermore, its
-name is likely to change to ell).
-
 After the computation is finished, it is possible to run again the
 cadofactor.py script, with a different target: only the last step will be
 run.

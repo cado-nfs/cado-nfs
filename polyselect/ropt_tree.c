@@ -320,7 +320,7 @@ new_sublattice_pq ( sublattice_pq **ppqueue,
   mpz_set_ui ( (*ppqueue)->u[0], 0 );
   mpz_set_ui ( (*ppqueue)->v[0], 0 );
   mpz_set_ui ( (*ppqueue)->modulus[0], 0 );
-  (*ppqueue)->val[0] = -DBL_MAX; 
+  (*ppqueue)->val[0] = -FLT_MAX;
   (*ppqueue)->used = 1; // u[0] and v[0] are null elements
 }
 
@@ -398,7 +398,7 @@ insert_sublattice_pq_down ( sublattice_pq *pqueue,
     if ( (l+1) < pqueue->used &&
          pqueue->val[l+1] <= pqueue->val[l] )
       l ++;
-    
+
     /* switch larger child with parent */
     if ( (pqueue->val[l] < val) ||
          (pqueue->val[l] == val && mpz_cmp (pqueue->u[l], u) > 0) ) {
@@ -430,7 +430,7 @@ insert_sublattice_pq ( sublattice_pq *pqueue,
 {
   /*
     gmp_fprintf (stderr, "# Debug: inserting (%Zd, %Zd), val: %.2f, "
-    "used: %d, len: %d\n", u, v, val, 
+    "used: %d, len: %d\n", u, v, val,
     pqueue->used, pqueue->len);
   */
   /* queue is full,  */
@@ -464,7 +464,7 @@ new_single_sublattice_pq ( single_sublattice_pq **ppqueue,
     exit(1);
   }
 
-  (*ppqueue) = (single_sublattice_pq *) malloc ( 
+  (*ppqueue) = (single_sublattice_pq *) malloc (
     sizeof(single_sublattice_pq) );
   if ( (*ppqueue) == NULL) {
     fprintf(stderr,"Error: malloc failed in new_single_sublattice_pq()\n");
@@ -489,7 +489,7 @@ new_single_sublattice_pq ( single_sublattice_pq **ppqueue,
   (*ppqueue)->u[0] = 0;
   (*ppqueue)->v[0] = 0;
   (*ppqueue)->e[0] = 0;
-  (*ppqueue)->val[0] = -DBL_MAX;
+  (*ppqueue)->val[0] = -FLT_MAX;
   (*ppqueue)->used = 1;
 }
 
@@ -678,7 +678,7 @@ new_alpha_pq ( alpha_pq **ppqueue,
   mpz_set_ui ( (*ppqueue)->u[0], 0 );
   mpz_set_ui ( (*ppqueue)->v[0], 0 );
   mpz_set_ui ( (*ppqueue)->modulus[0], 0 );
-  (*ppqueue)->alpha[0] = DBL_MAX;
+  (*ppqueue)->alpha[0] = FLT_MAX;
   (*ppqueue)->w[0] = 0;
   (*ppqueue)->used = 1;
 }
@@ -865,7 +865,7 @@ reset_alpha_pq ( alpha_pq *pqueue )
   mpz_set_ui ( pqueue->v[0], 0 );
   mpz_set_ui ( pqueue->modulus[0], 0 );
   pqueue->w[0] = 0;
-  pqueue->alpha[0] = DBL_MAX;
+  pqueue->alpha[0] = FLT_MAX;
   pqueue->used = 1;
 }
 
@@ -1070,7 +1070,7 @@ new_MurphyE_pq ( MurphyE_pq **ppqueue,
   (*ppqueue)->E = (double *) malloc (len* sizeof (double));
 
   if ( (*ppqueue)->u == NULL || (*ppqueue)->v == NULL ||
-       (*ppqueue)->w == NULL || (*ppqueue)->E == NULL || 
+       (*ppqueue)->w == NULL || (*ppqueue)->E == NULL ||
        (*ppqueue)->modulus == NULL ) {
     fprintf(stderr,"Error: malloc failed in new_MurphyE_pq()\n");
     exit(1);
@@ -1211,7 +1211,7 @@ extract_MurphyE_pq ( MurphyE_pq *pqueue,
   mpz_set (v, pqueue->v[1]);
   mpz_set (modulus, pqueue->modulus[1]);
   *w = pqueue->w[1];
-  *E = pqueue->E[1];  
+  *E = pqueue->E[1];
 
   insert_MurphyE_pq_down ( pqueue,
                            pqueue->w[pqueue->used],

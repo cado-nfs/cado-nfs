@@ -318,6 +318,10 @@ void mpz_poly_realloc (mpz_poly_ptr f, int nc)
 void mpz_poly_set(mpz_poly_ptr g, mpz_poly_srcptr f) 
 {
   int i;
+
+  if (g == f)
+    return; /* nothing to do */
+
   g->deg = f->deg;
   for (i = f->deg; i >= 0; --i)
     mpz_poly_setcoeff (g, i, f->coeff[i]);
@@ -481,7 +485,7 @@ void
 mpz_poly_mul_xi (mpz_poly_ptr g, mpz_poly_srcptr f, int i)
 {
     if (i == 0) {
-        if (g != f) mpz_poly_set(g, f);
+        mpz_poly_set(g, f);
         return;
     }
 
@@ -693,7 +697,7 @@ void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
 void
 mpz_poly_add_ui (mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a)
 {
-    if (g != f) mpz_poly_set(g, f);
+    mpz_poly_set(g, f);
     mpz_poly_realloc(g, 1);
     if (f->deg >= 0) {
         mpz_add_ui(g->coeff[0], f->coeff[0], a);
@@ -710,7 +714,7 @@ mpz_poly_add_ui (mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a)
 void
 mpz_poly_sub_ui (mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a)
 {
-    if (g != f) mpz_poly_set(g, f);
+    mpz_poly_set(g, f);
     mpz_poly_realloc(g, 1);
     if (f->deg >= 0) {
         mpz_sub_ui(g->coeff[0], f->coeff[0], a);
@@ -882,9 +886,7 @@ mpz_poly_translation (mpz_poly_ptr ft, mpz_poly_srcptr f, const mpz_t k)
   int i, j;
   int d = f->deg;
 
-  if (ft != f)
-    mpz_poly_set (ft, f);
-
+  mpz_poly_set (ft, f);
   for (i = d - 1; i >= 0; i--)
     for (j = i; j < d; j++)
       mpz_addmul (ft->coeff[j], ft->coeff[j+1], k);
@@ -989,7 +991,7 @@ int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly
   mpz_init(lg);
   mpz_init_set_ui(invlg, 1);
 
-  if (f != r) mpz_poly_set(r, f);
+  mpz_poly_set(r, f);
   q->deg = dq;
 
   mpz_set (lg, g->coeff[dg]);
@@ -1766,9 +1768,7 @@ void mpz_poly_gcd_mpz(mpz_poly_ptr f, mpz_poly_srcptr a, mpz_poly_srcptr b, mpz_
     } else {
         mpz_poly_init(hh, b->deg);
         mpz_poly_set(hh, b);
-        if (f != a) {
-            mpz_poly_set(f, a);
-        }
+        mpz_poly_set(f, a);
     }
     mpz_poly_gcd_mpz_clobber(f, hh, p);
     mpz_poly_clear(hh);

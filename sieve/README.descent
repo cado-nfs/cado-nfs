@@ -2,41 +2,20 @@ Using las for the descent
 =========================
 
 NOTE: there is now a general script that can compute the logarithm of a
-given target. See scripts/descent.py . The documentation below is still
-important, since, for instance, it describes how to create a hint file.
+given target. See scripts/descent.py . The documentation below now
+contains just how to create a hint file.
 
-
-The 'las' binary can be used not only for generating relations in the
-factorization or dlp context, but also to "descend" elements in order to
-compute the logarithms of elements that are not in the factor base.
-We assume here that the reader is familiar with the literature on the
-subject.
-
-Initialization of the descent
------------------------------
-
-No tool is provided yet for this stage, which relies heavily on ECM.
-We assume that it has been done by a separate program, and that we end-up
-with a bunch of not-too-large integers whose logs are required in order
-to deduce the log of the target element.
-
-WARNING: We assume that these not-too-large integers are a few bits below
-64 bits. Even for record-scale computations, this should not be a problem
-to initialize the descent up to 55 bits smooth elements.
-TODO: still true?
-
-Compiling las_descent
----------------------
-
-A special las binary must used for the "descent" mode. It is called
-"las_descent", and has to be built explicitly (just type "make
-las_descent").
+NOTE: for the descent, las must be compiled with appropriate flags. The
+las_descent binary is automatically compiled with these flags.
 
 Writing a hint table
 -------------------
 
 The descent requires a "descent hint table" that contains information
 about how to tune the parameters along the descent.
+
+Examples of descent-hint tables are given as .hint files in the params_dl/
+directory.
 
 Each line correspond to a bit-size of a special-q for one side. For
 example:
@@ -63,9 +42,6 @@ on each line. This might change if we see a clear need to make them vary.
 There must be one line for each size that can occur during the descent,
 and the parameters must be so that there is a high chance to get at least
 one relation.
-
-An example descent-hint-table is given with the ./scripts/descent.py
-script.
 
 Alternatively, the hint file may also use the syntax "55@0" instead of
 "55r", to mean "bitsize 55 on size 0".
@@ -139,35 +115,3 @@ unchanged. Next lpb should grow. Setting lpb to above the current
 special-q size is allowed, but might trigger loops of course (if on the
 same side as the special-q).
 
-Preparing the Todo file
------------------------
-
-Each prime integer q for which the log is wanted must be converted into a
-rational ideal. This amounts to computing the root of the linear
-polynomial in the *.poly file modulo q. All of those must be put in a
-"todo file", each on one line, with the format
-  r <q> <root>
-where "r" stands for "rational".
-
-The letters r or a are actually aliases to specifying the side. Giving an
-integer (currently only 0 or 1, respectively) has exactly the same
-meaning.
-
-Running las with appropriate arguments
---------------------------------------
-
-The command line for las must be something like (assuming the prefix name
-for files is p120):
-
-/buildpath/sieve/las -poly p120.poly -fb p120.roots.gz -I 15 \
-  -lim0 4000000 -lim1 4000000 -lpb0 25 -lpb1 26 -mfb0 100 -mfb1 100 \
-  -todo p120.todo -allow-largesq -descent-hint p120.hints
-
-Note that:
-- using -mt is not recommended in this context (untested).
-- I, lim0, lim1 must be the same as the one in the hint file.
-- lpb0, lpb1 give the limit where to stop the descent.
-- mfb0, mfb1 are not used, but mandatory (!)
-
-If during the execution, it prints a failure message, then you should
-probably increase the corresponding parameters in the hint file.

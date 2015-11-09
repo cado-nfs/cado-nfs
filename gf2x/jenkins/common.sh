@@ -9,6 +9,13 @@ done
 # Note: for libtool, we also have to add its aclocal search path to the
 # automake aclocal search path (which is
 # [automake_prefix]/share/aclocal/dirlist); this is done on all ci nodes.
+# 
+# For example:
+#
+#  ls -d /usr/share/aclocal >> ~/Packages/automake-1.15/share/aclocal/dirlist
+#
+# although, almost by definition, your mileage may vary.
+
 
 # openbsd has wrappers which strictly require the AUTOCONF_VERSION and
 # AUTOMAKE_VERSION variables be set. For most other nodes, this is

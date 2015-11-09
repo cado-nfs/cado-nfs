@@ -341,7 +341,7 @@ configure_file(
 # Copy magma scripts, to make our life easier; this should be removed 
 # once everything will be rewritten in C.
 foreach(script magma-linalg-wrapper.sh magma-nmbrthry-wrapper.sh
-        badideals.mag  linalg.mag magma-sm-wrapper.sh nfsunits.mag
+        badideals.mag  linalg.mag
         split.py descent.py)
     configure_file(
         ${CADO_NFS_SOURCE_DIR}/scripts/${script}

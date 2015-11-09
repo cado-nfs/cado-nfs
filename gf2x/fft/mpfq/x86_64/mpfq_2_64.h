@@ -13,12 +13,8 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
-#ifdef  HAVE_GF2X
 #include "gf2x.h"
-#endif
-#ifdef HAVE_PCLMUL
-#include <wmmintrin.h>
-#endif
+#include "gf2x/gf2x-small.h"
 
 #include "assert.h"
 #ifdef	MPFQ_LAST_GENERATED_TAG
@@ -941,78 +937,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
 static inline
 void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t, mpfq_2_64_src_elt s1, mpfq_2_64_src_elt s2)
 {
-#ifdef HAVE_GF2X
-    gf2x_mul1(t, s1, s2);
-#elif defined(HAVE_PCLMUL)      /* !HAVE_GF2X */
-    __m128i ss1 = _mm_setr_epi64((__m64) s1[0], (__m64) 0LL);
-    __m128i ss2 = _mm_setr_epi64((__m64) s2[0], (__m64) 0LL);
-    _mm_storeu_si128((__m128i *)(t),  _mm_clmulepi64_si128(ss1, ss2, 0));
-#else
-       unsigned long hi, lo;
-       unsigned long A[16];
-       unsigned long a = s2[0];
-       unsigned long b = s1[0];
-    
-       A[0] = 0;
-       A[1] = a;
-       A[2] = A[1] << 1;
-       A[3] = A[2] ^ A[1];
-       A[4] = A[2] << 1;
-       A[5] = A[4] ^ A[1];
-       A[6] = A[3] << 1;
-       A[7] = A[6] ^ A[1];
-       A[8] = A[4] << 1;
-       A[9] = A[8] ^ A[1];
-       A[10] = A[5] << 1;
-       A[11] = A[10] ^ A[1];
-       A[12] = A[6] << 1;
-       A[13] = A[12] ^ A[1];
-       A[14] = A[7] << 1;
-       A[15] = A[14] ^ A[1];
-    
-       lo = (A[b >> 60] << 4) ^ A[(b >> 56) & 15];
-       hi = lo >> 56;
-       lo = (lo << 8) ^ (A[(b >> 52) & 15] << 4) ^ A[(b >> 48) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 44) & 15] << 4) ^ A[(b >> 40) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 36) & 15] << 4) ^ A[(b >> 32) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 28) & 15] << 4) ^ A[(b >> 24) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 20) & 15] << 4) ^ A[(b >> 16) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 12) & 15] << 4) ^ A[(b >> 8) & 15];
-       hi = (hi << 8) | (lo >> 56);
-       lo = (lo << 8) ^ (A[(b >> 4) & 15] << 4) ^ A[b & 15];
-    
-       {
-         unsigned long tmp;
-         tmp = -((a >> 63) & 1);
-         tmp &= ((b & 0xfefefefefefefefe) >> 1);
-         hi = hi ^ tmp;
-         tmp = -((a >> 62) & 1);
-         tmp &= ((b & 0xfcfcfcfcfcfcfcfc) >> 2);
-         hi = hi ^ tmp;
-         tmp = -((a >> 61) & 1);
-         tmp &= ((b & 0xf8f8f8f8f8f8f8f8) >> 3);
-         hi = hi ^ tmp;
-         tmp = -((a >> 60) & 1);
-         tmp &= ((b & 0xf0f0f0f0f0f0f0f0) >> 4);
-         hi = hi ^ tmp;
-         tmp = -((a >> 59) & 1);
-         tmp &= ((b & 0xe0e0e0e0e0e0e0e0) >> 5);
-         hi = hi ^ tmp;
-         tmp = -((a >> 58) & 1);
-         tmp &= ((b & 0xc0c0c0c0c0c0c0c0) >> 6);
-         hi = hi ^ tmp;
-         tmp = -((a >> 57) & 1);
-         tmp &= ((b & 0x8080808080808080) >> 7);
-         hi = hi ^ tmp;
-       }
-       t[0] = lo;
-       t[1] = hi;
-#endif
+    gf2x_mul1(t, s1[0], s2[0]);
 }
 
 /* *Mpfq::gf2n::squaring::code_for_sqr_ur */

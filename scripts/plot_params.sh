@@ -6,7 +6,7 @@ then
   PARAMDIR="$1"
 fi
 
-if ! test -d "$PARAMDIR" || ! test -f "$PARAMDIR/params.c91"
+if ! test -d "$PARAMDIR" || ! test -f "$PARAMDIR/params.c90"
 then
   echo Please specify the parameter directory
   exit 1

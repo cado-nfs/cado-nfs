@@ -1,4 +1,6 @@
 
+[ ] Edit NEWS to report what we have changed.
+
 [ ] Get rid of factor.sh
 
   - cadofactor.py (maybe move it at the top-level of the source tree)
@@ -10,9 +12,12 @@
     for that, run eval `call_cmake.sh show`.
   - don't forget to have all of this functional after make install.
   - try to avoid to copy many scripts in the build-tree.
+  - don't forget to update the doc accordingly (in many, many places)
 
 [ ] Have correctly tuned parameter files
-  - only up to 155 digits, by step of 5, starting from 60?
+  - only up to 155 digits, by step of 5, starting from 60
+    sample files cxxx.poly created, missing: c145, c150, c155
+    tuning with OPAL remains to be done for: c135, c140, c145, c155
   - want a larger size? see customer service!
 
 [X] Officially support DLP in GF(p)
@@ -23,13 +28,8 @@
 [ ] Fix memory issue in las
 
   - evaluation of weight of the buckets is still wrong
-  - efficiency issue as well (bug number 19550).
 
 [ ] Delete dead code
-
-[ ] Document changes in parameters since 2.1.1
-  - tasks.linalg.bwc.mn is gone, for instance
-  - lpb0, lpb1 aka lpbr, lpba, etc.
 
 [ ] Decide about "supported platforms", and update README and webpage
   - macos?

@@ -84,7 +84,7 @@ int mpfq_2_128_asprint(mpfq_2_128_dst_field k, char * * pstr, mpfq_2_128_src_elt
     // Numerical io.
     if (type <= 16) {
         // allocate enough room for base 2 conversion.
-        *pstr = (char *)mpfq_malloc_check((128+1)*sizeof(char));
+        *pstr = (char *)mpfq_malloc_check((128+1));
     
         mp_limb_t tmp[4 + 1];
         for (i = 0; i < 4; ++i)
@@ -131,7 +131,7 @@ int mpfq_2_128_asprint(mpfq_2_128_dst_field k, char * * pstr, mpfq_2_128_src_elt
         char c = (char)type;
         // allocate (more than) enough room for polynomial conversion.
         // Warning: this is for exponent that fit in 3 digits
-        *pstr = (char *)mpfq_malloc_check((8*128+1)*sizeof(char));
+        *pstr = (char *)mpfq_malloc_check((8*128+1));
         {
             unsigned int j;
             int sth = 0;
@@ -223,7 +223,7 @@ int mpfq_2_128_fscan(mpfq_2_128_dst_field k, FILE * file, mpfq_2_128_dst_elt z)
     int allocated, len=0;
     int c, start=0;
     allocated=100;
-    tmp = (char *)mpfq_malloc_check(allocated*sizeof(char));
+    tmp = (char *)mpfq_malloc_check(allocated);
     for(;;) {
         c = fgetc(file);
         if (c==EOF)
@@ -236,7 +236,7 @@ int mpfq_2_128_fscan(mpfq_2_128_dst_field k, FILE * file, mpfq_2_128_dst_elt z)
         } else {
             if (len==allocated) {
                 allocated = len + allocated / 4;
-                tmp = (char*)realloc(tmp, allocated*sizeof(char));
+                tmp = (char*)realloc(tmp, allocated);
             }
             tmp[len]=c;
             len++;
@@ -244,7 +244,7 @@ int mpfq_2_128_fscan(mpfq_2_128_dst_field k, FILE * file, mpfq_2_128_dst_elt z)
     }
     if (len==allocated) {
         allocated+=1;
-        tmp = (char*)realloc(tmp, allocated*sizeof(char));
+        tmp = (char*)realloc(tmp, allocated);
     }
     tmp[len]='\0';
     int ret=mpfq_2_128_sscan(k,z,tmp);
@@ -292,13 +292,13 @@ void mpfq_2_128_vec_clear(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_vec * 
 int mpfq_2_128_vec_asprint(mpfq_2_128_dst_field K MAYBE_UNUSED, char * * pstr, mpfq_2_128_src_vec w, unsigned int n)
 {
     if (n == 0) {
-        *pstr = (char *)mpfq_malloc_check(4*sizeof(char));
+        *pstr = (char *)mpfq_malloc_check(4);
         sprintf(*pstr, "[ ]");
         return strlen(*pstr);
     }
     int alloc = 100;
     int len = 0;
-    *pstr = (char *)mpfq_malloc_check(alloc*sizeof(char));
+    *pstr = (char *)mpfq_malloc_check(alloc);
     char *str = *pstr;
     *str++ = '[';
     *str++ = ' ';
@@ -314,7 +314,7 @@ int mpfq_2_128_vec_asprint(mpfq_2_128_dst_field K MAYBE_UNUSED, char * * pstr, m
         int ltmp = strlen(tmp);
         if (len+ltmp+4 > alloc) {
             alloc = len+ltmp+100 + alloc / 4;
-            *pstr = (char *)realloc(*pstr, alloc*sizeof(char));
+            *pstr = (char *)realloc(*pstr, alloc);
         }
         strncpy(*pstr+len, tmp, ltmp+4);
         len += ltmp;
@@ -399,7 +399,7 @@ int mpfq_2_128_vec_fscan(mpfq_2_128_dst_field K MAYBE_UNUSED, FILE * file, mpfq_
     int c;
     int allocated, len=0;
     allocated=100;
-    tmp = (char *)mpfq_malloc_check(allocated*sizeof(char));
+    tmp = (char *)mpfq_malloc_check(allocated);
     int nest = 0, mnest = 0;
     for(;;) {
         c = fgetc(file);
@@ -412,7 +412,7 @@ int mpfq_2_128_vec_fscan(mpfq_2_128_dst_field K MAYBE_UNUSED, FILE * file, mpfq_
         }
         if (len==allocated) {
             allocated = len + 10 + allocated / 4;
-            tmp = (char*)realloc(tmp, allocated*sizeof(char));
+            tmp = (char*)realloc(tmp, allocated);
         }
         tmp[len]=c;
         len++;
@@ -424,7 +424,7 @@ int mpfq_2_128_vec_fscan(mpfq_2_128_dst_field K MAYBE_UNUSED, FILE * file, mpfq_
     }
     if (len==allocated) {
         allocated+=1;
-        tmp = (char*)realloc(tmp, allocated*sizeof(char));
+        tmp = (char*)realloc(tmp, allocated);
     }
     tmp[len]='\0';
     int ret=mpfq_2_128_vec_sscan(K,w,n,tmp);

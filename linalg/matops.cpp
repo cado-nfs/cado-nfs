@@ -163,6 +163,7 @@ static inline uint64_t nibrev(uint64_t a)
 
 
 /* level 1 */
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
 {
@@ -185,6 +186,7 @@ void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
 	*Cw++ = c;
     }
 }
+#endif
 #endif
 
 void mul_6464_6464_v2(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
@@ -239,6 +241,8 @@ void addmul_To64_o64_lsb_packof2(uint64_t * r, uint64_t a, uint64_t w)
 	a >>= 2;
     }
 }
+
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)
 {
@@ -255,6 +259,7 @@ void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)
 	a >>= 2;
     }
 }
+#endif
 #endif
 
 /* implements mul_o64_6464 */
@@ -785,6 +790,7 @@ void mul_N64_T6464_transB(uint64_t *C,
     free(tb);
 }
 
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements mul_N64_6464 */
 void addmul_N64_6464_sse(uint64_t *C,
@@ -827,6 +833,7 @@ void mul_N64_6464_sse(uint64_t *C,
     memset(C, 0, m * sizeof(uint64_t));
     addmul_N64_6464_sse(C,A,B,m);
 }
+#endif
 #endif
 
 void mul_64N_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, size_t n)
@@ -880,6 +887,7 @@ void mul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol)
     addmul_TN64_N64_C(b, A, x, ncol);
 }
 
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 static inline void mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, unsigned int n, unsigned int K)
 {
@@ -908,6 +916,7 @@ static inline void mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, 
         }
     }
 }
+#endif
 #endif
 
 static inline void mul_TN64K_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K)
@@ -1420,7 +1429,7 @@ int LUP64_imm(mat64 l, mat64 u, mat64 p, mat64 a)
         // this keeps only the least significant bit of pr.
         uint64_t v = pr^(pr&(pr-1));
         p[j]=v;
-#if defined(HAVE_SSE41) && !defined(VALGRIND)
+#if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         int k = j+1;
         if (k&1) {      // alignment call
             uint64_t w = -((u[k]&v)!=0);
@@ -1605,7 +1614,7 @@ void mul_N64_6464(uint64_t *C,
  * 20000. At N=2000000, a twice faster version can be obtained. However,
  * it's not critical for cado, so we stick with the slower version.
  */
-#if defined(HAVE_SSE2) && ULONG_BITS == 64
+#if defined(HAVE_SSE2) && ULONG_BITS == 64 && !defined(__ICC)
     mul_N64_6464_sse(C,A,B,m);
 #else
     mul_N64_6464_lookup4(C,A,B,m);
@@ -1615,7 +1624,7 @@ void addmul_N64_6464(uint64_t *C,
 		 const uint64_t *A,
 		 const uint64_t *B, size_t m)
 {
-#if defined(HAVE_SSE2) && ULONG_BITS == 64
+#if defined(HAVE_SSE2) && ULONG_BITS == 64 && !defined(__ICC)
     addmul_N64_6464_sse(C,A,B,m);
 #else
     addmul_N64_6464_lookup4(C,A,B,m);
@@ -1630,7 +1639,7 @@ void mul_N64_T6464(uint64_t *C,
 }
 void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w)
 {
-#if defined(HAVE_SSE2) && ULONG_BITS == 64
+#if defined(HAVE_SSE2) && ULONG_BITS == 64 && !defined(__ICC)
     addmul_To64_o64_lsb_sse_v1(r,a,w);
 #else
     addmul_To64_o64_lsb_packof2(r,a,w);
@@ -1830,7 +1839,7 @@ int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
         uint64_t v = r^(r&(r-1));
         uint64_t j = cado_ctz64(r);
         phi[i] = col_offset + j;
-#if defined(HAVE_SSE41) && !defined(VALGRIND)
+#if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         int k = i+1;
         if (k&1) {      // alignment call
             uint64_t w = -((u[k]&v)!=0);
@@ -1939,7 +1948,7 @@ static inline void bli_64x64N_clobber(mat64 h, mat64 * us, int * phi, int nb)
         /* TODO: use _mm_cmpeq_epi64 for this as well, of course */
         ASSERT(us[d][i]&m);
         int k = 0;
-#if defined(HAVE_SSE41) && !defined(VALGRIND)
+#if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         __m128i mm = _cado_mm_set1_epi64(m);
         __m128i * uu = (__m128i*) us[d];
         __m128i * hh = (__m128i*) h;
@@ -1985,7 +1994,7 @@ void extract_cols_64_from_128(mat64 t, mat64 * m, int * phi)
     memset(t, 0, sizeof(mat64));
     uint64_t mask = 1;
     for(int j = 0 ; j < 64 ; j++, mask<<=1) {
-#if defined(HAVE_SSE41) && !defined(VALGRIND)
+#if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         __m128i ss[2] = {
             _cado_mm_set1_epi64(s[0][j]),
             _cado_mm_set1_epi64(s[1][j]) };

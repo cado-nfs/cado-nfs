@@ -1604,7 +1604,7 @@ int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, con
     f->name = strdup(name);
     f->mode = strdup(mode);
     int rc = 1;
-    if (f->pi->m->trank == 0) {
+    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0) {
         f->f = fopen(name, mode);
         if (f->f == NULL)
             rc = 0;

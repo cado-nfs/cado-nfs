@@ -61,26 +61,7 @@ AM_PROG_CC_C_O
 CHECK_SSE2_SUPPORT()
 CHECK_PCLMUL_SUPPORT()
 
-AC_ARG_WITH([parent-gf2x],
-            [AS_HELP_STRING([--with-parent-gf2x],
-                 [build against the gf2x directory in the parent
-                  directory])],
-            [],
-            [with_parent_gf2x=no])
-if test "x$with_parent_gf2x" = xno ; then
- CHECK_GF2X()
-elif ! test -f "$srcdir/../gf2x.h" ; then
- AC_MSG_ERROR([gf2x source tree not found in parent directory $srcdir/..])
-else
- LDFLAGS="$LDFLAGS -L../.libs/"
- CPPFLAGS="$CPPFLAGS -I.. -I../gf2x -I$srcdir/.."
- AC_DEFINE([HAVE_GF2X],[1],[Define if the gf2x library is present])
- AM_CONDITIONAL([GF2XFFT_HAVE_GF2X],[true])
-fi
-
-
 VERIFY_WORDSIZE()
-
 
 AC_CONFIG_HEADERS([gf2xfft-config.h])
 

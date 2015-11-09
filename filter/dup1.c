@@ -15,7 +15,7 @@
 
 #include "cado.h"
 
-#define MAX_NSLICES 32
+#define MAX_NSLICES_LOG 6
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,8 +41,8 @@
  * ourselves with smaller .ab files */
 static int only_ab = 0;
 
-static uint64_t nr_rels_tot[MAX_NSLICES];
-static int nslices_log = 1, do_slice[MAX_NSLICES];
+static uint64_t nr_rels_tot[(1 << MAX_NSLICES_LOG)];
+static unsigned int nslices_log = 1, do_slice[(1 << MAX_NSLICES_LOG)];
 
 
 typedef struct {
@@ -141,6 +141,7 @@ split_iter_write_next(split_output_iter_t *iter, const char *line)
 }
 
 
+/* Must be called only when nslices_log > 0 */
 static inline unsigned int
 compute_slice (int64_t a, uint64_t b)
 {
@@ -150,7 +151,8 @@ compute_slice (int64_t a, uint64_t b)
      also gives a small bias with RSA768 (but not for random
      coprime a, b). We use here the nslices_log high bits.
   */
-  return (unsigned int) h >> (64 - nslices_log);
+  h >>= (64 - nslices_log);
+  return (unsigned int) h;
 }
 
 /* Callback function called by prempt_scan_relations */
@@ -176,6 +178,28 @@ thread_dup1 (void * context_data, earlyparsed_relation_ptr rel)
       nr_rels_tot[slice]++;
     }
     return NULL;
+}
+
+/* Special callback function for when nslices = 1 */
+static void *
+thread_dup1_special (void * context_data, earlyparsed_relation_ptr rel)
+{
+  split_output_iter_t **outiters = (split_output_iter_t**)context_data;
+  if (do_slice[0])
+  {
+    if (only_ab)
+    {
+      char *p = rel->line;
+      while (*p != ':')
+        p++;
+      *p = '\n';
+    }
+
+    split_output_iter_t *iter = outiters[0];
+    split_iter_write_next(iter, rel->line);
+    nr_rels_tot[0]++;
+  }
+  return NULL;
 }
 
 static void declare_usage(param_list pl)
@@ -209,13 +233,15 @@ int
 main (int argc, char * argv[])
 {
     char * argv0 = argv[0];
+    unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
+    int only_slice = -1;
+    int abhexa = 0;
 
     param_list pl;
     param_list_init(pl);
     declare_usage(pl);
     argv++,argc--;
 
-    int abhexa = 0;
     param_list_configure_switch(pl, "ab", &only_ab);
     param_list_configure_switch(pl, "abhexa", &abhexa);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
@@ -240,12 +266,9 @@ main (int argc, char * argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    param_list_parse_int(pl, "n", &nslices_log);
-    int nslices = 1 << nslices_log;
+    param_list_parse_uint(pl, "n", &nslices_log);
     const char *outdir = param_list_lookup_string(pl, "out");
-    int only_slice = -1;
     param_list_parse_int(pl, "only", &only_slice);
-    unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
     param_list_parse_uint(pl, "lognrels", &log_max_nrels_per_files);
     const char *outfmt = param_list_lookup_string(pl, "outfmt");
     const char * filelist = param_list_lookup_string(pl, "filelist");
@@ -259,6 +282,11 @@ main (int argc, char * argv[])
       usage(pl, argv0);
     }
 
+    if (nslices_log > MAX_NSLICES_LOG)
+    {
+      fprintf(stderr, "Error, -n is too large\n");
+      usage(pl, argv0);
+    }
     if (basepath && !filelist)
     {
       fprintf(stderr, "Error, -basepath only valid with -filelist\n");
@@ -281,12 +309,16 @@ main (int argc, char * argv[])
         usage(pl, argv0);
     }
 
-    if (only_slice == -1) { /* split all slices */
-        for (int i = 0; i < nslices; i++)
-          do_slice[i] = 1;
-    } else { /* split only slide i */
-        for (int i = 0; i < nslices; i++)
-          do_slice[i] = i == only_slice;
+    unsigned int nslices = 1 << nslices_log;
+    if (only_slice < 0) /* split all slices */
+    {
+      for (unsigned int i = 0; i < nslices; i++)
+        do_slice[i] = 1;
+    }
+    else /* split only slide i */
+    {
+      for (unsigned int i = 0; i < nslices; i++)
+        do_slice[i] = (i == (unsigned int) only_slice);
     }
 
     if ((filelist != NULL) + (argc != 0) != 1) {
@@ -306,7 +338,7 @@ main (int argc, char * argv[])
     split_output_iter_t **outiters;
     outiters = malloc(sizeof(split_output_iter_t *) * nslices);
     ASSERT_ALWAYS(outiters != NULL);
-    for(int i = 0 ; i < nslices ; i++)
+    for(unsigned int i = 0 ; i < nslices ; i++)
     {
       char *prefix, *suffix, *msg;
       int rc = asprintf(&prefix, "%s/%d/%s.",
@@ -323,15 +355,21 @@ main (int argc, char * argv[])
     }
 
     timingstats_dict_init(stats);
-    filter_rels(files, (filter_rels_callback_t) &thread_dup1, (void*)outiters,
+    if (nslices == 1)
+      filter_rels(files, (filter_rels_callback_t) &thread_dup1_special,
+            (void*)outiters, EARLYPARSE_NEED_LINE |
+            (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
+            NULL, stats);
+    else
+      filter_rels(files, (filter_rels_callback_t) &thread_dup1, (void*)outiters,
             EARLYPARSE_NEED_LINE |
             (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
             NULL, stats);
 
-    for(int i = 0 ; i < nslices ; i++)
+    for(unsigned int i = 0 ; i < nslices ; i++)
       split_iter_end(outiters[i]);
 
-    for (int i = 0; i < nslices; i++)
+    for (unsigned int i = 0; i < nslices; i++)
         fprintf (stderr, "# slice %d received %" PRIu64 " relations\n", i,
                                                                 nr_rels_tot[i]);
 

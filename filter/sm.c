@@ -346,7 +346,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "purged", "(required) purged file");
   param_list_decl_usage(pl, "index", "(required) index file");
   param_list_decl_usage(pl, "out", "output file (stdout if not given)");
-  param_list_decl_usage(pl, "gorder", "(required) group order");
+  param_list_decl_usage(pl, "ell", "(required) group order");
   param_list_decl_usage(pl, "nsm", "number of SM on side 0,1,... (default is "
                                    "computed by the program)");
   param_list_decl_usage(pl, "t", "number of threads (default 1)");
@@ -433,8 +433,8 @@ int main (int argc, char **argv)
 
   /* Read ell from command line (assuming radix 10) */
   mpz_init (ell);
-  if (!param_list_parse_mpz(pl, "gorder", ell)) {
-      fprintf(stderr, "Error: parameter -gorder is mandatory\n");
+  if (!param_list_parse_mpz(pl, "ell", ell)) {
+      fprintf(stderr, "Error: parameter -ell is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }

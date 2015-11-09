@@ -12,7 +12,7 @@ More details follow.
 Important note: For a larger factorization (distributed on several machines),
 please use directly the main script scripts/cadofactor/cadofactor.py (whose
 documentation is in scripts/cadofactor/README, and documented example parameter
-files are in params/params.c91 and scripts/cadofactor/parameters) instead of
+files are in params/params.c90 and scripts/cadofactor/parameters) instead of
 factor.sh (see section "Run a factorization on current machine").
 
 Supported platforms:
