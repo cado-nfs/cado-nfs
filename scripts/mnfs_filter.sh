@@ -47,6 +47,19 @@ SM=$(printf ",%s" "${SM_ARRAY[@]}"); SM=${SM:1}
 LPBS=$(printf ",%s" "${LPB_ARRAY[@]}"); LPBS=${LPBS:1}
 NSM=`echo "$SM" | tr , + | bc`
 
+declare -i i DUP1_NSLICES
+
+DUP1_NSLICES_LOG="0"
+DUP1_NSLICES=`echo "2^${DUP1_NSLICES_LOG}" | bc`
+
+DUP1_SELECTOR="["
+for ((i=0;i<DUP1_NSLICES;++i)); do DUP1_SELECTOR="${DUP1_SELECTOR}$i"; done
+DUP1_SELECTOR="${DUP1_SELECTOR}]"
+
+echo ${DUP1_NSLICES_LOG}
+echo ${DUP1_NSLICES}
+echo ${DUP1_SELECTOR}
+
 if [ "${#SM_ARRAY[@]}" -ne "${#LPB_ARRAY[@]}" ] ; then
   echo "SM_ARRAY and LPB_ARRAY must have the same size"
   exit 1
@@ -85,13 +98,13 @@ echo "# Size of the renumbering table: ${NCOLS}"
 #### dup1 (XXX useless for now but maybe we will need it later)
 echo -n "dup1 ... "
 mkdir -p ${NODUP1}/0 ${NODUP1}/1
-ARGS_DUP1="-out ${NODUP1} -prefix ${NAME} ${INPUTRELS}"
+ARGS_DUP1="-out ${NODUP1} -prefix ${NAME} -n ${DUP1_NSLICES_LOG} ${INPUTRELS}"
 LOG_DUP1="${WDIR}/${NAME}.dup1.log"
 ${BUILDDIR}/filter/dup1 ${ARGS_DUP1} > ${LOG_DUP1} 2>&1
 check_error "$?"
 
 #### dup2
-for i in 0 1 ; do
+for ((i=0;i<DUP1_NSLICES;++i)); do
   echo -n "dup2 slice $i ... "
   NRELS_SLICE=`grep "slice $i rec" ${LOG_DUP1} | cut -d " " -f 5`
   mkdir -p ${NODUP2}/$i
@@ -106,7 +119,7 @@ done
 echo -n "split ... "
 mkdir -p ${WDIR}/${NAME}.nodup3/
 ARGS_SP="-poly ${POLY} -renumber ${RENUMBER} -outprefix ${NAME}\
-        -outdir ${NODUP3} ${NODUP2}/*/*"
+        -outdir ${NODUP3} ${NODUP2}/${DUP1_SELECTOR}/*"
 LOG_SP="${WDIR}/${NAME}.split.log"
 ${BUILDDIR}/misc/split_renumbered_rels ${ARGS_SP} > ${LOG_SP} 2>&1
 check_error "$?"
@@ -175,7 +188,7 @@ grep "^Sparse submatrix" ${LOG_REPLAY}
 #### sm
 echo -n "sm ... "
 ARGS_SM="-poly ${POLY} -purged ${PURGED} -index ${INDEXFILE} -out ${SMFILE_TMP}\
-         -gorder ${ELL} -nsm ${SM} -t 4"
+         -ell ${ELL} -nsm ${SM} -t 4"
 LOG_SM="${WDIR}/${NAME}.sm.log"
 ${BUILDDIR}/filter/sm ${ARGS_SM} > ${LOG_SM} 2>&1
 check_error "$?"
@@ -210,7 +223,7 @@ if [ -z ${PARTIAL} ] ; then
 else
   AP="-partial"
 fi
-ARGS_REC="-log ${KERFILE} -gorder ${ELL} -out ${FINALDLOG} -poly ${POLY}\
+ARGS_REC="-log ${KERFILE} -ell ${ELL} -out ${FINALDLOG} -poly ${POLY}\
           -renumber ${RENUMBER} -ideals ${IDEALSFILE} -nsm ${SM} -mt 4\
           -purged ${PURGED} -nrels ${NRELS_PURGE} -relsdel ${DELETED}"
 LOG_REC="${WDIR}/${NAME}.reconstructlog.log"
@@ -252,7 +265,7 @@ else
 fi
 BWCKERFILE="${BWCWDIR}/K.sols0-1.0.truncated.txt"
 BWCFINALDLOG="${WDIR}/${NAME}.bwc.final.dlog"
-ARGS_REC="-log ${BWCKERFILE} -gorder ${ELL} -out ${BWCFINALDLOG} -poly ${POLY}\
+ARGS_REC="-log ${BWCKERFILE} -ell ${ELL} -out ${BWCFINALDLOG} -poly ${POLY}\
           -renumber ${RENUMBER} -ideals ${IDEALSFILE} -nsm ${SM} -mt 4\
           -purged ${PURGED} -nrels ${NRELS_PURGE} -relsdel ${DELETED}"
 LOG_REC="${WDIR}/${NAME}.bwc.reconstructlog.log"
