@@ -24,4 +24,7 @@ target_link_libraries(split_renumbered_rels utils_with_io)
 add_executable(rearrange_MNFS_matrix EXCLUDE_FROM_ALL rearrange_MNFS_matrix.c)
 target_link_libraries(rearrange_MNFS_matrix utils_with_io)
 
+add_executable(list_forbidden_cols_for_merge list_forbidden_cols_for_merge.c)
+target_link_libraries(list_forbidden_cols_for_merge utils_with_io)
+
 # vim: set ft=cmake:

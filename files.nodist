@@ -115,6 +115,7 @@ misc/CMakeLists-nodist.txt
 misc/descent-init.c
 misc/split_renumbered_rels.c
 misc/rearrange_MNFS_matrix.c
+misc/list_forbidden_cols_for_merge.c
 filter/out-of-core/Makefile
 filter/out-of-core/clique.c
 filter/out-of-core/singleton.c

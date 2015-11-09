@@ -30,7 +30,7 @@ NODUP1="${WDIR}/${NAME}.nodup1"
 NODUP2="${WDIR}/${NAME}.nodup2"
 NODUP3="${WDIR}/${NAME}.nodup3"
 HISFILE="${WDIR}/${NAME}.merge.his"
-INDEX0COLS="${WDIR}/${NAME}.index.on.side.0"
+MERGEFORBIDDENCOLS="${WDIR}/${NAME}.merge.forbidden.cols"
 MAT_TMP="${WDIR}/${NAME}.replay.matrix.txt"
 IDEALSFILE_TMP="${WDIR}/${NAME}.replay.ideals"
 INDEXFILE="${WDIR}/${NAME}.replay.relsets"
@@ -153,12 +153,21 @@ else
 fi
 
 #### merge
+echo -n "list_forbidden_cols_for_merge ... "
+# Create list of columns to disable them during merge
+ARGS_LIST="-purgedfile ${PURGED} -poly ${POLY} -renumber ${RENUMBER}\
+           -outfile ${MERGEFORBIDDENCOLS}"
+LOG_LIST="${WDIR}/${NAME}.forbidden.cols.log"
+${BUILDDIR}/misc/list_forbidden_cols_for_merge ${ARGS_LIST} > ${LOG_LIST} 2>&1
+check_error "$?"
+
+#### merge
 echo -n "merge ... "
 if [ -z ${NO_MERGE} ] ; then
-# Create list of side 0 columns to disable them during merge
-  grep "side 0$" ${LOG1_DR} | tr " " "=" | cut -d= -f2 > ${INDEX0COLS}
+
   ARGS_MERGE="-mat ${PURGED} -out ${HISFILE} -skip 0 -keep ${KEEP} -maxlevel 25\
-              -forbw 3 -coverNmax ${coverNmax} -forbidden-cols ${INDEX0COLS}"
+              -forbw 3 -coverNmax ${coverNmax}\
+              -forbidden-cols ${MERGEFORBIDDENCOLS}"
   LOG_MERGE="${WDIR}/${NAME}.merge.log"
   ${BUILDDIR}/filter/merge-dl ${ARGS_MERGE} > ${LOG_MERGE} 2>&1
   check_error "$?"
