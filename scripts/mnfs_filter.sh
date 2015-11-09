@@ -56,10 +56,6 @@ DUP1_SELECTOR="["
 for ((i=0;i<DUP1_NSLICES;++i)); do DUP1_SELECTOR="${DUP1_SELECTOR}$i"; done
 DUP1_SELECTOR="${DUP1_SELECTOR}]"
 
-echo ${DUP1_NSLICES_LOG}
-echo ${DUP1_NSLICES}
-echo ${DUP1_SELECTOR}
-
 if [ "${#SM_ARRAY[@]}" -ne "${#LPB_ARRAY[@]}" ] ; then
   echo "SM_ARRAY and LPB_ARRAY must have the same size"
   exit 1
