@@ -642,16 +642,16 @@ performance of the linear algebra step. When hwloc is used, the keyword
 "cpubinding" should appear in cxxx.bwc.log.
 
 See cpubinding.conf for more information. In short, you just need to add on the
-cadofactor.py command line: cpubinding=$(CADO)/linalg/bwc/cpubinding.conf.
+cado-nfs.py command line: cpubinding=$(CADO)/parameters/misc/cpubinding.conf.
 
 Using Cantor's algorithm
 ========================
 
-At the highest levels of the recursion tree of the 'lingen' program,
-one might use Cantor's algorithm to speed up the computations
-(see https://hal.inria.fr/inria-00188261). This not done by default
-because it was not fully tested yet. To use Cantor's algorithm, add
-for example cantor_threshold=128 to the cadofactor.py command line.
+At the highest levels of the recursion tree of the 'lingen' program, one
+might use Cantor's algorithm to speed up the computations (see
+https://hal.inria.fr/inria-00188261). This not done by default because it
+was not fully tested yet. To use Cantor's algorithm, add for example
+tasks.linalg.bwc.cantor_threshold=128 to the cado-nfs.py command line.
 
 Using several sequences
 =======================

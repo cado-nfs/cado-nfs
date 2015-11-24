@@ -114,7 +114,7 @@ static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
 
   if (excess <= 0) /* covers case nrows = ncols = 0 */
   {
-    fprintf (stdout, "number of rows <= number of columns\n");
+    fprintf (stdout, "number of rows < number of columns + keep\n");
     print_final_values (mat, 0);
     exit(2);
   }
@@ -180,10 +180,13 @@ static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
     cliques_removal (mat, target_excess, nthreads, verbose);
     excess = singleton_removal (mat, nthreads, verbose);
 
-    fprintf(stdout, "This step removed %" PRId64 " rows and decreased excess "
-                    "by %" PRId64 "\nEach excess row deleted %2.2lf rows\n",
-                    (int64_t) (oldnrows-mat->nrows), (oldexcess-excess),
-                    (double) (oldnrows-mat->nrows) / (double) (oldexcess-excess));
+    fprintf (stdout, "This step removed %" PRId64 " rows and decreased excess "
+             "by %" PRId64 "\n", (int64_t) (oldnrows - mat->nrows),
+             oldexcess - excess);
+    if (oldexcess > excess)
+      fprintf (stdout, "Each excess row deleted %2.2lf rows\n",
+               (double) (oldnrows - mat->nrows) /
+               (double) (oldexcess - excess));
   }
 
 
@@ -335,7 +338,7 @@ int main(int argc, char **argv)
     uint64_t col_max_index_arg = 0;
     uint64_t nrows_init_arg = 0;
     purge_matrix_t mat; /* All info regarding the matrix is in this struct */
-    int64_t keep = DEFAULT_FILTER_EXCESS; /* maximun final excess */
+    int64_t keep = DEFAULT_FILTER_EXCESS; /* minimum final excess */
     int nsteps = -1; /* negative value means chosen by purge */
     double required_excess = DEFAULT_PURGE_REQUIRED_EXCESS;
     unsigned int nthreads = DEFAULT_PURGE_NTHREADS;
@@ -432,8 +435,8 @@ int main(int argc, char **argv)
     }
     if (col_max_index_arg == 0)
     {
-      fprintf(stderr, "Error, missing -col-max-index command line argument "
-                      "(or col-max-index = 0)\n");
+      fprintf(stderr, "Error, missing or wrong -col-max-index command line argument "
+                      "(should be > 0)\n");
       usage(pl, argv0);
     }
     if (col_min_index_arg == UMAX(uint64_t))
@@ -471,6 +474,7 @@ int main(int argc, char **argv)
       fprintf(stdout, "will be chosen by the program\n");
     else
       fprintf(stdout, "%d\n", nsteps);
+    ASSERT_ALWAYS(keep >= 0);
     fprintf(stdout, "# INFO: target excess: %" PRId64 "\n", keep);
     fflush (stdout);
     /*}}}*/
@@ -540,11 +544,9 @@ int main(int argc, char **argv)
       purge_matrix_print_stats_rows_weight (stdout, mat, verbose);
     }
 
-    /* XXX: Are these tests useful ? Already checked after first call to
-     * removal_all_singletons in singletons_and_cliques_removal. */
-    if (mat->nrows < mat->ncols)
+    if (mat->nrows < mat->ncols + keep)
     {
-      fprintf (stdout, "number of rows <= number of columns\n");
+      fprintf (stdout, "number of rows < number of columns + keep\n");
       print_final_values (mat, 0);
       exit(2);
     }

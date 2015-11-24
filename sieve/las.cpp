@@ -717,8 +717,8 @@ static void las_info_init_hint_table(las_info_ptr las, param_list pl)/*{{{*/
         siever_config_ptr sc = h->conf;
         int d = las->hint_lookups[sc->side][sc->bitsize];
         if (d >= 0) {
-            fprintf(stderr, "Error: two hints found for %d%c\n",
-                    sc->bitsize, sidenames[sc->side][0]);
+            fprintf(stderr, "Error: two hints found for %d@%d\n",
+                    sc->bitsize, sc->side);
             exit(1);
         }
         las->hint_lookups[sc->side][sc->bitsize] = h - las->hint_table[0];
@@ -800,6 +800,7 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
     las_display_config_flags();
 
     las->suppress_duplicates = param_list_parse_switch(pl, "-dup");
+    las->batch = param_list_parse_switch(pl, "-batch");
     las->nb_threads = 1;		/* default value */
     param_list_parse_int(pl, "t", &las->nb_threads);
     if (las->nb_threads <= 0) {
@@ -827,15 +828,6 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
 	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
-
-#ifdef BATCH
-    if ((tmp = param_list_lookup_string (pl, "batch0")) == NULL)
-      {
-        fprintf (stderr, "Error: -batch0 is missing\n");
-        param_list_print_usage (pl, NULL, stderr);
-        exit (EXIT_FAILURE);
-      }
-#endif
 
     // sc->skewness = las->cpoly->skew;
     /* -skew (or -S) may override (or set) the skewness given in the
@@ -1048,9 +1040,8 @@ static void las_info_init(las_info_ptr las, param_list pl)/*{{{*/
     las->dlog_base->read();
 #endif
 
-#ifdef BATCH
-    cofac_list_init (las->L);
-#endif
+    if (las->batch)
+      cofac_list_init (las->L);
 
 }/*}}}*/
 
@@ -1097,9 +1088,8 @@ void las_info_clear(las_info_ptr las)/*{{{*/
     delete las->dlog_base;
 #endif
 
-#ifdef BATCH
-    cofac_list_clear (las->L);
-#endif
+    if (las->batch)
+      cofac_list_clear (las->L);
 }/*}}}*/
 
 /* Look for an existing sieve_info in las->sievers with configuration matching
@@ -2123,7 +2113,7 @@ bool register_contending_relation(las_info_srcptr las, sieve_info_srcptr si, rel
                  * not have the info in the descent hint table,
                  * period.
                  */
-                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Warning: cannot estimate refactoring time for relation involving %d%c (%Zd,%Zd)\n", n, sidenames[side][0], v.p, v.r);
+                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Warning: cannot estimate refactoring time for relation involving %d@%d (%Zd,%Zd)\n", n, side, v.p, v.r);
                 time_left = INFINITY;
             } else {
                 if (std::isfinite(time_left))
@@ -2420,17 +2410,14 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
             if (pass == 0)
 		continue;
 
-#ifdef BATCH
-	    verbose_output_start_batch ();
-	    cofac_list_add ((cofac_list_t*) las->L, a, b, norm[0], norm[1],
-			    si->qbasis.q);
-	    verbose_output_end_batch ();
-	    continue; /* we will deal with all cofactors at the end of las */
-#endif
-#if 0 /* activate here to create a cofac file for the 'smooth' binary */
-	    gmp_printf ("LOG %ld %lu %Zd %Zd %Zd\n", a, b, norm[0], norm[1],
-			si->qbasis.q);
-#endif
+	    if (las->batch)
+	      {
+		verbose_output_start_batch ();
+		cofac_list_add ((cofac_list_t*) las->L, a, b, norm[0], norm[1],
+				si->qbasis.q);
+		verbose_output_end_batch ();
+		continue; /* we deal with all cofactors at the end of las */
+	      }
 
             if (cof_stats == 1)
             {
@@ -2787,7 +2774,8 @@ void las_report_accumulate_threads_and_display(las_info_ptr las,
     verbose_output_print(0, 2, "%lu survivors after algebraic sieve, ", rep->survivors1);
     verbose_output_print(0, 2, "coprime: %lu\n", rep->survivors2);
     verbose_output_print(0, 2, "# Checksums over sieve region: after all sieving: %u, %u\n", checksum_post_sieve[0].get_checksum(), checksum_post_sieve[1].get_checksum());
-    verbose_output_vfprint(0, 1, gmp_vfprintf, "# %lu relation(s) for %s (%Zd,%Zd)\n", rep->reports, sidenames[si->conf->side], si->doing->p, si->doing->r);
+    if (las->batch) /* makes no sense in batch mode */
+      verbose_output_vfprint(0, 1, gmp_vfprintf, "# %lu relation(s) for %s (%Zd,%Zd)\n", rep->reports, sidenames[si->conf->side], si->doing->p, si->doing->r);
     double qtts = qt0 - rep->tn[0] - rep->tn[1] - rep->ttf;
     if (rep->both_even) {
         verbose_output_print(0, 1, "# Warning: found %lu hits with i,j both even (not a bug, but should be very rare)\n", rep->both_even);
@@ -2880,6 +2868,9 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
   param_list_decl_usage(pl, "ondemand-siever-config", "(switch) defer initialization of siever precomputed structures (one per special-q side) to time of first actual use");
   param_list_decl_usage(pl, "dup", "(switch) suppress duplicate relations");
+  param_list_decl_usage(pl, "batch", "(switch) use batch cofactorization");
+  param_list_decl_usage(pl, "batch0", "side-0 batch file");
+  param_list_decl_usage(pl, "batch1", "side-1 batch file");
   param_list_decl_usage(pl, "galois", "(switch) for reciprocal polynomials, sieve only half of the q's");
 #ifdef TRACE_K
   param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
@@ -2900,10 +2891,6 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
   las_dlog_base::declare_parameter_usage(pl);
 #endif /* DLP_DESCENT */
-#ifdef BATCH
-  param_list_decl_usage (pl, "batch0", "side-0 batch file");
-  param_list_decl_usage (pl, "batch1", "side-1 batch file");
-#endif
   verbose_decl_usage(pl);
 }
 
@@ -2940,6 +2927,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_configure_switch(pl, "-stats-stderr", NULL);
     param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
     param_list_configure_switch(pl, "-dup", NULL);
+    param_list_configure_switch(pl, "-batch", NULL);
     //    param_list_configure_switch(pl, "-galois", NULL);
     param_list_configure_alias(pl, "skew", "S");
     // TODO: All these aliases should disappear, one day.
@@ -2979,22 +2967,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
 #if DLP_DESCENT
     param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
-#endif
-#ifdef BATCH
-    FILE *batch[2] = {NULL, NULL};
-    const char *batch0_file, *batch1_file;
-    if ((batch0_file = param_list_lookup_string (pl, "batch0")) == NULL)
-      {
-        fprintf (stderr, "Error: -batch0 is missing\n");
-        param_list_print_usage (pl, NULL, stderr);
-        exit (EXIT_FAILURE);
-      }
-    if ((batch1_file = param_list_lookup_string (pl, "batch1")) == NULL)
-      {
-        fprintf (stderr, "Error: -batch1 is missing\n");
-        param_list_print_usage (pl, NULL, stderr);
-        exit (EXIT_FAILURE);
-      }
 #endif
 
     las_info_init(las, pl);    /* side effects: prints cmdline and flags */
@@ -3100,7 +3072,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             for(descent_hint_ptr h = las->hint_table[0] ; h->conf->bitsize ; h++) {
                 siever_config_ptr sc = h->conf;
                 if (!siever_config_match(sc, current_config)) continue;
-                verbose_output_print(0, 1, "# Using existing sieving parameters from hint list for q~2^%d on the %s side [%d%c]\n", sc->bitsize, sidenames[sc->side], sc->bitsize, sidenames[sc->side][0]);
+                verbose_output_print(0, 1, "# Using existing sieving parameters from hint list for q~2^%d on the %s side [%d@%d]\n", sc->bitsize, sidenames[sc->side], sc->bitsize, sc->side);
                 memcpy(current_config, sc, sizeof(siever_config));
             }
         }
@@ -3378,12 +3350,12 @@ int main (int argc0, char *argv0[])/*{{{*/
                 for(int i = 0 ; i < me.depth ; i++) {
                     verbose_output_print (0, 1, " ");
                 }
-                verbose_output_print (0, 1, "%d%c ->", n, sidenames[me.side][0]);
+                verbose_output_print (0, 1, "%d@%d ->", n, me.side);
                 for(unsigned int i = 0 ; i < winner.outstanding.size() ; i++) {
                     int side = winner.outstanding[i].first;
                     relation::pr const& v(winner.outstanding[i].second);
                     unsigned int n = mpz_sizeinbase(v.p, 2);
-                    verbose_output_print (0, 1, " %d%c", n, sidenames[side][0]);
+                    verbose_output_print (0, 1, " %d@%d", n, side);
                 }
                 if (winner.outstanding.empty()) {
                     verbose_output_print (0, 1, " done");
@@ -3398,7 +3370,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                     int side = winner.outstanding[i].first;
                     relation::pr const& v(winner.outstanding[i].second);
                     unsigned int n = mpz_sizeinbase(v.p, 2);
-                    verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing %s (%Zd,%Zd) [%d%c]" HILIGHT_END " to todo list\n", sidenames[side], v.p, v.r, n, sidenames[side][0]);
+                    verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing %s (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list\n", sidenames[side], v.p, v.r, n, side);
                     las_todo_push_withdepth(las->todo, v.p, v.r, side, si->doing->depth + 1);
                 }
             }
@@ -3406,9 +3378,9 @@ int main (int argc0, char *argv0[])/*{{{*/
             las_todo_entry const& me(*si->doing);
             las->tree->mark_try_again(me.iteration + 1);
             unsigned int n = mpz_sizeinbase(me.p, 2);
-            verbose_output_print (0, 1, "# taking path: %d%c -> loop (#%d)", n, sidenames[me.side][0], me.iteration + 1);
+            verbose_output_print (0, 1, "# taking path: %d@%d -> loop (#%d)", n, me.side, me.iteration + 1);
             verbose_output_vfprint (0, 1, gmp_vfprintf, " \t%d %Zd %Zd\n", me.side,me.p,me.r);
-            verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Failed to find a relation for " HILIGHT_START "%s (%Zd,%Zd) [%d%c]" HILIGHT_END " (iteration %d). Putting back to todo list.\n", sidenames[me.side], me.p, me.r, n, sidenames[me.side][0], me.iteration);
+            verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Failed to find a relation for " HILIGHT_START "%s (%Zd,%Zd) [%d@%d]" HILIGHT_END " (iteration %d). Putting back to todo list.\n", sidenames[me.side], me.p, me.r, n, me.side, me.iteration);
             las_todo_push_withdepth(las->todo, me.p, me.r, me.side, me.depth + 1, me.iteration + 1);
         }
 #endif  /* DLP_DESCENT */
@@ -3434,41 +3406,34 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
     delete las->tree;
 
-#ifdef BATCH
-    unsigned long lim[2] = {las->default_config->sides[0]->lim,
-			    las->default_config->sides[1]->lim};
-    int lpb[2] = {las->default_config->sides[0]->lpb,
-		  las->default_config->sides[1]->lpb};
-    int split = 1;
-    batch[0] = fopen (batch0_file, "r");
-    if (batch[0] == NULL)
+    if (las->batch)
       {
-	create_batch_file (batch0_file, lim[0], 1UL << lpb[0],
-			   las->cpoly->pols[0], split);
-	batch[0] = fopen (batch0_file, "r");
+	double tcof_batch = seconds ();
+	const char *batch0_file, *batch1_file;
+	batch0_file = param_list_lookup_string (pl, "batch0");
+	batch1_file = param_list_lookup_string (pl, "batch1");
+	unsigned long lim[2] = {las->default_config->sides[0]->lim,
+				las->default_config->sides[1]->lim};
+	int lpb[2] = {las->default_config->sides[0]->lpb,
+		      las->default_config->sides[1]->lpb};
+	mpz_t batchP[2];
+	mpz_init (batchP[0]);
+	mpz_init (batchP[1]);
+	create_batch_file (batch0_file, batchP[0], lim[0], 1UL << lpb[0],
+			   las->cpoly->pols[0], las->output);
+	create_batch_file (batch1_file, batchP[1], lim[1], 1UL << lpb[1],
+			   las->cpoly->pols[1], las->output);
+	cofac_list_realloc (las->L, las->L->size);
+	report->reports = find_smooth (las->L, lpb, lim, batchP, las->output);
+	mpz_clear (batchP[0]);
+	mpz_clear (batchP[1]);
+	factor (las->L, report->reports, las->cpoly, lpb[0], lpb[1],
+		las->output);
+	tcof_batch = seconds () - tcof_batch;
+	report->ttcof += tcof_batch;
+	/* add to ttf since the remaining time will be computed as ttf-ttcof */
+	report->ttf += tcof_batch;
       }
-    ASSERT_ALWAYS(batch[0] != NULL);
-    batch[1] = fopen (batch1_file, "r");
-    if (batch[1] == NULL)
-      {
-	create_batch_file (batch1_file, lim[1], 1UL << lpb[1],
-			   las->cpoly->pols[1], split);
-	batch[1] = fopen (batch1_file, "r");
-      }
-    ASSERT_ALWAYS(batch[1] != NULL);
-    double tcof_batch = seconds ();
-    cofac_list_realloc (las->L, las->L->size);
-    verbose_output_print (2, 1, "# Total %lu pairs of cofactors\n",
-			  las->L->size);
-    report->reports = find_smooth (las->L, lpb, lim, batch, las->verbose);
-    verbose_output_print (2, 1, "# Detected %lu smooth cofactors\n",
-			  report->reports);
-    factor (las->L, report->reports, las->cpoly, lpb[0], lpb[1], las->verbose);
-    tcof_batch = seconds () - tcof_batch;
-    report->ttcof += tcof_batch;
-    /* add to ttf since the remaining time will be computed as ttf - ttcof */
-    report->ttf += tcof_batch;
-#endif
 
     t0 = seconds () - t0;
     wct = wct_seconds() - wct;

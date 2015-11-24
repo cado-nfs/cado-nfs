@@ -16,7 +16,9 @@ class _ChecksummedKey(object):
 class Workunit(object):
     # Keys and their type as a tuple in their preferred ordering
     KEYS = (("WORKUNIT", _ScalarKey), ("TERMINATE", _SignalKey), 
-        ("FILE", _ChecksummedKey), ("EXECFILE", _ChecksummedKey),
+        ("FILE", _ChecksummedKey),
+        ("EXECFILE", _ChecksummedKey),
+        ("SUGGEST_EXECFILE", _ScalarKey),
         ("COMMAND", _ListKey), ("RESULT", _ListKey), ("DELETE", _ListKey), 
         ("CHECKSUM", _ListKey))
     # The type for CHECKSUM does not really matter so long as it's not 

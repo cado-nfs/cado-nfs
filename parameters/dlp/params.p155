@@ -1,0 +1,74 @@
+###########################################################################
+# See params/params.c90 for an example which contains some documentation.
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = p155
+
+###########################################################################
+# Polynomial selection
+###########################################################################
+
+tasks.polyselect.degree = 5
+tasks.polyselect.P = 5000000
+tasks.polyselect.admax = 2e8
+tasks.polyselect.adrange = 1e4
+tasks.polyselect.incr = 60
+tasks.polyselect.nq = 1000
+tasks.polyselect.nrkeep = 2000
+
+###########################################################################
+# Sieve
+###########################################################################
+
+rlim = 17250000
+alim = 30940000
+lpbr = 27
+lpba = 27
+tasks.sieve.mfbr = 54
+tasks.sieve.mfba = 54
+tasks.sieve.rlambda = 2.24
+tasks.sieve.alambda = 2.20
+tasks.sieve.ncurves0 = 13
+tasks.sieve.ncurves1 = 23
+tasks.I = 15
+
+tasks.sieve.qrange = 2000
+tasks.sieve.rels_wanted = 40000000
+
+###########################################################################
+# Filter 
+###########################################################################
+
+# use default
+
+###########################################################################
+# Linalg 
+###########################################################################
+
+tasks.linalg.bwc.interval=10000
+
+###########################################################################
+# Reconstructlog
+###########################################################################
+tasks.reconstructlog.partial=false
+
+###########################################################################
+# Individual logs
+###########################################################################
+
+tasks.descent.init_I = 14
+tasks.descent.init_ncurves = 150
+tasks.descent.init_lpb = 64
+tasks.descent.init_lim = 500000000
+tasks.descent.init_mfb = 140
+tasks.descent.init_tkewness = 500000000
+tasks.descent.I = 14
+tasks.descent.lim0 = 17250000
+tasks.descent.lim1 = 30940000
+tasks.descent.lpb0 = 27
+tasks.descent.lpb1 = 27
+tasks.descent.mfb0 = 54
+tasks.descent.mfb1 = 54

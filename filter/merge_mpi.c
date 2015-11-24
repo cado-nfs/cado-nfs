@@ -1015,44 +1015,18 @@ mpi_delete_superfluous_rows(report_t *rep, filter_matrix_t *mat, int *row_weight
     }
 }
 
-// forbw = 0: cN and stop when cN/cNmin too high
-//         1: cN and fprints BWCOST from time to time to locate the min (NYI)
-//         2: strange function (NYI)
-//         3: c/N and stop when > coverNmax
-//         4: just stop when m > mergelevelmax
-//
 // TODO: when debugged, transfer this to merge_mono.c
 //
 int
-stop_merge(filter_matrix_t *mat, int forbw, double ratio, double coverNmax,
-           int m)
+stop_merge (filter_matrix_t *mat, double target_density, int m)
 {
     if(m > mat->mergelevelmax){
-	// a stopping criterion whatever forbw is...!
 	fprintf(stderr, "Breaking, since m > mergelevelmax\n");
 	return 1;
     }
-    else if(forbw == 0){
-
-	// TODO: test this, man!
-
-	// using c*N and stopping when too high
-	static unsigned long cNmin = 0;
-	unsigned long cN =
-	    ((unsigned long)mat->nrows) * ((unsigned long)mat->weight);
-	if(cNmin == 0)
-	    cNmin = cN;
-	else{
-	    double r = ((double)cN)/((double)cNmin);
-	    if(r > ratio){
-		fprintf(stderr, "Stopping, since cN too high: %2.2lf\n", r);
-		return 1;
-	    }
-	}
-    }
-    else if(forbw == 3){
+    else {
 	double coverN = ((double)mat->weight)/((double)mat->rem_nrows);
-	if (coverN > coverNmax)
+	if (coverN > target_density)
           {
 	    fprintf (stderr, "Breaking, since c/N > c/N_max\n");
 	    return 1;
@@ -1064,7 +1038,7 @@ stop_merge(filter_matrix_t *mat, int forbw, double ratio, double coverNmax,
 // actually, mat is rather empty, since it does not use too much fancy things.
 // So we just need to init the row weights.
 void
-mpi_master(report_t *rep, filter_matrix_t *mat, int mpi_size, FILE *purgedfile, int forbw, double ratio, double coverNmax, int first)
+mpi_master(report_t *rep, filter_matrix_t *mat, int mpi_size, FILE *purgedfile, double target_density, int first)
 {
     MPI_Status status;
     double totwait = 0.0, tt, wctstart = MPI_Wtime();
@@ -1130,7 +1104,7 @@ mpi_master(report_t *rep, filter_matrix_t *mat, int mpi_size, FILE *purgedfile, 
 #if DEBUG >= 1
 	mpi_err2("Minimal m is %d for proc=%d\n", m, proc);
 #endif
-	if(stop_merge(mat, forbw, ratio, coverNmax, m))
+	if(stop_merge(mat, target_density, m))
 	    break;
 	if(m > maxm)
 	    maxm = m;
@@ -1247,7 +1221,7 @@ mpi_master(report_t *rep, filter_matrix_t *mat, int mpi_size, FILE *purgedfile, 
 }
 
 void
-mpi_start_proc(char *outname, filter_matrix_t *mat, FILE *purgedfile, char *purgedname, int forbw, double ratio, double coverNmax, char *resumename)
+mpi_start_proc(char *outname, filter_matrix_t *mat, FILE *purgedfile, char *purgedname, double target_density, char *resumename)
 {
     report_t rep;
     char *str;
@@ -1295,11 +1269,7 @@ mpi_start_proc(char *outname, filter_matrix_t *mat, FILE *purgedfile, char *purg
 	    fclose(resumefile);
 	}
 	mpi_start_slaves(mpi_size, mat);
-	if(coverNmax == 0.0){
-	    mpi_err("#W# Forcing forbw=4: stopping when m too large\n");
-	    forbw = 4;
-	}
-	mpi_master(&rep, mat, mpi_size, purgedfile, forbw, ratio, coverNmax,
+	mpi_master(&rep, mat, mpi_size, purgedfile, target_density,
 		   resumename != NULL);
 	mpi_kill_slaves();
     }

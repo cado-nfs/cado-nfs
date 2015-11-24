@@ -1,4 +1,5 @@
 
+# doctests in cadocommand don't seem to work.
 set(PYTHON_DOCTEST_SOURCES
     ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadoparams.py
     ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadoprograms.py
@@ -6,6 +7,7 @@ set(PYTHON_DOCTEST_SOURCES
     ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/workunit.py
     ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/wudb.py
     ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/wuserver.py
+    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/toplevel.py
 )
 
 foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})

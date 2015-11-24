@@ -1,0 +1,91 @@
+###########################################################################
+#     Parameter file for Cado-NFS ; DLP version
+###########################################################################
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = p60
+
+## N is the prime modulo which we want dlogs and ell is the prime
+## factor of N-1 modulo which the computations are done.
+#  N = 53236943330228380237618624445646085674945074907141464418703
+#  ell = 46188898894770668459
+
+# If you don't want the "full column of 1", uncomment the following line.
+# In particular when both polynomials are not monic, this could help.
+# tasks.lcideals = false
+
+## Standard stuff; uncomment and edit according to your config.
+#slaves.nrclients=2
+##tasks.threads = 2
+#tasks.execpath = ...
+#tasks.workdir =  ...
+#slaves.hostnames=localhost
+#slaves.scriptpath=...
+#slaves.basepath=...
+
+## From here, the parameter are similar to factorization.
+
+tasks.I = 11
+
+###########################################################################
+# Polynomial selection with Kleinjung's algorithm
+###########################################################################
+
+tasks.polyselect.degree = 4
+
+tasks.polyselect.admax = 1000
+tasks.polyselect.incr = 60
+tasks.polyselect.adrange = 500
+tasks.polyselect.P = 420
+tasks.polyselect.nq = 1000
+
+###########################################################################
+# Sieve
+###########################################################################
+
+
+rlim = 50000
+alim = 100000
+lpbr = 22
+lpba = 22
+tasks.sieve.mfbr = 24
+tasks.sieve.mfba = 24
+tasks.sieve.rlambda = 1.2
+tasks.sieve.alambda = 1.2
+
+tasks.sieve.qmin = 200000
+tasks.sieve.qrange = 1000
+tasks.sieve.rels_wanted = 800000
+
+# adjust if needed
+# slaves.niceness = 10
+
+###########################################################################
+# Filtering
+###########################################################################
+
+tasks.filter.maxlevel = 15
+tasks.filter.target_density = 100
+
+tasks.reconstructlog.partial=false
+
+###########################################################################
+# Individual log
+###########################################################################
+
+tasks.descent.init_I = 11
+tasks.descent.init_ncurves = 10
+tasks.descent.init_lpb = 24
+tasks.descent.init_lim = 100000
+tasks.descent.init_mfb = 48
+tasks.descent.init_tkewness = 200000
+tasks.descent.I = 11
+tasks.descent.lim0 = 100000
+tasks.descent.lim1 = 100000
+tasks.descent.lpb0 = 22
+tasks.descent.lpb1 = 22
+tasks.descent.mfb0 = 44
+tasks.descent.mfb1 = 44

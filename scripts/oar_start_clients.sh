@@ -3,18 +3,18 @@
 SCRIPTNAME="$0"
 
 function usage() {
-  echo "Usage: $SCRIPTNAME [-s <n>] [-p <path>] [-py <interpreter>] <parameters for wuclient2.py>"
-  echo "Mandatory parameters for wuclient2.py: --server=<URL>"
+  echo "Usage: $SCRIPTNAME [-s <n>] [-p <path>] [-py <interpreter>] <parameters for cado-nfs-client.py>"
+  echo "Mandatory parameters for cado-nfs-client.py: --server=<URL>"
   echo "If the server is configured to use SSL (which is the default), the parameters"
-  echo "for wuclient2.py must also include the SSL certificate fingerprint, specified"
+  echo "for cado-nfs-client.py must also include the SSL certificate fingerprint, specified"
   echo "with --certsha1=<CERTSHA1>"
   echo "Optional parameters:"
   echo "-s <n>: Start <n> client scripts on each host. Default: 1"
-  echo "-p <path>: Look for wuclient2.py script in directory specified by <path>"
-  echo "           on slave nodes. This must be specified if wuclient2.py is not"
+  echo "-p <path>: Look for cado-nfs-client.py script in directory specified by <path>"
+  echo "           on slave nodes. This must be specified if cado-nfs-client.py is not"
   echo "           found in a directory in PATH on the slave nodes."
   echo "-py <interpreter>: Force <interpreter> as the Python interpreter for running"
-  echo "                   wuclient2.py on slave nodes. Default: empty."
+  echo "                   cado-nfs-client.py on slave nodes. Default: empty."
   echo '-n <n>: Use "numactl --cpunodebind=", cycling through [0, <n>-1] per client'
 }
 
@@ -54,7 +54,7 @@ do
   elif [ "$1" == "-py" ]
   then
     # Create an array with the Python interpreter, if specified, and later
-    # add the path of wuclient2.py. We use an array so that we can expand
+    # add the path of cado-nfs-client.py We use an array so that we can expand
     # it to exactly 2 or 1 words, respectively, if a Python interpreter was
     # specified or not, even when any of the paths include whitespace.
     COMMAND[0]="$2"
@@ -75,8 +75,8 @@ if [[ -n "$SCRIPTPATH" && ! "${SCRIPTPATH: -1}" = "/" ]]
 then
   SCRIPTPATH="${SCRIPTPATH}/"
 fi
-# Add the path of wuclient to COMMAND
-COMMAND=("${COMMAND[@]}" "${SCRIPTPATH}wuclient2.py")
+# Add the path of cado-nfs-client.py to COMMAND
+COMMAND=("${COMMAND[@]}" "${SCRIPTPATH}cado-nfs-client.py")
 
 if "$USE_NUMACTL"
 then
@@ -120,5 +120,5 @@ do
     done
 done
 
-# Wait for wuclient jobs to finish.
+# Wait for cado-nfs-client.py jobs to finish.
 wait

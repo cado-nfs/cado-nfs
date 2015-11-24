@@ -3,33 +3,32 @@ Using CADO-NFS for DLP in large characteristic fields.
 
 **** Basic usage: DLP in GF(p)
 
-The cadofactor.py script and the factor.sh wrapper can be used to compute
-discrete logarithms in a prime field GF(p).
+The cado-nfs.py script can be used to compute discrete logarithms in a
+prime field GF(p).
 
 For the moment, it is required to have Magma installed. It is used just
 for some number-theoretic computations, after the polynomial selection
 has been done.
 Cf scripts/badideals.mag .
 This script has been written without using any high-level functionality
-of Magma, so that it will be easy to convert it to C/C++/Python.
-This step is very cheap, so it is possible to run it on any computer.
+of Magma, so that it will be easy to convert it to C/C++/Python.  This
+step is very cheap, so it is possible to run it on any computer.
 
 In principle, just typing
-  ./factor.sh <p> -dlp -ell <ell> target=<target>
+  ./cado-nfs.py -dlp -ell <ell> target=<target> <p>
 should compute the discrete logarithm of <target> modulo <ell> in
 GF(<p>). Right now, there are parameters only for primes p of around 30,
 60, or 155 digits (to be checked in params_dl/ subdirectory). If no target is
 given, then the output is a file containing the virtual logarithms of all
 the factor base elements.
 
-A direct use of cadofactor.py allows more flexibility. An example of
-parameter file is given in params_dl/param.p60. The main difference is
-the presence of the "dlp=true" line, and the lines related to characters
-and sqrt disappear. There is an additional block of parameters related to
-individual logarithms.
+More flexibility is possible. An example of parameter file is given in
+parameters/dlp/param.p60. The main difference is that the lines related
+to characters and sqrt disappear and that there is an additional block of
+parameters related to individual logarithms.
 
 After the computation is finished, it is possible to run again the
-cadofactor.py script, with a different target: only the last step will be
+cado-nfs.py script, with a different target: only the last step will be
 run.
 
 Note: the logarithms are given in an arbitrary base. If you want to
@@ -63,7 +62,7 @@ based on constructions available in the literature. Also the individual
 logarithm has to be implemented for that case.
 
 For DLP in GF(p^2), things are sligthly more integrated:
-  ./factor.sh <p> -dlp -ell <ell> -gfpext 2
+  ./cado-nfs.py <p> -dlp -ell <ell> -gfpext 2
 should work for p = 7 mod 8, provided that a parameter file is available
 for the size of p (at the time of writing this doc, only p of 20 decimal
 digits is supported).

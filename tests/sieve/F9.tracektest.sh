@@ -27,6 +27,6 @@ REFERENCE_REVISION="9253f54766c5438fe3198053f9edd811ee254a17"
 : ${rho:=554209}
 
 export rlim alim lpbr lpba maxbits mfbr mfba rlambda alambda I q0 rho
-"${SOURCE_TEST_DIR}"/sievetest.sh "${FB}" "${LAS}" "${SRCDIR}/params/F9.poly" "${REFERENCE_SHA1}" "${REFERENCE_REVISION}" "" "$@" || exit 1
+"${SOURCE_TEST_DIR}"/sievetest.sh "${FB}" "${LAS}" "${SRCDIR}/parameters/polynomials/F9.poly" "${REFERENCE_SHA1}" "${REFERENCE_REVISION}" "" "$@" || exit 1
 
 exit 0

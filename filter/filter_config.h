@@ -15,13 +15,14 @@
 /* Purge (a.k.a singleton and clique removal) */
 /**********************************************/
 
-#define DEFAULT_PURGE_NTHREADS 4
+#define DEFAULT_PURGE_NTHREADS 1
 
 // Default number of step of clique removal in purge.
 #define DEFAULT_PURGE_NSTEPS 50
 
 // How many more relations than prime ideals do we want?
 // A value of 0.1 means 10% more relations than ideals after singleton removal.
+// (Please update params.c90 if you change this value.)
 #define DEFAULT_PURGE_REQUIRED_EXCESS 0.0
 
 // Keep that many more relations (used by purge and merge).
@@ -35,9 +36,13 @@
 #define MERGE_LEVEL_MAX 256
 
 #define DEFAULT_MERGE_MAXLEVEL 10
-#define DEFAULT_MERGE_FORBW 0
-#define DEFAULT_MERGE_RATIO 1.1
-#define DEFAULT_MERGE_COVERNMAX 100.0
+#ifndef FOR_DL
+/* the default value 170 was determined experimentally on RSA-155
+   with the git version 0a6a50c */
+#define DEFAULT_MERGE_TARGET_DENSITY 170.0
+#else /* for discrete log, a smaller density is better */
+#define DEFAULT_MERGE_TARGET_DENSITY 100.0
+#endif
 #define DEFAULT_MERGE_MKZTYPE 1 /* pure Markowitz */
 #define DEFAULT_MERGE_WMSTMAX 7 /* relevant only if mkztype == 2 */
 

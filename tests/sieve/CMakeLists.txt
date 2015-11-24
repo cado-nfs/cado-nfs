@@ -19,7 +19,8 @@ set(las_descent_path    ${CADO_NFS_BINARY_DIR}/sieve/las_descent)
 set(F9_roots "${CMAKE_CURRENT_BINARY_DIR}/F9.roots")
 
 cado_define_test(F9_makefbtest
-        PROGRAM ${makefb_path} -poly ${CADO_NFS_SOURCE_DIR}/params/F9.poly -lim 1200000 -maxbits 10 -out ${F9_roots}
+        PROGRAM ${makefb_path} -poly
+        ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/F9.poly -lim 1200000 -maxbits 10 -out ${F9_roots}
         TARGET_DEPENDENCIES makefb)
 
 # Before running F9_sievetest, remove the file with the captured checksums
@@ -28,9 +29,17 @@ cado_define_test(F9_makefbtest
 cado_define_test(F9_sievetest_cleanup 
         PROGRAM ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/F9.checksums)
 
-cado_define_test(F9_sievetest 
+cado_define_test(F9_sievetest
         SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/F9.sievetest.sh
+        ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/F9.checksums
+        TARGET_DEPENDENCIES las
+        TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefbtest
+        )
+
+cado_define_test(F9_batchtest
+        SCRIPT
+        ${CMAKE_CURRENT_SOURCE_DIR}/F9.batchtest.sh
         ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/F9.checksums
         TARGET_DEPENDENCIES las
         TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefbtest
@@ -46,7 +55,7 @@ cado_define_test(F9_cofactest
     SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/F9.cofactest.sh
         ${F9_sievetest_ARGUMENTS}
-        -file-cofact ${CADO_NFS_SOURCE_DIR}/params/F9.st
+        -file-cofact ${CMAKE_CURRENT_SOURCE_DIR}/F9.st
     TARGET_DEPENDENCIES las
     TEST_DEPENDENCIES F9_sievetest)
 

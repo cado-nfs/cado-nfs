@@ -66,6 +66,8 @@ void keep_rolling_checkpoints(const char * stem, unsigned int v)
         unsigned int k = vs[i];
         if (bw->checkpoint_precious && (k % bw->checkpoint_precious == 0))
             continue;
+        if (k == 0)
+            continue;
         char * v;
         rc = asprintf(&v, spat, k);
         ASSERT_ALWAYS(rc >= 0);

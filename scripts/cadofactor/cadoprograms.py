@@ -402,8 +402,10 @@ class Program(object, metaclass=InspectType):
         binary = str(execbin or self.binary) + execsuffix
         execfile = os.path.normpath(os.sep.join([path, binary]))
         execsubfile = os.path.normpath(os.sep.join([path, subdir, binary]))
+        self.suggest_subdir=dict()
         if execsubfile != execfile and os.path.isfile(execsubfile):
             self.execfile = execsubfile
+            self.suggest_subdir[self.execfile]=subdir
         elif os.path.isfile(execfile):
             self.execfile = execfile
         else:
@@ -616,6 +618,8 @@ class Program(object, metaclass=InspectType):
             wu.append('%s %s' % (key, os.path.basename(filename)))
             if with_checksum:
                 wu.append('CHECKSUM %s' % sha1cache.get_sha1(filename))
+            if self.suggest_subdir.get(filename, None):
+                wu.append('SUGGEST_%s %s' % (key, self.suggest_subdir[filename]))
         
         workunit = ['WORKUNIT %s' % wuname]
         for filename in self.get_input_files():
@@ -779,6 +783,7 @@ class Las(Program):
                  out: Parameter(is_output_file=True)=None,
                  threads: Parameter("t", checktype=int)=None,
                  ratq: Toggle()=None,
+                 batch: Toggle()=None,
                  sqside: Parameter(checktype=int)=None,
                  dup: Toggle()=None,
                  galois: Parameter() = None,
@@ -882,10 +887,7 @@ class Merge(Program):
                  maxlevel: Parameter(checktype=int)=None,
                  keep: Parameter(checktype=int)=None,
                  skip: Parameter(checktype=int)=None,
-                 forbw: Parameter(checktype=int)=None,
-                 ratio: Parameter(checktype=float)=None,
-                 coverNmax: Parameter(checktype=float)=None,
-                 nbmergemax: Parameter(checktype=int)=None,
+                 target_density: Parameter(checktype=float)=None,
                  resume: Parameter(is_input_file=True)=None,
                  mkztype: Parameter(checktype=int)=None,
                  wmstmax: Parameter(checktype=int)=None,
@@ -903,10 +905,7 @@ class MergeDLP(Program):
                  maxlevel: Parameter(checktype=int)=None,
                  keep: Parameter(checktype=int)=None,
                  skip: Parameter(checktype=int)=None,
-                 forbw: Parameter(checktype=int)=None,
-                 ratio: Parameter(checktype=float)=None,
-                 coverNmax: Parameter(checktype=float)=None,
-                 nbmergemax: Parameter(checktype=int)=None,
+                 target_density: Parameter(checktype=float)=None,
                  resume: Parameter(is_input_file=True)=None,
                  mkztype: Parameter(checktype=int)=None,
                  wmstmax: Parameter(checktype=int)=None,
@@ -1121,10 +1120,10 @@ class Sqrt(Program):
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
-class WuClient(Program):
-    binary = "wuclient2.py"
-    name = "wuclient"
-    subdir = "scripts/cadofactor"
+class CadoNFSClient(Program):
+    binary = "cado-nfs-client.py"
+    name = "cado_nfs_client"
+    subdir = ""
     def __init__(self,
                  server: Parameter(prefix='--'),
                  daemon: Toggle(prefix='--')=None,

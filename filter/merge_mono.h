@@ -12,8 +12,7 @@ extern int deleteHeavyColumns(report_t *rep, filter_matrix_t *mat);
 extern int addFatherToSons(int history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1], filter_matrix_t *mat, int m, int *ind, int32_t j,	int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX], int *father, int *height MAYBE_UNUSED, int hmax MAYBE_UNUSED, int sons[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1]);
 
 extern int number_of_superfluous_rows(filter_matrix_t *mat);
-extern void mergeOneByOne(report_t *rep, filter_matrix_t *mat, int maxlevel, int
-forbw, double ratio, double coverNmax, int64_t);
+extern void mergeOneByOne(report_t *rep, filter_matrix_t *mat, int maxlevel, double target_density);
 
 extern void resume(report_t *rep, filter_matrix_t *mat, const char *resumename);
 

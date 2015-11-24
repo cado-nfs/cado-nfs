@@ -29,6 +29,6 @@ q0=1200000
 q1=1200200
 
 export rlim alim lpbr lpba maxbits mfbr mfba rlambda alambda I q0 q1
-"${SOURCE_TEST_DIR}"/sievetest.sh "${FB}" "${LAS}" "${SRCDIR}/params/F9.poly" "${REFERENCE_SHA1}" "${REFERENCE_REVISION}" "${CHECKSUM_FILE}" -v -v "$@" || exit 1
+"${SOURCE_TEST_DIR}"/sievetest.sh "${FB}" "${LAS}" "${SRCDIR}/parameters/polynomials/F9.poly" "${REFERENCE_SHA1}" "${REFERENCE_REVISION}" "${CHECKSUM_FILE}" -v -v "$@" || exit 1
 
 exit 0

@@ -4,7 +4,7 @@
 #include "cado_config.h"
 #include "cado_mpi_config.h"
 
-/* This is the only reaison d'être for this file. I couldn't find a way
+/* This is the only raison d'être for this file. I couldn't find a way
  * to have linalg/bwc/CMakeLists.txt set something which is reflected in
  * the top-level generated cado_config.h :-(
  */

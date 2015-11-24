@@ -2,7 +2,4 @@
 add_executable(freerel_multipoly EXCLUDE_FROM_ALL freerel_multipoly.c)
 target_link_libraries(freerel_multipoly utils)
 
-add_executable(smooth smooth.c)
-target_link_libraries(smooth facul utils)
-
 # vim: set ft=cmake:

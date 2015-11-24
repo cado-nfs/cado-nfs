@@ -6,9 +6,9 @@
 # first if needed, and then cd's into the proper sub-directory of the
 # build tree, and runs make there. The intent is that this script is
 # called from a Makefile within the source tree.
-# In particuar, the following tasks are done,
+# In particular, the following tasks are done,
 #  - check if the calling path is correct?
-#  - if exists, parse the file ${up_path}local.sh
+#  - if exists, parse the file ${up_path}/local.sh
 #  - check if cmake is installed, if not install it.
 #  - "cmake" to generate Makefile
 #  - "make"

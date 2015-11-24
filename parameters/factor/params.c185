@@ -1,0 +1,84 @@
+
+###########################################################################
+###########################################################################
+# See params/params.c90 for an example which contains some documentation.
+
+# Anything after a # is a comment, until end of line.
+# Any empty line is ignored
+#
+#
+# Each parameter should be on an individual line, like
+#   param0=42.17
+#
+
+###########################################################################
+###########################################################################
+
+#tasks.threads = 2
+name = c185
+#tasks.threads = 2
+
+###########################################################################
+###########################################################################
+
+tasks.polyselect.degree = 5
+
+# the polynomial (found by Shi Bai) for N240 c186 had
+# lognorm: 60.63, alpha: -8.76 (proj: -2.41), E: 51.87, nr: 3
+# MurphyE(Bf=10000000,Bg=5000000,area=1.00e+16)=3.11e-14
+
+## Parameters of polyselect
+# note: those parameters are just a guess, they might be far from optimal
+tasks.polyselect.P = 5000000
+tasks.polyselect.admax = 2e7
+tasks.polyselect.adrange = 2e5
+tasks.polyselect.incr = 60
+tasks.polyselect.nq = 1000
+tasks.polyselect.nrkeep = 1000
+
+###########################################################################
+###########################################################################
+
+# (r,a) means rational or algebraic side
+# rlim/alim is the bound for sieving
+# lpbr/lpba is the (base 2 log of the) large prime bound
+# mfbr/mfba is the (base 2 log of the) limit for the cofactor we try to
+#                                      split into large primes.
+# rlambda/alambda is the early-abort ratio: if after sieving the
+#                                      approximate norm is more than
+#                                      lambda times lpb, we reject.
+rlim = 40000000
+alim = 80000000
+lpbr = 32
+lpba = 32
+tasks.sieve.mfbr = 64
+tasks.sieve.mfba = 96
+tasks.sieve.rlambda = 2.1
+tasks.sieve.alambda = 2.8
+
+tasks.I = 15
+# Wagstaff did use I=14, I=15 should be better
+# Sam Wagstaff did sieve special-q's < 1660M
+tasks.sieve.qrange = 10000
+# of that many relations found.
+
+###########################################################################
+###########################################################################
+
+tasks.filter.purge.keep = 160
+tasks.filter.maxlevel = 25
+tasks.filter.target_density = 170.0
+
+###########################################################################
+###########################################################################
+
+tasks.linalg.bwc.interval = 1000
+tasks.linalg.bwc.interleaving = 0
+tasks.linalg.bwc.m = 64
+tasks.linalg.bwc.n = 64
+tasks.linalg.bwc.shuffled_product = 1
+
+###########################################################################
+###########################################################################
+
+tasks.linalg.characters.nchar = 50

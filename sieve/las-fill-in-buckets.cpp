@@ -481,7 +481,7 @@ fill_in_buckets_one_side(thread_pool &pool, thread_workspaces &ws, const fb_part
          (slice = fb->get_slice(slice_index)) != NULL;
          slice_index++) {
         fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice, NULL, 0);
-        pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0);
+        pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
         slices_pushed++;
     }
     for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
@@ -590,6 +590,7 @@ downsort_tree(uint32_t bucket_index,
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
             (fb_slice_interface *)NULL, *pl_it, first_region0_index);
+      // TODO: shall we give the weight to help scheduling, here?
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0);
       slices_pushed++;
     }

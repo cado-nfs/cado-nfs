@@ -1,11 +1,11 @@
-This file describes some problems that can occur with the cadofactor.py
+This file describes some problems that can occur with the cado-nfs.py
 script in relation to various distributions' Python installations.
 
 
 1. Python 3
 
-Python 3, version 3.2 or greater, is required for cadofactor.py. If you
-do not wish to use cadofactor.py, maybe because you plan to run all
+Python 3, version 3.2 or greater, is required for cado-nfs.py. If you
+do not wish to use cado-nfs.py, maybe because you plan to run all
 commands by hand, you can disable the Python check in CMake by setting
 NO_PYTHON_CHECK to any non-empty string in local.sh. See local.sh.example
 for a template.
@@ -20,7 +20,7 @@ https://www.digitalocean.com/community/articles/how-to-set-up-python-2-7-6-and-3
 
 2. Sqlite 3
 
-The Python cadofactor.py script requires sqlite3. Unfortunately, not all
+The Python cado-nfs.py script requires sqlite3. Unfortunately, not all
 distributions install the Python sqlite3 module by default.
 
 In fact, two things are required: the binary sqlite3 library, and the Python
@@ -62,7 +62,7 @@ _sqlite3
 
 3. Python 2 or 3 for the workunit client
 
-The client script wuclient2.py can run under both Python 2, version 2.6 or
+The client script cado-nfs-client.py can run under both Python 2, version 2.6 or
 newer, and Python 3, version 3.2 or newer. This backward compatibility is
 supported to simplify deployment on many different machines over which the
 user may not have administrative control.

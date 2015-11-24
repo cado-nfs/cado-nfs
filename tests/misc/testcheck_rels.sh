@@ -14,7 +14,7 @@ fixed="$TMPDIR/fixed"
 
 
 ############## Check with correct relations
-if ! ("$CHECK_RELS" -poly $poly -check_primality $rels1 > $out 2>&1) ; then
+if ! ("$CHECK_RELS" -poly $poly -lpb0 18 -lpb1 19 -check_primality $rels1 > $out 2>&1) ; then
     echo "$0: check_rels binary failed to recognize correct relations"
     exit 1
 fi
@@ -28,18 +28,23 @@ fi
 
 
 ############## Check with wrong relations
-if ("$CHECK_RELS" -poly $poly -v -lpb1 400000 -check_primality -complete $fixed $rels2 > $out 2>&1) ; then
+if ("$CHECK_RELS" -poly $poly -v -lpb0 18 -lpb1 18 -check_primality -fixit -out $fixed $rels2 > $out 2>&1) ; then
     echo "$0: check_rels binary failed when testing wrong relations"
     exit 1
 fi
 
 nrels=`awk '/read relations/ {print $5}' $out`
-deletedrels=`awk '/deleted relations/ {print $5}' $out`
-correctrels=`awk '/keeped relations/ {print $5}' $out`
-composite=`awk '/one non-primes ideal/ {print $2}' $out`
-lpb=`awk '/ideal larger than a lpb/ {print $3}' $out`
-if [ $nrels != "5" -o $correctrels != 3  -o $deletedrels != 2 ]; then
+correctrels=`awk '/correct relations/ {print $5}' $out`
+fixedrels=`awk '/fixed relations/ {print $5}' $out`
+wrongrels=`awk '/of wrong relations/ {print $5}' $out`
+composite=`awk '/1 non-prime factor/ {print $2}' $out`
+lpb=`awk '/ideal larger than a lpb/ {print $2}' $out`
+if [ $nrels != "5" -o $correctrels != "0" -o $fixedrels != "3" ]; then
     echo "$0: check_rels binary failed to fix wrong relations"
+    exit 1
+fi
+if [ $wrongrels != "2" ]; then
+    echo "$0: check_rels binary failed to detect wrong relations"
     exit 1
 fi
 if [ $composite != "1" ]; then

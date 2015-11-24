@@ -215,7 +215,7 @@ void test_fixmp_1() {
     // mod
     mpfq_copy(v, y, 1);
     v[1-1] += !v[1-1];
-    mpn_tdiv_qr(s+2, s, 0, z, 2, v, 1);
+    mpn_tdiv_qr(s+1, s, 0, z, 2, v, 1);
     mpfq_fixmp_1_mod(u, z, v);
     assert(mpn_cmp(s, u, 1) == 0);
     // inv
@@ -569,7 +569,7 @@ void test_fixmp_2() {
     // mod
     mpfq_copy(v, y, 2);
     v[2-1] += !v[2-1];
-    mpn_tdiv_qr(s+3, s, 0, z, 4, v, 2);
+    mpn_tdiv_qr(s+2, s, 0, z, 4, v, 2);
     mpfq_fixmp_2_mod(u, z, v);
     assert(mpn_cmp(s, u, 2) == 0);
     // inv
@@ -923,7 +923,7 @@ void test_fixmp_3() {
     // mod
     mpfq_copy(v, y, 3);
     v[3-1] += !v[3-1];
-    mpn_tdiv_qr(s+4, s, 0, z, 6, v, 3);
+    mpn_tdiv_qr(s+3, s, 0, z, 6, v, 3);
     mpfq_fixmp_3_mod(u, z, v);
     assert(mpn_cmp(s, u, 3) == 0);
     // inv
@@ -1277,7 +1277,7 @@ void test_fixmp_4() {
     // mod
     mpfq_copy(v, y, 4);
     v[4-1] += !v[4-1];
-    mpn_tdiv_qr(s+5, s, 0, z, 8, v, 4);
+    mpn_tdiv_qr(s+4, s, 0, z, 8, v, 4);
     mpfq_fixmp_4_mod(u, z, v);
     assert(mpn_cmp(s, u, 4) == 0);
     // inv
@@ -1631,7 +1631,7 @@ void test_fixmp_5() {
     // mod
     mpfq_copy(v, y, 5);
     v[5-1] += !v[5-1];
-    mpn_tdiv_qr(s+6, s, 0, z, 10, v, 5);
+    mpn_tdiv_qr(s+5, s, 0, z, 10, v, 5);
     mpfq_fixmp_5_mod(u, z, v);
     assert(mpn_cmp(s, u, 5) == 0);
     // inv
@@ -1985,7 +1985,7 @@ void test_fixmp_6() {
     // mod
     mpfq_copy(v, y, 6);
     v[6-1] += !v[6-1];
-    mpn_tdiv_qr(s+7, s, 0, z, 12, v, 6);
+    mpn_tdiv_qr(s+6, s, 0, z, 12, v, 6);
     mpfq_fixmp_6_mod(u, z, v);
     assert(mpn_cmp(s, u, 6) == 0);
     // inv
@@ -2339,7 +2339,7 @@ void test_fixmp_7() {
     // mod
     mpfq_copy(v, y, 7);
     v[7-1] += !v[7-1];
-    mpn_tdiv_qr(s+8, s, 0, z, 14, v, 7);
+    mpn_tdiv_qr(s+7, s, 0, z, 14, v, 7);
     mpfq_fixmp_7_mod(u, z, v);
     assert(mpn_cmp(s, u, 7) == 0);
     // inv
@@ -2693,7 +2693,7 @@ void test_fixmp_8() {
     // mod
     mpfq_copy(v, y, 8);
     v[8-1] += !v[8-1];
-    mpn_tdiv_qr(s+9, s, 0, z, 16, v, 8);
+    mpn_tdiv_qr(s+8, s, 0, z, 16, v, 8);
     mpfq_fixmp_8_mod(u, z, v);
     assert(mpn_cmp(s, u, 8) == 0);
     // inv
@@ -3047,7 +3047,7 @@ void test_fixmp_9() {
     // mod
     mpfq_copy(v, y, 9);
     v[9-1] += !v[9-1];
-    mpn_tdiv_qr(s+10, s, 0, z, 18, v, 9);
+    mpn_tdiv_qr(s+9, s, 0, z, 18, v, 9);
     mpfq_fixmp_9_mod(u, z, v);
     assert(mpn_cmp(s, u, 9) == 0);
     // inv

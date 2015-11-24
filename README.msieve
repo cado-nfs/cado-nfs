@@ -35,18 +35,18 @@ thoroughly the section on importing polynomial file and importing relations.
 You can also look in the 'params' directory for examples of parameter files
 depending on the size of the input.
 
-4) run the cadofactor.py script (where $CADO is the CADO-NFS directory):
+4) run the cado-nfs.py script (where $CADO is the CADO-NFS directory):
 
-   $ $CADO/scripts/cadofactor.py <parameterfile>
+   $ $CADO/cado-nfs.py <parameterfile>
 
-If the parameter file is correctly configure, the script will skip the
+If the parameter file is correctly configured, the script will skip the
 polyselect step and the sieving. It will run all the remaining step of the
 factorization until the factors are found. 
 
 NB: If you only want to do the filtering step, add the following command-line
 arguments:
 
-   $ $CADO/scripts/cadofactor.py <parameterfile> 'tasks.linalg.run = false' 'tasks.sqrt.run = false'
+   $ $CADO/cado-nfs.py <parameterfile> 'tasks.linalg.run = false' 'tasks.sqrt.run = false'
 
 ==============================================================================
 

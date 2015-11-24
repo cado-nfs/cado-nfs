@@ -50,17 +50,32 @@ public:
   const task_parameters * const parameters;
   const bool please_die;
   const size_t queue;
+  const double cost; // costly tasks are scheduled first.
   task_result *result;
 
-  thread_task(task_function_t _func, int _id, const task_parameters *_parameters, size_t _queue) :
-    func(_func), id(_id), parameters(_parameters), please_die(false), queue(_queue), result(NULL) {};
+  thread_task(task_function_t _func, int _id, const task_parameters *_parameters, size_t _queue, double _cost) :
+    func(_func), id(_id), parameters(_parameters), please_die(false), queue(_queue), cost(_cost), result(NULL) {};
   thread_task(bool _kill)
-    : func(NULL), id(0), parameters(NULL), please_die(true), queue(0), result(NULL) {
+    : func(NULL), id(0), parameters(NULL), please_die(true), queue(0), cost(0.0), result(NULL) {
     ASSERT_ALWAYS(_kill);
   }
 };
 
-class tasks_queue : public std::queue<thread_task *>, private ThreadNonCopyable {
+class thread_task_cmp
+{
+public:
+  thread_task_cmp() {}
+  bool operator() (const thread_task *x, const thread_task *y) const {
+    if (x->cost < y->cost)
+      return true;
+    if (x->cost > y->cost)
+      return false;
+    // if costs are equal, compare ids (they should be distinct)
+    return x->id < y->id;
+  }
+};
+
+class tasks_queue : public std::priority_queue<thread_task *, std::vector<thread_task *>, thread_task_cmp>, private ThreadNonCopyable {
   public:
   condition_variable not_empty;
   size_t nr_threads_waiting;
@@ -135,12 +150,12 @@ thread_pool::all_task_queues_empty() const
 
 void
 thread_pool::add_task(task_function_t func, const task_parameters *const params,
-                      const int id, const size_t queue)
+                      const int id, const size_t queue, double cost)
 {
     ASSERT_ALWAYS(queue < nr_queues);
     enter();
     ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(new thread_task(func, id, params, queue));
+    tasks[queue].push(new thread_task(func, id, params, queue, cost));
 
     /* Find a queue with waiting threads, starting with "queue" */
     size_t i = queue;
@@ -178,7 +193,7 @@ thread_pool::get_task(const size_t preferred_queue)
     /* There must have been a non-empty queue or we'd still be in the while()
        loop above */
     ASSERT_ALWAYS(i < nr_queues);
-    task = tasks[i].front();
+    task = tasks[i].top();
     tasks[i].pop();
   }
   leave();

@@ -93,7 +93,6 @@ set(bwc_base_sources
     ${bwc_base_sources}
     cpubinding.cpp
     )
-install(FILES cpubinding.conf DESTINATION ${DATASUFFIX}/misc)
 endif()
 
 add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
@@ -114,7 +113,7 @@ set_target_properties(bwc_base PROPERTIES
         LINK_FLAGS "--mpi")
 
 if(ENABLE_SHARED)
-    install(TARGETS bwc_base DESTINATION ${LIBSUFFIX})
+    install(TARGETS bwc_base DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 
 ### end bwc_base
@@ -123,7 +122,7 @@ endif()
 add_library(mf ${CADO_SHARED} mf.c)
 target_link_libraries(mf bwc_base utils)
 if(ENABLE_SHARED)
-    install(TARGETS mf DESTINATION ${LIBSUFFIX})
+    install(TARGETS mf DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 add_executable(mf_scan ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan.c)
 target_link_libraries(mf_scan mf)
@@ -132,7 +131,7 @@ target_link_libraries(mf_scan mf)
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 add_executable(mf_bal mf_bal.c ../rowset_heap.cpp)
 target_link_libraries(mf_bal mf m)
-install(TARGETS mf_bal RUNTIME DESTINATION ${BINSUFFIX}/linalg/bwc)
+install(TARGETS mf_bal RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 
 configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
@@ -166,7 +165,7 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
 endforeach(v)
 
 if(ENABLE_SHARED)
-    install(TARGETS bwc_mpfq DESTINATION ${LIBSUFFIX})
+    install(TARGETS bwc_mpfq DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 
 target_link_libraries(bwc_mpfq ${gmp_libname} utils)
@@ -205,7 +204,7 @@ set_target_properties(matmul_common PROPERTIES
     COMPILE_FLAGS "--mpi"
     LINK_FLAGS "--mpi")
 if(ENABLE_SHARED)
-    install(TARGETS matmul_common DESTINATION ${LIBSUFFIX})
+    install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 
 
@@ -246,7 +245,7 @@ macro(CONFIGURE_MATMUL_LIB v i)
             LINK_FLAGS "--mpi")
     set(all_matmul_libs ${all_matmul_libs} "matmul_${v}_${i}")
     if(ENABLE_SHARED)
-        install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX})
+        install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
     endif()
 endmacro()
 
@@ -299,7 +298,7 @@ add_library(matmul_mf ${CADO_SHARED} matmul-mf.c)
             LINK_FLAGS "--mpi")
 target_link_libraries(matmul_mf mf)
 if(ENABLE_SHARED)
-    install(TARGETS matmul_mf DESTINATION ${LIBSUFFIX})
+    install(TARGETS matmul_mf DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 ### end matmul_mf
 
@@ -321,7 +320,7 @@ endmacro()
 
 macro(bwc_program v)
     bwc_program_base(${v} ${ARGN})
-    install(TARGETS ${v} RUNTIME DESTINATION ${BINSUFFIX}/linalg/bwc)
+    install(TARGETS ${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endmacro()
 
 bwc_program(acollect acollect.c)
@@ -334,7 +333,8 @@ bwc_program(mksol mksol.c xdotprod.c)
 bwc_program(gather gather.c)
 bwc_program(secure secure.c)
 
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION ${BINSUFFIX}/linalg/bwc)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
+    ${LIBSUFFIX}/linalg/bwc)
 
 # Also lingen.
 
@@ -347,7 +347,7 @@ add_executable(lingen lingen_binary.cpp tree_stats.c logline.c
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
-install(TARGETS lingen RUNTIME DESTINATION ${BINSUFFIX}/linalg/bwc)
+install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 target_link_libraries(lingen bwc_base utils gf2x)
 add_dependencies(lingen gf2x-build)
 
@@ -360,7 +360,7 @@ set_target_properties(lingen PROPERTIES
 add_executable(cleanup cleanup.c)
 target_link_libraries(cleanup bitlinalg utils m)
 
-install(TARGETS cleanup RUNTIME DESTINATION ${BINSUFFIX}/linalg/bwc)
+install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 if(WITH_MPIR)
     # This is a convenience library which is used **ONLY** by one binary,

@@ -27,6 +27,6 @@ Y0: 1199051061668898
 Y1: -71651332635517
 Y2: -205964131819700
 
-2) run factor.sh with importing this polynomial:
+2) run cado-nfs.py with importing this polynomial:
 
-$ ./factor.sh 71641520761751435455133616475667090434063332228247871795429 tasks.polyselect.import=tests/misc/c59_nonlinear.poly
+$ ./cado-nfs.py 71641520761751435455133616475667090434063332228247871795429 tasks.polyselect.import=tests/misc/c59_nonlinear.poly

@@ -32,8 +32,8 @@
 # build_tree: where do the object files go.
 #
 # Example values:
-# build_tree="${up_path}build/`hostname`"
-# build_tree="${up_path}build/`uname -m`"
+# build_tree="${up_path}/build/`hostname`"
+# build_tree="${up_path}/build/`uname -m`"
 # build_tree=/tmp/cado-nfs-build
 #
 # up_path, amongst other variables, is defined from the caller script
@@ -78,7 +78,7 @@
 # Note that some flags, and some compile-time definitions are added
 # anyway and cannot be overridden. For example, one cannot remove
 # -std=c99 for CFLAGS if GNU C is being used, because its use is
-# mandatory.
+# mandatory. We also do this for the Intel compiler icc.
 
 ############################################################
 # CXXFLAGS: Flags for compiling C++ programs
@@ -127,6 +127,8 @@
 ############################################################
 # GMP: prefix to installed GMP, or path to built GMP source tree.
 #
+# (GMP is a requirement)
+#
 # Example values:
 # GMP=
 # GMP=/usr/local/gmp-5.1.0
@@ -143,7 +145,35 @@
 # GMP_INCDIR=/some/directory
 
 ############################################################
+# HWLOC: prefix to installed hwloc
+#
+# (HWLOC is optional)
+#
+# Example values:
+# HWLOC=$HOME/Packages/hwloc-1.11.1
+#
+# To accomodate special configurations, one may also use the two extra
+# variables:
+# HWLOC_LIBDIR=/some/directory
+# HWLOC_INCDIR=/some/directory
+
+############################################################
+# CURL: prefix to installed Curl
+#
+# (Curl is optional)
+#
+# Example values:
+# curl=/usr/local
+#
+# To accomodate special configurations, one may also use the two extra
+# variables:
+# CURL_LIBDIR=/some/directory
+# CURL_INCDIR=/some/directory
+
+############################################################
 # MPI: Whether to use MPI (Message Passing Interface) or not
+#
+# (MPI is optional)
 #
 # Example values:
 # MPI=0
@@ -178,8 +208,8 @@
 ############################################################
 # Python: Whether to test for a Python 3 interpreter or not
 # 
-# The cadofactor.py script needs Python 3 and the sqlite3
-# module. If you do not wish to use cadofactor.py, set
+# The cado-nfs.py script needs Python 3 and the sqlite3
+# module. If you do not wish to use cado-nfs.py, set
 # NO_PYTHON_CHECK to a non-empty string to disable testing
 # for Python 3 and sqlite in the CMake configuration
 #
@@ -189,7 +219,7 @@
 # For big factorizations, increase the size of variable.
 # If you want to use large prime bound > 32, uncomment the following line
 # FLAGS_SIZE="-D__SIZEOF_P_R_VALUES__=8"
-# If you want to be able to handle more than 2^32 ideals in you factor base or
+# If you want to be able to handle more than 2^32 ideals in your factor base or
 # have more than 2^32 relations (for large prime bound > 35 or 36), uncomment
 # the following line
 # FLAGS_SIZE="-D__SIZEOF_P_R_VALUES__=8 -D__SIZEOF_INDEX__=8"

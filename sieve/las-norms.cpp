@@ -768,9 +768,9 @@ void init_exact_degree_X_norms_bucket_region_internal (unsigned char *S, uint32_
     /* These ASM & switch are really ugly. But it's the ONLY way to
        be sure all the line of S is set only with registers. */
     switch (d) {
-#if !(defined(__ICC) || defined(__INTEL_COMPILER))
+#if !defined(__ICC) || (__ICC >= 1600)
       /* the Intel compiler icpc fails with "internal error" with the code
-	 below (version 14.0.3 20140422) */
+	 below (version 14.0.3 20140422), version 16.0.0 works */
     case 2:
       __asm__ __volatile__ ( BEGIN
       FU(2) U1 U0 LG2ABS FU(2) U1 U0 LG2ABS

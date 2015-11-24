@@ -821,7 +821,7 @@ subjectAltName=@altnames
         else:
             self.logger.info("For debugging purposes, the URL above may be accessed")
         certstr = "" if self.cert_sha1 is None else " --certsha1=%s" % self.cert_sha1
-        self.logger.info("You can start additional wuclient2.py scripts with "
+        self.logger.info("You can start additional cado-nfs-client.py scripts with "
                          "parameters: --server=%s%s", self.url, certstr)
         self.logger.info("If you want to start additional clients, remember "
                          "to add their hosts to server.whitelist")

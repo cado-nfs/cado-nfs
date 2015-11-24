@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-extern void matmul_sub_large_fbd(abdst_field x, abt ** sb, const abt * z, const uint8_t * q, unsigned int n);
+extern void matmul_sub_large_fbd(abdst_field x, abelt ** sb, const abelt * z, const uint8_t * q, unsigned int n);
 
 #ifdef __cplusplus
 }

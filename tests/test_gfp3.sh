@@ -36,7 +36,7 @@ slaves.nrclients = $(((1+NCPUS)/2))
 tasks.threads = 2
 tasks.linalg.bwc.threads = $NCPUS
 tasks.execpath = $CADO_NFS_BINARY_DIR
-slaves.scriptpath = $CADO_NFS_SOURCE_DIR/scripts/cadofactor
+slaves.scriptpath = $CADO_NFS_SOURCE_DIR
 tasks.workdir = $WDIR
 slaves.basepath= $WDIR/client
 slaves.hostnames = localhost
@@ -76,4 +76,4 @@ cleanup() {
     fi
 }
 
-${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadofactor.py $PARAMFILE && cleanup
+${CADO_NFS_SOURCE_DIR}/cado-nfs.py $PARAMFILE && cleanup

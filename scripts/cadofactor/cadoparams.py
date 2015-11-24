@@ -168,7 +168,110 @@ class Parameters(object):
         if isinstance(keys, dict):
             self._convert_types(result, keys, splitpath, found_at_path)
         return result
-    
+
+    def locate(self, key):
+        ''' Given a key from the hierarchical structure, return the exact
+        path to the closest parent providing a value for this key, or
+        None.
+
+        >>> p = Parameters()
+        >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
+        >>> p.locate('foo.x.y.a')
+        'foo.a'
+        >>> p.locate('bar.a')
+        'bar.a'
+        >>> p.locate('bar.x') is None
+        True
+
+        If the prefix corresponds to a sub-dictionary, then this is not
+        a value we are allowed to fetch.
+        >>> p.locate('bar.baz') is None
+        True
+        '''
+        s = key.rsplit('.')
+        base=s[-1]
+        path=s[:-1]
+
+        found=None
+        d=self.data
+        pp=[]
+        if base in d:
+            found=pp
+        for node in path:
+            if node in d and isinstance(d[node], dict):
+                d=d[node]
+                pp.append(node)
+            else:
+                break
+            if base in d:
+                if isinstance(d[base], dict):
+                    break
+                found=list(pp)
+        if found is not None:
+            x=".".join(found+[base])
+            return x
+
+
+    def set_if_unset(self, key, value):
+        '''Set this parameter if it is not yet defined. Returns the value
+        of the parameter after the operation
+        >>> p = Parameters()
+        >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
+        >>> p.set_if_unset('bar.a', 2)
+        4
+        >>> p.set_if_unset('bar.x', 2)
+        2
+        '''
+        s = key.rsplit('.',1)
+        base=s[-1]
+        path=s[:-1]
+        v=self.myparams([base], path)
+        if not len(v):
+            self.readparams(["%s=%s" % (key, value)])
+            v=self.myparams([base], path)
+        return self._convert_one_type(path, base, v.get(base), type(value))
+
+    def get_simple(self, key, *args):
+        '''Set this parameter if it is not yet defined. Returns the value
+        of the parameter after the operation
+        >>> p = Parameters()
+        >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
+        >>> p.get_simple('bar.a', 2)
+        4
+        >>> p.get_simple('bar.x', 2)
+        2
+        '''
+        s = key.rsplit('.',1)
+        base=s[-1]
+        path=s[:-1]
+        v=self.myparams([base], path)
+        if not len(v):
+            if len(args):
+                # Don't update the parameters.
+                return args[0]
+            else:
+                raise KeyError("no parameter %s found" % key)
+        if len(args):
+            return self._convert_one_type(path, base, v.get(base), type(args[0]))
+        else:
+            return v.get(base)
+
+    def set_simple(self, key, value):
+        '''Set this parameter only, unconditionally. Return value.
+        >>> p = Parameters()
+        >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
+        >>> p.set_simple('bar.baz.qux.a', 2)
+        2
+        >>> p.get_simple('bar.baz.qux.a', 1)
+        2
+        '''
+        s = key.rsplit('.',1)
+        base=s[-1]
+        path=s[:-1]
+        self.readparams(["%s=%s" % (key, value)])
+        return value
+
+
     @staticmethod
     def _subdict(d, s, exists=True):
         if isinstance(d, dict):

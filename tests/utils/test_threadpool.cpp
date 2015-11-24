@@ -40,7 +40,7 @@ int main(int argc, const char **argv)
 
   for (unsigned long i = 0; i < iter; i++) {
     size_t queue = i % 2;
-    pool->add_task(print_something, &param, 1, queue);
+    pool->add_task(print_something, &param, 1, queue, 0.0);
   }
 
   for (unsigned long i = 0; i < iter; i++) {

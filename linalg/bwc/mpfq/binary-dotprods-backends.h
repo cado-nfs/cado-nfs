@@ -45,7 +45,7 @@ static inline void dotprod_64K_64(
         for(unsigned int k = 0 ; k < K ; k++) {
             uint64_t a = *u++;
             for (unsigned int j = 0; j < 64; j += 2) {
-                *sw ^= mb[a & 3];
+                *sw = _mm_xor_si128(*sw, mb[a & 3]);
                 a >>= 2;
                 sw ++;
             }
@@ -107,9 +107,9 @@ static inline void dotprod_64K_128(
         for(unsigned int k = 0 ; k < K ; k++) {
             uint64_t a = *u++;
             for (unsigned int j = 0; j < 64; j += 2) {
-                _mm_storeu_si128(sw, _mm_loadu_si128(sw) ^ mb[a & 3][0]);
+                *sw = _mm_xor_si128(*sw, mb[a & 3][0]);
                 sw ++;
-                _mm_storeu_si128(sw, _mm_loadu_si128(sw) ^ mb[a & 3][1]);
+                *sw = _mm_xor_si128(*sw, mb[a & 3][1]);
                 sw ++;
                 a >>= 2;
             }
@@ -187,6 +187,7 @@ static inline void dotprod_64K_64L(
  */
 #if     defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
 #include <emmintrin.h>
+#endif
 static inline void vaddmul_tiny_64K_64L(
             uint64_t * w,
             const uint64_t * u,
@@ -199,10 +200,12 @@ static inline void vaddmul_tiny_64K_64L(
     /* We'll read and write rows two at a time. So we maintain two
      * pointers for each, interlaced. */
     uint64_t * u0 = (uint64_t *) u;
-    uint64_t * u1 = (uint64_t *) (u + K);
     uint64_t * w0 = (uint64_t *) w;
+    unsigned int j = 0;
+#if     defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
+    uint64_t * u1 = (uint64_t *) (u + K);
     uint64_t * w1 = (uint64_t *) (w + L);
-    for (unsigned int j = 0; j < n; j += 2 ) {
+    for (; j < n - 1; j += 2 ) {
         const uint64_t * v0 = v;
         for(unsigned int l = 0 ; l < L ; l++) {
             __m128i r = _mm_setzero_si128();
@@ -212,34 +215,24 @@ static inline void vaddmul_tiny_64K_64L(
                 __m128i one = _mpfq_mm_set1_epi64_c(1);
                 for (unsigned int i = 0; i < 64; i++) {
                     __m128i zw = _mpfq_mm_set1_epi64(*vv);
-                    r ^= (zw & -(a & one));
+                    // r ^= (zw & -(a & one));
+		    r = _mm_xor_si128(r,_mm_and_si128(zw,_mm_sub_epi64(_mm_setzero_si128(),_mm_and_si128(a, one))));
                     a = _mm_srli_epi64(a, 1);
                     vv += L;
                 }
             }
             /* Because L > 1, the destination words are not contiguous */
             w0[l] ^= _mm_cvtsi128_si64(r);
-            w1[l] ^=  _mm_cvtsi128_si64(_mm_srli_si128(r, 8));
+            w1[l] ^= _mm_cvtsi128_si64(_mm_srli_si128(r, 8));
             v0++; /* next column in v */
         }
         u0 += 2 * K; u1 += 2 * K;
         w0 += 2 * L; w1 += 2 * L;
     }
-}
-#else   /* HAVE_SSE2 */
-static inline void vaddmul_tiny_64K_64L(
-            uint64_t * w,
-            const uint64_t * u,
-            const uint64_t * v,
-            unsigned int n,
-            unsigned int K,
-            unsigned int L)
-{
+#endif
     /* This is just a direct translation of the sse version. Has been
      * tested once. */
-    uint64_t * u0 = (uint64_t *) u;
-    uint64_t * w0 = (uint64_t *) w;
-    for (unsigned int j = 0; j < n; j ++ ) {
+    for (; j < n; j ++ ) {
         const uint64_t * v0 = v;
         for(unsigned int l = 0 ; l < L ; l++) {
             uint64_t rx = 0;
@@ -260,7 +253,6 @@ static inline void vaddmul_tiny_64K_64L(
         w0 += L;
     }
 }
-#endif
 #endif
 
 #ifdef need_vtranspose_64K_64L

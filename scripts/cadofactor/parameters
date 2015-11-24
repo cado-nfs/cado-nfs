@@ -150,10 +150,8 @@ tasks.sieve.qrange = 2000
 tasks.filter.nslices_log=1
 tasks.filter.keep = 160
 tasks.filter.skip = 32
-tasks.filter.forbw = 3
-tasks.filter.coverNmax  = 100
+tasks.filter.target_density = 170
 tasks.filter.maxlevel = 15
-tasks.filter.ratio = 1.1
 tasks.linalg.m = 64
 tasks.linalg.n = 64
 tasks.linalg.verbose = 0
@@ -234,10 +232,10 @@ slaves.hostnames = localhost
 slaves.nrclients = 2
 
 
-# scriptpath: The path to the wuclient2.py scripts, on the slave's file
+# scriptpath: The path to the cado-nfs-client.py scripts, on the slave's file
 # system.
 
-slaves.scriptpath = $(sourcedir)/scripts/cadofactor
+slaves.scriptpath = $(sourcedir)
 
 
 # downloadretry: Number of seconds a client should wait between failed
@@ -246,7 +244,7 @@ slaves.scriptpath = $(sourcedir)/scripts/cadofactor
 slaves.downloadretry = 10
 
 
-# basepath: defines the base directory under which wuclient creates its
+# basepath: defines the base directory under which cado-nfs-client.py creates its
 # download and working directories. It is permissible to let all clients of
 # the same factorization to use the same download directory; files are
 # protected by locking to prevent download races. If the download directory
@@ -278,18 +276,18 @@ slaves.basepath = /tmp/work/$(name).wuclient
 # the parameter tree. 
 
 # A slightly advanced feature is prefixing the command line that is used on
-# the client machine to run wuclient2.py by a word of your choosing. This
+# the client machine to run cado-nfs-client.py by a word of your choosing. This
 # could be a shell wrapper that sets up the execution environment, or a
 # particular choice of Python interpreter, etc.
 # For the slave machines specified in "slaves.hostnames", the "runprefix"
-# parameter is searched in "slaves.wuclient.runprefix" (and therefore, if
+# parameter is searched in "slaves.cado_nfs_client.runprefix" (and therefore, if
 # not present there, in "slaves.runprefix", then in "runprefix"). For 
 # slaves specified in slaves.work.desktop.hostname, the search starts in
-# "slaves.work.desktop.wuclient.runprefix".
+# "slaves.work.desktop.cado_nfs_client.runprefix".
 
 # This example uses the debugging-enabled Python 3.2 interpreter to run
-# wuclient2.py.
-# slaves.wuclient.runprefix = /usr/bin/python3.2-dbg
+# cado-nfs-client.py.
+# slaves.cado_nfs_client.runprefix = /usr/bin/python3.2-dbg
 
 # If you want to do computations with slaves on machines with different
 # operating systems or CPU architectures, then the binaries to run cannot
@@ -300,14 +298,14 @@ slaves.basepath = /tmp/work/$(name).wuclient
 # and disabling the SHA1 check for downloaded files so that the clients
 # use the supplied files without checking their SHA1 against the hash
 # supplied in the workunit. Disabling the SHA1 check can be effected with
-# the --nosha1check option to wuclient2.py, which can be enabled in the
+# the --nosha1check option to cado-nfs-client.py, which can be enabled in the
 # parameter file by setting:
-# slaves.wuclient.nosha1check = True
+# slaves.cado_nfs_client.nosha1check = True
 
-# If the "--bindir path/to/executables/" parameter for wuclient2py is
+# If the "--bindir path/to/executables/" parameter for cado-nfs-client.py is
 # specified, it does not try to download any executable files, but
 # uses the executables in the directory path/to/executables/ (where
 # they must exist, i.e., you need to copy them there). Their SHA1
 # checksum is not verified against the value in the workunit, so
 # machine-specific binaries can be used.
-# slaves.wuclient.bindir = /usr/local/bin
+# slaves.cado_nfs_client.bindir = /usr/local/bin

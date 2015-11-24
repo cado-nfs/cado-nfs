@@ -433,7 +433,12 @@ renumber_init_for_writing (renumber_ptr renumber_info, unsigned int nb_polys,
     renumber_info->nb_bits = 32;
   else
     renumber_info->nb_bits = 64;
-  ASSERT_ALWAYS (renumber_info->nb_bits <= 8 * sizeof(p_r_values_t));
+  if (renumber_info->nb_bits > 8 * sizeof(p_r_values_t))
+    {
+      fprintf (stderr, "Error, p_r_values_t is too small to store ideals, "
+               "recompile with FLAGS_SIZE=\"-D__SIZEOF_P_R_VALUES__=8\"\n");
+      exit (1);
+    }
 
   /* Compute the number of additional columns needed in the renumbering table
    * due to the non monic polynomials.
@@ -997,12 +1002,9 @@ renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
         *p > renumber_info->biggest_prime_below_lpb[renumber_info->rat])
     {
       *side = renumber_info->nb_polys - 1;
-      while (*side >= 0 && !get_largest_root_mod_p (r, pol->pols[*side], *p))
-      {
-        *side -= 1;
-        if (*side == renumber_info->rat) /* skip rational poly, if it exists */
-          *side -= 1;
-      }
+      while (*side >= 0 && (*p > renumber_info->biggest_prime_below_lpb[*side] ||
+                            !get_largest_root_mod_p (r, pol->pols[*side], *p)))
+        (*side)--;
       ASSERT_ALWAYS (*side >= 0);
     }
     else

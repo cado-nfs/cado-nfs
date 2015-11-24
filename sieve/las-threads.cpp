@@ -59,16 +59,19 @@ template <typename T>
 void
 reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fill_ratio)
 {
+  /* We estimate that the updates will be evenly distrubuted among the n
+     different bucket arrays, so each gets fill_ratio / n.
+     However, for a large number of threads, we need a bit of margin.
+     In principle, one should check that the number of threads asked by the user
+     is not too large compared to the number of slices (i.e. the size of the
+     factor bases).
+     */
   double ratio = fill_ratio;
   if (n > 1) {
-      // FIXME: we lose a factor of 2 in memory, here.
-      // Once the multi-threading issue is solved, we can probably put back a
-      // more reasonable value. But in the meantime, this avoid to hit the
-      // maxfull bug.
-      ratio = 2.0*fill_ratio;
+      ratio *= 1.2;
+  } else if (n > 8) {
+      ratio *= 1.3;
   }
-  /* We estimate that the updates will be evenly distrubuted among the n
-     different bucket arrays, so each gets fill_ratio / n. */
   for (size_t i = 0; i < n; i++)
     BAs[i].allocate_memory(n_bucket, ratio / n);
 }
@@ -102,7 +105,12 @@ T &reservation_array<T>::reserve()
         best_i = j;
       }
     }
-    ASSERT_ALWAYS(best_i != n && best_full < 1.);
+    if (!(best_i != n && best_full < 1.)) {
+        fprintf(stderr, "Error: buckets are full!\n"
+                "This may occurr if you have set too many threads compared to the sizes of the factor bases.\n"
+                "Please try again with less threads, and report bug if the problem is still there.\n");
+        ASSERT_ALWAYS(0);
+    }
     i = best_i;
   }
   in_use[i] = true;

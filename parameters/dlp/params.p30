@@ -1,0 +1,57 @@
+###########################################################################
+#     Parameter file for Cado-NFS ; DLP version
+###########################################################################
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = p30
+
+###########################################################################
+# Polynomial selection with Kleinjung's algorithm
+###########################################################################
+
+tasks.polyselect.degree = 3
+
+tasks.polyselect.admax = 1000
+tasks.polyselect.incr = 20
+tasks.polyselect.adrange = 100
+tasks.polyselect.P = 260
+tasks.polyselect.nq = 3
+tasks.polyselect.nrkeep = 2
+tasks.polyselect.ropteffort = 1
+
+###########################################################################
+# Sieve
+###########################################################################
+
+
+tasks.I = 9
+rlim = 30000
+alim = 30000
+lpbr = 17
+lpba = 17
+tasks.sieve.mfbr = 18
+tasks.sieve.mfba = 18
+
+tasks.sieve.qmin = 50000
+tasks.sieve.qrange = 100
+tasks.sieve.rels_wanted = 60000
+
+tasks.reconstructlog.partial=false
+
+tasks.descent.init_I = 10
+tasks.descent.init_ncurves = 5
+tasks.descent.init_lpb = 19
+tasks.descent.init_lim = 500000
+tasks.descent.init_mfb = 38
+tasks.descent.init_tkewness = 100000
+tasks.descent.I = 10
+tasks.descent.lim0 = 20000
+tasks.descent.lim1 = 20000
+tasks.descent.lpb0 = 17
+tasks.descent.lpb1 = 17
+tasks.descent.mfb0 = 35
+tasks.descent.mfb1 = 35
+

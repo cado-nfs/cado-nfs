@@ -1,0 +1,64 @@
+###########################################################################
+#     Parameter file for Cado-NFS
+###########################################################################
+# See params/params.c90 for an example which contains some documentation.
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = c220
+#tasks.threads = 2
+
+###########################################################################
+# Polynomial selection
+###########################################################################
+
+tasks.polyselect.degree = 6
+
+tasks.polyselect.P = 10000000
+tasks.polyselect.admax = 1e8
+tasks.polyselect.adrange = 1e6
+tasks.polyselect.incr = 60
+tasks.polyselect.nq = 1296 # this is 6^4
+tasks.polyselect.nrkeep = 2000
+
+###########################################################################
+# Sieve
+###########################################################################
+
+rlim = 250000000
+alim = 500000000
+lpbr = 34
+lpba = 34
+tasks.sieve.mfbr = 68
+tasks.sieve.mfba = 102
+tasks.sieve.rlambda = 2.1
+tasks.sieve.alambda = 2.8
+
+tasks.I = 16
+tasks.sieve.qrange = 10000
+
+###########################################################################
+# Filtering
+###########################################################################
+
+tasks.filter.purge.keep = 160
+tasks.filter.maxlevel = 25
+tasks.filter.target_density = 170.0
+
+###########################################################################
+# Linear algebra
+###########################################################################
+
+tasks.linalg.bwc.interval = 1000
+tasks.linalg.bwc.interleaving = 0
+tasks.linalg.bwc.m = 64
+tasks.linalg.bwc.n = 64
+tasks.linalg.bwc.shuffled_product = 1
+
+###########################################################################
+# Characters
+###########################################################################
+
+tasks.linalg.characters.nchar = 50

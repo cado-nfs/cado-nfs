@@ -2,40 +2,53 @@ Quick install:
 ==============
 
 in most cases the following should work to factor the number 903...693
-using two cores:
+using all cores on the local machine
 
 1) make
-2) ./factor.sh 90377629292003121684002147101760858109247336549001090677693 -t 2
+2) ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 
 
 More details follow.
 
-Important note: For a larger factorization (distributed on several machines),
-please use directly the main script scripts/cadofactor/cadofactor.py (whose
-documentation is in scripts/cadofactor/README, and documented example parameter
-files are in params/params.c90 and scripts/cadofactor/parameters) instead of
-factor.sh (see section "Run a factorization on current machine").
+Important note: For a larger factorization (distributed on several
+machines), the command line to be used is a priori more involved. Please
+refer to scripts/cadofactor/README. Documented example parameter files
+are in parameters/factor/params.c90 and scripts/cadofactor/parameters.
 
 Supported platforms:
 ====================
 
  - The primary development platform is x86_64 linux with gcc 4.4 or
-   later, the most common processor being Intel core2-like. Other 64-bit
-   microarchitectures and processors are checked regularly.
+   later, the most common processor being Intel core2-like or more recent.
+   
+Other architectures are checked regularly, and should work. Please refer to
+http://ci.inria.fr/cado for the status of the currently tested platforms
+for the development branch.
 
-Anything else than the primary platform perhaps works, perhaps does not work.
+Release 2.2 has undergone regular testing for the following
+hardware/software configurations.
 
- - Mac OS X Mavericks and Mountain Lion have been successfully tested with both
+    - i386, CentOS 6.3
+    - x86_64, Fedora 17, Ubuntu 12.04, Debian 8, OpenBSD 5.3
+    - x86_64, MacOS X 10.8
+    - arm32, Raspbian 7
+    - arm64, Ubuntu 14.04
+
+All checks above are done with gcc-4.4 or later.
+
+Anything else perhaps works, perhaps does not work.
+
+ - x86_64 with icc 14 and 16 did work once, but are not checked regularly.
+
+ - Mac OS X Mavericks have been successfully tested with both
    Apple's gcc and clang. (see local.sh.macosx.x86_64) 
 
  - Max OS X Leopard and Snow Leopard have been tested to work at
    least once, provided some additional tools and libraries (see below) have
-   been installed, notably for Leopard. ABI selection is sometimes tricky. (see
+   been installed, notably for Leopard. ABI selection is sometimes tricky (see
    local.sh.macosx.x86_32)
 
-
- - 32-bit linux with gcc-4.4 or later is supposed to work.
-
- - Windows is only partly supported (see a longer note at the end of this file).
+ - Windows is only partly supported (see a longer note at the end of this
+   file).
 
 Required software tools:
 ========================
@@ -43,23 +56,25 @@ Required software tools:
 *) GMP (http://gmplib.org): usually installed in most Linux distributions
    (on some Linux distributions you need to install libgmp*-dev
     including gmp.h, which is not installed by default).
-    Note: make sure to configure GMP with --enable-shared so that a shared
-    library is installed (libgmp.so under Linux) otherwise CADO-NFS might not
-    compile. GMP 5 (or newer) is required. On some platforms, --disable-alloca
-    is required to get thread-safe operations.
+   Note: make sure to configure GMP with --enable-shared so that a shared
+   library is installed (libgmp.so under Linux) otherwise CADO-NFS might not
+   compile. GMP 5 (or newer) is required. On some platforms, --disable-alloca
+   is required to get thread-safe operations.
 *) The GCC compiler works ; some others might, but it is untested. C and
    C++ are required, with C99 support.
-*) GNU make and CMake for building (CMake is installed on the fly if missing
-   (requires an Internet connection))
+*) GNU make and CMake >= 2.8 for building (CMake is installed on the fly if
+   missing (requires an Internet connection))
 *) Support for posix threads.
-*) The main cadofactor.py script uses a lot of unix tools: Python3, ssh,
+*) The main cado-nfs.py script uses a lot of unix tools: Python3, ssh,
    rsync, gzip, and libsqlite3 to mention but a few. For more information
    about the supported Python versions and required modules, see
    README.Python.
 
 Optionally:
-*) Support for curl library.
 *) Support for MPI (see local.sh.example and linalg/bwc/README)
+*) Support for hwloc (see parameters/misc/cpubinding.conf)
+*) Support for curl library, for a very specific use within an I/O bound
+subprogram in linear algebra.
 
 
 Configure
@@ -82,15 +97,15 @@ As a rule of thumb, whenever you happen to modify the local.sh script, it
 is advised to trigger re-configuration of the build system, by the
 special command ``make cmake''. Another way to achieve the same goal is
 to remove the build tree, which is below build/ (normally named as the
-hostname of the current machine).
+hostname of the current machine): ``make tidy'' should do it.
 
 Optional (alternative): configure using cmake directly
 ======================================================
 
 cado-nfs includes a top-level Makefile which builds the binary objects in
 a special build directory which is below build/ (normally named as the
-hostname of the current machine). This way, parralel builds for different
-machines may coexist on one shared directory. This is sort of a magic
+hostname of the current machine). This way, parallel builds for different
+machines may coexist in one shared directory. This is sort of a magic
 ``out-of-source'' build.
 
 Another way to do ``out-of-source'' build is to create a separate build
@@ -117,77 +132,95 @@ Cado-nfs binaries link to shared libraries, and some do so dynamically.
 For this to work, we rely on some control logic by cmake and cooperation
 with the operating system's dynamic linker.
 
-Calling one of cado-nfs scripts (e.g. factor.sh) can be done in
+(i) if "make" is directly called from the source directory $SRCDIR,
+    "make install" installs all programs and binaries in $SRCDIR/installed.
+
+(ii) otherwise programs and binaries will be installed in
+     /usr/local/share/cado-nfs-x.y.z, and this default installation prefix
+     can be changed by one of the following commands:
+
+     cmake .../cado-nfs -DCMAKE_INSTALL_PREFIX=/tmp/install
+
+     export PREFIX=/tmp/install ; cmake .../cado-nfs
+
+Calling one of cado-nfs scripts (e.g., cado-nfs.py) can be done in
 several ways. Here we assume that $SRCDIR is the source directory, that
 $BUILDDIR is the build tree for the local machine (typically
-$SRCDIR/`hostname`), and that $PREFIX is the installation prefix (by
-default, $SRCDIR/installed). We refer to these different ways, and later
+$SRCDIR/`hostname`), and that $PREFIX is the installation prefix (see above).
+We refer to these different ways, and later
 discuss how they work on different systems (which is mostly impacted by
 the shared library mechanism).
 
-(1) $SRCDIR/factor.sh
+(1) $SRCDIR/cado-nfs.py
     This deduces $BUILDDIR from the machine hostname, and amounts to
     calling binaries from there. Parameter files are obtained from
-    $SRCDIR.
+    $SRCDIR/parameters/
 
-(2) $BUILDDIR/factor.sh
-    This calls binaries from $BUILDDIR, and loads parameter files from
-    $SRCDIR
-
-(3) $PREFIX/bin/factor.sh
+(2) $PREFIX/bin/cado-nfs.py
     This calls binaries from $PREFIX/bin, and loads parameter files from
-    $PREFIX/share/cado-nfs-2.1.1/examples
+    $PREFIX/share/cado-nfs-x.y.z/
 
-Linux, BSD: All three methods work
+(3) $BUILDDIR/cado-nfs.py
+    This is not supported. Might work, might not. You've been warned.
+
+Linux, BSD: (1) and (2) should work ok.
 MacOS X:
     For any invocation to work, the LD_LIBRARY_PATH or DYLD_LIBRARY_PATH
     variable must be set up properly. The easiest method is to do make
     install, and include in these environment variables the directory
-    $PREFIX/lib/cado-nfs-2.1.1.
+    $PREFIX/lib/cado-nfs-x.y.z.
 
 Run a factorization on current machine:
 =======================================
 
-./factor.sh 90377629292003121684002147101760858109247336549001090677693 -t 2
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 -t 2
 
 where the option '-t 2' tells how many cores (via threads) to use on the
-current machine (for polynomial selection, sieving and linear algebra).
+current machine (for polynomial selection, sieving, linear algebra, among
+others).  It is possible to set '-t all' (which, in fact, is the default)
+to use all threads on the current machine.
 
 CADO-NFS is optimized only for numbers above 85 digits, and no support will
-be provided for numbers of less than 59 digits. Note that it is a good idea
+be provided for numbers of less than 60 digits. Note that it is a good idea
 to remove small prime factors using special-purpose algorithms such as trial
 division, P-1, P+1, or ECM, and use CADO-NFS only for the remaining composite
 factor.
 
-./factor.sh 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 -t 2 -s 2
-
-If the number of cores is greater than 2, it is more efficient to use multiple
-clients with -s to distribute the polynomial selection and sieve on the current
-machine. This example uses two clients, which use two threads each.
-If the number of cores is greater than 4, it is very recommended (sometimes
-mandatory if the script crashes) to use multiple clients.
+Parts of the Number Field Sieve computation are massively distributed. In
+this mode, client scripts (namely, cado-nfs-client.py) are run on many
+nodes, connect to a central server, and run programs according to which
+computations need to be done.  The programs (for the polynomial selection
+and sieving steps) can run multithreaded, but it is better to have them
+run with a capped number of threads (say, 2), and run several clients per
+node. By default, programs in this step are limited to 2 threads. When
+running the computation on the local machine, the number of clients is
+set so that the number of cores specified by -t are kept busy.
 
 Run a factorization on several machines:
 =======================================
 
-./factor.sh 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 -t 2 -s 2 -h hostname1,hostname2,hostname3
+./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
 
-This starts 2 clients each on hosts hostname1, hostname2, and hostname3,
+This starts 4 clients each on hosts hostname1, hostname2, and hostname3,
 where each client uses two cpus (threads). For hostnames that are not
 localhost, ssh is used to connect to the host and start a client there.
-To configure ssh, see the next section.
+To configure ssh, see the next section. For tasks which use the local
+machine only (not massively distributed tasks), the number of threads
+used is the one given by -t (which defaults to all threads on the local
+machine).
 
 For a larger factorization (distributed on several machines, possibly
-with different parameters for different machines), please use directly
-the main script cadofactor.py (doc included in
-scripts/cadofactor/README and scripts/cadofactor/parameters).
+with different parameters for different machines), please use the
+--server mode (see scripts/cadofactor/README and
+scripts/cadofactor/parameters).
 
 Check that your SSH configuration is correct:
 =============================================
 
-The master script uses SSH to connect to available computing resources.
-In order to avoid the script asking your password or passphrase, you must
-have public-key authentication and an agent.
+The master script (unless in --server mode) uses SSH to connect to
+available computing resources.  In order to avoid the script asking your
+password or passphrase, you must have public-key authentication and an
+agent.
 
 The SSH keys are usually installed in the files ~/.ssh/id_rsa and
 ~/.ssh/id_rsa.pub; if you don't have them yet, you can create them with the
@@ -201,7 +234,7 @@ to use ssh to run commands on slave machines automatically.
 
 Most of the recent Linux distributions will run an ssh-agent for you. But
 if this is not the case with your distribution, or if you are running
-cadofactor.py inside a ``screen'' in order to logout of your desktop, you
+cado-nfs.py inside a ``screen'' in order to logout from your desktop, you
 will need to run the ssh-agent by hand. As a short recipe, you can type:
    eval `ssh-agent`
    ssh-add
@@ -228,19 +261,34 @@ type any password/passphrase.
 Restarting an interrupted factorization:
 ========================================
 
-If you have started a factorization with the cadofactor.py script, and it was
-interrupted (for example because of a power failure) you can restart it simply
-with the same cadofactor.py command line.
+If you have started a factorization with the cado-nfs.py script, and it was
+interrupted (for example because of a power failure) you can restart in
+any of these two ways:
+ - with the same cado-nfs.py command line if a work directory was
+   explicitly provided on the command line:
+
+   $ cado-nfs.py ... workdir=/path/to/workdir
+
+ - with a single argument as in:
+
+   $ cado-nfs.py     [[work directory]]/XXX.parameters_snapshot.YYY
+
+   where [[work directory]] is the directory which has been chosen
+   automatically, XXX is the "name" of the running factorisation, and YYY
+   is the largest possible integer value for which such a file exists.
 
 Factoring with SNFS:
 ====================
 
 It is possible to take advantage of the special form of an integer and
-use the Special Number Field Sieve. See the doc in
-params/parameters.F9 for that. Note in particular that you can force
-the special-q to be on the rational side if this is more appropriate
-for your number, with tasks.sieve.ratq=True on the factor.sh or
-cadofactor.py command line.
+use the Special Number Field Sieve. See parameters/factor/parameters.F9
+for that:
+
+$ cado-nfs.py parameters/factor/parameters.F9 slaves.hostnames=localhost
+
+Note in particular that you can force the special-q to be on
+the rational side if this is more appropriate for your number, with
+tasks.sieve.ratq=True on the cado-nfs.py command line or in the parameter file.
 
 The default square root algorithm does not work in some very rare cases
 that could possibly occur with SNFS polynomials (a degree 4 polynomial
@@ -249,13 +297,14 @@ for degree 8). The CRT approach is a workaround. See crtaglsqrt.c .
 
 Big factorization (more than 200 digits):
 =========================================
+
 By default, to decrease memory usage, it is assumed than less than 2^32 (~ four
 billion) relations or ideals are needed and that the ideals will be less than
-2^32 (i.e. the lpba/lpbr parameters are less or equal to 32). In the case of
-factorizations of number of more than 200 digits, these assumptions may not
+2^32 (i.e., the lpba/lpbr parameters are less or equal to 32). In the case of
+factorizations of numbers of more than 200 digits, these assumptions may not
 hold. In this case, you have to set some variables in your local.sh script
-(see Configure section above for more information on local.sh and section on big
-factorization in local.sh.example).
+(see Configure section above for more information on local.sh and section on
+big factorizations in local.sh.example).
 
 Factoring with two non-linear polynomials:
 ==========================================
@@ -282,32 +331,35 @@ under Windows:
 * CygWin provides a Unix-like environment, where compilation should be easy.
   However the binary requires a cygwin.dll file. We have been told of problems
   with shared libraries, the following solves this problem:
-  PATH="installed/lib/cado-nfs-2.1.1:$PATH" ./factor.sh [...]
+  PATH="installed/lib/cado-nfs-x.y.z:$PATH" ./cado-nfs.py [...]
 
 * if you want a binary without any dependency, you might try MinGW. The INSTALL
   file from GNU MPFR contains detailed instructions on how to compile MPFR
   under Windows. Those instructions should work for CADO-NFS too.
-  See dev_docs/howto-MinGW.txt. Complilation on MinGW32 is tested regularly
+  See dev_docs/howto-MinGW.txt. Compilation on MinGW32 is tested regularly
   and should work, although performance of the 32-bit executables is poor.
 
 * you might try to use MPIR (mpir.org) instead of GMP. MPIR is a fork of GMP,
   which claims to be more portable under Windows.
 
 * you might succeed in compiling the cado-nfs binaries with a
-  cross-compiler for windows (which does not waive the runtime
-  requirements for cadofactor.py, notably on unix-like utilities). See
+  cross-compiler for Windows (which does not waive the runtime
+  requirements for cado-nfs.py, notably on unix-like utilities). See
   dev_docs/README.cross in the source code repository for information on
   how to cross-compile.
 
 Known problems:
 ===============
 
+* when running the square root step in multi-thread mode (tasks.sqrt.threads=2
+  or larger) with GMP <= 6.0, you might encounter an issue due to a "buglet"
+  in GMP (https://gmplib.org/list-archives/gmp-bugs/2015-March/003607.html).
+  Workaround: use tasks.sqrt.threads=1 or GMP >= 6.1.0.
 * GCC 4.1.2 is known to miscompile CADO-NFS (see
   https://gforge.inria.fr/tracker/index.php?func=detail&aid=14490),
-  GCC 4.2.0, 4.2.1 and 4.2.2 are also affected
+  GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
-  work, please use -t 1 option in factor.sh or
-  tasks.linalg.threads=1x1 cadofactor.py.
+  work, please use -t 1 option in cado-nfs.py or tasks.linalg.threads=1x1.
 * under AIX, if GMP is compiled in 64-bit mode, you should set the
   environment variable OBJECT_MODE, for example:
   export OBJECT_MODE=64
@@ -323,7 +375,7 @@ Factorisation of RSA-704 with CADO-NFS, Shi Bai, Emmanuel Thomé and Paul
 Zimmermann, preprint, http://eprint.iacr.org/2012/369, 2012.
 
 Better Polynomials for GNFS. Shi Bai, Cyril Bouvier, Alexander Kruppa and
-Paul Zimmermann. Mathematics of Computation, 2015.
+Paul Zimmermann. Mathematics of Computation, to appear.
 
 Root Optimization of Polynomials in the Number Field Sieve, Shi Bai, Richard
 Brent and Emmanuel Thomé. Mathematics of Computation, 2015.

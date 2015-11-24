@@ -1,6 +1,6 @@
 add_executable(check_rels check_rels.c)
 target_link_libraries(check_rels utils_with_io)
-install(TARGETS check_rels RUNTIME DESTINATION ${BINSUFFIX}/misc)
+install(TARGETS check_rels RUNTIME DESTINATION ${LIBSUFFIX}/misc)
 
 add_executable(debug_renumber EXCLUDE_FROM_ALL debug_renumber.c)
 target_link_libraries(debug_renumber utils)

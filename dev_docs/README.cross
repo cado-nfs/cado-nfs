@@ -53,7 +53,7 @@ that directory. From there, do:
     make install
 
 Following this, once you copy the files under SYSTEM_ROOT/usr/local to
-your target system, you should be able to run cadofactor.py. Of course,
+your target system, you should be able to run cado-nfs.py. Of course,
 this assumes that all the *run-time* dependencies of cado-nfs are met
 (python3, etc).
 

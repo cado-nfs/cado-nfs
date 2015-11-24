@@ -42,7 +42,7 @@ to configure according to what you want; then type 'make'.
 
 - Linear algebra:
   Exactly the same as for NFS-DL.
-  Have a look at the ouput and log files of "./factor.sh p -dlp" and try
+  Have a look at the ouput and log files of "./cado-nfs.py p -dlp" and try
   to imitate.
 
 - Reconstruct dlogs of fb elements

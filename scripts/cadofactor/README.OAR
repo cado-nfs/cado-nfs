@@ -31,7 +31,7 @@ slaves.ssh.execbin = oarsh
 A working example of parameters for OAR is in parameters.oar.
 
 As oarsub expects the command to run as a single parameter, a wrapper script
-needs to be used for starting cadofactor.py with the required parameters;
+needs to be used for starting cado-nfs.py with the required parameters;
 alternatively an interactive session can be used in which to run cadofactor.
 
 Of course, additional clients can be started on other OAR nodes manually

@@ -8,6 +8,12 @@ Main changes between cado-nfs-2.1.1 and cado-nfs-2.2:
     features are experimental, and not activated by default.
   - linear algebra: support for non-binary base field (for dlp),
     including the removal of the overhead due to SMs.
+* Main speedups:
+  - the creation of the factor base is now multithread.
+  - linear algebra speedup taking into account machine topology thanks to
+    HWLOC (http://www.open-mpi.org/projects/hwloc/).
+  - the square root step is now multithread.
+  - default parameters files were optimized for sieving with OPAL/nomad.
 * DLP support: now fully functional over prime fields, including the
   descent step. Still requires Magma for a small number-theoretic
   computation at the beginning (dependency will be removed sooner or later).
@@ -36,6 +42,10 @@ Main changes between cado-nfs-2.1.1 and cado-nfs-2.2:
 * An estimated time of arrival (ETA) is now printed during the polynomial
   selection and sieving steps. It corresponds to the estimate finish time
   of each of those steps (not the full factorization).
+* factor.sh is dead. cadofactor.py has been renamed into cado-nfs.py. The
+  client script wuclient2.py has been renamed into cado-nfs-client.py
+* By default, factorizations running on the localhost will use all
+  available cores.
 
 Main changes between cado-nfs-2.1 and cado-nfs-2.1.1:
 

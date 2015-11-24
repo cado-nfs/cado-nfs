@@ -23,9 +23,8 @@ from datetime import datetime
 import re
 import time
 
-cado_python_libs_path="@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@"
-if re.search("/", cado_python_libs_path):
-    sys.path.append(cado_python_libs_path)
+if re.search("^/", "@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@"):
+    sys.path.append("@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@")
 
 from workunit import Workunit
 if sys.version_info.major == 3:

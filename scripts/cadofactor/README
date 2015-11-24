@@ -1,6 +1,6 @@
 The cadofactor Python script is generally run with
 
-./cadofactor.py parameterfile
+./cado-nfs.py parameterfile
 
 All the parameters for the factorization are read from the parameter file,
 but it is possible to specify such parameters on the command line, after
@@ -8,44 +8,72 @@ parameterfile.
 
 For example, running
 
-./cadofactor.py ../../params/params.c59 N=90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal server.whitelist=0.0.0.0/0
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 server.whitelist=0.0.0.0/0 --server
 
-starts the cadofactor script, which also starts the server. It does not start any clients with this command line, so those would have to be started manually:
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal server.whitelist=0.0.0.0/0 --server
 
-./wuclient2.py --server=https://quiche.loria.fr:8001 --certsha1=[Certificate SHA1]
+starts the cadofactor script, which also starts the server. It does not
+start any clients with this command line, so those would have to be
+started manually. This is caused by the --server flag, which enforces the
+``do not start clients'' feature. The version above with tasks.execpath
+gives you control over the place where the binaries will be found.
 
-where the --server and --certsha1 parameters should be given the URL and certificate SHA1 value of the server,
-respectively, as printed by the cadofactor script. You can start an arbitrary number of client scripts, on any
-machines that can connect to the server via HTTP.
+The ./cado-nfs.py, when not instructed to start clients explicitly (with
+slaves.hostnames set), decides nevertheless to do so when it chose a
+default parameter file. If provided with an explicit parameter file, the
+default is to obey what is in there, and therefore not start clients
+unless slaves.hostnames is set.
+
+To start additional clients, do (following the command line given in the
+output of the server):
+
+./cado-nfs-client.py --server=https://quiche.loria.fr:8001 --certsha1=[Certificate SHA1]
+
+where the --server and --certsha1 parameters should be given the URL and
+certificate SHA1 value of the server, respectively, as printed by the
+cado-nfs.py script. You can start an arbitrary number of client scripts,
+on any machines that can connect to the server via HTTP.
 
 If you want to let the server automatically start clients, you need to supply a list of hostnames on which to start clients, e.g.,
 
-./cadofactor.py ../../params/params.c59 N=90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal slaves.hostnames=localhost slaves.nrclients=2 slaves.scriptpath=$HOME/git/cado-nfs/scripts/cadofactor
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 slaves.nrclients=2 slaves.hostnames=localhost
 
-to let it start two clients on localhost. The scriptpath parameter must be the path to the directory on the client machine which contains wuclient2.py (and workunit.py).
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 slaves.nrclients=2 slaves.hostnames=localhost tasks.execpath=$HOME/build/cado-nfs/normal slaves.scriptpath=$HOME/git/cado-nfs/
+
+to let it start two clients on localhost. The second version gives you
+more control power, but should hardly be needed.  The scriptpath
+parameter must be the path to the directory on the client machine which
+contains cado-nfs-client.py and workunit.py. The latter can also be
+fetched from scriptpath+"/scripts/cadofactor", whence giving the path to
+the source tree as scriptpath should be fine.
 
 
-For complex set-ups, it is preferable to write a parameter file. Some examples are in "parameters", "parameters.oar", and "parameters.rsa512.oar".
-The params/params.c90 file contains extensive comments describing the most common parameters.
+For complex set-ups, it is preferable to write a parameter file. Some
+examples are in "parameters", "parameters.oar", and
+"parameters.rsa512.oar".  The params/params.c90 file contains extensive
+comments describing the most common parameters.
 
-The .oar parameter files are meant for cadofactor scripts that run *inside* an OAR submission on clusters that use OAR as the job scheduler,
-such as Grid5000, as they read the list of slave hostnames from the OAR node file.
+The .oar parameter files are meant for cadofactor scripts that run
+*inside* an OAR submission on clusters that use OAR as the job scheduler,
+such as Grid5000, as they read the list of slave hostnames from the OAR
+node file.
 
 For example,
 
 oarsub -I
-./cadofactor.py parameters.oar
+./cado-nfs.py parameters.oar
 
-factors the usual c59 test number using the nodes reserved via OAR, in this case one node.
-The parameters.oar file contains the line
-slaves.catrel.nrclients = 8
-which tells the script to launch 8 clients on each unique host name (=node); the parameter
-threads=2
-causes all the programs to use two threads, resulting in 16 threads per node.
+factors the usual c59 test number using the nodes reserved via OAR, in
+this case one node.  The parameters.oar file contains the line
+slaves.catrel.nrclients = 8 which tells the script to launch 8 clients on
+each unique host name (=node); the parameter threads=2 causes all the
+programs to use two threads, resulting in 16 threads per node.
 
 If a factorization is interrupted, it is usually possible to resume it where
-it left off, simply by running cadofactor.py again with the same command
-line parameters. These command line parameters are printed to the screen and
+it left off, simply by running cado-nfs.py again with the same command
+line parameters, or the latest parameter file snapshot from the work
+directory (found at [[work directory]]/XXXX.parameters_snapshot.YYY.
+These command line parameters are printed to the screen and
 written to the .log file in the factorization's working directory on each
 run.
 
@@ -54,6 +82,24 @@ possible to salvage some of the output files which can then be imported into
 a new factorization run of the same number, but with a new working
 directory.
 
+Running with several groups of machines
+=======================================
+
+You can define several groups of machines slaves.xxx, slaves.yyy, ...
+Here is an example:
+
+slaves.big.hostnames = fondue,berthoud
+slaves.big.nrclients = 4
+slaves.big.scriptpath = /users/caramel/zimmerma/svn/cado-nfs
+slaves.big.basepath = /tmp/nfs
+slaves.small.hostnames = sel,poivre
+slaves.small.nrclients = 2
+slaves.small.scriptpath = /users/caramel/zimmerma/svn/cado-nfs
+slaves.small.basepath = /tmp/nfs
+
+This will run 4 clients (with by default 2 threads each) on the "big" machines
+fondue and berthoud, and 2 clients (with by default 2 threads each) on the
+"small" machines sel and poivre.
 
 Importing a polynomial file
 ===========================
@@ -174,7 +220,7 @@ of 10% more relations than ideals. This is controlled by:
 
 tasks.filter.purge.required_excess=0.1
 
-If you want a larger excess, say 20%, just add on the cadofactor.py command
+If you want a larger excess, say 20%, just add on the cado-nfs.py command
 line (or in the parameter file):
 
 tasks.filter.purge.required_excess=0.2
@@ -186,17 +232,20 @@ tasks.filter.purge.required_excess=0.0
 Note: if your factorization already started the linear algebra step, and you
 want to do more sieving, you can restart it with a larger "rels_wanted" than
 the current number of relations. For example if you have say 1000000 relations
-(grep "is now" in the log file), just add in the cadofactor.py line:
+(grep "is now" in the log file), just add in the cado-nfs.py line:
 
-If not enough relations are collected after the filtering step, the sieve is executed again with an additional number of wanted relations.
-The parameter tasks.filter.purge.add_ratio controls the number of additional required relations as a ratio of the number of unique relations already collected:
+tasks.sieve.rels_wanted=1000001
+
+If not enough relations are collected after the filtering step, the sieve
+is executed again with an additional number of wanted relations.  The
+parameter tasks.filter.purge.add_ratio controls the number of additional
+required relations as a ratio of the number of unique relations already
+collected:
 
 tasks.filter.purge.add_ratio=0.05
 
 specifies that you want 5% more relations before next filtering step.
 The default value is 0.1 (i.e. 10%).
-
-tasks.sieve.rels_wanted=1000001
 
 Printing and manipulating the database
 ======================================
@@ -222,9 +271,9 @@ sets the "next_dep" variable in the SqrtTask's state to the integer value 0.
 Using several threads for the square root step
 ==============================================
 
-By default the given number of threads (-t option of factor.sh, or
-tasks.threads for cadofactor.py) is used in the square root step. To use say
-16 threads in parallel, add the following to the cadofactor.py command line:
+By default the given number of threads (-t option of cado-nfs.py, or
+tasks.threads) is used in the square root step. To use say
+16 threads in parallel, add the following to the cado-nfs.py command line:
 
 tasks.sqrt.threads = 16
 

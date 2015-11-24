@@ -304,7 +304,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     # This macro is appropriate when a test defined by
     # cado_define_test (possibly with NO_DEFAULT_RUN) needs to be
     # called several times with various parameter sets.
-    # binary. The different ways to call this macro are:
+    # The different ways to call this macro are:
     # 
     # optional arguments:
     #           TEST_DEPENDENCIES
@@ -384,11 +384,11 @@ macro(cado_divert_test TEST_BASE DIVERSION)
 endmacro()
 
 
+if(NOT MINGW)
 cado_define_test(full_c30
     SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/factor.sh
-1000000001000040000000037000111
-        -t 2 -s auto
+        ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
+        --server-threads 2
     TARGET_DEPENDENCIES
         polyselect polyselect_ropt
         freerel makefb
@@ -397,21 +397,21 @@ cado_define_test(full_c30
         characters
         bwc_full
         sqrt)
-
+endif()
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(full_c59
         SCRIPT
-            ${CADO_NFS_SOURCE_DIR}/factor.sh
+            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             90377629292003121684002147101760858109247336549001090677693
-            -t 2 -s auto
+            --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
             )
     cado_define_test(nonlinear_c59
         SCRIPT
-            ${CADO_NFS_SOURCE_DIR}/factor.sh
+            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            --server-threads 2
             71641520761751435455133616475667090434063332228247871795429
-            -t 2 -s auto
             tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/c59_nonlinear.poly
         TARGET_DEPENDENCIES
             full_c30_dependencies
@@ -423,7 +423,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #        (quicker) tests cover everything covered by this test.
 #        cado_define_test(full_p59
 #            SCRIPT
-#               ${CADO_NFS_SOURCE_DIR}/factor.sh
+#               ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
 #               43341748620473677010074177283795146221310971425909898235183
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
@@ -431,13 +431,12 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #            plingen_pz sm reconstructlog-dl merge-dl replay-dl
 #        )
         cado_define_test(full_p30
-            SCRIPT ${CADO_NFS_SOURCE_DIR}/factor.sh
-            191907783019725260605646959711
+            SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             -dlp -ell 101538509534246169632617439
-            -t 2 -s auto
-            -dlpnokeep target=92800609832959449330691138186
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            sm_simple las_descent)
+            -t 2 -dlp-no-keep
+            target=92800609832959449330691138186
+            191907783019725260605646959711
+            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber)
         cado_define_test(test_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
@@ -445,7 +444,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm reconstructlog-dl merge-dl replay-dl)
         cado_define_test(test_gfp2
-            SCRIPT ${CADO_NFS_SOURCE_DIR}/factor.sh 100000000000000000039 -dlp -gfpext 2 -t 2 -s auto -dlpnokeep -ell 164354743277891
+            SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm reconstructlog-dl merge-dl replay-dl
             filter_galois polyselect_gfpn)
