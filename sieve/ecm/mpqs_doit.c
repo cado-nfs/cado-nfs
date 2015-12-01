@@ -250,7 +250,7 @@ findroot_new (unsigned long *k2, const unsigned long b,
 #endif
 
   const unsigned long redc_inva = mul_redc(p - inva, F->conv, F);
-  t1 = mul_redc(labs(b - r), redc_inva, F);
+  t1 = mul_redc((b >= r) ? b - r : r - b, redc_inva, F);
   if (b < r && t1 != 0)
     t1 = p - t1;
   ularith_addmod_ul_ul (&t1, t1, Mp, p);
