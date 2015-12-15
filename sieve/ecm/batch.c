@@ -586,7 +586,9 @@ find_smooth (cofac_list l, mpz_t batchP[2], FILE *out,
 
 /* print all factors of n into 'str', where 'str0' is the string start.
    B is the small prime bound: n contain no prime factor <= B
-   lpb is the large prime bound: all prime factor of n are < 2^lpb */
+   lpb is the large prime bound: all prime factor of n are < 2^lpb.
+   Return NULL if unable to factor completely n.
+*/
 static char*
 print_smooth_aux (mpz_t *factors, mpz_t n, facul_method_t *methods,
                   struct modset_t *fm, struct modset_t *cfm,
@@ -628,6 +630,8 @@ print_smooth_aux (mpz_t *factors, mpz_t n, facul_method_t *methods,
           modset_clear (fm);
           fm->arith = CHOOSE_NONE;
           mpz_clear (t);
+          if (str == NULL)
+            return NULL;
         }
 
       if (cfm->arith != CHOOSE_NONE)
@@ -644,12 +648,17 @@ print_smooth_aux (mpz_t *factors, mpz_t n, facul_method_t *methods,
           modset_clear (cfm);
           cfm->arith = CHOOSE_NONE;
           mpz_clear (t);
+          if (str == NULL)
+            return NULL;
         }
     }
 
   if (mpz_cmp_ui (n, 1) > 0)
     {
-      ASSERT (mpz_cmp_d (n, BB) < 0);
+      /* if we have not enough ECM methods, n might not be completely factored,
+         in which case n >= B^2 here */
+      if (mpz_cmp_d (n, BB) >= 0)
+        return NULL;
       if (str > str0)
         str += sprintf (str, ",");
       str += gmp_sprintf (str, "%Zx", n);
@@ -685,7 +694,8 @@ trial_divide (mpz_t n, unsigned long *sp, unsigned long spsize, char *str)
    B is the small prime bound: any factor < B^2 is necessarily prime.
    'cofac' is the initial cofactor (without special-q).
    factors[2] is a scratch space to store factors.
-   Return the pointer to the next character to write.
+   Return the pointer to the next character to write,
+   or NULL if unable to factor completely n.
 */
 static char*
 print_smooth (mpz_t *factors, mpz_t n, facul_method_t *methods,
@@ -701,6 +711,8 @@ print_smooth (mpz_t *factors, mpz_t n, facul_method_t *methods,
 
   /* factor rest of factor base primes */
   str = print_smooth_aux (factors, n, methods, fm, cfm, lpb, B, str0, str);
+  if (str == NULL) /* unable to factor completely n */
+    return NULL;
 
   if (sq != NULL)
     {
@@ -745,11 +757,15 @@ factor_one (cofac_list L, unsigned long *lim, int *lpb,
   s = print_smooth (factors, L->R0[perm[i]], methods, &fm, &cfm, lpb[0],
                     (double) lim[0], sp[0], spsize[0],
                     (sqside == 0) ? L->sq[perm[i]] : NULL, s);
+  if (s == NULL)
+    goto fail;
   s += sprintf (s, ":");
 
   s = print_smooth (factors, L->A0[perm[i]], methods, &fm, &cfm, lpb[1],
                     (double) lim[1], sp[1], spsize[1],
                     (sqside == 1) ? L->sq[perm[i]] : NULL, s);
+  if (s == NULL)
+    goto fail;
 
   /* avoid two threads writing a relation simultaneously */
 #ifdef  HAVE_OPENMP
@@ -760,6 +776,7 @@ factor_one (cofac_list L, unsigned long *lim, int *lpb,
     fflush (out);
   }
 
+ fail: /* unable to factor completely one of the norms */
   mpz_clear (factors[0]);
   mpz_clear (factors[1]);
 }
