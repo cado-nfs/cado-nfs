@@ -474,11 +474,15 @@ smoothness_test (mpz_t *R, uint32_t *perm, unsigned long n, mpz_t P, FILE *out)
            seconds () - st, wct_seconds () - wct);
 
   /* now T[0][j] = P mod R[j] for 0 <= j < n */
-  for (j = 0; j < n; j++)
-    {
+  for (j = 0; j < n; j++) {
+    // The while loop is there to take powers into account.
+    // TODO: maybe put multiplicities in the product tree of primes
+    // instead of this loop ?
+    while (mpz_cmp_ui(T[0][j], 1) != 0) {
       mpz_gcd (T[0][j], T[0][j], R[perm[j]]);
       mpz_divexact (R[perm[j]], R[perm[j]], T[0][j]);
     }
+  }
 
   clear_product_tree (T, n, w);
 }
@@ -527,8 +531,8 @@ update_status (mpz_t *R, uint32_t *perm,
 /* return the number n of smooth relations in l,
    which should be at the end in locations perm[0], perm[1], ..., perm[n-1] */
 unsigned long
-find_smooth (cofac_list l, int lpb[2], unsigned long lim[2], mpz_t batchP[2],
-             FILE *out, int nthreads MAYBE_UNUSED)
+find_smooth (cofac_list l, mpz_t batchP[2], FILE *out,
+    int nthreads MAYBE_UNUSED)
 {
   unsigned long nb_rel_read = l->size;
   unsigned long nb_smooth;
@@ -548,10 +552,6 @@ find_smooth (cofac_list l, int lpb[2], unsigned long lim[2], mpz_t batchP[2],
 
   nb_smooth = 0;
   nb_unknown = nb_rel_read;
-
-  /* the code below assumes lim0 <= 2^lpb0 and lim1 <= 2^lpb1 */
-  ASSERT_ALWAYS(lim[0] <= (1UL << lpb[0]));
-  ASSERT_ALWAYS(lim[1] <= (1UL << lpb[1]));
 
   /* invariant: the smooth relations are in 0..nb_smooth-1,
      the unknown ones in nb_smooth..nb_unknown-1,
@@ -690,13 +690,10 @@ static char*
 print_smooth (mpz_t *factors, mpz_t n, facul_method_t *methods,
               struct modset_t *fm, struct modset_t *cfm,
               unsigned int lpb, double B, unsigned long *sp,
-              unsigned long spsize, mpz_t cofac, mpz_ptr sq,
+              unsigned long spsize, mpz_ptr sq,
               char *str)
 {
   char *str0 = str;
-
-  ASSERT(mpz_divisible_p (n, cofac));
-  mpz_divexact (n, n, cofac);
 
   if (sq != NULL)
     {
@@ -706,9 +703,6 @@ print_smooth (mpz_t *factors, mpz_t n, facul_method_t *methods,
 
   /* remove small primes */
   str = trial_divide (n, sp, spsize, str);
-
-  /* factor the cofactor */
-  str = print_smooth_aux (factors, cofac, methods, fm, cfm, lpb, B, str0, str);
 
   /* factor rest of factor base primes */
   str = print_smooth_aux (factors, n, methods, fm, cfm, lpb, B, str0, str);
@@ -737,36 +731,29 @@ strip (unsigned long *l, unsigned long n, mpz_t P)
 
 /* sqside = 1 if the special-q is on side 1 (algebraic) */
 static void
-factor_one (cofac_list L, cado_poly pol, unsigned long *lim, int *lpb,
+factor_one (cofac_list L, unsigned long *lim, int *lpb,
             FILE *out, facul_method_t *methods, unsigned long *sp[],
             unsigned long spsize[], int sqside, unsigned long i)
 {
-  mpz_t norm;
   mpz_t factors[2];
   uint32_t *perm = L->perm;
   struct modset_t fm, cfm;
   char s0[1024];        /* output relation */
   char *s = s0;
 
-  mpz_init (norm);
   mpz_init (factors[0]);
   mpz_init (factors[1]);
 
-  /* compute norms F(a,b) and G(a,b) */
-  mpz_poly_homogeneous_eval_siui (norm, pol->pols[0],
-                                  L->a[perm[i]], L->b[perm[i]]);
-
+  // L->R0 (resp L->A0) contains the initial full norm on side 0 (resp 1).
   s += sprintf (s, "%" PRId64 ",%" PRIu64 ":", L->a[perm[i]], L->b[perm[i]]);
 
-  s = print_smooth (factors, norm, methods, &fm, &cfm, lpb[0], (double) lim[0],
-                    sp[0], spsize[0], L->R0[perm[i]],
+  s = print_smooth (factors, L->R0[perm[i]], methods, &fm, &cfm, lpb[0],
+                    (double) lim[0], sp[0], spsize[0],
                     (sqside == 0) ? L->sq[perm[i]] : NULL, s);
   s += sprintf (s, ":");
 
-  mpz_poly_homogeneous_eval_siui (norm, pol->pols[1],
-                                  L->a[perm[i]], L->b[perm[i]]);
-  s = print_smooth (factors, norm, methods, &fm, &cfm, lpb[1], (double) lim[1],
-                    sp[1], spsize[1], L->A0[perm[i]],
+  s = print_smooth (factors, L->A0[perm[i]], methods, &fm, &cfm, lpb[1],
+                    (double) lim[1], sp[1], spsize[1],
                     (sqside == 1) ? L->sq[perm[i]] : NULL, s);
 
   /* avoid two threads writing a relation simultaneously */
@@ -778,7 +765,6 @@ factor_one (cofac_list L, cado_poly pol, unsigned long *lim, int *lpb,
     fflush (out);
   }
 
-  mpz_clear (norm);
   mpz_clear (factors[0]);
   mpz_clear (factors[1]);
 }
@@ -824,7 +810,7 @@ factor (cofac_list L, unsigned long n, cado_poly pol, int lpb[], int sqside,
 #pragma omp parallel for schedule(static)
 #endif
   for (i = 0; i < n; i++)
-    factor_one (L, pol, B, lpb, out, methods, sp, spsize, sqside, i);
+    factor_one (L, B, lpb, out, methods, sp, spsize, sqside, i);
 
   ulong_list_clear (SP0);
   ulong_list_clear (SP1);
@@ -836,18 +822,15 @@ factor (cofac_list L, unsigned long n, cado_poly pol, int lpb[], int sqside,
 }
 
 static void
-create_batch_product (mpz_t P, unsigned long B, unsigned long L, mpz_poly_t pol)
+create_batch_product (mpz_t P, unsigned long L, mpz_poly_t pol)
 {
   prime_info pi;
-  unsigned long p;
 
-  ASSERT_ALWAYS (L > B);
+  ASSERT_ALWAYS (L > 2);
 
   prime_info_init (pi);
 
-  for (p = 2; p < B; p = getprime_mt (pi));
-
-  prime_product_poly (P, pi, L, p, pol);
+  prime_product_poly (P, pi, L, 2, pol);
 
   prime_info_clear (pi);
 }
@@ -858,7 +841,7 @@ create_batch_product (mpz_t P, unsigned long B, unsigned long L, mpz_poly_t pol)
    3) if f != NULL and file is existing: P is read from file
 */
 void
-create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
+create_batch_file (const char *f, mpz_t P, unsigned long L,
                    mpz_poly_t pol, FILE *out, int nthreads MAYBE_UNUSED)
 {
   FILE *fp;
@@ -873,7 +856,7 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
     {
       fprintf (out, "# batch: creating large prime product");
       fflush (out);
-      create_batch_product (P, B, L, pol);
+      create_batch_product (P, L, pol);
       goto end;
     }
 
@@ -894,7 +877,7 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
   /* case 2 */
   fprintf (out, "# batch: creating large prime product");
   fflush (out);
-  create_batch_product (P, B, L, pol);
+  create_batch_product (P, L, pol);
 
   fp = fopen (f, "w");
   ASSERT_ALWAYS(fp != NULL);

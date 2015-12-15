@@ -2011,7 +2011,6 @@ trial_div (factor_list_t *fl, mpz_t norm, const unsigned int N, unsigned int x,
     fl->n = 0; /* reset factor list */
 
     if (trial_div_very_verbose) {
-        verbose_output_start_batch();
         verbose_output_print(TRACE_CHANNEL, 0, "# trial_div() entry, N = %u, x = %d, a = %" PRId64 ", b = %" PRIu64 ", norm = ", N, x, a, b);
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%Zd\n", norm);
     }
@@ -2059,9 +2058,6 @@ trial_div (factor_list_t *fl, mpz_t norm, const unsigned int N, unsigned int x,
           verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "\n# After trialdiv(): norm = %Zd\n", norm);
       }
     } while (nr_factors == TRIALDIV_MAX_FACTORS + 1);
-
-    if (trial_div_very_verbose)
-        verbose_output_end_batch();
 }
 /* }}} */
 
@@ -2206,38 +2202,40 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
        store them with the complete prime */
     /* FIXME: choose a sensible size here */
 
-    for(int side = 0 ; side < 2 ; side++) {
-        WHERE_AM_I_UPDATE(w, side, side);
-        // From N we can deduce the bucket_index. They are not the same
-        // when there are multiple-level buckets.
-        uint32_t bucket_index = N % si->nb_buckets[1];
+    if (!las->batch) { // In full-batch mode, we skip the resieving.
+        for(int side = 0 ; side < 2 ; side++) {
+            WHERE_AM_I_UPDATE(w, side, side);
+            // From N we can deduce the bucket_index. They are not the same
+            // when there are multiple-level buckets.
+            uint32_t bucket_index = N % si->nb_buckets[1];
 
-        const bucket_array_t<1, shorthint_t> *BA =
-            th->ws->cbegin_BA<1, shorthint_t>(side);
-        const bucket_array_t<1, shorthint_t> * const BA_end =
-            th->ws->cend_BA<1, shorthint_t>(side);
-        for (; BA != BA_end; BA++)  {
-            purged[side].purge(*BA, bucket_index, SS);
+            const bucket_array_t<1, shorthint_t> *BA =
+                th->ws->cbegin_BA<1, shorthint_t>(side);
+            const bucket_array_t<1, shorthint_t> * const BA_end =
+                th->ws->cend_BA<1, shorthint_t>(side);
+            for (; BA != BA_end; BA++)  {
+                purged[side].purge(*BA, bucket_index, SS);
+            }
+
+            /* Add entries coming from downsorting, if any */
+            const bucket_array_t<1, longhint_t> *BAd =
+                th->ws->cbegin_BA<1, longhint_t>(side);
+            const bucket_array_t<1, longhint_t> * const BAd_end =
+                th->ws->cend_BA<1, longhint_t>(side);
+            for (; BAd != BAd_end; BAd++)  {
+                purged[side].purge(*BAd, bucket_index, SS);
+            }
+
+            /* Resieve small primes for this bucket region and store them 
+               together with the primes recovered from the bucket updates */
+            resieve_small_bucket_region (&primes[side], N, SS,
+                    th->si->sides[side]->rsd, th->sides[side].rsdpos, si, w);
+
+            /* Sort the entries to avoid O(n^2) complexity when looking for
+               primes during trial division */
+            purged[side].sort();
+            primes[side].sort();
         }
-
-        /* Add entries coming from downsorting, if any */
-        const bucket_array_t<1, longhint_t> *BAd =
-            th->ws->cbegin_BA<1, longhint_t>(side);
-        const bucket_array_t<1, longhint_t> * const BAd_end =
-            th->ws->cend_BA<1, longhint_t>(side);
-        for (; BAd != BAd_end; BAd++)  {
-            purged[side].purge(*BAd, bucket_index, SS);
-        }
-
-        /* Resieve small primes for this bucket region and store them 
-           together with the primes recovered from the bucket updates */
-        resieve_small_bucket_region (&primes[side], N, SS,
-                th->si->sides[side]->rsd, th->sides[side].rsdpos, si, w);
-
-        /* Sort the entries to avoid O(n^2) complexity when looking for
-           primes during trial division */
-        purged[side].sort();
-        primes[side].sort();
     }
 
     /* Scan array one long word at a time. If any byte is <255, i.e. if
@@ -2278,7 +2276,8 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
             if (SS[x] == 255) continue;
 
             th->rep->survivor_sizes[S[0][x]][S[1][x]]++;
-            
+
+                       
             /* For factor_leftover_norm, we need to pass the information of the
              * sieve bound. If a cofactor is less than the square of the sieve
              * bound, it is necessarily prime. we implement this by keeping the
@@ -2327,6 +2326,22 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 
             int pass = 1;
 
+            if (las->batch)
+            {
+                verbose_output_start_batch ();
+                int i;
+                unsigned int j;
+                NxToIJ (&i, &j, N, x, si);
+                for (int side = 0; side < 2; side++) {
+                    mpz_poly_homogeneous_eval_siui (norm[side],
+                            si->sides[side]->fij, i, j);
+                }
+                cofac_list_add ((cofac_list_t*) las->L, a, b, norm[0], norm[1],
+                        si->qbasis.q);
+                verbose_output_end_batch ();
+                continue; /* we deal with all cofactors at the end of las */
+            } 
+            
             int i;
             unsigned int j;
             for(int side = 0 ; pass && side < 2 ; side++) {
@@ -2367,14 +2382,6 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
             }
             if (!pass) continue;
 
-	    if (las->batch)
-	      {
-		verbose_output_start_batch ();
-		cofac_list_add ((cofac_list_t*) las->L, a, b, norm[0], norm[1],
-				si->qbasis.q);
-		verbose_output_end_batch ();
-		continue; /* we deal with all cofactors at the end of las */
-	      }
 
             if (cof_stats == 1)
             {
@@ -2443,7 +2450,6 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
                 FILE *output;
                 if (!is_dup)
                     cpt++;
-                verbose_output_start_batch();   /* lock I/O */
                 if (prepend_relation_time) {
                     verbose_output_print(0, 1, "(%1.4f) ", seconds() - tt_qstart);
                 }
@@ -2460,7 +2466,6 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
 			add_relations_with_galois(las->galois, output, comment,
 						  &cpt, rel);
 		}
-                verbose_output_end_batch();     /* unlock I/O */
             }
 
             /* Build histogram of lucky S[x] values */
@@ -3273,18 +3278,15 @@ int main (int argc0, char *argv0[])/*{{{*/
              * file, and also for the initialization of the descent.
              */
             las->tree->take_decision();
-            verbose_output_start_batch();
             FILE * output;
             for (size_t i = 0;
                     (output = verbose_output_get(0, 0, i)) != NULL;
                     i++) {
                 winner.rel.print(output, "Taken: ");
             }
-            verbose_output_end_batch();
             {
                 las_todo_entry const& me(*si->doing);
                 unsigned int n = mpz_sizeinbase(me.p, 2);
-                verbose_output_start_batch();
                 verbose_output_print (0, 1, "# taking path: ");
                 for(int i = 0 ; i < me.depth ; i++) {
                     verbose_output_print (0, 1, " ");
@@ -3300,7 +3302,6 @@ int main (int argc0, char *argv0[])/*{{{*/
                     verbose_output_print (0, 1, " done");
                 }
                 verbose_output_vfprint (0, 1, gmp_vfprintf, " \t%d %Zd %Zd\n", me.side,me.p,me.r);
-                verbose_output_end_batch();
             }
             if (recursive_descent) {
                 /* reschedule the possibly still missing large primes in the
@@ -3350,20 +3351,18 @@ int main (int argc0, char *argv0[])/*{{{*/
 	const char *batch0_file, *batch1_file;
 	batch0_file = param_list_lookup_string (pl, "batch0");
 	batch1_file = param_list_lookup_string (pl, "batch1");
-	unsigned long lim[2] = {las->default_config->sides[0]->lim,
-				las->default_config->sides[1]->lim};
 	int lpb[2] = {las->default_config->sides[0]->lpb,
 		      las->default_config->sides[1]->lpb};
 	mpz_t batchP[2];
 	mpz_init (batchP[0]);
 	mpz_init (batchP[1]);
-	create_batch_file (batch0_file, batchP[0], lim[0], 1UL << lpb[0],
+	create_batch_file (batch0_file, batchP[0], 1UL << lpb[0],
 			   las->cpoly->pols[0], las->output, las->nb_threads);
-	create_batch_file (batch1_file, batchP[1], lim[1], 1UL << lpb[1],
+	create_batch_file (batch1_file, batchP[1], 1UL << lpb[1],
 			   las->cpoly->pols[1], las->output, las->nb_threads);
 	double tcof_batch = seconds ();
 	cofac_list_realloc (las->L, las->L->size);
-	report->reports = find_smooth (las->L, lpb, lim, batchP, las->output,
+	report->reports = find_smooth (las->L, batchP, las->output,
 				       las->nb_threads);
 	mpz_clear (batchP[0]);
 	mpz_clear (batchP[1]);

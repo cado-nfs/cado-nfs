@@ -53,11 +53,11 @@ void cofac_list_realloc (cofac_list, size_t);
 void cofac_list_clear (cofac_list);
 void cofac_list_add (cofac_list, long, unsigned long, mpz_t, mpz_t, mpz_t);
 unsigned long prime_product (mpz_t, prime_info, unsigned long, unsigned long);
-unsigned long find_smooth (cofac_list, int[2], unsigned long[2], mpz_t[2],
-                           FILE*, int);
+unsigned long find_smooth (cofac_list l, mpz_t batchP[2],
+    FILE *out, int nthreads MAYBE_UNUSED);
 void factor (cofac_list, unsigned long, cado_poly, int[], int, FILE*, int);
-void create_batch_file (const char*, mpz_t, unsigned long, unsigned long,
-                        mpz_poly_t, FILE*, int);
+void create_batch_file (const char *f, mpz_t P, unsigned long L,
+    mpz_poly_t pol, FILE *out, int nthreads MAYBE_UNUSED);
 
 #ifdef __cplusplus
 }
