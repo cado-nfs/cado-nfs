@@ -26,5 +26,6 @@ void las_report_init(las_report_ptr p);
 void las_report_clear(las_report_ptr p);
 void las_report_accumulate(las_report_ptr p, las_report_ptr q);
 void las_report_copy(las_report_ptr p, las_report_ptr q);
+void las_report_stat_fprint(FILE *file, las_report_ptr p);
 
 #endif	/* LAS_REPORT_STATS_H_ */

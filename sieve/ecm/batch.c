@@ -679,6 +679,7 @@ trial_divide (mpz_t n, unsigned long *sp, unsigned long spsize, char *str)
   return str;
 }
 
+// FIXME: update comment
 /* Print the prime factors of the input 'n' separated by spaces.
    The list sp[] contains small primes (less than B).
    B is the small prime bound: any factor < B^2 is necessarily prime.
@@ -694,12 +695,6 @@ print_smooth (mpz_t *factors, mpz_t n, facul_method_t *methods,
               char *str)
 {
   char *str0 = str;
-
-  if (sq != NULL)
-    {
-      ASSERT(mpz_divisible_p (n, sq));
-      mpz_divexact (n, n, sq);
-    }
 
   /* remove small primes */
   str = trial_divide (n, sp, spsize, str);

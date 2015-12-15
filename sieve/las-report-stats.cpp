@@ -1,4 +1,5 @@
 #include "cado.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "las-report-stats.h"
@@ -8,6 +9,8 @@ void las_report_init(las_report_ptr p)
     memset(p, 0, sizeof(las_report));
     p->report_sizes = (long unsigned int (*)[256]) malloc(sizeof(unsigned long) << 16);
     p->survivor_sizes = (long unsigned int (*)[256]) malloc(sizeof(unsigned long) << 16);
+    memset(p->survivor_sizes, 0, sizeof(unsigned long) << 16);
+    memset(p->report_sizes, 0, sizeof(unsigned long) << 16);
 }
 
 void las_report_clear(las_report_ptr p)
@@ -28,6 +31,20 @@ void las_report_copy(las_report_ptr p, las_report_ptr q)
     memcpy(p->report_sizes, q->report_sizes, sizeof(unsigned long) << 16);
 }
 
+void las_report_stat_fprint(FILE *file, las_report_ptr p)
+{
+    for (int i1 = 0; i1 < 256; i1++) {
+        fprintf(file, "%d:: ", i1);
+        for (int i2 = 0; i2 < 256; i2++) {
+            if (p->report_sizes[i1][i2] != 0) {
+                fprintf(file, "%d:%lu:%lu ", i2, p->survivor_sizes[i1][i2],
+                    p->report_sizes[i1][i2]);
+            }
+        }
+        fprintf(file, "\n");
+    }
+}
+ 
 void las_report_accumulate(las_report_ptr p, las_report_ptr q)
 {
     unsigned long (*ss)[256] = q->survivor_sizes;
