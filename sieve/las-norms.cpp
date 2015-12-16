@@ -1597,6 +1597,8 @@ sieve_info_update_norm_data (sieve_info_ptr si, int nb_threads)
 	  int bku = (int) (GUARD + bk - GUARD_RND);
 	  if (255 < lku || bku < lku)
 	    break;
+	  if (bku > 255)
+	    bku = 255;
 	  memset (sideptr->check_size + lku, 0, bku - lku + 1);
 	}
     }
