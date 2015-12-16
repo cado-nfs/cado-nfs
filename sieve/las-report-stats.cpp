@@ -33,15 +33,20 @@ void las_report_copy(las_report_ptr p, las_report_ptr q)
 
 void las_report_stat_fprint(FILE *file, las_report_ptr p)
 {
-    for (int i1 = 0; i1 < 256; i1++) {
-        fprintf(file, "%d:: ", i1);
-        for (int i2 = 0; i2 < 256; i2++) {
+    int i1, i2;
+    for (i1 = 0; i1 < 256; i1++) {
+      for (i2 = 0; i2 < 256 && !p->report_sizes[i1][i2]; i2++);
+      if (i2 < 256)
+	{
+	  fprintf(file, "%d:: ", i1);
+	  for (i2 = 0; i2 < 256; i2++) {
             if (p->report_sizes[i1][i2] != 0) {
-                fprintf(file, "%d:%lu:%lu ", i2, p->survivor_sizes[i1][i2],
-                    p->report_sizes[i1][i2]);
+	      fprintf(file, "%d:%lu:%lu ", i2, p->survivor_sizes[i1][i2],
+		      p->report_sizes[i1][i2]);
             }
-        }
-        fprintf(file, "\n");
+	  }
+	  fprintf(file, "\n");
+	}
     }
 }
  

@@ -1582,6 +1582,23 @@ sieve_info_update_norm_data (sieve_info_ptr si, int nb_threads)
       if (lambda > max_lambda)
         verbose_output_print (0, 1, "# Warning, lambda>%.1f on side %d does "
             "not make sense (capped to limit)\n", max_lambda, side);
+
+      /* initialize the check_size[256] array */
+      memset (sideptr->check_size, 1, 256);
+      /* between L^k and B^{k+1}, there can be no smooth relation */
+      for (int k = 1; ; k++)
+	{
+	  double lk = (double) (k * si->conf->sides[side]->lpb)
+	    * sideptr->scale;
+	  double bk = (double) (k+1) * sideptr->scale
+	    * log2 ((double) si->conf->sides[side]->lim);
+#define GUARD_RND 2 /* takes into account rounding errors and prime powers */
+	  int lku = (int) (GUARD + lk + GUARD_RND);
+	  int bku = (int) (GUARD + bk - GUARD_RND);
+	  if (255 < lku || bku < lku)
+	    break;
+	  memset (sideptr->check_size + lku, 0, bku - lku + 1);
+	}
     }
   }
 

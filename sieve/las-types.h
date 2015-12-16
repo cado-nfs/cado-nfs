@@ -111,8 +111,9 @@ struct sieve_side_info_s {
      * determines the logp contributions for factor base primes */
     double scale;      /* scale used for logarithms for fb and norm.
                           must be of form (int)x * 0.1 */
+    char check_size[256]; /* non-zero for sizes which are ok */
     double cexp2[257]; /* for 2^X * scale + GUARD */
-    double logmax;     /* norms on the alg-> side are < 2^alg->logmax */
+    double logmax;     /* norms are < 2^logmax */
 
     mpz_poly_t fij;   /* coefficients of F(a0*i+a1*j, b0*i+b1*j) (divided by 
                          q on the special-q side) */

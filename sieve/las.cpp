@@ -2275,6 +2275,10 @@ factor_survivors (thread_data *th, int N, where_am_I_ptr w MAYBE_UNUSED)
         for (size_t x = offset; x < offset + together; ++x) {
             if (SS[x] == 255) continue;
 
+	    if (th->si->sides[0]->check_size[S[0][x]] == 0 ||
+		th->si->sides[1]->check_size[S[1][x]] == 0)
+	      continue;
+
             th->rep->survivor_sizes[S[0][x]][S[1][x]]++;
 
                        
