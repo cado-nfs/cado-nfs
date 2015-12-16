@@ -3446,7 +3446,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     //}}}
     delete workspaces;
 
-    las_report_stat_fprint(stderr, report);
+    las_report_stat_fprint(stdout, report);
 
     las_report_clear(report);
 
