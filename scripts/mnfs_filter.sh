@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Require the following binaries:
+# freerel debug_renumber dup1 dup2 split_renumbered_rels purge list_forbidden_cols_for_merge merge-dl replay-dl sm rearrange_MNFS_matrix reconstructlog-dl mf_scan bwc_full plingen_pz
+
 if [ -z $1 ] ; then
   echo "Missing argument"
   echo "Usage: $0 <parameter_file>"
@@ -114,31 +117,33 @@ done
 #### split
 echo -n "split ... "
 mkdir -p ${WDIR}/${NAME}.nodup3/
-ARGS_SP="-poly ${POLY} -renumber ${RENUMBER} -outprefix ${NAME}\
-        -outdir ${NODUP3} ${NODUP2}/${DUP1_SELECTOR}/*"
-LOG_SP="${WDIR}/${NAME}.split.log"
-${BUILDDIR}/misc/split_renumbered_rels ${ARGS_SP} > ${LOG_SP} 2>&1
-check_error "$?"
+if [ -z ${NO_SPLIT} ] ; then
+  ARGS_SP="-poly ${POLY} -renumber ${RENUMBER} -outprefix ${NAME}\
+          -outdir ${NODUP3} ${NODUP2}/${DUP1_SELECTOR}/*"
+  LOG_SP="${WDIR}/${NAME}.split.log"
+  ${BUILDDIR}/misc/split_renumbered_rels ${ARGS_SP} > ${LOG_SP} 2>&1
+  check_error "$?"
 
-# print some info
-grep "type 0" ${LOG_SP} | cut -d " " -f -6
+  # print some info
+  grep "type 0" ${LOG_SP} | cut -d " " -f -6
 
-# XXX (hack for p4dd5b example: too many 01 rels, even the number of 01 and 02
-# rels)
-TMP=`wc -l ${NODUP3}/${NAME}.02.rels | cut -d " " -f 1`
-mv ${NODUP3}/${NAME}.01.rels ${NODUP3}/${NAME}.01.rels.bak
-head -n ${TMP} ${NODUP3}/${NAME}.01.rels.bak > ${NODUP3}/${NAME}.01.rels
+  NRELS_PURGE=`wc -l ${NODUP3}/${NAME}.0[0-9].rels | tail -n 1 | cut -d " " -f 3`
+else
+  echo " skipped"
+  cat ${NODUP2}/${DUP1_SELECTOR}/* > ${NODUP3}/${NAME}.00.rels
+  NRELS_PURGE=`wc -l ${NODUP3}/${NAME}.00.rels | cut -d " " -f 1`
+fi
 
 # print some info
 wc -l ${NODUP3}/${NAME}.0[0-9].rels
-NRELS_PURGE=`wc -l ${NODUP3}/${NAME}.0[0-9].rels | tail -n 1 | cut -d " " -f 3`
 
 #### purge
 echo -n "purge ... "
 if [ -z ${NO_PURGE} ] ; then
+  : ${PURGE_NSTEPS:="-1"}
   ARGS_PURGE="-out ${PURGED} -nrels ${NRELS_PURGE} -col-max-index ${NCOLS}\
               -col-min-index 0 -keep ${KEEP} -outdel ${DELETED}\
-              ${NODUP3}/${NAME}.0[0-9].rels"
+              -nsteps ${PURGE_NSTEPS} ${NODUP3}/${NAME}.0[0-9].rels"
   LOG_PURGE="${WDIR}/${NAME}.purge.log"
   ${BUILDDIR}/filter/purge ${ARGS_PURGE} >${LOG_PURGE} 2>&1
   check_error "$?"
@@ -166,8 +171,7 @@ echo -n "merge ... "
 if [ -z ${NO_MERGE} ] ; then
 
   ARGS_MERGE="-mat ${PURGED} -out ${HISFILE} -skip 0 -keep ${KEEP} -maxlevel 25\
-              -forbw 3 -coverNmax ${coverNmax}\
-              -forbidden-cols ${MERGEFORBIDDENCOLS}"
+              -target_density ${coverNmax} -forbidden-cols ${MERGEFORBIDDENCOLS}"
   LOG_MERGE="${WDIR}/${NAME}.merge.log"
   ${BUILDDIR}/filter/merge-dl ${ARGS_MERGE} > ${LOG_MERGE} 2>&1
   check_error "$?"
@@ -200,7 +204,7 @@ check_error "$?"
 
 #### rearrange the matrix by block
 echo -n "rearrange ... "
-ARGS_REA="-poly ${POLY} -renumber ${RENUMBER}\
+ARGS_REA="-sorting 3 -poly ${POLY} -renumber ${RENUMBER}\
           -ideals ${IDEALSFILE_TMP} -new-ideals ${IDEALSFILE}\
           -sm ${SMFILE_TMP} -new-sm ${SMFILE} -nsm ${SM}\
           -matrix ${MAT_TMP} -new-matrix ${MAT} -side-info ${SIDEINFO}"
@@ -209,31 +213,31 @@ ${BUILDDIR}/misc/rearrange_MNFS_matrix ${ARGS_REA} > ${LOG_REA} 2>&1
 check_error "$?"
 
 #### LA (in magma)
-echo -n "LA (in magma) ... "
-ARGS_LA="ell:=${ELL} nmaps:=${NSM} sparsefile:=${MAT} smfile:=${SMFILE}\
-         kerfile:=${KERFILE}"
-LOG_LA="${WDIR}/${NAME}.LA.log"
-CMD="magma ${ARGS_LA} ${BUILDDIR}/../../scripts/linalg.mag"
-echo ${CMD} > ${LOG_LA}
-${CMD} >> ${LOG_LA} 2>&1
-check_error "$?"
+##echo -n "LA (in magma) ... "
+##ARGS_LA="ell:=${ELL} nmaps:=${NSM} sparsefile:=${MAT} smfile:=${SMFILE}\
+##         kerfile:=${KERFILE}"
+##LOG_LA="${WDIR}/${NAME}.LA.log"
+##CMD="magma ${ARGS_LA} ${BUILDDIR}/../../scripts/linalg.mag"
+##echo ${CMD} > ${LOG_LA}
+##${CMD} >> ${LOG_LA} 2>&1
+##check_error "$?"
 
 #print some info
-head ${KERFILE}
+##head ${KERFILE}
 
 #### reconstructlog
-echo -n "reconstructlog-dl ... "
-if [ -z ${PARTIAL} ] ; then
-  AP=""
-else
-  AP="-partial"
-fi
-ARGS_REC="-log ${KERFILE} -ell ${ELL} -out ${FINALDLOG} -poly ${POLY}\
-          -renumber ${RENUMBER} -ideals ${IDEALSFILE} -nsm ${SM} -mt 4\
-          -purged ${PURGED} -nrels ${NRELS_PURGE} -relsdel ${DELETED}"
-LOG_REC="${WDIR}/${NAME}.reconstructlog.log"
-${BUILDDIR}/filter/reconstructlog-dl ${ARGS_REC} ${AP} > ${LOG_REC} 2>&1
-check_error "$?"
+##echo -n "reconstructlog-dl ... "
+##if [ -z ${PARTIAL} ] ; then
+##  AP=""
+##else
+##  AP="-partial"
+##fi
+##ARGS_REC="-log ${KERFILE} -ell ${ELL} -out ${FINALDLOG} -poly ${POLY}\
+##          -renumber ${RENUMBER} -ideals ${IDEALSFILE} -nsm ${SM} -mt 4\
+##          -purged ${PURGED} -nrels ${NRELS_PURGE} -relsdel ${DELETED}"
+##LOG_REC="${WDIR}/${NAME}.reconstructlog.log"
+##${BUILDDIR}/filter/reconstructlog-dl ${ARGS_REC} ${AP} > ${LOG_REC} 2>&1
+##check_error "$?"
 
 #### LA (with bwc)
 
@@ -243,6 +247,7 @@ ARGS_MF_SCAN="--ascii-in mfile=${MAT} --binary-out ofile=${BINMAT} --freq\
               --withcoeffs"
 LOG_MF_SCAN="${WDIR}/${NAME}.bwc.mf_scan.log"
 CMD="${BUILDDIR}/linalg/bwc/mf_scan ${ARGS_MF_SCAN}" > ${LOG_MF_SCAN}
+echo $CMD > ${LOG_MF_SCAN}
 ${CMD} >> ${LOG_MF_SCAN} 2>&1
 check_error "$?"
 
