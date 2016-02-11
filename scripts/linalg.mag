@@ -6,6 +6,9 @@ Run with
 
 */
 
+COMPUTE_COMPLETE_KERNEL := true;
+DEBUG := true;
+
 ell := StringToInteger(ell);
 nmaps := StringToInteger(nmaps);
 
@@ -71,6 +74,7 @@ end if;
 
 // If the system is overdetermined, let's erase the last rows because
 // Magma 2.20 (upto at least patch-level 4) has a bug.
+/*
 if NumberOfRows(M) gt NumberOfColumns(M) then
     for i := NumberOfColumns(M)+1 to NumberOfRows(M) do
         S := Support(M, i);
@@ -79,45 +83,63 @@ if NumberOfRows(M) gt NumberOfColumns(M) then
         end for;
     end for;
 end if;
+*/
 
 // Computing...
 printf "Computing kernel...\n";
 
-if false then
 
-time v := ModularSolution(M, ell : Lanczos := false);
+procedure CheckVectorInKernel(Mat, nrow, vector, l)
+  for i in [1..nrow] do
+    c := GF(l) ! 0;
+    for j in Support (Mat, i) do
+      c := c + vector[j]*Mat[i][j];
+    end for;
+    if c ne 0 then
+      print "# Error", i-1, c;
+    end if;
+  end for;
+end procedure;
 
+if not COMPUTE_COMPLETE_KERNEL then
+  time v := ModularSolution(M, ell : Lanczos := false);
+  print "# Number of 0's in kernel vector:", #[x : x in Eltseq(v) | x eq 0];
+  if DEBUG then
+    printf "Check...\n";
+    CheckVectorInKernel (M, m, v, ell);
+  end if;
 else
   N := ChangeRing(M, GF(ell));
   time K := NullspaceOfTranspose (N);
   d := Dimension(K);
-  printf "Dim(K)=%o\n", d;
-  printf "K:=%m;\n", K;
-  exit;
+  printf "# Dim(K)=%o\n", d;
+  for v in Basis(K) do
+    nbnz := #[x : x in Eltseq(v) | x ne 0];
+    print "# Number of non-zeros in kernel vector:", nbnz;
+
+    if DEBUG then
+      CheckVectorInKernel (M, m, v, ell);
+    end if;
+  end for;
+  v := Basis(K)[1];
 end if;
 
-printf "Write result to %o...\n", kerfile;
-SetOutputFile(kerfile: Overwrite:=true);
-for i := 1 to Dimension(Parent(v)) do
+if not DEBUG then
+  printf "Write result to %o...\n", kerfile;
+  SetOutputFile(kerfile: Overwrite:=true);
+  for i := 1 to NumberOfColumns(M) do
     print v[i];
-end for;
-UnsetOutputFile();
-
-printf "Check...\n";
-for i in [1..m] do
-  c := GF(ell) ! 0;
-  for j in Support (M, i) do
-    c := c + v[j]*M[i][j];
   end for;
-  if c ne 0 then
-    print "# Error", i-1, c;
-  end if;
-end for;
+  UnsetOutputFile();
+end if;
 
-for i in [1..5] do
+if DEBUG then
+  for i in [1..5] do
     printf "i=%o:", i;
     for j in Support (M, i) do printf " %o:%o", j-1, M[i][j]; end for;
     printf "\n";
-end for;
+  end for;
+end if;
 
+printf "Finished\n";
 exit;
