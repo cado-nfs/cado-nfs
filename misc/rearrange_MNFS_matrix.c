@@ -18,11 +18,37 @@
 #include "portability.h"
 #include "utils_with_io.h"
 
+#define SORT_NOSORTING 0
+#define SORT_SIDE_INCR 1
+#define SORT_PRIME_INCR 2
+#define SORT_SIDE_INCR_THEN_PRIME_INCR 3
+
 typedef struct {
   index_t index;
   int side;
   uint64_t new_id;
 } col_data_t ;
+
+static inline int
+cmp_prime_incr (const void *px, const void *py)
+{
+  col_data_t *x = (col_data_t *) px;
+  col_data_t *y = (col_data_t *) py;
+
+  return (x->index > y->index);
+}
+
+static inline int
+cmp_side_incr_prime_incr (const void *px, const void *py)
+{
+  col_data_t *x = (col_data_t *) px;
+  col_data_t *y = (col_data_t *) py;
+
+  if (x->side == y->side)
+    return (x->index > y->index);
+  else
+    return (x->side > y->side);
+}
 
 static void declare_usage(param_list pl)
 {
@@ -37,6 +63,14 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "new-matrix", "new matrix file");
   param_list_decl_usage(pl, "new-sm", "new SM file");
   param_list_decl_usage(pl, "side-info", "info on sides of rows");
+  param_list_decl_usage(pl, "sorting", "How to sort the colums (in [0..3]).\n"
+            "                 0 :  no sorting, keep the same order as in input\n"
+            "                 1 :  sort by increasing side, inside each side "
+                                 "keep the same order as in input (default)\n"
+            "                 2 :  sort by increasing prime value (in fact by "
+                                      "index value in the renumbering table)\n"
+            "                 3 :  sort by increasing side then by increassing "
+                                                                 "prime value\n");
   verbose_decl_usage(pl);
 }
 
@@ -55,6 +89,8 @@ int main(int argc, char **argv)
   renumber_t tab;
   uint64_t ncols = 0;
   cado_poly poly;
+
+  unsigned int sorting = SORT_SIDE_INCR;
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;  /* Binary open for all files */
@@ -91,6 +127,7 @@ int main(int argc, char **argv)
   const char *sideinfofilename = param_list_lookup_string(pl, "side-info");
 
   param_list_parse_uint64 (pl, "ncols", &ncols);
+  param_list_parse_uint (pl, "sorting", &sorting);
 
   int nsm[NB_POLYS_MAX];
   int nread = param_list_parse_int_list (pl, "nsm", nsm, NB_POLYS_MAX, ",");
@@ -146,6 +183,13 @@ int main(int argc, char **argv)
     fprintf (stderr, "Error, missing -side-info command line argument\n");
     usage (pl, argv0);
   }
+  if (sorting != SORT_NOSORTING && sorting != SORT_SIDE_INCR &&
+      sorting != SORT_PRIME_INCR && sorting != SORT_SIDE_INCR_THEN_PRIME_INCR)
+  {
+    fprintf (stderr, "Error, wrong value for -sorting command line argument\n");
+    usage (pl, argv0);
+  }
+
 
   cado_poly_init(poly);
   if (!cado_poly_read (poly, polyfilename))
@@ -165,66 +209,129 @@ int main(int argc, char **argv)
   renumber_init_for_reading (tab);
   renumber_read_table (tab, renumberfilename);
 
-  FILE *inid = NULL, *outid = NULL;
-  uint64_t i = 0, col;
-  index_t h;
-
-  inid = fopen_maybe_compressed (idealsfilename, "r");
-  FATAL_ERROR_CHECK (inid == NULL, "Cannot open ideals file");
-
-  if (fscanf (inid, "# %" SCNu64 "\n", &ncols) != 1)
-  {
-    fprintf(stderr, "Error while reading first line of %s\n", idealsfilename);
-    abort();
-  }
-
   col_data_t *cols_data = NULL;
-  cols_data = (col_data_t *) malloc (ncols * sizeof (col_data_t));
-  ASSERT_ALWAYS (cols_data != NULL);
 
-  stats_data_t stats; /* struct for printing progress */
-  stats_init (stats, stdout, &i, nbits(ncols)-5, "Read", "lines", "", "lines");
-  while (fscanf (inid, "%" SCNu64 " %" PRid "\n", &col, &h) == 2)
+  /* Read the input file containing links between column number and index in the
+   * renumbering table*/
   {
-    FATAL_ERROR_CHECK (col >= ncols, "Too big value of column number");
-    FATAL_ERROR_CHECK (h >= tab->size, "Too big value of index");
-    ASSERT_ALWAYS (col == i);
+    FILE *inid = NULL;
+    uint64_t i = 0, col;
+    index_t h;
 
-    cols_data[i].index = h;
-    cols_data[i].side = renumber_get_side_from_index (tab, h, poly);
+    inid = fopen_maybe_compressed (idealsfilename, "r");
+    FATAL_ERROR_CHECK (inid == NULL, "Cannot open ideals file");
 
-    i++;
-    if (stats_test_progress (stats))
-      stats_print_progress (stats, i, 0, 0, 0);
+    if (fscanf (inid, "# %" SCNu64 "\n", &ncols) != 1)
+    {
+      fprintf(stderr, "Error while reading first line of %s\n", idealsfilename);
+      abort();
+    }
+
+    /* malloc column data structure */
+    cols_data = (col_data_t *) malloc (ncols * sizeof (col_data_t));
+    ASSERT_ALWAYS (cols_data != NULL);
+
+    stats_data_t stats; /* struct for printing progress */
+    stats_init (stats, stdout, &i, nbits(ncols)-5, "Read", "lines", "", "lines");
+    while (fscanf (inid, "%" SCNu64 " %" PRid "\n", &col, &h) == 2)
+    {
+      FATAL_ERROR_CHECK (col >= ncols, "Too big value of column number");
+      FATAL_ERROR_CHECK (h >= tab->size, "Too big value of index");
+      ASSERT_ALWAYS (col == i);
+
+      cols_data[i].index = h;
+      cols_data[i].side = renumber_get_side_from_index (tab, h, poly);
+
+      i++;
+      if (stats_test_progress (stats))
+        stats_print_progress (stats, i, 0, 0, 0);
+    }
+    stats_print_progress (stats, i, 0, 0, 1);
+    ASSERT_ALWAYS (feof(inid));
+    ASSERT_ALWAYS (i == ncols);
+    fclose_maybe_compressed (inid, idealsfilename);
   }
-  stats_print_progress (stats, i, 0, 0, 1);
-  ASSERT_ALWAYS (feof(inid));
-  ASSERT_ALWAYS (i == ncols);
-  fclose_maybe_compressed (inid, idealsfilename);
 
-  outid = fopen_maybe_compressed (newidealsfilename, "w");
-  FATAL_ERROR_CHECK (outid == NULL, "Cannot open new-ideals file");
-
-  fprintf (outid, "# %" PRIu64 "\n", ncols);
-
-  /* The columns are already sorted by decreasing weight. Sort them by side
-   * while keeping this previous sort. */
-  uint64_t next_id = 0;
-  for (int side = 0; side < poly->nb_polys; side++)
+  /* Sort the column and print new ideal file */
   {
-    printf ("side %d begins at columns %" PRIu64 "\n", side, next_id);
-    for (uint64_t i = 0; i < ncols; i++)
-      if (cols_data[i].side == side)
+    FILE *outid = NULL;
+    outid = fopen_maybe_compressed (newidealsfilename, "w");
+    FATAL_ERROR_CHECK (outid == NULL, "Cannot open new-ideals file");
+    fprintf (outid, "# %" PRIu64 "\n", ncols);
+
+    /* do not sort, keep the same order as in input */
+    if (sorting == SORT_NOSORTING)
+    {
+      for (uint64_t i = 0; i < ncols; i++)
       {
-        cols_data[i].new_id = next_id;
-        fprintf (outid, "%" PRIu64 " %" PRid "\n", next_id, cols_data[i].index);
-        next_id++;
+        cols_data[i].new_id = i;
+        fprintf (outid, "%" PRIu64 " %" PRid "\n", cols_data[i].new_id,
+                                                   cols_data[i].index);
       }
+    }
+    /* sort by increasing side, inside each side keep the same order as in input */
+    else if (sorting == SORT_SIDE_INCR)
+    {
+      uint64_t next_id = 0;
+      for (int side = 0; side < poly->nb_polys; side++)
+      {
+        printf ("side %d begins at columns %" PRIu64 "\n", side, next_id);
+        for (uint64_t i = 0; i < ncols; i++)
+          if (cols_data[i].side == side)
+          {
+            cols_data[i].new_id = next_id++;
+            fprintf (outid, "%" PRIu64 " %" PRid "\n", cols_data[i].new_id,
+                                                       cols_data[i].index);
+          }
+      }
+      ASSERT_ALWAYS (next_id == ncols);
+    }
+    /* sort by increasing index in renumbering table */
+    else if (sorting == SORT_PRIME_INCR)
+    {
+      col_data_t *sort_data = NULL;
+      sort_data = (col_data_t *) malloc (ncols * sizeof (col_data_t));
+      ASSERT_ALWAYS (sort_data != NULL);
+      memcpy (sort_data, cols_data, ncols * sizeof (col_data_t));
+      for (uint64_t i = 0; i < ncols; i++)
+        sort_data[i].new_id = i;
+
+      qsort (sort_data, ncols, sizeof (col_data_t), cmp_prime_incr);
+
+      for (uint64_t i = 0; i < ncols; i++)
+      {
+        uint64_t old_id = sort_data[i].new_id;
+        cols_data[old_id].new_id = i;
+        fprintf (outid, "%" PRIu64 " %" PRid "\n", i, cols_data[old_id].index);
+      }
+      free (sort_data);
+    }
+    /* sort by increasing side then by increasing index in renumbering table */
+    else if (sorting == SORT_SIDE_INCR_THEN_PRIME_INCR)
+    {
+      col_data_t *sort_data = NULL;
+      sort_data = (col_data_t *) malloc (ncols * sizeof (col_data_t));
+      ASSERT_ALWAYS (sort_data != NULL);
+      memcpy (sort_data, cols_data, ncols * sizeof (col_data_t));
+      for (uint64_t i = 0; i < ncols; i++)
+        sort_data[i].new_id = i;
+
+      qsort (sort_data, ncols, sizeof (col_data_t), cmp_side_incr_prime_incr);
+
+      for (uint64_t i = 0; i < ncols; i++)
+      {
+        uint64_t old_id = sort_data[i].new_id;
+        cols_data[old_id].new_id = i;
+        fprintf (outid, "%" PRIu64 " %" PRid "\n", i, cols_data[old_id].index);
+      }
+
+      free (sort_data);
+    }
+    else /* should never happen */
+      ASSERT_ALWAYS (0);
+
+    fclose_maybe_compressed (outid, newidealsfilename);
   }
-
-  ASSERT_ALWAYS (next_id == ncols);
-  fclose_maybe_compressed (outid, newidealsfilename);
-
 
   FILE *inmat = NULL, *outmat = NULL;
   FILE *insm = NULL, *outsm = NULL;
@@ -263,7 +370,8 @@ int main(int argc, char **argv)
   ASSERT_ALWAYS (nsm_tot_read == nsm_tot);
   fprintf (outsm, "%" PRIu64 " %d %s\n", nr2, nsm_tot_read, tmp);
 
-  i = 0;
+  uint64_t i = 0;
+  stats_data_t stats; /* struct for printing progress */
   stats_init (stats, stdout, &i, nbits(nr)-5, "Read", "rows", "", "rows");
   unsigned int rw;
   while (fscanf (inmat, "%u", &rw) == 1)
