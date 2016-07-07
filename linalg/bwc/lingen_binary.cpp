@@ -94,7 +94,7 @@ std::ostream& operator<<(std::ostream& o, polmat const& E)/*{{{*/
         }
         o << "\n";
     }
-    delete str;
+    delete[] str;
     return o;
 }/*}}}*/
 
