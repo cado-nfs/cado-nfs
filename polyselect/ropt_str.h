@@ -201,6 +201,8 @@ typedef _ropt_info_t ropt_info_t[1];
 /* ropt_poly_t */
 void ropt_poly_init ( ropt_poly_t );
 
+void ropt_poly_set ( ropt_poly_t curr_poly, ropt_poly_t poly );
+
 void ropt_poly_refresh ( ropt_poly_t );
 
 void ropt_poly_setup ( ropt_poly_t );
@@ -319,6 +321,8 @@ void ropt_param_free ( ropt_param_t param );
 /* info */
 void ropt_info_init ( ropt_info_t info );
 
+void ropt_info_set ( ropt_info_t curr_info,  ropt_info_t info );
+  
 void ropt_info_free ( ropt_info_t info );
 
 #endif

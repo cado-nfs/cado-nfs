@@ -271,6 +271,47 @@ ropt_poly_init ( ropt_poly_t poly )
 
 
 /**
+ * poly --> curr_poly
+ */
+void
+ropt_poly_set ( ropt_poly_t curr_poly, ropt_poly_t poly )
+{
+  unsigned int i;
+  curr_poly->d = poly->d;
+  curr_poly->skew = poly->skew;
+  curr_poly->alpha_proj = poly->alpha_proj;
+
+  if ( (poly->f == NULL) || (poly->g == NULL) ||
+       ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
+       ((poly->numerator) == NULL) ) {
+    fprintf (stderr, "Error, cannot allocate memory for polynomial"
+             " coefficients in ropt_poly_set().\n");
+    exit(1);
+  }
+  if ( (curr_poly->f == NULL) || (curr_poly->g == NULL) ||
+       ((curr_poly->fx) == NULL) || ((curr_poly->gx) == NULL) ||
+       ((curr_poly->numerator) == NULL) ) {
+    fprintf (stderr, "Error, cannot allocate memory for polynomial"
+             " coefficients in ropt_poly_set().\n");
+    exit(1);
+  }
+  mpz_set (curr_poly->n, poly->n);
+  mpz_set (curr_poly->m, poly->m);
+
+  for (i = 0; i <= MAXDEGREE; i++) {
+    mpz_set (curr_poly->f[i], poly->f[i]);
+    mpz_set (curr_poly->g[i], poly->g[i]);
+  }
+
+  for (i = 0; i <= primes[NP-1]; i++) {
+    mpz_set (curr_poly->fx[i], poly->fx[i]);
+    mpz_set (curr_poly->gx[i], poly->gx[i]);
+    mpz_set (curr_poly->numerator[i], poly->numerator[i]);
+  }
+}
+
+
+/**
  * clean coefficients
  */
 void
@@ -818,18 +859,19 @@ ropt_s1param_setup ( ropt_poly_t poly,
     if (size_total_sublattices[i][0] > j)
       break;
 
-  s1param->nbest_sl = (unsigned int) ((double) size_total_sublattices[i][1]);
+  s1param->nbest_sl = (unsigned int) ((double) size_total_sublattices[i][1]) *
+    param->effort;
 
-  s1param->nbest_sieve = (unsigned int) ((double) size_total_sublattices[i][2]);
+  s1param->nbest_sieve = (unsigned int) ((double) size_total_sublattices[i][2]) *
+    param->effort;;
 
   s1param->nbest_sl_tune = (unsigned int) ((double) size_total_sublattices[i][3]);
   
-
   if (s1param->nbest_sl < 4)
     s1param->nbest_sl = 4;
   if (param->verbose >= 1) {
-    printf ("# Info: s1param->nbest_sl: %u (= size_total_sublattices*ropteffort)\n", s1param->nbest_sl);
-    printf ("# Info: s1param->nbest_sieve: %u (for sieving)\n", s1param->nbest_sieve);
+    printf ("# Info: s1param->nbest_sl:    %u (= size_total_sublattices[0]*ropteffort)\n", s1param->nbest_sl);
+    printf ("# Info: s1param->nbest_sieve: %u (= size_total_sublattices[1]*ropteffort)\n", s1param->nbest_sieve);
   }
 
   /* Set 3: set "e_sl[]" */
@@ -1284,6 +1326,22 @@ ropt_info_init ( ropt_info_t info )
   info->ropt_time_stage1 = 0.0;
   info->ropt_time_tuning = 0.0;
   info->ropt_time_stage2 = 0.0;
+}
+
+
+/**
+ * info --> curr_info
+ */
+void
+ropt_info_set ( ropt_info_t curr_info,  ropt_info_t info )
+{
+  curr_info->ave_MurphyE = info->ave_MurphyE;
+  curr_info->best_MurphyE = info->best_MurphyE;
+  curr_info->mode = info->mode;
+  curr_info->w = info->w;
+  curr_info->ropt_time_stage1 = info->ropt_time_stage1;
+  curr_info->ropt_time_tuning = curr_info->ropt_time_tuning;
+  curr_info->ropt_time_stage2 = info->ropt_time_stage2;
 }
 
 

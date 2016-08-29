@@ -18,7 +18,6 @@
 
 #include "cado.h"
 #include "ropt_quadratic.h"
-#include "ropt.h"
 #include "portability.h"
 
 
@@ -46,6 +45,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
   const unsigned int size_alpha_pqueue_all_w =
     s1param->nbest_sl * TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
   double score;
+  unsigned int old_nbest_sl;
 #if TUNE_LOGNORM_INCR
   double incr;
 #endif
@@ -68,6 +68,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
 
   /* used in ropt_stage1(), the larger the slower for each
      quadratic rotation w. */
+  old_nbest_sl = s1param->nbest_sl;
   s1param->nbest_sl = 16;
 
   /* used in ropt_stage1(), uses this to reduce the length of 
@@ -149,13 +150,15 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
 
     /* tune incr */
 #if TUNE_LOGNORM_INCR
-    incr = ropt_linear_tune_stage1 (poly, s1param, param, tune_E_pqueue, alpha_pqueue,
-                             info, global_E_pqueue, w);
+    incr = ropt_linear_tune_stage1 (poly, s1param, param,
+                                    tune_E_pqueue, alpha_pqueue,
+                                    info, global_E_pqueue, w);
     ropt_bound_setup_incr (poly, bound, param, incr);
     ropt_s1param_setup (poly, s1param, bound, param);
 #endif
 
     /* call ropt_stage1() to find good sublattices */
+    s1param->nbest_sl = old_nbest_sl;
     s1param->nbest_sl_tunemode = 0; // Note: used in ropt_stage1()
     r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue, w);
     remove_rep_alpha (alpha_pqueue);
@@ -208,7 +211,7 @@ ropt_quadratic ( ropt_poly_t poly,
   /* here we use some larger value since alpha_pqueue records
      more sublattices to be tuned */
   unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+    TUNE_RATIO_STAGE1_FULL_ALPHA * TUNE_RATIO_STAGE2_FAST_SLOW;
   new_alpha_pq (&alpha_pqueue, len_full_alpha);
 
   /* [Step 1] find w first and do ropt_stage1() there */
@@ -249,7 +252,7 @@ ropt_quadratic ( ropt_poly_t poly,
   }
 
   /* Step 4, return best poly */
-  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly);
+  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly, param);
   
   /* free */
   free_MurphyE_pq (&global_E_pqueue);

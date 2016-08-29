@@ -15,20 +15,17 @@
 #include "area.h"
 #include "size_optimization.h"
 
-
-/**
- * Find best poly. This is somehow redundant.
- */
 void
-ropt_get_bestpoly ( ropt_poly_t poly,
-                    MurphyE_pq *global_E_pqueue,
-                    ropt_bestpoly_t bestpoly )
+ropt_get_bestpoly_apply ( ropt_poly_t poly,
+                          MurphyE_pq *global_E_pqueue,
+                          ropt_bestpoly_t bestpoly,
+                          int index,
+                          double *best_E )
 {
-  double ave_MurphyE = 0.0, best_E = 0.0;
   int i, old_i, k;
   mpz_t m, t, *fuv, *guv;
   mpz_poly Fuv, Guv;
-
+  double ave_MurphyE = 0.0;
   mpz_init_set (m, poly->g[0]);
   mpz_neg (m, m);
   mpz_init (t);
@@ -45,48 +42,78 @@ ropt_get_bestpoly ( ropt_poly_t poly,
   for (i = 0; i < 2; i++)
     mpz_set (guv[i], poly->g[i]);
 
-  /* output all polys in the global queue */
-  for (i = 1; i < global_E_pqueue->used; i ++) {
 
-    old_i = 0;
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i,
-                        global_E_pqueue->w[i], 2);
+  /* rotate */
+  old_i = 0;
+  old_i = rotate_aux (poly->f, poly->g[1], m, old_i,
+                      global_E_pqueue->w[index], 2);
+  for (k = 0; k <= poly->d; k++)
+    mpz_set (fuv[k], poly->f[k]);
+  for (k = 0; k < 2; k++)
+    mpz_set (guv[k], poly->g[k]);
 
-    for (k = 0; k <= poly->d; k++)
-      mpz_set (fuv[k], poly->f[k]);
+  /* compute polynomial */
+  compute_fuv_mp (fuv, poly->f, poly->g, poly->d,
+                  global_E_pqueue->u[index],
+                  global_E_pqueue->v[index]);
 
-    for (k = 0; k < 2; k++)
-      mpz_set (guv[k], poly->g[k]);
+  /* optmize polynomial */
+  sopt_local_descent (Fuv, Guv, Fuv, Guv, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
+  fuv = Fuv->coeff;
+  guv = Guv->coeff;
 
-    compute_fuv_mp (fuv, poly->f, poly->g, poly->d, global_E_pqueue->u[i],
-                    global_E_pqueue->v[i]);
+  /* compute MurphyE */
+  ave_MurphyE = print_poly_fg (Fuv, guv, poly->n, 0);
 
-    sopt_local_descent (Fuv, Guv, Fuv, Guv, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
-    fuv = Fuv->coeff;
-    guv = Guv->coeff;
-
-    ave_MurphyE = print_poly_fg (Fuv, guv, poly->n, 0);
-
-    mpz_poly_content (t, Fuv);
-    for (k = 0; k <= poly->d; k++) {
-      mpz_div (fuv[k], fuv[k], t);
-    }
-    mpz_poly_content (t, Fuv);
-
-    if ( (ave_MurphyE > best_E) && (mpz_cmp_ui (t, 1) == 0) ) {
-      best_E = ave_MurphyE;
-      for (k = 0; k <= poly->d; k++)
-        mpz_set (bestpoly->f[k], fuv[k]);
-      for (k = 0; k < 2; k++)
-        mpz_set (bestpoly->g[k], guv[k]);
-    }
-    rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  /* adjust poly if needed */
+  mpz_poly_content (t, Fuv);
+  for (k = 0; k <= poly->d; k++) {
+    mpz_div (fuv[k], fuv[k], t);
   }
+  mpz_poly_content (t, Fuv);
+
+  /* record best polynomial */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  if ( (ave_MurphyE > *best_E) && (mpz_cmp_ui (t, 1) == 0) ) {
+    *best_E = ave_MurphyE;
+    for (k = 0; k <= poly->d; k++)
+      mpz_set (bestpoly->f[k], fuv[k]);
+    for (k = 0; k < 2; k++)
+      mpz_set (bestpoly->g[k], guv[k]);
+  }
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
 
   mpz_poly_clear (Fuv);
   mpz_poly_clear (Guv);
   mpz_clear (m);
   mpz_clear (t);
+}
+
+
+
+/**
+ * Find best poly. This is somehow redundant.
+ */
+void
+ropt_get_bestpoly ( ropt_poly_t poly,
+                    MurphyE_pq *global_E_pqueue,
+                    ropt_bestpoly_t bestpoly,
+                    ropt_param_t param )
+{
+  int i;
+  double best_E = 0.0;
+  /* output all polys in the global queue */
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: collecting bestpoly using %u thread(s)\n",
+            omp_get_max_threads ());
+  }
+#pragma omp parallel for schedule(dynamic)
+#endif
+  for (i = 1; i < global_E_pqueue->used; i ++) {
+    ropt_get_bestpoly_apply ( poly, global_E_pqueue, bestpoly, i, &best_E );
+  }
 }
 
 
@@ -164,7 +191,7 @@ ropt_do_stage2 (ropt_poly_t poly,
   old_i = 0;
 
   /* return best poly */
-  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly);
+  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly, param);
 
   /* free */
   free_MurphyE_pq (&global_E_pqueue);

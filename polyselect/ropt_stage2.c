@@ -6,6 +6,10 @@
 
 #include "cado.h"
 #include "ropt_stage2.h"
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+#include <pthread.h>
 #include "portability.h"
 #include "size_optimization.h"
 
@@ -1054,12 +1058,14 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
     }
 
     /* insert E scores to a global queue (before optimization) */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
     insert_MurphyE_pq ( global_E_pqueue,
                         local_E_pqueue->w[i],
                         local_E_pqueue->u[i],
                         local_E_pqueue->v[i],
                         local_E_pqueue->modulus[i],
                         local_E_pqueue->E[i] );
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
 
     MurphyE += local_E_pqueue->E[i];
     if (best_MurphyE < local_E_pqueue->E[i])
@@ -1069,7 +1075,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   /* compute average E*/
   info->ave_MurphyE = MurphyE / (double) (local_E_pqueue->used - 1);
   info->best_MurphyE = best_MurphyE;
-  
+
   /* output stats */
   if (param->verbose >= 2 && info->mode == ROPT_MODE_INIT) {
     gmp_fprintf ( stderr,

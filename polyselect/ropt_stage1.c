@@ -5,6 +5,7 @@
 
 
 #include "cado.h"
+#include "ropt.h"
 #include "ropt_stage1.h"
 #include "portability.h"
 
@@ -571,12 +572,14 @@ return_combined_sublattice ( ropt_poly_t poly,
       individual_sublattices[i][j][2] = (unsigned int) top->e[j+1];
       individual_sublattices_weighted_val[i][j] = top->val[j+1];
       /*
-        fprintf ( stderr, "SUBLATTICE: #%u, (%u, %u), e: %u, val: %.2f\n",
-        j, 
-        individual_sublattices[i][j][0],
-        individual_sublattices[i][j][1],
-        individual_sublattices[i][j][2],
-        individual_sublattices_weighted_val[i][j] );
+      if (verbose >= 2) {
+        fprintf ( stderr, "# Info: SUBLATTICE: #%u, (%u, %u), e: %u, val: %.2f\n",
+                  j,
+                  individual_sublattices[i][j][0],
+                  individual_sublattices[i][j][1],
+                  individual_sublattices[i][j][2],
+                  individual_sublattices_weighted_val[i][j] );
+      }
       */
     }
 
@@ -794,6 +797,10 @@ return_best_sublattice ( ropt_poly_t poly,
                          int verbose )
 {
   unsigned long tmp = bound->global_u_boundr;
+  int st = 0;
+  
+  if (verbose >= 2)
+    st = milliseconds ();
 
   int ret = return_combined_sublattice ( poly,
                                          s1param,
@@ -830,14 +837,19 @@ return_best_sublattice ( ropt_poly_t poly,
     count ++;
   }
 
-  /* info */
+  if (verbose >= 2) {
+    gmp_fprintf ( stderr, "# Info: found %10lu lat by  crt alpha, took  %lums\n",
+                  pqueue->used-1, milliseconds () - st );
+  }
+  /*
   if (verbose >= 2) {
     fprintf ( stderr,
               "# Info: found    %8d lat (\"size_total_sublattices\") "
               "where |u| < %lu\n",
               pqueue->used - 1, bound->global_u_boundr);
   }
-
+  */
+  
   /* recover, for deg 6 poly */
   bound->global_u_boundr = tmp;
 
@@ -845,58 +857,19 @@ return_best_sublattice ( ropt_poly_t poly,
 }
 
 
-/**
- * Stage 1: record good sublattices to "alpha_pqueue".
- */
-int
-ropt_stage1 ( ropt_poly_t poly,
-              ropt_bound_t bound,
-              ropt_s1param_t s1param,
-              ropt_param_t param,
-              alpha_pq *alpha_pqueue,
-              int current_w )
+#define DEBUG_ROPT_STAGE1 0
+
+void
+ropt_stage1_comp_alpha ( ropt_poly_t poly,
+                         sublattice_pq *pqueue,
+                         alpha_pq *alpha_pqueue,
+                         int current_w,
+                         int index )
 {
-  int st = 0, i, re;
-  double alpha_lat;
+  int i;
   mpz_t *fuv;
   mpz_poly Fuv;
-  sublattice_pq *pqueue;
-  unsigned long len_part_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
-  unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
-
-  if (len_part_alpha < 2)
-    len_part_alpha = 2; /* required by new_sublattice_pq() */
-
-  /* size-cutoff of top sublattices based on partial alpha */
-  new_sublattice_pq (&pqueue, len_part_alpha);
-  
-  /* return the nbest sublattices to pqueue ranked by the size of u */
-  if (param->verbose >= 2)
-    st = milliseconds ();
-
-  re = return_best_sublattice ( poly,
-                                s1param,
-                                bound,
-                                pqueue,
-                                param->verbose );
-
-  if (re == -1) {
-    free_sublattice_pq (&pqueue);
-    return -1;
-  }
-
-  if (param->verbose >= 2) {
-    gmp_fprintf ( stderr, "# Info: found    %8lu lat with part alpha\n",
-                  pqueue->used-1);
-    if ((long) len_full_alpha > pqueue->used-1)
-      len_full_alpha = pqueue->used-1;
-    gmp_fprintf ( stderr, "# Info: ranked   %8lu lat with full alpha\n",
-                  len_full_alpha);
-    gmp_fprintf ( stderr, "# Info: find best lat took %lums\n",
-                  milliseconds () - st );
-  }
+  double alpha_lat;
 
   /* fuv is f+(u*x+v)*g */
   mpz_poly_init (Fuv, poly->d);
@@ -905,14 +878,8 @@ ropt_stage1 ( ropt_poly_t poly,
   for (i = 0; i <= poly->d; i++)
     mpz_set (fuv[i], poly->f[i]);
 
-  if (param->verbose >= 2)
-    st = milliseconds ();
-  
-  /* put pqueue into the global alpha_pqueue ranked by parial alpha */
-  for (i = 1; i < pqueue->used; i ++) {
-
-    compute_fuv_mp ( fuv, poly->f, poly->g, poly->d,
-                     pqueue->u[i], pqueue->v[i] );
+  compute_fuv_mp ( fuv, poly->f, poly->g, poly->d,
+                   pqueue->u[index], pqueue->v[index] );
 
 
 #if RANK_SUBLATTICE_BY_E
@@ -926,36 +893,98 @@ ropt_stage1 ( ropt_poly_t poly,
 #endif
 
 #if DEBUG_ROPT_STAGE1
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
     skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
     double logmu = L2_lognorm (Fuv, skew);
     gmp_fprintf ( stderr, "# Info: insert lat #%4d, (w, u, v): "
-                  "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
+                  "(%d, %Zd, %Zd) (mod %Zd), E: %.2f,"
                   "lognorm: %.2f\n",
-                  i,
+                  index,
                   current_w,
-                  pqueue->u[i],
-                  pqueue->v[i],
-                  pqueue->modulus[i],
+                  pqueue->u[index],
+                  pqueue->v[index],
+                  pqueue->modulus[index],
                   alpha_lat,
                   logmu );
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
 #endif
 
     /* insert to a global priority queue */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
     insert_alpha_pq ( alpha_pqueue,
                       current_w,
-                      pqueue->u[i],
-                      pqueue->v[i],
-                      pqueue->modulus[i],
+                      pqueue->u[index],
+                      pqueue->v[index],
+                      pqueue->modulus[index],
                       alpha_lat );
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  mpz_poly_clear (Fuv);
+}
+
+
+/**
+ * Stage 1: record good sublattices to "alpha_pqueue".
+ *  - outputs to alpha_pqueue
+ */
+int
+ropt_stage1 ( ropt_poly_t poly,
+              ropt_bound_t bound,
+              ropt_s1param_t s1param,
+              ropt_param_t param,
+              alpha_pq *alpha_pqueue,
+              int current_w )
+{
+  int st = 0, i, re;
+  sublattice_pq *pqueue;
+  unsigned long len_crt_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_PART_ALPHA * TUNE_RATIO_STAGE2_FAST_SLOW;
+  unsigned long len_full_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_FULL_ALPHA * TUNE_RATIO_STAGE2_FAST_SLOW;
+    
+  if (len_crt_alpha < 2)
+    len_crt_alpha = 2; /* required by new_sublattice_pq() */
+
+  /* size-cutoff of top sublattices based on partial alpha */
+  new_sublattice_pq (&pqueue, len_crt_alpha);
+  
+
+  /* return the nbest sublattices to pqueue ranked by the size of u */
+  re = return_best_sublattice ( poly,
+                                s1param,
+                                bound,
+                                pqueue,
+                                param->verbose );
+  if (re == -1) {
+    free_sublattice_pq (&pqueue);
+    return -1;
+  }
+
+  if (param->verbose >= 2)
+    st = milliseconds ();
+  
+  /* put pqueue into the global alpha_pqueue ranked by parial alpha */
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: computing alpha with %u thread(s)\n",
+            omp_get_max_threads ());
+  }
+#pragma omp parallel for schedule(dynamic)
+#endif
+  for (i = 1; i < pqueue->used; i ++) {
+    ropt_stage1_comp_alpha ( poly, pqueue, alpha_pqueue,
+                             current_w, i );
   }
  
-  if (param->verbose >= 2)
-    gmp_fprintf ( stderr, "# Info: rank lat took %lums\n",
-                  milliseconds () - st );
-
+  if (param->verbose >= 2) {
+    if ((long) len_full_alpha > pqueue->used-1)
+      len_full_alpha = pqueue->used-1;
+    gmp_fprintf ( stderr, "# Info: found %10lu lat by full alpha, took %lums\n",
+                  len_full_alpha, milliseconds () - st);
+  }
+  
   /* free priority queue */
   free_sublattice_pq (&pqueue);
-  mpz_poly_clear (Fuv);
-
   return 0;
 }

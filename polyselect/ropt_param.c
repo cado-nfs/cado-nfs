@@ -15,7 +15,8 @@
  */
 unsigned int L1_cachesize = 12288;
 unsigned int size_tune_sievearray = 6144;
-
+unsigned int nthreads_sieve = 1;
+pthread_mutex_t locksieve = PTHREAD_MUTEX_INITIALIZER;
 
 /* ------------------
    possible to change
@@ -33,42 +34,42 @@ unsigned int size_tune_sievearray = 6144;
  * sieve. In that case, more sublattices are checked.
  * 
  * The number is linearly scaled by param->effort, but a larger value
- * is not always necessary since the sieving is done in order with
- * the best sublattices first.
+ * is not always necessary to give a better result since the sieving
+ * is already done in order with the best sublattices first.
  *
  * It is organized as {digits, A, B, C}
  *
- * C is number of sublattices used in tuning the best lognorm bound;
  * A is number of sublattices used in tuning;
  * B number of sublattices used in final sieve;
+ * C is number of sublattices used in tuning the best lognorm bound;
  * In general, A is large; while B, C are small 
- *  (perhaps C could also be large).
  * They will be scaled by ropt_effort linearly.
+ *
  * Note the total running-time is scaled approx. linearly since 
- * each lats in B take more time but there are less lats in B
- * than others.
+ * each lats in B take much more time but there are less lats 
+ * in B than A and C.
  */
 const unsigned int size_total_sublattices[NUM_DEFAULT_DIGITS][4] = {
-  { 80,    8,    4,    2},  /* up to 79 digits */
-  {100,   16,    8,    3},  /* up to 99 digits */
-  {120,   32,   12,    4},  /* up to 119 digits */
-  {140,   64,   16,    5},  /* up to 139 digits */
-  {150,   96,   20,    6},  /* up to 149 digits */
-  {160,  128,   24,    7},  /* up to 159 digits */
-  {170,  160,   28,    8},  /* up to 169 digits */
-  {180,  192,   32,    9},  /* up to 179 digits */
-  {190,  224,   36,    10},  /* up to 189 digits */
-  {200,  256,   40,    11},  /* up to 199 digits */
-  {210,  288,   44,    12},  /* up to 209 digits */
-  {220,  320,   48,    13},  /* up to 219 digits */
-  {230,  368,   52,    14},  /* up to 229 digits */
-  {240,  416,   56,    15},  /* up to 239 digits */
-  {250,  464,   60,    16},  /* up to 249 digits */
-  {260,  512,   64,    17},  /* up to 259 digits */
-  {270,  560,   68,    18},  /* up to 269 digits */
-  {280,  608,   72,    19},  /* up to 279 digits */
-  {290,  656,   76,    20},  /* up to 289 digits */
-  {300,  704,   80,    21}   /* up to 299 digits */
+  { 80,     2,    1,    1},  /* up to 79 digits */
+  {100,     4,    2,    2},  /* up to 99 digits */
+  {120,     8,    3,    3},  /* up to 119 digits */
+  {140,    12,    4,    4},  /* up to 139 digits */
+  {150,    16,    5,    5},  /* up to 149 digits */
+  {160,    24,    6,    6},  /* up to 159 digits */
+  {170,    32,    7,    7},  /* up to 169 digits */
+  {180,    48,    8,    8},  /* up to 179 digits */
+  {190,    64,    9,    9},  /* up to 189 digits */
+  {200,    80,   10,   10},  /* up to 199 digits */
+  {210,    96,   11,   11},  /* up to 209 digits */
+  {220,   112,   12,   12},  /* up to 219 digits */
+  {230,   128,   13,   13},  /* up to 229 digits */
+  {240,   144,   14,   14},  /* up to 239 digits */
+  {250,   160,   15,   15},  /* up to 249 digits */
+  {260,   176,   16,   16},  /* up to 259 digits */
+  {270,   192,   17,   17},  /* up to 269 digits */
+  {280,   200,   18,   18},  /* up to 279 digits */
+  {290,   224,   19,   19},  /* up to 289 digits */
+  {300,   240,   20,   20}   /* up to 299 digits */
 };
 
 

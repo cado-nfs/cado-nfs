@@ -3,6 +3,11 @@
 
 
 #include "ropt_str.h"
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+#include <pthread.h>
+#include "portability.h"
 
 
 /* -------------------------
@@ -51,7 +56,7 @@
 #define RANK_SUBLATTICE_BY_E 1
 
 /* Toggle for tuning lognorm, it seems better on */
-#define TUNE_LOGNORM_INCR 1
+#define TUNE_LOGNORM_INCR 0
 
 /* Top 32 (alpha) in each "SIZE_SIEVEARRAY": this does not
    affect the running-time since it is not dominating */
@@ -74,22 +79,27 @@
 
 #define TUNE_BOUND_ON_MOD_TRIALS 64
 
+/* ratio of sublattices in Stage 1 ranking based on partial alpha values */
+#define TUNE_RATIO_STAGE1_PART_ALPHA 4
+
+/* cutoff from above by ranking based on full alpha values */
+#define TUNE_RATIO_STAGE1_FULL_ALPHA 1
+
+/* ratio between amount of fast tune and slow tune (a 'slow' tune is about 3-4
+   times slower than a 'fast' tune). It could be set to be 4. However, setting
+   a larger number will reduce the fineness of approximation. */
+#define TUNE_RATIO_STAGE2_FAST_SLOW 2
+
 
 /* -------------------------
    Parameters you may change
    ------------------------- */
 
-
 /* maximum lognorm+exp_E increment for each rotation */
 #define BOUND_LOGNORM_INCR_MAX 1.005
 
+/* only used if TUNE_LOGNORM_INCR is 1 */
 #define BOUND_LOGNORM_INCR_MAX_TUNESTEP 0.005
-
-/* ratio of sublattices in Stage 1 ranking based on partial alpha values */
-#define TUNE_RATIO_STAGE1_PART_ALPHA 5
-
-/* cutoff from above by ranking based on partial alpha values */
-#define TUNE_RATIO_STAGE1_FULL_ALPHA 1
 
 
 /* --- declarations --- */
@@ -115,5 +125,10 @@ extern const unsigned int s1_size_each_sublattice_tune[NUM_SUBLATTICE_PRIMES];
 extern const unsigned int size_total_sublattices[NUM_DEFAULT_DIGITS][4];
 
 double exp_alpha (double logK);
+
+extern unsigned int nthreads_sieve;
+
+/* used as mutual exclusion lock for multithread of sieving */
+extern pthread_mutex_t locksieve;
 
 #endif

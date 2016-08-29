@@ -22,8 +22,9 @@
 #include "cado.h"
 #include "ropt_linear.h"
 #include "portability.h"
-//#define ROPT_LINEAR_TUNE_HARDER
 
+
+//#define ROPT_LINEAR_TUNE_HARDER
 
 #if TUNE_LOGNORM_INCR
 /**
@@ -103,7 +104,7 @@ ropt_linear_tune_stage1 ( ropt_poly_t poly,
   incr_step = (upper_incr-start_incr)/steps;
 
   /* compute incr step */
-  while (default_sublattice_prod[kk] <= upper_modbound) {
+  while (default_sublattice_prod[kk] < upper_modbound) {
 
     /* change bound and test-sieve */
     start_modbound = default_sublattice_prod[kk];
@@ -193,6 +194,80 @@ ropt_MurphyE_to_alpha ( MurphyE_pq *E_pqueue,
 }
 
 
+void
+ropt_tune_stage2_fast_apply ( ropt_poly_t poly,
+                              ropt_s1param_t s1param,
+                              ropt_param_t param,
+                              ropt_info_t info,
+                              alpha_pq *alpha_pqueue,
+                              alpha_pq *tmp_alpha_pqueue,
+                              MurphyE_pq *global_E_pqueue,
+                              unsigned int curr_size_tune,
+                              int i )
+{
+  int old_i, w;
+  double score;
+  mpz_t m, u, v, mod;
+  ropt_s2param_t s2param;
+  ropt_poly_t curr_poly;
+  ropt_info_t curr_info;
+  mpz_init_set (m, poly->g[0]);
+  mpz_neg (m, m);
+  mpz_init (u);
+  mpz_init (v);
+  mpz_init (mod);
+  ropt_poly_init (curr_poly);
+  ropt_poly_set (curr_poly, poly);
+  ropt_info_init (curr_info);
+  ropt_info_set (curr_info, info);
+  ropt_s2param_init (curr_poly, s2param);
+  
+  /* extract sublattice w, u, v */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
+  if (param->verbose >= 2) {
+    gmp_fprintf (stderr, "# Info: tune [%4d], E: %.2f, lat (%d, %Zd, %Zd) "
+                 "(mod %Zd)\n", i+1, score, w, u, v, mod);
+  }
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* prepare sieving polynomial */
+  old_i = 0;
+  old_i = rotate_aux (curr_poly->f, curr_poly->g[1], m, old_i, w, 2);
+  ropt_poly_setup (curr_poly);
+
+  /* prepare sieving parameters */
+  ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
+                           0, curr_size_tune, NP-1);
+  
+  /* sieving */
+  ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+  /* insert score and sublattice w, u, v */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  insert_alpha_pq (tmp_alpha_pqueue, w, u, v, mod, -curr_info->ave_MurphyE);
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* verbose */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  if (param->verbose >= 3)
+    gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e, "
+                 "lat (%d, %Zd, %Zd) (mod %Zd)\n",
+                 curr_info->ave_MurphyE, curr_info->best_MurphyE,
+                 w, u, v, mod);
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* clean */
+  mpz_clear (m);
+  mpz_clear (u);
+  mpz_clear (v);
+  mpz_clear (mod);
+  ropt_s2param_free (curr_poly, s2param);
+  ropt_poly_free (curr_poly);
+  ropt_info_free (curr_info);
+}
+
+
 /**
  * This is a fast tuning process which deal with lats from ropt_stage1()
  */
@@ -208,7 +283,7 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
   /* tune mode, prevent from fprint */
   info->mode = 1;
 
-  int i, w, used, old_i;
+  int i, w, used;
   double score;
   double max_score;
   mpz_t m, u, v, mod;
@@ -221,46 +296,26 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
   mpz_init (mod);
   ropt_s2param_init (poly, s2param);
   new_alpha_pq (&tmp_alpha_pqueue, s1param->nbest_sl);
-#if RANK_SUBLATTICE_BY_E
-    char stmp[] = "E";  /* RANK_SUBLATTICE_BY_E */
-#else
-    char stmp[] = "alpha";
-#endif
 
   /* The following is done:
      - test sieve on alpha_pqueue (many) returned from ropt_stage1();
      - reduce the sublattice number to the s1param->nbest_sl;
      - record them to tmp_alpha_pqueue. */
   used = alpha_pqueue->used - 1;
-  old_i = 0;
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: tune fast with %u thread(s)\n",
+            omp_get_max_threads ());
+  }
+#pragma omp parallel for schedule(dynamic)
+#endif
   for (i = 0; i < used; i ++) {
-
-    /* sublattice in w, u, v */
-    extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
-    ropt_poly_setup (poly);
-    //ropt_bound_reset (poly, bound, param); // not really necessary
-
-    if (param->verbose >= 2) {
-      gmp_fprintf (stderr, "# Info: tune [%4d], %s: %.2f, lat (%d, %Zd, %Zd) "
-                   "(mod %Zd)\n", i+1, stmp, score, w, u, v, mod);
-    }
-
-    ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                             0, curr_size_tune, NP-1);
-    ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-    insert_alpha_pq (tmp_alpha_pqueue, w, u, v, mod, -info->ave_MurphyE);
-    if (param->verbose >= 4)
-      gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e, "
-                   "lat (%d, %Zd, %Zd) (mod %Zd)\n",
-                   info->ave_MurphyE, info->best_MurphyE,
-                   w, u, v, mod);
+    ropt_tune_stage2_fast_apply ( poly, s1param, param, info,
+                                  alpha_pqueue, tmp_alpha_pqueue,
+                                  global_E_pqueue, curr_size_tune, i );
 
   }
-  /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
-  ropt_poly_setup (poly);
-  old_i = 0;
 
   /* save result to alpha_pqueue */
   reset_alpha_pq (alpha_pqueue);
@@ -296,6 +351,392 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
 }
 
 
+/* step 1 in slow tuning */
+void
+ropt_tune_stage2_slow_apply_step1 ( ropt_poly_t poly,
+                                    ropt_bound_t bound,
+                                    ropt_s1param_t s1param,
+                                    ropt_param_t param,
+                                    ropt_info_t info,
+                                    alpha_pq *alpha_pqueue,
+                                    alpha_pq *tmp_alpha_pqueue,
+                                    MurphyE_pq *global_E_pqueue,
+                                    unsigned int curr_size_tune,
+                                    int i )
+{
+#if TUNE_EARLY_ABORT
+  double ave_E, ave_bestE, new_ave_E, new_ave_bestE;
+  int acc;
+#endif  
+#ifdef ROPT_LINEAR_TUNE_HARDER
+  int k;
+#endif
+
+  int old_i, j, w;
+  ropt_s2param_t s2param;
+  ropt_poly_t curr_poly;
+  ropt_info_t curr_info;
+  mpz_t m, u, tmpu, v, mod, old_mod;
+  double score;
+  mpz_init_set (m, poly->g[0]);
+  mpz_neg (m, m);
+  mpz_init (u);
+  mpz_init (v);
+  mpz_init (tmpu);
+  mpz_init (mod);
+  mpz_init (old_mod);
+  ropt_poly_init (curr_poly);
+  ropt_poly_set (curr_poly, poly);
+  ropt_info_init (curr_info);
+  ropt_info_set (curr_info, info);
+  ropt_s2param_init (curr_poly, s2param);
+  
+  /* extract sublattice w, u, v */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
+  if (param->verbose >= 2) {
+    gmp_fprintf (stderr, "# Info: tune [%4d], E: %.2e, lat (%d, %Zd, %Zd) "
+                 "(mod %Zd)\n", i+1, -score, w, u, v, mod);
+  }
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* prepare sieving polynomial */
+  old_i = 0;
+  old_i = rotate_aux (curr_poly->f, curr_poly->g[1], m, old_i, w, 2);
+  ropt_poly_setup (curr_poly);
+
+  /* detect positive good u (may also detect good mod with more time) */
+  mpz_set (tmpu, u);
+  j = 0;
+#if TUNE_EARLY_ABORT
+  ave_E = 0.0;
+  ave_bestE = 0.0;
+  new_ave_E = 0.0;
+  new_ave_bestE = 0.0;
+  acc = 0;
+#endif
+
+  /*************  detect positive u  *************/
+  while (mpz_cmp_si(tmpu, bound->global_u_boundr) <= 0) {
+      
+    if (j > TUNE_BOUND_ON_UV_TRIALS) break;
+
+#ifdef ROPT_LINEAR_TUNE_HARDER /* slow tuning process (not used by default) */
+    k = 0;
+    old_MurphyE = 0.0;
+    mpz_set (old_mod, mod);
+    while (k < 3) {
+
+      /* prepare sieving parameters */
+      ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
+                               0, curr_size_tune, NP-1);
+
+      /* sieving */
+      ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+      if (old_MurphyE > curr_info->best_MurphyE)
+        break;
+      else
+        old_MurphyE = curr_info->best_MurphyE;
+
+      /* insert score and sublattice w, u, v */
+      if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+      insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod, -curr_info->ave_MurphyE);
+      if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+      /* verbose */
+      if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+      if (param->verbose >= 3)
+        gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e, "
+                     "lat (%d, %Zd, %Zd) (mod %Zd) "
+                     "(%d, %d, %d)\n",
+                     curr_info->ave_MurphyE, curr_info->best_MurphyE,
+                     w, tmpu, v, mod, i+1, j, k);
+      if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+      mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + k]);
+      k ++;
+    }
+    mpz_set (mod, old_mod);
+
+#else /* current tuning process */
+
+    /* prepare sieving parameters */
+    ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
+                             0, curr_size_tune, NP-1);
+
+    /* sieving */
+    ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+    /* insert score and sublattice w, u, v */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod, -curr_info->ave_MurphyE);
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+    /* verbose */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    if (param->verbose >= 3) {
+      gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
+                   "lat (%d, %Zd, %Zd) (mod %Zd) (%d, %d)\n",
+                   curr_info->ave_MurphyE, curr_info->best_MurphyE,
+                   w, tmpu, v, mod, i + 1, j);
+    }
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+    
+#endif /* endif */
+
+    mpz_add (tmpu, tmpu, mod); /* increment */
+
+#if TUNE_EARLY_ABORT
+    new_ave_E = ave_E + curr_info->ave_MurphyE;
+    new_ave_bestE = ave_bestE + curr_info->best_MurphyE;
+    if (j>0) {
+      if ((ave_E/j>new_ave_E/(j+1)) && (ave_bestE/j > new_ave_bestE/(j+1))) {
+        acc ++;
+        if (acc >= TUNE_EARLY_ABORT_THR)
+          break;
+      }
+    }
+    ave_E = new_ave_E;
+    ave_bestE = new_ave_bestE;
+#endif      
+    j ++;
+  }
+
+  mpz_set (tmpu, u);
+  j = 0;
+#if TUNE_EARLY_ABORT
+  ave_E = 0.0;
+  ave_bestE = 0.0;
+  new_ave_E = 0.0;
+  new_ave_bestE = 0.0;
+  acc = 0;
+#endif
+
+  /*************  detect negative u  *************/
+  while (mpz_cmp_si (tmpu, bound->global_u_boundl) > 0) {
+
+    if (j > TUNE_BOUND_ON_UV_TRIALS) break;
+
+    mpz_add (tmpu, tmpu, mod); /* decrement */
+
+#ifdef ROPT_LINEAR_TUNE_HARDER /* slow tuning process (not used by default) */
+    k = 0;
+    old_MurphyE = 0.0;
+    mpz_set (old_mod, mod);
+    while (k < 3) {
+
+      /* prepare sieving parameters */
+      ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
+                               0, curr_size_tune, NP-1);
+
+      /* sieving */
+      ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+      if (old_MurphyE > curr_info->best_MurphyE)
+        break;
+      else
+        old_MurphyE = curr_info->best_MurphyE;
+
+      /* insert score and sublattice w, u, v */
+      if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+      insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod, -curr_info->ave_MurphyE);
+      if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+      /* verbose */
+      if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+      if (param->verbose >= 3)
+        gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e, "
+                     "lat (%d, %Zd, %Zd) (mod %Zd) "
+                     "(%d, %d, %d)\n",
+                     curr_info->ave_MurphyE, curr_info->best_MurphyE,
+                     w, tmpu, v, mod, i+1, j, k);
+      if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+      mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + k]);
+      k ++;
+    }
+    mpz_set (mod, old_mod);
+
+#else /* current tuning process */
+
+    /* prepare sieving parameters */
+    ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
+                             0, curr_size_tune, NP-1);
+
+    /* sieving */
+    ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+    /* insert score and sublattice w, u, v */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod, -curr_info->ave_MurphyE);
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+    /* verbose */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    if (param->verbose >= 3) {
+      gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
+                   "lat (%d, %Zd, %Zd) (mod %Zd) (%d, %d)\n",
+                   curr_info->ave_MurphyE, curr_info->best_MurphyE,
+                   w, tmpu, v, mod, i + 1, j);
+    }
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+#endif /* endif */    
+
+#if TUNE_EARLY_ABORT
+    new_ave_E = ave_E + curr_info->ave_MurphyE;
+    new_ave_bestE = ave_bestE + curr_info->best_MurphyE;
+    if (j>0) {
+      if ((ave_E/j>new_ave_E/(j+1)) && (ave_bestE/j > new_ave_bestE/(j+1))) {
+        acc ++;
+        if (acc >= TUNE_EARLY_ABORT_THR)
+          break;
+      }
+    }
+    ave_E = new_ave_E;
+    ave_bestE = new_ave_bestE;
+#endif      
+    j ++;
+  }
+
+  /* clean */
+  mpz_clear (m);
+  mpz_clear (u);
+  mpz_clear (tmpu);
+  mpz_clear (v);
+  mpz_clear (mod);
+  mpz_clear (old_mod);
+  ropt_s2param_free (curr_poly, s2param);
+  ropt_poly_free (curr_poly);
+  ropt_info_free (curr_info);
+}
+
+
+/* step 2 in slow tuning */
+void
+ropt_tune_stage2_slow_apply_step2 ( ropt_poly_t poly,
+                                    ropt_s1param_t s1param,
+                                    ropt_param_t param,
+                                    ropt_info_t info,
+                                    alpha_pq *tmp_alpha_pqueue,
+                                    alpha_pq *tmp2_alpha_pqueue,
+                                    MurphyE_pq *global_E_pqueue,
+                                    unsigned int curr_size_tune,
+                                    int i )
+{
+  int old_i, j, w;
+  ropt_s2param_t s2param;
+  ropt_poly_t curr_poly;
+  ropt_info_t curr_info;
+  mpz_t m, u, v, r, mod;
+  double score, old_MurphyE;
+  mpz_init_set (m, poly->g[0]);
+  mpz_neg (m, m);
+  mpz_init (u);
+  mpz_init (v);
+  mpz_init (r);
+  mpz_init (mod);
+  ropt_poly_init (curr_poly);
+  ropt_poly_set (curr_poly, poly);
+  ropt_info_init (curr_info);
+  ropt_info_set (curr_info, info);
+  ropt_s2param_init (curr_poly, s2param);
+
+  /* extract sublattice w, u, v */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  extract_alpha_pq (tmp_alpha_pqueue, &w, u, v, mod, &score);
+  if (param->verbose >= 1) {
+    gmp_fprintf (stderr, "# Info: tune [%4d], E: %.2e, lat (%d, %Zd, %Zd) "
+                 "(mod %Zd)\n", i+1, -score, w, u, v, mod);
+  }
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* prepare sieving polynomial */
+  old_i = 0;
+  old_i = rotate_aux (curr_poly->f, curr_poly->g[1], m, old_i, w, 2);
+  ropt_poly_setup (curr_poly);
+
+  /* insert current polynomial as well */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  insert_alpha_pq (tmp2_alpha_pqueue, w, u, v, mod, score);
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* try larger modulus */
+  j = 0;
+  old_MurphyE = -score;
+  while (j < TUNE_BOUND_ON_MOD_TRIALS) {
+
+    mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + j]);
+
+    /* prepare sieving parameters */
+    ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
+                             0, curr_size_tune, NP-1);
+
+    /* sieveing */
+    ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+    /* abort if E is becoming worse */
+    if (old_MurphyE > curr_info->ave_MurphyE)
+      break;
+    old_MurphyE = curr_info->ave_MurphyE;
+
+    /* insert score and sublattice w, u, v */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    insert_alpha_pq (tmp2_alpha_pqueue, w, u, v, mod, -curr_info->ave_MurphyE);
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+    j ++;
+  }
+
+  /* try smaller modulus */
+  j = 1;
+  old_MurphyE = -score;
+  while (j < TUNE_BOUND_ON_MOD_TRIALS) {
+
+    if ((s1param->tlen_e_sl-j) <= 0)
+      break;
+
+    for (int k = NP-1; k >= 0; k --) {
+      mpz_mod_ui (r, mod, primes[k]);
+      if (mpz_cmp_ui(r, 0) != 0)
+	continue;
+      else {
+	mpz_div_ui (mod, mod, primes[s1param->tlen_e_sl-j]);
+	break;
+      }
+    }
+
+    /* prepare sieving parameters */
+    ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
+                             0, curr_size_tune, NP-1);
+
+    /* sieveing */
+    ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+    /* abort if E is becoming worse */
+    if (old_MurphyE > curr_info->ave_MurphyE)
+      break;
+    old_MurphyE = curr_info->ave_MurphyE;
+
+    /* insert score and sublattice w, u, v */
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    insert_alpha_pq (tmp2_alpha_pqueue, w, u, v, mod, -curr_info->ave_MurphyE);
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+    j ++;
+  }
+
+  /* clean */
+  mpz_clear (m);
+  mpz_clear (u);
+  mpz_clear (v);
+  mpz_clear (r);
+  mpz_clear (mod);
+  ropt_s2param_free (curr_poly, s2param);
+  ropt_poly_free (curr_poly);
+  ropt_info_free (curr_info);
+}
+
+
 /* slow but finer tune */
 void
 ropt_tune_stage2_slow ( ropt_poly_t poly,
@@ -306,25 +747,17 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
                         alpha_pq *alpha_pqueue,
                         MurphyE_pq *global_E_pqueue,
                         unsigned int curr_size_tune,
-                        int tune_round,
                         unsigned int curr_nbest )
 {
   /* tune mode */
   info->mode = 1;
 
-  int i, j, w, used, old_i;
-  double score, old_MurphyE;
+  int i, w, used;
+  double score;
   mpz_t m, u, tmpu, v, mod, old_mod;
   ropt_s2param_t s2param;
   alpha_pq *tmp_alpha_pqueue, *tmp2_alpha_pqueue;
-#if TUNE_EARLY_ABORT
-  double ave_E, ave_bestE, new_ave_E, new_ave_bestE;
-  int acc;
-#endif  
   
-#ifdef ROPT_LINEAR_TUNE_HARDER
-  int k;
-#endif
   mpz_init_set (m, poly->g[0]);
   mpz_neg (m, m);
   mpz_init (u);
@@ -344,256 +777,38 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
      - for each sublattice in s1param->nbest_sl
      - do an early abort based on best_E score */
   used = alpha_pqueue->used - 1;
-  old_i = 0;
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: tune slow step 1 with %u thread(s)\n",
+            omp_get_max_threads ());
+  }
+#pragma omp parallel for schedule(dynamic)
+#endif
   for (i = 0; i < used; i ++) {
-
-    /* sublattice in w, u, v */
-    extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
-    ropt_poly_setup (poly);
-    // ropt_bound_reset (poly, bound, param); // not necessary
-#if RANK_SUBLATTICE_BY_E
-    char stmp[] = "E";
-#else
-    char stmp[] = "alpha";
-#endif
-    if (param->verbose >= 1) {
-      /* first tune round, score are in E, not murphyE */
-      if (tune_round==1) {
-        gmp_fprintf (stderr, "# Info: tune [%4d], %s: %.2f, lat (%d, %Zd, %Zd) "
-                     "(mod %Zd)\n", i+1,  stmp, score, w, u, v, mod);
-      }
-      else {
-        gmp_fprintf (stderr, "# Info: tune [%4d], E: %.2e, "
-                     "lat (%d, %Zd, %Zd) (mod %Zd)\n",
-                     -score, i + 1, w, u, v, mod);
-      }
-    }
-    
-    /* detect positive good u (may also detect good mod with more time) */
-    mpz_set (tmpu, u);
-    j = 0;
-#if TUNE_EARLY_ABORT
-    ave_E = 0.0;
-    ave_bestE = 0.0;
-    new_ave_E = 0.0;
-    new_ave_bestE = 0.0;
-    acc = 0;
-#endif
-    
-    while (mpz_cmp_si(tmpu, bound->global_u_boundr) <= 0) {
-      
-      if (j > TUNE_BOUND_ON_UV_TRIALS)
-        break;
-
-#ifdef ROPT_LINEAR_TUNE_HARDER /* slow tuning process */
-      k = 0;
-      old_MurphyE = 0.0;
-      mpz_set (old_mod, mod);
-      while (k < 3) {
-
-        ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                                 0, curr_size_tune, NP-1);
-
-        ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-        if (old_MurphyE > info->best_MurphyE)
-          break;
-        else
-          old_MurphyE = info->best_MurphyE;
-
-        insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod,
-                         -info->ave_MurphyE);
-
-        if (param->verbose >= 3) {
-          gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
-                       "lat (%d, %Zd, %Zd) (mod %Zd) "
-                       "(%d, %d, %d)\n",
-                       info->ave_MurphyE, info->best_MurphyE,
-                       w, tmpu, v, mod, i + 1, j, k);
-        }
-
-        mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + k]);
-
-        k ++;
-      }
-      mpz_set (mod, old_mod);
-
-#else
-
-      ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                               0, curr_size_tune, NP-1);
-
-      ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-      insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod,
-                       -info->ave_MurphyE);
-
-      if (param->verbose >= 3) {
-        gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
-                     "lat (%d, %Zd, %Zd) (mod %Zd) (%d, %d)\n",
-                     info->ave_MurphyE, info->best_MurphyE,
-                     w, tmpu, v, mod, i + 1, j);
-      }
-
-#endif
-
-      mpz_add (tmpu, tmpu, mod); /* consider original u itself */
-
-#if TUNE_EARLY_ABORT
-      new_ave_E = ave_E + info->ave_MurphyE;
-      new_ave_bestE = ave_bestE + info->best_MurphyE;
-      if (j>0) {
-        if ((ave_E/j>new_ave_E/(j+1)) && (ave_bestE/j > new_ave_bestE/(j+1))) {
-          acc ++;
-          if (acc >= TUNE_EARLY_ABORT_THR)
-            break;
-        }
-      }
-      ave_E = new_ave_E;
-      ave_bestE = new_ave_bestE;
-#endif      
-      j ++;
-    }
-
-    /* detect negative good u */
-    mpz_set (tmpu, u);
-    j = 0;
-#if TUNE_EARLY_ABORT
-    ave_E = 0.0;
-    ave_bestE = 0.0;
-    new_ave_E = 0.0;
-    new_ave_bestE = 0.0;
-    acc = 0;
-#endif
-
-    while (mpz_cmp_si (tmpu, bound->global_u_boundl) > 0) {
-
-      if (j > TUNE_BOUND_ON_UV_TRIALS)
-        break;
-      mpz_sub (tmpu, tmpu, mod);
-
-#ifdef ROPT_LINEAR_TUNE_HARDER /* slow tuning process */
-
-      k = 0;
-      old_MurphyE = 0.0;
-      mpz_set (old_mod, mod);
-      while (k < 3) {
-
-        ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                                 0, curr_size_tune, NP-1);
-        ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-        if (old_MurphyE > info->best_MurphyE)
-          break;
-        else
-          old_MurphyE = info->best_MurphyE;
-
-        insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod,
-                         -info->ave_MurphyE);
-
-        if (param->verbose >= 3) {
-          gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
-                       "lat (%d, %Zd, %Zd) (mod %Zd) "
-                       "(%d, %d, %d)\n",
-                       info->ave_MurphyE, info->best_MurphyE,
-                       w, tmpu, v, mod, i + 1, j, k);
-        }
-
-        mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + k]);
-
-        k ++;
-      }
-      mpz_set (mod, old_mod);
-
-#else
-
-      ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                               0, curr_size_tune, NP-1);
-
-      ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-      insert_alpha_pq (tmp_alpha_pqueue, w, tmpu, v, mod,
-                       -info->ave_MurphyE);
-
-      if (param->verbose >= 3) {
-        gmp_fprintf (stderr, "# Info: ave. E: %.2e, best E: %.2e on "
-                     "lat (%d, %Zd, %Zd) (mod %Zd) (%d, %d)\n",
-                     info->ave_MurphyE, info->best_MurphyE,
-                     w, tmpu, v, mod, i + 1, j);
-      }
-
-#endif
-
-#if TUNE_EARLY_ABORT
-      new_ave_E = ave_E + info->ave_MurphyE;
-      new_ave_bestE = ave_bestE + info->best_MurphyE;
-      if (j>0) {
-        if ((ave_E/j>new_ave_E/(j+1)) && (ave_bestE/j > new_ave_bestE/(j+1))) {
-          acc ++;
-          if (acc >= TUNE_EARLY_ABORT_THR)
-            break;
-        }
-      }
-      ave_E = new_ave_E;
-      ave_bestE = new_ave_bestE;
-#endif
-
-      j ++;
-
-    }
+    ropt_tune_stage2_slow_apply_step1 ( poly, bound, s1param, param, info,
+                                        alpha_pqueue, tmp_alpha_pqueue,
+                                        global_E_pqueue, curr_size_tune, i );
   }
 
-  /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
-  ropt_poly_setup (poly);
-  old_i = 0;
 
   /* Step 2: slight larger range sieve on best sublattices */
   used =  tmp_alpha_pqueue->used - 1;
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: tune slow step 2 with %u thread(s)\n",
+            omp_get_max_threads ());
+  }
+#pragma omp parallel for schedule(dynamic)
+#endif
   for (i = 0; i < used; i ++) {
-
-    extract_alpha_pq (tmp_alpha_pqueue, &w, u, v, mod, &score);
-
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
-
-    ropt_poly_setup (poly);
-
-    if (param->verbose >= 1) {
-      gmp_fprintf (stderr, "# Info: tune [%4d], E: %.2e, "
-                   "lat (%d, %Zd, %Zd) (mod %Zd)\n",
-                   -score, i + 1, w, u, v, mod);
-    }
-
-    insert_alpha_pq (tmp2_alpha_pqueue, w, u, v, mod, score);
-
-    j = 0;
-    old_MurphyE = -score;
-    while (j < TUNE_BOUND_ON_MOD_TRIALS) {
-
-      mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + j]);
-
-      ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                               0, curr_size_tune, 20);
-
-      ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-      /* abort if E is becoming worse */
-      if (old_MurphyE > info->ave_MurphyE)
-        break;
-
-      old_MurphyE = info->ave_MurphyE;
-      insert_alpha_pq (tmp2_alpha_pqueue, w, u, v, mod, -info->ave_MurphyE);
-      j ++;
-    }
+    ropt_tune_stage2_slow_apply_step2 ( poly, s1param, param, info,
+                                        tmp_alpha_pqueue, tmp2_alpha_pqueue,
+                                        global_E_pqueue, curr_size_tune, i );
   }
 
-  /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
-  ropt_poly_setup (poly);
-  old_i = 0;
-
-  /* End: save to alpha_pqueue */
+  /* Step 3: save back to alpha_pqueue */
   reset_alpha_pq (alpha_pqueue);
   used =  tmp2_alpha_pqueue->used - 1;
   for (i = 0; i < used; i ++) {
@@ -648,6 +863,7 @@ ropt_tune_stage2 ( ropt_poly_t poly,
   mpz_init (v);
   mpz_init (mod);
 #endif
+
   unsigned int old_nbest = s1param->nbest_sl;
   unsigned int curr_size_tune = size_tune_sievearray;
   int r = 1;
@@ -660,7 +876,6 @@ ropt_tune_stage2 ( ropt_poly_t poly,
   ropt_tune_stage2_fast (poly, s1param, param, info, alpha_pqueue,
                          global_E_pqueue, curr_size_tune);
   r ++;
-
 
   /* aux: in case tune_E_pqueue not empty, combine it */
 #if TUNE_LOGNORM_INCR
@@ -685,7 +900,7 @@ ropt_tune_stage2 ( ropt_poly_t poly,
     curr_size_tune = curr_size_tune*4;
     s1param->nbest_sl = s1param->nbest_sl/2;
     ropt_tune_stage2_slow (poly, bound, s1param, param, info, alpha_pqueue,
-      global_E_pqueue, curr_size_tune, r, s1param->nbest_sl);
+      global_E_pqueue, curr_size_tune, s1param->nbest_sl);
     r ++;
     remove_rep_alpha (alpha_pqueue);
     /* doing 2 rounds of tuning for now */
@@ -700,6 +915,82 @@ ropt_tune_stage2 ( ropt_poly_t poly,
   mpz_clear (mod);
 #endif
   return;
+}
+
+
+
+void
+ropt_call_sieve_apply ( ropt_poly_t poly,
+                        ropt_bound_t bound,
+                        ropt_s1param_t s1param,
+                        ropt_param_t param,
+                        ropt_info_t info,
+                        MurphyE_pq *tmp_E_pqueue,
+                        MurphyE_pq *global_E_pqueue,
+                        int i )
+{
+  int old_i = 0, w;
+  double score;
+  mpz_t m, u, v, mod;
+  ropt_s2param_t s2param;
+  ropt_poly_t curr_poly;
+  ropt_info_t curr_info;
+  mpz_init_set (m, poly->g[0]);
+  mpz_neg (m, m);
+  mpz_init (u);
+  mpz_init (v);
+  mpz_init (mod);
+  ropt_poly_init (curr_poly);
+  ropt_poly_set (curr_poly, poly);
+  ropt_info_init (curr_info);
+  ropt_info_set (curr_info, info);
+  ropt_s2param_init (curr_poly, s2param);
+
+  /* extract sublattice w, u, v */
+  if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+  extract_MurphyE_pq (tmp_E_pqueue, &w, u, v, mod,
+                      &score);
+  if (param->verbose >= 2) {
+    gmp_fprintf (stderr, "# Info: sieve [%4d], E: %.2e, "
+                 "(%d, %Zd, %Zd) (mod %Zd)\n",
+                 i + 1, score, w, u, v, mod);
+  }
+  if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+  /* prepare sieving polynomial */
+  old_i = rotate_aux (curr_poly->f, curr_poly->g[1], m, old_i, w, 2);
+  ropt_poly_setup (curr_poly);
+
+  /* prepare sieving parameters */
+  ropt_s2param_setup (bound, s1param, s2param, param, u, v, mod);
+
+  /* sieving */
+  ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+
+  /* extra sieve for small skewness */
+  if (score > curr_info->best_MurphyE) {
+    curr_info->mode = 0;
+    if (nthreads_sieve > 1) pthread_mutex_lock (&locksieve);
+    if (param->verbose >= 3) {
+      fprintf (stderr, "# Info: resieve [%4d] in "
+               "range %u.\n", i + 1, size_tune_sievearray * 10);
+    }
+    if (nthreads_sieve > 1) pthread_mutex_unlock (&locksieve);
+
+    ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
+                               0, size_tune_sievearray * 10, NP - 1);
+    ropt_stage2 (curr_poly, s2param, param, curr_info, global_E_pqueue, w);
+  }
+
+
+  /* clean */
+  mpz_clear (m);
+  mpz_clear (u);
+  mpz_clear (v);
+  mpz_clear (mod);
+  ropt_s2param_free (curr_poly, s2param);
+  ropt_poly_free (curr_poly);
+  ropt_info_free (curr_info);
 }
 
 
@@ -777,53 +1068,23 @@ ropt_call_sieve ( ropt_poly_t poly,
   }
 
   /* Step3, final root sieve */
-  mpz_t m;
-  int old_i = 0;
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   used = tmp_E_pqueue->used - 1;
-  for (i = 0; i < used; i ++) {
-
-    extract_MurphyE_pq (tmp_E_pqueue, &w, u, v, mod,
-                        &score);
-
-    /* rotate */
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
-    ropt_poly_setup (poly);
-
-    if (param->verbose >= 2) {
-      gmp_fprintf (stderr, "# Info: sieve [%4d], E: %.2e, "
-                   "(%d, %Zd, %Zd) (mod %Zd)\n",
-                   i + 1, score, w, u, v, mod);
-    }
-
-    ropt_s2param_setup (bound, s1param, s2param, param, u, v, mod);
-
-    ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-
-    /* extra sieve for small skewness */
-    if (score > info->best_MurphyE) {
-      info->mode = 0; // normal mode
-
-      if (param->verbose >= 3) {
-        fprintf (stderr, "# Info: resieve [%4d] in "
-                 "range %u.\n", i + 1, size_tune_sievearray * 10);
-      }
-     
-      ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                               0, size_tune_sievearray * 10, NP - 1);
-      ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
-    }
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads_sieve);
+  if (param->verbose >= 1) {
+    printf ("# Info: final sieve with %u thread(s)\n",
+            omp_get_max_threads ());
   }
-  /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
-  ropt_poly_setup (poly);
-  old_i = 0;
+#pragma omp parallel for schedule(dynamic)
+#endif
+  for (i = 0; i < used; i ++) {
+    ropt_call_sieve_apply ( poly, bound, s1param, param, info,
+                            tmp_E_pqueue, global_E_pqueue, i );
+  }
 
   /* free */
   free_MurphyE_pq (&tmp_E_pqueue);
   ropt_s2param_free (poly, s2param);
-  mpz_clear (m);
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
@@ -866,9 +1127,8 @@ ropt_linear_deg5 ( ropt_poly_t poly,
   /* Here we use some larger value since alpha_pqueue records
      more sublattices to be tuned by test root sieve */
   unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+    TUNE_RATIO_STAGE1_FULL_ALPHA * TUNE_RATIO_STAGE2_FAST_SLOW;
   new_alpha_pq (&alpha_pqueue, len_full_alpha);
-
   /* [Step 1] tune ropt_bound first */
   t2 = seconds_thread ();
 #if TUNE_LOGNORM_INCR
@@ -881,7 +1141,6 @@ ropt_linear_deg5 ( ropt_poly_t poly,
 #endif
   t2 = seconds_thread () - t2;
 
-  
   /* [Step 2] ropt_stage1() find good sublattices */
   t1 = seconds_thread ();
   r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue, 0);
@@ -907,7 +1166,7 @@ ropt_linear_deg5 ( ropt_poly_t poly,
   t3 = seconds_thread () - t3;
 
   /* [Step 5] return best poly */
-  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly);
+  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly, param);
 
   info->ropt_time_stage1 = t1;
   info->ropt_time_tuning = t2;
@@ -970,7 +1229,7 @@ ropt_linear_deg34 ( ropt_poly_t poly,
   ropt_stage2 (poly, s2param, param, info, global_E_pqueue, 0);
 
   /* Step 2, return best poly */
-  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly);
+  ropt_get_bestpoly (poly, global_E_pqueue, bestpoly, param);
 
   /* free */
   mpz_clear (u);

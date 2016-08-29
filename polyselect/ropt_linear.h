@@ -30,7 +30,6 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
                         alpha_pq *alpha_pqueue,
                         MurphyE_pq *global_E_pqueue,
                         unsigned int curr_size_tune,
-                        int tune_round,
                         unsigned int curr_nbest );
 
 void

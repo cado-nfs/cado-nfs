@@ -48,6 +48,7 @@ double best_MurphyE = 0.0; /* Murphy's E (the larger the better) */
 ropt_param_t ropt_param; /* params for ropt algorithms */
 double total_exp_E = 0.0; /* cumulated expected E for input polynomials */
 double total_E = 0.0; /* cumulated E-value for input polynomials */
+double total_Murphy_E = 0.0; /* cumulated E-value for input polynomials */
 double nb_read = 0.0; /* number of read polynomials so far */
 double nb_optimized = 0.0; /* number of optimized polynomials so far */
 
@@ -448,13 +449,16 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       cado_poly_set (best_poly, ropt_poly);
     }
   printf ("\n### root-optimized polynomial %u ###\n", poly_id);
+  total_Murphy_E += curr_MurphyE;
   total_E += cado_poly_fprintf_with_info_and_MurphyE (stdout, ropt_poly,
                                                       curr_MurphyE,
                                                       bound_f, bound_g, area,
                                                       "# ");
   nb_optimized += 1.0;
-  printf ("### Best MurphyE so far is %.2e, av. exp_E %.2f, av. E %.2f\n",
-          best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
+  printf ("### Best MurphyE so far is %.2e, av. exp_E %.2f, av. E %.2f,"
+          " av. MurphyE %.2e\n",
+          best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized,
+          total_Murphy_E / nb_optimized);
   fflush (stdout);
 
   if (nthreads > 1)
@@ -653,6 +657,7 @@ main_basic (int argc, char **argv)
   }
 
   param_list_parse_uint (pl, "t", &nthreads);
+  param_list_parse_uint (pl, "t2", &nthreads_sieve);
 
   if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
     bound_f = BOUND_F;
@@ -691,12 +696,32 @@ main_basic (int argc, char **argv)
     usage_basic (argv0[0], NULL, pl);
   }
 
+  if (nthreads_sieve == 0)
+  {
+    fprintf (stderr, "Error, -tsieve must be non-zero.\n");
+    usage_basic (argv0[0], NULL, pl);
+  }
+  if (nthreads_sieve > 1) {
+        fprintf (stderr, "Error, nthreads_sieve is %u.\n", nthreads_sieve);
+    if (nthreads != 1) {
+      fprintf (stderr, "Error, we constrain that -t must equal 1 when t2 > 1.\n");
+      usage_basic (argv0[0], NULL, pl);
+    }
+  }
+  
   if (polys_filename == NULL)
     usage_basic (argv0[0], "inputpolys", pl);
 
-  printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
-          (nthreads > 1) ? "s": "", ropt_param->effort);
-
+  if (nthreads_sieve == 1) {
+    printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
+            (nthreads > 1) ? "s": "", ropt_param->effort);
+  }
+  else {
+    printf ("# Info: Will use %u threads for sieving"
+            "\n# Info: ropteffort = %.0f\n",
+            nthreads_sieve, ropt_param->effort);
+  }
+  
   /* detect L1 cache size */
   ropt_L1_cachesize ();
 
@@ -791,9 +816,10 @@ main_basic (int argc, char **argv)
     printf ("# Best polynomial found:\n");
     cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
                                              bound_f, bound_g, area, NULL);
-    printf ("# Average exp_E: %.2f, average E: %.2f\n",
+    printf ("# Average exp_E: %.2f, average E: %.2f, average MurphyE: %.2e\n",
             total_exp_E / (double) nb_input_polys,
-            total_E / (double) nb_input_polys);
+            total_E / (double) nb_input_polys,
+            total_Murphy_E / (double) nb_input_polys);
   }
 
   ropt_param_free (ropt_param);
