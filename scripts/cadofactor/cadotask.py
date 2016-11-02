@@ -3364,7 +3364,11 @@ class PurgeTask(Task):
         # If the user didn't give col_minindex, let's compute it.
         col_minindex = int(self.progparams[0].get("col_minindex", -1))
         if col_minindex == -1:
-            col_minindex = int(nprimes / 20.0)
+            # Note: on RSA-120, reducing col_minindex from nprimes/20 to
+            # nprimes/40 decreases the matrix size after purge by 3.1%,
+            # and the final matrix by 1.4%, while not increasing the memory
+            # usage of purge, and increasing the cpu time of purge by only 13%.
+            col_minindex = int(nprimes / 40.0)
             # For small cases, we want to avoid degenerated cases, so let's
             # keep most of the ideals: memory is not an issue in that case.
             if (col_minindex < 10000):
