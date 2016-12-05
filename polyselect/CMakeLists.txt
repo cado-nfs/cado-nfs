@@ -4,14 +4,14 @@
 
 # Root OPTimization sources.
 set (ropt_sources 
-  ropt.c ropt_linear.c ropt_quadratic.c ropt_str.c ropt_param.c
+  ropt_linear.c ropt_quadratic.c ropt_str.c ropt_param.c
   ropt_tree.c ropt_arith.c ropt_io.c ropt_stage1.c ropt_stage2.c
   )
 
 add_library(polyselect_common ${CADO_SHARED} auxiliary.c rho.c murphyE.c area.c size_optimization.c)
-add_executable (polyselect polyselect.c polyselect_str.c polyselect_arith.c ${ropt_sources})
+add_executable (polyselect polyselect.c polyselect_str.c polyselect_arith.c ropt.c ${ropt_sources})
 
-add_executable (polyselect_ropt ropt_main.c ${ropt_sources})
+add_executable (polyselect_ropt ropt_main.c ropt.c ${ropt_sources})
 set_target_properties(polyselect_ropt PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 add_executable (polyselect_gfpn EXCLUDE_FROM_ALL polyselect_gfpn.c gfpkdlpolyselect.c ${ropt_sources})
