@@ -13,8 +13,8 @@
  * Default values for L1 cache size and tune sieve length. The code
  * will also try to auto-detect them.
  */
-unsigned int L1_cachesize = 12288;
-unsigned int size_tune_sievearray = 6144;
+unsigned int L1_cachesize = 16384;
+unsigned int size_tune_sievearray = 16384;
 unsigned int nthreads_sieve = 1;
 pthread_mutex_t locksieve = PTHREAD_MUTEX_INITIALIZER;
 

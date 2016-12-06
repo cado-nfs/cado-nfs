@@ -18,19 +18,17 @@ ropt_L1_cachesize ()
 {
   /* L1 cache size */
   unsigned int ret = cachesize_cpuid (0);
-  if ((2048 <= ret) && (ret <= (1U << 20))) {
+  if ((2048 <= ret) && (ret <= (1U << 20)))
     L1_cachesize = ret / 2;
-    size_tune_sievearray = L1_cachesize;
-  }
 #if 0
   else {
     ret = cachesize_guess (0);
     if ((2048 <= ret) && (ret <= (1 << 20))) {
       L1_cachesize = ret / 2;
-      size_tune_sievearray = L1_cachesize;
     }
   }
 #endif
+  size_tune_sievearray = L1_cachesize;
 }
 
 
