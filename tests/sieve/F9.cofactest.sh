@@ -13,7 +13,7 @@ shift 4
 
 REFERENCE_SHA1="e4149025790d5ab1d654a64c0edf3370822efd04" # 430
 # The Git revision that created the REFERENCE_SHA1 hash
-REFERENCE_REVISION="8cda3fe022f6b8e23e3b466f13924ac5a75fc533++" # 431 relations
+REFERENCE_REVISION="b97cad99b07072a6ed47a0d12b03eb768604ab1e" # 431 relations
 # REFERENCE_SHA1="e04ae591795ff30af703a2235a4f9fd09d17b380"
 # The Git revision that created the REFERENCE_SHA1 hash
 # REFERENCE_REVISION="bfc0fd6210b9642e82343b4a28a6808ed5fb8b2f" # 431 relations

@@ -15,7 +15,7 @@ shift 4
 REFERENCE_SHA1="e4149025790d5ab1d654a64c0edf3370822efd04" # 430
 # adjust-strategy 2  gives b9cda3fa7b439846ffee2e7c46dbbee93a982203
 # The Git revision that created the REFERENCE_SHA1 hash
-REFERENCE_REVISION="8cda3fe022f6b8e23e3b466f13924ac5a75fc533++"
+REFERENCE_REVISION="b97cad99b07072a6ed47a0d12b03eb768604ab1e"
 
 # Previous revisions and number of relations found (most recent first):
 # c12c10808914fb445dd32e6801ffb8f320db36e6 (430 relations)
