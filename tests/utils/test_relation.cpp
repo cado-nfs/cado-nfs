@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "utils.h"
-#include "relation.h"
+#include "relation.hpp"
 #include "relation-tools.h"
 #include "tests_common.h"
 
@@ -12,6 +12,7 @@ mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)
   else
   {
     mpz_mul (b, a, b);
+    mpz_neg (b, b);
     mpz_mod (b, b, p);
 
     return mpz_get_ui (b);
@@ -22,10 +23,7 @@ int
 test_compute_r (unsigned int nb)
 {
   int err = 0;
-  mpz_t tp, ta, tb;
-  mpz_init (tp);
-  mpz_init (ta);
-  mpz_init (tb);
+  cxx_mpz tp, ta, tb;
 
   for (unsigned int i = 0; i < nb; i++)
   {
@@ -48,17 +46,17 @@ test_compute_r (unsigned int nb)
       p = mpz_get_ui (tp);
     }
 
-    a = random_int64 ();
+    a = random_uint64 ();
     /* 5% of tests are for the case where b = 0 mod p (with b > 0)
-     * We do not need to test for free relations as they never go throught
+     * We do not need to test for free relations as they never go through
      * relation_compute_r
      */
     if (i < (nb / 20))
       b = lrand48() * p;
     else
-      b = random_uint64 () + 1; /* b > 0 */
-    mpz_set_int64 (ta, a);
-    mpz_set_uint64 (tb, b);
+      b = random_int64 () + 1; /* b > 0 */
+    mpz_set_uint64 (ta, a);
+    mpz_set_int64 (tb, b);
 
     unsigned long r = relation_compute_r (a, b, p);
 
@@ -70,19 +68,13 @@ test_compute_r (unsigned int nb)
       err++;
     }
   }
-  mpz_clear (tp);
-  mpz_clear (ta);
-  mpz_clear (tb);
   return err;
 }
 
 int test_compute_all_r (unsigned int nb)
 {
   int err = 0;
-  mpz_t tp, ta, tb;
-  mpz_init (tp);
-  mpz_init (ta);
-  mpz_init (tb);
+  cxx_mpz tp, ta, tb;
 
   for (unsigned int i = 0; i < nb; i++)
   {
@@ -106,24 +98,19 @@ int test_compute_all_r (unsigned int nb)
 
     for (uint8_t k = 0; k < t2.sides[1].size() ; k++)
     {
-      mpz_set_int64 (ta, t2.a);
-      mpz_set_uint64 (tb, t2.b);
-      mpz_set (tp, t2.sides[1][k].p);
+      mpz_set(ta, t2[0]);
+      mpz_set(tb, t2[1]);
+      mpz_set(tp, t2.sides[1][k].p);
       unsigned long r = mpz_compute_r (ta, tb, tp);
       if (r != mpz_get_ui(t1.sides[1][k].r))
       {
-        gmp_fprintf (stderr, "ERROR: a=%" PRId64 " b=%" PRIu64" p=%" PRpr "\n"
+        gmp_fprintf (stderr, "ERROR: a=%Zx b=%Zx p=%" PRpr "\n"
                      "Got r=%" PRpr " instead of %" PRpr "\n",
-                     t2.a, t2.b,
-                     t2.sides[1][k].p, t1.sides[1][k].r, r);
+                     t2[0], t2[1], t2.sides[1][k].p, t1.sides[1][k].r, r);
         err++;
       }
     }
   }
-
-  mpz_clear (ta);
-  mpz_clear (tb);
-  mpz_clear (tp);
 
   return err;
 }

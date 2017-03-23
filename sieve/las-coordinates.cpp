@@ -51,13 +51,13 @@ void IJToNx(unsigned int *N, unsigned int * x, int i, unsigned int j, sieve_info
     *x = xx & (uint64_t)((1 << LOG_BUCKET_REGION) - 1);
 }
 
-void IJToAB(int64_t *a, uint64_t *b, const int i, const unsigned int j, 
+void IJToAB(uint64_t *a, int64_t *b, const int i, const unsigned int j, 
        sieve_info const & si)
 {
     int64_t s, t;
     s = (int64_t)i * (int64_t) si.qbasis.a0 + (int64_t)j * (int64_t)si.qbasis.a1;
     t = (int64_t)i * (int64_t) si.qbasis.b0 + (int64_t)j * (int64_t)si.qbasis.b1;
-    if (t >= 0)
+    if (s >= 0)
       {
         *a = s;
         *b = t;
@@ -69,7 +69,7 @@ void IJToAB(int64_t *a, uint64_t *b, const int i, const unsigned int j,
       }
 }
 
-int ABToIJ(int *i, unsigned int *j, const int64_t a, const uint64_t b, sieve_info const & si)
+int ABToIJ(int *i, unsigned int *j, const uint64_t a, const int64_t b, sieve_info const & si)
 {
     /* Both a,b and the coordinates of the lattice basis can be quite
      * large. However the result should be small.
@@ -80,7 +80,7 @@ int ABToIJ(int *i, unsigned int *j, const int64_t a, const uint64_t b, sieve_inf
     mpz_init(za); mpz_init(zb);
     mpz_init(a0); mpz_init(b0);
     mpz_init(a1); mpz_init(b1);
-    mpz_set_int64(za, a); mpz_set_uint64(zb, b);
+    mpz_set_uint64(za, a); mpz_set_int64(zb, b);
     mpz_set_int64(a0, si.qbasis.a0);
     mpz_set_int64(b0, si.qbasis.b0);
     mpz_set_int64(a1, si.qbasis.a1);

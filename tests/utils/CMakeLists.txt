@@ -35,3 +35,12 @@ cado_define_test(test_mpz_vector.c LIBRARIES utils)
 cado_define_test(test_mpz_poly_bivariate.c LIBRARIES utils)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)
+cado_define_test(test_renumber.cpp LIBRARIES utils NO_DEFAULT_RUN)
+cado_divert_test(test_renumber p6bd40 ARGUMENTS
+    --table ${CMAKE_CURRENT_SOURCE_DIR}/p6bd40.hd.renumber.gz
+    --poly ${CMAKE_CURRENT_SOURCE_DIR}/p6bd40.poly
+    )
+cado_divert_test(test_renumber c30 ARGUMENTS
+    --table ${CMAKE_CURRENT_SOURCE_DIR}/c30.renumber.gz
+    --poly ${CMAKE_CURRENT_SOURCE_DIR}/c30.poly
+    )

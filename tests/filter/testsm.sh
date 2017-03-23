@@ -10,22 +10,22 @@ WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cadotest.XXXXXXXX`
 # Make temp direcotry world-readable for easier debugging
 chmod a+rx "${WORKDIR}"
 
-poly="${SOURCE_TEST_DIR}/testsm.p59.poly"
-purged="${SOURCE_TEST_DIR}/testsm.p59.purged.gz"
-id="${SOURCE_TEST_DIR}/testsm.p59.index.gz"
-go="2926718140519"
+poly="${SOURCE_TEST_DIR}/testsm.p30.poly"
+purged="${SOURCE_TEST_DIR}/testsm.p30.purged.gz"
+id="${SOURCE_TEST_DIR}/testsm.p30.index.gz"
+ell="101538509534246169632617439"
 
 
-args="-poly ${poly} -purged ${purged} -index ${id} -ell ${go} -nsm 0,4"
-args2="-poly ${poly} -purged ${purged} -index ${id} -ell ${go} -nsm 0,2"
+args="-poly ${poly} -purged ${purged} -index ${id} -ell ${ell} -nsm 0,3"
+args2="-poly ${poly} -purged ${purged} -index ${id} -ell ${ell} -nsm 0,2"
 
-#with -nsm 0,4 (ie nsm = deg F-1) and -t 1
-if ! "${SM}" ${args} -out "${WORKDIR}/sm.4.1" -t 1 ; then
+#with -nsm 0,3 (ie nsm = deg F) and -t 1
+if ! "${SM}" ${args} -out "${WORKDIR}/sm.3.1" -t 1 ; then
   echo "$0: sm binary failed with -t 1 and without -nsm. Files remain in ${WORKDIR}"
   exit 1
 fi
-#with -nsm 0,4 (ie nsm = deg F-1) and -t 1
-if ! "${SM}" ${args} -out "${WORKDIR}/sm.4.2" -t 2 ; then
+#with -nsm 0,3 (ie nsm = deg F) and -t 1
+if ! "${SM}" ${args} -out "${WORKDIR}/sm.3.2" -t 2 ; then
   echo "$0: sm binary failed with -t 2 and without -nsm. Files remain in ${WORKDIR}"
   exit 1
 fi
@@ -42,7 +42,7 @@ if ! "${SM}" ${args2} -out "${WORKDIR}/sm.2.2" -t 2 ; then
 fi
 
 
-if ! diff -b "${WORKDIR}/sm.4.1" "${WORKDIR}/sm.4.2" > /dev/null ; then
+if ! diff -b "${WORKDIR}/sm.3.1" "${WORKDIR}/sm.3.2" > /dev/null ; then
   echo "$0: Mono-threaded and multi-threaded versions do not match (without -nsm). Files remain in ${WORKDIR}"
   exit 1
 fi
@@ -52,15 +52,15 @@ if !  diff -b "${WORKDIR}/sm.2.1" "${WORKDIR}/sm.2.2" > /dev/null ; then
   exit 1
 fi
 
-tail -n +2 "${WORKDIR}/sm.4.1" | cut -d ' ' -f1-2 > "${WORKDIR}/sm.4.1.short"
+tail -n +2 "${WORKDIR}/sm.3.1" | cut -d ' ' -f1-2 > "${WORKDIR}/sm.3.1.short"
 tail -n +2 "${WORKDIR}/sm.2.1" > "${WORKDIR}/sm.2.1.short"
 
-if ! diff -b "${WORKDIR}/sm.4.1.short" "${WORKDIR}/sm.2.1.short" > /dev/null ; then
+if ! diff -b "${WORKDIR}/sm.3.1.short" "${WORKDIR}/sm.2.1.short" > /dev/null ; then
   echo "$0: First two SMs computed without -nsm do not match SMs computed with -nsm 0,2). Files remain in ${WORKDIR}"
   exit 1
 fi
 
-rm -f "${WORKDIR}/sm.4.1" "${WORKDIR}/sm.4.2"
+rm -f "${WORKDIR}/sm.3.1" "${WORKDIR}/sm.3.2"
 rm -f "${WORKDIR}/sm.2.1" "${WORKDIR}/sm.2.2"
-rm -f "${WORKDIR}/sm.4.1.short" "${WORKDIR}/sm.2.1.short"
+rm -f "${WORKDIR}/sm.3.1.short" "${WORKDIR}/sm.2.1.short"
 rmdir "${WORKDIR}"

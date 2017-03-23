@@ -47,7 +47,8 @@ void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
   mpz_poly * abpolys = (mpz_poly *) context_data;
-  mpz_poly_init_set_ab(abpolys[rel->num], rel->a, rel->b);
+  mpz_poly_init(abpolys[rel->num], EARLYPARSED_RELATION_MAX_AB - 1);
+  mpz_poly_setcoeffs_int64(abpolys[rel->num], rel->ab, EARLYPARSED_RELATION_MAX_AB-1);
 
   return NULL;
 }
@@ -73,7 +74,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   fflush(stdout);
   char *fic[2] = {(char *) purgedname, NULL};
   filter_rels (fic, (filter_rels_callback_t) thread_sm, pairs,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB, NULL, NULL);
 
 
   /* Array of (small_nrows) relation-sets built from array (pairs) and

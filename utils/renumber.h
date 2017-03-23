@@ -73,7 +73,7 @@ void renumber_init_for_writing (renumber_ptr, unsigned int, int, int,
                                 uint64_t, unsigned long *);
 /* Last argument of renumber_write_open can be NULL. It will not print the
    polynomials on the file */
-void renumber_write_open (renumber_ptr, const char *, const char *, cado_poly);
+void renumber_write_open (renumber_ptr, const char *, const char *, cado_poly_srcptr);
 void renumber_write_p (renumber_ptr, unsigned long, unsigned long [][MAX_DEGREE],
                        int []);
 size_t renumber_write_buffer_p (char *, renumber_ptr, unsigned long,
@@ -91,10 +91,32 @@ index_t renumber_get_index_from_p_r (renumber_srcptr, p_r_values_t, p_r_values_t
 index_t renumber_get_random_index_from_p_side(renumber_srcptr renumber_info,
     p_r_values_t p, int side);
 void renumber_get_p_r_from_index (renumber_srcptr, p_r_values_t *, p_r_values_t *,
-                                                    int *, index_t, cado_poly);
-int renumber_get_side_from_index (renumber_srcptr, index_t, cado_poly);
+                                                    int *, index_t, cado_poly_srcptr);
+int renumber_get_side_from_index (renumber_srcptr, index_t, cado_poly_srcptr);
 int renumber_badideal_get_p_r_below (renumber_srcptr, p_r_values_t *,
                                      p_r_values_t *, int *, index_t);
+
+struct renumber_iterator_s {
+    index_t i;
+    /* special values:
+     *  p==0 for added columns (J)
+     *  side<0 (actually side=-1-true_side) for bad ideals
+     */
+    p_r_values_t p, r;
+    int side;
+    renumber_srcptr tab;
+    cado_poly_srcptr cpoly;
+};
+
+typedef struct renumber_iterator_s renumber_iterator[1];
+typedef struct renumber_iterator_s * renumber_iterator_ptr;
+typedef const struct renumber_iterator_s * renumber_iterator_srcptr;
+
+void renumber_iterator_init(renumber_iterator_ptr, renumber_srcptr, cado_poly_srcptr);
+void renumber_iterator_clear(renumber_iterator_ptr);
+void renumber_iterator_next(renumber_iterator_ptr);
+int renumber_iterator_done(renumber_iterator_srcptr);
+void renumber_iterator_reposition(renumber_iterator_ptr, index_t);
 
 #ifdef __cplusplus
 }

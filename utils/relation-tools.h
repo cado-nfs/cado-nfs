@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-p_r_values_t relation_compute_r (int64_t a, uint64_t b, p_r_values_t p);
+p_r_values_t relation_compute_r (uint64_t a, int64_t b, p_r_values_t p);
 extern char * u64toa16 (char *p, uint64_t m);
 extern char * u64toa10 (char *p, uint64_t m);
 extern char * d64toa10 (char *p, int64_t m);

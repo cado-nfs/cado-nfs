@@ -516,7 +516,7 @@ renumber_clear (renumber_ptr renumber_info)
  * poly = NULL is accepted. It will not print the polynomials on the file */
 void
 renumber_write_open (renumber_ptr tab, const char *tablefile, 
-		     const char *badidealsfile, cado_poly poly)
+		     const char *badidealsfile, cado_poly_srcptr poly)
 {
   printf ("# Opening %s to write the renumbering table\n", tablefile);
   fflush (stdout);
@@ -1058,7 +1058,7 @@ renumber_get_index_from_p_r (renumber_srcptr renumber_info, p_r_values_t p,
 void
 renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
                              p_r_values_t * r, int *side, index_t i,
-                             cado_poly pol)
+                             cado_poly_srcptr pol)
 {
   index_t j;
   p_r_values_t *tab = renumber_info->table;
@@ -1099,7 +1099,7 @@ renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
 
 int
 renumber_get_side_from_index (renumber_srcptr renumber_info, index_t i,
-                              cado_poly pol)
+                              cado_poly_srcptr pol)
 {
   p_r_values_t *tab = renumber_info->table;
   int side;
@@ -1145,3 +1145,55 @@ renumber_get_side_from_index (renumber_srcptr renumber_info, index_t i,
   return side;
 }
 
+void renumber_iterator_init(renumber_iterator_ptr it, renumber_srcptr tab, cado_poly_srcptr cpoly)
+{
+    memset(it, 0, sizeof(renumber_iterator));
+    it->tab = tab;
+    it->cpoly = cpoly;
+    renumber_iterator_reposition(it, 0);
+}
+
+void renumber_iterator_clear(renumber_iterator_ptr it)
+{
+    memset(it, 0, sizeof(renumber_iterator));
+}
+
+void renumber_iterator_next(renumber_iterator_ptr it)
+{
+    /* ok, it's far from ideal. Perhaps even ugly.
+     * For the moment it still seems to be the way to go,
+     * but we could imagine some optimizations would be possible.
+     */
+    renumber_iterator_reposition(it, it->i + 1);
+}
+
+int renumber_iterator_done(renumber_iterator_srcptr it)
+{
+    return it->i == it->tab->size;
+}
+
+void renumber_iterator_reposition(renumber_iterator_ptr it, index_t pos)
+{
+    it->i = pos;
+    if (it->i >= it->tab->size) {
+        it->p = it->r = it->side = 0;
+        return;
+    }
+    if (it->tab->table[it->i] == RENUMBER_SPECIAL_VALUE) {
+        if (renumber_is_additional_column(it->tab, it->i)) {
+            it->side = renumber_get_side_from_index (it->tab, it->i, it->cpoly);
+            it->p = 0;
+            it->r = 0;
+        } else if (!renumber_badideal_get_p_r_below (it->tab, &it->p, &it->r, &it->side, it->i)) {
+            /* we reach here if this is indeed a bad ideal */
+            it->side = -1-it->side;
+        } else {
+            /* alright, this one looks weird */
+            fprintf(stderr, "# weird ideal in renumber table at position %" PRid "\n", pos);
+            renumber_iterator_reposition(it, pos+1);
+            return;
+        }
+    } else {
+        renumber_get_p_r_from_index (it->tab, &it->p, &it->r, &it->side, it->i, it->cpoly);
+    }
+}

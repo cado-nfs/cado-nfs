@@ -566,7 +566,7 @@ generate_renumber_and_freerels (const char *outfilename,
     {
       uint64_t index = local_buf->freerels_first_index[k] + renumber_table->size;
       uint64_t last_index = index + sum_degs;
-      fprintf (outfile, "%lx,0:%" PRIx64, local_buf->freerels_p[k], index);
+      fprintf (outfile, "X %lx,0:%" PRIx64, local_buf->freerels_p[k], index);
       index++;
       for (; index < last_index; index++)
         fprintf (outfile, ",%" PRIx64, index);

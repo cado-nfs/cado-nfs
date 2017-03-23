@@ -781,18 +781,24 @@ factor_one (cofac_list L, cado_poly pol, unsigned long *lim, int *lpb,
   mpz_init (factors[1]);
 
   /* compute norms F(a,b) and G(a,b) */
-  mpz_poly_homogeneous_eval_siui (norm, pol->pols[0],
-                                  L->a[perm[i]], L->b[perm[i]]);
 
-  s += snprintf (s, sizeof(s0)-(s-s0), "%" PRId64 ",%" PRIu64 ":", L->a[perm[i]], L->b[perm[i]]);
+  mpz_poly_homogeneous_eval_sisi (norm, pol->pols[0],
+                                  L->a[perm[i]], -L->b[perm[i]]);
+
+  int bn = L->b[perm[i]] < 0;
+
+  s += snprintf (s, sizeof(s0)-(s-s0), "X %" PRIx64 ",%s%" PRIx64 ":",
+          L->a[perm[i]],
+          bn ? "-" : "",
+          bn ? -L->b[perm[i]] : L->b[perm[i]]);
 
   s = print_smooth (factors, norm, methods, &fm, &cfm, lpb[0], (double) lim[0],
                     sp[0], spsize[0], L->R0[perm[i]],
                     (L->side[perm[i]] == 0) ? L->sq[perm[i]] : NULL, s, sizeof(s0)-(s-s0));
   s += snprintf (s, sizeof(s0)-(s-s0), ":");
 
-  mpz_poly_homogeneous_eval_siui (norm, pol->pols[1],
-                                  L->a[perm[i]], L->b[perm[i]]);
+  mpz_poly_homogeneous_eval_sisi (norm, pol->pols[1],
+                                  L->a[perm[i]], -L->b[perm[i]]);
   s = print_smooth (factors, norm, methods, &fm, &cfm, lpb[1], (double) lim[1],
                     sp[1], spsize[1], L->A0[perm[i]],
                     (L->side[perm[i]] == 1) ? L->sq[perm[i]] : NULL, s, sizeof(s0)-(s-s0));

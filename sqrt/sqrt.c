@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <pthread.h>
+#include <ctype.h>
 
 #include "utils_with_io.h"
 #include "portability.h"
@@ -145,6 +146,33 @@ check_dep (const char *prefix, int numdep)
   return 1;
 }
 
+int read_abpair(int64_t * ab, FILE * depfile)
+{
+
+    char line[1024];
+
+    if (fgets(line, sizeof(line), depfile) == NULL)
+	return 0;
+
+    memset(ab, 0, EARLYPARSED_RELATION_MAX_AB * sizeof(int64_t));
+
+    for (unsigned int i = 0, pos = 0;
+	 line[pos] != '\0' && i < EARLYPARSED_RELATION_MAX_AB; i++) {
+	int sign = 1;
+	if (line[pos] == '-') {
+	    sign = -1;
+	    pos++;
+	}
+	uint64_t x;
+	int consumed;
+	if (sscanf(line + pos, "%" PRIx64 "%n", &x, &consumed) < 1)
+	    break;
+	ab[i] = sign * x;
+	pos += consumed;
+	for (; isspace(line[pos]); pos++);
+    }
+    return 1;
+}
 int
 calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
         int side, mpz_t Np)
@@ -154,8 +182,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   sidename = get_depsidename (prefix, numdep, side);
   FILE *depfile = NULL;
   FILE *resfile;
-  long a, b;
-  int ret;
+  int64_t ab[EARLYPARSED_RELATION_MAX_AB];
   unsigned long ab_pairs = 0, line_number, freerels = 0;
   mpz_t v, *prd;
   unsigned long lprd; /* number of elements in prd[] */
@@ -184,18 +211,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   mpz_init_set_ui (prd[0], 1);
 
   line_number = 2;
-  for (;;)
-    {
-      ret = fscanf (depfile, "%ld %ld\n", &a, &b);
-
-      if (ret != 2)
-        {
-          fprintf (stderr, "Invalid line %lu in file %s\n", line_number,
-                   depname);
-          fflush (stderr);
-          break;
-        }
-
+  for (;read_abpair (ab, depfile);) {
       ab_pairs ++;
       line_number ++;
 
@@ -209,18 +225,22 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
           pthread_mutex_unlock (&lock);
         }
 
-        if (b == 0)
+      for(int i = 2 ; i < EARLYPARSED_RELATION_MAX_AB ; i++) {
+          ASSERT_ALWAYS(ab[i] == 0);
+      }
+
+      if (ab[1] == 0)
           freerels ++;
 
-        /* accumulate g1*a+g0*b */
-        mpz_mul_si (v, pol->pols[side]->coeff[1], a);
-        mpz_addmul_si (v, pol->pols[side]->coeff[0], b);
+      /* accumulate g1*a-g0*b */
+      mpz_mul_si (v, pol->pols[side]->coeff[1], ab[0]);
+      mpz_submul_si (v, pol->pols[side]->coeff[0], ab[1]);
 
-        prd = accumulate_fast (prd, v, &lprd, nprd++);
+      prd = accumulate_fast (prd, v, &lprd, nprd++);
 
-        if (feof (depfile))
+      if (feof (depfile))
           break;
-      }
+  }
   fclose_maybe_compressed_lock (depfile, depname);
   free (depname);
 
@@ -356,11 +376,9 @@ typedef __tab_struct tab_t[1];
 
 /********** ALGSQRT **********/
 static void
-polymodF_from_ab(polymodF_t tmp, long a, unsigned long b) {
+polymodF_from_ab(polymodF_t tmp, int64_t * ab) {
   tmp->v = 0;
-  tmp->p->deg = (b != 0) ? 1 : 0;
-  mpz_set_si (tmp->p->coeff[1], - (long) b);
-  mpz_set_si (tmp->p->coeff[0], a);
+  mpz_poly_setcoeffs_int64(tmp->p, ab, EARLYPARSED_RELATION_MAX_AB - 1);
 }
 
 /* Reduce the coefficients of R in [-m/2, m/2], which are assumed in [0, m[ */
@@ -852,14 +870,13 @@ calculateSqrtAlg (const char *prefix, int numdep,
   FILE *resfile;
   mpz_poly F;
   polymodF_t prd, tmp;
-  long a;
-  unsigned long b;
   unsigned long p;
   double t0 = seconds ();
   mpz_t algsqrt, aux;
   int i, deg;
   mpz_t *f;
   int nab = 0, nfree = 0;
+  int64_t ab[EARLYPARSED_RELATION_MAX_AB];
 
   ASSERT_ALWAYS(side == 0 || side == 1);
 
@@ -898,7 +915,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
       mpz_set_ui (prd_tab[0]->p->coeff[0], 1);
       prd_tab[0]->p->deg = 0;
       prd_tab[0]->v = 0;
-      while(fscanf(depfile, "%ld %lu", &a, &b) != EOF){
+
+      while (read_abpair(ab, depfile)) {
         if(!(nab % 1000000))
           {
             pthread_mutex_lock (&lock);
@@ -907,12 +925,10 @@ calculateSqrtAlg (const char *prefix, int numdep,
             fflush (stderr);
             pthread_mutex_unlock (&lock);
           }
-        if((a == 0) && (b == 0))
-    break;
-        polymodF_from_ab(tmp, a, b);
+        polymodF_from_ab(tmp, ab);
         prd_tab = accumulate_fast_F (prd_tab, tmp, F, &lprd, nprd++);
         nab++;
-        if(b == 0)
+        if (ab[1] == 0 && ab[2] == 0 && ab[3] == 0)
       nfree++;
       }
       pthread_mutex_lock (&lock);
@@ -1173,19 +1189,27 @@ typedef struct
   FILE **dep_files;
 } sqrt_data_t;
 
-void *
+    void *
 thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
 {
-  sqrt_data_t *data = (sqrt_data_t *) context_data;
-  for(unsigned int j = 0 ; j < data->nonzero_deps ; j++)
-  {
-    if (data->abs[rel->num] & data->dep_masks[j])
+    sqrt_data_t *data = (sqrt_data_t *) context_data;
+    for(unsigned int j = 0 ; j < data->nonzero_deps ; j++)
     {
-      fprintf(data->dep_files[j], "%" PRId64 " %" PRIu64 "\n", rel->a, rel->b);
-      data->dep_counts[j]++;
+        if (!(data->abs[rel->num] & data->dep_masks[j]))
+            continue;
+        int nab = EARLYPARSED_RELATION_MAX_AB;
+        for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+        for(int i = 0 ; i < nab ; i++) {
+            if (rel->ab[i] >= 0) {
+                fprintf(data->dep_files[j], "%s%" PRIx64, i ? " " : "", rel->ab[i]);
+            } else {
+                fprintf(data->dep_files[j], "%s-%" PRIx64, i ? " " : "", -rel->ab[i]);
+            }
+        }
+        fprintf(data->dep_files[j], "\n");
+        data->dep_counts[j]++;
     }
-  }
-  return NULL;
+    return NULL;
 }
 
 void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
@@ -1268,7 +1292,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
                         .dep_files = dep_files};
     char *fic[2] = {(char *) purgedname, NULL};
     filter_rels (fic, (filter_rels_callback_t) thread_sqrt, &data,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB, NULL, NULL);
 
 
     fprintf(stderr, "Written %u dependencies files\n", nonzero_deps);

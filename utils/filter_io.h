@@ -15,14 +15,15 @@
 
 /* we want the programs to specify in a completely explicit way whether
  * they want stuff in base 10 or 16 */
-#define EARLYPARSE_NEED_AB_DECIMAL              1
-#define EARLYPARSE_NEED_AB_HEXA                 2
+#define EARLYPARSE_NEED_LEGACY_AB_DECIMAL              1
+// #define EARLYPARSE_NEED_LEGACY_AB_HEXA                 2
 #define EARLYPARSE_NEED_LINE                    4
 /* for reading ideals (e.g. output of las) */
 #define EARLYPARSE_NEED_PRIMES                  8
 /* for reading index (i.e. renumber ideal) */
 #define EARLYPARSE_NEED_INDEX                  16
 #define EARLYPARSE_NEED_SM                     32
+#define EARLYPARSE_NEED_AB                     64
 
 
 /* Initial size of primes_data array in earlyparsed_relation_s,
@@ -30,6 +31,8 @@
    allocated
 */
 #define NB_PRIMES_OPT 31
+
+#define EARLYPARSED_RELATION_MAX_AB 4
 
 
 /* This field does not contain a proper relation, but only something
@@ -45,8 +48,7 @@
  * such "relation"
  */
 struct earlyparsed_relation_s {
-  int64_t a;
-  uint64_t b;
+  int64_t ab[EARLYPARSED_RELATION_MAX_AB];
   prime_t *primes;      /*if nb_alloc <= NB_PRIME_OPT, primes == primes_data*/
   prime_t primes_data[NB_PRIMES_OPT];
   weight_t nb;           /* number of primes */

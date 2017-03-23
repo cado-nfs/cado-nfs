@@ -554,9 +554,6 @@ tests/polyselect/test_auxiliary.c
 tests/polyselect/test_rho.c
 tests/filter/CMakeLists.txt
 tests/filter/testsm.sh
-tests/filter/testsm.p59.poly
-tests/filter/testsm.p59.purged.gz
-tests/filter/testsm.p59.index.gz
 tests/misc/c60.poly
 tests/misc/c60.rels1
 tests/misc/c60.rels2
@@ -613,7 +610,7 @@ utils/purgedfile.h
 utils/ringbuf.c
 utils/ringbuf.h
 utils/relation.cpp
-utils/relation.h
+utils/relation.hpp
 utils/renumber.c
 utils/renumber.h
 utils/rootfinder.c
@@ -1212,3 +1209,9 @@ sieve/las-fb.cpp
 config/shared_ptr.cmake
 config/cxxabi.cmake
 sieve/display-lattice-adjust.sage
+tests/utils/test_renumber.cpp
+tests/filter/testsm.p30.index.gz
+tests/filter/testsm.p30.poly
+tests/filter/testsm.p30.purged.gz
+tests/utils/c30.poly
+tests/utils/c30.renumber.gz

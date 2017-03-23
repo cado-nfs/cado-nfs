@@ -33,7 +33,6 @@ cado_poly cpoly;
 unsigned long lpb[NB_POLYS_MAX] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned long lpb_max = 0;
 int verbose = 0;
-int abhexa = 0;
 int check_primality = 0; /* By default no primality check */
 int fix_it = 0; /* By default, we just check the rels */
 
@@ -151,11 +150,17 @@ process_one_relation (earlyparsed_relation_ptr rel)
   memset(used, 0, NB_POLYS_MAX); /* which sides are in use */
   for(int side = 0 ; side < cpoly->nb_polys ; side++)
     mpz_init (norm[side]);
+  mpz_poly ab;
+  mpz_poly_init(ab, EARLYPARSED_RELATION_MAX_AB - 1);
   unsigned long err = 0;
 
-  if (verbose)
-    fprintf (stderr, "# relation %" PRIu64 " with (a,b) = (%" PRId64 ","
-                     "%" PRIu64 "):\n", rel->num, rel->a, rel->b);
+  mpz_poly_setcoeffs_int64(ab, rel->ab, EARLYPARSED_RELATION_MAX_AB - 1);
+
+  if (verbose) {
+      fprintf (stderr, "# relation %" PRIu64 " with (a,b) = (", rel->num);
+      mpz_poly_fprintf_coeffs(stderr, ab, ',');
+      fprintf (stderr, ")\n");
+  }
 
   /* Look for which sides are in use */
   for(weight_t i = 0; i < rel->nb ; i++)
@@ -167,9 +172,11 @@ process_one_relation (earlyparsed_relation_ptr rel)
     if (used[side])
     {
       mpz_poly_ptr ps = cpoly->pols[side];
-      mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
+      mpz_poly_resultant (norm[side], ps, ab);
       if (verbose)
         gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side]);
+      if (mpz_sgn(norm[side]) < 0)
+          mpz_neg(norm[side], norm[side]);
     }
     else
       mpz_set_ui (norm[side], 1);
@@ -295,6 +302,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
         err |= REL_FULLY_FIXED;
   }
 
+  mpz_poly_clear(ab);
   for(int side = 0 ; side < cpoly->nb_polys ; side++)
     mpz_clear(norm[side]);
 
@@ -310,20 +318,15 @@ print_relation (FILE *outfile, earlyparsed_relation_ptr rel)
   size_t t;
   unsigned int i, j;
 
-  if (!abhexa)
-  {
-    p = d64toa10(buf, rel->a);
-    *p++ = ',';
-    p = u64toa10(p, rel->b);
-    *p++ = ':';
+  int nab = EARLYPARSED_RELATION_MAX_AB;
+  for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+  p = buf;
+  *p++ = 'X';
+  for(int i = 0 ; i < nab ; i++) {
+      *p++ = i ? ',' : ' ';
+      p = d64toa16(p, rel->ab[i]);
   }
-  else
-  {
-    p = d64toa16(buf, rel->a);
-    *p++ = ',';
-    p = u64toa16(p, rel->b);
-    *p++ = ':';
-  }
+  *p++ = ':';
 
   for(unsigned int side = 0 ; side < 2 ; side++)
   {
@@ -405,8 +408,6 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
   param_list_decl_usage (pl, "poly", "polynomials file (mandatory)");
-  param_list_decl_usage (pl, "abhexa", "(switch) read and write a and b as hexa "
-                                        "(instead of decimal)");
   param_list_decl_usage (pl, "fixit",  "(switch) Try to fix wrong relations");
   param_list_decl_usage (pl, "check_primality", "(switch) check primality of "
                                                 "primes (default, no checking)");
@@ -439,7 +440,6 @@ main (int argc, char * argv[])
     param_list_init(pl);
     declare_usage(pl);
 
-    param_list_configure_switch(pl, "abhexa", &abhexa);
     param_list_configure_switch(pl, "fixit", &fix_it);
     param_list_configure_switch(pl, "v", &verbose);
     param_list_configure_switch(pl, "check_primality", &check_primality);
@@ -573,8 +573,7 @@ main (int argc, char * argv[])
 
     timingstats_dict_init(stats);
     filter_rels(files, (filter_rels_callback_t) &thread_callback, (void*)outfile,
-                EARLYPARSE_NEED_PRIMES |
-                (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
+                EARLYPARSE_NEED_PRIMES | EARLYPARSE_NEED_AB,
                 NULL, stats);
 
     printf("Number of read relations: %" PRIu64 "\n", nrels_read);

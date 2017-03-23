@@ -5,13 +5,6 @@
 /* Duplicate removal */
 /*********************/
 
-// These 4 constants are used for defining the hash functions used by dup.
-#define CA_DUP1 314159265358979323UL
-#define CB_DUP1 271828182845904523UL
-
-#define CA_DUP2 271828182845904523UL
-#define CB_DUP2 577215664901532889UL
-
 /* Purge (a.k.a singleton and clique removal) */
 /**********************************************/
 

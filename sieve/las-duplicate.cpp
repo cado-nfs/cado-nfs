@@ -79,11 +79,11 @@ Thus the function to check for duplicates needs the following information:
 #define VERBOSE_LEVEL 2
 
 static void
-compute_a_over_b_mod_p(mpz_t r, const int64_t a, const uint64_t b, const mpz_t p)
+compute_minus_a_over_b_mod_p(mpz_t r, cxx_mpz const & a, cxx_mpz const & b, const mpz_t p)
 {
-  mpz_set_uint64(r, b);
+  mpz_neg(r, b);
   mpz_invert(r, r, p);
-  mpz_mul_int64(r, r, a);
+  mpz_mul(r, r, a);
   mpz_mod(r, r, p);
 }
 
@@ -116,15 +116,12 @@ fill_in_sieve_info(las_todo_entry const & doing,
   return x;
 }
 
-las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, const unsigned long p, int side)
+las_todo_entry special_q_from_ab(cxx_mpz const& a, cxx_mpz const& b, const unsigned long p, int side)
 {
-  mpz_t sq, rho;
+  cxx_mpz sq, rho;
   mpz_init_set_ui(sq, p);
-  mpz_init(rho);
-  compute_a_over_b_mod_p(rho, a, b, sq);
+  compute_minus_a_over_b_mod_p(rho, a, b, sq);
   las_todo_entry doing(sq, rho, side);
-  mpz_clear(sq);
-  mpz_clear(rho);
   return doing;
 }
 
@@ -160,7 +157,7 @@ estimate_lognorm(sieve_info const & si, const int i, const unsigned int j,
 {
   mpz_t norm;
   mpz_init (norm);
-  mpz_poly_homogeneous_eval_siui(norm, si.sides[side].fij, i, j);
+  mpz_poly_homogeneous_eval_sisi(norm, si.sides[side].fij, i, j);
   return fb_log(mpz_get_d(norm), si.sides[side].scale * LOG_SCALE, 0.) + GUARD;
   mpz_clear (norm);
 }
@@ -213,8 +210,7 @@ subtract_fb_log(const unsigned char lognorm, relation const& rel,
       const unsigned char p_pow_log = fb_log(p_pow, si.sides[side].scale * LOG_SCALE, 0.);
       if (p_pow_log > new_lognorm) {
         if (0)
-          fprintf(stderr, "Warning: lognorm underflow for relation a,b = %" PRId64 ", %" PRIu64 "\n",
-                  rel.a, rel.b);
+          gmp_fprintf(stderr, "Warning: lognorm underflow for relation a,b = %Zx,%Zx\n", rel[0], rel[1]);
         new_lognorm = 0;
       } else {
         new_lognorm -= p_pow_log;
@@ -262,7 +258,13 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
     compute_cofactor(cof[side], side == sq_side ? sq : 0, large_primes[side], nr_lp[side]);
   }
 
-  las_todo_entry doing = special_q_from_ab(rel.a, rel.b, sq, sq_side);
+  /* TODO: we might consider doing this even for higher-dimensional
+   * sieving. Headaches...
+   */
+  if (rel.ab().size() != 2)
+      return 0;
+
+  las_todo_entry doing = special_q_from_ab(rel[0], rel[1], sq, sq_side);
 
   sieve_range_adjust Adj(doing, old_si.cpoly, old_si.conf, nb_threads);
 
@@ -296,7 +298,7 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
 
   si.update_norm_data();
 
-  verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Checking if relation (a,b) = (%" PRId64 ",%" PRIu64 ") is a dupe of sieving special-q -q0 %lu -rho %lu\n", rel.a, rel.b, sq, r);
+  verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK Checking if relation (a,b) = (%Zx,%Zx) is a dupe of sieving special-q -q0 %lu -rho %lu\n", rel[0], rel[1], sq, r);
   verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Using special-q basis a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "\n", si.qbasis.a0, si.qbasis.b0, si.qbasis.a1, si.qbasis.b1);
 
   I = si.I;
@@ -307,7 +309,7 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
   
   /* Compute i,j-coordinates of this relation in the special-q lattice when
      p was used as the special-q value. */
-  ok = ABToIJ(&i, &j, rel.a, rel.b, si);
+  ok = ABToIJ(&i, &j, mpz_get_int64(rel[0]), mpz_get_int64(rel[1]), si);
 
   if (!ok)
     abort();

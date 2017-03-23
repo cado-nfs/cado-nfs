@@ -27,7 +27,7 @@ typedef struct {
 typedef allbad_info_struct_t allbad_info_t[1];
 
 void read_bad_ideals_info(const char *filename, allbad_info_t info);
-void handle_bad_ideals (int *exp_above, int64_t a, uint64_t b, p_r_values_t p,
+void handle_bad_ideals (int *exp_above, uint64_t a, int64_t b, p_r_values_t p,
                         int e, int side, allbad_info_t info);
 
 #endif   /* __FILTER_BADIDEALS_H__ */

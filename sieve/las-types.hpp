@@ -136,12 +136,6 @@ struct smart_norm_root {
   smart_norm_root(unsigned char derivative = 0, double value = 0) : derivative(derivative), value(value) {}
 };
 
-/* These segments ((x, F(x)), (y, F(y))) are used in the smart normalization */
-typedef struct sg_s {
-  int begin, end;
-  double f_begin, f_end;
-} sg_t;
-
 /* {{{ sieve_info
  *
  * General information about the siever, based on some input-dependent
@@ -293,7 +287,7 @@ struct las_info : private NonCopyable {
     int nb_threads;
     FILE *output;
     const char * outputname; /* keep track of whether it's gzipped or not */
-    const char * galois; /* a string to indicate which galois to use in las */
+    galois_automorphism_srcptr galois;
     int verbose;
     int suppress_duplicates;
 

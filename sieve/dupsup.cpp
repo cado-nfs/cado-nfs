@@ -14,7 +14,7 @@
 
 #include "portability.h"
 #include "macros.h"
-#include "relation.h"
+#include "relation.hpp"
 #include "params.h"
 #include "cado_poly.h"
 #include "gzip.h"

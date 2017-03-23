@@ -3,85 +3,111 @@
 #include "portability.h"
 #include "utils.h"
 
-void automorphism_init(int *ord, int mat[4], const char *galois_autom){
-    int A, B, C, D; // x -> (A*x+B)/(C*x+D)
+struct galois_automorphism_s sigmas[] = {
+    /* the homography H={a,b,c,d} encodes (ax+b)/(cx+d) */
+    { "autom2.1", 2, 1, 1, {0,1,1,0} },       // 1/x
+    { "autom2.2", 2, 1, 1, {-1,0,0,1} },      // -x
+    { "autom3.1", 3, 1, 1, {1,-1,1,0} },      // (x-1)/x = 1-1/x
+    { "autom3.2", 3, 1, 1, {-1,-1,1,0} },     // (-x-1)/x = -1-1/x
+    { "autom4.1", 4, 2, 2, {-1,-1,1,-1} },    // (-x-1)/x = -1-1/x
+    { "autom6.1", 6, 3, 2, {-2,-1,1,-1} },    // -(2*x+1)/(x-1)
+    { "_1/y", 2, 1, 1, {0,-1,1,0} },          // -1/x
+    // some old aliases.
+    { "autom2.1g", 2, 1, 1, {0,1,1,0} },       // 1/x
+    { "1/y", 2, 1, 1, {0,1,1,0} },             // 1/x
+    { "autom2.2g", 2, 1, 1, {-1,0,0,1} },      // -x
+    { "_y", 2, 1, 1, {-1,0,0,1} },             // -x
+    { "autom3.1g", 3, 1, 1, {1,-1,1,0} },      // (x-1)/x = 1-1/x
+    { 0, },
+};
 
-    if(strcmp(galois_autom, "autom2.1") == 0 
-       || strcmp(galois_autom, "autom2.1g") == 0
-       || strcmp(galois_autom, "1/y") == 0){
-	*ord = 2; A = 0; B = 1; C = 1; D = 0;
+galois_automorphism_srcptr galois_automorphism_get(const char * name)
+{
+    if (name == NULL)
+        return NULL;
+    for(unsigned int i = 0 ; sigmas[i].name ; i++) {
+        if (strcmp(sigmas[i].name, name) == 0) {
+            galois_automorphism_srcptr sigma = &(sigmas[i]);
+            ASSERT_ALWAYS(sigma->order % sigma->period == 0);
+            return sigma;
+        }
     }
-    else if(strcmp(galois_autom, "autom2.2") == 0
-	    || strcmp(galois_autom, "autom2.2g") == 0
-	    || strcmp(galois_autom, "_y") == 0){
-	*ord = 2; A = -1; B = 0; C = 0; D = 1;
-    }
-    else if(strcmp(galois_autom, "autom3.1") == 0
-	    || strcmp(galois_autom, "autom3.1g") == 0){
-	// 1-1/x = (x-1)/x
-	*ord = 3; A = 1; B = -1; C = 1; D = 0;
-    }
-    else if(strcmp(galois_autom, "autom3.2") == 0){
-	// -1-1/x = (-x-1)/x
-	*ord = 3; A = -1; B = -1; C = 1; D = 0;
-    }
-    else if(strcmp(galois_autom, "autom4.1") == 0){
-	// -(x+1)/(x-1)
-	*ord = 4; A = -1; B = -1; C = 1; D = -1;
-    }
-    else if(strcmp(galois_autom, "autom6.1") == 0){
-	// -(2*x+1)/(x-1)
-	*ord = 6; A = -2; B = -1; C = 1; D = -1;
-    }
-    else{
-	fprintf(stderr, "Unknown automorphism: %s\n", galois_autom);
-	ASSERT_ALWAYS(0);
-    }
-    mat[0] = A; mat[1] = B; mat[2] = C; mat[3] = D;
+    return NULL;
 }
 
-/* OUTPUT: sigma(r).
-   Since we can have r == qq, we need unsigned long's.
-*/
-unsigned long automorphism_apply(residueul_t mat[4], unsigned long r,
-				 const modulusul_t mm, const unsigned long qq)
+/* returns how many times sigma->factor must by added to the
+ * corresponding relation */
+int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, uint64_t * a, int64_t * b)
 {
-    residueul_t xx;
-    unsigned long sigma_r;
+    mpz_poly ab;
+    mpz_poly_init(ab, 1);
+    mpz_poly_setcoeff_uint64(ab, 0, *a);
+    mpz_poly_setcoeff_int64(ab, 1, *b);
+    mpz_poly_homography(ab, ab, sigma->H, 1);
+    if (mpz_sgn(ab->coeff[0]) < 0)
+        mpz_poly_neg(ab, ab);
+    *a = mpz_get_uint64(ab->coeff[0]);
+    *b = mpz_get_int64(ab->coeff[1]);
+    mpz_poly_clear(ab);
 
-    modul_init(xx, mm);
-    if(r == qq){
-	// sigma(oo) = A/C
-	// TODO: test C w.r.t. +/- 1
-	modul_inv(xx, mat[2], mm);
-	modul_mul(xx, xx, mat[0], mm);
-	sigma_r = modul_get_ul(xx, mm);
+    if (sigma->factor <= 1) return 0;
+
+    /* we add [factor] every [period] applications. So the norm gets
+     * [factor^degree] every [order] applications, and the degree is equal to
+     * the order (we're talking about cyclic galois actions). So each
+     * application gains us [order/period] occurences of the prime factor
+     * [factor].  We then compensate every time we have a and b both
+     * divisible by [factor] (which we don't expect would occur more than
+     * once, normally).
+     *
+     * Note: if the automorphism order is less than the polynomial
+     * degree, then it generates a subgroup. Norm contributions should be
+     * multiplied by [degree/order], but that is done outside this
+     * function, because we're only dealing with the automorphism itself
+     * here.
+     */
+    int e = sigma->order / sigma->period;
+    if (*a % sigma->factor == 0 && *b % sigma->factor == 0) {
+        e -= sigma->order;
+        *a /= sigma->factor;
+        *b /= sigma->factor;
     }
-    else{
-	residueul_t rr;
+    ASSERT_ALWAYS (*a % sigma->factor != 0 || *b % sigma->factor != 0);
 
-	modul_init(rr, mm);
-	modul_set_ul(rr, r, mm);
-	// denominator: C*r+D
-	modul_mul(xx, mat[2], rr, mm);
-	modul_add(xx, xx, mat[3], mm);
-	if(modul_is0(xx, mm))
-	    // 1/0 = oo
-	    sigma_r = qq;
-	else{
-	    residueul_t yy;
+    return e;
+}
 
-	    modul_init(yy, mm);
-	    modul_inv(yy, xx, mm);
-	    // numerator: A*r+B
-	    modul_mul(xx, mat[0], rr, mm);
-	    modul_add(xx, xx, mat[1], mm);
-	    modul_mul(yy, yy, xx, mm);
-	    sigma_r = modul_get_ul(yy, mm);
-	    modul_clear(yy, mm);
-	}
-	modul_clear(rr, mm);
+/* Perhaps we want this to deal correctly with projective roots. Do we
+ * also care about powers ?
+ *
+ * Should we do a "fast" version ? Doubt it.
+ */
+void galois_automorphism_apply_root(galois_automorphism_srcptr sigma, mpz_ptr r1, mpz_srcptr r0, mpz_srcptr p)
+{
+    // x -> (A*x+B)/(C*x+D)
+    mpz_t u,v;
+    mpz_init(u);
+    mpz_init(v);
+    ASSERT_ALWAYS(mpz_cmp(r0, p) <= 0);
+    if (mpz_cmp(r0, p) == 0) {
+        /* image of infinity is a/c */
+        mpz_set_si(v, sigma->H[2]);
+        if (mpz_invert(v, v, p)) {
+            mpz_mul_si(u, v,  sigma->H[0]);
+            mpz_mod(r1, u, p);
+        } else {
+            mpz_set(r1, p);
+        }
+    } else {
+        mpz_mul_si(v, r0, sigma->H[2]); mpz_add_si(v, v, sigma->H[3]);
+        if (mpz_invert(v, v, p)) {
+            mpz_mul_si(u, r0, sigma->H[0]); mpz_add_si(u, u, sigma->H[1]);
+            mpz_mul(u, u, v);
+            mpz_mod(r1, u, p);
+        } else {
+            mpz_set(r1, p);
+        }
     }
-    modul_clear(xx, mm);
-    return sigma_r;
+    mpz_clear(u);
+    mpz_clear(v);
 }

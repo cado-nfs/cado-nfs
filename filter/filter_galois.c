@@ -8,6 +8,18 @@
 #include "utils_with_io.h"
 #include "mod_ul.h"
 
+/* from dup2.c */
+static const uint64_t constants_ab_dup2[EARLYPARSED_RELATION_MAX_AB] = {
+    /* the first two used to be called CA_DUP2 and CB_DUP2 -- well,
+     * except that now that we've negated the semantics of b, the hash
+     * values differ anyway... */
+    UINT64_C(271828182845904523),
+    UINT64_C(577215664901532889),
+    /* These are just obtained with RandomPrime(64) */
+    UINT64_C(11362315840839667127),
+    UINT64_C(5093043268839177131),
+};
+
 char *argv0; /* = argv[0] */
 
 /* Renumbering table to convert from (p,r) to an index */
@@ -67,285 +79,110 @@ get_outfilename_from_infilename (char *infilename, const char *outfmt,
 // itself, or another index.
 index_t *Gal;
 
-// returns 1/r mod p; FIXME: should be replaced some time.
-static p_r_values_t my_inv(p_r_values_t r, p_r_values_t p){
-    p_r_values_t sigma_r;
-
-    modulusul_t mm;
-    residueul_t xx;
-    modul_initmod_ul(mm, p);
-    modul_init(xx, mm);
-    modul_set_ul(xx, r, mm);
-    modul_inv(xx, xx, mm);
-    sigma_r = modul_get_ul(xx, mm);
-    modul_clear(xx, mm);
-    modul_clearmod(mm);
-    return sigma_r;
-}
-
-// TMP, TMP: should be replaced by stuff in galois_utils.
-static p_r_values_t apply_auto(p_r_values_t p, p_r_values_t r, const char *action){
-    p_r_values_t sigma_r = 0;
-
-    if(strcmp(action, "1/y") == 0 || strcmp(action, "autom2.1g") == 0){
-	if (r == 0)
-	    sigma_r = p;
-	else if (r == p)
-	    sigma_r = 0;
-	else {
-	    sigma_r = my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "_y") == 0 || strcmp(action, "autom2.2g") == 0){
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = 0;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = p;
-	}
-	else {
-	    sigma_r = p - r;
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "autom3.1g") == 0){
-	// x -> 1-1/x
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = p;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = 1;
-	}
-	else if (r == 1){
-	    fprintf(stderr, "WARNING: r=1\n");
-	    sigma_r = 0;
-	}
-	else {
-	    // 1 < r < p => 1 < 1/r < p
-	    // => 1 < p+1-1/r < p
-	    sigma_r = p + 1 - my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "autom3.2g") == 0){
-	// x -> -1-1/x
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = p;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = p-1;
-	}
-	else if (r == p-1){
-	    fprintf(stderr, "WARNING: r=-1\n");
-	    sigma_r = 0;
-	}
-	else {
-	    // 1 <= r < p-1 => 1 <= 1/r < p-1
-	    sigma_r = p - 1 - my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else
-      ASSERT_ALWAYS(0); /* should not happen */
-    return sigma_r;
-}
-
+/* Compute a table with exactly one representative per orbit under the
+ * Galois action.
+ */
+#define c_swap(type, x, y) do { type _tmp = (x); (x) = (y); (y) = _tmp; } while (0)
 static void
-compute_galois_action (renumber_t tab, cado_poly cpoly, const char *action)
+compute_galois_action (renumber_t tab, cado_poly_srcptr cpoly, galois_automorphism_srcptr sigma)
 {
-  index_t i;
-  p_r_values_t old_p, p, r[20], rr;
-  index_t ind[20];
-  int side, old_side;
-  int nr;
-  int j, ord, imat[4];
-  old_p = 0;
-  old_side = 42; // any value different from the legit ones.
-  nr = 0;
-
   Gal = (index_t *) malloc(tab->size * sizeof(index_t));
   ASSERT_ALWAYS(Gal != NULL);
 
-  automorphism_init(&ord, imat, action);
-  for (i = 0; i < tab->size; i++) {
-//    if (i % (1<<16) == 0)
-//      fprintf(stderr, "at %lu\n", (unsigned long)i);
-    if (tab->table[i] == RENUMBER_SPECIAL_VALUE) {
-      Gal[i] = i;
-    } else {
-      renumber_get_p_r_from_index(tab, &p, &rr, &side, i, cpoly);
-      // Is it a new (p, side) ?
-      if (old_p == p && old_side == side) {
-        r[nr] = rr;
-        ind[nr] = i;
-        nr++;
+  renumber_iterator it;
+  renumber_iterator_init(it, tab, cpoly);
+  for( ; !renumber_iterator_done(it) ; ) {
+      index_t i0 = it->i;
+      /* check special values. Those form their own orbit under Galois,
+       * at least for now (well, theoretically we could have Galois
+       * action on bad ideals after all...).
+       */
+      if (it->p == 0 || it->side < 0) {
+          Gal[it->i] = it->i;
+          renumber_iterator_next(it);
+          continue;
       }
-      // If needed, take care of previous (p,side)
-      if ((old_p != p || old_side != side) || i == tab->size-1)
-      {
-        if (old_p != 0) {
-          // Sort the roots, to put sigma(r) near r.
-	  // -> build orbits r, sigma(r), ..., sigma^{ord-1}(r)
-	  if ((nr % ord) != 0){
-            fprintf(stderr,
-		"Warning: number of roots not divisible by %d,"
-		"skipping p=%" PRpr ", r=%" PRpr "\n", ord, old_p, r[0]);
-            for (int k = 0; k < nr; ++k)
-              Gal[ind[k]] = ind[k];
-          } else {
-            int k = 0;
-            while (k < nr) {
-              // Get sigma(r[k]) mod p
-	      p_r_values_t sigma_r = apply_auto(old_p, r[k], action);
-
-	      for(j = 1; j < ord; j++){
-		  // r[k], ..., sigma^{j-1}(r[k]) already treated
-		  // eq. r[k], ..., r[k+j-1]
-		  // Find the index of sigma_r
-		  int l;
-		  for (l = k+j; l <= nr; ++l) {
-		      if (r[l] == sigma_r)
-			  break;
-		  }
-		  ASSERT_ALWAYS(l < nr);
-		  // Swap position k+j and l
-		  r[l] = r[k+j];
-		  r[k+j] = sigma_r;
-		  int tmp = ind[l];
-		  ind[l] = ind[k+j];
-		  ind[k+j] = tmp;
-		  sigma_r = apply_auto(old_p, sigma_r, action);
-	      }
-	      ASSERT_ALWAYS(sigma_r == r[k]);
-              // Next
-              k += ord;
-            }
-            // Store the correspondence between conjugate ideals
-            for (k = 0; k < nr; k += ord) {
-		for(j = 0; j < ord; j++)
-		    Gal[ind[k+j]] = ind[k];
-            }
+      /* We want to read a complete range of roots for a given (p,side) */
+      p_r_values_t p = it->p;
+      int side = it->side;
+      p_r_values_t r[32];
+      index_t ind[32];
+      int nr = 0;
+      for( ; p == it->p && side == it->side ; renumber_iterator_next(it)) {
+          /* we begin with the simple ordering */
+          ASSERT_ALWAYS(i0 + nr == it->i);
+          Gal[it->i] = it->i;
+          ind[nr] = it->i;
+          r[nr] = it->r;
+          nr++;
+      }
+      /* At this point we've advanced our iterator to the next (p,side) */
+      if (nr % sigma->order) {
+          fprintf(stderr,
+                  "Warning: number of roots above"
+                  " p=0x%" PRpr " not divisible by %d, skipping\n",
+                  p, sigma->order);
+          continue;
+      }
+      /* sort into orbits. There's rather similar code in
+       * skip_galois_roots in las.cpp ; here, we're keeping orbits
+       * contiguous, although I doubt it really matters.
+       */
+      /* So far the Gal[] table for this (p,side) is still trivial, and
+       * ind[] points to the linearly-ordered range. */
+      mpz_t pz, rz;
+      mpz_init_set_ui(pz, p);
+      mpz_init(rz);
+      for(int i = 0 ; i < nr; ) {
+          /* Let's say this root is the privileged one. We'll find all
+           * roots in its orbit, and stow them close by */
+          mpz_set_ui(rz, r[i]);
+          int osize = 1;
+          for( ; osize < sigma->order ; osize++) {
+              galois_automorphism_apply_root(sigma, rz, rz, pz);
+              /* where is it ? */
+              int found;
+              for(found = 0 ; found < nr ; found++) {
+                  if (mpz_cmp_ui(rz, r[found]) == 0)
+                      break;
+              }
+              ASSERT_ALWAYS(found < nr);
+              /* If already stored, then this orbits wraps around
+               * soonish, meaning that we're done.  */
+              if (found <= i)
+                  break;
+              /* we want to put this root in position [i+osize]. This
+               * entails changing our ind[] table */
+              c_swap(p_r_values_t, r[found],   r[i+osize]);
+              c_swap(index_t,      ind[found], ind[i+osize]);
+              Gal[ind[i+osize]]=ind[i];
           }
-        }
-        // Prepare for next
-        old_p = p;
-        old_side = side;
-        nr = 1;
-        r[0] = rr;
-        ind[0] = i;
+          i += osize;
       }
-    }
+      mpz_clear(rz);
+      mpz_clear(pz);
   }
-}
-
-// Case 2.1 (x -> 1/x): (a-b/x) = 1/x*(-b-(-a)*x) = (-b, -a) ~ (b, a)
-// Hash value that is the same for (a,b) and (b,a)
-// (with sign normalization).
-static inline uint64_t myhash_2_1(int64_t a, uint64_t b)
-{
-  uint64_t h0, h1;
-  h0 = CA_DUP2 * (uint64_t) a + CB_DUP2 * b;
-  if (a > 0) {
-    h1 = CA_DUP2 * b + CB_DUP2 * (uint64_t)a;
-  } else {
-    int64_t bb = -((int64_t)b);
-    h1 = CA_DUP2 *(uint64_t) bb + CB_DUP2 * (uint64_t) (-a);
-  }
-  return h0 ^ h1;
-}
-
-// Case 2.2 (x -> -x): (a-b*(-x)) = (a-(-b)*x) = (a, -b) ~ (-a, b).
-// Hash value that is the same for (a,b) and (-a,b): H((|a|, b))
-// (with sign normalization).
-static inline uint64_t myhash_2_2(int64_t a, uint64_t b)
-{
-    int64_t absa = (a >= 0 ? a : -a);
-    return (CA_DUP2 * (uint64_t) absa + CB_DUP2 * b);
-}
-
-static inline void lexico3(int64_t *aa, int64_t *bb, 
-			   int64_t a1, int64_t b1, 
-			   int64_t a2, int64_t b2, 
-			   int64_t a3, int64_t b3)
-{
-    // make signs ok
-    if(b2 < 0){ a2 = -a2; b2 = -b2; }
-    if(b3 < 0){ a3 = -a3; b3 = -b3; }
-    // take largest pair (a_i, b_i) in lexicographic order
-    if(a1 > a2){
-	if(a1 > a3){ *aa = a1; *bb = b1; }
-	else if(a1 < a3){ *aa = a3; *bb = b3; }
-	else{ // a1 == a3
-	    if(b1 >= b3){ *aa = a1; *bb = b1; }
-	    else{ *aa = a3; *bb = b3; }
-	}
-    }
-    else{ // a1 <= a2
-	if(a2 < a3){ *aa = a3; *bb = b3; }
-	else if(a2 > a3){ *aa = a2; *bb = b2; }
-	else{ // a1 <= a2 == a3: we cannot have a1 = a2 = a3 (?)
-	    if(b2 >= b3){ *aa = a2; *bb = b2; }
-	    else{ *aa = a3; *bb = b3; }
-	}
-    }
-    ASSERT_ALWAYS(*aa > 0);
-}
-
-// Case 3.1 (x -> 1-1/x): (a, b), (b, b-a), (b-a, -a)
-// If a < b: (a, b), (b, b-a), (b-a, -a) ~ (a-b, a) if a > 0 else (b-a, -a).
-// If a > b: (a, b), (b, b-a) ~ (-b, a-b); (b-a, -a) ~ (a-b, a).
-static inline uint64_t myhash_3_1(int64_t a, uint64_t b)
-{
-    int64_t b1 = (int64_t)b, a1 = a, a2, b2, a3, b3, aa, bb;
-    a2 = b1; b2 = -a1+b1;
-    a3 = b2; b3 = -a2+b2;
-    lexico3(&aa, &bb, a1, b1, a2, b2, a3, b3);
-    uint64_t h = (CA_DUP2 * (uint64_t) aa + CB_DUP2 * (uint64_t)bb);
-    fprintf(stderr, "HASH3.1: %" PRId64 " %" PRIu64 " -> %" PRId64 " %" PRId64 " -> h=%" PRIu64 "\n", a, b, aa, bb, h);
-    return h;
-}
-
-// Case 3.2 (x -> -1-1/x): (a, b), (b, -a-b), (-a-b, a)
-static inline uint64_t myhash_3_2(int64_t a, uint64_t b)
-{
-    int64_t b1 = (int64_t)b, a1 = a, a2, b2, a3, b3, aa, bb;
-    a2 = b1; b2 = -a1-b1;
-    a3 = b2; b3 = -a2-b2;
-    lexico3(&aa, &bb, a1, b1, a2, b2, a3, b3);
-    uint64_t h = (CA_DUP2 * (uint64_t) aa + CB_DUP2 * (uint64_t)bb);
-    fprintf(stderr, "HASH3.2: %" PRId64 " %" PRIu64 " -> %" PRId64 " %" PRId64 " -> h=%" PRIu64 "\n", a, b, aa, bb, h);
-    return h;
-}
-
-static inline uint64_t myhash(int64_t a, uint64_t b, char *action)
-{
-    if(strcmp(action, "1/y") == 0 || strcmp(action, "autom2.1g") == 0)
-	return myhash_2_1(a, b);
-    else if(strcmp(action, "_y") == 0 || strcmp(action, "autom2.2g") == 0)
-	return myhash_2_2(a, b);
-    else if(strcmp(action, "autom3.1g") == 0)
-	return myhash_3_1(a, b);
-    else if(strcmp(action, "autom3.2g") == 0)
-	return myhash_3_2(a, b);
-    else
-	return 0;
+  renumber_iterator_clear(it);
 }
 
 static inline uint32_t
 insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
-				  unsigned int *is_dup, char *action)
+				  unsigned int *is_dup,
+                                  galois_automorphism_srcptr sigma)
 {
-  uint64_t h;
   uint32_t i, j;
+  int64_t ab[EARLYPARSED_RELATION_MAX_AB];
+  memcpy(ab, rel->ab, EARLYPARSED_RELATION_MAX_AB * sizeof(int64_t));
 
-  h = myhash(rel->a, rel->b, action);
+  uint64_t h = 0;
+  for(int i = 0 ; i < sigma->order ; i++) {
+      uint64_t dh=0;
+      for(int i = 0 ; i < EARLYPARSED_RELATION_MAX_AB ; i++) {
+          dh += constants_ab_dup2[i] * ab[i];
+      }
+      h ^= dh;
+      galois_automorphism_apply_ab(sigma, (uint64_t*)&(ab[0]), &ab[1]);
+  }
   i = h % K;
   j = (uint32_t) (h >> 32);
   while (H[i] != 0 && H[i] != j) {
@@ -363,24 +200,50 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
   return i;
 }
 
+struct thread_galois_context_data {
+    FILE * output;
+    galois_automorphism_srcptr sigma;
+};
+
+/* I think that this is doomed. Just getting by with only a change of
+ * sign works only for the narrowish situation where the automorphism has
+ * order 2.
+ */
 static void *
-thread_galois (void * context_data, earlyparsed_relation_ptr rel, char *action)
+thread_galois (void * context_data, earlyparsed_relation_ptr rel)
 {
   unsigned int is_dup;
-  FILE * output = (FILE*) context_data;
-  insert_relation_in_dup_hashtable (rel, &is_dup, action);
+  struct thread_galois_context_data* context = context_data;
+  FILE * output = context->output;
+  galois_automorphism_srcptr sigma = context->sigma;
+
+  /* see comment above. */
+  ASSERT_ALWAYS(sigma->order == 2);
+
+  insert_relation_in_dup_hashtable (rel, &is_dup, sigma);
   if (is_dup)
     return NULL;
 
   noutrels++;
   
+  /* We're going to do ugly things.  */
+
+  /* taken from dup2.c -- I wish there were something more generic. The
+   * function in dup2 does extra stuff with J columns which is completely
+   * irrelevant here.
+   */
   char buf[1 << 12], *p, *op;
   size_t t;
   unsigned int i, j;
 
-  p = d64toa16(buf, rel->a);
-  *p++ = ',';
-  p = u64toa16(p, rel->b);
+  int nab = EARLYPARSED_RELATION_MAX_AB;
+  for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+  p = buf;
+  *p++ = 'X';
+  for(int i = 0 ; i < nab ; i++) {
+      *p++ = i ? ',' : ' ';
+      p = d64toa16(p, rel->ab[i]);
+  }
   *p++ = ':';
 
   for (i = 0; i < rel->nb; i++)
@@ -392,6 +255,9 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel, char *action)
     // the fact that we change the prime ideal for its conjugate.
     int neg = (rel->primes[i].e < 0) ^ (hrep != h);
     op = p;
+    /* We prepend the prime with a "-" to indicate that the exponent is
+     * to be understood differently...
+     */
     if (neg) { *p++ = '-'; }
     p = u64toa16(p, (uint64_t) hrep);
     *p++ = ',';
@@ -415,31 +281,6 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel, char *action)
     abort();
   }
   return NULL;
-}
-
-// TODO: do better than having a function per automorphism.
-static void *
-thread_galois_2_1 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "1/y");
-}
-
-static void *
-thread_galois_2_2 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "_y");
-}
-
-static void *
-thread_galois_3_1 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "autom3.1g");
-}
-
-static void *
-thread_galois_3_2 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "autom3.2g");
 }
 
 static void declare_usage(param_list pl)
@@ -572,7 +413,10 @@ main (int argc, char *argv[])
   renumber_read_table (renumber_tab, renumberfilename);
 
   fprintf(stderr, "Computing Galois action %s on ideals\n", action);
-  compute_galois_action(renumber_tab, cpoly, action);
+
+  galois_automorphism_srcptr sigma = galois_automorphism_get(action);
+
+  compute_galois_action(renumber_tab, cpoly, sigma);
 
   fprintf(stderr, "Rewriting relations files\n");
   char ** files;
@@ -582,16 +426,10 @@ main (int argc, char *argv[])
     nb_files++;
 
   struct filter_rels_description desc[2] = {
-    { .f = thread_galois_2_1, .arg=0, .n=1, },
+    { .f = thread_galois, .arg = NULL, .n=1, },
     { .f = NULL, },
   };
 
-  if(strcmp(action, "_y") == 0)
-      desc[0].f = thread_galois_2_2;
-  else if(strcmp(action, "autom3.1g") == 0)
-      desc[0].f = thread_galois_3_1;
-  else if(strcmp(action, "autom3.2g") == 0)
-      desc[0].f = thread_galois_3_2;
 
   fprintf (stderr, "Reading files (using %d auxiliary threads):\n", desc[0].n);
   for (char **p = files; *p ; p++) {
@@ -601,10 +439,16 @@ main (int argc, char *argv[])
 
     get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
     output = fopen_maybe_compressed(oname_tmp, "w");
-    desc[0].arg = (void*) output;
+    
+    struct thread_galois_context_data ctx = {
+        .output = output,
+        .sigma = sigma,
+    };
+
+    desc[0].arg = &ctx;
 
     filter_rels2(local_filelist, desc,
-        EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
+        EARLYPARSE_NEED_AB | EARLYPARSE_NEED_INDEX,
         NULL, NULL);
 
     fclose_maybe_compressed(output, oname_tmp);

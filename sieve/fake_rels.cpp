@@ -125,12 +125,13 @@ void read_rel(fake_rel& rel, uint64_t q, int sqside, const char *str,
     const char *pstr = str;
     {
         char *endpstr = NULL;
-        a = strtoll(pstr, &endpstr, 10);
+        ASSERT_ALWAYS (*pstr++=='X');
+        a = strtoull(pstr, &endpstr, 16);
         ASSERT_ALWAYS (endpstr != pstr);
         pstr = endpstr;
         ASSERT_ALWAYS (pstr[0]==',');
         pstr++;
-        b = strtoull(pstr, &endpstr, 10);
+        b = strtoll(pstr, &endpstr, 16);
         ASSERT_ALWAYS (endpstr != pstr);
         pstr = endpstr;
         // skip ':'

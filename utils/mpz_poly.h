@@ -69,12 +69,13 @@ void mpz_poly_clear(mpz_poly_ptr f);
 
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
 void mpz_poly_setcoeffs(mpz_poly_ptr f, mpz_t * coeffs, int d);
+void mpz_poly_setcoeffs_int64 (mpz_poly_ptr f, const int64_t * coeffs, int d);
 void mpz_poly_set_zero(mpz_poly_ptr f);
 void mpz_poly_set_xi(mpz_poly_ptr f, int i);
 void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
 
 void mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
-void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_t a, mpz_t b);
+void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z);
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z);
@@ -102,6 +103,7 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f);
 void mpz_poly_fprintf_endl (FILE *fp, mpz_poly_srcptr f, int endl);
 void mpz_poly_fprintf(FILE *fp, mpz_poly_srcptr f);
 void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep);
+void mpz_poly_fprintf_coeffs_hex (FILE *fp, mpz_poly_srcptr f, const char sep);
 void mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f,
                                    const char letter, const char *pre);
 void mpz_poly_print_raw(mpz_poly_srcptr f);
@@ -192,8 +194,8 @@ void mpz_poly_gcd_mpz (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz
 // given argument.
 int mpz_poly_pseudogcd_mpz(mpz_poly_ptr , mpz_poly_ptr , mpz_srcptr , mpz_t );
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
-void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
-void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i, const uint64_t j);
+void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, const int64_t H[4], int d);
+void mpz_poly_homogeneous_eval_sisi (mpz_t v, mpz_poly_srcptr f, const int64_t i, const int64_t j);
 void mpz_poly_content (mpz_t c, mpz_poly_srcptr F);
 void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q);
 void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f);

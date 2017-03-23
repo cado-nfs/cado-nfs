@@ -100,8 +100,8 @@ generic_skew_gauss(mpz_t a[2], mpz_t b[2], double skewness)
         mpz_submul(N[1], q, tmp);
     }
 
-    /* We don't care about the sign of b. Down the road, there's an
-     * IJToAB function which guarantees positive b */
+    /* We don't care about the sign of b. Normalization should be done
+     * down the road (e.g. with IJToAB) */
 
     /* However we do care about vector 0 being the ``smallest'' in some
      * sense. The trick is that the comparison criterion used previously
@@ -132,6 +132,7 @@ SkewGauss (qlattice_basis &basis, const mpz_t p, const mpz_t r,
 
     mpz_init_set (a[0], p);
     mpz_init_set (a[1], r);
+    mpz_neg (a[1], a[1]);
     mpz_init_set_ui (b[0], 0);
     mpz_init_set_ui (b[1], 1);
     generic_skew_gauss (a, b, skewness);

@@ -105,7 +105,7 @@ typedef struct {
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr pol)
+uint64_t eval_64chars(uint64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr pol)
 {
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
@@ -120,7 +120,7 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
             } else if (ch->r == 1) {
                 res = 1;        // parity character
             } else if (ch->r == 2) {
-                /* Special: rational sign (sign of m1*a+m2*b) */
+                /* Special: rational sign (sign of m1*a-m2*b) */
                 mpz_t tmp1, tmp2;
                 int ratside = cado_poly_get_ratside(pol);
 		ASSERT_ALWAYS(ratside != -1);
@@ -131,10 +131,10 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
                 res = (a > 0) ? mpz_sgn(po->coeff[1]) : -mpz_sgn(po->coeff[1]);
                 if (mpz_sgn(po->coeff[0]) != res) {
                     mpz_init(tmp1);
-                    mpz_mul_si(tmp1, po->coeff[1], a);
+                    mpz_mul_ui(tmp1, po->coeff[1], a);
                     mpz_init(tmp2);
-                    mpz_mul_ui(tmp2, po->coeff[0], b);
-                    mpz_add(tmp1, tmp1, tmp2);
+                    mpz_mul_si(tmp2, po->coeff[0], b);
+                    mpz_sub(tmp1, tmp1, tmp2);
                     res = mpz_sgn(tmp1) < 0;
                     mpz_clear(tmp1);
                     mpz_clear(tmp2);
@@ -147,26 +147,23 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
                 abort();
             }
         } else {
-            /* Compute b*r-a (mod p) */
+            /* Compute a+b*r (mod p) */
             residueul_t ra, rb, rr;
             modulusul_t mp;
             modul_initmod_ul(mp, ch->p);
             modul_init(ra, mp);
             modul_init(rb, mp);
             modul_init(rr, mp);
-            if (a < 0) {
-                ASSERT((uint64_t)(-a) <= ULONG_MAX);
-                modul_set_ul(ra, (unsigned long)(-a), mp);
-                modul_neg(ra, ra, mp);
+            modul_set_ul(ra, a, mp);
+            if (b < 0) {
+                modul_set_ul(rb, (unsigned long)(-b), mp);
+                modul_neg(rb, rb, mp);
             } else {
-                ASSERT((uint64_t)a <= ULONG_MAX);
-                modul_set_ul(ra, a, mp);
+                modul_set_ul(rb, (unsigned long)b, mp);
             }
-            ASSERT(b <= ULONG_MAX);
-            modul_set_ul(rb, (unsigned long)b, mp);
             modul_set_ul_reduced(rr, ch->r, mp);
             modul_mul(rr, rb, rr, mp);
-            modul_sub(rr, rr, ra, mp);
+            modul_add(rr, rr, ra, mp);
             res = modul_jacobi(rr, mp);
             modul_clear(ra, mp);
             modul_clear(rb, mp);
@@ -195,8 +192,8 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
 
 struct charbatch {
     uint64_t * W;
-    int64_t * A;
-    uint64_t *B;
+    uint64_t * A;
+    int64_t *B;
     unsigned int n;
     alg_prime_t * chars;
     cado_poly_ptr pol;
@@ -206,8 +203,8 @@ void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void *
     struct charbatch * ss = (struct charbatch *) t;
 
     for(unsigned int z = tnum * ss->n / g->n ; z < (tnum + 1) * ss->n / g->n ; z++) {
-        int64_t a = ss->A[z];
-        uint64_t b = ss->B[z];
+        uint64_t a = ss->A[z];
+        int64_t b = ss->B[z];
         ss->W[z] = eval_64chars(a,b,ss->chars,ss->pol);
     }
     return;
@@ -295,16 +292,20 @@ static alg_prime_t * create_characters(int nchars[2],
 
 typedef struct
 {
-  int64_t *a;
-  uint64_t *b;
+  uint64_t *a;
+  int64_t *b;
 } chars_data_t;
 
 void *
 thread_chars (void * context_data, earlyparsed_relation_ptr rel)
 {
   chars_data_t *data = (chars_data_t *) context_data;
-  data->a[rel->num] = rel->a;
-  data->b[rel->num] = rel->b;
+  int nab = EARLYPARSED_RELATION_MAX_AB;
+  for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+  ASSERT_ALWAYS(nab == 2 && rel->ab[0] >= 0);
+
+  data->a[rel->num] = rel->ab[0];
+  data->b[rel->num] = rel->ab[1];
   return NULL;
 }
 
@@ -316,8 +317,8 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    int64_t  *all_A = (int64_t *)  malloc (nrows * sizeof(int64_t));
-    uint64_t *all_B = (uint64_t *) malloc (nrows * sizeof(uint64_t));
+    uint64_t  *all_A = (uint64_t *)  malloc (nrows * sizeof(uint64_t));
+    int64_t *all_B = (int64_t *) malloc (nrows * sizeof(int64_t));
     ASSERT_ALWAYS(all_A != NULL && all_B != NULL);
     blockmatrix res = blockmatrix_alloc(nrows, nchars2);
     blockmatrix_set_zero(res);
@@ -328,15 +329,15 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     chars_data_t data = {.a = all_A, .b=all_B};
     char *fic[2] = {(char *) purgedname, NULL};
     filter_rels (fic, (filter_rels_callback_t) thread_chars, &data,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB, NULL, NULL);
 
     fprintf(stderr, "Computing %u characters for %" PRIu64 " (a,b) pairs\n",
             nchars2, nrows);
 
     for(uint64_t i = 0 ; i < nrows; ) {
         static const int batchsize = 16384;
-        int64_t A[batchsize];
-        uint64_t B[batchsize];
+        uint64_t A[batchsize];
+        int64_t B[batchsize];
         uint64_t W[batchsize];
         int bs = 0;
         while (bs < batchsize && i+bs < nrows) {

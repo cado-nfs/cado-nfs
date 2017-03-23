@@ -59,6 +59,19 @@
 
 #define DEBUG 0
 
+static const uint64_t constants_ab_dup2[EARLYPARSED_RELATION_MAX_AB] = {
+    /* the first two used to be called CA_DUP2 and CB_DUP2 -- well,
+     * except that now that we've negated the semantics of b, the hash
+     * values differ anyway... */
+    UINT64_C(271828182845904523),
+    UINT64_C(577215664901532889),
+    /* These are just obtained with RandomPrime(64) */
+    UINT64_C(11362315840839667127),
+    UINT64_C(5093043268839177131),
+};
+
+
+
 char *argv0; /* = argv[0] */
 
 /* Renumbering table to convert from (p,r) to an index */
@@ -142,10 +155,22 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
   unsigned int i, j;
   uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
 
+#if 0
   p = d64toa16(buf, rel->a);
   *p++ = ',';
   p = u64toa16(p, rel->b);
   *p++ = ':';
+#else
+  int nab = EARLYPARSED_RELATION_MAX_AB;
+  for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+  p = buf;
+  *p++ = 'X';
+  for(int i = 0 ; i < nab ; i++) {
+      *p++ = i ? ',' : ' ';
+      p = d64toa16(p, rel->ab[i]);
+  }
+  *p++ = ':';
+#endif
 
   for (i = 0; i < rel->nb; i++)
   {
@@ -217,11 +242,13 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
 static inline uint64_t
 insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int *is_dup)
 {
-  uint64_t h, i;
+  uint64_t h=0, i;
   uint32_t j;
   double local_cost = 0;
 
-  h = CA_DUP2 * (uint64_t) rel->a + CB_DUP2 * rel->b;
+  for(int i = 0 ; i < EARLYPARSED_RELATION_MAX_AB ; i++) {
+      h += constants_ab_dup2[i] * rel->ab[i];
+  }
 
   /* We put j = floor(h/2^32) in cell H[i] where i = h % K (or the first
      available cell after i if H[i] is already occupied). We have extraneous
@@ -249,12 +276,17 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
   }
 
   if (local_cost > 100)
-    {
+  {
       static int count = 0;
-      if (count++ < 10)
-        fprintf (stderr, "Warning, insertion cost %1.0f for a=%" PRId64
-                 " b=%" PRIu64 " h=%" PRIu64 " i=%" PRIu64 " j=%u\n",
-                 local_cost, rel->a, rel->b, h, i, j);
+      if (count++ < 10) {
+          mpz_poly ab;
+          mpz_poly_init(ab, EARLYPARSED_RELATION_MAX_AB - 1);
+          mpz_poly_setcoeffs_int64(ab, rel->ab, EARLYPARSED_RELATION_MAX_AB - 1);
+          fprintf (stderr, "Warning, insertion cost %1.0f for ab=", local_cost);
+          mpz_poly_fprintf_coeffs(stderr, ab, ',');
+          fprintf (stderr, " h=%" PRIu64 " i=%" PRIu64 " j=%u\n", h, i, j);
+          mpz_poly_clear(ab);
+      }
     }
 
   cost += local_cost;
@@ -297,6 +329,10 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
   prime_t *pr = rel->primes;
   weight_t len = rel->nb; // rel->nb can be modified by bad ideals
 
+  int nab = EARLYPARSED_RELATION_MAX_AB;
+  for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
+  ASSERT_ALWAYS(nab == 2);
+
   for (i = 0; i < len; i++)
   {
     if (pr[i].e > 0)
@@ -314,7 +350,7 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
           abort();
         }
 #endif
-        r = (p_r_values_t) relation_compute_r (rel->a, rel->b, pr[i].p);
+        r = (p_r_values_t) relation_compute_r (rel->ab[0], rel->ab[1], pr[i].p);
       }
       else
         r = 0; // on the rational side we need not compute r, which is m mod p.
@@ -326,7 +362,7 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
                                                                     pr[i].side))
       {
         int exp_above[RENUMBER_MAX_ABOVE_BADIDEALS] = {0,};
-        handle_bad_ideals (exp_above, rel->a, rel->b, pr[i].p, pr[i].e,
+        handle_bad_ideals (exp_above, rel->ab[0], rel->ab[1], pr[i].p, pr[i].e,
                            pr[i].side, info);
         
         /* allocate room for (nb) more valuations */
@@ -423,19 +459,22 @@ hash_renumbered_rels (void * context_data MAYBE_UNUSED, earlyparsed_relation_ptr
     // They should be no duplicate in already renumbered file
     if (is_dup && count++ < 10)
     {
-      fprintf (stderr, "Warning, duplicate relation in already renumbered files:"
-                       "\na = %s%" PRIx64 "\nb = %" PRIx64 "\ni = %" PRIu64
-                       "\nj = %" PRIu32 "\n", (rel->a < 0) ? "-" : "",
-                       (uint64_t) ((rel->a < 0) ? -rel->a : rel->a),
-                       rel->b, i, H[i]);
-      fprintf (stderr, "This warning may be due to a collision on the hash "
-                       "function or to an actual duplicate\nrelation. If it "
-                       "appears often you should check the input set of "
-                       "relations.\n\n");
+        mpz_poly ab;
+        mpz_poly_init(ab, EARLYPARSED_RELATION_MAX_AB - 1);
+        mpz_poly_setcoeffs_int64(ab, rel->ab, EARLYPARSED_RELATION_MAX_AB - 1);
+        fprintf (stderr, "Warning, duplicate relation in already renumbered files:"
+                "\nab = ");
+        mpz_poly_fprintf_coeffs(stderr, ab, ',');
+        fprintf(stderr, "\ni = %" PRIu64 "\nj = %" PRIu32 "\n", i, H[i]);
+        fprintf (stderr, "This warning may be due to a collision on the hash "
+                "function or to an actual duplicate\nrelation. If it "
+                "appears often you should check the input set of "
+                "relations.\n\n");
+        mpz_poly_clear(ab);
     }
 
     if (i < sanity_size)
-        sanity_check (i, rel->a, rel->b);
+        sanity_check (i, rel->ab[0], rel->ab[1]);
 
     if (cost >= factor * (double) (nrels_tot - ndup_tot))
         print_warning_size ();
@@ -454,7 +493,7 @@ thread_dup2 (void * context_data, earlyparsed_relation_ptr rel)
     i = insert_relation_in_dup_hashtable (rel, &is_dup);
     if (!is_dup) {
         if (i < sanity_size)
-            sanity_check(i, rel->a, rel->b);
+            sanity_check(i, rel->ab[0], rel->ab[1]);
         if (cost >= factor * (double) (nrels_tot - ndup_tot))
             print_warning_size ();
 
@@ -729,7 +768,7 @@ main (int argc, char *argv[])
   filter_rels(files_already_renumbered,
           (filter_rels_callback_t) &hash_renumbered_rels,
           NULL,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB, NULL, NULL);
 
   {
       struct filter_rels_description desc[3] = {
@@ -755,7 +794,7 @@ main (int argc, char *argv[])
           nrels = ndup = 0;
 
           uint64_t loc_nrels = filter_rels2(local_filelist, desc,
-                  EARLYPARSE_NEED_AB_DECIMAL | EARLYPARSE_NEED_PRIMES,
+                  EARLYPARSE_NEED_AB | EARLYPARSE_NEED_PRIMES,
                   NULL, NULL);
 
           ASSERT_ALWAYS(loc_nrels == nrels);

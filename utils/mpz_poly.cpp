@@ -15,6 +15,7 @@
 #include <string.h>
 #include <gmp.h>
 #include <sstream>
+#include <algorithm>
 #include "portability.h"
 #include "mpz_poly.h"
 #include "lll.h"
@@ -24,10 +25,9 @@
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"
 #include "double_poly.h"
+#include "cxx_mpz.hpp"
 
-#ifndef max
-#define max(a,b) ((a)<(b) ? (b) : (a))
-#endif
+using namespace std;
 
 static inline mpz_ptr mpz_poly_lc(mpz_poly_ptr f)
 {
@@ -525,15 +525,13 @@ mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
 
 /* rel <- a-b*x */
 void
-mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_t a, mpz_t b)
+mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
 {
     mpz_poly_init(rel, 1);
     mpz_poly_setcoeff(rel, 0, a);
-    mpz_t mb;
-    mpz_init(mb);
+    cxx_mpz mb;
     mpz_neg(mb, b);
     mpz_poly_setcoeff(rel, 1, mb);
-    mpz_clear(mb);
 }
 
 /* swap f and g */
@@ -595,8 +593,18 @@ void mpz_poly_cleandeg(mpz_poly_ptr f, int deg)
 void mpz_poly_setcoeffs (mpz_poly_ptr f, mpz_t * coeffs, int d)
 {
   int i;
+  mpz_poly_set_zero(f);
   for (i=d; i>=0; --i)
     mpz_poly_setcoeff(f, i, coeffs[i]);
+  mpz_poly_cleandeg(f, d);
+}
+
+void mpz_poly_setcoeffs_int64 (mpz_poly_ptr f, const int64_t * coeffs, int d)
+{
+  int i;
+  mpz_poly_set_zero(f);
+  for (i=d; i>=0; --i)
+    mpz_poly_setcoeff_int64(f, i, coeffs[i]);
   mpz_poly_cleandeg(f, d);
 }
 
@@ -866,6 +874,17 @@ void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep)
     gmp_fprintf (fp, "%Zd", f->coeff[0]);
     for (int i = 1; i <= f->deg; i++)
       gmp_fprintf (fp, "%c%Zd", sep, f->coeff[i]);
+  }
+  fprintf (fp, "\n");
+}
+
+void mpz_poly_fprintf_coeffs_hex (FILE *fp, mpz_poly_srcptr f, const char sep)
+{
+  if (f->deg >= 0)
+  {
+    gmp_fprintf (fp, "%Zx", f->coeff[0]);
+    for (int i = 1; i <= f->deg; i++)
+      gmp_fprintf (fp, "%c%Zx", sep, f->coeff[i]);
   }
   fprintf (fp, "\n");
 }
@@ -2434,22 +2453,28 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
 
 /*  Homographic transform on polynomials */
 /* Put in fij[] the coefficients of f'(i) = F(a0*i+a1, b0*i+b1).
-   Assumes the coefficients of fij[] are initialized.
+ *  Assumes the coefficients of fij[] are initialized.
+ *
+ *  The polynomial F is understood as having d+1 coeffs, with zero
+ *  coefficients accepted.
 */
 void
-mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
+mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, const int64_t H[4], int d)
 {
   int k, l;
   mpz_t *g; /* will contain the coefficients of (b0*i+b1)^l */
   mpz_t f0;
-  mpz_t *f = F->coeff;
-  int d = F->deg;
+  ASSERT_ALWAYS(F->deg <= d);
 
   mpz_poly_realloc (Fij, d + 1);
 
   mpz_t *fij = Fij->coeff;
-  for (k = 0; k <= d; k++)
-    mpz_set (fij[k], f[k]);
+  {
+      for (k = 0; k <= F->deg; k++)
+          mpz_set (fij[k], F->coeff[k]);
+      for (; k <= d; k++)
+          mpz_set_ui (fij[k], 0);
+  }
 
   Fij->deg = d;
 
@@ -2508,10 +2533,11 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
   for (k = 0; k <= d; k++)
     mpz_clear (g[k]);
   free (g);
+  mpz_poly_cleandeg(Fij, d);
 }
 
 /* v <- |f(i,j)|, where f is homogeneous of degree d */
-void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
+void mpz_poly_homogeneous_eval_sisi (mpz_t v, mpz_poly_srcptr f, const int64_t i, const int64_t j)
 {
   unsigned int k = f->deg;
   mpz_t jpow;
@@ -2520,7 +2546,7 @@ void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i
   mpz_set (v, f->coeff[f->deg]);
   mpz_mul_si (v, f->coeff[k], i);
   mpz_init (jpow);
-  mpz_set_uint64 (jpow, j);
+  mpz_set_int64 (jpow, j);
   mpz_addmul (v, f->coeff[--k], jpow); /* v = i*f[d] + j*f[d-1] */
   for (; k-- > 0;)
       {
@@ -2528,12 +2554,12 @@ void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i
         if ((uint64_t) ULONG_MAX >= UINT64_MAX)
           { /* hardcode since this function is critical in las */
             mpz_mul_si (v, v, i);
-            mpz_mul_ui (jpow, jpow, j);
+            mpz_mul_si (jpow, jpow, j);
           }
         else
           {
             mpz_mul_int64 (v, v, i);
-            mpz_mul_uint64 (jpow, jpow, j);
+            mpz_mul_int64 (jpow, jpow, j);
           }
         mpz_addmul (v, f->coeff[k], jpow);
       }

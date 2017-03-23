@@ -72,7 +72,16 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
 #endif
 
 
-/* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
+/* Back in the days, fb_root_in_qlattice used to return
+ * (R*b1-a1)/(a0-R*b0) mod p */
+
+/* now we want to compute r such that j/i=r mod p means that a/b=-R mod p.
+ *
+ * (a=i*a0+j*a1)+R*(i*b0+j*b1) = 0 mod p
+ * (a0+R*b0)*i+(a1+R*b1)*j = 0
+ *
+ * so r=-(a1+R*b1)/(a0+R*b0)
+ */
 #if defined(SUPPORT_LARGE_Q)
 #ifndef  HAVE_redc_64
 #error  "Please implement redc_64"
@@ -134,13 +143,13 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
   if (LIKELY(R < p)) /* Root in a,b-plane is affine */
     {
-      aux1 = (int64_t)R * basis.b1 - basis.a1;
-      aux2 = basis.a0 - (int64_t)R *basis.b0;
+      aux1 = (int64_t)R * basis.b1 + basis.a1;
+      aux2 = -(basis.a0 + (int64_t)R *basis.b0);
     }
   else /* Root in a,b-plane is projective */
     {
-      aux1 = basis.b1 - (int64_t)(R - p) * basis.a1;
-      aux2 = (int64_t)(R - p) * basis.a0 - basis.b0;
+      aux1 = basis.b1 + (int64_t)(R - p) * basis.a1;
+      aux2 = -((int64_t)(R - p) * basis.a0 + basis.b0);
     }
   u = redc_32(aux1, p, invp); /* 0 <= u < p */
   v = redc_32(aux2, p, invp); /* 0 <= v < p */
@@ -181,13 +190,13 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   
   if (LIKELY(R < p)) /* Root in a,b-plane is affine */
     {
-      aux1 = ((int64_t)R)*redc_64(basis.b1, p, invp) - redc_64(basis.a1, p, invp);
-      aux2 = redc_64(basis.a0, p, invp) - ((int64_t)R)*redc_64(basis.b0, p, invp);
+      aux1 = ((int64_t)R)*redc_64(basis.b1, p, invp) + redc_64(basis.a1, p, invp);
+      aux2 = -(redc_64(basis.a0, p, invp) + ((int64_t)R)*redc_64(basis.b0, p, invp));
     }
   else /* Root in a,b-plane is projective */
     {
-      aux1 = redc_64(basis.b1, p, invp) - ((int64_t)(R - p))*redc_64(basis.a1, p, invp);
-      aux2 = ((int64_t)(R - p))*redc_64(basis.a0, p, invp) - redc_64(basis.b0, p, invp);
+      aux1 = redc_64(basis.b1, p, invp) + ((int64_t)(R - p))*redc_64(basis.a1, p, invp);
+      aux2 = -(((int64_t)(R - p))*redc_64(basis.a0, p, invp) + redc_64(basis.b0, p, invp));
     }
   
   /* The root in the (i,j) plane is (aux1:aux2). Now let's put it
@@ -232,13 +241,13 @@ static inline fbprime_t fb_root_in_qlattice_po2 (const fbprime_t p, const fbprim
     ASSERT(p == (p & -p)); /* Test that p is power of 2 */
     if (R < p) /* Root in a,b-plane is non-projective */
       {
-	u = (int64_t)R * (basis.b1 % p) - basis.a1;
-	v = basis.a0 - (int64_t)R * (basis.b0 % p);
+	u = (int64_t)R * (basis.b1 % p) + basis.a1;
+	v = -(basis.a0 + (int64_t)R * (basis.b0 % p));
       }
     else /* Root in a,b-plane is projective */
       {
-        u = basis.b1 - (int64_t)(R - p) * (basis.a1 % p);
-        v = (int64_t)(R - p) * (basis.a0 % p) - basis.b0;
+        u = basis.b1 + (int64_t)(R - p) * (basis.a1 % p);
+        v = -((int64_t)(R - p) * (basis.a0 % p) + basis.b0);
       }
     
     if (v & 1)

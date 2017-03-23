@@ -207,8 +207,6 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     log_rel_t *lrel = &(data->rels[rel->num]);
 
     mpz_ptr l = lrel->log_known_part;
-    int64_t a = rel->a;
-    uint64_t b = rel->b;
 
     uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
     for (weight_t i = 0; i < rel->nb; i++) {
@@ -216,6 +214,9 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
       int side = renumber_get_side_from_index (data->renum_tab, h, data->poly);
       nonvoidside |= ((uint64_t) 1) << side;
     }
+
+    int nab = EARLYPARSED_RELATION_MAX_AB;
+    for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
 
     if (rel->sm_size) {
         /* use the SM values which are already present in the input file,
@@ -228,9 +229,8 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 #define xxxDOUBLECHECK_SM
 #ifdef DOUBLECHECK_SM
                 mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
-                mpz_poly_setcoeff_int64(u, 0, a);
-                mpz_poly_setcoeff_int64(u, 1, -b);
+                mpz_poly_init(u, MAX(nab-1, S->f->deg-1));
+                mpz_poly_setcoeffs_int64(u, rel->ab, nab-1);
                 compute_sm_piecewise(u, u, S);
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 ASSERT_ALWAYS(u->deg == S->f->deg - 1);
@@ -255,9 +255,8 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
             sm_side_info_srcptr S = data->sm_info[side];
             if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
                 mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
-                mpz_poly_setcoeff_int64(u, 0, a);
-                mpz_poly_setcoeff_int64(u, 1, -b);
+                mpz_poly_init(u, MAX(nab-1, S->f->deg-1));
+                mpz_poly_setcoeffs_int64(u, rel->ab, nab-1);
                 compute_sm_piecewise(u, u, S);
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 for(int i = S->f->deg-1-u->deg; i < S->nsm; i++)
@@ -976,7 +975,7 @@ compute_log_from_rels (bit_vector needed_rels,
                    { .f = NULL,          .arg=0,    .n=0}
       };
   filter_rels2 (fic, desc,
-          EARLYPARSE_NEED_AB_HEXA |
+          EARLYPARSE_NEED_AB |
           EARLYPARSE_NEED_INDEX |
           EARLYPARSE_NEED_SM, /* It's fine (albeit slow) if we recompute them */
           needed_rels, NULL);

@@ -1008,6 +1008,12 @@ static inline void Fill_S (unsigned char *S, int x, double fx, int y, double fy)
   memset (S + x, next_f, (size_t) (y - x));
 }
 
+/* These segments ((x, F(x)), (y, F(y))) are used in the smart normalization */
+typedef struct sg_s {
+  int begin, end;
+  double f_begin, f_end;
+} sg_t;
+
 /* This functions sets all the segments of the contiguous unset values of
  * the line S with F(i, const j) by a polygonal approximation on these
  * segments.  Derecursivate optimal version.
@@ -1390,14 +1396,14 @@ get_maxnorm_alg (double_poly_srcptr src_poly, const double X, const double Y)
 
 void sieve_range_adjust::prepare_fijd()/*{{{*/
 {
-    int64_t H[4] = { Q.a0, Q.b0, Q.a1, Q.b1 };
+    int64_t H[4] = { Q.a0, -Q.b0, Q.a1, -Q.b1 };
     /* We need to get the floating point polynomials. Yes, it will be
      * done several times in the computation, but that's a trivial
      * computation anyway.
      */
     for (int side = 0; side < 2; side++) {
         cxx_mpz_poly fz;
-        mpz_poly_homography (fz, cpoly->pols[side], H);
+        mpz_poly_homography (fz, cpoly->pols[side], H, cpoly->pols[side]->deg);
         if (doing.side == side) {
             ASSERT_ALWAYS(mpz_poly_divisible_mpz(fz, doing.p));
             mpz_poly_divexact_mpz(fz, fz, doing.p);
@@ -1825,7 +1831,7 @@ void
 sieve_info::update_norm_data()
 {
   sieve_info& si(*this);
-  int64_t H[4] = { si.qbasis.a0, si.qbasis.b0, si.qbasis.a1, si.qbasis.b1 };
+  int64_t H[4] = { si.qbasis.a0, -si.qbasis.b0, si.qbasis.a1, -si.qbasis.b1 };
 
   double step, begin;
   double r, maxlog2;
@@ -1834,7 +1840,7 @@ sieve_info::update_norm_data()
    * get_maxnorm_alg(). */
   for (int side = 0; side < 2; side++) {
       sieve_info::side_info& s(si.sides[side]);
-      mpz_poly_homography (s.fij, si.cpoly->pols[side], H);
+      mpz_poly_homography (s.fij, si.cpoly->pols[side], H, si.cpoly->pols[side]->deg);
       if (si.conf.side == side) {
           ASSERT_ALWAYS(mpz_poly_divisible_mpz(s.fij, si.doing.p));
           mpz_poly_divexact_mpz(s.fij, s.fij, si.doing.p);

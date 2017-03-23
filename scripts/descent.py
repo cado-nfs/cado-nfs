@@ -438,7 +438,7 @@ class ideals_above_p(object):
                 continue;
             pk = pow(p, X[1])
             rk = X[2]
-            if not is_a_over_b_equal_r_mod_pk(a,b,rk,p,pk):
+            if not is_a_over_b_equal_r_mod_pk(a,-b,rk,p,pk):
                 continue;
             vals = X[4]
             badid = (p, r, side)
@@ -462,7 +462,7 @@ class ideals_above_p(object):
         if side == 0:
             self.r = -1
         else:
-            self.r = a_over_b_mod_p(a, b, p)
+            self.r = a_over_b_mod_p(a, -b, p)
         self.isbad = self.__is_badideal(p, self.r, side, general)
         if self.isbad:
             self.bads = self.__handle_badideal(p, k, a, b, self.r, side, general)
@@ -675,7 +675,7 @@ class DescentUpperClass(object):
                             if ideal.get_log() != None:
                                 continue
                             else:
-                                r = a_over_b_mod_p(a, b, p)
+                                r = a_over_b_mod_p(a, -b, p)
                                 f.write("1 %d %d\n" % (p, r))
         return todofilename, [Num, Den, fnum, fden], descrelfile
 
@@ -787,10 +787,16 @@ class DescentUpperClass(object):
             raise NameError("No relation found!")
         print("Taking relation %s\n" % rel)
         rel = rel.split(':')
-        a,b = [int(x) for x in rel[0].split(',')]
+        if rel[0][:2] == "X ":
+            ab = [int(x,16) for x in rel[0][2:].split(',')]
+            # FIXME for descent to adapt to higher degree sieving.
+            assert len(ab) == 2
+            a,b=ab
+        else:
+            a,b = [int(x) for x in rel[0].split(',')]
 
-        Num = a*gg[0][0] + b*gg[1][0]
-        Den = a*gg[0][1] + b*gg[1][1]
+        Num = a*gg[0][0] - b*gg[1][0]
+        Den = a*gg[0][1] - b*gg[1][1]
         assert (zz*Den-Num) % p == 0
 
         factNum = [ int(x, 16) for x in rel[2].split(',') ]
@@ -983,14 +989,14 @@ class DescentLowerClass(object):
             with open(rfile, 'r') as file:
                 with open(relsforSM, 'a') as fileSM:
                     for line in file:
-                        foo = re.match("^Taken: (-?\d+),(-?\d+):", line)
+                        foo = re.match("^Taken: X (-?\w+),(-?\w+):", line)
                         if foo:
                             r = line.split(':')[1:]
                             r[0] = r[0].lstrip()
                             fileSM.write(r[0] + ":" + r[1] + ":" + r[2])
-                            a,b = r[0].split(',')
-                            a=int(a)
-                            b=int(b)
+                            a,b = r[0][2:].split(',')
+                            a=int(a,16)
+                            b=int(b,16)
                             list_p = [ [], [] ]
                             for side in range(2):
                                 for p in r[side+1].strip().split(','):
@@ -1049,7 +1055,7 @@ class DescentLowerClass(object):
                         "Two unknown ideals in relation a,b=%d,%d: %d and %d"
                         % (a, b, unk[0], p))
                         else:
-                            unk = [p, a_over_b_mod_p(a, b, p), side]
+                            unk = [p, a_over_b_mod_p(a, -b, p), side]
                     else:
                         acc_log += ideal.get_log()
             acc_log = acc_log % general.ell()

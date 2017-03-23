@@ -423,12 +423,28 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
 
 #define PARSER_ASSERT_ALWAYS(got, expect, sline, ptr) do {		\
     if (UNLIKELY((got)!=(expect))) {					\
+        char tmp[100];                                                  \
+        size_t s MAYBE_UNUSED = strlcpy(tmp, sline, sizeof(tmp));       \
         fprintf(stderr, "Parse error in %s at %s:%d\n"			\
                 "Expected character '%c', got '%c'"			\
                 " after reading %zd bytes from:\n"			\
-                "%s\n",							\
+                "%s\n",	        					\
                 __func__,__FILE__,__LINE__,				\
-                expect, got, ptr - sline, sline);			\
+                expect, got, ptr - sline, tmp); 			\
+        abort();							\
+    }									\
+} while (0)
+
+#define PARSER_ASSERT_ALWAYS2(got, expect, sline, ptr) do {		\
+    if (UNLIKELY((got)!=(expect)[0] && (got)!=(expect)[1])) {		\
+        char tmp[100];                                                  \
+        size_t s MAYBE_UNUSED = strlcpy(tmp, sline, sizeof(tmp));       \
+        fprintf(stderr, "Parse error in %s at %s:%d\n"			\
+                "Expected character within '%s', got '%c'"		\
+                " after reading %zd bytes from:\n"			\
+                "%s\n",	        					\
+                __func__,__FILE__,__LINE__,				\
+                expect, got, ptr - sline, tmp); 			\
         abort();							\
     }									\
 } while (0)
@@ -439,7 +455,7 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
  * "normal" processing of a,b, i.e. everywhere except for the very first
  * stage of dup2, involves reading a,b in hex.
  */
-static inline int earlyparser_inner_read_ab_withbase(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel, const uint64_t base)
+static inline int earlyparser_inner_read_legacy_ab_withbase(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel, const uint64_t base)
 {
     const char * p = *pp;
     int c;
@@ -455,24 +471,78 @@ static inline int earlyparser_inner_read_ab_withbase(ringbuf_ptr r, const char *
         RINGBUF_GET_ONE_BYTE(c, r, p);
     }
     PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
-    rel->a = negative ? -w : w;
+    rel->ab[0] = negative ? -w : w;
     RINGBUF_GET_ONE_BYTE(c, r, p);
     for (w = 0; (v = ugly[c]) < base;) {
         w = w * base + v;
         RINGBUF_GET_ONE_BYTE(c, r, p);
     }
     *pp = p;
-    rel->b = w;
+    /* the legacy format encodes a-bx, so we put -b */
+    rel->ab[1] = -w;
+    rel->ab[2] = 0;
+    rel->ab[3] = 0;
     return c;
 }
-static int earlyparser_inner_read_ab_decimal(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
-{
-    return earlyparser_inner_read_ab_withbase(r, pp, rel, 10);
-}
 
-static int earlyparser_inner_read_ab_hexa(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
+static inline int earlyparser_inner_read_ab(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
 {
-    return earlyparser_inner_read_ab_withbase(r, pp, rel, 16);
+    const char * p = *pp;
+    int c;
+    uint64_t v,w;
+    RINGBUF_GET_ONE_BYTE(c, r, p);
+    if (c != 'X') {
+        const int base = 10;
+        /* support old format (decimal). This is only relevant for relation
+         * files. */
+        memset(rel->ab, 0, sizeof(rel->ab));
+        int negative = 0;
+        if (c == '-') {
+            negative = 1;
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        for (w = 0; (v = ugly[c]) < base;) {
+            w = w * base + v;
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
+        rel->ab[0] = w;
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+        for (w = 0; (v = ugly[c]) < base;) {
+            w = w * base + v;
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        *pp = p;
+        /* the legacy format encodes a-bx, so we put -b. Except that we
+         * used to enforce b>=0, while the new convention is a>=0. So if
+         * we met a negative *a*, then we're doing to encode -a+bx, while
+         * otherwise we'll put a-bx indeed.
+         */
+        rel->ab[1] = negative ? w : -w;
+    } else {
+        const int base = 16;
+        PARSER_ASSERT_ALWAYS(c, 'X', *pp, p);
+        /* New format is always in hex */
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+        int i;
+        for(i = 0 ; c != ':' && i < EARLYPARSED_RELATION_MAX_AB ; i++) {
+            PARSER_ASSERT_ALWAYS2(c, " ,", *pp, p);
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+            int negative = 0;
+            if (c == '-') {
+                negative = 1;
+                RINGBUF_GET_ONE_BYTE(c, r, p);
+            }
+            for (w = 0; (v = ugly[c]) < base;) {
+                w = w * base + v;
+                RINGBUF_GET_ONE_BYTE(c, r, p);
+            }
+            rel->ab[i] = negative ? -w : w;
+        }
+        ASSERT_ALWAYS(i <= EARLYPARSED_RELATION_MAX_AB);
+    }
+    *pp = p;
+    return c;
 }
 
 static int earlyparser_inner_read_prime(ringbuf_ptr r, const char ** pp, uint64_t * pr)
@@ -540,21 +610,12 @@ static int prime_t_cmp(prime_t * a, prime_t * b)
  *    is going to end up in the renumber table. We use the .side field in the
  *    prime_t structure to pass information to the routine which does this.
  */
-static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf_ptr r, uint64_t base);
-static int earlyparser_abp_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    return earlyparser_abp_withbase(rel, r, 10);
-}
-static int earlyparser_abp_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    return earlyparser_abp_withbase(rel, r, 16);
-}
 
-static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf_ptr r, uint64_t base)
+static inline int earlyparser_abp(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
 
-    int c = earlyparser_inner_read_ab_withbase(r, &p, rel, base);
+    int c = earlyparser_inner_read_ab(r, &p, rel);
 
     unsigned int n = 0;
 
@@ -612,10 +673,18 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
 }
 
 static int
+earlyparser_legacy_ab_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+{
+    const char * p = r->rhead;
+    earlyparser_inner_read_legacy_ab_withbase(r, &p, rel, 10);
+    return 1;
+}
+
+static int
 earlyparser_ab(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab_hexa(r, &p, rel);
+    earlyparser_inner_read_ab(r, &p, rel);
     return 1;
 }
 
@@ -662,31 +731,20 @@ earlyparser_line(earlyparsed_relation_ptr rel, ringbuf_ptr r)
     return 1;
 }
 
-/* e.g. for dup1 for FFS with -abhexa command-line flag */
 static int
-earlyparser_abline_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab_hexa(r, &p, rel);
+    earlyparser_inner_read_ab(r, &p, rel);
     return earlyparser_line(rel, r);
 }
 
-/* e.g. for dup1 */
-static int
-earlyparser_abline_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    const char * p = r->rhead;
-    earlyparser_inner_read_ab_decimal(r, &p, rel);
-    return earlyparser_line(rel, r);
-}
-
-
-/* Note: for these routine, the sorting of the primes is not considered, and at
- * least for the 1st pass of purge, so far we've been using this code on
- * unsorted relations.
+/* Note: for these routines, the sorting of the primes is not considered,
+ * and at least for the 1st pass of purge, so far we've been using this
+ * code on unsorted relations.
  */
 static int
-earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
+earlyparser_index(earlyparsed_relation_ptr rel, ringbuf_ptr r,
         int parseab, int parsesm)
 {
     const char *p = r->rhead;
@@ -694,7 +752,7 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
     /* c is always the first-after-parsed-data byte */
     int c;
     if (parseab) {
-        c = earlyparser_inner_read_ab_hexa(r, &p, rel);
+        c = earlyparser_inner_read_ab(r, &p, rel);
     } else {
         c = earlyparser_inner_skip_ab(r, &p);
     }
@@ -745,28 +803,37 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
 static int
 earlyparser_index(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 0, 0);
+    return earlyparser_index(rel, r, 0, 0);
 }
 
 static int
 earlyparser_indexline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_index_maybeabhexa(rel, r, 0, 0);
+    earlyparser_index(rel, r, 0, 0);
     r->rhead = p; // rewind ringbuf
     return earlyparser_line(rel, r);
 }
 
 static int
-earlyparser_abindex_hexa (earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abindexline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 0);
+    const char * p = r->rhead;
+    earlyparser_index(rel, r, 1, 0);
+    r->rhead = p; // rewind ringbuf
+    return earlyparser_line(rel, r);
 }
 
 static int
-earlyparser_abindex_hexa_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abindex (earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 1);
+    return earlyparser_index(rel, r, 1, 0);
+}
+
+static int
+earlyparser_abindex_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
+{
+    return earlyparser_index(rel, r, 1, 1);
 }
 
 
@@ -907,47 +974,43 @@ uint64_t filter_rels2_inner(char ** input_files,
     int (*earlyparser)(earlyparsed_relation_ptr rel, ringbuf_ptr r);
 #define _(X) EARLYPARSE_NEED_ ## X      /* convenience */
     switch(earlyparse_needed_data) {
-        case _(AB_DECIMAL)|_(LINE):
+        case _(AB)|_(LINE):
             /* e.g. for dup1 */
-            earlyparser = earlyparser_abline_decimal;
+            earlyparser = earlyparser_abline;
             break;
-        case _(AB_HEXA)|_(LINE):
+        case _(LEGACY_AB_DECIMAL):
             /* e.g. for dup1 -- ffs reaches here via a command-line flag
              * -abhexa. */
-            earlyparser = earlyparser_abline_hexa;
+            earlyparser = earlyparser_legacy_ab_decimal;
             break;
-        case _(AB_HEXA):
+        case _(AB):
             /* e.g. for dup2 (for renumbered files) */
             earlyparser = earlyparser_ab;       /* in hex ! */
             break;
         
-        /* dup2/pass2 decides between the two settings here by
-         * differenciation of the binaries (dup2-ffs versus dup2)
-         */
-        case _(AB_DECIMAL)|_(PRIMES):
+        case _(AB)|_(PRIMES):
             /* dup2/pass2 */
-            earlyparser = earlyparser_abp_decimal;
-            break;
-        case _(AB_HEXA)|_(PRIMES):
-            /* dup2/pass2 */
-            earlyparser = earlyparser_abp_hexa;
+            earlyparser = earlyparser_abp;
             break;
 
         case _(INDEX):
             /* all binary after dup2 which did not need a,b*/
             earlyparser = earlyparser_index;
             break;
-        case _(INDEX) | _(AB_HEXA):
+        case _(INDEX) | _(AB):
             /* e.g. reconstructlog */
-            earlyparser = earlyparser_abindex_hexa;
+            earlyparser = earlyparser_abindex;
             break;
-        case _(INDEX) | _(AB_HEXA) | _(SM):
+        case _(INDEX) | _(AB) | _(SM):
             /* e.g. reconstructlog */
-            earlyparser = earlyparser_abindex_hexa_sm;
+            earlyparser = earlyparser_abindex_sm;
             break;
         case _(LINE):
             /* e.g. for purge/2 */
             earlyparser = earlyparser_line;
+            break;
+        case _(AB) | _(LINE) | _(INDEX):
+            earlyparser = earlyparser_abindexline;
             break;
         case _(LINE) | _(INDEX):
             earlyparser = earlyparser_indexline;

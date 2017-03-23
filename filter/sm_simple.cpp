@@ -33,42 +33,43 @@ static void my_sm(const char *outfile, const char *infile,
   }
 
   char buf[1024];
-  mpz_poly pol, smpol;
   int maxdeg = sm_info[0]->f->deg;
   for(int side = 1; side < nb_polys; side++)
       maxdeg = MAX(maxdeg, sm_info[side]->f->deg);
-  mpz_poly_init(pol, maxdeg);
-  mpz_poly_init(smpol, maxdeg);
+
+  cxx_mpz_poly pol(maxdeg);
+  cxx_mpz_poly smpol(maxdeg);
+
   while (fgets(buf, 1024, in)) {
     if (buf[0] == '#')
       continue;
-    if (buf[0] == 'p'){
-	// we read a polynomial
-	// buf = "p deg c0 c1 ... c_deg"
-	int deg;
-	char *tmp = buf+2;
-	sscanf(tmp, "%d", &deg);
-	mpz_t zbuf;
-	mpz_init(zbuf);
-	for(int i = 0; i <= deg; i++){
-	    for(++tmp ; *tmp != ' '; tmp++);
-	    gmp_sscanf(tmp, "%Zd", zbuf);
-	    mpz_poly_setcoeff(pol, i, zbuf);
-	}
-	mpz_clear(zbuf);
-	fprintf(stderr, "Poly read: ");
-	mpz_poly_fprintf(stderr, pol);
-	fprintf(stderr, "\n");
-    }
-    else{
-	// we read a relation
-        mpz_t a, b;
-        mpz_init(a); mpz_init(b);
+
+
+    if (buf[0] != 'X') {
+        // we read a relation in legacy format.
+        cxx_mpz a, b;
         int ret = gmp_sscanf(buf, "%Zd,%Zd:", a, b);
         ASSERT_ALWAYS(ret == 2);
-	mpz_poly_init_set_mpz_ab(pol, a, b);
-        mpz_clear(a); mpz_clear(b);
+        mpz_poly_set_zero(pol);
+        mpz_poly_setcoeff(pol, 0, a);
+        mpz_neg(b,b);
+        mpz_poly_setcoeff(pol, 1, b);
+    } else {
+        // here we parse several coefficients.
+        char * p = buf+1;
+        for(unsigned int i = 0 ; ; i++) {
+            for( ; isspace(*p) || *p == ',' ; p++);
+            cxx_mpz x;
+            int c;
+            if (gmp_sscanf(p, "%Zx%n", (mpz_ptr) x, &c) < 1) {
+                ASSERT_ALWAYS(*p++ == ':');
+                break;
+            }
+            mpz_poly_setcoeff(pol, i, x);
+            p += c;
+        }
     }
+
     for (int side = 0; side < nb_polys; ++side) {
       compute_sm_piecewise(smpol, pol, sm_info[side]);
       print_sm(out, smpol, sm_info[side]->nsm, sm_info[side]->f->deg);

@@ -36,6 +36,17 @@
 
 #define DEFAULT_LOG_MAX_NRELS_PER_FILES 25
 
+static const uint64_t constants_ab_dup1[EARLYPARSED_RELATION_MAX_AB] = {
+    /* the first two used to be called CA_DUP1 and CB_DUP1 -- well,
+     * except that now that we've negated the semantics of b, the hash
+     * values differ anyway... */
+    UINT64_C(314159265358979323),
+    UINT64_C(271828182845904523),
+    /* These are just obtained with RandomPrime(64) */
+    UINT64_C(3892796629070939549),
+    UINT64_C(18380528542068171361),
+};
+
 /* Only (a,b) are parsed on input. This flags control whether we copy the
  * rest of the relation data to the output file, or if we content
  * ourselves with smaller .ab files */
@@ -143,9 +154,14 @@ split_iter_write_next(split_output_iter_t *iter, const char *line)
 
 /* Must be called only when nslices_log > 0 */
 static inline unsigned int
-compute_slice (int64_t a, uint64_t b)
+compute_slice (int64_t* ab)
 {
-  uint64_t h = CA_DUP1 * (uint64_t) a + CB_DUP1 * b;
+  uint64_t h = 0;
+
+  for(int i = 0 ; i < EARLYPARSED_RELATION_MAX_AB ; i++) {
+      h += constants_ab_dup1[i] * ab[i];
+  }
+
   /* Using the low bit of h is not a good idea, since then
      odd values of i are twice more likely. The second low bit
      also gives a small bias with RSA768 (but not for random
@@ -160,7 +176,7 @@ compute_slice (int64_t a, uint64_t b)
 static void *
 thread_dup1 (void * context_data, earlyparsed_relation_ptr rel)
 {
-    unsigned int slice = compute_slice (rel->a, rel->b);
+    unsigned int slice = compute_slice (rel->ab);
     split_output_iter_t **outiters = (split_output_iter_t**)context_data;
 
     if (do_slice[slice])
@@ -214,8 +230,6 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outfmt",
                                "format of output file (default same as input)");
   param_list_decl_usage(pl, "ab", "(switch) only print a and b in the output");
-  param_list_decl_usage(pl, "abhexa",
-                                  "(switch) read a and b as hexa not decimal");
   param_list_decl_usage(pl, "force-posix-threads", "(switch)");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
@@ -235,7 +249,6 @@ main (int argc, char * argv[])
     char * argv0 = argv[0];
     unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
     int only_slice = -1;
-    int abhexa = 0;
 
     param_list pl;
     param_list_init(pl);
@@ -243,7 +256,6 @@ main (int argc, char * argv[])
     argv++,argc--;
 
     param_list_configure_switch(pl, "ab", &only_ab);
-    param_list_configure_switch(pl, "abhexa", &abhexa);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
@@ -357,13 +369,11 @@ main (int argc, char * argv[])
     timingstats_dict_init(stats);
     if (nslices == 1)
       filter_rels(files, (filter_rels_callback_t) &thread_dup1_special,
-            (void*)outiters, EARLYPARSE_NEED_LINE |
-            (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
+            (void*)outiters, EARLYPARSE_NEED_LINE | EARLYPARSE_NEED_AB,
             NULL, stats);
     else
       filter_rels(files, (filter_rels_callback_t) &thread_dup1, (void*)outiters,
-            EARLYPARSE_NEED_LINE |
-            (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
+            EARLYPARSE_NEED_LINE | EARLYPARSE_NEED_AB,
             NULL, stats);
 
     for(unsigned int i = 0 ; i < nslices ; i++)

@@ -9,12 +9,20 @@ CHECKSUM_FILE="$4"
 SOURCE_TEST_DIR="`dirname "$0"`"
 shift 4
 
-REFERENCE_SHA1="e04ae591795ff30af703a2235a4f9fd09d17b380"
+
+# we lost one relation which was on the edge (and the rectangle
+# flipped)...
+REFERENCE_SHA1="e4149025790d5ab1d654a64c0edf3370822efd04" # 430
+# adjust-strategy 2  gives b9cda3fa7b439846ffee2e7c46dbbee93a982203
 # The Git revision that created the REFERENCE_SHA1 hash
-REFERENCE_REVISION="ede066464ba58b2d6127fa256cef01706282e0ed" # 431 relations
+REFERENCE_REVISION="8cda3fe022f6b8e23e3b466f13924ac5a75fc533++"
+
 # Previous revisions and number of relations found (most recent first):
 # c12c10808914fb445dd32e6801ffb8f320db36e6 (430 relations)
 # 9253f54766c5438fe3198053f9edd811ee254a17 (421 relations)
+#
+# REFERENCE_SHA1="e04ae591795ff30af703a2235a4f9fd09d17b380"
+# REFERENCE_REVISION="ede066464ba58b2d6127fa256cef01706282e0ed" # 431 relations
 
 lim0=2300000
 lim1=1200000
