@@ -20,7 +20,7 @@ sleep 0.5
 ./makefb-hd -t 3 -fbb 524288,524288 -poly p6bd40.poly -lpb 23,23 -out sieve_base_p6bd40
 echo "Launch special-q_sieve (less than 1 days on a single 2GHz processor) for the p6bd40."
 sleep 0.5
-./special-q_sieve -H 6,6,6 -fbb 524288,524288 -thresh 65,65 -poly p6bd40.poly -lpb 23,23 -q_side 1 -fb sieve_base_p6bd40 -q_range 524341,2354820 -out sieve_524341_2354820 -err /dev/null -gal autom6.0
+./special-q_sieve -H 6,6,6 -fbb 524288,524288 -thresh 65,65 -poly p6bd40.poly -lpb 23,23 -q_side 1 -fb sieve_base_p6bd40 -q_range 524341,2354820 -out sieve_524341_2354820 -err sieve_524341_2354820.err -gal autom6.1
 echo
 echo "Check the relations"
 sleep 0.5

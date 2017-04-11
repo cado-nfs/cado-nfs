@@ -13,7 +13,7 @@ CAP_FP = "(%s)" % RE_FP
 REGEXES = {"cap_fp" : CAP_FP}
 
 PATTERN_SIEVE_SQ = re.compile(r"# Sieving (algebraic|rational|side-0|side-1) q=(\d+);")
-PATTERN_SQ = re.compile(r"# Average J=(\d+) for (\d+) special-q's, max bucket fill {cap_fp}".format(**REGEXES))
+PATTERN_SQ = re.compile(r"# Average (.*) for (\d+) special-q's, max bucket fill {cap_fp}".format(**REGEXES))
 PATTERN_CPUTIME = re.compile(r"# Total cpu time {cap_fp}s .norm {cap_fp}\+{cap_fp}, sieving {cap_fp} .{cap_fp} \+ {cap_fp} \+ {cap_fp}., factor {cap_fp}.".format(**REGEXES))
 PATTERN_REPORTS = re.compile(r"# Total (\d+) reports".format(**REGEXES))
 PATTERN_DUPE = re.compile("# DUPE ")
@@ -132,7 +132,6 @@ class ListArith(list):
 class LasStats(object):
     def __init__(self):
         self.dupes = 0
-        self.J_sum = 0.
         self.nr_sq = 0
         self.max_fill = 0.
         self.cputimes = ListArith([0.] * 8)
@@ -159,7 +158,6 @@ class LasStats(object):
                     assert first_sq <= last_sq
             match = PATTERN_SQ.match(line)
             if match:
-                avg_J = float(match.group(1))
                 nr_sq = int(match.group(2))
                 new_max_fill = float(match.group(3))
             match = PATTERN_CPUTIME.match(line)
@@ -183,7 +181,6 @@ class LasStats(object):
             return False
         self.nr_sq += nr_sq
         self.dupes += new_dupes
-        self.J_sum += avg_J * nr_sq
         self.reports += reports
         self.max_fill = max(self.max_fill, new_max_fill)
         self.cputimes += cputimes
@@ -194,8 +191,8 @@ class LasStats(object):
         self.dupes_int.add(sq, new_dupes * sq_correction)
         self.elapsed_int.add(sq, cputimes[0] * sq_correction)
         if verbose:
-            names = ("sq", "avgJ", "nr_sq", "sq_sum", "max_fill", "cputimes_str", "elapsed", "elapsed/sq", "elapsed/rel", "reports", "reports/nr_sq", "reports/sqrange", "dupes")
-            values = (sq, self.J_sum / self.nr_sq, nr_sq, self.nr_sq, self.max_fill, cputimes_str, reports, reports/nr_sq, reports * sq_correction, self.dupes)
+            names = ("sq", "nr_sq", "sq_sum", "max_fill", "cputimes_str", "elapsed", "elapsed/sq", "elapsed/rel", "reports", "reports/nr_sq", "reports/sqrange", "dupes")
+            values = (sq, nr_sq, self.nr_sq, self.max_fill, cputimes_str, reports, reports/nr_sq, reports * sq_correction, self.dupes)
             print(", ".join( (":".join(map(str, x)) for x in zip(names, values)) ))
         return True
 

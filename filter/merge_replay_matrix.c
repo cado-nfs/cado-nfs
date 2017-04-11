@@ -447,7 +447,9 @@ reinitMatR (filter_matrix_t *mat)
       else /* weight is larger than cwmax */
         {
           mat->wt[h] = -mat->wt[h]; // trick!!!
-          mat->R[h] = NULL;
+          /* If w > wmax, since wmax is only increasing, we have already
+             destroyed the column before, thus mat->R[h] should be NULL. */
+          ASSERT(mat->R[h] == NULL);
         }
     }
 }
@@ -640,6 +642,7 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   printf ("Total %" PRIu64 " columns\n", total);
   ASSERT_ALWAYS(mat->rem_ncols == mat->ncols - nbm[0]);
 
+  int weight_buried_is_exact = 1;
   uint64_t weight_buried = 0;
   uint64_t i;
   /* Bury heavy coloumns. The 'nburied' heaviest column are buried. */
@@ -672,10 +675,16 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
     int32_t buried_max = mat->wt[heaviest[0]];
     int32_t buried_min = mat->wt[heaviest[mat->nburied-1]];
 
+    if (buried_max == SMAX(int32_t))
+      weight_buried_is_exact = 0;
+
     /* Compute weight of buried part of the matrix. */
     for (i = 0; i < mat->nburied; i++)
     {
       int32_t w = mat->wt[heaviest[i]];
+      /* since we saturate the weights at 2^31-1, weight_buried might be less
+         than the real weight of buried columns, however this can occur only
+         when the number of rows exceeds 2^32-1 */
       weight_buried += w;
 #if DEBUG >= 1
       fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n",
@@ -684,8 +693,12 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
     }
     printf("# Number of buried columns is %" PRIu64 " (min_weight=%" PRId32 ", "
            "max_weight=%" PRId32 ")\n", mat->nburied, buried_min, buried_max);
-    printf("# Weight of the buried part of the matrix: %" PRIu64 "\n",
-           weight_buried);
+    if (weight_buried_is_exact)
+      printf("# Weight of the buried part of the matrix: %" PRIu64 "\n",
+             weight_buried);
+    else /* weight_buried is only a lower bound */
+      printf("# Weight of the buried part of the matrix is >= %" PRIu64 "\n",
+             weight_buried);
 
     /* Remove buried columns from rows in mat structure */
     printf("# Start to remove buried columns from rels...\n");
@@ -747,7 +760,10 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   }
   printf("# Weight of the active part of the matrix: %" PRIu64 "\n# Total "
          "weight of the matrix: %" PRIu64 "\n", mat->weight, mat->tot_weight);
-  ASSERT_ALWAYS (mat->weight + weight_buried == mat->tot_weight);
+  if (weight_buried_is_exact)
+    ASSERT_ALWAYS (mat->weight + weight_buried == mat->tot_weight);
+  else /* weight_buried is only a lower bound */
+    ASSERT_ALWAYS (mat->weight + weight_buried <= mat->tot_weight);
 
   /* Allocate mat->R[h] if necessary */
   initMatR (mat);

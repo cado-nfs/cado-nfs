@@ -2,7 +2,7 @@
 ./makefb-hd -t 3 -fbb 2097152,2097152 -poly [path/to/p6bd65.poly] -lpb 28,28 -out [path/to/sieve_base_p6bd65]
 
 # Perform special-q sieve.
-./special-q_sieve -H 7,7,7 -fbb 2097152,2097152 -thresh 90,90 -poly [path/to/p6bd65.poly] -lpb 28,28 -q_side 1 -fb [path/to/sieve_base_p6bd65] -q_range 2097169,33736861 -out [path/to/out] -err [path/to/err] -gal autom6.0
+./special-q_sieve -H 9,9,8 -fbb 2097152,2097152 -thresh 90,90 -poly [path/to/p6bd65.poly] -lpb 28,28 -q_side 1 -fb [path/to/sieve_base_p6bd65] -q_range 2097169,33736861 -out [path/to/out] -err [path/to/err] -gal autom6.1
 
 # Check the relations
 ./check_relations relations.uniq relations.true p6bd65.poly 28,28 relations.err

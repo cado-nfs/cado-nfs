@@ -103,4 +103,4 @@ code can be found in the function "printf_relation_galois_6_0".
 If you want to add a new action, please follow the nomenclature
 "autom<order_of_the_galois_action>.<type>".
 Implemented galois action:
-  * autom6.0: x-> -(2 * x + 1) / (x - 1)) for polynomial of degree 1 and 2
+  * autom6.1: x-> -(2 * x + 1) / (x - 1) for polynomial of degree 1 and 2

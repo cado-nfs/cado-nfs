@@ -33,14 +33,6 @@ double tmkzup, tmkzdown, tmkzupdown, tmkzcount;
 #define MkzGet(Q, i, r) (Q[((i)<<1)+(r)])
 #define MkzSet(Q, i, r, val) (Q[((i)<<1)+(r)] = (val))
 
-#if 0
-static int
-MkzGetCount(index_t *Q, index_t *A, index_t dj)
-{
-    return MkzGet(Q, A[dj], 1);
-}
-#endif
-
 inline int
 MkzIsAlive(index_t *A, index_t dj)
 {
@@ -62,7 +54,8 @@ MkzAssign(index_t *Q, index_t *A, index_t k1, index_t k2)
 static void MAYBE_UNUSED
 MkzPrintQueue(index_t *Q)
 {
-    int level = 0, imax = 1, i;
+    int level = 0;
+    index_t i, imax = 1;
 
     fprintf(stderr, "L0:");
     for(i = 1; i <= Q[0]; i++){
@@ -267,8 +260,6 @@ Cavallar (filter_matrix_t *mat, index_t j)
 static int
 pureMkz(filter_matrix_t *mat, index_t j)
 {
-    int i;
-    unsigned int k;
     int w = mat->wt[j];
 
     if (w <= 1)
@@ -277,13 +268,13 @@ pureMkz(filter_matrix_t *mat, index_t j)
       return -2;
     else
       {
-        index_t w0;
+        index_t i, w0;
 
         /* approximate traditional Markowitz count: we assume we add the
 	   lightest row to all other rows */
         i = mat->R[j][1];
         w0 = matLengthRow(mat, i);
-        for (k = 2; k <= mat->R[j][0]; k++)
+        for (unsigned int k = 2; k <= mat->R[j][0]; k++)
           {
             i = mat->R[j][k];
             if (matLengthRow(mat, i) < w0)

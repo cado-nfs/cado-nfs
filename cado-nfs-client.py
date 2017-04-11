@@ -1007,7 +1007,7 @@ class WorkunitClient(object):
         wait = float(self.settings["DOWNLOADRETRY"])
         # If we want HTTPS and are running under Python 2, we use wget to do
         # the actual download, as the Python 2 urllib does not implement
-        # acutally checking the certificate
+        # actually checking the certificate
         # This is a rather ugly hack. It would be nicer to copy the required
         # parts from a fully functional SSL library. TODO.
         if self.settings["USE_EXTERNAL_DL"]:

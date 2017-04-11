@@ -35,8 +35,8 @@ struct bad_ideals_s
   p_r_values_t * p;  // these p_r_values in two separate tables
   p_r_values_t * r;  //
   int * side;
-  int * nb;               // the number of ideals for each
-  p_r_values_t max_p;  // all badideals ahve p <= max_p
+  int * nb;            // the number of ideals for each
+  p_r_values_t max_p;  // all badideals have p <= max_p
 };
 
 struct renumber_s

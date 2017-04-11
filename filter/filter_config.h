@@ -49,7 +49,7 @@
 
 /* Some utilities */
 /******************/
-// (not sure they belong to here...)
+// (not sure they belong here...)
 
 #define STR(s) XSTR(s)
 #define XSTR(s) #s

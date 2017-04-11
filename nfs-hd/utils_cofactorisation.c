@@ -572,7 +572,7 @@ static unsigned int is_irreducible(mpz_poly_srcptr a)
 }
 
 #ifndef NOT_PRINT_RELATION
-static void automorphism_6_0_1(mpz_poly_ptr b, mpz_poly_srcptr a)
+static void automorphism_6_1_1(mpz_poly_ptr b, mpz_poly_srcptr a)
 {
   mpz_t * c = (mpz_t *) malloc(sizeof(mpz_t) * 2);
   for (int i = 0; i < 2; i++) {
@@ -593,7 +593,7 @@ static void automorphism_6_0_1(mpz_poly_ptr b, mpz_poly_srcptr a)
   free(c);
 }
 
-static void automorphism_6_0_2(mpz_poly_ptr b, mpz_poly_srcptr a)
+static void automorphism_6_1_2(mpz_poly_ptr b, mpz_poly_srcptr a)
 {
   mpz_t * c = (mpz_t *) malloc(sizeof(mpz_t) * 3);
   for (int i = 0; i < 3; i++) {
@@ -619,7 +619,7 @@ static void automorphism_6_0_2(mpz_poly_ptr b, mpz_poly_srcptr a)
   free(c);
 }
 
-static void rewrite_poly_6_0(mpz_poly_ptr b, factor_t * fac, unsigned int V,
+static void rewrite_poly_6_1(mpz_poly_ptr b, factor_t * fac, unsigned int V,
     int * smooth)
 {
   mpz_t append;
@@ -673,27 +673,27 @@ static void rewrite_poly_6_0(mpz_poly_ptr b, factor_t * fac, unsigned int V,
 
 //TODO. assert facto is false: need to recompute.
 //TODO: galois is probably not compatible with MNFS.
-static void printf_relation_galois_6_0(factor_t * factor,
+static void printf_relation_galois_6_1(factor_t * factor,
     mpz_poly_srcptr a, unsigned int t, unsigned int V,
     FILE * outstd, MAYBE_UNUSED unsigned int * assert_facto,
     MAYBE_UNUSED mpz_vector_srcptr c, int * smooth,
     MAYBE_UNUSED const mpz_poly * f)
 {
   if (a->deg > 2) {
-    fprintf(outstd, "# Can not use Galois 6.0.\n");
+    fprintf(outstd, "# Can not use Galois 6.1.\n");
   } else {
-    fprintf(outstd, "# Use Galois 6.0.\n");
+    fprintf(outstd, "# Use Galois 6.1.\n");
     mpz_poly b;
     mpz_poly_init(b, a->deg);
     mpz_poly_set(b, a);
 
     for (unsigned int i = 0; i < 5; i++) {
       if (a->deg == 2) {
-        automorphism_6_0_2(b, b);
+        automorphism_6_1_2(b, b);
       } else if (a->deg == 1) {
-        automorphism_6_0_1(b, b);
+        automorphism_6_1_1(b, b);
       }
-      rewrite_poly_6_0(b, factor, V, smooth);
+      rewrite_poly_6_1(b, factor, V, smooth);
 #ifdef ASSERT_FACTO
       mpz_t res;
       mpz_init(res);
@@ -869,9 +869,9 @@ static void good_polynomial(mpz_poly_srcptr a, const mpz_poly * f, unsigned int
     (* nb_rel_found)++;
 
     if (gal == 6) {
-      if (gal_version == 0) {
+      if (gal_version == 1) {
 #ifndef NOT_PRINT_RELATION
-        printf_relation_galois_6_0(factor, a, t, V, outstd, assert_facto, c,
+        printf_relation_galois_6_1(factor, a, t, V, outstd, assert_facto, c,
             smooth, f);
 #endif // NOT_PRINT_RELATION
       }

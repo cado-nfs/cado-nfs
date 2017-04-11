@@ -39,7 +39,7 @@ typedef struct {
                           (trick: we store -w if w > cwmax) */
                        /* 32 bits is sufficient as we only want precise weight
                           for column of low weight. If the weight exceeds
-                          2^32-1, we saturate */
+                          2^31-1, we saturate at 2^31-1 */
   uint64_t nburied;    /* the number of buried columns */
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
