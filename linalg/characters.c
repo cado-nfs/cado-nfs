@@ -312,7 +312,7 @@ thread_chars (void * context_data, earlyparsed_relation_ptr rel)
   chars_data_t *data = (chars_data_t *) context_data;
   int nab = EARLYPARSED_RELATION_MAX_AB;
   for( ; nab > 2 && !rel->ab[nab-1] ; nab--);
-  ASSERT_ALWAYS(nab == 2 && rel->ab[0] >= 0);
+  ASSERT_ALWAYS(nab == 2);
 
   data->a[rel->num] = rel->ab[0];
   data->b[rel->num] = rel->ab[1];
