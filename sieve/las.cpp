@@ -1919,7 +1919,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
          * log to base 2 of the sieve limits on each side, and compare the
          * bitsize of the cofactor with their double.
          */
-        uint64_t a;
+        int64_t a;
         int64_t b;
 
         SIBLING_TIMER(timer, "check_coprime");

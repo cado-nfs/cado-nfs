@@ -143,13 +143,13 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
   if (LIKELY(R < p)) /* Root in a,b-plane is affine */
     {
-      aux1 = (int64_t)R * basis.b1 + basis.a1;
-      aux2 = -(basis.a0 + (int64_t)R *basis.b0);
+      aux1 =   basis.a1 + (int64_t)R * basis.b1;
+      aux2 = -(basis.a0 + (int64_t)R * basis.b0);
     }
   else /* Root in a,b-plane is projective */
     {
-      aux1 = basis.b1 + (int64_t)(R - p) * basis.a1;
-      aux2 = -((int64_t)(R - p) * basis.a0 + basis.b0);
+      aux1 =   basis.b1 + (int64_t)(R - p) * basis.a1;
+      aux2 = -(basis.b0 + (int64_t)(R - p) * basis.a0);
     }
   u = redc_32(aux1, p, invp); /* 0 <= u < p */
   v = redc_32(aux2, p, invp); /* 0 <= v < p */
@@ -190,13 +190,13 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   
   if (LIKELY(R < p)) /* Root in a,b-plane is affine */
     {
-      aux1 = ((int64_t)R)*redc_64(basis.b1, p, invp) + redc_64(basis.a1, p, invp);
+      aux1 =   redc_64(basis.a1, p, invp) + ((int64_t)R)*redc_64(basis.b1, p, invp);
       aux2 = -(redc_64(basis.a0, p, invp) + ((int64_t)R)*redc_64(basis.b0, p, invp));
     }
   else /* Root in a,b-plane is projective */
     {
-      aux1 = redc_64(basis.b1, p, invp) + ((int64_t)(R - p))*redc_64(basis.a1, p, invp);
-      aux2 = -(((int64_t)(R - p))*redc_64(basis.a0, p, invp) + redc_64(basis.b0, p, invp));
+      aux1 =   redc_64(basis.b1, p, invp) + ((int64_t)(R - p))*redc_64(basis.a1, p, invp);
+      aux2 = -(redc_64(basis.b0, p, invp) + ((int64_t)(R - p))*redc_64(basis.a0, p, invp));
     }
   
   /* The root in the (i,j) plane is (aux1:aux2). Now let's put it
@@ -241,13 +241,13 @@ static inline fbprime_t fb_root_in_qlattice_po2 (const fbprime_t p, const fbprim
     ASSERT(p == (p & -p)); /* Test that p is power of 2 */
     if (R < p) /* Root in a,b-plane is non-projective */
       {
-	u = (int64_t)R * (basis.b1 % p) + basis.a1;
+	u =   basis.a1 + (int64_t)R * (basis.b1 % p);
 	v = -(basis.a0 + (int64_t)R * (basis.b0 % p));
       }
     else /* Root in a,b-plane is projective */
       {
-        u = basis.b1 + (int64_t)(R - p) * (basis.a1 % p);
-        v = -((int64_t)(R - p) * (basis.a0 % p) + basis.b0);
+        u =   basis.b1 + (int64_t)(R - p) * (basis.a1 % p);
+        v = -(basis.b0 + (int64_t)(R - p) * (basis.a0 % p));
       }
     
     if (v & 1)

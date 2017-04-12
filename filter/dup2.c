@@ -89,8 +89,8 @@ static uint64_t ndup_tot = 0, nrels_tot = 0;
 /* sanity check: we store (a,b) pairs for 0 <= i < sanity_size,
    and check for hash collisions */
 uint64_t sanity_size;
-int64_t  *sanity_a;
-uint64_t *sanity_b;
+int64_t *sanity_a;
+int64_t *sanity_b;
 unsigned long sanity_checked = 0;
 unsigned long sanity_collisions = 0;
 /* end sanity check */
@@ -107,7 +107,7 @@ static int is_for_dl; /* Do we reduce mod 2 or not */
 #endif
 
 static inline void
-sanity_check (uint64_t i, int64_t a, uint64_t b)
+sanity_check (uint64_t i, int64_t a, int64_t b)
 {
   sanity_checked++;
   if (sanity_a[i] == 0)
@@ -709,7 +709,7 @@ main (int argc, char *argv[])
     }
   memset (sanity_a, 0, sanity_size * sizeof (int64_t));
 
-  sanity_b = (uint64_t*) malloc (sanity_size * sizeof (uint64_t));
+  sanity_b = (int64_t*) malloc (sanity_size * sizeof (uint64_t));
   if (sanity_b == NULL)
     {
       fprintf (stderr, "Error, cannot allocate sanity_b\n");

@@ -36,7 +36,10 @@ relation::parse(const char *line)
         cxx_mpz a,b;
         if (gmp_sscanf(line, "%Zd,%Zd:%n", a, b, &consumed) < 2)
             return 0;
-        mpz_neg(b,b);
+        /* With the legacy format, (a,b) encodes a-bx. Given that we
+         * still have the normalization b>0, we'll put -a+bx instead.
+         */
+        mpz_neg(a,a);
         ab() = relation_ab(a, b);
     } else if (line[0] == 'X') {
         ab().clear();

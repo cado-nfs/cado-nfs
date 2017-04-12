@@ -105,7 +105,7 @@ typedef struct {
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-uint64_t eval_64chars(uint64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr pol)
+uint64_t eval_64chars(int64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr pol)
 {
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
@@ -127,19 +127,24 @@ uint64_t eval_64chars(uint64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr 
 
                 mpz_poly_ptr po = pol->pols[ratside];
 
-                /* first perform a quick check */
-                res = (a > 0) ? mpz_sgn(po->coeff[1]) : -mpz_sgn(po->coeff[1]);
-                if (mpz_sgn(po->coeff[0]) != res) {
+                /* first perform a quick check: if m1*a and -m2*b have
+                 * the same sign, we don't need to actually compute them.
+                 */
+                int sign_m1 = mpz_sgn(po->coeff[0]);
+                int sign_m2 = mpz_sgn(po->coeff[1]);
+                int m1a_negative = (a < 0) ? (sign_m1 < 0) : (sign_m1 > 0);
+                int mm1b_negative = (b < 0) ? (sign_m2 > 0) : (sign_m2 < 0);
+                if (m1a_negative == mm1b_negative) {
+                    res = m1a_negative;
+                } else {
                     mpz_init(tmp1);
-                    mpz_mul_ui(tmp1, po->coeff[1], a);
+                    mpz_mul_int64(tmp1, po->coeff[1], a);
                     mpz_init(tmp2);
-                    mpz_mul_si(tmp2, po->coeff[0], b);
+                    mpz_mul_int64(tmp2, po->coeff[0], b);
                     mpz_sub(tmp1, tmp1, tmp2);
                     res = mpz_sgn(tmp1) < 0;
                     mpz_clear(tmp1);
                     mpz_clear(tmp2);
-                } else {
-                    res = res < 0;
                 }
             } else if (ch->r == 3) {
                 res = (b==0);        // parity of the number of free relations
@@ -154,7 +159,12 @@ uint64_t eval_64chars(uint64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr 
             modul_init(ra, mp);
             modul_init(rb, mp);
             modul_init(rr, mp);
-            modul_set_ul(ra, a, mp);
+            if (a < 0) {
+                modul_set_ul(ra, (unsigned long)(-a), mp);
+                modul_neg(ra, ra, mp);
+            } else {
+                modul_set_ul(ra, (unsigned long)a, mp);
+            }
             if (b < 0) {
                 modul_set_ul(rb, (unsigned long)(-b), mp);
                 modul_neg(rb, rb, mp);
@@ -192,7 +202,7 @@ uint64_t eval_64chars(uint64_t a, int64_t b, alg_prime_t * chars, cado_poly_ptr 
 
 struct charbatch {
     uint64_t * W;
-    uint64_t * A;
+    int64_t * A;
     int64_t *B;
     unsigned int n;
     alg_prime_t * chars;
@@ -203,7 +213,7 @@ void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void *
     struct charbatch * ss = (struct charbatch *) t;
 
     for(unsigned int z = tnum * ss->n / g->n ; z < (tnum + 1) * ss->n / g->n ; z++) {
-        uint64_t a = ss->A[z];
+        int64_t a = ss->A[z];
         int64_t b = ss->B[z];
         ss->W[z] = eval_64chars(a,b,ss->chars,ss->pol);
     }
@@ -292,7 +302,7 @@ static alg_prime_t * create_characters(int nchars[2],
 
 typedef struct
 {
-  uint64_t *a;
+  int64_t *a;
   int64_t *b;
 } chars_data_t;
 
@@ -317,7 +327,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    uint64_t  *all_A = (uint64_t *)  malloc (nrows * sizeof(uint64_t));
+    int64_t *all_A = (int64_t *) malloc (nrows * sizeof(int64_t));
     int64_t *all_B = (int64_t *) malloc (nrows * sizeof(int64_t));
     ASSERT_ALWAYS(all_A != NULL && all_B != NULL);
     blockmatrix res = blockmatrix_alloc(nrows, nchars2);
@@ -336,7 +346,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
 
     for(uint64_t i = 0 ; i < nrows; ) {
         static const int batchsize = 16384;
-        uint64_t A[batchsize];
+        int64_t A[batchsize];
         int64_t B[batchsize];
         uint64_t W[batchsize];
         int bs = 0;

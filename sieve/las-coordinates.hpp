@@ -10,34 +10,33 @@ void NxToIJ(int *i, unsigned int *j, const unsigned int N, const unsigned int x,
 
 void IJTox(uint64_t * x, int i, unsigned int j, sieve_info const & si);
 void IJToNx(unsigned int *N, unsigned int * x, int i, unsigned int j, sieve_info const & si);
-void IJToAB(uint64_t *a, int64_t *b, const int i, const unsigned int j, sieve_info const & si);
-static inline void xToAB(uint64_t *a, int64_t *b, const uint64_t x, sieve_info const & si);
-static inline void NxToAB(uint64_t *a, int64_t *b, const unsigned int N, const unsigned int x, sieve_info const & si);
-int ABToIJ(int *i, unsigned int *j, const uint64_t a, const int64_t b, sieve_info const & si);
-int ABTox(uint64_t *x, const uint64_t a, const int64_t b, sieve_info const & si);
-int ABToNx(unsigned int * N, unsigned int *x, const uint64_t a, const int64_t b, sieve_info const & si);
+void IJToAB(int64_t *a, int64_t *b, const int i, const unsigned int j, sieve_info const & si);
+static inline void xToAB(int64_t *a, int64_t *b, const uint64_t x, sieve_info const & si);
+static inline void NxToAB(int64_t *a, int64_t *b, const unsigned int N, const unsigned int x, sieve_info const & si);
+int ABToIJ(int *i, unsigned int *j, const int64_t a, const int64_t b, sieve_info const & si);
+int ABTox(uint64_t *x, const int64_t a, const int64_t b, sieve_info const & si);
+int ABToNx(unsigned int * N, unsigned int *x, const int64_t a, const int64_t b, sieve_info const & si);
 /*  */
 
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void xToAB(uint64_t *a, int64_t *b, const uint64_t x, sieve_info const & si)
+static inline void xToAB(int64_t *a, int64_t *b, const uint64_t x, sieve_info const & si)
 {
-    int i, j;
-    int64_t c;
     uint32_t I = si.I;
+    int i = (x & (I - 1)) - (I >> 1);
+    int j = x >> si.conf.logI_adjusted;
+    int64_t xa = (int64_t) i * si.qbasis.a0 + (int64_t) j * si.qbasis.a1;
+    int64_t xb = (int64_t) i * si.qbasis.b0 + (int64_t) j * si.qbasis.b1;
 
-    i = (x & (I - 1)) - (I >> 1);
-    j = x >> si.conf.logI_adjusted;
-    c = (int64_t) i * si.qbasis.a0 + (int64_t) j * si.qbasis.a1;
-    *b =  (int64_t) i * si.qbasis.b0 + (int64_t) j * si.qbasis.b1;
-    if (c >= 0)
-      *a = c;
-    else
-      {
-        *b = -*b;
-        *a = -c;
-      }
+    /* normalization choice: b>=0 */
+    if (xb >= 0) {
+        *a = xa;
+        *b = xb;
+    } else {
+        *a = -xa;
+        *b = -xb;
+    }
 }
-static inline void NxToAB(uint64_t *a, int64_t *b, const unsigned int N, const unsigned int x, sieve_info const & si)
+static inline void NxToAB(int64_t *a, int64_t *b, const unsigned int N, const unsigned int x, sieve_info const & si)
 {
     xToAB(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, si);
 }
@@ -47,11 +46,10 @@ static inline void NxToAB(uint64_t *a, int64_t *b, const unsigned int N, const u
 static inline void xToABmpz(mpz_t a, mpz_t b,
         const uint64_t x, sieve_info const & si)
 {
-    int i, j;
     uint32_t I = si.I;
 
-    i = (x & (I - 1)) - (I >> 1);
-    j = x >> si.conf.logI_adjusted;
+    int i = (x & (I - 1)) - (I >> 1);
+    int j = x >> si.conf.logI_adjusted;
     
     mpz_t aux_i, aux_j;
     mpz_t aux;
@@ -67,7 +65,8 @@ static inline void xToABmpz(mpz_t a, mpz_t b,
     mpz_mul_si(aux, aux_j, si.qbasis.b1);
     mpz_add(b, b, aux);
 
-    if (mpz_sgn(a) < 0) {
+    /* normalization choice: b>=0 */
+    if (mpz_sgn(b) < 0) {
         mpz_neg(a, a);
         mpz_neg(b, b);
     }

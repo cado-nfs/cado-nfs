@@ -31,7 +31,7 @@ typedef struct {
 typedef mpz_product_tree_t mpz_product_tree[1];
 
 typedef struct {
-  uint64_t *a;
+  int64_t *a;
   int64_t *b;
   mpz_t *R;    /* cofactor on side 0 */
   mpz_t *A;    /* cofactor on side 1 */

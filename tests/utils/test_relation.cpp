@@ -46,7 +46,7 @@ test_compute_r (unsigned int nb)
       p = mpz_get_ui (tp);
     }
 
-    a = random_uint64 ();
+    a = random_int64 ();
     /* 5% of tests are for the case where b = 0 mod p (with b > 0)
      * We do not need to test for free relations as they never go through
      * relation_compute_r
@@ -54,9 +54,9 @@ test_compute_r (unsigned int nb)
     if (i < (nb / 20))
       b = lrand48() * p;
     else
-      b = random_int64 () + 1; /* b > 0 */
-    mpz_set_uint64 (ta, a);
-    mpz_set_int64 (tb, b);
+      b = random_uint64 () + 1; /* b > 0 */
+    mpz_set_int64 (ta, a);
+    mpz_set_uint64 (tb, b);
 
     unsigned long r = relation_compute_r (a, b, p);
 

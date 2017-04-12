@@ -460,23 +460,29 @@ static inline int earlyparser_inner_read_legacy_ab_withbase(ringbuf_ptr r, const
     const char * p = *pp;
     int c;
     uint64_t v,w;
+    int negative;
+
     RINGBUF_GET_ONE_BYTE(c, r, p);
-    int negative = 0;
-    if (c == '-') {
-        negative = 1;
+    if ((negative = c == '-') != 0)
         RINGBUF_GET_ONE_BYTE(c, r, p);
-    }
     for (w = 0; (v = ugly[c]) < base;) {
         w = w * base + v;
         RINGBUF_GET_ONE_BYTE(c, r, p);
     }
+    if (negative) w=-w;
+
+    rel->ab[0] = w;
     PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
-    rel->ab[0] = negative ? -w : w;
+
     RINGBUF_GET_ONE_BYTE(c, r, p);
+    if ((negative = c == '-') != 0)
+        RINGBUF_GET_ONE_BYTE(c, r, p);
     for (w = 0; (v = ugly[c]) < base;) {
         w = w * base + v;
         RINGBUF_GET_ONE_BYTE(c, r, p);
     }
+    if (negative) w=-w;
+
     *pp = p;
     /* the legacy format encodes a-bx, so we put -b */
     rel->ab[1] = -w;
@@ -496,29 +502,35 @@ static inline int earlyparser_inner_read_ab(ringbuf_ptr r, const char ** pp, ear
         /* support old format (decimal). This is only relevant for relation
          * files. */
         memset(rel->ab, 0, sizeof(rel->ab));
-        int negative = 0;
-        if (c == '-') {
-            negative = 1;
+
+        int negative;
+
+        if ((negative = c == '-') != 0)
             RINGBUF_GET_ONE_BYTE(c, r, p);
-        }
         for (w = 0; (v = ugly[c]) < base;) {
             w = w * base + v;
             RINGBUF_GET_ONE_BYTE(c, r, p);
         }
-        PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
-        rel->ab[0] = w;
-        RINGBUF_GET_ONE_BYTE(c, r, p);
-        for (w = 0; (v = ugly[c]) < base;) {
-            w = w * base + v;
-            RINGBUF_GET_ONE_BYTE(c, r, p);
-        }
-        *pp = p;
-        /* the legacy format encodes a-bx, so we put -b. Except that we
-         * used to enforce b>=0, while the new convention is a>=0. So if
-         * we met a negative *a*, then we're doing to encode -a+bx, while
-         * otherwise we'll put a-bx indeed.
+        /* Caveat: the legacy format encodes a-bx, so "a,b" should
+         * actually be interpreted as "-a,b"
          */
-        rel->ab[1] = negative ? w : -w;
+        if (!negative) w=-w;
+        rel->ab[0] = w;
+
+        PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+
+        /* tolerate negative b in parsing anyway. */
+        if ((negative = c == '-') != 0)
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        for (w = 0; (v = ugly[c]) < base;) {
+            w = w * base + v;
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        if (negative) w=-w;
+        rel->ab[1] = w;
+
+        *pp = p;
     } else {
         const int base = 16;
         PARSER_ASSERT_ALWAYS(c, 'X', *pp, p);
@@ -528,11 +540,9 @@ static inline int earlyparser_inner_read_ab(ringbuf_ptr r, const char ** pp, ear
         for(i = 0 ; c != ':' && i < EARLYPARSED_RELATION_MAX_AB ; i++) {
             PARSER_ASSERT_ALWAYS2(c, " ,", *pp, p);
             RINGBUF_GET_ONE_BYTE(c, r, p);
-            int negative = 0;
-            if (c == '-') {
-                negative = 1;
+            int negative;
+            if ((negative = c == '-') != 0)
                 RINGBUF_GET_ONE_BYTE(c, r, p);
-            }
             for (w = 0; (v = ugly[c]) < base;) {
                 w = w * base + v;
                 RINGBUF_GET_ONE_BYTE(c, r, p);

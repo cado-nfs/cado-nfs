@@ -148,7 +148,6 @@ check_dep (const char *prefix, int numdep)
 
 int read_abpair(int64_t * ab, FILE * depfile)
 {
-
     char line[1024];
 
     if (fgets(line, sizeof(line), depfile) == NULL)
@@ -173,6 +172,7 @@ int read_abpair(int64_t * ab, FILE * depfile)
     }
     return 1;
 }
+
 int
 calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
         int side, mpz_t Np)

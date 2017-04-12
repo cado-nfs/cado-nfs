@@ -24,9 +24,9 @@ struct relation_ab : public std::vector<cxx_mpz> {
     /* Initializing with a,b means a+bx.
      * Initializing with a vector a,b,c,d means a+bx+c*x^2+d*x^3
      */
-    relation_ab(uint64_t a, int64_t b) {
+    relation_ab(int64_t a, int64_t b) {
         assign(2,cxx_mpz());
-        mpz_set_uint64((*this)[0], a);
+        mpz_set_int64((*this)[0], a);
         mpz_set_int64((*this)[1], b);
     }
     relation_ab(mpz_srcptr az, mpz_srcptr bz) {
@@ -70,7 +70,7 @@ struct relation : public relation_ab {
 
     relation() {}
     operator bool() const { return (bool) (relation_ab) *this; }
-    relation(int64_t a, uint64_t b, int rational_side = -1, int nb_polys = 2)
+    relation(int64_t a, int64_t b, int rational_side = -1, int nb_polys = 2)
         : relation_ab(a,b), rational_side(rational_side), nb_polys(nb_polys)
     {}
     relation(mpz_t a, mpz_t b, int rational_side = -1, int nb_polys = 2)
