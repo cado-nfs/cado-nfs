@@ -1016,7 +1016,7 @@ static void add_relations_with_galois(
         FILE *output, const char *comment, int *cpt, relation &rel)
 {
     ASSERT_ALWAYS(rel.ab().size() == 2);
-    uint64_t a = mpz_get_uint64(rel[0]);
+    int64_t a = mpz_get_int64(rel[0]);
     int64_t b = mpz_get_int64(rel[1]);
 
     /* Remember that the relation got printed once, already */
