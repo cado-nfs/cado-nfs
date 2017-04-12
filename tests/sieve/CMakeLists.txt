@@ -65,7 +65,7 @@ cado_define_test(F9_cofactest
 cado_define_test(F9_tracektest
     SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/F9.tracektest.sh
-        ${F9_roots} ${las_tracek_path} ${CADO_NFS_SOURCE_DIR} -traceab -8517,584707
+        ${F9_roots} ${las_tracek_path} ${CADO_NFS_SOURCE_DIR} -traceab 8517,584707
     TARGET_DEPENDENCIES las_tracek
     TEST_DEPENDENCIES F9_makefbtest)
 
