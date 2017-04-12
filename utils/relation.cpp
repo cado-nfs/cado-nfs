@@ -164,9 +164,6 @@ void relation::addv(int side, unsigned long p, int ae)
         /* use the function provided in relation-tools.c */
         int64_t a = mpz_get_int64(ab()[0]);
         int64_t b = mpz_get_int64(ab()[1]);
-        /* the function relation_compute_r takes a uint64_t so we want to
-         * be sure */
-        ASSERT_ALWAYS(a >= 0);
         add(side, p, relation_compute_r(a, b, p), ae);
     } else {
         abort();        /* implement me ! */
