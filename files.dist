@@ -1215,3 +1215,5 @@ tests/filter/testsm.p30.poly
 tests/filter/testsm.p30.purged.gz
 tests/utils/c30.poly
 tests/utils/c30.renumber.gz
+tests/utils/p6bd40.hd.renumber.gz
+tests/utils/p6bd40.poly
