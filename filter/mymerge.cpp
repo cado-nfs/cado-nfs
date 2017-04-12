@@ -393,6 +393,7 @@ void merge_matrix::read_rows(const char *purgedname)
 
     printf("# Weight of the active part of the matrix: %zu\n", weight);
 
+    /* XXX for DL, we don't want to do this, do we ? */
     renumber_columns();
     
     for (size_t j = 0; j < ncols; j++) {

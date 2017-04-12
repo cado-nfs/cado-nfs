@@ -1220,3 +1220,5 @@ utils/compressible_heap.hpp
 tests/utils/test_compressible_heap.cpp
 utils/get_successive_minima.hpp
 tests/utils/test_get_successive_minima.cpp
+tests/utils/test_small_size_pool.cpp
+utils/small_size_pool.hpp

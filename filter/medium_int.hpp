@@ -5,7 +5,10 @@
 #include <algorithm>
 
 /* Something which is presumably larger than uint32_t, but less than
- * uint64_t */
+ * uint64_t.
+ *
+ * Beware: this is super-slow !
+ */
 
 template<int width>
 struct uint64_fits {
