@@ -1212,3 +1212,11 @@ sieve/las-fb.cpp
 config/shared_ptr.cmake
 config/cxxabi.cmake
 sieve/display-lattice-adjust.sage
+tests/utils/test_indexed_priority_queue.cpp
+utils/indexed_priority_queue.hpp
+filter/mymerge.cpp
+filter/medium_int.hpp
+utils/compressible_heap.hpp
+tests/utils/test_compressible_heap.cpp
+utils/get_successive_minima.hpp
+tests/utils/test_get_successive_minima.cpp

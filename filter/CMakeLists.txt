@@ -63,6 +63,15 @@ set_target_properties(sm_append PROPERTIES
     LINK_FLAGS "--mpi")
 endif()
 
+add_executable(mymerge mymerge.cpp)
+target_link_libraries(mymerge utils_with_io)
+set_target_properties(mymerge PROPERTIES
+  COMPILE_FLAGS "${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+add_executable(mymerge-dl mymerge.cpp)
+target_link_libraries(mymerge-dl utils_with_io)
+set_target_properties(mymerge-dl PROPERTIES
+    COMPILE_FLAGS "-DFOR_DL ${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 
 install(TARGETS ${bin_list} RUNTIME DESTINATION ${LIBSUFFIX}/filter)

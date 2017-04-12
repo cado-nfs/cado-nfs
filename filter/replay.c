@@ -305,6 +305,23 @@ flushSparse(const char *sparsename, typerow_t **sparsemat, int small_nrows,
     return W;
 }
 
+/* We also compare x[1] and y[1] to make the code deterministic
+   since in case x[0] = y[0], qsort() may give different results on
+   different machines */
+static inline int
+cmp_int2 (const void *p, const void *q)
+{
+  int *x = (int*) p;
+  int *y = (int*) q;
+
+  if (x[0] < y[0])
+    return -1;
+  else if (x[0] > y[0])
+    return 1;
+  else
+    return (x[1] < y[1]) ? 1 : -1;
+}
+
 
 // on input, colweight[j] contains the weight; on exit, colweight[j]
 // contains the new index for j. Heavier columns are in front of the new
