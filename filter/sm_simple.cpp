@@ -48,7 +48,7 @@ static void my_sm(const char *outfile, const char *infile,
     if (buf[0] != 'X') {
         // we read a relation in legacy format.
         cxx_mpz a, b;
-        int ret = gmp_sscanf(buf, "%Zd,%Zd:", a, b);
+        int ret = gmp_sscanf(buf, "%Zd,%Zd:", (mpz_ptr) a, (mpz_ptr) b);
         ASSERT_ALWAYS(ret == 2);
         mpz_poly_set_zero(pol);
         mpz_poly_setcoeff(pol, 0, a);

@@ -42,7 +42,7 @@ struct descent_tree {
         }
         std::string fullname() const {
             char * str;
-            gmp_asprintf(&str, "%d %Zd %Zd", side, pr.p, pr.r);
+            gmp_asprintf(&str, "%d %Zd %Zd", side, (mpz_srcptr) pr.p, (mpz_srcptr) pr.r);
             std::string s = str;
             free(str);
             return s;

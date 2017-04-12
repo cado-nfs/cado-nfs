@@ -104,9 +104,11 @@ int test_compute_all_r (unsigned int nb)
       unsigned long r = mpz_compute_r (ta, tb, tp);
       if (r != mpz_get_ui(t1.sides[1][k].r))
       {
-        gmp_fprintf (stderr, "ERROR: a=%Zx b=%Zx p=%" PRpr "\n"
-                     "Got r=%" PRpr " instead of %" PRpr "\n",
-                     t2[0], t2[1], t2.sides[1][k].p, t1.sides[1][k].r, r);
+        gmp_fprintf (stderr, "ERROR: a=%Zx b=%Zx p=%Zd\n"
+                     "Got r=%Zd instead of %lu\n",
+                     (mpz_srcptr) ta, (mpz_srcptr) tb,
+                     (mpz_srcptr) tp, (mpz_srcptr) t1.sides[1][k].r,
+                     r);
         err++;
       }
     }

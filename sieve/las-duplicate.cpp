@@ -210,7 +210,7 @@ subtract_fb_log(const unsigned char lognorm, relation const& rel,
       const unsigned char p_pow_log = fb_log(p_pow, si.sides[side].scale * LOG_SCALE, 0.);
       if (p_pow_log > new_lognorm) {
         if (0)
-          gmp_fprintf(stderr, "Warning: lognorm underflow for relation a,b = %Zx,%Zx\n", rel[0], rel[1]);
+          gmp_fprintf(stderr, "Warning: lognorm underflow for relation a,b = %Zx,%Zx\n", (mpz_srcptr) rel[0], (mpz_srcptr) rel[1]);
         new_lognorm = 0;
       } else {
         new_lognorm -= p_pow_log;
@@ -298,7 +298,7 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
 
   si.update_norm_data();
 
-  verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK Checking if relation (a,b) = (%Zx,%Zx) is a dupe of sieving special-q -q0 %lu -rho %lu\n", rel[0], rel[1], sq, r);
+  verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK Checking if relation (a,b) = (%Zx,%Zx) is a dupe of sieving special-q -q0 %lu -rho %lu\n", (mpz_srcptr) rel[0], (mpz_srcptr) rel[1], sq, r);
   verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Using special-q basis a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "\n", si.qbasis.a0, si.qbasis.b0, si.qbasis.a1, si.qbasis.b1);
 
   I = si.I;
