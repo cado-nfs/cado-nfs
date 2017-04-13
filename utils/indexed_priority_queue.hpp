@@ -49,16 +49,17 @@
  *
  * Alternatively, we also define a sparse_indexed_priority_queue, where
  * the keys to be prioritized are not supposed to be contiguous. The
- * requirement on the index arrays is more pressing.
+ * requirement on the index arrays is more pressing. Some prototypes are
+ * changed. See tests/utils/test_indexed_priority_queue.cpp
  */
 template<
     typename KeyType,
     typename PriorityType,
-    class Compare,
-    typename SizeType,
-    class IndexContainerType,
-    typename Derived>
-struct base_indexed_priority_queue {
+    class Compare = std::less<PriorityType>,
+    typename SizeType = size_t,
+    class IndexContainerType = std::vector<SizeType>
+    >
+struct indexed_priority_queue {
     typedef KeyType key_type;
     typedef PriorityType priority_type;
     typedef std::pair<key_type, priority_type> value_type;
@@ -83,7 +84,7 @@ protected:
 
 public:
     /* default copy, swap, and assignment operators are fine */
-    base_indexed_priority_queue(const value_compare& compare = value_compare()) : comp(compare) {}
+    indexed_priority_queue(const value_compare& compare = value_compare()) : comp(compare) {}
 
 protected:
     inline bool _check(size_type j) const { return indices.at(values[j].first) == j; }
@@ -224,52 +225,62 @@ public:
         if (!comp(values[right], values[base])) return false;
         return is_heap(right);
     }
-#undef ONLY_FOR_SEQUENCE_INDEX
-#undef ONLY_FOR_ASSOCIATIVE_INDEX
-};
 
-/* SizeType can be anything which is large enough to enumerate all queue
- * members */
-template<
-    typename KeyType,
-    typename PriorityType,
-    class Compare = std::less<PriorityType>,
-    typename SizeType = typename std::vector<std::pair<KeyType, PriorityType>>::size_type,
-    class IndexContainerType = std::vector<SizeType>
->
-class indexed_priority_queue : public base_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType,indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType>> {
-    typedef indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType> self;
-    typedef base_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType,self> base_type;
-    using typename base_type::key_type;
-    using typename base_type::priority_type;
-    using typename base_type::value_type;
-    using typename base_type::reference;
-    using typename base_type::const_reference;
-    using typename base_type::value_container_type;
-    using typename base_type::index_container_type;
-    using typename base_type::size_type;
-    using typename base_type::value_compare;
-    static_assert(std::is_same<typename index_container_type::value_type, SizeType>::value,
-            "when index container is a sequence contained,"
+private:
+    /* We finish with a few functions which are special-cased depending
+     * on whether we have a vector or a map for the table of indices.
+     *
+     * Because that's the way enable_if works, we have to make all of
+     * these functions (albeit artificially) dependent on a template
+     * parameter so that we can leverage the trick of template argument
+     * deduction.
+     */
+    template<class T> struct Void { typedef void type; };
+    template<class T, class U = void> struct has_mapped_type { enum { value = 0 }; };
+    template<class T> struct has_mapped_type<T, typename Void<typename T::mapped_type>::type > { enum { value = 1 }; };
+
+
+    template<bool, typename Then, typename Else> struct checkif { };
+    template<typename Then, typename Else> struct checkif<true, Then, Else> : public Then {};
+    template<typename Then, typename Else> struct checkif<false, Then, Else> : public Else {};
+
+    struct requirements_for_sequence_index_container {
+        static_assert(std::is_same<typename index_container_type::value_type, SizeType>::value,
+            "when index container is a sequence container,"
             " we must have value_type=SizeType");
-    using base_type::indices;
-    using base_type::values;
-    using base_type::_make_heap;
-    using base_type::_prepare_insert_up;
-    using base_type::_check;
-    using base_type::_fixup;
-    using base_type::_print;
-public:
-    using base_type::size;
-    indexed_priority_queue(const Compare& compare = Compare())
-    : base_type(compare) {}
+        typedef void type;
+    };
 
-    template<class RandomAccessIterator>
+    struct requirements_for_associative_index_container {
+        static_assert(std::is_same<typename index_container_type::key_type, KeyType>::value,
+                "when index container is an associative container,"
+                " we must have key_type=KeyType");
+        static_assert(std::is_same<typename index_container_type::mapped_type, SizeType>::value,
+                "when index container is an associative container,"
+                " we must have mapped_type=SizeType");
+        typedef void type;
+    };
+
+    typedef typename checkif<
+        has_mapped_type<index_container_type>::value,
+        requirements_for_associative_index_container,
+        requirements_for_sequence_index_container>::type requirements_are_met;
+
+
+#define ONLY_FOR_SEQUENCE_INDEX(T) \
+    , typename std::enable_if<!(has_mapped_type<T>::value)>::type * = 0
+#define ONLY_FOR_ASSOCIATIVE_INDEX(T) \
+    , typename std::enable_if<has_mapped_type<T>::value>::type * = 0
+
+public:
+    template<class RandomAccessIterator, typename T = index_container_type>
     indexed_priority_queue(
             RandomAccessIterator first,
             RandomAccessIterator last,
-            const Compare& compare = Compare())
-    : base_type(compare)
+            const Compare& compare = Compare()
+            ONLY_FOR_SEQUENCE_INDEX(T)
+            )
+    : comp(compare)
     {
         indices.assign(last-first, 0);
         values.reserve(last-first);
@@ -282,7 +293,8 @@ public:
         }
     }
 
-    void push(const priority_type & x) {
+    template<typename T = index_container_type>
+    void push(const priority_type & x ONLY_FOR_SEQUENCE_INDEX(T)) {
         size_type n = indices.size();
         value_type v = make_pair(n, x);
         values.push_back(value_type());
@@ -292,7 +304,8 @@ public:
         _fixup(hole);
     }
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
-    std::ostream& print(std::ostream& o) const {
+    template<typename T = index_container_type>
+    std::ostream& print(std::ostream& o ONLY_FOR_SEQUENCE_INDEX(T)) const {
         _print(o, std::string(), 0, size());
         o << "col positions\n";
         for(size_type i = 0 ; i < size() ; i++) {
@@ -301,51 +314,15 @@ public:
         return o;
     }
 #endif
-};
-
-template<
-    typename KeyType,
-    typename PriorityType,
-    class Compare = std::less<PriorityType>,
-    typename SizeType = typename std::vector<std::pair<KeyType, PriorityType>>::size_type,
-    class IndexContainerType = std::map<KeyType, SizeType>
->
-class sparse_indexed_priority_queue : public base_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType,sparse_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType>> {
-    typedef sparse_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType> self;
-    typedef base_indexed_priority_queue<KeyType,PriorityType,Compare,SizeType,IndexContainerType,self> base_type;
-    using typename base_type::key_type;
-    using typename base_type::priority_type;
-    using typename base_type::value_type;
-    using typename base_type::reference;
-    using typename base_type::const_reference;
-    using typename base_type::value_container_type;
-    using typename base_type::index_container_type;
-    using typename base_type::size_type;
-    using typename base_type::value_compare;
-    static_assert(std::is_same<typename index_container_type::key_type, KeyType>::value,
-            "when index container is an associative container,"
-            " we must have key_type=KeyType");
-    static_assert(std::is_same<typename index_container_type::mapped_type, SizeType>::value,
-            "when index container is an associative container,"
-            " we must have mapped_type=SizeType");
-    using base_type::indices;
-    using base_type::values;
-    using base_type::_make_heap;
-    using base_type::_prepare_insert_up;
-    using base_type::_check;
-    using base_type::_fixup;
-    using base_type::_print;
 public:
-    using base_type::size;
-    sparse_indexed_priority_queue(const Compare& compare = Compare())
-    : base_type(compare) {}
-
-    template<class InputIterator>
-    sparse_indexed_priority_queue(
+    template<class InputIterator, typename T = index_container_type>
+    indexed_priority_queue(
             InputIterator first,
             InputIterator last,
-            const Compare& compare = Compare())
-    : base_type(compare)
+            const Compare& compare = Compare()
+            ONLY_FOR_ASSOCIATIVE_INDEX(T)
+            )
+    : comp(compare)
     {
         for(InputIterator i = first ; i != last ; ++i) {
             indices[i->first] = values.size();
@@ -354,7 +331,8 @@ public:
         _make_heap();
     }
 
-    void push(const value_type& x) {
+    template<typename T = index_container_type>
+    void push(const value_type& x ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
         assert(indices.find(x.first) == indices.end());
         values.push_back(value_type());
         // indices[x.first] will be set below
@@ -363,7 +341,8 @@ public:
         _fixup(hole);
     }
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
-    std::ostream& print(std::ostream& o) const {
+    template<typename T = index_container_type>
+    std::ostream& print(std::ostream& o ONLY_FOR_ASSOCIATIVE_INDEX(T)) const {
         _print(o, std::string(), 0, size());
         o << "col positions\n";
         for(auto const& x : indices) {
@@ -372,6 +351,10 @@ public:
         return o;
     }
 #endif
+
+
+#undef ONLY_FOR_SEQUENCE_INDEX
+#undef ONLY_FOR_ASSOCIATIVE_INDEX
 };
 
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
@@ -385,17 +368,16 @@ std::ostream& operator<<(std::ostream& o, indexed_priority_queue<KeyType, Priori
 {
         return Q.print(o);
 }
+#endif
+
 template<
     typename KeyType,
     typename PriorityType,
-    class Compare,
-    typename SizeType,
-    class IndexContainerType>
-std::ostream& operator<<(std::ostream& o, sparse_indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> const & Q)
-{
-        return Q.print(o);
-}
-#endif
+    class Compare = std::less<PriorityType>,
+    typename SizeType = size_t,
+    typename IndexContainerType = std::map<KeyType, SizeType>
+    >
+struct sparse_indexed_priority_queue : public indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> {};
 
 
 #endif	/* INDEXED_PRIORITY_QUEUE_HPP_ */
