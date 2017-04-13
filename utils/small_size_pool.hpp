@@ -102,7 +102,7 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
         return 0;
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
-    void info(std::ostream& o) const {
+    std::ostream& print(std::ostream& o) const {
         o << "width " << width << ", allocated " << data.size() / width << ", holes " << holes;
         if (holes) {
             o << ":";
@@ -112,9 +112,17 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
             }
         }
         o << "\n";
+        return o;
     }
 #endif
 };
+#ifdef DEBUG_SMALL_SIZE_POOL
+template<typename T, typename S>
+std::ostream& operator<<(std::ostream& o, single_size_pool<T,S> const& p) {
+    return p.print(o);
+}
+#endif
+
 
 template<typename T, typename S = typename std::vector<T>::size_type, int coarse=1> class small_size_pool {
     static_assert(coarse > 0, "\"coarse\" template parameter must be >0");
@@ -184,10 +192,17 @@ public:
         realloc(p.first, p.second, newsize);
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
-    void info(std::ostream& o) const {
-        for(auto const & x : pools) x.second->info(o);
+    std::ostream& print(std::ostream& o) const {
+        for(auto const & x : pools) o << *x.second;
+        return o;
     }
 #endif
 };
+#ifdef DEBUG_SMALL_SIZE_POOL
+template<typename T, typename S, int c>
+std::ostream& operator<<(std::ostream& o, small_size_pool<T,S,c> const& p) {
+    return p.print(o);
+}
+#endif
 
 #endif	/* SMALL_SIZE_POOL_HPP_ */

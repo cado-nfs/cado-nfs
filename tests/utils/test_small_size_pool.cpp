@@ -36,6 +36,6 @@ int main()
             blah[k] = rand();
         }
     }
-    pool.info(cout);
+    cout << pool;
 }
 

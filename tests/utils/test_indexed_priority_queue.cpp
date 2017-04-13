@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <iostream>
+#define DEBUG_INDEXED_PRIORITY_QUEUE
 #include "indexed_priority_queue.hpp"
 #include "macros.h"
 

@@ -172,7 +172,7 @@ private:
         }
     }
 
-#if 0
+#ifdef DEBUG_INDEXED_PRIORITY_QUEUE
     std::ostream& _print(std::ostream& o, std::string const & prefix, size_type i, size_type n) const {
         o << prefix << "[" << i << "] [col " << values[i].first << ", weight " << values[i].second << "]\n";
         assert(_check(i));
@@ -183,18 +183,17 @@ private:
         _print(o, npref, 2*i+2, n);
         return o;
     }
-    std::ostream& print(std::ostream& o, size_type n) const {
-        _print(o, std::string(), 0, n);
+public:
+    std::ostream& print(std::ostream& o) const {
+        _print(o, std::string(), 0, size());
         o << "col positions\n";
-        for(size_type i = 0 ; i < n ; i++) {
+        for(size_type i = 0 ; i < size() ; i++) {
             o << "col " << i << " at position " << indices[i] << "\n";
         }
         return o;
     }
-public:
-    std::ostream& print(std::ostream& o) const { return print(o, size()); }
-
 #endif
+
 public:
     inline const_reference top() const { return values.front(); }
     inline bool empty() const { return values.empty(); }
@@ -258,7 +257,7 @@ public:
     }
 };
 
-#if 0
+#ifdef DEBUG_INDEXED_PRIORITY_QUEUE
 template<
     typename KeyType,
     typename MappedType,
