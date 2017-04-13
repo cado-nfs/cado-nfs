@@ -26,13 +26,14 @@
  *
  */
 template<typename T, typename Size = size_t, int batch_size = 1024>
-class compressible_heap
+struct compressible_heap
 {
     typedef std::pair<T *, Size> value_type;
     typedef std::pair<T *, Size> & reference;
     typedef std::pair<const T *, Size> const& const_reference;
     typedef std::pair<T *, Size> * pointer;
     typedef std::pair<const T *, Size> const * const_pointer;
+public:
     class chunk {
         std::vector<T> data;
         value_type items[batch_size];
@@ -42,7 +43,7 @@ class compressible_heap
         /* full can also mean "full of emptiness"... */
         bool full() const { return _size == batch_size; }
         reference operator[](size_t i) { return items[i]; }
-        const_reference operator[](size_t i) const { return items[i]; }
+        const_reference operator[](size_t i) const { return ((const_pointer)items)[i]; }
         void compress() {
             if (killed <= data.size() / 10) return;
             /* compress the chunk in place, and update the pointers */
@@ -128,7 +129,9 @@ class compressible_heap
 public:
     class iterator {/*{{{*/
         compressible_heap& H;
+    public:
         size_t i;
+    private:
         iterator(compressible_heap& H, size_t i) : H(H), i(i) {}
         iterator nextvalid() {
             for(; i < H.size() && !H[i].first ; ++i);

@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 #ifdef DEBUG_SMALL_SIZE_POOL
+#include <string>
 #include <ostream>
 #endif
 #ifdef HAVE_BOOST_SHARED_PTR
@@ -101,9 +102,14 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
         next_free = p;
         return 0;
     }
+    size_type size() const { return data.size() / width; }
 #ifdef DEBUG_SMALL_SIZE_POOL
     std::ostream& print(std::ostream& o) const {
-        o << "width " << width << ", allocated " << data.size() / width << ", holes " << holes;
+        o << "width " << width
+            << ", allocated " << size()
+            << " (" << ((size() * width * sizeof(T)) >> 20) << " MB)"
+            << ", holes " << holes;
+        /*
         if (holes) {
             o << ":";
             for(size_type next = *(size_type*)(&data[0]) ; next ; ) {
@@ -111,6 +117,7 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
                 next= *(size_type*)(&data[next*width]);
             }
         }
+        */
         o << "\n";
         return o;
     }
@@ -121,10 +128,16 @@ template<typename T, typename S>
 std::ostream& operator<<(std::ostream& o, single_size_pool<T,S> const& p) {
     return p.print(o);
 }
+template<typename T> struct small_size_pool_printer;
 #endif
 
 
-template<typename T, typename S = typename std::vector<T>::size_type, int coarse=1> class small_size_pool {
+template<typename T, typename S = typename std::vector<T>::size_type, int coarse=1>
+struct small_size_pool {
+    typedef T value_type;
+    typedef S size_type;
+protected:
+    typedef small_size_pool<T, S, coarse> self;
     static_assert(coarse > 0, "\"coarse\" template parameter must be >0");
     typedef single_size_pool<T, S> spool;
     std::map<S, std::shared_ptr<spool>> pools;
@@ -133,6 +146,7 @@ template<typename T, typename S = typename std::vector<T>::size_type, int coarse
         return size-1 + coarse - ((size-1) % coarse);
     }
 public:
+    void clear() { pools.clear(); }
     S alloc(S const& size) {
         if (!size) return 0;
         int csize = get_coarse(size);
@@ -147,6 +161,14 @@ public:
         return (*pools[csize])[value];
     }
     T * operator()(std::pair<S, S> const& p) {
+        return (*this)(p.first, p.second);
+    }
+    const T * operator()(S size, S value) const {
+        if (!size || !value) return NULL;
+        int csize = get_coarse(size);
+        return (*pools.at(csize))[value];
+    }
+    const T * operator()(std::pair<S, S> const& p) const {
         return (*this)(p.first, p.second);
     }
     void free(S const& size, S & value) {
@@ -192,15 +214,33 @@ public:
         realloc(p.first, p.second, newsize);
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
-    std::ostream& print(std::ostream& o) const {
-        for(auto const & x : pools) o << *x.second;
-        return o;
-    }
+    friend class small_size_pool_printer<self>;
+    small_size_pool_printer<self> printer(std::string const& s) { return small_size_pool_printer<self>(*this, s); }
+    std::ostream& print(std::ostream& o) const { return o << printer(""); }
 #endif
 };
 #ifdef DEBUG_SMALL_SIZE_POOL
+template<typename T>
+struct small_size_pool_printer {
+    T const & P;
+    std::string prefix;
+    small_size_pool_printer(T const& P, std::string const& s) : P(P), prefix(s) {}
+    std::ostream& print(std::ostream& o) const {
+        typename T::size_type total = 0;
+        for(auto const & x : P.pools) {
+            o << prefix << *x.second;
+            total += x.first * x.second->size() * sizeof(typename T::value_type);
+        }
+        o << prefix << "Total allocated size for all widths: " << (total >> 20) << " MB\n";
+        return o;
+    }
+};
 template<typename T, typename S, int c>
 std::ostream& operator<<(std::ostream& o, small_size_pool<T,S,c> const& p) {
+    return p.print(o);
+}
+template<typename P>
+std::ostream& operator<<(std::ostream& o, small_size_pool_printer<P> const& p) {
     return p.print(o);
 }
 #endif
