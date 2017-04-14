@@ -8,43 +8,44 @@
 #include "minimum_spanning_tree.hpp"
 #include "macros.h"
 
-struct queue_item {
-    uint16_t weight;
-    uint8_t start;
-    uint8_t end;
-    bool operator<(queue_item const& o) const { return weight < o.weight; }
-};
-
 using namespace std;
 
+typedef int weight_t;
+typedef int vertex_t;
+
 /* naive implementation of Prim's algorithm.  */
-pair<int, vector<pair<int, int>>>
-minimalSpanningTreePrimNaive (vector<int> weights, size_t m)
+pair<weight_t, vector<pair<vertex_t, vertex_t>>>
+minimum_spanning_tree_PrimNaive (matrix<weight_t> weights)
 {
-    ASSERT_ALWAYS(weights.size() == m * m);
-    int w = 0;
-    vector<pair<int, int>> edges;
+    weight_t w = 0;
+    vertex_t m = weights.dimension(0);
+    vector<pair<vertex_t, vertex_t>> edges;
 
     /* S is the set of vertices in the current tree */
-    vector<int> S(1,0);
+    vector<vertex_t> S(1,0);
 
     /* T is the set of remaining vertices */
-    vector<int> T(m-1);
-    for (size_t i = 0; i < m-1; i++)
+    vector<vertex_t> T(m-1);
+    for (vertex_t i = 0; i < m-1; i++)
         T[i] = i+1; /* T = {1, 2, ..., m-1} */
 
     for( ; !T.empty() ; T.pop_back()) {
         /* find the edge with minimal weight from S to T */
-        int wmin = INT_MAX;
-        int imin = -1;
-        int jmin = -1;
-        for (size_t i = 0; i < S.size(); i++)
-            for (size_t j = 0; j < T.size(); j++)
-                if (weights[S[i]*m + T[j]] < wmin) {
+        weight_t wmin = std::numeric_limits<weight_t>::max();
+        vertex_t imin = -1;
+        vertex_t jmin = -1;
+        for (vertex_t i = 0; i < (vertex_t) S.size(); i++)
+            for (vertex_t j = 0; j < (vertex_t) T.size(); j++)
+                if (weights(S[i],T[j]) < wmin) {
                     imin = i;
                     jmin = j;
-                    wmin = weights[S[i]*m + T[j]];
+                    wmin = weights(S[i],T[j]);
                 }
+        if (wmin == std::numeric_limits<weight_t>::max()) {
+            /* graph is disconnected. */
+            edges.clear();
+            return make_pair(wmin, edges);
+        }
         ASSERT(imin != -1 && jmin != -1);
         w += wmin;
         S.push_back(T[jmin]);
@@ -54,82 +55,89 @@ minimalSpanningTreePrimNaive (vector<int> weights, size_t m)
     return make_pair(w, edges);
 }
 
-#if 0
-/* Return the weight of the minimal spanning tree.
-   For each (s,t) which is part of the tree, we have
-   start[i] = s and end[i] = t for 0 <= i < m-1. */
-static pair<int, vector<pair<int, int>>>
-minimalSpanningTreeWithPrim (vector<int> weights, size_t m)
-{
-    /* the queue contains at most m-1 edges when nU=1 (those connected to the
-       root node), then at most 2*(m-2) when nU=2 (we remove one node and add
-       m-2), ... More generally when nU=k it is at most k*(m-k) + (k-1)*(k-2)/2.
-       The maximum is for k=m-1 or m-2 when it equals m^2/2-3/2*m+2 < m^2/2. */
-    index_t Q[MAX_QUEUE_SIZE];
-    int u, s, t, i, nU, nV, w;
-    int V[MERGE_LEVEL_MAX]; /* edges remaining to be dealt with */
-    int index[MERGE_LEVEL_MAX];
+struct queue_item {
+    weight_t weight;
+    vertex_t start;
+    vertex_t end;
+    queue_item(weight_t weight, vertex_t start, vertex_t end) : weight(weight), start(start), end(end) {}
+    bool operator<(queue_item const& o) const { return weight < o.weight; }
+    bool operator>(queue_item const& o) const { return weight > o.weight; }
+};
 
-    // nodes of T
-    for(i = 0; i < m; i++){
-        V[i] = i;
-        index[i] = i; /* V[index[i]] = i if i is in V, -1 otherwise */
-    }
-    u = 0;
-    index[u] = -1;
-    index[V[m-1]] = u;
-    V[u] = V[m-1];
-    nU = 1;   /* number of edges already in the MST */
-    nV = m-1; /* number of edges remaining to be dealt with */
-    Q[0] = 0; /* heap is empty initially */
-    addAllEdges (Q, u, V, nV, A);
-#if DEBUG >= 1
-    printQueue(Q);
-#endif
-    w = 0;
-    while (!isQueueEmpty(Q)) /* while queue is non empty */
-    {
-        popQueue (&s, &t, Q); // pop queue
-#if DEBUG >= 1
-        fprintf(stderr, "Popping a = (%d, %d) of weight %d\n", s, t, A[s][t]);
-#endif
-        if (index[t] != -1){
-            // t does not close a cycle
-            // T[u] <- T[u] union (s, t)
-#if DEBUG >= 1
-            fprintf(stderr, "new edge: (%d, %d) of weight %d\n",s,t,A[s][t]);
-#endif
-            w += A[s][t];
-            start[nU - 1] = s;
-            end[nU - 1] = t;
-            ASSERT(V[index[t]] == t);
-            index[V[nV-1]] = index[t];
-            V[index[t]] = V[nV-1];
-            index[t] = -1;
-            nV--;
-            nU++;
-            if (nV == 0)
-                break;
-            addAllEdges (Q, t, V, nV, A);
-#if DEBUG >= 1
-            printQueue(Q);
-#endif
+pair<weight_t, vector<pair<vertex_t, vertex_t>>>
+minimum_spanning_tree_WithPrim(matrix<weight_t> weights)
+{
+    weight_t w = 0;
+    vertex_t m = weights.dimension(0);
+    std::priority_queue<queue_item, std::vector<queue_item>, std::greater<queue_item>> Q;
+
+    vector<vertex_t> V(m);
+    vector<vertex_t> index_in_V(m); /* index in V */
+
+    for(vertex_t i = 0; i < m; i++)
+        index_in_V[i] = V[i] = i;
+
+    /* we maintain:
+     *  - index_in_V[V[i]]==i for all i < V.size().
+     *  - V[index_in_V[i]]==i for i unattached.
+     * Attached vertices have
+     * index_in_V[i]==attached.
+     */
+
+    vector<pair<vertex_t, vertex_t>> edges;
+
+    const vertex_t attached = std::numeric_limits<vertex_t>::max();
+    const weight_t no_edge = std::numeric_limits<weight_t>::max();
+
+#define ATTACH_VERTEX(u) do {						\
+    V[index_in_V[u]] = V.back(); 					\
+    index_in_V[V.back()] = index_in_V[u]; 				\
+    index_in_V[u] = attached;						\
+    V.pop_back();							\
+} while (0)
+
+#define ENQUEUE_EDGES(u) do {						\
+    /* push to Q the edges from u to the unattached vertices */	\
+    for(auto const & v : V) {						\
+        if (weights(u, v) != no_edge)					\
+        Q.push(queue_item(weights(u, v), u, v));		        \
+    }									\
+} while (0)
+
+    ATTACH_VERTEX(0);
+    ENQUEUE_EDGES(0);
+
+    /* V becomes empty sooner than Q */
+    for( ; !V.empty() ; ) {
+        if (Q.empty()) {
+            /* graph is disconnected. */
+            edges.clear();
+            return make_pair(no_edge, edges);
         }
+        auto edge = Q.top();
+        Q.pop();
+        /* edge.start is attached by construction. when edge.end is
+         * attached too, we have a cycle, so we ditch it. */
+        if (index_in_V[edge.end] == attached) continue;
+        w += edge.weight;
+        edges.push_back(make_pair(edge.start, edge.end));
+        ATTACH_VERTEX(edge.end);
+        ENQUEUE_EDGES(edge.end);
     }
-    return w;
+
+#undef ATTACH_VERTEX
+#undef ENQUEUE_EDGES
+
+    return make_pair(w, edges);
 }
 
-    int
-minimalSpanningTree(int *start, int *end,
-        int m, int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX])
+pair<weight_t, vector<pair<vertex_t, vertex_t>>>
+minimum_spanning_tree(matrix<weight_t> weights)
 {
-    int ret;
+    vertex_t m = weights.dimension(0);
 
     if (m <= 25)
-        ret = minimalSpanningTreePrimNaive (start, end, A, m);
+        return minimum_spanning_tree_PrimNaive (weights);
     else
-        ret = minimalSpanningTreeWithPrim (start, end, A, m);
-    return ret;
+        return minimum_spanning_tree_WithPrim (weights);
 }
-
-#endif

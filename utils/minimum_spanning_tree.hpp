@@ -19,16 +19,18 @@ public:
 private:
     size_type dims[2];
 public:
+    inline size_type dimension(int i) const { return dims[i]; }
     reference operator()(size_type i, size_type j) {
         return ((super&)*this)[i*dims[0]+j];
     }
     const_reference operator()(size_type i, size_type j) const {
         return ((super const&)*this)[i*dims[0]+j];
     }
-    matrix(size_type m, size_type n) : super(m*n) {}
+    matrix(size_type m, size_type n, value_type v = value_type()) : super(m*n, v) { dims[0]=m; dims[1]=n; }
 };
 
-std::pair<int, std::vector<std::pair<int, int>>>
-minimalSpanningTreePrimNaive (std::vector<int> weights, size_t m);
+/* Of course we could templatize the MST code. No need for that presently
+ */
+std::pair<int, std::vector<std::pair<int, int>>> minimum_spanning_tree(matrix<int> weights);
 
 #endif	/* MINIMUM_SPANNING_TREE_HPP_ */
