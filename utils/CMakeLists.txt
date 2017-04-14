@@ -16,6 +16,7 @@ set (sources
 	modified_files.c threadpool.cpp mpz_poly_bivariate.c
         gmpxx.cpp
         rho.c
+        minimum_spanning_tree.cpp
 )
 if (NOT MINGW)
     set (sources ${sources} cado_popen.c)
