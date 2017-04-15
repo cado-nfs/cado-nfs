@@ -115,29 +115,16 @@ void read_bad_ideals_info(const char *filename, allbad_info_t info)
  * a bit messy, esp. with powers.
  */
 static inline p_r_values_t
-compute_r_wrapper (uint64_t a, int64_t b, p_r_values_t p, p_r_values_t pk)
+compute_r_wrapper (int64_t a, int64_t b, p_r_values_t p, p_r_values_t pk)
 {
-  if ((b % p) == 0)
-  {
-    if (b < 0)
-    {
-        /* relation_compute_r wants a nonnegative first argument. So in
-         * order to get the proper encoding of -b/a (because we're
-         * projective here), we first get -(-b/a) with
-         * relation_compute_r, and later negate that.
-         */
-      p_r_values_t rk = relation_compute_r (-b, a, pk);
-      return (rk == 0) ? pk : 2*pk - rk;
-    }
+    if ((b % p) == 0)
+        return pk + relation_compute_r (b, a, pk);
     else
-      return pk + relation_compute_r (b, a, pk);
-  }
-  else
-    return relation_compute_r (a, b, pk);
+        return relation_compute_r (a, b, pk);
 }
 
 void
-handle_bad_ideals (int *exp_above, uint64_t a, int64_t b, p_r_values_t p,
+handle_bad_ideals (int *exp_above, int64_t a, int64_t b, p_r_values_t p,
         int e, int side, allbad_info_t info)
 {
     p_r_values_t r;

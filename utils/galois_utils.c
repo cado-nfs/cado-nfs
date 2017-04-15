@@ -37,16 +37,16 @@ galois_automorphism_srcptr galois_automorphism_get(const char * name)
 
 /* returns how many times sigma->factor must by added to the
  * corresponding relation */
-int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, uint64_t * a, int64_t * b)
+int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, int64_t * a, int64_t * b)
 {
     mpz_poly ab;
     mpz_poly_init(ab, 1);
-    mpz_poly_setcoeff_uint64(ab, 0, *a);
+    mpz_poly_setcoeff_int64(ab, 0, *a);
     mpz_poly_setcoeff_int64(ab, 1, *b);
     mpz_poly_homography(ab, ab, sigma->H, 1);
-    if (mpz_sgn(ab->coeff[0]) < 0)
+    if (mpz_sgn(ab->coeff[1]) < 0)
         mpz_poly_neg(ab, ab);
-    *a = mpz_get_uint64(ab->coeff[0]);
+    *a = mpz_get_int64(ab->coeff[0]);
     *b = mpz_get_int64(ab->coeff[1]);
     mpz_poly_clear(ab);
 

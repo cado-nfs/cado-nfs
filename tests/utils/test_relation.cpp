@@ -27,8 +27,8 @@ test_compute_r (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t a;
-    uint64_t b;
+    int64_t a;
+    int64_t b;
     unsigned long p;
 
     /* 5% of tests are for the case where p = 2^k */
@@ -46,7 +46,7 @@ test_compute_r (unsigned int nb)
       p = mpz_get_ui (tp);
     }
 
-    a = random_uint64 ();
+    a = random_int64 ();
     /* 5% of tests are for the case where b = 0 mod p (with b > 0)
      * We do not need to test for free relations as they never go through
      * relation_compute_r
@@ -54,8 +54,8 @@ test_compute_r (unsigned int nb)
     if (i < (nb / 20))
       b = lrand48() * p;
     else
-      b = random_int64 () + 1; /* b > 0 */
-    mpz_set_uint64 (ta, a);
+      for(;(b = random_int64 ()) <= 0;); /* we want b > 0 */
+    mpz_set_int64 (ta, a);
     mpz_set_int64 (tb, b);
 
     unsigned long r = relation_compute_r (a, b, p);
@@ -104,9 +104,11 @@ int test_compute_all_r (unsigned int nb)
       unsigned long r = mpz_compute_r (ta, tb, tp);
       if (r != mpz_get_ui(t1.sides[1][k].r))
       {
-        gmp_fprintf (stderr, "ERROR: a=%Zx b=%Zx p=%" PRpr "\n"
-                     "Got r=%" PRpr " instead of %" PRpr "\n",
-                     t2[0], t2[1], t2.sides[1][k].p, t1.sides[1][k].r, r);
+        gmp_fprintf (stderr, "ERROR: a=%Zx b=%Zx p=%Zd\n"
+                     "Got r=%Zd instead of %lu\n",
+                     (mpz_srcptr) ta, (mpz_srcptr) tb,
+                     (mpz_srcptr) tp, (mpz_srcptr) t1.sides[1][k].r,
+                     r);
         err++;
       }
     }
@@ -142,31 +144,30 @@ test_conversion (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t a = random_uint64 ();
-    uint64_t b = random_int64 ();
+    int64_t a = random_int64 ();
+    uint64_t b = random_uint64 ();
 
-    mpz_set_uint64 (t, a);
+    mpz_set_int64 (t, a);
 
     mpz_get_str(s1, 10, t);
-    tmp = u64toa10 (s2, a);
+    tmp = d64toa10 (s2, a);
     *tmp = '\0';
     err += check_str_err (s1, s2, t);
 
     mpz_get_str(s1, 16, t);
-    tmp = u64toa16 (s2, a);
+    tmp = d64toa16 (s2, a);
     *tmp = '\0';
     err += check_str_err (s1, s2, t);
 
 
-    mpz_set_int64 (t, b);
-
+    mpz_set_uint64 (t, b);
     mpz_get_str(s1, 10, t);
-    tmp = d64toa10 (s2, b);
+    tmp = u64toa10 (s2, b);
     *tmp = '\0';
     err += check_str_err (s1, s2, t);
 
     mpz_get_str(s1, 16, t);
-    tmp = d64toa16 (s2, b);
+    tmp = u64toa16 (s2, b);
     *tmp = '\0';
     err += check_str_err (s1, s2, t);
   }
@@ -191,7 +192,7 @@ main (int argc, const char *argv[])
   err += test_conversion (iter);
 
   if (err)
-    fprintf (stderr, "# %d erro%s found\n", err, (err == 1) ? "r" : "rs");
+    fprintf (stderr, "# %d error%s found\n", err, err ? "" : "s");
   tests_common_clear();
   return (err) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

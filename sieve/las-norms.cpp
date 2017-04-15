@@ -1396,7 +1396,7 @@ get_maxnorm_alg (double_poly_srcptr src_poly, const double X, const double Y)
 
 void sieve_range_adjust::prepare_fijd()/*{{{*/
 {
-    int64_t H[4] = { Q.a0, -Q.b0, Q.a1, -Q.b1 };
+    int64_t H[4] = { -Q.a0, Q.b0, -Q.a1, Q.b1 };
     /* We need to get the floating point polynomials. Yes, it will be
      * done several times in the computation, but that's a trivial
      * computation anyway.
@@ -1831,7 +1831,7 @@ void
 sieve_info::update_norm_data()
 {
   sieve_info& si(*this);
-  int64_t H[4] = { si.qbasis.a0, -si.qbasis.b0, si.qbasis.a1, -si.qbasis.b1 };
+  int64_t H[4] = { -si.qbasis.a0, si.qbasis.b0, -si.qbasis.a1, si.qbasis.b1 };
 
   double step, begin;
   double r, maxlog2;

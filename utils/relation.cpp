@@ -34,9 +34,12 @@ relation::parse(const char *line)
     if (line[0] == '-' || isdigit(line[0])) {
         /* legacy format */
         cxx_mpz a,b;
-        if (gmp_sscanf(line, "%Zd,%Zd:%n", a, b, &consumed) < 2)
+        if (gmp_sscanf(line, "%Zd,%Zd:%n", (mpz_ptr) a, (mpz_ptr) b, &consumed) < 2)
             return 0;
-        mpz_neg(b,b);
+        /* With the legacy format, (a,b) encodes a-bx. Given that we
+         * still have the normalization b>0, we'll put -a+bx instead.
+         */
+        mpz_neg(a,a);
         ab() = relation_ab(a, b);
     } else if (line[0] == 'X') {
         ab().clear();
@@ -45,7 +48,7 @@ relation::parse(const char *line)
         for(int c ; line[consumed] == ',' || line[consumed] == ' ' ; consumed += c) {
             consumed++;
             cxx_mpz x;
-            if (gmp_sscanf(line + consumed, "%Zx%n", x, &c) < 1)
+            if (gmp_sscanf(line + consumed, "%Zx%n", (mpz_ptr) x, &c) < 1)
                 return 0;
             ab().push_back(x);
         }
@@ -99,7 +102,7 @@ relation::print (FILE *file, const char *prefix) const
     p += c;
 
     for(unsigned int i = 0 ; i < ab().size() ; i++) {
-        c = gmp_snprintf(p, fence - p, "%c%Zx", i ? ',' : ' ', ab()[i]);
+        c = gmp_snprintf(p, fence - p, "%c%Zx", i ? ',' : ' ', (mpz_srcptr) ab()[i]);
         p += c;
     }
 
@@ -108,7 +111,7 @@ relation::print (FILE *file, const char *prefix) const
         char * op = p;
         for(unsigned int i = 0 ; i < sides[side].size() ; i++) {
             for(int e = sides[side][i].e ; e ; e--) {
-                c = gmp_snprintf(p, fence - p, "%Zx,", sides[side][i].p);
+                c = gmp_snprintf(p, fence - p, "%Zx,", (mpz_srcptr) sides[side][i].p);
                 p += c;
             }
         }
@@ -161,9 +164,6 @@ void relation::addv(int side, unsigned long p, int ae)
         /* use the function provided in relation-tools.c */
         int64_t a = mpz_get_int64(ab()[0]);
         int64_t b = mpz_get_int64(ab()[1]);
-        /* the function relation_compute_r takes a uint64_t so we want to
-         * be sure */
-        ASSERT_ALWAYS(a >= 0);
         add(side, p, relation_compute_r(a, b, p), ae);
     } else {
         abort();        /* implement me ! */

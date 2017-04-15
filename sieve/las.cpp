@@ -1016,7 +1016,7 @@ static void add_relations_with_galois(
         FILE *output, const char *comment, int *cpt, relation &rel)
 {
     ASSERT_ALWAYS(rel.ab().size() == 2);
-    uint64_t a = mpz_get_uint64(rel[0]);
+    int64_t a = mpz_get_int64(rel[0]);
     int64_t b = mpz_get_int64(rel[1]);
 
     /* Remember that the relation got printed once, already */
@@ -1679,7 +1679,7 @@ bool register_contending_relation(las_info const & las, sieve_info const & si, r
                  * not have the info in the descent hint table,
                  * period.
                  */
-                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Warning: cannot estimate refactoring time for relation involving %d@%d (%Zd,%Zd)\n", n, side, v.p, v.r);
+                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Warning: cannot estimate refactoring time for relation involving %d@%d (%Zd,%Zd)\n", n, side, (mpz_srcptr) v.p, (mpz_srcptr) v.r);
                 time_left = INFINITY;
             } else {
                 if (std::isfinite(time_left))
@@ -1919,7 +1919,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
          * log to base 2 of the sieve limits on each side, and compare the
          * bitsize of the cofactor with their double.
          */
-        uint64_t a;
+        int64_t a;
         int64_t b;
 
         SIBLING_TIMER(timer, "check_coprime");
@@ -3073,7 +3073,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                     int side = winner.outstanding[i].first;
                     relation::pr const & v(winner.outstanding[i].second);
                     unsigned int n = mpz_sizeinbase(v.p, 2);
-                    verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list\n", side, v.p, v.r, n, side);
+                    verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list\n", side, (mpz_srcptr) v.p, (mpz_srcptr) v.r, n, side);
                     las_todo_push_withdepth(las, v.p, v.r, side, si.doing.depth + 1);
                 }
             }

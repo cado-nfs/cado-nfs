@@ -9,8 +9,11 @@ CHECKSUM_FILE="$4"
 SOURCE_TEST_DIR="`dirname "$0"`"
 shift 4
 
-REFERENCE_SHA1="21ab56446ae4bda9fad6a74c292f4d787201604a" # 272 relations
-REFERENCE_REVISION="b97cad99b07072a6ed47a0d12b03eb768604ab1e"
+REFERENCE_SHA1="c4239f8255d2bcb38e8d65254976c598f559a150" # 272 relations
+REFERENCE_REVISION="8aad7a3d2beba56d62ccfcf94c6c30732b809f52"
+
+# REFERENCE_SHA1="21ab56446ae4bda9fad6a74c292f4d787201604a" # 272 relations
+# REFERENCE_REVISION="b97cad99b07072a6ed47a0d12b03eb768604ab1e"
 # the checksum should not change in batch mode, which should find the maximum
 # number of relations (except if the order of primes changes)
 # REFERENCE_SHA1="74bf09179736a350cc706685a83fd155cbb75f33" # 272 relations

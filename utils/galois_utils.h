@@ -36,7 +36,7 @@ galois_automorphism_srcptr galois_automorphism_get(const char * name);
 
 /* returns how many times sigma->factor must by added to the
  * corresponding relation */
-int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, uint64_t * a, int64_t * b);
+int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, int64_t * a, int64_t * b);
 
 void galois_automorphism_apply_root(galois_automorphism_srcptr sigma, mpz_ptr r1, mpz_srcptr r0, mpz_srcptr p);
 

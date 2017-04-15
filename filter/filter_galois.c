@@ -181,7 +181,7 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
           dh += constants_ab_dup2[i] * ab[i];
       }
       h ^= dh;
-      galois_automorphism_apply_ab(sigma, (uint64_t*)&(ab[0]), &ab[1]);
+      galois_automorphism_apply_ab(sigma, &(ab[0]), &ab[1]);
   }
   i = h % K;
   j = (uint32_t) (h >> 32);

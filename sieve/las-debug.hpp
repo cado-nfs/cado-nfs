@@ -41,7 +41,7 @@ struct where_am_I {
 /* }}} */
 
 struct trace_Nx_t { unsigned int N; unsigned int x; };
-struct trace_ab_t { uint64_t a; int64_t b; };
+struct trace_ab_t { int64_t a; int64_t b; };
 struct trace_ij_t { int i; unsigned int j; };
 
 extern void trace_per_sq_init(sieve_info const & si,
@@ -81,7 +81,7 @@ static inline int trace_on_spot_x(uint64_t x) {
         + (uint64_t)trace_Nx.x;
 }
 
-static inline int trace_on_spot_ab(uint64_t a, int64_t b) {
+static inline int trace_on_spot_ab(int64_t a, int64_t b) {
     return a == trace_ab.a && b == trace_ab.b;
 }
 
@@ -98,7 +98,7 @@ static inline int trace_on_spot_N(unsigned int N MAYBE_UNUSED) { return 0; }
 static inline int trace_on_spot_Nx(unsigned int N MAYBE_UNUSED, unsigned int x MAYBE_UNUSED) { return 0; }
 static inline int trace_on_range_Nx(unsigned int N MAYBE_UNUSED, unsigned int x0 MAYBE_UNUSED, unsigned int x1 MAYBE_UNUSED) { return 0; }
 static inline int trace_on_spot_x(unsigned int x MAYBE_UNUSED) { return 0; }
-static inline int trace_on_spot_ab(uint64_t a MAYBE_UNUSED, int64_t b MAYBE_UNUSED) { return 0; }
+static inline int trace_on_spot_ab(int64_t a MAYBE_UNUSED, int64_t b MAYBE_UNUSED) { return 0; }
 static inline int trace_on_spot_ij(int i MAYBE_UNUSED, unsigned int j MAYBE_UNUSED) { return 0; }
 
 #ifdef CHECK_UNDERFLOW

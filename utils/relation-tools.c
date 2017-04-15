@@ -72,11 +72,12 @@ d64toa16 (char *p, int64_t m)
 
 /* return -a/b mod p, and p when gcd(b,p) <> 1: this corresponds to a
    projective root */
+/* both a and b are allowed to be negative.  */
 /* We use the fact that sizeof(p_r_values_t) <= sizeof(unsigned long);
    this is a condition that is checked in typedefs.h.
    So we can use mod_initmod_ul function and mod_get_ul without risk. */
 p_r_values_t
-relation_compute_r (uint64_t a, int64_t b, p_r_values_t p)
+relation_compute_r (int64_t a, int64_t b, p_r_values_t p)
 {
   int inv;
   unsigned long root;
@@ -97,7 +98,7 @@ relation_compute_r (uint64_t a, int64_t b, p_r_values_t p)
     modul_init (pa, m);
     modul_init (r, m);
 
-    modul_set_uint64 (pa, a, m); /* Does reduction mod p */
+    modul_set_int64 (pa, a, m); /* Does reduction mod p */
 
     modul_mul(r, t, pa, m);
 
