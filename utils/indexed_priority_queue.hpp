@@ -85,6 +85,7 @@ protected:
 public:
     /* default copy, swap, and assignment operators are fine */
     indexed_priority_queue(const value_compare& compare = value_compare()) : comp(compare) {}
+    void clear() { indices.clear(); values.clear(); }
 
 protected:
     inline bool _check(size_type j) const { return indices.at(values[j].first) == j; }
@@ -204,6 +205,7 @@ public:
         _fixup(hole);
     }
     inline void update(size_type j, const priority_type & v) { update(std::make_pair(j,v)); }
+    /*
     void update(const value_type& a) {
         size_type hole = indices.at(a.first);
         if (!hole || !comp(values[(hole-1)/2], a)) {
@@ -213,6 +215,20 @@ public:
         }
         values[hole] = a;
         _fixup(hole);
+    }
+    */
+    bool update(const value_type& a) {
+        auto it = indices.find(a.first);
+        if (it == indices.end()) return false;
+        size_type hole = it->second;
+        if (!hole || !comp(values[(hole-1)/2], a)) {
+            hole = _prepare_insert_down(hole, size(), a);
+        } else {
+            hole = _prepare_insert_up(hole, a);
+        }
+        values[hole] = a;
+        _fixup(hole);
+        return true;
     }
 
     bool is_heap(size_type base = 0) {

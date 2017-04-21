@@ -12,6 +12,8 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <queue>
+#include <set>
 
 #include "portability.h"
 
@@ -19,6 +21,8 @@
 #define MKZTYPE_CAVALLAR 0
 #define MKZTYPE_PURE 1
 #define MKZTYPE_LIGHT 2
+
+#define REPORT_INCR 3.0
 
 #include "filter_config.h"
 #include "utils_with_io.h"
@@ -34,6 +38,7 @@
 #include "get_successive_minima.hpp"
 #define DEBUG_SMALL_SIZE_POOL
 #include "small_size_pool.hpp"
+#include "minimum_spanning_tree.hpp"
 
 /* NOTE: presently this value has a very significant impact on I/O speed
  * (about a factor of two when reading the purged file), and we have
@@ -73,8 +78,8 @@ struct merge_matrix {
   size_t rem_nrows;     /* number of remaining rows */
   size_t rem_ncols;     /* number of remaining columns, including the buried
                              columns */
-  size_t nburied;       /* the number of buried columns */
   size_t weight;        /* non-zero coefficients in the active part */
+  size_t nburied;       /* the number of buried columns */
   size_t total_weight;  /* Initial total number of non-zero coefficients */
   size_t keep;          /* target for nrows-ncols */
   int maxlevel;         /* says it */
@@ -117,6 +122,12 @@ struct merge_matrix {
       template<int otherwidth> friend class merge_row_ideal;
       template<int otherwidth>
       merge_row_ideal(merge_row_ideal<otherwidth> const & p) : h(p.h), e(p.e) {}
+      merge_row_ideal operator*(exponent_type const& v) const {
+          merge_row_ideal res;
+          res.h = h;
+          res.e = e * v;
+          return res;
+      }
   };
 #else
   template<int index_size = 8>
@@ -137,54 +148,96 @@ struct merge_matrix {
 #endif
   /* }}} */
 
-  typedef unsigned int rowweight_t;
-  typedef uint32_t colweight_t;  /* we used to require that it be signed.
-                                    It's no longer the case. In fact,
-                                    it's the contrary... */
-
-  /* This structure holds the rows. We strive to avoid fragmentation
-   * here. */
-  typedef compressible_heap<
-      merge_row_ideal<compact_column_index_size>,
-      rowweight_t,
-      merge_row_heap_batch_size> rows_t;
-
-  rows_t rows;
-
-  /* weight per column index. negative measns inactive */
-  std::vector<colweight_t> colweights;
 
   static void declare_usage(param_list_ptr pl);
   bool interpret_parameters(param_list_ptr pl);
 
-  void push_relation(earlyparsed_relation_ptr rel);
+  /* {{{ row-oriented structures */
+  typedef unsigned int row_weight_t;
+  /* This structure holds the rows. We strive to avoid fragmentation
+   * here. */
+
+  typedef merge_row_ideal<compact_column_index_size> row_value_t;
+
+  typedef compressible_heap<
+      row_value_t,
+      row_weight_t,
+      merge_row_heap_batch_size> rows_t;
+  rows_t rows;
+  struct row_weight_iterator : public decltype(rows)::iterator {
+      typedef decltype(rows)::iterator super;
+      typedef std::pair<size_t, row_weight_t> value_type;
+      row_weight_iterator(super const & x) : super(x) {}
+      value_type operator*() {
+          super& s(*this);
+          ASSERT_ALWAYS(s->first);
+          return std::make_pair(index(), s->second);
+      }
+  };
+
   void read_rows(const char *purgedname);
-  size_t count_columns_below_weight(size_t *nbm, size_t wmax);
-  void bury_heavy_columns();
-  void renumber_columns();
-  void remove_row(size_t i, size_t keepcolumn = SIZE_MAX);
-  void remove_column(size_t j);
-  size_t remove_singletons();
-  size_t remove_singletons_iterate();
+  void push_relation(earlyparsed_relation_ptr rel);
+  /* }}} */
 
-  void merge();
-
-  typedef int32_t pivot_priority_t;
-  sparse_indexed_priority_queue<size_t, pivot_priority_t> markowitz_table;
-
-  pivot_priority_t markowitz_count(size_t j) const;
-
+  /* {{{ column-oriented structures. We have several types of columns:
+   *  - "buried" columns. They're essentially deleted from the matrix
+   *    forever.
+   *  - "inactive" columns, for which R_table[j]==0
+   *  - "active" columns, for which col_weights[j] <= cwmax (cwmax loops
+   *    from 2 to maxlevel).
+   */
+  typedef uint32_t col_weight_t;  /* we used to require that it be signed.
+                                     It's no longer the case. In fact,
+                                     it's even the contrary... */
+  /* weight per column index */
+  std::vector<col_weight_t> col_weights;
   /* The integer below decides how coarse the allocation should be.
    * Larger means potentially faster reallocs, but also more memory usage
    *
-   * Note that this is inherently tied to the colweights vector !
+   * Note that this is inherently tied to the col_weights vector !
    */
-  typedef small_size_pool<size_t, colweight_t, 1> R_pool_t;
+  typedef small_size_pool<size_t, col_weight_t, 1> R_pool_t;
   R_pool_t R_pool;
   std::vector<R_pool_t::size_type> R_table;
-
   void clear_R_table();
   void prepare_R_table(size_t maxlevel);
+  size_t count_columns_below_weight(size_t *nbm, size_t wmax);
+  void bury_heavy_columns();
+  void renumber_columns();
+  /* }}} */
+
+  /* {{{ priority queue for active columns to be considered for merging
+   */
+  typedef int32_t pivot_priority_t;
+  typedef sparse_indexed_priority_queue<size_t, pivot_priority_t> markowitz_table_t;
+  markowitz_table_t markowitz_table;
+  pivot_priority_t markowitz_count(size_t j) const;
+  void fill_markowitz_table();
+  void update_markowitz_entry(size_t j);
+  /* }}} */
+
+  /*{{{ general high-level operations */
+  void addRj(size_t i);
+  void subRj(size_t i, size_t keepcolumn = SIZE_MAX);
+  void remove_column(size_t j);
+  size_t remove_singletons();
+  size_t remove_singletons_iterate();
+  void pivot_with_column(size_t j);
+#if 0
+#ifdef FOR_DL
+  void multipliers_for_row_combination(
+        row_value_t::exponent_type & e0, row_value_t::exponent_type & e1,
+        size_t i0, size_t i1, size_t j);
+#endif
+  /* The set is optional. The routine adds to it the set of column
+   * indices (not counting j) which appear more than once in rows i0 and
+   * i1).
+   */
+  row_weight_t weight_of_sum_of_rows(size_t i0, size_t i1, size_t j, std::set<size_t> * S = NULL) const;
+#endif
+  size_t remove_excess(size_t count = SIZE_MAX);
+  void merge();
+  /*}}}*/
 };
 
 /*{{{ parameters */
@@ -232,98 +285,7 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
 }
 /*}}}*/
 
-/* Put in nbm[w] for 0 <= w < wmax, the number of ideals of weight w.
- * Return the number of active columns (w > 0) -- this return value is
- * independent of wmax.
- */
-size_t merge_matrix::count_columns_below_weight (size_t * nbm, size_t wmax)/*{{{*/
-{
-  size_t active = 0;
-  for (size_t h = 0; h < wmax; nbm[h++] = 0) ;
-  for (size_t h = 0; h < ncols; h++) {
-      colweight_t w = colweights[h];
-      if ((size_t) w < wmax) nbm[w]++;
-      active += w > 0;
-  }
-  return active;
-}
-/*}}}*/
-void merge_matrix::bury_heavy_columns()/*{{{*/
-{
-    if (!nburied) {
-        printf("# No columns were buried.\n");
-        weight = total_weight;
-        return;
-    }
-
-    static const colweight_t colweight_max=std::numeric_limits<colweight_t>::max();
-
-    double tt = seconds();
-    std::vector<size_t> heaviest = get_successive_minima(colweights, nburied, std::greater<colweight_t>());
-
-    colweight_t max_buried_weight = colweights[heaviest.front()];
-    colweight_t min_buried_weight = colweights[heaviest.back()];
-
-    /* Compute weight of buried part of the matrix. */
-    size_t weight_buried = 0;
-    for (size_t i = 0; i < heaviest.size() ; i++)
-    {
-        colweight_t& w = colweights[heaviest[i]];
-        weight_buried += w;
-        /* since we saturate the weights at 2^31-1, weight_buried might be less
-           than the real weight of buried columns, however this can occur only
-           when the number of rows exceeds 2^32-1 */
-#if DEBUG >= 1
-        fprintf(stderr, "# Burying j=%zu (wt = %zu)\n",
-                heaviest[i], (size_t) w);
-#endif
-        /* reset to 0 the weight of the buried columns */
-        w = 0;
-    }
-    printf("# Number of buried columns is %zu (%zu >= weight >= %zu)\n",
-            nburied, (size_t) max_buried_weight, (size_t) min_buried_weight);
-
-    bool weight_buried_is_exact = max_buried_weight < colweight_max;
-    printf("# Weight of the buried part of the matrix is %s%zu\n",
-            weight_buried_is_exact ? "" : ">= ", weight_buried);
-
-    /* Remove buried columns from rows in mat structure */
-    printf("# Start to remove buried columns from rels...\n");
-    fflush (stdout);
-    // // #ifdef HAVE_OPENMP
-    // // #pragma omp parallel for
-    // // #endif
-    for (auto it = rows.begin() ; it != rows.end() ; ++it) {
-        merge_row_ideal<compact_column_index_size> * ptr = it->first;
-        rowweight_t nl = 0;
-        for (rowweight_t i = 0; i < it->second; i++) {
-            size_t h = ptr[i].index();
-            colweight_t w = colweights[h];
-#if 0
-            bool bury = w > min_buried_weight;
-            bury = bury || (w == min_buried_weight && h > heaviest.back());
-            if (!bury)
-                ptr[nl++] = ptr[i];
-#else
-            if (w)
-                ptr[nl++] = ptr[i];
-#endif
-        }
-        rows.shrink_value(it, nl);
-    }
-
-    printf("# Done. Total bury time: %.1f s\n", seconds()-tt);
-    /* compute the matrix weight */
-    weight = 0;
-    for (auto const & R : rows)
-        weight += R.second;
-
-    if (weight_buried_is_exact)
-        ASSERT_ALWAYS (weight + weight_buried == total_weight);
-    else /* weight_buried is only a lower bound */
-        ASSERT_ALWAYS (weight + weight_buried <= total_weight);
-}/*}}}*/
-/* {{{ read_rows */
+/* {{{ merge_matrix::push_relation and ::read_rows */
 void merge_matrix::push_relation(earlyparsed_relation_ptr rel)
 {
     merge_row_ideal<> temp[rel->nb];
@@ -331,9 +293,9 @@ void merge_matrix::push_relation(earlyparsed_relation_ptr rel)
     std::sort(temp, temp + rel->nb);
     /* we should also update the column weights */
     for(weight_t i = 0 ; i < rel->nb ; i++) {
-        colweight_t & w(colweights[temp[i].index()]);
+        col_weight_t & w(col_weights[temp[i].index()]);
         rem_ncols += !w;
-        w += w != std::numeric_limits<colweight_t>::max();
+        w += w != std::numeric_limits<col_weight_t>::max();
     }
     total_weight += rel->nb;
     rows.push_back(temp, temp+rel->nb);
@@ -347,52 +309,11 @@ void * merge_matrix_push_relation (void *context_data, earlyparsed_relation_ptr 
     return NULL;
 }
 
-/* Renumber the non-zero columns to contiguous values [0, 1, 2, ...]
- * We can use this function only for factorization because in this case we do
- * not need the indexes of the columns (contrary to DL where the indexes of the
- * column are printed in the history file). */
-void
-merge_matrix::renumber_columns()
-{
-    double tt = seconds();
-
-    printf("# renumbering columns\n");
-    std::vector<size_t> p(ncols);
-    /* compute the mapping of column indices, and adjust the colweights
-     * table */
-    size_t h = 0;
-    for (size_t j = 0; j < ncols; j++) {
-        if (!colweights[j]) continue;
-        p[j]=h;
-        colweights[h] = colweights[j];
-#ifdef TRACE_COL
-        if (TRACE_COL == h || TRACE_COL == j)
-            printf ("TRACE_COL: column %zu is renumbered into %zu\n", j, h);
-#endif
-        h++;
-    }
-    colweights.erase(colweights.begin() + h, colweights.end());
-    /* h should be equal to rem_ncols, which is the number of columns with
-     * non-zero weight */
-    ASSERT_ALWAYS(h + nburied == rem_ncols);
-
-    ncols = h;
-
-    /* apply mapping to the rows. As p is a non decreasing function, the
-     * rows are still sorted after this operation. */
-    for (auto & R : rows) {
-        merge_row_ideal<compact_column_index_size> * ptr = R.first;
-        for (rowweight_t i = 0 ; i < R.second ; i++)
-            ptr[i].index()=p[ptr[i].index()];
-    }
-    printf("# renumbering done in %.1f s\n", seconds()-tt);
-}
-
 void merge_matrix::read_rows(const char *purgedname)
 {
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline(purgedname, &nrows, &ncols);
-    colweights.assign(ncols, colweight_t());
+    col_weights.assign(ncols, col_weight_t());
 
     char *fic[2] = {(char *) purgedname, NULL};
 
@@ -438,42 +359,180 @@ void merge_matrix::read_rows(const char *purgedname)
 }
 /* }}} */
 
+/*{{{ size_t merge_matrix::count_columns_below_weight */
+/* Put in nbm[w] for 0 <= w < wmax, the number of ideals of weight w.
+ * Return the number of active columns (w > 0) -- this return value is
+ * independent of wmax.
+ */
+size_t merge_matrix::count_columns_below_weight (size_t * nbm, size_t wmax)
+{
+  size_t active = 0;
+  for (size_t h = 0; h < wmax; nbm[h++] = 0) ;
+  for (size_t h = 0; h < ncols; h++) {
+      col_weight_t w = col_weights[h];
+      if ((size_t) w < wmax) nbm[w]++;
+      active += w > 0;
+  }
+  return active;
+}
+/*}}}*/
+void merge_matrix::bury_heavy_columns()/*{{{*/
+{
+    if (!nburied) {
+        printf("# No columns were buried.\n");
+        weight = total_weight;
+        return;
+    }
+
+    static const col_weight_t colweight_max=std::numeric_limits<col_weight_t>::max();
+
+    double tt = seconds();
+    std::vector<size_t> heaviest = get_successive_minima(col_weights, nburied, std::greater<col_weight_t>());
+
+    col_weight_t max_buried_weight = col_weights[heaviest.front()];
+    col_weight_t min_buried_weight = col_weights[heaviest.back()];
+
+    /* Compute weight of buried part of the matrix. */
+    size_t weight_buried = 0;
+    for (size_t i = 0; i < heaviest.size() ; i++)
+    {
+        col_weight_t& w = col_weights[heaviest[i]];
+        weight_buried += w;
+        /* since we saturate the weights at 2^31-1, weight_buried might be less
+           than the real weight of buried columns, however this can occur only
+           when the number of rows exceeds 2^32-1 */
+#if DEBUG >= 1
+        fprintf(stderr, "# Burying j=%zu (wt = %zu)\n",
+                heaviest[i], (size_t) w);
+#endif
+        /* reset to 0 the weight of the buried columns */
+        w = 0;
+    }
+    printf("# Number of buried columns is %zu (%zu >= weight >= %zu)\n",
+            nburied, (size_t) max_buried_weight, (size_t) min_buried_weight);
+
+    bool weight_buried_is_exact = max_buried_weight < colweight_max;
+    printf("# Weight of the buried part of the matrix is %s%zu\n",
+            weight_buried_is_exact ? "" : ">= ", weight_buried);
+
+    /* Remove buried columns from rows in mat structure */
+    printf("# Start to remove buried columns from rels...\n");
+    fflush (stdout);
+    // // #ifdef HAVE_OPENMP
+    // // #pragma omp parallel for
+    // // #endif
+    for (auto it = rows.begin() ; it != rows.end() ; ++it) {
+        row_value_t * ptr = it->first;
+        row_weight_t nl = 0;
+        for (row_weight_t i = 0; i < it->second; i++) {
+            size_t h = ptr[i].index();
+            col_weight_t w = col_weights[h];
+#if 0
+            bool bury = w > min_buried_weight;
+            bury = bury || (w == min_buried_weight && h > heaviest.back());
+            if (!bury)
+                ptr[nl++] = ptr[i];
+#else
+            if (w)
+                ptr[nl++] = ptr[i];
+#endif
+        }
+        rows.shrink_value(it, nl);
+    }
+
+    printf("# Done. Total bury time: %.1f s\n", seconds()-tt);
+    /* compute the matrix weight */
+    weight = 0;
+    for (auto const & R : rows)
+        weight += R.second;
+
+    if (weight_buried_is_exact)
+        ASSERT_ALWAYS (weight + weight_buried == total_weight);
+    else /* weight_buried is only a lower bound */
+        ASSERT_ALWAYS (weight + weight_buried <= total_weight);
+}/*}}}*/
+/*{{{ void merge_matrix::renumber_columns() */
+/* Renumber the non-zero columns to contiguous values [0, 1, 2, ...]
+ * We can use this function only for factorization because in this case we do
+ * not need the indexes of the columns (contrary to DL where the indexes of the
+ * column are printed in the history file). */
+void merge_matrix::renumber_columns()
+{
+    double tt = seconds();
+
+    printf("# renumbering columns\n");
+    std::vector<size_t> p(ncols);
+    /* compute the mapping of column indices, and adjust the col_weights
+     * table */
+    size_t h = 0;
+    for (size_t j = 0; j < ncols; j++) {
+        if (!col_weights[j]) continue;
+        p[j]=h;
+        col_weights[h] = col_weights[j];
+#ifdef TRACE_COL
+        if (TRACE_COL == h || TRACE_COL == j)
+            printf ("TRACE_COL: column %zu is renumbered into %zu\n", j, h);
+#endif
+        h++;
+    }
+    col_weights.erase(col_weights.begin() + h, col_weights.end());
+    /* h should be equal to rem_ncols, which is the number of columns with
+     * non-zero weight */
+    ASSERT_ALWAYS(h + nburied == rem_ncols);
+
+    ncols = h;
+
+    /* apply mapping to the rows. As p is a non decreasing function, the
+     * rows are still sorted after this operation. */
+    for (auto & R : rows) {
+        row_value_t * ptr = R.first;
+        for (row_weight_t i = 0 ; i < R.second ; i++)
+            ptr[i].index()=p[ptr[i].index()];
+    }
+    printf("# renumbering done in %.1f s\n", seconds()-tt);
+}
+/*}}}*/
+
 void merge_matrix::clear_R_table()/*{{{*/
 {
     R_table.clear();
     R_pool.clear();
-    R_table.assign(colweights.size(), R_pool_t::size_type());
+    R_table.assign(col_weights.size(), R_pool_t::size_type());
 }
 /* }}} */
-
 void merge_matrix::prepare_R_table(size_t cwmax)/*{{{*/
 {
     double tt = seconds();
     clear_R_table();
-    for(size_t j = 0 ; j < colweights.size() ; j++) {
-        if (colweights[j] > (colweight_t) cwmax || !colweights[j]) continue;
-        R_table[j] = R_pool.alloc(colweights[j]);
+    for(size_t j = 0 ; j < col_weights.size() ; j++) {
+        if (col_weights[j] > (col_weight_t) cwmax || !col_weights[j]) continue;
+        R_table[j] = R_pool.alloc(col_weights[j]);
     }
     printf("# Time for allocating R: %.2f s\n", seconds()-tt);
     tt=seconds();
     ASSERT_ALWAYS(cwmax <= std::numeric_limits<uint8_t>::max());
-    std::vector<uint8_t> pos(colweights.size(), 0);
+    std::vector<uint8_t> pos(col_weights.size(), 0);
     for(auto it = rows.begin() ; it != rows.end() ; ++it) {
-        merge_row_ideal<compact_column_index_size> * ptr = it->first;
-        for (rowweight_t k = 0; k < it->second; k++) {
-            size_t h = ptr[k].index();
-            if (!R_table[h]) continue;
-            colweight_t w = colweights[h];
-            R_pool_t::value_type * Rx = R_pool(w, R_table[h]);
-            Rx[pos[h]++]=it.i;
+        row_value_t * ptr = it->first;
+        for (row_weight_t k = 0; k < it->second; k++) {
+            size_t j = ptr[k].index();
+            if (!R_table[j]) continue;
+            col_weight_t w = col_weights[j];
+            R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
+            ASSERT_ALWAYS(pos[j] < cwmax);
+            Rx[pos[j]++]=it.i;
         }
     }
-    std::stringstream s;
-    s << R_pool.printer("# ");
-    fputs(s.str().c_str(), stdout);
+    for(size_t j = 0 ; j < col_weights.size() ; j++) {
+        if (col_weights[j] > (col_weight_t) cwmax || !col_weights[j]) continue;
+        ASSERT_ALWAYS(pos[j] == col_weights[j]);
+    }
     printf("# Time for filling R: %.2f s\n", seconds()-tt);
 }/*}}}*/
 
+
+
+/*{{{ pivot_priority_t merge_matrix::markowitz_count */
 /* This functions returns the difference in matrix element when we add the
  * lightest row with ideal j to all other rows. If ideal j has weight w,
  * and the lightest row has weight w0:
@@ -493,7 +552,7 @@ void merge_matrix::prepare_R_table(size_t cwmax)/*{{{*/
  */
 merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j) const
 {
-    colweight_t w = colweights[j];
+    col_weight_t w = col_weights[j];
 
     /* empty cols and singletons have max priority */
     if (w <= 1) return std::numeric_limits<pivot_priority_t>::max();
@@ -505,64 +564,95 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j) const
     if (!R_table[j]) return std::numeric_limits<pivot_priority_t>::min();
 
     const R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
-    rowweight_t w0 = std::numeric_limits<rowweight_t>::max();
-    for(colweight_t k = 0 ; k < w ; k++)
+    row_weight_t w0 = std::numeric_limits<row_weight_t>::max();
+    for(col_weight_t k = 0 ; k < w ; k++)
         w0 = std::min(w0, rows[Rx[k]].second);
 
     return 2 - (w0 - 2) * (w - 2);
 }
+/*}}}*/
 
-void merge_matrix::remove_row(size_t i, size_t keepcolumn)
+void merge_matrix::update_markowitz_entry(size_t j)
 {
-    rows_t::reference R = rows[i];
-    merge_row_ideal<compact_column_index_size> * ptr = R.first;
-    for( ; ptr != R.first + R.second ; ptr++) {
-        size_t j = ptr->index();
-        if (j == keepcolumn) continue;
+    markowitz_table.update(std::make_pair(j, markowitz_count(j)));
+}
+    
+void merge_matrix::fill_markowitz_table()
+{
+    double tt = seconds();
+    for(size_t j = 0 ; j < col_weights.size() ; j++) {
         if (!R_table[j]) continue;
-        /* remove mention of this row in the R entry associated to j */
-        colweight_t w = colweights[j];
-        R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
-
-        R_pool_t::size_type smaller_key = R_pool.alloc(w-1);
-        R_pool_t::value_type * nRx = R_pool(w-1, smaller_key);
-
-        R_pool_t::value_type * me = std::find(Rx, Rx + w, i);
-        ASSERT_ALWAYS(me != Rx + w);
-
-        std::copy(Rx, me, nRx);
-        std::copy(me + 1, Rx + w, nRx + (me - Rx));
-
-        R_pool.free(w, R_table[j]);
-        R_table[j] = smaller_key;
-        colweights[j] = w-1;
+        markowitz_table.push(std::make_pair(j, markowitz_count(j)));
     }
-    rows.kill(i);
+    printf("# Time for filling markowitz table: %.2f s\n", seconds()-tt);
 }
 
-void merge_matrix::remove_column(size_t j)
+void merge_matrix::addRj(size_t i) /*{{{*/
 {
-    colweight_t & w = colweights[j];
-    R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
-    for(colweight_t k = 0 ; k < w ; k++) {
-        remove_row(Rx[k], j);   // do not touch column j now.
+    /* add to the R table the entries for row i */
+    rows_t::const_reference R = rows[i];
+    for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
+        size_t j = p->index();
+        if (!R_table[j]) { col_weights[j]++; continue; }
+        // printf("# addRj for col %zu\n", j);
+        /* add mention of this row in the R entry associated to j */
+        col_weight_t w = col_weights[j];
+        R_pool.realloc(col_weights[j], R_table[j], w+1);
+        R_pool(col_weights[j], R_table[j])[w] = i;
+        update_markowitz_entry(j);
     }
-    R_pool.free(w, R_table[j]);
-    w = 0;
-}
+}/*}}}*/
 
+void merge_matrix::subRj(size_t i, size_t keepcolumn)/*{{{*/
+{
+    /* subtract from the R table the entries for row i */
+    rows_t::const_reference R = rows[i];
+    for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
+        size_t j = p->index();
+        if (j == keepcolumn) continue;
+        if (!R_table[j]) { col_weights[j]--; continue; }
+        // printf("# subRj for col %zu\n", j);
+        /* remove mention of this row in the R entry associated to j */
+        col_weight_t w = col_weights[j];
+        R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
+        R_pool_t::value_type * me = std::find(Rx, Rx + w, i);
+        ASSERT_ALWAYS(me < Rx + w);
+        std::copy(me + 1, Rx + w, me);
+        R_pool.realloc(col_weights[j], R_table[j], w-1);
+        update_markowitz_entry(j);
+    }
+}
+/*}}}*/
+
+void merge_matrix::remove_column(size_t j)/*{{{*/
+{
+    col_weight_t & w = col_weights[j];
+    R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
+    R_pool_t::value_type Rx_copy[w];
+    std::copy(Rx, Rx+w, Rx_copy);
+    for(col_weight_t k = 0 ; k < w ; k++) {
+        subRj(Rx_copy[k], j);   // do not touch column j now.
+        weight -= rows.kill(Rx_copy[k]);
+        rem_nrows--;
+    }
+    R_pool.free(col_weights[j], R_table[j]);
+    rem_ncols--;
+}
+/*}}}*/
 size_t merge_matrix::remove_singletons()/*{{{*/
 {
     size_t nr = 0;
-    for(size_t j = 0 ; j < colweights.size() ; j++) {
-        if (colweights[j] == 1) {
+    for(size_t j = 0 ; j < col_weights.size() ; j++) {
+        /* We might have created more singletons without re-creating the
+         * R table entries for these columns.
+         */
+        if (col_weights[j] == 1 && R_table[j]) {
             remove_column(j);
             nr++;
         }
     }
     return nr;
 }/*}}}*/
-
 size_t merge_matrix::remove_singletons_iterate()/*{{{*/
 {
     double tt = seconds();
@@ -576,8 +666,335 @@ size_t merge_matrix::remove_singletons_iterate()/*{{{*/
 }
 /*}}}*/
 
+struct row_combiner {/*{{{*/
+    typedef merge_matrix::rows_t rows_t;
+    typedef merge_matrix::row_value_t row_value_t;
+    typedef merge_matrix::row_weight_t row_weight_t;
+    merge_matrix & M;
+    size_t i0;
+    size_t i1;
+    size_t j;
+    row_value_t const * p0;
+    row_weight_t n0;
+    row_value_t const * p1;
+    row_weight_t n1;
+    row_weight_t sumweight;
+#ifdef FOR_DL
+    row_value_t::exponent_type e0;
+    row_value_t::exponent_type e1;
+#endif
+    row_combiner(merge_matrix & M, size_t i0, size_t i1, size_t j)
+        : M(M), i0(i0), i1(i1), j(j)
+    {
+        rows_t::const_reference R0 = M.rows[i0]; p0 = R0.first; n0 = R0.second;
+        rows_t::const_reference R1 = M.rows[i1]; p1 = R1.first; n1 = R1.second;
+        ASSERT_ALWAYS(p0);
+        ASSERT_ALWAYS(p1);
+        sumweight = 0;
+#ifdef FOR_DL
+        e0 = e1 = 0;
+#endif
+    }
+#ifdef FOR_DL
+    void multipliers(row_value_t::exponent_type& x0, row_value_t::exponent_type& x1)/*{{{*/
+    {
+        if (!e0) {
+            row_weight_t k0, k1;
+            /* We scan backwards because we have better
+             * hope of finding j early that way */
+            for(k0 = n0, k1 = n1 ; k0 && k1 ; k0--,k1--) {
+                if (p0[k0-1].index() < p1[k1-1].index()) {
+                    k0++; // we will replay this one.
+                } else if (p0[k0-1].index() > p1[k1-1].index()) {
+                    k1++; // we will replay this one.
+                } else if (p0[k0-1].index() == j && p1[k1-1].index() == j) {
+                    e0 = p0[k0-1].exponent();
+                    e1 = p1[k1-1].exponent();
+                    break;
+                }
+            }
+            ASSERT_ALWAYS(e0 && e1);
+            row_value_t::exponent_type d = gcd_int64 ((int64_t) e0, (int64_t) e1);
+            e0 /= d;
+            e1 /= d;
+        }
+        x0=e0;
+        x1=e1;
+    }/*}}}*/
+#endif
+    row_weight_t weight_of_sum(std::set<size_t> * S = NULL)/*{{{*/
+    {
+        if (sumweight) return sumweight;
+        /* Compute the sum of the (non-buried fragment of) rows i0 and i1,
+         * based on the fact that these are expected to be used for
+         * cancelling column j.
+         */
+#ifdef FOR_DL
+        /* for discrete log, we need to pay attention to valuations as well */
+        multipliers(e0,e1);
+#endif
+        row_weight_t k0, k1;
+        for(k0 = 0, k1 = 0 ; k0 < n0 && k1 < n1 ; k0++,k1++) {
+            if (p0[k0].index() < p1[k1].index()) {
+                k1--; // we will replay this one.
+                sumweight++;
+            } else if (p0[k0].index() > p1[k1].index()) {
+                k0--; // we will replay this one.
+                sumweight++;
+            } else if (p0[k0].index() != j) {
+                /* Otherwise this column index appears several times */
+#ifdef FOR_DL
+                /* except for the exceptional case of the ideal we're
+                 * cancelling, we have expectations that we'll get a new
+                 * coefficient */
+                row_value_t::exponent_type e = p1[k1].exponent()*e0-p0[k0].exponent()*e1;
+                sumweight += (e != 0);
+#endif
+                if (S) S->insert(p0[k0].index());
+            }
+        }
+        sumweight += n0 - k0 + n1 - k1;
+        return sumweight;
+    } /*}}}*/
+    int mst_score(std::set<size_t> * S = NULL)
+    {
+        weight_of_sum(S);
+#ifdef FOR_DL
+        if (std::abs(e0) > 4 || std::abs(e1) > 4)
+            return INT_MAX;
+#endif
+        return sumweight;
+    }
 
-void merge_matrix::merge()
+
+    void subtract_naively()/*{{{*/
+    {
+        /* This creates a new row with R[i0]-R[i1], with mulitplying
+         * coefficients adjusted so that column j is cancelled. Rows i0 and
+         * i1 are not removed from the pile of rows just yet, this comes at a
+         * later step */
+        
+        /* This also triggers the computation of the exponents if needed.  */
+        weight_of_sum();
+
+#ifdef FOR_DL
+        multipliers(e0,e1);
+        static row_value_t::exponent_type emax = 4;
+#endif
+
+        row_weight_t n2 = sumweight;
+        row_value_t p2[n2];
+
+        /* It's of course pretty much the same loop as in other cases. */
+        row_weight_t k0 = 0, k1 = 0, k2 = 0;
+        for( ; k0 < n0 && k1 < n1 ; k0++,k1++) {
+            if (p0[k0].index() < p1[k1].index()) {
+                k1--; // we will replay this one.
+#ifdef FOR_DL
+                p2[k2] = p0[k0] * e0;
+                    if (std::abs(p2[k2].exponent()) > emax) {
+                        emax = std::abs(p2[k2].exponent());
+                        printf("# New record coefficient: %ld\n", (long) emax);
+                    }
+#else
+                p2[k2] = p0[k0];
+#endif
+                k2++;
+            } else if (p0[k0].index() > p1[k1].index()) {
+                k0--; // we will replay this one.
+#ifdef FOR_DL
+                p2[k2] = p1[k1] * (-e1);
+                    if (std::abs(p2[k2].exponent()) > emax) {
+                        emax = std::abs(p2[k2].exponent());
+                        printf("# New record coefficient: %ld\n", (long) emax);
+                    }
+#else
+                p2[k2] = p1[k1];
+#endif
+                k2++;
+            } else if (p0[k0].index() != j) {
+                /* Otherwise this column index appears several times */
+#ifdef FOR_DL
+                /* except for the exceptional case of the ideal we're
+                 * cancelling, we have expectations that we'll get a new
+                 * coefficient */
+                row_value_t::exponent_type e = p1[k1].exponent()*e0-p0[k0].exponent()*e1;
+                if (e) {
+                    p2[k2].index() = p0[k0].index();
+                    p2[k2].exponent() = e;
+                    if (std::abs(p2[k2].exponent()) > emax) {
+                        emax = std::abs(p2[k2].exponent());
+                        printf("# New record coefficient: %ld\n", (long) emax);
+                    }
+                    k2++;
+                }
+#endif
+            }
+        }
+        for( ; k0 < n0 ; k0++) {
+#ifdef FOR_DL
+                p2[k2] = p0[k0] * e0;
+                    if (std::abs(p2[k2].exponent()) > emax) {
+                        emax = std::abs(p2[k2].exponent());
+                        printf("# New record coefficient: %ld\n", (long) emax);
+                    }
+#else
+                p2[k2] = p0[k0];
+#endif
+                k2++;
+        }
+        for( ; k1 < n1 ; k1++) {
+#ifdef FOR_DL
+                p2[k2] = p1[k1] * (-e1);
+                    if (std::abs(p2[k2].exponent()) > emax) {
+                        emax = std::abs(p2[k2].exponent());
+                        printf("# New record coefficient: %ld\n", (long) emax);
+                    }
+#else
+                p2[k2] = p1[k1];
+#endif
+                k2++;
+        }
+        ASSERT_ALWAYS(k2 == n2);
+        M.rows.push_back(p2, p2 + n2);
+        M.rem_nrows++;
+        M.weight += n2;
+    }/*}}}*/
+};
+/*}}}*/
+
+void merge_matrix::pivot_with_column(size_t j)/*{{{*/
+{
+    weight_t w = col_weights[j];
+    if (w == 0)
+        /* m=0 can happen even here: if two ideals have weight 2, and are
+         * in the same 2 relations: when we merge one of them, the other
+         * one will have weight 0 after the merge */
+        return;
+
+    /* m=1, OTOH, cannot happen */
+    ASSERT_ALWAYS (w >= 2);
+
+    /* beware: Rx will be invalidated by modifications which touch the R
+     * table.  */
+    R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
+
+    if (w == 2) {
+        /* well, simply subtract the two rows. Ordering does not matter. */
+        row_combiner C(*this, Rx[0], Rx[1], j);
+        C.subtract_naively();
+        addRj(rows.size()-1);
+        remove_column(j);
+        return;
+    }
+
+    matrix<int> weights(w,w,INT_MAX);
+
+    /* while we're doing so, we may also count which are the column
+     * indices that happen multiple times in these rows */
+    // std::set<size_t> S;
+    for(col_weight_t k = 0 ; k < w ; k++) {
+        for(col_weight_t l = k + 1 ; l < w ; l++) {
+            int s = row_combiner(*this, Rx[k], Rx[l], j).mst_score();
+            weights(k,l) = s;
+            weights(l,k) = s;
+        }
+    }
+    /* Note: our algorithm for computing the weight matrix can be
+     * improved a lot. Currently, for a level-w merge (w is the weight of
+     * column j), and given rows with average weight L, our cost is
+     * O(w^2*L) for creating the matrix.
+     *
+     * To improve it, first notice that if V_k is the w-dimensional
+     * row vector giving coordinates for column k, then the matrix giving at
+     * (i0,i1) the valuation of column k when row i1 is cancelled from
+     * row i1 is given by trsp(V_k)*V_j-trsp(V_j)*V_k (obviously
+     * antisymmetric).
+     *
+     * We need to do two things.
+     *  - walk all w (sorted!) rows simultaneously, maintaining a
+     *    priority queue for the "lowest next" column coordinate. By
+     *    doing so, we'll be able to react on all column indices which
+     *    happen to appear in several rows (because two consecutive
+     *    pop()s from the queue will give the same index). So at select
+     *    times, this gives a subset of w' rows, with that index
+     *    appearing.
+     *    This step will cost O(w*L*log(w)).
+     *  - Next, whenever we've identified a column index which appears
+     *    multiple times (say w' times), build the w'*w' matrix
+     *    trsp(V'_k)*V'_j-trsp(V'_j)*V'_k, where all vectors have length
+     *    w'. Inspecting the 0 which appear in this matrix gives the
+     *    places where we have exceptional cancellations. This can count
+     *    as -1 in the total weight matrix.
+     * Overall the cost will become O(w*L*log(w)+w'*L'^2+w^2), which
+     * should be somewhat faster.
+     */
+
+    auto mst = minimum_spanning_tree(weights);
+
+    // now do the merge for real. We need to be cautious so that we don't
+    // do an excessive number of reallocs for the R tables. However
+    // that's for another implementation. We'll make do with a
+    // simple-minded one for the moment.
+    // std::map<size_t, std::vector<R_pool_t::size_type> > dup_R;
+    
+
+    /* note that a modifying operation may change the pointers in the R
+     * table, so we need to grab the list of indices beforehand */
+    R_pool_t::value_type Rx_copy[w];
+    std::copy(Rx, Rx+w, Rx_copy);
+    for(auto const & edge : mst.second) {
+        row_combiner C(*this, Rx_copy[edge.first], Rx_copy[edge.second], j);
+        C.subtract_naively();
+        addRj(rows.size()-1);
+    }
+    remove_column(j);
+}
+/*}}}*/
+
+size_t merge_matrix::remove_excess(size_t count)/*{{{*/
+{
+    size_t excess = rem_nrows - rem_ncols;
+
+    if (excess <= keep)
+        return 0;
+
+    excess = std::min(count, excess);
+    
+    printf("# Removing %zd excess rows (from excess = %zu-%zu=%zd)\n",
+            excess, rem_nrows, rem_ncols, rem_nrows - rem_ncols);
+
+    /* removing the remaining excess might decrease the average row
+     * density and thus enable a few more merges */
+
+    /* scan for heavy rows. Do it just now, given that we'll remove
+     * excess only fairly late in the process. It seems that we can
+     * afford doing this scan only then, and maintaining that heap
+     * throughout is unnecessary burden.
+     */
+    // for(auto const& R : rows) heavy_rows.push(R.second);
+    auto superfluous = get_successive_minima(
+            row_weight_iterator(rows.begin()), 
+            row_weight_iterator(rows.end()), 
+            excess,
+            std::greater<row_weight_t>());
+    size_t weird=0;
+    for(auto i : superfluous) {
+        if (rows[i].first) {
+            // printf("Removing row %zu (weight %zu)\n", i, (size_t) rows[i].second);
+            subRj(i);
+            weight -= rows.kill(i);
+            rem_nrows--;
+        } else {
+            weird++;
+        }
+    }
+    if (weird)
+        printf("Weird: iterator found %zu NULL rows with large weight ??\n", weird);
+    ASSERT_ALWAYS(weird < superfluous.size());
+    return superfluous.size();
+}/*}}}*/
+void merge_matrix::merge()/*{{{*/
 {
 #if 0
     index_t j;
@@ -591,6 +1008,7 @@ void merge_matrix::merge()
     printf ("# Using %s to compute the merges\n", __func__);
 #endif
 
+#if 0
     struct compare_by_row_weight {
         merge_matrix const & M;
         compare_by_row_weight(merge_matrix const & M):M(M){}
@@ -608,158 +1026,107 @@ void merge_matrix::merge()
         printf("# Entering loop for level %d ; %zu rows, %zu cols, %zu excess\n", cwmax, rem_nrows, rem_ncols, excess);
 
         clear_R_table();
-
         prepare_R_table(cwmax);
-
         remove_singletons_iterate();
+        markowitz_table.clear();
+        fill_markowitz_table();
 
+        for( ; !markowitz_table.empty() ; markowitz_table.pop()) {
+            markowitz_table_t::const_reference q = markowitz_table.top();
+            /*
+            printf("# Pivoting with column %zu (weight %zu) has priority %d\n",
+                    (size_t) q.first,
+                    (size_t) col_weights[q.first],
+                    (int) q.second);
+                    */
+            /* if the best score is a (cwmax+1)-merge, then we'd better
+             * schedule a re-scan of all potential (cwmax+1)-merges
+             * before we process this one */
+            if (col_weights[q.first] > (col_weight_t) cwmax)
+                break;
+            pivot_with_column(q.first);
+        }
+
+        printf("# Status of R table after level %d:\n", cwmax);
+        std::stringstream s;
+        s << R_pool.printer("# ");
+        fputs(s.str().c_str(), stdout);
+        printf("# Done loop for level %d ; %zu rows, %zu cols, %zu excess\n", cwmax, rem_nrows, rem_ncols, excess);
     }
-#if 0
-    // clean things
-    removeSingletons (rep, mat);
+#endif
 
-    merge_data = merge_stats_malloc (maxlevel);
+    uint64_t WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
+    uint64_t WN_min = WN_cur;
+    double WoverN = (double) weight / (double) rem_nrows;
 
-    WN_min = WN_cur = compute_WN(mat);
-    WoverN = compute_WoverN (mat);
 
     /* report lines are printed for each multiple of report_incr */
     double report_incr = REPORT_INCR;
     double report_next = ceil (WoverN / report_incr) * report_incr;
 
-    int64_t excess;
-    /* stop when excess = keep and (WoverN >= target or queue is empty) */
-    while ((excess = mat->rem_nrows - mat->rem_ncols) > mat->keep ||
-            (WoverN < target_density || MkzQueueCardinality (mat) > 0))
-    {
-        if (excess > mat->keep &&
-                (WoverN >= target_density || MkzQueueCardinality (mat) == 0))
-        { /* we hope removing the remaining excess will decrease the average
-             row density and thus enable a few more merges */
-            printf ("Removing final excess, nrows=%" PRIu64 "\n",
-                    mat->rem_nrows);
-            deleteSuperfluousRows (rep, mat, excess - mat->keep, INT_MAX);
-            printf ("Removing singletons, nrows=%" PRIu64 "\n", mat->rem_nrows);
-            removeSingletons (rep, mat);
-            recomputeR (mat);
-            WoverN = compute_WoverN (mat);
-            continue; /* this cannot loop forever since the excess decreases */
+    for(int cwmax = 2 ; ; ) {
+
+        /* Note: we need the R table for remove_singletons */
+        prepare_R_table(cwmax);
+        remove_singletons_iterate();
+
+        markowitz_table.clear();
+        fill_markowitz_table();
+
+        WoverN = (double) weight / (double) rem_nrows;
+
+        for( ; WoverN < target_density && !markowitz_table.empty() ; markowitz_table.pop()) {
+
+            markowitz_table_t::const_reference q = markowitz_table.top();
+            /*
+            printf("# Pivoting with column %zu (weight %zu) has priority %d\n",
+                    (size_t) q.first,
+                    (size_t) col_weights[q.first],
+                    (int) q.second);
+                    */
+
+            /* if the best score is a (cwmax+1)-merge, then we'd better
+             * schedule a re-scan of all potential (cwmax+1)-merges
+             * before we process this one */
+            if (col_weights[q.first] > (col_weight_t) cwmax)
+                break;
+            pivot_with_column(q.first);
+
+            WoverN = (double) weight / (double) rem_nrows;
+            WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
+            WN_min = std::min(WN_min, WN_cur);
+
+            if (WoverN >= report_next) {
+                printf ("N=%zu (%zd) W=%zu W*N=%.2e W/N=%.2f #Q=%zu\n",
+                        rem_nrows, rem_nrows-rem_ncols, weight,
+                        (double) WN_cur, WoverN, 
+                        markowitz_table.size());
+                report_next += report_incr;
+
+                clear_R_table();
+                // empirical. And unsatisfactory. Based on RSA-100.
+                remove_excess((rem_nrows-rem_ncols) * .145);
+                prepare_R_table(cwmax);
+                remove_singletons_iterate();
+            }
+        }
+        clear_R_table();
+
+        if (WoverN < target_density && cwmax < maxlevel) {
+            /* we've exited the inner loop prematurely because the
+             * lightest merge happened to be a cwmax+1 - merge ; increase
+             * cwmax and proceed */
+            printf("# Done loop for level %d ; %zu rows, %zu cols, %zd excess\n", cwmax, rem_nrows, rem_ncols, rem_nrows-rem_ncols);
+            cwmax++;
+            continue;
         }
 
-        /* now excess = keep or (WoverN < target_density and #Q > 0) */
-
-        if (excess == mat->keep &&
-                (WoverN >= target_density || MkzQueueCardinality (mat) == 0))
-            break; /* we cannot do any more merge */
-
-        /* now WoverN < target_density and #Q > 0 */
-
-        /* Do one merge */
-        int ret = MkzPopQueue (&j, &mkz, mat);
-        ASSERT_ALWAYS(ret != 0);
-
-        m = mat->wt[j];
-        ASSERT_ALWAYS(m >= 0);
-
-        /* m=0 can happen if two ideals have weight 2, and are in the same 2
-relations: when we merge one of them, the other one will have weight
-0 after the merge */
-        if (m == 0)
-            goto next_merge;
-
-        uint64_t weight0 = mat->weight;
-        if (m == 1) /* singleton ideal */
-            removeColDefinitely(rep, mat, j);
-        else /* m >= 2 */
-        {
-            fprintf(rep->outfile, "#\n");
-            mergeForColumn (rep, mat, m, j);
-        }
-        index_signed_t real_mkz = mat->weight - weight0;
-        if (m > 1 && merge_stats_is_first_merge (merge_data, m))
-        {
-            fprintf (rep->outfile, "## First %d-merge\n", m);
-            print_report (mat);
-            printf ("First %d-merge, estimated cost %ld, real cost %ld\n",
-                    m, (long) mkz, (long) real_mkz);
-            fflush (stdout);
-        }
-
-        /* Update values and report if necessary */
-        merge_stats_update (merge_data, m, real_mkz);
-        WoverN = compute_WoverN (mat);
-        WN_prev = WN_cur;
-        WN_cur = compute_WN(mat);
-        if (WN_cur > WN_prev)
-            ncost++;
-        else
-            ncost = 0;
-        if (WN_cur < WN_min)
-            WN_min = WN_cur;
-
-        if (WoverN >= report_next)
-        {
-            int ni2rem;
-
-            print_report (mat);
-            report_next += report_incr;
-            ni2rem = number_of_superfluous_rows (mat);
-            deleteSuperfluousRows (rep, mat, ni2rem, m);
-            removeSingletons (rep, mat);
-            if (mat->cwmax == mat->mergelevelmax)
-                recomputeR (mat);
-        }
-
-next_merge:
-        /* if we have not yet reached maxlevel:
-           (a) if we have reached the target excess, we increase cwmax to maxlevel
-           (b) if we have not yet reached keep, and the queue is empty, we increase
-           cwmax by 1 only */
-        if (mat->cwmax < mat->mergelevelmax &&
-                (MkzQueueCardinality (mat) == 0 || excess == mat->keep))
-        {
-            if (excess == mat->keep)
-                mat->cwmax = mat->mergelevelmax;
-            else /* MkzQueueCardinality (mat) == 0 */
-                mat->cwmax ++;
-            recomputeR (mat);
-        }
+        if (!remove_excess())
+            break;
     }
-
-    /* now excess = keep and (WoverN >= target or queue is empty) */
-
-    if (WoverN >= target_density)
-        printf ("Reached target density W/N=%.2f.\n", WoverN);
-    else
-        printf ("Heap is empty, stopping. Rerun with larger maxlevel if "
-                "more merges are needed\n");
-
-#if DEBUG >= 1
-    checkWeights (mat);
-#endif
-
-    merge_stats_print (merge_data, maxlevel);
-    free (merge_data);
-
-    printf ("Total number of removed columns: %" PRId64 "\n",
-            mat->ncols - mat->rem_ncols);
-
-#ifdef TIMINGS
-    for (int m = 2; m < MERGE_LEVEL_MAX; m++)
-    {
-        if (tfill[m] != 0 || tmst[m] != 0)
-            printf ("m=%d: ncalls=%.0f tfill=%.2f tmst=%.2f\n",
-                    m, nfill[m], tfill[m], tmst[m]);
-        tfill[0] += tfill[m];
-        tmst[0] += tmst[m];
-        nfill[0] += nfill[m];
-    }
-    printf ("Total: ncalls=%.0f tfill=%.2f tmst=%.2f\n", nfill[0], tfill[0],
-            tmst[0]);
-    printf ("Time for recomputeR: %.2f\n", trecomputeR);
-#endif
-#endif
+    printf("# Done ; %zu rows, %zu cols, %zd excess. Weight %zu, density %.2f\n", rem_nrows, rem_ncols, rem_nrows-rem_ncols, weight, WoverN);
 }
+/*}}}*/
 
 int main(int argc, char *argv[])
 {

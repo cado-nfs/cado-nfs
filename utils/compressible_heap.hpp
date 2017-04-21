@@ -65,12 +65,14 @@ public:
                 if (temp[i] >= 0) items[i].first = &data.front() + temp[i];
             killed = 0;
         }
-        void kill(size_t i) {
-            if (!items[i].first) return;
+        size_t kill(size_t i) {
+            if (!items[i].first) return 0;
             items[i].first = NULL;
             killed += items[i].second;
+            Size ret = items[i].second;
             // items[i].second = 0; // useless anyway.
             compress();
+            return ret;
         }
         void shrink_value(size_t i, size_t k) {
             assert(k <= items[i].second);
@@ -78,7 +80,7 @@ public:
             items[i].second = k;
             compress();
         }
-        T * prepare_append(size_t n) {
+        T * prepare_push_back(size_t n) {
             assert(_size < batch_size);
             items[_size].second = n;
             if (data.size() + n > data.capacity()) {
@@ -99,11 +101,11 @@ public:
             }
             return items[_size-1].first;
         }
-        void append(const T * p, size_t n) {
-            append(p, p+n);
+        T * push_back(const T * p, size_t n) {
+            return push_back(p, p+n);
         }
         template<typename RandomAccessIterator>
-        void append(RandomAccessIterator p, RandomAccessIterator q) {
+        T * push_back(RandomAccessIterator p, RandomAccessIterator q) {
             assert(_size < batch_size);
             assert(q > p);
             items[_size].second = q - p;
@@ -123,6 +125,7 @@ public:
                 items[_size++].first = &data.front() + data.size();
                 data.insert(data.end(), p, q);
             }
+            return items[_size-1].first;
         }
     };
     std::vector<chunk> chunks;
@@ -192,26 +195,26 @@ public:
     const_iterator begin() const { return const_iterator(*this, 0).nextvalid(); }
     const_iterator end() const { return const_iterator(*this, size()); }
 /*}}}*/
-    void push_back(std::vector<T> const & row) { push_back(&row.front(), row.size()); }
+    T * push_back(std::vector<T> const & row) { return push_back(&row.front(), row.size()); }
     T * prepare_push_back(size_t n) {
         if (chunks.empty() || chunks.back().full())
             chunks.push_back(chunk());
-        return chunks.back().prepare_append(n);
+        return chunks.back().prepare_push_back(n);
     }
-    void push_back(const T * p, size_t n) {
+     T * push_back(const T * p, size_t n) {
         if (chunks.empty() || chunks.back().full())
             chunks.push_back(chunk());
-        chunks.back().append(p, n);
+        return chunks.back().push_back(p, n);
     }
     template<typename RandomAccessIterator>
-    void push_back(RandomAccessIterator p, RandomAccessIterator q) {
+    T * push_back(RandomAccessIterator p, RandomAccessIterator q) {
         if (chunks.empty() || chunks.back().full())
             chunks.push_back(chunk());
-        chunks.back().append(p, q);
+        return chunks.back().push_back(p, q);
     }
     reference operator[](size_t i) { return chunks[i / batch_size][i % batch_size]; }
     const_reference operator[](size_t i) const { return chunks[i / batch_size][i % batch_size]; }
-    void kill(size_t i) { chunks[i / batch_size].kill(i % batch_size); }
+    size_t kill(size_t i) { return chunks[i / batch_size].kill(i % batch_size); }
     void shrink_value(size_t i, size_t k) {
         chunks[i / batch_size].shrink_value(i % batch_size, k);
     }

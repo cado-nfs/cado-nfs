@@ -171,12 +171,13 @@ public:
     const T * operator()(std::pair<S, S> const& p) const {
         return (*this)(p.first, p.second);
     }
-    void free(S const& size, S & value) {
+    void free(S & size, S & value) {
         ASSERT_ALWAYS(size || !value);
         if (!size || !value) return;
         int csize = get_coarse(size);
         ASSERT_ALWAYS(pools[csize]);
         value = pools[csize]->release(value);
+        size = 0;
     }
     void free(std::pair<S, S> & p) {
         free(p.first, p.second);

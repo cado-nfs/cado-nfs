@@ -6,27 +6,35 @@
 #include <algorithm>
 #include <vector>
 #include <queue>
+#include <type_traits>
 
 /* This function returns the indices of the n smallest (in the sense
  * given by the comparison function) elements in the range [a,b).
+ *
+ * a and b must be input iterators whose value type is pair<T, U>.
+ * Comparison is done on the U member, and the T indices are returned. As
+ * such, it is well suited to an iterator to an std::map. 
  *
  * The cost is typically O(b-a) + O(n*log(n)), and might go up to
  * O((b-a)*log(n)) for very degenerate cases.
  *
  */
 template<
-    typename RandomAccessIterator,
-    typename Compare = std::less<typename RandomAccessIterator::value_type>
+    typename InputIterator,
+    typename ValueCompare = std::less<typename InputIterator::value_type::second_type>,
+    typename KeyCompare = std::less<typename InputIterator::value_type::first_type>
 >
-std::vector<size_t>
+std::vector<typename std::remove_const<typename InputIterator::value_type::first_type>::type>
     get_successive_minima(
-            RandomAccessIterator const & a,
-            RandomAccessIterator const & b,
+            InputIterator const & a,
+            InputIterator const & b,
             size_t n,
-            Compare const& inner_comp = Compare())
+            ValueCompare const& comp2 = ValueCompare(),
+            KeyCompare const& comp1 = KeyCompare())
 {
-    typedef typename RandomAccessIterator::value_type data_t;
-    typedef std::pair<size_t, data_t> pair_t;
+    typedef std::pair<typename std::remove_const<typename InputIterator::value_type::first_type>::type,typename std::remove_const<typename InputIterator::value_type::second_type>::type> data_t;
+    typedef std::vector<typename std::remove_const<typename InputIterator::value_type::first_type>::type> return_type;
+    if (!n) return return_type();
     /* We'll maintain a priority queue of the largest values among the
      * best score tables. Whenever we find an entry which beats it, then
      * it deserves to enter the table (and then we kick the previous
@@ -34,29 +42,32 @@ std::vector<size_t>
      * So the default priority_queue behaviour which is a max heap, with
      * respect to our comparison operator, is exactly what we need.
      */
-    struct pair_comp_t {
-        Compare inner_comp;
-        pair_comp_t(Compare const& c) : inner_comp(c) {}
-        bool operator()(pair_t const& a, pair_t const& b) const {
-            if (inner_comp(a.second, b.second)) return true;
-            if (inner_comp(b.second, a.second)) return false;
-            return a.first < b.first;
+    struct data_comp_t {
+        KeyCompare comp1;
+        ValueCompare comp2;
+        data_comp_t(ValueCompare const& comp2 = ValueCompare(),
+                            KeyCompare const& comp1 = KeyCompare())
+            : comp1(comp1), comp2(comp2) {}
+        bool operator()(data_t const& a, data_t const& b) const {
+            if (comp2(a.second, b.second)) return true;
+            if (comp2(b.second, a.second)) return false;
+            if (comp1(a.first, b.first)) return true;
+            if (comp1(b.first, a.first)) return false;
+            return false;
         }
-    } pair_comp(inner_comp);
-    std::priority_queue<pair_t, std::vector<pair_t>, pair_comp_t> Q(pair_comp);
-    for(RandomAccessIterator x = a ; x != b ; ++x) {
-        pair_t P(x-a, *x);
-        if (Q.size() < n || pair_comp(P, Q.top())) {
+    } data_comp(comp2, comp1);
+    std::priority_queue<data_t, std::vector<data_t>, data_comp_t> Q(data_comp);
+    for(InputIterator x = a ; x != b ; ++x) {
+        data_t P(*x);
+        if (Q.size() < n || data_comp(P, Q.top())) {
             Q.push(P);
             if (Q.size() > n)
                 Q.pop();
         }
     }
-    std::vector<size_t> res(Q.size(), 0);
-    for(size_t d = Q.size(); d-- ;) {
+    return_type res(Q.size(), 0);
+    for(size_t d = Q.size(); d-- ; Q.pop())
         res[d] = Q.top().first;
-        Q.pop();
-    }
     return res;
 }
 template<
@@ -69,7 +80,19 @@ std::vector<size_t>
             size_t n,
             Compare const& inner_comp = Compare())
 {
-    return get_successive_minima(v.begin(), v.end(), n, inner_comp);
+    struct indexed_iterator : public std::vector<T>::const_iterator {
+      typedef typename std::vector<T>::const_iterator super;
+      typedef std::pair<size_t, T> value_type;
+      std::vector<T> const& V;
+      indexed_iterator(std::vector<T> const& V, super const & x) : super(x), V(V) {}
+      value_type operator*() {
+          super& s(*this);
+          return std::make_pair(s - V.begin(), *s);
+      }
+    };
+    indexed_iterator v0(v, v.begin());
+    indexed_iterator v1(v, v.end());
+    return get_successive_minima(v0, v1, n, inner_comp);
 }
 
 #endif	/* GET_SUCCESSIVE_MINIMA_HPP_ */
