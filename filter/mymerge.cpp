@@ -1137,7 +1137,7 @@ void merge_matrix::merge()/*{{{*/
         WoverN = (double) weight / (double) rem_nrows;
 
         for( ; WoverN < target_density && !markowitz_table.empty() ; ) {
-            ASSERT_ALWAYS(markowitz_table.is_heap());
+            // ASSERT_ALWAYS(markowitz_table.is_heap());
 
             markowitz_table_t::value_type q = markowitz_table.top();
 
