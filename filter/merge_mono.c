@@ -1,6 +1,9 @@
 // TODO: use unified compact lists...!
 // TODO: reintroduce mat->weight
 
+/* try to align C and C++ code */
+#define MIMIC
+
 /* If one wants to change the R data structure, please check the diff of
    revision 1568, which clearly identifies the places where R is used. */
 
@@ -311,14 +314,18 @@ removeColDefinitely(report_t *rep, filter_matrix_t *mat, index_t j)
   mat->rem_ncols --;
 }
 
-static void
+static int
 removeSingletons(report_t *rep, filter_matrix_t *mat)
 {
   index_t j;
+  int nr=0;
 
   for (j = 0; j < mat->ncols; j++)
-    if (mat->wt[j] == 1)
+    if (mat->wt[j] == 1) {
       removeColDefinitely (rep, mat, j);
+      nr++;
+    }
+  return nr;
 }
 
 /* Try all combinations of merging one row with all others (m-1) ones
@@ -622,6 +629,8 @@ deleteSuperfluousRows (report_t *rep, filter_matrix_t *mat,
   if (niremmax > (int) (mat->rem_nrows - mat->rem_ncols) - keep)
     niremmax = (mat->rem_nrows - mat->rem_ncols) - keep;
 
+  printf ("Removing %d excess rows; current nrows=%" PRIu64 "\n",
+          niremmax, mat->rem_nrows);
   for (nirem = 0; nirem < niremmax && mat->Heavy->size > 0; nirem++)
     {
       index_t i = heap_pop (mat->Heavy, mat);
@@ -765,7 +774,12 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
   heap_fill (mat);
 
   // clean things
+#ifdef MIMIC
+  for( ; removeSingletons (rep, mat); )
+      recomputeR(mat);
+#else
   removeSingletons (rep, mat);
+#endif
 
   merge_data = merge_stats_malloc (maxlevel);
 

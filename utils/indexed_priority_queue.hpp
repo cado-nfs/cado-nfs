@@ -23,14 +23,14 @@
  * the index from which they were added in the first place, and to modify
  * the associated value if desired.
  *
- * An element in the queue Q is a pair <j,v>. v is the data which is used
+ * An element in the queue Q is a pair <j, v>. v is the data which is used
  * to order the queue. j is the original insertion index of v (however v
  * might have been modified since insertion).
  *
  * Also, given an original insertion index j, Q.update(j, v) modifies the
  * value with index j, and reorders Q accordingly.
  *
- * A typical operation may be (assuming the comparison takes the max,
+ * A typical operation may be (assuming the comparison takes the max, 
  * which is the default behaviour):
  *
  *   indexed_priority_queue<int, int> q;
@@ -52,11 +52,38 @@
  * requirement on the index arrays is more pressing. Some prototypes are
  * changed. See tests/utils/test_indexed_priority_queue.cpp
  */
+
+namespace indexed_priority_queue_details {
+    template<typename T, typename U>
+        struct less_reverse_pair {
+            typedef std::pair<T, U> value_t;
+            bool operator()(value_t const& a, value_t const& b) const {
+                if (a.second < b.second) return true;
+                if (b.second < a.second) return false;
+                if (a.first < b.first) return true;
+                if (b.first < a.first) return false;
+                return false;
+            }
+        };
+    template<typename T, typename U>
+        struct greater_reverse_pair {
+            typedef std::pair<T, U> value_t;
+            bool operator()(value_t const& a, value_t const& b) const {
+                if (b.second < a.second) return true;
+                if (a.second < b.second) return false;
+                if (b.first < a.first) return true;
+                if (a.first < b.first) return false;
+                return false;
+            }
+        };
+};
+
+
 template<
-    typename KeyType,
-    typename PriorityType,
-    class Compare = std::less<PriorityType>,
-    typename SizeType = size_t,
+    typename KeyType, 
+    typename PriorityType, 
+    class Compare = indexed_priority_queue_details::less_reverse_pair<KeyType, PriorityType>,
+    typename SizeType = size_t, 
     class IndexContainerType = std::vector<SizeType>
     >
 struct indexed_priority_queue {
@@ -68,23 +95,15 @@ struct indexed_priority_queue {
     typedef std::vector<std::pair<KeyType, PriorityType>> value_container_type;
     typedef IndexContainerType index_container_type;
     typedef SizeType size_type;
-    typedef Compare value_compare;
+    typedef Compare compare;
 protected:
-    struct inner_comp {
-        value_compare comp;
-        inner_comp(value_compare const& comp) : comp(comp) {}
-        bool operator()(const_reference a, const_reference b) const {
-            return comp(a.second, b.second);
-        }
-    };
-
-    inner_comp comp;
+    compare comp;
     value_container_type values;
     index_container_type indices;
 
 public:
     /* default copy, swap, and assignment operators are fine */
-    indexed_priority_queue(const value_compare& compare = value_compare()) : comp(compare) {}
+    indexed_priority_queue(const compare& comp = compare()) : comp(comp) {}
     void clear() { indices.clear(); values.clear(); }
 
 protected:
@@ -112,6 +131,7 @@ protected:
      */
     size_type _prepare_insert_down(size_type hole, size_type n, const_reference v)
     {
+        assert(n);
         /* main case as long as there is a right child */
         for(; hole < (n-1) / 2 ; ) {
             /* note that hole < (n-1) / 2 implies hole <= (n-1) / 2 - 1
@@ -152,6 +172,17 @@ protected:
         return hole;
     }
 
+    void _update_raw(size_type hole, size_type n, const_reference a)
+    {
+        if (!hole || !comp(values[(hole-1)/2], a)) {
+            hole = _prepare_insert_down(hole, n, a);
+        } else {
+            hole = _prepare_insert_up(hole, a);
+        }
+        values[hole] = a;
+        _fixup(hole);
+    }
+
     void _make_heap() {
         size_type n = size();
         for(size_type i = 1 ; i < n ; i++) {
@@ -188,13 +219,15 @@ public:
         assert(_check(n));
         value_type saved = values[n];
         if (!n) {
+            _unindex_key(values.back().first);
             values.pop_back();
             return;
         }
         _swap_hole(n, 0);
+        _unindex_key(values.back().first);
         values.pop_back();
 
-        /* first step: T[0] is irrelevant, but apart from that cell,
+        /* first step: T[0] is irrelevant, but apart from that cell, 
          * T[0..n[ is a well-behaved heap. We move the irrelevant cell to
          * a leaf of the heap.
          */
@@ -204,33 +237,6 @@ public:
         values[hole] = saved;
         _fixup(hole);
     }
-    inline void update(size_type j, const priority_type & v) { update(std::make_pair(j,v)); }
-    /*
-    void update(const value_type& a) {
-        size_type hole = indices.at(a.first);
-        if (!hole || !comp(values[(hole-1)/2], a)) {
-            hole = _prepare_insert_down(hole, size(), a);
-        } else {
-            hole = _prepare_insert_up(hole, a);
-        }
-        values[hole] = a;
-        _fixup(hole);
-    }
-    */
-    bool update(const value_type& a) {
-        auto it = indices.find(a.first);
-        if (it == indices.end()) return false;
-        size_type hole = it->second;
-        if (!hole || !comp(values[(hole-1)/2], a)) {
-            hole = _prepare_insert_down(hole, size(), a);
-        } else {
-            hole = _prepare_insert_up(hole, a);
-        }
-        values[hole] = a;
-        _fixup(hole);
-        return true;
-    }
-
     bool is_heap(size_type base = 0) {
         size_type left = 2 * base + 1;
         size_type right = 2 * base + 2;
@@ -261,42 +267,68 @@ private:
     template<typename Then, typename Else> struct checkif<false, Then, Else> : public Else {};
 
     struct requirements_for_sequence_index_container {
-        static_assert(std::is_same<typename index_container_type::value_type, SizeType>::value,
-            "when index container is a sequence container,"
+        static_assert(std::is_same<typename index_container_type::value_type, SizeType>::value, 
+            "when index container is a sequence container, "
             " we must have value_type=SizeType");
         typedef void type;
     };
 
     struct requirements_for_associative_index_container {
-        static_assert(std::is_same<typename index_container_type::key_type, KeyType>::value,
-                "when index container is an associative container,"
+        static_assert(std::is_same<typename index_container_type::key_type, KeyType>::value, 
+                "when index container is an associative container, "
                 " we must have key_type=KeyType");
-        static_assert(std::is_same<typename index_container_type::mapped_type, SizeType>::value,
-                "when index container is an associative container,"
+        static_assert(std::is_same<typename index_container_type::mapped_type, SizeType>::value, 
+                "when index container is an associative container, "
                 " we must have mapped_type=SizeType");
         typedef void type;
     };
 
     typedef typename checkif<
-        has_mapped_type<index_container_type>::value,
-        requirements_for_associative_index_container,
+        has_mapped_type<index_container_type>::value, 
+        requirements_for_associative_index_container, 
         requirements_for_sequence_index_container>::type requirements_are_met;
 
-
 #define ONLY_FOR_SEQUENCE_INDEX(T) \
-    , typename std::enable_if<!(has_mapped_type<T>::value)>::type * = 0
+    typename std::enable_if<!(has_mapped_type<T>::value)>::type * = 0
 #define ONLY_FOR_ASSOCIATIVE_INDEX(T) \
-    , typename std::enable_if<has_mapped_type<T>::value>::type * = 0
+    typename std::enable_if<has_mapped_type<T>::value>::type * = 0
+
+    template<typename T = index_container_type>
+    void _unindex_key(key_type const&, ONLY_FOR_SEQUENCE_INDEX(T)) {}
+    template<typename T = index_container_type>
+    void _unindex_key(key_type const& k, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+        auto it = indices.find(k);
+        indices.erase(it);
+    }
 
 public:
+    inline bool update(size_type j, const priority_type & v) { return update(std::make_pair(j, v)); }
+
+    template<typename T = index_container_type>
+    bool update(const value_type& a, ONLY_FOR_SEQUENCE_INDEX(T)) {
+        _update_raw(indices.at(a.first), size(), a);
+        return true;
+    }
+
+    /* well, remove() is obviously defined only for sparse index ! While
+     * it may be defined almost generally, the following code leaves
+     * indices[k] dangling, so it's a no-go.
+    template<typename T = index_container_type>
+    bool remove(const key_type & k, ONLY_FOR_SEQUENCE_INDEX(T)) {
+        _update_raw(indices.at(k), size()-1, values.back());
+        values.pop_back();
+        return true;
+    }
+    */
+
     template<class RandomAccessIterator, typename T = index_container_type>
     indexed_priority_queue(
-            RandomAccessIterator first,
-            RandomAccessIterator last,
-            const Compare& compare = Compare()
+            RandomAccessIterator first, 
+            RandomAccessIterator last, 
+            const Compare& comp = Compare(),
             ONLY_FOR_SEQUENCE_INDEX(T)
             )
-    : comp(compare)
+    : comp(comp)
     {
         indices.assign(last-first, 0);
         values.reserve(last-first);
@@ -310,7 +342,7 @@ public:
     }
 
     template<typename T = index_container_type>
-    void push(const priority_type & x ONLY_FOR_SEQUENCE_INDEX(T)) {
+    void push(const priority_type & x, ONLY_FOR_SEQUENCE_INDEX(T)) {
         size_type n = indices.size();
         value_type v = make_pair(n, x);
         values.push_back(value_type());
@@ -321,7 +353,7 @@ public:
     }
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
     template<typename T = index_container_type>
-    std::ostream& print(std::ostream& o ONLY_FOR_SEQUENCE_INDEX(T)) const {
+    std::ostream& print(std::ostream& o, ONLY_FOR_SEQUENCE_INDEX(T)) const {
         _print(o, std::string(), 0, size());
         o << "col positions\n";
         for(size_type i = 0 ; i < size() ; i++) {
@@ -331,14 +363,34 @@ public:
     }
 #endif
 public:
+
+    template<typename T = index_container_type>
+    bool update(const value_type& a, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+        auto it = indices.find(a.first);
+        if (it == indices.end()) return false;
+        _update_raw(it->second, size(), a);
+        return true;
+    }
+
+    template<typename T = index_container_type>
+    bool remove(const key_type & k, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+        auto it = indices.find(k);
+        if (it == indices.end()) return false;
+        if (size() > 1)
+            _update_raw(it->second, size()-1, values.back());
+        indices.erase(it);
+        values.pop_back();
+        return true;
+    }
+
     template<class InputIterator, typename T = index_container_type>
     indexed_priority_queue(
-            InputIterator first,
-            InputIterator last,
-            const Compare& compare = Compare()
+            InputIterator first, 
+            InputIterator last, 
+            const Compare& comp = Compare(),
             ONLY_FOR_ASSOCIATIVE_INDEX(T)
             )
-    : comp(compare)
+    : comp(comp)
     {
         for(InputIterator i = first ; i != last ; ++i) {
             indices[i->first] = values.size();
@@ -348,17 +400,21 @@ public:
     }
 
     template<typename T = index_container_type>
-    void push(const value_type& x ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+    void push(const value_type& x, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
         assert(indices.find(x.first) == indices.end());
         values.push_back(value_type());
+        size_type hole = values.size()-1;
         // indices[x.first] will be set below
-        size_type hole = _prepare_insert_up(values.size()-1, x);
+        hole = _prepare_insert_up(hole, x);
         values[hole] = x;
         _fixup(hole);
     }
+    template<typename T = index_container_type>
+    inline void push(const key_type& k, const priority_type& p, ONLY_FOR_ASSOCIATIVE_INDEX(T)) { push(std::make_pair(k, p)); }
+
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
     template<typename T = index_container_type>
-    std::ostream& print(std::ostream& o ONLY_FOR_ASSOCIATIVE_INDEX(T)) const {
+    std::ostream& print(std::ostream& o, ONLY_FOR_ASSOCIATIVE_INDEX(T)) const {
         _print(o, std::string(), 0, size());
         o << "col positions\n";
         for(auto const& x : indices) {
@@ -375,10 +431,10 @@ public:
 
 #ifdef DEBUG_INDEXED_PRIORITY_QUEUE
 template<
-    typename KeyType,
-    typename PriorityType,
-    class Compare,
-    typename SizeType,
+    typename KeyType, 
+    typename PriorityType, 
+    class Compare, 
+    typename SizeType, 
     class IndexContainerType>
 std::ostream& operator<<(std::ostream& o, indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> const & Q)
 {
@@ -387,13 +443,88 @@ std::ostream& operator<<(std::ostream& o, indexed_priority_queue<KeyType, Priori
 #endif
 
 template<
-    typename KeyType,
-    typename PriorityType,
-    class Compare = std::less<PriorityType>,
-    typename SizeType = size_t,
+    typename KeyType, 
+    typename PriorityType, 
+    class Compare = indexed_priority_queue_details::less_reverse_pair<KeyType, PriorityType>,
+    typename SizeType = size_t, 
     typename IndexContainerType = std::map<KeyType, SizeType>
     >
-struct sparse_indexed_priority_queue : public indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> {};
+struct sparse_indexed_priority_queue : public indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> {
+    typedef indexed_priority_queue<KeyType, PriorityType, Compare, SizeType, IndexContainerType> super;
+    sparse_indexed_priority_queue(const Compare& comp = Compare()) : super(comp) {}
+    template<class InputIterator>
+    sparse_indexed_priority_queue(
+            InputIterator first, 
+            InputIterator last, 
+            const Compare& comp = Compare())
+    : super(first, last, comp) {}
+};
+
+/* It's not a pinball-like high score table, in that we want unique keys
+ *
+ * We guarantee that insertion of a high score has cost O(log(n)) at
+ * most. q.top() is always the lowest score in the table (typically the
+ * table has always n entries, so it's the n-th; however transiently the
+ * table may have fewer entries if some got removed). In order to print
+ * the table, one must iterate in reverse order with top() and pop().
+ *
+ * Since the underlying structure is a heap which favors the "next entry
+ * to be kicked out from the table", in order to have a *high* score
+ * table we want a *min* heap. Since the heap structures used in the STL
+ * as well here are *max* heaps, a high score table typically uses
+ * std::greater as a comparator.
+ */
+template<
+    typename KeyType, 
+    typename ScoreType, 
+    class Compare = indexed_priority_queue_details::greater_reverse_pair<KeyType, ScoreType>,
+    typename SizeType = size_t, 
+    typename IndexContainerType = std::map<KeyType, SizeType>>
+struct high_score_table : public indexed_priority_queue<KeyType, ScoreType, Compare, SizeType, IndexContainerType>
+{
+    typedef indexed_priority_queue<KeyType, ScoreType, Compare, SizeType, IndexContainerType> super;
+    SizeType n;   /* it's the bound on the size of the table. Not always
+                 * equal to the size, given that entries may be removed
+                 * from it. */
+public:
+    high_score_table(SizeType n = SizeType(), const Compare& comp = Compare()) : super(comp), n(n) {}
+
+    void set_depth(SizeType n0) {
+        n = n0;
+        super & s(*this);
+        for( ; s.size() > n ; s.pop());
+    }
+    template<class InputIterator>
+    high_score_table(SizeType n, 
+            InputIterator first, 
+            InputIterator last, 
+            const Compare& comp = Compare())
+    : super(comp), n(n) { push(first, last); }
+
+    template<class InputIterator>
+    void push(InputIterator first, InputIterator last) {
+        static_assert(std::is_convertible<
+                typename InputIterator::value_type, 
+                typename super::value_type>::value, 
+                "input iterator value type must be convertible to pair<keytype, scoretype>");
+        for(InputIterator i = first ; i != last ; ++i)
+            push(*i);
+    }
+
+    void push(const typename super::value_type& x) {
+        super & s(*this);
+        if (!n) return;
+        if (s.size() < n) { s.push(x); return; }
+        if (super::comp(s.top(), x)) return;
+        s.push(x);
+        s.pop();
+    }
+    void push(const KeyType& k, const ScoreType& s) { push(std::make_pair(k, s)); }
+    void filter_to(high_score_table & dest) {
+        dest.push(super::values.begin(), super::values.end());
+    }
+};
+
 
 
 #endif	/* INDEXED_PRIORITY_QUEUE_HPP_ */
