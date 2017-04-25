@@ -76,10 +76,13 @@ public:
             compress();
             return ret;
         }
-        void shrink_value(size_t i, size_t k) {
+        void shrink_value_unlocked(size_t i, size_t k) {
             assert(k <= items[i].second);
             killed += items[i].second - k;
             items[i].second = k;
+        }
+        void shrink_value(size_t i, size_t k) {
+            shrink_value_unlocked(i, k);
             compress();
         }
         T * prepare_push_back(size_t n) {
@@ -217,6 +220,10 @@ public:
     reference operator[](size_t i) { return chunks[i / batch_size][i % batch_size]; }
     const_reference operator[](size_t i) const { return chunks[i / batch_size][i % batch_size]; }
     size_t kill(size_t i) { return chunks[i / batch_size].kill(i % batch_size); }
+    void shrink_value_unlocked(size_t i, size_t k) {
+        chunks[i / batch_size].shrink_value_unlocked(i % batch_size, k);
+    }
+    void shrink_value_unlocked(iterator const& it, size_t k) { shrink_value_unlocked(it.i, k); }
     void shrink_value(size_t i, size_t k) {
         chunks[i / batch_size].shrink_value(i % batch_size, k);
     }
@@ -226,8 +233,9 @@ public:
         if (empty()) return 0;
         return (chunks.size()-1)*batch_size + chunks.back().size();
     }
+    void compress() { for(auto & c: chunks) c.compress(); }
     size_t allocated_bytes() const {
-        size_t res=0;
+        size_t res=sizeof(*this);
         for(auto const& c: chunks) res += c.allocated_bytes();
         return res;
     }

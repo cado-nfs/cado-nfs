@@ -23,6 +23,7 @@
 #define MKZTYPE_LIGHT 2
 
 #define REPORT_INCR 3.0
+#define DEFAULT_EXCESS_INJECT_RATIO 0.04
 
 #include "filter_config.h"
 #include "utils_with_io.h"
@@ -72,33 +73,23 @@ static void usage(param_list pl, char *argv0)
 }
 
 struct merge_matrix {
-  size_t nrows;
-  size_t ncols;
-  size_t rem_nrows;     /* number of remaining rows */
-  size_t rem_ncols;     /* number of remaining columns, including the buried
+  size_t nrows=0;
+  size_t ncols=0;
+  size_t rem_nrows=0;     /* number of remaining rows */
+  size_t rem_ncols=0;     /* number of remaining columns, including the buried
                              columns */
-  size_t weight;        /* non-zero coefficients in the active part */
-  size_t nburied;       /* the number of buried columns */
-  size_t total_weight;  /* Initial total number of non-zero coefficients */
-  size_t keep;          /* target for nrows-ncols */
-  int cwmax;
-  int maxlevel;         /* says it */
-  unsigned int mkztype;
-  unsigned int wmstmax;
-  double target_density;
+  size_t weight=0;        /* non-zero coefficients in the active part */
+  size_t total_weight=0;  /* Initial total number of non-zero coefficients */
+  int cwmax=0;
+  int maxlevel = DEFAULT_MERGE_MAXLEVEL;
+  size_t keep = DEFAULT_FILTER_EXCESS; /* target for nrows-ncols */
+  size_t nburied = DEFAULT_MERGE_SKIP;
+  unsigned int mkztype = DEFAULT_MERGE_MKZTYPE;
+  unsigned int wmstmax = DEFAULT_MERGE_WMSTMAX;
+  double target_density = DEFAULT_MERGE_TARGET_DENSITY;
+  double excess_inject_ratio = DEFAULT_EXCESS_INJECT_RATIO;
   std::map<int,int> stats;
 
-  merge_matrix()
-  {
-      rem_ncols = 0;
-      total_weight = 0;
-      maxlevel = DEFAULT_MERGE_MAXLEVEL;
-      keep = DEFAULT_FILTER_EXCESS;
-      nburied = DEFAULT_MERGE_SKIP;
-      target_density = DEFAULT_MERGE_TARGET_DENSITY;
-      mkztype = DEFAULT_MERGE_MKZTYPE;
-      wmstmax = DEFAULT_MERGE_WMSTMAX;
-  }
   /* {{{ merge_row_ideal type details */
 #ifdef FOR_DL
   template<int index_size = 8>
@@ -222,7 +213,7 @@ struct merge_matrix {
   };
   typedef sparse_indexed_priority_queue<size_t, pivot_priority_t> markowitz_table_t;
   markowitz_table_t markowitz_table;
-  pivot_priority_t markowitz_count(size_t j) const;
+  pivot_priority_t markowitz_count(size_t j);
   void fill_markowitz_table();
   /* }}} */
 
@@ -233,6 +224,7 @@ struct merge_matrix {
   void remove_row(size_t i, size_t keepcolumn = SIZE_MAX);
   size_t remove_singletons();
   size_t remove_singletons_iterate();
+  std::pair<int, std::vector<std::pair<int, int>>> mst_for_column(size_t);
   void pivot_with_column(size_t j);
 #if 0
 #ifdef FOR_DL
@@ -283,12 +275,29 @@ struct merge_matrix {
       if (disp || force) {
           long vmsize = Memusage();
           long vmrss = Memusage2();
-          printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f]\n",
+          size_t explained =0;
+          explained += rows.allocated_bytes();
+          explained += R_pool.allocated_bytes();
+          explained += col_weights.capacity()*sizeof(col_weight_t);
+          explained += R_table.capacity()*sizeof(R_pool_t::size_type);
+          explained += markowitz_table.allocated_bytes();
+          explained += heavy_rows.allocated_bytes();
+
+          printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
                   rem_nrows, rem_nrows-rem_ncols, cwmax, weight,
                   (double) WN_cur, WoverN, 
                   markowitz_table.size(),
-                  vmrss/1024.0, vmsize/1024.0);
+                  explained/1048576., vmrss/1024.0, vmsize/1024.0);
+          /*
           printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
+          printf("# R %.1f + %.1f + %.1f\n",
+                  R_pool.allocated_bytes() / 1048576.,
+                  col_weights.capacity()*sizeof(col_weight_t) / 1048576.,
+                  R_table.capacity()*sizeof(R_pool_t::size_type) / 1048576.
+                  );
+          printf("# mkz %.1f\n", markowitz_table.allocated_bytes() / 1048576.);
+          printf("# heavy %.1f\n", heavy_rows.allocated_bytes() / 1048576.);
+          */
           fflush (stdout);
       }
       return WoverN;
@@ -306,6 +315,9 @@ void merge_matrix::declare_usage(param_list_ptr pl) {
     param_list_decl_usage(pl, "maxlevel",
             "maximum number of rows in a merge " "(default "
             STR(DEFAULT_MERGE_MAXLEVEL) ")");
+    param_list_decl_usage(pl, "excess_inject_ratio",
+            "fraction of excess to prune when stepping mergelevel"
+            " (default " STR(DEFAULT_EXCESS_INJECT_RATIO) ")");
     param_list_decl_usage(pl, "target_density",
             "stop when the average row density exceeds this value"
             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
@@ -324,6 +336,7 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
     param_list_parse_size_t(pl, "skip", &nburied);
     param_list_parse_int(pl, "maxlevel", &maxlevel);
     param_list_parse_double(pl, "target_density", &target_density);
+    param_list_parse_double(pl, "excess_inject_ratio", &excess_inject_ratio);
     param_list_parse_uint(pl, "mkztype", &mkztype);
     param_list_parse_uint(pl, "wmstmax", &wmstmax);
     if (maxlevel <= 0 || maxlevel > MERGE_LEVEL_MAX) {
@@ -334,6 +347,10 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
     }
     if (mkztype > 2) {
 	fprintf(stderr, "Error: -mkztype should be 0, 1, or 2.\n");
+        return false;
+    }
+    if (excess_inject_ratio < 0 || excess_inject_ratio > 1) {
+	fprintf(stderr, "Error: -excess_inject_ratio must be in [0,1]\n");
         return false;
     }
     return true;
@@ -476,27 +493,29 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
     /* Remove buried columns from rows in mat structure */
     printf("# Start to remove buried columns from rels...\n");
     fflush (stdout);
-    // // #ifdef HAVE_OPENMP
-    // // #pragma omp parallel for
-    // // #endif
-    for (auto it = rows.begin() ; it != rows.end() ; ++it) {
-        row_value_t * ptr = it->first;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for (size_t i = 0 ; i < rows.size() ; i++) {
+        row_value_t * ptr = rows[i].first;
+        if (!ptr) continue;
         row_weight_t nl = 0;
-        for (row_weight_t i = 0; i < it->second; i++) {
-            size_t h = ptr[i].index();
+        for (row_weight_t k = 0; k < rows[i].second; k++) {
+            size_t h = ptr[k].index();
             col_weight_t w = col_weights[h];
 #if 0
             bool bury = w > min_buried_weight;
             bury = bury || (w == min_buried_weight && h > heaviest.back());
             if (!bury)
-                ptr[nl++] = ptr[i];
+                ptr[nl++] = ptr[k];
 #else
             if (w)
-                ptr[nl++] = ptr[i];
+                ptr[nl++] = ptr[k];
 #endif
         }
-        rows.shrink_value(it, nl);
+        rows.shrink_value_unlocked(i, nl);
     }
+    rows.compress();
 
     printf("# Done. Total bury time: %.1f s\n", seconds()-tt);
     /* compute the matrix weight */
@@ -607,7 +626,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
  * cancelled ideals follows a normal distribution, and that on the long
  * run we mainly see the average.
  */
-merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j) const
+merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
 {
     col_weight_t w = col_weights[j];
 
@@ -622,10 +641,17 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j) const
 
     const R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
     row_weight_t w0 = std::numeric_limits<row_weight_t>::max();
-    for(col_weight_t k = 0 ; k < w ; k++)
+    row_weight_t ws = 0;
+    for(col_weight_t k = 0 ; k < w ; k++) {
         w0 = std::min(w0, rows[Rx[k]].second);
+        ws += rows[Rx[k]].second;
+    }
 
-    return 2 - (w0 - 2) * (w - 2);
+    merge_matrix::pivot_priority_t prio1 = 2 - (w0 - 2) * (w - 2);
+    merge_matrix::pivot_priority_t prio2 = -mst_for_column(j).first;
+    if (prio2 + (merge_matrix::pivot_priority_t) ws >= prio2) prio2 += ws;
+    ASSERT_ALWAYS(prio2 >= prio1);
+    return prio2;
 }
 /*}}}*/
 
@@ -935,30 +961,26 @@ struct row_combiner {/*{{{*/
 };
 /*}}}*/
 
-void merge_matrix::pivot_with_column(size_t j)/*{{{*/
+std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(size_t j)
 {
+    std::pair<int, std::vector<std::pair<int, int>>> res;
     weight_t w = col_weights[j];
-    stats[w]++;
-    if (w == 0)
-        /* m=0 can happen even here: if two ideals have weight 2, and are
-         * in the same 2 relations: when we merge one of them, the other
-         * one will have weight 0 after the merge */
-        return;
+    if (w == 0) {
+        res.first = 0;
+        return res;
+    }
 
-    /* m=1, OTOH, cannot happen */
-    ASSERT_ALWAYS (w >= 2);
-
-    /* beware: Rx will be invalidated by modifications which touch the R
-     * table.  */
     R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
+    
+    if (w == 1) {
+        res.first = -rows[Rx[0]].second;
+        return res;
+    }
 
     if (w == 2) {
-        /* well, simply subtract the two rows. Ordering does not matter. */
-        row_combiner C(*this, Rx[0], Rx[1], j);
-        C.subtract_naively();
-        addRj(rows.size()-1);
-        remove_column(j);
-        return;
+        res.first = -2;
+        res.second.push_back(std::make_pair(0,1));
+        return res;
     }
 
     matrix<int> weights(w,w,INT_MAX);
@@ -1008,7 +1030,6 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
     if (mst.first == INT_MAX) {
 #ifdef FOR_DL
         printf("# disconnected graph for %d-merge due to valuations, skipping merge\n", (int) w);
-        return;
 #else
         printf("# Fatal: graph is disconnected\n");
         for(weight_t k = 0 ; k < w ; k++) {
@@ -1028,7 +1049,14 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
         }
 #endif
     }
-    ASSERT_ALWAYS(mst.first < INT_MAX);
+    return mst;
+}
+
+void merge_matrix::pivot_with_column(size_t j)/*{{{*/
+{
+    weight_t w = col_weights[j];
+    stats[w]++;
+    auto mst = mst_for_column(j);
 
     // now do the merge for real. We need to be cautious so that we don't
     // do an excessive number of reallocs for the R tables. However
@@ -1039,6 +1067,7 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
 
     /* note that a modifying operation may change the pointers in the R
      * table, so we need to grab the list of indices beforehand */
+    R_pool_t::value_type * Rx = R_pool(w, R_table[j]);
     R_pool_t::value_type Rx_copy[w];
     std::copy(Rx, Rx+w, Rx_copy);
     for(auto const & edge : mst.second) {
@@ -1090,6 +1119,9 @@ void merge_matrix::merge()/*{{{*/
         markowitz_table.clear();
         fill_markowitz_table();
 
+        if (spin && markowitz_table.empty())
+            break;
+
         for( ; report() < target_density && !markowitz_table.empty() ; ) {
             // ASSERT_ALWAYS(markowitz_table.is_heap());
 
@@ -1106,12 +1138,16 @@ void merge_matrix::merge()/*{{{*/
             /* if the best score is a (cwmax+1)-merge, then we'd better
              * schedule a re-scan of all potential (cwmax+1)-merges
              * before we process this one */
-            if (col_weights[q.first] > (col_weight_t) cwmax)
-                break;
+            if (col_weights[q.first] > (col_weight_t) cwmax) {
+                if (cwmax < maxlevel)
+                    break;
+                else
+                    continue;
+            }
             pivot_with_column(q.first);
         }
         // empirical.
-        remove_excess((rem_nrows-rem_ncols) * .04);
+        remove_excess((rem_nrows-rem_ncols) * excess_inject_ratio);
         remove_singletons_iterate();
 
         report(true);
@@ -1136,7 +1172,8 @@ void merge_matrix::merge()/*{{{*/
     size_t nbm[256];
     count_columns_below_weight(nbm, 256);
     for (int h = 1; h <= maxlevel; h++)
-        printf ("# There are %zu column(s) of weight %d\n", nbm[h], h);
+        if (nbm[h])
+            printf ("# There are %zu column(s) of weight %d\n", nbm[h], h);
     printf("# Total weight of the matrix: %zu\n", total_weight);
 }
 /*}}}*/

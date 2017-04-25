@@ -92,7 +92,7 @@ struct indexed_priority_queue {
     typedef std::pair<key_type, priority_type> value_type;
     typedef value_type & reference;
     typedef value_type const & const_reference;
-    typedef std::vector<std::pair<KeyType, PriorityType>> value_container_type;
+    typedef std::vector<value_type> value_container_type;
     typedef IndexContainerType index_container_type;
     typedef SizeType size_type;
     typedef Compare compare;
@@ -302,6 +302,15 @@ private:
     }
 
 public:
+    template<typename T = index_container_type>
+    size_t allocated_bytes(ONLY_FOR_SEQUENCE_INDEX(T)) {
+        return values.capacity() * sizeof(value_type) + indices.capacity * sizeof(typename index_container_type::value_type);
+    }
+    template<typename T = index_container_type>
+    size_t allocated_bytes(ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+        return values.capacity() * sizeof(value_type) + indices.size() * sizeof(typename index_container_type::value_type);
+    }
+
     inline bool update(size_type j, const priority_type & v) { return update(std::make_pair(j, v)); }
 
     template<typename T = index_container_type>

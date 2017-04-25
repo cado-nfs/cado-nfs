@@ -103,6 +103,8 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
         return 0;
     }
     size_type size() const { return data.size() / width; }
+    size_t allocated_bytes() const { return data.capacity()*sizeof(T) + sizeof(*this); }
+
 #ifdef DEBUG_SMALL_SIZE_POOL
     std::ostream& print(std::ostream& o) const {
         o << "width " << width
@@ -213,6 +215,12 @@ public:
     }
     void realloc(std::pair<S, S> & p, S newsize) {
         realloc(p.first, p.second, newsize);
+    }
+    size_t allocated_bytes() const {
+        size_t res = sizeof(*this);
+        for(auto const & x : pools)
+            res += x.second->allocated_bytes();
+        return res;
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
     friend class small_size_pool_printer<self>;
