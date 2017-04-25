@@ -288,6 +288,7 @@ struct merge_matrix {
                   (double) WN_cur, WoverN, 
                   markowitz_table.size(),
                   vmrss/1024.0, vmsize/1024.0);
+          printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
           fflush (stdout);
       }
       return WoverN;

@@ -39,6 +39,7 @@ public:
         value_type items[batch_size];
         size_t _size, killed;
         public:
+        size_t allocated_bytes() const { return data.capacity()*sizeof(T) + batch_size * sizeof(value_type)+ sizeof(data); }
         size_t size() const { return _size; }
         /* full can also mean "full of emptiness"... */
         bool full() const { return _size == batch_size; }
@@ -223,6 +224,11 @@ public:
     size_t size() const {
         if (empty()) return 0;
         return (chunks.size()-1)*batch_size + chunks.back().size();
+    }
+    size_t allocated_bytes() const {
+        size_t res=0;
+        for(auto const& c: chunks) res += c.allocated_bytes();
+        return res;
     }
 };
 
