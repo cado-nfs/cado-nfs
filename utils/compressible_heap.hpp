@@ -61,7 +61,8 @@ public:
                 temp[i] = top;
                 top += items[i].second;
             }
-            data.erase(data.begin() + top, data.end());
+            data.resize(top);
+            data.shrink_to_fit();
             for(int i = 0 ; i < batch_size ; i++)
                 if (temp[i] >= 0) items[i].first = &data.front() + temp[i];
             killed = 0;
