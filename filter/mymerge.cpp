@@ -1,10 +1,5 @@
 #include "cado.h"
 
-/* try to mimic what the old C code does, to see whether we deviate a
- * lot.
- */
-#define xxMIMIC
-
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <fcntl.h>		/* for _O_BINARY */
@@ -265,6 +260,37 @@ struct merge_matrix {
   size_t remove_excess(size_t count = SIZE_MAX);
   void merge();
   /*}}}*/
+
+  uint64_t WN_cur;
+  uint64_t WN_min;
+  double WoverN;
+  /* report lines are printed for each multiple of report_incr */
+  double report_incr = REPORT_INCR;
+  double report_next;
+  void report_init() {
+      WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
+      WN_min = WN_cur;
+      report_next = ceil (WoverN / report_incr) * report_incr;
+  }
+  double report(bool force = false) {
+      WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
+      WN_min = std::min(WN_min, WN_cur);
+      WoverN = (double) weight / (double) rem_nrows;
+
+      bool disp = false;
+      if ((disp = WoverN >= report_next))
+          report_next += report_incr;
+      if (disp || force) {
+          long vmsize = Memusage();
+          long vmrss = Memusage2();
+          printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f]\n",
+                  rem_nrows, rem_nrows-rem_ncols, cwmax, weight,
+                  (double) WN_cur, WoverN, 
+                  markowitz_table.size(),
+                  vmrss/1024.0, vmsize/1024.0);
+      }
+      return WoverN;
+  }
 };
 
 /*{{{ parameters */
@@ -621,18 +647,9 @@ void merge_matrix::addRj(size_t i) /*{{{*/
         // printf("# addRj for col %zu\n", j);
         /* add mention of this row in the R entry associated to j */
         col_weight_t w = col_weights[j];
-#ifdef MIMIC
-        if (w + 1 > (col_weight_t) cwmax) {
-            R_pool.free(col_weights[j], R_table[j]);
-            col_weights[j] = w+1;
-            markowitz_table.remove(j);
-        } else
-#endif
-        {
-            R_pool.realloc(col_weights[j], R_table[j], w+1);
-            R_pool(col_weights[j], R_table[j])[w] = i;
-            markowitz_table.update(std::make_pair(j, markowitz_count(j)));
-        }
+        R_pool.realloc(col_weights[j], R_table[j], w+1);
+        R_pool(col_weights[j], R_table[j])[w] = i;
+        markowitz_table.update(std::make_pair(j, markowitz_count(j)));
     }
 }/*}}}*/
 
@@ -696,15 +713,12 @@ size_t merge_matrix::remove_singletons()/*{{{*/
 
 size_t merge_matrix::remove_singletons_iterate()/*{{{*/
 {
-    double tt = seconds();
+    // double tt = seconds();
     size_t tnr = 0;
     for(size_t nr ; (nr = remove_singletons()) ; ) {
-        printf("# removed %zu singletons in %.2f s\n", nr, seconds() - tt);
+        // printf("# removed %zu singletons in %.2f s\n", nr, seconds() - tt);
         tnr += nr;
-        tt = seconds();
-#ifdef MIMIC
-        prepare_R_table();
-#endif
+        // tt = seconds();
     }
     return tnr;
 }
@@ -929,13 +943,6 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
          * one will have weight 0 after the merge */
         return;
 
-#ifdef MIMIC
-    if (w == 1) {
-        ASSERT_ALWAYS(R_table[j]);
-        remove_column(j);
-        return;
-    }
-#endif
     /* m=1, OTOH, cannot happen */
     ASSERT_ALWAYS (w >= 2);
 
@@ -1050,8 +1057,10 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
     if (!count || heavy_rows.size() <= excess - count)
         return 0;
     
+    /*
     printf("# Removing %zd excess rows (from excess = %zu-%zu=%zd)\n",
             count, rem_nrows, rem_ncols, excess);
+            */
 
     size_t nb_heaviest = heavy_rows.size() - (excess - count);
     high_score_table<size_t, row_weight_t> heaviest(nb_heaviest);
@@ -1067,66 +1076,11 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
 
 void merge_matrix::merge()/*{{{*/
 {
-#if 0
-    index_t j;
-    index_signed_t mkz;
-    uint64_t WN_prev, WN_cur, WN_min;
-    double WoverN;
-    unsigned int ncost = 0;
-    int m;
-    merge_stats_t *merge_data;
-
-    printf ("# Using %s to compute the merges\n", __func__);
-#endif
-
-#if 0
-    for(int cwmax = 2 ; cwmax <= maxlevel ; cwmax++) {
-        size_t excess = rem_nrows - rem_ncols;
-        printf("# Entering loop for level %d ; %zu rows, %zu cols, %zu excess\n", cwmax, rem_nrows, rem_ncols, excess);
-
-        clear_R_table();
-        prepare_R_table();
-        remove_singletons_iterate();
-        markowitz_table.clear();
-        fill_markowitz_table();
-
-        for( ; !markowitz_table.empty() ; markowitz_table.pop()) {
-            markowitz_table_t::const_reference q = markowitz_table.top();
-            /*
-               printf("# Pivoting with column %zu (weight %zu) has priority %d\n",
-               (size_t) q.first,
-               (size_t) col_weights[q.first],
-               (int) q.second);
-               */
-            /* if the best score is a (cwmax+1)-merge, then we'd better
-             * schedule a re-scan of all potential (cwmax+1)-merges
-             * before we process this one */
-            if (col_weights[q.first] > (col_weight_t) cwmax)
-                break;
-            pivot_with_column(q.first);
-        }
-
-        printf("# Status of R table after level %d:\n", cwmax);
-        std::stringstream s;
-        s << R_pool.printer("# ");
-        fputs(s.str().c_str(), stdout);
-        printf("# Done loop for level %d ; %zu rows, %zu cols, %zu excess\n", cwmax, rem_nrows, rem_ncols, excess);
-    }
-#endif
-
-    uint64_t WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
-    uint64_t WN_min = WN_cur;
-    double WoverN = (double) weight / (double) rem_nrows;
-
-
-    /* report lines are printed for each multiple of report_incr */
-    double report_incr = REPORT_INCR;
-    double report_next = ceil (WoverN / report_incr) * report_incr;
-
+    report_init();
     int spin = 0;
+    report(true);
     for(cwmax = 2 ; cwmax <= maxlevel && spin < 10 ; cwmax++) {
 
-        printf("# Enter loop for level %d ; %zu rows, %zu cols, %zd excess\n", cwmax, rem_nrows, rem_ncols, rem_nrows-rem_ncols);
         /* Note: we need the R table for remove_singletons */
         prepare_R_table();
         remove_singletons_iterate();
@@ -1134,9 +1088,7 @@ void merge_matrix::merge()/*{{{*/
         markowitz_table.clear();
         fill_markowitz_table();
 
-        WoverN = (double) weight / (double) rem_nrows;
-
-        for( ; WoverN < target_density && !markowitz_table.empty() ; ) {
+        for( ; report() < target_density && !markowitz_table.empty() ; ) {
             // ASSERT_ALWAYS(markowitz_table.is_heap());
 
             markowitz_table_t::value_type q = markowitz_table.top();
@@ -1148,12 +1100,6 @@ void merge_matrix::merge()/*{{{*/
              * late.
              */
             markowitz_table.pop();
-            /*
-               printf("# Pivoting with column %zu (weight %zu) has priority %d\n",
-               (size_t) q.first,
-               (size_t) col_weights[q.first],
-               (int) q.second);
-               */
 
             /* if the best score is a (cwmax+1)-merge, then we'd better
              * schedule a re-scan of all potential (cwmax+1)-merges
@@ -1161,43 +1107,20 @@ void merge_matrix::merge()/*{{{*/
             if (col_weights[q.first] > (col_weight_t) cwmax)
                 break;
             pivot_with_column(q.first);
-
-            WoverN = (double) weight / (double) rem_nrows;
-            WN_cur = (uint64_t) rem_nrows * (uint64_t) weight;
-            WN_min = std::min(WN_min, WN_cur);
-
-            if (WoverN >= report_next) {
-                printf ("N=%zu (%zd) W=%zu W*N=%.2e W/N=%.2f #Q=%zu\n",
-                        rem_nrows, rem_nrows-rem_ncols, weight,
-                        (double) WN_cur, WoverN, 
-                        markowitz_table.size());
-                report_next += report_incr;
-            }
         }
-        // clear_R_table();
-        // empirical. And unsatisfactory. Based on RSA-100.
+        // empirical.
         remove_excess((rem_nrows-rem_ncols) * .04);
-        // prepare_R_table();
         remove_singletons_iterate();
 
-        /* we've exited the inner loop prematurely because the
-         * lightest merge happened to be a cwmax+1 - merge ; increase
-         * cwmax and proceed */
-        printf("# Done loop for level %d ; %zu rows, %zu cols, %zd excess ; #Q=%zu\n", cwmax, rem_nrows, rem_ncols, rem_nrows-rem_ncols, markowitz_table.size());
-        printf ("N=%zu (%zd) W=%zu W*N=%.2e W/N=%.2f #Q=%zu\n",
-                rem_nrows, rem_nrows-rem_ncols, weight,
-                (double) WN_cur, WoverN, 
-                markowitz_table.size());
+        report(true);
+
         if (cwmax == maxlevel) {
             if (!remove_excess())
                 spin++;
             cwmax--;
         }
     }
-    printf("# Done ; %zu rows, %zu cols, %zd excess. Weight %zu, density %.2f\n", rem_nrows, rem_ncols, rem_nrows-rem_ncols, weight, WoverN);
-    printf ("N=%zu (%zd) W=%zu W*N=%.2e W/N=%.2f\n",
-            rem_nrows, rem_nrows-rem_ncols, weight,
-            (double) WN_cur, WoverN);
+    report(true);
 
     printf("# merge stats:\n");
     size_t nmerges=0;
