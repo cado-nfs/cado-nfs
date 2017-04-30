@@ -511,8 +511,18 @@ public:
     : super(comp), n(n) { push(first, last); }
 
     template<class InputIterator>
-    void push(InputIterator first, InputIterator last) {
-        static_assert(std::is_convertible<
+    void push(InputIterator first, InputIterator last,
+            /* enable this only if we have an iterator to the value type
+             */
+        typename std::enable_if<
+                std::is_convertible<
+                    typename InputIterator::value_type, 
+                    typename super::value_type
+                >::value
+        >::type * = 0)
+    {
+        static_assert(
+                std::is_convertible<
                 typename InputIterator::value_type, 
                 typename super::value_type>::value, 
                 "input iterator value type must be convertible to pair<keytype, scoretype>");

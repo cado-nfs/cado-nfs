@@ -168,6 +168,29 @@ static inline int MPI_Allgatherv(void *sendbuf, int sendcount MAYBE_UNUSED,
     return 0;
 }
 
+static inline int MPI_Alltoall(const void *sendbuf, int sendcount,
+            MPI_Datatype sendtype, void *recvbuf, int recvcount,
+            MPI_Datatype recvtype, MPI_Comm comm MAYBE_UNUSED)
+{
+    if (sendbuf == MPI_IN_PLACE) return 0;
+    ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(sendtype) == recvcount * fakempi_sizeof_type(recvtype));
+    memcpy(recvbuf, sendbuf, recvcount * fakempi_sizeof_type(recvtype));
+    return 0;
+}
+
+static inline int MPI_Alltoallv(const void *sendbuf, const int sendcounts[],
+            const int sdispls[], MPI_Datatype sendtype,
+            void *recvbuf, const int recvcounts[],
+            const int rdispls[], MPI_Datatype recvtype, MPI_Comm comm MAYBE_UNUSED)
+{
+    if (sendbuf == MPI_IN_PLACE) return 0;
+    ASSERT_ALWAYS(sendcounts[0] * fakempi_sizeof_type(sendtype) == recvcounts[0] * fakempi_sizeof_type(recvtype));
+    memcpy(((char*)recvbuf) + rdispls[0] * fakempi_sizeof_type(recvtype),
+            ((const char*)sendbuf) + sdispls[0] * fakempi_sizeof_type(sendtype), 
+            sendcounts[0] * fakempi_sizeof_type(sendtype));
+    return 0;
+}
+
 static inline int MPI_Type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype * newtype)
 {
     *newtype = count * oldtype;

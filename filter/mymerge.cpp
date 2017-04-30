@@ -33,6 +33,7 @@
 // #include "merge_mono.h" /* for mergeOneByOne */
 // #include "sparse.h"
 
+#include "select_mpi.h"
 #include "medium_int.hpp"
 #include "indexed_priority_queue.hpp"
 #include "compressible_heap.hpp"
@@ -88,7 +89,6 @@ struct merge_matrix {
   unsigned int wmstmax = DEFAULT_MERGE_WMSTMAX;
   double target_density = DEFAULT_MERGE_TARGET_DENSITY;
   double excess_inject_ratio = DEFAULT_EXCESS_INJECT_RATIO;
-  std::map<int,int> stats;
 
   /* {{{ merge_row_ideal type details */
 #ifdef FOR_DL
@@ -140,9 +140,10 @@ struct merge_matrix {
 #endif
   /* }}} */
 
-
+  /*{{{ parameters */
   static void declare_usage(param_list_ptr pl);
   bool interpret_parameters(param_list_ptr pl);
+  /*}}}*/
 
   /* {{{ row-oriented structures */
   typedef unsigned int row_weight_t;
@@ -253,6 +254,8 @@ struct merge_matrix {
   void merge();
   /*}}}*/
 
+  /* {{{ reports and statistics */
+  std::map<int,int> stats;
   uint64_t WN_cur;
   uint64_t WN_min;
   double WoverN;
@@ -302,6 +305,21 @@ struct merge_matrix {
       }
       return WoverN;
   }
+  /* }}} */
+
+  /*{{{ MPI-related structures */
+  MPI_Comm comm;
+  int comm_rank;
+  int comm_size;
+  void mpi_init(MPI_Comm c) {
+      comm = c;
+      MPI_Comm_size(comm, &comm_size);
+      MPI_Comm_rank(comm, &comm_rank);
+  }
+  bool is_my_col(size_t j) const { return (int) (j % comm_size) == comm_rank; }
+  std::vector<std::vector<row_value_t>> collective_fetch_rows(std::vector<size_t> const& all_row_indices) const;
+  void parallel_pivot(size_t *my_col_indices, size_t n, size_t w);
+  /*}}}*/
 };
 
 /*{{{ parameters */
@@ -370,7 +388,7 @@ void merge_matrix::push_relation(earlyparsed_relation_ptr rel)
         w += w != std::numeric_limits<col_weight_t>::max();
     }
     total_weight += rel->nb;
-    rows.push_back(temp, temp+rel->nb);
+    rows.push_back(temp, rel->nb);
 }
 
 /* callback function called by filter_rels */
@@ -493,9 +511,9 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
     /* Remove buried columns from rows in mat structure */
     printf("# Start to remove buried columns from rels...\n");
     fflush (stdout);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
+// #ifdef HAVE_OPENMP
+// #pragma omp parallel for
+// #endif
     for (size_t i = 0 ; i < rows.size() ; i++) {
         row_value_t * ptr = rows[i].first;
         if (!ptr) continue;
@@ -648,12 +666,21 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
     }
 
     merge_matrix::pivot_priority_t prio1 = 2 - (w0 - 2) * (w - 2);
+    return prio1;
+
+    /* On a c155, this second approach saves about 0.5% on the number of
+     * rows, for a given target density. It is also considerably more
+     * expensive computationally speaking (but there is some room for
+     * improvement, see mst_for_column().
+     *
     merge_matrix::pivot_priority_t prio2 = -mst_for_column(j).first;
     if (prio2 + (merge_matrix::pivot_priority_t) ws >= prio2) prio2 += ws;
     ASSERT_ALWAYS(prio2 >= prio1);
     return prio2;
+    */
 }
 /*}}}*/
+
 
 void merge_matrix::fill_markowitz_table()/*{{{*/
 {
@@ -702,14 +729,14 @@ void merge_matrix::subRj(size_t i, size_t keepcolumn)/*{{{*/
 }
 /*}}}*/
 
-void merge_matrix::remove_row(size_t i, size_t keepcolumn)
+void merge_matrix::remove_row(size_t i, size_t keepcolumn)/*{{{*/
 {
     ASSERT_ALWAYS(rows[i].first);
     subRj(i, keepcolumn);   // do not touch column j now.
     weight -= rows.kill(i);
     heavy_rows.remove(i);
     rem_nrows--;
-}
+}/*}}}*/
 
 void merge_matrix::remove_column(size_t j)/*{{{*/
 {
@@ -756,14 +783,11 @@ struct row_combiner {/*{{{*/
     typedef merge_matrix::rows_t rows_t;
     typedef merge_matrix::row_value_t row_value_t;
     typedef merge_matrix::row_weight_t row_weight_t;
-    merge_matrix & M;
-    size_t i0;
-    size_t i1;
-    size_t j;
     row_value_t const * p0;
     row_weight_t n0;
     row_value_t const * p1;
     row_weight_t n1;
+    size_t j;
     row_weight_t sumweight;
 #ifdef FOR_DL
     row_value_t::exponent_type e0;
@@ -771,19 +795,27 @@ struct row_combiner {/*{{{*/
     row_value_t::exponent_type emax0;
     row_value_t::exponent_type emax1;
 #endif
-    row_combiner(merge_matrix & M, size_t i0, size_t i1, size_t j)
-        : M(M), i0(i0), i1(i1), j(j)
+    row_combiner(
+                row_value_t const * p0, row_weight_t n0,
+                row_value_t const * p1, row_weight_t n1, size_t j)
+        : p0(p0), n0(n0), p1(p1), n1(n1), j(j)
     {
-        rows_t::const_reference R0 = M.rows[i0]; p0 = R0.first; n0 = R0.second;
-        rows_t::const_reference R1 = M.rows[i1]; p1 = R1.first; n1 = R1.second;
         ASSERT_ALWAYS(p0);
         ASSERT_ALWAYS(p1);
         sumweight = 0;
 #ifdef FOR_DL
-        e0 = e1 = 0;
-        emax0 = emax1 = 0;
+        e0 = e1 = emax0 = emax1 = 0;
 #endif
     }
+    row_combiner(merge_matrix & M, size_t i0, size_t i1, size_t j)
+        : row_combiner(
+                M.rows[i0].first, M.rows[i0].second,
+                M.rows[i1].first, M.rows[i1].second, j) {}
+    row_combiner(
+            std::vector<row_value_t> const& r0,
+            std::vector<row_value_t> const& r1,
+            size_t j)
+        : row_combiner(&r0[0], r0.size(), &r1[0], r1.size(), j) {}
 #ifdef FOR_DL
     void multipliers(row_value_t::exponent_type& x0, row_value_t::exponent_type& x1)/*{{{*/
     {
@@ -864,7 +896,7 @@ struct row_combiner {/*{{{*/
     }
 
 
-    void subtract_naively()/*{{{*/
+    std::vector<row_value_t> subtract_naively()/*{{{*/
     {
         /* This creates a new row with R[i0]-R[i1], with mulitplying
          * coefficients adjusted so that column j is cancelled. Rows i0 and
@@ -880,7 +912,8 @@ struct row_combiner {/*{{{*/
 #endif
 
         row_weight_t n2 = sumweight;
-        row_value_t p2[n2];
+        std::vector<row_value_t> res(n2);
+        row_value_t * p2 = &(res[0]);
 
         /* It's of course pretty much the same loop as in other cases. */
         row_weight_t k0 = 0, k1 = 0, k2 = 0;
@@ -953,15 +986,12 @@ struct row_combiner {/*{{{*/
                 k2++;
         }
         ASSERT_ALWAYS(k2 == n2);
-        M.rows.push_back(p2, p2 + n2);
-        M.heavy_rows.push(M.rows.size()-1, n2);
-        M.rem_nrows++;
-        M.weight += n2;
+        return res;
     }/*}}}*/
 };
 /*}}}*/
 
-std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(size_t j)
+std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(size_t j)/*{{{*/
 {
     std::pair<int, std::vector<std::pair<int, int>>> res;
     weight_t w = col_weights[j];
@@ -1050,7 +1080,7 @@ std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(si
 #endif
     }
     return mst;
-}
+}/*}}}*/
 
 void merge_matrix::pivot_with_column(size_t j)/*{{{*/
 {
@@ -1072,7 +1102,11 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
     std::copy(Rx, Rx+w, Rx_copy);
     for(auto const & edge : mst.second) {
         row_combiner C(*this, Rx_copy[edge.first], Rx_copy[edge.second], j);
-        C.subtract_naively();
+        auto newrow = C.subtract_naively();
+        rows.push_back(newrow);
+        heavy_rows.push(rows.size()-1, newrow.size());
+        rem_nrows++;
+        weight += newrow.size();
         addRj(rows.size()-1);
     }
     remove_column(j);
@@ -1104,6 +1138,212 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
     heavy_rows.set_depth(rem_nrows - rem_ncols);
     return nb_heaviest;
 }/*}}}*/
+
+/* {{{ collective_fetch_rows */
+/* This is a collective all-to-all operation. Each node collects from
+ * other nodes the remote coefficients from the rows it has an interest
+ * in. */
+std::vector<std::vector<merge_matrix::row_value_t>> merge_matrix::collective_fetch_rows(std::vector<size_t> const& all_row_indices) const
+{
+    /* See who wants what */
+    ASSERT_ALWAYS(all_row_indices.size() % comm_size == 0);
+    size_t n = all_row_indices.size() / comm_size;
+
+    /* How many coefficients will I contribute to rows of everyone ? */
+    std::vector<int> my_contrib_sizes(comm_size * n, 0);
+    for(size_t i = 0 ; i < comm_size * n ; i++) {
+        if (all_row_indices[i] != SIZE_MAX)
+            my_contrib_sizes[i] = rows[all_row_indices[i]].second;
+    }
+    int sendcounts[comm_size];
+    int sdispls[comm_size];
+    int stotal = 0;
+    for(int i = 0 ; i < comm_size ; i++) {
+        int send = 0;
+        for(size_t j = 0 ; j < n ; j++) {
+            send += my_contrib_sizes[i * n + j];
+        }
+        stotal += send;
+        sendcounts[i] = send * sizeof(row_value_t);
+        sdispls[i] = i ? sdispls[i-1] + send : 0;
+    }
+
+    std::vector<int> remote_contrib_sizes(comm_size * n);
+    /* now this needs to be transposed, so that I can now how many
+     * coefficients I'll receive from the other folks. */
+    MPI_Alltoall(
+            (void*) &my_contrib_sizes[0], n, MPI_INT,
+            (void*) &remote_contrib_sizes[0], n, MPI_INT,
+            comm);
+
+    int recvcounts[comm_size];
+    int rdispls[comm_size];
+    int rtotal = 0;
+    for(int i = 0 ; i < comm_size ; i++) {
+        int recv = 0;
+        for(size_t j = 0 ; j < n ; j++) {
+            recv += remote_contrib_sizes[i * n + j];
+        }
+        rtotal += recv;
+        recvcounts[i] = recv * sizeof(row_value_t);
+        rdispls[i] = i ? rdispls[i-1] + recv : 0;
+    }
+
+    /* Put all this stuff in a temp buffer. */
+    std::vector<row_value_t> coeffs;
+    coeffs.reserve(stotal);
+    for(size_t i = 0 ; i < comm_size * n ; i++) {
+        if (all_row_indices[i] == SIZE_MAX) continue;
+        int nr = rows[all_row_indices[i]].second;
+        const row_value_t * ptr = rows[all_row_indices[i]].first;
+        coeffs.insert(coeffs.end(), ptr, ptr + nr);
+    }
+
+    std::vector<row_value_t> remote_coeffs(rtotal);
+
+    MPI_Alltoallv(
+            (const void *)&coeffs[0], sendcounts, sdispls, MPI_BYTE,
+            (void*)&remote_coeffs[0], recvcounts, rdispls, MPI_BYTE,
+            comm);
+
+    std::vector<std::vector<row_value_t>> res(n);
+    for(size_t j = 0 ; j < n ; j++) {
+        int r = 0;
+        for(int i = 0 ; i < comm_size ; i++)
+            r += remote_contrib_sizes[i * n + j];
+        res[j].reserve(r);
+        r = 0;
+        for(int i = 0 ; i < comm_size ; i++) {
+            const row_value_t * ptr = &remote_coeffs[rdispls[i] + r];
+            int dr = remote_contrib_sizes[i * n + j];
+            res[j].insert(res[j].end(), ptr, ptr + dr);
+            r += dr;
+        }
+        std::sort(res[j].begin(), res[j].end());
+    }
+    return res;
+}
+/* }}} */
+
+/* {{{ parallel_pivot */
+/* There's a virtual ordering here, namely that we do the 0-th merge on
+ * node 0, then the 0-th merge on node 1, etc, until the (n-1)-th merge
+ * on node (comm_size-1).
+ *
+ * We arrange so that if either of the two following events occur, a
+ * merge is deferred (resulting in no action):
+ *  - if a merge involves a row which already appears in another
+ *    merge of the same batch.
+ *  - if a merge is for a column which appeared in another merge.
+ *
+ * Note that provided the former event does not occur, the latter does
+ * not occur either.
+ */
+void merge_matrix::parallel_pivot(size_t *my_col_indices, size_t n, size_t w)
+{
+    std::vector<size_t> my_row_indices(n * w, SIZE_MAX);
+    for(size_t k = 0 ; k < n ; k++) {
+        size_t j = my_col_indices[k];
+        col_weight_t wj = col_weights[j];
+        ASSERT_ALWAYS(wj && wj <= w);
+        const R_pool_t::value_type * Rx = R_pool(wj, R_table[j]);
+        std::copy(Rx, Rx + wj, my_row_indices.begin() + w * k);
+    }
+
+    std::vector<size_t> all_row_indices(comm_size * n * w);
+    MPI_Allgather(
+            (void*) &my_row_indices[0], n * w, MPI_INT,
+            (void*) &all_row_indices[0], n * w, MPI_INT, comm);
+
+    /* check first criterion above */
+    std::set<size_t> met;
+    size_t discard = 0;
+    for(size_t k = 0 ; k < n ; k++) {
+        for(int i = 0 ; i < comm_size ; i++) {
+            bool ismet = false;
+            for(size_t j = 0 ; j < w ; j++) {
+                size_t rx = all_row_indices[(i*n+k)*w + j];
+                if (rx == SIZE_MAX) continue;
+                if (met.find(rx) != met.end()) {
+                    ismet = true;
+                    break;
+                }
+            }
+            if (ismet) {
+                discard++;
+                for(size_t j = 0 ; j < w ; j++)
+                    all_row_indices[(i*n+k)*w + j] = SIZE_MAX;
+            } else {
+                for(size_t j = 0 ; j < w ; j++) {
+                    size_t rx = all_row_indices[(i*n+k)*w + j];
+                    if (rx == SIZE_MAX) continue;
+                    met.insert(rx);
+                }
+            }
+        }
+    }
+    if (!comm_rank && discard)
+        printf("# discarded %zu %zu-merges out of %d*%zu=%zu\n",
+                discard, w, comm_size, n, comm_size * n);
+
+    /* We'll get a vector of n*w rows */
+    auto row_batches = collective_fetch_rows(all_row_indices);
+
+    /* I have rows precisely for the column indices I care about. But
+     * these are complete rows, which is good. Let's do the merge, but
+     * *without* pushing to the Rj table just yet. We'll do that
+     * deferred.
+     */
+    for(size_t k = 0 ; k < n ; k++) {
+        size_t j = my_col_indices[k];
+        col_weight_t wj = col_weights[j];
+        ASSERT_ALWAYS(wj <= w);
+
+        auto batch0 = row_batches.begin() + k * w;
+        auto batch1 = batch0 + w;
+        for( ; batch1 > batch1 && ((batch1-1)->empty()) ; batch1--);
+
+        ASSERT_ALWAYS(batch1 - batch0 == wj);
+
+        std::pair<int, std::vector<std::pair<int, int>>> mst;
+
+        if (w == 1) {
+            mst.first = -batch0->size();
+        } else if (w == 2) {
+            mst.first = -2;
+            mst.second.push_back(std::make_pair(0,1));
+        } else {
+            matrix<int> weights(wj,wj,INT_MAX);
+
+            for(col_weight_t k = 0 ; k < wj ; k++) {
+                for(col_weight_t l = k + 1 ; l < wj ; l++) {
+                    int s = row_combiner(batch0[k], batch0[l], j).mst_score();
+                    weights(k,l) = s;
+                    weights(l,k) = s;
+                }
+            }
+            mst = minimum_spanning_tree(weights);
+        }
+
+        /* Do the merge, but locally first */
+        // R_pool_t::value_type * Rx = R_pool(wj, R_table[j]);
+        // R_pool_t::value_type Rx_copy[wj];
+        // std::copy(Rx, Rx+wj, Rx_copy);
+        for(auto const & edge : mst.second) {
+            row_combiner C(batch0[edge.first], batch0[edge.second], j);
+            auto newrow = C.subtract_naively();
+            /*
+            rows.push_back(newrow);
+            heavy_rows.push(rows.size()-1, newrow.size());
+            rem_nrows++;
+            weight += newrow.size();
+            addRj(rows.size()-1);
+            */
+        }
+        remove_column(j);
+    }
+}
+/* }}} */
 
 void merge_matrix::merge()/*{{{*/
 {
@@ -1180,6 +1420,7 @@ void merge_matrix::merge()/*{{{*/
 
 int main(int argc, char *argv[])
 {
+    MPI_Init(&argc, &argv);
     char *argv0 = argv[0];
 
 #if 0
@@ -1281,6 +1522,7 @@ int main(int argc, char *argv[])
 
     printf("# Time for filter_matrix_read: %2.2lfs\n", seconds() - tt);
 
+    M.mpi_init(MPI_COMM_WORLD);
 
     M.merge();
 
@@ -1325,5 +1567,6 @@ int main(int argc, char *argv[])
 
     print_timing_and_memory(stdout, wct0);
 
+    MPI_Finalize();
     return 0;
 }
