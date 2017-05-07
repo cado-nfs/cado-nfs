@@ -65,6 +65,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "force-posix-threads", "(switch)");
     param_list_decl_usage(pl, "v", "verbose level");
     param_list_decl_usage(pl, "t", "number of threads");
+    param_list_decl_usage(pl, "merge-batch-size", "merge batch size (default is 1 for single-job, 32 above)");
 }
 
 static void usage(param_list pl, char *argv0)
@@ -271,7 +272,6 @@ struct merge_matrix {
     high_score_table<size_t, row_weight_t> heavy_rows;
     size_t heavy_weight = 0;
     size_t remove_excess(size_t count = SIZE_MAX);
-    void merge();
     /*}}}*/
 
     /* {{{ reports and statistics */
@@ -359,12 +359,15 @@ struct merge_matrix {
     /*}}}*/
 
     /*{{{ general high-level operations (MPI) */
-    void parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n);
+    std::vector<size_t> parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n);
     void batch_Rj_update(std::vector<size_t> const & out, std::vector<size_t> const & in);
     void parallel_merge(size_t batch_size);
     size_t collectively_remove_rows(std::vector<size_t> const & killed);
     std::map<int, size_t> discarded_merges;
     std::map<int, size_t> done_merges;
+
+    std::pair<std::vector<size_t>, std::vector<size_t>>
+    filter_merge_proposal(std::vector<std::pair<size_t, pivot_priority_t>> const & proposal);
     /*}}}*/
 };
 
@@ -1478,7 +1481,7 @@ struct collective_merge_operation {/*{{{*/
 
     void announce_columns(std::vector<size_t> const &cols);
     void deduce_and_share_rows(merge_matrix const&);
-    void discard_repeated_rows();
+    index_vec_t discard_repeated_rows();
     row_batch_set_t merge_scatter_rows(merge_matrix const&);
     /* this function flattens the new set of rows */
     row_batch_t allgather_rows(row_batch_set_t const&);
@@ -1573,34 +1576,43 @@ void collective_merge_operation::deduce_and_share_rows(merge_matrix const& M)/*{
         all_row_indices[pq].assign(ptr0, ptr1);
     }
 }/*}}}*/
-void collective_merge_operation::discard_repeated_rows()/*{{{*/
+std::vector<size_t> collective_merge_operation::discard_repeated_rows()/*{{{*/
 {
     /* get rid of column merges which involve a row which has already
      * been encountered
      */
     std::set<size_t> met;
-    for(std::vector<size_t> & col : all_row_indices) {
-        bool ismet = false;
-        for(size_t i : col) {
-            if (met.find(i) != met.end()) {
-                ismet = true;
-                break;
+    std::vector<size_t> requeue;
+    for(int peer = 0 ; peer < comm_size ; peer++) {
+        for(size_t q = 0 ; q < n ; q++) {
+            std::vector<size_t> & col(all_row_indices[peer * n + q]);
+            bool ismet = false;
+            for(size_t i : col) {
+                if (met.find(i) != met.end()) {
+                    ismet = true;
+                    break;
+                }
             }
-        }
-        if (ismet) {
-            discarded_merges++;
-            col.clear();
-        } else {
-            done_merges += !col.empty();
-            for(size_t i : col) met.insert(i);
+            if (ismet) {
+                if (peer == comm_rank)
+                    requeue.push_back(my_col_indices[q]);
+                discarded_merges++;
+                col.clear();
+            } else {
+                done_merges += !col.empty();
+                for(size_t i : col) met.insert(i);
+            }
         }
     }
     /*
+    if (!requeue.empty())
+        printf("rank %d has %zu merges to requeue\n", comm_rank, requeue.size());
     if (!comm_rank && discarded_merges)
         printf("# discarded %zu <=%zu-merges out of %zu\n",
                 discarded_merges, w,
                 discarded_merges + done_merges);
                 */
+    return requeue;
 }/*}}}*/
 /* {{{ collective_merge_operation::merge_scatter_rows */
 /* This is a collective all-to-all operation. Each node collects from
@@ -1794,7 +1806,7 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
  * Note that provided the former event does not occur, the latter does
  * not occur either.
  */
-void merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n)
+std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n)
 {
     collective_merge_operation CM(comm, n, cwmax);
 
@@ -1802,7 +1814,7 @@ void merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, si
 
     CM.deduce_and_share_rows(*this);
 
-    CM.discard_repeated_rows();
+    std::vector<size_t> discarded = CM.discard_repeated_rows();
     discarded_merges[cwmax] += CM.discarded_merges;
     done_merges[cwmax] += CM.done_merges;
 
@@ -1914,6 +1926,8 @@ void merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, si
         remove_row_detached(i);
     MPI_Allreduce(&weight, &global_weight, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
     MPI_Allreduce(&ncols, &global_ncols, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+
+    return discarded;
 }
 /* }}} */
 
@@ -2059,83 +2073,29 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
     }
 }/*}}}*/
 
-void merge_matrix::merge()/*{{{*/
+std::pair<std::vector<size_t>, std::vector<size_t>>
+merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::pivot_priority_t>> const & proposal)
 {
-    ASSERT_ALWAYS(comm_size == 1);
-
-    report_init();
-    int spin = 0;
-    report(true);
-    for(cwmax = 2 ; cwmax <= maxlevel && spin < 10 ; cwmax++) {
-
-        /* Note: we need the R table for remove_singletons. Singletons
-         * which are created within remove_singletons_iterate, but for
-         * columns which were originally too heavy to have the R_table
-         * entry set, will be discarded in a further pass. */
-        prepare_R_table();
-        remove_singletons_iterate();
-
-        markowitz_table.clear();
-        fill_markowitz_table();
-
-        if (spin && markowitz_table.empty())
-            break;
-
-        for( ; report() < target_density && !markowitz_table.empty() ; ) {
-            // ASSERT_ALWAYS(markowitz_table.is_heap());
-
-            markowitz_table_t::value_type q = markowitz_table.top();
-
-            /* We're going to remove this column, so it's important that
-             * we remove it from the queue right now, otherwise our
-             * actions may cause a shuffling of the queue, and we could
-             * very well end up popping the wrong one if pop() comes too
-             * late.
-             */
-            markowitz_table.pop();
-
-            /* if the best score is a (cwmax+1)-merge, then we'd better
-             * schedule a re-scan of all potential (cwmax+1)-merges
-             * before we process this one */
-            if (col_weights[q.first / comm_size] > (col_weight_t) cwmax) {
-                if (cwmax < maxlevel)
-                    break;
-                else
-                    continue;
-            }
-            pivot_with_column(q.first);
-        }
-        // empirical.
-        remove_excess((nrows-global_ncols) * excess_inject_ratio);
-        remove_singletons_iterate();
-
-        report(true);
-
-        if (cwmax == maxlevel) {
-            if (!remove_excess())
-                spin++;
-            cwmax--;
-        }
+    /* proposal is in decreasing order of priority. All are counted as
+     * coefficient *decrease*, so that it's really a priority */
+    // long maxprio = proposal.empty() ? LONG_MAX : proposal.front().second;
+    long minprio = proposal.empty() ? LONG_MIN : proposal.back().second;
+    long globalminprio = LONG_MAX;
+    MPI_Allreduce(&minprio, &globalminprio, 1, MPI_LONG, MPI_MAX, comm);
+    /*
+    printf("rank %d has maxprio=%ld minprio=%ld global minprio=%ld\n",
+            comm_rank, maxprio, minprio, globalminprio);
+    fflush(stdout);
+    */
+    std::vector<size_t> cols, req;
+    for(auto x : proposal) {
+        if (x.second >= globalminprio)
+            cols.push_back(x.first);
+        else
+            req.push_back(x.first);
     }
-    report(true);
-
-    printf("# merge stats:\n");
-    size_t nmerges=0;
-    for(auto x: done_merges) {
-        printf("# %d-merges: %zu\n", x.first, x.second);
-        nmerges += x.second;
-    }
-    printf("# Total: %zu merges\n", nmerges);
-
-    /* print weight count */
-    size_t nbm[256];
-    count_columns_below_weight(nbm, 256);
-    for (int h = 1; h <= maxlevel; h++)
-        if (nbm[h])
-            printf ("# There are %zu column(s) of weight %d\n", nbm[h], h);
-    printf("# Total weight of the matrix: %zu\n", initial_weight);
+    return std::make_pair(cols,req);
 }
-/*}}}*/
 
 void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 {
@@ -2165,9 +2125,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
             MPI_Allreduce(MPI_IN_PLACE, &empty, 1, MPI_INT, MPI_LAND, comm);
             if (empty) break;
 
-            std::vector<size_t> my_cols;
+            std::vector<markowitz_table_t::value_type> merge_proposal;
 
-            for( ; my_cols.size() < batch_size && !markowitz_table.empty() ; ) {
+            for( ; merge_proposal.size() < batch_size && !markowitz_table.empty() ; ) {
                 markowitz_table_t::value_type q = markowitz_table.top();
                 /* We're going to remove this column, so it's important that
                  * we remove it from the queue right now, otherwise our
@@ -2184,15 +2144,34 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
                     if (cwmax < maxlevel)
                         markowitz_table.clear();
                 } else {
-                    my_cols.push_back(q.first);
+                    merge_proposal.push_back(q);
                 }
             }
 
-            // printf("rank %d proposes %zu %d-merges\n", comm_rank, my_cols.size(), cwmax);
-            // fflush(stdout);
+            /* Make sure that the "best" merges really go first, and that
+             * we don't hurry towards ordering sub-optimal merges. Some
+             * fudge factor is mandatory here.
+             */
+            auto filtered = filter_merge_proposal(merge_proposal);
+            std::vector<size_t> & my_cols(filtered.first);
+            std::vector<size_t> & requeue(filtered.second);
 
-            parallel_pivot(my_cols, batch_size);
+            /*
+            printf("rank %d proposes %zu %d-merges, %zu to requeue\n", comm_rank, my_cols.size(), cwmax, requeue.size());
+            fflush(stdout);
+            */
+
+            std::vector<size_t> requeue2 = parallel_pivot(my_cols, batch_size);
             // expensive_check();
+            
+            requeue.insert(requeue.end(), requeue2.begin(), requeue2.end());
+            
+            /* requeue the merges which have been discarded */
+            for(auto const & j : requeue) {
+                size_t lj = j / comm_size;
+                if (!R_table[lj]) continue;
+                markowitz_table.push(std::make_pair(j, markowitz_count(j)));
+            }
         }
         // empirical.
         remove_excess((nrows-ncols) * excess_inject_ratio);
@@ -2303,6 +2282,11 @@ int main(int argc, char *argv[])
 
     if (!M.interpret_parameters(pl)) usage(pl, argv0);
 
+    M.mpi_init(MPI_COMM_WORLD);
+
+    int batch_size = (M.comm_size <= 8) ? (1 << (M.comm_size - 1)) : 128;
+    param_list_parse_int(pl, "merge-batch-size", &batch_size);
+
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl)) {
 	fprintf(stderr, "Error, unused parameters are given\n");
@@ -2330,8 +2314,6 @@ int main(int argc, char *argv[])
     /* Init structure containing the matrix and the heap of potential merges */
     // initMat(mat, maxlevel, keep, skip);
 
-    M.mpi_init(MPI_COMM_WORLD);
-
     /* Read all rels and fill-in the mat structure */
     tt = seconds();
 
@@ -2339,11 +2321,7 @@ int main(int argc, char *argv[])
 
     printf("# Time for filter_matrix_read: %2.2lfs\n", seconds() - tt);
 
-    if (M.comm_size == 1) {
-        M.merge();
-    } else {
-        M.parallel_merge(128);
-    }
+    M.parallel_merge(batch_size);
 
 
 #if 0
