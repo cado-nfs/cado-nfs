@@ -92,4 +92,31 @@ static inline int my_pthread_barrier_destroy(barrier_t * b)
 #include "fakempi.h"
 #endif
 
+#define MPI_MY_SIZE_T    MPI_UNSIGNED_LONG
+#define MPI_MY_UINT64_T  MPI_UNSIGNED_LONG
+#define MPI_MY_INT64_T   MPI_LONG
+
+#ifdef __cplusplus
+template<typename T>
+void mpi_runtime_check(MPI_Datatype D)
+{
+    int size;
+    MPI_Type_size(D, &size);
+    ASSERT_ALWAYS((size_t) size == sizeof(T));
+}
+#endif
+#define MPI_RUNTIME_CHECK(T, D) do {					\
+    int size;								\
+    MPI_Type_size(D, &size);						\
+    ASSERT_ALWAYS((size_t) size == sizeof(T));				\
+} while (0)
+
+static inline void all_mpi_runtime_checks()
+{
+    MPI_RUNTIME_CHECK(size_t, MPI_MY_SIZE_T);
+    MPI_RUNTIME_CHECK(int64_t, MPI_MY_INT64_T);
+    MPI_RUNTIME_CHECK(uint64_t, MPI_MY_UINT64_T);
+}
+
+
 #endif	/* SELECT_MPI_H_ */

@@ -112,7 +112,7 @@ public:
         template<typename RandomAccessIterator>
         T * push_back(RandomAccessIterator p, RandomAccessIterator q) {
             assert(_size < batch_size);
-            assert(q > p);
+            assert(q >= p);
             items[_size].second = q - p;
             if (data.size() + (size_t) (q - p) > data.capacity()) {
                 /* we're going to invalidate the pointers... */
@@ -127,6 +127,13 @@ public:
                 for(size_t i = 0 ; i < _size ; i++)
                     if (temp[i] >= 0) items[i].first = &data.front() + temp[i];
             } else {
+                /* If data.capacity() is zero, then we'll end up storing
+                 * the null pointer. In turn, this might be
+                 * misinterpreted as meaning that we have a killed row in
+                 * that position.
+                 */
+                if (data.capacity() == 0)
+                    data.reserve(64);
                 items[_size++].first = &data.front() + data.size();
                 data.insert(data.end(), p, q);
             }

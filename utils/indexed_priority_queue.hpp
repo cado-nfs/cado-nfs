@@ -382,14 +382,18 @@ public:
     }
 
     template<typename T = index_container_type>
-    bool remove(const key_type & k, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
+    std::pair<bool,PriorityType>
+    remove(const key_type & k, ONLY_FOR_ASSOCIATIVE_INDEX(T)) {
         auto it = indices.find(k);
-        if (it == indices.end()) return false;
+        if (it == indices.end()) return std::make_pair(false, PriorityType());
+        PriorityType prio = values[it->second].second;
+        /* we're taking off values[it->second] from the queue.
+         * values.back() need to take its place */
         if (size() > 1)
             _update_raw(it->second, size()-1, values.back());
         indices.erase(it);
         values.pop_back();
-        return true;
+        return std::make_pair(true, prio);
     }
 
     template<class InputIterator, typename T = index_container_type>
@@ -510,8 +514,11 @@ public:
             const Compare& comp = Compare())
     : super(comp), n(n) { push(first, last); }
 
+    typedef typename std::make_signed<ScoreType>::type scorediff_type;
+
+    /* we return the variation of the sum of scores in the table */
     template<class InputIterator>
-    void push(InputIterator first, InputIterator last,
+    scorediff_type push(InputIterator first, InputIterator last,
             /* enable this only if we have an iterator to the value type
              */
         typename std::enable_if<
@@ -526,21 +533,31 @@ public:
                 typename InputIterator::value_type, 
                 typename super::value_type>::value, 
                 "input iterator value type must be convertible to pair<keytype, scoretype>");
+        scorediff_type d = 0;
         for(InputIterator i = first ; i != last ; ++i)
-            push(*i);
+            d += push(*i);
+        return d;
     }
 
-    void push(const typename super::value_type& x) {
-        super & s(*this);
-        if (!n) return;
-        if (s.size() < n) { s.push(x); return; }
-        if (super::comp(s.top(), x)) return;
-        s.push(x);
-        s.pop();
+    scorediff_type push(const typename super::value_type& x) {
+        if (!n) return 0;
+        scorediff_type d = x.second;
+        if (super::size() < n) { super::push(x); return d; }
+        if (super::comp(super::top(), x)) return 0;
+        super::push(x);
+        d -= super::top().second;
+        super::pop();
+        return d;
     }
-    void push(const KeyType& k, const ScoreType& s) { push(std::make_pair(k, s)); }
-    void filter_to(high_score_table & dest) {
-        dest.push(super::values.begin(), super::values.end());
+    scorediff_type push(const KeyType& k, const ScoreType& s) { return push(std::make_pair(k, s)); }
+    scorediff_type filter_to(high_score_table & dest) const {
+        return dest.push(super::values.begin(), super::values.end());
+    }
+    ScoreType sum() const {
+        ScoreType sum = 0;
+        for(auto const & x : super::values)
+            sum += x.second;
+        return sum;
     }
 };
 

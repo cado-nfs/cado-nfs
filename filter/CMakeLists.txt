@@ -65,13 +65,30 @@ endif()
 
 add_executable(mymerge mymerge.cpp)
 target_link_libraries(mymerge utils_with_io)
-set_target_properties(mymerge PROPERTIES
-  COMPILE_FLAGS "${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+if (${WITH_MPI})
+    set_target_properties(mymerge PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+        )
+else()
+    set_target_properties(mymerge PROPERTIES
+        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+endif()
 
 add_executable(mymerge-dl mymerge.cpp)
 target_link_libraries(mymerge-dl utils_with_io)
-set_target_properties(mymerge-dl PROPERTIES
-    COMPILE_FLAGS "-DFOR_DL ${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+if (${WITH_MPI})
+    set_target_properties(mymerge-dl PROPERTIES
+        COMPILE_FLAGS "--mpi -DFOR_DL ${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+        )
+else()
+    set_target_properties(mymerge-dl PROPERTIES
+        COMPILE_FLAGS "-DFOR_DL ${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "${OpenMP_CXX_FLAGS}"
+        )
+endif()
 
 
 install(TARGETS ${bin_list} RUNTIME DESTINATION ${LIBSUFFIX}/filter)

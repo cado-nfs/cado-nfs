@@ -160,12 +160,13 @@ static inline int MPI_Iallgather(void *sendbuf, int  sendcount, MPI_Datatype st,
     return MPI_Allgather(sendbuf, sendcount, st, recvbuf, recvcount, rt, comm);
 }
 
-static inline int MPI_Allgatherv(void *sendbuf, int sendcount MAYBE_UNUSED,
-            MPI_Datatype sendtype MAYBE_UNUSED, void *recvbuf MAYBE_UNUSED, int *recvcount MAYBE_UNUSED,
-            int *displs MAYBE_UNUSED, MPI_Datatype recvtype MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED)
+static inline int MPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype st,
+            void *recvbuf, int *recvcount, int *displs, MPI_Datatype rt,
+            MPI_Comm comm MAYBE_UNUSED)
 {
-    ASSERT_ALWAYS(sendbuf == MPI_IN_PLACE);
-    return 0;
+    if (sendbuf == MPI_IN_PLACE) return 0;
+    ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcounts[0] * fakempi_sizeof_type(rt));
+    memcpy(((char *)recvbuf) + displs[0] * fakempi_sizeof_type(rt), sendbuf, sendcount * fakempi_sizeof_type(st));
 }
 
 static inline int MPI_Alltoall(const void *sendbuf, int sendcount,
