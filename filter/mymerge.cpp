@@ -269,7 +269,7 @@ struct merge_matrix {
     /* scores in the heavy_rows table are global, and so is the
      * heavy_weight ! */
     high_score_table<size_t, row_weight_t> heavy_rows;
-    size_t heavy_weight;
+    size_t heavy_weight = 0;
     size_t remove_excess(size_t count = SIZE_MAX);
     void merge();
     /*}}}*/
@@ -285,17 +285,21 @@ struct merge_matrix {
         // probably useless, I think I got the tracking of these right
         // already
         aggregate_weights();
-        // WN_cur = (uint64_t) nrows * (uint64_t) global_weight;
-        WN_cur = (uint64_t) ncols * (uint64_t) (global_weight - heavy_weight);
+        uint64_t wx = global_weight - heavy_weight;
+        WN_cur = (uint64_t) global_ncols * wx;
         WN_min = WN_cur;
+        WoverN = (double) wx / (double) nrows;
         report_next = ceil (WoverN / report_incr) * report_incr;
+        printf("rank %d report_next = %.1f ; global_ncols=%zu ; wx=%zu\n",
+                comm_rank, report_next,
+                global_ncols, (size_t) wx);
     }
     double report(bool force = false) {
         aggregate_weights();
-        // WN_cur = (uint64_t) nrows * (uint64_t) global_weight;
-        WN_cur = (uint64_t) ncols * (uint64_t) (global_weight - heavy_weight);
+        uint64_t wx = global_weight - heavy_weight;
+        WN_cur = (uint64_t) global_ncols * wx;
         WN_min = std::min(WN_min, WN_cur);
-        WoverN = (double) weight / (double) nrows;
+        WoverN = (double) wx / (double) nrows;
 
         bool disp = false;
         if ((disp = WoverN >= report_next))
@@ -437,7 +441,7 @@ void merge_matrix::expensive_check()
         active += row.second;
         for(const row_value_t * ptr = row.first ; ptr != row.first + row.second ; ptr++) {
             size_t lj = ptr->index() / comm_size;
-            if (R_table[lj]) {
+            if (!R_table.empty() && R_table[lj]) {
                 col_weight_t w = col_weights[lj];
                 R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
                 ASSERT_ALWAYS(check[lj] < w);
@@ -544,12 +548,17 @@ void merge_matrix::read_rows(const char *purgedname)
         for(size_t i = 0 ; i < nrows ; i++)
             all_aggr_row_weights[i] = rows[i].second;
         MPI_Allreduce(MPI_IN_PLACE, &all_aggr_row_weights[0], nrows, MPI_MY_SIZE_T, MPI_SUM, comm);
-        for(size_t i = 0 ; i < nrows ; i++)
+        for(size_t i = 0 ; i < nrows ; i++) {
             heavy_weight += heavy_rows.push(i, all_aggr_row_weights[i]);
+            if (!(i % 1000)) {
+                printf("rank %d gw %zu hw %zu\n", comm_rank, global_weight, heavy_weight);
+            }
+        }
         // now everyone has the same heavy_rows pqueue.
     } else {
-        for(size_t i = 0 ; i < nrows ; i++)
+        for(size_t i = 0 ; i < nrows ; i++) {
             heavy_weight += heavy_rows.push(i, rows[i].second);
+        }
     }
 
     /* print weight count */
@@ -586,6 +595,9 @@ void merge_matrix::read_rows(const char *purgedname)
 #ifndef FOR_DL
     renumber_columns();
 #endif
+
+    aggregate_weights();
+    printf("rank %d gw %zu hw %zu\n", comm_rank, global_weight, heavy_weight);
 }
 /* }}} */
 
@@ -1081,9 +1093,9 @@ struct row_combiner /*{{{*/ {
     {
         weight_of_sum(S);
 #ifdef FOR_DL
-        if (std::abs((int64_t) emax0 * (int64_t) e1) > 65536)
+        if (std::abs((int64_t) emax0 * (int64_t) e1) > 32)
             return INT_MAX;
-        if (std::abs((int64_t) emax1 * (int64_t) e0) > 65536)
+        if (std::abs((int64_t) emax1 * (int64_t) e0) > 32)
             return INT_MAX;
 #endif
         return sumweight;
@@ -1584,9 +1596,10 @@ void collective_merge_operation::discard_repeated_rows()/*{{{*/
         }
     }
     /*
-    if (!comm_rank && discard)
-        printf("# discarded %zu <=%zu-merges out of %d*%zu=%zu\n",
-                discard, w, comm_size, n, all_row_indices.size());
+    if (!comm_rank && discarded_merges)
+        printf("# discarded %zu <=%zu-merges out of %zu\n",
+                discarded_merges, w,
+                discarded_merges + done_merges);
                 */
 }/*}}}*/
 /* {{{ collective_merge_operation::merge_scatter_rows */
@@ -2146,9 +2159,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 
         /* the control structure is global, as report() works on global
          * data */
+
         for( ; report() < target_density ; ) {
             int empty = markowitz_table.empty();
-            // if (empty) printf("queue empty on rank %d\n", comm_rank);
             MPI_Allreduce(MPI_IN_PLACE, &empty, 1, MPI_INT, MPI_LAND, comm);
             if (empty) break;
 
