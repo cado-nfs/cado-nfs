@@ -275,7 +275,6 @@ struct merge_matrix {
     /*}}}*/
 
     /* {{{ reports and statistics */
-    std::map<int,int> stats;
     uint64_t WN_cur;
     uint64_t WN_min;
     double WoverN;
@@ -318,6 +317,10 @@ struct merge_matrix {
                     /* Beware: those are local only */
                     markowitz_table.size(),
                     explained/1048576., vmrss/1024.0, vmsize/1024.0);
+            printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
+                    done_merges[cwmax], cwmax,
+                    discarded_merges[cwmax],
+                    100.0 * discarded_merges[cwmax] / (done_merges[cwmax] + discarded_merges[cwmax]));
             /*
                printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                printf("# R %.1f + %.1f + %.1f\n",
@@ -356,6 +359,8 @@ struct merge_matrix {
     void batch_Rj_update(std::vector<size_t> const & out, std::vector<size_t> const & in);
     void parallel_merge(size_t batch_size);
     size_t collectively_remove_rows(std::vector<size_t> const & killed);
+    std::map<int, size_t> discarded_merges;
+    std::map<int, size_t> done_merges;
     /*}}}*/
 };
 
@@ -1276,7 +1281,7 @@ void merge_matrix::pivot_with_column(size_t j)/*{{{*/
     ASSERT_ALWAYS(comm_size == 1);
     size_t lj = j / comm_size;
     weight_t w = col_weights[lj];
-    stats[w]++;
+    done_merges[w]++;
     auto mst = mst_for_column(j);
 
     // now do the merge for real. We need to be cautious so that we don't
@@ -1400,6 +1405,10 @@ struct collective_merge_operation {/*{{{*/
     int comm_size;
     size_t n;   /* batch size */
     size_t w;   /* weight promise. Possibly an upper bound. */
+
+    /* how many of these merge got discarded based on row conflicts ? */
+    size_t discarded_merges = 0;
+    size_t done_merges = 0;
 
     /* Because we deal with multi-level structures, we wish to enforce
      * some consistency in naming indices.
@@ -1558,7 +1567,6 @@ void collective_merge_operation::discard_repeated_rows()/*{{{*/
      * been encountered
      */
     std::set<size_t> met;
-    size_t discard = 0;
     for(std::vector<size_t> & col : all_row_indices) {
         bool ismet = false;
         for(size_t i : col) {
@@ -1568,15 +1576,18 @@ void collective_merge_operation::discard_repeated_rows()/*{{{*/
             }
         }
         if (ismet) {
-            discard++;
+            discarded_merges++;
             col.clear();
         } else {
+            done_merges += !col.empty();
             for(size_t i : col) met.insert(i);
         }
     }
+    /*
     if (!comm_rank && discard)
         printf("# discarded %zu <=%zu-merges out of %d*%zu=%zu\n",
                 discard, w, comm_size, n, all_row_indices.size());
+                */
 }/*}}}*/
 /* {{{ collective_merge_operation::merge_scatter_rows */
 /* This is a collective all-to-all operation. Each node collects from
@@ -1779,6 +1790,9 @@ void merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, si
     CM.deduce_and_share_rows(*this);
 
     CM.discard_repeated_rows();
+    discarded_merges[cwmax] += CM.discarded_merges;
+    done_merges[cwmax] += CM.done_merges;
+
 
     /* We'll get a vector of n vectors of up to w rows */
     collective_merge_operation::row_batch_set_t row_batches = CM.merge_scatter_rows(*this);
@@ -2094,8 +2108,8 @@ void merge_matrix::merge()/*{{{*/
 
     printf("# merge stats:\n");
     size_t nmerges=0;
-    for(auto x: stats) {
-        printf("# %d-merges: %d\n", x.first, x.second);
+    for(auto x: done_merges) {
+        printf("# %d-merges: %zu\n", x.first, x.second);
         nmerges += x.second;
     }
     printf("# Total: %zu merges\n", nmerges);
@@ -2183,8 +2197,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 
     printf("# merge stats:\n");
     size_t nmerges=0;
-    for(auto x: stats) {
-        printf("# %d-merges: %d\n", x.first, x.second);
+    for(auto x: done_merges) {
+        printf("# %d-merges: %zu (discarded %zu)\n",
+                x.first, x.second, discarded_merges[x.first]);
         nmerges += x.second;
     }
     printf("# Total: %zu merges\n", nmerges);
