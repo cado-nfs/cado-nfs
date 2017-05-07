@@ -183,6 +183,8 @@ struct merge_matrix {
 
 
     void expensive_check();
+    size_t print_active_weight_count();
+    void print_final_merge_stats();
 
     void read_rows(const char *purgedname);
     int push_relation(earlyparsed_relation_ptr rel);
@@ -244,7 +246,6 @@ struct merge_matrix {
     size_t remove_singletons();
     size_t remove_singletons_iterate();
     std::pair<int, std::vector<std::pair<int, int>>> mst_for_column(size_t);
-    void pivot_with_column(size_t j);
 #if 0
 #ifdef FOR_DL
     void multipliers_for_row_combination(
@@ -304,38 +305,45 @@ struct merge_matrix {
         bool disp = false;
         if ((disp = WoverN >= report_next))
             report_next += report_incr;
-        if ((disp || force) && !comm_rank) {
-            long vmsize = Memusage();
-            long vmrss = Memusage2();
-            size_t explained =0;
-            explained += rows.allocated_bytes();
-            explained += R_pool.allocated_bytes();
-            explained += col_weights.capacity()*sizeof(col_weight_t);
-            explained += R_table.capacity()*sizeof(R_pool_t::size_type);
-            explained += markowitz_table.allocated_bytes();
-            explained += heavy_rows.allocated_bytes();
+        if (disp || force) {
+            /* gather some stats counts for everyone before reporting */
+            size_t dm = done_merges[cwmax];
+            size_t xm = discarded_merges[cwmax];
+            size_t mq = markowitz_table.size();
+            MPI_Allreduce(MPI_IN_PLACE, &dm, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+            MPI_Allreduce(MPI_IN_PLACE, &xm, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+            MPI_Allreduce(MPI_IN_PLACE, &mq, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+            if (!comm_rank) {
+                long vmsize = Memusage();
+                long vmrss = Memusage2();
+                size_t explained =0;
+                explained += rows.allocated_bytes();
+                explained += R_pool.allocated_bytes();
+                explained += col_weights.capacity()*sizeof(col_weight_t);
+                explained += R_table.capacity()*sizeof(R_pool_t::size_type);
+                explained += markowitz_table.allocated_bytes();
+                explained += heavy_rows.allocated_bytes();
 
-            printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
-                    nrows, nrows-global_ncols, cwmax, global_weight,
-                    (double) WN_cur, WoverN, 
-                    /* Beware: those are local only */
-                    markowitz_table.size(),
-                    explained/1048576., vmrss/1024.0, vmsize/1024.0);
-            printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
-                    done_merges[cwmax], cwmax,
-                    discarded_merges[cwmax],
-                    100.0 * discarded_merges[cwmax] / (done_merges[cwmax] + discarded_merges[cwmax]));
-            /*
-               printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
-               printf("# R %.1f + %.1f + %.1f\n",
-               R_pool.allocated_bytes() / 1048576.,
-               col_weights.capacity()*sizeof(col_weight_t) / 1048576.,
-               R_table.capacity()*sizeof(R_pool_t::size_type) / 1048576.
-               );
-               printf("# mkz %.1f\n", markowitz_table.allocated_bytes() / 1048576.);
-               printf("# heavy %.1f\n", heavy_rows.allocated_bytes() / 1048576.);
-               */
-            fflush (stdout);
+                printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
+                        nrows, nrows-global_ncols, cwmax, global_weight,
+                        (double) WN_cur, WoverN, 
+                        mq,
+                        /* Beware: those are local only */
+                        explained/1048576., vmrss/1024.0, vmsize/1024.0);
+                printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
+                        dm, cwmax, xm, 100.0 * xm / (dm + xm));
+                /*
+                   printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
+                   printf("# R %.1f + %.1f + %.1f\n",
+                   R_pool.allocated_bytes() / 1048576.,
+                   col_weights.capacity()*sizeof(col_weight_t) / 1048576.,
+                   R_table.capacity()*sizeof(R_pool_t::size_type) / 1048576.
+                   );
+                   printf("# mkz %.1f\n", markowitz_table.allocated_bytes() / 1048576.);
+                   printf("# heavy %.1f\n", heavy_rows.allocated_bytes() / 1048576.);
+                   */
+                fflush (stdout);
+            }
         }
         return WoverN;
     }
@@ -470,6 +478,52 @@ void merge_matrix::expensive_check()
     ASSERT_ALWAYS(nrows == test_nrows);
 }
 
+size_t merge_matrix::print_active_weight_count()
+{
+    /* print weight count */
+    size_t nbm[256];
+    size_t active = count_columns_below_weight(nbm, 256);
+    size_t temp = ncols + nbm[0];
+    MPI_Allreduce(MPI_IN_PLACE, &temp, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+    /* This is true only at the very beginning, of course. */
+    // ASSERT_ALWAYS(initial_ncols == temp);
+    for (int h = 1; h <= maxlevel; h++) {
+        size_t n = nbm[h];
+        size_t n0 = nbm[h];
+        size_t n1 = nbm[h];
+        MPI_Allreduce(&n, &n0, 1, MPI_MY_SIZE_T, MPI_MIN, comm);
+        MPI_Allreduce(&n, &n1, 1, MPI_MY_SIZE_T, MPI_MAX, comm);
+        MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+        if (n && !comm_rank)
+            printf ("# %zu column(s) [%zu-%zu per node] of weight %d\n", n, n0, n1, h);
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &active, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+    return active;
+}
+
+void merge_matrix::print_final_merge_stats()
+{
+    if (!comm_rank) printf("# merge stats:\n");
+    size_t nmerges=0;
+    for(int w = 0 ; w <= maxlevel ; w++) {
+        size_t dm = done_merges[w];
+        size_t dm0, dm1, dms;
+        size_t xm = discarded_merges[w];
+        size_t xm0, xm1, xms;
+        MPI_Allreduce(&dm, &dms, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+        MPI_Allreduce(&xm, &xms, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+        MPI_Allreduce(&dm, &dm0, 1, MPI_MY_SIZE_T, MPI_MIN, comm);
+        MPI_Allreduce(&xm, &xm0, 1, MPI_MY_SIZE_T, MPI_MIN, comm);
+        MPI_Allreduce(&dm, &dm1, 1, MPI_MY_SIZE_T, MPI_MAX, comm);
+        MPI_Allreduce(&xm, &xm1, 1, MPI_MY_SIZE_T, MPI_MAX, comm);
+        if (!comm_rank && (dms || xms))
+            printf("# %d-merges: %zu [%zu-%zu per node],"
+                    " discarded %zu [%zu-%zu per node], avg %.1f%%\n",
+                    w, dms, dm0, dm1, xms, xm0, xm1, 100.0 * xms / dms);
+        nmerges += dms;
+    }
+    if (!comm_rank) printf("# Total: %zu merges\n", nmerges);
+}
 /* {{{ merge_matrix::push_relation and ::read_rows */
 int merge_matrix::push_relation(earlyparsed_relation_ptr rel)
 {
@@ -551,12 +605,8 @@ void merge_matrix::read_rows(const char *purgedname)
         for(size_t i = 0 ; i < nrows ; i++)
             all_aggr_row_weights[i] = rows[i].second;
         MPI_Allreduce(MPI_IN_PLACE, &all_aggr_row_weights[0], nrows, MPI_MY_SIZE_T, MPI_SUM, comm);
-        for(size_t i = 0 ; i < nrows ; i++) {
+        for(size_t i = 0 ; i < nrows ; i++)
             heavy_weight += heavy_rows.push(i, all_aggr_row_weights[i]);
-            if (!(i % 1000)) {
-                printf("rank %d gw %zu hw %zu\n", comm_rank, global_weight, heavy_weight);
-            }
-        }
         // now everyone has the same heavy_rows pqueue.
     } else {
         for(size_t i = 0 ; i < nrows ; i++) {
@@ -564,32 +614,16 @@ void merge_matrix::read_rows(const char *purgedname)
         }
     }
 
-    /* print weight count */
-    size_t nbm[256];
-    size_t active = count_columns_below_weight(nbm, 256);
-    size_t temp = ncols + nbm[0];
-    printf("# rank %d ncols %zu ncols0 %zu initial_ncols %zu\n",
-            comm_rank, ncols, nbm[0], initial_ncols);
-    MPI_Allreduce(MPI_IN_PLACE, &temp, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
-    ASSERT_ALWAYS(initial_ncols == temp);
-    for(int rank = 0 ; rank < comm_size ; rank++) {
-        MPI_Barrier(comm);
-        if (comm_rank != rank) continue;
-        for (int h = 1; h <= maxlevel; h++)
-            printf ("# Rank %d has %zu column(s) of weight %d\n", comm_rank, nbm[h], h);
-        printf ("# Rank %d: total %zu active columns\n", comm_rank, active);
-    }
-    MPI_Barrier(comm);
-    temp = active;
-    MPI_Allreduce(MPI_IN_PLACE, &temp, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
-    if (!comm_rank) {
-        printf ("# all ranks: total %zu active columns\n", temp);
+    size_t active = print_active_weight_count();
+
+    if (!comm_rank)  {
+        printf("# Total %zu active columns\n", active);
         printf("# Total weight of the matrix: %zu\n", initial_weight);
     }
 
     bury_heavy_columns();
 
-    temp = weight;
+    size_t temp = weight;
     MPI_Allreduce(MPI_IN_PLACE, &temp, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
     if (!comm_rank)
         printf("# Weight of the active part of the matrix: %zu\n", temp);
@@ -600,7 +634,6 @@ void merge_matrix::read_rows(const char *purgedname)
 #endif
 
     aggregate_weights();
-    printf("rank %d gw %zu hw %zu\n", comm_rank, global_weight, heavy_weight);
 }
 /* }}} */
 
@@ -1291,44 +1324,6 @@ std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(si
     return mst;
 }/*}}}*/
 
-void merge_matrix::pivot_with_column(size_t j)/*{{{*/
-{
-    ASSERT_ALWAYS(comm_size == 1);
-    size_t lj = j / comm_size;
-    weight_t w = col_weights[lj];
-    done_merges[w]++;
-    auto mst = mst_for_column(j);
-
-    // now do the merge for real. We need to be cautious so that we don't
-    // do an excessive number of reallocs for the R tables. However
-    // that's for another implementation. We'll make do with a
-    // simple-minded one for the moment.
-    // std::map<size_t, std::vector<R_pool_t::size_type> > dup_R;
-    
-
-    /* note that a modifying operation may change the pointers in the R
-     * table, so we need to grab the list of indices beforehand */
-    R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-    R_pool_t::value_type Rx_copy[w];
-    std::copy(Rx, Rx+w, Rx_copy);
-    for(auto const & edge : mst.second) {
-        row_combiner C(*this, Rx_copy[edge.first], Rx_copy[edge.second], j);
-        auto newrow = C.subtract_naively();
-        rows.push_back(newrow);
-        heavy_weight += heavy_rows.push(rows.size()-1, newrow.size());
-        nrows++;
-        weight += newrow.size();
-        addRj(rows.size()-1);
-    }
-    remove_column(j);
-    /* pivot_with_column is to be used in one-job context only, but since
-     * the outer control loop uses the global_ values as well, we must
-     * pay attention and keep it in sync.
-     */
-    aggregate_weights();
-}
-/*}}}*/
-
 size_t merge_matrix::collectively_remove_rows(std::vector<size_t> const & killed)/*{{{*/
 {
     /* each node orders a set of removal of rows, and we remove these
@@ -1390,7 +1385,7 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
     collectively_remove_rows(killed);
 
 
-    printf("rank %d removes %zu excess rows\n", comm_rank, killed.size());
+    // printf("rank %d removes %zu excess rows\n", comm_rank, killed.size());
     heavy_rows.set_depth(nrows - global_ncols);
     heavy_weight = heavy_rows.sum();
     return nb_heaviest;
@@ -1422,8 +1417,8 @@ struct collective_merge_operation {/*{{{*/
     size_t w;   /* weight promise. Possibly an upper bound. */
 
     /* how many of these merge got discarded based on row conflicts ? */
-    size_t discarded_merges = 0;
-    size_t done_merges = 0;
+    size_t my_discarded_merges = 0;
+    size_t my_done_merges = 0;
 
     /* Because we deal with multi-level structures, we wish to enforce
      * some consistency in naming indices.
@@ -1594,24 +1589,19 @@ std::vector<size_t> collective_merge_operation::discard_repeated_rows()/*{{{*/
                 }
             }
             if (ismet) {
-                if (peer == comm_rank)
+                if (peer == comm_rank) {
                     requeue.push_back(my_col_indices[q]);
-                discarded_merges++;
+                    my_discarded_merges++;
+                }
                 col.clear();
             } else {
-                done_merges += !col.empty();
+                if (peer == comm_rank)
+                    my_done_merges += !col.empty();
                 for(size_t i : col) met.insert(i);
             }
         }
     }
-    /*
-    if (!requeue.empty())
-        printf("rank %d has %zu merges to requeue\n", comm_rank, requeue.size());
-    if (!comm_rank && discarded_merges)
-        printf("# discarded %zu <=%zu-merges out of %zu\n",
-                discarded_merges, w,
-                discarded_merges + done_merges);
-                */
+    ASSERT_ALWAYS(requeue.size() == my_discarded_merges);
     return requeue;
 }/*}}}*/
 /* {{{ collective_merge_operation::merge_scatter_rows */
@@ -1815,8 +1805,8 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
     CM.deduce_and_share_rows(*this);
 
     std::vector<size_t> discarded = CM.discard_repeated_rows();
-    discarded_merges[cwmax] += CM.discarded_merges;
-    done_merges[cwmax] += CM.done_merges;
+    discarded_merges[cwmax] += CM.my_discarded_merges;
+    done_merges[cwmax] += CM.my_done_merges;
 
 
     /* We'll get a vector of n vectors of up to w rows */
@@ -2173,8 +2163,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
                 markowitz_table.push(std::make_pair(j, markowitz_count(j)));
             }
         }
-        // empirical.
-        remove_excess((nrows-ncols) * excess_inject_ratio);
+        // Note that normally, we remove the same set of rows on all
+        // nodes here.
+        remove_excess((nrows-global_ncols) * excess_inject_ratio);
         remove_singletons_iterate();
 
         report(true);
@@ -2187,22 +2178,15 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
     }
     report(true);
 
-    printf("# merge stats:\n");
-    size_t nmerges=0;
-    for(auto x: done_merges) {
-        printf("# %d-merges: %zu (discarded %zu)\n",
-                x.first, x.second, discarded_merges[x.first]);
-        nmerges += x.second;
-    }
-    printf("# Total: %zu merges\n", nmerges);
+    print_final_merge_stats();
 
-    /* print weight count */
-    size_t nbm[256];
-    count_columns_below_weight(nbm, 256);
-    for (int h = 1; h <= maxlevel; h++)
-        if (nbm[h])
-            printf ("# There are %zu column(s) of weight %d\n", nbm[h], h);
-    printf("# Total weight of the matrix: %zu\n", initial_weight);
+    print_active_weight_count();
+
+    if (!comm_rank)
+        printf("# Output matrix has"
+                " nrows=%zu ncols=%zu (excess=%zd) active_weight=%zu\n",
+                nrows, global_ncols, nrows-global_ncols, global_weight);
+
 }
 /*}}}*/
 
