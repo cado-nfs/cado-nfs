@@ -52,7 +52,8 @@ typedef int MPI_Request;
 #define MPI_MIN        3
 #define MPI_LAND       4
 #define MPI_BAND       5
-#define MPI_BOR        6
+#define MPI_LOR        6
+#define MPI_BOR        7
 
 #define MPI_ERRORS_ARE_FATAl        0
 #define MPI_ERRORS_RETURN        1
@@ -160,13 +161,14 @@ static inline int MPI_Iallgather(void *sendbuf, int  sendcount, MPI_Datatype st,
     return MPI_Allgather(sendbuf, sendcount, st, recvbuf, recvcount, rt, comm);
 }
 
-static inline int MPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype st,
-            void *recvbuf, int *recvcount, int *displs, MPI_Datatype rt,
+static inline int MPI_Allgatherv(const void *sendbuf, int sendcount, MPI_Datatype st,
+            void *recvbuf, int *recvcounts, int *displs, MPI_Datatype rt,
             MPI_Comm comm MAYBE_UNUSED)
 {
     if (sendbuf == MPI_IN_PLACE) return 0;
     ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcounts[0] * fakempi_sizeof_type(rt));
     memcpy(((char *)recvbuf) + displs[0] * fakempi_sizeof_type(rt), sendbuf, sendcount * fakempi_sizeof_type(st));
+    return 0;
 }
 
 static inline int MPI_Alltoall(const void *sendbuf, int sendcount,

@@ -249,9 +249,6 @@ struct merge_matrix {
         WN_min = WN_cur;
         WoverN = (double) wx / (double) nrows;
         report_next = ceil (WoverN / report_incr) * report_incr;
-        printf("rank %d report_next = %.1f ; global_ncols=%zu ; wx=%zu\n",
-                comm_rank, report_next,
-                global_ncols, (size_t) wx);
     }
     double report(bool force = false) {
         aggregate_weights();
@@ -288,9 +285,9 @@ struct merge_matrix {
                         mq,
                         /* Beware: those are local only */
                         explained/1048576., vmrss/1024.0, vmsize/1024.0);
-                /*
                 printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
                         dm, cwmax, xm, 100.0 * xm / dm);
+                /*
                    printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                    printf("# R %.1f + %.1f + %.1f\n",
                    R_pool.allocated_bytes() / 1048576.,

@@ -30,13 +30,16 @@ struct compressible_heap
 {
     typedef std::pair<T *, Size> value_type;
     typedef std::pair<T *, Size> & reference;
-    typedef std::pair<const T *, Size> const& const_reference;
     typedef std::pair<T *, Size> * pointer;
-    typedef std::pair<const T *, Size> const * const_pointer;
+    /* I'd like to put "const T *" for these two, but it seems that I
+     * won't be able to :-((
+     */
+    typedef std::pair<T *, Size> const& const_reference;
+    typedef std::pair<T *, Size> const * const_pointer;
 public:
     class chunk {
         std::vector<T> data;
-        value_type items[batch_size];
+        std::array<value_type, batch_size> items;
         size_t _size, killed;
         public:
         size_t allocated_bytes() const { return data.capacity()*sizeof(T) + batch_size * sizeof(value_type)+ sizeof(data); }
@@ -44,7 +47,7 @@ public:
         /* full can also mean "full of emptiness"... */
         bool full() const { return _size == batch_size; }
         reference operator[](size_t i) { return items[i]; }
-        const_reference operator[](size_t i) const { return ((const_pointer)items)[i]; }
+        const_reference operator[](size_t i) const { return items[i]; }
         void compress() {
             if (killed <= data.size() / 10) return;
             /* compress the chunk in place, and update the pointers */
