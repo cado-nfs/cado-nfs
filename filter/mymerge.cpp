@@ -339,7 +339,6 @@ struct merge_matrix {
                    printf("# mkz %.1f\n", markowitz_table.allocated_bytes() / 1048576.);
                    printf("# heavy %.1f\n", heavy_rows.allocated_bytes() / 1048576.);
                    */
-                fflush (stdout);
             }
         }
         return WoverN;
@@ -365,7 +364,7 @@ struct merge_matrix {
 
     /*{{{ general high-level operations (MPI) */
     std::vector<size_t> parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n);
-    void batch_Rj_update(std::vector<size_t> const & out, std::vector<size_t> const & in);
+    void batch_Rj_update(std::vector<size_t> const & out, std::vector<std::pair<size_t, row_weight_t>> const & in = std::vector<std::pair<size_t, row_weight_t>>());
     void parallel_merge(size_t batch_size);
     size_t collectively_remove_rows(std::vector<size_t> const & killed);
     std::map<int, size_t> discarded_merges;
@@ -432,6 +431,10 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
 
 void merge_matrix::expensive_check()
 {
+    /* The expensive check is *really* expensive. We want the user to
+     * notice that it's on, and we want to avoid that he/she gets bored
+     * by a program which seemingly produces no output */
+    printf("nrows=%zu rank=%d expensive_check\n", nrows, comm_rank);
     /* First check the column weights */
     std::vector<col_weight_t> check(col_weights.size());
     size_t active = 0;
@@ -447,6 +450,8 @@ void merge_matrix::expensive_check()
         if (!row.first) continue;
         nr++;
         active += row.second;
+        size_t s = row.second;
+        MPI_Allreduce(MPI_IN_PLACE, &s, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
         for(const row_value_t * ptr = row.first ; ptr != row.first + row.second ; ptr++) {
             size_t lj = ptr->index() / comm_size;
             if (!R_table.empty() && R_table[lj]) {
@@ -454,6 +459,7 @@ void merge_matrix::expensive_check()
                 R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
                 ASSERT_ALWAYS(check[lj] < w);
                 ASSERT_ALWAYS(Rx[check[lj]].first == i);
+                ASSERT_ALWAYS(Rx[check[lj]].second == s);
             }
             check[lj]++;
         }
@@ -704,7 +710,6 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
 
     if (!comm_rank)
         printf("# Start to remove buried columns from rels...\n");
-    fflush (stdout);
 
     /* Remove buried columns from rows in mat structure */
 // #ifdef HAVE_OPENMP
@@ -822,7 +827,23 @@ void merge_matrix::prepare_R_table()/*{{{*/
     // tt=seconds();
     ASSERT_ALWAYS(cwmax <= std::numeric_limits<uint8_t>::max());
     std::vector<uint8_t> pos(col_weights.size(), 0);
+    /* We need a window of known row weights. Because it's somewhat
+     * inefficient to to the Allreduce for each new row, we batch it
+     * a little.
+     */
+    std::vector<size_t> rw;
+    rw.reserve(1024);
+    size_t rwok = 0;
     for(auto it = rows.begin() ; it != rows.end() ; ++it) {
+        if (rwok >= rw.size()) {
+            auto jt = it;
+            for(size_t k = 0 ; k < rw.capacity() && jt != rows.end() ; k++, ++jt) {
+                rw.push_back(jt->second);
+            }
+            MPI_Allreduce(MPI_IN_PLACE, &rw[0], rw.size(), MPI_MY_SIZE_T, MPI_SUM, comm);
+        }
+        ASSERT_ALWAYS(rwok < rw.size());
+        row_weight_t this_rw = rw[rwok++];
         row_value_t * ptr = it->first;
         for (row_weight_t k = 0; k < it->second; k++) {
             size_t lj = ptr[k].index() / comm_size;
@@ -830,7 +851,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
             col_weight_t w = col_weights[lj];
             R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
             ASSERT_ALWAYS(pos[lj] < w);
-            Rx[pos[lj]++].first=it.i;
+            Rx[pos[lj]++]=std::make_pair(it.i, this_rw);
         }
     }
     for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
@@ -877,10 +898,8 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
 
     const R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
     row_weight_t w0 = std::numeric_limits<row_weight_t>::max();
-    row_weight_t ws = 0;
     for(col_weight_t k = 0 ; k < w ; k++) {
-        w0 = std::min(w0, rows[Rx[k].first].second);
-        ws += rows[Rx[k].first].second;
+        w0 = std::min(w0, Rx[k].second);
     }
 
     merge_matrix::pivot_priority_t prio1 = 2 - (w0 - 2) * (w - 2);
@@ -924,8 +943,7 @@ void merge_matrix::remove_row_detached(size_t i)/*{{{*/
 void merge_matrix::remove_row_attached(size_t i)/*{{{*/
 {
     ASSERT_ALWAYS(rows[i].first);
-    std::vector<size_t> out(1,i), in;
-    batch_Rj_update(out, in);
+    batch_Rj_update(std::vector<size_t>(1,i));
     remove_row_detached(i);
 }/*}}}*/
 
@@ -1823,7 +1841,7 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
         removed_row_indices.insert(removed_row_indices.end(), x.begin(), x.end());
     sort(removed_row_indices.begin(), removed_row_indices.end());
 
-    std::vector<size_t> inserted_row_indices;
+    std::vector<std::pair<size_t, row_weight_t>> inserted_row_indices;
     inserted_row_indices.reserve(all_merged_new_rows.size());
     /* This adds the rows, but skips the Rj update entirely */
     for(auto const & row : all_merged_new_rows) {
@@ -1831,7 +1849,7 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
         rows.push_back(row);
         size_t newrow_size = row.size();
         MPI_Allreduce(MPI_IN_PLACE, &newrow_size, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
-        inserted_row_indices.push_back(i);
+        inserted_row_indices.push_back(std::make_pair(i, newrow_size));
         nrows++;
         weight += row.size();
         global_weight += newrow_size;
@@ -1860,7 +1878,7 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
 }
 /* }}} */
 
-void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<size_t> const & in)/*{{{*/
+void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<std::pair<size_t, row_weight_t>> const & in)/*{{{*/
 {
     /* Note: the two arrays must be sorted */
     std::vector<size_t> ii(in.size() + out.size());
@@ -1880,7 +1898,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         }
     }
     for(size_t r = 0 ; r < in.size() ; r++) {
-        size_t i = in[r];
+        size_t i = in[r].first;
         if (rows[i].second) {
             next.push(std::make_pair(rows[i].first[0].index(), r + out.size()));
             ii[r+out.size()]++;
@@ -1896,7 +1914,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
             size_t r = me.second;
             local.push_back(r);
             next.pop();
-            size_t i = r < out.size() ? out[r] : in[r-out.size()];
+            size_t i = r < out.size() ? out[r] : in[r-out.size()].first;
             if (ii[r] < rows[i].second) {
                 next.push(std::make_pair(rows[i].first[ii[r]].index(), r));
                 ii[r]++;
@@ -1939,7 +1957,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         }
 
         std::vector<size_t> Lout;
-        std::vector<size_t> Lin;
+        std::vector<std::pair<size_t, row_weight_t>> Lin;
         for(auto r : local) {
             if (r < out.size())
                 Lout.push_back(out[r]);
@@ -1970,7 +1988,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
          */
         // we rely on the fact that the Rj lists are sorted,
         // and so should be the lists of rows in and out.
-        std::vector<size_t>::const_iterator xin = Lin.begin();
+        std::vector<std::pair<size_t, row_weight_t>>::const_iterator xin = Lin.begin();
         std::vector<size_t>::const_iterator xout = Lout.begin();
 
         const R_pool_t::value_type * p = Rx0;
@@ -1991,7 +2009,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         }
         ASSERT_ALWAYS(xout == Lout.end());
         for( ; p != Rx0 + w0 ; *q++ = *p++) ;
-        for( ; q != Rx1 + w1 ; q++->first = *xin++) ;
+        for( ; q != Rx1 + w1 ; *q++ = *xin++) ;
         ASSERT_ALWAYS(xin == Lin.end());
 
         R_pool.free(w0, T0);
@@ -2016,7 +2034,6 @@ merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::
     /*
     printf("rank %d has maxprio=%ld minprio=%ld global minprio=%ld\n",
             comm_rank, maxprio, minprio, globalminprio);
-    fflush(stdout);
     */
     std::vector<size_t> cols, req;
     for(auto x : proposal) {
@@ -2089,7 +2106,6 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 
             /*
             printf("rank %d proposes %zu %d-merges, %zu to requeue\n", comm_rank, my_cols.size(), cwmax, requeue.size());
-            fflush(stdout);
             */
 
             std::vector<size_t> requeue2 = parallel_pivot(my_cols, batch_size);
@@ -2133,6 +2149,7 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 
 int main(int argc, char *argv[])
 {
+    setbuf(stdout, NULL);
     MPI_Init(&argc, &argv);
 
     all_mpi_runtime_checks();
@@ -2183,7 +2200,6 @@ int main(int argc, char *argv[])
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
-    fflush(stdout);
 
     const char *purgedname = param_list_lookup_string(pl, "mat");
     const char *outname = param_list_lookup_string(pl, "out");
@@ -2278,16 +2294,16 @@ int main(int argc, char *argv[])
 	   mat->nrows, mat->ncols,
 	   ((int64_t) mat->nrows) - ((int64_t) mat->ncols),
 	   mat->weight, compute_WN(mat), compute_WoverN(mat));
-    fflush(stdout);
     MkzClear(mat, 1);
     clearMat(mat);
 #endif
 
     param_list_clear(pl);
 
-    printf("Total merge time: %.2f seconds\n", seconds());
-
-    print_timing_and_memory(stdout, wct0);
+    if (!M.comm_rank) {
+        printf("Total merge time: %.2f seconds\n", seconds());
+        print_timing_and_memory(stdout, wct0);
+    }
 
     MPI_Finalize();
     return 0;
