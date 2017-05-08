@@ -208,7 +208,7 @@ struct merge_matrix {
      *
      * Note that this is inherently tied to the col_weights vector !
      */
-    typedef small_size_pool<size_t, col_weight_t, 1> R_pool_t;
+    typedef small_size_pool<std::pair<size_t, row_weight_t>, col_weight_t, 1> R_pool_t;
     R_pool_t R_pool;
     std::vector<R_pool_t::size_type> R_table;
     void clear_R_table();
@@ -238,10 +238,7 @@ struct merge_matrix {
     /* }}} */
 
     /*{{{ general high-level operations (local) */
-    void addRj(size_t i);
-    void subRj(size_t i, size_t keepcolumn = SIZE_MAX);
-    void remove_column(size_t j);
-    void remove_row_attached(size_t i, size_t keepcolumn = SIZE_MAX);
+    void remove_row_attached(size_t i);
     void remove_row_detached(size_t i);
     size_t remove_singletons();
     size_t remove_singletons_iterate();
@@ -456,7 +453,7 @@ void merge_matrix::expensive_check()
                 col_weight_t w = col_weights[lj];
                 R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
                 ASSERT_ALWAYS(check[lj] < w);
-                ASSERT_ALWAYS(Rx[check[lj]] == i);
+                ASSERT_ALWAYS(Rx[check[lj]].first == i);
             }
             check[lj]++;
         }
@@ -833,7 +830,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
             col_weight_t w = col_weights[lj];
             R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
             ASSERT_ALWAYS(pos[lj] < w);
-            Rx[pos[lj]++]=it.i;
+            Rx[pos[lj]++].first=it.i;
         }
     }
     for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
@@ -882,8 +879,8 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
     row_weight_t w0 = std::numeric_limits<row_weight_t>::max();
     row_weight_t ws = 0;
     for(col_weight_t k = 0 ; k < w ; k++) {
-        w0 = std::min(w0, rows[Rx[k]].second);
-        ws += rows[Rx[k]].second;
+        w0 = std::min(w0, rows[Rx[k].first].second);
+        ws += rows[Rx[k].first].second;
     }
 
     merge_matrix::pivot_priority_t prio1 = 2 - (w0 - 2) * (w - 2);
@@ -914,50 +911,6 @@ void merge_matrix::fill_markowitz_table()/*{{{*/
     // printf("# Time for filling markowitz table: %.2f s\n", seconds()-tt);
 }/*}}}*/
 
-void merge_matrix::addRj(size_t i) /*{{{*/
-{
-    /* add to the R table the entries for row i */
-    rows_t::const_reference R = rows[i];
-    for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
-        size_t j = p->index();
-        size_t lj = j / comm_size;
-        if (!R_table[lj]) { col_weights[lj]++; continue; }
-        // printf("# addRj for col %zu\n", j);
-        /* add mention of this row in the R entry associated to j */
-        col_weight_t w = col_weights[lj];
-        R_pool.realloc(col_weights[lj], R_table[lj], w+1);
-        R_pool(col_weights[lj], R_table[lj])[w] = i;
-        markowitz_table.update(std::make_pair(j, markowitz_count(j)));
-    }
-}/*}}}*/
-
-void merge_matrix::subRj(size_t i, size_t keepcolumn)/*{{{*/
-{
-    /* subtract from the R table the entries for row i */
-    rows_t::const_reference R = rows[i];
-    for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
-        size_t j = p->index();
-        size_t lj = j / comm_size;
-        if (j == keepcolumn) continue;
-        if (!R_table[lj]) { col_weights[lj]--; continue; }
-        // printf("# subRj for col %zu\n", j);
-        /* remove mention of this row in the R entry associated to j */
-        col_weight_t w = col_weights[lj];
-        R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-        R_pool_t::value_type * me = std::find(Rx, Rx + w, i);
-        ASSERT_ALWAYS(me < Rx + w);
-        std::copy(me + 1, Rx + w, me);
-        R_pool.realloc(col_weights[lj], R_table[lj], w-1);
-        if (!col_weights[lj]) {
-            ncols--;
-            markowitz_table.remove(j);
-        } else {
-            markowitz_table.update(std::make_pair(j, markowitz_count(j)));
-        }
-    }
-}
-/*}}}*/
-
 void merge_matrix::remove_row_detached(size_t i)/*{{{*/
 {
     ASSERT_ALWAYS(rows[i].first);
@@ -967,28 +920,14 @@ void merge_matrix::remove_row_detached(size_t i)/*{{{*/
         heavy_weight -= rem.second;
     nrows--;
 }/*}}}*/
-void merge_matrix::remove_row_attached(size_t i, size_t keepcolumn)/*{{{*/
+
+void merge_matrix::remove_row_attached(size_t i)/*{{{*/
 {
     ASSERT_ALWAYS(rows[i].first);
-    subRj(i, keepcolumn);   // do not touch column j now.
+    std::vector<size_t> out(1,i), in;
+    batch_Rj_update(out, in);
     remove_row_detached(i);
 }/*}}}*/
-
-void merge_matrix::remove_column(size_t j)/*{{{*/
-{
-    ASSERT_ALWAYS(is_my_col(j));
-    size_t lj = j / comm_size;
-    col_weight_t & w = col_weights[lj];
-    R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-    R_pool_t::value_type Rx_copy[w];
-    std::copy(Rx, Rx+w, Rx_copy);
-    for(col_weight_t k = 0 ; k < w ; k++)
-        remove_row_attached(Rx_copy[k],j);
-    ASSERT_ALWAYS(col_weights[lj] == w);
-    R_pool.free(col_weights[lj], R_table[lj]);
-    ncols--;
-}
-/*}}}*/
 
 size_t merge_matrix::remove_singletons()/*{{{*/
 {
@@ -1000,9 +939,7 @@ size_t merge_matrix::remove_singletons()/*{{{*/
          */
         if (col_weights[lj] == 1 && R_table[lj]) {
             R_pool_t::value_type * Rx = R_pool(1, R_table[lj]);
-            killed.push_back(Rx[0]);
-            // remove_column(lj * comm_size + comm_rank);
-            // nr++;
+            killed.push_back(Rx[0].first);
         }
     }
     // return nr;
@@ -1245,7 +1182,7 @@ std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(si
     R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
     
     if (w == 1) {
-        res.first = -rows[Rx[0]].second;
+        res.first = -rows[Rx[0].first].second;
         return res;
     }
 
@@ -1262,7 +1199,9 @@ std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(si
     // std::set<size_t> S;
     for(col_weight_t k = 0 ; k < w ; k++) {
         for(col_weight_t l = k + 1 ; l < w ; l++) {
-            int s = row_combiner(*this, Rx[k], Rx[l], j).mst_score();
+            size_t kk = Rx[k].first;
+            size_t ll = Rx[l].first;
+            int s = row_combiner(*this, kk, ll, j).mst_score();
             weights(k,l) = s;
             weights(l,k) = s;
         }
@@ -1305,8 +1244,8 @@ std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(si
 #else
         printf("# Fatal: graph is disconnected\n");
         for(weight_t k = 0 ; k < w ; k++) {
-            printf("[%d]", (int) Rx[k]);
-            rows_t::const_reference R = rows[Rx[k]];
+            printf("[%d]", (int) Rx[k].first);
+            rows_t::const_reference R = rows[Rx[k].first];
             for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
                 if ((uint64_t) p->index() == (size_t) j)
                     printf("\033[01;31m");
@@ -1555,7 +1494,8 @@ void collective_merge_operation::deduce_and_share_rows(merge_matrix const& M)/*{
         ASSERT_ALWAYS(M.R_table[lj]);
         const merge_matrix::R_pool_t::value_type * Rx = M.R_pool(wj, M.R_table[lj]);
         // my_row_indices[q].assign(Rx, Rx + wj);
-        std::copy(Rx, Rx + wj, flat_row_table.begin() + (comm_rank * n + q) * w);
+        for(size_t s = 0 ; s < (size_t) wj ; s++)
+            flat_row_table[(comm_rank * n + q) * w + s] = Rx[s].first;
     }
 
     MPI_Allgather(
@@ -1909,7 +1849,6 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
             /* batch_Rj_update had the side-effect of purging the column
              * entirely ! */
             ASSERT_ALWAYS(col_weights[lj] == 0);
-            remove_column(j);
         }
     }
     for(auto i : removed_row_indices)
@@ -1977,6 +1916,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
 
         if (!R_table[lj]) {
             col_weights[lj] += sizediff;
+            if (!col_weights[lj]) ncols--;
             continue;
         }
         // printf("# addRj for col %zu\n", j);
@@ -2036,10 +1976,10 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         const R_pool_t::value_type * p = Rx0;
         R_pool_t::value_type * q = Rx1;
         for( ; p != Rx0 + w0 && xout != Lout.end();) {
-            for( ; p != Rx0 + w0 && *p < *xout ; *q++ = *p++) ;
+            for( ; p != Rx0 + w0 && p->first < *xout ; *q++ = *p++) ;
             if (p == Rx0 + w0) break;
             /* here *p >= *xout */
-            if (*p == *xout)
+            if (p->first == *xout)
                 p++;
             /* here *p > *xout since the row is sorted (or we're past its
              * end) */
@@ -2051,12 +1991,13 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         }
         ASSERT_ALWAYS(xout == Lout.end());
         for( ; p != Rx0 + w0 ; *q++ = *p++) ;
-        for( ; q != Rx1 + w1 ; *q++ = *xin++) ;
+        for( ; q != Rx1 + w1 ; q++->first = *xin++) ;
         ASSERT_ALWAYS(xin == Lin.end());
 
         R_pool.free(w0, T0);
         R_table[lj] = T1;
         col_weights[lj] = w1;
+        if (w1 == 0) ncols--;
 
         /* last but not least ! */
         markowitz_table.update(std::make_pair(j, markowitz_count(j)));
