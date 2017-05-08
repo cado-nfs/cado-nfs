@@ -242,7 +242,6 @@ struct merge_matrix {
     void remove_row_detached(size_t i);
     size_t remove_singletons();
     size_t remove_singletons_iterate();
-    std::pair<int, std::vector<std::pair<int, int>>> mst_for_column(size_t);
 #if 0
 #ifdef FOR_DL
     void multipliers_for_row_combination(
@@ -327,9 +326,9 @@ struct merge_matrix {
                         mq,
                         /* Beware: those are local only */
                         explained/1048576., vmrss/1024.0, vmsize/1024.0);
+                /*
                 printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
                         dm, cwmax, xm, 100.0 * xm / dm);
-                /*
                    printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                    printf("# R %.1f + %.1f + %.1f\n",
                    R_pool.allocated_bytes() / 1048576.,
@@ -907,9 +906,10 @@ merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
 
     /* On a c155, this second approach saves about 0.5% on the number of
      * rows, for a given target density. It is also considerably more
-     * expensive computationally speaking (but there is some room for
-     * improvement, see mst_for_column().
-     *
+     * expensive computationally speaking (however there is some room for
+     * improvement, see the comment in parallel_pivot. This being said,
+     * this approach of computing the MST for real does not scale well to
+     * the mpi context, so we haven't investigated further.
     merge_matrix::pivot_priority_t prio2 = -mst_for_column(j).first;
     if (prio2 + (merge_matrix::pivot_priority_t) ws >= prio2) prio2 += ws;
     ASSERT_ALWAYS(prio2 >= prio1);
@@ -1183,100 +1183,6 @@ struct row_combiner /*{{{*/ {
         return res;
     }/*}}}*/
 }; /*}}}*/
-
-std::pair<int, std::vector<std::pair<int, int>>> merge_matrix::mst_for_column(size_t j)/*{{{*/
-{
-    std::pair<int, std::vector<std::pair<int, int>>> res;
-    size_t lj = j / comm_size;
-    weight_t w = col_weights[lj];
-    if (w == 0) {
-        res.first = 0;
-        return res;
-    }
-
-    R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-    
-    if (w == 1) {
-        res.first = -rows[Rx[0].first].second;
-        return res;
-    }
-
-    if (w == 2) {
-        res.first = -2;
-        res.second.push_back(std::make_pair(0,1));
-        return res;
-    }
-
-    matrix<int> weights(w,w,INT_MAX);
-
-    /* while we're doing so, we may also count which are the column
-     * indices that happen multiple times in these rows */
-    // std::set<size_t> S;
-    for(col_weight_t k = 0 ; k < w ; k++) {
-        for(col_weight_t l = k + 1 ; l < w ; l++) {
-            size_t kk = Rx[k].first;
-            size_t ll = Rx[l].first;
-            int s = row_combiner(*this, kk, ll, j).mst_score();
-            weights(k,l) = s;
-            weights(l,k) = s;
-        }
-    }
-    /* Note: our algorithm for computing the weight matrix can be
-     * improved a lot. Currently, for a level-w merge (w is the weight of
-     * column j), and given rows with average weight L, our cost is
-     * O(w^2*L) for creating the matrix.
-     *
-     * To improve it, first notice that if V_k is the w-dimensional
-     * row vector giving coordinates for column k, then the matrix giving at
-     * (i0,i1) the valuation of column k when row i1 is cancelled from
-     * row i1 is given by trsp(V_k)*V_j-trsp(V_j)*V_k (obviously
-     * antisymmetric).
-     *
-     * We need to do two things.
-     *  - walk all w (sorted!) rows simultaneously, maintaining a
-     *    priority queue for the "lowest next" column coordinate. By
-     *    doing so, we'll be able to react on all column indices which
-     *    happen to appear in several rows (because two consecutive
-     *    pop()s from the queue will give the same index). So at select
-     *    times, this gives a subset of w' rows, with that index
-     *    appearing.
-     *    This step will cost O(w*L*log(w)).
-     *  - Next, whenever we've identified a column index which appears
-     *    multiple times (say w' times), build the w'*w' matrix
-     *    trsp(V'_k)*V'_j-trsp(V'_j)*V'_k, where all vectors have length
-     *    w'. Inspecting the 0 which appear in this matrix gives the
-     *    places where we have exceptional cancellations. This can count
-     *    as -1 in the total weight matrix.
-     * Overall the cost will become O(w*L*log(w)+w'*L'^2+w^2), which
-     * should be somewhat faster.
-     */
-
-    auto mst = minimum_spanning_tree(weights);
-
-    if (mst.first == INT_MAX) {
-#ifdef FOR_DL
-        printf("# disconnected graph for %d-merge due to valuations, skipping merge\n", (int) w);
-#else
-        printf("# Fatal: graph is disconnected\n");
-        for(weight_t k = 0 ; k < w ; k++) {
-            printf("[%d]", (int) Rx[k].first);
-            rows_t::const_reference R = rows[Rx[k].first];
-            for(const row_value_t * p = R.first ; p != R.first + R.second ; p++) {
-                if ((uint64_t) p->index() == (size_t) j)
-                    printf("\033[01;31m");
-                printf(" %" PRId64, (uint64_t) p->index());
-#ifdef FOR_DL
-                printf(":%d", (int) p->exponent());
-#endif
-                if ((uint64_t) p->index() == (size_t) j)
-                    printf("\033[00m");
-            }
-            printf("\n");
-        }
-#endif
-    }
-    return mst;
-}/*}}}*/
 
 size_t merge_matrix::collectively_remove_rows(std::vector<size_t> const & killed)/*{{{*/
 {
@@ -1808,6 +1714,36 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
             mst.first = -2;
             mst.second.push_back(std::make_pair(0,1));
         } else {
+            /* Note: our algorithm for computing the weight matrix can be
+             * improved a lot. Currently, for a level-w merge (w is the
+             * weight of column j), and given rows with average weight L,
+             * our cost is O(w^2*L) for creating the matrix.
+             *
+             * To improve it, first notice that if V_k is the
+             * w-dimensional row vector giving coordinates for column k,
+             * then the matrix giving at (i0,i1) the valuation of column
+             * k when row i1 is cancelled from row i1 is given by
+             * trsp(V_k)*V_j-trsp(V_j)*V_k (obviously antisymmetric).
+             *
+             * We need to do two things.
+             *  - walk all w (sorted!) rows simultaneously, maintaining a
+             *    priority queue for the "lowest next" column coordinate.
+             *    By doing so, we'll be able to react on all column
+             *    indices which happen to appear in several rows (because
+             *    two consecutive pop()s from the queue will give the
+             *    same index). So at select times, this gives a subset of
+             *    w' rows, with that index appearing.  This step will
+             *    cost O(w*L*log(w)).
+             *  - Next, whenever we've identified a column index which
+             *    appears multiple times (say w' times), build the w'*w'
+             *    matrix trsp(V'_k)*V'_j-trsp(V'_j)*V'_k, where all
+             *    vectors have length w'. Inspecting the 0 which appear
+             *    in this matrix gives the places where we have
+             *    exceptional cancellations. This can count as -1 in the
+             *    total weight matrix.
+             * Overall the cost will become O(w*L*log(w)+w'*L'^2+w^2),
+             * which should be somewhat faster.
+             */
             for(col_weight_t k = 0 ; k < wj ; k++) {
                 for(col_weight_t l = k + 1 ; l < wj ; l++) {
                     int s = row_combiner(batch[k], batch[l], j).mst_score();
