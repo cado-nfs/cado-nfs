@@ -1,9 +1,5 @@
 #include "cado.h"
 
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <fcntl.h>		/* for _O_BINARY */
-// #include <string.h>		/* for strcmp */
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -17,21 +13,11 @@
 
 #include "portability.h"
 
-/* We're going to use this transitionally */
-#define MKZTYPE_CAVALLAR 0
-#define MKZTYPE_PURE 1
-#define MKZTYPE_LIGHT 2
-
-#define REPORT_INCR 3.0
+#define REPORT_INCR 1.0
 #define DEFAULT_EXCESS_INJECT_RATIO 0.04
 
 #include "filter_config.h"
 #include "utils_with_io.h"
-// #include "merge_replay_matrix.h" /* for filter_matrix_t */
-// #include "report.h"     /* for report_t */
-// #include "markowitz.h" /* for MkzInit */
-// #include "merge_mono.h" /* for mergeOneByOne */
-// #include "sparse.h"
 
 #include "select_mpi.h"
 #include "medium_int.hpp"
@@ -50,7 +36,7 @@
 static const int compact_column_index_size = 8;
 static const int merge_row_heap_batch_size = 16384;
 
-static void declare_usage(param_list pl)
+static void declare_usage(param_list pl)/*{{{*/
 {
     param_list_decl_usage(pl, "mat", "input purged file");
     param_list_decl_usage(pl, "out", "output history file");
@@ -66,13 +52,13 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "v", "verbose level");
     param_list_decl_usage(pl, "t", "number of threads");
     param_list_decl_usage(pl, "merge-batch-size", "merge batch size (default is 1 for single-job, 32 above)");
-}
+}/*}}}*/
 
-static void usage(param_list pl, char *argv0)
+static void usage(param_list pl, char *argv0)/*{{{*/
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
-}
+}/*}}}*/
 
 struct merge_matrix {
     /* initial values, and aggregated over all nodes */
@@ -94,8 +80,6 @@ struct merge_matrix {
     int maxlevel = DEFAULT_MERGE_MAXLEVEL;
     size_t keep = DEFAULT_FILTER_EXCESS; /* target for initial_nrows-initial_ncols */
     size_t nburied = DEFAULT_MERGE_SKIP;
-    unsigned int mkztype = DEFAULT_MERGE_MKZTYPE;
-    unsigned int wmstmax = DEFAULT_MERGE_WMSTMAX;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
     double excess_inject_ratio = DEFAULT_EXCESS_INJECT_RATIO;
 
@@ -242,28 +226,6 @@ struct merge_matrix {
     void remove_row_detached(size_t i);
     size_t remove_singletons();
     size_t remove_singletons_iterate();
-#if 0
-#ifdef FOR_DL
-    void multipliers_for_row_combination(
-            row_value_t::exponent_type & e0, row_value_t::exponent_type & e1,
-            size_t i0, size_t i1, size_t j);
-#endif
-    /* The set is optional. The routine adds to it the set of column
-     * indices (not counting j) which appear more than once in rows i0 and
-     * i1).
-     */
-    row_weight_t weight_of_sum_of_rows(size_t i0, size_t i1, size_t j, std::set<size_t> * S = NULL) const;
-#endif
-#if 0
-    struct compare_by_row_weight {
-        merge_matrix const & M;
-        compare_by_row_weight(merge_matrix const & M):M(M){}
-        bool operator()(size_t a, size_t b) const {
-            if (!M.rows[a].first) return true;
-            return M.rows[a].second < M.rows[b].second;
-        }
-    };
-#endif
     /* scores in the heavy_rows table are global, and so is the
      * heavy_weight ! */
     high_score_table<size_t, row_weight_t> heavy_rows;
@@ -375,8 +337,7 @@ struct merge_matrix {
 };
 
 
-/*{{{ parameters */
-void merge_matrix::declare_usage(param_list_ptr pl) {
+void merge_matrix::declare_usage(param_list_ptr pl) { /*{{{ */
     param_list_decl_usage(pl, "keep",
             "excess to keep (default "
             STR(DEFAULT_FILTER_EXCESS) ")");
@@ -392,14 +353,6 @@ void merge_matrix::declare_usage(param_list_ptr pl) {
     param_list_decl_usage(pl, "target_density",
             "stop when the average row density exceeds this value"
             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
-    param_list_decl_usage(pl, "mkztype",
-			  "controls how the weight of a merge is "
-			  "approximated (default " STR(DEFAULT_MERGE_MKZTYPE)
-			  ")");
-    param_list_decl_usage(pl, "wmstmax",
-			  "controls until when a mst is used with "
-			  "-mkztype 2 (default " STR(DEFAULT_MERGE_WMSTMAX)
-			  ")");
 }
 
 bool merge_matrix::interpret_parameters(param_list_ptr pl) {
@@ -408,16 +361,10 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
     param_list_parse_int(pl, "maxlevel", &maxlevel);
     param_list_parse_double(pl, "target_density", &target_density);
     param_list_parse_double(pl, "excess_inject_ratio", &excess_inject_ratio);
-    param_list_parse_uint(pl, "mkztype", &mkztype);
-    param_list_parse_uint(pl, "wmstmax", &wmstmax);
     if (maxlevel <= 0 || maxlevel > MERGE_LEVEL_MAX) {
         fprintf(stderr,
                 "Error: maxlevel should be positive and less than %d\n",
                 MERGE_LEVEL_MAX);
-        return false;
-    }
-    if (mkztype > 2) {
-	fprintf(stderr, "Error: -mkztype should be 0, 1, or 2.\n");
         return false;
     }
     if (excess_inject_ratio < 0 || excess_inject_ratio > 1) {
@@ -428,7 +375,7 @@ bool merge_matrix::interpret_parameters(param_list_ptr pl) {
 }
 /*}}}*/
 
-void merge_matrix::expensive_check()
+void merge_matrix::expensive_check()/*{{{*/
 {
     /* The expensive check is *really* expensive. We want the user to
      * notice that it's on, and we want to avoid that he/she gets bored
@@ -478,9 +425,9 @@ void merge_matrix::expensive_check()
     size_t test_nrows = nrows;
     MPI_Bcast(&test_nrows, 1, MPI_MY_SIZE_T, 0, comm);
     ASSERT_ALWAYS(nrows == test_nrows);
-}
+}/*}}}*/
 
-size_t merge_matrix::print_active_weight_count()
+size_t merge_matrix::print_active_weight_count()/*{{{*/
 {
     /* print weight count */
     size_t nbm[256];
@@ -501,9 +448,9 @@ size_t merge_matrix::print_active_weight_count()
     }
     MPI_Allreduce(MPI_IN_PLACE, &active, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
     return active;
-}
+}/*}}}*/
 
-void merge_matrix::print_final_merge_stats()
+void merge_matrix::print_final_merge_stats()/*{{{*/
 {
     if (!comm_rank) printf("# merge stats:\n");
     size_t nmerges=0;
@@ -525,7 +472,8 @@ void merge_matrix::print_final_merge_stats()
         nmerges += dms;
     }
     if (!comm_rank) printf("# Total: %zu merges\n", nmerges);
-}
+}/*}}}*/
+
 /* {{{ merge_matrix::push_relation and ::read_rows */
 int merge_matrix::push_relation(earlyparsed_relation_ptr rel)
 {
@@ -721,15 +669,8 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
         for (row_weight_t k = 0; k < rows[i].second; k++) {
             size_t h = ptr[k].index();
             col_weight_t w = col_weights[h / comm_size];
-#if 0
-            bool bury = w > min_buried_weight;
-            bury = bury || (w == min_buried_weight && h > heaviest.back());
-            if (!bury)
-                ptr[nl++] = ptr[k];
-#else
             if (w)
                 ptr[nl++] = ptr[k];
-#endif
         }
         rows.shrink_value_unlocked(i, nl);
     }
@@ -1955,8 +1896,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
     }
 }/*}}}*/
 
-std::pair<std::vector<size_t>, std::vector<size_t>>
-merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::pivot_priority_t>> const & proposal)
+std::pair<std::vector<size_t>, std::vector<size_t>> merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::pivot_priority_t>> const & proposal)/*{{{*/
 {
     /* proposal is in decreasing order of priority. All are counted as
      * coefficient *decrease*, so that it's really a priority */
@@ -1976,7 +1916,7 @@ merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::
             req.push_back(x.first);
     }
     return std::make_pair(cols,req);
-}
+}/*}}}*/
 
 void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 {
@@ -2086,19 +2026,10 @@ int main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
 
     all_mpi_runtime_checks();
-    // mpi_runtime_check<size_t>(MPI_MY_SIZE_T);
-    // mpi_runtime_check<uint64_t>(MPI_MY_UINT64_T);
-    // mpi_runtime_check<int64_t>(MPI_MY_INT64_T);
 
     char *argv0 = argv[0];
 
-#if 0
-    filter_matrix_t mat[1];
-    report_t rep[1];
-#endif
-
     int nthreads = 1;
-    /* use real MST minimum for wt[j] <= wmstmax */
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;		/* Binary open for all files */
@@ -2176,19 +2107,6 @@ int main(int argc, char *argv[])
 	usage(pl, argv0);
     }
 
-    // set_antebuffer_path(argv0, path_antebuffer);
-
-    /* initialize rep (i.e., mostly opens outname) and write matrix dimension */
-    /*
-    rep->type = 0;
-    rep->outfile = fopen_maybe_compressed(outname, "w");
-    ASSERT_ALWAYS(rep->outfile != NULL);
-    */
-
-    /* Init structure containing the matrix and the heap of potential merges */
-    // initMat(mat, maxlevel, keep, skip);
-
-    /* Read all rels and fill-in the mat structure */
     tt = seconds();
 
     M.read_rows(purgedname);
@@ -2202,33 +2120,6 @@ int main(int argc, char *argv[])
     /* resume from given history file if needed */
     if (resumename != NULL)
 	resume(rep, mat, resumename);
-#endif
-
-#if 0
-    /* TODO: this is an untested feature, so not easy to put back in
-     * operation */
-    /* Some columns can be disable so merge won't use them as pivot */
-    if (forbidden_cols != NULL) {
-	printf("Disabling columns from %s\n", forbidden_cols);
-	matR_disable_cols(mat, forbidden_cols);
-    }
-#endif
-
-#if 0
-    tt = seconds();
-    MkzInit(mat, 1);
-    printf("Time for MkzInit: %2.2lfs\n", seconds() - tt);
-
-    mergeOneByOne(rep, mat, maxlevel, target_density);
-
-    fclose_maybe_compressed(rep->outfile, outname);
-    printf("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRId64 ") "
-	   "W=%" PRIu64 " W*N=%.2e W/N=%.2f\n",
-	   mat->nrows, mat->ncols,
-	   ((int64_t) mat->nrows) - ((int64_t) mat->ncols),
-	   mat->weight, compute_WN(mat), compute_WoverN(mat));
-    MkzClear(mat, 1);
-    clearMat(mat);
 #endif
 
     param_list_clear(pl);
