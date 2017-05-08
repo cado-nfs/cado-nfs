@@ -328,7 +328,7 @@ struct merge_matrix {
                         /* Beware: those are local only */
                         explained/1048576., vmrss/1024.0, vmsize/1024.0);
                 printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
-                        dm, cwmax, xm, 100.0 * xm / (dm + xm));
+                        dm, cwmax, xm, 100.0 * xm / dm);
                 /*
                    printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                    printf("# R %.1f + %.1f + %.1f\n",
@@ -990,6 +990,7 @@ struct row_combiner /*{{{*/ {
     size_t j;
     row_weight_t sumweight;
 #ifdef FOR_DL
+    // recall formula: (coeff from row 1)*e0-(coeff from row 0)*e1;
     row_value_t::exponent_type e0;
     row_value_t::exponent_type e1;
     row_value_t::exponent_type emax0;
@@ -1049,6 +1050,7 @@ struct row_combiner /*{{{*/ {
          */
 #ifdef FOR_DL
         /* for discrete log, we need to pay attention to valuations as well */
+        // recall formula: (coeff from row 1)*e0-(coeff from row 0)*e1;
         multipliers(e0,e1);
 #endif
         row_weight_t k0, k1;
@@ -1084,9 +1086,7 @@ struct row_combiner /*{{{*/ {
     {
         weight_of_sum(S);
 #ifdef FOR_DL
-        if (std::abs((int64_t) emax0 * (int64_t) e1) > 32)
-            return INT_MAX;
-        if (std::abs((int64_t) emax1 * (int64_t) e0) > 32)
+        if (std::abs((int64_t) emax0 * (int64_t) e1) + std::abs((int64_t) emax1 * (int64_t) e0) > 32)
             return INT_MAX;
 #endif
         return sumweight;
@@ -1105,7 +1105,18 @@ struct row_combiner /*{{{*/ {
 
 #ifdef FOR_DL
         multipliers(e0,e1);
-        static row_value_t::exponent_type emax = 4;
+        struct store_record {
+            row_value_t::exponent_type emax = 4;
+            bool operator()(row_value_t::exponent_type e) {
+                bool b = std::abs(e) > emax;
+                if (b) {
+                    emax = std::abs(e);
+                    printf("# New record coefficient: %ld\n", (long) e);
+                }
+                return b;
+            }
+        };
+        store_record check_coeff;
 #endif
 
         row_weight_t n2 = sumweight;
@@ -1113,16 +1124,14 @@ struct row_combiner /*{{{*/ {
         row_value_t * p2 = &(res[0]);
 
         /* It's of course pretty much the same loop as in other cases. */
+        // recall formula: (coeff from row 1)*e0-(coeff from row 0)*e1;
         row_weight_t k0 = 0, k1 = 0, k2 = 0;
         for( ; k0 < n0 && k1 < n1 ; k0++,k1++) {
             if (p0[k0].index() < p1[k1].index()) {
                 k1--; // we will replay this one.
 #ifdef FOR_DL
                 p2[k2] = p0[k0] * (-e1);
-                    if (std::abs(p2[k2].exponent()) > emax) {
-                        emax = std::abs(p2[k2].exponent());
-                        printf("# New record coefficient: %ld\n", (long) emax);
-                    }
+                check_coeff(p2[k2].exponent());
 #else
                 p2[k2] = p0[k0];
 #endif
@@ -1131,10 +1140,7 @@ struct row_combiner /*{{{*/ {
                 k0--; // we will replay this one.
 #ifdef FOR_DL
                 p2[k2] = p1[k1] * e0;
-                    if (std::abs(p2[k2].exponent()) > emax) {
-                        emax = std::abs(p2[k2].exponent());
-                        printf("# New record coefficient: %ld\n", (long) emax);
-                    }
+                check_coeff(p2[k2].exponent());
 #else
                 p2[k2] = p1[k1];
 #endif
@@ -1149,10 +1155,7 @@ struct row_combiner /*{{{*/ {
                 if (e) {
                     p2[k2].index() = p0[k0].index();
                     p2[k2].exponent() = e;
-                    if (std::abs(p2[k2].exponent()) > emax) {
-                        emax = std::abs(p2[k2].exponent());
-                        printf("# New record coefficient: %ld\n", (long) emax);
-                    }
+                    check_coeff(p2[k2].exponent());
                     k2++;
                 }
 #endif
@@ -1160,11 +1163,8 @@ struct row_combiner /*{{{*/ {
         }
         for( ; k0 < n0 ; k0++) {
 #ifdef FOR_DL
-                p2[k2] = p0[k0] * e0;
-                    if (std::abs(p2[k2].exponent()) > emax) {
-                        emax = std::abs(p2[k2].exponent());
-                        printf("# New record coefficient: %ld\n", (long) emax);
-                    }
+                p2[k2] = p0[k0] * (-e1);
+                check_coeff(p2[k2].exponent());
 #else
                 p2[k2] = p0[k0];
 #endif
@@ -1172,11 +1172,8 @@ struct row_combiner /*{{{*/ {
         }
         for( ; k1 < n1 ; k1++) {
 #ifdef FOR_DL
-                p2[k2] = p1[k1] * (-e1);
-                    if (std::abs(p2[k2].exponent()) > emax) {
-                        emax = std::abs(p2[k2].exponent());
-                        printf("# New record coefficient: %ld\n", (long) emax);
-                    }
+                p2[k2] = p1[k1] * e0;
+                check_coeff(p2[k2].exponent());
 #else
                 p2[k2] = p1[k1];
 #endif
@@ -1803,14 +1800,14 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
 
         std::pair<int, std::vector<std::pair<int, int>>> mst;
 
+        matrix<int> weights(wj,wj,INT_MAX);
+
         if (wj == 1) {
             mst.first = -batch[0].size();
         } else if (wj == 2) {
             mst.first = -2;
             mst.second.push_back(std::make_pair(0,1));
         } else {
-            matrix<int> weights(wj,wj,INT_MAX);
-
             for(col_weight_t k = 0 ; k < wj ; k++) {
                 for(col_weight_t l = k + 1 ; l < wj ; l++) {
                     int s = row_combiner(batch[k], batch[l], j).mst_score();
