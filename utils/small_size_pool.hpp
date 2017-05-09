@@ -109,7 +109,8 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
     std::ostream& print(std::ostream& o) const {
         o << "width " << width
             << ", allocated " << size()
-            << " (" << allocated_bytes() << " kB)"
+            << ", capacity " << data.capacity() / width
+            << " (" << (allocated_bytes() >> 20) << " MB)"
             << ", holes " << holes;
         /*
         if (holes) {
