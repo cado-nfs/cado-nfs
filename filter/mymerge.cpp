@@ -42,20 +42,6 @@
 static const int compact_column_index_size = 8;
 static const int merge_row_heap_batch_size = 16384;
 
-template<typename T>
-struct averaging {
-    T sum = 0;
-    T sum2 = 0;
-    int n = 0;
-    averaging operator+=(T const & v) { n++; sum+=v; sum2+=v*v; return *this; }
-    int nsamples() const { return n; }
-    T average() const { return sum / n; }
-    T sdev() const { T a = average(); return sqrt(sum2 / n - a*a); }
-};
-
-
-std::map<int, averaging<double>> wmat_timings;
-
 static void declare_usage(param_list pl)/*{{{*/
 {
     param_list_decl_usage(pl, "mat", "input purged file");
@@ -225,13 +211,10 @@ struct merge_matrix {
         return !R_table.empty() && R_table[lj];
     }
     inline indirection_t * get_indirection(size_t lj) {
-        col_weight_t w = col_weights[lj];
-        return R_pool(w, R_table[lj]);
+        return R_pool(col_weights[lj], R_table[lj]);
     }
     inline const indirection_t * get_indirection(size_t lj) const {
-        col_weight_t w = col_weights[lj];
-        ASSERT(w && R_table[lj]);
-        return R_pool(w, R_table[lj]);
+        return R_pool(col_weights[lj], R_table[lj]);
     }
     void allocate_indirection(size_t lj) {
         ASSERT(!R_table[lj]);
@@ -372,6 +355,7 @@ struct merge_matrix {
 
             std::map<std::string, size_t> contrib;
             contrib["rows"] = rows.allocated_bytes();
+            contrib["rows overhead"] = rows.overhead_bytes();
             contrib["col_weights"] = col_weights.capacity()*sizeof(col_weight_t);
             // contrib["R_pool.alloc"] = R_pool.allocated_bytes();
             // contrib["R_table"] = R_table.capacity()*sizeof(R_pool_t::size_type);
@@ -401,9 +385,11 @@ struct merge_matrix {
                 printf("# done %zu %d-merges, discarded %zu (%.1f%%)\n",
                         dm, cwmax, xm, 100.0 * xm / dm);
                 for(auto const& x: contrib) {
-                    if (x.second < explained / 10) continue;
+                    if (x.first == "rows overhead" || x.second < explained / 10) continue;
                     if (x.first == "rows") {
-                        printf("# %s: %zu kb [%.1f bytes per active coeff]\n", x.first.c_str(), x.second >> 10, x.second * 1.0 / global_weight);
+                        size_t overhead = contrib["rows overhead"];
+                        size_t corrected = contrib["rows"] - overhead;
+                        printf("# %s: %zu+%zu kb [%.1f bytes per active coeff, %.1f without overhead]\n", x.first.c_str(), corrected >> 10, overhead >> 10, x.second * 1.0 / global_weight, corrected * 1.0 / global_weight);
                     } else {
                         printf("# %s: %zu kb\n", x.first.c_str(), x.second >> 10);
                     }
@@ -1921,21 +1907,7 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
              * which should be somewhat faster.
              */
 
-            double tt = seconds();
-            if (wj <= 4) {
-                matrix<int> weights(wj,wj,INT_MAX);
-                for(col_weight_t k = 0 ; k < wj ; k++) {
-                    for(col_weight_t l = k + 1 ; l < wj ; l++) {
-                        int s = row_combiner(batch[k], batch[l], j).mst_score();
-                        weights(k,l) = s;
-                        weights(l,k) = s;
-                    }
-                }
-                mst = minimum_spanning_tree(weights);
-            } else {
-                mst = minimum_spanning_tree(batch_compute_weights(batch, j));
-            }
-            wmat_timings[wj] += seconds()-tt;
+            mst = minimum_spanning_tree(batch_compute_weights(batch, j));
         }
 
         /* Do the merge, but locally first */
@@ -2373,15 +2345,6 @@ int main(int argc, char *argv[])
     param_list_clear(pl);
 
     if (!M.comm_rank) {
-        printf("weight matrix timings\n");
-        for(auto const& v: wmat_timings) {
-            printf("weight %d, avg %.2f~%.2f over %d samples\n",
-                    v.first,
-                    v.second.average(),
-                    v.second.sdev(),
-                    v.second.nsamples());
-        }
-
         printf("Total merge time: %.2f seconds\n", seconds());
         print_timing_and_memory(stdout, wct0);
     }

@@ -2,10 +2,17 @@
 #define COMPRESSIBLE_HEAP_HPP_
 
 #include <vector>
+#include <array>
 #include <cstddef>
 #include <cassert>
 
-/* This is functionally similar to a subset of vector<vector<T>>.
+/* This is functionally similar to a subset of vector<vector<T>>. We can
+ * do very few things in fact.
+ *
+ * It's best to imagine this structure as some sort of an append-only
+ * heap, but with occasional freedom to remove some of the entries, yet
+ * be able to reclaim the memory corresponding to these every now and
+ * then.
  *
  * We may access an item by its index:
  *                      H[i] returns a pair T*, Size
@@ -43,6 +50,7 @@ public:
         size_t _size, killed;
         public:
         size_t allocated_bytes() const { return data.capacity()*sizeof(T) + batch_size * sizeof(value_type)+ sizeof(data); }
+        size_t overhead_bytes() const { return allocated_bytes() - (data.size() - killed) * sizeof(T); }
         size_t size() const { return _size; }
         /* full can also mean "full of emptiness"... */
         bool full() const { return _size == batch_size; }
@@ -247,6 +255,11 @@ public:
     size_t allocated_bytes() const {
         size_t res=sizeof(*this);
         for(auto const& c: chunks) res += c.allocated_bytes();
+        return res;
+    }
+    size_t overhead_bytes() const {
+        size_t res=sizeof(*this);
+        for(auto const& c: chunks) res += c.overhead_bytes();
         return res;
     }
 };
