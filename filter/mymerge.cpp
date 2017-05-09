@@ -1670,9 +1670,9 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
     size_t wj = batch.size();
     matrix<int> weights(wj,wj,0);
 
+#ifdef FOR_DL
     typedef merge_matrix::row_value_t::exponent_type exponent_type;
 
-#ifdef FOR_DL
     /* combination of rows i and j for i<j is done via:
      * row[i] * xx[i,j] - row[j] * xx[j,i]
      *
@@ -1680,7 +1680,6 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
      * ej[i], with their gcd taken out.
      */
     matrix<exponent_type> xx(wj, wj, 0);
-#endif
     std::vector<exponent_type> emax(wj);
 
     {
@@ -1697,7 +1696,6 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
             }
         }
 
-#ifdef FOR_DL
         for(size_t s = 0 ; s < wj ; s++) {
             for(size_t t = 0 ; t < wj ; t++) {
                 exponent_type d = gcd_int64(ej[s], ej[t]);
@@ -1705,8 +1703,8 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
                 xx(t,s) = ej[s] / d;
             }
         }
-#endif
     }
+#endif
 
     std::vector<size_t> ii(wj);
 
