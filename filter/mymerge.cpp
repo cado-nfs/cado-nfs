@@ -74,6 +74,8 @@ static void usage(param_list pl, char *argv0)/*{{{*/
     exit(EXIT_FAILURE);
 }/*}}}*/
 
+struct collective_merge_operation;
+
 struct merge_matrix {
     /* initial values, and aggregated over all nodes */
     size_t initial_nrows=0;
@@ -231,8 +233,7 @@ struct merge_matrix {
     };
     typedef sparse_indexed_priority_queue<size_t, pivot_priority_t> markowitz_table_t;
     markowitz_table_t markowitz_table;
-    pivot_priority_t markowitz_count(size_t j);
-    void fill_markowitz_table();
+    inline merge_matrix::pivot_priority_t markowitz_count(size_t j, size_t min_rw, size_t cw);
     /* }}} */
 
     /*{{{ general high-level operations (local) */
@@ -335,15 +336,15 @@ struct merge_matrix {
     /*}}}*/
 
     /*{{{ general high-level operations (MPI) */
-    std::vector<size_t> parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n);
+    void parallel_pivot(collective_merge_operation&);
     void batch_Rj_update(std::vector<size_t> const & out, std::vector<std::pair<size_t, row_weight_t>> const & in = std::vector<std::pair<size_t, row_weight_t>>());
     void parallel_merge(size_t batch_size);
     size_t collectively_remove_rows(std::vector<size_t> const & killed);
     std::map<int, size_t> discarded_merges;
     std::map<int, size_t> done_merges;
 
-    std::pair<std::vector<size_t>, std::vector<size_t>>
-    filter_merge_proposal(std::vector<std::pair<size_t, pivot_priority_t>> const & proposal);
+    typedef std::vector<std::pair<size_t, pivot_priority_t>> proposal_t;
+    void filter_merge_proposal(proposal_t & proposal, proposal_t & trash);
     /*}}}*/
 };
 
@@ -772,8 +773,10 @@ void merge_matrix::prepare_R_table()/*{{{*/
     if (R_table.empty()) {
         R_table.assign(col_weights.size(), R_pool_t::size_type());
     }
-    ASSERT_ALWAYS(cwmax <= std::numeric_limits<uint8_t>::max());
+    const uint8_t max8 = std::numeric_limits<uint8_t>::max();
+    ASSERT_ALWAYS(cwmax <= max8);
     std::vector<uint8_t> pos(col_weights.size(), 0);
+    std::vector<uint8_t> minpos(col_weights.size(), 0);
     for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
         if (!col_weights[lj]) continue;
         if (col_weights[lj] > (col_weight_t) cwmax) {
@@ -781,7 +784,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
             continue;
         }
         if (R_table[lj]) {
-            pos[lj] = col_weights[lj];
+            minpos[lj] = max8;
             continue;
         }
         R_table[lj] = R_pool.alloc(col_weights[lj]);
@@ -809,16 +812,25 @@ void merge_matrix::prepare_R_table()/*{{{*/
             size_t lj = ptr[k].index() / comm_size;
             if (!R_table[lj]) continue;
             col_weight_t w = col_weights[lj];
-            if (pos[lj] == w) continue;
+            if (minpos[lj] == max8) continue;
             ASSERT_ALWAYS(pos[lj] < w);
             R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-            Rx[pos[lj]++]=std::make_pair(it.i, this_rw);
+            Rx[pos[lj]]=std::make_pair(it.i, this_rw);
+            if (this_rw < Rx[minpos[lj]].second)
+                minpos[lj]=pos[lj];
+            pos[lj]++;
         }
     }
     for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
-        if (!col_weights[lj]) continue;
-        if (col_weights[lj] > (col_weight_t) cwmax) continue;
-        ASSERT_ALWAYS(pos[lj] == col_weights[lj]);
+        col_weight_t w = col_weights[lj];
+        if (!w) continue;
+        if (w > (col_weight_t) cwmax) continue;
+        if (minpos[lj] == max8) continue;
+        ASSERT_ALWAYS(pos[lj] == w);
+        R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
+        row_weight_t w0 = Rx[minpos[lj]].second;
+        size_t j = comm_size * lj + comm_rank;
+        markowitz_table.push(std::make_pair(j, markowitz_count(j, w0, w)));
     }
     // printf("# Time for filling R: %.2f s\n", seconds()-tt);
 }/*}}}*/
@@ -841,56 +853,18 @@ void merge_matrix::prepare_R_table()/*{{{*/
  * result of merge.  A possible explanation is that the contribution of
  * cancelled ideals follows a normal distribution, and that on the long
  * run we mainly see the average.
+ *
+ *
+ * The approach of computing the weight matrix explicitly, and
+ * prioritizing the merges based on that, does not seem to pay (on a
+ * c155, we barely win 0.5%).
  */
-merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j)
+inline merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j MAYBE_UNUSED, size_t min_rw, size_t cw)
 {
-    size_t lj = j / comm_size;
-    col_weight_t w = col_weights[lj];
-
-    /* empty cols and singletons have max priority */
-    if (w <= 1) return std::numeric_limits<pivot_priority_t>::max();
-    if (w == 2) return 2;
-
-    /* inactive columns don't count of course, but we shouldn't reach
-     * here anyway */
-    ASSERT_ALWAYS(R_table[lj]);
-    if (!R_table[lj])
-        return std::numeric_limits<pivot_priority_t>::min();
-
-    const R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
-    row_weight_t w0 = std::numeric_limits<row_weight_t>::max();
-    for(col_weight_t k = 0 ; k < w ; k++) {
-        w0 = std::min(w0, Rx[k].second);
-    }
-
-    merge_matrix::pivot_priority_t prio1 = 2 - (w0 - 2) * (w - 2);
-    return prio1;
-
-    /* On a c155, this second approach saves about 0.5% on the number of
-     * rows, for a given target density. It is also considerably more
-     * expensive computationally speaking (however there is some room for
-     * improvement, see the comment in parallel_pivot. This being said,
-     * this approach of computing the MST for real does not scale well to
-     * the mpi context, so we haven't investigated further.
-    merge_matrix::pivot_priority_t prio2 = -mst_for_column(j).first;
-    if (prio2 + (merge_matrix::pivot_priority_t) ws >= prio2) prio2 += ws;
-    ASSERT_ALWAYS(prio2 >= prio1);
-    return prio2;
-    */
+    return 2 - (min_rw - 2) * (cw - 2);
 }
 /*}}}*/
 
-
-void merge_matrix::fill_markowitz_table()/*{{{*/
-{
-    // double tt = seconds();
-    for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
-        if (!R_table[lj]) continue;
-        size_t j = lj * comm_size + comm_rank;
-        markowitz_table.push(std::make_pair(j, markowitz_count(j)));
-    }
-    // printf("# Time for filling markowitz table: %.2f s\n", seconds()-tt);
-}/*}}}*/
 
 void merge_matrix::remove_row_detached(size_t i)/*{{{*/
 {
@@ -1265,6 +1239,10 @@ struct collective_merge_operation {/*{{{*/
     typedef std::vector<int> displ_vec_t;
 
     index_vec_t my_col_indices;
+
+    typedef std::vector<merge_matrix::markowitz_table_t::value_type> proposal_t;
+    proposal_t proposal;
+    
     // std::vector<size_t> all_col_indices;
     // std::vector<std::vector<size_t>> my_row_indices;
     std::vector<index_vec_t> all_row_indices;
@@ -1296,9 +1274,9 @@ struct collective_merge_operation {/*{{{*/
         MPI_Type_free(&mpi_row_value_t);
     }
 
-    void announce_columns(std::vector<size_t> const &cols);
+    void announce_columns(proposal_t const &prop);
     void deduce_and_share_rows(merge_matrix const&);
-    index_vec_t discard_repeated_rows();
+    proposal_t discard_repeated_rows();
     row_batch_set_t merge_scatter_rows(merge_matrix const&);
     /* this function flattens the new set of rows */
     row_batch_t allgather_rows(row_batch_set_t const&);
@@ -1316,11 +1294,14 @@ struct collective_merge_operation {/*{{{*/
     void prepare_sendrecv_displs();
 };
 /*}}}*/
-void collective_merge_operation::announce_columns(std::vector<size_t> const &cols)/*{{{*/
+void collective_merge_operation::announce_columns(proposal_t const &prop)
 {
-    ASSERT_ALWAYS(cols.size() <= n);
+    ASSERT_ALWAYS(prop.size() <= n);
     /* w is to be understood as a promise on the column weight, that's all */
-    my_col_indices.assign(cols.begin(), cols.end());
+    proposal = prop;
+    my_col_indices.reserve(prop.size());
+    for(auto const & x : proposal)
+        my_col_indices.push_back(x.first);
     // all_col_indices.reserve(n * comm_size);
     // It seems that we don't need to announce the columns, do we ?
 
@@ -1394,13 +1375,13 @@ void collective_merge_operation::deduce_and_share_rows(merge_matrix const& M)/*{
         all_row_indices[pq].assign(ptr0, ptr1);
     }
 }/*}}}*/
-std::vector<size_t> collective_merge_operation::discard_repeated_rows()/*{{{*/
+collective_merge_operation::proposal_t collective_merge_operation::discard_repeated_rows()/*{{{*/
 {
     /* get rid of column merges which involve a row which has already
      * been encountered
      */
     std::set<size_t> met;
-    std::vector<size_t> requeue;
+    proposal_t requeue;
     for(int peer = 0 ; peer < comm_size ; peer++) {
         for(size_t q = 0 ; q < n ; q++) {
             std::vector<size_t> & col(all_row_indices[peer * n + q]);
@@ -1413,7 +1394,7 @@ std::vector<size_t> collective_merge_operation::discard_repeated_rows()/*{{{*/
             }
             if (ismet) {
                 if (peer == comm_rank) {
-                    requeue.push_back(my_col_indices[q]);
+                    requeue.push_back(proposal[q]);
                     my_discarded_merges++;
                 }
                 col.clear();
@@ -1771,18 +1752,10 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
  * Note that provided the former event does not occur, the latter does
  * not occur either.
  */
-std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_col_indices, size_t n)
+void merge_matrix::parallel_pivot(collective_merge_operation & CM)
 {
-    collective_merge_operation CM(comm, n, cwmax);
-
-    CM.announce_columns(my_col_indices);
-
-    CM.deduce_and_share_rows(*this);
-
-    std::vector<size_t> discarded = CM.discard_repeated_rows();
-    discarded_merges[cwmax] += CM.my_discarded_merges;
-    done_merges[cwmax] += CM.my_done_merges;
-
+    std::vector<size_t> & my_col_indices(CM.my_col_indices);
+    size_t n = CM.n;
 
     /* We'll get a vector of n vectors of up to w rows */
     collective_merge_operation::row_batch_set_t row_batches = CM.merge_scatter_rows(*this);
@@ -1926,8 +1899,6 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
         remove_row_detached(i);
     MPI_Allreduce(&weight, &global_weight, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
     MPI_Allreduce(&ncols, &global_ncols, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
-
-    return discarded;
 }
 /* }}} */
 
@@ -2039,10 +2010,9 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         const R_pool_t::value_type * Rx0 = R_pool(w0, T0);
         R_pool_t::value_type * Rx1 = R_pool(w1, T1);
 
-        /* In fact, we might be able to do the markowitz count at the
-         * same time. Whether it's useful or not depends on the relative
-         * size of w0 and sizediff.
-         */
+        /* Do the markowitz count while we're at it */
+        size_t minrw = SIZE_MAX;
+
         // we rely on the fact that the Rj lists are sorted,
         // and so should be the lists of rows in and out.
         std::vector<std::pair<size_t, row_weight_t>>::const_iterator xin = Lin.begin();
@@ -2051,7 +2021,10 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         const R_pool_t::value_type * p = Rx0;
         R_pool_t::value_type * q = Rx1;
         for( ; p != Rx0 + w0 && xout != Lout.end();) {
-            for( ; p != Rx0 + w0 && p->first < *xout ; *q++ = *p++) ;
+            for( ; p != Rx0 + w0 && p->first < *xout ; *q++ = *p++) {
+                if (p->second < minrw)
+                    minrw = p->second;
+            }
             if (p == Rx0 + w0) break;
             /* here *p >= *xout */
             if (p->first == *xout)
@@ -2065,8 +2038,14 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
             xout++;
         }
         ASSERT_ALWAYS(xout == Lout.end());
-        for( ; p != Rx0 + w0 ; *q++ = *p++) ;
-        for( ; q != Rx1 + w1 ; *q++ = *xin++) ;
+        for( ; p != Rx0 + w0 ; *q++ = *p++) {
+            if (p->second < minrw)
+                minrw = p->second;
+        }
+        for( ; q != Rx1 + w1 ; *q++ = *xin++) {
+            if (xin->second < minrw)
+                minrw = xin->second;
+        }
         ASSERT_ALWAYS(xin == Lin.end());
 
         R_pool.free(w0, T0);
@@ -2075,11 +2054,11 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         if (w1 == 0) ncols--;
 
         /* last but not least ! */
-        markowitz_table.update(std::make_pair(j, markowitz_count(j)));
+        markowitz_table.update(std::make_pair(j, markowitz_count(j, minrw, w1)));
     }
 }/*}}}*/
 
-std::pair<std::vector<size_t>, std::vector<size_t>> merge_matrix::filter_merge_proposal(std::vector<std::pair<size_t, merge_matrix::pivot_priority_t>> const & proposal)/*{{{*/
+void merge_matrix::filter_merge_proposal(proposal_t & proposal, proposal_t & trash)/*{{{*/
 {
     /* proposal is in decreasing order of priority. All are counted as
      * coefficient *decrease*, so that it's really a priority */
@@ -2091,14 +2070,14 @@ std::pair<std::vector<size_t>, std::vector<size_t>> merge_matrix::filter_merge_p
     printf("rank %d has maxprio=%ld minprio=%ld global minprio=%ld\n",
             comm_rank, maxprio, minprio, globalminprio);
     */
-    std::vector<size_t> cols, req;
+    proposal_t ok;
     for(auto x : proposal) {
         if (x.second >= globalminprio)
-            cols.push_back(x.first);
+            ok.push_back(x);
         else
-            req.push_back(x.first);
+            trash.push_back(x);
     }
-    return std::make_pair(cols,req);
+    std::swap(ok, proposal);
 }/*}}}*/
 
 void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
@@ -2108,14 +2087,12 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
     report(true);
     for(cwmax = 2 ; cwmax <= maxlevel && spin < 10 ; cwmax++) {
 
-        /* Note: we need the R table for remove_singletons */
+        /* Note: we need the R table for remove_singletons. Note that
+         * this function also updates markowitz_table */
         prepare_R_table();
         // expensive_check();
 
         remove_singletons_iterate();
-
-        markowitz_table.clear();
-        fill_markowitz_table();
 
         int wannabreak = spin && markowitz_table.empty();
         MPI_Allreduce(MPI_IN_PLACE, &wannabreak, 1, MPI_INT, MPI_LAND, comm);
@@ -2129,7 +2106,7 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
             MPI_Allreduce(MPI_IN_PLACE, &empty, 1, MPI_INT, MPI_LAND, comm);
             if (empty) break;
 
-            std::vector<markowitz_table_t::value_type> merge_proposal;
+            proposal_t merge_proposal;
 
             for( ; merge_proposal.size() < batch_size && !markowitz_table.empty() ; ) {
                 markowitz_table_t::value_type q = markowitz_table.top();
@@ -2154,30 +2131,38 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
 
             /* Make sure that the "best" merges really go first, and that
              * we don't hurry towards ordering sub-optimal merges. Some
-             * fudge factor is mandatory here.
+             * fudge factor might be a good idea here.
              */
-            auto filtered = filter_merge_proposal(merge_proposal);
-            std::vector<size_t> & my_cols(filtered.first);
-            std::vector<size_t> & requeue(filtered.second);
 
+            proposal_t requeue;
+            filter_merge_proposal(merge_proposal, requeue);
             /*
             printf("rank %d proposes %zu %d-merges, %zu to requeue\n", comm_rank, my_cols.size(), cwmax, requeue.size());
             */
 
-            std::vector<size_t> requeue2 = parallel_pivot(my_cols, batch_size);
-            // expensive_check();
-            
+            collective_merge_operation CM(comm, batch_size, cwmax);
+            CM.announce_columns(merge_proposal);
+            CM.deduce_and_share_rows(*this);
+            proposal_t requeue2 = CM.discard_repeated_rows();
+            discarded_merges[cwmax] += CM.my_discarded_merges;
+            done_merges[cwmax] += CM.my_done_merges;
+
+            /* requeue the merges which have been discarded. We need to
+             * do it now, or otherwise we won't update their markowitz
+             * count at all in batch_Rj_update */
             requeue.insert(requeue.end(), requeue2.begin(), requeue2.end());
-            
-            /* requeue the merges which have been discarded */
-            for(auto const & j : requeue) {
+            for(auto const & jp : requeue) {
+                size_t j = jp.first;
                 size_t lj = j / comm_size;
                 if (!R_table[lj]) continue;
-                markowitz_table.push(std::make_pair(j, markowitz_count(j)));
+                markowitz_table.push(jp);
             }
+
+            parallel_pivot(CM);
+            // expensive_check();
+            
         }
-        // Note that normally, we remove the same set of rows on all
-        // nodes here.
+        // we remove the same set of rows on all nodes here.
         remove_excess((nrows-global_ncols) * excess_inject_ratio);
         remove_singletons_iterate();
 
@@ -2308,9 +2293,6 @@ int main(int argc, char *argv[])
     param_list_clear(pl);
 
     if (!M.comm_rank) {
-        printf("Total merge time: %.2f seconds\n", seconds());
-        print_timing_and_memory(stdout, wct0);
-
         printf("weight matrix timings\n");
         for(auto const& v: wmat_timings) {
             printf("weight %d, avg %.2f~%.2f over %d samples\n",
@@ -2319,6 +2301,9 @@ int main(int argc, char *argv[])
                     v.second.sdev(),
                     v.second.nsamples());
         }
+
+        printf("Total merge time: %.2f seconds\n", seconds());
+        print_timing_and_memory(stdout, wct0);
     }
 
     MPI_Finalize();
