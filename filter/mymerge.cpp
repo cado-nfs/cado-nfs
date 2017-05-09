@@ -1581,6 +1581,158 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
 }/*}}}*/
 /*}}}*/
 
+matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const & batch, size_t j)/*{{{*/
+{
+    /* compute the weight matrix for cancelling j with the rows given in
+     * argument */
+    size_t wj = batch.size();
+    matrix<int> weights(wj,wj,0);
+
+    typedef merge_matrix::row_value_t::exponent_type exponent_type;
+
+#ifdef FOR_DL
+    /* combination of rows i and j for i<j is done via:
+     * row[i] * xx[i,j] - row[j] * xx[j,i]
+     *
+     * So in practive for i<j we expect xx[i,j] = ej[j] and xx[j,i] =
+     * ej[i], with their gcd taken out.
+     */
+    matrix<exponent_type> xx(wj, wj, 0);
+#endif
+    std::vector<exponent_type> emax(wj);
+
+    {
+        /* We need to find ej in order to compute the matrix xx, but
+         * we're happy to ditch it right thereafter */
+        std::vector<exponent_type> ej(wj);
+        for(size_t s = 0 ; s < wj ; s++) {
+            for(auto const & v : batch[s]) {
+                exponent_type e = v.exponent();
+                if (std::abs(e) > emax[s])
+                    emax[s] = std::abs(e);
+                if (v.index() == j)
+                    ej[s] = e;
+            }
+        }
+
+#ifdef FOR_DL
+        for(size_t s = 0 ; s < wj ; s++) {
+            for(size_t t = 0 ; t < wj ; t++) {
+                exponent_type d = gcd_int64(ej[s], ej[t]);
+                xx(s,t) = ej[t] / d;
+                xx(t,s) = ej[s] / d;
+            }
+        }
+#endif
+    }
+
+    std::vector<size_t> ii(wj);
+
+    typedef std::pair<size_t, size_t> pq_t;
+    std::priority_queue<pq_t, std::vector<pq_t>, std::greater<pq_t>> next;
+
+    auto advance_and_push = [&ii, batch, &next](size_t r) {
+        merge_matrix::shortlived_row_t const & R(batch[r]);
+        if (ii[r] < R.size())
+            next.push(std::make_pair(R[ii[r]].index(), r));
+    };
+
+    for(size_t r = 0 ; r < wj ; r++)
+        advance_and_push(r);
+
+    std::vector<size_t> local(wj);
+#ifdef FOR_DL
+    std::vector<exponent_type> ee(wj);
+#endif
+
+    for( ; !next.empty() ; ) {
+        local.clear();
+        pq_t me = next.top();
+        /* By construction this loop will run at least once */
+        for( ; !next.empty() && next.top().first == me.first ; ) {
+            me = next.top();
+            size_t r = me.second;
+#ifdef FOR_DL
+            ee[local.size()] = batch[r][ii[r]].exponent();
+#endif
+            local.push_back(r);
+            next.pop();
+            ii[r]++;
+            advance_and_push(r);
+        }
+
+        if (local.size() == 1) {
+            /* should occur pretty often */
+            for(size_t s = 0 ; s < me.second ; s++)
+                    weights(s, me.second)++;
+            for(size_t s = me.second + 1 ; s < wj ; s++)
+                    weights(me.second, s)++;
+            continue;
+        }
+
+        if (me.first == j) {
+            /* This one won't contribute to the weight */
+            continue;
+        }
+
+        size_t zj = local.size();
+
+        /* A priori we expect all of the values in the local[] array to
+         * cause non-zero coefficients everywhere. */
+        for(size_t s = 0 ; s < zj ; s++) {
+            for(size_t t = 0 ; t < local[s] ; t++)
+                weights(t, local[s])++;
+            for(size_t t = local[s] + 1 ; t < wj ; t++)
+                weights(local[s], t)++;
+        }
+
+        for(size_t s = 0 ; s < zj ; s++) {
+            for(size_t t = s + 1 ; t < zj ; t++) {
+                size_t i = local[s];
+                size_t j = local[t];
+#if FOR_DL
+                /* what is the coefficient for this column when we
+                 * combine rows local[s] and local[t] ? */
+                exponent_type ei = ee[s];
+                exponent_type ej = ee[t];
+                exponent_type e = ei * xx(i,j) - ej * xx(j,i);
+                if (e) {
+                    /* see below -- at any rate counting two coefficients
+                     * was too much ! */
+                    weights(i, j)--;
+                    weights(j, i)--;
+                    continue;
+                }
+#endif
+                /* ok, after all these do not have a coefficient
+                 * here ! Two small catches: because our a priori update
+                 * above added a contribution twice for this cell, we
+                 * need to subtract two. Also, since we don't know
+                 * whether i<j or j<i, we update both... */
+                weights(i, j) -= 2;
+                weights(j, i) -= 2;
+            }
+        }
+    }
+
+    /* make some final adjustments */
+    for(size_t s = 0 ; s < wj ; s++) {
+        for(size_t t = s + 1 ; t < wj ; t++) {
+#if FOR_DL
+            /* how about the max coefficent when we combine rows s and t ? */
+            exponent_type e = emax[s] * std::abs(xx(s,t)) + emax[t] * std::abs(xx(t,s));
+            if (e > 32)
+                weights(s, t) = INT_MAX;
+#endif
+            /* make the matrix symmetric */
+            weights(t,s) = weights(s,t);
+        }
+        weights(s,s) = INT_MAX;
+    }
+
+    return weights;
+}/*}}}*/
+
 /* {{{ parallel_pivot */
 /* There's a virtual ordering here, namely that we do the 0-th merge on
  * node 0, then the 0-th merge on node 1, etc, until the (n-1)-th merge
@@ -1644,8 +1796,6 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
 
         std::pair<int, std::vector<std::pair<int, int>>> mst;
 
-        matrix<int> weights(wj,wj,INT_MAX);
-
         if (wj == 1) {
             mst.first = -batch[0].size();
         } else if (wj == 2) {
@@ -1682,6 +1832,9 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
              * Overall the cost will become O(w*L*log(w)+w'*L'^2+w^2),
              * which should be somewhat faster.
              */
+
+#if 0
+            matrix<int> weights(wj,wj,INT_MAX);
             for(col_weight_t k = 0 ; k < wj ; k++) {
                 for(col_weight_t l = k + 1 ; l < wj ; l++) {
                     int s = row_combiner(batch[k], batch[l], j).mst_score();
@@ -1690,6 +1843,19 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
                 }
             }
             mst = minimum_spanning_tree(weights);
+#else
+#if 0
+            matrix<int> weights2 = batch_compute_weights(batch, j);
+            for(col_weight_t k = 0 ; k < wj ; k++) {
+                for(col_weight_t l = k + 1 ; l < wj ; l++) {
+                    int s = row_combiner(batch[k], batch[l], j).mst_score();
+                    ASSERT_ALWAYS(weights2(k,l) == s);
+                    ASSERT_ALWAYS(weights2(l,k) == s);
+                }
+            }
+#endif
+            mst = minimum_spanning_tree(batch_compute_weights(batch, j));
+#endif
         }
 
         /* Do the merge, but locally first */
@@ -1761,20 +1927,27 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
      */
     typedef std::pair<size_t, size_t> pq_t;
     std::priority_queue<pq_t, std::vector<pq_t>, std::greater<pq_t>> next;
-    for(size_t r = 0 ; r < out.size() ; r++) {
-        size_t i = out[r];
-        if (rows[i].second) {
-            next.push(std::make_pair(rows[i].first[0].index(), r));
-            ii[r]++;
+
+    auto advance_and_push = [this, &ii, in, out, &next](size_t r) {
+        size_t i = r < out.size() ? out[r] : in[r-out.size()].first;
+        merge_matrix::rows_t::reference R(this->rows[i]);
+        for( ; ii[r] < R.second ; ii[r]++) {
+            size_t j = R.first[ii[r]].index();
+            ASSERT(this->is_my_col(j));
+            size_t lj = j / this->comm_size;
+            if (this->R_table[lj])
+                break;
+            col_weights[lj] += r < out.size() ? -1 : 1;
+            /* don't do ncols-- just now, as we might increase the column
+             * weight later on if j is both in and out */
         }
-    }
-    for(size_t r = 0 ; r < in.size() ; r++) {
-        size_t i = in[r].first;
-        if (rows[i].second) {
-            next.push(std::make_pair(rows[i].first[0].index(), r + out.size()));
-            ii[r+out.size()]++;
-        }
-    }
+        if (ii[r] < R.second)
+            next.push(std::make_pair(R.first[ii[r]].index(), r));
+    };
+
+    for(size_t r = 0 ; r < out.size() + in.size() ; r++)
+        advance_and_push(r);
+
     std::vector<size_t> local;
     for( ; !next.empty() ; ) {
         local.clear();
@@ -1785,11 +1958,8 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
             size_t r = me.second;
             local.push_back(r);
             next.pop();
-            size_t i = r < out.size() ? out[r] : in[r-out.size()].first;
-            if (ii[r] < rows[i].second) {
-                next.push(std::make_pair(rows[i].first[ii[r]].index(), r));
-                ii[r]++;
-            }
+            ii[r]++;
+            advance_and_push(r);
         }
 
         /* We have a j in common, right ? It must be ours */
