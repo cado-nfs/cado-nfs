@@ -769,7 +769,7 @@ void merge_matrix::clear_R_table()/*{{{*/
 void merge_matrix::prepare_R_table()/*{{{*/
 {
     // double tt = seconds();
-    // clear_R_table();
+    clear_R_table();
     if (R_table.empty()) {
         R_table.assign(col_weights.size(), R_pool_t::size_type());
     }
@@ -779,14 +779,9 @@ void merge_matrix::prepare_R_table()/*{{{*/
     std::vector<uint8_t> minpos(col_weights.size(), 0);
     for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
         if (!col_weights[lj]) continue;
-        if (col_weights[lj] > (col_weight_t) cwmax) {
-            ASSERT_ALWAYS(!R_table[lj]);
+        if (col_weights[lj] > (col_weight_t) cwmax)
             continue;
-        }
-        if (R_table[lj]) {
-            minpos[lj] = max8;
-            continue;
-        }
+        ASSERT_ALWAYS(!R_table[lj]);
         R_table[lj] = R_pool.alloc(col_weights[lj]);
     }
 
@@ -825,7 +820,6 @@ void merge_matrix::prepare_R_table()/*{{{*/
         col_weight_t w = col_weights[lj];
         if (!w) continue;
         if (w > (col_weight_t) cwmax) continue;
-        if (minpos[lj] == max8) continue;
         ASSERT_ALWAYS(pos[lj] == w);
         R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
         row_weight_t w0 = Rx[minpos[lj]].second;
@@ -2091,6 +2085,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
          * this function also updates markowitz_table */
         prepare_R_table();
         // expensive_check();
+        //
+
+        std::cout << R_pool << "\n";
 
         remove_singletons_iterate();
 
@@ -2118,15 +2115,9 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
                  */
                 markowitz_table.pop();
 
-                /* if the best score is a (cwmax+1)-merge, then we'd better
-                 * schedule a re-scan of all potential (cwmax+1)-merges
-                 * before we process this one */
-                if (col_weights[q.first / comm_size] > (col_weight_t) cwmax) {
-                    if (cwmax < maxlevel)
-                        markowitz_table.clear();
-                } else {
-                    merge_proposal.push_back(q);
-                }
+                /* now that we have batch_Rj_update, this can be asserted */
+                ASSERT_ALWAYS(col_weights[q.first / comm_size] <= (col_weight_t) cwmax);
+                merge_proposal.push_back(q);
             }
 
             /* Make sure that the "best" merges really go first, and that

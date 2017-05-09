@@ -109,7 +109,7 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
     std::ostream& print(std::ostream& o) const {
         o << "width " << width
             << ", allocated " << size()
-            << " (" << ((size() * width * sizeof(T)) >> 20) << " MB)"
+            << " (" << ((data.capacity() * sizeof(T)) >> 10) << " kB)"
             << ", holes " << holes;
         /*
         if (holes) {
@@ -224,7 +224,7 @@ public:
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
     friend class small_size_pool_printer<self>;
-    small_size_pool_printer<self> printer(std::string const& s) { return small_size_pool_printer<self>(*this, s); }
+    small_size_pool_printer<self> printer(std::string const& s) const { return small_size_pool_printer<self>(*this, s); }
     std::ostream& print(std::ostream& o) const { return o << printer(""); }
 #endif
 };
