@@ -36,6 +36,20 @@
 static const int compact_column_index_size = 8;
 static const int merge_row_heap_batch_size = 16384;
 
+template<typename T>
+struct averaging {
+    T sum = 0;
+    T sum2 = 0;
+    int n = 0;
+    averaging operator+=(T const & v) { n++; sum+=v; sum2+=v*v; return *this; }
+    int nsamples() const { return n; }
+    T average() const { return sum / n; }
+    T sdev() const { T a = average(); return sqrt(sum2 / n - a*a); }
+};
+
+
+std::map<int, averaging<double>> wmat_timings;
+
 static void declare_usage(param_list pl)/*{{{*/
 {
     param_list_decl_usage(pl, "mat", "input purged file");
@@ -754,16 +768,25 @@ void merge_matrix::clear_R_table()/*{{{*/
 void merge_matrix::prepare_R_table()/*{{{*/
 {
     // double tt = seconds();
-    clear_R_table();
-    for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
-        if (!col_weights[lj]) continue;
-        if (col_weights[lj] > (col_weight_t) cwmax) continue;
-        R_table[lj] = R_pool.alloc(col_weights[lj]);
+    // clear_R_table();
+    if (R_table.empty()) {
+        R_table.assign(col_weights.size(), R_pool_t::size_type());
     }
-    // printf("# Time for allocating R: %.2f s\n", seconds()-tt);
-    // tt=seconds();
     ASSERT_ALWAYS(cwmax <= std::numeric_limits<uint8_t>::max());
     std::vector<uint8_t> pos(col_weights.size(), 0);
+    for(size_t lj = 0 ; lj < col_weights.size() ; lj++) {
+        if (!col_weights[lj]) continue;
+        if (col_weights[lj] > (col_weight_t) cwmax) {
+            ASSERT_ALWAYS(!R_table[lj]);
+            continue;
+        }
+        if (R_table[lj]) {
+            pos[lj] = col_weights[lj];
+            continue;
+        }
+        R_table[lj] = R_pool.alloc(col_weights[lj]);
+    }
+
     /* We need a window of known row weights. Because it's somewhat
      * inefficient to to the Allreduce for each new row, we batch it
      * a little.
@@ -786,8 +809,9 @@ void merge_matrix::prepare_R_table()/*{{{*/
             size_t lj = ptr[k].index() / comm_size;
             if (!R_table[lj]) continue;
             col_weight_t w = col_weights[lj];
-            R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
+            if (pos[lj] == w) continue;
             ASSERT_ALWAYS(pos[lj] < w);
+            R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
             Rx[pos[lj]++]=std::make_pair(it.i, this_rw);
         }
     }
@@ -1833,29 +1857,21 @@ std::vector<size_t> merge_matrix::parallel_pivot(std::vector<size_t> const & my_
              * which should be somewhat faster.
              */
 
-#if 0
-            matrix<int> weights(wj,wj,INT_MAX);
-            for(col_weight_t k = 0 ; k < wj ; k++) {
-                for(col_weight_t l = k + 1 ; l < wj ; l++) {
-                    int s = row_combiner(batch[k], batch[l], j).mst_score();
-                    weights(k,l) = s;
-                    weights(l,k) = s;
+            double tt = seconds();
+            if (wj <= 4) {
+                matrix<int> weights(wj,wj,INT_MAX);
+                for(col_weight_t k = 0 ; k < wj ; k++) {
+                    for(col_weight_t l = k + 1 ; l < wj ; l++) {
+                        int s = row_combiner(batch[k], batch[l], j).mst_score();
+                        weights(k,l) = s;
+                        weights(l,k) = s;
+                    }
                 }
+                mst = minimum_spanning_tree(weights);
+            } else {
+                mst = minimum_spanning_tree(batch_compute_weights(batch, j));
             }
-            mst = minimum_spanning_tree(weights);
-#else
-#if 0
-            matrix<int> weights2 = batch_compute_weights(batch, j);
-            for(col_weight_t k = 0 ; k < wj ; k++) {
-                for(col_weight_t l = k + 1 ; l < wj ; l++) {
-                    int s = row_combiner(batch[k], batch[l], j).mst_score();
-                    ASSERT_ALWAYS(weights2(k,l) == s);
-                    ASSERT_ALWAYS(weights2(l,k) == s);
-                }
-            }
-#endif
-            mst = minimum_spanning_tree(batch_compute_weights(batch, j));
-#endif
+            wmat_timings[wj] += seconds()-tt;
         }
 
         /* Do the merge, but locally first */
@@ -2294,6 +2310,15 @@ int main(int argc, char *argv[])
     if (!M.comm_rank) {
         printf("Total merge time: %.2f seconds\n", seconds());
         print_timing_and_memory(stdout, wct0);
+
+        printf("weight matrix timings\n");
+        for(auto const& v: wmat_timings) {
+            printf("weight %d, avg %.2f~%.2f over %d samples\n",
+                    v.first,
+                    v.second.average(),
+                    v.second.sdev(),
+                    v.second.nsamples());
+        }
     }
 
     MPI_Finalize();
