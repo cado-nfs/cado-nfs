@@ -271,13 +271,18 @@ struct merge_matrix {
             if (!comm_rank) {
                 long vmsize = Memusage();
                 long vmrss = Memusage2();
-                size_t explained =0;
-                explained += rows.allocated_bytes();
-                explained += R_pool.allocated_bytes();
-                explained += col_weights.capacity()*sizeof(col_weight_t);
-                explained += R_table.capacity()*sizeof(R_pool_t::size_type);
-                explained += markowitz_table.allocated_bytes();
-                explained += heavy_rows.allocated_bytes();
+
+                size_t explained = 0;
+                std::map<std::string, size_t> contrib;
+                contrib["rows"] = rows.allocated_bytes();
+                contrib["R_pool.alloc"] = R_pool.allocated_bytes();
+                contrib["col_weights"] = col_weights.capacity()*sizeof(col_weight_t);
+                contrib["R_table"] = R_table.capacity()*sizeof(R_pool_t::size_type);
+                contrib["markowitz_table"] = markowitz_table.allocated_bytes();
+                contrib["heavy_rows"] = heavy_rows.allocated_bytes();
+                for(auto const& x: contrib)
+                    explained += x.second;
+
 
                 printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
                         nrows, nrows-global_ncols, cwmax, global_weight,
@@ -285,8 +290,10 @@ struct merge_matrix {
                         mq,
                         /* Beware: those are local only */
                         explained/1048576., vmrss/1024.0, vmsize/1024.0);
-                printf("done %zu %d-merges, discarded %zu (%.1f%%)\n",
+                printf("# done %zu %d-merges, discarded %zu (%.1f%%)\n",
                         dm, cwmax, xm, 100.0 * xm / dm);
+                for(auto const& x: contrib)
+                    printf("# %s: %zu kb\n", x.first.c_str(), x.second >> 10);
                 /*
                    printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                    printf("# R %.1f + %.1f + %.1f\n",
