@@ -25,7 +25,7 @@
 #include "compressible_heap.hpp"
 #include "get_successive_minima.hpp"
 
-#define R_TABLE_USES_SMALL_SIZE_POOL
+#define xxxR_TABLE_USES_SMALL_SIZE_POOL
 
 #ifdef R_TABLE_USES_SMALL_SIZE_POOL
 #define DEBUG_SMALL_SIZE_POOL
@@ -1131,7 +1131,7 @@ struct row_combiner /*{{{*/ {
                 return b;
             }
         };
-        store_record check_coeff;
+        static store_record check_coeff;
 #endif
 
         row_weight_t n2 = sumweight;
