@@ -2087,7 +2087,8 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
         // expensive_check();
         //
 
-        std::cout << R_pool << "\n";
+        if (!comm_rank)
+            std::cout << R_pool << "\n";
 
         remove_singletons_iterate();
 
