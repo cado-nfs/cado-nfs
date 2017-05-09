@@ -24,8 +24,8 @@
 #include "indexed_priority_queue.hpp"
 #include "compressible_heap.hpp"
 #include "get_successive_minima.hpp"
-#define DEBUG_SMALL_SIZE_POOL
-#include "small_size_pool.hpp"
+// #define DEBUG_SMALL_SIZE_POOL
+// #include "small_size_pool.hpp"
 #include "minimum_spanning_tree.hpp"
 
 /* NOTE: presently this value has a very significant impact on I/O speed
@@ -193,7 +193,7 @@ struct merge_matrix {
     /* {{{ column-oriented structures. We have several types of columns:
      *  - "buried" columns. They're essentially deleted from the matrix
      *    forever.
-     *  - "inactive" columns, for which R_table[j]==0
+     *  - "inactive" columns, for which R_table[j]==NULL
      *  - "active" columns, for which col_weights[j] <= cwmax (cwmax loops
      *    from 2 to maxlevel).
      */
@@ -208,9 +208,8 @@ struct merge_matrix {
      *
      * Note that this is inherently tied to the col_weights vector !
      */
-    typedef small_size_pool<std::pair<size_t, row_weight_t>, col_weight_t, 1> R_pool_t;
-    R_pool_t R_pool;
-    std::vector<R_pool_t::size_type> R_table;
+    typedef std::pair<size_t, row_weight_t> indirection_t;
+    std::vector<indirection_t *> R_table;
     void clear_R_table();
     void prepare_R_table();
     size_t count_columns_below_weight(size_t *nbm, size_t wmax);
@@ -290,9 +289,9 @@ struct merge_matrix {
                 size_t explained = 0;
                 std::map<std::string, size_t> contrib;
                 contrib["rows"] = rows.allocated_bytes();
-                contrib["R_pool.alloc"] = R_pool.allocated_bytes();
                 contrib["col_weights"] = col_weights.capacity()*sizeof(col_weight_t);
-                contrib["R_table"] = R_table.capacity()*sizeof(R_pool_t::size_type);
+                // contrib["R_pool.alloc"] = R_pool.allocated_bytes();
+                // contrib["R_table"] = R_table.capacity()*sizeof(R_pool_t::size_type);
                 contrib["markowitz_table"] = markowitz_table.allocated_bytes();
                 contrib["heavy_rows"] = heavy_rows.allocated_bytes();
                 for(auto const& x: contrib)
@@ -421,7 +420,7 @@ void merge_matrix::expensive_check()/*{{{*/
             size_t lj = ptr->index() / comm_size;
             if (!R_table.empty() && R_table[lj]) {
                 col_weight_t w = col_weights[lj];
-                R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
+                indirection_t * Rx = R_table[lj];
                 ASSERT_ALWAYS(check[lj] < w);
                 ASSERT_ALWAYS(Rx[check[lj]].first == i);
                 ASSERT_ALWAYS(Rx[check[lj]].second == s);
@@ -768,9 +767,7 @@ void merge_matrix::renumber_columns()
 
 void merge_matrix::clear_R_table()/*{{{*/
 {
-    R_table.clear();
-    R_pool.clear();
-    R_table.assign(col_weights.size(), R_pool_t::size_type());
+    R_table.assign(col_weights.size(), NULL);
 }
 /* }}} */
 void merge_matrix::prepare_R_table()/*{{{*/
@@ -778,7 +775,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
     // double tt = seconds();
     clear_R_table();
     if (R_table.empty()) {
-        R_table.assign(col_weights.size(), R_pool_t::size_type());
+        R_table.assign(col_weights.size(), NULL);
     }
     const uint8_t max8 = std::numeric_limits<uint8_t>::max();
     ASSERT_ALWAYS(cwmax <= max8);
@@ -789,7 +786,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
         if (col_weights[lj] > (col_weight_t) cwmax)
             continue;
         ASSERT_ALWAYS(!R_table[lj]);
-        R_table[lj] = R_pool.alloc(col_weights[lj]);
+        R_table[lj] = new indirection_t[col_weights[lj]];
     }
 
     /* We need a window of known row weights. Because it's somewhat
@@ -816,7 +813,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
             col_weight_t w = col_weights[lj];
             if (minpos[lj] == max8) continue;
             ASSERT_ALWAYS(pos[lj] < w);
-            R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
+            indirection_t * Rx = R_table[lj];
             Rx[pos[lj]]=std::make_pair(it.i, this_rw);
             if (this_rw < Rx[minpos[lj]].second)
                 minpos[lj]=pos[lj];
@@ -828,7 +825,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
         if (!w) continue;
         if (w > (col_weight_t) cwmax) continue;
         ASSERT_ALWAYS(pos[lj] == w);
-        R_pool_t::value_type * Rx = R_pool(w, R_table[lj]);
+        indirection_t * Rx = R_table[lj];
         row_weight_t w0 = Rx[minpos[lj]].second;
         size_t j = comm_size * lj + comm_rank;
         markowitz_table.push(std::make_pair(j, markowitz_count(j, w0, w)));
@@ -893,7 +890,7 @@ size_t merge_matrix::remove_singletons()/*{{{*/
          * R table entries for these columns.
          */
         if (col_weights[lj] == 1 && R_table[lj]) {
-            R_pool_t::value_type * Rx = R_pool(1, R_table[lj]);
+            indirection_t * Rx = R_table[lj];
             killed.push_back(Rx[0].first);
         }
     }
@@ -1357,7 +1354,7 @@ void collective_merge_operation::deduce_and_share_rows(merge_matrix const& M)/*{
         ASSERT_ALWAYS(wj <= w);
         if (!wj) continue;
         ASSERT_ALWAYS(M.R_table[lj]);
-        const merge_matrix::R_pool_t::value_type * Rx = M.R_pool(wj, M.R_table[lj]);
+        const merge_matrix::indirection_t * Rx = M.R_table[lj];
         // my_row_indices[q].assign(Rx, Rx + wj);
         for(size_t s = 0 ; s < (size_t) wj ; s++)
             flat_row_table[(comm_rank * n + q) * w + s] = Rx[s].first;
@@ -1977,7 +1974,8 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
          * reasonable to do it.
          */
         if (w0 + sizediff > cwmax) {
-            R_pool.free(col_weights[lj], R_table[lj]);
+            delete[] R_table[lj];
+            R_table[lj]=NULL;
             col_weights[lj] = w1;
             /* don't forget to take it off the priority queue, or we'll
              * have a very bizarre situation */
@@ -2005,11 +2003,8 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
          * allocate a new area, and free afterwards.
          */
 
-        R_pool_t::size_type T0 = R_table[lj];
-        R_pool_t::size_type T1 = R_pool.alloc(w1);
-
-        const R_pool_t::value_type * Rx0 = R_pool(w0, T0);
-        R_pool_t::value_type * Rx1 = R_pool(w1, T1);
+        const indirection_t * Rx0 = R_table[lj];
+        indirection_t * Rx1 = new indirection_t[w1];
 
         /* Do the markowitz count while we're at it */
         size_t minrw = SIZE_MAX;
@@ -2019,8 +2014,9 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         std::vector<std::pair<size_t, row_weight_t>>::const_iterator xin = Lin.begin();
         std::vector<size_t>::const_iterator xout = Lout.begin();
 
-        const R_pool_t::value_type * p = Rx0;
-        R_pool_t::value_type * q = Rx1;
+        const indirection_t * p = Rx0;
+        indirection_t * q = Rx1;
+
         for( ; p != Rx0 + w0 && xout != Lout.end();) {
             for( ; p != Rx0 + w0 && p->first < *xout ; *q++ = *p++) {
                 if (p->second < minrw)
@@ -2049,8 +2045,8 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
         }
         ASSERT_ALWAYS(xin == Lin.end());
 
-        R_pool.free(w0, T0);
-        R_table[lj] = T1;
+        delete[] Rx0;
+        R_table[lj] = Rx1;
         col_weights[lj] = w1;
         if (w1 == 0) ncols--;
 
@@ -2092,10 +2088,6 @@ void merge_matrix::parallel_merge(size_t batch_size)/*{{{*/
          * this function also updates markowitz_table */
         prepare_R_table();
         // expensive_check();
-        //
-
-        if (!comm_rank)
-            std::cout << R_pool << "\n";
 
         remove_singletons_iterate();
 
