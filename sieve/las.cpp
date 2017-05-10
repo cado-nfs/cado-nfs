@@ -557,6 +557,10 @@ bool parse_default_siever_config(siever_config & sc, param_list_ptr pl)
 
     }
 
+    // Sublattices?
+    sc.sublat.m = 0; // no sublattices by default.
+    param_list_parse_uint(pl, "sublat", &(sc.sublat.m));
+
     /* Parse optional siever configuration parameters */
     sc.td_thresh = 1024;	/* default value */
     sc.skipped = 1;	/* default value */
@@ -1965,7 +1969,7 @@ void factor_survivors_data::search_survivors(timetree_t & timer)
         search_survivors_in_line(both_S, both_bounds,
                                  si.conf.logI_adjusted, j + first_j, N,
                                  si.j_div, si.conf.unsieve_thresh,
-                                 si.us, survivors);
+                                 si.us, survivors, si.conf.sublat);
         /* Survivors written by search_survivors_in_line() have index
            relative to their j-line. We need to convert to index within
            the bucket region by adding line offsets. */
@@ -2146,8 +2150,11 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
             /* Compute the norms using the polynomials transformed to 
                i,j-coordinates. The transformed polynomial on the 
                special-q side is already divided by q */
+            // Note that are, (i,j) must be true coordinates, not the
+            // ones reduced to (-I/2, I/2) using sublattices.
             NxToIJ (&i, &j, N, x, si);
-		mpz_poly_homogeneous_eval_siui (norm[side], si.sides[side].fij, i, j);
+            adjustIJsublat(&i, &j, si);
+            mpz_poly_homogeneous_eval_siui (norm[side], si.sides[side].fij, i, j);
 
 #ifdef TRACE_K
             if (trace_on_spot_ab(a, b)) {
@@ -2497,7 +2504,10 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
 	    init_norms_bucket_region(S[side], i, si, side, 0);
 #endif
             // Invalidate the first row except (1,0)
-            if (side == 0 && i == 0) {
+            // TODO: in sublat mod, we keep all the (i0,0), which is useless.
+            if (side == 0 && i == 0 && 
+                 ((si.conf.sublat.m == 0) || si.conf.sublat.j0 == 0))
+            {
                 int pos10 = 1+((si.I)>>1);
                 unsigned char n10 = S[side][pos10];
                 memset(S[side], 255, si.I);
@@ -2655,6 +2665,8 @@ static void declare_usage(param_list pl)/*{{{*/
   param_list_decl_usage(pl, "q0",   "left bound of special-q range");
   param_list_decl_usage(pl, "q1",   "right bound of special-q range");
   param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
+  param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
+  param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
   param_list_decl_usage(pl, "v",    "(switch) verbose mode, also prints sieve-area checksums");
   param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
   param_list_decl_usage(pl, "t",   "number of threads to use");
@@ -2662,6 +2674,7 @@ static void declare_usage(param_list pl)/*{{{*/
 
   param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
   param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
+  param_list_decl_usage(pl, "sublat", "modulus for sublattice sieving");
   param_list_decl_usage(pl, "skew", "(alias S) skewness");
   param_list_decl_usage(pl, "lim0", "factor base bound on side 0");
   param_list_decl_usage(pl, "lim1", "factor base bound on side 1");
@@ -2679,7 +2692,7 @@ static void declare_usage(param_list pl)/*{{{*/
   param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
   param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh");
   param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes p >= bkthresh1");
-  param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
+  param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation");
   param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
 
   param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=2");
@@ -3027,6 +3040,24 @@ int main (int argc0, char *argv0[])/*{{{*/
             mpz_poly_fprintf(las.output, si.sides[1].fij);
         }
 
+/* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
+unsigned int sublat_bound = si.conf.sublat.m;
+if (sublat_bound == 0)
+    sublat_bound = 1;
+for (unsigned int i_cong = 0; i_cong < sublat_bound; ++i_cong) {
+for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
+    if (si.conf.sublat.m) {
+        if (i_cong == 0 && j_cong == 0)
+            continue;
+        si.conf.sublat.i0 = i_cong;
+        si.conf.sublat.j0 = j_cong;
+        verbose_output_print(0, 1, "# Sublattice (i,j) == (%u, %u) mod %u\n",
+                si.conf.sublat.i0, si.conf.sublat.j0, si.conf.sublat.m);
+    }
+/* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
+/* The loop on different (i,j) mod m starts here (?) */
+        
+
         /* essentially update the fij polynomials and the max log bounds */
         si.update_norm_data();
 
@@ -3136,7 +3167,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                             (slice = fb->get_slice(slice_index)) != NULL; 
                             slice_index++) {  
                         precomp_plattice[side][level].push_back(
-                                slice->make_lattice_bases(si.qbasis, si.conf.logI_adjusted));
+                                slice->make_lattice_bases(si.qbasis, si.conf.logI_adjusted, si.conf.sublat));
                     }
                 }
             }
@@ -3192,6 +3223,23 @@ int main (int argc0, char *argv0[])/*{{{*/
                 free(ts.rsdpos);
             }
         }
+        for(int side = 0 ; side < 2 ; side++) {
+            small_sieve_clear(si.sides[side].ssd);
+            small_sieve_clear(si.sides[side].rsd);
+        }
+
+
+/* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
+/* The loop on different (i,j) mod m ends here (?) */
+}
+}
+if (si.conf.sublat.m) {
+    for (int side = 0 ; side < 2 ; side++) {
+        for (unsigned int i = 0; i < si.sides[side].precomp_plattice_dense.size(); ++i) {
+            delete si.sides[side].precomp_plattice_dense[i];
+        }
+    }
+}
 
 
 #ifdef  DLP_DESCENT
@@ -3262,11 +3310,6 @@ int main (int argc0, char *argv0[])/*{{{*/
 
         BOOKKEEPING_TIMER(timer_special_q);
 
-        /* clear */
-        for(int side = 0 ; side < 2 ; side++) {
-            small_sieve_clear(si.sides[side].ssd);
-            small_sieve_clear(si.sides[side].rsd);
-        }
         qt0 = seconds() - qt0;
 
         pool->accumulate(timer_special_q);

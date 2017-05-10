@@ -97,8 +97,11 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
 
     for(int side = 0 ; side < 2 ; side++) {
         mpz_init(traced_norms[side]);
+        int i = trace_ij.i;
+        unsigned j = trace_ij.j;
+        adjustIJsublat(&i, &j, si);
         mpz_poly_homogeneous_eval_siui(traced_norms[side], 
-                si.sides[side].fij, trace_ij.i, trace_ij.j);
+                si.sides[side].fij, i, j);
     }
 }
 

@@ -7,6 +7,7 @@
 /*  Forward declarations of conversion functions */
 void xToIJ(int *i, unsigned int *j, const uint64_t X, sieve_info const & si);
 void NxToIJ(int *i, unsigned int *j, const unsigned int N, const unsigned int x, sieve_info const & si);
+void adjustIJsublat(int *i, unsigned int *j, sieve_info const & si);
 
 void IJTox(uint64_t * x, int i, unsigned int j, sieve_info const & si);
 void IJToNx(unsigned int *N, unsigned int * x, int i, unsigned int j, sieve_info const & si);
@@ -27,6 +28,10 @@ static inline void xToAB(int64_t *a, uint64_t *b, const uint64_t x, sieve_info c
 
     i = (x & (I - 1)) - (I >> 1);
     j = x >> si.conf.logI_adjusted;
+    if (si.conf.sublat.m != 0) {
+        i = i*si.conf.sublat.m + si.conf.sublat.i0;
+        j = j*si.conf.sublat.m + si.conf.sublat.j0;
+    }
     *a = (int64_t) i * si.qbasis.a0 + (int64_t) j * si.qbasis.a1;
     c =  (int64_t) i * si.qbasis.b0 + (int64_t) j * si.qbasis.b1;
     if (c >= 0)
@@ -52,7 +57,11 @@ static inline void xToABmpz(mpz_t a, mpz_t b,
 
     i = (x & (I - 1)) - (I >> 1);
     j = x >> si.conf.logI_adjusted;
-    
+    if (si.conf.sublat.m != 0) {
+        i = i*si.conf.sublat.m + si.conf.sublat.i0;
+        j = j*si.conf.sublat.m + si.conf.sublat.j0;
+    }
+
     mpz_t aux_i, aux_j;
     mpz_t aux;
     mpz_init(aux);

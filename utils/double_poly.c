@@ -585,7 +585,7 @@ MAYBE_UNUSED static int double_poly_cmp(double_poly_ptr a, double_poly_ptr b)
 /*
  * f = mul * g.
  */
-static void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
+void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
     double mul)
 {
   if (g->deg < 0) {

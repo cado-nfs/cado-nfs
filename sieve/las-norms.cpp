@@ -1456,6 +1456,8 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
       double_poly dpoly;
       double_poly_init (dpoly, cpoly->pols[side]->deg);
       double_poly_set_mpz_poly (dpoly, cpoly->pols[side]);
+      if (conf.sublat.m > 0)
+          double_poly_mul_double(dpoly, dpoly, pow(conf.sublat.m, cpoly->pols[side]->deg));
       double maxnorm = get_maxnorm_alg (dpoly, fudge_factor*A/2.,
               fudge_factor*B);
       double_poly_clear (dpoly);
@@ -1702,6 +1704,11 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
             shuffle(0,0), shuffle(0,1), shuffle(1,0), shuffle(1,1),
             logI,
             100.0*(best_sum/reference-1));
+    {
+        std::ostringstream os;
+        os << "# New q-lattice: a0="<<Q.a0<<"; b0="<<Q.b0<<"; a1="<<Q.a1<<"; b1="<<Q.b1<<";\n";
+        verbose_output_print(0, 1, "%s",os.str().c_str());
+    }
 
     return adapt_threads(__func__);
 }/*}}}*/
@@ -1840,6 +1847,11 @@ sieve_info::update_norm_data()
           mpz_poly_divexact_mpz(s.fij, s.fij, si.doing.p);
       }
       double_poly_set_mpz_poly(s.fijd, s.fij);
+      // Take sublat into account: multiply all coefs by m^deg.
+      // We do it only for the floating point version, that is used to
+      // compute a bound on the norms, and in the norm_init phase.
+      if (si.conf.sublat.m > 0)
+          double_poly_mul_double(s.fijd, s.fijd, pow(si.conf.sublat.m, s.fijd->deg));
   }
 
   for (int side = 0; side < 2; ++side) {

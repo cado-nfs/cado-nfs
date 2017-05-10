@@ -163,6 +163,7 @@ struct plattice_info_t {
       /* This lattice basis might work in principle, but it generates hits in
          all locations i=1, ..., I/2-1, j = 0, all of which are useless except
          i=1, j=0.  */
+      // Note: if J>p, we are missing some hits, here.
       a1 = p;
       a0 = -((int32_t)1 << logI) + 1;
       b1 = 0;
@@ -182,6 +183,13 @@ struct plattice_info_t {
         a0 = a1 = b0 = b1 = 0;
       }
     }
+  }
+
+  plattice_info_t(int32_t aa0, uint32_t aa1, int32_t bb0, uint32_t bb1) {
+      a0 = aa0;
+      a1 = aa1;
+      b0 = bb0;
+      b1 = bb1;
   }
 
   /* Return the four coordinates, but multiplied by 2 if we use mod 2 classes */
@@ -358,6 +366,99 @@ bool
 plattice_enumerate_finished(plattice_x_t x)
 { return x >= plattice_enumerate_area<LEVEL>::value; }
 
+// Compute 1/x mod m
+// For m=2,3,6, this is trivial. Otherwise, has to be implemented
+static inline uint32_t invmod(uint32_t x, uint32_t m) {
+    if (m==2 || m==3) {
+        return x;
+    } else if (m==6) {
+        ASSERT((x==1) || (x==5));
+        return x;
+    } else {
+        ASSERT_ALWAYS(0);
+    }
+}
+
+// TODO: put this function somewhere in a class: right now it is
+// duplicated in many compilation units.
+static plattice_x_t plattice_starting_point(const plattice_info_t &pli,
+        const int logI, const sublat_t &sublat) {
+    int64_t I = int64_t(1)<<logI;
+    uint32_t m  = sublat.m;
+    uint32_t i0 = sublat.i0;
+    uint32_t j0 = sublat.j0;
+
+    // first FK vector a
+    int64_t a0 = pli.get_a0();
+    int64_t a1 = pli.get_a1();
+    // second FK vector b
+    int64_t b0 = pli.get_b0();
+    int64_t b1 = pli.get_b1();
+
+    // FIXME: should have a better understanding of those cases
+    // (and not only in the sublat case, to be honest)
+    // Right now, we desactivate them, but putting a starting point
+    // higher than the limit.
+    if ((b0 == 0) || (b1 == 0)) {
+        return plattice_x_t(UMAX(plattice_x_t));
+    }
+
+    // Look for alpha and beta such that
+    //   alpha*a + beta*b == (i0,j0) mod m
+    // This is a 2x2 system of determinant p, coprime to m.
+    int64_t det = pli.det(); // det() returns the opposite of what we want
+    det = (-det) % m;
+    if (det < 0)
+        det += m;
+    det = invmod(det, m);
+    int64_t al = ( b1*i0 - b0*j0) % m;
+    int64_t be = (-a1*i0 + a0*j0) % m;
+    al = (al*det) % m;
+    be = (be*det) % m;
+    if (al < 0)
+        al += m;
+    if (be < 0)
+        be += m;
+
+    // Now, compute this potential starting point:
+    int64_t ii = (al*a0 + be*b0 - i0) / m; // exact divisions
+    int64_t jj = (al*a1 + be*b1 - j0) / m;
+
+    // But here, ii might be beyond the bounds. So, let's fix.
+    // It should be enough to subtract one of the FK vectors.
+    // Note that a is the vector with negative abscissa.
+    if (ii < -I/2) {
+        ASSERT(ii - a0 >= 0);
+        ii -= a0;
+        jj -= a1;
+    } else if (ii > I/2-1) {
+        ASSERT(ii - b0 <= 0);
+        ii -= b0;
+        jj -= b1;
+    }
+    ASSERT ((ii >= -I/2) && (ii < I/2));
+
+    // But now, jj might be negative! So let's start the FK walk until we
+    // go positive.
+    while (jj < 0) {
+        int64_t aux = ii;
+        if (aux >= I/2 - b0) {
+            ii += a0;
+            jj += a1;
+        }
+        if (aux < -I/2 - a0) {
+            ii += b0;
+            jj += b1;
+        }
+    }
+
+    // Now, (ii,jj) is the starting point we are looking for. Let's
+    // convert it to the plattice_x_t type.
+    plattice_x_t res = (ii+I/2) + (jj<<logI);
+    return res;
+}
+
+
 
 /* Class for enumerating lattice points with the Franke-Kleinjung algorithm */
 // Note: we would have liked to template this class by LEVEL.
@@ -383,6 +484,21 @@ public:
     }
 
     plattice_enumerate_t(const plattice_info_t &basis,
+            const slice_offset_t hint, const int logI, const sublat_t &sublat)
+        : hint(hint)
+    {
+        inc_a = basis.get_inc_a(logI);
+        inc_c = basis.get_inc_c(logI);
+        bound0 = basis.get_bound0(logI);
+        bound1 = basis.get_bound1(logI);
+        if (!sublat.m) 
+            x = plattice_x_t(1) << (logI-1);
+        else {
+            x = plattice_starting_point(basis, logI, sublat);
+        }
+    }
+
+    plattice_enumerate_t(const plattice_info_t &basis,
             const slice_offset_t hint, const int logI)
         : hint(hint)
     {
@@ -392,6 +508,7 @@ public:
         bound1 = basis.get_bound1(logI);
         x = plattice_x_t(1) << (logI-1);
     }
+
 
     plattice_enumerate_t(const plattice_enumerate_t& src)
         : hint(src.hint)
@@ -429,8 +546,8 @@ class plattice_enumerate_coprime_t : public plattice_enumerate_t {
   unsigned long u, v;
 public:
   plattice_enumerate_coprime_t(const plattice_info_t &basis,
-          const slice_offset_t hint, const int logI)
-    : plattice_enumerate_t(basis, hint, logI), u(0), v(0) {}
+          const slice_offset_t hint, const int logI, const sublat_t &sublat)
+    : plattice_enumerate_t(basis, hint, logI, sublat), u(0), v(0) {}
   void next() {
     uint32_t i = x & maskI;
     if (i >= bound1) {
@@ -453,6 +570,65 @@ public:
     plattices_vector_t(const slice_index_t index) : index(index) {}
     slice_index_t get_index() const {return index;};
 };
+
+
+/* Dense version of plattice_info_t and friends for long-term storage in
+ * sublat mode. */
+
+struct plattice_info_dense_t {
+    uint16_t minus_a0;  // a0 is always non-positive, so we store its opposite
+    uint16_t b0;        // in order to fit in 16 bits.
+    uint32_t a1;
+    uint32_t b1;
+    uint16_t hint; // FIXME: this could be recovered for free...
+
+    plattice_info_dense_t(const plattice_info_t & pli, uint16_t _hint) {
+        hint = _hint;
+        // Handle orthogonal lattices (proj and r=0 cases)
+        if (pli.b0 == 1 && pli.b1 == 0) {
+            b0 = 1;
+            b1 = 0;
+            minus_a0 = UMAX(uint16_t);
+            a1 = pli.a1;
+        } else if (pli.b0 == 0 && pli.b1 == 1) {
+            b0 = 0;
+            b1 = 1;
+            minus_a0 = UMAX(uint16_t);
+            a1 = pli.a1;
+        } else {
+            // generic case: true FK-basis
+            ASSERT(pli.b0 >= 0);
+            ASSERT(pli.a0 <= 0);
+            ASSERT(uint32_t(-pli.a0) <= UMAX(uint16_t));
+            ASSERT(uint32_t(pli.b0) <= UMAX(uint16_t));
+            minus_a0 = -pli.a0;
+            a1 = pli.a1;
+            b0 = pli.b0;
+            b1 = pli.b1;
+        }
+    }
+
+    plattice_info_t unpack(const int logI) const {
+        plattice_info_t pli(-int32_t(minus_a0), uint32_t(a1),
+        int32_t(b0), uint32_t(b1));
+        // Orthogonal bases
+        if (pli.b0 == 1 && pli.b1 == 0) {
+            pli.a0 = -((int32_t)1 << logI) + 1;
+        } else if (pli.b0 == 0 && pli.b1 == 1) {
+            pli.a1 = ((int32_t)1 << logI) + 1;
+        }
+        return pli;
+    }
+};
+
+class plattices_dense_vector_t:
+        public std::vector<plattice_info_dense_t>, private NonCopyable {
+    slice_index_t index;
+public:
+    plattices_dense_vector_t(const slice_index_t index) : index(index) {}
+    slice_index_t get_index() const {return index;};
+};
+
 
 
 /* This is for working with congruence classes only */

@@ -16,6 +16,7 @@
 #include "las-todo.hpp"
 #include "las-smallsieve.hpp"
 #include "las-dlog-base.hpp"
+#include "las-plattice.hpp"
 #include "ecm/batch.h"
 #include <list>
 #include <vector>
@@ -27,6 +28,8 @@
 #include <boost/make_shared.hpp>
 namespace std { using boost::shared_ptr; using boost::make_shared; }
 #endif
+
+typedef std::vector<plattices_dense_vector_t *> precomp_plattice_dense_t;
 
 struct siever_config;
 struct sieve_info;
@@ -49,6 +52,8 @@ struct siever_config {
     /* For a given logA, we may trigger configurations for various logI
      * values. logI_adjusted is a sieving-only parameter. */
     int logI_adjusted;
+    sublat_t sublat;
+
     unsigned long bucket_thresh;    // bucket sieve primes >= bucket_thresh
     unsigned long bucket_thresh1;   // primes above are 2-level bucket-sieved
     unsigned int td_thresh;
@@ -196,6 +201,9 @@ struct sieve_info {
          */
         
         std::shared_ptr<fb_factorbase> fb;
+
+        /* Caching of the FK-basis in sublat mode */
+        precomp_plattice_dense_t precomp_plattice_dense;
 
         /* When threads pick up this sieve_info structure, they should check
          * their bucket allocation */
@@ -346,6 +354,11 @@ struct las_info : private NonCopyable {
     cxx_mpz todo_q0;
     cxx_mpz todo_q1;
     FILE * todo_list_fd;
+ 
+    /* For composite special-q */
+    bool allow_composite_q;
+    uint64_t qfac_min;
+    uint64_t qfac_max;
 
     // ----- batch mode
     int batch; /* batch mode for cofactorization */

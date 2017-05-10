@@ -450,10 +450,11 @@ search_survivors_in_line(unsigned char * const SS[2],
         const unsigned char bound[2], const unsigned int log_I,
         const unsigned int j, const int N, j_divisibility_helper const & j_div,
         const unsigned int td_max, unsieve_data const & us,
-        std::vector<uint32_t> &survivors)
+        std::vector<uint32_t> &survivors, sublat_t sublat)
 {
     /* In line j = 0, only the coordinate (i, j) = (-1, 0) may survive */
-    if (j == 0) {
+    // FIXME: in sublat mode, this is broken!
+    if (j == 0 && (!sublat.m)) {
         const size_t I = (size_t) 1 << log_I;
         const unsigned char s0 = SS[0][I / 2 - 1], s1 = SS[1][I / 2 - 1];
         memset(SS[0], 255, I);
@@ -464,6 +465,26 @@ search_survivors_in_line(unsigned char * const SS[2],
         } else {
             return;
         }
+    }
+
+    // Naive version when we have sublattices, because unsieving is
+    // harder. TODO: implement a fast version
+    if (sublat.m) {
+        for (int x = 0; x < (1 << log_I); x++) {
+            if (!sieve_info_test_lognorm(bound[0], bound[1], SS[0][x], SS[1][x])) {
+                SS[0][x] = 255;
+                continue;
+            }
+            const unsigned int i = abs (int(sublat.m)*(x - (1 << (log_I - 1)))+int(sublat.i0));
+            const unsigned int jj = sublat.m*j+sublat.j0;
+            if ((((jj % 2) == 0) && ((i % 2) == 0)) ||
+                    (bin_gcd_int64_safe (i, jj) != 1)) {
+                SS[0][x] = 255;
+            } else {
+                survivors.push_back(x);
+            }
+        }
+        return;
     }
 
     unsieve_not_coprime_line(SS[0], j, td_max + 1, 1U<<log_I, us);

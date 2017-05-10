@@ -405,7 +405,7 @@ fb_vector<FB_ENTRY_TYPE>::extract_bycost(std::vector<unsigned long> &p,
 template <class FB_ENTRY_TYPE>
 plattices_vector_t *
 fb_slice<FB_ENTRY_TYPE>::make_lattice_bases(const qlattice_basis &basis,
-    const int logI) const
+    const int logI, const sublat_t &sublat) const
 {
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
   /* Create a transformed vector and store the index of the slice we currently
@@ -425,9 +425,10 @@ fb_slice<FB_ENTRY_TYPE>::make_lattice_bases(const qlattice_basis &basis,
          locations with p | gcd(i,j). */
       if (LIKELY(!proj || r == 0)) {
         plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
-        plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, logI);
-        // Skip (0,0).
-        ple.next();
+        plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, logI, sublat);
+        // Skip (0,0) unless we have sublattices.
+        if (!sublat.m)
+          ple.next();
         if (LIKELY(pli.a0 != 0)) {
           result->push_back(ple);
         }

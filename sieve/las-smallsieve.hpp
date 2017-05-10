@@ -33,9 +33,7 @@ typedef struct {
 
 typedef struct {
     ssp_marker_t * markers;
-    // primes with non-projective root
     ssp_t *ssp;
-    // primes with projective root
     int nb_ssp;
     unsigned char * logp;
 } small_sieve_data_t;

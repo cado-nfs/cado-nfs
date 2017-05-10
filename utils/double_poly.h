@@ -58,6 +58,8 @@ void double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q);
 
 void double_poly_degree(double_poly_ptr f);
 double double_poly_resultant(double_poly_srcptr p, double_poly_srcptr q);
+void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
+    double mul);
 void double_poly_swap(double_poly_ptr p, double_poly_ptr q);
 
 #ifdef __cplusplus

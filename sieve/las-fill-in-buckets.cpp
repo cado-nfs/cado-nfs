@@ -230,17 +230,156 @@ transform_n_roots(unsigned long *p, unsigned long *r, fb_iterator t,
 // doing nothing while waiting for memory.
 // Consequence: we duplicate here the code of make_lattice_bases in fb.cpp
 // FIXME: find a way to refactor that.
+//
+// With Sublat, this function can have two modes:
+//   - process the given slice, and store the corresponding FK-basis in
+//     precomp_slice for later use.
+//   - use the pre-processed precomputed FK_basis.
+// If (and only if) we are dealing with (i,j) == (0,1) mod m,
+// we are in the second mode.
+//
+//
+// FIXME FIXME FIXME: tons of duplicated code, here!!!
+// But putting if() in critical loops can kill performance (I tried...)
+
+template <int LEVEL, class FB_ENTRY_TYPE>
+void
+fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
+                sieve_info const & si MAYBE_UNUSED,
+                const fb_slice_interface * const slice,
+                plattices_dense_vector_t * precomp_slice,
+                where_am_I & w)
+{
+  ASSERT_ALWAYS(si.conf.sublat.m != 0);
+  bool first_sublat = si.conf.sublat.i0 == 0 && si.conf.sublat.j0 == 1;
+  ASSERT(slice != NULL);
+  bucket_array_t<LEVEL, shorthint_t> BA;  /* local copy. Gain a register + use stack */
+  BA.move(orig_BA);
+
+  slice_index_t slice_index = slice->get_index();
+  if (!first_sublat) {
+    ASSERT(slice_index == precomp_slice->get_index());
+  }
+
+  /* Write new set of pointers for the new slice */
+  BA.add_slice_index(slice_index);
+
+  typename FB_ENTRY_TYPE::transformed_entry_t transformed;
+
+  // FIXME: A LOT OF DUPLICATED CODE, HERE!!!
+  if (first_sublat) {
+    slice_offset_t i_entry = 0;
+    const fb_slice<FB_ENTRY_TYPE> * const sl = (const fb_slice<FB_ENTRY_TYPE> * const) slice;
+    for (const FB_ENTRY_TYPE *it = sl->begin(); it != sl->end(); it++, i_entry++) {
+      if (!si.qbasis.is_coprime_to(it->p))
+        continue;
+      it->transform_roots(transformed, si.qbasis);
+      for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
+        const fbroot_t r = transformed.get_r(i_root);
+        const bool proj = transformed.get_proj(i_root);
+        /* If proj and r > 0, then r == 1/p (mod p^2), so all hits would be in
+           locations with p | gcd(i,j). */
+        if (LIKELY(!proj || r == 0)) {
+          plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, si.conf.logI_adjusted);
+          // In sublat mode, save it for later use
+          plattice_info_dense_t plid(pli, i_entry);
+          precomp_slice->push_back(plid);
+
+          plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, si.conf.logI_adjusted, si.conf.sublat);
+
+          if (plattice_enumerate_finished<LEVEL>(ple.get_x()))
+            continue;
+          if (LIKELY(pli.a0 != 0)) {
+            const slice_offset_t hint = ple.get_hint();
+            WHERE_AM_I_UPDATE(w, h, hint);
+#ifdef TRACE_K
+            const fbprime_t p = slice->get_prime(hint); 
+            WHERE_AM_I_UPDATE(w, p, p);
+#else
+            const fbprime_t p = 0;
+#endif
+            // Handle the rare special cases
+            const uint32_t I = si.I;
+            if ((UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1))
+                ||
+                (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I))) {
+              continue;
+            }
+
+            /* Now, do the real work: the filling of the buckets */
+            // Without sublattices, we test (very basic) coprimality,
+            while (!plattice_enumerate_finished<LEVEL>(ple.get_x())) {
+              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+              ple.next();
+            }
+          } 
+        }
+      }
+    }
+  } else { // Use precomputed FK-basis
+    for (unsigned int i = 0; i < precomp_slice->size(); ++i) {
+      plattice_info_t pli = (*precomp_slice)[i].unpack(si.conf.logI_adjusted);
+      slice_offset_t i_entry = (*precomp_slice)[i].hint;
+
+      plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, si.conf.logI_adjusted, si.conf.sublat);
+
+      if (plattice_enumerate_finished<LEVEL>(ple.get_x()))
+        continue;
+      if (LIKELY(pli.a0 != 0)) {
+        const slice_offset_t hint = ple.get_hint();
+        WHERE_AM_I_UPDATE(w, h, hint);
+#ifdef TRACE_K
+        const fbprime_t p = slice->get_prime(hint); 
+        WHERE_AM_I_UPDATE(w, p, p);
+#else
+        const fbprime_t p = 0;
+#endif
+
+        // Handle the rare special cases
+        const uint32_t I = si.I;
+        if ((UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1))
+            ||
+            (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I))) {
+          continue;
+        }
+
+        /* Now, do the real work: the filling of the buckets */
+        // Without sublattices, we test (very basic) coprimality,
+        // otherwise not atm. FIXME!
+        while (!plattice_enumerate_finished<LEVEL>(ple.get_x())) {
+          BA.push_update(ple.get_x(), p, hint, slice_index, w);
+          ple.next();
+        }
+      } 
+    }
+  }
+  orig_BA.move(BA);
+}
+
 template <int LEVEL, class FB_ENTRY_TYPE>
 void
 fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
                 sieve_info const & si MAYBE_UNUSED,
                 const fb_slice_interface * const slice,
+                plattices_dense_vector_t * precomp_slice,
                 where_am_I & w)
 {
+  if (si.conf.sublat.m) {
+    // TODO: two function calls might yield a penalty, due to 
+    // instruction cache pollution (due to templating, we are talking
+    // about many, many functions, here).
+    // Could worth investigating...
+    fill_in_buckets_toplevel_sublat<LEVEL,FB_ENTRY_TYPE>(orig_BA, si, slice, 
+        precomp_slice, w);
+    return;
+  }
+
+  ASSERT(slice != NULL);
   bool first_reg = true;
   bucket_array_t<LEVEL, shorthint_t> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
-  const slice_index_t slice_index = slice->get_index();
+
+  slice_index_t slice_index = slice->get_index();
 
   /* Write new set of pointers for the new slice */
   BA.add_slice_index(slice_index);
@@ -260,8 +399,10 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
          locations with p | gcd(i,j). */
       if (LIKELY(!proj || r == 0)) {
         plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, si.conf.logI_adjusted);
+  
         plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, si.conf.logI_adjusted);
-        // Skip (0,0).
+
+        // Skip (i,j)=(0,0)
         ple.next();
         if (LIKELY(pli.a0 != 0)) {
           const slice_offset_t hint = ple.get_hint();
@@ -298,9 +439,8 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
             ple.next();
           }
-
-        } 
-      }
+        }
+      } 
     }
   }
   orig_BA.move(BA);
@@ -310,24 +450,24 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
 
 /* {{{ */
 template <int LEVEL>
-void
+  void
 fill_in_buckets(const worker_thread * worker,
-                bucket_array_t<LEVEL, shorthint_t> &orig_BA,
-                sieve_info const & si MAYBE_UNUSED,
-                plattices_vector_t *plattices_vector,
-                bool first_reg,
-                where_am_I & w)
+    bucket_array_t<LEVEL, shorthint_t> &orig_BA,
+    sieve_info const & si MAYBE_UNUSED,
+    plattices_vector_t *plattices_vector,
+    bool first_reg,
+    where_am_I & w)
 {
   CHILD_TIMER(worker->timer, __func__);
   const slice_index_t slice_index = plattices_vector->get_index();
   bucket_array_t<LEVEL, shorthint_t> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
-  
+
   /* Write new set of pointers for the new slice */
   BA.add_slice_index(slice_index);
 
   for (plattices_vector_t::iterator pl_it = plattices_vector->begin();
-       pl_it != plattices_vector->end(); pl_it++) {
+      pl_it != plattices_vector->end(); pl_it++) {
 
     // Work with a copy, otherwise we don't get all optimizations.
     // Maybe with a wise use of the 'restrict' keyword, we might get
@@ -338,7 +478,7 @@ fill_in_buckets(const worker_thread * worker,
     WHERE_AM_I_UPDATE(w, h, hint);
 #ifdef TRACE_K
     const fb_slice_interface * slice =
-        si.sides[w.side].fb->get_slice(slice_index);
+      si.sides[w.side].fb->get_slice(slice_index);
     const fbprime_t p = slice->get_prime(hint); 
     WHERE_AM_I_UPDATE(w, p, p);
 #else
@@ -349,7 +489,7 @@ fill_in_buckets(const worker_thread * worker,
     const uint32_t I = si.I;
     if (UNLIKELY(pl.get_inc_c() == 1 && pl.get_bound1() == I - 1)) {
         // Projective root: only update is at (1,0).
-        if (first_reg) {
+        if (!si.conf.sublat.m && first_reg) {
             uint64_t x = 1 + (I >> 1);
             BA.push_update(x, p, hint, slice_index, w);
         }
@@ -357,7 +497,7 @@ fill_in_buckets(const worker_thread * worker,
     }
     if (UNLIKELY(pl.get_inc_c() == I && pl.get_bound1() == I)) {
         // Root=0: only update is at (0,1).
-        if (first_reg) {
+        if (!si.conf.sublat.m && first_reg) {
             uint64_t x = I + (I >> 1);
             BA.push_update(x, p, hint, slice_index, w);
         }
@@ -365,10 +505,19 @@ fill_in_buckets(const worker_thread * worker,
     }
 
     /* Now, do the real work: the filling of the buckets */
-    while (!plattice_enumerate_finished<LEVEL>(pl.get_x())) {
-      if (LIKELY(pl.probably_coprime()))
-        BA.push_update(pl.get_x(), p, hint, slice_index, w);
-      pl.next();
+    // Without sublattices, we test (very basic) coprimality,
+    // otherwise not atm. FIXME!
+    if (!si.conf.sublat.m) {
+        while (!plattice_enumerate_finished<LEVEL>(pl.get_x())) {
+            if (LIKELY(pl.probably_coprime()))
+                BA.push_update(pl.get_x(), p, hint, slice_index, w);
+            pl.next();
+        }
+    } else {
+        while (!plattice_enumerate_finished<LEVEL>(pl.get_x())) {
+            BA.push_update(pl.get_x(), p, hint, slice_index, w);
+            pl.next();
+        }
     }
 
     // save current position, and prepare for next area.
@@ -385,12 +534,15 @@ public:
   sieve_info const & si;
   const fb_slice_interface * const slice;
   plattices_vector_t * const plattices_vector; // content changed during fill-in
+  plattices_dense_vector_t * const plattices_dense_vector; // for sublat
   const uint32_t first_region0_index;
   fill_in_buckets_parameters(thread_workspaces &_ws, const int _side,
           sieve_info const & _si, const fb_slice_interface *_slice,
-          plattices_vector_t *_platt, const uint32_t _reg0)
+          plattices_vector_t *_platt, plattices_dense_vector_t *_dplatt,
+          const uint32_t _reg0)
   : ws(_ws), side(_side), si(_si), slice(_slice),
-    plattices_vector(_platt), first_region0_index(_reg0)
+    plattices_vector(_platt), plattices_dense_vector(_dplatt),
+    first_region0_index(_reg0)
   {}
 };
 
@@ -481,29 +633,29 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
     bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
     /* Fill the buckets */
     if (param->slice->is_general())
-      fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 0)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<0> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<0> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 1)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<1> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<1> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 2)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<2> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<2> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 3)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<3> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<3> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 4)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<4> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<4> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 5)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<5> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<5> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 6)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<6> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<6> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 7)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<7> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<7> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 8)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<8> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<8> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 9)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<9> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<9> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else if (param->slice->get_nr_roots() == 10)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<10> >(BA, param->si, param->slice, w);
+      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<10> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
     else
       ASSERT_ALWAYS(0);
     /* Release bucket array again */
@@ -514,27 +666,47 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
 
 template <int LEVEL>
 static void
-fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, const fb_part *fb, sieve_info const & si, const int side)
+fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, const fb_part *fb, sieve_info & si, const int side)
 {
-  CHILD_TIMER(timer, __func__);
-    /* Process all slices in this factor base part */
-    const fb_slice_interface *slice;
+    CHILD_TIMER(timer, __func__);
     slice_index_t slices_pushed = 0;
-    for (slice_index_t slice_index = fb->get_first_slice_index();
-         (slice = fb->get_slice(slice_index)) != NULL;
-         slice_index++) {
-        fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice, NULL, 0);
-        pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
-        slices_pushed++;
+
+    if (!si.conf.sublat.m || (si.conf.sublat.i0 == 0 && si.conf.sublat.j0 == 1)) {
+        /* Process all slices in this factor base part */
+        const fb_slice_interface *slice;
+        for (slice_index_t slice_index = fb->get_first_slice_index();
+             (slice = fb->get_slice(slice_index)) != NULL;
+             slice_index++) {
+            plattices_dense_vector_t * pre = NULL;
+            if (si.conf.sublat.m) {
+                pre = new plattices_dense_vector_t(slice_index);
+                si.sides[side].precomp_plattice_dense.push_back(pre);
+            }
+            fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice, 
+                    NULL, pre, 0);
+            pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
+            slices_pushed++;
+        }
+    } else {
+        /* We are in sublat mode, and we have already done the first
+         * congruence. Re-use precomputed FK-basis */
+        for (unsigned int i=0; i < si.sides[side].precomp_plattice_dense.size(); i++){
+            plattices_dense_vector_t * pre = si.sides[side].precomp_plattice_dense[i];
+            const fb_slice_interface * slice = fb->get_slice(pre->get_index());
+            fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice,
+                    NULL, pre, 0);
+            pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
+            slices_pushed++;
+        }
     }
     for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
-      task_result *result = pool.get_result();
-      delete result;
+          task_result *result = pool.get_result();
+          delete result;
     }
-  pool.accumulate(*timer.current);
+    pool.accumulate(*timer.current);
 }
 
-void fill_in_buckets_both(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info const & si)
+void fill_in_buckets_both(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info & si)
 {
   CHILD_TIMER(timer, __func__);
   plattice_enumerate_t::set_masks(si.conf.logI_adjusted);
@@ -637,7 +809,7 @@ downsort_tree(
         pl_it++) {
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
-            (fb_slice_interface *)NULL, *pl_it, first_region0_index);
+            (fb_slice_interface *)NULL, *pl_it, NULL, first_region0_index);
       // TODO: shall we give the weight to help scheduling, here?
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0);
       slices_pushed++;

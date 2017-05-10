@@ -506,6 +506,7 @@ tests/sieve/test_init_norms_bucket_region.cpp
 tests/sieve/README
 tests/sieve/F9.sievetest.sh
 tests/sieve/F9.batchtest.sh
+tests/sieve/F9.sublat.sh
 tests/sieve/F9.tracektest.sh
 tests/sieve/F9.cofactest.sh
 tests/sieve/F9.todotest.sh

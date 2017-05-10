@@ -233,7 +233,11 @@ void small_sieve_init(small_sieve_data_t *ssd, las_info & las,
     // For typical primes, this jump is easily precomputed and goes into
     // the ssp struct.
     
+    // If we are doing sublattices modulo m, then we jump virutally m
+    // times faster.
+    unsigned int sublatm = si.conf.sublat.m;
     const unsigned int skiprows = (bucket_region >> si.conf.logI_adjusted)*(las.nb_threads-1);
+
     for (std::vector<fb_general_entry>::const_iterator iter = fb->begin() ; iter != fb->end() && index < size ; iter++) {
         /* p=pp^k, the prime or prime power in this entry, and pp is prime */
         const fbprime_t p = iter->q, pp = iter->p;
@@ -258,6 +262,15 @@ void small_sieve_init(small_sieve_data_t *ssd, las_info & las,
                 continue;
             }
             unsigned int event = 0;
+
+            if (sublatm) {
+                // In sublat mode, disable pattern sieving and primes
+                // dividing m.
+                if (pp == 2 || pp == 3 || (sublatm % pp) == 0) {
+                    event |= SSP_DISCARD;
+                }
+            }
+
             if ((p & 1)==0) event |= SSP_POW2;
 
             /* p may already have occurred before, and was taken into account
@@ -280,7 +293,7 @@ void small_sieve_init(small_sieve_data_t *ssd, las_info & las,
                         r_q >= p ? "1/" : "", r_q % p);
 
             /* Handle projective roots */
-            if (r_q >= p) {
+            if (r_q >= p && !(event & SSP_DISCARD)) {
                 /* Compute the init data in any case, since the gcd
                  * dominates (and anyway we won't be doing this very
                  * often). */
@@ -301,9 +314,10 @@ void small_sieve_init(small_sieve_data_t *ssd, las_info & las,
                     }
                     event |= SSP_DISCARD;
                 }
-            } else {
+            } else if (!(event & SSP_DISCARD)) {
                 ssp_init_oa(tail, p, r_q, skiprows, w);
             }
+
             tail++;
             if (event)
                 push_ssp_marker(ssd, nmarkers, index, event);
@@ -328,6 +342,9 @@ int64_t *small_sieve_start(small_sieve_data_t *ssd, unsigned int j0,
 {
     ssp_marker_t * next_marker = ssd->markers;
     int64_t * ssdpos = (int64_t *) malloc(ssd->nb_ssp * sizeof(int64_t));
+    const uint64_t sublatm = si.conf.sublat.m;
+    const uint64_t sublati0 = si.conf.sublat.i0;
+    const uint64_t sublatj0 = si.conf.sublat.j0;
 
     for(int i = 0 ; i < ssd->nb_ssp ; i++) {
         int fence;
@@ -337,25 +354,42 @@ int64_t *small_sieve_start(small_sieve_data_t *ssd, unsigned int j0,
         next_marker++;
         for( ; i < fence ; i++) {
             ssp_t * ssp = &(ssd->ssp[i]);
-            uint64_t compensate = si.I / 2;
-            compensate += (uint64_t)j0 * (uint64_t)ssp->r;
-            ssdpos[i] = compensate % (uint64_t)ssp->p;
+            if (!sublatm) {
+                uint64_t compensate = si.I / 2;
+                compensate += (uint64_t)j0 * (uint64_t)ssp->r;
+                ssdpos[i] = compensate % (uint64_t)ssp->p;
+            } else {
+                uint64_t jj = j0*sublatm + sublatj0;
+                uint64_t ii = (jj*uint64_t(ssp->r)) % uint64_t(ssp->p);
+                while ((ii % sublatm) != sublati0) {
+                    ii += ssp->p;
+                }
+                ii = (ii-sublati0) / sublatm; // exact division
+                uint64_t compensate = (si.I / 2) + ii;
+                ssdpos[i] = compensate % (uint64_t)ssp->p;
+            }
         }
+        if (event & SSP_DISCARD) continue;
         if (event & SSP_END) break;
         // Remark: even in the case of discard, we want to precompute the
         // data (we are in the projective case), for the (rare) case
         // where we have to update the (i,j)=(1,0) position.
         if (event & SSP_PROJ) {
+            uint64_t jj0;
+            if (!sublatm) {
+                jj0 = j0;
+            } else {
+                jj0 = j0*sublatm + sublatj0;
+            }
             ssp_bad_t * ssp = (ssp_bad_t *) &(ssd->ssp[i]);
             /* Compute the next multiple of g above j0 */
-            unsigned int j1 = j0 - (j0 % ssp->g);
-            uint64_t compensate = si.I / 2;
-            // FIXME: is it (j1<j0) the right condition ?
-            if (j1<j0) { /* most often j1 is < j0 -- in this case,
+            uint64_t j1 = jj0 - (jj0 % ssp->g);
+            // FIXME: is it (j1<jj0) the right condition ?
+            if (j1<jj0) { /* most often j1 is < jj0 -- in this case,
                          the j1 we're looking for needs +g */
                 j1 += ssp->g;
             }
-            ASSERT(j1 >= j0);
+            ASSERT(j1 >= jj0);
             ASSERT(j1 % ssp->g == 0);
             /* Now we'd like to avoid row number 0 (so j1 == 0).  */
             /* The position (1,0) is updated with a special code in the */
@@ -363,10 +397,31 @@ int64_t *small_sieve_start(small_sieve_data_t *ssd, unsigned int j0,
             if (j1 == 0) {
                 j1 += ssp->g;
             }
-            compensate += (uint64_t)(j1 / ssp->g) * (uint64_t)ssp->U;
+            // In sublat mode, we also need j1 congruent to sublatj0 mod m.
+            if (sublatm) {
+                while ((j1 % sublatm) != sublatj0) {
+                    j1 += ssp->g;
+                }
+            }
+            // Find the corresponding i
+            uint64_t ii = uint64_t(j1/ssp->g)*uint64_t(ssp->U);
+            if (sublatm) {
+                while ((ii % sublatm) != sublati0) {
+                    ii += ssp->q;
+                }
+            }
+            // In the sublat mode, switch back to reduced convention
+            // (exact divisions)
+            if (sublatm) {
+                j1 = (j1-sublatj0) / sublatm;
+                ii = (ii-sublati0) / sublatm;
+            }
+            uint64_t compensate = si.I / 2;
+            compensate += ii;
             ssdpos[i] = (((uint64_t)(j1 - j0))<<si.conf.logI_adjusted)
                 + compensate % (uint64_t)ssp->q;
         } else if (event & SSP_POW2) {
+            // FIXME: this is probably broken with sublattices.
             /* For powers of 2, we sieve only odd lines (*) and 
              * ssdpos needs to point at line j=1. We assume
              * that in this case (si.I/2) % p == 0
@@ -412,6 +467,7 @@ void small_sieve_skip_stride(small_sieve_data_t *ssd, int64_t * ssdpos,
         if (event & SSP_DISCARD) continue;
         if (event & SSP_END) break;
         if (event & SSP_PROJ) {
+            // FIXME: this is probably broken with sublattices.
             /* Don't bother. Pay attention to the fact that we have offsets to
              * the (current) bucket base. */
             ssp_bad_t * ssp = (ssp_bad_t *) &(ssd->ssp[i]);
@@ -440,6 +496,7 @@ void small_sieve_skip_stride(small_sieve_data_t *ssd, int64_t * ssdpos,
             }
             ssdpos[i] = x;
         } else if (event & SSP_POW2) {
+            // FIXME: this is probably broken with sublattices.
             ssp_t * ssp = &(ssd->ssp[i]);
             ssdpos[i] += ssp->offset;
             // If there is only one line per bucket region, we should
@@ -491,9 +548,19 @@ void sieve_small_bucket_region(unsigned char *S, int N,
      * large as the sieve region. The row number corresponding to a given
      * i0 is i0/I, but we also need to add bucket_nr*bucket_size/I to
      * this, which is what this flag is for.
+     * Sublat must also be taken into account.
      */
-    const int row0_is_oddj = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted)) & 1;
-
+    int row0_is_oddj;
+    if (si.conf.sublat.m == 0) {
+        row0_is_oddj = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted)) & 1;
+    } else {
+        int row0 = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted));
+        row0_is_oddj = (row0 * si.conf.sublat.m + si.conf.sublat.j0) & 1;
+        // Odd/even property of j is the same as for j+2, even with
+        // sublat, unless sublat.m is even, which is not handled right
+        // now. Same for i.
+        ASSERT_ALWAYS((si.conf.sublat.m & 1) == 1);
+    }
 
     /* Handle powers of 2 up to 2 * sizeof(long) separately. 
      * TODO: use SSE2 */
@@ -778,15 +845,22 @@ void sieve_small_bucket_region(unsigned char *S, int N,
 	unsigned char *S_ptr = S;
 	size_t p_or_2p = p;
 	unsigned int i0 = ssdpos[k]; ASSERT(i0 < p);
+        unsigned int i_compens_sublat = 0;
+        if (si.conf.sublat.m != 0) {
+            i_compens_sublat = si.conf.sublat.i0 & 1;
+        }
 	j = 0;
-	if (nj & N & 1) goto j_odd; /* !((nj*N+j)%2) */
+	if (row0_is_oddj) goto j_odd;
 	do {
 	  unsigned char *pi;
 	  WHERE_AM_I_UPDATE(w, j, j);
 	  pi = S_ptr + i0;
 	  S_ptr += I;
 	  /* for j even, we sieve only odd pi, so step = 2p. */
-	  p_or_2p += p_or_2p; if (!(i0 & 1)) pi += p;
+	  p_or_2p += p_or_2p;
+          if (!((i_compens_sublat + i0) & 1)) {
+              pi += p;
+          }
 	  U;
 	  i0 += r; if (i0 >= p) i0 -= p; 
 	  /* Next line */
@@ -806,7 +880,10 @@ void sieve_small_bucket_region(unsigned char *S, int N,
 #undef U2
 #undef U
         unsigned int event = (next_marker++)->event;
-        if (event == SSP_END) {
+        if (event & SSP_DISCARD) {
+            continue;
+        }
+        if (event & SSP_END) {
             ASSERT_ALWAYS(fence == ssd->nb_ssp);
             break;
         }
@@ -995,7 +1072,19 @@ resieve_small_bucket_region (bucket_primes_t *BP, int N, unsigned char *S,
     unsigned long j, nj;
     const int resieve_very_verbose = 0, resieve_very_verbose_bad = 0;
     /* See comment above about the variable of the same name */
-    const int row0_is_oddj = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted)) & 1;
+    int row0_is_oddj;
+    unsigned int i_compens_sublat = 0;
+    if (si.conf.sublat.m == 0) {
+        row0_is_oddj = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted)) & 1;
+    } else {
+        int row0 = (N << (LOG_BUCKET_REGION - si.conf.logI_adjusted));
+        row0_is_oddj = (row0 * si.conf.sublat.m + si.conf.sublat.j0) & 1;
+        i_compens_sublat = si.conf.sublat.i0 & 1;
+        // Odd/even property of j is the same as for j+2, even with
+        // sublat, unless sublat.m is even, which is not handled right
+        // now. Same for i.
+        ASSERT_ALWAYS((si.conf.sublat.m & 1) == 1);
+    }
 
     nj = (bucket_region >> si.conf.logI_adjusted);
 
@@ -1039,7 +1128,7 @@ resieve_small_bucket_region (bucket_primes_t *BP, int N, unsigned char *S,
             unsigned int q = p&-!row0_is_oddj;
             for (j = 0; j < nj; j ++) {
                 WHERE_AM_I_UPDATE(w, j, j);
-                for (unsigned int i = i0 + (q& -!(i0&1)) ; i < I; i += p+q) {
+                for (unsigned int i = i0 + (q& -!((i0+i_compens_sublat)&1)) ; i < I; i += p+q) {
                     if (LIKELY(S_ptr[i] == 255)) continue;
                     bucket_update_t<1, primehint_t> prime;
                     unsigned int x = (j << (si.conf.logI_adjusted)) + i;
