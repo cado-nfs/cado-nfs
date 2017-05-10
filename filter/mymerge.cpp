@@ -22,14 +22,21 @@
 #include "select_mpi.h"
 #include "medium_int.hpp"
 #include "indexed_priority_queue.hpp"
-#include "compressible_heap.hpp"
 #include "get_successive_minima.hpp"
 
+/* These are two fancy data structures that, to be honest, do not bring
+ * much improvement.
+ */
 #define xxxR_TABLE_USES_SMALL_SIZE_POOL
+#define xxxROW_TABLE_USES_COMPRESSIBLE_HEAP
 
 #ifdef R_TABLE_USES_SMALL_SIZE_POOL
 #define DEBUG_SMALL_SIZE_POOL
 #include "small_size_pool.hpp"
+#endif
+
+#ifdef ROW_TABLE_USES_COMPRESSIBLE_HEAP
+#include "compressible_heap.hpp"
 #endif
 
 #include "minimum_spanning_tree.hpp"
@@ -153,21 +160,57 @@ struct merge_matrix {
 
     typedef merge_row_ideal<compact_column_index_size> row_value_t;
 
+#ifdef ROW_TABLE_USES_COMPRESSIBLE_HEAP
     typedef compressible_heap<
         row_value_t,
         row_weight_t,
         merge_row_heap_batch_size> rows_t;
-    rows_t rows;
-    struct row_weight_iterator : public decltype(rows)::iterator {
-        typedef decltype(rows)::iterator super;
-        typedef std::pair<size_t, row_weight_t> value_type;
-        row_weight_iterator(super const & x) : super(x) {}
-        value_type operator*() {
-            super& s(*this);
-            ASSERT_ALWAYS(s->first);
-            return std::make_pair(index(), s->second);
+#else
+    class rows_t : public std::vector<std::pair<row_value_t *, row_weight_t>> {
+        typedef std::pair<row_value_t *, row_weight_t> value_type;
+        typedef std::vector<value_type> container_type;
+        typedef container_type::iterator iterator;
+        typedef container_type::const_iterator const_iterator;
+        private:
+        rows_t(rows_t const&) = delete;
+        rows_t operator=(rows_t const&) = delete;
+        public:
+        rows_t() =  default;
+        ~rows_t() { for(auto x : *this) if (x.first) delete[] x.first; }
+        size_t allocated_bytes() const {
+            return container_type::capacity() * sizeof(value_type) + sizeof(*this);
         }
+        size_t overhead_bytes() const {
+            return allocated_bytes() - container_type::size() * sizeof(value_type);
+        }
+        void push_back(const row_value_t * p, row_weight_t n) {
+            row_value_t * np = new row_value_t[n];
+            std::copy(p, p + n, np);
+            container_type::push_back(std::make_pair(np, n));
+        }
+        void push_back(std::vector<row_value_t> const & w) {
+            push_back(&w[0], w.size());
+        }
+        void shrink_value_unlocked(size_t i, row_weight_t nl) {
+            container_type & v(*this);
+            ASSERT_ALWAYS(nl <= v[i].second);
+            row_value_t * p = v[i].first;
+            row_value_t * np = new row_value_t[nl];
+            std::copy(p, p + nl, np);
+            delete[] p;
+            v[i].first = np;
+            v[i].second = nl;
+        }
+        size_t kill(size_t i) {
+            container_type & v(*this);
+            delete[] v[i].first;
+            v[i].first = NULL;
+            return v[i].second;
+        }
+        void compress() {}
     };
+#endif
+    rows_t rows;
 
     /* Simple and straightforward. Short-lived anyway. Notice that rows_t
      * is not made of shortlived_row_t elements. */
@@ -788,7 +831,7 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
     /* compute the matrix weight */
     weight = 0;
     for (auto const & R : rows)
-        weight += R.second;
+        if (R.first) weight += R.second;
 
     if (weight_buried_is_exact)
         ASSERT_ALWAYS (weight + weight_buried == weight0);
@@ -877,25 +920,28 @@ void merge_matrix::prepare_R_table()/*{{{*/
     std::vector<size_t> rw;
     rw.reserve(1024);
     size_t rwok = 0;
-    for(auto it = rows.begin() ; it != rows.end() ; ++it) {
+    for(size_t i = 0 ; i < rows.size() ; i++) {
+        row_value_t * ptr = rows[i].first;
+        if (!ptr) continue;
         if (rwok >= rw.size()) {
-            auto jt = it;
-            for(size_t k = 0 ; k < rw.capacity() && jt != rows.end() ; k++, ++jt) {
-                rw.push_back(jt->second);
+            rw.clear();
+            rwok = 0;
+            for(size_t l = 0 ; rw.size() < rw.capacity() && (i + l < rows.size()) ; l++) {
+                if (!rows[i+l].first) continue;
+                rw.push_back(rows[i+l].second);
             }
             MPI_Allreduce(MPI_IN_PLACE, &rw[0], rw.size(), MPI_MY_SIZE_T, MPI_SUM, comm);
         }
         ASSERT_ALWAYS(rwok < rw.size());
         row_weight_t this_rw = rw[rwok++];
-        row_value_t * ptr = it->first;
-        for (row_weight_t k = 0; k < it->second; k++) {
+        for (row_weight_t k = 0; k < rows[i].second; k++) {
             size_t lj = ptr[k].index() / comm_size;
             if (!R_table[lj]) continue;
             col_weight_t w = col_weights[lj];
             if (minpos[lj] == max8) continue;
             ASSERT_ALWAYS(pos[lj] < w);
             indirection_t * Rx = get_indirection(lj);
-            Rx[pos[lj]]=std::make_pair(it.i, this_rw);
+            Rx[pos[lj]]=std::make_pair(i, this_rw);
             if (this_rw < Rx[minpos[lj]].second)
                 minpos[lj]=pos[lj];
             pos[lj]++;
