@@ -174,19 +174,21 @@ struct merge_matrix {
         private:
         rows_t(rows_t const&) = delete;
         rows_t operator=(rows_t const&) = delete;
+        size_t allocated_weight = 0;
         public:
         rows_t() =  default;
         ~rows_t() { for(auto x : *this) if (x.first) delete[] x.first; }
         size_t allocated_bytes() const {
-            return container_type::capacity() * sizeof(value_type) + sizeof(*this);
+            return container_type::capacity() * sizeof(value_type) + allocated_weight * sizeof(row_value_t) + sizeof(*this);
         }
         size_t overhead_bytes() const {
-            return allocated_bytes() - container_type::size() * sizeof(value_type);
+            return allocated_bytes() - container_type::size() * sizeof(value_type) - allocated_weight * sizeof(row_value_t);
         }
         void push_back(const row_value_t * p, row_weight_t n) {
             row_value_t * np = new row_value_t[n];
             std::copy(p, p + n, np);
             container_type::push_back(std::make_pair(np, n));
+            allocated_weight += n;
         }
         void push_back(std::vector<row_value_t> const & w) {
             push_back(&w[0], w.size());
@@ -194,6 +196,7 @@ struct merge_matrix {
         void shrink_value_unlocked(size_t i, row_weight_t nl) {
             container_type & v(*this);
             ASSERT_ALWAYS(nl <= v[i].second);
+            allocated_weight -= v[i].second - nl;
             row_value_t * p = v[i].first;
             row_value_t * np = new row_value_t[nl];
             std::copy(p, p + nl, np);
@@ -205,6 +208,7 @@ struct merge_matrix {
             container_type & v(*this);
             delete[] v[i].first;
             v[i].first = NULL;
+            allocated_weight -= v[i].second;
             return v[i].second;
         }
         void compress() {}
