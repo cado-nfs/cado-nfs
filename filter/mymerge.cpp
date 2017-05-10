@@ -1667,6 +1667,38 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
 {
     /* compute the weight matrix for cancelling j with the rows given in
      * argument */
+
+    /* 
+     * The naive algorithm, for a level-w merge (w is the
+     * weight of column j), and given rows with average weight L,
+     * costs O(w^2*L) for creating the weight matrix.
+     *
+     * For the improved version here, first notice that if V_k is the
+     * w-dimensional row vector giving coordinates for column k, then the
+     * matrix giving at (i0,i1) the valuation of column k when row i1 is
+     * cancelled from row i1 is given by trsp(V_k)*V_j-trsp(V_j)*V_k
+     * (obviously antisymmetric).
+     *
+     * We need to do two things.
+     *  - walk all w (sorted!) rows simultaneously, maintaining a
+     *    priority queue for the "lowest next" column coordinate.
+     *    By doing so, we'll be able to react on all column
+     *    indices which happen to appear in several rows (because
+     *    two consecutive pop()s from the queue will give the
+     *    same index). So at select times, this gives a subset of
+     *    w' rows, with that index appearing.  This step will
+     *    cost O(w*L*log(w)).
+     *  - Next, whenever we've identified a column index which
+     *    appears multiple times (say w' times), build the w'*w'
+     *    matrix trsp(V'_k)*V'_j-trsp(V'_j)*V'_k, where all
+     *    vectors have length w'. Inspecting the 0 which appear
+     *    in this matrix gives the places where we have
+     *    exceptional cancellations. This can count as -1 in the
+     *    total weight matrix.
+     * Overall the cost becomes O(w*L*log(w)+w'*L'^2+w^2),
+     * which should be somewhat faster.
+     */
+
     size_t wj = batch.size();
     matrix<int> weights(wj,wj,0);
 
@@ -1832,8 +1864,11 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
     std::vector<size_t> & my_col_indices(CM.my_col_indices);
     size_t n = CM.n;
 
+    typedef collective_merge_operation::row_batch_t row_batch_t;
+    typedef collective_merge_operation::row_batch_set_t row_batch_set_t;
+
     /* We'll get a vector of n vectors of up to w rows */
-    collective_merge_operation::row_batch_set_t row_batches = CM.merge_scatter_rows(*this);
+    row_batch_set_t row_batches = CM.merge_scatter_rows(*this);
 
     /* This has the same type, but with two fine subtleties:
      *  - all_merged_new_rows has n * comm_size fragments (all stored
@@ -1841,7 +1876,7 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
      *    (my_merged_new_rows has n entries).
      *  - each has wj-1 new rows, not wj.
      */
-    collective_merge_operation::row_batch_set_t my_merged_new_rows;
+    row_batch_set_t my_merged_new_rows;
 
     /* I have rows precisely for the column indices I care about. But
      * these are complete rows, which is good. Let's do the merge, but
@@ -1853,7 +1888,7 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
     for(size_t q = 0 ; q < my_col_indices.size() ; q++) {
         size_t j = my_col_indices[q];
         size_t lj = j / comm_size;
-        collective_merge_operation::row_batch_t const & batch(row_batches[q]);
+        row_batch_t const & batch(row_batches[q]);
 
         col_weight_t wj = col_weights[lj];
         ASSERT_ALWAYS(wj <= (col_weight_t) cwmax);
@@ -1874,45 +1909,11 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
             mst.first = -2;
             mst.second.push_back(std::make_pair(0,1));
         } else {
-            /* Note: our algorithm for computing the weight matrix can be
-             * improved a lot. Currently, for a level-w merge (w is the
-             * weight of column j), and given rows with average weight L,
-             * our cost is O(w^2*L) for creating the matrix.
-             *
-             * To improve it, first notice that if V_k is the
-             * w-dimensional row vector giving coordinates for column k,
-             * then the matrix giving at (i0,i1) the valuation of column
-             * k when row i1 is cancelled from row i1 is given by
-             * trsp(V_k)*V_j-trsp(V_j)*V_k (obviously antisymmetric).
-             *
-             * We need to do two things.
-             *  - walk all w (sorted!) rows simultaneously, maintaining a
-             *    priority queue for the "lowest next" column coordinate.
-             *    By doing so, we'll be able to react on all column
-             *    indices which happen to appear in several rows (because
-             *    two consecutive pop()s from the queue will give the
-             *    same index). So at select times, this gives a subset of
-             *    w' rows, with that index appearing.  This step will
-             *    cost O(w*L*log(w)).
-             *  - Next, whenever we've identified a column index which
-             *    appears multiple times (say w' times), build the w'*w'
-             *    matrix trsp(V'_k)*V'_j-trsp(V'_j)*V'_k, where all
-             *    vectors have length w'. Inspecting the 0 which appear
-             *    in this matrix gives the places where we have
-             *    exceptional cancellations. This can count as -1 in the
-             *    total weight matrix.
-             * Overall the cost will become O(w*L*log(w)+w'*L'^2+w^2),
-             * which should be somewhat faster.
-             */
-
             mst = minimum_spanning_tree(batch_compute_weights(batch, j));
         }
 
         /* Do the merge, but locally first */
-        // R_pool_t::value_type * Rx = R_pool(wj, R_table[j]);
-        // R_pool_t::value_type Rx_copy[wj];
-        // std::copy(Rx, Rx+wj, Rx_copy);
-        collective_merge_operation::row_batch_t new_row_batch;
+        row_batch_t new_row_batch;
         for(auto const & edge : mst.second) {
             row_combiner C(batch[edge.first], batch[edge.second], j);
             new_row_batch.push_back(std::move(C.subtract_naively()));
