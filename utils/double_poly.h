@@ -33,7 +33,7 @@ struct double_poly_s {
 typedef struct double_poly_s double_poly[1];
 
 /* double_poly.c */
-void double_poly_init (double_poly_ptr, unsigned int);
+void double_poly_init (double_poly_ptr, int);
 void double_poly_clear (double_poly_ptr);
 void double_poly_set (double_poly_ptr, double_poly_srcptr);
 double double_poly_eval (double_poly_srcptr, double);

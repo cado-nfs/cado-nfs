@@ -5,7 +5,8 @@ load alpha.sage
 # Bf = 1e7; Bg = 5e6; area = 1e16 are the default values used by pol51opt.c
 # Bf = 1e11; Bg = 1e11; area = 1e18 # values used for RSA-768
 # area is the sieve area, about 2^(2*I-1)*q
-def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000):
+# sq is the value of the current special-q (experimental)
+def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False):
     df = f.degree()
     dg = g.degree()
     alpha_f = alpha(f,2000)
@@ -17,13 +18,139 @@ def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000):
        theta_i = float(pi/K*(i+0.5))
        xi = cos(theta_i)*sx
        yi = sin(theta_i)*sy
-       fi = f(x=xi/yi)*yi^df
+       fi = f(x=xi/yi)*yi^df/sq
        gi = g(x=xi/yi)*yi^dg
        ui = (log(abs(fi))+alpha_f)/log(Bf)
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
+       if verbose:
+          print i, log(abs(fi))+alpha_f, log(abs(gi))+alpha_g, v1
        E += v1
     return E/K
+
+# same as MurphyE, but using numerical integration instead of sampling
+def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+    df = f.degree()
+    dg = g.degree()
+    alpha_f = alpha(f,2000)
+    alpha_g = alpha(g,2000)
+    sx = sqrt(area*s)
+    sy = sqrt(area/s)
+    var('y,theta')
+    xi = cos(theta)*sx
+    yi = sin(theta)*sy
+    fi = f(x=xi/yi)*yi^df/sq
+    gi = g(x=xi/yi)*yi^dg
+    ui = (log(abs(fi))+alpha_f)/log(Bf)
+    vi = (log(abs(gi))+alpha_g)/log(Bg)
+    v1 = dickman_rho(ui) * dickman_rho(vi)
+    v1 = v1 / pi # normalization to get same values as MurphyE if v1=1
+    return numerical_integral(v1, 0, pi)
+
+# instead of integrating on the half-circle, integrate on the disk
+# (this is supposed to give the probability to find a relation)
+def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+    df = f.degree()
+    dg = g.degree()
+    alpha_f = alpha(f,2000)
+    alpha_g = alpha(g,2000)
+    sx = sqrt(area*s)
+    sy = sqrt(area/s)
+    var('y,theta,r')
+    xi = cos(theta)*sx
+    yi = sin(theta)*sy
+    fi = f(x=xi/yi)*yi^df/sq*r
+    gi = g(x=xi/yi)*yi^dg*r
+    ui = (log(abs(fi))+alpha_f)/log(Bf)
+    vi = (log(abs(gi))+alpha_g)/log(Bg)
+    v1 = dickman_rho(ui) * dickman_rho(vi)
+    v1 = v1 * r # integration factor in polar coordinates
+    foo = lambda t: numerical_integral(v1(r=t), 0, pi)[0]
+    return numerical_integral(foo, 0, 1)
+
+# Compute all roots of f mod p, including projective roots, with multiplicities
+# Projective roots are encoded by (p,e) with e the multiplicity.
+# The return list is [e_0,e_1,...,e_p] where e_r is the multiplicity of r.
+def allroots(f,p):
+   ll = [0 for r in [0..p]]
+   for r,e in f.roots(ring=GF(p)):
+      ll[r] = e
+   for r,e in f.reverse().roots(ring=GF(p)):
+      if r == 0:
+         ll[p] = e
+   return ll
+
+# auxiliary function for MurphyE_combined
+# return a list of triples [pr, alpha_f, alpha_g] where:
+# pr is the probability of all residue classes for primes p < B
+# with alpha_f and alpha_g
+def MurphyE_combined_aux(f,g,B):
+   # l is a list of [pr,alpha_f,alpha_g] where:
+   # pr is the probability of this residue class
+   # alpha_f is the alpha value of f for this class
+   # alpha_g is the alpha value of g for this class
+   l = [[1,alpha(f,2000),alpha(g,2000)]]
+   x = f.variables()[0]
+   for p in prime_range(B):
+      lp = []
+      for r in [0..p]:
+         if r < p:
+            ef = average_valuation_homogeneous_coprime_sub(f,p,r,1)
+            eg = average_valuation_homogeneous_coprime_sub(g,p,r,1)
+         else: # r = p: projective root
+            ef = average_valuation_homogeneous_coprime_sub(f,p,1,0)
+            eg = average_valuation_homogeneous_coprime_sub(g,p,1,0)
+         # if there was already a class with the same exponents, accumulate
+         found = false
+         for i in range(len(lp)):
+            if lp[i][:2] == [ef,eg]:
+               lp[i][2] += 1
+               found = true
+               break
+         if found == false:
+            lp.append([ef,eg,1])
+      contf_p = average_valuation_homogeneous_coprime(f,p)
+      contg_p = average_valuation_homogeneous_coprime(g,p)
+      logp = float(log(p))
+      # now merge with the values in l
+      ll = []
+      for x in l:
+         for y in lp:
+            pr = x[0]*y[2]/(p+1)
+            alpha_f = x[1] + (contf_p - y[0])*logp
+            alpha_g = x[2] + (contg_p - y[1])*logp
+            ll.append([pr,alpha_f,alpha_g])
+      l = ll
+   return l
+
+# computes a "combined" MurphyE value by taking into account correlation
+# between the roots of f and g for all primes < B (B=2 should give the same
+# value than MurphyE)
+def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,verbose=False):
+    l = MurphyE_combined_aux(f,g,B)
+    print "number of residue classes:", len(l)
+    df = f.degree()
+    dg = g.degree()
+    E = 0
+    sx = sqrt(area*s)
+    sy = sqrt(area/s)
+    for pr,alpha_f,alpha_g in l:
+       Ej = 0
+       for i in range(K):
+	  theta_i = float(pi/K*(i+0.5))
+	  xi = cos(theta_i)*sx
+	  yi = sin(theta_i)*sy
+	  fi = f(x=xi/yi)*yi^df
+	  gi = g(x=xi/yi)*yi^dg
+	  ui = (log(abs(fi))+alpha_f)/log(Bf)
+	  vi = (log(abs(gi))+alpha_g)/log(Bg)
+	  v1 = dickman_rho(ui) * dickman_rho(vi)
+	  Ej += v1
+       Ej = Ej/K
+       if verbose:
+          print pr,alpha_f,alpha_g,Ej
+       E += Ej*pr
+    return E
 
 # example: RSA-768 polynomials
 # skewness 44204.72 norm 1.35e+28 alpha -7.30 Murphy_E 3.79e-09

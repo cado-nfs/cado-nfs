@@ -57,7 +57,7 @@ int recursive_descent = 0;
 int prepend_relation_time = 0;
 int exit_after_rel_found = 0;
 int allow_largesq = 0;
-int adjust_strategy = 2;
+int adjust_strategy = 0;
 
 double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
 
@@ -2682,7 +2682,7 @@ static void declare_usage(param_list pl)/*{{{*/
   param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
   param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
 
-  param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that bounday is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=2");
+  param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=2");
   param_list_decl_usage(pl, "allow-largesq", "(switch) allows large special-q, e.g. for a DL descent");
   param_list_decl_usage(pl, "exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
   param_list_decl_usage(pl, "stats-stderr", "(switch) print stats to stderr in addition to stdout/out file");

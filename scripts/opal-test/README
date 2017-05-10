@@ -2,9 +2,8 @@ OPAL is a Python package for automatic parameter optimization based on the
 separate, binary NOMAD library.
 
 Download NOMAD.zip from <http://sourceforge.net/projects/nomad-bb-opt/>
-For entertainment purposes, this .zip file is actually a bzip2-compressed
-tar archive. Build it with:
-  cd nomad.3.6.2 && cd install && ./install.sh
+Build it with:
+  cd nomad.3.8.0 && cd install && ./install.sh
   Copy ../bin/nomad to some directory in PATH. (Sadly, OPAL insists on
   executing NOMAD simply as os.system('nomad ' + ...); it does not allow
   specifying a path)
@@ -13,8 +12,6 @@ Download OPAL from <https://github.com/dpo/opal>, or clone with
   git clone https://github.com/dpo/opal.git
 Install OPAL into your user site directory:
   cd opal && python setup.py install --user
-
-[the following documentation is out-of-date: start of new documentation]
 
 - copy a polynomial file to the current directory, say c60.poly
 - copy a parameter file to the current directory, say params.c60
@@ -29,7 +26,7 @@ Install OPAL into your user site directory:
 
 (more details at the beginning of the file optimize.sh)
 
-[end of new documentation]
+[the following documentation is out-of-date]
 
 Copy the polynomial file from a c59 factorization to
   scripts/opal-test/c59.polyselect2.poly

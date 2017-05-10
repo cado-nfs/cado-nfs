@@ -5,13 +5,7 @@
 #include "ecm/facul.h"
 #include "ecm/facul_doit.h"
 
-/*
- * Initialize an array of factors with number, the maximum number of elements.
- *
- * factor: the array of factors.
- * number: the maximum number of elements.
- */
-static void factor_init(factor_ptr factor, unsigned int alloc)
+void factor_init(factor_ptr factor, unsigned int alloc)
 {
   ASSERT(alloc > 0);
 
@@ -23,12 +17,7 @@ static void factor_init(factor_ptr factor, unsigned int alloc)
   }
 }
 
-/*
- * Delete an array of factors.
- *
- * factor: the array of factors.
- */
-static void factor_clear(factor_ptr factor)
+void factor_clear(factor_ptr factor)
 {
   for (unsigned int i = 0; i < factor->alloc; i++) {
     mpz_clear(factor->factorization[i]);
@@ -38,8 +27,7 @@ static void factor_clear(factor_ptr factor)
   factor->number = 0;
 }
 
-/* obvious! */
-static void factor_append(factor_ptr factor, mpz_srcptr z)
+void factor_append(factor_ptr factor, mpz_srcptr z)
 {
   if (factor->alloc == factor->number) {
     unsigned int newalloc = factor->alloc + 10;
@@ -54,7 +42,8 @@ static void factor_append(factor_ptr factor, mpz_srcptr z)
   factor->number++;
 }
 
-MAYBE_UNUSED static unsigned int factor_remove(factor_ptr factor, mpz_srcptr z) {
+unsigned int factor_remove(factor_ptr factor, mpz_srcptr z)
+{
   unsigned int found = 0;
   unsigned int i = 0;
   for ( ; i < factor->number; i++) {
@@ -74,12 +63,7 @@ MAYBE_UNUSED static unsigned int factor_remove(factor_ptr factor, mpz_srcptr z) 
   return 1;
 }
 
-/*
- * Print an array of factors.
- *
- * factor: an array of factors.
- */
-MAYBE_UNUSED static void factor_fprintf(FILE * file, factor_srcptr factor)
+void factor_fprintf(FILE * file, factor_srcptr factor)
 {
   fprintf(file, "[");
   if (factor->number != 0) {
@@ -92,16 +76,7 @@ MAYBE_UNUSED static void factor_fprintf(FILE * file, factor_srcptr factor)
   }
 }
 
-/*
- * TODO: useless.
- * Test if the maximum factor of the array factor is less or equal to B. Return
- *  1 if true, 0 otherwise. If factor is sorted, set sort to 1, 0 otherwise.
- *
- * factor: an array of factors.
- * B: the smoothness bound.
- * sort: 1 if factor is sorted, 0 otherwise.
- */
-MAYBE_UNUSED static unsigned int factor_is_smooth(factor_srcptr factor, mpz_t B,
+unsigned int factor_is_smooth(factor_srcptr factor, mpz_t B,
     unsigned int sort)
 {
   if (sort) {
@@ -123,11 +98,7 @@ MAYBE_UNUSED static unsigned int factor_is_smooth(factor_srcptr factor, mpz_t B,
   return 1;
 }
 
-#ifdef ASSERT_FACTO
-/*
- * Return 1 if the factorisation is good, 0 otherwise.
- */
-static unsigned int factor_assert(factor_srcptr factor, mpz_srcptr z)
+unsigned int factor_assert(factor_srcptr factor, mpz_srcptr z)
 {
   mpz_t tmp;
   mpz_init(tmp);
@@ -145,13 +116,8 @@ static unsigned int factor_assert(factor_srcptr factor, mpz_srcptr z)
 
   return assert_facto;
 }
-#endif // ASSERT_FACTO
 
-/*
- * Remove all the small factors under a certain bound, and store z_root /
- *  (factors) in z. Return 1 if z_root is entirely factorize.
- */
-static int brute_force_factorize_ul(factor_ptr factor, mpz_ptr z,
+int brute_force_factorize_ul(factor_ptr factor, mpz_ptr z,
     mpz_srcptr z_root, unsigned long bound)
 {
   prime_info pi;
@@ -579,11 +545,10 @@ static void automorphism_6_1_1(mpz_poly_ptr b, mpz_poly_srcptr a)
     mpz_init(c[i]);
   }
 
-  mpz_sub(c[0], c[0], a->coeff[0]);
-  mpz_sub(c[0], c[0], a->coeff[1]);
+  mpz_add(c[1], a->coeff[0], a->coeff[1]);
 
-  mpz_set(c[1], a->coeff[0]);
-  mpz_submul_ui(c[1], a->coeff[1], 2);
+  mpz_addmul_ui(c[0], a->coeff[0], 2);
+  mpz_sub(c[0], c[0], a->coeff[1]);
 
 
   mpz_poly_setcoeffs(b, c, 1);
@@ -600,16 +565,16 @@ static void automorphism_6_1_2(mpz_poly_ptr b, mpz_poly_srcptr a)
     mpz_init(c[i]);
   }
 
-  mpz_add(c[0], a->coeff[0], a->coeff[1]);
-  mpz_add(c[0], c[0], a->coeff[2]);
+  mpz_add(c[2], a->coeff[0], a->coeff[1]);
+  mpz_add(c[2], c[2], a->coeff[2]);
 
-  mpz_submul_ui(c[1], a->coeff[0], 2);
+  mpz_addmul_ui(c[1], a->coeff[0], 4);
   mpz_add(c[1], c[1], a->coeff[1]);
-  mpz_addmul_ui(c[1], a->coeff[2], 4);
+  mpz_submul_ui(c[1], a->coeff[2], 2);
 
-  mpz_set(c[2], a->coeff[0]);
-  mpz_submul_ui(c[2], a->coeff[1], 2);
-  mpz_addmul_ui(c[2], a->coeff[2], 4);
+  mpz_set(c[0], a->coeff[2]);
+  mpz_submul_ui(c[0], a->coeff[1], 2);
+  mpz_addmul_ui(c[0], a->coeff[0], 4);
 
 
   mpz_poly_setcoeffs(b, c, 2);
@@ -620,20 +585,18 @@ static void automorphism_6_1_2(mpz_poly_ptr b, mpz_poly_srcptr a)
 }
 
 static void rewrite_poly_6_1(mpz_poly_ptr b, factor_t * fac, unsigned int V,
-    int * smooth)
+    int * smooth, factor_t * gal_norm_denom, const mpz_poly * f)
 {
-  mpz_t append;
-  mpz_init(append);
-  mpz_set_ui(append, 3);
   for (unsigned int i = 0; i < V; i++) {
     if (fac[i]->number != 0 && smooth[i]) {
-      for (unsigned int j = 0; j < 3 * (unsigned int)b->deg; j++) {
-        factor_append(fac[i], append);
+      for (unsigned int j = 0; j < (unsigned int)b->deg; j++) {
+        for (unsigned int k = 0; k < gal_norm_denom[i]->number; k++) {
+          factor_append(fac[i], gal_norm_denom[i]->factorization[k]);
+        }
       }
       sort_factor(fac[i]);
     }
   }
-  mpz_clear(append);
 
   mpz_t c;
   mpz_init(c);
@@ -651,8 +614,7 @@ static void rewrite_poly_6_1(mpz_poly_ptr b, factor_t * fac, unsigned int V,
     for (unsigned int j = 0; j < fac_tmp->number; j++) {
       for (unsigned int i = 0; i < V; i++) {
         if (fac[i]->number != 0 && smooth[i]) {
-          //TODO: why 6?
-          for (unsigned int k = 0; k < 6; k++) {
+          for (unsigned int k = 0; k < (unsigned int)f[i]->deg; k++) {
             MAYBE_UNUSED unsigned int found = factor_remove(fac[i],
                 fac_tmp->factorization[j]);
             ASSERT(found == 1);
@@ -677,7 +639,7 @@ static void printf_relation_galois_6_1(factor_t * factor,
     mpz_poly_srcptr a, unsigned int t, unsigned int V,
     FILE * outstd, MAYBE_UNUSED unsigned int * assert_facto,
     MAYBE_UNUSED mpz_vector_srcptr c, int * smooth,
-    MAYBE_UNUSED const mpz_poly * f)
+    const mpz_poly * f, factor_t * gal_norm_denom)
 {
   if (a->deg > 2) {
     fprintf(outstd, "# Can not use Galois 6.1.\n");
@@ -693,7 +655,7 @@ static void printf_relation_galois_6_1(factor_t * factor,
       } else if (a->deg == 1) {
         automorphism_6_1_1(b, b);
       }
-      rewrite_poly_6_1(b, factor, V, smooth);
+      rewrite_poly_6_1(b, factor, V, smooth, gal_norm_denom, f);
 #ifdef ASSERT_FACTO
       mpz_t res;
       mpz_init(res);
@@ -730,7 +692,8 @@ static void good_polynomial(mpz_poly_srcptr a, const mpz_poly * f, unsigned int
     *data, unsigned int * nb_rel_found, ideal_spq_srcptr special_q, unsigned int
     q_side, unsigned int size, MAYBE_UNUSED FILE * outstd, MAYBE_UNUSED unsigned
     int * number_factorisation, MAYBE_UNUSED mpz_vector_srcptr c,
-    unsigned int gal, unsigned int * nb_rel_gal, unsigned int gal_version)
+    unsigned int gal, unsigned int * nb_rel_gal, unsigned int gal_version,
+    factor_t * gal_norm_denom)
 {
   mpz_t res;
   mpz_init(res);
@@ -872,7 +835,7 @@ static void good_polynomial(mpz_poly_srcptr a, const mpz_poly * f, unsigned int
       if (gal_version == 1) {
 #ifndef NOT_PRINT_RELATION
         printf_relation_galois_6_1(factor, a, t, V, outstd, assert_facto, c,
-            smooth, f);
+            smooth, f, gal_norm_denom);
 #endif // NOT_PRINT_RELATION
       }
       (* nb_rel_gal) += 5;
@@ -983,7 +946,8 @@ static void find_relation(uint64_array_t * indices, uint64_t * index,
     facul_aux_data *data, unsigned int * nb_rel_found,
     ideal_spq_srcptr special_q, unsigned int q_side, FILE * outstd,
     MAYBE_UNUSED unsigned int * number_factorisation, unsigned int gal,
-    unsigned int * nb_rel_gal, unsigned int gal_version)
+    unsigned int * nb_rel_gal, unsigned int gal_version,
+    factor_t * gal_norm_denom)
 {
   unsigned int * L = (unsigned int *) malloc(V * sizeof(unsigned int));
   unsigned int size = 0;
@@ -1016,7 +980,7 @@ static void find_relation(uint64_array_t * indices, uint64_t * index,
 
       good_polynomial(a, f, L, H->t, V, main, data, nb_rel_found,
           special_q, q_side, size, outstd, number_factorisation, c, gal,
-          nb_rel_gal, gal_version);
+          nb_rel_gal, gal_version, gal_norm_denom);
     }
 
     mpz_poly_clear(a);
@@ -1040,7 +1004,7 @@ unsigned int find_relations(uint64_array_t * indices, uint64_t number_element,
     unsigned int * lpb, mat_Z_srcptr matrix, const mpz_poly * f,
     sieving_bound_srcptr H, unsigned int V, ideal_spq_srcptr special_q,
     unsigned int q_side, int main, FILE * outstd, unsigned int gal,
-    unsigned int gal_version)
+    unsigned int gal_version, factor_t * gal_norm_denom)
 {
   //index[i] is the current index of indices[i].
   uint64_t * index = (uint64_t * ) malloc(sizeof(uint64_t) * V);
@@ -1087,7 +1051,7 @@ unsigned int find_relations(uint64_array_t * indices, uint64_t number_element,
     while(sum_index(index, V, main) < length_tot) {
       find_relation(indices, index, number_element, matrix, f, H, V, main,
           max_indices, data, &nb_rel_found, special_q, q_side, outstd,
-          number_factorisation, gal, &nb_rel_gal, gal_version);
+          number_factorisation, gal, &nb_rel_gal, gal_version, gal_norm_denom);
     }
   }
   if (nb_rel_found != 0) {

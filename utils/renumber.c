@@ -83,8 +83,11 @@ get_one_line (FILE *f, char *s)
   return n;
 }
 
+// p,r values can be in decimal (in the badideals file) or in hexa (in
+// the renumber file). This is the purpose of the BASE parameter.
 static void
-parse_one_line_bad_ideals(struct bad_ideals_s * bad, const char * str, int k)
+parse_one_line_bad_ideals(struct bad_ideals_s * bad, const char * str, int k,
+    int BASE)
 {
   int t;
   const char *ptr = str;
@@ -92,12 +95,12 @@ parse_one_line_bad_ideals(struct bad_ideals_s * bad, const char * str, int k)
   int side = 0, nb = 0;
 
   for ( ; (t=ugly[(unsigned char) *ptr]) >= 0; ptr++)
-    p = (p << 4) + t;
+    p = (p * BASE) + t;
   ASSERT_ALWAYS(*ptr == ',');
   ptr++;
 
   for ( ; (t=ugly[(unsigned char) *ptr]) >= 0; ptr++)
-    r = (r << 4) + t;
+    r = (r * BASE) + t;
   ASSERT_ALWAYS(*ptr == ':');
   ptr++;
 
@@ -163,7 +166,7 @@ parse_bad_ideals_file (FILE *badidealsfile, renumber_ptr renum)
   renum->bad_ideals.max_p = 0;
   while (get_one_line (badidealsfile, s) != 0)
   {
-    parse_one_line_bad_ideals (&(renum->bad_ideals), s, k);
+    parse_one_line_bad_ideals (&(renum->bad_ideals), s, k, 10);
     renum->size += renum->bad_ideals.nb[k];
     renum->bad_ideals.max_p=MAX(renum->bad_ideals.max_p,renum->bad_ideals.p[k]);
     k++;
@@ -557,11 +560,13 @@ renumber_write_open (renumber_ptr tab, const char *tablefile,
   /* Write first the bad ideals information at the beginning of file */
   if (badidealsfile != NULL)
   {
-    char s[RENUMBER_MAXLINE];
-    rewind (fbad);
-    while (get_one_line (fbad, s) != 0)
-      fputs (s, tab->file);
-    ASSERT_ALWAYS (feof (fbad));
+    for (int i = 0; i < tab->bad_ideals.n; ++i) {
+      fprintf(tab->file, "%" PRpr ",%" PRpr ":%d: %d\n",
+          tab->bad_ideals.p[i],
+          tab->bad_ideals.r[i],
+          tab->bad_ideals.side[i],
+          tab->bad_ideals.nb[i]);
+    }
   }
 
   if (fbad != NULL)
@@ -635,7 +640,7 @@ renumber_read_table (renumber_ptr tab, const char * filename)
   for (int k = 0; k < tab->bad_ideals.n; k++)
   {
     bytes_read += get_one_line(tab->file, s);
-    parse_one_line_bad_ideals (&tab->bad_ideals, s, k);
+    parse_one_line_bad_ideals (&tab->bad_ideals, s, k, 16);
     tab->bad_ideals.max_p = MAX (tab->bad_ideals.max_p, tab->bad_ideals.p[k]);
     for (int j = 0; j < tab->bad_ideals.nb[k]; j++)
     {

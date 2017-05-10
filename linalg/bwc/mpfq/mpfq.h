@@ -59,17 +59,22 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 
 #ifndef GNUC_VERSION_ATLEAST
+#ifndef __GNUC__
+#define GNUC_VERSION_ATLEAST(X,Y,Z) 0
+#else
 #define GNUC_VERSION_ATLEAST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
 LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+#endif
 #endif
 
 #ifndef GNUC_VERSION_ATMOST
+#ifndef __GNUC__
+#define GNUC_VERSION_ATMOST(X,Y,Z) 0
+#else
 #define GNUC_VERSION_ATMOST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
 LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #endif
-
+#endif
 
 /* typedef unsigned long ulong; */
 

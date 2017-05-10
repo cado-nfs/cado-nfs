@@ -76,9 +76,12 @@ int main(int argc, char **argv) {
     if (skew != 0.0)
       poly->skew = skew; /* command-line overrides skewness given in file (if any) */
 
-    /* if skewness is not given in file nor in command line, compute it */
+    /* If skewness is not given in file nor in command line, compute it.
+       To compute the (optimal) skewness of the algebraic polynomial only,
+       call L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC) */
     if (poly->skew == 0.0)
-      poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+      poly->skew = L2_combined_skewness (poly, SKEWNESS_DEFAULT_PREC, bound_f,
+                                         bound_g, area);
 
     mpz_set (b, poly->pols[RAT_SIDE]->coeff[1]);
     mpz_neg (m, poly->pols[RAT_SIDE]->coeff[0]);

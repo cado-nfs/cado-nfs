@@ -14,6 +14,8 @@ void array_init(array_ptr array, uint64_t number_element)
 
   array->number_element = number_element;
   array->array = malloc(sizeof(unsigned char) * number_element);
+
+  ASSERT_ALWAYS(array->array != NULL);
 }
 
 void array_clear(array_ptr array)

@@ -12,7 +12,7 @@
 
 /* Initialize a polynomial of degree d */
 void
-double_poly_init (double_poly_ptr p, unsigned int d)
+double_poly_init (double_poly_ptr p, int d)
 {
   p->coeff = malloc ((d + 1) * sizeof (double));
   FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
@@ -480,9 +480,12 @@ double_poly_print (FILE *stream, double_poly_srcptr p, char *name)
 {
   int i;
   const double *f = p->coeff;
-  const unsigned int deg = p->deg;
+  const int deg = p->deg;
 
   fprintf (stream, "%s", name);
+
+  if (deg == -1)
+    fprintf(stream, "0");
 
   if (deg == 0)
     fprintf (stream, "%.16e", f[0]);

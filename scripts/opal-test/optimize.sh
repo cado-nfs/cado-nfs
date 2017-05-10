@@ -9,13 +9,84 @@
 # Important: if lpb0 and/or lpb1 change, you need to recompute rels_wanted,
 # which should be near from prime_pi(2^lpb0) + prime_pi(2^lpb1)
 
+# To limit the number of black-box evaluations to say 100:
+# NOMAD_MAX_BB_EVAL=100 ./optimize.sh ...
+
 cwd=`pwd`
-params=$1
-poly=`basename $2`
+
+### Set params file from first argument
+if [ -e "$1" ] ; then
+  params=$1
+else
+  echo "Could not find params file '$1'"
+  exit 1
+fi
+
+### Set poly file from second argument
+if [ -e "$2" ] ; then
+  poly=`basename $2`
+else
+  echo "Could not find poly file '$2'"
+  exit 1
+fi
+
+### Check that CADO_BUILD contains the path to a directory
+if [ -d "${CADO_BUILD}" ] ; then
+  echo "CADO_BUILD = ${CADO_BUILD}"
+else
+  echo "CADO_BUILD does not contain the name of a directory: '${CADO_BUILD}'"
+  exit 1
+fi
+
+### Set working directory
 d=`mktemp -d`
 echo "Working directory:" $d
+
+### Copy las_optimize, report and poly file and replace its name in las_run
 cp $2 las_optimize.py report.py $d
 sed "s/c59.polyselect2.poly/$poly/g" las_run.py > $d/las_run.py
+
+### Parsing poly file (number of poly and rat/alg) (for now assume npoly == 2)
+npoly=`grep -c "^poly[0-9]" $d/$poly`
+if [ $npoly -eq 0 ] ; then # polys are given by Y[0-9] and (c[0-9] or X[0-9])
+  grep -q "^Y[2-9]" $d/$poly
+  if [ $? -eq 0 ] ; then
+    poly0="alg"
+  else
+    poly0="rat"
+  fi
+  grep -q "^[cX][2-9]" $d/$poly
+  if [ $? -eq 0 ] ; then
+    poly1="alg"
+  else
+    poly0="rat"
+  fi
+elif [ $npoly -eq 2 ] ; then # polys are given by 'poly[0-9]:c0,c1,...'
+  if [ `grep -c "^poly0" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
+    poly0="rat"
+  else
+    poly0="alg"
+  fi
+  if [ `grep -c "^poly1" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
+    poly1="rat"
+  else
+    poly1="alg"
+  fi
+else
+  echo "Error, expected 2 polynomials, got $npoly"
+  exit 1
+fi
+echo "Type of polynomials: $poly0, $poly1"
+export OPAL_CADO_TYPE="$poly0,$poly1"
+echo "OPAL_CADO_TYPE=${OPAL_CADO_TYPE}"
+
+### Parse sqside parameter if present and set OPAL_CADO_SQSIDE env variable
+# if not given, set to an empty string (it means we let las choose)
+sqside=`grep "sqside.*=" $params | cut -d= -f2`
+export OPAL_CADO_SQSIDE="$sqside"
+echo "OPAL_CADO_SQSIDE=${OPAL_CADO_SQSIDE}"
+
+### Get parameters from params file and set _min and _max
 lim0=`grep "^lim0.*=" $params | cut -d= -f2`
 lim1=`grep "^lim1.*=" $params | cut -d= -f2`
 lpb0=`grep "^lpb0.*=" $params | cut -d= -f2`
@@ -82,6 +153,8 @@ I_max=`expr $I + 1`
 if [ $I_max -gt 16 ]; then
     I_max=16
 fi
+
+### Replace parameters values in template
 sed "s/lim0_def/$lim0/g" las_decl_template.py | \
 sed "s/lim0_min/$lim0_min/g" | sed "s/lim0_max/$lim0_max/g" | \
 sed "s/lim1_def/$lim1/g" | sed "s/lim1_min/$lim1_min/g" | \
@@ -100,8 +173,12 @@ sed "s/ncurves1_def/$ncurves1/g" | sed "s/ncurves1_min/$ncurves1_min/g" | \
 sed "s/ncurves1_max/$ncurves1_max/g" | \
 sed "s/I_def/$I/g" | sed "s/I_min/$I_min/g" | sed "s/I_max/$I_max/g" \
 > $d/las_declaration.py
+
+### Go to working directory and execute las_optimize.py
 cd $d
 python las_optimize.py
+
+### Parse the solutions from nomad
 # optimized parameters are in nomad-solution.nnn.txt
 f=`ls -t nomad-solution.*.txt | head -1`
 lim0_opt=`head -1 $f`

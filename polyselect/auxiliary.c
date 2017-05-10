@@ -581,6 +581,8 @@ L2_combined_skewness (cado_poly poly, int prec, double bound_f, double bound_g,
 
   while (b - a > ldexp (a, -prec))
     {
+      double max_left, max_right;
+
       c = (2.0 * a + b) / 3.0;
       poly->skew = c;
       vc = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
@@ -589,12 +591,15 @@ L2_combined_skewness (cado_poly poly, int prec, double bound_f, double bound_g,
       poly->skew = d;
       vd = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
 
-      if (va > vd && va > vb && vc > vd && vc > vb) /* maximum is in a or c */
+      max_left = (va > vc) ? va : vc;
+      max_right = (vb > vd) ? vb : vd;
+
+      if (max_left > max_right) /* maximum is in a or c */
         {
           b = d;
           vb = vd;
         }
-      else /* the maximum is in d or b */
+      else /* maximum is in d or b */
         {
           a = c;
           va = vc;

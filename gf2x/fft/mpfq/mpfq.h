@@ -61,9 +61,12 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 
 
 #ifndef GNUC_VERSION
+#ifndef __GNUC__
+#define GNUC_VERSION(X,Y,Z) 0
+#else
 #define GNUC_VERSION(X,Y,Z)     \
-    defined(__GNUC__) &&        \
 (__GNUC__ == X && __GNUC_MINOR__ == Y && __GNUC_PATCHLEVEL__ == Z)
+#endif
 #endif
 
 #ifndef GNUC_VERSION_ATLEAST

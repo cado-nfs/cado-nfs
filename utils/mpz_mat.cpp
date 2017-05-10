@@ -33,7 +33,7 @@ mpq_srcptr mpq_mat_entry_const(mpq_mat_srcptr M, unsigned int i, unsigned int j)
 /*{{{ init/clear/realloc*/
 void mpz_mat_init(mpz_mat_ptr M, unsigned int m, unsigned int n)
 {
-    M->x = (mpz_t*) ((m*n) ? malloc(m * n * sizeof(mpz_t)) : NULL);
+    M->x = (mpz_t*) ((m && n) ? malloc(m * n * sizeof(mpz_t)) : NULL);
 
     M->m = m;
     M->n = n;
@@ -59,7 +59,7 @@ void mpz_mat_realloc(mpz_mat_ptr M, unsigned int m, unsigned int n)
 
 void mpq_mat_init(mpq_mat_ptr M, unsigned int m, unsigned int n)
 {
-    M->x = (mpq_t*) ((m*n) ? malloc(m * n * sizeof(mpq_t)) : NULL);
+    M->x = (mpq_t*) ((m && n) ? malloc(m * n * sizeof(mpq_t)) : NULL);
     M->m = m;
     M->n = n;
     for(unsigned int i = 0 ; i < M->m ; i++)

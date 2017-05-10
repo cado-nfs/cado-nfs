@@ -10,6 +10,8 @@ void uint64_array_init(uint64_array_ptr array, uint64_t length)
   array->length = length;
   array->array = (uint64_t * ) malloc(sizeof(uint64_t) * length);
 
+  ASSERT_ALWAYS(array->array != NULL);
+
 #ifndef NDEBUG
   for (uint64_t i = 0; i < length; i++) {
     array->array[i] = 0;
@@ -28,6 +30,8 @@ void uint64_array_realloc(uint64_array_ptr array, uint64_t number)
 {
   array->array = realloc(array->array, sizeof(uint64_t) * number);
   array->length = number;
+
+  ASSERT_ALWAYS(array->array != NULL);
 }
 
 void uint64_array_clear(uint64_array_ptr array)

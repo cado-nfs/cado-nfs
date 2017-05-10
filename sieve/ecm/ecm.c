@@ -1102,6 +1102,7 @@ ellE_interpret_bytecode (ellE_point_t P, const char *bc, const unsigned int bc_l
     {
       case ADDCHAIN_2DBL:
         ellE_double (Q, Q, m, a);
+        /* no break here: fall through */
       case ADDCHAIN_DBL:
         ellE_double (Q, Q, m, a);
         break;
