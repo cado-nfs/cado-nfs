@@ -11,6 +11,8 @@ struct galois_automorphism_s sigmas[] = {
     { "autom3.2", 3, 1, 1, {-1,-1,1,0} },     // (-x-1)/x = -1-1/x
     { "autom4.1", 4, 2, 2, {-1,-1,1,-1} },    // (-x-1)/x = -1-1/x
     { "autom6.1", 6, 3, 2, {-2,-1,1,-1} },    // -(2*x+1)/(x-1)
+    // horrible trick for using autom6.1^3 which has order 2
+    { "autom6.1Z", 2, 1, 1, {-1,-2,2,1} },    // -(x+2)/(2*x+1)
     { "_1/y", 2, 1, 1, {0,-1,1,0} },          // -1/x
     // some old aliases.
     { "autom2.1g", 2, 1, 1, {0,1,1,0} },       // 1/x
@@ -37,7 +39,9 @@ galois_automorphism_srcptr galois_automorphism_get(const char * name)
 
 /* returns how many times sigma->factor must by added to the
  * corresponding relation */
-int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, int64_t * a, int64_t * b)
+int galois_automorphism_apply_ab(galois_automorphism_srcptr sigma, 
+				 int64_t * a, int64_t * b
+)
 {
     mpz_poly ab;
     mpz_poly_init(ab, 1);
