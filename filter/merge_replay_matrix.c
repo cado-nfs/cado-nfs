@@ -634,6 +634,17 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
 
+  /* check sanity */
+  uint64_t i, k;
+  for(i = 0; i < mat->nrows; i++)
+      for(k = 2; k <= matLengthRow(mat, i); k++){
+	  index_t id = matCell(mat, i, k-1), id2 = matCell(mat, i, k);
+	  if(id >= id2){
+	      printf("Pb in row %" PRIu64 ": id >= id2\n", i);
+	      ASSERT_ALWAYS(0);
+	  }
+      }
+
   /* print weight count */
   uint64_t nbm[256], total;
   total = weight_count (mat, nbm);
@@ -644,7 +655,6 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 
   int weight_buried_is_exact = 1;
   uint64_t weight_buried = 0;
-  uint64_t i;
   /* Bury heavy coloumns. The 'nburied' heaviest column are buried. */
   /* Buried columns are not taken into account by merge. */
   if (mat->nburied)
