@@ -33,6 +33,88 @@ void read_poly(ZZX& a, string poly)
   sline >> a;
 }
 
+// Convert char of hex to dec.
+long hexDec(char c)
+{
+#ifndef NDEBUG
+  assert(c == '-' ||
+      c == '0' ||
+      c == '1' ||
+      c == '2' ||
+      c == '3' ||
+      c == '4' ||
+      c == '5' ||
+      c == '6' ||
+      c == '7' ||
+      c == '8' ||
+      c == '9' ||
+      c == 'a' ||
+      c == 'b' ||
+      c == 'c' ||
+      c == 'd' ||
+      c == 'e' ||
+      c == 'f');
+#endif // NDEBUG
+
+  if (c == 'a'){
+    return 10;
+  } else if (c == 'b'){
+    return 11;
+  } else if (c == 'c') {
+    return 12;
+  } else if (c == 'd') {
+    return 13;
+  } else if (c == 'e') {
+    return 14;
+  } else if (c == 'f') {
+    return 15;
+  } else if (c == '-') {
+    return -1;
+  } else {
+    return (long) (c - '0');
+  }
+}
+
+// Convert a hex string in ZZ.
+ZZ hexZZ(string hex)
+{
+  ZZ z;
+  z = 0;
+  ZZ base;
+  base = 1;
+  ZZ minus;
+  minus = 1;
+  ZZ tmp;
+  tmp = 0;
+  for (size_t i = hex.size(); i-- > 0 ;) {
+    tmp = hexDec(hex[i]);
+    if (tmp == -1) {
+      minus = -1;
+    } else {
+      z = z + tmp * base;
+    }
+    base = base * 16;
+  }
+  return minus * z;
+}
+
+void read_poly_hex(ZZX& a, string poly)
+{
+  char * split;
+  string polytmp;
+  char * polyc = (char * ) malloc(sizeof(char) * poly.size() + 1);
+  copy(poly.begin(), poly.end(), polyc);
+  polyc[poly.size()] = '\0';
+  split = strtok(polyc, ",");
+  long i = 0;
+  while (split != NULL) {
+    polytmp.assign(split);
+    SetCoeff(a, i, hexZZ(polytmp));
+    i++;
+    split = strtok(NULL, ",");
+  }
+}
+
 // Read a polynomial inside a relation.
 void read_poly_relation(ZZX& a, string line)
 {
@@ -40,7 +122,29 @@ void read_poly_relation(ZZX& a, string line)
   stringstream sline;
   sline.str(line);
   getline(sline, split, ':');
-  read_poly(a, split);
+#ifndef NDEBUG
+  assert(split[0] == 'X');
+  assert(split[1] == ' ');
+  assert(split[2] == '-' || 
+      split[2] == '0' ||
+      split[2] == '1' ||
+      split[2] == '2' ||
+      split[2] == '3' ||
+      split[2] == '4' ||
+      split[2] == '5' ||
+      split[2] == '6' ||
+      split[2] == '7' ||
+      split[2] == '8' ||
+      split[2] == '9' ||
+      split[2] == 'a' ||
+      split[2] == 'b' ||
+      split[2] == 'c' ||
+      split[2] == 'd' ||
+      split[2] == 'e' ||
+      split[2] == 'f');
+#endif // NDEBUG
+  split.erase(0, 2);
+  read_poly_hex(a, split);
 }
 
 // Read the file *.poly.
@@ -98,59 +202,6 @@ void read_lpb(Vec <ZZ>& lpb, char * lpbs, long length)
     split = strtok(lpbs, ",");
     lpb.append(power2_ZZ(atol(split)));
   }
-}
-
-// Convert char of hex to dec.
-long hexDec(char c)
-{
-#ifndef NDEBUG
-  assert(c == '0' ||
-      c == '1' ||
-      c == '2' ||
-      c == '3' ||
-      c == '4' ||
-      c == '5' ||
-      c == '6' ||
-      c == '7' ||
-      c == '8' ||
-      c == '9' ||
-      c == 'a' ||
-      c == 'b' ||
-      c == 'c' ||
-      c == 'd' ||
-      c == 'e' ||
-      c == 'f');
-#endif // NDEBUG
-
-  if (c == 'a'){
-    return 10;
-  } else if (c == 'b'){
-    return 11;
-  } else if (c == 'c') {
-    return 12;
-  } else if (c == 'd') {
-    return 13;
-  } else if (c == 'e') {
-    return 14;
-  } else if (c == 'f') {
-    return 15;
-  } else {
-    return (long) (c - '0');
-  }
-}
-
-// Convert a hex string in ZZ.
-ZZ hexZZ(string hex)
-{
-  ZZ z;
-  z = 0;
-  ZZ base;
-  base = 1;
-  for (size_t i = hex.size(); i-- > 0 ;) {
-    z = z + hexDec(hex[i]) * base;
-    base = base * 16;
-  }
-  return z;
 }
 
 // TODO: Maybe nb_facto not useful.

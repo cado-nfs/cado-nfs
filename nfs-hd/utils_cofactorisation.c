@@ -250,13 +250,17 @@ static void printf_relation(factor_t * factor,
 #endif // ASSERT_FACTO
 
   //Print the coefficient of a.
+  fprintf(outstd, "X ");
   for (int i = 0; i < a->deg; i++) {
-    gmp_fprintf(outstd, "%Zd,", a->coeff[i]);
+    mpz_out_str(outstd, 16, a->coeff[i]);
+    fprintf(outstd, ",");
   }
   if ((int)t - 1 == a->deg) {
-    gmp_fprintf(outstd, "%Zd:", a->coeff[a->deg]);
+    mpz_out_str(outstd, 16, a->coeff[a->deg]);
+    fprintf(outstd, ":");
   } else {
-    gmp_fprintf(outstd, "%Zd,", a->coeff[a->deg]);
+    mpz_out_str(outstd, 16, a->coeff[a->deg]);
+    fprintf(outstd, ",");
     for (int i = a->deg + 1; i < (int)t - 1; i++) {
       fprintf(outstd, "0,");
     }
