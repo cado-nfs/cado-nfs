@@ -63,7 +63,13 @@ set_target_properties(sm_append PROPERTIES
     LINK_FLAGS "--mpi")
 endif()
 
-
+add_executable(sm_append3 sm_append3.cpp)
+target_link_libraries(sm_append3 utils)
+if (${WITH_MPI})
+set_target_properties(sm_append3 PROPERTIES
+    COMPILE_FLAGS "--mpi"
+    LINK_FLAGS "--mpi")
+endif()
 
 install(TARGETS ${bin_list} RUNTIME DESTINATION ${LIBSUFFIX}/filter)
 

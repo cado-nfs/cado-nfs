@@ -1154,6 +1154,7 @@ linalg/bwc/mpfq/mpfq_p_15.h
 linalg/bwc/mpfq/mpfq_p_15_t.c
 linalg/bwc/mpfq/mpfq_p_15_t.h
 filter/sm_append.cpp
+filter/sm_append3.cpp
 linalg/bwc/bwccheck.cpp
 tests/linalg/bwc/test-lingen-crc.sh
 tests/utils/test_cxx_mpz_poly.cpp

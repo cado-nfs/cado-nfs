@@ -6,7 +6,8 @@ set (SQ_SRC special-q_sieve.c mat_int64.c int64_vector.c uint64_array.c
 
 add_executable(special-q_sieve ${SQ_SRC})
 
-set_property(TARGET special-q_sieve PROPERTY COMPILE_DEFINITIONS SLLL_SAFE)
+#set_property(TARGET special-q_sieve PROPERTY COMPILE_DEFINITIONS SLLL_SAFE)
+set_property(TARGET special-q_sieve PROPERTY COMPILE_DEFINITIONS)
 
 include_directories (${CMAKE_SOURCE_DIR}/sieve)
 target_link_libraries(special-q_sieve facul utils)
