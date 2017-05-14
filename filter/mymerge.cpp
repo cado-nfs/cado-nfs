@@ -1287,9 +1287,16 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
 {
     size_t excess = nrows - global_ncols;
 
+    ASSERT_ALWAYS(heavy_rows.size() <= excess);
+
+    /* First count how many rows we would remove if we had
+     * heavy_rows.size() == excess. That is an upper bound */
     count = std::min(count, excess - keep);
 
-    if (!count || heavy_rows.size() <= excess - count)
+    /* Then take into account the fact that some may be missing (because
+     * they might have been removed, being identified as singletons).
+     */
+    if (count <= (excess - heavy_rows.size()))
         return 0;
     
     /*
@@ -1297,7 +1304,7 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
             count, nrows, ncols, excess);
             */
 
-    size_t nb_heaviest = heavy_rows.size() - (excess - count);
+    size_t nb_heaviest = count - (excess - heavy_rows.size());
     high_score_table<size_t, row_weight_t> heaviest(nb_heaviest);
     heavy_rows.filter_to(heaviest);
     std::vector<size_t> killed;
