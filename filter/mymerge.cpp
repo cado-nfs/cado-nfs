@@ -1324,6 +1324,33 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
 }/*}}}*/
 
 /*{{{ collective merge heavylifting */
+
+struct displ { /*{{{ helper for AlltoAllv */
+    typedef std::vector<int> displ_vec_t;
+    displ_vec_t counts;
+    displ_vec_t displs;
+    int total;
+    int * counts_ptr() { return &counts[0]; }
+    int * displs_ptr() { return &displs[0]; }
+    const int * counts_ptr() const { return &counts[0]; }
+    const int * displs_ptr() const { return &displs[0]; }
+    displ(displ_vec_t & local, size_t spread) {
+        ASSERT_ALWAYS(local.size() % spread == 0);
+        size_t n = local.size() / spread;
+        counts.assign(n, 0);
+        displs.assign(n, 0);
+        total = 0;
+        for(size_t peer = 0 ; peer < n ; peer++) {
+            int x = 0;
+            for(size_t qr = 0 ; qr < spread ; qr++)
+                x += local[peer * spread + qr];
+            displs[peer] = total;
+            total += counts[peer] = x;
+        }
+    }
+};/*}}}*/
+
+
 struct collective_merge_operation {/*{{{*/
     typedef merge_matrix::row_value_t row_value_t;
     typedef merge_matrix::col_weight_t col_weight_t;
@@ -1372,7 +1399,6 @@ struct collective_merge_operation {/*{{{*/
      */
 
     typedef std::vector<size_t> index_vec_t;
-    typedef std::vector<int> displ_vec_t;
 
     index_vec_t my_col_indices;
 
@@ -1394,8 +1420,6 @@ struct collective_merge_operation {/*{{{*/
     }
 
     /* Those are temporary, but nevertheless useful */
-    displ_vec_t my_contrib_sizes;
-    displ_vec_t remote_contrib_sizes;
     collective_merge_operation(MPI_Comm comm, size_t n, size_t w)
         : comm(comm),
         n(n), w(w)
@@ -1416,18 +1440,6 @@ struct collective_merge_operation {/*{{{*/
     row_batch_set_t merge_scatter_rows(merge_matrix const&);
     /* this function flattens the new set of rows */
     row_batch_t allgather_rows(row_batch_set_t const&);
-    void share_contribs();
-    struct displ {
-        displ_vec_t counts;
-        displ_vec_t displs;
-        int total;
-        int * counts_ptr() { return &counts[0]; }
-        int * displs_ptr() { return &displs[0]; }
-        const int * counts_ptr() const { return &counts[0]; }
-        const int * displs_ptr() const { return &displs[0]; }
-    };
-    displ send, recv;
-    void prepare_sendrecv_displs();
 };
 /*}}}*/
 void collective_merge_operation::announce_columns(proposal_t const &prop)
@@ -1440,43 +1452,6 @@ void collective_merge_operation::announce_columns(proposal_t const &prop)
         my_col_indices.push_back(x.first);
     // all_col_indices.reserve(n * comm_size);
     // It seems that we don't need to announce the columns, do we ?
-
-}/*}}}*/
-void collective_merge_operation::share_contribs()/*{{{*/
-{
-    remote_contrib_sizes.assign(comm_size * n * w, 0);
-    /* now this needs to be transposed, so that I can now how many
-     * coefficients I'll receive from the other folks. */
-    MPI_Alltoall(
-            (void*) &my_contrib_sizes[0], n * w, MPI_INT,
-            (void*) &remote_contrib_sizes[0], n * w, MPI_INT,
-            comm);
-}/*}}}*/
-void collective_merge_operation::prepare_sendrecv_displs()/*{{{*/
-{
-    send.counts.assign(comm_size, 0);
-    send.displs.assign(comm_size, 0);
-    send.total = 0;
-    for(int peer = 0 ; peer < comm_size ; peer++) {
-        int x = 0;
-        for(size_t qr = 0 ; qr < n * w ; qr++)
-            x += my_contrib_sizes[peer * n * w + qr];
-        send.total += x;
-        send.counts[peer] = x;
-        send.displs[peer] = peer ? send.displs[peer-1] + send.counts[peer-1] : 0;
-    }
-
-    recv.counts.assign(comm_size, 0);
-    recv.displs.assign(comm_size, 0);
-    recv.total = 0;
-    for(int peer = 0 ; peer < comm_size ; peer++) {
-        int x = 0;
-        for(size_t qr = 0 ; qr < n * w ; qr++)
-            x += remote_contrib_sizes[peer * n * w + qr]; 
-        recv.total += x;
-        recv.counts[peer] = x;
-        recv.displs[peer] = peer ? recv.displs[peer-1] + recv.counts[peer-1] : 0;
-    }
 
 }/*}}}*/
 void collective_merge_operation::deduce_and_share_rows(merge_matrix const& M)/*{{{*/
@@ -1556,33 +1531,39 @@ collective_merge_operation::merge_scatter_rows(merge_matrix const& M)
     
     ASSERT_ALWAYS(all_row_indices.size() == comm_size * n);
 
-    /* {{{ Get the send-to's and deduce the recv-from's, for each column
-     * in the batch, and each involved row */
-    my_contrib_sizes.assign(comm_size * n * w, 0);
-    for(int peer = 0 ; peer < comm_size ; peer++) {
-        for(size_t q = 0 ; q < n ; q++) {
-            std::vector<size_t> const& col(all_row_indices[peer * n + q]);
-            for(size_t r = 0 ; r < col.size() ; r++)
-                my_contrib_sizes[(peer * n + q) * w + r] = M.rows[col[r]].second;
+    /* {{{ Prepare the send buffer */
+    displ::displ_vec_t my_contrib_sizes(comm_size * n * w, 0);
+    for(size_t pq = 0 ; pq < n * comm_size ; pq++) {
+        std::vector<size_t> const& col(all_row_indices[pq]);
+        for(size_t r = 0 ; r < col.size() ; r++) {
+            size_t i = col[r];
+            my_contrib_sizes[pq * w + r] = M.rows[i].second;
         }
     }
-    /* }}} */
-    share_contribs();
-
-    prepare_sendrecv_displs();
-
     /* Put all this stuff in a temp buffer. */
+    displ send(my_contrib_sizes, n * w);
     row_t my_coeffs;
     my_coeffs.reserve(send.total);
-    for(auto const & col : all_row_indices) {
-        for(size_t i : col) {
-            int nr = M.rows[i].second;
+    for(size_t pq = 0 ; pq < n * comm_size ; pq++) {
+        std::vector<size_t> const& col(all_row_indices[pq]);
+        for(size_t r = 0 ; r < col.size() ; r++) {
+            size_t i = col[r];
             const row_value_t * ptr = M.rows[i].first;
+            size_t nr = M.rows[i].second;
             my_coeffs.insert(my_coeffs.end(), ptr, ptr + nr);
         }
     }
     ASSERT_ALWAYS(my_coeffs.size() == (size_t) send.total);
+    /* }}} */
 
+
+    displ::displ_vec_t remote_contrib_sizes(comm_size * n * w, 0);
+    MPI_Alltoall(
+            (void*) &my_contrib_sizes[0], n * w, MPI_INT,
+            (void*) &remote_contrib_sizes[0], n * w, MPI_INT,
+            comm);
+
+    displ recv(remote_contrib_sizes, n * w);
     row_t remote_coeffs(recv.total);
 
     MPI_Alltoallv(
@@ -1592,6 +1573,8 @@ collective_merge_operation::merge_scatter_rows(merge_matrix const& M)
             recv.counts_ptr(), recv.displs_ptr(), mpi_row_value_t,
             comm);
 
+    /* we receive locally. So only for n batches of w rows. Note though
+     * that for each of these batches, we may receive from all peers */
     row_batch_set_t res(n);
     const row_value_t * ptrs[comm_size];
     for(int peer = 0 ; peer < comm_size ; peer++)
@@ -1626,16 +1609,17 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
     /* input is _my_ batches */
     ASSERT_ALWAYS(R.size() <= n);
 
-    /* {{{ Get the send-to's and deduce the recv-from's, for each column
-     * in the batch, and each involved row */
+    /* {{{ Prepare the send buffer */
     /* We'll follow basically the same algorithm as for the
      * merge-scatter. So first we'll count the exchange data with all
      * nodes, and we'll do that via a flat array.
      */
-    my_contrib_sizes.assign(comm_size * n * w, 0);
+    displ::displ_vec_t my_contrib_sizes(comm_size * n * w, 0);
     for(size_t q = 0 ; q < R.size() ; q++) {
         row_batch_t const & batch(R[q]);
         size_t wj = batch.size();
+        /* In reality, it's wj < w for the use case of a merge, because
+         * we make w-1 rows from w rows. */
         ASSERT_ALWAYS(wj <= w);
         for(size_t r = 0 ; r < wj ; r++) {
             row_t const & row(batch[r]);
@@ -1645,21 +1629,7 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
             }
         }
     }
-    /* }}} */
-
-    // my_contrib_sizes[(peer * n + q) * w + r] =
-    // my_contrib_sizes[(peer * n * w) + q * w + r] =
-    // the number of coefficients I have in the r-th new row _I_ created,
-    // from the q-th merge ordered by me, that will go to this peer.
-
-    share_contribs();
-
-    // remote_contrib_sizes[(p * n + q) * w + r] = the number of new
-    // coefficients _I_ will have to store as elements of the r-th new
-    // row among the ones in the q-th merge ordered by peer p
-
-    prepare_sendrecv_displs();
-
+    displ send(my_contrib_sizes, n * w);
     /* Put all this stuff in a temp buffer. */
     row_t my_coeffs(send.total);
     row_value_t * ptrs[comm_size];
@@ -1680,8 +1650,24 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
             }
         }
     }
+    /* }}} */
 
+    displ::displ_vec_t remote_contrib_sizes(comm_size * n * w, 0);
+    MPI_Alltoall(
+            (void*) &my_contrib_sizes[0], n * w, MPI_INT,
+            (void*) &remote_contrib_sizes[0], n * w, MPI_INT,
+            comm);
+    displ recv(remote_contrib_sizes, n * w);
     row_t remote_coeffs(recv.total);
+
+    // my_contrib_sizes[(peer * n + q) * w + r] =
+    // my_contrib_sizes[(peer * n * w) + q * w + r] =
+    // the number of coefficients I have in the r-th new row _I_ created,
+    // from the q-th merge ordered by me, that will go to this peer.
+
+    // remote_contrib_sizes[(p * n + q) * w + r] = the number of new
+    // coefficients _I_ will have to store as elements of the r-th new
+    // row among the ones in the q-th merge ordered by peer p
 
     MPI_Alltoallv(
             (const void *)&my_coeffs[0],
@@ -1697,23 +1683,22 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
 
     /* The way we write this loop is where the "virtual ordering"
      * referred to above is actually created */
-    for(size_t q = 0 ; q < n ; q++) {
-        for(int peer = 0 ; peer < comm_size ; peer++) {
-            // my chunks of the q-th merge ordered by peer p. This will
-            // entail reading values from peer p only.
-            std::vector<size_t> const& col(all_row_indices[peer * n + q]);
-            if (col.empty()) continue;
-            for(size_t r = 0 ; r < col.size() - 1 ; r++) {
-                // remote_contrib_sizes[(peer * n + q) * w + r] = the
-                // number of new coefficients _I_ will have to store as
-                // elements of the r-th new row among the ones in the
-                // q-th merge ordered by peer p
-                int dx = remote_contrib_sizes[(peer * n + q) * w + r];
-                row_t newrow(ptrs[peer], ptrs[peer] + dx);
-                ptrs[peer] += dx;
-                std::sort(newrow.begin(), newrow.end());
-                res.push_back(std::move(newrow));
-            }
+    for(size_t pq = 0 ; pq < n * comm_size ; pq++) {
+        // my chunks of the q-th merge ordered by peer p. This will
+        // entail reading values from peer p only.
+        std::vector<size_t> const& col(all_row_indices[pq]);
+        if (col.empty()) continue;
+        for(size_t r = 0 ; r < col.size() - 1 ; r++) {
+            // remote_contrib_sizes[(peer * n + q) * w + r] = the
+            // number of new coefficients _I_ will have to store as
+            // elements of the r-th new row among the ones in the
+            // q-th merge ordered by peer p
+            int dx = remote_contrib_sizes[pq * w + r];
+            int peer = pq/n;
+            row_t newrow(ptrs[peer], ptrs[peer] + dx);
+            ptrs[peer] += dx;
+            std::sort(newrow.begin(), newrow.end());
+            res.push_back(std::move(newrow));
         }
     }
     return res;
