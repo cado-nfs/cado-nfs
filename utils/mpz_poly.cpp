@@ -78,6 +78,10 @@ mpz_poly_sqr_basecase (mpz_t *f, mpz_t *g, int r) {
 static const long tc_points[MAX_TC_DEGREE] = {0, 1, -1, 2, -2, 3, -3, 4, -4,
 					    5, -5, 6, -6, 7, -7, 8, -8, 9, -9};
 
+#if GNUC_VERSION_ATLEAST(7,0,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-overflow" 
+#endif
 /* Given f[0]...f[t] that contain respectively f(0), ..., f(t),
    put in f[0]...f[t] the coefficients of f. Assumes t <= MAX_TC_DEGREE.
 
@@ -138,6 +142,9 @@ mpz_poly_mul_tc_interpolate (mpz_t *f, int t) {
     mpz_divexact_uint64 (f[i], f[i], M[i][i]);
   }
 }
+#if GNUC_VERSION_ATLEAST(7,0,0)
+#pragma GCC diagnostic pop
+#endif
 
 /* v <- g(i) */
 static void
@@ -2500,8 +2507,9 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
       mpz_mul_si (g[0], g[0], H[3]);
 
       /* now g has degree d-k, and we add f0*g */
-      for (l = k; l <= d; l++)
-        mpz_addmul (fij[l], g[l - k], f0);
+      for (l = 0; l <= d-k; l++)
+          mpz_addmul(fij[l+k], g[l], f0);
+
     }
 
   mpz_clear (f0);

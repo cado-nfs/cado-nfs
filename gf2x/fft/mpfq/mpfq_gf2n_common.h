@@ -15,11 +15,7 @@ typedef struct {
 typedef mpfq_2_field_struct mpfq_2_field[1];
 typedef mpfq_2_field_struct * mpfq_2_dst_field;
 
-#if GNUC_VERSION(4,3,0)
-#warning "Your GCC version is buggy. Binary fields may fail randomly"
-#endif
-
-#if GNUC_VERSION(4,3,1)
+#if GNUC_VERSION(4,3,0) || GNUC_VERSION(4,3,1)
 #warning "Your GCC version is buggy. Binary fields may fail randomly"
 #endif
 

@@ -84,7 +84,7 @@ def allroots(f,p):
 # return a list of triples [pr, alpha_f, alpha_g] where:
 # pr is the probability of all residue classes for primes p < B
 # with alpha_f and alpha_g
-def MurphyE_combined_aux(f,g,B):
+def MurphyE_combined_aux(f,g,B,verbose=false):
    # l is a list of [pr,alpha_f,alpha_g] where:
    # pr is the probability of this residue class
    # alpha_f is the alpha value of f for this class
@@ -100,6 +100,8 @@ def MurphyE_combined_aux(f,g,B):
          else: # r = p: projective root
             ef = average_valuation_homogeneous_coprime_sub(f,p,1,0)
             eg = average_valuation_homogeneous_coprime_sub(g,p,1,0)
+         if verbose:
+            print "p=", p, "r=", r, "ef=", ef, "eg=", eg
          # if there was already a class with the same exponents, accumulate
          found = false
          for i in range(len(lp)):
@@ -126,8 +128,8 @@ def MurphyE_combined_aux(f,g,B):
 # computes a "combined" MurphyE value by taking into account correlation
 # between the roots of f and g for all primes < B (B=2 should give the same
 # value than MurphyE)
-def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,verbose=False):
-    l = MurphyE_combined_aux(f,g,B)
+def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,verbose=false):
+    l = MurphyE_combined_aux(f,g,B,verbose)
     print "number of residue classes:", len(l)
     df = f.degree()
     dg = g.degree()

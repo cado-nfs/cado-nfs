@@ -43,7 +43,7 @@ tasks.sieve.qrange = 10000
 ###########################################################################
 
 tasks.filter.purge.keep = 160
-tasks.filter.maxlevel = 40
+tasks.filter.maxlevel = 35
 tasks.filter.target_density = 170.0
 
 ###########################################################################

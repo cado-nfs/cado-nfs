@@ -565,6 +565,11 @@ mergeForColumn (report_t *rep, filter_matrix_t *mat, int m, index_t j)
     index_t ind[MERGE_LEVEL_MAX];
     int ni;
 
+#if TRACE_COL >= 0
+    if (j == TRACE_COL)
+      printf ("TRACE_COL: merge column %lu\n", (unsigned long) j);
+#endif
+
     ASSERT(mat->wt[j] == m);
     ASSERT(sizeof(index_t) == sizeof(mat->R[j][0]));
 

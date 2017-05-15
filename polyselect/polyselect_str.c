@@ -511,11 +511,11 @@ shash_find_collision (shash_t H)
       Hj += 5;
     }
     switch (Hj - Hjm) { /* no break: it's NOT an error! */
-    case 0: SHASH_RESEARCH(Th4, i4);
-    case 1: SHASH_RESEARCH(Th3, i3);
-    case 2: SHASH_RESEARCH(Th2, i2);
-    case 3: SHASH_RESEARCH(Th1, i1);
-    case 4: SHASH_RESEARCH(Th0, i0);
+    case 0: SHASH_RESEARCH(Th4, i4); no_break();
+    case 1: SHASH_RESEARCH(Th3, i3); no_break();
+    case 2: SHASH_RESEARCH(Th2, i2); no_break();
+    case 3: SHASH_RESEARCH(Th1, i1); no_break();
+    case 4: SHASH_RESEARCH(Th0, i0); no_break();
     }
   }
   free (T);

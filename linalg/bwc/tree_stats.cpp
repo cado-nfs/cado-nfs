@@ -31,6 +31,7 @@ double tree_stats::level_stats::projected_time(unsigned int total_breadth)
         function_stats & F(x->second);
         // expected_calls = expected_total_calls * (double) ncalled / ncalled;
         double r = (double) total_breadth / sum_inputsize;
+        ASSERT_ALWAYS(sum_inputsize <= total_breadth);
         // double contrib = n * spent / ncalled;
         // total_breadth / sum_inputsize * (double) ncalled * (double) ncalled / ncalled * spent / ncalled;
         F.projected_calls = round(r * F.ncalled);
@@ -45,6 +46,7 @@ double tree_stats::level_stats::projected_time(unsigned int total_breadth)
 void tree_stats::print(unsigned int level)
 {
     double sum = 0;
+    double time_to_go = 0;
     int nstars=0;
     int nok=0;
     double firstok = 0;
@@ -75,6 +77,7 @@ void tree_stats::print(unsigned int level)
                 string const& key(x->first);
                 function_stats const& F(x->second);
                 sum += F.projected_time;
+                time_to_go += F.projected_time - F.spent;
                 printf("%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f)\n",
                         k, (const char*) code,
                         F.min_inputsize, F.max_inputsize,
@@ -142,11 +145,14 @@ void tree_stats::print(unsigned int level)
         printf("expected time for levels 0-%u: %.1f (total: %.1f)\n",
                 nstars-1, complement, sum + complement);
     }
+
+    /* Note that time_to_go is only relative to the levels for which we
+     * have got at least one data point */
     {
         /* print ETA */
         time_t eta[1];
         char eta_string[32] = "not available yet\n";
-        *eta = begin + sum + complement - (wct_seconds() - begin);
+        *eta = wct_seconds() + time_to_go + complement;
 #ifdef HAVE_CTIME_R
         ctime_r(eta, eta_string);
 #else

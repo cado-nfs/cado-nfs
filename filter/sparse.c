@@ -55,6 +55,8 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
     uint32_t k1, k2, k, len;
     typerow_t *tmp;
 
+    ASSERT(i1 != i2);
+
     ASSERT(rows[i1] != NULL);
     ASSERT(rows[i2] != NULL);
 #if DEBUG >= 1
