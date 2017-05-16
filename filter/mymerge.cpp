@@ -29,8 +29,9 @@
  */
 #define xxxR_TABLE_USES_SMALL_SIZE_POOL
 #define xxxROW_TABLE_USES_COMPRESSIBLE_HEAP
+#define ROW_TABLE_USES_SMALL_SIZE_POOL
 
-#ifdef R_TABLE_USES_SMALL_SIZE_POOL
+#if defined(R_TABLE_USES_SMALL_SIZE_POOL) || defined(ROW_TABLE_USES_SMALL_SIZE_POOL)
 #define DEBUG_SMALL_SIZE_POOL
 #include "small_size_pool.hpp"
 #endif
@@ -47,7 +48,11 @@
  * the very same problems...
  */
 static const int compact_column_index_size = 8;
+
+
+#ifdef ROW_TABLE_USES_COMPRESSIBLE_HEAP
 static const int merge_row_heap_batch_size = 16384;
+#endif
 
 static void declare_usage(param_list pl)/*{{{*/
 {
@@ -165,6 +170,57 @@ struct merge_matrix {
         row_value_t,
         row_weight_t,
         merge_row_heap_batch_size> rows_t;
+#elif defined(ROW_TABLE_USES_SMALL_SIZE_POOL)
+    class rows_t {
+        typedef small_size_pool<row_value_t, row_weight_t, 1> row_pool_t;
+        row_pool_t row_pool;
+        std::vector<row_pool_t::size_type> rows_table;
+        std::vector<row_weight_t> weight_table;
+
+        typedef std::pair<row_value_t *, row_weight_t> value_type;
+
+        private:
+        rows_t(rows_t const&) = delete;
+        rows_t operator=(rows_t const&) = delete;
+        size_t allocated_weight = 0;
+        public:
+        rows_t() =  default;
+        ~rows_t() = default;
+        size_t allocated_bytes() const {
+            return 0; // return container_type::capacity() * sizeof(value_type) + allocated_weight * sizeof(row_value_t) + sizeof(*this);
+        }
+        size_t overhead_bytes() const {
+            return 0; // return allocated_bytes() - container_type::size() * sizeof(value_type) - allocated_weight * sizeof(row_value_t);
+        }
+        void push_back(const row_value_t * p, row_weight_t n) {
+            weight_table.push_back(n);
+            size_t idx = row_pool.alloc(n);
+            rows_table.push_back(idx);
+            std::copy(p, p + n, row_pool(n, idx));
+            allocated_weight += n;
+        }
+        void push_back(std::vector<row_value_t> const & w) {
+            push_back(&w[0], w.size());
+        }
+        void shrink_value_unlocked(size_t i, row_weight_t nl) {
+            allocated_weight -= weight_table[i] - nl;
+            row_pool.realloc(weight_table[i], rows_table[i], nl);
+        }
+        size_t kill(size_t i) {
+            allocated_weight -= weight_table[i];
+            row_weight_t oldw = weight_table[i];
+            row_pool.free(oldw, rows_table[i]);
+            return oldw;
+        }
+        std::pair<row_value_t *, row_weight_t> operator[](size_t i) {
+            return std::make_pair(row_pool(weight_table[i], rows_table[i]), weight_table[i]);
+        }
+        std::pair<const row_value_t *, row_weight_t> operator[](size_t i) const {
+            return std::make_pair(row_pool(weight_table[i], rows_table[i]), weight_table[i]);
+        }
+        size_t size() const { return rows_table.size(); }
+        void compress() {}
+    };
 #else
     class rows_t : public std::vector<std::pair<row_value_t *, row_weight_t>> {
         typedef std::pair<row_value_t *, row_weight_t> value_type;
@@ -206,6 +262,7 @@ struct merge_matrix {
         }
         size_t kill(size_t i) {
             container_type & v(*this);
+            if (!v[i].first) return 0;
             delete[] v[i].first;
             v[i].first = NULL;
             allocated_weight -= v[i].second;
@@ -326,9 +383,13 @@ struct merge_matrix {
     }
 #endif
 
-    
-
     void prepare_R_table();
+    void clear_R_table();
+
+    merge_matrix() = default;
+    merge_matrix(merge_matrix const&) = delete;
+    ~merge_matrix() { clear_R_table(); }
+
     size_t count_columns_below_weight(size_t *nbm, size_t wmax);
     void bury_heavy_columns();
     void renumber_columns();
@@ -371,6 +432,7 @@ struct merge_matrix {
     /* report lines are printed for each multiple of report_incr */
     double report_incr = REPORT_INCR;
     double report_next;
+    double t0;
     void report_init() {
         // probably useless, I think I got the tracking of these right
         // already
@@ -380,6 +442,7 @@ struct merge_matrix {
         WN_min = WN_cur;
         WoverN = (double) wx / (double) nrows;
         report_next = ceil (WoverN / report_incr) * report_incr;
+        t0 = wct_seconds();
     }
     double report(bool force = false) {
         aggregate_weights();
@@ -422,23 +485,31 @@ struct merge_matrix {
             MPI_Allreduce(MPI_IN_PLACE, &vmrss, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
 
             if (!comm_rank) {
-
-                printf ("N=%zu (%zd) m=%d W=%zu W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
-                        nrows, nrows-global_ncols, cwmax, global_weight,
+                char sbuf0[16];
+                char sbuf1[16];
+                printf ("%.1f N=%zu (%zd) m=%d W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
+                        wct_seconds() - t0,
+                        nrows, nrows-global_ncols, cwmax,
+                        // size_disp(global_weight, sbuf0),
                         (double) WN_cur, WoverN, 
                         mq,
                         explained/1048576.,
                         vmrss/1024.0, vmsize/1024.0);
-                printf("# done %zu %d-merges, discarded %zu (%.1f%%)\n",
-                        dm, cwmax, xm, 100.0 * xm / dm);
+                // printf("# done %zu %d-merges, discarded %zu (%.1f%%)\n", dm, cwmax, xm, 100.0 * xm / dm);
                 for(auto const& x: contrib) {
                     if (x.first == "rows overhead" || x.second < explained / 10) continue;
                     if (x.first == "rows") {
                         size_t overhead = contrib["rows overhead"];
                         size_t corrected = contrib["rows"] - overhead;
-                        printf("# %s: %zu+%zu kb [%.1f bytes per active coeff, %.1f without overhead]\n", x.first.c_str(), corrected >> 10, overhead >> 10, x.second * 1.0 / global_weight, corrected * 1.0 / global_weight);
+                        printf("# %s: %s+%s [%.1f bytes per active coeff, %.1f without overhead]\n",
+                                x.first.c_str(),
+                                size_disp(corrected, sbuf0),
+                                size_disp(overhead, sbuf1),
+                                x.second * 1.0 / global_weight,
+                                corrected * 1.0 / global_weight);
                     } else {
-                        printf("# %s: %zu kb\n", x.first.c_str(), x.second >> 10);
+                        printf("# %s: %s\n", x.first.c_str(),
+                                size_disp(x.second, sbuf0));
                     }
                 }
                 /*
@@ -834,8 +905,8 @@ void merge_matrix::bury_heavy_columns()/*{{{*/
 
     /* compute the matrix weight */
     weight = 0;
-    for (auto const & R : rows)
-        if (R.first) weight += R.second;
+    for (size_t i = 0 ; i < rows.size() ; i++)
+        if (rows[i].first) weight += rows[i].second;
 
     if (weight_buried_is_exact)
         ASSERT_ALWAYS (weight + weight_buried == weight0);
@@ -887,7 +958,8 @@ void merge_matrix::renumber_columns()
 
     /* apply mapping to the rows. As p is a non decreasing function, the
      * rows are still sorted after this operation. */
-    for (auto & R : rows) {
+    for (size_t i = 0 ; i < rows.size() ; i++) {
+        auto R(rows[i]);
         row_value_t * ptr = R.first;
         for (row_weight_t i = 0 ; i < R.second ; i++) {
             /* make sure we remain in the same congruence class */
@@ -898,6 +970,13 @@ void merge_matrix::renumber_columns()
 }
 /*}}}*/
 
+
+void merge_matrix::clear_R_table()/*{{{*/
+{
+    for(size_t lj = 0 ; lj < R_table.size() ; lj++)
+        deactivate_indirection(lj, col_weights[lj]);
+}
+/*}}}*/
 void merge_matrix::prepare_R_table()/*{{{*/
 {
 #ifdef R_TABLE_USES_SMALL_SIZE_POOL
@@ -914,7 +993,10 @@ void merge_matrix::prepare_R_table()/*{{{*/
         if (!col_weights[lj]) continue;
         if (col_weights[lj] > (col_weight_t) cwmax)
             continue;
-        allocate_indirection(lj);
+        if (has_indirection(lj))
+            pos[lj] = max8;
+        else
+            allocate_indirection(lj);
     }
 
     /* We need a window of known row weights. Because it's somewhat
@@ -926,23 +1008,23 @@ void merge_matrix::prepare_R_table()/*{{{*/
     size_t rwok = 0;
     for(size_t i = 0 ; i < rows.size() ; i++) {
         row_value_t * ptr = rows[i].first;
-        if (!ptr) continue;
         if (rwok >= rw.size()) {
-            rw.clear();
+            rw.assign(1024, 0);
             rwok = 0;
             for(size_t l = 0 ; rw.size() < rw.capacity() && (i + l < rows.size()) ; l++) {
                 if (!rows[i+l].first) continue;
-                rw.push_back(rows[i+l].second);
+                rw[l] = rows[i+l].second;
             }
             MPI_Allreduce(MPI_IN_PLACE, &rw[0], rw.size(), MPI_MY_SIZE_T, MPI_SUM, comm);
         }
         ASSERT_ALWAYS(rwok < rw.size());
         row_weight_t this_rw = rw[rwok++];
+        if (!ptr) continue;
         for (row_weight_t k = 0; k < rows[i].second; k++) {
             size_t lj = ptr[k].index() / comm_size;
             if (!R_table[lj]) continue;
+            if (pos[lj] == max8) continue;
             col_weight_t w = col_weights[lj];
-            if (minpos[lj] == max8) continue;
             ASSERT_ALWAYS(pos[lj] < w);
             indirection_t * Rx = get_indirection(lj);
             Rx[pos[lj]]=std::make_pair(i, this_rw);
@@ -955,6 +1037,7 @@ void merge_matrix::prepare_R_table()/*{{{*/
         col_weight_t w = col_weights[lj];
         if (!w) continue;
         if (w > (col_weight_t) cwmax) continue;
+        if (pos[lj] == max8) continue;
         ASSERT_ALWAYS(pos[lj] == w);
         indirection_t * Rx = get_indirection(lj);
         row_weight_t w0 = Rx[minpos[lj]].second;
@@ -997,7 +1080,9 @@ inline merge_matrix::pivot_priority_t merge_matrix::markowitz_count(size_t j MAY
 
 void merge_matrix::remove_row_detached(size_t i)/*{{{*/
 {
-    ASSERT_ALWAYS(rows[i].first);
+    /* note that it is conceivable that this row is still alive, but with
+     * an empty local weight */
+    ASSERT_ALWAYS(rows[i].first || !rows[i].second);
     weight -= rows.kill(i);
     std::pair<bool, size_t> rem = heavy_rows.remove(i);
     if (rem.first)
@@ -1007,7 +1092,7 @@ void merge_matrix::remove_row_detached(size_t i)/*{{{*/
 
 void merge_matrix::remove_row_attached(size_t i)/*{{{*/
 {
-    ASSERT_ALWAYS(rows[i].first);
+    ASSERT_ALWAYS(rows[i].first || !rows[i].second);
     batch_Rj_update(std::vector<size_t>(1,i));
     remove_row_detached(i);
 }/*}}}*/
@@ -1271,16 +1356,13 @@ size_t merge_matrix::collectively_remove_rows(std::vector<size_t> const & killed
     MPI_Allgatherv(&killed[0], killed.size(), MPI_MY_SIZE_T,
             &allkilled[0], &nkilled[0], &displs[0], MPI_MY_SIZE_T,
             comm);
-    size_t nk = 0;
-    for(auto i : allkilled) {
-        if (rows[i].first) {
-            remove_row_attached(i);
-            nk++;
-        }
+    std::set<size_t> allkilled_set(allkilled.begin(), allkilled.end());
+    for(auto i : allkilled_set) {
+        remove_row_attached(i);
     }
     MPI_Allreduce(&ncols, &global_ncols, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
     MPI_Allreduce(&weight, &global_weight, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
-    return nk;
+    return allkilled.size();
 }/*}}}*/
 
 size_t merge_matrix::remove_excess(size_t count)/*{{{*/
@@ -1315,7 +1397,6 @@ size_t merge_matrix::remove_excess(size_t count)/*{{{*/
     }
 
     collectively_remove_rows(killed);
-
 
     // printf("rank %d removes %zu excess rows\n", comm_rank, killed.size());
     heavy_rows.set_depth(nrows - global_ncols);
@@ -2021,12 +2102,12 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
 
     auto advance_and_push = [this, &ii, in, out, &next](size_t r) {
         size_t i = r < out.size() ? out[r] : in[r-out.size()].first;
-        merge_matrix::rows_t::reference R(this->rows[i]);
+        auto R(rows[i]);
         for( ; ii[r] < R.second ; ii[r]++) {
             size_t j = R.first[ii[r]].index();
-            ASSERT(this->is_my_col(j));
-            size_t lj = j / this->comm_size;
-            if (this->R_table[lj])
+            ASSERT(is_my_col(j));
+            size_t lj = j / comm_size;
+            if (has_indirection(lj))
                 break;
             col_weights[lj] += r < out.size() ? -1 : 1;
             /* don't do ncols-- just now, as we might increase the column

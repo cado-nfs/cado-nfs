@@ -78,6 +78,7 @@ template<typename T, typename S = typename std::vector<T>::size_type> struct sin
     single_size_pool& operator=(single_size_pool const&);
     public:
     single_size_pool(S width) : width(width), data(width), holes(0) {
+        memset(&data[0], 0, width * sizeof(T));
         ASSERT_ALWAYS(width >= min_width());
     }
     T * operator[](size_type i) { return &data[i*width]; }
