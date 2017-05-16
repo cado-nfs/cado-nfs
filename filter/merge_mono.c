@@ -691,12 +691,19 @@ print_report (filter_matrix_t *mat)
 {
   long vmsize = Memusage();
   long vmrss = Memusage2();
-  printf ("N=%" PRIu64 " (%" PRId64 ") W=%" PRIu64 " W*N=%.2e "
-          "W/N=%.2f #Q=%lu [%.1f/%.1f]\n", mat->rem_nrows,
+  static double t0 = -1;
+  char sbuf0[16];
+  char sbuf1[16];
+  if (t0 < 0) t0 = wct_seconds();
+  printf ("%.1f N=%" PRIu64 " (%" PRId64 ") W=%" PRIu64 " W*N=%.2e "
+          "W/N=%.2f #Q=%lu [%s / %s]\n",
+          wct_seconds() - t0,
+          mat->rem_nrows,
           ((int64_t) mat->rem_nrows) - ((int64_t) mat->rem_ncols),
           mat->weight, (double) compute_WN (mat), compute_WoverN (mat),
           (unsigned long) MkzQueueCardinality (mat),
-                  vmrss/1024.0, vmsize/1024.0);
+          size_disp(vmrss<<10, sbuf0),
+          size_disp(vmsize<<10, sbuf1));
   if (mat->verbose)
     print_memory_usage (mat);
   fflush (stdout);

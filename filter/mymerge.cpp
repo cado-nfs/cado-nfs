@@ -28,8 +28,8 @@
  * much improvement.
  */
 #define xxxR_TABLE_USES_SMALL_SIZE_POOL
-#define xxxROW_TABLE_USES_COMPRESSIBLE_HEAP
-#define ROW_TABLE_USES_SMALL_SIZE_POOL
+#define ROW_TABLE_USES_COMPRESSIBLE_HEAP
+#define xxxROW_TABLE_USES_SMALL_SIZE_POOL
 
 #if defined(R_TABLE_USES_SMALL_SIZE_POOL) || defined(ROW_TABLE_USES_SMALL_SIZE_POOL)
 #define DEBUG_SMALL_SIZE_POOL
@@ -207,10 +207,11 @@ struct merge_matrix {
             row_pool.realloc(weight_table[i], rows_table[i], nl);
         }
         size_t kill(size_t i) {
+            if (!rows_table[i]) return 0;
             allocated_weight -= weight_table[i];
             row_weight_t oldw = weight_table[i];
             row_pool.free(oldw, rows_table[i]);
-            return oldw;
+            return weight_table[i];
         }
         std::pair<row_value_t *, row_weight_t> operator[](size_t i) {
             return std::make_pair(row_pool(weight_table[i], rows_table[i]), weight_table[i]);
@@ -463,6 +464,7 @@ struct merge_matrix {
             MPI_Allreduce(MPI_IN_PLACE, &xm, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
             MPI_Allreduce(MPI_IN_PLACE, &mq, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
 
+#if 0
             std::map<std::string, size_t> contrib;
             contrib["rows"] = rows.allocated_bytes();
             contrib["rows overhead"] = rows.overhead_bytes();
@@ -477,25 +479,34 @@ struct merge_matrix {
                 MPI_Allreduce(MPI_IN_PLACE, &x.second, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
                 explained += x.second;
             }
-            /* yes, we're summing vmsize's and vmrss's across all jobs,
-             * that's a bit nuts */
             size_t vmsize = Memusage();
             size_t vmrss = Memusage2();
             MPI_Allreduce(MPI_IN_PLACE, &vmsize, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
             MPI_Allreduce(MPI_IN_PLACE, &vmrss, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+#endif
+            size_t vmrss = Memusage2();
+            size_t vmsum = vmrss << 10;
+            double vmsum2 = pow(vmrss << 10, 2);
+            MPI_Allreduce(MPI_IN_PLACE, &vmsum, 1, MPI_MY_SIZE_T, MPI_SUM, comm);
+            MPI_Allreduce(MPI_IN_PLACE, &vmsum2, 1, MPI_DOUBLE, MPI_SUM, comm);
+            double vmavg = vmsum / comm_size;
+            double vmsdev = sqrt(vmsum2 / comm_size - pow(vmavg, 2));
+            vmsdev = abs(100.0 * vmsdev / vmavg);
 
             if (!comm_rank) {
-                char sbuf0[16];
                 char sbuf1[16];
-                printf ("%.1f N=%zu (%zd) m=%d W*N=%.2e W/N=%.2f #Q=%zu [%.1f/%.1f/%.1f]\n",
+                printf ("%.1f N=%zu (%zd) m=%d W*N=%.2e W/N=%.2f #Q=%zu [%s ~ %.1f%%]\n",
                         wct_seconds() - t0,
                         nrows, nrows-global_ncols, cwmax,
                         // size_disp(global_weight, sbuf0),
                         (double) WN_cur, WoverN, 
                         mq,
-                        explained/1048576.,
-                        vmrss/1024.0, vmsize/1024.0);
+                        //explained/1048576., vmrss/1024.0, vmsize/1024.0
+                        size_disp(vmavg, sbuf1),
+                        vmsdev
+                        );
                 // printf("# done %zu %d-merges, discarded %zu (%.1f%%)\n", dm, cwmax, xm, 100.0 * xm / dm);
+#if 0
                 for(auto const& x: contrib) {
                     if (x.first == "rows overhead" || x.second < explained / 10) continue;
                     if (x.first == "rows") {
@@ -512,6 +523,7 @@ struct merge_matrix {
                                 size_disp(x.second, sbuf0));
                     }
                 }
+#endif
                 /*
                  * printf("# rows %.1f\n", rows.allocated_bytes() / 1048576.);
                  * printf("# R %.1f + %.1f + %.1f\n",
@@ -2453,7 +2465,8 @@ int main(int argc, char *argv[])
 
     M.read_rows(purgedname);
 
-    printf("# Time for filter_matrix_read: %2.2lfs\n", seconds() - tt);
+    if (!M.comm_rank)
+        printf("# Time for filter_matrix_read: %2.2lfs\n", seconds() - tt);
 
     M.parallel_merge(batch_size);
 
