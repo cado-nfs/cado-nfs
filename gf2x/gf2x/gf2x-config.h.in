@@ -8,12 +8,6 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
-/* Define to 1 if the gmp.h header exists */
-#undef GF2X_HAVE_GMP_H
-
-/* Define to 1 if the mpir.h header exists */
-#undef GF2X_HAVE_MPIR_H
-
 /* Define if pclmul code as present in the source tree is supported by the
    compiler */
 #undef GF2X_HAVE_PCLMUL_SUPPORT

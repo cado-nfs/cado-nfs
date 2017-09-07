@@ -14,63 +14,59 @@ machines), the command line to be used is a priori more involved. Please
 refer to scripts/cadofactor/README. Documented example parameter files
 are in parameters/factor/params.c90 and scripts/cadofactor/parameters*
 
-Supported platforms:
-====================
+Supported platforms
+===================
 
- - The primary development platform is x86_64 linux with gcc 4.4 or
-   later, the most common processor being Intel core2-like or more recent.
-   
-Other architectures are checked regularly, and should work. Please refer to
-http://ci.inria.fr/cado for the status of the currently tested platforms
-for the development branch.
+The primary development platform is x86_64 linux with gcc 4.7 or newer,
+the most common processor being Intel core2-like or more recent.
 
-Release 2.2 has undergone regular testing for the following
-hardware/software configurations.
+Other architectures are checked regularly, and should work. Please refer
+to the CI page for the list of regularly tested platforms, and their
+current status. Those machines, compared to the base install, are equipped
+with the necessary dependencies (see below). The console outputs for the
+different builds contain information related to the compiler versions
+being used.
 
-    - i386, CentOS 6.3
-    - x86_64, Fedora 17, Ubuntu 12.04, Debian 8, OpenBSD 5.3
-    - x86_64, MacOS X 10.8
-    - arm32, Raspbian 7
-    - arm64, Ubuntu 14.04
+Anything beyond that set of regularly tested machines perhaps works,
+perhaps does not:
 
-All checks above are done with gcc-4.4 or later.
+ - Older gcc versions, but no older than gcc-4.4, should work, but are
+   not considered as important build targets.
+ - x86_64 with icc 14, 15, 16, 17, and 18 did work once, but are not checked
+   regularly (part of cado-nfs uses C++11, and is not available with icc
+   <= 14)
+ - Mac OS X Mavericks have been successfully tested with both Apple's gcc
+   and clang. (see local.sh.macosx.x86_64)
+ - Max OS X Leopard and Snow Leopard have been tested to work at least
+   once, provided some additional tools and libraries (see below) have
+   been installed, notably for Leopard. ABI selection is sometimes tricky
+   (see local.sh.macosx.x86_32)
+ - Windows is only partly supported (see a longer note at the end of README).
 
-Anything else perhaps works, perhaps does not work.
+Required software tools
+=======================
 
- - x86_64 with icc 14 and 16 did work once, but are not checked regularly.
-
- - Mac OS X Mavericks have been successfully tested with both
-   Apple's gcc and clang. (see local.sh.macosx.x86_64) 
-
- - Max OS X Leopard and Snow Leopard have been tested to work at
-   least once, provided some additional tools and libraries (see below) have
-   been installed, notably for Leopard. ABI selection is sometimes tricky (see
-   local.sh.macosx.x86_32)
-
- - Windows is only partly supported (see a longer note at the end of this
-   file).
-
-Required software tools:
-========================
-
-*) GMP (http://gmplib.org): usually installed in most Linux distributions
-   (on some Linux distributions you need to install libgmp*-dev
-    including gmp.h, which is not installed by default).
-   Note: make sure to configure GMP with --enable-shared so that a shared
-   library is installed (libgmp.so under Linux) otherwise CADO-NFS might not
-   compile. GMP 5 (or newer) is required. On some platforms, --disable-alloca
-   is required to get thread-safe operations.
-*) The GCC compiler works ; some others might, but it is untested. C and
-   C++ are required, with C99 support.
-*) GNU make and CMake >= 2.8 for building (CMake is installed on the fly if
-   missing (requires an Internet connection))
-*) Support for posix threads.
-*) The main cado-nfs.py script uses a lot of unix tools: Python3, ssh,
-   rsync, gzip, and libsqlite3 to mention but a few. For more information
-   about the supported Python versions and required modules, see
-   README.Python.
+ - GMP, version 5 or newer: usually installed in most Linux distributions
+   (on some Linux distributions you need to install the libgmp*-dev or
+   gmp-devel package that includes gmp.h. It is often not installed by
+   default). Note: make sure to configure GMP with --enable-shared so
+   that a shared library is installed (libgmp.so under Linux) otherwise
+   CADO-NFS might not compile.
+ - C and C++ compilers, with C99 support. For C++, as of release
+   cado-nfs-2.3, only C++98 is required. However all tested platforms
+   automatically enable C++11. If you have only a C++11 compiler, you
+   will need the boost libraries installed.
+   In practice, your probability of success is best with either GCC
+   version 4.7 or newer, LLVM Clang 4.0.0 or newer, Apple Clang 6.0.0 or
+   newer, or ICC version 14 or newer.
+ - GNU make and CMake (2.8.11 or later) for building (CMake is installed
+   on the fly if missing. This feature requires an Internet connection.)
+ - Support for posix threads.
+ - The main cado-nfs.py script uses a lot of unix tools: Python, Python3,
+   ssh, rsync, gzip to mention but a few.
 
 Optionally:
+
 *) Support for MPI (see local.sh.example and linalg/bwc/README)
 *) Support for hwloc (see parameters/misc/cpubinding.conf)
 *) Support for curl library, for a very specific use within an I/O bound
@@ -214,6 +210,15 @@ with different parameters for different machines), please use the
 --server mode (see scripts/cadofactor/README and
 scripts/cadofactor/parameters).
 
+Check that your network configuration is correct:
+=================================================
+
+In case you run a factorization on the local machine, the clients should be able
+to connect to the server. Under Linux, CADO-NFS uses 'localhost' to identify the
+server, thus you should have the following line in your /etc/hosts file:
+
+127.0.0.1   localhost
+
 Check that your SSH configuration is correct:
 =============================================
 
@@ -337,8 +342,7 @@ under Windows:
 * if you want a binary without any dependency, you might try MinGW. The INSTALL
   file from GNU MPFR contains detailed instructions on how to compile MPFR
   under Windows. Those instructions should work for CADO-NFS too.
-  See dev_docs/howto-MinGW.txt. Compilation on MinGW32 is tested regularly
-  and should work, although performance of the 32-bit executables is poor.
+  See dev_docs/howto-MinGW.txt.
 
 * you might try to use MPIR (mpir.org) instead of GMP. MPIR is a fork of GMP,
   which claims to be more portable under Windows.

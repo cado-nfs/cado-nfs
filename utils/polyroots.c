@@ -42,7 +42,11 @@ benefit from your work.
 #endif
 #include "portability.h"
 
-#include "polyroots.h"
+/* no header file is defined here -- the prototypes are not meant to be
+ * exposed. The source code could conceivably live within
+ * double_poly.cpp, but for convenience reasons we leave it in a separate
+ * file. double_poly.cpp has prototypes for the two functions we export.
+ */
 
 /* This rootfinder uses a simplified version of the all-complex
    Jenkins-Traub algorithm.

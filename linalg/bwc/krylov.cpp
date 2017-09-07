@@ -213,7 +213,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
 
     if (tcan_print) {
-        fprintf(stderr, "Target iteration is %u ; going to %u\n", bw->end,
+        printf ("Target iteration is %u ; going to %u\n", bw->end,
                 bw->interval * iceildiv(bw->end, bw->interval));
     }
 

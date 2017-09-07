@@ -124,7 +124,7 @@ generic_skew_gauss(mpz_t a[2], mpz_t b[2], double skewness)
 }
 
 int
-SkewGauss (qlattice_basis &basis, const mpz_t p, const mpz_t r,
+SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
            const double skewness)
 {
     mpz_t a[2], b[2];

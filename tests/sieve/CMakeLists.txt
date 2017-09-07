@@ -46,6 +46,7 @@ cado_define_test(F9_batchtest
         TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefbtest
         )
 
+if(0)
 cado_define_test(F9_sublattest
         SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/F9.sublat.sh
@@ -53,6 +54,7 @@ cado_define_test(F9_sublattest
         TARGET_DEPENDENCIES las
         TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefbtest
         )
+endif()
 
 # We make these depend on sievetest, for checking the checksum file.
 # Since sievetest depends on makefbtest, we don't have to specify it
@@ -81,8 +83,8 @@ cado_define_test(sievetest_I
     PROGRAM
         ${las_path} -poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly -I 12
         -fb1 ${CMAKE_CURRENT_SOURCE_DIR}/c120.roots1.gz -lim0 10000
-        -lim1 10000 -lpb0 26 -lpb1 26 -mfb0 28 -mfb1 28 -q0 15350028 -q1
-        15350029 -t 2 -powlim0 8000 -powlim1 8000
+        -lim1 10000 -lpb0 26 -lpb1 26 -mfb0 28 -mfb1 28 -q0 15350029 -rho
+        14463285 -t 2 -powlim0 8000 -powlim1 8000
     TARGET_DEPENDENCIES las)
 
 # Try a too-large lambda value
@@ -130,10 +132,8 @@ cado_define_test(F9_fakereltest
     SCRIPT
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
-    TARGET_DEPENDENCIES fake_rels
+    TARGET_DEPENDENCIES fake_rels freerel
     TEST_DEPENDENCIES F9_makefbtest)
-
-cado_define_test(test_memset_things.cpp LIBRARIES las-norms utils)
 
 # Try with default TRIALDIV_MAXLEN, whatever it may be
 cado_define_test(test_trialdiv.c ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.c LIBRARIES utils tests trialdiv)
@@ -151,8 +151,75 @@ add_trialdiv_test(4)
 add_trialdiv_test(5)
 add_trialdiv_test(6)
 
-cado_define_test(test_init_norms_bucket_region.cpp
-    LIBRARIES las-norms utils tests)
+cado_define_test(test_logapprox.cpp 
+    ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
+    LIBRARIES utils tests)
+
+# This one is a different test, meant to check speed and correctness, and
+# yet allow a run to simulate real polynomials because well, I can't be
+# sure with the current code... */
+cado_define_test(test_init_norms.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-norms.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-siever-config.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-todo-entry.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-qlattice.cpp
+    NO_DEFAULT_RUN
+    LIBRARIES utils tests
+)
+set_target_properties(test_init_norms PROPERTIES 
+    COMPILE_FLAGS "${OpenMP_C_FLAGS}"
+    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+
+cado_divert_test(test_init_norms c120_basic
+    ARGUMENTS
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly
+        -I 12 -lpb0 26 -lpb1 26
+        -mfb0 28 -mfb1 28
+        -q0 15350000 -q1 15360000
+        -random-sample 10
+        -random-seed 0
+        -sqside 1
+        -t 2
+        --hush-max-jitter 1
+)
+
+cado_divert_test(test_init_norms c120_torture
+    ARGUMENTS
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly
+        -I 12 -lpb0 26 -lpb1 26
+        -mfb0 28 -mfb1 28
+        -t 2
+        --hush-max-jitter 1
+        --abort-on-jitter 1,5
+        --nfills-speed-test 0
+    NO_DEFAULT_RUN
+)
+
+# a couple of hard cases encountered during testing.
+cado_divert_test(test_init_norms_c120_torture 1 APPEND_ARGUMENTS
+    --norm-sides 0 -sqside 1 -q0 15359089 -rho 4697045 -check-bucket 74)
+cado_divert_test(test_init_norms_c120_torture 2 APPEND_ARGUMENTS
+    --norm-sides 0 -sqside 1 -q0 15351793 -rho 6002387 -check-bucket 30)
+cado_divert_test(test_init_norms_c120_torture 3 APPEND_ARGUMENTS
+    --norm-sides 0 -sqside 1 -q0 15356527 -rho 2085523 -check-bucket 87)
+cado_divert_test(test_init_norms_c120_torture 4 APPEND_ARGUMENTS
+    --norm-sides 0 -sqside 1 -q0 15355589 -rho 4854502 -check-bucket 67)
+
+cado_divert_test(test_init_norms rsa220
+    ARGUMENTS
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/rsa220.poly
+        -I 16 -lpb0 34 -lpb1 34 -mfb0 68 -mfb1 102
+        -q0 4000000000
+        -q1 4001000000
+        -random-sample 10
+        -random-seed 0
+        -sqside 1
+        -t 2
+        --hush-max-jitter 1
+        --abort-on-jitter 1,5
+)
 
 add_subdirectory (ecm)
 add_subdirectory (strategies)

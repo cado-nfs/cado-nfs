@@ -159,6 +159,21 @@ test_L2_skewness (int t)
   s = L2_skewness (p, prec);
   ASSERT_ALWAYS (s == 1.0);
 
+  /* test of degree 2 */
+  mpz_set_si (p->coeff[0], 42);
+  mpz_set_si (p->coeff[1], 0);
+  mpz_set_si (p->coeff[2], 17);
+  p->deg = 2;
+  s = L2_skewness (p, prec);
+  ASSERT_ALWAYS (1.571 <= s && s <= 1.572);
+
+  /* test of degree 1 */
+  mpz_set_si (p->coeff[0], 42);
+  mpz_set_si (p->coeff[1], 17);
+  p->deg = 1;
+  s = L2_skewness (p, prec);
+  ASSERT_ALWAYS (2.470 <= s && s <= 2.471);
+
   mpz_poly_clear (p);
 }
 

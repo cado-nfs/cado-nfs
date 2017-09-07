@@ -86,6 +86,6 @@ unsigned int find_relations(uint64_array_t * indices, uint64_t number_element,
     unsigned int * lpb, mat_Z_srcptr matrix, const mpz_poly * f,
     sieving_bound_srcptr H, unsigned int V, ideal_spq_srcptr special_q,
     unsigned int q_side, int main, FILE * outstd, unsigned int gal,
-    unsigned int gal_version, factor_t * gal_norm_denom);
+    unsigned int gal_version, factor_t * gal_norm_denom, int * nb_curves);
 
 #endif /* UTILS_COFACTORISATION_H */

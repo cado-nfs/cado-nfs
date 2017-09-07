@@ -3,7 +3,7 @@
 
 #include "las-arith.hpp"
 
-/* utility : is_prime_power *//*{{{*/
+/* utility : is_prime_power */
 /* Assume q is a prime power p^k with k>=1, return p if k > 1, 0 otherwise. */
 /* This is cheap enough */
 fbprime_t is_prime_power(fbprime_t q)
@@ -19,5 +19,5 @@ fbprime_t is_prime_power(fbprime_t q)
     }
     return 0;
 }
-/*}}}*/
+
 

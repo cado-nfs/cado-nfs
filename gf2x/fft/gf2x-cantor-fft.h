@@ -96,27 +96,48 @@ typedef mpfq_2_64_elt gf2x_cantor_fft_base_field_elt;
 typedef gf2x_cantor_fft_base_field_elt * gf2x_cantor_fft_ptr;
 typedef const gf2x_cantor_fft_base_field_elt * gf2x_cantor_fft_srcptr;
 
+/* sets up the appropriate data for multiplying polynomials having
+ * numbers of coefficients bounded respectively by nF and nG. This does
+ * not allocate a transform in itself: only the descriptor structure that
+ * will be useful for allocating transforms with _alloc.
+ */
 extern void gf2x_cantor_fft_init(gf2x_cantor_fft_info_t p, size_t nF, size_t nG, ...);
+/* paired with previous function. Zeroes out the initialization that was
+ * done. */
 extern void gf2x_cantor_fft_clear(gf2x_cantor_fft_info_t p GF2X_MAYBE_UNUSED);
+/* allocates space for n transforms, according to the transform info at p */
 extern gf2x_cantor_fft_ptr gf2x_cantor_fft_alloc(const gf2x_cantor_fft_info_t p, size_t n);
+/* frees the n transforms allocated at x */
 extern void gf2x_cantor_fft_free(
         const gf2x_cantor_fft_info_t p GF2X_MAYBE_UNUSED,
         gf2x_cantor_fft_ptr x,
         size_t n GF2X_MAYBE_UNUSED);
+/* accesses the k-th transform stored at location x. */
 extern gf2x_cantor_fft_ptr gf2x_cantor_fft_get(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, size_t k);
+/* accesses the k-th transform stored at location x. */
 extern gf2x_cantor_fft_srcptr gf2x_cantor_fft_get_const(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_srcptr x, size_t k);
+/* initialize to zero the n transforms allocated at x */
 extern void gf2x_cantor_fft_zero(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, size_t n);
-
+/* performs a direct transform of F, having at most nF coefficients. */
 extern void gf2x_cantor_fft_dft(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, const unsigned long * F, size_t nF);
+/* composes the transforms of two polynomials. The result is by
+ * definition the transform of their product. */
 extern void gf2x_cantor_fft_compose(const gf2x_cantor_fft_info_t p,
 		gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2);
+/* compose the n transforms at x1[0..[ and x2[0..[, accumulates the sum
+ * of the result to y[0..[ */
 extern void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p,
 		gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr * x1, gf2x_cantor_fft_srcptr * x2, size_t);
+/* compose the n transforms at x1 and x2, accumulates the result to
+ * y[0..[ */
 extern void gf2x_cantor_fft_addcompose(const gf2x_cantor_fft_info_t p,
 		gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2);
+/* adds two transforms (the direct transform is linear). */
 extern void gf2x_cantor_fft_add(const gf2x_cantor_fft_info_t p,
 		gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2);
+/* copy */
 extern void gf2x_cantor_fft_cpy(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x);
+/* performs an inverse transform. nH is the number of coefficients. */
 extern void gf2x_cantor_fft_ift(const gf2x_cantor_fft_info_t p,
 		unsigned long * H, size_t Hl, gf2x_cantor_fft_ptr h);
 extern size_t gf2x_cantor_fft_size(gf2x_cantor_fft_info_srcptr p);

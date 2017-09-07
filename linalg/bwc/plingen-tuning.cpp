@@ -88,18 +88,6 @@ using namespace std;
 
 /* timer backends *//*{{{*/
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-static inline uint64_t cputicks()
-{
-        uint64_t r;
-        __asm__ __volatile__(
-                "rdtsc\n\t"
-                "shlq $32, %%rdx\n\t"
-                "orq %%rdx, %%rax\n\t"
-                : "=a"(r)
-                :
-                : "rdx");
-        return r;
-}
 struct timer_rdtsc {
     inline double operator()() const {
         uint64_t c = cputicks();

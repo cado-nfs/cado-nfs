@@ -66,9 +66,9 @@ void random_wordstring(unsigned long *a, long n)
     for (i = 0; i < n; i++)
       {
         /* random () returns a value between 0 and RAND_MAX = 2^31-1 */
-	a[i] = random () + (random () << 31);
+	a[i] = random () | (random () << 31);
         if (sizeof (long) > sizeof (int))
-          a[i] |= (unsigned long) random () << 62;
+          a[i] = (a[1] << 31) | random ();
       }
 }
 

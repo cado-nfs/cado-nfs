@@ -21,6 +21,33 @@ fi
 bindir="$1"
 shift
 
+# This is not accurate, unfortunately. There seems to be no way to do
+# long integer arithmetic in pure bash.
+sizeinbase2() {
+    a=$1
+    if [ "${#a}" -le 10 ] ; then 
+        x=$(printf '%x' $1)
+        len=$((4*${#x}))
+        case $x in
+            0) echo $len; return;;
+            1*) echo $((len-3)); return;;
+            [23]*) echo $((len-2)); return;;
+            [4567]*) echo $((len-1)); return;;
+            [89a-fA-F]*) echo $len; return;;
+        esac
+        echo "sizeinbase2 error $1 -> $x -> uh ?" >&2; exit 1
+    else
+        # a is M * 10^e, so log2(a) = log2(M) + e*log2(10), and too bad
+        # for the inaccuracy we get...
+        logM=$(sizeinbase2 "${a:0:10}")
+        elog10=$((332*(${#a}-10)/100))
+        loga=$((logM+elog10))
+        echo $loga
+        return
+    fi
+}
+
+
 dotest() {
     REFERENCE_SHA1="$1"
     shift
@@ -56,10 +83,8 @@ dotest() {
         esac
     done
 
-    # Hmmm, here's yet another dependency on bc -l...
-    nbits_prime=$(echo "l($p)/l(2)+1" | bc -l | cut -d. -f1)
-    nwords=$(echo "1+l($p)/l(2)/$wordsize"| bc -l)
-    nwords=${nwords/.*/}
+    nbits_prime=$(sizeinbase2 $p)
+    nwords=$((1+nbits_prime/wordsize))
 
     : ${plingen_program:=plingen_p_$nwords}
 

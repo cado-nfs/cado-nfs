@@ -36,8 +36,10 @@ There are in fact three ways to specify the parameters on both sides.
 (in the first case, lambda defaults to mfb0/lpb0+0.1 as everywhere else
 in cado-nfs).
 
-At the moment, it is *mandatory* to have the same values for I, lim0, lim1
+At the moment, it is *mandatory* to have the same values for lim0, lim1
 on each line. This might change if we see a clear need to make them vary.
+The value of I can vary, but then the value of I passed on the command
+line of las_descent must not be smaller.
 
 There must be one line for each size that can occur during the descent,
 and the parameters must be so that there is a high chance to get at least

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CADO_NFS_SOURCE_DIR=$1
 CADO_NFS_BINARY_DIR=$2

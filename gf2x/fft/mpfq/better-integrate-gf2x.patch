@@ -1,21 +1,29 @@
 diff --git a/fft/mpfq/i386/mpfq_2_128.h b/fft/mpfq/i386/mpfq_2_128.h
-index 143b97e..4be62f6 100644
+index 3303453..cebb490 100644
 --- a/fft/mpfq/i386/mpfq_2_128.h
 +++ b/fft/mpfq/i386/mpfq_2_128.h
-@@ -11,9 +11,11 @@
+@@ -3,6 +3,9 @@
+ 
+ /* MPFQ generated file -- do not edit */
+ 
++#include "gf2x.h"
++#include "gf2x/gf2x-small.h"
++
+ #include "mpfq.h"
+ #include "mpfq_gf2n_common.h"
+ #include <stdio.h>
+@@ -11,9 +14,9 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#include "gf2x.h"
-+#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -1037,136 +1038,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
+@@ -943,136 +946,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
  static inline
  void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_ur t, mpfq_2_128_src_elt s1, mpfq_2_128_src_elt s2)
  {
@@ -154,23 +162,31 @@ index 143b97e..4be62f6 100644
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/i386/mpfq_2_64.h b/fft/mpfq/i386/mpfq_2_64.h
-index 08f4cf7..d234625 100644
+index 2e570c7..ce36ed3 100644
 --- a/fft/mpfq/i386/mpfq_2_64.h
 +++ b/fft/mpfq/i386/mpfq_2_64.h
-@@ -11,9 +11,11 @@
+@@ -3,6 +3,9 @@
+ 
+ /* MPFQ generated file -- do not edit */
+ 
++#include "gf2x.h"
++#include "gf2x/gf2x-small.h"
++
+ #include "mpfq.h"
+ #include "mpfq_gf2n_common.h"
+ #include <stdio.h>
+@@ -11,9 +14,9 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#include "gf2x.h"
-+#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -959,92 +960,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
+@@ -867,92 +870,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
  static inline
  void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t, mpfq_2_64_src_elt s1, mpfq_2_64_src_elt s2)
  {
@@ -265,43 +281,157 @@ index 08f4cf7..d234625 100644
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/mpfq.h b/fft/mpfq/mpfq.h
-index 88a2f5a..b44e83f 100644
+index 4ba2b9f..3d7717a 100644
 --- a/fft/mpfq/mpfq.h
 +++ b/fft/mpfq/mpfq.h
-@@ -8,7 +8,15 @@
+@@ -8,7 +8,10 @@
  #include <stdio.h>
  #include <stdlib.h>
  #include <string.h>
+-#include <gmp.h>
 +
-+#ifdef  GF2X_HAVE_GMP_H
- #include <gmp.h>
-+#elif defined(GF2X_HAVE_MPIR_H)
-+#include <mpir.h>
-+#else
-+#error "make sure gf2x-config-export.h is included before gf2x-cantor-fft.h or mpfq/<anything>.h"
++#ifndef GF2X_WORDSIZE
++#error "This file has been modified for use within gf2x. Please arrange so that gf2x-small.h is included before this file"
 +#endif
-+
  
  #ifdef __cplusplus
  extern "C" {
+@@ -19,43 +22,23 @@ extern "C" {
+ /*** Constants for field_specify ***/
+ 
+ #define MPFQ_DONE 0             /* At the end of the variadic option functions */
+-#define MPFQ_PRIME_MPN 1        /* mp_limb_t *, size depending on implementation. Prefer MPFQ_PRIME_MPZ */
++// #define MPFQ_PRIME_MPN 1        /* mp_limb_t *, size depending on implementation. Prefer MPFQ_PRIME_MPZ */
+ #define MPFQ_POLYNOMIAL 2       /* this expects an mpfq polynomial */
+ #define MPFQ_DEGREE 3           /* int */
+ #define MPFQ_IO_TYPE 4          /* for setopt */
+ #define MPFQ_GROUPSIZE 5        /* int (SIMD group size) */
+-#define MPFQ_PRIME_MPZ 6        /* mpz_t */
++// #define MPFQ_PRIME_MPZ 6        /* mpz_t */
+ #define MPFQ_MANDATORY_TAG 7    /* force the tag to be this one ; this is
+                                  * of course pointless for the low-level
+                                  * implementation, but
+                                  * mpfq_vbase_oo_field_init_byfeatures
+                                  * uses it. */
+ 
+-#define BUILD_BITMASK(x) ((x) == GMP_LIMB_BITS ? ((mp_limb_t) - 1) : (~ - ((mp_limb_t) 1 << (x))))
+-
+ #define LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
+ #define LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && LEXGE2(Y,Z,B,C)))
+ #define LEXLE2(X,Y,A,B) LEXGE2(A,B,X,Y)
+ #define LEXLE3(X,Y,Z,A,B,C) LEXGE3(A,B,C,X,Y,Z)
+ 
+-#ifndef GMP_VERSION_ATLEAST
+-#ifndef __GNU_MP_VERSION
+-#define GMP_VERSION_ATLEAST(X,Y,Z) 0
+-#else
+-#define GMP_VERSION_ATLEAST(X,Y,Z)     \
+-LEXGE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z)
+-#endif
+-#endif
+-
+-#ifndef GMP_VERSION_ATMOST
+-#ifndef __GNU_MP_VERSION
+-#define GMP_VERSION_ATMOST(X,Y,Z) 1
+-#else
+-#define GMP_VERSION_ATMOST(X,Y,Z)     \
+-LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z)
+-#endif
+-#endif
+-
+ #ifndef GNUC_VERSION
+ #ifndef __GNUC__
+ #define GNUC_VERSION(X,Y,Z) 0
+@@ -138,24 +121,24 @@ static inline int mpfq_clzl(unsigned long x)
+         static const int t[4] = { 2, 1, 0, 0 };
+         int a = 0;
+         int res;
+-#if (GMP_LIMB_BITS == 64)
++#if (GF2X_WORDSIZE == 64)
+         if (x >> 32) { a += 32; x >>= 32; }
+ #endif  
+         if (x >> 16) { a += 16; x >>= 16; }
+         if (x >>  8) { a +=  8; x >>=  8; }
+         if (x >>  4) { a +=  4; x >>=  4; }
+         if (x >>  2) { a +=  2; x >>=  2; }
+-        res = GMP_LIMB_BITS - 2 - a + t[x];
++        res = GF2X_WORDSIZE - 2 - a + t[x];
+         return res;
+ }
+ static inline int mpfq_ctzl(unsigned long x)
+ {
+-	return GMP_LIMB_BITS - mpfq_clzl(x & - x);
++	return GF2X_WORDSIZE - mpfq_clzl(x & - x);
+ }
+ static inline int mpfq_parityl(unsigned long x)
+ {
+ 	static const int t[4] = { 0, 1, 1, 0, };
+-#if (GMP_LIMB_BITS == 64)
++#if (GF2X_WORDSIZE == 64)
+ 	x ^= (x >> 32);
+ #endif
+ 	x ^= (x >> 16);
+@@ -186,7 +169,7 @@ static inline int mpfq_parityl(unsigned long x)
+ static inline int mpfq_clzlx(unsigned long * x, int n)
+ {
+ 	int r = 0;
+-	for( ; n > 0 && MPFQ_UNLIKELY(!x[n-1]) ; --n) r+=GMP_LIMB_BITS;
++	for( ; n > 0 && MPFQ_UNLIKELY(!x[n-1]) ; --n) r+=GF2X_WORDSIZE;
+ 	if (n == 0) return r;
+ 	r += mpfq_clzl(x[n-1]);
+ 	return r;
+@@ -195,7 +178,7 @@ static inline int mpfq_clzlx(unsigned long * x, int n)
+ static inline int mpfq_ctzlx(unsigned long * x, int n)
+ {
+ 	int r = 0;
+-	for( ; n > 0 && MPFQ_UNLIKELY(!*x) ; --n,++x) r+=GMP_LIMB_BITS;
++	for( ; n > 0 && MPFQ_UNLIKELY(!*x) ; --n,++x) r+=GF2X_WORDSIZE;
+ 	if (n == 0) return r;
+ 	r += mpfq_ctzl(*x);
+ 	return r;
+@@ -242,6 +225,8 @@ static inline void malloc_failed() {
+ }
+ 
+ 
++#if 0
++
+ /* Given the fact that copies are always very small, we're probably
+  * better off giving the compiler the opportunity to optimize all this
+  * away.
+@@ -270,6 +255,7 @@ static inline void mpfq_zero(mp_limb_t * dst, mp_size_t n) {
+     for( ; n-- ; ) *dst++ = 0;
+ }
+ 
++#endif
+ 
+ 
+ #ifdef __cplusplus
 diff --git a/fft/mpfq/x86_64/mpfq_2_128.h b/fft/mpfq/x86_64/mpfq_2_128.h
-index 91bfc07..ce03587 100644
+index edb7cf7..575f51c 100644
 --- a/fft/mpfq/x86_64/mpfq_2_128.h
 +++ b/fft/mpfq/x86_64/mpfq_2_128.h
-@@ -11,9 +11,11 @@
+@@ -3,6 +3,9 @@
+ 
+ /* MPFQ generated file -- do not edit */
+ 
++#include "gf2x.h"
++#include "gf2x/gf2x-small.h"
++
+ #include "mpfq.h"
+ #include "mpfq_gf2n_common.h"
+ #include <stdio.h>
+@@ -11,9 +14,9 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#include "gf2x.h"
-+#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -1031,94 +1032,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
+@@ -939,94 +942,7 @@ void mpfq_2_128_elt_ur_add(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_e
  static inline
  void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_ur t, mpfq_2_128_src_elt s1, mpfq_2_128_src_elt s2)
  {
@@ -398,23 +528,31 @@ index 91bfc07..ce03587 100644
  
  /* *Mpfq::gf2n::squaring::code_for_sqr_ur */
 diff --git a/fft/mpfq/x86_64/mpfq_2_64.h b/fft/mpfq/x86_64/mpfq_2_64.h
-index ebc8d83..6466aa1 100644
+index a78c7ba..57421b8 100644
 --- a/fft/mpfq/x86_64/mpfq_2_64.h
 +++ b/fft/mpfq/x86_64/mpfq_2_64.h
-@@ -11,9 +11,11 @@
+@@ -3,6 +3,9 @@
+ 
+ /* MPFQ generated file -- do not edit */
+ 
++#include "gf2x.h"
++#include "gf2x/gf2x-small.h"
++
+ #include "mpfq.h"
+ #include "mpfq_gf2n_common.h"
+ #include <stdio.h>
+@@ -11,9 +14,9 @@
  #include <assert.h>
  #include <stdint.h>
  #include <ctype.h>
 -#include <emmintrin.h>
  #include <stddef.h>
  #include <stdio.h>
-+#include "gf2x.h"
-+#include "gf2x/gf2x-small.h"
 +
  #include "assert.h"
  #ifdef	MPFQ_LAST_GENERATED_TAG
  #undef	MPFQ_LAST_GENERATED_TAG
-@@ -935,70 +936,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
+@@ -847,70 +850,7 @@ void mpfq_2_64_elt_ur_add(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_
  static inline
  void mpfq_2_64_mul_ur(mpfq_2_64_dst_field K MAYBE_UNUSED, mpfq_2_64_dst_elt_ur t, mpfq_2_64_src_elt s1, mpfq_2_64_src_elt s2)
  {

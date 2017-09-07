@@ -6,18 +6,17 @@
 
 /*  Factor base handling */
 /* {{{ sieve_info::{init,clear,share}_factor_bases */
-void sieve_info::init_factor_bases(las_info & las, param_list_ptr pl)
+void sieve_info::init_factor_bases(param_list_ptr pl)
 {
     fb_factorbase *fb[2];
 
     for(int side = 0 ; side < 2 ; side++) {
-        const fbprime_t bk_thresh = conf.bucket_thresh;
+        fbprime_t bk_thresh = conf.bucket_thresh;
         fbprime_t bk_thresh1 = conf.bucket_thresh1;
         const fbprime_t fbb = conf.sides[side].lim;
         const fbprime_t powlim = conf.sides[side].powlim;
         if (bk_thresh > fbb) {
-            fprintf(stderr, "Error: lim is too small compared to bk_thresh\n");
-            ASSERT_ALWAYS(0);
+            bk_thresh = fbb;
         }
         if (bk_thresh1 == 0 || bk_thresh1 > fbb) {
             bk_thresh1 = fbb;
@@ -74,7 +73,11 @@ void sieve_info::init_factor_bases(las_info & las, param_list_ptr pl)
         } else {
             double tfb = seconds ();
             double tfb_wct = wct_seconds ();
-            fb[side]->make_linear_threadpool (pol->coeff, las.nb_threads);
+            /* note: we parse again the -t option here -- it gets parsed
+             * in the las_info ctor too */
+            int nb_threads = 1;		/* default value */
+            param_list_parse_int(pl, "t", &nb_threads);
+            fb[side]->make_linear_threadpool (pol->coeff, nb_threads);
             tfb = seconds () - tfb;
             tfb_wct = wct_seconds() - tfb_wct;
             verbose_output_print(0, 1,

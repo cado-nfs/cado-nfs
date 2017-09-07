@@ -12,7 +12,7 @@
 /* If HAVE_SYNC_FETCH is not defined, we will use mutex for multithreaded
  * version of the code. May be too slow. */
 #ifndef HAVE_SYNC_FETCH
-pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 void

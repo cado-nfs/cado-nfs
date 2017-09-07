@@ -8,6 +8,7 @@
 #include "utils.h"
 #include <vector>
 #include <algorithm>
+#include "cxx_mpz.hpp"
 
 /*
  * The goal of this binary is to produce relations that try to be good
@@ -40,14 +41,19 @@ using namespace std;
 pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // We need a re-entrant random. Let's take GMP.
-static inline
-uint64_t long_random(gmp_randstate_t buf) {
-    mpz_t z;
-    mpz_init(z);
+static inline uint64_t long_random(gmp_randstate_t buf) {
+#if ULONG_BITS == 64
+    return gmp_urandomb_ui(buf, 64);
+#elif ULONG_BITS == 32
+    cxx_mpz z;
     mpz_urandomb(z, buf, 64);
-    uint64_t res = mpz_get_uint64(z);
-    mpz_clear(z);
-    return res;
+    return mpz_get_uint64(z);
+#endif
+}
+
+gmp_randstate_t global_rstate_non_mt;
+long myrandom_non_mt() {
+    return long_random(global_rstate_non_mt);
 }
 
 // Structure that contains indices (in the sense of renumber.[ch]) for
@@ -157,7 +163,7 @@ void read_rel(fake_rel& rel, uint64_t q, int sqside, const char *str,
             int nb;
             if (renumber_is_bad (&nb, &index, ren_tab, p, r, side)) {
                 // bad ideal: just pick a random ideal above this prime
-                index += (random() % nb);
+                index += (myrandom_non_mt() % nb);
             } else {
                 index = renumber_get_index_from_p_r(ren_tab, p, r, side);
             }
@@ -267,7 +273,7 @@ void print_fake_rel_manyq(
             len -= nc;
             // pick a random relation as a model and prepare a string to
             // be printed.
-            int i = random() % rels->size();
+            int i = long_random(buf) % rels->size();
             frel[0] = indq;
             int nf = 1;
             for (int side = 0; side < 2; ++side) {
@@ -310,14 +316,14 @@ struct th_args {
     vector<unsigned int> *nrels;
     indexrange *Ind;
     int dl;
-    __gmp_randstate_struct *buf;
+    gmp_randstate_t rstate;
 };
 
 
 void * do_thread(void * rgs) {
     struct th_args * args = (struct th_args *) rgs;
     print_fake_rel_manyq(args->list_q, args->nq, args->rels, args->nrels,
-            args->Ind, args->dl, args->buf);
+            args->Ind, args->dl, args->rstate);
     return NULL;
 }
 
@@ -455,6 +461,11 @@ main (int argc, char *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
+
+  gmp_randinit_default(global_rstate_non_mt);
+  gmp_randseed_ui(global_rstate_non_mt, 0);
+
+
   vector<fake_rel> rels;
   vector<unsigned int> nrels;
   read_sample_file(nrels, rels, sqside, sample, ren_table);
@@ -494,7 +505,6 @@ main (int argc, char *argv[])
   // go multi-thread
   uint64_t block = (last_indq - first_indq) / mt;
   pthread_t * thid = (pthread_t *)malloc(mt*sizeof(pthread_t));
-  gmp_randstate_t *buf = (gmp_randstate_t *)malloc(mt*sizeof(gmp_randstate_t));
   struct th_args * args = (struct th_args *)malloc(mt*sizeof(struct th_args));
   for (int i = 0; i < mt; ++i) {
       args[i].list_q = first_indq + block*i;
@@ -507,18 +517,18 @@ main (int argc, char *argv[])
       args[i].nrels = &nrels;
       args[i].Ind = &Ind[0];
       args[i].dl = dl;
-      gmp_randinit_default(buf[i]);
-      gmp_randseed_ui(buf[i], 171717+i);
-      args[i].buf = buf[i];
+      gmp_randinit_default(args[i].rstate);
+      gmp_randseed_ui(args[i].rstate, 171717+i);
 
       pthread_create(&thid[i], NULL, do_thread, (void *)(&args[i]));
   }
   for (int i = 0; i < mt; ++i) {
       pthread_join(thid[i], NULL);
+      gmp_randclear(args[i].rstate);
   }
 
+  gmp_randclear(global_rstate_non_mt);
   free(thid);
-  free(buf);
   free(args);
   prime_info_clear(pdata);
   renumber_clear(ren_table);

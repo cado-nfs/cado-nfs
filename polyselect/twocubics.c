@@ -50,7 +50,7 @@ double aver_E = 0.0;
 unsigned long found = 0; /* number of polynomials found so far */
 
 /* read-write global variables */
-pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
+static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                    lock for those variables */
 
 mpz_t maxS; /* maximun skewness. O for default max */

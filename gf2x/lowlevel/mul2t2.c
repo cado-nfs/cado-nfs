@@ -73,6 +73,9 @@ void gf2x_mul2(unsigned long * t, unsigned long const * s1,
 #define XOREQ(lop, rop) lop = _mm_xor_si128((lop), (rop))
 #define PXOR(lop, rop) _mm_xor_si128((lop), (rop))
 #define PAND(lop, rop) _mm_and_si128((lop), (rop))
+#define PZERO    _mm_setzero_si128()
+#define PSUB(x, y)      _mm_sub_epi64((x), (y))
+#define PNEG(x)      PSUB(PZERO, (x))
 
     __m128i u;
     __m128i t0;
@@ -88,20 +91,20 @@ void gf2x_mul2(unsigned long * t, unsigned long const * s1,
     g[ 0] = _mm_setzero_si128();
     g[ 1] = b0;
     __m128i v1 = _mm_loadu_si128((__m128i*) s1);
-    w = _mm_sub_epi64(_mm_setzero_si128(), SHR(b0,63));
+    w = PNEG(SHR(b0,63));
     __m128i v2 = _mm_unpackhi_epi64(v1, v1);
     v1 = _mm_unpacklo_epi64(v1, v1);
     v1 = SHR(PAND(v1, m), 1); t1 = PAND(v1, w);
     g[ 2] = SHL(b0, 1); g[ 3] = PXOR(g[ 2], b0);
     v2 = SHR(PAND(v2, m), 1); t2 = PAND(v2, w);
     g[ 4] = SHL(g[ 2], 1); g[ 5] = PXOR(g[ 4], b0);
-    w = _mm_sub_epi64(_mm_setzero_si128(), SHR(g[ 2],63));
+    w = PNEG(SHR(g[ 2],63));
     g[ 6] = SHL(g[ 3], 1); g[ 7] = PXOR(g[ 6], b0);
     v1 = SHR(PAND(v1, m), 1); XOREQ(t1, PAND(v1, w));
     g[ 8] = SHL(g[ 4], 1); g[ 9] = PXOR(g[ 8], b0);
     v2 = SHR(PAND(v2, m), 1); XOREQ(t2, PAND(v2, w));
     g[10] = SHL(g[ 5], 1); g[11] = PXOR(g[10], b0);
-    w = _mm_sub_epi64(_mm_setzero_si128(), SHR(g[4],63));
+    w = PNEG(SHR(g[4],63));
     g[12] = SHL(g[ 6], 1); g[13] = PXOR(g[12], b0);
     v1 = SHR(PAND(v1, m), 1); XOREQ(t1, PAND(v1, w));
     g[14] = SHL(g[ 7], 1); g[15] = PXOR(g[14], b0);
@@ -149,6 +152,9 @@ void gf2x_mul2(unsigned long * t, unsigned long const * s1,
     _mm_storeu_si128((__m128i*)t, PXOR(t0, SHLD(t1, 64)));
     _mm_storeu_si128((__m128i*)(t+2), PXOR(t2, SHRD(t1, 64)));
 
+#undef PNEG
+#undef PSUB
+#undef PZERO
 #undef SHL
 #undef SHR
 #undef SHLD

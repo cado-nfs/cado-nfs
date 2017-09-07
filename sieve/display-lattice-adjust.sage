@@ -14,8 +14,8 @@ import itertools
 #
 # Here is an example run for a 155-digit number.
 #
-# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 0  --random-sample 200 -seed 1) > /tmp/strat0.txt
-# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 2  --random-sample 200 -seed 1) > /tmp/strat2.txt
+# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 0  --random-sample 200 -seed 1 > /tmp/strat0.txt
+# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 2  --random-sample 200 -seed 1 > /tmp/strat2.txt
 # sage display-lattice-adjust.sage /tmp/c155.poly /tmp/strat0.txt /tmp/strat2.txt
 
 # An arbitrary number of relation files may be put on the command line.

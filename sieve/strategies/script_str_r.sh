@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #precompute for each size of cofactors and each side (RAT or ALG), the
 #convex hull of strategies!

@@ -40,13 +40,6 @@
 #include "test-tools.h"
 #include "check-and-bench-common.h"
 
-#ifdef  MULCOUNT
-extern int mulcount;
-#else
-static const int mulcount = 0;
-#endif
-
-
 void usage_and_die(char **argv)
 {
     fprintf(stderr, "usage: %s nmin nmax [-s step|-f factor] [-o order]\n", argv[0]);
@@ -91,10 +84,6 @@ void bench(int nwords, int dim, int quick, long supplied)
 
     int rep;
 
-#ifdef  MULCOUNT
-    mulcount=0;
-#endif
-
     time_total = 0;
     time_dft = 0;
     time_ift = 0;
@@ -109,14 +98,13 @@ void bench(int nwords, int dim, int quick, long supplied)
 
     double mmul_ft = ((double) dim/d) * ((double) dim/d);
     double mmul_cv = ((double) dim/d) * ((double) dim/d) * ((double) dim/d);
-    printf("%d %f %f %f %f %ld %d\n",
+    printf("%d %f %f %f %f %ld\n",
             nwords,
             quick ? NAN : ((double) time_total / rep),
             mmul_ft * time_dft / 2.0 / rep,
             mmul_ft * time_ift / rep,
             mmul_cv * time_conv/ rep,
-            order,
-            mulcount
+            order
           );
     fflush(stdout);
 

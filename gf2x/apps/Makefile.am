@@ -1,6 +1,7 @@
 # put here the location of the NTL installation (for example /usr/local)
 NTL=
 
+# add -mbmi2 to use the pdep_u64 instruction
 AM_CPPFLAGS = -I$(top_srcdir) -T$(top_builddir) -fopenmp -std=c++11 -I$(NTL)/include
 
 check_PROGRAMS=factor

@@ -67,26 +67,13 @@ def average_valuation_affine(f,p):
 
 # same as average_valuation_affine, but for the class a/b = r mod p
 def average_valuation_affine_sub(f,p,r):
-    v = valuation (f.content(), p)
-    ZP= f.parent()
-    x = ZP.gen()
-    fv = ZP(f/p^v)
-    Q = GF(p)['x'](fv.derivative())
-    for t,_ in fv.roots(GF(p)):
-        t = ZZ(t)
-        if t != r:
-           continue
-        if Q(t) != 0: # single root
-            # we count 1 for this root (with probability 1 since we are
-            # in the residue class of this root), plus 1 when p^2 divides
-            # (with probability 1/p), ..., thus 1 + 1/p + ... = p/(p-1)
-            v += p/(p-1)
-        else:
-            f2 = fv(t+p*x)
-            # since we are in this case in the general case (no restriction
-            # any more on x), we call average_valuation_affine() [no _sub]
-            v += average_valuation_affine(f2, p)
-    return v
+    x = f.parent().0
+    return average_valuation_affine(f(r+p*x), p)
+
+# same as average_valuation_affine_sub, but for the class a/b = r mod p^e
+def average_valuation_affine_sub2(f,p,e,r):
+    x = f.parent().0
+    return average_valuation_affine(f(r+p^e*x), p)
 
 #def ava_deviation(f,p):
 #    """
@@ -130,21 +117,19 @@ def average_valuation_homogeneous_coprime(f,p):
 
 # same as average_valuation_homogeneous_coprime, but for a/b = r/s mod p
 def average_valuation_homogeneous_coprime_sub(f,p,r,s):
-    if disc(f) % p > 0:
-        # Then we know that the average valuation is
-        # number_of_roots/(p-1), multiplied by p/(p+1) so as to take into
-        # account the non-coprime pairs.
-        return number_of_roots_sub(f,p,r,s)/(p-1)*p
-    # modulo p^n, roots touch one class having p^n*(1-1/p) representatives,
-    # amongst the p^2n*(1-1/p^2) coprime representative pairs for
-    # P^1(Z/p^n). So the contribution is, for p^n, p/(p+1) * p^-n
     if s <> 0:
-        # we consider the class a/b = r/s mod p
-        return average_valuation_affine_sub(f, p, (r/s) % p)
-    else: # we consider the projective class
-       ZP = f.parent()
-       x = ZP.gen()
-       return average_valuation_affine_sub((f.reverse())(p*x), p, 0)
+        return average_valuation_affine_sub (f, p, (r/s) % p)
+    else: # projective class
+       x = f.parent().gen()
+       return average_valuation_affine_sub (f.reverse(), p, 0)
+
+# same as average_valuation_homogeneous_coprime, but for a/b = r/s mod p^e
+def average_valuation_homogeneous_coprime_sub2(f,p,e,r,s):
+    if s % p <> 0:
+        return average_valuation_affine_sub2 (f, p, e, (r/s) % p)
+    else: # projective class
+       x = f.parent().gen()
+       return average_valuation_affine_sub2 (f.reverse(), p, e, (s/r) % p)
 
 def alpha_p(f,disc,p):
     """
@@ -336,6 +321,13 @@ def estimate_alpha_p(f, p, nt):
         # sys.stdout.write("%f\r" % float(s*l/n))
     return float(s*l/n) if n > 0 else Infinity
 
+# same as alpha(f, B), but experimentally
+def estimate_alpha(f, B, nt):
+   s = 0
+   for p in prime_range(B):
+      s += estimate_alpha_p (f, p, nt)
+   return s
+
 # same as estimate_alpha_p, but for (a,b) = (r,s) mod p
 def estimate_alpha_p_2(f, p, nt, r, s):
     S=0
@@ -355,8 +347,8 @@ def estimate_alpha_p_2(f, p, nt, r, s):
         n+=1
     return float(S*l/n)
 
-# same as above, but only counts the average valuation at p
-def estimate_average_valuation_p_2(f, p, nt, r, s):
+# same as above, but only counts the average p-valuation for a/b = r/s mod p^e
+def estimate_average_valuation_p_2(f, p, e, nt, r, s):
     S=0
     n=0
     x = f.variables()[0]
@@ -364,8 +356,8 @@ def estimate_average_valuation_p_2(f, p, nt, r, s):
     F = (f(x=x/y)*y^f.degree()).expand()
     for i in range(nt):
         while True:
-           a=randrange(r,nt^2,p)
-           b=randrange(s,nt^2,p)
+           a=randrange(r,nt^2,p^e)
+           b=randrange(s,nt^2,p^e)
            if gcd(a,b)==1:
               break
         S+=valuation(F(x=a,y=b), p)
@@ -389,11 +381,12 @@ def special_valuation_2(F, p, max_depth):
          e += special_valuation_2(F(x=p*x+r,y=p*y+s), p, max_depth-1)/p^2
    return e
 
-def estimate_average_valuation_p_3(f, p, r, s, max_depth=2):
+# estimate the average p-valuation of f in the class a/b = r/s mod p^e
+def estimate_average_valuation_p_3(f, p, e, r, s, max_depth=2):
    x = f.variables()[0]
    y = var('y')
    F = (f(x=x/y)*y^f.degree()).expand()
-   F = F(x=p*x+r,y=p*y+s).expand()
+   F = F(x=p^e*x+r,y=p^e*y+s).expand()
    R.<x,y> = ZZ[]
    F = R(F)
    return special_valuation_2(F, p, max_depth)

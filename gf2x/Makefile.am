@@ -74,7 +74,7 @@ nobase_nodist_include_HEADERS=	\
 		gf2x/gf2x_mul9.h
 
 
-libgf2x_la_LDFLAGS=-version-info @gf2x_lib_version@
+libgf2x_la_LDFLAGS=-version-info @gf2x_lib_version@ -no-undefined
 
 SUBDIRS=lowlevel src . fft tests $(MAYBE_APPS)
 
@@ -106,8 +106,17 @@ untaint:
 	cp $(srcdir)/toom-gpl-placeholder.c $(srcdir)/toom-gpl.c
 
 dist-hook:
-	-find $(distdir) \( -name .svn -type d \) -o -name "*~" -o -name ".#*" \
-                | xargs rm -rf
+	-find $(distdir)/already_tuned/tuned \! -type d -a \! -name README | xargs rm
+	-git log --boundary 29b13131cfaf95132f6a0602d3e0575694359d11..HEAD > $(distdir)/ChangeLog
+
+# This one is simply taken from the generated Makefile. I agree it's a
+# bit ugly.
+dist-LGPL: distdir
+	mv $(distdir)/ $(distdir)-LGPL/
+	cp $(distdir)-LGPL/toom-gpl-placeholder.c $(distdir)-LGPL/toom-gpl.c
+	tardir=$(distdir)-LGPL && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir)-LGPL.tar.gz
+	mv $(distdir)-LGPL/ $(distdir)/
+	$(am__post_remove_distdir)
 
 tune-lowlevel tune-toom tune-fft: all
 	cd src; $(MAKE) $@

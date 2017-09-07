@@ -59,6 +59,7 @@ typedef struct {
                           for column of low weight. If the weight exceeds
                           2^31-1, we saturate at 2^31-1 */
   uint64_t nburied;    /* the number of buried columns */
+  uint64_t force_bury_below_index;
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
@@ -89,7 +90,7 @@ extern "C" {
 #define compute_WN(mat) ((double) (mat)->rem_nrows * (double) (mat)->weight)
 #define compute_WoverN(mat) (((double)(mat)->weight)/((double)(mat)->rem_nrows))
 
-void initMat(filter_matrix_t *, int, uint32_t, uint32_t);
+void initMat(filter_matrix_t *, int, uint32_t, uint32_t, uint32_t);
 void clearMat (filter_matrix_t *mat);
 void fillmat(filter_matrix_t *mat);
 void filter_matrix_read (filter_matrix_t *, const char *);

@@ -29,6 +29,7 @@
 # upper-level library is up-to-date.
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/fft -I$(top_srcdir)/fft/mpfq -I$(top_builddir)
+AM_LDFLAGS = -no-install
 
 check_PROGRAMS=check-addmul
 check_addmul_SOURCES=check-addmul.c

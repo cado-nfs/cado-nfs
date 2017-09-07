@@ -2,237 +2,161 @@
 #define LAS_NORMS_HPP_
 
 #include <stdint.h>
-#include "las-types.hpp"
+#include "las-siever-config.hpp"
+#include "las-qlattice.hpp"
+#include "mpz_poly.h"
 #include "double_poly.h"
+#include "cado_poly.h"
+#include "logapprox.hpp"
 
+double get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X, const double Y);
 
-/* Initialize lognorms for the bucket_region number J. It's a wrapper.
- * For the moment, nothing clever, wrt discarding (a,b) pairs that are
- * not coprime.
- * The sieve area S must be preallocated with at least (BUCKET_REGION +
- * MEMSET_MIN) space. Indeed, the algorithm that is used might write a
- * bit beyond the meaningful area.
- */
-void init_norms_bucket_region (unsigned char *S, uint32_t J, sieve_info& si, unsigned int side, unsigned int smart);
+struct lognorm_base {/*{{{*/
+    int logI, J;
 
-double get_maxnorm_alg (double_poly_srcptr src_poly, const double X, const double Y);
+    unsigned char bound; /* A sieve array entry is a sieve survivor if it is
+                            at most "bound" on each side */
+    protected:
+    double maxlog2;      /* Bound on the log in base 2. This is
+                            intermediary data, really. */
+    public:
+    cxx_mpz_poly fij;  /* coefficients of F(a0*i+a1*j, b0*i+b1*j)
+                        * (divided by q on the special-q side) */
 
-void sieve_info_init_norm_data_sq (sieve_info& si, unsigned long q);
+    cxx_double_poly fijd;      /* coefficients of F_q (divided by q
+                                * on the special q side) */
 
-/* To use this LAS_MEMSET, you have to:
- *  1. Define LAS_MEMSET in sieve/las-config.h and have a x86 64 bits.
- *  2. To optimize LAS_MEMSET you have to include this code in your
- *  executable:
+    double scale;      /* scale used for logarithms for fb and norm.
+                        * must be of form (int)x * 0.1 */
 
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && defined(LAS_MEMSET)
-  max_cache = direct_write_vs_stos ();
-  min_stos = stos_vs_write128 ();
-  fprintf (stderr, "# Las normalisation memset: movaps from 33(0x21) to %zu(0x%zx); rep stosq until %zu(0x%zx); movntps after\n", min_stos, min_stos, max_cache, max_cache);
-#endif
+    lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
 
-*/
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && defined(LAS_MEMSET)
-#include <emmintrin.h>
+    void norm(mpz_ptr x, int i, unsigned int j) const;
+    unsigned char lognorm(int i, unsigned int j) const;
 
-/* strategy used for memset of size n:
- *
- * for n < min_stos : movaps
- * for min_stos <= n < max_cache : rep stosq
- * for n >= max_cache : movntps
- */
-extern size_t min_stos;
-extern size_t max_cache;
-
-
-  /* The fastest memset for x86 64 & SSE2 */
-  static inline void *las_memset(void *S_v, int c, size_t n) {
-    uint8_t *S = (uint8_t *)S_v;
-    uint64_t rc = 0x0101010101010101 * (uint8_t) c;
-    if (LIKELY (n > 0x20)) {
-      register __m128 mc __asm__ ("xmm7"); /* Way to ask a "legacy" xmm, from xmm0 to xmm7 ? */
-      __asm__ __volatile__ ( "movd %[rc], %[mc]\n" : [mc]"=x"(mc) : [rc]"r"((uint32_t) rc));
-      void *cS = S;
-      /* eeek. Fill first and last cache lines, so as to make sure that
-       * the complete data is covered */
-      *(int64_t *) ((uintptr_t) S + n - 0x10) = rc;
-      *(int64_t *) ((uintptr_t) S + n - 0x08) = rc;
-      *(int64_t *) ((uintptr_t) S           ) = rc;
-      *(int64_t *) ((uintptr_t) S     + 0x08) = rc;
-      __asm__ __volatile__ ( "pshufd $0x00, %[mc], %[mc]\n" : [mc]"+x"(mc));
-      if (LIKELY (n < min_stos)) {
-	uint64_t jmp, offset;
-        /* Set n to be the address of the last byte of the last 128-bit
-         * word fully within the [S, S+n[ zone */
-	n += (uintptr_t) S - 0x10;
-	n |= 0x0f;
-        /* Set S to be the address of the last byte of the first 128-bit
-         * word intersecting the [S, S+n[ zone (actually not checking
-         * that this 128-bit word is fully within the zone).
-         */
-	S = (uint8_t *) ((uintptr_t) S | 0x0f);
-        /* Set n to be the number of bytes which are covered from the
-         * second 128-bit word to the last (inclusive, the first line
-         * being possibly out of range */
-	n -= (uintptr_t) S;
-        /* and offset is just the low byte -- a multiple of 0x10 --
-         * something between 0x00 and 0xf0, i.e.  how many 128-bit words
-         * will have to be treated separatel (compared to 16 at a time).
-         */
-	offset = (uint8_t) n;
-	S = (uint8_t *) ((uintptr_t) S + offset - 0x7f);
-        /* exactly before value S here, we will have offset/0x10 128-bit
-         * words
-         * lines to process. This will be for the first iteration only.
-         * The last 128-bit word will be at S + (n-8)*0x10, or something
-         * similar.
-         */
-        /* we'll do a computed jump. 4 bytes per opcode means we just
-         * divide 0x10*number_of_128bit_words by 4 */
-
-        /***********************************************************
-         *
-         *     FIXME FIXME FIXME FIXME
-         *
-         * This code is absolutely not acceptable. Relying on the size of
-         * the opcodes is evil, to say the least. The Intel asm has some
-         * flexibility. Maybe tomorrow an equivalent movaps with 6-byte
-         * opcode will exist. Maybe one which does movaps %[mc],
-         * -0x40(%[S]) will be provided in 3-bytes. Who knows.
-         *
-         *  This is just *NOT* the way it should be done, period.
-         *
-         *  For the moment, adding .p2align's fixes the issue with bug
-         *  18441. This is however so
-         *  fragile that I intend to either remove this code branch, or
-         *  rewrite it in a more robust way with a proper, dumb feed-in
-         *  loop, followed by an asm block, *IF AND ONLY IF* this seems
-         *  really needed.
-         */
-	offset >>= 2;
-	__asm__ __volatile__ ( "leaq 0f(%%rip), %[jmp]\n"
-			       "subq %[offset], %[jmp]\n"
-			       "shrq $0x08, %[n]\n"
-			       "jmpq *%[jmp]\n"
-			       
-			       ".p2align 4\n 1:\n"
-			       "addq $0x100, %[S]\n"
-			       "subq $0x01, %[n]\n"
-                               ".p2align 1\n"
-			       "movaps %[mc], -0x80(%[S])\n"
-			       "movaps %[mc], -0x70(%[S])\n"
-			       "movaps %[mc], -0x60(%[S])\n"
-			       "movaps %[mc], -0x50(%[S])\n"
-			       "movaps %[mc], -0x40(%[S])\n"
-			       "movaps %[mc], -0x30(%[S])\n"
-			       "movaps %[mc], -0x20(%[S])\n"
-			       "movaps %[mc], -0x10(%[S])\n"
-			       "movaps %[mc],      (%[S])\n"
-                               ".p2align 1\n"
-			       "movaps %[mc],  0x10(%[S])\n"
-			       "movaps %[mc],  0x20(%[S])\n"
-			       "movaps %[mc],  0x30(%[S])\n"
-			       "movaps %[mc],  0x40(%[S])\n"
-			       "movaps %[mc],  0x50(%[S])\n"
-			       "movaps %[mc],  0x60(%[S])\n"
-			       "movaps %[mc],  0x70(%[S])\n"
-			       "0:\n"
-			       "jnz 1b\n"
-			       : [jmp]"=&r"(jmp), [n]"+r"(n), [S]"+R"(S) : [offset]"r"(offset), [mc]"x"(mc) : "cc", "memory");
-      } else if (LIKELY (n < max_cache)) {
-	n += (uintptr_t) S;
-	n &= -0x10;
-	_mm_store_ps ((float *) (uintptr_t) (n - 0x40), mc);
-	_mm_store_ps ((float *) (uintptr_t) (n - 0x30), mc);
-	_mm_store_ps ((float *) (uintptr_t) (n - 0x20), mc);
-	_mm_store_ps ((float *) (uintptr_t) (n - 0x10), mc);
-	S += 0x40;
-	S = (uint8_t *)((uintptr_t) S & -0x10);
-	_mm_store_ps ((float *) (uintptr_t) (S - 0x30), mc);
-	_mm_store_ps ((float *) (uintptr_t) (S - 0x20), mc);
-	_mm_store_ps ((float *) (uintptr_t) (S - 0x10), mc);
-	_mm_store_ps ((float *) (uintptr_t) (S       ), mc);
-	S = (uint8_t *)((uintptr_t) S & -0x40);
-	n &= -0x40;
-	n -= (uintptr_t) S;
-	n >>= 3;
-	__asm__ __volatile__ ( "cld\n rep\n stosq\n" : "+c"(n), [S]"+D"(S) : [rc]"a"(rc) : "cc", "memory");
-      } else {
-	uint64_t jmp, offset;
-	n += (uintptr_t) S - 0x10;
-	n |= 0x0f;
-	S = (uint8_t *) ((uintptr_t) S | 0x0f);
-	n -= (uintptr_t) S;
-	offset = (uint8_t) n;
-	S = (uint8_t *) ((uintptr_t) S + offset - 0x7f);
-	offset = (uint64_t) offset >> 2;
-	__asm__ __volatile__ ( "leaq 0f(%%rip), %[jmp]\n"
-			       "subq %[offset], %[jmp]\n"
-			       "shrq $0x08, %[n]\n"
-			       "jmpq *%[jmp]\n"
-			       
-			       ".p2align 4\n 1:\n"
-			       "addq $0x100, %[S]\n"
-			       "subq $0x01,%[n]\n"
-			       "movntps %[mc], -0x80(%[S])\n"
-			       "movntps %[mc], -0x70(%[S])\n"
-			       "movntps %[mc], -0x60(%[S])\n"
-			       "movntps %[mc], -0x50(%[S])\n"
-			       "movntps %[mc], -0x40(%[S])\n"
-			       "movntps %[mc], -0x30(%[S])\n"
-			       "movntps %[mc], -0x20(%[S])\n"
-			       "movntps %[mc], -0x10(%[S])\n"
-			       "movntdq %[mc],      (%[S])\n"
-			       "movntps %[mc],  0x10(%[S])\n"
-			       "movntps %[mc],  0x20(%[S])\n"
-			       "movntps %[mc],  0x30(%[S])\n"
-			       "movntps %[mc],  0x40(%[S])\n"
-			       "movntps %[mc],  0x50(%[S])\n"
-			       "movntps %[mc],  0x60(%[S])\n"
-			       "movntps %[mc],  0x70(%[S])\n"
-			       "0:\n"
-			       "jnz 1b\n"
-			       : [jmp]"=&r"(jmp), [n]"+r"(n), [S]"+R"(S) : [offset]"r"(offset), [mc]"x"(mc) : "cc", "memory");
-      }
-      return cS;
-    } else if (UNLIKELY ((uint8_t) n & 0x30)) {
-      *(int64_t *) ((uint8_t *) S     + 0x08) = rc;
-      *(int64_t *) ((uint8_t *) S + n - 0x10) = rc;
-    between_0x08_0x10:
-      *(int64_t *) ((uint8_t *) S           ) = rc;
-      *(int64_t *) ((uint8_t *) S + n - 0x08) = rc;
-    } else if (UNLIKELY ((uint8_t) n & 0x08)) goto between_0x08_0x10;
-    else if (UNLIKELY ((uint8_t) n & 0x04)) {
-      *((uint32_t *) ((uint8_t *) S        )) = (uint32_t) rc;
-      *((uint32_t *) ((uint8_t *) S + n - 0x04)) = (uint32_t) rc;
-    } else if (LIKELY ((uint8_t) n >= 0x01)) {
-      *((uint8_t  *) ((uint8_t *) S        )) = (uint8_t ) rc;
-      if (LIKELY ((uint8_t) n > 0x01)) {
-	*((uint16_t *) ((uint8_t *) S + n - 0x02)) = (uint16_t) rc;
-      }
+    virtual void fill(unsigned char * S, int N MAYBE_UNUSED) const {
+        /* Whether we put something or not here is not really important.
+         * A no-op would do as well. */
+        memset(S, 255, 1U << LOG_BUCKET_REGION);
     }
-    return S;
-  }
-/* Only to avoid a possible warning (in MacOSX). */
-#ifdef memset
-#undef memset
+};
+
+/*}}}*/
+struct lognorm_reference : public lognorm_base {/*{{{*/
+    /* See init_degree_X_norms_bucket_region_referencecode for the
+     * explanation of this table. */
+    unsigned char lognorm_table[1 << NORM_BITS];
+
+    lognorm_reference(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
+    virtual void fill(unsigned char * S, int N) const;
+};
+
+/*}}}*/
+struct lognorm_smart : public lognorm_base {/*{{{*/
+    /* This table depends on the scale of the logarithm, so clearly it
+     * can't be shared between sides.
+     */
+    double cexp2[257];
+    /* For degree>1 only: a piecewise linear approximation of the
+     * polynomial, which is within an multiplicative factor of the
+     * original one on the segment [-I,I]x{1}.
+     */
+    piecewise_linear_function G;
+    lognorm_smart(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
+    virtual void fill(unsigned char * S, int N) const;
+};
+
+/*}}}*/
+struct sieve_range_adjust {/*{{{*/
+    friend struct sieve_info;
+private:
+    las_todo_entry doing;
+    siever_config conf;         /* This "conf" field is only used for a
+                                 * few fields. In particular the
+                                 * large prime bounds. We're specifically
+                                 * *not* using the sieving fields, since
+                                 * by design these can be decided *after*
+                                 * the adjustment.  */
+    cado_poly_srcptr cpoly;
+    int nb_threads;
+    cxx_double_poly fijd[2];
+    int logA;
+public:
+    int logI;
+    int J;
+    qlattice_basis Q;
+
+#if 0
+    sieve_range_adjust(las_todo_entry const & doing, las_info const & las)
+        : doing(doing), cpoly(las.cpoly), nb_threads(las.nb_threads)
+    {
+        /* See whether for this size of special-q, we have predefined
+         * parameters (note: we're copying the default config, and then
+         * we replace by an adjusted one if needed). */
+        conf = las.config_pool.get_config_for_q(doing);
+        /* These two will be adjusted in the process */
+        logA = conf.logA;
+        logI = J = 0;
+    }
 #endif
-#define memset las_memset
+
+    /* This is only for desperate cases. In las-duplicates, for the
+     * moment it seems that we're lacking the las_info structure... */
+    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf, int nb_threads = 1)
+        : doing(doing), conf(conf), cpoly(cpoly), nb_threads(nb_threads)
+    {
+        logA = conf.logA;
+        logI = J = 0;
+    }
 
 
+    int SkewGauss() {
+        int ret = ::SkewGauss(Q, doing.p, doing.r, cpoly->skew);
+        Q.set_q(doing.p, doing.prime_sq);
+        if (!Q.prime_sq)
+            Q.prime_factors = Q.prime_factors;
+        return ret;
+    }
 
+    /* There are three strategies to do a post-SkewGauss adjustment of
+     * the q-lattice basis.  */
 
-#endif
+    /* implementation is in las-norms.cpp */
+    // all these functions return 0 if they feel that the special-q
+    // should be discarded.
+    int sieve_info_adjust_IJ();    // "raw" J.
+    int sieve_info_update_norm_data_Jmax(bool keep_logI = false);
+    int adjust_with_estimated_yield();
 
-  
-extern void tune_las_memset();
-  
-/* These functions are internals. Don't use them. Use the wrapper above.
-   It's need to declare them here for units & coverage tests.
- */
-void init_degree_one_norms_bucket_region_internal     (unsigned char *S, uint32_t J, uint32_t I, double scale, cxx_double_poly const &, double *cexp2);
-void init_exact_degree_X_norms_bucket_region_internal (unsigned char *S, uint32_t J, uint32_t I, double scale, cxx_double_poly const & fijd);
-void init_smart_degree_X_norms_bucket_region_internal (unsigned char *S, uint32_t J, uint32_t I, double scale, cxx_double_poly const & fijd, std::vector<smart_norm_root> const & roots);
-void init_norms_roots_internal (cxx_double_poly const &, double max_abs_root, double precision, std::vector<smart_norm_root> & roots);
-void init_norms_roots (sieve_info & si, unsigned int side);
+    // a fall-back measure for desperate cases.
+    // XXX when estimated_yield() wins, this will probably no longer be
+    // necessary.
+    int get_minimum_J();
+    void set_minimum_J_anyway();
+
+    siever_config const& config() const { return conf; }
+private:
+    template<typename T> struct mat {
+        T x[4];
+        T const& operator()(int i, int j) const { return x[2*i+j]; }
+        T & operator()(int i, int j) { return x[2*i+j]; }
+        mat(T a, T b, T c, T d) { x[0]=a; x[1]=b; x[2]=c; x[3]=d; }
+        mat(T y[4]) { x[0]=y[0]; x[1]=y[1]; x[2]=y[2]; x[3]=y[3]; }
+    };
+    template<typename T> struct vec {
+        T x[2];
+        vec(T a, T b) { x[0] = a; x[1] = b; }
+        vec(T y[2]) { x[0] = y[0]; x[1] = y[1]; }
+        T const& operator[](int i) const { return x[i]; }
+        T & operator[](int i) { return x[i]; }
+        T const& operator()(int i) const { return x[i]; }
+        T & operator()(int i) { return x[i]; }
+    };
+    friend sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
+    friend qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
+    void prepare_fijd();
+    int adapt_threads(const char *);
+    double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
+};/*}}}*/
 
 #endif	/* LAS_NORMS_HPP_ */

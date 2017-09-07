@@ -6,6 +6,7 @@
 #if defined(HAVE_SSE2)
 #include <emmintrin.h>
 #endif
+#include "las-types.hpp"
 #include "bucket.hpp"
 #include "portability.h"
 #include "memory.h"
@@ -140,6 +141,9 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
     bucket_start[i_bucket] = big_data + i_bucket * bucket_size;
   }
   reset_pointers();
+#ifdef SAFE_BUCKETS
+  verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS is on !\n");
+#endif
 }
 
 template <int LEVEL, typename HINT>
@@ -162,13 +166,16 @@ bucket_array_t<LEVEL, HINT>::realloc_slice_start(const size_t extra_space)
 /* Returns how full the fullest bucket is, as a fraction of its size */
 template <int LEVEL, typename HINT>
 double
-bucket_array_t<LEVEL, HINT>::max_full () const
+bucket_array_t<LEVEL, HINT>::max_full (unsigned int * fullest_index) const
 {
   unsigned int max = 0;
   for (unsigned int i = 0; i < n_bucket; ++i)
     {
       unsigned int j = nb_of_updates (i);
-      if (max < j) max = j;
+      if (max < j) {
+          max = j;
+          if (fullest_index) *fullest_index = i;
+      }
     }
   return (double) max / (double) bucket_size;
 }
@@ -434,7 +441,7 @@ template
 void
 downsort<3>(bucket_array_t<2, longhint_t> &BA_out,
             const bucket_array_t<3, shorthint_t> &BA_in,
-            uint32_t bucket_numbe, where_am_I & wr);
+            uint32_t bucket_number, where_am_I & wr);
 
 template
 void
@@ -461,4 +468,10 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
     new_checksum = mpz_tdiv_ui(mb, checksum_prime);
     mpz_clear(mb);
     this->update(new_checksum);
+}
+
+buckets_are_full::buckets_are_full(int l, int b, int r, int t) : level(l), bucket_number(b), reached_size(r), theoretical_max_size(t) {
+    std::ostringstream os;
+    os << "buckets (level "<<level<<") are full. Fullest is bucket #"<<r<<", wrote "<<reached_size<<"/"<<theoretical_max_size<<"";
+    message = os.str();
 }

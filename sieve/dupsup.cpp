@@ -98,10 +98,24 @@ parse_config(siever_config & sc, param_list_ptr pl)
     seen &= param_list_parse_int   (pl, "mfb1",  &(sc.sides[1].mfb));
     seen &= param_list_parse_double(pl, "lambda1", &(sc.sides[1].lambda));
     seen &= param_list_parse_int   (pl, "ncurves1",  &(sc.sides[1].ncurves));
-    long dupqmax[2] = {0, 0};
+    long dupqmin[2] = {0, 0};
+    param_list_parse_long_and_long(pl, "dup-qmin", dupqmin, ",");
+    sc.sides[0].qmin = dupqmin[0];
+    sc.sides[1].qmin = dupqmin[1];
+    long dupqmax[2] = {LONG_MAX, LONG_MAX};
     param_list_parse_long_and_long(pl, "dup-qmax", dupqmax, ",");
     sc.sides[0].qmax = dupqmax[0];
     sc.sides[1].qmax = dupqmax[1];
+
+    /* Change 0 (not initialized) into LONG_MAX */
+    for (int side = 0; side < 2; side ++)
+      if (sc.sides[side].qmin == 0)
+	sc.sides[side].qmin = LONG_MAX;
+
+    /* If qmin is not given, use lim on the special-q side by default. */
+    if (sc.sides[sc.side].qmin == LONG_MAX)
+      sc.sides[sc.side].qmin = sc.sides[sc.side].lim;
+
     int logI = (sc.logA+1)/2;
     if (!param_list_parse_ulong(pl, "powlim0", &sc.sides[0].powlim))
         sc.sides[0].powlim = (1<<logI) - 1;
@@ -130,7 +144,8 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "lambda1", "algebraic lambda value");
   param_list_decl_usage(pl, "powlim0", "limit on powers on rat side");
   param_list_decl_usage(pl, "powlim1", "limit on powers on alg side");
-  param_list_decl_usage(pl, "dup-qmax", "limits of q-sieving for 2-sided duplicate removal");
+  param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
+  param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
   param_list_decl_usage(pl, "mt",   "number of threads to use");
   verbose_decl_usage(pl);
@@ -197,8 +212,6 @@ main (int argc, char * argv[])
       fprintf(stderr, "Error, unused parameters are given\n");
       usage(pl, argv0);
     }
-
-    tune_las_memset();
 
     std::shared_ptr<facul_strategies_t> strategies(facul_make_strategies(
             conf.sides[0].lim,

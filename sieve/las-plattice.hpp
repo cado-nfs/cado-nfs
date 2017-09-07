@@ -4,7 +4,7 @@
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/
 
-/* {{{ p-lattice stuff */
+/*  p-lattice stuff */
 
 
 // Compute the root r describing the lattice inside the q-lattice
@@ -29,16 +29,16 @@
  */
 
 // Proposition 1 of [FrKl05]:
-// Compute a basis <(alpha, beta), (gamma, delta)> of the p-lattice
+// Compute a basis <(a0, a1), (b0, b1)> of the p-lattice
 // inside the q-lattice, such that
-//    beta, delta > 0
-//    -I < alpha <= 0 <= gamma < I
-//    gamma-alpha >= I
+//    a1, b1 > 0
+//    -I < a0 <= 0 <= b0 < I
+//    b0-a0 >= I
 //
 // Sizes:
 //    p is less than 32 bits and I fits easily in 32 bits.
-//    So, alpha and beta fit easily in 32 bits, since they are less than I
-//    Now, gamma and delta are also bounded by p, so 32 bits is enough
+//    So, a0 and a1 fit easily in 32 bits, since they are less than I
+//    Now, b0 and b1 are also bounded by p, so 32 bits is enough
 //    However: a and c can be as large as p*I (not both ?).
 //    We still store them in 32 bits, since if they are larger, it means
 //    that as soon as they are added to the offset for S, the index will
@@ -76,66 +76,6 @@
 // of the computation time.
 
 
-// Original version of reduce_plattice, always with a division for each step.
-// This version is pretty fast on new powerful processors, but slow on others.
-// I keep it because in fews years, if the int32_t division is faster, it's
-// possible this code might be the fastest.
-/* NOPROFILE_INLINE int */
-/* reduce_plattice_original (plattice_info_t *pli, const fbprime_t p, const fbprime_t r, sieve_info_srcptr si) */
-/* { */
-/*   int32_t a0 = -((int32_t) p), b0 = (int32_t) r, a1 = 0, b1 = 1, k; */
-/* #if MOD2_CLASSES_BS */
-/*   const int32_t hI = (int32_t) ((si->I) >> 1); */
-/* #else */
-/*   const int32_t hI = (int32_t) (si->I); */
-/* #endif */
-/*   const int32_t mhI = -hI; */
-/*   /\* Critical loop of the routine. The unrolling is optimal here. *\/ */
-/*   while (LIKELY(b0 >= hI)) { */
-/*     k = a0 / b0; a0 %= b0; a1 -= k * b1; */
-/*     if (UNLIKELY(a0 > mhI)) break; */
-/*     k = b0 / a0; b0 %= a0; b1 -= k * a1; */
-/*     if (UNLIKELY(b0 < hI )) break; */
-/*     k = a0 / b0; a0 %= b0; a1 -= k * b1; */
-/*     if (UNLIKELY(a0 > mhI)) break; */
-/*     k = b0 / a0; b0 %= a0; b1 -= k * a1; */
-/*   } */
-/*   k = b0 - hI - a0; */
-/*   if (b0 > -a0) { */
-/*     if (UNLIKELY(!a0)) return 0; */
-/*     k /= a0; b0 -= k * a0; b1 -= k * a1; */
-/*   } else { */
-/*     if (UNLIKELY(!b0)) return 0; */
-/*     k /= b0; a0 += k * b0; a1 += k * b1; */
-/*   } */
-/*   pli->a0 = (int32_t) a0; pli->a1 = (uint32_t) a1; pli->b0 = (int32_t) b0; pli->b1 = (uint32_t) b1; */
-/*   return 1; */
-/* } */
-
-// The really fastest version of reduce_plattice on processors >= Intel
-// Nehalem & AMD Opteron.
-// The C version is for others architectures; it's almost (99%) faster
-// than the asm version on X86 with a GOOD C compiler (tested with gcc
-// 4.6.X, 4.7.X, 4.8.X).
-// Avoid to modify this code...
-// This version has been tuned during several weeks; more than 50
-// versions of this routine has been tested ever and ever. A. Filbois.
-
-// Main idea: to avoid a division & multiplication, I tried to test the
-// sign of aO + b0 * 4 (resp. b0 + a0 * 4). If this sign is different
-// than a0 (resp. b0) sign, the quotient of a0 / b0 is between 0 and 3,
-// and needs (4-1)*2 conditional affectations.
-// The best optimisation is the right choice of the number of the
-// conditional affectations. It's not exactly the same between Intel
-// Nehalem & AMD Opteron, but this code is the best deal for both.
-//
-// NB: Be careful if you tried to change the "4" value. You have to
-// change the constants guards 0xe666667 = -0x7FFFFFFF/(4+1) & 0x19999999
-// = 0x7fffffff / (4+1).
-// These guards are needed because the conditional affectations use the
-// sign change; this sign may changed at max 1 times, not 2 (with an
-// overflow).  In fact, these guards are 99.99999% useless.
-
 typedef uint64_t plattice_x_t;
 
 struct plattice_info_t;
@@ -152,13 +92,16 @@ struct plattice_info_t {
   static const int shift = 0;
 #endif
 
-/* DONT modify this: asm code writes in this with hardcoded deplacement */
   int32_t a0;
   uint32_t a1;
   int32_t b0;
   uint32_t b1;
 
   plattice_info_t(const fbprime_t p, const fbroot_t r, const bool proj, const int logI) {
+    /* placate compiler. Sure, we shouldn't need it really, but
+     * admittedly the control flow through reduce_plattice is contrived.
+     */
+    a0 = a1 = b0 = b1 = 0;
     if (UNLIKELY(proj && r == 0)) {
       /* This lattice basis might work in principle, but it generates hits in
          all locations i=1, ..., I/2-1, j = 0, all of which are useless except
@@ -175,7 +118,17 @@ struct plattice_info_t {
       b0 = 0; /* Thus bound1 = I - b0 = I, inc_a is never added */
     } else {
       ASSERT_ALWAYS(!proj);
+      /* One essential condition of proposition 1 in FrKl05 is that p >= I */
+      ASSERT(p >> logI);
       int rc = reduce_plattice (this, p, r, 1U << logI);
+      /* These are the constraints which reduce_plattice should meet */
+      ASSERT(-(INT32_C(1) << logI) < a0);
+      ASSERT(a0 <= 0);
+      ASSERT(b0 >= 0);
+      ASSERT(b0 < (INT32_C(1) << logI));
+      ASSERT((b0-a0) >= (INT32_C(1) << logI));
+      ASSERT(a1 > 0);
+      ASSERT(b1 > 0);
       if (UNLIKELY(rc == 0)) {
         /* gcd(r, p) > I. We currently can't handle this case. Set everything
            to zero to signal to calling code that this is not a valid basis.
@@ -217,6 +170,83 @@ struct plattice_info_t {
   uint32_t det() const {return (-a0)*b1 + a1*b0;};
 };
 
+/* We have several versions of reduce_plattice. Which one is best is
+ * reportedly CPU-dependent, which I can imagine.
+ *
+ * I've run some benchmarks on a skylake i5 in 2017/05 with gcc-6.3.0.
+ * The C version below is almost on par with the unrolled version further
+ * down, but the latter still has a tiny edge nevertheless. We seem to be
+ * well within the margin of error at this point, so more tests would be
+ * useful.
+ *
+ * (which unrolling choice for the C code get the best performance is not
+ * measurable at this point).
+ */
+#if 0
+// Original version of reduce_plattice, always with a division for each step.
+// This version is pretty fast on new powerful processors, but slow on others.
+// I keep it because in fews years, if the int32_t division is faster, it's
+// possible this code might be the fastest.
+
+NOPROFILE_INLINE int
+reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, uint32_t I)
+{
+  int32_t a0 = -((int32_t) p), b0 = (int32_t) r, a1 = 0, b1 = 1, k;
+#if MOD2_CLASSES_BS
+  const int32_t hI = (int32_t) (I>>1);
+#else
+  const int32_t hI = (int32_t) I;
+#endif
+  const int32_t mhI = -hI;
+  while (LIKELY(b0 >= hI)) {
+    k = a0 / b0; a0 %= b0; a1 -= k * b1;
+    if (UNLIKELY(a0 > mhI)) break;
+    k = b0 / a0; b0 %= a0; b1 -= k * a1;
+    /* We may conceivably unroll a bit more, or a bit less, here. Just
+     * tuck in as many copies of the following block as you wish. */
+#if 1
+    if (UNLIKELY(b0 < hI )) break;
+    k = a0 / b0; a0 %= b0; a1 -= k * b1;
+    if (UNLIKELY(a0 > mhI)) break;
+    k = b0 / a0; b0 %= a0; b1 -= k * a1;
+#endif
+  }
+  k = b0 - hI - a0;
+  if (b0 > -a0) {
+    if (UNLIKELY(!a0)) return 0;
+    k /= a0; b0 -= k * a0; b1 -= k * a1;
+  } else {
+    if (UNLIKELY(!b0)) return 0;
+    k /= b0; a0 += k * b0; a1 += k * b1;
+  }
+  pli->a0 = (int32_t) a0; pli->a1 = (uint32_t) a1; pli->b0 = (int32_t) b0; pli->b1 = (uint32_t) b1;
+  return 1;
+}
+#else
+// The really fastest version of reduce_plattice on processors >= Intel
+// Nehalem & AMD Opteron.
+// The C version is for others architectures; it's almost (99%) faster
+// than the asm version on X86 with a GOOD C compiler (tested with gcc
+// 4.6.X, 4.7.X, 4.8.X).
+// Avoid to modify this code...
+// This version has been tuned during several weeks; more than 50
+// versions of this routine has been tested ever and ever. A. Filbois.
+
+// Main idea: to avoid a division & multiplication, I tried to test the
+// sign of aO + b0 * 4 (resp. b0 + a0 * 4). If this sign is different
+// than a0 (resp. b0) sign, the quotient of a0 / b0 is between 0 and 3,
+// and needs (4-1)*2 conditional affectations.
+// The best optimisation is the right choice of the number of the
+// conditional affectations. It's not exactly the same between Intel
+// Nehalem & AMD Opteron, but this code is the best deal for both.
+//
+// NB: Be careful if you tried to change the "4" value. You have to
+// change the constants guards 0xe666667 = -0x7FFFFFFF/(4+1) & 0x19999999
+// = 0x7fffffff / (4+1).
+// These guards are needed because the conditional affectations use the
+// sign change; this sign may changed at max 1 times, not 2 (with an
+// overflow).  In fact, these guards are 99.99999% useless.
+
 NOPROFILE_INLINE int
 reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, const uint32_t I)
 {
@@ -226,7 +256,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
   const int32_t hI = (int32_t) I;
 #endif
   int32_t a0 = - (int32_t) p, b0 = (int32_t) r, a1, b1;
-  
+
   /* Mac OS X 10.8 embarks a version of llvm which crashes on the code
    * below (could be that the constraints are exerting too much of the
    * compiler's behaviour).
@@ -244,46 +274,112 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
 #endif
 
 #ifndef AVOID_ASM_REDUCE_PLATTICE
-#define RPA(LABEL) "addl %2, %0\n leal (%0,%2,4), %%edx\n addl %3, %1\n" \
-    "testl %%edx, %%edx\n movl %0, %%eax\n jng " LABEL			\
-    "addl %2, %%eax\n leal (%1,%3,1), %%edx\n cmovngl %%eax, %0\n cmovngl %%edx, %1\n" \
-    "addl %3, %%edx\n addl %2, %%eax\n        cmovngl %%edx, %1\n cmovngl %%eax, %0\n" \
-    "addl %3, %%edx\n addl %2, %%eax\n        cmovngl %%edx, %1\n cmovngl %%eax, %0\n"
-#define RPB(LABEL) "addl %0, %2\n leal (%2,%0,4), %%edx\n addl %1, %3\n" \
-    "testl %%edx, %%edx\n movl %2, %%eax\n jns " LABEL			\
-    "addl %0, %%eax\n leal (%1,%3,1), %%edx\n cmovnsl %%eax, %2\n cmovnsl %%edx, %3\n" \
-    "addl %1, %%edx\n addl %0, %%eax\n        cmovnsl %%edx, %3\n cmovnsl %%eax, %2\n" \
-    "addl %1, %%edx\n addl %0, %%eax\n        cmovnsl %%edx, %3\n cmovnsl %%eax, %2\n"
-#define RPC "cltd\n idivl %2\n imull %3, %%eax\n movl %%edx, %0\n subl %%eax, %1\n"
-#define RPD "cltd\n idivl %0\n imull %1, %%eax\n movl %%edx, %2\n subl %%eax, %3\n"
+#define RPA(LABEL)      \
+          "addl %2, %0\n"						\
+          "leal (%0,%2,4), %%edx\n"					\
+          "addl %3, %1\n"						\
+          "testl %%edx, %%edx\n"					\
+          "movl %0, %%eax\n"						\
+          "jng " LABEL "\n"						\
+          "addl %2, %%eax\n"						\
+          "leal (%1,%3,1), %%edx\n"					\
+          "cmovngl %%eax, %0\n"						\
+          "cmovngl %%edx, %1\n"						\
+          "addl %3, %%edx\n"						\
+          "addl %2, %%eax\n"						\
+          "cmovngl %%edx, %1\n"						\
+          "cmovngl %%eax, %0\n"						\
+          "addl %3, %%edx\n"						\
+          "addl %2, %%eax\n"						\
+          "cmovngl %%edx, %1\n"						\
+          "cmovngl %%eax, %0\n"
+#define RPB(LABEL)      \
+          "addl %0, %2\n"						\
+          "leal (%2,%0,4), %%edx\n"					\
+          "addl %1, %3\n"						\
+          "testl %%edx, %%edx\n"					\
+          "movl %2, %%eax\n"						\
+          "jns " LABEL "\n"						\
+          "addl %0, %%eax\n"						\
+          "leal (%1,%3,1), %%edx\n"					\
+          "cmovnsl %%eax, %2\n"						\
+          "cmovnsl %%edx, %3\n"						\
+          "addl %1, %%edx\n"						\
+          "addl %0, %%eax\n"						\
+          "cmovnsl %%edx, %3\n"						\
+          "cmovnsl %%eax, %2\n"						\
+          "addl %1, %%edx\n"						\
+          "addl %0, %%eax\n"						\
+          "cmovnsl %%edx, %3\n"						\
+          "cmovnsl %%eax, %2\n"
+#define RPC     \
+          "cltd\n"							\
+          "idivl %2\n"							\
+          "imull %3, %%eax\n"						\
+          "movl %%edx, %0\n"						\
+          "subl %%eax, %1\n"
+#define RPD "cltd\n"    \
+          "idivl %0\n"							\
+          "imull %1, %%eax\n"						\
+          "movl %%edx, %2\n"						\
+          "subl %%eax, %3\n"
 
   int32_t mhI;
-  __asm__ __volatile__ ( \
-           "xorl %1, %1\n cmpl %2, %5\n movl $0x1, %3\n jg 9f\n"	\
-	   "movl %5, %%eax\n negl %%eax\n movl %%eax, %4\n"		\
-	   "movl %0, %%eax\n cltd\n idivl %2\n subl %%eax, %1\n"	\
-	   "cmpl $0xe6666667, %%edx\n movl %%edx, %0\n jl 0f\n"		\
-	   ""								\
-	   ".balign 8\n"						\
-	   "1:\n cmpl %0, %4\n jl 9f\n" RPB("3f\n")			\
-	   "2:\n cmpl %2, %5\n jg 9f\n" RPA("4f\n")			\
-	   "jmp 1b\n"							\
-	   ""								\
-	   ".balign 8\n 3:\n" RPD "jmp 2b\n"				\
-	   ".balign 8\n 4:\n" RPC "jmp 1b\n"				\
-	   ""								\
-	   ".balign 8\n 0:\n"						\
-	   "movl %2, %%eax\n cltd\n idivl %0\n imull %1, %%eax\n"	\
-	   "subl %%eax, %3\n cmpl $0x19999999, %%edx\n"			\
-	   "movl %%edx, %2\n jle 2b\n"					\
-	   "movl %0, %%eax\n cltd\n idivl %2\n imull %3, %%eax\n"	\
-	   "subl %%eax, %1\n cmpl $0xe6666667, %%edx\n"			\
-	   "movl %%edx, %0\n jge 1b\n"					\
-	   "jmp 0b\n"							\
-	   ""								\
-	   " 9:\n"						\
-	   : "+&r"(a0), "=&r"(a1), "+&r"(b0), "=&r"(b1),		\
-	     "=&rm"(mhI) : "rm"(hI) : "%rax", "%rdx", "cc");  
+  __asm__ __volatile__ (
+            "xorl %1, %1\n"
+            "cmpl %2, %5\n"
+            "movl $0x1, %3\n"
+            "jg 9f\n"
+            "movl %5, %%eax\n"
+            "negl %%eax\n"
+            "movl %%eax, %4\n"
+            "movl %0, %%eax\n"
+            "cltd\n"
+            "idivl %2\n"
+            "subl %%eax, %1\n"
+            "cmpl $0xe6666667, %%edx\n"
+            "movl %%edx, %0\n"
+            "jl 0f\n"
+            ".balign 8\n"
+            "1:\n"
+            "cmpl %0, %4\n"
+            "jl 9f\n"
+            RPB("3f")
+            "2:\n"
+            "cmpl %2, %5\n"
+            "jg 9f\n"
+            RPA("4f")
+            "jmp 1b\n"
+            ".balign 8\n"
+            "3:\n"
+            RPD
+            "jmp 2b\n"
+            ".balign 8\n"
+            "4:\n"
+            RPC
+            "jmp 1b\n"
+            ".balign 8\n"
+            "0:\n"
+            "movl %2, %%eax\n"
+            "cltd\n"
+            "idivl %0\n"
+            "imull %1, %%eax\n"
+            "subl %%eax, %3\n"
+            "cmpl $0x19999999, %%edx\n"
+            "movl %%edx, %2\n"
+            "jle 2b\n"
+            "movl %0, %%eax\n"
+            "cltd\n"
+            "idivl %2\n"
+            "imull %3, %%eax\n"
+            "subl %%eax, %1\n"
+            "cmpl $0xe6666667, %%edx\n"
+            "movl %%edx, %0\n"
+            "jge 1b\n"
+            "jmp 0b\n"
+            "9:\n"
+	   : "+&r"(a0), "=&r"(a1), "+&r"(b0), "=&r"(b1),
+	     "=&rm"(mhI) : "rm"(hI) : "%rax", "%rdx", "cc");
 #else
 #define RPA do {							\
     a0 += b0; a1 += b1;							\
@@ -313,7 +409,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
   } while (0)
 
   /* This code seems odd (looks after the a0 <= mhI loop),
-     but gcc generates the fastest asm with it... */ 
+     but gcc generates the fastest asm with it... */
   a1 = 0; b1 = 1;
   if (LIKELY(b0 >= hI)) {
     const int32_t mhI = -hI;
@@ -344,6 +440,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
   pli->a0 = (int32_t) a0; pli->a1 = (uint32_t) a1; pli->b0 = (int32_t) b0; pli->b1 = (uint32_t) b1;
   return 1;
 }
+#endif
 
 
 /* Like plattice_info_t, but remembers the offset of the factor base entry
@@ -360,6 +457,11 @@ class plattice_enumerate_area {
 public:
     static plattice_x_t value;
 };
+
+/* see bug #21405 */
+template <> plattice_x_t plattice_enumerate_area<1>::value;
+template <> plattice_x_t plattice_enumerate_area<2>::value;
+template <> plattice_x_t plattice_enumerate_area<3>::value;
 
 template <int LEVEL>
 bool
@@ -571,7 +673,6 @@ public:
     slice_index_t get_index() const {return index;};
 };
 
-
 /* Dense version of plattice_info_t and friends for long-term storage in
  * sublat mode. */
 
@@ -630,101 +731,109 @@ public:
 };
 
 
+#if 0
+/* MOD2_CLASSES_BS was an attempt, at some point, to support bucket
+ * sieving in several passes for congruence classes mod 2. It was never
+ * finished, and has never been tested. The last traces of that code may
+ * be found in the git history perhaps. To date, the only remaining bit
+ * that can still be considered interesting is the comment fragment below
+ * in plattice_starting_vector
+ */
 
 /* This is for working with congruence classes only */
-/* NOPROFILE_INLINE */
-/* plattice_x_t plattice_starting_vector(const plattice_info_t * pli, sieve_info_srcptr si, unsigned int par ) */
-/* { */
-/*     /\* With MOD2_CLASSES_BS set up, we have computed by the function */
-/*      * above an adapted basis for the band of total width I/2 (thus from */
-/*      * -I/4 to I/4). This adapted basis is in the coefficients a0 a1 b0 */
-/*      *  b1 of the pli data structure. */
-/*      * */
-/*      * Now as per Proposition 1 of FrKl05 applied to I/2, any vector */
-/*      * whose i-coordinates are within ]-I/2,I/2[ (<ugly>We would like a */
-/*      * closed interval on the left. Read further on for that case</ugly>) */
-/*      * can actually be written as a combination with positive integer */
-/*      * coefficients of these basis vectors a and b. */
-/*      * */
-/*      * We also know that the basis (a,b) has determinant p, thus odd. The */
-/*      * congruence class mod 2 that we want to reach is thus accessible. */
-/*      * It is even possible to find coefficients (k,l) in {0,1} such that */
-/*      * ka+lb is within this congruence class. This means that we're going */
-/*      * to consider either a,b,or a+b as a starting vector. The */
-/*      * i-coordinates of these, as per the properties of Proposition 1, are */
-/*      * within ]-I/2,I/2[. Now all other vectors with i-coordinates in */
-/*      * ]-I/2,I/2[ which also belong to the same congruence class, can be */
-/*      * written as (2k'+k)a+(2l'+l)b, with k' and l' necessarily */
-/*      * nonnegative. */
-/*      * */
-/*      * The last ingredient is that (2a, 2b) forms an adapted basis for */
-/*      * the band of width I with respect to the lattice 2p. It's just an */
-/*      * homothety. */
-/*      * */
-/*      * To find (k,l), we proceed like this. First look at the (a,b) */
-/*      * matrix mod 2: */
-/*      *                 a0&1    a1&1 */
-/*      *                 b0&1    b1&1 */
-/*      * Its determinant is odd, thus the inverse mod 2 is: */
-/*      *                 b1&1    a1&1 */
-/*      *                 b0&1    a0&1 */
-/*      * Now the congruence class is given by the parity argument. The */
-/*      * vector is: */
-/*      *                par&1,   par>>1 */
-/*      * Multiplying this vector by the inverse matrix above, we obtain the */
-/*      * coordinates k,l, which are: */
-/*      *            k = (b1&par&1)^(b0&(par>>1)); */
-/*      *            l = (a1&par&1)^(a0&(par>>1)); */
-/*      * Now our starting vector is ka+lb. Instead of multiplying by k and */
-/*      * l with values in {0,1}, we mask with -k and -l, which both are */
-/*      * either all zeroes or all ones in binary */
-/*      * */
-/*      *\/ */
-/*     /\* Now for the extra nightmare. Above, we do not have the guarantee */
-/*      * that a vector whose i-coordinate is precisely -I/2 has positive */
-/*      * coefficients in our favorite basis. It's annoying, because it may */
-/*      * well be that if such a vector also has positive j-coordinate, then */
-/*      * it is in fact the first vector we will meet. An example is given */
-/*      * by the following data: */
-/*      * */
-/*             f:=Polynomial(StringToIntegerSequence(" */
-/*                 -1286837891385482936880099433527136908899552 */
-/*                 55685111236629140623629786639929578 */
-/*                 13214494134209131997428776417 */
-/*                 -319664171270205889372 */
-/*                 -17633182261156 */
-/*                 40500")); */
+NOPROFILE_INLINE
+plattice_x_t plattice_starting_vector(const plattice_info_t * pli, sieve_info_srcptr si, unsigned int par )
+{
+    /* With MOD2_CLASSES_BS set up, we have computed by the function
+     * above an adapted basis for the band of total width I/2 (thus from
+     * -I/4 to I/4). This adapted basis is in the coefficients a0 a1 b0
+     *  b1 of the pli data structure.
+     *
+     * Now as per Proposition 1 of FrKl05 applied to I/2, any vector
+     * whose i-coordinates are within ]-I/2,I/2[ (<ugly>We would like a
+     * closed interval on the left. Read further on for that case</ugly>)
+     * can actually be written as a combination with positive integer
+     * coefficients of these basis vectors a and b.
+     *
+     * We also know that the basis (a,b) has determinant p, thus odd. The
+     * congruence class mod 2 that we want to reach is thus accessible.
+     * It is even possible to find coefficients (k,l) in {0,1} such that
+     * ka+lb is within this congruence class. This means that we're going
+     * to consider either a,b,or a+b as a starting vector. The
+     * i-coordinates of these, as per the properties of Proposition 1, are
+     * within ]-I/2,I/2[. Now all other vectors with i-coordinates in
+     * ]-I/2,I/2[ which also belong to the same congruence class, can be
+     * written as (2k'+k)a+(2l'+l)b, with k' and l' necessarily
+     * nonnegative.
+     *
+     * The last ingredient is that (2a, 2b) forms an adapted basis for
+     * the band of width I with respect to the lattice 2p. It's just a
+     * homothetic transformation.
+     *
+     * To find (k,l), we proceed like this. First look at the (a,b)
+     * matrix mod 2:
+     *                 a0&1    a1&1
+     *                 b0&1    b1&1
+     * Its determinant is odd, thus the inverse mod 2 is:
+     *                 b1&1    a1&1
+     *                 b0&1    a0&1
+     * Now the congruence class is given by the parity argument. The
+     * vector is:
+     *                par&1,   par>>1
+     * Multiplying this vector by the inverse matrix above, we obtain the
+     * coordinates k,l, which are:
+     *            k = (b1&par&1)^(b0&(par>>1));
+     *            l = (a1&par&1)^(a0&(par>>1));
+     * Now our starting vector is ka+lb. Instead of multiplying by k and
+     * l with values in {0,1}, we mask with -k and -l, which both are
+     * either all zeroes or all ones in binary
+     *
+     */
+    /* Now for the extra nightmare. Above, we do not have the guarantee
+     * that a vector whose i-coordinate is precisely -I/2 has positive
+     * coefficients in our favorite basis. It's annoying, because it may
+     * well be that if such a vector also has positive j-coordinate, then
+     * it is in fact the first vector we will meet. An example is given
+     * by the following data:
+     *
+            f:=Polynomial(StringToIntegerSequence("
+                -1286837891385482936880099433527136908899552
+                55685111236629140623629786639929578
+                13214494134209131997428776417
+                -319664171270205889372
+                -17633182261156
+                40500"));
 
-/*             q:=165017009; rho:=112690811; */
-/*             a0:=52326198; b0:=-1; a1:=60364613; b1:=2; */
-/*             lI:=13; I:=8192; J:=5088; */
-/*             p:=75583; r0:=54375; */
-/*             > M; */
-/*             [-2241    19] */
-/*             [ 1855    18] */
-/*             > M[1]-M[2]; */
-/*             (-4096     1) */
+            q:=165017009; rho:=112690811;
+            a0:=52326198; b0:=-1; a1:=60364613; b1:=2;
+            lI:=13; I:=8192; J:=5088;
+            p:=75583; r0:=54375;
+            > M;
+            [-2241    19]
+            [ 1855    18]
+            > M[1]-M[2];
+            (-4096     1)
 
-/*     * Clearly, above, for the congruence class (0,1), we must start with */
-/*     * this vector, not with the sum. */
-/*     *\/ */
-/*     int32_t a0 = pli->a0; */
-/*     int32_t a1 = pli->a1; */
-/*     int32_t b0 = pli->b0; */
-/*     int32_t b1 = pli->b1; */
+    * Clearly, above, for the congruence class (0,1), we must start with
+    * this vector, not with the sum.
+    */
+    int32_t a0 = pli->a0;
+    int32_t a1 = pli->a1;
+    int32_t b0 = pli->b0;
+    int32_t b1 = pli->b1;
 
-/*     int k = -((b1&par&1)^(b0&(par>>1))); */
-/*     int l = -((a1&par&1)^(a0&(par>>1))); */
-/*     int32_t v[2]= { (a0&k)+(b0&l), (a1&k)+(b1&l)}; */
+    int k = -((b1&par&1)^(b0&(par>>1)));
+    int l = -((a1&par&1)^(a0&(par>>1)));
+    int32_t v[2]= { (a0&k)+(b0&l), (a1&k)+(b1&l)};
 
-/*     /\* handle exceptional case as described above *\/ */
-/*     if (k && l && a0-b0 == -(1 << (si->conf->logI-1)) && a1 > b1) { */
-/*         v[0] = a0-b0; */
-/*         v[1] = a1-b1; */
-/*     } */
-/*     return (v[1] << si->conf->logI) | (v[0] + (1 << (si->conf->logI-1))); */
-/* } */
+    /* handle exceptional case as described above */
+    if (k && l && a0-b0 == -(1 << (si->conf->logI-1)) && a1 > b1) {
+        v[0] = a0-b0;
+        v[1] = a1-b1;
+    }
+    return (v[1] << si->conf->logI) | (v[0] + (1 << (si->conf->logI-1)));
+}
+#endif
 
-/* }}} */
 
 #endif

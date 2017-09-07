@@ -290,6 +290,23 @@ ulong_isprime (unsigned long p)
   return res;
 }
 
+/* returns the smallest composite >= q with factors >= pmin */
+unsigned long
+ulong_nextcomposite (unsigned long q, unsigned long pmin)
+{
+  ASSERT_ALWAYS(q >= 2);
+  for (;;q++)
+    {
+      if (ulong_isprime (q))
+        continue;
+      unsigned long p;
+      for (p = 2; p < pmin && q % p; p += 1 + (p > 2));
+      if (p >= pmin)
+        break;
+    }
+  return q;
+}
+
 /* return the number of bits of p, counting from the least significant end */
 int nbits (uintmax_t p)
 {

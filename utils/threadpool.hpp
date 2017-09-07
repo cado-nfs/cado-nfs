@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <queue>
 #include <vector>
+#include <exception>
 #include <stdarg.h>
 #include <errno.h>
 
@@ -95,10 +96,15 @@ class task_result {
   virtual ~task_result(){};
 };
 
+struct clonable_exception : public std::exception {
+    virtual clonable_exception * clone() const = 0;
+};
+
 class thread_task;
 class worker_thread;
 class tasks_queue;
 class results_queue;
+class exceptions_queue;
 class thread_pool;
 
 typedef task_result *(*task_function_t)(const worker_thread * worker, const task_parameters *);
@@ -122,6 +128,7 @@ class thread_pool : private monitor, private ThreadNonCopyable {
   worker_thread * threads;
   tasks_queue *tasks;
   results_queue *results;
+  exceptions_queue * exceptions;
 
   const size_t nr_threads, nr_queues;
 
@@ -130,20 +137,43 @@ class thread_pool : private monitor, private ThreadNonCopyable {
   static void * thread_work_on_tasks(void *pool);
   thread_task *get_task(size_t queue);
   void add_result(size_t queue, task_result *result);
+  void add_exception(size_t queue, clonable_exception * e);
   bool all_task_queues_empty() const;
 public:
   thread_pool(size_t _nr_threads, size_t nr_queues = 1);
   ~thread_pool();
   void add_task(task_function_t func, const task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
   task_result *get_result(size_t queue = 0, bool blocking = true);
+  clonable_exception * get_exception(const size_t queue = 0);
 
-  void accumulate(timetree_t & rep) {
-      for (size_t i = 0; i < nr_threads; ++i) {
-          ASSERT_ALWAYS(!threads[i].timer.running());
-          rep += threads[i].timer;
-          threads[i].timer = timetree_t ();
-      }
-  }
+  /* All threads in a thread pool have their respective timer active at
+   * all times. We have two different ways to collect the timings they've
+   * recorder over the course of their execution. Those depend on whether
+   * we wish to count the times spent on _tasks_ (active time), or the
+   * time spent _waiting_ for tasks (wait time). This is the purpose of
+   * the two methods below.
+   */
+
+  /*
+   * For accumulate_and_clear_active_time, we expect that all threads are
+   * currently waiting, and all recorded child timings are transferred to
+   * [rep]. The worker thread's timer is clear of all of its child
+   * timings, but its wait time is unchanged.
+   */
+  void accumulate_and_clear_active_time(timetree_t & rep);
+
+  /* For accumulate_and_reset_wait_time, we also expect that all threads
+   * are currently waiting, but we also mandate that none has any
+   * recorded child timings. That is, the function
+   * accumulate_and_clear_active_time() must have been called previously
+   * to stow the worker threads' children timings somewhere.
+   *
+   * accumulate_and_reset_wait_time counts the outstanding wait time for
+   * the worker thread, and accumulates it to the target timer. After the
+   * call, all threads are waiting again, but with their wait time reset
+   * to zero (as if they had just started afresh).
+   */
+  void accumulate_and_reset_wait_time(timetree_t & rep);
 };
 
 #endif

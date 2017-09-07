@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 if [ -f local.sh ]; then
 	echo "Save previous local.sh in local.sh.old."
 	sleep 0.5

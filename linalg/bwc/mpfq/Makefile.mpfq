@@ -44,6 +44,7 @@ prime-fields: mpfq-buildtree
 
 prepend-includes:
 	ls mpfq_*.c | xargs -n 1 sed -e '1 i#include "cado.h"' -i
+	ls ../../../tests/linalg/bwc/mpfq/mpfq_*.c | xargs -n 1 sed -e '1 i#include "cado.h"' -i
 
 
 clean-mpfq_%:

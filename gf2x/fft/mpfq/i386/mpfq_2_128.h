@@ -3,6 +3,9 @@
 
 /* MPFQ generated file -- do not edit */
 
+#include "gf2x.h"
+#include "gf2x/gf2x-small.h"
+
 #include "mpfq.h"
 #include "mpfq_gf2n_common.h"
 #include <stdio.h>
@@ -13,8 +16,6 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
-#include "gf2x.h"
-#include "gf2x/gf2x-small.h"
 
 #include "assert.h"
 #ifdef	MPFQ_LAST_GENERATED_TAG
@@ -22,13 +23,6 @@
 #endif
 #define MPFQ_LAST_GENERATED_TAG      2_128
 
-#ifndef GMP_LIMB_BITS
-#error "Please arrange so that GMP_LIMB_BITS is defined before including this file"
-#endif
-
-#if !(GMP_LIMB_BITS == 32)
-#error "Constraints not met for this file: GMP_LIMB_BITS == 32"
-#endif
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
 /* Active handler: Mpfq::gf2n::field */
@@ -45,6 +39,7 @@
    coeffs=[ 128, 7, 2, 1, 0, ],
    helper=/tmp/mpfq-cado/gf2n/helper/helper,
    n=128,
+   no_gmp=1,
    output_path=i386,
    slice=4,
    table=/tmp/mpfq-cado/gf2x/wizard.table,
@@ -91,8 +86,6 @@ extern "C" {
 #define mpfq_2_128_impl_max_degree()	1
 
 /* Functions operating on the field structure */
-/* *Mpfq::gf2n::field::code_for_field_characteristic */
-#define mpfq_2_128_field_characteristic(f, x)	mpz_set_ui(x,2);
 /* *Mpfq::gf2n::field::code_for_field_characteristic_bits */
 #define mpfq_2_128_field_characteristic_bits(f)	1
 /* *Mpfq::gf2n::field::code_for_field_degree */
@@ -122,14 +115,6 @@ void mpfq_2_128_set_zero(mpfq_2_128_dst_field, mpfq_2_128_dst_elt);
 static inline
 unsigned long mpfq_2_128_get_ui(mpfq_2_128_dst_field, mpfq_2_128_src_elt);
 static inline
-void mpfq_2_128_set_mpn(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, mp_limb_t *, size_t);
-static inline
-void mpfq_2_128_set_mpz(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, mpz_t);
-static inline
-void mpfq_2_128_get_mpn(mpfq_2_128_dst_field, mp_limb_t *, mpfq_2_128_src_elt);
-static inline
-void mpfq_2_128_get_mpz(mpfq_2_128_dst_field, mpz_t, mpfq_2_128_src_elt);
-static inline
 void mpfq_2_128_set_uipoly(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, unsigned long);
 static inline
 void mpfq_2_128_set_uipoly_wide(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, const unsigned long *, unsigned int);
@@ -139,10 +124,6 @@ static inline
 void mpfq_2_128_get_uipoly_wide(mpfq_2_128_dst_field, unsigned long *, mpfq_2_128_src_elt);
 
 /* Assignment of random values */
-static inline
-void mpfq_2_128_random(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, gmp_randstate_t);
-static inline
-void mpfq_2_128_random2(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, gmp_randstate_t);
 
 /* Arithmetic operations on elements */
 static inline
@@ -161,7 +142,7 @@ static inline
 int mpfq_2_128_sqrt(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, mpfq_2_128_src_elt);
 static inline
 void mpfq_2_128_pow(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, mpfq_2_128_src_elt, unsigned long *, size_t);
-void mpfq_2_128_powz(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, mpfq_2_128_src_elt, mpz_srcptr);
+/* missing powz */
 /* *Mpfq::gf2n::trivialities::code_for_frobenius */
 #define mpfq_2_128_frobenius(K, r, s)	mpfq_2_128_sqr(K,r,s)
 static inline
@@ -222,14 +203,9 @@ static inline
 int mpfq_2_128_is_zero(mpfq_2_128_dst_field, mpfq_2_128_src_elt);
 
 /* Input/output functions */
-int mpfq_2_128_asprint(mpfq_2_128_dst_field, char * *, mpfq_2_128_src_elt);
-int mpfq_2_128_fprint(mpfq_2_128_dst_field, FILE *, mpfq_2_128_src_elt);
-/* *Mpfq::defaults::code_for_print */
-#define mpfq_2_128_print(k, x)	mpfq_2_128_fprint(k,stdout,x)
-int mpfq_2_128_sscan(mpfq_2_128_dst_field, mpfq_2_128_dst_elt, const char *);
-int mpfq_2_128_fscan(mpfq_2_128_dst_field, FILE *, mpfq_2_128_dst_elt);
-/* *Mpfq::defaults::code_for_scan */
-#define mpfq_2_128_scan(k, x)	mpfq_2_128_fscan(k,stdin,x)
+/* missing fprint */
+/* missing print */
+/* missing scan */
 
 /* Vector functions */
 void mpfq_2_128_vec_init(mpfq_2_128_dst_field, mpfq_2_128_vec *, unsigned int);
@@ -257,10 +233,8 @@ static inline
 void mpfq_2_128_vec_scal_mul(mpfq_2_128_dst_field, mpfq_2_128_dst_vec, mpfq_2_128_src_vec, mpfq_2_128_src_elt, unsigned int);
 static inline
 void mpfq_2_128_vec_conv(mpfq_2_128_dst_field, mpfq_2_128_dst_vec, mpfq_2_128_src_vec, unsigned int, mpfq_2_128_src_vec, unsigned int);
-static inline
-void mpfq_2_128_vec_random(mpfq_2_128_dst_field, mpfq_2_128_dst_vec, unsigned int, gmp_randstate_t);
-static inline
-void mpfq_2_128_vec_random2(mpfq_2_128_dst_field, mpfq_2_128_dst_vec, unsigned int, gmp_randstate_t);
+/* missing vec_random */
+/* missing vec_random2 */
 static inline
 int mpfq_2_128_vec_cmp(mpfq_2_128_dst_field, mpfq_2_128_src_vec, mpfq_2_128_src_vec, unsigned int);
 static inline
@@ -273,13 +247,12 @@ static inline
 mpfq_2_128_dst_elt mpfq_2_128_vec_coeff_ptr(mpfq_2_128_dst_field, mpfq_2_128_dst_vec, int);
 static inline
 mpfq_2_128_src_elt mpfq_2_128_vec_coeff_ptr_const(mpfq_2_128_dst_field, mpfq_2_128_src_vec, int);
-int mpfq_2_128_vec_asprint(mpfq_2_128_dst_field, char * *, mpfq_2_128_src_vec, unsigned int);
-int mpfq_2_128_vec_fprint(mpfq_2_128_dst_field, FILE *, mpfq_2_128_src_vec, unsigned int);
-int mpfq_2_128_vec_print(mpfq_2_128_dst_field, mpfq_2_128_src_vec, unsigned int);
-int mpfq_2_128_vec_sscan(mpfq_2_128_dst_field, mpfq_2_128_vec *, unsigned int *, const char *);
-int mpfq_2_128_vec_fscan(mpfq_2_128_dst_field, FILE *, mpfq_2_128_vec *, unsigned int *);
-/* *Mpfq::defaults::vec::io::code_for_vec_scan, Mpfq::defaults::vec */
-#define mpfq_2_128_vec_scan(K, w, n)	mpfq_2_128_vec_fscan(K,stdin,w,n)
+/* missing vec_asprint */
+/* missing vec_fprint */
+/* missing vec_print */
+/* missing vec_sscan */
+/* missing vec_fscan */
+/* missing vec_scan */
 void mpfq_2_128_vec_ur_init(mpfq_2_128_dst_field, mpfq_2_128_vec_ur *, unsigned int);
 static inline
 void mpfq_2_128_vec_ur_set_zero(mpfq_2_128_dst_field, mpfq_2_128_dst_vec_ur, unsigned int);
@@ -361,24 +334,16 @@ static inline
 void mpfq_2_128_poly_gcd(mpfq_2_128_dst_field, mpfq_2_128_dst_poly, mpfq_2_128_src_poly, mpfq_2_128_src_poly);
 static inline
 void mpfq_2_128_poly_xgcd(mpfq_2_128_dst_field, mpfq_2_128_dst_poly, mpfq_2_128_dst_poly, mpfq_2_128_dst_poly, mpfq_2_128_src_poly, mpfq_2_128_src_poly);
-static inline
-void mpfq_2_128_poly_random(mpfq_2_128_dst_field, mpfq_2_128_dst_poly, unsigned int, gmp_randstate_t);
-static inline
-void mpfq_2_128_poly_random2(mpfq_2_128_dst_field, mpfq_2_128_dst_poly, unsigned int, gmp_randstate_t);
+/* missing poly_random */
+/* missing poly_random2 */
 static inline
 int mpfq_2_128_poly_cmp(mpfq_2_128_dst_field, mpfq_2_128_src_poly, mpfq_2_128_src_poly);
-static inline
-int mpfq_2_128_poly_asprint(mpfq_2_128_dst_field, char * *, mpfq_2_128_src_poly);
-static inline
-int mpfq_2_128_poly_fprint(mpfq_2_128_dst_field, FILE *, mpfq_2_128_src_poly);
-static inline
-int mpfq_2_128_poly_print(mpfq_2_128_dst_field, mpfq_2_128_src_poly);
-static inline
-int mpfq_2_128_poly_sscan(mpfq_2_128_dst_field, mpfq_2_128_dst_poly, const char *);
-static inline
-int mpfq_2_128_poly_fscan(mpfq_2_128_dst_field, FILE *, mpfq_2_128_dst_poly);
-static inline
-int mpfq_2_128_poly_scan(mpfq_2_128_dst_field, mpfq_2_128_dst_poly);
+/* missing poly_asprint */
+/* missing poly_fprint */
+/* missing poly_print */
+/* missing poly_sscan */
+/* missing poly_fscan */
+/* missing poly_scan */
 #ifdef  __cplusplus
 }
 #endif
@@ -428,37 +393,6 @@ unsigned long mpfq_2_128_get_ui(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_
     return r[0] & 1UL;
 }
 
-/* *Mpfq::gf2n::trivialities::code_for_set_mpn */
-static inline
-void mpfq_2_128_set_mpn(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mp_limb_t * x, size_t n)
-{
-    r[0] = MPFQ_LIKELY(n > 0) ? (x[0] & 1UL) : 0;
-    memset(r + 1, 0, sizeof(mpfq_2_128_elt) - sizeof(unsigned long));
-}
-
-/* *Mpfq::gf2n::trivialities::code_for_set_mpz */
-static inline
-void mpfq_2_128_set_mpz(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mpz_t z)
-{
-    r[0] = mpz_getlimbn(z,0) & 1UL;
-    memset(r + 1, 0, sizeof(mpfq_2_128_elt) - sizeof(unsigned long));
-}
-
-/* *Mpfq::gf2n::trivialities::code_for_get_mpn */
-static inline
-void mpfq_2_128_get_mpn(mpfq_2_128_dst_field K MAYBE_UNUSED, mp_limb_t * p, mpfq_2_128_src_elt r)
-{
-    p[0] = r[0] & 1UL;
-    memset(p + 1, 0, (4 - 1) * sizeof(mp_limb_t));
-}
-
-/* *Mpfq::gf2n::trivialities::code_for_get_mpz */
-static inline
-void mpfq_2_128_get_mpz(mpfq_2_128_dst_field K MAYBE_UNUSED, mpz_t z, mpfq_2_128_src_elt r)
-{
-    mpz_set_ui(z, r[0] & 1UL);
-}
-
 /* *Mpfq::gf2n::trivialities::code_for_set_uipoly */
 static inline
 void mpfq_2_128_set_uipoly(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, unsigned long x)
@@ -489,29 +423,6 @@ void mpfq_2_128_get_uipoly_wide(mpfq_2_128_dst_field K MAYBE_UNUSED, unsigned lo
 {
     unsigned int i;
     for(i = 0 ; i < 4 ; i++) r[i] = x[i];
-}
-
-/* *Mpfq::gf2n::trivialities::code_for_random */
-static inline
-void mpfq_2_128_random(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, gmp_randstate_t state)
-{
-    r[0] = gmp_urandomb_ui(state, GMP_LIMB_BITS);
-    r[1] = gmp_urandomb_ui(state, GMP_LIMB_BITS);
-    r[2] = gmp_urandomb_ui(state, GMP_LIMB_BITS);
-    r[3] = gmp_urandomb_ui(state, GMP_LIMB_BITS);
-}
-
-/* *Mpfq::gf2n::trivialities::code_for_random2 */
-static inline
-void mpfq_2_128_random2(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, gmp_randstate_t state)
-{
-    int i;
-    mpz_t tmp;
-    mpz_init(tmp);
-    mpz_rrandomb(tmp, state, GMP_LIMB_BITS*4);
-    for(i=0;i<4;++i)
-     r[i]=tmp->_mp_d[i];
-    mpz_clear(tmp);
 }
 
 /* *Mpfq::gf2n::trivialities::code_for_add */
@@ -545,7 +456,7 @@ void mpfq_2_128_sqr(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, m
 static inline
 int mpfq_2_128_sqrt(mpfq_2_128_dst_field K, mpfq_2_128_dst_elt r, mpfq_2_128_src_elt s)
 {
-    static const mp_limb_t shuffle_table[256] = {
+    static const unsigned long shuffle_table[256] = {
         0, 1, 16, 17, 2, 3, 18, 19,
         32, 33, 48, 49, 34, 35, 50, 51,
         4, 5, 20, 21, 6, 7, 22, 23,
@@ -585,8 +496,8 @@ int mpfq_2_128_sqrt(mpfq_2_128_dst_field K, mpfq_2_128_dst_elt r, mpfq_2_128_src
     
     mpfq_2_128_elt odd, even;
     mpfq_2_128_elt_ur odd_t;
-    mp_limb_t t;
-#define	EVEN_MASK	(((mp_limb_t)-1)/3UL)
+    unsigned long t;
+#define	EVEN_MASK	(((unsigned long)-1)/3UL)
 #define	ODD_MASK	((EVEN_MASK)<<1)
     unsigned int i;
     for(i = 0 ; i < 4 ; i++) {
@@ -600,7 +511,7 @@ int mpfq_2_128_sqrt(mpfq_2_128_dst_field K, mpfq_2_128_dst_elt r, mpfq_2_128_src
               even[i] |= shuffle_table[t & 255] << 16;
         t >>= 16; even[i] |= shuffle_table[t & 255] << 24;
     }
-    memset(even + 2, 0, 2 * sizeof(mp_limb_t));
+    memset(even + 2, 0, 2 * sizeof(unsigned long));
     for(i = 0 ; i < 4 ; i++) {
         odd[i] = (s[i] & ODD_MASK) >> 1;
     }
@@ -612,16 +523,12 @@ int mpfq_2_128_sqrt(mpfq_2_128_dst_field K, mpfq_2_128_dst_elt r, mpfq_2_128_src
               odd[i] |= shuffle_table[t & 255] << 16;
         t >>= 16; odd[i] |= shuffle_table[t & 255] << 24;
     }
-    memset(odd + 2, 0, 2 * sizeof(mp_limb_t));
+    memset(odd + 2, 0, 2 * sizeof(unsigned long));
     mpfq_2_128_mul_ur(K, odd_t, odd, sqrt_t);
     for(i = 0 ; i < (4+1)/2 ; i++) {
         odd_t[i] ^= even[i];
     }
-    /* mpfq_2_128_print(K, stdout, odd_t); */
     mpfq_2_128_reduce(K, r, odd_t);
-    /* mpfq_2_128_print(K, stdout, r); */
-    /* fprintf(stdout, "\n"); */
-    /* fflush(stdout); */
     return 1;
 }
 
@@ -758,12 +665,12 @@ void mpfq_2_128_longaddshift_left(unsigned long * dst, const unsigned long * src
 static inline
 int mpfq_2_128_inv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mpfq_2_128_src_elt s)
 {
-    mp_limb_t a[5] = { 0x80000000UL, 0x43UL, 0x0UL, 0x0UL, 0x80000000UL, };
-    mp_limb_t b[5];
-    mp_limb_t u[5] = { 0, };
-    mp_limb_t v[5] = { 1, 0, };
-    mp_limb_t x;
-    mp_size_t ia, ib;
+    unsigned long a[5] = { 0x80000000UL, 0x43UL, 0x0UL, 0x0UL, 0x80000000UL, };
+    unsigned long b[5];
+    unsigned long u[5] = { 0, };
+    unsigned long v[5] = { 1, 0, };
+    unsigned long x;
+    int ia, ib;
     int i,d;
     
     if (mpfq_2_128_cmp_ui(K, s, 0UL) == 0)
@@ -794,8 +701,8 @@ int mpfq_2_128_inv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mp
             b[2] ^= a[2]; x |= b[2];
             b[3] ^= a[3]; x |= b[3];
             b[4] ^= a[4]; x |= b[4];
-                    if (!x) { memcpy(r,u,4 * sizeof(mp_limb_t)); return 1; }
-                    mp_limb_t t = mpfq_clzlx(b,5);
+                    if (!x) { memcpy(r,u,4 * sizeof(unsigned long)); return 1; }
+                    unsigned long t = mpfq_clzlx(b,5);
                     ib += t;
                     d += t;
                     mpfq_2_128_longshift_left(b,b,5,t);
@@ -807,8 +714,8 @@ int mpfq_2_128_inv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mp
             a[2] ^= b[2]; x |= a[2];
             a[3] ^= b[3]; x |= a[3];
             a[4] ^= b[4]; x |= a[4];
-                    if (!x) { memcpy(r,v,4 * sizeof(mp_limb_t)); return 1; }
-                    mp_limb_t t = mpfq_clzlx(a,5);
+                    if (!x) { memcpy(r,v,4 * sizeof(unsigned long)); return 1; }
+                    unsigned long t = mpfq_clzlx(a,5);
                     ia += t;
                     d -= t;
                     mpfq_2_128_longshift_left(a,a,5,t);
@@ -820,8 +727,8 @@ int mpfq_2_128_inv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mp
             a[2] ^= b[2]; x |= a[2];
             a[3] ^= b[3]; x |= a[3];
             a[4] ^= b[4]; x |= a[4];
-                    if (!x) { memcpy(r,v,4 * sizeof(mp_limb_t)); return 1; }
-                    mp_limb_t t = mpfq_clzlx(a,5);
+                    if (!x) { memcpy(r,v,4 * sizeof(unsigned long)); return 1; }
+                    unsigned long t = mpfq_clzlx(a,5);
                     ia += t;
                     d -= t;
                     mpfq_2_128_longshift_left(a,a,5,t);
@@ -833,8 +740,8 @@ int mpfq_2_128_inv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mp
             b[2] ^= a[2]; x |= b[2];
             b[3] ^= a[3]; x |= b[3];
             b[4] ^= a[4]; x |= b[4];
-                    if (!x) { memcpy(r,u,4 * sizeof(mp_limb_t)); return 1; }
-                    mp_limb_t t = mpfq_clzlx(b,5);
+                    if (!x) { memcpy(r,u,4 * sizeof(unsigned long)); return 1; }
+                    unsigned long t = mpfq_clzlx(b,5);
                     ib += t;
                     d += t;
                     mpfq_2_128_longshift_left(b,b,5,t);
@@ -980,7 +887,7 @@ void mpfq_2_128_as_solve(mpfq_2_128_dst_field K, mpfq_2_128_dst_elt r, mpfq_2_12
     unsigned int i,j;
     memset(r, 0, sizeof(mpfq_2_128_elt));
     for(i = 0 ; i < 4 ; i++) {
-        mp_limb_t a = s[i];
+        unsigned long a = s[i];
         for(j = 0 ; j < 32 && ptr != &t[128]; j++, ptr++) {
             if (a & 1UL) {
                 mpfq_2_128_add(K, r, r, *ptr);
@@ -1046,12 +953,12 @@ void mpfq_2_128_mul_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_u
 static inline
 void mpfq_2_128_sqr_ur(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt_ur t, mpfq_2_128_src_elt s)
 {
-    static const mp_limb_t g[16] = {
+    static const unsigned long g[16] = {
         0, 1, 4, 5, 16, 17, 20, 21,
         64, 65, 68, 69, 80, 81, 84, 85,
     };
     {
-        mp_limb_t u;
+        unsigned long u;
         u = g[s[0]       & 15];
     t[0]  = u;
         u = g[s[0] >>  4 & 15];
@@ -1124,7 +1031,7 @@ static inline
 void mpfq_2_128_reduce(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r, mpfq_2_128_dst_elt_ur t)
 {
     {
-        mp_limb_t s[5];
+        unsigned long s[5];
         /* 127 excess bits */
         {
             unsigned long z;
@@ -1137,7 +1044,7 @@ void mpfq_2_128_reduce(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r
             z = t[3];
             s[3] = z;
         }
-        memset(s + 4, 0, 1 * sizeof(mp_limb_t));
+        memset(s + 4, 0, 1 * sizeof(unsigned long));
         {
             unsigned long z;
             z = t[4];
@@ -1212,7 +1119,7 @@ void mpfq_2_128_reduce(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_elt r
 static inline
 int mpfq_2_128_cmp(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_src_elt a, mpfq_2_128_src_elt b)
 {
-    return mpn_cmp(a, b, 4);
+    return memcmp(a, b, sizeof(mpfq_2_128_elt));
 }
 
 /* *Mpfq::gf2n::trivialities::code_for_cmp_ui */
@@ -1337,24 +1244,6 @@ void mpfq_2_128_vec_conv(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_vec
     mpfq_2_128_vec_conv_ur(K, tmp, u, n, v, m);
     mpfq_2_128_vec_reduce(K, w, tmp, m+n-1);
     mpfq_2_128_vec_ur_clear(K, &tmp, m+n-1);
-}
-
-/* *Mpfq::defaults::vec::getset::code_for_vec_random, Mpfq::defaults::vec */
-static inline
-void mpfq_2_128_vec_random(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_vec w, unsigned int n, gmp_randstate_t state)
-{
-    unsigned int i;
-    for(i = 0; i < n; ++i)
-        mpfq_2_128_random(K, w[i], state);
-}
-
-/* *Mpfq::defaults::vec::getset::code_for_vec_random2, Mpfq::defaults::vec */
-static inline
-void mpfq_2_128_vec_random2(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst_vec w, unsigned int n, gmp_randstate_t state)
-{
-    unsigned int i;
-    for(i = 0; i < n; ++i)
-        mpfq_2_128_random2(K, w[i],state);
 }
 
 /* *Mpfq::defaults::vec::getset::code_for_vec_cmp, Mpfq::defaults::vec */
@@ -2036,36 +1925,6 @@ void mpfq_2_128_poly_xgcd(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_dst_po
     mpfq_2_128_clear(k,&c);
 }
 
-/* *Mpfq::defaults::poly::code_for_poly_random */
-static inline
-void mpfq_2_128_poly_random(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_dst_poly w, unsigned int n, gmp_randstate_t state)
-{
-    n++;
-    if (w->alloc < n) {
-        mpfq_2_128_vec_reinit(k, &(w->c), w->alloc, n);
-        w->alloc = n;
-    }
-    mpfq_2_128_vec_random(k, w->c, n,state);
-    w->size=n;
-    int wdeg = mpfq_2_128_poly_deg(k, w);
-    w->size=wdeg+1;
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_random2 */
-static inline
-void mpfq_2_128_poly_random2(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_dst_poly w, unsigned int n, gmp_randstate_t state)
-{
-    n++;
-    if (w->alloc < n) {
-        mpfq_2_128_vec_reinit(k, &(w->c), w->alloc, n);
-        w->alloc = n;
-    }
-    mpfq_2_128_vec_random2(k, w->c, n,state);
-    w->size=n;
-    int wdeg = mpfq_2_128_poly_deg(k, w);
-    w->size=wdeg+1;
-}
-
 /* *Mpfq::defaults::poly::code_for_poly_cmp */
 static inline
 int mpfq_2_128_poly_cmp(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_src_poly u, mpfq_2_128_src_poly v)
@@ -2074,57 +1933,6 @@ int mpfq_2_128_poly_cmp(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_src_poly
         return (int)(u->size) - (int)(v->size);
     else
         return mpfq_2_128_vec_cmp(k, u->c, v->c, u->size);
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_asprint */
-static inline
-int mpfq_2_128_poly_asprint(mpfq_2_128_dst_field k MAYBE_UNUSED, char * * pstr, mpfq_2_128_src_poly w)
-{
-    return mpfq_2_128_vec_asprint(k, pstr, w->c, w->size);
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_fprint */
-static inline
-int mpfq_2_128_poly_fprint(mpfq_2_128_dst_field k MAYBE_UNUSED, FILE * file, mpfq_2_128_src_poly w)
-{
-    return mpfq_2_128_vec_fprint(k, file, w->c, w->size);
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_print */
-static inline
-int mpfq_2_128_poly_print(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_src_poly w)
-{
-    return mpfq_2_128_vec_print(k, w->c, w->size);
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_sscan */
-static inline
-int mpfq_2_128_poly_sscan(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_dst_poly w, const char * str)
-{
-    int ret;
-    ret = mpfq_2_128_vec_sscan(k, &(w->c), &(w->alloc), str);
-    w->size = w->alloc;
-    return ret;
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_fscan */
-static inline
-int mpfq_2_128_poly_fscan(mpfq_2_128_dst_field k MAYBE_UNUSED, FILE * file, mpfq_2_128_dst_poly w)
-{
-    int ret;
-    ret = mpfq_2_128_vec_fscan(k, file, &(w->c), &(w->alloc));
-    w->size = w->alloc;
-    return ret;
-}
-
-/* *Mpfq::defaults::poly::code_for_poly_scan */
-static inline
-int mpfq_2_128_poly_scan(mpfq_2_128_dst_field k MAYBE_UNUSED, mpfq_2_128_dst_poly w)
-{
-    int ret;
-    ret = mpfq_2_128_vec_scan(k, &(w->c), &(w->alloc));
-    w->size = w->alloc;
-    return ret;
 }
 
 

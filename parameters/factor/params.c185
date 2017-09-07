@@ -41,17 +41,12 @@ tasks.polyselect.nrkeep = 100
 # lpb0/lpb1 is the (base 2 log of the) large prime bound
 # mfb0/mfb1 is the (base 2 log of the) limit for the cofactor we try to
 #                                      split into large primes.
-# lambda0/lambda1 is the early-abort ratio: if after sieving the
-#                                      approximate norm is more than
-#                                      lambda times lpb, we reject.
 lim0 = 40000000
 lim1 = 80000000
 lpb0 = 32
 lpb1 = 32
 tasks.sieve.mfb0 = 64
 tasks.sieve.mfb1 = 96
-tasks.sieve.lambda0 = 2.1
-tasks.sieve.lambda1 = 2.8
 
 tasks.I = 15
 # Wagstaff did use I=14, I=15 should be better

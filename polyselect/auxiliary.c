@@ -245,7 +245,7 @@ L2_lognorm_d (double_poly_srcptr p, double s)
    Circular method: integrate over the unit circle.
 */
 double
-L2_lognorm (mpz_poly_ptr f, double s)
+L2_lognorm (mpz_poly_srcptr f, double s)
 {
   double res;
   double_poly a;
@@ -342,7 +342,7 @@ L2_lognorm_mp (mpz_poly_ptr f, mpz_t s, mpz_t norm)
 #endif
 
 static double
-L2_skewness_deg6_approx (mpz_poly_ptr f MAYBE_UNUSED, double_poly_ptr ff,
+L2_skewness_deg6_approx (mpz_poly_srcptr f MAYBE_UNUSED, double_poly_ptr ff,
                          double_poly_ptr dff, int prec)
 {
   double *dfd = dff->coeff;
@@ -553,65 +553,10 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
   return s_min;
 }
 
-/* return the skewness giving the best Murphy-E value for two polynomials,
-   by using trichotomy between the optimal skewness of both polynomials */
-double
-L2_combined_skewness (cado_poly poly, int prec, double bound_f, double bound_g,
-                      double area)
-{
-  double a, b, c, d, va, vb, vc, vd;
-
-  a = L2_skewness (poly->pols[0], prec);
-  b = L2_skewness (poly->pols[1], prec);
-
-  if (b < a)
-    {
-      c = b;
-      b = a;
-      a = c;
-    }
-
-  ASSERT(a <= b);
-
-  poly->skew = a;
-  va = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
-
-  poly->skew = b;
-  vb = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
-
-  while (b - a > ldexp (a, -prec))
-    {
-      double max_left, max_right;
-
-      c = (2.0 * a + b) / 3.0;
-      poly->skew = c;
-      vc = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
-
-      d = (a + 2.0 * b) / 3.0;
-      poly->skew = d;
-      vd = MurphyE (poly, bound_f, bound_g, area, MURPHY_K);
-
-      max_left = (va > vc) ? va : vc;
-      max_right = (vb > vd) ? vb : vd;
-
-      if (max_left > max_right) /* maximum is in a or c */
-        {
-          b = d;
-          vb = vd;
-        }
-      else /* maximum is in d or b */
-        {
-          a = c;
-          va = vc;
-        }
-    }
-  return (a + b) * 0.5;
-}
-
 /* return the skewness giving the best lognorm sum for two polynomials,
    by using trichotomy between the optimal skewness of both polynomials */
 double
-L2_combined_skewness2 (mpz_poly f, mpz_poly g, int prec)
+L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g, int prec)
 {
   double a, b, c, d, va, vb, vc, vd;
 
@@ -654,7 +599,7 @@ L2_combined_skewness2 (mpz_poly f, mpz_poly g, int prec)
 
 /* Use derivative test, with ellipse regions */
 double
-L2_skewness (mpz_poly_ptr f, int prec)
+L2_skewness (mpz_poly_srcptr f, int prec)
 {
   double_poly ff, df;
   double s = 0.0, a = 0.0, b = 0.0, c, nc, *fd, *dfd,
@@ -952,46 +897,13 @@ L2_skewness (mpz_poly_ptr f, int prec)
          v = (24*v/pi).expand()
          dv = v.diff(s)
          dv = (dv*s^3).expand().collect(s)
+         We get dv = 6*a_2^2*s^4 - 6*a_0^2
+         thus the optimal skewness is sqrt(|a0|/|a2|).
       */
-      dfd[2] = 6.0 * fd[2] * fd[2];
-      dfd[1] = 0.0;
-      dfd[0] = 6.0 * fd[0] * fd[0];
-      s = 1.0;
-      nc = dfd[2] + dfd[1] - dfd[0];
-      /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-      while (nc > 0)
-        {
-          s = 0.5 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          nc = dfd[2] * s2 + dfd[1] - dfd[0];
-        }
-      do
-        {
-          s = 2.0 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          nc = dfd[2] * s2 + dfd[1] - dfd[0];
-        }
-      while (nc < 0);
-      /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-      a = (s == 2.0) ? 1.0 : 0.5 * s;
-      b = s;
-      /* use dichotomy to refine the root */
-      while (prec--)
-        {
-          c = (a + b) * 0.5;
-          s1 = c * c;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          nc = dfd[2] * s2 + dfd[1] - dfd[0];
-          if (nc > 0)
-            b = c;
-          else
-            a = c;
-        }
+      a = b = sqrt (fabs (fd[0] / fd[2]));
     }
   else /* d == 1 */
-    a = b = (fd[0] / fd[1] >= 0) ? fd[0] / fd[1] : -fd[0] / fd[1];
+    a = b = fabs (fd[0] / fd[1]);
 
   s = (a + b) * 0.5;
 
@@ -1002,7 +914,7 @@ L2_skewness (mpz_poly_ptr f, int prec)
   return s;
 }
 
-double L2_skew_lognorm (mpz_poly_ptr f, int prec)
+double L2_skew_lognorm (mpz_poly_srcptr f, int prec)
 {
   return L2_lognorm (f, L2_skewness (f, prec));
 }
@@ -1193,11 +1105,10 @@ poly_shift_divp (mpz_t *h, unsigned int d, unsigned long r, unsigned long p)
 /* Auxiliary routine for special_valuation(), see below. It returns the
    average p-valuation of the polynomial f. Works recursively. */
 static double
-special_val0 (mpz_poly_ptr f, unsigned long p)
+special_val0 (mpz_poly_srcptr f, unsigned long p)
 {
   double v;
   mpz_t c,  *h;
-  int v0;
   unsigned long *roots, r, r0;
   int i, d = f->deg, nroots;
   mpz_poly g, H;
@@ -1205,7 +1116,6 @@ special_val0 (mpz_poly_ptr f, unsigned long p)
   mpz_init (c);
   mpz_poly_content (c, f);
   for (v = 0.0; mpz_divisible_ui_p (c, p); v++, mpz_divexact_ui (c, c, p));
-  v0 = (int) v;
 
   mpz_poly_init(g, d);
   g->deg = d;
@@ -1242,29 +1152,25 @@ special_val0 (mpz_poly_ptr f, unsigned long p)
       r = roots[i];
       mpz_poly_eval_diff_ui (c, g, r);
       if (mpz_divisible_ui_p (c, p) == 0) /* g'(r) <> 0 mod p */
-  v += 1.0 / (double) (p - 1);
+        v += 1.0 / (double) (p - 1);
       else /* hard case */
-  {
-    /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
-       to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
-       Warning: we can have h = f, and thus an infinite loop, when
-       the p-valuation of f is d, and f has a single root r/(1-p) of
-       multiplicity d.
-       Moreover if f(x) = c*p^d*(x-r+b*p)^d, where c is coprime to p,
-       then h(x) = f(p*x+r)/p^d = c*p^d*(x+b)^d, and most likely after
-       at most p iterations we'll go back to f(x), thus we should avoid
-       all cases where f(x) has a root of multiplicity d, but how to
-       check that efficiently? And which value to return in such a case?
-    */
-    ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
-    poly_shift_divp (h, d, r - r0, p);
-    r0 = r;
-    if (v0 != d) /* this should catch all the cases where f(x) has a
-        root of multiplicity d, but also more cases.
-        In those cases we avoid an infinite loop, but the
-        result is probably wrong. */
-      v += special_val0 (H, p) / (double) p;
-  }
+        {
+          /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
+             to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
+             Warning: we can have h = f, and thus an infinite loop, when
+             the p-valuation of f is d, and f has a single root r/(1-p) of
+             multiplicity d.
+             Moreover if f(x) = c*p^d*(x-r+b*p)^d, where c is coprime to p,
+             then h(x) = f(p*x+r)/p^d = c*p^d*(x+b)^d, and most likely after
+             at most p iterations we'll go back to f(x), thus we should avoid
+             all cases where f(x) has a root of multiplicity d, but how to
+             check that efficiently? And which value to return in such a case?
+          */
+          ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
+          poly_shift_divp (h, d, r - r0, p);
+          r0 = r;
+          v += special_val0 (H, p) / (double) p;
+        }
     }
   free (roots);
   mpz_poly_clear (H);
@@ -1309,7 +1215,7 @@ always returns 0 in val(f,p).
 Assumes p divides disc = disc(f), d is the degree of f.
 */
 double
-special_valuation (mpz_poly_ptr f, unsigned long p, mpz_t disc)
+special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
 {
     double v;
     int p_divides_lc;
@@ -1386,7 +1292,7 @@ special_valuation (mpz_poly_ptr f, unsigned long p, mpz_t disc)
    absolute value. Typical good values are alpha=-4, -5, ...
 */
 double
-get_alpha (mpz_poly_ptr f, unsigned long B)
+get_alpha (mpz_poly_srcptr f, unsigned long B)
 {
   double alpha, e;
   unsigned long p;
@@ -1421,7 +1327,7 @@ get_alpha (mpz_poly_ptr f, unsigned long B)
 
 /* affine part of the special valution for polynomial f over p. */
 double
-special_valuation_affine (mpz_poly_ptr f, unsigned long p, mpz_t disc )
+special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc )
 {
    double v;
    int pvaluation_disc = 0;
@@ -1472,7 +1378,7 @@ special_valuation_affine (mpz_poly_ptr f, unsigned long p, mpz_t disc )
   this to our affine part.
 */
 double
-get_biased_alpha_projective (mpz_poly_ptr f, unsigned long B)
+get_biased_alpha_projective (mpz_poly_srcptr f, unsigned long B)
 {
    double alpha, e;
    unsigned long p;
@@ -1596,12 +1502,24 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
 
 /**************************** rotation ***************************************/
 
-/* replace f + k0 * x^t * (b*x - m) by f + k * x^t * (b*x - m), and return k */
+/* replace f + k0 * x^t * (b*x + m) by f + k * x^t * (b*x + m), and return k */
 long
 rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t)
 {
-  mpz_addmul_si (f[t + 1], b, k - k0);
-  mpz_submul_si (f[t], m, k - k0);
+  /* Warning: k - k0 might not be representable in a long! */
+  unsigned long diff;
+  if (k >= k0)
+    {
+      diff = k - k0; /* k - k0 always fits in an unsigned long */
+      mpz_addmul_ui (f[t + 1], b, diff);
+      mpz_addmul_ui (f[t], m, diff);
+    }
+  else
+    {
+      diff = k0 - k;
+      mpz_submul_ui (f[t + 1], b, diff);
+      mpz_submul_ui (f[t], m, diff);
+    }
   return k;
 }
 
@@ -1717,7 +1635,7 @@ print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char *argv[], double 
   Call print_cadopoly, given f, g and return MurphyE.
 */
 double
-print_poly_fg (mpz_poly_ptr f, mpz_t *g, mpz_t N, int mode)
+print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
 {
    double e;
    int i;
@@ -1825,9 +1743,10 @@ expected_alpha (double S)
 }
 
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
-   to f(x), the lognorm does not increase more than NORM_MARGIN */
-static void
-expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
+   to f(x), the lognorm does not increase more than margin */
+void
+expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
+                 double margin)
 {
   double s = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
   double n = L2_lognorm (f, s), n2;
@@ -1847,7 +1766,7 @@ expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmin, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + NORM_MARGIN)
+      if (n2 > n + margin)
         break;
       mpz_mul_2exp (kmin, kmin, 1);
     }
@@ -1863,12 +1782,12 @@ expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + NORM_MARGIN)
+      if (n2 > n + margin)
         mpz_set (kmin, k);
       else
         mpz_set (kmax, k);
     }
-  r->jmin[i] = mpz_get_d (kmax);
+  r->kmin = mpz_get_d (kmax);
 
   /* positive side */
   mpz_set_ui (kmax, 1);
@@ -1878,7 +1797,7 @@ expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmax, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + NORM_MARGIN)
+      if (n2 > n + margin)
         break;
       mpz_mul_2exp (kmax, kmax, 1);
     }
@@ -1894,12 +1813,12 @@ expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + NORM_MARGIN)
+      if (n2 > n + margin)
         mpz_set (kmax, k);
       else
         mpz_set (kmin, k);
     }
-  r->jmax[i] = mpz_get_d (kmin);
+  r->kmax = mpz_get_d (kmin);
 
   /* reset f[i] and f[i+1] */
   mpz_set (f->coeff[i], fi);
@@ -1915,7 +1834,7 @@ expected_growth (rotation_space *r, mpz_poly_ptr f, mpz_poly_ptr g, int i)
 /* for a given pair (f,g), tries to estimate the value of alpha one might
    expect from rotation (including the projective alpha) */
 double
-expected_rotation_gain (mpz_poly_ptr f, mpz_poly_ptr g)
+expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
   double S = 1.0, s, incr = 0.0;
   rotation_space r;
@@ -1923,8 +1842,8 @@ expected_rotation_gain (mpz_poly_ptr f, mpz_poly_ptr g)
 
   for (int i = 0; 2 * i < f->deg; i++)
     {
-      expected_growth (&r, f, g, i);
-      s = r.jmax[i] - r.jmin[i] + 1.0;
+      expected_growth (&r, f, g, i, NORM_MARGIN);
+      s = r.kmax - r.kmin + 1.0;
       S *= s;
       /* assume each non-zero rotation increases on average by NORM_MARGIN/2 */
       if (s >= 2.0)

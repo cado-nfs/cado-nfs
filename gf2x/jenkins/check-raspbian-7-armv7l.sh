@@ -1,1 +1,0 @@
-check-generic.sh

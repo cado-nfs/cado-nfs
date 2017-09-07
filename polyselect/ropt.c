@@ -26,11 +26,9 @@ ropt_get_bestpoly ( ropt_poly_t poly,
 {
   double ave_MurphyE = 0.0, best_E = 0.0;
   int i, old_i, k;
-  mpz_t m, t, *fuv, *guv;
+  mpz_t t, *fuv, *guv;
   mpz_poly Fuv, Guv;
 
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   mpz_init (t);
 
   /* var for computing E */
@@ -49,7 +47,7 @@ ropt_get_bestpoly ( ropt_poly_t poly,
   for (i = 1; i < global_E_pqueue->used; i ++) {
 
     old_i = 0;
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i,
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i,
                         global_E_pqueue->w[i], 2);
 
     for (k = 0; k <= poly->d; k++)
@@ -80,12 +78,11 @@ ropt_get_bestpoly ( ropt_poly_t poly,
       for (k = 0; k < 2; k++)
         mpz_set (bestpoly->g[k], guv[k]);
     }
-    rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+    rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   }
 
   mpz_poly_clear (Fuv);
   mpz_poly_clear (Guv);
-  mpz_clear (m);
   mpz_clear (t);
 }
 
@@ -102,7 +99,7 @@ ropt_do_stage2 (ropt_poly_t poly,
 
   int i, old_i;
   double alpha_lat;
-  mpz_t m,  *fuv, *guv;
+  mpz_t *fuv, *guv;
   ropt_bound_t bound;
   ropt_s2param_t s2param;
   MurphyE_pq *global_E_pqueue;
@@ -111,8 +108,6 @@ ropt_do_stage2 (ropt_poly_t poly,
   ropt_bound_init (bound);
   new_MurphyE_pq (&global_E_pqueue, 4);
 
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   mpz_poly_init (Fuv, poly->d);
   Fuv->deg = poly->d;
   fuv = Fuv->coeff;
@@ -129,7 +124,7 @@ ropt_do_stage2 (ropt_poly_t poly,
 
   /* rotate polynomial by f + rot*x^2 */
   old_i = 0;
-  old_i = rotate_aux (poly->f, poly->g[1], m, old_i, param->s2_w, 2);
+  old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, param->s2_w, 2);
   //print_poly_fg (poly->f, poly->g, poly->d, poly->n, 1);
 
   /* reset after rotation */
@@ -160,7 +155,7 @@ ropt_do_stage2 (ropt_poly_t poly,
   ropt_stage2 (poly, s2param, param, info, global_E_pqueue, param->s2_w);
 
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   old_i = 0;
 
   /* return best poly */
@@ -170,7 +165,6 @@ ropt_do_stage2 (ropt_poly_t poly,
   free_MurphyE_pq (&global_E_pqueue);
   ropt_bound_free (bound);
   ropt_s2param_free (poly, s2param);
-  mpz_clear (m);
   mpz_poly_clear (Fuv);
   for (i = 0; i < 2; i++)
     mpz_clear (guv[i]);

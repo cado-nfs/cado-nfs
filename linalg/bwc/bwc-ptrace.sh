@@ -212,7 +212,14 @@ create_test_matrix_if_needed() {
         # width data with r zeroes.
         ncols=$((nrows-nrhs))
         basename=$mats/t${escaped_size}p+${nrhs}
-        density=`echo "l($random_matrix_size)^2/2" | bc -l | cut -d. -f1`
+        # We want something proportional to log(N)^2 as a density.
+        # There's no undebatable support for this heuristic, it's just an
+        # arbitrary choice. We'll do that without relying on external
+        # tools for computing the log: just plain stupid shell. That's
+        # gonna be good enough. The ratio below is taken as 2, which fits
+        # well the relevant density ranges for the matrices we wish to
+        # consider.
+        density=$((${#random_matrix_size}*${#random_matrix_size}*2))
         if [ "$density" -lt 12 ] ; then density=12; fi
         rmargs=("${rmargs[@]}" -d $density -Z)
         matrix="$basename.matrix.bin"

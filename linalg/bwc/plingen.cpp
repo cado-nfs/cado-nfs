@@ -1990,6 +1990,7 @@ void bm_io_compute_final_F(bm_io_ptr aa, Reader& pi, unsigned int * delta)/*{{{*
                                 aa->output_file, i, i+1, j, j+1);
                         ASSERT_ALWAYS(rc >= 0);
                         fw[i*d->nrhs+j] = fopen(tmp, aa->ascii ? "w" : "wb");
+                        ASSERT_ALWAYS(fw[i*d->nrhs+j]);
                         free(tmp);
                     }
                 }
@@ -2005,6 +2006,7 @@ void bm_io_compute_final_F(bm_io_ptr aa, Reader& pi, unsigned int * delta)/*{{{*
                 int rc = asprintf(&tmp, "%s.rhs", aa->output_file);
                 ASSERT_ALWAYS(rc >= 0);
                 FILE * f = fopen(tmp, aa->ascii ? "w" : "wb");
+                ASSERT_ALWAYS(f);
                 matpoly_write(ab, f, rhs, 0, 1, aa->ascii, 0);
                 fclose(f);
                 printf("Note: contributions to RHS coefficients saved to the rhs file %s\n", tmp);
@@ -2880,6 +2882,13 @@ int main(int argc, char *argv[])
     bmstatus_init(bm, bw->m, bw->n);
 
     const char * rhs_name = param_list_lookup_string(pl, "rhs");
+    if (!random_input_length) {
+        if (!rhs_name) {
+            fprintf(stderr, "When using plingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
+        } else if (strcmp(rhs_name, "none") == 0) {
+            rhs_name = NULL;
+        }
+    }
     if ((rhs_name != NULL) && param_list_parse_uint(pl, "nrhs", &(bm->d->nrhs))) {
         fprintf(stderr, "the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);

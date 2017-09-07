@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CHECK_RELS="$1"
 SOURCE_TEST_DIR="`dirname "$0"`"

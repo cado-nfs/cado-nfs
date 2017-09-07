@@ -417,6 +417,8 @@ declare_usage (param_list pl)
   param_list_decl_usage (pl, "lpbs", "large primes bounds (comma-separated list) "
                                      "(for MNFS)");
   param_list_decl_usage (pl, "v", "(switch) more verbose output");
+  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
 }
 
 static void
@@ -443,6 +445,7 @@ main (int argc, char * argv[])
     param_list_configure_switch(pl, "fixit", &fix_it);
     param_list_configure_switch(pl, "v", &verbose);
     param_list_configure_switch(pl, "check_primality", &check_primality);
+    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */

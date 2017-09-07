@@ -45,7 +45,7 @@ while [ $# -gt 0 ] ; do
 done
 
 if [ "$magic" ] ; then
-    magic_tr=`echo $magic | tr '_.' '  '`
+    magic_tr=`basename $magic | tr '_.' '  '`
     read check n1 n2 k v mul <<EOF
 $magic_tr
 EOF

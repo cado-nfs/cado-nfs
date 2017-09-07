@@ -430,12 +430,10 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   st1 = seconds_thread ();
 
   /* MurphyE */
-#if 0 /* use the optimal skewness of the algebraic polynomial */
-  ropt_poly->skew = L2_skewness (ropt_poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-#else /* use the combined optimal skewness */
-  ropt_poly->skew = L2_combined_skewness (ropt_poly, SKEWNESS_DEFAULT_PREC,
-                                          bound_f, bound_g, area);
-#endif
+  /* use the skewness minimizing the sum of the lognorms */
+  ropt_poly->skew = L2_combined_skewness2 (ropt_poly->pols[0],
+                                           ropt_poly->pols[1],
+                                           SKEWNESS_DEFAULT_PREC);
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K);
 
   if (nthreads > 1)
@@ -741,7 +739,7 @@ main_basic (int argc, char **argv)
     abort ();
   }
   fclose (polys_file);
-  printf ("# %u polynomials read.\n", nb_input_polys);
+  printf ("# %u polynomial(s) read.\n", nb_input_polys);
 
   /* Main loop: do root-optimization on input_polys. */
 #ifdef HAVE_OPENMP

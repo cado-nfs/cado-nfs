@@ -157,8 +157,8 @@ tasks.maxtimedout = 100
 # the parameter tree, all tasks can find them.
 
 # (r,a) means rational or algebraic side
-lim0 = 386090
-lim1 = 417250
+lim0 = 404327
+lim1 = 811066
 # The number of rational (resp. # algebraic) primes is roughly lim0/log(lim0)
 # (resp. lim1/log(lim0))
 lpb0 = 23
@@ -249,8 +249,8 @@ tasks.sieve.mfb1 = 46
     # parameters are optimized without lambda0/lambda1, it is better to
     # leave them unspecified.
 
-tasks.sieve.ncurves0 = 8
-tasks.sieve.ncurves1 = 8
+tasks.sieve.ncurves0 = 9
+tasks.sieve.ncurves1 = 10
     # ncurves0 controls the number of P-1/P+1/ECM curves used in the
     # cofactorization on side 0 (i.e., rational side), more precisely we
     # use 3+ncurves0 curves. If one increases ncurves0, one will find more
@@ -280,9 +280,10 @@ tasks.sieve.sqside = 1
     # special-q.  For snfs numbers, sometimes it is better to put is on
     # the rational side.
 
-tasks.sieve.qmin = 400000		# Start of the special-q range
+tasks.sieve.qmin = 200923
+    # Start of the special-q range
     # qmin is usually equal to the corresponding factor base bound, but this
-    # is not a requirement - it can be both larger and smaller.
+    # is not a requirement - it can be both larger or smaller.
 
 tasks.sieve.qrange = 10000		# The size of an elementary sieving task
     # The sieving process is split into many individual tasks, where each task is

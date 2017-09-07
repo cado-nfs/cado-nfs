@@ -353,6 +353,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
       } 
     }
   }
+  // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
 
@@ -443,6 +444,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
       } 
     }
   }
+  // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
 
@@ -451,14 +453,14 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
 /* {{{ */
 template <int LEVEL>
   void
-fill_in_buckets(const worker_thread * worker,
+fill_in_buckets_lowlevel(
     bucket_array_t<LEVEL, shorthint_t> &orig_BA,
     sieve_info const & si MAYBE_UNUSED,
     plattices_vector_t *plattices_vector,
     bool first_reg,
     where_am_I & w)
 {
-  CHILD_TIMER(worker->timer, __func__);
+    /* The timer stuff is dealt with by the caller */
   const slice_index_t slice_index = plattices_vector->get_index();
   bucket_array_t<LEVEL, shorthint_t> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
@@ -524,6 +526,7 @@ fill_in_buckets(const worker_thread * worker,
     pl_it->set_x(pl.get_x());
     pl_it->advance_to_next_area(LEVEL);
   } 
+  // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
 
@@ -553,30 +556,34 @@ public:
  * This needs constexpr, though... So maybe I could use a more powerful
  * C++11 trick after all.
  */
-#define PREPARE_TEMPLATE_INST_NAMES(F)					\
+#define PREPARE_TEMPLATE_INST_NAMES(F, suffix)				\
     template<int>							\
     struct CADO_CONCATENATE(F, _name) {};				\
-    PREPARE_TEMPLATE_INST_NAME(F, 0);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 1);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 2);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 3);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 4);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 5);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 6);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 7);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 8);					\
-    PREPARE_TEMPLATE_INST_NAME(F, 9)
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 0);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 1);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 2);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 3);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 4);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 5);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 6);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 7);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 8);				\
+    PREPARE_TEMPLATE_INST_NAME(F, suffix, 9)
 
-#define PREPARE_TEMPLATE_INST_NAME(F, k)				\
+#define PREPARE_TEMPLATE_INST_NAME(F, suffix, k)			\
     template<>								\
     struct CADO_CONCATENATE(F, _name)<k> {				\
-        static constexpr const char * value = #F "<" #k ">";		\
+        static constexpr const char * value = #F "<" #k ">" suffix;	\
     }
 
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal);
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice);
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_side);
-PREPARE_TEMPLATE_INST_NAMES(downsort_tree);
+/* By tweaking the "" argument, it is possible to have these names
+ * embody a suffix like " on side ", so that it's possible tu run
+ * parametric timer slots.
+ */
+PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal, "");
+PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice, "");
+PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_side, "");
+PREPARE_TEMPLATE_INST_NAMES(downsort_tree, "");
 
 #define TEMPLATE_INST_NAME(x,y) CADO_CONCATENATE(x, _name)<y>::value
 #else
@@ -590,8 +597,13 @@ task_result *
 fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_parameters * _param)
 {
     const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
-    ACTIVATE_TIMER(worker->timer);
+    // ACTIVATE_TIMER(worker->timer);
+    ASSERT_ALWAYS(worker->timer.running());
+    // we're declaring the timer here, but really the work happens below
+    // in fill_in_buckets_lowlevel. We happen to have access to
+    // param->side here, so we use it to provide a nicer timing report.
     CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice_internal, LEVEL));
+
     where_am_I w;
     WHERE_AM_I_UPDATE(w, psi, & param->si);
     WHERE_AM_I_UPDATE(w, side, param->side);
@@ -601,7 +613,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
     bucket_array_t<LEVEL, shorthint_t> &BA =
         param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
     /* Fill the buckets */
-    fill_in_buckets<LEVEL>(worker, BA, param->si, param->plattices_vector,
+    fill_in_buckets_lowlevel<LEVEL>(BA, param->si, param->plattices_vector,
             (param->first_region0_index == 0), w);
     /* Release bucket array again */
     param->ws.release_BA(param->side, BA);
@@ -620,8 +632,10 @@ task_result *
 fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_parameters * _param)
 {
     const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
-    ACTIVATE_TIMER(worker->timer);
+    // ACTIVATE_TIMER(worker->timer);
+    ASSERT_ALWAYS(worker->timer.running());
     CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice, LEVEL));
+    // TIMER_CATEGORY(worker->timer, sieving(param->side));
 
     where_am_I w;
     WHERE_AM_I_UPDATE(w, psi, & param->si);
@@ -668,7 +682,9 @@ template <int LEVEL>
 static void
 fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, const fb_part *fb, sieve_info & si, const int side)
 {
-    CHILD_TIMER(timer, __func__);
+    CHILD_TIMER_PARAMETRIC(timer, "fill_in_buckets_one_side on side ", side, "");
+    TIMER_CATEGORY(timer, sieving(side));
+
     slice_index_t slices_pushed = 0;
 
     if (!si.conf.sublat.m || (si.conf.sublat.i0 == 0 && si.conf.sublat.j0 == 1)) {
@@ -699,38 +715,57 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
             slices_pushed++;
         }
     }
+
+    /* we need to check for exceptions due to bucket updates. Because
+     * we've pushed all slides at this point, we have no option but to
+     * wait for all threads to finish. (or maybe pull back some of the
+     * tasks before they're grabbed by worker threads -- that could be an
+     * optimization).
+     */
+    std::vector<buckets_are_full> exceptions_to_throw;
+
     for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
           task_result *result = pool.get_result();
           delete result;
+          /* want to check possible exceptions, too */
+          buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
+          if (e) {
+              exceptions_to_throw.push_back(*e);
+              delete e;
+          }
     }
-    pool.accumulate(*timer.current);
+    if (!exceptions_to_throw.empty())
+        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
+    pool.accumulate_and_clear_active_time(*timer.current);
+    SIBLING_TIMER(timer, "worker thread wait time");
+    TIMER_CATEGORY(timer, thread_wait());
+    pool.accumulate_and_reset_wait_time(*timer.current);
 }
 
-void fill_in_buckets_both(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info & si)
+void fill_in_buckets(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info & si, int side)
 {
-  CHILD_TIMER(timer, __func__);
-  plattice_enumerate_t::set_masks(si.conf.logI_adjusted);
-  for (int side = 0; side < 2; ++side) {
+    // per se, we're not doing anything here.
+    // CHILD_TIMER(timer, __func__);
+    plattice_enumerate_t::set_masks(si.conf.logI_adjusted);
     switch (si.toplevel) {
-      case 1:
-        plattice_enumerate_area<1>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
-        fill_in_buckets_one_side<1>(timer, pool, ws,
-            si.sides[side].fb->get_part(si.toplevel), si, side);
-        break;
-      case 2:
-        plattice_enumerate_area<2>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
-        fill_in_buckets_one_side<2>(timer, pool, ws,
-            si.sides[side].fb->get_part(si.toplevel), si, side);
-        break;
-      case 3:
-        plattice_enumerate_area<3>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
-        fill_in_buckets_one_side<3>(timer, pool, ws,
-            si.sides[side].fb->get_part(si.toplevel), si, side);
-        break;
-      default:
-        ASSERT_ALWAYS(0);
+        case 1:
+            plattice_enumerate_area<1>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
+            fill_in_buckets_one_side<1>(timer, pool, ws,
+                    si.sides[side].fb->get_part(si.toplevel), si, side);
+            break;
+        case 2:
+            plattice_enumerate_area<2>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
+            fill_in_buckets_one_side<2>(timer, pool, ws,
+                    si.sides[side].fb->get_part(si.toplevel), si, side);
+            break;
+        case 3:
+            plattice_enumerate_area<3>::value = plattice_x_t(si.J) << si.conf.logI_adjusted;
+            fill_in_buckets_one_side<3>(timer, pool, ws,
+                    si.sides[side].fb->get_part(si.toplevel), si, side);
+            break;
+        default:
+            ASSERT_ALWAYS(0);
     }
-  }
 }
 /* }}} */
 
@@ -752,6 +787,7 @@ downsort_tree(
     precomp_plattice_t precomp_plattice)
 {
   CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
+  TIMER_CATEGORY(timer, sieving_mixed());
   ASSERT_ALWAYS(LEVEL > 0);
 
   where_am_I w;
@@ -762,6 +798,8 @@ downsort_tree(
 
   for (int side = 0; side < 2; ++side) {
     WHERE_AM_I_UPDATE(w, side, side);
+    CHILD_TIMER_PARAMETRIC(timer, "side ", side, "");
+    TIMER_CATEGORY(timer, sieving(side));
     /* FIRST: Downsort what is coming from the level above, for this
      * bucket index */
     // All these BA are global stuff; see reservation_group.
@@ -814,12 +852,27 @@ downsort_tree(
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0);
       slices_pushed++;
     }
+
+    std::vector<buckets_are_full> exceptions_to_throw;
     for (slice_index_t slices_completed = 0;
         slices_completed < slices_pushed;
         slices_completed++) {
       task_result *result = pool.get_result();
       delete result;
+      /* want to check possible exceptions, too */
+      buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
+      if (e) {
+          exceptions_to_throw.push_back(*e);
+          delete e;
+      }
     }
+    if (!exceptions_to_throw.empty())
+        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
+
+    pool.accumulate_and_clear_active_time(*timer.current);
+    SIBLING_TIMER(timer, "worker thread wait time");
+    TIMER_CATEGORY(timer, thread_wait());
+    pool.accumulate_and_reset_wait_time(*timer.current);
 
     max_full = std::max(max_full, ws.buckets_max_full<LEVEL,shorthint_t>());
     ASSERT_ALWAYS(max_full <= 1.0);
@@ -839,7 +892,10 @@ downsort_tree(
     }
     ws.thread_do_using_pool(pool, &process_bucket_region);
   }
-  pool.accumulate(*timer.current);
+  pool.accumulate_and_clear_active_time(*timer.current);
+  SIBLING_TIMER(timer, "worker thread wait time");
+  TIMER_CATEGORY(timer, thread_wait());
+  pool.accumulate_and_reset_wait_time(*timer.current);
 }
 
 /* Instances to be compiled */

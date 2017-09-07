@@ -65,7 +65,12 @@ target_link_libraries(facul gnurx)
 endif()
 
 add_executable(testbench testbench.c)
-
 target_link_libraries(testbench facul utils m)
+
+
+add_executable(finishbatch finishbatch.c)
+target_link_libraries(finishbatch facul utils m)
+set_target_properties(finishbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
+
 
 include(CMakeLists-nodist.txt OPTIONAL)

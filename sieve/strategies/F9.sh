@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # this file generates a strategy file for F9 (fbb=21, lpb=26)
 

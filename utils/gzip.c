@@ -164,6 +164,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
   }
   *antebuffer = 0;
   fprintf(stderr, "No antebuffer configured\n");
+  *antebuffer='\0';
   return 0;
 }
 
@@ -292,6 +293,9 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
 {
     const struct suffix_handler * r = supported_compression_formats;
     FILE * f;
+
+    if (strchr(mode, 'r') && access(name, R_OK) != 0)
+        return NULL;
 
     for( ; r->suffix ; r++) {
         if (!has_suffix(name, r->suffix)) continue;

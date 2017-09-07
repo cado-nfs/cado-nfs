@@ -31,6 +31,9 @@ struct mmt_vec_s {
     mmt_vec_ptr * siblings;     /* pi->wr[d]->ncores siblings ;
                                    only in case all cores in the communicator
                                    have their own data area v */
+    mmt_vec_ptr * mpals;        /* pi->m->ncores siblings, always */
+    mmt_vec_ptr * wrpals[2];    /* pi->wr[0]->ncores and pi->wr[1]->ncores
+                                   siblings, always. */
     unsigned int n;             // total size in items
     unsigned int i0;
     unsigned int i1;

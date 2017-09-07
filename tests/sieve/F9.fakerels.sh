@@ -27,12 +27,13 @@ cmd="${FAKERELS} -poly ${SRCDIR}/parameters/polynomials/F9.poly \
     -lpb0 23 -lpb1 23 -q0 1000000 -q1 1001000 -sqside 0 \
     -renumber $TMPRENUMBER -sample $TMPSAMPLE"
 echo $cmd
-nfake=`$cmd | grep -v "^#" | wc -l`
+nfake=`$cmd | grep -c "^[^#]"`
 
 # remove leading spaces (for openbsd 5.3)
 let nfake=nfake
-if [ "$nfake" != "110" ]; then
-    echo "Wrong number of fake relations"
+nfake_exp=111
+if [ "$nfake" != "$nfake_exp" ]; then
+    echo "Wrong number of fake relations ($nfake, expected $nfake_exp)"
     exit 1
 fi
 

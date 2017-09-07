@@ -34,7 +34,8 @@ extern "C" {
 extern int cado_poly_read (cado_poly_ptr, const char *filename);
 extern int cado_poly_read_stream (cado_poly_ptr, FILE *);
 extern int cado_poly_read_next_poly_from_stream (cado_poly_ptr, FILE *);
-extern void cado_poly_set (cado_poly_ptr p, cado_poly_ptr q);
+extern void cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q);
+extern void cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q);
 
 void cado_poly_fprintf (FILE *, cado_poly_srcptr, const char *);
 void cado_poly_fprintf_info (FILE *, double, double, double, double,
@@ -65,4 +66,36 @@ extern int cado_poly_get_ratside (cado_poly_ptr);
 }
 #endif
 
+#ifdef __cplusplus
+/* Same idea as for cxx_mpz and friends */
+struct cxx_cado_poly {
+    cado_poly x;
+    cxx_cado_poly() { cado_poly_init(x); }
+    cxx_cado_poly(cado_poly_srcptr f) { cado_poly_init(x); cado_poly_set(x, f); }
+    ~cxx_cado_poly() { cado_poly_clear(x); }
+    cxx_cado_poly(cxx_cado_poly const & o) {
+        cado_poly_init(x);
+        cado_poly_set(x, o.x);
+    }
+    cxx_cado_poly & operator=(cxx_cado_poly const & o) {
+        cado_poly_set(x, o.x);
+        return *this;
+    }
+#if __cplusplus >= 201103L
+    cxx_cado_poly(cxx_cado_poly && o) {
+        cado_poly_init(x);
+        cado_poly_swap(x, o.x);
+    }
+    cxx_cado_poly& operator=(cxx_cado_poly && o) {
+        cado_poly_swap(x, o.x);
+        return *this;
+    }
+#endif
+    operator cado_poly_ptr() { return x; }
+    operator cado_poly_srcptr() const { return x; }
+    cado_poly_ptr operator->() { return x; }
+    cado_poly_srcptr operator->() const { return x; }
+};
+
+#endif
 #endif	/* CADO_POLY_H_ */

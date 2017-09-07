@@ -296,7 +296,7 @@ void compute_all_spq(array_spq_ptr array_spq, uint64_t q, cado_poly_srcptr f,
     sieving_bound_srcptr H, gmp_randstate_t state, int deg_bound_factorise,
     MAYBE_UNUSED mpz_vector_srcptr skewness, unsigned int gal,
     mpz_vector_t * c, unsigned int nb_vec, MAYBE_UNUSED mpz_poly_srcptr g,
-    unsigned int q_side)
+    unsigned int q_side, MAYBE_UNUSED FILE * errstd)
 {
   array_spq_t array_spq_tmp;
   array_spq_init(array_spq_tmp, f->pols[q_side]->deg, H->t);
@@ -311,17 +311,18 @@ void compute_all_spq(array_spq_ptr array_spq, uint64_t q, cado_poly_srcptr f,
   mpz_poly_factor(l, f->pols[q_side], q_Z, state);
   mpz_clear(q_Z);
 
+
   for (int i = 0; i < l->size; i++) {
     if (l->factors[i]->f->deg < deg_bound_factorise) {
       if (l->factors[i]->f->deg == 1) {
-        if (g->deg == 1 && mpz_poly_cmp(g, l->factors[i]->f)) {
+        if (g->deg == 1 && mpz_poly_cmp(g, l->factors[i]->f) != 0) {
           continue;
         }
         ideal_spq_set_part(array_spq_tmp->spq[array_spq_tmp->number], q,
             l->factors[i]->f, H->t, 0);
       } else {
         ASSERT(l->factors[i]->f->deg > 1);
-        if (g->deg > 1 && mpz_poly_cmp(g, l->factors[i]->f)) {
+        if (g->deg > 1 && mpz_poly_cmp(g, l->factors[i]->f) != 0) {
           continue;
         }
         ideal_spq_set_part(array_spq_tmp->spq[array_spq_tmp->number], q,
@@ -351,8 +352,37 @@ void compute_all_spq(array_spq_ptr array_spq, uint64_t q, cado_poly_srcptr f,
       array_spq_tmp->number++;
     }
   }
-  mpz_poly_factor_list_clear(l);
 
+#if !defined(NDEBUG) || defined(DESCENT)
+  if (g->deg > 0) {
+    mpz_poly g_tmp;
+    mpz_poly_init(g_tmp, g->deg);
+
+#if NDEBUG
+    ASSERT(array_spq_tmp->number == 1);
+#endif // NDEBUG
+#if DESCENT
+    fprintf(errstd, "# Polynomial g is false.\n");
+    fprintf(errstd, "# Should be a polynomial of ");
+    mpz_poly_factor_list_fprintf(stderr, l);
+#endif // DESCENT
+
+    ideal_spq_get_g(g_tmp, array_spq_tmp->spq[0]);
+
+#if NDEBUG
+    ASSERT(mpz_poly_cmp(g, g_tmp) == 0);
+#endif // NDEBUG
+#if DESCENT
+    fprintf(errstd, "# Polynomial g is false.\n");
+    fprintf(errstd, "# Should be a polynomial of ");
+    mpz_poly_factor_list_fprintf(stderr, l);
+#endif // DESCENT
+
+    mpz_poly_clear(g_tmp);
+  }
+#endif // !defined(NDEBUG) || defined(DESCENT)
+
+  mpz_poly_factor_list_clear(l);
   array_spq_swap(array_spq_tmp, array_spq);
   array_spq_clear(array_spq_tmp, H->t);
 
@@ -1143,7 +1173,7 @@ void find_new_vs(int64_vector_ptr vs, list_int64_vector_ptr v_refresh,
 void plane_sieve_1(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
     ideal_1_srcptr r, mat_int64_srcptr Mqr, sieving_bound_srcptr H,
     MAYBE_UNUSED mat_Z_srcptr matrix, MAYBE_UNUSED mpz_poly_srcptr f,
-    MAYBE_UNUSED uint64_t * nb_hit)
+    MAYBE_UNUSED uint64_t * nb_hit, MAYBE_UNUSED FILE * errstd)
 {
   ASSERT(Mqr->NumRows == Mqr->NumCols);
 
@@ -1161,8 +1191,8 @@ void plane_sieve_1(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
 
   if (!boolean) {
 #ifdef PLANE_SIEVE_ORTHO
-    fprintf(stderr, "# Plane sieve does not support this type of Mqr.\n");
-    mat_int64_fprintf_comment(stderr, Mqr);
+    fprintf(errstd, "# Plane sieve does not support this type of Mqr.\n");
+    mat_int64_fprintf_comment(errstd, Mqr);
     for (unsigned int i = 0; i < Mqr->NumCols; i++) {
       int64_vector_clear(vec[i]);
     }
@@ -1935,7 +1965,7 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
 #ifdef ASSERT_SIEVE
     printf("# Line sieve.\n");
     printf("# ");
-    ideal_fprintf(stdout, r->ideal);
+    ideal_fprintf(outstd, r->ideal);
     /*fprintf(stdout, "# Tqr = [");*/
     /*for (unsigned int i = 0; i < H->t - 1; i++) {*/
     /*fprintf(stdout, "%" PRIu64 ", ", Tqr[i]);*/
@@ -2082,7 +2112,7 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
 #ifdef ASSERT_SIEVE
     printf("# Plane sieve.\n");
     printf("# ");
-    ideal_fprintf(stdout, r->ideal);
+    ideal_fprintf(outstd, r->ideal);
     /*fprintf(stdout, "# Tqr = [");*/
     /*for (unsigned int i = 0; i < H->t - 1; i++) {*/
     /*fprintf(stdout, "%" PRIu64 ", ", Tqr[i]);*/
@@ -2102,14 +2132,15 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
     mat_int64_t Mqr_test;
     mat_int64_init(Mqr_test, H->t, H->t);
     compute_Mqr_1(Mqr_test, Tqr, H->t, r);
-    mat_int64_fprintf_comment(stdout, Mqr_test);
+    mat_int64_fprintf_comment(outstd, Mqr_test);
     mat_int64_clear(Mqr_test);
 #endif // TEST_MQR
 
     compute_Mqr_1(Mqr, Tqr, H->t, r);
 
     if (Mqr->coeff[1][1] != 1) {
-      plane_sieve_1(array, file_trace_pos, r, Mqr, H, matrix, f, &number_hit);
+      plane_sieve_1(array, file_trace_pos, r, Mqr, H, matrix, f, &number_hit,
+        errstd);
     } else {
       fprintf(errstd, "# Tqr = [");
       for (unsigned int i = 0; i < H->t - 1; i++) {
@@ -2189,7 +2220,7 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
     printf("# Space sieve.\n");
 #endif
     printf("# ");
-    ideal_fprintf(stdout, r->ideal);
+    ideal_fprintf(outstd, r->ideal);
     /*fprintf(stdout, "# Tqr = [");*/
     /*for (unsigned int i = 0; i < H->t - 1; i++) {*/
     /*fprintf(stdout, "%" PRIu64 ", ", Tqr[i]);*/
@@ -2209,7 +2240,7 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
     mat_int64_t Mqr_test;
     mat_int64_init(Mqr_test, H->t, H->t);
     compute_Mqr_1(Mqr_test, Tqr, H->t, r);
-    mat_int64_fprintf_comment(stdout, Mqr_test);
+    mat_int64_fprintf_comment(outstd, Mqr_test);
     mat_int64_clear(Mqr_test);
 #endif // TEST_MQR
 
@@ -2510,7 +2541,7 @@ void do_all_for_spq(array_spq_ptr spq, int64_t q, cado_poly_srcptr f,
     uint64_t * sieve_start, factor_base_t * fb, unsigned char * thresh,
     unsigned int * lpb, int main_side, uint64_t * nb_rel, uint64_t * spq_tot,
     double * total_time, FILE * file_space_sieve_stat,
-    factor_t * gal_norm_denom)
+    factor_t * gal_norm_denom, int * nb_curves)
 {
   double sec_tot;
   double sec_cofact;
@@ -2518,7 +2549,7 @@ void do_all_for_spq(array_spq_ptr spq, int64_t q, cado_poly_srcptr f,
 
   //TODO: print time to build MqLLL.
   compute_all_spq(spq, q, f, H, state, deg_bound_factorise,
-      skewness, gal, c, nb_vec, g, q_side);
+      skewness, gal, c, nb_vec, g, q_side, errstd);
 
   for (unsigned int i = 0; i < spq->number; i++) {
     sec = seconds();
@@ -2613,7 +2644,7 @@ void do_all_for_spq(array_spq_ptr spq, int64_t q, cado_poly_srcptr f,
     sec = seconds();
     * nb_rel += (uint64_t) find_relations(indexes, array->number_element, lpb,
         spq->MqLLL[i], f->pols, H, V, spq->spq[i], q_side, main_side,
-        outstd, gal, gal_version, gal_norm_denom);
+        outstd, gal, gal_version, gal_norm_denom, nb_curves);
     sec_cofact = seconds() - sec;
 
     for (unsigned j = 0; j < V; j++) {
@@ -2658,7 +2689,7 @@ void read_q_file(FILE * qfile, array_spq_ptr spq, cado_poly_srcptr f,
     uint64_t * sieve_start, factor_base_t * fb, unsigned char * thresh,
     unsigned int * lpb, int main_side, uint64_t * nb_rel, uint64_t * spq_tot,
     double * total_time, FILE * file_space_sieve_stat,
-    factor_t * gal_norm_denom)
+    factor_t * gal_norm_denom, int * nb_curves)
 {
   ASSERT(g->deg == -1);
 
@@ -2690,7 +2721,7 @@ void read_q_file(FILE * qfile, array_spq_ptr spq, cado_poly_srcptr f,
         gal, gal_version, c, nb_vec, g, outstd, file_trace_pos, max_norm, V,
         log2_base, indexes, array, time, errstd, sieve_start, fb, thresh, lpb,
         main_side, nb_rel, spq_tot, total_time, file_space_sieve_stat,
-        gal_norm_denom);
+        gal_norm_denom, nb_curves);
   }
   free(line);
 }
@@ -2799,7 +2830,7 @@ void read_q_file_spq(FILE * qfile, array_spq_ptr spq, cado_poly_srcptr f,
     array_ptr array, double ** time, FILE * errstd, uint64_t * sieve_start,
     factor_base_t * fb, unsigned char * thresh, unsigned int * lpb,
     int main_side, uint64_t * nb_rel, uint64_t * spq_tot, double * total_time,
-    FILE * file_space_sieve_stat, factor_t * gal_norm_denom)
+    FILE * file_space_sieve_stat, factor_t * gal_norm_denom, int * nb_curves)
 {
   size_t len = 1024;
   char * line = (char * ) malloc(sizeof(char) * len);
@@ -2836,7 +2867,7 @@ void read_q_file_spq(FILE * qfile, array_spq_ptr spq, cado_poly_srcptr f,
         gal, gal_version, c, nb_vec, g, outstd, file_trace_pos, max_norm, V,
         log2_base, indexes, array, time, errstd, sieve_start, fb, thresh, lpb,
         main_side, nb_rel, spq_tot, total_time, file_space_sieve_stat,
-        gal_norm_denom);
+        gal_norm_denom, nb_curves);
   }
   mpz_poly_clear(g);
   free(line);
@@ -2862,6 +2893,7 @@ void declare_usage(param_list pl)
   param_list_decl_usage(pl, "gal", "type of Galois action (autom<order>.<version>)");
   param_list_decl_usage(pl, "qfile", "path to a qfile");
   param_list_decl_usage(pl, "qfilespq", "path to a qfile");
+  param_list_decl_usage(pl, "nb_curves", "number of curves for the cofactorization");
 }
 
 /*
@@ -2886,13 +2918,28 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
     int * main_side, double ** log2_base, FILE ** outstd, FILE ** errstd,
     uint64_t ** sieve_start, sieving_bound_ptr Ha, mpz_poly_ptr g,
     unsigned int * gal, unsigned int * gal_version, FILE ** qfile,
-    unsigned int * qfilespq, factor_t ** gal_norm_denom)
+    unsigned int * qfilespq, factor_t ** gal_norm_denom, int ** nb_curves)
 {
   param_list pl;
   param_list_init(pl);
   declare_usage(pl);
   FILE * fpl;
   char * argv0 = argv[0];
+  char * orig_param;
+  int len = 3;
+  orig_param = (char *) malloc(len * sizeof(char));
+  orig_param[0] = '\0';
+  strcat(orig_param, "# ");
+
+  for (int i = 0; i < argc - 1; i++) {
+    len = len + strlen(argv[i]) + 1;
+    orig_param = (char *) realloc(orig_param, len * sizeof(char));
+    strcat(orig_param, argv[i]);
+    strcat(orig_param, " ");
+  }
+  len = len + strlen(argv[argc - 1]);
+  orig_param = (char *) realloc(orig_param, len * sizeof(char));
+  strcat(orig_param, argv[argc - 1]);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -2954,6 +3001,7 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   * sieve_start = (uint64_t *) malloc(sizeof(uint64_t) * (* V));
   * log2_base = (double *) malloc(sizeof(double) * (* V));
   * gal_norm_denom = (factor_t *) malloc(sizeof(factor_t) * (* V));
+  * nb_curves = (int *) malloc(sizeof(int) * (* V));
 
   param_list_parse_uint64_list(pl, "fbb", * fbb, (size_t) * V, ",");
 
@@ -2970,6 +3018,10 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   } else {
     * outstd = fopen(path, "w");
   }
+
+  // Print command line.
+  fprintf(* outstd, "%s\n", orig_param);
+  free(orig_param);
 
   path[0] = '\0';
   param_list_parse_string(pl, "err", path, size_path);
@@ -3038,6 +3090,12 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
 #ifndef NDEBUG
   if (g->deg > 0) {
     ASSERT((* q_range)[1] - (* q_range)[0] == 1);
+    mpz_t lc_tmp;
+    mpz_init(lc_tmp);
+    mpz_set(lc_tmp, mpz_poly_lc_const(g));
+    ASSERT(mpz_cmp_ui(lc_tmp, 1) == 0);
+    mpz_clear(lc_tmp);
+    ASSERT((unsigned int) g->deg < H->t);
   }
 #endif // NDEBUG
 
@@ -3158,6 +3216,11 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   }
   free(gal_str);
 
+  for (unsigned int i = 0; i < * V; i++) {
+    (*nb_curves)[i] = -1;
+  }
+  param_list_parse_int_list(pl, "nb_curves", * nb_curves, (size_t) * V, ",");
+
   param_list_clear(pl);
 }
 
@@ -3189,11 +3252,12 @@ int main(int argc, char * argv[])
   FILE * qfile;
   unsigned int qfilespq;
   factor_t * gal_norm_denom;
+  int * nb_curves;
 
   initialise_parameters(argc, argv, f, &fbb, &fb, H, &q_range, &thresh, &lpb,
       array, &q_side, &V, &main_side, &log2_base, &outstd, &errstd,
       &sieve_start, Ha, g, &gal, &gal_version, &qfile, &qfilespq,
-      &gal_norm_denom);
+      &gal_norm_denom, &nb_curves);
 
   //Store all the index of array with resulting norm less than thresh.
   uint64_array_t * indexes =
@@ -3273,7 +3337,7 @@ int main(int argc, char * argv[])
   prime_info pi;
   prime_info_init(pi);
   //Pass all the prime less than q_range[0].
-  if (q_range[1] - q_range[0] != 1 || g->deg <= 0) {
+  if (q_range[1] - q_range[0] != 1) {
     for (q = 2; q < q_range[0]; q = getprime_mt(pi)) {}
   }
 #ifdef SPQ_IDEAL_U
@@ -3294,7 +3358,7 @@ int main(int argc, char * argv[])
   }
 
   if (qfilespq == 0) {
-    if (q_range[1] - q_range[0] == 1 && g->deg > 0) {
+    if (q_range[1] - q_range[0] == 1) {
       fprintf(outstd, "# Assume that %" PRIu64 " is prime.\n", q_range[0]);
 #ifndef NDEBUG
       mpz_t tmp;
@@ -3308,7 +3372,8 @@ int main(int argc, char * argv[])
           deg_bound_factorise, skewness, gal, gal_version, c, nb_vec, g,
           outstd, file_trace_pos, max_norm, V, log2_base, indexes, array,
           time, errstd, sieve_start, fb, thresh, lpb, main_side, &nb_rel,
-          &spq_tot, &total_time, file_space_sieve_stat, gal_norm_denom);
+          &spq_tot, &total_time, file_space_sieve_stat, gal_norm_denom,
+          nb_curves);
     } else {
       ASSERT(q >= q_range[0]);
       ASSERT(qfile == NULL);
@@ -3318,7 +3383,7 @@ int main(int argc, char * argv[])
             skewness, gal, gal_version, c, nb_vec, g, outstd, file_trace_pos,
             max_norm, V, log2_base, indexes, array, time, errstd, sieve_start,
             fb, thresh, lpb, main_side, &nb_rel, &spq_tot, &total_time,
-            file_space_sieve_stat, gal_norm_denom);
+            file_space_sieve_stat, gal_norm_denom, nb_curves);
       }
     }
   } else if (qfilespq == 1){
@@ -3326,14 +3391,15 @@ int main(int argc, char * argv[])
         gal_version, c, nb_vec, g, outstd, file_trace_pos, max_norm, V,
         log2_base, indexes, array, time, errstd, sieve_start, fb, thresh, lpb,
         main_side, &nb_rel, &spq_tot, &total_time, file_space_sieve_stat,
-        gal_norm_denom);
+        gal_norm_denom, nb_curves);
   } else {
     ASSERT(qfilespq == 2);
 
     read_q_file_spq(qfile, spq, f, H, state, deg_bound_factorise, skewness, gal,
         gal_version, c, nb_vec, outstd, file_trace_pos, max_norm, V, log2_base,
         indexes, array, time, errstd, sieve_start, fb, thresh, lpb, main_side,
-        &nb_rel, &spq_tot, &total_time, file_space_sieve_stat, gal_norm_denom);
+        &nb_rel, &spq_tot, &total_time, file_space_sieve_stat, gal_norm_denom,
+        nb_curves);
   }
 
   fprintf(outstd, "# Total time: %fs.\n", total_time);
@@ -3456,6 +3522,7 @@ ideals.\n", i, nb, nb_more);
   }
   mpz_vector_clear(skewness);
   mpz_poly_clear(g);
+  free(nb_curves);
 
   return 0;
 }

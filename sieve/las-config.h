@@ -7,19 +7,12 @@
 #define SSE_NORM_INIT
 #endif
 
-/* Number of bits used to estimate the norms
+/* Number of bits used to estimate the norms with the old reference code.
+ * Unused otherwise.
  * This should be large enough: it must be such that all norms are
- * smaller than 2^NORM_BITS.
+ * smaller than 2^(2^NORM_BITS)
  * This imposes NORM_BITS >= 8, or even >= 9 for large factorizations. */
 #define NORM_BITS 10
-
-/* Smart norm computation. See las-norms.cpp. SMART_NORM is faster. */
-#define SMART_NORM
-
-#define SMART_NORM_STABILITY 3      /* Min:2; No max. Optimal: 3-4 */
-#define SMART_NORM_INFLUENCE 10     /* Min:4; > SMART_NORM_STABILITY. No max. Optimal: 8-12 */
-#define SMART_NORM_LENGTH    8      /* Min:3; no max. Optimal: 8-16 */
-#define SMART_NORM_DISTANCE  1.     /* Min:1.; no max. Optimal: 1.0-1.5; NB: float. */
 
 /* define PROFILE to keep certain functions from being inlined, in order to
    make them show up on profiler output */
@@ -69,17 +62,6 @@
 #define TRACK_CODE_PATH
 #endif
 
-/* This triggers code which fills bucket in several passes, one for each
- * congruence class mod 2 (three such, the trivial one leading to
- * spurious reports). It's currently only part of the story, and at the
- * moment it is almost neutral in terms of efficiency (small slowdown
- * because of access pattern).  But it's the way to go if one wants to
- * support I=16. There are many other places where changes must be made.
- * This particular flag affects only the treatment of the ``bucket
- * sieved'' primes, not the pattern-sieved, or small-sieved.
- */
-#define MOD2_CLASSES_BS 0       /* define to 0 or 1 */
-
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
  * each survivor. Appears slower than default. This code has always been
  * #ifdef'd out, but maybe can be improved enough to make it worthwhile
@@ -98,7 +80,6 @@
 #define NB_BUCKETS_2 256
 #define NB_BUCKETS_3 256
 
-// Portability of ULL suffix?
 #define BUCKET_REGION (UINT64_C(1) << LOG_BUCKET_REGION)
 
 #define BUCKET_REGION_1 BUCKET_REGION
@@ -141,12 +122,12 @@
 #define NOPROFILE_STATIC static
 #endif
 
-/* A memset with less MEMSET_MIN bytes is slower than an fixed memset
-   (which is inlined with special code). So, if it's possible, the optimal
-   memset is
-   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i, ts);
-   S += ts;
-   So, all S' malloc must be increased of MEMSET_MIN. */
+/* A memset with less than MEMSET_MIN bytes is slower than an fixed
+ * memset (which is inlined with special code). So, if possible, it is
+ * worthwhile to write:
+ *   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i, ts);
+ * Some write-ahead allocation has to be provided for at malloc() time.
+ */
 #define MEMSET_MIN 64
 
 /* Should we use a cache-line buffer when converting kilo-bucket updates to
@@ -154,10 +135,6 @@
 #ifdef HAVE_SSE2
 // #define USE_CACHEBUFFER 1
 #endif 
-
-/* A special ultrafast memset for las. Independant of MEMSET_MIN.
-   Only for x86 64. */
-// #define LAS_MEMSET
 
 #include <stdio.h>
 

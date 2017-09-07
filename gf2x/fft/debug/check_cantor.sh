@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "programs: $all_programs" >&2
 echo "sizes: $all_sizes" >&2

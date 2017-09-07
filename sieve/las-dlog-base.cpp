@@ -38,11 +38,13 @@ void las_dlog_base::lookup_parameters(param_list pl)
     }
 }
 
-las_dlog_base::las_dlog_base()
+las_dlog_base::las_dlog_base(param_list_ptr pl)
 {
     renumberfilename = NULL;
     logfilename = NULL;
     renumber_init_for_reading(renumber_table);
+    lookup_parameters(pl);
+    read();
 }
 
 las_dlog_base::~las_dlog_base()

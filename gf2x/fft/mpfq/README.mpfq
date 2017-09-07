@@ -1,0 +1,7 @@
+
+Note: this directory contains a variant of the mpfq library, adapted for
+use within gf2x. For mpfq itself, look here:
+    
+    https://gforge.inria.fr/projects/mpfq/
+
+The scripts to update this source code are in the git repository of gf2x.

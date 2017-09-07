@@ -28,16 +28,17 @@ tasks.polyselect.ropteffort = 0.5
 ###########################################################################
 
 lim0 = 919082
-lim1 = 751338
+lim1 = 1051872
 lpb0 = 24
-lpb1 = 24
+lpb1 = 25
 tasks.sieve.mfb0 = 49
 tasks.sieve.mfb1 = 50
 tasks.sieve.ncurves0 = 11
-tasks.sieve.ncurves1 = 17
+tasks.sieve.ncurves1 = 16
 tasks.I = 11
 
 tasks.sieve.qrange = 10000
+tasks.sieve.qmin = 1051872
 
 ###########################################################################
 # Filtering

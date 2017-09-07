@@ -1,4 +1,2 @@
-WARNING: this package is *not* part of gf2x.
-
-This provides a generic FFT API for multiplication of polynomials over
-GF(2), and an implementation of Cantor's algorithm.
+This sub-package provides a generic FFT API for multiplication of
+polynomials over GF(2), and an implementation of Cantor's algorithm.

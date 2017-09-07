@@ -211,11 +211,9 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
   int i, w, used, old_i;
   double score;
   double max_score;
-  mpz_t m, u, v, mod;
+  mpz_t u, v, mod;
   ropt_s2param_t s2param;
   alpha_pq *tmp_alpha_pqueue;
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   mpz_init (u);
   mpz_init (v);
   mpz_init (mod);
@@ -237,7 +235,7 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, w, 2);
     ropt_poly_setup (poly);
     //ropt_bound_reset (poly, bound, param); // not really necessary
 
@@ -258,7 +256,7 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
 
   }
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -285,7 +283,6 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
   /* free s2param */
   free_alpha_pq (&tmp_alpha_pqueue);
   ropt_s2param_free (poly, s2param);
-  mpz_clear (m);
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
@@ -314,7 +311,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 
   int i, j, w, used, old_i;
   double score, old_MurphyE;
-  mpz_t m, u, tmpu, v, mod, old_mod;
+  mpz_t u, tmpu, v, mod, old_mod;
   ropt_s2param_t s2param;
   alpha_pq *tmp_alpha_pqueue, *tmp2_alpha_pqueue;
 #if TUNE_EARLY_ABORT
@@ -325,8 +322,6 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 #ifdef ROPT_LINEAR_TUNE_HARDER
   int k;
 #endif
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   mpz_init (u);
   mpz_init (tmpu);
   mpz_init (v);
@@ -349,7 +344,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, w, 2);
     ropt_poly_setup (poly);
     // ropt_bound_reset (poly, bound, param); // not necessary
 #if RANK_SUBLATTICE_BY_E
@@ -545,7 +540,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
   }
 
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -555,7 +550,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 
     extract_alpha_pq (tmp_alpha_pqueue, &w, u, v, mod, &score);
 
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, w, 2);
 
     ropt_poly_setup (poly);
 
@@ -589,7 +584,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
   }
 
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -605,7 +600,6 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
   free_alpha_pq (&tmp_alpha_pqueue);
   free_alpha_pq (&tmp2_alpha_pqueue);
   ropt_s2param_free (poly, s2param);
-  mpz_clear (m);
   mpz_clear (u);
   mpz_clear (tmpu);
   mpz_clear (v);
@@ -777,10 +771,7 @@ ropt_call_sieve ( ropt_poly_t poly,
   }
 
   /* Step3, final root sieve */
-  mpz_t m;
   int old_i = 0;
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   used = tmp_E_pqueue->used - 1;
   for (i = 0; i < used; i ++) {
 
@@ -788,7 +779,7 @@ ropt_call_sieve ( ropt_poly_t poly,
                         &score);
 
     /* rotate */
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, w, 2);
     ropt_poly_setup (poly);
 
     if (param->verbose >= 2) {
@@ -816,14 +807,13 @@ ropt_call_sieve ( ropt_poly_t poly,
     }
   }
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
   /* free */
   free_MurphyE_pq (&tmp_E_pqueue);
   ropt_s2param_free (poly, s2param);
-  mpz_clear (m);
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
@@ -999,5 +989,5 @@ ropt_linear ( ropt_poly_t poly,
   else if (poly->d == 5 || poly->d == 4)
     ropt_linear_deg5 (poly, bestpoly, param, info);
   else 
-    fprintf (stderr, "Error: ropt_linear() only support deg 4 and 5.");
+    fprintf (stderr, "Error: ropt_linear() only supports degrees 3-5.");
 }

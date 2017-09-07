@@ -1161,7 +1161,7 @@ mp_limb_t mpfq_fixmp_1_addmul1_shortz(mp_limb_t * z, const mp_limb_t * x, mp_lim
         "mulq    %[mult]\n"
         "addq    %%rax, %[z0]\n"
         "adcq    $0, %%rdx\n"
-    : "=a"(junk), [z0]"+m"(z[0]), [z1]"+m"(z[1]), "=d"(carry)
+    : "=a"(junk), [z0]"+m"(z[0]), [z1]"+m"(z[1]), "=&d"(carry)
     : [x0]"0"(x[0]), [mult]"m"(c)
     );
     return carry;
@@ -16682,7 +16682,7 @@ mp_limb_t mpfq_fixmp_0_5_addmul1_shortz(mp_limb_t * z, const mp_limb_t * x, mp_l
         "mulq    %[mult]\n"
         "addq    %%rax, %[z0]\n"
         "adcq    $0, %%rdx\n"
-    : "=a"(junk), [z0]"+m"(z[0]), [z1]"+m"(z[1]), "=d"(carry)
+    : "=a"(junk), [z0]"+m"(z[0]), [z1]"+m"(z[1]), "=&d"(carry)
     : [x0]"0"(x[0]), [mult]"m"(c)
     );
     return carry;
@@ -16737,7 +16737,7 @@ mp_limb_t mpfq_fixmp_0_5_addmul05(mp_limb_t * z, const mp_limb_t * x, mp_limb_t 
         "xorq    %%rdx, %%rdx\n"
         "addq    %%rax, %[z0]\n"
         "adcq    $0, %%rdx\n"
-    : "=a"(junk), [z0]"+m"(z[0]), "=d"(carry)
+    : "=a"(junk), [z0]"+m"(z[0]), "=&d"(carry)
     : [x0]"0"(x[0]), [mult]"m"(c)
     );
     return carry;

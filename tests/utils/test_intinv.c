@@ -30,11 +30,13 @@ test_modredcul_intinv (unsigned long iter)
         x ++; /* x should be odd */
       if (x == y)
         continue;
+#if ULONG_BITS==64
       if (iter == 0)
         {
           x = 14170321801878169673UL;
           y = 8493495769022353815UL;
         }
+#endif
       modredcul_initmod_ul (m, x); /* x should be odd */
       modredcul_init (A, m);
       modredcul_init (r, m);

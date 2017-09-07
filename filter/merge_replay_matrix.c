@@ -281,7 +281,7 @@ incrS (int w)
 /* initialize the sparse matrix mat */
 void
 initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
-         uint32_t nburied)
+         uint32_t nburied, uint32_t force_bury_below_index)
 {
   mat->keep  = keep;
   mat->mergelevelmax = maxlevel;
@@ -290,6 +290,7 @@ initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
   mat->cwmax = 2;
   ASSERT_ALWAYS (mat->cwmax < 255); /* 255 is reserved for saturated values */
   mat->nburied = nburied;
+  mat->force_bury_below_index = force_bury_below_index;
 
   mat->weight = 0;
   mat->tot_weight = 0;
@@ -588,6 +589,9 @@ void * insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   for (unsigned int i = 0; i < rel->nb; i++)
   {
     index_t h = rel->primes[i].h;
+    mat->rem_ncols += (mat->wt[h] == 0);
+    mat->wt[h] += (mat->wt[h] != SMAX(int32_t));
+    if (h < mat->force_bury_below_index) continue;
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
     /* For factorization, they should not be any multiplicity here.
@@ -597,30 +601,35 @@ void * insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
     ASSERT(rel->primes[i].e == 1);
     buf[++j] = h;
 #endif
-    mat->rem_ncols += (mat->wt[h] == 0);
-    mat->wt[h] += (mat->wt[h] != SMAX(int32_t));
   }
 
 #ifdef FOR_DL
-  buf[0].id = rel->nb;
+  buf[0].id = j;
 #else
-  buf[0] = rel->nb;
+  buf[0] = j;
 #endif
+
+  /* do as if the coefficients we're discarding early on are still here
+   */
   mat->tot_weight += rel->nb;
 
   /* sort indices to ease row merges */
 #ifndef FOR_DL
-  sort_relation (&(buf[1]), rel->nb);
+  sort_relation (&(buf[1]), j);
 #else
-  qsort (&(buf[1]), rel->nb, sizeof(typerow_t), cmp_typerow_t);
+  qsort (&(buf[1]), j, sizeof(typerow_t), cmp_typerow_t);
 #endif
 
-  mat->rows[rel->num] = mallocRow (rel->nb + 1);
-  compressRow (mat->rows[rel->num], buf, rel->nb);
+  mat->rows[rel->num] = mallocRow (j + 1);
+  compressRow (mat->rows[rel->num], buf, j);
 
   return NULL;
 }
 
+int cmp_u64(const uint64_t * a, const uint64_t * b)
+{
+    return (*a > *b) - (*b > *a);
+}
 
 void
 filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
@@ -642,57 +651,112 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   printf ("Total %" PRIu64 " columns\n", total);
   ASSERT_ALWAYS(mat->rem_ncols == mat->ncols - nbm[0]);
 
+  ASSERT_ALWAYS(mat->force_bury_below_index <= mat->nburied);
+
   int weight_buried_is_exact = 1;
   uint64_t weight_buried = 0;
   uint64_t i;
-  /* Bury heavy coloumns. The 'nburied' heaviest column are buried. */
+  uint64_t smallest_non_buried = mat->force_bury_below_index;
+  
+  /* number of columns to bury without counting those for which we
+   * already know which decision we'll take based on
+   * force_bury_below_index. Note that we mustn't count the empty columns
+   * in that range !
+   */
+  uint64_t empty_cols_in_force_bury_range = 0;
+  for(i = 0 ; i < mat->force_bury_below_index ; i++)
+      if (!mat->wt[i]) empty_cols_in_force_bury_range++;
+  uint64_t nburied2 = mat->nburied - (mat->force_bury_below_index - empty_cols_in_force_bury_range);
+
+  /* Bury heavy columns. The 'nburied' heaviest column are buried. */
   /* Buried columns are not taken into account by merge. */
   if (mat->nburied)
   {
-    uint64_t *heaviest = NULL;
-    heaviest = (uint64_t *) malloc (mat->nburied * sizeof (uint64_t));
-    ASSERT_ALWAYS(heaviest != NULL);
-    for (i = 0; i < mat->nburied; i++)
-      heaviest[i] = UMAX(uint64_t);
+      uint64_t *heaviest = NULL;
+      int32_t buried_min = SMAX(int32_t);
 
-    /* Find the 'nburied' heaviest columns */
-    for (i = 0; i < mat->ncols; i++)
-    {
-      int32_t w_cur = mat->wt[i];
-      uint64_t j = mat->nburied;
+      if (nburied2) {
+          heaviest = (uint64_t *) malloc (nburied2 * sizeof (uint64_t));
+          ASSERT_ALWAYS(heaviest != NULL);
+          for (i = 0; i < nburied2; i++)
+              heaviest[i] = UMAX(uint64_t);
 
-      while (j > 0 && (heaviest[j-1] == UMAX(uint64_t) ||
-                       w_cur > mat->wt[heaviest[j-1]]))
-      {
-        if (j < mat->nburied)
-          heaviest[j] = heaviest[j-1];
-        j--;
-      }
-      if (j < mat->nburied)
-        heaviest[j] = i;
-    }
+          /* Find the 'nburied2' heaviest columns among them which were not
+           * forced to be buried. */
+          for (i = mat->force_bury_below_index; i < mat->ncols; i++)
+          {
+              int32_t w_cur = mat->wt[i];
+              uint64_t j = nburied2;
 
-    int32_t buried_max = mat->wt[heaviest[0]];
-    int32_t buried_min = mat->wt[heaviest[mat->nburied-1]];
+              while (j > 0 && (heaviest[j-1] == UMAX(uint64_t) ||
+                          w_cur > mat->wt[heaviest[j-1]]))
+              {
+                  if (j < nburied2)
+                      heaviest[j] = heaviest[j-1];
+                  j--;
+              }
+              if (j < nburied2)
+                  heaviest[j] = i;
+          }
 
-    if (buried_max == SMAX(int32_t))
-      weight_buried_is_exact = 0;
+          int32_t buried_max = mat->wt[heaviest[0]];
+          buried_min = mat->wt[heaviest[nburied2-1]];
 
-    /* Compute weight of buried part of the matrix. */
-    for (i = 0; i < mat->nburied; i++)
-    {
-      int32_t w = mat->wt[heaviest[i]];
-      /* since we saturate the weights at 2^31-1, weight_buried might be less
-         than the real weight of buried columns, however this can occur only
-         when the number of rows exceeds 2^32-1 */
-      weight_buried += w;
+          if (buried_max == SMAX(int32_t))
+              weight_buried_is_exact = 0;
+
+          /* Compute weight of buried part of the matrix. */
+          for (i = 0; i < mat->force_bury_below_index; i++)
+          {
+              int32_t w = mat->wt[i];
+              if (w > buried_max) buried_max = w;
+              weight_buried += w;
 #if DEBUG >= 1
-      fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n",
+              fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n", i, w);
+#endif
+          }
+          for (i = 0; i < nburied2; i++)
+          {
+              int32_t w = mat->wt[heaviest[i]];
+              /* since we saturate the weights at 2^31-1, weight_buried might be less
+                 than the real weight of buried columns, however this can occur only
+                 when the number of rows exceeds 2^32-1 */
+              weight_buried += w;
+#if DEBUG >= 1
+              fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n",
                       heaviest[i], w);
 #endif
-    }
-    printf("# Number of buried columns is %" PRIu64 " (min_weight=%" PRId32 ", "
-           "max_weight=%" PRId32 ")\n", mat->nburied, buried_min, buried_max);
+          }
+
+          /* detect the smallest non-buried index. We can't do that
+           * online, because we don't keep track preciely enough of the
+           * time a column leaves the high score table.
+           *
+           * Note that we must pay attention to the columns which were
+           * taken out during singleton removal.
+           */
+          uint64_t *heaviest_indices = malloc(nburied2 * sizeof (uint64_t));
+          ASSERT_ALWAYS(heaviest_indices);
+          memcpy(heaviest_indices, heaviest, nburied2 * sizeof (uint64_t));
+          qsort(heaviest_indices, nburied2, sizeof(uint64_t), (int(*)(const void*,const void*))cmp_u64);
+          for(i = 0 ; i < nburied2 ; i++) {
+              for( ; smallest_non_buried < heaviest_indices[i] ; smallest_non_buried++)
+                  if (mat->wt[smallest_non_buried])
+                      break;
+              if (smallest_non_buried < heaviest_indices[i])
+                  break;
+              smallest_non_buried = heaviest_indices[i] + 1;
+          }
+          free(heaviest_indices);
+
+          printf("# Number of buried columns is %" PRId64 "+%" PRIu64 " (min_weight=%" PRId32 ", "
+                  "max_weight=%" PRId32 ")\n", mat->force_bury_below_index - empty_cols_in_force_bury_range, nburied2, buried_min, buried_max);
+      } else {
+          printf("# Number of buried columns is %" PRId64 "+0\n",
+                  mat->force_bury_below_index - empty_cols_in_force_bury_range);
+      }
+      printf ("# Index of the first non-buried column is %" PRIu64 " (weight %" PRId32 ")\n",
+              smallest_non_buried, mat->wt[smallest_non_buried]);
     if (weight_buried_is_exact)
       printf("# Weight of the buried part of the matrix: %" PRIu64 "\n",
              weight_buried);
@@ -701,48 +765,52 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
              weight_buried);
 
     /* Remove buried columns from rows in mat structure */
-    printf("# Start to remove buried columns from rels...\n");
-    fflush (stdout);
+    if (nburied2) {
+        printf("# Start to remove buried columns from rels...\n");
+        fflush (stdout);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for (i = 0; i < mat->nrows; i++)
-    {
-      unsigned int k = 1;
-      for (unsigned int j = 1; j <= matLengthRow(mat, i) ; j++)
-      {
-        index_t cur_id = matCell(mat, i, j);
-        int32_t w = mat->wt[cur_id];
-        unsigned int is_buried;
-        if (w < buried_min)
-          is_buried = 0;
-        else if (w > buried_min)
-          is_buried = 1;
-        else /* w == buried_min */
+        for (i = 0; i < mat->nrows; i++)
         {
-          unsigned int l = mat->nburied;
-          is_buried = 0;
-          while (l > 0 && w == mat->wt[heaviest[l-1]])
-          {
-            if (heaviest[l-1] == cur_id)
-              is_buried = 1;
-            l--;
-          }
+            unsigned int k = 1;
+            for (unsigned int j = 1; j <= matLengthRow(mat, i) ; j++)
+            {
+                index_t cur_id = matCell(mat, i, j);
+                int32_t w = mat->wt[cur_id];
+                unsigned int is_buried;
+                if (w < buried_min)
+                    is_buried = 0;
+                else if (w > buried_min)
+                    is_buried = 1;
+                else /* w == buried_min */
+                {
+                    unsigned int l = nburied2;
+                    is_buried = 0;
+                    while (l > 0 && w == mat->wt[heaviest[l-1]])
+                    {
+                        if (heaviest[l-1] == cur_id)
+                            is_buried = 1;
+                        l--;
+                    }
+                }
+                if (!is_buried) /* not a buried column */
+                {
+                    /* we can put any exponent since we don't bury columns in DL */
+                    setCell(mat->rows[i], k, cur_id, 1);
+                    k ++;
+                }
+            }
+            setCell(mat->rows[i], 0, k - 1, 1);
+            mat->rows[i] = reallocRow (mat->rows[i], k);
         }
-        if (!is_buried) /* not a buried column */
-          {
-            /* we can put any exponent since we don't bury columns in DL */
-            setCell(mat->rows[i], k, cur_id, 1);
-            k ++;
-          }
-      }
-      setCell(mat->rows[i], 0, k - 1, 1);
-      mat->rows[i] = reallocRow (mat->rows[i], k);
+        printf ("# Done\n");
     }
-    printf ("# Done\n");
 
     /* reset to 0 the weight of the buried columns */
-    for (unsigned int j = 0; j < mat->nburied; j++)
+    for (unsigned int j = 0; j < mat->force_bury_below_index; j++)
+      mat->wt[j] = 0;
+    for (unsigned int j = 0; j < nburied2; j++)
       mat->wt[heaviest[j]] = 0;
 
     /* compute the matrix weight */
@@ -750,7 +818,7 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
     for (i = 0; i < mat->nrows; i++)
       mat->weight += matLengthRow(mat, i);
 
-    free (heaviest);
+    if (nburied2) free (heaviest);
   }
   else
 

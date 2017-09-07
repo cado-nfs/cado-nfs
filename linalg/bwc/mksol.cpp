@@ -210,11 +210,11 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             bw->end = INT_MAX;
         serialize_threads(pi->m);
         if (tcan_print) {
-            fprintf(stderr, "Target iteration is unspecified ;"
+            printf ("Target iteration is unspecified ;"
                     " going to end of F file\n");
         }
     } else if (tcan_print) {
-        fprintf(stderr, "Target iteration is %u ; going to %u\n", bw->end,
+        printf ("Target iteration is %u ; going to %u\n", bw->end,
                 bw->interval * iceildiv(bw->end, bw->interval));
     }
     

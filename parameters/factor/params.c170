@@ -32,11 +32,9 @@ lpb0 = 31
 lpb1 = 31
 tasks.sieve.mfb0 = 62
 tasks.sieve.mfb1 = 93
-tasks.sieve.lambda0 = 2.1
-tasks.sieve.lambda1 = 2.8
 
 tasks.I = 15
-tasks.sieve.qrange = 10000
+tasks.sieve.qrange = 5000
 
 ###########################################################################
 # Filtering

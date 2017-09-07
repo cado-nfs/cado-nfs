@@ -140,13 +140,13 @@ public:
   ~thread_workspaces();
   void pickup_si(sieve_info& si);
   void thread_do_using_pool(thread_pool&, void * (*) (timetree_t&, thread_data *));
-  void thread_do(void * (*) (thread_data *));
+  // void thread_do(void * (*) (thread_data *));
   void buckets_alloc();
   void buckets_free();
   template <int LEVEL, typename HINT>
   double buckets_max_full();
 
-  void accumulate(las_report_ptr, sieve_checksum *);
+  void accumulate_and_clear(las_report_ptr, sieve_checksum *);
 
   template <int LEVEL, typename HINT>
   void reset_all_pointers(int side);

@@ -21,11 +21,6 @@
 #undef GF2X_HAVE_SSE2_SUPPORT
 #endif
 
-/* Define to 1 if the gmp.h header exists */
-#ifndef GF2X_HAVE_GMP_H
-#undef GF2X_HAVE_GMP_H
-#endif
-
 /* Define to 1 if the mpir.h header exists */
 #ifndef GF2X_HAVE_MPIR_H
 #undef GF2X_HAVE_MPIR_H

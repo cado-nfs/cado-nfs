@@ -1,7 +1,10 @@
-#!/bin/bash -ex
+#!/usr/bin/env bash
+
+set -e
+set -x
 
 : ${gf2x_url:=https://gforge.inria.fr/git/gf2x/gf2x.git}
-: ${gf2x_rev:=HEAD}
+: ${gf2x_rev:=gf2x-1.2.x}
 rm -rf gf2x
 
 checkout_that() {
@@ -28,4 +31,5 @@ sed -e "/^AM_MAINTAINER_MODE/ s/enable/disable/" -i gf2x/configure.ac
 (cd gf2x/ ; autoreconf -i)
 (cd gf2x/ ; xargs -r rm -f < no-distribute.txt)
 # find gf2x/ -type f | xargs -r git add
+rm -rf gf2x/jenkins
 git add gf2x/

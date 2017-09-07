@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 use Digest::MD5 qw(md5);
 # Generates $1 bytes of random crap, based on a seed.

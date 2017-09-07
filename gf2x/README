@@ -24,25 +24,16 @@ This package contains routines for fast arithmetic in GF(2)[x]
 Dependencies
 ============
 
-gf2x requires the Gnu MP (GMP) library. GMP is packaged in most major
-software distributions. You may also build it from source and install it
-from yourself, see here for further details.
+gf2x has no external dependencies.
 
-    https://gmplib.org/
-
-If you got the path of installing GMP to a custom location, this location
-must be specified to gf2x's configure script as follows:
-
-    ./configure --with-gmp=/path/which/was/given/as/a/prefix/for/gmp/build
+Some of the demos in the apps/ subdirectory require the gmp and NTL libraries.
 
 
 
 
-
-
-
-
-# The text below is outdated (dates back to gf2x 1.0 at best).
+# The text below is somewhat outdated, and was originally written for
+# gf2x 1.0 at best, and was marginally updated since. It is still
+# "reasonably accurate", but must be followed with caution.
 
 ------------------------------------------------------------------------
 Summary:
@@ -211,6 +202,19 @@ Cautious users follow steps 1 to 5 below. Urged users follow only 1 and 5.
    familiar with none of the "-Wl,-rpath,<path>" or "LD_LIBRARY_PATH"
    ways of making this work, your easiest bet is to stick to the static
    library approach.
+
+Notes for specific systems:
+===========================
+
+- ABI selection is  sometimes tricky. Be sure that you select the proper
+  combination of ABI= and CFLAGS= parameters. You must also make sure
+  that those correspond to the CFLAGS that were used by any other binary
+  object you're linking gf2x with. That applies, in particular, to the
+  GMP library if you intend to compile the files in apps/
+
+- under AIX the following might be required to build the gf2x binaries:
+
+  $ export OBJECT_MODE=64
 
 Caution regarding installation:
 ===============================

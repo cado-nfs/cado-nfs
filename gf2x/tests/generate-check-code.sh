@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This shell script may be used to generate the proper crc code with
 # magma, to be filled eventually as a magic test name in Makefile.am

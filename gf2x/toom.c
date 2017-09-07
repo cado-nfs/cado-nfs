@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "gf2x.h"
 #include "gf2x/gf2x-impl.h"
@@ -199,7 +200,7 @@ void gf2x_mul_toom(unsigned long *c, const unsigned long *a,
       {
         fprintf (stderr, "Unhandled case %d in gf2x_mul_toom\n",
                  gf2x_best_toom(n));
-        exit (1);
+        abort();
       }
     }
 #else /* GPL_CODE_PRESENT */

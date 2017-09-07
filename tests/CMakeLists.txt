@@ -37,9 +37,6 @@ add_custom_target(all_test_dependencies)
 # Note that for test X, there are some use cases where it is nice to know
 # about X_dependencies (for adding extra dependencies late), or the
 # targets X (for setting compile time definitions).
-if(CMAKE_VERSION VERSION_GREATER 3.1)
-    cmake_policy(SET CMP0054 OLD)
-endif()
 
 macro(cado_define_test)
     # This macro is appropriate for a test which consists in running a
@@ -267,7 +264,6 @@ macro(cado_define_test)
     if(nTARGET_DEPENDENCIES GREATER 0)
         add_dependencies(${TEST_NAME}_dependencies ${TARGET_DEPENDENCIES})
         add_test(builddep_${TEST_NAME} ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${TEST_NAME}_dependencies)
-        # set(${TEST_NAME}_has_build_depends 1)
     endif()
 
     if (nSCRIPT EQUAL 0)
@@ -280,13 +276,14 @@ macro(cado_define_test)
         set(${TEST_NAME}_EXECUTABLE ${binary})
     endif()
 
+    set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
+
     if(NOT NO_DEFAULT_RUN)
         set(add_test_args NAME ${TEST_NAME} COMMAND ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
         if(nWORKING_DIRECTORY GREATER 0)
             list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
         add_test(${add_test_args})
-        set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
         set(${TEST_NAME}_TEST_EXISTS 1)
         if(nTARGET_DEPENDENCIES GREATER 0)
             # seems that we need set_tests_properties to take only a
@@ -295,10 +292,6 @@ macro(cado_define_test)
             string_join(all_deps ";" ${deps})
             set_tests_properties (${TEST_NAME} PROPERTIES DEPENDS "${all_deps}")
         endif()
-    else()
-        # just in case we defined default arguments.
-        list(LENGTH ARGUMENTS nARGUMENTS)
-        set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
     endif()
 endmacro()
 
@@ -313,6 +306,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     #           TARGET_DEPENDENCIES
     #           ARGUMENTS
     #           APPEND_ARGUMENTS
+    #           NO_DEFAULT_RUN (useful if we want to divert further !)
     #
     # example use:
     #
@@ -334,6 +328,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(APPEND_ARGUMENTS)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
+    set(NO_DEFAULT_RUN)
     set(current ARGUMENTS)
     foreach(x ${ARGN})
         if (x STREQUAL "ARGUMENTS")
@@ -344,6 +339,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             SET(current TEST_DEPENDENCIES)
         elseif (x STREQUAL "TARGET_DEPENDENCIES")
             SET(current TARGET_DEPENDENCIES)
+        elseif (x STREQUAL "NO_DEFAULT_RUN")
+            SET(current NO_DEFAULT_RUN)
+            # special, because it's a flag, really
+            set(NO_DEFAULT_RUN 1)
         else()
             list(APPEND ${current} ${x})
         endif()
@@ -352,37 +351,43 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
     list(LENGTH ARGUMENTS nARGUMENTS)
     list(LENGTH APPEND_ARGUMENTS nAPPEND_ARGUMENTS)
+    list(LENGTH NO_DEFAULT_RUN nNO_DEFAULT_RUN)
     if ((nAPPEND_ARGUMENTS GREATER 0) AND (nARGUMENTS GREATER 0))
         message(FATAL_ERROR "ARGUMENTS and APPEND_ARGUMENTS are incompatible")
     endif()
 
     set(TEST_NAME "${TEST_BASE}_${DIVERSION}")
+
     if (nAPPEND_ARGUMENTS GREATER 0)
         set(ARGUMENTS ${${TEST_BASE}_ARGUMENTS} ${APPEND_ARGUMENTS})
         list(LENGTH ARGUMENTS nARGUMENTS)
     endif()
-    add_test(${TEST_NAME} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
-
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
     add_custom_target(${TEST_NAME}_dependencies)
+    add_dependencies(all_test_dependencies ${TEST_NAME}_dependencies)
+    add_dependencies(${TEST_NAME}_dependencies ${TEST_BASE}_dependencies ${TARGET_DEPENDENCIES})
     add_test(builddep_${TEST_NAME} ${CMAKE_COMMAND} --build
         ${CMAKE_BINARY_DIR} --target ${TEST_NAME}_dependencies)
 
-    add_dependencies(${TEST_NAME}_dependencies ${TEST_BASE}_dependencies ${TARGET_DEPENDENCIES})
-    # set("${TEST_NAME}_has_build_depends" 1)
 
-    # prepare a ;-separated list for set_tests_properties
-    # note that we do not need to make the test depend on
-    # builddep_${TEST_BASE}, since we have made ${TEST_NAME}_dependencies
-    # depend on ${TEST_BASE}_dependencies. It's in fact relieving, given
-    # that builddep_${TEST_BASE} does not necessarily exist.
-    set(deps builddep_${TEST_NAME} ${TEST_DEPENDENCIES})
-    if(${TEST_BASE}_TEST_EXISTS)
-        list(APPEND deps ${TEST_BASE})
+    set(${TEST_NAME}_EXECUTABLE ${${TEST_BASE}_EXECUTABLE})
+    set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
+
+    if(NOT NO_DEFAULT_RUN)
+        add_test(${TEST_NAME} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
+        # prepare a ;-separated list for set_tests_properties
+        # note that we do not need to make the test depend on
+        # builddep_${TEST_BASE}, since we have made ${TEST_NAME}_dependencies
+        # depend on ${TEST_BASE}_dependencies. It's in fact relieving, given
+        # that builddep_${TEST_BASE} does not necessarily exist.
+        set(deps builddep_${TEST_NAME} ${TEST_DEPENDENCIES})
+        if(${TEST_BASE}_TEST_EXISTS)
+            list(APPEND deps ${TEST_BASE})
+        endif()
+        string_join(all_deps ";" ${deps})
+        set_tests_properties (${TEST_NAME} PROPERTIES DEPENDS "${all_deps}")
     endif()
-    string_join(all_deps ";" ${deps})
-    set_tests_properties (${TEST_NAME} PROPERTIES DEPENDS "${all_deps}")
 endmacro()
 
 
@@ -403,10 +408,10 @@ cado_define_test(full_c30
         # see linalg/bwc/CMakeLists.txt for an explanation
         cado_define_test(full_p30
             SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
-            -dlp -ell 101538509534246169632617439
+            -dlp -ell 445257213376519703258944813
             -t 2 -dlp-no-keep
             target=92800609832959449330691138186
-            191907783019725260605646959711
+            3037544709654617415632521514287
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals)
@@ -446,6 +451,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         )
+        if (BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
 #        (quicker) tests cover everything covered by this test.
 #        cado_define_test(full_p59
@@ -455,26 +461,27 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
 #            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-#            plingen_pz sm reconstructlog-dl merge-dl replay-dl
+#            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
 #        )
         cado_define_test(test_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl)
+            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals)
         cado_define_test(test_gfp2
             SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl
+            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
             filter_galois polyselect_gfpn)
         cado_define_test(test_gfp2_2_2g
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl
+            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
 	    filter_galois)
+    endif()
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

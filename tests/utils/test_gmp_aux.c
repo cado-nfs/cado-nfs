@@ -303,6 +303,29 @@ test_mpz_ndiv_q (const unsigned long iter)
   mpz_clear (t);
 }
 
+static void
+test_ulong_nextcomposite (void)
+{
+  unsigned long q;
+
+  q = ulong_nextcomposite (2, 2);
+  ASSERT_ALWAYS(q == 4);
+
+  q = ulong_nextcomposite (2, 3);
+  ASSERT_ALWAYS(q == 9);
+
+  q = ulong_nextcomposite (2, 4);
+  ASSERT_ALWAYS(q == 25);
+
+  q = ulong_nextcomposite (1000000, 1000);
+  ASSERT_ALWAYS(q == 1018081);
+
+  q = 1000000-1;
+  for (int i = 0; i < 1000; i++)
+    q = ulong_nextcomposite (q+1, 1000);
+  ASSERT_ALWAYS(q == 1475069);
+}
+
 int
 main (int argc, const char *argv[])
 {
@@ -320,6 +343,7 @@ main (int argc, const char *argv[])
   test_ulong_nextprime (iter / 20);
   test_nbits ();
   test_mpz_ndiv_q (iter);
+  test_ulong_nextcomposite ();
   tests_common_clear ();
   exit (EXIT_SUCCESS);
 }

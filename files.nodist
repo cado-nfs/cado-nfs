@@ -31,12 +31,12 @@ scripts/opal-test/las_run.py
 scripts/opal-test/report.py
 scripts/opal-test/README
 scripts/opal-test/optimize.sh
+scripts/opal-test/optimize_all
 scripts/opal-test/las_decl_template.py
 polyselect/gfp2dlpolyselect_notes.txt
 polyselect/gfpkdlpolyselect_test.c
 polyselect/makefile_gfpkdl.make
 polyselect/template-header.c
-polyselect/alpha.mpl
 polyselect/alpha.sage
 polyselect/debug_rootsieve.sage
 polyselect/dlpolyselect.c

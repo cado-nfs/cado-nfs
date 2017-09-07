@@ -25,6 +25,7 @@ import logging
 import socket
 import signal
 import re
+import base64
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -131,64 +132,39 @@ else:
             """ Do nothing """
             pass
 
+# Now for 150+ lines of anger.
+#
 # In Python 3.0, 3.1, 3.2.x < 3.2.4, 3.3.x < 3.3.1, use a fixed BytesGenerator
 # which accepts a bytes input. The fact that the BytesGenerator in these Python
 # versions doesn't is a bug, see http://bugs.python.org/issue16564
+#
 # Update: the first bugfix committed in that bugtracker and shipped in Python
 # versions 3.2.4, 3.2.5, 3.3.2, ... is still buggy, see
 # http://bugs.python.org/issue19003
 # and we have to use a different work-around...
+#
+# Update:
+# http://cado-nfs.gforge.inria.fr/bug.php?21408
+#
+#
+# Rather than keep a list of faulty versions, we'll try to auto-detect
+# them at startup.
+#
+# For the record, here are the version where bugfix 1 is alright.
+# (3,0,0), (3,0,1),
+# (3,1,0), (3,1,1), (3,1,2), (3,1,3), (3,1,4), (3,1,5),
+# (3,2,0), (3,2,1), (3,2,2), (3,2,3),
+# (3,3,0)
 
-# These Python version have bug type #1
-BUGGY_MIMEENCODER1 = (
-    (3,0,0), (3,0,1),
-    (3,1,0), (3,1,1), (3,1,2), (3,1,3), (3,1,4), (3,1,5),
-    (3,2,0), (3,2,1), (3,2,2), (3,2,3),
-    (3,3,0)
-)
-BUGGY_MIMEENCODER2 = object()
+candidates_for_BytesGenerator=[]
 
-def test_buggy_mime_encoder():
-    """ Return which kind of bug the MIME encoder in this Python version has
-
-    If it is bug type 1 (the original bug), return BUGGY_MIMEENCODER1.
-    If it is bug type 2 (the incorrectly fixed one, which mangles newlines),
-    return BUGGY_MIMEENCODER2.
-    Otherwise return None.
-    """
-
-    # The version 2 encoder is ok, afaik
-    if tuple(sys.version_info)[0] == 2:
-        return None
-
-    # This bug type 1 was replaced by bug type 2 in all Python branches,
-    # so it should occur only in a well-known set of versions
-    if tuple(sys.version_info)[0:3] in BUGGY_MIMEENCODER1:
-        return BUGGY_MIMEENCODER1
-
-    # The "bug 2" type of encoder inserts a '\n' character after the '\x0b'
-    bytesdata = b'a\x0bb'
-    msg = MIMEApplication(bytesdata, _encoder=email.encoders.encode_noop)
-    s = BytesIO()
-    g = email.generator.BytesGenerator(s)
-    g.flatten(msg)
-    wireform = s.getvalue()
-    msg2 = email.message_from_bytes(wireform)
-    decoded = msg2.get_payload(decode=True)
-    # If the decoded data is neither correct, nor mangled in the way the
-    # bug 2 does, then it's some bug we don't know about yet - bail out
-    assert decoded == bytesdata or decoded == b'a\x0b\nb'
-    if decoded != bytesdata:
-        return BUGGY_MIMEENCODER2
-    else:
-        return None
-
-HAVE_WGET = False
-HAVE_CURL = False
-
-ENCODERBUG = test_buggy_mime_encoder()
-if ENCODERBUG is BUGGY_MIMEENCODER1:
-    class FixedBytesGenerator(email.generator.BytesGenerator):
+if sys.version_info[0] == 2:
+    # We're not using the list for python2 anyway, but let's keep the
+    # "default" version here.
+    candidates_for_BytesGenerator.append(email.generator.Generator)
+else:
+    candidates_for_BytesGenerator.append(email.generator.BytesGenerator)
+    class Version1FixedBytesGenerator(email.generator.BytesGenerator):
         # pylint: disable=W0232
         # pylint: disable=E1101
         # pylint: disable=E1102
@@ -201,19 +177,20 @@ if ENCODERBUG is BUGGY_MIMEENCODER1:
                 # Payload is bytes, output is bytes - just write them
                 self._fp.write(payload)
             elif isinstance(payload, str):
-                super(FixedBytesGenerator, self)._handle_text(msg)
+                super(Version1FixedBytesGenerator, self)._handle_text(msg)
             else:
                 # Payload is neither bytes nor string - this can't be right
                 raise TypeError('bytes payload expected: %s' % type(payload))
         _writeBody = _handle_bytes
-elif ENCODERBUG is BUGGY_MIMEENCODER2:
+    candidates_for_BytesGenerator.append(Version1FixedBytesGenerator)
+
     if tuple(sys.version_info)[0:2] == (3, 2):
         from email.message import _has_surrogates
     else:
         from email.utils import _has_surrogates
-    import re
+
     fcre = re.compile(r'^From ', re.MULTILINE)
-    class FixedBytesGenerator(email.generator.BytesGenerator):
+    class Version2FixedBytesGenerator(email.generator.BytesGenerator):
         # pylint: disable=W0232
         # pylint: disable=E1101
         # pylint: disable=E1102
@@ -234,16 +211,106 @@ elif ENCODERBUG is BUGGY_MIMEENCODER2:
                 self.write(msg._payload)
             else:
                 super()._handle_text(msg)
-elif sys.version_info[0] == 2:
-    # In Python 2.x, use the regular email generator
-    # pylint: disable=C0103
-    FixedBytesGenerator = email.generator.Generator
-else:
-    # In other Python versions, use the (hopefully) bug-fixed bytes generator
-    # pylint: disable=E1101
-    # pylint: disable=C0103
-    FixedBytesGenerator = email.generator.BytesGenerator
+    candidates_for_BytesGenerator.append(Version2FixedBytesGenerator)
 
+    class Version3FixedBytesGenerator(email.generator.BytesGenerator):
+        # pylint: disable=W0232
+        # pylint: disable=E1101
+        # pylint: disable=E1102
+        # pylint: disable=E1002
+        def _handle_application(self, msg):
+            # If the string has surrogates the original source was bytes,
+            # so just write it back out.
+
+            # Python 3.2 does not have the policy attribute; we use the
+            # fixed generator in this case
+            cte_is_7bit = getattr(self, "policy.cte_type", None) == '7bit'
+            if msg._payload is None:
+                return
+            if not cte_is_7bit:
+                if self._mangle_from_:
+                    msg._payload = fcre.sub(">From ", msg._payload)
+                # DON'T use _write_lines() here as that mangles data
+                self.write(msg._payload)
+            else:
+                super()._handle_text(msg)
+    candidates_for_BytesGenerator.append(Version3FixedBytesGenerator)
+
+
+def find_working_bytesgenerator():
+    """ Return a working bytesgenerator if we have one.
+    Otherwise return None.
+    """
+
+    if tuple(sys.version_info)[0] == 2:
+        return email.generator.Generator
+
+    # We use several test strings.
+    # 32-byte string, so that it displays nicely in hex dumps.
+    test_strings=[]
+    test_bytes = b'MATCH_ME\x0d\x0a--\x0d#\x0a*\xc0\x0b\xaa\xab0123456789ab'
+    test_strings.append(test_bytes + test_bytes)
+    test_bytes = b'MATCH_ME\x0d\x0a--\x0b#\x0b*'
+    test_strings.append(test_bytes + test_bytes)
+
+    wrong=[]
+    regexp=re.compile(b'MATCH_ME')
+    for byte_generator in candidates_for_BytesGenerator:
+        # print("Testing with %s" % str(byte_generator))
+        def test_one_string(test_bytes, byte_generator):
+            enc = email.encoders.encode_noop
+            msg = MIMEApplication(test_bytes, _encoder=enc)
+            s = BytesIO()
+            g = byte_generator(s)
+            g.flatten(msg)
+            wireform = s.getvalue()
+            msg2 = email.message_from_bytes(wireform)
+            postdata = msg2.get_payload(decode=True)
+            # At this point test_bytes should be a substring of postdata
+            s = re.search(regexp, postdata)
+            if not s:
+                return False, postdata
+            if s.start() + len(test_bytes) > len(postdata):
+                return False, postdata
+            if postdata[s.start() : s.start() + len(test_bytes)] != test_bytes:
+                return False, postdata
+            return True, None
+
+        def test_all_strings(byte_generator):
+            for test_bytes in test_strings:
+                t, v = test_one_string(test_bytes, byte_generator)
+                if not t:
+                    wrong.append((byte_generator, test_bytes, v))
+                    return False
+            return True
+
+        if test_all_strings(byte_generator):
+            # print("Found working encoder: %s" % str(byte_generator))
+            return byte_generator
+
+    logging.error("None of our byte generators work")
+    logging.error("See bug #21408")
+    logging.error("http://cado-nfs.gforge.inria.fr/bug.php?21408")
+    for gtp in wrong:
+        byte_generator, test_bytes, postdata = gtp
+        logging.error("Example of a failing test with %s:" % str(byte_generator))
+        logging.error("Original payload")
+        info = base64.b64encode(test_bytes)
+        info = [info[i:i+70] for i in range(0, len(info), 70)]
+        for x in info:
+            logging.error(x.decode('ascii'))
+        logging.error("Encoded payload")
+        info = base64.b64encode(postdata)
+        info = [info[i:i+70] for i in range(0, len(info), 70)]
+        for x in info:
+            logging.error(x.decode('ascii'))
+    sys.exit(1)
+
+
+HAVE_WGET = False
+HAVE_CURL = False
+
+FixedBytesGenerator = find_working_bytesgenerator()
 
 # Under Python 2, subclass urllib2.HTTPSHandler and httplib.HTTPSConnection
 # and check the certificate and server subject identity when opening a HTTPS
@@ -1489,10 +1556,9 @@ if __name__ == '__main__':
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
 
-    if ENCODERBUG is BUGGY_MIMEENCODER1:
-        logging.info("Using work-around #1 for buggy BytesGenerator")
-    elif ENCODERBUG is BUGGY_MIMEENCODER2:
-        logging.info("Using work-around #2 for buggy BytesGenerator")
+    if FixedBytesGenerator != candidates_for_BytesGenerator[0]:
+        logging.info("Using work-around %s for buggy BytesGenerator" %
+                FixedBytesGenerator)
 
     (scheme, netloc) = urlparse(SETTINGS["SERVER"])[0:2]
     still_need_cert = False # This will be set to True if we need the certi-

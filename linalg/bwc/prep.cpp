@@ -405,12 +405,18 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         ASSERT_ALWAYS(bw->dir == 1);
         ASSERT_ALWAYS(mmt->nmatrices == 1);
         for(unsigned int i = 0 ; i < nrhs ; i++) {
-            xvecs[i] = balancing_pre_shuffle(mmt->matrices[0]->bal, mmt->n0[!bw->dir]-nrhs+i);
-            printf("Forced %d-th x vector to be the %" PRIu32"-th canonical basis vector\n", i, xvecs[i]);
-            ASSERT_ALWAYS(xvecs[i] >= (uint32_t) (bw->m - nrhs));
+            xvecs[i * my_nx] = balancing_pre_shuffle(mmt->matrices[0]->bal, mmt->n0[!bw->dir]-nrhs+i);
+            printf("Forced %d-th x vector to be the %" PRIu32"-th canonical basis vector\n", i, xvecs[i * my_nx]);
+            ASSERT_ALWAYS(xvecs[i * my_nx] >= (uint32_t) (bw->m - nrhs));
+            for(unsigned int j = 1 ; j < my_nx ; j++) {
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+            }
         }
         for(int i = (int) nrhs ; i < bw->m ; i++) {
-            xvecs[i] = i - nrhs;
+            xvecs[i * my_nx] = i - nrhs;
+            for(unsigned int j = 1 ; j < my_nx ; j++) {
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+            }
         }
         /* save_x operates only on the leader thread */
         save_x(xvecs, bw->m, my_nx, pi);

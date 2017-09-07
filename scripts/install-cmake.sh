@@ -3,7 +3,7 @@
 # This installs cmake if it is not found in the current system
 
 name=cmake
-version=2.8.6
+version=2.8.12
 package=${name}-${version}.tar.gz
 url=http://www.cmake.org/files/v2.8/${package}
 
@@ -17,11 +17,11 @@ cd $tmpdir
 rm -f ${package}
 wget="`which wget 2>/dev/null`"
 if [ "$?" = "0" ] ; then
-    wget $url
+    wget --no-check-certificate $url
 else
     curl="`which curl 2>/dev/null`"
     if [ "$?" = "0" ] ; then
-        curl -L $url > $package
+        curl -kL $url > $package
     else
         echo "Need either wget or curl to get $url" >&2
         exit 1

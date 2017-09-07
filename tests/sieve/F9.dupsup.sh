@@ -18,6 +18,7 @@ ndup_ref=`$cmd -dup | grep "DUPE " | wc -l`
 let ndup_ref=ndup_ref
 if [ "$ndup_ref" != "12" ]; then
     echo "Wrong number of duplicates in las -dup"
+    echo "Expected 12, got $ndup_ref"
     exit 1
 fi
 
@@ -40,6 +41,7 @@ ndup=`$cmd | grep "DUPE " | wc -l`
 let ndup=ndup
 if [ "$ndup" != "12" ]; then
     echo "Wrong number of duplicates in dupsup"
+    echo "Expected 12, got $ndup"
     exit 1
 fi
 

@@ -198,6 +198,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
   res->coeff[0] = -20.0 * a4 * a4 * a5 * a5 + 50.0 * a3 * a5 * a5 * a5
                   + 64.0 * a4 * a4 * a4 * a6 - 180.0 * a3 * a4 * a5 * a6
                   + 135.0 * a3 * a3 * a6 * a6;
+  double_poly_cleandeg(res, 3);
 
   /* compute real roots of res:
      (1) if a6*a4 < 0, usually we have 2 "small" real roots (almost opposite)
@@ -241,6 +242,8 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       double double_roots_k[5];
       unsigned int nb_k_roots;
 
+      double_poly_realloc(C, 5);
+
       if (i >= nb_q3roots)
         {
           q3_rat = (double) a / (double) b;
@@ -271,10 +274,10 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
         }
 
       /* find roots k of c4(k, q3=q3_rat) */
-      C->deg = 2;
       C->coeff[2] = 15.0 * a6;
       C->coeff[1] = 5.0 * a5;
       C->coeff[0] = g1 * q3_rat + a4;
+      double_poly_cleandeg(C, 2);
 
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
@@ -286,11 +289,11 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       }
 
       /* find roots k of c3(k, q3=q3_rat) */
-      C->deg = 3;
       C->coeff[3] = 20.0 * a6;
       C->coeff[2] = 10.0 * a5;
       C->coeff[1] = g1 * q3_rat + 4.0 * a4;
       C->coeff[0] = q3_rat * g0 + a3;
+      double_poly_cleandeg(C, 3);
 
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
@@ -314,12 +317,12 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
             c2 = ff.coefficient({x:2})
             c3.resultant(c2,q2)
       */
-      C->deg = 4;
       C->coeff[4] = -5.0 * a6 * g1;
       C->coeff[3] = -20.0 * a6 * g0;
       C->coeff[2] = -g1 * g1 * q3_rat - 10.0 * a5 * g0 + 2.0 * g1 * a4;
       C->coeff[1] = 2.0 * g1 * a3 - 2.0 * g1 * q3_rat * g0 - 4.0 * g0 * a4;
       C->coeff[0] = -q3_rat * g0 * g0 - g0 * a3 + g1 * a2;
+      double_poly_cleandeg(C, 4);
 
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
@@ -366,18 +369,18 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       C->coeff[2] = -225*a6*a6*g1*g1*g1*g1*g1*roots_q[i]*roots_q[i]*roots_q[i] + (15750*a6*a6*a6*m0*m0*g1*g1 + 5250*a5*a6*a6*m0*g1*g1*g1 - 500*a5*a5*a6*g1*g1*g1*g1 + 2250*a4*a6*a6*g1*g1*g1*g1)*roots_q[i]*roots_q[i] + (20000*a5*a5*a6*a6*m0*m0*g1 - 48000*a4*a6*a6*a6*m0*m0*g1 + 10000*a5*a5*a5*a6*m0*g1*g1 - 28000*a4*a5*a6*a6*m0*g1*g1 + 18000*a3*a6*a6*a6*m0*g1*g1 + 2000*a4*a5*a5*a6*g1*g1*g1 - 7200*a4*a4*a6*a6*g1*g1*g1 + 5000*a3*a5*a6*a6*g1*g1*g1 - 4000*a2*a6*a6*a6*g1*g1*g1)*roots_q[i] - 50000*a5*a5*a5*a5*a6*m0*m0 + 240000*a4*a5*a5*a6*a6*m0*m0 - 192000*a4*a4*a6*a6*a6*m0*m0 - 240000*a3*a5*a6*a6*a6*m0*m0 + 480000*a2*a6*a6*a6*a6*m0*m0 - 20000*a4*a5*a5*a5*a6*m0*g1 + 80000*a4*a4*a5*a6*a6*m0*g1 + 10000*a3*a5*a5*a6*a6*m0*g1 - 216000*a3*a4*a6*a6*a6*m0*g1 + 160000*a2*a5*a6*a6*a6*m0*g1 - 2000*a4*a4*a5*a5*a6*g1*g1 + 7200*a4*a4*a4*a6*a6*g1*g1 - 1000*a3*a4*a5*a6*a6*g1*g1 + 5000*a2*a5*a5*a6*a6*g1*g1 - 33750*a3*a3*a6*a6*a6*g1*g1 + 20000*a2*a4*a6*a6*a6*g1*g1;
       C->coeff[1] = (-18000*a6*a6*a6*m0*m0*m0*g1 - 9000*a5*a6*a6*m0*m0*g1*g1 - 3600*a4*a6*a6*m0*g1*g1*g1 - 900*a3*a6*a6*g1*g1*g1*g1)*roots_q[i]*roots_q[i]*roots_q[i] + (-15000*a5*a5*a6*a6*m0*m0*m0 + 36000*a4*a6*a6*a6*m0*m0*m0 - 20000*a5*a5*a5*a6*m0*m0*g1 + 63000*a4*a5*a6*a6*m0*m0*g1 - 67500*a3*a6*a6*a6*m0*m0*g1 - 8000*a4*a5*a5*a6*m0*g1*g1 + 25200*a4*a4*a6*a6*m0*g1*g1 - 7500*a3*a5*a6*a6*m0*g1*g1 - 30000*a2*a6*a6*a6*m0*g1*g1 - 2000*a3*a5*a5*a6*g1*g1*g1 + 6300*a3*a4*a6*a6*g1*g1*g1 - 5000*a2*a5*a6*a6*g1*g1*g1)*roots_q[i]*roots_q[i] + (8000*a4*a4*a5*a5*a6*m0*g1 - 20000*a3*a5*a5*a5*a6*m0*g1 - 28800*a4*a4*a4*a6*a6*m0*g1 + 84000*a3*a4*a5*a6*a6*m0*g1 - 20000*a2*a5*a5*a6*a6*m0*g1 - 81000*a3*a3*a6*a6*a6*m0*g1 + 48000*a2*a4*a6*a6*a6*m0*g1 + 2000*a3*a4*a5*a5*a6*g1*g1 - 10000*a2*a5*a5*a5*a6*g1*g1 - 7200*a3*a4*a4*a6*a6*g1*g1 + 4500*a3*a3*a5*a6*a6*g1*g1 + 32000*a2*a4*a5*a6*a6*g1*g1 - 36000*a2*a3*a6*a6*a6*g1*g1)*roots_q[i] + 16000*a4*a4*a4*a5*a5*a6*m0- 60000*a3*a4*a5*a5*a5*a6*m0+ 100000*a2*a5*a5*a5*a5*a6*m0- 57600*a4*a4*a4*a4*a6*a6*m0+ 240000*a3*a4*a4*a5*a6*a6*m0+ 15000*a3*a3*a5*a5*a6*a6*m0- 480000*a2*a4*a5*a5*a6*a6*m0- 324000*a3*a3*a4*a6*a6*a6*m0+ 384000*a2*a4*a4*a6*a6*a6*m0+ 480000*a2*a3*a5*a6*a6*a6*m0- 480000*a2*a2*a6*a6*a6*a6*m0+ 4000*a3*a4*a4*a5*a5*a6*g1 - 20000*a3*a3*a5*a5*a5*a6*g1 + 20000*a2*a4*a5*a5*a5*a6*g1 - 14400*a3*a4*a4*a4*a6*a6*g1 + 81000*a3*a3*a4*a5*a6*a6*g1 - 80000*a2*a4*a4*a5*a6*a6*g1 - 10000*a2*a3*a5*a5*a6*a6*g1 - 121500*a3*a3*a3*a6*a6*a6*g1 + 216000*a2*a3*a4*a6*a6*a6*g1 - 80000*a2*a2*a5*a6*a6*a6*g1;
       C->coeff[0] = (3375*a6*a6*a6*m0*m0*m0*m0 + 2250*a5*a6*a6*m0*m0*m0*g1 + 1350*a4*a6*a6*m0*m0*g1*g1 + 675*a3*a6*a6*m0*g1*g1*g1 + 225*a2*a6*a6*g1*g1*g1*g1)*roots_q[i]*roots_q[i]*roots_q[i]*roots_q[i] + (5000*a5*a5*a5*a6*m0*m0*m0 - 18000*a4*a5*a6*a6*m0*m0*m0 + 27000*a3*a6*a6*a6*m0*m0*m0 + 3000*a4*a5*a5*a6*m0*m0*g1 - 10800*a4*a4*a6*a6*m0*m0*g1 + 4500*a3*a5*a6*a6*m0*m0*g1 + 18000*a2*a6*a6*a6*m0*m0*g1 + 1500*a3*a5*a5*a6*m0*g1*g1 - 5400*a3*a4*a6*a6*m0*g1*g1 + 6000*a2*a5*a6*a6*m0*g1*g1 + 500*a2*a5*a5*a6*g1*g1*g1 - 675*a3*a3*a6*a6*g1*g1*g1)*roots_q[i]*roots_q[i]*roots_q[i] + (-6000*a4*a4*a5*a5*a6*m0*m0 + 15000*a3*a5*a5*a5*a6*m0*m0 + 21600*a4*a4*a4*a6*a6*m0*m0 - 63000*a3*a4*a5*a6*a6*m0*m0 + 15000*a2*a5*a5*a6*a6*m0*m0 + 60750*a3*a3*a6*a6*a6*m0*m0 - 36000*a2*a4*a6*a6*a6*m0*m0 - 3000*a3*a4*a5*a5*a6*m0*g1 + 15000*a2*a5*a5*a5*a6*m0*g1 + 10800*a3*a4*a4*a6*a6*m0*g1 - 6750*a3*a3*a5*a6*a6*m0*g1 - 48000*a2*a4*a5*a6*a6*m0*g1 + 54000*a2*a3*a6*a6*a6*m0*g1 - 1500*a3*a3*a5*a5*a6*g1*g1 + 3000*a2*a4*a5*a5*a6*g1*g1 + 4050*a3*a3*a4*a6*a6*g1*g1 - 7200*a2*a4*a4*a6*a6*g1*g1 - 3000*a2*a3*a5*a6*a6*g1*g1 + 12000*a2*a2*a6*a6*a6*g1*g1)*roots_q[i]*roots_q[i] + 6000*a3*a3*a4*a4*a5*a5*a6 - 16000*a2*a4*a4*a4*a5*a5*a6 - 20000*a3*a3*a3*a5*a5*a5*a6 + 60000*a2*a3*a4*a5*a5*a5*a6 - 50000*a2*a2*a5*a5*a5*a5*a6 - 21600*a3*a3*a4*a4*a4*a6*a6 + 57600*a2*a4*a4*a4*a4*a6*a6 + 81000*a3*a3*a3*a4*a5*a6*a6 - 240000*a2*a3*a4*a4*a5*a6*a6 - 15000*a2*a3*a3*a5*a5*a6*a6 + 240000*a2*a2*a4*a5*a5*a6*a6 - 91125*a3*a3*a3*a3*a6*a6*a6 + 324000*a2*a3*a3*a4*a6*a6*a6 - 192000*a2*a2*a4*a4*a6*a6*a6 - 240000*a2*a2*a3*a5*a6*a6*a6 + 160000*a2*a2*a2*a6*a6*a6*a6;
-
+      double_poly_cleandeg(C, 4);
 
       nb_roots_q2 += double_poly_compute_all_roots_with_bound (roots_q2, C,
                                                                SOPT_MAX_VALUE_FOR_Q_ROOTS);
       ASSERT_ALWAYS(nb_roots_q2 <= 4);
 
       /* roots of the derivative of Res(c3,c2) */
-      C->deg = 3;
       C->coeff[0] = C->coeff[1];
       C->coeff[1] = C->coeff[2] * 2.0;
       C->coeff[2] = C->coeff[3] * 3.0;
       C->coeff[3] = C->coeff[4] * 4.0;
+      double_poly_cleandeg(C, 3);
       nb_roots_q2 += double_poly_compute_all_roots_with_bound (roots_q2
                                                   + nb_roots_q2, C, SOPT_MAX_VALUE_FOR_Q_ROOTS);
       ASSERT_ALWAYS(nb_roots_q2 <= 7);
@@ -385,12 +388,12 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (ii = 0; ii < nb_roots_q2; ii++)
       {
         /* Compute roots of c2(q2=roots_q2[ii]) */
-        C->deg = 4;
         C->coeff[4] = 15.0 * a6;
         C->coeff[3] = 10.0 * a5;
         C->coeff[2] = 6.0 * a4;
         C->coeff[1] = g1 * roots_q2[ii] + 3.0 * a3;
         C->coeff[0] = a2 + g0 * roots_q2[ii];
+        double_poly_cleandeg(C, 4);
 
         m += double_poly_compute_all_roots (roots_k + m, C);
         ASSERT_ALWAYS(nb_roots_q2 <= 12+4*(ii+1));
@@ -462,6 +465,7 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
                + 25*a2^2*a5^2 */
   res->coeff[0] = -3.0*a3*a3*a4*a4 + 8.0*a2*a4*a4*a4 + 10.0*a3*a3*a3*a5
                   - 30.0*a2*a3*a4*a5 + 25.0*a2*a2*a5*a5;
+  double_poly_cleandeg(res, 2);
 
   /* compute roots of res */
   nb_q2roots = double_poly_compute_all_roots_with_bound (roots_q2, res,
@@ -519,10 +523,10 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
         fprintf (stderr, "# sopt: process rational approximation %f of %f\n",
                          q2_rat, roots_q2[i]);
 
-      C->deg = 2;
       C->coeff[2] = 10.0 * a5;
       C->coeff[1] = 4.0 * a4;
       C->coeff[0] = g1 * q2_rat + a3;
+      double_poly_cleandeg(C, 2);
 
       nb_k_roots = double_poly_compute_all_roots (double_roots_k, C);
       for (unsigned int l = 0; l < nb_k_roots; l++)
@@ -876,6 +880,7 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
   eq->coeff[2] = (double) (d * (d-1)) / 2.0 * mpz_get_d (ft->coeff[d]);
   eq->coeff[1] = (double) (d-1) * mpz_get_d (ft->coeff[d-1]);
   eq->coeff[0] = mpz_get_d (ft->coeff[d-2]);
+  double_poly_cleandeg(eq, 2);
   nroots = double_poly_compute_all_roots (roots, eq);
   for (int l = 0; l < nroots; l++)
     {
@@ -901,6 +906,7 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
   eq->coeff[2] = (double) ((d-1) * (d-2)) / 2.0 * mpz_get_d (ft->coeff[d-1]);
   eq->coeff[1] = (double) (d-2) * mpz_get_d (ft->coeff[d-2]);
   eq->coeff[0] = mpz_get_d (ft->coeff[d-3]);
+  double_poly_cleandeg (eq, 3);
   nroots = double_poly_compute_all_roots (roots, eq);
   for (int l = 0; l < nroots; l++)
     {

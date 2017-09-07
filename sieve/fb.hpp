@@ -20,28 +20,6 @@
 #include "las-plattice.hpp"
 #include "las-base.hpp"
 
-// If a plain-old data type T inherits from _padded_pod<T>, it ensures that all
-// the sizeof(T) bytes of any instance of T will be initialized, even if its
-// data members do not occupy the whole memory region.
-// For instance, this allows one to write `fwrite(&x, sizeof(T), 1, f)' without
-// Valgrind complaining because of uninitialized memory reads.
-template <typename T>
-class _padded_pod {
-  public:
-    _padded_pod() {
-      memset(this,  0, sizeof(T));
-    }
-
-    _padded_pod(const _padded_pod &x) {
-      memcpy(this, &x, sizeof(T));
-    }
-
-    const _padded_pod &operator=(const _padded_pod &x) {
-      memcpy(this, &x, sizeof(T));
-      return *this;
-    }
-};
-
 /* Forward declaration so fb_general_entry can use it in constructors */
 template <int Nr_roots>
 class fb_entry_x_roots;
@@ -254,7 +232,10 @@ class fb_vector_interface: public fb_interface {
   virtual void extract_bycost(std::vector<unsigned long> &extracted, fbprime_t pmax, fbprime_t td_thresh) const = 0;
   virtual void finalize() = 0;
   /* Create slices so that one slice contains at most max_slice_len entries,
-     and all entries in a slice have the same round(fb_log(p, scale)) */
+   * and all entries in a slice have the same round(fb_log(p, scale)).
+   * scale is the quantity by which we multiply the log_2 of the primes we
+   * consider.
+   */
   virtual void make_slices(double scale, double max_weight,
                            slice_index_t &next_index) = 0;
   virtual const fb_slice_interface *get_first_slice() const = 0;
@@ -460,8 +441,7 @@ class fb_part: public fb_interface, private NonCopyable {
       default: abort();
     }
   }
-  /* (^$#&$@! C++ */
-  const fb_vector_interface *cget_slices(const unsigned int n) const {
+  const fb_vector_interface *get_slices(const unsigned int n) const {
     ASSERT_ALWAYS(n <= MAX_DEGREE);
     
     if (only_general)
@@ -502,7 +482,7 @@ public:
     const fb_slice_interface *slice = NULL;
     if (!only_general) {
       for (unsigned int nr_roots = 0; slice == NULL && nr_roots <= MAX_DEGREE; nr_roots++) {
-        const fb_vector_interface *slices = cget_slices(nr_roots);
+        const fb_vector_interface *slices = get_slices(nr_roots);
         if (slices != NULL)
           slice = slices->get_first_slice();
       }
@@ -520,7 +500,7 @@ public:
   }
   const fb_slice_interface *get_slice(const slice_index_t slice_idx) const {
     for (unsigned int nr_roots = 0; nr_roots <= MAX_DEGREE; nr_roots++) {
-      const fb_vector_interface *slices = cget_slices(nr_roots);
+      const fb_vector_interface *slices = get_slices(nr_roots);
       if (slices != NULL) {
         const fb_slice_interface *slice;
         if ((slice = slices->get_slice(slice_idx)) != NULL) return slice;
@@ -578,7 +558,8 @@ class fb_factorbase: public fb_interface, private NonCopyable {
 };
 
 
-unsigned char	fb_log (double, double, double);
+/* round(x*y-z) */
+unsigned char	fb_log (double x, double y, double z);
 fbprime_t       fb_pow (fbprime_t, unsigned long);
 fbprime_t       fb_is_power (fbprime_t, unsigned long *);
 void print_worst_weight_errors();

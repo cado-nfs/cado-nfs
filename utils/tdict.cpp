@@ -1,8 +1,11 @@
 #include "cado.h"
+#include <pthread.h>
 #include "tdict.hpp"
 #include "params.h"
 
 int tdict::global_enable = 0;
+
+pthread_mutex_t tdict::slot_base::m = PTHREAD_MUTEX_INITIALIZER;
 
 void tdict_decl_usage(param_list pl)
 {

@@ -9,14 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef  GF2X_HAVE_GMP_H
-#include <gmp.h>
-#elif defined(GF2X_HAVE_MPIR_H)
-#include <mpir.h>
-#else
-#error "make sure gf2x-config-export.h is included before gf2x-cantor-fft.h or mpfq/<anything>.h"
+#ifndef GF2X_WORDSIZE
+#error "This file has been modified for use within gf2x. Please arrange so that gf2x-small.h is included before this file"
 #endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,38 +22,22 @@ extern "C" {
 /*** Constants for field_specify ***/
 
 #define MPFQ_DONE 0             /* At the end of the variadic option functions */
-#define MPFQ_PRIME_MPN 1        /* mp_limb_t *, size depending on implementation. Prefer MPFQ_PRIME_MPZ */
+// #define MPFQ_PRIME_MPN 1        /* mp_limb_t *, size depending on implementation. Prefer MPFQ_PRIME_MPZ */
 #define MPFQ_POLYNOMIAL 2       /* this expects an mpfq polynomial */
 #define MPFQ_DEGREE 3           /* int */
 #define MPFQ_IO_TYPE 4          /* for setopt */
 #define MPFQ_GROUPSIZE 5        /* int (SIMD group size) */
-#define MPFQ_PRIME_MPZ 6        /* mpz_t */
+// #define MPFQ_PRIME_MPZ 6        /* mpz_t */
 #define MPFQ_MANDATORY_TAG 7    /* force the tag to be this one ; this is
                                  * of course pointless for the low-level
                                  * implementation, but
                                  * mpfq_vbase_oo_field_init_byfeatures
                                  * uses it. */
 
-#define BUILD_BITMASK(x) ((x) == GMP_LIMB_BITS ? ((mp_limb_t) - 1) : (~ - ((mp_limb_t) 1 << (x))))
-
 #define LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
 #define LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && LEXGE2(Y,Z,B,C)))
 #define LEXLE2(X,Y,A,B) LEXGE2(A,B,X,Y)
 #define LEXLE3(X,Y,Z,A,B,C) LEXGE3(A,B,C,X,Y,Z)
-
-#ifndef GMP_VERSION_ATLEAST
-#define GMP_VERSION_ATLEAST(X,Y,Z)     \
-    (defined(__GNU_MP__) &&        \
-LEXGE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z))
-#endif
-
-#ifndef GMP_VERSION_ATMOST
-#define GMP_VERSION_ATMOST(X,Y,Z)     \
-    (defined(__GNU_MP__) &&        \
-LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z))
-#endif
-
-
 
 #ifndef GNUC_VERSION
 #ifndef __GNUC__
@@ -70,17 +49,22 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 
 #ifndef GNUC_VERSION_ATLEAST
+#ifndef __GNUC__
+#define GNUC_VERSION_ATLEAST(X,Y,Z) 0
+#else
 #define GNUC_VERSION_ATLEAST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
 LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+#endif
 #endif
 
 #ifndef GNUC_VERSION_ATMOST
+#ifndef __GNUC__
+#define GNUC_VERSION_ATMOST(X,Y,Z) 0
+#else
 #define GNUC_VERSION_ATMOST(X,Y,Z)     \
-    defined(__GNUC__) &&        \
 LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #endif
-
+#endif
 
 /* typedef unsigned long ulong; */
 
@@ -137,24 +121,24 @@ static inline int mpfq_clzl(unsigned long x)
         static const int t[4] = { 2, 1, 0, 0 };
         int a = 0;
         int res;
-#if (GMP_LIMB_BITS == 64)
+#if (GF2X_WORDSIZE == 64)
         if (x >> 32) { a += 32; x >>= 32; }
 #endif  
         if (x >> 16) { a += 16; x >>= 16; }
         if (x >>  8) { a +=  8; x >>=  8; }
         if (x >>  4) { a +=  4; x >>=  4; }
         if (x >>  2) { a +=  2; x >>=  2; }
-        res = GMP_LIMB_BITS - 2 - a + t[x];
+        res = GF2X_WORDSIZE - 2 - a + t[x];
         return res;
 }
 static inline int mpfq_ctzl(unsigned long x)
 {
-	return GMP_LIMB_BITS - mpfq_clzl(x & - x);
+	return GF2X_WORDSIZE - mpfq_clzl(x & - x);
 }
 static inline int mpfq_parityl(unsigned long x)
 {
 	static const int t[4] = { 0, 1, 1, 0, };
-#if (GMP_LIMB_BITS == 64)
+#if (GF2X_WORDSIZE == 64)
 	x ^= (x >> 32);
 #endif
 	x ^= (x >> 16);
@@ -185,7 +169,7 @@ static inline int mpfq_parityl(unsigned long x)
 static inline int mpfq_clzlx(unsigned long * x, int n)
 {
 	int r = 0;
-	for( ; n > 0 && MPFQ_UNLIKELY(!x[n-1]) ; --n) r+=GMP_LIMB_BITS;
+	for( ; n > 0 && MPFQ_UNLIKELY(!x[n-1]) ; --n) r+=GF2X_WORDSIZE;
 	if (n == 0) return r;
 	r += mpfq_clzl(x[n-1]);
 	return r;
@@ -194,7 +178,7 @@ static inline int mpfq_clzlx(unsigned long * x, int n)
 static inline int mpfq_ctzlx(unsigned long * x, int n)
 {
 	int r = 0;
-	for( ; n > 0 && MPFQ_UNLIKELY(!*x) ; --n,++x) r+=GMP_LIMB_BITS;
+	for( ; n > 0 && MPFQ_UNLIKELY(!*x) ; --n,++x) r+=GF2X_WORDSIZE;
 	if (n == 0) return r;
 	r += mpfq_ctzl(*x);
 	return r;
@@ -241,6 +225,8 @@ static inline void malloc_failed() {
 }
 
 
+#if 0
+
 /* Given the fact that copies are always very small, we're probably
  * better off giving the compiler the opportunity to optimize all this
  * away.
@@ -269,6 +255,7 @@ static inline void mpfq_zero(mp_limb_t * dst, mp_size_t n) {
     for( ; n-- ; ) *dst++ = 0;
 }
 
+#endif
 
 
 #ifdef __cplusplus

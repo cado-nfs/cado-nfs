@@ -803,8 +803,6 @@ enable_sse41
 enable_pclmul
 enable_fft_interface
 with_compile_warnings
-with_gmp
-with_mpir
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1490,8 +1488,6 @@ Optional Packages:
                           compiler's sysroot if not specified).
   --without-compile-warnings
                           Disable warning verbosity
-  --with-gmp=DIR          GMP installation directory
-  --with-mpir=DIR         MPIR installation directory
 
 Some influential environment variables:
   CC          C compiler command
@@ -17175,6 +17171,143 @@ if test "x$ac_cv_prog_cc_c99" != xno; then :
 fi
 
 
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking how to run the C preprocessor" >&5
+$as_echo_n "checking how to run the C preprocessor... " >&6; }
+# On Suns, sometimes $CPP names a directory.
+if test -n "$CPP" && test -d "$CPP"; then
+  CPP=
+fi
+if test -z "$CPP"; then
+  if ${ac_cv_prog_CPP+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+      # Double quotes because CPP needs to be expanded
+    for CPP in "$CC -E" "$CC -E -traditional-cpp" "/lib/cpp"
+    do
+      ac_preproc_ok=false
+for ac_c_preproc_warn_flag in '' yes
+do
+  # Use a header file that comes with gcc, so configuring glibc
+  # with a fresh cross-compiler works.
+  # Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+  # <limits.h> exists even on freestanding compilers.
+  # On the NeXT, cc -E runs the code through the compiler's parser,
+  # not just through cpp. "Syntax error" is here to catch this case.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+		     Syntax error
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+
+else
+  # Broken: fails on valid input.
+continue
+fi
+rm -f conftest.err conftest.i conftest.$ac_ext
+
+  # OK, works on sane cases.  Now check whether nonexistent headers
+  # can be detected and how.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <ac_nonexistent.h>
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+  # Broken: success on invalid input.
+continue
+else
+  # Passes both tests.
+ac_preproc_ok=:
+break
+fi
+rm -f conftest.err conftest.i conftest.$ac_ext
+
+done
+# Because of `break', _AC_PREPROC_IFELSE's cleaning code was skipped.
+rm -f conftest.i conftest.err conftest.$ac_ext
+if $ac_preproc_ok; then :
+  break
+fi
+
+    done
+    ac_cv_prog_CPP=$CPP
+
+fi
+  CPP=$ac_cv_prog_CPP
+else
+  ac_cv_prog_CPP=$CPP
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $CPP" >&5
+$as_echo "$CPP" >&6; }
+ac_preproc_ok=false
+for ac_c_preproc_warn_flag in '' yes
+do
+  # Use a header file that comes with gcc, so configuring glibc
+  # with a fresh cross-compiler works.
+  # Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+  # <limits.h> exists even on freestanding compilers.
+  # On the NeXT, cc -E runs the code through the compiler's parser,
+  # not just through cpp. "Syntax error" is here to catch this case.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+		     Syntax error
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+
+else
+  # Broken: fails on valid input.
+continue
+fi
+rm -f conftest.err conftest.i conftest.$ac_ext
+
+  # OK, works on sane cases.  Now check whether nonexistent headers
+  # can be detected and how.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <ac_nonexistent.h>
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+  # Broken: success on invalid input.
+continue
+else
+  # Passes both tests.
+ac_preproc_ok=:
+break
+fi
+rm -f conftest.err conftest.i conftest.$ac_ext
+
+done
+# Because of `break', _AC_PREPROC_IFELSE's cleaning code was skipped.
+rm -f conftest.i conftest.err conftest.$ac_ext
+if $ac_preproc_ok; then :
+
+else
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "C preprocessor \"$CPP\" fails sanity check
+See \`config.log' for more details" "$LINENO" 5; }
+fi
+
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
 
 
 if test -n "$CC_FOR_BUILD"; then
@@ -17322,128 +17455,6 @@ EXEEXT_FOR_BUILD=$gf2x_cv_prog_exeext_for_build
 
 
 
-
-# Check whether --with-gmp was given.
-if test "${with_gmp+set}" = set; then :
-  withval=$with_gmp;
-		    CPPFLAGS="$CPPFLAGS -I$withval/include"
-		    LDFLAGS="$LDFLAGS -L$withval/lib"
-                    check_specifically_for=gmp
-
-fi
-
-
-# Check whether --with-mpir was given.
-if test "${with_mpir+set}" = set; then :
-  withval=$with_mpir;
-		    CPPFLAGS="$CPPFLAGS -I$withval/include"
-		    LDFLAGS="$LDFLAGS -L$withval/lib"
-                    check_specifically_for=mpir
-
-fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GMP or MPIR" >&5
-$as_echo_n "checking for GMP or MPIR... " >&6; }
-        save_LIBS="$LIBS"
-        found_gmp=
-        if ! [ "$check_specifically_for" ] || [ "$check_specifically_for" = "gmp" ] ; then
-            LIBS="-lgmp $save_LIBS"
-            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include "gmp.h"
-int
-main ()
-{
-mpz_t x;  mpz_init(x) ; mpz_clear(x);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define GF2X_HAVE_GMP_H 1" >>confdefs.h
-
-                    found_gmp=gmp
-
-else
-
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-                    if [ "$check_specifically_for" ] ; then
-                    as_fn_error $? "libgmp not found or uses a different API. Please see the README file for issues with missing dependencies." "$LINENO" 5
-                    fi
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-        fi
-        if ! [ "$found_gmp" ] && [ "$check_specifically_for" != "gmp" ] ; then
-            LIBS="-lmpir $save_LIBS"
-            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include "mpir.h"
-int
-main ()
-{
-mpz_t x;  mpz_init(x) ; mpz_clear(x);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define GF2X_HAVE_MPIR_H 1" >>confdefs.h
-
-                    found_gmp=mpir
-
-else
-
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-                    if [ "$check_specifically_for" ] ; then
-                    as_fn_error $? "libmpir not found or uses a different API. Please see the README file for issues with missing dependencies." "$LINENO" 5
-                    fi
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-        fi
-        if ! [ "$found_gmp" ] ; then
-                as_fn_error $? "neither GMP nor MPIR could be found, or perhaps there is one but which uses a different API. Please see the README file for issues with missing dependencies." "$LINENO" 5
-        fi
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for recent GMP or MPIR" >&5
-$as_echo_n "checking for recent GMP or MPIR... " >&6; }
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-	#include <$found_gmp.h>
-	#if (__GNU_MP_VERSION*100 + __GNU_MP_VERSION_MINOR*10 + __GNU_MP_VERSION_PATCHLEVEL < 432)
-	# error "Minimal GMP version is 4.3.2"
-	error
-	#endif
-
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-		as_fn_error $? "GMP version >= 4.3.2 required" "$LINENO" 5
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-
 # This macro is used for tuning
 
 
@@ -17497,6 +17508,13 @@ fi
 
 if test "x${enable_hardware_specific_code}" = xno ; then
  echo "Not using hardware-specific code due to --disable-hardware-specific-code flag"
+ gf2x_cv_cc_supports_sse2=no
+ gf2x_cv_cc_supports_sse3=no
+ gf2x_cv_cc_supports_ssse3=no
+ gf2x_cv_cc_supports_sse41=no
+ gf2x_cv_cc_supports_pclmul=no
+ gf2x_cv_cc_supports_march_native=no
+ gf2x_cv_cc_supports_mtune_native=no
 else
  # It is necessary to make all tests. We do encounter in the wild
  # binutils (openbsd binutils 2.15, namely) which are buggy with ssse3,
@@ -18820,87 +18838,18 @@ if test x$hwdir = x ; then
       hwdir=x86_sse2
      fi
     elif test x$ABI = xdefault ; then
-
-    if test x$gf2x_cv_ulongbits = x ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking the number of bits in an unsigned long" >&5
-$as_echo_n "checking the number of bits in an unsigned long... " >&6; }
-if ${gf2x_cv_ulongbits+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-
-        if test "$cross_compiling" = yes; then :
-
-            { $as_echo "$as_me:${as_lineno-$LINENO}: check skipped because of cross-compiling" >&5
-$as_echo "$as_me: check skipped because of cross-compiling" >&6;}
-            gf2x_cv_ulongbits=dontknow
-
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* We check wraparound rather than zero, because that's the only thing
-   the norm guarantees (C99) -- UINT_MAX isn't committed to being a power
-   of two */
-#include <stdio.h>
-int main() {
-    unsigned long x = 1UL;
-    unsigned long y;
-    FILE * f = fopen("conftest.out","w");
-    int i = 1;
-    for( ; ; i++) {
-        y = x << 1;
-        if (y < x) {
-            break;
-        }
-        x = y;
-    }
-    fprintf(f,"%d\n",i);
-    fclose(f);
-    return 0;
-}
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-
-            # see bug #15631 and autoconf manual about tr.
-            # detected=`cat conftest.out | tr -d -c 0-9`
-            detected=`cat conftest.out`
-            if test x$detected = x ; then
-                as_fn_error $? "test program failed" "$LINENO" 5
-            else
-                gf2x_cv_ulongbits=$detected
-            fi
-
-else
-
-            { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "cannot compile/run test program
-See \`config.log' for more details" "$LINENO" 5; }
-
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gf2x_cv_ulongbits" >&5
-$as_echo "$gf2x_cv_ulongbits" >&6; }
-    fi
-
-     case x$gf2x_cv_ulongbits in
+     case x$gf2x_wordsize in
       x64|xdontknow) true ;;
       x32)
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: The default ABI for this compiler has $gf2x_cv_ulongbits-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_cv_ulongbits-bit" >&5
-$as_echo "$as_me: WARNING: The default ABI for this compiler has $gf2x_cv_ulongbits-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_cv_ulongbits-bit" >&2;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_wordsize-bit" >&5
+$as_echo "$as_me: WARNING: The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_wordsize-bit" >&2;}
         if test "$gf2x_cv_cc_supports_sse2" = "no" ; then
          hwdir=generic$gf2x_wordsize
         else
          hwdir=x86_sse2
         fi;;
       *)
-       as_fn_error $? "The default ABI for this compiler has $gf2x_cv_ulongbits-bit unsigned longs, this is not supported" "$LINENO" 5
+       as_fn_error $? "The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, this is not supported" "$LINENO" 5
        ;;
      esac
     fi

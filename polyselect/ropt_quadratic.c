@@ -43,20 +43,21 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
 {
   const int numw = 3;
   int i, j, k, r, w, old_verbose, old_i, used, *w_good, w_top[numw];
-  const unsigned int size_alpha_pqueue_all_w =
+  unsigned int size_alpha_pqueue_all_w =
     s1param->nbest_sl * TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+  /* new_alpha_pq requires len >= 2 */
+  if (size_alpha_pqueue_all_w < 2)
+    size_alpha_pqueue_all_w = 2;
   double score;
 #if TUNE_LOGNORM_INCR
   double incr;
 #endif
-  mpz_t m, u, v, mod;
+  mpz_t u, v, mod;
   alpha_pq *alpha_pqueue_all_w;
   
   mpz_init (u);
   mpz_init (v);
   mpz_init (mod);
-  mpz_init_set (m, poly->g[0]);
-  mpz_neg (m, m);
   w_good = (int *) malloc (size_alpha_pqueue_all_w * sizeof(int));
 
   /* tmp queue for tuning stage 1 */
@@ -81,7 +82,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
   for (i = bound->global_w_boundl; i <= bound->global_w_boundr; i++) {
     if (old_verbose >= 2 && k % 10 == 0)
       fprintf (stderr, "# Info: quadratic rotation range %d*x^2\n", i);
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, i, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, i, 2);
     ropt_poly_setup (poly);
     r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue_all_w, i);
     k ++;
@@ -89,7 +90,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
 
   /* get/rotate back */
   param->verbose = old_verbose;
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -144,7 +145,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
                "by %d*x^2\n", w);
 
     /* quadratic rotation and setup */
-    old_i = rotate_aux (poly->f, poly->g[1], m, old_i, w, 2);
+    old_i = rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, w, 2);
     ropt_poly_setup (poly);
 
     /* tune incr */
@@ -164,7 +165,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
     fprintf (stderr, "\n");
 
   /* rotate back */
-  rotate_aux (poly->f, poly->g[1], m, old_i, 0, 2);
+  rotate_aux (poly->f, poly->g[1], poly->g[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -174,7 +175,6 @@ ropt_quadratic_tune_stage1 ( ropt_poly_t poly,
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
-  mpz_clear (m);
 }
 
 
@@ -209,6 +209,9 @@ ropt_quadratic ( ropt_poly_t poly,
      more sublattices to be tuned */
   unsigned long len_full_alpha = s1param->nbest_sl *
     TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+  /* new_alpha_pq requires len_full_alpha >= 2 */
+  if (len_full_alpha < 2)
+    len_full_alpha = 2;
   new_alpha_pq (&alpha_pqueue, len_full_alpha);
 
   /* [Step 1] find w first and do ropt_stage1() there */

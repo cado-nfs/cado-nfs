@@ -49,7 +49,6 @@
 
 #define xxxCANTOR_GM            /* Use Gao-Mateer recursion */
 #define xxxCANTOR_GM_TRUNCATE   /* Use truncated variant */
-#define xxxMULCOUNT             /* Count multiplications */
 
 #include "mpfq/mpfq_name_K.h"
 
@@ -62,10 +61,6 @@ Kfield K;
 #define Kdst_elt        unsigned long *
 #define Ksrc_elt        const unsigned long *
 */
-
-#ifdef  MULCOUNT
-size_t mulcount=0;
-#endif
 
 // Kelt * fbase;
 // size_t * findex;

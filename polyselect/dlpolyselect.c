@@ -556,6 +556,10 @@ main (int argc, char *argv[])
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #pragma omp parallel for schedule(dynamic)
+#else
+    if (nthreads > 1) {
+        fprintf(stderr, "Warning: openmp unavailable, -t ignored\n");
+    }
 #endif
     for (unsigned long c = modr; c < maxtries; c += modm)
       polygen_JL1 (N, df, dg, bound, c, nb_comb);

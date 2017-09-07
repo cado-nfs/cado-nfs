@@ -411,7 +411,7 @@ namespace details {
                 "addq   %%rax, %[z0]\n"
                 "adcq   $0, %%rdx\n"
                 "addq   %%rdx, %[z1]\n"
-            : "=a"(foo), "=d"(bar), [z0]"+rm"(dst[0]), [z1]"+rm"(dst[1])
+            : "=a"(foo), "=&d"(bar), [z0]"+rm"(dst[0]), [z1]"+rm"(dst[1])
             : "0"(src[0]), [mult]"r1m"(x)
             );
         }
@@ -423,7 +423,7 @@ namespace details {
                 "subq   %%rax, %[z0]\n"
                 "adcq   $0, %%rdx\n"
                 "subq   %%rdx, %[z1]\n"
-            : "=a"(foo), "=d"(bar), [z0]"+rm"(dst[0]), [z1]"+rm"(dst[1])
+            : "=a"(foo), "=&d"(bar), [z0]"+rm"(dst[0]), [z1]"+rm"(dst[1])
             : "0"(src[0]), [mult]"r1m"(x)
             );
         }

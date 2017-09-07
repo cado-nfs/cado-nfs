@@ -147,6 +147,9 @@ struct descent_tree {
         forest.clear();
     }
 
+    /* designing a copy ctor for this structure would be tedious */
+    descent_tree(descent_tree const& t) = delete;
+
     void new_node(las_todo_entry const & doing) {
         int level = doing.depth;
         ASSERT_ALWAYS(level == (int) current.size());
@@ -161,6 +164,15 @@ struct descent_tree {
         }
     }
 
+    void ditch_node() {
+        tree * kid = current.back();
+        current.pop_back();
+        if (!current.empty()) {
+            ASSERT_ALWAYS(current.back()->children.back() == kid);
+            current.back()->children.pop_back();
+        }
+        delete kid;
+    }
     void done_node() {
         current.back()->spent += seconds();
         current.pop_back();

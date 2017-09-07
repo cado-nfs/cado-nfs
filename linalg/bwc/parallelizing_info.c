@@ -88,7 +88,23 @@ void * pi_go_helper_func(struct pi_go_helper_s * s)
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
     cpubinding_do_pinning(s->p->cpubinding_info, s->p->wr[1]->trank, s->p->wr[0]->trank);
 #endif /* defined(HAVE_HWLOC) && defined(HAVE_CXX11) */
+    int debug = 0;
+    param_list_parse_int(s->pl, "debug-parallel-bwc", &debug);
+
+    if (debug) {
+        pi_log_init(s->p->m);
+        pi_log_init(s->p->wr[0]);
+        pi_log_init(s->p->wr[1]);
+    }
+
     void * ret = (s->fcn)(s->p, s->pl, s->arg);
+
+    if (debug) {
+        pi_log_clear(s->p->m);
+        pi_log_clear(s->p->wr[0]);
+        pi_log_clear(s->p->wr[1]);
+    }
+
     pi_interleaving_flip(s->p);
     pi_interleaving_leave(s->p);
     return ret;
@@ -854,6 +870,7 @@ void parallelizing_info_decl_usage(param_list pl)/*{{{*/
     param_list_decl_usage(pl, "thr", "number of threads (on each node) for the program, with mesh dimensions");
     param_list_decl_usage(pl, "interleaving", "whether we should start two interleaved sets of threads. Only supported by some programs, has no effect on others.");
     param_list_decl_usage(pl, "only_mpi", "replace threads by distinct MPI jobs");
+    param_list_decl_usage(pl, "debug-parallel-bwc", "enable heavy debugging messages for desperate cases");
 
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
     cpubinding_decl_usage(pl);
@@ -871,6 +888,7 @@ void parallelizing_info_lookup_parameters(param_list_ptr pl)/*{{{*/
     param_list_lookup_string(pl, "thr");
     param_list_lookup_string(pl, "interleaving");
     param_list_lookup_string(pl, "only_mpi");
+    param_list_lookup_string(pl, "debug-parallel-bwc");
 
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
     cpubinding_lookup_parameters(pl);

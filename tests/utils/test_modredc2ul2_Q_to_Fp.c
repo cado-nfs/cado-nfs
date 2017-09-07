@@ -35,17 +35,15 @@ main (int argc, const char *argv[])
 
   unsigned long p1[2] = {451UL, 0UL}, p2[2] = {41UL, 0UL};
 
-  if (sizeof (unsigned long) == 4)
-    {
+#if ULONG_BITS == 32
       p1[1] = 452984832UL; /* p1 = 27*2^56+451 */
       p2[1] = 184549376UL; /* p2 = 11*2^56+41 */
-    }
-  else
-    {
-      ASSERT_ALWAYS(sizeof (unsigned long) == 8);
+#elif ULONG_BITS == 64
       p1[1] = 1UL << 56; /* p1 = 2^120+415 */
       p2[1] = 1UL << 57; /* p2 = 2^121+41 */
-    }
+#else
+#error "uh?"
+#endif
 
   modintredc2ul2_t num, den;
   modredc2ul2_intinit(num);

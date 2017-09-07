@@ -73,7 +73,7 @@ prime_info_clear (prime_info i)
   free (i->moduli);
 }
 
-/* this function is not thread-safe */
+/* this function is not thread-safe, as it uses a global state */
 unsigned long
 getprime (unsigned long p)
 {
@@ -96,7 +96,8 @@ getprime (unsigned long p)
   return getprime_mt (pi);
 }
 
-/* this function is thread-safe */
+/* this function is thread-safe, provided of course that no two threads
+ * tinker with the same prime_info data. */
 unsigned long
 getprime_mt (prime_info i)
 {

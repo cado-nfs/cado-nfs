@@ -14,10 +14,10 @@ include_directories(${CADO_NFS_SOURCE_DIR}/sieve/ecm)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies/utils_st)
 
+if (HAVE_REGEX_H)
 cado_define_test(test_generate_composite_numbers.c
   ${SUF_SRC}/generate_factoring_method.c ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
-
 
 cado_define_test(test_generate_strategies.c
   ${SUF_SRC}/generate_factoring_method.c
@@ -40,6 +40,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         ${CMAKE_CURRENT_SOURCE_DIR}/test_main_script.sh
         ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
         TARGET_DEPENDENCIES gfm benchfm gst finalst)
+endif()
 endif()
 
 add_subdirectory (utils_st)

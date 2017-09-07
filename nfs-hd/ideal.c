@@ -394,6 +394,9 @@ void ideal_spq_set_part(ideal_spq_ptr ideal, uint64_t q, mpz_poly_srcptr g,
   }
 #endif // NDEBUG
 
+  //TODO: clear only if type != ideal->type and then, init only if necessarily.
+  ideal_spq_clear(ideal, t);
+
   ideal->type = type;
   if (type == 0) {
     ideal_1_init(ideal->ideal_1);
@@ -424,6 +427,9 @@ void ideal_spq_set(ideal_spq_ptr ideal, ideal_spq_srcptr ideal_old,
 {
   ASSERT(ideal_old->type >= 0 && ideal_old->type < 3);
   ASSERT(ideal->type == -1);
+
+  //TODO: clear only if type != ideal->type and then, init only if necessarily.
+  ideal_spq_clear(ideal, t);
 
   ideal->type = ideal_old->type;
   if (ideal_old->type == 0) {

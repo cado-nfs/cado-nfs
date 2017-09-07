@@ -1,7 +1,11 @@
 /* This source file is our test case for ssse3 support. */
 #include <stdint.h>
 #include <string.h>
-#include <tmmintrin.h>
+/* we could use tmmintrin.h with pre-4.5.0 gcc. See
+ * https://stackoverflow.com/questions/11228855/header-files-for-x86-simd-intrinsics
+ * Note however that we tend to use x86intrin anyway in the code.
+ */
+#include <x86intrin.h>
 
 int main()
 {

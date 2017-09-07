@@ -32,11 +32,9 @@ lpb0 = 32
 lpb1 = 32
 tasks.sieve.mfb0 = 85
 tasks.sieve.mfb1 = 96
-tasks.sieve.lambda0 = 2.5
-tasks.sieve.lambda1 = 3.2
 tasks.sieve.ncurves0 = 13
 tasks.sieve.ncurves1 = 13
-tasks.I = 14
+tasks.I = 15
 
 tasks.sieve.qrange = 10000
 

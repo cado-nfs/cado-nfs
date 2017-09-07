@@ -32,6 +32,7 @@
 #cmakedefine    HAVE_ALLOCA_H
 #cmakedefine    HAVE_CABSL
 #cmakedefine    HAVE_LOG2
+#cmakedefine    HAVE_CLOG
 #cmakedefine    HAVE_EXP2
 #cmakedefine    HAVE_RESOURCE_H
 #cmakedefine    HAVE_UTSNAME_H
@@ -63,6 +64,8 @@
 #cmakedefine    HAVE_CXX11
 #cmakedefine    HAVE_STD_SHARED_PTR
 #cmakedefine    HAVE_BOOST_SHARED_PTR
+#cmakedefine    HAVE_USUAL_SRAND_DETERMINISTIC_BEHAVIOR
+#cmakedefine    HAVE_SRAND_DETERMINISTIC
 #cmakedefine    HAVE_CXXABI_H
 #define    ULONG_BITS   @ULONG_BITS@
 #define    ULONGLONG_BITS   @ULONGLONG_BITS@

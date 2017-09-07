@@ -157,7 +157,7 @@ void set_extra_arg_from_n32bitwords(size_t n32 GF2X_MAYBE_UNUSED, long supplied)
     }
     max_ix = j;
     int i;
-    for (i = 0; T_FFT_TAB[i + 1][0] <= nwords && i + 1 < max_ix; i++);
+    for (i = 0; i + 1 < max_ix && T_FFT_TAB[i + 1][0] <= nwords; i++);
     /* now T_FFT_TAB[i][0] <= nwords < T_FFT_TAB[i+1][0] */
     init_extra_arg = T_FFT_TAB[i][1];
 #endif  /* ENGINE_TERNARY */

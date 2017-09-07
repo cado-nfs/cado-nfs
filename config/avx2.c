@@ -14,6 +14,6 @@ int main() {
         _mm_sfence();
     }
     _mm_empty();
-    free(x);
+    _mm_free(x);
     return 0;
 }

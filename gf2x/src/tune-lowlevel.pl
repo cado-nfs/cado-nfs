@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #  This file is part of the gf2x library.
 #
 #  Copyright 2007, 2008, 2009, 2010, 2012, 2013, 2015, 2016

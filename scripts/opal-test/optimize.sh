@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # this script automatically optimizes sieving parameters
 # Usage: optimize.sh params.cxx cxx.polyselect2.poly
 # Puts the optimized file in params.cxx.opt in the current directory.
@@ -9,8 +9,18 @@
 # Important: if lpb0 and/or lpb1 change, you need to recompute rels_wanted,
 # which should be near from prime_pi(2^lpb0) + prime_pi(2^lpb1)
 
-# To limit the number of black-box evaluations to say 100:
-# NOMAD_MAX_BB_EVAL=100 ./optimize.sh ...
+# Force the shell to bomb out in case a command fails in the script.
+set -ex
+
+# To limit the number of black-box evaluations to say 50:
+# NOMAD_MAX_BB_EVAL=50 ./optimize.sh ...
+
+: ${NOMAD_MAX_BB_EVAL=100}
+
+# To use say 4 threads:
+# NUM_THREADS=4 ./optimize.sh ...
+
+: ${NUM_THREADS=2}
 
 cwd=`pwd`
 
@@ -35,6 +45,8 @@ if [ -d "${CADO_BUILD}" ] ; then
   echo "CADO_BUILD = ${CADO_BUILD}"
 else
   echo "CADO_BUILD does not contain the name of a directory: '${CADO_BUILD}'"
+  ls -ld "${CADO_BUILD}"
+  ls -l "${CADO_BUILD}"
   exit 1
 fi
 
@@ -42,32 +54,34 @@ fi
 d=`mktemp -d`
 echo "Working directory:" $d
 
+cleanup() { rm -rf "$d" ; }
+trap cleanup EXIT
+
 ### Copy las_optimize, report and poly file and replace its name in las_run
 cp $2 las_optimize.py report.py $d
-sed "s/c59.polyselect2.poly/$poly/g" las_run.py > $d/las_run.py
+sed "s/c59.polyselect2.poly/$poly/g" las_run.py | \
+sed "s/2 # number of threads for las/$NUM_THREADS/g" > $d/las_run.py
 
 ### Parsing poly file (number of poly and rat/alg) (for now assume npoly == 2)
-npoly=`grep -c "^poly[0-9]" $d/$poly`
+npoly=`grep -c "^poly[0-9]" $d/$poly || :`
 if [ $npoly -eq 0 ] ; then # polys are given by Y[0-9] and (c[0-9] or X[0-9])
-  grep -q "^Y[2-9]" $d/$poly
-  if [ $? -eq 0 ] ; then
+  if grep -q "^Y[2-9]" $d/$poly ; then
     poly0="alg"
   else
     poly0="rat"
   fi
-  grep -q "^[cX][2-9]" $d/$poly
-  if [ $? -eq 0 ] ; then
+  if grep -q "^[cX][2-9]" $d/$poly ; then
     poly1="alg"
   else
     poly0="rat"
   fi
 elif [ $npoly -eq 2 ] ; then # polys are given by 'poly[0-9]:c0,c1,...'
-  if [ `grep -c "^poly0" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
+  if [ `grep "^poly0" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
     poly0="rat"
   else
     poly0="alg"
   fi
-  if [ `grep -c "^poly1" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
+  if [ `grep "^poly1" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
     poly1="rat"
   else
     poly1="alg"
@@ -89,20 +103,25 @@ echo "OPAL_CADO_SQSIDE=${OPAL_CADO_SQSIDE}"
 ### Get parameters from params file and set _min and _max
 lim0=`grep "^lim0.*=" $params | cut -d= -f2`
 lim1=`grep "^lim1.*=" $params | cut -d= -f2`
+if grep -q "qmin.*=" $params ; then
+   qmin=`grep "qmin.*=" $params | cut -d= -f2`
+   has_qmin=1
+else
+   qmin=$lim1
+   has_qmin=0
+fi
 lpb0=`grep "^lpb0.*=" $params | cut -d= -f2`
 lpb1=`grep "^lpb1.*=" $params | cut -d= -f2`
 mfb0=`grep "mfb0.*=" $params | cut -d= -f2`
 mfb1=`grep "mfb1.*=" $params | cut -d= -f2`
-grep "ncurves0.*=" $params > /dev/null
-if [ $? -eq 0 ]; then
+if grep -q "ncurves0.*=" $params ; then
    ncurves0=`grep "ncurves0.*=" $params | cut -d= -f2`
    has_ncurves0=1
 else
    ncurves0=10
    has_ncurves0=0
 fi
-grep "ncurves1.*=" $params > /dev/null
-if [ $? -eq 0 ]; then
+if grep -q "ncurves1.*=" $params ; then
    ncurves1=`grep "ncurves1.*=" $params | cut -d= -f2`
    has_ncurves1=1
 else
@@ -110,6 +129,12 @@ else
    has_ncurves1=0
 fi
 I=`grep "I.*=" $params | cut -d= -f2`
+qmin_min=`expr $qmin / 2`
+qmin_max=`expr $qmin \* 2`
+# integer parameters are limited to 2147483645 in OPAL
+if [ $qmin_max -gt 2147483645 ]; then
+   qmin_max=2147483645
+fi
 lim0_min=`expr $lim0 / 2`
 lim0_max=`expr $lim0 \* 2`
 # integer parameters are limited to 2147483645 in OPAL
@@ -157,6 +182,8 @@ fi
 ### Replace parameters values in template
 sed "s/lim0_def/$lim0/g" las_decl_template.py | \
 sed "s/lim0_min/$lim0_min/g" | sed "s/lim0_max/$lim0_max/g" | \
+sed "s/qmin_def/$qmin/g" | sed "s/qmin_min/$qmin_min/g" | \
+sed "s/qmin_max/$qmin_max/g" | \
 sed "s/lim1_def/$lim1/g" | sed "s/lim1_min/$lim1_min/g" | \
 sed "s/lim1_max/$lim1_max/g" | \
 sed "s/lpb0_def/$lpb0/g" | sed "s/lpb0_min/$lpb0_min/g" | \
@@ -190,6 +217,7 @@ mfb1_opt=`head -6 $f | tail -1`
 ncurves0_opt=`head -7 $f | tail -1`
 ncurves1_opt=`head -8 $f | tail -1`
 I_opt=`head -9 $f | tail -1`
+qmin_opt=`head -10 $f | tail -1`
 echo "Optimal parameters:"
 echo "lim0=" $lim0_opt " min=" $lim0_min " max=" $lim0_max
 echo "lim1=" $lim1_opt " min=" $lim1_min " max=" $lim1_max
@@ -200,9 +228,11 @@ echo "mfb1=" $mfb1_opt " min=" $mfb1_min " max=" $mfb1_max
 echo "ncurves0=" $ncurves0_opt " min=" $ncurves0_min " max=" $ncurves0_max
 echo "ncurves1=" $ncurves1_opt " min=" $ncurves1_min " max=" $ncurves1_max
 echo "I=" $I_opt " min=" $I_min " max=" $I_max
+echo "qmin=" $qmin_opt " min=" $qmin_min " max=" $qmin_max
 cd $cwd
 sed "s/lim0.*=.*$/lim0 = $lim0_opt/g" $params | \
 sed "s/lim1.*=.*$/lim1 = $lim1_opt/g" | \
+sed "s/qmin.*=.*$/qmin = $qmin_opt/g" | \
 sed "s/lpb0.*=.*$/lpb0 = $lpb0_opt/g" | \
 sed "s/lpb1.*=.*$/lpb1 = $lpb1_opt/g" | \
 sed "s/mfb0.*=.*$/mfb0 = $mfb0_opt/g" | \
@@ -210,6 +240,9 @@ sed "s/mfb1.*=.*$/mfb1 = $mfb1_opt/g" | \
 sed "s/ncurves0.*=.*$/ncurves0 = $ncurves0_opt/g" | \
 sed "s/ncurves1.*=.*$/ncurves1 = $ncurves1_opt/g" | \
 sed "s/I.*=.*$/I = $I_opt/g" > $params.opt
+if [ $has_qmin -eq 0 ]; then
+   echo "tasks.sieve.qmin = $qmin_opt" >> $params.opt
+fi
 if [ $has_ncurves0 -eq 0 ]; then
    echo "tasks.sieve.ncurves0 = $ncurves0_opt" >> $params.opt
 fi

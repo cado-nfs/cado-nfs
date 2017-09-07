@@ -223,47 +223,149 @@ void read_mfile_header(balancing_ptr bal, const char * mfile, int withcoeffs)
 }
 /* }}} */
 
-void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opts)
+void mf_bal_decl_usage(param_list_ptr pl)
 {
-    if (!opts) return;
-    /* Take a comma-separated list of balancing_options, and use that to
-     * adjust the mba structure.
-     *
-     * Only two of the options which exist in the mf_bal command line are
-     * obeyed here (otherwise we would be synthetizing a full
-     * param_list):
-     *
-     *  reorder=[rows|columns|both|auto]
-     *  rectangular
-     */
-    for(const char * v = opts, * nv ; *v ; v = nv) {
-        const char * w = strchr(v, ',');
-        if (w == NULL) {
-            w = v + strlen(v);
-            nv = w;
-        } else {
-            nv = w + 1;
+   param_list_decl_usage(pl, "mfile", "matrix file (can also be given freeform)");
+   param_list_decl_usage(pl, "rwfile", "row weight file (defaults to <mfile>.rw)");
+   param_list_decl_usage(pl, "cwfile", "col weight file (defaults to <mfile>.cw)");
+   param_list_decl_usage(pl, "out", "output file name (defaults to stdout)");
+   param_list_decl_usage(pl, "ascii", "output in ascii");
+   param_list_decl_usage(pl, "quiet", "be quiet");
+   param_list_decl_usage(pl, "rectangular", "accept rectangular matrices (for block Lanczos)");
+   param_list_decl_usage(pl, "withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
+   param_list_decl_usage(pl, "rowperm", "permute rows in priority (defaults to auto)");
+   param_list_decl_usage(pl, "colperm", "permute rows in priority (defaults to auto)");
+   param_list_decl_usage(pl, "skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
+}
+
+void mf_bal_configure_switches(param_list_ptr pl, struct mf_bal_args * mba)
+{
+    param_list_configure_switch(pl, "--quiet", &mba->quiet);
+    // param_list_configure_switch(pl, "--display-correlation", &display_correlation);
+    param_list_configure_switch(pl, "--rectangular", &mba->rectangular);
+    param_list_configure_switch(pl, "--withcoeffs", &mba->withcoeffs);
+}
+
+
+void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_argc, char *** p_argv)
+{
+    unsigned int wild =  0;
+    (*p_argv)++,(*p_argc)--;
+    for(;(*p_argc);) {
+        char * q;
+        if (param_list_update_cmdline(pl, &(*p_argc), &(*p_argv))) continue;
+
+        if ((*p_argv)[0][0] != '-' && wild == 0 && (q = strchr((*p_argv)[0],'x')) != NULL) {
+            mba->nh = atoi((*p_argv)[0]);
+            mba->nv = atoi(q+1);
+            wild+=2;
+            (*p_argv)++,(*p_argc)--;
+            continue;
         }
-#define CMP(v, s)       strncmp((v),(s),strlen(s))
-        if (CMP(v, "rectangular") == 0) {
-            mba->rectangular=1;
-        } else if (CMP(v, "reorder=auto") == 0) {
-            mba->do_perm[0] = MF_BAL_PERM_AUTO;
+
+        if ((*p_argv)[0][0] != '-' && wild == 0) { mba->nh = atoi((*p_argv)[0]); wild++,(*p_argv)++,(*p_argc)--; continue; }
+        if ((*p_argv)[0][0] != '-' && wild == 1) { mba->nv = atoi((*p_argv)[0]); wild++,(*p_argv)++,(*p_argc)--; continue; }
+        if ((*p_argv)[0][0] != '-' && wild == 2) {
+            mba->mfile = (*p_argv)[0];
+            wild++;
+            (*p_argv)++,(*p_argc)--;
+            continue;
+        }
+        fprintf(stderr, "unknown option %s\n", (*p_argv)[0]);
+        exit(1);
+    }
+}
+
+void mf_bal_interpret_parameters(struct mf_bal_args * mba, param_list_ptr pl)
+{
+    const char * tmp;
+
+    if (!mba->nh || !mba->nv) {
+        param_list_print_usage(pl, NULL, stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    if ((tmp = param_list_lookup_string(pl, "reorder")) != NULL) {
+        if (strcmp(tmp, "auto") == 0) {
             mba->do_perm[1] = MF_BAL_PERM_AUTO;
-        } else if (CMP(v, "reorder=both") == 0) {
-            mba->do_perm[0] = MF_BAL_PERM_YES;
-            mba->do_perm[1] = MF_BAL_PERM_YES;
-        } else if (CMP(v, "reorder=rows") == 0) {
-            mba->do_perm[0] = MF_BAL_PERM_YES;
+            mba->do_perm[0] = MF_BAL_PERM_AUTO;
+        } else if (strcmp(tmp, "rows") == 0) {
             mba->do_perm[1] = MF_BAL_PERM_NO;
-        } else if (CMP(v, "reorder=columns") == 0) {
-            mba->do_perm[0] = MF_BAL_PERM_NO;
+            mba->do_perm[0] = MF_BAL_PERM_YES;
+        } else if (strcmp(tmp, "columns") == 0) {
             mba->do_perm[1] = MF_BAL_PERM_YES;
+            mba->do_perm[0] = MF_BAL_PERM_NO;
+        } else if (strcmp(tmp, "rows,columns") == 0) {
+            mba->do_perm[1] = MF_BAL_PERM_YES;
+            mba->do_perm[0] = MF_BAL_PERM_YES;
+        } else if (strcmp(tmp, "columns,rows") == 0) {
+            mba->do_perm[1] = MF_BAL_PERM_YES;
+            mba->do_perm[0] = MF_BAL_PERM_YES;
+        } else if (strcmp(tmp, "both") == 0) {
+            mba->do_perm[1] = MF_BAL_PERM_YES;
+            mba->do_perm[0] = MF_BAL_PERM_YES;
         } else {
-            fprintf(stderr, "Unexpected option for %s: %s\n", __func__, v);
+            fprintf(stderr, "Argument \"%s\" to the \"reorder\" parameter not understood\n"
+                    "Supported values are:\n"
+                    "\tauto (default)\n"
+                    "\trows\n"
+                    "\tcolumns\n"
+                    "\tboth (equivalent forms: \"rows,columns\" or \"columns,rows\"\n",
+                    tmp);
             exit(EXIT_FAILURE);
         }
     }
+
+    if ((tmp = param_list_lookup_string(pl, "mfile")) != NULL) {
+        mba->mfile = tmp;
+    }
+    if ((tmp = param_list_lookup_string(pl, "rwfile")) != NULL) {
+        mba->rwfile = tmp;
+    }
+    if ((tmp = param_list_lookup_string(pl, "cwfile")) != NULL) {
+        mba->cwfile = tmp;
+    }
+    if ((tmp = param_list_lookup_string(pl, "out")) != NULL) {
+        mba->bfile = tmp;
+    }
+    param_list_parse_int(pl, "skip_decorrelating_permutation", &mba->skip_decorrelating_permutation);
+}
+
+void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opts)
+{
+    /* Take a comma-separated list of balancing_options, and use that to
+     * adjust the mba structure.
+     */
+    if (!opts) return;
+    /* Create a new param_list from opts {{{ */
+    char ** n_argv;
+    char ** n_argv0;
+    int n_argc;
+    char * my_opts;
+    ASSERT_ALWAYS(opts);
+    my_opts = strdup(opts);
+    n_argv0 = n_argv = malloc(strlen(my_opts) * sizeof(char*));
+    n_argc = 0;
+    n_argv[n_argc++]="mf_bal";
+    for(char * q = my_opts, * qq; q != NULL; q = qq) {
+        qq = strchr(q, ',');
+        if (qq) { *qq++='\0'; }
+        n_argv[n_argc++]=q;
+    }
+
+    param_list pl2;
+    param_list_init(pl2);
+
+    mf_bal_decl_usage(pl2);
+    mf_bal_configure_switches(pl2, mba);
+    mf_bal_parse_cmdline(mba, pl2, &n_argc, &n_argv);
+    mf_bal_interpret_parameters(mba, pl2);
+
+    param_list_clear(pl2);
+    free(my_opts);
+    free(n_argv0);
+
+    /* }}} */
 }
 
 void mf_bal(struct mf_bal_args * mba)

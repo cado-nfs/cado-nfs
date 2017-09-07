@@ -60,6 +60,8 @@ else()
 message(FATAL_ERROR "GMP library cannot be found. Please install Gnu MP, and specify its install prefix in local.sh")
 endif()
 
+set(WITH_GMP 1 CACHE INTERNAL "GMP is being used")
+set(HAVE_GMP 1 CACHE INTERNAL "GMP is being used")
 set(gmp_libname "gmp")
 
 #pointless, since we have workarounds anyway

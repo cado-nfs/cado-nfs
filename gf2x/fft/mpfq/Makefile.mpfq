@@ -33,10 +33,10 @@ binary-fields: mpfq-buildtree
 	(cd $(MPFQ_TEMP) ; cmake $(MPFQ) ; make helper) ; \
 	fi
 	/bin/cp -f $(MPFQ)/gf2n/mpfq_gf2n_common.h .
-	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=x86_64 n=128 w=64
-	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=x86_64 n=64 w=64
-	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=i386 n=128 w=32
-	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=i386 n=64 w=32
+	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=x86_64 n=128 w=64 no_gmp=1
+	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=x86_64 n=64 w=64 no_gmp=1
+	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=i386 n=128 w=32 no_gmp=1
+	$(MPFQ)/gf2n/gen_gf2n.pl helper=$(MPFQ_TEMP)/gf2n/helper/helper table=$(MPFQ_TEMP)/gf2x/wizard.table output_path=i386 n=64 w=32 no_gmp=1
 	patch -p3 -d. < better-integrate-gf2x.patch
 	-rm -f *.orig
 

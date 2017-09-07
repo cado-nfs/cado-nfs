@@ -2,6 +2,8 @@
 #define LAS_FILL_IN_BUCKETS_HPP_
 
 #include "las-types.hpp"
+#include "fb-types.h"
+#include "las-plattice.hpp"
 #include "las-threads.hpp"
 #include "tdict.hpp"
 
@@ -22,6 +24,6 @@ downsort_tree(timetree_t&,
         thread_pool &pool,
         sieve_info& si,
         precomp_plattice_t precomp_plattice);
-void fill_in_buckets_both(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &);
+void fill_in_buckets(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &, int side);
 
 #endif

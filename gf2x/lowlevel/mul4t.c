@@ -74,7 +74,7 @@ void gf2x_mul4(unsigned long *t, unsigned long const *s1,
 
     __m128i g[16];
     /* sequence update walk */
-    g[0] = _mm_setzero_si128();
+    g[0] = PZERO;
     g[1] = _gf2x_mm_setr_epi32(s2[0], s2[1], s2[2], s2[3]);
     g[2] = SHL(g[1], 1);
     g[3] = PXOR(g[2], g[1]);

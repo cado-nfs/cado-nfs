@@ -647,7 +647,13 @@ subjectAltName=@altnames
         # Specified as numeric IP address
 
         # We can always fill in the IP address
-        ipaddr = socket.gethostbyname(self.url_address)
+        try:
+            ipaddr = socket.gethostbyname(self.url_address)
+        except socket.gaierror as e:
+            self.logger.error("Exception trackback: %s" % e)
+            self.logger.error("(end of Exception trackback)")
+            self.logger.error("Cannot resolve %s -- that's really really weird" % self.url_address)
+            sys.exit(1)
         self.SAN = "IP.1 = %s\n" % ipaddr
         fqdn = socket.getfqdn(self.url_address)
         # If address was specified as IP address and fqdn could not find a

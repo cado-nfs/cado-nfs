@@ -420,6 +420,7 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     # make plingen_pz a default target, but not the others.
     if(v STREQUAL "pz")
         add_executable(plingen_${v} ${plingen_${v}_sources})
+        install(TARGETS plingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
     else()
         add_executable(plingen_${v} EXCLUDE_FROM_ALL ${plingen_${v}_sources})
     endif()

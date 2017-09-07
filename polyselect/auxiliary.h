@@ -55,30 +55,28 @@ extern double bound_f, bound_g, area;
 typedef struct
 {
   double kmin, kmax;
-  double jmin[MAX_DEGREE], jmax[MAX_DEGREE];
 } rotation_space;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-double L2_lognorm (mpz_poly_ptr, double);
-double L2_skewness (mpz_poly_ptr, int);
-double L2_combined_skewness (cado_poly_ptr, int, double, double, double);
-double L2_combined_skewness2 (mpz_poly, mpz_poly, int);
-double L2_skew_lognorm (mpz_poly_ptr, int);
+double L2_lognorm (mpz_poly_srcptr, double);
+double L2_skewness (mpz_poly_srcptr, int);
+double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g, int prec);
+double L2_skew_lognorm (mpz_poly_srcptr, int);
 
 /* alpha */
-double special_valuation (mpz_poly_ptr f, unsigned long p, mpz_t disc);
-double special_valuation_affine (mpz_poly_ptr f, unsigned long p, mpz_t disc);
-double get_alpha (mpz_poly_ptr, unsigned long);
-double get_biased_alpha_projective (mpz_poly_ptr f, unsigned long B);
+double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
+double special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
+double get_alpha (mpz_poly_srcptr, unsigned long);
+double get_biased_alpha_projective (mpz_poly_srcptr f, unsigned long B);
 
 /* poly info, being called in order */
 void print_cadopoly_fg (FILE*, mpz_t*, int, mpz_t*, int, mpz_t);
 double print_cadopoly (FILE*, cado_poly);
 void print_cadopoly_extra (FILE*, cado_poly, int, char**, double);
-double print_poly_fg (mpz_poly_ptr, mpz_t*, mpz_t, int);
+double print_poly_fg (mpz_poly_srcptr, mpz_t*, mpz_t, int);
 long rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t);
 void rotate_auxg_z (mpz_t*, const mpz_t, const mpz_t, const mpz_t, unsigned int);
 void do_translate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k);
@@ -88,7 +86,9 @@ double cado_poly_fprintf_with_info (FILE *, cado_poly_ptr, const char *, int);
 double cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr,
                                                 double, double, double, double,
                                                 const char *);
-double expected_rotation_gain (mpz_poly_ptr f, mpz_poly_ptr g);
+double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
+void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
+                      int i, double margin);
 
 #ifdef __cplusplus
 }

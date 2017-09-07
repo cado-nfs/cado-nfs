@@ -15,7 +15,7 @@ name = p30
 
 tasks.polyselect.degree = 3
 
-tasks.polyselect.admax = 1000
+tasks.polyselect.admax = 2000
 tasks.polyselect.incr = 20
 tasks.polyselect.adrange = 100
 tasks.polyselect.P = 272
@@ -37,7 +37,7 @@ tasks.sieve.mfb0 = 18
 tasks.sieve.mfb1 = 18
 
 tasks.sieve.qmin = 50000
-tasks.sieve.qrange = 100
+tasks.sieve.qrange = 1000
 tasks.sieve.rels_wanted = 60000
 
 tasks.reconstructlog.partial=false

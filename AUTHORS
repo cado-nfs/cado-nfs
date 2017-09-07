@@ -35,7 +35,7 @@ The recommended way to cite CADO-NFS in a scientific publication
 is:
     The CADO-NFS Development Team.
     CADO-NFS, An Implementation of the Number Field Sieve Algorithm,
-    Release 2.2.0, 2015, http://cado-nfs.gforge.inria.fr/
+    Release 2.3.0, 2017, http://cado-nfs.gforge.inria.fr/
 where the release number and date should be changed to correspond to
 the version you actually used. If you used the development version, it is
 a good idea to give the git revision number.
@@ -46,7 +46,7 @@ Bibtex entry:
     author={The CADO-NFS Development Team},
     title={{CADO-NFS}, An Implementation of the Number Field Sieve
         Algorithm},
-    note={Release 2.2.0},
-    year={2015},
+    note={Release 2.3.0},
+    year={2017},
     url={http://cado-nfs.gforge.inria.fr/}
 }

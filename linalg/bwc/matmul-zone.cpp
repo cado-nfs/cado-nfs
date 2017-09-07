@@ -98,19 +98,6 @@ static size_t col_dispatcher_cutoff = 262144;
 static size_t colbatch1 = 65536;
 #endif
 
-static inline uint64_t cputicks()
-{
-        uint64_t r;
-        __asm__ __volatile__(
-                "rdtsc\n\t"
-                "shlq $32, %%rdx\n\t"
-                "orq %%rdx, %%rax\n\t"
-                : "=a"(r)
-                :
-                : "rdx");
-        return r;
-}
-
 /* {{{ some boilerplate related to saving cache files */
 
 struct cachefile {

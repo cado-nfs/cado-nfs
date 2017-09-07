@@ -1,5 +1,5 @@
 set (bin_list
-        dup1 dup2 purge merge merge-dl replay replay-dl sm reconstructlog-dl
+        dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
 )
 
 set (purge_sources purge_matrix.c singleton_removal.c

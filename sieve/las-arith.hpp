@@ -321,26 +321,26 @@ invmod_redc_32(uint32_t a, uint32_t b) {
     if (LIKELY((int8_t) t > 0)) {
       uint8_t n = (t + 7) >> 3;
       switch (t & 7) {
-          case 0: do { T3;
-                      case 7: T3;
-                      case 6: T3;
-                      case 5: T3;
-                      case 4: T3;
-                      case 3: T3;
-                      case 2: T3;
+          case 0: do { T3; no_break();
+                      case 7: T3; no_break();
+                      case 6: T3; no_break();
+                      case 5: T3; no_break();
+                      case 4: T3; no_break();
+                      case 3: T3; no_break();
+                      case 2: T3; no_break();
                       case 1: T3;
                   } while (--n > 0);
       }
     } else {
       uint8_t n = ((t = -t) + 7) >> 3;
       switch (t & 7) {
-            case 0: do { T4;
-                        case 7: T4;
-                        case 6: T4;
-                        case 5: T4;
-                        case 4: T4;
-                        case 3: T4;
-                        case 2: T4;
+            case 0: do { T4; no_break();
+                        case 7: T4; no_break();
+                        case 6: T4; no_break();
+                        case 5: T4; no_break();
+                        case 4: T4; no_break();
+                        case 3: T4; no_break();
+                        case 2: T4; no_break();
                         case 1: T4;
                     } while (--n > 0);
       }
@@ -455,26 +455,26 @@ invmod_redc_64(uint64_t a, uint64_t b)
     if (LIKELY((int8_t) t > 0)) {
       uint8_t n = (t + 7) >> 3;
       switch (t & 7) {
-          case 0: do { T3;
-                      case 7: T3;
-                      case 6: T3;
-                      case 5: T3;
-                      case 4: T3;
-                      case 3: T3;
-                      case 2: T3;
+          case 0: do { T3; no_break();
+                      case 7: T3; no_break();
+                      case 6: T3; no_break();
+                      case 5: T3; no_break();
+                      case 4: T3; no_break();
+                      case 3: T3; no_break();
+                      case 2: T3; no_break();
                       case 1: T3;
                   } while (--n > 0);
       }
     } else {
       uint8_t n = ((t = -t) + 7) >> 3;
       switch (t & 7) {
-          case 0: do { T4;
-                      case 7: T4;
-                      case 6: T4;
-                      case 5: T4;
-                      case 4: T4;
-                      case 3: T4;
-                      case 2: T4;
+          case 0: do { T4; no_break();
+                      case 7: T4; no_break();
+                      case 6: T4; no_break();
+                      case 5: T4; no_break();
+                      case 4: T4; no_break();
+                      case 3: T4; no_break();
+                      case 2: T4; no_break();
                       case 1: T4;
                   } while (--n > 0);
       }

@@ -381,9 +381,25 @@ extern void pi_dictionary_clear(pi_dictionary_ptr);
         if (t__ != comm->trank) continue; /* not our turn. */           \
         do
 #define SEVERAL_THREADS_PLAY_MPI_END()    while (0); } } while (0)
+/* This construct is used similarly. It differs slightly, in that we
+ * guarantee that only one thread (in the communicator) will issue mpi
+ * calls */
+#define SEVERAL_THREADS_PLAY_MPI_BEGIN2(comm, t__) do { 		\
+    serialize_threads(comm);                                            \
+    if (comm->trank == 0) {                                             \
+        for(unsigned int t__ = 0 ; t__ < comm->ncores ; t__++) {	\
+            do
+#define SEVERAL_THREADS_PLAY_MPI_END2(comm)                             \
+            while (0);							\
+        }								\
+    }									\
+    serialize_threads(comm);                                            \
+} while (0)
 #else
-#define SEVERAL_THREADS_PLAY_MPI_BEGIN(comm)    /**/
-#define SEVERAL_THREADS_PLAY_MPI_END()          /**/
+#define SEVERAL_THREADS_PLAY_MPI_BEGIN(comm)     /**/
+#define SEVERAL_THREADS_PLAY_MPI_END()           /**/
+#define SEVERAL_THREADS_PLAY_MPI_BEGIN2(comm, t) /**/
+#define SEVERAL_THREADS_PLAY_MPI_END2(comm)      /**/
 #endif
 
 #endif	/* PARALLELIZING_INFO_H_ */

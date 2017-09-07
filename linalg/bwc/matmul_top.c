@@ -224,7 +224,20 @@ void mmt_vec_init(matmul_top_data_ptr mmt, mpfq_vbase_ptr abase, pi_datatype_ptr
     }
     /* Vectors begin initialized to zero, so we have full consistency */
     v->consistency = 2;
-    serialize_threads(wr);
+    serialize_threads(v->pi->m);
+
+    // pi_log_op(v->pi->m, "Hello, world");
+    /* fill wrpals and mpals */
+    v->wrpals[0] = shared_malloc(v->pi->wr[0], v->pi->wr[0]->ncores * sizeof(void *));
+    v->wrpals[0][v->pi->wr[0]->trank] = v;
+    serialize_threads(v->pi->m);
+    v->wrpals[1] = shared_malloc(v->pi->wr[1], v->pi->wr[1]->ncores * sizeof(void *));
+    v->wrpals[1][v->pi->wr[1]->trank] = v;
+    serialize_threads(v->pi->m);
+    v->mpals = shared_malloc(v->pi->m, v->pi->m->ncores * sizeof(void *));
+    v->mpals[v->pi->m->trank] = v;
+    serialize_threads(v->pi->m);
+
 }
 
 void mmt_vec_clear(matmul_top_data_ptr mmt, mmt_vec_ptr v)
@@ -247,6 +260,9 @@ void mmt_vec_clear(matmul_top_data_ptr mmt, mmt_vec_ptr v)
         if (wr->trank == 0)
             cheating_vec_clear(v->abase, &v->v, n);
     }
+    shared_free(v->pi->wr[0], v->wrpals[0]);
+    shared_free(v->pi->wr[1], v->wrpals[1]);
+    shared_free(v->pi->m, v->mpals);
     memset(v, 0, sizeof(mmt_vec));
 }
 /* }}} */
@@ -482,6 +498,7 @@ mmt_vec_broadcast(mmt_vec_ptr v)
 
     /* communicator xwr is in the other direction */
     pi_comm_ptr xwr = v->pi->wr[!v->d];
+    mmt_vec_ptr * xwrpals = v->wrpals[!v->d];
 
     pi_log_op(v->pi->m, "[%s:%d] enter first loop", __func__, __LINE__);
     /* Make sure that no thread on the column is wandering in other
@@ -499,46 +516,39 @@ mmt_vec_broadcast(mmt_vec_ptr v)
     if (v->siblings) {
         /* not shared: begin by collecting everything on thread 0 */
         mmt_own_vec_set2(v, v->siblings[0], v);
-        serialize_threads(wr);
     }
-    if (wr->trank == 0) {
+    serialize_threads(v->pi->m);
+    if (wr->trank == 0 && xwr->trank == 0) {
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
-        MPI_Request * req = shared_malloc(xwr, xwr->ncores * sizeof(MPI_Request));
+        MPI_Request * req = malloc(xwr->ncores * sizeof(MPI_Request));
 #endif  /* AG_CHOICE == AG_CHOICE_STOCK_IAG */
 
         for(unsigned int t = 0 ; t < xwr->ncores ; t++) {
-            pi_log_op(xwr, "[%s:%d] serialize_threads", __func__, __LINE__);
-            serialize_threads(xwr);
-            pi_log_op(xwr, "[%s:%d] serialize_threads done", __func__, __LINE__);
-            if (t != xwr->trank)
-                continue;   // not our turn.
             // although the openmpi man page looks funny, I'm assuming that
             // MPI_Allgather wants MPI_IN_PLACE as a sendbuf argument.
-            pi_log_op(wr, "[%s:%d] MPI_Allgather", __func__, __LINE__);
+            pi_log_op(wr, "[%s:%d] MPI_Allgather (round %u)", __func__, __LINE__, t);
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
-            err = MPI_Iallgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, v->v, v->abase->vec_elt_stride(v->abase, 1) * eblock * wr->ncores, MPI_BYTE, wr->pals, &req[t]);
+            err = MPI_Iallgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                    xwrpals[t]->v, v->abase->vec_elt_stride(v->abase, 1) * eblock * wr->ncores, MPI_BYTE, wr->pals, &req[t]);
 #elif AG_CHOICE == AG_CHOICE_STOCK_AG
-            err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, v->v, v->abase->vec_elt_stride(v->abase, 1) * eblock * wr->ncores, MPI_BYTE, wr->pals);
+            err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, xwrpals[t]->v, v->abase->vec_elt_stride(v->abase, 1) * eblock * wr->ncores, MPI_BYTE, wr->pals);
 #else   /* AG_CHOICE */
 #error "Bad AG_CHOICE setting"
 #endif  /* AG_CHOICE */
-            pi_log_op(wr, "[%s:%d] MPI_Allgather done", __func__, __LINE__);
+            pi_log_op(wr, "[%s:%d] MPI_Allgather (round %u) done", __func__, __LINE__, t);
             ASSERT_ALWAYS(!err);
         }
 
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
-        serialize_threads(xwr);
-        if (xwr->trank == 0) {
-            for(unsigned int t = 0 ; t < xwr->ncores ; t++) {
-                MPI_Wait(&req[t], MPI_STATUS_IGNORE);
-            }
+        for(unsigned int t = 0 ; t < xwr->ncores ; t++) {
+            MPI_Wait(&req[t], MPI_STATUS_IGNORE);
         }
-        shared_free(xwr, req);
+        free(req);
 #endif  /* AG_CHOICE == AG_CHOICE_STOCK_IAG */
     }
     v->consistency = 2;
+    serialize_threads(v->pi->m);
     if (v->siblings) {
-        serialize_threads(wr);
         mmt_full_vec_set(v, v->siblings[0]);
         serialize_threads(wr);
     }
@@ -1321,9 +1331,13 @@ mmt_vec_allreduce(mmt_vec_ptr v)
             v->abase->vec_add(v->abase, dv, dv, sv, thread_chunk);
         }
     }
-    SEVERAL_THREADS_PLAY_MPI_BEGIN(v->pi->m) {
-        void * dv = v->abase->vec_subvec(v->abase, v->v,
-                wr->trank * thread_chunk);
+    /* Compared to the SEVERAL_THREADS_PLAY_MPI_BEGIN() approach, this
+     * one has thread 0 do the work for all other threads, while other
+     * threads are waiting.
+     */
+    SEVERAL_THREADS_PLAY_MPI_BEGIN2(v->pi->m, peer) {
+        void * dv = v->abase->vec_subvec(v->abase, v->mpals[peer]->v,
+                v->mpals[peer]->pi->wr[v->d]->trank * thread_chunk);
         MPI_Allreduce(MPI_IN_PLACE,
                 dv,
                 thread_chunk,
@@ -1331,7 +1345,7 @@ mmt_vec_allreduce(mmt_vec_ptr v)
                 BWC_PI_SUM->custom,
                 wr->pals);
     }
-    SEVERAL_THREADS_PLAY_MPI_END();
+    SEVERAL_THREADS_PLAY_MPI_END2(v->pi->m);
     if (v->siblings) {
         void * sv = v->abase->vec_subvec(v->abase, v->v,
                 wr->trank * thread_chunk);
@@ -2324,10 +2338,12 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data_ptr mmt, int i
                         .bfile = Mloc->bname,
                         .nh = pi->wr[1]->totalsize,
                         .nv = pi->wr[0]->totalsize,
-                        .withcoeffs = !is_char2(mmt->abase),
                         .do_perm = { MF_BAL_PERM_AUTO, MF_BAL_PERM_AUTO },
                     };
                     mf_bal_adjust_from_option_string(&mba, param_list_lookup_string(pl, "balancing_options"));
+                    /* withcoeffs being a switch for param_list, it is
+                     * clobbered by the configure_switch mechanism */
+                    mba.withcoeffs = !is_char2(mmt->abase);
                     mf_bal(&mba);
                 } else {
                     fprintf(stderr, "Cannot access balancing file %s: %s\n", Mloc->bname, strerror(errno));

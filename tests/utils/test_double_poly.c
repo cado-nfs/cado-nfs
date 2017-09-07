@@ -7,46 +7,7 @@
 #include "tests_common.h"
 
 
-/* Parse a space-separated string as polynomial coefficients.
-   Exactly one space between coefficients, none at start or end of string.
-   If poly is NULL, nothing is written, but number of coefficients is
-   returned.
-   Returns the number of parsed coefficients (not the degree!) */
-static int
-parse_poly_str (double_poly_ptr poly, const char *str)
-{
-  const char *next = str;
-  int i = 0;
-  double coeff;
-  
-  while (next != NULL) {
-    if (sscanf(next, "%lf", &coeff) != 1)
-      break;
-    if (poly) {
-      ASSERT_ALWAYS(i <= poly->deg);
-      poly->coeff[i] = coeff;
-    }
-    i++;
-    next = strchr(next, ' '); /* Pointer to next ' ' or NULL if not found */
-    if (next != NULL)
-      next++;
-  }
-  return i;
-}
 
-static void
-parse_poly(double_poly_ptr poly, const char *str)
-{
-  int n = parse_poly_str(NULL, str);
-  if (n == 0) {
-    double_poly_init (poly, 0);
-    poly->coeff[0] = 0.;
-    poly->deg = -1; /* so that deg+1 is the number of roots */
-  } else {
-    double_poly_init (poly, n - 1);
-  }
-  parse_poly_str(poly, str);
-}
 
 /* This computes only roots in [0,s] */
 void 
@@ -56,12 +17,21 @@ test_double_poly_compute_roots1(const char *poly_str, const char *roots_str,
 {
   double_poly poly, roots1, roots2;
   int nr_roots, i;
-  parse_poly(poly, poly_str);
-  parse_poly(roots1, roots_str);
+
+  double_poly_init(poly, -1);
+  double_poly_init(roots1, -1);
+
+  double_poly_set_string(poly, poly_str);
+  double_poly_set_string(roots1, roots_str);
+
   double_poly_init(roots2, poly->deg);
 
-  if (verbose)
-    double_poly_print (stdout, poly, "Testing polynomial ");
+  if (verbose) {
+      char * s;
+      double_poly_asprint (&s, poly, "x");
+      printf("Testing polynomial %s\n", s);
+      free(s);
+  }
 
   nr_roots = double_poly_compute_roots(roots2->coeff, poly, s);
   if (nr_roots != (int) roots1->deg + 1) {
@@ -107,12 +77,12 @@ test_double_poly_compute_roots(const int verbose)
   test_double_poly_compute_roots1("-120 274 -225 85 -15 1", "1 2 3 4 5", 1e-6, 6., verbose);
   
   /* Let f(x+1/x) * x^6 == (x^13-1)/(x-1). Test the positive roots */
-  test_double_poly_compute_roots1("-1 3 6 -4 -5 1 1", "0.241073360510646, 1.13612949346231, 1.77091205130642", 1e-6, 2., verbose);
+  test_double_poly_compute_roots1("-1 3 6 -4 -5 1 1", "0.241073360510646 1.13612949346231 1.77091205130642", 1e-6, 2., verbose);
   /* and the negative ones */
   test_double_poly_compute_roots1("-1 3 6 -4 -5 1 1", "-0.709209774085071 -1.49702149634220 -1.94188363485210", 1e-6, -2., verbose);
   
   /* this is f(x-2). 6 real roots, 0 rational */
-  test_double_poly_compute_roots1("1, -21, 70, -84, 45, -11, 1", "0.0581163651478959 0.502978503657798 1.29079022591493 2.24107336051065 3.13612949346231 3.77091205130642", 1e-6, 4., verbose);
+  test_double_poly_compute_roots1("1 -21 70 -84 45 -11 1", "0.0581163651478959 0.502978503657798 1.29079022591493 2.24107336051065 3.13612949346231 3.77091205130642", 1e-6, 4., verbose);
 
   /* dichotomy with too few iterations fails */
   test_double_poly_compute_roots1 ("37718991555021708231785218373859670336563892134301066596876783017325698882362933248 -58290863912589135997939905826055669574526326226812326870330700385351723122688 4974019329969663881845375223408004510305936664806589566321472066027520 0 -2765086156017059372041966183496747450660061680253272064 17192931019341412634837118288585351300728750080 3396573496846254368813196771328", "687391.0 1.1967277e7 4.2033871e7 1.48782523e8", 10.0, 9007199254740992.0, verbose);
@@ -140,6 +110,7 @@ test_double_poly_set (void)
   s->coeff[0] = -1.0;
   s->coeff[1] = 17.0;
   s->coeff[2] = 42.0;
+  double_poly_cleandeg(s, 2);
   double_poly_set (r, s);
   ASSERT_ALWAYS (r->deg == 2);
   ASSERT_ALWAYS (r->coeff[0] == -1.0);
@@ -182,26 +153,27 @@ test_double_poly_derivative (void)
 {
   double_poly f, df;
 
-  double_poly_init (f, 1);
-  double_poly_init (df, 0);
+  double_poly_init (f, 2);
+  double_poly_init (df, 1);
 
-  f->deg = 1;
   f->coeff[0] = 17.0;
   f->coeff[1] = 42.0;
+  double_poly_cleandeg(f, 1);
   double_poly_derivative (df, f);
   ASSERT_ALWAYS (df->deg == 0 && df->coeff[0] == 42.0);
 
   /* Test in-place operation */
-  f->deg = 1;
   f->coeff[0] = 17.0;
   f->coeff[1] = 42.0;
+  f->coeff[2] = 1728.0;
+  double_poly_cleandeg(f, 2);
   double_poly_derivative (f, f);
-  ASSERT_ALWAYS (f->deg == 0 && f->coeff[0] == 42.0);
+  ASSERT_ALWAYS (f->deg == 1 && f->coeff[0] == 42.0 && f->coeff[1] == 3456);
 
-  f->deg = 0;
   f->coeff[0] = 17.0;
+  double_poly_cleandeg(f, 0);
   double_poly_derivative (df, f);
-  ASSERT_ALWAYS (df->deg == 0 && df->coeff[0] == 0.0);
+  ASSERT_ALWAYS (df->deg == -1);
 
   double_poly_clear (f);
   double_poly_clear (df);
@@ -218,12 +190,13 @@ test_double_poly_revert (void)
   f->coeff[0] = 1.0;
   f->coeff[1] = 2.0;
   f->coeff[2] = 3.0;
-  double_poly_revert (f);
+  double_poly_cleandeg(f, 2);
+  double_poly_revert (f, f);
   ASSERT_ALWAYS (f->coeff[0] == 3.0 && f->coeff[1] == 2.0 && f->coeff[2] == 1.0);
 
   /* now with degree 1 */
-  f->deg = 1;
-  double_poly_revert (f);
+  double_poly_cleandeg(f, 1);
+  double_poly_revert (f, f);
   ASSERT_ALWAYS (f->coeff[0] == 2.0 && f->coeff[1] == 3.0);
 
   double_poly_clear (f);
@@ -232,27 +205,58 @@ test_double_poly_revert (void)
 void
 test_double_poly_print ()
 {
-  double_poly poly;
+    char *t;
+    int rc;
+    double_poly poly;
+    double_poly_init(poly, -1);
 
-  parse_poly (poly, "17");
-  double_poly_print (stdout, poly, "17: ");
-  double_poly_clear (poly);
+    double_poly_set_string(poly, "17");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "17");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
 
-  parse_poly (poly, "17 42");
-  double_poly_print (stdout, poly, "42*x+17: ");
-  double_poly_clear (poly);
+    double_poly_set_string(poly, "17 42");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "17+42*x");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
 
-  parse_poly (poly, "17 42 53");
-  double_poly_print (stdout, poly, "53*x^2+42*x+17: ");
-  double_poly_clear (poly);
+    double_poly_set_string(poly, "17 42 53");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "17+42*x+53*x^2");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
 
-  parse_poly (poly, "17 0 53");
-  double_poly_print (stdout, poly, "53*x^2+17: ");
-  double_poly_clear (poly);
+    /* We add some examples where non-integer floating point values are
+     * printed. Currently this uses the default printing mode of the c++
+     * printers, there's no way to change it.
+     */
+    double_poly_set_string(poly, "17.001e8 0 53");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "1.7001e+09+53*x^2");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
 
-  parse_poly (poly, "17 0 -53 99");
-  double_poly_print (stdout, poly, "99*x^3-53*x^2+17: ");
-  double_poly_clear (poly);
+    double_poly_set_string(poly, "17 0 -53.2 99");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "17-53.2*x^2+99*x^3");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
+
+    double_poly_set_string(poly, "1 0 -1 99");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "1-x^2+99*x^3");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
+
+    double_poly_set_string(poly, "0 -1 1");
+    double_poly_asprint(&t, poly, "x");
+    rc = strcmp(t, "-x+x^2");
+    ASSERT_ALWAYS(rc == 0);
+    free(t);
+
+    double_poly_clear(poly);
 }
 
 void
@@ -274,76 +278,67 @@ test_double_poly_set_mpz_poly (void)
   mpz_poly_clear (q);
 }
 
-unsigned int resultant_error(double true_val, double exp_val,
-    unsigned int error)
+unsigned int check_absolute_error(double value, double expected,
+        unsigned int error MAYBE_UNUSED)
 {
-  if (true_val == 0.0) {
-    true_val = 1.0;
-  }
-  if (exp_val == 0.0) {
-    exp_val = 1.0;
-  }
-  if ((unsigned int)fabs(log2(fabs(true_val)) - log2(fabs(exp_val))) <= error) {
-    return 1;
-  }
-  return 0;
+    if (value == 0.0)
+        value = 1.0;
+    if (expected == 0.0)
+        expected = 1.0;
+    if ((int)(fabs(log2(fabs(value)) - log2(fabs(expected)))) <= (int) error)
+        return 1;
+    return 0;
 }
 
 MAYBE_UNUSED void test_double_poly_resultant() {
   double_poly f, g;
+
+  double_poly_init(f, -1);
+  double_poly_init(g, -1);
   double res = 0.0;
   /*f=x^6+13*x^5+13*x^4+9*x^3+7*x+6*/
   /*g=128*x^2+128*x+128*/
-  parse_poly(f, "6 7 0 9 13 13 1");
-  parse_poly(g, "128 128 128");
+  double_poly_set_string(f, "6 7 0 9 13 13 1");
+  double_poly_set_string(g, "128 128 128");
   res = double_poly_resultant(f, g);
-  double_poly_clear(f);
-  double_poly_clear(g);
   double val = 162727720910848.000000;
-  ASSERT_ALWAYS(resultant_error(val, res, 0));
+  ASSERT_ALWAYS(check_absolute_error(val, res, 0));
 
   /*f=-3-15*x^1-9*x^2+3*x^3-12*x^4-12*x^5-3*x^6-3*x^7-12*x^8-15*x^9+6*x^10*/
   /*g=-6-13*x^1+9*x^2+7*x^3-5*x^4-5*x^5+11*x^6+2*x^7*/
-  parse_poly(f, "-3 -15 -9 3 -12 -12 -3 -3 -12 -15 6");
-  parse_poly(g, "-6 -13 9 7 -5 -5 11 2");
+  double_poly_set_string(f, "-3 -15 -9 3 -12 -12 -3 -3 -12 -15 6");
+  double_poly_set_string(g, "-6 -13 9 7 -5 -5 11 2");
   res = double_poly_resultant(f, g);
-  double_poly_clear(f);
-  double_poly_clear(g);
   val = -61519394185549840384.000000;
-  ASSERT_ALWAYS(resultant_error(val, res, 0));
+  ASSERT_ALWAYS(check_absolute_error(val, res, 0));
 
   /*f=7917871+7917871*x-7916275*x^2-7916275*x^3-7916275*x^4+7917871*x^5+15834944*x^6*/
   /*g=128*x^2+128*x+128*/
-  parse_poly(f, "7917871 7917871 -7916275 -7916275 -7916275 7917871 15834944");
-  parse_poly(g, "128 128 128");
+  double_poly_set_string(f, "7917871 7917871 -7916275 -7916275 -7916275 7917871 15834944");
+  double_poly_set_string(g, "128 128 128");
   res = double_poly_resultant(f, g);
-  double_poly_clear(f);
-  double_poly_clear(g);
   val = 1102790158070603587092742144.000000;
-  ASSERT_ALWAYS(resultant_error(val, res, 0));
+  ASSERT_ALWAYS(check_absolute_error(val, res, 0));
 
   /*f=1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366*/
   /*g=0*x^3+8320*x^2-50560*x-896*/
-  parse_poly(f, "1366 1366 1368 1368 1368 1366 1365");
-  parse_poly(g, "-896 -50560 8320 0");
-  double_poly_degree(g);
+  double_poly_set_string(f, "1366 1366 1368 1368 1368 1366 1365");
+  double_poly_set_string(g, "-896 -50560 8320 0");
   res = double_poly_resultant(f, g);
-  double_poly_clear(f);
-  double_poly_clear(g);
   val = 37263864605996575174727132124282880.000000;
-  ASSERT_ALWAYS(resultant_error(val, res, 0));
+  ASSERT_ALWAYS(check_absolute_error(val, res, 0));
 
   /*f=1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366*/
   /*g=15*x^2-43368*x-4753*/
 
-  parse_poly(f, "1366 1366 1368 1368 1368 1366 1365");
-  parse_poly(g, "-4753 -43368 15");
-  double_poly_degree(g);
+  double_poly_set_string(f, "1366 1366 1368 1368 1368 1366 1365");
+  double_poly_set_string(g, "-4753 -43368 15");
   res = double_poly_resultant(f, g);
+  val = 11186466747618860118741892404376785.000000;
+  ASSERT_ALWAYS(check_absolute_error(val, res, 0));
+
   double_poly_clear(f);
   double_poly_clear(g);
-  val = 11186466747618860118741892404376785.000000;
-  ASSERT_ALWAYS(resultant_error(val, res, 0));
 }
 
 int main()

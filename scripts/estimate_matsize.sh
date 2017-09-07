@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # The purpose of this script is to help predict the size of the matrix
 # that one would obtain with a given set of parameters.

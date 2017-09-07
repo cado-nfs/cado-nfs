@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #merge the strategies for each r0 and each r1 to compute the best
 #strategies for each pair of cofactors (r0, r1).

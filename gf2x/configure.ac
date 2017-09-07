@@ -96,10 +96,10 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_COMPILE_WARNINGS
 AC_PROG_CC_C99
+AC_PROG_CPP
 
 GF2X_PROG_CC_FOR_BUILD
 GF2X_PROG_EXEEXT_FOR_BUILD
-GF2X_CHECK_FOR_GMP
 
 # This macro is used for tuning
 AM_PROG_CC_C_O
@@ -114,6 +114,13 @@ AM_CONDITIONAL([WORDSIZE_IS_64],[test "x$gf2x_wordsize" = x64])
 
 if test "x${enable_hardware_specific_code}" = xno ; then
  echo "Not using hardware-specific code due to --disable-hardware-specific-code flag"
+ gf2x_cv_cc_supports_sse2=no
+ gf2x_cv_cc_supports_sse3=no
+ gf2x_cv_cc_supports_ssse3=no
+ gf2x_cv_cc_supports_sse41=no
+ gf2x_cv_cc_supports_pclmul=no
+ gf2x_cv_cc_supports_march_native=no
+ gf2x_cv_cc_supports_mtune_native=no
 else
  # It is necessary to make all tests. We do encounter in the wild
  # binutils (openbsd binutils 2.15, namely) which are buggy with ssse3,
@@ -183,18 +190,17 @@ if test x$hwdir = x ; then
       hwdir=x86_sse2
      fi
     elif test x$ABI = xdefault ; then
-     RUNTIME_ULONG_BITS()
-     case x$gf2x_cv_ulongbits in
+     case x$gf2x_wordsize in
       x64|xdontknow) true ;;
       x32)
-        AC_MSG_WARN([The default ABI for this compiler has $gf2x_cv_ulongbits-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_cv_ulongbits-bit])
+        AC_MSG_WARN([The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, not 64-bit as the CPU supports. Using $gf2x_wordsize-bit])
         if test "$gf2x_cv_cc_supports_sse2" = "no" ; then
          hwdir=generic$gf2x_wordsize
         else
          hwdir=x86_sse2
         fi;;
       *)
-       AC_MSG_ERROR([The default ABI for this compiler has $gf2x_cv_ulongbits-bit unsigned longs, this is not supported])
+       AC_MSG_ERROR([The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, this is not supported])
        ;;
      esac
     fi

@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "portability.h"
 #include "macros.h"
@@ -394,6 +396,17 @@ void level1_mul_tests_64()
 }
 /* }}} */
 
+/* PLUQ -- well we're not computing exactly PLUQ 
+ * PLUQ says: Any m*n matrix A with rank r , can be written A = P*L*U*Q
+ * where P and Q are two permutation matrices, of dimension respectively
+ * m*m and n*n, L is m*r unit lower triangular and U is r*n upper
+ * triangular.
+ *
+ * Here we compute p,l,u,q such that p*l*a*transpose(q) = an upper
+ * triangular matrix (and u is l*a).
+ *
+ * p*l is lower triangular.
+ */
 void check_pluq(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m, int n)
 {
     mat64 pm[(n/64)*(n/64)];
@@ -406,7 +419,7 @@ void check_pluq(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m, int n)
     mat64 qmt[(n/64)*(n/64)];
     pmat_get_matrix(qmt, qt);
 
-    /* compute p*u*q^-1 */
+    /* compute p*u*transpose(q) */
     mat64 pu[(n/64)*(n/64)];
     memset(pu, 0, (n/64)*(n/64)*sizeof(mat64));
 
@@ -428,6 +441,12 @@ void check_pluq(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m, int n)
         mul_6464_6464(tmp, pu[i*(n/64)+k], qmt[k*(n/64)+j]);
         add_6464_6464(puq[i*(n/64)+j], puq[i*(n/64)+j], tmp);
     }
+    
+    /* at this point puq = p*u*transpose(q) should be a upper triangular,
+     * with normalized diagonal. */
+    for(int i = 0 ; i < (n/64) ; i++ ) {
+        ASSERT_ALWAYS(mat64_is_uppertriangular(puq[i*(n/64)+i]));
+    }
 
     mat64 lm[(n/64)*(n/64)];
     memset(lm, 0, (n/64)*(n/64)*sizeof(mat64));
@@ -446,9 +465,6 @@ void check_pluq(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m, int n)
         for(int j = 0 ; j < (n/64) ; j++ ) {
             ASSERT_ALWAYS(mat64_eq(lm[i*(n/64)+j], u[i*(n/64)+j]));
         }
-    }
-    for(int i = 0 ; i < (n/64) ; i++ ) {
-        ASSERT_ALWAYS(mat64_is_uppertriangular(puq[i*(n/64)+i]));
     }
     pmat_clear(qt);
 }
@@ -485,6 +501,7 @@ void level3_gauss_tests_N(int n __attribute__((unused)))
 int main(int argc, char * argv[])
 {
     unsigned int n = 2 * 1000 * 1000;
+    int seed = 0;
     argc--,argv++;
     for( ; argc ; argc--, argv++) {
         if (strcmp(argv[0], "--test-fast") == 0 && argc >= 2) {
@@ -493,11 +510,24 @@ int main(int argc, char * argv[])
         } else if (strcmp(argv[0], "--n") == 0 && argc >= 2) {
             n = atoi(argv[1]);
             argc--,argv++;
+        } else if (strcmp(argv[0], "-seed") == 0 && argc >= 2) {
+            seed = atoi(argv[1]);
+            argc--,argv++;
         } else {
             fprintf(stderr, "arguments: [--test-fast <x>] [--n <n>]\n");
             exit(EXIT_FAILURE);
         }
     }
+    if (!seed) seed = rand();
+    printf("# seeding with seed %d\n", seed);
+#if !defined(HAVE_USUAL_SRAND_DETERMINISTIC_BEHAVIOR) && defined(HAVE_SRAND_DETERMINISTIC)
+    if (seed) srand_deterministic(seed);
+#else
+    /* won't be deterministic if
+     * !defined(HAVE_USUAL_SRAND_DETERMINISTIC_BEHAVIOR), but so be it.
+     */
+    if (seed) srand(seed);
+#endif
     printf("## compile-time features\n");
 #ifdef HAVE_M4RI
     printf("## HAVE_M4RI\n");
@@ -558,8 +588,6 @@ int main(int argc, char * argv[])
 
     if (1) {
         mat64 m[4],l[4],u[4];
-        srand(1728);
-
         {
             pmat p,q;
             pmat_init(p, 64);

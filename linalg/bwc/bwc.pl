@@ -1373,7 +1373,6 @@ sub task_common_run {
     @_ = grep !/^ys=/, @_ unless $program =~ /krylov$/;
     @_ = grep !/^solutions=/, @_ unless $program =~ /(?:mksol|gather)$/;
     @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|plingen.*|mksol)$/;
-    @_ = grep !/skip_decorrelating_permutation/, @_ unless $program =~ /mf_bal/;
     @_ = grep !/(?:precmd|tolerate_failure)/, @_;
 
     $program="$bindir/$program";
@@ -1386,7 +1385,7 @@ sub task_common_run {
     if ($mpi_needed) {
         if ($program =~ /\/plingen[^\/]*$/) {
             unshift @_, @mpi_precmd_lingen;
-        } elsif ($program =~ /\/(?:split|acollect|lingen|mf_bal|cleanup)$/) {
+        } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup)$/) {
             unshift @_, @mpi_precmd_single;
         } elsif ($program =~ /\/(?:prep|secure|krylov|mksol|gather)$/) {
             unshift @_, @mpi_precmd;

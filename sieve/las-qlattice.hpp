@@ -60,7 +60,7 @@ struct qlattice_basis {
     }
 };
 
-int SkewGauss (qlattice_basis &, const mpz_t, const mpz_t, double);
+int SkewGauss (qlattice_basis &, mpz_srcptr, mpz_srcptr, double);
 
 static inline fbprime_t
 fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,

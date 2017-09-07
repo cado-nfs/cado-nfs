@@ -1072,7 +1072,7 @@ void random_matrix_get_u32_byrows(gmp_randstate_t rstate, random_matrix_ddata_pt
     F->row_avg = e;
     F->row_sdev = sdev;
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD) && F->print) {
-        fprintf(stderr, "Actual density per row avg %.2f sdev %.2f\n",
+        printf ("Actual density per row avg %.2f sdev %.2f\n",
                 F->row_avg, F->row_sdev);
     }
 }
@@ -1102,7 +1102,12 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
     last_printed->z = 0;
 
         size_t size0 = 0;
-        uint32_t * ptr = malloc(F->ncols * sizeof(uint32_t));
+        /* this will be used as a temporary buffer for the columns being
+         * created, before they get pushed to the main matrix (temp area
+         * is without coefficients -- those are generated on the second
+         * pass).
+         */
+        uint32_t * ptr = malloc(F->nrows * sizeof(uint32_t));
         random_matrix_ddata G;
         random_matrix_ddata_init(G);
         /* use a special ddata, for our specially simple process (which
@@ -1214,7 +1219,7 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
     F->row_avg = e;
     F->row_sdev = sdev;
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD) && F->print) {
-        fprintf(stderr, "Actual density per row avg %.2f sdev %.2f\n",
+        printf ("Actual density per row avg %.2f sdev %.2f\n",
                 F->row_avg, F->row_sdev);
     }
 }
@@ -1495,7 +1500,7 @@ int main(int argc, char * argv[])
     random_matrix_process_print(r, F);
 
     if (verbose)
-        fprintf(stderr, "Actual density per row avg %.2f sdev %.2f\n",
+        printf ("Actual density per row avg %.2f sdev %.2f\n",
                 F->row_avg, F->row_sdev);
     random_matrix_ddata_clear(F);
 

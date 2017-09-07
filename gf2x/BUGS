@@ -1,7 +1,4 @@
 
-Known bugs/issues with gf2x version 0.9.1
+See the official bug tracker here:
 
-- Toom tuning reports bizarre results on opteron. Prefer the shipped
-  x86_64/gf2x-thresholds.h (even though this was for a core2)
-
-- fft tuning crashes on solaris-2.10, amd64 in 32bit mode.
+    https://gforge.inria.fr/tracker/?atid=6979&group_id=1874&func=browse

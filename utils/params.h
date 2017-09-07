@@ -156,7 +156,7 @@ int param_list_parse_double_list(param_list_ptr, const char * key,
   r: array with the integer value contained in the key.
   t: number of element in array.
 */
-extern void param_list_parse_int_list_size(param_list_ptr, const char * key,
+extern int param_list_parse_int_list_size(param_list_ptr, const char * key,
     int ** r, unsigned int * t);
 /*
   Return a mpz_poly f. The polynomial is initialised with the string separate by
@@ -167,7 +167,7 @@ extern void param_list_parse_int_list_size(param_list_ptr, const char * key,
   key: key in the parameter list.
   f: the polynomial.
 */
-extern void param_list_parse_mpz_poly(param_list_ptr, const char * key,
+extern int param_list_parse_mpz_poly(param_list_ptr, const char * key,
     mpz_poly_ptr f);
 
 extern int param_list_parse_size_t(param_list_ptr, const char * key, size_t * r);

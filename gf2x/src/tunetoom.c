@@ -70,6 +70,7 @@
 
 #define _DEFAULT_SOURCE /* _BSD_SOURCE is deprecated */
 #define _POSIX_C_SOURCE 200112L /* solaris needs >= 199506L for ctime_r */
+#define _XOPEN_SOURCE 500L /* FreeBSD wants that for srandom() */
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>		/* for LONG_MAX */

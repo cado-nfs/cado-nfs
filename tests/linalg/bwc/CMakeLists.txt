@@ -30,7 +30,7 @@ set(prime_14 1167941888553017594657758309434529774444725445663967912897703026844
 set(prime_15 358752939420752931158375023855513400064244447993094387657025186121127116148346374410346539594710018174137751708688854198856062241744412981520402102281094231132870913674050365678978481894462185188236318219972031917211474544119229541236960242093722745601167293308448934364898080327)
 set(prime_z 69617318994479297159441705409245167921344429126717528237597542082203295398081625160307507496908132931192662194421301381083506846944815643283884602656894137393981852330936660004926669193667)
 
-
+if(HAVE_PERL_DIGEST_MD5)
 macro(add_lingen_binary_test testname)
     cado_define_test(test-bwc-lingen-binary-${testname} SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
@@ -47,6 +47,7 @@ add_lingen_binary_test(test0 893801e0727d840353a35b2623430fb758e4d379 64 64 160 
 
 # The test below fails on 32bit. This should be investigated.
 # add_lingen_binary_test(test1 30b90451fb828f08caa160f96c585c4b1c0951a8 64 64 200 1 lingen_threshold=10)
+endif()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(extra)
@@ -271,6 +272,7 @@ set(test-spmv-binary-u64k4_alltests YES)
 set(test-spmv-prime-p_3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
+if(HAVE_PERL_DIGEST_MD5)
 cado_define_test(
     TEST_NAME test-spmv-${test_spmv_base}
     SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
@@ -294,6 +296,9 @@ cado_divert_test(test-spmv-${test_spmv_base} 2122 APPEND_ARGUMENTS mpi=2x1 thr=2
 cado_divert_test(test-spmv-${test_spmv_base} 1322 APPEND_ARGUMENTS mpi=1x3 thr=2x2)
 cado_divert_test(test-spmv-${test_spmv_base} 3222 APPEND_ARGUMENTS mpi=3x2 thr=2x2)
 endif()
+endif()
+else()
+    # Then this macro will expand to nothing, that's life.
 endif()
 endmacro()
 
@@ -414,6 +419,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     no_save_cache=1 interval=10 nullspace=left
     TARGET_DEPENDENCIES test-blocklanczos_dependencies)
 
+if(HAVE_PERL_DIGEST_MD5)
 cado_define_test(TEST_NAME test-lingen-crc
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
@@ -422,5 +428,6 @@ cado_define_test(TEST_NAME test-lingen-crc
     seed=0 m=64 n=64 random_stem=30000 sequence_length=200
     expect_crc_pi=c29af350 expect_crc_F=04f4e167
     TARGET_DEPENDENCIES lingen)
+endif()
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)

@@ -12,6 +12,21 @@
 extern "C" {
 #endif
 
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+static inline uint64_t cputicks()
+{
+        uint64_t r;
+        __asm__ __volatile__(
+                "rdtsc\n\t"
+                "shlq $32, %%rdx\n\t"
+                "orq %%rdx, %%rax\n\t"
+                : "=a"(r)
+                :
+                : "rdx");
+        return r;
+}
+#endif
+
 extern uint64_t microseconds (void);
 extern uint64_t microseconds_thread (void);
 extern unsigned long milliseconds (void);

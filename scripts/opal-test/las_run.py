@@ -56,6 +56,7 @@ def run(param_file, problem):
         "mfb1": 22,
         "ncurves0": 6,
         "ncurves1": 6,
+        "qmin": 100000,
         "t": 2 # number of threads for las
     }
     if sqside != "":
@@ -72,7 +73,7 @@ def run(param_file, problem):
     las_params["lim0"] = min(las_params["lim0"], 2 ** las_params["lpb0"])
     las_params["lim1"] = min(las_params["lim1"], 2 ** las_params["lpb1"])
     
-    to_print = ["I", "lim1", "lpb1", "mfb1", "lim0", "lpb0", "mfb0", "ncurves0", "ncurves1"]
+    to_print = ["I", "lim1", "lpb1", "mfb1", "lim0", "lpb0", "mfb0", "ncurves0", "ncurves1", "qmin"]
     sys.stderr.write("Using parameters %s\n" % " ".join(["%s:%s" % (key, las_params[key]) for key in to_print]))
 
     ### Call makefb on all algebraic polynomials
@@ -95,9 +96,7 @@ def run(param_file, problem):
         subprocess.check_call(makefb_cmd_line)
 
     stats = LasStats()
-    # side of special-q is given by sqside or we choose the first alg side
-    q0side = sqside if sqside != "" else cado_poly_type.index("alg")
-    q0 = las_params["lim%s" % q0side]
+    q0 = las_params["qmin"]
     q_range = 1000
     q_inc = 0
     # since we remove duplicates, 80% of the total ideals should be enough
@@ -114,8 +113,14 @@ def run(param_file, problem):
         outputfile = "las.%d.out" % q0
         las_params.update({"q0": q0, "q1": q0 + q_range, "out": outputfile})
 
-        las_cmd_line = [las, "-allow-largesq", "-dup"]
+        las_cmd_line = [las, "-allow-largesq", "-never-discard", "-dup", "-dup-qmin"]
+        if sqside == 0:
+            las_cmd_line += ["%s,0" % str(las_params["qmin"])]
+        else:
+            las_cmd_line += ["0,%s" % str(las_params["qmin"])]
         for (key, value) in las_params.items():
+            if key == "qmin":
+               continue
             las_cmd_line += ["-%s" % key, str(value)]
         # sys.stderr.write("Running: %s\n" % " ".join(las_cmd_line))
         las_process = subprocess.Popen(las_cmd_line)

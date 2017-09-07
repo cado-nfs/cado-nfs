@@ -271,68 +271,79 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
     }
     printf("C files have %zu coordinates\n", vsize);
 
-    ASSERT_ALWAYS(Cfiles[0].stretch == 0);
+    int nok=0;
 
-    void * C0v;
+    for(unsigned int i0 = 0 ; i0 < Cfiles.size() - 1 ; i0++) {
+        Cfile& C_i0(Cfiles[i0]);
+        void * Cv_i0;
+        vec_alloc(Ac, Cv_i0, vsize);
 
-    vec_alloc(Ac, C0v, vsize);
-    vec_read(Ac, C0v, Cfiles[0], vsize, " ");
+        int has_read_Cv_i0 = 0;
 
-    for(unsigned int cc = 1 ; cc < Cfiles.size() ; cc++) {
-        Cfile& C(Cfiles[cc]);
-        const char * c = C.c_str();
+        for(unsigned int i1 = i0 + 1 ; i1 < Cfiles.size() ; i1++) {
+            Cfile& C_i1(Cfiles[i1]);
+            const char * c = C_i1.c_str();
 
-        printf("Doing checks for distance %u using %s\n", C.stretch, c);
+            printf("Doing checks for distance %d using %s and %s\n",
+                    C_i1.stretch - C_i0.stretch,
+                    C_i0.c_str(), C_i1.c_str()
+                    );
 
-        void * Cv;
+            void * Cv_i1;
+            vec_alloc(Ac, Cv_i1, vsize);
 
-        vec_alloc(Ac, Cv, vsize);
-        vec_read(Ac, Cv, C, vsize, " ");
+            int has_read_Cv_i1 = 0;
 
-        /* {{{ check all V files together */
-        for(vseq_t::iterator it = Vsequences.begin(); it != Vsequences.end(); it++)
-        {
-            vector<Vfile>& Vs(it->second);
+            /* {{{ check all V files together */
+            for(vseq_t::iterator it = Vsequences.begin(); it != Vsequences.end(); it++)
+            {
+                vector<Vfile>& Vs(it->second);
 
-            printf(" checks on V files for sequence %u-%u\n",
-                    it->first.first, it->first.second);
+                printf(" checks on V files for sequence %u-%u\n",
+                        it->first.first, it->first.second);
 
-            mpfq_vbase Av;
-            mpfq_vbase_oo_field_init_byfeatures(Av, 
-                    MPFQ_PRIME_MPZ, bw->p,
-                    MPFQ_GROUPSIZE, it->first.second - it->first.first,
-                    MPFQ_DONE);
+                mpfq_vbase Av;
+                mpfq_vbase_oo_field_init_byfeatures(Av, 
+                        MPFQ_PRIME_MPZ, bw->p,
+                        MPFQ_GROUPSIZE, it->first.second - it->first.first,
+                        MPFQ_DONE);
 
 
-            mpfq_vbase_tmpl AvxAc;
-            mpfq_vbase_oo_init_templates(AvxAc, Av, Ac);
+                mpfq_vbase_tmpl AvxAc;
+                mpfq_vbase_oo_init_templates(AvxAc, Av, Ac);
 
-            /* {{{ Check that all V files here have the proper size */
-            for(unsigned int i = 0 ; i < Vs.size() ; i++) {
-                size_t items = vec_items(Av, Vs[i]);
-                if (items != vsize) {
-                    fprintf(stderr, "%s has %zu coordinates, different from expected %zu\n", Vs[i].c_str(), items, vsize);
-                    exit(EXIT_FAILURE);
+                /* {{{ Check that all V files here have the proper size */
+                for(unsigned int i = 0 ; i < Vs.size() ; i++) {
+                    size_t items = vec_items(Av, Vs[i]);
+                    if (items != vsize) {
+                        fprintf(stderr, "%s has %zu coordinates, different from expected %zu\n", Vs[i].c_str(), items, vsize);
+                        exit(EXIT_FAILURE);
+                    }
                 }
-            }
-            /* }}} */
+                /* }}} */
 
-            void * Vv;
-            vec_alloc(Av, Vv, vsize);
-            unsigned int Vv_iter = UINT_MAX;
+                void * Vv;
+                vec_alloc(Av, Vv, vsize);
+                unsigned int Vv_iter = UINT_MAX;
 
-            void * dotprod_scratch[2];
-            vec_alloc(Av, dotprod_scratch[0], nchecks);
-            vec_alloc(Av, dotprod_scratch[1], nchecks);
+                void * dotprod_scratch[2];
+                vec_alloc(Av, dotprod_scratch[0], nchecks);
+                vec_alloc(Av, dotprod_scratch[1], nchecks);
 
-            unsigned int j = 0;
-            for(unsigned int i = 0 ; i < Vs.size() ; i++) {
-                j++;
-                for( ; j < Vs.size() ; j++) {
-                    if (Vs[j].n == Vs[i].n + C.stretch)
-                        break;
-                }
-                if (j < Vs.size()) {
+                unsigned int j = 0;
+                for(unsigned int i = 0 ; i < Vs.size() ; i++) {
+                    for(j = i + 1 ; j < Vs.size() ; j++) {
+                        if (Vs[j].n + C_i0.stretch == Vs[i].n + C_i1.stretch)
+                            break;
+                    }
+                    if (j == Vs.size()) continue;
+
+                    if (!has_read_Cv_i0++)
+                        vec_read(Ac, Cv_i0, C_i0, vsize, " ");
+
+                    if (!has_read_Cv_i1++)
+                        vec_read(Ac, Cv_i1, C_i1, vsize, " ");
+
                     Vs[j].checks++;
                     const char * vi = Vs[i].c_str();
                     const char * vj = Vs[j].c_str();
@@ -353,42 +364,48 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
                     /* compute the dot product */
                     AvxAc->dotprod(Av, Ac, 
                             dotprod_scratch[0],
-                            Cv, Vv, vsize);
+                            Cv_i1, Vv, vsize);
 
                     vec_read(Ac, Vv, Vs[j].c_str(), vsize, "   ");
                     Vv_iter = Vs[j].n;
 
                     AvxAc->dotprod(Av, Ac, 
                             dotprod_scratch[1],
-                            C0v, Vv, vsize);
+                            Cv_i0, Vv, vsize);
 
                     int cmp = Av->vec_cmp(Av, dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                     printf("  check %s against %s -> %s\n",
-                            vi, vj, cmp == 0 ? "ok" : "NOK");
+                            vi, vj, cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
 
                     if (cmp != 0) {
+                        nok++;
                         fprintf(stderr, " check %s against %s -> %s\n",
-                                vi, vj, cmp == 0 ? "ok" : "NOK");
-                        exit(EXIT_FAILURE);
+                                vi, vj, cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
                     }
                 }
+                vec_free(Av, dotprod_scratch[0], nchecks);
+                vec_free(Av, dotprod_scratch[1], nchecks);
+                vec_free(Ac, Vv, vsize);
+
+                Av->oo_field_clear(Av);
             }
-            vec_free(Av, dotprod_scratch[0], nchecks);
-            vec_free(Av, dotprod_scratch[1], nchecks);
-            vec_free(Ac, Vv, vsize);
+            /* }}} */
 
-            Av->oo_field_clear(Av);
+            /* {{{ check A files */
+
+            /* }}} */
+
+            vec_free(Ac, Cv_i1, vsize);
         }
-        /* }}} */
-
-        /* {{{ check A files */
-
-        /* }}} */
-
-        vec_free(Ac, Cv, vsize);
+        vec_free(Ac, Cv_i0, vsize);
     }
 
+    if (nok) {
+        printf("%d checks FAILED !!!!!!!!!!!!!!!!!\n", nok);
+        fprintf(stderr, "%d checks FAILED !!!!!!!!!!!!!!!!!\n", nok);
+        exit(EXIT_FAILURE);
+    }
 
 
 #if 0

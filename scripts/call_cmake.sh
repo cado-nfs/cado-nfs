@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# For debug, uncomment:
+# set -x
+
 ########################################################################
 # This script is responsible of handing over the build process, in a
 # proper out of source build directory. It takes care of calling cmake
@@ -99,8 +102,8 @@ if [ "$?" != "0" ] || ! [ -x "$cmake_path" ] ; then
     echo "CMake not found" >&2
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
-elif [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ [012] ]] && ! [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ 2.[89] ]] ; then
-    echo "CMake found, but not with version 2.8 or newer" >&2
+elif [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ [012] ]] && ! ( [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ 2.(9|8.11|8.12) ]]) ; then
+    echo "CMake found, but not with version 2.8.11 or newer" >&2
     cmake_path=
 fi
 if ! [ "$cmake_path" ] ; then
@@ -148,7 +151,7 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     else
       unset CMAKE_GENERATOR_OPT
     fi
-    (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" "$absolute_path_of_source")
+    (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" $CMAKE_EXTRA_ARGS "$absolute_path_of_source")
 fi
 
 if [ "$1" = "cmake" ] ; then

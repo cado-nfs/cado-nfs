@@ -10,24 +10,17 @@ modulo the factor 101538509534246169632617439 of p-1 of the target
 
 $ ./cado-nfs.py -dlp -ell 101538509534246169632617439 target=92800609832959449330691138186 191907783019725260605646959711
 
-For the moment, it is required to have Magma installed. It is used just
-for some number-theoretic computations, after the polynomial selection
-has been done.
-Cf scripts/badideals.mag .
-This script has been written without using any high-level functionality
-of Magma, so that it will be easy to convert it to C/C++/Python.  This
-step is very cheap, so it is possible to run it on any computer.
-
 In principle, just typing
   ./cado-nfs.py -dlp -ell <ell> target=<target> <p>
 should compute the discrete logarithm of <target> modulo <ell> in
 GF(<p>). Right now, there are parameters only for primes p of around 30,
-60, or 155 digits (to be checked in params_dl/ subdirectory). If no target is
-given, then the output is a file containing the virtual logarithms of all
-the factor base elements.
+60, 100 or 155 digits (to be checked in params_dl/ subdirectory). If no
+target is given, then the output is a file containing the virtual
+logarithms of all the factor base elements.
 
 More flexibility is possible. An example of parameter file is given in
-parameters/dlp/param.p60. The main difference is that the lines related
+parameters/dlp/param.p60. Compared to parameter files for integer
+factorization, the main difference is that the lines related
 to characters and sqrt disappear and that there is an additional block of
 parameters related to individual logarithms.
 
@@ -38,9 +31,10 @@ the command-line indicated in the output of the first computation that
 contains "If you want to compute a new target…", and set the new target at the
 end.
 
-Note: the logarithms are given in an arbitrary base. If you want to
-define them with respect to a specific generator g, then you'll have to
-compute the logarithm of g and then divide all the logs by this value.
+Important note: the logarithms are given in an arbitrary (unknown) base.
+If you want to define them with respect to a specific generator g, then
+you'll have to compute the logarithm of g and then divide all the logs by
+this value.
 
 **** Using non-linear polynomials
 

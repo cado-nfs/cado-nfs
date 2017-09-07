@@ -1188,12 +1188,12 @@ int param_list_parse_uchar_list(param_list_ptr pl, const char * key,
     return parsed;
 }
 
-void param_list_parse_int_list_size(param_list_ptr pl, const char * key , int ** r ,
+int param_list_parse_int_list_size(param_list_ptr pl, const char * key , int ** r ,
     unsigned int * t)
 {
   char *value;
   if (!get_assoc(pl, key, &value, NULL))
-    return ;
+    return 0;
   char *tmp = value;
   int i = 0;
   * r = (int * ) malloc(sizeof(int) * 1);
@@ -1223,6 +1223,7 @@ void param_list_parse_int_list_size(param_list_ptr pl, const char * key , int **
     *t = *t + 1;
     * r = realloc(* r, sizeof(int) * (*t));
   }
+  return *t;
 }
 
 int param_list_parse_double_list(param_list_ptr pl, const char * key,
@@ -1264,12 +1265,12 @@ int param_list_parse_double_list(param_list_ptr pl, const char * key,
     return parsed;
 }
 
-void param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
+int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
     mpz_poly_ptr f)
 {
   char *value;
   if (!get_assoc(pl, key, &value, NULL))
-    return ;
+    return 0;
   char *tmp = value;
   mpz_t coeff;
   mpz_init(coeff);
@@ -1297,6 +1298,7 @@ void param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
     tmp++;
   }
   mpz_clear(coeff);
+  return 1;
 }
 
 const char * param_list_lookup_string(param_list_ptr pl, const char * key)

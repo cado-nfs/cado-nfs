@@ -997,16 +997,17 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
       s2param->g = G->coeff;
 
 #if 1
+      /* use MurphyE for ranking in the priority queue (default) */
       MurphyE = print_poly_fg (F, s2param->g, poly->n, 0);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv,
                          s2param->MOD, MurphyE);
 #else
-      /* the approximation takes slightly less time */
+      /* use E for ranking: takes slightly less time */
       double skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-      MurphyE = L2_lognorm (F, skew);
+      double E = L2_lognorm (F, skew);
       double alpha = get_alpha (F, ALPHA_BOUND);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv, 
-                         s2param->MOD, -(MurphyE + alpha));
+                         s2param->MOD, -(E + alpha));
 #endif
     }
 

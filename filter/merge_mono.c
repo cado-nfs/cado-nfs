@@ -91,6 +91,25 @@ checkCoherence(filter_matrix_t *mat, int m, index_t j)
 }
 #endif
 
+/* Check that the rows are sorted, and contain only once each ideal.
+   This should normally always be the case, but we have to prevent from
+   users who build their own corrupted purge file,
+   see https://gforge.inria.fr/tracker/index.php?func=detail&aid=21330. */
+static void
+checkMat (filter_matrix_t *mat)
+{
+  for (index_t i = 0; i < mat->nrows; i++)
+    for (index_t k = 2; k <= matLengthRow(mat, i); k++)
+      if (!(matCell(mat, i, k - 1) < matCell(mat, i, k)))
+        {
+          fprintf (stderr, "Error, invalid row %lu:\n",
+                   (unsigned long) i);
+          fprintRow (stderr, mat->rows[i]);
+          fprintf (stderr, "\nPlease fix your purge file\n");
+          exit (1);
+        }
+}
+
 //////////////////////////////////////////////////////////////////////
 // making things independent of the real data structure used
 //////////////////////////////////////////////////////////////////////
@@ -782,6 +801,9 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
   unsigned int ncost = 0;
   int m;
   merge_stats_t *merge_data;
+
+  /* first check the input matrix is valid */
+  checkMat (mat);
 
   printf ("# Using %s to compute the merges\n", __func__);
 

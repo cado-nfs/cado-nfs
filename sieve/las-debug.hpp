@@ -6,7 +6,6 @@
 
 #include "las-config.h"
 #include "las-forwardtypes.hpp"
-#include "las-types.hpp"
 
 /* FIXME: This does not seem to work well */
 #ifdef  __GNUC__

@@ -1,4 +1,4 @@
-#!/bin/bash                                                                                         
+#!/usr/bin/env bash                                                                                         
 #[fbb_lpb]
 fbb=$1
 lpb=$2

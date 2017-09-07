@@ -47,6 +47,35 @@ def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     v1 = v1 / pi # normalization to get same values as MurphyE if v1=1
     return numerical_integral(v1, 0, pi)
 
+# same as MurphyE_int, but integrates between roots of f and g
+def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+    df = f.degree()
+    dg = g.degree()
+    l = (f*g).roots(ring=RR)
+    l = [arccot(r/s) for r,_ in l]
+    l = [x+(1-sign(x))*RR(pi)/2 for x in l]
+    l.sort()
+    alpha_f = alpha(f,2000)
+    alpha_g = alpha(g,2000)
+    sx = sqrt(area*s)
+    sy = sqrt(area/s)
+    var('y,theta')
+    xi = cos(theta)*sx
+    yi = sin(theta)*sy
+    fi = f(x=xi/yi)*yi^df/sq
+    gi = g(x=xi/yi)*yi^dg
+    ui = (log(abs(fi))+alpha_f)/log(Bf)
+    vi = (log(abs(gi))+alpha_g)/log(Bg)
+    v1 = dickman_rho(ui) * dickman_rho(vi)
+    v1 = v1 / pi # normalization to get same values as MurphyE if v1=1
+    l.append(RR(pi))
+    a = S = 0
+    for b in l:
+       s = numerical_integral(v1, a, b)
+       S += s[0]
+       a = b
+    return S
+
 # instead of integrating on the half-circle, integrate on the disk
 # (this is supposed to give the probability to find a relation)
 def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
@@ -125,33 +154,112 @@ def MurphyE_combined_aux(f,g,B,verbose=false):
       l = ll
    return l
 
+# same as MurphyE_combined_aux, but for all primes p < B, considers p^e instead
+# of p, where p^e < B <= p^(e+1)
+def MurphyE_combined_aux2(f,g,B,verbose=false):
+   # l is a list of [pr,alpha_f,alpha_g] where:
+   # pr is the probability of this residue class
+   # alpha_f is the alpha value of f for this class
+   # alpha_g is the alpha value of g for this class
+   l = [[1,alpha(f,2000),alpha(g,2000),0,0,1]]
+   x = f.variables()[0]
+   for p in prime_range(B):
+      e = 1
+      while p^(e+1) < B:
+         e = e+1
+      lp = []
+      nrs = 0
+      for r in range(p^e):
+         for s in range(p^e):
+            if r % p == 0 and s % p == 0: # we want r and s coprime
+               continue
+            if s % p <> 0 and s <> 1: # p^e classes (r,1)
+               continue
+            if s % p == 0 and r <> 1: # p^(e-1) classes (1,s) for p | s
+               continue
+            nrs += 1
+            ef = average_valuation_homogeneous_coprime_sub2(f,p,e,r,s)
+            eg = average_valuation_homogeneous_coprime_sub2(g,p,e,r,s)
+            if verbose:
+               print "p=", p, "r=", r, "s=", s, "ef=", ef, "eg=", eg
+            # if there was already a class with the same exponents, accumulate
+            found = false
+            for i in range(len(lp)):
+               if false and lp[i][:2] == [ef,eg]:
+                  lp[i][2] += 1
+                  found = true
+                  break
+            if found == false:
+               lp.append([ef,eg,1,r,s,p^e])
+      assert nrs == p^e + p^(e-1)
+      contf_p = average_valuation_homogeneous_coprime(f,p)
+      contg_p = average_valuation_homogeneous_coprime(g,p)
+      logp = float(log(p))
+      # now merge with the values in l
+      ll = []
+      for x in l:
+         for y in lp:
+            pr = x[0]*y[2]/nrs
+            alpha_f = x[1] + (contf_p - y[0])*logp
+            alpha_g = x[2] + (contg_p - y[1])*logp
+            ll.append([pr,alpha_f,alpha_g,crt(x[3],y[3],x[5],y[5]),crt(x[4],y[4],x[5],y[5]),x[5]*y[5]])
+      l = ll
+   return l
+
 # computes a "combined" MurphyE value by taking into account correlation
 # between the roots of f and g for all primes < B (B=2 should give the same
 # value than MurphyE)
-def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,verbose=false):
-    l = MurphyE_combined_aux(f,g,B,verbose)
+def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sample',verbose=false):
+    l = MurphyE_combined_aux2(f,g,B,verbose)
     print "number of residue classes:", len(l)
     df = f.degree()
     dg = g.degree()
     E = 0
     sx = sqrt(area*s)
     sy = sqrt(area/s)
-    for pr,alpha_f,alpha_g in l:
-       Ej = 0
-       for i in range(K):
-	  theta_i = float(pi/K*(i+0.5))
-	  xi = cos(theta_i)*sx
-	  yi = sin(theta_i)*sy
-	  fi = f(x=xi/yi)*yi^df
+    smallest = infinity, 0
+    largest = 0, 0
+    for entry in l:
+       pr = entry[0]
+       alpha_f = entry[1]
+       alpha_g = entry[2]
+       if method == 'sample':
+	  Ej = 0
+	  for i in range(K):
+	     theta_i = float(pi/K*(i+0.5))
+	     xi = cos(theta_i)*sx
+	     yi = sin(theta_i)*sy
+	     fi = f(x=xi/yi)*yi^df/sq
+	     gi = g(x=xi/yi)*yi^dg
+	     ui = (log(abs(fi))+alpha_f)/log(Bf)
+	     vi = (log(abs(gi))+alpha_g)/log(Bg)
+	     v1 = dickman_rho(ui) * dickman_rho(vi)
+	     Ej += v1
+	  Ej = Ej/K
+       elif method == 'integrate':
+          var('theta')
+          xi = cos(theta)*sx
+          yi = sin(theta)*sy
+	  fi = f(x=xi/yi)*yi^df/sq
 	  gi = g(x=xi/yi)*yi^dg
 	  ui = (log(abs(fi))+alpha_f)/log(Bf)
 	  vi = (log(abs(gi))+alpha_g)/log(Bg)
 	  v1 = dickman_rho(ui) * dickman_rho(vi)
-	  Ej += v1
-       Ej = Ej/K
+          v1 = v1 / pi
+          Ej = numerical_integral(v1, 0, pi)[0]
+       else:
+          print "Unknown method:", method
+          raise ValueError
+       if Ej < smallest[0]:
+          smallest = Ej,entry
+       if Ej > largest[0]:
+          largest = Ej,entry
        if verbose:
-          print pr,alpha_f,alpha_g,Ej
+          print Ej,entry
        E += Ej*pr
+    if verbose:
+       print "smallest:", smallest
+       print "largest:", largest
     return E
 
 # example: RSA-768 polynomials
@@ -248,25 +356,35 @@ def check_rho(a,b,N):
          maxerr=err
          print x, err
 
-def expected_growth(f, g, i):
+def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
    s = skew_l2norm_tk_circular(f)
-   n = l2norm_tk_circular(ff,s)
+   if verbose:
+      print "s=", s
+   n = l2norm_tk_circular(f,s)
+   if verbose:
+      print "n=", n
+   if maxlognorm == None:
+      maxlognorm = n + margin
+   x = f.parent().0
    # negative side
    kmin = -1
-   NORM_MARGIN = 0.2
    while True:
-      ff = f + kmin*x^i*f
+      ff = f + kmin*x^i*g
       n2 = l2norm_tk_circular(ff,s)
-      if n2 > n + NORM_MARGIN:
+      if verbose:
+         print "k=", kmin, "n2=", n2
+      if n2 > maxlognorm:
          break
       kmin = 2*kmin
-   kmax = kmin/2 # larger than kmin since kmin < 0
+   kmax = kmin//2 # larger than kmin since kmin < 0
    # dichotomy on [kmin,kmax]
    while kmin + 1 < kmax:
       k = (kmin + kmax) // 2
-      ff = f + k*x^i*f
+      ff = f + k*x^i*g
       n2 = l2norm_tk_circular(ff,s)
-      if n2 > n + NORM_MARGIN: # k is too large (in absolute value)
+      if verbose:
+         print "k=", k, "n2=", n2
+      if n2 > maxlognorm: # k is too large (in absolute value)
          kmin = k
       else:
          kmax = k
@@ -274,22 +392,20 @@ def expected_growth(f, g, i):
    # positive side
    kmax = 1
    while True:
-      ff = f + kmax*x^i*f
+      ff = f + kmax*x^i*g
       n2 = l2norm_tk_circular(ff,s)
-      if n2 > n + NORM_MARGIN:
+      if n2 > maxlognorm:
          break
-      kmin = 2*kmin
-   kmin = kmax/2
+      kmax = 2*kmax
+   kmin = kmax//2
    # dichotomy on [kmin,kmax]
    while kmin + 1 < kmax:
       k = (kmin + kmax) // 2
-      ff = f + k*x^i*f
+      ff = f + k*x^i*g
       n2 = l2norm_tk_circular(ff,s)
-      if n2 > n + NORM_MARGIN: # k is too large (in absolute value)
+      if n2 > maxlognorm: # k is too large (in absolute value)
          kmax = k
       else:
          kmin = k
-      rmax = kmin
-
-def expected_rotation_gain (f, g):
-   S = 1.0
+   rmax = kmin
+   return rmin, rmax

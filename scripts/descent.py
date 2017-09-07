@@ -313,10 +313,10 @@ class GeneralClass(object):
             for line in bad:
                 if line[0] == '#':
                     continue
-                foo = re.match("^(\w+),(\w+):(\d+): (\d+)$", line)
+                foo = re.match("^(\d+),(\d+):(\d+): (\d+)$", line)
                 if foo:
-                    self.list_badideals.append((int(foo.groups()[0], 16),
-                        int(foo.groups()[1], 16), int(foo.groups()[2])))
+                    self.list_badideals.append((int(foo.groups()[0]),
+                        int(foo.groups()[1]), int(foo.groups()[2])))
                     self.list_ncols.append(int(foo.groups()[3]))
                 else:
                     raise ValueError("Error while reading %s" % self.badideal())
@@ -326,7 +326,7 @@ class GeneralClass(object):
             for line in bad:
                 if line[0] == '#':
                     continue
-                pattern = "^(\w+) (\d+) (\w+) (\d+) (.+)$"
+                pattern = "^(\d+) (\d+) (\d+) (\d+) (.+)$"
                 foo = re.match(pattern, line)
                 if foo:
                     self.badidealdata.append((

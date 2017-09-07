@@ -28,19 +28,20 @@ void las_report_copy(las_report_ptr p, las_report_ptr q)
     memcpy(p->report_sizes, q->report_sizes, sizeof(unsigned long) << 16);
 }
 
-void las_report_accumulate(las_report_ptr p, las_report_ptr q)
+void las_report_accumulate_and_clear(las_report_ptr p, las_report_ptr q)
 {
     unsigned long (*ss)[256] = q->survivor_sizes;
     unsigned long (*rs)[256] = q->report_sizes;
     p->reports += q->reports;
-    /* p->survivors0 += q->survivors0; */
-    p->survivors1 += q->survivors1;
-    p->survivors2 += q->survivors2;
+    unsigned long * ps = (unsigned long*) & p->survivors;
+    unsigned long * qs = (unsigned long*) & q->survivors;
+    for(size_t i = 0 ; i < sizeof(p->survivors) / sizeof(unsigned long) ; i++) {
+        ps[i] += qs[i];
+    }
     p->ttbuckets_fill  += q->ttbuckets_fill;
     p->ttbuckets_apply += q->ttbuckets_apply;
     p->ttf     += q->ttf;
     p->ttcof     += q->ttcof;
-    p->both_even += q->both_even;
     for(int side = 0 ; side < 2 ; side++) {
         p->tn[side]  += q->tn[side];
     }

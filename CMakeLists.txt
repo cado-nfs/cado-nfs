@@ -1,9 +1,9 @@
 
 project(CADO_NFS)
 
-set(CADO_VERSION_MAJOR  2)
-set(CADO_VERSION_MINOR  2)
-set(CADO_VERSION_PATCHLEVEL  1)
+set(CADO_VERSION_MAJOR  3)
+set(CADO_VERSION_MINOR  0)
+set(CADO_VERSION_PATCHLEVEL 0)
 set(CADO_VERSION_STRING  "${CADO_VERSION_MAJOR}.${CADO_VERSION_MINOR}.${CADO_VERSION_PATCHLEVEL}")
 
 # CADO_DIST_ARCHIVE_NAME may be overridden by environment.
@@ -12,12 +12,16 @@ set(CADO_DIST_ARCHIVE_NAME "cado-nfs-${CADO_VERSION_STRING}")
 #####################################################################
 
 # If you change the min version, also change scripts/call_cmake.sh
-cmake_minimum_required(VERSION 2.8.0)
+cmake_minimum_required(VERSION 2.8.11)
 if(COMMAND cmake_policy)
-        cmake_policy(SET CMP0003 NEW)
+    cmake_policy(SET CMP0003 NEW)
+    # VERSION_GREATER_EQUAL is newish
+    if (NOT CMAKE_VERSION VERSION_LESS 3.1)
+        # does this get in the way with cmake tests ?? We used to have
+        # CMP0054 OLD at some point.
+        cmake_policy(SET CMP0054 NEW)
+    endif()
 endif()
-
-set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
 
 if (MINGW)
     # we could do this as well in other cases.
@@ -56,7 +60,7 @@ macro(get_override extname intname)
 string(COMPARE NOTEQUAL "$ENV{${extname}}" "" HAS_${intname}_OVERRIDE)
 if(HAS_${intname}_OVERRIDE)
     set(${intname} "$ENV{${extname}}" CACHE STRING "" FORCE)
-    message(STATUS "${extname}=${${intname}}")
+    message(STATUS "${extname}=${${intname}} (from environment)")
 endif()
 endmacro()
 
@@ -65,6 +69,7 @@ endmacro()
 get_override(PREFIX               CMAKE_INSTALL_PREFIX)
 get_override(CFLAGS               CMAKE_C_FLAGS)
 get_override(CXXFLAGS             CMAKE_CXX_FLAGS)
+get_override(MAKE                 CMAKE_MAKE_PROGRAM)
 get_override(CC                   CMAKE_C_COMPILER)
 get_override(CXX                  CMAKE_CXX_COMPILER)
 get_override(CADO_DIST_ARCHIVE_NAME         CADO_DIST_ARCHIVE_NAME)
@@ -109,6 +114,9 @@ set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
 # It's redundant with something that CMake prints the first time it
 # detects the compiler. Alas, it's within a cached if, so we often don't
 # see it.
+
+# Hmmm, how delicious. cmake-2.8.7 does not have
+# CMAKE_CXX_COMPILER_VERSION
 message(STATUS "C compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
@@ -120,14 +128,16 @@ if(CMAKE_COMPILER_IS_GNUCC)
     # prevents the definition of __STRICT_ANSI__
     #
     # Ditto for C++, with the c++98/gnu++98 subtlety.
-        if (MINGW)
-            set (CMAKE_C_FLAGS   "-std=gnu99 -g -W -Wall ${CMAKE_C_FLAGS}")
-        else()
-            set (CMAKE_C_FLAGS   "-std=c99 -g -W -Wall ${CMAKE_C_FLAGS}")
-        endif()
+    set (CMAKE_C_FLAGS "-g -W -Wall ${CMAKE_C_FLAGS}")
+    if (MINGW)
+        set (CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
+    else()
+        set (CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
+    endif()
     # Someday we'll enable c11. This will provide us aligned_alloc.
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-g -W -Wall ${CMAKE_CXX_FLAGS}")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
         # only gcc-4.8 is supposed to be c++11-complete. But for what we
         # use, gcc-4.7 will be ok.
@@ -141,53 +151,80 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fabi-version=6")
     endif()
     if(HAVE_CXX11)
-        if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
-            if(MINGW)
-                set (CMAKE_CXX_FLAGS "-std=gnu++11 -g -W -Wall ${CMAKE_CXX_FLAGS}")
-            else()
-                set (CMAKE_CXX_FLAGS "-std=c++11 -g -W -Wall ${CMAKE_CXX_FLAGS}")
-            endif()
+        if(MINGW)
+            set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
         else()
-            if(MINGW)
-                set (CMAKE_CXX_FLAGS "-std=gnu++11 -g -W -Wall -Wno-literal-suffix ${CMAKE_CXX_FLAGS}")
-            else()
-                set (CMAKE_CXX_FLAGS "-std=c++11 -g -W -Wall -Wno-literal-suffix ${CMAKE_CXX_FLAGS}")
-            endif()
+            set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        endif()
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
         endif()
     else()
-        if(MINGW)
-            set (CMAKE_CXX_FLAGS "-std=gnu++98 -g -W -Wall ${CMAKE_CXX_FLAGS}")
+        # It seems that even g++-4.6.3, as shipped in ubuntu 12.04, is
+        # sufficient for the little we use, provided we use the -std=c++0x
+        # flag (-std=c++11 replaced it with gcc-4.7.0).
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6.3)
+            set (CMAKE_CXX_FLAGS "-std=c++0x -g -W -Wall ${CMAKE_CXX_FLAGS}")
         else()
-            set (CMAKE_CXX_FLAGS "-std=c++98 -g -W -Wall ${CMAKE_CXX_FLAGS}")
+            if(MINGW)
+                set (CMAKE_CXX_FLAGS "-std=gnu++98 ${CMAKE_CXX_FLAGS}")
+            else()
+                set (CMAKE_CXX_FLAGS "-std=c++98 ${CMAKE_CXX_FLAGS}")
+            endif()
         endif()
     endif()
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(STATUS "Applying flags for icc")
-    set (CMAKE_C_FLAGS   "-std=c99 -g -W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
-endif()
+    set (CMAKE_C_FLAGS   "-g -W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-g -W -Wall -wd13200,13203 ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_C_FLAGS   "-std=c99 ${CMAKE_C_FLAGS}")
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    message(STATUS "Applying flags for icpc")
     # only icc>=15 is full c++11 compliant, it seems. But 14 will do.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-        set (CMAKE_CXX_FLAGS   "-std=c++11 -g -W -Wall -wd13200,13203 ${CMAKE_CXX_FLAGS}")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
+        message(STATUS "Not enabling C++11 support for ICC 14, see bug #21416")
     else()
-        set (CMAKE_CXX_FLAGS   "-g -W -Wall -wd13200,13203 ${CMAKE_CXX_FLAGS}")
         # don't set standard flags explicitly. The default seems fine.
         # set (CMAKE_CXX_FLAGS   "-std=gnu++98 -g -W -Wall ${CMAKE_CXX_FLAGS}")
     endif()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
+        STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "Clang" )
+    set (CMAKE_C_FLAGS   "-std=c99 -g -W -Wall ${CMAKE_C_FLAGS}")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
+        STREQUAL "Darwin" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     # Not the slightest idea when apple's clang became c++11-compliant.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8.0.0")
-        set(HAVE_CXX11 1)
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
+        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
     endif()
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
+    # According to http://clang.llvm.org/cxx_status.html
+    # Caveat: Apple's clang identifies itself as plain Clang on some
+    # occasions... I don't exactly know when and how, but there's some
+    # potential for misconfiguration.
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
+        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        set (HAVE_CXX11 1)
+        message(STATUS "Enabling C++11 support")
+        set (CMAKE_CXX_FLAGS "-std=c++11 -g -W -Wall ${CMAKE_CXX_FLAGS}")
+    endif()
+endif()
+message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
+message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
+
+if(NOT HAVE_CXX11)
+    message(FATAL_ERROR "C++11 is now required to build cado-nfs")
 endif()
 
 #####################################################################
@@ -217,6 +254,8 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
+
+include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
 set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable-fft-interface CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${GF2X_C_FLAGS} CXXFLAGS=${GF2X_CXX_FLAGS} LDFLAGS=${GF2X_LDFLAGS} $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
 
@@ -264,8 +303,10 @@ include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
 endif()
+include("${CADO_NFS_SOURCE_DIR}/config/perl.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/shared_ptr.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/cxxabi.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/regex.cmake")
 
 set(CADO_SHARED)
 
@@ -412,6 +453,8 @@ foreach(script split.py descent.py)
         ${CADO_NFS_BINARY_DIR}/scripts/${script}
         COPYONLY)
 endforeach(script)
+
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent.py DESTINATION ${LIBSUFFIX}/scripts)
 
 
 message(STATUS "Main scripts will go to ${CMAKE_INSTALL_PREFIX}/${BINSUFFIX}")

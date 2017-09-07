@@ -247,7 +247,7 @@ void small_sieve_init(small_sieve_data_t *ssd, las_info & las,
             continue;
         }
 
-        const double log_scale = si.sides[side].scale * LOG_SCALE;
+        const double log_scale = si.sides[side].lognorms->scale;
 
         for (int nr = 0; nr < iter->nr_roots; nr++, index++) {
             const fb_general_root *root = &(iter->roots[nr]);

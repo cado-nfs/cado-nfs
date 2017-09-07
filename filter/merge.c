@@ -53,6 +53,7 @@ static void declare_usage(param_list pl)
                                     STR(DEFAULT_FILTER_EXCESS) ")");
   param_list_decl_usage(pl, "skip", "number of heavy columns to bury (default "
                                     STR(DEFAULT_MERGE_SKIP) ")");
+  param_list_decl_usage(pl, "force-bury-below-index", "columns below this index are buried early on when reading the matrix");
   param_list_decl_usage(pl, "maxlevel", "maximum number of rows in a merge "
                             "(default " STR(DEFAULT_MERGE_MAXLEVEL) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
@@ -93,6 +94,8 @@ main (int argc, char *argv[])
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
     uint32_t mkztype = DEFAULT_MERGE_MKZTYPE;
     uint32_t wmstmax = DEFAULT_MERGE_WMSTMAX;
+    unsigned int force_bury_below_index = 0;
+
                                /* use real MST minimum for wt[j] <= wmstmax*/
 
 #ifdef HAVE_MINGW
@@ -143,6 +146,11 @@ main (int argc, char *argv[])
     param_list_parse_int (pl, "maxlevel", &maxlevel);
     param_list_parse_uint (pl, "keep", &keep);
     param_list_parse_uint (pl, "skip", &skip);
+    param_list_parse_uint (pl, "force-bury-below-index", &force_bury_below_index);
+    if (force_bury_below_index > skip) {
+        fprintf(stderr, "cannot have force_bury_below_index > skip\n");
+        exit(EXIT_FAILURE);
+    }
 
     param_list_parse_double (pl, "target_density", &target_density);
 
@@ -189,7 +197,7 @@ main (int argc, char *argv[])
     ASSERT_ALWAYS(rep->outfile != NULL);
 
     /* Init structure containing the matrix and the heap of potential merges */
-    initMat (mat, maxlevel, keep, skip);
+    initMat (mat, maxlevel, keep, skip, force_bury_below_index);
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();

@@ -7,7 +7,7 @@
 #include "portability.h"
 
 /* Be conservative and allocate two polynomials by default. */
-void cado_poly_init(cado_poly poly)
+void cado_poly_init(cado_poly_ptr poly)
 {
     /* ALL fields are zero upon init, EXCEPT the degree field (which is -1) */
     memset(poly, 0, sizeof(poly[0]));
@@ -20,7 +20,7 @@ void cado_poly_init(cado_poly poly)
     mpz_init_set_ui(poly->n, 0);
 }
 
-void cado_poly_clear(cado_poly poly)
+void cado_poly_clear(cado_poly_ptr poly)
 {
     for(int side = 0 ; side < poly->nb_polys ; side++)
       mpz_poly_clear (poly->pols[side]);
@@ -31,7 +31,7 @@ void cado_poly_clear(cado_poly poly)
 
 /* p <- q */
 void
-cado_poly_set (cado_poly p, cado_poly q)
+cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q)
 {
     mpz_set (p->n, q->n);
     p->skew = q->skew;
@@ -40,12 +40,23 @@ cado_poly_set (cado_poly p, cado_poly q)
       mpz_poly_set (p->pols[side], q->pols[side]);
 }
 
+void
+cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
+{
+    mpz_swap (p->n, q->n);
+    p->skew = q->skew;
+    p->nb_polys = q->nb_polys;
+    q->nb_polys = 0;
+    for(int side = 0 ; side < q->nb_polys ; side++)
+      mpz_poly_swap (p->pols[side], q->pols[side]);
+}
+
 // This function is no longer exported
 #define BUF_MAX 10000
 
 // returns 0 on failure, 1 on success.
 static
-int cado_poly_set_plist(cado_poly poly, param_list pl)
+int cado_poly_set_plist(cado_poly_ptr poly, param_list pl)
 {
   int ret = 1;
 
@@ -147,7 +158,7 @@ int cado_poly_read_next_poly_from_stream (cado_poly_ptr poly, FILE * f)
 }
 
 // returns 0 on failure, 1 on success.
-int cado_poly_read(cado_poly poly, const char *filename)
+int cado_poly_read(cado_poly_ptr poly, const char *filename)
 {
     FILE *file;
     int r;
