@@ -2,7 +2,7 @@
 #define SMALL_SIZE_POOL_HPP_
 
 #include "macros.h"
-#include <stdlib.h>
+#include <string.h>
 #include <vector>
 #include <map>
 #include <limits>
