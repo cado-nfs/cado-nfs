@@ -7,6 +7,8 @@
 #include "batch.h"
 #include "utils.h"
 
+#define STATUS_SMOOTH  0
+#define STATUS_UNKNOWN 1
 
 static void
 ulong_list_init (ulong_list L)
@@ -76,13 +78,12 @@ mpz_product_tree_add_ui (mpz_product_tree t, unsigned long n)
               t->size++;
             }
           if (t->n[i+1] == 0)
-            {
-              mpz_swap (t->l[i+1], t->l[i]);
-              mpz_set_ui (t->l[i], 1);
-            }
+            mpz_swap (t->l[i+1], t->l[i]);
           else /* accumulate */
             mpz_mul (t->l[i+1], t->l[i+1], t->l[i]);
           t->n[i+1] += t->n[i];
+          /* primes from l[i] are now in l[i+1], thus reset l[i] to 1: */
+          mpz_set_ui (t->l[i], 1);
           t->n[i] = 0;
         }
     }
@@ -880,6 +881,85 @@ create_batch_product (mpz_t P, unsigned long B, unsigned long L, mpz_poly pol)
   prime_info_clear (pi);
 }
 
+/* output P in the batch file fp, with a header consisting of 3 lines:
+   1) the factor base bound B
+   2) the large prime bound L
+   3) the polynomial, in the form "f0 f1 ... fd"
+   Then the integer P is written using mpz_out_raw.
+   The header can be read by a human with head -3 batch_file. */
+static void
+output_batch (FILE *fp, unsigned long B, unsigned long L,
+              mpz_poly pol, mpz_t P, const char *f)
+{
+  int ret;
+
+  ret = fprintf (fp, "%lu\n", B);
+  ASSERT_ALWAYS (ret > 0);
+  ret = fprintf (fp, "%lu\n", L);
+  ASSERT_ALWAYS (ret > 0);
+  mpz_poly_fprintf_coeffs (fp, pol, ' ');
+  ret = mpz_out_raw (fp, P);
+  if (ret == 0)
+    {
+      fprintf (stderr, "Error while writing batch product to %s\n", f);
+      exit (1);
+    }
+}
+
+/* read a batch file from fp, and check the header is consistent with
+   B, L and pol. See #21459. */
+static void
+input_batch (FILE *fp, unsigned long B, unsigned long L, mpz_poly pol,
+             mpz_t P, const char *f)
+{
+  unsigned long Bread, Lread;
+  mpz_poly pol_read;
+  int ret;
+  char msg[1024];
+  msg[0]='\0';
+
+#define CHECK_Z(condition, error_message) do {				\
+  if (!(condition)) {							\
+      snprintf(msg, sizeof(msg), error_message);			\
+      goto parse_error;							\
+  }									\
+} while (0)
+#define CHECK_2(condition, error_message, arg1, arg2) do {		\
+  if (!(condition)) {							\
+      snprintf(msg, sizeof(msg), error_message, arg1, arg2);		\
+      goto parse_error;							\
+  }									\
+} while (0)
+  ret = fscanf (fp, "%lu\n", &Bread);
+  CHECK_Z(ret == 1, "Cannot read B\n");
+  CHECK_2(Bread == B, "Inconsistent B: expected %lu, file has %lu\n", B, Bread);
+  ret = fscanf (fp, "%lu\n", &Lread);
+  CHECK_Z(ret == 1, "Cannot read L\n");
+  CHECK_2(Lread == L, "Inconsistent L: expected %lu, file has %lu\n", L, Lread);
+  mpz_poly_init (pol_read, pol->deg);
+  mpz_poly_fscanf_coeffs (fp, pol_read, ' ');
+  if (mpz_poly_cmp (pol_read, pol) != 0)
+    {
+      fprintf (stderr, "Error while reading batch product from %s:\n", f);
+      fprintf (stderr, "Inconsistent polynomial in batch file\n");
+      fprintf (stderr, "expected ");
+      mpz_poly_fprintf (stderr, pol);
+      fprintf (stderr, "file has ");
+      mpz_poly_fprintf (stderr, pol_read);
+      exit (EXIT_FAILURE);
+    }
+  mpz_poly_clear (pol_read);
+  /* now that the header is consistent, we read the integer P */
+  ret = mpz_inp_raw (P, fp);
+  CHECK_Z(ret > 0, "Could not read large integer\n");
+  return;
+#undef CHECK_2
+#undef CHECK_Z
+parse_error:
+  fprintf (stderr, "Error while reading batch product from %s:\n%s", f, msg);
+  exit(EXIT_FAILURE);
+}
+
 /* We have 3 cases:
    1) if f == NULL: P is computed but not stored
    2) if f != NULL but file is non-existing: P is computed and saved in f
@@ -891,7 +971,6 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
 {
   FILE *fp;
   double s = seconds (), wct = wct_seconds ();
-  size_t ret;
 
   // the product of primes up to B takes \log2(B)-\log\log 2 / \log 2
   // bits. The added constant is 0.5287.
@@ -920,12 +999,7 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
     {
       fprintf (out, "# batch: reading large prime product");
       fflush (out);
-      ret = mpz_inp_raw (P, fp);
-      if (ret == 0)
-        {
-          fprintf (stderr, "Error while reading batch product from %s\n", f);
-          exit (1);
-        }
+      input_batch (fp, B, L, pol, P, f);
       goto end;
     }
 
@@ -937,12 +1011,7 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
   fp = fopen (f, "w");
   ASSERT_ALWAYS(fp != NULL);
 
-  ret = mpz_out_raw (fp, P);
-  if (ret == 0)
-    {
-      fprintf (stderr, "Error while writing batch product to %s\n", f);
-      exit (1);
-    }
+  output_batch (fp, B, L, pol, P, f);
 
   fclose (fp);
 

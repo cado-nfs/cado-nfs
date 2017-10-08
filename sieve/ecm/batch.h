@@ -8,9 +8,6 @@
 #include "facul_doit.h"
 #include "utils.h"
 
-#define STATUS_SMOOTH  0
-#define STATUS_UNKNOWN 1
-
 typedef struct {
   unsigned long *l;
   size_t alloc;

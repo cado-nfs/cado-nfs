@@ -314,9 +314,11 @@ thread_workspaces::pickup_si(sieve_info & _si)
     }
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %f\n",
             multiplier);
-    for (unsigned int i_side = 0; i_side < nr_sides; i_side++)
-      groups[i_side]->allocate_buckets(si.nb_buckets,
-              multiplier, si.sides[i_side].max_bucket_fill_ratio);
+    for (unsigned int i_side = 0; i_side < nr_sides; i_side++) {
+        if (!_si.sides[i_side].fb) continue;
+        groups[i_side]->allocate_buckets(si.nb_buckets,
+                multiplier, si.sides[i_side].max_bucket_fill_ratio);
+    }
 }
 
 task_result * thread_do_task_wrapper(const worker_thread * worker, const task_parameters *_param)

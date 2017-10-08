@@ -1564,8 +1564,10 @@ fb_mmap_fbc(fb_factorbase *fb[2] MAYBE_UNUSED, const char *filename MAYBE_UNUSED
   {
     void *p   = ptr;
     void *end = static_cast<char *>(ptr) + sz;
-    for (size_t side = 0; rc && side < 2; ++side)
-      rc = (p = fb[side]->mmap_fbc(p, end)) != NULL;
+    for (size_t side = 0; rc && side < 2; ++side) {
+        if (fb[side])
+            rc = (p = fb[side]->mmap_fbc(p, end)) != NULL;
+    }
   }
 
 cleanup:
@@ -1581,7 +1583,7 @@ cleanup:
                            filename);
     }
     for (size_t side = 0; side < 2; ++side)
-      fb[side]->clear();
+      if (fb[side]) fb[side]->clear();
   }
 
   return rc;
@@ -1602,7 +1604,7 @@ fb_dump_fbc(fb_factorbase *fb[2], const char *filename)
 
   bool rc = true;
   for (size_t side = 0; rc && side < 2; ++side)
-    rc = fb[side]->dump_fbc(f);
+    if (fb[side]) rc = fb[side]->dump_fbc(f);
 
   if (fclose(f) != 0) {
     verbose_output_print(1, 0, "# Could not close file %s\n",

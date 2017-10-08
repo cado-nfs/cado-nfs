@@ -27,7 +27,11 @@ int main()
   ideal_1_set_part(ideal_1, r, h, t);
   ASSERT_ALWAYS(ideal_1->ideal->r == r);
   ASSERT_ALWAYS(mpz_poly_cmp(ideal_1->ideal->h, h) == 0);
+  // We skip this test on i386: due to the x87 extended precision,
+  // comparing doubles is a nightmare.
+#ifndef __i386
   ASSERT_ALWAYS(ideal_1->log == log2((double)r));
+#endif
   //Test Tr.
   mpz_t Tr;
   mpz_init(Tr);
@@ -51,7 +55,11 @@ int main()
   ideal_u_set_part(ideal_u, r, h, t);
   ASSERT_ALWAYS(ideal_u->ideal->r == r);
   ASSERT_ALWAYS(mpz_poly_cmp(ideal_u->ideal->h, h) == 0);
+  // We skip this test on i386: due to the x87 extended precision,
+  // comparing doubles is a nightmare.
+#ifndef __i386
   ASSERT_ALWAYS(ideal_u->log == log2(pow((double)r,(double)h->deg)));
+#endif
   //TODO: Test Tr.
 
   ideal_u_clear(ideal_u, t);

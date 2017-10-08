@@ -104,7 +104,7 @@ def run(param_file, problem):
     # read the best time so far (if any)
     best_time = get_best_time ("las.best")
     if best_time >= 1e308:
-       sys.stderr.write("Estimate %u relations needed\n" % rels_wanted)
+       sys.stderr.write("Estimate %u unique relations needed\n" % rels_wanted)
     else:
        sys.stderr.write("Estimate %u relations needed, best time so far is %.0f seconds\n" % (rels_wanted, best_time))
 

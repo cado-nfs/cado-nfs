@@ -4,7 +4,7 @@
 #include <time.h>
 #include "alpha3d.h"
 
-static double expect_val_p(mpz_poly_srcptr f, unsigned long p, gmp_randstate_t state)
+static double expect_val_p(mpz_poly_srcptr f, uint64_t p, gmp_randstate_t state)
 {
   mpz_t p_Z;
   mpz_init(p_Z);
@@ -185,7 +185,7 @@ static void monte_carlo_average_value(double * V, mpz_poly_srcptr f,
 
 /* p_end is the bound on primes, N is the number of iterations in
    monte_carlo_average_value */
-double alpha3d(mpz_poly_srcptr f, unsigned long p_end, unsigned int N)
+double alpha3d(mpz_poly_srcptr f, unsigned long p_end, gmp_randstate_t rstate, unsigned int N)
 {
   mpz_t discriminant;
   mpz_init(discriminant);
@@ -206,11 +206,6 @@ double alpha3d(mpz_poly_srcptr f, unsigned long p_end, unsigned int N)
       p_end);
   unsigned int index = 0;
 
-  gmp_randstate_t state;
-  gmp_randinit_default(state);
-  gmp_randseed_ui(state, time(NULL));
-  srand(time(NULL));
-
   for ( ; p < p_end; p = getprime_mt(pi)) {
     if (mpz_divisible_ui_p(discriminant, p) ||
         mpz_divisible_ui_p(lc, p)) {
@@ -218,19 +213,18 @@ double alpha3d(mpz_poly_srcptr f, unsigned long p_end, unsigned int N)
       index++;
     } else {
       alpha += log((double)p) * (1.0 / (double)(p - 1) - expect_val_p(f, p,
-            state));
+            rstate));
     }
   }
 
   double * V = (double *) malloc(sizeof(double) * index);
-  monte_carlo_average_value(V, f, bad_p, index, N, state);
+  monte_carlo_average_value(V, f, bad_p, index, N, rstate);
 
   for (unsigned int i = 0; i < index; i++) {
     alpha += log((double)bad_p[i]) * (1 / (double)(bad_p[i] - 1) - V[i]);
   }
 
   free (V);
-  gmp_randclear(state);
   free(bad_p);
   prime_info_clear(pi);
   mpz_clear(lc);
@@ -245,10 +239,11 @@ void declare_usage(param_list pl)
   param_list_decl_usage(pl, "f", "a polynomial");
   param_list_decl_usage(pl, "p", "bound of the primes");
   param_list_decl_usage(pl, "N", "bound for Monte Carlo computation");
+  param_list_decl_usage(pl, "seed", "seed for Monte Carlo computation");
 }
 
 void initialise_parameters(int argc, char * argv[], mpz_poly_ptr f,
-    unsigned long * p, unsigned int * N)
+    unsigned long * p, gmp_randstate_t rstate, unsigned int * N)
 {
   param_list pl;
   param_list_init(pl);
@@ -273,7 +268,6 @@ void initialise_parameters(int argc, char * argv[], mpz_poly_ptr f,
     exit (EXIT_FAILURE);
   }
 
-  mpz_poly_init(f, -1);
   param_list_parse_mpz_poly(pl, "f", f);
   ASSERT(f->deg > 0);
   
@@ -283,6 +277,10 @@ void initialise_parameters(int argc, char * argv[], mpz_poly_ptr f,
   * N = 10000;
   param_list_parse_uint(pl, "N", N);
 
+  unsigned long seed;
+  if (param_list_parse_ulong(pl, "seed", &seed))
+      gmp_randseed_ui(rstate, seed);
+
   param_list_clear(pl);
 }
 int main(int argc, char ** argv)
@@ -290,11 +288,16 @@ int main(int argc, char ** argv)
   mpz_poly f;
   unsigned long p;
   unsigned int N;
+  gmp_randstate_t rstate;
 
-  initialise_parameters(argc, argv, f, &p, &N);
+  mpz_poly_init(f, -1);
+  gmp_randinit_default(rstate);
 
-  printf("%f\n", alpha3d(f, p, N));
+  initialise_parameters(argc, argv, f, &p, rstate, &N);
 
+  printf("%f\n", alpha3d(f, p, rstate, N));
+
+  gmp_randclear(rstate);
   mpz_poly_clear(f);
 
   return 0;

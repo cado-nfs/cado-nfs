@@ -50,7 +50,14 @@ static int nb_curves99 (const unsigned int lpb);
 #endif
 
 /* don't use nb_curves90, nb_curves95 and nb_curves99, only use nb_curves */
-int nb_curves (const unsigned int lpb) { return nb_curves90(lpb); }
+int nb_curves (const unsigned int lpb, const unsigned int mfb)
+{
+  /* for up to 2 large primes, we use a very large number of curves (say 100),
+     since the more curves we need, the more likely the cofactor is smooth. */
+  if (mfb <= 2 * lpb)
+    return 100;
+  return nb_curves90 (lpb);
+}
 
 static int
 nb_curves90 (const unsigned int lpb)
@@ -74,8 +81,7 @@ nb_curves90 (const unsigned int lpb)
 	     /* lpb=31 */ 18, /* 17:0.883500, 18:0.901300 */
 	     /* lpb=32 */ 21, /* 20:0.884500, 21:0.903700 */
 	     /* lpb=33 */ 25, /* 24:0.892800, 25:0.910000 */
-#if 0
-/* The extra ones below are computed with do_table(10,64,ntries=200) */
+        /* The extra ones below are computed with do_table(10,64,ntries=200) */
 	     /* lpb=34 */ 24, /* 23:0.895000, 24:0.905000 */
 	     /* lpb=35 */ 29, /* 28:0.895000, 29:0.905000 */
 	     /* lpb=36 */ 30, /* 29:0.890000, 30:0.905000 */
@@ -94,21 +100,20 @@ nb_curves90 (const unsigned int lpb)
 	     /* lpb=49 */ 93, /* 93:0.900000 */
 	     /* lpb=50 */ 111, /* 110:0.885000, 111:0.900000 */
 	     /* lpb=51 */ 117, /* 116:0.890000, 117:0.905000 */
-	     /* some fake values */
-	     /* 52 */ 123,
-	     /* 53 */ 129,
-	     /* 54 */ 135,
-	     /* 55 */ 141,
-	     /* 56 */ 147,
-	     /* 57 */ 153,
-	     /* 58 */ 159,
-	     /* 59 */ 165,
-	     /* 60 */ 171,
-	     /* 61 */ 177,
-	     /* 62 */ 183,
-	     /* 63 */ 189,
-	     /* 64 */ 195,
-#endif
+	     /* those below were computed with do_table(10,64,ntries=100) */
+	     /* lpb=52 */ 130, /* 129:0.890000, 130:0.900000 */
+	     /* lpb=53 */ 137, /* 136:0.890000, 137:0.900000 */
+	     /* lpb=54 */ 142, /* 141:0.890000, 142:0.900000 */
+	     /* lpb=55 */ 152, /* 151:0.890000, 152:0.920000 */
+	     /* lpb=56 */ 167, /* 166:0.890000, 167:0.900000 */
+	     /* lpb=57 */ 167, /* 167:0.910000 */
+	     /* lpb=58 */ 186, /* 185:0.890000, 186:0.900000 */
+	     /* lpb=59 */ 202, /* 201:0.880000, 202:0.900000 */
+	     /* lpb=60 */ 227, /* 226:0.890000, 227:0.910000 */
+	     /* lpb=61 */ 244, /* 243:0.890000, 244:0.910000 */
+	     /* lpb=62 */ 244, /* 244:0.920000 */
+	     /* lpb=63 */ 248, /* 247:0.880000, 248:0.900000 */
+	     /* lpb=64 */ 294, /* 293:0.890000, 294:0.900000 */
   };
   const unsigned int nT = sizeof(T)/sizeof(int) - 1;
   return (lpb <= nT) ? T[lpb] : T[nT];
@@ -203,12 +208,12 @@ nb_curves99 (const unsigned int lpb)
 /* Wrapper around facul_make_default_strategy */
 facul_strategy_t *
 facul_make_strategy (const unsigned long fbb, const unsigned int lpb,
-		     int n, const int verbose)
+		     const unsigned int mfb, int n, const int verbose)
 {
   facul_strategy_t *strategy;
 
   if (n == -1)
-    n = nb_curves (lpb);
+    n = nb_curves (lpb, mfb);
   strategy = (facul_strategy_t*) malloc (sizeof (facul_strategy_t));
   strategy->lpb = lpb;
   /* Store fbb^2 in assume_prime_thresh */
@@ -812,8 +817,8 @@ facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
   if (file == NULL)
     {// make_default_strategy
       int ncurves[2];
-      ncurves[0] = (n0 > -1) ? n0 : nb_curves (rlpb);
-      ncurves[1] = (n1 > -1) ? n1 : nb_curves (alpb);
+      ncurves[0] = (n0 > -1) ? n0 : nb_curves (rlpb, rmfb);
+      ncurves[1] = (n1 > -1) ? n1 : nb_curves (alpb, amfb);
       int max_ncurves = ncurves[0] > ncurves[1]? ncurves[0]: ncurves[1];
       max_curves_used_before_aux = max_ncurves + 4; // account for fixed methods.
       // There is an hardcoded bound on the number of methods.

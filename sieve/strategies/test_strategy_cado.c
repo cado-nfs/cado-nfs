@@ -34,7 +34,8 @@ int CONST_TEST_R = 55;
 
 tabular_fm_t *generate_methods_cado(const int lpb)
 {
-    int n = nb_curves(lpb);
+    /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
+    int n = nb_curves (lpb, 3 * lpb);
     tabular_fm_t *res = tabular_fm_create();
     fm_t *fm = fm_create();
     unsigned long method[4];
@@ -122,7 +123,8 @@ tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
 	    strategy_set_proba(strat, 1.0);
 	fm_free(zero);
     } else {
-        int len = 3 + nb_curves(lpb);
+        /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
+        int len = 3 + nb_curves (lpb, 3 * lpb);
         //printf ("len  = %d\n", len);
         ASSERT(len <= methods->index);
         for (int i = 0; i < len; i++)
@@ -1509,7 +1511,8 @@ int main(int argc, char *argv[])
     	  exit(1);
       }
     tabular_fm_t *methods = tabular_fm_fscan (file_in);
-    printf ("len  = %d, (%d)\n", methods->index, 3+nb_curves(lpb0));
+    /* we set mfb = 3*lpb0 to avoid the special-case of 2 large primes */
+    printf ("len  = %d, (%d)\n", methods->index, 3 + nb_curves (lpb0, 3*lpb0));
     
     //test computation of probabilities
     //{tab_init

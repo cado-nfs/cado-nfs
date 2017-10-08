@@ -75,7 +75,7 @@ uint32_t crc32(unsigned long * c, int n3, uint32_t v)
         v = l;
     }
 #elif GF2X_WORDSIZE == 64
-    int N3 = n3 / 2 + (n3 & 3);
+    int N3 = n3 / 2 + (n3 & 1);
     i = 0;
     for(int j = 0 ; j < N3 ; j++) {
         uint32_t l, h;

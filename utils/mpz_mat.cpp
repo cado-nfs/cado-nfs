@@ -1126,8 +1126,6 @@ void mpz_mat_mul_ui(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long k)/*{{{*/
 void mpq_mat_mul(mpq_mat_ptr C, mpq_mat_srcptr A, mpq_mat_srcptr B)/*{{{*/
 {
     ASSERT_ALWAYS(A->n == B->m);
-    mpq_t z;
-    mpq_init(z);
     if (C == A || C == B) {
         mpq_mat D;
         mpq_mat_init(D, A->m, B->n);
@@ -1136,6 +1134,8 @@ void mpq_mat_mul(mpq_mat_ptr C, mpq_mat_srcptr A, mpq_mat_srcptr B)/*{{{*/
         mpq_mat_clear(D);
         return;
     }
+    mpq_t z;
+    mpq_init(z);
     mpq_mat_realloc(C, A->m, B->n);
     for(unsigned int i = 0 ; i < A->m ; i++) {
         for(unsigned int j = 0 ; j < B->n ; j++) {

@@ -321,8 +321,8 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "col-max-index", "upper bound on the number of "
                                   "columns (must be at least the number\n"
                   "                   of prime ideals in renumber table)");
-  param_list_decl_usage(pl, "col-min-index", "do not take into account columns"
-                                             " with indexes <= col-min-index");
+  param_list_decl_usage(pl, "col-min-index", "only take into account columns"
+                                             " with indexes >= col-min-index");
   param_list_decl_usage(pl, "keep", "wanted excess at the end of purge "
                                     "(default " STR(DEFAULT_FILTER_EXCESS) ")");
   param_list_decl_usage(pl, "nsteps", "maximal number of steps of clique "

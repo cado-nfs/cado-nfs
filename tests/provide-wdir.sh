@@ -3,7 +3,7 @@
 # This shell script will do the following.
 #
 # - create a temp directory.
-# - run the given command line, by providing the infomration about the
+# - run the given command line, by providing the information about the
 #   location of the temp directory in any desired way.
 # - clean up the temp directory
 
@@ -11,7 +11,7 @@
 
 
 : ${TMPDIR:=/tmp}
-t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`
+t=`mktemp -d $TMPDIR/cado-nfs.XXXXXXXXXXXXXX`
 
 cleanup() { rm -rf "$t" ; }
 

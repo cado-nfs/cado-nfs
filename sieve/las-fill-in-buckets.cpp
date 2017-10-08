@@ -797,6 +797,7 @@ downsort_tree(
   double max_full MAYBE_UNUSED = 0.0;
 
   for (int side = 0; side < 2; ++side) {
+    if (!si.sides[side].fb) continue;
     WHERE_AM_I_UPDATE(w, side, side);
     CHILD_TIMER_PARAMETRIC(timer, "side ", side, "");
     TIMER_CATEGORY(timer, sieving(side));

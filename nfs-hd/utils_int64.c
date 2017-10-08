@@ -1,14 +1,14 @@
 #include "cado.h"
+#include "utils.h"
 #include "utils_int64.h"
 
 uint64_t invmod_uint64(uint64_t xx, uint64_t mm)
 {
   uint64_t yy;
+
+#if LONG_BIT == 64
   modulus_t m;
   residue_t x, y;
-
-  ASSERT_ALWAYS(LONG_BIT == 64);
-
   modul_initmod_ul(m, mm);        //we work mod mm
   modul_init_noset0(x, m);
   modul_init_noset0(y, m);
@@ -20,6 +20,19 @@ uint64_t invmod_uint64(uint64_t xx, uint64_t mm)
   modul_clear(x, m);
   modul_clear(y, m);
   modul_clearmod(m);
+#else
+  /* otherwise use a stupid placeholder */
+  mpz_t xz, mz;
+  mpz_init(xz);
+  mpz_init(mz);
+  mpz_set_uint64(xz, xx);
+  mpz_set_uint64(mz, mm);
+  mpz_invert(xz, xz, mz);
+  yy = mpz_get_uint64(xz);
+  mpz_clear(mz);
+  mpz_clear(xz);
+#endif
+
   return yy;
 }
 

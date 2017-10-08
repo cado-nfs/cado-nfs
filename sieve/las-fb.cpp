@@ -14,6 +14,10 @@ void sieve_info::init_factor_bases(param_list_ptr pl)
         fbprime_t bk_thresh = conf.bucket_thresh;
         fbprime_t bk_thresh1 = conf.bucket_thresh1;
         const fbprime_t fbb = conf.sides[side].lim;
+        if (!fbb) {
+            fb[side] = NULL;
+            continue;
+        }
         const fbprime_t powlim = conf.sides[side].powlim;
         if (bk_thresh > fbb) {
             bk_thresh = fbb;
@@ -45,6 +49,9 @@ void sieve_info::init_factor_bases(param_list_ptr pl)
 
     for(int side = 0 ; side < 2 ; side++) {
         cxx_mpz_poly pol;
+
+        if (!conf.sides[side].lim) continue;
+
         mpz_poly_set(pol, cpoly->pols[side]);
 
         if (pol->deg > 1) {
@@ -152,6 +159,8 @@ void sieve_info::init_fb_smallsieved(int side)
 {
     sieve_info & si(*this);
 
+    if (!si.sides[side].fb) return;
+
     /* We go through all the primes in FB part 0 and sort them into one of
        5 vectors, and some we discard */
 
@@ -218,6 +227,7 @@ void sieve_info::init_fb_smallsieved(int side)
 void sieve_info::print_fb_statistics(int side)
 {
     side_info & s(sides[side]);
+    if (!s.fb) return;
     for (int i_part = 0; i_part < FB_MAX_PARTS; i_part++)
     {
         size_t nr_primes, nr_roots;

@@ -32,7 +32,7 @@ static const int bucket_region = 1 << LOG_BUCKET_REGION;
  *   i*v == j*u (mod p^k)  <==>  i == (j/g)*U (mod q)
  * with g|j. 
  * 
- * In other words, we can sieve this bad prime (powers) much like a 
+ * In other words, we can sieve this bad prime (power) much like a 
  * normal prime (power) q with root U, except that after sieving a line 
  * we don't advance by one line, but by g lines.
  * The case where g = q^k and thus q = 1 can be sieved more efficiently,

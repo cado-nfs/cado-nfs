@@ -2801,11 +2801,18 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
         self.state.setdefault("rels_found", 0)
         self.state["rels_wanted"] = self.params["rels_wanted"]
         if self.state["rels_wanted"] == 0:
-            # taking into account duplicates, the initial value
-            # 0.91 * (pi(2^lpb0) + pi(2^lpb1)) should be good
+            # For rsa140 with lpb[01]=29, using guess_factor = 0.91
+            # gives an initial excess of about 13%, we estimate
+            # guess_factor = 0.85 would be enough to get a square matrix.
+            # We use 0.80 which might yield some extra filtering attempts
+            # in some cases, but which should avoid too much initial excess
+            # (the cado-nfs linear algebra is so fast that we should avoid
+            # oversieving if we want to optimize the total wall-clock time,
+            # assuming we use as many cores for sieving and linear algebra).
+            guess_factor = 0.80
             n0 = 2 ** self.progparams[0]["lpb0"]
             n1 =  2 ** self.progparams[0]["lpb1"]
-            n01 = int(0.91 * n0 / log (n0) + 0.91 * n1 / log (n1))
+            n01 = int(guess_factor * (n0 / log (n0) + n1 / log (n1)))
             self.state["rels_wanted"] = n01
     
     def run(self):

@@ -28,10 +28,7 @@ endif()
 execute_process(COMMAND "${PERL_EXECUTABLE}" -MDigest::MD5 -e 1 RESULT_VARIABLE _returncode OUTPUT_QUIET ERROR_QUIET)
 if (NOT _returncode EQUAL 0)
     message(WARNING
-        "Importing the standard Perl module Digest::MD5 has failed.  This is"
-        "probably because the Digest::MD5 module, despite being among the standard"
-        "set, is not installed alongside with Perl on your system. Some tests will"
-        "be skipped."
+        "Importing the standard Perl module Digest::MD5 has failed.  This is probably because the Digest::MD5 module, despite being among the standard set, is not installed alongside with Perl on your system. Some tests will be skipped."
         )
     set(HAVE_PERL_DIGEST_MD5 0)
 else()

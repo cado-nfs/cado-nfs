@@ -180,17 +180,57 @@ expected to be present in the same directory as the calling binary.
     of columns of R.
 
 * keep_rolling_checkpoints=<n>
-    instructs the program to discard the rolling vector checkpoints every
-    <n> checkpoints. This assumes for example that checkpoints are
-    offloaded to external storage in the background by another process.
-    Use of this option is conjunction with skip_online_checks=1 is
-    dangerous, since it leaves open the possibility of a failure which
-    stands no chance to be eventually detected.
+    instructs the program to discard the vector checkpoints every
+    <n> checkpoints. Please read carefully the documentation about
+    checkpoint_precious below.
+    
+    Use of keep_rolling_checkpoints is conjunction with
+    skip_online_checks=1 is dangerous, since it leaves open the
+    possibility of a failure which stands no chance to be eventually
+    detected.
 
 * checkpoint_precious=<K>
     overrides the behaviour of keep_rolling_checkpoints and keeps all
     checkpoints which correspond to an iteration count which is a
     multiple of K.
+
+    The options keep_rolling_checkpoints and checkpoint_precious interact
+    with the two important steps of bwc, namely "krylov" and "mksol".  If
+    the "krylov" step is run with a value K for the "interval" parameter
+    and "mksol" is run with a value M for the same parameter, then the
+    recommended way to use keep_rolling_checkpoints for "krylov" is in
+    conjunction with the following parameter, namely one would set
+    checkpoint_precious=M. By doing so, krylov would keep for future use
+    the checkpoints that are of interest to mksol.
+
+    Here are some combinations of the interval, keep_rolling_checkpoints
+    and checkpoint_precious for krylov and mksol, and examples of what
+    they do. "<none>" below means that none of the interval,
+    keep_rolling_checkpoints or checkpoint_precious argument is selected.
+
+    [krylov: interval=1000  // mksol: interval=1000]
+    [krylov: <none> // mksol: <none>]
+    This is the default combination. The value 1000 may be replaced by
+    any positive integer. All intermediary checkpoints are saved, and
+    mksol splits up its work into (almost) as many independent jobs as
+    there are checkpoints (actually m/(m+n) times the number of
+    checkpoints).
+
+    [krylov: interval=1000 keep_rolling_checkpoints=5 // mksol: interval=1000]
+    [krylov: keep_rolling_checkpoints=5 // mksol: <none>]
+    This combination DOES NOT WORK. krylov discards most of the
+    checkpoints that mksol counts on to do its job.
+
+    [krylov: interval=1000 keep_rolling_checkpoints=5 // mksol: interval=1000000000]
+    [krylov: keep_rolling_checkpoints=5 // mksol: interval=1000000000]
+    Here, 1000000000 actually means any integer larger than the sequence
+    length. Here mksol will be happy basing its work on the single
+    checkpoint file of iteration zero (which is always here).
+
+    [krylov: interval=1000 keep_rolling_checkpoints=5 checkpoint_precious=10000 // mksol: interval=10000]
+    krylov will keep only one every 10 checkpoints, and that will match
+    precisely the checkpoints that mksol expects to see.
+
 
 The following parameters are also passed by bwc.pl to the relevant
 sub-steps

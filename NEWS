@@ -40,7 +40,11 @@ Main changes between cado-nfs-2.2.0 and cado-nfs-2.3.0:
   depends on your OS distribution). To activate this feature, pass the
   database URI as an extra parameter to cado-nfs.py, e.g.
   "database=db:mysql://USER:PASS@host:port/foobar", where port, PASS, and
-  USER are optional.
+  USER are optional. The same syntax may be used to have an sqlite3
+  database as usual, but stored in a different location (which can be
+  handy to work around some filesystem deficiencies). For that, use
+  "database=db:sqlite3:///tmp/foo.db", where obviously "/tmp/foo.db" must
+  be adapted to your preferred database path (you do need the triple /).
 
 
 

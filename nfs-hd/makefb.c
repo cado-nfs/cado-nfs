@@ -474,6 +474,7 @@ void read_factor_base(FILE * file, factor_base_t * fb, uint64_t * fbb,
     unsigned int t)
 {
   for (unsigned int k = 0; k < (unsigned int) f->nb_polys; k++) {
+    int ret;
     mpz_t lpb;
     mpz_init(lpb);
     mpz_ui_pow_ui(lpb, 2, (unsigned long) lpb_bit[k]);
@@ -482,15 +483,18 @@ void read_factor_base(FILE * file, factor_base_t * fb, uint64_t * fbb,
     char line [size_line];
 
     uint64_t fbb_tmp;
-    fscanf(file, "fbb:%" PRIu64 "\n", &fbb_tmp);
+    ret = fscanf(file, "fbb:%" PRIu64 "\n", &fbb_tmp);
+    ASSERT_ALWAYS(ret == 1);
     ASSERT(fbb[k] <= fbb_tmp);
 
     unsigned int lpb_bit_tmp;
-    fscanf(file, "lpb:%u\n", &lpb_bit_tmp);
+    ret = fscanf(file, "lpb:%u\n", &lpb_bit_tmp);
+    ASSERT_ALWAYS(ret == 1);
     ASSERT(lpb_bit[k] <= lpb_bit_tmp);
 
     int n;
-    fscanf(file, "deg:%d\n", &n);
+    ret = fscanf(file, "deg:%d\n", &n);
+    ASSERT_ALWAYS(ret == 1);
 
     mpz_poly f_tmp;
     mpz_poly_init(f_tmp, n);
@@ -502,12 +506,14 @@ void read_factor_base(FILE * file, factor_base_t * fb, uint64_t * fbb,
     mpz_poly_clear(f_tmp);
 
     unsigned int t_tmp;
-    fscanf(file, "t:%u\n", &t_tmp);
+    ret = fscanf(file, "t:%u\n", &t_tmp);
+    ASSERT_ALWAYS(ret == 1);
     ASSERT(t == t_tmp);
 
     uint64_t max_number_element_1, max_number_element_u, max_number_element_pr;
-    fscanf(file, "%" PRIu64 ":%" PRIu64 ":%" PRIu64 "\n", &max_number_element_1,
-        &max_number_element_u, &max_number_element_pr);
+    ret = fscanf(file, "%" PRIu64 ":%" PRIu64 ":%" PRIu64 "\n",
+        &max_number_element_1, &max_number_element_u, &max_number_element_pr);
+    ASSERT_ALWAYS(ret == 3);
 
     factor_base_init(fb[k], max_number_element_1, max_number_element_u,
         max_number_element_pr);
@@ -573,7 +579,8 @@ void read_factor_base(FILE * file, factor_base_t * fb, uint64_t * fbb,
 
     mpz_clear(lpb);
 
-    fscanf(file, "----------------------------------------\n");
+    ret = fscanf(file, "----------------------------------------\n");
+    ASSERT_ALWAYS(ret == 0);
   }
 }
 

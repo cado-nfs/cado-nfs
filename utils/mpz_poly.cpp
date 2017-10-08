@@ -877,6 +877,30 @@ void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep)
   fprintf (fp, "\n");
 }
 
+/* Read a polynomial printed using mpz_poly_fprintf_coeffs, with the same
+   separator. */
+void
+mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, const char sep)
+{
+  int c, deg = -1;
+  mpz_t z;
+
+  mpz_init (z);
+  while ((c = getc (fp)) != '\n')
+    {
+      ungetc (c, fp);
+      int ret = gmp_fscanf (fp, "%Zd", z);
+      ASSERT_ALWAYS (ret == 1);
+      deg ++;
+      mpz_poly_setcoeff (f, deg, z);
+      c = getc (fp);
+      if (c == '\n')
+	break;
+      ASSERT_ALWAYS (c == sep);
+    }
+  mpz_clear (z);
+}
+
 /* Print f of degree d with the following format
     <pre><letter>0: f0\n
     <pre><letter>1: f1\n

@@ -62,11 +62,6 @@ endif()
 
 add_library (utils_with_io ${CADO_SHARED} ${sources_io})
 target_link_libraries(utils_with_io utils)
-add_dependencies(utils_with_io antebuffer)
-
-if(ENABLE_SHARED)
-install(TARGETS utils utils_with_io DESTINATION ${LIBSUFFIX}/utils)
-endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     message(STATUS "Disabling antebuffer on ${CMAKE_SYSTEM_NAME}, see #21410")
@@ -75,7 +70,13 @@ else()
     add_executable(antebuffer antebuffer.c timing.cpp memusage.c)
     target_link_libraries(antebuffer pthread)
     install(TARGETS antebuffer RUNTIME DESTINATION ${LIBSUFFIX}/utils)
+    add_dependencies(utils_with_io antebuffer)
 endif()
+
+if(ENABLE_SHARED)
+    install(TARGETS utils utils_with_io DESTINATION ${LIBSUFFIX}/utils)
+endif()
+
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

@@ -148,6 +148,15 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
   param_list_decl_usage(pl, "mt",   "number of threads to use");
+  /* those are typical from las invocations, we wish to keep them
+   * accepted */
+  param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
+  param_list_decl_usage(pl, "fb",   "(unused)");
+  param_list_decl_usage(pl, "fbc",  "(unused)");
+  param_list_decl_usage(pl, "q0",   "(unused)");
+  param_list_decl_usage(pl, "q1",   "(unused)");
+  param_list_decl_usage(pl, "nq",   "(unused)");
+  param_list_decl_usage(pl, "adjust-strategy",   "(unused)");
   verbose_decl_usage(pl);
 }
 
@@ -178,6 +187,8 @@ main (int argc, char * argv[])
     if (argc == 0)
       usage (pl, argv0);
 
+    param_list_configure_switch(pl, "-v", NULL);
+
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         /* Since we accept file names freeform, we decide to never abort
@@ -196,6 +207,14 @@ main (int argc, char * argv[])
       usage(pl, argv0);
     }
 
+    param_list_lookup_string(pl, "fb");
+    param_list_lookup_string(pl, "fbc");
+    param_list_lookup_string(pl, "q0");
+    param_list_lookup_string(pl, "q1");
+    param_list_lookup_string(pl, "nq");
+    param_list_lookup_string(pl, "adjust-strategy");
+    const char * outputname = param_list_lookup_string(pl, "out");
+
     cado_poly cpoly;
     read_poly(cpoly, pl);
     int ok = parse_config(conf, pl);
@@ -213,6 +232,15 @@ main (int argc, char * argv[])
       usage(pl, argv0);
     }
 
+    FILE * output = stdout;
+    if (outputname) {
+	if (!(output = fopen_maybe_compressed(outputname, "w"))) {
+	    fprintf(stderr, "Could not open %s for writing\n", outputname);
+	    exit(EXIT_FAILURE);
+	}
+    }
+
+    setvbuf(output, NULL, _IOLBF, 0);      /* mingw has no setlinebuf */
     std::shared_ptr<facul_strategies_t> strategies(facul_make_strategies(
             conf.sides[0].lim,
             conf.sides[0].lpb,
@@ -252,7 +280,7 @@ main (int argc, char * argv[])
             relation rel;
             if (rel.parse(line)) {
                 int is_dupe = relation_is_duplicate(rel, nb_threads, *psi);
-                dupsup(stdout, rel, doing, is_dupe);
+                dupsup(output, rel, doing, is_dupe);
             }
         }
       }
@@ -260,10 +288,14 @@ main (int argc, char * argv[])
       if (psi) delete psi;
     }
     
+    if (outputname)
+        fclose_maybe_compressed(output, outputname);
+
     cado_poly_clear(cpoly);
     mpz_clear(sq);
     mpz_clear(rho);
     param_list_clear(pl);
+
 
     return 0;
 }

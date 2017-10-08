@@ -17,10 +17,23 @@ set -ex
 
 : ${NOMAD_MAX_BB_EVAL=100}
 
-# To use say 4 threads:
-# NUM_THREADS=4 ./optimize.sh ...
+# To use say 8 threads:
+# NUM_THREADS=8 ./optimize.sh ...
+# Note that when the number of threads increases, the estimated time reported
+# by OPAL does increase. This is not really a problem if this time increases
+# by the same factor between two sets of parameters. However this is no longer
+# the case for a number of threads larger than 4. Here are examples on rsa140,
+# with two different sets of parameters, lpb[01]=28 and lpb[01]=29:
+#                  lpb[01]=28                     lpb[01]=29
+# NUM_THREADS=2      1.31e6                         1.35e6
+# NUM_THREADS=4      1.32e6                         1.35e6
+# NUM_THREADS=8      1.40e6                         1.43e6
+# NUM_THREADS=16     1.82e6                         1.78e6
+# We thus see the estimated time indeed increases with NUM_THREADS, and
+# with NUM_THREADS=16 the first set of parameters is worse than the second one.
+# Thus for production use we recommend to use NUM_THREADS <= 4.
 
-: ${NUM_THREADS=2}
+: ${NUM_THREADS=4}
 
 cwd=`pwd`
 

@@ -46,7 +46,12 @@ sieve_info::sieve_info(siever_config const & sc, cado_poly_srcptr cpoly, std::li
     }
 
     // Now that fb have been initialized, we can set the toplevel.
-    toplevel = MAX(sides[0].fb->get_toplevel(), sides[1].fb->get_toplevel());
+    toplevel = -1;
+    for(int side = 0 ; side < 2 ; side++) {
+        if (!sides[side].fb) continue;
+        int level = sides[0].fb->get_toplevel();
+        if (level > toplevel) toplevel = level;
+    }
 
     /* If LOG_BUCKET_REGION == sc.logI, then one bucket (whose size is the
      * L1 cache size) is actually one line. This changes some assumptions
@@ -77,6 +82,7 @@ sieve_info::sieve_info(siever_config const & sc, cado_poly_srcptr cpoly, std::li
 
     for(int side = 0 ; side < 2 ; side++) {
 	init_trialdiv(side); /* Init refactoring stuff */
+        if (!sides[side].fb) continue;
         init_fb_smallsieved(side);
         verbose_output_print(0, 2, "# small side-%d factor base", side);
         size_t nr_roots;
@@ -164,6 +170,7 @@ void sieve_info::update (size_t nr_workspaces)/*{{{*/
             max_weight[i_part] = sis.max_bucket_fill_ratio[i_part] / nr_workspaces
                 * safety_factor;
         }
+        if (!sis.fb) continue;
         sis.fb->make_slices(sis.lognorms->scale, max_weight);
     }
 }/*}}}*/

@@ -54,6 +54,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 /* XXX should check whether my former fear mentioned about turns out to
  * be true.
  */
+#define _WITH_GETLINE /* See the COMPATIBILITY section of getline manpage
+                         of FreeBSD. */
 #else
 #define _POSIX_C_SOURCE 200112L /* strtoumax */
 /* POSIX: popen/pclose with -std=c99, -pedantic or -ansi (requires

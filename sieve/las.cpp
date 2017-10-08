@@ -957,6 +957,7 @@ trial_div (factor_list_t *fl, mpz_t norm, const unsigned int N, unsigned int x,
 
     // remove primes in "primes" that map to x
     divide_primes_from_bucket (fl, norm, N, x, primes, trial_div_very_verbose);
+    if (fb)
     divide_hints_from_bucket (fl, norm, N, x, purged, fb, trial_div_very_verbose);
     if (trial_div_very_verbose)
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "# x = %d, after dividing out bucket/resieved norm = %Zd\n", x, norm);
@@ -1333,6 +1334,10 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 
         int i;
         unsigned int j;
+        // Note that are, (i,j) must be true coordinates, not the
+        // ones reduced to (-I/2, I/2) using sublattices.
+        NxToIJ (&i, &j, N, x, si);
+        adjustIJsublat(&i, &j, si);
 
         /* This can be changed (and should be a command line parameter)
          */
@@ -1351,10 +1356,6 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
             /* Compute the norms using the polynomials transformed to 
                i,j-coordinates. The transformed polynomial on the 
                special-q side is already divided by q */
-            // Note that are, (i,j) must be true coordinates, not the
-            // ones reduced to (-I/2, I/2) using sublattices.
-            NxToIJ (&i, &j, N, x, si);
-            adjustIJsublat(&i, &j, si);
             si.sides[side].lognorms->norm(norm[side], i, j);
 
 #ifdef TRACE_K
@@ -1398,23 +1399,28 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         th->rep->survivors.enter_cofactoring++;
 
         if (las.batch_print_survivors) {
+            verbose_output_start_batch ();
 #ifndef SUPPORT_LARGE_Q
             gmp_printf("%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
                     norm[0], norm[1]);
 #else
             gmp_printf("%Zd %Zd %Zd %Zd\n", az, bz, norm[0], norm[1]);
 #endif
+            verbose_output_end_batch ();
             cpt++;
             continue;
         }
 
         if (las.batch)
         {
-            verbose_output_start_batch ();
+            /* make sure threads don't write the cofactor list at the
+             * same time !!! */
+            static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+            pthread_mutex_lock(&lock);
             cofac_list_add ((cofac_list_t*) las.L, a, b, norm[0], norm[1],
                     si.doing.side, si.doing.p);
-            verbose_output_end_batch ();
             cpt++;
+            pthread_mutex_unlock(&lock);
             continue; /* we deal with all cofactors at the end of las */
         }
 
@@ -1705,10 +1711,12 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
         for (int side = 0; side < 2; side++)
           {
             WHERE_AM_I_UPDATE(w, side, side);
+            sieve_info::side_info & s(si.sides[side]);
+            if (!s.fb) continue;
+
             SIBLING_TIMER_PARAMETRIC(timer, "side ", side, "");
             TIMER_CATEGORY(timer, sieving(side));
 
-            sieve_info::side_info & s(si.sides[side]);
             thread_side_data & ts = th->sides[side];
 
             {
@@ -1799,6 +1807,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
         /* Reset resieving data */
         for(int side = 0 ; side < 2 ; side++) {
             sieve_info::side_info & s(si.sides[side]);
+            if (!s.fb) continue;
             thread_side_data & ts = th->sides[side];
             small_sieve_skip_stride(s.ssd, ts.ssdpos, skiprows, si);
             int * b = s.fb_parts_x->rs;
@@ -1938,10 +1947,10 @@ static void declare_usage(param_list pl)/*{{{*/
   param_list_decl_usage(pl, "batch", "(switch) use batch cofactorization");
   param_list_decl_usage(pl, "batch0", "side-0 batch file");
   param_list_decl_usage(pl, "batch1", "side-1 batch file");
-  param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization");
-  param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization");
-  param_list_decl_usage(pl, "batchmfb0", "cofactor bound on side 0 to be considered after batch cofactorization");
-  param_list_decl_usage(pl, "batchmfb1", "cofactor bound on side 1 to be considered after batch cofactorization");
+  param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization. Primes between lim0 and 2^batchlpb0 will be extracted by product trees. Defaults to lpb0.");
+  param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
+  param_list_decl_usage(pl, "batchmfb0", "cofactor bound on side 0 to be considered after batch cofactorization. After primes below 2^batchlpb0 have been extracted, cofactors below this bound will go through ecm. Defaults to lpb0.");
+  param_list_decl_usage(pl, "batchmfb1", "cofactor bound on side 1 to be considered after batch cofactorization. After primes below 2^batchlpb1 have been extracted, cofactors below this bound will go through ecm. Defaults to lpb1.");
   param_list_decl_usage(pl, "batch-print-survivors", "(switch) just print survivors for an external cofactorization");
   param_list_decl_usage(pl, "galois", "(switch) for reciprocal polynomials, sieve only half of the q's");
 #ifdef TRACE_K
@@ -2396,6 +2405,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
         for(int side = 0 ; side < 2 ; side++) {
             /* This uses the thread pool, and stores the time spent under
              * timer_special_q (with wait time stored separately */
+            if (!si.sides[side].fb) continue;
             fill_in_buckets(timer_special_q, *pool, *workspaces, si, side);
         }
 
@@ -2436,6 +2446,8 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
         /* Prepare small sieve and re-sieve */
         for(int side = 0 ; side < 2 ; side++) {
             sieve_info::side_info & s(si.sides[side]);
+
+            if (!s.fb) continue;
 
             small_sieve_init(s.ssd, las, s.fb_smallsieved.get(), si, side);
             small_sieve_info("small sieve", side, s.ssd);
@@ -2485,6 +2497,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             plattice_enumerate_area<3>::value = max_area;
             precomp_plattice_t precomp_plattice;
             for (int side = 0; side < 2; ++side) {
+                if (!si.sides[side].fb) continue;
                 CHILD_TIMER_PARAMETRIC(timer_special_q, "side ", side, "");
                 for (int level = 1; level < si.toplevel; ++level) {
                     const fb_part * fb = si.sides[side].fb->get_part(level);
@@ -2557,8 +2570,10 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             }
         }
         for(int side = 0 ; side < 2 ; side++) {
-            small_sieve_clear(si.sides[side].ssd);
-            small_sieve_clear(si.sides[side].rsd);
+            sieve_info::side_info & s(si.sides[side]);
+            if (!s.fb) continue;
+            small_sieve_clear(s.ssd);
+            small_sieve_clear(s.rsd);
         }
 
 

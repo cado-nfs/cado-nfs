@@ -154,7 +154,6 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   sidename = get_depsidename (prefix, numdep, side);
   FILE *depfile = NULL;
   FILE *resfile;
-  long a, b;
   int ret;
   unsigned long ab_pairs = 0, line_number, freerels = 0;
   mpz_t v, *prd;
@@ -184,9 +183,12 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   mpz_init_set_ui (prd[0], 1);
 
   line_number = 2;
+  mpz_t a, b;
+  mpz_init (a);
+  mpz_init (b);
   for (;;)
     {
-      ret = fscanf (depfile, "%ld %ld\n", &a, &b);
+      ret = gmp_fscanf (depfile, "%Zd %Zd\n", a, b);
 
       if (ret != 2)
         {
@@ -209,18 +211,20 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
           pthread_mutex_unlock (&lock);
         }
 
-        if (b == 0)
-          freerels ++;
+      if (mpz_cmp_ui (b, 0) == 0)
+        freerels ++;
 
-        /* accumulate g1*a+g0*b */
-        mpz_mul_si (v, pol->pols[side]->coeff[1], a);
-        mpz_addmul_si (v, pol->pols[side]->coeff[0], b);
+      /* accumulate g1*a+g0*b */
+      mpz_mul (v, pol->pols[side]->coeff[1], a);
+      mpz_addmul (v, pol->pols[side]->coeff[0], b);
 
-        prd = accumulate_fast (prd, v, &lprd, nprd++);
+      prd = accumulate_fast (prd, v, &lprd, nprd++);
 
-        if (feof (depfile))
-          break;
-      }
+      if (feof (depfile))
+        break;
+    }
+  mpz_clear (a);
+  mpz_clear (b);
   fclose_maybe_compressed_lock (depfile, depname);
   free (depname);
 
@@ -269,7 +273,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
   if (mpz_cmp_ui (v, 0) != 0)
     {
-      unsigned long p = 2, e;
+      unsigned long p = 2, e, errors = 0;
       mpz_t pp;
 
       mpz_init (pp);
@@ -291,8 +295,9 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
                     mpz_sizeinbase (prd[0], 2));
           if ((e % 2) != 0)
             {
+              errors ++;
               fprintf (stderr, "Prime %lu appears to odd power %lu\n", p, e);
-              if (verbose)
+              if (verbose || errors >= 10)
                 break;
             }
           p = getprime_mt (pi);
@@ -356,11 +361,12 @@ typedef __tab_struct tab_t[1];
 
 /********** ALGSQRT **********/
 static void
-polymodF_from_ab(polymodF_t tmp, long a, unsigned long b) {
+polymodF_from_ab (polymodF_t tmp, mpz_t a, mpz_t b)
+{
   tmp->v = 0;
-  tmp->p->deg = (b != 0) ? 1 : 0;
-  mpz_set_si (tmp->p->coeff[1], - (long) b);
-  mpz_set_si (tmp->p->coeff[0], a);
+  tmp->p->deg = mpz_cmp_ui (b, 0) ? 1 : 0;
+  mpz_neg (tmp->p->coeff[1], b);
+  mpz_set (tmp->p->coeff[0], a);
 }
 
 /* Reduce the coefficients of R in [-m/2, m/2], which are assumed in [0, m[ */
@@ -765,7 +771,6 @@ FindSuitableModP (mpz_poly F, mpz_t N)
 {
   unsigned long p = 2;
   int dF = F->deg;
-  int ntries = 0;
 
   modul_poly_t fp;
 
@@ -777,7 +782,6 @@ FindSuitableModP (mpz_poly F, mpz_t N)
     int d;
 
     p = getprime_mt (pi);
-    ntries ++;
     if (mpz_gcd_ui(NULL, N, p) != 1)
       continue;
 
@@ -852,8 +856,6 @@ calculateSqrtAlg (const char *prefix, int numdep,
   FILE *resfile;
   mpz_poly F;
   polymodF_t prd, tmp;
-  long a;
-  unsigned long b;
   unsigned long p;
   double t0 = seconds ();
   mpz_t algsqrt, aux;
@@ -888,6 +890,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
   mpz_poly_init (tmp->p, 1);
 
   // Accumulate product with a subproduct tree
+  mpz_t a, b;
+  mpz_init (a);
+  mpz_init (b);
   {
       polymodF_t *prd_tab;
       unsigned long lprd = 1; /* number of elements in prd_tab[] */
@@ -898,23 +903,26 @@ calculateSqrtAlg (const char *prefix, int numdep,
       mpz_set_ui (prd_tab[0]->p->coeff[0], 1);
       prd_tab[0]->p->deg = 0;
       prd_tab[0]->v = 0;
-      while(fscanf(depfile, "%ld %lu", &a, &b) != EOF){
-        if(!(nab % 1000000))
-          {
-            pthread_mutex_lock (&lock);
-            fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2lfs (peak %luM)\n",
-                    numdep, nab, seconds (), PeakMemusage () >> 10);
-            fflush (stderr);
-            pthread_mutex_unlock (&lock);
-          }
-        if((a == 0) && (b == 0))
-    break;
-        polymodF_from_ab(tmp, a, b);
-        prd_tab = accumulate_fast_F (prd_tab, tmp, F, &lprd, nprd++);
-        nab++;
-        if(b == 0)
-      nfree++;
-      }
+      while (gmp_fscanf(depfile, "%Zd %Zd", a, b) != EOF)
+        {
+          if(!(nab % 1000000))
+            {
+              pthread_mutex_lock (&lock);
+              fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2lfs (peak %luM)\n",
+                      numdep, nab, seconds (), PeakMemusage () >> 10);
+              fflush (stderr);
+              pthread_mutex_unlock (&lock);
+            }
+          if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
+            break;
+          polymodF_from_ab (tmp, a, b);
+          prd_tab = accumulate_fast_F (prd_tab, tmp, F, &lprd, nprd++);
+          nab++;
+          if (mpz_cmp_ui (b, 0) == 0)
+            nfree++;
+        }
+      mpz_clear (a);
+      mpz_clear (b);
       pthread_mutex_lock (&lock);
       fprintf (stderr, "Alg(%d): read %d including %d free relations\n",
                numdep, nab, nfree);
@@ -950,12 +958,12 @@ calculateSqrtAlg (const char *prefix, int numdep,
       prd->v = prd_tab[0]->v;
       size_t s = 0;
       for (i = 0; i < (long)lprd; ++i)
-	{
-	  s += mpz_poly_totalsize (prd_tab[i]->p);
-	  mpz_poly_clear(prd_tab[i]->p);
-	}
+        {
+          s += mpz_poly_totalsize (prd_tab[i]->p);
+          mpz_poly_clear(prd_tab[i]->p);
+        }
       fprintf (stderr, "Alg(%d): product tree took %zuMb (peak %luM)\n",
-	       numdep, s >> 20, PeakMemusage () >> 10);
+               numdep, s >> 20, PeakMemusage () >> 10);
       fflush (stderr);
       free(prd_tab);
     }

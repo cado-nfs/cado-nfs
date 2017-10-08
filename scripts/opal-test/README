@@ -3,15 +3,38 @@ separate, binary NOMAD library.
 
 Download NOMAD.zip from <http://sourceforge.net/projects/nomad-bb-opt/>
 Build it with:
-  cd nomad.3.8.0 && cd install && ./install.sh
-  Copy ../bin/nomad to some directory in PATH. (Sadly, OPAL insists on
-  executing NOMAD simply as os.system('nomad ' + ...); it does not allow
-  specifying a path)
 
-Download OPAL from <https://github.com/dpo/opal>, or clone with
+bash <<'EOF'
+  T=$(mktemp -d /tmp/XXXXXXXXX)
+  cleanup() { rm -rf "$T" ; }
+  trap cleanup EXIT
+  cd "$T"
+  wget "https://sourceforge.net/projects/nomad-bb-opt/files/unix_linux/NOMAD.zip/download" -O dist.zip
+  unzip dist.zip
+  v=$(ls -d nomad.*)
+  mkdir -p ~/Packages/$v/bin
+  cd $v/install && ./install.sh
+  cp -p ../bin/nomad ~/Packages/$v/bin
+  export PATH=$PATH:$HOME/Packages/$v/bin
+EOF
+
+  (Sadly, OPAL insists on executing NOMAD simply as os.system('nomad ' +
+  ...); it does not allow specifying a path)
+
+Download OPAL from <https://github.com/dpo/opal>, or clone with the git
+command below. Then install OPAL into your user site directory:
+
+bash <<'EOF'
+  T=$(mktemp -d /tmp/XXXXXXXXX)
+  cd "$T"
+  cleanup() { rm -rf "$T" ; }
+  trap cleanup EXIT
   git clone https://github.com/dpo/opal.git
-Install OPAL into your user site directory:
+  ND=$(find $HOME/Packages/nomad* -name bin -a -type d | head -1)
+  export PATH=$PATH:"$ND"
   cd opal && python setup.py install --user
+EOF
+
 
 - copy a polynomial file to the current directory, say c60.poly
 - copy a parameter file to the current directory, say params.c60

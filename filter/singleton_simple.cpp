@@ -10,13 +10,11 @@
 #include "filter_config.h"
 
 
-// indices below this bound are not taken into account
-const index_t min_index = 500;
-
 // Some globals... laziness.
 FILE *out;
 weight_t *table;
-uint64_t count;
+uint64_t count, count_ideals = 0;
+uint64_t col_min_index = 0;
 
 /* -------------------------------------------------------------------------- */
 
@@ -25,8 +23,9 @@ update_table(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
   for (weight_t i = 0; i < rel->nb; i++) {
     index_t ind = rel->primes[i].h;
-    if (ind < min_index)
+    if (ind < col_min_index)
       continue;
+    count_ideals += table[ind] == 0;
     table[ind]++;
     if (table[ind] == 0) {   // saturate
       table[ind] = UMAX(weight_t);
@@ -40,7 +39,7 @@ print_survivors(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
   for (weight_t i = 0; i < rel->nb; i++) {
     index_t ind = rel->primes[i].h;
-    if (ind < min_index)
+    if (ind < col_min_index)
       continue;
     if (table[ind] == 1) {
       return NULL; // There is a singleton in this relation; don't print.
@@ -55,6 +54,8 @@ print_survivors(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 
 static void declare_usage(param_list pl)
 {
+  param_list_decl_usage(pl, "col-min-index", "lower index on the considered "
+          "columns (default 0)");
   param_list_decl_usage(pl, "col-max-index", "upper bound on the number of "
           "columns (must be at least the number\n"
           "                   of prime ideals in renumber table)");
@@ -100,6 +101,8 @@ int main (int argc, char **argv)
     usage(pl, argv0);
   }
 
+  param_list_parse_uint64(pl, "col-min-index", &col_min_index);
+
   param_list_parse_uint64(pl, "col-max-index", &col_max_index);
   if (col_max_index == 0) {
     usage(pl, argv0);
@@ -120,6 +123,7 @@ int main (int argc, char **argv)
       (filter_rels_callback_t) &print_survivors,
       NULL, EARLYPARSE_NEED_LINE | EARLYPARSE_NEED_INDEX, NULL, NULL);
 
+  printf("# %" PRIu64 " ideals read\n", count_ideals);
   printf("# %" PRIu64 " relations written\n", count);
 
   fclose(out);

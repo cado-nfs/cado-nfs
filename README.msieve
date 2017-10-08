@@ -21,7 +21,7 @@ or msieve.
    all prime factors, you will need to complete all relations files that are in
    ggnfs or msieve format using:
 
-   $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> file0 file1 ... filen 
+   $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> file0 file1 ... filen
         or
    $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> -filelsit <filelist>
         where <filelist> is a name of a file containing the list of all
@@ -41,7 +41,7 @@ depending on the size of the input.
 
 If the parameter file is correctly configured, the script will skip the
 polyselect step and the sieving. It will run all the remaining step of the
-factorization until the factors are found. 
+factorization until the factors are found.
 
 NB: If you only want to do the filtering step, add the following command-line
 arguments:
@@ -78,7 +78,7 @@ II) Using msieve filtering and linear algebra with relations in CADO format
 
 3) then run "msieve -nc -v <number to be factored>"
    The msieve output goes into msieve.log.
-   You can add the "-t 4" option to use 4 threads.   
+   You can add the "-t 4" option to use 4 threads.  
 
 ==============================================================================
 

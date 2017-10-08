@@ -102,6 +102,7 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f);
 void mpz_poly_fprintf_endl (FILE *fp, mpz_poly_srcptr f, int endl);
 void mpz_poly_fprintf(FILE *fp, mpz_poly_srcptr f);
 void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep);
+void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, const char sep);
 void mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f,
                                    const char letter, const char *pre);
 void mpz_poly_print_raw(mpz_poly_srcptr f);

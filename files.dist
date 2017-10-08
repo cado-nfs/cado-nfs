@@ -502,13 +502,6 @@ tests/test_iceildiv.c
 tests/test_tests_common.c
 tests/sieve/CMakeLists.txt
 tests/sieve/README
-tests/sieve/F9.sievetest.sh
-tests/sieve/F9.batchtest.sh
-tests/sieve/F9.sublat.sh
-tests/sieve/F9.tracektest.sh
-tests/sieve/F9.cofactest.sh
-tests/sieve/F9.todotest.sh
-tests/sieve/F9.descenttest.sh
 tests/sieve/F9.dupsup.sh
 tests/sieve/F9.fakerels.sh
 tests/sieve/F9.todo
@@ -516,7 +509,6 @@ tests/sieve/F9.hint
 tests/sieve/c120.poly
 tests/sieve/c120.roots1.gz
 tests/sieve/sievetest.sh
-tests/sieve/batchtest.sh
 tests/sieve/test_trialdiv.c
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/test_factor_ecm_10_100_1000.inp

@@ -33,11 +33,11 @@ void fibonacci_sphere(point3d_t * point, unsigned int N)
 
 double murphyE3d(cado_poly_srcptr f, double * lpb, double volume,
     unsigned int N, int q_side, double Q, double s,
-    unsigned long p, unsigned int N_alpha)
+    unsigned long p, gmp_randstate_t rstate, unsigned int N_alpha)
 {
   double * alpha = (double *) malloc(sizeof(double) * f->nb_polys);
   for (int i = 0; i < f->nb_polys; i++) {
-    alpha[i] = alpha3d(f->pols[i], p, N_alpha);
+    alpha[i] = alpha3d(f->pols[i], p, rstate, N_alpha);
   }
 
   double E = 0.0;
@@ -108,12 +108,13 @@ void declare_usage(param_list pl)
   param_list_decl_usage(pl, "q_side", "side of the special-q");
   param_list_decl_usage(pl, "s", "skewness");
   param_list_decl_usage(pl, "p", "bound on p for alpha");
+  param_list_decl_usage(pl, "seed", "seed for Monte Carlo for alpha");
   param_list_decl_usage(pl, "N_alpha", "bound for Monte Carlo for alpha");
 }
 
 void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
     double ** lpb, double * volume, unsigned int * N, double * Q,
-    int * q_side, double * s, unsigned long * p, unsigned * N_alpha)
+    int * q_side, double * s, unsigned long * p, gmp_randstate_t rstate, unsigned * N_alpha)
 {
   param_list pl;
   param_list_init(pl);
@@ -138,7 +139,6 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
     exit (EXIT_FAILURE);
   }
 
-  cado_poly_init(f);
   unsigned int size_path = 1024;
   char path [size_path];
   param_list_parse_string(pl, "poly", path, size_path);
@@ -146,7 +146,7 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   ASSERT(f->nb_polys >= 2);
   unsigned int V = (unsigned int) f->nb_polys;
 
-  * lpb = malloc(sizeof(double) * V);
+  * lpb = realloc(*lpb, sizeof(double) * V);
   unsigned int * lpb_size = (unsigned int *) malloc(sizeof(unsigned int) * V);
   param_list_parse_uint_list(pl, "lpb", lpb_size, (size_t) V, ",");
   for (unsigned int i = 0; i < V; i++) {
@@ -174,6 +174,10 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   * p = 10000;
   param_list_parse_ulong(pl, "p", p);
 
+  unsigned long seed;
+  if (param_list_parse_ulong(pl, "seed", &seed))
+      gmp_randseed_ui(rstate, seed);
+
   * N_alpha = 10000;
   param_list_parse_uint(pl, "N_alpha", N_alpha);
 
@@ -190,12 +194,17 @@ int main(int argc, char ** argv)
   int q_side;
   double s;
   unsigned long p;
+  gmp_randstate_t rstate;
   unsigned int N_alpha;
+  cado_poly_init(f);
+
+  gmp_randinit_default(rstate);
+  lpb = NULL;
 
   initialise_parameters(argc, argv, f, &lpb, &volume, &N, &Q, &q_side, &s, &p,
-      &N_alpha);
+      rstate, &N_alpha);
 
-  printf("%le\n", murphyE3d(f, lpb, volume, N, q_side, Q, s, p, N_alpha));
+  printf("%le\n", murphyE3d(f, lpb, volume, N, q_side, Q, s, p, rstate, N_alpha));
 
   free(lpb);
   cado_poly_clear(f);

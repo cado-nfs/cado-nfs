@@ -48,6 +48,11 @@ check_leftover_norm (const mpz_t n, sieve_info const & si, int side)
   if (s > mfb)
     return 0; /* n has more than mfb bits, which is the given limit */
 
+  if (si.conf.sides[side].lim == 0) {
+      /* special case when not sieving */
+      return 1;
+  }
+
   if (s <= lpb)
     return 1; /* case (a) */
   /* Note that in the case where L > B^2, if we're below L it's still fine of

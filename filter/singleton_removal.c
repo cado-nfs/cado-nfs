@@ -17,6 +17,7 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Code for singletons removal --- monothread version */
 
+#if 1
 void singleton_removal_oneiter_mono (purge_matrix_ptr mat)
 {
   for (uint64_t i = 0; i < mat->nrows_init; i++)
@@ -36,7 +37,30 @@ void singleton_removal_oneiter_mono (purge_matrix_ptr mat)
     }
   }
 }
-
+#else
+/* idem, but only removes rows that contain a singleton at the beginning of
+   the pass */
+void singleton_removal_oneiter_mono (purge_matrix_ptr mat)
+{
+  char *T = malloc (mat->nrows_init);
+  memset (T, 0, mat->nrows_init);
+  for (uint64_t i = 0; i < mat->nrows_init; i++)
+    {
+      index_t h, *row_ptr;
+      if (purge_matrix_is_row_active(mat, i))
+	for (row_ptr = mat->row_compact[i]; (h = *row_ptr++) != UMAX(h);)
+	  if (mat->cols_weight[h] == 1)
+	    {
+	      T[i] = 1; /* mark row i for deletion */
+	      break;
+	    }
+    }
+  for (uint64_t i = 0; i < mat->nrows_init; i++)
+    if (T[i])
+      purge_matrix_delete_row (mat, i);
+  free (T);
+}
+#endif
 
 /* Code for singletons removal --- multithread version */
 

@@ -423,7 +423,9 @@ int main (int argc, char **argv)
     {
       free(strategy->methods);
       free(strategy);
-      strategy = facul_make_strategy (fbb, lpb, ncurves, (verbose / 3));
+      /* we set mfb = 3*lpb to avoid a huge number of curves if ncurves is not
+         given (case of 2 large primes) */
+      strategy = facul_make_strategy (fbb, lpb, 3 * lpb, ncurves, (verbose / 3));
     }
   else
     {

@@ -1,124 +1,191 @@
 #!/usr/bin/env bash
 
+# This is a generic test harness for las. We recognize several
+# environment variables, passed via cmake, that are used as arguments to
+# las.
+#
+# $LAS_BINARY is the actual las binary that gets used.
+#
+# data is put in $WORKDIR.
+#
+# Any error fails the whole sript.
+#
+# After relations are created, post-mortem checks are done according to
+# the REFERENCE_SHA1 and REGEX values. See the end of this script.
+
+if [ "$CADO_DEBUG" ] ; then
+    set -x
+fi
+set -e
+
 # Print and run a command
-function run {
+run() {
   echo "Running: $*"
   "$@"
 }
 
-# Input files. First parameter is the polynomial file to use, second is root of the build directory, third is the expected SHA1 value
-FB="$1"
-LAS="$2"
-POLY="$3"
-REFERENCE_SHA1="$4"
-REFERENCE_REVISION="$5"
-CHECKSUM_FILE="$6"
-shift 6
-
-if [[ -z "${FB}" || ! -f "${FB}" ]]
-then
-  echo "Factor base ${FB} is not a file" >&2
+if ! [ -x "${LAS_BINARY:?missing}" ] ; then
+  echo "Las binary \$LAS_BINARY = ${LAS_BINARY} is not an executable file" >&2
   exit 1
 fi
 
-if [[ -z "${LAS}" || ! -x "${LAS}" ]]
-then
-  echo "Las binary ${LAS} is not an executable file" >&2
-  exit 1
+if ! [ -d "${WORKDIR:?missing}" ] ; then
+    echo "\$WORKDIR = $WORKDIR is not a directory" >&2
+    exit
 fi
 
-if [ -z "${REFERENCE_SHA1}" ]
-then
-  echo "No reference SHA1 value specified" >&2
-  exit 1
-fi
-
-
-if [[ -z "$lim0" || -z "$lim1" || -z "$lpb0" || -z "$lpb1" || -z "$maxbits" \
-      || -z "$mfb0" || -z "$mfb1" || -z "$lambda0" || -z "$lambda1" || -z "$I" \
-      || -z "$q0" || ( -z "$q1" && -z "$rho" ) ]]
-then
-  echo "Required shell environment variable not set" >&2
-  exit 1
-fi
-
-if [ "$1" = "-regex" ]
-then
-  REGEX="$2"
-  shift 2
-fi
-
-BASENAME="`basename "${POLY}"`"
+BASENAME="`basename "${poly:?missing}"`"
 BASENAME="${BASENAME%%.*}"
 
-# Output files
-WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cadotest.XXXXXXXXXX`
-# Make temp direcotry world-readable for easier debugging
+# Make temp directory world-readable for easier debugging
 chmod a+rx "${WORKDIR}"
-RELS="${WORKDIR}/${BASENAME}.rels"
-FBC="${WORKDIR}/${BASENAME}.fbc"
 
-if [ -n "$q1" ]
-then
-  end=("-q1" "$q1")
-fi
-if [ -n "$rho" ]
-then
-  end=("-rho" "$rho")
-fi
+# We may put RELS in a special place.
+: ${RELS="${WORKDIR}/${BASENAME}.rels"}
 
-bailout() {
-    if [ "$EXPECTED_FAIL" ] && ! [ "$KEEP_SIEVETEST" ] ; then
-        rm -rf "$WORKDIR"
+# create las command line from environment variables, moan if any is
+# missing.
+args=()
+for var in poly fb I lim{0,1} lpb{0,1} mfb{0,1} ; do
+    args=("${args[@]}" -$var $(eval "echo \${$var:?missing}"))
+done
+
+for var in fbc lambda{0,1} ncurves{0,1} descent_hint ; do
+    # Those are optional
+    value=$(eval "echo \${$var}")
+    if [ "$value" ] ; then
+        args=("${args[@]}" -$var "$value")
     fi
-    exit 1
-}
+done
 
-# first exercise the -fbc command-line option to create a cache file
-run "$LAS" -poly "$POLY" -fb "${FB}" -I "$I" -lim0 "$lim0" -lpb0 "$lpb0" -mfb0 "$mfb0" -lambda0 "$lambda0" -lim1 "$lim1" -lpb1 "$lpb1" -mfb1 "$mfb1" -lambda1 "$lambda1" -q0 "$q0" -q1 "$q0" -out "${RELS}" -fbc "${FBC}" "$@" || bailout
+for var in fbc batch{0,1} ; do
+    # Those are optional too. Being filenames, we allow that they be
+    # passed as just ".", which means that we expect to have them in the
+    # work directory.
+    value=$(eval "echo \${$var}")
+    if [ "$value" ] ; then
+        if [ "$value" = "." ] ; then
+            value="${WORKDIR}/${BASENAME}.$var"
+            eval "$var=\"\$value\""
+        fi
+        args=("${args[@]}" -$var "$value")
+    fi
+done
+
+if [ "$todo" ] ; then
+    end=(-todo "${todo}")
+    zero_qs=(-todo /dev/null)
+elif [ "$rho" ] ; then
+    end=(-q0 "${q0:?missing}" -rho "$rho")
+    zero_qs=(-q0 "${q0:?missing}" -q1 "$q0")
+elif [ "$nq" ] ; then
+    end=(-q0 "${q0:?missing}" -nq "$nq")
+    zero_qs=(-q0 "${q0:?missing}" -q1 "$q0")
+elif [ "$q1" ] ; then
+    end=(-q0 "${q0:?missing}" -q1 "$q1")
+    zero_qs=(-q0 "${q0:?missing}" -q1 "$q0")
+else
+    echo "q1 or rho: missing" >&2
+    exit 1
+fi
+
+# Warm up the cache files if needed
+if [ "$fbc" ] || [ "$batch0" ] || [ "$batch1" ] ; then
+    run "$LAS_BINARY" "${args[@]}" "${zero_qs[@]}" -out "${RELS}" "$@"
+fi
 # then use the cache file created above
-run "$LAS" -poly "$POLY" -fb "${FB}" -I "$I" -lim0 "$lim0" -lpb0 "$lpb0" -mfb0 "$mfb0" -lambda0 "$lambda0" -lim1 "$lim1" -lpb1 "$lpb1" -mfb1 "$mfb1" -lambda1 "$lambda1" -q0 "$q0" "${end[@]}" -out "${RELS}" -fbc "${FBC}" "$@" || bailout
+run "$LAS_BINARY" "${args[@]}" "${end[@]}" -out "${RELS}" "$@"
 
 
-SHA1BIN=sha1sum
-if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=sha1 ; fi
-if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=shasum ; fi
-if ! type -p "$SHA1BIN" > /dev/null ; then
-    echo "Could not find a SHA-1 checksumming binary !" >&2
-    exit 1
+### Now do the final checks.
+
+# We depend on several environment variables, presumably defined in the
+# caller scripts.
+#
+# RELS : a relation file to check
+# REFERENCE_SHA1 : the sha1sum we should get for the relations
+# REFERENCE_REVISION : the git rev that produces REFERENCE_SHA1
+#
+# environment variables that trigger optional checks:
+#
+# CHECKSUM_FILE : file that should hold a memory of the sieve regions
+#   checksums. The corresponding check is not done if this variable isn't
+#   defined.
+# REGEX : regular expression that should match in the relation files.
+
+checks_passed=0
+
+if [ "$REL_COUNT" ] ; then
+    if ! tail "$RELS" | grep "Total $REL_COUNT reports" ; then
+        echo "Expected $REL_COUNT reports, got: `tail -1 $RELS`" >&2
+        exit 1
+    fi
+    let checks_passed+=1
 fi
 
-# Try to make sort produce some well-defined ordering on the integers
-export LC_ALL=C
-export LANG=C
-export LANGUAGE=C
+if [ "$REFERENCE_SHA1" ] ; then
+    SHA1BIN=sha1sum
+    if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=sha1 ; fi
+    if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=shasum ; fi
+    if ! type -p "$SHA1BIN" > /dev/null ; then
+        echo "Could not find a SHA-1 checksumming binary !" >&2
+        exit 1
+    fi
 
-SHA1=`grep -v "^#" "${RELS}" | sort -n | ${SHA1BIN}` || exit 1
-SHA1="${SHA1%% *}"
-if [ "${SHA1}" != "${REFERENCE_SHA1}" ]
-then
-  if [ -n "${REFERENCE_REVISION}" ]
-  then
-    REFMSG=", as created by Git revision ${REFERENCE_REVISION}"
-  fi
-  echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WORKDIR}"
-  exit 1
+    # This was used so that the unix sort -n produce some well-defined
+    # ordering on the integers.
+    # Now that we sort primes as well, we're doing it in perl anyway.
+    # Setting the locale to C can't hurt, but it's perhaps less
+    # important.
+    export LC_ALL=C
+    export LANG=C
+    export LANGUAGE=C
+
+    sort_rels() {
+        read -s -r -d '' perl_code <<- 'EOF'
+            /^[^#]/ or next;
+            chomp($_);
+            my ($ab,@sides) = split(":", $_, 3);
+            for (@sides) {
+                $_ = join(",", sort({ hex($a) <=> hex($b) } split(",",$_)));
+            }
+            print join(":", ($ab, @sides)), "\n";
+            
+EOF
+        perl -ne "$perl_code" "$@" | sort -n
+    }
+
+    SHA1=`grep "^[^#]" "${RELS}" | sort_rels | ${SHA1BIN}` || exit 1
+    echo "$0: Got SHA1 of ${SHA1}"
+    echo "$0: expected ${REFERENCE_SHA1}"
+    SHA1="${SHA1%% *}"
+    if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
+      if [ -n "${REFERENCE_REVISION}" ] ; then
+        REFMSG=", as created by Git revision ${REFERENCE_REVISION}"
+      fi
+      if [ "$CADO_DEBUG" ] ; then
+          REFMSG=". Files remain in ${WORKDIR}"
+      else
+          REFMSG=". Set CADO_DEBUG=1 to examine log output"
+      fi
+      echo "$0: Got SHA1(sort(${RELS}))=${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}"
+      exit 1
+    fi
+    let checks_passed+=1
 fi
 
-if [ -n "${CHECKSUM_FILE}" ]
-then
-  MYCHECKSUM_FILE="${WORKDIR}/${BASENAME}.checksums"
+if [ -n "${CHECKSUM_FILE}" ] ; then
+  MYCHECKSUM_FILE="${WORKDIR}/$(basename "$CHECKSUM_FILE")"
   grep "# Checksums over sieve region:" "${RELS}" > "${MYCHECKSUM_FILE}"
-  if [ -f "${CHECKSUM_FILE}" ]
-  then
+  if [ -f "${CHECKSUM_FILE}" ] ; then
     # File with checksums already exists, compare
-    if diff -b "${CHECKSUM_FILE}" "${MYCHECKSUM_FILE}" > /dev/null
-    then
+    if diff -b "${CHECKSUM_FILE}" "${MYCHECKSUM_FILE}" > /dev/null ; then
       echo "Checksums agree"
     else
       echo "Error, reference checksums in ${CHECKSUM_FILE} differ from mine in ${MYCHECKSUM_FILE}" >&2
       exit 1
     fi
+    let checks_passed+=1
   else
     # File with checksums does not exists, create it
     cp "${MYCHECKSUM_FILE}" "${CHECKSUM_FILE}"
@@ -126,24 +193,20 @@ then
   fi
 fi
 
-if [ -n "${REGEX}" ]
-then
+if [ -n "${REGEX}" ] ; then
   echo "Searching for regex \"${REGEX}\"" >&2
-  if ! grep "${REGEX}" "${RELS}" >&2
-  then
+  if ! grep "${REGEX}" "${RELS}" >&2 ; then
     echo "Error, regular expression \"${REGEX}\" does not match output file"
     exit 1
   fi
+  let checks_passed+=1
 fi
 
-if [ -z "$KEEP_SIEVETEST" ]
-then
-  rm -f "${RELS}" "${FBC}"
-  if [ -n "${MYCHECKSUM_FILE}" ]
-  then
-    rm -f "${MYCHECKSUM_FILE}"
-  fi
-  rmdir "${WORKDIR}"
-else
-  echo "Keeping files in ${WORKDIR}"
+if [ "$PHONY_CHECK" ] ; then
+  let checks_passed+=1
+fi
+
+if [ "$checks_passed" = 0 ] ; then
+    echo "Error, zero checks done !" >&2
+    exit 1
 fi

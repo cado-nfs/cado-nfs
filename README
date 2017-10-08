@@ -53,8 +53,8 @@ Required software tools
    that a shared library is installed (libgmp.so under Linux) otherwise
    CADO-NFS might not compile.
  - C and C++ compilers, with C99 support. For C++, as of release
-   cado-nfs-2.3, only C++98 is required. However all tested platforms
-   automatically enable C++11. If you have only a C++11 compiler, you
+   cado-nfs-2.3.0, only C++98 is required. However all tested platforms
+   automatically enable C++11. If you have only a C++98 compiler, you
    will need the boost libraries installed.
    In practice, your probability of success is best with either GCC
    version 4.7 or newer, LLVM Clang 4.0.0 or newer, Apple Clang 6.0.0 or
@@ -244,7 +244,7 @@ will need to run the ssh-agent by hand. As a short recipe, you can type:
    eval `ssh-agent`
    ssh-add
 
-You should also copy your public key, i.e., the contents of the file 
+You should also copy your public key, i.e., the contents of the file
 ~/.ssh/id_rsa.pub, into $HOME/.ssh/authorized_keys on the slave machines, to
 allow logging in with public-key authentication.
 
@@ -359,7 +359,7 @@ Examples of basic usage:
 * Run a full factorization on the local machine, using all available
   cores:
 
-./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 
 * Run a full factorization on the local machine, using all available
   cores, but with a slightly modified set of default parameters.
@@ -382,7 +382,7 @@ Examples of basic usage:
 
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 workdir=/tmp/myfacto
 [Ctrl-C]
-./cado-nfs.py /tmp/myfacto/c60.parameters_snapshot.0 
+./cado-nfs.py /tmp/myfacto/c60.parameters_snapshot.0
 
 * Run a server on machine1, and a slave on machine2, disabling ssl:
 
@@ -396,7 +396,7 @@ prints the appropriate command-line to be copy-pasted on machine2).
 * Run a factorization on machine1, and have it start automatically a
   slave on machine2 via SSH:
 
-./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 
+./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 slaves.hostnames=machine1,machine2
 
 Note that, in that case, you have to specify machine1 as well in the list

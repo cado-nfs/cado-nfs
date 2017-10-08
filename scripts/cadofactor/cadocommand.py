@@ -90,7 +90,7 @@ class Command(object):
         '''
         (stdout, stderr) = self.child.communicate()
         if self.child.returncode != 0:
-            logger.warning("Process with PID %d finished with return code %d",
+            logger.warning("Process with PID %d finished with return code %u",
                            self.child.pid, self.child.returncode)
         else:
             logger.debug("Process with PID %d finished successfully",
