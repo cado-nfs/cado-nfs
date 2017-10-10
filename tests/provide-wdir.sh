@@ -12,8 +12,9 @@
 
 : ${TMPDIR:=/tmp}
 t=`mktemp -d $TMPDIR/cado-nfs.XXXXXXXXXXXXXX`
+temps=("$t")
 
-cleanup() { rm -rf "$t" ; }
+cleanup() { rm -rf "${temps[@]}" ; }
 
 if [ "$CADO_DEBUG" ] ; then
     echo "debug mode, data will be left in $t"
@@ -37,6 +38,13 @@ while [ $# -gt 0 ] ; do
     elif [ "$1" = "--arg" ] ; then
         shift
         extra=("${extra[@]}" "$1=$t")
+        shift
+    elif [ "$1" = "--other" ] ; then
+        t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`
+        temps=("${temps[@]}" "$t")
+        if [ "$CADO_DEBUG" ] ; then
+            echo "debug mode, data will be left in $t (in addition to other temp directories above)"
+        fi
         shift
     else
         # Then we finish processing, presumably the user omitted the --
@@ -62,14 +70,14 @@ done
 rc=$?
 
 if [ "$CADO_DEBUG" ] ; then
-    echo "debug mode, data left in $t"
+    echo "debug mode, data left in ${temps[@]}"
     exit $rc
 fi
 
 if [ $rc != 0 ] ; then
     trap - EXIT
     # what do we do when the script failed ?
-    rm -rf "$t"
+    rm -rf "${temps[@]}"
 fi
 
 exit $rc

@@ -338,7 +338,7 @@ $splitwidth = ($prime == 2) ? 64 : 1;
 
 print "$my_cmdline\n" if $my_verbose_flags->{'cmdline'};
 
-if ($main eq ':mpirun') {
+if ($main =~ /:mpirun(?:_single)?/) {
     # ok, this is really an ugly ugly hack. We have some mpi detection
     # magic in this script, which we would like to use. So the :mpirun
     # meta-command is just for that. Of course the argument requirements
@@ -558,6 +558,12 @@ my $mpi_needed = $mpiexec ne '';
 # not officially work, yet it always does. And some programs do turn out
 # to be compiled with mpi, so we need the mpi libraries at runtime... So
 # short of a more accurate solution, this is a hack.
+#
+# Note also that @mpi_precmd_single is absolutely needed when we run a
+# non-mpi binary, yet that does load all of the mpi infrastructure, in a
+# context where that mpi infrastructure smartly reads the environment
+# variables and detects that we need X jobs (use case: bwccheck does
+# bw_common_init_mpi out of convenience, but really isn't an mpi program).
 my @mpi_precmd;
 my @mpi_precmd_single;
 my @mpi_precmd_lingen;
@@ -621,10 +627,11 @@ sub detect_mpi {
                     last;
                 } elsif ($mpiexec =~ /hydra/) {
                     # Newer mvapich2 uses hydra as well...
-                    print STDERR "Auto-detecting mpich or mvapich2 (hydra) based on alternatives\n";
+                    print STDERR "Auto-detecting mpich or mvapich2 (hydra) or intel mpi (hydra) based on alternatives\n";
                     $maybe_mvapich2='hydra';
                     $maybe_mpich='hydra';
                     $maybe_openmpi=0;
+                    last;
                 } elsif ($mpiexec =~ /mvapich2/) {
                     print STDERR "Auto-detecting mvapich2 based on alternatives\n";
                     $maybe_mpich=0;
@@ -686,6 +693,13 @@ sub detect_mpi {
                         $needs_mpd=1;
                     }
                     last SEVERAL_CHECKS;
+                } elsif ($maybe_mpich && -x "$mpi/mpivars.sh") {
+                    my $v = `unset I_MPI_ROOT ; . $mpi/mpivars.sh  ; echo \$I_MPI_ROOT`;
+                    if ($v) {
+                        $mpi_ver="Intel MPI";
+                        $needs_mpd=0;
+                    }
+                    last SEVERAL_CHECKS;
                 }
             }
             CHECK_OMPI_VERSION: {
@@ -709,12 +723,12 @@ sub detect_mpi {
             print STDERR "Using $mpi_ver, MPI_BINDIR=$mpi\n";
         } else {
             print STDERR "Using UNKNOWN mpi, MPI_BINDIR=$mpi\n";
-            if (defined($needs_mpd=getenv("needs_mpd"))) {
+            if (defined($needs_mpd=$ENV{NEEDS_MPD})) {
                 warn "Assuming needs_mpd=$needs_mpd as per env variable.\n";
             } else {
                 $needs_mpd=1;
                 warn "Assuming needs_mpd=$needs_mpd ; " .
-                    "modify env variable \$needs_mpd to " .
+                    "modify env variable \$NEEDS_MPD to " .
                     "change fallback behaviour\n";
             }
         }
@@ -982,6 +996,13 @@ if ($main eq ':mpirun') {
     # we don't even put @main_args in, because we're tinkering with it
     # somewhat.
     dosystem(@mpi_precmd, @extra_args);
+    exit 0;
+}
+
+if ($main eq ':mpirun_single') {
+    # we don't even put @main_args in, because we're tinkering with it
+    # somewhat.
+    dosystem(@mpi_precmd_single, @extra_args);
     exit 0;
 }
 

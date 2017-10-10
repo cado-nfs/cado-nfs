@@ -349,17 +349,16 @@ fi
 if ! [ "$magma" ] ; then
     $bindir/bwc.pl :complete "$@" "${pass_bwcpl_args[@]}"
     rc=$?
-    set +x
-    $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
+    $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
     grep NOK $wdir/bwccheck.log || :
     exit $rc
 else
     set +e
     $bindir/bwc.pl :complete "$@" "${pass_bwcpl_args[@]}" 
     rc=$?
-    set +x
-    $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
+    $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
     grep NOK $wdir/bwccheck.log
+    set +x
     if [ $rc = 0 ] ; then
         echo " ========== SUCCESS ! bwc.pl returned true ========== "
         echo " ========== SUCCESS ! bwc.pl returned true ========== "

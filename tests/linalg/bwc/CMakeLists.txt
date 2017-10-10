@@ -4,7 +4,7 @@
 
 macro(add_bwc_test nm script)
     cado_define_test(test-bwc-${nm} SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --arg wdir --
+        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
         ${CADO_NFS_SOURCE_DIR}/linalg/bwc/${script}
         bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
         TARGET_DEPENDENCIES bwc_full)
