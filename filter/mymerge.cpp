@@ -749,8 +749,18 @@ void * merge_matrix_push_relation (void *context_data, earlyparsed_relation_ptr 
 void merge_matrix::read_rows(const char *purgedname)
 {
     /* Read number of rows and cols on first line of purged file */
-    if (!comm_rank)
-        purgedfile_read_firstline(purgedname, &initial_nrows, &initial_ncols);
+    if (!comm_rank) {
+        /* for some reason the prototype purgedfile_read_firstline wants
+         * 64-bits. I think it's pointless to even remotely consider
+         * dealing with more than 4G entries on 32-bit dinosaurs. */
+        uint64_t nr64, nc64;
+        purgedfile_read_firstline(purgedname, &nr64, &nc64);
+        initial_nrows = nr64;
+        initial_ncols = nc64;
+        ASSERT_ALWAYS(initial_nrows == nr64);// do we fit ?
+        ASSERT_ALWAYS(initial_ncols == nc64);// do we fit ?
+    }
+
     MPI_Bcast(&initial_nrows, 1, MPI_MY_SIZE_T, 0, comm);
     MPI_Bcast(&initial_ncols, 1, MPI_MY_SIZE_T, 0, comm);
 
@@ -2173,7 +2183,7 @@ void merge_matrix::batch_Rj_update(std::vector<size_t> const & out, std::vector<
          * can do the Rj update after having creating the rows, it seems
          * reasonable to do it.
          */
-        if (w0 + sizediff > cwmax) {
+        if ((ssize_t) w0 + sizediff > cwmax) {
             deactivate_indirection(lj, w1);
             /* don't forget to take it off the priority queue, or we'll
              * have a very bizarre situation */
