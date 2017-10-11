@@ -2,6 +2,10 @@
 
 set -e
 
+if [ "$YES_I_KNOW_WHAT_I_AM_DOING" ] ; then
+    exit 0
+fi
+
 # This is readlink -f on many unices. Alas, not on mac.
 if [ "`uname -s`" = Darwin ] ; then
     # use code from https://github.com/mkropat/sh-realpath, MIT-licensed.
