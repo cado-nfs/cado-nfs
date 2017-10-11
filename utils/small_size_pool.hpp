@@ -226,7 +226,7 @@ public:
         return res;
     }
 #ifdef DEBUG_SMALL_SIZE_POOL
-    friend class small_size_pool_printer<self>;
+    friend struct small_size_pool_printer<self>;
     small_size_pool_printer<self> printer(std::string const& s) const { return small_size_pool_printer<self>(*this, s); }
     std::ostream& print(std::ostream& o) const { return o << printer(""); }
 #endif

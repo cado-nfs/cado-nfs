@@ -180,7 +180,7 @@ public:
         bool operator==(iterator const& o) const { return &H == &o.H && i == o.i; }
         bool operator!=(iterator const& o) const { return !(i == o.i); }
         size_t index() const { return i; }
-        friend class compressible_heap;
+        friend struct compressible_heap;
     };
     iterator begin() { return iterator(*this, 0).nextvalid(); }
     iterator end() { return iterator(*this, size()); }
@@ -197,13 +197,11 @@ public:
         const_iterator() {}
         const_iterator operator++(int) {
             iterator v = *this;
-            size_t n = H.size();
             ++i;
             nextvalid();
             return v;
         }
         const_iterator operator++() {
-            size_t n = H.size();
             ++i;
             nextvalid();
             return *this;
@@ -213,7 +211,7 @@ public:
         bool operator==(iterator const& o) const { return &H == &o.H && i == o.i; }
         bool operator!=(iterator const& o) const { return !(i == o.i); }
         size_t index() const { return i; }
-        friend class compressible_heap;
+        friend struct compressible_heap;
     };
     const_iterator begin() const { return const_iterator(*this, 0).nextvalid(); }
     const_iterator end() const { return const_iterator(*this, size()); }
