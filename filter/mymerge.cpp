@@ -124,7 +124,7 @@ struct merge_matrix {
             exponent_type const & exponent() const { return e; }
             exponent_type & exponent() { return e; }
             bool operator<(merge_row_ideal const& a) const { return h < a.h; }
-            template<int otherwidth> friend class merge_row_ideal;
+            template<int otherwidth> friend struct merge_row_ideal;
             template<int otherwidth>
                 merge_row_ideal(merge_row_ideal<otherwidth> const & p) : h(p.h), e(p.e) {}
             merge_row_ideal operator*(exponent_type const& v) const {
@@ -146,7 +146,7 @@ struct merge_matrix {
             index_type const & index() const { return h; }
             index_type & index() { return h; }
             bool operator<(merge_row_ideal const& a) const { return h < a.h; }
-            template<int otherwidth> friend class merge_row_ideal;
+            template<int otherwidth> friend struct merge_row_ideal;
             template<int otherwidth>
                 merge_row_ideal(merge_row_ideal<otherwidth> const & p) : h(p.h) {}
         };
@@ -715,13 +715,13 @@ int merge_matrix::push_relation(earlyparsed_relation_ptr rel)
     MPI_Bcast(&nb, 1, MPI_MY_SIZE_T, 0, comm);
     if (nb == SIZE_MAX) return 0;
 
-    merge_row_ideal<> temp[nb];
+    std::vector<merge_row_ideal<>> temp(nb);
 
     if (!comm_rank) {
-        std::copy(rel->primes, rel->primes + rel->nb, temp);
-        std::sort(temp, temp + rel->nb);
+        std::copy(rel->primes, rel->primes + rel->nb, temp.begin());
+        std::sort(temp.begin(), temp.end());
     }
-    MPI_Bcast(temp, nb * sizeof(merge_row_ideal<>), MPI_BYTE, 0, comm);
+    MPI_Bcast(&temp.front(), nb * sizeof(merge_row_ideal<>), MPI_BYTE, 0, comm);
 
     /* we should also update the column weights */
     weight_t row_weight = 0;
@@ -733,7 +733,8 @@ int merge_matrix::push_relation(earlyparsed_relation_ptr rel)
         temp[row_weight++]=temp[i];
     }
     weight += row_weight;
-    rows.push_back(temp, row_weight);
+    temp.erase(temp.begin() + row_weight, temp.end());
+    rows.push_back(temp);
     return 1;
 }
 
@@ -2051,7 +2052,7 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
         row_batch_t new_row_batch;
         for(auto const & edge : mst.second) {
             row_combiner C(batch[edge.first], batch[edge.second], j);
-            new_row_batch.push_back(std::move(C.subtract_naively()));
+            new_row_batch.push_back(C.subtract_naively());
         }
         my_merged_new_rows.push_back(std::move(new_row_batch));
     }

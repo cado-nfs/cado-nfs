@@ -80,13 +80,13 @@ std::vector<size_t>
             size_t n,
             Compare const& inner_comp = Compare())
 {
-    struct indexed_iterator : public std::vector<T>::const_iterator {
-      typedef typename std::vector<T>::const_iterator super;
+    typedef typename std::vector<T>::const_iterator unindexed;
+    struct indexed_iterator : public unindexed {
       typedef std::pair<size_t, T> value_type;
       std::vector<T> const& V;
-      indexed_iterator(std::vector<T> const& V, super const & x) : super(x), V(V) {}
+      indexed_iterator(std::vector<T> const& V, unindexed const & x) : unindexed(x), V(V) {}
       value_type operator*() {
-          super& s(*this);
+          unindexed& s(*this);
           return std::make_pair(s - V.begin(), *s);
       }
     };
