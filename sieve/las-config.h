@@ -1,8 +1,6 @@
 #ifndef LAS_CONFIG_H_
 #define LAS_CONFIG_H_
 
-#include "cado.h"
-
 #ifdef HAVE_SSE2
 #define SSE_NORM_INIT
 #endif

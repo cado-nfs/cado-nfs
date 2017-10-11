@@ -189,7 +189,7 @@ static void extended_euclidean_algorithm_stop_2(mpz_ptr r2, mpz_ptr t2,
 }
 #endif // EEA_BOUND
 
-unsigned int mpz_poly_is_reciproqual(mpz_poly_srcptr p)
+unsigned int mpz_poly_is_reciprocal(mpz_poly_srcptr p)
 {
   int nb = p->deg / 2;
   if (p->deg % 2 != 0) {
@@ -252,7 +252,7 @@ static void random_mpz_poly(mpz_poly_ptr g, mpz_srcptr min,
   mpz_clear(rand_Z);
 }
 
-static void random_mpz_poly_reciproqual(mpz_poly_ptr g, mpz_srcptr min,
+static void random_mpz_poly_reciprocal(mpz_poly_ptr g, mpz_srcptr min,
     mpz_srcptr max, int degree, int lc, gmp_randstate_t state)
 {
   int i = 0;
@@ -286,7 +286,7 @@ static void random_mpz_poly_reciproqual(mpz_poly_ptr g, mpz_srcptr min,
   }
   mpz_clear(rand_Z);
 
-  ASSERT(mpz_poly_is_reciproqual(g));
+  ASSERT(mpz_poly_is_reciprocal(g));
 }
 
 static void random_mpz_poly_constraint(mpz_poly_ptr g, mpz_srcptr min,
@@ -553,7 +553,7 @@ double function_special_q(mpz_poly_ptr f0, mpz_poly_ptr f1,
         random_mpz_poly_constraint(g_tmp, coeff_Z[0], coeff_Z[1],
             (rand() % h->deg) + 1, state, h);
       } else if (gal == 2) {
-        random_mpz_poly_reciproqual(h_tmp, coeff_Z[0], coeff_Z[1], h->deg, 0,
+        random_mpz_poly_reciprocal(h_tmp, coeff_Z[0], coeff_Z[1], h->deg, 0,
             state);
         gen_g_gal(g_tmp, h, coeff_Z[0], coeff_Z[1], state);
       }
@@ -581,8 +581,8 @@ double function_special_q(mpz_poly_ptr f0, mpz_poly_ptr f1,
       rewrite_f(f1_tmp, p);
 
       if (gal == 2) {
-        ASSERT(mpz_poly_is_reciproqual(f0_tmp));
-        ASSERT(mpz_poly_is_reciproqual(f1_tmp));
+        ASSERT(mpz_poly_is_reciprocal(f0_tmp));
+        ASSERT(mpz_poly_is_reciprocal(f1_tmp));
       }
 
 #ifdef ALPHA

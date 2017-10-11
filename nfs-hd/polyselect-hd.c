@@ -115,7 +115,7 @@ void initialise_parameters(int argc, char * argv[], mpz_ptr p, mpz_poly_ptr h,
     ASSERT(* gal == 0 || * gal == 2);
 
     if (* h_set == 1 && * gal == 2) {
-      ASSERT(mpz_poly_is_reciproqual(h));
+      ASSERT(mpz_poly_is_reciprocal(h));
     }
   }
 

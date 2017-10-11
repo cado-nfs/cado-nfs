@@ -22,43 +22,46 @@ my @path_exceptions=qw|
         misc/
         |;
 
+my @all_files = `git ls-files`;
 
-sub add_file {
-    my @res = ();
-    open my $fh, shift or return;
-    while (defined($_=<$fh>)) {
-        next unless /^[^#]/;
-        chomp($_);
-        next if m{/$};
-        push @res, $_;
-    }
-    close $fh;
-    return @res;
-}
-
-my @all_files;
-push @all_files, &add_file('files.dist');
-push @all_files, &add_file('files.nodist');
-
-my @errors;
+my $err=0;
 FILE: for my $f (@all_files) {
-    # Check whether this matches in any way.
-    $f =~ m{\.c(?:pp)?$} or next;
+    $f =~ s/^\s*//;
+    $f =~ s/\s*$//;
+    next unless $f =~ /\.[ch](?:pp)?$/;
     for my $p (@path_exceptions) {
         next FILE if $f =~ /^$p/;
     }
-    open my $fh, $f or die "$f: $!";
-    while (defined($_=<$fh>)) {
-        if (/\#include/) {
-            push @errors, $f unless /"cado\.h"/;
-            last;
+    my $is_header = ($f =~ /\.h(?:pp)?$/);
+
+    open F, $f;
+    
+    my $contents = eval { undef $/; <F>; };
+    $contents =~ s#/\*.*?\*/##sg;
+
+    my @includes = map {
+            chomp($_);
+            my @x=();
+            /^\s*#\s*include\s*(\S+)/ && push @x,$1;
+            @x;
+        } (split(/^/, $contents));
+    if ($is_header) {
+        if (grep /cado\.h/, @includes) {
+            print STDERR "$f is a header file, it must not include cado.h\n";
+            $err++;
+        }
+    } else {
+        my $first = shift @includes;
+        if ($first && $first !~ /cado\.h/) {
+            print STDERR "$f is a compilation unit, its first include file must be cado.h\n";
+            $err++;
+        } elsif (grep /cado\.h/, @includes) {
+            print STDERR "there is no point in including cado.h twice\n";
+            $err++;
         }
     }
-    close $fh;
 }
-print "$_\n" for @errors;
-if (@errors) {
-    my $n = scalar @errors;
-    print STDERR "$n errors found. Please fix\n";
+if ($err) {
+    print STDERR "$err errors found. Please fix\n";
     exit 1;
 }

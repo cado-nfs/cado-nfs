@@ -5,7 +5,7 @@
 #include "cado.h"
 #include "utils.h"
 
-unsigned int mpz_poly_is_reciproqual(mpz_poly_srcptr f);
+unsigned int mpz_poly_is_reciprocal(mpz_poly_srcptr f);
 
 /*
   f0: the first polynomial.

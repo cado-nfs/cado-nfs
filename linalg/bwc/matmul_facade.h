@@ -7,8 +7,6 @@
  * It does not make sense to have it included from the higher-level code
  * (in fact, it will error out).
  */
-#include "cado.h"
-
 #include "matmul.h"
 
 /* Include all matmul implementations here */

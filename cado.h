@@ -28,10 +28,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  * define here in a unique place the required macros exposing the functions
  * we like to have.
  *
- * It is necessary that this file appears only on top of the compilation
- * units, and before any other header. We promise to never include
+ * IT IS NECESSARY THAT THIS FILE APPEARS ONLY ON TOP OF THE COMPILATION
+ * UNITS, AND BEFORE ANY OTHER HEADER. We promise to never include
  * another header file as a side-effect of this one (except
  * cado_config.h, which makes sense to include here as well).
+ *
+ * To make sure that the repository abides by the law above, see
+ * scripts/check_compilation_units_policy.pl
  */
 
 #if defined(__CYGWIN__) && defined(__STRICT_ANSI__)
