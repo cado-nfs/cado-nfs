@@ -30,6 +30,8 @@
 #endif
 #endif
 
+#include <stdint.h>
+
 // for some absurd reason, the gnu standard C++ library <string> header
 // includes pthread. And pollutes the global namespace with it. So we
 // can't afford having our pthread proxies, we have to resort to
