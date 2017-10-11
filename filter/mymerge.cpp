@@ -1376,7 +1376,8 @@ size_t merge_matrix::collectively_remove_rows(std::vector<size_t> const & killed
         allkilled_size += nkilled[rank];
     }
     std::vector<size_t> allkilled(allkilled_size);
-    MPI_Allgatherv(&killed[0], killed.size(), MPI_MY_SIZE_T,
+    /* mpi-2.1 lacks const in prototypes... */
+    MPI_Allgatherv((void*)&killed[0], killed.size(), MPI_MY_SIZE_T,
             &allkilled[0], &nkilled[0], &displs[0], MPI_MY_SIZE_T,
             comm);
     std::set<size_t> allkilled_set(allkilled.begin(), allkilled.end());
@@ -1670,8 +1671,9 @@ collective_merge_operation::merge_scatter_rows(merge_matrix const& M)
     displ recv(remote_contrib_sizes, n * w);
     row_t remote_coeffs(recv.total);
 
+    /* mpi-2.1 lacks const in prototypes... */
     MPI_Alltoallv(
-            (const void *)&my_coeffs[0],
+            (void*)&my_coeffs[0],
             send.counts_ptr(), send.displs_ptr(), mpi_row_value_t,
             (void*)&remote_coeffs[0],
             recv.counts_ptr(), recv.displs_ptr(), mpi_row_value_t,
@@ -1773,8 +1775,9 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
     // coefficients _I_ will have to store as elements of the r-th new
     // row among the ones in the q-th merge ordered by peer p
 
+    /* mpi-2.1 lacks const in prototypes... */
     MPI_Alltoallv(
-            (const void *)&my_coeffs[0],
+            (void*)&my_coeffs[0],
             send.counts_ptr(), send.displs_ptr(), mpi_row_value_t,
             (void*)&remote_coeffs[0],
             recv.counts_ptr(), recv.displs_ptr(), mpi_row_value_t,
