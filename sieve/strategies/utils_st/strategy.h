@@ -3,8 +3,9 @@
 
 #include "tab_fm.h"
 
-#define SIDE_0 0
-#define SIDE_1 1
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct strategy {
     tabular_fm_t *tab_fm;
@@ -40,5 +41,9 @@ strategy_t *strategy_copy(strategy_t * t);
 int strategy_fprint(FILE * file, strategy_t * t);
 
 int strategy_print(strategy_t * t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* STRATEGY_H */

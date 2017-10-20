@@ -2,10 +2,14 @@
 #define UTILSINT64_T_H
 
 #include <stdint.h>
-#include "cado.h"
 #include "utils.h"
 #include "mod_ul_default.h"
 #include "mod_ul.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Compute the modular inverse of xx mod mm.
@@ -38,4 +42,8 @@ static inline int64_t int64_sgn(int64_t a)
 void int64_xgcd(int64_t * g, int64_t * u, int64_t * v, int64_t a, int64_t b);
 
 void int64_gcdext(int64_t * e, int64_t * s, int64_t * t, int64_t a, int64_t b);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* UTILSINT64_T_H */

@@ -37,11 +37,12 @@ tasks.I = 11
 
 tasks.polyselect.degree = 4
 
-tasks.polyselect.admax = 1000
+tasks.polyselect.admax = 200
 tasks.polyselect.incr = 60
 tasks.polyselect.adrange = 500
 tasks.polyselect.P = 420
 tasks.polyselect.nq = 1000
+tasks.polyselect.ropteffort = 0.01
 
 ###########################################################################
 # Sieve
@@ -50,16 +51,16 @@ tasks.polyselect.nq = 1000
 
 lim0 = 50000
 lim1 = 100000
-lpb0 = 22
-lpb1 = 22
-tasks.sieve.mfb0 = 24
-tasks.sieve.mfb1 = 24
+lpb0 = 17
+lpb1 = 17
+tasks.sieve.mfb0 = 17
+tasks.sieve.mfb1 = 17
 tasks.sieve.lambda0 = 1.2
 tasks.sieve.lambda1 = 1.2
 
-tasks.sieve.qmin = 200000
-tasks.sieve.qrange = 1000
-tasks.sieve.rels_wanted = 800000
+tasks.sieve.qmin = 15000
+tasks.sieve.qrange = 200
+tasks.sieve.rels_wanted = 28000 
 
 # adjust if needed
 # slaves.niceness = 10
@@ -86,7 +87,7 @@ tasks.descent.init_tkewness = 200000
 tasks.descent.I = 11
 tasks.descent.lim0 = 100000
 tasks.descent.lim1 = 100000
-tasks.descent.lpb0 = 22
-tasks.descent.lpb1 = 22
-tasks.descent.mfb0 = 44
-tasks.descent.mfb1 = 44
+tasks.descent.lpb0 = 17
+tasks.descent.lpb1 = 17
+tasks.descent.mfb0 = 34
+tasks.descent.mfb1 = 34

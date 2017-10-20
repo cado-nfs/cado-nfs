@@ -4,15 +4,22 @@
 #include "las-types.hpp"
 #include "las-config.h"
 
-thread_side_data::thread_side_data()
+void thread_side_data::allocate_bucket_region()
 {
-  /* Allocate memory for each side's bucket region */
+  /* Allocate memory for each side's bucket region. Our intention is to
+   * avoid doing it in case we have no factor base. Not that much because
+   * of the spared memory, but rather because it's a useful way to trim
+   * the irrelevant parts of the code in that case.
+   */
+  if (!bucket_region)
   bucket_region = (unsigned char *) contiguous_malloc(BUCKET_REGION + MEMSET_MIN);
 }
 
+thread_side_data::thread_side_data() { }
+
 thread_side_data::~thread_side_data()
 {
-  contiguous_free(bucket_region);
+  if (bucket_region) contiguous_free(bucket_region);
   bucket_region = NULL;
 }
 
@@ -46,7 +53,8 @@ void thread_data::pickup_si(sieve_info & _si)
   psi = & _si;
   sieve_info & si(*psi);
   for (int side = 0 ; side < 2 ; side++) {
-    sides[side].set_fb(si.sides[side].fb.get());
+      if (si.sides[side].fb)
+          sides[side].set_fb(si.sides[side].fb.get());
   }
 }
 
@@ -73,7 +81,7 @@ reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fil
 }
 
 template <typename T>
-T &reservation_array<T>::reserve()
+T *reservation_array<T>::reserve()
 {
   enter();
   const bool verbose = false;
@@ -110,26 +118,21 @@ T &reservation_array<T>::reserve()
         least_full_index = j;
       }
     }
-    if (!(least_full_index != n && least_full < 1.)) {
-        fprintf(stderr,
-                "# Error: buckets are full!\n"
-                "# This may occur if you have set too many threads compared to the sizes of the factor bases.\n"
-                "# Please try again with less threads, or with larger -bkmult parameter (at some cost!). Report bug if the problem is still there.\n"
-                "# Now throwing exception, and attempt recovery.\n"
-                );
+    if (least_full_index == n || least_full >= 1.) {
+        /* don't cry just now, it would clutter the output. */
         ASSERT_ALWAYS(most_full > 1);
-        size_t j = most_full_index.first;
-        unsigned int i = most_full_index.second;
+        // size_t j = most_full_index.first;
+        // unsigned int i = most_full_index.second;
         /* important ! */
         leave();
-        throw buckets_are_full(T::level, i,
-                BAs[j].nb_of_updates(i), BAs[j].bucket_size);
+        // throw buckets_are_full(T::level, i, BAs[j].nb_of_updates(i), BAs[j].bucket_size);
+        return NULL;
     }
     i = least_full_index;
   }
   in_use[i] = true;
   leave();
-  return BAs[i];
+  return &BAs[i];
 }
 
 template <typename T>
@@ -312,7 +315,7 @@ thread_workspaces::pickup_si(sieve_info & _si)
             multiplier *= 1.0 + rat*1.0;
         }
     }
-    verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %f\n",
+    verbose_output_print(0, 1, "# Reserving buckets with a multiplier of %f\n",
             multiplier);
     for (unsigned int i_side = 0; i_side < nr_sides; i_side++) {
         if (!_si.sides[i_side].fb) continue;
@@ -399,9 +402,11 @@ thread_workspaces::buckets_max_full()
         unsigned int fullest;
         const double mf = it_BA->max_full(&fullest);
         if (mf > mf0) mf0 = mf;
+        /*
         if (mf > 1)
             throw buckets_are_full(LEVEL, fullest,
                     it_BA->nb_of_updates(fullest), it_BA->bucket_size);
+                    */
       }
     }
     return mf0;

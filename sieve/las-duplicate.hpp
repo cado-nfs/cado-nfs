@@ -3,7 +3,6 @@
 
 #include "las-types.hpp"
 #include "relation.h"
-#include "mpz_array.h"
 
 sieve_info *
 fill_in_sieve_info(las_todo_entry const& doing,

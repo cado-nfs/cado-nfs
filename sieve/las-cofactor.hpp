@@ -2,10 +2,15 @@
 #define LAS_COFACTOR_HPP_
 
 #include "gmp.h"
-#include "mpz_array.h"
 #include "las-types.hpp"
+#include "cxx_mpz.hpp"
+#include <array>
+#include <vector>
 
-int check_leftover_norm (const mpz_t n, sieve_info const & si, int side);
-int factor_both_leftover_norms(mpz_t *, mpz_array_t **, uint32_array_t **,
+int check_leftover_norm (cxx_mpz const & n, sieve_info const & si, int side);
+
+int factor_both_leftover_norms(
+        std::array<cxx_mpz, 2> & norms,
+        std::array<std::vector<cxx_mpz>, 2> &,
         sieve_info const &);
 #endif

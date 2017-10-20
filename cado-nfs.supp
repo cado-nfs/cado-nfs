@@ -42,6 +42,21 @@
    ...
    fun:main
 }
+{
+   another_openmp_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   obj:/lib/x86_64-linux-gnu/ld-2.24.so
+   ...
+}
+
 # The one below is without openmp. So maybe openmp is innocent. I haven't
 # really investigated whether there's a code path which fails to properly
 # join() all threads. However, if there were, then one would not expect
@@ -84,3 +99,50 @@
    ...
 }
 
+# See there
+# https://sourceforge.net/p/valgrind/mailman/message/32434015/
+{  
+   helgrind_does_not_cope_with_gcc_thread_safe_statics
+   Helgrind:Race
+   fun:_ZNK5tdict4slotcvNS_3keyEEv
+   ...
+   fun:_ZN11thread_pool20thread_work_on_tasksEPv
+   fun:mythread_wrapper
+   fun:start_thread
+   fun:clone
+}
+
+{  
+   drd_does_no_better
+   drd:ConflictingAccess
+   fun:_ZNK5tdict4slotcvNS_3keyEEv
+   ...
+   fun:_ZN11thread_pool20thread_work_on_tasksEPv
+   fun:vgDrd_thread_wrapper
+   fun:start_thread
+   fun:clone
+}
+
+{  
+   helgrind_does_not_cope_with_gcc_thread_safe_statics
+   Helgrind:Race
+   fun:_ZNK5tdict3key6encodeEi
+   fun:_ZNK5tdict15slot_parametricclEi
+   ...
+   fun:_ZN11thread_pool20thread_work_on_tasksEPv
+   fun:mythread_wrapper
+   fun:start_thread
+   fun:clone
+}
+
+{  
+   drd_also_this_one
+   drd:ConflictingAccess
+   fun:_ZNK5tdict3key6encodeEi
+   fun:_ZNK5tdict15slot_parametricclEi
+   ...
+   fun:_ZN11thread_pool20thread_work_on_tasksEPv
+   fun:vgDrd_thread_wrapper
+   fun:start_thread
+   fun:clone
+}

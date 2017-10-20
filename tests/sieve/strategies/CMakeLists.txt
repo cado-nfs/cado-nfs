@@ -2,7 +2,7 @@ set (SUF_SRC ${CADO_NFS_SOURCE_DIR}/sieve/strategies)
 
 set (SUF_UTILS ${SUF_SRC}/utils_st/)
 set (SRC_UTILS ${SUF_UTILS}point.c ${SUF_UTILS}tab_point.c
-  ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.c
+  ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.cpp
   ${SUF_UTILS}strategy.c ${SUF_UTILS}tab_strategy.c
   ${SUF_UTILS}decomp.c ${SUF_UTILS}tab_decomp.c)
 
@@ -15,23 +15,23 @@ include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies/utils_st)
 
 if (HAVE_REGEX_H)
-cado_define_test(test_generate_composite_numbers.c
-  ${SUF_SRC}/generate_factoring_method.c ${SRC_UTILS}
+cado_define_test(test_generate_composite_numbers.cpp
+  ${SUF_SRC}/generate_factoring_method.cpp ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
 
-cado_define_test(test_generate_strategies.c
-  ${SUF_SRC}/generate_factoring_method.c
-  ${SUF_SRC}/generate_strategies.c
+cado_define_test(test_generate_strategies.cpp
+  ${SUF_SRC}/generate_factoring_method.cpp
+  ${SUF_SRC}/generate_strategies.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
 
-cado_define_test(test_filtering.c
-  ${SUF_SRC}/generate_factoring_method.c
+cado_define_test(test_filtering.cpp
+  ${SUF_SRC}/generate_factoring_method.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
 
-cado_define_test(test_benchfm.c
-  ${SUF_SRC}/generate_factoring_method.c
+cado_define_test(test_benchfm.cpp
+  ${SUF_SRC}/generate_factoring_method.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
 

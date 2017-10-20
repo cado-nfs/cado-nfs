@@ -1,13 +1,17 @@
 #ifndef UTILS_NORM_H
 #define UTILS_NORM_H
 
-#include "cado.h"
 #include "utils.h"
 #include "mpz_poly.h"
 #include "array.h"
 #include "sieving_bound.h"
 #include "mat_Z.h"
 #include "ideal.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Compute the norm of a in the number field defined by f.
@@ -71,4 +75,7 @@ void init_norm(array_ptr array, double * pre_compute,
     ideal_spq_srcptr spq, int special_q);
 #endif // OLD_NORM
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* UTILS_NORM_H */

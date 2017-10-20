@@ -561,6 +561,11 @@ class fb_factorbase: public fb_interface, private NonCopyable {
 /* round(x*y-z) */
 unsigned char	fb_log (double x, double y, double z);
 fbprime_t       fb_pow (fbprime_t, unsigned long);
+
+/* fb_log_delta(p, n, o, s) = fb_log(p, n, s) - fb_log(p, o, s)
+   This computes the increment when sieving p^n after having already
+   sieved p^o. */
+unsigned char	fb_log_delta (fbprime_t, unsigned long, unsigned long, double);
 fbprime_t       fb_is_power (fbprime_t, unsigned long *);
 void print_worst_weight_errors();
 

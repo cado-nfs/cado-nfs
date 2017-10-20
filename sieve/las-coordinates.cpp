@@ -26,12 +26,6 @@
  * bits) x.
  * Note: the "wide" x might be larger than 32 bits only for I> 16.
  */
-void xToIJ(int *i, unsigned int *j, const uint64_t X, sieve_info const & si)
-{
-    *i = (X % (si.I)) - (si.I >> 1);
-    *j = X / si.I;
-}
-
 void adjustIJsublat(int *i, unsigned int *j, sieve_info const & si) 
 {
     if (si.conf.sublat.m != 0) {
@@ -43,7 +37,8 @@ void adjustIJsublat(int *i, unsigned int *j, sieve_info const & si)
 void NxToIJ(int *i, unsigned int *j, const unsigned int N, const unsigned int x, sieve_info const & si)
 {
     uint64_t X = (uint64_t)x + (((uint64_t)N) << LOG_BUCKET_REGION);
-    return xToIJ(i, j, X, si);
+    *i = (X % (si.I)) - (si.I >> 1);
+    *j = X / si.I;
 }
 
 void IJTox(uint64_t * x, int i, unsigned int j, sieve_info const & si)

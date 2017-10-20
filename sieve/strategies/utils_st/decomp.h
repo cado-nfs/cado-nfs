@@ -3,6 +3,10 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct decomp {
     int *tab;
     int len;			//length of the decomposition
@@ -27,5 +31,9 @@ void decomp_set_nb_elem(decomp_t * t, double nb_elem);
 int decomp_fprint(FILE * output_file, decomp_t * t);
 
 int decomp_print(decomp_t * t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* DECOMP_H */

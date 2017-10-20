@@ -1106,7 +1106,13 @@ fb_log (double n, double log_scale, double offset)
   return static_cast<unsigned char>(l);
 }
 
-
+unsigned char
+fb_log_delta (const fbprime_t p, const unsigned long newexp,
+              const unsigned long oldexp, const double log_scale)
+{
+  return fb_log (fb_pow(p, newexp), log_scale, 0.)
+         - fb_log (fb_pow(p, oldexp), log_scale, 0.);
+}
 
 
 

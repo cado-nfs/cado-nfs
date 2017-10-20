@@ -20,7 +20,7 @@
    array r also.
 */
 unsigned long
-mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, const mpz_t n)
+mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
 {
   unsigned long k, i, j, d = F->deg;
   mpz_t Q, nn, p;
@@ -125,7 +125,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, const mpz_t n)
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */
 int
-mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, const mpz_t p)
+mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 {
     int d = F->deg;
 
@@ -261,7 +261,7 @@ static int mpz_poly_coeff_cmp(const mpz_t *a, const mpz_t *b) {
    and put the corresponding roots mod p in r[]. Return number of roots
    which should be degree of f. Assumes p is odd, and deg(f) >= 1. */
 static int
-mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, const mpz_t p, int depth)
+mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, int depth)
 {
   mpz_t a, aux;
   mpz_poly q, h;
@@ -337,7 +337,7 @@ clear_a:
    Assume d (the degree of f) is at least 1.
  */
 int
-mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, const mpz_t p)
+mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
 {
   int nr = 0;
   mpz_poly fp, g, h;

@@ -1,3 +1,4 @@
+#include "cado.h"
 #include "mat_int64.h"
 #include "timing.h"
 

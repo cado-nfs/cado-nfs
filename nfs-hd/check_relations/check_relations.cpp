@@ -1,5 +1,6 @@
 //Usage: ./check_relations <file_relation> <output> <poly.poly> <lpb> <error>
 
+#include "cado.h"
 #include <stdio.h>
 #include <cassert>
 #include <sstream>

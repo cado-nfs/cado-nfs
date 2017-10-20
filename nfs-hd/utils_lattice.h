@@ -2,7 +2,6 @@
 #define UTILS_SIEVE_H 
 
 #include <stdint.h>
-#include "cado.h"
 #include "utils.h"
 #include "int64_vector.h"
 #include "double_vector.h"
@@ -13,6 +12,11 @@
 #include "list_int64_vector.h"
 #include "list_double_vector.h"
 #include "list_int64_vector_index.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Compute the acute Gauss reduction of two vector (v0_root and v1_root) if they
@@ -230,4 +234,7 @@ void slll_Mqr(mat_int64_ptr C, mat_int64_srcptr A, int64_vector_srcptr,
 
 void lll_Mqr_unimodular(mat_int64_ptr U, mat_int64_srcptr A, FILE * errstd);
 
+#ifdef __cplusplus
+}
+#endif
 #endif // UTILS_SIEVE_H

@@ -13,16 +13,16 @@ extern "C" {
 #endif
 
 extern void * malloc_check(const size_t x);
-extern void * physical_malloc(const size_t x, const int affect);
+extern void * physical_malloc(const size_t x, const int affect) ATTR_ASSUME_ALIGNED(32);
 extern void physical_free(void *, size_t);
 
-void *malloc_hugepages(size_t);
+void *malloc_hugepages(size_t) ATTR_ASSUME_ALIGNED(32);
 ATTRIBUTE((malloc)) extern void * malloc_aligned(size_t size, size_t alignment);
 ATTRIBUTE((warn_unused_result)) void * realloc_aligned(void * p, 
         const size_t old_size, const size_t new_size, const size_t alignment);
 extern void free_aligned(void * ptr);
 
-extern void * malloc_pagealigned(size_t sz);
+extern void * malloc_pagealigned(size_t sz) ATTR_ASSUME_ALIGNED(32);
 extern void free_pagealigned(void * ptr);
 
 void *contiguous_malloc(size_t);

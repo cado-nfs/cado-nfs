@@ -1,14 +1,15 @@
 #include "cado.h"
-#include "facul_doit.h"
+#include "facul_doit.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "mpqs.h"
 
+#ifdef ENABLE_UNSAFE_FACUL_STATS
 extern unsigned long stats_called[];
 extern unsigned long stats_found_n[];
 extern int stats_current_index;
-
+#endif
 
 #define mod_intget_mpz MOD_RENAME(int_get_mpz)
 void
@@ -20,15 +21,22 @@ mod_intget_mpz(mpz_t z, const modint_t x) {
 #endif
 }
 
+#define mod_intget_cxx_mpz MOD_RENAME(int_get_cxx_mpz)
+cxx_mpz mod_intget_cxx_mpz(const modint_t x) {
+    cxx_mpz c;
+    mod_intget_mpz(c, x);
+    return c;
+}
+
 static inline void 
 modset_init (struct modset_t *modset, modint_t m)
 {
   const size_t bits = mod_intbits (m);
   ASSERT(bits <= MOD_MAXBITS);
-  ASSERT_ALWAYS(modset->arith == CHOOSE_NONE);
+  ASSERT_ALWAYS(modset->arith == modset_t::CHOOSE_NONE);
   if (bits <= MODREDCUL_MAXBITS)
     {
-      modset->arith = CHOOSE_UL;
+      modset->arith = modset_t::CHOOSE_UL;
       modredcul_initmod_ul (modset->m_ul, mod_intget_ul(m));
     }
 #if     MOD_MAXBITS > MODREDCUL_MAXBITS
@@ -39,7 +47,7 @@ modset_init (struct modset_t *modset, modint_t m)
       size_t nr_words = mod_intget_uls(t1, m);
       ASSERT_ALWAYS(nr_words <= 2);
       modredc15ul_intset_uls (t2, t1, nr_words);
-      modset->arith = CHOOSE_15UL;
+      modset->arith = modset_t::CHOOSE_15UL;
       modredc15ul_initmod_int (modset->m_15ul, t2);
     }
 #endif
@@ -51,7 +59,7 @@ modset_init (struct modset_t *modset, modint_t m)
       size_t nr_words = mod_intget_uls(t1, m);
       ASSERT_ALWAYS(nr_words <= 2);
       modredc2ul2_intset_uls (t2, t1, nr_words);
-      modset->arith = CHOOSE_2UL2;
+      modset->arith = modset_t::CHOOSE_2UL2;
       modredc2ul2_initmod_int (modset->m_2ul2, t2);
     }
 #endif
@@ -59,7 +67,7 @@ modset_init (struct modset_t *modset, modint_t m)
   else if (bits <= MODMPZ_MAXBITS)
     {
       /* We assume for now that m is a modintmpz_t */
-      modset->arith = CHOOSE_MPZ;
+      modset->arith = modset_t::CHOOSE_MPZ;
       modmpz_initmod_int (modset->m_mpz, m);
     }
 #endif
@@ -73,18 +81,18 @@ static inline int
 modset_isprime (struct modset_t *modset)
 {
   switch (modset->arith) {
-    case CHOOSE_UL:
+      case modset_t::CHOOSE_UL:
       return modredcul_isprime (modset->m_ul);
 #if     MOD_MAXBITS > MODREDCUL_MAXBITS
-    case CHOOSE_15UL:
+      case modset_t::CHOOSE_15UL:
       return modredc15ul_isprime (modset->m_15ul);
 #endif
 #if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-    case CHOOSE_2UL2:
+      case modset_t::CHOOSE_2UL2:
         return modredc2ul2_isprime (modset->m_2ul2);
 #endif
 #if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-    case CHOOSE_MPZ:
+      case modset_t::CHOOSE_MPZ:
         return modmpz_isprime (modset->m_mpz);
 #endif
     default:
@@ -93,24 +101,24 @@ modset_isprime (struct modset_t *modset)
 }
 
 static inline int 
-modset_call_facul(mpz_t *factors, const struct modset_t *modset, 
+modset_call_facul(std::vector<cxx_mpz> & factors, const struct modset_t *modset, 
                   const facul_strategy_t *strategy, const int method_start)
 {
   switch (modset->arith) {
-      case CHOOSE_UL:
+      case modset_t::CHOOSE_UL:
           return facul_doit_ul (factors, modset->m_ul, strategy, method_start);
 #if     MOD_MAXBITS > MODREDCUL_MAXBITS
-      case CHOOSE_15UL:
+      case modset_t::CHOOSE_15UL:
           return facul_doit_15ul (factors, modset->m_15ul, strategy, method_start);
           break;
 #endif
 #if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-      case CHOOSE_2UL2:
+      case modset_t::CHOOSE_2UL2:
           return facul_doit_2ul2 (factors, modset->m_2ul2, strategy, method_start);
           break;
 #endif
 #if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-      case CHOOSE_MPZ:
+      case modset_t::CHOOSE_MPZ:
           return facul_doit_mpz (factors, modset->m_mpz, strategy, method_start);
           break;
 #endif
@@ -119,7 +127,7 @@ modset_call_facul(mpz_t *factors, const struct modset_t *modset,
 }
 
 int
-facul_doit (mpz_t *factors, const modulus_t m, 
+facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m, 
 	    const facul_strategy_t *strategy, const int method_start)
 {
   modint_t n, f;
@@ -130,8 +138,8 @@ facul_doit (mpz_t *factors, const modulus_t m,
   mod_intinit (f);
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
-  fm.arith = CHOOSE_NONE;
-  cfm.arith = CHOOSE_NONE;
+  fm.arith = modset_t::CHOOSE_NONE;
+  cfm.arith = modset_t::CHOOSE_NONE;
   
   for (i = method_start; strategy->methods[i].method != 0; i++)
     {
@@ -145,8 +153,10 @@ facul_doit (mpz_t *factors, const modulus_t m,
         break;
 #endif
 
+#ifdef ENABLE_UNSAFE_FACUL_STATS
       if (i < STATS_LEN)
 	stats_called[i]++;
+#endif
       
       if (strategy->methods[i].method == PM1_METHOD)
 	bt = pm1 (f, m, (pm1_plan_t *) (strategy->methods[i].plan));
@@ -223,8 +233,10 @@ facul_doit (mpz_t *factors, const modulus_t m,
       
       if (mod_intequal (f, n))
 	{
+#ifdef ENABLE_UNSAFE_FACUL_STATS
 	  if (i < STATS_LEN)
 	    stats_found_n[i]++;
+#endif  /* ENABLE_UNSAFE_FACUL_STATS */
 
 	  if (bt == 0)
 	    {
@@ -316,14 +328,15 @@ facul_doit (mpz_t *factors, const modulus_t m,
 	 or is composite */
 
       if (fprime) {
-          mod_intget_mpz(factors[found++], f);
+          factors.push_back(mod_intget_cxx_mpz(f));
+          found++;
 	}
       else
 	{
           int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite factor. Use the same method again so that
 	     backtracking can separate the factors */
-          found2 = modset_call_facul (factors + found, &fm, strategy, i);
+          found2 = modset_call_facul (factors, &fm, strategy, i);
 	  modset_clear (&fm);
 	  if (found2 == FACUL_NOT_SMOOTH) {
             found = FACUL_NOT_SMOOTH;
@@ -335,13 +348,14 @@ facul_doit (mpz_t *factors, const modulus_t m,
 	}
       
       if (cfprime) {
-          mod_intget_mpz(factors[found++], n);
+          factors.push_back(mod_intget_cxx_mpz(n));
+          found++;
         }
       else
 	{
 	  int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite cofactor */
-	  found2 = modset_call_facul (factors + found, &cfm, strategy, i + 1);
+	  found2 = modset_call_facul (factors, &cfm, strategy, i + 1);
 	  modset_clear (&cfm);
 	  if (found2 == FACUL_NOT_SMOOTH)
 	    {
@@ -353,13 +367,13 @@ facul_doit (mpz_t *factors, const modulus_t m,
       /* We found a non-trivial factorization and any composite 
 	 factors/cofactors have been treated in recursive calls, 
 	 so we can stop here */
-      ASSERT_ALWAYS(fm.arith == CHOOSE_NONE);
-      ASSERT_ALWAYS(cfm.arith == CHOOSE_NONE);
+      ASSERT_ALWAYS(fm.arith == modset_t::CHOOSE_NONE);
+      ASSERT_ALWAYS(cfm.arith == modset_t::CHOOSE_NONE);
       break;
     }
   
-  ASSERT_ALWAYS(fm.arith == CHOOSE_NONE);
-  ASSERT_ALWAYS(cfm.arith == CHOOSE_NONE);
+  ASSERT_ALWAYS(fm.arith == modset_t::CHOOSE_NONE);
+  ASSERT_ALWAYS(cfm.arith == modset_t::CHOOSE_NONE);
   
   mod_intclear (n);
   mod_intclear (f);
@@ -383,7 +397,7 @@ facul_doit (mpz_t *factors, const modulus_t m,
   the values of our composite factor are stored in fm (or/and cfm).
 */
 int
-facul_doit_onefm (mpz_t *factors, const modulus_t m,
+facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
 		  const facul_method_t method,
 		  struct modset_t* fm, struct modset_t* cfm, unsigned long lpb,
 		  double assume_prime_thresh, double BBB)
@@ -398,8 +412,8 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
   mod_init (r, m);
-  fm->arith = CHOOSE_NONE;
-  cfm->arith = CHOOSE_NONE;
+  fm->arith = modset_t::CHOOSE_NONE;
+  cfm->arith = modset_t::CHOOSE_NONE;
   
   if (method.method == PM1_METHOD)
     bt = pm1 (f, m, (pm1_plan_t *) (method.plan));
@@ -456,6 +470,9 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
 	 
   */
 
+  double f_dbl = mod_intget_double (f);
+  double n_dbl = mod_intget_double (n);
+
   if (mod_intequal_ul (f, 1UL))
     {
       if (bt == 0)
@@ -477,8 +494,10 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
       
   if (mod_intequal (f, n))
     {
+#ifdef ENABLE_UNSAFE_FACUL_STATS
       if (stats_current_index < STATS_LEN)
 	stats_found_n[stats_current_index]++;
+#endif  /* ENABLE_UNSAFE_FACUL_STATS */
       if (bt == 0)
 	{
 	  /* Input number was found without any backtracking happening?
@@ -501,7 +520,6 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
      large for our smoothness bounds */
   
   /* A quick test if the factor is <= fbb^2 and >2^lpb */
-  double f_dbl = mod_intget_double (f);
   fprime = f_dbl < assume_prime_thresh;
   if (fprime && mod_intbits (f) > lpb)
     {
@@ -520,7 +538,6 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
   mod_intdivexact (n, n, f);
       
   /* See if cofactor is <= fbb^2 and > 2^lpb */
-  double n_dbl = mod_intget_double (n);
   cfprime = n_dbl < assume_prime_thresh;
   if (cfprime && mod_intbits (n) > lpb)
     {
@@ -567,11 +584,15 @@ facul_doit_onefm (mpz_t *factors, const modulus_t m,
   /* So each of factor and cofactor is either a prime < 2^lpb, 
      or is composite */
 
-  if (fprime)
-    mod_intget_mpz(factors[found++], f);
-      
-  if (cfprime)
-    mod_intget_mpz(factors[found++], n);
+  if (fprime) {
+      factors.push_back(mod_intget_cxx_mpz(f));
+      found++;
+  }
+
+  if (cfprime) {
+      factors.push_back(mod_intget_cxx_mpz(n));
+      found++;
+  }
 
   /* if either f of cf is composite, it is returned in fm or cfm */
 

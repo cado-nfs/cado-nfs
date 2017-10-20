@@ -4,6 +4,24 @@
 
 #include "las-config.h"
 
+int LOG_BUCKET_REGION = 16;
+int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
+size_t BUCKET_REGION;
+size_t BUCKET_REGIONS[FB_MAX_PARTS];
+
+void set_LOG_BUCKET_REGION()
+{
+    BUCKET_REGION = ((size_t)1) << LOG_BUCKET_REGION;
+    LOG_BUCKET_REGIONS[0] = -1;
+    LOG_BUCKET_REGIONS[1] = LOG_BUCKET_REGION;
+    LOG_BUCKET_REGIONS[2] = LOG_BUCKET_REGIONS[1] + LOG_NB_BUCKETS_2;
+    LOG_BUCKET_REGIONS[3] = LOG_BUCKET_REGIONS[2] + LOG_NB_BUCKETS_3;
+    BUCKET_REGIONS[0] = 0;
+    BUCKET_REGIONS[1] = 1 << LOG_BUCKET_REGIONS[1];
+    BUCKET_REGIONS[2] = 1 << LOG_BUCKET_REGIONS[2];
+    BUCKET_REGIONS[3] = 1 << LOG_BUCKET_REGIONS[3];
+}
+
 void las_display_config_flags()
 {
     verbose_output_print(0, 1, "# las.c flags:");

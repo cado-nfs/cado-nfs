@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct
 {
   unsigned int * h;
@@ -71,4 +76,8 @@ void sieving_bound_fprintf_detailed(FILE * filew, sieving_bound_srcptr H);
  */
 void sieving_bound_fprintf_detailed_comment(FILE * filew,
     sieving_bound_srcptr H);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* SIEVING_INTERVAL_H */

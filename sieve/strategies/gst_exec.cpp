@@ -9,7 +9,7 @@
 
 #include "portability.h"
 #include "utils.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "facul_ecm.h"
 #include "tab_strategy.h"
 #include "generate_strategies.h"
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 		param_list_print_usage(pl, argv[0], stderr);
 		exit(EXIT_FAILURE);
 	    }
-	    tabular_strategy_t **data_rat = 
+	    tabular_strategy_t **data_rat = (tabular_strategy_t**)
 		malloc(sizeof(*data_rat) * (mfb0 + 1));
 	    ASSERT_ALWAYS(data_rat);
 	    char name_file_in[strlen(directory_in) + 20];

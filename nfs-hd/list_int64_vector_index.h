@@ -3,10 +3,14 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "cado.h"
 #include "utils.h"
 #include "int64_vector.h"
 #include "mat_int64.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * int64_vector with its index.
@@ -102,4 +106,8 @@ void list_int64_vector_index_remove_duplicate_sort(
 void list_int64_vector_index_set(
     list_int64_vector_index_ptr list_new,
     list_int64_vector_index_srcptr list_old);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIST_INT64_VECTOR_INDEX_H */

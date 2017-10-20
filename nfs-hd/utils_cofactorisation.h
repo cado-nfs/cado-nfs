@@ -1,12 +1,17 @@
 #ifndef UTILS_COFACTORISATION_H
 #define UTILS_COFACTORISATION_H
 
-#include "cado.h"
 #include "utils.h"
 #include "uint64_array.h"
 #include "mat_Z.h"
 #include "sieving_bound.h"
 #include "ideal.h"
+
+/* TODO: This should really be an std::vector<cxx_mpz>,
+ *
+ * need to think about factor_remove though. And the queer-named
+ * factor_assert. (assert what ?)
+ */
 
 //Define an array with all the factors.
 typedef struct

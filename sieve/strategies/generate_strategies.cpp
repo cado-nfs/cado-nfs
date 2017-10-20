@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "generate_strategies.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "facul_ecm.h"
 
 #include <math.h>
@@ -338,15 +338,15 @@ static strategy_t *concat_strategies(strategy_t * st1, strategy_t * st2,
     int len2 = st2->tab_fm->index;
     st->len_side = len1 + len2;
     if (st->side == NULL)
-	st->side = malloc(sizeof(int) * (st->len_side));
+	st->side = (int*) malloc(sizeof(int) * (st->len_side));
     else
-	st->side = realloc(st->side, sizeof(int) * (st->len_side));
+	st->side = (int*) realloc(st->side, sizeof(int) * (st->len_side));
     int side = first_side;
     for (int i = 0; i < len1; i++) {
 	strategy_add_fm(st, st1->tab_fm->tab[i]);
 	st->side[i] = side;
     }
-    side = first_side ? SIDE_0 : SIDE_1;
+    side = first_side ? 0 : 1;
     for (int i = 0; i < len2; i++) {
 	strategy_add_fm(st, st2->tab_fm->tab[i]);
 	st->side[len1 + i] = side;
@@ -392,17 +392,15 @@ tabular_strategy_t *generate_strategy_r0_r1(tabular_strategy_t * strat_r0,
 	    double c1 = strat_r1->tab[a]->time;
 	    double proba = p0 * p1;
 	    double tps0 = c0 + p0 * c1;
-	    //time when we begin by the SIDE_0
+	    //time when we begin with side 0
 	    double tps1 = c1 + p1 * c0;
-	    //time when we begin by the SIDE_1
+            //time when we begin with side 1
 	    if (tps0 < tps1) {
-		st = concat_strategies(strat_r0->tab[r], strat_r1->tab[a],
-				       SIDE_0);
+		st = concat_strategies(strat_r0->tab[r], strat_r1->tab[a], 0);
 		strategy_set_proba(st, proba);
 		strategy_set_time(st, tps0);
 	    } else {
-		st = concat_strategies(strat_r1->tab[a], strat_r0->tab[r],
-				       SIDE_1);
+		st = concat_strategies(strat_r1->tab[a], strat_r0->tab[r], 1);
 		strategy_set_proba(st, proba);
 		strategy_set_time(st, tps1);
 	    }
@@ -455,11 +453,11 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
        each couple (r0, r1): r0 is the lenght of the cofactor in
        the first side, and r1 for the second side.
      */
-    tabular_strategy_t ***matrix = malloc(sizeof(*matrix) * (mfb0 + 1));
+    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
 
@@ -472,7 +470,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
     ASSERT (data_rat);
 
     int lim_is_prime = 2 * fbb0 - 1;

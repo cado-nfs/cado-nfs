@@ -5,6 +5,12 @@
 #include <stdint.h>
 #include <gmp.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+    /* TODO: This should go to gmp_aux.h */
+
 /*
  * Compute the inversion of op1 mod op2 and set the result to rop.
  *
@@ -14,4 +20,7 @@
  */
 int mpz_invert_ui(mpz_ptr rop, mpz_srcptr op1, const uint64_t op2);
 
+#ifdef __cplusplus
+}
+#endif
 #endif	/* UTILS_MPZ_H */

@@ -12,11 +12,9 @@
 
 struct unsieve_data {
     struct entry {
-        unsigned int lpf, cof, start;
-        entry(unsigned int lpf = 0,
-                unsigned int cof = 0,
-                unsigned int start = 0)
-                : lpf(lpf), cof(cof), start(start) {}
+        unsigned int lpf, cof;
+        entry(unsigned int lpf = 0, unsigned int cof = 0)
+                : lpf(lpf), cof(cof) {}
     };
 #ifdef HAVE_SSE2
 typedef __m128i pattern_t;
@@ -29,7 +27,7 @@ typedef unsigned long pattern_t;
 #endif
     /* entry[i].lpf is largest prime factor of i, for i < Jmax,
        cof is the cofactor i/lpf^k s.t. lfp^k || i,
-       start is (I/2) % lpf */
+     */
     uint32_t Jmax;
     entry *entries;
     pattern_t pattern3[3];
@@ -87,19 +85,23 @@ extract_j_div(unsigned int (*div)[2], const unsigned int j, j_divisibility_helpe
     }
     return nr_div;
 }
-
+/* }}} */
 
 j_divisibility_helper * init_j_div(uint32_t);
 void clear_j_div(j_divisibility_helper *);
-void search_survivors_in_line(unsigned char * const restrict[2],
-        const unsigned char[2], unsigned int, unsigned int, int,
-        j_divisibility_helper const &, unsigned int, unsieve_data const &,
-        std::vector<uint32_t> &, sublat_t);
+void search_survivors_in_line(unsigned char * const SS[2], 
+        const unsigned char bound[2],
+        unsigned int j, int i0, int i1,
+        int N, j_divisibility_helper const & j_div,
+        unsigned int td_max, unsieve_data const & us,
+        std::vector<uint32_t> &survivors, sublat_t);
 #ifdef HAVE_SSE2 
-void search_survivors_in_line_sse2(unsigned char * const restrict[2],
-        const unsigned char[2], unsigned int, unsigned int, int,
-        j_divisibility_helper const &,
-        unsigned int, std::vector<uint32_t> &);
+void search_survivors_in_line_sse2(unsigned char * const SS[2],
+        const unsigned char bound[2],
+        unsigned int j, int i0, int i1,
+        int N, j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors);
 #endif
 
 #endif	/* LAS_UNSIEVE_HPP_ */

@@ -326,6 +326,59 @@ test_ulong_nextcomposite (void)
   ASSERT_ALWAYS(q == 1475069);
 }
 
+static void
+test_next_mpz_with_factor_constraints (void)
+{
+  mpz_t r, s;
+  mpz_init(r);
+  mpz_init(s);
+  unsigned long fact[3];
+  int ret;
+
+  mpz_set_ui(s, 25631719);
+  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 256, 33554432);
+  // should get 25631719 (it is a prime less than 2^25)
+  printf("%d %lu\n", ret, fact[0]);
+  ASSERT_ALWAYS(ret == 1 && fact[0] == 25631719);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25631719) == 0);
+  
+  ret = next_mpz_with_factor_constraints(r, fact, s, 1, 256, 33554432);
+  // should get 25631731 (it is a prime, and all intermediate values have
+  // small factors)
+  ASSERT_ALWAYS(ret == 1 && fact[0] == 25631731);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25631731) == 0);
+
+  ret = next_mpz_with_factor_constraints(r, fact, s, 1, 20, 33554432);
+  // should get 25631729, whose smallest factor is 23.
+  ASSERT_ALWAYS(ret == 2 && fact[0] == 23 && fact[1] == 1114423);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25631729) == 0);
+
+  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 20, 1114425);
+  // should get 25631729 again, whose largest prime factor fits.
+  ASSERT_ALWAYS(ret == 2 && fact[0] == 23 && fact[1] == 1114423);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25631729) == 0);
+
+  mpz_set_ui(s, 25631719);
+  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 25, 100000);
+  // should get 25631737 = 29*307*2879
+  ASSERT_ALWAYS(ret == 3 && fact[0] == 29 && fact[1] == 307 && fact[2] == 2879);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25631737) == 0);
+
+  mpz_set_ui(s, 5426767); // this is 31^2*5647; must be skipped
+  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 25, 100000);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 5426777) == 0);
+
+  mpz_set_ui(s, 25030009); // this is 5003^2 must be skipped
+  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 100, 100000);
+  ASSERT_ALWAYS(mpz_cmp_ui(r, 25030039) == 0);
+
+  mpz_clear(r);
+  mpz_clear(s);
+}
+
+
+
+
 int
 main (int argc, const char *argv[])
 {
@@ -344,6 +397,7 @@ main (int argc, const char *argv[])
   test_nbits ();
   test_mpz_ndiv_q (iter);
   test_ulong_nextcomposite ();
+  test_next_mpz_with_factor_constraints ();
   tests_common_clear ();
   exit (EXIT_SUCCESS);
 }

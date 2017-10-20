@@ -1,6 +1,8 @@
 #ifndef CXX_MPZ_HPP_
 #define CXX_MPZ_HPP_
 
+#include <gmp.h>
+
 struct cxx_mpz {
     mpz_t x;
     cxx_mpz() { mpz_init(x); }

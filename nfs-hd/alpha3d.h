@@ -1,7 +1,6 @@
 #ifndef ALPHA3D_H
 #define ALPHA3D_H 
 
-#include "cado.h"
 #include "utils.h"
 #include "mpz_poly.h"
 

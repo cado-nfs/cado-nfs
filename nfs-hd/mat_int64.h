@@ -9,6 +9,11 @@
 #include "matrix.h"
 #include "list.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * WARNING: to correspond to the definition of mat_Z, the first column and line
  *  are unusued.
@@ -236,4 +241,8 @@ void mat_int64_LLL_unimodular_transpose(mat_int64_ptr C, mat_int64_srcptr A);
  */
 void mat_int64_vector_from_list_int64(mat_int64_ptr matrix,
     list_int64_vector_srcptr list);
+
+#ifdef __cplusplus
+}
+#endif
 #endif // MAT_INT64_H

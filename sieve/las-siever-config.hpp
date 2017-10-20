@@ -29,7 +29,7 @@ struct siever_config : public _padded_pod<siever_config> {
     unsigned long bucket_thresh1;   // primes above are 2-level bucket-sieved
     unsigned int td_thresh;
     unsigned int skipped;           // don't sieve below this
-    double bk_multiplier;           // how much margin when allocating buckets
+    double bk_multiplier = 1.0;     // how much margin when allocating buckets
     unsigned int unsieve_thresh;
     struct side_config {
         unsigned long lim; /* factor base bound */

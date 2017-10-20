@@ -1,10 +1,10 @@
+#include "cado.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <limits.h>
 #include "sieving_bound.h"
 #include "array.h"
-#include "cado.h"
 #include "utils.h"
 #include "macros.h"
 #include "int64_vector.h"

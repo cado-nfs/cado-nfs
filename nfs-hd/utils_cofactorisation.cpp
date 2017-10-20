@@ -3,8 +3,8 @@
 #include "utils_cofactorisation.h"
 #include "utils_norm.h"
 
-#include "ecm/facul.h"
-#include "ecm/facul_doit.h"
+#include "ecm/facul.hpp"
+#include "ecm/facul_doit.hpp"
 
 void factor_init(factor_ptr factor, unsigned int alloc)
 {
@@ -332,9 +332,11 @@ nb_curves95 (const unsigned int lpb)
 // factors.
 // Remark: FACUL_NOT_SMOOTH is just -1.
 static int
-facul_aux (mpz_t *factors, const struct modset_t m,
+facul_aux (std::vector<cxx_mpz> & factors, const struct modset_t m,
     const facul_aux_data *data, int method_start)
 {
+    /* XXX ATTENTION: This function may be called recursively. In
+     * particular it may happen that the factors[] vector is not empty. */
   int found = 0;
   facul_method_t* methods = data->methods;
   if (methods == NULL)
@@ -347,22 +349,22 @@ facul_aux (mpz_t *factors, const struct modset_t m,
     int res_fac = 0;
 
     switch (m.arith) {
-      case CHOOSE_UL:
+        case modset_t::CHOOSE_UL:
         res_fac = facul_doit_onefm_ul(factors, m.m_ul,
             methods[i], &fm, &cfm,
             data->lpb, data->BB, data->BBB);
         break;
-      case CHOOSE_15UL:
+        case modset_t::CHOOSE_15UL:
         res_fac = facul_doit_onefm_15ul(factors, m.m_15ul,
             methods[i], &fm, &cfm,
             data->lpb, data->BB, data->BBB);
         break;
-      case CHOOSE_2UL2:
+        case modset_t::CHOOSE_2UL2:
         res_fac = facul_doit_onefm_2ul2 (factors, m.m_2ul2,
             methods[i], &fm, &cfm,
             data->lpb, data->BB, data->BBB);
         break;
-      case CHOOSE_MPZ:
+        case modset_t::CHOOSE_MPZ:
         res_fac = facul_doit_onefm_mpz (factors, m.m_mpz,
             methods[i], &fm, &cfm,
             data->lpb, data->BB, data->BBB);
@@ -396,9 +398,9 @@ facul_aux (mpz_t *factors, const struct modset_t m,
        res_fac == 1  Only one factor has been found. Hence, our
        factorization is not finished.
        */
-    if (fm.arith != CHOOSE_NONE)
+    if (fm.arith != modset_t::CHOOSE_NONE)
     {
-      int found2 = facul_aux(factors+res_fac, fm, data, i+1);
+      int found2 = facul_aux(factors, fm, data, i+1);
       if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
       {
         found = FACUL_NOT_SMOOTH;
@@ -410,9 +412,9 @@ facul_aux (mpz_t *factors, const struct modset_t m,
         found += found2;
       modset_clear(&fm);
     }
-    if (cfm.arith != CHOOSE_NONE)
+    if (cfm.arith != modset_t::CHOOSE_NONE)
     {
-      int found2 = facul_aux(factors+res_fac, cfm, data, i+1);
+      int found2 = facul_aux(factors, cfm, data, i+1);
       if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
       {
         found = FACUL_NOT_SMOOTH;
@@ -434,8 +436,7 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
     facul_aux_data * data) {
   unsigned long B = data->fbb;
 
-  mpz_t norm;
-  mpz_init(norm);
+  cxx_mpz norm;
   mpz_set(norm, norm_r);
 
   // Trial divide all the small factors.
@@ -462,12 +463,12 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
   // Choose appropriate arithmetic according to size of norm
   // Result is stored in n, which is of type struct modset_t (see facul.h)
   struct modset_t n;
-  n.arith = CHOOSE_NONE;
+  n.arith = modset_t::CHOOSE_NONE;
   size_t bits = mpz_sizeinbase(norm, 2);
   if (bits <= MODREDCUL_MAXBITS) {
     ASSERT(mpz_fits_ulong_p(norm));
     modredcul_initmod_ul(n.m_ul, mpz_get_ui(norm));
-    n.arith = CHOOSE_UL;
+    n.arith = modset_t::CHOOSE_UL;
   }
   else if (bits <= MODREDC15UL_MAXBITS)
   {
@@ -478,7 +479,7 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
     ASSERT_ALWAYS(written <= 2);
     modredc15ul_intset_uls(m, t, written);
     modredc15ul_initmod_int(n.m_15ul, m);
-    n.arith = CHOOSE_15UL;
+    n.arith = modset_t::CHOOSE_15UL;
   }
   else if (bits <= MODREDC2UL2_MAXBITS)
   {
@@ -489,30 +490,23 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
     ASSERT_ALWAYS(written <= 2);
     modredc2ul2_intset_uls (m, t, written);
     modredc2ul2_initmod_int (n.m_2ul2, m);
-    n.arith = CHOOSE_2UL2;
+    n.arith = modset_t::CHOOSE_2UL2;
   }
   else
   {
     modmpz_initmod_int(n.m_mpz, norm);
-    n.arith = CHOOSE_MPZ;
+    n.arith = modset_t::CHOOSE_MPZ;
   }
-  ASSERT_ALWAYS(n.arith != CHOOSE_NONE);
+  ASSERT_ALWAYS(n.arith != modset_t::CHOOSE_NONE);
 
   // Call the facul machinery.
-  // TODO: think about this hard-coded 16...
-  mpz_t * fac = (mpz_t *) malloc(sizeof(mpz_t)*16);
-  for (int i = 0; i < 16; ++i)
-    mpz_init(fac[i]);
+  std::vector<cxx_mpz> fac;
   int found = facul_aux(fac, n, data, 0);
   if (found > 0) {
     for (int i = 0; i < found; ++i)
       factor_append(factors, fac[i]);
   }
 
-  for (int i = 0; i < 16; ++i)
-    mpz_clear(fac[i]);
-  free(fac);
-  mpz_clear(norm);
   return found > 0;
 }
 

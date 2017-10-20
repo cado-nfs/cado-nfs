@@ -89,7 +89,13 @@ malloc_hugepages(const size_t size)
     size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
     size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
     /* If mmap() didn't work, try aligned malloc() with madvise() */
+#if defined(__linux) && defined(HAVE_POSIX_MEMALIGN)
+    /* add a fence a la electric fence from the good old days */
+    void *m = malloc_aligned(rounded_up_size + 0x1000, LARGE_PAGE_SIZE);
+    mprotect(m + rounded_up_size, 0x1000, PROT_NONE);
+#else
     void *m = malloc_aligned(rounded_up_size, LARGE_PAGE_SIZE);
+#endif
     dll_append(malloced_regions, m);
     int r;
     static int printed_error = 0;
@@ -130,9 +136,15 @@ free_hugepages(void *m, const size_t size MAYBE_UNUSED)
   
 #ifdef MADV_HUGEPAGE
   {
+    size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
+    size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
     dllist_ptr node = dll_find (malloced_regions, (void *) m);
     if (node != NULL) {
       dll_delete(node);
+#if defined(__linux) && defined(HAVE_POSIX_MEMALIGN)
+      /* we must remove the memory protection we had ! */
+      mprotect(m + rounded_up_size, 0x1000, PROT_READ|PROT_WRITE|PROT_EXEC);
+#endif
       free_aligned(m);
       return;
     }
@@ -339,7 +351,7 @@ void *contiguous_malloc(const size_t size)
   dll_append(chunks, chunk);
 
 #ifdef VERBOSE_CONTIGUOUS_MALLOC
-  printf ("# Returning huge-page memory at %p\n", free_ptr);
+  printf ("# Returning %zu bytes of huge-page memory at %p\n", chunk->size, chunk->ptr);
 #endif
   return free_ptr;
 }
@@ -365,6 +377,9 @@ void contiguous_free(void *ptr)
     printf ("# Freeing %zu bytes of huge-page memory at %p\n", 
             chunk->size, chunk->ptr);
 #endif
+    /* we do not free chunk->ptr yet: that is done when the pool is
+     * completely drained.
+     */
     free(chunk);
     dll_delete(node);
     if (dll_is_empty(chunks)) {

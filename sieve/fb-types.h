@@ -13,7 +13,6 @@ typedef unsigned int fbprime_t; /* 32 bits should be enough for everyone */
 typedef fbprime_t fbroot_t;
 #define FBROOT_FORMAT "u"
 
-#define FB_MAX_PARTS 4
 
 /* Within one factor base, there is exactly one (index, offset) tuple per
    factor base entry. */

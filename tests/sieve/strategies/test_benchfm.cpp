@@ -1,5 +1,5 @@
 #include "cado.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>

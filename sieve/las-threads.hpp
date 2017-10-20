@@ -15,20 +15,26 @@ class thread_workspaces;
 
 /* All of this exists _for each thread_ */
 struct thread_side_data : private NonCopyable {
-  const fb_factorbase *fb;
+  const fb_factorbase *fb = NULL;
   /* For small sieve */
-  int64_t * ssdpos;
-  int64_t * rsdpos;
+  int64_t * ssdpos = NULL;
+  int64_t * rsdpos = NULL;
 
   /* The real array where we apply the sieve.
      This has size BUCKET_REGION_0 and should be close to L1 cache size. */
-  unsigned char *bucket_region;
+  unsigned char *bucket_region = NULL;
   sieve_checksum checksum_post_sieve;
 
   thread_side_data();
   ~thread_side_data();
-  
-  void set_fb(const fb_factorbase *_fb) {fb = _fb;}
+
+  private:
+  void allocate_bucket_region();
+  public:
+  void set_fb(const fb_factorbase *_fb) {
+      fb = _fb;
+      allocate_bucket_region();
+  }
   void update_checksum(){checksum_post_sieve.update(bucket_region, BUCKET_REGION);}
 };
 
@@ -42,6 +48,7 @@ struct thread_data : private NonCopyable {
                            timetree_t things absorbs everything. We still
                            need to decide what we do with the non-timer
                            (a.k.a. counter) data. */
+  /* SS is used only in process_bucket region */
   unsigned char *SS;
   bool is_initialized;
   uint32_t first_region0_index;
@@ -95,7 +102,7 @@ public:
       }
   }
 
-  T &reserve();
+  T *reserve();
   void release(T &BA);
 };
 
@@ -152,7 +159,7 @@ public:
   void reset_all_pointers(int side);
 
   template <int LEVEL, typename HINT>
-  bucket_array_t<LEVEL, HINT> &
+  bucket_array_t<LEVEL, HINT> *
   reserve_BA(const int side) {return groups[side]->get<LEVEL, HINT>().reserve();}
 
   template <int LEVEL, typename HINT>

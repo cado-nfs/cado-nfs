@@ -2,7 +2,7 @@
 #define  GENERATE_FACTORING_METHOD
 
 #include <gmp.h>
-#include "facul.h"
+#include "facul.hpp"
 #include "tab_fm.h"
 #include "tab_point.h"
 
@@ -12,17 +12,17 @@
 
 double *distribution_prime_number(int min, int max);
 
-void generate_prime_factor(mpz_t res, gmp_randstate_t state, int lenFact);
+cxx_mpz generate_prime_factor(gmp_randstate_t state, int lenFact);
 
-void
-generate_composite_integer(mpz_t res, gmp_randstate_t state,
+cxx_mpz
+generate_composite_integer(gmp_randstate_t state,
 			   int lenFact1, int lenFactall);
 
 int
 select_random_index_according_dist(double *dist, int len);
 
-int
-generate_composite_integer_interval(mpz_t res, gmp_randstate_t state,
+cxx_mpz
+generate_composite_integer_interval(gmp_randstate_t state,
 				    double *dist, int lenFact1_min,
 				    int lenFact1_max, int lenFactall);
 
@@ -58,17 +58,19 @@ tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 /************************************************************************/
 
 double bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
- 		      unsigned long len_p, unsigned long len_n, mpz_t* N,
-		      int nb_test_max);
+ 		      unsigned long len_p, unsigned long len_n,
+                      std::vector<cxx_mpz> & N,
+		      size_t nb_test_max);
 
 void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
-        int p_max, int nb_test_max);
+        int p_max, size_t nb_test_max);
 
 
-double bench_time_fm_onelength(facul_strategy_t * method, mpz_t* N,
-			       int nb_test);
+double bench_time_fm_onelength(facul_strategy_t * method,
+                               std::vector<cxx_mpz> & N,
+			       size_t nb_test);
 
-void bench_time(gmp_randstate_t state, tabular_fm_t * fm, int nb_test);
+void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test);
 
 
 tabular_fm_t *filtering(tabular_fm_t * fm, int final_nb_methods);
@@ -89,5 +91,13 @@ tabular_fm_t *convex_hull_fm(tabular_fm_t * t);
 /************************************************************************/
 
 tabular_fm_t *convex_hull_from_file(FILE * file_in, FILE * file_out);
+
+struct weighted_success {
+    double prob = 0;
+    double time = 0;
+    // weighted_success() = default;
+    weighted_success(double p, double t) : prob(p), time(t) {}
+    weighted_success(double p, double t, size_t N) : prob(p/N), time(t/N) {}
+};
 
 #endif				/* GENERATE_FACTORING_METHOD */

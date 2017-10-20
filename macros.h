@@ -219,6 +219,9 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef EXPECT
 #define EXPECT(x,val)	__builtin_expect(x,val)
 #endif
+#ifndef ATTR_ALIGNED
+#define ATTR_ALIGNED(x) __attribute__((aligned(x)))
+#endif
 #ifndef  HAVE_MINGW
 #ifndef ATTR_PRINTF
 #define ATTR_PRINTF(a,b) __attribute__((format(printf,a,b)))
@@ -228,6 +231,13 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
  * recognized by the win32 printf, for who asks nicely... */
 #define ATTR_PRINTF(a,b) /**/
 #endif  /* HAVE_MINGW */
+/* Note that ATTRIBUTE is sort of a catch-all, but its use should be
+ * discouraged, or at least limited to attributes which have been in gcc
+ * versions for a very long time. For a newly introduced gcc version, it
+ * is crucial to *NOT* use ATTRIBUTE() here, and instead define a macro
+ * which is set depending on the GCC version (see further down in this
+ * file).
+ */
 #ifndef ATTRIBUTE
 #define ATTRIBUTE(x) __attribute__ (x)
 #endif
@@ -241,6 +251,9 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef EXPECT
 #define	EXPECT(x,val)	(x)
 #endif
+#ifndef ATTR_ALIGNED
+#define ATTR_ALIGNED(x)
+#endif
 #ifndef ATTR_PRINTF
 #define ATTR_PRINTF(a,b) /**/
 #endif
@@ -253,6 +266,12 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #define no_break() __attribute__ ((fallthrough))
 #else
 #define no_break()
+#endif
+
+#if GNUC_VERSION_ATLEAST(4,9,0)
+#define ATTR_ASSUME_ALIGNED(x) __attribute__((assume_aligned(x)))
+#else
+#define ATTR_ASSUME_ALIGNED(x)
 #endif
 
 /* On 64 bit gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) with -O3, the inline

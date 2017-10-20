@@ -7,18 +7,15 @@
 
 #include "portability.h"
 #include "utils.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
 
 #include "generate_strategies.h"
-#include "generate_factoring_method.h"
-
-
+#include "generate_factoring_method.hpp"
 
 static double EPSILON_DBL = LDBL_EPSILON;
-
 
 //convert type: from strategy_t to facul_strategy_t.
 facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
@@ -27,8 +24,8 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
     int nb_methods = tab_fm->index;
 
     facul_strategy_t *strategy;
-    strategy = malloc(sizeof(facul_strategy_t));
-    strategy->methods = malloc((nb_methods+1) * sizeof(facul_method_t));
+    strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
+    strategy->methods = (facul_method_t*) malloc((nb_methods+1) * sizeof(facul_method_t));
     /*
       without this second method, the function
       facul_clear_strategy (strategy) failed!
@@ -52,11 +49,11 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 	    if (method == PM1_METHOD) {
 		strategy->methods[i].plan = malloc(sizeof(pm1_plan_t));
 		ASSERT(strategy->methods[i].plan != NULL);
-		pm1_make_plan(strategy->methods[i].plan, B1, B2, 0);
+		pm1_make_plan((pm1_plan_t*) strategy->methods[i].plan, B1, B2, 0);
 	    } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
 		strategy->methods[i].plan = malloc(sizeof(pp1_plan_t));
 		ASSERT(strategy->methods[i].plan != NULL);
-		pp1_make_plan(strategy->methods[i].plan, B1, B2, 0);
+		pp1_make_plan((pp1_plan_t*) strategy->methods[i].plan, B1, B2, 0);
 	    } else if (method == EC_METHOD) {
 		long sigma;
 		if (curve == MONTY16) {
@@ -65,8 +62,8 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 		    sigma = 2 + rand();
 
 		strategy->methods[i].plan = malloc(sizeof(ecm_plan_t));
-		ASSERT(strategy->methods[i].plan != NULL);
-		ecm_make_plan(strategy->methods[i].plan, B1, B2, curve,
+		ASSERT((ecm_plan_t*) strategy->methods[i].plan != NULL);
+		ecm_make_plan((ecm_plan_t*) strategy->methods[i].plan, B1, B2, curve,
 			      labs(sigma), 0, 0);
 	    } else {
 		exit(EXIT_FAILURE);
@@ -99,62 +96,48 @@ select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
   This function compute directly the probabity and the time to find a
   factor in a good decomposition in a cofactor of length r.
  */
-double*
+weighted_success
 bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 		    tabular_decomp_t* init_tab, int r, int lpb)
 {
-    double* res = malloc (2*sizeof (double));
     int nb_succes_max = 10000, nb_succes = 0;
     int nb_test = 0;
     int nb_test_max = 10 * nb_succes_max; //20 for five percent
     double time = 0;
-    
-    mpz_t N;
-    mpz_init(N);
     
     double sum_dec = 0;
     for (int i = 0; i < init_tab->index; i++)
 	sum_dec += init_tab->tab[i]->nb_elem;
     //struct timeval st_test, end_test;
 
-    mpz_t f[2];
-    mpz_init(f[0]);
-    mpz_init(f[1]);
+    std::vector<cxx_mpz> f;
+
     while (nb_succes < nb_succes_max && (nb_test<nb_test_max))
 	{
 	    int index = select_random_index_dec(sum_dec, init_tab);
 	    int len_p = init_tab->tab[index]->tab[0];
-	    /* generation of the integer N (which will be factoring) */
-	    generate_composite_integer(N,state, len_p, r);
-	    /* 
-	       f will contain the prime factor of N that the strategy
-	       found.  Note that N is composed by two prime factors by the
-	       previous function.
-	    */
-            mpz_set_ui(f[0], 0);
+
+	    cxx_mpz N = generate_composite_integer(state, len_p, r);
+            f.clear();
 
 	    double starttime = microseconds();
 	    //gettimeofday (&st_test, NULL);
-	    facul(f, N, strategy);
+	    int nfound = facul(f, N, strategy);
 	    //gettimeofday (&end_test, NULL);
 	    double endtime = microseconds();
+
 	    /* time += (end_test.tv_sec - st_test.tv_sec)*1000000L */
 	    /* 	+ end_test.tv_usec - st_test.tv_usec; */
       	    time += endtime - starttime;
-	    if (mpz_cmp_ui(f[0], 0) != 0)
-		{
-		    int len_factor = mpz_sizeinbase(f[0], 2);
-		    if (len_factor <= lpb && (r-len_factor) <= lpb)
-			nb_succes++;
-		}
+	    if (nfound != 0) {
+                int len_factor = mpz_sizeinbase(f[0], 2);
+                if (len_factor <= lpb && (r-len_factor) <= lpb)
+                    nb_succes++;
+            }
 	    nb_test++;
 	}
-    mpz_clear(f[0]);
-    mpz_clear(f[1]);
-    mpz_clear(N);
-    res[0] = nb_succes / ((double)nb_test);
-    res[1] = time / ((double)nb_test);
-    return res;
+
+    return weighted_success(nb_succes, time, nb_test);
 }
 
 
@@ -196,10 +179,10 @@ void bench_time_mini(gmp_randstate_t state, tabular_fm_t * fm, int r)
     else
 	len_n = MODREDC2UL2_MAXBITS +30;
     int nb_test = 100000;
-    mpz_t* N = malloc(sizeof(mpz_t) * nb_test);
+    std::vector<cxx_mpz> N;
+    N.reserve(nb_test);
     for (int i = 0; i < nb_test; i++) {
-	mpz_init(N[i]);
-	generate_prime_factor(N[i], state, len_n);
+	N.push_back(generate_prime_factor(state, len_n));
     }
     //}}
     int ind = get_nb_word(r);
@@ -213,12 +196,10 @@ void bench_time_mini(gmp_randstate_t state, tabular_fm_t * fm, int r)
 	if (B1 != 0 || B2 != 0) {
 	    facul_strategy_t *st = generate_fm(method, curve, B1, B2);
 
-	    double *res = calloc(4, sizeof(double));
-	    ASSERT(res != NULL);
+	    double res[4];
+            ASSERT_ALWAYS(ind < 4);
 	    res[ind] = bench_time_fm_onelength(st, N, nb_test);
-
 	    fm_set_time(elem, res, 4);
-	    free (res);
 	    facul_clear_strategy(st);
 	} else {
 	    double time[4] = { 0, 0, 0, 0 };
@@ -226,10 +207,6 @@ void bench_time_mini(gmp_randstate_t state, tabular_fm_t * fm, int r)
 	}
 	
     }
-    //free
-    for (int i = 0; i < nb_test; i++)
-	mpz_clear(N[i]);
-    free (N);
 }
 /*
   This function is like bench_proba() but only compute the necessary
@@ -242,22 +219,15 @@ void bench_proba_mini(gmp_randstate_t state, tabular_fm_t * fm, int* val_p,
 {
     int len = fm->index;	//number of methods!
     int p_max = 100;
-    double *proba = calloc(p_max, sizeof(double));
+    double *proba = (double*) calloc(p_max, sizeof(double));
     ASSERT(proba != NULL);
 
     unsigned long *param;
     fm_t *elem;
+
     //{{Will contain the precomputes of composite integer!
-    mpz_t*N[len_val_p];
+    std::vector<std::vector<cxx_mpz>> N(len_val_p);
     int nb_test_max = 10000;
-    for (int i = 0; i < len_val_p; i++)
-	{
-	    N[i] = NULL;
-	    N[i] = malloc(sizeof (mpz_t) * (nb_test_max+1));
-	    ASSERT (N[i] != NULL);
-	    mpz_init(N[i][0]);
-	    mpz_set_ui (N[i][0], 0);
-	}
 
     //}}
 
@@ -290,19 +260,6 @@ void bench_proba_mini(gmp_randstate_t state, tabular_fm_t * fm, int* val_p,
 	fm_set_proba(elem, proba, max_index+1, len_p_min);
 	//free
 	facul_clear_strategy(st);
-    }
-    //free
-    for (int i = 0; i < len_val_p; i++) {
-	if (N[i] != NULL) {
-	    int j = 0;
-	    while(mpz_cmp_ui(N[i][j], 0) != 0)
-		{
-		    mpz_clear(N[i][j]);
-		    j++;
-		}
-	    mpz_clear(N[i][j]);
-	}
-	free (N[i]);
     }
     free(proba);
 }
@@ -371,14 +328,12 @@ int main()
     //Create our strategy to use facul().
     facul_strategy_t* st = convert_strategy_to_facul_strategy (strat1);
     //bench our strategies!
-    double* res = bench_proba_time_st(state, st, init_tab, r, lpb);
-    double prob2 = res[0];
+    weighted_success res = bench_proba_time_st(state, st, init_tab, r, lpb);
+    double prob2 = res.prob;
     //double time2 = res[1];
-    free (res);
     
-    //printf ("prob1 = %lf, prob2 = %lf\n", prob1, prob2);
-    //printf ("time1 = %lf, time2 = %lf\n", time1, time2);
-
+    printf ("prob1 = %lf, prob2 = %lf\n", prob1, prob2);
+    // printf ("time1 = %lf, time2 = %lf\n", time1, time2);
     
     double precision_p = 0.05;
     if ((prob1 - prob2) > precision_p || (prob2 - prob1) > precision_p)
@@ -389,7 +344,7 @@ int main()
 
     //{{test the function: bench_proba_time_pset()
     int c = tab->tab[0]->method[3]/tab->tab[0]->method[2];
-    int param[6] = {tab->tab[0]->method[2], tab->tab[0]->method[2], 1, c,c,1};
+    int param[6] = {(int) tab->tab[0]->method[2], (int) tab->tab[0]->method[2], 1, c,c,1};
 
     tabular_fm_t* tmp =
     	bench_proba_time_pset (tab->tab[0]->method[0], tab->tab[0]->method[1], state,

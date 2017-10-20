@@ -1,5 +1,5 @@
 #include "cado.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,13 +30,13 @@ int check_filt (tabular_fm_t* res, int init_nb_method)
 
 int main ()
 {
-    int nb_fm = 10;
+    unsigned int nb_fm = 10;
     int final_nb_fm = 4;
 
     tabular_fm_t* tab = tabular_fm_create ();
 
     fm_t* fm = fm_create();
-    for (int i = 0; i < nb_fm; i++)
+    for (unsigned int i = 0; i < nb_fm; i++)
 	{
 	    unsigned long elem[4] = {i, 0, i*(1+rand()%10),  i*(1+rand()%10)};
 	    fm_set_method (fm, elem, 4);

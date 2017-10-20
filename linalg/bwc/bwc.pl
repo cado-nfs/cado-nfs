@@ -789,6 +789,18 @@ sub get_mpi_hosts_oar {
     }
 }
 
+sub get_mpi_hosts_slurm {
+    @hosts=();
+    my %h=();
+    for (`scontrol show hostname`) {
+        chomp($_);
+        push @hosts, $_ unless $h{$_}++;
+    }
+    if (!scalar @hosts) {
+        die "no hosts found with \"scontrol show hostname\"; is scontrol in \$PATH ?";
+    }
+}
+
 sub get_mpi_hosts_torque {
     my @x = split /^/, eval {
 		local $/=undef;
@@ -883,6 +895,8 @@ if ($mpi_needed) {
     } elsif (exists($ENV{'PE_HOSTFILE'}) && exists($ENV{'NSLOTS'})) {
             print STDERR "Oracle/SGE environment detected, setting hostfile.\n";
 	    get_mpi_hosts_sge;
+    } elsif (exists($ENV{'SLURM_STEP_NODELIST'})) {
+            get_mpi_hosts_slurm;
     }
 
     if (scalar @hosts) {

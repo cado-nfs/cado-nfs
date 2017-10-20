@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdlib.h>   // for malloc and friends
 #include <string.h>   // for memcpy
+#include <new>        // for std::bad_alloc
 #include <gmp.h>
 #if defined(HAVE_SSE2)
 #include <emmintrin.h>
@@ -108,9 +109,12 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
   if (fill_ratio == 0.)
     return;
 
-  const size_t min_bucket_size = fill_ratio * bucket_region;
+  const size_t min_bucket_size = fill_ratio * BUCKET_REGIONS[LEVEL];
   const size_t new_bucket_size = bucket_misalignment(min_bucket_size, sizeof(update_t));
-  const size_t new_big_size = new_bucket_size * new_n_bucket * sizeof(update_t);
+  size_t new_big_size = new_bucket_size * new_n_bucket * sizeof(update_t);
+  /* add 1 megabyte to each bucket array, so as to deal with overflowing
+   * buckets */
+  new_big_size += 1 << 20;
   const size_t new_size_b_align = ((sizeof(void *) * new_n_bucket + 0x3F) & ~((size_t) 0x3F));
 
   if (new_big_size > big_size) {
@@ -122,6 +126,10 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
     big_data = (update_t *) physical_malloc (big_size, 1);
     void * internet_of_things MAYBE_UNUSED = NULL;
   }
+
+  if (!big_data)
+      throw std::bad_alloc();
+
   bucket_size = new_bucket_size;
   n_bucket = new_n_bucket;
 
@@ -200,11 +208,13 @@ bucket_array_t<LEVEL, HINT>::log_this_update (
     where_am_I & w MAYBE_UNUSED) const
 {
 #if defined(TRACE_K)
-    uint64_t BRS[FB_MAX_PARTS] = BUCKET_REGIONS;
+    size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
     unsigned int saveN = w.N;
-    unsigned int x = update.x % BUCKET_REGION_1;
+    /* flatten the (N,x) coordinate as if relative to a unique array of
+     * level-1 bucket regions */
+    unsigned int x = update.x % BRS[1];
     unsigned int N = w.N +
-        bucket_number*BRS[LEVEL]/BRS[1] + (update.x / BUCKET_REGION_1);
+        bucket_number*BRS[LEVEL]/BRS[1] + (update.x / BRS[1]);
 
     WHERE_AM_I_UPDATE(w, x, x);
     WHERE_AM_I_UPDATE(w, N, N);
@@ -468,10 +478,4 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
     new_checksum = mpz_tdiv_ui(mb, checksum_prime);
     mpz_clear(mb);
     this->update(new_checksum);
-}
-
-buckets_are_full::buckets_are_full(int l, int b, int r, int t) : level(l), bucket_number(b), reached_size(r), theoretical_max_size(t) {
-    std::ostringstream os;
-    os << "buckets (level "<<level<<") are full. Fullest is bucket #"<<r<<", wrote "<<reached_size<<"/"<<theoretical_max_size<<"";
-    message = os.str();
 }

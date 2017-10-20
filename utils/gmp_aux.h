@@ -4,6 +4,8 @@
 #include <gmp.h>
 #include <stdint.h>
 #include <macros.h>
+#include <stdbool.h>
+#include "getprime.h"
 
 /* the following function are missing in GMP */
 #ifndef mpz_addmul_si
@@ -56,6 +58,19 @@ extern void mpz_ndiv_q (mpz_t q, mpz_t n, const mpz_t d);
 extern void mpz_ndiv_q_ui (mpz_t q, mpz_t n, unsigned long int d);
 extern int mpz_divisible_uint64_p (mpz_t a, uint64_t c);
 extern int mpz_coprime_p (mpz_t a, mpz_t b);
+
+/* Put in r the smallest legitimate value that it at least s + diff (note
+   that if s+diff is already legitimate, then r = s+diff will result.
+
+   Here, legitimate means prime or squarefree composite, with the constraint
+   that all the prime factors must be in [pmin, pmax[ .
+
+   The prime factors of r are put in factor_r, and the number of them is
+   returned. The caller must have allocated factor_r with enough space.
+   */
+int next_mpz_with_factor_constraints(mpz_t r, unsigned long factor_r[],
+        const mpz_t s, const unsigned long diff, unsigned long pmin,
+        unsigned long pmax);
 
 /* return the number of bits of p, counting from the least significant end */
 extern int nbits (uintmax_t p);

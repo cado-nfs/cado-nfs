@@ -152,7 +152,7 @@ main (int argc, char *argv[])
       mpz_ui_pow_ui(M[side], 2, batchmfb[side]);
   }
   unsigned long nrels = find_smooth(List, batchP, B, L, M, stdout, nb_threads);
-  factor(List, nrels, cpoly, lpb, stdout, nb_threads);
+  factor(List, nrels, cpoly, batchlpb, lpb, stdout, nb_threads);
 
   for(int side = 0 ; side < 2 ; side++) {
       mpz_clear(B[side]);

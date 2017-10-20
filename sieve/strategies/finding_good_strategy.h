@@ -3,6 +3,11 @@
 
 #include "tab_strategy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
 					   const int len_abs,
 					   const int len_ord);
@@ -20,5 +25,9 @@ void strategy_fprint_design(FILE * output_file, const strategy_t * t);
 int
 fprint_final_strategy(FILE * file, strategy_t *** matrix_strat_res,
 		      const int len_abs, const int len_ord);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* FINDING_GOOD_STRATEGY */

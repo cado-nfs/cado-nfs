@@ -8,4 +8,4 @@
 #define facul_doit facul_doit_mpz
 #define facul_doit_onefm facul_doit_onefm_mpz
 
-#include "facul_doit.c"
+#include "facul_doit.cpp"

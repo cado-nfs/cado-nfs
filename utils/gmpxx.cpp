@@ -14,10 +14,27 @@ using namespace std;
  * We make no effort to do this very accurately, though.
  */
 
+static inline int getbase(ostream const& o)
+{
+    std::ios_base::fmtflags ff;
+    ff = o.flags();
+    ff &= std::ios_base::basefield;
+    switch(o.flags() & std::ios_base::basefield) {
+        case std::ios::hex:
+            return 16;
+        case std::ios::dec:
+            return 10;
+        case std::ios::oct:
+            return 8;
+        default:
+            return 10;
+    }
+}
+
 ostream& operator<<(ostream& os, mpz_srcptr x)
 {
     char * str;
-    os << (str = mpz_get_str(NULL, 10, x));
+    os << (str = mpz_get_str(NULL, getbase(os), x));
     free(str);
     return os;
 }
@@ -25,7 +42,7 @@ ostream& operator<<(ostream& os, mpz_srcptr x)
 ostream& operator<<(ostream& os, mpq_srcptr x)
 {
     char * str;
-    os << (str = mpq_get_str(NULL, 10, x));
+    os << (str = mpq_get_str(NULL, getbase(os), x));
     free(str);
     return os;
 }

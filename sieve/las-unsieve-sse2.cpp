@@ -48,7 +48,7 @@ sieve_info_test_lognorm_sse2_mask(__m128i * S0, const __m128i pattern0,
     m2 = _mm_cmpgt_epi8 (pattern1, _mm_xor_si128(r, sign_conversion));
     /* m1 is 0xFF where pattern[x] > S0[x], i.e., where it survived.
        Same for S1. */
-    /* Logically AND the two masks: survivor only where both sided survived */
+    /* Logically AND the two masks: survivor only where both sides survived */
     m1 = _mm_and_si128(m1, m2);
 
     /* m1 is 0xFF in those locations where the sieve entry survived on
@@ -69,10 +69,15 @@ sieve_info_test_lognorm_sse2_mask(__m128i * S0, const __m128i pattern0,
    trial-divided primes. Return the number of survivors found. */
 static inline void
 search_single_survivors_mask(unsigned char * const SS[2],
-        const unsigned char bound[2] MAYBE_UNUSED, const unsigned int log_I,
-        const unsigned int j, const int N MAYBE_UNUSED,
-        const int x_start, const unsigned int nr_div,
-        unsigned int (*div)[2], unsigned int bitmask,
+        const unsigned char bound[2] MAYBE_UNUSED,
+        unsigned int j,
+        int i0,
+        int i1 MAYBE_UNUSED,
+        int N MAYBE_UNUSED,
+        int x_start,
+        unsigned int nr_div,
+        unsigned int (*div)[2],
+        unsigned int bitmask,
         std::vector<uint32_t> &survivors)
 {
   for (int x = x_start; UNLIKELY(bitmask != 0); x++) {
@@ -83,7 +88,7 @@ search_single_survivors_mask(unsigned char * const SS[2],
       /* The very small prime used in the bound pattern, and unsieving larger
          primes have not identified this as gcd(i,j) > 1. It remains to check
          the trial-divided primes. */
-      const unsigned int i = abs (x - (1 << (log_I - 1)));
+      const unsigned int i = abs (i0 + x);
       int divides = 0;
       switch (nr_div) {
           case 6: divides |= (i * div[5][0] <= div[5][1]); no_break();
@@ -124,9 +129,13 @@ search_single_survivors_mask(unsigned char * const SS[2],
 /* This function works for all j. Uses SSE2. */
 static void
 search_survivors_in_line1_sse2(unsigned char * const SS[2],
-        const unsigned char bound[2], const unsigned int log_I,
-        const unsigned int j, const int N MAYBE_UNUSED, j_divisibility_helper const & j_div,
-        const unsigned int td_max, std::vector<uint32_t> &survivors)
+        const unsigned char bound[2],
+        unsigned int j,
+        int i0, int i1,
+        int N MAYBE_UNUSED,
+        j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors)
 {
     unsigned int div[6][2], nr_div;
 
@@ -145,14 +154,14 @@ search_survivors_in_line1_sse2(unsigned char * const SS[2],
     };
     const int x_step = sizeof(__m128i);
 
-    for (int x_start = 0; x_start < (1 << log_I); x_start += x_step)
+    for (int x_start = 0; x_start < (i1 - i0); x_start += x_step)
     {
         /* Do bounds check using SSE pattern, set non-survivors in SS[0] array
            to 255 */
-        const unsigned int mask =
-            sieve_info_test_lognorm_sse2_mask((__m128i*) (SS[0] + x_start), patterns[0],
-                                         (__m128i*) (SS[1] + x_start), patterns[1]);
-        search_single_survivors_mask(SS, bound, log_I, j, N, x_start,
+        const unsigned int mask = sieve_info_test_lognorm_sse2_mask(
+                    (__m128i*) (SS[0] + x_start), patterns[0],
+                    (__m128i*) (SS[1] + x_start), patterns[1]);
+        search_single_survivors_mask(SS, bound, j, i0, i1, N, x_start,
             nr_div, div, mask, survivors);
     }
 }
@@ -162,9 +171,13 @@ search_survivors_in_line1_sse2(unsigned char * const SS[2],
    i-coordinates with i % 3 == 0 are set to a bound of 0. */
 static void
 search_survivors_in_line3_sse2(unsigned char * const SS[2], 
-        const unsigned char bound[2], const unsigned int log_I,
-        const unsigned int j, const int N MAYBE_UNUSED, j_divisibility_helper const & j_div,
-        const unsigned int td_max, std::vector<uint32_t> &survivors)
+        const unsigned char bound[2], 
+        unsigned int j,
+        int i0, int i1,
+        int N MAYBE_UNUSED,
+        j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors)
 {
     __m128i patterns[2][3];
     const int x_step = sizeof(__m128i);
@@ -190,24 +203,35 @@ search_survivors_in_line3_sse2(unsigned char * const SS[2],
         _mm_xor_si128(_mm_and_si128(_mm_set1_epi8(bound[1] + 1), even_mask), sign_conversion);
 
     /* Those locations in patterns[0] that correspond to i being a multiple
-       of 3 are set to 0. Byte 0 of patterns[0][0] corresponds to i = -I/2.
-       We want d s.t. -I/2 + d == 0 (mod 3), or d == I/2 (mod 3). With
-       I = 2^log_I and 2 == -1 (mod 3), we have d == -1^(log_I-1) (mod 3),
-       or d = 2 if log_I is even and d = 1 if log_I is odd.
-       We use the sign conversion trick (i.e., XOR 0x80), so to get an
-       effective bound of unsigned 0, we need to set the byte to 0x80. */
-    size_t d = 2 - log_I % 2;
+     * of 3 are set to 0. Byte 0 of patterns[0][0] corresponds to i = i0.
+     * We want d s.t. i0 + d == 0 (mod 3), or d == -i0 (mod 3).
+     */
+    int d = (-i0) % 3;
+    if (d < 0) d += 3;
+       
+    /*
+     * Special hack for i0=-(I/2):
+     * I = 2^logI and 2 == -1 (mod 3), we have d == -1^(logI-1) (mod 3),
+     * or d = 2 if logI is even and d = 1 if logI is odd.
+
+         size_t d = 2 - logI % 2;
+     */
+
+    /* We use the sign conversion trick (i.e., XOR 0x80), so to get an
+     * effective bound of unsigned 0, we need to set the byte to 0x80.
+     */
     for (size_t i = 0; i < sizeof(__m128i); i++)
         ((unsigned char *)&patterns[0][0])[3*i + d] = 0x80;
 
-    for (int x_start = 0; x_start < (1 << log_I); x_start += x_step)
+    for (int x_start = 0; x_start < (i1 - i0); x_start += x_step)
     {
         const unsigned int mask =
-            sieve_info_test_lognorm_sse2_mask((__m128i*) (SS[0] + x_start), patterns[0][next_pattern],
-                                         (__m128i*) (SS[1] + x_start), patterns[1][next_pattern]);
+            sieve_info_test_lognorm_sse2_mask(
+                    (__m128i*) (SS[0] + x_start), patterns[0][next_pattern],
+                    (__m128i*) (SS[1] + x_start), patterns[1][next_pattern]);
         if (++next_pattern == 3)
             next_pattern = 0;
-        search_single_survivors_mask(SS, bound, log_I, j, N, x_start,
+        search_single_survivors_mask(SS, bound, j, i0, i1, N, x_start,
             nr_div, div, mask, survivors);
     }
 }
@@ -218,9 +242,13 @@ search_survivors_in_line3_sse2(unsigned char * const SS[2],
    and trial divides only by primes > 5. */
 static void
 search_survivors_in_line5_sse2(unsigned char * const SS[2], 
-        const unsigned char bound[2], const unsigned int log_I,
-        const unsigned int j, const int N MAYBE_UNUSED, j_divisibility_helper const & j_div,
-        const unsigned int td_max, std::vector<uint32_t> &survivors)
+        const unsigned char bound[2],
+        unsigned int j,
+        int i0, int i1,
+        int N MAYBE_UNUSED,
+        j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors)
 {
     const int nr_patterns = 5;
     __m128i patterns[2][nr_patterns];
@@ -251,25 +279,32 @@ search_survivors_in_line5_sse2(unsigned char * const SS[2],
             ((unsigned char *)&patterns[0][0])[i] = 0x80;
 
     /* Those locations in patterns[0] that correspond to i being a multiple
-       of 5 are set to 0. Byte 0 of patterns[0][0] corresponds to i = -I/2.
-       We want d s.t. -I/2 + d == 0 (mod 5), or d == I/2 (mod 5). With
-       I = 2^log_I and ord_5(2) == 4 (mod 5), we have d == 2^((log_I-1)%4)
+       of 5 are set to 0. Byte 0 of patterns[0][0] corresponds to i = i0.
+       We want d s.t. i0 + d == 0 (mod 5), or d == i0 (mod 5).
+     */
+    int d = (-i0) % 5;
+    if (d < 0) d += 5;
+
+    /* Special trick for i0 = -(I/2) ; With
+       I = 2^logI and ord_5(2) == 4 (mod 5), we have d == 2^((logI-1)%4)
        (mod 5), so we want a function: 0->3, 1->1, 2->2, 3->4.
-       We use the sign conversion trick (i.e., XOR 0x80), so to get an
-       effective bound of unsigned 0, we need to set the byte to 0x80. */
     static const unsigned char d_lut[] = {3,1,2,4};
-    size_t d = d_lut[log_I % 4];
+    size_t d = d_lut[logI % 4];
+     */
+
+    /* We use the sign conversion trick (i.e., XOR 0x80), so to get an
+       effective bound of unsigned 0, we need to set the byte to 0x80. */
     for (size_t i = 0; i < sizeof(__m128i); i++)
         ((unsigned char *)&patterns[0][0])[nr_patterns*i + d] = 0x80;
 
-    for (int x_start = 0; x_start < (1 << log_I); x_start += x_step)
+    for (int x_start = 0; x_start < (i1 - i0); x_start += x_step)
     {
-        const unsigned int mask =
-            sieve_info_test_lognorm_sse2_mask((__m128i*) (SS[0] + x_start), patterns[0][next_pattern],
-                                         (__m128i*) (SS[1] + x_start), patterns[1][next_pattern]);
+        const unsigned int mask = sieve_info_test_lognorm_sse2_mask(
+                (__m128i*) (SS[0] + x_start), patterns[0][next_pattern],
+                (__m128i*) (SS[1] + x_start), patterns[1][next_pattern]);
         if (++next_pattern == nr_patterns)
             next_pattern = 0;
-        search_single_survivors_mask(SS, bound, log_I, j, N, x_start,
+        search_single_survivors_mask(SS, bound, j, i0, i1, N, x_start,
             nr_div, div, mask, survivors);
     }
 }
@@ -283,22 +318,25 @@ search_survivors_in_line5_sse2(unsigned char * const SS[2],
 
 void
 search_survivors_in_line_sse2(unsigned char * const SS[2], 
-        const unsigned char bound[2], const unsigned int log_I,
-        const unsigned int j, const int N, j_divisibility_helper const & j_div,
+        const unsigned char bound[2],
+        unsigned int j,
+        int i0, int i1,
+        int N,
+        j_divisibility_helper const & j_div,
         const unsigned int td_max, std::vector<uint32_t> &survivors)
 {
 #if USE_PATTERN_3
     if (j % 3 == 0)
-      search_survivors_in_line3_sse2(SS, bound, log_I, j, N, j_div,
+      search_survivors_in_line3_sse2(SS, bound, j, i0, i1, N, j_div,
               td_max, survivors);
 #if USE_PATTERN_5
     else if (j % 5 == 0)
-      search_survivors_in_line5_sse2(SS, bound, log_I, j, N, j_div,
+      search_survivors_in_line5_sse2(SS, bound, j, i0, i1, N, j_div,
               td_max, survivors);
 #endif
     else
 #endif
-      search_survivors_in_line1_sse2(SS, bound, log_I, j, N, j_div,
+      search_survivors_in_line1_sse2(SS, bound, j, i0, i1, N, j_div,
               td_max, survivors);
 }
 

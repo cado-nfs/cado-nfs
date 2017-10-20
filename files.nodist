@@ -137,7 +137,7 @@ sieve/strategies/script_mg.sh
 sieve/strategies/script_str.sh
 sieve/strategies/script_str_r.sh
 sieve/strategies/CMakeLists-nodist.txt
-sieve/strategies/test_strategy_cado.c
+sieve/strategies/test_strategy_cado.cpp
 sieve/strategies/F9.sh
 linalg/bwc/lingen.txt
 nfs-hd/array.c
@@ -157,7 +157,7 @@ nfs-hd/mat_Z.h
 nfs-hd/mat_int64.c
 nfs-hd/mat_int64.h
 nfs-hd/double_vector.c
-nfs-hd/special-q_sieve.c
+nfs-hd/special-q_sieve.cpp
 nfs-hd/uint64_array.c
 nfs-hd/uint64_array.h
 nfs-hd/utils_mpz.c
@@ -190,7 +190,7 @@ nfs-hd/paraselect-hd.c
 tests/nfs-hd/
 nfs-hd/utils_norm.c
 nfs-hd/utils_norm.h
-nfs-hd/utils_cofactorisation.c
+nfs-hd/utils_cofactorisation.cpp
 nfs-hd/utils_cofactorisation.h
 .mailmap
 nfs-hd/CMakeLists.txt

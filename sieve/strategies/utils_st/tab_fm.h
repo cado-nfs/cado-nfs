@@ -11,6 +11,11 @@ typedef struct tabular_fm {
     int size;
 } tabular_fm_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 tabular_fm_t *tabular_fm_create(void);
 
 void tabular_fm_free(tabular_fm_t * t);
@@ -61,4 +66,7 @@ void fm_swap(tabular_fm_t * t, int index1, int index2);
 //according to the probabilities!
 void tabular_fm_sort(tabular_fm_t * t);
 
+#ifdef __cplusplus
+}
+#endif
 #endif				/* TAB_FM */

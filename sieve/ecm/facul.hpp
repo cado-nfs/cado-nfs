@@ -1,5 +1,5 @@
-#ifndef FACUL_H
-#define FACUL_H
+#ifndef FACUL_HPP_
+#define FACUL_HPP_
 
 #include <stdio.h>
 #include <stdint.h>
@@ -10,6 +10,9 @@
 #include "modredc_2ul2.h"
 #include "mod_mpz.h"
 //}}
+#include "cxx_mpz.hpp"
+#include <vector>
+#include <array>
 
 #define PM1_METHOD 1
 #define PP1_27_METHOD 2
@@ -56,10 +59,6 @@ typedef struct {
   double BBB;               /* The factor base bound cubed. */
   facul_method_t *methods;  /* List of methods to try */
 } facul_strategy_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 
@@ -124,7 +123,7 @@ int nb_curves (unsigned int, unsigned int);
 facul_strategy_t * facul_make_strategy (unsigned long, unsigned int, unsigned int, int, int);
 void facul_clear_strategy (facul_strategy_t *);
 void facul_print_stats (FILE *);
-int facul (mpz_t *, const mpz_t, const facul_strategy_t *);
+int facul (std::vector<cxx_mpz> &, cxx_mpz const &, const facul_strategy_t *);
 
 facul_strategies_t* facul_make_strategies (unsigned long, unsigned int,
 					   unsigned int, unsigned long,
@@ -142,12 +141,8 @@ modset_clear (struct modset_t *modset);
 
 void modset_get_z (mpz_t, const struct modset_t*);
 
-int*
-facul_both (mpz_t**, mpz_t* ,
+std::array<int,2>
+facul_both (std::array<std::vector<cxx_mpz>, 2>&, std::array<cxx_mpz, 2> & ,
 	    const facul_strategies_t *, int*);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* FACUL_H */
+#endif /* FACUL_HPP_ */

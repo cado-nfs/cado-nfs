@@ -35,11 +35,41 @@ set(F9_baseargs
         LAS_BINARY=${las_path}
 )
 
+set(c90_21505_poly ${CMAKE_CURRENT_SOURCE_DIR}/c90_21505.poly)
+set(c90_21505_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.roots.gz)
+
+cado_define_test(c90_21505_makefb
+        PROGRAM
+            ${makefb_path}
+            -poly ${c90_21505_poly} -lim 811066 -maxbits 11
+            -out ${c90_21505_roots}
+        TARGET_DEPENDENCIES makefb
+        )
+
+cado_define_test(c90_21505_sieve
+        ENVIRONMENT
+            I=11 poly=${c90_21505_poly} 
+            lim0=404327 lim1=811066 lpb0=23 lpb1=23 mfb0=46 mfb1=46 ncurves0=9
+            ncurves1=10 fb=${c90_21505_roots} sqside=1
+            q0=375923 rho=119201
+            CHECKSUM_FILE=
+            LAS_BINARY=${las_path}
+            "REGEX=^-18320,3:.*74f"
+        SCRIPT
+            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+            ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+            -v -v --adjust-strategy 0
+        TARGET_DEPENDENCIES las
+        TEST_DEPENDENCIES c90_21505_makefb
+        )
+
+
 # Before running F9_sievetest, remove the file with the captured checksums
 # We have to make this a "test" so that ctest runs it, even though it does
 # not actually test anything
 cado_define_test(F9_sievetest_cleanup
-        PROGRAM ${CMAKE_COMMAND} -E remove -f ${F9_checksums})
+        PROGRAM ${CMAKE_COMMAND} -E remove -f
+        ${F9_checksums} ${F9_checksums}_quick)
 
 cado_define_test(F9_makefb
         PROGRAM
@@ -64,6 +94,17 @@ cado_divert_test(F9 sieve
             REL_COUNT=431
             REFERENCE_SHA1=e04ae591795ff30af703a2235a4f9fd09d17b380
             REFERENCE_REVISION=ede066464ba58b2d6127fa256cef01706282e0ed
+        )
+
+# go wild for the under-allocation. If this is valgrind-ok, then
+# surely #21513 is fixed.
+cado_divert_test(F9 sieve_check_overfull_buckets
+        APPEND_ENVIRONMENT
+            q0=1200109 rho=116642 bkmult=0.2
+            REL_COUNT=57
+            REFERENCE_SHA1=2b973ed88e146aee756d9a27e260157179defc4d
+            REFERENCE_REVISION=f06a6284d2cdcb669e300cd0dda349b349761578
+            CHECKSUM_FILE=
         )
 
 cado_divert_test(F9 sieve_bug_21480a
@@ -170,7 +211,7 @@ cado_divert_test(F9 todo
         APPEND_ENVIRONMENT
             REFERENCE_SHA1=451406185eca205ee28990c7381f85a1c4942c5f
             REFERENCE_REVISION=88ddb4f779defe692aed14a79ef8c952a4f68efa
-            CHECKSUM_FILE=${F9_checksums}_other
+            CHECKSUM_FILE=
             todo=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.todo
         )
 
@@ -242,6 +283,7 @@ cado_define_test(test_logapprox.cpp
 # sure with the current code... */
 cado_define_test(test_init_norms.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-norms.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-config.c
     ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-siever-config.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-todo-entry.cpp

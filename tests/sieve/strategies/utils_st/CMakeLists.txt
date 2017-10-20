@@ -5,11 +5,11 @@ include_directories(${CADO_NFS_SOURCE_DIR})
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/ecm)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve)
 
-cado_define_test(test_fm.c ${SUF_SRC}fm.c ${SUF_SRC}tab_fm.c) 
+cado_define_test(test_fm.c ${SUF_SRC}fm.c ${SUF_SRC}tab_fm.cpp) 
 
 cado_define_test(test_strategy.c
   ${SUF_SRC}tab_strategy.c ${SUF_SRC}strategy.c
-  ${SUF_SRC}fm.c ${SUF_SRC}tab_fm.c)
+  ${SUF_SRC}fm.c ${SUF_SRC}tab_fm.cpp)
 
 set(more)
 if(MINGW)

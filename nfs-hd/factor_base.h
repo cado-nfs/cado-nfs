@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include "ideal.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * Representation of a factor base.
  */
@@ -145,4 +150,8 @@ static inline void factor_base_set_ideal_pr(factor_base_ptr factor_base,
   ideal_pr_set_part(factor_base->factor_base_pr[index], r, t);
 }
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif  /* FACTOR_BASE_H */

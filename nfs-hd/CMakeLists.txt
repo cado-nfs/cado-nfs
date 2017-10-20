@@ -1,8 +1,8 @@
-set (SQ_SRC special-q_sieve.c mat_int64.c int64_vector.c uint64_array.c
+set (SQ_SRC special-q_sieve.cpp mat_int64.c int64_vector.c uint64_array.c
     mat_Z.c ideal.c makefb.c utils_mpz.c int64_poly.c sieving_bound.c
     array.c utils_int64.c factor_base.c utils_lattice.c double_vector.c
     mat_double.c list_int64_vector.c list_double_vector.c
-    list_int64_vector_index.c utils_norm.c utils_cofactorisation.c)
+    list_int64_vector_index.c utils_norm.c utils_cofactorisation.cpp)
 
 add_executable(special-q_sieve ${SQ_SRC})
 

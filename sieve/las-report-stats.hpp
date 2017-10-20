@@ -24,8 +24,8 @@ struct las_report_s {
     double ttbuckets_apply;
     double ttf;                 /* factor_survivors */
     double ttcof;                /* cofactorisation */
-    unsigned long (*survivor_sizes)[256]; /* First index: rational side */
-    unsigned long (*report_sizes)[256];
+    // unsigned long (*survivor_sizes)[256]; /* First index: rational side */
+    // unsigned long (*report_sizes)[256];
 };
 typedef struct las_report_s las_report[1];
 typedef struct las_report_s * las_report_ptr;

@@ -24,7 +24,7 @@
 
 #include "gfpkdlpolyselect.h"
 
-#include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.c"
+#include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4
 
 /**

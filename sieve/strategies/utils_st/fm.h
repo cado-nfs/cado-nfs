@@ -18,6 +18,10 @@ typedef struct fm {
      */
 } fm_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 fm_t *fm_create(void);
 
 void fm_free(fm_t * t);
@@ -53,5 +57,9 @@ int fm_is_equal(fm_t * c1, fm_t * c2);
 int fm_print(fm_t *);
 
 int fm_fprint(FILE * output_file, fm_t * t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* FM */

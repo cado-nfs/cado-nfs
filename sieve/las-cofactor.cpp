@@ -37,7 +37,7 @@
                         -> cannot yield a relation
 */
 int
-check_leftover_norm (const mpz_t n, sieve_info const & si, int side)
+check_leftover_norm (cxx_mpz const & n, sieve_info const & si, int side)
 {
   size_t s = mpz_sizeinbase (n, 2);
   unsigned int lpb = si.conf.sides[side].lpb;
@@ -138,80 +138,50 @@ check_leftover_norm (const mpz_t n, sieve_info const & si, int side)
    1   both cofactors are smooth
 */
 
-int
-factor_both_leftover_norms(mpz_t* n, mpz_array_t** factors,
-			       uint32_array_t** multis,
-			       sieve_info const & si)
+int factor_both_leftover_norms(
+        std::array<cxx_mpz, 2> & n,
+        std::array<std::vector<cxx_mpz>, 2> & factors,
+        sieve_info const & si)
 {
-  int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
-  /* To remember if a cofactor is already factored.*/
+    int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
+    /* To remember if a cofactor is already factored.*/
 
-  mpz_t ** mpz_factors = (mpz_t **) malloc(sizeof (mpz_t*) * 2);
-  for (int i = 0; i < 2; i++) {
-    mpz_factors[i] = (mpz_t *) calloc(16, sizeof (*mpz_factors[i]));
-    for (int j = 0; j < 16; ++j) {
-        mpz_init(mpz_factors[i][j]);
-    }
-  }
-#define FREE_MPZ_FACTOR do {          \
-    for (int i = 0; i < 2; ++i) {       \
-        for (int j = 0; j < 16; ++j)    \
-            mpz_clear(mpz_factors[i][j]);\
-        free(mpz_factors[i]);           \
-    }                                   \
-    free(mpz_factors);                  \
-} while (0)
+    for (int side = 0; side < 2; side++) {
+        factors[side].clear();
 
-  for (int side = 0; side < 2; side++)
-    {
-      factors[side]->length = 0;
-      multis[side]->length = 0;
-
-      double B = (double) si.conf.sides[side].lim;
-      /* If n < B^2, then n is prime, since all primes < B have been removed */
-      if (mpz_get_d (n[side]) < B * B)
-	is_smooth[side] = FACUL_SMOOTH;
+        double B = (double) si.conf.sides[side].lim;
+        /* If n < B^2, then n is prime, since all primes < B have been removed */
+        if (mpz_get_d (n[side]) < B * B)
+            is_smooth[side] = FACUL_SMOOTH;
     }
 
-  /* call the facul library */
-  int* facul_code = facul_both (mpz_factors, n, si.strategies.get(), is_smooth);
+    /* call the facul library */
+    std::array<int, 2> facul_code = facul_both (factors, n, si.strategies.get(), is_smooth);
 
-  if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH)
-    {
-      //free ul
-      FREE_MPZ_FACTOR;
-      free (facul_code);
-      if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)
-	return -1;
-      else
-	return 0;
+    if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH) {
+        if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)
+            return -1;
+        else
+            return 0;
     }
 
-  /* now we know both cofactors are smooth */
-  for (int side = 0; side < 2; side++)
-    {
-      /* facul_code[side] is the number of found (smooth) factors */
-      for (int i = 0; i < facul_code[side]; i++)
-	{
-	  /* we know that factors found by facul_both() are primes < L */
-	  mpz_divexact (n[side], n[side], mpz_factors[side][i]);
-	  append_mpz_to_array (factors[side], mpz_factors[side][i]);
-	  append_uint32_to_array (multis[side], 1);
-	  /* repeated factors should not be a problem, since they will
-	     be dealt correctly in the filtering */
-	}
+    /* now we know both cofactors are smooth */
+    for (int side = 0; side < 2; side++) {
+        /* facul_code[side] is the number of found (smooth) factors */
+        for (int i = 0; i < facul_code[side]; i++) {
+            /* we know that factors found by facul_both() are primes < L */
+            mpz_divexact (n[side], n[side], factors[side][i]);
+            /* repeated factors should not be a problem, since they will
+               be dealt correctly in the filtering */
+        }
 
-      /* since the cofactor is smooth, n[side] is a prime < L here */
-      if (mpz_cmp_ui (n[side], 1) > 0) /* 1 is special */
-	{
-	  append_mpz_to_array (factors[side], n[side]);
-	  append_uint32_to_array (multis[side], 1);
-	}
+        /* since the cofactor is smooth, n[side] is a prime < L here */
+        if (mpz_cmp_ui (n[side], 1) > 0) {
+            /* 1 is special */
+            factors[side].push_back(n[side]);
+        }
     }
-  //free
-  FREE_MPZ_FACTOR;
-  free (facul_code);
-  return 1; /* both cofactors are smooth */
+    return 1; /* both cofactors are smooth */
 }
 
 

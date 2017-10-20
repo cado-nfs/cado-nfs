@@ -1,10 +1,14 @@
 #ifndef MAKEFB_H
 #define MAKEFB_H
 
-#include "cado.h"
 #include "utils.h"
 #include <stdint.h>
 #include "factor_base.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Make the factor bases for the V number fiels.
@@ -31,4 +35,8 @@ void makefb(factor_base_t * fb, cado_poly_srcptr f, uint64_t * fbb,
 void read_factor_base(FILE * file, factor_base_t * fb, uint64_t * fbb,
     unsigned int * lpb, cado_poly_srcptr f, double * log2_base, unsigned int t);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* MAKEFB_H */

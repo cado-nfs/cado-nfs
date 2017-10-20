@@ -40,23 +40,23 @@ add_library(facul
         ecm_ul.c
         pm1_ul.c
         pp1_ul.c
-        facul_doit_ul.c
+        facul_doit_ul.cpp
         ecm_15ul.c
         pm1_15ul.c
         pp1_15ul.c
-        facul_doit_15ul.c
+        facul_doit_15ul.cpp
         ecm_2ul2.c
         pm1_2ul2.c
         pp1_2ul2.c
-        facul_doit_2ul2.c
+        facul_doit_2ul2.cpp
         ecm_mpz.c
         pm1_mpz.c
         pp1_mpz.c
-        facul_doit_mpz.c
+        facul_doit_mpz.cpp
         stage2.c bytecoder.c prac_bc.c addchain_bc.c
 	makeplan.c facul.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
-	batch.c)
+	batch.cpp)
 
 set_target_properties(facul PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
 
@@ -64,11 +64,11 @@ if(MINGW)
 target_link_libraries(facul gnurx)
 endif()
 
-add_executable(testbench testbench.c)
+add_executable(testbench testbench.cpp)
 target_link_libraries(testbench facul utils m)
 
 
-add_executable(finishbatch finishbatch.c)
+add_executable(finishbatch finishbatch.cpp)
 target_link_libraries(finishbatch facul utils m)
 set_target_properties(finishbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
 

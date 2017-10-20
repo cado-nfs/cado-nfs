@@ -3,6 +3,11 @@
 
 #include "decomp.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct tabular_decomp {
     decomp_t **tab;
     int index;
@@ -29,5 +34,9 @@ int tabular_decomp_fprint(FILE * output_file, tabular_decomp_t * t);
 int tabular_decomp_print(tabular_decomp_t * t);
 
 tabular_decomp_t *tabular_decomp_fscan(FILE * file);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* TAB_DECOMP */

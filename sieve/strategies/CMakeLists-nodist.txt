@@ -1,13 +1,13 @@
 set (SUF_UTILS utils_st/)
 set (SRC_UTILS ${SUF_UTILS}point.c ${SUF_UTILS}tab_point.c
-     ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.c
+     ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.cpp
      ${SUF_UTILS}strategy.c ${SUF_UTILS}tab_strategy.c
      ${SUF_UTILS}decomp.c ${SUF_UTILS}tab_decomp.c)
 
 add_executable(test_strategy_cado
-  test_strategy_cado.c
-  finding_good_strategy.c
-  generate_strategies.c
-  generate_factoring_method.c
+  test_strategy_cado.cpp
+  finding_good_strategy.cpp
+  generate_strategies.cpp
+  generate_factoring_method.cpp
   ${SRC_UTILS})
 target_link_libraries(test_strategy_cado m facul utils)

@@ -4,16 +4,9 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <gmp.h>
-#include "facul.h"
-#include "facul_doit.h"
+#include "facul.hpp"
+#include "facul_doit.hpp"
 #include "utils.h"
-
-typedef struct {
-  unsigned long *l;
-  size_t alloc;
-  size_t size;
-} ulong_list_t;
-typedef ulong_list_t ulong_list[1];
 
 /* structure to compute on-line a product tree, avoiding to first compute a
    list of mpz_t (which might take too much memory) */
@@ -55,7 +48,7 @@ void cofac_list_clear (cofac_list);
 void cofac_list_add (cofac_list, long, unsigned long, mpz_t, mpz_t, int, mpz_t);
 unsigned long prime_product (mpz_t, prime_info, unsigned long, unsigned long);
 unsigned long find_smooth (cofac_list, mpz_t[2], mpz_t[2], mpz_t[2], mpz_t[2], FILE*, int);
-void factor (cofac_list, unsigned long, cado_poly, int[], FILE*, int);
+unsigned long factor (cofac_list, unsigned long, cado_poly, int[], int[], FILE*, int);
 void create_batch_file (const char*, mpz_t, unsigned long, unsigned long,
                         mpz_poly, FILE*, int);
 

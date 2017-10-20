@@ -11,9 +11,9 @@
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "finding_good_strategy.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 #include "generate_strategies.h"
 #include "tab_strategy.h"
 #include "tab_fm.h"
@@ -165,11 +165,11 @@ tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
        each couple (r0, r1): r0 is the lenght of the cofactor in
        the first side, and r1 for the second side.
      */
-    tabular_strategy_t ***matrix = malloc(sizeof(*matrix) * (mfb0 + 1));
+    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
 
@@ -185,7 +185,7 @@ tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -421,7 +421,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
       current_st = strategy_create ();
       current_index = 0;
       current_st->len_side = max_len;
-      current_st->side = malloc(sizeof(int) * (current_st->len_side));
+      current_st->side = (int*) malloc(sizeof(int) * (current_st->len_side));
     }
     
   strategy_t *tmp0 = NULL, *tmp1 = NULL;
@@ -496,25 +496,25 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
   
   if (tmp0 == NULL && tmp1 == NULL)
     {
-      strategy_t* final = strategy_create ();
-      final->len_side = max_len;
-      final->side = malloc(sizeof(int) * (final->len_side));
+      strategy_t* final_st = strategy_create ();
+      final_st->len_side = max_len;
+      final_st->side = (int*) malloc(sizeof(int) * (final_st->len_side));
       //copy the current strategy!
       for (int i = 0; i < current_index; i++)
 	{
-	  strategy_add_fm(final, current_st->tab_fm->tab[i]);
-	  final->side[i] = current_st->side[i];
+	  strategy_add_fm(final_st, current_st->tab_fm->tab[i]);
+	  final_st->side[i] = current_st->side[i];
 	}
       double prob = strat_r0->proba * strat_r1->proba;
-      strategy_set_proba (final, prob);
+      strategy_set_proba (final_st, prob);
       
-      double time = compute_time_strategy_ileav (init_tab, final, fbb, lpb, r);
-      strategy_set_time(final, time);
-      /* printf ("final\n"); */
-      /* strategy_print (final); */
+      double time = compute_time_strategy_ileav (init_tab, final_st, fbb, lpb, r);
+      strategy_set_time(final_st, time);
+      /* printf ("final_st\n"); */
+      /* strategy_print (final_st); */
       /* getchar (); */
       /* printf ("temps = %lf, index_current = %d\n", time, current_index); */
-      return final;
+      return final_st;
     }
   
   if (tmp0 == NULL)
@@ -545,7 +545,7 @@ gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 
   strategy_t* st = strategy_create ();
   st->len_side = max_len;
-  st->side = malloc(sizeof(int) * (st->len_side));
+  st->side = (int*) malloc(sizeof(int) * (st->len_side));
   int index_r0 = 0, index_r1 = 0;
   int i = 0;
   int sequence = 2;
@@ -637,11 +637,11 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
        each couple (r0, r1): r0 is the lenght of the cofactor in
        the first side, and r1 for the second side.
      */
-    tabular_strategy_t ***matrix = malloc(sizeof(*matrix) * (mfb0 + 1));
+    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -657,7 +657,7 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -764,11 +764,11 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
        each couple (r0, r1): r0 is the lenght of the cofactor in
        the first side, and r1 for the second side.
      */
-    tabular_strategy_t ***matrix = malloc(sizeof(*matrix) * (mfb0 + 1));
+    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -784,7 +784,7 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -912,38 +912,23 @@ select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
 /*
   This function compute directly the probabity and the time to find a
   factor in a good decomposition in a cofactor of length r.
+
+TODO: a function of the same name, yet behaving somewhat differently, exists in tests/sieve/strategies/test_generate_strategies.cpp
  */
-double*
+weighted_success
 bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 		    tabular_decomp_t* init_tab, int r, MAYBE_UNUSED int lpb)
 {
-    double* res = malloc (2*sizeof (double));
     int nb_test = 0, nb_success = 0;
     int nb_test_max = 100000;
     double time = 0;
     
-  
     double sum_dec = 0;
     for (int i = 0; i < init_tab->index; i++)
 	sum_dec += init_tab->tab[i]->nb_elem;
 
-    mpz_t N[nb_test_max];
-    for (int i =0; i < nb_test_max; i++)
-      {
-	mpz_init (N[i]);
-	int index = select_random_index_dec(sum_dec, init_tab);
-	int len_p = init_tab->tab[index]->tab[1];
-	//generation of the integer N (which will be factoring)
-	generate_composite_integer(N[i],state, len_p, r);
-	//printf ("%d, %d\n", len_p, r);
-	//generate_composite_integer(N[i],state, 18,r);
-	//generate_prime_factor(N[i], state, 50);
-      }
-    //}}
-    double starttime = microseconds();
-    mpz_t f[2];
-    mpz_init(f[0]);
-    mpz_init(f[1]);
+    std::vector<cxx_mpz> f;
+
     while (nb_test < nb_test_max)
 	{
 	    /*
@@ -951,26 +936,20 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 	       found.  Note that N is composed by two prime factors by the
 	       previous function.
 	    */
-            mpz_set_ui(f[0], 0);
-	    facul(f, N[nb_test], strategy);
-	    if (mpz_cmp_ui(f[0], 0) != 0)
-		{
-		  nb_success++;
-		}
+            int index = select_random_index_dec(sum_dec, init_tab);
+            int len_p = init_tab->tab[index]->tab[0];
+
+            cxx_mpz N = generate_composite_integer(state, len_p, r);
+
+            f.clear();
+            time -= microseconds();
+	    int nfound = facul(f, N, strategy);
+            time += microseconds();
+            nb_success += (nfound != 0);
 	    nb_test++;
 	}
-    mpz_clear(f[0]);
-    mpz_clear(f[1]);
-    double endtime = microseconds();
-    time = endtime - starttime;
     
-    res[0] = nb_success / ((double)nb_test);
-    res[1] = time / ((double)nb_test);
-    
-    for (int i = 0; i < nb_test_max; i++)
-      mpz_clear(N[i]);
-
-    return res;
+    return weighted_success(nb_success, time, nb_test);
 }
 
 //convert type: from strategy_t to facul_strategy_t.
@@ -980,9 +959,8 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned lo
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
     int nb_methods = tab_fm->index;
 
-    facul_strategy_t *strategy;
-    strategy = malloc(sizeof(facul_strategy_t));
-    strategy->methods = malloc((nb_methods+1) * sizeof(facul_method_t));
+    facul_strategy_t * strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
+    strategy->methods = (facul_method_t*) malloc((nb_methods+1) * sizeof(facul_method_t));
 
     strategy->lpb = lpb;
     strategy->assume_prime_thresh = (double) lim * (double) lim;
@@ -1002,11 +980,11 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned lo
 	      if (method == PM1_METHOD) {
 		strategy->methods[index_method].plan = malloc(sizeof(pm1_plan_t));
 		ASSERT(strategy->methods[index_method].plan != NULL);
-		pm1_make_plan(strategy->methods[index_method].plan, B1, B2, 0);
+		pm1_make_plan((pm1_plan_t*) strategy->methods[index_method].plan, B1, B2, 0);
 	      } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
 		strategy->methods[index_method].plan = malloc(sizeof(pp1_plan_t));
 		ASSERT(strategy->methods[index_method].plan != NULL);
-		pp1_make_plan(strategy->methods[index_method].plan, B1, B2, 0);
+		pp1_make_plan((pp1_plan_t*) strategy->methods[index_method].plan, B1, B2, 0);
 	      } else if (method == EC_METHOD) {
 		long sigma;
 		if (curve == MONTY16) {
@@ -1016,7 +994,7 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned lo
 
 		strategy->methods[index_method].plan = malloc(sizeof(ecm_plan_t));
 		ASSERT(strategy->methods[index_method].plan != NULL);
-		ecm_make_plan(strategy->methods[index_method].plan, B1, B2, curve,
+		ecm_make_plan((ecm_plan_t*) strategy->methods[index_method].plan, B1, B2, curve,
 			      labs(sigma), 0, 0);
 	      } else {
 		exit(EXIT_FAILURE);
@@ -1083,7 +1061,7 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 							  int*lpb, int*mfb)
 {
   int verbose = 0;
-    facul_strategies_t* strategies = malloc (sizeof(facul_strategies_t));
+    facul_strategies_t* strategies = (facul_strategies_t*) malloc (sizeof(facul_strategies_t));
     ASSERT (strategies != NULL);
     strategies->mfb[0] = mfb[0];
     strategies->mfb[1] = mfb[1];
@@ -1098,21 +1076,21 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
     strategies->BBB[1] = (double) fbb[1] * strategies->assume_prime_thresh[1];
 
     //alloc methods!
-    facul_method_side_t*** methods = malloc (sizeof (*methods) * (mfb[0]+1));
+    facul_method_side_t*** methods = (facul_method_side_t***) malloc (sizeof (*methods) * (mfb[0]+1));
     int r0, r1;
     for (r0 = 0; r0 <= mfb[0]; r0++) {
-      methods[r0] = malloc (sizeof (*methods[r0]) * (mfb[1]+1));
+      methods[r0] = (facul_method_side_t**) malloc (sizeof (*methods[r0]) * (mfb[1]+1));
       assert (methods[r0] != NULL);
       for (r1 = 0; r1 <= mfb[1];r1++)
 	{
-	  methods[r0][r1] = malloc (50 * sizeof (facul_method_side_t));
+	  methods[r0][r1] = (facul_method_side_t*) malloc (50 * sizeof (facul_method_side_t));
 	  assert (methods[r0][r1] != NULL);
 	  methods[r0][r1][0].method = NULL;
 	}
     }
     strategies->methods = methods;
     //alloc precomputed_methods
-    facul_method_t* precomputed_methods =
+    facul_method_t* precomputed_methods = (facul_method_t*) 
       malloc (sizeof(facul_method_t) * NB_MAX_METHODS);
     precomputed_methods[0].method = 0;
     precomputed_methods[0].plan = NULL;
@@ -1149,17 +1127,17 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 	    else if (method == PM1_METHOD)
 	      {
 		plan = malloc (sizeof (pm1_plan_t));
-		pm1_make_plan (plan, B1, B2, verbose);
+		pm1_make_plan ((pm1_plan_t*) plan, B1, B2, verbose);
 	      }
 	    else if (method == PP1_27_METHOD ||
 		     method == PP1_65_METHOD)
 	      {
 		plan = malloc (sizeof (pp1_plan_t));
-		pp1_make_plan (plan, B1, B2, verbose);
+		pp1_make_plan ((pp1_plan_t*) plan, B1, B2, verbose);
 	      }
 	    else { //method == EC_METHOD
 	      plan = malloc (sizeof (ecm_plan_t));
-	      ecm_make_plan (plan,
+	      ecm_make_plan ((ecm_plan_t*) plan,
 			     B1, B2, curve, sigma, 1, verbose);
 	    }
 	    strategies->precomputed_methods[index_prec_fm].method =method;
@@ -1200,79 +1178,64 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
     return strategies;
 }
 
-double*
+weighted_success
 bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 			 tabular_decomp_t** init_tab,
 			 int* r, int* fbb, int* lpb, int* mfb)
 {
-    unsigned long lim[2] = {pow(2,fbb[0]-1), pow(2,fbb[1]-1)};
+    unsigned long lim[2] = {1UL << (fbb[0]-1), 1UL << (fbb[1]-1) };
 
-    double* res = malloc (2*sizeof (double));
     int nb_test = 0, nb_success = 0;
     int nb_test_max = 10000;
-    double time = 0, starttime = 0, endtime=0;
+    double time = 0;
     
+    gmp_randstate_t state_copy;
+    gmp_randinit_set(state_copy, state);
   
     double sum_dec[2] = {0,0};
     for (int side = 0; side < 2; side++)
       for (int i = 0; i < init_tab[side]->index; i++)
 	sum_dec[side] += init_tab[side]->tab[i]->nb_elem;
 
-    mpz_t N[nb_test_max][2];
-    for (int side = 0; side < 2; side++)
-      {
-	for (int i =0; i < nb_test_max; i++)
-	  {
-	    mpz_init (N[i][side]);
-	    int index = select_random_index_dec(sum_dec[side], init_tab[side]);
-	    int len_p = init_tab[side]->tab[index]->tab[1];
-	    generate_composite_integer(N[i][side], state, len_p, r[side]);
-	  }
-      }
-    //}}
 #if 1
-    //Classic!!
-    //bench without unerleaving!
+    // Classic: bench without interleaving
 
     facul_strategy_t* facul_st_s0 = convert_strategy_to_facul_strategy (t,lim[0], lpb[0], 0);
     facul_strategy_t* facul_st_s1 = convert_strategy_to_facul_strategy (t,lim[1], lpb[1], 1);
     printf ("classic\n");
-    double res2[2] = {0,0};
     nb_success = 0;
     nb_test = 0;
-    starttime = microseconds();
+    time = 0;
     {
-        mpz_t f[2], f2[2];
-        mpz_init(f[0]); mpz_init(f[1]);
-        mpz_init(f2[0]); mpz_init(f2[1]);
+        std::vector<cxx_mpz> f;
         while (nb_test < nb_test_max)
         {
+            cxx_mpz N[2];
+            for(int side = 0 ; side < 2 ; side++) {
+                int index = select_random_index_dec(sum_dec[side], init_tab[side]);
+                int len_p = init_tab[side]->tab[index]->tab[1];
+                N[side] = generate_composite_integer(state, len_p, r[side]);
+            }
             /*
                f will contain the prime factor of N that the strategy
                found.  Note that N is composed by two prime factors by the
                previous function.
                */
-            mpz_set_ui(f[0], 0);
-            facul(f, N[nb_test][0], facul_st_s0);
-            if (mpz_cmp_ui(f[0], 0) != 0)
-            {
-                mpz_set_ui(f2[0], 0);
-                facul(f2, N[nb_test][1], facul_st_s1);
-                if (mpz_cmp_ui(f2[0], 0) != 0)
-                    nb_success++;
+            f.clear();
+            time -= microseconds();
+            int nfound = facul(f, N[0], facul_st_s0);
+            if (nfound) {
+                f.clear();
+                nfound = facul(f, N[1], facul_st_s1);
+                nb_success += (nfound != 0);
             }
+            time += microseconds();
             nb_test++;
             //getchar ();
         }
-        mpz_clear(f[0]);  mpz_clear(f[1]);
-        mpz_clear(f2[0]); mpz_clear(f2[1]);
     }
-
-    endtime = microseconds();
-    time = endtime - starttime;
-    res2[0] = nb_success / ((double)nb_test);
-    res2[1] = time / ((double)nb_test);
-    printf ("classic: prob = %lf, temps = %lf\n", res2[0], res2[1]);
+    weighted_success res(nb_success, time, nb_test);
+    printf ("classic: prob = %lf, temps = %lf\n", res.prob, res.time);
 #endif
 
 #if 1
@@ -1281,54 +1244,44 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 
     nb_success = 0;
     nb_test = 0;
+    time = 0;
 
-    mpz_t * f[2];
-    f[0] = (mpz_t *)malloc (sizeof (mpz_t) * 15);
-    f[1] = (mpz_t *)malloc (sizeof (mpz_t) * 15);
-    for (int i = 0; i < 15; ++i) {
-        mpz_init(f[0][i]);
-        mpz_init(f[1][i]);
+    {
+        std::array<std::vector<cxx_mpz>, 2> f;
+        while (nb_test < nb_test_max)
+        {
+            std::array<cxx_mpz, 2> N;
+            for(int side = 0 ; side < 2 ; side++) {
+                int index = select_random_index_dec(sum_dec[side], init_tab[side]);
+                int len_p = init_tab[side]->tab[index]->tab[1];
+                N[side] = generate_composite_integer(state_copy, len_p, r[side]);
+            }
+            /*
+               f will contain the prime factor of N that the strategy
+               found.  Note that N is composed by two prime factors by the
+               previous function.
+               */
+            f[0].clear();
+            f[1].clear();
+            time -= microseconds();
+            int is_smooth[2] = {0,0};
+            facul_both(f, N, facul_st, is_smooth);
+            if (is_smooth[0]==1 && is_smooth[1]==1)
+                nb_success++;
+            time += microseconds();
+            nb_test++;
+            /* printf ("[%d, %d]\n", (int)mpz_sizeinbase (N[nb_test][0], 2), */
+            /* 	  (int)mpz_sizeinbase (N[nb_test][1], 2)); */
+            /* printf ("nb_success = %d\n", nb_success); */
+            //getchar();
+        }
     }
-    starttime = microseconds();
-    while (nb_test < nb_test_max)
-      {
-	/*
-	  f will contain the prime factor of N that the strategy
-	  found.  Note that N is composed by two prime factors by the
-	  previous function.
-	*/
-        mpz_set_ui(f[0][0], 0);
-        mpz_set_ui(f[1][1], 0);
-	int is_smooth[2] = {0,0};
-	facul_both(f, N[nb_test], facul_st, is_smooth);
-	if (is_smooth[0]==1 && is_smooth[1]==1)
-	  {
-	    nb_success++;
-	  }
-	nb_test++;
-	/* printf ("[%d, %d]\n", (int)mpz_sizeinbase (N[nb_test][0], 2), */
-	/* 	  (int)mpz_sizeinbase (N[nb_test][1], 2)); */
-	/* printf ("nb_success = %d\n", nb_success); */
-	//getchar();
-      }
-    for (int i = 0; i < 15; ++i) {
-        mpz_clear(f[0][i]);
-        mpz_clear(f[1][i]);
-    }
-    free(f[0]);
-    free(f[1]);
-    endtime = microseconds();
-    time = endtime - starttime;
-    res[0] = nb_success / ((double)nb_test);
-    res[1] = time / ((double)nb_test);
-    printf ("interL: proba = %lf, time = %lf\n", res[0], res[1]);
+    weighted_success res2(nb_success, time, nb_test);
+    printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
 #endif
 
-    //clear!
-    for (int side = 0; side < 2; side++)
-      for (int i = 0; i < nb_test_max; i++)
-	mpz_clear(N[i][side]);
-    //todo: be careful with the free of our facul**
+    gmp_randclear(state_copy);
+
     return res;
 }
 

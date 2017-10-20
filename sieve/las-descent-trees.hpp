@@ -30,7 +30,7 @@ struct descent_tree {
         mutable pthread_mutex_t tree_lock;
     public:
     struct tree_label {
-        int side;
+        int side = 0;
         relation::pr pr;
         tree_label() { }
         tree_label(int side, relation::pr const& pr ) : side(side), pr(pr) {}
@@ -42,7 +42,7 @@ struct descent_tree {
         }
         std::string fullname() const {
             char * str;
-            gmp_asprintf(&str, "%d %Zd %Zd", side, pr.p, pr.r);
+            gmp_asprintf(&str, "%d %Zd %Zd", side, (mpz_srcptr) pr.p, (mpz_srcptr) pr.r);
             std::string s = str;
             free(str);
             return s;
@@ -128,6 +128,21 @@ struct descent_tree {
             return true;
         }
     };
+
+    /* A "descent tree" is really a set of descent trees, one for each
+     * top-level special-q we've considered in the main loop in las. The
+     * top-level roots are found in [forest].
+     *
+     * At a given point in the process, the list [current] contains
+     * pointers to the different levels of the tree that form the lineage
+     * of the last special-q being considered. More precisely,
+     * current.back()->label is the special-q that is being considered,
+     * current.back()->children() is empty, and
+     * (*----current.end())->label is the one whose consideration led us
+     * to consider it, and so on.
+     *
+     * It's admittedly dangerous to have pointers around, here.
+     */
     std::list<tree *> forest;
     std::list<tree *> current;       /* stack of trees */
 
@@ -170,6 +185,9 @@ struct descent_tree {
         if (!current.empty()) {
             ASSERT_ALWAYS(current.back()->children.back() == kid);
             current.back()->children.pop_back();
+        } else {
+            ASSERT_ALWAYS(forest.back() == kid);
+            forest.pop_back();
         }
         delete kid;
     }

@@ -168,6 +168,24 @@ polynomials found by the polynomial search have positive Murphy E, the
 imported one will always "lose". To import, e.g., an SNFS polynomial
 without Murphy E, use "tasks.polyselect.import", and not "import_ropt".
 
+Sieving with composite special-q's
+==================================
+
+By default the sieving only uses prime special-q's. To allow composite
+special-q's you have to set tasks.sieve.allow_compsq to true, for example:
+
+tasks.sieve.allow_compsq = true
+tasks.sieve.qfac_min = 50
+tasks.sieve.qfac_max = 100000
+
+This will allow composite special-q's with smallest prime factor at least 50,
+and largest prime factor at most 100000.
+
+If tasks.sieve.qfac_max is not set, it is considered as infinite, which means
+that prime special-q's will always be used (in addition to composite s-q's).
+
+If sieving over [q0,q1], with tasks.sieve.qfac_max < q0, then all special-q's
+will be composite.
 
 Importing relations
 ===================

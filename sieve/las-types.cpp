@@ -1,3 +1,4 @@
+
 #include "cado.h"
 #include <stdio.h>
 #include <stdarg.h>
@@ -37,7 +38,7 @@ sieve_info::sieve_info(siever_config const & sc, cado_poly_srcptr cpoly, std::li
         verbose_output_print(0, 1, "# copy factor base data from previous siever\n");
         share_factor_bases(other);
     } else {
-        verbose_output_print(0, 1, "# bucket_region = %" PRIu64 "\n",
+        verbose_output_print(0, 1, "# bucket_region = %zu\n",
                 BUCKET_REGION);
         init_factor_bases(pl);
         for (int side = 0; side < 2; side++) {
@@ -49,16 +50,9 @@ sieve_info::sieve_info(siever_config const & sc, cado_poly_srcptr cpoly, std::li
     toplevel = -1;
     for(int side = 0 ; side < 2 ; side++) {
         if (!sides[side].fb) continue;
-        int level = sides[0].fb->get_toplevel();
+        int level = sides[side].fb->get_toplevel();
         if (level > toplevel) toplevel = level;
     }
-
-    /* If LOG_BUCKET_REGION == sc.logI, then one bucket (whose size is the
-     * L1 cache size) is actually one line. This changes some assumptions
-     * in sieve_small_bucket_region and resieve_small_bucket_region, where
-     * we want to differentiate on the parity on j.
-     */
-    ASSERT_ALWAYS(LOG_BUCKET_REGION >= conf.logI_adjusted);
 
 #if 0
     /* Initialize the number of buckets */
@@ -111,8 +105,7 @@ sieve_info::sieve_info(siever_config const & sc, cado_poly_srcptr cpoly, cxx_par
 {
     I = 1UL << sc.logI_adjusted;
     std::list<sieve_info>::iterator psi;
-    verbose_output_print(0, 1, "# bucket_region = %" PRIu64 "\n",
-            BUCKET_REGION);
+    verbose_output_print(0, 1, "# bucket_region = %zu\n", BUCKET_REGION);
     init_factor_bases(pl);
     for (int side = 0; side < 2; side++) {
         print_fb_statistics(side);
@@ -143,7 +136,7 @@ void sieve_info::update (size_t nr_workspaces)/*{{{*/
     uint64_t A = UINT64_C(1) << conf.logA;
 
     /* update number of buckets at toplevel */
-    uint64_t BRS[FB_MAX_PARTS] = BUCKET_REGIONS;
+    size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
     nb_buckets[toplevel] = iceildiv(A, BRS[toplevel]);
 
     // maybe there is only 1 bucket at toplevel and less than 256 at
@@ -263,8 +256,8 @@ las_info::las_info(cxx_param_list & pl)
         gmp_randseed_ui(rstate, seed);
     // }}}
 
-#ifdef  DLP_DESCENT
     // ----- stuff roughly related to the descent {{{
+#ifdef  DLP_DESCENT
     descent_helper = NULL;
 #endif
     // }}}
@@ -299,6 +292,30 @@ las_info::las_info(cxx_param_list & pl)
     } else {
         todo_list_fd = NULL;
     }
+
+    /* composite special-q ? */
+    allow_composite_q = param_list_parse_switch(pl, "-allow-compsq");
+    if (allow_composite_q) {
+        if (galois) {
+            fprintf(stderr, "-galois and -allow-compsq are incompatible options at the moment");
+            exit(EXIT_FAILURE);
+        }
+        if (suppress_duplicates) {
+            fprintf(stderr, "-dup and -allow-compsq are incompatible options at the moment");
+            exit(EXIT_FAILURE);
+        }
+        if (random_sampling) {
+            fprintf(stderr, "-random-sample and -allow-compsq are incompatible options at the moment");
+            exit(EXIT_FAILURE);
+        }
+        if (!param_list_parse_uint64(pl, "qfac-min", &qfac_min)) {
+            qfac_min = 1024;
+        }
+        if (!param_list_parse_uint64(pl, "qfac-max", &qfac_max)) {
+            qfac_max = UINT64_MAX;
+        }
+    }
+
     // }}}
 
     // ----- batch mode {{{

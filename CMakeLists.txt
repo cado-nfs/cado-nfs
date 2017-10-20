@@ -159,6 +159,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
         endif()
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
+                CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
+            # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
+        endif()
     else()
         # It seems that even g++-4.6.3, as shipped in ubuntu 12.04, is
         # sufficient for the little we use, provided we use the -std=c++0x

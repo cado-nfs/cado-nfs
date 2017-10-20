@@ -1,7 +1,12 @@
-#ifndef POINT
-#define POINT
+#ifndef POINT_H_
+#define POINT_H_
 
 #include <stdio.h>
+
+/* TODO: hell, what a waste of namespace... */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct point {
     int number;
@@ -19,4 +24,8 @@ double point_get_x(point_t * t);
 
 double point_get_y(point_t * t);
 
-#endif				/* POINT */
+#ifdef __cplusplus
+}
+#endif
+
+#endif				/* POINT_H_ */

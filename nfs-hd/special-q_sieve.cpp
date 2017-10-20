@@ -20,7 +20,7 @@
 #include <ctype.h>
 #include "utils_norm.h"
 #include "utils_cofactorisation.h"
-#include "ecm/facul.h"
+#include "ecm/facul.hpp"
 
 //TODO: change % in test + add or subtract.
 
@@ -1178,7 +1178,7 @@ void plane_sieve_1(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
   ASSERT(Mqr->NumRows == Mqr->NumCols);
 
   //Perform the Franke-Kleinjung algorithm.
-  int64_vector_t * vec = malloc(sizeof(int64_vector_t) * Mqr->NumRows);
+  int64_vector_t * vec = (int64_vector_t*) malloc(sizeof(int64_vector_t) * Mqr->NumRows);
   for (unsigned int i = 0; i < Mqr->NumCols; i++) {
     int64_vector_init(vec[i], Mqr->NumRows);
     mat_int64_extract_vector(vec[i], Mqr, i);
@@ -2469,12 +2469,7 @@ void find_index(uint64_array_ptr indexes, array_srcptr array,
     }
   }
   ASSERT(ind <= array->number_element);
-  if (ind != 0) {
-    uint64_array_realloc(indexes, ind);
-  } else {
-    indexes->array = realloc(indexes->array, 0);
-    indexes->length = 0;
-  }
+  uint64_array_realloc(indexes, ind);
 }
 
 #ifdef PRINT_ARRAY_NORM

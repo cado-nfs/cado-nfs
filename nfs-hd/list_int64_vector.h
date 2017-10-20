@@ -3,11 +3,17 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "cado.h"
 #include "utils.h"
 #include "int64_vector.h"
 #include "mat_int64.h"
 #include "list.h"
+
+/* question/TODO: should this be a list<uint64_t> ? what for by the way ?
+ * */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Initialise a list of int64_vector.
@@ -85,4 +91,8 @@ void list_int64_vector_remove_duplicate(list_int64_vector_ptr list);
 
 void list_int64_vector_delete_int64_vector(list_int64_vector_ptr list,
     unsigned int pos);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIST_INT64_VECTOR_H */

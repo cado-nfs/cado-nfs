@@ -2,12 +2,16 @@
 #define LIST_DOUBLE_VECTOR_H 
 
 #include <stdio.h>
-#include "cado.h"
 #include "utils.h"
 #include "list.h"
 #include "mat_double.h"
 
 #define DEFAULT_LENGTH_LIST_DOUBLE_VECTOR 3
+
+/* TODO: STL */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * Initialise a list of int64_vector.
@@ -47,6 +51,11 @@ void list_double_vector_fprintf(FILE * file, list_double_vector_srcptr list);
  */
 void list_double_vector_extract_mat_int64(list_double_vector_ptr list,
     mat_int64_srcptr matrix);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* LIST_DOUBLE_VECTOR_H */

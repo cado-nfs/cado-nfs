@@ -115,7 +115,8 @@ int test_compute_all_r (unsigned int nb)
         gmp_fprintf (stderr, "ERROR: a=%" PRId64 " b=%" PRIu64" p=%" PRpr "\n"
                      "Got r=%" PRpr " instead of %" PRpr "\n",
                      t2.a, t2.b,
-                     t2.sides[1][k].p, t1.sides[1][k].r, r);
+                     (mpz_srcptr) t2.sides[1][k].p,
+                     (mpz_srcptr) t1.sides[1][k].r, r);
         err++;
       }
     }

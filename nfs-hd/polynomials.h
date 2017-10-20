@@ -2,7 +2,6 @@
 #define FUNCTIONS_H
 
 #include <stdint.h>
-#include "cado.h"
 #include "utils.h"
 
 unsigned int mpz_poly_is_reciprocal(mpz_poly_srcptr f);

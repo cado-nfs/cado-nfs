@@ -19,8 +19,14 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
+#ifndef __APPLE__
 #ifndef MAP_ANONYMOUS
 #error "Please define _GNU_SOURCE or _BSD_SOURCE on top of the translation unit"
+#endif
+#endif
+
+#ifdef __cplusplus
+#include <new>  /* for std::bad_alloc */
 #endif
 
 static inline
@@ -31,8 +37,13 @@ void * electric_alloc(size_t s)
     size_t r = 8192;        /* Any multiple of the page size will do. */
     unsigned int multip = (s+r-1)/r;
     p = (char *)
+#ifndef __APPLE__
     mmap(0, (multip + 1) * r, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#else
+    mmap(0, (multip + 1) * r, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANON, -1, 0);
+#endif
     // could please valgrind ?
     // memset(p, 0, (multip + 1) * r);
 #ifdef PROTECT_OVERRUN
@@ -82,7 +93,10 @@ void electric_free_nosize(void * p0)
 
 #ifdef  __cplusplus
 template<typename T> inline T * electric_new(size_t s) {
-    return (T*) electric_alloc(sizeof(T)*s);
+    T * res = (T*) electric_alloc(sizeof(T)*s);
+    if (!res)
+        throw std::bad_alloc();
+    return res;
 }
 template<typename T> inline void electric_delete(T * p, size_t s) {
     electric_free(p, sizeof(T)*s);

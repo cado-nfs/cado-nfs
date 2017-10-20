@@ -4,6 +4,9 @@
 #include "int64_vector.h"
 #include "double_vector.h"
 
+/* TODO: eeek ? Are there really "lists", a.k.a. data structures with
+ * guaranteed constant-time insertion ??
+ */
 /*
  * List of int64_vector.
  */

@@ -144,7 +144,6 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
     // parameters in the hint file format (not just I,lim,lpb,mfb).
     sc.bucket_thresh = 1 << ((sc.logA+1)/2);	/* default value */
     sc.bucket_thresh1 = 0;	/* default value */
-    sc.bk_multiplier = 0.0;
     /* overrides default only if parameter is given */
     param_list_parse_ulong(pl, "bkthresh", &(sc.bucket_thresh));
     param_list_parse_ulong(pl, "bkthresh1", &(sc.bucket_thresh1));

@@ -24,6 +24,7 @@
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"
 #include "double_poly.h"
+#include "cxx_mpz.hpp"
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
@@ -2546,12 +2547,10 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
 void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
 {
   unsigned int k = f->deg;
-  mpz_t jpow;
-
   ASSERT(k > 0);
   mpz_set (v, f->coeff[f->deg]);
   mpz_mul_si (v, f->coeff[k], i);
-  mpz_init (jpow);
+  cxx_mpz jpow;
   mpz_set_uint64 (jpow, j);
   mpz_addmul (v, f->coeff[--k], jpow); /* v = i*f[d] + j*f[d-1] */
   for (; k-- > 0;)
@@ -2570,7 +2569,6 @@ void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i
         mpz_addmul (v, f->coeff[k], jpow);
       }
   mpz_abs (v, v); /* avoids problems with negative norms */
-  mpz_clear (jpow);
 }
 
 /* put in c the content of f */

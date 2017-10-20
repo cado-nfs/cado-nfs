@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+    /* TODO: This should be an std::vector<cxx_mpz>.
+     */
 typedef struct 
 {
   unsigned int dim; /* dimension of the vector */

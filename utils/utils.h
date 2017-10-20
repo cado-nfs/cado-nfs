@@ -17,7 +17,6 @@
 #include "rootfinder.h"
 #include "params.h"
 #include "gcd.h"
-#include "mpz_array.h"
 #include "gzip.h"
 #include "misc.h"
 #include "mpz_poly.h"

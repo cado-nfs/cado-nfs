@@ -24,7 +24,7 @@
 #include <string.h>
 #include <limits.h>
 #include <gmp.h>
-#include "facul.h"
+#include "facul.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
@@ -68,18 +68,15 @@ print_pointorder (const unsigned long p, const unsigned long s,
 }
 
 static int
-tryfactor (mpz_t N, const facul_strategy_t *strategy, 
+tryfactor (cxx_mpz const & N, const facul_strategy_t *strategy, 
            const int verbose, const int printfactors, const int printnonfactors, 
            const int printcofactors)
 {
-  mpz_t f[16];
+  std::vector<cxx_mpz> f;
   int facul_code;
 
-  for (int i = 0; i < 16; ++i)
-      mpz_init(f[i]);
-
   if (verbose >= 2)
-    gmp_printf ("Trying to factor %Zd\n", N);
+    gmp_printf ("Trying to factor %Zd\n", (mpz_srcptr) N);
 
   facul_code = facul (f, N, strategy);
   
@@ -89,27 +86,24 @@ tryfactor (mpz_t N, const facul_strategy_t *strategy,
   if (printfactors && facul_code > 0)
     {
       int j;
-      gmp_printf ("%Zd", f[0]);
+      gmp_printf ("%Zd", (mpz_srcptr) f[0]);
       for (j = 1; j < facul_code; j++)
-        gmp_printf (" %Zd", f[j]);
+        gmp_printf (" %Zd", (mpz_srcptr) f[j]);
       if (printcofactors) {
-        mpz_t c;
-        mpz_init_set (c, N);
+        cxx_mpz c;
+        mpz_set (c, N);
         for (j = 0; j < facul_code; j++)
           mpz_divexact (c, c, f[j]);
         if (mpz_cmp_ui (c, 1) != 0)
-          gmp_printf (" %Zd", c);
-        mpz_clear (c);
+          gmp_printf (" %Zd", (mpz_srcptr) c);
       }
       printf ("\n");
     }
   
   if (printnonfactors && (facul_code == 0 || facul_code == FACUL_NOT_SMOOTH))
     {
-      gmp_printf ("%Zd\n", N);
+      gmp_printf ("%Zd\n", (mpz_srcptr) N);
     }
-  for (int i = 0; i < 16; ++i)
-      mpz_clear(f[i]);
   
   return facul_code;
 }
@@ -169,7 +163,7 @@ int main (int argc, char **argv)
   unsigned long fbb = 0, lpb = ULONG_MAX;
   char *inp_fn = NULL;
   FILE *inp;
-  mpz_t N, cof;
+  cxx_mpz N, cof;
   facul_strategy_t *strategy;
   int nr_methods = 0;
   int only_primes = 0, verbose = 0, quiet = 0;
@@ -185,13 +179,11 @@ int main (int argc, char **argv)
   unsigned long *primmod = NULL, *hitsmod = NULL;
   uint64_t starttime, endtime;
 
-  strategy = malloc (sizeof(facul_strategy_t));
-  strategy->methods = malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
+  strategy = (facul_strategy_t*) malloc (sizeof(facul_strategy_t));
+  strategy->methods = (facul_method_t*) malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
   strategy->assume_prime_thresh = 0.0;
 
   /* Parse options */
-  mpz_init (N);
-  mpz_init (cof);
   mpz_set_ui (cof, 1UL);
   while (argc > 1 && argv[1][0] == '-')
     {
@@ -209,7 +201,7 @@ int main (int argc, char **argv)
 	  strategy->methods[nr_methods].method = PM1_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pm1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pm1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
+	  pm1_make_plan ((pm1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
 			 (verbose / 3));
 	  nr_methods++;
 	  argc -= 3;
@@ -224,7 +216,7 @@ int main (int argc, char **argv)
 	  strategy->methods[nr_methods].method = PP1_27_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
+	  pp1_make_plan ((pp1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
 			 (verbose / 3));
 	  nr_methods++;
 	  argc -= 3;
@@ -240,7 +232,7 @@ int main (int argc, char **argv)
 	  strategy->methods[nr_methods].method = PP1_65_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pp1_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
+	  pp1_make_plan ((pp1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
 			 (verbose / 3));
 	  nr_methods++;
 	  argc -= 3;
@@ -278,7 +270,7 @@ int main (int argc, char **argv)
 	  strategy->methods[nr_methods].method = EC_METHOD;
 	  strategy->methods[nr_methods].plan = malloc (sizeof (ecm_plan_t));
 	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  ecm_make_plan (strategy->methods[nr_methods].plan, B1, B2, 
+	  ecm_make_plan ((ecm_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
 			 parameterization, labs (sigma), extra_primes, 
 			 (verbose / 3));
 	  nr_methods++;
@@ -509,7 +501,7 @@ int main (int argc, char **argv)
             if (mpz_fits_ulong_p (N))
               print_pointorder (mpz_get_ui (N), po_sigma, po_parameterization, printfactors);
             else
-              gmp_fprintf (stderr, "%Zd does not fit into an unsigned long, not computing group order\n", N);
+              gmp_fprintf (stderr, "%Zd does not fit into an unsigned long, not computing group order\n", (mpz_srcptr) N);
           }
         else
           {
@@ -550,9 +542,6 @@ int main (int argc, char **argv)
                   i, hitsmod[i], (double)hitsmod[i] / (double) primmod[i],
                   (i < mod - 1) ? ", " : "\n");
     }
-
-  mpz_clear (N);
-  mpz_clear (cof);
 
   if (mod > 0)
     {

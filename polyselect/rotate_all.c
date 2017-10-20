@@ -352,7 +352,7 @@ double
 rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
         long *jmin, long *kmin, int multi, int verbose)
 {
-  mpz_array_t *D;
+  mpz_t *D;
   long K0, K1, J0, J1, k0, k, i, j, j0, bestk;
   double *A, alpha, lognorm, best_alpha = DBL_MAX, best_lognorm = DBL_MAX;
   double corr = 0.0;
@@ -360,7 +360,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
   unsigned long p;
   double *best_E = NULL; /* set to NULL to avoid warning... */
   double time_alpha = 0.0, time_norm = 0.0;
-  int d = f->deg;
+  const int d = f->deg;
   unsigned long pp;
   double one_over_pm1, logp, average_alpha = 0.0;
 
@@ -373,7 +373,10 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
     }
 
   /* allocate D(k) = disc(f + (j*x+k)*g, x) */
-  D = alloc_mpz_array (d + 1);
+  D = (mpz_t*) malloc((d+1) * sizeof(mpz_t));
+  for(int i = 0 ; i <= d ; i++)
+      mpz_init(D[i]);
+
 
   /* compute range for k */
   rotate_bounds (f, b, m, &K0, &K1, &J0, &J1, verbose);
@@ -395,7 +398,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
       /* go back to k=0 for the discriminant */
       k0 = rotate_aux (f->coeff, b, m, k0, 0, 0);
       /* D(k) = disc(f + (j*x+k)*g, x) (j is now fixed) */
-      discriminant_k (D->data, f, m, b);
+      discriminant_k (D, f, m, b);
 
       for (k = K0; k <= K1; k++)
   A[k - K0] = 0.0; /* A[k - K0] will store the value alpha(f + k*g) */
@@ -540,7 +543,9 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
 
   free (A);
 
-  clear_mpz_array (D);
+  for(int i = 0 ; i <= d ; i++)
+      mpz_clear(D[i]);
+  free(D);
 
   {
       double ret_val = best_lognorm + best_alpha;

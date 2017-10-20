@@ -9,19 +9,19 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "facul.h"
+#include "facul.hpp"
 
 static const double EPSILON_DBL = 0.000001;
 
 tabular_fm_t *tabular_fm_create(void)
 {
-    tabular_fm_t *t = malloc(sizeof(*t));
+    tabular_fm_t *t = (tabular_fm_t*) malloc(sizeof(*t));
     ASSERT(t != NULL);
 
     t->index = 0;
     t->size = 2;
 
-    t->tab = malloc(t->size * sizeof(fm_t *));
+    t->tab = (fm_t **) malloc(t->size * sizeof(fm_t *));
     ASSERT(t->tab != NULL);
 
     return t;
@@ -40,7 +40,7 @@ void tabular_fm_free(tabular_fm_t * t)
 
 void tabular_fm_realloc(tabular_fm_t * t)
 {
-    t->tab = realloc(t->tab, t->size * 2 * (sizeof(fm_t *)));
+    t->tab = (fm_t **) realloc(t->tab, t->size * 2 * (sizeof(fm_t *)));
     ASSERT(t->tab != NULL);
     t->size *= 2;
 }

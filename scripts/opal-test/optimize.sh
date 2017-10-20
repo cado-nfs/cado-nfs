@@ -123,6 +123,18 @@ else
    qmin=$lim1
    has_qmin=0
 fi
+if grep -q "bkthresh1.*=" $params ; then
+   bkthresh1=`grep "bkthresh1.*=" $params | cut -d= -f2`
+   has_bkthresh1=1
+else
+   # primes smaller than bkthresh are small-sieved
+   # primes between bkthresh and bkthresh1 are dealt with in two passes
+   # primes larger than bkthresh1 are bucket-sieved
+   # if bkthresh1 is not given on las command line, the code considers that
+   # bkthresh1=bkthresh (or bkthresh1=0)
+   bkthresh1=0
+   has_bkthresh1=0
+fi
 lpb0=`grep "^lpb0.*=" $params | cut -d= -f2`
 lpb1=`grep "^lpb1.*=" $params | cut -d= -f2`
 mfb0=`grep "mfb0.*=" $params | cut -d= -f2`
@@ -148,6 +160,8 @@ qmin_max=`expr $qmin \* 2`
 if [ $qmin_max -gt 2147483645 ]; then
    qmin_max=2147483645
 fi
+bkthresh1_min=`expr $bkthresh1 / 2`
+bkthresh1_max=`expr $bkthresh1 \* 2`
 lim0_min=`expr $lim0 / 2`
 lim0_max=`expr $lim0 \* 2`
 # integer parameters are limited to 2147483645 in OPAL
@@ -187,16 +201,15 @@ fi
 ncurves1_max=`expr $ncurves1 + 3`
 I_min=`expr $I - 1`
 I_max=`expr $I + 1`
-# limit I_max to 16 while cado-nfs does not handle I>16 efficiently
-if [ $I_max -gt 16 ]; then
-    I_max=16
-fi
+# in the future-I18 branch, there is no upper limit any more on I
 
 ### Replace parameters values in template
 sed "s/lim0_def/$lim0/g" las_decl_template.py | \
 sed "s/lim0_min/$lim0_min/g" | sed "s/lim0_max/$lim0_max/g" | \
 sed "s/qmin_def/$qmin/g" | sed "s/qmin_min/$qmin_min/g" | \
 sed "s/qmin_max/$qmin_max/g" | \
+sed "s/bkthresh1_def/$bkthresh1/g" | sed "s/bkthresh1_min/$bkthresh1_min/g" | \
+sed "s/bkthresh1_max/$bkthresh1_max/g" | \
 sed "s/lim1_def/$lim1/g" | sed "s/lim1_min/$lim1_min/g" | \
 sed "s/lim1_max/$lim1_max/g" | \
 sed "s/lpb0_def/$lpb0/g" | sed "s/lpb0_min/$lpb0_min/g" | \
@@ -242,10 +255,12 @@ echo "ncurves0=" $ncurves0_opt " min=" $ncurves0_min " max=" $ncurves0_max
 echo "ncurves1=" $ncurves1_opt " min=" $ncurves1_min " max=" $ncurves1_max
 echo "I=" $I_opt " min=" $I_min " max=" $I_max
 echo "qmin=" $qmin_opt " min=" $qmin_min " max=" $qmin_max
+echo "bkthresh1=" $bkthresh1_opt " min=" $bkthresh1_min " max=" $bkthresh1_max
 cd $cwd
 sed "s/lim0.*=.*$/lim0 = $lim0_opt/g" $params | \
 sed "s/lim1.*=.*$/lim1 = $lim1_opt/g" | \
 sed "s/qmin.*=.*$/qmin = $qmin_opt/g" | \
+sed "s/bkthresh1.*=.*$/bkthresh1 = $bkthresh1_opt/g" | \
 sed "s/lpb0.*=.*$/lpb0 = $lpb0_opt/g" | \
 sed "s/lpb1.*=.*$/lpb1 = $lpb1_opt/g" | \
 sed "s/mfb0.*=.*$/mfb0 = $mfb0_opt/g" | \
@@ -255,6 +270,9 @@ sed "s/ncurves1.*=.*$/ncurves1 = $ncurves1_opt/g" | \
 sed "s/I.*=.*$/I = $I_opt/g" > $params.opt
 if [ $has_qmin -eq 0 ]; then
    echo "tasks.sieve.qmin = $qmin_opt" >> $params.opt
+fi
+if [ $has_bkthresh1 -eq 0 ]; then
+   echo "tasks.sieve.bkthresh1 = $bkthresh1_opt" >> $params.opt
 fi
 if [ $has_ncurves0 -eq 0 ]; then
    echo "tasks.sieve.ncurves0 = $ncurves0_opt" >> $params.opt

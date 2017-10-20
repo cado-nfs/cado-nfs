@@ -1,6 +1,8 @@
 #ifndef LAS_CONFIG_H_
 #define LAS_CONFIG_H_
 
+#include <stddef.h>
+
 #ifdef HAVE_SSE2
 #define SSE_NORM_INIT
 #endif
@@ -66,6 +68,30 @@
  */
 #define xxxUNSIEVE_NOT_COPRIME  /* see las-unsieve.c */
 
+#define FB_MAX_PARTS 4
+
+#if 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define LOG_NB_BUCKETS_2 8
+#define LOG_NB_BUCKETS_3 8
+
+extern void set_LOG_BUCKET_REGION();
+
+extern int LOG_BUCKET_REGION;
+extern int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
+
+extern size_t BUCKET_REGION;
+extern size_t BUCKET_REGIONS[FB_MAX_PARTS];
+
+#ifdef __cplusplus
+}
+#endif
+
+#else
 /* Optimal bucket region: 2^16 = 64K == close to L1 size.
  * It is possible to put a higher value, in order to set I > 16.
  * However, this will have a bad impact on the memory usage, and on
@@ -85,6 +111,7 @@
 #define BUCKET_REGION_3 NB_BUCKETS_3*BUCKET_REGION_2
 
 #define BUCKET_REGIONS { 0, BUCKET_REGION_1, BUCKET_REGION_2, BUCKET_REGION_3 }
+#endif
 
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 

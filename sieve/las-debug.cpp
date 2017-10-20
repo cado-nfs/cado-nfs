@@ -72,8 +72,15 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
         IJToNx(&trace_Nx.N, &trace_Nx.x, trace_ij.i, trace_ij.j, si);
     } else if (Nx != NULL) {
         trace_Nx = *Nx;
-        NxToIJ(&trace_ij.i, &trace_ij.j, trace_Nx.N, trace_Nx.x, si);
-        IJToAB(&trace_ab.a, &trace_ab.b, trace_ij.i, trace_ij.j, si);
+        if (trace_Nx.x < ((size_t) 1 << LOG_BUCKET_REGION)) {
+            NxToIJ(&trace_ij.i, &trace_ij.j, trace_Nx.N, trace_Nx.x, si);
+            IJToAB(&trace_ab.a, &trace_ab.b, trace_ij.i, trace_ij.j, si);
+        } else {
+            fprintf(stderr, "Error, tracing requested for x=%u but"
+                    " this siever was compiled with LOG_BUCKET_REGION=%d\n",
+                    trace_Nx.x, LOG_BUCKET_REGION);
+            exit(EXIT_FAILURE);
+        }
     }
 
     if ((trace_ij.j < UINT_MAX && trace_ij.j >= si.J)

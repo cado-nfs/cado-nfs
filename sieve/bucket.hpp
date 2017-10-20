@@ -20,6 +20,8 @@
 #include "las-debug.hpp"
 #include "threadpool.hpp"
 
+#include "electric_alloc.h"
+
 /*
  * This bucket module provides a way to store elements (that are called
  * updates), while partially sorting them, according to some criterion (to
@@ -125,25 +127,35 @@ public:
 template <int LEVEL, typename HINT>
 class bucket_update_t;
 
-template <typename HINT>
-class bucket_update_t<1, HINT> : public HINT {
-public:
-  typedef XSIZE1 br_index_t;
-  static const uint64_t bucket_region = BUCKET_REGION_1;
-  br_index_t x;
-  bucket_update_t(){};
-  bucket_update_t(const uint64_t _x, const fbprime_t p,
-    const slice_offset_t slice_offset, const slice_index_t slice_index)
-    : HINT(p, slice_offset, slice_index),
-      x(limit_cast<XSIZE1>(_x))
-    {}
-};
+#define explicit_instantiate1(HINT, ALIGNMENT_ATTRIBUTE)		\
+    template <>								\
+    class bucket_update_t<1, HINT> : public HINT {			\
+    public:								\
+      typedef XSIZE1 br_index_t;					\
+      br_index_t x;							\
+      bucket_update_t(){};						\
+      bucket_update_t(const uint64_t _x, const fbprime_t p,		\
+        const slice_offset_t slice_offset, const slice_index_t slice_index)     \
+        : HINT(p, slice_offset, slice_index),				\
+          x(limit_cast<XSIZE1>(_x))					\
+        {}								\
+    } ALIGNMENT_ATTRIBUTE
+
+/* it's admittedly somewhat unsatisfactory. I wish I could find a better
+ * way. Maybe with alignas ? Is it a trick I can play at template scope
+ * with CRTP or so ?
+ */
+explicit_instantiate1(shorthint_t, ATTR_ALIGNED(4));
+static_assert(sizeof(bucket_update_t<1, shorthint_t>) == 4, "wrong size");
+explicit_instantiate1(longhint_t, ATTR_ALIGNED(16));
+static_assert(sizeof(bucket_update_t<1, longhint_t>) == 16, "wrong size");
+explicit_instantiate1(primehint_t, ATTR_ALIGNED(8));
+static_assert(sizeof(bucket_update_t<1, primehint_t>) == 8, "wrong size");
 
 template <typename HINT>
 class bucket_update_t<2, HINT> : public HINT {
 public:
   typedef XSIZE2 br_index_t;
-  static const uint64_t bucket_region = BUCKET_REGION_2;
   /* TODO: create a fake 24-bit type as uint8_t[3]. */
   br_index_t x;
   bucket_update_t(){};
@@ -158,7 +170,6 @@ template <typename HINT>
 class bucket_update_t<3, HINT> : public HINT {
 public:
   typedef XSIZE2 br_index_t;
-  static const uint64_t bucket_region = BUCKET_REGION_3;
   br_index_t x;
   bucket_update_t(){};
   bucket_update_t(const uint64_t _x, const fbprime_t p,
@@ -180,7 +191,6 @@ class bucket_array_t : private NonCopyable {
   static const int level = LEVEL;
     private:
   typedef bucket_update_t<LEVEL, HINT> update_t;
-  static const uint64_t bucket_region = update_t::bucket_region;
   update_t *big_data;
   size_t big_size;                    // size of bucket update memory
 
@@ -296,9 +306,10 @@ public:
       const slice_offset_t slice_offset, const slice_index_t slice_index,
       where_am_I& w MAYBE_UNUSED)
   {
-    const uint64_t bucket_number = offset / bucket_region;
+      int logB = LOG_BUCKET_REGIONS[LEVEL];
+    const uint64_t bucket_number = offset >> logB;
     ASSERT_EXPENSIVE(bucket_number < n_bucket);
-    update_t update(offset % bucket_region, p, slice_offset, slice_index);
+    update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset, slice_index);
     WHERE_AM_I_UPDATE(w, i, slice_index);
 #if defined(TRACE_K)
     log_this_update(update, offset, bucket_number, w);
@@ -336,13 +347,15 @@ class bucket_single {
 public:
   bucket_single (const size_t size) : _size(size)
   {
-    start = new update_t[size];
+    start = electric_new<update_t>(size);
+    // start = new update_t[size];
     read = start;
     write = start;
   }
 
   ~bucket_single() {
-    delete[] start;
+    electric_delete(start,_size);
+    // delete[] start;
     start = read  = write = NULL;
     _size = 0;
   }
@@ -440,20 +453,6 @@ class sieve_checksum {
   }
   /* Update checksum with the pointed-to data */
   void update(const unsigned char *, size_t);
-};
-
-struct buckets_are_full : public clonable_exception {
-    int level;
-    int bucket_number;
-    int reached_size;
-    int theoretical_max_size;
-    std::string message;
-    buckets_are_full(int l, int b, int r, int t);
-    virtual const char * what() const noexcept { return message.c_str(); }
-    bool operator<(buckets_are_full const& o) const {
-        return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
-    }
-    virtual clonable_exception * clone() const { return new buckets_are_full(*this); }
 };
 
 #endif	/* BUCKET_HPP_ */

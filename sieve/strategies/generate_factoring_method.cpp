@@ -12,11 +12,11 @@
 
 #include "portability.h"
 #include "utils.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 #include "convex_hull.h"
 
 /*
@@ -50,7 +50,7 @@ double *distribution_prime_number(int min, int max)
     int len = max - min +1;
     ASSERT(len >= 0);
 
-    double *tab = malloc(len * sizeof(double));
+    double *tab = (double*) malloc(len * sizeof(double));
     ASSERT(tab != NULL);
 
     unsigned long elem = pow(2, min);
@@ -80,8 +80,9 @@ double *distribution_prime_number(int min, int max)
   This function generates in 'res' a random prime number of 'lenFact' bits.
 */
 
-void generate_prime_factor(mpz_t res, gmp_randstate_t state, int lenFact)
+cxx_mpz generate_prime_factor(gmp_randstate_t state, int lenFact)
 {
+    cxx_mpz res;
     mpz_t min;
     mpz_init(min);
     mpz_ui_pow_ui(min, 2, lenFact - 1);
@@ -93,44 +94,33 @@ void generate_prime_factor(mpz_t res, gmp_randstate_t state, int lenFact)
 
     //clear
     mpz_clear(min);
+    return res;
 }
 
 /*
   This function generates in 'res' a random composite number of 'lenFactall' 
   bits with a prime factor of 'lenFact1' bits.
 */
-void
-generate_composite_integer(mpz_t res, gmp_randstate_t state,
+cxx_mpz
+generate_composite_integer(gmp_randstate_t state,
 			   int lenFact1, int lenFactall)
 {
+    cxx_mpz res;
     mpz_t bound_max, bound_min;
     mpz_init(bound_max);
     mpz_init(bound_min);
     mpz_ui_pow_ui(bound_min, 2, lenFactall - 1);	//2^(lenfactall)
     mpz_mul_ui(bound_max, bound_min, 2);
     mpz_sub_ui(bound_max, bound_max, 1);	//2^(lenfactall+1)-1
-
-    mpz_t p;
-    mpz_init(p);
-
-    mpz_t q;
-    mpz_init(q);
     do {
-	/*p */
-	generate_prime_factor(p, state, lenFact1);
-	/*q */
-	generate_prime_factor(q, state, lenFactall - lenFact1);
-
-	/* compute n */
+	cxx_mpz p = generate_prime_factor(state, lenFact1);
+	cxx_mpz q = generate_prime_factor(state, lenFactall - lenFact1);
 	mpz_mul(res, q, p);
-
     } while (mpz_cmp(bound_min, res) > 0 || mpz_cmp(bound_max, res) < 0);
 
-    // clear
-    mpz_clear(p);
-    mpz_clear(q);
     mpz_clear(bound_max);
     mpz_clear(bound_min);
+    return res;
 }
 
 
@@ -152,15 +142,15 @@ select_random_index_according_dist(double *dist, int len)
   bits with a prime factor where this size depends to the distrubution 
   of prime numbers (in 'dist')!
 */
-int
-generate_composite_integer_interval(mpz_t res, gmp_randstate_t state,
+cxx_mpz
+generate_composite_integer_interval(gmp_randstate_t state,
 				    double *dist, int lenFact1_min,
 				    int lenFact1_max, int lenFactall)
 {
     int len = lenFact1_max -lenFact1_min +1;
     int index = select_random_index_according_dist(dist, len);
-    generate_composite_integer(res, state, lenFact1_min + index, lenFactall);
-    return lenFact1_min + index;
+    return generate_composite_integer(state, lenFact1_min + index, lenFactall);
+    // return lenFact1_min + index;
 }
 
 /************************************************************************/
@@ -178,8 +168,8 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 			      unsigned long B2)
 {
     facul_strategy_t *strategy;
-    strategy = malloc(sizeof(facul_strategy_t));
-    strategy->methods = malloc(2 * sizeof(facul_method_t));
+    strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
+    strategy->methods = (facul_method_t*) malloc(2 * sizeof(facul_method_t));
     /*
       without this second method, the function
       facul_clear_strategy (strategy) failed!
@@ -195,11 +185,11 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
     if (method == PM1_METHOD) {
 	strategy->methods[0].plan = malloc(sizeof(pm1_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
-	pm1_make_plan(strategy->methods[0].plan, B1, B2, 0);
+	pm1_make_plan((pm1_plan_t*) strategy->methods[0].plan, B1, B2, 0);
     } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
 	strategy->methods[0].plan = malloc(sizeof(pp1_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
-	pp1_make_plan(strategy->methods[0].plan, B1, B2, 0);
+	pp1_make_plan((pp1_plan_t*) strategy->methods[0].plan, B1, B2, 0);
     } else if (method == EC_METHOD) {
 	long sigma;
 	if (curve == MONTY16)
@@ -211,7 +201,7 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 
 	strategy->methods[0].plan = malloc(sizeof(ecm_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
-	ecm_make_plan(strategy->methods[0].plan, B1, B2, curve,
+	ecm_make_plan((ecm_plan_t*) strategy->methods[0].plan, B1, B2, curve,
 		      labs(sigma), 1, 0);
     } else {
       exit(EXIT_FAILURE);
@@ -231,14 +221,12 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 
 double
 bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
-	       unsigned long len_p, unsigned long len_n, mpz_t* N,
-	       int nb_test_max)
+	       unsigned long len_p, unsigned long len_n, std::vector<cxx_mpz> & N,
+	       size_t nb_test_max)
 {
-    int nb_success_max = 1000, nb_success = 0;
-    int nb_test = 0;
-    mpz_t f[2];
-    mpz_init(f[0]);
-    mpz_init(f[1]);
+    size_t nb_success_max = 1000, nb_success = 0;
+    size_t nb_test = 0;
+    std::vector<cxx_mpz> f;
 
     while (nb_success < nb_success_max && (nb_test < nb_test_max)) {
 	/* 
@@ -246,44 +234,36 @@ bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
 	   found.  Note that N is composed by two prime factors by the
 	   previous function.
 	*/
-	if (mpz_cmp_ui (N[nb_test], 0) == 0) {
-	    generate_composite_integer(N[nb_test], state, len_p, len_n);
-	    mpz_init (N[nb_test+1]);
-	    mpz_set_ui (N[nb_test+1], 0);
-	}
-        mpz_set_ui(f[0], 0);
-	facul(f, N[nb_test], strategy);
+        f.clear();
+        if (nb_test == N.size())
+            N.push_back(generate_composite_integer(state, len_p, len_n));
 
-	if (mpz_cmp_ui(f[0], 0) != 0)
-	    nb_success++;
+	int nfound = facul(f, N[nb_test], strategy);
+
+	nb_success += (nfound != 0);
 	nb_test++;
     }
-    mpz_clear(f[0]);
-    mpz_clear(f[1]);
 
     return nb_success / ((double)nb_test);
 }
 
 double
-bench_time_fm_onelength(facul_strategy_t * method, mpz_t* N, int nb_test)
+bench_time_fm_onelength(facul_strategy_t * method, std::vector<cxx_mpz> & N, size_t nb_test)
 {
     double tps = 0;
-    mpz_t f[2];
-    mpz_init(f[0]);
-    mpz_init(f[1]);
+    std::vector<cxx_mpz> f;
 
     uint64_t starttime, endtime;
     starttime = microseconds();
 
-    for (int i = 0; i < nb_test; i++)
+    for (size_t i = 0; i < nb_test; i++) {
+        f.clear();
 	facul(f, N[i], method);
+    }
     
     endtime = microseconds();
     tps += endtime - starttime;
     
-    mpz_clear(f[0]);
-    mpz_clear(f[1]);
-
     return tps / ((double)nb_test);
 }
 
@@ -294,28 +274,21 @@ bench_time_fm_onelength(facul_strategy_t * method, mpz_t* N, int nb_test)
 */
 
 void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
-        int p_max, int nb_test_max)
+        int p_max, size_t nb_test_max)
 {
     int len = fm->index;	//number of methods!
     if (p_max == 0)
         p_max = 100;
     if (nb_test_max == 0)
         nb_test_max = 10000;
-    double *proba = malloc(p_max * sizeof(double));
+    double *proba = (double*) malloc(p_max * sizeof(double));
     ASSERT(proba != NULL);
 
     unsigned long *param;
     fm_t *elem;
-    //{{Will contain the our composite integers!
-    mpz_t* N[p_max];
-    for (int i = 0; i < p_max; i++)
-	{
-	    N[i] = malloc(sizeof (mpz_t) * (nb_test_max+1));
-	    ASSERT (N[i] != NULL);
-	    mpz_init(N[i][0]);
-	    mpz_set_ui (N[i][0], 0);
-	}
-    //}}
+
+    //Will contain the our composite integers!
+    std::vector<std::vector<cxx_mpz>> N(p_max);
     
     for (int i = 0; i < len; i++) {
 	elem = tabular_fm_get_fm(fm, i);
@@ -346,19 +319,6 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
 	//free
 	facul_clear_strategy(st);
     }
-    //free
-    for (int i = 0; i < p_max; i++) {
-	if (N[i] != NULL) {
-	    int j = 0;
-	    while(mpz_cmp_ui(N[i][j], 0) != 0)
-		{
-		    mpz_clear(N[i][j]);
-		    j++;
-		}
-	    mpz_clear(N[i][j]);
-	}
-	free(N[i]);
-    }
     free(proba);
 }
 
@@ -368,7 +328,7 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
   bits size (MODREDCUL_MAXBITS, MODREDC15UL_MAXBITS,
   MODREDC2UL2_MAXBITS and MODREDC2UL2_MAXBITS+30).
 */
-void bench_time(gmp_randstate_t state, tabular_fm_t * fm, int nb_test)
+void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
 {
     unsigned long *param;
     fm_t *elem;
@@ -377,19 +337,16 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, int nb_test)
     //{{
     if (nb_test == 0)
         nb_test = 100000;
-    mpz_t* N1 = malloc(sizeof(mpz_t) * nb_test);
-    mpz_t* N2 = malloc(sizeof(mpz_t) * nb_test);
-    mpz_t* N3 = malloc(sizeof(mpz_t) * nb_test);
-    mpz_t* N4 = malloc(sizeof(mpz_t) * nb_test);
-    for (int i = 0; i < nb_test; i++) {
-	mpz_init(N1[i]);
-	mpz_init(N2[i]);
-	mpz_init(N3[i]);
-	mpz_init(N4[i]);
-	generate_prime_factor(N1[i], state, MODREDCUL_MAXBITS);
-	generate_prime_factor(N2[i], state, MODREDC15UL_MAXBITS);
-	generate_prime_factor(N3[i], state, MODREDC2UL2_MAXBITS);
-	generate_prime_factor(N4[i], state, MODREDC2UL2_MAXBITS +30);
+    std::vector<cxx_mpz> N1,N2,N3,N4;
+    N1.reserve(nb_test);
+    N2.reserve(nb_test);
+    N3.reserve(nb_test);
+    N4.reserve(nb_test);
+    for (size_t i = 0; i < nb_test; i++) {
+	N1.push_back(generate_prime_factor(state, MODREDCUL_MAXBITS));
+	N2.push_back(generate_prime_factor(state, MODREDC15UL_MAXBITS));
+	N3.push_back(generate_prime_factor(state, MODREDC2UL2_MAXBITS));
+	N4.push_back(generate_prime_factor(state, MODREDC2UL2_MAXBITS +30));
     }
     //}}
     for (int i = 0; i < len; i++) {
@@ -414,17 +371,6 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, int nb_test)
 	    fm_set_time(elem, time, 4);
 	}
     }
-    //free
-    for (int i = 0; i < nb_test; i++) {
-	mpz_clear (N1[i]);
-	mpz_clear (N2[i]);
-	mpz_clear (N3[i]);
-	mpz_clear (N4[i]);
-    }
-    free (N1);
-    free (N2);
-    free (N3);
-    free (N4);
 }
 
 /************************************************************************/
@@ -511,7 +457,7 @@ int *choice_parameters(int method, int len_p_min)
     } else {
 	return NULL;
     }
-    int *result = malloc(6 * sizeof(int));
+    int *result = (int*) malloc(6 * sizeof(int));
     ASSERT(result != NULL);
     result[0] = b1_min;
     result[1] = b1_max;
@@ -521,51 +467,34 @@ int *choice_parameters(int method, int len_p_min)
     result[5] = c_step;
     return result;
 }
+
 /*
   This function allows to compute the probability and the time of a strategy
   to find a prime number in an interval [2**len_p_min, 2**len_p_max].
 */
-static double *bench_proba_time_pset_onefm(facul_strategy_t *strategy,
-					   mpz_t* N, int nb_test_max)
+static weighted_success bench_proba_time_pset_onefm(facul_strategy_t *strategy,
+					   std::vector<cxx_mpz>& N, size_t nb_test_max)
 {
-    double *res = malloc(2 * sizeof(double));
-    ASSERT(res != NULL);
-    int nb_succes_lim = 1000, nb_succes = 0;
-    int nb_test = 0;
+    size_t nb_succes_lim = 1000, nb_succes = 0;
+    size_t nb_test = 0;
 
     double starttime, endtime;
     starttime = microseconds();
 	
-    mpz_t f[2];
-    mpz_init(f[0]);
-    mpz_init(f[1]);
+    std::vector<cxx_mpz> f;
 
     while ((nb_succes < nb_succes_lim) && (nb_test < nb_test_max)) {
-
-      //computes the the time of execution
-	/*
-	   f will contain the prime factor of N that the strategy
-	   found.  Note that N is composed by two prime factors by the
-	   previous function.
-	 */
-        mpz_set_ui(f[0], 0);
-
-	facul(f, N[nb_test], strategy);
-
-	if (mpz_cmp_ui(f[0], 0) != 0)
-	    nb_succes++;
+        //computes the the time of execution
+        f.clear();
+        ASSERT_ALWAYS(nb_test < N.size());
+	int nfound = facul(f, N[nb_test], strategy);
+        nb_succes+= (nfound != 0);
 	nb_test++;
     }
     endtime = microseconds();
     double tps = endtime - starttime;
 
-    //clear
-    mpz_clear(f[0]);
-    mpz_clear(f[1]);
-
-    res[0] = nb_succes / ((double)nb_test);
-    res[1] = tps / ((double)nb_test);
-    return res;
+    return weighted_success(nb_succes, tps, nb_test);
 }
 
 /*
@@ -608,8 +537,7 @@ tabular_fm_t *bench_proba_time_pset(int method, int curve,
     
     //{{Will contain the our composite integers!
     int nb_test_max = 10000;
-    mpz_t*N = malloc(sizeof (mpz_t) * (nb_test_max));
-    ASSERT (N != NULL);
+    std::vector<cxx_mpz> N;
     double *disp = distribution_prime_number(len_p_min, len_p_max);
     for (int i = 0; i < nb_test_max; i++)
 	{
@@ -617,16 +545,16 @@ tabular_fm_t *bench_proba_time_pset(int method, int curve,
 	       factoring). To avoid to waste time, we precompute these
 	       values only one time 
 	    */
-	    mpz_init(N[i]);
-	    generate_composite_integer_interval(N[i], state, disp, len_p_min,
-						len_p_max, len_n);
+            N.push_back(
+	    generate_composite_integer_interval(state, disp, len_p_min,
+						len_p_max, len_n));
 	}
     //}}
 
     tabular_fm_t *tab_fusion = tabular_fm_create();
 
     //add zero method
-    unsigned long tmp_method[4] = { method, curve, 0, 0 };
+    unsigned long tmp_method[4] = { (unsigned long) method, (unsigned long) curve, 0, 0 };
     double zero = 0;
     tabular_fm_add(tab_fusion, tmp_method, 4, &zero, 1, &zero, 1, len_p_min);
 
@@ -645,10 +573,9 @@ tabular_fm_t *bench_proba_time_pset(int method, int curve,
 
 	while (B1 <= b1_max && proba < max_proba) {
 	    facul_strategy_t *fm = generate_fm(method, curve, B1, B2);
-	    double* res = bench_proba_time_pset_onefm(fm, N, nb_test_max);
-	    proba = res[0];
-	    tps = res[1];
-	    free (res);
+	    weighted_success res = bench_proba_time_pset_onefm(fm, N, nb_test_max);
+	    proba = res.prob;
+	    tps = res.time;
 	    
 	    elem[0] = method;
 	    elem[1] = curve;
@@ -669,10 +596,7 @@ tabular_fm_t *bench_proba_time_pset(int method, int curve,
     }
     //free
     free (disp);
-    for (int i = 0; i < nb_test_max; i++)
-	mpz_clear(N[i]);
-    free(N);
-   
+
     return tab_fusion;
 }
 
@@ -804,10 +728,10 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 {
     //create the matrix with the average dist between a pair of methods!
     int nb_methods = tab->index;
-    double **dist = malloc(nb_methods * sizeof(double *));
+    double **dist = (double**) malloc(nb_methods * sizeof(double *));
     ASSERT(dist != NULL);
     for (int i = 0; i < nb_methods; i++) {
-	dist[i] = malloc((nb_methods) * sizeof(double));
+	dist[i] = (double*) malloc((nb_methods) * sizeof(double));
 	ASSERT(dist[i] != NULL);
     }
     for (int i = 0; i < nb_methods; i++) {
@@ -878,7 +802,7 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
     nb_pair = k;
 
     //clear method until you have the good numbers of methods.
-    int* tab_fm_is_removed = calloc (nb_methods, sizeof (int));
+    int* tab_fm_is_removed = (int*) calloc (nb_methods, sizeof (int));
     int nb_rem_methods = nb_methods;
 
     while(nb_rem_methods > final_nb_methods){
@@ -930,15 +854,6 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 
     return res;
 }
-
-
-
-
-
-
-
-
-
 
 /************************************************************************/
 /*                      CONVEX_HULL_FM                                  */

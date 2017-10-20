@@ -83,7 +83,7 @@ relation::print (FILE *file, const char *prefix) const
         char * op = p;
         for(unsigned int i = 0 ; i < sides[side].size() ; i++) {
             for(int e = sides[side][i].e ; e ; e--) {
-                c = gmp_snprintf(p, fence - p, "%Zx,", sides[side][i].p);
+                c = gmp_snprintf(p, fence - p, "%Zx,", (mpz_srcptr) sides[side][i].p);
                 p += c;
             }
         }

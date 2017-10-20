@@ -24,7 +24,7 @@ static int cmp_double (double a, double b)
 
 static double convertEnDegre(const double angle)
 {
-    return angle * 180 / PI;
+    return angle * 180 / M_PI;
 }
 
 double CST_MUL = 1;

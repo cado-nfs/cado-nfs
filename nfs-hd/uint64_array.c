@@ -31,7 +31,7 @@ void uint64_array_realloc(uint64_array_ptr array, uint64_t number)
   array->array = realloc(array->array, sizeof(uint64_t) * number);
   array->length = number;
 
-  ASSERT_ALWAYS(array->array != NULL);
+  ASSERT_ALWAYS(array->array != NULL || number == 0);
 }
 
 void uint64_array_clear(uint64_array_ptr array)

@@ -303,7 +303,9 @@ void thread_pool::accumulate_and_clear_active_time(timetree_t & rep) {
 
 struct everybody_must_do_that : public task_parameters {
     mutable barrier_t barrier;
+    everybody_must_do_that(everybody_must_do_that const&) = delete;
     everybody_must_do_that(int nthreads) { barrier_init(&barrier, nthreads); }
+    virtual ~everybody_must_do_that() { barrier_destroy(&barrier); }
 };
 struct everybody_must_do_that_result : public task_result {
     double v;

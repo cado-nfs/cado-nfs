@@ -4,6 +4,12 @@
 #include "macros.h"
 #include "matrix.h"
 
+/* TODO: STL or something */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * WARNING: to correspond to the definition of mat_Z, the first column and line
  *  are unusued.
@@ -113,4 +119,8 @@ void mat_double_fprintf_comment(FILE * file, mat_double_srcptr matrix);
  * matrix_src: the root matrix.
  */
 void mat_double_transpose(mat_double_ptr matrix, mat_double_srcptr matrix_src);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* MAT_DOUBLE_H */

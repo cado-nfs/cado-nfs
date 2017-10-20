@@ -1,9 +1,10 @@
 #include "cado.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 
 #include <float.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <vector>
 
 /*
   This program tests the following funtions:
@@ -16,8 +17,6 @@
 
 int main ()
 {
-
-
     //check dist
     double precision = 0.00001;
     int len_p_min = 10;
@@ -57,7 +56,7 @@ int main ()
     //Test the random selection of our size according the distribution 'dist'!
     precision = 0.02;
     int len = len_p_max-len_p_min+1;
-    double *dist_test = calloc (len, sizeof(double));
+    std::vector<double> dist_test(len, 0);
     int nb_test = 10000;
     for (int i = 0; i < nb_test; i++)
 	{
@@ -77,10 +76,8 @@ int main ()
                          dist_test[i]/nb_test - dist[i]);
                 fprintf (stderr, "precision=%f\n", precision);
 		free (dist);
-		free (dist_test);
 		return EXIT_FAILURE;
 	    }
     free (dist);
-    free (dist_test);
     return EXIT_SUCCESS;
 }

@@ -1,7 +1,7 @@
+#include "cado.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "cado.h"
 #include "utils.h"
 #include "macros.h"
 #include "ideal.h"

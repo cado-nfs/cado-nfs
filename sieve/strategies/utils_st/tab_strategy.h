@@ -3,6 +3,10 @@
 
 #include "strategy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct tabular_strategy {
     strategy_t **tab;
     int index;
@@ -35,5 +39,8 @@ int tabular_strategy_print(tabular_strategy_t * t);
 
 tabular_strategy_t* tabular_strategy_fscan (FILE* file);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* TAB_STRATEGY_H */

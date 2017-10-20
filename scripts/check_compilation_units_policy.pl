@@ -8,6 +8,11 @@
 #       linalg/bwc/mpfq/
 #       linalg/bwc/flint-fft/
 # This script must be called from the top of the tree.
+#
+# 
+# using vim, you may do 
+#       :set makeprg=./scripts/check_compilation_units_policy.pl
+# and cycle through the errors as if they were produced by gcc.
 
 use strict;
 use warnings;
@@ -39,24 +44,44 @@ FILE: for my $f (@all_files) {
     my $contents = eval { undef $/; <F>; };
     $contents =~ s#/\*.*?\*/##sg;
 
+    my @lines = split(/^/, $contents);
+    my @numbered_lines = map { [1+$_, $lines[$_]] } (0..$#lines);
+
     my @includes = map {
-            chomp($_);
+            my ($lnum, $text) = @$_;
+            chomp($text);
             my @x=();
-            /^\s*#\s*include\s*(\S+)/ && push @x,$1;
+            $text =~ /^\s*#\s*include\s*(\S+)/ && push @x,[$lnum,$1];
             @x;
-        } (split(/^/, $contents));
+        } @numbered_lines;
+
     if ($is_header) {
-        if (grep /cado\.h/, @includes) {
-            print STDERR "$f is a header file, it must not include cado.h\n";
+        my @include_cado = grep { $_->[1] =~ /cado\.h/ } @includes;
+        if (@include_cado) {
+            my $lnum = $include_cado[0]->[0];
+            print STDERR "$f:$lnum: is a header file, it must not include cado.h\n";
             $err++;
         }
     } else {
         my $first = shift @includes;
-        if ($first && $first !~ /cado\.h/) {
-            print STDERR "$f is a compilation unit, its first include file must be cado.h\n";
-            $err++;
-        } elsif (grep /cado\.h/, @includes) {
-            print STDERR "there is no point in including cado.h twice\n";
+        my @include_cado = grep { $_->[1] =~ /cado\.h/ } @includes;
+        if ($first) {
+            if ($first->[1] =~ /cado\.h/) {
+                if ($first->[1] !~ /"cado\.h"/) {
+                    print STDERR "$f:$first->[0]: cado.h should be included as \"cado.h\", not <cado.h>\n";
+                    $err++;
+                }
+            } else {
+                print STDERR "$f:$first->[0]: is a compilation unit, its first include file must be \"cado.h\"\n";
+                $err++;
+            }
+            if (@include_cado) {
+                my $lnum = $include_cado[0]->[0];
+                print STDERR "$f:$lnum: there is no point in including cado.h twice\n";
+                $err++;
+            }
+        } else {
+            print STDERR "$f:1: is a compilation unit, it must include \"cado.h\"\n";
             $err++;
         }
     }

@@ -1,11 +1,16 @@
 #ifndef MAT_Z_H
 #define MAT_Z_H
 
-#include "cado.h"
 #include "utils.h"
 #include <gmp.h>
 #include <stdint.h>
 #include "matrix.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 
 /*
   WARNING: to correspond to the LLL algorithm in cado-nfs, all the matrix have
@@ -176,4 +181,9 @@ void mat_Z_set_diag(mat_Z_ptr M, mpz_vector_srcptr diag);
 
 void mat_Z_skew_LLL(mat_Z_ptr MSLLL, mat_Z_srcptr M_root,
     mpz_vector_srcptr skewness);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  /* MAT_Z_H */

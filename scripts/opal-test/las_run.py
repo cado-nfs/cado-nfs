@@ -57,6 +57,7 @@ def run(param_file, problem):
         "ncurves0": 6,
         "ncurves1": 6,
         "qmin": 100000,
+        "bkthresh1": 1000000,
         "t": 2 # number of threads for las
     }
     if sqside != "":
@@ -73,7 +74,7 @@ def run(param_file, problem):
     las_params["lim0"] = min(las_params["lim0"], 2 ** las_params["lpb0"])
     las_params["lim1"] = min(las_params["lim1"], 2 ** las_params["lpb1"])
     
-    to_print = ["I", "lim1", "lpb1", "mfb1", "lim0", "lpb0", "mfb0", "ncurves0", "ncurves1", "qmin"]
+    to_print = ["I", "lim1", "lpb1", "mfb1", "lim0", "lpb0", "mfb0", "ncurves0", "ncurves1", "qmin", "bkthresh1"]
     sys.stderr.write("Using parameters %s\n" % " ".join(["%s:%s" % (key, las_params[key]) for key in to_print]))
 
     ### Call makefb on all algebraic polynomials

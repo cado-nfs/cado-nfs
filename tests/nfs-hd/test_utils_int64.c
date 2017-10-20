@@ -1,3 +1,4 @@
+#include "cado.h"
 #include "utils_int64.h"
 
 int main()

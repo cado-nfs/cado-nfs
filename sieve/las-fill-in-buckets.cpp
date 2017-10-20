@@ -610,13 +610,16 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
     WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
 
     /* Get an unused bucket array that we can write to */
-    bucket_array_t<LEVEL, shorthint_t> &BA =
+    bucket_array_t<LEVEL, shorthint_t> *BA_ptr =
         param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
-    /* Fill the buckets */
-    fill_in_buckets_lowlevel<LEVEL>(BA, param->si, param->plattices_vector,
-            (param->first_region0_index == 0), w);
-    /* Release bucket array again */
-    param->ws.release_BA(param->side, BA);
+    if (BA_ptr) {
+        bucket_array_t<LEVEL, shorthint_t> &BA(*BA_ptr);
+        /* Fill the buckets */
+        fill_in_buckets_lowlevel<LEVEL>(BA, param->si, param->plattices_vector,
+                (param->first_region0_index == 0), w);
+        /* Release bucket array again */
+        param->ws.release_BA(param->side, BA);
+    }
     delete param;
     return new task_result;
 }
@@ -634,6 +637,13 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
     const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
     // ACTIVATE_TIMER(worker->timer);
     ASSERT_ALWAYS(worker->timer.running());
+    /* This is one of the places where helgrind is likely to complain. We
+     * use thread-safe statics. Helgrind can't cope with it,
+     * unfortunately. So the error is a false positive.
+     *
+     * https://sourceforge.net/p/valgrind/mailman/message/32434015/
+     *
+     */
     CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice, LEVEL));
     // TIMER_CATEGORY(worker->timer, sieving(param->side));
 
@@ -644,36 +654,39 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
     WHERE_AM_I_UPDATE(w, N, 0);
 
     /* Get an unused bucket array that we can write to */
-    bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
-    /* Fill the buckets */
-    if (param->slice->is_general())
-      fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 0)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<0> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 1)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<1> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 2)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<2> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 3)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<3> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 4)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<4> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 5)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<5> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 6)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<6> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 7)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<7> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 8)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<8> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 9)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<9> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else if (param->slice->get_nr_roots() == 10)
-      fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<10> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
-    else
-      ASSERT_ALWAYS(0);
-    /* Release bucket array again */
-    param->ws.release_BA(param->side, BA);
+    bucket_array_t<LEVEL, shorthint_t> * BA_ptr = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
+    if (BA_ptr) {
+        bucket_array_t<LEVEL, shorthint_t> &BA(*BA_ptr);
+        /* Fill the buckets */
+        if (param->slice->is_general())
+          fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 0)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<0> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 1)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<1> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 2)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<2> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 3)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<3> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 4)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<4> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 5)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<5> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 6)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<6> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 7)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<7> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 8)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<8> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 9)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<9> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else if (param->slice->get_nr_roots() == 10)
+          fill_in_buckets_toplevel<LEVEL,fb_entry_x_roots<10> >(BA, param->si, param->slice, param->plattices_dense_vector, w);
+        else
+          ASSERT_ALWAYS(0);
+        /* Release bucket array again */
+        param->ws.release_BA(param->side, BA);
+    }
     delete param;
     return new task_result;
 }
@@ -716,26 +729,11 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
         }
     }
 
-    /* we need to check for exceptions due to bucket updates. Because
-     * we've pushed all slides at this point, we have no option but to
-     * wait for all threads to finish. (or maybe pull back some of the
-     * tasks before they're grabbed by worker threads -- that could be an
-     * optimization).
-     */
-    std::vector<buckets_are_full> exceptions_to_throw;
-
     for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
           task_result *result = pool.get_result();
           delete result;
           /* want to check possible exceptions, too */
-          buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
-          if (e) {
-              exceptions_to_throw.push_back(*e);
-              delete e;
-          }
     }
-    if (!exceptions_to_throw.empty())
-        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
     pool.accumulate_and_clear_active_time(*timer.current);
     SIBLING_TIMER(timer, "worker thread wait time");
     TIMER_CATEGORY(timer, thread_wait());
@@ -807,34 +805,39 @@ downsort_tree(
     // We reserve those where we write, and access the ones for
     // reading without reserving. We require that things at level
     // above is finished before entering here.
-    bucket_array_t<LEVEL, longhint_t> & BAout =
+    bucket_array_t<LEVEL, longhint_t> * BAout_ptr =
       ws.reserve_BA<LEVEL, longhint_t>(side);
-    BAout.reset_pointers();
-    // This is a fake slice_index. For a longhint_t bucket, each update
-    // contains its own slice_index, directly used by apply_one_bucket
-    // and purge.
-    BAout.add_slice_index(0);
-    // The data that comes from fill-in bucket at level above:
-    {
-      const bucket_array_t<LEVEL+1,shorthint_t> * BAin
-        = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-      while (BAin != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
-        downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
-        BAin++;
-      }
-    }
+    if (BAout_ptr) {
+        bucket_array_t<LEVEL, longhint_t> & BAout(*BAout_ptr);
+        BAout.reset_pointers();
+        // This is a fake slice_index. For a longhint_t bucket, each update
+        // contains its own slice_index, directly used by apply_one_bucket
+        // and purge.
+        BAout.add_slice_index(0);
+        // The data that comes from fill-in bucket at level above:
+        {
+          const bucket_array_t<LEVEL+1,shorthint_t> * BAin
+            = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+          while (BAin != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
+            downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
+            BAin++;
+          }
+        }
 
-    const int toplevel = si.toplevel;
-    if (LEVEL < toplevel - 1) {
-      // What comes from already downsorted data above:
-      const bucket_array_t<LEVEL+1,longhint_t> * BAin
-        = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-      while (BAin != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
-        downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
-        BAin++;
-      }
+        const int toplevel = si.toplevel;
+        if (LEVEL < toplevel - 1) {
+          // What comes from already downsorted data above:
+          const bucket_array_t<LEVEL+1,longhint_t> * BAin
+            = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
+          while (BAin != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
+            downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
+            BAin++;
+          }
+        }
+        ws.release_BA<LEVEL,longhint_t>(side, BAout);
+    } else {
+        fprintf(stderr, "encountered full buckets while downsorting\n");
     }
-    ws.release_BA<LEVEL,longhint_t>(side, BAout);
 
     max_full = std::max(max_full, ws.buckets_max_full<LEVEL, longhint_t>());
     ASSERT_ALWAYS(max_full <= 1.0);
@@ -854,21 +857,12 @@ downsort_tree(
       slices_pushed++;
     }
 
-    std::vector<buckets_are_full> exceptions_to_throw;
     for (slice_index_t slices_completed = 0;
         slices_completed < slices_pushed;
         slices_completed++) {
       task_result *result = pool.get_result();
       delete result;
-      /* want to check possible exceptions, too */
-      buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
-      if (e) {
-          exceptions_to_throw.push_back(*e);
-          delete e;
-      }
     }
-    if (!exceptions_to_throw.empty())
-        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
 
     pool.accumulate_and_clear_active_time(*timer.current);
     SIBLING_TIMER(timer, "worker thread wait time");
@@ -882,7 +876,7 @@ downsort_tree(
   /* RECURSE */
   if (LEVEL > 1) {
     for (unsigned int i = 0; i < si.nb_buckets[LEVEL]; ++i) {
-      uint64_t BRS[FB_MAX_PARTS] = BUCKET_REGIONS;
+      size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
       uint32_t N = first_region0_index + i*(BRS[LEVEL]/BRS[1]);
       downsort_tree<LEVEL-1>(timer, i, N, ws, pool, si, precomp_plattice);
     }

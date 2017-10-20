@@ -14,7 +14,7 @@
 #include "portability.h"
 #include "utils.h"
 #include "facul_ecm.h"
-#include "generate_factoring_method.h"
+#include "generate_factoring_method.hpp"
 
 static void declare_usage(param_list pl)
 {

@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct {
   uint64_t length;
   uint64_t * array;
@@ -39,4 +44,8 @@ void uint64_array_clear(uint64_array_ptr array);
  */
 void uint64_array_fprintf(FILE * file, uint64_array_srcptr array);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* UINT64_ARRAY_H */

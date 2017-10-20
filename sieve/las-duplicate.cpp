@@ -68,7 +68,6 @@ Thus the function to check for duplicates needs the following information:
 #include <gmp.h>
 #include <string.h>
 #include "gmp_aux.h"
-#include "mpz_array.h"
 #include "las-duplicate.hpp"
 #include "las-qlattice.hpp"
 #include "las-coordinates.hpp"
@@ -224,9 +223,8 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
                   relation const& rel,
                   const int nb_threads, sieve_info & old_si)
 {
-  mpz_array_t *f[2] = { NULL, }; /* Factors of the relation's norms */
-  uint32_array_t *m[2] = { NULL, }; /* corresponding multiplicities */
-  cxx_mpz cof[2];
+    std::array<std::vector<cxx_mpz>, 2> f; /* Factors of the relation's norms */
+    std::array<cxx_mpz, 2> cof;
   int is_dupe = 1; /* Assumed dupe until proven innocent */
   const size_t max_large_primes = 10;
   unsigned long large_primes[2][max_large_primes];
@@ -353,21 +351,11 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
     }
   }
 
-  for(int side = 0 ; side < 2 ; side++) {
-      f[side] = alloc_mpz_array (1);
-      m[side] = alloc_uint32_array (1);
-  }
-
   // ok, the cast is despicable
-  pass = factor_both_leftover_norms((mpz_t*)cof, f, m, si);
+  pass = factor_both_leftover_norms(cof, f, si);
 
   if (pass <= 0)
     verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n", (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);
-
-  for(int side = 0 ; side < 2 ; side++) {
-      clear_uint32_array (m[side]);
-      clear_mpz_array (f[side]);
-  }
 
   if (pass <= 0) {
     is_dupe = 0;

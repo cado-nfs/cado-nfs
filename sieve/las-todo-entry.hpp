@@ -8,7 +8,7 @@
 #include "cxx_mpz.hpp"
 
 struct las_todo_entry {
-  cxx_mpz p; /* this is the 'special-q', despite the 'p' name... */
+    cxx_mpz p; /* this is the 'special-q', despite the 'p' name... */
     /* even for a rational side, the field below is used, since
      * it is needed for the initialization of the q-lattice. All callers
      * of las_todo_push must therefore make sure that a proper argument
@@ -28,7 +28,7 @@ struct las_todo_entry {
     /* Empty p, r is used for "closing brace" */
     las_todo_entry(const int _side, const int _depth) : side(_side), depth(_depth), iteration(0) { }
     las_todo_entry(const mpz_t _p, const mpz_t _r, const int _side, const int _depth = 0, const int _iteration = 0) {
-      set(_p, _r, _side, _depth, _iteration);
+        set(_p, _r, _side, _depth, _iteration);
     }
 
     // Given a *prime* ell, check whether ell is coprime to current
@@ -45,9 +45,7 @@ struct las_todo_entry {
         }
     }
 private:
-  // TODO: this function becomes a bit long for a header file.
-  // But for the moment we don't have a las-todo.cpp, so...
-  void set(const mpz_t _p, const mpz_t _r, const int _side, const int _depth, const int _iteration);
+    void set(const mpz_t _p, const mpz_t _r, const int _side, const int _depth, const int _iteration);
 };
 
 #endif	/* LAS_TODO_ENTRY_HPP_ */

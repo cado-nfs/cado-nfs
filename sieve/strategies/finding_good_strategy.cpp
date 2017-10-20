@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "facul_ecm.h"
-#include "facul.h"
+#include "facul.hpp"
 #include "portability.h"
 #include "utils.h"
 #include "finding_good_strategy.h"
@@ -32,10 +32,10 @@ tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
 {
 
     //allocate matrix
-    tabular_strategy_t ***matrix = malloc(sizeof(*matrix) * len_abs);
+    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * len_abs);
     ASSERT(matrix != NULL);
     for (int r1 = 0; r1 < len_abs; r1++) {
-	matrix[r1] = malloc(sizeof(*matrix[r1]) * len_ord);
+	matrix[r1] = (tabular_strategy_t**) malloc(sizeof(*matrix[r1]) * len_ord);
 	assert(matrix[r1] != NULL);
     }
 
@@ -71,11 +71,11 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
     if (file == NULL)
 	return NULL;
     //create matrix
-    unsigned long **matrix_call = malloc(sizeof(*matrix_call) * len_abs);
+    unsigned long **matrix_call = (unsigned long**) malloc(sizeof(*matrix_call) * len_abs);
     assert(matrix_call != NULL);
 
     for (int i = 0; i < len_abs; i++) {
-	matrix_call[i] = calloc(sizeof(*matrix_call[i]), len_ord);
+	matrix_call[i] = (unsigned long *) calloc(sizeof(*matrix_call[i]), len_ord);
 	assert(matrix_call[i]);
     }
 
@@ -244,10 +244,10 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
     //printf("Our choice for the slope s: %lf (rel/s)\n", max_s);
     double Y = 0, T = C0;
     //build the matrix with the optimal strategies.
-    strategy_t ***matrix_res = malloc(sizeof(*matrix_res) * len_abs);
+    strategy_t ***matrix_res = (strategy_t***) malloc(sizeof(*matrix_res) * len_abs);
     assert(matrix_res != NULL);
     for (int r1 = 0; r1 < len_abs; r1++) {
-	matrix_res[r1] = malloc(sizeof(*matrix_res[r1]) * len_ord);
+	matrix_res[r1] = (strategy_t**) malloc(sizeof(*matrix_res[r1]) * len_ord);
 	assert(matrix_res[r1] != NULL);
 	for (int r2 = 0; r2 < len_ord; r2++) {
 	    if (distrib_C[r1][r2] < EPSILON_DBL)
@@ -284,12 +284,7 @@ void strategy_fprint_design(FILE * output_file, const strategy_t * t)
 {
     tabular_fm_t *tmp = t->tab_fm;
     for (int i = 0; i < tmp->index; i++) {
-	fprintf(output_file, "[");
-	//side: 
-	if (t->side[i] == SIDE_1)
-	    fputs("S1: ", output_file);
-	else			// == SIDE_0
-	    fputs("S0: ", output_file);
+	fprintf(output_file, "[S%d: ", t->side[i]);
 
 	fm_t *fm = tmp->tab[i];
 	//method: type, curve
