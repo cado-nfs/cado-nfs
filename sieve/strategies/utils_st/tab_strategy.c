@@ -11,14 +11,14 @@
 
 tabular_strategy_t *tabular_strategy_create(void)
 {
-    tabular_strategy_t *t = malloc(sizeof(*t));
-    ASSERT(t != NULL);
+    tabular_strategy_t *t = malloc(sizeof(tabular_strategy_t));
+    ASSERT_ALWAYS(t != NULL);
 
     t->index = 0;
     t->size = 2;
 
     t->tab = malloc(t->size * sizeof(strategy_t *));
-    ASSERT(t->tab != NULL);
+    ASSERT_ALWAYS(t->tab != NULL);
 
     return t;
 }
@@ -26,18 +26,18 @@ tabular_strategy_t *tabular_strategy_create(void)
 void tabular_strategy_free(tabular_strategy_t * t)
 {
     if (t != NULL)
-	{
-	    for (int i = 0; i < t->index; i++)
-		strategy_free(t->tab[i]);
-	    free(t->tab);
-	    free(t);
-	}
+    {
+        for (int i = 0; i < t->index; i++)
+            strategy_free(t->tab[i]);
+        free(t->tab);
+        free(t);
+    }
 }
 
 void tabular_strategy_realloc(tabular_strategy_t * t)
 {
     t->tab = realloc(t->tab, t->size * 2 * (sizeof(strategy_t *)));
-    ASSERT(t->tab != NULL);
+    ASSERT_ALWAYS(t->tab != NULL);
     t->size *= 2;
 }
 

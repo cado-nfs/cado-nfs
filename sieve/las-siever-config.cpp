@@ -4,6 +4,7 @@
 #include <gmp.h>
 #include <cctype>
 #include <cerrno>
+#include <sstream>
 #include "las-siever-config.hpp"
 #include "verbose.h"
 
@@ -26,8 +27,8 @@ void siever_config::declare_usage(param_list_ptr pl)
     param_list_decl_usage(pl, "ncurves1", "controls number of curves on side 1");
     param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
     param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
-    param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh");
-    param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes p >= bkthresh1");
+    param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
+    param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
     param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
     param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
     param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
@@ -147,7 +148,6 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
     /* overrides default only if parameter is given */
     param_list_parse_ulong(pl, "bkthresh", &(sc.bucket_thresh));
     param_list_parse_ulong(pl, "bkthresh1", &(sc.bucket_thresh1));
-    param_list_parse_double(pl, "bkmult", &(sc.bk_multiplier));
 
     const char *powlim_params[2] = {"powlim0", "powlim1"};
     for (int side = 0; side < 2; side++) {

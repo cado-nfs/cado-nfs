@@ -1520,7 +1520,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         with client_cmd_filename.open("a") as client_cmd_file:
             client_cmd_file.write("# Command for work unit: %s\n%s\n" %
                                   (wuid, cmdline))
-    
+
     def get_eta(self):
         delta = datetime.datetime.now() - datetime.datetime(1900,1,1)
         seconds = delta.total_seconds() - self.state["start_real_time"]
@@ -1529,6 +1529,11 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         if a0 == -1:
             self.state["start_achievement"] = a
             a0 = a
+        elif a0 > a:
+            # if a0 > a, it means we had a failing filtering try, which means
+            # a had attained 100%, and then decreased to say 95% for example,
+            # thus we need to update a0 by multiplying it by a
+            a0 = a0 * a
         try:
            remaining_time = seconds / (a - a0) * (1.0 - a)
            now = datetime.datetime.now()
@@ -2824,7 +2829,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
         else:
             factorbase = self.send_request(Request.GET_FACTORBASE_FILENAME)
 
-        self.logger.info("We want %d relations", self.state["rels_wanted"])
+        self.logger.info("We want %d relation(s)", self.state["rels_wanted"])
         while self.get_nrels() < self.state["rels_wanted"]:
             q0 = self.state["qnext"]
             q1 = q0 + self.params["qrange"]

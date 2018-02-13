@@ -2588,11 +2588,11 @@ void do_all_for_spq(array_spq_ptr spq, int64_t q, cado_poly_srcptr f,
 
 #ifdef PRINT_ARRAY_NORM
       FILE * file_array_norm;
-      char * name_array_norm = (char *) malloc(sizeof(char) * 1024);
+      char name_array_norm[1024];
 #ifndef MPZ_NORM
-      sprintf(name_array_norm, "ARRAY_NORM_%" PRIu64 "_%u.csv", q, j);
+      snprintf(name_array_norm, sizeof(name_array_norm), "ARRAY_NORM_%" PRIu64 "_%u.csv", q, j);
 #else // MPZ_NORM
-      sprintf(name_array_norm, "ARRAY_MPZ_NORM_%" PRIu64 "_%u.csv", q, j);
+      snprintf(name_array_norm, sizeof(name_array_norm), "ARRAY_MPZ_NORM_%" PRIu64 "_%u.csv", q, j);
 #endif // MPZ_NORM
       file_array_norm = fopen(name_array_norm, "w+");
       fprintf(file_array_norm, "# H: ");
@@ -2603,7 +2603,6 @@ void do_all_for_spq(array_spq_ptr spq, int64_t q, cado_poly_srcptr f,
       mpz_poly_fprintf(file_array_norm, f->pols[j]);
       number_norm(file_array_norm, array, max_norm[j], log2_base[j]);
       fclose(file_array_norm);
-      free(name_array_norm);
 #endif // PRINT_ARRAY_NORM
 
       time[j][0] = seconds() - sec;
@@ -2920,21 +2919,14 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
   declare_usage(pl);
   FILE * fpl;
   char * argv0 = argv[0];
-  char * orig_param;
-  int len = 3;
-  orig_param = (char *) malloc(len * sizeof(char));
-  orig_param[0] = '\0';
-  strcat(orig_param, "# ");
+  char orig_param[1 << 14];
+  size_t n_orig_param = 0;
 
-  for (int i = 0; i < argc - 1; i++) {
-    len = len + strlen(argv[i]) + 1;
-    orig_param = (char *) realloc(orig_param, len * sizeof(char));
-    strcat(orig_param, argv[i]);
-    strcat(orig_param, " ");
+  n_orig_param += snprintf(orig_param, sizeof(orig_param) - n_orig_param, "#");
+
+  for (int i = 0; i < argc; i++) {
+      n_orig_param += snprintf(orig_param + n_orig_param, sizeof(orig_param) - n_orig_param, " %s", argv[i]);
   }
-  len = len + strlen(argv[argc - 1]);
-  orig_param = (char *) realloc(orig_param, len * sizeof(char));
-  strcat(orig_param, argv[argc - 1]);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -3016,7 +3008,6 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
 
   // Print command line.
   fprintf(* outstd, "%s\n", orig_param);
-  free(orig_param);
 
   path[0] = '\0';
   param_list_parse_string(pl, "err", path, size_path);
@@ -3087,7 +3078,7 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
     ASSERT((* q_range)[1] - (* q_range)[0] == 1);
     mpz_t lc_tmp;
     mpz_init(lc_tmp);
-    mpz_set(lc_tmp, mpz_poly_lc_const(g));
+    mpz_set(lc_tmp, mpz_poly_lc(g));
     ASSERT(mpz_cmp_ui(lc_tmp, 1) == 0);
     mpz_clear(lc_tmp);
     ASSERT((unsigned int) g->deg < H->t);
@@ -3198,7 +3189,7 @@ void initialise_parameters(int argc, char * argv[], cado_poly_ptr f,
       // Compute the norm of (x-1).resultant(f[i]).
       mpz_poly_eval_ui(tmp, f->pols[i], 1);
       mpz_abs(tmp, tmp);
-      mpz_divexact(tmp, tmp, mpz_poly_lc_const(f->pols[i]));
+      mpz_divexact(tmp, tmp, mpz_poly_lc(f->pols[i]));
       brute_force_factorize_ul((*gal_norm_denom)[i], tmp, tmp, 1000);
       ASSERT(mpz_cmp_ui(tmp, 1) == 0);
 #ifndef NDEBUG
@@ -3275,11 +3266,10 @@ int main(int argc, char * argv[])
   }
   FILE * file_trace_pos;
 #ifdef TRACE_POS
-  char * path_tp = (char * ) malloc(sizeof(char) * 1024);
-  sprintf(path_tp, "TRACE_POS_%d.txt", TRACE_POS);
+  char path_tp[1024];
+  snprintf(path_tp, sizeof(path_tp), "TRACE_POS_%d.txt", TRACE_POS);
   file_trace_pos = fopen(path_tp, "w+");
   fprintf(file_trace_pos, "TRACE_POS: %d\n", TRACE_POS);
-  free(path_tp);
 #else // TRACE_POS
   file_trace_pos = NULL;
 #endif // TRACE_POS
@@ -3288,19 +3278,17 @@ int main(int argc, char * argv[])
 #ifdef SPACE_SIEVE_STAT
 #ifdef SKEWNESS_TRUE
 #ifdef SKEWNESS
-  char * path_stat = (char * ) malloc(sizeof(char) * 1024);
-  sprintf(path_stat, "SPACE_SIEVE_STAT_%d_TRUE.txt", SKEWNESS);
+  char * path_stat[1024];
+  snprintf(path_stat, sizeof(path_stat), "SPACE_SIEVE_STAT_%d_TRUE.txt", SKEWNESS);
   file_space_sieve_stat = fopen(path_stat, "w+");
-  free(path_stat);
 #else // SKEWNESS
   file_space_sieve_stat = fopen("SPACE_SIEVE_STAT_2_TRUE.txt", "w+");
 #endif // SKEWNESS
 #else // SKEWNESS_TRUE
 #ifdef SKEWNESS
-  char * path_stat = (char * ) malloc(sizeof(char) * 1024);
-  sprintf(path_stat, "SPACE_SIEVE_STAT_%d.txt", SKEWNESS);
+  char path_stat[1024];
+  snprintf(path_stat, sizeof(path_stat), "SPACE_SIEVE_STAT_%d.txt", SKEWNESS);
   file_space_sieve_stat = fopen(path_stat, "w+");
-  free(path_stat);
 #else // SKEWNESS
   file_space_sieve_stat = fopen("SPACE_SIEVE_STAT_2.txt", "w+");
 #endif // SKEWNESS

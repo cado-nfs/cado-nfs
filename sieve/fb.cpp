@@ -19,34 +19,11 @@
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "threadpool.hpp"
+#include "misc.h"
 
 
 static unsigned int fb_log_2 (fbprime_t);
 static bool fb_linear_root (fbroot_t *, const mpz_t *, fbprime_t);
-
-/* strtoul(), but with const char ** for second argument.
-   Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is
-   of type const char *
-*/
-static inline unsigned long int
-strtoul_const(const char *nptr, const char **endptr, const int base)
-{
-  char *end;
-  unsigned long r;
-  r = strtoul(nptr, &end, base);
-  *endptr = end;
-  return r;
-}
-
-static inline unsigned long long int
-strtoull_const(const char *nptr, const char **endptr, const int base)
-{
-  char *end;
-  unsigned long long r;
-  r = strtoull(nptr, &end, base);
-  *endptr = end;
-  return r;
-}
 
 // Adapted from utils/ularith.h
 // TODO: this function should go somewhere else...
@@ -362,24 +339,6 @@ fb_entry_x_roots<Nr_roots>::fprint(FILE *out) const
   fprintf(out, "\n");
 }
 
-/* workaround for compiler bug. gcc-4.2.1 on openbsd 5.3 does not seem to
- * accept the access to foo.nr_roots when nr_roots is in fact a static
- * const member. That's a pity, really. I think the code below is
- * innocuous performance-wise. */
-template <class FB_ENTRY_TYPE>
-struct get_nroots {
-    FB_ENTRY_TYPE const & r;
-    get_nroots(FB_ENTRY_TYPE const & r) : r(r) {}
-    inline unsigned char operator()() const { return r.nr_roots; }
-};
-
-template <int n>
-struct get_nroots<fb_entry_x_roots<n> > {
-    get_nroots(fb_entry_x_roots<n> const &) {}
-    inline unsigned char operator()() const { return fb_entry_x_roots<n>::nr_roots; }
-};
-
-
 template <class FB_ENTRY_TYPE>
 fb_vector<FB_ENTRY_TYPE>::~fb_vector()
 {
@@ -403,19 +362,18 @@ fb_vector<FB_ENTRY_TYPE>::extract_bycost(std::vector<unsigned long> &p,
 
 
 template <class FB_ENTRY_TYPE>
-plattices_vector_t *
+plattices_vector_t
 fb_slice<FB_ENTRY_TYPE>::make_lattice_bases(const qlattice_basis &basis,
     const int logI, const sublat_t &sublat) const
 {
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
   /* Create a transformed vector and store the index of the slice we currently
      transform */
-  const unsigned long special_q = mpz_fits_ulong_p(basis.q) ? mpz_get_ui(basis.q) : 0;
 
-  plattices_vector_t *result = new plattices_vector_t(get_index());
+  plattices_vector_t result(get_index());
   slice_offset_t i_entry = 0;
   for (const FB_ENTRY_TYPE *it = begin(); it != end(); it++, i_entry++) {
-    if (it->p == special_q) /* Assumes it->p != 0 */
+    if (!basis.is_coprime_to(it->p))
       continue;
     it->transform_roots(transformed, basis);
     for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
@@ -430,11 +388,12 @@ fb_slice<FB_ENTRY_TYPE>::make_lattice_bases(const qlattice_basis &basis,
         if (!sublat.m)
           ple.next();
         if (LIKELY(pli.a0 != 0)) {
-          result->push_back(ple);
+          result.push_back(ple);
         }
       }
     }
   }
+  /* This is moved, not copied */
   return result;
 }
 
@@ -458,13 +417,7 @@ fb_vector<FB_ENTRY_TYPE>::_count_entries(size_t *nprimes, size_t *nroots, double
   double w = 0.;
   size_t nr = 0;
   for (size_t i = 0; i < size; i++) {
-#if 0
-      /* see compiler bug section above... */
-      unsigned char nr_i = data[i].nr_roots;
-#else
-      /* use workaround */
-      unsigned char nr_i = get_nroots<FB_ENTRY_TYPE>(data[i])();
-#endif
+      unsigned char nr_i = data[i].get_nr_roots();
       nr += nr_i;
       w += data[i].weight();
   }
@@ -475,7 +428,7 @@ fb_vector<FB_ENTRY_TYPE>::_count_entries(size_t *nprimes, size_t *nroots, double
 }
 
 /* Compute an upper bound on this slice's weight by assuming all primes in the
-   slice are equal on the first (and thus smallest) one. This relies on the
+   slice are equal to the first (and thus smallest) one. This relies on the
    vector being sorted. */
 template <class FB_ENTRY_TYPE>
 double

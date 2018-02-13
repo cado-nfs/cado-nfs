@@ -299,5 +299,27 @@ const char *size_disp(size_t s, char buf[16])
     return size_disp_fine(s, buf, 500.0);
 }
 
-// 
+/* strtoul(), but with const char ** for second argument.
+   Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is
+   of type const char *
+*/
+unsigned long int
+strtoul_const(const char *nptr, const char **endptr, const int base)
+{
+  char *end;
+  unsigned long r;
+  r = strtoul(nptr, &end, base);
+  *endptr = end;
+  return r;
+}
+
+unsigned long long int
+strtoull_const(const char *nptr, const char **endptr, const int base)
+{
+  char *end;
+  unsigned long long r;
+  r = strtoull(nptr, &end, base);
+  *endptr = end;
+  return r;
+}
 

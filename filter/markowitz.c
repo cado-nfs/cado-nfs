@@ -311,16 +311,24 @@ lightColAndMkz (filter_matrix_t *mat, index_t j)
 static int32_t
 MkzCount(filter_matrix_t *mat, index_t j)
 {
-    switch(mat->mkztype){
-    case MKZTYPE_LIGHT:
-	return lightColAndMkz(mat, j);
-    case MKZTYPE_PURE:
-	return pureMkz(mat, j);
-    case MKZTYPE_CAVALLAR:
-    default:
+  int32_t cost;
+  switch(mat->mkztype){
+  case MKZTYPE_LIGHT:
+    cost = lightColAndMkz(mat, j);
+    break;
+  case MKZTYPE_PURE:
+    cost = pureMkz(mat, j);
+    break;
+  case MKZTYPE_CAVALLAR:
+  default:
       /* for the double-matrix trick, we count k for an ideal of weight k */
-	return Cavallar(mat, j);
-    }
+    cost = Cavallar(mat, j);
+    /* fall through */
+  }
+  /* ensure cost >= 0, since the MKZ data structure is now unsigned */
+  if (cost < 0)
+    cost = 0;
+  return cost;
 }
 
 /* pop the top element from the heap, return 0 iff heap is empty */

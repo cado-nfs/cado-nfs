@@ -197,7 +197,8 @@ void *malloc_aligned(size_t size, size_t alignment)
 #ifdef HAVE_POSIX_MEMALIGN
     void *res = NULL;
     int rc = posix_memalign(&res, alignment, size);
-    ASSERT_ALWAYS(rc == 0);
+    // ASSERT_ALWAYS(rc == 0);
+    DIE_ERRNO_DIAG(rc != 0, "malloc_aligned", "");
     return res;
 #else
     char * res;

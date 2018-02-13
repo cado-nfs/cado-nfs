@@ -318,37 +318,46 @@ static unsigned int Primes[MAX_PRIMES] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31
 
 #define INDEX 25392 /* should be larger than the last prime above */
 
-static int prime_index[INDEX];
+typedef struct {
+  int prime_index[INDEX];
+  unsigned long nextprime_start;
+  /* The i-th bit (0-based) of nextprime_bitfield is 1 iff
+     nextprime_start + 2*i is prime. */
+  mpz_t nextprime_bitfield;
+} data_struct;
+typedef data_struct data_t[1];
 
-/* nextprime_start must be odd, unless it is uninitialised. */
-unsigned long nextprime_start = 0;
-/* The i-th bit (0-based) of nextprime_bitfield is 1 iff nextprime_start + 2*i
-   is prime. */
-mpz_t nextprime_bitfield;
+void
+data_init (data_t data)
+{
+  /* nextprime_start must be odd, unless it is uninitialised. */
+  data->nextprime_start = 0;
+}
+
 /* Code below is meant to be correct for any nextprime_len > 0 */
 const size_t nextprime_len = 4096;
 
 static unsigned long
-nextprime_idx_to_n(const unsigned long idx)
+nextprime_idx_to_n (const unsigned long idx, data_t data)
 {
-  return nextprime_start + 2*idx;
+  return data->nextprime_start + 2*idx;
 }
 
 static inline unsigned long
-nextprime_n_to_idx(const unsigned long n)
+nextprime_n_to_idx (const unsigned long n, data_t data)
 {
   // ASSERT_ALWAYS(n % 2 == 1);
   // ASSERT_ALWAYS(nextprime_start % 2 == 1);
   // ASSERT_ALWAYS(n >= nextprime_start);
-  return (n - nextprime_start) / 2;
+  return (n - data->nextprime_start) / 2;
 }
 
 /* The smallest n which is above the current nextprime_bitfield.
    Non-mapped n (i.e., even ones) count as being in the bitfield. */
 static inline unsigned long
-nextprime_end()
+nextprime_end (data_t data)
 {
-  return nextprime_idx_to_n(nextprime_len);
+  return nextprime_idx_to_n (nextprime_len, data);
 }
 
 static inline unsigned long
@@ -373,17 +382,18 @@ div2mod(const unsigned long a, const unsigned long p)
 }
 
 STATIC void
-nextprime_init(const unsigned long _first)
+nextprime_init (const unsigned long _first, data_t data)
 {
   /* Always start at an odd index */
-  nextprime_start = _first | 1;
+  data->nextprime_start = _first | 1;
 
   /* nextprime_bitfield = 2^nextprime_len - 1 */
-  mpz_set_ui(nextprime_bitfield, 1);
-  mpz_mul_2exp(nextprime_bitfield, nextprime_bitfield, nextprime_len);
-  mpz_sub_ui(nextprime_bitfield, nextprime_bitfield, 1);
+  mpz_set_ui (data->nextprime_bitfield, 1);
+  mpz_mul_2exp (data->nextprime_bitfield, data->nextprime_bitfield,
+		nextprime_len);
+  mpz_sub_ui (data->nextprime_bitfield, data->nextprime_bitfield, 1);
 
-  const unsigned long end = nextprime_end();
+  const unsigned long end = nextprime_end (data);
 
   for (size_t i = 0; Primes[i] * Primes[i] < end; i++) {
     const unsigned long p = Primes[i];
@@ -392,42 +402,42 @@ nextprime_init(const unsigned long _first)
 
     /* We want 2*next_hit + nextprime_start == 0 (mod p), i.e.,
        next_hit = -nextprime_start/2 (mod p) */
-    unsigned long next_hit = nextprime_start % p;
+    unsigned long next_hit = data->nextprime_start % p;
     next_hit = negmod(next_hit, p);
     next_hit = div2mod(next_hit, p);
 
     for ( ; next_hit < nextprime_len; next_hit += p) {
-      mpz_clrbit(nextprime_bitfield, next_hit);
+      mpz_clrbit (data->nextprime_bitfield, next_hit);
     }
   }
   if (0) {
-    for (size_t idx = mpz_scan1 (nextprime_bitfield, 0);
+    for (size_t idx = mpz_scan1 (data->nextprime_bitfield, 0);
          idx < nextprime_len;
-         idx = mpz_scan1 (nextprime_bitfield, idx + 1)) {
-      printf("isprime(%lu) == 1\n", nextprime_idx_to_n(idx));
+         idx = mpz_scan1 (data->nextprime_bitfield, idx + 1)) {
+      printf("isprime(%lu) == 1\n", nextprime_idx_to_n (idx, data));
     }
   }
 }
 
 /* Returns the smallest prime >= n */
 STATIC unsigned long
-nextprime_get_next(const unsigned long n)
+nextprime_get_next (const unsigned long n, data_t data)
 {
   if (n <= 2)
     return 2; /* Rest assumes n > 0 */
 
-  if (nextprime_start == 0 || n < nextprime_start ||
-      n >= nextprime_end())
-    nextprime_init(n);
+  if (data->nextprime_start == 0 || n < data->nextprime_start ||
+      n >= nextprime_end (data))
+    nextprime_init (n, data);
 
-  unsigned long idx = nextprime_n_to_idx(n | 1);
-  idx = mpz_scan1 (nextprime_bitfield, idx);
+  unsigned long idx = nextprime_n_to_idx (n | 1, data);
+  idx = mpz_scan1 (data->nextprime_bitfield, idx);
   while (idx >= nextprime_len) {
-    nextprime_init(nextprime_end());
-    idx = mpz_scan1 (nextprime_bitfield, 0);
+    nextprime_init (nextprime_end (data), data);
+    idx = mpz_scan1 (data->nextprime_bitfield, 0);
   }
 
-  const unsigned long next_p = nextprime_idx_to_n(idx);
+  const unsigned long next_p = nextprime_idx_to_n (idx, data);
   if (0) {
     printf("nextprime(%lu) == %lu\n", n, next_p);
   }
@@ -545,7 +555,8 @@ hash_clear (hash_t H)
    Assume r > 0.
 */
 STATIC void
-trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row)
+trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row,
+	       data_t data)
 {
   unsigned int i;
   unsigned long B = F[ncol-1].p, R;
@@ -615,7 +626,7 @@ trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row)
                  with exponent 2 */
               if (R > 1)
                 {
-                  i = prime_index[R];
+                  i = data->prime_index[R];
                   ASSERT(R == F[i].p);
                   setbit (row, shift, i + 1);
                 }
@@ -888,6 +899,9 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   fb_t *F;
   hash_t H;
   bernstein_t Z;
+  data_t data;
+
+  data_init (data);
 
   /* assume N0 is odd */
   ASSERT_ALWAYS (mpz_fdiv_ui (N0, 2) == 1);
@@ -932,7 +946,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   W = malloc ((ncol + 1) * sizeof (unsigned short));
   /* a prime p can appear in x^2 mod N only if p is a square modulo N */
   mpz_ui_pow_ui (b, 2, 64);
-  memset (prime_index, 0, INDEX * sizeof (int));
+  memset (data->prime_index, 0, INDEX * sizeof (int));
   for (i = j = 0; j < ncol && i < MAX_PRIMES; i++)
     {
       unsigned long p = Primes[i];
@@ -941,9 +955,9 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
       if (p == 2 || mpz_jacobi (N, a) != -1)
         {
           F[j].p = P[j] = p;
-          prime_index[p] = j;
-          for (int k = p - 1; k >= 0 && prime_index[k] == 0; k--)
-            prime_index[k] = j;
+          data->prime_index[p] = j;
+          for (int k = p - 1; k >= 0 && data->prime_index[k] == 0; k--)
+            data->prime_index[k] = j;
           mpz_invert (c, a, b); /* c = 1/p mod 2^64 */
           F[j].invp = mpz_get_ui (c);
           F[j].invp2 = ULONG_MAX / p;
@@ -1010,12 +1024,12 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
 
   int pols = 0;
   mpz_init (r);
-  mpz_init(nextprime_bitfield);
-  nextprime_init(mpz_get_ui(sqrta));
+  mpz_init (data->nextprime_bitfield);
+  nextprime_init (mpz_get_ui(sqrta), data);
   while (nrel < ncol + WANT_EXCESS) {
   sieve_time -= milliseconds ();
   do {
-    unsigned long next_p = nextprime_get_next (mpz_get_ui(sqrta) + 1);
+    unsigned long next_p = nextprime_get_next (mpz_get_ui(sqrta) + 1, data);
     mpz_set_ui(sqrta, next_p);
   } while (mpz_jacobi (N, sqrta) != 1);
   /* we want N to be a square mod a: N = b^2 (mod a) */
@@ -1260,7 +1274,8 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
                                initially the relations */
                             mpz_set_ui (Mat[nrel], 0);
                             setsmall (Z->w[i], wrel, Mat[nrel]);
-                            trialdiv_mpqs (Z->r[i], F, ncol, wrel, Mat[nrel]);
+                            trialdiv_mpqs (Z->r[i], F, ncol, wrel, Mat[nrel],
+					   data);
                             mpz_setbit (Mat[nrel], nrel);
                             if (++nrel >= ncol + WANT_EXCESS)
                               goto end_check;
@@ -1274,7 +1289,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   end_check:
   check_time += milliseconds ();
   }
-  mpz_clear(nextprime_bitfield);
+  mpz_clear(data->nextprime_bitfield);
   mpz_clear (r);
   hash_clear (H);
   if (verbose)

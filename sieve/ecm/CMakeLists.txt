@@ -72,5 +72,13 @@ add_executable(finishbatch finishbatch.cpp)
 target_link_libraries(finishbatch facul utils m)
 set_target_properties(finishbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
 
+add_executable(finishecm finishecm.cpp)
+target_link_libraries(finishecm facul utils m)
+
+add_executable(precompbatch precompbatch.cpp)
+target_link_libraries(precompbatch facul utils m)
+set_target_properties(precompbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
+
+
 
 include(CMakeLists-nodist.txt OPTIONAL)

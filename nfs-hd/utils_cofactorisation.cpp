@@ -442,7 +442,6 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
   // Trial divide all the small factors.
   int success = brute_force_factorize_ul(factors, norm, norm, B);
   if (success) {
-    mpz_clear(norm);
     return 1;
   }
 
@@ -451,10 +450,8 @@ static int call_facul(factor_ptr factors, mpz_srcptr norm_r,
   if (mpz_probab_prime_p(norm, 1)) {
     if (mpz_sizeinbase(norm, 2) <= data->lpb) {
       factor_append(factors, norm);
-      mpz_clear(norm);
       return 1;
     } else {
-      mpz_clear(norm);
       return 0;
     }
   }
@@ -1011,7 +1008,7 @@ static void find_relation(uint64_array_t * indices, uint64_t * index,
 
     //a must be irreducible.
     if (mpz_cmp_ui(gcd, 1) == 0 && a->deg > 0 &&
-        mpz_cmp_ui(mpz_poly_lc_const(a), 0) > 0 && is_irreducible(a)) {
+        mpz_cmp_ui(mpz_poly_lc(a), 0) > 0 && is_irreducible(a)) {
 
       good_polynomial(a, f, L, H->t, V, main, data, nb_rel_found,
           special_q, q_side, size, outstd, number_factorisation, c, gal,

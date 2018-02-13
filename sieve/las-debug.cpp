@@ -147,8 +147,8 @@ int test_divisible(where_am_I& w)
         mpz_divexact_ui (traced_norms[w.side], traced_norms[w.side], (unsigned long) q);
     else
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "# FAILED test_divisible(p=%" FBPRIME_FORMAT
-                ", N=%d, x=%lu, side %d): i = %ld, j = %lu, norm = %Zd\n",
-                w.p, w.N, w.x, w.side, i, j, traced_norms[w.side]);
+                ", N=%d, x=%u, side %d): i = %ld, j = %u, norm = %Zd\n",
+                w.p, w.N, w.x, w.side, (long) i, j, traced_norms[w.side]);
 
     return rc;
 }
@@ -245,6 +245,8 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
             (unsigned long) w.h, w.side, logp, w.x, *S, w.N, (unsigned char)(*S+logp), caller.c_str());
 }
 
+/* Produce logging as sieve_increase() does, but don't actually update
+   the sieve array. */
 void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I& w)
 {
     sieve_increase_logging_backend(S, logp, w);
@@ -292,5 +294,37 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
 }
 #endif
 
-/* }}} */
 
+dumpfile::~dumpfile() {
+    if (f != NULL)
+        fclose(f);
+}
+
+void dumpfile::setname(const char *filename_stem, const mpz_t sq,
+    const mpz_t rho, const int side)
+{
+    if (f != NULL)
+        fclose(f);
+    if (filename_stem != NULL) {
+        char *filename;
+        int rc = gmp_asprintf(&filename, "%s.sq%Zd.rho%Zd.side%d.dump",
+            filename_stem, sq, rho, side);
+        ASSERT_ALWAYS(rc > 0);
+        f = fopen(filename, "w");
+        if (f == NULL) {
+            perror("Error opening dumpfile");
+        }
+        free(filename);
+    }
+}
+
+size_t dumpfile::write(const unsigned char * const data, const size_t size) const {
+    if (f == NULL) {
+        return 0;
+    } else {
+        size_t rc = fwrite(data, sizeof(unsigned char), size, f);
+        ASSERT_ALWAYS(rc == size);
+        return rc;
+    }
+}
+/* }}} */

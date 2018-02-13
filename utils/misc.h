@@ -53,6 +53,13 @@ size_t strlcpy(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused
 size_t strlcat(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
 #endif
 
+/* strtoul(), but with const char ** for second argument.
+   Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is
+   of type const char *
+*/
+extern unsigned long int strtoul_const(const char *nptr, const char **endptr, const int base);
+extern unsigned long long int strtoull_const(const char *nptr, const char **endptr, const int base);
+
 extern char * derived_filename(const char * prefix, const char * what, const char * ext);
 extern int has_suffix(const char * path, const char * sfx);
 

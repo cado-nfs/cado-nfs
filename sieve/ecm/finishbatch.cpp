@@ -23,6 +23,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "batchlpb1", "batch bound on side 1");
     param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
     param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
+    param_list_decl_usage(pl, "doecm", "(switch) finish with ECM [default = no]");
 
     verbose_decl_usage(pl);
 }
@@ -34,9 +35,12 @@ main (int argc, char *argv[])
   cado_poly cpoly;
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
+  int doecm = 0;
 
   param_list_init(pl);
   declare_usage(pl);
+
+  param_list_configure_switch(pl, "-doecm", &doecm);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -123,7 +127,7 @@ main (int argc, char *argv[])
   FILE * inp = fopen_maybe_compressed(infilename, "r");
   ASSERT_ALWAYS(inp);
 
-#define MAX_SIZE 1024
+#define MAX_SIZE 2048
   char str[MAX_SIZE];
   mpz_t A, R, q;
   mpz_init(A);
@@ -152,7 +156,17 @@ main (int argc, char *argv[])
       mpz_ui_pow_ui(M[side], 2, batchmfb[side]);
   }
   unsigned long nrels = find_smooth(List, batchP, B, L, M, stdout, nb_threads);
-  factor(List, nrels, cpoly, batchlpb, lpb, stdout, nb_threads);
+  
+  if (doecm) {
+      factor(List, nrels, cpoly, batchlpb, lpb, stdout, nb_threads);
+  } else {
+      for (unsigned long i = 0; i < nrels; i++) {
+          uint32_t *perm = List->perm;
+          gmp_printf("%" PRIi64 " %" PRIu64 " %Zd %Zd\n",
+                  List->a[perm[i]], List->b[perm[i]],
+                  List->R[perm[i]], List->A[perm[i]]);
+      }
+  }
 
   for(int side = 0 ; side < 2 ; side++) {
       mpz_clear(B[side]);

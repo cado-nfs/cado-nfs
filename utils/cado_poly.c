@@ -300,6 +300,6 @@ cado_poly_fprintf_MurphyE (FILE *fp, double MurphyE, double bound_f,
   if (prefix)
     fputs (prefix, fp);
   /* Always print "# " after the prefix and before the MurphyE line. */
-  fprintf (fp, "# MurphyE(Bf=%.2e,Bg=%.2e,area=%.2e)=%.2e\n", bound_f, bound_g,
+  fprintf (fp, "# MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.2e\n", bound_f, bound_g,
                area, MurphyE);
 }

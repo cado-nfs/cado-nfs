@@ -15,8 +15,8 @@ name = c210
 
 tasks.polyselect.degree = 6
 
-tasks.polyselect.P = 50000000
-tasks.polyselect.admax = 2e8
+tasks.polyselect.P = 10000000
+tasks.polyselect.admax = 3e7
 tasks.polyselect.adrange = 1e4
 tasks.polyselect.incr = 60
 tasks.polyselect.nq = 1296 # this is 6^4

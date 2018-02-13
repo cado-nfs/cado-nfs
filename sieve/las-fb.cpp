@@ -75,8 +75,8 @@ void sieve_info::init_factor_bases(param_list_ptr pl)
             tfb = seconds () - tfb;
             tfb_wct = wct_seconds () - tfb_wct;
             verbose_output_print(0, 1,
-                    "# Reading side-%d factor base of %zuMb took %1.1fs (%1.1fs real)\n",
-                    side, fb[side]->size() >> 20, tfb, tfb_wct);
+                    "# Reading side-%d factor base took %1.1fs (%1.1fs real)\n",
+                    side, tfb, tfb_wct);
         } else {
             double tfb = seconds ();
             double tfb_wct = wct_seconds ();
@@ -88,8 +88,8 @@ void sieve_info::init_factor_bases(param_list_ptr pl)
             tfb = seconds () - tfb;
             tfb_wct = wct_seconds() - tfb_wct;
             verbose_output_print(0, 1,
-                    "# Creating side-%d rational factor base of %zuMb took %1.1fs (%1.1fs real)\n",
-                    side, fb[side]->size() >> 20, tfb, tfb_wct);
+                    "# Creating side-%d rational factor base took %1.1fs (%1.1fs real)\n",
+                    side, tfb, tfb_wct);
         }
     }
 
@@ -144,6 +144,7 @@ void sieve_info::share_factor_bases(sieve_info& other)
  * be done once and for all.
  */
 
+#if 0
 static size_t count_roots(const std::vector<fb_general_entry> &v)
 {
     size_t count = 0;
@@ -153,6 +154,7 @@ static size_t count_roots(const std::vector<fb_general_entry> &v)
     }
     return count;
 }
+#endif
 
 /* {{{ sieve_info::{init,clear}_fb_smallsieved */
 void sieve_info::init_fb_smallsieved(int side)
@@ -164,9 +166,14 @@ void sieve_info::init_fb_smallsieved(int side)
     /* We go through all the primes in FB part 0 and sort them into one of
        5 vectors, and some we discard */
 
+    /* FIXME: that static separation between FB parts is artificial, and
+     * actually causes problems. We want to get rid of it, because our
+     * small sieve limit depends on logI, and logI depends on the special q.
+     */
+
     /* alloc the 6 vectors */
     enum {POW2, POW3, TD, RS, REST, SKIPPED};
-    std::vector<fb_general_entry> *pieces = new std::vector<fb_general_entry>[6];
+    std::vector<std::vector<fb_general_entry>> pieces(6);
 
     fb_part *small_part = si.sides[side].fb->get_part(0);
     ASSERT_ALWAYS(small_part->is_only_general());
@@ -182,6 +189,9 @@ void sieve_info::init_fb_smallsieved(int side)
     {
         /* The extra conditions on powers of 2 and 3 are related to how
          * pattern-sieving is done.
+         *
+         * FIXME: there is some duplicated logic between here and
+         * small_sieve_init.
          */
         if (it->q < si.conf.skipped) {
             pieces[SKIPPED].push_back(*it);
@@ -200,21 +210,24 @@ void sieve_info::init_fb_smallsieved(int side)
             abort();
         }
     }
-    /* Concatenate the 6 vectors into one, and store the beginning and ending
-       index of each part in fb_parts_x */
-    std::vector<fb_general_entry> *s = new std::vector<fb_general_entry>;
-    /* FIXME: hack to be able to access the struct fb_parts_x entries via
-       an index */
-    typedef int interval_t[2];
-    interval_t *parts_as_array = &si.sides[side].fb_parts_x->pow2;
+
+    /* put the resieved primes first. */
+    auto s = std::make_shared<std::vector<fb_general_entry>>(pieces[RS]);
+    si.sides[side].resieve_start_offset = 0;
+    si.sides[side].resieve_end_offset = s->size();
+
+    /* now the rest. The small_sieve ctor will filter out the exceptional
+     * cases (proj, powers, pattern sieve, etc), and sort the remaining
+     * primes (which may or may not be already sorted, depending on the
+     * shape of the polynomial -- we're getting them as per the slice
+     * ordering, which may be a bit messy).
+     */
     for (int i = 0; i < 6; i++) {
-        parts_as_array[i][0] = count_roots(*s);
-        std::sort(pieces[i].begin(), pieces[i].end());
+        if ((i == RS) || (i == SKIPPED))
+            continue;
         s->insert(s->end(), pieces[i].begin(), pieces[i].end());
-        parts_as_array[i][1] = count_roots(*s);
     }
-    delete[] pieces;
-    si.sides[side].fb_smallsieved = std::shared_ptr<std::vector<fb_general_entry> >(s);
+    si.sides[side].fb_smallsieved = s;
 }
 
 /* }}} */
@@ -241,7 +254,7 @@ void sieve_info::print_fb_statistics(int side)
             verbose_output_print(0, 1, "# Weight of primes in side-%d factor base part %d = %0.5g\n",
                     side, i_part, weight);
         }
-        s.max_bucket_fill_ratio[i_part] = weight * 1.07;
+        s.max_bucket_fill_ratio[i_part] = weight;
     }
 }
 /*}}}*/

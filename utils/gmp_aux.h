@@ -47,6 +47,7 @@ extern void mpz_submul_int64 (mpz_t a, mpz_srcptr b, int64_t c);
 extern void mpz_divexact_uint64 (mpz_t a, mpz_srcptr b, uint64_t c);
 extern void mpz_mul_int64 (mpz_t a, mpz_srcptr b, int64_t c);
 extern void mpz_addmul_int64 (mpz_t a, mpz_srcptr b, int64_t c);
+extern int mpz_fits_uint64_p(mpz_srcptr);
 extern int mpz_fits_int64_p(mpz_srcptr);
 extern unsigned long ulong_nextprime (unsigned long);
 extern uint64_t uint64_nextprime (uint64_t);

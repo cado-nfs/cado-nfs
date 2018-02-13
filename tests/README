@@ -35,6 +35,10 @@ use:
 Note that the argument to -R is a regular expression, so in the example
 above, if a test called test_memusage2 exists it gets run too.
 
+Note also that due to a bug in CTest, some dependencies are not properly
+run first when doing say make check ARGS="-R F9_fakereltest". You should
+first run manually make check ARGS="-R F9_makefb".
+
 ** Expensive tests
 ------------------
 

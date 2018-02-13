@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 #precompute for each size of cofactors and each side (RAT or ALG), the
 #convex hull of strategies!
 

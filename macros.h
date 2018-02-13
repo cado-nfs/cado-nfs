@@ -208,6 +208,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif
 
+#ifndef ATTRIBUTE_ARTIFICIAL
+#if GNUC_VERSION_ATLEAST(4,3,0)
+#define ATTRIBUTE_ARTIFICIAL __attribute__ ((__artificial__))
+#else
+#define ATTRIBUTE_ARTIFICIAL
+#endif
+#endif
+
 #if defined(__GNUC__)
 
 #ifndef NO_INLINE
@@ -262,13 +270,20 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif /* if defined(__GNUC__) */
 
-#if GNUC_VERSION_ATLEAST(7,0,0)
+#if GNUC_VERSION_ATLEAST(7,0,0) && !defined(__ICC)
 #define no_break() __attribute__ ((fallthrough))
 #else
 #define no_break()
 #endif
 
-#if GNUC_VERSION_ATLEAST(4,9,0)
+/* as of version __INTEL_COMPILER==_ICC==1800, attribute assume_aligned
+ * is not supported, even though the underlying gcc is 6.3...
+ *
+ * I'm flagging this as unsupported overall by icc. Maybe if someone
+ * cares to check at some later point, we could have a finer grain test
+ * case.
+ */
+#if GNUC_VERSION_ATLEAST(4,9,0) && !defined(__ICC)
 #define ATTR_ASSUME_ALIGNED(x) __attribute__((assume_aligned(x)))
 #else
 #define ATTR_ASSUME_ALIGNED(x)

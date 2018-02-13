@@ -9,8 +9,8 @@
 
 strategy_t *strategy_create()
 {
-    strategy_t *t = malloc(sizeof(*t));
-    ASSERT (t != NULL);
+    strategy_t *t = malloc(sizeof(strategy_t));
+    ASSERT_ALWAYS (t != NULL);
     t->tab_fm = tabular_fm_create();
     t->proba = 0;
     t->time = 0;

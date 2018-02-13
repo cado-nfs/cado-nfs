@@ -91,6 +91,7 @@ public:
      operate on both kind of entries */
   static const bool is_general_type = true;
   static const unsigned char fixed_nr_roots = 0;
+  inline int get_nr_roots() const { return nr_roots; }
 
   fb_general_entry() {}
   template <int Nr_roots>
@@ -146,6 +147,7 @@ public:
   static const unsigned char k = 1, nr_roots = Nr_roots;
   static const bool is_general_type = false;
   static const unsigned char fixed_nr_roots = Nr_roots;
+  inline int get_nr_roots() const { return Nr_roots; }
   fb_entry_x_roots() {};
   /* Allow assignment-construction from general entries */
   fb_entry_x_roots(const fb_general_entry &e) : p(e.p), invq(e.invq) {
@@ -212,7 +214,7 @@ class fb_slice_interface {
   virtual ~fb_slice_interface(){}
   virtual int get_nr_roots() const = 0;
   virtual bool is_general() const = 0;
-  virtual plattices_vector_t * make_lattice_bases(const qlattice_basis &, int, const sublat_t &) const = 0;
+  virtual plattices_vector_t make_lattice_bases(const qlattice_basis &, int, const sublat_t &) const = 0;
   virtual unsigned char get_logp() const = 0;
   virtual slice_index_t get_index() const = 0;
   virtual fbprime_t get_prime(slice_offset_t offset) const = 0;
@@ -288,7 +290,7 @@ class fb_slice : public fb_slice_interface {
     ASSERT_ALWAYS(_begin + offset < _end);
     return _begin[offset].k;
   }
-  plattices_vector_t * make_lattice_bases(const qlattice_basis &, int, const sublat_t &) const;
+  plattices_vector_t make_lattice_bases(const qlattice_basis &, int, const sublat_t &) const;
 };
 
 /* A predicate to test whether an fb_slice has weight at most x, for use with

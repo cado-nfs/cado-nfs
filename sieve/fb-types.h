@@ -17,7 +17,7 @@ typedef fbprime_t fbroot_t;
 /* Within one factor base, there is exactly one (index, offset) tuple per
    factor base entry. */
 /* Each slice in a factor base has a unique index */
-typedef size_t slice_index_t;
+typedef uint32_t slice_index_t;
 /* Each factor base entry withing a slice has a unique offset */
 typedef uint16_t slice_offset_t;
 

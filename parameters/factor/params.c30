@@ -1,5 +1,5 @@
 ###########################################################################
-#     Parameter file for Cado-NFS ; DLP version
+#     Parameter file for Cado-NFS
 ###########################################################################
 
 # This parameter file is mostly for very quick testing purpose: a full
@@ -11,7 +11,7 @@
 
 name = c30
 
-tasks.polyselect.degree = 3
+tasks.polyselect.degree=3
 
 tasks.polyselect.admax = 1000
 tasks.polyselect.incr = 20

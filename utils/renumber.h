@@ -76,7 +76,7 @@ void renumber_init_for_writing (renumber_ptr, unsigned int, int, int,
 void renumber_write_open (renumber_ptr, const char *, const char *, cado_poly);
 void renumber_write_p (renumber_ptr, unsigned long, unsigned long [][MAX_DEGREE],
                        int []);
-size_t renumber_write_buffer_p (char *, renumber_ptr, unsigned long,
+size_t renumber_write_buffer_p (char *, size_t, renumber_ptr, unsigned long,
                                 unsigned long [][MAX_DEGREE], int []);
 void renumber_write_close (renumber_ptr, const char*);
 

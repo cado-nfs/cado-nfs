@@ -1,6 +1,8 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
+#include <algorithm>
 
 #include "portability.h"
 
@@ -10,6 +12,11 @@
 #include "clique_removal.h"
 
 /********************* comp_t struct (clique) ********************************/
+
+typedef struct {
+  uint64_t i; /* smallest row appearing in the connected component */
+  float w;   /* Weight of the connected component */
+} comp_t;
 
 /* Compare weights of two connected components.
    Return 1 if the weight of c1 is less than the weight of c2.
@@ -64,11 +71,17 @@ comp_cmp_weight_for_qsort (const void *p, const void *q)
    the default one is \Omega_{31} (LAMBDA=3, NU=1).
    Cavallar's weight function is \Omega_{23} (LAMBDA=2, NU=3).
 */
+
+#ifndef USE_WEIGHT_LAMBDA
+#define USE_WEIGHT_LAMBDA 3
+#endif
+#ifndef USE_WEIGHT_NU
+#define USE_WEIGHT_NU 1
+#endif
+
 static inline float
 comp_weight_function (weight_t w)
 {
-#define USE_WEIGHT_LAMBDA 3
-#define USE_WEIGHT_NU 1
   if (w >= 3)
 #if USE_WEIGHT_LAMBDA == 0
     return 1.0;
@@ -114,88 +127,6 @@ comp_print_info_weight_function ()
   for (unsigned int k = 2; k < 8; k++)
     fprintf(stdout, "%0.3f ", comp_weight_function((weight_t) k));
   fprintf(stdout, "\n");
-}
-
-/******************** uint64_buffer struct ***********************************/
-
-/* This is used for computing the connected components. These are internal
- * functions, except for _init and _clear.
- */
-
-/* Init function for uint64_buffer_t */
-void
-uint64_buffer_init (uint64_buffer_ptr buf, size_t size)
-{
-  buf->begin = (uint64_t *) malloc_check (sizeof(uint64_t) * size);
-  buf->next_todo = buf->begin;
-  buf->next_free = buf->begin;
-  buf->end = buf->begin + size;
-}
-
-/* Reset the buffer and add element to the todo list. */
-/* Assume buffer is already initialized with an array of length at least 1. */
-static inline void
-uint64_buffer_reset_with_one_element (uint64_buffer_ptr buf, uint64_t element)
-{
-  buf->begin[0] = element;
-  buf->next_todo = buf->begin;
-  buf->next_free = buf->begin + 1;
-}
-
-/* Clear function for uint64_buffer_t */
-void
-uint64_buffer_clear (uint64_buffer_ptr buf)
-{
-  free(buf->begin);
-}
-
-/* return non-zero if target is in buf
-   return 0 otherwise */
-static inline int
-uint64_buffer_is_in (uint64_buffer_srcptr buf, uint64_t target)
-{
-  for (uint64_t *p = buf->begin; p < buf->next_free; p++)
-    if (UNLIKELY(*p == target))
-      return 1;
-  return 0;
-}
-
-/* This function grows a possible too small uint64_buffer_t. */
-static inline void
-uint64_buffer_resize (uint64_buffer_ptr buf)
-{
-  if (UNLIKELY(buf->next_free >= buf->end))
-  {
-    size_t save_next_todo = buf->next_todo - buf->begin;
-    size_t save_next_free = buf->next_free - buf->begin;
-    size_t new_size = (buf->end - buf->begin) << 1;
-    buf->begin = (uint64_t*) realloc (buf->begin, new_size * sizeof(uint64_t));
-    ASSERT_ALWAYS (buf->begin != NULL);
-    buf->next_todo = buf->begin + save_next_todo;
-    buf->next_free = buf->begin + save_next_free;
-    buf->end = buf->begin + new_size;
-  }
-}
-
-/* push fonction for uint64_buffer_t */
-static inline void
-uint64_buffer_push_todo (uint64_buffer_ptr buf, uint64_t new_element)
-{
-  uint64_buffer_resize (buf); /* check that space is enough */
-  *(buf->next_free)++ = new_element;
-}
-
-/* push fonction for uint64_buffer_t
-   return UMAX(uint64_t) if buffer is empty */
-static inline uint64_t
-uint64_buffer_pop_todo (uint64_buffer_ptr buf)
-{
-  uint64_t pop_element;
-  if (buf->next_todo == buf->next_free)
-    pop_element = UMAX(pop_element);
-  else
-    pop_element = *((buf->next_todo)++);
-  return pop_element;
 }
 
 /***************** Sorted binary tree of comp_t struct ***********************/
@@ -300,6 +231,12 @@ comp_sorted_bin_tree_insert (comp_sorted_bin_tree_ptr T, comp_t new_node)
 
 /*********** Functions to compute and delete connected component **************/
 
+template <class T>
+bool vector_contains(std::vector<T> const & v, const T& val)
+{
+    return std::find(v.begin(), v.end(), val) != v.end();
+}
+
 /* Compute connected component beginning at row clique->i
  * The weight of the connected component is written in clique->w
  *
@@ -312,40 +249,39 @@ comp_sorted_bin_tree_insert (comp_sorted_bin_tree_ptr T, comp_t new_node)
  */
 uint64_t
 compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
-                                 uint64_buffer_ptr row_buffer)
+                                 std::vector<uint64_t> & row_buffer)
 {
-  uint64_t cur_row;
-  index_t *h;
+  row_buffer.clear();
+  row_buffer.push_back(clique->i);
 
-  /* Reset buffer and add clique->i to the list of row to explore */
-  uint64_buffer_reset_with_one_element (row_buffer, clique->i);
   clique->w = 0.; /* Set initial weight of the connected component to 0. */
 
   /* Loop on all connected rows */
-  while ((cur_row = uint64_buffer_pop_todo (row_buffer)) != UMAX(cur_row))
-  {
+  for(size_t k = 0 ; k < row_buffer.size() ; k++) {
+    uint64_t cur_row = row_buffer[k];
+
     /* Loop on all columns of the current row */
-    for (h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
+    for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
     {
       index_t cur_h = *h;
       weight_t cur_h_weight = mat->cols_weight[cur_h];
       clique->w += comp_weight_function (cur_h_weight);
       if (UNLIKELY(cur_h_weight == 2))
       {
+        ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
         uint64_t the_other_row = mat->sum2_row[cur_h] - cur_row;
         /* First, if the_other_row < clique.i, the connected component was
          * already found (by this thread or another). return 0 */
         if (the_other_row < clique->i)
           return 0;
         /* If the_other_row is not already in the buffer, add it as a todo. */
-        if (!uint64_buffer_is_in (row_buffer, the_other_row))
-          uint64_buffer_push_todo (row_buffer, the_other_row);
+        if (!vector_contains(row_buffer, the_other_row))
+            row_buffer.push_back(the_other_row);
       }
     }
   }
 
-  /* Return the nb of rows in the connected component */
-  return (row_buffer->next_todo - row_buffer->begin);
+  return row_buffer.size();
 }
 
 
@@ -357,18 +293,16 @@ compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
  */
 void
 delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
-                                uint64_buffer_ptr row_buffer)
+                                std::vector<uint64_t> & row_buffer)
 {
-  index_t *h;
-
-  /* Reset buffer and add clique->i to the list of row to explore */
-  uint64_buffer_reset_with_one_element (row_buffer, cur_row);
+  row_buffer.clear();
+  row_buffer.push_back(cur_row);
 
   /* Loop on all connected rows */
-  while ((cur_row = uint64_buffer_pop_todo (row_buffer)) != UMAX(cur_row))
-  {
+  for(size_t k = 0 ; k < row_buffer.size() ; k++) {
+    uint64_t cur_row = row_buffer[k];
     /* Loop on all columns of the current row */
-    for (h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
+    for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
     {
       index_t cur_h = *h;
       weight_t cur_h_weight = mat->cols_weight[cur_h];
@@ -378,17 +312,18 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
        * initially.*/
       if (UNLIKELY(cur_h_weight == 2 && mat->sum2_row[cur_h]))
       {
+        ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
         uint64_t the_other_row = mat->sum2_row[cur_h] - cur_row;
         /* If the_other_row is not already in the buffer, add it as a todo. */
-        if (!uint64_buffer_is_in (row_buffer, the_other_row))
-          uint64_buffer_push_todo (row_buffer, the_other_row);
+        if (!vector_contains(row_buffer, the_other_row))
+            row_buffer.push_back(the_other_row);
       }
     }
   }
 
   /* Now, we deleted all rows explored */
-  for (uint64_t *pt = row_buffer->begin; pt < row_buffer->next_todo; pt++)
-    purge_matrix_delete_row (mat, *pt);
+  for (uint64_t pt : row_buffer)
+    purge_matrix_delete_row (mat, pt);
     /* mat->nrows and mat->ncols are updated by purge_matrix_delete_row. */
 }
 
@@ -409,8 +344,9 @@ purge_matrix_print_stats_on_cliques (FILE *out, purge_matrix_srcptr mat,
   ASSERT_ALWAYS (len != NULL);
   memset (len, 0, mat->nrows_init * sizeof (uint64_t));
 
-  uint64_buffer_t buf;
-  uint64_buffer_init (buf, UINT64_BUFFER_MIN_SIZE);
+  /* use a single buffer, avoid constant reallocations */
+  std::vector<uint64_t> buf;
+
   for (uint64_t i = 0; i < mat->nrows_init; i++)
   {
     if (purge_matrix_is_row_active (mat, i))
@@ -423,7 +359,6 @@ purge_matrix_print_stats_on_cliques (FILE *out, purge_matrix_srcptr mat,
 
   print_stats_uint64 (out, len, mat->nrows_init, "cliques", "length", verbose);
 
-  uint64_buffer_clear (buf);
   free (len);
 }
 
@@ -458,11 +393,9 @@ clique_removal_core_mt_thread (void *pt)
 {
   comp_mt_data_t *data = (comp_mt_data_t *) pt;
   uint64_t begin_cur_block, end_cur_block;
-  uint64_buffer_t buf;
   comp_t clique;
 
-  /* Init of the structure & malloc. */
-  uint64_buffer_init (buf, UINT64_BUFFER_MIN_SIZE);
+  std::vector<uint64_t> buf;
 
   begin_cur_block = data->begin_first_block;
   end_cur_block = data->end_first_block;
@@ -488,7 +421,6 @@ clique_removal_core_mt_thread (void *pt)
     end_cur_block += data->jump_to_next_block;
   }
 
-  uint64_buffer_clear (buf);
   /* Re-order the connected component by decreasing weight. */
   comp_sorted_bin_tree_qsort (data->comp_tree, comp_cmp_weight_for_qsort);
 
@@ -545,11 +477,10 @@ clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
   /* At this point, in each pth[i].comp_tree we have pth[i].comp_tree->size
      connected components ordered by decreasing weight. */
   size_t *next_clique = NULL;
-  uint64_buffer_t buf;
+  std::vector<uint64_t> buf;
   next_clique = (size_t *) malloc (nthreads * sizeof (next_clique));
   ASSERT_ALWAYS (next_clique != NULL);
   memset (next_clique, 0, nthreads * sizeof (next_clique));
-  uint64_buffer_init (buf, UINT64_BUFFER_MIN_SIZE);
 
   while (mat->nrows > target_excess + mat->ncols)
   {
@@ -581,7 +512,6 @@ clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
   }
 
   free (next_clique);
-  uint64_buffer_clear (buf);
 
   /* We can free th_data[i].comp_tree and th_data itself */
   for (unsigned int i = 0; i < nthreads; ++i)
@@ -599,11 +529,9 @@ clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
                           size_t max_nb_comp, int verbose)
 {
   comp_sorted_bin_tree_t comp_tree;
-  uint64_buffer_t buf;
+  std::vector<uint64_t> buf;
   comp_t clique;
 
-  /* Init of the structure & malloc. */
-  uint64_buffer_init (buf, UINT64_BUFFER_MIN_SIZE);
   comp_sorted_bin_tree_init (comp_tree, max_nb_comp);
 
   for (clique.i = 0; clique.i < mat->nrows_init; clique.i++)
@@ -648,7 +576,6 @@ clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
     nb_clique_deleted++;
   }
 
-  uint64_buffer_clear (buf);
   comp_sorted_bin_tree_clear (comp_tree);
 
   return nb_clique_deleted;

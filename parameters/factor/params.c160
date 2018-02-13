@@ -26,14 +26,16 @@ tasks.polyselect.nrkeep = 100
 # Sieve
 ###########################################################################
 
-lim0 = 20000000
-lim1 = 40000000
-lpb0 = 30
+lim0 = 34000000
+lim1 = 20000000
+lpb0 = 29
 lpb1 = 30
 tasks.sieve.mfb0 = 60
-tasks.sieve.mfb1 = 90
-
+tasks.sieve.mfb1 = 84
+tasks.sieve.ncurves0 = 8
+tasks.sieve.ncurves1 = 9
 tasks.I = 14
+tasks.sieve.qmin = 27940000
 tasks.sieve.qrange = 10000
 
 ###########################################################################

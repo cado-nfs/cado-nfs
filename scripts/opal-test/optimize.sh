@@ -10,30 +10,43 @@
 # which should be near from prime_pi(2^lpb0) + prime_pi(2^lpb1)
 
 # Force the shell to bomb out in case a command fails in the script.
-set -ex
+# set -e
 
 # To limit the number of black-box evaluations to say 50:
 # NOMAD_MAX_BB_EVAL=50 ./optimize.sh ...
 
 : ${NOMAD_MAX_BB_EVAL=100}
+export NOMAD_MAX_BB_EVAL
+
+# To use nomad p-MADS set NOMAD_MPI to more than 1.
+# This will run blackbox evaluations in parallel.
+
+: ${NOMAD_MPI=1}
+export NOMAD_MPI 
 
 # To use say 8 threads:
-# NUM_THREADS=8 ./optimize.sh ...
+# OPAL_NUM_THREADS=8 ./optimize.sh ...
 # Note that when the number of threads increases, the estimated time reported
 # by OPAL does increase. This is not really a problem if this time increases
 # by the same factor between two sets of parameters. However this is no longer
 # the case for a number of threads larger than 4. Here are examples on rsa140,
 # with two different sets of parameters, lpb[01]=28 and lpb[01]=29:
 #                  lpb[01]=28                     lpb[01]=29
-# NUM_THREADS=2      1.31e6                         1.35e6
-# NUM_THREADS=4      1.32e6                         1.35e6
-# NUM_THREADS=8      1.40e6                         1.43e6
-# NUM_THREADS=16     1.82e6                         1.78e6
-# We thus see the estimated time indeed increases with NUM_THREADS, and
-# with NUM_THREADS=16 the first set of parameters is worse than the second one.
-# Thus for production use we recommend to use NUM_THREADS <= 4.
+# OPAL_NUM_THREADS=2      1.31e6                         1.35e6
+# OPAL_NUM_THREADS=4      1.32e6                         1.35e6
+# OPAL_NUM_THREADS=8      1.40e6                         1.43e6
+# OPAL_NUM_THREADS=16     1.82e6                         1.78e6
+# We thus see the estimated time indeed increases with OPAL_NUM_THREADS, and
+# with OPAL_NUM_THREADS=16 the first set of parameters is worse than the second one.
+# Thus for production use we recommend to use OPAL_NUM_THREADS <= 4.
 
-: ${NUM_THREADS=4}
+: ${OPAL_NUM_THREADS=4}
+
+# Set number of parallel instances of las.
+# This can help to parallelize the optimization process, but the use of NOMAD_MPI is preferred.
+# Set to 1 unless you understand what you're doing
+
+: ${OPAL_NUM_WORKERS=1}
 
 cwd=`pwd`
 
@@ -67,13 +80,15 @@ fi
 d=`mktemp -d`
 echo "Working directory:" $d
 
-cleanup() { rm -rf "$d" ; }
-trap cleanup EXIT
+# cleanup() { rm -rf "$d" ; }
+# trap cleanup EXIT
+
 
 ### Copy las_optimize, report and poly file and replace its name in las_run
 cp $2 las_optimize.py report.py $d
 sed "s/c59.polyselect2.poly/$poly/g" las_run.py | \
-sed "s/2 # number of threads for las/$NUM_THREADS/g" > $d/las_run.py
+sed "s/[0-9]\+,\? # number of threads for las/$OPAL_NUM_THREADS,/g" | \
+sed "s/[0-9]\+,\? # number of workers for las/$OPAL_NUM_WORKERS,/g" > $d/las_run.py
 
 ### Parsing poly file (number of poly and rat/alg) (for now assume npoly == 2)
 npoly=`grep -c "^poly[0-9]" $d/$poly || :`
@@ -116,6 +131,7 @@ echo "OPAL_CADO_SQSIDE=${OPAL_CADO_SQSIDE}"
 ### Get parameters from params file and set _min and _max
 lim0=`grep "^lim0.*=" $params | cut -d= -f2`
 lim1=`grep "^lim1.*=" $params | cut -d= -f2`
+echo $lim0 $lim1
 if grep -q "qmin.*=" $params ; then
    qmin=`grep "qmin.*=" $params | cut -d= -f2`
    has_qmin=1
@@ -127,18 +143,20 @@ if grep -q "bkthresh1.*=" $params ; then
    bkthresh1=`grep "bkthresh1.*=" $params | cut -d= -f2`
    has_bkthresh1=1
 else
-   # primes smaller than bkthresh are small-sieved
-   # primes between bkthresh and bkthresh1 are dealt with in two passes
-   # primes larger than bkthresh1 are bucket-sieved
-   # if bkthresh1 is not given on las command line, the code considers that
-   # bkthresh1=bkthresh (or bkthresh1=0)
+   # factor base primes larger than bkthresh (default 2^I) are bucket-sieved
+   # factor base primes between bkthresh1 and lim[01] are 2-level
+   # bucket-sieved. If bkthresh1 = lim[01], then we only have one level.
+   # The default value bkthresh1 = 0 is mapped to bkthresh1 = lim[01].
+   # A similar behaviour is obtained when bkthresh1 = max(lim0,lim1).
    bkthresh1=0
    has_bkthresh1=0
 fi
 lpb0=`grep "^lpb0.*=" $params | cut -d= -f2`
 lpb1=`grep "^lpb1.*=" $params | cut -d= -f2`
+echo $lpb0 $lpb1
 mfb0=`grep "mfb0.*=" $params | cut -d= -f2`
 mfb1=`grep "mfb1.*=" $params | cut -d= -f2`
+echo $mfb0 $mfb1
 if grep -q "ncurves0.*=" $params ; then
    ncurves0=`grep "ncurves0.*=" $params | cut -d= -f2`
    has_ncurves0=1
@@ -154,14 +172,21 @@ else
    has_ncurves1=0
 fi
 I=`grep "I.*=" $params | cut -d= -f2`
+echo $I
 qmin_min=`expr $qmin / 2`
 qmin_max=`expr $qmin \* 2`
+echo $qmin_min $qmin_max
 # integer parameters are limited to 2147483645 in OPAL
 if [ $qmin_max -gt 2147483645 ]; then
    qmin_max=2147483645
 fi
+# unset set -ex locally since bkthresh1_min can be 0,
+# in which case the shell will exit...
+set +ex
 bkthresh1_min=`expr $bkthresh1 / 2`
+echo $bkthresh1_min
 bkthresh1_max=`expr $bkthresh1 \* 2`
+set -ex
 lim0_min=`expr $lim0 / 2`
 lim0_max=`expr $lim0 \* 2`
 # integer parameters are limited to 2147483645 in OPAL
@@ -173,8 +198,10 @@ lim1_max=`expr $lim1 \* 2`
 if [ $lim1_max -gt 2147483645 ]; then
    lim1_max=2147483645
 fi
+echo "lim0" $lim0_min $lim0_max
 lpb0_min=`expr $lpb0 - 1`
 lpb0_max=`expr $lpb0 + 1`
+echo $lpb0_min $lpb0_max
 lpb1_min=`expr $lpb1 - 1`
 lpb1_max=`expr $lpb1 + 1`
 mfb0_min=$lpb0_min
@@ -187,6 +214,8 @@ mfb1_max=`expr $lpb1_max \* 3`
 if [ $mfb1 -gt $mfb1_max ]; then
    mfb1_max=$mfb1
 fi
+echo $mfb0_min $mfb0_max
+echo $mfb1_min $mfb1_max
 if [ $ncurves0 -gt 3 ]; then
 ncurves0_min=`expr $ncurves0 - 3`
 else
@@ -201,7 +230,6 @@ fi
 ncurves1_max=`expr $ncurves1 + 3`
 I_min=`expr $I - 1`
 I_max=`expr $I + 1`
-# in the future-I18 branch, there is no upper limit any more on I
 
 ### Replace parameters values in template
 sed "s/lim0_def/$lim0/g" las_decl_template.py | \
@@ -226,24 +254,27 @@ sed "s/ncurves1_def/$ncurves1/g" | sed "s/ncurves1_min/$ncurves1_min/g" | \
 sed "s/ncurves1_max/$ncurves1_max/g" | \
 sed "s/I_def/$I/g" | sed "s/I_min/$I_min/g" | sed "s/I_max/$I_max/g" \
 > $d/las_declaration.py
+echo $d/las_declaration.py
 
 ### Go to working directory and execute las_optimize.py
 cd $d
+echo $d
 python las_optimize.py
 
 ### Parse the solutions from nomad
 # optimized parameters are in nomad-solution.nnn.txt
 f=`ls -t nomad-solution.*.txt | head -1`
-lim0_opt=`head -1 $f`
-lim1_opt=`head -2 $f | tail -1`
-lpb0_opt=`head -3 $f | tail -1`
-lpb1_opt=`head -4 $f | tail -1`
-mfb0_opt=`head -5 $f | tail -1`
-mfb1_opt=`head -6 $f | tail -1`
-ncurves0_opt=`head -7 $f | tail -1`
-ncurves1_opt=`head -8 $f | tail -1`
-I_opt=`head -9 $f | tail -1`
-qmin_opt=`head -10 $f | tail -1`
+I_opt=`head -1 $f`
+qmin_opt=`head -2 $f | tail -1`
+lim0_opt=`head -3 $f | tail -1`
+lim1_opt=`head -4 $f | tail -1`
+bkthresh1_opt=`head -5 $f | tail -1`
+lpb0_opt=`head -6 $f | tail -1`
+lpb1_opt=`head -7 $f | tail -1`
+mfb0_opt=`head -8 $f | tail -1`
+mfb1_opt=`head -9 $f | tail -1`
+ncurves0_opt=`head -10 $f | tail -1`
+ncurves1_opt=`head -11 $f | tail -1`
 echo "Optimal parameters:"
 echo "lim0=" $lim0_opt " min=" $lim0_min " max=" $lim0_max
 echo "lim1=" $lim1_opt " min=" $lim1_min " max=" $lim1_max
@@ -280,4 +311,4 @@ fi
 if [ $has_ncurves1 -eq 0 ]; then
    echo "tasks.sieve.ncurves1 = $ncurves1_opt" >> $params.opt
 fi
-/bin/rm -fr $d
+# /bin/rm -fr $d

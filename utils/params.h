@@ -250,6 +250,11 @@ struct cxx_param_list {
     param_list_srcptr operator->() const { return x; }
 };
 
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void param_list_init(cxx_param_list & pl) __attribute__((error("param_list_init must not be called on a param_list reference -- it is the caller's business (via a ctor)")));
+extern void param_list_clear(cxx_param_list & pl) __attribute__((error("param_list_clear must not be called on a param_list reference -- it is the caller's business (via a dtor)")));
+#endif
+
 #endif
 
 

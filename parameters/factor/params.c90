@@ -184,7 +184,7 @@ tasks.polyselect.P = 10000		# choose lc(g) with two prime factors in [P,2P]
 tasks.polyselect.admin = 0          # min value for leading coefficient of f(x)
     # If not set, the default is 0.
 
-tasks.polyselect.admax = 150e3      # max value for leading coefficient of f(x)
+tasks.polyselect.admax = 100e3      # max value for leading coefficient of f(x)
 
 tasks.polyselect.incr = 60	    # increment for leading coefficient of f(x)
     # This factor is usually a smooth number, which forces projective roots in

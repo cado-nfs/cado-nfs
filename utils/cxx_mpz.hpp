@@ -1,5 +1,6 @@
 #ifndef CXX_MPZ_HPP_
 #define CXX_MPZ_HPP_
+#include "macros.h"
 
 #include <gmp.h>
 
@@ -31,6 +32,10 @@ struct cxx_mpz {
     mpz_ptr operator->() { return x; }
     mpz_srcptr operator->() const { return x; }
 };
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpz_init(cxx_mpz & pl) __attribute__((error("mpz_init must not be called on a mpz reference -- it is the caller's business (via a ctor)")));
+extern void mpz_clear(cxx_mpz & pl) __attribute__((error("mpz_clear must not be called on a mpz reference -- it is the caller's business (via a dtor)")));
+#endif
 
 struct cxx_mpq{
     mpq_t x;
@@ -60,4 +65,8 @@ struct cxx_mpq{
     mpq_ptr operator->() { return x; }
     mpq_srcptr operator->() const { return x; }
 };
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be called on a mpq reference -- it is the caller's business (via a ctor)")));
+extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
+#endif
 #endif	/* CXX_MPZ_HPP_ */

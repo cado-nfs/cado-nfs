@@ -20,6 +20,8 @@ class NonCopyable {
 // data members do not occupy the whole memory region.
 // For instance, this allows one to write `fwrite(&x, sizeof(T), 1, f)' without
 // Valgrind complaining because of uninitialized memory reads.
+//
+// IT IS NOT VALID TO USE THIS IF T HAS NON-POD DATA MEMBERS !!!
 template <typename T>
 class _padded_pod {
   public:

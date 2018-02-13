@@ -16,9 +16,9 @@ name = c190
 tasks.polyselect.degree = 5
 
 tasks.polyselect.P = 5000000
-tasks.polyselect.admax = 3e7
+tasks.polyselect.admax = 8e6
 tasks.polyselect.adrange = 4200
-tasks.polyselect.incr = 420
+tasks.polyselect.incr = 60
 tasks.polyselect.nq = 3125
 tasks.polyselect.nrkeep = 100
 
@@ -26,15 +26,17 @@ tasks.polyselect.nrkeep = 100
 # Sieve
 ###########################################################################
 
-lim0 = 130000000
-lim1 = 100000000
+lim0 = 340600000
+lim1 = 162343750
 lpb0 = 32
-lpb1 = 32
+lpb1 = 33
 tasks.sieve.mfb0 = 85
 tasks.sieve.mfb1 = 96
 tasks.sieve.ncurves0 = 13
-tasks.sieve.ncurves1 = 13
+tasks.sieve.ncurves1 = 14
 tasks.I = 15
+tasks.sieve.qmin = 101875000
+tasks.sieve.bkmult = 1.1
 
 tasks.sieve.qrange = 10000
 

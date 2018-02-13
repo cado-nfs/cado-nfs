@@ -1,8 +1,0 @@
-message(STATUS "Checking for alloca.h")
-find_path   (ALLOCA_INCDIR alloca.h DOC "alloca.h")
-string(COMPARE NOTEQUAL "${ALLOCA_INCDIR}" ALLOCA_INCDIR-NOTFOUND HAVE_ALLOCA_H)
-if (HAVE_ALLOCA_H)
-Message(STATUS "Checking for alloca.h -- found in ${ALLOCA_INCDIR}")
-else()
-message(STATUS "Checking for alloca.h -- not found")
-endif()

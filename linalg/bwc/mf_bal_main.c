@@ -44,6 +44,8 @@ int main(int argc, char * argv[])
     mf_bal_configure_switches(pl, mba);
     mf_bal_parse_cmdline(mba, pl, &argc, &argv);
     mf_bal_interpret_parameters(mba, pl);
+    param_list_print_command_line (stdout, pl);
+    fflush(stdout);
 
     mf_bal(mba);
 

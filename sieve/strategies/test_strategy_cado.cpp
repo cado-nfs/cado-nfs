@@ -193,7 +193,7 @@ tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
 	tabular_decomp_t *tab_decomp = NULL;
 	if (r0 >= lim) {
 	    char name_file[200];
-	    sprintf(name_file,
+            snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
 	    FILE *file = fopen(name_file, "r");
 
@@ -219,7 +219,7 @@ tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
 	tabular_decomp_t *tab_decomp = NULL;
 	if (r1 >= lim) {
 	    char name_file[200];
-	    sprintf(name_file,
+	    snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
@@ -665,7 +665,7 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
 	tabular_decomp_t *tab_decomp = NULL;
 	if (r0 >= lim) {
 	    char name_file[200];
-	    sprintf(name_file,
+	    snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
 	    FILE *file = fopen(name_file, "r");
 
@@ -692,7 +692,7 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
 	tabular_decomp_t *tab_decomp = NULL;
 	char name_file[200];
 	if (r1 >= lim) {
-	    sprintf(name_file,
+	    snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
@@ -717,7 +717,7 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
 	    }
 	  else
 	    {
-	      sprintf(name_file,
+	      snprintf(name_file, sizeof(name_file),
 		      "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
 	      FILE *file = fopen(name_file, "r");
 
@@ -789,10 +789,10 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 
     int lim = 2 * fbb0 - 1;
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	char name_file_in[strlen(name_directory_str) + 20];
+	char name_file_in[strlen(name_directory_str) + 64];
 	FILE * file_in;
 	//get back the best strategies for r0!
-	sprintf(name_file_in, "%s/strategies%lu_%d",
+	snprintf(name_file_in, sizeof(name_file_in), "%s/strategies%lu_%d",
 		name_directory_str, lim0, r0);
 	file_in = fopen(name_file_in, "r");
 	data_rat[r0] = tabular_strategy_fscan(file_in);
@@ -815,7 +815,7 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 	tabular_decomp_t *tab_decomp = NULL;
 	char name_file[200];
 	if (r1 >= lim) {
-	    sprintf(name_file,
+            snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
@@ -827,10 +827,11 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 	    }
 	    fclose(file);
 	}
-	char name_file_in[strlen(name_directory_str) + 20];
+	char name_file_in[strlen(name_directory_str) + 64];
 	FILE * file_in;
 	//get back the best strategies for r0!
-	sprintf(name_file_in, "%s/strategies%lu_%d",
+	snprintf(name_file_in, sizeof(name_file_in), 
+                "%s/strategies%lu_%d",
 		name_directory_str, lim1, r1);
 	file_in = fopen(name_file_in, "r");
 	tabular_strategy_t *strat_r1 = tabular_strategy_fscan(file_in);
@@ -851,7 +852,7 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 	    }
 	  else
 	    {
-	      sprintf(name_file,
+                snprintf(name_file, sizeof(name_file),
 		      "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
 	      FILE *file = fopen(name_file, "r");
 
@@ -1476,14 +1477,14 @@ int main(int argc, char *argv[])
     /* assert (r0 <= mfb0 && r1 <= mfb1); */
     /* printf ("r0 = %d, r1= %d\n", r0, r1); */
     /* char name_file[200]; */
-    /* sprintf(name_file, */
+    /* snprintf(name_file, sizeof(name_file), */
     /* 	    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);//modify it!! */
     /* printf ("%s\n", name_file); */
     /* fflush(stdout); */
     /* FILE *file = fopen(name_file, "r"); */
     /* tabular_decomp_t* init_tab0 = tabular_decomp_fscan (file); */
     /* fclose (file); */
-    /* sprintf(name_file, */
+    /* snprintf(name_file, sizeof(name_file), */
     /* 	    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);//modify it!! */
     /* printf ("%s\n", name_file); */
     /* file = fopen(name_file, "r"); */
@@ -1675,7 +1676,7 @@ int main(int argc, char *argv[])
     /* //printf ("nb call = %lu\n", distrib_C[r0][r1]); */
     /* printf ("proba found: %lf, %lf\n", matrix[r0][r1]->tab[0]->proba, matrix[r0][r1]->tab[0]->time); */
     /* char name_file[200]; */
-    /* sprintf(name_file, */
+    /* snprintf(name_file, sizeof(name_file), */
     /* 	    "%s/decomp_%d_%d", name_directory_decomp, fbb0, r0); */
     /* FILE *file = fopen(name_file, "r"); */
     
@@ -1692,7 +1693,7 @@ int main(int argc, char *argv[])
     /* tabular_decomp_free (tab_decomp); */
     /* facul_clear_strategy(facul_st); */
     /* //r1 */
-    /* sprintf(name_file, */
+    /* snprintf(name_file, sizeof(name_file), */
     /* 	    "%s/decomp_%d_%d", name_directory_decomp, fbb1, r1); */
     /* file = fopen(name_file, "r"); */
     

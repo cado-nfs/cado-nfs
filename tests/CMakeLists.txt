@@ -458,7 +458,9 @@ cado_define_test(full_c30
     if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
         # see linalg/bwc/CMakeLists.txt for an explanation
         cado_define_test(full_p30
-            SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
+            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             -dlp -ell 445257213376519703258944813
             -t 2 -dlp-no-keep
             target=92800609832959449330691138186
@@ -469,24 +471,24 @@ cado_define_test(full_c30
     endif()
 endif()
 if(DEFINED ENV{CHECKS_EXPENSIVE})
+    # we used to test separaterly with and without a user-supplied
+    # workdir. We no longer do that, given that we rely first and
+    # foremost on the shell wrapper to be a better safety net and catch
+    # SIGHUP yet still clean up after itself. And we want to do that in
+    # all cases, and that means that we're passing a user-supplied
+    # workdir.
     cado_define_test(full_c59
         SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             90377629292003121684002147101760858109247336549001090677693
             --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
             )
-    cado_define_test(full_c59workdir
-        SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
-	    90377629292003121684002147101760858109247336549001090677693
-        TARGET_DEPENDENCIES
-	    full_c30_dependencies
-            )
     cado_define_test(full_c65_128
         SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             22381151342911794563007770625342242843893411711318155026160427871
             tasks.linalg.m=128 tasks.linalg.n=128 --server-threads 2
@@ -495,6 +497,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             )
     cado_define_test(nonlinear_c59
         SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
             --server-threads 2
             71641520761751435455133616475667090434063332228247871795429
@@ -521,7 +524,9 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals)
         cado_define_test(test_gfp2
-            SCRIPT ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
+            SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
+            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
             filter_galois polyselect_gfpn)

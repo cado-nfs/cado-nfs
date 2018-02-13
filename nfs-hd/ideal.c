@@ -45,7 +45,7 @@ void ideal_1_set_part(ideal_1_ptr ideal, uint64_t r, mpz_poly_srcptr h,
     unsigned int t)
 {
   ASSERT(h->deg == 1);
-  ASSERT(mpz_cmp_ui(mpz_poly_lc_const(h), 1) == 0);
+  ASSERT(mpz_cmp_ui(mpz_poly_lc(h), 1) == 0);
 
   mpz_poly_set(ideal->ideal->h, h);
 
@@ -147,7 +147,7 @@ void ideal_u_set_part(ideal_u_ptr ideal, uint64_t r, mpz_poly_srcptr h,
     unsigned int t)
 {
   ASSERT(h->deg > 1);
-  ASSERT(mpz_cmp_ui(mpz_poly_lc_const(h), 1) == 0);
+  ASSERT(mpz_cmp_ui(mpz_poly_lc(h), 1) == 0);
 
   mpz_poly_set(ideal->ideal->h, h);
   //if r == 0, Tr is not created.

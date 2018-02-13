@@ -538,6 +538,11 @@ lognorm_smart::lognorm_smart(siever_config const & sc, cado_poly_srcptr cpoly, i
     }
 }/*}}}*/
 
+static inline double compute_y(double G, double offset, double modscale) {
+    double res = lg2 ((G) + 1., offset, modscale);
+    return res;
+}
+
 /* {{{ void lognorm_fill_rat_smart. */
 /* Initialize lognorms of the bucket region S[] number N, for F(i,j) with
  * degree = 1.
@@ -562,10 +567,14 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
      * and != 0.  So, I add 1.0 on all G values.  It's not useful to do a
      * fabs(G) here because the code uses always COMPUTE_Y(G) with G >= 0.
      */
-#define COMPUTE_Y(G) lg2 ((G) + 1., offset, modscale)
+// #define COMPUTE_Y(G) lg2 ((G) + 1., offset, modscale)
+#define COMPUTE_Y(G) compute_y(G, offset, modscale)
+    /* COMPUTE_Y(z) returns GUARD + L(z) * scale. Recall that
+     * we have 0 <= log2(z) - L(z) < 0.0861, for any real z > 0.
+     */
 
     for (unsigned int j = j0; j < j1; j++) {
-	int i = i0;
+	int64_t i = i0;
 	double g = fabs(u0 * j + u1 * i0);
 	uint8_t y;
 	double root = -u0 * j / u1;
@@ -608,9 +617,9 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
                 /* conversion rounding is towards zero, while we want it
                  * to be towards +infinity. */
                 ix += (ix >= 0);
-		if (UNLIKELY(ix >= i1))
+		if (UNLIKELY((int64_t)ix >= i1))
 		    ix = i1;
-		size_t di = (int) ix - i;	/* The cast matters ! */
+		size_t di = (int64_t) ix - i;	/* The cast matters ! */
 		i = ix;
 		if (!di)
                     break;
@@ -665,13 +674,17 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
             /* conversion rounding is towards zero, while we want it
              * to be towards +infinity. */
             ix += (ix >= 0);
-            ASSERT((int) ix >= i);
-	    if (UNLIKELY(ix >= i1))
-		ix = i1;
-	    size_t di = (int) ix - i;	/* The cast matters ! */
-	    i = ix;
-	    memset_with_writeahead(S, y, di, MEMSET_MIN);
-	    S += di;
+            // ASSERT ((int) ix >= i); // see bug 21518
+            if (LIKELY((int64_t) ix >= i)) {
+                /* It is most likely that we'll only see this branch. Yet
+                 * bug 21518 seems to trigger a nasty corner case */
+                if (UNLIKELY(ix >= i1))
+                    ix = i1;
+                size_t di = (int64_t) ix - i;	/* The cast matters ! */
+                i = ix;
+                memset_with_writeahead(S, y, di, MEMSET_MIN);
+                S += di;
+            }
 	}
     }
 #undef COMPUTE_Y
@@ -1238,7 +1251,7 @@ int sieve_range_adjust::adapt_threads(const char * origin)/*{{{*/
  
 int sieve_range_adjust::get_minimum_J()
 {
-    return nb_threads << (LOG_BUCKET_REGION - logI);
+    return nb_threads << MAX(0, (LOG_BUCKET_REGION - logI));
 }
 
 void sieve_range_adjust::set_minimum_J_anyway()

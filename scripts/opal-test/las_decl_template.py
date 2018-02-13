@@ -24,17 +24,21 @@ ncurves1 = Parameter(kind='integer', default=ncurves1_def, bound=(ncurves1_min,n
 I = Parameter(kind='integer', default=I_def, bound=(I_min, I_max), name='I', description='Sieve region size')
 qmin = Parameter(kind='integer', default=qmin_def, bound=(qmin_min, qmin_max), name='qmin', description='Special-q lower bound')
 bkthresh1 = Parameter(kind='integer', default=bkthresh1_def, bound=(bkthresh1_min, bkthresh1_max), name='bkthresh1', description='Level-2 bucket sieve bound')
+# OPAL begins by modifying the first parameters below, thus we should put
+# first the most important parameters.
+# Warning: if you change the order of parameters, please also change the
+# lines I_opt=`head -1 $f` and so on in optimize.sh
+LAS.add_param(I)
+LAS.add_param(qmin)
 LAS.add_param(lim0)
 LAS.add_param(lim1)
+LAS.add_param(bkthresh1)
 LAS.add_param(lpb0)
 LAS.add_param(lpb1)
 LAS.add_param(mfb0)
 LAS.add_param(mfb1)
 LAS.add_param(ncurves0)
 LAS.add_param(ncurves1)
-LAS.add_param(I)
-LAS.add_param(qmin)
-LAS.add_param(bkthresh1)
 
 # Define relevant measure and register with algorithm.
 sievetime = Measure(kind='real', name='SIEVETIME', description='Time in the sieving')

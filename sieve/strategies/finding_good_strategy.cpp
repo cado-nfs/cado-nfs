@@ -41,8 +41,8 @@ tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
 
     for (int r0 = 0; r0 < len_abs; r0++) {
 	for (int r1 = 0; r1 < len_ord; r1++) {
-	    char name_file[strlen(pathname_st) + 20];
-	    sprintf(name_file, "%s/strategies_%d_%d", pathname_st, r0, r1);
+	    char name_file[strlen(pathname_st) + 64];
+	    snprintf(name_file, sizeof(name_file), "%s/strategies_%d_%d", pathname_st, r0, r1);
 	    FILE *file = fopen(name_file, "r");
 	    matrix[r0][r1] = tabular_strategy_fscan(file);
 	    if (matrix[r0][r1] == NULL) {

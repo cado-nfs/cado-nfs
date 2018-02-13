@@ -3,25 +3,6 @@
 #include "polyselect_str.h"
 #include "portability.h"
 
-/* return 1/a mod p, assume 0 <= a < p */
-unsigned long
-invert (unsigned long a, unsigned long p)
-{
-  modulusul_t q;
-  residueul_t b;
-
-  modul_initmod_ul (q, p);
-  modul_init (b, q);
-  assert (a < p);
-  modul_set_ul_reduced (b, a, q);
-  modul_inv (b, b, q);
-  a = modul_get_ul (b, q);
-  modul_clear (b, q);
-  modul_clearmod (q);
-  return a;
-}
-
-
 /* lift the n roots r[0..n-1] of N = x^d (mod p) to roots of
    N = (m0 + r)^d (mod p^2) */
 void
@@ -47,7 +28,7 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 	mpz_sub (lambda, N, lambda);
 	mpz_divexact_ui (lambda, lambda, p);
 	mpz_mul_ui (tmp, tmp, d);         /* tmp = d*r^(d-1) */
-	inv = invert (mpz_fdiv_ui (tmp, p), p);
+	inv = invert_ul (mpz_fdiv_ui (tmp, p), p);
 	mpz_mul_ui (lambda, lambda, inv * p); /* inv * p fits in 64 bits if
 						 p < 2^32 */
 	mpz_add_ui (lambda, lambda, r[j]); /* now lambda^d = N (mod p^2) */
@@ -80,7 +61,7 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 	mpz_sub (lambda, N, lambda);
 	mpz_divexact_ui (lambda, lambda, p);
 	mpz_mul_ui (tmp, tmp, d);         /* tmp = d*r^(d-1) */
-	inv = invert (mpz_fdiv_ui (tmp, p), p);
+	inv = invert_ul (mpz_fdiv_ui (tmp, p), p);
 	tmp1 = (uint64_t) inv;
 	tmp1 *= (uint64_t) p;
 	mpz_set_uint64 (tmpz, tmp1);

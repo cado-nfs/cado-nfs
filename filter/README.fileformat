@@ -30,10 +30,10 @@ as dup1 without abhexa
 File XXX.renumber
 ==============
 
-This file is created by the freerels program
+This file is created by the freerels program.
 
 It contains the table that links an ideal (p on rational side, (p,r) on
-algebraic side) to its index that going to be used during filtering.
+algebraic side) to its index that is going to be used during filtering.
 
 The first line has the following format:
 nbits ratside nbad n_add nonmonic nbpolys lpb0 lpb1
@@ -54,13 +54,15 @@ where
   - nbpolys is the number of polynomials (usually 2)
   - lpb0 is the large prime bound on side 0
   - lpb1 is the large prime bound on side 1
+  - ...
+  - lpbV is the large prime bound on side V=nbpolys-1
 
-nbits, ratside, nbad, add, nb_polys, lpb0 and lpb1 are written in decimal.
+nbits, ratside, nbad, add, nbpolys, all lpb's are written in decimal.
 
-Then, the file may contains two lines, beginning by #, with the two polynomials
-used (polynomials on side 0 is written first).
+Then, the file may contains nbpolys lines, beginning by "# pol$i: ", with
+polynomial $i used (polynomials on side 0 is written first).
 
-Then, the file contains nbad line of the following format:
+Then, the file contains nbad lines of the following format:
 p,r:s: n
 where
   - p is a prime and 0 <= r < p such that (p,r) is a bad ideal.

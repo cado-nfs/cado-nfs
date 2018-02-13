@@ -1,4 +1,10 @@
 #include "cado.h"
+#define __STDCPP_MATH_SPEC_FUNCS__ 201003L
+#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
+/* the macro above is for #include <cmath> -- however it must happen
+ * first, because it may well be that one of the intermediary headers
+ * pull stuff that is dependent on this flag.
+ */
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +17,7 @@
 #include <stdarg.h> /* Required so that GMP defines gmp_vfprintf() */
 #include <algorithm>
 #include <vector>
+#include <unordered_set>
 #include "threadpool.hpp"
 #include "fb.hpp"
 #include "portability.h"
@@ -61,6 +68,16 @@ int allow_largesq = 0;
 int adjust_strategy = 0;
 
 double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
+
+typedef std::pair< int64_t, uint64_t> abpair_t;
+struct abpair_hash_t {
+    unsigned long operator()(abpair_t const& o) const {
+        return 314159265358979323UL * o.first + 271828182845904523UL + o.second;
+    }
+};
+
+std::unordered_set<abpair_t, abpair_hash_t> already_printed_for_q;
+static pthread_mutex_t already_printed_for_q_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 double tt_qstart;
@@ -184,7 +201,7 @@ static int roots_for_composite_q(mpz_t* roots, mpz_poly_srcptr f,
    */
 static void
 next_legitimate_specialq(mpz_t r, unsigned long fac_r[], const mpz_t s,
-        const unsigned long diff, las_info & las)
+        const unsigned long diff, las_info const & las)
 {
     if (las.allow_composite_q) {
         int nf = next_mpz_with_factor_constraints(r, &fac_r[0],
@@ -464,6 +481,43 @@ static void add_relations_with_galois(const char *galois, FILE *output,
     }
 }
 
+cxx_mpz bound_following_previous_legitimate_specialq_withroots(cxx_mpz const& q1_orig, mpz_poly_srcptr f, las_info const & las)
+{
+    /* For random sampling, it's important that for all integers in
+     * the range [q0, q1[, their nextprime() is within the range, and
+     * that at least one such has roots mod f. Make sure that
+     * this is the case.
+     */
+    // FIXME: only 3 factors in composite q !!!!
+    cxx_mpz roots[MAX_DEGREE*MAX_DEGREE*MAX_DEGREE];
+
+    cxx_mpz q, q1 = q1_orig;
+    /* we need to know the limit of the q range */
+    for(unsigned long i = 1 ; ; i++) {
+        mpz_sub_ui(q, q1, i);
+        unsigned long facq[10];
+        next_legitimate_specialq(q, facq, q, 0, las);
+        if (mpz_cmp(q, q1) >= 0)
+            continue;
+        int nroots;
+        if (!las.allow_composite_q) {
+            nroots = mpz_poly_roots ((mpz_t*)roots, f, q);
+        } else {
+            nroots = roots_for_composite_q((mpz_t *)roots, f, q, facq);
+        }
+        if (nroots > 0)
+            break;
+        /* small optimization: avoid redoing root finding
+         * several times */
+        mpz_set (q1, q);
+        i = 1;
+    }
+    /* now q is the largest prime < q1 with f having roots mod q */
+    mpz_add_ui (q1, q, 1);
+
+    return q1;
+}
+
 
 /* {{{ Populating the todo list */
 /* See below in main() for documentation about the q-range and q-list
@@ -484,48 +538,26 @@ int las_todo_feed_qrange(las_info & las, param_list pl)
     int qside = las.config_pool.base.side;
 
     mpz_poly_ptr f = las.cpoly->pols[qside];
+
     // FIXME: only 3 factors in composite q !!!!
     cxx_mpz roots[MAX_DEGREE*MAX_DEGREE*MAX_DEGREE];
-
     unsigned long fac_q[10];
 
     if (mpz_cmp_ui(q0, 0) == 0) {
         parse_command_line_q0_q1(las, q0, fac_q, q1, pl, qside);
         if (las.random_sampling) {
-            /* For random sampling, it's important that for all integers in
-             * the range [q0, q1[, their nextprime() is within the range, and
-             * that at least one such has roots mod f. Make sure that
-             * this is the case.
-             */
-            cxx_mpz q, q1_orig;
-            mpz_set(q1_orig, q1);
-            /* we need to know the limit of the q range */
-            for(unsigned long i = 1 ; ; i++) {
-                mpz_sub_ui(q, q1, i);
-                unsigned long facq[10];
-                next_legitimate_specialq(q, facq, q, 0, las);
-                if (mpz_cmp(q, q1) >= 0)
-                    continue;
-                // FIXME for composites here.
-                if (mpz_poly_roots ((mpz_t*) roots, f, q) > 0)
-                    break;
-                /* small optimization: avoid redoing root finding
-                 * several times */
-                mpz_set (q1, q);
-                i = 1;
-            }
-            /* now q is the largest prime < q1 with f having roots mod q */
-            mpz_add_ui (q1, q, 1);
-            /* so now if we pick an integer in [q0, q1[, then its nextprime()
+            cxx_mpz q1_restrict = bound_following_previous_legitimate_specialq_withroots(q1, f, las);
+            /* so now if we pick an integer in [q0, q1[, then its nextprime(x-1)
              * will be in [q0, q1_orig[, which is what we look for,
              * really.
              */
-            if (mpz_cmp(q0, q1) > 0) {
+            if (mpz_cmp(q0, q1_restrict) > 0) {
                 gmp_fprintf(stderr, "Error: range [%Zd,%Zd[ contains no prime with roots mod f\n",
                         (mpz_srcptr) q0,
-                        (mpz_srcptr) q1_orig);
+                        (mpz_srcptr) q1);
                 exit(EXIT_FAILURE);
             }
+            q1 = q1_restrict;
         }
     }
 
@@ -584,13 +616,29 @@ int las_todo_feed_qrange(las_info & las, param_list pl)
             int ind = push_here-i-1;
             las_todo_push(las, my_list[ind].q, my_list[ind].r, qside);
         }
-    } else {
-        /* we don't care much about being truly uniform here */
+    } else { /* random sampling case */
+        /* we care about being uniform here */
         cxx_mpz q;
-        for ( ; las.nq_pushed < las.nq_max ; ) {
-            mpz_sub(q, q1, q0);
+        cxx_mpz diff;
+        mpz_sub(diff, q1, q0);
+        ASSERT_ALWAYS(las.nq_pushed == 0 || las.nq_pushed == las.nq_max);
+	unsigned long n = las.nq_max;
+        for ( ; las.nq_pushed < n ; ) {
+            /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
+            cxx_mpz q0l, q1l;
+	    /* we use k = n-1-nq_pushed instead of k=nq_pushed so that
+	       special-q's are sieved in increasing order */
+	    unsigned long k = n - 1 - las.nq_pushed;
+            mpz_mul_ui(q0l, diff, k);
+            mpz_mul_ui(q1l, diff, k + 1);
+            mpz_fdiv_q_ui(q0l, q0l, n);
+            mpz_fdiv_q_ui(q1l, q1l, n);
+            mpz_add(q0l, q0, q0l);
+            mpz_add(q1l, q0, q1l);
+
+            mpz_sub(q, q1l, q0l);
             mpz_urandomm(q, las.rstate, q);
-            mpz_add(q, q, q0);
+            mpz_add(q, q, q0l);
             next_legitimate_specialq(q, fac_q, q, 0, las);
             int nroots;
             if (!las.allow_composite_q) {
@@ -1364,7 +1412,8 @@ void factor_survivors_data::prepare_cofactoring(timetree_t & timer)
         /* Resieve small primes for this bucket region and store them 
            together with the primes recovered from the bucket updates */
         resieve_small_bucket_region (&sdata[side].primes, N, SS,
-                th->psi->sides[side].rsd, th->sides[side].rsdpos,
+                th->psi->sides[side].ssd,
+                th->sides[side].rsdpos,
                 si, th->plas->nb_threads, w);
 
         SIBLING_TIMER(timer, "sort primes in purged buckets");
@@ -1411,10 +1460,8 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 
         th->rep->survivors.after_sieve++;
 
-        /*
         if (sdata[0].S && sdata[1].S)
             th->rep->survivor_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
-            */
         
         /* For factor_leftover_norm, we need to pass the information of the
          * sieve bound. If a cofactor is less than the square of the sieve
@@ -1468,8 +1515,18 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                 continue;
         } else {
 #ifdef SUPPORT_LARGE_Q
-            ASSERT_ALWAYS(0); // FIXME: not yet implemented!
-#endif
+            if (mpz_cmp_ui(bz, 0) == 0)
+                continue;
+            bool ok = true;
+            for (auto const& facq : si.doing.prime_factors) {
+                if ((mpz_cmp_ui(bz, facq) >= 0) && (mpz_divisible_ui_p(bz, facq))) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok)
+                continue;
+#else
             if (b == 0)
                 continue;
             bool ok = true;
@@ -1481,6 +1538,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
             }
             if (!ok)
                 continue;
+#endif
         }
 
 
@@ -1545,6 +1603,17 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                     a, b,
                     th->psi->sides[side].fb.get());
 
+            /* if q is composite, its prime factors have not been sieved.
+             * Check if they divide. */
+            if ((side == si.doing.side) && (!si.doing.prime_sq)) {
+                for (const auto &x : si.doing.prime_factors) {
+                    if (mpz_divisible_uint64_p(norm[side], x)) {
+                        mpz_divexact_uint64(norm[side], norm[side], x);
+                        factors[side].push_back(x);
+                    }
+                }
+            }
+
             SIBLING_TIMER(timer, "check_leftover_norm");
 
             pass = check_leftover_norm (norm[side], si, side);
@@ -1563,6 +1632,23 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         if (!pass) continue;
 
         th->rep->survivors.enter_cofactoring++;
+
+        if (si.conf.sublat.m) {
+            // In sublat mode, some non-primitive survivors can exist.
+            // The cofactoring via ECM is made aware of this, but not the
+            // batch mode, so we have to ensure it.
+            if (las.batch || las.batch_print_survivors) {
+#ifndef SUPPORT_LARGE_Q
+                if (bin_gcd_int64_safe(a,b) != 1)
+                    continue;
+#else
+                cxx_mpz g;
+                mpz_gcd(g, az, bz);
+                if (mpz_cmp_ui(g, 1) != 0)
+                    continue;
+#endif
+            }
+        }
 
         if (las.batch_print_survivors) {
             verbose_output_start_batch ();
@@ -1673,34 +1759,56 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
              * an unsigned long, then the duplicate check will
              * quickly return "no".
              */
-            int is_dup = do_check
-                && relation_is_duplicate(rel, las.nb_threads, si);
-            const char *comment = is_dup ? "# DUPE " : "";
+            const char * dup_comment = NULL;
+
+            /* protects the use of the hash table already_printed_for_q
+             * below. */
+            pthread_mutex_lock(&already_printed_for_q_lock);
+            bool is_new_rel = already_printed_for_q.insert(abpair_t(a,b)).second;
+            pthread_mutex_unlock(&already_printed_for_q_lock);
+
+            if (!is_new_rel) {
+                /* can't insert, so already there: either it's a
+                 * duplicate of a relation that was already printed, or a
+                 * relation that was already identified as a duplicate.
+                 * But at any rate it's not to be printed and we don't
+                 * even want to bother testing whether it's a duplicate
+                 * in the sense of relation_is_duplicate()
+                 */
+                dup_comment = "# DUP ";
+            } else if (do_check && relation_is_duplicate(rel, las, si, adjust_strategy)) {
+                dup_comment = "# DUPE ";
+            }
+
             FILE *output;
-            if (!is_dup)
-                cpt++;
-            verbose_output_start_batch();   /* lock I/O */
+
+            verbose_output_start_batch(); /* lock I/O. */
+
+            cpt += !dup_comment;
+
+            if (!dup_comment) dup_comment = "";
+
             if (prepend_relation_time) {
                 verbose_output_print(0, 1, "(%1.4f) ", seconds() - tt_qstart);
             }
             verbose_output_print(0, 3, "# i=%d, j=%u, lognorms = %hhu, %hhu\n",
                     i, j, sdata[0].S[x], sdata[1].S[x]);
             for (size_t i_output = 0;
-                 (output = verbose_output_get(0, 0, i_output)) != NULL;
-                 i_output++) {
-                rel.print(output, comment);
-		    // once filtering is ok for all Galois cases, 
-		    // this entire block would have to disappear
-		    if(las.galois != NULL)
-			// adding relations on the fly in Galois cases
-			add_relations_with_galois(las.galois, output, comment,
-						  &cpt, rel);
-		}
+                    (output = verbose_output_get(0, 0, i_output)) != NULL;
+                    i_output++) {
+                rel.print(output, dup_comment);
+                // once filtering is ok for all Galois cases, 
+                // this entire block would have to disappear
+                if(las.galois != NULL)
+                    // adding relations on the fly in Galois cases
+                    add_relations_with_galois(las.galois, output, dup_comment,
+                            &cpt, rel);
+            }
             verbose_output_end_batch();     /* unlock I/O */
         }
 
         /* Build histogram of lucky S[x] values */
-        // th->rep->report_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
+        th->rep->report_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
 
 #ifdef  DLP_DESCENT
         if (register_contending_relation(las, si, rel))
@@ -1960,6 +2068,11 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             {
                 CHILD_TIMER(timer, "small sieve");
 
+                /* save start positions for resieving */
+                ts.rsdpos.assign(
+                        ts.ssdpos.begin() + s.ssd.resieve_start_offset,
+                        ts.ssdpos.begin() + s.ssd.resieve_end_offset);
+
                 /* Sieve small primes */
                 sieve_small_bucket_region(SS, N, s.ssd,
                         ts.ssdpos, si, side,
@@ -1980,7 +2093,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
                             side, w.N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
             }
-
+            las.dumpfiles[side].write(S[side], BUCKET_REGION);
             BOOKKEEPING_TIMER(timer);
         }
 
@@ -1992,15 +2105,15 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
         SIBLING_TIMER(timer, "reposition small (re)sieve data");
         TIMER_CATEGORY(timer, bookkeeping());
 
+#if 0   // no longer needed
         /* Reset resieving data */
         for(int side = 0 ; side < 2 ; side++) {
             sieve_info::side_info & s(si.sides[side]);
             if (!s.fb) continue;
             thread_side_data & ts = th->sides[side];
             // small_sieve_skip_stride(s.ssd, ts.ssdpos, N, las.nb_threads, si);
-            int * b = s.fb_parts_x->rs;
-            memcpy(ts.rsdpos, ts.ssdpos + b[0], (b[1]-b[0]) * sizeof(int64_t));
         }
+#endif
 
         BOOKKEEPING_TIMER(timer);
     }
@@ -2162,9 +2275,167 @@ static void declare_usage(param_list pl)/*{{{*/
   las_dlog_base::declare_parameter_usage(pl);
 #endif /* DLP_DESCENT */
   param_list_decl_usage(pl, "never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
+  param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
   verbose_decl_usage(pl);
   tdict_decl_usage(pl);
 }/*}}}*/
+
+double nprimes_interval(double p0, double p1)
+{
+#ifdef HAVE_STDCPP_MATH_SPEC_FUNCS
+    return std::expint(log(p1)) - std::expint(log(p0));
+#else
+    /* that can't be sooo wrong... */
+    double l0 = log(p0);
+    double l1 = log(p1);
+    double s1 = p1*(1/l1+1/pow(l1,2)+2/pow(l1,3)+6/pow(l1,4));
+    double s0 = p0*(1/l0+1/pow(l0,2)+2/pow(l0,3)+6/pow(l0,4));
+    return s1 - s0;
+#endif
+}
+
+void display_expected_memory_usage(siever_config const & sc, cado_poly_srcptr cpoly, bkmult_specifier const & bkmult, size_t base_memory = 0)
+{
+    verbose_output_print(0, 1, "# Expected memory usage:\n");
+    /*
+    verbose_output_print(0, 2, "# base: %zu Kb\n", Memusage());
+    verbose_output_print(0, 2, "# log bucket region = %d\n", LOG_BUCKET_REGION);
+    verbose_output_print(0, 2, "# A = %d\n", sc.logA);
+    verbose_output_print(0, 2, "# lim0 = %lu\n", sc.sides[0].lim);
+    verbose_output_print(0, 2, "# lim1 = %lu\n", sc.sides[1].lim);
+    verbose_output_print(0, 2, "# bkthresh = %lu\n", sc.bucket_thresh);
+    verbose_output_print(0, 2, "# bkthresh1 = %lu\n", sc.bucket_thresh1);
+    */
+
+    // size_t memory_base = Memusage() << 10;
+
+    size_t memory = base_memory;
+    size_t more;
+
+    for(int side = 0 ; side < 2 ; side++) {
+        double p1 = sc.sides[side].lim;
+        double p0 = 2;
+        /* in theory this should depend on the galois group and so on.
+         * Here we're counting only with respect to a full symmetric
+         * Galois group.
+         * 
+         * The average number of roots modulo primes is the average
+         * number of fixed points of a permutation, and that is 1. If we
+         * average over permutations with at least one fixed point, then
+         * we have n! / (n! - D_n), and D_n/n! = \sum_{0\leq k\leq
+         * n}(-1)^k/k!.
+         */
+        int d = cpoly->pols[side]->deg;
+        double ideals_per_prime = 1;
+        double fac=1;
+        for(int k = 1 ; k <= d ; k++) {
+            fac *= -k;
+            ideals_per_prime += 1/fac;
+        }
+        ideals_per_prime = 1/(1-ideals_per_prime);
+        size_t nideals = nprimes_interval(p0, p1);
+        verbose_output_print(0, 1, "# side %d, %zu fb primes (d=%d, %f roots per p if G=S_d): %zuMB\n",
+                side,
+                nideals,
+                d, ideals_per_prime,
+                (more = ((sizeof(fbprime_t) + sizeof(redc_invp_t)) / ideals_per_prime + sizeof(fbroot_t)) * nideals) >> 20);
+        memory += more;
+    }
+
+    // toplevel is computed by fb_factorbase::append, based on thresholds
+    // passed in sieve_info::init_factor_bases. We mimick that code now.
+    int toplevel = -1;
+    for(int side = 0 ; side < 2 ; side++) {
+        int maxlevel_here = (sc.bucket_thresh1 < sc.sides[side].lim) ? 2 : 1;
+        if (maxlevel_here > toplevel)
+            toplevel = maxlevel_here;
+    }
+
+    /* the code path is radically different depending on toplevel. */
+
+    if (toplevel == 2) {
+        // very large factor base primes, between bkthresh1 and lim = we
+        // compute all bucket updates in one go. --> those updates are
+        // bucket_update_t<2, shorthint_t>, that is, an XSIZE2 position
+        // (should be 24 bits, is actually 32) and a short hint.
+        //
+        // For each big bucket region (level-2), we then transform these
+        // updates into updates for the lower-level buckets. We thus
+        // create bucket_update_t<1, longhint_t>'s with the downsort<>
+        // function. The long hint is because we have the full slice
+        // index. the position in such a bucket update is shorter, only
+        // XSIZE1.
+
+        // For moderately large factor base primes (between bkthresh and
+        // bkthresh1), we precompute the FK lattices (at some cost), and we
+        // fill the buckets locally with short hints (and short positions:
+        // bucket_update_t<1, shorthint_t>)
+
+        for(int side = 0 ; side < 2 ; side++) {
+            double p1 = sc.sides[side].lim;
+            double p0 = std::max(sc.bucket_thresh, sc.bucket_thresh1);
+            p0 = std::min(p1, p0);
+            size_t nprimes = nprimes_interval(p0, p1);
+            size_t nupdates = 0.75 * (1UL << sc.logA) * (std::log(std::log(p1)) - std::log(std::log(p0)));
+            nupdates += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nupdates);
+            {
+                typedef bucket_update_t<2, shorthint_t> type;
+                verbose_output_print(0, 1, "# level 2, side %d: %zu primes, %zu 2-updates [2s]: %zu MB\n",
+                        side, nprimes, nupdates,
+                        (more = bkmult.get<type>() * nupdates * sizeof(type)) >> 20);
+                memory += more;
+            }
+            {
+                // how many downsorted updates are alive at a given point in
+                // time ?
+                size_t nupdates_D = nupdates >> 8;
+                typedef bucket_update_t<1, longhint_t> type;
+                verbose_output_print(0, 1, "# level 1, side %d: %zu downsorted 1-updates [1l]: %zu MB\n",
+                        side, nupdates >> 8,
+                        (more = bkmult.get<type>() * nupdates_D * sizeof(type)) >> 20);
+                memory += more;
+            }
+        }
+
+        for(int side = 0 ; side < 2 ; side++) {
+            double p1 = std::max(sc.bucket_thresh, sc.bucket_thresh1);
+            double p0 = sc.bucket_thresh;
+            size_t nprimes = nprimes_interval(p0, p1);
+            int A0 = LOG_BUCKET_REGION + 8;
+            size_t nupdates = 0.75 * (1UL << A0) * (std::log(std::log(p1)) - std::log(std::log(p0)));
+            nupdates += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nupdates);
+            typedef bucket_update_t<1, shorthint_t> type;
+            verbose_output_print(0, 1, "# level 1, side %d: %zu primes, %zu 1-updates [1s]: %zu MB\n",
+                    side, nprimes, nupdates,
+                    (more = bkmult(type()) * nupdates * sizeof(type)) >> 20);
+            memory += more;
+            verbose_output_print(0, 1, "# level 1, side %d: %zu primes => precomp_plattices: %zu MB\n",
+                    side, nprimes,
+                    (more = nprimes * sizeof(plattice_enumerate_t)) >> 20);
+            memory += more;
+        }
+    } else if (toplevel == 1) {
+        // *ALL* bucket updates are computed in one go as
+        // bucket_update_t<1, shorthint_t>
+        for(int side = 0 ; side < 2 ; side++) {
+            double p1 = sc.sides[side].lim;
+            double p0 = sc.bucket_thresh;
+            size_t nprimes = nprimes_interval(p0, p1);
+            size_t nupdates = 0.75 * (1UL << sc.logA) * (std::log(std::log(p1)) - std::log(std::log(p0)));
+            typedef bucket_update_t<1, shorthint_t> type;
+            nupdates += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nupdates);
+            verbose_output_print(0, 1, "# level 1, side %d: %zu primes, %zu 1-updates [1s]: %zu MB\n",
+                    side, nprimes, nupdates,
+                    (more = bkmult.get<type>() * nupdates * sizeof(type)) >> 20);
+            memory += more;
+        }
+    }
+
+    // TODO: multiplier
+    verbose_output_print(0, 1, "# Expected memory use, counting %zu MB of base footprint: %zu MB\n",
+            base_memory >> 20, memory >> 20);
+}
+
 
 int main (int argc0, char *argv0[])/*{{{*/
 {
@@ -2176,7 +2447,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     double totlogI = 0.0;
     int argc = argc0;
     char **argv = argv0;
-    double max_full = 0.;
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */
@@ -2235,6 +2505,14 @@ int main (int argc0, char *argv0[])/*{{{*/
     set_LOG_BUCKET_REGION();
 
     las_info las(pl);    /* side effects: prints cmdline and flags */
+
+
+    /* experimental. */
+    size_t base_memory = Memusage() << 10;
+    if (las.verbose >= 1 && las.config_pool.default_config_ptr) {
+        siever_config const & sc(*las.config_pool.default_config_ptr);
+        display_expected_memory_usage(sc, las.cpoly, las.bk_multiplier, base_memory);
+    }
 
     /* We have the following dependency chain (not sure the account below
      * is exhaustive).
@@ -2376,21 +2654,35 @@ int main (int argc0, char *argv0[])/*{{{*/
 
         SIBLING_TIMER(timer_special_q, "skew Gauss");
 
+        las.dumpfiles[0].setname(las.dump_filename, doing.p, doing.r, 0);
+        las.dumpfiles[1].setname(las.dump_filename, doing.p, doing.r, 1);
+
         sieve_range_adjust Adj(doing,
                 las.cpoly,
                 las.config_pool.get_config_for_q(doing),
                 las.nb_threads);
 
 
-        if (!Adj.SkewGauss())
+        if (!Adj.SkewGauss()) {
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
+                    "# "
+                    HILIGHT_START
+                    "Discarding side-%d q=%Zd; rho=%Zd (q-lattice basis does not fit)\n"
+                    HILIGHT_END,
+                    doing.side,
+                    (mpz_srcptr) doing.p,
+                    (mpz_srcptr) doing.r);
+            nr_sq_discarded++;
             continue;
+        }
 
 #ifndef SUPPORT_LARGE_Q
         if (!Adj.Q.fits_31bits()) { // for fb_root_in_qlattice_31bits
             verbose_output_print(2, 1,
-                    "Warning, special-q basis is too skewed,"
+                    "# Warning, special-q basis is too skewed,"
                     " skipping this special-q."
                     " Define SUPPORT_LARGE_Q to proceed anyway.\n");
+            nr_sq_discarded++;
             continue;
         }
 #endif
@@ -2490,6 +2782,11 @@ int main (int argc0, char *argv0[])/*{{{*/
         /* Maybe create a new siever ? */
         sieve_info & si(sieve_info::get_sieve_info_from_config(conf, las.cpoly, las.sievers, pl));
 
+        /* for some reason get_sieve_info_from_config does not access the
+         * full las_info structure, so we have a few adjustments to make
+         */
+        si.bk_multiplier = &las.bk_multiplier;
+
         si.recover_per_sq_values(Adj);
 
         si.init_j_div();
@@ -2510,14 +2807,13 @@ int main (int argc0, char *argv0[])/*{{{*/
         si.update_norm_data();
         si.update(nr_workspaces);
 
-
+        try {
 
         WHERE_AM_I_UPDATE(w, psi, &si);
 
         las.tree.new_node(si.doing);
         las_todo_push_closing_brace(las, si.doing.depth);
 
-        nr_sq_processed ++;
         verbose_output_vfprint(0, 1, gmp_vfprintf,
                              "# "
                              HILIGHT_START
@@ -2537,7 +2833,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         verbose_output_print(0, 1, "\n");
         /* TODO: maybe print that later */
         if (!mpz_probab_prime_p(doing.p, 1)) {
-            verbose_output_vfprint(1, 0, gmp_vfprintf,
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
                     "# Warning, q=%Zd is not prime\n",
                     (mpz_srcptr) doing.p);
         }
@@ -2561,103 +2857,54 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
 /* The loop on different (i,j) mod m starts here (?) */
         
 
-        /* essentially update the fij polynomials and the max log bounds */
-        si.update_norm_data();
+    /* essentially update the fij polynomials and the max log bounds */
+    si.update_norm_data();
 
-        if (las.verbose >= 2) {
-            verbose_output_print (0, 1, "# f_0'(x) = ");
-            mpz_poly_fprintf(las.output, si.sides[0].lognorms->fij);
-            verbose_output_print (0, 1, "# f_1'(x) = ");
-            mpz_poly_fprintf(las.output, si.sides[1].lognorms->fij);
-        }
+    if (las.verbose >= 2) {
+        verbose_output_print (0, 1, "# f_0'(x) = ");
+        mpz_poly_fprintf(las.output, si.sides[0].lognorms->fij);
+        verbose_output_print (0, 1, "# f_1'(x) = ");
+        mpz_poly_fprintf(las.output, si.sides[1].lognorms->fij);
+    }
 
-        /* Now we're ready to sieve. We have to refresh some fields
-         * in the sieve_info structure, otherwise we'll be polluted by
-         * the leftovers from earlier runs.
-         */
+    /* Now we're ready to sieve. We have to refresh some fields
+     * in the sieve_info structure, otherwise we'll be polluted by
+     * the leftovers from earlier runs.
+     */
 
 #ifdef TRACE_K
-        init_trace_k(si, pl);
+    init_trace_k(si, pl);
 #endif
 
-        /* WARNING. We're filling the report info for thread 0 for
-         * ttbuckets_fill, while in fact the cost is over all threads.
-         * The problem is always the fact that we don't have a proper
-         * per-thread timer. So short of a better solution, this is what
-         * we do. True, it's not clean.
-         * (we need this data to be caught by
-         * las_report_accumulate_threads_and_display further down, hence
-         * this hack).
-         */
-    
-        /* we allow fill-in-buckets to run several times, so that
-         * reallocation due to buckets overflowing is allowed */
-        for(;;) {
+    /* WARNING. We're filling the report info for thread 0 for
+     * ttbuckets_fill, while in fact the cost is over all threads.
+     * The problem is always the fact that we don't have a proper
+     * per-thread timer. So short of a better solution, this is what
+     * we do. True, it's not clean.
+     * (we need this data to be caught by
+     * las_report_accumulate_threads_and_display further down, hence
+     * this hack).
+     */
 
-            si.update(nr_workspaces);
+        si.update(nr_workspaces);
 
-            workspaces->thrs[0].rep->ttbuckets_fill -= seconds();
+        workspaces->thrs[0].rep->ttbuckets_fill -= seconds();
 
-            /* Allocate buckets */
-            workspaces->pickup_si(si);
+        /* Allocate buckets */
+        workspaces->pickup_si(si);
 
-            for(int side = 0 ; side < 2 ; side++) {
-                /* This uses the thread pool, and stores the time spent under
-                 * timer_special_q (with wait time stored separately */
-                if (!si.sides[side].fb) continue;
-                fill_in_buckets(timer_special_q, *pool, *workspaces, si, side);
-            }
-
-            // useless
-            // pool->accumulate_and_clear_active_time(*timer_special_q.current);
-
-            workspaces->thrs[0].rep->ttbuckets_fill += seconds();
-
-            /* Check that buckets are not more than full.
-             * Due to templates and si.toplevel being not constant, need a
-             * switch. (really?)
-             */
-            double this_max_full;
-            switch(si.toplevel) {
-                case 1:
-                    this_max_full = workspaces->buckets_max_full<1, shorthint_t>();
-                    break;
-                case 2:
-                    this_max_full = workspaces->buckets_max_full<2, shorthint_t>();
-                    break;
-                case 3:
-                    this_max_full = workspaces->buckets_max_full<3, shorthint_t>();
-                    break;
-                default:
-                    ASSERT_ALWAYS(0);
-            }
-            if (this_max_full >= max_full)
-                max_full = this_max_full;
-
-            if (max_full < 1) 
-                break;
-            {
-                verbose_output_vfprint(2, 1, gmp_vfprintf, "# max_full=%f -- cannot continue sieving for q=%Zd, rho=%Zd\n",
-                        max_full, (mpz_srcptr) doing.p, (mpz_srcptr) doing.r);
-                verbose_output_vfprint (2, 1, gmp_vfprintf,
-                        "# redoing q=%Zd, rho=%Zd because buckets are full (maxfull=%f)\n"
-                        "# Maybe you have too many threads compared to the size of the factor bases.\n"
-                        "# Please try less threads, or a larger -bkmult parameter (at some cost!).\n"
-                        "# The code will now try to adapt by allocating more memory for buckets.\n",
-                        (mpz_srcptr) doing.p, (mpz_srcptr) doing.r, max_full);
-                double new_bk_multiplier = si.conf.bk_multiplier * (double) max_full * 1.01;
-                verbose_output_print (2, 1, "# Updating bucket multiplier to %.3f*%f*1.01=%.3f\n",
-                        si.conf.bk_multiplier,
-                        max_full,
-                        new_bk_multiplier
-                        );
-                max_full = 0;
-                las.config_pool.change_bk_multiplier(new_bk_multiplier);
-                si.conf.bk_multiplier = new_bk_multiplier;
-            }
+        for(int side = 0 ; side < 2 ; side++) {
+            /* This uses the thread pool, and stores the time spent under
+             * timer_special_q (with wait time stored separately */
+            if (!si.sides[side].fb) continue;
+            fill_in_buckets(timer_special_q, *pool, *workspaces, si, side);
         }
 
-        
+        // useless
+        // pool->accumulate_and_clear_active_time(*timer_special_q.current);
+
+        workspaces->thrs[0].rep->ttbuckets_fill += seconds();
+
         // this timing slot is insignificant, let's put it with the
         // bookkeeping crop
         // SIBLING_TIMER(timer_special_q, "prepare small sieve");
@@ -2669,11 +2916,13 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
 
             if (!s.fb) continue;
 
-            small_sieve_init(s.ssd, las.nb_threads, s.fb_smallsieved.get(), si, side);
+            small_sieve_init(s.ssd, las.nb_threads,
+                             s.fb_smallsieved.get()->begin(),
+                             s.fb_smallsieved.get()->end(),
+                             s.fb_smallsieved.get()->begin() + s.resieve_start_offset,
+                             s.fb_smallsieved.get()->begin() + s.resieve_end_offset,
+                             si, side);
             small_sieve_info("small sieve", side, s.ssd);
-
-            small_sieve_extract_interval(s.rsd, s.ssd, s.fb_parts_x->rs);
-            small_sieve_info("resieve", side, s.rsd);
 
             // Initialize small sieve data at the first region of level 0
             // TODO: multithread this? Probably useless...
@@ -2686,8 +2935,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                  * the first region index considered by thread of index
                  * th->id is simply th->id.
                  */
-                ts.ssdpos = small_sieve_start(s.ssd, th->id, si);
-                ts.rsdpos = small_sieve_copy_start(ts.ssdpos, s.fb_parts_x->rs);
+                small_sieve_start(ts.ssdpos, s.ssd, th->id, si);
             }
         }
         BOOKKEEPING_TIMER(timer_special_q);
@@ -2728,7 +2976,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                     for (slice_index_t slice_index = fb->get_first_slice_index();
                             (slice = fb->get_slice(slice_index)) != NULL; 
                             slice_index++) {  
-                        precomp_plattice[side][level].push_back(
+                        precomp_plattice.push(side, level,
                                 slice->make_lattice_bases(si.qbasis, si.conf.logI_adjusted, si.conf.sublat));
                     }
                 }
@@ -2763,41 +3011,10 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             TIMER_CATEGORY(timer_special_q, thread_wait());
             pool->accumulate_and_reset_wait_time(*timer_special_q.current);
             */
-
-            BOOKKEEPING_TIMER(timer_special_q);
-
-            // Cleanup precomputed lattice bases.
-            for(int side = 0 ; side < 2 ; side++) {
-                for (int level = 1; level < si.toplevel; ++level) {
-                    std::vector<plattices_vector_t*> &V =
-                        precomp_plattice[side][level];
-                    for (std::vector<plattices_vector_t *>::iterator it =
-                            V.begin();
-                            it != V.end();
-                            it++) {
-                        delete *it;
-                    }
-                }
-            }
+            /* precomp_plattice now cleans up its own mess */
         }
 
-        BOOKKEEPING_TIMER(timer_special_q);
-
-        // Cleanup smallsieve data
-        for (int i = 0; i < las.nb_threads; ++i) {
-            for(int side = 0 ; side < 2 ; side++) {
-                thread_data * th = &workspaces->thrs[i];
-                thread_side_data &ts = th->sides[side];
-                free(ts.ssdpos);
-                free(ts.rsdpos);
-            }
-        }
-        for(int side = 0 ; side < 2 ; side++) {
-            sieve_info::side_info & s(si.sides[side]);
-            if (!s.fb) continue;
-            small_sieve_clear(s.ssd);
-            small_sieve_clear(s.rsd);
-        }
+        /* small sieve data now gets cleaned automatically */
 
 
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
@@ -2811,6 +3028,45 @@ if (si.conf.sublat.m) {
         }
     }
 }
+
+        } catch (buckets_are_full const & e) {
+            verbose_output_vfprint (2, 1, gmp_vfprintf,
+                    "# redoing q=%Zd, rho=%Zd because buckets are full\n"
+                    "# %s\n"
+                    "# Maybe you have too many threads compared to the size of the factor bases.\n"
+                    "# Please try less threads, or a larger -bkmult parameter (at some cost!).\n"
+                    "# The code will now try to adapt by allocating more memory for buckets.\n",
+                    (mpz_srcptr) doing.p, (mpz_srcptr) doing.r, e.what());
+
+            double old = las.bk_multiplier.get(e.key);
+            double ratio = (double) e.reached_size / e.theoretical_max_size * 1.1;
+            double new_bk_multiplier = old * ratio;
+            verbose_output_print(0, 1, "# Updating %s bucket multiplier to %.3f*%d/%d*1.1=%.3f\n",
+                    bkmult_specifier::printkey(e.key).c_str(),
+                    old,
+                    e.reached_size,
+                    e.theoretical_max_size,
+                    new_bk_multiplier
+                  );
+            las.grow_bk_multiplier(e.key, ratio);
+            if (las.verbose >= 1 && las.config_pool.default_config_ptr) {
+                verbose_output_print(0, 1, "# Displaying again expected memory usage since multipliers changed.\n");
+                siever_config const & sc(*las.config_pool.default_config_ptr);
+                display_expected_memory_usage(sc, las.cpoly, las.bk_multiplier, base_memory);
+            }
+            /* we have to roll back the updates we made to
+             * this structure. */
+            std::swap(las.todo, saved_todo);
+            las.tree.ditch_node();
+            continue;
+        }
+
+        /* this gets reset after each q */
+        pthread_mutex_lock(&already_printed_for_q_lock);
+        already_printed_for_q.clear();
+        pthread_mutex_unlock(&already_printed_for_q_lock);
+
+        nr_sq_processed++;
 
 #ifdef  DLP_DESCENT
         SIBLING_TIMER(timer_special_q, "descent");
@@ -2989,13 +3245,12 @@ if (si.conf.sublat.m) {
     t0 = seconds () - t0;
     wct = wct_seconds() - wct;
     if (adjust_strategy < 2) {
-        verbose_output_print (2, 1, "# Average J=%1.0f for %lu special-q's, max bucket fill %f\n",
-                totJ / (double) nr_sq_processed, nr_sq_processed, max_full);
+        verbose_output_print (2, 1, "# Average J=%1.0f for %lu special-q's, max bucket fill -bkmult %s\n",
+                totJ / (double) nr_sq_processed, nr_sq_processed, las.bk_multiplier.print_all().c_str());
     } else {
-        verbose_output_print (2, 1, "# Average logI=%1.1f for %lu special-q's, max bucket fill %f\n",
-                totlogI / (double) nr_sq_processed, nr_sq_processed, max_full);
+        verbose_output_print (2, 1, "# Average logI=%1.1f for %lu special-q's, max bucket fill -bkmult %s\n",
+                totlogI / (double) nr_sq_processed, nr_sq_processed, las.bk_multiplier.print_all().c_str());
     }
-    verbose_output_print (2, 1, "# Final value of bk multiplier is %f\n", las.config_pool.base.bk_multiplier);
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %u pushed\n",
             nr_sq_discarded, las.nq_pushed);
     tts = t0;
@@ -3049,6 +3304,13 @@ if (si.conf.sublat.m) {
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
                  wct, wct / (double) nr_sq_processed, wct / (double) report->reports);
+
+    /* memory usage */
+    if (las.verbose >= 1 && las.config_pool.default_config_ptr) {
+        siever_config const & sc(*las.config_pool.default_config_ptr);
+        display_expected_memory_usage(sc, las.cpoly, las.bk_multiplier,
+				      base_memory);
+    }
     const long peakmem = PeakMemusage();
     if (peakmem > 0)
         verbose_output_print (2, 1, "# PeakMemusage (MB) = %ld \n",

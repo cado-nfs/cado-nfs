@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 #[fbb_lpb]
 fbb=$1
 lpb=$2

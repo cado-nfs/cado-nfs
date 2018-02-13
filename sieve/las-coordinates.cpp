@@ -77,7 +77,6 @@ void IJToAB(int64_t *a, uint64_t *b, int i, unsigned int j,
       }
 }
 
-//////////// FIXME: sublat broken
 int ABToIJ(int *i, unsigned int *j, const int64_t a, const uint64_t b, sieve_info const & si)
 {
     /* Both a,b and the coordinates of the lattice basis can be quite
@@ -105,12 +104,30 @@ int ABToIJ(int *i, unsigned int *j, const int64_t a, const uint64_t b, sieve_inf
     if (!mpz_divisible_p(jj, si.doing.p)) ok = 0;
     mpz_divexact(ii, ii, si.doing.p);
     mpz_divexact(jj, jj, si.doing.p);
+
     if (mpz_sgn(jj) < 0 || (mpz_sgn(jj) == 0 && mpz_sgn(ii) < 0)) {
         mpz_neg(ii, ii);
         mpz_neg(jj, jj);
     }
     *i = mpz_get_si(ii);
     *j = mpz_get_ui(jj);
+    if (si.conf.sublat.m != 0) {
+        int64_t imodm = (*i) % int64_t(si.conf.sublat.m);
+        if (imodm < 0) {
+            imodm += si.conf.sublat.m;
+        }
+        int64_t jmodm = (*j) % int64_t(si.conf.sublat.m);
+        if (jmodm < 0)
+            jmodm += si.conf.sublat.m;
+        if (imodm != si.conf.sublat.i0 || jmodm != si.conf.sublat.j0) {
+            fprintf(stderr, "# TraceAB: (i,j) does not belong to the right congruence class\n");
+            ok = 0;
+        } else {
+            *i = ((*i) - imodm) / int64_t(si.conf.sublat.m);
+            *j = ((*j) - jmodm) / int64_t(si.conf.sublat.m);
+        }
+    }
+
     mpz_clear(a0);
     mpz_clear(b0);
     mpz_clear(a1);

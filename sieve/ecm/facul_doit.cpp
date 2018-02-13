@@ -470,8 +470,7 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
 	 
   */
 
-  double f_dbl = mod_intget_double (f);
-  double n_dbl = mod_intget_double (n);
+  double f_dbl, n_dbl;
 
   if (mod_intequal_ul (f, 1UL))
     {
@@ -520,6 +519,7 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
      large for our smoothness bounds */
   
   /* A quick test if the factor is <= fbb^2 and >2^lpb */
+  f_dbl = mod_intget_double (f);
   fprime = f_dbl < assume_prime_thresh;
   if (fprime && mod_intbits (f) > lpb)
     {
@@ -538,6 +538,7 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
   mod_intdivexact (n, n, f);
       
   /* See if cofactor is <= fbb^2 and > 2^lpb */
+  n_dbl = mod_intget_double (n);
   cfprime = n_dbl < assume_prime_thresh;
   if (cfprime && mod_intbits (n) > lpb)
     {

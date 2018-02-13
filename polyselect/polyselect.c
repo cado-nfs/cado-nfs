@@ -200,6 +200,7 @@ estimate_weibull_moments2 (double *beta, double *eta, data_t s)
 /* print poly info */
 void
 print_poly_info ( char *buf,
+                  size_t size,
                   mpz_t *f,
                   const unsigned int d,
                   mpz_t g[2],
@@ -215,32 +216,33 @@ print_poly_info ( char *buf,
   F->deg = d;
   G->coeff = g;
   G->deg = 1;
+  size_t np = 0;
 
   if (raw_option)
     {
-      sprintf (buf, "# Raw polynomial:\n");
-      data_add (raw_proj_alpha, get_biased_alpha_projective (F, ALPHA_BOUND));
+      np += snprintf(buf + np, size - np, "# Raw polynomial:\n");
+      data_add (raw_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
   else
     {
-      sprintf (buf, "# Size-optimized polynomial:\n");
-      data_add (opt_proj_alpha, get_biased_alpha_projective (F, ALPHA_BOUND));
+      snprintf(buf + np, size - np, "# Size-optimized polynomial:\n");
+      data_add (opt_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
 
-  gmp_sprintf (buf+strlen(buf), "%sn: %Zd\n", prefix, n);
-  gmp_sprintf (buf+strlen(buf), "%sY1: %Zd\n%sY0: %Zd\n", prefix, g[1], prefix, g[0]);
+  np += gmp_snprintf(buf + np, size - np, "%sn: %Zd\n", prefix, n);
+  np += gmp_snprintf(buf + np, size - np, "%sY1: %Zd\n%sY0: %Zd\n", prefix, g[1], prefix, g[0]);
   for (i = d + 1; i -- != 0; )
-    gmp_sprintf (buf+strlen(buf), "%sc%u: %Zd\n", prefix, i, f[i]);
+    np += gmp_snprintf(buf + np, size - np, "%sc%u: %Zd\n", prefix, i, f[i]);
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   nroots = numberOfRealRoots (f, d, 0, 0, NULL);
   logmu = L2_lognorm (F, skew);
   exp_E = logmu + expected_rotation_gain (F, G);
   if (raw == 1)
-    sprintf (buf+strlen(buf), "# raw exp_E");
+    np += snprintf(buf + np, size - np, "# raw exp_E");
   else
-    sprintf (buf+strlen(buf), "# exp_E");
+    np += snprintf(buf + np, size - np, "# exp_E");
 
-  sprintf (buf+strlen(buf), " %1.2f, lognorm %1.2f, skew %1.2f, %u rroots\n",
+  np += snprintf(buf + np, size - np, " %1.2f, lognorm %1.2f, skew %1.2f, %u rroots\n",
            exp_E, logmu, skew, nroots);
 
   if (!raw_option && target_E != 0.0)
@@ -264,18 +266,20 @@ print_poly_info ( char *buf,
       prob = 1.0 - exp (- pow (target_E / eta, beta));
       if (prob == 0) /* for x small, exp(x) ~ 1+x */
         prob = pow (target_E / eta, beta);
-      sprintf (buf + strlen(buf),
+      np += snprintf(buf + np, size - np,
                "# E: %lu, min %.2f, avg %.2f, max %.2f, stddev %.2f\n",
                data_exp_E->size, data_exp_E->min, data_mean (data_exp_E),
                data_exp_E->max, sqrt (data_var (data_exp_E)));
-      sprintf (buf + strlen(buf), "# target_E=%.2f: collisions=%.2e, time=%.2e"
+      np += snprintf(buf + np, size - np,
+              "# target_E=%.2f: collisions=%.2e, time=%.2e"
                " (beta=%.2f,eta=%.2f)\n",
                target_E, 1.0 / prob, seconds () / (prob * collisions_good),
                beta, eta);
     }
 
   if (!raw_option)
-    sprintf (buf+strlen(buf), "\n");
+    np += snprintf(buf + np, size - np, "\n");
+  ASSERT_ALWAYS(np < size);
 }
 
 
@@ -325,14 +329,14 @@ output_polynomials (mpz_t *fold, const unsigned long d, mpz_t *gold,
 {
   size_t sz = mpz_sizeinbase (N, 10);
   int length = sz*12;
-  char *str_old = malloc(sizeof(char) * length);
-  char *str = malloc(sizeof(char) * length);
+  char *str_old = malloc(length);
+  char *str = malloc(length);
   if (fold != NULL && gold != NULL) {
     if (str_old != NULL)
-      print_poly_info (str_old, fold, d, gold, N, 1, phash, 1);
+      print_poly_info (str_old, length, fold, d, gold, N, 1, phash, 1);
   }
   if (str != NULL)
-    print_poly_info (str, f, d, g, N, 0, "", 0);
+    print_poly_info (str, length, f, d, g, N, 0, "", 0);
 
   mutex_lock (&lock);
   if (fold != NULL && gold != NULL)

@@ -14,4 +14,12 @@ struct where_am_I;;
 struct descent_tree;
 #endif
 
+/* we use this type to store positions within the sieve arrays. This is
+ * typically no more than 2*factor base bound, even though for the
+ * largest deal of the processing needs, it is actually less than
+ * LOG_BUCKET_REGION
+ */
+typedef int32_t spos_t;
+typedef int64_t long_spos_t;
+
 #endif

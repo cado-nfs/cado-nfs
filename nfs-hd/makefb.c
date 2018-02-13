@@ -167,7 +167,7 @@ void makefb(factor_base_t * fb, cado_poly_srcptr f, uint64_t * fbb,
     mpz_set_ui(a, q);
     for (unsigned int k = 0; k < V; k++) {
       //Projective root?
-      mpz_set(lc, mpz_poly_lc_const(f->pols[k]));
+      mpz_set(lc, mpz_poly_lc(f->pols[k]));
       if (mpz_congruent_p(lc, zero, a) != 0) {
         add_ideal_pr_part(fb[k], indexpr + k, q, fbb[k], t);
       }

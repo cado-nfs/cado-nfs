@@ -26,7 +26,7 @@ purge_matrix_init (purge_matrix_ptr mat, uint64_t nrows_init,
   mat->col_min_index = col_min_index;
   mat->tot_alloc_bytes = 0;
 
-  /* Malloc cols_weight ans set to 0 */
+  /* Malloc cols_weight and set to 0 */
   cur_alloc = mat->col_max_index * sizeof (weight_t);
   mat->cols_weight = (weight_t *) malloc(cur_alloc);
   ASSERT_ALWAYS(mat->cols_weight != NULL);
@@ -269,11 +269,23 @@ purge_matrix_compute_sum2_row_mt (purge_matrix_ptr mat, unsigned int nthreads)
 }
 
 void
-purge_matrix_compute_sum2_row (purge_matrix_ptr mat, unsigned int nthreads)
+purge_matrix_compute_sum2_row (purge_matrix_ptr mat,
+        unsigned int nthreads MAYBE_UNUSED)
 {
+#ifndef __arm__
+    /* the branch below does not seem to work as we expect it to on the
+     * raspberry pi. Whether it's a flaw in the code or something else, I
+     * can't tell, but we often see failures in filter/purge even for a
+     * c30 from the test suite.
+     * I strongly suspect our use of the __sync_add_and_fetch() routines.
+     * 
+     * It might be better to allocate per-threads tables first, and
+     * gather only at the end.
+     */
   if (nthreads > 1)
     purge_matrix_compute_sum2_row_mt (mat, nthreads);
   else
+#endif
     purge_matrix_compute_sum2_row_mono (mat);
 }
 
@@ -285,8 +297,9 @@ purge_matrix_compute_sum2_row (purge_matrix_ptr mat, unsigned int nthreads)
 
 /* Internal function */
 void
-print_stats_uint64 (FILE *out, uint64_t *w, uint64_t len, char name[],
-                    char unit[], int verbose)
+print_stats_uint64 (FILE *out, uint64_t *w, uint64_t len,
+        const char * name, const char * unit,
+        int verbose)
 {
   uint64_t av = 0, min = UMAX(uint64_t), max = 0, std = 0, nb_nzero = 0;
   for (uint64_t i = 0; i < len; i++)

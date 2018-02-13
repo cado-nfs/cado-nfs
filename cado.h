@@ -124,4 +124,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "cado_config.h"
 
+/* some stuff that we wish to enable only after we read our config-time
+ * defines...
+ */
+#ifdef HAVE_MINGW
+/* We define __USE_MINGW_ANSI_STDIO under MinGW to make MinGW provide */
+/* C99-compliant printf() functions. I think that we should not have to
+ * do this.
+ */
+#define    __USE_MINGW_ANSI_STDIO
+#endif
+
 #endif  /* CADO_H_ */

@@ -499,7 +499,7 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
   regcomp (&preg_index, str_preg_index, REG_ICASE|REG_EXTENDED);
   regcomp (&preg_fm, str_preg_fm, REG_ICASE|REG_EXTENDED);
 
-  // process the ligne
+  // process the line
   const char * str_process = &str[0];
   int side = -1;
   while (str_process[0] != '\0' )
@@ -746,7 +746,7 @@ facul_make_default_strategy (int n, const int verbose)
   /* replace last method by MPQS */
   if (n > 1)
     {
-      ecm_clear_plan (methods[n+2].plan);
+      ecm_clear_plan ((ecm_plan_t*) methods[n+2].plan);
       /* the plan pointer will be freed in facul_clear_strategy() */
       methods[n+2].method = MPQS_METHOD;
     }
@@ -791,6 +791,7 @@ facul_strategies_t*
 facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
 		      const unsigned int rmfb, const unsigned long afbb,
 		      const unsigned int alpb, const unsigned int amfb,
+                      bool perfectly_sieved,
 		      int n0, int n1, FILE* file, const int verbose)
 {
   unsigned int max_curves_used_before_aux = 0;
@@ -808,6 +809,10 @@ facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
 
   strategies->BBB[0] = (double) rfbb * strategies->assume_prime_thresh[0];
   strategies->BBB[1] = (double) afbb * strategies->assume_prime_thresh[1];
+  if (!perfectly_sieved) {
+      strategies->assume_prime_thresh[0] = 0.0;
+      strategies->assume_prime_thresh[1] = 0.0;
+  }
 
   // alloc methods
   facul_method_side_t*** methods = (facul_method_side_t***) malloc (sizeof (*methods) * (rmfb+1));

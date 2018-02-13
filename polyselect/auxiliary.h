@@ -70,7 +70,9 @@ double L2_skew_lognorm (mpz_poly_srcptr, int);
 double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
 double special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
 double get_alpha (mpz_poly_srcptr, unsigned long);
-double get_biased_alpha_projective (mpz_poly_srcptr f, unsigned long B);
+double get_alpha_projective (mpz_poly_srcptr f, unsigned long B);
+double get_alpha_affine (mpz_poly_srcptr f, unsigned long B);
+double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p);
 
 /* poly info, being called in order */
 void print_cadopoly_fg (FILE*, mpz_t*, int, mpz_t*, int, mpz_t);
@@ -88,7 +90,7 @@ double cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr,
                                                 const char *);
 double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
-                      int i, double margin);
+                      int i, double maxlognorm, double skew);
 
 #ifdef __cplusplus
 }

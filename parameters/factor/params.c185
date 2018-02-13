@@ -27,32 +27,27 @@ tasks.polyselect.degree = 5
 
 ## Parameters of polyselect
 tasks.polyselect.P = 5000000
-tasks.polyselect.admax = 3e8
-tasks.polyselect.adrange = 3e5
-tasks.polyselect.incr = 27720
+tasks.polyselect.admax = 7e6
+tasks.polyselect.adrange = 5e3
+tasks.polyselect.incr = 60
 tasks.polyselect.nq = 3125
 tasks.polyselect.nrkeep = 100
 
 ###########################################################################
 ###########################################################################
 
-# (r,a) means rational or algebraic side
-# lim0/lim1 is the bound for sieving
-# lpb0/lpb1 is the (base 2 log of the) large prime bound
-# mfb0/mfb1 is the (base 2 log of the) limit for the cofactor we try to
-#                                      split into large primes.
-lim0 = 40000000
-lim1 = 80000000
-lpb0 = 32
-lpb1 = 32
-tasks.sieve.mfb0 = 64
-tasks.sieve.mfb1 = 96
-
 tasks.I = 15
-# Wagstaff did use I=14, I=15 should be better
-# Sam Wagstaff did sieve special-q's < 1660M
+tasks.sieve.qmin = 40000000
+lim0 = 80000000
+lim1 = 128000000
+lpb0 = 31
+lpb1 = 32
+tasks.sieve.mfb0 = 62
+tasks.sieve.mfb1 = 96
+tasks.sieve.ncurves0 = 10
+tasks.sieve.ncurves1 = 10
+
 tasks.sieve.qrange = 10000
-# of that many relations found.
 
 ###########################################################################
 ###########################################################################

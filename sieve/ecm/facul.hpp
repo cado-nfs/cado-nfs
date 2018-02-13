@@ -128,6 +128,7 @@ int facul (std::vector<cxx_mpz> &, cxx_mpz const &, const facul_strategy_t *);
 facul_strategies_t* facul_make_strategies (unsigned long, unsigned int,
 					   unsigned int, unsigned long,
 					   unsigned int, unsigned int,
+                                           bool,
 					   int, int, FILE*, const int);
 
 void facul_clear_strategies (facul_strategies_t*);

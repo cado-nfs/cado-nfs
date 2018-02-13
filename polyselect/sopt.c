@@ -108,7 +108,7 @@ int main (int argc, char **argv)
     nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
     lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
     alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-    alpha_proj = get_biased_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
     exp_E = lognorm
       + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
     cado_poly_fprintf (stdout, poly, "# ");
@@ -133,7 +133,7 @@ int main (int argc, char **argv)
     nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
     lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
     alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-    alpha_proj = get_biased_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
     exp_E = lognorm
       + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
     cado_poly_fprintf (stdout, poly, NULL);

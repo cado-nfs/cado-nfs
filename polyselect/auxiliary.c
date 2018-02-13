@@ -1,6 +1,6 @@
 /* Auxiliary routines for polynomial selection
 
-Copyright 2008, 2009, 2010, 2013 Emmanuel Thome, Paul Zimmermann
+Copyright 2008-2017 Emmanuel Thome, Paul Zimmermann
 
 This file is part of CADO-NFS.
 
@@ -1327,7 +1327,7 @@ get_alpha (mpz_poly_srcptr f, unsigned long B)
 
 /* affine part of the special valution for polynomial f over p. */
 double
-special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc )
+special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
 {
    double v;
    int pvaluation_disc = 0;
@@ -1368,17 +1368,17 @@ special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc )
 
 
 /*
-  Find biased alpha_projective for a poly f. It uses
+  Find alpha_projective for a poly f. It uses
   some hacks here which need to be changed in future.
   Until now, since this will only be done several
   times, hence the speed is not critical.
 
-  Note that, the returned alpha is the  -val * log(p)
-  biased part in the alpha. Hence, we can just add
+  Note that, the returned alpha is the -val * log(p)
+  part in the alpha. Hence, we can just add
   this to our affine part.
 */
 double
-get_biased_alpha_projective (mpz_poly_srcptr f, unsigned long B)
+get_alpha_projective (mpz_poly_srcptr f, unsigned long B)
 {
    double alpha, e;
    unsigned long p;
@@ -1405,19 +1405,18 @@ get_biased_alpha_projective (mpz_poly_srcptr f, unsigned long B)
    return alpha;
 }
 
-#if 0
 /*
   Similar to above, but for affine part.
 */
 double
-get_biased_alpha_affine (mpz_poly_ptr f, unsigned long B)
+get_alpha_affine (mpz_poly_srcptr f, unsigned long B)
 {
    double alpha, e;
    unsigned long p;
    mpz_t disc;
 
    mpz_init (disc);
-   discriminant (disc, f, d);
+   mpz_poly_discriminant (disc, f);
 
    /* prime p=2 */
    e = special_valuation_affine (f, 2, disc);
@@ -1437,7 +1436,34 @@ get_biased_alpha_affine (mpz_poly_ptr f, unsigned long B)
    return alpha;
 }
 
+/*
+  Similar to above, but for a given prime p.
+*/
+double
+get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p)
+{
+   double alpha, e;
+   mpz_t disc;
 
+   mpz_init (disc);
+   mpz_poly_discriminant (disc, f);
+
+   if (p == 2)
+     {
+       e = special_valuation_affine (f, 2, disc);
+       alpha =  (1.0 - e) * log (2.0);
+     }
+   else
+     {
+       ASSERT (ulong_isprime (p));
+       e = special_valuation_affine (f, p, disc);
+       alpha = (1.0 / (double) (p - 1) - e) * log ((double) p);
+     }
+   mpz_clear (disc);
+   return alpha;
+}
+
+#if 0
 /*
   Contribution from a particular multiple root r of the polynomial f
   over p. Note, r must also be a double root of f mod p.
@@ -1498,7 +1524,6 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
    return val;
 }
 #endif
-
 
 /**************************** rotation ***************************************/
 
@@ -1593,7 +1618,7 @@ print_cadopoly (FILE *fp, cado_poly p)
    {
     logmu = L2_lognorm (G, p->skew);
     alpha = get_alpha (G, ALPHA_BOUND);
-    alpha_proj = get_biased_alpha_projective (G, ALPHA_BOUND);
+    alpha_proj = get_alpha_projective (G, ALPHA_BOUND);
     nroots = numberOfRealRoots (G->coeff, G->deg, 0, 0, NULL);
     fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                  "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
@@ -1601,14 +1626,13 @@ print_cadopoly (FILE *fp, cado_poly p)
 
    logmu = L2_lognorm (F, p->skew);
    alpha = get_alpha (F, ALPHA_BOUND);
-   alpha_proj = get_biased_alpha_projective (F, ALPHA_BOUND);
+   alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
    nroots = numberOfRealRoots (F->coeff, F->deg, 0, 0, NULL);
    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
    e = MurphyE (p, bound_f, bound_g, area, MURPHY_K);
-   fprintf (fp, "# MurphyE(Bf=%.0f,Bg=%.0f,area=%.3e)=%.2e\n",
-        bound_f, bound_g, area, e);
+   cado_poly_fprintf_MurphyE (fp, e, bound_f, bound_g, area, "");
 
    return e;
 }
@@ -1706,7 +1730,7 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
   alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-  alpha_proj = get_biased_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+  alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
   exp_E = (final) ? 0.0 : lognorm
     + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
 
@@ -1743,14 +1767,13 @@ expected_alpha (double S)
 }
 
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
-   to f(x), the lognorm does not increase more than margin */
+   to f(x), the lognorm does not exceed maxlognorm (with skewness s) */
 void
 expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
-                 double margin)
+                 double maxlognorm, double s)
 {
-  double s = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
-  double n = L2_lognorm (f, s), n2;
   mpz_t fi, fip1, kmin, kmax, k;
+  double n2;
 
   mpz_init_set (fi, f->coeff[i]);
   mpz_init_set (fip1, f->coeff[i+1]);
@@ -1766,7 +1789,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmin, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + margin)
+      if (n2 > maxlognorm)
         break;
       mpz_mul_2exp (kmin, kmin, 1);
     }
@@ -1782,7 +1805,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + margin)
+      if (n2 > maxlognorm)
         mpz_set (kmin, k);
       else
         mpz_set (kmax, k);
@@ -1797,7 +1820,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmax, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + margin)
+      if (n2 > maxlognorm)
         break;
       mpz_mul_2exp (kmax, kmax, 1);
     }
@@ -1813,7 +1836,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_set (f->coeff[i+1], fip1);
       rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
       n2 = L2_lognorm (f, s);
-      if (n2 > n + margin)
+      if (n2 > maxlognorm)
         mpz_set (kmax, k);
       else
         mpz_set (kmin, k);
@@ -1838,11 +1861,13 @@ expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
   double S = 1.0, s, incr = 0.0;
   rotation_space r;
-  double proj_alpha = get_biased_alpha_projective (f, ALPHA_BOUND_SMALL);
+  double proj_alpha = get_alpha_projective (f, ALPHA_BOUND_SMALL);
+  double skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  double n = L2_lognorm (f, skew);
 
   for (int i = 0; 2 * i < f->deg; i++)
     {
-      expected_growth (&r, f, g, i, NORM_MARGIN);
+      expected_growth (&r, f, g, i, n + NORM_MARGIN, skew);
       s = r.kmax - r.kmin + 1.0;
       S *= s;
       /* assume each non-zero rotation increases on average by NORM_MARGIN/2 */

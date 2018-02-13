@@ -13,40 +13,40 @@ name = c105
 # Polynomial selection
 ###########################################################################
 
-tasks.polyselect.degree = 4
+tasks.polyselect.degree = 5
 
-tasks.polyselect.P = 10000
-tasks.polyselect.admax = 5e5
-tasks.polyselect.adrange = 5e3
+tasks.polyselect.P = 18000
+tasks.polyselect.admax = 4e4
+tasks.polyselect.adrange = 4e3
 tasks.polyselect.incr = 60
-tasks.polyselect.nq = 256
+tasks.polyselect.nq = 3125
 tasks.polyselect.nrkeep = 50
-tasks.polyselect.ropteffort = 1
+tasks.polyselect.ropteffort = 1.4
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-lim0 = 823116
-lim1 = 1218966
-lpb0 = 24
-lpb1 = 24
-tasks.sieve.mfb0 = 47
+lim0 = 1000000
+lim1 = 1600000
+lpb0 = 25
+lpb1 = 26
+tasks.sieve.mfb0 = 50
 tasks.sieve.mfb1 = 52
-tasks.sieve.ncurves0 = 14
-tasks.sieve.ncurves1 = 4
-tasks.I = 11
+tasks.sieve.ncurves0 = 13
+tasks.sieve.ncurves1 = 16
+tasks.I = 12
 
-tasks.sieve.qrange = 5000
-tasks.sieve.qmin = 1536958
+tasks.sieve.qrange = 10000
+tasks.sieve.qmin = 300000
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.keep = 160
+tasks.filter.purge.keep = 170
 tasks.filter.maxlevel = 20
-tasks.filter.target_density = 170.0
+tasks.filter.target_density = 145.0
 
 ###########################################################################
 # Linear algebra

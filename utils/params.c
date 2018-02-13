@@ -1513,6 +1513,7 @@ void param_list_print_command_line(FILE * stream, param_list_ptr pl)
         fprintf (stream, "# WARNING: this version of GCC is known to miscompile CADO-NFS. See https://gforge.inria.fr/tracker/index.php?func=detail&aid=14490\n");
 #endif
 #endif
-        fprintf(stream, "# Compilation flags " CFLAGS "\n");
+        fprintf(stream, "# Compilation flags (C) " CFLAGS "\n");
+        fprintf(stream, "# Compilation flags (C++) " CXXFLAGS "\n");
     }
 }

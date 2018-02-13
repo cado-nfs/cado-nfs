@@ -34,8 +34,13 @@ I=12
 export CREATE_STRAT_FILE_TEST="yes, please"
 $CADO_NFS_SOURCE_DIR/sieve/strategies/create_strat_file.sh $lim0 $lpb0 $mfb0 $lim1 $lpb1 $mfb1 c120.poly $I $CADO_NFS_BINARY_DIR
 
+if ! [ -f final_st ] ; then
+    echo "No final_st file : FAILED" >&2
+    exit 1
+fi
+
 nl=`wc -l final_st | cut -d " " -f 1`
-if [ $nl == "382" ]; then
+if [ "$nl" == "382" ]; then
     rm -rf $t
     exit 0
 else

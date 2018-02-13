@@ -215,6 +215,7 @@ void sieve_info::init_strategies(param_list_ptr pl)
             conf.sides[1].lim,
             conf.sides[1].lpb,
             conf.sides[1].mfb,
+            (conf.sublat.m == 0), // with sublat, some primes are skipped.
             conf.sides[0].ncurves,
             conf.sides[1].ncurves,
             file, 0), facul_clear_strategies);

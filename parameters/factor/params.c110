@@ -14,31 +14,30 @@ name = c110
 ###########################################################################
 
 tasks.polyselect.degree = 5
-
-tasks.polyselect.P = 10000
-tasks.polyselect.admax = 5e5
+tasks.polyselect.P = 25000
+tasks.polyselect.admax = 5e4
 tasks.polyselect.adrange = 5e3
 tasks.polyselect.incr = 60
-tasks.polyselect.nq = 625
-tasks.polyselect.nrkeep = 100
+tasks.polyselect.nq = 3125
+tasks.polyselect.nrkeep = 80
 tasks.polyselect.ropteffort = 1
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-lim0 = 2910696
-lim1 = 3533488
+lim0 = 1400000
+lim1 = 2500000
 lpb0 = 25
-lpb1 = 25
-tasks.sieve.mfb0 = 55
-tasks.sieve.mfb1 = 51
-tasks.sieve.ncurves0 = 10
+lpb1 = 26
+tasks.sieve.mfb0 = 50
+tasks.sieve.mfb1 = 52
+tasks.sieve.ncurves0 = 12
 tasks.sieve.ncurves1 = 17
 tasks.I = 12
 
 tasks.sieve.qrange = 10000
-tasks.sieve.qmin = 971708
+tasks.sieve.qmin = 500000
 
 ###########################################################################
 # Filtering
@@ -46,7 +45,7 @@ tasks.sieve.qmin = 971708
 
 tasks.filter.purge.keep = 160
 tasks.filter.maxlevel = 20
-tasks.filter.target_density = 170.0
+tasks.filter.target_density = 155.0
 
 ###########################################################################
 # Linear algebra

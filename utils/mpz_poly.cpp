@@ -30,12 +30,6 @@
 #define max(a,b) ((a)<(b) ? (b) : (a))
 #endif
 
-static inline mpz_ptr mpz_poly_lc(mpz_poly_ptr f)
-{
-    assert(f->deg >= 0);
-    return f->coeff[f->deg];
-}
-
 /* --------------------------------------------------------------------------
    Static functions
    -------------------------------------------------------------------------- */
@@ -1260,6 +1254,15 @@ mpz_poly_mul_si (mpz_poly_ptr f, mpz_poly_srcptr g, long k)
 {
   for (int i = 0; i <= g->deg; i++)
     mpz_mul_si (f->coeff[i], g->coeff[i], k);
+}
+
+/* Set f = g / k such that deg(g) <= deg(f) and k divides g
+   (those assumptions are not checked). */
+void
+mpz_poly_divexact_ui (mpz_poly_ptr f, mpz_poly_srcptr g, unsigned long k)
+{
+  for (int i = 0; i <= g->deg; i++)
+    mpz_divexact_ui (f->coeff[i], g->coeff[i], k);
 }
 
 /* Set h = fr + k * x^t * g such that t+deg(g) <= deg(f) and t >= 0 (those two
@@ -2610,7 +2613,7 @@ static void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
 #endif // NDEBUG
 
   mpz_init(d);
-  mpz_set(d, mpz_poly_lc_const(b));
+  mpz_set(d, mpz_poly_lc(b));
 
   if (q != NULL) {
     mpz_poly_set_zero(q);
@@ -2670,7 +2673,7 @@ static void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
   mpz_poly_set(f, a);
   mpz_poly_set(g, b);
 
-  mpz_set(d, mpz_poly_lc_const(g));
+  mpz_set(d, mpz_poly_lc(g));
 
   ASSERT(m - n + 1 >= 0);
 
@@ -2834,8 +2837,8 @@ void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f)
     mpz_poly_init(df, f->deg);
     mpz_poly_derivative(df, f);
     mpz_poly_resultant(res, f, df);
-    ASSERT(mpz_divisible_p(res, mpz_poly_lc_const(f)));
-    mpz_divexact(res, res, mpz_poly_lc_const(f));
+    ASSERT(mpz_divisible_p(res, mpz_poly_lc(f)));
+    mpz_divexact(res, res, mpz_poly_lc(f));
     mpz_poly_clear(df);
 }
 
@@ -3144,7 +3147,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0, mpz_src
     mpz_poly f;
     mpz_poly_init(f, f0->deg);
     mpz_poly_makemonic_mod_mpz(f, f0, p);
-    assert(mpz_cmp_ui(mpz_poly_lc_const(f), 1) == 0);
+    assert(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     int m = 0;
     int pu = mpz_get_ui(p);  // see below
@@ -3203,7 +3206,7 @@ static int mpz_poly_factor_ddf_inner(mpz_poly_factor_list_ptr lf, mpz_poly_srcpt
     assert(f0->deg >= 0);
 
     mpz_poly_makemonic_mod_mpz(f, f0, p);
-    assert(mpz_cmp_ui(mpz_poly_lc_const(f), 1) == 0);
+    assert(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     /* reset the factor list completely */
     mpz_poly_factor_list_flush(lf);
@@ -3698,7 +3701,7 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
             fprintf(stderr, "Ramified ell not supported\n");
             exit(EXIT_FAILURE);
         }
-        ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc_const(g), 1) == 0);
+        ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(g), 1) == 0);
         /* compute h0 = product of other factors */
         mpz_poly_divexact(h0, f, g0, ell);
 
@@ -3728,7 +3731,7 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
 
 int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
 {
-    ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc_const(f), 1) == 0);
+    ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     mpz_poly_factor(fac, f, ell, rstate);
     mpz_t ellx;

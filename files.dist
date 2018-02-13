@@ -17,7 +17,6 @@ cado_config_h.in
 cado_mpi_config_h.in
 portability.h
 typecast.h
-config/alloca.cmake
 config/asm_sample.c
 config/ccwrap.pl.in
 config/curl.cmake
@@ -53,8 +52,6 @@ config/sync_fetch.cmake
 config/mingw.cmake
 config/test-rand.c
 config/test-rand.cmake
-config/odd_address_io_int.c
-config/odd_address_io_int.cmake
 config/python.cmake
 filter/CMakeLists.txt
 filter/Makefile
@@ -69,7 +66,7 @@ filter/purge_matrix.h
 filter/singleton_removal.c
 filter/singleton_removal.h
 filter/singleton_simple.cpp
-filter/clique_removal.c
+filter/clique_removal.cpp
 filter/clique_removal.h
 filter/markowitz.c
 filter/markowitz.h
@@ -250,7 +247,6 @@ parameters/factor/params.c185
 parameters/factor/params.c190
 parameters/factor/params.c195
 parameters/factor/params.c200
-parameters/factor/params.c205
 parameters/factor/params.c210
 parameters/factor/params.c220
 parameters/factor/params.c230
@@ -391,7 +387,9 @@ sieve/ecm/mpqs_2ul2.c
 sieve/ecm/mpqs_mpz.c
 sieve/ecm/batch.h
 sieve/ecm/batch.cpp
+sieve/ecm/precompbatch.cpp
 sieve/ecm/finishbatch.cpp
+sieve/ecm/finishecm.cpp
 sieve/fb.cpp
 sieve/fb.hpp
 sieve/fb-types.h
@@ -416,6 +414,9 @@ sieve/las-report-stats.cpp
 sieve/las-report-stats.hpp
 sieve/las-smallsieve.cpp
 sieve/las-smallsieve.hpp
+sieve/las-smallsieve-types.hpp
+sieve/las-sieve2357.cpp
+sieve/las-sieve2357.hpp
 sieve/las-types.hpp
 sieve/las-unsieve.cpp
 sieve/las-unsieve-sse2.cpp
@@ -476,6 +477,7 @@ utils/stats.h
 utils/stats.c
 utils/lll.c
 utils/lll.h
+utils/intrinsics.hpp
 tests/README
 tests/utils/test_double_poly.c
 tests/utils/test_gmp_aux.c
@@ -1205,3 +1207,19 @@ sieve/logapprox.cpp
 sieve/logapprox.hpp
 tests/sieve/test_logapprox.cpp
 tests/sieve/c90_21505.poly
+config/math-special.cmake
+tests/sieve/c160_21518.poly
+tests/sieve/test-smallsieve.cpp
+sieve/las-smallsieve-lowlevel.hpp
+sieve/las-smallsieve-glue.hpp
+tests/sieve/test-smallsieve-mock.hpp
+tests/sieve/c90_21553.poly
+tests/sieve/test-sieve2357.cpp
+config/jevents.cmake
+config/aligned_alloc.cmake
+tests/sieve/test_renumber.data/mnfs5.badideals
+tests/sieve/test_renumber.data/mnfs5.poly
+tests/sieve/test_renumber.sh
+config/alignas.cmake
+config/neon.c
+config/neon.cmake

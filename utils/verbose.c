@@ -190,6 +190,7 @@ verbose_output_end_batch()
     ASSERT_ALWAYS(batch_locked);
     ASSERT_ALWAYS(pthread_equal(batch_owner, pthread_self()));
     batch_locked = 0;
+    batch_owner = 0;
     if (pthread_cond_broadcast(io_cond) != 0)
         return 1;
     if (monitor_leave() != 0)

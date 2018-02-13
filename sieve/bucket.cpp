@@ -57,14 +57,6 @@ bucket_array_t<LEVEL, HINT>::reset_pointers()
 }
 
 template <int LEVEL, typename HINT>
-bucket_array_t<LEVEL, HINT>::bucket_array_t()
-  : big_data(NULL), big_size(0), bucket_write(NULL), bucket_start(NULL),
-  bucket_read(NULL), slice_index(NULL), slice_start(NULL), n_bucket(0),
-  bucket_size(0), size_b_align(0), nr_slices(0), alloc_slices(0)
-{
-}
-
-template <int LEVEL, typename HINT>
 bucket_array_t<LEVEL, HINT>::~bucket_array_t()
 {
   physical_free (big_data, big_size);
@@ -88,7 +80,6 @@ bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> &other)
   MOVE_ENTRY(slice_index, NULL);
   MOVE_ENTRY(slice_start, NULL);
   MOVE_ENTRY(n_bucket, 0);
-  MOVE_ENTRY(bucket_size, 0);
   MOVE_ENTRY(size_b_align, 0);
   MOVE_ENTRY(nr_slices, 0);
   MOVE_ENTRY(alloc_slices, 0);
@@ -102,6 +93,7 @@ template <int LEVEL, typename HINT>
 void
 bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
                                 const double fill_ratio,
+                                int logI_adjusted,
                                 const slice_index_t prealloc_slices)
 {
   /* Don't try to allocate anything, nor print a message, for sieving levels
@@ -109,19 +101,72 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
   if (fill_ratio == 0.)
     return;
 
-  const size_t min_bucket_size = fill_ratio * BUCKET_REGIONS[LEVEL];
-  const size_t new_bucket_size = bucket_misalignment(min_bucket_size, sizeof(update_t));
-  size_t new_big_size = new_bucket_size * new_n_bucket * sizeof(update_t);
+  /* We'll allocate bucket regions of size 2^LOG_BUCKET_REGIONS[LEVEL],
+   * and those will be used to cover lines of size 2^logI_adjusted.
+   *
+   * If LOG_BUCKET_REGIONS[LEVEL] > logI_adjusted, then we'll have both
+   * even and odd lines in there, so 75% of the locations will receive
+   * updates.
+   *
+   * If LOG_BUCKET_REGIONS[LEVEL] <= logI_adjusted, it's different. The
+   * line ordinate for bucket region number N will be N, maybe shifted
+   * right by a few bits (logI_adjusted - LOG_BUCKET_REGIONS[LEVEL]).
+   * Bucket regions for which this line ordinate is even will receive
+   * updates for 50% of the locations only, in contrast to 100% when the
+   * ordinate is even.
+   */
+
+  const size_t Q = 0.25 * fill_ratio * BUCKET_REGIONS[LEVEL];
+
+  size_t bs_even, bs_odd;
+  size_t new_big_size;
+  /* The number of updates has a variance which is very often close to
+   * its mean. By aiming at a number of updates that is at most
+   * N+ndev*sqrt(N), the probability to overrun is at most the probability
+   * that this random variable exceeds its mean by ndev standard deviations
+   * or more. Now it's a sum of random variables (number of hits per line
+   * for p) that are independent but not identically distributed.
+   * Probably there are some tail bounds which can tell me how rare this
+   * is, depending on ndev.
+   */
+  const int ndev = NB_DEVIATIONS_BUCKET_REGIONS;
+
+  uint32_t bitmask_line_ordinate = 0;
+  if (LOG_BUCKET_REGIONS[LEVEL] <= logI_adjusted) {
+      bitmask_line_ordinate = UINT32_C(1) << (logI_adjusted - LOG_BUCKET_REGIONS[LEVEL]);
+      ASSERT_ALWAYS(new_n_bucket % 2 == 0);
+      bs_even = 2 * Q + ndev * sqrt(2 * Q);
+      bs_odd  = 4 * Q + ndev * sqrt(4 * Q);
+      bs_even = bucket_misalignment(bs_even, sizeof(update_t));
+      bs_odd  = bucket_misalignment(bs_odd, sizeof(update_t));
+      new_big_size = (bs_even + bs_odd) * (new_n_bucket / 2) * sizeof(update_t);
+  } else {
+      bs_even = bs_odd = 3 * Q + ndev * sqrt(3 * Q);
+      bs_even = bucket_misalignment(bs_even, sizeof(update_t));
+      bs_odd  = bucket_misalignment(bs_odd, sizeof(update_t));
+      new_big_size = bs_odd * new_n_bucket * sizeof(update_t);
+  }
+
   /* add 1 megabyte to each bucket array, so as to deal with overflowing
    * buckets */
   new_big_size += 1 << 20;
+
   const size_t new_size_b_align = ((sizeof(void *) * new_n_bucket + 0x3F) & ~((size_t) 0x3F));
 
   if (new_big_size > big_size) {
     if (big_data != NULL)
       physical_free (big_data, big_size);
-    verbose_output_print(0, 3, "# Allocating %zu bytes for %" PRIu32 " buckets of %zu update entries of %zu bytes each\n",
-                         new_big_size, new_n_bucket, new_bucket_size, sizeof(update_t));
+    if (bitmask_line_ordinate) {
+        verbose_output_print(0, 3, "# Allocating %zu bytes for %" PRIu32 " buckets of %zu to %zu update entries of %zu bytes each\n",
+                             new_big_size, new_n_bucket,
+                             bs_even, bs_odd,
+                             sizeof(update_t));
+    } else {
+        verbose_output_print(0, 3, "# Allocating %zu bytes for %" PRIu32 " buckets of %zu update entries of %zu bytes each\n",
+                             new_big_size, new_n_bucket, 
+                             bs_even,
+                             sizeof(update_t));
+    }
     big_size = new_big_size;
     big_data = (update_t *) physical_malloc (big_size, 1);
     void * internet_of_things MAYBE_UNUSED = NULL;
@@ -130,13 +175,15 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
   if (!big_data)
       throw std::bad_alloc();
 
-  bucket_size = new_bucket_size;
+  // bucket_size = new_bucket_size;
   n_bucket = new_n_bucket;
 
   if (new_size_b_align > size_b_align) {
     size_b_align = new_size_b_align;
     bucket_write = (update_t **) malloc_pagealigned (size_b_align);
-    bucket_start = (update_t **) malloc_aligned (size_b_align, 0x40);
+    /* bucket_start is allocated as an array of n_bucket+1 pointers */
+    size_t alloc_bstart = MAX(size_b_align, (n_bucket+1) * sizeof(void*));
+    bucket_start = (update_t **) malloc_aligned (alloc_bstart, 0x40);
     bucket_read = (update_t **) malloc_aligned (size_b_align, 0x40);
   }
 
@@ -145,8 +192,10 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
     realloc_slice_start(prealloc_slices - alloc_slices);
 
   /* Spread bucket_start pointers equidistantly over the big_data array */
-  for (uint32_t i_bucket = 0; i_bucket < n_bucket; i_bucket++) {
-    bucket_start[i_bucket] = big_data + i_bucket * bucket_size;
+  update_t * cur = big_data;
+  bucket_start[0] = cur;
+  for (uint32_t i = 0; bucket_start[i]=cur, i < n_bucket; i++) {
+      cur += ((i & bitmask_line_ordinate) != 0) ? bs_odd : bs_even;
   }
   reset_pointers();
 #ifdef SAFE_BUCKETS
@@ -176,16 +225,16 @@ template <int LEVEL, typename HINT>
 double
 bucket_array_t<LEVEL, HINT>::max_full (unsigned int * fullest_index) const
 {
-  unsigned int max = 0;
+  double max = 0;
   for (unsigned int i = 0; i < n_bucket; ++i)
     {
-      unsigned int j = nb_of_updates (i);
+      double j = (double) nb_of_updates (i) / room_allocated_for_updates(i);
       if (max < j) {
           max = j;
           if (fullest_index) *fullest_index = i;
       }
     }
-  return (double) max / (double) bucket_size;
+  return max;
 }
 
 // Replace std::is_same()::value that is not yet available.
@@ -478,4 +527,50 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
     new_checksum = mpz_tdiv_ui(mb, checksum_prime);
     mpz_clear(mb);
     this->update(new_checksum);
+}
+
+buckets_are_full::buckets_are_full(bkmult_specifier::key_type const& key, int b, int r, int t) : key(key), bucket_number(b), reached_size(r), theoretical_max_size(t) {
+    std::ostringstream os;
+    os << "Fullest level-"<<bkmult_specifier::printkey(key)<<" bucket #"<<b<<", wrote "<<reached_size<<"/"<<theoretical_max_size<<"";
+    message = os.str();
+}
+
+bkmult_specifier::bkmult_specifier(const char * specifier)
+{
+    const char * p = specifier;
+    for(const char * q ; *p ; p = q + (*q != '\0') ) {
+        const char * colon = NULL;
+        for(q = p ; *q && *q != ',' ; q++)
+            if (*q == ':')
+                colon = q;
+        /* parse from p to q */
+        if (colon) {
+            std::string vs(colon+1, q);
+            std::istringstream is(vs);
+            double v;
+            is >> v;
+            ASSERT_ALWAYS(!(is.rdstate() & std::ios_base::failbit));
+            ASSERT_ALWAYS(colon - p == 2);
+            ASSERT_ALWAYS(p[0] >= '1' && p[0] <= '9');
+            ASSERT_ALWAYS(p[1] == 's' || p[1] == 'l');
+            dict_t::key_type key(p[0]-'0', p[1]);
+            dict.insert(std::make_pair(key, v));
+        } else {
+            std::string vs(p, q);
+            std::istringstream is(vs);
+            is >> base;
+            ASSERT_ALWAYS(!(is.rdstate() & std::ios_base::failbit));
+        }
+    }
+}
+
+std::string bkmult_specifier::print_all() const
+{
+    std::ostringstream os;
+    os << base;
+    for(auto const & x : dict) {
+        key_type const& key(x.first);
+        os << "," << key.first << key.second << ":" << x.second;
+    }
+    return os.str();
 }

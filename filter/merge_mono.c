@@ -906,6 +906,10 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
       ni2rem = number_of_superfluous_rows (mat);
       deleteSuperfluousRows (rep, mat, ni2rem, m);
       removeSingletons (rep, mat);
+      /* even if we had cwmax = mergelevelmax before, or at the very beginning,
+         it is important to recompute the R matrix (and the Markowitz queue),
+         since some ideals that had weight > mergelevelmax before could now
+         have weight <= mergelevelmax */
       if (mat->cwmax == mat->mergelevelmax)
         recomputeR (mat);
     }

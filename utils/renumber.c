@@ -87,7 +87,7 @@ get_one_line (FILE *f, char *s)
 // the renumber file). This is the purpose of the BASE parameter.
 static void
 parse_one_line_bad_ideals(struct bad_ideals_s * bad, const char * str, int k,
-    int BASE)
+			  int BASE, int nb_polys)
 {
   int t;
   const char *ptr = str;
@@ -106,7 +106,7 @@ parse_one_line_bad_ideals(struct bad_ideals_s * bad, const char * str, int k,
 
   side = ugly[(unsigned char) *ptr];
   ptr++;
-  ASSERT_ALWAYS(side == 0 || side == 1); /* FIXME: for MNFS */
+  ASSERT_ALWAYS(side >= 0 && side < nb_polys);
   ASSERT_ALWAYS(*ptr == ':');
 
   ptr++;
@@ -166,7 +166,7 @@ parse_bad_ideals_file (FILE *badidealsfile, renumber_ptr renum)
   renum->bad_ideals.max_p = 0;
   while (get_one_line (badidealsfile, s) != 0)
   {
-    parse_one_line_bad_ideals (&(renum->bad_ideals), s, k, 10);
+    parse_one_line_bad_ideals (&(renum->bad_ideals), s, k, 10, renum->nb_polys);
     renum->size += renum->bad_ideals.nb[k];
     renum->bad_ideals.max_p=MAX(renum->bad_ideals.max_p,renum->bad_ideals.p[k]);
     k++;
@@ -250,27 +250,33 @@ renumber_sort_ul (unsigned long *r, size_t n)
   }
 }
 
-/* return zero if no roots mod p, else non-zero */
+/* Set r to the largest root of f modulo p such that (p,r) corresponds to an
+ * ideal on side s which is not a badideal.
+ * Note: If there is a projective root, it is the largest (r = p by convention)
+ * Return zero if no such root mod p exists, else non-zero
+ */
 static int
-get_largest_root_mod_p (p_r_values_t *r, mpz_poly_srcptr f, p_r_values_t p)
+get_largest_nonbad_root_mod_p (p_r_values_t *r, mpz_poly_srcptr f,
+                               p_r_values_t p, int s, renumber_srcptr rn)
 {
   int deg = f->deg;
-  /* If there is a projective root, it is the largest (r = p by convention) */
-  if (mpz_divisible_ui_p (f->coeff[deg], p))
+  if (mpz_divisible_ui_p (f->coeff[deg], p)
+      && !renumber_is_bad (NULL, NULL, rn, p, p, s))
   {
-    *r = p;
+    *r = p; /* non bad projective ideal */
     return 1;
   }
 
   unsigned long roots[deg];
-  size_t k = (size_t) mpz_poly_roots_ulong (roots, (mpz_poly_ptr) f, p);
-  if (k)
+  size_t nroots = (size_t) mpz_poly_roots_ulong (roots, (mpz_poly_ptr) f, p);
+  renumber_sort_ul (roots, nroots); /* sort in decreasing order */
+  for (size_t i = 0; i < nroots; i++)
   {
-    unsigned long max = roots[--k];
-    while (k--)
-      if (UNLIKELY (roots[k] > max)) max = roots[k];
-    *r = max;
-    return 2;
+    if (!renumber_is_bad (NULL, NULL, rn, p, roots[i], s))
+    {
+      *r = roots[i];
+      return 2;
+    }
   }
 
   return 0;
@@ -640,7 +646,7 @@ renumber_read_table (renumber_ptr tab, const char * filename)
   for (int k = 0; k < tab->bad_ideals.n; k++)
   {
     bytes_read += get_one_line(tab->file, s);
-    parse_one_line_bad_ideals (&tab->bad_ideals, s, k, 16);
+    parse_one_line_bad_ideals (&tab->bad_ideals, s, k, 16, tab->nb_polys);
     tab->bad_ideals.max_p = MAX (tab->bad_ideals.max_p, tab->bad_ideals.p[k]);
     for (int j = 0; j < tab->bad_ideals.nb[k]; j++)
     {
@@ -781,7 +787,7 @@ renumber_is_additional_column (renumber_srcptr tab, index_t h)
  * /!\ This function assumes that the string out has enough space.
  */
 size_t
-renumber_write_buffer_p (char *out, renumber_ptr tab, unsigned long p,
+renumber_write_buffer_p (char *out, size_t size, renumber_ptr tab, unsigned long p,
                          unsigned long roots[][MAX_DEGREE], int nroots[])
 {
   size_t n = 0;
@@ -799,33 +805,33 @@ renumber_write_buffer_p (char *out, renumber_ptr tab, unsigned long p,
   {
     roots[0][0] = vp;
     for (int i = 0; i < nroots[0]; i++)
-      n += sprintf (out + n, "%lx\n", roots[0][i]);
+      n += snprintf (out + n, size - n, "%lx\n", roots[0][i]);
   }
   /* Two polys: alg and rat */
   else if (tab->nb_polys == 2 && tab->rat != -1)
   {
     int algside = 1-tab->rat;
     if (LIKELY(nroots[tab->rat])) /* There is at most 1 rational root. */
-      n = sprintf (out, "%" PRpr "\n", vp);
+      n += snprintf (out + n, size - n, "%" PRpr "\n", vp);
     else
       roots[algside][0] = vp; /* No rational root */
     for (int i = 0; i < nroots[algside]; i++)
-      n += sprintf (out + n, "%lx\n", roots[algside][i]);
+      n += snprintf (out + n, size - n, "%lx\n", roots[algside][i]);
   }
   /* Two alg polys */
   else if (tab->nb_polys == 2 && tab->rat == -1)
   {
     if (LIKELY (nroots[1]))
     {
-      n = sprintf (out, "%" PRpr "\n", vp);
+      n += snprintf (out + n, size - n, "%" PRpr "\n", vp);
       for (int i = 1; i < nroots[1]; i++)
-        n += sprintf (out + n, "%lx\n", roots[1][i] + p + 1);
+        n += snprintf (out + n, size - n, "%lx\n", roots[1][i] + p + 1);
     }
     else
       roots[0][0] = vp;
 
     for (int i = 0; i < nroots[0]; i++)
-      n += sprintf (out + n, "%lx\n", roots[0][i]);
+      n += snprintf (out + n, size - n, "%lx\n", roots[0][i]);
   }
   /* More than two polys (with or without rat side). */
   else
@@ -833,7 +839,7 @@ renumber_write_buffer_p (char *out, renumber_ptr tab, unsigned long p,
     if (tab->rat == -1 || nroots[tab->rat] == 0) /* The largest root becomes vp */
       replace_first = 1;
     else
-      n = sprintf (out, "%" PRpr "\n", vp);
+      n += snprintf(out + n, size - n, "%" PRpr "\n", vp);
 
     for (int i = tab->nb_polys - 1; i >= 0; i--)
     {
@@ -843,18 +849,19 @@ renumber_write_buffer_p (char *out, renumber_ptr tab, unsigned long p,
         {
           if (UNLIKELY(replace_first))
           {
-            n = sprintf (out, "%" PRpr "\n", vp);
+            n += snprintf(out + n, size - n, "%" PRpr "\n", vp);
             replace_first = 0;
           }
           else
           {
             p_r_values_t vr = compute_vr_from_p_r (tab, p, roots[i][j], i);
-            n += sprintf (out + n, "%" PRpr "\n", vr);
+            n += snprintf(out + n, size - n, "%" PRpr "\n", vr);
           }
         }
       }
     }
   }
+  ASSERT_ALWAYS(n < size);
   return n;
 }
 
@@ -865,7 +872,7 @@ renumber_write_p (renumber_ptr tab, unsigned long p,
   size_t size_buffer;
   char buffer[2048];
 
-  size_buffer = renumber_write_buffer_p (buffer, tab, p, r, k);
+  size_buffer = renumber_write_buffer_p (buffer, sizeof(buffer), tab, p, r, k);
 
   fwrite ((void *) buffer, size_buffer, 1, tab->file);
   for (unsigned int i = 0; i < tab->nb_polys; i++)
@@ -893,7 +900,11 @@ renumber_get_first_index_from_p(renumber_srcptr renumber_info,
     if (UNLIKELY(tab[i] != vp))
     {
       /* There is a problem, most probably p is not prime. */
-      fprintf(stderr, "Fatal error in %s at %s:%d\nError with the cached part of"
+      if (ulong_isprime (p) == 0)
+        fprintf (stderr, "Error, found composite 0x%" PRpr " in relation\n",
+                 p);
+      else
+        fprintf (stderr, "Fatal error in %s at %s:%d\nError with the cached part of"
               " the renumbering table\n  p = 0x%" PRpr "\n  vp = 0x%" PRpr "\n"
               "  i = cached[p] = 0x%" PRid "\n  tab[i] = 0x%" PRpr "\n",
               __func__, __FILE__, __LINE__, p, vp, i, tab[i]);
@@ -1088,9 +1099,8 @@ renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
     {
       *side = renumber_info->nb_polys - 1;
       while (*side >= 0 && (*p > renumber_info->biggest_prime_below_lpb[*side]
-                            || !get_largest_root_mod_p (r, pol->pols[*side], *p)
-                            || renumber_is_bad (NULL, NULL, renumber_info, *p,
-                                                                    *r, *side)))
+                            || !get_largest_nonbad_root_mod_p (r,
+                                  pol->pols[*side], *p, *side, renumber_info)))
         (*side)--;
       ASSERT_ALWAYS (*side >= 0);
     }

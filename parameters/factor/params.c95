@@ -14,30 +14,29 @@ name = c95
 ###########################################################################
 
 tasks.polyselect.degree = 4
-
-tasks.polyselect.P = 10000
-tasks.polyselect.admax = 150e3
+tasks.polyselect.P = 12000
+tasks.polyselect.admax = 8e4
 tasks.polyselect.adrange = 1e4
 tasks.polyselect.incr = 60
-tasks.polyselect.nq = 256
+tasks.polyselect.nq = 1024
 tasks.polyselect.nrkeep = 40
-tasks.polyselect.ropteffort = 0.2
+tasks.polyselect.ropteffort = 1
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-lim0 = 3660220
-lim1 = 2758600
-lpb0 = 23
-lpb1 = 23
-tasks.sieve.mfb0 = 22
-tasks.sieve.mfb1 = 45
-tasks.sieve.ncurves0 = 2
-tasks.sieve.ncurves1 = 13
-tasks.I = 13
-tasks.sieve.qmin = 52140
-tasks.sieve.qrange = 2000
+lim0 = 600000
+lim1 = 850000
+lpb0 = 24
+lpb1 = 25
+tasks.sieve.mfb0 = 48
+tasks.sieve.mfb1 = 50
+tasks.sieve.ncurves0 = 11
+tasks.sieve.ncurves1 = 14
+tasks.I = 11
+tasks.sieve.qmin = 200000
+tasks.sieve.qrange = 10000
 
 ###########################################################################
 # Filtering
@@ -45,13 +44,13 @@ tasks.sieve.qrange = 2000
 
 tasks.filter.purge.keep = 160
 tasks.filter.maxlevel = 20
-tasks.filter.target_density = 170.0
+tasks.filter.target_density = 145.0
 
 ###########################################################################
 # Linear algebra
 ###########################################################################
 
-tasks.linalg.bwc.interval = 100
+tasks.linalg.bwc.interval = 500
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64
 tasks.linalg.n = 64

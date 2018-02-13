@@ -84,13 +84,14 @@ void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z);
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z);
 void mpz_poly_getcoeff(mpz_t res, int i, mpz_poly_srcptr f);
 
-/* functions for Joux--Lercier and Generalized Joux--Lercier */
+/* functions for Joux-Lercier and generalized Joux-Lercier */
 int mpz_poly_setcoeffs_counter(mpz_poly_ptr f, int* max_abs_coeffs, unsigned long *next_counter, int deg, unsigned long counter, unsigned int bound);
 void  mpz_poly_setcoeffs_counter_print_error_code(int error_code);
 unsigned long mpz_poly_getcounter(mpz_poly_ptr f, unsigned int bound);
 unsigned long mpz_poly_cardinality(int deg, unsigned int bound);
 
-static inline mpz_srcptr mpz_poly_lc_const(mpz_poly_srcptr f) {
+/* return the leading coefficient of f */
+static inline mpz_srcptr mpz_poly_lc (mpz_poly_srcptr f) {
     ASSERT(f->deg >= 0);
     return f->coeff[f->deg];
 }
@@ -129,6 +130,7 @@ void mpz_poly_translation (mpz_poly_ptr, mpz_poly_srcptr, const mpz_t);
 void mpz_poly_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, const mpz_t, int);
 void mpz_poly_addmul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
 void mpz_poly_mul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
+void mpz_poly_divexact_ui (mpz_poly_ptr, mpz_poly_srcptr, unsigned long);
 void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, const int64_t, int);
 void mpz_poly_makemonic_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr m);
 int mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
@@ -300,6 +302,10 @@ struct cxx_mpz_poly {
     mpz_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
 };
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpz_poly_init(cxx_mpz_poly & pl, int) __attribute__((error("mpz_poly_init must not be called on a mpz_poly reference -- it is the caller's business (via a ctor)")));
+extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_clear must not be called on a mpz_poly reference -- it is the caller's business (via a dtor)")));
+#endif
 
 #endif
 

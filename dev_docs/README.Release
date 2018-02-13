@@ -5,7 +5,8 @@ Checklist for making a release of CADO-NFS:
 2. Update NEWS
    -> apply to master too.
 3. Sanity-check parameters files, e.g., for monotonicity where applicable
-   scripts/plot_params.sh plots some of the parameters for easy checking
+   scripts/plot_params.sh plots some of the parameters for easy checking,
+   also run polsel_params.sage
 4. Check that CI builds are clean, and that the slaves are actually running!
    Manually trigger builds if necessary
 5. Make sure that working copy of repository is clean before "make dist"

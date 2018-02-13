@@ -40,10 +40,15 @@ dupsup (FILE *output, relation & rel, las_todo_entry const& doing, const int is_
 static int
 read_sq_comment(las_todo_entry & doing, const char *line)
 {
+    int side;
+    cxx_mpz p,r;
   if (gmp_sscanf(line, "# Sieving side-%d q=%Zd; rho=%Zd;",
-              &doing.side,
-              (mpz_ptr) doing.p,
-              (mpz_ptr) doing.r) == 3) {
+              &side,
+              (mpz_ptr) p,
+              (mpz_ptr) r) == 3) {
+      /* this is the way to go if we want proper initialization of all
+       * fields */
+      doing = las_todo_entry(p, r, side);
     return 1;
   }
   return 0;
@@ -70,6 +75,16 @@ read_poly(cado_poly_ptr cpoly, param_list_ptr pl)
     }
 }
 
+static void
+check (int seen, const char *param)
+{
+  if (seen == 0)
+    {
+      fprintf (stderr, "Error, missing parameter %s\n", param);
+      exit (EXIT_FAILURE);
+    }
+}
+
 static int
 parse_config(siever_config & sc, param_list_ptr pl)
 {
@@ -88,16 +103,27 @@ parse_config(siever_config & sc, param_list_ptr pl)
         sc.logA = 2 * I - 1;
         printf("# Interpreting -I %d as meaning -A %d\n", I, sc.logA);
     }
+    check (seen, "A or I");
     seen &= param_list_parse_ulong (pl, "lim0",  &(sc.sides[0].lim));
+    check (seen, "lim0");
     seen &= param_list_parse_int   (pl, "lpb0",  &(sc.sides[0].lpb));
+    check (seen, "lpb0");
     seen &= param_list_parse_int   (pl, "mfb0",  &(sc.sides[0].mfb));
-    seen &= param_list_parse_double(pl, "lambda0", &(sc.sides[0].lambda));
+    check (seen, "mfb0");
+    /* lambda0 is optional (otherwise default will be used) */
+    param_list_parse_double(pl, "lambda0", &(sc.sides[0].lambda));
     seen &= param_list_parse_int   (pl, "ncurves0",  &(sc.sides[0].ncurves));
+    check (seen, "ncurves0");
     seen &= param_list_parse_ulong (pl, "lim1",  &(sc.sides[1].lim));
+    check (seen, "lim1");
     seen &= param_list_parse_int   (pl, "lpb1",  &(sc.sides[1].lpb));
+    check (seen, "lpb1");
     seen &= param_list_parse_int   (pl, "mfb1",  &(sc.sides[1].mfb));
-    seen &= param_list_parse_double(pl, "lambda1", &(sc.sides[1].lambda));
+    check (seen, "mfb1");
+    /* lambda1 is optional (otherwise default will be used) */
+    param_list_parse_double(pl, "lambda1", &(sc.sides[1].lambda));
     seen &= param_list_parse_int   (pl, "ncurves1",  &(sc.sides[1].ncurves));
+    check (seen, "ncurves1");
     long dupqmin[2] = {0, 0};
     param_list_parse_long_and_long(pl, "dup-qmin", dupqmin, ",");
     sc.sides[0].qmin = dupqmin[0];
@@ -157,6 +183,7 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "q1",   "(unused)");
   param_list_decl_usage(pl, "nq",   "(unused)");
   param_list_decl_usage(pl, "adjust-strategy",   "(unused)");
+  param_list_decl_usage(pl, "v",    "(unused)");
   verbose_decl_usage(pl);
 }
 
@@ -174,9 +201,9 @@ main (int argc, char * argv[])
     char * argv0 = argv[0];
     siever_config conf;
     int nb_threads = 1;
+    int adjust_strategy = 0;
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
     argv++,argc--;
 
@@ -212,16 +239,17 @@ main (int argc, char * argv[])
     param_list_lookup_string(pl, "q0");
     param_list_lookup_string(pl, "q1");
     param_list_lookup_string(pl, "nq");
-    param_list_lookup_string(pl, "adjust-strategy");
+    param_list_parse_int(pl, "adjust-strategy", &adjust_strategy);
     const char * outputname = param_list_lookup_string(pl, "out");
 
     cado_poly cpoly;
     read_poly(cpoly, pl);
     int ok = parse_config(conf, pl);
-    ok = ok && param_list_parse_double(pl, "skew",    &(cpoly->skew));
+    /* the polynomial skewness can be overriden on the command line,
+       but the option -skew is optional */
+    param_list_parse_double(pl, "skew",    &(cpoly->skew));
     if (!ok) {
         fprintf(stderr, "Error: mandatory parameter missing.\n");
-	param_list_clear(pl);
         exit(EXIT_FAILURE);
     }
     param_list_parse_int(pl, "mt", &nb_threads);
@@ -248,6 +276,7 @@ main (int argc, char * argv[])
             conf.sides[1].lim,
             conf.sides[1].lpb,
             conf.sides[1].mfb,
+            true,
             conf.sides[0].ncurves,
             conf.sides[1].ncurves,
             NULL, 0), facul_clear_strategies);
@@ -255,6 +284,8 @@ main (int argc, char * argv[])
     mpz_t sq, rho;
     mpz_init(sq);
     mpz_init(rho);
+
+    las_info las(pl);
 
     for (int argi = 0; argi < argc; argi++) {
       FILE *f = fopen_maybe_compressed(argv[argi], "rb");
@@ -279,7 +310,7 @@ main (int argc, char * argv[])
         } else {
             relation rel;
             if (rel.parse(line)) {
-                int is_dupe = relation_is_duplicate(rel, nb_threads, *psi);
+                int is_dupe = relation_is_duplicate(rel, las, *psi, adjust_strategy);
                 dupsup(output, rel, doing, is_dupe);
             }
         }
@@ -294,8 +325,6 @@ main (int argc, char * argv[])
     cado_poly_clear(cpoly);
     mpz_clear(sq);
     mpz_clear(rho);
-    param_list_clear(pl);
-
 
     return 0;
 }

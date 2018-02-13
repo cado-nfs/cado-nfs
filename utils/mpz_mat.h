@@ -276,6 +276,10 @@ struct cxx_mpz_mat {
     mpz_mat_ptr operator->() { return x; }
     mpz_mat_srcptr operator->() const { return x; }
 };
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpz_mat_init(cxx_mpz_mat & pl, unsigned int, unsigned int) __attribute__((error("mpz_mat_init must not be called on a mpz_mat reference -- it is the caller's business (via a ctor)")));
+extern void mpz_mat_clear(cxx_mpz_mat & pl) __attribute__((error("mpz_mat_clear must not be called on a mpz_mat reference -- it is the caller's business (via a dtor)")));
+#endif
 struct cxx_mpq_mat {
     mpq_mat x;
     cxx_mpq_mat() { mpq_mat_init(x, 0, 0); }
@@ -328,6 +332,10 @@ struct cxx_mpq_mat {
 
 extern std::ostream& operator<<(std::ostream& os, cxx_mpz_mat const& M);
 extern std::ostream& operator<<(std::ostream& os, cxx_mpq_mat const& M);
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpq_mat_init(cxx_mpq_mat & pl, unsigned int, unsigned int) __attribute__((error("mpq_mat_init must not be called on a mpq_mat reference -- it is the caller's business (via a ctor)")));
+extern void mpq_mat_clear(cxx_mpq_mat & pl) __attribute__((error("mpq_mat_clear must not be called on a mpq_mat reference -- it is the caller's business (via a dtor)")));
+#endif
 #endif
 
 #endif	/* MPZ_MAT_H_ */

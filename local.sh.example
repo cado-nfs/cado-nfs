@@ -41,6 +41,17 @@
 #
 # build_tree must be set unconditionally (that is, in contrast to the
 # other variables, you can't do : ${build_tree:=blah blah blah)
+#
+# It is possible, in local.sh, to vary the build tree depending on the
+# environment variables (when you pass such variables in an external
+# fashion, as in: MPI=1 DEBUG=1 make). By default cado-nfs does so it MPI
+# is defined (it makes sure that $build_tree contains .mpi). More
+# generally, you may do within local.sh:
+# if [ "$CLANG" ] ; then
+#     CC=clang
+#     CXX=clang++
+#     build_tree="${build_tree}.clang"
+# fi
 
 ############################################################
 # CC: C Compiler

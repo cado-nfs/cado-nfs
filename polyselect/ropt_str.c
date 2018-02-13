@@ -381,7 +381,7 @@ ropt_poly_setup ( ropt_poly_t poly )
   ropt_poly_setup_eval (poly->fx, poly->gx, poly->numerator,
                         F, G, primes);
   /* projective alpha */
-  poly->alpha_proj = get_biased_alpha_projective (F, ALPHA_BOUND);
+  poly->alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
 }
 
 

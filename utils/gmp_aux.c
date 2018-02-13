@@ -95,6 +95,15 @@ mpz_get_uint64 (mpz_srcptr z)
     return q;
 }
 
+int
+mpz_fits_uint64_p (mpz_srcptr z)
+{
+    if (mpz_sgn(z) < 0)
+        return 0;
+    int l = mpz_sizeinbase(z, 2);
+    return (l <= 64);
+}
+
 int64_t
 mpz_get_int64 (mpz_srcptr z)
 {

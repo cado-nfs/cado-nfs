@@ -193,7 +193,7 @@ double alpha3d(mpz_poly_srcptr f, unsigned long p_end, gmp_randstate_t rstate, u
   mpz_init(lc);
 
   mpz_poly_discriminant(discriminant, f);
-  mpz_set(lc, mpz_poly_lc_const(f));
+  mpz_set(lc, mpz_poly_lc(f));
 
   prime_info pi;
   prime_info_init(pi);

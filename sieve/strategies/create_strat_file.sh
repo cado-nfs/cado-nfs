@@ -7,6 +7,8 @@
 # test-mode, that is only a few methods are generated, and the benchs
 # will be very unprecise.
 
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 if [ $# != 9 ]; then
     echo "usage: ./create_strat_file.sh <lim0> <lpb0> <mfb0> <lim1> <lpb1> <mfb1> <poly> <I> <cado_bindir>";
     exit;
@@ -165,10 +167,14 @@ echo "######## Strategies"
 # precompute strategies
 mkdir -p res_precompt_st
 for r0 in `seq 0 $mfb0`; do
-    $GST -gst_r -lim0 $lim0 -lpb0 $lpb0 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st
+    cmd="$GST -gst_r -lim0 $lim0 -lpb0 $lpb0 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st"
+    echo $cmd
+    $cmd
 done
 for r0 in `seq 0 $mfb1`; do
-    $GST -gst_r -lim0 $lim1 -lpb0 $lpb1 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st
+    cmd="$GST -gst_r -lim0 $lim1 -lpb0 $lpb1 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st"
+    echo $cmd
+    $cmd
 done
 
 # create strategies

@@ -7,7 +7,7 @@
     -ropteffort    "effort scales"
     -t             "number of threads"
     -area          "sieving area"
-    -I             "I-value (alternative to -area)"
+    -I/-A          "I- or A-value (alternative to -area, with A=2I-1)"
     -Bf            "algebraic smoothness bound"
     -Bg            "rational smoothness bound"
     -v             "toggle verbose"
@@ -93,8 +93,8 @@ usage_adv (char **argv)
   fprintf (stderr, " --gen_raw     (switch) regenerate raw polynomial and skip root sieve.\n");
   fprintf (stderr, " -Bf F         algebraic smoothness bound (default %.2e).\n", BOUND_F);
   fprintf (stderr, " -Bg G         rational smoothness bound (default %.2e).\n", BOUND_G);
-  fprintf (stderr, " -area A       sieving area (default %.2e).\n", AREA);
-  fprintf (stderr, " -I I          I-value (alternative to -area).\n");
+  fprintf (stderr, " -area area    sieving area (default %.2e).\n", AREA);
+  fprintf (stderr, " -I I, -A A    I- or A-value (alternative to -area, A=2I-1).\n");
   fprintf (stderr, " -ropteffort M   sieving effort ranging from 1 to 10 (default %.0f).\n", DEFAULT_ROPTEFFORT);
 
   fprintf (stderr, "\nExample 1: %s %s -f fname\n", argv[0], argv[1]);
@@ -130,10 +130,10 @@ ropt_parse_param ( int argc,
                    char **argv,
                    ropt_param_t param )
 {
-  int I = 0;
+  int A = 0;
   int I_area = 0; /* 0 when neither -area nor I is given,
                      1 when -area is given
-                     2 when -I is given */
+                     2 when -I or -A is given */
 
   /* filename only */
   if (argc > 1) {
@@ -220,7 +220,7 @@ ropt_parse_param ( int argc,
         {
           if (I_area == 2)
             {
-              fprintf (stderr, "Error, both -I and -area are given\n");
+              fprintf (stderr, "Error, both -I/-A and -area are given\n");
               exit (1);
             }
           area = atof (argv[2]);
@@ -232,11 +232,23 @@ ropt_parse_param ( int argc,
         {
           if (I_area == 1)
             {
-              fprintf (stderr, "Error, both -area and -I are given\n");
+              fprintf (stderr, "Error, both -area and -I/-A are given\n");
               exit (1);
             }
           I_area = 2;
-          I = atoi (argv[2]);
+          A = 2 * atoi (argv[2]) - 1;
+          argv += 2;
+          argc -= 2;
+        }
+        else if (argc >= 3 && strcmp (argv[1], "-A") == 0)
+        {
+          if (I_area == 1)
+            {
+              fprintf (stderr, "Error, both -area and -I/-A are given\n");
+              exit (1);
+            }
+          I_area = 2;
+          A = atoi (argv[2]);
           argv += 2;
           argc -= 2;
         }
@@ -265,7 +277,7 @@ ropt_parse_param ( int argc,
           usage_adv (argv);
         }
         if (I_area == 2)
-          area = bound_f * pow (2.0, (double) (2*I-1));
+          area = bound_f * pow (2.0, (double) A);
       }
     }
     /* stage 1 and stage 2 parameters */
@@ -621,7 +633,7 @@ main_basic (int argc, char **argv)
   unsigned int nb_input_polys = 0; /* number of input polynomials */
   unsigned int size_input_polys = 16; /* Size of input_polys tab. */
   ropt_time_t tott;
-  int I;
+  int A;
 
   tott->ropt_time = 0.0;
   tott->ropt_time_stage1 = 0.0;
@@ -659,16 +671,18 @@ main_basic (int argc, char **argv)
   if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
     bound_g = BOUND_G;
   int has_area = param_list_parse_double (pl, "area", &area);
-  int has_I = param_list_parse_int (pl, "I", &I);
-  if (has_area == 0 && has_I == 0) /* no -area nor -I */
+  int has_A_or_I = param_list_parse_int (pl, "A", &A);
+  if (has_A_or_I == 0 && param_list_parse_int (pl, "I", &A))
+    A = 2 * A - 1;
+  if (has_area == 0 && has_A_or_I == 0) /* no -area nor -I/-A */
     area = AREA;
-  else if (has_area && has_I)
+  else if (has_area && has_A_or_I)
     {
-      fprintf (stderr, "Error, both -area and -I given\n");
+      fprintf (stderr, "Error, both -area and -I/-A given\n");
       exit (1);
     }
-  else if (has_I)
-    area = bound_f * pow (2.0, (double) (2*I-1));
+  else if (has_A_or_I)
+    area = bound_f * pow (2.0, (double) A);
 
   /* sieving effort that passed to ropt */
   param_list_parse_double (pl, "ropteffort", &(ropt_param->effort));

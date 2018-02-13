@@ -8,7 +8,30 @@
 #include "tdict.hpp"
 
 // This one is used for keeping information of middle primes.
-typedef std::vector<plattices_vector_t *> precomp_plattice_t [2][FB_MAX_PARTS];
+struct precomp_plattice_t {
+    std::vector<plattices_vector_t *> v [2][FB_MAX_PARTS];
+    precomp_plattice_t(precomp_plattice_t const&) = delete;
+    precomp_plattice_t() = default;
+    void push(int side, int level, plattices_vector_t&& x) {
+        v[side][level].push_back(new plattices_vector_t(std::move(x)));
+    }
+    ~precomp_plattice_t() {
+        for(int side = 0 ; side < 2 ; side++) {
+            for (int level = 1; level < FB_MAX_PARTS; ++level) {
+                for(auto & x : v[side][level]) {
+                    delete x;
+                }
+            }
+        }
+    }
+    std::vector<plattices_vector_t *> & operator()(int side, int level) {
+        return v[side][level];
+    }
+    std::vector<plattices_vector_t *> const & operator()(int side, int level) const {
+        return v[side][level];
+    }
+};
+
 
 // This one is for remembering the FK basis in sublat mode, between two
 // different congruences of (i,j) mod m.
@@ -23,7 +46,7 @@ downsort_tree(timetree_t&,
         thread_workspaces &ws,
         thread_pool &pool,
         sieve_info& si,
-        precomp_plattice_t precomp_plattice);
+        precomp_plattice_t const & precomp_plattice);
 void fill_in_buckets(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &, int side);
 
 #endif

@@ -1,10 +1,11 @@
-# Usage:  polsel_params("../params/")
+# Usage:  polsel_params("../parameters/factor/")
 
 import sys,os,re,glob
 re_param_file = 'params.c*'
 default_nq = 1000
 default_incr = 60
 old_nadall = 0
+old_P = 0
 old_time = 0
 old_n = 0
 time_base=2000000
@@ -60,14 +61,16 @@ def polsel_param(fpath):
     incr = default_incr
     fi = open(fpath,"r")
     s = fi.readlines()
+    admin = 0
 
     for i in range(len(s)):
-        Hdegree = re.match("degree=(\d)", s[i])
-        Hlq = re.match("polsel_lq=(\d)", s[i])
-        Hp = re.match("polsel_P=(\d+)", s[i])
-        Hincr = re.match("polsel_incr=(\d+)", s[i])
-        Hmaxnorm = re.match("polsel_maxnorm=(\d+)", s[i])
-        Hadmax = re.match("polsel_admax=([-+]?[0-9]*\.?[0-9]+[eE]?[0-9]+)?", s[i])
+        Hdegree = re.match("tasks.polyselect.degree[ ]*=[ ]*(\d)", s[i])
+        Hnq = re.match("tasks.polyselect.nq[ ]*=[ ]*(\d+)", s[i])
+        Hp = re.match("tasks.polyselect.P[ ]*=[ ]*(\d+)", s[i])
+        Hincr = re.match("tasks.polyselect.incr[ ]*=[ ]*(\d+)", s[i])
+        Hadmax = re.match("tasks.polyselect.admax[ ]*=[ ]*([-+]?[0-9]*\.?[0-9]+[eE]?[0-9]+)", s[i])
+        Hadmin = re.match("tasks.polyselect.admin[ ]*=[ ]*([-+]?[0-9]*\.?[0-9]+[eE]?[0-9]+)", s[i])
+        Hadrange = re.match("tasks.polyselect.adrange[ ]*=[ ]*([-+]?[0-9]*\.?[0-9]+[eE]?[0-9]+)", s[i])
 
         if Hdegree != None:
             degree = ZZ(Hdegree.groups()[0])
@@ -75,33 +78,39 @@ def polsel_param(fpath):
         if Hp != None:
             p = ZZ(Hp.groups()[0])
             flag += 1
-        if Hlq != None:
-            lq = ZZ(Hlq.groups()[0])
-            flag += 1
-        if Hmaxnorm != None:
-            maxnorm = RR(Hmaxnorm.groups()[0])
+        if Hnq != None:
+            nq = ZZ(Hnq.groups()[0])
             flag += 1
         if Hadmax != None:
             admax = RR(Hadmax.groups()[0])
             flag += 1
+        if Hadrange != None:
+            adrange = RR(Hadrange.groups()[0])
+            flag += 1
+        if Hadmin != None:
+            print Hadmin.groups()[0]
+            admin = RR(Hadmin.groups()[0])
         if Hincr != None:
             incr = ZZ(Hincr.groups()[0])
             if (incr==0):
                 sys.exit("Error: -incr can't be 0" + fpath)                
 
         if (flag == 5):
-            polsel_param_check (fpath, degree, p, lq, maxnorm, admax, incr)
+            polsel_param_check (fpath, degree, p, nq, admin, admax, adrange, incr)
             break
 
+    # mandatory flags are degree, p, nq, admax and adrange
+    # admin is optional (default 0)
     if (flag < 5):
         sys.exit("Error: some parameters are missing in " + fpath)
 
     fi.close()
     return
 
-def polsel_param_check(fpath, degree, p, lq, maxnorm, admax, incr):
+def polsel_param_check(fpath, degree, p, nq, admin, admax, adrange, incr):
     """ check parameters """
     global old_nadall
+    global old_P
     global old_n
     global old_time
     global default_nq
@@ -109,41 +118,25 @@ def polsel_param_check(fpath, degree, p, lq, maxnorm, admax, incr):
     global time_q
     global time_base
 
-    # find nq
-    tot_lq = 54
-    qprod = 1
-    lqt = lq
-    for i in reversed(prime_range(252)):
-        if (gcd(i,incr) != 1):
-            tot_lq -= 1
-        if (lqt > 0):
-            qprod = qprod*i
-            lqt -= 1
-    nq = binomial(tot_lq, lq)
-    if (nq > default_nq):
-        nq = default_nq
-
     # print info
     print "#", os.path.basename(fpath),
     print "d="+str(degree),
-    print "lq="+str(lq),
     print "nq="+str(nq),
-    print "maxnorm="+str('%.2f'%maxnorm),
+    print "admin="+str('%.2e'%admin),
     print "admax="+str('%.2e'%admax),
+    print "adrange="+str('%.2e'%adrange),
     print "incr="+str(incr),
     print "P="+str(p)
 
-    # 1. check whether N is too small > 59
+    admax -= admin # since we consider admax-admin below
+
+    # check whether N is too small
     fname = os.path.basename(fpath)
     ndigits = ZZ(re.match("params.c(\d+)", fname).groups()[0])
-    if (ndigits < 59):
+    if (ndigits < 30):
         sys.exit("Error: number N too small in " + fpath + "\n")
 
-    # 2. check whether -lq is too large
-    if (RR((10^(ndigits-1)/admax)^(1/degree)/p^2)<RR(2*p^2/degree*(qprod))):
-        sys.exit("Error: paramter -lq too large in " + fpath + "\n")
-
-    # 3. check if nad is increasing monotonically
+    # check if nad is increasing monotonically
     nadall = RR(admax/incr)*nq
     exp_collisions = nadall/(2*log(p)^2)
     exp_time = (time_p*admax/incr + time_q*(admax/incr)*nq)*p/time_base
@@ -151,6 +144,24 @@ def polsel_param_check(fpath, degree, p, lq, maxnorm, admax, incr):
     print "exp_coll="+str('%.2e'%(exp_collisions)),
     print "exp_time="+str('%.2e'%(exp_time))+"s"
     
+    # check if P is increasing monotonically
+    if p < old_P:
+        print "--> Error: P for last (",
+        print old_n, str(old_P),
+        print ") is larger than for (",
+        print ndigits, str(p), ")" + "\n"
+    old_P = p
+
+    # check admax/adrange is at least 100, so that we can split the work into
+    # several threads
+    if admax / adrange < 100:
+        print "--> Warning: admax / adrange < 100: " + str(admax / adrange)
+
+    # check adrange/incr <= 200, otherwise we risk a timeout
+    # several threads
+    if adrange / incr > 200:
+        print "--> Warning: adrange / incr > 200: " + str(adrange / incr)
+
     if (nadall < old_nadall):
         print "--> Error: effort for last (",
         print old_n, str('%.2e'%old_nadall),

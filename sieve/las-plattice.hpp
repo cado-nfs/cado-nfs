@@ -505,6 +505,13 @@ static plattice_x_t plattice_starting_point(const plattice_info_t &pli,
         return plattice_x_t(UMAX(plattice_x_t));
     }
 
+    // If a1 or b1 reaches 20 bits, then it was saturated during the
+    // dense storage. Let's skip this prime for which the FK basis is
+    // very skewed. (only a few hits are missed)
+    if ((a1 == ((1<<20)-1)) || (b1 == ((1<<20)-1))) {
+        return plattice_x_t(UMAX(plattice_x_t));
+    }
+
     // Look for alpha and beta such that
     //   alpha*a + beta*b == (i0,j0) mod m
     // This is a 2x2 system of determinant p, coprime to m.
@@ -666,9 +673,12 @@ public:
 };
 
 class plattices_vector_t:
-        public std::vector<plattice_enumerate_t>, private NonCopyable {
+        public std::vector<plattice_enumerate_t> {
     slice_index_t index;
 public:
+    /* no copy, but move allowed */
+    plattices_vector_t(plattices_vector_t const&) = delete;
+    plattices_vector_t(plattices_vector_t &&) = default;
     plattices_vector_t(const slice_index_t index) : index(index) {}
     slice_index_t get_index() const {return index;};
 };
@@ -677,39 +687,76 @@ public:
  * sublat mode. */
 
 struct plattice_info_dense_t {
-    uint16_t minus_a0;  // a0 is always non-positive, so we store its opposite
-    uint16_t b0;        // in order to fit in 16 bits.
-    uint32_t a1;
-    uint32_t b1;
-    uint16_t hint; // FIXME: this could be recovered for free...
+    uint32_t pack[3];
+    // This pack of 96 bits is enough to contain
+    //   minus_a0, b0, a1, b1
+    // as 20-bit unsigned integers and
+    //   hint
+    // as a 16-bit integer.
+    //
+    // Note that minus_a0 and b0 are less than I, so this is ok, but
+    // a1 and b1 could be larger. However, this is for very skewed
+    // plattices, and we lose only a few hits by skipping those primes.
+    // So we saturate them at 2^20-1 for later detection.
+    //
+    // uint16_t hint; // FIXME: this could be recovered for free...
 
     plattice_info_dense_t(const plattice_info_t & pli, uint16_t _hint) {
+        uint32_t minus_a0;
+        uint32_t b0; 
+        uint32_t a1;
+        uint32_t b1;
+        uint16_t hint;
         hint = _hint;
         // Handle orthogonal lattices (proj and r=0 cases)
         if (pli.b0 == 1 && pli.b1 == 0) {
             b0 = 1;
             b1 = 0;
-            minus_a0 = UMAX(uint16_t);
+            minus_a0 = UMAX(uint32_t);
             a1 = pli.a1;
         } else if (pli.b0 == 0 && pli.b1 == 1) {
             b0 = 0;
             b1 = 1;
-            minus_a0 = UMAX(uint16_t);
+            minus_a0 = UMAX(uint32_t);
             a1 = pli.a1;
         } else {
             // generic case: true FK-basis
             ASSERT(pli.b0 >= 0);
             ASSERT(pli.a0 <= 0);
-            ASSERT(uint32_t(-pli.a0) <= UMAX(uint16_t));
-            ASSERT(uint32_t(pli.b0) <= UMAX(uint16_t));
             minus_a0 = -pli.a0;
             a1 = pli.a1;
             b0 = pli.b0;
             b1 = pli.b1;
         }
+        uint32_t mask8  = (1<<8)-1;
+        uint32_t mask16 = (1<<16)-1;
+        uint32_t mask20 = (1<<20)-1;
+
+        // Saturate skewed lattices, for later detection and skipping.
+        if (a1 > mask20)
+            a1 = mask20;
+        if (b1 > mask20)
+            b1 = mask20;
+
+        pack[0] =   (minus_a0 & mask20) | (b0 << 20);
+        pack[1] = ((b0 >> 12) & mask8 ) | ((a1 & mask20) << 8) | (b1 << 28);
+        pack[2] =  ((b1 >> 4) & mask16) | (hint << 16);
     }
 
     plattice_info_t unpack(const int logI) const {
+        uint32_t minus_a0;
+        uint32_t b0; 
+        uint32_t a1;
+        uint32_t b1;
+        
+        uint32_t mask8 = (1<<8)-1;
+        uint32_t mask16 = (1<<16)-1;
+        uint32_t mask20 = (1<<20)-1;
+        minus_a0 = pack[0] & mask20;
+        b0 = (pack[0] >> 20) | ((pack[1] & mask8) << 12);
+        a1 = (pack[1] >> 8) & mask20;
+        b1 = (pack[1] >> 28) | ((pack[2] & mask16) << 4);
+
         plattice_info_t pli(-int32_t(minus_a0), uint32_t(a1),
         int32_t(b0), uint32_t(b1));
         // Orthogonal bases
@@ -720,6 +767,11 @@ struct plattice_info_dense_t {
         }
         return pli;
     }
+
+    uint16_t get_hint() const {
+        return pack[2] >> 16;
+    }
+
 };
 
 class plattices_dense_vector_t:

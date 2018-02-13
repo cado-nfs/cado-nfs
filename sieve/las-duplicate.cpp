@@ -81,7 +81,8 @@ static void
 compute_a_over_b_mod_p(mpz_t r, const int64_t a, const uint64_t b, const mpz_t p)
 {
   mpz_set_uint64(r, b);
-  mpz_invert(r, r, p);
+  int ret = mpz_invert(r, r, p);
+  ASSERT_ALWAYS(ret);
   mpz_mul_int64(r, r, a);
   mpz_mod(r, r, p);
 }
@@ -128,26 +129,6 @@ las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, const unsign
 }
 
 
-/* Compute the product of the nr_lp large primes in large_primes,
-   skipping sq. If sq occurs multiple times in large_primes, it is
-   skipped only once. */
-static void
-compute_cofactor(mpz_t cof, const unsigned long sq, 
-                 const unsigned long *large_primes, const int nr_lp)
-{
-  mpz_set_ui (cof, 1UL);
-  int saw_sq = 0;
-  for (int i = 0; i < nr_lp; i++) {
-    const unsigned long p = large_primes[i];
-    if (sq != 0 && !saw_sq && p == sq) {
-      saw_sq = 1;
-      continue;
-    }
-    mpz_mul_ui(cof, cof, p);
-  }
-  ASSERT_ALWAYS(sq == 0 || saw_sq);
-}
-
 /* If e == 0, returns 1. Otherwise, if b > lim, returns b.
    Otherwise returns the largest b^k with k <= e and b^k <= lim. */
 static unsigned long
@@ -181,97 +162,78 @@ bounded_pow(const unsigned long b, const unsigned long e, const unsigned long li
 */
 static unsigned char
 subtract_fb_log(const unsigned char lognorm, relation const& rel,
-                sieve_info const & si, const int side, unsigned long sq)
+                sieve_info const & si, const int side,
+                std::vector<uint64_t> const * facq)
 {
   const unsigned long fbb = si.conf.sides[side].lim;
   const unsigned int nb_p = rel.sides[side].size();
   unsigned char new_lognorm = lognorm;
 
   for (unsigned int i = 0; i < nb_p; i++) {
-      lognorm_base & L(*si.sides[side].lognorms);
+    lognorm_base & L(*si.sides[side].lognorms);
     const unsigned long p = mpz_get_ui(rel.sides[side][i].p);
     int e = rel.sides[side][i].e;
     ASSERT_ALWAYS(e > 0);
+    if (p >= fbb)
+      continue;
 
-    /* if p is the special-q, we should subtract only p^(e-1) */
-    if (p == sq)
-      e --;
+    if (facq != NULL) {
+      // Remove one occurrence of each factor of sq.
+      for (auto const & f : *facq) {
+        if (p == f) {
+          e = e - 1;
+        }
+      }
+    }
     if (e == 0)
       continue;
 
-    if (p <= fbb) {
-      const unsigned long p_pow = bounded_pow(p, e, si.conf.sides[side].powlim);
-      const unsigned char p_pow_log = fb_log(p_pow, L.scale, 0);
-      if (p_pow_log > new_lognorm) {
-        if (0)
-          fprintf(stderr, "Warning: lognorm underflow for relation a,b = %" PRId64 ", %" PRIu64 "\n",
-                  rel.a, rel.b);
-        new_lognorm = 0;
-      } else {
-        new_lognorm -= p_pow_log;
-      }
+    const unsigned long p_pow = bounded_pow(p, e, si.conf.sides[side].powlim);
+    const unsigned char p_pow_log = fb_log(p_pow, L.scale, 0);
+    if (p_pow_log > new_lognorm) {
+      new_lognorm = 0;
+    } else {
+      new_lognorm -= p_pow_log;
     }
   }
   return new_lognorm;
 }
 
-/* Return 1 if the relation is probably a duplicate of a relation found
- * when sieving the sq described by si. Return 0 if it is probably not a
+struct sq_with_fac {
+  uint64_t q;
+  std::vector<uint64_t> facq;
+};
+
+/* Return true if the relation is probably a duplicate of a relation found
+ * when sieving the sq described by si. Return false if it is probably not a
  * duplicate */
-int
-sq_finds_relation(const unsigned long sq, const int sq_side,
-                  relation const& rel,
-                  const int nb_threads, sieve_info & old_si)
+bool
+sq_finds_relation(sq_with_fac const& sq_fac, const int sq_side,
+    relation const& rel, const int nb_threads, sieve_info & old_si,
+    int adjust_strategy)
 {
-    std::array<std::vector<cxx_mpz>, 2> f; /* Factors of the relation's norms */
-    std::array<cxx_mpz, 2> cof;
-  int is_dupe = 1; /* Assumed dupe until proven innocent */
-  const size_t max_large_primes = 10;
-  unsigned long large_primes[2][max_large_primes];
-  unsigned int nr_lp[2] = {0, 0};
-  int i, pass, ok;
-  unsigned int j;
-
-  /* Extract the list of large primes for each side */
-  for (int side = 0; side < 2; side++) {
-    const unsigned long fbb = old_si.conf.sides[side].lim;
-    unsigned int nb_p = rel.sides[side].size();
-    for (unsigned int i = 0; i < nb_p; i++) {
-      const unsigned long p = mpz_get_ui(rel.sides[side][i].p);
-      const int e = rel.sides[side][i].e;
-      ASSERT_ALWAYS(e > 0);
-      if (p > fbb) {
-        for (int i = 0; i < e; i++) {
-          if (nr_lp[side] < max_large_primes)
-	    large_primes[side][nr_lp[side]++] = p;
-        }
-      }
-    }
-
-    /* In case we are on the sq_side and sq <= fbb, add sq */
-    if (side == sq_side && sq <= fbb) {
-      ASSERT_ALWAYS(nr_lp[side] < max_large_primes);
-      large_primes[side][nr_lp[side]++] = sq;
-    }
-
-    /* Compute the cofactor, dividing by sq on the special-q side. */
-    compute_cofactor(cof[side], side == sq_side ? sq : 0, large_primes[side], nr_lp[side]);
-  }
-
+  uint64_t sq = sq_fac.q;
+  
+  // Warning: the entry we create here does not know whether sq is
+  // prime or composite (it assumes prime). This is fragile!!!
   las_todo_entry doing = special_q_from_ab(rel.a, rel.b, sq, sq_side);
 
   sieve_range_adjust Adj(doing, old_si.cpoly, old_si.conf, nb_threads);
 
   if (!Adj.SkewGauss() || !Adj.Q.fits_31bits() || !Adj.sieve_info_adjust_IJ()) {
-      verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
-      return 0;
+    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
+    return false;
   }
 
-  /* We have no info as to which adjustment option is being used for the
-   * current project... Let's assume the default adjust_strategy = 0
-   * FIXME !
-   */
-  Adj.sieve_info_update_norm_data_Jmax();
+  if (adjust_strategy != 1)
+    Adj.sieve_info_update_norm_data_Jmax();
+
+  if (adjust_strategy >= 2)
+    Adj.adjust_with_estimated_yield();
+
+  if (adjust_strategy >= 3)
+    Adj.sieve_info_update_norm_data_Jmax(true);
+
   siever_config conf = Adj.config();
   conf.logI_adjusted = Adj.logI;
   conf.side = sq_side;
@@ -287,84 +249,112 @@ sq_finds_relation(const unsigned long sq, const int sq_side,
   si.recover_per_sq_values(Adj);
   si.strategies = old_si.strategies;
 
-  const unsigned long r = mpz_get_ui(doing.r);
 
   const uint32_t oldI = si.I, oldJ = si.J;
-  uint32_t I, J; /* Can't declare further down due to goto :( */
-
   si.update_norm_data();
+  uint32_t I = si.I, J = si.J;
 
-  verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Checking if relation (a,b) = (%" PRId64 ",%" PRIu64 ") is a dupe of sieving special-q -q0 %lu -rho %lu\n", rel.a, rel.b, sq, r);
-  verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Using special-q basis a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "\n", si.qbasis.a0, si.qbasis.b0, si.qbasis.a1, si.qbasis.b1);
-
-  I = si.I;
-  J = si.J;
-
-  if (oldI != I || oldJ != J)
-    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK oldI = %u, I = %u, oldJ = %u, J = %u\n", oldI, I, oldJ, J);
+  
+  { // Print some info
+    const unsigned long r = mpz_get_ui(doing.r);
+    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Checking if relation (a,b) = (%" PRId64 ",%" PRIu64 ") is a dupe of sieving special-q -q0 %" PRIu64 " -rho %lu\n", rel.a, rel.b, sq, r);
+    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK Using special-q basis a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "\n", si.qbasis.a0, si.qbasis.b0, si.qbasis.a1, si.qbasis.b1);
+    if (oldI != I || oldJ != J)
+      verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK oldI = %u, I = %u, oldJ = %u, J = %u\n", oldI, I, oldJ, J);
+  }
   
   /* Compute i,j-coordinates of this relation in the special-q lattice when
      p was used as the special-q value. */
-  ok = ABToIJ(&i, &j, rel.a, rel.b, si);
-
-  if (!ok)
-    abort();
+  int i;
+  unsigned int j;
+  {
+    int ok;
+    ok = ABToIJ(&i, &j, rel.a, rel.b, si);
+    ASSERT_ALWAYS(ok);
+  }
 
   /* If the coordinate is outside the i,j-region used when sieving
      the special-q described in si, then it's not a duplicate */
   if ((i < 0 && (uint32_t)(-i) > I/2) || (i > 0 && (uint32_t)i > I/2-1) || (j >= J)) {
-    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK (i,j) = (%d, %u) is outside sieve region\n", i, j);
-    is_dupe = 0;
-    goto clear_and_exit;
+    verbose_output_print(0, VERBOSE_LEVEL,
+        "# DUPECHECK (i,j) = (%d, %u) is outside sieve region\n", i, j);
+    return false;
   }
 
   uint8_t remaining_lognorm[2];
+  bool is_dupe = true;
   for (int side = 0; side < 2; side++) {
-      lognorm_base & L(*si.sides[side].lognorms);
-      /* Here, we assume for now that the log norm estimate is exact,
-       * i.e., that it produces the correctly rounded l = log_b(F(a,b)).
-       * So we're using a straightforward function designed precisely for
-       * that in las-norms. Now, in fact, it would be better to call the
-       * _real_ function and pick the entry corresponding to this
-       * i,j-coordinate. */
-      const uint8_t lognorm = L.lognorm(i,j);
-      remaining_lognorm[side] = subtract_fb_log(lognorm, rel, si, side,
-					      (side == sq_side) ? sq : 0);
-      if (remaining_lognorm[side] > L.bound) {
-          verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK On side %d, remaining lognorm = %" PRId8 " > bound = %" PRId8 "\n",
-                  side, remaining_lognorm[side], L.bound);
-          is_dupe = 0;
-      }
+    lognorm_base & L(*si.sides[side].lognorms);
+    /* Here, we assume for now that the log norm estimate is exact,
+     * i.e., that it produces the correctly rounded l = log_b(F(a,b)).
+     * So we're using a straightforward function designed precisely for
+     * that in las-norms. Now, in fact, it would be better to call the
+     * _real_ function and pick the entry corresponding to this
+     * i,j-coordinate. */
+    const uint8_t lognorm = L.lognorm(i,j);
+    remaining_lognorm[side] = subtract_fb_log(lognorm, rel, si, side,
+        (side == sq_side) ? &(sq_fac.facq) : NULL);
+    if (remaining_lognorm[side] > L.bound) {
+      verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK On side %d, remaining lognorm = %" PRId8 " > bound = %" PRId8 "\n",
+          side, remaining_lognorm[side], L.bound);
+      is_dupe = false;
+    }
   }
-  verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK relation had i=%d, j=%u, remaining lognorms %" PRId8 ", %" PRId8 "\n",
-           i, j, remaining_lognorm[0], remaining_lognorm[1]);
+  verbose_output_print(0, VERBOSE_LEVEL,
+      "# DUPECHECK relation had i=%d, j=%u, remaining lognorms %" PRId8 ", %" PRId8 "\n",
+      i, j, remaining_lognorm[0], remaining_lognorm[1]);
   if (!is_dupe) {
-    goto clear_and_exit;
+    return false;
+  }
+
+  /* Compute the exact cofactor on each side */
+  std::array<cxx_mpz, 2> cof;
+  for (int side = 0; side < 2; side++) {
+    mpz_set_ui(cof[side], 1);
+    const unsigned long fbb = old_si.conf.sides[side].lim;
+    unsigned int nb_p = rel.sides[side].size();
+    for (unsigned int i = 0; i < nb_p; i++) {
+      const unsigned long p = mpz_get_ui(rel.sides[side][i].p);
+      int e = rel.sides[side][i].e;
+      ASSERT_ALWAYS(e > 0);
+      if (p <= fbb) {
+        continue;
+      }
+      // Remove one occurrence of each factor of sq on side sq_side.
+      if (side == sq_side) {
+        for (auto const & facq : sq_fac.facq) {
+          if (p == facq) {
+            e = e - 1;
+          }
+        }
+      }
+      for (int i = 0; i < e; ++i) {
+        mpz_mul_ui(cof[side], cof[side], p);
+      }
+    }
   }
 
   /* Check that the cofactors are within the mfb bound */
   for (int side = 0; side < 2; ++side) {
     if (!check_leftover_norm (cof[side], si, side)) {
-      verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK cofactor %Zd is outside bounds\n", (__mpz_struct*) cof[side]);
-      is_dupe = 0;
-      goto clear_and_exit;
+      verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
+          "# DUPECHECK cofactor %Zd is outside bounds\n",
+          (__mpz_struct*) cof[side]);
+      return false;
     }
   }
 
-  // ok, the cast is despicable
-  pass = factor_both_leftover_norms(cof, f, si);
-
-  if (pass <= 0)
-    verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n", (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);
+  std::array<std::vector<cxx_mpz>, 2> f;
+  int pass = factor_both_leftover_norms(cof, f, si);
 
   if (pass <= 0) {
-    is_dupe = 0;
-    goto clear_and_exit;
+    verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
+        "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n",
+        (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);
+    return false;
   }
 
-clear_and_exit:
-
-  return is_dupe;
+  return true;
 }
 
 
@@ -373,8 +363,10 @@ clear_and_exit:
  * This takes qmin and qmax into account.
  */
 static int
-sq_was_previously_sieved (const unsigned long sq, int side, sieve_info const & si){
-  if (mpz_cmp_ui (si.doing.p, sq) <= 0) /* we use <= and not < since this
+sq_was_previously_sieved (const uint64_t sq, int side, sieve_info const & si){
+  cxx_mpz Sq;
+  mpz_set_uint64(Sq, sq);
+  if (mpz_cmp(si.doing.p, Sq) <= 0) /* we use <= and not < since this
 					   function is also called with the
 					   current special-q */
     return 0;
@@ -383,58 +375,117 @@ sq_was_previously_sieved (const unsigned long sq, int side, sieve_info const & s
       && (sq <  si.conf.sides[side].qmax);
 }
 
-/* For one special-q identified by (sq, side) (the root r is given
-   implicitly by the a,b-coordinate in relation), check whether the
-   relation is a duplicate of sieving that special-q: check whether 
-   (sq, side) was sieved before the special-q specified in si, and
-   whether sieving (sq, side) can find the relation with the sieving
-   parameters specified in si.conf. */ 
+// Warning: this function works with side effects:
+//   - it is recursive
+//   - it destroys its argument along the way
+//   - it allocates the result it returns; the caller must free it.
+// Keep only products that fit in 64 bits.
+std::vector<sq_with_fac>
+all_multiples(std::vector<uint64_t> & prime_list) {
+  if (prime_list.empty()) {
+    std::vector<sq_with_fac> res;
+    return res;
+  }
 
-int
-check_one_prime(mpz_srcptr zsq, const int side,
-                relation const & rel, const int nb_threads,
-                sieve_info & si)
-{
-  if (!mpz_fits_ulong_p(zsq)) {
-      /* move on. Probably not a duplicate */
-      return 0;
+  uint64_t p = prime_list.back();
+  prime_list.pop_back();
+
+  if (prime_list.empty()) {
+    std::vector<sq_with_fac> res;
+    res.push_back(sq_with_fac { 1, std::vector<uint64_t> () });
+    res.push_back(sq_with_fac { p, std::vector<uint64_t> (1, p) });
+    return res;
   }
-  unsigned long sq = mpz_get_ui(zsq);
-  int is_dupe = 0;
-  if (sq_was_previously_sieved(sq, side, si)) {
-    is_dupe = sq_finds_relation(sq, side, rel, nb_threads, si);
-    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK relation is probably%s a dupe\n",
-			 is_dupe ? "" : " not");
+
+  std::vector<sq_with_fac> res = all_multiples(prime_list);
+
+  size_t L = res.size();
+  cxx_mpz pp;
+  mpz_set_uint64(pp, p);
+  for (size_t i = 0; i < L; ++i) {
+    std::vector<uint64_t> facq;
+    facq = res[i].facq;
+    facq.push_back(p);
+
+    cxx_mpz prod;
+    mpz_mul_uint64(prod, pp, res[i].q);
+    if (mpz_fits_uint64_p(prod)) {
+      uint64_t q = mpz_get_uint64(prod);
+      struct sq_with_fac entry = {q, facq};
+      res.push_back(entry);
+    }
   }
-  return is_dupe;
+  return res;
 }
 
 /* Return 1 if the relation is probably a duplicate of a relation found
    "earlier", and 0 if it is probably not a duplicate */
 int
-relation_is_duplicate(relation const& rel, const int nb_threads,
-                      sieve_info & si)
+relation_is_duplicate(relation const& rel, las_info const& las,
+                      sieve_info & si, int adjust_strategy)
 {
   /* If the special-q does not fit in an unsigned long, we assume it's not a
      duplicate and just move on */
-  if (!mpz_fits_ulong_p(si.doing.p)) {
+  if (!mpz_fits_uint64_p(si.doing.p)) {
     return false;
   }
 
   /* If any large prime doesn't fit in an unsigned long, then we assume
    * we don't have a duplicate */
   for(int side = 0 ; side < 2 ; side++) {
-      for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
-          if (!mpz_fits_ulong_p(rel.sides[side][i].p))
-              return false;
-      }
+    for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
+      if (!mpz_fits_uint64_p(rel.sides[side][i].p))
+        return false;
+    }
   }
 
   for(int side = 0 ; side < 2 ; side++) {
-      for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
-          if (check_one_prime(rel.sides[side][i].p, side, rel, nb_threads, si))
-              return true;
+    // Step 1: prepare a list of potential special-q on this side.
+    // They involve only prime factors within the allowed bounds
+    std::vector<uint64_t> prime_list;
+    for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
+      uint64_t p = mpz_get_uint64(rel.sides[side][i].p);
+
+      // can this p be part of valid sq ?
+      if (! las.allow_composite_q) {
+        if ((p < si.conf.sides[side].qmin) || (p >= si.conf.sides[side].qmax)) {
+          continue;
+        }
+      } else {
+        if ((p < las.qfac_min) || (p >= las.qfac_max)) {
+          continue;
+        }
       }
+
+      cxx_mpz aux;
+      mpz_poly_getcoeff(aux, si.cpoly->pols[side]->deg, si.cpoly->pols[side]);
+      if (mpz_divisible_ui_p(aux, p))
+        continue;
+
+      // push it in the list of potential factors of sq
+      prime_list.push_back(p);
+    }
+    std::vector<sq_with_fac> sq_list = all_multiples(prime_list);
+
+    // Step 2: keep only those that have been sieved before current sq.
+    std::vector<sq_with_fac> valid_sq;
+    for (auto const & sq : sq_list) {
+      if (sq_was_previously_sieved(sq.q, side, si)) {
+        valid_sq.push_back(sq);
+      }
+    }
+
+    // Step 3: emulate sieving for the valid sq, and check if they find
+    // our relation.
+    for (auto const & sq : valid_sq) {
+      bool is_dupe = sq_finds_relation(sq, side, rel, las.nb_threads, si, adjust_strategy);
+      verbose_output_print(0, VERBOSE_LEVEL,
+          "# DUPECHECK relation is probably%s a dupe\n",
+          is_dupe ? "" : " not");
+      if (is_dupe) {
+        return true;
+      }
+    }
   }
 
   return false;

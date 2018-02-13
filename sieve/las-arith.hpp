@@ -28,6 +28,9 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   return u;
 }
 
+static inline uint64_t
+redc_64(const int64_t x, const uint32_t p, const uint64_t invp);
+
 // Signed redc_32 based on 64-bit arithmetic
 // Assume:
 //   * p is an odd prime < 2^32.
@@ -46,29 +49,8 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   if ((int32_t) t >= 0) u = t;
   t -= p;
   if ((int32_t) t >= 0) u = t;
-#ifndef NDEBUG
-  if (UNLIKELY(u >= p)) {
-    fprintf(stderr, "BUG in redc_32. x = %" PRId64
-	    " p = %u, invp = %u, u = %d\n", x, p, invp, u);
-    if (x < 0) {
-      fprintf(stderr, "x/2^32 = -%" PRId64, (-x)>>32);
-      if (((-x)>>32) < p) {
-	fprintf(stderr, ", within bounds\n");
-      } else {
-	fprintf(stderr, ", OUT OF BOUNDS\n");
-      }
-    } else {
-      fprintf(stderr, "x/2^32 = -%" PRId64, x>>32);
-      if ((x>>32) < p) {
-	fprintf(stderr, ", within bounds\n");
-      } else {
-	fprintf(stderr, ", OUT OF BOUNDS\n");
-      }
-    }
-    ASSERT(0);
-    /* TODO: Fall back to safer code ? */
-  }
-#endif
+  if (UNLIKELY(u >= p))
+    return redc_64 (x, p, invp);
   return u;
 }
 

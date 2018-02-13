@@ -1,11 +1,14 @@
+import threading
+
 from opal.core.io import *
 import sys
 import subprocess
 import re
 from math import log
 import os
-
+import fcntl
 from report import LasStats
+from Queue import Queue
 
 def update_existing(a, b):
     """ Update those keys in "a" which also exist in "b" with the values
@@ -35,6 +38,118 @@ def set_best_time(file, t):
     f.write(str(t) + "\n")
     f.close()
 
+def get_params_str(params):
+    keys = params.keys()
+    keys.sort() # Keep keys sorted across runs
+    return "_".join([str(params[k]) for k in keys])
+
+class LasRunner(threading.Thread):
+    def __init__(self, las, las_params, rels_wanted, max_workers = 1):
+        super(LasRunner, self).__init__()
+        self.daemon = True
+        self.las = las
+        self.las_params = las_params
+        self.params_str = get_params_str(las_params)
+        self.rels_wanted = rels_wanted
+        self.should_stop = threading.Event()
+
+        self.max_workers = max_workers
+        # Keep two queues to control the number of processes,
+        # otherwise for one queue there would always be a minimum of 3 processes -
+        # one process pulled from queue, one in queue, and one waiting to be put in the queue
+        self.processes = Queue(max(max_workers, 1))
+        self.out_files = Queue(max(max_workers, 1))
+
+        # Assume this number of reports from first run of las, since we do not wait for it to finish
+        self.last_report = 10000
+        self.las_cmds = self.las_cmd_generator()
+
+        self.consumed = 0
+
+    def las_cmd_generator(self):
+
+        sqside = self.las_params.get("sqside", 0)
+        q0 = self.las_params["qmin"]
+        q_inc = 0
+        while True:
+            outputfile = "las_%s.%d.out" % (self.params_str, q0)
+            # we prefer -nq 100 to -q1, since with -q1 we might get less precise
+            # timings when the number of special-q's is small
+            self.las_params.update({"q0": q0, "nq": 100, "out": outputfile})
+
+            las_cmd_line = [self.las, "-allow-largesq", "-dup", "-dup-qmin"]
+            if sqside == 0:
+                las_cmd_line += ["%s,0" % str(self.las_params["qmin"])]
+            else:
+                las_cmd_line += ["0,%s" % str(self.las_params["qmin"])]
+            for (key, value) in self.las_params.items():
+                if key in ["qmin", "workers"]:
+                   # Skip keys not designated for las
+                   continue
+                las_cmd_line += ["-%s" % key, str(value)]
+
+            yield las_cmd_line, outputfile
+            if q_inc == 0:
+                v = self.last_report
+                # set q_inc so that we do about 10 sieving tests
+                q_inc = int(self.rels_wanted / (10.0 * v))
+
+                if q0 > 10000:
+                    # but make sure q_inc is not too large: q_inc = 0.45*q0 gives
+                    # about 20 sieving tests for [q0,10*q0]
+                    q_inc = max(q_inc, int(0.45 * q0))
+            q0 += q_inc
+    
+    def run(self):
+        assert self.max_workers > 1
+        while not self.should_stop.isSet():
+            las_cmd, outputfile = next(self.las_cmds)
+            self.out_files.put(outputfile)
+            # sys.stderr.write("Running: %s\n" % " ".join(las_cmd))
+            p = subprocess.Popen(las_cmd)
+            self.processes.put(p)
+
+        while not self.processes.empty():
+            p = self.processes.get()
+            p.kill()
+            self.processes.task_done()
+
+    def stop(self, timeout):
+        self.should_stop.set()
+        if self.isAlive():
+            self.join(timeout)
+
+    def start(self):
+        # No-op incase of max_workers <= 1
+        if self.max_workers <= 1:
+            return
+
+        super(LasRunner, self).start()
+
+    def get(self):
+        self.consumed += 1
+        # Just run the process synchronically if max_workers=1
+        if self.max_workers <= 1:
+            return self.get_no_workers()
+
+        # First get from processes, and only after the process is done, get from out_files
+        # this way we control the actual number of workers.
+        p = self.processes.get()
+        p.wait()
+        self.processes.task_done()
+        outputfile = self.out_files.get()
+        self.out_files.task_done()
+
+        return p, outputfile
+
+    def get_no_workers(self):
+        las_cmd, outputfile = next(self.las_cmds)
+        # sys.stderr.write("Running: %s\n" % " ".join(las_cmd))
+        p = subprocess.Popen(las_cmd)
+        p.wait()
+        return p, outputfile
+
+
 def run(param_file, problem):
     "Run las with given parameters until the required number of relations is found."
 
@@ -58,7 +173,8 @@ def run(param_file, problem):
         "ncurves1": 6,
         "qmin": 100000,
         "bkthresh1": 1000000,
-        "t": 2 # number of threads for las
+        "t": 2, # number of threads for las
+        "workers": 1, # number of workers for las
     }
     if sqside != "":
       las_params["sqside"] = sqside
@@ -73,8 +189,11 @@ def run(param_file, problem):
 
     las_params["lim0"] = min(las_params["lim0"], 2 ** las_params["lpb0"])
     las_params["lim1"] = min(las_params["lim1"], 2 ** las_params["lpb1"])
-    
-    to_print = ["I", "lim1", "lpb1", "mfb1", "lim0", "lpb0", "mfb0", "ncurves0", "ncurves1", "qmin", "bkthresh1"]
+
+    # please keep the same order of parameters as in the add_param() calls in
+    # las_decl_template.py
+    to_print = ["I", "qmin", "bkthresh1", "lim0", "lim1", "lpb0", "lpb1", "mfb0", "mfb1", "ncurves0", "ncurves1"]
+
     sys.stderr.write("Using parameters %s\n" % " ".join(["%s:%s" % (key, las_params[key]) for key in to_print]))
 
     ### Call makefb on all algebraic polynomials
@@ -84,22 +203,25 @@ def run(param_file, problem):
       "t": las_params["t"]
     }
     for side, t in enumerate(cado_poly_type):
+      limside = las_params["lim%d"%side]
+      fb_filename = "factorbase%d.roots%d.gz" % (limside, side)
       if t == "alg":
-        makefb_params["lim"] = las_params["lim%d"%side]
-        makefb_params["out"] = "factorbase.roots%d.gz" % side
-        makefb_params["side"] = side
-        las_params["fb%s"%side] = makefb_params["out"]
-
-        makefb_cmd_line = [makefb]
-        for (key, value) in makefb_params.items():
-          makefb_cmd_line += ["-%s" % key, str(value)]
-        # sys.stderr.write("Running: %s\n" % " ".join(makefb_cmd_line))
-        subprocess.check_call(makefb_cmd_line)
+        with open("%s.lock" % fb_filename, "w+") as lock:
+          las_params["fb%s"%side] = fb_filename
+          fcntl.flock(lock, fcntl.LOCK_EX)
+          if os.path.exists(fb_filename):
+            continue
+          makefb_params["lim"] = limside
+          makefb_params["out"] = fb_filename
+          makefb_params["side"] = side
+          
+          makefb_cmd_line = [makefb]
+          for (key, value) in makefb_params.items():
+            makefb_cmd_line += ["-%s" % key, str(value)]
+          sys.stderr.write("Running: %s\n" % " ".join(makefb_cmd_line))
+          subprocess.check_call(makefb_cmd_line)
 
     stats = LasStats()
-    q0 = las_params["qmin"]
-    q_range = 1000
-    q_inc = 0
     # since we remove duplicates, 80% of the total ideals should be enough
     rels_wanted = int(0.8 * primepi(las_params["lpb1"]) + 0.8 * primepi(las_params["lpb0"]))
     # read the best time so far (if any)
@@ -109,55 +231,36 @@ def run(param_file, problem):
     else:
        sys.stderr.write("Estimate %u relations needed, best time so far is %.0f seconds\n" % (rels_wanted, best_time))
 
+    max_workers = las_params['workers']
+    runner = LasRunner(las, las_params, rels_wanted, max_workers=max_workers)
+    runner.start()
     while stats.get_rels() < rels_wanted:
-        # Set q0, q1
-        outputfile = "las.%d.out" % q0
-        las_params.update({"q0": q0, "q1": q0 + q_range, "out": outputfile})
-
-        las_cmd_line = [las, "-allow-largesq", "-never-discard", "-dup", "-dup-qmin"]
-        if sqside == 0:
-            las_cmd_line += ["%s,0" % str(las_params["qmin"])]
-        else:
-            las_cmd_line += ["0,%s" % str(las_params["qmin"])]
-        for (key, value) in las_params.items():
-            if key == "qmin":
-               continue
-            las_cmd_line += ["-%s" % key, str(value)]
-        # sys.stderr.write("Running: %s\n" % " ".join(las_cmd_line))
-        las_process = subprocess.Popen(las_cmd_line)
-        (stdout, stderr) = las_process.communicate()
+        las_process, outputfile = runner.get()
         if las_process.returncode != 0:
             raise Exception("las exited with status %d" % las_process.returncode)
         if not stats.parse_one_file(outputfile):
             raise Exception("Could not read statistics from %s" % outputfile)
         os.unlink(outputfile)
+        runner.last_report = stats.relations_int.lastvalue[0]
         cur_rels = stats.get_rels()
         if cur_rels == 0:
            cur_time = 0
         else:
            cur_time = stats.get_time(cur_rels)
-        # sys.stderr.write("   Up to q=%u, estimate %u/%u relations in %.0f seconds\n" % (q0, cur_rels, rels_wanted, cur_time))
-
+        # sys.stderr.write("   Up to q=%u, estimate %u/%u relations in %.0f seconds\n" % (stats.relations_int.lastcoord[0], cur_rels, rels_wanted, cur_time))
         # if the total time so far exceeds best_time, and we don't have enough
         # relations, we can stop here
         if cur_time > best_time and cur_rels < rels_wanted:
            break
 
-        # set q_inc so that we do about 10 sieving tests of length q_range
-        if q_inc == 0:
-           v = stats.relations_int.lastvalue[0]
-           q_inc = int(rels_wanted / (10.0 * v))
-           # but make sure q_inc is not too large: q_inc = 0.45*q0 gives
-           # about 20 sieving tests for [q0,10*q0]
-           if q_inc > int(0.45 * q0):
-               q_inc = int(0.45 * q0)
-        q0 += q_inc
+    runner.stop(5)
+
     qmax = stats.get_qmax(rels_wanted)
     sievetime = stats.get_time(rels_wanted)
     if sievetime < best_time: # store the new best time
         set_best_time ("las.best", sievetime)
-    sys.stderr.write("Estimated special-q up to %.0f and %.0f seconds for %d relations\n"
-                      % (qmax, sievetime, rels_wanted))
+    sys.stderr.write("Estimated after %d iterations, special-q up to %.0f and %.0f seconds for %d relations\n"
+                      % (runner.consumed, qmax, sievetime, rels_wanted))
     # Estimate how far the sieving should have gone to get the desired number
     # of relations
     return {'SIEVETIME': sievetime, 'RELATIONS': rels_wanted}

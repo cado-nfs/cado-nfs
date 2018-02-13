@@ -5,6 +5,8 @@
 # set CADO_NFS to the CADO-NFS repository
 # set CADO_BIN to the directory where binaries are
 
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 fbb=21
 lpb=26
 

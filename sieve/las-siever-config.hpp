@@ -5,10 +5,12 @@
 #include "las-todo-entry.hpp"
 #include "fb-types.h"
 #include <string.h>
+#include <string>
 #include <map>
 #include "params.h"
 
-/*  siever_config */
+/* siever_config */
+ 
 /* The following structure lists the fields with an impact on the siever.
  * Different values for these fields will correspond to different siever
  * structures.
@@ -17,7 +19,7 @@ struct siever_config : public _padded_pod<siever_config> {
     /* The bit size of the special-q. Counting in bits is no necessity,
      * we could imagine being more accurate */
     unsigned int bitsize;  /* bitsize == 0 indicates end of table */
-    int side;   /* special-q side */
+    int side;              /* special-q side */
     int logA;
 
 
@@ -29,17 +31,16 @@ struct siever_config : public _padded_pod<siever_config> {
     unsigned long bucket_thresh1;   // primes above are 2-level bucket-sieved
     unsigned int td_thresh;
     unsigned int skipped;           // don't sieve below this
-    double bk_multiplier = 1.0;     // how much margin when allocating buckets
     unsigned int unsieve_thresh;
     struct side_config {
-        unsigned long lim; /* factor base bound */
+        unsigned long lim;    /* factor base bound */
         unsigned long powlim; /* bound on powers in the factor base */
-        int lpb;           /* large prime bound is 2^lpb */
-        int mfb;           /* bound for residuals is 2^mfb */
-        int ncurves;       /* number of cofactorization curves */
-        double lambda;     /* lambda sieve parameter */
-        unsigned long qmin; /* smallest q sieved on this side, for dup sup */
-        unsigned long qmax; /* largest q sieved on this side, for dup sup */
+        int lpb;              /* large prime bound is 2^lpb */
+        int mfb;              /* bound for residuals is 2^mfb */
+        int ncurves;          /* number of cofactorization curves */
+        double lambda;        /* lambda sieve parameter */
+        unsigned long qmin;   /* smallest q sieved on this side, for dupsup */
+        unsigned long qmax;   /* largest q sieved on this side, for dupsup */
     };
     side_config sides[2];
 
@@ -131,6 +132,7 @@ struct siever_config : public _padded_pod<siever_config> {
     /*}}}*/
 };
 
+
 /* {{{ descent_hint
  *
  * This is used for the descent. For each factor size, we provide a
@@ -168,13 +170,6 @@ struct siever_config_pool {
     siever_config base;
 
     siever_config get_config_for_q(las_todo_entry const& doing) const;
-
-    void change_bk_multiplier(double d) {
-        for(auto & c : hints)
-            c.second.bk_multiplier = d;
-        base.bk_multiplier = d;
-    }
-
 
     siever_config_pool(cxx_param_list& pl);
 

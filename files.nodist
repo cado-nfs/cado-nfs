@@ -52,6 +52,7 @@ polyselect/sopt.c
 polyselect/twoquadratics.c
 polyselect/twocubics.c
 polyselect/twocubics.h
+polyselect/rootsieve1.c
 polyselect/rotation_bound.sage
 polyselect/E.sage
 polyselect/MurphyE.sage
@@ -68,6 +69,8 @@ sqrt/lift.c
 utils/README_POLYNOMIALS
 utils/CMakeLists-nodist.txt
 utils/cachesize.c
+utils/prime_pi.sage
+utils/rdtsc.h
 tests/utils/build-testcases-rootfinder.m
 linalg/bwc/CMakeLists-nodist.txt
 linalg/bwc/bench_polmatmul.cpp
@@ -103,6 +106,20 @@ parameters/polynomials/c140.poly
 parameters/polynomials/c145.poly
 parameters/polynomials/c150.poly
 parameters/polynomials/c155.poly
+parameters/polynomials/c160.poly
+parameters/polynomials/c165.poly
+parameters/polynomials/c170.poly
+parameters/polynomials/c175.poly
+parameters/polynomials/c180.poly
+parameters/polynomials/c185.poly
+parameters/polynomials/c190.poly
+parameters/polynomials/c195.poly
+parameters/polynomials/c200.poly
+parameters/polynomials/rsa200.poly
+parameters/polynomials/c210.poly
+parameters/polynomials/rsa210.poly
+parameters/polynomials/c220.poly
+parameters/polynomials/rsa220.poly
 scripts/polsel_params.sage
 linalg/bwc/bcast-file.c
 misc/README

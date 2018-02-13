@@ -319,7 +319,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
   } else { // Use precomputed FK-basis
     for (unsigned int i = 0; i < precomp_slice->size(); ++i) {
       plattice_info_t pli = (*precomp_slice)[i].unpack(si.conf.logI_adjusted);
-      slice_offset_t i_entry = (*precomp_slice)[i].hint;
+      slice_offset_t i_entry = (*precomp_slice)[i].get_hint();
 
       plattice_enumerate_t ple = plattice_enumerate_t(pli, i_entry, si.conf.logI_adjusted, si.conf.sublat);
 
@@ -609,16 +609,27 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
     WHERE_AM_I_UPDATE(w, side, param->side);
     WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
 
-    /* Get an unused bucket array that we can write to */
-    bucket_array_t<LEVEL, shorthint_t> *BA_ptr =
-        param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
-    if (BA_ptr) {
-        bucket_array_t<LEVEL, shorthint_t> &BA(*BA_ptr);
+    try {
+        /* Get an unused bucket array that we can write to */
+        /* clearly, reserve_BA() possibly throws. As it turns out,
+         * fill_in_buckets_lowlevel<> does not, at least currently. One
+         * could imagine that it could throw, so let's wrap it too.
+         */
+        bucket_array_t<LEVEL, shorthint_t> &BA =
+            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
         /* Fill the buckets */
-        fill_in_buckets_lowlevel<LEVEL>(BA, param->si, param->plattices_vector,
-                (param->first_region0_index == 0), w);
+        try {
+            fill_in_buckets_lowlevel<LEVEL>(BA, param->si, param->plattices_vector,
+                    (param->first_region0_index == 0), w);
+        } catch(buckets_are_full & e) {
+            param->ws.release_BA(param->side, BA);
+            throw e;
+        }
         /* Release bucket array again */
         param->ws.release_BA(param->side, BA);
+    } catch(buckets_are_full & e) {
+        delete param;
+        throw e;
     }
     delete param;
     return new task_result;
@@ -653,10 +664,9 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
     WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
     WHERE_AM_I_UPDATE(w, N, 0);
 
-    /* Get an unused bucket array that we can write to */
-    bucket_array_t<LEVEL, shorthint_t> * BA_ptr = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
-    if (BA_ptr) {
-        bucket_array_t<LEVEL, shorthint_t> &BA(*BA_ptr);
+    try {
+        /* Get an unused bucket array that we can write to */
+        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
         /* Fill the buckets */
         if (param->slice->is_general())
           fill_in_buckets_toplevel<LEVEL,fb_general_entry>(BA, param->si, param->slice, param->plattices_dense_vector, w);
@@ -686,9 +696,12 @@ fill_in_buckets_one_slice(const worker_thread * worker MAYBE_UNUSED, const task_
           ASSERT_ALWAYS(0);
         /* Release bucket array again */
         param->ws.release_BA(param->side, BA);
+        delete param;
+        return new task_result;
+    } catch (buckets_are_full const& e) {
+        delete param;
+        throw e;
     }
-    delete param;
-    return new task_result;
 }
 
 template <int LEVEL>
@@ -729,11 +742,34 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
         }
     }
 
+    /* we need to check for exceptions due to bucket updates. Because
+     * we've pushed all slides at this point, we have no option but to
+     * wait for all threads to finish. (or maybe pull back some of the
+     * tasks before they're grabbed by worker threads -- that could be an
+     * optimization).
+     */
+    std::vector<buckets_are_full> exceptions_to_throw;
+
     for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
           task_result *result = pool.get_result();
           delete result;
           /* want to check possible exceptions, too */
+          buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
+          if (e) {
+              exceptions_to_throw.push_back(*e);
+              delete e;
+          }
     }
+    if (!exceptions_to_throw.empty())
+        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
+
+    /* actually we also want to check that not even the last thread has
+     * overrun its bucket pointers.
+     *
+     * the call below throws an exception if we're overfull.
+     */
+    ws.buckets_max_full<LEVEL, shorthint_t>();
+
     pool.accumulate_and_clear_active_time(*timer.current);
     SIBLING_TIMER(timer, "worker thread wait time");
     TIMER_CATEGORY(timer, thread_wait());
@@ -782,7 +818,7 @@ downsort_tree(
     thread_workspaces &ws,
     thread_pool &pool,
     sieve_info & si,
-    precomp_plattice_t precomp_plattice)
+    precomp_plattice_t const & precomp_plattice)
 {
   CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
   TIMER_CATEGORY(timer, sieving_mixed());
@@ -805,39 +841,34 @@ downsort_tree(
     // We reserve those where we write, and access the ones for
     // reading without reserving. We require that things at level
     // above is finished before entering here.
-    bucket_array_t<LEVEL, longhint_t> * BAout_ptr =
+    bucket_array_t<LEVEL, longhint_t> & BAout =
       ws.reserve_BA<LEVEL, longhint_t>(side);
-    if (BAout_ptr) {
-        bucket_array_t<LEVEL, longhint_t> & BAout(*BAout_ptr);
-        BAout.reset_pointers();
-        // This is a fake slice_index. For a longhint_t bucket, each update
-        // contains its own slice_index, directly used by apply_one_bucket
-        // and purge.
-        BAout.add_slice_index(0);
-        // The data that comes from fill-in bucket at level above:
-        {
-          const bucket_array_t<LEVEL+1,shorthint_t> * BAin
-            = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-          while (BAin != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
-            downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
-            BAin++;
-          }
-        }
-
-        const int toplevel = si.toplevel;
-        if (LEVEL < toplevel - 1) {
-          // What comes from already downsorted data above:
-          const bucket_array_t<LEVEL+1,longhint_t> * BAin
-            = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-          while (BAin != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
-            downsort<LEVEL+1>(BAout, *BAin, bucket_index, w);
-            BAin++;
-          }
-        }
-        ws.release_BA<LEVEL,longhint_t>(side, BAout);
-    } else {
-        fprintf(stderr, "encountered full buckets while downsorting\n");
+    BAout.reset_pointers();
+    // This is a fake slice_index. For a longhint_t bucket, each update
+    // contains its own slice_index, directly used by apply_one_bucket
+    // and purge.
+    BAout.add_slice_index(0);
+    // The data that comes from fill-in bucket at level above:
+    {
+      const bucket_array_t<LEVEL+1,shorthint_t> * BAin_ptr
+        = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+      while (BAin_ptr != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
+        downsort<LEVEL+1>(BAout, *BAin_ptr, bucket_index, w);
+        BAin_ptr++;
+      }
     }
+
+    const int toplevel = si.toplevel;
+    if (LEVEL < toplevel - 1) {
+      // What comes from already downsorted data above:
+      const bucket_array_t<LEVEL+1,longhint_t> * BAin_ptr
+        = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
+      while (BAin_ptr != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
+        downsort<LEVEL+1>(BAout, *BAin_ptr, bucket_index, w);
+        BAin_ptr++;
+      }
+    }
+    ws.release_BA<LEVEL,longhint_t>(side, BAout);
 
     max_full = std::max(max_full, ws.buckets_max_full<LEVEL, longhint_t>());
     ASSERT_ALWAYS(max_full <= 1.0);
@@ -845,24 +876,30 @@ downsort_tree(
     /* SECOND: fill in buckets at this level, for this region. */
     ws.reset_all_pointers<LEVEL,shorthint_t>(side);
     slice_index_t slices_pushed = 0;
-    for (typename std::vector<plattices_vector_t *>::iterator pl_it =
-            precomp_plattice[side][LEVEL].begin();
-        pl_it != precomp_plattice[side][LEVEL].end();
-        pl_it++) {
+    for (auto const & it : precomp_plattice(side, LEVEL)) {
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
-            (fb_slice_interface *)NULL, *pl_it, NULL, first_region0_index);
+            (fb_slice_interface *)NULL, it, NULL, first_region0_index);
       // TODO: shall we give the weight to help scheduling, here?
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0);
       slices_pushed++;
     }
 
+    std::vector<buckets_are_full> exceptions_to_throw;
     for (slice_index_t slices_completed = 0;
         slices_completed < slices_pushed;
         slices_completed++) {
       task_result *result = pool.get_result();
       delete result;
+      /* want to check possible exceptions, too */
+      buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
+      if (e) {
+          exceptions_to_throw.push_back(*e);
+          delete e;
+      }
     }
+    if (!exceptions_to_throw.empty())
+        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
 
     pool.accumulate_and_clear_active_time(*timer.current);
     SIBLING_TIMER(timer, "worker thread wait time");
@@ -898,29 +935,16 @@ downsort_tree(
 // A fake level 0, to avoid infinite loop during compilation.
 template <>
 void downsort_tree<0>(timetree_t&,
-        uint32_t bucket_index MAYBE_UNUSED,
-  uint32_t first_region0_index MAYBE_UNUSED,
-  thread_workspaces &ws MAYBE_UNUSED,
-  thread_pool &pool MAYBE_UNUSED,
-  sieve_info & si MAYBE_UNUSED,
-  precomp_plattice_t precomp_plattice MAYBE_UNUSED)
+  uint32_t, uint32_t,
+  thread_workspaces &,
+  thread_pool &,
+  sieve_info &,
+  precomp_plattice_t const &)
 {
     ASSERT_ALWAYS(0);
 }
 
 // other fake instances to please level-2 instanciation.
-template <>
-bucket_array_t<3, longhint_t>::bucket_array_t()
-{
-    ASSERT_ALWAYS(0);
-}
-
-template <>
-bucket_array_t<3, longhint_t>::~bucket_array_t()
-{
-    ASSERT_ALWAYS(0);
-}
-
 template <>
 void downsort<3>(bucket_array_t<2, longhint_t>&,
         bucket_array_t<3, longhint_t> const&, unsigned int, where_am_I &)
@@ -940,9 +964,9 @@ reservation_group::cget<3, longhint_t>() const
 template 
 void downsort_tree<1>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
   thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t precomp_plattice);
+  precomp_plattice_t const & precomp_plattice);
 
 template
 void downsort_tree<2>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
   thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t precomp_plattice);
+  precomp_plattice_t const & precomp_plattice);

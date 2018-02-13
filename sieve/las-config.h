@@ -87,6 +87,8 @@ extern int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
 extern size_t BUCKET_REGION;
 extern size_t BUCKET_REGIONS[FB_MAX_PARTS];
 
+extern int NB_DEVIATIONS_BUCKET_REGIONS;
+
 #ifdef __cplusplus
 }
 #endif

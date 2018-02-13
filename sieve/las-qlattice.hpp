@@ -157,7 +157,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
       if (UNLIKELY(!aux2))
 	{
 	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
-	  exit (EXIT_FAILURE); /* Should never happen! */
+          ASSERT_ALWAYS(0);
 	}
       aux1 = p;
       aux2 *= v;
@@ -213,7 +213,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
       if (UNLIKELY(!aux2))
 	{
 	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
-	  exit (EXIT_FAILURE); /* Should never happen! */
+	  ASSERT_ALWAYS(0);
 	}
       aux1 = p;
       aux2 *= v;

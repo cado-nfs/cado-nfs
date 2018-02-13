@@ -22,7 +22,7 @@
 #include "las-report-stats.hpp"
 #include "las-unsieve.hpp"
 #include "las-qlattice.hpp"
-#include "las-smallsieve.hpp"
+#include "las-smallsieve-types.hpp"
 #include "ecm/batch.h"
 #include <list>
 #include <vector>
@@ -51,6 +51,9 @@ struct sieve_info {
      * sides[0,1], as well as some other members */
     siever_config conf;
 
+    /* This field gets initialized only via get_sieve_info_from_config */
+    const bkmult_specifier * bk_multiplier = nullptr;
+
     las_todo_entry doing;
 
     // sieving area. Note that in the (conf) member struct, we find
@@ -76,14 +79,9 @@ struct sieve_info {
 
         std::shared_ptr<trialdiv_divisor_t> trialdiv_data;
         std::shared_ptr<std::vector<fb_general_entry> > fb_smallsieved;
-        struct {
-            int pow2[2];
-            int pow3[2];
-            int td[2];
-            int rs[2];
-            int rest[2];
-            int skipped[2];
-        } fb_parts_x[1];
+        /* Iterators that point into fb_smallsieved; the entries between these
+           two iterators are to be small-sieved, the others are not. */
+        size_t resieve_start_offset, resieve_end_offset;
 
         /* The reading, mapping or generating the factor base all create the
          * factor base in several pieces: small primes, and large primes split
@@ -100,9 +98,8 @@ struct sieve_info {
 
         /* This is updated by applying the special-q lattice transform to
          * the factor base. */
-        small_sieve_data_t ssd[1];
-        /* And this is just created as an extraction of the above */
-        small_sieve_data_t rsd[1];
+        small_sieve_data_t ssd;
+
     };
     /* }}} */
 
@@ -182,6 +179,15 @@ struct sieve_info {
 
 /* }}} */
 
+struct las_augmented_output_channel {
+    int verbose;
+    FILE *output;
+    const char * outputname; /* keep track of whether it's gzipped or not */
+    las_augmented_output_channel(cxx_param_list & pl);
+    ~las_augmented_output_channel();
+};
+
+
 /* {{{ las_info
  *
  * las_info holds general data, mostly unrelated to what is actually
@@ -189,13 +195,10 @@ struct sieve_info {
  * lives outside the choice of one particular way to configure the siever
  * versus another.
  */
-struct las_info : private NonCopyable {
+struct las_info : private NonCopyable, public las_augmented_output_channel {
     // ----- general operational flags
     int nb_threads;
-    FILE *output;
-    const char * outputname; /* keep track of whether it's gzipped or not */
     const char * galois; /* a string to indicate which galois to use in las */
-    int verbose;
     int suppress_duplicates;
 
     /* It's not ``general operational'', but global enough to be here */
@@ -204,6 +207,13 @@ struct las_info : private NonCopyable {
 
     // ----- default config and adaptive configs
     siever_config_pool config_pool;
+
+    bkmult_specifier bk_multiplier { 1.0 };
+
+    void grow_bk_multiplier(bkmult_specifier::key_type const& key, double d) {
+        bk_multiplier.grow(key, d);
+    }
+
 
     /* There may be several configured sievers. This is used mostly for
      * the descent.
@@ -264,6 +274,8 @@ struct las_info : private NonCopyable {
     void clear_cof_stats();
     void print_cof_stats();
 
+    const char *dump_filename;
+    dumpfile dumpfiles[2];
 
     las_info(cxx_param_list &);
     ~las_info();
@@ -277,5 +289,6 @@ enum {
   TRACE_CHANNEL,
   NR_CHANNELS /* This must be the last element of the enum */
 };
+
 
 #endif	/* LAS_TYPES_HPP_ */

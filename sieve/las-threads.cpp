@@ -66,7 +66,7 @@ void thread_data::update_checksums()
 
 template <typename T>
 void
-reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fill_ratio)
+reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fill_ratio, int logI_adjusted)
 {
   /* We estimate that the updates will be evenly distributed among the n
      different bucket arrays, so each gets fill_ratio / n.
@@ -77,11 +77,11 @@ reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fil
      */
   double ratio = fill_ratio;
   for (size_t i = 0; i < n; i++)
-    BAs[i].allocate_memory(n_bucket, ratio / n);
+    BAs[i].allocate_memory(n_bucket, ratio / n, logI_adjusted);
 }
 
 template <typename T>
-T *reservation_array<T>::reserve()
+T &reservation_array<T>::reserve()
 {
   enter();
   const bool verbose = false;
@@ -119,20 +119,20 @@ T *reservation_array<T>::reserve()
       }
     }
     if (least_full_index == n || least_full >= 1.) {
-        /* don't cry just now, it would clutter the output. */
+        verbose_output_print(0, 1, "# Error: buckets are full, throwing exception\n");
         ASSERT_ALWAYS(most_full > 1);
-        // size_t j = most_full_index.first;
-        // unsigned int i = most_full_index.second;
+        size_t j = most_full_index.first;
+        unsigned int i = most_full_index.second;
         /* important ! */
         leave();
-        // throw buckets_are_full(T::level, i, BAs[j].nb_of_updates(i), BAs[j].bucket_size);
-        return NULL;
+        throw buckets_are_full(bkmult_specifier::getkey<typename T::update_t>(), i,
+                BAs[j].nb_of_updates(i), BAs[j].room_allocated_for_updates(i));
     }
     i = least_full_index;
   }
   in_use[i] = true;
   leave();
-  return &BAs[i];
+  return BAs[i];
 }
 
 template <typename T>
@@ -172,20 +172,25 @@ reservation_group::reservation_group(const size_t nr_bucket_arrays)
 
 void
 reservation_group::allocate_buckets(const uint32_t *n_bucket,
-        const double mult, const double *fill_ratio)
+        bkmult_specifier const& mult, const double *fill_ratio, int logI_adjusted)
 {
   /* Short hint updates are generated only by fill_in_buckets(), so each BA
      gets filled only by its respective FB part */
-  RA1_short.allocate_buckets(n_bucket[1], mult*fill_ratio[1]);
-  RA2_short.allocate_buckets(n_bucket[2], mult*fill_ratio[2]);
-  RA3_short.allocate_buckets(n_bucket[3], mult*fill_ratio[3]);
+  typedef typename decltype(RA1_short)::update_t T1s;
+  typedef typename decltype(RA2_short)::update_t T2s;
+  typedef typename decltype(RA3_short)::update_t T3s;
+  typedef typename decltype(RA1_long)::update_t T1l;
+  typedef typename decltype(RA2_long)::update_t T2l;
+  RA1_short.allocate_buckets(n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI_adjusted);
+  RA2_short.allocate_buckets(n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI_adjusted);
+  RA3_short.allocate_buckets(n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI_adjusted);
 
   /* Long hint bucket arrays get filled by downsorting. The level-2 longhint
      array gets the shorthint updates from level 3 sieving, and the level-1
      longhint array gets the shorthint updates from level 2 sieving as well
      as the previously downsorted longhint updates from level 3 sieving. */
-  RA1_long.allocate_buckets(n_bucket[1], mult*(fill_ratio[2] + fill_ratio[3]));
-  RA2_long.allocate_buckets(n_bucket[2], mult*fill_ratio[3]);
+  RA1_long.allocate_buckets(n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI_adjusted);
+  RA2_long.allocate_buckets(n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI_adjusted);
 }
 
 
@@ -213,7 +218,6 @@ reservation_array<bucket_array_t<3, shorthint_t> > &
 reservation_group::get() {
   return RA3_short;
 }
-
 template<>
 reservation_array<bucket_array_t<1, longhint_t> > &
 reservation_group::get()
@@ -226,9 +230,11 @@ reservation_group::get()
 {
   return RA2_long;
 }
-
-/* Fricken C++. There has to be a better way of handling const getter methods
-   than duplicating all the code. */
+/* mapping types to objects is a tricky business. The code below looks
+ * like red tape. But sophisticated means to avoid it would be even
+ * longer (the naming difference "get" versus "cget" is not the annoying
+ * part here -- it's just here as a decoration. The real issue is that we
+ * want the const getter to return a const reference) */
 template<>
 const reservation_array<bucket_array_t<1, shorthint_t> > &
 reservation_group::cget() const
@@ -247,7 +253,6 @@ reservation_group::cget() const
 {
   return RA3_short;
 }
-
 template<>
 const reservation_array<bucket_array_t<1, longhint_t> > &
 reservation_group::cget() const
@@ -265,26 +270,19 @@ reservation_group::cget() const
 
 thread_workspaces::thread_workspaces(const size_t _nr_workspaces,
   const unsigned int _nr_sides, las_info & las)
-  : nr_workspaces(_nr_workspaces), nr_sides(_nr_sides)
+  : nr_workspaces(_nr_workspaces), nr_sides(_nr_sides), groups { _nr_workspaces, _nr_workspaces }
 {
     thrs = new thread_data[_nr_workspaces];
     ASSERT_ALWAYS(thrs != NULL);
-    groups = new reservation_group_ptr[_nr_sides];
-    ASSERT_ALWAYS(groups != NULL);
 
     for(size_t i = 0 ; i < nr_workspaces; i++) {
         thrs[i].init(*this, i, las);
     }
-    for (unsigned int i = 0; i < nr_sides; i++)
-      groups[i] = new reservation_group(_nr_workspaces);
 }
 
 thread_workspaces::~thread_workspaces()
 {
     delete[] thrs;
-    for (unsigned int i = 0; i < nr_sides; i++)
-      delete groups[i];
-    delete[] groups;
 }
 
 /* Prepare to work on sieving a special-q as described by _si.
@@ -303,7 +301,9 @@ thread_workspaces::pickup_si(sieve_info & _si)
        basis */
     /* Take some margin depending on parameters */
     /* Multithreading perturbates the fill-in ratio */
-    double multiplier = si.conf.bk_multiplier;
+    bkmult_specifier const & multiplier = * si.bk_multiplier;
+#if 0
+    bkmult_specifier multiplier = si.conf.bk_multiplier;
     if (multiplier == 0.0) {
         multiplier = 1.1 + double(nr_workspaces)/20.0;
         /* Using bkthresh1 as well... */
@@ -315,12 +315,15 @@ thread_workspaces::pickup_si(sieve_info & _si)
             multiplier *= 1.0 + rat*1.0;
         }
     }
-    verbose_output_print(0, 1, "# Reserving buckets with a multiplier of %f\n",
-            multiplier);
+#endif
+    verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
+            multiplier.print_all().c_str());
     for (unsigned int i_side = 0; i_side < nr_sides; i_side++) {
         if (!_si.sides[i_side].fb) continue;
-        groups[i_side]->allocate_buckets(si.nb_buckets,
-                multiplier, si.sides[i_side].max_bucket_fill_ratio);
+        groups[i_side].allocate_buckets(si.nb_buckets,
+                multiplier,
+                si.sides[i_side].max_bucket_fill_ratio,
+                si.conf.logI_adjusted);
     }
 }
 
@@ -395,18 +398,19 @@ double
 thread_workspaces::buckets_max_full()
 {
     double mf0 = 0;
-    
+    typedef bucket_array_t<LEVEL, HINT> BA_t;
     for(unsigned int side = 0 ; side < nr_sides ; side++) {
-      for (const bucket_array_t<LEVEL, HINT> *it_BA = cbegin_BA<LEVEL, HINT>(side);
+      for (const BA_t *it_BA = cbegin_BA<LEVEL, HINT>(side);
            it_BA != cend_BA<LEVEL, HINT>(side); it_BA++) {
         unsigned int fullest;
         const double mf = it_BA->max_full(&fullest);
         if (mf > mf0) mf0 = mf;
-        /*
         if (mf > 1)
-            throw buckets_are_full(LEVEL, fullest,
-                    it_BA->nb_of_updates(fullest), it_BA->bucket_size);
-                    */
+            throw buckets_are_full(
+                    bkmult_specifier::getkey<typename BA_t::update_t>(),
+                    fullest,
+                    it_BA->nb_of_updates(fullest),
+                    it_BA->room_allocated_for_updates(fullest));
       }
     }
     return mf0;
@@ -430,7 +434,7 @@ thread_workspaces::accumulate_and_clear(las_report_ptr rep, sieve_checksum *chec
 template <int LEVEL, typename HINT>
 void
 thread_workspaces::reset_all_pointers(int side) {
-    groups[side]->get<LEVEL, HINT>().reset_all_pointers();
+    groups[side].get<LEVEL, HINT>().reset_all_pointers();
 }
 
 template void thread_workspaces::reset_all_pointers<1, shorthint_t>(int);

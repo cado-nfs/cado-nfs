@@ -2,6 +2,8 @@
 
 #to precompute all decompostions of cofactors!
 
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 lim=$1
 x=$2
 mfb=$3

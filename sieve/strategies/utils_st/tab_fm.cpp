@@ -15,14 +15,14 @@ static const double EPSILON_DBL = 0.000001;
 
 tabular_fm_t *tabular_fm_create(void)
 {
-    tabular_fm_t *t = (tabular_fm_t*) malloc(sizeof(*t));
-    ASSERT(t != NULL);
+    tabular_fm_t *t = (tabular_fm_t*) malloc(sizeof(tabular_fm_t));
+    ASSERT_ALWAYS(t != NULL);
 
     t->index = 0;
     t->size = 2;
 
     t->tab = (fm_t **) malloc(t->size * sizeof(fm_t *));
-    ASSERT(t->tab != NULL);
+    ASSERT_ALWAYS(t->tab != NULL);
 
     return t;
 }

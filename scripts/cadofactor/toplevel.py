@@ -160,8 +160,12 @@ class Cado_NFS_toplevel(object):
             default_param_dir = os.path.join(default_param_dir, "factor")
             letter="c"
         size_of_n=len(repr(self.args.N))
-        # also attempt nearest multiple of 5.
-        attempts=["%d"%x for x in [size_of_n, ((size_of_n+2)//5)*5]]
+        # also attempt nearest multiple of 5 for < 200 digits,
+        # nearest multiple of 10 for >= 200 digits
+        if size_of_n < 200:
+           attempts=["%d"%x for x in [size_of_n, ((size_of_n+2)//5)*5]]
+        else:
+           attempts=["%d"%x for x in [size_of_n, ((size_of_n+5)//10)*10]]
         if self.args.gfpext > 1:
             attempts=[letter+"%ddd"%self.args.gfpext+x for x in attempts]
         else:

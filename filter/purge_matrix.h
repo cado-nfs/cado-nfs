@@ -1,5 +1,5 @@
-#ifndef PURGE_MATRICE_H_
-#define PURGE_MATRICE_H_
+#ifndef PURGE_MATRIX_H_
+#define PURGE_MATRIX_H_
 
 struct purge_matrix_s
 {
@@ -18,6 +18,9 @@ typedef struct purge_matrix_s purge_matrix_t[1];
 typedef struct purge_matrix_s * purge_matrix_ptr;
 typedef const struct purge_matrix_s * purge_matrix_srcptr;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void purge_matrix_init (purge_matrix_ptr, uint64_t, uint64_t, uint64_t);
 void purge_matrix_clear_row_compact (purge_matrix_ptr);
@@ -34,8 +37,12 @@ void purge_matrix_compute_sum2_row (purge_matrix_ptr, unsigned int);
 /* These 2 functions compute and print stats on rows weight and columns weight.
  * The stats can be expensive to compute, so these functions should not be
  * called by default. */
-void print_stats_uint64 (FILE *, uint64_t *, uint64_t, char [], char[], int);
+void print_stats_uint64 (FILE *, uint64_t *, uint64_t, const char *, const char *, int);
 void purge_matrix_print_stats_columns_weight (FILE *, purge_matrix_srcptr, int);
 void purge_matrix_print_stats_rows_weight (FILE *, purge_matrix_srcptr, int);
 
-#endif /* PURGE_MATRICE_H_ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* PURGE_MATRIX_H_ */

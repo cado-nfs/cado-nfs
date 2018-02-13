@@ -96,6 +96,12 @@ struct cxx_cado_poly {
     cado_poly_ptr operator->() { return x; }
     cado_poly_srcptr operator->() const { return x; }
 };
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void cado_poly_init(cxx_cado_poly & pl) __attribute__((error("cado_poly_init must not be called on a cado_poly reference -- it is the caller's business (via a ctor)")));
+extern void cado_poly_clear(cxx_cado_poly & pl) __attribute__((error("cado_poly_clear must not be called on a cado_poly reference -- it is the caller's business (via a dtor)")));
+#endif
+
+
 
 #endif
 #endif	/* CADO_POLY_H_ */

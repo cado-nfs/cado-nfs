@@ -15,4 +15,9 @@ target_link_libraries (sopt polyselect_common utils)
 add_executable (twocubics EXCLUDE_FROM_ALL twocubics.c polyselect_str.c polyselect_arith.c ${ropt_sources})
 target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
 
+add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
+set_target_properties(rootsieve1 PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+target_link_libraries (rootsieve1 polyselect_common utils)
+
 # vim: set ft=cmake:

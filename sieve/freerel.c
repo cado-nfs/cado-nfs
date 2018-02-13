@@ -413,7 +413,7 @@ pthread_primes_consumer (void *arg)
       }
 
       /* Write in the temporary local renumbering table */
-      out->cur += renumber_write_buffer_p (out->cur, my_data->tab, p, roots, nroots);
+      out->cur += renumber_write_buffer_p (out->cur, out->end - out->cur, my_data->tab, p, roots, nroots);
       char_buffer_resize (out, RENUMBER_MAX_SIZE_PER_PRIME);
 
       /* Check if p corresponds to a freerel */

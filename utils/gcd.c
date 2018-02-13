@@ -1,6 +1,7 @@
 #include "cado.h"
 #include <stdint.h>
 #include "gcd.h"
+#include "mod_ul.h"
 #include "macros.h"
 #include "misc.h" /* for cado_ctzl */
 
@@ -75,6 +76,24 @@ gcd_ul (unsigned long a, unsigned long b)
   return b;
 }
 
+/* return 1/a mod p, assume 0 <= a < p */
+unsigned long
+invert_ul (unsigned long a, unsigned long p)
+{
+  modulusul_t q;
+  residueul_t b;
+
+  modul_initmod_ul (q, p);
+  modul_init (b, q);
+  assert (a < p);
+  modul_set_ul_reduced (b, a, q);
+  modul_inv (b, b, q);
+  a = modul_get_ul (b, q);
+  modul_clear (b, q);
+  modul_clearmod (q);
+  return a;
+}
+
 /* Binary gcd; any input allowed. */
 int64_t
 bin_gcd_int64_safe (int64_t a, int64_t b)
@@ -116,3 +135,4 @@ bin_gcd_int64_safe (int64_t a, int64_t b)
       }
     }
 }
+

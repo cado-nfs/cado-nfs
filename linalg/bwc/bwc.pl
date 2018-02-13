@@ -1854,15 +1854,15 @@ sub task_mksol {
     my %solutions_importance;
     $solutions_importance{$_}=0 for (@all_solutions);
     for (@solutions) {
-        die unless defined $solutions_importance{$_};
+        die "nothing for key $_: we kave only @all_solutions" unless defined $solutions_importance{$_};
         $solutions_importance{$_}=1;
     }
     my @todo;
     my @only_start = grep(/^start=\d+$/, @main_args);
 
     if (@only_start) {
-        die unless scalar @only_start != 1;
-        die unless scalar @solutions != 1;
+        die "start says: @only_start" unless scalar @only_start == 1;
+        die "solution says: @solutions" unless scalar @solutions == 1;
         @todo = "@only_start solutions=@solutions";
         task_check_message 'ok', "Command line imposes one specific subtask @todo";
     } else {

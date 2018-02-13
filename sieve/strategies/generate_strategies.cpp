@@ -186,9 +186,10 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 			  int ind_ecm, strategy_t * strat, int ind_tab,
 			  int index_iter, int len_iteration, int lbucket,
 			  tabular_decomp_t *init_tab,
-			  tabular_strategy_t*all_strat,
+			  tabular_strategy_t**all_strat_ptr,
 			  int fbb, int lpb, int r, int is_already_used_B12M16)
 {
+    tabular_strategy_t * all_strat = *all_strat_ptr;
     if (index_iter >= len_iteration) {
 	int nb_strat = all_strat->index;
 	tabular_strategy_add_strategy_without_zero(all_strat, strat);
@@ -211,7 +212,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 	      tabular_fm_set_fm_index(strat->tab_fm, ecm->tab[i], ind_tab);
 	      generate_collect_iter_ecm(zero, ecm, i+1, strat,ind_tab+1,
 					index_iter + 1, len_iteration,
-					lbucket, init_tab, all_strat, 
+					lbucket, init_tab, all_strat_ptr,
 					fbb, lpb, r, true);			
 	    }
 	  else //MONTY12
@@ -222,18 +223,19 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 		}
 	      generate_collect_iter_ecm(zero, ecm, i, strat,ind_tab+lbucket,
 					index_iter + lbucket, len_iteration,
-					lbucket+1, init_tab, all_strat, 
+					lbucket+1, init_tab, all_strat_ptr,
 					fbb, lpb,r, is_already_used_B12M16);
 	    }	
 	}
+        all_strat = *all_strat_ptr; // might have changed during recursive call
     	/* to protect the ram, we reduce the number of strategies by
 	   the convex hull when this number become too big.*/
 	if (all_strat->index < 100000) {
 	    tabular_strategy_t* ch = convex_hull_strategy(all_strat);
 	    //clear previous collect and start a new collect.
 	    tabular_strategy_free(all_strat);
-	    all_strat = tabular_strategy_create();
-	    tabular_strategy_concat(all_strat, ch);
+	    *all_strat_ptr = tabular_strategy_create();
+	    tabular_strategy_concat(*all_strat_ptr, ch);
 	    tabular_strategy_free(ch);
 	}
     }
@@ -314,7 +316,7 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * init_tab,
 	//ECM (M12-B12-M16)
 	generate_collect_iter_ecm(zero, ecm, 0, strat, 2,
 				  0, ncurves, 0, init_tab,
-				  all_strat, fbb, lpb, r, false);
+				  &all_strat, fbb, lpb, r, false);
       }
     } 
     //compute the final convex hull.
@@ -478,7 +480,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 	tabular_decomp_t *tab_decomp = NULL;
 	if (r0 >= lim_is_prime) {
 	    char name_file[200];
-	    sprintf(name_file,
+	    snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
 	    FILE *file = fopen(name_file, "r");
 
@@ -505,7 +507,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 	tabular_decomp_t *tab_decomp = NULL;
 	if (r1 >= lim_is_prime) {
 	    char name_file[200];
-	    sprintf(name_file,
+	    snprintf(name_file, sizeof(name_file),
 		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
