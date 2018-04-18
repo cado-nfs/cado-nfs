@@ -242,6 +242,36 @@ bucket_array_t<LEVEL, HINT>::max_full (unsigned int * fullest_index) const
 
 template <int LEVEL, typename HINT>
 void
+bucket_array_t<LEVEL, HINT>::diagnosis(int side, int idx, fb_factorbase::slicing const & fbs) const {
+      size_t a = 0;
+      for (unsigned int i = 0; i < n_bucket; ++i)
+          a += nb_of_updates (i);
+      verbose_output_print (2, 2, "# side-%d array #%d processed %zu slices, total %zu updates\n",
+              side, idx, nr_slices, a);
+      ASSERT_ALWAYS(side >= 0);
+      ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
+      std::vector<size_t> nupdates_per_slice(nr_slices, 0);
+
+      update_t ** fence = bucket_write;
+      for(size_t i = nr_slices ; i-- ; ) {
+          update_t ** previous = get_slice_pointers(i);
+          for(unsigned int j = 0 ; j < n_bucket ; j++) {
+              nupdates_per_slice[i] += fence[j] - previous[j];
+          }
+          fence = previous;
+      }
+
+      for(size_t i = 0 ; i < nr_slices ; i++) {
+          double w = fbs[slice_index[i]].get_weight();
+          double t = per_slice_time[i];
+          size_t hits = nupdates_per_slice[i];
+          verbose_output_print (2, 2, "#  slice %d est. cost %f time %f ratio %f hits %zu, ratio %f\n",
+                  (int) slice_index[i], w, t, t/w, hits, hits/w);
+      }
+  }
+
+template <int LEVEL, typename HINT>
+void
 bucket_array_t<LEVEL, HINT>::log_this_update (
     const update_t update MAYBE_UNUSED,
     const uint64_t offset MAYBE_UNUSED,

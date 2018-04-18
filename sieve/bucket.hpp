@@ -323,16 +323,7 @@ public:
 #endif
     push_update(bucket_number, update);
   }
-  void diagnosis(int side, int idx, fb_factorbase::slicing const & fbs) const {
-      verbose_output_print (2, 3, "# side-%d array-%d processed %zu slices\n",
-              side, idx, nr_slices);
-      ASSERT_ALWAYS(side >= 0);
-      ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
-      for(size_t i = 0 ; i < nr_slices ; i++) {
-          verbose_output_print (2, 3, "#  slice %d est. cost %f time %f\n",
-                  (int) slice_index[i], fbs[slice_index[i]].get_weight(), per_slice_time[i]);
-      }
-  }
+  void diagnosis(int side, int idx, fb_factorbase::slicing const & fbs) const;
 };
 
 /* Downsort sorts the updates in the bucket_index-th bucket of a level-n

@@ -147,6 +147,13 @@ public:
           bkmult_specifier const& multiplier,
           std::array<double, FB_MAX_PARTS> const &
           fill_ratio, int logI);
+  void diagnosis(int side, fb_factorbase::slicing const & fbs) const {
+       RA1_short.diagnosis(side, fbs);
+       RA2_short.diagnosis(side, fbs);
+       RA3_short.diagnosis(side, fbs);
+       RA1_long.diagnosis(side, fbs);
+       RA2_long.diagnosis(side, fbs);
+  }
 };
 
 class thread_workspaces : private NonCopyable {
@@ -192,6 +199,15 @@ public:
   template <int LEVEL, typename HINT>
   const bucket_array_t<LEVEL, HINT> *
   cend_BA(const int side) const {return groups[side].cget<LEVEL, HINT>().cend();}
+
+  /* Realistically, this can't be useful. Or maybe only with no
+   * middle-primes being sieved. The reason for that is that the info we
+   * want to print has to be printed after fill_in_buckets, but before
+   * apply_buckets. And with middle primes, these get interleaved */
+  void diagnosis(std::array<fb_factorbase::slicing const *, 2> fbs) const {
+      groups[0].diagnosis(0, *fbs[0]);
+      groups[1].diagnosis(1, *fbs[1]);
+  }
 };
 
 #endif
