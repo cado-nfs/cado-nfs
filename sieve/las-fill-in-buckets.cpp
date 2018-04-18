@@ -749,6 +749,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
         /* Release bucket array again */
         param->ws.release_BA(param->side, BA);
     } catch(buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -804,7 +805,10 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
         param->ws.release_BA(param->side, BA);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const& e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
+        /* release_BA not needed, because failures in reserve() release
+         * the lock before throwing */
         delete param;
         throw e;
     }
@@ -834,7 +838,8 @@ fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSE
         param->ws.release_BA(param->side, BA);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const& e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }

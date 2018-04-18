@@ -129,7 +129,8 @@ T &reservation_array<T>::reserve()
         unsigned int i = most_full_index.second;
         /* important ! */
         leave();
-        throw buckets_are_full(bkmult_specifier::getkey<typename T::update_t>(), i,
+        /* We don't know which side we are, yet, but our caller knows */
+        throw buckets_are_full(this, -1, bkmult_specifier::getkey<typename T::update_t>(), i,
                 BAs[j].nb_of_updates(i), BAs[j].room_allocated_for_updates(i));
     }
     i = least_full_index;
@@ -415,6 +416,8 @@ thread_workspaces::buckets_max_full()
         if (mf > mf0) mf0 = mf;
         if (mf > 1)
             throw buckets_are_full(
+                    &(groups[side].cget<LEVEL,HINT>()),
+                    side,
                     bkmult_specifier::getkey<typename BA_t::update_t>(),
                     fullest,
                     it_BA->nb_of_updates(fullest),

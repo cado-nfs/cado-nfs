@@ -3057,6 +3057,10 @@ if (si.conf.sublat.m) {
                     "# Please try less threads, or a larger -bkmult parameter (at some cost!).\n"
                     "# The code will now try to adapt by allocating more memory for buckets.\n",
                     (mpz_srcptr) doing.p, (mpz_srcptr) doing.r, e.what());
+            verbose_output_print (2, 3,
+                    "# Diagnostic info: processed slices per bucket array (per thread, so to say) follows\n");
+
+            e.diagnosis({si.sides[0].fbs, si.sides[1].fbs});
 
             double old = las.bk_multiplier.get(e.key);
             double ratio = (double) e.reached_size / e.theoretical_max_size * 1.1;

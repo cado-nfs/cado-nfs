@@ -12,6 +12,7 @@
 #include <exception>
 #include <stdio.h>
 #include <limits>
+#include <array>
 #include <string>
 #include "portability.h"
 #endif
@@ -137,6 +138,7 @@ template <int LEVEL, typename HINT> class bucket_update_t;
     template <>								\
     class bucket_update_t<LEVEL, HINT> : public HINT {			\
     public:								\
+      typedef HINT hint_type;                                           \
       static inline int level() { return LEVEL; }                       \
       typedef typename bucket_update_size_per_level<LEVEL>::type br_index_t;\
       br_index_t x;							\
@@ -183,6 +185,7 @@ class bucket_array_t : private NonCopyable {
     public:
   static const int level = LEVEL;
   typedef bucket_update_t<LEVEL, HINT> update_t;
+  typedef HINT hint_type;
     private:
   update_t *big_data = 0;
   size_t big_size = 0;                  // size of bucket update memory
@@ -314,6 +317,15 @@ public:
     log_this_update(update, offset, bucket_number, w);
 #endif
     push_update(bucket_number, update);
+  }
+  void diagnosis(int side, int idx, fb_factorbase::slicing const & fbs) const {
+      verbose_output_print (2, 3, "# side-%d array-%d processed %zu slices\n",
+              side, idx, nr_slices);
+      ASSERT_ALWAYS(side >= 0);
+      for(size_t i = 0 ; i < nr_slices ; i++) {
+          verbose_output_print (2, 3, "#  slice %d est. cost %f\n",
+                  (int) slice_index[i], fbs[slice_index[i]].get_weight());
+      }
   }
 };
 
@@ -486,17 +498,23 @@ class bkmult_specifier {
 };
 
 struct buckets_are_full : public clonable_exception {
+    struct callback_base {
+        virtual void diagnosis(int, fb_factorbase::slicing const &) const = 0;
+    };
+    callback_base const * base;
+    int side;
     bkmult_specifier::key_type key;
     int bucket_number;
     int reached_size;
     int theoretical_max_size;
     std::string message;
-    buckets_are_full(bkmult_specifier::key_type const&, int b, int r, int t);
+    buckets_are_full(callback_base const *, int side, bkmult_specifier::key_type const&, int b, int r, int t);
     virtual const char * what() const noexcept { return message.c_str(); }
     bool operator<(buckets_are_full const& o) const {
         return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
     }
     virtual clonable_exception * clone() const { return new buckets_are_full(*this); }
+    void diagnosis(std::array<fb_factorbase::slicing const *, 2> fbs) const { base->diagnosis(side, *fbs[side]); }
 };
 
 #endif	/* BUCKET_HPP_ */

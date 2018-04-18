@@ -66,8 +66,9 @@ struct thread_data_task_wrapper : public task_parameters {
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
+
 template <typename T>
-class reservation_array : private monitor {
+class reservation_array : public buckets_are_full::callback_base, private monitor {
   T * const BAs;
   bool * const in_use;
   const size_t n;
@@ -108,6 +109,17 @@ public:
 
   T &reserve();
   void release(T &BA);
+  void diagnosis(int side, fb_factorbase::slicing const & fbs) const override {
+      int LEVEL = T::level;
+      typedef typename T::hint_type HINT;
+      verbose_output_print(2, 3, "# overfull diagnosis for %d%c buckets on side %d (%zu arrays defined)\n",
+              LEVEL, HINT::rtti[0], side, n);
+      for(const T * t = cbegin() ; t != cend() ; ++t) {
+          /* Tell which slices have been processed using this array
+           * exactly */
+          t->diagnosis(side, t - cbegin(), fbs);
+      }
+    }
 };
 
 /* A group of reservation arrays, one for each possible update type.
