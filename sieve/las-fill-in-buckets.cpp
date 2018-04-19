@@ -383,6 +383,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
   }
 
   /* Write new set of pointers for the new slice */
+  double tt = microseconds();
   BA.add_slice_index(slice_index);
 
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
@@ -477,6 +478,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
       } 
     }
   }
+  BA.add_per_slice_time(microseconds() - tt);
   // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
@@ -498,6 +500,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
   slice_index_t slice_index = slice.get_index();
 
   /* Write new set of pointers for the new slice */
+  double tt = microseconds();
   BA.add_slice_index(slice_index);
 
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
@@ -564,6 +567,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, shorthint_t> &orig_BA,
       } 
     }
   }
+  BA.add_per_slice_time(microseconds() - tt);
   // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
@@ -586,6 +590,7 @@ fill_in_buckets_lowlevel(
   BA.move(orig_BA);
 
   /* Write new set of pointers for the new slice */
+  double tt = microseconds();
   BA.add_slice_index(slice_index);
 
   for (auto & ple : plattices_vector) {
@@ -645,6 +650,7 @@ fill_in_buckets_lowlevel(
     ple.set_x(pl.get_x());
     ple.advance_to_next_area(LEVEL);
   } 
+  BA.add_per_slice_time(microseconds() - tt);
   // printf("%.3f\n", BA.max_full());
   orig_BA.move(BA);
 }
@@ -1065,6 +1071,7 @@ downsort_tree(
     // This is a fake slice_index. For a longhint_t bucket, each update
     // contains its own slice_index, directly used by apply_one_bucket
     // and purge.
+    double tt = microseconds();
     BAout.add_slice_index(0);
     // The data that comes from fill-in bucket at level above:
     {
@@ -1075,6 +1082,7 @@ downsort_tree(
         BAin_ptr++;
       }
     }
+    BAout.add_per_slice_time(microseconds() - tt);
 
     const int toplevel = si.toplevel;
     if (LEVEL < toplevel - 1) {

@@ -198,6 +198,7 @@ class bucket_array_t : private NonCopyable {
                                         // location in each bucket
   slice_index_t * slice_index = 0;      // For each slice that gets sieved,
                                         // new index is added here
+  std::vector<double> per_slice_time;
   update_t ** slice_start = 0;          // For each slice there are
                                         // n_bucket pointers, each
                                         // pointer tells where in the
@@ -289,6 +290,10 @@ public:
     aligned_medium_memcpy((uint8_t *)slice_start + size_b_align * nr_slices, bucket_write, size_b_align);
     slice_index[nr_slices++] = new_slice_index;
   }
+  void add_per_slice_time(double t) {
+      per_slice_time.push_back(t);
+      ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
+  }
   double max_full (unsigned int * fullest_index = NULL) const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKETS is defined. */
@@ -322,9 +327,10 @@ public:
       verbose_output_print (2, 3, "# side-%d array-%d processed %zu slices\n",
               side, idx, nr_slices);
       ASSERT_ALWAYS(side >= 0);
+      ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
       for(size_t i = 0 ; i < nr_slices ; i++) {
-          verbose_output_print (2, 3, "#  slice %d est. cost %f\n",
-                  (int) slice_index[i], fbs[slice_index[i]].get_weight());
+          verbose_output_print (2, 3, "#  slice %d est. cost %f time %f\n",
+                  (int) slice_index[i], fbs[slice_index[i]].get_weight(), per_slice_time[i]);
       }
   }
 };

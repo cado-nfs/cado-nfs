@@ -55,6 +55,7 @@ bucket_array_t<LEVEL, HINT>::reset_pointers()
   aligned_medium_memcpy (bucket_write, bucket_start, size_b_align);
   aligned_medium_memcpy (bucket_read,  bucket_start, size_b_align);
   nr_slices = 0;
+  per_slice_time.clear();
 }
 
 template <int LEVEL, typename HINT>
@@ -84,6 +85,7 @@ bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> &other)
   MOVE_ENTRY(size_b_align, 0);
   MOVE_ENTRY(nr_slices, 0);
   MOVE_ENTRY(alloc_slices, 0);
+  per_slice_time = std::move(other.per_slice_time);
 #undef MOVE_ENTRY
 }
 
