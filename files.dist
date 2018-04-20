@@ -1235,3 +1235,5 @@ tests/polyselect/Makefile
 tests/sieve/Makefile
 tests/sqrt/Makefile
 tests/utils/Makefile
+chart.tex
+output_to_tikz_timechart.pl
