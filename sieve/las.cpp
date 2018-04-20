@@ -2992,8 +2992,6 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (non-MT)");
             TIMER_CATEGORY(timer_special_q, bookkeeping());
 
-            time_bubble_chaser tt(0, time_bubble_chaser::PCLAT,
-                    {-1,-1,-1,-1});
 
             // Prepare plattices at internal levels
             // TODO: this could be multi-threaded
@@ -3010,16 +3008,19 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                 CHILD_TIMER_PARAMETRIC(timer_special_q, "side ", side, "");
 
                 for (int level = 1; level < si.toplevel; ++level) {
+                    time_bubble_chaser tt(0, time_bubble_chaser::PCLAT,
+                            {side,level,-1,-1});
 
-                fill_in_buckets_prepare_precomp_plattice(
-                        side,
-                        level,
-                        si,
-                        precomp_plattice);
+                    fill_in_buckets_prepare_precomp_plattice(
+                            side,
+                            level,
+                            si,
+                            precomp_plattice);
+
+                    pool->push_chart_item(0, tt.put());
                 }
 
             }
-            pool->push_chart_item(0, tt.put());
 
 
             SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (MT)");

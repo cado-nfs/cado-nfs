@@ -103,6 +103,7 @@ sub ship_chart {
         print "\\draw[thin] (0,0) rectangle ($tscale,$Y);\n";
         my $YY = $Y-1;
         print "\\path[use as bounding box] (0,0) rectangle ($tscale,$YY);\n";
+        $YY--;
         print "\\clip (0,1) rectangle ($tscale,$YY);\n";
         my $ccol=0;
         for my $S (@{$lists[$j]}) {
@@ -119,7 +120,7 @@ sub ship_chart {
             $x1 = $tscale * $x1;
             if ($kind ne $ckind) {
                 $ckind=$kind;
-                print "\\draw[thick] ($x0,0.25) -- ($x0,$Y) node[right,rotate=-90,scale=.25] {\\tiny $kind};\n";
+                print "\\draw[thick] ($x0,0.25) -- ($x0,$Y) node[right,rotate=-90,scale=.7] {\\tiny $kind};\n";
             }
             # # my $pcpu = 0;
             # # if ($t1 > $t0) { $pcpu = 1.0e-6*$time / ($t1-$t0); }
@@ -173,8 +174,8 @@ sub parse_a_special_q {
                         $idx = $thr;
                         # slice unused.
                     };
-                    /PCLAT/ && do {
-                        $kind = "PCLAT";
+                    /PCLAT side (\d+) level (\d+)/ && do {
+                        $kind = "PCLAT$2.$1";
                         $idx = 0;
                     };
                     /t0 ([\d\.]+)/ && do { $t0=$1; };
