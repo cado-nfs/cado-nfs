@@ -100,6 +100,7 @@ public:
   void allocate_buckets(const uint32_t n_bucket, double fill_ratio, int logI);
   const T* cbegin() const {return &BAs[0];}
   const T* cend() const {return &BAs[n];}
+  inline int rank(T const & BA) const { return &BA - cbegin(); }
 
   void reset_all_pointers() {
       for (T * it = &BAs[0]; it != &BAs[n]; it++) {
@@ -112,7 +113,7 @@ public:
   void diagnosis(int side, fb_factorbase::slicing const & fbs) const override {
       int LEVEL = T::level;
       typedef typename T::hint_type HINT;
-      verbose_output_print(2, 3, "# overfull diagnosis for %d%c buckets on side %d (%zu arrays defined)\n",
+      verbose_output_print(0, 2, "# diagnosis for %d%c buckets on side %d (%zu arrays defined)\n",
               LEVEL, HINT::rtti[0], side, n);
       for(const T * t = cbegin() ; t != cend() ; ++t) {
           /* Tell which slices have been processed using this array
@@ -147,12 +148,22 @@ public:
           bkmult_specifier const& multiplier,
           std::array<double, FB_MAX_PARTS> const &
           fill_ratio, int logI);
-  void diagnosis(int side, fb_factorbase::slicing const & fbs) const {
-       RA1_short.diagnosis(side, fbs);
-       RA2_short.diagnosis(side, fbs);
-       RA3_short.diagnosis(side, fbs);
-       RA1_long.diagnosis(side, fbs);
-       RA2_long.diagnosis(side, fbs);
+  void diagnosis(int side, int level, fb_factorbase::slicing const & fbs) const {
+      switch(level) {
+          case 1:
+              RA1_short.diagnosis(side, fbs);
+              RA1_long.diagnosis(side, fbs);
+              break;
+          case 2:
+              RA2_short.diagnosis(side, fbs);
+              RA2_long.diagnosis(side, fbs);
+              break;
+          case 3:
+              RA3_short.diagnosis(side, fbs);
+              break;
+          default:
+              ASSERT_ALWAYS(0);
+      }
   }
 };
 
@@ -186,6 +197,11 @@ public:
   reserve_BA(const int side) {return groups[side].get<LEVEL, HINT>().reserve();}
 
   template <int LEVEL, typename HINT>
+  int rank_BA(const int side, bucket_array_t<LEVEL, HINT> const & BA) {
+      return groups[side].get<LEVEL, HINT>().rank(BA);
+  }
+
+  template <int LEVEL, typename HINT>
   void
   release_BA(const int side, bucket_array_t<LEVEL, HINT> &BA) {
     return groups[side].get<LEVEL, HINT>().release(BA);
@@ -200,13 +216,9 @@ public:
   const bucket_array_t<LEVEL, HINT> *
   cend_BA(const int side) const {return groups[side].cget<LEVEL, HINT>().cend();}
 
-  /* Realistically, this can't be useful. Or maybe only with no
-   * middle-primes being sieved. The reason for that is that the info we
-   * want to print has to be printed after fill_in_buckets, but before
-   * apply_buckets. And with middle primes, these get interleaved */
-  void diagnosis(std::array<fb_factorbase::slicing const *, 2> fbs) const {
-      groups[0].diagnosis(0, *fbs[0]);
-      groups[1].diagnosis(1, *fbs[1]);
+  void diagnosis(int level, std::array<fb_factorbase::slicing const *, 2> fbs) const {
+      groups[0].diagnosis(0, level, *fbs[0]);
+      groups[1].diagnosis(1, level, *fbs[1]);
   }
 };
 

@@ -109,6 +109,26 @@ public:
 };
 
 
+struct time_bubble_chaser {
+    static int enable;
+    struct timeval tv_get;
+    struct timeval tv_put;
+    int thread;
+    int BAidx;
+    double on_cpu;
+    time_bubble_chaser(int thread, int BAidx): thread(thread), BAidx(BAidx) {
+        if (!enable) return;
+        gettimeofday(&tv_get, NULL);
+        on_cpu = - (double) microseconds_thread();
+    }
+    time_bubble_chaser& put() {
+        if (!enable) return *this;
+        gettimeofday(&tv_put, NULL);
+        on_cpu += microseconds_thread();
+        return *this;
+    }
+};
+
 /* A bucket update type has two template parameters: the level of the bucket
    sieving where the update was created, and the type of factor base prime
    hint it stores, used to speed up factoring of survivors.
@@ -198,7 +218,7 @@ class bucket_array_t : private NonCopyable {
                                         // location in each bucket
   slice_index_t * slice_index = 0;      // For each slice that gets sieved,
                                         // new index is added here
-  std::vector<double> per_slice_time;
+  std::vector<time_bubble_chaser> per_slice_time;
   update_t ** slice_start = 0;          // For each slice there are
                                         // n_bucket pointers, each
                                         // pointer tells where in the
@@ -290,7 +310,7 @@ public:
     aligned_medium_memcpy((uint8_t *)slice_start + size_b_align * nr_slices, bucket_write, size_b_align);
     slice_index[nr_slices++] = new_slice_index;
   }
-  void add_per_slice_time(double t) {
+  void add_per_slice_time(time_bubble_chaser const& t) {
       per_slice_time.push_back(t);
       ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
   }
@@ -511,7 +531,9 @@ struct buckets_are_full : public clonable_exception {
         return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
     }
     virtual clonable_exception * clone() const { return new buckets_are_full(*this); }
-    void diagnosis(std::array<fb_factorbase::slicing const *, 2> fbs) const { base->diagnosis(side, *fbs[side]); }
+    void diagnosis(std::array<fb_factorbase::slicing const *, 2> fbs) const {
+        base->diagnosis(side, *fbs[side]);
+    }
 };
 
 #endif	/* BUCKET_HPP_ */

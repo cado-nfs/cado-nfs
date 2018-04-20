@@ -2287,6 +2287,7 @@ static void declare_usage(param_list pl)/*{{{*/
 #endif /* DLP_DESCENT */
   param_list_decl_usage(pl, "never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
   param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
+  param_list_decl_usage(pl, "gantt", "With -v -v, output data to generate a time chart of fill_in_buckets");
   verbose_decl_usage(pl);
   tdict_decl_usage(pl);
 }/*}}}*/
@@ -2512,6 +2513,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_configure_switch(pl, "-recursive-descent", &recursive_descent);
 #endif
     param_list_configure_switch(pl, "-never-discard", &never_discard);
+    param_list_configure_switch(pl, "-gantt", &time_bubble_chaser::enable);
     tdict_configure_switch(pl);
 
     argv++, argc--;
@@ -2924,6 +2926,9 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
 
         workspaces->thrs[0].rep->ttbuckets_fill += seconds();
 
+        if (time_bubble_chaser::enable)
+            workspaces->diagnosis(si.toplevel, {si.sides[0].fbs, si.sides[1].fbs});
+
         // this timing slot is insignificant, let's put it with the
         // bookkeeping crop
         // SIBLING_TIMER(timer_special_q, "prepare small sieve");
@@ -3001,6 +3006,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                 }
 
             }
+
 
             SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (MT)");
             TIMER_CATEGORY(timer_special_q, bookkeeping());

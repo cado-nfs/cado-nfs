@@ -4,6 +4,7 @@
 #include <string.h>   // for memcpy
 #include <new>        // for std::bad_alloc
 #include <type_traits> // for std::is_same (C++11)
+#include <iomanip> // for std::fixed and std::setprecision
 #include <gmp.h>
 #if defined(HAVE_SSE2)
 #include <emmintrin.h>
@@ -18,6 +19,8 @@
 #include "verbose.h"
 #include "ularith.h"
 #include "smallset.hpp"
+
+int time_bubble_chaser::enable = 0;
 
 /* sz is the size of a bucket for an array of buckets. In bytes, a bucket
    size is sz * sr, with sr = sizeof of one element of the bucket (a record).
@@ -243,32 +246,56 @@ bucket_array_t<LEVEL, HINT>::max_full (unsigned int * fullest_index) const
 template <int LEVEL, typename HINT>
 void
 bucket_array_t<LEVEL, HINT>::diagnosis(int side, int idx, fb_factorbase::slicing const & fbs) const {
-      size_t a = 0;
-      for (unsigned int i = 0; i < n_bucket; ++i)
-          a += nb_of_updates (i);
-      verbose_output_print (2, 2, "# side-%d array #%d processed %zu slices, total %zu updates\n",
-              side, idx, nr_slices, a);
-      ASSERT_ALWAYS(side >= 0);
-      ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
-      std::vector<size_t> nupdates_per_slice(nr_slices, 0);
+    size_t a = 0;
+    for (unsigned int i = 0; i < n_bucket; ++i)
+        a += nb_of_updates (i);
+    verbose_output_print (0, 2, "# side-%d array #%d processed %zu slices, total %zu updates\n",
+            side, idx, nr_slices, a);
+    ASSERT_ALWAYS(side >= 0);
+    ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
+    std::vector<size_t> nupdates_per_slice(nr_slices, 0);
 
-      update_t ** fence = bucket_write;
-      for(size_t i = nr_slices ; i-- ; ) {
-          update_t ** previous = get_slice_pointers(i);
-          for(unsigned int j = 0 ; j < n_bucket ; j++) {
-              nupdates_per_slice[i] += fence[j] - previous[j];
-          }
-          fence = previous;
-      }
+    update_t ** fence = bucket_write;
+    for(size_t i = nr_slices ; i-- ; ) {
+        update_t ** previous = get_slice_pointers(i);
+        for(unsigned int j = 0 ; j < n_bucket ; j++) {
+            nupdates_per_slice[i] += fence[j] - previous[j];
+        }
+        fence = previous;
+    }
 
-      for(size_t i = 0 ; i < nr_slices ; i++) {
-          double w = fbs[slice_index[i]].get_weight();
-          double t = per_slice_time[i];
-          size_t hits = nupdates_per_slice[i];
-          verbose_output_print (2, 2, "#  slice %d est. cost %f time %f ratio %f hits %zu, ratio %f\n",
-                  (int) slice_index[i], w, t, t/w, hits, hits/w);
-      }
-  }
+    for(size_t i = 0 ; i < nr_slices ; i++) {
+        double w = fbs[slice_index[i]].get_weight();
+        time_bubble_chaser const & T(per_slice_time[i]);
+
+        ASSERT_ALWAYS(T.BAidx == idx);
+        size_t hits = nupdates_per_slice[i];
+
+        std::ostringstream os;
+
+        os << LEVEL << HINT::rtti[0]
+            << " side " << side
+            << " B " << idx
+            << " slice " <<  slice_index[i]
+            << " thread " << T.thread
+            << " ecost " << w
+            << " hits " << hits
+            << " hratio " << hits/w;
+
+        if (time_bubble_chaser::enable) {
+            double t0 = T.tv_get.tv_sec + 1.0e-6 * T.tv_get.tv_usec;
+            double t1 = T.tv_put.tv_sec + 1.0e-6 * T.tv_put.tv_usec;
+            double t = T.on_cpu;
+            os  << std::fixed << std::setprecision(9)
+                << " t0 " << t0
+                << " t1 " << t1
+                << " time " << t
+                << " tratio " << t/w;
+        }
+
+        verbose_output_print (0, 2, "#  %s\n", os.str().c_str());
+    }
+}
 
 template <int LEVEL, typename HINT>
 void
