@@ -55,161 +55,139 @@ sub parse_new_slicing {
 }
 
 sub ship_chart {
-    my ($desc, $tab) = @_;
-    my ($sq,$kind,$level,$side,$narr) = @$desc;
+    my ($sq,$nthreads,$tab) = @_;
     my ($tmin, $tmax);
     return unless @$tab;
     my $NS = scalar @$tab;
     my $dt=0;
-    my $thrmax=0;
+    my $idxmax={};
+    @$tab = sort { $a->[3] <=> $b->[3] } @$tab;
     for my $S (@$tab) {
-        my ($side, $aidx, $slice, $thr, $t0, $t1, $w, $hits, $time) = @$S;
+        my ($kind, $thr, $idx, $t0, $t1, $time) = @$S;
         $tmin = $t0 unless defined($tmin) && $t0 > $tmin;
         $tmax = $t1 unless defined($tmax) && $t1 < $tmax;
-        $thrmax = $thr unless $thr < $thrmax;
+        (my $mkind = $kind) =~ s/([A-Z]*).*$/$1/g;
+        $idxmax->{$mkind} = $idx unless defined($idxmax->{$mkind}) && $idxmax->{$mkind} > $idx;
         $dt += $t1 - $t0;
     }
-    my $nthr = $thrmax + 1;
+    my $nidx = {};
+    for my $k (keys %$idxmax) { $nidx->{$k}=1+$idxmax->{$k}; }
     $dt = $dt / $NS;
     # We want to plot for a fraction of the time that is no less than
     # $cropfraction times the average per-slice time.
     my $tmax_cap = $tmin + $cropfraction * $dt;
     if ($tmax_cap > $tmax) { $tmax_cap = $tmax; }
     print "\\newpage\n";
-    my $tdesc = "level-$level buckets";
-    my $arr_desc = "$narr arrays";
-    if ($level == 2) {
-        $tdesc .= " on side $side";
-    } else {
-        $tdesc .= " on both sides";
-        $arr_desc = "2*$arr_desc";
-    }
-    print "\n\n\\noindent\\textbf{$tdesc ($sq; $nthr threads, $NS slices on $arr_desc)}\n\n";
-    print "\\begin{center}\n";
-    print "\\begin{adjustbox}{max totalsize={\\textwidth}{.9\\textheight},center}\n";
-    my $ncol;
-    if ($by_bucket) {
-        $ncol = $nthr;
-    } else {
-        $ncol = $narr;
-        if ($level == 1) {
-            $ncol += $narr;
-        }
-    }
-    print "\\resetcolorseries[$ncol]{rainbow}\n";
-    print "\\begin{tikzpicture}\n";
+    print "\n\n\\noindent\\textbf{$sq; $nthreads threads}\n\n";
+    # we want to print everything, but based on moving windows of width
+    # $tmax_cap-$tmin.
+    
+    my $ngraphs = 1 + int(($tmax-$tmin)/($tmax_cap-$tmin));
+    my @lists=map { [] } (0..$ngraphs-1);
     for my $S (@$tab) {
-        my ($cside, $aidx, $slice, $thr, $t0, $t1, $w, $hits, $time) = @$S;
-        next if $t0 >= $tmax_cap;
-        my $x0 = 20 * ($t0 - $tmin) / ($tmax_cap - $tmin);
-        my $x1 = 20 * ($t1 - $tmin) / ($tmax_cap - $tmin);
-        # our current value for microseconds() is useless, it's
-        # counted globally...
-        # # my $pcpu = 0;
-        # # if ($t1 > $t0) { $pcpu = 1.0e-6*$time / ($t1-$t0); }
-        # # $pcpu = int(10*$pcpu+0.5)*0.1;
-        $x0 = sprintf("%.3f", $x0);
-        $x1 = sprintf("%.3f", $x1);
-        if ($by_bucket) {
-            if ($level == 1) {
-                $aidx += $cside * $narr;
+        my ($kind, $thr, $idx, $t0, $t1, $time) = @$S;
+        my $i0 = int(($t0-$tmin)/($tmax_cap-$tmin));
+        my $i1 = int(($t1-$tmin)/($tmax_cap-$tmin));
+        push @{$lists[$i0]}, $S;
+        push @{$lists[$i1]}, $S if $i1 != $i0;
+    }
+
+    print "\\begin{center}\n";
+    if ($ngraphs > 16) { $ngraphs=16; }
+    my $ckind='';
+    for(my $j = 0 ; $j < $ngraphs ; $j++) {
+        print "\\begin{adjustbox}{max totalsize={\\textwidth}{.9\\textheight},center}\n";
+        print "\\begin{tikzpicture}\n";
+        my $tscale = 20;
+        my $Y = -$nthreads/2;
+        print "\\draw[thin] (0,0) rectangle ($tscale,$Y);\n";
+        my $YY = $Y-1;
+        print "\\path[use as bounding box] (0,0) rectangle ($tscale,$YY);\n";
+        print "\\clip (0,1) rectangle ($tscale,$YY);\n";
+        my $ccol=0;
+        for my $S (@{$lists[$j]}) {
+            my ($kind, $thr, $idx, $t0, $t1, $time) = @$S;
+            (my $mkind = $kind) =~ s/([A-Z]*).*$/$1/g;
+            my $ncol=$nidx->{$mkind};
+            if ($ncol != $ccol) {
+                print "\\resetcolorseries[$ncol]{rainbow}\n";
+                $ccol=$ncol;
             }
-            my $y0 = -$aidx;
-            my $y1 = -$aidx - 1;
-            $y0 = $y0/2;
-            $y1 = $y1/2;
-            print "\\fill[fill={rainbow!![$thr]}] ($x0,$y0) rectangle ($x1,$y1);\n";
-        } else {
-            if ($level == 1) {
-                $aidx += $cside * $narr;
+            my $x0 = ($t0 - $tmin) / ($tmax_cap - $tmin) - $j;
+            my $x1 = ($t1 - $tmin) / ($tmax_cap - $tmin) - $j;
+            $x0 = $tscale * $x0;
+            $x1 = $tscale * $x1;
+            if ($kind ne $ckind) {
+                $ckind=$kind;
+                print "\\draw[thick] ($x0,0.25) -- ($x0,$Y) node[right,rotate=-90,scale=.25] {\\tiny $kind};\n";
             }
+            # # my $pcpu = 0;
+            # # if ($t1 > $t0) { $pcpu = 1.0e-6*$time / ($t1-$t0); }
+            # # $pcpu = int(10*$pcpu+0.5)*0.1;
+            $x0 = sprintf("%.3f", $x0);
+            $x1 = sprintf("%.3f", $x1);
             my $y0 = -$thr;
             my $y1 = -$thr - 1;
             $y0 = $y0/2;
             $y1 = $y1/2;
-            print "\\fill[fill={rainbow!![$aidx]}] ($x0,$y0) rectangle ($x1,$y1);\n";
+            print "\\draw[fill={rainbow!![$idx]}] ($x0,$y0) rectangle ($x1,$y1); % $kind\n";
         }
+        print "\\end{tikzpicture}\n\n";
+        print "\\end{adjustbox}\n";
+        my $cumul = (1+$j)*($tmax_cap-$tmin);
+        if ($tmax - $tmin < $cumul) { $cumul = $tmax - $tmin; }
+        printf "Total time %.2f (\$t_{\\text{max}}-t_{\\text{min}}\$). Time above: %.2f (cumulated %.2f)\n\\bigskip\n\n",
+        $tmax-$tmin, $tmax_cap-$tmin, $cumul;
     }
-    print "\\end{tikzpicture}\n\\end{adjustbox}\n\\end{center}\n\n";
-    printf "Total time taken: %.2f real (\$t_{\\text{max}}-t_{\\text{min}}\$). Time displayed here: %.2f\n\\bigskip\n\n", $tmax-$tmin, $tmax_cap-$tmin;
+    print "\\end{center}\n\n";
 }
 
 sub parse_a_special_q {
     my $sq = shift @_;
     $sq=~s/;//;
     my $stack;
-    my @ship=();
     while (<>) {
-        /diagnosis for (\d)(\w) buckets on side (\d) \((\d+) arrays/ && do {
-            # depending on the choice we made, $narr is either the same
-            # as the number of threads, or one more, or even more.
-            my $kind = "$1$2";
-            my $level = $1;
-            my $side = $3;
-            my $narr = $4;
-            my $tab;
-            if (defined($stack)) {
-                if ($merge_all_fib_levels) {
-                    $tab = $stack->[1];
-                } elsif ($stack->[0]->[2] != $level) {
-                    push @ship, $stack;
-                    $stack = undef;
-                } else {
-                    $tab = $stack->[1];
-                }
-            }
-            if (!defined($stack)) {
-                $tab=[];
-                $stack=[[$sq,$kind,$level,$side,$narr],$tab];
-            }
-            my ($tmin, $tmax);
-            for my $aidx (0..$narr-1) {
+        /time chart for (\d+) threads/ && do {
+            my $nthreads = $1;
+            my $tab = [];
+            for(my $i = 0 ; $i < $nthreads ; $i++) {
                 defined($_=<>) or die;
-                /side-$side array #$aidx processed (\d+).*(\d+) updates/ or die;
-                my $nslices_arr = $1;
-                my $hits_arr = $1;
-                for my $sidx (0..$nslices_arr-1) {
-                    # sidx is essentially meaningless.
+                /time chart has (\d+) entries/ or die;
+                my $nentries = $1;
+                for(my $i = 0 ; $i < $nentries ; $i++) {
                     defined($_=<>) or die;
-                    /#\s*$kind side $side B $aidx/ or die;
-                    my ($slice, $thr, $t0, $t1, $w, $hits, $time);
-                    /slice (\d+)/ && do { $slice=$1; };
-                    /thr(?:ead)? (\d+)/ && do { $thr=$1; };
+                    my ($kind, $thr, $idx, $t0, $t1, $time);
+                    /thread (\d+)/ && do { $thr=$1; };
+                    /FIB side (\d+) level (\d+) B (\d+) slice (\d+)/ && do {
+                        $kind = "FIB$2s.$1";
+                        $idx = $3;
+                        # slice unused.
+                    };
+                    /DS side (\d+) level (\d+) B (\d+) slice (\d+)/ && do {
+                        $kind = "FIB$2l.$1";
+                        $idx = 0;
+                        # slice unused.
+                    };
+                    /PBR M (\d+) B (\d+)/ && do {
+                        $kind = "PBR$1";
+                        $idx = $thr;
+                        # slice unused.
+                    };
+                    /PCLAT/ && do {
+                        $kind = "PCLAT";
+                        $idx = 0;
+                    };
                     /t0 ([\d\.]+)/ && do { $t0=$1; };
                     /t1 ([\d\.]+)/ && do { $t1=$1; };
-                    /ecost ([\d\.]+)/ && do { $w=$1; };
-                    /hits (\d+)/ && do { $hits=$1; };
                     /time ([\d\.]+)/ && do { $time=$1; };
-                    push @$tab, [$side, $aidx, $slice, $thr, $t0, $t1, $w, $hits, $time];
+                    push @$tab, [$kind, $thr, $idx, $t0, $t1, $time];
                 }
             }
             # get something to eat.
-            next;
+            ship_chart($sq, $nthreads, $tab);
+            return;
         };
-        next if /^# small sieve/;
-        next if /^# i=/;
-        next if /^# DUP/;
-        next if /^-?\d+/;       # relations.
-        if (defined($stack)) {
-            push @ship, $stack;
-            $stack = undef;
-        }
-        next if /^# I=/;
-        next if /^# f_\d'/;
-        next if /^# (Reserving|Allocating|Reallocating)/;
-        next if /^#\s+\d+\.\d+/;
-        if (/redoing/) {
-            print STDERR "Canceling $sq (overfull buckets)\n";
-            @ship=();
-            while (<>) {
-                last if /^# Sieving side/;
-            }
-            next;
-        }
-        print STDERR "Broke loop at $_";
-        last;
     }
-    ship_chart(@$_) for @ship;
 }
 
 while (<>) {

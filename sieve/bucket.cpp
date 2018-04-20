@@ -4,7 +4,6 @@
 #include <string.h>   // for memcpy
 #include <new>        // for std::bad_alloc
 #include <type_traits> // for std::is_same (C++11)
-#include <iomanip> // for std::fixed and std::setprecision
 #include <gmp.h>
 #if defined(HAVE_SSE2)
 #include <emmintrin.h>
@@ -19,8 +18,6 @@
 #include "verbose.h"
 #include "ularith.h"
 #include "smallset.hpp"
-
-int time_bubble_chaser::enable = 0;
 
 /* sz is the size of a bucket for an array of buckets. In bytes, a bucket
    size is sz * sr, with sr = sizeof of one element of the bucket (a record).
@@ -58,7 +55,7 @@ bucket_array_t<LEVEL, HINT>::reset_pointers()
   aligned_medium_memcpy (bucket_write, bucket_start, size_b_align);
   aligned_medium_memcpy (bucket_read,  bucket_start, size_b_align);
   nr_slices = 0;
-  per_slice_time.clear();
+  // per_slice_time.clear();
 }
 
 template <int LEVEL, typename HINT>
@@ -88,7 +85,7 @@ bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> &other)
   MOVE_ENTRY(size_b_align, 0);
   MOVE_ENTRY(nr_slices, 0);
   MOVE_ENTRY(alloc_slices, 0);
-  per_slice_time = std::move(other.per_slice_time);
+  // per_slice_time = std::move(other.per_slice_time);
 #undef MOVE_ENTRY
 }
 
@@ -252,7 +249,6 @@ bucket_array_t<LEVEL, HINT>::diagnosis(int side, int idx, fb_factorbase::slicing
     verbose_output_print (0, 2, "# side-%d array #%d processed %zu slices, total %zu updates\n",
             side, idx, nr_slices, a);
     ASSERT_ALWAYS(side >= 0);
-    ASSERT_ALWAYS(per_slice_time.size() == nr_slices);
     std::vector<size_t> nupdates_per_slice(nr_slices, 0);
 
     update_t ** fence = bucket_write;
@@ -266,9 +262,7 @@ bucket_array_t<LEVEL, HINT>::diagnosis(int side, int idx, fb_factorbase::slicing
 
     for(size_t i = 0 ; i < nr_slices ; i++) {
         double w = fbs[slice_index[i]].get_weight();
-        time_bubble_chaser const & T(per_slice_time[i]);
 
-        ASSERT_ALWAYS(T.BAidx == idx);
         size_t hits = nupdates_per_slice[i];
 
         std::ostringstream os;
@@ -277,21 +271,10 @@ bucket_array_t<LEVEL, HINT>::diagnosis(int side, int idx, fb_factorbase::slicing
             << " side " << side
             << " B " << idx
             << " slice " <<  slice_index[i]
-            << " thread " << T.thread
+            // << " thread " << T.thread
             << " ecost " << w
             << " hits " << hits
             << " hratio " << hits/w;
-
-        if (time_bubble_chaser::enable) {
-            double t0 = T.tv_get.tv_sec + 1.0e-6 * T.tv_get.tv_usec;
-            double t1 = T.tv_put.tv_sec + 1.0e-6 * T.tv_put.tv_usec;
-            double t = T.on_cpu;
-            os  << std::fixed << std::setprecision(9)
-                << " t0 " << t0
-                << " t1 " << t1
-                << " time " << t
-                << " tratio " << t/w;
-        }
 
         verbose_output_print (0, 2, "#  %s\n", os.str().c_str());
     }

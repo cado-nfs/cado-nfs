@@ -1937,6 +1937,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
     ASSERT_ALWAYS(timer.running());
     CHILD_TIMER(timer, __func__);
 
+
     where_am_I w MAYBE_UNUSED;
     las_info const & las(*th->plas);
     sieve_info & si(*th->psi);
@@ -1988,6 +1989,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
         uint32_t N = first_region0_index + ii;
         if ((N % las.nb_threads) != (uint32_t)th->id)
             continue;
+
         WHERE_AM_I_UPDATE(w, N, N);
         // unsigned int first_i = (N & ((1 << log_buckets_per_line) - 1)) << LOG_BUCKET_REGION;
         // unsigned int first_j = (N >> log_buckets_per_line) << log_lines_per_bucket;
@@ -2012,6 +2014,9 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             if (rep->reports)
                 break;
         }
+
+        time_bubble_chaser tt(th->id, time_bubble_chaser::PBR,
+                {-1,int(first_region0_index / si.nb_buckets[1]),(int) ii,-1});
 
         for (int side = 0; side < 2; side++)
           {
@@ -2108,10 +2113,14 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             BOOKKEEPING_TIMER(timer);
         }
 
+
         /* Factor survivors */
         rep->ttf -= seconds_thread ();
         rep->reports += factor_survivors (timer, th, N, w);
         rep->ttf += seconds_thread ();
+
+        timer.chart.push_back(tt.put());
+
 
         SIBLING_TIMER(timer, "reposition small (re)sieve data");
         TIMER_CATEGORY(timer, bookkeeping());
@@ -2651,6 +2660,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             }
             continue;
         }
+        pool->clear_time_charts();
 
         timetree_t timer_special_q;
         double qt0 = seconds();
@@ -2982,6 +2992,9 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (non-MT)");
             TIMER_CATEGORY(timer_special_q, bookkeeping());
 
+            time_bubble_chaser tt(0, time_bubble_chaser::PCLAT,
+                    {-1,-1,-1,-1});
+
             // Prepare plattices at internal levels
             // TODO: this could be multi-threaded
             plattice_x_t max_area = plattice_x_t(si.J)<<si.conf.logI;
@@ -3006,6 +3019,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                 }
 
             }
+            pool->push_chart_item(0, tt.put());
 
 
             SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (MT)");
@@ -3208,6 +3222,10 @@ if (si.conf.sublat.m) {
             break;
 
 
+        if (time_bubble_chaser::enable) {
+            pool->display_time_charts();
+        }
+        pool->clear_time_charts();
       } // end of loop over special q ideals.
 
     delete pool;

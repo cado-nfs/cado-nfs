@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "threadpool.hpp"
+#include "verbose.h"
 #include "barrier.h"
 
 /*
@@ -274,7 +275,7 @@ clonable_exception * thread_pool::get_exception(const size_t queue) {
     return e;
 }
 
-void thread_pool::accumulate_and_clear_active_time(timetree_t & rep) {
+void thread_pool::accumulate_and_clear_active_time(timetree_t::super & rep) {
     for (size_t i = 0; i < nr_threads; ++i) {
         /* timers may be running when they're tied to a subthread which
          * is currently doing a pthread_cond_wait or such. So in that
@@ -319,7 +320,7 @@ task_result * everybody_must_do_that_task(const worker_thread * worker, const ta
     return new everybody_must_do_that_result(worker->timer);
 }
 
-void thread_pool::accumulate_and_reset_wait_time(timetree_t & rep) {
+void thread_pool::accumulate_and_reset_wait_time(timetree_t::super & rep) {
     /* we need to create a task so that each thread does what we want it
      * to do. The tricky part is the we really want all thread to block
      * and reach this code. In effect, we want the callee function to
@@ -335,3 +336,8 @@ void thread_pool::accumulate_and_reset_wait_time(timetree_t & rep) {
         delete res;
     }
 }
+
+void thread_pool::display_time_charts() const {
+    verbose_output_print (0, 2, "# displaying time chart for %zu threads\n", nr_threads);
+    for(size_t i = 0 ; i < nr_threads ; ++i) threads[i].timer.display_chart(); }
+

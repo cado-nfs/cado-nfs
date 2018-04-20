@@ -735,7 +735,14 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
         bucket_array_t<LEVEL, shorthint_t> &BA =
             param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
 
-        time_bubble_chaser tt(worker->rank(), param->ws.rank_BA(param->side, BA));
+        time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
+                {
+                param->side,
+                LEVEL,
+                param->ws.rank_BA(param->side, BA),
+                (int) param->plattices_vector->get_index()
+                }
+            );
 
         /* Fill the buckets */
         try {
@@ -743,12 +750,13 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
                     * param->plattices_vector,
                     (param->first_region0_index == 0), w);
         } catch(buckets_are_full & e) {
-            BA.add_per_slice_time(tt.put());
+            worker->push_chart_item(tt.put());
             param->ws.release_BA(param->side, BA);
             throw e;
         }
         /* Release bucket array again */
-        BA.add_per_slice_time(tt.put());
+        worker->push_chart_item(tt.put());
+
         param->ws.release_BA(param->side, BA);
     } catch(buckets_are_full & e) {
         e.side = param->side;
@@ -799,13 +807,20 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
         bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
 
         ASSERT(param->slice);
-        time_bubble_chaser tt(worker->rank(), param->ws.rank_BA(param->side, BA));
+        time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
+                {
+                param->side,
+                LEVEL,
+                param->ws.rank_BA(param->side, BA),
+                (int) param->slice->get_index()
+                }
+                );
         fill_in_buckets_toplevel<LEVEL,FB_ENTRY_TYPE>(BA, param->si,
                 *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
                 param->plattices_dense_vector, w);
 
         /* Release bucket array again */
-        BA.add_per_slice_time(tt.put());
+        worker->push_chart_item(tt.put());
         param->ws.release_BA(param->side, BA);
         delete param;
         return new task_result;
@@ -834,13 +849,20 @@ fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSE
 
     try {
         bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
-        time_bubble_chaser tt(worker->rank(), param->ws.rank_BA(param->side, BA));
+        time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
+                {
+                param->side,
+                LEVEL,
+                param->ws.rank_BA(param->side, BA),
+                (int) param->slice->get_index()
+                }
+                );
         ASSERT(param->slice);
         fill_in_buckets_toplevel_sublat<LEVEL,FB_ENTRY_TYPE>(BA, param->si,
                 *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
                 param->plattices_dense_vector, w);
         /* Release bucket array again */
-        BA.add_per_slice_time(tt.put());
+        worker->push_chart_item(tt.put());
         param->ws.release_BA(param->side, BA);
         delete param;
         return new task_result;
@@ -1071,7 +1093,7 @@ downsort_tree(
     // This is a fake slice_index. For a longhint_t bucket, each update
     // contains its own slice_index, directly used by apply_one_bucket
     // and purge.
-    time_bubble_chaser tt(0, 0);
+    time_bubble_chaser tt(0, time_bubble_chaser::DS, { side, LEVEL, 0, 0});
     BAout.add_slice_index(0);
     // The data that comes from fill-in bucket at level above:
     {
@@ -1082,7 +1104,7 @@ downsort_tree(
         BAin_ptr++;
       }
     }
-    BAout.add_per_slice_time(tt.put());
+    pool.push_chart_item(0, tt.put());
 
     const int toplevel = si.toplevel;
     if (LEVEL < toplevel - 1) {
@@ -1136,10 +1158,12 @@ downsort_tree(
     ASSERT_ALWAYS(max_full <= 1.0);
   }
 
+#if 0
   /* We've filled buckets at level LEVEL: both downsorted updates from
    * upper level as well as updates that must be processed here. Time to
    * report */
   ws.diagnosis(LEVEL, {si.sides[0].fbs, si.sides[1].fbs});
+#endif
 
   /* RECURSE */
   if (LEVEL > 1) {

@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <vector>
 #include <pthread.h>
 #include "params.h"
 #include "timing.h"
@@ -389,7 +390,31 @@ public:
         };
 };
 
-typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
+struct time_bubble_chaser {
+    static int enable;
+    struct timeval tv_get;
+    struct timeval tv_put;
+    int thread;
+    enum kind_t { FIB, AB, DS, PBR, PCLAT };
+    kind_t kind;
+    typedef std::array<int, 4> id_t;
+    id_t id;
+    /* for FIB, DS: side, level, bucket index */
+    double on_cpu;
+    time_bubble_chaser(int thread, kind_t kind, id_t const & id);
+    time_bubble_chaser& put();
+};
+
+struct timetree_t : public tdict::tree<tdict::timer_seconds_thread> {
+    typedef tdict::tree<tdict::timer_seconds_thread> super;
+    timetree_t() = default;
+    timetree_t(timetree_t const&) = default;
+    timetree_t& operator=(timetree_t const&) = default;
+    timetree_t(timetree_t &&) = default;
+    timetree_t(super const& s) : super(s) {}
+    std::vector<time_bubble_chaser> chart;
+    void display_chart() const;
+};
 
 #if 0
 // an example. In fact this one is already covered by tdict::parametric
