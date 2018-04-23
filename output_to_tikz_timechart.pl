@@ -9,7 +9,7 @@ use warnings;
 my $slicings={};
 
 my $by_bucket = 0;
-my $cropfraction=400;
+my $cropfraction=300;
 my $merge_all_fib_levels=0;
 
 sub display_slicing {
@@ -93,7 +93,7 @@ sub ship_chart {
     }
 
     print "\\begin{center}\n";
-    if ($ngraphs > 16) { $ngraphs=16; }
+    if ($ngraphs > 10) { $ngraphs=10; }
     my $ckind='';
     for(my $j = 0 ; $j < $ngraphs ; $j++) {
         print "\\begin{adjustbox}{max totalsize={\\textwidth}{.9\\textheight},center}\n";
@@ -164,9 +164,9 @@ sub parse_a_special_q {
                         $idx = $3;
                         # slice unused.
                     };
-                    /DS side (\d+) level (\d+) B (\d+) slice (\d+)/ && do {
-                        $kind = "FIB$2l.$1";
-                        $idx = 0;
+                    /DS side (\d+) level (\d+) B (\d+)/ && do {
+                        $kind = "DS$2l.$1";
+                        $idx = $3;
                         # slice unused.
                     };
                     /PBR M (\d+) B (\d+)/ && do {

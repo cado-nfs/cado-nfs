@@ -53,8 +53,7 @@ void timetree_t::display_chart() const
                 os << " DS"
                     << " side " << T.id[0]
                     << " level " << T.id[1]
-                    << " B " << T.id[2]
-                    << " slice " << T.id[3];
+                    << " B " << T.id[2];
                 break;
             case time_bubble_chaser::AB:
                 os << " AB";
