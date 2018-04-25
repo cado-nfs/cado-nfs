@@ -1229,8 +1229,8 @@ downsort_tree(
     // above is finished before entering here.
     
     {
-        size_t n2s = ws.cend_BA<LEVEL+1,shorthint_t>(side) - ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-        size_t n1l = ws.cend_BA<LEVEL,longhint_t>(side) - ws.cbegin_BA<LEVEL,longhint_t>(side);
+        size_t n2s = ws.bucket_arrays<LEVEL+1,shorthint_t>(side).size();
+        size_t n1l = ws.bucket_arrays<LEVEL,longhint_t>(side).size();
         /* otherwise the code here can't work */
         ASSERT_ALWAYS(n2s == n1l);
 
@@ -1238,46 +1238,26 @@ downsort_tree(
          * process them in parallel. There would be various ways to
          * achieve that.
          */
-        const bucket_array_t<LEVEL+1,shorthint_t> * bs;
-        const bucket_array_t<LEVEL+1,longhint_t> * bl;
-        bs = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-        while (bs != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
-            int c = bs - ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-            auto D = new downsort_parameters<LEVEL, shorthint_t> { side, bucket_index, c, w, ws, *bs};
+        int pushed=0;
+        for(auto const & B : ws.bucket_arrays<LEVEL+1,shorthint_t>(side)) {
+            int c = &B - &ws.bucket_arrays<LEVEL+1,shorthint_t>(side).front();
+            auto D = new downsort_parameters<LEVEL, shorthint_t> { side, bucket_index, c, w, ws, B};
             pool.add_task(downsort_wrapper<LEVEL, shorthint_t>, D, 0);
-            bs++;
+            pushed++;
         }
         if (LEVEL < si.toplevel - 1) {
             // What comes from already downsorted data above:
-            bl = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-            while (bl != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
-                int c = bl - ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-                auto D = new downsort_parameters<LEVEL, longhint_t> { side, bucket_index, c, w, ws, *bl};
+            for(auto const & B : ws.bucket_arrays<LEVEL+1,longhint_t>(side)) {
+                int c = &B - &ws.bucket_arrays<LEVEL+1,longhint_t>(side).front();
+                auto D = new downsort_parameters<LEVEL, longhint_t> { side, bucket_index, c, w, ws, B};
                 pool.add_task(downsort_wrapper<LEVEL, longhint_t>, D, 0);
-                bl++;
+            pushed++;
             }
         }
-        bs = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-        while (bs != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
+        for(;pushed--;) {
             task_result *result = pool.get_result();
             delete result;
-            bs++;
         }
-        if (LEVEL < si.toplevel - 1) {
-            // What comes from already downsorted data above:
-            bl = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-            while (bl != ws.cend_BA<LEVEL+1,longhint_t>(side)) {
-                task_result *result = pool.get_result();
-                delete result;
-                bl++;
-            }
-        }
-        /* I'd like to write this instead, someday...
-           for(auto const & B : ws.buckets<LEVEL+1, shorthint_t>()) {
-           downsort_parameters D(side, bucket_index, w, ws, B);
-           pool.add_task(downsort_wrapper<LEVEL>, &D, 0);
-           }
-         */
     }
 
 

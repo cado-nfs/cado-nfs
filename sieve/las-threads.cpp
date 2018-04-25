@@ -80,6 +80,7 @@ reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fil
      factor bases).
      */
   double ratio = fill_ratio;
+  size_t n = BAs.size();
   for (size_t i = 0; i < n; i++)
     BAs[i].allocate_memory(n_bucket, ratio / n, logI);
 }
@@ -91,6 +92,8 @@ T &reservation_array<T>::reserve(int wish)
   const bool verbose = false;
   const bool choose_least_full = true;
   size_t i;
+
+  size_t n = BAs.size();
 
   if (wish >= 0) {
       ASSERT_ALWAYS(!in_use[wish]);
@@ -149,13 +152,9 @@ T &reservation_array<T>::reserve(int wish)
 template <typename T>
 void reservation_array<T>::release(T &BA) {
   enter();
-  size_t i;
-  for (i = 0; i < n; i++) {
-    /* Compare object identity (=address), not contents */
-    if (&BAs[i] == &BA)
-      break;
-  }
-  ASSERT_ALWAYS(i < n);
+  ASSERT_ALWAYS(&BA >= &BAs.front());
+  ASSERT_ALWAYS(&BA < &BAs[BAs.size()]);
+  size_t i = &BA - &BAs[0];
   in_use[i] = false;
   signal(cv);
   leave();
@@ -369,10 +368,9 @@ thread_workspaces::buckets_max_full()
     double mf0 = 0;
     typedef bucket_array_t<LEVEL, HINT> BA_t;
     for(unsigned int side = 0 ; side < nr_sides ; side++) {
-      for (const BA_t *it_BA = cbegin_BA<LEVEL, HINT>(side);
-           it_BA != cend_BA<LEVEL, HINT>(side); it_BA++) {
+      for (auto const & BA : bucket_arrays<LEVEL, HINT>(side)) {
         unsigned int fullest;
-        const double mf = it_BA->max_full(&fullest);
+        const double mf = BA.max_full(&fullest);
         if (mf > mf0) mf0 = mf;
         if (mf > 1)
             throw buckets_are_full(
@@ -380,8 +378,8 @@ thread_workspaces::buckets_max_full()
                     side,
                     bkmult_specifier::getkey<typename BA_t::update_t>(),
                     fullest,
-                    it_BA->nb_of_updates(fullest),
-                    it_BA->room_allocated_for_updates(fullest));
+                    BA.nb_of_updates(fullest),
+                    BA.room_allocated_for_updates(fullest));
       }
     }
     return mf0;

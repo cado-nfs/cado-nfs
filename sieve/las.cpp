@@ -1397,25 +1397,17 @@ void factor_survivors_data::prepare_cofactoring(timetree_t & timer)
 
         SIBLING_TIMER(timer, "purge buckets");
 
-        const bucket_array_t<1, shorthint_t> *BA =
-            th->ws->cbegin_BA<1, shorthint_t>(side);
-        const bucket_array_t<1, shorthint_t> * const BA_end =
-            th->ws->cend_BA<1, shorthint_t>(side);
-        for (; BA != BA_end; BA++)  {
+        for (auto & BA : th->ws->bucket_arrays<1, shorthint_t>(side)) {
 #if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
-            sdata[side].purged.purge(*BA, bucket_index, SS, survivors2);
+            sdata[side].purged.purge(BA, bucket_index, SS, survivors2);
 #else
-            sdata[side].purged.purge(*BA, bucket_index, SS);
+            sdata[side].purged.purge(BA, bucket_index, SS);
 #endif
         }
 
         /* Add entries coming from downsorting, if any */
-        const bucket_array_t<1, longhint_t> *BAd =
-            th->ws->cbegin_BA<1, longhint_t>(side);
-        const bucket_array_t<1, longhint_t> * const BAd_end =
-            th->ws->cend_BA<1, longhint_t>(side);
-        for (; BAd != BAd_end; BAd++)  {
-            sdata[side].purged.purge(*BAd, bucket_index, SS);
+        for (auto const & BAd : th->ws->bucket_arrays<1, longhint_t>(side)) {
+            sdata[side].purged.purge(BAd, bucket_index, SS);
         }
 
         SIBLING_TIMER(timer, "resieve");
@@ -2045,17 +2037,14 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
 #endif
             }
 
+            /* Apply buckets */
+            rep->ttbuckets_apply -= seconds_thread();
+
             {
                 CHILD_TIMER(timer, "apply buckets");
 
-                /* Apply buckets */
-                rep->ttbuckets_apply -= seconds_thread();
-                const bucket_array_t<1, shorthint_t> *BA =
-                    th->ws->cbegin_BA<1, shorthint_t>(side);
-                const bucket_array_t<1, shorthint_t> * const BA_end =
-                    th->ws->cend_BA<1, shorthint_t>(side);
-                for (; BA != BA_end; BA++)  {
-                    apply_one_bucket(SS, *BA, ii, si.sides[side].fbs->get_part(1), w);
+                for (auto const & BA : th->ws->bucket_arrays<1, shorthint_t>(side)) {
+                    apply_one_bucket(SS, BA, ii, si.sides[side].fbs->get_part(1), w);
                 }
             }
 
@@ -2063,15 +2052,11 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             if (si.toplevel > 1) {
                 CHILD_TIMER(timer, "apply downsorted buckets");
 
-                const bucket_array_t<1, longhint_t> * BAd_begin =
-                    th->ws->cbegin_BA<1, longhint_t>(side);
-                const bucket_array_t<1, longhint_t> * BAd_end =
-                    th->ws->cend_BA<1, longhint_t>(side);
-                for (auto BAd = BAd_begin ; BAd != BAd_end; BAd++)  {
+                for (auto const & BAd : th->ws->bucket_arrays<1, longhint_t>(side)) {
                     // FIXME: the updates could come from part 3 as well,
                     // not only part 2.
                     ASSERT_ALWAYS(si.toplevel <= 2);
-                    apply_one_bucket(SS, *BAd, ii, si.sides[side].fbs->get_part(2), w);
+                    apply_one_bucket(SS, BAd, ii, si.sides[side].fbs->get_part(2), w);
                 }
             }
 
