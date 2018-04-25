@@ -411,11 +411,6 @@ void fill_in_buckets_prepare_precomp_plattice(
     };
     push_make_bases_to_task_list F { pool, model };
     P.foreach_slice(F);
-    /* join */
-    for (slice_index_t done = 0; done < F.pushed ; done++) {
-          task_result *result = pool.get_result();
-          delete result;
-    }
 }
 
 // At top level, the fill-in of the buckets must interleave
