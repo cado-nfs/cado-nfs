@@ -1128,8 +1128,8 @@ downsort_tree(
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
             (fb_slice_interface *)NULL, it, NULL, first_region0_index);
-      // TODO: shall we give the weight to help scheduling, here?
-      pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0);
+      double c = it->get_weight();
+      pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0, 0, c);
       slices_pushed++;
     }
 

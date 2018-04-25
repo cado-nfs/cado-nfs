@@ -890,6 +890,7 @@ struct helper_functor_subdivide_slices {
     int part_index;
     fb_factorbase::key_type K;
     std::array<fb_factorbase::threshold_pos, FB_MAX_PARTS+1> local_thresholds;
+    double max_slice_weight;
     slice_index_t index;
     // helper_functor_subdivide_slices(fb_factorbase::slicing::part & dst, fb_factorbase::key_type const & K) : dst(dst), K(K), index(0) {}
     template<typename T>
@@ -942,7 +943,19 @@ struct helper_functor_subdivide_slices {
                 auto swb = x.weight_begin() + (s.begin() - x.begin());
                 auto swe = x.weight_begin() + (s.end() - x.begin());
                 double w0 = *swb;
-                for(size_t npieces = iceildiv(s.size(), std::numeric_limits<slice_offset_t>::max()) ; ; npieces++) {
+                size_t npieces_for_addressable_slices = iceildiv(s.size(), std::numeric_limits<slice_offset_t>::max());
+                size_t npieces_for_no_bulky_slice = ceil(s.weight / max_slice_weight);
+                if (npieces_for_no_bulky_slice > 1 || npieces_for_addressable_slices > 1)
+                    verbose_output_print (0, 3, "# [side-%d part %d %s logp=%d; %zu entries, weight=%f]: min %zu slices to be addressable, min %zu to make sure weight does not exceed cap %f\n",
+                            side,
+                            part_index,
+                            n_eq.str().c_str(),
+                            (int) s.get_logp(),
+                            s.size(),
+                            s.weight,
+                            npieces_for_addressable_slices,
+                            npieces_for_no_bulky_slice, max_slice_weight);
+                for(size_t npieces = std::max(npieces_for_no_bulky_slice, npieces_for_addressable_slices) ; ; npieces++) {
                     /* Compute the split points for splitting into
                      * exactly npieces of roughly equal weight */
                     std::vector<it_t> ssplits;
@@ -1096,7 +1109,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     slice_index_t s = 0;
     for (int i = 1; i < FB_MAX_PARTS; i++) {
         parts[i].first_slice_index = s;
-        helper_functor_subdivide_slices SUB { parts[i], fb.side, i, K, local_thresholds, s };
+        double max_slice_weight = D.weight[i] / 4 / K.nr_workspaces;
+        helper_functor_subdivide_slices SUB { parts[i], fb.side, i, K, local_thresholds, max_slice_weight, s };
         multityped_array_foreach(SUB, fb.entries);
         s += parts[i].nslices();
     }
