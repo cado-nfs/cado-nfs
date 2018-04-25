@@ -289,6 +289,7 @@ public:
     slice_index[nr_slices++] = new_slice_index;
   }
   double max_full (unsigned int * fullest_index = NULL) const;
+  double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKETS is defined. */
   void push_update(const int i, const update_t &update) {

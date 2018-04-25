@@ -108,14 +108,13 @@ T &reservation_array<T>::reserve()
     for (size_t j = 0; j < n; j++) {
       if (in_use[j])
         continue;
-      unsigned int index;
-      double full = BAs[j].max_full(&index);
+      double full = BAs[j].average_full();
       if (verbose)
         verbose_output_print(0, 3, "# Bucket %zu is %.0f%% full\n",
                              j, full * 100.);
       if (full > most_full) {
           most_full = full;
-          most_full_index = std::make_pair(j, index);
+          most_full_index = std::make_pair(j, 0);
       }
       if (full < least_full) {
         least_full = full;
