@@ -497,6 +497,7 @@ class fb_factorbase {
                         return t + x.size();
                     }
             };
+            public:
             slice_index_t nslices() const {
                 if (_nslices != std::numeric_limits<slice_index_t>::max())
                     return _nslices;
@@ -505,13 +506,20 @@ class fb_factorbase {
             }
             /* }}} */
 
+            private:
             template<typename F>
             struct foreach_slice_s {
                 F & f;
                 template<typename T>
-                void operator()(T & x) { for(auto & a : x) f(a); }
+                void operator()(T & x) {
+                    for(auto & a : x)
+                        f(a); // , first_slice_index + &a-begin(x));
+                }
                 template<typename T>
-                void operator()(T const & x) { for(auto const & a : x) f(a); }
+                void operator()(T const & x) {
+                    for(auto const & a : x) 
+                        f(a); // , first_slice_index + &a-begin(x));
+                }
             };
             public:
             template<typename F>

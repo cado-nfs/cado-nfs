@@ -1,6 +1,7 @@
 #ifndef LAS_FILL_IN_BUCKETS_HPP_
 #define LAS_FILL_IN_BUCKETS_HPP_
 
+#include <array>
 #include "las-types.hpp"
 #include "fb-types.h"
 #include "las-plattice.hpp"
@@ -9,25 +10,18 @@
 
 // This one is used for keeping information of middle primes.
 struct precomp_plattice_t {
-    std::vector<plattices_vector_t *> v [2][FB_MAX_PARTS];
+    typedef std::vector<plattices_vector_t> vec_type;
+    std::array<std::array<vec_type, FB_MAX_PARTS>, 2> v;
     precomp_plattice_t(precomp_plattice_t const&) = delete;
     precomp_plattice_t() = default;
     void push(int side, int level, plattices_vector_t&& x) {
-        v[side][level].push_back(new plattices_vector_t(std::move(x)));
+        v[side][level].push_back(std::move(x));
     }
-    ~precomp_plattice_t() {
-        for(int side = 0 ; side < 2 ; side++) {
-            for (int level = 1; level < FB_MAX_PARTS; ++level) {
-                for(auto & x : v[side][level]) {
-                    delete x;
-                }
-            }
-        }
-    }
-    std::vector<plattices_vector_t *> & operator()(int side, int level) {
+    ~precomp_plattice_t() = default;
+    std::vector<plattices_vector_t> & operator()(int side, int level) {
         return v[side][level];
     }
-    std::vector<plattices_vector_t *> const & operator()(int side, int level) const {
+    std::vector<plattices_vector_t> const & operator()(int side, int level) const {
         return v[side][level];
     }
 };
@@ -46,14 +40,15 @@ downsort_tree(timetree_t&,
         thread_workspaces &ws,
         thread_pool &pool,
         sieve_info& si,
-        precomp_plattice_t const & precomp_plattice);
+        precomp_plattice_t & precomp_plattice);
 
 void fill_in_buckets(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &, int side);
 
 void fill_in_buckets_prepare_precomp_plattice(
-                        int side,
-                        int level,
-                        sieve_info const & si MAYBE_UNUSED,
-                        precomp_plattice_t & precomp_plattice);
+        thread_pool &pool,
+        int side,
+        int level,
+        sieve_info const & si MAYBE_UNUSED,
+        precomp_plattice_t & precomp_plattice);
 
 #endif

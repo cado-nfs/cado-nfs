@@ -287,17 +287,69 @@ inline bool discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general 
     return e.k > 1;
 }
 
+struct make_lattice_bases_parameters_base: public task_parameters {
+  int side;
+  int level;
+  qlattice_basis const & basis;
+  int logI;
+  sublat_t const & sublat;
+  precomp_plattice_t::vec_type & V;
+  make_lattice_bases_parameters_base(
+          int side,
+          int level,
+          qlattice_basis const & basis,
+          int logI,
+          sublat_t const & sublat,
+          precomp_plattice_t::vec_type & V) :
+      side(side),
+      level(level),
+      basis(basis),
+      logI(logI),
+      sublat(sublat),
+      V(V) {}
+};
 template <class FB_ENTRY_TYPE>
-plattices_vector_t
-make_lattice_bases(fb_slice<FB_ENTRY_TYPE> const & slice,
-        const qlattice_basis &basis,
-    const int logI, const sublat_t &sublat)
+struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base {
+    fb_slice<FB_ENTRY_TYPE> const & slice;
+  make_lattice_bases_parameters(
+          int side,
+          int level,
+          qlattice_basis const & basis,
+          int logI,
+          sublat_t const & sublat,
+          precomp_plattice_t::vec_type & V,
+          fb_slice<FB_ENTRY_TYPE> const & slice) :
+      make_lattice_bases_parameters_base(side, level, basis, logI, sublat, V),
+      slice(slice)
+    { }
+  make_lattice_bases_parameters(
+          make_lattice_bases_parameters_base const & model,
+          fb_slice<FB_ENTRY_TYPE> const & slice) :
+      make_lattice_bases_parameters_base(model), slice(slice)
+    { }
+};
+
+template <class FB_ENTRY_TYPE>
+task_result *
+make_lattice_bases(const worker_thread * worker MAYBE_UNUSED,
+        const task_parameters * _param)
 {
+    const make_lattice_bases_parameters<FB_ENTRY_TYPE> *param = static_cast<const make_lattice_bases_parameters<FB_ENTRY_TYPE> *>(_param);
+
+   fb_slice<FB_ENTRY_TYPE> const & slice(param->slice);
+   qlattice_basis const &basis(param->basis);
+   int logI = param->logI;
+   sublat_t const & sublat(param->sublat);
+
+   slice_index_t index = slice.get_index();
+
+   time_bubble_chaser tt(worker->rank(), time_bubble_chaser::PCLAT, { param->side, param->level, 0, (int) index});
+
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
   /* Create a transformed vector and store the index of the fb_slice we
    * currently transform */
 
-  plattices_vector_t result(slice.get_index(), slice.get_weight());
+  plattices_vector_t result(index, slice.get_weight());
   slice_offset_t i_entry = 0;
   for (auto const & e : slice) {
       increment_counter_on_dtor<slice_offset_t> _dummy(i_entry);
@@ -324,27 +376,46 @@ make_lattice_bases(fb_slice<FB_ENTRY_TYPE> const & slice,
     }
   }
   /* This is moved, not copied */
-  return result;
+  param->V[result.get_index()] = std::move(result);
+  worker->push_chart_item(tt.put());
+  return new task_result;
 }
 
-struct helper_functor_make_lattice_bases {
-    int side, level;
-    sieve_info const & si;
-    precomp_plattice_t & precomp_plattice;
+struct push_make_bases_to_task_list {
+    thread_pool & pool;
+    make_lattice_bases_parameters_base model;
+    size_t pushed = 0;
+    push_make_bases_to_task_list(thread_pool&pool, make_lattice_bases_parameters_base const & m) : pool(pool), model(m) {}
     template<typename T>
-        void operator()(T const & s) {
-            precomp_plattice.push(side, level, make_lattice_bases(s, si.qbasis, si.conf.logI, si.conf.sublat));
-        }
+    void operator()(T const & s) {
+        typedef typename T::entry_t E;
+        auto param = new make_lattice_bases_parameters<E>(model, s);
+        task_function_t f = make_lattice_bases<E>;
+        pool.add_task(f, param, 0);
+        pushed++;
+    }
 };
 
 void fill_in_buckets_prepare_precomp_plattice(
-                        int side,
-                        int level,
-                        sieve_info const & si MAYBE_UNUSED,
-                        precomp_plattice_t & precomp_plattice)
+        thread_pool &pool,
+        int side,
+        int level,
+        sieve_info const & si MAYBE_UNUSED,
+        precomp_plattice_t & precomp_plattice)
 {
-    helper_functor_make_lattice_bases F { side, level, si, precomp_plattice };
-    si.sides[side].fbs->get_part(level).foreach_slice(F);
+    fb_factorbase::slicing::part const & P = si.sides[side].fbs->get_part(level);
+    precomp_plattice_t::vec_type & V = precomp_plattice.v[side][level];
+    V.assign(P.nslices(), plattices_vector_t());
+    make_lattice_bases_parameters_base model {
+        side, level, si.qbasis, si.conf.logI, si.conf.sublat, V
+    };
+    push_make_bases_to_task_list F { pool, model };
+    P.foreach_slice(F);
+    /* join */
+    for (slice_index_t done = 0; done < F.pushed ; done++) {
+          task_result *result = pool.get_result();
+          delete result;
+    }
 }
 
 // At top level, the fill-in of the buckets must interleave
@@ -723,7 +794,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
     where_am_I w;
     WHERE_AM_I_UPDATE(w, psi, & param->si);
     WHERE_AM_I_UPDATE(w, side, param->side);
-    WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
+    WHERE_AM_I_UPDATE(w, i, param->plattices_vector.get_index());
     WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
 
     try {
@@ -747,7 +818,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
         /* Fill the buckets */
         try {
             fill_in_buckets_lowlevel<LEVEL>(BA, param->si,
-                    * param->plattices_vector,
+                    *param->plattices_vector,
                     (param->first_region0_index == 0), w);
         } catch(buckets_are_full & e) {
             worker->push_chart_item(tt.put());
@@ -1064,7 +1135,7 @@ downsort_tree(
     thread_workspaces &ws,
     thread_pool &pool,
     sieve_info & si,
-    precomp_plattice_t const & precomp_plattice)
+    precomp_plattice_t & precomp_plattice)
 {
   CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
   TIMER_CATEGORY(timer, sieving_mixed());
@@ -1127,11 +1198,11 @@ downsort_tree(
     /* SECOND: fill in buckets at this level, for this region. */
     ws.reset_all_pointers<LEVEL,shorthint_t>(side);
     slice_index_t slices_pushed = 0;
-    for (auto const & it : precomp_plattice(side, LEVEL)) {
+    for (auto & it : precomp_plattice(side, LEVEL)) {
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
-            (fb_slice_interface *)NULL, it, NULL, first_region0_index);
-      double c = it->get_weight();
+            (fb_slice_interface *)NULL, &it, NULL, first_region0_index);
+      double c = it.get_weight();
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0, 0, c);
       slices_pushed++;
     }
@@ -1197,7 +1268,7 @@ void downsort_tree<0>(timetree_t&,
   thread_workspaces &,
   thread_pool &,
   sieve_info &,
-  precomp_plattice_t const &)
+  precomp_plattice_t &)
 {
     ASSERT_ALWAYS(0);
 }
@@ -1222,9 +1293,9 @@ reservation_group::cget<3, longhint_t>() const
 template 
 void downsort_tree<1>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
   thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t const & precomp_plattice);
+  precomp_plattice_t & precomp_plattice);
 
 template
 void downsort_tree<2>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
   thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t const & precomp_plattice);
+  precomp_plattice_t & precomp_plattice);

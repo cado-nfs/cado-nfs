@@ -71,7 +71,8 @@ void timetree_t::display_chart() const
             case time_bubble_chaser::PCLAT:
                 os << " PCLAT"
                     << " side " << T.id[0]
-                    << " level " << T.id[1];
+                    << " level " << T.id[1]
+                    << " slice " << T.id[3];
                 break;
         };
 

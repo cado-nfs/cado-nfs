@@ -677,9 +677,7 @@ class plattices_vector_t:
     slice_index_t index;
     double weight;
 public:
-    /* no copy, but move allowed */
-    plattices_vector_t(plattices_vector_t const&) = delete;
-    plattices_vector_t(plattices_vector_t &&) = default;
+    plattices_vector_t() = default;
     plattices_vector_t(slice_index_t index, double weight) : index(index), weight(weight) {}
     slice_index_t get_index() const {return index;};
     slice_index_t get_weight() const {return weight;};

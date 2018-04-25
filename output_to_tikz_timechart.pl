@@ -176,7 +176,8 @@ sub parse_a_special_q {
                     };
                     /PCLAT side (\d+) level (\d+)/ && do {
                         $kind = "PCLAT$2.$1";
-                        $idx = 0;
+                        $idx = $thr;
+                        # slice unused.
                     };
                     /t0 ([\d\.]+)/ && do { $t0=$1; };
                     /t1 ([\d\.]+)/ && do { $t1=$1; };

@@ -2984,12 +2984,11 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             pool->accumulate_and_reset_wait_time(*timer_special_q.current);
 
         } else {
-            SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (non-MT)");
+            SIBLING_TIMER(timer_special_q, "process_bucket_region outer container");
             TIMER_CATEGORY(timer_special_q, bookkeeping());
 
 
-            // Prepare plattices at internal levels
-            // TODO: this could be multi-threaded
+            // Prepare plattices at internal levels.
             plattice_x_t max_area = plattice_x_t(si.J)<<si.conf.logI;
             plattice_enumerate_area<1>::value =
                 MIN(max_area, plattice_x_t(BUCKET_REGIONS[2]));
@@ -3003,16 +3002,12 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                 CHILD_TIMER_PARAMETRIC(timer_special_q, "side ", side, "");
 
                 for (int level = 1; level < si.toplevel; ++level) {
-                    time_bubble_chaser tt(0, time_bubble_chaser::PCLAT,
-                            {side,level,-1,-1});
-
                     fill_in_buckets_prepare_precomp_plattice(
+                            *pool,
                             side,
                             level,
                             si,
                             precomp_plattice);
-
-                    pool->push_chart_item(0, tt.put());
                 }
 
             }
