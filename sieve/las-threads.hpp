@@ -108,7 +108,7 @@ public:
       }
   }
 
-  T &reserve();
+  T &reserve(int);
   void release(T &BA);
   void diagnosis(int side, fb_factorbase::slicing const & fbs) const override {
       int LEVEL = T::level;
@@ -201,7 +201,9 @@ public:
 
   template <int LEVEL, typename HINT>
   bucket_array_t<LEVEL, HINT> &
-  reserve_BA(const int side) {return groups[side].get<LEVEL, HINT>().reserve();}
+  reserve_BA(const int side, int wish) {
+      return groups[side].get<LEVEL, HINT>().reserve(wish);
+  }
 
   template <int LEVEL, typename HINT>
   int rank_BA(const int side, bucket_array_t<LEVEL, HINT> const & BA) {

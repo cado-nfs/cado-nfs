@@ -85,12 +85,19 @@ reservation_array<T>::allocate_buckets(const uint32_t n_bucket, const double fil
 }
 
 template <typename T>
-T &reservation_array<T>::reserve()
+T &reservation_array<T>::reserve(int wish)
 {
   enter();
   const bool verbose = false;
   const bool choose_least_full = true;
   size_t i;
+
+  if (wish >= 0) {
+      ASSERT_ALWAYS(!in_use[wish]);
+      in_use[wish]=true;
+      leave();
+      return BAs[wish];
+  }
 
   while ((i = find_free()) == n)
     wait(cv);
@@ -276,7 +283,7 @@ reservation_group::cget() const
 thread_workspaces::thread_workspaces(const size_t n,
   const unsigned int _nr_sides, las_info & las)
   : nb_threads(n),
-    nr_workspaces(n + n - 1),
+    nr_workspaces(n),
     groups { nr_workspaces, nr_workspaces }
 {
     /* Well, groups is an array of side 2 anyway... */

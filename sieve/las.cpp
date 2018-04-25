@@ -2063,11 +2063,11 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             if (si.toplevel > 1) {
                 CHILD_TIMER(timer, "apply downsorted buckets");
 
-                const bucket_array_t<1, longhint_t> *BAd =
+                const bucket_array_t<1, longhint_t> * BAd_begin =
                     th->ws->cbegin_BA<1, longhint_t>(side);
-                const bucket_array_t<1, longhint_t> * const BAd_end =
+                const bucket_array_t<1, longhint_t> * BAd_end =
                     th->ws->cend_BA<1, longhint_t>(side);
-                for (; BAd != BAd_end; BAd++)  {
+                for (auto BAd = BAd_begin ; BAd != BAd_end; BAd++)  {
                     // FIXME: the updates could come from part 3 as well,
                     // not only part 2.
                     ASSERT_ALWAYS(si.toplevel <= 2);

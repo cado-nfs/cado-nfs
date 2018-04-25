@@ -733,7 +733,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
          * could imagine that it could throw, so let's wrap it too.
          */
         bucket_array_t<LEVEL, shorthint_t> &BA =
-            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
+            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
 
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
@@ -804,7 +804,7 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
 
     try {
         /* Get an unused bucket array that we can write to */
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
+        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
 
         ASSERT(param->slice);
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
@@ -848,7 +848,7 @@ fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSE
     WHERE_AM_I_UPDATE(w, N, 0);
 
     try {
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side);
+        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
                 param->side,
@@ -1087,8 +1087,11 @@ downsort_tree(
     // We reserve those where we write, and access the ones for
     // reading without reserving. We require that things at level
     // above is finished before entering here.
+    
+    /* note: we are single-threaded here. Therefore we are bound to get
+     * bucket array number 0 */
     bucket_array_t<LEVEL, longhint_t> & BAout =
-      ws.reserve_BA<LEVEL, longhint_t>(side);
+      ws.reserve_BA<LEVEL, longhint_t>(side, -1);
     BAout.reset_pointers();
     // This is a fake slice_index. For a longhint_t bucket, each update
     // contains its own slice_index, directly used by apply_one_bucket
@@ -1199,7 +1202,7 @@ void downsort_tree<0>(timetree_t&,
     ASSERT_ALWAYS(0);
 }
 
-// other fake instances to please level-2 instanciation.
+// other fake instances to please level-2 instantiation.
 template <>
 void downsort<3>(bucket_array_t<2, longhint_t>&,
         bucket_array_t<3, longhint_t> const&, unsigned int, where_am_I &)
