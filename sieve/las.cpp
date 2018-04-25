@@ -2910,6 +2910,16 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             if (!si.sides[side].fb) continue;
             fill_in_buckets(timer_special_q, *pool, workspaces, si, side);
         }
+        pool->drain_queue(0);
+
+        workspaces.check_buckets_max_full(si.toplevel, shorthint_t());
+
+        pool->accumulate_and_clear_active_time(*timer_special_q.current);
+
+        auto exc = pool->get_exceptions<buckets_are_full>(0);
+        if (!exc.empty())
+            throw *std::max_element(exc.begin(), exc.end());
+
 
         // useless
         // pool->accumulate_and_clear_active_time(*timer_special_q.current);

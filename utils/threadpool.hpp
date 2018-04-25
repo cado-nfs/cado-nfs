@@ -126,6 +126,8 @@ class thread_pool : private monitor, private NonCopyable {
   std::vector<tasks_queue> tasks;
   std::vector<results_queue> results;
   std::vector<exceptions_queue> exceptions;
+  std::vector<size_t> created;
+  std::vector<size_t> joined;
 
   bool kill_threads; /* If true, hands out kill tasks once work queues are empty */
 
@@ -142,7 +144,22 @@ public:
   ~thread_pool();
   void add_task(task_function_t func, const task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
   task_result *get_result(size_t queue = 0, bool blocking = true);
+  void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);
+  void drain_all_queues();
   clonable_exception * get_exception(const size_t queue = 0);
+  template<typename T>
+      T * get_exception(const size_t queue = 0) {
+          return dynamic_cast<T*>(get_exception(queue));
+      }
+  template<typename T>
+      std::vector<T> get_exceptions(const size_t queue = 0) {
+          std::vector<T> res;
+          for(T * e ; (e = get_exception<T>(queue)) != NULL; ) {
+              res.push_back(*e);
+          }
+          return res;
+      }
+
 
   /* All threads in a thread pool have their respective timer active at
    * all times. We have two different ways to collect the timings they've

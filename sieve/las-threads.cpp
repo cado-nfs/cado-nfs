@@ -384,12 +384,37 @@ thread_workspaces::buckets_max_full()
     }
     return mf0;
 }
+double thread_workspaces::check_buckets_max_full()
+{
+    double mf0 = 0, mf;
+    mf = buckets_max_full<3, shorthint_t>(); if (mf > mf0) mf0 = mf;
+    mf = buckets_max_full<2, shorthint_t>(); if (mf > mf0) mf0 = mf;
+    mf = buckets_max_full<2, longhint_t>();  if (mf > mf0) mf0 = mf;
+    mf = buckets_max_full<1, shorthint_t>(); if (mf > mf0) mf0 = mf;
+    mf = buckets_max_full<1, longhint_t>();  if (mf > mf0) mf0 = mf;
+    return mf0;
+}
+
+template <typename HINT>
+double thread_workspaces::check_buckets_max_full(int level, HINT const &)
+{
+    switch(level) {
+        case 3:
+            ASSERT_ALWAYS((std::is_same<HINT, shorthint_t>::value));
+            return buckets_max_full<3, shorthint_t>();
+        case 2: return buckets_max_full<2, HINT>();
+        case 1: return buckets_max_full<1, HINT>();
+    }
+    return 0;
+}
+
 template double thread_workspaces::buckets_max_full<1, shorthint_t>();
 template double thread_workspaces::buckets_max_full<2, shorthint_t>();
 template double thread_workspaces::buckets_max_full<3, shorthint_t>();
 template double thread_workspaces::buckets_max_full<1, longhint_t>();
 template double thread_workspaces::buckets_max_full<2, longhint_t>();
-
+template double thread_workspaces::check_buckets_max_full<shorthint_t>(int, shorthint_t const&);
+template double thread_workspaces::check_buckets_max_full<longhint_t>(int, longhint_t const&);
 
 void
 thread_workspaces::accumulate_and_clear(las_report_ptr rep, sieve_checksum *checksum)

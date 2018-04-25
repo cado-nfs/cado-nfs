@@ -184,8 +184,17 @@ public:
   // void thread_do(void * (*) (thread_data *));
   void buckets_alloc();
   void buckets_free();
+
+private:
   template <int LEVEL, typename HINT>
   double buckets_max_full();
+
+public:
+
+  double check_buckets_max_full();
+
+  template <typename HINT>
+  double check_buckets_max_full(int level, HINT const & hint);
 
   void accumulate_and_clear(las_report_ptr, sieve_checksum *);
 

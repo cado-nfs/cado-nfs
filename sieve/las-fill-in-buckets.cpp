@@ -1011,8 +1011,6 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
     CHILD_TIMER_PARAMETRIC(timer, "fill_in_buckets_one_side on side ", side, "");
     TIMER_CATEGORY(timer, sieving(side));
 
-    slice_index_t slices_pushed = 0;
-
     fill_in_buckets_parameters model(ws, side, si, NULL, NULL, NULL, 0);
 
     if (!si.conf.sublat.m) {
@@ -1020,7 +1018,6 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
          * fill_in_buckets_toplevel_wrapper */
         push_slice_to_task_list<LEVEL> F(pool, model);
         fbs->get_part(LEVEL).foreach_slice(F);
-        slices_pushed = F.pushed;
     } else {
         /* This creates a task meant to call
          * fill_in_buckets_toplevel_sublat_wrapper */
@@ -1028,71 +1025,7 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
         bool is_first = si.conf.sublat.i0 == 0 && si.conf.sublat.j0 == 1;
         push_slice_to_task_list_saving_precomp<LEVEL> F(pool, model, Vpre, is_first);
         fbs->get_part(LEVEL).foreach_slice(F);
-        slices_pushed = F.pushed;
     }
-
-#if 0
-        /* Process all slices in this factor base part */
-        const fb_slice_interface *slice;
-        for (slice_index_t slice_index = fb->get_first_slice_index();
-             (slice = fb->get_slice(slice_index)) != NULL;
-             slice_index++) {
-            plattices_dense_vector_t * pre = NULL;
-            if (si.conf.sublat.m) {
-                pre = new plattices_dense_vector_t(slice_index);
-                si.sides[side].precomp_plattice_dense.push_back(pre);
-            }
-            fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice, 
-                    NULL, pre, 0);
-            pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
-            slices_pushed++;
-        }
-    } else {
-        /* We are in sublat mode, and we have already done the first
-         * congruence. Re-use precomputed FK-basis */
-        for (unsigned int i=0; i < si.sides[side].precomp_plattice_dense.size(); i++){
-            plattices_dense_vector_t * pre = si.sides[side].precomp_plattice_dense[i];
-            const fb_slice_interface * slice = fb->get_slice(pre->get_index());
-            fill_in_buckets_parameters *param = new fill_in_buckets_parameters(ws, side, si, slice,
-                    NULL, pre, 0);
-            pool.add_task(fill_in_buckets_one_slice<LEVEL>, param, 0, 0, (double)slice->get_weight());
-            slices_pushed++;
-        }
-    }
-#endif
-
-    /* we need to check for exceptions due to bucket updates. Because
-     * we've pushed all slides at this point, we have no option but to
-     * wait for all threads to finish. (or maybe pull back some of the
-     * tasks before they're grabbed by worker threads -- that could be an
-     * optimization).
-     */
-    std::vector<buckets_are_full> exceptions_to_throw;
-
-    for (slice_index_t slices_completed = 0; slices_completed < slices_pushed; slices_completed++) {
-          task_result *result = pool.get_result();
-          delete result;
-          /* want to check possible exceptions, too */
-          buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
-          if (e) {
-              exceptions_to_throw.push_back(*e);
-              delete e;
-          }
-    }
-    if (!exceptions_to_throw.empty())
-        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
-
-    /* actually we also want to check that not even the last thread has
-     * overrun its bucket pointers.
-     *
-     * the call below throws an exception if we're overfull.
-     */
-    ws.buckets_max_full<LEVEL, shorthint_t>();
-
-    pool.accumulate_and_clear_active_time(*timer.current);
-    SIBLING_TIMER(timer, "worker thread wait time");
-    TIMER_CATEGORY(timer, thread_wait());
-    pool.accumulate_and_reset_wait_time(*timer.current);
 }
 
 
@@ -1132,14 +1065,14 @@ struct downsort_parameters : public task_parameters {
     int side;
     uint32_t bucket_index;
     int drank;
-    where_am_I &w;
+    where_am_I const&w;
     thread_workspaces &ws;
     bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin;
 
     downsort_parameters(int side, 
         uint32_t bucket_index,
         int drank,
-        where_am_I &w,
+        where_am_I const&w,
         thread_workspaces &ws,
         bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin)
     : side(side),
@@ -1190,6 +1123,33 @@ task_result * downsort_wrapper(const worker_thread * worker,
     return new task_result;
 }
 
+/* This is auxiliary only. We downsort stuff that wa already downsorted.
+ * So it applies only if LEVEL+1 is itself not the toplevel.
+ * For this reason, we must have a specific instantiation that reduces
+ * this to a no-op if LEVEL+1>=3, because there's no longhint_t for level
+ * 3 presently.
+ */
+template<int LEVEL>
+void downsort_aux(
+    uint32_t bucket_index,
+    thread_workspaces &ws,
+    where_am_I const& w,
+    thread_pool &pool,
+    int side)
+{
+    // What comes from already downsorted data above:
+    for(auto const & B : ws.bucket_arrays<LEVEL+1,longhint_t>(side)) {
+        int c = ws.rank_BA(side, B);
+        pool.add_task(
+                downsort_wrapper<LEVEL, longhint_t>,
+                new downsort_parameters<LEVEL, longhint_t> {
+                side, bucket_index, c, w, ws, B
+                }, 0);
+    }
+}
+template<>
+void downsort_aux<2>(uint32_t, thread_workspaces &, where_am_I const &, thread_pool &, int) {}
+
 // first_region0_index is a way to remember where we are in the tree.
 // The depth-first is a way to process all the the regions of level 0 in
 // increasing order of j-value.
@@ -1214,8 +1174,6 @@ downsort_tree(
   WHERE_AM_I_UPDATE(w, psi, & si);
   WHERE_AM_I_UPDATE(w, N, first_region0_index);
 
-  double max_full MAYBE_UNUSED = 0.0;
-
   for (int side = 0; side < 2; ++side) {
     if (!si.sides[side].fb) continue;
     WHERE_AM_I_UPDATE(w, side, side);
@@ -1238,88 +1196,63 @@ downsort_tree(
          * process them in parallel. There would be various ways to
          * achieve that.
          */
-        int pushed=0;
         for(auto const & B : ws.bucket_arrays<LEVEL+1,shorthint_t>(side)) {
             int c = ws.rank_BA(side, B);
-            auto D = new downsort_parameters<LEVEL, shorthint_t> { side, bucket_index, c, w, ws, B};
-            pool.add_task(downsort_wrapper<LEVEL, shorthint_t>, D, 0);
-            pushed++;
+            pool.add_task(
+                    downsort_wrapper<LEVEL, shorthint_t>, 
+                    new downsort_parameters<LEVEL, shorthint_t> {
+                        side, bucket_index, c, w, ws, B
+                    }, 0);
         }
-        if (LEVEL < si.toplevel - 1) {
-            // What comes from already downsorted data above:
-            for(auto const & B : ws.bucket_arrays<LEVEL+1,longhint_t>(side)) {
-                int c = ws.rank_BA(side, B);
-                auto D = new downsort_parameters<LEVEL, longhint_t> { side, bucket_index, c, w, ws, B};
-                pool.add_task(downsort_wrapper<LEVEL, longhint_t>, D, 0);
-            pushed++;
-            }
-        }
-        for(;pushed--;) {
-            task_result *result = pool.get_result();
-            delete result;
-        }
+        // What comes from already downsorted data above. We put this in
+        // an external function because we need the code to be elided or
+        // LEVEL >= 2.
+        if (LEVEL < si.toplevel - 1)
+            downsort_aux<LEVEL>(bucket_index, ws, w, pool, side);
     }
 
-    max_full = std::max(max_full, ws.buckets_max_full<LEVEL, longhint_t>());
-    ASSERT_ALWAYS(max_full <= 1.0);
 
     /* SECOND: fill in buckets at this level, for this region. */
     ws.reset_all_pointers<LEVEL,shorthint_t>(side);
-    slice_index_t slices_pushed = 0;
     for (auto & it : precomp_plattice(side, LEVEL)) {
       fill_in_buckets_parameters *param =
         new fill_in_buckets_parameters(ws, side, si,
             (fb_slice_interface *)NULL, &it, NULL, first_region0_index);
       double c = it.get_weight();
       pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0, 0, c);
-      slices_pushed++;
     }
-
-    std::vector<buckets_are_full> exceptions_to_throw;
-    for (slice_index_t slices_completed = 0;
-        slices_completed < slices_pushed;
-        slices_completed++) {
-      task_result *result = pool.get_result();
-      delete result;
-      /* want to check possible exceptions, too */
-      buckets_are_full * e = dynamic_cast<buckets_are_full*>(pool.get_exception());
-      if (e) {
-          exceptions_to_throw.push_back(*e);
-          delete e;
-      }
-    }
-    if (!exceptions_to_throw.empty())
-        throw *std::max_element(exceptions_to_throw.begin(), exceptions_to_throw.end());
-
-    pool.accumulate_and_clear_active_time(*timer.current);
-    SIBLING_TIMER(timer, "worker thread wait time");
-    TIMER_CATEGORY(timer, thread_wait());
-    pool.accumulate_and_reset_wait_time(*timer.current);
-
-    max_full = std::max(max_full, ws.buckets_max_full<LEVEL,shorthint_t>());
-    ASSERT_ALWAYS(max_full <= 1.0);
   }
-
-#if 0
-  /* We've filled buckets at level LEVEL: both downsorted updates from
-   * upper level as well as updates that must be processed here. Time to
-   * report */
-  ws.diagnosis(LEVEL, {si.sides[0].fbs, si.sides[1].fbs});
-#endif
 
   /* RECURSE */
   if (LEVEL > 1) {
-    for (unsigned int i = 0; i < si.nb_buckets[LEVEL]; ++i) {
-      size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
-      uint32_t N = first_region0_index + i*(BRS[LEVEL]/BRS[1]);
-      downsort_tree<LEVEL-1>(timer, i, N, ws, pool, si, precomp_plattice);
-    }
+      for (unsigned int i = 0; i < si.nb_buckets[LEVEL]; ++i) {
+          size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+          uint32_t N = first_region0_index + i*(BRS[LEVEL]/BRS[1]);
+          downsort_tree<LEVEL-1>(timer, i, N, ws, pool, si, precomp_plattice);
+      }
   } else {
-    /* PROCESS THE REGIONS AT LEVEL 0 */
-    for (int i = 0; i < ws.thrs[0].plas->nb_threads; ++i) {
-      ws.thrs[i].first_region0_index = first_region0_index;
-    }
-    ws.thread_do_using_pool(pool, &process_bucket_region);
+      pool.drain_queue(0);
+      /* Now fill_in_buckets is completed for all levels. Time to check
+       * that we had no overflow, and move on to process_bucket_region.
+       */
+
+      ws.check_buckets_max_full();
+
+#if 0
+      /* It may make sense to print a diagnosis of the fill ratio of the
+       * different buckets. It's quite verbose, though */
+      ws.diagnosis(LEVEL, {si.sides[0].fbs, si.sides[1].fbs});
+#endif
+      auto exc = pool.get_exceptions<buckets_are_full>(0);
+      if (!exc.empty()) {
+          throw *std::max_element(exc.begin(), exc.end());
+      }
+
+      /* PROCESS THE REGIONS AT LEVEL 0 */
+      for (int i = 0; i < ws.thrs[0].plas->nb_threads; ++i) {
+          ws.thrs[i].first_region0_index = first_region0_index;
+      }
+      ws.thread_do_using_pool(pool, &process_bucket_region);
   }
   pool.accumulate_and_clear_active_time(*timer.current);
   SIBLING_TIMER(timer, "worker thread wait time");
