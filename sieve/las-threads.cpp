@@ -273,10 +273,10 @@ reservation_group::cget() const
 
 
 
-thread_workspaces::thread_workspaces(const size_t nb_threads,
+thread_workspaces::thread_workspaces(const size_t n,
   const unsigned int _nr_sides, las_info & las)
-  : nb_threads(nb_threads),
-    nr_workspaces(nb_threads + (nb_threads > 1)),
+  : nb_threads(n),
+    nr_workspaces(n + n - 1),
     groups { nr_workspaces, nr_workspaces }
 {
     /* Well, groups is an array of side 2 anyway... */
