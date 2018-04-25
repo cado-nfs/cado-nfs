@@ -2931,8 +2931,10 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
 
         workspaces.thrs[0].rep->ttbuckets_fill += seconds();
 
+        /*
         if (time_bubble_chaser::enable)
             workspaces.diagnosis(si.toplevel, {si.sides[0].fbs, si.sides[1].fbs});
+            */
 
         // this timing slot is insignificant, let's put it with the
         // bookkeeping crop
