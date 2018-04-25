@@ -1109,7 +1109,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     slice_index_t s = 0;
     for (int i = 1; i < FB_MAX_PARTS; i++) {
         parts[i].first_slice_index = s;
-        double max_slice_weight = D.weight[i] / 4 / K.nr_workspaces;
+        double max_slice_weight = D.weight[i] / 4 / K.nb_threads;
         helper_functor_subdivide_slices SUB { parts[i], fb.side, i, K, local_thresholds, max_slice_weight, s };
         multityped_array_foreach(SUB, fb.entries);
         s += parts[i].nslices();

@@ -167,17 +167,24 @@ public:
   }
 };
 
+/* We have here nb_threads objects of type thread_data in the thrs[]
+ * object, and nb_threads+1 (or 1 if nb_threads==1 anyway)
+ * reservation_arrays in each data member of the two reservation_groups
+ * in the groups[] data member. This +1 is here to allow work to spread
+ * somewhat more evenly.
+ */
 class thread_workspaces : private NonCopyable {
+  const size_t nb_threads;
   const size_t nr_workspaces;
   sieve_info * psi;
-  const unsigned int nr_sides; /* Usually 2 */
+  static const unsigned int nr_sides = 2;
   reservation_group groups[2]; /* one per side */
 
 public:
   // FIXME: thrs should be private!
   thread_data *thrs;
 
-  thread_workspaces(size_t nr_workspaces, unsigned int nr_sides, las_info& _las);
+  thread_workspaces(size_t nb_threads, unsigned int nr_sides, las_info& _las);
   ~thread_workspaces();
   void pickup_si(sieve_info& si);
   void thread_do_using_pool(thread_pool&, void * (*) (timetree_t&, thread_data *));

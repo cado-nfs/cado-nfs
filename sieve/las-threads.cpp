@@ -274,17 +274,19 @@ reservation_group::cget() const
 
 
 
-thread_workspaces::thread_workspaces(const size_t _nr_workspaces,
+thread_workspaces::thread_workspaces(const size_t nb_threads,
   const unsigned int _nr_sides, las_info & las)
-  : nr_workspaces(_nr_workspaces), nr_sides(_nr_sides), groups { _nr_workspaces, _nr_workspaces }
+  : nb_threads(nb_threads),
+    nr_workspaces(nb_threads + (nb_threads > 1)),
+    groups { nr_workspaces, nr_workspaces }
 {
     /* Well, groups is an array of side 2 anyway... */
     ASSERT_ALWAYS(_nr_sides == 2);
 
-    thrs = new thread_data[_nr_workspaces];
+    thrs = new thread_data[nb_threads];
     ASSERT_ALWAYS(thrs != NULL);
 
-    for(size_t i = 0 ; i < nr_workspaces; i++) {
+    for(size_t i = 0 ; i < nb_threads; i++) {
         thrs[i].init(*this, i, las);
     }
 }
@@ -302,7 +304,7 @@ thread_workspaces::pickup_si(sieve_info & _si)
 {
     psi = & _si;
     sieve_info & si(*psi);
-    for (size_t i = 0; i < nr_workspaces; ++i) {
+    for (size_t i = 0; i < nb_threads; ++i) {
         thrs[i].pickup_si(_si);
     }
     /* Always allocate the max number of buckets (i.e., as if we were using the
@@ -311,20 +313,6 @@ thread_workspaces::pickup_si(sieve_info & _si)
     /* Take some margin depending on parameters */
     /* Multithreading perturbates the fill-in ratio */
     bkmult_specifier const & multiplier = * si.bk_multiplier;
-#if 0
-    bkmult_specifier multiplier = si.conf.bk_multiplier;
-    if (multiplier == 0.0) {
-        multiplier = 1.1 + double(nr_workspaces)/20.0;
-        /* Using bkthresh1 as well... */
-        if (si.conf.bucket_thresh1 != 0) {
-            double rat =
-                double(si.conf.bucket_thresh1- si.conf.bucket_thresh) /
-                double(MAX(si.conf.sides[0].lim, si.conf.sides[1].lim) - 
-                        si.conf.bucket_thresh);
-            multiplier *= 1.0 + rat*1.0;
-        }
-    }
-#endif
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             multiplier.print_all().c_str());
     for (unsigned int i_side = 0; i_side < nr_sides; i_side++) {
@@ -346,61 +334,21 @@ task_result * thread_do_task_wrapper(const worker_thread * worker, const task_pa
 void
 thread_workspaces::thread_do_using_pool(thread_pool &pool, void * (*f)(timetree_t&, thread_data *))
 {
-    thread_data_task_wrapper * ths = new thread_data_task_wrapper[nr_workspaces];
-    for (size_t i = 0; i < nr_workspaces; ++i) {
+    thread_data_task_wrapper * ths = new thread_data_task_wrapper[nb_threads];
+    for (size_t i = 0; i < nb_threads; ++i) {
         ths[i].th = &thrs[i];
         ths[i].f = f;
     }
 
-    for (size_t i = 0; i < nr_workspaces; ++i) {
+    for (size_t i = 0; i < nb_threads; ++i) {
         pool.add_task(thread_do_task_wrapper, &ths[i], i);
     }
-    for (size_t i = 0; i < nr_workspaces; ++i) {
+    for (size_t i = 0; i < nb_threads; ++i) {
         task_result *result = pool.get_result();
         delete result;
-        // verbose_output_print(0, 1, "# thread_do task %zu/%zu completed\n", i, nr_workspaces);
     }
     delete[] ths;
 }
-
-#if 0
-/* now unused */
-void
-thread_workspaces::thread_do(void * (*f) (thread_data *))
-{
-    if (nr_workspaces == 1) {
-        /* Then don't bother with pthread calls */
-        (*f)(&thrs[0]);
-        return;
-    }
-    pthread_t * th = (pthread_t *) malloc(nr_workspaces * sizeof(pthread_t)); 
-    ASSERT_ALWAYS(th);
-
-#if 0
-    /* As a debug measure, it's possible to activate this branch instead
-     * of the latter. In effect, this causes las to run in a
-     * non-multithreaded way, albeit strictly following the code path of
-     * the multithreaded case.
-     */
-    for (size_t i = 0; i < nr_workspaces; ++i) {
-        (*f)(&thrs[i]);
-    }
-#else
-    for (size_t i = 0; i < nr_workspaces; ++i) {
-        int ret = pthread_create(&(th[i]), NULL, 
-		(void * (*)(void *)) f,
-                (void *)(&thrs[i]));
-        ASSERT_ALWAYS(ret == 0);
-    }
-    for (size_t i = 0; i < nr_workspaces; ++i) {
-        int ret = pthread_join(th[i], NULL);
-        ASSERT_ALWAYS(ret == 0);
-    }
-#endif
-
-    free(th);
-}
-#endif
 
 template <int LEVEL, typename HINT>
 double
@@ -436,7 +384,7 @@ template double thread_workspaces::buckets_max_full<2, longhint_t>();
 void
 thread_workspaces::accumulate_and_clear(las_report_ptr rep, sieve_checksum *checksum)
 {
-    for (size_t i = 0; i < nr_workspaces; ++i) {
+    for (size_t i = 0; i < nb_threads; ++i) {
         las_report_accumulate_and_clear(rep, thrs[i].rep);
         for (unsigned int side = 0; side < nr_sides; side++)
             checksum[side].update(thrs[i].sides[side].checksum_post_sieve);

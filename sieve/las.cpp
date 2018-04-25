@@ -2170,14 +2170,14 @@ void las_report_display_counters(las_report_ptr rep)
  */
 void las_report_accumulate_threads_and_display(las_info & las,
         sieve_info & si, las_report_ptr report,
-        thread_workspaces *ws, double qt0)
+        thread_workspaces &ws, double qt0)
 {
     /* Display results for this special q */
     las_report rep;
     las_report_init(rep);
     sieve_checksum checksum_post_sieve[2];
     
-    ws->accumulate_and_clear(rep, checksum_post_sieve);
+    ws.accumulate_and_clear(rep, checksum_post_sieve);
 
     las_report_display_counters(rep);
     verbose_output_print(0, 2, "# Checksums over sieve region: after all sieving: %u, %u\n", checksum_post_sieve[0].get_checksum(), checksum_post_sieve[1].get_checksum());
@@ -2588,12 +2588,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         verbose_output_print(0, 1, "# Done creating cached siever configurations\n");
     }
 
-    /* We allocate one more workspace per kind of bucket than there are
-       threads, so that threads have some freedom in avoiding the fullest
-       bucket array. With only one thread, no balancing needs to be done,
-       so we use only one bucket array. */
-    const size_t nr_workspaces = las.nb_threads + ((las.nb_threads > 1)?1:0);
-    thread_workspaces *workspaces = new thread_workspaces(nr_workspaces, 2, las);
+    thread_workspaces workspaces(las.nb_threads, 2, las);
 
     if (las.batch) {
         ASSERT_ALWAYS(las.config_pool.default_config_ptr);
@@ -2832,7 +2827,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         /* This function should really be renamed ! It embodies, in
          * particular, the creation of the different slices in the factor
          * base. */
-        si.update(nr_workspaces);
+        si.update(las.nb_threads);
 
 
         try {
@@ -2917,27 +2912,27 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
 
 
         /* TODO why this second call to sieve_info::update ?? */
-        si.update(nr_workspaces);
+        si.update(las.nb_threads);
 
-        workspaces->thrs[0].rep->ttbuckets_fill -= seconds();
+        workspaces.thrs[0].rep->ttbuckets_fill -= seconds();
 
         /* Allocate buckets */
-        workspaces->pickup_si(si);
+        workspaces.pickup_si(si);
 
         for(int side = 0 ; side < 2 ; side++) {
             /* This uses the thread pool, and stores the time spent under
              * timer_special_q (with wait time stored separately */
             if (!si.sides[side].fb) continue;
-            fill_in_buckets(timer_special_q, *pool, *workspaces, si, side);
+            fill_in_buckets(timer_special_q, *pool, workspaces, si, side);
         }
 
         // useless
         // pool->accumulate_and_clear_active_time(*timer_special_q.current);
 
-        workspaces->thrs[0].rep->ttbuckets_fill += seconds();
+        workspaces.thrs[0].rep->ttbuckets_fill += seconds();
 
         if (time_bubble_chaser::enable)
-            workspaces->diagnosis(si.toplevel, {si.sides[0].fbs, si.sides[1].fbs});
+            workspaces.diagnosis(si.toplevel, {si.sides[0].fbs, si.sides[1].fbs});
 
         // this timing slot is insignificant, let's put it with the
         // bookkeeping crop
@@ -2961,7 +2956,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             // Initialize small sieve data at the first region of level 0
             // TODO: multithread this? Probably useless...
             for (int i = 0; i < las.nb_threads; ++i) {
-                thread_data * th = &workspaces->thrs[i];
+                thread_data * th = &workspaces.thrs[i];
                 sieve_info::side_info & s(si.sides[side]);
                 thread_side_data & ts = th->sides[side];
 
@@ -2979,7 +2974,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             TIMER_CATEGORY(timer_special_q, bookkeeping());
 
             /* Process bucket regions in parallel */
-            workspaces->thread_do_using_pool(*pool, &process_bucket_region);
+            workspaces.thread_do_using_pool(*pool, &process_bucket_region);
 
             /* In a way, this timer handling should go to
              * thread_do_using_pool, I believe */
@@ -3036,11 +3031,11 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
                 switch (si.toplevel) {
                     case 2:
                         downsort_tree<1>(timer_special_q, i, i*BRS[2]/BRS[1],
-                                *workspaces, *pool, si, precomp_plattice);
+                                workspaces, *pool, si, precomp_plattice);
                         break;
                     case 3:
                         downsort_tree<2>(timer_special_q, i, i*BRS[3]/BRS[1],
-                                *workspaces, *pool, si, precomp_plattice);
+                                workspaces, *pool, si, precomp_plattice);
                         break;
                     default:
                         ASSERT_ALWAYS(0);
@@ -3377,9 +3372,6 @@ if (si.conf.sublat.m) {
     /*}}}*/
 
     las.print_cof_stats();
-
-    //
-    delete workspaces;
 
     las_report_clear(report);
 

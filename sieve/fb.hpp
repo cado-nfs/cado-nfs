@@ -385,7 +385,7 @@ class fb_factorbase {
              * the size of the slices, because we want to enforce some
              * relatively-even division. It's not entirely clear that we
              * want it here, but we definitely want it somewhere. */
-            unsigned int nr_workspaces;
+            unsigned int nb_threads;
 
             bool operator<(key_type const& x) const {
                 int r;

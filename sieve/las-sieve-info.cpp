@@ -83,7 +83,7 @@ void sieve_info::update_norm_data ()/*{{{*/
 }
 
 /*}}}*/
-void sieve_info::update (unsigned int nr_workspaces)
+void sieve_info::update (unsigned int nb_threads)
 {
     uint64_t A = UINT64_C(1) << conf.logA;
 
@@ -107,7 +107,7 @@ void sieve_info::update (unsigned int nr_workspaces)
          * place, and has now moved to inside the make_slices call. It is
          * inherently tied to the count of the entries in each part.
          */
-        K.nr_workspaces = nr_workspaces;
+        K.nb_threads = nb_threads;
 
         sis.fbK = K;
         sis.fbs = &(*sis.fb)[K];
