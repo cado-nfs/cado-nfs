@@ -9,16 +9,8 @@
 #include <errno.h>
 
 #include "macros.h"
+#include "utils_cxx.hpp"
 #include "tdict.hpp"
-
-class ThreadNonCopyable {
- protected:
-   ThreadNonCopyable() {}
-   ~ThreadNonCopyable() {}
- private:
-   ThreadNonCopyable(const ThreadNonCopyable&);
-   ThreadNonCopyable& operator=(const ThreadNonCopyable&);
-};
 
 #if 0
 /* Verbosely log all mutex and condition variable operations */
@@ -109,12 +101,16 @@ class thread_pool;
 
 typedef task_result *(*task_function_t)(const worker_thread * worker, const task_parameters *);
 
-class worker_thread : private ThreadNonCopyable {
+class worker_thread {
   friend class thread_pool;
   thread_pool &pool;
   pthread_t thread;
   const size_t preferred_queue;
+   worker_thread(worker_thread const &) = delete;
+   worker_thread& operator=(worker_thread const &) = delete;
 public:
+   worker_thread(worker_thread&&) = default;
+   worker_thread& operator=(worker_thread&&) = default;
   mutable timetree_t timer;
   int rank() const;
   worker_thread(thread_pool &, size_t);
@@ -123,15 +119,13 @@ public:
 };
 
 
-class thread_pool : private monitor, private ThreadNonCopyable {
+class thread_pool : private monitor, private NonCopyable {
   friend class worker_thread;
 
-  worker_thread * threads;
-  tasks_queue *tasks;
-  results_queue *results;
-  exceptions_queue * exceptions;
-
-  const size_t nr_threads, nr_queues;
+  std::vector<worker_thread> threads;
+  std::vector<tasks_queue> tasks;
+  std::vector<results_queue> results;
+  std::vector<exceptions_queue> exceptions;
 
   bool kill_threads; /* If true, hands out kill tasks once work queues are empty */
 
@@ -142,7 +136,7 @@ class thread_pool : private monitor, private ThreadNonCopyable {
   bool all_task_queues_empty() const;
 public:
   void push_chart_item(int rank, time_bubble_chaser const & tt) { threads[rank].timer.chart.push_back(tt); }
-  void clear_time_charts() { for(size_t i = 0 ; i < nr_threads ; ++i) threads[i].timer.chart.clear(); }
+  void clear_time_charts() { for(auto & T : threads) T.timer.chart.clear(); }
   void display_time_charts() const;
   thread_pool(size_t _nr_threads, size_t nr_queues = 1);
   ~thread_pool();

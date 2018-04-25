@@ -69,6 +69,12 @@ struct thread_data_task_wrapper : public task_parameters {
 
 template <typename T>
 class reservation_array : public buckets_are_full::callback_base, private monitor {
+    /* typically, T is here bucket_array<LEVEL, HINT>. It's a
+     * non-copy-able object. Yet, it's legit to use std::vectors's on
+     * such objects in c++11, provided that we limit ourselves to the
+     * right constructor, and compiled code never uses allocation
+     * changing modifiers.
+     */
     std::vector<T> BAs;
     std::vector<bool> in_use;
   condition_variable cv;
@@ -82,10 +88,7 @@ class reservation_array : public buckets_are_full::callback_base, private monito
 public:
   typedef typename T::update_t update_t;
   reservation_array(reservation_array &&) = default;
-  reservation_array(size_t n)
-    : BAs(n), in_use(n, false)
-  {
-  }
+  reservation_array(size_t n) : BAs(n), in_use(n, false) { }
 
   /* Allocate enough memory to be able to store at least n_bucket buckets,
      each of size at least fill_ratio * bucket region size. */
@@ -96,10 +99,7 @@ public:
   std::vector<T> const& bucket_arrays() const { return BAs; }
   inline int rank(T const & BA) const { return &BA - &BAs.front(); }
 
-  void reset_all_pointers() {
-      for(auto & A : BAs)
-          A.reset_pointers();
-  }
+  void reset_all_pointers() { for(auto & A : BAs) A.reset_pointers(); }
 
   T &reserve(int);
   void release(T &BA);

@@ -1237,3 +1237,4 @@ tests/sqrt/Makefile
 tests/utils/Makefile
 chart.tex
 output_to_tikz_timechart.pl
+utils/utils_cxx.hpp

@@ -42,7 +42,7 @@ worker_thread::~worker_thread() {
   ASSERT_ALWAYS(rc == 0);
 }
 
-int worker_thread::rank() const { return this - pool.threads; }
+int worker_thread::rank() const { return this - &pool.threads.front(); }
 
 class thread_task {
 public:
@@ -76,57 +76,43 @@ public:
   }
 };
 
-class tasks_queue : public std::priority_queue<thread_task *, std::vector<thread_task *>, thread_task_cmp>, private ThreadNonCopyable {
+class tasks_queue : public std::priority_queue<thread_task *, std::vector<thread_task *>, thread_task_cmp>, private NonCopyable {
   public:
   condition_variable not_empty;
   size_t nr_threads_waiting;
   tasks_queue() : nr_threads_waiting(0){};
 };
 
-class results_queue : public std::queue<task_result *>, private ThreadNonCopyable {
+class results_queue : public std::queue<task_result *>, private NonCopyable {
   public:
   condition_variable not_empty;
 };
 
-class exceptions_queue : public std::queue<clonable_exception *>, private ThreadNonCopyable {
+class exceptions_queue : public std::queue<clonable_exception *>, private NonCopyable {
   public:
   condition_variable not_empty;
 };
 
 
-thread_pool::thread_pool(const size_t _nr_threads, const size_t _nr_queues)
-  : nr_threads(_nr_threads), nr_queues(_nr_queues), kill_threads(false)
+thread_pool::thread_pool(const size_t nr_threads, const size_t nr_queues)
+  :
+      tasks(nr_queues), results(nr_queues), exceptions(nr_queues),
+      kill_threads(false)
 {
-  /* Threads start accessing the queues as soon as they run */
-  tasks = new tasks_queue[nr_queues];
-  results = new results_queue[nr_queues];
-  exceptions = new exceptions_queue[nr_queues];
-
-  threads = reinterpret_cast<worker_thread *>(malloc(nr_threads * sizeof(worker_thread)));
-  for (size_t i = 0; i < nr_threads; i++)
-    new (threads + i) worker_thread(*this, 0);
+    /* Threads start accessing the queues as soon as they run */
+    threads.reserve(nr_threads);
+    for (size_t i = 0; i < nr_threads; i++)
+        threads.emplace_back(*this, 0);
 };
 
 thread_pool::~thread_pool() {
   enter();
   kill_threads = true;
-  /* Wakey wakey, time to die */
-  for (size_t i = 0; i < nr_queues; i++)
-    broadcast(tasks[i].not_empty);
+  for (auto & T : tasks) broadcast(T.not_empty); /* Wakey wakey, time to die */
   leave();
-  for (size_t i = 0; i < nr_threads; i++) {
-      threads[i].~worker_thread();
-  }
-  free(reinterpret_cast<void*>(threads));
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(tasks[i].empty());
-  delete[] tasks;
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(results[i].empty());
-  delete[] results;
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(exceptions[i].empty());
-  delete[] exceptions;
+  for (auto const & T : tasks) ASSERT_ALWAYS(T.empty());
+  for (auto const & R : results) ASSERT_ALWAYS(R.empty());
+  for (auto const & E : exceptions) ASSERT_ALWAYS(E.empty());
 }
 
 void *
@@ -159,10 +145,9 @@ thread_pool::thread_work_on_tasks(void *arg)
 bool
 thread_pool::all_task_queues_empty() const
 {
-  bool empty = true;
-  for (size_t i = 0; i < nr_queues; i++)
-    empty = empty && tasks[i].empty();
-  return empty;
+  for (auto const & T : tasks)
+    if (!T.empty()) return false;
+  return true;
 }
 
 
@@ -170,7 +155,7 @@ void
 thread_pool::add_task(task_function_t func, const task_parameters * params,
                       const int id, const size_t queue, double cost)
 {
-    ASSERT_ALWAYS(queue < nr_queues);
+    ASSERT_ALWAYS(queue < tasks.size());
     enter();
     ASSERT_ALWAYS(!kill_threads);
     tasks[queue].push(new thread_task(func, id, params, queue, cost));
@@ -178,10 +163,10 @@ thread_pool::add_task(task_function_t func, const task_parameters * params,
     /* Find a queue with waiting threads, starting with "queue" */
     size_t i = queue;
     if (tasks[i].nr_threads_waiting == 0) {
-      for (i = 0; i < nr_queues && tasks[i].nr_threads_waiting == 0; i++) {}
+      for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
     }
     /* If any queue with waiting threads was found, wake up one of them */
-    if (i < nr_queues)
+    if (i < tasks.size())
       signal(tasks[i].not_empty);
     leave();
 }
@@ -206,11 +191,11 @@ thread_pool::get_task(const size_t preferred_queue)
     /* Find a non-empty task queue, starting with the preferred one */
     size_t i = preferred_queue;
     if (tasks[i].empty()) {
-      for (i = 0; i < nr_queues && tasks[i].empty(); i++) {}
+      for (i = 0; i < tasks.size() && tasks[i].empty(); i++) {}
     }
     /* There must have been a non-empty queue or we'd still be in the while()
        loop above */
-    ASSERT_ALWAYS(i < nr_queues);
+    ASSERT_ALWAYS(i < tasks.size());
     task = tasks[i].top();
     tasks[i].pop();
   }
@@ -220,7 +205,7 @@ thread_pool::get_task(const size_t preferred_queue)
 
 void
 thread_pool::add_result(const size_t queue, task_result *const result) {
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT_ALWAYS(queue < results.size());
   enter();
   results[queue].push(result);
   signal(results[queue].not_empty);
@@ -229,7 +214,7 @@ thread_pool::add_result(const size_t queue, task_result *const result) {
 
 void
 thread_pool::add_exception(const size_t queue, clonable_exception * e) {
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT_ALWAYS(queue < results.size());
   enter();
   exceptions[queue].push(e);
   // do we use it ?
@@ -242,7 +227,7 @@ thread_pool::add_exception(const size_t queue, clonable_exception * e) {
 task_result *
 thread_pool::get_result(const size_t queue, const bool blocking) {
   task_result *result;
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT_ALWAYS(queue < results.size());
   enter();
   if (!blocking and results[queue].empty()) {
     result = NULL;
@@ -263,7 +248,7 @@ thread_pool::get_result(const size_t queue, const bool blocking) {
  */
 clonable_exception * thread_pool::get_exception(const size_t queue) {
     clonable_exception * e;
-    ASSERT_ALWAYS(queue < nr_queues);
+    ASSERT_ALWAYS(queue < exceptions.size());
     enter();
     if (exceptions[queue].empty()) {
         e = NULL;
@@ -276,7 +261,7 @@ clonable_exception * thread_pool::get_exception(const size_t queue) {
 }
 
 void thread_pool::accumulate_and_clear_active_time(timetree_t::super & rep) {
-    for (size_t i = 0; i < nr_threads; ++i) {
+    for (auto & T : threads) {
         /* timers may be running when they're tied to a subthread which
          * is currently doing a pthread_cond_wait or such. So in that
          * case, we want it to continue keeping track on its cpu busy
@@ -291,13 +276,13 @@ void thread_pool::accumulate_and_clear_active_time(timetree_t::super & rep) {
          * distinguishing capacity based along these lines, so that the
          * logic here could me moved there.
          */
-        if (threads[i].timer.running()) {
-            ASSERT_ALWAYS(&threads[i].timer == threads[i].timer.current);
-            rep.steal_children_timings(threads[i].timer);
+        if (T.timer.running()) {
+            ASSERT_ALWAYS(&T.timer == T.timer.current);
+            rep.steal_children_timings(T.timer);
         } else {
             // ASSERT_ALWAYS(0);
-            rep += threads[i].timer;
-            threads[i].timer = timetree_t ();
+            rep += T.timer;
+            T.timer = timetree_t ();
         }
     }
 }
@@ -326,11 +311,11 @@ void thread_pool::accumulate_and_reset_wait_time(timetree_t::super & rep) {
      * and reach this code. In effect, we want the callee function to
      * embody a barrier_wait
      */
-    everybody_must_do_that E(nr_threads);
-    for(unsigned int i = 0 ; i < nr_threads ; i++) {
+    everybody_must_do_that E(threads.size());
+    for(unsigned int i = 0 ; i < threads.size() ; i++) {
         add_task(everybody_must_do_that_task, &E, 0);
     }
-    for(unsigned int i = 0 ; i < nr_threads ; i++) {
+    for(unsigned int i = 0 ; i < threads.size() ; i++) {
         everybody_must_do_that_result * res = dynamic_cast<everybody_must_do_that_result*>(get_result());
         rep.self += res->v;
         delete res;
@@ -338,6 +323,7 @@ void thread_pool::accumulate_and_reset_wait_time(timetree_t::super & rep) {
 }
 
 void thread_pool::display_time_charts() const {
-    verbose_output_print (0, 2, "# displaying time chart for %zu threads\n", nr_threads);
-    for(size_t i = 0 ; i < nr_threads ; ++i) threads[i].timer.display_chart(); }
+    verbose_output_print (0, 2, "# displaying time chart for %zu threads\n", threads.size());
+    for(auto & T : threads) T.timer.display_chart();
+}
 

@@ -1240,7 +1240,7 @@ downsort_tree(
          */
         int pushed=0;
         for(auto const & B : ws.bucket_arrays<LEVEL+1,shorthint_t>(side)) {
-            int c = &B - &ws.bucket_arrays<LEVEL+1,shorthint_t>(side).front();
+            int c = ws.rank_BA(side, B);
             auto D = new downsort_parameters<LEVEL, shorthint_t> { side, bucket_index, c, w, ws, B};
             pool.add_task(downsort_wrapper<LEVEL, shorthint_t>, D, 0);
             pushed++;
@@ -1248,7 +1248,7 @@ downsort_tree(
         if (LEVEL < si.toplevel - 1) {
             // What comes from already downsorted data above:
             for(auto const & B : ws.bucket_arrays<LEVEL+1,longhint_t>(side)) {
-                int c = &B - &ws.bucket_arrays<LEVEL+1,longhint_t>(side).front();
+                int c = ws.rank_BA(side, B);
                 auto D = new downsort_parameters<LEVEL, longhint_t> { side, bucket_index, c, w, ws, B};
                 pool.add_task(downsort_wrapper<LEVEL, longhint_t>, D, 0);
             pushed++;
@@ -1259,7 +1259,6 @@ downsort_tree(
             delete result;
         }
     }
-
 
     max_full = std::max(max_full, ws.buckets_max_full<LEVEL, longhint_t>());
     ASSERT_ALWAYS(max_full <= 1.0);

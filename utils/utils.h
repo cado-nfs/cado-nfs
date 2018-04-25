@@ -43,6 +43,7 @@
 #include "rho.h"
 #include "version_info.h"
 #ifdef __cplusplus
+#include "utils_cxx.hpp"
 #include "cxx_mpz.hpp"
 #include "gmpxx.hpp"
 #include "cxx_misc.hpp"
