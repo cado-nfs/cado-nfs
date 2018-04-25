@@ -175,12 +175,16 @@ template class reservation_array<bucket_array_t<2, longhint_t> >;
  * will fill these bucket arrays by downsosrting. Older code had that
  * downsorting single-threaded.
  */
-reservation_group::reservation_group(int nr_bucket_arrays, int nb_downsort_threads)
+reservation_group::reservation_group(int nr_bucket_arrays, int)
   : RA1_short(nr_bucket_arrays),
     RA2_short(nr_bucket_arrays),
     RA3_short(nr_bucket_arrays),
-    RA1_long(nb_downsort_threads),
-    RA2_long(nb_downsort_threads)
+    /* currently the parallel downsort imposes restrictions on the number
+     * of bucket arrays we must have here and there. In particular #2s ==
+     * #1l.
+     */
+    RA1_long(nr_bucket_arrays),
+    RA2_long(nr_bucket_arrays)
 {
 }
 
@@ -285,7 +289,7 @@ reservation_group::cget() const
 
 thread_workspaces::thread_workspaces(int n, int _nr_sides, las_info & las)
   : nb_threads(n),
-    nr_workspaces(n),
+    nr_workspaces(n + 2),
     groups { {nr_workspaces, nb_threads}, {nr_workspaces, nb_threads} }
 {
     /* Well, groups is an array of side 2 anyway... */

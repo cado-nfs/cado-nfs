@@ -160,12 +160,14 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(const uint32_t new_n_bucket,
     if (big_data != NULL)
       physical_free (big_data, big_size);
     if (bitmask_line_ordinate) {
-        verbose_output_print(0, 3, "# Allocating %zu bytes for %" PRIu32 " buckets of %zu to %zu update entries of %zu bytes each\n",
+        verbose_output_print(0, 3, "# [%d%c] Allocating %zu bytes for %" PRIu32 " buckets of %zu to %zu update entries of %zu bytes each\n",
+                             LEVEL, HINT::rtti[0],
                              new_big_size, new_n_bucket,
                              bs_even, bs_odd,
                              sizeof(update_t));
     } else {
-        verbose_output_print(0, 3, "# Allocating %zu bytes for %" PRIu32 " buckets of %zu update entries of %zu bytes each\n",
+        verbose_output_print(0, 3, "# [%d%c] Allocating %zu bytes for %" PRIu32 " buckets of %zu update entries of %zu bytes each\n",
+                             LEVEL, HINT::rtti[0],
                              new_big_size, new_n_bucket, 
                              bs_even,
                              sizeof(update_t));
@@ -211,7 +213,14 @@ void
 bucket_array_t<LEVEL, HINT>::realloc_slice_start(const size_t extra_space)
 {
   const size_t new_alloc_slices = alloc_slices + extra_space;
-  verbose_output_print(0, 3, "# Reallocating BA->slice_start from %zu entries to %zu entries\n",
+  /* I pretty much doubt that this message is _ever_ useful. At the very
+   * least, reallocating from 0 to something shouldn't trigger loud
+   * output. And I'm not sure there's a situation where alloc_slices >
+   * 0...
+   */
+  if (alloc_slices)
+  verbose_output_print(0, 3, "# [%d%c] Reallocating BA->slice_start from %zu entries to %zu entries\n",
+                       LEVEL, HINT::rtti[0],
                        alloc_slices, new_alloc_slices);
 
   const size_t old_size = size_b_align * alloc_slices;

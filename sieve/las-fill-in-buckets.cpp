@@ -805,7 +805,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
          * could imagine that it could throw, so let's wrap it too.
          */
         bucket_array_t<LEVEL, shorthint_t> &BA =
-            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
+            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
 
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
@@ -876,7 +876,7 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
 
     try {
         /* Get an unused bucket array that we can write to */
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
+        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
 
         ASSERT(param->slice);
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
@@ -920,7 +920,7 @@ fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSE
     WHERE_AM_I_UPDATE(w, N, 0);
 
     try {
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, worker->rank());
+        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
                 param->side,
@@ -1229,6 +1229,11 @@ downsort_tree(
     // above is finished before entering here.
     
     {
+        size_t n2s = ws.cend_BA<LEVEL+1,shorthint_t>(side) - ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+        size_t n1l = ws.cend_BA<LEVEL,longhint_t>(side) - ws.cbegin_BA<LEVEL,longhint_t>(side);
+        /* otherwise the code here can't work */
+        ASSERT_ALWAYS(n2s == n1l);
+
         /* We create one output array for each input array, and we
          * process them in parallel. There would be various ways to
          * achieve that.
