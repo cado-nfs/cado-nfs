@@ -331,7 +331,7 @@ struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base
 
 template <class FB_ENTRY_TYPE>
 task_result *
-make_lattice_bases(const worker_thread * worker MAYBE_UNUSED,
+make_lattice_bases(const worker_thread * worker,
         const task_parameters * _param)
 {
     const make_lattice_bases_parameters<FB_ENTRY_TYPE> *param = static_cast<const make_lattice_bases_parameters<FB_ENTRY_TYPE> *>(_param);
@@ -771,6 +771,7 @@ PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal, "");
 // PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice, "");
 PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_side, "");
 PREPARE_TEMPLATE_INST_NAMES(downsort_tree, "");
+PREPARE_TEMPLATE_INST_NAMES(downsort_wrapper, "");
 
 #define TEMPLATE_INST_NAME(x,y) CADO_CONCATENATE(x, _name)<y>::value
 #else
@@ -794,7 +795,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
     where_am_I w;
     WHERE_AM_I_UPDATE(w, psi, & param->si);
     WHERE_AM_I_UPDATE(w, side, param->side);
-    WHERE_AM_I_UPDATE(w, i, param->plattices_vector.get_index());
+    WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
     WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
 
     try {
@@ -1121,6 +1122,74 @@ void fill_in_buckets(timetree_t& timer, thread_pool &pool, thread_workspaces &ws
 /* }}} */
 
 
+/* multithreaded implementation of the downsort procedure. It becomes a
+ * bottleneck sooner than one might think.
+ *
+ */
+
+template<int LEVEL, typename HINT_TYPE>
+struct downsort_parameters : public task_parameters {
+    int side;
+    uint32_t bucket_index;
+    int drank;
+    where_am_I &w;
+    thread_workspaces &ws;
+    bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin;
+
+    downsort_parameters(int side, 
+        uint32_t bucket_index,
+        int drank,
+        where_am_I &w,
+        thread_workspaces &ws,
+        bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin)
+    : side(side),
+        bucket_index(bucket_index),
+        drank(drank),
+        w(w),
+        ws(ws),
+        BAin(BAin)
+    {}
+
+};
+
+template<int LEVEL, typename HINT_TYPE>
+task_result * downsort_wrapper(const worker_thread * worker,
+        const task_parameters * _param)
+{
+    CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(downsort_wrapper, LEVEL));
+    auto param = static_cast<const downsort_parameters<LEVEL, HINT_TYPE> *>(_param);
+
+    int drank = param->drank;
+
+    time_bubble_chaser tt(worker->rank(), time_bubble_chaser::DS, {
+            param->side, LEVEL, (int) param->bucket_index, 0});
+
+    thread_workspaces &ws(param->ws);
+    bucket_array_t<LEVEL, longhint_t> & BAout =
+      ws.reserve_BA<LEVEL, longhint_t>(param->side, drank);
+
+    where_am_I w(param->w);
+    
+    /* We do not need to reset the pointers when we downsort the
+     * longhints from the level above.
+     */
+    if (std::is_same<HINT_TYPE, shorthint_t>::value) {
+        // This is a fake slice_index. For a longhint_t bucket, each update
+        // contains its own slice_index, directly used by apply_one_bucket
+        // and purge.
+        BAout.reset_pointers();
+        BAout.add_slice_index(0);
+    }
+
+    downsort<LEVEL+1>(BAout, param->BAin, param->bucket_index, w);
+
+    param->ws.template release_BA<LEVEL,longhint_t>(param->side, BAout);
+    worker->push_chart_item(tt.put());
+
+    delete param;
+    return new task_result;
+}
+
 // first_region0_index is a way to remember where we are in the tree.
 // The depth-first is a way to process all the the regions of level 0 in
 // increasing order of j-value.
@@ -1159,38 +1228,53 @@ downsort_tree(
     // reading without reserving. We require that things at level
     // above is finished before entering here.
     
-    /* note: we are single-threaded here. Therefore we are bound to get
-     * bucket array number 0 */
-    bucket_array_t<LEVEL, longhint_t> & BAout =
-      ws.reserve_BA<LEVEL, longhint_t>(side, -1);
-    BAout.reset_pointers();
-    // This is a fake slice_index. For a longhint_t bucket, each update
-    // contains its own slice_index, directly used by apply_one_bucket
-    // and purge.
-    time_bubble_chaser tt(0, time_bubble_chaser::DS, { side, LEVEL, 0, 0});
-    BAout.add_slice_index(0);
-    // The data that comes from fill-in bucket at level above:
     {
-      const bucket_array_t<LEVEL+1,shorthint_t> * BAin_ptr
-        = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
-      while (BAin_ptr != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
-        downsort<LEVEL+1>(BAout, *BAin_ptr, bucket_index, w);
-        BAin_ptr++;
-      }
+        /* We create one output array for each input array, and we
+         * process them in parallel. There would be various ways to
+         * achieve that.
+         */
+        const bucket_array_t<LEVEL+1,shorthint_t> * bs;
+        const bucket_array_t<LEVEL+1,longhint_t> * bl;
+        bs = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+        while (bs != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
+            int c = bs - ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+            auto D = new downsort_parameters<LEVEL, shorthint_t> { side, bucket_index, c, w, ws, *bs};
+            pool.add_task(downsort_wrapper<LEVEL, shorthint_t>, D, 0);
+            bs++;
+        }
+        if (LEVEL < si.toplevel - 1) {
+            // What comes from already downsorted data above:
+            bl = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
+            while (bl != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
+                int c = bl - ws.cbegin_BA<LEVEL+1,longhint_t>(side);
+                auto D = new downsort_parameters<LEVEL, longhint_t> { side, bucket_index, c, w, ws, *bl};
+                pool.add_task(downsort_wrapper<LEVEL, longhint_t>, D, 0);
+                bl++;
+            }
+        }
+        bs = ws.cbegin_BA<LEVEL+1,shorthint_t>(side);
+        while (bs != ws.cend_BA<LEVEL+1,shorthint_t>(side)) {
+            task_result *result = pool.get_result();
+            delete result;
+            bs++;
+        }
+        if (LEVEL < si.toplevel - 1) {
+            // What comes from already downsorted data above:
+            bl = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
+            while (bl != ws.cend_BA<LEVEL+1,longhint_t>(side)) {
+                task_result *result = pool.get_result();
+                delete result;
+                bl++;
+            }
+        }
+        /* I'd like to write this instead, someday...
+           for(auto const & B : ws.buckets<LEVEL+1, shorthint_t>()) {
+           downsort_parameters D(side, bucket_index, w, ws, B);
+           pool.add_task(downsort_wrapper<LEVEL>, &D, 0);
+           }
+         */
     }
-    pool.push_chart_item(0, tt.put());
 
-    const int toplevel = si.toplevel;
-    if (LEVEL < toplevel - 1) {
-      // What comes from already downsorted data above:
-      const bucket_array_t<LEVEL+1,longhint_t> * BAin_ptr
-        = ws.cbegin_BA<LEVEL+1,longhint_t>(side);
-      while (BAin_ptr != ws.cend_BA<LEVEL+1,longhint_t>(side)) { 
-        downsort<LEVEL+1>(BAout, *BAin_ptr, bucket_index, w);
-        BAin_ptr++;
-      }
-    }
-    ws.release_BA<LEVEL,longhint_t>(side, BAout);
 
     max_full = std::max(max_full, ws.buckets_max_full<LEVEL, longhint_t>());
     ASSERT_ALWAYS(max_full <= 1.0);

@@ -143,7 +143,7 @@ protected:
   const reservation_array<bucket_array_t<LEVEL, HINT> > &
   cget() const;
 public:
-  reservation_group(size_t nr_bucket_arrays);
+  reservation_group(int nr_bucket_arrays, int nb_downsort_threads);
   void allocate_buckets(const uint32_t *n_bucket,
           bkmult_specifier const& multiplier,
           std::array<double, FB_MAX_PARTS> const &
@@ -174,8 +174,8 @@ public:
  * somewhat more evenly.
  */
 class thread_workspaces : private NonCopyable {
-  const size_t nb_threads;
-  const size_t nr_workspaces;
+  const int nb_threads;
+  const int nr_workspaces;
   sieve_info * psi;
   static const unsigned int nr_sides = 2;
   reservation_group groups[2]; /* one per side */
@@ -184,7 +184,7 @@ public:
   // FIXME: thrs should be private!
   thread_data *thrs;
 
-  thread_workspaces(size_t nb_threads, unsigned int nr_sides, las_info& _las);
+  thread_workspaces(int nb_threads, int nr_sides, las_info& _las);
   ~thread_workspaces();
   void pickup_si(sieve_info& si);
   void thread_do_using_pool(thread_pool&, void * (*) (timetree_t&, thread_data *));

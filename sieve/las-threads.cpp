@@ -167,17 +167,20 @@ template class reservation_array<bucket_array_t<3, shorthint_t> >;
 template class reservation_array<bucket_array_t<1, longhint_t> >;
 template class reservation_array<bucket_array_t<2, longhint_t> >;
 
-/* Reserve the required number of bucket arrays. For shorthint BAs, we need 
-   as many as there are threads filling them (or more, for balancing).
-   For longhint, we need only one each, as those are filled only by
-   downsorting, and all the downsorting of one level n bucket into a level
-   n-1 bucket array is done as a single task, by a single thread. */
-reservation_group::reservation_group(const size_t nr_bucket_arrays)
+/* Reserve the required number of bucket arrays. For shorthint BAs, we
+ * need at least as many as there are threads filling them (or more, for
+ * balancing). This is controlled by the nr_workspaces field in
+ * thread_workspaces.  For longhint, the parallelization scheme is a bit
+ * different, hence we specify directly here the number of threads that
+ * will fill these bucket arrays by downsosrting. Older code had that
+ * downsorting single-threaded.
+ */
+reservation_group::reservation_group(int nr_bucket_arrays, int nb_downsort_threads)
   : RA1_short(nr_bucket_arrays),
     RA2_short(nr_bucket_arrays),
     RA3_short(nr_bucket_arrays),
-    RA1_long(1),
-    RA2_long(1)
+    RA1_long(nb_downsort_threads),
+    RA2_long(nb_downsort_threads)
 {
 }
 
@@ -280,11 +283,10 @@ reservation_group::cget() const
 
 
 
-thread_workspaces::thread_workspaces(const size_t n,
-  const unsigned int _nr_sides, las_info & las)
+thread_workspaces::thread_workspaces(int n, int _nr_sides, las_info & las)
   : nb_threads(n),
     nr_workspaces(n),
-    groups { nr_workspaces, nr_workspaces }
+    groups { {nr_workspaces, nb_threads}, {nr_workspaces, nb_threads} }
 {
     /* Well, groups is an array of side 2 anyway... */
     ASSERT_ALWAYS(_nr_sides == 2);
@@ -292,7 +294,7 @@ thread_workspaces::thread_workspaces(const size_t n,
     thrs = new thread_data[nb_threads];
     ASSERT_ALWAYS(thrs != NULL);
 
-    for(size_t i = 0 ; i < nb_threads; i++) {
+    for(int i = 0 ; i < nb_threads; i++) {
         thrs[i].init(*this, i, las);
     }
 }
@@ -310,7 +312,7 @@ thread_workspaces::pickup_si(sieve_info & _si)
 {
     psi = & _si;
     sieve_info & si(*psi);
-    for (size_t i = 0; i < nb_threads; ++i) {
+    for (int i = 0; i < nb_threads; ++i) {
         thrs[i].pickup_si(_si);
     }
     /* Always allocate the max number of buckets (i.e., as if we were using the
@@ -341,15 +343,15 @@ void
 thread_workspaces::thread_do_using_pool(thread_pool &pool, void * (*f)(timetree_t&, thread_data *))
 {
     thread_data_task_wrapper * ths = new thread_data_task_wrapper[nb_threads];
-    for (size_t i = 0; i < nb_threads; ++i) {
+    for (int i = 0; i < nb_threads; ++i) {
         ths[i].th = &thrs[i];
         ths[i].f = f;
     }
 
-    for (size_t i = 0; i < nb_threads; ++i) {
+    for (int i = 0; i < nb_threads; ++i) {
         pool.add_task(thread_do_task_wrapper, &ths[i], i);
     }
-    for (size_t i = 0; i < nb_threads; ++i) {
+    for (int i = 0; i < nb_threads; ++i) {
         task_result *result = pool.get_result();
         delete result;
     }
@@ -390,7 +392,7 @@ template double thread_workspaces::buckets_max_full<2, longhint_t>();
 void
 thread_workspaces::accumulate_and_clear(las_report_ptr rep, sieve_checksum *checksum)
 {
-    for (size_t i = 0; i < nb_threads; ++i) {
+    for (int i = 0; i < nb_threads; ++i) {
         las_report_accumulate_and_clear(rep, thrs[i].rep);
         for (unsigned int side = 0; side < nr_sides; side++)
             checksum[side].update(thrs[i].sides[side].checksum_post_sieve);
