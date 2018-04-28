@@ -45,7 +45,7 @@ extern "C" {
 void cofac_list_init (cofac_list);
 void cofac_list_realloc (cofac_list, size_t);
 void cofac_list_clear (cofac_list);
-void cofac_list_add (cofac_list, long, unsigned long, mpz_t, mpz_t, int, mpz_t);
+void cofac_list_add (cofac_list, long, unsigned long, mpz_srcptr, mpz_srcptr, int, mpz_srcptr);
 unsigned long prime_product (mpz_t, prime_info, unsigned long, unsigned long);
 unsigned long find_smooth (cofac_list, mpz_t[2], mpz_t[2], mpz_t[2], mpz_t[2], FILE*, int);
 unsigned long factor (cofac_list, unsigned long, cado_poly, int[], int[], FILE*, int);

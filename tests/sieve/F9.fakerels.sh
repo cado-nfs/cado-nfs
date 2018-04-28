@@ -14,7 +14,7 @@ TMPRENUMBER=`mktemp ${TMPDIR-/tmp}/cadotest.fakerel.renumber.XXXXXXXXXX`
 cmd="${LAS} -poly ${SRCDIR}/parameters/polynomials/F9.poly \
     -lim0 100000 -lim1 100000 -lpb0 23 -lpb1 23 -mfb0 46 -mfb1 46 \
     -I 13 -fb1 ${FB} -sqside 0 \
-    -q0 1000000 -q1 1001000 -random-sample 4 -dup"
+    -q0 1000000 -q1 1001000 -random-sample 4 -dup -dup-qmin 100000,0"
 echo $cmd
 $cmd > $TMPSAMPLE
 

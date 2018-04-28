@@ -2,12 +2,14 @@
 #define LAS_REPORT_STATS_HPP_
 
 #include <string>
+#include <array>
 #include "tdict.hpp"
+#include "las-base.hpp"
 
 /* las_report: Structure for gathering reports and stats on sieving */
 
-struct las_report_s {
-    struct {
+struct las_report {
+    struct survivors_t : public _padded_pod<survivors_t> {
         unsigned long before_sieve;
         unsigned long after_sieve;
         unsigned long not_both_even;
@@ -18,24 +20,40 @@ struct las_report_s {
         unsigned long cofactored;
         unsigned long smooth;
     } survivors;
-    unsigned long reports;
-    double tn[2];            /* norms */
-    double ttbuckets_fill;
-    double ttbuckets_apply;
-    double ttf;                 /* factor_survivors */
-    double ttcof;                /* cofactorisation */
-    unsigned long (*survivor_sizes)[256]; /* First index: rational side */
-    unsigned long (*report_sizes)[256];
+    unsigned long reports=0;
+    unsigned long duplicates=0;   /* used with -dup option */
+    double tn[2]={0,0};           /* norms */
+    double ttbuckets_fill=0;
+    double ttbuckets_apply=0;
+    double ttf=0;                 /* factor_survivors */
+    double ttcof=0;               /* cofactorisation */
+    /* First index: rational side */
+    std::array<std::array<unsigned long, 256>, 256> survivor_sizes;
+    std::array<std::array<unsigned long, 256>, 256> report_sizes;
+    void accumulate_and_clear(las_report && q)
+    {
+        unsigned long * ps = (unsigned long*) & survivors;
+        unsigned long * qs = (unsigned long*) & q.survivors;
+        for(size_t i = 0 ; i < sizeof(survivors) / sizeof(unsigned long) ; i++) {
+            ps[i] += qs[i];
+        }
+        reports += q.reports;
+        duplicates += q.duplicates;
+        for(int side = 0 ; side < 2 ; side++) tn[side]  += q.tn[side];
+        ttbuckets_fill  += q.ttbuckets_fill;
+        ttbuckets_apply += q.ttbuckets_apply;
+        ttf     += q.ttf;
+        ttcof     += q.ttcof;
+        for(size_t S0 = 0 ; S0 < 256 ; ++S0) {
+            for(size_t S1 = 0 ; S1 < 256 ; ++S1) {
+                survivor_sizes[S0][S1] += q.survivor_sizes[S0][S1];
+                report_sizes[S0][S1] += q.report_sizes[S0][S1];
+            }
+        }
+        q = las_report();
+    }
+    void display_survivor_counters() const;
 };
-typedef struct las_report_s las_report[1];
-typedef struct las_report_s * las_report_ptr;
-typedef const struct las_report_s * las_report_srcptr;
-
-
-void las_report_init(las_report_ptr p);
-void las_report_clear(las_report_ptr p);
-void las_report_accumulate_and_clear(las_report_ptr p, las_report_ptr q);
-void las_report_copy(las_report_ptr p, las_report_ptr q);
 
 struct coarse_las_timers {
     static int bookkeeping() { return 0; }

@@ -1216,7 +1216,6 @@ struct factor_survivors_data {
     where_am_I & w;
     int cpt;
     int copr;
-    uint32_t cof_bitsize[2];
 
     struct side_data {
         unsigned char * S;
@@ -1240,7 +1239,6 @@ struct factor_survivors_data {
             sdata[side].S = th->sides[side].bucket_region;
             if (!SS && sdata[side].S)
                 SS = sdata[side].S;
-            cof_bitsize[side]=0;
         }
         /* SS gets the merged information in the end. This is the first
          * non-null sdata[x].S array */
@@ -1313,7 +1311,7 @@ void factor_survivors_data::search_survivors(timetree_t & timer)
     }
 #endif /* }}} */
 
-    th->rep->survivors.before_sieve += 1U << LOG_BUCKET_REGION;
+    th->rep.survivors.before_sieve += 1U << LOG_BUCKET_REGION;
 
     survivors.reserve(128);
     for (unsigned int j = j0; j < j1; j++)
@@ -1442,7 +1440,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 
     las_info const & las(*th->plas);
     sieve_info & si(*th->psi);
-    las_report_ptr rep = th->rep;
+    las_report & rep(th->rep);
 
     std::array<cxx_mpz, 2> norm;
     factor_list_t factors[2];
@@ -1461,10 +1459,10 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         ASSERT_ALWAYS (SS[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
 
-        th->rep->survivors.after_sieve++;
+        th->rep.survivors.after_sieve++;
 
         if (sdata[0].S && sdata[1].S)
-            th->rep->survivor_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
+            th->rep.survivor_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
         
         /* For factor_leftover_norm, we need to pass the information of the
          * sieve bound. If a cofactor is less than the square of the sieve
@@ -1500,7 +1498,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 #endif
             continue;
 
-        th->rep->survivors.not_both_even++;
+        th->rep.survivors.not_both_even++;
 
         /* Since the q-lattice is exactly those (a, b) with
            a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
@@ -1545,7 +1543,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         }
 
 
-        th->rep->survivors.not_both_multiples_of_p++;
+        th->rep.survivors.not_both_multiples_of_p++;
 
         BOOKKEEPING_TIMER(timer);
         int pass = 1;
@@ -1588,7 +1586,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                  * by a product tree, there's no reason to bother doing
                  * trial division at this point (or maybe there is ?
                  * would that change the bit size significantly ?) */
-                th->rep->survivors.check_leftover_norm_on_side[side] ++;
+                th->rep.survivors.check_leftover_norm_on_side[side] ++;
                 continue;
             }
 
@@ -1596,7 +1594,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 
             verbose_output_print(1, 2, "FIXME %s, line %d\n", __FILE__, __LINE__);
             const bool handle_2 = true; /* FIXME */
-            th->rep->survivors.trial_divided_on_side[side]++;
+            th->rep.survivors.trial_divided_on_side[side]++;
 
             trial_div (factors[side], norm[side], N, x,
                     handle_2,
@@ -1619,7 +1617,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
 
             SIBLING_TIMER(timer, "check_leftover_norm");
 
-            pass = check_leftover_norm (norm[side], si, side);
+            pass = check_leftover_norm (norm[side], si.conf.sides[side]);
 #ifdef TRACE_K
             if (trace_on_spot_ab(a, b)) {
                 verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
@@ -1629,12 +1627,12 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                         side, a, b, pass);
             }
 #endif
-            th->rep->survivors.check_leftover_norm_on_side[side] += pass;
+            th->rep.survivors.check_leftover_norm_on_side[side] += pass;
         }
 
         if (!pass) continue;
 
-        th->rep->survivors.enter_cofactoring++;
+        th->rep.survivors.enter_cofactoring++;
 
         if (si.conf.sublat.m) {
             // In sublat mode, some non-primitive survivors can exist.
@@ -1684,25 +1682,16 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
             continue; /* we deal with all cofactors at the end of las */
         }
 
-        if (las.cof_stats_file) {
-            cof_bitsize[0] = mpz_sizeinbase (norm[0], 2);
-            cof_bitsize[1] = mpz_sizeinbase (norm[1], 2);
-            /* no need to use a mutex here: either we use one thread only
-               to compute the cofactorization data and if several threads
-               the order is irrelevant. The only problem that can happen
-               is when two threads increase the value at the same time,
-               and it is increased by 1 instead of 2, but this should
-               happen rarely. */
-            las.cof_call[cof_bitsize[0]][cof_bitsize[1]] ++;
-        }
+        std::array<int, 2> cof_bitsize = {{0,0}};
+        las.cofac_stats.call(norm, cof_bitsize);
 
         SIBLING_TIMER(timer, "factor_both_leftover_norms");
         TIMER_CATEGORY(timer, cofactoring_mixed());
 
-        rep->ttcof -= microseconds_thread ();
-        pass = factor_both_leftover_norms(norm, lps, si);
-        th->rep->survivors.cofactored += (pass != 0);
-        rep->ttcof += microseconds_thread ();
+        rep.ttcof -= microseconds_thread ();
+        pass = factor_both_leftover_norms(norm, lps, {{si.conf.sides[0].lim, si.conf.sides[1].lim}}, si.strategies.get());
+        th->rep.survivors.cofactored += (pass != 0);
+        rep.ttcof += microseconds_thread ();
 #ifdef TRACE_K
         if (trace_on_spot_ab(a, b) && pass == 0) {
           verbose_output_print(TRACE_CHANNEL, 0,
@@ -1716,14 +1705,13 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         if (pass <= 0) continue; /* a factor was > 2^lpb, or some
                                     factorization was incomplete */
 
-        th->rep->survivors.smooth++;
+        th->rep.survivors.smooth++;
 
         /* yippee: we found a relation! */
         SIBLING_TIMER(timer, "print relations");
         TIMER_CATEGORY(timer, bookkeeping());
 
-        if (las.cof_stats_file) /* learning phase */
-            las.cof_succ[cof_bitsize[0]][cof_bitsize[1]] ++;
+        las.cofac_stats.success(cof_bitsize);
 	    
         // ASSERT (bin_gcd_int64_safe (a, b) == 1);
 
@@ -1742,10 +1730,10 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                 rel.add(side, z, 0);
         }
         if (si.doing.prime_sq) {
-            rel.add(si.conf.side, si.doing.p, 0);
+            rel.add(si.doing.side, si.doing.p, 0);
         } else {
             for (auto const& facq : si.doing.prime_factors)
-                rel.add(si.conf.side, facq, 0);
+                rel.add(si.doing.side, facq, 0);
         }
 
         rel.compress();
@@ -1780,6 +1768,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
                  */
                 dup_comment = "# DUP ";
             } else if (do_check && relation_is_duplicate(rel, las, si, adjust_strategy)) {
+                th->rep.duplicates++;
                 dup_comment = "# DUPE ";
             }
 
@@ -1811,7 +1800,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         }
 
         /* Build histogram of lucky S[x] values */
-        th->rep->report_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
+        th->rep.report_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
 
 #ifdef  DLP_DESCENT
         if (register_contending_relation(las, si, rel))
@@ -1820,9 +1809,12 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
     }
 }
 
-/* Adds the number of sieve reports to *survivors,
-   number of survivors with coprime a, b to *coprimes */
-// FIXME NOPROFILE_STATIC
+/* Returns the number of relations.
+   All the other stats (survivors, duplicates, etc) are
+   updated by side-effect in th->rep.
+   Note that the number of relations ends up also in th->rep,
+   but this is done by the caller.
+   */
 int
 factor_survivors (timetree_t & timer, thread_data *th, int N, where_am_I & w MAYBE_UNUSED)
 {
@@ -1944,7 +1936,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
 
     WHERE_AM_I_UPDATE(w, psi, &si);
 
-    las_report_ptr rep = th->rep;
+    las_report& rep(th->rep);
 
     unsigned char * S[2];
 
@@ -2003,7 +1995,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             if (las.tree.must_take_decision())
                 break;
         } else if (exit_after_rel_found) {
-            if (rep->reports)
+            if (rep.reports)
                 break;
         }
 
@@ -2025,11 +2017,11 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
                 CHILD_TIMER(timer, "init norms");
 
                 /* Init norms */
-                rep->tn[side] -= seconds_thread ();
+                rep.tn[side] -= seconds_thread ();
 
                 si.sides[side].lognorms->fill(S[side], N);
 
-                rep->tn[side] += seconds_thread ();
+                rep.tn[side] += seconds_thread ();
 #if defined(TRACE_K) 
                 if (trace_on_spot_N(w.N))
                     verbose_output_print(TRACE_CHANNEL, 0, "# After side %d init_norms_bucket_region, N=%u S[%u]=%u\n",
@@ -2038,7 +2030,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
             }
 
             /* Apply buckets */
-            rep->ttbuckets_apply -= seconds_thread();
+            rep.ttbuckets_apply -= seconds_thread();
 
             {
                 CHILD_TIMER(timer, "apply buckets");
@@ -2064,7 +2056,7 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
              * certainly do with a single one.
              */
 
-            rep->ttbuckets_apply += seconds_thread();
+            rep.ttbuckets_apply += seconds_thread();
 
             {
                 CHILD_TIMER(timer, "small sieve");
@@ -2100,9 +2092,9 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
 
 
         /* Factor survivors */
-        rep->ttf -= seconds_thread ();
-        rep->reports += factor_survivors (timer, th, N, w);
-        rep->ttf += seconds_thread ();
+        rep.ttf -= seconds_thread ();
+        rep.reports += factor_survivors (timer, th, N, w);
+        rep.ttf += seconds_thread ();
 
         timer.chart.push_back(tt.put());
 
@@ -2125,27 +2117,6 @@ void * process_bucket_region(timetree_t & timer, thread_data *th)
     return NULL;
 }/*}}}*/
 
-static double ratio(double a, unsigned long b)
-{
-    return b ? a/b : 0;
-}
-
-void las_report_display_counters(las_report_ptr rep)
-{
-    auto const& S(rep->survivors);
-    verbose_output_print(0, 2, "# survivors before_sieve: %lu\n", S.before_sieve);
-    verbose_output_print(0, 2, "# survivors after_sieve: %lu (ratio %.2e)\n", S.after_sieve, ratio(S.after_sieve, S.before_sieve));
-    verbose_output_print(0, 2, "# survivors not_both_even: %lu\n", S.not_both_even);
-    verbose_output_print(0, 2, "# survivors not_both_multiples_of_p: %lu\n", S.not_both_multiples_of_p);
-    verbose_output_print(0, 2, "# survivors trial_divided_on_side[0]: %lu\n", S.trial_divided_on_side[0]);
-    verbose_output_print(0, 2, "# survivors check_leftover_norm_on_side[0]: %lu (%.1f%%)\n", S.check_leftover_norm_on_side[0], 100 * ratio(S.check_leftover_norm_on_side[0], S.trial_divided_on_side[0]));
-    verbose_output_print(0, 2, "# survivors trial_divided_on_side[1]: %lu\n", S.trial_divided_on_side[1]);
-    verbose_output_print(0, 2, "# survivors check_leftover_norm_on_side[1]: %lu (%.1f%%)\n", S.check_leftover_norm_on_side[1], 100 * ratio(S.check_leftover_norm_on_side[1], S.trial_divided_on_side[1]));
-    verbose_output_print(0, 2, "# survivors enter_cofactoring: %lu\n", S.enter_cofactoring);
-    verbose_output_print(0, 2, "# survivors cofactored: %lu (%.1f%%)\n", S.cofactored, 100.0 * ratio(S.cofactored, S.enter_cofactoring));
-    verbose_output_print(0, 2, "# survivors smooth: %lu\n", S.smooth);
-}
-
 /* {{{ las_report_accumulate_threads_and_display
  * This function does three distinct things.
  *  - accumulates the timing reports for all threads into a collated report
@@ -2154,27 +2125,29 @@ void las_report_display_counters(las_report_ptr rep)
  *  - merge the per-sq report into a global report
  */
 void las_report_accumulate_threads_and_display(las_info & las,
-        sieve_info & si, las_report_ptr report,
+        sieve_info & si, las_report & report,
         thread_workspaces &ws, double qt0)
 {
     /* Display results for this special q */
     las_report rep;
-    las_report_init(rep);
     sieve_checksum checksum_post_sieve[2];
     
     ws.accumulate_and_clear(rep, checksum_post_sieve);
 
-    las_report_display_counters(rep);
+    rep.display_survivor_counters();
     verbose_output_print(0, 2, "# Checksums over sieve region: after all sieving: %u, %u\n", checksum_post_sieve[0].get_checksum(), checksum_post_sieve[1].get_checksum());
     verbose_output_vfprint(0, 1, gmp_vfprintf, "# %lu %s for side-%d (%Zd,%Zd)\n",
-              rep->reports,
+              rep.reports,
               las.batch ? "survivor(s) saved" : "relation(s)",
-              si.conf.side,
+              si.doing.side,
               (mpz_srcptr) si.doing.p,
               (mpz_srcptr) si.doing.r);
-    double qtts = qt0 - rep->tn[0] - rep->tn[1] - rep->ttf;
-    if (rep->survivors.after_sieve != rep->survivors.not_both_even) {
-        verbose_output_print(0, 1, "# Warning: found %ld hits with i,j both even (not a bug, but should be very rare)\n", rep->survivors.after_sieve - rep->survivors.not_both_even);
+    if (las.suppress_duplicates) {
+        verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rep.duplicates);
+    }
+    double qtts = qt0 - rep.tn[0] - rep.tn[1] - rep.ttf;
+    if (rep.survivors.after_sieve != rep.survivors.not_both_even) {
+        verbose_output_print(0, 1, "# Warning: found %ld hits with i,j both even (not a bug, but should be very rare)\n", rep.survivors.after_sieve - rep.survivors.not_both_even);
     }
 #ifdef HAVE_RUSAGE_THREAD
     int dont_print_tally = 0;
@@ -2185,20 +2158,19 @@ void las_report_accumulate_threads_and_display(las_info & las,
         verbose_output_print(0, 1, "# Time for this special-q: %1.4fs [tally available only in mono-thread]\n", qt0);
     } else {
 	//convert ttcof from microseconds to seconds
-	rep->ttcof *= 0.000001;
+	rep.ttcof *= 0.000001;
         verbose_output_print(0, 1, "# Time for this special-q: %1.4fs [norm %1.4f+%1.4f, sieving %1.4f"
 	    " (%1.4f + %1.4f + %1.4f),"
             " factor %1.4f (%1.4f + %1.4f)]\n", qt0,
-            rep->tn[0],
-            rep->tn[1],
+            rep.tn[0],
+            rep.tn[1],
             qtts,
-            rep->ttbuckets_fill,
-            rep->ttbuckets_apply,
-	    qtts-rep->ttbuckets_fill-rep->ttbuckets_apply,
-	    rep->ttf, rep->ttf - rep->ttcof, rep->ttcof);
+            rep.ttbuckets_fill,
+            rep.ttbuckets_apply,
+	    qtts-rep.ttbuckets_fill-rep.ttbuckets_apply,
+	    rep.ttf, rep.ttf - rep.ttcof, rep.ttcof);
     }
-    las_report_accumulate_and_clear(report, rep);
-    las_report_clear(rep);
+    report.accumulate_and_clear(std::move(rep));
 }/*}}}*/
 
 
@@ -2595,7 +2567,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
 
     las_report report;
-    las_report_init(report);
 
     t0 = seconds ();
     wct = wct_seconds();
@@ -2827,7 +2798,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                              HILIGHT_START
                              "Sieving side-%d q=%Zd; rho=%Zd;"
                              HILIGHT_END,
-                             si.conf.side,
+                             si.doing.side,
                              (mpz_srcptr) si.doing.p,
                              (mpz_srcptr) si.doing.r);
 
@@ -2839,8 +2810,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             verbose_output_print(0, 1, " # within descent, currently at depth %d", si.doing.depth);
         }
         verbose_output_print(0, 1, "\n");
-        /* TODO: maybe print that later */
-        if (!mpz_probab_prime_p(doing.p, 1)) {
+        if (!las.allow_composite_q && !mpz_probab_prime_p(doing.p, 1)) {
             verbose_output_vfprint(0, 1, gmp_vfprintf,
                     "# Warning, q=%Zd is not prime\n",
                     (mpz_srcptr) doing.p);
@@ -2899,7 +2869,7 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
         /* TODO why this second call to sieve_info::update ?? */
         si.update(las.nb_threads);
 
-        workspaces.thrs[0].rep->ttbuckets_fill -= seconds();
+        workspaces.thrs[0].rep.ttbuckets_fill -= seconds();
 
         /* Allocate buckets */
         workspaces.pickup_si(si);
@@ -2912,28 +2882,15 @@ for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
         }
         pool->drain_queue(0);
 
-        workspaces.check_buckets_max_full(si.toplevel, shorthint_t());
-
         pool->accumulate_and_clear_active_time(*timer_special_q.current);
 
+        workspaces.check_buckets_max_full(si.toplevel, shorthint_t());
         auto exc = pool->get_exceptions<buckets_are_full>(0);
         if (!exc.empty())
             throw *std::max_element(exc.begin(), exc.end());
 
+        workspaces.thrs[0].rep.ttbuckets_fill += seconds();
 
-        // useless
-        // pool->accumulate_and_clear_active_time(*timer_special_q.current);
-
-        workspaces.thrs[0].rep->ttbuckets_fill += seconds();
-
-        /*
-        if (time_bubble_chaser::enable)
-            workspaces.diagnosis(si.toplevel, {si.sides[0].fbs, si.sides[1].fbs});
-            */
-
-        // this timing slot is insignificant, let's put it with the
-        // bookkeeping crop
-        // SIBLING_TIMER(timer_special_q, "prepare small sieve");
         BOOKKEEPING_TIMER(timer_special_q);
 
         /* Prepare small sieve and re-sieve */
@@ -3175,29 +3132,11 @@ if (si.conf.sublat.m) {
 
         qt0 = seconds() - qt0;
 
-        /*
-         * I think it's useless now. All routines which use the thread
-         * pool properly report their time use with the equivalent of
-         * these functions.
-        pool->accumulate_and_clear_active_time(timer_special_q);
-        SIBLING_TIMER(timer_special_q, "worker thread wait time");
-        pool->accumulate_and_reset_wait_time(*timer_special_q.current);
-        */
-
         timer_special_q.stop();
         
-        if (tdict::global_enable >= 2) {
-            verbose_output_print (0, 1, "%s", timer_special_q.display().c_str());
-
-            double t = 0;
-            for(auto const &c : timer_special_q.filter_by_category()) {
-                verbose_output_print (0, 1, "# %s: %.2f\n", 
-                        coarse_las_timers::explain(c.first).c_str(),
-                        c.second);
-                t += c.second;
-            }
-            verbose_output_print (0, 1, "# total counted time: %.2f\n", t);
-        }
+        /* We used to display timer_special_q ; now it makes little
+         * sense, in fact, because we've started to aggressively
+         * desynchronize some of the tasks */
 
         global_timer += timer_special_q;
 
@@ -3206,7 +3145,7 @@ if (si.conf.sublat.m) {
 #ifdef TRACE_K
         trace_per_sq_clear(si);
 #endif
-        if (exit_after_rel_found > 1 && report->reports > 0)
+        if (exit_after_rel_found > 1 && report.reports > 0)
             break;
 
 
@@ -3264,7 +3203,7 @@ if (si.conf.sublat.m) {
             mpz_ui_pow_ui(M[side], 2, batchmfb[side]);
         }
 
-	report->reports = find_smooth (las.L, batchP, B, L, M, las.output,
+	report.reports = find_smooth (las.L, batchP, B, L, M, las.output,
 				       las.nb_threads);
 
         for(int side = 0 ; side < 2 ; side++) {
@@ -3273,12 +3212,12 @@ if (si.conf.sublat.m) {
             mpz_clear (L[side]);
             mpz_clear (M[side]);
         }
-	report->reports = factor (las.L, report->reports, las.cpoly, batchlpb, lpb,
+	report.reports = factor (las.L, report.reports, las.cpoly, batchlpb, lpb,
 		las.output, las.nb_threads);
 	tcof_batch = seconds () - tcof_batch;
-	report->ttcof += tcof_batch;
+	report.ttcof += tcof_batch;
 	/* add to ttf since the remaining time will be computed as ttf-ttcof */
-	report->ttf += tcof_batch;
+	report.ttf += tcof_batch;
       }
 
     t0 = seconds () - t0;
@@ -3293,9 +3232,9 @@ if (si.conf.sublat.m) {
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %u pushed\n",
             nr_sq_discarded, las.nq_pushed);
     tts = t0;
-    tts -= report->tn[0];
-    tts -= report->tn[1];
-    tts -= report->ttf;
+    tts -= report.tn[0];
+    tts -= report.tn[1];
+    tts -= report.ttf;
 
     global_timer.stop();
     if (tdict::global_enable >= 1) {
@@ -3310,7 +3249,7 @@ if (si.conf.sublat.m) {
         }
         verbose_output_print (0, 1, "# total counted time: %.2f\n", t);
     }
-    las_report_display_counters(report);
+    report.display_survivor_counters();
 
 
     if (las.verbose)
@@ -3333,16 +3272,16 @@ if (si.conf.sublat.m) {
         verbose_output_print (2, 1, "# Total cpu time %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
                 " (%1.1f + %1.1f + %1.1f),"
                 " factor %1.1f (%1.1f + %1.1f)]\n", t0,
-                report->tn[0],
-                report->tn[1],
+                report.tn[0],
+                report.tn[1],
                 tts,
-                report->ttbuckets_fill,
-                report->ttbuckets_apply,
-                tts-report->ttbuckets_fill-report->ttbuckets_apply,
-		report->ttf, report->ttf - report->ttcof, report->ttcof);
+                report.ttbuckets_fill,
+                report.ttbuckets_apply,
+                tts-report.ttbuckets_fill-report.ttbuckets_apply,
+		report.ttf, report.ttf - report.ttcof, report.ttcof);
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
-                 wct, wct / (double) nr_sq_processed, wct / (double) report->reports);
+                 wct, wct / (double) nr_sq_processed, wct / (double) report.reports);
 
     /* memory usage */
     if (las.verbose >= 1 && las.config_pool.default_config_ptr) {
@@ -3354,18 +3293,19 @@ if (si.conf.sublat.m) {
     if (peakmem > 0)
         verbose_output_print (2, 1, "# PeakMemusage (MB) = %ld \n",
                 peakmem >> 10);
+    if (las.suppress_duplicates) {
+        verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", report.duplicates);
+    }
     verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq]\n",
-            report->reports, t0 / (double) report->reports,
-            (double) report->reports / (double) nr_sq_processed);
+            report.reports, t0 / (double) report.reports,
+            (double) report.reports / (double) nr_sq_processed);
 
 
     print_slice_weight_estimator_stats();
 
     /*}}}*/
 
-    las.print_cof_stats();
-
-    las_report_clear(report);
+    las.cofac_stats.print();
 
     return 0;
 }/*}}}*/

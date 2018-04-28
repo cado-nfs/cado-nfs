@@ -196,7 +196,7 @@ public:
   template <typename HINT>
   double check_buckets_max_full(int level, HINT const & hint);
 
-  void accumulate_and_clear(las_report_ptr, sieve_checksum *);
+  void accumulate_and_clear(las_report &, sieve_checksum *);
 
   template <int LEVEL, typename HINT>
   void reset_all_pointers(int side);

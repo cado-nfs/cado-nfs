@@ -172,19 +172,15 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
     sc.sides[0].qmin = dupqmin[0];
     sc.sides[1].qmin = dupqmin[1];
 
-    long dupqmax[2] = {LONG_MAX, LONG_MAX};
-    param_list_parse_long_and_long(pl, "dup-qmax", dupqmax, ",");
-    sc.sides[0].qmax = dupqmax[0];
-    sc.sides[1].qmax = dupqmax[1];
-
     /* Change 0 (not initialized) into LONG_MAX */
     for (int side = 0; side < 2; side ++)
         if (sc.sides[side].qmin == 0)
             sc.sides[side].qmin = LONG_MAX;
 
-    /* if qmin is not given, use lim on the sqside by default */
-    if (sc.sides[sc.side].qmin == LONG_MAX)
-        sc.sides[sc.side].qmin = sc.sides[sc.side].lim;
+    long dupqmax[2] = {LONG_MAX, LONG_MAX};
+    param_list_parse_long_and_long(pl, "dup-qmax", dupqmax, ",");
+    sc.sides[0].qmax = dupqmax[0];
+    sc.sides[1].qmax = dupqmax[1];
 
     return complete;
 }

@@ -113,6 +113,7 @@ thread_pool::~thread_pool() {
   for (auto & T : tasks) broadcast(T.not_empty); /* Wakey wakey, time to die */
   leave();
   drain_all_queues();
+  threads.clear();      /* does pthread_join */
   for (auto const & T : tasks) ASSERT_ALWAYS(T.empty());
   for (auto const & R : results) ASSERT_ALWAYS(R.empty());
   for (auto const & E : exceptions) ASSERT_ALWAYS(E.empty());

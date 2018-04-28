@@ -24,6 +24,7 @@
 #include "las-qlattice.hpp"
 #include "las-smallsieve-types.hpp"
 #include "las-sieve-info.hpp"
+#include "las-cofactor.hpp"
 #include "ecm/batch.h"
 #include <list>
 #include <vector>
@@ -76,18 +77,7 @@ struct las_info : private NonCopyable, public las_augmented_output_channel {
 
 
     /* There may be several configured sievers. This is used mostly for
-     * the descent.
-     * TODO: For now these different sievers share nothing of their
-     * factor bases, which is a shame. We should examine ways to get
-     * around this limitation, but it is hard. One could imagine some,
-     * though. Among them, given the fact that only _one_ siever is
-     * active at a time, it might be possible to sort the factor base
-     * again each time a new siever is used (but maybe it's too
-     * expensive). Another way could be to work only on sharing
-     * bucket-sieved primes.
-     */
-    /* TODO: not sure std::list is the right container. The difficult
-     * part is that we really don't want to copy the factor bases */
+     * the descent.  */
     std::list<sieve_info> sievers;
 
     // ----- todo list and various specification of what the siever will
@@ -122,17 +112,7 @@ struct las_info : private NonCopyable, public las_augmented_output_channel {
     cofac_list L; /* store (a,b) and corresponding cofactors in batch mode */
 
     /* ----- cofactorization statistics for the default config */
-    FILE *cof_stats_file; // null means no stats.
-    uint32_t **cof_call; /* cof_call[r][a] is the number of calls of the
-                          * cofactorization routine with a cofactor of r
-                          * bits on the rational side, and a bits on the
-                          * algebraic side */
-    uint32_t **cof_succ; /* cof_succ[r][a] is the corresponding number of
-                          * successes, i.e., of call that lead to a
-                          * relation */
-    void init_cof_stats(param_list_ptr);
-    void clear_cof_stats();
-    void print_cof_stats();
+    mutable cofactorization_statistics cofac_stats;
 
     const char *dump_filename;
     dumpfile dumpfiles[2];

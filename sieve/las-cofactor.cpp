@@ -1,11 +1,84 @@
 #include "cado.h"
 #include <pthread.h>
+#include <vector>
+#include <utility>
 
 #include "utils.h"
 #include "las-cofactor.hpp"
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
 #include "modredc_2ul2.h"
+#include "las-types.hpp"
+
+// {{{ las_info::{init,clear,print}_cof_stats
+cofactorization_statistics::cofactorization_statistics(param_list_ptr pl)
+{
+    const char * statsfilename = param_list_lookup_string (pl, "stats-cofact");
+    if (!statsfilename) {
+        file = NULL;
+        return;
+    }
+    file = fopen (statsfilename, "w");
+    if (file == NULL) {
+        fprintf (stderr, "Error, cannot create file %s\n", statsfilename);
+        exit (EXIT_FAILURE);
+    }
+}
+
+void cofactorization_statistics::call(int bits0, int bits1)
+{
+    if (!file) return;
+    static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
+    pthread_rwlock_rdlock(&lock);
+    size_t s0 = cof_call.size();
+    pthread_rwlock_unlock(&lock);
+    if ((size_t) bits0 >= s0) {
+        pthread_rwlock_wrlock(&lock);
+        size_t news0 = std::max((size_t) bits0+1, s0 + s0/2);
+        cof_call.insert(cof_call.end(), news0-s0, std::vector<uint32_t>());
+        cof_success.insert(cof_success.end(), news0-s0, std::vector<uint32_t>());
+        s0 = news0;
+        pthread_rwlock_unlock(&lock);
+    }
+    pthread_rwlock_rdlock(&lock);
+    size_t s1 = cof_call[bits0].size();
+    pthread_rwlock_unlock(&lock);
+    if ((size_t) bits1 >= s1) {
+        pthread_rwlock_wrlock(&lock);
+        size_t news1 = std::max((size_t) bits1+1, s1 + s1/2);
+        cof_call[bits0].insert(cof_call[bits0].end(), news1-s1, 0);
+        cof_success[bits0].insert(cof_success[bits0].end(), news1-s1, 0);
+        s1 = news1;
+        pthread_rwlock_unlock(&lock);
+    }
+    /* no need to use a mutex here: either we use one thread only
+       to compute the cofactorization data and if several threads
+       the order is irrelevant. The only problem that can happen
+       is when two threads increase the value at the same time,
+       and it is increased by 1 instead of 2, but this should
+       happen rarely. */
+    cof_call[s0][s1]++;
+}
+
+void cofactorization_statistics::print()
+{
+    if (!file) return;
+    for(size_t bits0 = 0 ; bits0 < cof_call.size() ; ++bits0) {
+        for(size_t bits1 = 0 ; bits1 < cof_call[bits0].size() ; ++bits1) {
+            fprintf (file, "%zu %zu %" PRIu32 " %" PRIu32 "\n",
+                    bits0, bits1,
+                    cof_call[bits0][bits1],
+                    cof_success[bits0][bits1]);
+        }
+    }
+}
+
+cofactorization_statistics::~cofactorization_statistics()
+{
+    if (!file) return;
+    fclose (file);
+}
+//}}}
 
 /* {{{ factor_leftover_norm */
 
@@ -37,18 +110,18 @@
                         -> cannot yield a relation
 */
 int
-check_leftover_norm (cxx_mpz const & n, sieve_info const & si, int side)
+check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
 {
   size_t s = mpz_sizeinbase (n, 2);
-  unsigned int lpb = si.conf.sides[side].lpb;
-  unsigned int mfb = si.conf.sides[side].mfb;
+  unsigned int lpb = scs.lpb;
+  unsigned int mfb = scs.mfb;
   unsigned int klpb;
   double nd, kB, B;
 
   if (s > mfb)
     return 0; /* n has more than mfb bits, which is the given limit */
 
-  if (si.conf.sides[side].lim == 0) {
+  if (scs.lim == 0) {
       /* special case when not sieving */
       return 1;
   }
@@ -59,7 +132,7 @@ check_leftover_norm (cxx_mpz const & n, sieve_info const & si, int side)
      course, but we have no guarantee that our cofactor is prime... */
 
   nd = mpz_get_d (n);
-  B = (double) si.conf.sides[side].lim;
+  B = (double) scs.lim;
   kB = B * B;
   for (klpb = lpb; klpb < s; klpb += lpb, kB *= B)
     {
@@ -141,7 +214,8 @@ check_leftover_norm (cxx_mpz const & n, sieve_info const & si, int side)
 int factor_both_leftover_norms(
         std::array<cxx_mpz, 2> & n,
         std::array<std::vector<cxx_mpz>, 2> & factors,
-        sieve_info const & si)
+        std::array<unsigned long, 2> const & Bs,
+        facul_strategies_t const * strat)
 {
     int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
     /* To remember if a cofactor is already factored.*/
@@ -149,14 +223,14 @@ int factor_both_leftover_norms(
     for (int side = 0; side < 2; side++) {
         factors[side].clear();
 
-        double B = (double) si.conf.sides[side].lim;
+        double B = (double) Bs[side];
         /* If n < B^2, then n is prime, since all primes < B have been removed */
         if (mpz_get_d (n[side]) < B * B)
             is_smooth[side] = FACUL_SMOOTH;
     }
 
     /* call the facul library */
-    std::array<int, 2> facul_code = facul_both (factors, n, si.strategies.get(), is_smooth);
+    std::array<int, 2> facul_code = facul_both (factors, n, strat, is_smooth);
 
     if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH) {
         if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)

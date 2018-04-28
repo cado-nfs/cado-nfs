@@ -215,8 +215,9 @@ cofac_list_realloc (cofac_list l, size_t newsize)
 }
 
 void
-cofac_list_add (cofac_list l, long a, unsigned long b, mpz_t R, mpz_t A,
-                int side, mpz_t sq)
+cofac_list_add (cofac_list l, long a, unsigned long b,
+        mpz_srcptr R, mpz_srcptr A,
+                int side, mpz_srcptr sq)
 {
   if (l->size == l->alloc)
     cofac_list_realloc (l, 2 * l->alloc + 1);

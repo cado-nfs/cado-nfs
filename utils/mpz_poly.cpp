@@ -531,7 +531,7 @@ mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
 
 /* rel <- a-b*x */
 void
-mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_t a, mpz_t b)
+mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
 {
     mpz_poly_init(rel, 1);
     mpz_poly_setcoeff(rel, 0, a);
@@ -667,7 +667,7 @@ void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z)
 }
 
 /* Get coefficient for the i-th term. */
-void mpz_poly_getcoeff(mpz_t res, int i, mpz_poly_srcptr f)
+void mpz_poly_getcoeff(mpz_ptr res, int i, mpz_poly_srcptr f)
 {
     if (i > f->deg)
         mpz_set_ui (res, 0);
@@ -1228,7 +1228,7 @@ mpz_poly_divisible_mpz (mpz_poly_srcptr P, mpz_srcptr a)
 
 /* Set ft(x) = f(x+k) where k is an mpz_t, ft and f can be the same poly. */
 void
-mpz_poly_translation (mpz_poly_ptr ft, mpz_poly_srcptr f, const mpz_t k)
+mpz_poly_translation (mpz_poly_ptr ft, mpz_poly_srcptr f, mpz_srcptr k)
 {
   int i, j;
   int d = f->deg;
@@ -1242,7 +1242,7 @@ mpz_poly_translation (mpz_poly_ptr ft, mpz_poly_srcptr f, const mpz_t k)
 /* Set fr = f + k * x^t * g such that t+deg(g) <= deg(f) and t >= 0 (those two
  * assumptions are not checked). fr and f can be the same poly */
 void mpz_poly_rotation (mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
-                        const mpz_t k, int t)
+                        mpz_srcptr k, int t)
 {
   mpz_poly_set (fr, f);
   for (int i = 0; i <= g->deg; i++)
@@ -1292,7 +1292,7 @@ void mpz_poly_rotation_int64 (mpz_poly_ptr fr, mpz_poly_srcptr f,
  * on output.
  */
 static int
-mpz_poly_pseudodiv_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N, mpz_t factor)
+mpz_poly_pseudodiv_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N, mpz_ptr factor)
 {
   int i, d = f->deg, dh = h->deg;
   mpz_t tmp, inv;
@@ -1551,7 +1551,7 @@ void mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m)
 }
 
 /* Set res=f(x). Assumes res and x are different variables. */
-void mpz_poly_eval(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x) {
+void mpz_poly_eval(mpz_ptr res, mpz_poly_srcptr f, mpz_srcptr x) {
   int i, d;
   d = f->deg;
   if (d == -1) {
@@ -1566,7 +1566,7 @@ void mpz_poly_eval(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x) {
 }
 
 /* Set res=f(x) where x is an unsigned long. */
-void mpz_poly_eval_ui (mpz_t res, mpz_poly_srcptr f, unsigned long x)
+void mpz_poly_eval_ui (mpz_ptr res, mpz_poly_srcptr f, unsigned long x)
 {
   int d = f->deg;
 
@@ -1580,7 +1580,7 @@ void mpz_poly_eval_ui (mpz_t res, mpz_poly_srcptr f, unsigned long x)
 
 /* Set res=f'(x), where x is an unsigned long */
 void
-mpz_poly_eval_diff_ui (mpz_t res, mpz_poly_srcptr f, unsigned long x)
+mpz_poly_eval_diff_ui (mpz_ptr res, mpz_poly_srcptr f, unsigned long x)
 {
   int d = f->deg;
 
@@ -1605,7 +1605,7 @@ void mpz_poly_eval_mod_mpz(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x,
 
 /* Return 1 if poly(root) % modulus == 0, return 0 otherwise */
 /* Coefficients of f(x) need not be reduced mod m */
-int mpz_poly_is_root(mpz_poly_srcptr poly, mpz_t root, mpz_t modulus)
+int mpz_poly_is_root(mpz_poly_srcptr poly, mpz_srcptr root, mpz_srcptr modulus)
 {
     mpz_t x;
     mpz_init(x);
@@ -2421,7 +2421,7 @@ void mpz_poly_gcd_mpz(mpz_poly_ptr f, mpz_poly_srcptr a, mpz_poly_srcptr b, mpz_
 /* Coefficients of f and g need not be reduced mod p on input.
  * Coefficients of f are reduced mod p on output */
 int
-mpz_poly_pseudogcd_mpz(mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr N, mpz_t factor)
+mpz_poly_pseudogcd_mpz(mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr N, mpz_ptr factor)
 {
     mpz_poly_mod_mpz(f, f, N, NULL);
     mpz_poly_mod_mpz(g, g, N, NULL);
@@ -2592,7 +2592,7 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
 }
 
 /* v <- |f(i,j)|, where f is homogeneous of degree d */
-void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
+void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
 {
   unsigned int k = f->deg;
   ASSERT(k > 0);
@@ -2621,7 +2621,7 @@ void mpz_poly_homogeneous_eval_siui (mpz_t v, mpz_poly_srcptr f, const int64_t i
 
 /* put in c the content of f */
 void
-mpz_poly_content (mpz_t c, mpz_poly_srcptr F)
+mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F)
 {
   int i;
   mpz_t *f = F->coeff;

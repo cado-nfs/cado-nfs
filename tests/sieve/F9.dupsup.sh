@@ -9,7 +9,7 @@ RELSD="${WORKDIR:?missing}/rels_dupsup"
 RELSR="${WORKDIR:?missing}/rels_raw"
 RELSF="${WORKDIR:?missing}/rels_filtered"
 
-PHONY_CHECK=1 RELS=$RELSD "`dirname $0`/sievetest.sh" -dup "$@"
+PHONY_CHECK=1 RELS=$RELSD "`dirname $0`/sievetest.sh" -dup -dup-qmin 0,$lim1 "$@"
 ndup_ref=`grep -wc DUPE $RELSD`
 # remove leading spaces (for openbsd 5.3)
 let ndup_ref=ndup_ref

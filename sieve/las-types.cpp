@@ -62,10 +62,11 @@ las_augmented_output_channel::~las_augmented_output_channel()
 
 las_info::las_info(cxx_param_list & pl)
     : las_augmented_output_channel(pl),
-        config_pool(pl)
+      config_pool(pl),
 #ifdef  DLP_DESCENT
-      , dlog_base(pl)
+      dlog_base(pl),
 #endif
+      cofac_stats(pl)
       /*{{{*/
 {
     /* We strive to initialize things in the exact order they're written
@@ -81,6 +82,19 @@ las_info::las_info(cxx_param_list & pl)
 
     galois = param_list_lookup_string(pl, "galois");
     suppress_duplicates = param_list_parse_switch(pl, "-dup");
+    if (suppress_duplicates) {
+        bool qmin_initialized = false;
+        for (int side = 0; side < 2; side++) {
+            if (config_pool.default_config_ptr->sides[side].qmin != LONG_MAX) {
+                qmin_initialized = true;
+            }
+        }
+        if (!qmin_initialized) {
+            fprintf(stderr,
+                    "Error: -dup-qmin is mandatory with -dup\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 
     param_list_print_command_line(output, pl);
 
@@ -175,8 +189,6 @@ las_info::las_info(cxx_param_list & pl)
     // }}} 
 
     dump_filename = param_list_lookup_string(pl, "dumpfile");
-
-    init_cof_stats(pl);
 }/*}}}*/
 
 las_info::~las_info()/*{{{*/
@@ -194,81 +206,7 @@ las_info::~las_info()/*{{{*/
  
     // ----- batch mode: very little
     cofac_list_clear (L);
-
-    clear_cof_stats();
 }/*}}}*/
-
-// {{{ las_info::{init,clear,print}_cof_stats
-void las_info::init_cof_stats(param_list_ptr pl)
-{
-    const char *statsfilename = param_list_lookup_string (pl, "stats-cofact");
-    if (statsfilename != NULL) { /* a file was given */
-        if (config_pool.default_config_ptr == NULL) {
-            fprintf(stderr, "Error: option stats-cofact works only "
-                    "with a default config\n");
-            exit(EXIT_FAILURE);
-#ifdef DLP_DESCENT
-        } else if (param_list_lookup_string(pl, "descent-hint-table")) {
-            verbose_output_print(0, 1, "# Warning: option stats-cofact "
-                    "only applies to the default siever config\n");
-#endif
-        }
-        siever_config const & sc(*config_pool.default_config_ptr);
-
-        cof_stats_file = fopen (statsfilename, "w");
-        if (cof_stats_file == NULL)
-        {
-            fprintf (stderr, "Error, cannot create file %s\n",
-                    statsfilename);
-            exit (EXIT_FAILURE);
-        }
-        //allocate cof_call and cof_succ
-        int mfb0 = sc.sides[0].mfb;
-        int mfb1 = sc.sides[1].mfb;
-        cof_call = (uint32_t**) malloc ((mfb0+1) * sizeof(uint32_t*));
-        cof_succ = (uint32_t**) malloc ((mfb0+1) * sizeof(uint32_t*));
-        for (int i = 0; i <= mfb0; i++) {
-            cof_call[i] = (uint32_t*) malloc ((mfb1+1) * sizeof(uint32_t));
-            cof_succ[i] = (uint32_t*) malloc ((mfb1+1) * sizeof(uint32_t));
-            for (int j = 0; j <= mfb1; j++)
-                cof_call[i][j] = cof_succ[i][j] = 0;
-        }
-    } else {
-        cof_stats_file = NULL;
-        cof_call = NULL;
-        cof_succ = NULL;
-    }
-}
-void las_info::print_cof_stats()
-{
-    if (!cof_stats_file) return;
-    ASSERT_ALWAYS(config_pool.default_config_ptr);
-    siever_config const & sc0(*config_pool.default_config_ptr);
-    int mfb0 = sc0.sides[0].mfb;
-    int mfb1 = sc0.sides[1].mfb;
-    for (int i = 0; i <= mfb0; i++) {
-        for (int j = 0; j <= mfb1; j++)
-            fprintf (cof_stats_file, "%u %u %u %u\n", i, j,
-                    cof_call[i][j],
-                    cof_succ[i][j]);
-    }
-}
-
-void las_info::clear_cof_stats()
-{
-    if (!cof_stats_file) return;
-    ASSERT_ALWAYS(config_pool.default_config_ptr);
-    siever_config const & sc0(*config_pool.default_config_ptr);
-    for (int i = 0; i <= sc0.sides[0].mfb; i++) {
-        free (cof_call[i]);
-        free (cof_succ[i]);
-    }
-    free (cof_call);
-    free (cof_succ);
-    fclose (cof_stats_file);
-    cof_stats_file = NULL;
-}
-//}}}
 
 sieve_info & sieve_info::get_sieve_info_from_config(siever_config const & sc, cxx_cado_poly const & cpoly, std::list<sieve_info> & registry, cxx_param_list & pl, bool try_fbc)/*{{{*/
 {

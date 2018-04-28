@@ -27,7 +27,6 @@ thread_data::thread_data() : is_initialized(false)
 {
   /* Allocate memory for the intermediate sum (only one for both sides) */
   SS = (unsigned char *) contiguous_malloc(BUCKET_REGION);
-  las_report_init(rep);
 }
 
 thread_data::~thread_data()
@@ -36,7 +35,6 @@ thread_data::~thread_data()
   ASSERT_ALWAYS(SS != NULL);
   contiguous_free(SS);
   SS = NULL;
-  las_report_clear(rep);
 }
 
 void thread_data::init(const thread_workspaces &_ws, const int _id, las_info const & _las)
@@ -417,10 +415,10 @@ template double thread_workspaces::check_buckets_max_full<shorthint_t>(int, shor
 template double thread_workspaces::check_buckets_max_full<longhint_t>(int, longhint_t const&);
 
 void
-thread_workspaces::accumulate_and_clear(las_report_ptr rep, sieve_checksum *checksum)
+thread_workspaces::accumulate_and_clear(las_report & rep, sieve_checksum *checksum)
 {
     for (int i = 0; i < nb_threads; ++i) {
-        las_report_accumulate_and_clear(rep, thrs[i].rep);
+        rep.accumulate_and_clear(std::move(thrs[i].rep));
         for (unsigned int side = 0; side < nr_sides; side++)
             checksum[side].update(thrs[i].sides[side].checksum_post_sieve);
     }

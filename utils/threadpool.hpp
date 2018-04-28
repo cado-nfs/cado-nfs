@@ -156,6 +156,7 @@ public:
           std::vector<T> res;
           for(T * e ; (e = get_exception<T>(queue)) != NULL; ) {
               res.push_back(*e);
+              delete e;
           }
           return res;
       }

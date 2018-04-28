@@ -199,9 +199,12 @@ void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
                 // starting a new special-q
                 ASSERT_ALWAYS (sqside == (ptr[15] - '0'));
                 ptr += 19; // skip "# Sieving side-0 q="
-                q = strtoull(ptr, NULL, 10);
-                nrels.push_back(nr);
-                nr = 0;
+                uint64_t nq = strtoull(ptr, NULL, 10);
+                if (nq != q) {
+                    nrels.push_back(nr);
+                    nr = 0;
+                    q = nq;
+                }
             }
         } else {
             fake_rel rel;

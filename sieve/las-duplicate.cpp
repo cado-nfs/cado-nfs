@@ -336,7 +336,7 @@ sq_finds_relation(sq_with_fac const& sq_fac, const int sq_side,
 
   /* Check that the cofactors are within the mfb bound */
   for (int side = 0; side < 2; ++side) {
-    if (!check_leftover_norm (cof[side], si, side)) {
+    if (!check_leftover_norm (cof[side], si.conf.sides[side])) {
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
           "# DUPECHECK cofactor %Zd is outside bounds\n",
           (__mpz_struct*) cof[side]);
@@ -345,7 +345,7 @@ sq_finds_relation(sq_with_fac const& sq_fac, const int sq_side,
   }
 
   std::array<std::vector<cxx_mpz>, 2> f;
-  int pass = factor_both_leftover_norms(cof, f, si);
+  int pass = factor_both_leftover_norms(cof, f, {{si.conf.sides[0].lim, si.conf.sides[1].lim}}, si.strategies.get());
 
   if (pass <= 0) {
     verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
