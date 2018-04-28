@@ -39,7 +39,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test_main_script.sh
         ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-        TARGET_DEPENDENCIES gfm benchfm gst finalst)
+        TARGET_DEPENDENCIES gfm benchfm gst finalst las makefb)
 endif()
 endif()
 

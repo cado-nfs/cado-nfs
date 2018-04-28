@@ -57,7 +57,7 @@ void cofactorization_statistics::call(int bits0, int bits1)
        is when two threads increase the value at the same time,
        and it is increased by 1 instead of 2, but this should
        happen rarely. */
-    cof_call[s0][s1]++;
+    cof_call[bits0][bits1]++;
 }
 
 void cofactorization_statistics::print()

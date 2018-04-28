@@ -3,6 +3,8 @@
 
 #include <string>
 #include <array>
+#include <memory>
+#include <string.h>
 #include "tdict.hpp"
 #include "las-base.hpp"
 
@@ -27,15 +29,24 @@ struct las_report {
     double ttbuckets_apply=0;
     double ttf=0;                 /* factor_survivors */
     double ttcof=0;               /* cofactorisation */
-    /* First index: rational side */
-    std::array<std::array<unsigned long, 256>, 256> survivor_sizes;
-    std::array<std::array<unsigned long, 256>, 256> report_sizes;
+    class count_matrix {
+        /* First index: rational side */
+        unsigned long data[256][256];
+        public:
+        count_matrix() { memset(data, 0, sizeof(data)); }
+        unsigned long * operator[](int x) { return data[x]; }
+        unsigned long const * operator[](int x) const { return data[x]; }
+    };
+    std::shared_ptr<count_matrix> survivor_counts;
+    std::shared_ptr<count_matrix> report_counts;
     void accumulate_and_clear(las_report && q)
     {
-        unsigned long * ps = (unsigned long*) & survivors;
-        unsigned long * qs = (unsigned long*) & q.survivors;
-        for(size_t i = 0 ; i < sizeof(survivors) / sizeof(unsigned long) ; i++) {
-            ps[i] += qs[i];
+        {
+            unsigned long * ps = (unsigned long*) & survivors;
+            unsigned long * qs = (unsigned long*) & q.survivors;
+            for(size_t i = 0 ; i < sizeof(survivors) / sizeof(unsigned long) ; i++) {
+                ps[i] += qs[i];
+            }
         }
         reports += q.reports;
         duplicates += q.duplicates;
@@ -44,13 +55,34 @@ struct las_report {
         ttbuckets_apply += q.ttbuckets_apply;
         ttf     += q.ttf;
         ttcof     += q.ttcof;
-        for(size_t S0 = 0 ; S0 < 256 ; ++S0) {
-            for(size_t S1 = 0 ; S1 < 256 ; ++S1) {
-                survivor_sizes[S0][S1] += q.survivor_sizes[S0][S1];
-                report_sizes[S0][S1] += q.report_sizes[S0][S1];
+        if (survivor_counts) {
+            count_matrix * ps = survivor_counts.get();
+            count_matrix * qs = q.survivor_counts.get();
+            count_matrix * pr = report_counts.get();
+            count_matrix * qr = q.report_counts.get();
+            for(size_t S0 = 0 ; S0 < 256 ; ++S0) {
+                for(size_t S1 = 0 ; S1 < 256 ; ++S1) {
+                    (*ps)[S0][S1] += (*qs)[S0][S1];
+                    (*pr)[S0][S1] += (*qr)[S0][S1];
+                }
             }
         }
         q = las_report();
+    }
+    void mark_survivor(uint8_t S0, uint8_t S1) {
+        if (survivor_counts) {
+            (*survivor_counts.get())[S0][S1]++;
+        }
+    }
+    void mark_report(uint8_t S0, uint8_t S1) {
+        if (survivor_counts) {
+            (*report_counts.get())[S0][S1]++;
+        }
+    }
+    /* Well, at this point it's never used... */
+    void allocate_count_matrices() {
+        survivor_counts = std::make_shared<count_matrix>();
+        report_counts = std::make_shared<count_matrix>();
     }
     void display_survivor_counters() const;
 };

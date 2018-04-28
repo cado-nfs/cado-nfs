@@ -1462,7 +1462,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         th->rep.survivors.after_sieve++;
 
         if (sdata[0].S && sdata[1].S)
-            th->rep.survivor_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
+            th->rep.mark_survivor(sdata[0].S[x], sdata[1].S[x]);
         
         /* For factor_leftover_norm, we need to pass the information of the
          * sieve bound. If a cofactor is less than the square of the sieve
@@ -1800,7 +1800,7 @@ void factor_survivors_data::cofactoring (timetree_t & timer)
         }
 
         /* Build histogram of lucky S[x] values */
-        th->rep.report_sizes[sdata[0].S[x]][sdata[1].S[x]]++;
+        th->rep.mark_report(sdata[0].S[x], sdata[1].S[x]);
 
 #ifdef  DLP_DESCENT
         if (register_contending_relation(las, si, rel))
