@@ -2435,21 +2435,38 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
     /* TODO why this second call to sieve_info::update ?? */
     si.update(las.nb_threads);
 
+    plattice_x_t max_area = plattice_x_t(si.J)<<si.conf.logI;
+    plattice_enumerate_area<1>::value =
+        MIN(max_area, plattice_x_t(BUCKET_REGIONS[2]));
+    plattice_enumerate_area<2>::value =
+        MIN(max_area, plattice_x_t(BUCKET_REGIONS[3]));
+    plattice_enumerate_area<3>::value = max_area;
+
     /* This count _only_ works if we do completely synchronous stuff. As
      * soon as we begin dropping synchronization points, it will be
      * completely impossible to do such hacks.
      */
     rep.ttbuckets_fill -= seconds();
-
+    
     /* Allocate buckets */
     ws.allocate_bucket_regions(si);
 
+    /* TODO: is there a way to share this in sublat mode ? */
+    precomp_plattice_t precomp_plattice;
+
     for(int side = 0 ; side < 2 ; side++) {
-        /* This uses the thread pool, and stores the time spent under
-         * timer_special_q (with wait time stored separately */
         if (!si.sides[side].fb) continue;
-        fill_in_buckets(ws, aux, pool, si, side, w);
+
+        fill_in_buckets_toplevel(ws, aux, pool, si, side, w);
+
+        // Prepare plattices at internal levels.
+        for (int level = 1; level < si.toplevel; ++level) {
+            fill_in_buckets_prepare_precomp_plattice(
+                    aux, pool, side, level, si, precomp_plattice);
+        }
     }
+
+    /* Note: we haven't done any downsorting yet ! */
 
     pool.drain_queue(0);
 
@@ -2505,26 +2522,6 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         SIBLING_TIMER(timer_special_q, "process_bucket_region outer container");
         TIMER_CATEGORY(timer_special_q, bookkeeping());
 
-        // Prepare plattices at internal levels.
-        plattice_x_t max_area = plattice_x_t(si.J)<<si.conf.logI;
-        plattice_enumerate_area<1>::value =
-            MIN(max_area, plattice_x_t(BUCKET_REGIONS[2]));
-        plattice_enumerate_area<2>::value =
-            MIN(max_area, plattice_x_t(BUCKET_REGIONS[3]));
-        plattice_enumerate_area<3>::value = max_area;
-
-        /* TODO: is there a way to share this in sublat mode ? */
-        precomp_plattice_t precomp_plattice;
-
-        for (int side = 0; side < 2; ++side) {
-            if (!si.sides[side].fb) continue;
-            CHILD_TIMER_PARAMETRIC(timer_special_q, "side ", side, "");
-
-            for (int level = 1; level < si.toplevel; ++level) {
-                fill_in_buckets_prepare_precomp_plattice(
-                        aux, pool, side, level, si, precomp_plattice);
-            }
-        }
         pool.drain_queue(0);
 
         SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (MT)");

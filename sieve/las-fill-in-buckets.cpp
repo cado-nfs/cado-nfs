@@ -1075,7 +1075,7 @@ fill_in_buckets_one_side(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_i
 }
 
 
-void fill_in_buckets(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_info & si, int side, where_am_I & w)
+void fill_in_buckets_toplevel(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_info & si, int side, where_am_I & w)
 {
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);

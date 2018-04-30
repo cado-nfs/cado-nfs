@@ -45,7 +45,7 @@ downsort_tree(
         precomp_plattice_t & precomp_plattice,
         where_am_I & w);
 
-void fill_in_buckets(
+void fill_in_buckets_toplevel(
         nfs_work &ws,
         nfs_aux &aux,
         thread_pool &pool,
