@@ -1016,30 +1016,27 @@ struct push_slice_to_task_list {
 template<int LEVEL>
 struct push_slice_to_task_list_saving_precomp {
     thread_pool & pool;
+    fb_factorbase::slicing::part const & P;
     fill_in_buckets_parameters model;
     /* precomp_plattice_dense_t == std::vector<plattices_dense_vector_t *> */
     precomp_plattice_dense_t & Vpre;
-    bool is_first;
     size_t pushed = 0;
-    push_slice_to_task_list_saving_precomp(thread_pool&pool, fill_in_buckets_parameters const & m, std::vector<plattices_dense_vector_t *> & Vpre, bool is_first) : pool(pool), model(m), Vpre(Vpre), is_first(is_first) {}
+    push_slice_to_task_list_saving_precomp(thread_pool&pool,
+            fb_factorbase::slicing::part const & P,
+            fill_in_buckets_parameters const & m,
+            precomp_plattice_dense_t & Vpre)
+        : pool(pool), P(P), model(m), Vpre(Vpre) {}
     template<typename T>
     void operator()(T const & s) {
-        plattices_dense_vector_t * pre;
-        if (is_first) {
-            ASSERT_ALWAYS(Vpre.size() == pushed);
-            pre = new plattices_dense_vector_t(s.get_index());
+        slice_index_t idx = s.get_index() - P.get_first_slice_index();
+        ASSERT_ALWAYS((size_t) idx == pushed);
 
-            /* TODO: This looks pretty awful. We should reserve the array
-             * beforehand, this should save a constant factor on the
-             * amortized constant cost of storing an element to a vector.
-             */
-            Vpre.push_back(pre);
-        } else {
-            pre = Vpre[pushed];
-        }
+        plattices_dense_vector_t & pre(Vpre[idx]);
+
         fill_in_buckets_parameters *param = new fill_in_buckets_parameters(model);
         param->slice = &s;
-        param->plattices_dense_vector = pre;
+        param->plattices_dense_vector = &pre;
+
         typedef typename T::entry_t entry_t;
         task_function_t f = fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t>;
         pool.add_task(f, param, 0, 0, s.get_weight());
@@ -1068,9 +1065,12 @@ fill_in_buckets_one_side(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_i
         /* This creates a task meant to call
          * fill_in_buckets_toplevel_sublat_wrapper */
         auto & Vpre(si.sides[side].precomp_plattice_dense);
-        bool is_first = si.conf.sublat.i0 == 0 && si.conf.sublat.j0 == 1;
-        push_slice_to_task_list_saving_precomp<LEVEL> F(pool, model, Vpre, is_first);
-        fbs->get_part(LEVEL).foreach_slice(F);
+        fb_factorbase::slicing::part const & P = fbs->get_part(LEVEL);
+        /* This way we can spare the need to expose the copy contructor
+         * of the container's value_type */
+        Vpre = precomp_plattice_dense_t(P.nslices());
+        push_slice_to_task_list_saving_precomp<LEVEL> F(pool, P, model, Vpre);
+        P.foreach_slice(F);
     }
 }
 

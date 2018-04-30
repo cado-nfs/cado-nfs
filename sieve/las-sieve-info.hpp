@@ -129,14 +129,9 @@ struct sieve_info {
         size_t resieve_start_offset, resieve_end_offset;
 
         /* precomp_plattice_dense: caching of the FK-basis in sublat mode.
-         * (for the toplevel only)
-         *
-         * It's quite unholy. A vector of pointers to vectors of FK bases.
-         *
-         * Allocation is made in las-fill-in-buckets.cpp
-         *
-         * There's some cleanup that is done directly in las.
-         * */
+         * (for the toplevel only). This is not the same as the
+         * precomp_plattice that is done for lower levels.
+         */
         precomp_plattice_dense_t precomp_plattice_dense;
 
         /* This is updated by applying the special-q lattice transform to

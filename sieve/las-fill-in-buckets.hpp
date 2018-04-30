@@ -31,7 +31,7 @@ struct precomp_plattice_t {
 // This one is for remembering the FK basis in sublat mode, between two
 // different congruences of (i,j) mod m.
 // For simplicity, we remember them only for the toplevel.
-typedef std::vector<plattices_dense_vector_t *> precomp_plattice_dense_t;
+typedef std::vector<plattices_dense_vector_t> precomp_plattice_dense_t;
 
 template <int LEVEL>
 void

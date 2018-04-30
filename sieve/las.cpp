@@ -2450,6 +2450,7 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         if (!si.sides[side].fb) continue;
         fill_in_buckets(ws, aux, pool, si, side, w);
     }
+
     pool.drain_queue(0);
 
     ws.check_buckets_max_full(si.toplevel, shorthint_t());
@@ -2511,6 +2512,8 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         plattice_enumerate_area<2>::value =
             MIN(max_area, plattice_x_t(BUCKET_REGIONS[3]));
         plattice_enumerate_area<3>::value = max_area;
+
+        /* TODO: is there a way to share this in sublat mode ? */
         precomp_plattice_t precomp_plattice;
 
         for (int side = 0; side < 2; ++side) {
@@ -2661,6 +2664,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, nfs_aux & aux, thread_pool 
     unsigned int sublat_bound = si.conf.sublat.m;
     if (sublat_bound == 0)
         sublat_bound = 1;
+
     for (unsigned int i_cong = 0; i_cong < sublat_bound; ++i_cong) {
         for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
             if (si.conf.sublat.m) {
@@ -2675,13 +2679,12 @@ bool do_one_special_q(las_info & las, nfs_work & ws, nfs_aux & aux, thread_pool 
 
         }
     }
-    if (si.conf.sublat.m) {
-        for (int side = 0 ; side < 2 ; side++) {
-            for (unsigned int i = 0; i < si.sides[side].precomp_plattice_dense.size(); ++i) {
-                delete si.sides[side].precomp_plattice_dense[i];
-            }
-        }
-    }
+
+    /* It's better than before, but still. We're going to keep this data
+     * around for more longer than we think if we get an exception above. 
+     */
+    for(int side = 0 ; side < 2 ; side++)
+        si.sides[side].precomp_plattice_dense.clear();
 
 #ifdef DLP_DESCENT
     postprocess_specialq_descent(las, doing, timer_special_q);

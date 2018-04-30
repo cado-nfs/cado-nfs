@@ -775,9 +775,12 @@ struct plattice_info_dense_t {
 };
 
 class plattices_dense_vector_t:
-        public std::vector<plattice_info_dense_t>, private NonCopyable {
-    slice_index_t index;
+        public std::vector<plattice_info_dense_t> {
+    slice_index_t index = std::numeric_limits<slice_index_t>::max();
 public:
+    plattices_dense_vector_t(plattices_dense_vector_t const&) = delete;
+    plattices_dense_vector_t(plattices_dense_vector_t&&) = default;
+    plattices_dense_vector_t() = default;
     plattices_dense_vector_t(const slice_index_t index) : index(index) {}
     slice_index_t get_index() const {return index;};
 };

@@ -425,6 +425,7 @@ class fb_factorbase {
             slices_t slices;
             slice_index_t first_slice_index = 0;
             public:
+            inline slice_index_t get_first_slice_index() const { return first_slice_index; }
             template<int n>
                 typename fb_slices_factory<n>::type& get_slices_vector_for_nroots() {
                     return slices.get<n>();
