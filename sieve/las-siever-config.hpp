@@ -119,12 +119,6 @@ struct siever_config : public _padded_pod<siever_config> {
         bool operator()(OtherLasType const& o) const { return (*this)(o.conf); }
         bool operator()(siever_config const& o) const {
             bool ok = true;
-            // removed 20180219 ok = ok && sc.bucket_thresh == o.bucket_thresh;
-            // removed 20180219 ok = ok && sc.bucket_thresh1 == o.bucket_thresh1;
-            // removed 20180219 ok = ok && sc.td_thresh == o.td_thresh;
-            // removed 20180301 ok = ok && sc.skipped == o.skipped;
-            // ok = ok && sc.bk_multiplier == o.bk_multiplier;
-            // removed 20180219 ok = ok && sc.unsieve_thresh == o.unsieve_thresh;
             for(int side = 0 ; side < 2 ; side++) {
                 ok = ok && sc.sides[side].lim == o.sides[side].lim;
                 ok = ok && sc.sides[side].powlim == o.sides[side].powlim;

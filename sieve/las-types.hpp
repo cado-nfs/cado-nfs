@@ -40,6 +40,11 @@ namespace std { using boost::shared_ptr; using boost::make_shared; }
 /* This one wants to have siever_config defined */
 #include "las-descent-trees.hpp"
 
+// #define HILIGHT_START   "\e[01;31m"
+// #define HILIGHT_END   "\e[00;30m"
+#define HILIGHT_START   ""
+#define HILIGHT_END   ""
+
 struct las_augmented_output_channel {
     int verbose;
     FILE *output;
@@ -74,7 +79,6 @@ struct las_info : private NonCopyable, public las_augmented_output_channel {
     void grow_bk_multiplier(bkmult_specifier::key_type const& key, double d) {
         bk_multiplier.grow(key, d);
     }
-
 
     /* There may be several configured sievers. This is used mostly for
      * the descent.  */
@@ -115,7 +119,7 @@ struct las_info : private NonCopyable, public las_augmented_output_channel {
     mutable cofactorization_statistics cofac_stats;
 
     const char *dump_filename;
-    dumpfile dumpfiles[2];
+    mutable dumpfile dumpfiles[2];
 
     las_info(cxx_param_list &);
     ~las_info();

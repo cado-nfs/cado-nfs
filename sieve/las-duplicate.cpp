@@ -73,6 +73,7 @@ Thus the function to check for duplicates needs the following information:
 #include "las-coordinates.hpp"
 #include "las-norms.hpp"
 #include "las-cofactor.hpp"
+#include "las-choose-sieve-area.hpp"
 
 /* default verbose level of # DUPECHECK lines */
 #define VERBOSE_LEVEL 2
@@ -208,51 +209,41 @@ struct sq_with_fac {
  * when sieving the sq described by si. Return false if it is probably not a
  * duplicate */
 bool
-sq_finds_relation(sq_with_fac const& sq_fac, const int sq_side,
-    relation const& rel, const int nb_threads, sieve_info & old_si,
+sq_finds_relation(las_info const & las, sq_with_fac const& sq_fac, const int sq_side,
+    relation const& rel, sieve_info & old_si,
     int adjust_strategy)
 {
   uint64_t sq = sq_fac.q;
-  
+     
   // Warning: the entry we create here does not know whether sq is
   // prime or composite (it assumes prime). This is fragile!!!
   las_todo_entry doing = special_q_from_ab(rel.a, rel.b, sq, sq_side);
 
-  siever_config conf = old_si.conf;
-  sieve_range_adjust Adj(doing, old_si.cpoly(), conf, nb_threads);
+  siever_config conf;
+  qlattice_basis Q;
+  uint32_t J;
 
-  if (!Adj.SkewGauss() || !Adj.Q.fits_31bits() || !Adj.sieve_info_adjust_IJ()) {
+  if (!choose_sieve_area(las, adjust_strategy, doing, conf, Q, J)) {
     verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
     return false;
   }
 
-  if (adjust_strategy != 1)
-    Adj.sieve_info_update_norm_data_Jmax();
-
-  if (adjust_strategy >= 2)
-    Adj.adjust_with_estimated_yield();
-
-  if (adjust_strategy >= 3)
-    Adj.sieve_info_update_norm_data_Jmax(true);
-
-  conf.logI = Adj.logI;
-  conf.side = sq_side;
+  ASSERT_ALWAYS(conf.side == sq_side);
 
   /* We don't have a constructor which is well adapted to our needs here.
    * We're going to play dirty tricks, and fill out the stuff by
-   * ourselves.
+   * ourselves. This should be fixed someday. XXX
    */
   sieve_info si;
   si.cpoly_ptr = old_si.cpoly_ptr;
   si.conf = conf;
   si.I = 1UL << conf.logI;
-  si.recover_per_sq_values(Adj);
+  si.set_for_new_q(doing, Q, J);
   si.strategies = old_si.strategies;
-
 
   const uint32_t oldI = si.I, oldJ = si.J;
   si.update_norm_data();
-  uint32_t I = si.I, J = si.J;
+  uint32_t I = si.I;
 
   
   { // Print some info
@@ -478,7 +469,7 @@ relation_is_duplicate(relation const& rel, las_info const& las,
     // Step 3: emulate sieving for the valid sq, and check if they find
     // our relation.
     for (auto const & sq : valid_sq) {
-      bool is_dupe = sq_finds_relation(sq, side, rel, las.nb_threads, si, adjust_strategy);
+      bool is_dupe = sq_finds_relation(las, sq, side, rel, si, adjust_strategy);
       verbose_output_print(0, VERBOSE_LEVEL,
           "# DUPECHECK relation is probably%s a dupe\n",
           is_dupe ? "" : " not");

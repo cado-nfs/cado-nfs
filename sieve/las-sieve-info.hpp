@@ -204,16 +204,14 @@ struct sieve_info {
      */
     static sieve_info & get_sieve_info_from_config(siever_config const & sc, cxx_cado_poly const & cpoly, std::list<sieve_info> & registry, cxx_param_list & pl, bool try_fbc = false);
 
-    void recover_per_sq_values(sieve_range_adjust const& Adj) {
-        doing = Adj.doing;
-        qbasis = Adj.Q;
+    void set_for_new_q(las_todo_entry const & doing, qlattice_basis const & Q, int J) {
+        this->doing = doing;
+        qbasis = Q;
         qbasis.set_q(doing.p, doing.prime_sq);
         if (!qbasis.prime_sq) {
             qbasis.prime_factors = doing.prime_factors;
         }
-        ASSERT_ALWAYS(conf.logI == Adj.logI);
-        ASSERT_ALWAYS(I == (1UL << Adj.logI));
-        J = Adj.J;
+        this->J = J;
     }
 };
 

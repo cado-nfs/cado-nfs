@@ -182,7 +182,7 @@ sub parse_a_special_q {
         /time chart for (\d+) threads/ && do {
             my $nthreads = $1;
             my $tab = [];
-            for(my $i = 0 ; $i < $nthreads ; $i++) {
+            { # for(my $i = 0 ; $i < $nthreads ; $i++) {
                 defined($_=<$in>) or die;
                 /time chart has (\d+) entries/ or die;
                 my $nentries = $1;

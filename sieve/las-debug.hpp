@@ -3,9 +3,12 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <array>
 
 #include "las-config.h"
+#include "las-todo-entry.hpp"
 #include "las-forwardtypes.hpp"
+#include "cxx_mpz.hpp"
 
 /* FIXME: This does not seem to work well */
 #ifdef  __GNUC__
@@ -43,10 +46,8 @@ struct trace_Nx_t { unsigned int N; unsigned int x; };
 struct trace_ab_t { int64_t a; uint64_t b; };
 struct trace_ij_t { int i; unsigned int j; };
 
-extern void trace_per_sq_init(sieve_info const & si,
-        const struct trace_Nx_t *Nx, const struct trace_ab_t *ab,
-        const struct trace_ij_t *ij);
-extern void trace_per_sq_clear(sieve_info const & si);
+extern void init_trace_k(cxx_param_list &);
+extern void trace_per_sq_init(sieve_info const & si);
 
 /* When TRACE_K is defined, we are exposing some non trivial stuff.
  * Otherwise this all collapses to no-ops */
@@ -58,7 +59,7 @@ extern struct trace_Nx_t trace_Nx;
 extern struct trace_ab_t trace_ab;
 extern struct trace_ij_t trace_ij;
 
-extern mpz_t traced_norms[2];
+extern std::array<cxx_mpz, 2> traced_norms;
 
 static inline int trace_on_spot_N(unsigned int N) {
     if (trace_Nx.x == UINT_MAX) return 0;
@@ -123,7 +124,7 @@ class dumpfile {
     
 public:
     ~dumpfile();
-    void setname(const char *, const mpz_t, const mpz_t, int);
+    void setname(const char *filename_stem, las_todo_entry const & doing);
     size_t write(const unsigned char *, size_t) const;
 };
 

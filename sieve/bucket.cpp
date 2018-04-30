@@ -503,6 +503,9 @@ downsort(bucket_array_t<INPUT_LEVEL - 1, longhint_t> &BA_out,
          const bucket_array_t<INPUT_LEVEL, shorthint_t> &BA_in,
          uint32_t bucket_number, where_am_I & w)
 {
+  /* Time recording for this function is done by the caller
+   * (downsort_wrapper)
+   */
   /* Rather similar to purging, except it doesn't purge */
   for (slice_index_t i_slice = 0; i_slice < BA_in.get_nr_slices(); i_slice++) {
     const slice_index_t slice_index = BA_in.get_slice_index(i_slice);
@@ -555,27 +558,6 @@ void
 downsort<2>(bucket_array_t<1, longhint_t> &BA_out,
             const bucket_array_t<2, longhint_t> &BA_in,
             uint32_t bucket_number, where_am_I & w);
-
-void
-sieve_checksum::update(const unsigned int other)
-{
-    unsigned long r;
-    ularith_addmod_ul_ul(&r, checksum, other, checksum_prime);
-    checksum = r;
-}
-
-void
-sieve_checksum::update(const unsigned char *data, const size_t len)
-{
-    mpz_t mb;
-    unsigned int new_checksum;
-
-    mpz_init(mb);
-    mpz_import(mb, len, -1, sizeof(unsigned char), -1, 0, data);
-    new_checksum = mpz_tdiv_ui(mb, checksum_prime);
-    mpz_clear(mb);
-    this->update(new_checksum);
-}
 
 buckets_are_full::buckets_are_full(buckets_are_full::callback_base const * base, int side, bkmult_specifier::key_type const& key, int b, int r, int t) : base(base), side(side), key(key), bucket_number(b), reached_size(r), theoretical_max_size(t) {
     std::ostringstream os;

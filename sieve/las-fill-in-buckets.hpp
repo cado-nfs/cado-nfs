@@ -2,11 +2,12 @@
 #define LAS_FILL_IN_BUCKETS_HPP_
 
 #include <array>
-#include "las-types.hpp"
 #include "fb-types.h"
 #include "las-plattice.hpp"
-#include "las-threads.hpp"
 #include "tdict.hpp"
+#include "threadpool.hpp"
+
+#include "las-forwardtypes.hpp"
 
 // This one is used for keeping information of middle primes.
 struct precomp_plattice_t {
@@ -34,21 +35,30 @@ typedef std::vector<plattices_dense_vector_t *> precomp_plattice_dense_t;
 
 template <int LEVEL>
 void
-downsort_tree(timetree_t&,
+downsort_tree(
+        nfs_work &ws,
+        nfs_aux &aux,
+        thread_pool &pool,
         uint32_t bucket_index,
         uint32_t first_region0_index,
-        thread_workspaces &ws,
+        sieve_info& si,
+        precomp_plattice_t & precomp_plattice,
+        where_am_I & w);
+
+void fill_in_buckets(
+        nfs_work &ws,
+        nfs_aux &aux,
         thread_pool &pool,
         sieve_info& si,
-        precomp_plattice_t & precomp_plattice);
-
-void fill_in_buckets(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &, int side);
+        int side,
+        where_am_I & w);
 
 void fill_in_buckets_prepare_precomp_plattice(
+        nfs_aux &aux,
         thread_pool &pool,
         int side,
         int level,
-        sieve_info const & si MAYBE_UNUSED,
+        sieve_info const & si,
         precomp_plattice_t & precomp_plattice);
 
 #endif

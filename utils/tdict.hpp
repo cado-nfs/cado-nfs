@@ -414,6 +414,15 @@ struct timetree_t : public tdict::tree<tdict::timer_seconds_thread> {
     timetree_t(super const& s) : super(s) {}
     std::vector<time_bubble_chaser> chart;
     void display_chart() const;
+    timetree_t& append_chart(timetree_t const& o) {
+        chart.insert(chart.end(), o.chart.begin(), o.chart.end());
+        return *this;
+    }
+    timetree_t& operator+=(timetree_t const& o) {
+        super::operator+=((super const&) o);
+        append_chart(o);
+        return *this;
+    }
 };
 
 #if 0

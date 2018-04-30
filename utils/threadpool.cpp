@@ -32,8 +32,6 @@ worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue)
 
 worker_thread::~worker_thread() {
   int rc = pthread_join(thread, NULL);
-  ASSERT_ALWAYS(!timer.running());
-  ASSERT_ALWAYS(timer.M.size() == 0);
   // timer.self will be essentially lost here. the best thing to do is to
   // create a phony task which collects the busy wait times for all
   // threads, at regular intervals, so that timer.self will be
@@ -43,18 +41,19 @@ worker_thread::~worker_thread() {
 }
 
 int worker_thread::rank() const { return this - &pool.threads.front(); }
+int worker_thread::nthreads() const { return pool.threads.size(); }
 
 class thread_task {
 public:
   const task_function_t func;
   const int id;
-  const task_parameters * parameters;
+  task_parameters * parameters;
   const bool please_die;
   const size_t queue;
   const double cost; // costly tasks are scheduled first.
   task_result *result;
 
-  thread_task(task_function_t _func, int _id, const task_parameters *_parameters, size_t _queue, double _cost) :
+  thread_task(task_function_t _func, int _id, task_parameters *_parameters, size_t _queue, double _cost) :
     func(_func), id(_id), parameters(_parameters), please_die(false), queue(_queue), cost(_cost), result(NULL) {};
   thread_task(bool _kill)
     : func(NULL), id(0), parameters(NULL), please_die(true), queue(0), cost(0.0), result(NULL) {
@@ -119,11 +118,20 @@ thread_pool::~thread_pool() {
   for (auto const & E : exceptions) ASSERT_ALWAYS(E.empty());
 }
 
+double thread_pool::cumulated_wait_time = 0;
+
 void *
 thread_pool::thread_work_on_tasks(void *arg)
 {
   worker_thread *I = (worker_thread *) arg;
-  ACTIVATE_TIMER(I->timer);
+  /* we removed the per-thread timer, because that goes in the way
+   * of our intent to make threads more special-q agnostic: timers are
+   * attached to the nfs_aux structure, now. This implies that all
+   * routines that are called as worker threads must activate their timer
+   * on entry.
+   *
+   */
+  double tt = -wct_seconds();
   while (1) {
     thread_task *task = I->pool.get_task(I->preferred_queue);
     if (task->please_die) {
@@ -131,18 +139,29 @@ thread_pool::thread_work_on_tasks(void *arg)
       break;
     }
     task_function_t func = task->func;
-    const task_parameters *params = task->parameters;
+    task_parameters *params = task->parameters;
     try {
+        tt += wct_seconds();
         task_result *result = func(I, params);
+        tt -= wct_seconds();
         if (result != NULL)
             I->pool.add_result(task->queue, result);
     } catch (clonable_exception const& e) {
+        tt -= wct_seconds();
         I->pool.add_exception(task->queue, e.clone());
         /* We need to wake the listener... */
         I->pool.add_result(task->queue, NULL);
     }
     delete task;
   }
+  tt += wct_seconds();
+  /* tt is now the wall-clock time spent really within this function,
+   * waiting for mutexes and condition variables...
+   */
+  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_lock(&lock);
+  cumulated_wait_time += tt;
+  pthread_mutex_unlock(&lock);
   return NULL;
 }
 
@@ -156,7 +175,7 @@ thread_pool::all_task_queues_empty() const
 
 
 void
-thread_pool::add_task(task_function_t func, const task_parameters * params,
+thread_pool::add_task(task_function_t func, task_parameters * params,
                       const int id, const size_t queue, double cost)
 {
     ASSERT_ALWAYS(queue < tasks.size());
@@ -285,72 +304,5 @@ clonable_exception * thread_pool::get_exception(const size_t queue) {
     }
     leave();
     return e;
-}
-
-void thread_pool::accumulate_and_clear_active_time(timetree_t::super & rep) {
-    for (auto & T : threads) {
-        /* timers may be running when they're tied to a subthread which
-         * is currently doing a pthread_cond_wait or such. So in that
-         * case, we want it to continue keeping track on its cpu busy
-         * time, while we are interested in the time the thread has spent
-         * on the tasks it was assigned.
-         *
-         * On the other hand, there's a fairly simple use case of
-         * merging with a stopped timer. In that case, we'll simply use
-         * the += operator.
-         *
-         * It's quite possible that the tdict::operator+= should have some
-         * distinguishing capacity based along these lines, so that the
-         * logic here could me moved there.
-         */
-        if (T.timer.running()) {
-            ASSERT_ALWAYS(&T.timer == T.timer.current);
-            rep.steal_children_timings(T.timer);
-        } else {
-            // ASSERT_ALWAYS(0);
-            rep += T.timer;
-            T.timer = timetree_t ();
-        }
-    }
-}
-
-struct everybody_must_do_that : public task_parameters {
-    mutable barrier_t barrier;
-    everybody_must_do_that(everybody_must_do_that const&) = delete;
-    everybody_must_do_that(int nthreads) { barrier_init(&barrier, nthreads); }
-    virtual ~everybody_must_do_that() { barrier_destroy(&barrier); }
-};
-struct everybody_must_do_that_result : public task_result {
-    double v;
-    everybody_must_do_that_result(timetree_t & me) : v(me.stop_and_start()){}
-};
-
-task_result * everybody_must_do_that_task(const worker_thread * worker, const task_parameters * _param)
-{
-    const everybody_must_do_that * param = dynamic_cast<const everybody_must_do_that*>(_param);
-    barrier_wait(&param->barrier, NULL, NULL, NULL);
-    return new everybody_must_do_that_result(worker->timer);
-}
-
-void thread_pool::accumulate_and_reset_wait_time(timetree_t::super & rep) {
-    /* we need to create a task so that each thread does what we want it
-     * to do. The tricky part is the we really want all thread to block
-     * and reach this code. In effect, we want the callee function to
-     * embody a barrier_wait
-     */
-    everybody_must_do_that E(threads.size());
-    for(unsigned int i = 0 ; i < threads.size() ; i++) {
-        add_task(everybody_must_do_that_task, &E, 0);
-    }
-    for(unsigned int i = 0 ; i < threads.size() ; i++) {
-        everybody_must_do_that_result * res = dynamic_cast<everybody_must_do_that_result*>(get_result());
-        rep.self += res->v;
-        delete res;
-    }
-}
-
-void thread_pool::display_time_charts() const {
-    verbose_output_print (0, 2, "# displaying time chart for %zu threads\n", threads.size());
-    for(auto & T : threads) T.timer.display_chart();
 }
 

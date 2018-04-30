@@ -16,13 +16,15 @@
 #include "las-norms.hpp"
 #include "las-smallsieve.hpp"
 #include "las-plattice.hpp"
+#include "las-threads.hpp"
+#include "las-process-bucket-region.hpp"
 
 #ifdef USE_CACHEBUFFER
 #include "cachebuf.h"
 #endif
 
-// FIXME: this function of las.cpp should be somewhere
-void * process_bucket_region(timetree_t&, thread_data *th);
+/* is this in the std library or not ? */
+template<typename T> inline T const& const_ref(T& x) { return x; }
 
 /***************************************************************************/
 /********        Main bucket sieving functions                    **********/
@@ -288,6 +290,7 @@ inline bool discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general 
 }
 
 struct make_lattice_bases_parameters_base: public task_parameters {
+  nfs_aux &aux;
   int side;
   int level;
   qlattice_basis const & basis;
@@ -295,12 +298,14 @@ struct make_lattice_bases_parameters_base: public task_parameters {
   sublat_t const & sublat;
   precomp_plattice_t::vec_type & V;
   make_lattice_bases_parameters_base(
+          nfs_aux &aux,
           int side,
           int level,
           qlattice_basis const & basis,
           int logI,
           sublat_t const & sublat,
           precomp_plattice_t::vec_type & V) :
+      aux(aux),
       side(side),
       level(level),
       basis(basis),
@@ -312,6 +317,7 @@ template <class FB_ENTRY_TYPE>
 struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base {
     fb_slice<FB_ENTRY_TYPE> const & slice;
   make_lattice_bases_parameters(
+          nfs_aux& aux,
           int side,
           int level,
           qlattice_basis const & basis,
@@ -319,7 +325,7 @@ struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base
           sublat_t const & sublat,
           precomp_plattice_t::vec_type & V,
           fb_slice<FB_ENTRY_TYPE> const & slice) :
-      make_lattice_bases_parameters_base(side, level, basis, logI, sublat, V),
+      make_lattice_bases_parameters_base(aux, side, level, basis, logI, sublat, V),
       slice(slice)
     { }
   make_lattice_bases_parameters(
@@ -331,11 +337,14 @@ struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base
 
 template <class FB_ENTRY_TYPE>
 task_result *
-make_lattice_bases(const worker_thread * worker,
-        const task_parameters * _param)
+make_lattice_bases(const worker_thread * worker MAYBE_UNUSED,
+        task_parameters * _param)
 {
     const make_lattice_bases_parameters<FB_ENTRY_TYPE> *param = static_cast<const make_lattice_bases_parameters<FB_ENTRY_TYPE> *>(_param);
 
+   int id = worker->rank();
+   nfs_aux::thread_data & taux(param->aux.th[id]);
+   timetree_t & timer(taux.timer);
    fb_slice<FB_ENTRY_TYPE> const & slice(param->slice);
    qlattice_basis const &basis(param->basis);
    int logI = param->logI;
@@ -377,7 +386,7 @@ make_lattice_bases(const worker_thread * worker,
   }
   /* This is moved, not copied */
   param->V[result.get_index()] = std::move(result);
-  worker->push_chart_item(tt.put());
+  timer.chart.push_back(tt.put());
   return new task_result;
 }
 
@@ -397,17 +406,24 @@ struct push_make_bases_to_task_list {
 };
 
 void fill_in_buckets_prepare_precomp_plattice(
+        nfs_aux& aux,
         thread_pool &pool,
         int side,
         int level,
-        sieve_info const & si MAYBE_UNUSED,
+        sieve_info const & si,
         precomp_plattice_t & precomp_plattice)
 {
     fb_factorbase::slicing::part const & P = si.sides[side].fbs->get_part(level);
     precomp_plattice_t::vec_type & V = precomp_plattice.v[side][level];
+    /* We pre-assign the result, so that all threads can write to it
+     * comfortably.
+     *
+     * It would be nice to have a way to notify that all threads here are
+     * done with their job.
+     */
     V.assign(P.nslices(), plattices_vector_t());
     make_lattice_bases_parameters_base model {
-        side, level, si.qbasis, si.conf.logI, si.conf.sublat, V
+        aux, side, level, si.qbasis, si.conf.logI, si.conf.sublat, V
     };
     push_make_bases_to_task_list F { pool, model };
     P.foreach_slice(F);
@@ -714,20 +730,25 @@ fill_in_buckets_lowlevel(
 
 class fill_in_buckets_parameters: public task_parameters {
 public:
-  thread_workspaces &ws;
+  nfs_work &ws;
+  nfs_aux &aux;
   const int side;
   sieve_info const & si;
   const fb_slice_interface * slice;
   plattices_vector_t * plattices_vector; // content changed during fill-in
   plattices_dense_vector_t * plattices_dense_vector; // for sublat
   const uint32_t first_region0_index;
-  fill_in_buckets_parameters(thread_workspaces &_ws, const int _side,
+  where_am_I w;
+
+  fill_in_buckets_parameters(nfs_work &_ws, nfs_aux& aux, const int _side,
           sieve_info const & _si, const fb_slice_interface *_slice,
           plattices_vector_t *_platt, plattices_dense_vector_t *_dplatt,
-          const uint32_t _reg0)
-  : ws(_ws), side(_side), si(_si), slice(_slice),
+          const uint32_t _reg0,
+          where_am_I const& w)
+  : ws(_ws), aux(aux), side(_side), si(_si), slice(_slice),
     plattices_vector(_platt), plattices_dense_vector(_dplatt),
-    first_region0_index(_reg0)
+    first_region0_index(_reg0),
+    w(w)
   {}
 };
 
@@ -762,11 +783,9 @@ public:
  * embody a suffix like " on side ", so that it's possible tu run
  * parametric timer slots.
  */
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal, "");
-// PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice, "");
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_side, "");
+PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal, " on side ");
+PREPARE_TEMPLATE_INST_NAMES(downsort, " on side ");
 PREPARE_TEMPLATE_INST_NAMES(downsort_tree, "");
-PREPARE_TEMPLATE_INST_NAMES(downsort_wrapper, "");
 
 #define TEMPLATE_INST_NAME(x,y) CADO_CONCATENATE(x, _name)<y>::value
 #else
@@ -777,18 +796,28 @@ PREPARE_TEMPLATE_INST_NAMES(downsort_wrapper, "");
 // top-level, since the plattices have already been precomputed.
 template<int LEVEL>
 task_result *
-fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_parameters * _param)
+fill_in_buckets_one_slice_internal(const worker_thread * worker, task_parameters * _param)
 {
-    const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
-    // ACTIVATE_TIMER(worker->timer);
-    ASSERT_ALWAYS(worker->timer.running());
+    fill_in_buckets_parameters *param = static_cast<fill_in_buckets_parameters *>(_param);
+
+    /* Import some contextual stuff */
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(param->aux.th[id]);
+    timetree_t & timer(taux.timer);
+    ACTIVATE_TIMER(timer);
+    nfs_work & ws(param->ws);
+    sieve_info const & si(param->si);
+    where_am_I & w(taux.w);
+    int side = param->side;
+
     // we're declaring the timer here, but really the work happens below
     // in fill_in_buckets_lowlevel. We happen to have access to
     // param->side here, so we use it to provide a nicer timing report.
-    CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice_internal, LEVEL));
+    CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice_internal, LEVEL), param->side, "");
+    TIMER_CATEGORY(timer, sieving(side));
 
-    where_am_I w;
-    WHERE_AM_I_UPDATE(w, psi, & param->si);
+    w = param->w;
+    WHERE_AM_I_UPDATE(w, psi, & si);
     WHERE_AM_I_UPDATE(w, side, param->side);
     WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
     WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
@@ -800,7 +829,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
          * could imagine that it could throw, so let's wrap it too.
          */
         bucket_array_t<LEVEL, shorthint_t> &BA =
-            param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
+            ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
 
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
@@ -813,18 +842,17 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
 
         /* Fill the buckets */
         try {
-            fill_in_buckets_lowlevel<LEVEL>(BA, param->si,
+            fill_in_buckets_lowlevel<LEVEL>(BA, si,
                     *param->plattices_vector,
                     (param->first_region0_index == 0), w);
         } catch(buckets_are_full & e) {
-            worker->push_chart_item(tt.put());
-            param->ws.release_BA(param->side, BA);
+            timer.chart.push_back(tt.put());
+            ws.release_BA(param->side, BA);
             throw e;
         }
         /* Release bucket array again */
-        worker->push_chart_item(tt.put());
-
-        param->ws.release_BA(param->side, BA);
+        timer.chart.push_back(tt.put());
+        ws.release_BA(param->side, BA);
     } catch(buckets_are_full & e) {
         e.side = param->side;
         delete param;
@@ -836,7 +864,7 @@ fill_in_buckets_one_slice_internal(const worker_thread * worker, const task_para
 
 /* we really wish to have a single timing slot for all the instantiations
  * of fill_in_buckets_toplevel_wrapper */
-static tdict::slot timer_slot_for_fibt_wrapper("fill_in_buckets_toplevel_wrapper");
+static tdict::slot_parametric timer_slot_for_fibt("fill_in_buckets_toplevel on side ", "");
 
 // At top level.
 // We need to interleave the root transforms and the FK walk,
@@ -845,25 +873,31 @@ static tdict::slot timer_slot_for_fibt_wrapper("fill_in_buckets_toplevel_wrapper
 // At some point, the code should be re-organized, I'm afraid.
 template<int LEVEL, class FB_ENTRY_TYPE>
 task_result *
-fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, const task_parameters * _param)
+fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, task_parameters * _param)
 {
-    const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
-    // ACTIVATE_TIMER(worker->timer);
-    ASSERT_ALWAYS(worker->timer.running());
+    fill_in_buckets_parameters *param = static_cast<fill_in_buckets_parameters *>(_param);
+    
+    /* Import some contextual stuff */
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(param->aux.th[id]);
+    timetree_t & timer(taux.timer);
+    sieve_info const & si(param->si);
+    nfs_work & ws(param->ws);
+    where_am_I & w(taux.w);
+    int side = param->side;
+
+    ACTIVATE_TIMER(timer);
+
     /* This is one of the places where helgrind is likely to complain. We
      * use thread-safe statics. Helgrind can't cope with it,
      * unfortunately. So the error is a false positive.
      *
      * https://sourceforge.net/p/valgrind/mailman/message/32434015/
-     *
      */
-    // CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(fill_in_buckets_one_slice, LEVEL));
-    
+    timetree_t::accounting_child local_timer_sentry(timer, timer_slot_for_fibt(side));
 
-    timetree_t::accounting_child local_timer_sentry(worker->timer, timer_slot_for_fibt_wrapper);
-    // TIMER_CATEGORY(worker->timer, sieving(param->side));
+    TIMER_CATEGORY(timer, sieving(side));
 
-    where_am_I w;
     WHERE_AM_I_UPDATE(w, psi, & param->si);
     WHERE_AM_I_UPDATE(w, side, param->side);
     WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
@@ -871,24 +905,22 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
 
     try {
         /* Get an unused bucket array that we can write to */
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
-
+        bucket_array_t<LEVEL, shorthint_t> &BA = ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
         ASSERT(param->slice);
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
-                param->side,
+                side,
                 LEVEL,
                 param->ws.rank_BA(param->side, BA),
                 (int) param->slice->get_index()
                 }
                 );
-        fill_in_buckets_toplevel<LEVEL,FB_ENTRY_TYPE>(BA, param->si,
+        fill_in_buckets_toplevel<LEVEL,FB_ENTRY_TYPE>(BA, si,
                 *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
                 param->plattices_dense_vector, w);
-
         /* Release bucket array again */
-        worker->push_chart_item(tt.put());
-        param->ws.release_BA(param->side, BA);
+        timer.chart.push_back(tt.put());
+        param->ws.release_BA(side, BA);
         delete param;
         return new task_result;
     } catch (buckets_are_full & e) {
@@ -902,35 +934,53 @@ fill_in_buckets_toplevel_wrapper(const worker_thread * worker MAYBE_UNUSED, cons
 /* same for sublat */
 template<int LEVEL, class FB_ENTRY_TYPE>
 task_result *
-fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSED, const task_parameters * _param)
+fill_in_buckets_toplevel_sublat_wrapper(const worker_thread * worker MAYBE_UNUSED, task_parameters * _param)
 {
-    const fill_in_buckets_parameters *param = static_cast<const fill_in_buckets_parameters *>(_param);
-    ASSERT_ALWAYS(worker->timer.running());
-    timetree_t::accounting_child local_timer_sentry(worker->timer, timer_slot_for_fibt_wrapper);
+    fill_in_buckets_parameters *param = static_cast<fill_in_buckets_parameters *>(_param);
 
-    where_am_I w;
-    WHERE_AM_I_UPDATE(w, psi, & param->si);
+    /* Import some contextual stuff */
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(param->aux.th[id]);
+    timetree_t & timer(taux.timer);
+    sieve_info const & si(param->si);
+    nfs_work & ws(param->ws);
+    where_am_I & w(taux.w);
+    int side = param->side;
+
+    ACTIVATE_TIMER(timer);
+
+    /* This is one of the places where helgrind is likely to complain. We
+     * use thread-safe statics. Helgrind can't cope with it,
+     * unfortunately. So the error is a false positive.
+     *
+     * https://sourceforge.net/p/valgrind/mailman/message/32434015/
+     */
+    timetree_t::accounting_child local_timer_sentry(timer, timer_slot_for_fibt(side));
+    TIMER_CATEGORY(timer, sieving(side));
+
+    WHERE_AM_I_UPDATE(w, psi, & si);
     WHERE_AM_I_UPDATE(w, side, param->side);
     WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
     WHERE_AM_I_UPDATE(w, N, 0);
 
     try {
-        bucket_array_t<LEVEL, shorthint_t> &BA = param->ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
+        /* Get an unused bucket array that we can write to */
+        bucket_array_t<LEVEL, shorthint_t> &BA = ws.reserve_BA<LEVEL, shorthint_t>(param->side, -1);
         time_bubble_chaser tt(worker->rank(), time_bubble_chaser::FIB,
                 {
-                param->side,
+                side,
                 LEVEL,
                 param->ws.rank_BA(param->side, BA),
                 (int) param->slice->get_index()
                 }
                 );
         ASSERT(param->slice);
-        fill_in_buckets_toplevel_sublat<LEVEL,FB_ENTRY_TYPE>(BA, param->si,
+        fill_in_buckets_toplevel_sublat<LEVEL,FB_ENTRY_TYPE>(BA, si,
                 *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
                 param->plattices_dense_vector, w);
         /* Release bucket array again */
-        worker->push_chart_item(tt.put());
-        param->ws.release_BA(param->side, BA);
+        timer.chart.push_back(tt.put());
+        ws.release_BA(side, BA);
         delete param;
         return new task_result;
     } catch (buckets_are_full & e) {
@@ -999,14 +1049,15 @@ struct push_slice_to_task_list_saving_precomp {
 
 template <int LEVEL>
 static void
-fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info & si, const int side)
+fill_in_buckets_one_side(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_info & si, const int side, where_am_I & w)
 {
+    timetree_t & timer(aux.timer_special_q);
     const fb_factorbase::slicing * fbs = si.sides[side].fbs;
 
-    CHILD_TIMER_PARAMETRIC(timer, "fill_in_buckets_one_side on side ", side, "");
-    TIMER_CATEGORY(timer, sieving(side));
+    /* We're just pushing tasks, here. */
+    BOOKKEEPING_TIMER(timer);
 
-    fill_in_buckets_parameters model(ws, side, si, NULL, NULL, NULL, 0);
+    fill_in_buckets_parameters model(ws, aux, side, si, NULL, NULL, NULL, 0, w);
 
     if (!si.conf.sublat.m) {
         /* This creates a task meant to call
@@ -1024,7 +1075,7 @@ fill_in_buckets_one_side(timetree_t& timer, thread_pool &pool, thread_workspaces
 }
 
 
-void fill_in_buckets(timetree_t& timer, thread_pool &pool, thread_workspaces &ws, sieve_info & si, int side)
+void fill_in_buckets(nfs_work &ws, nfs_aux & aux, thread_pool &pool, sieve_info & si, int side, where_am_I & w)
 {
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);
@@ -1032,15 +1083,15 @@ void fill_in_buckets(timetree_t& timer, thread_pool &pool, thread_workspaces &ws
     switch (si.toplevel) {
         case 1:
             plattice_enumerate_area<1>::value = plattice_x_t(si.J) << si.conf.logI;
-            fill_in_buckets_one_side<1>(timer, pool, ws, si, side);
+            fill_in_buckets_one_side<1>(ws, aux, pool, si, side, w);
             break;
         case 2:
             plattice_enumerate_area<2>::value = plattice_x_t(si.J) << si.conf.logI;
-            fill_in_buckets_one_side<2>(timer, pool, ws, si, side);
+            fill_in_buckets_one_side<2>(ws, aux, pool, si, side, w);
             break;
         case 3:
             plattice_enumerate_area<3>::value = plattice_x_t(si.J) << si.conf.logI;
-            fill_in_buckets_one_side<3>(timer, pool, ws, si, side);
+            fill_in_buckets_one_side<3>(ws, aux, pool, si, side, w);
             break;
         default:
             ASSERT_ALWAYS(0);
@@ -1057,47 +1108,58 @@ void fill_in_buckets(timetree_t& timer, thread_pool &pool, thread_workspaces &ws
 
 template<int LEVEL, typename HINT_TYPE>
 struct downsort_parameters : public task_parameters {
+    nfs_work &ws;
+    nfs_aux &aux;
     int side;
     uint32_t bucket_index;
-    int drank;
-    where_am_I const&w;
-    thread_workspaces &ws;
     bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin;
+    where_am_I w;
 
-    downsort_parameters(int side, 
+    downsort_parameters(
+        nfs_work &ws,
+        nfs_aux &aux,
+        int side, 
         uint32_t bucket_index,
-        int drank,
-        where_am_I const&w,
-        thread_workspaces &ws,
-        bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin)
-    : side(side),
-        bucket_index(bucket_index),
-        drank(drank),
-        w(w),
+        bucket_array_t<LEVEL+1,HINT_TYPE> const & BAin,
+        where_am_I const& w)
+    :
         ws(ws),
-        BAin(BAin)
+        aux(aux),
+        side(side),
+        bucket_index(bucket_index),
+        BAin(BAin),
+        w(w)
     {}
 
 };
 
 template<int LEVEL, typename HINT_TYPE>
 task_result * downsort_wrapper(const worker_thread * worker,
-        const task_parameters * _param)
+        task_parameters * _param)
 {
-    CHILD_TIMER(worker->timer, TEMPLATE_INST_NAME(downsort_wrapper, LEVEL));
-    auto param = static_cast<const downsort_parameters<LEVEL, HINT_TYPE> *>(_param);
+    auto param = static_cast<downsort_parameters<LEVEL, HINT_TYPE> *>(_param);
 
-    int drank = param->drank;
+    /* Import some contextual stuff */
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(param->aux.th[id]);
+    timetree_t & timer(taux.timer);
+    ACTIVATE_TIMER(timer);
+
+    int side = param->side;
+    nfs_work & ws(param->ws);
+    where_am_I & w(taux.w);
+    w = param->w;
+
+    auto const & BAin(param->BAin);
+
+    CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(downsort, LEVEL), side, "");
+    TIMER_CATEGORY(timer, sieving(side));
 
     time_bubble_chaser tt(worker->rank(), time_bubble_chaser::DS, {
-            param->side, LEVEL, (int) param->bucket_index, 0});
+            side, LEVEL, (int) param->bucket_index, 0});
 
-    thread_workspaces &ws(param->ws);
-    bucket_array_t<LEVEL, longhint_t> & BAout =
-      ws.reserve_BA<LEVEL, longhint_t>(param->side, drank);
+    auto & BAout(ws.reserve_BA<LEVEL, longhint_t>(side, ws.rank_BA(side, BAin)));
 
-    where_am_I w(param->w);
-    
     /* We do not need to reset the pointers when we downsort the
      * longhints from the level above.
      */
@@ -1109,10 +1171,10 @@ task_result * downsort_wrapper(const worker_thread * worker,
         BAout.add_slice_index(0);
     }
 
-    downsort<LEVEL+1>(BAout, param->BAin, param->bucket_index, w);
+    downsort<LEVEL+1>(BAout, BAin, param->bucket_index, w);
 
-    param->ws.template release_BA<LEVEL,longhint_t>(param->side, BAout);
-    worker->push_chart_item(tt.put());
+    ws.template release_BA<LEVEL,longhint_t>(side, BAout);
+    timer.chart.push_back(tt.put());
 
     delete param;
     return new task_result;
@@ -1126,24 +1188,25 @@ task_result * downsort_wrapper(const worker_thread * worker,
  */
 template<int LEVEL>
 void downsort_aux(
-    uint32_t bucket_index,
-    thread_workspaces &ws,
-    where_am_I const& w,
+    nfs_work &ws,
+    nfs_aux &aux,
     thread_pool &pool,
-    int side)
+    int side,
+    uint32_t bucket_index,
+    where_am_I & w)
 {
     // What comes from already downsorted data above:
     for(auto const & B : ws.bucket_arrays<LEVEL+1,longhint_t>(side)) {
-        int c = ws.rank_BA(side, B);
         pool.add_task(
                 downsort_wrapper<LEVEL, longhint_t>,
                 new downsort_parameters<LEVEL, longhint_t> {
-                side, bucket_index, c, w, ws, B
+                    ws, aux, side, bucket_index, B,
+                    const_ref(w)
                 }, 0);
     }
 }
 template<>
-void downsort_aux<2>(uint32_t, thread_workspaces &, where_am_I const &, thread_pool &, int) {}
+void downsort_aux<2>(nfs_work &, nfs_aux&, thread_pool &, int, uint32_t, where_am_I&) {}
 
 // first_region0_index is a way to remember where we are in the tree.
 // The depth-first is a way to process all the the regions of level 0 in
@@ -1153,19 +1216,22 @@ void downsort_aux<2>(uint32_t, thread_workspaces &, where_am_I const &, thread_p
 template <int LEVEL>
 void
 downsort_tree(
-    timetree_t& timer,
+    nfs_work &ws,
+    nfs_aux &aux,
+    thread_pool &pool,
     uint32_t bucket_index,
     uint32_t first_region0_index,
-    thread_workspaces &ws,
-    thread_pool &pool,
     sieve_info & si,
-    precomp_plattice_t & precomp_plattice)
+    precomp_plattice_t & precomp_plattice,
+    where_am_I & w)
 {
+    las_info const& las(ws.las);
+    timetree_t & timer(aux.timer_special_q);
+
   CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
   TIMER_CATEGORY(timer, sieving_mixed());
   ASSERT_ALWAYS(LEVEL > 0);
 
-  where_am_I w;
   WHERE_AM_I_UPDATE(w, psi, & si);
   WHERE_AM_I_UPDATE(w, N, first_region0_index);
 
@@ -1192,29 +1258,35 @@ downsort_tree(
          * achieve that.
          */
         for(auto const & B : ws.bucket_arrays<LEVEL+1,shorthint_t>(side)) {
-            int c = ws.rank_BA(side, B);
             pool.add_task(
                     downsort_wrapper<LEVEL, shorthint_t>, 
                     new downsort_parameters<LEVEL, shorthint_t> {
-                        side, bucket_index, c, w, ws, B
+                        ws, aux, side,
+                        bucket_index, B,
+                        const_ref(w)
                     }, 0);
         }
         // What comes from already downsorted data above. We put this in
         // an external function because we need the code to be elided or
         // LEVEL >= 2.
         if (LEVEL < si.toplevel - 1)
-            downsort_aux<LEVEL>(bucket_index, ws, w, pool, side);
+            downsort_aux<LEVEL>(ws, aux, pool, side, bucket_index, w);
     }
 
 
     /* SECOND: fill in buckets at this level, for this region. */
     ws.reset_all_pointers<LEVEL,shorthint_t>(side);
     for (auto & it : precomp_plattice(side, LEVEL)) {
-      fill_in_buckets_parameters *param =
-        new fill_in_buckets_parameters(ws, side, si,
-            (fb_slice_interface *)NULL, &it, NULL, first_region0_index);
-      double c = it.get_weight();
-      pool.add_task(fill_in_buckets_one_slice_internal<LEVEL>, param, 0, 0, c);
+      pool.add_task(
+              fill_in_buckets_one_slice_internal<LEVEL>,
+              new fill_in_buckets_parameters {
+                  ws, aux, side, si,
+                  (fb_slice_interface *)NULL,
+                  &it,
+                  NULL,
+                  first_region0_index,
+                  const_ref(w)
+              }, 0, 0, it.get_weight());
     }
   }
 
@@ -1223,7 +1295,7 @@ downsort_tree(
       for (unsigned int i = 0; i < si.nb_buckets[LEVEL]; ++i) {
           size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
           uint32_t N = first_region0_index + i*(BRS[LEVEL]/BRS[1]);
-          downsort_tree<LEVEL-1>(timer, i, N, ws, pool, si, precomp_plattice);
+          downsort_tree<LEVEL-1>(ws, aux, pool, i, N, si, precomp_plattice, w);
       }
   } else {
       pool.drain_queue(0);
@@ -1244,27 +1316,32 @@ downsort_tree(
       }
 
       /* PROCESS THE REGIONS AT LEVEL 0 */
-      for (int i = 0; i < ws.thrs[0].plas->nb_threads; ++i) {
-          ws.thrs[i].first_region0_index = first_region0_index;
+      for (int i = 0; i < las.nb_threads; ++i) {
+          auto P = new process_bucket_region_parameters(ws, aux, si, const_ref(w));
+          P->first_region0_index = first_region0_index;
+          pool.add_task(process_bucket_region, P, i, 0);
       }
-      ws.thread_do_using_pool(pool, &process_bucket_region);
+
+      /* We need that, because the next downsort_tree call in the loop
+       * above (for LEVEL>1) will reset the pointers while filling the 1l
+       * buckets -- and we read the 1l buckets from PBR.
+       */
+      if (si.toplevel > 1)
+          pool.drain_queue(0);
   }
-  pool.accumulate_and_clear_active_time(*timer.current);
-  SIBLING_TIMER(timer, "worker thread wait time");
-  TIMER_CATEGORY(timer, thread_wait());
-  pool.accumulate_and_reset_wait_time(*timer.current);
 }
 
 /* Instances to be compiled */
 
 // A fake level 0, to avoid infinite loop during compilation.
 template <>
-void downsort_tree<0>(timetree_t&,
-  uint32_t, uint32_t,
-  thread_workspaces &,
+void downsort_tree<0>(
+  nfs_work &,
+  nfs_aux &,
   thread_pool &,
+  uint32_t, uint32_t,
   sieve_info &,
-  precomp_plattice_t &)
+  precomp_plattice_t &, where_am_I &)
 {
     ASSERT_ALWAYS(0);
 }
@@ -1287,11 +1364,6 @@ reservation_group::cget<3, longhint_t>() const
 // Now the two exported instances
 
 template 
-void downsort_tree<1>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
-  thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t & precomp_plattice);
-
-template
-void downsort_tree<2>(timetree_t&, uint32_t bucket_index, uint32_t first_region0_index,
-  thread_workspaces &ws, thread_pool &pool, sieve_info & si,
-  precomp_plattice_t & precomp_plattice);
+void downsort_tree<1>(nfs_work &, nfs_aux &, thread_pool &, uint32_t, uint32_t, sieve_info &, precomp_plattice_t &, where_am_I &);
+template 
+void downsort_tree<2>(nfs_work &, nfs_aux &, thread_pool &, uint32_t, uint32_t, sieve_info &, precomp_plattice_t &, where_am_I &);

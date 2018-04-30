@@ -428,36 +428,6 @@ private:
 };
 
 
-/* Compute a checksum over the bucket region.
-
-   We import the bucket region into an mpz_t and take it modulo
-   checksum_prime. The checksums for different bucket regions are added up,
-   modulo checksum_prime. This makes the combined checksum independent of
-   the order in which buckets are processed, but it is dependent on size of
-   the bucket region. Note that the selection of the sieve region, i.e., of J
-   depends somewhat on the number of threads, as we want an equal number of
-   bucket regions per thread. Thus the checksums are not necessarily
-   clonable between runs with different numbers of threads. */
-
-class sieve_checksum {
-  static const unsigned int checksum_prime = 4294967291u; /* < 2^32 */
-  unsigned int checksum;
-  void update(const unsigned int);
-
-  public:
-  sieve_checksum() : checksum(0) {}
-  unsigned int get_checksum() {return checksum;}
-
-  /* Combine two checksums */ 
-  void update(const sieve_checksum &other) {
-    /* Simply (checksum+checksum2) % checksum_prime, but using
-       ularith_addmod_ul_ul() to handle sums >= 2^32 correctly. */
-    this->update(other.checksum);
-  }
-  /* Update checksum with the pointed-to data */
-  void update(const unsigned char *, size_t);
-};
-
 class bkmult_specifier {
     double base = 1.0;
     typedef std::map<std::pair<int, char>, double> dict_t;

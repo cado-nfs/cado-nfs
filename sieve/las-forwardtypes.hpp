@@ -1,6 +1,8 @@
 #ifndef LAS_FORWARDTYPES_HPP_
 #define LAS_FORWARDTYPES_HPP_
 
+#include <stdint.h>
+
 /* These must be forward-declared, because various header files use them */
 /* TODO: still true ? */
 
@@ -13,6 +15,8 @@ struct where_am_I;;
 // struct las_dlog_base;
 struct descent_tree;
 #endif
+class nfs_work;
+class nfs_aux;
 
 /* we use this type to store positions within the sieve arrays. This is
  * typically no more than 2*factor base bound, even though for the

@@ -22,8 +22,14 @@ struct las_report {
         unsigned long cofactored;
         unsigned long smooth;
     } survivors;
+    unsigned long total_logI=0;
+    unsigned long total_J=0;
     unsigned long reports=0;
     unsigned long duplicates=0;   /* used with -dup option */
+    unsigned long multi_print=0;  /* the ones that were printed several
+                                     times because the special-q was
+                                     restarted. For convenience, we
+                                     _also_ count them in [reports].  */
     double tn[2]={0,0};           /* norms */
     double ttbuckets_fill=0;
     double ttbuckets_apply=0;
@@ -48,8 +54,11 @@ struct las_report {
                 ps[i] += qs[i];
             }
         }
+        total_logI += q.total_logI;
+        total_J += q.total_J;
         reports += q.reports;
         duplicates += q.duplicates;
+        multi_print += q.multi_print;
         for(int side = 0 ; side < 2 ; side++) tn[side]  += q.tn[side];
         ttbuckets_fill  += q.ttbuckets_fill;
         ttbuckets_apply += q.ttbuckets_apply;
@@ -99,7 +108,7 @@ struct coarse_las_timers {
     static int thread_wait() { return 11; }
     static std::string explain(int x) {
         switch(x) {
-            case -1: return "uncounted";
+            case -1: return "uncategorized";
             case 0: return "bookkeeping";
             case 1: return "search_survivors";
             case 2: return "sieving on side 0";

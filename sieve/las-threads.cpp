@@ -4,7 +4,7 @@
 #include "las-types.hpp"
 #include "las-config.h"
 
-void thread_side_data::allocate_bucket_region()
+void nfs_work::thread_data::side_data::allocate_bucket_region()
 {
   /* Allocate memory for each side's bucket region. Our intention is to
    * avoid doing it in case we have no factor base. Not that much because
@@ -15,56 +15,46 @@ void thread_side_data::allocate_bucket_region()
   bucket_region = (unsigned char *) contiguous_malloc(BUCKET_REGION + MEMSET_MIN);
 }
 
-thread_side_data::thread_side_data() { }
+nfs_work::thread_data::thread_data(thread_data const & o)
+    : ws(o.ws), sides {o.sides}
+{
+    SS = (unsigned char *) contiguous_malloc(BUCKET_REGION);
+    memcpy(SS, o.SS, BUCKET_REGION);
+}
 
-thread_side_data::~thread_side_data()
+nfs_work::thread_data::side_data::~side_data()
 {
   if (bucket_region) contiguous_free(bucket_region);
   bucket_region = NULL;
 }
 
-thread_data::thread_data() : is_initialized(false)
+nfs_work::thread_data::thread_data(nfs_work & ws)
+    : ws(ws)
 {
   /* Allocate memory for the intermediate sum (only one for both sides) */
   SS = (unsigned char *) contiguous_malloc(BUCKET_REGION);
 }
 
-thread_data::~thread_data()
+nfs_work::thread_data::~thread_data()
 {
-  ASSERT_ALWAYS(is_initialized);
-  ASSERT_ALWAYS(SS != NULL);
-  contiguous_free(SS);
-  SS = NULL;
+    contiguous_free(SS);
 }
 
-void thread_data::init(const thread_workspaces &_ws, const int _id, las_info const & _las)
+void nfs_work::thread_data::allocate_bucket_regions()
 {
-  ASSERT_ALWAYS(!is_initialized);
-  ws = &_ws;
-  id = _id;
-  plas = & _las;
-  is_initialized = true;
+    for (auto & S : sides)
+        S.allocate_bucket_region();
 }
 
-void thread_data::pickup_si(sieve_info & _si)
-{
-  psi = & _si;
-  for (int side = 0 ; side < 2 ; side++)
-      sides[side].allocate_bucket_region();
-  /*
-  sieve_info & si(*psi);
-  for (int side = 0 ; side < 2 ; side++) {
-      if (si.sides[side].fb)
-          sides[side].set_fbs(si.sides[side].fb.get());
-  }
-  */
-}
-
-void thread_data::update_checksums()
-{
-  for(int s = 0 ; s < 2 ; s++)
-    sides[s].update_checksum();
-}
+nfs_work::nfs_work(las_info const & _las)
+    : nfs_work(_las, _las.nb_threads + 2)
+{}
+nfs_work::nfs_work(las_info const & _las, int nr_workspaces)
+    : las(_las),
+    nr_workspaces(nr_workspaces),
+    groups { {nr_workspaces}, {nr_workspaces} },
+    th(_las.nb_threads, thread_data(*this))
+{ }
 
 template <typename T>
 void
@@ -167,12 +157,12 @@ template class reservation_array<bucket_array_t<2, longhint_t> >;
 /* Reserve the required number of bucket arrays. For shorthint BAs, we
  * need at least as many as there are threads filling them (or more, for
  * balancing). This is controlled by the nr_workspaces field in
- * thread_workspaces.  For longhint, the parallelization scheme is a bit
+ * nfs_work.  For longhint, the parallelization scheme is a bit
  * different, hence we specify directly here the number of threads that
  * will fill these bucket arrays by downsosrting. Older code had that
  * downsorting single-threaded.
  */
-reservation_group::reservation_group(int nr_bucket_arrays, int)
+reservation_group::reservation_group(int nr_bucket_arrays)
   : RA1_short(nr_bucket_arrays),
     RA2_short(nr_bucket_arrays),
     RA3_short(nr_bucket_arrays),
@@ -283,39 +273,15 @@ reservation_group::cget() const
 }
 
 
-
-thread_workspaces::thread_workspaces(int n, int _nr_sides, las_info & las)
-  : nb_threads(n),
-    nr_workspaces(n + 2),
-    groups { {nr_workspaces, nb_threads}, {nr_workspaces, nb_threads} }
-{
-    /* Well, groups is an array of side 2 anyway... */
-    ASSERT_ALWAYS(_nr_sides == 2);
-
-    thrs = new thread_data[nb_threads];
-    ASSERT_ALWAYS(thrs != NULL);
-
-    for(int i = 0 ; i < nb_threads; i++) {
-        thrs[i].init(*this, i, las);
-    }
-}
-
-thread_workspaces::~thread_workspaces()
-{
-    delete[] thrs;
-}
-
 /* Prepare to work on sieving a special-q as described by _si.
    This implies allocating all the memory we need for bucket arrays,
    sieve regions, etc. */
 void
-thread_workspaces::pickup_si(sieve_info & _si)
+nfs_work::allocate_bucket_regions(sieve_info const & si)
 {
-    psi = & _si;
-    sieve_info & si(*psi);
-    for (int i = 0; i < nb_threads; ++i) {
-        thrs[i].pickup_si(_si);
-    }
+    for (auto & T : th)
+        T.allocate_bucket_regions();
+
     /* Always allocate the max number of buckets (i.e., as if we were using the
        max value for J), even if we use a smaller J due to a poor q-lattice
        basis */
@@ -324,48 +290,23 @@ thread_workspaces::pickup_si(sieve_info & _si)
     bkmult_specifier const & multiplier = * si.bk_multiplier;
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             multiplier.print_all().c_str());
-    for (unsigned int i_side = 0; i_side < nr_sides; i_side++) {
-        if (!_si.sides[i_side].fb) continue;
-        groups[i_side].allocate_buckets(si.nb_buckets,
+
+    for (unsigned int side = 0; side < 2; side++) {
+        if (!si.sides[side].fb) continue;
+        groups[side].allocate_buckets(si.nb_buckets,
                 multiplier,
-                si.sides[i_side].fbs->stats.weight,
+                si.sides[side].fbs->stats.weight,
                 si.conf.logI);
     }
 }
 
-task_result * thread_do_task_wrapper(const worker_thread * worker, const task_parameters *_param)
-{
-    const thread_data_task_wrapper *th = static_cast<const thread_data_task_wrapper *>(_param);
-    (*th->f)(worker->timer, th->th);
-    return new task_result;
-}
-
-void
-thread_workspaces::thread_do_using_pool(thread_pool &pool, void * (*f)(timetree_t&, thread_data *))
-{
-    thread_data_task_wrapper * ths = new thread_data_task_wrapper[nb_threads];
-    for (int i = 0; i < nb_threads; ++i) {
-        ths[i].th = &thrs[i];
-        ths[i].f = f;
-    }
-
-    for (int i = 0; i < nb_threads; ++i) {
-        pool.add_task(thread_do_task_wrapper, &ths[i], i);
-    }
-    for (int i = 0; i < nb_threads; ++i) {
-        task_result *result = pool.get_result();
-        delete result;
-    }
-    delete[] ths;
-}
-
 template <int LEVEL, typename HINT>
 double
-thread_workspaces::buckets_max_full()
+nfs_work::buckets_max_full()
 {
     double mf0 = 0;
     typedef bucket_array_t<LEVEL, HINT> BA_t;
-    for(unsigned int side = 0 ; side < nr_sides ; side++) {
+    for(int side = 0 ; side < 2 ; side++) {
       for (auto const & BA : bucket_arrays<LEVEL, HINT>(side)) {
         unsigned int fullest;
         const double mf = BA.max_full(&fullest);
@@ -382,7 +323,7 @@ thread_workspaces::buckets_max_full()
     }
     return mf0;
 }
-double thread_workspaces::check_buckets_max_full()
+double nfs_work::check_buckets_max_full()
 {
     double mf0 = 0, mf;
     mf = buckets_max_full<3, shorthint_t>(); if (mf > mf0) mf0 = mf;
@@ -394,7 +335,7 @@ double thread_workspaces::check_buckets_max_full()
 }
 
 template <typename HINT>
-double thread_workspaces::check_buckets_max_full(int level, HINT const &)
+double nfs_work::check_buckets_max_full(int level, HINT const &)
 {
     switch(level) {
         case 3:
@@ -406,30 +347,20 @@ double thread_workspaces::check_buckets_max_full(int level, HINT const &)
     return 0;
 }
 
-template double thread_workspaces::buckets_max_full<1, shorthint_t>();
-template double thread_workspaces::buckets_max_full<2, shorthint_t>();
-template double thread_workspaces::buckets_max_full<3, shorthint_t>();
-template double thread_workspaces::buckets_max_full<1, longhint_t>();
-template double thread_workspaces::buckets_max_full<2, longhint_t>();
-template double thread_workspaces::check_buckets_max_full<shorthint_t>(int, shorthint_t const&);
-template double thread_workspaces::check_buckets_max_full<longhint_t>(int, longhint_t const&);
-
-void
-thread_workspaces::accumulate_and_clear(las_report & rep, sieve_checksum *checksum)
-{
-    for (int i = 0; i < nb_threads; ++i) {
-        rep.accumulate_and_clear(std::move(thrs[i].rep));
-        for (unsigned int side = 0; side < nr_sides; side++)
-            checksum[side].update(thrs[i].sides[side].checksum_post_sieve);
-    }
-}
+template double nfs_work::buckets_max_full<1, shorthint_t>();
+template double nfs_work::buckets_max_full<2, shorthint_t>();
+template double nfs_work::buckets_max_full<3, shorthint_t>();
+template double nfs_work::buckets_max_full<1, longhint_t>();
+template double nfs_work::buckets_max_full<2, longhint_t>();
+template double nfs_work::check_buckets_max_full<shorthint_t>(int, shorthint_t const&);
+template double nfs_work::check_buckets_max_full<longhint_t>(int, longhint_t const&);
 
 template <int LEVEL, typename HINT>
 void
-thread_workspaces::reset_all_pointers(int side) {
+nfs_work::reset_all_pointers(int side) {
     groups[side].get<LEVEL, HINT>().reset_all_pointers();
 }
 
-template void thread_workspaces::reset_all_pointers<1, shorthint_t>(int);
-template void thread_workspaces::reset_all_pointers<2, shorthint_t>(int);
-template void thread_workspaces::reset_all_pointers<3, shorthint_t>(int);
+template void nfs_work::reset_all_pointers<1, shorthint_t>(int);
+template void nfs_work::reset_all_pointers<2, shorthint_t>(int);
+template void nfs_work::reset_all_pointers<3, shorthint_t>(int);

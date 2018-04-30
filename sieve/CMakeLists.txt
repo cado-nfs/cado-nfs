@@ -20,6 +20,8 @@ set (las_sources
     las-coordinates.cpp
     las-sieve-info.cpp
     las-types.cpp
+    las-choose-sieve-area.cpp
+    las-auxiliary-data.cpp
     las.cpp fb.cpp fb-slice-weight.cpp las-plattice.cpp
   las-debug.cpp las-report-stats.cpp las-duplicate.cpp
   las-config.c bucket.cpp las-smallsieve.cpp las-unsieve.cpp
@@ -61,6 +63,7 @@ add_executable(dupsup
     las-siever-config.cpp
     las-sieve-info.cpp
     las-qlattice.cpp
+    las-choose-sieve-area.cpp
     las-norms.cpp logapprox.cpp
     las-coordinates.cpp
     bucket.cpp

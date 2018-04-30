@@ -99,7 +99,7 @@ class results_queue;
 class exceptions_queue;
 class thread_pool;
 
-typedef task_result *(*task_function_t)(const worker_thread * worker, const task_parameters *);
+typedef task_result *(*task_function_t)(const worker_thread * worker, task_parameters *);
 
 class worker_thread {
   friend class thread_pool;
@@ -111,11 +111,15 @@ class worker_thread {
 public:
    worker_thread(worker_thread&&) = default;
    worker_thread& operator=(worker_thread&&) = default;
-  mutable timetree_t timer;
   int rank() const;
+  int nthreads() const;
+  /* It doesn't seem that unholy to me to have a thread access the pool
+   * it originates from. It's possibly a good way to do continuations,
+   * for example.
+   */
+  thread_pool & get_pool() { return pool; }
   worker_thread(thread_pool &, size_t);
   ~worker_thread();
-  void push_chart_item(time_bubble_chaser const & tt) const { timer.chart.push_back(tt); }
 };
 
 
@@ -137,12 +141,11 @@ class thread_pool : private monitor, private NonCopyable {
   void add_exception(size_t queue, clonable_exception * e);
   bool all_task_queues_empty() const;
 public:
-  void push_chart_item(int rank, time_bubble_chaser const & tt) { threads[rank].timer.chart.push_back(tt); }
-  void clear_time_charts() { for(auto & T : threads) T.timer.chart.clear(); }
   void display_time_charts() const;
+  static double cumulated_wait_time;
   thread_pool(size_t _nr_threads, size_t nr_queues = 1);
   ~thread_pool();
-  void add_task(task_function_t func, const task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
+  void add_task(task_function_t func, task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
   task_result *get_result(size_t queue = 0, bool blocking = true);
   void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);
   void drain_all_queues();
@@ -160,36 +163,6 @@ public:
           }
           return res;
       }
-
-
-  /* All threads in a thread pool have their respective timer active at
-   * all times. We have two different ways to collect the timings they've
-   * recorder over the course of their execution. Those depend on whether
-   * we wish to count the times spent on _tasks_ (active time), or the
-   * time spent _waiting_ for tasks (wait time). This is the purpose of
-   * the two methods below.
-   */
-
-  /*
-   * For accumulate_and_clear_active_time, we expect that all threads are
-   * currently waiting, and all recorded child timings are transferred to
-   * [rep]. The worker thread's timer is clear of all of its child
-   * timings, but its wait time is unchanged.
-   */
-  void accumulate_and_clear_active_time(timetree_t::super & rep);
-
-  /* For accumulate_and_reset_wait_time, we also expect that all threads
-   * are currently waiting, but we also mandate that none has any
-   * recorded child timings. That is, the function
-   * accumulate_and_clear_active_time() must have been called previously
-   * to stow the worker threads' children timings somewhere.
-   *
-   * accumulate_and_reset_wait_time counts the outstanding wait time for
-   * the worker thread, and accumulates it to the target timer. After the
-   * call, all threads are waiting again, but with their wait time reset
-   * to zero (as if they had just started afresh).
-   */
-  void accumulate_and_reset_wait_time(timetree_t::super & rep);
 };
 
 #endif
