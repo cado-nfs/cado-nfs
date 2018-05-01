@@ -16,6 +16,7 @@ struct where_am_I;;
 struct descent_tree;
 #endif
 class nfs_work;
+class nfs_work_cofac;
 class nfs_aux;
 
 /* we use this type to store positions within the sieve arrays. This is

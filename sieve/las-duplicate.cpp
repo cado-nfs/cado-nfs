@@ -210,7 +210,9 @@ struct sq_with_fac {
  * duplicate */
 bool
 sq_finds_relation(las_info const & las, sq_with_fac const& sq_fac, const int sq_side,
-    relation const& rel, sieve_info & old_si,
+    relation const& rel,
+    siever_config const & old_sc,
+    std::shared_ptr<facul_strategies_t> old_strategies,
     int adjust_strategy)
 {
   uint64_t sq = sq_fac.q;
@@ -235,11 +237,11 @@ sq_finds_relation(las_info const & las, sq_with_fac const& sq_fac, const int sq_
    * ourselves. This should be fixed someday. XXX
    */
   sieve_info si;
-  si.cpoly_ptr = old_si.cpoly_ptr;
+  si.cpoly_ptr = & las.cpoly;
   si.conf = conf;
   si.I = 1UL << conf.logI;
   si.set_for_new_q(doing, Q, J);
-  si.strategies = old_si.strategies;
+  si.strategies = old_strategies;
 
   const uint32_t oldI = si.I, oldJ = si.J;
   si.update_norm_data();
@@ -302,7 +304,7 @@ sq_finds_relation(las_info const & las, sq_with_fac const& sq_fac, const int sq_
   std::array<cxx_mpz, 2> cof;
   for (int side = 0; side < 2; side++) {
     mpz_set_ui(cof[side], 1);
-    const unsigned long fbb = old_si.conf.sides[side].lim;
+    const unsigned long fbb = old_sc.sides[side].lim;
     unsigned int nb_p = rel.sides[side].size();
     for (unsigned int i = 0; i < nb_p; i++) {
       const unsigned long p = mpz_get_ui(rel.sides[side][i].p);
@@ -352,18 +354,20 @@ sq_finds_relation(las_info const & las, sq_with_fac const& sq_fac, const int sq_
 /* This function decides whether the given (sq,side) was previously
  * sieved (compared to the current special-q stored in si.doing).
  * This takes qmin and qmax into account.
+ *
+ * TODO: what's up with side here ? Any distinction between side and
+ * doing.side ???
  */
 static int
-sq_was_previously_sieved (const uint64_t sq, int side, sieve_info const & si){
+sq_was_previously_sieved (const uint64_t sq, int side, las_todo_entry const & doing, siever_config const & sc){
   cxx_mpz Sq;
   mpz_set_uint64(Sq, sq);
-  if (mpz_cmp(si.doing.p, Sq) <= 0) /* we use <= and not < since this
-					   function is also called with the
-					   current special-q */
+  if (mpz_cmp(doing.p, Sq) <= 0) /* we use <= and not < since this
+				    function is also called with the
+				    current special-q */
     return 0;
 
-  return (sq >= si.conf.sides[side].qmin)
-      && (sq <  si.conf.sides[side].qmax);
+  return (sq >= sc.sides[side].qmin) && (sq <  sc.sides[side].qmax);
 }
 
 // Warning: this function works with side effects:
@@ -412,12 +416,16 @@ all_multiples(std::vector<uint64_t> & prime_list) {
 /* Return 1 if the relation is probably a duplicate of a relation found
    "earlier", and 0 if it is probably not a duplicate */
 int
-relation_is_duplicate(relation const& rel, las_info const& las,
-                      sieve_info & si, int adjust_strategy)
+relation_is_duplicate(relation const& rel,
+        las_todo_entry const & doing,
+        las_info const& las,
+        siever_config const & old_sc,
+        std::shared_ptr<facul_strategies_t> old_strategies,
+        int adjust_strategy)
 {
   /* If the special-q does not fit in an unsigned long, we assume it's not a
      duplicate and just move on */
-  if (!mpz_fits_uint64_p(si.doing.p)) {
+  if (!mpz_fits_uint64_p(doing.p)) {
     return false;
   }
 
@@ -439,7 +447,7 @@ relation_is_duplicate(relation const& rel, las_info const& las,
 
       // can this p be part of valid sq ?
       if (! las.allow_composite_q) {
-        if ((p < si.conf.sides[side].qmin) || (p >= si.conf.sides[side].qmax)) {
+        if ((p < old_sc.sides[side].qmin) || (p >= old_sc.sides[side].qmax)) {
           continue;
         }
       } else {
@@ -449,7 +457,7 @@ relation_is_duplicate(relation const& rel, las_info const& las,
       }
 
       cxx_mpz aux;
-      mpz_poly_getcoeff(aux, si.cpoly()->pols[side]->deg, si.cpoly()->pols[side]);
+      mpz_poly_getcoeff(aux, las.cpoly->pols[side]->deg, las.cpoly->pols[side]);
       if (mpz_divisible_ui_p(aux, p))
         continue;
 
@@ -461,7 +469,7 @@ relation_is_duplicate(relation const& rel, las_info const& las,
     // Step 2: keep only those that have been sieved before current sq.
     std::vector<sq_with_fac> valid_sq;
     for (auto const & sq : sq_list) {
-      if (sq_was_previously_sieved(sq.q, side, si)) {
+      if (sq_was_previously_sieved(sq.q, side, doing, old_sc)) {
         valid_sq.push_back(sq);
       }
     }
@@ -469,7 +477,7 @@ relation_is_duplicate(relation const& rel, las_info const& las,
     // Step 3: emulate sieving for the valid sq, and check if they find
     // our relation.
     for (auto const & sq : valid_sq) {
-      bool is_dupe = sq_finds_relation(las, sq, side, rel, si, adjust_strategy);
+      bool is_dupe = sq_finds_relation(las, sq, side, rel, old_sc, old_strategies, adjust_strategy);
       verbose_output_print(0, VERBOSE_LEVEL,
           "# DUPECHECK relation is probably%s a dupe\n",
           is_dupe ? "" : " not");

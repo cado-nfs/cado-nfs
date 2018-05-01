@@ -113,7 +113,15 @@ struct las_info : private NonCopyable, public las_augmented_output_channel {
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
     int batch_print_survivors;
-    cofac_list L; /* store (a,b) and corresponding cofactors in batch mode */
+
+    /* Would this rather go somewhere else ? In a global (not per-sq)
+     * version of nfs_work_cofac perhaps ?
+     * 
+     * We're really over-using mutable modifiers with this struct. It's
+     * annoying me, and more than a hint at the fact that we should think
+     * the design a bit differently.
+     */
+    mutable cofac_list L; /* store (a,b) and corresponding cofactors in batch mode */
 
     /* ----- cofactorization statistics for the default config */
     mutable cofactorization_statistics cofac_stats;

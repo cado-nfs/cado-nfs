@@ -28,7 +28,7 @@ set (las_sources
   las-sieve2357.cpp las-unsieve-sse2.cpp
   las-trialdiv.cpp las-fb.cpp
   las-descent-trees.cpp las-cofactor.cpp
-  las-fill-in-buckets.cpp las-threads.cpp)
+  las-fill-in-buckets.cpp las-threads.cpp las-threads-work-data.cpp)
 set (las_libraries trialdiv facul utils ${pthread_libs})
 # set (las_libraries trialdiv facul utils ${pthread_libs})
 

@@ -7,14 +7,8 @@
 #include "las-report-stats.hpp"
 #include "utils/tdict.hpp"
 #include "utils/timing.h"
-
-typedef std::pair< int64_t, uint64_t> abpair_t;
-
-struct abpair_hash_t {
-    inline unsigned long operator()(abpair_t const& o) const {
-        return 314159265358979323UL * o.first + 271828182845904523UL + o.second;
-    }
-};
+#include "las-threads-work-data.hpp"
+#include "ecm/facul.hpp"
 
 /* Compute a checksum over the bucket region.
 
@@ -55,8 +49,10 @@ class sieve_checksum {
  * is a reference to an object that is persistent across all attempts for
  * a given q.
  *
- * Someday, most of this will be done with shared_ptr's. Both the
- * nfs_aux structure, and the already_printed_for_q member.
+ * This structure lives through a shared_ptr, and so does the
+ * already_printed_for_q member we're pointing to. This makes it possible
+ * for objects to persist in memory while another special-q is being
+ * processed.
  */
 class nfs_aux {/*{{{*/
     /* okay, it's hidden. We *only* use it in the dtor, where we decide
@@ -69,16 +65,21 @@ class nfs_aux {/*{{{*/
     public:
     las_todo_entry doing;
 
-    /* Will be converted to a shared_ptr. */
-    std::unordered_set<abpair_t, abpair_hash_t>& already_printed_for_q;
+    typedef std::pair< int64_t, uint64_t> abpair_t;
+
+    struct abpair_hash_t {
+        inline unsigned long operator()(abpair_t const& o) const {
+            return 314159265358979323UL * o.first + 271828182845904523UL + o.second;
+        }
+    };
+
+    typedef std::unordered_set<abpair_t, abpair_hash_t> rel_hash_t;
+
+    std::shared_ptr<rel_hash_t> rel_hash_p;
+    rel_hash_t & get_rel_hash() { return * rel_hash_p ; }
 
     /* These two are initialized by the caller, and the caller itself
      * will collate them with the global counters.
-     *
-     * Unfortunately, this is incompatible with asynchronous processing.
-     * We would then need to arrange them in lists (and no other
-     * containers), and have the exception handlers splice them to a
-     * "botched" list, before final synchronization.
      */
     las_report & rep;
     timetree_t & timer_special_q;
@@ -88,25 +89,7 @@ class nfs_aux {/*{{{*/
      * sieving without any need for reallocation */
     bool complete = false;
 
-#if 0
-    /* It _seems_ that it's ok to have sieve_info as a reference, even
-     * though asynchronous special-q's might lead us to continue
-     * computing with a special-q beyond a point where the sieve_info
-     * structure, that is fetched from las.sievers, might have been taken
-     * over by the next special q.
-     * This is because we're only doing ECM, past this point.
-     *
-     * This being said, it's probably cleaner to not have this in this
-     * structure.
-     */
-    sieve_info &si;
-#endif
-
     std::array<sieve_checksum,2> checksum_post_sieve;
-
-    /* This is meant to replace at least part
-     * nfs_work::thread_data. Maybe not everything.
-     */
 
     struct thread_data {/*{{{*/
         nfs_aux & common;
@@ -117,18 +100,22 @@ class nfs_aux {/*{{{*/
         where_am_I w;
         thread_data(nfs_aux & t) : common(t) {}
         void update_checksums(nfs_work::thread_data & tws);
-
     };/*}}}*/
 
     std::vector<thread_data> th;
 
     double qt0;
 
-    nfs_aux(las_info const & las, las_todo_entry const & doing, std::unordered_set<abpair_t, abpair_hash_t>& a, las_report & rep, timetree_t & t, int nthreads)
+    nfs_aux(las_info const & las,
+            las_todo_entry const & doing,
+            std::shared_ptr<rel_hash_t> & rel_hash_p,
+            las_report & rep,
+            timetree_t & t,
+            int nthreads)
         :
             las(las),   /* shame... */
             doing(doing),
-            already_printed_for_q(a),
+            rel_hash_p(rel_hash_p),
             rep(rep),
             timer_special_q(t),
             th(nthreads, thread_data(*this))

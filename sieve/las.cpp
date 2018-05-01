@@ -310,7 +310,7 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
     return nroots;
 }
 
-static void adwg(FILE *output, const char *comment, int *cpt,
+static void adwg(FILE *output, const char *comment, unsigned long *cpt,
 		 relation &rel, int64_t a, int64_t b){
     if(b < 0) { a = -a; b = -b; }
     rel.a = a; rel.b = (uint64_t)b;
@@ -355,7 +355,7 @@ static void add_galois_factors(relation &rel, int p, int vp){
 
 /* adding relations on the fly in Galois cases */
 static void add_relations_with_galois(const char *galois, FILE *output, 
-				      const char *comment, int *cpt,
+				      const char *comment, unsigned long *cpt,
 				      relation &rel){
     int64_t a0, b0, a1, b1, a2, b2, a3, b3, a5, b5, aa, bb, a;
     uint64_t b;
@@ -1145,12 +1145,10 @@ bool register_contending_relation(las_info const & las, sieve_info const & si, r
 #endif /* DLP_DESCENT */
 
 struct factor_survivors_data {/*{{{*/
+    worker_thread * worker;
     nfs_work & ws;
-    nfs_work::thread_data & tws;
-    /* aux is just stats and so on. This will become a shared pointer
-     * someday */
-    nfs_aux & aux;
-    nfs_aux::thread_data & taux;
+    std::shared_ptr<nfs_work_cofac> wc_p;
+    std::shared_ptr<nfs_aux> aux_p;
     where_am_I & w;
 
     sieve_info & si;
@@ -1179,19 +1177,26 @@ struct factor_survivors_data {/*{{{*/
      * mundane stats counting stuff.
      */
     factor_survivors_data(
-            nfs_work::thread_data & tws,
-            nfs_aux::thread_data & taux, sieve_info & si,
+            worker_thread * worker,
+            nfs_work & ws,
+            std::shared_ptr<nfs_work_cofac> wc_p,
+            std::shared_ptr<nfs_aux> aux_p,
+            sieve_info & si,
             int N)
         :
-            ws(tws.ws), tws(tws),
-            aux(taux.common), taux(taux),
-            w(taux.w),
+            worker(worker),
+            ws(ws),
+            wc_p(wc_p),
+            aux_p(aux_p),
+            w(aux_p->th[worker->rank()].w),
             si(si),
             N(N)
     {
         cpt = 0;
         copr = 0;
         SS = NULL;
+        int id = worker->rank();
+        nfs_work::thread_data & tws(ws.th[id]);
         for(int side = 0 ; side < 2 ; side++) {
             sides[side].S = tws.sides[side].bucket_region;
             if (!SS && sides[side].S)
@@ -1210,6 +1215,9 @@ struct factor_survivors_data {/*{{{*/
 void factor_survivors_data::search_survivors()/*{{{*/
 {
     /* Import some contextual stuff */
+    int id = worker->rank();
+    nfs_work::thread_data & tws(ws.th[id]);
+    nfs_aux::thread_data & taux(aux_p->th[id]);
     timetree_t & timer(taux.timer);
     las_report& rep(taux.rep);
     las_info const & las(ws.las);
@@ -1320,6 +1328,8 @@ void factor_survivors_data::search_survivors()/*{{{*/
 
 void factor_survivors_data::convert_survivors()/*{{{*/
 {
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(aux_p->th[id]);
     timetree_t & timer(taux.timer);
     BOOKKEEPING_TIMER(timer);
     /* Convert data type of list from uint32_t to the correct br_index_t */
@@ -1329,10 +1339,314 @@ void factor_survivors_data::convert_survivors()/*{{{*/
     survivors.clear();
 }/*}}}*/
 
+/* This is one input to the late cofactoring process (aka ECM). Here, we
+ * mean the stuff that is done detached from the rest of the siever
+ * stuff: we no longer care about purging buckets and so on, these may
+ * safely be used for later work.
+ */
+struct cofac_standalone {
+    std::array<uint8_t, 2> S;
+    std::array<cxx_mpz, 2> norm;
+    std::array<factor_list_t, 2> factors;
+    std::array<std::vector<cxx_mpz>, 2> lps;
+    int64_t a;
+    uint64_t b;
+#ifdef SUPPORT_LARGE_Q
+    cxx_mpz az, bz;
+#endif
+    cofac_standalone() : a(0), b(0) {/*{{{*/
+#ifdef SUPPORT_LARGE_Q
+        mpz_set_ui(az, 0);
+        mpz_set_ui(bz, 0);
+#endif
+    }/*}}}*/
+    cofac_standalone(int N, size_t x, sieve_info const& si) {/*{{{*/
+        NxToAB (&a, &b, N, x, si);
+#ifdef SUPPORT_LARGE_Q
+        NxToABmpz (az, bz, N, x, si);
+#endif
+    }/*}}}*/
+#ifdef TRACE_K
+    bool trace_on_spot() const {/*{{{*/
+        return trace_on_spot(a, b);
+    }/*}}}*/
+#endif
+    inline bool both_even() const {/*{{{*/
+#ifndef SUPPORT_LARGE_Q
+        return ((((a | b) & 1) == 0));
+#else
+        return ((mpz_even_p(az) && mpz_even_p(bz)));
+#endif
+    }/*}}}*/
+    bool gcd_coprime_with_q(las_todo_entry const & E) {/*{{{*/
+        /* Since the q-lattice is exactly those (a, b) with
+           a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
+        /* In case of composite sq, have to check all factors... */
+        /* FIXME: fast divisibility test here! */
+        if (E.prime_sq) {
+#ifndef SUPPORT_LARGE_Q
+            if (b == 0 || (mpz_cmp_ui(E.p, b) <= 0 && b % mpz_get_ui(E.p) == 0))
+#else
+            if ((mpz_cmp_ui(bz, 0) == 0) || 
+                (mpz_cmp(E.p, bz) <= 0 &&
+                 mpz_divisible_p(bz, E.p)))
+#endif
+                return false;
+        } else {
+#ifdef SUPPORT_LARGE_Q
+            if (mpz_cmp_ui(bz, 0) == 0)
+                continue;
+            for (auto const& facq : E.prime_factors) {
+                if ((mpz_cmp_ui(bz, facq) >= 0) && (mpz_divisible_ui_p(bz, facq))) {
+                    return false;
+                }
+            }
+#else
+            if (b == 0)
+                return false;
+            for (auto const& facq : E.prime_factors) {
+                if (facq <= b && b % facq == 0) {
+                    return false;
+                }
+            }
+#endif
+        }
+        return true;
+    }/*}}}*/
+    bool ab_coprime() const {/*{{{*/
+#ifndef SUPPORT_LARGE_Q
+        return bin_gcd_int64_safe(a,b) == 1;
+#else
+        cxx_mpz g;
+        mpz_gcd(g, az, bz);
+        return mpz_cmp_ui(g, 1) == 0;
+#endif
+    }/*}}}*/
+    void print_as_survivor() {/*{{{*/
+#ifndef SUPPORT_LARGE_Q
+        gmp_printf("%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
+                (mpz_srcptr) norm[0],
+                (mpz_srcptr) norm[1]);
+#else
+        gmp_printf("%Zd %Zd %Zd %Zd\n",
+                (mpz_srcptr) az,
+                (mpz_srcptr) bz,
+                (mpz_srcptr) norm[0],
+                (mpz_srcptr) norm[1]);
+#endif
+    }/*}}}*/
+    relation get_relation(las_todo_entry const & doing) {/*{{{*/
+#ifndef SUPPORT_LARGE_Q
+        relation rel(a, b);
+#else
+        relation rel(az, bz);
+#endif
+
+        /* Note that we explicitly do not bother about storing r in
+         * the relations below */
+        for (int side = 0; side < 2; side++) {
+            for (auto const& z : factors[side])
+                rel.add(side, z, 0);
+            for (auto const& z : lps[side])
+                rel.add(side, z, 0);
+        }
+        if (doing.prime_sq) {
+            rel.add(doing.side, doing.p, 0);
+        } else {
+            for (auto const& facq : doing.prime_factors)
+                rel.add(doing.side, facq, 0);
+        }
+
+        rel.compress();
+        return rel;
+    }/*}}}*/
+    void transfer_to_cofac_list(cofac_list_t * L, las_todo_entry const & doing) {/*{{{*/
+        /* make sure threads don't write the cofactor list at the
+         * same time !!! */
+        static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&lock);
+        cofac_list_add ((cofac_list_t*) L,
+                a, b,
+                /* We would like to do std::move() here. That would
+                 * entail changing the prototype of cofac_list_add to
+                 * have an && */
+                (mpz_srcptr) norm[0],
+                (mpz_srcptr) norm[1],
+                doing.side,
+                (mpz_srcptr) doing.p);
+        pthread_mutex_unlock(&lock);
+    }/*}}}*/
+    int factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
+        /* This proxies to las-cofactor.cpp */
+        return ::factor_both_leftover_norms(norm,
+                lps,
+                { wc.sc.sides[0].lim, wc.sc.sides[1].lim },
+                wc.strategies.get());
+    }/*}}}*/
+};
+
+struct detached_cofac_parameters : public cofac_standalone, public task_parameters {
+    std::shared_ptr<nfs_work_cofac> wc_p;
+    std::shared_ptr<nfs_aux> aux_p;
+    detached_cofac_parameters(std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, cofac_standalone&& C) : cofac_standalone(C), wc_p(wc_p), aux_p(aux_p) {}
+};
+
+/* Generic tool to cause an arbitrary closure to be called at destructor
+ * time. See below for a use case.
+ */
+template<typename T> struct call_dtor {
+    T & x;
+    call_dtor(T & x): x(x) {}
+    ~call_dtor() { x(); }
+};
+
+task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
+{
+    /* We must exit by cleaning the param structure we've been given. But
+     * everything we do with the objects whose life is dependent on our
+     * param structure must of course be completed at this point. This
+     * holds as well for the timer. Yet ACTIVATE_TIMER below registers
+     * some stuff to be done at dtor time, so it's important that we
+     * clean up the parameters *after* the timer cleans up.
+     */
+    detached_cofac_parameters *param = static_cast<detached_cofac_parameters *>(_param);
+    auto clean_param = [&]() { delete param; };
+    call_dtor<decltype(clean_param)> x(clean_param);
+
+    /* Import some contextual stuff. Careful: at this point, we expect
+     * that a new sieve task has begun. Therefore we cannot safely access
+     * the sieve_info structure. */
+    int id = worker->rank();
+    nfs_work_cofac & wc(*param->wc_p);
+    nfs_aux & aux(*param->aux_p);
+    nfs_aux::thread_data & taux(aux.th[id]);
+    las_info const & las(wc.las);
+    las_report & rep(taux.rep);
+    timetree_t & timer(taux.timer);
+    ACTIVATE_TIMER(timer);
+    nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
+
+    cofac_standalone & cur(*param);
+
+    std::array<int, 2> cof_bitsize {0,0}; /* placate compiler */
+    las.cofac_stats.call(cur.norm, cof_bitsize);
+
+    SIBLING_TIMER(timer, "factor_both_leftover_norms");
+    TIMER_CATEGORY(timer, cofactoring_mixed());
+
+    rep.ttcof -= microseconds_thread ();
+    rep.survivors.enter_cofactoring++;
+    int pass = cur.factor_both_leftover_norms(wc);
+    rep.survivors.cofactored += (pass != 0);
+    rep.ttcof += microseconds_thread ();
+
+#ifdef TRACE_K
+    if (cur.trace_on_spot() && pass == 0) {
+        verbose_output_print(TRACE_CHANNEL, 0,
+                "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), ", cur.a, cur.b);
+        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
+                "remains %Zd, %Zd unfactored\n",
+                (mpz_srcptr) cur.norm[0],
+                (mpz_srcptr) cur.norm[1]);
+    }
+#endif
+    if (pass <= 0) {
+        /* a factor was > 2^lpb, or some
+           factorization was incomplete */
+        return new task_result;
+    }
+
+    rep.survivors.smooth++;
+
+    /* yippee: we found a relation! */
+    SIBLING_TIMER(timer, "print relations");
+    TIMER_CATEGORY(timer, bookkeeping());
+
+    las.cofac_stats.success(cof_bitsize);
+
+    relation rel = cur.get_relation(aux.doing);
+
+#ifdef TRACE_K
+    if (cur.trace_on_spot()) {
+        verbose_output_print(TRACE_CHANNEL, 0, "# Relation for (%"
+                PRId64 ",%" PRIu64 ") printed\n", cur.a, cur.b);
+    }
+#endif
+
+    {
+        int do_check = las.suppress_duplicates;
+
+        /* note that if we have large primes which don't fit in
+         * an unsigned long, then the duplicate check will
+         * quickly return "no".
+         */
+
+        static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&lock);
+        nfs_aux::abpair_t ab(cur.a, cur.b);
+        bool is_new_rel = rel_hash.insert(ab).second;
+        pthread_mutex_unlock(&lock);
+
+        const char * dup_comment = NULL;
+
+        if (!is_new_rel) {
+            /* can't insert, so already there: either it's a
+             * duplicate of a relation that was already printed, or a
+             * relation that was already identified as a duplicate.
+             * But at any rate it's not to be printed and we don't
+             * even want to bother testing whether it's a duplicate
+             * in the sense of relation_is_duplicate()
+             */
+            dup_comment = "# DUP ";
+        } else if (do_check && relation_is_duplicate(rel,
+                    wc.doing, wc.las, wc.sc, wc.strategies,
+                    adjust_strategy)) {
+            dup_comment = "# DUPE ";
+        }
+
+        FILE *output;
+
+        verbose_output_start_batch(); /* lock I/O. */
+
+        /* Not clear what gives when we have Galois relations.
+         */
+        rep.reports += !dup_comment;
+
+        if (!dup_comment) dup_comment = "";
+
+        if (prepend_relation_time) {
+            verbose_output_print(0, 1, "(%1.4f) ", seconds() - tt_qstart);
+        }
+        // verbose_output_print(0, 3, "# i=%d, j=%u, lognorms = %hhu, %hhu\n", i, j, cur.S[0], cur.S[1]);
+        for (size_t i_output = 0;
+                (output = verbose_output_get(0, 0, i_output)) != NULL;
+                i_output++) {
+            rel.print(output, dup_comment);
+            // once filtering is ok for all Galois cases, 
+            // this entire block would have to disappear
+            if(las.galois != NULL)
+                // adding relations on the fly in Galois cases
+                add_relations_with_galois(las.galois, output, dup_comment,
+                        &rep.reports, rel);
+        }
+        verbose_output_end_batch();     /* unlock I/O */
+    }
+
+    /* Build histogram of lucky S[x] values */
+    rep.mark_report(cur.S[0], cur.S[1]);
+
+    return new task_result;
+}
+#if 0
+#endif
+
 void factor_survivors_data::prepare_cofactoring()/*{{{*/
 {
     las_info const & las(ws.las);
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(aux_p->th[id]);
     timetree_t & timer(taux.timer);
+    nfs_work::thread_data & tws(ws.th[id]);
 
     /* Copy those bucket entries that belong to sieving survivors and
        store them with the complete prime */
@@ -1394,20 +1708,15 @@ void factor_survivors_data::cofactoring ()
 {
     /* Import some contextual stuff */
     las_info const & las(ws.las);
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(aux_p->th[id]);
     las_report & rep(taux.rep);
     timetree_t & timer(taux.timer);
-    auto& already_printed_for_q(aux.already_printed_for_q);
 
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    std::array<cxx_mpz, 2> norm;
-    factor_list_t factors[2];
-    std::array<std::vector<cxx_mpz>, 2> lps;
-
-#ifdef SUPPORT_LARGE_Q
-        cxx_mpz az, bz;
-#endif
+    cofac_standalone cur;
 
     for (size_t i_surv = 0 ; i_surv < survivors2.size(); i_surv++) {
 #ifdef DLP_DESCENT
@@ -1429,77 +1738,32 @@ void factor_survivors_data::cofactoring ()
          * log to base 2 of the sieve limits on each side, and compare the
          * bitsize of the cofactor with their double.
          */
-        int64_t a;
-        uint64_t b;
 
         SIBLING_TIMER(timer, "check_coprime");
         TIMER_CATEGORY(timer, cofactoring_mixed());
 
-        NxToAB (&a, &b, N, x, si);
-#ifdef SUPPORT_LARGE_Q
-        NxToABmpz (az, bz, N, x, si);
-#endif
-#ifdef TRACE_K
-        if (trace_on_spot_ab(a, b))
+        /* start building a new object. This is a swap operation */
+        cur = cofac_standalone(N, x, si);
+        cur.S = { sides[0].S[x], sides[1].S[x] };
+
+#ifdef TRACE_K/*{{{*/
+        if (cur.trace_on_spot_ab())
           verbose_output_print(TRACE_CHANNEL, 0, "# about to start cofactorization for (%"
-                   PRId64 ",%" PRIu64 ")  %zu %u\n", a, b, x, SS[x]);
-#endif
+                   PRId64 ",%" PRIu64 ")  %zu %u\n", cur.a, cur.b, x, SS[x]);
+#endif/*}}}*/
 
         /* since a,b both even were not sieved, either a or b should
          * be odd. However, exceptionally small norms, even without
          * sieving, may fall below the report bound (see tracker
          * issue #15437). Therefore it is safe to continue here. */
         // ASSERT((a | b) & 1);
-#ifndef SUPPORT_LARGE_Q
-        if (UNLIKELY(((a | b) & 1) == 0))
-#else
-        if (UNLIKELY(mpz_even_p(az) && mpz_even_p(bz)))
-#endif
+        if (UNLIKELY(cur.both_even()))
             continue;
 
         rep.survivors.not_both_even++;
 
-        /* Since the q-lattice is exactly those (a, b) with
-           a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
-        /* In case of composite sq, have to check all factors... */
-        /* FIXME: fast divisibility test here! */
-        /* Dec 2014: on a c90, it takes 0.1 % of total sieving time*/
-        if (si.doing.prime_sq) {
-#ifndef SUPPORT_LARGE_Q
-            if (b == 0 || (mpz_cmp_ui(si.doing.p, b) <= 0 && b % mpz_get_ui(si.doing.p) == 0))
-#else
-            if ((mpz_cmp_ui(bz, 0) == 0) || 
-                (mpz_cmp(si.doing.p, bz) <= 0 &&
-                 mpz_divisible_p(bz, si.doing.p)))
-#endif
-                continue;
-        } else {
-#ifdef SUPPORT_LARGE_Q
-            if (mpz_cmp_ui(bz, 0) == 0)
-                continue;
-            bool ok = true;
-            for (auto const& facq : si.doing.prime_factors) {
-                if ((mpz_cmp_ui(bz, facq) >= 0) && (mpz_divisible_ui_p(bz, facq))) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (!ok)
-                continue;
-#else
-            if (b == 0)
-                continue;
-            bool ok = true;
-            for (auto const& facq : si.doing.prime_factors) {
-                if (facq <= b && b % facq == 0) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (!ok)
-                continue;
-#endif
-        }
+        if (!cur.gcd_coprime_with_q(si.doing))
+            continue;
 
         rep.survivors.not_both_multiples_of_p++;
 
@@ -1529,16 +1793,17 @@ void factor_survivors_data::cofactoring ()
             /* Compute the norms using the polynomials transformed to 
                i,j-coordinates. The transformed polynomial on the 
                special-q side is already divided by q */
-            si.sides[side].lognorms->norm(norm[side], i, j);
+            si.sides[side].lognorms->norm(cur.norm[side], i, j);
 
-#ifdef TRACE_K
-            if (trace_on_spot_ab(a, b)) {
+#ifdef TRACE_K/*{{{*/
+            if (cur.trace_on_spot_ab()) {
                 verbose_output_vfprint(TRACE_CHANNEL, 0,
-                        gmp_vfprintf, "# start trial division for norm=%Zd ", (mpz_srcptr) norm[side]);
+                        gmp_vfprintf, "# start trial division for norm=%Zd ", (mpz_srcptr) cur.norm[side]);
                 verbose_output_print(TRACE_CHANNEL, 0,
-                        "on side %d for (%" PRId64 ",%" PRIu64 ")\n", side, a, b);
+                        "on side %d for (%" PRId64 ",%" PRIu64 ")\n", side, cur.a, cur.b);
             }
-#endif
+#endif/*}}}*/
+
             if (si.conf.sides[side].lim == 0) {
                 /* This is a shortcut. We're probably replacing sieving
                  * by a product tree, there's no reason to bother doing
@@ -1554,35 +1819,35 @@ void factor_survivors_data::cofactoring ()
             const bool handle_2 = true; /* FIXME */
             rep.survivors.trial_divided_on_side[side]++;
 
-            trial_div (factors[side], norm[side], N, x,
+            trial_div (cur.factors[side], cur.norm[side], N, x,
                     handle_2,
                     &sides[side].primes,
                     &sides[side].purged,
                     si.sides[side].trialdiv_data.get(),
-                    a, b,
+                    cur.a, cur.b,
                     *si.sides[side].fbs);
 
             /* if q is composite, its prime factors have not been sieved.
              * Check if they divide. */
             if ((side == si.doing.side) && (!si.doing.prime_sq)) {
                 for (const auto &x : si.doing.prime_factors) {
-                    if (mpz_divisible_uint64_p(norm[side], x)) {
-                        mpz_divexact_uint64(norm[side], norm[side], x);
-                        factors[side].push_back(x);
+                    if (mpz_divisible_uint64_p(cur.norm[side], x)) {
+                        mpz_divexact_uint64(cur.norm[side], cur.norm[side], x);
+                        cur.factors[side].push_back(x);
                     }
                 }
             }
 
             SIBLING_TIMER(timer, "check_leftover_norm");
 
-            pass = check_leftover_norm (norm[side], si.conf.sides[side]);
+            pass = check_leftover_norm (cur.norm[side], si.conf.sides[side]);
 #ifdef TRACE_K
-            if (trace_on_spot_ab(a, b)) {
+            if (cur.trace_on_spot_ab()) {
                 verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                        "# checked leftover norm=%Zd", (mpz_srcptr) norm[side]);
+                        "# checked leftover norm=%Zd", (mpz_srcptr) cur.norm[side]);
                 verbose_output_print(TRACE_CHANNEL, 0,
                         " on side %d for (%" PRId64 ",%" PRIu64 "): %d\n",
-                        side, a, b, pass);
+                        side, cur.a, cur.b, pass);
             }
 #endif
             rep.survivors.check_leftover_norm_on_side[side] += pass;
@@ -1592,36 +1857,13 @@ void factor_survivors_data::cofactoring ()
 
         rep.survivors.enter_cofactoring++;
 
-        if (si.conf.sublat.m) {
+        if (las.batch_print_survivors) {
             // In sublat mode, some non-primitive survivors can exist.
             // The cofactoring via ECM is made aware of this, but not the
             // batch mode, so we have to ensure it.
-            if (las.batch || las.batch_print_survivors) {
-#ifndef SUPPORT_LARGE_Q
-                if (bin_gcd_int64_safe(a,b) != 1)
-                    continue;
-#else
-                cxx_mpz g;
-                mpz_gcd(g, az, bz);
-                if (mpz_cmp_ui(g, 1) != 0)
-                    continue;
-#endif
-            }
-        }
-
-        if (las.batch_print_survivors) {
+            if (si.conf.sublat.m && !cur.ab_coprime()) continue;
             verbose_output_start_batch ();
-#ifndef SUPPORT_LARGE_Q
-            gmp_printf("%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
-                    (mpz_srcptr) norm[0],
-                    (mpz_srcptr) norm[1]);
-#else
-            gmp_printf("%Zd %Zd %Zd %Zd\n",
-                    (mpz_srcptr) az,
-                    (mpz_srcptr) bz,
-                    (mpz_srcptr) norm[0],
-                    (mpz_srcptr) norm[1]);
-#endif
+            cur.print_as_survivor();
             verbose_output_end_batch ();
             cpt++;
             continue;
@@ -1629,140 +1871,23 @@ void factor_survivors_data::cofactoring ()
 
         if (las.batch)
         {
+            /* see above */
+            if (si.conf.sublat.m && !cur.ab_coprime()) continue;
             /* make sure threads don't write the cofactor list at the
              * same time !!! */
-            static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-            pthread_mutex_lock(&lock);
-            cofac_list_add ((cofac_list_t*) las.L, a, b, norm[0], norm[1],
-                    si.doing.side, si.doing.p);
+            cur.transfer_to_cofac_list(las.L, si.doing);
             cpt++;
-            pthread_mutex_unlock(&lock);
             continue; /* we deal with all cofactors at the end of las */
         }
 
-        std::array<int, 2> cof_bitsize = {{0,0}};
-        las.cofac_stats.call(norm, cof_bitsize);
+        auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
-        SIBLING_TIMER(timer, "factor_both_leftover_norms");
-        TIMER_CATEGORY(timer, cofactoring_mixed());
-
-        rep.ttcof -= microseconds_thread ();
-        pass = factor_both_leftover_norms(norm, lps, {{si.conf.sides[0].lim, si.conf.sides[1].lim}}, si.strategies.get());
-        rep.survivors.cofactored += (pass != 0);
-        rep.ttcof += microseconds_thread ();
-#ifdef TRACE_K
-        if (trace_on_spot_ab(a, b) && pass == 0) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                    "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), ", a, b);
-            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                    "remains %Zd, %Zd unfactored\n",
-                    (mpz_srcptr) norm[0],
-                    (mpz_srcptr) norm[1]);
-        }
-#endif
-        if (pass <= 0) continue; /* a factor was > 2^lpb, or some
-                                    factorization was incomplete */
-
-        rep.survivors.smooth++;
-
-        /* yippee: we found a relation! */
-        SIBLING_TIMER(timer, "print relations");
-        TIMER_CATEGORY(timer, bookkeeping());
-
-        las.cofac_stats.success(cof_bitsize);
-
-        // ASSERT (bin_gcd_int64_safe (a, b) == 1);
-
-#ifndef SUPPORT_LARGE_Q
-        relation rel(a, b);
+#ifndef  DLP_DESCENT
+        worker->get_pool().add_task(detached_cofac, D, 0, 1); /* id 0, queue 1 */
 #else
-        relation rel(az, bz);
-#endif
-
-        /* Note that we explicitly do not bother about storing r in
-         * the relations below */
-        for (int side = 0; side < 2; side++) {
-            for (auto const& z : factors[side])
-                rel.add(side, z, 0);
-            for (auto const& z : lps[side])
-                rel.add(side, z, 0);
-        }
-        if (si.doing.prime_sq) {
-            rel.add(si.doing.side, si.doing.p, 0);
-        } else {
-            for (auto const& facq : si.doing.prime_factors)
-                rel.add(si.doing.side, facq, 0);
-        }
-
-        rel.compress();
-
-#ifdef TRACE_K
-        if (trace_on_spot_ab(a, b)) {
-            verbose_output_print(TRACE_CHANNEL, 0, "# Relation for (%"
-                    PRId64 ",%" PRIu64 ") printed\n", a, b);
-        }
-#endif
-        {
-            int do_check = las.suppress_duplicates;
-            /* note that if we have large primes which don't fit in
-             * an unsigned long, then the duplicate check will
-             * quickly return "no".
-             */
-            const char * dup_comment = NULL;
-
-            /* protects the use of the hash table already_printed_for_q
-             * below. */
-            static pthread_mutex_t already_printed_for_q_lock = PTHREAD_MUTEX_INITIALIZER;
-            pthread_mutex_lock(&already_printed_for_q_lock);
-            bool is_new_rel = already_printed_for_q.insert(abpair_t(a,b)).second;
-            pthread_mutex_unlock(&already_printed_for_q_lock);
-
-            if (!is_new_rel) {
-                /* can't insert, so already there: either it's a
-                 * duplicate of a relation that was already printed, or a
-                 * relation that was already identified as a duplicate.
-                 * But at any rate it's not to be printed and we don't
-                 * even want to bother testing whether it's a duplicate
-                 * in the sense of relation_is_duplicate()
-                 */
-                rep.multi_print++;
-                cpt++;
-                dup_comment = "# DUP ";
-            } else if (do_check && relation_is_duplicate(rel, las, si, adjust_strategy)) {
-                rep.duplicates++;
-                dup_comment = "# DUPE ";
-            } else {
-                cpt ++;
-                dup_comment = "";
-            }
-
-            FILE *output;
-
-            verbose_output_start_batch(); /* lock I/O. */
-
-            if (prepend_relation_time) {
-                verbose_output_print(0, 1, "(%1.4f) ", seconds() - tt_qstart);
-            }
-            verbose_output_print(0, 3, "# i=%d, j=%u, lognorms = %hhu, %hhu\n",
-                    i, j, sides[0].S[x], sides[1].S[x]);
-            for (size_t i_output = 0;
-                    (output = verbose_output_get(0, 0, i_output)) != NULL;
-                    i_output++) {
-                rel.print(output, dup_comment);
-                // once filtering is ok for all Galois cases, 
-                // this entire block would have to disappear
-                if(las.galois != NULL)
-                    // adding relations on the fly in Galois cases
-                    add_relations_with_galois(las.galois, output, dup_comment,
-                            &cpt, rel);
-            }
-            verbose_output_end_batch();     /* unlock I/O */
-        }
-
-        /* Build histogram of lucky S[x] values */
-        rep.mark_report(sides[0].S[x], sides[1].S[x]);
-
-#ifdef  DLP_DESCENT
+        /* We must proceed synchronously for the descent */
+        task_result * res = detached_cofac(worker, D);
+        delete res;
         if (register_contending_relation(las, si, rel))
             break;
 #endif  /* DLP_DESCENT */
@@ -1776,13 +1901,16 @@ void factor_survivors_data::cofactoring ()
    but this is done by the caller.
    */
 int
-factor_survivors (nfs_work::thread_data & ws_taux, nfs_aux::thread_data & taux, sieve_info & si, int N, where_am_I & w MAYBE_UNUSED)
+factor_survivors (worker_thread * worker, nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, sieve_info & si, int N)
 {
+    int id = worker->rank();
+    nfs_aux & aux(*aux_p);
+    nfs_aux::thread_data & taux(aux.th[id]);
     timetree_t & timer(taux.timer);
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    factor_survivors_data F(ws_taux, taux, si, N);
+    factor_survivors_data F(worker, ws, wc_p, aux_p, si, N);
 
     F.search_survivors();
     F.convert_survivors();
@@ -1879,7 +2007,7 @@ void SminusS (unsigned char *S1, unsigned char *EndS1, unsigned char *S2) {/*{{{
  * The other threads are accessed by combining the thread pointer th and
  * the thread id: the i-th thread is at th - id + i
  */
-task_result * process_bucket_region(const worker_thread * worker, task_parameters * _param)
+task_result * process_bucket_region(worker_thread * worker, task_parameters * _param)
 {
     const process_bucket_region_parameters *param = static_cast<const process_bucket_region_parameters *>(_param);
 
@@ -1888,7 +2016,7 @@ task_result * process_bucket_region(const worker_thread * worker, task_parameter
     int nthreads = worker->nthreads();
     nfs_work & ws(param->ws);
     nfs_work::thread_data & tws(param->ws.th[id]);
-    nfs_aux::thread_data & taux(param->aux.th[id]);
+    nfs_aux::thread_data & taux(param->aux_p->th[id]);
     timetree_t & timer(taux.timer);
     ACTIVATE_TIMER(timer);
     las_report& rep(taux.rep);
@@ -2052,7 +2180,7 @@ task_result * process_bucket_region(const worker_thread * worker, task_parameter
 
         /* Factor survivors */
         rep.ttf -= seconds_thread ();
-        rep.reports += factor_survivors (tws, taux, si, N, w);
+        rep.reports += factor_survivors (worker, ws, param->wc_p, param->aux_p, si, N);
         rep.ttf += seconds_thread ();
 
         timer.chart.push_back(tt.put());
@@ -2413,8 +2541,9 @@ void postprocess_specialq_descent(las_info & las, las_todo_entry const & doing, 
  * downsort, apply-buckets, lognorm computation, small sieve computation,
  * and survivor search and detection, all from here.
  */
-void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & ws, nfs_aux & aux, thread_pool & pool)/*{{{*/
+void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
 {
+    nfs_aux & aux(*aux_p);
     timetree_t & timer_special_q(aux.timer_special_q);
     las_report& rep(aux.rep);
     where_am_I & w(aux.w);
@@ -2513,7 +2642,7 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
 
         /* Process bucket regions in parallel */
         for(int i = 0 ; i < las.nb_threads ; i++) {
-            auto P = new process_bucket_region_parameters(ws, aux, si, w);
+            auto P = new process_bucket_region_parameters(ws, wc_p, aux_p, si, w);
             /* first_region0_index is always 0 for toplevel==1 */
             task_function_t f = process_bucket_region;
             pool.add_task(f, P, i, 0);
@@ -2536,11 +2665,11 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         for (uint32_t i = 0; i < si.nb_buckets[si.toplevel]; i++) {
             switch (si.toplevel) {
                 case 2:
-                    downsort_tree<1>(ws, aux, pool, i, i*BRS[2]/BRS[1],
+                    downsort_tree<1>(ws, wc_p, aux_p, pool, i, i*BRS[2]/BRS[1],
                             si, precomp_plattice, w);
                     break;
                 case 3:
-                    downsort_tree<2>(ws, aux, pool, i, i*BRS[3]/BRS[1],
+                    downsort_tree<2>(ws, wc_p, aux_p, pool, i, i*BRS[3]/BRS[1],
                             si, precomp_plattice, w);
                     break;
                 default:
@@ -2553,11 +2682,17 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
      * Maybe we could be looser about this.
      */
     pool.drain_queue(0);
+
+    /* This one will definitely be loosened, but we'll do so
+     * progressively.
+     */
+    pool.drain_queue(1);
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
-bool do_one_special_q(las_info & las, nfs_work & ws, nfs_aux & aux, thread_pool & pool, cxx_param_list & pl)
+bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, cxx_param_list & pl)
 {
+    nfs_aux & aux(*aux_p);
     las_todo_entry const & doing(aux.doing);
     timetree_t& timer_special_q(aux.timer_special_q);
     las_report& rep(aux.rep);
@@ -2618,6 +2753,8 @@ bool do_one_special_q(las_info & las, nfs_work & ws, nfs_aux & aux, thread_pool 
      * base. */
     si.update(las.nb_threads);
 
+    auto wc_p = std::make_shared<nfs_work_cofac>(las, si);
+
     rep.total_logI += si.conf.logI;
     rep.total_J += si.J;
 
@@ -2672,7 +2809,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, nfs_aux & aux, thread_pool 
                 verbose_output_print(0, 1, "# Sublattice (i,j) == (%u, %u) mod %u\n",
                         si.conf.sublat.i0, si.conf.sublat.j0, si.conf.sublat.m);
             }
-            do_one_special_q_sublat(las, si, ws, aux, pool);
+            do_one_special_q_sublat(las, si, ws, wc_p, aux_p, pool);
 
         }
     }
@@ -2831,7 +2968,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     timetree_t global_timer;
 
     /* A pointer just to control when the dtor is called... */
-    thread_pool *pool = new thread_pool(las.nb_threads);
+    thread_pool *pool = new thread_pool(las.nb_threads, 2);
 
     nfs_work workspaces(las);
 
@@ -2891,20 +3028,32 @@ int main (int argc0, char *argv0[])/*{{{*/
          * block, because we want this list to be common to all attempts
          * for this q.
          */
-        std::unordered_set<abpair_t, abpair_hash_t> already_printed_for_q;
+        auto rel_hash_p = std::make_shared<nfs_aux::rel_hash_t>();
 
         for(;;) {
+            /* We're playing a very dangerous game here. rep and timer
+             * below are created here, at the end of a temp list. When
+             * exiting this loop, they will still be live somewhere,
+             * either in aux_good or aux_botched. The nfs_aux data holds
+             * references to this stuff. But this nfs_aux is expected to
+             * live slightly longer, so it will tinker with these structs
+             * at a time where they've already been moved to aux_good (or
+             * even aux_botched, if an exception occurs late during 1l
+             * downsorting). We must be sure that all threads are done
+             * when we finally consume the aux_good and aux_botched
+             * lists!
+             */
             std::list<std::pair<las_report, timetree_t>> aux_pending;
             aux_pending.push_back(std::pair<las_report, timetree_t>());
-
             las_report & rep(aux_pending.back().first);
             timetree_t & timer_special_q(aux_pending.back().second);
 
             /* ready to start over if we encounter an exception */
             try {
-                nfs_aux aux(las, doing, already_printed_for_q, rep, timer_special_q, las.nb_threads);
+                auto aux_p = std::make_shared<nfs_aux>(las, doing, rel_hash_p, rep, timer_special_q, las.nb_threads);
+                nfs_aux & aux(*aux_p);
 
-                bool done = do_one_special_q(las, workspaces, aux, *pool, pl);
+                bool done = do_one_special_q(las, workspaces, aux_p, *pool, pl);
 
 
                 if (!done) {

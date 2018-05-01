@@ -99,7 +99,7 @@ class results_queue;
 class exceptions_queue;
 class thread_pool;
 
-typedef task_result *(*task_function_t)(const worker_thread * worker, task_parameters *);
+typedef task_result *(*task_function_t)(worker_thread * worker, task_parameters *);
 
 class worker_thread {
   friend class thread_pool;

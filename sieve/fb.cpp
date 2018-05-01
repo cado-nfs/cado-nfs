@@ -1351,8 +1351,8 @@ class make_linear_thread_result: public task_result {
             }
 };
 
-    static task_result *
-process_one_task(const worker_thread * worker MAYBE_UNUSED, task_parameters *_param)
+static task_result *
+process_one_task(worker_thread * worker MAYBE_UNUSED, task_parameters *_param)
 {
     make_linear_thread_param *param =
         static_cast<make_linear_thread_param *>(_param);

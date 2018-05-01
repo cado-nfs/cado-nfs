@@ -16,7 +16,7 @@ public:
   print_result(int n) : printed(n){}
 };
 
-task_result *print_something(const worker_thread * worker MAYBE_UNUSED, task_parameters *t_param)
+task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameters *t_param)
 {
   const print_parameter *param = dynamic_cast<const print_parameter *>(t_param);
 

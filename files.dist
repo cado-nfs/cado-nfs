@@ -1243,3 +1243,5 @@ sieve/las-choose-sieve-area.hpp
 sieve/las-process-bucket-region.hpp
 sieve/las-auxiliary-data.hpp
 sieve/las-auxiliary-data.cpp
+sieve/las-threads-work-data.hpp
+sieve/las-threads-work-data.cpp
