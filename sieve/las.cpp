@@ -1526,6 +1526,10 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
     ACTIVATE_TIMER(timer);
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
 
+    time_bubble_chaser tt(id, time_bubble_chaser::ECM,
+            { 0,0,0,0 });
+
+
     cofac_standalone & cur(*param);
 
     std::array<int, 2> cof_bitsize {0,0}; /* placate compiler */
@@ -1553,6 +1557,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
            factorization was incomplete */
+        timer.chart.push_back(tt.put());
         return new task_result;
     }
 
@@ -1634,6 +1639,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 
     /* Build histogram of lucky S[x] values */
     rep.mark_report(cur.S[0], cur.S[1]);
+    timer.chart.push_back(tt.put());
 
     return new task_result;
 }

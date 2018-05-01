@@ -111,6 +111,10 @@ class nfs_work {
         std::vector<bucket_array_t<LEVEL, HINT>> const &
         bucket_arrays(int side) const {return groups[side].cget<LEVEL, HINT>().bucket_arrays();}
 
+    void diagnosis(int level, std::array<fb_factorbase::slicing const *, 2> fbs) const {
+        groups[0].diagnosis(0, level, *fbs[0]);
+        groups[1].diagnosis(1, level, *fbs[1]);
+    }
 };
 
 /* Should it be made a shared pointer too ? Probably. */

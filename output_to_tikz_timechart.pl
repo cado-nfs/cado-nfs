@@ -60,6 +60,7 @@ sub parse_new_slicing {
 
 sub ship_chart {
     my ($fh,$sq,$nthreads,$tab) = @_;
+    print STDERR "Shipping chart with ", scalar @$tab, " entries\n";
     my ($tmin, $tmax);
     return unless @$tab;
     my $NS = scalar @$tab;
@@ -112,7 +113,7 @@ sub ship_chart {
     }
     my $last_step=-1;
     print $fh "\\begin{center}\n";
-    if ($ngraphs > 10) { $ngraphs=10; }
+    if ($ngraphs > 200) { $ngraphs=200; }
     my $ckind='';
     for(my $j = 0 ; $j < $ngraphs ; $j++) {
         print $fh "\\begin{adjustbox}{max totalsize={\\textwidth}{.9\\textheight},center}\n";
@@ -190,26 +191,28 @@ sub parse_a_special_q {
                     defined($_=<$in>) or die;
                     my ($kind, $thr, $idx, $t0, $t1, $time);
                     /thread (\d+)/ && do { $thr=$1; };
-                    /FIB side (\d+) level (\d+) B (\d+) slice (\d+)/ && do {
+                    if (/FIB side (\d+) level (\d+) B (\d+) slice (\d+)/) {
                         $kind = "FIB$2s.$1";
                         $idx = $3;
                         # slice unused.
-                    };
-                    /DS side (\d+) level (\d+) B (\d+)/ && do {
+                    } elsif (/DS side (\d+) level (\d+) B (\d+)/) {
                         $kind = "DS$2l.$1";
                         $idx = $3;
                         # slice unused.
-                    };
-                    /PBR M (\d+) B (\d+)/ && do {
+                    } elsif (/PBR M (\d+) B (\d+)/) {
                         $kind = "PBR$1";
                         $idx = $thr;
                         # slice unused.
-                    };
-                    /PCLAT side (\d+) level (\d+)/ && do {
+                    } elsif (/PCLAT side (\d+) level (\d+)/) {
                         $kind = "PCLAT$2.$1";
                         $idx = $thr;
                         # slice unused.
-                    };
+                    } elsif (/ECM/) {
+                        $kind = "ECM";
+                        $idx = $thr;
+                    } else {
+                        die "Unexpected chart line: $_";
+                    }
                     /t0 ([\d\.]+)/ && do { $t0=$1; };
                     /t1 ([\d\.]+)/ && do { $t1=$1; };
                     /time ([\d\.]+)/ && do { $time=$1; };
@@ -296,14 +299,15 @@ for my $pair (@files) {
             print $fh "\\end{verbatim}\n";
         };
     open my $in, "<$file";
-    while (defined($_=<$in>)) {
-        while (defined($_) && /^# Creating new slicing on side (\d+) for (scale=.*)$/) {
-            parse_new_slicing($in, $fh, $1, $2);
-        }
-        if (/^# Sieving (side-\d q=\d+; rho=\d+).*/) {
-            parse_a_special_q($in, $fh, $1);
-        }
-    }
+#    while (defined($_=<$in>)) {
+#        while (defined($_) && /^# Creating new slicing on side (\d+) for (scale=.*)$/) {
+#            parse_new_slicing($in, $fh, $1, $2);
+#        }
+#        if (/^# Sieving (side-\d q=\d+; rho=\d+).*/) {
+#            parse_a_special_q($in, $fh, $1);
+#        }
+#    }
+    parse_a_special_q($in, $fh, "merge special-q's");
     close $in;
     close $fh;
     my $opwd = getcwd;
