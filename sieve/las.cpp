@@ -2682,11 +2682,6 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
      * Maybe we could be looser about this.
      */
     pool.drain_queue(0);
-
-    /* This one will definitely be loosened, but we'll do so
-     * progressively.
-     */
-    pool.drain_queue(1);
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
