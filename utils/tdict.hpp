@@ -395,7 +395,7 @@ struct time_bubble_chaser {
     struct timeval tv_get;
     struct timeval tv_put;
     int thread;
-    enum kind_t { FIB, AB, DS, PBR, PCLAT, ECM };
+    enum kind_t { INIT, FIB, AB, DS, PBR, PCLAT, ECM, BOTCHED };
     kind_t kind;
     typedef std::array<int, 4> id_t;
     id_t id;
@@ -416,6 +416,14 @@ struct timetree_t : public tdict::tree<tdict::timer_seconds_thread> {
     void display_chart() const;
     timetree_t& append_chart(timetree_t const& o) {
         chart.insert(chart.end(), o.chart.begin(), o.chart.end());
+        return *this;
+    }
+    timetree_t& append_botched_chart(timetree_t const& o) {
+        size_t os = chart.size();
+        chart.insert(chart.end(), o.chart.begin(), o.chart.end());
+        for( ; os < chart.size() ; ++os) {
+            chart[os].kind = time_bubble_chaser::BOTCHED;
+        }
         return *this;
     }
     timetree_t& operator+=(timetree_t const& o) {

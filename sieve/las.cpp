@@ -2699,6 +2699,8 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     las_report& rep(aux.rep);
     where_am_I & w MAYBE_UNUSED(aux.w);
 
+    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
+    
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
      * By default, this is not allowed, but the parameter
@@ -2791,10 +2793,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
 
     verbose_output_print(0, 2, "# I=%u; J=%u\n", si.I, si.J);
 
-    /*
-     * FIXME: This is leaking badly in the sublat case, when exceptions
-     * occur.
-     */
+    timer_special_q.chart.push_back(tt.put());
 
     unsigned int sublat_bound = si.conf.sublat.m;
     if (sublat_bound == 0)
@@ -2811,7 +2810,6 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
                         si.conf.sublat.i0, si.conf.sublat.j0, si.conf.sublat.m);
             }
             do_one_special_q_sublat(las, si, ws, wc_p, aux_p, pool);
-
         }
     }
 
@@ -3132,7 +3130,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         global_timer += P.second;
     }
     for(auto & P : aux_botched) {
-        global_timer.append_chart(P.second);
+        global_timer.append_botched_chart(P.second);
     }
     if (time_bubble_chaser::enable) {
         verbose_output_print (0, 2, "# displaying time chart for %d threads\n", las.nb_threads);

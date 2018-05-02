@@ -73,9 +73,9 @@ void timetree_t::display_chart() const
                     << " level " << T.id[1]
                     << " slice " << T.id[3];
                 break;
-            case time_bubble_chaser::ECM:
-                os << " ECM";
-                break;
+            case time_bubble_chaser::ECM: os << " ECM"; break;
+            case time_bubble_chaser::INIT: os << " INIT"; break;
+            case time_bubble_chaser::BOTCHED: os << " BOTCHED"; break;
         };
 
         double t0 = T.tv_get.tv_sec + 1.0e-6 * T.tv_get.tv_usec;

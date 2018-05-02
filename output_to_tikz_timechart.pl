@@ -207,9 +207,9 @@ sub parse_a_special_q {
                         $kind = "PCLAT$2.$1";
                         $idx = $thr;
                         # slice unused.
-                    } elsif (/ECM/) {
-                        $kind = "ECM";
-                        $idx = $thr;
+                    } elsif (/ECM/) { $kind = "ECM"; $idx = $thr;
+                    } elsif (/INIT/) { $kind = "INIT"; $idx = $thr;
+                    } elsif (/BOTCHED/) { $kind = "BOTCHED"; $idx = $thr;
                     } else {
                         die "Unexpected chart line: $_";
                     }
