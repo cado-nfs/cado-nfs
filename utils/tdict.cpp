@@ -76,6 +76,9 @@ void timetree_t::display_chart() const
             case time_bubble_chaser::ECM: os << " ECM"; break;
             case time_bubble_chaser::INIT: os << " INIT"; break;
             case time_bubble_chaser::BOTCHED: os << " BOTCHED"; break;
+            case time_bubble_chaser::SKEWGAUSS: os << " SKEWGAUSS"; break;
+            case time_bubble_chaser::SLICING: os << " SLICING"; break;
+            case time_bubble_chaser::ADJUST: os << " ADJUST"; break;
         };
 
         double t0 = T.tv_get.tv_sec + 1.0e-6 * T.tv_get.tv_usec;

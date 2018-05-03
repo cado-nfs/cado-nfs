@@ -1523,7 +1523,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 
     time_bubble_chaser tt(id, time_bubble_chaser::ECM,
             { 0,0,0,0 });
-
+    auto tt_put = call_dtor([&]() { timer.chart.push_back(tt.put()); });
 
     cofac_standalone & cur(*param);
 
@@ -1554,7 +1554,6 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
            factorization was incomplete */
-        timer.chart.push_back(tt.put());
         return res;
     }
 
@@ -1639,7 +1638,6 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 
     /* Build histogram of lucky S[x] values */
     rep.mark_report(cur.S[0], cur.S[1]);
-    timer.chart.push_back(tt.put());
 
     return (task_result*) res;
 }
@@ -2703,8 +2701,6 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     las_report& rep(aux.rep);
     where_am_I & w MAYBE_UNUSED(aux.w);
 
-    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
-    
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
      * By default, this is not allowed, but the parameter
@@ -2742,7 +2738,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     sieve_info * psi;
 
     {
-
+    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
 
     /* Maybe create a new siever ? */
     sieve_info & si(sieve_info::get_sieve_info_from_config(conf, las.cpoly, las.sievers, pl));
@@ -2765,21 +2761,21 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
      * particular, the creation of the different slices in the factor
      * base. */
 
-
+    timer_special_q.chart.push_back(tt.put());
     }
 
     sieve_info & si(*psi);
 
-
-
+    {
+    time_bubble_chaser tt(0, time_bubble_chaser::SLICING, {-1,-1,-1,-1});
     si.update(las.nb_threads);
-
-
+    timer_special_q.chart.push_back(tt.put());
+    }
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
-
+    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
     wc_p = std::make_shared<nfs_work_cofac>(las, si);
 
     rep.total_logI += si.conf.logI;
@@ -2850,6 +2846,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
 
     return true;
 }
+
 
 int main (int argc0, char *argv0[])/*{{{*/
 {

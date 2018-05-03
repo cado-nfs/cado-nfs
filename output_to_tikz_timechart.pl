@@ -210,6 +210,9 @@ sub parse_a_special_q {
                     } elsif (/ECM/) { $kind = "ECM"; $idx = $thr;
                     } elsif (/INIT/) { $kind = "INIT"; $idx = $thr;
                     } elsif (/BOTCHED/) { $kind = "BOTCHED"; $idx = $thr;
+                    } elsif (/SKEWGAUSS/) { $kind = "SKEWGAUSS"; $idx = $thr;
+                    } elsif (/SLICING/) { $kind = "SLICING"; $idx = $thr;
+                    } elsif (/ADJUST/) { $kind = "ADJUST"; $idx = $thr;
                     } else {
                         die "Unexpected chart line: $_";
                     }

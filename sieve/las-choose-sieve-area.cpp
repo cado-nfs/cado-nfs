@@ -10,12 +10,13 @@
 int never_discard = 0;      /* only enabled for las_descent */
 
 static bool choose_sieve_area(las_info const & las,
-        timetree_t * ptimer MAYBE_UNUSED,
+        timetree_t * ptimer,
         int adjust_strategy, las_todo_entry const & doing, siever_config & conf, qlattice_basis & Q, uint32_t & J)
 {
     sieve_range_adjust Adj;
-
     {
+    time_bubble_chaser tt(0, time_bubble_chaser::SKEWGAUSS, {0,0,0,0});
+    auto tt_put = call_dtor([&]() { if (ptimer) ptimer->chart.push_back(tt.put());});
 
     /* Our business: find an appropriate siever_config, that is
      * appropriate for this special-q. Different special-q's may lead to
@@ -52,10 +53,11 @@ static bool choose_sieve_area(las_info const & las,
         return false;
     }
 #endif
-
     }
 
     {
+    time_bubble_chaser tt(0, time_bubble_chaser::ADJUST, {0,0,0,0});
+    auto tt_put = call_dtor([&]() { if (ptimer) ptimer->chart.push_back(tt.put());});
 
     /* Try strategies for adopting the sieving range */
 
