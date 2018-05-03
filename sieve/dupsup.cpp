@@ -310,7 +310,7 @@ main (int argc, char * argv[])
         } else {
             relation rel;
             if (rel.parse(line)) {
-                int is_dupe = relation_is_duplicate(rel, las, *psi, adjust_strategy);
+                int is_dupe = relation_is_duplicate(rel, doing, las, psi->conf, psi->strategies, adjust_strategy);
                 dupsup(output, rel, doing, is_dupe);
             }
         }

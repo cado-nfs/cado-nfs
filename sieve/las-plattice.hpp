@@ -780,6 +780,7 @@ class plattices_dense_vector_t:
 public:
     plattices_dense_vector_t(plattices_dense_vector_t const&) = delete;
     plattices_dense_vector_t(plattices_dense_vector_t&&) = default;
+    plattices_dense_vector_t& operator=(plattices_dense_vector_t&&) = default;
     plattices_dense_vector_t() = default;
     plattices_dense_vector_t(const slice_index_t index) : index(index) {}
     slice_index_t get_index() const {return index;};

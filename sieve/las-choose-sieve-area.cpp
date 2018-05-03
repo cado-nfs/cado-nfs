@@ -3,12 +3,20 @@
 #include <stdio.h>
 #include <gmp.h>
 #include "las-types.hpp"
+#include "las-auxiliary-data.hpp"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 int never_discard = 0;      /* only enabled for las_descent */
 
-bool choose_sieve_area(las_info const & las, int adjust_strategy, las_todo_entry const & doing, siever_config & conf, qlattice_basis & Q, uint32_t & J)
+static bool choose_sieve_area(las_info const & las,
+        timetree_t * ptimer MAYBE_UNUSED,
+        int adjust_strategy, las_todo_entry const & doing, siever_config & conf, qlattice_basis & Q, uint32_t & J)
 {
+    sieve_range_adjust Adj;
+
+    {
+
     /* Our business: find an appropriate siever_config, that is
      * appropriate for this special-q. Different special-q's may lead to
      * different siever_config's, it is allowed.
@@ -21,7 +29,7 @@ bool choose_sieve_area(las_info const & las, int adjust_strategy, las_todo_entry
      * optimal logI and J for this special-q. We have several
      * strategies for that.
      */
-    sieve_range_adjust Adj(doing, las.cpoly, conf, las.nb_threads);
+    Adj = sieve_range_adjust(doing, las.cpoly, conf, las.nb_threads);
 
     if (!Adj.SkewGauss()) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,
@@ -44,6 +52,10 @@ bool choose_sieve_area(las_info const & las, int adjust_strategy, las_todo_entry
         return false;
     }
 #endif
+
+    }
+
+    {
 
     /* Try strategies for adopting the sieving range */
 
@@ -120,4 +132,20 @@ bool choose_sieve_area(las_info const & las, int adjust_strategy, las_todo_entry
     J = Adj.J;
 
     return true;
+    }
 }
+
+bool choose_sieve_area(las_info const & las,
+        std::shared_ptr<nfs_aux> aux_p,
+        int adjust_strategy, las_todo_entry const & doing, siever_config & conf, qlattice_basis & Q, uint32_t & J)
+{
+    timetree_t & timer(aux_p->timer_special_q);
+    return choose_sieve_area(las, &timer, adjust_strategy, doing, conf, Q, J);
+}
+
+bool choose_sieve_area(las_info const & las,
+        int adjust_strategy, las_todo_entry const & doing, siever_config & conf, qlattice_basis & Q, uint32_t & J)
+{
+    return choose_sieve_area(las, nullptr, adjust_strategy, doing, conf, Q, J);
+}
+

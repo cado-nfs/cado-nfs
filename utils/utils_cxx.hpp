@@ -33,4 +33,15 @@ public:
 };
  */
 
+/* Generic tool to cause an arbitrary closure to be called at destructor
+ * time. See detached_cofac for a use case.
+ */
+template<typename T> struct call_dtor_s {
+    T x;
+    call_dtor_s(T x): x(x) {}
+    ~call_dtor_s() { x(); }
+};
+template<typename T> call_dtor_s<T> call_dtor(T x) { return call_dtor_s<T>(x); }
+
+
 #endif	/* UTILS_CXX_HPP_ */

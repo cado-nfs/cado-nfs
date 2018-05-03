@@ -1395,7 +1395,7 @@ struct cofac_standalone {
         } else {
 #ifdef SUPPORT_LARGE_Q
             if (mpz_cmp_ui(bz, 0) == 0)
-                continue;
+                return false;
             for (auto const& facq : E.prime_factors) {
                 if ((mpz_cmp_ui(bz, facq) >= 0) && (mpz_divisible_ui_p(bz, facq))) {
                     return false;
@@ -1491,17 +1491,14 @@ struct detached_cofac_parameters : public cofac_standalone, public task_paramete
     detached_cofac_parameters(std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, cofac_standalone&& C) : cofac_standalone(C), wc_p(wc_p), aux_p(aux_p) {}
 };
 
-/* Generic tool to cause an arbitrary closure to be called at destructor
- * time. See below for a use case.
- */
-template<typename T> struct call_dtor {
-    T & x;
-    call_dtor(T & x): x(x) {}
-    ~call_dtor() { x(); }
+struct detached_cofac_result : public task_result {
+    std::shared_ptr<relation> rel_p;
 };
 
 task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 {
+    auto clean_param = call_dtor([_param]() { delete _param; });
+
     /* We must exit by cleaning the param structure we've been given. But
      * everything we do with the objects whose life is dependent on our
      * param structure must of course be completed at this point. This
@@ -1510,8 +1507,6 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
      * clean up the parameters *after* the timer cleans up.
      */
     detached_cofac_parameters *param = static_cast<detached_cofac_parameters *>(_param);
-    auto clean_param = [&]() { delete param; };
-    call_dtor<decltype(clean_param)> x(clean_param);
 
     /* Import some contextual stuff. Careful: at this point, we expect
      * that a new sieve task has begun. Therefore we cannot safely access
@@ -1544,6 +1539,8 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
     rep.survivors.cofactored += (pass != 0);
     rep.ttcof += microseconds_thread ();
 
+    auto res = new detached_cofac_result;
+
 #ifdef TRACE_K
     if (cur.trace_on_spot() && pass == 0) {
         verbose_output_print(TRACE_CHANNEL, 0,
@@ -1558,7 +1555,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
         /* a factor was > 2^lpb, or some
            factorization was incomplete */
         timer.chart.push_back(tt.put());
-        return new task_result;
+        return res;
     }
 
     rep.survivors.smooth++;
@@ -1635,13 +1632,16 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
                         &rep.reports, rel);
         }
         verbose_output_end_batch();     /* unlock I/O */
+#ifdef DLP_DESCENT
+        res->rel_p = std::make_shared<relation>(std::move(rel));
+#endif
     }
 
     /* Build histogram of lucky S[x] values */
     rep.mark_report(cur.S[0], cur.S[1]);
     timer.chart.push_back(tt.put());
 
-    return new task_result;
+    return (task_result*) res;
 }
 #if 0
 #endif
@@ -1892,9 +1892,13 @@ void factor_survivors_data::cofactoring ()
         worker->get_pool().add_task(detached_cofac, D, 0, 1); /* id 0, queue 1 */
 #else
         /* We must proceed synchronously for the descent */
-        task_result * res = detached_cofac(worker, D);
+        auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D));
+        bool cc = false;
+        if (res->rel_p) {
+            cc = register_contending_relation(las, si, *res->rel_p);
+        }
         delete res;
-        if (register_contending_relation(las, si, rel))
+        if (cc)
             break;
 #endif  /* DLP_DESCENT */
     }
@@ -2730,13 +2734,19 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     siever_config conf;
     qlattice_basis Q;
     uint32_t J;
-    if (!choose_sieve_area(las, adjust_strategy, doing, conf, Q, J))
+    if (!choose_sieve_area(las, aux_p, adjust_strategy, doing, conf, Q, J))
         return false;
 
     BOOKKEEPING_TIMER(timer_special_q);
 
+    sieve_info * psi;
+
+    {
+
+
     /* Maybe create a new siever ? */
     sieve_info & si(sieve_info::get_sieve_info_from_config(conf, las.cpoly, las.sievers, pl));
+    psi = &si;
     /* for some reason get_sieve_info_from_config does not access the
      * full las_info structure, so we have a few adjustments to make
      */
@@ -2754,9 +2764,23 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     /* This function should really be renamed ! It embodies, in
      * particular, the creation of the different slices in the factor
      * base. */
+
+
+    }
+
+    sieve_info & si(*psi);
+
+
+
     si.update(las.nb_threads);
 
-    auto wc_p = std::make_shared<nfs_work_cofac>(las, si);
+
+
+    std::shared_ptr<nfs_work_cofac> wc_p;
+
+    {
+
+    wc_p = std::make_shared<nfs_work_cofac>(las, si);
 
     rep.total_logI += si.conf.logI;
     rep.total_J += si.J;
@@ -2794,6 +2818,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     verbose_output_print(0, 2, "# I=%u; J=%u\n", si.I, si.J);
 
     timer_special_q.chart.push_back(tt.put());
+    }
 
     unsigned int sublat_bound = si.conf.sublat.m;
     if (sublat_bound == 0)
@@ -2825,7 +2850,6 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
 
     return true;
 }
-
 
 int main (int argc0, char *argv0[])/*{{{*/
 {
