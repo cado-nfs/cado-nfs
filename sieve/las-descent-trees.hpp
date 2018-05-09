@@ -20,7 +20,7 @@
 #undef isfinite
 #endif
 
-#include "relation.h"
+#include "relation.hpp"
 #include "las-forwardtypes.hpp"
 #include "las-types.hpp"
 

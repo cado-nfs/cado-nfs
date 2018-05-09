@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <vector>
+#include <istream>
+#include <ostream>
 
 #include "cado_poly.h"
 #include "gmp_aux.h"
@@ -92,10 +94,14 @@ struct relation : public relation_ab {
     void print(FILE * f, const char * prefix) const;
     int parse(const char * line);
 
-
     void fixup_r(bool also_rational = false);
     void compress();
+    friend std::istream& operator>>(std::istream&, relation&);
+    friend std::ostream& operator<<(std::ostream&, relation const &);
 };
+
+extern std::istream& operator>>(std::istream&, relation&);
+extern std::ostream& operator<<(std::ostream&, relation const &);
 
 struct pr_cmp {
     bool operator()(relation::pr const& a, relation::pr const& b) const {

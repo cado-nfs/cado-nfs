@@ -45,37 +45,32 @@ int worker_thread::nthreads() const { return pool.threads.size(); }
 
 class thread_task {
 public:
-  const task_function_t func;
-  const int id;
-  task_parameters * parameters;
-  const bool please_die;
-  const size_t queue;
-  const double cost; // costly tasks are scheduled first.
-  task_result *result;
+  task_function_t func = nullptr;
+  task_parameters * parameters = nullptr;
+  int id = 0;
+  double cost = 0.0; // costly tasks are scheduled first.
 
-  thread_task(task_function_t _func, int _id, task_parameters *_parameters, size_t _queue, double _cost) :
-    func(_func), id(_id), parameters(_parameters), please_die(false), queue(_queue), cost(_cost), result(NULL) {};
-  thread_task(bool _kill)
-    : func(NULL), id(0), parameters(NULL), please_die(true), queue(0), cost(0.0), result(NULL) {
-    ASSERT_ALWAYS(_kill);
-  }
+  bool is_terminal() { return func == NULL; }
+
+  thread_task(task_function_t _func, task_parameters *_parameters, int _id, double _cost) :
+    func(_func), parameters(_parameters), id(_id), cost(_cost) {}
+  thread_task(bool) {}
+  task_result * operator()(worker_thread * w) { return (*func)(w, parameters, id); }
 };
 
-class thread_task_cmp
+struct thread_task_cmp
 {
-public:
-  thread_task_cmp() {}
-  bool operator() (const thread_task *x, const thread_task *y) const {
-    if (x->cost < y->cost)
+  bool operator() (thread_task const &x, thread_task const &y) const {
+    if (x.cost < y.cost)
       return true;
-    if (x->cost > y->cost)
+    if (x.cost > y.cost)
       return false;
     // if costs are equal, compare ids (they should be distinct)
-    return x->id < y->id;
+    return x.id < y.id;
   }
 };
 
-class tasks_queue : public std::priority_queue<thread_task *, std::vector<thread_task *>, thread_task_cmp>, private NonCopyable {
+class tasks_queue : public std::priority_queue<thread_task, std::vector<thread_task>, thread_task_cmp>, private NonCopyable {
   public:
   condition_variable not_empty;
   size_t nr_threads_waiting;
@@ -133,26 +128,22 @@ thread_pool::thread_work_on_tasks(void *arg)
    */
   double tt = -wct_seconds();
   while (1) {
-    thread_task *task = I->pool.get_task(I->preferred_queue);
-    if (task->please_die) {
-      delete task;
-      break;
-    }
-    task_function_t func = task->func;
-    task_parameters *params = task->parameters;
-    try {
-        tt += wct_seconds();
-        task_result *result = func(I, params);
-        tt -= wct_seconds();
-        if (result != NULL)
-            I->pool.add_result(task->queue, result);
-    } catch (clonable_exception const& e) {
-        tt -= wct_seconds();
-        I->pool.add_exception(task->queue, e.clone());
-        /* We need to wake the listener... */
-        I->pool.add_result(task->queue, NULL);
-    }
-    delete task;
+      size_t queue = I->preferred_queue;
+      thread_task task = I->pool.get_task(queue);
+      if (task.is_terminal())
+          break;
+      try {
+          tt += wct_seconds();
+          task_result *result = task(I);
+          tt -= wct_seconds();
+          if (result != NULL)
+              I->pool.add_result(queue, result);
+      } catch (clonable_exception const& e) {
+          tt -= wct_seconds();
+          I->pool.add_exception(queue, e.clone());
+          /* We need to wake the listener... */
+          I->pool.add_result(queue, NULL);
+      }
   }
   tt += wct_seconds();
   /* tt is now the wall-clock time spent really within this function,
@@ -181,7 +172,7 @@ thread_pool::add_task(task_function_t func, task_parameters * params,
     ASSERT_ALWAYS(queue < tasks.size());
     enter();
     ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(new thread_task(func, id, params, queue, cost));
+    tasks[queue].push(thread_task(func, params, id, cost));
     created[queue]++;
 
     /* Find a queue with waiting threads, starting with "queue" */
@@ -195,8 +186,8 @@ thread_pool::add_task(task_function_t func, task_parameters * params,
     leave();
 }
   
-thread_task *
-thread_pool::get_task(const size_t preferred_queue)
+thread_task
+thread_pool::get_task(size_t& preferred_queue)
 {
   enter();
   while (!kill_threads && all_task_queues_empty()) {
@@ -208,19 +199,21 @@ thread_pool::get_task(const size_t preferred_queue)
     wait(tasks[preferred_queue].not_empty);
     tasks[preferred_queue].nr_threads_waiting--;
   }
-  thread_task *task;
+  thread_task task(true);
   if (kill_threads && all_task_queues_empty()) {
-    task = new thread_task(true);
+      /* then the default object above is appropriate for signaling all
+       * workers so that they terminate.
+       */
   } else {
     /* Find a non-empty task queue, starting with the preferred one */
-    size_t i = preferred_queue;
+    size_t& i(preferred_queue);
     if (tasks[i].empty()) {
       for (i = 0; i < tasks.size() && tasks[i].empty(); i++) {}
     }
     /* There must have been a non-empty queue or we'd still be in the while()
        loop above */
     ASSERT_ALWAYS(i < tasks.size());
-    task = tasks[i].top();
+    task = std::move(tasks[i].top());
     tasks[i].pop();
   }
   leave();

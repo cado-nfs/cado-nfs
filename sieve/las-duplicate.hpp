@@ -2,7 +2,7 @@
 #define LAS_DUPLICATE_HPP_
 
 #include "las-types.hpp"
-#include "relation.h"
+#include "relation.hpp"
 #include <memory>
 
 sieve_info *

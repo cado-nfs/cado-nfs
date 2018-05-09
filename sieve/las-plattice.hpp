@@ -738,9 +738,9 @@ struct plattice_info_dense_t {
         if (b1 > mask20)
             b1 = mask20;
 
-        pack[0] =   (minus_a0 & mask20) | (b0 << 20);
+        pack[0] = (minus_a0 & mask20) | (b0 << 20);
         pack[1] = ((b0 >> 12) & mask8 ) | ((a1 & mask20) << 8) | (b1 << 28);
-        pack[2] =  ((b1 >> 4) & mask16) | (hint << 16);
+        pack[2] = ((b1 >> 4) & mask16) | (hint << 16);
     }
 
     plattice_info_t unpack(const int logI) const {
@@ -776,14 +776,11 @@ struct plattice_info_dense_t {
 
 class plattices_dense_vector_t:
         public std::vector<plattice_info_dense_t> {
-    slice_index_t index = std::numeric_limits<slice_index_t>::max();
 public:
     plattices_dense_vector_t(plattices_dense_vector_t const&) = delete;
     plattices_dense_vector_t(plattices_dense_vector_t&&) = default;
     plattices_dense_vector_t& operator=(plattices_dense_vector_t&&) = default;
     plattices_dense_vector_t() = default;
-    plattices_dense_vector_t(const slice_index_t index) : index(index) {}
-    slice_index_t get_index() const {return index;};
 };
 
 

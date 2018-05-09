@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "utils.h"
-#include "relation.h"
+#include "relation.hpp"
 #include "relation-tools.h"
 #include "tests_common.h"
 

@@ -14,7 +14,7 @@
 
 #include "portability.h"
 #include "macros.h"
-#include "relation.h"
+#include "relation.hpp"
 #include "params.h"
 #include "cado_poly.h"
 #include "gzip.h"
@@ -287,6 +287,8 @@ main (int argc, char * argv[])
 
     las_info las(pl);
 
+    las_todo_entry doing;
+
     for (int argi = 0; argi < argc; argi++) {
       FILE *f = fopen_maybe_compressed(argv[argi], "rb");
       if (f == NULL) {
@@ -298,7 +300,6 @@ main (int argc, char * argv[])
         char line[1024];
         if (fgets(line, sizeof(line), f) == NULL)
           break;
-        las_todo_entry doing;
         if (read_sq_comment(doing, line)) {
             /* TODO we need to fix that for dynamic I */
             if (psi) delete psi;

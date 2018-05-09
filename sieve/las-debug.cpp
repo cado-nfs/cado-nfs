@@ -341,8 +341,7 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
 
 
 dumpfile::~dumpfile() {
-    if (f != NULL)
-        fclose(f);
+    if (f) fclose(f);
 }
 
 void dumpfile::setname(const char *filename_stem, las_todo_entry const & doing)
@@ -366,12 +365,10 @@ void dumpfile::setname(const char *filename_stem, las_todo_entry const & doing)
 }
 
 size_t dumpfile::write(const unsigned char * const data, const size_t size) const {
-    if (f == NULL) {
-        return 0;
-    } else {
-        size_t rc = fwrite(data, sizeof(unsigned char), size, f);
-        ASSERT_ALWAYS(rc == size);
-        return rc;
-    }
+    if (!f) return 0;
+
+    size_t rc = fwrite(data, sizeof(unsigned char), size, f);
+    ASSERT_ALWAYS(rc == size);
+    return rc;
 }
 /* }}} */

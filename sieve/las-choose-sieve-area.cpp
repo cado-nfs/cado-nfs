@@ -71,16 +71,15 @@ static bool choose_sieve_area(las_info const & las,
                     "# "
                     HILIGHT_START
                     "Discarding side-%d q=%Zd; rho=%Zd;"
-                    HILIGHT_END,
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
-            verbose_output_print(0, 1,
+                    HILIGHT_END
                     " a0=%" PRId64
                     "; b0=%" PRId64
                     "; a1=%" PRId64
                     "; b1=%" PRId64
                     "; raw_J=%u;\n", 
+                    doing.side,
+                    (mpz_srcptr) doing.p,
+                    (mpz_srcptr) doing.r,
                     Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1, Adj.J);
             return false;
         }

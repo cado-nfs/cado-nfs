@@ -2762,6 +2762,29 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             "qmin": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
             "lim1": int, "gzip": True, "sqside": 1})
 
+    def combine_bkmult(*lists):
+        d={}
+        dv=0
+        for l in lists:
+            assert len(l) == 1
+            p=l[0].split(",")
+            s=0
+            if p[0].find(":") < 0:
+                f=float(p[0])
+                if f > dv:
+                    dv=f
+                s=1
+            for pp in p[s:]:
+                r=re.compile("(\d+[a-z]+):(.*)")
+                m=r.match(pp)
+                assert m is not None
+                assert len(m.groups())==2
+                key,m = m.groups()
+                m=float(m)
+                if key not in d or m > d[key]:
+                    d[key]=m
+        return [",".join([str(dv)] + ["%s:%f"%v for v in d.items()])]
+
     @property
     def stat_conversions(self):
         # Average J=1017 for 168 special-q's, max bucket fill 0.737035
@@ -2778,10 +2801,10 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
         ),
         (
             "stats_max_bucket_fill",
-            float,
+            (str,),
             "0",
-            max,
-            re.compile(re_cap_n_fp("#.*max bucket fill", 1)),
+            SievingTask.combine_bkmult,
+            re.compile("#.*max bucket fill -bkmult ([\d\.]+(?:,\d[sl]:[\d\.]+)*)"),
             False
         ),
         (
@@ -2797,7 +2820,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total time", 1, "s")),
+            re.compile(re_cap_n_fp("# Total elapsed time", 1, "s")),
             False
         )
     )
@@ -2805,8 +2828,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     def stat_formats(self):
         return (
             ["Average J: {stats_avg_J[0]:g} for {stats_avg_J[1]:d} special-q",
-                ", max bucket fill: {stats_max_bucket_fill[0]:g}"],
-            ["Total CPU time: {stats_total_cpu_time[0]:g}s"],
+                ", max bucket fill -bkmult {stats_max_bucket_fill[0]}"],
             ["Total time: {stats_total_time[0]:g}s"],
         )
     
@@ -3280,7 +3302,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
             "0",
             Statistics.add_list,
             re.compile(re_cap_n_fp(r"# Done: Read \d+ relations in", 1, "s")),
-            False
+            True    # allow several !
         ),
     )
     @property
@@ -3349,7 +3371,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
             outfilenames = {f:i for f in files}
             self.add_output_files(outfilenames, commit=False)
             # XXX How do we add the timings ?
-            # self.parse_stats(stdoutpath, commit=True)
+            self.parse_stats(stdoutpath, commit=False)
             self.logger.info("%d unique relations remain on slice %d",
                              nr_rels, i)
             self.slice_relcounts[str(i)] = nr_rels

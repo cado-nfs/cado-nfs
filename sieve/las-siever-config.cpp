@@ -228,15 +228,6 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
 }
 siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing) const /*{{{*/
 {
-    // arrange so that we don't have the same header line as the one
-    // which prints the q-lattice basis
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-                         "#\n"
-                         "# "
-                         "Now sieving side-%d q=%Zd; rho=%Zd\n",
-                         doing.side,
-                         (mpz_srcptr) doing.p,
-                         (mpz_srcptr) doing.r);
     siever_config config = base;
     config.bitsize = mpz_sizeinbase(doing.p, 2);
     config.side = doing.side;

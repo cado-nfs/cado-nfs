@@ -312,6 +312,7 @@ cado_define_test(F9_dupsup
 # Try fake relation generation
 cado_define_test(F9_fakereltest
     SCRIPT
+    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las

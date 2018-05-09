@@ -516,6 +516,7 @@ downsort(bucket_array_t<INPUT_LEVEL - 1, longhint_t> &BA_out,
     for ( ; it != end_it ; it++) {
       WHERE_AM_I_UPDATE(w, p,
           (*w.psi->sides[w.side].fbs)[slice_index].get_prime(it->hint));
+      WHERE_AM_I_UPDATE(w, h, it->hint);
       BA_out.push_update(it->x, 0, it->hint, slice_index, w);
     }
   }

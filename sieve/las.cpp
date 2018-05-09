@@ -21,7 +21,7 @@
 #include "fb.hpp"
 #include "portability.h"
 #include "utils.h"           /* lots of stuff */
-#include "relation.h"
+#include "relation.hpp"
 #include "ecm/facul.hpp"
 #include "bucket.hpp"
 #include "trialdiv.h"
@@ -62,6 +62,7 @@ int prepend_relation_time = 0;
 int exit_after_rel_found = 0;
 int allow_largesq = 0;
 int adjust_strategy = 0;
+int sync_at_special_q = 0;
 
 double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
 
@@ -310,11 +311,12 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
     return nroots;
 }
 
-static void adwg(FILE *output, const char *comment, unsigned long *cpt,
+static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,
 		 relation &rel, int64_t a, int64_t b){
     if(b < 0) { a = -a; b = -b; }
     rel.a = a; rel.b = (uint64_t)b;
-    rel.print(output, comment);
+    if (comment) os << comment;
+    os << rel << '\n';
     *cpt += (*comment != '\0');
 }
 
@@ -354,7 +356,7 @@ static void add_galois_factors(relation &rel, int p, int vp){
 }
 
 /* adding relations on the fly in Galois cases */
-static void add_relations_with_galois(const char *galois, FILE *output, 
+static void add_relations_with_galois(const char *galois, std::ostream& os,
 				      const char *comment, unsigned long *cpt,
 				      relation &rel){
     int64_t a0, b0, a1, b1, a2, b2, a3, b3, a5, b5, aa, bb, a;
@@ -368,27 +370,27 @@ static void add_relations_with_galois(const char *galois, FILE *output,
 	// remember, 1/x is for plain autom
 	// 1/y is for Galois filtering: x^4+1 -> DO NOT DUPLICATE RELATIONS!
 	// (a-b/x) = 1/x*(-b+a*x)
-	adwg(output, comment, cpt, rel, -b0, -a0);
+	adwg(os, comment, cpt, rel, -b0, -a0);
     else if(strcmp(galois, "autom2.2") == 0)
 	// remember, -x is for plain autom
 	// -y is for Galois filtering: x^4+1 -> DO NOT DUPLICATE RELATIONS!
 	// (a-(-b)*x) ~ (-a-b*x)
-	adwg(output, comment, cpt, rel, -a0, b0);
+	adwg(os, comment, cpt, rel, -a0, b0);
     else if(strcmp(galois, "autom3.1") == 0){
 	// x -> 1-1/x; hence 1/x*(b-(b-a)*x)
 	a1 = a; b1 = (int64_t)b;
 	a2 = b1; b2 = b1-a1;
-	adwg(output, comment, cpt, rel, a2, b2);
+	adwg(os, comment, cpt, rel, a2, b2);
 	a3 = b2; b3 = b2-a2;
-	adwg(output, comment, cpt, rel, a3, b3);
+	adwg(os, comment, cpt, rel, a3, b3);
     }
     else if(strcmp(galois, "autom3.2") == 0){
 	// x -> -1-1/x; hence 1/x*(b-(-a-b)*x)
 	a1 = a; b1 = (int64_t)b;
 	a2 = b1; b2 = -a1-b1;
-	adwg(output, comment, cpt, rel, a2, b2);
+	adwg(os, comment, cpt, rel, a2, b2);
 	a3 = b2; b3 = -a2-b2;
-	adwg(output, comment, cpt, rel, a3, b3);
+	adwg(os, comment, cpt, rel, a3, b3);
     }
     else if(strcmp(galois, "autom4.1") == 0){
 	// FIXME: rewrite and check
@@ -398,8 +400,9 @@ static void add_relations_with_galois(const char *galois, FILE *output,
 	if(bb < 0){ aa = -aa; bb = -bb; }
 	rel.a = aa; rel.b = (uint64_t)bb;
 	// same factorization as for (a, b)
-	rel.print(output, comment);
-	*cpt += (*comment != '\0');
+        if (comment) os << comment;
+        os << rel << '\n';
+        *cpt += (*comment != '\0');
 	// sig((a, b)) = (-(a+b), a-b)
 	aa = -(a1+b1);
 	bb = a1-b1;
@@ -423,19 +426,21 @@ static void add_relations_with_galois(const char *galois, FILE *output,
 	}
 	if(bb < 0){ aa = -aa; bb = -bb; }
 	rel.a = aa; rel.b = (uint64_t)bb;
-	rel.print(output, comment);
-	*cpt += (*comment != '\0');
+        if (comment) os << comment;
+        os << rel << '\n';
+        *cpt += (*comment != '\0');
 	// sig^3((a, b)) = sig((b, -a)) = (a-b, a+b)
 	aa = -aa; // FIXME: check!
 	if(aa < 0){ aa = -aa; bb = -bb; }
 	rel.a = bb; rel.b = (uint64_t)aa;
-	rel.print(output, comment);
-	*cpt += (*comment != '\0');
+        if (comment) os << comment;
+        os << rel << '\n';
+        *cpt += (*comment != '\0');
     }
     else if(strcmp(galois, "autom6.1") == 0){
 	// fact do not change
-	adwg(output, comment, cpt, rel, a0 + b0, -a0); // (a2, b2)
-	adwg(output, comment, cpt, rel, b0, -(a0+b0)); // (a4, b4)
+	adwg(os, comment, cpt, rel, a0 + b0, -a0); // (a2, b2)
+	adwg(os, comment, cpt, rel, b0, -(a0+b0)); // (a4, b4)
 
 	// fact do change
         a1 = -(2*a0+b0); b1= a0-b0;
@@ -445,7 +450,7 @@ static void add_relations_with_galois(const char *galois, FILE *output,
 	    b1 /= 3;
 	    d++;
 	}
-	fprintf(output, "# d1=%d\n", d);
+	os << "# d1=" << d << "\n";
 	a3 =-(2*b0+a0); b3 = 2*a0+b0;
 	a5 = a0-b0;     b5 = 2*b0+a0;
 	if(d == 0)
@@ -454,15 +459,15 @@ static void add_relations_with_galois(const char *galois, FILE *output,
 	else
 	    // we need to remove 3^3
 	    remove_galois_factors(rel, 3, 3);
-	adwg(output, comment, cpt, rel, a1, b1); // (a1/3^d, b1/3^d)
+	adwg(os, comment, cpt, rel, a1, b1); // (a1/3^d, b1/3^d)
 	for(int i = 0; i < d; i++){
 	    a3 /= 3;
 	    b3 /= 3;
 	    a5 /= 3;
 	    b5 /= 3;
 	}
-	adwg(output, comment, cpt, rel, a3, b3); // (a3/3^d, b3/3^d)
-	adwg(output, comment, cpt, rel, a5, b5); // (a5/3^d, b5/3^d)
+	adwg(os, comment, cpt, rel, a3, b3); // (a3/3^d, b3/3^d)
+	adwg(os, comment, cpt, rel, a5, b5); // (a5/3^d, b5/3^d)
     }
 }
 
@@ -739,7 +744,6 @@ int las_todo_feed(las_info & las, param_list pl)
         return las_todo_feed_qrange(las, pl);
 }
 /* }}} */
-
 
 /* {{{ apply_buckets */
 template <typename HINT>
@@ -1086,6 +1090,79 @@ trial_div (std::vector<uint64_t> & fl, mpz_t norm, const unsigned int N, unsigne
 }
 /* }}} */
 
+MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
+{
+    int ex = (unsigned int) S1[offset] - (unsigned int) S2[offset];
+    if (UNLIKELY(ex < 0)) S1[offset] = 0; else S1[offset] = ex;	     
+}
+
+/* S1 = S1 - S2, with "-" in saturated arithmetic,
+ * and memset(S2, 0, EndS1-S1).
+ */
+void SminusS (unsigned char *S1, unsigned char *EndS1, unsigned char *S2) {/*{{{*/
+#ifndef HAVE_SSE2
+    ssize_t mysize = EndS1 - S1;
+    unsigned char *cS2 = S2;
+    while (S1 < EndS1) {
+        subusb(S1,S2,0);
+        subusb(S1,S2,1);
+        subusb(S1,S2,2);
+        subusb(S1,S2,3);
+        subusb(S1,S2,4);
+        subusb(S1,S2,5);
+        subusb(S1,S2,6);
+        subusb(S1,S2,7);
+        S1 += 8; S2 += 8;
+    }
+    memset(cS2, 0, mysize);
+#else
+    __m128i *S1i = (__m128i *) S1, *EndS1i = (__m128i *) EndS1, *S2i = (__m128i *) S2,
+            z = _mm_setzero_si128();
+    while (S1i < EndS1i) {
+        __m128i x0, x1, x2, x3;
+        __asm__ __volatile__
+            ("prefetcht0 0x1000(%0)\n"
+             "prefetcht0 0x1000(%1)\n"
+             "movdqa (%0),%2\n"
+             "movdqa 0x10(%0),%3\n"
+             "movdqa 0x20(%0),%4\n"
+             "movdqa 0x30(%0),%5\n"
+             "psubusb (%1),%2\n"
+             "psubusb 0x10(%1),%3\n"
+             "psubusb 0x20(%1),%4\n"
+             "psubusb 0x30(%1),%5\n"
+             "movdqa %6,(%1)\n"
+             "movdqa %6,0x10(%1)\n"
+             "movdqa %6,0x20(%1)\n"
+             "movdqa %6,0x30(%1)\n"
+             "movdqa %2,(%0)\n"
+             "movdqa %3,0x10(%0)\n"
+             "movdqa %4,0x20(%0)\n"
+             "movdqa %5,0x30(%0)\n"
+             "add $0x40,%0\n"
+             "add $0x40,%1\n"
+             : "+&r"(S1i), "+&r"(S2i), "=&x"(x0), "=&x"(x1), "=&x"(x2), "=&x"(x3) : "x"(z));
+        /* I prefer use ASM than intrinsics to be sure each 4 instructions which
+         * use exactly a cache line are together. I'm 99% sure it's not useful...
+         * but it's more beautiful :-)
+         */
+        /*
+           __m128i x0, x1, x2, x3;
+           _mm_prefetch(S1i + 16, _MM_HINT_T0); _mm_prefetch(S2i + 16, _MM_HINT_T0);
+           x0 = _mm_load_si128(S1i + 0);         x1 = _mm_load_si128(S1i + 1);
+           x2 = _mm_load_si128(S1i + 2);         x3 = _mm_load_si128(S1i + 3);
+           x0 = _mm_subs_epu8(S2i[0], x0);       x1 = _mm_subs_epu8(S2i[1], x1);
+           x2 = _mm_subs_epu8(S2i[2], x2);       x3 = _mm_subs_epu8(S2i[3], x3);
+           _mm_store_si128(S2i + 0, z);          _mm_store_si128(S1i + 1, z);
+           _mm_store_si128(S2i + 2, z);          _mm_store_si128(S1i + 3, z);
+           _mm_store_si128(S1i + 0, x0);         _mm_store_si128(S1i + 1, x1);
+           _mm_store_si128(S1i + 2, x2);         _mm_store_si128(S1i + 3, x3);
+           S1i += 4; S2i += 4;
+           */
+    }
+#endif 
+}/*}}}*/
+
 #ifdef  DLP_DESCENT
 /* This returns true only if this descent node is now done, either based
  * on the new relation we have registered, or because the previous
@@ -1144,86 +1221,108 @@ bool register_contending_relation(las_info const & las, sieve_info const & si, r
 }/*}}}*/
 #endif /* DLP_DESCENT */
 
-struct factor_survivors_data {/*{{{*/
-    worker_thread * worker;
-    nfs_work & ws;
-    std::shared_ptr<nfs_work_cofac> wc_p;
-    std::shared_ptr<nfs_aux> aux_p;
-    where_am_I & w;
-
-    sieve_info & si;
-
-    std::vector<uint32_t> survivors;
-    std::vector<bucket_update_t<1, shorthint_t>::br_index_t> survivors2;
-
-    unsigned char * SS;
-    int N;
-    int cpt;
-    int copr;
-
-    struct side_data {/*{{{*/
-        unsigned char * S;
-        bucket_primes_t primes;
-        bucket_array_complete purged;
-        side_data() :
-            primes(bucket_primes_t(BUCKET_REGION)),
-            purged(bucket_array_complete(BUCKET_REGION))
-        {}
-    };/*}}}*/
-
-    std::array<side_data, 2> sides;
-
-    /* we initialize based on both the core algorithmic data, and the
-     * mundane stats counting stuff.
-     */
-    factor_survivors_data(
-            worker_thread * worker,
-            nfs_work & ws,
-            std::shared_ptr<nfs_work_cofac> wc_p,
-            std::shared_ptr<nfs_aux> aux_p,
-            sieve_info & si,
-            int N)
-        :
+/*{{{ process_bucket_region, split into pieces. */
+    process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn const & p, worker_thread * worker, int id): /* {{{ */
+            process_bucket_region_spawn(p),
             worker(worker),
-            ws(ws),
-            wc_p(wc_p),
-            aux_p(aux_p),
-            w(aux_p->th[worker->rank()].w),
-            si(si),
-            N(N)
+            taux(aux_p->th[worker->rank()]),
+            tws(ws.th[worker->rank()]),
+            timer(taux.timer),
+            bucket_relative_index(id),
+            dummy(timer),
+            rep(taux.rep),
+            w(taux.w)
     {
-        cpt = 0;
-        copr = 0;
-        SS = NULL;
-        int id = worker->rank();
-        nfs_work::thread_data & tws(ws.th[id]);
-        for(int side = 0 ; side < 2 ; side++) {
-            sides[side].S = tws.sides[side].bucket_region;
-            if (!SS && sides[side].S)
-                SS = sides[side].S;
-        }
-        /* SS gets the merged information in the end. This is the first
-         * non-null sides[x].S array */
-    }
-    ~factor_survivors_data() {}
-    void search_survivors ();
-    void convert_survivors ();
-    void prepare_cofactoring ();
-    void cofactoring ();
-};/*}}}*/
+        w = w_saved;
+        WHERE_AM_I_UPDATE(w, N, first_region0_index + bucket_relative_index);
 
-void factor_survivors_data::search_survivors()/*{{{*/
+        /* This is local to this thread */
+        for(int side = 0 ; side < 2 ; side++)
+            S[side] = tws.sides[side].bucket_region;
+
+        SS = tws.SS;
+        memset(SS, 0, BUCKET_REGION);
+
+        /* we're ready to go ! processing is in the operator() method.
+         */
+    }/*}}}*/
+void process_bucket_region_spawn::operator()(worker_thread * worker, int id) /*{{{{*/
 {
-    /* Import some contextual stuff */
-    int id = worker->rank();
-    nfs_work::thread_data & tws(ws.th[id]);
-    nfs_aux::thread_data & taux(aux_p->th[id]);
-    timetree_t & timer(taux.timer);
-    las_report& rep(taux.rep);
-    las_info const & las(ws.las);
+    /* create a temp obkect with more fields, and dispose it shortly
+     * afterwards once we're done.  */
+    process_bucket_region_run(*this, worker, id)();
+}/*}}}*/
+void process_bucket_region_run::init_norms(int side)/*{{{*/
+{
+    CHILD_TIMER(timer, "init norms");
+
+    rep.tn[side] -= seconds_thread ();
+    si.sides[side].lognorms->fill(S[side], first_region0_index + bucket_relative_index);
+    rep.tn[side] += seconds_thread ();
+#if defined(TRACE_K) 
+    if (trace_on_spot_N(w.N))
+        verbose_output_print(TRACE_CHANNEL, 0, "# After side %d init_norms_bucket_region, N=%u S[%u]=%u\n",
+                side, w.N, trace_Nx.x, S[side][trace_Nx.x]);
+#endif
+}/*}}}*/
+void process_bucket_region_run::apply_buckets(int side)/*{{{*/
+{
+    rep.ttbuckets_apply -= seconds_thread();
+    {
+        CHILD_TIMER(timer, "apply buckets");
+        for (auto const & BA : ws.bucket_arrays<1, shorthint_t>(side))
+            apply_one_bucket(SS, BA, bucket_relative_index, si.sides[side].fbs->get_part(1), w);
+    }
+
+    /* Apply downsorted buckets, if necessary. */
+    if (si.toplevel > 1) {
+        CHILD_TIMER(timer, "apply downsorted buckets");
+
+        for (auto const & BAd : ws.bucket_arrays<1, longhint_t>(side)) {
+            // FIXME: the updates could come from part 3 as well,
+            // not only part 2.
+            ASSERT_ALWAYS(si.toplevel <= 2);
+            apply_one_bucket(SS, BAd, bucket_relative_index, si.sides[side].fbs->get_part(2), w);
+        }
+    }
+    rep.ttbuckets_apply += seconds_thread();
+}/*}}}*/
+void process_bucket_region_run::small_sieve(int side)/*{{{*/
+{
+    CHILD_TIMER(timer, "small sieve");
+
+    sieve_info::side_info & s(si.sides[side]);
+
+    sieve_small_bucket_region(SS,
+            first_region0_index + bucket_relative_index,
+            s.ssd,
+            s.ssdpos_many[bucket_relative_index],
+            si,
+            side,
+            w);
+}/*}}}*/
+void process_bucket_region_run::SminusS(int side)/*{{{*/
+{
+    /* compute S[side][x] = max(S[side][x] - SS[x], 0),
+     * and clear SS.  */
+    CHILD_TIMER(timer, "S minus S (2)");
+
+    ::SminusS(S[side], S[side] + BUCKET_REGION, SS);
+#if defined(TRACE_K) 
+    if (trace_on_spot_N(w.N))
+        verbose_output_print(TRACE_CHANNEL, 0,
+                "# Final value on side %d, N=%u S[%u]=%u\n",
+                side, w.N, trace_Nx.x, S[side][trace_Nx.x]);
+#endif
+}/*}}}*/
+process_bucket_region_run::surv1_t process_bucket_region_run::search_survivors() /*{{{*/
+{
+    surv1_t survivors;
 
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, search_survivors());
+
+    int N = first_region0_index + bucket_relative_index;
 
     /* change N, which is a bucket number, to
      * (i0, i1, j0, j1) */
@@ -1248,17 +1347,15 @@ void factor_survivors_data::search_survivors()/*{{{*/
                 "# When entering factor_survivors for bucket %u, "
                 "S[0][%u]=%u, S[1][%u]=%u\n",
                 trace_Nx.N, trace_Nx.x,
-                sides[0].S ? sides[0].S[trace_Nx.x] : ~0u,
+                S[0] ? S[0][trace_Nx.x] : ~0u,
                 trace_Nx.x,
-                sides[1].S ? sides[1].S[trace_Nx.x] : ~0u);
+                S[1] ? S[1][trace_Nx.x] : ~0u);
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
                 "# Remaining norms which have not been accounted for in sieving: (%Zd, %Zd)\n",
-                traced_norms[0], traced_norms[1]);
+                (mpz_srcptr) traced_norms[0],
+                (mpz_srcptr) traced_norms[1]);
     }
 #endif  /* }}} */
-
-    if (las.verbose >= 2)
-        taux.update_checksums(tws);
 
 #ifdef TRACE_K /* {{{ */
     sieve_info::side_info & side0(si.sides[0]);
@@ -1267,10 +1364,10 @@ void factor_survivors_data::search_survivors()/*{{{*/
         if (trace_on_spot_Nx(N, x)) {
             verbose_output_print(TRACE_CHANNEL, 0,
                     "# side0.Bound[%u]=%u, side1.Bound[%u]=%u\n",
-                    sides[0].S ? sides[0].S[trace_Nx.x] : ~0u,
-                    sides[0].S ? (sides[0].S[x] <= side0.lognorms->bound ? 0 : side0.lognorms->bound) : ~0u,
-                    sides[1].S ? sides[1].S[trace_Nx.x] : ~0u,
-                    sides[1].S ? (sides[1].S[x] <= side1.lognorms->bound ? 0 : side1.lognorms->bound) : ~0u);
+                    S[0] ? S[0][trace_Nx.x] : ~0u,
+                    S[0] ? (S[0][x] <= side0.lognorms->bound ? 0 : side0.lognorms->bound) : ~0u,
+                    S[1] ? S[1][trace_Nx.x] : ~0u,
+                    S[1] ? (S[1][x] <= side1.lognorms->bound ? 0 : side1.lognorms->bound) : ~0u);
         }
     }
 #endif /* }}} */
@@ -1283,8 +1380,8 @@ void factor_survivors_data::search_survivors()/*{{{*/
         int offset = (j-j0) << logI;
 
         unsigned char * const both_S[2] = {
-            sides[0].S ? sides[0].S + offset : NULL,
-            sides[1].S ? sides[1].S + offset : NULL,
+            S[0] ? S[0] + offset : NULL,
+            S[1] ? S[1] + offset : NULL,
         };
         /* TODO FIXME XXX that's weird. How come don't we merge that with
          * the lognorm computation that goes in the si.sides[side]
@@ -1300,12 +1397,12 @@ void factor_survivors_data::search_survivors()/*{{{*/
         ASSERT(j < si.J);
 
         search_survivors_in_line(both_S, both_bounds,
-                                 j,
-                                 i0, i1,
-                                 N,
-                                 si.j_div,
-                                 si.conf.unsieve_thresh,
-                                 si.us, survivors, si.conf.sublat);
+                j,
+                i0, i1,
+                N,
+                si.j_div,
+                si.conf.unsieve_thresh,
+                si.us, survivors, si.conf.sublat);
 
         /* Survivors written by search_survivors_in_line() have index
          * relative to their j-line. We need to convert to index within
@@ -1324,21 +1421,64 @@ void factor_survivors_data::search_survivors()/*{{{*/
         for (size_t i_surv = old_size; i_surv < survivors.size(); i_surv++)
             survivors[i_surv] += offset;
     }
-}/*}}}*/
 
-void factor_survivors_data::convert_survivors()/*{{{*/
+    return survivors;
+}/*}}}*/
+process_bucket_region_run::surv2_t process_bucket_region_run::convert_survivors(surv1_t&& survivors)/*{{{*/
 {
-    int id = worker->rank();
-    nfs_aux::thread_data & taux(aux_p->th[id]);
-    timetree_t & timer(taux.timer);
     BOOKKEEPING_TIMER(timer);
     /* Convert data type of list from uint32_t to the correct br_index_t */
+    surv2_t survivors2;
     survivors2.reserve(survivors.size());
     for (auto x : survivors)
         survivors2.push_back(x);
     survivors.clear();
+    return survivors2;
 }/*}}}*/
+void process_bucket_region_run::purge_buckets(int side)/*{{{*/
+{
+    SIBLING_TIMER(timer, "purge buckets");
 
+    unsigned char * Sx = S[0] ? S[0] : S[1];
+
+    for (auto & BA : ws.bucket_arrays<1, shorthint_t>(side)) {
+#if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
+        sides[side].purged.purge(BA, bucket_relative_index, Sx, survivors2);
+#else
+        sides[side].purged.purge(BA, bucket_relative_index, Sx);
+#endif
+    }
+
+    /* Add entries coming from downsorting, if any */
+    for (auto const & BAd : ws.bucket_arrays<1, longhint_t>(side)) {
+        sides[side].purged.purge(BAd, bucket_relative_index, Sx);
+    }
+
+    /* Sort the entries to avoid O(n^2) complexity when looking for
+       primes during trial division */
+    sides[side].purged.sort();
+}/*}}}*/
+void process_bucket_region_run::resieve(int side)/*{{{*/
+{
+    SIBLING_TIMER(timer, "resieve");
+
+    unsigned char * Sx = S[0] ? S[0] : S[1];
+
+    sieve_info::side_info & s(si.sides[side]);
+
+    /* Resieve small primes for this bucket region and store them 
+       together with the primes recovered from the bucket updates */
+    resieve_small_bucket_region (&sides[side].primes,
+            Sx,
+            first_region0_index + bucket_relative_index,
+            si.sides[side].ssd,
+            s.ssdpos_many[bucket_relative_index],
+            si, w);
+
+    /* same reason as above */
+    sides[side].primes.sort();
+}/*}}}*/
+/*{{{ asynchronous cofactorization */
 /* This is one input to the late cofactoring process (aka ECM). Here, we
  * mean the stuff that is done detached from the rest of the siever
  * stuff: we no longer care about purging buckets and so on, these may
@@ -1368,7 +1508,7 @@ struct cofac_standalone {
     }/*}}}*/
 #ifdef TRACE_K
     bool trace_on_spot() const {/*{{{*/
-        return trace_on_spot(a, b);
+        return trace_on_spot_ab(a, b);
     }/*}}}*/
 #endif
     inline bool both_even() const {/*{{{*/
@@ -1480,7 +1620,7 @@ struct cofac_standalone {
         /* This proxies to las-cofactor.cpp */
         return ::factor_both_leftover_norms(norm,
                 lps,
-                { wc.sc.sides[0].lim, wc.sc.sides[1].lim },
+                {{ wc.sc.sides[0].lim, wc.sc.sides[1].lim }},
                 wc.strategies.get());
     }/*}}}*/
 };
@@ -1495,7 +1635,7 @@ struct detached_cofac_result : public task_result {
     std::shared_ptr<relation> rel_p;
 };
 
-task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
+task_result * detached_cofac(worker_thread * worker, task_parameters * _param, int) /* {{{ */
 {
     auto clean_param = call_dtor([_param]() { delete _param; });
 
@@ -1518,7 +1658,16 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
     las_info const & las(wc.las);
     las_report & rep(taux.rep);
     timetree_t & timer(taux.timer);
+    /* The timer is normally not running, as we're in a thread task.
+     * However, in descent mode, this is called synchronously, and then
+     * the situation is different since the timer has already been
+     * activated above.
+     */
+#ifndef DLP_DESCENT
     ACTIVATE_TIMER(timer);
+#else
+    CHILD_TIMER(timer, __func__);
+#endif
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
 
     time_bubble_chaser tt(id, time_bubble_chaser::ECM,
@@ -1527,7 +1676,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 
     cofac_standalone & cur(*param);
 
-    std::array<int, 2> cof_bitsize {0,0}; /* placate compiler */
+    std::array<int, 2> cof_bitsize {{ 0,0 }}; /* placate compiler */
     las.cofac_stats.call(cur.norm, cof_bitsize);
 
     SIBLING_TIMER(timer, "factor_both_leftover_norms");
@@ -1605,31 +1754,32 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
             dup_comment = "# DUPE ";
         }
 
-        FILE *output;
-
-        verbose_output_start_batch(); /* lock I/O. */
-
         /* Not clear what gives when we have Galois relations.
          */
         rep.reports += !dup_comment;
 
         if (!dup_comment) dup_comment = "";
 
-        if (prepend_relation_time) {
-            verbose_output_print(0, 1, "(%1.4f) ", seconds() - tt_qstart);
-        }
+        std::ostringstream os;
+
+        if (prepend_relation_time)
+            os << "(" << seconds() - tt_qstart << ") ";
+
         // verbose_output_print(0, 3, "# i=%d, j=%u, lognorms = %hhu, %hhu\n", i, j, cur.S[0], cur.S[1]);
-        for (size_t i_output = 0;
-                (output = verbose_output_get(0, 0, i_output)) != NULL;
-                i_output++) {
-            rel.print(output, dup_comment);
+
+        os << dup_comment << rel << "\n";
+
+        if(las.galois != NULL) {
+            // adding relations on the fly in Galois cases
             // once filtering is ok for all Galois cases, 
             // this entire block would have to disappear
-            if(las.galois != NULL)
-                // adding relations on the fly in Galois cases
-                add_relations_with_galois(las.galois, output, dup_comment,
-                        &rep.reports, rel);
+            add_relations_with_galois(las.galois, os, dup_comment,
+                    &rep.reports, rel);
         }
+
+        /* print all in one go */
+        verbose_output_start_batch();     /* unlock I/O */
+        verbose_output_print(0, 1, "%s", os.str().c_str());
         verbose_output_end_batch();     /* unlock I/O */
 #ifdef DLP_DESCENT
         res->rel_p = std::make_shared<relation>(std::move(rel));
@@ -1644,98 +1794,32 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param)
 #if 0
 #endif
 
-void factor_survivors_data::prepare_cofactoring()/*{{{*/
+/* }}} */
+/*}}}*/
+void process_bucket_region_run::cofactoring_sync (surv2_t & survivors2)/*{{{*/
 {
-    las_info const & las(ws.las);
-    int id = worker->rank();
-    nfs_aux::thread_data & taux(aux_p->th[id]);
-    timetree_t & timer(taux.timer);
-    nfs_work::thread_data & tws(ws.th[id]);
-
-    /* Copy those bucket entries that belong to sieving survivors and
-       store them with the complete prime */
-    /* FIXME: choose a sensible size here */
-
-    for(int side = 0 ; side < 2 ; side++) {
-        if (!si.sides[side].fb) continue;
-
-        WHERE_AM_I_UPDATE(w, side, side);
-
-        CHILD_TIMER_PARAMETRIC(timer, "prepare_cofactoring on side ", side, "");
-        TIMER_CATEGORY(timer, cofactoring(side));
-
-        // From N we can deduce the bucket_index. They are not the same
-        // when there are multiple-level buckets.
-        uint32_t bucket_index = N % si.nb_buckets[1];
-
-        SIBLING_TIMER(timer, "purge buckets");
-
-        for (auto & BA : ws.bucket_arrays<1, shorthint_t>(side)) {
-#if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
-            sides[side].purged.purge(BA, bucket_index, SS, survivors2);
-#else
-            sides[side].purged.purge(BA, bucket_index, SS);
-#endif
-        }
-
-        /* Add entries coming from downsorting, if any */
-        for (auto const & BAd : ws.bucket_arrays<1, longhint_t>(side)) {
-            sides[side].purged.purge(BAd, bucket_index, SS);
-        }
-
-        SIBLING_TIMER(timer, "resieve");
-        
-        /* Resieve small primes for this bucket region and store them 
-           together with the primes recovered from the bucket updates */
-        resieve_small_bucket_region (&sides[side].primes, N, SS,
-                si.sides[side].ssd,
-                tws.sides[side].rsdpos,
-                si, las.nb_threads, w);
-
-        SIBLING_TIMER(timer, "sort primes in purged buckets");
-
-        /* Sort the entries to avoid O(n^2) complexity when looking for
-           primes during trial division */
-        sides[side].purged.sort();
-        sides[side].primes.sort();
-    }
-
-#ifdef TRACE_K
-    if (trace_on_spot_Nx(N, trace_Nx.x)) {
-        verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has value %u\n",
-                trace_Nx.x, trace_Nx.N, SS[trace_Nx.x]);
-    }
-#endif
-}/*}}}*/
-
-void factor_survivors_data::cofactoring ()
-{
-    /* Import some contextual stuff */
-    las_info const & las(ws.las);
-    int id = worker->rank();
-    nfs_aux::thread_data & taux(aux_p->th[id]);
-    las_report & rep(taux.rep);
-    timetree_t & timer(taux.timer);
-
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
+
+    int N = first_region0_index + bucket_relative_index;
+    unsigned char * Sx = S[0] ? S[0] : S[1];
 
     cofac_standalone cur;
 
     for (size_t i_surv = 0 ; i_surv < survivors2.size(); i_surv++) {
 #ifdef DLP_DESCENT
-        if (las.tree.must_take_decision())
+        if (ws.las.tree.must_take_decision())
             break;
 #endif
         const size_t x = survivors2[i_surv];
-        ASSERT_ALWAYS (SS[x] != 255);
+        ASSERT_ALWAYS (Sx[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
 
         rep.survivors.after_sieve++;
 
-        if (sides[0].S && sides[1].S)
-            rep.mark_survivor(sides[0].S[x], sides[1].S[x]);
-        
+        if (S[0] && S[1])
+            rep.mark_survivor(S[0][x], S[1][x]);
+
         /* For factor_leftover_norm, we need to pass the information of the
          * sieve bound. If a cofactor is less than the square of the sieve
          * bound, it is necessarily prime. we implement this by keeping the
@@ -1748,12 +1832,12 @@ void factor_survivors_data::cofactoring ()
 
         /* start building a new object. This is a swap operation */
         cur = cofac_standalone(N, x, si);
-        cur.S = { sides[0].S[x], sides[1].S[x] };
+        cur.S = {{ S[0][x], S[1][x] }};
 
 #ifdef TRACE_K/*{{{*/
-        if (cur.trace_on_spot_ab())
-          verbose_output_print(TRACE_CHANNEL, 0, "# about to start cofactorization for (%"
-                   PRId64 ",%" PRIu64 ")  %zu %u\n", cur.a, cur.b, x, SS[x]);
+        if (cur.trace_on_spot())
+            verbose_output_print(TRACE_CHANNEL, 0, "# about to start cofactorization for (%"
+                    PRId64 ",%" PRIu64 ")  %zu %u\n", cur.a, cur.b, x, Sx[x]);
 #endif/*}}}*/
 
         /* since a,b both even were not sieved, either a or b should
@@ -1782,7 +1866,7 @@ void factor_survivors_data::cofactoring ()
         adjustIJsublat(&i, &j, si);
 
         /* This can be changed (and should be a command line parameter)
-         */
+        */
         static const int trialdiv_first_side = 0;
 
         for(int pside = 0 ; pass && pside < 2 ; pside++) {
@@ -1800,7 +1884,7 @@ void factor_survivors_data::cofactoring ()
             si.sides[side].lognorms->norm(cur.norm[side], i, j);
 
 #ifdef TRACE_K/*{{{*/
-            if (cur.trace_on_spot_ab()) {
+            if (cur.trace_on_spot()) {
                 verbose_output_vfprint(TRACE_CHANNEL, 0,
                         gmp_vfprintf, "# start trial division for norm=%Zd ", (mpz_srcptr) cur.norm[side]);
                 verbose_output_print(TRACE_CHANNEL, 0,
@@ -1846,7 +1930,7 @@ void factor_survivors_data::cofactoring ()
 
             pass = check_leftover_norm (cur.norm[side], si.conf.sides[side]);
 #ifdef TRACE_K
-            if (cur.trace_on_spot_ab()) {
+            if (cur.trace_on_spot()) {
                 verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
                         "# checked leftover norm=%Zd", (mpz_srcptr) cur.norm[side]);
                 verbose_output_print(TRACE_CHANNEL, 0,
@@ -1861,7 +1945,7 @@ void factor_survivors_data::cofactoring ()
 
         rep.survivors.enter_cofactoring++;
 
-        if (las.batch_print_survivors) {
+        if (ws.las.batch_print_survivors) {
             // In sublat mode, some non-primitive survivors can exist.
             // The cofactoring via ECM is made aware of this, but not the
             // batch mode, so we have to ensure it.
@@ -1869,349 +1953,102 @@ void factor_survivors_data::cofactoring ()
             verbose_output_start_batch ();
             cur.print_as_survivor();
             verbose_output_end_batch ();
-            cpt++;
             continue;
         }
 
-        if (las.batch)
+        if (ws.las.batch)
         {
             /* see above */
             if (si.conf.sublat.m && !cur.ab_coprime()) continue;
             /* make sure threads don't write the cofactor list at the
              * same time !!! */
-            cur.transfer_to_cofac_list(las.L, si.doing);
-            cpt++;
+            cur.transfer_to_cofac_list(ws.las.L, si.doing);
             continue; /* we deal with all cofactors at the end of las */
         }
 
         auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
 #ifndef  DLP_DESCENT
-        worker->get_pool().add_task(detached_cofac, D, 0, 1); /* id 0, queue 1 */
+        worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
 #else
         /* We must proceed synchronously for the descent */
-        auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D));
+        auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D, N));
         bool cc = false;
         if (res->rel_p) {
-            cc = register_contending_relation(las, si, *res->rel_p);
+            cc = register_contending_relation(ws.las, si, *res->rel_p);
         }
         delete res;
         if (cc)
             break;
 #endif  /* DLP_DESCENT */
     }
-}
-
-/* Returns the number of relations.
-   All the other stats (survivors, duplicates, etc) are
-   updated by side-effect in th->rep.
-   Note that the number of relations ends up also in th->rep,
-   but this is done by the caller.
-   */
-int
-factor_survivors (worker_thread * worker, nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, sieve_info & si, int N)
-{
-    int id = worker->rank();
-    nfs_aux & aux(*aux_p);
-    nfs_aux::thread_data & taux(aux.th[id]);
-    timetree_t & timer(taux.timer);
-    CHILD_TIMER(timer, __func__);
-    TIMER_CATEGORY(timer, cofactoring_mixed());
-
-    factor_survivors_data F(worker, ws, wc_p, aux_p, si, N);
-
-    F.search_survivors();
-    F.convert_survivors();
-
-    F.prepare_cofactoring();
-    F.cofactoring();
-
-    return F.cpt;
-}
-
-/* }}} */
-
-/****************************************************************************/
-
-MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
-{
-    int ex = (unsigned int) S1[offset] - (unsigned int) S2[offset];
-    if (UNLIKELY(ex < 0)) S1[offset] = 0; else S1[offset] = ex;	     
-}
-
-/* S1 = S1 - S2, with "-" in saturated arithmetic,
- * and memset(S2, 0, EndS1-S1).
- */
-void SminusS (unsigned char *S1, unsigned char *EndS1, unsigned char *S2) {/*{{{*/
-#ifndef HAVE_SSE2
-    ssize_t mysize = EndS1 - S1;
-    unsigned char *cS2 = S2;
-    while (S1 < EndS1) {
-        subusb(S1,S2,0);
-        subusb(S1,S2,1);
-        subusb(S1,S2,2);
-        subusb(S1,S2,3);
-        subusb(S1,S2,4);
-        subusb(S1,S2,5);
-        subusb(S1,S2,6);
-        subusb(S1,S2,7);
-        S1 += 8; S2 += 8;
-    }
-    memset(cS2, 0, mysize);
-#else
-    __m128i *S1i = (__m128i *) S1, *EndS1i = (__m128i *) EndS1, *S2i = (__m128i *) S2,
-            z = _mm_setzero_si128();
-    while (S1i < EndS1i) {
-        __m128i x0, x1, x2, x3;
-        __asm__ __volatile__
-            ("prefetcht0 0x1000(%0)\n"
-             "prefetcht0 0x1000(%1)\n"
-             "movdqa (%0),%2\n"
-             "movdqa 0x10(%0),%3\n"
-             "movdqa 0x20(%0),%4\n"
-             "movdqa 0x30(%0),%5\n"
-             "psubusb (%1),%2\n"
-             "psubusb 0x10(%1),%3\n"
-             "psubusb 0x20(%1),%4\n"
-             "psubusb 0x30(%1),%5\n"
-             "movdqa %6,(%1)\n"
-             "movdqa %6,0x10(%1)\n"
-             "movdqa %6,0x20(%1)\n"
-             "movdqa %6,0x30(%1)\n"
-             "movdqa %2,(%0)\n"
-             "movdqa %3,0x10(%0)\n"
-             "movdqa %4,0x20(%0)\n"
-             "movdqa %5,0x30(%0)\n"
-             "add $0x40,%0\n"
-             "add $0x40,%1\n"
-             : "+&r"(S1i), "+&r"(S2i), "=&x"(x0), "=&x"(x1), "=&x"(x2), "=&x"(x3) : "x"(z));
-        /* I prefer use ASM than intrinsics to be sure each 4 instructions which
-         * use exactly a cache line are together. I'm 99% sure it's not useful...
-         * but it's more beautiful :-)
-         */
-        /*
-           __m128i x0, x1, x2, x3;
-           _mm_prefetch(S1i + 16, _MM_HINT_T0); _mm_prefetch(S2i + 16, _MM_HINT_T0);
-           x0 = _mm_load_si128(S1i + 0);         x1 = _mm_load_si128(S1i + 1);
-           x2 = _mm_load_si128(S1i + 2);         x3 = _mm_load_si128(S1i + 3);
-           x0 = _mm_subs_epu8(S2i[0], x0);       x1 = _mm_subs_epu8(S2i[1], x1);
-           x2 = _mm_subs_epu8(S2i[2], x2);       x3 = _mm_subs_epu8(S2i[3], x3);
-           _mm_store_si128(S2i + 0, z);          _mm_store_si128(S1i + 1, z);
-           _mm_store_si128(S2i + 2, z);          _mm_store_si128(S1i + 3, z);
-           _mm_store_si128(S1i + 0, x0);         _mm_store_si128(S1i + 1, x1);
-           _mm_store_si128(S1i + 2, x2);         _mm_store_si128(S1i + 3, x3);
-           S1i += 4; S2i += 4;
-           */
-    }
-#endif 
 }/*}}}*/
+void process_bucket_region_run::operator()() {/*{{{*/
 
-/* Move above ? */
-/* {{{ process_bucket_region
- * th->id gives the number of the thread: it is supposed to deal with the set
- * of bucket_regions corresponding to that number, ie those that are
- * congruent to id mod nb_thread.
- *
- * The other threads are accessed by combining the thread pointer th and
- * the thread id: the i-th thread is at th - id + i
- */
-task_result * process_bucket_region(worker_thread * worker, task_parameters * _param)
-{
-    const process_bucket_region_parameters *param = static_cast<const process_bucket_region_parameters *>(_param);
+    /* first check some early abort conditions. */
+    if (recursive_descent) {
+        /* For the descent mode, we bail out as early as possible. We
+         * need to do so in a multithread-compatible way, though.
+         * Therefore the following access is mutex-protected within
+         * las.tree. */
+        if (ws.las.tree.must_take_decision())
+            return;
+    } else if (exit_after_rel_found) {
+        if (rep.reports)
+            return;
+    }
 
-    /* Import some contextual stuff */
-    int id = worker->rank();
-    int nthreads = worker->nthreads();
-    nfs_work & ws(param->ws);
-    nfs_work::thread_data & tws(param->ws.th[id]);
-    nfs_aux::thread_data & taux(param->aux_p->th[id]);
-    timetree_t & timer(taux.timer);
-    ACTIVATE_TIMER(timer);
-    las_report& rep(taux.rep);
-    sieve_info & si(param->si);
-    uint32_t first_region0_index = param->first_region0_index;
-    las_info const & las(ws.las);       /* a pity */
+    time_bubble_chaser tt(worker->rank(), time_bubble_chaser::PBR,
+            {-1,int(first_region0_index / si.nb_buckets[1]),(int) bucket_relative_index,-1});
 
-    if (si.toplevel == 1) ASSERT_ALWAYS(first_region0_index == 0);
+    for (int side = 0; side < 2; side++) {
+        WHERE_AM_I_UPDATE(w, side, side);
+        sieve_info::side_info & s(si.sides[side]);
+        if (!s.fb) continue;
 
-    CHILD_TIMER(timer, __func__);
+        SIBLING_TIMER_PARAMETRIC(timer, "side ", side, "");
+        TIMER_CATEGORY(timer, sieving(side));
 
+        init_norms(side);
+        apply_buckets(side);
+        small_sieve(side);
+        SminusS(side);
 
-    where_am_I w MAYBE_UNUSED;
-    WHERE_AM_I_UPDATE(w, psi, &si);
-
-    unsigned char * S[2];
-
-    /* This is local to this thread */
-    for(int side = 0 ; side < 2 ; side++)
-        S[side] = tws.sides[side].bucket_region;
-
-    /* A note on SS versus S[side]
-     *
-     * SS is temp data. It's only used here, and it could well be defined
-     * here only. We declare in at the thread_data level to avoid
-     * constant malloc()/free().
-     *
-     * S[side] is where we compute the norm initialization. Some
-     * tolerance is subtracted from these lognorms to account for
-     * accepted cofactors.
-     *
-     * SS is the bucket region where we apply the buckets, and also later
-     * where we do the small sieve.
-     *
-     * as long as SS[x] >= S[side][x], we are good.
-     *
-     */
-
-    unsigned char *SS = tws.SS;
-    memset(SS, 0, BUCKET_REGION);
-
-    /* loop over appropriate set of sieve regions */
-    for (uint32_t ii = 0; ii < si.nb_buckets[1]; ii ++)
-    {
-        /* N is the region index */
-        uint32_t N = first_region0_index + ii;
-        if ((N % nthreads) != (uint32_t) id)
-            continue;
-
-        WHERE_AM_I_UPDATE(w, N, N);
-        // unsigned int first_i = (N & ((1 << log_buckets_per_line) - 1)) << LOG_BUCKET_REGION;
-        // unsigned int first_j = (N >> log_buckets_per_line) << log_lines_per_bucket;
-
-        int logI = si.conf.logI;
-        /* This bit of code is replicated from las-smallsieve.cpp */
-        const unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);
-        const unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);
-        const unsigned int j0 = (N >> log_regions_per_line) << log_lines_per_region;    
-        if (j0 >= si.J) /* that's enough -- see bug #21382 */
-            break;
-
-
-        if (recursive_descent) {
-            /* For the descent mode, we bail out as early as possible. We
-             * need to do so in a multithread-compatible way, though.
-             * Therefore the following access is mutex-protected within
-             * las.tree. */
-            if (las.tree.must_take_decision())
-                break;
-        } else if (exit_after_rel_found) {
-            if (rep.reports)
-                break;
-        }
-
-        time_bubble_chaser tt(id, time_bubble_chaser::PBR,
-                {-1,int(first_region0_index / si.nb_buckets[1]),(int) ii,-1});
-
-        for (int side = 0; side < 2; side++) {
-            WHERE_AM_I_UPDATE(w, side, side);
-            sieve_info::side_info & s(si.sides[side]);
-            if (!s.fb) continue;
-
-            SIBLING_TIMER_PARAMETRIC(timer, "side ", side, "");
-            TIMER_CATEGORY(timer, sieving(side));
-
-            {
-                CHILD_TIMER(timer, "init norms");
-
-                /* Init norms */
-                rep.tn[side] -= seconds_thread ();
-
-                si.sides[side].lognorms->fill(S[side], N);
-
-                rep.tn[side] += seconds_thread ();
-#if defined(TRACE_K) 
-                if (trace_on_spot_N(w.N))
-                    verbose_output_print(TRACE_CHANNEL, 0, "# After side %d init_norms_bucket_region, N=%u S[%u]=%u\n",
-                            side, w.N, trace_Nx.x, S[side][trace_Nx.x]);
-#endif
-            }
-
-            /* Apply buckets */
-            rep.ttbuckets_apply -= seconds_thread();
-
-            {
-                CHILD_TIMER(timer, "apply buckets");
-
-                for (auto const & BA : ws.bucket_arrays<1, shorthint_t>(side)) {
-                    apply_one_bucket(SS, BA, ii, si.sides[side].fbs->get_part(1), w);
-                }
-            }
-
-            /* Apply downsorted buckets, if necessary. */
-            if (si.toplevel > 1) {
-                CHILD_TIMER(timer, "apply downsorted buckets");
-
-                for (auto const & BAd : ws.bucket_arrays<1, longhint_t>(side)) {
-                    // FIXME: the updates could come from part 3 as well,
-                    // not only part 2.
-                    ASSERT_ALWAYS(si.toplevel <= 2);
-                    apply_one_bucket(SS, BAd, ii, si.sides[side].fbs->get_part(2), w);
-                }
-            }
-
-            rep.ttbuckets_apply += seconds_thread();
-
-            {
-                CHILD_TIMER(timer, "small sieve");
-
-                auto & ts(tws.sides[side]);
-
-                /* save start positions for resieving */
-                ts.rsdpos.assign(
-                        ts.ssdpos.begin() + s.ssd.resieve_start_offset,
-                        ts.ssdpos.begin() + s.ssd.resieve_end_offset);
-
-                /* Sieve small primes */
-                sieve_small_bucket_region(SS, N, s.ssd,
-                        ts.ssdpos, si, side,
-                        las.nb_threads,
-                        w);
-            }
-
-            /* compute S[side][x] = max(S[side][x] - SS[x], 0),
-             * and clear SS.  */
-            {
-                CHILD_TIMER(timer, "S minus S (2)");
-
-                SminusS(S[side], S[side] + BUCKET_REGION, SS);
-#if defined(TRACE_K) 
-                if (trace_on_spot_N(w.N))
-                    verbose_output_print(TRACE_CHANNEL, 0,
-                            "# Final value on side %d, N=%u rat_S[%u]=%u\n",
-                            side, w.N, trace_Nx.x, S[side][trace_Nx.x]);
-#endif
-            }
-            las.dumpfiles[side].write(S[side], BUCKET_REGION);
-            BOOKKEEPING_TIMER(timer);
-        }
-
-
-        /* Factor survivors */
-        rep.ttf -= seconds_thread ();
-        rep.reports += factor_survivors (worker, ws, param->wc_p, param->aux_p, si, N);
-        rep.ttf += seconds_thread ();
-
-        timer.chart.push_back(tt.put());
-
-
-        SIBLING_TIMER(timer, "reposition small (re)sieve data");
-        TIMER_CATEGORY(timer, bookkeeping());
-
-#if 0   // no longer needed
-        /* Reset resieving data */
-        for(int side = 0 ; side < 2 ; side++) {
-            sieve_info::side_info & s(si.sides[side]);
-            if (!s.fb) continue;
-            thread_side_data & ts = th->sides[side];
-            // small_sieve_skip_stride(s.ssd, ts.ssdpos, N, las.nb_threads, si);
-        }
-#endif
-
+        ws.las.dumpfiles[side].write(S[side], BUCKET_REGION);
         BOOKKEEPING_TIMER(timer);
     }
-    delete param;
-    return new task_result;
+
+    if (ws.las.verbose >= 2)
+        taux.update_checksums(tws);
+
+    /* rep.ttf is going to miss the asynchronous time... */
+    rep.ttf -= seconds_thread ();
+
+    auto survivors = search_survivors();
+    auto survivors2 = convert_survivors(std::move(survivors));
+
+    /* These two steps used to be called "prepare_cofactoring" */
+    for(int side = 0 ; side < 2 ; side++) {
+        purge_buckets(side);
+        resieve(side);
+    }
+
+#ifdef TRACE_K
+    int N = first_region0_index + bucket_relative_index;
+    if (trace_on_spot_Nx(N, trace_Nx.x)) {
+        unsigned char * Sx = S[0] ? S[0] : S[1];
+        verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has value %u\n",
+                trace_Nx.x, trace_Nx.N, Sx[trace_Nx.x]);
+    }
+#endif
+
+    cofactoring_sync(survivors2);
+
+    timer.chart.push_back(tt.put());
+
+    rep.ttf += seconds_thread ();
 }/*}}}*/
+/*}}}*/
 
 /*************************** main program ************************************/
 
@@ -2265,6 +2102,7 @@ static void declare_usage(param_list pl)/*{{{*/
     param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
     param_list_decl_usage(pl, "ondemand-siever-config", "(switch) defer initialization of siever precomputed structures (one per special-q side) to time of first actual use");
     param_list_decl_usage(pl, "dup", "(switch) suppress duplicate relations");
+    param_list_decl_usage(pl, "sync", "(switch) synchronize all threads at each special-q");
     param_list_decl_usage(pl, "batch", "(switch) use batch cofactorization");
     param_list_decl_usage(pl, "batch0", "side-0 batch file");
     param_list_decl_usage(pl, "batch1", "side-1 batch file");
@@ -2545,6 +2383,30 @@ void postprocess_specialq_descent(las_info & las, las_todo_entry const & doing, 
 }
 #endif  /* DLP_DESCENT */
 
+void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, sieve_info & si, where_am_I const & w)
+{
+    /* first_region0_index is always 0 when toplevel == 1, but the
+     * present function is also called from within downsort_tree when
+     * toplevel > 1, and then first_region0_index may be larger.
+     */
+    auto P = thread_pool::make_shared_task<process_bucket_region_spawn>(ws, wc_p, aux_p, si, w, first_region0_index);
+
+    /* Make sure we don't schedule too many tasks when J was truncated
+     * anyway */
+
+    int first_skipped_br = (si.J << si.conf.logI) >> LOG_BUCKET_REGION;
+
+    for(int i = 0 ; i < si.nb_buckets[1] ; i++) {
+        if (first_region0_index + i >= first_skipped_br) {
+            /* Hmm, then we should also make sure that we truncated
+             * fill_in_buckets, right ? */
+            break;
+        }
+        pool.add_shared_task(P, i, 0);
+    }
+}
+
+
 /* This is the core of the sieving routine. We do fill-in-buckets,
  * downsort, apply-buckets, lognorm computation, small sieve computation,
  * and survivor search and detection, all from here.
@@ -2585,8 +2447,8 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
      */
     rep.ttbuckets_fill -= seconds();
     
-    /* Allocate buckets */
-    ws.allocate_bucket_regions(si);
+    ws.allocate_bucket_regions();
+    ws.allocate_buckets(si);
 
     /* TODO: is there a way to share this in sublat mode ? */
     precomp_plattice_t precomp_plattice;
@@ -2603,6 +2465,43 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         }
     }
 
+    /*
+     * Mixing-and-matching threads here with the fill-in-buckets threads
+     * might lead to unbalance.
+     */
+    BOOKKEEPING_TIMER(timer_special_q);
+
+    for(int side = 0 ; side < 2 ; side++) {
+        pool.add_task_lambda([&si,aux_p,side](worker_thread * worker,int){
+
+            timetree_t & timer(aux_p->th[worker->rank()].timer);
+            ACTIVATE_TIMER(timer);
+            SIBLING_TIMER(timer, "prepare small sieve");
+            TIMER_CATEGORY(timer, bookkeeping());
+
+            sieve_info::side_info & s(si.sides[side]);
+            if (!s.fb) return;
+
+            small_sieve_init(s.ssd,
+                    s.ssd_offsets,
+                    s.fb_smallsieved.get()->begin(),
+                    s.fb_smallsieved.get()->end(),
+                    s.fb_smallsieved.get()->begin() + s.resieve_start_offset,
+                    s.fb_smallsieved.get()->begin() + s.resieve_end_offset,
+                    si, side);
+
+            small_sieve_info("small sieve", side, s.ssd);
+            if (si.toplevel == 1) {
+                /* when si.toplevel > 1, this start_many call is done
+                 * several times.
+                 */
+                SIBLING_TIMER(timer, "small sieve start positions");
+                TIMER_CATEGORY(timer, bookkeeping());
+                small_sieve_start_many(s.ssdpos_many, s.ssd, s.ssd_offsets, 0, si);
+            }
+        },0);
+    }
+
     /* Note: we haven't done any downsorting yet ! */
 
     pool.drain_queue(0);
@@ -2614,54 +2513,17 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
 
     rep.ttbuckets_fill += seconds();
 
-    /* Prepare small sieve and re-sieve */
-    BOOKKEEPING_TIMER(timer_special_q);
-    for(int side = 0 ; side < 2 ; side++) {
-        sieve_info::side_info & s(si.sides[side]);
-
-        if (!s.fb) continue;
-
-        small_sieve_init(s.ssd, las.nb_threads,
-                s.fb_smallsieved.get()->begin(),
-                s.fb_smallsieved.get()->end(),
-                s.fb_smallsieved.get()->begin() + s.resieve_start_offset,
-                s.fb_smallsieved.get()->begin() + s.resieve_end_offset,
-                si, side);
-        small_sieve_info("small sieve", side, s.ssd);
-
-        // Initialize small sieve data at the first region of level 0
-        // TODO: multithread this? Probably useless...
-        for (int i = 0; i < las.nb_threads; ++i) {
-            sieve_info::side_info & s(si.sides[side]);
-            nfs_work::thread_data::side_data & ts = ws.th[i].sides[side];
-
-            /* because bucket regions are interleaved across threads,
-             * the first region index considered by thread of index
-             * i is simply i.
-             */
-            small_sieve_start(ts.ssdpos, s.ssd, i, si);
-        }
-    }
-
     BOOKKEEPING_TIMER(timer_special_q);
     if (si.toplevel == 1) {
-        CHILD_TIMER(timer_special_q, "process_bucket_region outer container");
-        TIMER_CATEGORY(timer_special_q, bookkeeping());
+        {
+            CHILD_TIMER(timer_special_q, "process_bucket_region outer container");
+            TIMER_CATEGORY(timer_special_q, bookkeeping());
 
-        /* Process bucket regions in parallel */
-        for(int i = 0 ; i < las.nb_threads ; i++) {
-            auto P = new process_bucket_region_parameters(ws, wc_p, aux_p, si, w);
-            /* first_region0_index is always 0 for toplevel==1 */
-            task_function_t f = process_bucket_region;
-            pool.add_task(f, P, i, 0);
+            /* Process bucket regions in parallel */
+            process_many_bucket_regions(ws, wc_p, aux_p, pool, 0, si, w);
         }
     } else {
         SIBLING_TIMER(timer_special_q, "process_bucket_region outer container");
-        TIMER_CATEGORY(timer_special_q, bookkeeping());
-
-        pool.drain_queue(0);
-
-        SIBLING_TIMER(timer_special_q, "process_bucket_region outer container (MT)");
         TIMER_CATEGORY(timer_special_q, bookkeeping());
 
         // Prepare plattices at internal levels
@@ -2670,7 +2532,7 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
         // If toplevel = 1, then this is just processing all bucket
         // regions.
         size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
-        for (uint32_t i = 0; i < si.nb_buckets[si.toplevel]; i++) {
+        for (int i = 0; i < si.nb_buckets[si.toplevel]; i++) {
             switch (si.toplevel) {
                 case 2:
                     downsort_tree<1>(ws, wc_p, aux_p, pool, i, i*BRS[2]/BRS[1],
@@ -2689,7 +2551,11 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
     /* This ensures proper serialization of stuff that is in queue 0.
      * Maybe we could be looser about this.
      */
-    pool.drain_queue(0);
+    if (sync_at_special_q) {
+        pool.drain_all_queues();
+    } else {
+        pool.drain_queue(0);
+    }
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
@@ -2701,6 +2567,15 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     las_report& rep(aux.rep);
     where_am_I & w MAYBE_UNUSED(aux.w);
 
+    // arrange so that we don't have the same header line as the one
+    // which prints the q-lattice basis
+    verbose_output_vfprint(0, 1, gmp_vfprintf,
+                         "#\n"
+                         "# "
+                         "Now sieving side-%d q=%Zd; rho=%Zd\n",
+                         doing.side,
+                         (mpz_srcptr) doing.p,
+                         (mpz_srcptr) doing.r);
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
      * By default, this is not allowed, but the parameter
@@ -2786,24 +2661,23 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     for(int side = 0 ; side < 2 ; side++)
         las.dumpfiles[side].setname(las.dump_filename, doing);
 
+    std::ostringstream extra;
+    if (si.doing.depth)
+        extra << " # within descent, currently at depth " << si.doing.depth;
+
     verbose_output_vfprint(0, 1, gmp_vfprintf,
             "# "
             HILIGHT_START
             "Sieving side-%d q=%Zd; rho=%Zd;"
-            HILIGHT_END,
+            HILIGHT_END
+            " a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "; J=%u;%s\n",
             si.doing.side,
             (mpz_srcptr) si.doing.p,
-            (mpz_srcptr) si.doing.r);
-
-    verbose_output_print(0, 1, " a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "; J=%u;",
+            (mpz_srcptr) si.doing.r,
             si.qbasis.a0, si.qbasis.b0,
             si.qbasis.a1, si.qbasis.b1,
-            si.J);
+            si.J, extra.str().c_str());
 
-    if (si.doing.depth) {
-        verbose_output_print(0, 1, " # within descent, currently at depth %d", si.doing.depth);
-    }
-    verbose_output_print(0, 1, "\n");
 
     if (!las.allow_composite_q && !mpz_probab_prime_p(doing.p, 1)) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,
@@ -2875,10 +2749,12 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_configure_switch(pl, "-stats-stderr", NULL);
     param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
     param_list_configure_switch(pl, "-dup", NULL);
+    param_list_configure_switch(pl, "-sync", &sync_at_special_q);
     param_list_configure_switch(pl, "-batch", NULL);
     param_list_configure_switch(pl, "-batch-print-survivors", NULL);
     //    param_list_configure_switch(pl, "-galois", NULL);
     param_list_configure_alias(pl, "skew", "S");
+    param_list_configure_alias(pl, "log-bucket-region", "B");
     // TODO: All these aliases should disappear, someday.
     // This is just legacy.
     param_list_configure_alias(pl, "fb1", "fb");

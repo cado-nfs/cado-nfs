@@ -605,7 +605,7 @@ utils/purgedfile.h
 utils/ringbuf.c
 utils/ringbuf.h
 utils/relation.cpp
-utils/relation.h
+utils/relation.hpp
 utils/renumber.c
 utils/renumber.h
 utils/rootfinder.c

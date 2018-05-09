@@ -16,7 +16,7 @@ public:
   print_result(int n) : printed(n){}
 };
 
-task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameters *t_param)
+task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameters *t_param, int id)
 {
   const print_parameter *param = dynamic_cast<const print_parameter *>(t_param);
 
@@ -24,7 +24,7 @@ task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameter
   unsigned int tid_u = 0;
   memcpy(&tid_u, &tid, MIN(sizeof(tid), sizeof(tid_u)));
 
-  int rc = printf("This is thread %u: %s", tid_u, param->msg);
+  int rc = printf("This is thread %u, passed id %d: %s", tid_u, id, param->msg);
   return new print_result(rc);
 }
 

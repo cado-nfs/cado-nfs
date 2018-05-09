@@ -11,15 +11,16 @@
 #include "ecm/facul.hpp"
 
 /* Compute a checksum over the bucket region.
-
-   We import the bucket region into an mpz_t and take it modulo
-   checksum_prime. The checksums for different bucket regions are added up,
-   modulo checksum_prime. This makes the combined checksum independent of
-   the order in which buckets are processed, but it is dependent on size of
-   the bucket region. Note that the selection of the sieve region, i.e., of J
-   depends somewhat on the number of threads, as we want an equal number of
-   bucket regions per thread. Thus the checksums are not necessarily
-   clonable between runs with different numbers of threads. */
+ *
+ * We import the bucket region into an mpz_t and take it modulo
+ * checksum_prime. The checksums for different bucket regions are added up,
+ * modulo checksum_prime. This makes the combined checksum independent of
+ * the order in which buckets are processed, but it is dependent on size of
+ * the bucket region. Note that the selection of the sieve region, i.e., of J
+ * depends somewhat on the number of threads, as we want an equal number of
+ * bucket regions per thread. Thus the checksums are not necessarily
+ * clonable between runs with different numbers of threads.
+ */
 
 class sieve_checksum {
   static const unsigned int checksum_prime = 4294967291u; /* < 2^32 */
@@ -31,7 +32,7 @@ class sieve_checksum {
   unsigned int get_checksum() {return checksum;}
 
   /* Combine two checksums */ 
-  void update(const sieve_checksum &other) {
+  void update(sieve_checksum const & other) {
     /* Simply (checksum+checksum2) % checksum_prime, but using
        ularith_addmod_ul_ul() to handle sums >= 2^32 correctly. */
     this->update(other.checksum);
@@ -89,6 +90,7 @@ class nfs_aux {/*{{{*/
      * sieving without any need for reallocation */
     bool complete = false;
 
+    /* This gets completed somewhat late */
     std::array<sieve_checksum,2> checksum_post_sieve;
 
     struct thread_data {/*{{{*/

@@ -40,7 +40,7 @@ public:
 
   /* Allocate enough memory to be able to store at least n_bucket buckets,
      each of size at least fill_ratio * bucket region size. */
-  void allocate_buckets(const uint32_t n_bucket, double fill_ratio, int logI);
+  void allocate_buckets(int n_bucket, double fill_ratio, int logI);
   // typename std::vector<T>::const_iterator cbegin() const {return BAs.cbegin();}
   // typename std::vector<T>::const_iterator cend() const {return BAs.cend();}
   // std::vector<T>& arrays() { return BAs; }
@@ -87,7 +87,7 @@ protected:
   cget() const;
 public:
   reservation_group(int nr_bucket_arrays);
-  void allocate_buckets(const uint32_t *n_bucket,
+  void allocate_buckets(const int *n_bucket,
           bkmult_specifier const& multiplier,
           std::array<double, FB_MAX_PARTS> const &
           fill_ratio, int logI);

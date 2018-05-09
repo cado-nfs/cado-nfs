@@ -29,21 +29,8 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
     this->update(new_checksum);
 }
 
-
-/*  las_report_accumulate_threads_and_display
- * This function does three distinct things.
- *  - accumulates the timing reports for all threads into a collated report
- *  - display the per-sq timing relative to this report, and the given
- *    timing argument (in seconds).
- */
 nfs_aux::~nfs_aux()
 {
-    /* If complete==false, then the processing of this special-q was
-     * interrupted by an exception (buckets_are_full). We won't print
-     * stuff in this case. Maybe we should still make some effort so that
-     * we can print the lost time ?
-     */
-
     timer_special_q.stop();
 
     if (!complete)
@@ -78,6 +65,7 @@ nfs_aux::~nfs_aux()
             "after all sieving: %u, %u\n",
             checksum_post_sieve[0].get_checksum(),
             checksum_post_sieve[1].get_checksum());
+
     verbose_output_vfprint(0, 1, gmp_vfprintf,
             "# %lu %s for side-%d (%Zd,%Zd)\n",
             rep.reports,

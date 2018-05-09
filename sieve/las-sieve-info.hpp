@@ -57,7 +57,7 @@ struct sieve_info {
 
     // parameters for bucket sieving
     /* Actual number of buckets at toplevel used by current special-q */
-    uint32_t nb_buckets[FB_MAX_PARTS];
+    int nb_buckets[FB_MAX_PARTS];
 
     /* Largest level for which the corresponding fb_part is not empty.
      * This is set via sieve_info::update */
@@ -124,6 +124,7 @@ struct sieve_info {
          * This is currently set in sieve_info::update
          */
         std::shared_ptr<std::vector<fb_entry_general> > fb_smallsieved;
+
         /* Offsets into fb_smallsieved; the entries between these
            two offsets are to be small-sieved, the others are not. */
         size_t resieve_start_offset, resieve_end_offset;
@@ -139,7 +140,16 @@ struct sieve_info {
          * as we sieve. It's initialized by small_sieve_init
          */
         small_sieve_data_t ssd;
+
+        /* We have nb_buckets[1] vectors of small sieve positions. These
+         * are precomputed before process_many_bucket_regions is called.
+         * (see small_sieve_start_many)
+         */
+        std::vector<std::vector<spos_t>> ssdpos_many;
+
+        small_sieve_block_offsets_t ssd_offsets;
     };
+
     /* }}} */
 
     side_info sides[2];

@@ -83,6 +83,8 @@ void sieve_info::update_norm_data ()/*{{{*/
 }
 
 /*}}}*/
+
+/* This is one of the most terrible misnomers in cado-nfs... */
 void sieve_info::update (unsigned int nb_threads)
 {
     uint64_t A = UINT64_C(1) << conf.logA;
@@ -91,10 +93,6 @@ void sieve_info::update (unsigned int nb_threads)
         sieve_info::side_info & sis(sides[side]);
         if (!sis.fb) continue;
 
-        /* TODO: now we can adjust this according to logI !!! 
-         *
-         * That's actually the whole point of this overhaul !
-         */
         fb_factorbase::key_type K = conf.instantiate_thresholds(side);
 
         K.scale = sis.lognorms->scale,
@@ -165,16 +163,3 @@ void sieve_info::update (unsigned int nb_threads)
         }
     }
 }/*}}}*/
-
-#if 0
-void sieve_info::share_factor_bases(sieve_info& other)
-{
-    for(int side = 0 ; side < 2 ; side++) {
-        ASSERT_ALWAYS(conf.sides[side].lim == other.conf.sides[side].lim);
-        ASSERT_ALWAYS(conf.sides[side].powlim == other.conf.sides[side].powlim);
-        sieve_info::side_info & sis(sides[side]);
-        sieve_info::side_info & sis0(other.sides[side]);
-        sis.fb = sis0.fb;
-    }
-}
-#endif

@@ -4,31 +4,21 @@
 #include <stdint.h>
 #include "las-config.h"
 #include "las-base.hpp"
+#include "cado_poly.h"
 #include "las-todo-entry.hpp"
 #include "las-siever-config.hpp"
-#include "las-norms.hpp"
 #ifdef DLP_DESCENT
 #include "las-dlog-base.hpp"
 #endif
-#include "fb.hpp"
-#include "trialdiv.h"
-// #include "bucket.hpp"
-#include "cado_poly.h"
-#include "ecm/facul.hpp"
-#include "fb-types.h"
-#include "las-plattice.hpp"
-#include "las-fill-in-buckets.hpp"
+#include "sieve/bucket.hpp"     // bkmult
+#include "ecm/batch.h"          // cofac_list
 #include "las-forwardtypes.hpp"
-#include "las-report-stats.hpp"
-#include "las-unsieve.hpp"
-#include "las-qlattice.hpp"
-#include "las-smallsieve-types.hpp"
 #include "las-sieve-info.hpp"
-#include "las-cofactor.hpp"
-#include "ecm/batch.h"
+#include "las-cofactor.hpp"     // cofactorization_statistics
 #include <list>
 #include <vector>
 #include <stack>
+#include "cxx_mpz.hpp"
 
 #include <memory>
 #ifdef HAVE_BOOST_SHARED_PTR

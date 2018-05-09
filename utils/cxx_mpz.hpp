@@ -3,6 +3,8 @@
 #include "macros.h"
 
 #include <gmp.h>
+#include <istream>
+#include <ostream>
 
 struct cxx_mpz {
     mpz_t x;
@@ -69,4 +71,9 @@ struct cxx_mpq{
 extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be called on a mpq reference -- it is the caller's business (via a ctor)")));
 extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
 #endif
+
+inline std::ostream& operator<<(std::ostream& os, cxx_mpz const& x) { return os << (mpz_srcptr) x; }
+inline std::ostream& operator<<(std::ostream& os, cxx_mpq const& x) { return os << (mpq_srcptr) x; }
+inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (mpz_ptr) x; }
+inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
 #endif	/* CXX_MPZ_HPP_ */

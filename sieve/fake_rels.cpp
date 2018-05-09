@@ -118,7 +118,16 @@ void prepare_indexrange(indexrange *Ind, renumber_t ren_tab,
 struct fake_rel {
     index_t ind[2][MAXFACTORS];
     int nb_ind[2];
+    /* only used while reading, so that we get a stable sort */
+    int64_t a;
+    uint64_t b;
 };
+
+bool operator<(fake_rel const& x, fake_rel const& y) {
+    if (x.a < y.a) return true;
+    if (x.a > y.a) return false;
+    return x.b < y.b;
+}
 
 void read_rel(fake_rel& rel, uint64_t q, int sqside, const char *str,
         renumber_t ren_tab) {
@@ -131,12 +140,12 @@ void read_rel(fake_rel& rel, uint64_t q, int sqside, const char *str,
     const char *pstr = str;
     {
         char *endpstr = NULL;
-        a = strtoll(pstr, &endpstr, 10);
+        rel.a = a = strtoll(pstr, &endpstr, 10);
         ASSERT_ALWAYS (endpstr != pstr);
         pstr = endpstr;
         ASSERT_ALWAYS (pstr[0]==',');
         pstr++;
-        b = strtoull(pstr, &endpstr, 10);
+        rel.b = b = strtoull(pstr, &endpstr, 10);
         ASSERT_ALWAYS (endpstr != pstr);
         pstr = endpstr;
         // skip ':'
@@ -213,6 +222,13 @@ void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
             nr++;
         }
     } while(1);
+
+    size_t s = 0;
+    for(auto const & n : nrels) {
+        ASSERT_ALWAYS((s + n) <= rels.size());
+        std::sort(rels.begin() + s, rels.begin() + s + n);
+        s += n;
+    }
 
     fclose(file);
 }

@@ -23,23 +23,22 @@
    ssp_t. */
 class ssp_simple_t {
 protected:
-    /* Equation for ordinary primes is (i-r*j) = 0 mod p */
+    /* Equation for ordinary primes is (i-r*j) = 0 mod p.
+     * We let L_p be the p-lattice.
+     */
     fbprime_t p;
     fbprime_t r;
-    fbprime_t offset;
 public:
     unsigned char logp;
 
-    ssp_simple_t() : p(0), r(0), offset(0), logp(0) {}
-    ssp_simple_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, unsigned int skip)
-    : p(_p), r(_r), offset((r*skip)%p), logp(_logp)
+    ssp_simple_t() : p(0), r(0), logp(0) {}
+    ssp_simple_t(fbprime_t _p, fbprime_t _r, unsigned char _logp)
+    : p(_p), r(_r), logp(_logp)
     {}
     fbprime_t get_p() const {return p;}
     fbprime_t get_r() const {return r;}
-    fbprime_t get_offset() const {return offset;}
     void set_p(const fbprime_t _p) {p = _p;}
     void set_r(const fbprime_t _r) {r = _r;}
-    void set_offset(const fbprime_t _offset) {offset = _offset;}
     bool is_nice() const {return true;}
     void print(FILE *) const;
     bool operator<(ssp_simple_t const& x) const {
@@ -48,6 +47,11 @@ public:
 };
 
 class ssp_t : public ssp_simple_t {
+    fbprime_t offset;   /* we used to have that in ssp_simple_t. Now it's
+                           no longer here, so that ssp_t and ssp_simple_t
+                           no longer have the same size. This used to be
+                           a requirement that they do, but I think it's
+                           not the case anymore.  */
     /* use the remaining empty space in the struct so that we still have
      * the same size */
     uint8_t flags = 0;
@@ -60,16 +64,15 @@ public:
     /* Initialization procedures for the ssp data */
     /* Constructor for affine case */
     ssp_t() : ssp_simple_t(), flags(0) {}
-    ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, unsigned int skip)
-    : ssp_simple_t(_p, _r, _logp, skip)
+    ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp)
+    : ssp_simple_t(_p, _r, _logp)
     {}
     /* Constructor for affine or projective case */
-    ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, unsigned int skip, bool proj);
+    ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, bool proj);
 
     /* We could use the parent class' methods if we get rid of the ASSERT()s */
     fbprime_t get_p() const {ASSERT(!is_proj()); return p;}
     fbprime_t get_r() const {ASSERT(!is_proj()); return r;}
-    fbprime_t get_offset() const {ASSERT(!is_proj()); return offset;}
 
     fbprime_t get_q() const {ASSERT(is_proj()); ASSERT(p > 0); return p;}
     fbprime_t get_g() const {ASSERT(is_proj()); ASSERT(r > 0); return r;}
@@ -101,15 +104,38 @@ private:
                    unsigned int skip MAYBE_UNUSED);
 };
 
-static_assert(sizeof(ssp_simple_t) == sizeof(ssp_t), "struct padding has been tampered with");
+// static_assert(sizeof(ssp_simple_t) == sizeof(ssp_t), "struct padding has been tampered with");
 
-typedef struct {
+struct small_sieve_data_t {
     fb_factorbase::key_type fbK;
     std::vector<ssp_simple_t> ssps;
     std::vector<ssp_t> ssp;
     /* These offsets, relative to the start of ssps, tell which of the ssps
        entries should be used for re-sieving */
     size_t resieve_start_offset, resieve_end_offset;
-} small_sieve_data_t;
+
+};
+
+struct small_sieve_block_offsets_t {
+    /* These vectors are computed at the same time as ssd is
+     * intialized, in small_sieve_start.  We use them to compute the
+     * ssdpos fields for primes in ssps (easy ones).
+     *
+     * c=right[i] is such that for the i-th p-lattice L_p, the
+     * vector (2^min(logB, logI) + c, 0) is in L_p. We do not need it at
+     * all when logI <= logB, so we may as well define it as (B+c,p)
+     * in L_p.
+     *
+     * c=up[i] is equal to ssd[i].offset when logI>logB.
+     * In full generality, if logB = v + min(logI, logB), then c is
+     * such that (c, 2^v) in L_p.
+     */
+    
+    /* Note that at most one of these two vectors will be used anyway,
+     * depnding on how logI and logB compare.
+     */
+    std::vector<fbprime_t> right;
+    std::vector<fbprime_t> up;
+};
 
 #endif

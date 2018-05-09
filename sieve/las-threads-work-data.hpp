@@ -17,11 +17,13 @@
  *  - no concurrent access with two different sieve_info structures is
  *    possible.
  *
- * We have here nb_threads objects of type thread_data in the th[]
- * object, and nb_threads+1 (or 1 if nb_threads==1 anyway)
- * reservation_arrays in each data member of the two reservation_groups
- * in the groups[] data member. This +1 is here to allow work to spread
- * somewhat more evenly.
+ * We have here nb_threads threads that will work with nb_threads+1 (or 1
+ * if nb_threads==1 anyway) reservation_arrays in each data member of the
+ * two reservation_groups in the groups[] data member. This +1 is here to
+ * allow work to spread somewhat more evenly.
+ *
+ * Thread-private memory areas such as bucket regions are allocated in
+ * the thread_data fields.
  */
 class nfs_work {
     public:
@@ -34,10 +36,6 @@ class nfs_work {
     /* All of this exists _for each thread_ */
     struct thread_data {
         struct side_data {
-            /* For small sieve */
-            std::vector<spos_t> ssdpos;
-            std::vector<spos_t> rsdpos;
-
             /* The real array where we apply the sieve.
              * This has size BUCKET_REGION_0 and should be close to L1
              * cache size. */
@@ -55,6 +53,25 @@ class nfs_work {
         std::array<side_data, 2> sides;
         /* SS is used only in process_bucket region */
         unsigned char *SS = NULL;
+
+        /* A note on SS versus sides[side].bucket_region.
+         *
+         * All of this in only used in process_bucket_region. However, as
+         * these are pretty hammered areas, we prefer to have them
+         * allocated once and for all.
+         *
+         * norm initialization goes to sides[side].bucket_region.  Some
+         * tolerance is subtracted from these lognorms to account for
+         * accepted cofactors.
+         *
+         * SS is the bucket region where buckets are applied, and where
+         * the small sieve is done. The qualification test is SS[x] >=
+         * sides[side].bucket_region[x].
+         *
+         * TODO: that makes three 64kb memory areas per thread, which
+         * might be overkill ?
+         */
+
         thread_data(nfs_work &);
         thread_data(thread_data const &);
         ~thread_data();
@@ -66,7 +83,8 @@ class nfs_work {
     nfs_work(las_info const & _las);
     nfs_work(las_info const & _las, int);
 
-    void allocate_bucket_regions(sieve_info const & si);
+    void allocate_buckets(sieve_info const & si);
+    void allocate_bucket_regions();
     void buckets_alloc();
     void buckets_free();
 
