@@ -2394,7 +2394,12 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
     /* Make sure we don't schedule too many tasks when J was truncated
      * anyway */
 
-    int first_skipped_br = (si.J << si.conf.logI) >> LOG_BUCKET_REGION;
+    int first_skipped_br = si.J;
+
+    if (si.conf.logI >= LOG_BUCKET_REGION)
+        first_skipped_br <<= si.conf.logI - LOG_BUCKET_REGION;
+    else
+        first_skipped_br >>= LOG_BUCKET_REGION - si.conf.logI;
 
     for(int i = 0 ; i < si.nb_buckets[1] ; i++) {
         if (first_region0_index + i >= first_skipped_br) {

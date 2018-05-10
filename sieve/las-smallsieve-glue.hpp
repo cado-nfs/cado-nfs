@@ -194,7 +194,10 @@ struct small_sieve_base {/*{{{*/
          *
          * and finally we take pos0 mod p.
          */
-        spos_t x = (spos_t)(j0 + dj) * (spos_t)ssp.get_r() - i0;
+        /* Ouch. That can't work if we have largeish small-sieved primes!
+         */
+        // spos_t x = (spos_t)(j0 + dj) * (spos_t)ssp.get_r() - i0;
+        int64_t x = (int64_t)(j0 + dj) * (int64_t)ssp.get_r() - i0;
         if (sublatm > 1) {
             ASSERT(ssp.get_p() % sublatm);
             /* alternative code. not clear it's better.
@@ -206,14 +209,14 @@ struct small_sieve_base {/*{{{*/
             spos_t y = ssp.get_r() * sublatj0;
             x += fix_sublat_i(y, ssp.get_p());
         }
-        x = x % (spos_t)ssp.get_p();
+        x = x % (int64_t)ssp.get_p();
         /* As long as i0 <= 0, which holds in the normal case where
          * logI <= LOG_BUCKET_REGION, we can be sure that x >= 0, so
          * we have no issue with the sign.  However, when i0 is a
          * positive number, some extra care is needed.
          */
         if (x < 0) x += ssp.get_p();
-        return x;
+        return (spos_t) x;
     }/*}}}*/
 
     /* This return value is typically logI bits larger than for ordinary

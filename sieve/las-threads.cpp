@@ -17,9 +17,12 @@ reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI
      factor bases).
      */
   double ratio = fill_ratio;
+
   size_t n = BAs.size();
   for (size_t i = 0; i < n; i++) {
       auto & B(BAs[i]);
+      /* Arrange so that the largest allocations are done first ! */
+      double cost = ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t);
       pool.add_task_lambda([=,&B,&aux](worker_thread * worker,int){
             timetree_t & timer(aux.th[worker->rank()].timer);
             ACTIVATE_TIMER(timer);
@@ -28,8 +31,7 @@ reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI
             time_bubble_chaser tt(worker->rank(), time_bubble_chaser::ALLOC, {-1,-1,-1,-1});
             B.allocate_memory(n_bucket, ratio / n, logI);
             timer.chart.push_back(tt.put());
-              }, i, 2);
-      /* queue 2. Joined in reservation_group::allocate_buckets */
+              }, i, 2, cost);
   }
 }
 
@@ -159,8 +161,6 @@ reservation_group::allocate_buckets(const int *n_bucket,
      as the previously downsorted longhint updates from level 3 sieving. */
   RA1_long.allocate_buckets(n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI, aux, pool);
   RA2_long.allocate_buckets(n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI, aux, pool);
-
-  pool.drain_queue(2);
 }
 
 

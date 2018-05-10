@@ -83,6 +83,7 @@ void nfs_work::allocate_buckets(sieve_info const & si, nfs_aux & aux, thread_poo
                 si.conf.logI,
                 aux, pool);
     }
+    pool.drain_queue(2);
 }
 
 void nfs_work::allocate_bucket_regions() {

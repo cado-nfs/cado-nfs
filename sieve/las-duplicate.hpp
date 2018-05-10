@@ -8,7 +8,7 @@
 sieve_info *
 fill_in_sieve_info(las_todo_entry const& doing,
                    uint32_t I, uint32_t J,
-                   cxx_cado_poly const &, siever_config const &, int);
+                   cxx_cado_poly const &, siever_config const &);
 
 int
 relation_is_duplicate(relation const& rel,

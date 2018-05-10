@@ -30,7 +30,7 @@ static bool choose_sieve_area(las_info const & las,
      * optimal logI and J for this special-q. We have several
      * strategies for that.
      */
-    Adj = sieve_range_adjust(doing, las.cpoly, conf, las.nb_threads);
+    Adj = sieve_range_adjust(doing, las.cpoly, conf);
 
     if (!Adj.SkewGauss()) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,

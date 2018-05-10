@@ -81,7 +81,7 @@ private:
                                  * can be decided *after* the adjustment.
                                  */
     cado_poly_srcptr cpoly;
-    int nb_threads;
+    // int nb_threads;  // no longer needed.
     cxx_double_poly fijd[2];
     int logA;
 public:
@@ -105,8 +105,8 @@ public:
 
     /* This is only for desperate cases. In las-duplicates, for the
      * moment it seems that we're lacking the las_info structure... */
-    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf, int nb_threads = 1)
-        : doing(doing), conf(conf), cpoly(cpoly), nb_threads(nb_threads)
+    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf)
+        : doing(doing), conf(conf), cpoly(cpoly)
     {
         logA = conf.logA;
         logI = J = 0;
@@ -161,7 +161,7 @@ private:
     friend sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
     friend qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
     void prepare_fijd();
-    int adapt_threads(const char *);
+    int round_to_full_bucket_regions(const char *);
     double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
 };/*}}}*/
 

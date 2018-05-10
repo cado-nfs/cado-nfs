@@ -91,7 +91,7 @@ compute_a_over_b_mod_p(mpz_t r, const int64_t a, const uint64_t b, const mpz_t p
 sieve_info *
 fill_in_sieve_info(las_todo_entry const & doing,
                    uint32_t I, uint32_t J,
-                   cxx_cado_poly const & cpoly, siever_config const & conf, int nb_threads)
+                   cxx_cado_poly const & cpoly, siever_config const & conf)
 {
   sieve_info * x = new sieve_info;
 
@@ -104,7 +104,7 @@ fill_in_sieve_info(las_todo_entry const & doing,
   new_si.conf.side = doing.side;
   new_si.doing = doing;
 
-  sieve_range_adjust Adj(doing, cpoly, conf, nb_threads);
+  sieve_range_adjust Adj(doing, cpoly, conf);
   Adj.SkewGauss();
   if (!Adj.sieve_info_adjust_IJ()) {
       delete x;

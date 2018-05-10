@@ -173,7 +173,6 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
-  param_list_decl_usage(pl, "mt",   "number of threads to use");
   /* those are typical from las invocations, we wish to keep them
    * accepted */
   param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
@@ -200,7 +199,6 @@ main (int argc, char * argv[])
 {
     char * argv0 = argv[0];
     siever_config conf;
-    int nb_threads = 1;
     int adjust_strategy = 0;
 
     cxx_param_list pl;
@@ -252,7 +250,6 @@ main (int argc, char * argv[])
         fprintf(stderr, "Error: mandatory parameter missing.\n");
         exit(EXIT_FAILURE);
     }
-    param_list_parse_int(pl, "mt", &nb_threads);
 
     if (param_list_warn_unused(pl))
     {
@@ -305,8 +302,7 @@ main (int argc, char * argv[])
             if (psi) delete psi;
             uint32_t I = 1UL << ((conf.logA+1)/2);
             uint32_t J = 1UL << ((conf.logA-1)/2);
-            int nb_threads = 1;
-            psi = fill_in_sieve_info(doing, I, J, cpoly, conf, nb_threads);
+            psi = fill_in_sieve_info(doing, I, J, cpoly, conf);
             psi->strategies = strategies;
         } else {
             relation rel;
