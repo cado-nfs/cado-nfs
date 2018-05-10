@@ -55,6 +55,11 @@ void timetree_t::display_chart() const
                     << " level " << T.id[1]
                     << " B " << T.id[2];
                 break;
+            case time_bubble_chaser::SSS:
+                os << " SSS"
+                    << " side " << T.id[0]
+                    << " level " << T.id[1];
+                break;
             case time_bubble_chaser::AB:
                 os << " AB";
                 for(auto const & x : T.id)

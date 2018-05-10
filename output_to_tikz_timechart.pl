@@ -195,6 +195,9 @@ sub parse_a_special_q {
                         $kind = "FIB$2s.$1";
                         $idx = $3;
                         # slice unused.
+                    } elsif (/SSS side (\d+) level (\d+)/) {
+                        $kind = "SSS$2.$1";
+                        $idx = $thr;
                     } elsif (/DS side (\d+) level (\d+) B (\d+)/) {
                         $kind = "DS$2l.$1";
                         $idx = $3;

@@ -395,7 +395,7 @@ struct time_bubble_chaser {
     struct timeval tv_get;
     struct timeval tv_put;
     int thread;
-    enum kind_t { INIT, SKEWGAUSS, ADJUST, SLICING, FIB, AB, DS, PBR, PCLAT, ECM, BOTCHED };
+    enum kind_t { INIT, SKEWGAUSS, ADJUST, SLICING, SSS, FIB, AB, DS, PBR, PCLAT, ECM, BOTCHED };
     kind_t kind;
     typedef std::array<int, 4> id_t;
     id_t id;

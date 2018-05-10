@@ -1276,12 +1276,15 @@ downsort_tree(
                   ACTIVATE_TIMER(timer);
                   SIBLING_TIMER(timer, "prepare small sieve");
                   TIMER_CATEGORY(timer, bookkeeping());
+                  time_bubble_chaser tt(worker->rank(), time_bubble_chaser::SSS,
+                          {side,1,-1,-1});
                   sieve_info::side_info & s(si.sides[side]);
                   if (!s.fb) return;
                   ASSERT(si.toplevel > 1);
                   SIBLING_TIMER(timer, "small sieve start positions");
                   TIMER_CATEGORY(timer, bookkeeping());
                   small_sieve_start_many(s.ssdpos_many, s.ssd, s.ssd_offsets, first_region0_index, si);
+                  timer.chart.push_back(tt.put());
                   },0);
       }
 

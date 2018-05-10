@@ -2479,6 +2479,9 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
             SIBLING_TIMER(timer, "prepare small sieve");
             TIMER_CATEGORY(timer, bookkeeping());
 
+            time_bubble_chaser tt(worker->rank(), time_bubble_chaser::SSS,
+                    {side,si.toplevel,-1,-1});
+
             sieve_info::side_info & s(si.sides[side]);
             if (!s.fb) return;
 
@@ -2499,6 +2502,8 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
                 TIMER_CATEGORY(timer, bookkeeping());
                 small_sieve_start_many(s.ssdpos_many, s.ssd, s.ssd_offsets, 0, si);
             }
+
+            timer.chart.push_back(tt.put());
         },0);
     }
 
