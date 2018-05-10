@@ -83,6 +83,7 @@ void timetree_t::display_chart() const
             case time_bubble_chaser::BOTCHED: os << " BOTCHED"; break;
             case time_bubble_chaser::SKEWGAUSS: os << " SKEWGAUSS"; break;
             case time_bubble_chaser::SLICING: os << " SLICING"; break;
+            case time_bubble_chaser::ALLOC: os << " ALLOC"; break;
             case time_bubble_chaser::ADJUST: os << " ADJUST"; break;
         };
 

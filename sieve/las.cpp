@@ -2447,8 +2447,12 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
      */
     rep.ttbuckets_fill -= seconds();
     
-    ws.allocate_bucket_regions();
-    ws.allocate_buckets(si);
+    {
+        time_bubble_chaser tt(0, time_bubble_chaser::ALLOC, {-1,-1,-1,-1});
+        ws.allocate_bucket_regions();
+        ws.allocate_buckets(si);
+        timer_special_q.chart.push_back(tt.put());
+    }
 
     /* TODO: is there a way to share this in sublat mode ? */
     precomp_plattice_t precomp_plattice;

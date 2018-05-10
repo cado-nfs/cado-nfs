@@ -215,6 +215,7 @@ sub parse_a_special_q {
                     } elsif (/BOTCHED/) { $kind = "BOTCHED"; $idx = $thr;
                     } elsif (/SKEWGAUSS/) { $kind = "SKEWGAUSS"; $idx = $thr;
                     } elsif (/SLICING/) { $kind = "SLICING"; $idx = $thr;
+                    } elsif (/ALLOC/) { $kind = "ALLOC"; $idx = $thr;
                     } elsif (/ADJUST/) { $kind = "ADJUST"; $idx = $thr;
                     } else {
                         die "Unexpected chart line: $_";
