@@ -64,7 +64,7 @@ nfs_work_cofac::nfs_work_cofac(las_info const& las, sieve_info const & si) :
 /* Prepare to work on sieving a special-q as described by _si.
    This implies allocating all the memory we need for bucket arrays,
    sieve regions, etc. */
-void nfs_work::allocate_buckets(sieve_info const & si)
+void nfs_work::allocate_buckets(sieve_info const & si, nfs_aux & aux, thread_pool & pool)
 {
     /* Always allocate the max number of buckets (i.e., as if we were using the
        max value for J), even if we use a smaller J due to a poor q-lattice
@@ -80,7 +80,8 @@ void nfs_work::allocate_buckets(sieve_info const & si)
         groups[side].allocate_buckets(si.nb_buckets,
                 multiplier,
                 si.sides[side].fbs->stats.weight,
-                si.conf.logI);
+                si.conf.logI,
+                aux, pool);
     }
 }
 

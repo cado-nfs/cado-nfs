@@ -83,7 +83,7 @@ class nfs_work {
     nfs_work(las_info const & _las);
     nfs_work(las_info const & _las, int);
 
-    void allocate_buckets(sieve_info const & si);
+    void allocate_buckets(sieve_info const & si, nfs_aux&, thread_pool&);
     void allocate_bucket_regions();
     void buckets_alloc();
     void buckets_free();

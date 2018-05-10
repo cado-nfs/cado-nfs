@@ -40,7 +40,7 @@ public:
 
   /* Allocate enough memory to be able to store at least n_bucket buckets,
      each of size at least fill_ratio * bucket region size. */
-  void allocate_buckets(int n_bucket, double fill_ratio, int logI);
+  void allocate_buckets(int n_bucket, double fill_ratio, int logI, nfs_aux&, thread_pool&);
   // typename std::vector<T>::const_iterator cbegin() const {return BAs.cbegin();}
   // typename std::vector<T>::const_iterator cend() const {return BAs.cend();}
   // std::vector<T>& arrays() { return BAs; }
@@ -90,7 +90,7 @@ public:
   void allocate_buckets(const int *n_bucket,
           bkmult_specifier const& multiplier,
           std::array<double, FB_MAX_PARTS> const &
-          fill_ratio, int logI);
+          fill_ratio, int logI, nfs_aux&, thread_pool&);
   void diagnosis(int side, int level, fb_factorbase::slicing const & fbs) const {
       switch(level) {
           case 1:

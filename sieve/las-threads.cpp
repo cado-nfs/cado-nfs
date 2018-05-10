@@ -3,10 +3,11 @@
 #include "las-threads.hpp"
 #include "las-types.hpp"
 #include "las-config.h"
+#include "las-auxiliary-data.hpp"
 
 template <typename T>
 void
-reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI)
+reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
 {
   /* We estimate that the updates will be evenly distributed among the n
      different bucket arrays, so each gets fill_ratio / n.
@@ -17,8 +18,19 @@ reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI
      */
   double ratio = fill_ratio;
   size_t n = BAs.size();
-  for (size_t i = 0; i < n; i++)
-    BAs[i].allocate_memory(n_bucket, ratio / n, logI);
+  for (size_t i = 0; i < n; i++) {
+      auto & B(BAs[i]);
+      pool.add_task_lambda([=,&B,&aux](worker_thread * worker,int){
+            timetree_t & timer(aux.th[worker->rank()].timer);
+            ACTIVATE_TIMER(timer);
+            SIBLING_TIMER(timer, "allocate_buckets");
+            TIMER_CATEGORY(timer, bookkeeping());
+            time_bubble_chaser tt(worker->rank(), time_bubble_chaser::ALLOC, {-1,-1,-1,-1});
+            B.allocate_memory(n_bucket, ratio / n, logI);
+            timer.chart.push_back(tt.put());
+              }, i, 2);
+      /* queue 2. Joined in reservation_group::allocate_buckets */
+  }
 }
 
 template <typename T>
@@ -126,7 +138,9 @@ reservation_group::reservation_group(int nr_bucket_arrays)
 void
 reservation_group::allocate_buckets(const int *n_bucket,
         bkmult_specifier const& mult,
-        std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI)
+        std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+        nfs_aux & aux,
+        thread_pool & pool)
 {
   /* Short hint updates are generated only by fill_in_buckets(), so each BA
      gets filled only by its respective FB part */
@@ -135,16 +149,18 @@ reservation_group::allocate_buckets(const int *n_bucket,
   typedef typename decltype(RA3_short)::update_t T3s;
   typedef typename decltype(RA1_long)::update_t T1l;
   typedef typename decltype(RA2_long)::update_t T2l;
-  RA1_short.allocate_buckets(n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI);
-  RA2_short.allocate_buckets(n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI);
-  RA3_short.allocate_buckets(n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI);
+  RA1_short.allocate_buckets(n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, aux, pool);
+  RA2_short.allocate_buckets(n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, aux, pool);
+  RA3_short.allocate_buckets(n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, aux, pool);
 
   /* Long hint bucket arrays get filled by downsorting. The level-2 longhint
      array gets the shorthint updates from level 3 sieving, and the level-1
      longhint array gets the shorthint updates from level 2 sieving as well
      as the previously downsorted longhint updates from level 3 sieving. */
-  RA1_long.allocate_buckets(n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI);
-  RA2_long.allocate_buckets(n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI);
+  RA1_long.allocate_buckets(n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI, aux, pool);
+  RA2_long.allocate_buckets(n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI, aux, pool);
+
+  pool.drain_queue(2);
 }
 
 

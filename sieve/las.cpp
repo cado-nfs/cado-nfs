@@ -2448,10 +2448,13 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
     rep.ttbuckets_fill -= seconds();
     
     {
+        /* allocate_bucket_regions is probably ridiculously cheap in
+         * comparison to allocate_buckets */
         time_bubble_chaser tt(0, time_bubble_chaser::ALLOC, {-1,-1,-1,-1});
         ws.allocate_bucket_regions();
-        ws.allocate_buckets(si);
         timer_special_q.chart.push_back(tt.put());
+
+        ws.allocate_buckets(si, *aux_p, pool);
     }
 
     /* TODO: is there a way to share this in sublat mode ? */
@@ -2873,7 +2876,12 @@ int main (int argc0, char *argv0[])/*{{{*/
     timetree_t global_timer;
 
     /* A pointer just to control when the dtor is called... */
-    thread_pool *pool = new thread_pool(las.nb_threads, 2);
+    /* queue 0: main
+     * queue 1: ECM
+     * queue 2: things that we join almost immediately, but are
+     * multithreaded nevertheless: alloc buckets, ...
+     */
+    thread_pool *pool = new thread_pool(las.nb_threads, 3);
 
     nfs_work workspaces(las);
 
