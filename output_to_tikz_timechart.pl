@@ -108,13 +108,12 @@ sub ship_chart {
         my ($kind, $thr, $idx, $t0, $t1, $time) = @$S;
         my $i0 = int(($t0-$tmin)/($tmax_cap-$tmin));
         my $i1 = int(($t1-$tmin)/($tmax_cap-$tmin));
-        push @{$lists[$i0]}, $S;
-        push @{$lists[$i1]}, $S if $i1 != $i0;
+        push @{$lists[$_]}, $S for ($i0..$i1);
     }
-    my $last_step=-1;
     print $fh "\\begin{center}\n";
     if ($ngraphs > 200) { $ngraphs=200; }
     my $ckind='';
+    my @last_seen=(0) x $nc_chrono;
     for(my $j = 0 ; $j < $ngraphs ; $j++) {
         print $fh "\\begin{adjustbox}{max totalsize={\\textwidth}{.9\\textheight},center}\n";
         print $fh "\\begin{tikzpicture}\n";
@@ -142,8 +141,9 @@ sub ship_chart {
             if ($color_by_step) {
                 (my $akind = $kind) =~ s/PBR\d+/PBR/g;
                 my $i = $kinds{$akind};
-                if ($i > $last_step) {
-                    $last_step = $i;
+                my $previous = $last_seen[$i];
+                if ($t0 - $previous >= ($tmax_cap - $tmin)/2) {
+                    $last_seen[$i]=$t0;
                     print $fh "\\draw[thick] ($x0,0.25) -- ($x0,$Y) node[right,rotate=-90,scale=.7] {\\tiny $kind};\n";
                 }
                 $style="fill={rainbow!![$i]}";
