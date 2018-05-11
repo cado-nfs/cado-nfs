@@ -57,9 +57,10 @@ if(CURL_INCDIR_OK AND CURL_LIBDIR_OK)
 include_directories(${CURL_INCDIR})
 link_directories(${CURL_LIBDIR})
 include(CheckCSourceCompiles)
-set(CMAKE_REQUIRED_LIBRARIES "-lcurl")
 set(CMAKE_REQUIRED_FLAGS "-L${CURL_LIBDIR}")
+set(CMAKE_REQUIRED_DEFINITIONS)
 set(CMAKE_REQUIRED_INCLUDES ${CURL_INCDIR})
+set(CMAKE_REQUIRED_LIBRARIES "-lcurl")
 CHECK_C_SOURCE_COMPILES("
     #include <curl/curl.h>
     int main(void)

@@ -13,6 +13,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <pthread.h>
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
 #endif
@@ -57,14 +58,21 @@ void
 /* A list of mmap()-ed and malloc()-ed memory regions, so we can call the
    correct function to free them again */
 static dllist mmapped_regions, malloced_regions;
+static pthread_mutex_t mmapped_regions_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t malloced_regions_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static int inited_lists = 0;
 
 void *
 malloc_hugepages(const size_t size)
 {
   if (!inited_lists) {
+    pthread_mutex_lock(&mmapped_regions_lock);
     dll_init(mmapped_regions);
+    pthread_mutex_unlock(&mmapped_regions_lock);
+    pthread_mutex_lock(&malloced_regions_lock);
     dll_init(malloced_regions);
+    pthread_mutex_unlock(&malloced_regions_lock);
     inited_lists = 1;
   }
 
@@ -78,7 +86,9 @@ malloc_hugepages(const size_t size)
       // Commented out because it's spammy
       // perror("mmap failed");
     } else {
+      pthread_mutex_lock(&mmapped_regions_lock);
       dll_append(mmapped_regions, m);
+      pthread_mutex_unlock(&mmapped_regions_lock);
       return m;
     }
   }
@@ -96,7 +106,9 @@ malloc_hugepages(const size_t size)
 #else
     void *m = malloc_aligned(rounded_up_size, LARGE_PAGE_SIZE);
 #endif
+    pthread_mutex_lock(&malloced_regions_lock);
     dll_append(malloced_regions, m);
+    pthread_mutex_unlock(&malloced_regions_lock);
     int r;
     static int printed_error = 0;
     do {
@@ -125,7 +137,9 @@ free_hugepages(void *m, const size_t size MAYBE_UNUSED)
   {
     size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
     size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
+    pthread_mutex_lock(&mmapped_regions_lock);
     dllist_ptr node = dll_find (mmapped_regions, (void *) m);
+    pthread_mutex_unlock(&mmapped_regions_lock);
     if (node != NULL) {
       dll_delete(node);
       munmap((void *) m, rounded_up_size);
@@ -138,7 +152,9 @@ free_hugepages(void *m, const size_t size MAYBE_UNUSED)
   {
     size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
     size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
+    pthread_mutex_lock(&malloced_regions_lock);
     dllist_ptr node = dll_find (malloced_regions, (void *) m);
+    pthread_mutex_unlock(&malloced_regions_lock);
     if (node != NULL) {
       dll_delete(node);
 #if defined(__linux) && defined(HAVE_POSIX_MEMALIGN)
@@ -293,6 +309,8 @@ struct chunk_s {
 static void *hugepages = NULL;
 static size_t hugepage_size_allocated = 0;
 static dllist chunks;
+static pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER;
+
 int chunks_inited = 0;
 
 // #define VERBOSE_CONTIGUOUS_MALLOC 1
@@ -300,8 +318,10 @@ int chunks_inited = 0;
 void *contiguous_malloc(const size_t size)
 {
   if (!chunks_inited) {
+      pthread_mutex_lock(&chunks_lock);
     dll_init(chunks);
     chunks_inited = 1;
+    pthread_mutex_unlock(&chunks_lock);
   }
 
   if (size == 0) {
@@ -322,12 +342,14 @@ void *contiguous_malloc(const size_t size)
   /* Get offset and size of last entry in linked list */
   void *free_ptr;
   size_t free_size;
+  pthread_mutex_lock(&chunks_lock);
   if (!dll_is_empty(chunks)) {
     struct chunk_s *chunk = dll_get_nth(chunks, dll_length(chunks) - 1)->data;
     free_ptr = (char *)(chunk->ptr) + chunk->size;
   } else {
     free_ptr = hugepages;
   }
+  pthread_mutex_unlock(&chunks_lock);
   free_size = hugepage_size_allocated - ((char *)free_ptr - (char *)hugepages);
 
   /* Round up to a multiple of 128, which should be a (small) multiple of the
@@ -349,7 +371,9 @@ void *contiguous_malloc(const size_t size)
   ASSERT_ALWAYS(chunk != NULL);
   chunk->ptr = free_ptr;
   chunk->size = round_up_size;
+  pthread_mutex_lock(&chunks_lock);
   dll_append(chunks, chunk);
+  pthread_mutex_unlock(&chunks_lock);
 
 #ifdef VERBOSE_CONTIGUOUS_MALLOC
   printf ("# Returning %zu bytes of huge-page memory at %p\n", chunk->size, chunk->ptr);
@@ -366,12 +390,14 @@ void contiguous_free(void *ptr)
   if (ptr == NULL)
     return;
   
+  pthread_mutex_lock(&chunks_lock);
   for (node = chunks->next; node != NULL; node = node->next) {
     chunk = node->data;
     if (chunk->ptr == ptr) {
       break;
     }
   }
+  pthread_mutex_unlock(&chunks_lock);
 
   if (node != NULL) {
 #ifdef VERBOSE_CONTIGUOUS_MALLOC
@@ -382,6 +408,7 @@ void contiguous_free(void *ptr)
      * completely drained.
      */
     free(chunk);
+    pthread_mutex_lock(&chunks_lock);
     dll_delete(node);
     if (dll_is_empty(chunks)) {
 #ifdef VERBOSE_CONTIGUOUS_MALLOC
@@ -391,6 +418,7 @@ void contiguous_free(void *ptr)
       hugepages = NULL;
       hugepage_size_allocated = 0;
     }
+    pthread_mutex_unlock(&chunks_lock);
   } else {
 #ifdef VERBOSE_CONTIGUOUS_MALLOC
     printf ("# huge-page memory at %p not found, calling free_pagealigned()\n", ptr);

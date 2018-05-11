@@ -571,6 +571,8 @@ int las_todo_feed_qrange(las_info & las, param_list pl)
 
         std::vector<q_r_pair> my_list;
 
+        int nb_no_roots = 0;
+        int nb_rootfinding = 0;
         /* If nq_max is specified, then q1 has no effect, even though it
          * has been set equal to q */
         for ( ; (las.nq_max < UINT_MAX || mpz_cmp(q, q1) < 0) &&
@@ -582,9 +584,9 @@ int las_todo_feed_qrange(las_info & las, param_list pl)
             } else {
                 nroots = roots_for_composite_q((mpz_t *)roots, f, q, &fac_q[0]);
             }
-            if (nroots == 0) {
-                verbose_output_vfprint(0, 1, gmp_vfprintf, "# polynomial has no roots for q = %Zu\n", q);
-            }
+
+            nb_rootfinding++;
+            if (nroots == 0) nb_no_roots++;
 
             if (las.galois != NULL)
                 nroots = skip_galois_roots(nroots, q, (mpz_t*)roots, las.galois);
@@ -595,6 +597,11 @@ int las_todo_feed_qrange(las_info & las, param_list pl)
             }
             next_legitimate_specialq(q, fac_q, q, 1, las);
         }
+
+        if (nb_no_roots) {
+            verbose_output_vfprint(0, 1, gmp_vfprintf, "# polynomial has no roots for %d of the %d primes that were tried\n", nb_no_roots, nb_rootfinding);
+        }
+
         // Truncate to nq_max if necessary and push the sq in reverse
         // order, because they are processed via a stack (required for
         // the descent).

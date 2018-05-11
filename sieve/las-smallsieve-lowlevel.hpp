@@ -499,10 +499,17 @@ do {
     *pi += logp; pi += p_or_2p;
 } while (0);
 END_FOBJ();
+
+/* Gotcha: we're now preventively tracing the small sieve events outside
+ * the asm code, which causes sieve_increase_logging_backend to be
+ * called, and in turn test_divisible, which modifies traced norms (in
+ * debug mode). So for consistency, we mustn't use sieve_increase here,
+ * or the norm would be divided by p twice.
+ */
 BEGIN_FOBJ(manual_oldloop, true);
 #define T do {                                                          \
     WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);                              \
-    sieve_increase (pi, logp, w); pi += p_or_2p;                        \
+    *pi += logp; /* sieve_increase (pi, logp, w); */ pi += p_or_2p;     \
 } while(0)
 while (UNLIKELY(pi + p_or_2p * 12 <= S1))
 { T; T; T; T; T; T; T; T; T; T; T; T; }
@@ -519,7 +526,7 @@ END_FOBJ();
 BEGIN_FOBJ(manual_oldloop_nounroll, true);
 for ( ; pi < S1 ; pi += p_or_2p) {
     WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);
-    sieve_increase (pi, logp, w);
+    *pi += logp; // sieve_increase (pi, logp, w);
 }
 END_FOBJ();
 /*}}}*/

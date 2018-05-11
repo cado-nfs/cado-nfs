@@ -649,6 +649,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
         }
 
         const fbprime_t r = ssp.get_r();
+        WHERE_AM_I_UPDATE(w, r, r);
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
         unsigned char * S1 = S + F();

@@ -1667,6 +1667,16 @@ fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_pol
     if (!fbc_filename) return fbc_header();
     int fbc = open(fbc_filename, O_RDONLY);
     if (fbc < 0) return fbc_header();
+    struct stat sbuf[1];
+    if (fstat(fbc, sbuf) < 0) {
+        close(fbc);
+        return fbc_header();
+    }
+    if ((sbuf->st_mode & S_IFMT) == S_IFDIR) {
+        fprintf(stderr, "reading factor base cache from %s failed: is a directory\n", fbc_filename);
+        close(fbc);
+        return fbc_header();
+    }
 
     size_t fbc_size = lseek(fbc,0,SEEK_END);
 
@@ -1935,41 +1945,45 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, unsigned lon
         /* Next, we must append it to the cache file */
 
         int fbc = open(fbc_filename, O_RDWR | O_CREAT, 0666);
-        ASSERT_ALWAYS(fbc >= 0);
+        if (fbc >= 0) {
+            size_t fbc_size = lseek(fbc, 0, SEEK_END);
 
-        size_t fbc_size = lseek(fbc, 0, SEEK_END);
+            if ((fbc_size & (sysconf(_SC_PAGE_SIZE) - 1)) != 0) {
+                fprintf(stderr, "Fatal error: existing cache file %s is not page-aligned\n", fbc_filename);
+                exit(EXIT_FAILURE);
+            }
 
-        if ((fbc_size & (sysconf(_SC_PAGE_SIZE) - 1)) != 0) {
-            fprintf(stderr, "Fatal error: existing cache file %s is not page-aligned\n", fbc_filename);
-            exit(EXIT_FAILURE);
+            std::ostringstream os;
+            os << S;
+            os << "\n\n\n\n\n"; /* a convenience so that "head" displays the header */
+            if (os.str().size() > fbc_header::header_block_size) {
+                fprintf(stderr, "Fatal error: header doesn't fit (contents follow):\n%s\n", os.str().c_str());
+                exit(EXIT_FAILURE);
+            }
+
+            /* yes it's a short read, but we expect that all writes will do
+             * fseek + fwrite, thereby inserting zeroes automagically (POSIX says
+             * that). 
+             */
+            ::write(fbc, os.str().c_str(), os.str().size());
+
+            helper_functor_write_to_fbc_file W1 { fbc, fbc_size, S.entries, S.entries.begin() };
+            multityped_array_foreach(W1, entries);
+            helper_functor_write_to_fbc_file_weight_part W2 { fbc, fbc_size, S.entries, S.entries.begin() };
+            multityped_array_foreach(W2, entries);
+            ASSERT_ALWAYS((size_t) lseek(fbc, 0, SEEK_END) <= fbc_size + S.size);
+            ftruncate(fbc, fbc_size + S.size);
+            close(fbc);
+            tfb = seconds () - tfb;
+            tfb_wct = wct_seconds() - tfb_wct;
+            verbose_output_print(0, 1,
+                    "# Saving side-%d factor base to cache %s took %1.1fs (%1.1fs real)\n",
+                    side, fbc_filename, tfb, tfb_wct);
+        } else {
+            verbose_output_print(0, 1,
+                    "# Cannot save side-%d factor base to cache %s : %s\n",
+                    side, fbc_filename, strerror(errno));
         }
-
-        std::ostringstream os;
-        os << S;
-        os << "\n\n\n\n\n"; /* a convenience so that "head" displays the header */
-        if (os.str().size() > fbc_header::header_block_size) {
-            fprintf(stderr, "Fatal error: header doesn't fit (contents follow):\n%s\n", os.str().c_str());
-            exit(EXIT_FAILURE);
-        }
-
-        /* yes it's a short read, but we expect that all writes will do
-         * fseek + fwrite, thereby inserting zeroes automagically (POSIX says
-         * that). 
-         */
-        ::write(fbc, os.str().c_str(), os.str().size());
-
-        helper_functor_write_to_fbc_file W1 { fbc, fbc_size, S.entries, S.entries.begin() };
-        multityped_array_foreach(W1, entries);
-        helper_functor_write_to_fbc_file_weight_part W2 { fbc, fbc_size, S.entries, S.entries.begin() };
-        multityped_array_foreach(W2, entries);
-        ASSERT_ALWAYS((size_t) lseek(fbc, 0, SEEK_END) <= fbc_size + S.size);
-        ftruncate(fbc, fbc_size + S.size);
-        close(fbc);
-        tfb = seconds () - tfb;
-        tfb_wct = wct_seconds() - tfb_wct;
-        verbose_output_print(0, 1,
-                "# Saving side-%d factor base to cache %s took %1.1fs (%1.1fs real)\n",
-                side, fbc_filename, tfb, tfb_wct);
     }
 #endif
 
