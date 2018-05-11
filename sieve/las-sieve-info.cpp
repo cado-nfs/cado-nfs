@@ -149,6 +149,9 @@ void sieve_info::update (unsigned int nb_threads)
 
     /* update number of buckets at toplevel */
     size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+
+    for(int i = 0 ; i < FB_MAX_PARTS ; ++i) nb_buckets[i] = 0;
+
     nb_buckets[toplevel] = iceildiv(A, BRS[toplevel]);
 
     // maybe there is only 1 bucket at toplevel and less than 256 at

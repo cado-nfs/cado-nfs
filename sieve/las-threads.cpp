@@ -9,6 +9,8 @@ template <typename T>
 void
 reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
 {
+    if (n_bucket <= 0) return;
+
   /* We estimate that the updates will be evenly distributed among the n
      different bucket arrays, so each gets fill_ratio / n.
      However, for a large number of threads, we need a bit of margin.

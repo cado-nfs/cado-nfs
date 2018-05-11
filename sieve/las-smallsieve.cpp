@@ -389,8 +389,12 @@ void small_sieve_init(small_sieve_data_t & ssd,
                      *
                      * It is such that (B+c, 0) is in L_p.
                      *
-                     * */
-                    unsigned long offset = ((p - 1) << LOG_BUCKET_REGION) % p;
+                     * Since LOG_BUCKET_REGION is a priori something as
+                     * large as 16 bits, and p might also be of roughly
+                     * the same size, maybe even more (up to logI), we
+                     * must pay attention to overflows.
+                     */
+                    unsigned long offset = ((int64_t) (p - 1) << LOG_BUCKET_REGION) % p;
                     ssd_offsets.right.push_back(offset);
                 }
             } else {
@@ -621,7 +625,6 @@ void small_sieve_start_many(std::vector<std::vector<spos_t>> & ssdpos_many,
                     if (x >= ssd.ssps[s].get_p()) x -= ssd.ssps[s].get_p();
                     ssdpos_many[k][s] = x;
                 }
-                k++;
             }
         }
     } else if (logI == logB) {

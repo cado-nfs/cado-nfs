@@ -336,7 +336,7 @@ void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t>
         //XXX XXX XXX const unsigned char logp = ssd->logp[k];
         unsigned char *S_ptr = S;
         size_t p_or_2p = p;
-        ASSERT(pos < p);
+        ASSERT((fbprime_t) pos < p);
         unsigned int i_compens_sublat = 0;
         if (si.conf.sublat.m != 0) {
             i_compens_sublat = si.conf.sublat.i0 & 1;
