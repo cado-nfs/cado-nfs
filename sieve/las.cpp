@@ -1670,7 +1670,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
 #endif
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
 
-    time_bubble_chaser tt(id, time_bubble_chaser::ECM,
+    time_bubble_chaser tt(worker->rank(), time_bubble_chaser::ECM,
             { 0,0,0,0 });
     auto tt_put = call_dtor([&]() { timer.chart.push_back(tt.put()); });
 
