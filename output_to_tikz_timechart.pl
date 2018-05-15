@@ -15,6 +15,7 @@ my $by_bucket = 0;
 my $cropfraction=300;
 my $merge_all_fib_levels=0;
 my $color_by_step=1;
+my $allow_quirks=0;
 
 sub display_slicing {
     my ($fh, $k,$S)=@_;
@@ -59,7 +60,7 @@ sub parse_new_slicing {
 }
 
 sub ship_chart {
-    my ($fh,$sq,$nthreads,$tab) = @_;
+    my ($fh,$nthreads,$tab) = @_;
     print STDERR "Shipping chart with ", scalar @$tab, " entries\n";
     my ($tmin, $tmax);
     return unless @$tab;
@@ -90,7 +91,7 @@ sub ship_chart {
     my $tmax_cap = $tmin + $cropfraction * $dt;
     if ($tmax_cap > $tmax) { $tmax_cap = $tmax; }
     print $fh "\\newpage\n";
-    print $fh "\n\n\\noindent\\textbf{$sq; $nthreads threads}\n\n";
+    print $fh "\n\n\\noindent\\textbf{$nthreads threads}\n\n";
     # we want to print everything, but based on moving windows of width
     # $tmax_cap-$tmin.
     
@@ -111,7 +112,7 @@ sub ship_chart {
         push @{$lists[$_]}, $S for ($i0..$i1);
     }
     print $fh "\\begin{center}\n";
-    if ($ngraphs > 200) { $ngraphs=200; }
+    if ($ngraphs > 100) { $ngraphs=100; }
     my $ckind='';
     my @last_seen=(0) x $nc_chrono;
     for(my $j = 0 ; $j < $ngraphs ; $j++) {
@@ -163,7 +164,7 @@ sub ship_chart {
             my $y1 = -$thr - 1;
             $y0 = $y0/2;
             $y1 = $y1/2;
-            print $fh "\\draw[$style] ($x0,$y0) rectangle ($x1,$y1); % $kind\n";
+            print $fh "\\draw[$style] ($x0,$y0) rectangle ($x1,$y1); % $kind thread $thr\n";
         }
         print $fh "\\end{tikzpicture}\n\n";
         print $fh "\\end{adjustbox}\n";
@@ -175,22 +176,27 @@ sub ship_chart {
     print $fh "\\end{center}\n\n";
 }
 
-sub parse_a_special_q {
-    my ($in,$fh,$sq) = @_;
-    $sq=~s/;//;
+my @stacked_charts=();
+
+sub parse_file {
+    my ($in,$fh) = @_;
     my $stack;
+    my $cumulated_nthr=0;
+    my $tab = [];
+    my $last_nthreads=0;
     while (defined($_=<$in>)) {
         /time chart for (\d+) threads/ && do {
             my $nthreads = $1;
-            my $tab = [];
-            { # for(my $i = 0 ; $i < $nthreads ; $i++) {
+            my $ncharts_wanted = 1;
+            if ($allow_quirks) { $ncharts_wanted=$nthreads; }
+            for(my $i = 0 ; $i < $ncharts_wanted ; $i++) {
                 defined($_=<$in>) or die;
                 /time chart has (\d+) entries/ or die;
                 my $nentries = $1;
                 for(my $i = 0 ; $i < $nentries ; $i++) {
                     defined($_=<$in>) or die;
                     my ($kind, $thr, $idx, $t0, $t1, $time);
-                    /thread (\d+)/ && do { $thr=$1; };
+                    /thread (\d+)/ && do { $thr=$1+$cumulated_nthr; };
                     if (/FIB side (\d+) level (\d+) B (\d+) slice (\d+)/) {
                         $kind = "FIB$2s.$1";
                         $idx = $3;
@@ -210,6 +216,10 @@ sub parse_a_special_q {
                         $kind = "PCLAT$2.$1";
                         $idx = $thr;
                         # slice unused.
+                    } elsif ($allow_quirks && /PCLAT/) {
+                        $kind = "PCLAT";
+                        $idx = $thr;
+                        # slice unused.
                     } elsif (/ECM/) { $kind = "ECM"; $idx = $thr;
                     } elsif (/INIT/) { $kind = "INIT"; $idx = $thr;
                     } elsif (/BOTCHED/) { $kind = "BOTCHED"; $idx = $thr;
@@ -226,42 +236,45 @@ sub parse_a_special_q {
                     push @$tab, [$kind, $thr, $idx, $t0, $t1, $time];
                 }
             }
-            # get something to eat.
-            ship_chart($fh, $sq, $nthreads, $tab);
-            return;
+            $cumulated_nthr+=$nthreads unless $allow_quirks;
+            $last_nthreads = $nthreads;
+        };
+        /^# Total \d+ reports/ && $allow_quirks && do {
+            $cumulated_nthr += $last_nthreads;
         };
     }
+    # accomodate possible bug. thread pool dtor buggy with commit 8ade8a
+    if ($cumulated_nthr == 0) { $cumulated_nthr = $last_nthreads; }
+    ship_chart($fh, $cumulated_nthr, $tab);
 }
 
 my @files=();
 my $unlink=1;
+my $outname;
+
+my @wild;
 
 while (defined($_=shift @ARGV)) {
-    if (/--by-thread/) {
-        $by_bucket = 0;
-        next;
-    }
-    if (/--by-bucket/) {
-        $by_bucket = 1;
-        next;
-    }
-    if (/--color-by-step/) {
-        $color_by_step=1;
-        next;
-    }
-    if (/--cropfraction/) {
-        $cropfraction = shift @ARGV;
-        next;
-    }
-    if (/--keep/) {
-        $unlink=0;
-        next;
-    }
+    if (/--by-thread/) { $by_bucket = 0; next; }
+    if (/--by-bucket/) { $by_bucket = 1; next; }
+    if (/--allow-quirks/) { $allow_quirks = 1; next; }
+    if (/--color-by-step/) { $color_by_step=1; next; }
+    if (/--cropfraction/) { $cropfraction = shift @ARGV; next; }
+    if (/-o/) { $outname = shift @ARGV; next; }
+    if (/--keep/) { $unlink=0; next; }
     chomp($_);
-    /^(.*?)\.(txt|out)$/ or die "input files must be named *.out or *.txt [got $_]";
+    push @wild, $_;
+}
+
+for (@wild) {
+    (/^(.*?)\.(txt|out)(?:\.xz)?$/ || m{^/dev}) or die "input files must be named *.out or *.txt (or that, with .xz) [got $_]";
     my $base = $1;
-    die "$_: $!" unless -f $_;
-    push @files, [$_, "$base.pdf"];
+    die "$_: $!" unless -r $_;
+    if ($outname) {
+        push @files, [$_, $outname];
+    } else {
+        push @files, [$_, "$base.pdf"];
+    }
 }
 
 scalar @files or do { print "nothing to do\n"; exit 0; };
@@ -305,21 +318,20 @@ for my $pair (@files) {
             open(STDOUT, ">&", $oldout);
             print $fh "\\end{verbatim}\n";
         };
-    open my $in, "<$file";
-#    while (defined($_=<$in>)) {
-#        while (defined($_) && /^# Creating new slicing on side (\d+) for (scale=.*)$/) {
-#            parse_new_slicing($in, $fh, $1, $2);
-#        }
-#        if (/^# Sieving (side-\d q=\d+; rho=\d+).*/) {
-#            parse_a_special_q($in, $fh, $1);
-#        }
-#    }
-    parse_a_special_q($in, $fh, "merge special-q's");
-    close $in;
+    if ($file =~ /\.xz$/) {
+        open my $in, "xzcat $file |";
+        parse_file($in, $fh);
+        close $in;
+    } else {
+        open my $in, "<$file";
+        parse_file($in, $fh);
+        close $in;
+    }
     close $fh;
     my $opwd = getcwd;
     chdir $dir;
-    system "pdflatex chart";
+    # lualatex has dynamic memory allocation.
+    system "lualatex chart";
     chdir $opwd;
     print "$dir/chart.pdf -> $dst\n";
     move("$dir/chart.pdf", $dst) or die $!;
