@@ -1410,7 +1410,8 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
 {
     cxx_mpz_poly const & poly(f);
     /* Prepare for computing powers up to that limit */
-    std::vector<fb_power_t> powers(fb_powers(powlim));
+    decltype(powlim) plim = (powlim == std::numeric_limits<decltype(powlim)>::max()) ? lim : powlim;
+    std::vector<fb_power_t> powers(fb_powers(plim));
     size_t next_pow = 0;
 
     verbose_output_print(0, 1,
