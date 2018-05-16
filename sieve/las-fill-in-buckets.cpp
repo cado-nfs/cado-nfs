@@ -1157,9 +1157,12 @@ void downsort_aux(
             taux.w = w;
             CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(downsort, LEVEL), side, "");
             TIMER_CATEGORY(timer, sieving(side));
+            time_bubble_chaser tt(worker->rank(), time_bubble_chaser::DS,
+                    {side,LEVEL,bucket_index,-1});
             auto & BAout(ws.reserve_BA<LEVEL, longhint_t>(side, ws.rank_BA(side, BAin)));
             downsort<LEVEL+1>(BAout, BAin, bucket_index, taux.w);
             ws.template release_BA<LEVEL,longhint_t>(side, BAout);
+            timer.chart.push_back(tt.put());
         }, bucket_index, 0);
     }
 }
@@ -1224,6 +1227,8 @@ downsort_tree(
                 ACTIVATE_TIMER(timer);
                 CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(downsort, LEVEL), side, "");
                 TIMER_CATEGORY(timer, sieving(side));
+                time_bubble_chaser tt(worker->rank(), time_bubble_chaser::DS,
+                        {side,LEVEL,bucket_index,-1});
                 auto & BAout(ws.reserve_BA<LEVEL, longhint_t>(side, ws.rank_BA(side, BAin)));
                 // This is a fake slice_index. For a longhint_t bucket,
                 // each update contains its own slice_index, directly
@@ -1233,6 +1238,7 @@ downsort_tree(
                 BAout.add_slice_index(0);
                 downsort<LEVEL+1>(BAout, BAin, bucket_index, taux.w);
                 ws.template release_BA<LEVEL,longhint_t>(side, BAout);
+                timer.chart.push_back(tt.put());
             }, bucket_index, 0);
         }
         // What comes from already downsorted data above. We put this in
