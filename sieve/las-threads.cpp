@@ -27,7 +27,7 @@ reservation_array<T>::allocate_buckets(int n_bucket, double fill_ratio, int logI
       double cost = ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t);
       pool.add_task_lambda([=,&B,&aux](worker_thread * worker,int){
             timetree_t & timer(aux.th[worker->rank()].timer);
-            ACTIVATE_TIMER(timer);
+            ENTER_THREAD_TIMER(timer);
             SIBLING_TIMER(timer, "allocate_buckets");
             TIMER_CATEGORY(timer, bookkeeping());
             time_bubble_chaser tt(worker->rank(), time_bubble_chaser::ALLOC, {-1,-1,-1,-1});

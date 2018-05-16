@@ -823,7 +823,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker, task_parameters * _pa
     int id = worker->rank();
     nfs_aux::thread_data & taux(param->aux.th[id]);
     timetree_t & timer(taux.timer);
-    ACTIVATE_TIMER(timer);
+    ENTER_THREAD_TIMER(timer);
     nfs_work & ws(param->ws);
     sieve_info const & si(param->si);
     where_am_I & w(taux.w);
@@ -881,9 +881,6 @@ fill_in_buckets_one_slice_internal(worker_thread * worker, task_parameters * _pa
     return new task_result;
 }
 
-/* we really wish to have a single timing slot for all the instantiations
- * of fill_in_buckets_toplevel_wrapper */
-static tdict::slot_parametric timer_slot_for_fibt("fill_in_buckets_toplevel on side ", "");
 
 // At top level.
 // We need to interleave the root transforms and the FK walk,
@@ -905,7 +902,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED, task_param
     where_am_I & w(taux.w);
     int side = param->side;
 
-    ACTIVATE_TIMER(timer);
+    ENTER_THREAD_TIMER(timer);
 
     /* This is one of the places where helgrind is likely to complain. We
      * use thread-safe statics. Helgrind can't cope with it,
@@ -966,7 +963,7 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker MAYBE_UNUSED, tas
     where_am_I & w(taux.w);
     int side = param->side;
 
-    ACTIVATE_TIMER(timer);
+    ENTER_THREAD_TIMER(timer);
 
     /* This is one of the places where helgrind is likely to complain. We
      * use thread-safe statics. Helgrind can't cope with it,
@@ -1153,7 +1150,7 @@ void downsort_aux(
         pool.add_task_lambda([&,side,w](worker_thread * worker, int bucket_index) {
             nfs_aux::thread_data & taux(aux.th[worker->rank()]);
             timetree_t & timer(taux.timer);
-            ACTIVATE_TIMER(timer);
+            ENTER_THREAD_TIMER(timer);
             taux.w = w;
             CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(downsort, LEVEL), side, "");
             TIMER_CATEGORY(timer, sieving(side));
@@ -1224,7 +1221,7 @@ downsort_tree(
                 nfs_aux::thread_data & taux(aux.th[worker->rank()]);
                 timetree_t & timer(taux.timer);
                 taux.w = w;
-                ACTIVATE_TIMER(timer);
+                ENTER_THREAD_TIMER(timer);
                 CHILD_TIMER_PARAMETRIC(timer, TEMPLATE_INST_NAME(downsort, LEVEL), side, "");
                 TIMER_CATEGORY(timer, sieving(side));
                 time_bubble_chaser tt(worker->rank(), time_bubble_chaser::DS,
@@ -1275,20 +1272,24 @@ downsort_tree(
   } else {
       /* Prepare for PBR: we need to precompute the small sieve positions
        * for all the small sieved primes.
+       *
+       * For si.toplevel==1, we don't reach here, of course, and the
+       * corresponding initialization is done with identical code in
+       * las.cpp
        */
       for(int side = 0 ; side < 2 ; side++) {
           pool.add_task_lambda([=,&si](worker_thread * worker, int){
                   timetree_t & timer(aux_p->th[worker->rank()].timer);
-                  ACTIVATE_TIMER(timer);
+                  ENTER_THREAD_TIMER(timer);
+                  MARK_TIMER_FOR_SIDE(timer, side);
+                  TIMER_CATEGORY(timer, sieving(side));
                   SIBLING_TIMER(timer, "prepare small sieve");
-                  TIMER_CATEGORY(timer, bookkeeping());
                   time_bubble_chaser tt(worker->rank(), time_bubble_chaser::SSS,
                           {side,1,-1,-1});
                   sieve_info::side_info & s(si.sides[side]);
                   if (!s.fb) return;
                   ASSERT(si.toplevel > 1);
                   SIBLING_TIMER(timer, "small sieve start positions");
-                  TIMER_CATEGORY(timer, bookkeeping());
                   small_sieve_start_many(s.ssdpos_many, s.ssd, s.ssd_offsets, first_region0_index, si);
                   timer.chart.push_back(tt.put());
                   },0);

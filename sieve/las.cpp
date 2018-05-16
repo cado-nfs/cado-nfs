@@ -1236,7 +1236,10 @@ bool register_contending_relation(las_info const & las, sieve_info const & si, r
             tws(ws.th[worker->rank()]),
             timer(taux.timer),
             bucket_relative_index(id),
-            dummy(timer),
+            /* these two are a bit annoying. we want them to scope
+             * properly.
+             */
+            dummy(timer, tdict_slot_for_threads),
             rep(taux.rep),
             w(taux.w)
     {
@@ -1445,6 +1448,7 @@ process_bucket_region_run::surv2_t process_bucket_region_run::convert_survivors(
 void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 {
     SIBLING_TIMER(timer, "purge buckets");
+    TIMER_CATEGORY(timer, sieving(side));
 
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
@@ -1468,6 +1472,7 @@ void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 void process_bucket_region_run::resieve(int side)/*{{{*/
 {
     SIBLING_TIMER(timer, "resieve");
+    TIMER_CATEGORY(timer, sieving(side));
 
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
@@ -1671,7 +1676,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
      * activated above.
      */
 #ifndef DLP_DESCENT
-    ACTIVATE_TIMER(timer);
+    ENTER_THREAD_TIMER(timer);
 #else
     CHILD_TIMER(timer, __func__);
 #endif
@@ -2443,9 +2448,6 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
     trace_per_sq_init(si);
 #endif
 
-    /* TODO why this second call to sieve_info::update ?? */
-    si.update(las.nb_threads);
-
     plattice_x_t max_area = plattice_x_t(si.J)<<si.conf.logI;
     plattice_enumerate_area<1>::value =
         MIN(max_area, plattice_x_t(BUCKET_REGIONS[2]));
@@ -2492,11 +2494,13 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
 
     for(int side = 0 ; side < 2 ; side++) {
         pool.add_task_lambda([&si,aux_p,side](worker_thread * worker,int){
-
             timetree_t & timer(aux_p->th[worker->rank()].timer);
-            ACTIVATE_TIMER(timer);
+
+            ENTER_THREAD_TIMER(timer);
+            MARK_TIMER_FOR_SIDE(timer, side);
+            TIMER_CATEGORY(timer, sieving(side));
+
             SIBLING_TIMER(timer, "prepare small sieve");
-            TIMER_CATEGORY(timer, bookkeeping());
 
             time_bubble_chaser tt(worker->rank(), time_bubble_chaser::SSS,
                     {side,si.toplevel,-1,-1});
@@ -2517,8 +2521,7 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
                 /* when si.toplevel > 1, this start_many call is done
                  * several times.
                  */
-                SIBLING_TIMER(timer, "small sieve start positions");
-                TIMER_CATEGORY(timer, bookkeeping());
+                SIBLING_TIMER(timer, "small sieve start positions ");
                 small_sieve_start_many(s.ssdpos_many, s.ssd, s.ssd_offsets, 0, si);
             }
 
@@ -2541,14 +2544,14 @@ void do_one_special_q_sublat(las_info const & las, sieve_info & si, nfs_work & w
     if (si.toplevel == 1) {
         {
             CHILD_TIMER(timer_special_q, "process_bucket_region outer container");
-            TIMER_CATEGORY(timer_special_q, bookkeeping());
+            TIMER_CATEGORY(timer_special_q, sieving_mixed());
 
             /* Process bucket regions in parallel */
             process_many_bucket_regions(ws, wc_p, aux_p, pool, 0, si, w);
         }
     } else {
         SIBLING_TIMER(timer_special_q, "process_bucket_region outer container");
-        TIMER_CATEGORY(timer_special_q, bookkeeping());
+        TIMER_CATEGORY(timer_special_q, sieving_mixed());
 
         // Prepare plattices at internal levels
 
@@ -2625,6 +2628,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     ASSERT_ALWAYS(mpz_poly_is_root(las.cpoly->pols[doing.side], doing.r, doing.p));
 
     SIBLING_TIMER(timer_special_q, "skew Gauss");
+    TIMER_CATEGORY(timer_special_q, bookkeeping());
 
     siever_config conf;
     qlattice_basis Q;
@@ -2637,81 +2641,78 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     sieve_info * psi;
 
     {
-    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
-
-    /* Maybe create a new siever ? */
-    sieve_info & si(sieve_info::get_sieve_info_from_config(conf, las.cpoly, las.sievers, pl));
-    psi = &si;
-    /* for some reason get_sieve_info_from_config does not access the
-     * full las_info structure, so we have a few adjustments to make
-     */
-    si.bk_multiplier = &las.bk_multiplier;
-    si.set_for_new_q(doing, Q, J);
-    si.init_j_div();
-    si.init_unsieve_data();
-    /* Now we're ready to sieve. We have to refresh some fields
-     * in the sieve_info structure, otherwise we'll be polluted by
-     * the leftovers from earlier runs.
-     */
-    /* precompute the skewed polynomials of f(x) and g(x), and also
-     * their floating-point versions */
-    si.update_norm_data();
-    /* This function should really be renamed ! It embodies, in
-     * particular, the creation of the different slices in the factor
-     * base. */
-
-    timer_special_q.chart.push_back(tt.put());
+        time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
+        /* Maybe create a new siever ? */
+        sieve_info & si(sieve_info::get_sieve_info_from_config(conf, las.cpoly, las.sievers, pl));
+        psi = &si;
+        /* for some reason get_sieve_info_from_config does not access the
+         * full las_info structure, so we have a few adjustments to make
+         */
+        si.bk_multiplier = &las.bk_multiplier;
+        si.set_for_new_q(doing, Q, J);
+        si.init_j_div();
+        si.init_unsieve_data();
+        /* Now we're ready to sieve. We have to refresh some fields
+         * in the sieve_info structure, otherwise we'll be polluted by
+         * the leftovers from earlier runs.
+         */
+        /* precompute the skewed polynomials of f(x) and g(x), and also
+         * their floating-point versions */
+        si.update_norm_data();
+        /* This function should really be renamed ! It embodies, in
+         * particular, the creation of the different slices in the factor
+         * base. */
+        timer_special_q.chart.push_back(tt.put());
     }
 
     sieve_info & si(*psi);
 
     {
-    time_bubble_chaser tt(0, time_bubble_chaser::SLICING, {-1,-1,-1,-1});
-    si.update(las.nb_threads);
-    timer_special_q.chart.push_back(tt.put());
+        time_bubble_chaser tt(0, time_bubble_chaser::SLICING, {-1,-1,-1,-1});
+        si.update(las.nb_threads);
+        timer_special_q.chart.push_back(tt.put());
     }
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
-    time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
-    wc_p = std::make_shared<nfs_work_cofac>(las, si);
+        time_bubble_chaser tt(0, time_bubble_chaser::INIT, {-1,-1,-1,-1});
+        wc_p = std::make_shared<nfs_work_cofac>(las, si);
 
-    rep.total_logI += si.conf.logI;
-    rep.total_J += si.J;
+        rep.total_logI += si.conf.logI;
+        rep.total_J += si.J;
 
-    WHERE_AM_I_UPDATE(w, psi, &si);
+        WHERE_AM_I_UPDATE(w, psi, &si);
 
-    for(int side = 0 ; side < 2 ; side++)
-        las.dumpfiles[side].setname(las.dump_filename, doing);
+        for(int side = 0 ; side < 2 ; side++)
+            las.dumpfiles[side].setname(las.dump_filename, doing);
 
-    std::ostringstream extra;
-    if (si.doing.depth)
-        extra << " # within descent, currently at depth " << si.doing.depth;
+        std::ostringstream extra;
+        if (si.doing.depth)
+            extra << " # within descent, currently at depth " << si.doing.depth;
 
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-            "# "
-            HILIGHT_START
-            "Sieving side-%d q=%Zd; rho=%Zd;"
-            HILIGHT_END
-            " a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "; J=%u;%s\n",
-            si.doing.side,
-            (mpz_srcptr) si.doing.p,
-            (mpz_srcptr) si.doing.r,
-            si.qbasis.a0, si.qbasis.b0,
-            si.qbasis.a1, si.qbasis.b1,
-            si.J, extra.str().c_str());
-
-
-    if (!las.allow_composite_q && !mpz_probab_prime_p(doing.p, 1)) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,
-                "# Warning, q=%Zd is not prime\n",
-                (mpz_srcptr) doing.p);
-    }
+                "# "
+                HILIGHT_START
+                "Sieving side-%d q=%Zd; rho=%Zd;"
+                HILIGHT_END
+                " a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 "; J=%u;%s\n",
+                si.doing.side,
+                (mpz_srcptr) si.doing.p,
+                (mpz_srcptr) si.doing.r,
+                si.qbasis.a0, si.qbasis.b0,
+                si.qbasis.a1, si.qbasis.b1,
+                si.J, extra.str().c_str());
 
-    verbose_output_print(0, 2, "# I=%u; J=%u\n", si.I, si.J);
 
-    timer_special_q.chart.push_back(tt.put());
+        if (!las.allow_composite_q && !mpz_probab_prime_p(doing.p, 1)) {
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
+                    "# Warning, q=%Zd is not prime\n",
+                    (mpz_srcptr) doing.p);
+        }
+
+        verbose_output_print(0, 2, "# I=%u; J=%u\n", si.I, si.J);
+        timer_special_q.chart.push_back(tt.put());
     }
 
     unsigned int sublat_bound = si.conf.sublat.m;
@@ -2733,7 +2734,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     }
 
     /* It's better than before, but still. We're going to keep this data
-     * around for more longer than we think if we get an exception above. 
+     * around for longer than we think if we get an exception above. 
      */
     for(int side = 0 ; side < 2 ; side++)
         si.sides[side].precomp_plattice_dense.clear();
@@ -2975,6 +2976,11 @@ int main (int argc0, char *argv0[])/*{{{*/
 
             /* ready to start over if we encounter an exception */
             try {
+                /* The nfs_aux ctor below starts the special-q timer.
+                 * However we must not give it a category right now,
+                 * since it is an essential property ot the timer trees
+                 * that the root of the trees must not have a nontrivial
+                 * category */
                 auto aux_p = std::make_shared<nfs_aux>(las, doing, rel_hash_p, rep, timer_special_q, las.nb_threads);
                 nfs_aux & aux(*aux_p);
 
@@ -3144,16 +3150,18 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     global_timer.stop();
     if (tdict::global_enable >= 1) {
-        verbose_output_print (0, 1, "%s", global_timer.display().c_str());
+        verbose_output_print (0, 1, "#\n# Hierarchical timings:\n%s", global_timer.display().c_str());
 
         double t = 0;
-        for(auto const &c : global_timer.filter_by_category()) {
+        auto D = global_timer.filter_by_category();
+        for(auto const &c : D)
+            t += c.second;
+        verbose_output_print (0, 1, "#\n# Categorized timings (total counted time %.2f):\n", t);
+        for(auto const &c : D)
             verbose_output_print (0, 1, "# %s: %.2f\n", 
                     coarse_las_timers::explain(c.first).c_str(),
                     c.second);
-            t += c.second;
-        }
-        verbose_output_print (0, 1, "# total counted time: %.2f\n", t);
+        verbose_output_print (0, 1, "# total counted time: %.2f\n#\n", t);
     }
     global_report.display_survivor_counters();
 

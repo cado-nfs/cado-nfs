@@ -70,7 +70,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {
     nfs_work::thread_data & tws;
     timetree_t & timer;
     int bucket_relative_index;
-    timetree_t::accounting_activate dummy;
+    timetree_t::accounting_child_autoactivate dummy;
     las_report& rep;
     unsigned char * S[2];
     /* We will have this point to the thread's where_am_I data member.

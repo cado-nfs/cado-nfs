@@ -70,6 +70,9 @@ namespace tdict {
 
     extern int global_enable;
 
+    /* to print a key object (e.g. from gdb) use
+     * tdict::slot_base::print(k)
+     */
     class key {
         int magic;
         public:
@@ -217,12 +220,12 @@ namespace tdict {
         struct tree {
             typename T::type self;
             bool scoping;
-            int coarse_flag;
+            int category;
             typedef std::map<tdict::key, tree<T> > M_t;
             M_t M;
             tree<T> * current;   /* could be NULL */
             tree<T> * parent;   /* could be NULL */
-            tree() : self(typename T::type()), scoping(true), coarse_flag(-1), current(NULL), parent(this) { }
+            tree() : self(typename T::type()), scoping(true), category(-1), current(NULL), parent(this) { }
             bool running() const { return current != NULL; }
             void stop() {
                 if (!running()) return;
@@ -237,6 +240,15 @@ namespace tdict {
                 self -= v;
                 current = this;
             }
+            void set_current_category(int c) {
+                ASSERT_ALWAYS(running());
+                /* It is not allowed to set a category for the root of
+                 * the tree */
+                ASSERT_ALWAYS(current != this);
+                current->category = c;
+            }
+
+
             typename T::type stop_and_start() {
                 ASSERT_ALWAYS(running());
                 typename T::type v = T()();
@@ -244,45 +256,49 @@ namespace tdict {
                 current->self = -v;
                 return res;
             }
-            struct accounting_child {
+            struct accounting_base {
                 tree& t;
-                accounting_child(tree& t, tdict::key k): t(t) {
-                    ASSERT_ALWAYS(t.running());
-                    typename T::type v = T()();
-                    t.current->self += v;
-                    tree<T> * kid = &(t.current->M[k]);  /* auto-vivifies */
-                    kid->parent = t.current;
-                    kid->self -=  v;
-                    kid->scoping = true;
-                    t.current = kid;
-                }
-                ~accounting_child() {
-                    typename T::type v = T()();
-                    t.current->self += v;
-                    /* It could be that we are one level below. */
-                    for(;!t.current->scoping;) {
-                        t.current = t.current->parent;
-                    }
-                    t.current = t.current->parent;
-                    t.current->self -= v;
-                }
+                inline accounting_base(tree& t): t(t) {}
+                inline ~accounting_base() {}
             };
-
             /* This one is useful so that ctor/dtor order works right.
              */
-            struct accounting_activate {
-                tree& t;
-                inline accounting_activate(tree& t): t(t) { t.start(); }
-                inline ~accounting_activate() { t.stop(); }
+            struct accounting_activate : public accounting_base {
+                inline accounting_activate(tree& t): accounting_base(t) { accounting_base::t.start(); }
+                inline ~accounting_activate() { accounting_base::t.stop(); }
             };
+            template<typename BB>
+            struct accounting_child_meta : public BB {
+                accounting_child_meta(tree& t, tdict::key k): BB(t) {
+                    ASSERT_ALWAYS(BB::t.running());
+                    typename T::type v = T()();
+                    BB::t.current->self += v;
+                    tree<T> * kid = &(BB::t.current->M[k]);  /* auto-vivifies */
+                    kid->parent = BB::t.current;
+                    kid->self -=  v;
+                    kid->scoping = true;
+                    BB::t.current = kid;
+                }
+                ~accounting_child_meta() {
+                    typename T::type v = T()();
+                    BB::t.current->self += v;
+                    /* It could be that we are one level below. */
+                    for(;!BB::t.current->scoping;) {
+                        BB::t.current = BB::t.current->parent;
+                    }
+                    BB::t.current = BB::t.current->parent;
+                    BB::t.current->self -= v;
+                }
+            };
+            typedef accounting_child_meta<accounting_base> accounting_child;
+            typedef accounting_child_meta<accounting_activate> accounting_child_autoactivate;
 
-            struct accounting_debug {
-                tree& t;
+            struct accounting_debug : public accounting_base {
                 std::ostream& o;
-                inline accounting_debug(tree& t, std::ostream&o): t(t), o(o) {}
+                inline accounting_debug(tree& t, std::ostream&o): accounting_base(t), o(o) {}
                 inline ~accounting_debug() {
                     o << "# debug print\n";
-                    o << t.display();
+                    o << accounting_base::t.display();
                     o << "# --\n";
                 }
             };
@@ -332,8 +348,8 @@ private:
                     o << prefix << a->second.self << " " << a->first;
 #define DEBUG_CATEGORY
 #ifdef DEBUG_CATEGORY
-                    if (a->second.coarse_flag >= 0)
-                        o << " ; category " << a->second.coarse_flag;
+                    if (a->second.category >= 0)
+                        o << " ; category " << a->second.category;
 #endif
                     o << "\n";
                     a->second._display(o, ss.str());
@@ -343,8 +359,8 @@ private:
 
             void filter_by_category(std::map<int, typename T::type> & D, int inherited) const {
                 int flag = inherited;
-                if (coarse_flag >= 0)
-                    flag = coarse_flag;
+                if (category >= 0)
+                    flag = category;
                 D[flag] += self;
                 for(typename M_t::const_iterator a = M.begin() ; a != M.end() ; a++) {
                     a->second.filter_by_category(D, flag);
@@ -369,9 +385,9 @@ public:
             }
             tree& operator+=(tree const& t) {
                 self += t.self;
-                ASSERT_ALWAYS(coarse_flag < 0 || t.coarse_flag < 0 || coarse_flag == t.coarse_flag);
-                if (t.coarse_flag >= 0)
-                    coarse_flag = t.coarse_flag;
+                ASSERT_ALWAYS(category < 0 || t.category < 0 || category == t.category);
+                if (t.category >= 0)
+                    category = t.category;
                 for(typename M_t::const_iterator a = t.M.begin() ; a != t.M.end() ; a++) {
                     M[a->first] += a->second;
                 }
@@ -380,7 +396,7 @@ public:
             tree& steal_children_timings(tree & t) {
                 ASSERT_ALWAYS(t.running());
                 ASSERT_ALWAYS(t.current = &t);
-                ASSERT_ALWAYS(t.coarse_flag < 0);
+                ASSERT_ALWAYS(t.category < 0);
                 for(typename M_t::iterator a = t.M.begin() ; a != t.M.end() ; a++) {
                     M[a->first] += a->second;
                 }
@@ -481,7 +497,6 @@ class : public tdict::slot_base {
     timetree_t::accounting_activate UNIQUE_ID(sentry) (T);
 #define DEBUG_DISPLAY_TIMER_AT_DTOR(T,o)				\
     timetree_t::accounting_debug UNIQUE_ID(sentry) (T, o);
-
 
 void tdict_decl_usage(param_list pl);
 void tdict_configure_switch(param_list pl);

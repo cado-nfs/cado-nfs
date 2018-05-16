@@ -108,8 +108,8 @@ struct coarse_las_timers {
     static int thread_wait() { return 11; }
     static std::string explain(int x) {
         switch(x) {
-            case -1: return "uncategorized";
-            case 0: return "bookkeeping";
+            case -1: return "uncategorized (top-level bookkeeping)";
+            case 0: return "bookkeeping (lower levels)";
             case 1: return "search_survivors";
             case 2: return "sieving on side 0";
             case 3: return "sieving on side 1";
@@ -127,6 +127,6 @@ struct coarse_las_timers {
 };
 
 #define TIMER_CATEGORY(timer, cat) \
-    timer.current->coarse_flag = coarse_las_timers::cat
+    timer.set_current_category(coarse_las_timers::cat)
 
 #endif	/* LAS_REPORT_STATS_HPP_ */

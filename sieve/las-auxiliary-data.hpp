@@ -134,5 +134,16 @@ class nfs_aux {/*{{{*/
     ~nfs_aux();
 };/*}}}*/
 
+extern tdict::slot_parametric tdict_slot_for_side;
+extern tdict::slot tdict_slot_for_threads;
+extern tdict::slot_parametric timer_slot_for_fibt;
+
+#define ENTER_THREAD_TIMER(timer)       \
+    ACTIVATE_TIMER(timer);                           \
+    timetree_t::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_threads)
+
+#define MARK_TIMER_FOR_SIDE(timer, side)       \
+    timetree_t::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_side(side))
+
 
 #endif	/* LAS_AUXILIARY_DATA_HPP_ */
