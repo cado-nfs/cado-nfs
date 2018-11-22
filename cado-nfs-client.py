@@ -877,21 +877,19 @@ class HTTP_connector(object):
         # actually checking the certificate
         # This is a rather ugly hack. It would be nicer to copy the required
         # parts from a fully functional SSL library. TODO.
-        if sys.version_info[0] == 2:
-            if not self.use_external_dl:
-                logging.critical("HTTPS requested,"
-                                 " but not implemented in Python 2."
-                                 " Pass --externdl to search for fallbacks")
-                sys.exit(1)
-            elif self._try_curl():
+        if sys.version_info[0] == 2 or self.use_external_dl:
+            if self._try_curl():
                 self.get_file = self._curl_get_file
             elif self._try_wget():
                 self.get_file = self._wget_file
             else:
-                logging.critical("HTTPS requested,"
-                                 " but not implemented in Python 2"
+                if sys.version_info[0] == 2:
+                    why = "HTTPS requested, but not implemented in Python 2"
+                else:
+                    why = "External tools requested for HTTPS"
+                logging.critical("%s"
                                  " and can't find working wget or curl"
-                                 " as fall-back. Aborting.")
+                                 " as fall-back. Aborting.", reason)
                 sys.exit(1)
 
 # }}}
@@ -2212,6 +2210,10 @@ if __name__ == '__main__':
     connector = HTTP_connector(SETTINGS)
 
     if serv_pool.has_https:
+        if not options.externdl:
+            sys.version_info[0] == 2
+            logging.info("Implicitly setting --externdl to use https fallbacks")
+            # test_can_download_https forces external tools for python2
         connector.test_can_download_https()
 
     if options.daemon:
