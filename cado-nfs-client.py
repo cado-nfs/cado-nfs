@@ -1783,9 +1783,6 @@ class InputDownloader(object):
         logging.debug("Workunit ID is %s (downloaded from %s)",
                       workunit.get_id(), workunit.get_peer())
 
-        logging.info("Sleeping 10 seconds for debugging")
-        time.sleep(10)
-
         return workunit
 
     def _get_wu(self):
