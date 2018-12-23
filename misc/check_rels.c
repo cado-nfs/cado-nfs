@@ -405,10 +405,10 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
   param_list_decl_usage (pl, "poly", "polynomials file (mandatory)");
-  param_list_decl_usage (pl, "abhexa", "(switch) read and write a and b as hexa "
+  param_list_decl_usage (pl, "abhexa", "read and write a and b as hexa "
                                         "(instead of decimal)");
-  param_list_decl_usage (pl, "fixit",  "(switch) Try to fix wrong relations");
-  param_list_decl_usage (pl, "check_primality", "(switch) check primality of "
+  param_list_decl_usage (pl, "fixit",  "Try to fix wrong relations");
+  param_list_decl_usage (pl, "check_primality", "check primality of "
                                                 "primes (default, no checking)");
   param_list_decl_usage (pl, "out", "optional output file for correct or fixed "
                                     "relations");
@@ -416,8 +416,8 @@ declare_usage (param_list pl)
   param_list_decl_usage (pl, "lpb1", "large prime bound on side 1");
   param_list_decl_usage (pl, "lpbs", "large primes bounds (comma-separated list) "
                                      "(for MNFS)");
-  param_list_decl_usage (pl, "v", "(switch) more verbose output");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage (pl, "v", "more verbose output");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
 }
 

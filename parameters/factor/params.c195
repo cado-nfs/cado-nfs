@@ -26,10 +26,10 @@ tasks.polyselect.nrkeep = 100
 # Sieve
 ###########################################################################
 
-lim0 = 130000000
-lim1 = 100000000
-lpb0 = 32
-lpb1 = 33
+tasks.lim0 = 130000000
+tasks.lim1 = 100000000
+tasks.lpb0 = 32
+tasks.lpb1 = 33
 tasks.sieve.mfb0 = 85
 tasks.sieve.mfb1 = 96
 tasks.sieve.ncurves0 = 13

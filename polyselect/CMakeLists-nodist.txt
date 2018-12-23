@@ -1,10 +1,6 @@
 add_executable (rotate rotate.c)
 add_executable (rotate_all rotate_all.c)
 add_executable (sopt sopt.c)
-add_executable (dlpolyselect dlpolyselect.c ${ropt_sources})
-set_target_properties(dlpolyselect PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
-target_link_libraries (dlpolyselect polyselect_common utils)
 add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.c)
 target_link_libraries (twoquadratics polyselect_common utils)
 

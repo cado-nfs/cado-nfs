@@ -115,6 +115,11 @@ macro(cado_define_test)
     # Giving ARGUMENTS together with NO_DEFAULT_RUN just specifies a
     # common set of arguments to be passed to all diversions, provided
     # these are defined with APPEND_ARGUMENTS
+
+    # Some additional features have been added after this macro was
+    # documented. We have ENVIRONMENT, PRECOMMAND, as well as their
+    # APPEND_ friends.
+
     set(IMPLICIT)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
@@ -123,6 +128,7 @@ macro(cado_define_test)
     set(SCRIPT)
     set(ARGUMENTS)
     set(ENVIRONMENT)
+    set(PRECOMMAND)
     set(TEST_NAME)
     set(WORKING_DIRECTORY)
     set(NO_DEFAULT_RUN)
@@ -142,6 +148,8 @@ macro(cado_define_test)
             SET(current ARGUMENTS)
         elseif (x STREQUAL "ENVIRONMENT")
             SET(current ENVIRONMENT)
+        elseif (x STREQUAL "PRECOMMAND")
+            SET(current PRECOMMAND)
         elseif (x STREQUAL "TEST_NAME")
             SET(current TEST_NAME)
         elseif (x STREQUAL "WORKING_DIRECTORY")
@@ -163,6 +171,7 @@ macro(cado_define_test)
     #message(STATUS "SCRIPT is ${SCRIPT}")
     #message(STATUS "ARGUMENTS is ${ARGUMENTS}")
     #message(STATUS "ENVIRONMENT is ${ENVIRONMENT}")
+    #message(STATUS "PRECOMMAND is ${PRECOMMAND}")
     #message(STATUS "TEST_NAME is ${TEST_NAME}")
     #message(STATUS "WORKING_DIRECTORY is ${WORKING_DIRECTORY}")
     #message(STATUS "NO_DEFAULT_RUN is ${NO_DEFAULT_RUN}")
@@ -176,6 +185,7 @@ macro(cado_define_test)
     list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
     list(LENGTH ARGUMENTS nARGUMENTS)
     list(LENGTH ENVIRONMENT nENVIRONMENT)
+    list(LENGTH PRECOMMAND nPRECOMMAND)
     # direct the implicit parameters somewhere
     if(nIMPLICIT GREATER 0) 
         if (((nSOURCES GREATER 0) OR (nSCRIPT GREATER 0)) AND (nTEST_NAME GREATER 0))
@@ -272,7 +282,7 @@ macro(cado_define_test)
     endif()
 
     if (nSCRIPT EQUAL 0)
-        set(${TEST_NAME}_EXECUTABLE ${TEST_NAME})
+        set(${TEST_NAME}_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
     else()
         set(binary ${SCRIPT})
         if (${SCRIPT} MATCHES "\\.sh$")
@@ -284,13 +294,14 @@ macro(cado_define_test)
     # save for use by diverted tests
     set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
     set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
+    set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env)
         if (nENVIRONMENT GREATER 0)
             set(test_env env ${${TEST_NAME}_ENVIRONMENT})
         endif()
-        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
+        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_PRECOMMAND} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
         if(nWORKING_DIRECTORY GREATER 0)
             list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
@@ -342,8 +353,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     # diverted test is made to depend on this base test.
     set(ARGUMENTS)
     set(ENVIRONMENT)
+    set(PRECOMMAND)
     set(APPEND_ARGUMENTS)
     set(APPEND_ENVIRONMENT)
+    set(APPEND_PRECOMMAND)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
     set(NO_DEFAULT_RUN)
@@ -353,10 +366,14 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             SET(current ARGUMENTS)
         elseif (x STREQUAL "ENVIRONMENT")
             SET(current ENVIRONMENT)
+        elseif (x STREQUAL "PRECOMMAND")
+            SET(current PRECOMMAND)
         elseif (x STREQUAL "APPEND_ARGUMENTS")
             SET(current APPEND_ARGUMENTS)
         elseif (x STREQUAL "APPEND_ENVIRONMENT")
             SET(current APPEND_ENVIRONMENT)
+        elseif (x STREQUAL "APPEND_PRECOMMAND")
+            SET(current APPEND_PRECOMMAND)
         elseif (x STREQUAL "TEST_DEPENDENCIES")
             SET(current TEST_DEPENDENCIES)
         elseif (x STREQUAL "TARGET_DEPENDENCIES")
@@ -373,14 +390,19 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
     list(LENGTH ARGUMENTS nARGUMENTS)
     list(LENGTH ENVIRONMENT nENVIRONMENT)
+    list(LENGTH PRECOMMAND nPRECOMMAND)
     list(LENGTH APPEND_ARGUMENTS nAPPEND_ARGUMENTS)
     list(LENGTH APPEND_ENVIRONMENT nAPPEND_ENVIRONMENT)
+    list(LENGTH APPEND_PRECOMMAND nAPPEND_PRECOMMAND)
     list(LENGTH NO_DEFAULT_RUN nNO_DEFAULT_RUN)
     if ((nAPPEND_ARGUMENTS GREATER 0) AND (nARGUMENTS GREATER 0))
         message(FATAL_ERROR "ARGUMENTS and APPEND_ARGUMENTS are incompatible")
     endif()
     if ((nAPPEND_ENVIRONMENT GREATER 0) AND (nENVIRONMENT GREATER 0))
         message(FATAL_ERROR "ENVIRONMENT and APPEND_ENVIRONMENT are incompatible")
+    endif()
+    if ((nAPPEND_PRECOMMAND GREATER 0) AND (nPRECOMMAND GREATER 0))
+        message(FATAL_ERROR "PRECOMMAND and APPEND_PRECOMMAND are incompatible")
     endif()
 
     set(TEST_NAME "${TEST_BASE}_${DIVERSION}")
@@ -395,6 +417,11 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         list(LENGTH ENVIRONMENT nENVIRONMENT)
     endif()
 
+    if (NOT nPRECOMMAND GREATER 0)
+        set(PRECOMMAND ${${TEST_BASE}_PRECOMMAND} ${APPEND_PRECOMMAND})
+        list(LENGTH PRECOMMAND nPRECOMMAND)
+    endif()
+
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
     add_custom_target(${TEST_NAME}_dependencies)
@@ -407,13 +434,14 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(${TEST_NAME}_EXECUTABLE ${${TEST_BASE}_EXECUTABLE})
     set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
     set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
+    set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env)
         if (nENVIRONMENT GREATER 0)
             set(test_env env ${${TEST_NAME}_ENVIRONMENT})
         endif()
-        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
+        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_PRECOMMAND} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
         set(${TEST_NAME}_TEST_EXISTS 1)
         # prepare a ;-separated list for set_tests_properties
         # note that we do not need to make the test depend on
@@ -468,6 +496,29 @@ cado_define_test(full_c30
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals)
+        # The following case was hitting the bug #21707
+        cado_define_test(full_p30_JL
+            SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
+            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            -dlp -ell 350586976534485556208993720963
+            -t 2 -dlp-no-keep
+            701173953068971112417987441927
+            fastSM=true
+            jlpoly=true tasks.polyselect.bound=3 tasks.polyselect.modm=5
+            tasks.polyselect.degree=3 tasks.reconstructlog.checkdlp=false
+            tasks.lim0=4000 tasks.lim1=600 tasks.lpb0=12 tasks.lpb1=11
+            tasks.sieve.mfb0=12
+            tasks.sieve.mfb1=22
+            tasks.sieve.lambda0=1.1
+            tasks.sieve.lambda1=2.1
+            tasks.qmin=700
+            tasks.sieve.qrange=100
+            tasks.sieve.sqside=0
+            tasks.sieve.rels_wanted=1500
+            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            plingen_pz sm sm_simple las_descent reconstructlog-dl
+            dlpolyselect merge-dl replay-dl badideals)
     endif()
 endif()
 if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -568,4 +619,5 @@ add_subdirectory (linalg)
 add_subdirectory (gf2x)
 add_subdirectory (misc)
 add_subdirectory (sqrt)
-add_subdirectory (nfs-hd)
+# commented the following since nfs-hd is not in "make dist"
+# add_subdirectory (nfs-hd)

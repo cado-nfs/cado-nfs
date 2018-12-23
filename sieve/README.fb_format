@@ -27,12 +27,6 @@ For small prime and prime powers, this is clearly not the case, since we
 might want to have all powers of the same prime at the same place in the
 file.
 
-WARNING: For large primes las.c assumes some sorting. 
-More precisely, in sieve_info_split_bucket_fb_for_threads(), it is
-assumed that the prime powers below si->bucket_thresh comes before prime
-powers that are after si->bucket_thresh (in general si->bucket_thresh is
-I).
-
 Lines starting with a # are comments.
 
 

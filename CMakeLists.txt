@@ -259,6 +259,7 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
+include(${CADO_NFS_SOURCE_DIR}/config/check_uint64_type.cmake)
 
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
@@ -309,6 +310,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/test-rand.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
 endif()
@@ -319,6 +321,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/regex.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/jevents.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/aligned_alloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
 
 set(CADO_SHARED)
 
@@ -442,7 +445,8 @@ add_subdirectory (linalg/bwc)
 add_subdirectory (misc)
 add_subdirectory (scripts/cadofactor)
 add_subdirectory (tests EXCLUDE_FROM_ALL)
-add_subdirectory (nfs-hd)
+# commented the following since nfs-hd is not in "make dist"
+# add_subdirectory (nfs-hd)
 
 add_custom_target(dist
     COMMAND scripts/dist.sh ${package_basename}

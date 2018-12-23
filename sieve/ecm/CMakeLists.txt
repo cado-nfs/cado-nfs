@@ -35,6 +35,8 @@
 # set_property(SOURCE facul_doit_2ul2.c PROPERTY COMPILE_FLAGS "-O0 -g")
 # set_property(SOURCE facul_doit_mpz.c PROPERTY COMPILE_FLAGS "-O0 -g")
 
+include_directories(. ..)
+
 # We now have wrappers, so it's very easy from the cmake perspective.
 add_library(facul
         ecm_ul.c
@@ -53,10 +55,11 @@ add_library(facul
         pm1_mpz.c
         pp1_mpz.c
         facul_doit_mpz.cpp
-        stage2.c bytecoder.c prac_bc.c addchain_bc.c
-	makeplan.c facul.cpp
+        stage2.c
+        bytecode.c
+        makeplan.c facul.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
-	batch.cpp)
+        batch.cpp)
 
 set_target_properties(facul PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
 

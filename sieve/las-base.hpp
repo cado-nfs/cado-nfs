@@ -1,19 +1,10 @@
 #ifndef LAS_BASE_HPP_
 #define LAS_BASE_HPP_
 
-/* C++ base classes that are not application-specific. */
+#include <string.h>
+#include "utils_cxx.hpp"
 
-/* Base class with private copy-constructor and assignment operator.
-   Classes which are not copy-constructible can inherit this with:
-   private NonCopyable */
-class NonCopyable {
- protected:
-   NonCopyable() {}
-   ~NonCopyable() {}
- private:
-   NonCopyable(const NonCopyable&);
-   NonCopyable& operator=(const NonCopyable&);
-};
+/* C++ base classes that are not application-specific. */
 
 // If a plain-old data type T inherits from _padded_pod<T>, it ensures that all
 // the sizeof(T) bytes of any instance of T will be initialized, even if its
@@ -26,15 +17,18 @@ template <typename T>
 class _padded_pod {
   public:
     _padded_pod() {
-      memset(this,  0, sizeof(T));
+      // see bug 21663
+      memset((void*)this,  0, sizeof(T));
     }
 
     _padded_pod(const _padded_pod &x) {
-      memcpy(this, &x, sizeof(T));
+      // see bug 21663
+      memcpy((void*)this, (const void *) &x, sizeof(T));
     }
 
     const _padded_pod &operator=(const _padded_pod &x) {
-      memcpy(this, &x, sizeof(T));
+      // see bug 21663
+      memcpy((void*)this, &x, sizeof(T));
       return *this;
     }
 };

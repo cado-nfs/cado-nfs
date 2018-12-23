@@ -40,7 +40,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     mpfq_vbase A;
     mpfq_vbase_oo_field_init_byfeatures(A, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, ys[1]-ys[0],
+            MPFQ_SIMD_GROUPSIZE, ys[1]-ys[0],
             MPFQ_DONE);
 
     block_control_signals();
@@ -139,8 +139,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         /* This is L. Now compute the dot product. */
         void * dp0;
         void * dp1;
-        cheating_vec_init(A, &dp0, A->groupsize(A));
-        cheating_vec_init(A, &dp1, A->groupsize(A));
+        cheating_vec_init(A, &dp0, A->simd_groupsize(A));
+        cheating_vec_init(A, &dp1, A->simd_groupsize(A));
         unsigned int how_many;
         unsigned int offset_c;
         unsigned int offset_v;
@@ -151,7 +151,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(A, my->v, offset_c),
                 A->vec_subvec(A, y->v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp0, A->groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(NULL, dp0, A->simd_groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
 
         /* now we can throw away Hx */
 
@@ -183,8 +183,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(A, my->v, offset_c),
                 A->vec_subvec(A, y->v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp1, A->groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
-        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A, A->groupsize(A)));
+        pi_allreduce(NULL, dp1, A->simd_groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
+        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A, A->simd_groupsize(A)));
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
@@ -193,8 +193,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             }
             printf("%s : ok\n", checkname);
         }
-        cheating_vec_clear(A, &dp0, A->groupsize(A));
-        cheating_vec_clear(A, &dp1, A->groupsize(A));
+        cheating_vec_clear(A, &dp0, A->simd_groupsize(A));
+        cheating_vec_clear(A, &dp1, A->simd_groupsize(A));
     }
 
     mmt_vec_clear(mmt, y);

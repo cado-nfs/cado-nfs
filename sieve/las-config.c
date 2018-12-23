@@ -13,6 +13,13 @@ int NB_DEVIATIONS_BUCKET_REGIONS = 3;
 
 void set_LOG_BUCKET_REGION()
 {
+    if (LOG_BUCKET_REGION > 16) {
+        fprintf(stderr, "This binary only supports -B up to -B 16\n");
+        ASSERT_ALWAYS(0);
+        // we need to fix bucket_update_size_per_level<1>::type if we
+        // want to explore larger B's.
+    }
+
     BUCKET_REGION = ((size_t)1) << LOG_BUCKET_REGION;
     LOG_BUCKET_REGIONS[0] = -1;
     LOG_BUCKET_REGIONS[1] = LOG_BUCKET_REGION;
@@ -30,9 +37,6 @@ void las_display_config_flags()
 #ifdef SAFE_BUCKETS
     verbose_output_print(0, 1, " SAFE_BUCKETS");
 #endif
-#ifdef BUCKETS_IN_ONE_BIG_MALLOC
-    verbose_output_print(0, 1, " BUCKETS_IN_ONE_BIG_MALLOC");
-#endif
 #ifdef PROFILE
     verbose_output_print(0, 1, " PROFILE");
 #endif
@@ -48,14 +52,6 @@ void las_display_config_flags()
 #ifdef TRACK_CODE_PATH
     verbose_output_print(0, 1, " TRACK_CODE_PATH");
 #endif
-#ifdef ALG_LAZY
-    verbose_output_print(0, 1, " ALG_LAZY");
-    verbose_output_print(0, 1, " NORM_STRIDE=8 (locked)");
-    verbose_output_print(0, 1, " VERT_NORM_STRIDE=%u (max)", VERT_NORM_STRIDE);
-#endif
-#ifdef ALG_RAT
-    verbose_output_print(0, 1, " ALG_RAT");
-#endif
 #ifdef SUPPORT_LARGE_Q
     verbose_output_print(0, 1, " SUPPORT_LARGE_Q");
 #endif
@@ -65,9 +61,6 @@ void las_display_config_flags()
 #ifdef USE_CACHEBUFFER
     verbose_output_print(0, 1, " USE_CACHEBUFFER");
 #endif
-    verbose_output_print(0, 1, " NORM_BITS=%u", NORM_BITS);
-    verbose_output_print(0, 1, " LOG_BUCKET_REGION=%u", LOG_BUCKET_REGION);
-    verbose_output_print(0, 1, " GUARD=%1.2f", (double) GUARD);
-    verbose_output_print(0, 1, " LOG_MAX=%.1f", LOG_MAX);
+    verbose_output_print(0, 1, " LOGNORM_GUARD_BITS=%1.2f", (double) LOGNORM_GUARD_BITS);
     verbose_output_print(0, 1, "\n");
 }				/* }}} */

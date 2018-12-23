@@ -781,7 +781,7 @@ static void declare_usage(param_list pl)
                                      "(relations-sets) of the matrix");
   param_list_decl_usage(pl, "ideals", "file containing correspondence between "
                                       "ideals and matrix columns");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "for_msieve", "output matrix in msieve format");
   param_list_decl_usage(pl, "Nmax", "stop at Nmax number of rows (default 0)");

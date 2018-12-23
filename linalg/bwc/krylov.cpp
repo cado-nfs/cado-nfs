@@ -19,6 +19,7 @@
 void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
+    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
     matmul_top_data mmt;
@@ -36,7 +37,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     mpfq_vbase A;
     mpfq_vbase_oo_field_init_byfeatures(A, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, ys[1]-ys[0],
+            MPFQ_SIMD_GROUPSIZE, ys[1]-ys[0],
             MPFQ_DONE);
 
     /* Hmmm. This would deserve better thought. Surely we don't need 64
@@ -47,7 +48,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     mpfq_vbase Ac;
     mpfq_vbase_oo_field_init_byfeatures(Ac,
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, nchecks,
+            MPFQ_SIMD_GROUPSIZE, nchecks,
             MPFQ_DONE);
 
     pi_datatype_ptr Ac_pi = pi_alloc_mpfq_datatype(pi, Ac);
@@ -153,11 +154,21 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
-        mmt_vec_allreduce(ymy[0]);
 #endif
         gmp_randclear(rstate);
     }
     serialize(pi->m);
+
+    serialize_threads(pi->m);
+    if (pi->m->trank == 0) {
+        /* the bw object is global ! */
+        bw_set_length_and_interval_krylov(bw, mmt->n0);
+    }
+    serialize_threads(pi->m);
+    if (tcan_print) {
+        printf ("Target iteration is %u\n", bw->end);
+    }
+    ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
     mmt_vec check_vector;
     void * ahead = NULL;
@@ -196,27 +207,6 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
     cheating_vec_init(A, &xymats, bw->m*bw->interval);
     
-    if (bw->end == 0) {
-        /* Decide on an automatic ending value */
-        unsigned int length;
-        /* The padded dimension is not the important one */
-        length = MAX(mmt->n0[0], mmt->n0[1]);
-        length = iceildiv(length, bw->m) + iceildiv(length, bw->n);
-        length += 2 * iceildiv(bw->m, bw->n);
-        length += 2 * iceildiv(bw->n, bw->m);
-        length += 10;
-        /* Because bw is a global variable, we protect its use */
-        if (serialize_threads(pi->m)) {
-            bw->end = length;
-        }
-        serialize(pi->m);
-    }
-
-    if (tcan_print) {
-        printf ("Target iteration is %u ; going to %u\n", bw->end,
-                bw->interval * iceildiv(bw->end, bw->interval));
-    }
-
 #if 0
     /* FIXME -- that's temporary ! only for debugging */
     pi_log_init(pi->m);
@@ -224,7 +214,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     pi_log_init(pi->wr[1]);
 #endif
 
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->interval * iceildiv(bw->end, bw->interval));
+    timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->end);
     for(int i = 0 ; i < mmt->nmatrices; i++) {
         timing_set_timer_name(timing, 4*i, "CPU%d", i);
         timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);

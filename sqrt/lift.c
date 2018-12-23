@@ -1,5 +1,4 @@
 #include "cado.h"
-#define xxxWITH_BARRETT
 
 #include <gmp.h>
 #include <math.h>
@@ -92,13 +91,13 @@ static void WRAP_mpz_submul(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
     }
 }
 
-static void WRAP_barrett_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p, mpz_srcptr q)
+static void WRAP_mpz_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p)
 {
     double t0 = seconds();
     double w0 = wct_seconds();
     mp_size_t na = mpz_size(a);
     mp_size_t nb = mpz_size(p);
-    barrett_mod(c,a,p,q);
+    mpz_mod(c,a,p);
     double t1 = seconds();
     double w1 = wct_seconds();
     double rate = (w1-w0) ? ((t1-t0)/(w1-w0) * 100.0) : 0;
@@ -117,11 +116,11 @@ static void mp_poly_eval_mod(mpz_ptr r, mpz_t * poly, int deg, mpz_srcptr a, mpz
     for (i = deg - 1; i >= 0; i--) {
         WRAP_mpz_mul(r, r, a);
         // falls back on mpz_mod if qx == NULL
-        WRAP_barrett_mod(r, r, q, qx);
+        WRAP_mpz_mod(r, r, q);
         // mpz_mod(r, r, q);
         mpz_add(r, r, poly[i]);
     }
-    WRAP_barrett_mod(r, r, q, qx);
+    WRAP_mpz_mod(r, r, q);
 }
 
 static void mp_2poly_eval_mod(mpz_ptr r, mpz_ptr s, mpz_t * f, mpz_t * g, int degf, int degg, mpz_srcptr a, mpz_srcptr q, mpz_srcptr qx)
@@ -147,47 +146,23 @@ static void mp_2poly_eval_mod(mpz_ptr r, mpz_ptr s, mpz_t * f, mpz_t * g, int de
     WRAP_mpz_addmul(s, w, g[1]);
     for(i = 2 ; i <= degf && i <= degg ; i++) {
         WRAP_mpz_mul(w, w, a);
-        WRAP_barrett_mod(w, w, q, qx);
+        WRAP_mpz_mod(w, w, q);
         WRAP_mpz_addmul(r, w, f[i]);
         WRAP_mpz_addmul(s, w, g[i]);
     }
     for( ; i <= degf ; i++) {
         WRAP_mpz_mul(w, w, a);
-        WRAP_barrett_mod(w, w, q, qx);
+        WRAP_mpz_mod(w, w, q);
         WRAP_mpz_addmul(r, w, f[i]);
     }
     for( ; i <= degg ; i++) {
         WRAP_mpz_mul(w, w, a);
-        WRAP_barrett_mod(w, w, q, qx);
+        WRAP_mpz_mod(w, w, q);
         WRAP_mpz_addmul(s, w, g[i]);
     }
-    WRAP_barrett_mod(r, r, q, qx);
-    WRAP_barrett_mod(s, s, q, qx);
+    WRAP_mpz_mod(r, r, q);
+    WRAP_mpz_mod(s, s, q);
     mpz_clear(w);
-}
-/* }}} */
-
-/* {{{ This wraps around barrett reduction, depending on whether we
- * choose to use it or not */
-mpz_ptr my_barrett_init(mpz_srcptr px MAYBE_UNUSED)
-{
-#ifndef WITH_BARRETT
-    return NULL;
-#else
-    if (mpz_size(px) < 10000)
-        return NULL;
-    mpz_ptr qx = malloc(sizeof(mpz_t));
-    mpz_init(qx);
-    barrett_init(qx, px);
-    return qx;
-#endif
-}
-
-void my_barrett_clear(mpz_ptr qx)
-{
-    if (!qx) return;
-    mpz_clear(qx);
-    free(qx);
 }
 /* }}} */
 
@@ -211,7 +186,6 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
     mpz_srcptr pk = power_lookup_const(p->powers, precision);
     mpz_srcptr pl = power_lookup_const(p->powers, lower);
-    mpz_ptr qk = my_barrett_init(pk);
 
     mpz_t ta, tb;
     mpz_init(ta);
@@ -226,24 +200,21 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
     // computation of f(r).
     mp_2poly_eval_mod(tb, fprime, f_hat, f_hat_diff, degree, degree-1, rx, pk, qk);
     /* use irx. only one iteration of newton.  */
-    mpz_srcptr ql = NULL;       /* FIXME if we use barrett reduction */
-    WRAP_barrett_mod(fprime, fprime, pl, ql);
+    WRAP_mpz_mod(fprime, fprime, pl);
     WRAP_mpz_mul(ta, irx, fprime);
-    WRAP_barrett_mod(ta, ta, pl, ql);
+    WRAP_mpz_mod(ta, ta, pl);
     mpz_sub_ui(ta,ta,1);
     WRAP_mpz_submul(irx, irx, ta);
-    WRAP_barrett_mod(irx, irx, pl, ql);
+    WRAP_mpz_mod(irx, irx, pl);
 
     mpz_clear(fprime);
 
     WRAP_mpz_mul(tb, irx, tb);
     mpz_sub(rx, rx, tb);
-    WRAP_barrett_mod(rx, rx, pk, qk);
+    WRAP_mpz_mod(rx, rx, pk);
 
     mpz_clear(ta);
     mpz_clear(tb);
-
-    my_barrett_clear(qk);
 }/* }}} */
 
 #define EXAMPLE_FROM_RSA768
@@ -302,12 +273,6 @@ int main(int argc, char * argv[])
 #else
     fprintf(stderr, "MPIR includes from %s\n", MPIR_INCDIR);
     fprintf(stderr, "MPIR library from %s\n", MPIR_LIBDIR);
-#endif
-
-#ifdef  WITH_BARRETT
-    fprintf(stderr, "This run uses barrett reduction\n");
-#else
-    fprintf(stderr, "This run does not use barrett reduction\n");
 #endif
 
     struct prime_data prime[1];

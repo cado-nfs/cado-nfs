@@ -45,16 +45,18 @@ void bigmatpoly_zero(abdst_field ab, bigmatpoly_ptr p);
 void bigmatpoly_clear(abdst_field ab, bigmatpoly_ptr p);
 void bigmatpoly_clear_model(bigmatpoly_ptr p);
 void bigmatpoly_set_size(bigmatpoly_ptr p, size_t size);
-
+void bigmatpoly_coeff_set_zero_loc(abdst_field ab, bigmatpoly_ptr pi, unsigned int k);
+int bigmatpoly_coeff_is_zero(abdst_field ab, bigmatpoly_srcptr pi, unsigned int k);
 void bigmatpoly_swap(bigmatpoly_ptr a, bigmatpoly_ptr b);
+
 static inline matpoly * bigmatpoly_part(bigmatpoly_ptr p, unsigned int i, unsigned int j);
 static inline matpoly_ptr bigmatpoly_cell(bigmatpoly_ptr p, unsigned int i, unsigned int j);
 
 void bigmatpoly_truncate_loc(abdst_field ab, bigmatpoly_ptr dst, bigmatpoly_ptr src, unsigned int size);
 void bigmatpoly_rshift(abdst_field ab, bigmatpoly_ptr dst, bigmatpoly_ptr src, unsigned int k);
 
-void bigmatpoly_mul(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b);
-void bigmatpoly_mp(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b);
+double bigmatpoly_mul(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft);
+double bigmatpoly_mp(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft);
 
 void bigmatpoly_gather_mat(abdst_field ab, matpoly dst, bigmatpoly src);
 void bigmatpoly_scatter_mat(abdst_field ab, bigmatpoly_ptr dst, matpoly_ptr src);

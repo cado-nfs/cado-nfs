@@ -1,39 +1,18 @@
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+/* flint uses unprotected openmp pragmas every so often */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
@@ -44,8 +23,9 @@
 static int fft_tuning_table[5][2] = FFT_TAB;
 
 /*
- * The main integer multiplication routine. Sets \code{(r1, n1 + n2)} to
- * \code{(i1, n1)} times \code{(i2, n2)}. We require \code{n1 >= n2 > 0}.
+ * The main integer multiplication routine. Sets ``(r1, n1 + n2)`` to
+ * ``(i1, n1)`` times ``(i2, n2)``. We require ``n1 >= n2 > 0``.
+ * 
  * 
  */
 void flint_mpn_mul_fft_main(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
@@ -79,12 +59,6 @@ void flint_mpn_mul_fft_main(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
 	j1 = (bits1 - 1) / bits + 1;
 	j2 = (bits2 - 1) / bits + 1;
     }
-
-    FLINT_ASSERT(j1 + j2 - 1 <= 4 * n);
-    FLINT_ASSERT(j1 * bits >= bits1);
-    FLINT_ASSERT(j2 * bits >= bits2);
-    FLINT_ASSERT(2*bits + (depth + 1) <= n*w);
-    FLINT_ASSERT(w==1 || w==2);
 
     if (depth < 11) {
 	mp_size_t wadj = 1;

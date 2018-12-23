@@ -41,7 +41,7 @@ AC_LANG([C])
 
 AC_FUNC_ALLOCA
 
-AC_SUBST([gf2x_lib_version], [1:2:0])
+AC_SUBST([gf2x_lib_version], [2:0:0])
 
 AM_INIT_AUTOMAKE([1.13])
 

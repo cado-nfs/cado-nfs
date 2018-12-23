@@ -20,7 +20,7 @@ declare_usage(param_list pl)
                                           "given in this file");
   snprintf (str, 200, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
   param_list_decl_usage(pl, "sopteffort", str);
-  param_list_decl_usage(pl, "v", "(switch) verbose mode");
+  param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "translation-only", "(switch) do not use rotations");
   verbose_decl_usage(pl);
 }

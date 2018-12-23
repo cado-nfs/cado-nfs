@@ -695,6 +695,7 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
         // cerr << "Configuration:\n" << cf << endl;
     }
 
+#if HWLOC_API_VERSION < 0x020000
     unsigned long flags = 0;
 #if HWLOC_API_VERSION >= 0x010700
     flags = hwloc_topology_get_flags(topology);
@@ -703,6 +704,8 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
      * they're off by default anyway */
     flags &= ~(HWLOC_TOPOLOGY_FLAG_IO_DEVICES | HWLOC_TOPOLOGY_FLAG_IO_BRIDGES);
     hwloc_topology_set_flags(topology, flags);
+#endif
+
     /* {{{ retrieve the topology */
     if (topology_file) {
         int rc = hwloc_topology_set_xml(topology, topology_file);

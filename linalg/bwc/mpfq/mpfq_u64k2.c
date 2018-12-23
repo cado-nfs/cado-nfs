@@ -97,7 +97,7 @@
 /* *simd_u64k::code_for_field_specify */
 void mpfq_u64k2_field_specify(mpfq_u64k2_dst_field K MAYBE_UNUSED, unsigned long tag, const void * x MAYBE_UNUSED)
 {
-        if (tag == MPFQ_GROUPSIZE) {
+        if (tag == MPFQ_SIMD_GROUPSIZE) {
             assert(*(int*)x == 128);
         } else if (tag == MPFQ_PRIME_MPZ) {
             assert(mpz_cmp_ui((mpz_srcptr)x, 2) == 0);
@@ -125,7 +125,7 @@ int mpfq_u64k2_asprint(mpfq_u64k2_dst_field K MAYBE_UNUSED, char * * ps, mpfq_u6
 {
         /* Hmm, this has never been tested, right ? Attempting a quick fix... */
         const uint64_t * y = x;
-        const unsigned int stride = mpfq_u64k2_vec_elt_stride(K,1)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_u64k2_elt_stride(K)/sizeof(uint64_t);
         *ps = mpfq_malloc_check(stride * 16 + 1);
         memset(*ps, ' ', stride * 16);
         int n;
@@ -153,7 +153,7 @@ int mpfq_u64k2_sscan(mpfq_u64k2_dst_field k MAYBE_UNUSED, mpfq_u64k2_dst_elt z, 
 {
         char tmp[17];
         uint64_t * y = z;
-        const unsigned int stride = mpfq_u64k2_vec_elt_stride(K,1)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_u64k2_elt_stride(K)/sizeof(uint64_t);
         assert(strlen(str) >= 1 * 16);
         int r = 0;
         for(unsigned int i = 0 ; i < stride ; i++) {
@@ -242,7 +242,48 @@ void mpfq_u64k2_vec_clear(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_vec * 
 }
 
 /* missing vec_setcoeff_ui */
-/* missing vec_random2 */
+/* *Mpfq::defaults::vec::generic::code_for_vec_random, Mpfq::defaults::vec */
+void mpfq_u64k2_vec_random(mpfq_u64k2_dst_field k, mpfq_u64k2_dst_vec w, unsigned int n, gmp_randstate_t state)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_dst_elt x = mpfq_u64k2_vec_coeff_ptr(k, w, i);
+        mpfq_u64k2_random(k, x, state);
+        }
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_random2, Mpfq::defaults::vec */
+void mpfq_u64k2_vec_random2(mpfq_u64k2_dst_field k, mpfq_u64k2_dst_vec w, unsigned int n, gmp_randstate_t state)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_dst_elt x = mpfq_u64k2_vec_coeff_ptr(k, w, i);
+        mpfq_u64k2_random2(k, x, state);
+        }
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_cmp, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_cmp(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec u, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, u, i);
+            mpfq_u64k2_src_elt y = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        int ret = mpfq_u64k2_cmp(k, x, y);
+        if (ret != 0)
+            return ret;
+        }
+        return 0;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_is_zero, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_is_zero(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_u64k2_is_zero(k, x))
+            return 0;
+        }
+        return 1;
+}
+
 /* *Mpfq::defaults::vec::io::code_for_vec_asprint, Mpfq::defaults::vec */
 int mpfq_u64k2_vec_asprint(mpfq_u64k2_dst_field K MAYBE_UNUSED, char * * pstr, mpfq_u64k2_src_vec w, unsigned int n)
 {
@@ -271,7 +312,14 @@ int mpfq_u64k2_vec_asprint(mpfq_u64k2_dst_field K MAYBE_UNUSED, char * * pstr, m
             alloc = len+ltmp+100 + alloc / 4;
             *pstr = (char *)realloc(*pstr, alloc);
         }
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
         strncpy(*pstr+len, tmp, ltmp+4);
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic pop
+#endif
         len += ltmp;
         free(tmp);
     }
@@ -387,6 +435,50 @@ int mpfq_u64k2_vec_fscan(mpfq_u64k2_dst_field K MAYBE_UNUSED, FILE * file, mpfq_
     return ret;
 }
 
+/* *Mpfq::defaults::vec::generic::code_for_vec_hamming_weight, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_hamming_weight(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        int w = 0;
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        w += !mpfq_u64k2_is_zero(k, x);
+        }
+        return w;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_find_first_set, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_find_first_set(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_u64k2_is_zero(k, x))
+            return i;
+        }
+        return -1;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_simd_hamming_weight, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_simd_hamming_weight(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        int w = 0;
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        w += mpfq_u64k2_simd_hamming_weight(k, x);
+        }
+        return w;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_simd_find_first_set, Mpfq::defaults::vec */
+int mpfq_u64k2_vec_simd_find_first_set(mpfq_u64k2_dst_field k, mpfq_u64k2_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_u64k2_src_elt x = mpfq_u64k2_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_u64k2_is_zero(k, x))
+            return i * mpfq_u64k2_simd_groupsize(k) + mpfq_u64k2_simd_hamming_weight(k, x);
+        }
+        return -1;
+}
+
 /* *Mpfq::defaults::vec::alloc::code_for_vec_ur_init, Mpfq::defaults::vec */
 void mpfq_u64k2_vec_ur_init(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_vec_ur * v, unsigned int n)
 {
@@ -421,8 +513,6 @@ void mpfq_u64k2_vec_ur_clear(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_vec
     free(*v);
 }
 
-/* missing vec_scal_mul_ur */
-/* missing vec_reduce */
 
 /* Polynomial functions */
 
@@ -458,46 +548,46 @@ static void mpfq_u64k2_wrapper_dotprod(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u
     mpfq_u64k2_dotprod(vbase->obj, xw, xu1, xu0, n);
 }
 
-static void mpfq_u64k2_wrapper_elt_ur_set_ui_all(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, unsigned long);
-static void mpfq_u64k2_wrapper_elt_ur_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_u64k2_wrapper_simd_set_ui_all(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, unsigned long);
+static void mpfq_u64k2_wrapper_simd_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_u64k2_elt_ur_set_ui_all(vbase->obj, r, v);
+    mpfq_u64k2_simd_set_ui_all(vbase->obj, r, v);
 }
 
-static void mpfq_u64k2_wrapper_elt_ur_set_ui_at(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, int, unsigned long);
-static void mpfq_u64k2_wrapper_elt_ur_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_u64k2_wrapper_simd_add_ui_at(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, mpfq_u64k2_src_elt, int, unsigned long);
+static void mpfq_u64k2_wrapper_simd_add_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt p MAYBE_UNUSED, mpfq_u64k2_src_elt p0 MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_u64k2_elt_ur_set_ui_at(vbase->obj, p, k, v);
+    mpfq_u64k2_simd_add_ui_at(vbase->obj, p, p0, k, v);
 }
 
-static void mpfq_u64k2_wrapper_set_ui_all(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, unsigned long);
-static void mpfq_u64k2_wrapper_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_u64k2_wrapper_simd_set_ui_at(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, int, unsigned long);
+static void mpfq_u64k2_wrapper_simd_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_u64k2_set_ui_all(vbase->obj, r, v);
+    mpfq_u64k2_simd_set_ui_at(vbase->obj, p, k, v);
 }
 
-static void mpfq_u64k2_wrapper_set_ui_at(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, int, unsigned long);
-static void mpfq_u64k2_wrapper_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static unsigned long mpfq_u64k2_wrapper_simd_get_ui_at(mpfq_vbase_ptr, mpfq_u64k2_src_elt, int);
+static unsigned long mpfq_u64k2_wrapper_simd_get_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_elt p MAYBE_UNUSED, int k MAYBE_UNUSED)
 {
-    mpfq_u64k2_set_ui_at(vbase->obj, p, k, v);
+    return mpfq_u64k2_simd_get_ui_at(vbase->obj, p, k);
 }
 
-static int mpfq_u64k2_wrapper_stride(mpfq_vbase_ptr);
-static int mpfq_u64k2_wrapper_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+static int mpfq_u64k2_wrapper_simd_find_first_set(mpfq_vbase_ptr, mpfq_u64k2_src_elt);
+static int mpfq_u64k2_wrapper_simd_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_elt p MAYBE_UNUSED)
 {
-    return mpfq_u64k2_stride(vbase->obj);
+    return mpfq_u64k2_simd_find_first_set(vbase->obj, p);
 }
 
-static int mpfq_u64k2_wrapper_offset(mpfq_vbase_ptr, int);
-static int mpfq_u64k2_wrapper_offset(mpfq_vbase_ptr vbase MAYBE_UNUSED, int n MAYBE_UNUSED)
+static int mpfq_u64k2_wrapper_simd_hamming_weight(mpfq_vbase_ptr, mpfq_u64k2_src_elt);
+static int mpfq_u64k2_wrapper_simd_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_elt p MAYBE_UNUSED)
 {
-    return mpfq_u64k2_offset(vbase->obj, n);
+    return mpfq_u64k2_simd_hamming_weight(vbase->obj, p);
 }
 
-static int mpfq_u64k2_wrapper_groupsize(mpfq_vbase_ptr);
-static int mpfq_u64k2_wrapper_groupsize(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+static int mpfq_u64k2_wrapper_simd_groupsize(mpfq_vbase_ptr);
+static int mpfq_u64k2_wrapper_simd_groupsize(mpfq_vbase_ptr vbase MAYBE_UNUSED)
 {
-    return mpfq_u64k2_groupsize(vbase->obj);
+    return mpfq_u64k2_simd_groupsize(vbase->obj);
 }
 
 static ptrdiff_t mpfq_u64k2_wrapper_vec_ur_elt_stride(mpfq_vbase_ptr, int);
@@ -534,6 +624,18 @@ static mpfq_u64k2_dst_vec_ur mpfq_u64k2_wrapper_vec_ur_subvec(mpfq_vbase_ptr, mp
 static mpfq_u64k2_dst_vec_ur mpfq_u64k2_wrapper_vec_ur_subvec(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec_ur v MAYBE_UNUSED, int i MAYBE_UNUSED)
 {
     return mpfq_u64k2_vec_ur_subvec(vbase->obj, v, i);
+}
+
+static void mpfq_u64k2_wrapper_vec_reduce(mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_u64k2_dst_vec_ur, unsigned int);
+static void mpfq_u64k2_wrapper_vec_reduce(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec w MAYBE_UNUSED, mpfq_u64k2_dst_vec_ur u MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    mpfq_u64k2_vec_reduce(vbase->obj, w, u, n);
+}
+
+static void mpfq_u64k2_wrapper_vec_scal_mul_ur(mpfq_vbase_ptr, mpfq_u64k2_dst_vec_ur, mpfq_u64k2_src_vec, mpfq_u64k2_src_elt, unsigned int);
+static void mpfq_u64k2_wrapper_vec_scal_mul_ur(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec_ur w MAYBE_UNUSED, mpfq_u64k2_src_vec u MAYBE_UNUSED, mpfq_u64k2_src_elt c MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    mpfq_u64k2_vec_scal_mul_ur(vbase->obj, w, u, c, n);
 }
 
 static void mpfq_u64k2_wrapper_vec_ur_rev(mpfq_vbase_ptr, mpfq_u64k2_dst_vec_ur, mpfq_u64k2_src_vec_ur, unsigned int);
@@ -608,6 +710,30 @@ static void mpfq_u64k2_wrapper_vec_ur_init(mpfq_vbase_ptr vbase MAYBE_UNUSED, mp
     mpfq_u64k2_vec_ur_init(vbase->obj, v, n);
 }
 
+static int mpfq_u64k2_wrapper_vec_simd_find_first_set(mpfq_vbase_ptr, mpfq_u64k2_src_vec, unsigned int);
+static int mpfq_u64k2_wrapper_vec_simd_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_u64k2_vec_simd_find_first_set(vbase->obj, v, n);
+}
+
+static int mpfq_u64k2_wrapper_vec_simd_hamming_weight(mpfq_vbase_ptr, mpfq_u64k2_src_vec, unsigned int);
+static int mpfq_u64k2_wrapper_vec_simd_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_u64k2_vec_simd_hamming_weight(vbase->obj, v, n);
+}
+
+static int mpfq_u64k2_wrapper_vec_find_first_set(mpfq_vbase_ptr, mpfq_u64k2_src_vec, unsigned int);
+static int mpfq_u64k2_wrapper_vec_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_u64k2_vec_find_first_set(vbase->obj, v, n);
+}
+
+static int mpfq_u64k2_wrapper_vec_hamming_weight(mpfq_vbase_ptr, mpfq_u64k2_src_vec, unsigned int);
+static int mpfq_u64k2_wrapper_vec_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_u64k2_vec_hamming_weight(vbase->obj, v, n);
+}
+
 static int mpfq_u64k2_wrapper_vec_scan(mpfq_vbase_ptr, mpfq_u64k2_vec *, unsigned int *);
 static int mpfq_u64k2_wrapper_vec_scan(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_vec * w MAYBE_UNUSED, unsigned int * n MAYBE_UNUSED)
 {
@@ -669,15 +795,21 @@ static mpfq_u64k2_dst_vec mpfq_u64k2_wrapper_vec_subvec(mpfq_vbase_ptr vbase MAY
 }
 
 static int mpfq_u64k2_wrapper_vec_is_zero(mpfq_vbase_ptr, mpfq_u64k2_src_vec, unsigned int);
-static int mpfq_u64k2_wrapper_vec_is_zero(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec r MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static int mpfq_u64k2_wrapper_vec_is_zero(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    return mpfq_u64k2_vec_is_zero(vbase->obj, r, n);
+    return mpfq_u64k2_vec_is_zero(vbase->obj, v, n);
 }
 
 static int mpfq_u64k2_wrapper_vec_cmp(mpfq_vbase_ptr, mpfq_u64k2_src_vec, mpfq_u64k2_src_vec, unsigned int);
 static int mpfq_u64k2_wrapper_vec_cmp(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_src_vec u MAYBE_UNUSED, mpfq_u64k2_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
     return mpfq_u64k2_vec_cmp(vbase->obj, u, v, n);
+}
+
+static void mpfq_u64k2_wrapper_vec_random2(mpfq_vbase_ptr, mpfq_u64k2_dst_vec, unsigned int, gmp_randstate_t);
+static void mpfq_u64k2_wrapper_vec_random2(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec w MAYBE_UNUSED, unsigned int n MAYBE_UNUSED, gmp_randstate_t state MAYBE_UNUSED)
+{
+    mpfq_u64k2_vec_random2(vbase->obj, w, n, state);
 }
 
 static void mpfq_u64k2_wrapper_vec_random(mpfq_vbase_ptr, mpfq_u64k2_dst_vec, unsigned int, gmp_randstate_t);
@@ -687,9 +819,9 @@ static void mpfq_u64k2_wrapper_vec_random(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpf
 }
 
 static void mpfq_u64k2_wrapper_vec_scal_mul(mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_u64k2_src_vec, mpfq_u64k2_src_elt, unsigned int);
-static void mpfq_u64k2_wrapper_vec_scal_mul(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec w MAYBE_UNUSED, mpfq_u64k2_src_vec u MAYBE_UNUSED, mpfq_u64k2_src_elt x MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static void mpfq_u64k2_wrapper_vec_scal_mul(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_vec w MAYBE_UNUSED, mpfq_u64k2_src_vec u MAYBE_UNUSED, mpfq_u64k2_src_elt c MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    mpfq_u64k2_vec_scal_mul(vbase->obj, w, u, x, n);
+    mpfq_u64k2_vec_scal_mul(vbase->obj, w, u, c, n);
 }
 
 static void mpfq_u64k2_wrapper_vec_sub(mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_u64k2_src_vec, mpfq_u64k2_src_vec, unsigned int);
@@ -806,6 +938,18 @@ static int mpfq_u64k2_wrapper_cmp(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_
     return mpfq_u64k2_cmp(vbase->obj, r, s);
 }
 
+static void mpfq_u64k2_wrapper_reduce(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, mpfq_u64k2_dst_elt_ur);
+static void mpfq_u64k2_wrapper_reduce(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, mpfq_u64k2_dst_elt_ur s MAYBE_UNUSED)
+{
+    mpfq_u64k2_reduce(vbase->obj, r, s);
+}
+
+static void mpfq_u64k2_wrapper_mul_ur(mpfq_vbase_ptr, mpfq_u64k2_dst_elt_ur, mpfq_u64k2_src_elt, mpfq_u64k2_src_elt);
+static void mpfq_u64k2_wrapper_mul_ur(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt_ur r MAYBE_UNUSED, mpfq_u64k2_src_elt s1 MAYBE_UNUSED, mpfq_u64k2_src_elt s2 MAYBE_UNUSED)
+{
+    mpfq_u64k2_mul_ur(vbase->obj, r, s1, s2);
+}
+
 static void mpfq_u64k2_wrapper_elt_ur_sub(mpfq_vbase_ptr, mpfq_u64k2_dst_elt_ur, mpfq_u64k2_src_elt_ur, mpfq_u64k2_src_elt_ur);
 static void mpfq_u64k2_wrapper_elt_ur_sub(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt_ur r MAYBE_UNUSED, mpfq_u64k2_src_elt_ur s1 MAYBE_UNUSED, mpfq_u64k2_src_elt_ur s2 MAYBE_UNUSED)
 {
@@ -840,6 +984,12 @@ static void mpfq_u64k2_wrapper_elt_ur_set(mpfq_vbase_ptr, mpfq_u64k2_dst_elt_ur,
 static void mpfq_u64k2_wrapper_elt_ur_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt_ur r MAYBE_UNUSED, mpfq_u64k2_src_elt_ur s MAYBE_UNUSED)
 {
     mpfq_u64k2_elt_ur_set(vbase->obj, r, s);
+}
+
+static ptrdiff_t mpfq_u64k2_wrapper_elt_ur_stride(mpfq_vbase_ptr);
+static ptrdiff_t mpfq_u64k2_wrapper_elt_ur_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_u64k2_elt_ur_stride(vbase->obj);
 }
 
 static void mpfq_u64k2_wrapper_elt_ur_clear(mpfq_vbase_ptr, mpfq_u64k2_elt_ur *);
@@ -884,6 +1034,12 @@ static void mpfq_u64k2_wrapper_add(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2
     mpfq_u64k2_add(vbase->obj, r, s1, s2);
 }
 
+static void mpfq_u64k2_wrapper_random2(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, gmp_randstate_t);
+static void mpfq_u64k2_wrapper_random2(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, gmp_randstate_t state MAYBE_UNUSED)
+{
+    mpfq_u64k2_random2(vbase->obj, r, state);
+}
+
 static void mpfq_u64k2_wrapper_random(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, gmp_randstate_t);
 static void mpfq_u64k2_wrapper_random(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, gmp_randstate_t state MAYBE_UNUSED)
 {
@@ -900,6 +1056,12 @@ static void mpfq_u64k2_wrapper_set(mpfq_vbase_ptr, mpfq_u64k2_dst_elt, mpfq_u64k
 static void mpfq_u64k2_wrapper_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_u64k2_dst_elt r MAYBE_UNUSED, mpfq_u64k2_src_elt s MAYBE_UNUSED)
 {
     mpfq_u64k2_set(vbase->obj, r, s);
+}
+
+static ptrdiff_t mpfq_u64k2_wrapper_elt_stride(mpfq_vbase_ptr);
+static ptrdiff_t mpfq_u64k2_wrapper_elt_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_u64k2_elt_stride(vbase->obj);
 }
 
 static void mpfq_u64k2_wrapper_clear(mpfq_vbase_ptr, mpfq_u64k2_elt *);
@@ -944,8 +1106,8 @@ static int mpfq_u64k2_wrapper_field_degree(mpfq_vbase_ptr vbase MAYBE_UNUSED)
     return mpfq_u64k2_field_degree(vbase->obj);
 }
 
-static void mpfq_u64k2_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_t);
-static void mpfq_u64k2_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_t z MAYBE_UNUSED)
+static void mpfq_u64k2_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_ptr);
+static void mpfq_u64k2_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_ptr z MAYBE_UNUSED)
 {
     mpfq_u64k2_field_characteristic(vbase->obj, z);
 }
@@ -978,7 +1140,7 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->impl_name = (const char * (*) ()) mpfq_u64k2_wrapper_impl_name;
     vbase->impl_max_characteristic_bits = (unsigned long (*) ()) mpfq_u64k2_wrapper_impl_max_characteristic_bits;
     vbase->impl_max_degree = (unsigned long (*) ()) mpfq_u64k2_wrapper_impl_max_degree;
-    vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_t)) mpfq_u64k2_wrapper_field_characteristic;
+    vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_ptr)) mpfq_u64k2_wrapper_field_characteristic;
     /* missing field_characteristic_bits */
     vbase->field_degree = (int (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_field_degree;
     vbase->field_init = (void (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_field_init;
@@ -987,6 +1149,7 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->field_setopt = (void (*) (mpfq_vbase_ptr, unsigned long, void *)) mpfq_u64k2_wrapper_field_setopt;
     vbase->init = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_init;
     vbase->clear = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_clear;
+    vbase->elt_stride = (ptrdiff_t (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_elt_stride;
     vbase->set = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_set;
     /* missing set_ui */
     vbase->set_zero = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_set_zero;
@@ -996,7 +1159,7 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     /* missing get_mpn */
     /* missing get_mpz */
     vbase->random = (void (*) (mpfq_vbase_ptr, void *, gmp_randstate_t)) mpfq_u64k2_wrapper_random;
-    /* missing random2 */
+    vbase->random2 = (void (*) (mpfq_vbase_ptr, void *, gmp_randstate_t)) mpfq_u64k2_wrapper_random2;
     vbase->add = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_u64k2_wrapper_add;
     vbase->sub = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_u64k2_wrapper_sub;
     vbase->neg = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_neg;
@@ -1013,6 +1176,7 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->inv = (int (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_inv;
     vbase->elt_ur_init = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_elt_ur_init;
     vbase->elt_ur_clear = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_elt_ur_clear;
+    vbase->elt_ur_stride = (ptrdiff_t (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_elt_ur_stride;
     vbase->elt_ur_set = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_elt_ur_set;
     vbase->elt_ur_set_elt = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_elt_ur_set_elt;
     vbase->elt_ur_set_zero = (void (*) (mpfq_vbase_ptr, void *)) mpfq_u64k2_wrapper_elt_ur_set_zero;
@@ -1020,9 +1184,9 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->elt_ur_add = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_u64k2_wrapper_elt_ur_add;
     vbase->elt_ur_neg = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_wrapper_elt_ur_neg;
     vbase->elt_ur_sub = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_u64k2_wrapper_elt_ur_sub;
-    /* missing mul_ur */
+    vbase->mul_ur = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_u64k2_wrapper_mul_ur;
     /* missing sqr_ur */
-    /* missing reduce */
+    vbase->reduce = (void (*) (mpfq_vbase_ptr, void *, void *)) mpfq_u64k2_wrapper_reduce;
     vbase->cmp = (int (*) (mpfq_vbase_ptr, const void *, const void *)) mpfq_u64k2_wrapper_cmp;
     /* missing cmp_ui */
     vbase->is_zero = (int (*) (mpfq_vbase_ptr, const void *)) mpfq_u64k2_wrapper_is_zero;
@@ -1051,7 +1215,7 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->vec_scal_mul = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_scal_mul;
     /* missing vec_conv */
     vbase->vec_random = (void (*) (mpfq_vbase_ptr, void *, unsigned int, gmp_randstate_t)) mpfq_u64k2_wrapper_vec_random;
-    /* missing vec_random2 */
+    vbase->vec_random2 = (void (*) (mpfq_vbase_ptr, void *, unsigned int, gmp_randstate_t)) mpfq_u64k2_wrapper_vec_random2;
     vbase->vec_cmp = (int (*) (mpfq_vbase_ptr, const void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_cmp;
     vbase->vec_is_zero = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_is_zero;
     vbase->vec_subvec = (void * (*) (mpfq_vbase_ptr, void *, int)) mpfq_u64k2_wrapper_vec_subvec;
@@ -1068,6 +1232,10 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     /* missing vec_write */
     /* missing vec_import */
     /* missing vec_export */
+    vbase->vec_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_hamming_weight;
+    vbase->vec_find_first_set = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_find_first_set;
+    vbase->vec_simd_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_simd_hamming_weight;
+    vbase->vec_simd_find_first_set = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_simd_find_first_set;
     vbase->vec_ur_init = (void (*) (mpfq_vbase_ptr, void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_init;
     vbase->vec_ur_set_zero = (void (*) (mpfq_vbase_ptr, void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_set_zero;
     vbase->vec_ur_set_vec = (void (*) (mpfq_vbase_ptr, void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_set_vec;
@@ -1080,9 +1248,9 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->vec_ur_sub = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_sub;
     vbase->vec_ur_neg = (void (*) (mpfq_vbase_ptr, void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_neg;
     vbase->vec_ur_rev = (void (*) (mpfq_vbase_ptr, void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_ur_rev;
-    /* missing vec_scal_mul_ur */
+    vbase->vec_scal_mul_ur = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_wrapper_vec_scal_mul_ur;
     /* missing vec_conv_ur */
-    /* missing vec_reduce */
+    vbase->vec_reduce = (void (*) (mpfq_vbase_ptr, void *, void *, unsigned int)) mpfq_u64k2_wrapper_vec_reduce;
     vbase->vec_ur_subvec = (void * (*) (mpfq_vbase_ptr, void *, int)) mpfq_u64k2_wrapper_vec_ur_subvec;
     vbase->vec_ur_subvec_const = (const void * (*) (mpfq_vbase_ptr, const void *, int)) mpfq_u64k2_wrapper_vec_ur_subvec_const;
     vbase->vec_ur_coeff_ptr = (void * (*) (mpfq_vbase_ptr, void *, int)) mpfq_u64k2_wrapper_vec_ur_coeff_ptr;
@@ -1119,13 +1287,13 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr vbase)
     /* missing poly_sscan */
     /* missing poly_fscan */
     /* missing poly_scan */
-    vbase->groupsize = (int (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_groupsize;
-    vbase->offset = (int (*) (mpfq_vbase_ptr, int)) mpfq_u64k2_wrapper_offset;
-    vbase->stride = (int (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_stride;
-    vbase->set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_u64k2_wrapper_set_ui_at;
-    vbase->set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_u64k2_wrapper_set_ui_all;
-    vbase->elt_ur_set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_u64k2_wrapper_elt_ur_set_ui_at;
-    vbase->elt_ur_set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_u64k2_wrapper_elt_ur_set_ui_all;
+    vbase->simd_groupsize = (int (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_simd_groupsize;
+    vbase->simd_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *)) mpfq_u64k2_wrapper_simd_hamming_weight;
+    vbase->simd_find_first_set = (int (*) (mpfq_vbase_ptr, const void *)) mpfq_u64k2_wrapper_simd_find_first_set;
+    vbase->simd_get_ui_at = (unsigned long (*) (mpfq_vbase_ptr, const void *, int)) mpfq_u64k2_wrapper_simd_get_ui_at;
+    vbase->simd_set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_u64k2_wrapper_simd_set_ui_at;
+    vbase->simd_add_ui_at = (void (*) (mpfq_vbase_ptr, void *, const void *, int, unsigned long)) mpfq_u64k2_wrapper_simd_add_ui_at;
+    vbase->simd_set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_u64k2_wrapper_simd_set_ui_all;
     vbase->dotprod = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_wrapper_dotprod;
     vbase->oo_field_init = (void (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_oo_field_init;
     vbase->oo_field_clear = (void (*) (mpfq_vbase_ptr)) mpfq_u64k2_wrapper_oo_field_clear;

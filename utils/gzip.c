@@ -114,6 +114,7 @@ static int try_antebuffer_path()
 int set_antebuffer_path (const char *executable_filename, const char *path_antebuffer)
 {
   *antebuffer = 0;
+  antebuffer[PATH_MAX-1]='\0';
   /* First, if we have path_antebuffer, we must have antebuffer or error */
   if (path_antebuffer) {
       struct stat sbuf[1];
@@ -126,12 +127,12 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
            * support this, but only as a compatibility measure. */
           if (S_ISDIR(sbuf->st_mode)) {
 #ifdef EXECUTABLE_SUFFIX
-              snprintf(antebuffer, PATH_MAX, "%s/antebuffer" EXECUTABLE_SUFFIX, path_antebuffer);
+              snprintf(antebuffer, PATH_MAX-1, "%s/antebuffer" EXECUTABLE_SUFFIX, path_antebuffer);
 #else
-              snprintf(antebuffer, PATH_MAX, "%s/antebuffer", path_antebuffer);
+              snprintf(antebuffer, PATH_MAX-1, "%s/antebuffer", path_antebuffer);
 #endif
           } else {
-              strncpy(antebuffer, path_antebuffer, PATH_MAX);
+              strncpy(antebuffer, path_antebuffer, PATH_MAX-1);
           }
           if (try_antebuffer_path()) return 1;
       }
@@ -140,7 +141,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
    * us, use that as a potential fallback */
   if (executable_filename) {
       char dummy[PATH_MAX];
-      char dummy2[PATH_MAX];
+      char dummy2[PATH_MAX + 64];
       char * slash = strrchr(executable_filename, '/');
       if (slash) {
           int len = MIN(PATH_MAX - 1, slash - executable_filename);
@@ -151,9 +152,9 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
           dummy[1]='\0';
       }
 #ifdef EXECUTABLE_SUFFIX
-      snprintf(dummy2, PATH_MAX, "%s/../utils/antebuffer" EXECUTABLE_SUFFIX, dummy);
+      snprintf(dummy2, sizeof(dummy2), "%s/../utils/antebuffer" EXECUTABLE_SUFFIX, dummy);
 #else
-      snprintf(dummy2, PATH_MAX, "%s/../utils/antebuffer", dummy);
+      snprintf(dummy2, sizeof(dummy2), "%s/../utils/antebuffer", dummy);
 #endif
       if (realpath(dummy2, antebuffer) && try_antebuffer_path())
           return 1;

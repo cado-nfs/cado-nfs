@@ -45,7 +45,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "lpb1", "large prime bound on side 1");
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
 }
 

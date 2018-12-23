@@ -16,7 +16,7 @@ typedef struct matmul_public_s  * matmul_t;
 typedef struct matmul_public_s  * matmul_ptr;
 
 typedef matmul_ptr (*matmul_init_t)(void *, param_list pl, int);
-typedef void (*matmul_build_cache_t)(matmul_ptr, uint32_t *);
+typedef void (*matmul_build_cache_t)(matmul_ptr, uint32_t *, size_t);
 typedef int (*matmul_reload_cache_t)(matmul_ptr);
 typedef void (*matmul_save_cache_t)(matmul_ptr);
 typedef void (*matmul_mul_t)(matmul_ptr, void *, const void *, int);

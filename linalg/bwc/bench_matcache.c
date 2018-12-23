@@ -141,8 +141,8 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 
     void * check0;
     void * check1;
-    cheating_vec_init(A, &check0, A->groupsize(A));
-    cheating_vec_init(A, &check1, A->groupsize(A));
+    cheating_vec_init(A, &check0, A->simd_groupsize(A));
+    cheating_vec_init(A, &check1, A->simd_groupsize(A));
 
     A->vec_set(A, colvec_bis, p->colvec, nc);
     A->vec_set(A, rowvec_bis, p->rowvec, nr);
@@ -166,7 +166,7 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 
     A->dotprod(A, check1, p->colvec, colvec_bis, nc0);
 
-    if (A->vec_cmp(A, check0, check1, A->groupsize(A)) != 0) {
+    if (A->vec_cmp(A, check0, check1, A->simd_groupsize(A)) != 0) {
         pthread_mutex_lock(&tg->mu);
         fprintf(stderr, "T%d : Check failed\n", tnum);
         pthread_mutex_unlock(&tg->mu);
@@ -175,8 +175,8 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 
     cheating_vec_clear(A, &colvec_bis, nc);
     cheating_vec_clear(A, &rowvec_bis, nr);
-    cheating_vec_clear(A, &check0, A->groupsize(A));
-    cheating_vec_clear(A, &check1, A->groupsize(A));
+    cheating_vec_clear(A, &check0, A->simd_groupsize(A));
+    cheating_vec_clear(A, &check1, A->simd_groupsize(A));
 
 
     matmul_aux(p->mm, MATMUL_AUX_ZERO_STATS);
@@ -325,7 +325,7 @@ int main(int argc, char * argv[])
      */
     mpfq_vbase_oo_field_init_byfeatures(A,
                 MPFQ_PRIME_MPZ, ba->prime,
-                MPFQ_GROUPSIZE, nbys,
+                MPFQ_SIMD_GROUPSIZE, nbys,
                 MPFQ_DONE);
 
     param_list_lookup_string(ba->pl, "srcvec");

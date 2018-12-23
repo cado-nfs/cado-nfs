@@ -784,7 +784,7 @@ subjectAltName=@altnames
             self.logger.warn("ssl module not available, won't generate certificate")
             return False
 
-        configuration_str = self.openssl_configuration_template.format(bits=1024, SAN=self.SAN)
+        configuration_str = self.openssl_configuration_template.format(bits=2048, SAN=self.SAN)
         config_filename = '%s.config' % self.cafile
         with open(config_filename, 'w') as config_file:
             config_file.write(configuration_str)

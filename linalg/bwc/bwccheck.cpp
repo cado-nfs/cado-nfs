@@ -166,7 +166,7 @@ void vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const 
     if (prefix) printf("%sload %s\n", prefix, v.c_str());
     FILE * f = fopen(v.c_str(), "rb");
     ASSERT_ALWAYS(f != NULL);
-    int rc = fread(z, A->vec_elt_stride(A, 1), vsize, f);
+    int rc = fread(z, A->elt_stride(A), vsize, f);
     ASSERT_ALWAYS(rc >= 0);
     ASSERT_ALWAYS((size_t) rc == vsize);
     fclose(f);
@@ -177,7 +177,7 @@ size_t vec_items(mpfq_vbase_ptr A, string const & v)
     struct stat sbuf[1];
     int rc = stat(v.c_str(), sbuf);
     ASSERT_ALWAYS(rc == 0);
-    return sbuf->st_size / A->vec_elt_stride(A, 1);
+    return sbuf->st_size / A->elt_stride(A);
 }
 
 /* This is *not* a parallel program, so we depart significantly from the
@@ -191,7 +191,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
     mpfq_vbase Ac;
     mpfq_vbase_oo_field_init_byfeatures(Ac, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, nchecks,
+            MPFQ_SIMD_GROUPSIZE, nchecks,
             MPFQ_DONE);
 
     vector<Cfile> Cfiles;
@@ -305,7 +305,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
                 mpfq_vbase Av;
                 mpfq_vbase_oo_field_init_byfeatures(Av, 
                         MPFQ_PRIME_MPZ, bw->p,
-                        MPFQ_GROUPSIZE, it->first.second - it->first.first,
+                        MPFQ_SIMD_GROUPSIZE, it->first.second - it->first.first,
                         MPFQ_DONE);
 
 

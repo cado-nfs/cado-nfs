@@ -264,9 +264,7 @@ void * thread_process(void *th_arg) {
             args->rels[i].num[side],
             args->rels[i].denom[side],
             args->sm_info[side]->f0,
-            args->sm_info[side]->ell2,
-            args->sm_info[side]->invl2
-            );
+            args->sm_info[side]->ell2);
         compute_sm_piecewise(args->dst[i][side],
             args->rels[i].num[side],
             args->sm_info[side]);

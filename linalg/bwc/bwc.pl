@@ -15,7 +15,7 @@ use Carp;
 # It should be rewritten someday, perhaps in python. At least this has to
 # be more modular (to be honest, it used to be much worse).
 
-# MPI_BINDIR=/opt/mpich2-1.1a2-1.fc10.x86_64/usr/bin ./bwc.pl :complete matrix=c72 interval=256 mn=64 ys=0..64 mpi=4x4
+# MPI_BINDIR=/opt/mpich2-1.1a2-1.fc10.x86_64/usr/bin ./bwc.pl :complete matrix=c72 mn=64 ys=0..64 mpi=4x4
 
 # {{{ usage
 sub usage {
@@ -45,7 +45,6 @@ parameters control the wrapping script itself.
 mpi thr              same meaning as for bwc programs.
 mn m n prime         same meaning as for bwc programs.
 nullspace            same meaning as for bwc programs.
-interval             same meaning as for bwc programs.
 ys                   same meaning as for bwc programs (krylov)
 solutions            same meaning as for bwc programs (mksol, gather)
 lingen_mpi           like mpi, but for plingen only (and someday lingen).
@@ -102,6 +101,8 @@ my $my_cmdline="$0 $main @ARGV";
 ## used for running all programs.
 my $mpiexec='@MPIEXEC@';
 $mpiexec='' if $mpiexec =~ m{^\@.*\@$};
+my $mpiexec_extra_stanzas='@MPIEXEC_EXTRA_STANZAS@';
+$mpiexec_extra_stanzas='' if $mpiexec_extra_stanzas =~ m{^\@.*\@$};
 
 
 my $bindir;
@@ -132,7 +133,6 @@ my $param_defaults={
     thr => '1x1',
     mpi => '1x1',
     lingen_mpi => '1x1',
-    interval => 200,
 };
 # {{{
 while (defined($_ = shift @ARGV)) {
@@ -197,7 +197,7 @@ my $nrhs=0;
 ## example, if libvirt-bin is installed on a linux system, openmpi will
 ## need the following additions.
 ##    
-## ./build/x86_64/linalg/bwc/bwc.pl :complete matrix=/net/tiramisu/localdisk/thome/mats/c90b wdir=/local/rsa768/tmp/c59 mn=64 mpi=2x1 thr=2x4 hosts=patate,tiramisu interval=10 mpi_extra_args='--mca btl_tcp_if_exclude lo,virbr0'
+## ./build/x86_64/linalg/bwc/bwc.pl :complete matrix=/net/tiramisu/localdisk/thome/mats/c90b wdir=/local/rsa768/tmp/c59 mn=64 mpi=2x1 thr=2x4 hosts=patate,tiramisu mpi_extra_args='--mca btl_tcp_if_exclude lo,virbr0'
 ##    
 ## This tells mpi not to try routing traffic through either the lo or the 
 ## virbr0 interface. For the former, it's already openmpi's default
@@ -238,7 +238,7 @@ my $needs_mpd;
 #    --> Linear system is over GF(p) for that prime. For factoring, which
 #    is the default, we have prime==2
 #  - $splitwidth
-#    --> Number of vector which are put together in a file. This is only
+#    --> Number of vectors which are put together in a file. This is only
 #    inferred from $prime, and set to 64 for prime==2, 1 otherwise.
 #
 # {{{
@@ -338,7 +338,7 @@ $splitwidth = ($prime == 2) ? 64 : 1;
 
 print "$my_cmdline\n" if $my_verbose_flags->{'cmdline'};
 
-if ($main =~ /:mpirun(?:_single)?/) {
+if ($main =~ /:(?:mpi|s)run(?:_single)?/) {
     # ok, this is really an ugly ugly hack. We have some mpi detection
     # magic in this script, which we would like to use. So the :mpirun
     # meta-command is just for that. Of course the argument requirements
@@ -347,11 +347,16 @@ if ($main =~ /:mpirun(?:_single)?/) {
     $param->{'prime'}=2;
     $m=$n=64;
     $wdir=$param->{'wdir'}="/";
+    if ($main =~ /^:srun/) {
+        # Setting this will trigger mpi_needed, mpi detection check,
+        # and ultimately passing -n
+        $mpiexec='srun';
+    }
 }
 
 # {{{ Some important argument checks
 {
-    my @miss = grep { !defined $param->{$_}; } (qw/prime interval/);
+    my @miss = grep { !defined $param->{$_}; } (qw/prime/);
     die "Missing argument(s): @miss" if @miss;
     if (!defined($param->{'matrix'}) && !defined($param->{'random_matrix'})) {
         die "Missing parameter: matrix (or random_matrix)";
@@ -551,6 +556,7 @@ if (!defined($random_matrix) && !-d $wdir) {        # create $wdir on script nod
 
 # If we've been built with mpi, then we _need_ mpi for running. Otherwise
 # we run into shared libraries mess.
+
 my $mpi_needed = $mpiexec ne '';
 
 # @mpi_precmd_single is something silly; we want provision for the case
@@ -697,6 +703,19 @@ sub detect_mpi {
                     my $v = `unset I_MPI_ROOT ; . $mpi/mpivars.sh  ; echo \$I_MPI_ROOT`;
                     if ($v) {
                         $mpi_ver="Intel MPI";
+#       comment out, as this requires mpicc on the compute nodes (at least for debugging), and that isn't always available...
+#			my $v = `$mpi/mpicc -v`;
+#			chomp($v);
+#			if ($v =~ /Intel \(R\) MPI Library (.*?) for/) {
+#			    $mpi_ver="$1";
+#			    $mpi_ver=~/^(\d+)/;
+#                            my $mpi_year=$1;
+#                            $mpi_ver=~s/\s+/_/g;
+#			    $mpi_ver="intel-$mpi_ver";
+#                            $needs_mpd=0;
+#			} else {
+#                            warn "Could not correctly recognize mpi version (perhaps intel ?)";
+#                        }
                         $needs_mpd=0;
                     }
                     last SEVERAL_CHECKS;
@@ -879,12 +898,19 @@ if ($mpi_needed) {
     # print STDERR "$_=$ENV{$_}\n" for keys %ENV;
     detect_mpi;
 
-    push @mpi_precmd, "$mpi/mpiexec";
+    # quirk. If called with srun, then we want to avoid mpiexec anyway.
+    if ($main =~ /^:srun/) {
+        push @mpi_precmd, 'srun';
+    } else {
+        push @mpi_precmd, "$mpi/mpiexec";
+    }
 
     my $auto_hostfile_pattern="/tmp/hosts_XXXXXXXX";
 
     # Need hosts. Put that to the list @hosts first.
-    if (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
+    if ($main =~ /^:srun/) {
+	    print STDERR "srun environment detected, not detecting hostfile.\n";
+    } elsif (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
 	    print STDERR "OAR environment detected, setting hostfile.\n";
 	    get_mpi_hosts_oar;
 	    $auto_hostfile_pattern="/tmp/hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
@@ -965,7 +991,7 @@ if ($mpi_needed) {
     if (defined($mpi_extra_args)) {
         push @mpi_precmd, split(' ', $mpi_extra_args);
     }
-    push @mpi_precmd, split(' ', '@MPIEXEC_EXTRA_STANZAS@');
+    push @mpi_precmd, split(' ', $mpiexec_extra_stanzas);
     push @mpi_precmd, split(' ', $ENV{'MPI_EXTRA_ARGS'}) if $ENV{'MPI_EXTRA_ARGS'};
 
     @mpi_precmd_single = @mpi_precmd;
@@ -1003,7 +1029,7 @@ if ($mpi_needed) {
     # without having ever tried to join in an mpi collective like
     # mpi_init(), there's potential for the mpirun command to complain.
     dosystem('-nofatal', @mpi_precmd, split(' ', "mkdir -p $wdir"))
-        unless defined $random_matrix;
+        unless defined($random_matrix) || $wdir eq '/';
 }
 
 if ($main eq ':mpirun') {
@@ -1016,6 +1042,22 @@ if ($main eq ':mpirun') {
 if ($main eq ':mpirun_single') {
     # we don't even put @main_args in, because we're tinkering with it
     # somewhat.
+    dosystem(@mpi_precmd_single, @extra_args);
+    exit 0;
+}
+
+if ($main eq ':srun') {
+    # we don't even put @main_args in, because we're tinkering with it
+    # somewhat.
+    s/mpiexec/srun/ for (@mpi_precmd);
+    dosystem(@mpi_precmd, @extra_args);
+    exit 0;
+}
+
+if ($main eq ':srun_single') {
+    # we don't even put @main_args in, because we're tinkering with it
+    # somewhat.
+    s/mpiexec/srun/ for (@mpi_precmd);
     dosystem(@mpi_precmd_single, @extra_args);
     exit 0;
 }
@@ -1062,8 +1104,8 @@ sub task_begin_message {
 }
 
 sub task_check_message {
-    return unless $my_verbose_flags->{'checks'};
     my $status = shift;
+    return unless $my_verbose_flags->{'checks'} || $status eq 'error';
     my $normal = $terminal_colors->{'normal'} || '';
     my $color = {
         'ok' => $terminal_colors->{'green'} || '',
@@ -1079,7 +1121,10 @@ sub task_check_message {
         $_ = "\t" . $_;
     }
     unshift @lines, $head;
-    print "## $color->{$status}Check for $current_task$normal: $_\n" for @lines;
+    my @printme;
+    push @printme, "## $color->{$status}Check for $current_task$normal: $_\n" for @lines;
+    die @printme if $status eq 'error';
+    print @printme;
 }
 # }}}
 
@@ -1274,7 +1319,6 @@ sub list_files_generic {
         $filesize = $size if !defined($filesize);
         if ($filesize != $size) {
             task_check_message 'error', "Inconsistency detected for the sizes of the ${pattern} files. We have seen at least $filesize and $size (last seen: $file, $size). Please fix.\n";
-            die;
         }
     }
     return $files, $filesize;
@@ -1519,7 +1563,6 @@ sub subtask_krylov_todo {
                     task_check_message 'error',
                     "No starting vector for range $r"
                     . " (interleaved sub-range from $yrange)\n";
-                    die;
                 };
                 push @sub_starts, $s;
             } 
@@ -1529,7 +1572,6 @@ sub subtask_krylov_todo {
                 . " interleaved sub-ranges from $yrange"
                 . " (first at $sub_starts[0],"
                 . " second at $sub_starts[1])\n";
-                die;
             };
             $start = $sub_starts[0];
         } else {
@@ -1545,7 +1587,6 @@ sub subtask_krylov_todo {
     }
     if (!@todo && @impossible) {
         task_check_message 'error', "Cannot schedule remaining work. No checkpoints for ranges:\n", @impossible;
-        die;
     }
     return @todo;
 }
@@ -1592,7 +1633,6 @@ sub task_prep {
 
     if ($status eq 'some') {
         task_check_message 'error', "Missing output files for $current_task", @missing, "We don't fix this automatically. Please investigate.";
-        die;
     }
 
     task_check_message 'missing', "none of the output files for $current_task have been found, need to run $current_task now. We want to create files:", @missing;
@@ -1611,9 +1651,9 @@ sub task_prep {
 sub subtask_secure {
     return if $param->{'skip_online_checks'};
     my $leader_files = get_cached_leadernode_filelist 'HASH';
-    my @x = grep { !exists($leader_files->{$_}); } "C.$param->{'interval'}";
-    if (@x) {
-        task_check_message 'missing', "missing check vector @x\n";
+    my @x = grep { /^C\.\d+$/ && !/^C\.0$/ } keys %$leader_files;
+    unless (@x) {
+        task_check_message 'missing', "no check vector found\n";
         task_common_run('secure', @main_args);
     }
 }
@@ -1630,10 +1670,6 @@ sub task_krylov {
     # if ys is found in the command line, then we focus on that sequence
     # specifically. Otherwise, we process all sequences one after
     # another.
-    #
-    # Other:
-    #   - C.$interval ; check vector for online checks. Computation
-    #   skipped if explicitly requested (skip_online_checks=1).
     #
     # side-effect files, which have no impact on whether this step gets
     # re-run or not:
@@ -1676,10 +1712,8 @@ sub task_lingen_input_errors {
     my $astrings = {};
     my $ok = 1;
     my $nb_afiles = 0;
-    my $rlength = int(($length + $param->{'interval'} - 1) / $param->{'interval'}) * $param->{'interval'};
-    if (defined($param->{'krylov_length'})) {
-        $rlength = $param->{'krylov_length'};
-    }
+    my $maxz1;
+    my $minz1;
     for my $k (keys %$afiles) {
         my @strings;
         my ($z0, $z1);
@@ -1699,8 +1733,13 @@ sub task_lingen_input_errors {
         }
         $ok = 0 unless scalar @strings == 0 && $z0 == 0 && $z1 >= $length;
         push @strings, [$z0, $z1] if defined $z1;
+        $maxz1 = $z1 unless defined($maxz1) && $z1 < $maxz1;
+        $minz1 = $z1 unless defined($minz1) && $z1 > $minz1;
         $astrings->{$k} = \@strings;
     }
+
+    $ok = 0 if $minz1 != $maxz1;
+    my $rlength = $minz1;
 
     if (!$ok) {
         my @errors;
@@ -1731,7 +1770,6 @@ sub task_lingen {
     my $h = {};
     if (my @errors = task_lingen_input_errors $h) {
         task_check_message 'error', @errors;
-        die;
     }
 
     my $concatenated_A = $h->{'concatenated_A'};
@@ -1766,7 +1804,6 @@ sub task_lingen {
         return;
     } elsif (@missing < @expected) {
         task_check_message 'error', "Incomplete lingen output found. Missing files:\n" , @missing;
-        die;
     }
 
     task_check_message 'missing', "lingen has not run yet. Running now.";
@@ -1818,10 +1855,6 @@ sub task_mksol {
     # for which a V file is here, and no S file yet (for any of the
     # solutions considered, which is a number limited by $nrhs if
     # specified).
-    #
-    # Other:
-    #   - C.$interval ; check vector for online checks. Computation
-    #   skipped if explicitly requested (skip_online_checks=1).
     #
     # side-effect files, which have no impact on whether this step gets
     # re-run or not:
@@ -1884,7 +1917,6 @@ sub task_mksol {
         }
         if ($@) {
             task_check_message 'error', "Failure message while checking $current_task files";
-            die;
         }
         if (!@todo) {
             # Note that we haven't checked for the A files yet !
@@ -1950,7 +1982,6 @@ sub task_gather {
     my $maxmksol = eval { max_mksol_iteration; };
     if ($@) {
         task_check_message 'error', "Lingen output files missing", $@, "Please run lingen first.";
-        die;
     }
     print "## mksol max iteration is $maxmksol\n";
 
@@ -2005,7 +2036,6 @@ sub task_gather {
 
     if (@missing) {
         task_check_message 'error', "Missing files for $current_task:", @missing;
-        die;
     }
 
     task_check_message 'ok', "All required files for gather seem to be present, good.";

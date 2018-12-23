@@ -97,11 +97,6 @@ main (int argc, char **argv)
   char buf[256];
   
   /* Parse arguments */
-  if (argc < 3)
-    {
-      printf ("Please provide B1 and B2 values\n");
-      exit (EXIT_FAILURE);
-    }
 
   while (argc > 1 && argv[1][0] == '-')
     {
@@ -152,6 +147,12 @@ main (int argc, char **argv)
           fprintf (stderr, "Unknown option %s\n", argv[1]);
           exit (EXIT_FAILURE);
         }
+    }
+
+  if (argc < 3)
+    {
+      printf ("Please provide B1 and B2 values\n");
+      exit (EXIT_FAILURE);
     }
 
   /* Get B1 and all the B2 values */

@@ -7,13 +7,61 @@
 #include <vector>
 #include <list>
 #include <sstream>
-#include "batch.h"
+#include "batch.hpp"
 #include "utils.h"
 
-#define STATUS_SMOOTH  0
-#define STATUS_UNKNOWN 1
-
-using namespace std;
+/* This function is useful in the openmp context. This segment goes
+ * parallel, and all threads except the calling thread subtract their
+ * registered RUSAGE_THREAD counter (a.k.a. seconds_thread()) to the
+ * provided timer. This must obviously be paired with
+ * add_openmp_subtimings().
+ *
+ * The following construct is ok:
+ *
+ * double e0 = extra_time;
+ *
+ * call a function that has a double& extra_time argument
+ * 
+ *   in there, do subtract_openmp_subtimings()
+ *   do something openmp
+ *   add_openmp_subtimings()
+ * 
+ * print extra_time - e0.
+ *
+ * It is not ok to call subtract_openmp_subtimings twice. Implicitly, a
+ * function that has a double& extra_time argument embeds some sort of
+ * openmp computation that is enclosed in a subtract/add pair. Therefore,
+ * it is also *not* ok to call such a function within a subtract/add
+ * pair.
+ */
+void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+{
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+      if (omp_get_thread_num() != omp_get_ancestor_thread_num(omp_get_level()-1)) {
+#pragma omp critical
+          {
+              extra_time -= seconds_thread();
+          }
+      }
+  }
+#endif
+}
+void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+{
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+      if (omp_get_thread_num() != omp_get_ancestor_thread_num(omp_get_level()-1)) {
+#pragma omp critical
+          {
+              extra_time += seconds_thread();
+          }
+      }
+  }
+#endif
+}
 
 static void
 mpz_product_tree_init (mpz_product_tree t)
@@ -87,22 +135,6 @@ mpz_product_tree_clear (mpz_product_tree t)
   t->size = 0;
 }
 
-void
-cofac_list_init (cofac_list l)
-{
-  l->a = NULL;
-  l->b = NULL;
-  l->R = NULL;
-  l->A = NULL;
-  l->R0 = NULL;
-  l->A0 = NULL;
-  l->sq = NULL;
-  l->side = NULL;
-  l->perm = NULL;
-  l->alloc = 0;
-  l->size = 0;
-}
-
 static void
 prime_list (std::vector<unsigned long> & L, prime_info pi,
             unsigned long pmax)
@@ -113,7 +145,7 @@ prime_list (std::vector<unsigned long> & L, prime_info pi,
 
 static void
 prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
-                 unsigned long pmax, mpz_poly f)
+                 unsigned long pmax, cxx_mpz_poly const & f)
 {
   if (f->deg == 1)
     return prime_list (L, pi, pmax);
@@ -140,9 +172,15 @@ prime_tree (mpz_product_tree L, unsigned long pmax)
 }
 
 /* same as prime_tree, but only adds primes p for which f has at least one
-   root modulo p, or the leading coefficient of f vanishes modulo p */
+ * root modulo p, or the leading coefficient of f vanishes modulo p
+ *
+ * 
+ * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
+ * spent in openmp helper threads, NOT counting the time spent in the
+ * main thread.
+ */
 static void
-prime_tree_poly (mpz_product_tree L, unsigned long pmax, mpz_poly_srcptr f)
+prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, double & extra_time)
 {
   if (f->deg == 1) {
     prime_tree (L, pmax);
@@ -157,6 +195,8 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, mpz_poly_srcptr f)
   nthreads *= 10; /* to amortize the varying cost of mpz_poly_roots_ulong */
 
   unsigned long * q = (unsigned long *) malloc (nthreads * sizeof (unsigned long));
+
+  subtract_openmp_subtimings(extra_time);
 
   prime_info pi;
   prime_info_init (pi);
@@ -183,87 +223,21 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, mpz_poly_srcptr f)
     }
 
   prime_info_clear (pi);
+
+  add_openmp_subtimings(extra_time);
+
   free (q);
-}
-
-void
-cofac_list_realloc (cofac_list l, size_t newsize)
-{
-  unsigned long i;
-
-  /* if we shrink the list, clear the mpz_t's */
-  for (i = newsize; i < l->size; i++)
-    {
-      mpz_clear (l->R[i]);
-      mpz_clear (l->A[i]);
-      mpz_clear (l->R0[i]);
-      mpz_clear (l->A0[i]);
-      mpz_clear (l->sq[i]);
-    }
-  l->a = (int64_t*) realloc (l->a, newsize * sizeof (int64_t));
-  l->b = (uint64_t*) realloc (l->b, newsize * sizeof (uint64_t));
-  l->R = (mpz_t*) realloc (l->R, newsize * sizeof (mpz_t));
-  l->A = (mpz_t*) realloc (l->A, newsize * sizeof (mpz_t));
-  l->R0 = (mpz_t*) realloc (l->R0, newsize * sizeof (mpz_t));
-  l->A0 = (mpz_t*) realloc (l->A0, newsize * sizeof (mpz_t));
-  l->sq = (mpz_t*) realloc (l->sq, newsize * sizeof (mpz_t));
-  l->side = (int*) realloc (l->side, newsize * sizeof (int));
-  l->perm = (uint32_t*) realloc (l->perm, newsize * sizeof (uint32_t));
-  l->alloc = newsize;
-  if (newsize < l->size)
-    l->size = newsize;
-}
-
-void
-cofac_list_add (cofac_list l, long a, unsigned long b, mpz_t R, mpz_t A,
-                int side, mpz_t sq)
-{
-  if (l->size == l->alloc)
-    cofac_list_realloc (l, 2 * l->alloc + 1);
-  l->a[l->size] = a;
-  l->b[l->size] = b;
-  mpz_init_set (l->R[l->size], R);
-  mpz_init_set (l->A[l->size], A);
-  mpz_init_set (l->R0[l->size], R);
-  mpz_init_set (l->A0[l->size], A);
-  mpz_init_set (l->sq[l->size], sq);
-  l->side[l->size] = side;
-  l->perm[l->size] = l->size;
-  (l->size)++;
-}
-
-void
-cofac_list_clear (cofac_list l)
-{
-  unsigned long i;
-  for (i = 0; i < l->size; i++)
-    {
-      mpz_clear (l->R[i]);
-      mpz_clear (l->A[i]);
-      mpz_clear (l->R0[i]);
-      mpz_clear (l->A0[i]);
-      mpz_clear (l->sq[i]);
-    }
-  free (l->a);
-  free (l->b);
-  free (l->R);
-  free (l->A);
-  free (l->R0);
-  free (l->A0);
-  free (l->sq);
-  free (l->side);
-  free (l->perm);
 }
 
 /* put in P the product of primes p for which the given polynomial has factors
    modulo p */
 static void
-prime_product_poly (mpz_t P, unsigned long p_max, mpz_poly_srcptr f)
+prime_product_poly (mpz_t P, unsigned long p_max, cxx_mpz_poly const & f, double & extra_time)
 {
   mpz_product_tree L;
 
   mpz_product_tree_init (L);
-  prime_tree_poly (L, p_max, f);
+  prime_tree_poly (L, p_max, f, extra_time);
 
   mpz_product_tree_accumulate (L);
 
@@ -285,44 +259,53 @@ tree_height (unsigned long n)
   return h;
 }
 
-/* return the product tree formed from R[0..n-1].
-   Put in w[i] the number of elements of level i:
-   w[0] = n, w[1] = ceil(n/2), ... */
-static mpz_t**
-product_tree (mpz_t *R, uint32_t *perm, unsigned long n, unsigned long *w)
-{
-  unsigned long h = tree_height (n), i, j;
-  mpz_t **T;
 
+/* return the product tree formed from R[0..n-1].
+ * Put in w[i] the number of elements of level i:
+ * w[0] = n, w[1] = ceil(n/2), ...
+ * 
+ * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
+ * spent in openmp helper threads, NOT counting the time spent in the
+ * main thread.
+ */
+static mpz_t**
+product_tree (std::vector<cxx_mpz> const & R, size_t *w, double & extra_time)
+{
+  size_t n = R.size();
+  int h = tree_height (n);
   ASSERT_ALWAYS(n >= 1);
 
-  T = (mpz_t**) malloc ((h + 1) * sizeof (mpz_t*));
+  mpz_t ** T = (mpz_t**) malloc ((h + 1) * sizeof (mpz_t*));
 
   /* initialize tree */
   w[0] = n;
-  for (i = 0; i <= h; i++)
+  for (int i = 0; i <= h; i++)
     {
       w[i] = 1 + ((n - 1) >> i);
       T[i] = (mpz_t*) malloc (w[i] * sizeof (mpz_t));
-      for (j = 0; j < w[i]; j++)
+      for (size_t j = 0; j < w[i]; j++)
         mpz_init (T[i][j]);
     }
 
   /* initialize T[0] to R */
-  for (j = 0; j < n; j++)
-    mpz_set (T[0][j], R[perm[j]]);
+  for (size_t j = 0 ; j < R.size() ; ++j)
+    mpz_set (T[0][j], R[j]);
+
+  subtract_openmp_subtimings(extra_time);
 
   /* compute product tree */
-  for (i = 1; i <= h; i++)
+  for (int i = 1; i <= h; i++)
     {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static)
 #endif
-      for (j = 0; j < w[i-1] / 2; j++)
+      for (size_t j = 0; j < w[i-1] / 2; j++)
         mpz_mul (T[i][j], T[i-1][2*j], T[i-1][2*j+1]);
       if (w[i-1] & 1)
         mpz_set (T[i][w[i]-1], T[i-1][w[i-1]-1]);
     }
+
+  add_openmp_subtimings(extra_time);
 
   return T;
 }
@@ -348,13 +331,20 @@ remainder_tree_aux (mpz_t **T, unsigned long **nbits, unsigned long i,
 }
 
 /* Compute the remainder tree using the "scaled" variant
-   (http://cr.yp.to/arith/scaledmod-20040820.pdf).
-   At the root, we compute a floating-point
-   approximation of P/T[h][0] with m+guard bits, where m = nbits(T[h][0]). */
+ * (http://cr.yp.to/arith/scaledmod-20040820.pdf).
+ * At the root, we compute a floating-point
+ * approximation of P/T[h][0] with m+guard bits, where m = nbits(T[h][0]).
+ *
+ * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
+ * spent in openmp helper threads, NOT counting the time spent in the
+ * main thread.
+ */
 static void
-remainder_tree (mpz_t **T, unsigned long n, unsigned long *w, mpz_t P,
-                mpz_t *R, uint32_t *perm)
+remainder_tree (mpz_t **T, size_t *w, mpz_t P,
+        std::vector<cxx_mpz> & R,
+        double & extra_time)
 {
+  size_t n = R.size();
   unsigned long h = tree_height (n), i, j, guard;
   unsigned long **nbits;
   mpz_t Q;
@@ -367,6 +357,8 @@ remainder_tree (mpz_t **T, unsigned long n, unsigned long *w, mpz_t P,
       for (j = 0; j < w[i]; j++)
         nbits[i][j] = mpz_sizeinbase (T[i][j], 2);
     }
+
+  subtract_openmp_subtimings(extra_time);
 
   mpz_init (Q);
   mpz_mod (Q, P, T[h][0]); /* first reduce modulo T[h][0] in case P is huge */
@@ -386,9 +378,10 @@ remainder_tree (mpz_t **T, unsigned long n, unsigned long *w, mpz_t P,
 
   /* from T[0][j] ~ P/R[j]*2^(nbits[0][j] + guard) mod 2^(nbits[0][j] + guard),
      get T[0][j]*R[j]/2^(nbits[0][j] + guard) ~ P mod R[j] */
-  for (j = 0; j < n; j++)
+  ASSERT_ALWAYS(R.size() == w[0]);
+  for (size_t j = 0 ; j < R.size() ; ++j)
     {
-      mpz_mul (T[0][j], T[0][j], R[perm[j]]);
+      mpz_mul (T[0][j], T[0][j], R[j]);
       /* T[0][j] ~ P*2^(nbits[0][j] + guard) mod R[j]*2^(nbits[0][j]+guard) */
       mpz_div_2exp (T[0][j], T[0][j], nbits[0][j]);
       /* T[0][j] ~ P*2^guard mod R[j]*2^guard */
@@ -397,6 +390,9 @@ remainder_tree (mpz_t **T, unsigned long n, unsigned long *w, mpz_t P,
     }
 
   mpz_clear (Q);
+
+  add_openmp_subtimings(extra_time);
+
   for (i = 0; i <= h; i++)
     free (nbits[i]);
   free (nbits);
@@ -404,7 +400,7 @@ remainder_tree (mpz_t **T, unsigned long n, unsigned long *w, mpz_t P,
 
 /* Clear the product tree. */
 static void
-clear_product_tree (mpz_t **T, unsigned long n, unsigned long *w)
+clear_product_tree (mpz_t **T, unsigned long n, size_t *w)
 {
   unsigned long i, j, h = tree_height (n);
 
@@ -420,17 +416,22 @@ clear_product_tree (mpz_t **T, unsigned long n, unsigned long *w)
 #define MAX_DEPTH 32
 
 /* Input:
-   R[0], ..., R[n-1] are cofactors
-   P is the product of primes
-   Output:
-   Each R[j] has been divided by its P-smooth part.
-*/
+ * R[0], ..., R[n-1] are cofactors
+ * P is the product of primes
+ * Output:
+ * Each R[j] has been divided by its P-smooth part.
+ *
+ * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
+ * spent in openmp helper threads, NOT counting the time spent in the
+ * main thread.
+ */
 static void
-smoothness_test (mpz_t *R, uint32_t *perm, unsigned long n, mpz_t P, FILE *out)
+smoothness_test (std::vector<cxx_mpz> & R, mpz_ptr P, FILE *out, double& extra_time)
 {
-  unsigned long j, w[MAX_DEPTH];
+  size_t w[MAX_DEPTH];
   mpz_t **T;
-  double st, wct;
+  double s, st, e0, wct;
+  size_t n = R.size();
 
   if (n == 0)
     return;
@@ -440,149 +441,140 @@ smoothness_test (mpz_t *R, uint32_t *perm, unsigned long n, mpz_t P, FILE *out)
       return;
   }
 
-  st = seconds ();
+  s = seconds ();
+  st = seconds_thread ();
+  e0 = extra_time;
   wct = wct_seconds ();
-  T = product_tree (R, perm, n, w);
-  unsigned long h = tree_height (n);
-  fprintf (out, "# batch: took %.2fs (wct %.2fs) to compute product tree of %zu bits\n",
-           seconds () - st, wct_seconds () - wct, mpz_sizeinbase (T[h][0], 2));
+
+  T = product_tree (R, w, extra_time);
+  size_t h = tree_height (n);
+  fprintf (out, "# batch: took %.2fs (%.2fs + %.2fs ; wct %.2fs) to compute product tree of %zu bits\n",
+           seconds() - s,
+           seconds_thread () - st,
+           extra_time - e0,
+           wct_seconds () - wct, mpz_sizeinbase (T[h][0], 2));
 
   /* compute remainder tree */
-  st = seconds ();
+  s = seconds ();
+  st = seconds_thread ();
+  e0 = extra_time;
   wct = wct_seconds ();
-  remainder_tree (T, n, w, P, R, perm);
-  fprintf (out, "# batch: took %.2fs (wct %.2fs) to compute remainder tree\n",
-           seconds () - st, wct_seconds () - wct);
+
+  remainder_tree (T, w, P, R, extra_time);
+
+  fprintf (out, "# batch: took %.2fs (%.2fs + %.2fs ; wct %.2fs) to compute remainder tree\n",
+           seconds() - s,
+           seconds_thread () - st,
+           extra_time - e0,
+           wct_seconds () - wct);
+
 
   /* now T[0][j] = P mod R[j] for 0 <= j < n */
-  for (j = 0; j < n; j++)
-    {
+  ASSERT_ALWAYS(R.size() == w[0]);
+  for (size_t j = 0 ; j < R.size() ; ++j) {
         /* Divide out R by gcd(P, R) as much as we can. The first gcd may
          * have some cost, the subsequent ones are supposedly cheap
          * enough */
         for(;;) {
-            mpz_gcd (T[0][j], T[0][j], R[perm[j]]);
+            mpz_gcd (T[0][j], T[0][j], R[j]);
             if (mpz_cmp_ui(T[0][j], 1) == 0)
                 break;
-            mpz_divexact (R[perm[j]], R[perm[j]], T[0][j]);
+            mpz_divexact (R[j], R[j], T[0][j]);
         }
     }
 
   clear_product_tree (T, n, w);
 }
 
-/* invariant:
-   relations 0 to *nb_smooth-1 are smooth
-   relations *nb_smooth to *nb_unknown-1 are unknown
-   relations >= *nb_unknown are non-smooth (useless).
-
-   on input, we know that n has no factor<=B. 
-   We're willing to accept prime cofactors <= L,
-   and to try harder to factor composites which are <= M
-*/
-static void
-update_status (mpz_t *R, uint32_t *perm,
-               unsigned char *b_status_r, unsigned char *b_status_a,
-               mpz_srcptr B,
-               mpz_srcptr L,
-               mpz_srcptr M,
-               unsigned long *nb_smooth, unsigned long *nb_unknown)
+/* return the number n of smooth relations in l (same as l.size()) */
+size_t
+find_smooth (cofac_list & l,
+        std::array<cxx_mpz, 2> & batchP,
+        int batchlpb[2], int lpb[2], int batchmfb[2],
+        FILE *out,
+        int nthreads MAYBE_UNUSED, double & extra_time)
 {
-  mpz_t BB;
-  mpz_init(BB);
-  mpz_mul(BB,B,B);
-
-  for (unsigned long j = *nb_smooth; j < *nb_unknown; j++)
-    {
-      unsigned long i = perm[j];
-      if (b_status_r[i] == STATUS_UNKNOWN)
-      {
-        /* relation i is smooth iff R[i]=1 ; another option is in case
-         * the remaining cofactor is below the mfb we've been given. */
-        if (mpz_cmp_ui (R[i], 1) == 0
-                || mpz_cmp(R[i], L) <= 0
-                || (
-                    mpz_cmp(R[i], BB) >= 0
-                    && mpz_cmp(R[i], M) <= 0
-                    && !mpz_probab_prime_p(R[i], 1)
-                ))
-          {
-            b_status_r[i] = STATUS_SMOOTH;
-            if (b_status_a[i] == STATUS_SMOOTH)
-              {
-                /* relation j is smooth, swap it with relation *nb_smooth */
-                perm[j] = perm[*nb_smooth];
-                perm[*nb_smooth] = i;
-                (*nb_smooth)++;
-              }
-          }
-        else /* not smooth */
-          {
-            /* relation j is useless, swap it with relation *nb_unknown - 1 */
-            (*nb_unknown)--;
-            perm[j] = perm[*nb_unknown];
-            perm[*nb_unknown] = i;
-            j--;
-          }
-      }
-    }
-  mpz_clear(BB);
-}
-
-/* return the number n of smooth relations in l,
-   which should be at the end in locations perm[0], perm[1], ..., perm[n-1] */
-unsigned long
-find_smooth (cofac_list l, mpz_t batchP[2], mpz_t B[2], mpz_t L[2], mpz_t M[2], FILE *out,
-             int nthreads MAYBE_UNUSED)
-{
-  unsigned long nb_rel_read = l->size;
-  unsigned long nb_smooth;
-  unsigned long nb_unknown;
-  unsigned char *b_status_r;
-  unsigned char *b_status_a;
-  double start = seconds ();
-
 #ifdef HAVE_OPENMP
-  omp_set_num_threads (nthreads);
+    omp_set_num_threads (nthreads);
 #endif
 
-  b_status_r = (unsigned char *) malloc (nb_rel_read * sizeof(unsigned char));
-  b_status_a = (unsigned char *) malloc (nb_rel_read * sizeof(unsigned char));
-  memset (b_status_r, STATUS_UNKNOWN, nb_rel_read);
-  memset (b_status_a, STATUS_UNKNOWN, nb_rel_read);
+    /* it seems faster to start from the algebraic side */
+    int first_smoothness_test_side = 1;
 
-  nb_smooth = 0;
-  nb_unknown = nb_rel_read;
-
-  /* invariant: the smooth relations are in 0..nb_smooth-1,
-     the unknown ones in nb_smooth..nb_unknown-1,
-     the remaining ones are not smooth */
-
-  /* it seems faster to start from the algebraic side */
-  for (int z = 1; z >= 0; z--)
+    for (int xside = 0 ; xside < 2 ; ++xside)
     {
-      if (z == 0)
-        smoothness_test (l->R, l->perm + nb_smooth, nb_unknown - nb_smooth,
-                         batchP[0], out);
-      else
-        smoothness_test (l->A, l->perm + nb_smooth, nb_unknown - nb_smooth,
-                         batchP[1],  out);
+        double s, st, e0, wct;
 
-      /* we only need to update relations in [nb_smooth, nb_unknown-1] */
-      if (z == 0)
-        update_status (l->R, l->perm, b_status_r, b_status_a, B[0], L[0], M[0],
-                       &nb_smooth, &nb_unknown);
-      else
-        update_status (l->A, l->perm, b_status_a, b_status_r, B[1], L[1], M[1],
-                       &nb_smooth, &nb_unknown);
+        s = seconds ();
+        st = seconds_thread ();
+        e0 = extra_time;
+        wct = wct_seconds ();
+
+        size_t input_candidates = l.size();
+
+        int side = xside ^ first_smoothness_test_side;
+
+        cxx_mpz B, BB, L, M;
+
+        mpz_ui_pow_ui(B, 2, batchlpb[side]);
+        mpz_ui_pow_ui(L, 2, lpb[side]);
+        mpz_ui_pow_ui(M, 2, batchmfb[side]);
+        mpz_mul(BB,B,B);
+
+        /* The post-tree cofactor is useless. Therefore, we:
+         *  - copy the cofactors to an auxiliary structure,
+         *  - tamper with these auxiliary integers
+         *  - keep or discard the original cofactors, depending on
+         *  whether we've found that something is smooth.
+         */
+
+        std::vector<cxx_mpz> temp;
+        temp.reserve(l.size());
+        for(auto const & x : l)
+            temp.push_back(x.cofactor[side]);
+
+        smoothness_test (temp, batchP[side], out, extra_time);
+
+        auto jt = begin(temp);
+        for(auto it = begin(l) ; it != end(l) ; /* it++ within loop */) {
+            /* check if the cofactor on the side we've just tested is
+             * smooth. If it isn't, we put it at the end of the array,
+             * and we free it.
+             *
+             * on input, we know that cofactors have no factor<=B. 
+             * We're willing to accept prime cofactors <= L,
+             * and to try harder to factor composites which are <= M
+             *
+             * relation i is smooth iff R[i]=1 ; another option is in case
+             * the remaining cofactor is below the mfb we've been given.
+             */
+            cxx_mpz const& c(*jt++);
+
+            if (mpz_cmp_ui (c, 1) == 0
+                    || mpz_cmp(c, L) <= 0
+                    || (mpz_cmp(c, BB) >= 0 && mpz_cmp(c, M) <= 0
+                        && !mpz_probab_prime_p(c, 1)
+                       ))
+            {
+                /* cofactor is smooth, we keep it where it is.  */
+                ++it;
+            } else {
+                /* cofactor is not smooth, get rid of it */
+                auto nit = it++;
+                l.erase(nit);
+            }
+        }
+
+        fprintf (out, "# batch (side %d): took %.2fs (%.2fs + %.2fs ; wct %.2fs) to detect %zu smooth relations out of %zu\n",
+                side,
+                seconds() - s,
+                seconds_thread () - st,
+                extra_time - e0,
+                wct_seconds () - wct,
+                l.size(), input_candidates);
     }
 
-  free (b_status_r);
-  free (b_status_a);
-
-  fprintf (out, "# batch: took %.2fs to detect %lu smooth relations out of %lu\n", seconds () - start, nb_smooth, nb_rel_read);
-
-  return nb_smooth;
+    return l.size();
 }
 
 static void
@@ -598,7 +590,8 @@ trial_divide (std::vector<cxx_mpz>& factors, cxx_mpz & n, std::vector<unsigned l
 
 /* Puts in factors[] the prime factors of n. Additional info provided:
  *  - cofac must be a divisor of n (possibly composite)
- *  - sq, if not null, must be a prime divisor of n.
+ *  - sq_factors, is the (possibly empty if on the wrong side) list of
+ *    prime factors of the special-q 
  *
  * The list SP contains small primes (less than B).
  * B is the small prime bound: any factor < B^2 is necessarily prime.
@@ -609,28 +602,42 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
               facul_method_t *methods,
               unsigned int lpb, double B,
               std::vector<unsigned long> const& SP,
-              cxx_mpz& cofac, mpz_ptr sq)
+              cxx_mpz& cofac,
+              std::vector<uint64_t> const& sq_factors)
 {
     double BB = B * B, BBB = B * B * B;
-    ASSERT(mpz_divisible_p (n, cofac));
-    mpz_divexact (n, n, cofac);
 
-    if (sq) {
-        ASSERT(mpz_divisible_p (n, sq));
-        mpz_divexact (n, n, sq);
+    if (mpz_cmp_ui(cofac, 0) == 0) {
+        for (auto sqf : sq_factors) {
+            cxx_mpz Sqf;
+            mpz_set_uint64(Sqf, sqf);
+            ASSERT(mpz_divisible_p (n, Sqf));
+            mpz_divexact (n, n, Sqf);
+        }
+        trial_divide (factors, n, SP);
+    } else {
+        ASSERT(mpz_divisible_p (n, cofac));
+        mpz_divexact (n, n, cofac);
+
+        for (auto sqf : sq_factors) {
+            cxx_mpz Sqf;
+            mpz_set_uint64(Sqf, sqf);
+            ASSERT(mpz_divisible_p (n, Sqf));
+            mpz_divexact (n, n, Sqf);
+        }
+
+        /* remove small primes */
+        trial_divide (factors, n, SP);
+
+        /* the cofactor that we found with the product tree will have primes
+         * between lim and 2^batchlpb. We typically have batchlpb < lpb, and
+         * lim > sqrt(2^lpb), so that we know that [cofac] has no prime factor
+         * below B=sqrt(2^lpb). It is not guaranteed, though: we may have
+         * elected to get rid of sieving on that side, in which case [cofac]
+         * may very well contain small primes.
+         */
+        trial_divide (factors, cofac, SP);
     }
-
-    /* remove small primes */
-    trial_divide (factors, n, SP);
-
-    /* the cofactor that we found with the product tree will have primes
-     * between lim and 2^batchlpb. We typically have batchlpb < lpb, and
-     * lim > sqrt(2^lpb), so that we know that [cofac] has no prime factor
-     * below B=sqrt(2^lpb). It is not guaranteed, though: we may have
-     * elected to get rid of sieving on that side, in which case [cofac]
-     * may very well contain small primes.
-     */
-    trial_divide (factors, cofac, SP);
 
     std::list<std::pair<cxx_mpz, facul_method_t *>> composites;
     if (mpz_cmp_ui(n, 1) > 0) 
@@ -645,7 +652,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         facul_method_t * pm = composites.front().second;
         if (mpz_cmp_d (n0, BB) < 0) {
             if (mpz_cmp_ui(n0, 1) > 0)
-                factors.push_back(move(n0));
+                factors.push_back(std::move(n0));
             composites.pop_front();
             continue;
         }
@@ -699,13 +706,20 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
             /* t should be composite, i.e., t >= BB */
             ASSERT(mpz_cmp_d (t, BB) >= 0);
 
-            composites.push_back(std::make_pair(std::move(t), pm));
+            if (mpz_perfect_square_p (t))
+            {
+              mpz_sqrt (t, t);
+              composites.push_back(std::make_pair(t, pm));
+              composites.push_back(std::make_pair(std::move(t), pm));
+            }
+            else
+              composites.push_back(std::make_pair(std::move(t), pm));
         }
     }
 
-    if (sq) {
+    for (auto sqf : sq_factors) {
         cxx_mpz tz;
-        mpz_set(tz, sq);
+        mpz_set_uint64(tz, sqf);
         factors.push_back(std::move(tz));
     }
 
@@ -726,79 +740,89 @@ strip (unsigned long *l, unsigned long n, mpz_t P)
 
 /* sqside = 1 if the special-q is on side 1 (algebraic) */
 static bool
-factor_one (cofac_list L, cado_poly pol, unsigned long *lim, int * batchlpb, int *lpb,
-            FILE *out, facul_method_t *methods,
-            std::vector<unsigned long> (&SP)[2],
-            unsigned long i)
+factor_one (
+        std::list<relation> & smooth,
+        cofac_candidate const & C,
+        cxx_cado_poly const & pol,
+        unsigned long lim[2],
+        int batchlpb[2],
+        int lpb[2],
+        FILE *out,
+        facul_method_t *methods,
+        std::vector<unsigned long> (&SP)[2])
 {
-    uint32_t *perm = L->perm;
-    std::ostringstream os;
+    int64_t a = C.a;
+    uint64_t b = C.b;
 
-    int64_t a = L->a[perm[i]];
-    uint64_t b = L->b[perm[i]];
-
-    os << a << "," << b;
-
-    bool smooth = true;
     std::vector<cxx_mpz> factors[2];
     cxx_mpz norm, cofac;
-    int side;
-    for(side = 0 ; smooth && side < 2 ; side++) {
-        mpz_set(cofac,(side ? L->A0 : L->R0)[perm[i]]);
+    for(int side = 0 ; side < 2 ; side++) {
+        mpz_set(cofac, C.cofactor[side]);
         mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
-        smooth = smooth && factor_simple_minded (factors[side], norm, methods,
+        std::vector<uint64_t> empty;
+        bool smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
                 cofac,
-                (L->side[perm[i]] == side) ? L->sq[perm[i]] : NULL);
-    }
-
-    /* avoid two threads writing a relation simultaneously */
-#ifdef  HAVE_OPENMP
-#pragma omp critical
-#endif
-    {
+                (C.doing_p->side == side) ? C.doing_p->prime_factors : empty);
         if (!smooth) {
-            --side;
             /* when we've knowingly decided to _do_ some cofactoring
              * after the product-tree on that side, then it's normal to
              * have non-smooth values after all.
              */
             if (batchlpb[side] == lpb[side]) {
-                gmp_fprintf(out,
-                        "# failed on %s on side %d; non-smooth cofactor %Zd\n",
-                        os.str().c_str(), side, (mpz_srcptr) cofac);
-            }
-        } else {
-            for(int side = 0 ; smooth && side < 2 ; side++) {
-                os << ":";
-                auto it = factors[side].begin();
-                os << std::hex << *it++;
-                for( ; it < factors[side].end() ; ++it) {
-                    os << "," << std::hex << *it;
+#ifdef  HAVE_OPENMP
+#pragma omp critical
+#endif
+                {
+                    std::ostringstream os;
+                    os << a << "," << b;
+                    gmp_fprintf(out,
+                            "# failed on %s on side %d;"
+                            " non-smooth cofactor %Zd\n",
+                            os.str().c_str(), side, (mpz_srcptr) cofac);
                 }
             }
-            fprintf (out, "%s\n", os.str().c_str());
+            return false;
         }
-        fflush (out);
     }
 
-    return smooth;
+    relation rel(a,b);
+    for (int side = 0; side < 2; side++) {
+        for (auto const& z : factors[side])
+            rel.add(side, z, 0);
+    }
+    rel.compress();
+    smooth.push_back(rel);
+
+    return true;
 }
 
 /* Given a list L of bi-smooth cofactors, print the corresponding relations
-   on "out".
-   n is the number of bi-smooth cofactors in L.
-*/
-unsigned long
-factor (cofac_list L, unsigned long n, cado_poly pol, int batchlpb[], int lpb[],
-        FILE *out, int nthreads MAYBE_UNUSED)
+ * on "out".
+ * n is the number of bi-smooth cofactors in L.
+ * 
+ * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
+ * spent in openmp helper threads, NOT counting the time spent in the
+ * main thread.
+ */
+std::list<relation>
+factor (cofac_list const & L,
+        cxx_cado_poly const & pol,
+        int batchlpb[2],
+        int lpb[2],
+        FILE *out, int nthreads MAYBE_UNUSED, double& extra_time)
 {
-  unsigned long i, B[2];
+  unsigned long B[2];
   int nb_methods;
   facul_method_t *methods;
   std::vector<unsigned long> SP[2];
   prime_info pi;
-  double start = seconds (), wct_start = wct_seconds ();
+  double s, st, e0, wct;
+
+  s = seconds ();
+  st = seconds_thread ();
+  e0 = extra_time;
+  wct = wct_seconds ();
 
   for(int side = 0 ; side < 2 ; side++) {
       prime_info_init (pi);
@@ -812,27 +836,53 @@ factor (cofac_list L, unsigned long n, cado_poly pol, int batchlpb[], int lpb[],
     nb_methods = NB_MAX_METHODS - 1;
   methods = facul_make_default_strategy (nb_methods - 3, 0);
 
-  unsigned long rep = 0;
+  std::list<relation> smooth;
+  cofac_list::const_iterator it;
+  
 #ifdef HAVE_OPENMP
   omp_set_num_threads (nthreads);
-#pragma omp parallel for schedule(static)
 #endif
-  for (i = 0; i < n; i++)
-    rep += factor_one (L, pol, B, batchlpb, lpb, out, methods, SP, i);
+
+  subtract_openmp_subtimings(extra_time);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel private(it)
+  {
+      std::list<relation> smooth_local;
+#else
+      std::list<relation> & smooth_local(smooth);
+#endif
+      for (it = begin(L); it != end(L); ++it) {
+#ifdef HAVE_OPENMP
+#pragma omp single nowait
+#endif
+          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods, SP);
+      }
+#ifdef HAVE_OPENMP
+#pragma omp critical
+      smooth.splice(smooth.end(), smooth_local);
+  }
+#endif
+
+  add_openmp_subtimings(extra_time);
 
   facul_clear_methods (methods);
 
   fprintf (out,
-          "# batch: took %.2fs (wct %.2fs) to factor %lu smooth relations (%lu final cofac misses)\n",
-           seconds () - start, wct_seconds () - wct_start, rep, n-rep);
+          "# batch: took %.2fs (%.2f + %.2f ; wct %.2fs) to factor %zu smooth relations (%zd final cofac misses)\n",
+          seconds() - s,
+          seconds_thread () - st,
+          extra_time - e0,
+          wct_seconds () - wct,
+          smooth.size(), L.size()-smooth.size());
 
-  return rep;
+  return smooth;
 }
 
 static void
-create_batch_product (mpz_t P, unsigned long L, mpz_poly_srcptr pol)
+create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double & extra_time)
 {
-  prime_product_poly (P, L, pol);
+  prime_product_poly (P, L, pol, extra_time);
 }
 
 /* output P in the batch file fp, with a header consisting of 3 lines:
@@ -843,7 +893,7 @@ create_batch_product (mpz_t P, unsigned long L, mpz_poly_srcptr pol)
    The header can be read by a human with head -3 batch_file. */
 static void
 output_batch (FILE *fp, unsigned long B, unsigned long L,
-              mpz_poly pol, mpz_t P, const char *f)
+              cxx_mpz_poly const & pol, cxx_mpz const & P, const char *f)
 {
   int ret;
 
@@ -863,8 +913,8 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
 /* read a batch file from fp, and check the header is consistent with
    B, L and pol. See #21459. */
 static void
-input_batch (FILE *fp, unsigned long B, unsigned long L, mpz_poly pol,
-             mpz_t P, const char *f)
+input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & pol,
+             cxx_mpz & P, const char *f)
 {
   unsigned long Bread, Lread;
   mpz_poly pol_read;
@@ -920,11 +970,11 @@ parse_error:
    3) if f != NULL and file is existing: P is read from file
 */
 void
-create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
-                   mpz_poly pol, FILE *out, int nthreads MAYBE_UNUSED)
+create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
+                   cxx_mpz_poly const & pol, FILE *out, int nthreads MAYBE_UNUSED, double & extra_time)
 {
   FILE *fp;
-  double s = seconds (), wct = wct_seconds ();
+  double e0, s, st, wct;
 
   if (L <= B) {
       /* We may be content with having a product tree on one side only.
@@ -948,11 +998,16 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
   omp_set_num_threads (nthreads);
 #endif
 
+  e0 = extra_time;
+  s = seconds ();
+  st = seconds_thread ();
+  wct = wct_seconds ();
+
   if (f == NULL) /* case 1 */
     {
       fprintf (out, "# batch: creating large prime product");
       fflush (out);
-      create_batch_product (P, L, pol);
+      create_batch_product (P, L, pol, extra_time);
       goto end;
     }
 
@@ -968,7 +1023,7 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
   /* case 2 */
   fprintf (out, "# batch: creating large prime product");
   fflush (out);
-  create_batch_product (P, L, pol);
+  create_batch_product (P, L, pol, extra_time);
 
   fp = fopen (f, "w");
   ASSERT_ALWAYS(fp != NULL);
@@ -978,8 +1033,14 @@ create_batch_file (const char *f, mpz_t P, unsigned long B, unsigned long L,
   fclose (fp);
 
  end:
-  gmp_fprintf (out, " of %zu bits took %.2fs (wct %.2fs)\n",
-               mpz_sizeinbase (P, 2), seconds () - s, wct_seconds () - wct);
+
+  gmp_fprintf (out, " of %zu bits took %.2fs (%.2fs + %.2fs ; wct %.2fs)\n",
+               mpz_sizeinbase (P, 2),
+               seconds() - s,
+               seconds_thread () - st,
+               extra_time - e0,
+               wct_seconds () - wct);
+
   fflush (out);
 }
 

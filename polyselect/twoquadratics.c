@@ -53,7 +53,7 @@ cado_poly_set2 (cado_poly poly, mpz_poly f, mpz_poly g, mpz_t N,
 
 void
 cado_poly_extended_set (cado_poly_extended poly, mpz_poly f, mpz_poly g,
-                        mpz_t N, mpz_t p, mpz_t skew, double E)
+                        mpz_t N, mpz_t p, mpz_t skew, double E, mpz_t m)
 {
   mpz_poly_set (poly->poly->pols[0], f);
   mpz_poly_set (poly->poly->pols[1], g);
@@ -63,6 +63,7 @@ cado_poly_extended_set (cado_poly_extended poly, mpz_poly f, mpz_poly g,
   mpz_set (poly->p, p);
   mpz_set (poly->skew, skew);
   poly->E = E;
+  mpz_set(poly->m, m);
 }
 
 double
@@ -88,18 +89,21 @@ cado_poly_extended_print (FILE *out, cado_poly_extended poly, char *pre)
   fprintf(out, "%sf1 = ", pre);
   mpz_poly_fprintf (out, f1);
 
-  fprintf (out, "%sE = %e\n", pre, poly->E);
-  fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, ALPHA_BOUND));
-  fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, ALPHA_BOUND));
-  fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0, SKEWNESS_DEFAULT_PREC));
-  fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1, SKEWNESS_DEFAULT_PREC));
-  gmp_fprintf (out, "%sskewness = %Zd\n", pre, poly->skew);
-  fprintf (out, "%sL2_skew_norm_f0 = %.2f\n", pre, L2_lognorm (f0, s));
-  fprintf (out, "%sL2_skew_norm_f1 = %.2f\n", pre, L2_lognorm (f1, s));
-  gmp_fprintf (out, "%sp = %Zd\n", pre, poly->p);
-  gmp_fprintf (out, "%sm = %Zd\n", pre, poly->m);
-  mpz_mod (tmp, poly->m, poly->p);
-  gmp_fprintf (out, "%sr = %Zd\n", pre, tmp);
+  if (f0->deg != -1 && f1->deg != -1)
+  {
+    fprintf (out, "%sE = %e\n", pre, poly->E);
+    fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, ALPHA_BOUND));
+    fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, ALPHA_BOUND));
+    fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0, SKEWNESS_DEFAULT_PREC));
+    fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1, SKEWNESS_DEFAULT_PREC));
+    gmp_fprintf (out, "%sskewness = %Zd\n", pre, poly->skew);
+    fprintf (out, "%sL2_skew_norm_f0 = %.2f\n", pre, L2_lognorm (f0, s));
+    fprintf (out, "%sL2_skew_norm_f1 = %.2f\n", pre, L2_lognorm (f1, s));
+    gmp_fprintf (out, "%sp = %Zd\n", pre, poly->p);
+    gmp_fprintf (out, "%sm = %Zd\n", pre, poly->m);
+    mpz_mod (tmp, poly->m, poly->p);
+    gmp_fprintf (out, "%sr = %Zd\n", pre, tmp);
+  }
 
   mpz_clear (tmp);
 }
@@ -461,10 +465,10 @@ main (int argc, char *argv[])
         cado_poly_set2 (cur_poly, f, g, N, skew_used);
         double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K);
         if(E > cado_poly_extended_get_E(best_poly))
-          cado_poly_extended_set (best_poly, f, g, N, P, skew_used, E);
+          cado_poly_extended_set (best_poly, f, g, N, P, skew_used, E, m);
         if (verbose >= 1)
         {
-          cado_poly_extended_set (poly, f, g, N, P, skew_used, E);
+          cado_poly_extended_set (poly, f, g, N, P, skew_used, E, m);
           cado_poly_extended_print (stdout, poly, "# ");
         }
       }

@@ -1,6 +1,6 @@
 /* Code to produce a stage 2 plan for P-1, P+1, and ECM.
-   For given B2min, B2 determines which value of d and pairs (i,j) to use
-   so that the id+-j values cover the primes in ]B2min, B2] */
+   For given B1, B2 determines which value of d and pairs (i,j) to use
+   so that the id+-j values cover the primes in ]B1, B2] */
 
 #include "cado.h"
 #include <stdlib.h>
@@ -9,6 +9,19 @@
 #include "utils.h"
 #include "stage2.h"
 #include "portability.h"
+
+static inline int
+cmp_uint2 (const void *p, const void *q)
+{
+  unsigned int *x = (unsigned int *) p;
+  unsigned int *y = (unsigned int *) q;
+  if (x[1] < y[1])
+    return -1;
+  else if (x[1] > y[1])
+    return 1;
+  else
+    return (x[0] < y[0]) ? -1 : 1;
+}
 
 static inline unsigned long 
 eulerphi_ul (unsigned long n)
@@ -48,348 +61,557 @@ eulerphi_ul (unsigned long n)
   return r;
 }
 
-/* Tries to find a factor p of n such that primes[p] != 0.
-   We assume p is the largest prime factor of n.
-   If successful, return p, otherwise return 0. */
-unsigned int 
-find_prime_div (const unsigned int n, const unsigned int min_f, 
-		const unsigned char *primes)
+static inline unsigned int
+compute_v (const unsigned int x, const unsigned int w)
 {
-    unsigned int p = n, f = min_f;
-
-    ASSERT (n % 2 != 0);
-    while (p >= f*f)
-    {
-	while (p % f == 0)
-	{
-	    p /= f;
- 	    if (primes[p])
-		return p;
-	}
-	f += 2; /* Assumes n even */
-    }
-    
-    if (primes[p])
-	return p;
-    
-    return 0;
+  return (x+w/2)/w; /* v = round (x/w) */
 }
 
-void 
-stage2_make_plan (stage2_plan_t *plan, const unsigned int B2min, 
-                  const unsigned int B2, const int verbose)
+/* Given x and w return u and v such that x = v*w +/- u and u < w/2
+ *    v = floor((x+w/2)/w) = round (x/w)
+ *    u = |x - w*v|
+ */
+static inline void
+split_uv (unsigned int *u, unsigned int *v, const unsigned int x,
+          const unsigned int w)
 {
-  unsigned int p, nr_primes, nr_pairs;
-  unsigned int i, min_i, max_i, j, d, m, n, not_in_d;
-  unsigned char *primes;
-  int need_NEXT_D;
-  const int composite_pairing = 1;
+  *v = compute_v (x, w);
+  unsigned int m = (*v) * w;
+  *u = (x >= m) ? x - m : m - x;
+}
 
-  plan->B2 = B2;
-  if (B2 <= B2min)
+/* We can do better if w <= 30 */
+static inline double
+stage2_baby_step_cost (const stage2_cost_t *opcost, const unsigned int w)
+{
+  /* We want to compute uP for all u in U and wP, using a Lucas chains.
+   * Here we use the fact that 6|w so, for u in U, u = 1 or 5 mod 6
+   */
+  double cost = .0;
+  /* First, we compute the Lucas chains: 1,2,3,5,6,7,11 */
+  cost += 4. * opcost->dadd + 2. * opcost->dbl;
+  /* Then, we compute 6*k+1,6*k+5 with 2 dADD for k in [2..floor((w-6)/12)] */
+  unsigned int nstep = (w > 6) ? (w-6)/12-1 : 0;
+  cost += ((double) nstep) * 2. * opcost->dadd;
+  /* Finally, we compute wP */
+  if (w == 6)
+    cost += 0.; /* nothing to do, we already have 6 */
+  else if (w == 12)
+    cost += opcost->dbl; /* we have 6, double it to obtain 12 */
+  else if (w % 12 == 0) /* last two elements of the chain are w/2-5, w/2-1 */
+    cost += 2. * opcost->dadd; /* w/2+1 as (w/2-5)+6, w as (w/2+1)+(w/2-1) */
+  else /* w % 12 == 6 */ /* last two elements of the chain are w/2-2, w/2+2 */
+    cost += 1. * opcost->dadd + 1. * opcost->dbl;
+    /* 4 as dbl(2) and w as (w/2-2)+(w/2+2) */
+  return cost;
+}
+
+static inline double
+stage2_giant_step_cost (const stage2_cost_t *opcost, unsigned int vmin,
+                        const unsigned int vmax)
+{
+  if (vmin == 0 && vmax == 0)
+    return 0.;
+
+  if (vmin == 0)
+    vmin++;
+
+  if (vmin == vmax) /* do one Montgomery ladder for vmin */
+  {
+    double cost;
+    for (cost = 0; vmin % 2 == 0; vmin >>= 1, cost += opcost->dbl) ;
+    int b = nbits (vmin);
+    return cost + (b-1) * opcost->dadd + (b-1) * opcost->dbl;
+  }
+  else
+  {
+    double cost;
+    
+    /* 1. Do a Montgomery ladder to compute simultaneously vmin and vmin+1 */
+    int b = nbits (vmin);
+    if (b > 1 && ((vmin >> (b-2)) & 1) == 0) /* 2nd most signigicant bit is 0 */
+      cost = (b-1) * opcost->dadd + (b-1) * opcost->dbl;
+    else
+      cost = (b-1) * opcost->dadd + b * opcost->dbl;
+
+    /* 2. Compute all v in [vmin+2..vmax]. The cost of computing v is 1 DBL if v
+     * is even and v/2 >= vmin, 1 dADD otherwise.
+     */
+    if (2*vmin <= vmax)
     {
-      plan->d = 0;
-      plan->s1 = 0;
-      plan->S1 = NULL;
-      plan->pairs = NULL;
-      return;
+      if (vmin > 2) /* dADD until 2*vmin-1 */
+        cost += (vmin-2) * opcost->dadd;
+      unsigned int ndadd = (vmax-2*vmin+1)/2;
+      unsigned int ndbl = (vmax-2*vmin+2)/2;
+      if (vmin == 1)
+        ndbl--; /* if vmin=1, 2vmin=vmin+1, no need to do a DBL to compute it */
+      cost += ((double) ndadd) * opcost->dadd + ((double) ndbl) * opcost->dbl;
     }
+    else /* only dADD */
+      cost += (vmax-vmin-1) * opcost->dadd;
 
-  /* Choose stage 2 parameters */
+    /* Note: Not always optimal. For example, vmin=4 and vmax >= 6, we could
+     * replace, in the computation of v=6, one dADD by one DBL, because v=3 was
+     * computed during the Montgomery Ladder. For ECM on Montgomery curve, it
+     * would save one M, it is not worth writing the specific code for it !
+     */
 
+    return cost;
+  }
+}
 
-  /* Choose a value for d. Should depend on B2-B2min, for a start we 
-     fix d=210 */
-  d = 210;
-  plan->d = d;
-  not_in_d = 11; /* the smallest prime not in d */
-  
-  /* List of the j values for which we need to precompute V_j(x + 1/x) */
-  plan->s1 = (unsigned int) 
-    eulerphi_ul ((unsigned long) d) / 2;
-  plan->S1 = malloc (plan->s1 * sizeof (int));
-  ASSERT (plan->S1 != NULL);
-  for (i = 0, j = 1; j < d / 2; j += 2 /* Assumes 2|d */)
-    if (gcd_ul ((unsigned long) j, (unsigned long) d) == 1UL)
-      plan->S1[i++] = j;
-  ASSERT (i == plan->s1);
+/* Return the cost of the stage2 with parameters B1, B2, w and given the cost of
+ * operations.
+ * If plan is not NULL, it is set to the computed plan.
+ * If plan is NULL, only the cost is computed and returned.
+ *
+ * The unit for the costs of operations is a modular multiplication.
+ * The comments of this function are written for an additive group.
+ * Assume:
+ *    w > 0   (there is an assert that checks this condition)
+ *    6 | w   (there is an assert that checks this condition)
+ *    w is coprime with all primes in ]B1, B2] (no assert checks this condition)
+ *
+ * P := { p | p prime and B1 < p <= B2 }
+ * U := { u | u in Z, 1 <= u <= w/2 and gcd (u, w) == 1 }
+ * V := { round(p/w) | p in P }
+ * UV := { (p-w*round(p/w), round(p/w)) | p in P }
+ *
+ * ECM:
+ *  - Q is the input point of stage2 (output of stage1)
+ *  - Q is of order q=u+/-v*w => X(uQ)Z(vwQ) - X(vwQ)Z(uQ) = 0 mod q (due to
+ *    the formula for differential addition for Montgomery curve)
+ *  - The goal of step 2 is to compute the gcd with N of the following product:
+ *      m := prod_{(u,v) in UV}{ X(uQ)Z(vwQ) - X(vwQ)Z(uQ) }
+ *    We modify the points in order for all the points to have the same
+ *    Z-coordinate and compute:
+ *      m := Z * prod_{(u,v) in UV}{ X(uQ) - X(vwQ) }
+ *         where Z is the common Z-coordinate of all points
+ *
+ * P-/+1:
+ *  - X is the input of stage2 (output of stage1)
+ *  - X is of order q=u+/-v*w => V_u (X) - V_vw (X) = 0 mod q (see section 4.7
+ *    of Alexander Kruppa's thesis)
+ *  - The goal of step 2 is to compute the gcd with N of the following product:
+ *      m := prod_{(u,v) in UV}{ V_u(X) - V_vw(X) }
+ *
+ * Improvment: (u,v) and (-u,v) contribute to the same term in the product 
+ * UV := { (u,v) in UxV | v*w+u or v*w-u in P }
+ *
+ * Improvment: let (u,v) in UV, p and p in P such that v*w+/-u = p and
+ *             v*w-/+u is a multiple of q. Then we can remove the pair
+ *             corresponding to q in UV (if it is not needed for another prime).
+ *
+ * We use these two ideas to try and minimize the size of the set UV.
+ *
+ *
+ * In this function, we only considered the largest factor of v*w+/-u in the
+ * interval ]B1,B2]. If B1^2 >= B2+w, then v*w+/-u can have at most 1 prime
+ * factor in this interval and this function is optimal (in the sense that it
+ * minimize #UV while maximizing vmin). If B1^2 < B2+w, this function will still
+ * compute a correct stage2 plan but it may not be optimal.
+ *
+ * Note: the returned cost is not optimal for w <= 30, due to the way the baby
+ * step is performed. In practice, we will never use such small value of w.
+ */
+static double
+stage2_one_w (stage2_plan_t *plan, const unsigned int B1, const unsigned int B2,
+              const unsigned int w, const stage2_cost_t *opcost,
+              const unsigned char *primes, const unsigned int nprimes,
+              const unsigned int *largest_factor, const int verbose)
+{
+  ASSERT_ALWAYS (w > 0);
+  ASSERT_ALWAYS (w % 6 == 0);
+  /* We assume 6|w in the baby step, and 2|w in different part of the code */
+
+  unsigned int U_len, vmin, vmax, UV_len, nwanted;
+  unsigned int *U = NULL, *UV = NULL;
+  unsigned char *wanted, *nuv_per_p;
+  double cost;
+  unsigned int i, j, p; /* loop variables */
 
   if (verbose)
-    {
-      printf ("S_1 = {");
-      for (i = 0; i < plan->s1; i++)
-	printf ("%d%s", plan->S1[i], (i + 1 < plan->s1) ? ", " : "");
-      printf ("}\n");
-    }
-  
-  /* Preliminary choice for the smallest and largest i value we might need.
-     The smallest may increase yet due to pairing with composite values. */
-  /* p > B2min, so i*d > B2min - max(S_1), or i >= ceil((B2min - max(S_1)) / d).
-     For now we have max(S_1) < d/2, so we can write
-     i >= floor((B2min + d/2) / d)*/
-  /* p <= B2, so i*d +- j <= B2, so i*d - j <= B2, so i*d <= B2 + max(S_1),
-     or i <= floor((B2 + max(S_1)) / d). */
-  min_i = (B2min + d/2) / d;
-  max_i = (B2 + d/2) / d;
-  if (verbose)
-      printf ("Initial choice for min_i = %u, max_i = %u\n", min_i, max_i);
+    printf ("# %s: w=%u\n", __func__, w);
 
-  /* Generate the list of pairs for stage 2 */
-  /* For each prime B2min < p <= B2, we write p = id-j, j in S1, 
-     and write into *pairs the index of j within the S_2 array. 
-     When it's time to increase i, NEXT_D is written to *pairs. 
-     NEXT_PASS is the signal to end stage 2. */
+  /* Set the list of wanted primes (copy the list of primes) */
+  wanted = (unsigned char *) malloc ((B2+1) * sizeof (unsigned char));
+  ASSERT_ALWAYS (wanted != NULL);
+  memcpy (wanted, primes, (B2+1) * sizeof (unsigned char));
+  nwanted = nprimes;
+
+  /* We need to unsigned int for each (u,v) pair. We will need at most as many
+   * (u,v) pairs as the number of primes in ]B1,B2].
+   * We do not need to store the (u,v) pairs if we are not going to build the
+   * plan. We need the number of (u,v) pairs to compute the cost.
+   * The ith (u,v) pair is stored at indexes 2*i and 2*i+1 (u at even index).
+   */
+  if (plan)
+  {
+    UV = (unsigned int *) malloc (2 * nprimes * sizeof (unsigned int));
+    ASSERT_ALWAYS (UV != NULL);
+  }
+  UV_len = 0;
+
+  /* Compute U */
+  U_len = (unsigned int) eulerphi_ul ((unsigned long) w) / 2;
+  U = malloc (U_len * sizeof (unsigned int));
+  ASSERT_ALWAYS (U != NULL);
+  for (i = 0, j = 1; j < w / 2; j += 2) /* we know that 2 | w */
+    if (gcd_ul ((unsigned long) j, (unsigned long) w) == 1UL)
+      U[i++] = j;
+  ASSERT_ALWAYS (i == U_len);
+  if (verbose)
+  {
+    printf ("# %s: U = { %u", __func__, U[0]);
+    for (unsigned int k = 1; k < U_len; k++)
+      printf (", %u", U[k]);
+    printf (" }\n# %s: #U = %u\n", __func__, U_len);
+  }
+
+  /* upper bound on V */
+  for (p = B2; primes[p] == 0; p--); /* set p to the largest prime <= B2 */
+  vmax = compute_v (p, w);
+
+  if (verbose)
+    printf ("# %s: upper bound on V: vmax=%u\n", __func__, vmax);
+
+  /* Count for each prime p in ]B1, B2], the number of (u,v) pairs that could be
+   * use for this prime. We saturate at 255 because we only need this to
+   * identify primes with only one (u,v) pair.
+   */
+  nuv_per_p = (unsigned char *) malloc ((B2+1) * sizeof (unsigned char));
+  ASSERT_ALWAYS (nuv_per_p != NULL);
+  memset (nuv_per_p, 0, (B2+1) * sizeof (unsigned char));
+
+  for (unsigned int v = 0; v <= vmax; v++)
+  {
+    for (unsigned int k = 0; k < U_len; k++)
+    {
+      unsigned int u = U[k], n, f;
+      
+      n = v*w+u;
+      f = largest_factor[n];
+      if (nuv_per_p[f] != 0xff) /* saturate at 255 */
+        nuv_per_p[f]++;
+      
+      n = (v*w > u) ? v*w-u : 0; /* we chech that v*w-u > 0 */
+      f = largest_factor[n];
+      if (nuv_per_p[f] != 0xff) /* saturate at 255 */
+        nuv_per_p[f]++;
+    }
+  }
+
+  /* pass 1: for all primes covered by one (u,v) pair, add this pair */
+  vmin = vmax;
+  for (p = B1; p <= B2; p++)
+  {
+    /* check primes[p] because an (u,v) pair can cover up to 2 primes */
+    if (wanted[p] && nuv_per_p[p] == 1)
+    {
+      unsigned int o, f, u, v;
+
+      wanted[p] = 0; /* remove prime from wanted list */
+      nwanted--;
+
+      split_uv (&u, &v, p, w);
+      if (verbose > 1)
+        printf ("# %s: pass 1: (%u,%u) is the only pair covering %u\n",
+                __func__, u, v, p);
+
+      o = (p == v*w+u) ? ((v*w > u) ? v*w-u : 0) : v*w+u;
+
+      f = largest_factor[o];
+      if (wanted[f])
+      {
+        wanted[f] = 0; /* remove prime from wanted list */
+        nwanted--;
+        if (verbose > 1)
+          printf ("# %s: pass 1: (%u,%u) also covers %u [as a factor of %u]\n",
+                  __func__, u, v, f, o);
+      }
+
+      vmin = (v < vmin) ? v : vmin;
+
+      if (UV) /* add the (u,v) pair in the list (if needed) */
+      {
+        UV[2*UV_len] = u;
+        UV[2*UV_len+1] = v;
+      }
+      UV_len++;
+    }
+  }
+
+  if (verbose > 1)
+  {
+    printf ("# %s: after pass 1: #UV=%u\n", __func__, UV_len);
+    printf ("# %s: after pass 1: #covered primes=%u (out of %u)\n", __func__,
+            nprimes-nwanted, nprimes);
+    printf ("# %s: after pass 1: vmin=%u\n", __func__, vmin);
+  }
+
+  /* pass 2: add all (u, v) pairs, with v >= vmin, that covered 2 remaining
+   *         primes.
+   * pass 3: add all (u, v) pairs, with v >= vmin, that covered 1 remaining
+   *         prime.
+   * Then we decreased vmin by 1, pass 4 and 5 are identical to pass 2 and 3.
+   * We continue to decrease vmin, until we have all the primes that we wanted.
+   * In practice pass 2 and 3 are enough.
+   */
+  for (unsigned int pass = 2; nwanted; pass++)
+  {
+    unsigned int vstart = (pass == 2 || pass == 3) ? vmax : vmin;
+    unsigned int s = (pass % 2) ? 1 : 2;
+
+    for (unsigned int v = vstart; v >= vmin && nwanted; v--)
+    {
+      for (unsigned int k = 0; k < U_len && nwanted; k++)
+      {
+        unsigned int nc, f1, f2, u = U[k];
+        unsigned int n1 = v*w+u, n2 = (v*w > u) ? v*w-u : 0;
+        f1 = largest_factor[n1];
+        f2 = largest_factor[n2];
+        nc = (wanted[f1] && wanted[f2]) ? 2 : (wanted[f1] || wanted[f2]);
+        if (nc == s)
+        {
+          if (verbose > 1 && s == 2)
+            printf ("# %s: pass %u: (%u,%u) covers 2 primes: %u [as a factor "
+                    "of %u] and %u [as a factor of %u]\n", __func__, pass, u, v,
+                    f1, n1, f2, n2);
+          else if (verbose > 1) /* s == 1 */
+            printf ("# %s: pass %u: (%u,%u) covers 1 prime: %u [as a factor of "
+                    "%u]\n", __func__, pass, u, v, wanted[f1] ? f1 : f2,
+                    wanted[f1] ? n1 : n2);
+
+          wanted[f1] = wanted[f2] = 0; /* remove prime(s) from wanted list */
+          nwanted -= nc;
+
+          if (UV) /* add the (u,v) pair in the list (if needed) */
+          {
+            UV[2*UV_len] = u;
+            UV[2*UV_len+1] = v;
+          }
+          UV_len++;
+        }
+      }
+      if (v == 0) /* we need this in the case where vmin = 0 */
+        break;
+    }
+
+    if (verbose > 1)
+    {
+      printf ("# %s: after pass %u: #UV=%u\n", __func__, pass, UV_len);
+      printf ("# %s: after pass %u: #covered primes=%u (out of %u)\n", __func__,
+              pass, nprimes-nwanted, nprimes);
+    }
+    
+    if (nwanted && s == 1)
+    {
+      ASSERT_ALWAYS (vmin > 0);
+      vmin--;
+      if (verbose)
+        printf ("# %s: decreasing vmin to %u\n", __func__, vmin);
+    }
+  }
+
+  if (verbose)
+  {
+    printf ("# %s: lower bound on V: vmin=%u\n", __func__, vmin);
+    printf ("# %s: #UV=%u\n", __func__, UV_len);
+    printf ("# %s: nprimes/#UV = %.2f\n", __func__, nprimes/(double) UV_len);
+  }
+
+#ifndef NDEBUG
+  for (unsigned int i = B1; i <= B2; i++)
+  {
+    if (wanted[i])
+      fprintf (stderr, "Error, prime %u is still marked as 'wanted'\n", i);
+    ASSERT (wanted[i] == 0);
+  }
+#endif
+
+  /* set plan if not NULL */
+  if (plan)
+  {
+    plan->B2 = B2;
+    plan->w = w;
+    plan->U_len = U_len;
+    plan->vmin = vmin;
+    plan->vmax = vmax;
+    plan->U = (unsigned int *) malloc (U_len * sizeof (unsigned int));
+    ASSERT_ALWAYS (plan->U != NULL);
+    memcpy (plan->U, U, U_len * sizeof (unsigned int));
+
+    /* Alloc one unsigned int for each UV pair, one for each NEXT_D marker and
+     * one for the final NEXT_PASS marker.
+     */
+    plan->pairs = (unsigned int *)
+                          malloc ((UV_len+vmax-vmin+1) * sizeof (unsigned int));
+    ASSERT_ALWAYS (plan->pairs != NULL);
   
-  /* Make array where entry at index p, prime p with B2min < p <= B2, are 
-     set to 1. The largest value we can write as i*d+j with i < max_i and 
-     j < d/2 is max_i * d + d/2 - 1 */
-  primes = malloc (max_i * d + d/2);
-  ASSERT (primes != NULL);
-  memset (primes, 0, max_i * d + d/2);
-  nr_primes = 0;
+    /* sort by increasing v then increasing u */
+    qsort (UV, UV_len, 2*sizeof (unsigned int), cmp_uint2);
+    ASSERT_ALWAYS (UV[1] == vmin);
+    unsigned int idx = 0, vprev = vmin;
+    unsigned int u_idx = 0; /* we store the index of u not the value of u */
+    for (unsigned int k = 0; k < UV_len; k++)
+    {
+      unsigned int u = UV[2*k], v = UV[2*k+1];
+      if (v != vprev)
+      {
+        if (verbose > 1)
+          printf ("# %s: pairs[%u] = PAIR_INCR_V\n", __func__, idx);
+        plan->pairs[idx++] = PAIR_INCR_V;
+        vprev = v;
+        u_idx = 0;
+      }
+      for ( ; U[u_idx] != u ; u_idx++) ; /* u values are in increasing order */
+      if (verbose > 1)
+        printf ("# %s: pairs[%u] = %u [ corresponds to (u,v)=(%u,%u) ]\n",
+                __func__, idx, u_idx, u, v);
+      plan->pairs[idx++] = u_idx;
+    }
+    if (verbose > 1)
+      printf ("# %s: pairs[%u] = PAIR_END\n", __func__, idx);
+    plan->pairs[idx++] = PAIR_END;
+  }
+
+  /* Compute cost */
+  unsigned int V_len = vmax - vmin + 1;
+  double c;
+  cost = stage2_baby_step_cost (opcost, w);
+  if (verbose > 1)
+    printf ("# %s: cost of baby step: %f\n", __func__, cost);
+
+  c = stage2_giant_step_cost (opcost, vmin, vmax);
+  cost += c;
+  if (verbose > 1)
+    printf ("# %s: cost of giant step: %f\n", __func__, c);
+  
+  if (opcost->is_ecm)
+  {
+    c = 4*(U_len + V_len) - 6; /* see ecm.c */
+    cost += c;
+    if (verbose > 1)
+      printf ("# %s: cost of homogenization of coordinates: %f\n", __func__, c);
+  }
+
+  c = UV_len;
+  cost += c;
+  if (verbose > 1)
+    printf ("# %s: cost of computing UV: %f\n", __func__, c);
+
+  if (verbose)
+    printf ("# %s: total cost: %f\n", __func__, cost);
+  
+  /* Free memory */
+  free (wanted);
+  free (nuv_per_p);
+  free (UV);
+  free (U);
+
+  return cost;
+}
+
+/* w_list contains 6 and all w < 1000 such that w = 6 * a * b * c with
+ * a in {1, 2, 3}, b in {1, 5, 7, 11}, c in {5, 7, 11, 13, 17, 19} and c > b
+ */
+#define w_list_len 35
+static unsigned int w_list[w_list_len] = { 6, 30, 42, 60, 66, 78, 84, 90, 102,
+  114, 126, 132, 156, 198, 204, 210, 228, 234, 306, 330, 342, 390, 420, 462,
+  510, 546, 570, 630, 660, 714, 780, 798, 858, 924, 990 };
+
+void 
+stage2_make_plan (stage2_plan_t *plan, const unsigned int B1, 
+                  const unsigned int B2, const stage2_cost_t *opcost,
+                  const int verbose)
+{
+  if (B2 <= B1)
+  {
+    memset (plan, 0, sizeof (stage2_plan_t));
+    plan->B2 = B2;
+    return;
+  }
+
+  unsigned char *primes = NULL;
+  unsigned int p, nprimes, wmax, wmax_idx;
+  unsigned int *largest_factor = NULL;
+
+  if (verbose)
+    printf ("# %s: B1=%u B2=%u opcost={.dadd=%f, .dbl=%f .is_ecm=%d}\n",
+            __func__, B1, B2, opcost->dadd, opcost->dbl, opcost->is_ecm);
+
+  /* Compute wmax:
+   *    wmax <= B1^2-B2 (see comments above stage2_one_w)
+   *    wmax <= 6*B1 to ensure that w is coprime with all primes in ]B1, B2]
+   */
+  for (wmax_idx = w_list_len-1 ; wmax_idx > 0 ; wmax_idx--)
+    if (w_list[wmax_idx] <= 6*B1 && w_list[wmax_idx] <= B1*B1-B2)
+      break;
+  wmax = w_list[wmax_idx];
+  if (verbose)
+    printf ("# %s: wmax=%u\n", __func__, wmax);
+
+  /* Compute list of primes B1 < p <= B2
+   * primes[i] = 1 if and only if i is a prime and B1 < i <= B2.
+   *
+   * Compute largest factor of all integer n such that B1 < n < B2+wmax
+   * largest_factor[n] = f if f is the largest factor of n and B1 < f <= B2
+   *                   = 0 otherwise
+   */
+  primes = (unsigned char *) malloc ((B2+1) * sizeof (unsigned char));
+  ASSERT_ALWAYS (primes != NULL);
+  memset (primes, 0, (B2+1) * sizeof (unsigned char));
+
+  largest_factor = (unsigned int *) malloc ((B2+wmax) * sizeof (unsigned int));
+  ASSERT_ALWAYS (largest_factor != NULL);
+  memset (largest_factor, 0, (B2+wmax) * sizeof (unsigned int));
 
   prime_info pi;
   prime_info_init (pi);
-  for (p = 2; p <= B2min; p = (unsigned int) getprime_mt (pi));
-  /* Now p is smallest prime > B2min */
-  for ( ; p <= B2; p = getprime_mt (pi))
-    {
-      nr_primes++;
-      primes[p] = 1;
-    }
-  prime_info_clear (pi);
-  
-  /* We need at most one pair per prime, plus the number of NEXT_D and 
-     NEXT_PASS codes */
-  plan->pairs = 
-    malloc ((nr_primes + (B2 - B2min) / d + 1) * sizeof (char));
-  ASSERT (plan->pairs != NULL);
-  
-
-  /* Lower max_i so that max_i * d +- j, 0 < j < d/2, actually includes 
-     any primes */
-  for (i = max_i; i >= min_i; i--)
-    {
-      for (m = 0; m < plan->s1; m++)
-        {
-	  j = plan->S1[m];
-          if ((i*d >= j && primes[i*d - j]) || primes[i*d + j])
-	    {
-	      if (verbose)
-	        {
-		  printf("Final max_i = %u, found prime %u or %u\n",
-			 i, i*d - j, i*d + j);
-	        }
-	      break;
-	    }
-	}
-      if (m < plan->s1)
-	break;
-    }
-  max_i = i;
-
-  n = 0;
-  nr_pairs = 0;
-  need_NEXT_D = 0;
-  
-  if (composite_pairing)
+  for (p = 2; p <= B1; p = (unsigned int) getprime_mt (pi));
+  /* Now p is the smallest prime > B1 */
+  for (nprimes = 0 ; p <= B2; p = getprime_mt (pi), nprimes++)
   {
-      /* Do a pass over the primes in reverse, flagging off those primes
-	 that are included as composite values id+-j, where id-+j is prime.
-	 The smallest prime not in d is not_in_d, so any proper divisor of
-	 i*d+-j is at most (i*d+d/2+1) / not_in_d */
-      for (p = B2; p >= (max_i * d + d/2 - 1) / not_in_d; p--)
-      {
-	  if (primes[p])
-	  {
-	      unsigned int q, r;
-	      int sj;
-	      /* p = id + j or id - j with 0 < j < d/2 */
-	      j = p % d;
-	      sj = (int) j - ((j > d/2) ? (int) d : 0);
-	      /* p = i*d + sj, q = i*d - sj = p - 2*sj */
-	      if ((int)p < 2*sj)
-		  continue;
-	      q = (int) p - 2*sj;	
-	      
-	      if (!primes[q])      /* If q is not a prime, see if a stage 2  
-				      prime divides q */
-	      {
-		  r = find_prime_div (q, not_in_d, primes);
-		  if (r)
-		  {
-		      if (verbose)
-			  printf ("Including %u as factor of %u = %u * %u "
-				  "+ %d which pairs with prime %u = %u"
-				  " * %u + %d\n", 
-				  r, q, (p - sj) / d, d, -sj, p, 
-				  (p-sj)/d, d, sj);
-		      primes[r] = 0;
-		  }
-	      }
-	  }
-      }
-     
-      /* Some small primes may remain. Go through all possible (i,j)
-	 values in order of decreasing id+j, and choose those that
-	 cover two small primes */
-      for (i = max_i; i >= min_i && i > 0; i--)
-      {
-	  for (m = 0; m < plan->s1; m++)
-	  {
-	      unsigned int q;
-	      j = plan->S1[m];
-	      p = i * d - j;
-	      q = i * d + j;
-	      if (!primes[q] && !primes[q])
-	      {
-		  unsigned int r1, r2;
-		  r1 = find_prime_div (p, not_in_d, primes);
-		  r2 = find_prime_div (q, not_in_d, primes);
-		  if (r1 && r2)
-		  {
-		      primes[p] = 1; /* Flag on one of the two "primes" that
-					include these two composite values */
-		      primes[r1] = 0;
-		      primes[r2] = 0;
-		      if (verbose)
-			  printf ("Including %u * %u +- %u which includes "
-				  "%u and %u as factors\n", i, d, j, r1, r2);
-		  }
-	      }
-	  }
-      }
-
-      /* Some small primes may still remain. Go through all possible (i,j)
-	 values in order of decreasing id+j again, and choose those that
-	 cover at least one prime */
-     for (i = max_i; i >= min_i && i > 0; i--)
-      {
-	  for (m = 0; m < plan->s1; m++)
-	  {
-	      unsigned int q;
-	      j = plan->S1[m];
-	      p = i * d - j;
-	      q = i * d + j;
-	      if (!primes[p] && !primes[q])
-	      {
-		  unsigned int r1, r2;
-		  r1 = find_prime_div (p, not_in_d, primes);
-		  r2 = find_prime_div (q, not_in_d, primes);
-		  if (r1 || r2)
-		  {
-		      primes[p] = 1; /* Flag on one of the two "primes" that
-					include this composite value */
-		      primes[r1] = 0;
-		      primes[r2] = 0;
-		      if (verbose)
-			  printf ("Including %u * %u +- %u which includes "
-				  "%u as factors\n", i, d, j, 
-				  (r1 == 0) ? r2 : r1);
-		  }
-	      }
-	  }
-      }
+    primes[p] = 1;
+    for (unsigned int kp = p; kp < B2+wmax; kp += p)
+      largest_factor[kp] = p;
   }
-  
-  /* Increase min_i so that min_i * d +- j, 0 < j < d/2, actually includes 
-     any primes */
-  for (i = min_i; i <= max_i; i++)
-    {
-      for (m = 0; m < plan->s1; m++)
-        {
-	  j = plan->S1[m];
-          if ((i*d >= j && primes[i*d - j]) || primes[i*d + j])
-	    {
-	      if (verbose)
-	        {
-		  printf("Final min_i = %u, found prime %u or %u\n",
-			 i, i*d - j, i*d + j);
-	        }
-	      break;
-	    }
-	}
-      if (m < plan->s1)
-	break;
-    }
-  min_i = i;
+  prime_info_clear (pi);
 
-  
-  /* For the remaining primes, write the required (i,j)-pairs to a list */
-
-  for (i = min_i; i <= max_i; i++)
-    {
-      for (m = 0; m < plan->s1; m++)
-        {
-          j = plan->S1[m];
-          /* See if this is a i*d +- j we need to include */
-          if ((i*d >= j && primes[i*d - j]) || primes[i*d + j])
-            {
-	      while (need_NEXT_D)
-		{
-		  plan->pairs[n++] = NEXT_D;
-		  if (verbose)
-		    printf ("Adding NEXT_D to list\n");
-		  need_NEXT_D--;
-		}
-	      
-	      if (verbose)
-		{
-		  printf ("Adding %d*d +- %d (=S1[%d]) to list, includes "
-			  "primes ", i, j, m);
-		  if (i*d >= j && primes[i*d - j])
-		    printf ("%d ", i*d - j);
-		  if (i*d + j <= B2 && primes[i*d + j])
-		    printf ("%d", i*d + j);
-		  printf ("\n");
-		}
-              ASSERT (m < 255);
-              plan->pairs[n++] = (unsigned char) m;
-	      nr_pairs++;
-              if (i*d >= j)
-                primes[i*d - j] = 0;
-
-              if (i*d + j <= B2)
-                primes[i*d + j] = 0;
-            }
-        }
-      
-      need_NEXT_D++;
-    }
-  plan->pairs[n++] = NEXT_PASS;
-  if (verbose)
-    printf ("Adding NEXT_PASS to list\n");
-  plan->i0 = min_i;
-  plan->i1 = max_i + 1;
-  
-  if (verbose)
-    {
-      printf ("pairs = ");
-      for (i = 0; i < n; i++)
-	{
-	  if (plan->pairs[i] == NEXT_D)
-	    printf ("NEXT_D ");
-	  else if (plan->pairs[i] == NEXT_PASS)
-	    printf ("NEXT_PASS ");
-	  else
-	    printf ("%d ", plan->pairs[i]);
-	}
-      printf ("\n");
-    }
-  
-  if (verbose)
-    printf ("Used %u pairs to include %u primes, avg. %.2f primes/pair\n", 
-	    nr_pairs, nr_primes, (double)nr_primes / (double) nr_pairs);
-
-  for (i = B2min + 1; i <= B2; i++)
-    {
+  if (verbose > 1)
+  {
+    printf ("# %s: stage2 primes:", __func__);
+    for (unsigned int i = B1; i <= B2; i++)
       if (primes[i])
-	{
-	  fprintf (stderr, "Error, prime %d is still set\n", i);
-	  abort ();
-	}
-    }
+        printf (" %u", i);
+    printf ("\n");
+  }
+  if (verbose)
+    printf ("# %s: nprimes=%u\n", __func__, nprimes);
 
+  /* find the w with the minimun cost */
+  double best_cost = 0.;
+  unsigned int best_w = 0;
+  for (unsigned int w_idx = 0; w_idx < wmax_idx; w_idx++)
+  {
+    double cost = stage2_one_w (NULL, B1, B2, w_list[w_idx], opcost, primes,
+                                nprimes, largest_factor, verbose);
+    if (!best_w || cost < best_cost)
+    {
+      best_cost = cost;
+      best_w = w_list[w_idx];
+    }
+  }
+  if (verbose)
+    printf ("# %s: best cost %f (with w=%u)\n", __func__, best_cost, best_w);
+  ASSERT_ALWAYS (best_w != 0);
+
+  /* write the plan */
+  stage2_one_w (plan, B1, B2, best_w, opcost, primes, nprimes, largest_factor,
+                verbose);
+
+  /* free memory */
+  free (largest_factor);
   free (primes);
 }
 
@@ -397,10 +619,10 @@ void stage2_clear_plan (stage2_plan_t *plan)
 {
   free (plan->pairs);
   plan->pairs = NULL;
-  free (plan->S1);
-  plan->S1 = NULL;
-  plan->s1 = 0;
-  plan->i0 = 0;
-  plan->i1 = 0;
-  plan->d = 0;
+  free (plan->U);
+  plan->U = NULL;
+  plan->U_len = 0;
+  plan->vmin = 0;
+  plan->vmax = 0;
+  plan->w = 0;
 }

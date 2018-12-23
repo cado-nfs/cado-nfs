@@ -46,9 +46,16 @@ chmod a+rx "${WORKDIR}"
 # create las command line from environment variables, moan if any is
 # missing.
 args=()
-for var in poly fb I lim{0,1} lpb{0,1} mfb{0,1} ; do
+for var in poly I lim{0,1} lpb{0,1} mfb{0,1} ; do
     args=("${args[@]}" -$var $(eval "echo \${$var:?missing}"))
 done
+
+if [ "$fb0" ] ; then args=("${args[@]}" -fb0 "$fb0") ; fi
+if [ "$fb1" ] ; then args=("${args[@]}" -fb1 "$fb1") ; fi
+if ! [ "$fb0" ] && ! [ "$fb1" ] ; then
+    echo "neither fb nor fb0/fb1 provided" >&2 ; exit 1
+fi
+
 
 for var in fbc lambda{0,1} ncurves{0,1} descent_hint bkmult bkthresh{,1} ; do
     # Those are optional
@@ -116,8 +123,8 @@ run "$LAS_BINARY" "${args[@]}" "${end[@]}" -out "${RELS}" "$@"
 checks_passed=0
 
 if [ "$REL_COUNT" ] ; then
-    if ! tail "$RELS" | grep "Total $REL_COUNT reports" ; then
-        echo "Expected $REL_COUNT reports, got: `tail -1 $RELS`" >&2
+    if ! tail -n 100 "$RELS" | grep "Total $REL_COUNT reports" ; then
+        echo "Expected $REL_COUNT reports, got: `tail -n 100 $RELS | grep 'Total.*reports'`" >&2
         exit 1
     fi
     let checks_passed+=1

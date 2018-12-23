@@ -1,57 +1,41 @@
 #include "cado.h"
 #include <stdlib.h>
-#include <string.h>
 #include "las-report-stats.hpp"
+#include "verbose.h"
 
-void las_report_init(las_report_ptr p)
+/* declared in las.cpp */
+extern int trialdiv_first_side;
+
+static double ratio(double a, unsigned long b)
 {
-    memset(p, 0, sizeof(las_report));
-    p->report_sizes = (long unsigned int (*)[256]) malloc(sizeof(unsigned long) << 16);
-    p->survivor_sizes = (long unsigned int (*)[256]) malloc(sizeof(unsigned long) << 16);
+    return b ? a/b : 0;
 }
 
-void las_report_clear(las_report_ptr p)
+void las_report::display_survivor_counters() const
 {
-    free(p->report_sizes);
-    free(p->survivor_sizes);
-    memset(p, 0, sizeof(las_report));
-}
-
-void las_report_copy(las_report_ptr p, las_report_ptr q)
-{
-    unsigned long (*ss)[256] = p->survivor_sizes;
-    unsigned long (*rs)[256] = p->report_sizes;
-    memcpy(p, q, sizeof(las_report));
-    p->survivor_sizes = ss;
-    p->report_sizes = rs;
-    memcpy(p->survivor_sizes, q->survivor_sizes, sizeof(unsigned long) << 16);
-    memcpy(p->report_sizes, q->report_sizes, sizeof(unsigned long) << 16);
-}
-
-void las_report_accumulate_and_clear(las_report_ptr p, las_report_ptr q)
-{
-    unsigned long (*ss)[256] = q->survivor_sizes;
-    unsigned long (*rs)[256] = q->report_sizes;
-    p->reports += q->reports;
-    unsigned long * ps = (unsigned long*) & p->survivors;
-    unsigned long * qs = (unsigned long*) & q->survivors;
-    for(size_t i = 0 ; i < sizeof(p->survivors) / sizeof(unsigned long) ; i++) {
-        ps[i] += qs[i];
-    }
-    p->ttbuckets_fill  += q->ttbuckets_fill;
-    p->ttbuckets_apply += q->ttbuckets_apply;
-    p->ttf     += q->ttf;
-    p->ttcof     += q->ttcof;
-    for(int side = 0 ; side < 2 ; side++) {
-        p->tn[side]  += q->tn[side];
-    }
-    for (int i1 = 0; i1 < 256; i1++) {
-        for (int i2 = 0; i2 < 256; i2++) {
-            p->survivor_sizes[i1][i2] += q->survivor_sizes[i1][i2];
-            p->report_sizes[i1][i2] += q->report_sizes[i1][i2];
+    auto const& S(survivors);
+    verbose_output_print(0, 2, "# survivors before_sieve: %lu\n", S.before_sieve);
+    verbose_output_print(0, 2, "# survivors after_sieve: %lu (ratio %.2e)\n", S.after_sieve, ratio(S.after_sieve, S.before_sieve));
+    verbose_output_print(0, 2, "# survivors not_both_even: %lu\n", S.not_both_even);
+    verbose_output_print(0, 2, "# survivors not_both_multiples_of_p: %lu\n", S.not_both_multiples_of_p);
+    unsigned long s = S.not_both_multiples_of_p;
+    for(int pside = 0 ; pside < 2 ; pside++) {
+        int side = trialdiv_first_side ^ pside;
+        unsigned long sx = S.trial_divided_on_side[side];
+        ASSERT_ALWAYS(s == sx || sx == 0);
+        if (s && !sx) {
+            verbose_output_print(0, 2, "# trial_division skipped on side %d: %lu survivors kept\n", side, s);
+        } else {
+            ASSERT_ALWAYS(s == sx);
+            sx = S.check_leftover_norm_on_side[side];
+            verbose_output_print(0, 2, "# survivors trial_divided_on_side[%d]: %lu\n", side, sx);
+            verbose_output_print(0, 2, "# survivors check_leftover_norm_on_side[%d]: %lu (%.1f%%)\n", side, sx, 100 * ratio(sx, s));
+            s = sx;
         }
     }
-    memset(q, 0, sizeof(las_report));
-    q->survivor_sizes = ss;
-    q->report_sizes = rs;
+    ASSERT_ALWAYS(S.enter_cofactoring == s);
+    verbose_output_print(0, 2, "# survivors enter_cofactoring: %lu\n", S.enter_cofactoring);
+    verbose_output_print(0, 2, "# survivors cofactored: %lu (%.1f%%)\n", S.cofactored, 100.0 * ratio(S.cofactored, S.enter_cofactoring));
+    verbose_output_print(0, 2, "# survivors smooth: %lu\n", S.smooth);
 }
+

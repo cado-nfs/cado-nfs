@@ -69,15 +69,15 @@ if __name__ == '__main__':
     # up do bizarre things with duplicated keys if we resume from a
     # parameter snapshot file *and* we have something on the command
     # line.
-    if parameters.get_simple("database", None):
+    if parameters.get_or_set_default("database", None):
         parameters.replace("database", db.uri_without_credentials)
         # do this so that the parameter does not appear unused.
-        parameters.get_simple("database")
+        parameters.get_or_set_default("database")
 
 
     # well, this *must* exist, right ?
-    name = parameters.get_simple("tasks.name")
-    wdir = parameters.get_simple("tasks.workdir")
+    name = parameters.get_or_set_default("tasks.name")
+    wdir = parameters.get_or_set_default("tasks.workdir")
     
     # Add a logger to capture the command lines of programs we run
     cmdfilename = os.path.join(wdir, name + ".cmd")
@@ -136,24 +136,28 @@ if __name__ == '__main__':
     if not dlp:
         print(" ".join(factors))
     else:
-        logger.info("If you want to compute a new target, run %s %s target=<target>", sys.argv[0], snapshot_filename)
         if checkdlp:
             p = int(factors[0])
             ell = int(factors[1])
             log2 = int(factors[2])
             log3 = int(factors[3])
+            logger.info("Checking that log(2) and log(3) are consistent...")
+            logger.info("  p = " + str(p))
+            logger.info("  ell = " + str(ell))
+            logger.info("  log2 = " + str(log2))
+            logger.info("  log3 = " + str(log3))
             assert (p-1) % ell == 0
             assert pow(3, log2*((p-1) // ell), p) == pow(2, log3*((p-1) // ell), p)
-            print("p = " + str(p))
-            print("ell = " + str(ell))
-            print("log2 = " + str(log2))
-            print("log3 = " + str(log3))
-            print("The other logarithms of the factor base elements are in %s" %
-                    factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
             if target != 0:
                 logtarget = int(factors[4])
+                logger.info("Also check log(target) vs log(2) ...")
                 assert pow(target, log2*((p-1) // ell), p) == pow(2, logtarget*((p-1) // ell), p)
-                print("target = " + str(target))
-                print("log(target) = " + str(logtarget))
         else:
-            print("No check was performed. Logarithms of the factor base elements are in %s" % factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
+            logger.info("No check was performed. Logarithms of the factor base elements are in %s" % factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
+        if target != 0:
+            logtarget = int(factors[4])
+            logger.info("target = " + str(target))
+            logger.info("log(target) = " + str(logtarget))
+            print(str(logtarget))
+        logger.info("If you want to compute a new target, run %s %s target=<target>", sys.argv[0], snapshot_filename)
+

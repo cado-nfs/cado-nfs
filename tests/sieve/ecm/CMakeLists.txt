@@ -20,6 +20,9 @@ cado_divert_test(test_factor ecm_11   ${testbench_path} ${CMAKE_CURRENT_SOURCE_D
 cado_divert_test(test_factor ecmm12_2 ${testbench_path} ${CMAKE_CURRENT_SOURCE_DIR}/test_factor_ecmm12_2_100_1000.inp -q -vf -vcf -ecmm12 100 1000 2)
 cado_divert_test(test_factor ecmm12_3 ${testbench_path} ${CMAKE_CURRENT_SOURCE_DIR}/test_factor_ecmm12_4_100_1000.inp -q -vf -vcf -ecmm12 100 1000 4)
 cado_divert_test(test_factor ecmm16_1 ${testbench_path} ${CMAKE_CURRENT_SOURCE_DIR}/test_factor_ecmm16_1_100_1000.inp -q -vf -vcf -ecmm16 100 1000 1)
+# ecmem12 with param=1 is the same as ecm with param=11
+cado_divert_test(test_factor ecmem12_1 ${testbench_path} ${CMAKE_CURRENT_SOURCE_DIR}/test_factor_ecm_11_100_1000.inp -q -vf -vcf -ecmem12 100 1000 1)
+cado_divert_test(test_factor ecmem12_2 ${testbench_path} ${CMAKE_CURRENT_SOURCE_DIR}/test_factor_ecmem12_2_100_1000.inp -q -vf -vcf -ecmem12 100 1000 2)
 
 macro(add_order_test METHOD SIGMA PMIN PMAX)
     set(x order_ecm${METHOD}_${SIGMA}_${PMIN}_${PMAX})
@@ -31,23 +34,35 @@ endmacro()
 
 add_order_test("" 10 1000 2000)
 add_order_test("" 10 1000000 1001000)
-# Only one test with large primes as the sieve of Eratosthenes take a while
-# to initalised for large starting prime
 add_order_test("" 10 1000000000 1000001000)
 add_order_test("" 11 1000 2000)
 add_order_test("" 11 1000000 1001000)
+add_order_test("" 11 1000000000 1000001000)
 add_order_test("" 12 1000 2000)
 add_order_test("" 12 1000000 1001000)
+add_order_test("" 12 1000000000 1000001000)
 add_order_test(m12 4 1000 2000)
-add_order_test(m12 5 1000 2000)
 add_order_test(m12 4 1000000 1001000)
+add_order_test(m12 4 1000000000 1000001000)
+add_order_test(m12 5 1000 2000)
 add_order_test(m12 5 1000000 1001000)
+add_order_test(m12 5 1000000000 1000001000)
 add_order_test(m12 6 1000 2000)
 add_order_test(m12 6 1000000 1001000)
+add_order_test(m12 6 1000000000 1000001000)
+add_order_test(m16 1 1000 2000)
+add_order_test(m16 1 1000000 1001000)
+add_order_test(m16 1 1000000000 1000001000)
 
-# Point counting with torsion 16 curves is currently broken
-# add_order_test(m16 1 1000 2000)
-# add_order_test(m16 1 1000000 1001000)
+add_order_test(em12 2 1000 2000)
+add_order_test(em12 2 1000000 1001000)
+add_order_test(em12 2 1000000000 1000001000)
+add_order_test(em12 3 1000 2000)
+add_order_test(em12 3 1000000 1001000)
+add_order_test(em12 3 1000000000 1000001000)
+add_order_test(em12 4 1000 2000)
+add_order_test(em12 4 1000000 1001000)
+add_order_test(em12 4 1000000000 1000001000)
 
 cado_define_test(test_mpqs.c LIBRARIES tests facul utils)
 

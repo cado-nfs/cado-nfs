@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "portability.h"
 #include "macros.h"
+#include "utils.h"
 #include "lingen-matpoly.h"
 #include "lingen-bigmatpoly.h"
 
@@ -276,6 +277,19 @@ void bigmatpoly_truncate_loc(abdst_field ab, bigmatpoly_ptr dst, bigmatpoly_ptr 
 }
 /*}}}*/
 
+void bigmatpoly_coeff_set_zero_loc(abdst_field ab, bigmatpoly_ptr pi, unsigned int k)
+{
+    matpoly_coeff_set_zero(ab, bigmatpoly_my_cell(pi), k);
+}
+
+int bigmatpoly_coeff_is_zero(abdst_field ab, bigmatpoly_srcptr pi, unsigned int k)
+{
+    int t = matpoly_coeff_is_zero(ab, bigmatpoly_my_cell_const(pi), k);
+    MPI_Allreduce(MPI_IN_PLACE, &t, 1, MPI_INT, MPI_MIN, pi->com[0]);
+    return t;
+}
+
+
 void bigmatpoly_rshift(abdst_field ab, bigmatpoly_ptr dst, bigmatpoly_ptr src, unsigned int k)/*{{{*/
 {
     if (bigmatpoly_check_pre_init(dst)) {
@@ -355,12 +369,14 @@ void bigmatpoly_allgather_col(abdst_field ab, bigmatpoly a)
 }
 /* }}} */
 
-void bigmatpoly_mul(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b)/*{{{*/
+double bigmatpoly_mul(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft)/*{{{*/
 {
+    size_t csize = a->size + b->size; csize -= (csize > 0);
+
     ASSERT_ALWAYS(a->n == b->m);
     ASSERT_ALWAYS(a->n1 == b->m1);
     if (bigmatpoly_check_pre_init(c)) {
-        bigmatpoly_finish_init(ab, c, a->m, b->n, a->size + b->size - 1);
+        bigmatpoly_finish_init(ab, c, a->m, b->n, csize);
     }
     ASSERT_ALWAYS(c->m);
     ASSERT_ALWAYS(c->m == a->m);
@@ -371,24 +387,46 @@ void bigmatpoly_mul(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b)/*{
     MPI_Comm_rank(c->com[1], &jrank);
     bigmatpoly_allgather_row(ab, a);
     bigmatpoly_allgather_col(ab, b);
-    bigmatpoly_set_size(c, a->size + b->size - 1);
+    bigmatpoly_set_size(c, csize);
     // ASSERT_ALWAYS(c->alloc >= c->size);
 
     matpoly_ptr lc = bigmatpoly_my_cell(c);
     bigmatpoly_zero(ab, c);
     lc->size = c->size;
     ASSERT_ALWAYS(a->n == b->m);
-    for(unsigned int k = 0 ; k < a->n1 ; k++) {
-        matpoly_addmul(ab, lc, 
+
+    double tt0=0, tt=0; /* tt=0: placate gcc */
+    unsigned long c0 = 0;
+    int set = 0;
+    double x0 = 0;
+
+    if (draft) { tt=wct_seconds(); tt0 -= tt; }
+    for(unsigned int k = 0 ; k < a->n1 && !set ; k++) {
+        x0 += matpoly_addmul(ab, lc, 
                 bigmatpoly_cell(a, irank, k),
-                bigmatpoly_cell(b, k, jrank));
+                bigmatpoly_cell(b, k, jrank), draft);
+        if (draft) { ++c0; set = (tt0 + (tt = wct_seconds())) >= draft; }
     }
+
+#if 0
+    fprintf(stderr, "%s(%zu,%zu) %s after %lu/%u [%f]\n",
+            __func__,
+            a->size,b->size,
+            set ? "gives up" : "does not give up",
+            c0, a->n1, tt0+tt);
+#endif
+
+    if (!set) return x0;
+    tt0 += tt;
+    /* The *real* time we've spent is tt0, we should not count it */
+    return (tt0 + x0) * a->n1 / c0 - tt0;
 }/*}}}*/
 
-void bigmatpoly_mp(abdst_field ab,/*{{{*/
+double bigmatpoly_mp(abdst_field ab,/*{{{*/
         bigmatpoly b,
         bigmatpoly a,
-        bigmatpoly c)
+        bigmatpoly c,
+        int draft)
 {
     if (bigmatpoly_check_pre_init(b)) {
         bigmatpoly_finish_init(ab, b, a->m, c->n, MAX(a->size, c->size) - MIN(a->size, c->size) + 1);
@@ -412,11 +450,31 @@ void bigmatpoly_mp(abdst_field ab,/*{{{*/
     ASSERT_ALWAYS(lb->size == b->size);
     ASSERT_ALWAYS(lb->alloc >= lb->size);
 
-    for(unsigned int k = 0 ; k < a->n1 ; k++) {
-        matpoly_addmp(ab, lb,
+    double tt0=0, tt=0; /* tt=0: placate gcc */
+    unsigned long c0 = 0;
+    int set = 0;
+    double x0 = 0;
+
+    if (draft) { tt=wct_seconds(); tt0 -= tt; }
+    for(unsigned int k = 0 ; k < a->n1 && !set ; k++) {
+        x0 += matpoly_addmp(ab, lb,
                 bigmatpoly_cell(a, irank, k),
-                bigmatpoly_cell(c, k, jrank));
+                bigmatpoly_cell(c, k, jrank), draft);
+        if (draft) { ++c0; set = (tt0 + (tt = wct_seconds())) >= draft; }
     }
+
+#if 0
+    fprintf(stderr, "%s(%zu,%zu) %s after %lu/%u [%f]\n",
+            __func__,
+            a->size,c->size,
+            set ? "gives up" : "does not give up",
+            c0, a->n1, tt0+tt);
+#endif
+
+    if (!set) return x0;
+    tt0 += tt;
+    /* The *real* time we've spent is tt0, we should not count it */
+    return (tt0 + x0) * a->n1 / c0 - tt0;
 }/*}}}*/
 
 /*

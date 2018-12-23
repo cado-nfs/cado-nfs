@@ -2,6 +2,7 @@
 #define CADO_POLY_H_
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <gmp.h>
 
 #include "params.h"
@@ -72,6 +73,39 @@ struct cxx_cado_poly {
     cado_poly x;
     cxx_cado_poly() { cado_poly_init(x); }
     cxx_cado_poly(cado_poly_srcptr f) { cado_poly_init(x); cado_poly_set(x, f); }
+    static void configure_switches(cxx_param_list &) {}
+    static void configure_aliases(cxx_param_list & pl) {
+        param_list_configure_alias(pl, "skew", "S");
+    }
+    static void declare_usage(cxx_param_list & pl) {
+        param_list_decl_usage(pl, "poly", "polynomial file");
+        param_list_decl_usage(pl, "skew", "skewness");
+    }
+
+    cxx_cado_poly(cxx_param_list & pl) {
+        cado_poly_init(x);
+        const char *tmp;
+        if ((tmp = param_list_lookup_string(pl, "poly")) == NULL) {
+            fprintf(stderr, "Error: -poly is missing\n");
+            param_list_print_usage(pl, NULL, stderr);
+            cado_poly_clear(x);
+            exit(EXIT_FAILURE);
+        }
+        if (!cado_poly_read(x, tmp)) {
+            fprintf(stderr, "Error reading polynomial file %s\n", tmp);
+            cado_poly_clear(x);
+            exit(EXIT_FAILURE);
+        }
+        /* -skew (or -S) may override (or set) the skewness given in the
+         * polynomial file */
+        param_list_parse_double(pl, "skew", &(x->skew));
+        if (x->skew <= 0.0) {
+            fprintf(stderr, "Error, please provide a positive skewness\n");
+            cado_poly_clear(x);
+            exit(EXIT_FAILURE);
+        }
+    }
+
     ~cxx_cado_poly() { cado_poly_clear(x); }
     cxx_cado_poly(cxx_cado_poly const & o) {
         cado_poly_init(x);

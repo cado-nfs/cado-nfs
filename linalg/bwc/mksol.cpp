@@ -49,7 +49,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     unsigned int Av_multiplex = bw->n / Av_width;
     mpfq_vbase_oo_field_init_byfeatures(Av, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, Av_width,
+            MPFQ_SIMD_GROUPSIZE, Av_width,
             MPFQ_DONE);
     pi_datatype_ptr Av_pi = pi_alloc_mpfq_datatype(pi, Av);
     /* }}} */
@@ -73,7 +73,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     mpfq_vbase As;
     mpfq_vbase_oo_field_init_byfeatures(As,
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, As_width,
+            MPFQ_SIMD_GROUPSIZE, As_width,
             MPFQ_DONE);
     /* }}} */
 
@@ -157,6 +157,26 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     /* }}} */
 
+    unsigned int expected_last_iteration;
+
+    serialize_threads(pi->m);
+    if (pi->m->trank == 0) {
+        /* the bw object is global ! */
+        expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt->n0);
+    }
+    pi_thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0, pi->m);
+    serialize_threads(pi->m);
+    if (bw->end == INT_MAX) {
+        if (tcan_print)
+            printf ("Target iteration is unspecified ;"
+                    " going to end of F file\n");
+    } else {
+        if (tcan_print)
+            printf ("Target iteration is %u\n", bw->end);
+        expected_last_iteration = bw->end;
+    }
+    ASSERT_ALWAYS(bw->end == INT_MAX || bw->end % bw->interval == 0);
+
     /* {{{ Prepare temp space for F coefficients */
     /* F plays the role of a right-hand-side in mksol. Vector iterates
      * have to be multiplied on the right by a matrix corresponding to
@@ -177,7 +197,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      */
 
     // XXX remove ?
-    // ASSERT(Av->vec_elt_stride(Av,As_width) == As->vec_elt_stride(As, Av->groupsize(Av)));
+    // ASSERT(Av->vec_elt_stride(Av,As_width) == As->vec_elt_stride(As, Av->simd_groupsize(Av)));
 
     /* We'll load all the F coefficient matrices before the main loop
      * (and for a full interval).
@@ -187,7 +207,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      * We have Av_multiplex "sets of rows", and As_multiplex "sets of columns".
      */
     void ** fcoeffs = new void*[Av_multiplex * As_multiplex];
-    size_t one_fcoeff = As->vec_elt_stride(As, Av->groupsize(Av));
+    size_t one_fcoeff = As->vec_elt_stride(As, Av->simd_groupsize(Av));
     if (tcan_print) {
         printf("Each thread allocates %zd kb for the F matrices\n",
                 (Av_multiplex *
@@ -201,35 +221,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     /* }}} */
     
-    /* {{{ tell something about the end value. Both relative to the commabd
-     * line, and to what we expect as a total duration */
-    if (bw->end == 0) {
-        // for mksol we use EOF as an ending indication.
-        serialize_threads(pi->m);
-        if (pi->m->trank == 0)
-            bw->end = INT_MAX;
-        serialize_threads(pi->m);
-        if (tcan_print) {
-            printf ("Target iteration is unspecified ;"
-                    " going to end of F file\n");
-        }
-    } else if (tcan_print) {
-        printf ("Target iteration is %u ; going to %u\n", bw->end,
-                bw->interval * iceildiv(bw->end, bw->interval));
-    }
-    
-    /* We can either look up the F files to get an idea of the number of
-     * coefficients to be considered, or make our guess based on the
-     * expected degree of the generator. The latter is obviously less
-     * accurate, but not by much, and anyway for the purpose of making up
-     * an ETA, it's good enough.
-     */
-
-    int exp_end = iceildiv(MAX(mmt->n[0], mmt->n[1]), bw->n);
-    /* }}} */
-
     /* {{{ bless our timers */
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->interval * iceildiv(exp_end, bw->interval));
+    timing_init(timing, 4 * mmt->nmatrices, bw->start, expected_last_iteration);
     for(int i = 0 ; i < mmt->nmatrices; i++) {
         timing_set_timer_name(timing, 4*i, "CPU%d", i);
         timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
@@ -340,7 +333,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
             for(unsigned int j = 0 ; j < As_multiplex ; j++) {
                 void * ff = fcoeffs[i * As_multiplex + j];
-                pi_bcast(ff, Av->groupsize(Av) * bw->interval, As_pi, 0, 0, pi->m);
+                pi_bcast(ff, Av->simd_groupsize(Av) * bw->interval, As_pi, 0, 0, pi->m);
             }
         }
 
@@ -391,7 +384,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                                 mmt_my_own_subvec(ymy[0]),
                                 mmt_my_own_subvec(vi[i]),
                                 As->vec_subvec(As, ff,
-                                    (bw->interval - 1 - k) * Av->groupsize(Av)),
+                                    (bw->interval - 1 - k) * Av->simd_groupsize(Av)),
                                 eblock);
                 }
                 ymy[0]->consistency = 1;

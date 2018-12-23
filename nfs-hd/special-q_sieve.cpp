@@ -2252,7 +2252,8 @@ void special_q_sieve(array_ptr array, MAYBE_UNUSED FILE * file_trace_pos,
 
     if (Mqr->coeff[1][1] != 1) {
 #ifdef PLANE_SIEVE_INSTEAD_OF_SPACE_SIEVE
-      plane_sieve_1(array, file_trace_pos, r, Mqr, H, matrix, f, &number_hit);
+      plane_sieve_1(array, file_trace_pos, r, Mqr, H, matrix, f, &number_hit,
+        errstd);
 #else // PLANE_SIEVE_INSTEAD_OF_SPACE_SIEVE
       ASSERT(H->t == 3);
 

@@ -22,17 +22,18 @@
   We use a simple size_t variable as the semaphore; accesses are mutex-protected.
 */
 
-worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue)
-  : pool(_pool), preferred_queue(_preferred_queue)
+worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue, bool several_threads)
+  : pool(_pool), preferred_queue(several_threads ? _preferred_queue : SIZE_MAX)
 {
-  int rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks, this);
-  ASSERT_ALWAYS(rc == 0);
+    if (!several_threads)
+        return;
+    int rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks_static, this);
+    ASSERT_ALWAYS(rc == 0);
 }
 
 worker_thread::~worker_thread() {
+  if (preferred_queue == SIZE_MAX) return;
   int rc = pthread_join(thread, NULL);
-  ASSERT_ALWAYS(!timer.running());
-  ASSERT_ALWAYS(timer.M.size() == 0);
   // timer.self will be essentially lost here. the best thing to do is to
   // create a phony task which collects the busy wait times for all
   // threads, at regular intervals, so that timer.self will be
@@ -41,153 +42,176 @@ worker_thread::~worker_thread() {
   ASSERT_ALWAYS(rc == 0);
 }
 
-int worker_thread::rank() const { return this - pool.threads; }
+int worker_thread::rank() const { return this - &pool.threads.front(); }
+int worker_thread::nthreads() const { return pool.threads.size(); }
+bool worker_thread::is_synchronous() const { return pool.is_synchronous(); }
 
 class thread_task {
 public:
-  const task_function_t func;
-  const int id;
-  const task_parameters * parameters;
-  const bool please_die;
-  const size_t queue;
-  const double cost; // costly tasks are scheduled first.
-  task_result *result;
+  task_function_t func = nullptr;
+  task_parameters * parameters = nullptr;
+  int id = 0;
+  double cost = 0.0; // costly tasks are scheduled first.
 
-  thread_task(task_function_t _func, int _id, const task_parameters *_parameters, size_t _queue, double _cost) :
-    func(_func), id(_id), parameters(_parameters), please_die(false), queue(_queue), cost(_cost), result(NULL) {};
-  thread_task(bool _kill)
-    : func(NULL), id(0), parameters(NULL), please_die(true), queue(0), cost(0.0), result(NULL) {
-    ASSERT_ALWAYS(_kill);
-  }
+  bool is_terminal() { return func == NULL; }
+
+  thread_task(task_function_t _func, task_parameters *_parameters, int _id, double _cost) :
+    func(_func), parameters(_parameters), id(_id), cost(_cost) {}
+  thread_task(bool) {}
+  task_result * operator()(worker_thread * w) { return (*func)(w, parameters, id); }
 };
 
-class thread_task_cmp
+struct thread_task_cmp
 {
-public:
-  thread_task_cmp() {}
-  bool operator() (const thread_task *x, const thread_task *y) const {
-    if (x->cost < y->cost)
+  bool operator() (thread_task const &x, thread_task const &y) const {
+    if (x.cost < y.cost)
       return true;
-    if (x->cost > y->cost)
+    if (x.cost > y.cost)
       return false;
     // if costs are equal, compare ids (they should be distinct)
-    return x->id < y->id;
+    return x.id < y.id;
   }
 };
 
-class tasks_queue : public std::priority_queue<thread_task *, std::vector<thread_task *>, thread_task_cmp>, private ThreadNonCopyable {
+class tasks_queue : public std::priority_queue<thread_task, std::vector<thread_task>, thread_task_cmp>, private NonCopyable {
   public:
   condition_variable not_empty;
   size_t nr_threads_waiting;
   tasks_queue() : nr_threads_waiting(0){};
 };
 
-class results_queue : public std::queue<task_result *>, private ThreadNonCopyable {
+class results_queue : public std::queue<task_result *>, private NonCopyable {
   public:
   condition_variable not_empty;
 };
 
-class exceptions_queue : public std::queue<clonable_exception *>, private ThreadNonCopyable {
+class exceptions_queue : public std::queue<clonable_exception *>, private NonCopyable {
   public:
   condition_variable not_empty;
 };
 
 
-thread_pool::thread_pool(const size_t _nr_threads, const size_t _nr_queues)
-  : nr_threads(_nr_threads), nr_queues(_nr_queues), kill_threads(false)
+thread_pool::thread_pool(const size_t nr_threads, const size_t nr_queues)
+  :
+      monitor_or_synchronous(nr_threads == 1),
+      tasks(nr_queues), results(nr_queues), exceptions(nr_queues),
+      created(nr_queues, 0), joined(nr_queues, 0),
+      kill_threads(false)
 {
-  /* Threads start accessing the queues as soon as they run */
-  tasks = new tasks_queue[nr_queues];
-  results = new results_queue[nr_queues];
-  exceptions = new exceptions_queue[nr_queues];
-
-  threads = reinterpret_cast<worker_thread *>(malloc(nr_threads * sizeof(worker_thread)));
-  for (size_t i = 0; i < nr_threads; i++)
-    new (threads + i) worker_thread(*this, 0);
+    /* Threads start accessing the queues as soon as they run */
+    threads.reserve(nr_threads);
+    for (size_t i = 0; i < nr_threads; i++)
+        threads.emplace_back(*this, 0, !is_synchronous());
 };
 
 thread_pool::~thread_pool() {
+  drain_all_queues();
   enter();
   kill_threads = true;
-  /* Wakey wakey, time to die */
-  for (size_t i = 0; i < nr_queues; i++)
-    broadcast(tasks[i].not_empty);
+  for (auto & T : tasks) broadcast(T.not_empty); /* Wakey wakey, time to die */
   leave();
-  for (size_t i = 0; i < nr_threads; i++) {
-      threads[i].~worker_thread();
-  }
-  free(reinterpret_cast<void*>(threads));
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(tasks[i].empty());
-  delete[] tasks;
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(results[i].empty());
-  delete[] results;
-  for (size_t i = 0; i < nr_queues; i++)
-    ASSERT_ALWAYS(exceptions[i].empty());
-  delete[] exceptions;
+  drain_all_queues();
+  threads.clear();      /* does pthread_join */
+  for (auto const & T : tasks) ASSERT_ALWAYS(T.empty());
+  for (auto const & R : results) ASSERT_ALWAYS(R.empty());
+  for (auto const & E : exceptions) ASSERT_ALWAYS(E.empty());
 }
 
 void *
-thread_pool::thread_work_on_tasks(void *arg)
+thread_pool::thread_work_on_tasks_static(void *arg)
 {
-  worker_thread *I = (worker_thread *) arg;
-  ACTIVATE_TIMER(I->timer);
+    worker_thread *I = static_cast<worker_thread *>(arg);
+    I->pool.thread_work_on_tasks(*I);
+    return NULL;
+}
+
+void
+thread_pool::thread_work_on_tasks(worker_thread & I)
+{
+  /* we removed the per-thread timer, because that goes in the way
+   * of our intent to make threads more special-q agnostic: timers are
+   * attached to the nfs_aux structure, now. This implies that all
+   * routines that are called as worker threads must activate their timer
+   * on entry.
+   *
+   */
+  ASSERT_ALWAYS(!is_synchronous());
+  double tt = -wct_seconds();
   while (1) {
-    thread_task *task = I->pool.get_task(I->preferred_queue);
-    if (task->please_die) {
-      delete task;
-      break;
-    }
-    task_function_t func = task->func;
-    const task_parameters *params = task->parameters;
-    try {
-        task_result *result = func(I, params);
-        if (result != NULL)
-            I->pool.add_result(task->queue, result);
-    } catch (clonable_exception const& e) {
-        I->pool.add_exception(task->queue, e.clone());
-        /* We need to wake the listener... */
-        I->pool.add_result(task->queue, NULL);
-    }
-    delete task;
+      size_t queue = I.preferred_queue;
+      thread_task task = get_task(queue);
+      if (task.is_terminal())
+          break;
+      try {
+          tt += wct_seconds();
+          task_result *result = task(&I);
+          tt -= wct_seconds();
+          if (result != NULL)
+              add_result(queue, result);
+      } catch (clonable_exception const& e) {
+          tt -= wct_seconds();
+          add_exception(queue, e.clone());
+          /* We need to wake the listener... */
+          add_result(queue, NULL);
+      }
   }
-  return NULL;
+  tt += wct_seconds();
+  /* tt is now the wall-clock time spent really within this function,
+   * waiting for mutexes and condition variables...  */
+  std::lock_guard<std::mutex> dummy(mm_cumulated_wait_time);
+  cumulated_wait_time += tt;
 }
 
 bool
 thread_pool::all_task_queues_empty() const
 {
-  bool empty = true;
-  for (size_t i = 0; i < nr_queues; i++)
-    empty = empty && tasks[i].empty();
-  return empty;
+  for (auto const & T : tasks)
+    if (!T.empty()) return false;
+  return true;
 }
 
 
 void
-thread_pool::add_task(task_function_t func, const task_parameters * params,
-                      const int id, const size_t queue, double cost)
+thread_pool::add_task(task_function_t func, task_parameters * params,
+        const int id, const size_t queue, double cost)
 {
-    ASSERT_ALWAYS(queue < nr_queues);
+    if (is_synchronous()) {
+        /* Execute the function right away, simulate the action of a
+         * secondary thread fetching it from the task queue */
+        created[queue]++;
+        try {
+            task_result *result = func(&threads.front(), params, id);
+            if (result != NULL)
+                results[queue].push(result);
+        } catch (clonable_exception const& e) {
+            exceptions[queue].push(e.clone());
+            /* We do this in the asynchronous case. It isn't clear that
+             * we need to do the same in the syncronous case. */
+            results[queue].push(NULL);
+        }
+        return;
+    }
+    ASSERT_ALWAYS(queue < tasks.size());
     enter();
     ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(new thread_task(func, id, params, queue, cost));
+    tasks[queue].push(thread_task(func, params, id, cost));
+    created[queue]++;
 
     /* Find a queue with waiting threads, starting with "queue" */
     size_t i = queue;
     if (tasks[i].nr_threads_waiting == 0) {
-      for (i = 0; i < nr_queues && tasks[i].nr_threads_waiting == 0; i++) {}
+      for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
     }
     /* If any queue with waiting threads was found, wake up one of them */
-    if (i < nr_queues)
+    if (i < tasks.size())
       signal(tasks[i].not_empty);
     leave();
 }
   
-thread_task *
-thread_pool::get_task(const size_t preferred_queue)
+thread_task
+thread_pool::get_task(size_t& preferred_queue)
 {
+  ASSERT(!is_synchronous());
   enter();
   while (!kill_threads && all_task_queues_empty()) {
     /* No work -> tell this thread to wait until work becomes available.
@@ -198,19 +222,21 @@ thread_pool::get_task(const size_t preferred_queue)
     wait(tasks[preferred_queue].not_empty);
     tasks[preferred_queue].nr_threads_waiting--;
   }
-  thread_task *task;
+  thread_task task(true);
   if (kill_threads && all_task_queues_empty()) {
-    task = new thread_task(true);
+      /* then the default object above is appropriate for signaling all
+       * workers so that they terminate.
+       */
   } else {
     /* Find a non-empty task queue, starting with the preferred one */
-    size_t i = preferred_queue;
+    size_t& i(preferred_queue);
     if (tasks[i].empty()) {
-      for (i = 0; i < nr_queues && tasks[i].empty(); i++) {}
+      for (i = 0; i < tasks.size() && tasks[i].empty(); i++) {}
     }
     /* There must have been a non-empty queue or we'd still be in the while()
        loop above */
-    ASSERT_ALWAYS(i < nr_queues);
-    task = tasks[i].top();
+    ASSERT_ALWAYS(i < tasks.size());
+    task = std::move(tasks[i].top());
     tasks[i].pop();
   }
   leave();
@@ -219,7 +245,8 @@ thread_pool::get_task(const size_t preferred_queue)
 
 void
 thread_pool::add_result(const size_t queue, task_result *const result) {
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT(!is_synchronous());       // synchronous case: see add_task
+  ASSERT_ALWAYS(queue < results.size());
   enter();
   results[queue].push(result);
   signal(results[queue].not_empty);
@@ -228,7 +255,8 @@ thread_pool::add_result(const size_t queue, task_result *const result) {
 
 void
 thread_pool::add_exception(const size_t queue, clonable_exception * e) {
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT(!is_synchronous());       // synchronous case: see add_task
+  ASSERT_ALWAYS(queue < results.size());
   enter();
   exceptions[queue].push(e);
   // do we use it ?
@@ -241,7 +269,9 @@ thread_pool::add_exception(const size_t queue, clonable_exception * e) {
 task_result *
 thread_pool::get_result(const size_t queue, const bool blocking) {
   task_result *result;
-  ASSERT_ALWAYS(queue < nr_queues);
+  ASSERT_ALWAYS(queue < results.size());
+
+  /* works both in synchronous and non-synchronous case */
   enter();
   if (!blocking and results[queue].empty()) {
     result = NULL;
@@ -250,9 +280,32 @@ thread_pool::get_result(const size_t queue, const bool blocking) {
       wait(results[queue].not_empty);
     result = results[queue].front();
     results[queue].pop();
+    joined[queue]++;
   }
   leave();
   return result;
+}
+
+void thread_pool::drain_queue(const size_t queue, void (*f)(task_result*))
+{
+    /* works both in synchronous and non-synchronous case */
+    enter();
+    for(size_t cr = created[queue]; joined[queue] < cr ; ) {
+        while (results[queue].empty())
+            wait(results[queue].not_empty);
+        task_result * result = results[queue].front();
+        results[queue].pop();
+        joined[queue]++;
+        if (f) f(result);
+        delete result;
+    }
+    leave();
+}
+void thread_pool::drain_all_queues()
+{
+    for(size_t queue = 0 ; queue < results.size() ; ++queue) {
+        drain_queue(queue);
+    }
 }
 
 /* get an exception from the specified exceptions queue. This is
@@ -261,77 +314,14 @@ thread_pool::get_result(const size_t queue, const bool blocking) {
  * pointer to a newly allocated copy of it.
  */
 clonable_exception * thread_pool::get_exception(const size_t queue) {
-    clonable_exception * e;
-    ASSERT_ALWAYS(queue < nr_queues);
+    clonable_exception * e = NULL;
+    ASSERT_ALWAYS(queue < exceptions.size());
+    /* works both in synchronous and non-synchronous case */
     enter();
-    if (exceptions[queue].empty()) {
-        e = NULL;
-    } else {
+    if (!exceptions[queue].empty()) {
         e = exceptions[queue].front();
         exceptions[queue].pop();
     }
     leave();
     return e;
-}
-
-void thread_pool::accumulate_and_clear_active_time(timetree_t & rep) {
-    for (size_t i = 0; i < nr_threads; ++i) {
-        /* timers may be running when they're tied to a subthread which
-         * is currently doing a pthread_cond_wait or such. So in that
-         * case, we want it to continue keeping track on its cpu busy
-         * time, while we are interested in the time the thread has spent
-         * on the tasks it was assigned.
-         *
-         * On the other hand, there's a fairly simple use case of
-         * merging with a stopped timer. In that case, we'll simply use
-         * the += operator.
-         *
-         * It's quite possible that the tdict::operator+= should have some
-         * distinguishing capacity based along these lines, so that the
-         * logic here could me moved there.
-         */
-        if (threads[i].timer.running()) {
-            ASSERT_ALWAYS(&threads[i].timer == threads[i].timer.current);
-            rep.steal_children_timings(threads[i].timer);
-        } else {
-            // ASSERT_ALWAYS(0);
-            rep += threads[i].timer;
-            threads[i].timer = timetree_t ();
-        }
-    }
-}
-
-struct everybody_must_do_that : public task_parameters {
-    mutable barrier_t barrier;
-    everybody_must_do_that(everybody_must_do_that const&) = delete;
-    everybody_must_do_that(int nthreads) { barrier_init(&barrier, nthreads); }
-    virtual ~everybody_must_do_that() { barrier_destroy(&barrier); }
-};
-struct everybody_must_do_that_result : public task_result {
-    double v;
-    everybody_must_do_that_result(timetree_t & me) : v(me.stop_and_start()){}
-};
-
-task_result * everybody_must_do_that_task(const worker_thread * worker, const task_parameters * _param)
-{
-    const everybody_must_do_that * param = dynamic_cast<const everybody_must_do_that*>(_param);
-    barrier_wait(&param->barrier, NULL, NULL, NULL);
-    return new everybody_must_do_that_result(worker->timer);
-}
-
-void thread_pool::accumulate_and_reset_wait_time(timetree_t & rep) {
-    /* we need to create a task so that each thread does what we want it
-     * to do. The tricky part is the we really want all thread to block
-     * and reach this code. In effect, we want the callee function to
-     * embody a barrier_wait
-     */
-    everybody_must_do_that E(nr_threads);
-    for(unsigned int i = 0 ; i < nr_threads ; i++) {
-        add_task(everybody_must_do_that_task, &E, 0);
-    }
-    for(unsigned int i = 0 ; i < nr_threads ; i++) {
-        everybody_must_do_that_result * res = dynamic_cast<everybody_must_do_that_result*>(get_result());
-        rep.self += res->v;
-        delete res;
-    }
 }

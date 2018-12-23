@@ -1076,7 +1076,7 @@ static bool go_quadratic(polmat& E, polmat& pi)/*{{{*/
 {
     using namespace globals;
     using namespace std;
-    stats.enter(__func__, E.ncoef);
+    tree_stats::sentinel dummy(stats, __func__, E.ncoef, false);
 
     unsigned int deg = E.ncoef - 1;
     for(unsigned int j = 0 ; j < E.ncols ; j++) {
@@ -1126,7 +1126,6 @@ static bool go_quadratic(polmat& E, polmat& pi)/*{{{*/
     }
     pi.swap(tmp_pi);
 
-    stats.leave(finished);
     return finished;
 }/*}}}*/
 
@@ -1136,7 +1135,7 @@ template<typename fft_type>/*{{{*/
 static bool go_recursive(polmat& E, polmat& pi)
 {
     using namespace globals;
-    stats.enter(fft_type::name(), E.ncoef);
+    tree_stats::sentinel dummy(stats, fft_type::name(), E.ncoef);
 
     /* E is known up to O(X^E.ncoef), so we'll consider this is a problem
      * of degree E.ncoef -- this is exactly the number of increases we
@@ -1198,7 +1197,6 @@ static bool go_recursive(polmat& E, polmat& pi)
         printf("%-8u" "deg(pi_l) = %ld ; escaping\n",
                 t, pi_l_deg);
         pi.swap(pi_left);
-        stats.leave(1);
         return true;
     }
 
@@ -1341,7 +1339,6 @@ static bool go_recursive(polmat& E, polmat& pi)
         printf("%-8u" "deg(pi_r) = %ld ; escaping\n",
                 t, pi.maxdeg());
     }
-    stats.leave(finished_early);
     return finished_early;
 }/*}}}*/
 

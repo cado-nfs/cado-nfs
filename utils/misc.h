@@ -89,6 +89,15 @@ static inline unsigned long integer_sqrt(unsigned long a)
         if (z == x || z == y) return y;
     }
 }
+static inline unsigned long next_power_of_2(unsigned long x)
+{
+    /* round x to the next power of two */
+    for( ; x & (x - 1) ; ) {
+        unsigned long low = x ^ (x - 1);
+        x += (low >> 1) + 1;
+    }
+    return x;
+}
 
 /* Best X86 medium memcpy with pointers & size length already cache
    lines aligned on modern X86, so dst/src/lg & 0x3F = 0 */

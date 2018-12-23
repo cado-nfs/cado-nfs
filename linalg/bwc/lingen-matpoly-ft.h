@@ -1,10 +1,6 @@
 #ifndef LINGEN_MATPOLY_FT_H_
 #define LINGEN_MATPOLY_FT_H_
 
-#ifndef HAVE_MPIR
-#error "This interface is only available with MPIR"
-#endif
-
 #include "lingen-matpoly.h"
 #include "flint-fft/fft.h"
 
@@ -27,23 +23,23 @@ void matpoly_ft_zero(abdst_field ab, matpoly_ft_ptr t, struct fft_transform_info
 void matpoly_ft_export(abdst_field ab, matpoly_ft_ptr t, struct fft_transform_info * fti);
 void matpoly_ft_import(abdst_field ab, matpoly_ft_ptr t, struct fft_transform_info * fti);
 void matpoly_ft_clear(abdst_field ab, matpoly_ft_ptr t, struct fft_transform_info * fti);
-void matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr p, struct fft_transform_info * fti);
+double matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr p, struct fft_transform_info * fti, int draft);
 void matpoly_ft_add(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti);
 /*
 void matpoly_ft_sub(abdst_field ab, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti);
 */
-void matpoly_ft_mul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti);
-void matpoly_ft_addmul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti);
-void matpoly_ft_ift(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, struct fft_transform_info * fti);
-void matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, unsigned int shift, struct fft_transform_info * fti);
+double matpoly_ft_mul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti, int draft);
+double matpoly_ft_addmul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti, int draft);
+double matpoly_ft_ift(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, struct fft_transform_info * fti, int draft);
+double matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, unsigned int shift, struct fft_transform_info * fti, int draft);
 
 
 /* In a way, this is the only real API exported by this module */
-void matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj);
-static inline void matpoly_mul_caching(abdst_field ab, matpoly c, matpoly a, matpoly b) { matpoly_mul_caching_adj(ab, c, a, b, UINT_MAX); }
+double matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft);
+static inline double matpoly_mul_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft) { return matpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft); }
 
-void matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj);
-static inline void matpoly_mp_caching(abdst_field ab, matpoly c, matpoly a, matpoly b) { matpoly_mp_caching_adj(ab, c, a, b, UINT_MAX); }
+double matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft);
+static inline double matpoly_mp_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft) { return matpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft); }
 
 
 #ifdef __cplusplus

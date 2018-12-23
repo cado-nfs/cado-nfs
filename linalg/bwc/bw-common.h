@@ -179,6 +179,8 @@ int bw_common_clear(struct bw_params * bw);
 extern int get_rhs_file_header(const char * filename, uint32_t * p_nrows, unsigned int * p_nrhs, mpz_ptr p_p);
 extern int get_rhs_file_header_stream(FILE * f, uint32_t * p_nrows, unsigned int * p_nrhs, mpz_ptr p_p);
 
+extern unsigned int bw_set_length_and_interval_krylov(struct bw_params * bw, unsigned int dims[2]);
+extern unsigned int bw_set_length_and_interval_mksol(struct bw_params * bw, unsigned int dims[2]);
 #ifdef __cplusplus
 }
 #endif

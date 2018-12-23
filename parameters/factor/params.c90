@@ -157,12 +157,12 @@ tasks.maxtimedout = 100
 # the parameter tree, all tasks can find them.
 
 # (r,a) means rational or algebraic side
-lim0 = 404327
-lim1 = 811066
+tasks.lim0 = 404327
+tasks.lim1 = 811066
 # The number of rational (resp. # algebraic) primes is roughly lim0/log(lim0)
 # (resp. lim1/log(lim0))
-lpb0 = 23
-lpb1 = 23
+tasks.lpb0 = 23
+tasks.lpb1 = 23
 # lpb0/lpb1 is the (base 2 log of the) large prime bound
 
 ###########################################################################
@@ -195,7 +195,8 @@ tasks.polyselect.incr = 60	    # increment for leading coefficient of f(x)
     # The polynomial selection search time is proportional to the
     # length of the search interval, i.e., (admax-admin)/incr.
 
-tasks.polyselect.nrkeep = 40
+tasks.polyselect.nrkeep = 40 # number of polynomials kept in stage 1 of
+                             # polynomial selection (size optimization)
 
 tasks.polyselect.adrange = 5000		# size of individual tasks
     # Polynomial selection is split into several individual tasks. The
@@ -205,12 +206,13 @@ tasks.polyselect.adrange = 5000		# size of individual tasks
     # a workunit to a slave for computation.
 
 tasks.polyselect.nq = 256
-    # Number of small primes in the leading coefficient of the linear polynomial
-    # Safe to leave at the default value
+    # Number of small prime combinations in the leading coefficient of the
+    # linear polynomial. Safe to leave at the default value.
     # Recommended values are powers of the degree, e.g., 625 for degree 5,
     # or 1296 for degree 6. Here 256 = 4^4 thus the leading coefficient of
     # the linear polynomial will be q1*q2*q3*q4*p1*p2 where q1,q2,q3,q4 are
-    # small primes, and P <= p1, p2 < 2*P.
+    # small primes, and P <= p1, p2 < 2*P. For a given pair (p1,p2), 256
+    # different combinations of q1,q2,q3,q4 will be tried.
 
 tasks.polyselect.sopteffort = 0
     # Indicates how much effort is spent in stage 1 (size optimization) of the
@@ -280,7 +282,7 @@ tasks.sieve.sqside = 1
     # special-q.  For snfs numbers, sometimes it is better to put is on
     # the rational side.
 
-tasks.sieve.qmin = 200923
+tasks.qmin = 200923
     # Start of the special-q range
     # qmin is usually equal to the corresponding factor base bound, but this
     # is not a requirement - it can be both larger or smaller.
@@ -300,6 +302,8 @@ tasks.sieve.qrange = 10000		# The size of an elementary sieving task
 ###########################################################################
 
 tasks.filter.purge.keep = 160		# minimal excess wanted after purge
+tasks.filter.merge.keep = 100           # minimal excess wanted after merge
+                                        # (default tasks.filter.purge.keep)
 tasks.filter.add_ratio = 0.1
     # Number of additional required relations before next filtering step
     # expressed as a ratio of the number of unique relations already collected

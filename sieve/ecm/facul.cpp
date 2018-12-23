@@ -20,6 +20,8 @@
 #include "facul.hpp"
 #include "facul_doit.hpp"
 
+//#define USE_LEGACY_DEFAULT_STRATEGY 1
+
 #ifdef ENABLE_UNSAFE_FACUL_STATS
 /*
  * FIXME: the stats are not thread-safe!
@@ -64,6 +66,15 @@ int nb_curves (const unsigned int lpb, const unsigned int mfb)
   if (mfb <= 2 * lpb)
     return 100;
   return nb_curves90 (lpb);
+}
+
+static int
+nb_curves_with_fbb (const unsigned long fbb,
+		    const unsigned int lpb, const unsigned int mfb)
+{
+  /* if 2^mfb < fbb^2, we can have only one large prime */
+  return (ldexp (1.0, mfb) < (double) fbb * (double) fbb)
+    ? 0 : nb_curves (lpb, mfb);
 }
 
 static int
@@ -220,7 +231,7 @@ facul_make_strategy (const unsigned long fbb, const unsigned int lpb,
   facul_strategy_t *strategy;
 
   if (n == -1)
-    n = nb_curves (lpb, mfb);
+    n = nb_curves_with_fbb (fbb, lpb, mfb);
   strategy = (facul_strategy_t*) malloc (sizeof (facul_strategy_t));
   strategy->lpb = lpb;
   /* Store fbb^2 in assume_prime_thresh */
@@ -400,7 +411,8 @@ facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, const facul_strategy_t
  */
 static int
 get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
-		  int method, int parameterization, unsigned long sigma)
+                  int method, ec_parameterization_t parameterization,
+                  unsigned long parameter)
 {
   int i = 0;
   while (tab[i].method != 0){
@@ -433,7 +445,7 @@ get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
 	  ecm_plan_t* plan = (ecm_plan_t*)tab[i].plan;
 	  if (plan->B1 == B1 && plan->stage2.B2 == B2 &&
 	      plan->parameterization == parameterization
-	      && plan->sigma == sigma)
+	      && plan->parameter == parameter)
 	    break;
 	}
     }
@@ -481,7 +493,7 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 {
   int index_method = 0; /* this is the index of the current factoring
 			   methods */
-  unsigned int SIGMA[2] = {2,2};
+  unsigned int PARAMETER[2] = {2,2};
   int is_first_brent12[2] = {true, true};
 
   regex_t preg_index, preg_fm;
@@ -516,9 +528,9 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 	  /* changes the current strategy. */
 	  index_st[0] = atoi(res[0]);
 	  index_st[1] = atoi(res[1]);
-	  /* re-init the value of sigma */
-	  SIGMA[0] = 2;
-	  SIGMA[1] = 2;
+	  /* re-init the value of parameter */
+	  PARAMETER[0] = 2;
+	  PARAMETER[1] = 2;
 	  // todo: change it to add it in the parameters of our function.
 	  // maybe unused if you use only one curve B12 by strategy.
 	  is_first_brent12[0] = true;
@@ -553,8 +565,9 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 		{ // zero method
 		  goto next_regex;
 		}
-	      unsigned long sigma = 0;
-	      int curve = 0;
+	      unsigned long parameter = 0;
+	      ec_parameterization_t parameterization = BRENT12;
+        /* set to BRENT12 in order to suppress 'used uninitialized' warning */
 	      int method = 0;
 	      // method
 	      if (strcmp (res[1], "PM1") == 0)
@@ -566,13 +579,12 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 	      else 
 		{
 		  method = EC_METHOD;
-		  // curve
 		  if (strcmp (res[1], "ECM-B12") == 0)
-		    curve = BRENT12;
+		    parameterization = BRENT12;
 		  else if (strcmp (res[1], "ECM-M12") == 0)
-		    curve = MONTY12;
+		    parameterization = MONTY12;
 		  else if (strcmp (res[1], "ECM-M16") == 0)
-		    curve = MONTY16;
+		    parameterization = MONTY16;
 		  else
 		    {
 		      fprintf (stderr,
@@ -580,23 +592,23 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 			       res[1]);
 		      return -1;
 		    }
-		  if (curve == MONTY16)
-		    sigma = 1;
+		  if (parameterization == MONTY16)
+		    parameter = 1;
 		  else
 		    {
-		      if (curve == BRENT12 && is_first_brent12[side])
+		      if (parameterization == BRENT12 && is_first_brent12[side])
 			{
-			  sigma = 11;
+			  parameter = 11;
 			  is_first_brent12[side] = false;
 			}
 		      else
-			sigma = SIGMA[side]++;
+			parameter = PARAMETER[side]++;
 		    }
 		}
 	      // check if the method is already computed
 	      int index_prec_fm = 
 		get_index_method(strategies->precomputed_methods, B1, B2,
-				 method, curve, sigma);
+				 method, parameterization, parameter);
 	      if ( strategies->precomputed_methods[index_prec_fm].method == 0)
 		{
 		  /*
@@ -618,7 +630,7 @@ process_line (facul_strategies_t* strategies, unsigned int* index_st,
 		  else { // method == EC_METHOD
 		    plan = (ecm_plan_t*) malloc (sizeof (ecm_plan_t));
 		    ecm_make_plan ((ecm_plan_t*) plan,
-				   B1, B2, curve, sigma, 1, verbose);
+				   B1, B2, parameterization, parameter, 1, verbose);
 		  }
 		  strategies->precomputed_methods[index_prec_fm].method =method;
 		  strategies->precomputed_methods[index_prec_fm].plan = plan;
@@ -703,14 +715,22 @@ facul_make_default_strategy (int n, const int verbose)
   /* run one ECM curve with Montgomery parametrization, B1=105, B2=3255 */
   methods[i].method = EC_METHOD;
   methods[i].plan = (ecm_plan_t*) malloc (sizeof (ecm_plan_t));
+#ifdef USE_LEGACY_DEFAULT_STRATEGY
   ecm_make_plan ((ecm_plan_t*) methods[i].plan, 105, 3255, MONTY12, 2, 1, verbose);
+#else
+  ecm_make_plan ((ecm_plan_t*) methods[i].plan, 105, 3255, MONTYTWED12, 1, 1, verbose);
+#endif
   i++;
 
   if (n > 0)
     {
       methods[i].method = EC_METHOD;
       methods[i].plan = (ecm_plan_t*) malloc (sizeof (ecm_plan_t));
+#ifdef USE_LEGACY_DEFAULT_STRATEGY
       ecm_make_plan ((ecm_plan_t*) methods[i].plan, 315, 5355, BRENT12, 11, 1, verbose);
+#else
+      ecm_make_plan ((ecm_plan_t*) methods[i].plan, 315, 5355, MONTYTWED12, 2, 1, verbose);
+#endif
       i++;
     }
 
@@ -721,7 +741,12 @@ facul_make_default_strategy (int n, const int verbose)
       double B2;
       unsigned int k;
 
+      /* If the sequence of B1 values is modified, it may be a good thing to
+       * regenerate bytecode_mishmash_B1_data.h to add precomputed chains for
+       * the new B1 values.
+       */
       B1 += sqrt (B1);
+
       /* The factor 50 was determined experimentally with testbench, to find
 	 factors of 40 bits:
 	 testbench -p -cof 1208925819614629174706189 -strat 549755813888 549755913888
@@ -739,7 +764,11 @@ facul_make_default_strategy (int n, const int verbose)
       methods[i].method = EC_METHOD;
       methods[i].plan = (ecm_plan_t*) malloc (sizeof (ecm_plan_t));
       ecm_make_plan ((ecm_plan_t*) methods[i].plan, (unsigned int) B1, (2 * k + 1) * 105,
+#ifdef USE_LEGACY_DEFAULT_STRATEGY
 		     MONTY12, i - 1, 1, 0);
+#else
+		     MONTYTWED12, i - 1, 1, 0);
+#endif
     }
 
 #ifdef USE_MPQS
@@ -848,8 +877,8 @@ facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
   if (file == NULL)
     {// make_default_strategy
       int ncurves[2];
-      ncurves[0] = (n0 > -1) ? n0 : nb_curves (rlpb, rmfb);
-      ncurves[1] = (n1 > -1) ? n1 : nb_curves (alpb, amfb);
+      ncurves[0] = (n0 > -1) ? n0 : nb_curves_with_fbb (rfbb, rlpb, rmfb);
+      ncurves[1] = (n1 > -1) ? n1 : nb_curves_with_fbb (afbb, alpb, amfb);
       int max_ncurves = ncurves[0] > ncurves[1]? ncurves[0]: ncurves[1];
       max_curves_used_before_aux = max_ncurves + 4; // account for fixed methods.
       // There is an hardcoded bound on the number of methods.
@@ -858,7 +887,7 @@ facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
       // TODO: is this really a limitation?
       ASSERT_ALWAYS (2*(max_ncurves + 4) <= NB_MAX_METHODS);
 
-      verbose_output_print(0, 1, "# Using default strategy for the cofactorization: ncurves0=%d ncurves1=%d\n", ncurves[0], ncurves[1]);
+      verbose_output_print(0, 2, "# Using default strategy for the cofactorization: ncurves0=%d ncurves1=%d\n", ncurves[0], ncurves[1]);
       strategies->precomputed_methods =
 	facul_make_default_strategy (max_ncurves, verbose);
       /* make two well-behaved facul_method_side_t* lists, based on which
@@ -886,7 +915,7 @@ facul_make_strategies(const unsigned long rfbb, const unsigned int rlpb,
     }
   else
     {/* to precompute our method from the file.*/
-      verbose_output_print(0, 1, "# Read the cofactorization strategy file\n");
+      verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
       facul_method_t* precomputed_methods =
 	(facul_method_t*) malloc (sizeof(facul_method_t) * NB_MAX_METHODS);
       precomputed_methods[0].method = 0;

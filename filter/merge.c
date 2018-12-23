@@ -65,7 +65,7 @@ static void declare_usage(param_list pl)
                             "-mkztype 2 (default " STR(DEFAULT_MERGE_WMSTMAX) ")");
   param_list_decl_usage(pl, "forbidden-cols", "list of columns that cannot be "
                                               "used for merges");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "v", "verbose level");
   param_list_decl_usage(pl, "t", "number of threads");

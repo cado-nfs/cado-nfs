@@ -704,6 +704,28 @@ class PolyselectGFpn(Program):
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
+class PolyselectJL(Program):
+    binary = "dlpolyselect"
+    name = binary
+    subdir = "polyselect"
+
+    def __init__(self, *,
+                 verbose : Toggle("v")=None,
+                 N: Parameter(checktype=int)=None,
+                 easySM: Parameter(checktype=int)=None,
+                 df: Parameter(checktype=int)=None,
+                 dg: Parameter(checktype=int)=None,
+                 area : Parameter(checktype=float)=None,
+                 Bf : Parameter(checktype=float)=None,
+                 Bg : Parameter(checktype=float)=None,
+                 bound: Parameter(checktype=int)=None,
+                 modm: Parameter(checktype=int)=None,
+                 modr: Parameter(checktype=int)=None,
+                 skew : Toggle()=None,
+                 threads : Parameter("t", checktype=int)=None,
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
 class MakeFB(Program):
     """
     >>> p = MakeFB(poly="foo.poly", lim=1, skip_check_binary_exists=True)
@@ -775,6 +797,10 @@ class Las(Program):
                  lpb1: Parameter(checktype=int)=None,
                  mfb0: Parameter(checktype=int)=None,
                  mfb1: Parameter(checktype=int)=None,
+                 batchlpb0: Parameter(checktype=int)=None,
+                 batchlpb1: Parameter(checktype=int)=None,
+                 batchmfb0: Parameter(checktype=int)=None,
+                 batchmfb1: Parameter(checktype=int)=None,
                  lambda0: Parameter(checktype=float)=None,
                  lambda1: Parameter(checktype=float)=None,
                  ncurves0: Parameter(checktype=int)=None,
@@ -783,12 +809,13 @@ class Las(Program):
                  verbose: Toggle("v")=None,
                  powlim0: Parameter(checktype=int)=None,
                  powlim1: Parameter(checktype=int)=None,
-                 factorbase: Parameter("fb", is_input_file=True)=None,
                  factorbase0: Parameter("fb0", is_input_file=True)=None,
                  factorbase1: Parameter("fb1", is_input_file=True)=None,
                  out: Parameter(is_output_file=True)=None,
                  threads: Parameter("t", checktype=int)=None,
                  batch: Toggle()=None,
+                 batch0: Parameter("batch0", is_input_file=True)=None,
+                 batch1: Parameter("batch1", is_input_file=True)=None,
                  sqside: Parameter(checktype=int)=None,
                  dup: Toggle()=None,
                  galois: Parameter() = None,

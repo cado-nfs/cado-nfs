@@ -338,8 +338,12 @@ modredcul_initmod_ul (modulusredcul_t m, const unsigned long s)
     m[0].one[0] = 0UL;
   else
     {
-      m[0].one[0] = 1UL;
-      modredcul_tomontgomery (m[0].one, m[0].one, m);
+      /* We want to compute 2^b % m, where b is the number of bits in an
+         unsigned long. We know m is odd, so the remainder is not zero.
+         Thus if we compute (2^b - 1) % m + 1, the +1 will not make the
+         result equal to m and thus will produce the correct result while
+         using only a single-word division. */
+      m[0].one[0] = (-1UL) % m[0].m + 1;
     }
 }
 

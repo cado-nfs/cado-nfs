@@ -7,10 +7,12 @@
 #line 7 "PATH_TO_SRC_TEST_DIRECTORYmpfq_test.c.meta"
 /* test_TAG.c is sed- generated from test.c.meta */
 
-#ifdef  NDEBUG
+/* croaks if we -Werror, of course.
+#ifdef NDEBUG
 #warning "Forcibly disabling -DNDEBUG for the tests"
 #undef NDEBUG
 #endif
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,8 +158,8 @@ int main(int argc, char * argv[])
 #ifdef  RNS
 	if ((loop_i % 2)==0) {
 		size_prime/=2;
-		size_prime-=68;
-}
+		// size_prime-=68;
+        }
 #endif
 
         if (prime_str) {
@@ -312,11 +314,9 @@ int main(int argc, char * argv[])
 #endif
 
         DO_ONE_TEST("mul_ui distributivity", {
-                Krandom2 (a0, rstate);
                 Krandom2 (a1, rstate);
                 Krandom2 (a2, rstate);
-                unsigned long xx;
-                xx = ((unsigned long *)(void *)(a0))[0];
+                unsigned long xx = gmp_urandomb_ui(rstate, GMP_LIMB_BITS);
                 Kadd (a3, a1, a2);
                 Kmul_ui (r1, a3, xx);
                 Kmul_ui (a4, a1, xx);

@@ -149,7 +149,7 @@ void blstate_init(struct blstate * bl, parallelizing_info_ptr pi, param_list_ptr
 
     mpfq_vbase_oo_field_init_byfeatures(A,
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, bw->ys[1]-bw->ys[0],
+            MPFQ_SIMD_GROUPSIZE, bw->ys[1]-bw->ys[0],
             MPFQ_DONE);
 
     matmul_top_init(mmt, A, pi, pl, bw->dir);
@@ -492,7 +492,7 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
     mpfq_vbase_tmpl AxA;
     mpfq_vbase_oo_init_templates(AxA, A, A);
 
-    size_t nelts_for_nnmat = bw->n * (bw->n / bl->A->groupsize(bl->A));
+    size_t nelts_for_nnmat = bw->n * (bw->n / bl->A->simd_groupsize(bl->A));
 
     serialize(pi->m);
 
@@ -664,7 +664,7 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
 
             {
                 size_t eblock = mmt_my_own_size_in_items(bl->y);
-                ASSERT_ALWAYS(bl->y->abase->vec_elt_stride(bl->y->abase, 1) == sizeof(uint64_t));
+                ASSERT_ALWAYS(bl->y->abase->elt_stride(bl->y->abase) == sizeof(uint64_t));
 
                 // Here are the operations we will now perform
                 //

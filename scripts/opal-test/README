@@ -35,7 +35,8 @@ bash <<'EOF'
   cd opal && python setup.py install --user
 EOF
 
-
+- run "make" to build the "makefb" and "las" commands which are necessary
+  to run opal/nomad
 - copy a polynomial file to the current directory, say c60.poly
 - copy a parameter file to the current directory, say params.c60
 - run ./optimize.sh params.c60 c60.poly

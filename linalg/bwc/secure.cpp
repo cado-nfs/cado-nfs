@@ -11,6 +11,7 @@
 #include "mpfq/mpfq_vbase.h"
 #include "async.h"
 #include "portability.h"
+#include <algorithm>
 
 /* We merely have to build up a check vector. We've got a fairly easy
  * candidate for that: the x vector.  */
@@ -71,7 +72,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     mpfq_vbase A;
     mpfq_vbase_oo_field_init_byfeatures(A, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, nchecks,
+            MPFQ_SIMD_GROUPSIZE, nchecks,
             MPFQ_DONE);
 
     matmul_top_init(mmt, A, pi, pl, bw->dir);
@@ -139,6 +140,29 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // mmt_vec_save(mmt, NULL, "ux", !bw->dir, 0);
     // save_untwisted_transposed_vector(mmt, "tx", !bw->dir, 0);
 
+    serialize_threads(pi->m);
+    if (pi->m->trank == 0) {
+        /* the bw object is global ! */
+        bw_set_length_and_interval_krylov(bw, mmt->n0);
+    }
+    serialize_threads(pi->m);
+    ASSERT_ALWAYS(bw->end % bw->interval == 0);
+
+    int interval_already_in_check_stops = 0;
+    for(int i = 0 ; i < bw->number_of_check_stops ; i++) {
+        if (bw->check_stops[i] == bw->interval) {
+            interval_already_in_check_stops = 1;
+            break;
+        }
+    }
+    if (serialize_threads(pi->m)) {
+        if (!interval_already_in_check_stops) {
+            ASSERT_ALWAYS(bw->number_of_check_stops < MAX_NUMBER_OF_CHECK_STOPS - 1);
+            bw->check_stops[bw->number_of_check_stops++] = bw->interval;
+        }
+        std::sort(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+    }
+    serialize_threads(pi->m);
 
     if (tcan_print) {
         printf("Computing trsp(x)*M^k for check stops k=");

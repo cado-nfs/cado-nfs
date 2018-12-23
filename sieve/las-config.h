@@ -7,13 +7,6 @@
 #define SSE_NORM_INIT
 #endif
 
-/* Number of bits used to estimate the norms with the old reference code.
- * Unused otherwise.
- * This should be large enough: it must be such that all norms are
- * smaller than 2^(2^NORM_BITS)
- * This imposes NORM_BITS >= 8, or even >= 9 for large factorizations. */
-#define NORM_BITS 10
-
 /* define PROFILE to keep certain functions from being inlined, in order to
    make them show up on profiler output */
 //#define PROFILE
@@ -70,7 +63,9 @@
 
 #define FB_MAX_PARTS 4
 
-#if 1
+#define VARIABLE_BUCKET_REGION
+
+#ifdef VARIABLE_BUCKET_REGION
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,7 +88,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 }
 #endif
 
-#else
+#else   /* !VARIABLE_BUCKET_REGION */
 /* Optimal bucket region: 2^16 = 64K == close to L1 size.
  * It is possible to put a higher value, in order to set I > 16.
  * However, this will have a bad impact on the memory usage, and on
@@ -113,7 +108,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #define BUCKET_REGION_3 NB_BUCKETS_3*BUCKET_REGION_2
 
 #define BUCKET_REGIONS { 0, BUCKET_REGION_1, BUCKET_REGION_2, BUCKET_REGION_3 }
-#endif
+#endif  /* VARIABLE_BUCKET_REGION */
 
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 
@@ -131,12 +126,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 
 /* Guard for the logarithms of norms, so that the value does not wrap around
    zero due to roundoff errors. */
-#define GUARD 1
-
-/* GUARD+LOG_MAX should be as near as possible from 256, to get more accuracy
-   in the norm computations, but not too much, otherwise a norm might be
-   rounded to zero. */
-#define LOG_MAX (255.9 - (double) GUARD)
+#define LOGNORM_GUARD_BITS 1
 
 /* See PROFILE flag above */
 /* Some functions should not be inlined when we profile or it's hard or

@@ -213,10 +213,10 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "only", "do only slice i (default: all)");
   param_list_decl_usage(pl, "outfmt",
                                "format of output file (default same as input)");
-  param_list_decl_usage(pl, "ab", "(switch) only print a and b in the output");
+  param_list_decl_usage(pl, "ab", "only print a and b in the output");
   param_list_decl_usage(pl, "abhexa",
-                                  "(switch) read a and b as hexa not decimal");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+                                  "read a and b as hexa not decimal");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }

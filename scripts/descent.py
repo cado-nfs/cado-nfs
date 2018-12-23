@@ -200,7 +200,9 @@ class GeneralClass(object):
     def badidealinfo(self):
         return self.__getfile("badidealinfo", "badidealinfo", "numbertheory", "badidealinfofile")
     def fb1(self):
-        return self.__getfile("fb1", "roots.gz", "factorbase", "outputfile")
+        return self.__getfile("fb1", "roots1.gz", "factorbase", "outputfile")
+    def fb0(self):
+        return self.__getfile("fb0", "roots0.gz", "factorbase", "outputfile")
     def ell(self):
         return int(args.ell)
     def lpb0(self):
@@ -245,20 +247,28 @@ class GeneralClass(object):
         else:
             return target[:10] + "..." + target[-10:]
 
+    def has_rational_side(self):
+        d=self.poly_data()
+        return len(d["Y"]) == 2
     def rational_poly():
         d=self.poly_data()
+        assert len(d["Y"]) == 2
         return [int(x) for x in d["Y"]]
     def algebraic_poly():
         d=self.poly_data()
         return [int(x) for x in d["c"]]
 
     def cleanup(self):
-        if not self.args.tmpdir and not self.args.no_wipe:
+        if False:
+#        if not self.args.tmpdir and not self.args.no_wipe:
             shutil.rmtree(self.tmpdir())
 
     def __del__(self):
         if self._conn:
             self._conn.close()
+
+    def descentinit_bin(self):
+        return os.path.join(args.cadobindir, "misc", "descent_init_Fp")
 
     def las_bin(self):
         return os.path.join(args.cadobindir, "sieve", "las")
@@ -269,7 +279,6 @@ class GeneralClass(object):
         # TODO add threads once it's fixed.
         s=[
             self.las_bin() + "_descent",
-            "-ondemand-siever-config",
             "--recursive-descent",
             "--allow-largesq",
             "--never-discard",  # useful for small computations.
@@ -278,6 +287,9 @@ class GeneralClass(object):
             "--fb1", self.fb1(),
             "--poly", self.poly(),
           ]
+        if not self.has_rational_side():
+            s.append("--fb0")
+            s.append(self.fb0())
         return [ str(x) for x in s ]
 
     # There's no las_init_base_args, since DescentUpperClass uses only
@@ -367,8 +379,9 @@ class LogBase(object):
                     self.SMs.append(int(value[0]))
                 else:
                     # for rational side, we actually don't have the root.
-                    if int(side) == 0:
-                        assert r == "rat"
+                    # We force it to be on side 0 (legacy, again...)
+                    if r == "rat":
+                        assert int(side) == 0;
                         r = -1
                     else:
                         r = int(r, 16)
@@ -392,14 +405,14 @@ class LogBase(object):
     def has(self,p,r,side):
         return (p,r,side) in self.known
     def get_log(self, p,r,side):
-        if side == 0:
+        if general.has_rational_side() and side == 0:
             r = -1;
         if (p,r,side) in self.known:
             return self.known[(p,r,side)]
         else:
             return None
     def add_log(self,p,r,side,log):
-        if side == 0:
+        if general.has_rational_side() and side == 0:
             r = -1;
         self.known[(p,r,side)] = log
     def bad_ideal(self,i):
@@ -459,7 +472,7 @@ class ideals_above_p(object):
         self.p = p
         self.k = k
         self.side = side
-        if side == 0:
+        if general.has_rational_side() and side == 0:
             self.r = -1
         else:
             self.r = a_over_b_mod_p(a, b, p)
@@ -556,6 +569,18 @@ class DescentUpperClass(object):
         parser.add_argument("--init-I",
                 help="Sieving range"+c,
                 default=14)
+        parser.add_argument("--init-minB1",
+                help="ECM first B1" + c,
+                default=200)
+        parser.add_argument("--init-mineff",
+                help="ECM minimal effort" + c,
+                default=1000)
+        parser.add_argument("--init-maxeff",
+                help="ECM maximal effort" + c,
+                default=100000)
+        parser.add_argument("--init-side",
+                help="Side of the bootstrap (when there is no rational side",
+                default=1)
         # Slave las processes in the initial step.
         parser.add_argument("--slaves",
                 help="Number of slaves to use",
@@ -582,7 +607,13 @@ class DescentUpperClass(object):
             self.mfb      = int(args.init_mfb)
             self.ncurves  = int(args.init_ncurves)
             self.I        = int(args.init_I)
+            self.side     = int(args.init_side)
+            self.mineff   = int(args.init_mineff)
+            self.maxeff   = int(args.init_maxeff)
+            self.minB1    = int(args.init_minB1)
             self.slaves   = int(args.slaves)
+            # the final step needs to know the init side as well.
+            general.init_side = args.init_side
 
     def __isqrt(self, n):
         x = n
@@ -823,9 +854,86 @@ class DescentUpperClass(object):
 
         return todofilename, [Num, Den, factNum, factDen], None
 
+    def do_descent_nonlinear(self, z):
+        p = general.p()
+        tmpdir = general.tmpdir()
+        prefix = general.prefix() + ".descent.%s.upper." % general.short_target()
+        polyfilename = os.path.join(tmpdir, prefix + "poly")
+        call_that = [ general.descentinit_bin(),
+                "-poly", general.poly(),
+                "-mt", 4,
+                "-minB1", self.minB1,
+                "-mineff", self.mineff,
+                "-maxeff", self.maxeff,
+                "-side", self.side,
+                "-target", self.lpb,
+                "-seed", 42,
+                "-jl",
+                p, z
+                ]
+        call_that = [str(x) for x in call_that]
+        initfilename = os.path.join(general.datadir(), prefix + "init")
+        with important_file(initfilename, call_that) as f:
+            for line in f:
+                line = line.strip()
+                foo = re.match("^Youpi: e = (\d+) is a winner", line)
+                if foo:
+                    general.initrandomizer = int(foo.groups()[0])
+                foo = re.match("^U = ([0-9\-,]+)", line)
+                if foo:
+                    general.initU = [ int(x) for x in foo.groups()[0].split(',') ]
+                foo = re.match("^V = ([0-9\-,]+)", line)
+                if foo:
+                    general.initV = [ int(x) for x in foo.groups()[0].split(',') ]
+                foo = re.match("^u = ([0-9]+)", line)
+                if foo:
+                    general.initu = int(foo.groups()[0])
+                foo = re.match("^v = ([0-9]+)", line)
+                if foo:
+                    general.initv = int(foo.groups()[0])
+                foo = re.match("^fac_u = ([, 0-9]+)", line)
+                if foo:
+                    general.initfacu = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+                foo = re.match("^fac_v = ([, 0-9]+)", line)
+                if foo:
+                    general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+
+        todofilename = os.path.join(general.datadir(), prefix + "todo")
+        print(general.initfacu)
+        print(general.initfacv)
+
+        if not os.path.exists(todofilename):
+            with open(todofilename, "w") as f:
+                for ideal in general.initfacu + general.initfacv:
+                    q = ideal[0]
+                    r = ideal[1]
+                    if self.logDB.has(q,r,self.side):
+                        continue
+                    logq = math.ceil(math.log(q, 2))
+                    print("Will do further descent for %d-bit prime %d"
+                            % (logq, q))
+                    f.write("%d %d %d\n" % (self.side, q, r))
+        else:
+            with open(todofilename, "r") as f:
+                for line in f:
+                    ll = line.strip().split(' ')
+                    side = ll[0]
+                    q = ll[1]
+                    q=int(q)
+                    logq = math.ceil(math.log(q, 2))
+                    print("Will do further descent for %d-bit prime %d" % (logq, q))
+
+
+        return todofilename, [general.initU, general.initV,
+                general.initfacu, general.initfacv], None
+
+
     def do_descent(self, z):
         if not self.external:
-            return self.do_descent_for_real(z)
+            if general.has_rational_side():
+                return self.do_descent_for_real(z)
+            else:
+                return self.do_descent_nonlinear(z)
         else:
             return self.use_external_data(z)
 
@@ -1046,8 +1154,8 @@ class DescentLowerClass(object):
                     if log == None:
                         if unk != None:
                             raise ValueError(
-                        "Two unknown ideals in relation a,b=%d,%d: %d and %d"
-                        % (a, b, unk[0], p))
+                        "Two unknown ideals in relation a,b=%d,%d: %d (side %d) and %d (side %d)"
+                        % (a, b, unk[0], unk[2], p, side))
                         else:
                             unk = [p, a_over_b_mod_p(a, b, p), side]
                     else:
@@ -1062,40 +1170,91 @@ class DescentLowerClass(object):
                 logDB.add_log(unk[0], unk[1], unk[2], log)
             irel += 1
 
-        ## Deduce the log of the target
-        Num, Den, factNum, factDen = initial_split
-        log_target = 0
-        errors=[]
-        for p in factNum:
-            lp = logDB.get_log(p, -1, 0)
-            if lp is None:
-                errors.append(p)
-            else:
-                log_target = log_target + lp
-        for p in factDen:
-            lp = logDB.get_log(p, -1, 0)
-            if lp is None:
-                errors.append(p)
-            else:
-                log_target = log_target - lp
-        if len(errors):
-            msg = "Some logarithms missing:\n"
-            msg += "\n".join(["\t"+str(x) for x in errors])
-            raise RuntimeError(msg)
-        p=general.p()
-        ell=general.ell()
-        log_target = log_target % ell
-        if general.initrandomizer != 1:
-            # divide result by randomizer modulo ell
+        if general.has_rational_side():
+            ## Deduce the log of the target
+            Num, Den, factNum, factDen = initial_split
+            log_target = 0
+            errors=[]
+            for p in factNum:
+                lp = logDB.get_log(p, -1, 0)
+                if lp is None:
+                    errors.append(p)
+                else:
+                    log_target = log_target + lp
+            for p in factDen:
+                lp = logDB.get_log(p, -1, 0)
+                if lp is None:
+                    errors.append(p)
+                else:
+                    log_target = log_target - lp
+            if len(errors):
+                msg = "Some logarithms missing:\n"
+                msg += "\n".join(["\t"+str(x) for x in errors])
+                raise RuntimeError(msg)
+            p=general.p()
+            ell=general.ell()
+            log_target = log_target % ell
+            if general.initrandomizer != 1:
+                # divide result by randomizer modulo ell
+                multiplier = pow(general.initrandomizer, ell-2, ell)
+                log_target = (log_target * multiplier) % ell
+            print("# p=%d" % p)
+            print("# ell=%d" % ell)
+            print("log(2)=%d" % logDB.get_log(2, -1, 0))
+            print("log(3)=%d" % logDB.get_log(3, -1, 0))
+            print("# target=%s" % args.target)
+            print("log(target)=%d" % log_target)
+            check_result(2, logDB.get_log(2, -1, 0), args.target, log_target, p, ell)
+        else:
+            ## No rational side; more complicated.
+            # We need to compute the SMs for U and V.
+            polyforSM = os.path.join(tmpdir, prefix + "polyforSM")
+            SM2file = os.path.join(tmpdir, prefix + "SM2")
+
+            with open(polyforSM, 'w') as f:
+                for poly in [ general.initU, general.initV ]:
+                    f.write("p %d" % (len(poly)-1))
+                    for c in poly:
+                        f.write(" %d" % c)
+                    f.write("\n")
+
+            call_that = [ general.sm_simple_bin(),
+                            "-poly", general.poly(),
+                            "-inp", polyforSM,
+                            "-out", SM2file,
+                            "-ell", general.ell()
+                        ]
+            call_that = [str(x) for x in call_that]
+            print("command line:\n" + " ".join(call_that))
+            with open(os.devnull, 'w') as devnull:
+                subprocess.check_call(call_that, stderr=devnull)
+
+            SM2 = []
+            with open(SM2file, 'r') as file:
+                for line in file:
+                    r = line.split()
+                    sm = [ int(x) for x in r ]
+                    SM2.append(sm)
+            assert len(SM2) == 2
+
+            ell = general.ell()
+            vlog = [0, 0]
+            factored = [ general.initfacu, general.initfacv ]
+            for i in range(0,2):
+                for xx in factored[i]:
+                    vlog[i] += general.logDB.get_log(xx[0], xx[1], general.init_side)
+                for j in range(len(SM2[i])):
+                    vlog[i] += logDB.SM(j)*SM2[i][j]
+                vlog[i] = vlog[i] % ell
+
+            log_target = (vlog[0] - vlog[1]) % ell
             multiplier = pow(general.initrandomizer, ell-2, ell)
             log_target = (log_target * multiplier) % ell
-        print("# p=%d" % p)
-        print("# ell=%d" % ell)
-        print("log(2)=%d" % logDB.get_log(2, -1, 0))
-        print("log(3)=%d" % logDB.get_log(3, -1, 0))
-        print("# target=%s" % args.target)
-        print("log(target)=%d" % log_target)
-        check_result(2, logDB.get_log(2, -1, 0), args.target, log_target, p, ell)
+            print("# p=%d" % general.p())
+            print("# ell=%d" % ell)
+            print("# target=%s" % args.target)
+            print("log(target)=%d" % log_target)
+
 
 
 # http://stackoverflow.com/questions/107705/disable-output-buffering

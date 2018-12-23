@@ -1908,7 +1908,7 @@ declare_usage(param_list pl)
 
   param_list_decl_usage(pl, "admax", "maximal value for ad (+ 1)");
   param_list_decl_usage(pl, "admin", "minimal value for ad (default 0)");
-  param_list_decl_usage(pl, "incr", "(alias i) increment of ad (default 60)");
+  param_list_decl_usage(pl, "incr", "increment of ad (default 60)");
   param_list_decl_usage(pl, "maxtime", "stop the search after maxtime seconds");
 
   char str[200];
@@ -1922,8 +1922,8 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "sopteffort", str);
   param_list_decl_usage(pl, "s", str);
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
-  param_list_decl_usage(pl, "v", "(switch) verbose mode");
-  param_list_decl_usage(pl, "q", "(switch) quiet mode");
+  param_list_decl_usage(pl, "v", "verbose mode");
+  param_list_decl_usage(pl, "q", "quiet mode");
   param_list_decl_usage(pl, "target_E", "target E-value\n");
   verbose_decl_usage(pl);
 }

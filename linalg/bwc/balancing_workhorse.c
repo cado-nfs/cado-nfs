@@ -425,7 +425,7 @@ struct progress_info {
 
 static int should_print_now(struct progress_info * last_printed, size_t z)
 {
-    if (z >= last_printed->z + (10UL<<20) || time(NULL) >= last_printed->t + 10) {
+    if (z >= last_printed->z + (1UL<<30) || time(NULL) >= last_printed->t + 60) {
         last_printed->z = z;
         last_printed->t = time(NULL);
         return 1;

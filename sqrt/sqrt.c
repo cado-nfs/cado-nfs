@@ -89,10 +89,8 @@ get_depname (const char *prefix, const char *algrat, int numdep)
   for (int i = 0; strlen (suffix = suffixes[i]) != 0; i++)
     if (strcmp (prefix + strlen (prefix) - strlen (suffix), suffix) == 0)
       break;
-  prefix_base = malloc (strlen (prefix) - strlen (suffix) + 1);
+  prefix_base = strndup(prefix, strlen (prefix) - strlen (suffix));
   ASSERT_ALWAYS(prefix_base != NULL);
-  strncpy (prefix_base, prefix, strlen (prefix) - strlen (suffix));
-  prefix_base[strlen (prefix) - strlen (suffix)] = '\0';
   ret = asprintf (&depname, "%s.%s%03d%s", prefix_base, algrat, numdep, suffix);
   ASSERT_ALWAYS(ret > 0);
   free (prefix_base);
@@ -369,23 +367,14 @@ polymodF_from_ab (polymodF_t tmp, mpz_t a, mpz_t b)
   mpz_set (tmp->p->coeff[0], a);
 }
 
-/* Reduce the coefficients of R in [-m/2, m/2], which are assumed in [0, m[ */
+/* Reduce the coefficients of R in [-m/2, m/2) */
 static void
 mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
   int i;
-  mpz_t m_over_2;
 
-  mpz_init (m_over_2);
-  mpz_div_2exp (m_over_2, m, 2);
   for (i=0; i <= R->deg; i++)
-    {
-      ASSERT_ALWAYS(mpz_cmp_ui (R->coeff[i], 0) >= 0);
-      ASSERT_ALWAYS(mpz_cmp (R->coeff[i], m) < 0);
-      if (mpz_cmp (R->coeff[i], m_over_2) > 0)
-        mpz_sub (R->coeff[i], R->coeff[i], m);
-    }
-  mpz_clear (m_over_2);
+    mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
 }
 
 #if 0
@@ -455,11 +444,14 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
       int i;
       // pick a random delta
       for (i = 0; i < d; ++i)
-    mpz_urandomm(delta->coeff[i], state, myp);
+	mpz_urandomm(delta->coeff[i], state, myp);
       mpz_poly_cleandeg(delta, d-1);
       // raise it to power (q-1)/2
       mpz_poly_pow_mod_f_mod_ui(auxpol, delta, F, aux, p);
-    } while ((auxpol->deg != 0) || (mpz_cmp_ui(auxpol->coeff[0], p-1)!= 0));
+      /* Warning: the coefficients of auxpol might either be reduced in
+	 [0, p) or in [-p/2, p/2). This code should work in both cases. */
+    } while (auxpol->deg != 0 || (mpz_cmp_ui (auxpol->coeff[0], p-1) != 0 &&
+				  mpz_cmp_si (auxpol->coeff[0], -1) != 0));
     gmp_randclear (state);
   }
 
@@ -475,7 +467,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_poly_pow_mod_f_mod_ui(D, delta, F, t, p);
     for (i = 0; i <= s-1; ++i) {
       mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
-      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
+      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL);
       mpz_ui_pow_ui(aux, 2, (s-1-i));
       mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
       if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
@@ -487,7 +479,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_divexact_ui(m, m, 2);
     mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
 
-    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL, NULL);
+    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL);
     mpz_poly_clear(D);
     mpz_poly_clear(A);
     mpz_clear(m);
@@ -551,9 +543,8 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   mpz_poly_init(invsqrtA, d-1);
   mpz_poly_init(a, d-1);
   // variable for the current pk
-  mpz_t pk, invpk;
+  mpz_t pk;
   mpz_init (pk);
-  mpz_init (invpk);
 
   /* Jason Papadopoulos's trick: since we will lift the square root of A to at
      most target_size bits, we can reduce A accordingly */
@@ -565,7 +556,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz (A, A, pk, NULL);
+  mpz_poly_mod_mpz (A, A, pk);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -663,7 +654,6 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
     /* invariant: k = K[logk] */
     ASSERT_ALWAYS(k == K[logk]);
 
-    mpz_set (invpk, pk);
     mpz_mul (pk, pk, pk);   // double the current precision
     logk --;
     if (K[logk] & 1)
@@ -672,7 +662,6 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
         k --;
       }
     k = K[logk];
-    barrett_init (invpk, pk); /* FIXME: we could lift 1/p^k also */
     pthread_mutex_lock (&lock);
     fprintf (stderr, "Alg(%d): start lifting mod p^%d (%lu bits) at %.2lfs\n",
              numdep, k, (unsigned long int) mpz_sizeinbase (pk, 2),
@@ -682,7 +671,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
 
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, invpk, NULL); /* tmp = invsqrtA^2 */
+    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL); /* tmp = invsqrtA^2 */
     if (verbose)
       {
 	pthread_mutex_lock (&lock);
@@ -697,7 +686,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
        However I don't see how to use the fact that the coefficients
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, invpk, NULL); /* tmp=a*invsqrtA^2 */
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL); /* tmp=a*invsqrtA^2 */
     if (verbose)
       {
 	pthread_mutex_lock (&lock);
@@ -710,7 +699,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
     mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, invpk, NULL);
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL);
     if (verbose)
       {
 	pthread_mutex_lock (&lock);
@@ -735,7 +724,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
-  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, invpk, NULL);
+  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL);
   if (verbose)
     {
       pthread_mutex_lock (&lock);
@@ -753,7 +742,6 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   res->v = v;
 
   mpz_clear (pk);
-  mpz_clear (invpk);
   mpz_poly_clear(tmp);
   mpz_poly_clear (invsqrtA);
   mpz_poly_clear (a);
@@ -1331,19 +1319,18 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
       T[j]->side = side;
       T[j]->Np = Np;
     }
-  if (nthreads > 1) {
-      for (j = 0; j < nthreads; j++)
-          pthread_create (&tid[j], NULL, one_thread, (void *) (T+j));
-      while (j > 0)
-          pthread_join (tid[--j], NULL);
-  } else {
-      /* I know it's eqiuvalent to the above. But on openbsd, where we
-       * have obscure failures that seem to be triggered by
-       * multithreading, it seems that it is not. So let's play it
-       * simple.
-       */
-      one_thread((void*) T);
-  }
+#ifdef __OpenBSD__
+  /* On openbsd, we have obscure failures that seem to be triggered
+   * by multithreading. So let's play it simple.
+   */
+  for (j = 0; j < nthreads; j++)
+      (*one_thread)((void*)(T+j));
+#else
+  for (j = 0; j < nthreads; j++)
+      pthread_create (&tid[j], NULL, one_thread, (void *) (T+j));
+  while (j > 0)
+      pthread_join (tid[--j], NULL);
+#endif
   free (tid);
   free (T);
 }
@@ -1355,14 +1342,14 @@ void declare_usage(param_list pl)
     param_list_decl_usage(pl, "index", "Index file, as produced by 'merge'");
     param_list_decl_usage(pl, "ker", "Kernel file, as produced by 'characters'");
     param_list_decl_usage(pl, "prefix", "File name prefix used for output files");
-    param_list_decl_usage(pl, "ab", "(switch) For each dependency, create file with the a,b-values of the relations used in that dependency");
-    param_list_decl_usage(pl, "side0", "(switch) Compute square root for side 0 and store in file");
-    param_list_decl_usage(pl, "side1", "(switch) Compute square root for side 1 and store in file");
-    param_list_decl_usage(pl, "gcd", "(switch) Compute gcd of the two square roots. Requires square roots on both sides");
+    param_list_decl_usage(pl, "ab", "For each dependency, create file with the a,b-values of the relations used in that dependency");
+    param_list_decl_usage(pl, "side0", "Compute square root for side 0 and store in file");
+    param_list_decl_usage(pl, "side1", "Compute square root for side 1 and store in file");
+    param_list_decl_usage(pl, "gcd", "Compute gcd of the two square roots. Requires square roots on both sides");
     param_list_decl_usage(pl, "dep", "The initial dependency for which to compute square roots");
     param_list_decl_usage(pl, "t",   "The number of dependencies to process (default 1)");
     param_list_decl_usage(pl, "v", "More verbose output");
-    param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+    param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
 void usage(param_list pl, const char * argv0, FILE *f)
@@ -1521,6 +1508,14 @@ int main(int argc, char *argv[])
         create_dependencies(prefix, indexname, purgedname, kername);
     }
 
+#ifdef __OpenBSD__
+    if (nthreads > 1) {
+        fprintf(stderr, "Warning: reducing number of threads to 1 for openbsd ; unexplained failure https://ci.inria.fr/cado/job/compile-openbsd-59-amd64-random-integer/2775/console\n");
+        /* We'll still process everything we've been told to. But in a
+         * single-threaded fashion */
+    }
+#endif
+
     if (opt_side0 || opt_side1 || opt_gcd)
       {
         int i;
@@ -1535,12 +1530,6 @@ int main(int argc, char *argv[])
             }
       }
 
-#ifdef __OpenBSD__
-    if (nthreads > 1) {
-        fprintf(stderr, "Warning: reducing number of threads to 1 for openbsd ; unexplained failure https://ci.inria.fr/cado/job/compile-openbsd-59-amd64-random-integer/2775/console\n");
-        nthreads=1;
-    }
-#endif
     if (nthreads == 0)
       {
         fprintf (stderr, "Error, no more dependency\n");

@@ -451,7 +451,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outdir", "by default, input files are overwritten");
   param_list_decl_usage(pl, "outfmt",
       "format of output file (default same as input)");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "nrels", "(approximate) number of input relations");
   param_list_decl_usage(pl, "galois", "Galois action among 1/y or _y");

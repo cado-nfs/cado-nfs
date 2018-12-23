@@ -4,11 +4,9 @@
 #include <gmp.h>
 #include "portability.h"
 #include "macros.h"
+#include "utils.h"
 #include "lingen-matpoly.h"
-#include "lingen-matpoly.h"
-#ifdef HAVE_MPIR
 #include "flint-fft/fft.h"
-#endif
 
 int matpoly_check_pre_init(matpoly_srcptr p)
 {
@@ -74,6 +72,28 @@ void matpoly_zero(abdst_field ab, matpoly_ptr p) {
     p->size = 0;
     abvec_set_zero(ab, p->x, p->m*p->n*p->alloc);
 }
+void matpoly_set_constant_ui(abdst_field ab, matpoly_ptr p, unsigned long e) {
+    ASSERT_ALWAYS(p->m == p->n);
+    p->size = 0;
+    if (p->alloc == 0 && e)
+        matpoly_realloc(ab, p, 1);
+    matpoly_zero(ab, p);
+    if (!e) return;
+    p->size = 1;
+    for(unsigned int i = 0 ; i < p->m ; ++i)
+        abset_ui(ab, matpoly_coeff(ab, p, i, i, 0), e);
+}
+void matpoly_set_constant(abdst_field ab, matpoly_ptr p, absrc_elt e) {
+    ASSERT_ALWAYS(p->m == p->n);
+    p->size = 0;
+    if (p->alloc == 0 && abcmp_ui(ab, e, 0) != 0)
+        matpoly_realloc(ab, p, 1);
+    matpoly_zero(ab, p);
+    if (abcmp_ui(ab, e, 0) == 0) return;
+    p->size = 1;
+    for(unsigned int i = 0 ; i < p->m ; ++i)
+        abset(ab, matpoly_coeff(ab, p, i, i, 0), e);
+}
 void matpoly_clear(abdst_field ab, matpoly_ptr p) {
     abvec_clear(ab, &(p->x), p->m*p->n*p->alloc);
     memset(p, 0, sizeof(matpoly));
@@ -121,6 +141,9 @@ void matpoly_add(abdst_field ab,
     }
 }
 
+/* shift by a multiplication by x all coefficients of degree k and above
+ * in column j. (that is, whole polynomial entries if k==0)
+ */
 void matpoly_multiply_column_by_x(abdst_field ab, matpoly_ptr pi, unsigned int j, unsigned int size)/*{{{*/
 {
     ASSERT_ALWAYS((size + 1) <= pi->alloc);
@@ -128,6 +151,15 @@ void matpoly_multiply_column_by_x(abdst_field ab, matpoly_ptr pi, unsigned int j
         memmove(matpoly_part(ab, pi, i, j, 1), matpoly_part(ab, pi, i, j, 0), 
                 size * abvec_elt_stride(ab, 1));
         abset_ui(ab, matpoly_coeff(ab, pi, i, j, 0), 0);
+    }
+}/*}}}*/
+void matpoly_divide_column_by_x(abdst_field ab, matpoly_ptr pi, unsigned int j, unsigned int size)/*{{{*/
+{
+    ASSERT_ALWAYS(size <= pi->alloc);
+    for(unsigned int i = 0 ; i < pi->m ; i++) {
+        memmove(matpoly_part(ab, pi, i, j, 0), matpoly_part(ab, pi, i, j, 1), 
+                (size-1) * abvec_elt_stride(ab, 1));
+        abset_ui(ab, matpoly_coeff(ab, pi, i, j, size-1), 0);
     }
 }/*}}}*/
 
@@ -240,52 +272,103 @@ void matpoly_rshift(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src, unsigne
         matpoly_realloc(ab, dst, newsize);
 }/*}}}*/
 
-
-void matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b)/*{{{*/
+double matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft)/*{{{*/
 {
+    size_t csize = a->size + b->size; csize -= (csize > 0);
+    if (c == a || c == b) {
+        matpoly tc;
+        matpoly_init(ab, tc, a->m, b->n, csize);
+        double t = matpoly_addmul(ab, tc, a, b, draft);
+        matpoly_swap(tc, c);
+        matpoly_clear(ab, tc);
+        return t;
+    }
     ASSERT_ALWAYS(a->n == b->m);
     if (matpoly_check_pre_init(c)) {
-        matpoly_init(ab, c, a->m, b->n, a->size + b->size - 1);
+        matpoly_init(ab, c, a->m, b->n, csize);
     }
     ASSERT_ALWAYS(c->m == a->m);
     ASSERT_ALWAYS(c->n == b->n);
-    ASSERT_ALWAYS(c->alloc >= a->size + b->size - 1);
-    c->size = a->size + b->size - 1;
+    ASSERT_ALWAYS(c->alloc >= csize);
+
+    for(unsigned int i = 0 ; i < c->m ; ++i) {
+        for(unsigned int j = 0 ; j < c->n ; ++j) {
+            abvec_set_zero(ab,
+                    matpoly_part(ab, c, i, j, c->size),
+                    csize - c->size);
+        }
+    }
+
+    c->size = csize;
     abvec_ur tmp[2];
     abvec_ur_init(ab, &tmp[0], c->size);
     abvec_ur_init(ab, &tmp[1], c->size);
-    for(unsigned int i = 0 ; i < a->m ; i++) {
-        for(unsigned int j = 0 ; j < b->n ; j++) {
+
+    double tt0=0, tt1=0, tt=0;  /* placate gcc */
+    unsigned long c0 = 0, c1 = 0;
+    int set = 0;
+
+    for(unsigned int i = 0 ; i < a->m && !set; i++) {
+        for(unsigned int j = 0 ; j < b->n&& !set ; j++) {
+            if (draft) { tt=wct_seconds(); tt0 -= tt; }
             abvec_ur_set_vec(ab, tmp[1], matpoly_part(ab, c, i, j, 0), c->size);
-            for(unsigned int k = 0 ; k < a->n ; k++) {
+            if (draft) { tt=wct_seconds(); tt0 += tt; tt1 -= tt; }
+            for(unsigned int k = 0 ; k < a->n && !set; k++) {
                 abvec_conv_ur(ab, tmp[0],
                         matpoly_part(ab, a, i, k, 0), a->size,
                         matpoly_part(ab, b, k, j, 0), b->size);
                 abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], c->size);
+                if (draft) { ++c1; set = (tt1 + (tt = wct_seconds())) >= draft; }
             }
+            if (draft) { tt1 += tt; tt0 -= tt; }
             abvec_reduce(ab, matpoly_part(ab, c, i, j, 0), tmp[1], c->size);
+            if (draft) { ++c0; tt0 += wct_seconds(); set = set || tt0 >= draft; }
         }
     }
     abvec_ur_clear(ab, &tmp[0], c->size);
     abvec_ur_clear(ab, &tmp[1], c->size);
+
+    if (!set) return 0;
+
+    /* At this point we've done c0 load & reduce, and c1 products.
+     * How much extra time would we have spent here, had we done the
+     * computation in full ?
+     */
+    unsigned long n0 = (unsigned long) a->m * (unsigned long) c->n;
+    unsigned long n1 = n0 * (unsigned long) a->n;
+    double x0 = tt0 / c0 * (n0 - c0);
+    double x1 = tt1 / c1 * (n1 - c1);
+    return x0 + x1;
 }/*}}}*/
 
-void matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b)/*{{{*/
+double matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft)/*{{{*/
 {
+    size_t csize = a->size + b->size; csize -= (csize > 0);
+
+    if (c == a || c == b) {
+        matpoly tc;
+        matpoly_init(ab, tc, a->m, b->n, csize);
+        double t = matpoly_mul(ab, tc, a, b, draft);
+        matpoly_swap(tc, c);
+        matpoly_clear(ab, tc);
+        return t;
+    }
+        
     ASSERT_ALWAYS(a->n == b->m);
     if (matpoly_check_pre_init(c)) {
-        matpoly_init(ab, c, a->m, b->n, a->size + b->size - 1);
+        matpoly_init(ab, c, a->m, b->n, csize);
     }
     ASSERT_ALWAYS(c->m == a->m);
     ASSERT_ALWAYS(c->n == b->n);
-    ASSERT_ALWAYS(c->alloc >= a->size + b->size - 1);
-    c->size = a->size + b->size - 1;
+    ASSERT_ALWAYS(c->alloc >= csize);
+    c->size = csize;
     abvec_set_zero(ab, c->x, c->m * c->n * c->size);
-    matpoly_addmul(ab, c, a, b);
+    return matpoly_addmul(ab, c, a, b, draft);
 }/*}}}*/
 
-void matpoly_addmp(abdst_field ab, matpoly b, matpoly a, matpoly c)/*{{{*/
+double matpoly_addmp(abdst_field ab, matpoly b, matpoly a, matpoly c, int draft)/*{{{*/
 {
+    size_t fullsize = a->size + c->size; fullsize -= (fullsize > 0);
     unsigned int nb = MAX(a->size, c->size) - MIN(a->size, c->size) + 1;
     ASSERT_ALWAYS(a->n == c->m);
     if (matpoly_check_pre_init(b)) {
@@ -299,27 +382,49 @@ void matpoly_addmp(abdst_field ab, matpoly b, matpoly a, matpoly c)/*{{{*/
     /* We are going to make it completely stupid for a beginning. */
     /* XXX XXX XXX FIXME !!! */
     abvec_ur tmp[2];
-    abvec_ur_init(ab, &tmp[0], a->size + c->size - 1);
+    abvec_ur_init(ab, &tmp[0], fullsize);
     abvec_ur_init(ab, &tmp[1], b->size);
-    for(unsigned int i = 0 ; i < a->m ; i++) {
-        for(unsigned int j = 0 ; j < c->n ; j++) {
+
+    double tt0=0, tt1=0, tt=0;  /* placate gcc */
+    unsigned long c0 = 0, c1 = 0;
+    int set = 0;
+
+    for(unsigned int i = 0 ; i < a->m && !set ; i++) {
+        for(unsigned int j = 0 ; j < c->n && !set ; j++) {
+            if (draft) { tt=wct_seconds(); tt0 -= tt; }
             abvec_ur_set_vec(ab, tmp[1], matpoly_part(ab, b, i, j, 0), b->size);
-            for(unsigned int k = 0 ; k < a->n ; k++) {
+            if (draft) { tt=wct_seconds(); tt0 += tt; tt1 -= tt; }
+            for(unsigned int k = 0 ; k < a->n && !set ; k++) {
                 abvec_conv_ur(ab, tmp[0],
                         matpoly_part(ab, a, i, k, 0), a->size,
                         matpoly_part(ab, c, k, j, 0), c->size);
                 abvec_ur_add(ab, tmp[1], tmp[1],
                         abvec_ur_subvec(ab, tmp[0], MIN(a->size, c->size) - 1),
                         nb);
+                if (draft) { ++c1; set = (tt1 + (tt = wct_seconds())) >= 1; }
             }
+            if (draft) { tt1 += tt; tt0 -= tt; }
             abvec_reduce(ab, matpoly_part(ab, b, i, j, 0), tmp[1], b->size);
+            if (draft) { ++c0; tt0 += wct_seconds(); set = set || tt0 >= 1; }
         }
     }
-    abvec_ur_clear(ab, &tmp[0], a->size + c->size - 1);
+    abvec_ur_clear(ab, &tmp[0], fullsize);
     abvec_ur_clear(ab, &tmp[1], b->size);
+
+    if (!set) return 0;
+
+    /* At this point we've done c0 load & reduce, and c1 products.
+     * How much extra time would we have spent here, had we done the
+     * computation in full ?
+     */
+    unsigned long n0 = (unsigned long) a->m * (unsigned long) c->n;
+    unsigned long n1 = n0 * (unsigned long) a->n;
+    double x0 = tt0 / c0 * (n0 - c0);
+    double x1 = tt1 / c1 * (n1 - c1);
+    return x0 + x1;
 }/*}}}*/
 
-void matpoly_mp(abdst_field ab, matpoly b, matpoly a, matpoly c)/*{{{*/
+double matpoly_mp(abdst_field ab, matpoly b, matpoly a, matpoly c, int draft)/*{{{*/
 {
     unsigned int nb = MAX(a->size, c->size) - MIN(a->size, c->size) + 1;
     ASSERT_ALWAYS(a->n == c->m);
@@ -331,7 +436,7 @@ void matpoly_mp(abdst_field ab, matpoly b, matpoly a, matpoly c)/*{{{*/
     ASSERT_ALWAYS(b->alloc >= nb);
     b->size = nb;
     abvec_set_zero(ab, b->x, b->m * b->n * b->size);
-    matpoly_addmp(ab, b, a, c);
+    return matpoly_addmp(ab, b, a, c, draft);
 }/*}}}*/
 
 
@@ -351,4 +456,19 @@ void matpoly_set_polymat(abdst_field ab MAYBE_UNUSED, matpoly_ptr dst, polymat_s
             }
         }
     }
+}
+
+int matpoly_coeff_is_zero(abdst_field ab, matpoly_srcptr pi, unsigned int k)
+{
+    for(unsigned int j = 0; j < pi->m; j++)
+        for(unsigned int i = 0 ; i < pi->n ; i++)
+            if (!abis_zero(ab, matpoly_coeff_const(ab, pi, i, j, k)))
+                return 0;
+    return 1;
+}
+void matpoly_coeff_set_zero(abdst_field ab, matpoly_ptr pi, unsigned int k)
+{
+    for(unsigned int j = 0; j < pi->m; j++)
+        for(unsigned int i = 0 ; i < pi->n ; i++)
+            abset_zero(ab, matpoly_coeff(ab, pi, i, j, k));
 }

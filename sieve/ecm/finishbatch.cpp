@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp() */
 #include <pthread.h>
+#include <sstream>
 #include "portability.h"
 #include "utils.h"
-#include "batch.h"
+#include "memusage.h"
+#include "batch.hpp"
 
 
 static void declare_usage(param_list pl)
@@ -23,7 +25,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "batchlpb1", "batch bound on side 1");
     param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
     param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
-    param_list_decl_usage(pl, "doecm", "(switch) finish with ECM [default = no]");
+    param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
 
     verbose_decl_usage(pl);
 }
@@ -31,13 +33,12 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char *argv[])
 {
-  param_list pl;
-  cado_poly cpoly;
+  cxx_param_list pl;
+  cxx_cado_poly cpoly;
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
   int doecm = 0;
 
-  param_list_init(pl);
   declare_usage(pl);
 
   param_list_configure_switch(pl, "-doecm", &doecm);
@@ -68,7 +69,6 @@ main (int argc, char *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  cado_poly_init(cpoly);
   if (!cado_poly_read(cpoly, filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
@@ -82,16 +82,21 @@ main (int argc, char *argv[])
   }
   param_list_parse_ulong(pl, "t"   , &nb_threads);
   
-  unsigned long lim[2] = {0, 0};
+  unsigned long lim[2] = {ULONG_MAX, ULONG_MAX};
   param_list_parse_ulong(pl, "lim0", &lim[0]);
   param_list_parse_ulong(pl, "lim1", &lim[1]);
+  if (lim[0] == ULONG_MAX || lim[1] == ULONG_MAX) {
+      fprintf(stderr, "Error: parameters lim[01] are mandatory\n");
+      param_list_print_usage(pl, argv0, stderr);
+      exit(EXIT_FAILURE);
+  }
 
   int lpb[2] = {0, 0};
   param_list_parse_int(pl, "lpb0", &lpb[0]);
   param_list_parse_int(pl, "lpb1", &lpb[1]);
 
-  if (lpb[0] * lpb[1] * lim[0] * lim[1] == 0) {
-      fprintf(stderr, "Error: parameters lpb[01] and lim[01] are mandatory\n");
+  if (lpb[0] * lpb[1] == 0) {
+      fprintf(stderr, "Error: parameters lpb[01] are mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
@@ -112,73 +117,60 @@ main (int argc, char *argv[])
       exit(EXIT_FAILURE);
   }
 
-  mpz_t batchP[2];
-  mpz_init (batchP[0]);
-  mpz_init (batchP[1]);
+  std::array<cxx_mpz, 2> batchP;
+
+  double extra_time = 0;
 
   for (int side = 0; side < 2; ++side) {
       create_batch_file (batch_file[side], batchP[side], lim[side],
-              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads);
+              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads,
+              extra_time);
   }
 
   // Read list from the input file.
   cofac_list List;
-  cofac_list_init(List);
   FILE * inp = fopen_maybe_compressed(infilename, "r");
   ASSERT_ALWAYS(inp);
 
 #define MAX_SIZE 2048
   char str[MAX_SIZE];
-  mpz_t A, R, q;
-  mpz_init(A);
-  mpz_init(R);
-  mpz_init(q);
+  std::array<cxx_mpz, 2> norms;
+  cxx_mpz q;
   mpz_set_ui(q, 1);
+  // Create a fake special-q
+  std::vector<uint64_t> empty;
+  las_todo_entry doing(q, q, 0, empty);
   long a;
   unsigned long b;
   while (fgets(str, MAX_SIZE, inp)) {
       if (str[0] == '#') continue;
-      gmp_sscanf(str, "%ld %lu %Zd %Zd\n", &a, &b, R, A);
-      cofac_list_add(List, a, b, R, A, 0, q);
+      gmp_sscanf(str, "%ld %lu %Zd %Zd\n", &a, &b, (mpz_ptr) norms[0], (mpz_ptr) norms[1]);
+      List.emplace_back(a, b, norms, &doing);
   }
   fclose_maybe_compressed(inp, infilename);
-  mpz_clear(A);
-  mpz_clear(R);
-  mpz_clear(q);
 
-  mpz_t B[2], L[2], M[2];
-  for(int side = 0 ; side < 2 ; side++) {
-      mpz_init(B[side]);
-      mpz_init(L[side]);
-      mpz_init(M[side]);
-      mpz_ui_pow_ui(B[side], 2, batchlpb[side]);
-      mpz_ui_pow_ui(L[side], 2, lpb[side]);
-      mpz_ui_pow_ui(M[side], 2, batchmfb[side]);
-  }
-  unsigned long nrels = find_smooth(List, batchP, B, L, M, stdout, nb_threads);
+  find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      factor(List, nrels, cpoly, batchlpb, lpb, stdout, nb_threads);
+      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, stdout, nb_threads, extra_time);
+        for(auto const & rel : smooth) {
+            std::ostringstream os;
+            os << rel << "\n";
+            printf("%s\n", os.str().c_str());
+        }
   } else {
-      for (unsigned long i = 0; i < nrels; i++) {
-          uint32_t *perm = List->perm;
+      for (auto const & x : List) {
           gmp_printf("%" PRIi64 " %" PRIu64 " %Zd %Zd\n",
-                  List->a[perm[i]], List->b[perm[i]],
-                  List->R[perm[i]], List->A[perm[i]]);
+                  x.a, x.b,
+                  (mpz_srcptr) x.cofactor[0],
+                  (mpz_srcptr) x.cofactor[1]);
       }
   }
 
-  for(int side = 0 ; side < 2 ; side++) {
-      mpz_clear(B[side]);
-      mpz_clear(L[side]);
-      mpz_clear(M[side]);
-  }
-  cofac_list_clear(List);
-
-  cado_poly_clear(cpoly);
-  mpz_clear (batchP[0]);
-  mpz_clear (batchP[1]);
-  param_list_clear(pl);
+    const long peakmem = PeakMemusage();
+    if (peakmem > 0)
+        printf ("# PeakMemusage (MB) = %ld \n",
+                peakmem >> 10);
 
   return EXIT_SUCCESS;
 }

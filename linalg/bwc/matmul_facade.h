@@ -53,7 +53,7 @@ extern "C" {
 /* those are defined on a per-impl basis, in the impl specific source
  * files (most often it's called matmul-MM_IMPL.c , or .cpp) */
 extern matmul_ptr MATMUL_NAME(init)(void *, param_list pl, int);
-extern void MATMUL_NAME(build_cache)(matmul_ptr, uint32_t *);
+extern void MATMUL_NAME(build_cache)(matmul_ptr, uint32_t *, size_t);
 extern int MATMUL_NAME(reload_cache)(matmul_ptr);
 extern void MATMUL_NAME(save_cache)(matmul_ptr);
 extern void MATMUL_NAME(mul)(matmul_ptr, void *, const void *, int);

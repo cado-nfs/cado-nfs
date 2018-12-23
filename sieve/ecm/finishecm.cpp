@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include "portability.h"
 #include "utils.h"
-#include "batch.h"
+#include "batch.hpp"
 #include "facul.hpp"
 
 static void declare_usage(param_list pl)

@@ -1103,7 +1103,8 @@ poly_shift_divp (mpz_t *h, unsigned int d, unsigned long r, unsigned long p)
 /********************* computation of alpha **********************************/
 
 /* Auxiliary routine for special_valuation(), see below. It returns the
-   average p-valuation of the polynomial f. Works recursively. */
+   average p-valuation of the polynomial f. Works recursively.
+   Assumes f is square-free, otherwise it will loop. */
 static double
 special_val0 (mpz_poly_srcptr f, unsigned long p)
 {

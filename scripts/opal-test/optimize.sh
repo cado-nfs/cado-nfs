@@ -4,7 +4,8 @@
 # Puts the optimized file in params.cxx.opt in the current directory.
 # Remark: the 'nomad' binary must be in $PATH (see README)
 # The CADO_BUILD environment variable must contain the CADO-NFS build
-# directory (makefb and las are taken from $CADO_BUILD/sieve)
+# directory (makefb and las are taken from $CADO_BUILD/sieve), i.e.,
+# something like /xxx/cado-nfs/build/<some_name>
 
 # Important: if lpb0 and/or lpb1 change, you need to recompute rels_wanted,
 # which should be near from prime_pi(2^lpb0) + prime_pi(2^lpb1)
@@ -76,6 +77,11 @@ else
   exit 1
 fi
 
+if ! [ -x "${CADO_BUILD}/sieve/makefb" ] || ! [ -x "${CADO_BUILD}/sieve/las" ] ; then
+    echo "could not find ${CADO_BUILD}/sieve/makefb and ${CADO_BUILD}/sieve/las ; have you run \"make\" ?"
+    exit 1
+fi
+
 ### Set working directory
 d=`mktemp -d`
 echo "Working directory:" $d
@@ -101,7 +107,7 @@ if [ $npoly -eq 0 ] ; then # polys are given by Y[0-9] and (c[0-9] or X[0-9])
   if grep -q "^[cX][2-9]" $d/$poly ; then
     poly1="alg"
   else
-    poly0="rat"
+    poly1="rat"
   fi
 elif [ $npoly -eq 2 ] ; then # polys are given by 'poly[0-9]:c0,c1,...'
   if [ `grep "^poly0" $d/$poly | tr -cd , | wc -c` -eq 1 ] ; then
@@ -129,18 +135,25 @@ export OPAL_CADO_SQSIDE="$sqside"
 echo "OPAL_CADO_SQSIDE=${OPAL_CADO_SQSIDE}"
 
 ### Get parameters from params file and set _min and _max
-lim0=`grep "^lim0.*=" $params | cut -d= -f2`
-lim1=`grep "^lim1.*=" $params | cut -d= -f2`
-echo $lim0 $lim1
-if grep -q "qmin.*=" $params ; then
-   qmin=`grep "qmin.*=" $params | cut -d= -f2`
+lim0=`grep "^\(tasks\.\(sieve\.\)\?\)\?lim0.*=" $params | cut -d= -f2`
+lim1=`grep "^\(tasks\.\(sieve\.\)\?\)\?lim1.*=" $params | cut -d= -f2`
+qmin=`grep "^\(tasks\.\(sieve\.\)\?\)\?qmin.*=" $params | cut -d= -f2`
+bkthresh1=`grep "^\(tasks\.\(sieve\.\)\?\)\?bkthresh1.*=" $params | cut -d= -f2`
+lpb0=`grep "^\(tasks\.\(sieve\.\)\?\)\?lpb0.*=" $params | cut -d= -f2`
+lpb1=`grep "^\(tasks\.\(sieve\.\)\?\)\?lpb1.*=" $params | cut -d= -f2`
+mfb0=`grep "^\(tasks\.\(sieve\.\)\?\)\?mfb0.*=" $params | cut -d= -f2`
+mfb1=`grep "^\(tasks\.\(sieve\.\)\?\)\?mfb1.*=" $params | cut -d= -f2`
+ncurves0=`grep "^\(tasks\.\(sieve\.\)\?\)\?ncurves0.*=" $params | cut -d= -f2`
+ncurves1=`grep "^\(tasks\.\(sieve\.\)\?\)\?ncurves1.*=" $params | cut -d= -f2`
+I=`grep "^\(tasks\.\(sieve\.\)\?\)\?I.*=" $params | cut -d= -f2`
+echo lim01 $lim0 $lim1
+if [ "$qmin" ] ; then
    has_qmin=1
 else
    qmin=$lim1
    has_qmin=0
 fi
-if grep -q "bkthresh1.*=" $params ; then
-   bkthresh1=`grep "bkthresh1.*=" $params | cut -d= -f2`
+if [ "$bkthresh1" ] ; then
    has_bkthresh1=1
 else
    # factor base primes larger than bkthresh (default 2^I) are bucket-sieved
@@ -151,28 +164,22 @@ else
    bkthresh1=0
    has_bkthresh1=0
 fi
-lpb0=`grep "^lpb0.*=" $params | cut -d= -f2`
-lpb1=`grep "^lpb1.*=" $params | cut -d= -f2`
-echo $lpb0 $lpb1
-mfb0=`grep "mfb0.*=" $params | cut -d= -f2`
-mfb1=`grep "mfb1.*=" $params | cut -d= -f2`
-echo $mfb0 $mfb1
-if grep -q "ncurves0.*=" $params ; then
-   ncurves0=`grep "ncurves0.*=" $params | cut -d= -f2`
+echo lpb01 $lpb0 $lpb1
+echo mfb01 $mfb0 $mfb1
+if [ "$ncurves0" ] ; then
    has_ncurves0=1
 else
    ncurves0=10
    has_ncurves0=0
 fi
-if grep -q "ncurves1.*=" $params ; then
-   ncurves1=`grep "ncurves1.*=" $params | cut -d= -f2`
+if [ "$ncurves1" ] ; then
    has_ncurves1=1
 else
    ncurves1=10
    has_ncurves1=0
 fi
-I=`grep "I.*=" $params | cut -d= -f2`
-echo $I
+echo ncurves01 $ncurves0 $ncurves1
+echo I $I
 qmin_min=`expr $qmin / 2`
 qmin_max=`expr $qmin \* 2`
 echo $qmin_min $qmin_max
@@ -300,7 +307,7 @@ sed "s/ncurves0.*=.*$/ncurves0 = $ncurves0_opt/g" | \
 sed "s/ncurves1.*=.*$/ncurves1 = $ncurves1_opt/g" | \
 sed "s/I.*=.*$/I = $I_opt/g" > $params.opt
 if [ $has_qmin -eq 0 ]; then
-   echo "tasks.sieve.qmin = $qmin_opt" >> $params.opt
+   echo "tasks.qmin = $qmin_opt" >> $params.opt
 fi
 if [ $has_bkthresh1 -eq 0 ]; then
    echo "tasks.sieve.bkthresh1 = $bkthresh1_opt" >> $params.opt

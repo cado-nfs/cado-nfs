@@ -21,7 +21,17 @@
 #undef MOD_SIZE
 #undef MOD_MINBITS
 #undef MOD_MAXBITS
+#undef MOD_APPEND_TYPE
+#undef PRIMODu
+#undef PRIMODx
+#undef MOD_PRINT_INT
+#undef MOD_PRINT_MODULUS
 #define residue_t            residuempz_t
 #define modulus_t            modulusmpz_t
 #define modint_t             modintmpz_t
 #define MOD_MAXBITS          MODMPZ_MAXBITS
+#define MOD_APPEND_TYPE(x)   x##_mpz
+#define PRIMODu "Zd"
+#define PRIMODx "Zx"
+#define MOD_PRINT_INT(x) x
+#define MOD_PRINT_MODULUS(m) m

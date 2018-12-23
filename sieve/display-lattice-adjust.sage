@@ -12,11 +12,11 @@ import itertools
 # with sage 7.5.1). This requires commit 1fa54ed81 of cado-nfs (or newer,
 # at least until it gets broken).
 #
-# Here is an example run for a 155-digit number.
+# Here is an example run for a 155-digit number. We need two -v's for strategy2
 #
-# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 0  --random-sample 200 -seed 1 > /tmp/strat0.txt
-# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 2  --random-sample 200 -seed 1 > /tmp/strat2.txt
-# sage display-lattice-adjust.sage /tmp/c155.poly /tmp/strat0.txt /tmp/strat2.txt
+# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb1 /tmp/c155.roots.gz  -t 2  -v --adjust-strategy 0  --random-sample 200 -seed 1 > /tmp/strat0.txt
+# $ ./build/localhost/sieve/las -I 14 -poly /tmp/c155.poly -q0 30950000 -q1 530000000 -lim0 17246818 -lim1 30940618 -lpb0 29 -lpb1 29 -mfb0 62 -mfb1 61 -lambda0 2.24 -lambda1 2.2 -ncurves0 13 -ncurves1 23 -fb1 /tmp/c155.roots.gz  -t 2  -v -v --adjust-strategy 2  --random-sample 200 -seed 1 > /tmp/strat2.txt
+# sage ./sieve/display-lattice-adjust.sage /tmp/c155.poly /tmp/strat0.txt /tmp/strat2.txt
 
 # An arbitrary number of relation files may be put on the command line.
 # The code will print comparative results for the different adjustment
@@ -98,41 +98,47 @@ def graphics_save(K,G,q):
 def process_strategy0(file):
     global sqside
     Q0=matrix(2,2)
+    logI=0
     Jx=0
     plist0=[]
     for line in file:
-        for foo in re.finditer("^# Sieving side-(\d) q=\d+; rho=\d+; a0=(-?\d+); b0=(-?\d+); a1=(-?\d+); b1=(-?\d+); J=(\d+);$", line):
+        for foo in re.finditer("^# Sieving side-(\d) q=\d+; rho=\d+; a0=(-?\d+); b0=(-?\d+); a1=(-?\d+); b1=(-?\d+); I=(\d+); J=(\d+);$", line):
             side=int(foo.groups()[0])
             assert sqside is None or sqside == side
             sqside = side
             Q0=matrix(2,2,[int(x) for x in foo.groups()[1:5]])
-            Jx=int(foo.groups()[5])
+            logI=int(log(int(foo.groups()[5]),2))
+            Jx=int(foo.groups()[6])
         for foo in re.finditer("^(-?\d+),(-?\d+)",line):
             a,b=foo.groups()
             plist0.append((int(a),int(b)))
         for foo in re.finditer("^# (\d+) relation", line):
             nrels = int(foo.groups()[0])
             assert nrels == len(plist0)
-            return Q0, Jx, plist0
+            return Q0, logI, Jx, plist0
 
 def process_strategy2(file):
     global sqside
     Q1=matrix(2,2)
     Q0=matrix(2,2)
     logI=0
+    J=0
     plist2=[]
     S=matrix(2,2)
     for line in file:
-        for foo in re.finditer("# Initial q-lattice: a0=(-?\d+); b0=(-?\d+); a1=(-?\d+); b1=(-?\d+);$", line):
+        for foo in re.finditer("# Called sieve_info_adjust_IJ\(\(a0=(-?\d+); b0=(-?\d+); a1=(-?\d+); b1=(-?\d+)\)", line):
             Q0 = matrix(2,2,[int(x) for x in foo.groups()])
-        for foo in re.finditer("# Adjusting by \[(-?\d+),(-?\d+),(-?\d+),(-?\d+)\], logI=(\d+)", line):
-            S=matrix(2,2,[int(x) for x in foo.groups()[0:4]])
-            logI=int(foo.groups()[4])
+        for foo in re.finditer("logI=(\d+) J=(\d+) \[adjusting by \[(-?\d+), *(-?\d+), *(-?\d+), *(-?\d+)\]", line):
+            logI=int(foo.groups()[0])
+            J=int(foo.groups()[1])
+            S=matrix(2,2,[int(x) for x in foo.groups()[2:]])
         for foo in re.finditer("# Sieving side-(\d) q=\d+; rho=\d+; a0=(-?\d+); b0=(-?\d+); a1=(-?\d+); b1=(-?\d+);", line):
             side=int(foo.groups()[0])
             assert sqside is None or sqside == side
             sqside = side
             Q1=matrix(2,2,[int(x) for x in foo.groups()[1:5]])
+            if Q0==0:
+                raise RuntimeError("missing second -v in strat2 run")
             assert Q1 == S * Q0
         for foo in re.finditer("^(-?\d+),(-?\d+)",line):
             a,b=foo.groups()
@@ -140,7 +146,7 @@ def process_strategy2(file):
         for foo in re.finditer("^# (\d+) relation", line):
             nrels = int(foo.groups()[0])
             assert nrels == len(plist2)
-            return Q1, logI, plist2
+            return Q1, logI, J, plist2
 
 def make_rectangles(qr, tup0, tup2):
     q = int(qr)
@@ -157,8 +163,7 @@ def make_rectangles(qr, tup0, tup2):
     # print "Now processing %s" % q
 
     # First strategy 0.
-    logI = (logA+1)//2
-    Q0, Jx, plist0 = tup0
+    Q0, logI, Jx, plist0 = tup0
 
     # Find I,J for base rectangle
     I=2^(logI)
@@ -173,10 +178,10 @@ def make_rectangles(qr, tup0, tup2):
     # for the intersection.
 
     # Now strategy 2
-    Q1, logI, plist2 = tup2
+    Q1, logI, J, plist2 = tup2
     # And now for the adjusted one.
     I=2^logI
-    J=2^(logA-logI)
+    # J=2^(logA-logI)
     R2 = polygon(latcorners(Q1,I,J),fill=False,color='blue',legend_label=str(q),zorder=3)
 
     Pc = set(plist0).intersection(set(plist2))
@@ -212,38 +217,45 @@ def process_one_file(file, dict0, dict2):
     global f
     global lpb
     global logA
+    strategy=-1
     qr=None
     for line in file:
         for foo in re.finditer("^.* -A (\d+)", line):
             if logA == 0:
                 logA = int(foo.groups()[0])
-                print("# Set logA")
+                print("# Set logA=%d"%logA)
             else:
                 assert logA == int(foo.groups()[0])
+        for foo in re.finditer("^.* --adjust-strategy (\d+)", line):
+            if strategy == -1:
+                strategy = int(foo.groups()[0])
+                print("# Set strategy=%d"%strategy)
+            else:
+                assert strategy == int(foo.groups()[0])
         for foo in re.finditer("^.* -I (\d+)", line):
             if logA == 0:
                 logA = 2*int(foo.groups()[0])-1
-                print("# Set logA")
+                print("# Set logA=%d"%logA)
             else:
                 assert logA == 2*int(foo.groups()[0])-1
         for foo in re.finditer("-lpb(\d) (\d+)", line):
             s,v = foo.groups()
             if lpb[int(s)] == 0:
                 lpb[int(s)]=int(v)
-                print("# Set lpb%s"%s)
+                print("# Set lpb%s=%d"%(s,int(v)))
             else:
                 assert lpb[int(s)] == int(v)
         for foo in re.finditer("# Making factor base for polynomial g\(x\) = (.*),$", line):
             if f[0] == 0:
                 f[0] = ZP(foo.groups()[0])
-                print("# Set f0")
+                print("# Set f0=%s",f[0])
             else:
                 assert f[0] == ZP(foo.groups()[0])
         for foo in re.finditer(".*f(\d)\(x\) = (.*)$", line):
             s,v = foo.groups()
             if f[int(s)] == 0:
                 f[int(s)] = ZP(v)
-                print("# Set f%s"%s)
+                print("# Set f%s=%s"%(s,v))
             else:
                 assert f[int(s)] == ZP(v)
         # This is for the new binary.
@@ -252,31 +264,15 @@ def process_one_file(file, dict0, dict2):
             q=[1,1]
             q[int(s)]=int(v)
             q[1-int(s)]=1
-            # When the next line says "Initial q-lattice" we're doing
-            # strategy 2.
-            line=file.next()
             qr=prod(q)+int(r)/prod(q)
-        for foo in re.finditer("# Initial q-lattice", line):
-            assert qr is not None
-            file2=itertools.chain([line], file)
-            Q1, logI, plist2 = process_strategy2(file2)
-            dict2[qr]=(Q1, logI, plist2)
-            qr=None
-            ## all_rect.append(process_one_specialq(file2, f, lpb, logA, q)
-        # This is for the old binary.
-        for foo in re.finditer("# Sieving side-(\d+) q=(\d+); rho=(\d+)",line):
-            s,v,r=foo.groups()
-            q=[1,1]
-            q[int(s)]=int(v)
-            q[1-int(s)]=1
-            qr=prod(q)+int(r)/prod(q)
-            # prepend line in the iterable...
-            file2=itertools.chain([line], file)
-            adjust_strat=0
-            Q0, Jx, plist0 = process_strategy0(file2)
-            dict0[qr]=(Q0, Jx, plist0)
-            ## all_rect.append(process_one_specialq(file, f, lpb, logA, q))
-            qr=None
+            if strategy==2:
+                assert qr is not None
+                dict2[qr]= process_strategy2(file)
+                qr=None
+            else:
+                dict0[qr]= process_strategy0(file)
+                ## all_rect.append(process_one_specialq(file, f, lpb, logA, q))
+                qr=None
 
 
 if __name__ == "__main__":

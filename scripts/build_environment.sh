@@ -69,7 +69,7 @@ if [ -f "${up_path}/local.sh" ] ; then
     . "${up_path}/local.sh"
 fi
 
-if [ "$MPI" ] && ! [[ "$build_tree" =~ \.mpi ]] ; then
+if [ "$MPI" ] && [ "$MPI" != 0 ] && ! [[ "$build_tree" =~ \.mpi ]] ; then
     build_tree="$build_tree".mpi
 fi
 
@@ -115,6 +115,9 @@ export CURL_LIBDIR
 export HWLOC
 export HWLOC_INCDIR
 export HWLOC_LIBDIR
+export GMPECM
+export GMPECM_INCDIR
+export GMPECM_LIBDIR
 export JEVENTS
 export JEVENTS_INCDIR
 export JEVENTS_LIBDIR

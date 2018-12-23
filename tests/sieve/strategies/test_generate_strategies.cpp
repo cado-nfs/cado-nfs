@@ -41,7 +41,7 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 	{
 	    fm_t* fm = tab_fm->tab[i];
 	    int method = (int)fm->method[0];
-	    int curve = (int)fm->method[1];
+	    ec_parameterization_t curve = (ec_parameterization_t) fm->method[1];
 	    unsigned long B1 = fm->method[2];
 	    unsigned long B2 = fm->method[3];
 	    strategy->methods[i].method = method;
@@ -55,7 +55,7 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 		ASSERT(strategy->methods[i].plan != NULL);
 		pp1_make_plan((pp1_plan_t*) strategy->methods[i].plan, B1, B2, 0);
 	    } else if (method == EC_METHOD) {
-		long sigma;
+		unsigned long sigma;
 		if (curve == MONTY16) {
 		    sigma = 1;
 		} else
@@ -64,7 +64,7 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
 		strategy->methods[i].plan = malloc(sizeof(ecm_plan_t));
 		ASSERT((ecm_plan_t*) strategy->methods[i].plan != NULL);
 		ecm_make_plan((ecm_plan_t*) strategy->methods[i].plan, B1, B2, curve,
-			      labs(sigma), 0, 0);
+			      sigma, 0, 0);
 	    } else {
 		exit(EXIT_FAILURE);
 	    }
@@ -190,7 +190,7 @@ void bench_time_mini(gmp_randstate_t state, tabular_fm_t * fm, int r)
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
 	unsigned long method = param[0];
-	unsigned long curve = param[1];
+	ec_parameterization_t curve = (ec_parameterization_t) param[1];
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 	if (B1 != 0 || B2 != 0) {
@@ -235,7 +235,7 @@ void bench_proba_mini(gmp_randstate_t state, tabular_fm_t * fm, int* val_p,
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
 	unsigned long method = param[0];
-	unsigned long curve = param[1];
+	ec_parameterization_t curve = (ec_parameterization_t) param[1];
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 
@@ -347,7 +347,7 @@ int main()
     int param[6] = {(int) tab->tab[0]->method[2], (int) tab->tab[0]->method[2], 1, c,c,1};
 
     tabular_fm_t* tmp =
-    	bench_proba_time_pset (tab->tab[0]->method[0], tab->tab[0]->method[1], state,
+    	bench_proba_time_pset (tab->tab[0]->method[0], (ec_parameterization_t) tab->tab[0]->method[1], state,
     			       17, 20, 18*3, param);
 
     /*check this probability: the probability to find a prime number

@@ -29,6 +29,18 @@
    fun:pi_go_inner_not_interleaved
 }
 {
+   hwloc_again
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:lt_dlopenadvise
+   ...
+   fun:hwloc_topology_init
+   fun:_ZN17las_parallel_desc6helperC1Ev
+   ...
+}
+{
    openmp_leak
    Memcheck:Leak
    match-leak-kinds: possible
@@ -111,6 +123,19 @@
    fun:start_thread
    fun:clone
 }
+{
+   same_as_above
+   Helgrind:Race
+   fun:_ZNK5tdict4slotcvNS_3keyEEv
+   fun:_Z23do_one_special_q_sublatR8nfs_workSt10shared_ptrI14nfs_work_cofacES1_I7nfs_auxER11thread_pool
+   fun:_Z16do_one_special_qR8las_infoR8nfs_workSt10shared_ptrI7nfs_auxER11thread_pool
+   fun:_Z10las_subjobR8las_infoiR13las_todo_listR10las_reportRN5tdict4treeINS5_20timer_seconds_threadEEE
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+   fun:mythread_wrapper
+   fun:start_thread
+}
+
 
 {  
    drd_does_no_better
@@ -146,3 +171,28 @@
    fun:start_thread
    fun:clone
 }
+
+# I'm quite convinced that helgrind is wrong here. The errors it reports
+# are in blatant contradiction with the promise that the dtor of the
+# shared_ptr is called exactly once. However my (little) web search did
+# not reveal any bug report for this.
+{
+   helgrind_does_not_know_that_shared_ptr_dtor_is_thread_safe
+   Helgrind:Race
+   ...
+   fun:_ZN7nfs_auxD1Ev
+   ...
+   fun:_ZNSt10shared_ptrI7nfs_auxED1Ev
+   fun:_ZN25detached_cofac_parametersD1Ev
+   ...
+}
+{
+   this_is_the_same_problem_but_the_stack_trace_is_so_deep_that_helgrind_sees_both_as_different
+   Helgrind:Race
+   ...
+   fun:_ZN10las_report20accumulate_and_clearEOS_
+   fun:_ZN7nfs_auxD1Ev
+   ...
+}
+
+

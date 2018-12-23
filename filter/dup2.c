@@ -551,9 +551,9 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outdir", "by default, input files are overwritten");
   param_list_decl_usage(pl, "outfmt",
                                "format of output file (default same as input)");
-  param_list_decl_usage(pl, "dl", "(switch) do not reduce exponents modulo 2");
+  param_list_decl_usage(pl, "dl", "do not reduce exponents modulo 2");
   param_list_decl_usage(pl, "badidealinfo", "file containing info about bad ideals");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }

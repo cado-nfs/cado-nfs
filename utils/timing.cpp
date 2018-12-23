@@ -81,7 +81,19 @@ seconds (void)
 double
 seconds_thread (void)
 {
-    return (double) microseconds_thread () / 1.0e6;
+#ifdef HAVE_GETRUSAGE
+    struct rusage ru[1];
+#ifdef HAVE_RUSAGE_THREAD
+    getrusage (RUSAGE_THREAD, ru);
+#else
+    getrusage (RUSAGE_SELF, ru);
+#endif
+    double r = 1.0e-6 * ru->ru_utime.tv_usec;
+    r += ru->ru_utime.tv_sec;
+    return r;
+#else
+    return 0;
+#endif
 }
 
 void

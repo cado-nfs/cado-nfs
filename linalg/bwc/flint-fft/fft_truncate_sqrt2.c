@@ -1,52 +1,29 @@
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
 #include "fft.h"
 
 /*
- * Let $w = 2k + 1$, $i = 2j + 1$. Set \code{s = i1 + i2}, 
- * \code{t = z1^i*(i1 - i2)} modulo \code{B^limbs + 1} where 
- * \code{z1^2 = exp(Pi*I/n)} corresponds to multiplication by $2^w$. Requires 
- * $0 \leq i < 2n$ where $nw =$ \code{limbs*FLINT_BITS}.
+ * Let `w = 2k + 1`, `i = 2j + 1`. Set ``s = i1 + i2``, 
+ * ``t = z1^i*(i1 - i2)`` modulo ``B^limbs + 1`` where 
+ * ``z1^2 = exp(Pi*I/n)`` corresponds to multiplication by `2^w`. Requires 
+ * `0 \leq i < 2n` where `nw =` ``limbs*FLINT_BITS``.
  * 
- * Here \code{z1} corresponds to multiplication by $2^k$ then multiplication
- * by\\ \code{(2^(3nw/4) - 2^(nw/4))}. We see \code{z1^i} corresponds to
- * multiplication by \code{(2^(3nw/4) - 2^(nw/4))*2^(j+ik)}.
+ * Here ``z1`` corresponds to multiplication by `2^k` then multiplication
+ * by\\ ``(2^(3nw/4) - 2^(nw/4))``. We see ``z1^i`` corresponds to
+ * multiplication by ``(2^(3nw/4) - 2^(nw/4))*2^(j+ik)``.
  * 
- * We first multiply by \code{2^(j + ik + wn/4)} then multiply by an
- * additional \code{2^(nw/2)} and subtract.
+ * We first multiply by ``2^(j + ik + wn/4)`` then multiply by an
+ * additional ``2^(nw/2)`` and subtract.
  * 
  */
 void fft_butterfly_sqrt2(mp_limb_t * s, mp_limb_t * t,
@@ -94,13 +71,13 @@ void fft_butterfly_sqrt2(mp_limb_t * s, mp_limb_t * t,
 }
 
 /*
- * As per \code{fft_truncate} except that the transform is twice the usual 
- * length, i.e. length $4n$ rather than $2n$. This is achieved by making use 
+ * As per ``fft_truncate`` except that the transform is twice the usual 
+ * length, i.e. length `4n` rather than `2n`. This is achieved by making use 
  * of twiddles by powers of a square root of 2, not powers of 2 in the first 
  * layer of the transform.  
  * 
- * We require $nw$ to be at least 64 and the three temporary space pointers 
- * to point to blocks of size \code{n*w + FLINT_BITS} bits.
+ * We require `nw` to be at least 64 and the three temporary space pointers 
+ * to point to blocks of size ``n*w + FLINT_BITS`` bits.
  * 
  */
 void fft_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,

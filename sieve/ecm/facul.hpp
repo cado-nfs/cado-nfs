@@ -20,10 +20,6 @@
 #define EC_METHOD 4
 #define MPQS_METHOD 5
 
-/* TODO */
-/* #define ECM_MONT_METHOD xxx */
-/* #define ECM_TWED_METHOD xxx */
-
 /* we should have FACUL_NOT_SMOOTH < 0, FACUL_MAYBE = 0,
    and FACUL_SMOOTH, FACUL_AUX >= 1 */
 #define FACUL_NOT_SMOOTH (-1)

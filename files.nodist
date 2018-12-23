@@ -39,7 +39,6 @@ polyselect/makefile_gfpkdl.make
 polyselect/template-header.c
 polyselect/alpha.sage
 polyselect/debug_rootsieve.sage
-polyselect/dlpolyselect.c
 polyselect/gnuplot_stuff.sage
 polyselect/higher_order_roots.sage
 polyselect/integral.sage
@@ -64,6 +63,7 @@ sieve/ecm/CMakeLists-nodist.txt
 sieve/ecm/ecm_avg_exp.gp
 sieve/ecm/ecm_check.c
 sieve/ecm/issmooth.c
+sieve/ecm/cofac_utils.sage
 sqrt/CMakeLists-nodist.txt
 sqrt/lift.c
 utils/README_POLYNOMIALS
@@ -132,13 +132,12 @@ misc/psi.c
 misc/cacheline.c
 misc/CMakeLists-nodist.txt
 misc/descent-init.c
-misc/descent_init_Fp.c
-misc/smooth_detect.c
-misc/smooth_detect.h
 misc/filter_sieved_pairs.c
+misc/svsm.c
 filter/out-of-core/Makefile
 filter/out-of-core/clique.c
 filter/out-of-core/singleton.c
+misc/singleton_simple.c
 filter/replay_dblemat.c
 scripts/cadofactor/README.OAR
 scripts/plot_params.sh
@@ -216,8 +215,10 @@ nfs-hd/murphyE3d.h
 nfs-hd/murphyE3d.c
 nfs-hd/alpha3d.h
 nfs-hd/alpha3d.mag
+nfs-hd/alpha3d.sage
 README.nfs-hd
 nfs-hd/automatic_p6bd40.sh
 nfs-hd/check_relations/
 parameters/nfs-hd/
 filter/CMakeLists-nodist.txt
+nfs-hd/ntv/

@@ -164,8 +164,9 @@ generate_composite_integer_interval(gmp_randstate_t state,
    our bench.
 */
 
-facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
-			      unsigned long B2)
+facul_strategy_t *
+generate_fm (int method, ec_parameterization_t curve, unsigned long B1,
+             unsigned long B2)
 {
     facul_strategy_t *strategy;
     strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
@@ -191,7 +192,7 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 	ASSERT(strategy->methods[0].plan != NULL);
 	pp1_make_plan((pp1_plan_t*) strategy->methods[0].plan, B1, B2, 0);
     } else if (method == EC_METHOD) {
-	long sigma;
+	unsigned long sigma;
 	if (curve == MONTY16)
 	  sigma = 1;
 	else if (curve == BRENT12)
@@ -202,7 +203,7 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 	strategy->methods[0].plan = malloc(sizeof(ecm_plan_t));
 	ASSERT(strategy->methods[0].plan != NULL);
 	ecm_make_plan((ecm_plan_t*) strategy->methods[0].plan, B1, B2, curve,
-		      labs(sigma), 1, 0);
+		      sigma, 1, 0);
     } else {
       exit(EXIT_FAILURE);
     }
@@ -294,11 +295,11 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
 	unsigned long method = param[0];
-	unsigned long curve = param[1];
+	ec_parameterization_t curve = (ec_parameterization_t) param[1];
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 
-	facul_strategy_t *st = generate_fm(method, curve, B1, B2);
+	facul_strategy_t *st = generate_fm (method, curve, B1, B2);
 
 	int ind_proba = 0;
 	do {
@@ -353,7 +354,7 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
 	unsigned long method = param[0];
-	unsigned long curve = param[1];
+	ec_parameterization_t curve = (ec_parameterization_t) param[1];
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 	if (B1 != 0 || B2 != 0) {
@@ -505,10 +506,10 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_t *strategy,
   given by 'param_region' or, if it's equal to NULL, use the default sieve.
 */
 
-tabular_fm_t *bench_proba_time_pset(int method, int curve,
-				    gmp_randstate_t state,
-				    int len_p_min, int len_p_max,
-				    int len_n, int *param_region)
+tabular_fm_t *
+bench_proba_time_pset (int method, ec_parameterization_t curve,
+                       gmp_randstate_t state, int len_p_min, int len_p_max,
+                       int len_n, int *param_region)
 {
     //define the sieve region
     int c_min, c_max;
@@ -613,7 +614,7 @@ tabular_fm_t *bench_proba_time_pset(int method, int curve,
 */
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
-					    int len_n, int method, int curve,
+					    int len_n, int method, ec_parameterization_t curve,
 					    int opt_ch, int *param_sieve)
 {
     ASSERT(len_p_min <= len_p_max);
@@ -648,7 +649,7 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
     //we begin by the first method:
     int ind_method = 0;
     int ind_curve = 0;
-    int curve[3] = {MONTY12, MONTY16, BRENT12};
+    ec_parameterization_t curve[3] = {MONTY12, MONTY16, BRENT12};
     int method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
     while (ind_method <= 4 && ind_curve < 3) {
 

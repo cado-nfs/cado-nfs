@@ -186,6 +186,24 @@ test_usp ()
   n = numberOfRealRoots (p, 4, 0, 0, NULL);
   ASSERT_ALWAYS (n == 4);
 
+  /* 2*x^4 + 4*x^3 - 4*x^2 + 2*x + 3 */
+  mpz_set_si (p[0], 3);
+  mpz_set_si (p[1], 2);
+  mpz_set_si (p[2], -4);
+  mpz_set_si (p[3], 4);
+  mpz_set_si (p[4], 2);
+  n = numberOfRealRoots (p, 4, 0, 0, NULL);
+  ASSERT_ALWAYS (n == 2);
+
+  /* 2*x^4 + x^3 - 3*x^2 + 2*x + 3 */
+  mpz_set_si (p[0], 3);
+  mpz_set_si (p[1], 2);
+  mpz_set_si (p[2], -3);
+  mpz_set_si (p[3], 1);
+  mpz_set_si (p[4], 2);
+  n = numberOfRealRoots (p, 4, 0, 0, NULL);
+  ASSERT_ALWAYS (n == 2);
+
   /* infinite loop that appeared on 32-bit computers, 2nd April 2014 */
   mpz_set_str (p[0], "202156081496031128767910903808", 10);
   mpz_set_str (p[1], "-1014774808369763543554925264896", 10);

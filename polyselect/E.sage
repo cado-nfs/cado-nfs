@@ -45,7 +45,11 @@ def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     vi = (log(abs(gi))+alpha_g)/log(Bg)
     v1 = dickman_rho(ui) * dickman_rho(vi)
     v1 = v1 / pi # normalization to get same values as MurphyE if v1=1
-    return numerical_integral(v1, 0, pi)
+    # eps_rel does not seem to work, thus we use eps_abs
+    # see https://trac.sagemath.org/ticket/22156#comment:4
+    i = numerical_integral(v1, 0, pi)[0]
+    tol = i/1000
+    return numerical_integral(v1, 0, pi, eps_abs=tol)
 
 # same as MurphyE_int, but integrates between roots of f and g
 def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
@@ -69,10 +73,13 @@ def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     v1 = dickman_rho(ui) * dickman_rho(vi)
     v1 = v1 / pi # normalization to get same values as MurphyE if v1=1
     l.append(RR(pi))
-    a = S = 0
+    a = 0
+    S = (0,0)
     for b in l:
        s = numerical_integral(v1, a, b)
-       S += s[0]
+       # see https://trac.sagemath.org/ticket/22156#comment:4
+       s = numerical_integral(v1, a, b, eps_abs = s[0]/1000)
+       S = (S[0]+s[0],S[1]+s[1])
        a = b
     return S
 
@@ -94,6 +101,8 @@ def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     vi = (log(abs(gi))+alpha_g)/log(Bg)
     v1 = dickman_rho(ui) * dickman_rho(vi)
     v1 = v1 * r # integration factor in polar coordinates
+    # FIXME: once eps_rel is fixed, we should use it here
+    # (see https://trac.sagemath.org/ticket/22156#comment:4)
     foo = lambda t: numerical_integral(v1(r=t), 0, pi)[0]
     return numerical_integral(foo, 0, 1)
 

@@ -634,7 +634,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "pmin", "do not create freerel below this bound");
   param_list_decl_usage(pl, "pmax", "do not create freerel beyond this bound");
   param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL)");
-  param_list_decl_usage(pl, "lcideals", "(switch) Add ideals for the leading "
+  param_list_decl_usage(pl, "lcideals", "Add ideals for the leading "
                                         "coeffs of the polynomials (for DL)");
   param_list_decl_usage(pl, "t", "number of threads");
 }
@@ -807,7 +807,7 @@ main (int argc, char *argv[])
                    renumber_table->size);
 
   /* produce an error when index_t is too small to represent all ideals */
-  if (renumber_table->size >> (8 * __SIZEOF_INDEX__))
+  if ((__SIZEOF_INDEX__ < 8) && renumber_table->size >> (8 * __SIZEOF_INDEX__))
     {
       fprintf (stderr, "Error, please increase __SIZEOF_INDEX__\n");
       fprintf (stderr, "(see local.sh.example)\n");

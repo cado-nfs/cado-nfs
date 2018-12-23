@@ -478,6 +478,7 @@ clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
      connected components ordered by decreasing weight. */
   size_t *next_clique = NULL;
   std::vector<uint64_t> buf;
+  float weight_last_comp_rem = 0.0;
   next_clique = (size_t *) malloc (nthreads * sizeof (next_clique));
   ASSERT_ALWAYS (next_clique != NULL);
   memset (next_clique, 0, nthreads * sizeof (next_clique));
@@ -506,10 +507,15 @@ clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
       break;
     }
 
+    weight_last_comp_rem = max_comp->w;
     delete_one_connected_component (mat, max_comp->i, buf);
     next_clique[max_thread]++;
     nb_cliques_del++;
   }
+
+  if (nb_cliques_del)
+    printf ("Cliq. rem.: weight of last removed connected component: %f\n",
+            weight_last_comp_rem);
 
   free (next_clique);
 
@@ -556,11 +562,12 @@ clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
   if (verbose > 0)
     purge_matrix_print_stats_on_cliques (stdout, mat, verbose);
 
-  /* At this point, comp_tree contains max_nb_comp connected components order
+  /* At this point, comp_tree contains max_nb_comp connected components ordered
    * by decreasing weight.
    */
   size_t next_clique = 0;
   uint64_t nb_clique_deleted = 0;
+  float weight_last_comp_rem = 0.0;
 
   while (mat->nrows > target_excess + mat->ncols)
   {
@@ -571,10 +578,15 @@ clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
       break;
     }
 
+    weight_last_comp_rem = comp_tree->tree[next_clique].w;
     delete_one_connected_component (mat, comp_tree->tree[next_clique].i, buf);
     next_clique++;
     nb_clique_deleted++;
   }
+
+  if (nb_clique_deleted)
+    printf ("Cliq. rem.: weight of last removed connected component: %f\n",
+            weight_last_comp_rem);
 
   comp_sorted_bin_tree_clear (comp_tree);
 

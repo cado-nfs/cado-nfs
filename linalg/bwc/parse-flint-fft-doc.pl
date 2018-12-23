@@ -6,35 +6,24 @@ my $current = undef;
 my $all = {};
 
 
-open F, "<flint-fft/doc/fft.txt";
+open F, "<flint-fft/doc/fft.rst";
 
 while (defined($_=<F>)) {
     chomp($_);
     # print STDERR "$_\n";
-    if (/^[a-z].*\(/) {
+    if (/^\.\.\s+function::\s+((\S+)\s+(\w+)\s*\(.*\))$/) {
         $current = undef;
-        my $key = $_;
-        while ($key !~ /\)/) {
-            last unless defined($_=<F>);
-            chomp($_);
-            # print STDERR "$_\n";
-            s/^\s*/ /g;
-            $key .= $_;
-        }
+        $key = $3;
         $all->{$key}="";
         $current = \$all->{$key};
-        last unless defined($_=<F>);
-        # print STDERR "$_\n";
+        die unless defined($_=<F>);
         die unless /^\s*$/;
-        next;
-    }
-    next unless $current;
-    if (/^\*/ || /^\*/) {
+    } elsif (/^\S/) {
         $current = undef;
         next;
+    } else {
+        $$current .= "$_\n";
     }
-    next if /^\s*$/ && $$current eq "";
-    $$current .= "$_\n";
 }
 close F;
 
@@ -51,10 +40,7 @@ close F;
 # print Dumper($tags);
 # print Dumper($all);
 
-for my $header (keys %$all) {
-    $header =~ /(.*?)\s+(\S+)\s*\(/ or die;
-    my $type = $1;
-    my $func = $2;
+for my $func (keys %$all) {
     my $t = $tags->{$func} or die "No tag for $func";
     if (@$t != 1) {
         die "Multiple tags for $func";
@@ -62,7 +48,7 @@ for my $header (keys %$all) {
     my ($file, $position) = @{$t->[0]};
 
     # create a comment block.
-    my $doc = $all->{$header};
+    my $doc = $all->{$func};
     my @doclines = split(/^/m, $doc);
     my $prefix = 999;
     for (@doclines) {

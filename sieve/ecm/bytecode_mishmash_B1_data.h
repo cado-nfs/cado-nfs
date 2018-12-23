@@ -1,0 +1,2593 @@
+#ifndef BYTECODE_MISHMASH_B1_DATA_H
+#define BYTECODE_MISHMASH_B1_DATA_H
+
+/* This file was generated automatically */
+
+#include "bytecode.h"
+
+struct mishmash_B1_data_s
+{
+  unsigned int B1;
+  unsigned int len; /* length of the bytecode */
+  bytecode_const bc;
+};
+
+typedef struct mishmash_B1_data_s mishmash_B1_data_t;
+
+/* B1=1 computed with 0 blocks, cost=0M */
+static const uint8_t _B1_1_bc[] = {
+    0x00,
+    0xff
+  }; /* end of bytecode for B1=1 */
+
+/* B1=105 computed with 11 blocks, cost=1144M */
+static const uint8_t _B1_105_bc[] = {
+    0x03,
+    /* 73*71*61*17*5  /  double-base chain  /  189 M (=11DBL+1DBLa+8TPL+1ADDa) */
+    0x11, 0xf1, 0x08, 0x0c,
+    /* 97*43*37*31*13*7*5  /  double-base chain  /  237 M (=11DBL+1DBLa+12TPL+1ADDa) */
+    0x11, 0xf1, 0x0c, 0x0c,
+    /* 89*53*29*23  /  double-base chain  /  169 M (=18DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0b, 0x71, 0x09,
+    /* 101*83*79*19  /  double-base expansion  /  185 M (=20DBL+2DBLa+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x51, 0x11, 0x62, 0x05,
+    /* 103*67*59*11  /  double-base expansion  /  180 M (=9DBL+2DBLa+6TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0x80, 0x02, 0xff, 0x10, 0x41, 0x07, 0x72, 0x04,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x66,
+      /* 47  /  PRAC  /  46 M (=2dDBL+6dADD) */
+      0x69, 0x02, 0x0d, 0x0b, 0x03, 0x66,
+      /* 41  /  PRAC  /  46 M (=2dDBL+6dADD) */
+      0x69, 0x03, 0x0b, 0x03, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2  /  Montgomery  /  30 M (=6dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=105 */
+
+/* B1=115 computed with 8 blocks, cost=1297M */
+static const uint8_t _B1_115_bc[] = {
+    0x03,
+    /* 109*73*37*19*13*7*5*3*3*3  /  double-base chain  /  261 M (=35DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x24,
+    /* 113*107*97*89*67*61*47*43*17*7  /  double-base chain  /  442 M (=42DBL+5DBLa+6TPL+4ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0f, 0x41, 0x05, 0xd1, 0x01, 0x03, 0xc1, 0x02, 0x05, 0xf1, 0x02, 0x13,
+    /* 101*83*71*41*11*3  /  double-base chain  /  233 M (=25DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0x51, 0x02, 0x61, 0x0b,
+    /* 79*59*29  /  double-base chain  /  136 M (=15DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x05, 0x61, 0x0c,
+    /* 103*31*23  /  double-base chain  /  132 M (=11DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x08, 0xf1, 0x02, 0x05,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 53  /  PRAC  /  50 M (=4dDBL+5dADD) */
+      0x69, 0x02, 0x0b, 0x02, 0x02, 0x46,
+    /* 2*2*2*2*2*2  /  Montgomery  /  30 M (=6dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=115 */
+
+/* B1=125 computed with 9 blocks, cost=1339M */
+static const uint8_t _B1_125_bc[] = {
+    0x03,
+    /* 109*73*37*19*13*7*5*3*3*3  /  double-base chain  /  261 M (=35DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x24,
+    /* 41*31*11*5*5*3  /  double-base chain  /  149 M (=19DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x14,
+    /* 113*107*97*89*67*61*47*43*17*7  /  double-base chain  /  442 M (=42DBL+5DBLa+6TPL+4ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0f, 0x41, 0x05, 0xd1, 0x01, 0x03, 0xc1, 0x02, 0x05, 0xf1, 0x02, 0x13,
+    /* 53*29  /  double-base chain  /  84 M (=8DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xe1, 0x01, 0x09,
+    /* 101*83*79  /  double-base chain  /  156 M (=11DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x09, 0xe1, 0x04, 0x04,
+    /* 71*59*11  /  double-base chain  /  125 M (=10DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xf1, 0x02, 0x0a,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 103  /  PRAC  /  57 M (=3dDBL+7dADD) */
+      0x69, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x66,
+      /* 23  /  PRAC  /  39 M (=3dDBL+4dADD) */
+      0x69, 0x02, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2  /  Montgomery  /  30 M (=6dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=125 */
+
+/* B1=137 computed with 9 blocks, cost=1499M */
+static const uint8_t _B1_137_bc[] = {
+    0x03,
+    /* 109*73*37*19*13*7*5*3*3*3  /  double-base chain  /  261 M (=35DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x24,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 137*101*59*53*17*7*5  /  double-base chain  /  268 M (=30DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0x51, 0x13, 0xe1, 0x01, 0x04,
+    /* 131*103*83*79  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xe1, 0x03, 0x11,
+    /* 97*89*61*41*11  /  double-base chain  /  222 M (=20DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x01, 0x51, 0x03, 0xf1, 0x01, 0x13,
+    /* 107*71*47*31*23  /  double-base expansion  /  227 M (=17DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x02, 0xff, 0x10, 0x52, 0x07, 0x41, 0x05, 0x62, 0x08,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 67  /  PRAC  /  52 M (=2dDBL+7dADD) */
+      0x69, 0x02, 0x03, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=137 */
+
+/* B1=148 computed with 11 blocks, cost=1557M */
+static const uint8_t _B1_148_bc[] = {
+    0x03,
+    /* 109*73*37*19*13*7*5*3*3*3  /  double-base chain  /  261 M (=35DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x24,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 131*103*83*79  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xe1, 0x03, 0x11,
+    /* 101*89*59*47*23  /  double-base expansion  /  229 M (=16DBL+2DBLa+6TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x05, 0xff, 0x10, 0x41, 0x09, 0x72, 0x09,
+    /* 137*107*97*71*41*31*11  /  double-base expansion  /  324 M (=12DBL+3DBLa+15TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x0f, 0x80, 0x01, 0xff, 0x10, 0x41, 0x03, 0x42, 0x06, 0x61, 0x06,
+    /* 139*61*53*7  /  double-base expansion  /  171 M (=18DBL+2DBLa+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x51, 0x10, 0x72, 0x04,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 17  /  PRAC  /  34 M (=2dDBL+4dADD) */
+      0x69, 0x02, 0x73, 0x0b, 0x03, 0x66,
+      /* 67  /  PRAC  /  52 M (=2dDBL+7dADD) */
+      0x69, 0x02, 0x03, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=148 */
+
+/* B1=161 computed with 9 blocks, cost=1722M */
+static const uint8_t _B1_161_bc[] = {
+    0x03,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 61*37*7*7  /  double-base chain  /  129 M (=11DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xe1, 0x03, 0x0c,
+    /* 151*139*109*11  /  double-base chain  /  190 M (=21DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xf1, 0x01, 0x02,
+    /* 157*103*89*59  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0c, 0xe1, 0x04, 0x08,
+    /* 137*131*73*71*17*11*5  /  double-base chain  /  283 M (=27DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0x41, 0x08, 0xe1, 0x04, 0x01,
+    /* 101*97*67*53*47*41*31*23*19  /  double-base chain  /  388 M (=33DBL+4DBLa+8TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x04, 0xc1, 0x02, 0x02, 0xc1, 0x03, 0x06, 0xf1, 0x01, 0x19,
+    /* 149*107*83*79*13  /  double-base chain  /  241 M (=21DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0f, 0x41, 0x05, 0xf1, 0x04, 0x04,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*3*3*3  /  PRAC  /  50 M (=4dDBL+5dADD) */
+      0x69, 0x03, 0x0a, 0x0a, 0x0a, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=161 */
+
+/* B1=173 computed with 11 blocks, cost=1917M */
+static const uint8_t _B1_173_bc[] = {
+    0x03,
+    /* 163*127*113*107*79*43*29*23*5*3*3*3  /  double-base chain  /  417 M (=53DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0x51, 0x1c, 0x71, 0x18,
+    /* 109*37*13*5  /  double-base chain  /  135 M (=17DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x12,
+    /* 149*131*83*73*61  /  double-base chain  /  249 M (=26DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x03, 0x61, 0x19,
+    /* 167*157*139*41  /  double-base chain  /  209 M (=22DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x05, 0xe1, 0x01, 0x13,
+    /* 137*101*59*53*17*7*5  /  double-base chain  /  268 M (=30DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0x51, 0x13, 0xe1, 0x01, 0x04,
+    /* 173*151*97*67*19*13*7  /  double-base chain  /  299 M (=25DBL+2DBLa+6TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x0d, 0x81, 0x05, 0x61, 0x0e,
+    /* 89*71*47*31  /  double-base chain  /  185 M (=10DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x02, 0xf1, 0x05, 0x0a,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 11*11  /  PRAC  /  56 M (=4dDBL+6dADD) */
+      0x69, 0x02, 0x03, 0x0a, 0x0b, 0x02, 0x66,
+      /* 103  /  PRAC  /  57 M (=3dDBL+7dADD) */
+      0x69, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=173 */
+
+/* B1=187 computed with 10 blocks, cost=2030M */
+static const uint8_t _B1_187_bc[] = {
+    0x03,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 181*113*67*43*41*3*3*3  /  double-base chain  /  273 M (=26DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x0a, 0x71, 0x12,
+    /* 151*31*7  /  double-base chain  /  114 M (=14DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0f,
+    /* 149*131*83*73*61  /  double-base chain  /  249 M (=26DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x03, 0x61, 0x19,
+    /* 157*19*13*11*7  /  double-base chain  /  165 M (=11DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x0c,
+    /* 163*137*127*107*103  /  double-base chain  /  274 M (=24DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x03, 0x41, 0x11, 0xe1, 0x04, 0x07,
+    /* 167*139*109*89*79*11  /  double-base expansion  /  295 M (=25DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x04, 0xff, 0x10, 0x41, 0x0c, 0x42, 0x0e, 0x61, 0x02,
+    /* 173*71*59*53*37*17  /  double-base expansion  /  272 M (=26DBL+2DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0x00, 0x32, 0xff, 0x10, 0x41, 0x0d, 0x63, 0x0f,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 13*5*5*3  /  PRAC  /  74 M (=4dDBL+9dADD) */
+      0x69, 0x0a, 0x03, 0x0a, 0x03, 0x0a, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=187 */
+
+/* B1=200 computed with 15 blocks, cost=2262M */
+static const uint8_t _B1_200_bc[] = {
+    0x03,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 181*61*47*37*13*7*7  /  double-base chain  /  249 M (=23DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x18,
+    /* 179*139*137*107*97*59  /  double-base chain  /  316 M (=30DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xd1, 0x02, 0x04, 0xe1, 0x03, 0x08,
+    /* 199*67*53*23  /  double-base chain  /  185 M (=22DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x05, 0x71, 0x13,
+    /* 131*103*83*79  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xe1, 0x03, 0x11,
+    /* 151*71*31  /  double-base chain  /  149 M (=10DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x06, 0xf1, 0x02, 0x06,
+    /* 173*167*149*109*19*13  /  double-base expansion  /  289 M (=29DBL+3DBLa+1TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0x80, 0x01, 0xff, 0x10, 0x51, 0x06, 0x43, 0x0f, 0x72, 0x0b,
+    /* 197*163*157*41*17*11  /  double-base expansion  /  277 M (=29DBL+3DBLa+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0xff, 0x13, 0x51, 0x0b, 0x42, 0x09, 0x63, 0x0c,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 89*11  /  PRAC  /  81 M (=3dDBL+11dADD) */
+      0x69, 0x0b, 0x02, 0x0a, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=200 */
+
+/* B1=214 computed with 13 blocks, cost=2318M */
+static const uint8_t _B1_214_bc[] = {
+    0x03,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 181*61*47*37*13*7*7  /  double-base chain  /  249 M (=23DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x18,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 167*157*139*41  /  double-base chain  /  209 M (=22DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x05, 0xe1, 0x01, 0x13,
+    /* 179*173*53*23  /  double-base chain  /  195 M (=20DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x14, 0xe1, 0x02, 0x02,
+    /* 131*103*83*79  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xe1, 0x03, 0x11,
+    /* 137*97*89*59*13  /  double-base chain  /  236 M (=22DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x51, 0x09, 0xf1, 0x02, 0x08,
+    /* 197*151*149*71*67*11  /  double-base chain  /  300 M (=29DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0xc1, 0x02, 0x08, 0x51, 0x04, 0xe1, 0x01, 0x03,
+    /* 199*163*109*31*17  /  double-base chain  /  247 M (=15DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xc1, 0x06, 0x03, 0xf1, 0x01, 0x0d,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=214 */
+
+/* B1=229 computed with 15 blocks, cost=2497M */
+static const uint8_t _B1_229_bc[] = {
+    0x03,
+    /* 127*113*43*29*5*3  /  double-base chain  /  205 M (=27DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1c,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 181*61*47*37*13*7*7  /  double-base chain  /  249 M (=23DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x18,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 223*157*137*131*103*17*3*3  /  double-base chain  /  329 M (=37DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xc1, 0x01, 0x0b, 0x71, 0x14,
+    /* 151*139*109*11  /  double-base chain  /  190 M (=21DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xf1, 0x01, 0x02,
+    /* 179*173*53*23  /  double-base chain  /  195 M (=20DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x14, 0xe1, 0x02, 0x02,
+    /* 229*199*163*149*83*59*41*13  /  double-base chain  /  399 M (=23DBL+3DBLa+16TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x0d, 0xd1, 0x0a, 0x02, 0xe1, 0x01, 0x0b,
+    /* 227*197*79  /  double-base chain  /  172 M (=15DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x06, 0xe1, 0x01, 0x0b,
+    /* 167*71*67*5  /  double-base chain  /  175 M (=12DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x04, 0xf1, 0x02, 0x0a,
+    /* 97  /  double-base chain  /  56 M (=4DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xe1, 0x01, 0x05,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 89  /  PRAC  /  53 M (=1dDBL+8dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x03, 0x66,
+      /* 31  /  PRAC  /  41 M (=1dDBL+6dADD) */
+      0x69, 0x03, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=229 */
+
+/* B1=244 computed with 15 blocks, cost=2682M */
+static const uint8_t _B1_244_bc[] = {
+    0x03,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 223*137*103*83*37  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x13, 0x71, 0x0b,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 127*43*3  /  double-base chain  /  107 M (=13DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0e,
+    /* 241*59*7*5  /  double-base chain  /  146 M (=10DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xe1, 0x05, 0x0b,
+    /* 193*151*149*11  /  double-base chain  /  201 M (=14DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x09, 0xe1, 0x04, 0x07,
+    /* 139*131*41  /  double-base chain  /  159 M (=8DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x07, 0xe1, 0x02, 0x03,
+    /* 239*199*197*163*113*79*71*53  /  double-base expansion  /  421 M (=43DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x41, 0x1c, 0x62, 0x0e,
+    /* 229*181*167*109*89*61*31*13*7  /  double-base expansion  /  417 M (=25DBL+3DBLa+14TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xa3, 0x01, 0x80, 0x0a, 0xff, 0x10, 0x41, 0x0c, 0x53, 0x0d, 0x62, 0x03,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3  /  PRAC  /  44 M (=4dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2  /  Montgomery  /  35 M (=7dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=244 */
+
+/* B1=256 computed with 14 blocks, cost=2748M */
+static const uint8_t _B1_256_bc[] = {
+    0x03,
+    /* 193*127*109*107*61*13*7  /  double-base chain  /  309 M (=11DBL+1DBLa+18TPL+1ADDa) */
+    0x11, 0xf1, 0x12, 0x0c,
+    /* 151*31*7  /  double-base chain  /  114 M (=14DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0f,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 167*149*5  /  double-base chain  /  132 M (=8DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xf1, 0x05, 0x09,
+    /* 251*43*41  /  double-base chain  /  151 M (=12DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xe1, 0x02, 0x04,
+    /* 241*229*19  /  double-base chain  /  157 M (=18DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x10, 0x71, 0x04,
+    /* 211*139*13*11  /  double-base chain  /  171 M (=20DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0x71, 0x08,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 223*137*103*83*37  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x13, 0x71, 0x0b,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 181*131*89*59*11  /  double-base chain  /  241 M (=21DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0xd1, 0x04, 0x09, 0x71, 0x08,
+    /* 239*199*197*163*113*79*71*53  /  double-base expansion  /  421 M (=43DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x41, 0x1c, 0x62, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*3*3*3*3*3  /  PRAC  /  72 M (=6dDBL+7dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=256 */
+
+/* B1=260 computed with 16 blocks, cost=2813M */
+static const uint8_t _B1_260_bc[] = {
+    0x03,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 223*137*103*83*37  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x13, 0x71, 0x0b,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 193*127*109*107*61*13*7  /  double-base chain  /  309 M (=11DBL+1DBLa+18TPL+1ADDa) */
+    0x11, 0xf1, 0x12, 0x0c,
+    /* 151*31*7  /  double-base chain  /  114 M (=14DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0f,
+    /* 211*139*13*11  /  double-base chain  /  171 M (=20DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0x71, 0x08,
+    /* 181*131*89*59*11  /  double-base chain  /  241 M (=21DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0xd1, 0x04, 0x09, 0x71, 0x08,
+    /* 167*149*5  /  double-base chain  /  132 M (=8DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xf1, 0x05, 0x09,
+    /* 251*43*41  /  double-base chain  /  151 M (=12DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xe1, 0x02, 0x04,
+    /* 241*229*19  /  double-base chain  /  157 M (=18DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x10, 0x71, 0x04,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 239*199*197*163*113*79*71*53  /  double-base expansion  /  421 M (=43DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x41, 0x1c, 0x62, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=260 */
+
+/* B1=276 computed with 19 blocks, cost=3004M */
+static const uint8_t _B1_276_bc[] = {
+    0x03,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 223*137*103*83*37  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x13, 0x71, 0x0b,
+    /* 127*43*3  /  double-base chain  /  107 M (=13DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0e,
+    /* 167*157*149*139*89*59*41*13*5  /  double-base chain  /  405 M (=44DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0a, 0x51, 0x0d, 0xc1, 0x01, 0x04, 0x71, 0x15,
+    /* 193*191  /  double-base chain  /  117 M (=11DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x0c,
+    /* 251*241*13  /  double-base chain  /  155 M (=16DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xf1, 0x01, 0x04,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 239*199*197*163*113*79*71*53  /  double-base expansion  /  421 M (=43DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x41, 0x1c, 0x62, 0x0e,
+    /* 271*229*173*151*109*7  /  double-base expansion  /  310 M (=34DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x01, 0xff, 0x10, 0x41, 0x16, 0x42, 0x05, 0x62, 0x0a,
+    /* 269*263*181*61*11  /  double-base expansion  /  260 M (=28DBL+2DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x10, 0x21, 0xff, 0x10, 0x42, 0x0c, 0x62, 0x12,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3  /  PRAC  /  44 M (=4dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x66,
+      /* 233  /  PRAC  /  65 M (=1dDBL+10dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x0d, 0x03, 0x66,
+      /* 31  /  PRAC  /  41 M (=1dDBL+6dADD) */
+      0x69, 0x03, 0x0d, 0x0b, 0x03, 0x66,
+      /* 131  /  PRAC  /  59 M (=1dDBL+9dADD) */
+      0x69, 0x03, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=276 */
+
+/* B1=293 computed with 18 blocks, cost=3284M */
+static const uint8_t _B1_293_bc[] = {
+    0x03,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 223*137*103*31*11*3  /  double-base chain  /  239 M (=28DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x09, 0x71, 0x15,
+    /* 281*181*109*67*13  /  double-base chain  /  244 M (=27DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x09, 0xf1, 0x01, 0x14,
+    /* 149*131*83*73*61  /  double-base chain  /  249 M (=26DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x03, 0x61, 0x19,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 127*43*3  /  double-base chain  /  107 M (=13DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0e,
+    /* 283*277*229*227*3*3  /  double-base chain  /  270 M (=23DBL+1DBLa+6TPL+1TPLa+1ADD+1ADDa) */
+    0x11, 0x91, 0x07, 0x61, 0x18,
+    /* 241*59*7*5  /  double-base chain  /  146 M (=10DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xe1, 0x05, 0x0b,
+    /* 269*151*41*17  /  double-base chain  /  193 M (=18DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x12, 0xf1, 0x03, 0x02,
+    /* 271*17  /  double-base chain  /  96 M (=8DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x09,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 293*263*251*193*167*139*37  /  double-base chain  /  407 M (=37DBL+5DBLa+6TPL+4ADD+1ADDa) */
+    0x11, 0x41, 0x17, 0x51, 0x04, 0xc1, 0x03, 0x01, 0x41, 0x0a, 0xe1, 0x03, 0x04,
+    /* 239*199*197*163*113*79*71*53  /  double-base expansion  /  421 M (=43DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x41, 0x1c, 0x62, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 13*5*3  /  PRAC  /  57 M (=3dDBL+7dADD) */
+      0x69, 0x0a, 0x03, 0x0a, 0x0d, 0x03, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x66,
+      /* 89  /  PRAC  /  53 M (=1dDBL+8dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=293 */
+
+/* B1=310 computed with 14 blocks, cost=3348M */
+static const uint8_t _B1_310_bc[] = {
+    0x03,
+    /* 193*191*163*107*101*79*73*23*5*3*3  /  double-base chain  /  437 M (=49DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0xc1, 0x04, 0x12, 0x71, 0x1e,
+    /* 277*223*137*127*103*67*53*29  /  double-base chain  /  402 M (=44DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x1e, 0xc1, 0x02, 0x09, 0x61, 0x08,
+    /* 281*257*199*151*149*61*19*11*7  /  double-base chain  /  415 M (=39DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x11, 0xd1, 0x04, 0x03, 0x71, 0x16,
+    /* 293*251*239*211*197*131*113  /  double-base chain  /  406 M (=36DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x03, 0xd1, 0x03, 0x22, 0xe1, 0x01, 0x02,
+    /* 167*157*139*41  /  double-base chain  /  209 M (=22DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x05, 0xe1, 0x01, 0x13,
+    /* 181*47*13  /  double-base chain  /  129 M (=11DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x0c,
+    /* 233*227*179*109*5  /  double-base chain  /  251 M (=16DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x07, 0x0b, 0xe1, 0x02, 0x07,
+    /* 271*17  /  double-base chain  /  96 M (=8DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x09,
+    /* 89*83*59*11*5  /  double-base chain  /  194 M (=13DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x05, 0xf1, 0x04, 0x0a,
+    /* 283*173*97*37*13  /  double-base chain  /  249 M (=17DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x08, 0xc1, 0x05, 0x04, 0xf1, 0x02, 0x08,
+    /* 307*269*263*241*229*71*43*31*17  /  double-base chain  /  469 M (=51DBL+5DBLa+3TPL+4ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0x51, 0x03, 0x41, 0x04, 0xd1, 0x03, 0x12, 0x71, 0x18,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=310 */
+
+/* B1=315 computed with 17 blocks, cost=3491M */
+static const uint8_t _B1_315_bc[] = {
+    0x03,
+    /* 181*61*47*37*13*7*7  /  double-base chain  /  249 M (=23DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x18,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 211*107*19*11  /  double-base chain  /  166 M (=18DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x13,
+    /* 277*223*137*127*103*67*53*29  /  double-base chain  /  402 M (=44DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x1e, 0xc1, 0x02, 0x09, 0x61, 0x08,
+    /* 251*239*233*149*43*17*13  /  double-base chain  /  336 M (=38DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x10, 0x41, 0x0c, 0xf1, 0x01, 0x0d,
+    /* 313*311*179*157*113*89*83*71  /  double-base chain  /  435 M (=50DBL+4DBLa+2TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x18, 0xc1, 0x02, 0x09, 0x41, 0x13, 0x61, 0x02,
+    /* 293*283*227*163*59*41  /  double-base chain  /  335 M (=34DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0x51, 0x05, 0x41, 0x0a, 0xe1, 0x03, 0x02,
+    /* 307*241*79*31*5  /  double-base chain  /  228 M (=23DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x12, 0xf1, 0x02, 0x07,
+    /* 269*197*167*131*97*23*11  /  double-base chain  /  349 M (=36DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x03, 0x41, 0x0a, 0xd1, 0x01, 0x06, 0xe1, 0x01, 0x15,
+    /* 271*17  /  double-base chain  /  96 M (=8DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x09,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 229*109  /  double-base chain  /  120 M (=11DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x06, 0xe1, 0x01, 0x07,
+    /* 281*173*151*139  /  double-base expansion  /  243 M (=19DBL+3DBLa+3TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0x80, 0x01, 0xff, 0x10, 0x41, 0x02, 0x42, 0x07, 0x63, 0x0d,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*3*3*3*3*3  /  PRAC  /  72 M (=6dDBL+7dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 199  /  PRAC  /  64 M (=2dDBL+9dADD) */
+      0x69, 0x02, 0x0d, 0x0d, 0x0d, 0x03, 0x66,
+      /* 263  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x0b, 0x02, 0x73, 0x0d, 0x03, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=315 */
+
+/* B1=327 computed with 16 blocks, cost=3541M */
+static const uint8_t _B1_327_bc[] = {
+    0x03,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 277*223*137*127*103*67*53*29  /  double-base chain  /  402 M (=44DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x1e, 0xc1, 0x02, 0x09, 0x61, 0x08,
+    /* 317*307*173*151*41*31*7*7  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x1e, 0x51, 0x0c, 0x71, 0x02,
+    /* 271*157*107*83*79*59  /  double-base chain  /  309 M (=26DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x06, 0x17, 0xf1, 0x02, 0x05,
+    /* 293*251*239*211*197*131*113  /  double-base chain  /  406 M (=36DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x03, 0xd1, 0x03, 0x22, 0xe1, 0x01, 0x02,
+    /* 311*281*89*37*17*5  /  double-base chain  /  264 M (=23DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x0f, 0xf1, 0x01, 0x0a,
+    /* 181*47*13  /  double-base chain  /  129 M (=11DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x0c,
+    /* 263*163*139*97*43*17*11  /  double-base chain  /  326 M (=28DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x05, 0x41, 0x09, 0xf1, 0x06, 0x11,
+    /* 233*227*179*109*5  /  double-base chain  /  251 M (=16DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x07, 0x0b, 0xe1, 0x02, 0x07,
+    /* 257*229*167*23*19  /  double-base chain  /  249 M (=29DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x10, 0x41, 0x08, 0x71, 0x08,
+    /* 313*269*241*199*149*71*61  /  double-base chain  /  405 M (=35DBL+5DBLa+7TPL+4ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0x41, 0x08, 0xd1, 0x03, 0x0a, 0xc1, 0x03, 0x12, 0x61, 0x02,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 283  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x02, 0x03, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=327 */
+
+/* B1=345 computed with 18 blocks, cost=3682M */
+static const uint8_t _B1_345_bc[] = {
+    0x03,
+    /* 331*151*31*11*7*3*3  /  double-base chain  /  219 M (=29DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x1e,
+    /* 241*17*13*7*5*3*3  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x18,
+    /* 337*269*199*73*11  /  double-base chain  /  256 M (=27DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x09, 0xe1, 0x02, 0x14,
+    /* 281*181*109*67*13  /  double-base chain  /  244 M (=27DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x09, 0xf1, 0x01, 0x14,
+    /* 271*157*107*83*79*59  /  double-base chain  /  309 M (=26DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x06, 0x17, 0xf1, 0x02, 0x05,
+    /* 311*223*139*101*97*41*23  /  double-base chain  /  353 M (=37DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x15, 0x41, 0x0a, 0xe1, 0x01, 0x09,
+    /* 293*251*239*211*197*131*113  /  double-base chain  /  406 M (=36DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x03, 0xd1, 0x03, 0x22, 0xe1, 0x01, 0x02,
+    /* 193*191  /  double-base chain  /  117 M (=11DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x0c,
+    /* 167*149*5  /  double-base chain  /  132 M (=8DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xf1, 0x05, 0x09,
+    /* 313*277*227*163*61  /  double-base chain  /  293 M (=25DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x13, 0xd1, 0x01, 0x02, 0x61, 0x07,
+    /* 257*233*229*173*29  /  double-base chain  /  290 M (=19DBL+4DBLa+8TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x10, 0xc1, 0x04, 0x03, 0xe1, 0x04, 0x02,
+    /* 317*307*179*127*37*17  /  double-base expansion  /  305 M (=32DBL+2DBLa+3TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x02, 0xff, 0x10, 0x41, 0x0f, 0x72, 0x13,
+    /* 283*263*137*103*53*47*43*19  /  double-base expansion  /  390 M (=40DBL+3DBLa+3TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x02, 0x80, 0x02, 0xff, 0x10, 0x52, 0x0e, 0x43, 0x10, 0x61, 0x0d,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 7*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x02, 0x0a, 0x66,
+      /* 89  /  PRAC  /  53 M (=1dDBL+8dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x03, 0x66,
+      /* 71  /  PRAC  /  52 M (=2dDBL+7dADD) */
+      0x69, 0x0d, 0x0b, 0x03, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=345 */
+
+/* B1=364 computed with 16 blocks, cost=3968M */
+static const uint8_t _B1_364_bc[] = {
+    0x03,
+    /* 337*227*127*73*67*17*7*7  /  double-base chain  /  335 M (=40DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0x71, 0x18,
+    /* 359*313*263*223*137*109*103*83*37*3  /  double-base chain  /  493 M (=57DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x1d, 0xd1, 0x02, 0x09, 0x61, 0x16,
+    /* 179*101*97*47*29*23*5  /  double-base chain  /  283 M (=36DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x23, 0x71, 0x03,
+    /* 307*167*71*59*5*3  /  double-base chain  /  239 M (=28DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0c, 0x71, 0x12,
+    /* 293*251*239*211*197*131*113  /  double-base chain  /  406 M (=36DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x03, 0xd1, 0x03, 0x22, 0xe1, 0x01, 0x02,
+    /* 199*19*13  /  double-base chain  /  119 M (=13DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xe1, 0x01, 0x0e,
+    /* 241*193*191*17  /  double-base chain  /  209 M (=22DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x09, 0x71, 0x0f,
+    /* 353*283*151*5  /  double-base chain  /  202 M (=21DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0xe1, 0x02, 0x0d,
+    /* 181*157*139*41*11*11*3  /  double-base chain  /  278 M (=28DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x03, 0xd1, 0x01, 0x0c, 0x61, 0x10,
+    /* 271*257*107*19*13*7  /  double-base chain  /  261 M (=29DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x15, 0x41, 0x09, 0x61, 0x02,
+    /* 317*281*229*89  /  double-base chain  /  243 M (=23DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x09, 0xc1, 0x03, 0x0b, 0x61, 0x06,
+    /* 331*311*53  /  double-base chain  /  177 M (=14DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x02, 0xe1, 0x02, 0x0e,
+    /* 349*347*277*269*173*149*79*61*43*31  /  double-base chain  /  537 M (=59DBL+5DBLa+4TPL+4ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0x41, 0x15, 0x51, 0x09, 0x51, 0x04, 0xe1, 0x04, 0x0c,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 233*3*3  /  PRAC  /  87 M (=3dDBL+12dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x0d, 0x03, 0x0a, 0x0a, 0x66,
+      /* 163  /  PRAC  /  63 M (=3dDBL+8dADD) */
+      0x69, 0x0b, 0x02, 0x0d, 0x0d, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=364 */
+
+/* B1=383 computed with 16 blocks, cost=4243M */
+static const uint8_t _B1_383_bc[] = {
+    0x03,
+    /* 331*151*109*73*37*31*19*13*11*7*7*5*3*3*3*3*3  /  double-base chain  /  487 M (=63DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x1e, 0x51, 0x06, 0x61, 0x1e,
+    /* 347*277*251*149*67*13  /  double-base chain  /  313 M (=30DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x1d, 0xf1, 0x06, 0x03,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 293*257*211*193*173*139*97*17  /  double-base chain  /  433 M (=48DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0xc1, 0x01, 0x09, 0x51, 0x16, 0x61, 0x06,
+    /* 379*367*281*239*227*7  /  double-base chain  /  334 M (=36DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xc1, 0x01, 0x04, 0xf1, 0x02, 0x0e,
+    /* 373*191*127*61*59*19  /  double-base chain  /  301 M (=33DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0x41, 0x03, 0xe1, 0x01, 0x17,
+    /* 383*313*89*71*43*17*5  /  double-base chain  /  318 M (=32DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x06, 0xc1, 0x01, 0x06, 0xf1, 0x02, 0x17,
+    /* 311*283*199*101*41  /  double-base chain  /  278 M (=28DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xc1, 0x02, 0x05, 0xf1, 0x01, 0x18,
+    /* 131*103*83*79  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xe1, 0x03, 0x11,
+    /* 349*269*181*5  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xe1, 0x03, 0x0a,
+    /* 157*53*29*11  /  double-base chain  /  170 M (=13DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x09, 0xf1, 0x01, 0x06,
+    /* 241*229  /  double-base chain  /  130 M (=9DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x09, 0xe1, 0x03, 0x02,
+    /* 359*353*263*197*167*113*23  /  double-base expansion  /  390 M (=42DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x01, 0xff, 0x10, 0x51, 0x08, 0x51, 0x18, 0x72, 0x0d,
+    /* 307*163*107*47  /  double-base expansion  /  221 M (=23DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x42, 0x02, 0x51, 0x0d, 0x72, 0x0b,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 233  /  PRAC  /  65 M (=1dDBL+10dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=383 */
+
+/* B1=403 computed with 15 blocks, cost=4436M */
+static const uint8_t _B1_403_bc[] = {
+    0x03,
+    /* 337*241*227*127*73*67*17*17*13*7*7*7*5*3*3  /  double-base chain  /  511 M (=63DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xd1, 0x02, 0x03, 0x61, 0x2a,
+    /* 359*313*263*211*109*107*19*11*3  /  double-base chain  /  416 M (=46DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x1e, 0xd1, 0x02, 0x08, 0x71, 0x0b,
+    /* 373*101*61*53*41*19*11  /  double-base chain  /  301 M (=30DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x10, 0xe1, 0x01, 0x10,
+    /* 383*277*223*193*167*97*59  /  double-base chain  /  393 M (=41DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0xc1, 0x04, 0x0e, 0x61, 0x1a,
+    /* 349*199*181*139*79*37*31  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x15, 0x41, 0x13, 0xe1, 0x01, 0x04,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 397*317*283*271*229*137*5*5  /  double-base chain  /  405 M (=44DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0x51, 0x08, 0xd1, 0x01, 0x08, 0xd1, 0x01, 0x16, 0xe1, 0x01, 0x0a,
+    /* 307*281*269*239*197*3  /  double-base chain  /  329 M (=28DBL+4DBLa+6TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0x41, 0x03, 0xc1, 0x05, 0x06, 0x71, 0x14,
+    /* 293*47*29  /  double-base chain  /  148 M (=15DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x06, 0xf1, 0x01, 0x0b,
+    /* 379*251*113*71  /  double-base chain  /  237 M (=17DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x03, 0xd1, 0x01, 0x05, 0xf1, 0x01, 0x0c,
+    /* 389*367*347*163*151*131*23  /  double-base expansion  /  398 M (=36DBL+3DBLa+6TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xa3, 0x03, 0xff, 0x13, 0x42, 0x01, 0x43, 0x17, 0x61, 0x0f,
+    /* 331*257*103*89*83*43*3  /  double-base expansion  /  332 M (=32DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xff, 0x12, 0x41, 0x13, 0x42, 0x05, 0x71, 0x0b,
+    /* 401*353*311*179*149  /  double-base expansion  /  314 M (=26DBL+3DBLa+6TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x05, 0xff, 0x10, 0x42, 0x0e, 0x41, 0x08, 0x62, 0x07,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=403 */
+
+/* B1=423 computed with 16 blocks, cost=4649M */
+static const uint8_t _B1_423_bc[] = {
+    0x03,
+    /* 331*151*109*73*37*31*19*13*11*7*7*5*3*3*3*3*3  /  double-base chain  /  487 M (=63DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x1e, 0x51, 0x06, 0x61, 0x1e,
+    /* 421*367*257*197*103*101*89*17*5  /  double-base chain  /  445 M (=45DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0e, 0xd1, 0x04, 0x03, 0xe1, 0x03, 0x1f,
+    /* 347*277*251*149*67*13  /  double-base chain  /  313 M (=30DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x1d, 0xf1, 0x06, 0x03,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 389*269*167*79*7  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xf1, 0x01, 0x0d,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 241*193*191*17  /  double-base chain  /  209 M (=22DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x09, 0x71, 0x0f,
+    /* 379*239*97*29  /  double-base chain  /  217 M (=18DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x0d, 0xe1, 0x01, 0x07,
+    /* 409*383*41  /  double-base chain  /  176 M (=19DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0x71, 0x11,
+    /* 373*311*307*283*233  /  double-base chain  /  327 M (=26DBL+4DBLa+7TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x0c, 0xd1, 0x02, 0x04, 0xd1, 0x01, 0x0c, 0x71, 0x02,
+    /* 401*397*353*181*163*127*107*61*43  /  double-base chain  /  508 M (=48DBL+5DBLa+8TPL+4ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x0a, 0xd1, 0x01, 0x13, 0xd1, 0x01, 0x04, 0xc1, 0x01, 0x0a, 0x61, 0x0a,
+    /* 349*313*293*173*113*19  /  double-base expansion  /  343 M (=23DBL+3DBLa+9TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x04, 0x80, 0x06, 0xff, 0x10, 0x42, 0x02, 0x43, 0x0f, 0x71, 0x09,
+    /* 229*227*157*59*53*23  /  double-base expansion  /  309 M (=25DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x04, 0x80, 0x02, 0xff, 0x10, 0x51, 0x03, 0x53, 0x07, 0x62, 0x12,
+    /* 419*281*83*11  /  double-base expansion  /  213 M (=12DBL+2DBLa+7TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x05, 0xff, 0x10, 0x41, 0x06, 0x62, 0x08,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 47  /  PRAC  /  46 M (=2dDBL+6dADD) */
+      0x69, 0x02, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=423 */
+
+/* B1=443 computed with 17 blocks, cost=4918M */
+static const uint8_t _B1_443_bc[] = {
+    0x03,
+    /* 241*163*127*113*107*79*43*29*23*17*13*7*5*5*3*3*3*3*3  /  double-base chain  /  601 M (=75DBL+5DBLa+4ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0x51, 0x14, 0x51, 0x04, 0x51, 0x04, 0x61, 0x30,
+    /* 419*353*271*103*73*17*11  /  double-base chain  /  344 M (=31DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0xe1, 0x06, 0x0f,
+    /* 373*101*61*53*41*19*11  /  double-base chain  /  301 M (=30DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x10, 0xe1, 0x01, 0x10,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 383*277*223*193*167*97*59  /  double-base chain  /  393 M (=41DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0xc1, 0x04, 0x0e, 0x61, 0x1a,
+    /* 433*349*313*83  /  double-base chain  /  242 M (=25DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xf1, 0x02, 0x19,
+    /* 443*409*337*251*149*13  /  double-base chain  /  341 M (=37DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x11, 0xc1, 0x03, 0x13, 0x61, 0x04,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 379*367*281*239*227*7  /  double-base chain  /  334 M (=36DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xc1, 0x01, 0x04, 0xf1, 0x02, 0x0e,
+    /* 283*109*47*37*19  /  double-base chain  /  231 M (=20DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x12, 0xf1, 0x02, 0x04,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 439*431*347*311*307*137*7  /  double-base chain  /  412 M (=36DBL+5DBLa+7TPL+4ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xc1, 0x02, 0x13, 0xc1, 0x01, 0x05, 0xd1, 0x03, 0x07, 0xe1, 0x01, 0x08,
+    /* 421*397*317*197*181*179  /  double-base chain  /  387 M (=29DBL+5DBLa+9TPL+4ADD+1ADDa) */
+    0x11, 0xc1, 0x06, 0x05, 0xd1, 0x02, 0x05, 0x51, 0x0a, 0x41, 0x08, 0xf1, 0x01, 0x06,
+    /* 401*389*151*67*31  /  double-base expansion  /  273 M (=24DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x04, 0xff, 0x10, 0x41, 0x12, 0x72, 0x08,
+    /* 293*269*229*89  /  double-base expansion  /  242 M (=26DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x51, 0x07, 0x52, 0x08, 0x72, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 331  /  PRAC  /  74 M (=4dDBL+9dADD) */
+      0x69, 0x02, 0x03, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=443 */
+
+/* B1=464 computed with 22 blocks, cost=5187M */
+static const uint8_t _B1_464_bc[] = {
+    0x03,
+    /* 337*227*127*73*67*17*7*7  /  double-base chain  /  335 M (=40DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0x71, 0x18,
+    /* 439*211*107*83*37*19*11*7  /  double-base chain  /  338 M (=37DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x14, 0xf1, 0x02, 0x13,
+    /* 383*277*223*193*167*97*59  /  double-base chain  /  393 M (=41DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0xc1, 0x04, 0x0e, 0x61, 0x1a,
+    /* 379*367*331*317*173*113  /  double-base chain  /  364 M (=27DBL+2DBLa+12TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0b, 0xf1, 0x09, 0x12,
+    /* 409*349*313*271*257*181*157*11  /  double-base chain  /  454 M (=51DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0a, 0x41, 0x19, 0x41, 0x0c, 0xe1, 0x01, 0x08,
+    /* 251*239*233*149*43*17*13  /  double-base chain  /  336 M (=38DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x10, 0x41, 0x0c, 0xf1, 0x01, 0x0d,
+    /* 419*347*293*283*137*103*29*19  /  double-base chain  /  431 M (=46DBL+4DBLa+4TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x02, 0x41, 0x09, 0x51, 0x0c, 0xf1, 0x02, 0x1b,
+    /* 457*443*401*281*61  /  double-base chain  /  311 M (=31DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0x41, 0x0e, 0xf1, 0x03, 0x05,
+    /* 311*269*131*31  /  double-base chain  /  219 M (=20DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x10, 0xf1, 0x02, 0x06,
+    /* 89*23  /  double-base chain  /  86 M (=10DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x0b,
+    /* 433*431  /  double-base chain  /  137 M (=7DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x08,
+    /* 389*179  /  double-base chain  /  129 M (=14DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0x71, 0x0c,
+    /* 463*421*353*79  /  double-base expansion  /  249 M (=24DBL+2DBLa+3TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x01, 0xff, 0x10, 0x51, 0x12, 0x72, 0x08,
+    /* 359*263*241*191*109*47  /  double-base expansion  /  343 M (=35DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x03, 0xff, 0x13, 0x41, 0x14, 0x43, 0x02, 0x72, 0x10,
+    /* 307*199*101*71*53  /  double-base expansion  /  270 M (=15DBL+2DBLa+10TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x0b, 0xff, 0x12, 0x41, 0x0a, 0x62, 0x07,
+    /* 449*373*229*139  /  double-base expansion  /  255 M (=27DBL+2DBLa+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0x00, 0x31, 0xff, 0x10, 0x53, 0x07, 0x62, 0x16,
+    /* 461*397*197*151  /  double-base expansion  /  257 M (=23DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x01, 0xff, 0x10, 0x41, 0x03, 0x42, 0x15, 0x71, 0x02,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5*5*5  /  PRAC  /  51 M (=3dDBL+6dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x0a, 0x03, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 163*41  /  PRAC  /  109 M (=5dDBL+14dADD) */
+      0x69, 0x03, 0x0b, 0x03, 0x0b, 0x02, 0x0a, 0x0b, 0x02, 0x0d, 0x0d, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=464 */
+
+/* B1=486 computed with 26 blocks, cost=5329M */
+static const uint8_t _B1_486_bc[] = {
+    0x03,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 313*277*271*127*83*79*67*37*19*19  /  double-base chain  /  477 M (=53DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x28, 0x41, 0x06, 0xf1, 0x01, 0x0a,
+    /* 409*149*59*31*17*17  /  double-base chain  /  260 M (=31DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xe1, 0x01, 0x1f,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 379*367*331*317*173*113  /  double-base chain  /  364 M (=27DBL+2DBLa+12TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0b, 0xf1, 0x09, 0x12,
+    /* 307*229*223*53*29*11*7*5  /  double-base chain  /  327 M (=35DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xd1, 0x02, 0x0f, 0xe1, 0x01, 0x15,
+    /* 463*439*347*227*103  /  double-base chain  /  310 M (=36DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0d, 0xc1, 0x01, 0x13, 0x71, 0x07,
+    /* 353*241*179*167*107*47*7  /  double-base chain  /  353 M (=37DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x06, 0x51, 0x1b, 0xf1, 0x03, 0x07,
+    /* 349*251*151*137  /  double-base chain  /  235 M (=24DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0d, 0xe1, 0x03, 0x0d,
+    /* 431*337*163*43  /  double-base chain  /  231 M (=20DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x05, 0xf1, 0x02, 0x11,
+    /* 479*419*293*269*11  /  double-base chain  /  290 M (=28DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xc1, 0x01, 0x03, 0xf1, 0x02, 0x12,
+    /* 397*197*181  /  double-base chain  /  186 M (=17DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0xf1, 0x03, 0x01,
+    /* 461*373*311  /  double-base chain  /  205 M (=21DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0xc1, 0x01, 0x11, 0x71, 0x03,
+    /* 233*89  /  double-base chain  /  113 M (=7DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xe1, 0x04, 0x08,
+    /* 383*257  /  double-base chain  /  134 M (=13DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x07,
+    /* 457*443*433*239*41*23  /  double-base expansion  /  338 M (=38DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x01, 0xff, 0x10, 0x51, 0x06, 0x52, 0x0d, 0x62, 0x16,
+    /* 283*157*109*97  /  double-base expansion  /  232 M (=22DBL+2DBLa+1TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x02, 0x00, 0x31, 0xff, 0x10, 0x43, 0x10, 0x62, 0x08,
+    /* 449*401*281  /  double-base expansion  /  207 M (=21DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x06, 0x52, 0x0f, 0x61, 0x03,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 389  /  PRAC  /  75 M (=3dDBL+10dADD) */
+      0x69, 0x03, 0x0b, 0x02, 0x0d, 0x0b, 0x03, 0x0b, 0x02, 0x66,
+      /* 61  /  PRAC  /  51 M (=3dDBL+6dADD) */
+      0x69, 0x03, 0x0b, 0x02, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=486 */
+
+/* B1=508 computed with 27 blocks, cost=5600M */
+static const uint8_t _B1_508_bc[] = {
+    0x03,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 503*449*113*59*53*31  /  double-base chain  /  307 M (=36DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x21, 0xf1, 0x02, 0x05,
+    /* 347*311*173*109*107*43*37*13*5  /  double-base chain  /  403 M (=51DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x24, 0x61, 0x10,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 499*197  /  double-base chain  /  126 M (=14DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x0f,
+    /* 433*349*313*83  /  double-base chain  /  242 M (=25DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xf1, 0x02, 0x19,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 487*457*383*373*157*29*23*13  /  double-base chain  /  420 M (=38DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0f, 0x41, 0x0c, 0xf1, 0x06, 0x0e,
+    /* 379*367*281*239*227*7  /  double-base chain  /  334 M (=36DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xc1, 0x01, 0x04, 0xf1, 0x02, 0x0e,
+    /* 491*461*307*11  /  double-base chain  /  229 M (=18DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x07, 0xf1, 0x01, 0x0d,
+    /* 389*269*167*79*7  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xf1, 0x01, 0x0d,
+    /* 241*17  /  double-base chain  /  93 M (=11DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x0c,
+    /* 233*89  /  double-base chain  /  113 M (=7DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xe1, 0x04, 0x08,
+    /* 439*419*251*149  /  double-base chain  /  261 M (=17DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x09, 0xd1, 0x04, 0x09, 0xf1, 0x01, 0x02,
+    /* 431*397*331  /  double-base chain  /  208 M (=18DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x09, 0xc1, 0x01, 0x02, 0x61, 0x0a,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 463*443*409*229*181*127*41*17  /  double-base expansion  /  442 M (=44DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x04, 0x80, 0x02, 0xff, 0x10, 0x42, 0x12, 0x51, 0x07, 0x63, 0x16,
+    /* 479*353*47*19  /  double-base expansion  /  211 M (=22DBL+2DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x01, 0xff, 0x10, 0x51, 0x10, 0x62, 0x08,
+    /* 283*163*103*97*61*11  /  double-base expansion  /  296 M (=32DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x42, 0x0f, 0x51, 0x04, 0x62, 0x10,
+    /* 401*277  /  double-base expansion  /  139 M (=10DBL+2DBLa+2TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xff, 0x12, 0x41, 0x03, 0x72, 0x09,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 7  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x02, 0x66,
+      /* 67*19  /  PRAC  /  87 M (=3dDBL+12dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x03, 0x0a, 0x02, 0x03, 0x0d, 0x0b, 0x03, 0x66,
+      /* 151  /  PRAC  /  63 M (=3dDBL+8dADD) */
+      0x69, 0x0d, 0x0d, 0x02, 0x02, 0x03, 0x66,
+      /* 293  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x03, 0x0d, 0x0d, 0x0d, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2  /  Montgomery  /  40 M (=8dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=508 */
+
+/* B1=512 computed with 26 blocks, cost=5667M */
+static const uint8_t _B1_512_bc[] = {
+    0x03,
+    /* 433*431  /  double-base chain  /  137 M (=7DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x08,
+    /* 499*197  /  double-base chain  /  126 M (=14DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x0f,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 257  /  double-base chain  /  65 M (=7DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x08,
+    /* 491*461*307*11  /  double-base chain  /  229 M (=18DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x07, 0xf1, 0x01, 0x0d,
+    /* 449*229*89*11  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xf1, 0x01, 0x09,
+    /* 409*149*59*31*17*17  /  double-base chain  /  260 M (=31DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xe1, 0x01, 0x1f,
+    /* 389*269*167*79*7  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xf1, 0x01, 0x0d,
+    /* 419*401*397*61*19  /  double-base chain  /  280 M (=30DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x18, 0xd1, 0x01, 0x02, 0xe1, 0x01, 0x07,
+    /* 331*151*127*97*83*41  /  double-base chain  /  316 M (=30DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x08, 0xd1, 0x02, 0x02, 0xe1, 0x03, 0x17,
+    /* 379*367*281*239*227*7  /  double-base chain  /  334 M (=36DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0xc1, 0x01, 0x04, 0xf1, 0x02, 0x0e,
+    /* 479*443*313*293*113  /  double-base chain  /  312 M (=38DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0x41, 0x03, 0x61, 0x11,
+    /* 487*457*383*373*157*29*23*13  /  double-base chain  /  420 M (=38DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0f, 0x41, 0x0c, 0xf1, 0x06, 0x0e,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 347*311*173*109*107*43*37*13*5  /  double-base chain  /  403 M (=51DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x24, 0x61, 0x10,
+    /* 509*503*439*283*241*67*19*7  /  double-base chain  /  421 M (=45DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x08, 0xc1, 0x02, 0x16, 0xe1, 0x02, 0x12,
+    /* 463*251*53  /  double-base expansion  /  190 M (=10DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x06, 0xff, 0x12, 0x42, 0x05, 0x51, 0x03, 0x62, 0x05,
+    /* 349*277*233*181  /  double-base expansion  /  255 M (=21DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xff, 0x12, 0x41, 0x07, 0x52, 0x0d, 0x72, 0x04,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 163  /  PRAC  /  63 M (=3dDBL+8dADD) */
+      0x69, 0x0b, 0x02, 0x0d, 0x0d, 0x02, 0x66,
+      /* 47  /  PRAC  /  46 M (=2dDBL+6dADD) */
+      0x69, 0x02, 0x0d, 0x0b, 0x03, 0x66,
+      /* 353  /  PRAC  /  75 M (=3dDBL+10dADD) */
+      0x69, 0x02, 0x73, 0x0d, 0x0b, 0x02, 0x03, 0x0d, 0x03, 0x66,
+      /* 103  /  PRAC  /  57 M (=3dDBL+7dADD) */
+      0x69, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x66,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=512 */
+
+/* B1=531 computed with 29 blocks, cost=5843M */
+static const uint8_t _B1_531_bc[] = {
+    0x03,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 503*449*113*59*53*31  /  double-base chain  /  307 M (=36DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x21, 0xf1, 0x02, 0x05,
+    /* 491*439*109*83*37*23*23*7  /  double-base chain  /  357 M (=38DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x12, 0xe1, 0x02, 0x16,
+    /* 499*467*421*197  /  double-base chain  /  258 M (=29DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xe1, 0x02, 0x0f,
+    /* 509*479*433*331*137*127*5*5  /  double-base chain  /  404 M (=46DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x15, 0x51, 0x18, 0xf1, 0x02, 0x04,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 419*271*17*11  /  double-base chain  /  183 M (=17DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x12,
+    /* 443*409*337*251*149*13  /  double-base chain  /  341 M (=37DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x11, 0xc1, 0x03, 0x13, 0x61, 0x04,
+    /* 233*191*173*157  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xf1, 0x01, 0x12,
+    /* 277*257*101*7  /  double-base chain  /  197 M (=22DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0e, 0x71, 0x0a,
+    /* 389*269*167*79*7  /  double-base chain  /  251 M (=28DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xf1, 0x01, 0x0d,
+    /* 521*383*373*97*43  /  double-base chain  /  294 M (=32DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x08, 0x41, 0x13, 0xe1, 0x02, 0x08,
+    /* 487*353*311*241  /  double-base chain  /  261 M (=29DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x17, 0x51, 0x05, 0x61, 0x04,
+    /* 367*349*281*179  /  double-base chain  /  254 M (=28DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x13, 0x51, 0x07, 0x61, 0x05,
+    /* 151*103  /  double-base chain  /  111 M (=5DBL+1DBLa+5TPL+1ADDa) */
+    0x11, 0xe1, 0x05, 0x06,
+    /* 463*401*193  /  double-base chain  /  199 M (=12DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x07, 0xf1, 0x02, 0x07,
+    /* 431*379*317  /  double-base chain  /  209 M (=13DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xc1, 0x04, 0x01, 0xe1, 0x01, 0x0d,
+    /* 307*19  /  double-base chain  /  102 M (=2DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xe1, 0x06, 0x03,
+    /* 293*47*29  /  double-base chain  /  148 M (=15DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x06, 0xf1, 0x01, 0x0b,
+    /* 397*313*223*107*11  /  double-base expansion  /  268 M (=25DBL+2DBLa+4TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x04, 0xff, 0x10, 0x41, 0x11, 0x62, 0x0a,
+    /* 523*457*347*239*229*163*13  /  double-base expansion  /  407 M (=39DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x03, 0xff, 0x13, 0x41, 0x06, 0x43, 0x22, 0x62, 0x02,
+    /* 461*181*89*61  /  double-base expansion  /  223 M (=22DBL+2DBLa+2TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xff, 0x12, 0x41, 0x0a, 0x72, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 19  /  PRAC  /  35 M (=1dDBL+5dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x03, 0x66,
+      /* 41  /  PRAC  /  46 M (=2dDBL+6dADD) */
+      0x69, 0x03, 0x0b, 0x03, 0x0b, 0x02, 0x66,
+      /* 283  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x02, 0x03, 0x0d, 0x0d, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=531 */
+
+/* B1=554 computed with 23 blocks, cost=5986M */
+static const uint8_t _B1_554_bc[] = {
+    0x03,
+    /* 337*227*127*73*67*17*7*7  /  double-base chain  /  335 M (=40DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0x71, 0x18,
+    /* 359*313*263*223*137*109*103*83*37*3  /  double-base chain  /  493 M (=57DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x1d, 0xd1, 0x02, 0x09, 0x61, 0x16,
+    /* 503*449*113*59*53*31  /  double-base chain  /  307 M (=36DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x21, 0xf1, 0x02, 0x05,
+    /* 431*211*107*23*19*17*11*7  /  double-base chain  /  317 M (=34DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x13, 0xf1, 0x03, 0x11,
+    /* 523*349*97*71*41  /  double-base chain  /  267 M (=32DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x17, 0xe1, 0x01, 0x0b,
+    /* 521*409*353*257*173*89*19  /  double-base chain  /  395 M (=43DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0xc1, 0x02, 0x18, 0xf1, 0x02, 0x0f,
+    /* 509*499*241*149*43  /  double-base chain  /  292 M (=27DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x01, 0xe1, 0x01, 0x1c,
+    /* 373*283*277*199*167*79*11  /  double-base chain  /  381 M (=44DBL+4DBLa+1TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x11, 0x41, 0x0d, 0xc1, 0x01, 0x03, 0x71, 0x0f,
+    /* 457*443*401*281*61  /  double-base chain  /  311 M (=31DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0x41, 0x0e, 0xf1, 0x03, 0x05,
+    /* 193*191  /  double-base chain  /  117 M (=11DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xf1, 0x02, 0x0c,
+    /* 479*293*269  /  double-base chain  /  195 M (=20DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0d, 0xf1, 0x02, 0x09,
+    /* 491*383*331*229*139  /  double-base chain  /  320 M (=22DBL+3DBLa+10TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0c, 0x41, 0x07, 0xe1, 0x07, 0x06,
+    /* 541*389*367*347*13  /  double-base chain  /  302 M (=16DBL+3DBLa+12TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xc1, 0x02, 0x06, 0xe1, 0x0a, 0x0b,
+    /* 487*397*233*181  /  double-base chain  /  260 M (=22DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x10, 0xc1, 0x02, 0x05, 0xf1, 0x02, 0x04,
+    /* 433*379*307  /  double-base chain  /  205 M (=21DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0a, 0x41, 0x0a, 0xe1, 0x01, 0x04,
+    /* 239*47  /  double-base chain  /  114 M (=5DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xe1, 0x03, 0x05,
+    /* 461*317*311*251*197*163*157  /  double-base chain  /  438 M (=38DBL+5DBLa+8TPL+4ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x05, 0x51, 0x0a, 0x51, 0x0a, 0xc1, 0x01, 0x06, 0xf1, 0x05, 0x0c,
+    /* 467*421*179*101*29  /  double-base expansion  /  276 M (=33DBL+2DBLa+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x13, 0x72, 0x10,
+    /* 463*439*419*151  /  double-base expansion  /  263 M (=29DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x52, 0x09, 0x41, 0x06, 0x72, 0x11,
+    /* 547*271*131*23  /  double-base expansion  /  233 M (=21DBL+3DBLa+1TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x03, 0x53, 0x0a, 0x61, 0x0b,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*5*5*3*3*3*3  /  PRAC  /  95 M (=7dDBL+10dADD) */
+      0x69, 0x0a, 0x03, 0x0a, 0x03, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=554 */
+
+/* B1=577 computed with 27 blocks, cost=6322M */
+static const uint8_t _B1_577_bc[] = {
+    0x03,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 337*127*7*7  /  double-base chain  /  156 M (=20DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x15,
+    /* 491*109*23*23  /  double-base chain  /  185 M (=19DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x14,
+    /* 503*449*113*59*53*31  /  double-base chain  /  307 M (=36DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x21, 0xf1, 0x02, 0x05,
+    /* 433*349*313*83  /  double-base chain  /  242 M (=25DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xf1, 0x02, 0x19,
+    /* 557*367*251*239*181*107  /  double-base chain  /  362 M (=40DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0x41, 0x16, 0xe1, 0x03, 0x03,
+    /* 521*409*353*257*173*89*19  /  double-base chain  /  395 M (=43DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0xc1, 0x02, 0x18, 0xf1, 0x02, 0x0f,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 509*499*241*149*43  /  double-base chain  /  292 M (=27DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x01, 0xe1, 0x01, 0x1c,
+    /* 457*193*191*11*11  /  double-base chain  /  238 M (=21DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0c, 0xf1, 0x02, 0x0b,
+    /* 479*293*269  /  double-base chain  /  195 M (=20DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0d, 0xf1, 0x02, 0x09,
+    /* 569*523*347*229*223*19  /  double-base chain  /  356 M (=34DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x18, 0xd1, 0x02, 0x03, 0xe1, 0x03, 0x0a,
+    /* 439*331*101*17  /  double-base chain  /  217 M (=18DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x04, 0xe1, 0x04, 0x10,
+    /* 401*379*163  /  double-base chain  /  198 M (=20DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xd1, 0x01, 0x0c, 0x61, 0x05,
+    /* 463*157*103*13  /  double-base chain  /  216 M (=14DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x01, 0xc1, 0x02, 0x04, 0xe1, 0x01, 0x0c,
+    /* 277*271*179  /  double-base chain  /  190 M (=9DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x08, 0x05, 0x61, 0x06,
+    /* 563*541*467*419*373*197*137*47*37*29  /  double-base expansion  /  557 M (=59DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x04, 0x62, 0x20,
+    /* 571*461*431*281*97  /  double-base expansion  /  317 M (=35DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x42, 0x02, 0x41, 0x19, 0x62, 0x0b,
+    /* 487*389*383*283*167*151  /  double-base expansion  /  380 M (=30DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x05, 0x80, 0x01, 0xff, 0x10, 0x43, 0x04, 0x51, 0x03, 0x72, 0x1a,
+    /* 443*397*317*233*41*7  /  double-base expansion  /  324 M (=34DBL+3DBLa+1TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x02, 0xff, 0x13, 0x41, 0x03, 0x42, 0x09, 0x73, 0x19,
+    /* 577*547*311*307*61  /  double-base expansion  /  315 M (=33DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x02, 0x52, 0x0a, 0x62, 0x18,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*3*3*3*3*3  /  PRAC  /  72 M (=6dDBL+7dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 421  /  PRAC  /  76 M (=2dDBL+11dADD) */
+      0x69, 0x03, 0x0b, 0x03, 0x0d, 0x0d, 0x0b, 0x02, 0x03, 0x66,
+      /* 79  /  PRAC  /  53 M (=1dDBL+8dADD) */
+      0x69, 0x0d, 0x0b, 0x03, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=577 */
+
+/* B1=601 computed with 25 blocks, cost=6601M */
+static const uint8_t _B1_601_bc[] = {
+    0x03,
+    /* 587*367*349*263*107*89*41*7*3  /  double-base chain  /  419 M (=52DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x19, 0x61, 0x1d,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 337*227*127*73*67*17*7*7  /  double-base chain  /  335 M (=40DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0x71, 0x18,
+    /* 599*509*283*281*239*61*43  /  double-base chain  /  404 M (=46DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x28, 0xd1, 0x01, 0x04, 0xe1, 0x01, 0x05,
+    /* 383*277*223*193*167*97*59  /  double-base chain  /  393 M (=41DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0xc1, 0x04, 0x0e, 0x61, 0x1a,
+    /* 433*359*257*11*11  /  double-base chain  /  244 M (=27DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x08, 0x71, 0x15,
+    /* 521*271*241*71  /  double-base chain  /  237 M (=26DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x17, 0xe1, 0x01, 0x05,
+    /* 479*443*313*293*113  /  double-base chain  /  312 M (=38DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0x41, 0x03, 0x61, 0x11,
+    /* 487*251*151*31*19  /  double-base chain  /  254 M (=25DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x15, 0xf1, 0x02, 0x06,
+    /* 461*421*389  /  double-base chain  /  202 M (=21DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x15, 0xe1, 0x02, 0x02,
+    /* 379*331*317*173  /  double-base chain  /  253 M (=18DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x0b, 0xe1, 0x04, 0x09,
+    /* 499*457*191*17*13  /  double-base chain  /  259 M (=27DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x08, 0x51, 0x0d, 0xe1, 0x02, 0x09,
+    /* 571*569*401*233*163  /  double-base chain  /  330 M (=35DBL+4DBLa+2TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x0b, 0x41, 0x06, 0x41, 0x07, 0x61, 0x0f,
+    /* 547*523*307*149  /  double-base chain  /  264 M (=11DBL+2DBLa+13TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x09, 0xf1, 0x0d, 0x04,
+    /* 449*397*199*83  /  double-base chain  /  248 M (=22DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xd1, 0x02, 0x07, 0xe1, 0x01, 0x10,
+    /* 347*229*211*19  /  double-base chain  /  225 M (=17DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x41, 0x0a, 0xf1, 0x05, 0x08,
+    /* 431*409*139*109*103  /  double-base chain  /  304 M (=21DBL+4DBLa+8TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xd1, 0x02, 0x06, 0x51, 0x0d, 0xf1, 0x06, 0x04,
+    /* 557*353  /  double-base chain  /  141 M (=14DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0e, 0xe1, 0x01, 0x02,
+    /* 563*541*467*419*373*197*137*47*37*29  /  double-base expansion  /  557 M (=59DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x04, 0x62, 0x20,
+    /* 577*503*311*181*131*79  /  double-base expansion  /  366 M (=30DBL+3DBLa+8TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x06, 0xff, 0x10, 0x51, 0x10, 0x42, 0x0c, 0x61, 0x05,
+    /* 601*491*463*179  /  double-base expansion  /  274 M (=22DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x06, 0xff, 0x12, 0x41, 0x05, 0x52, 0x07, 0x72, 0x0d,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*5*5*3*3*3*3  /  PRAC  /  95 M (=7dDBL+10dADD) */
+      0x69, 0x0a, 0x03, 0x0a, 0x03, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 439  /  PRAC  /  76 M (=2dDBL+11dADD) */
+      0x69, 0x0d, 0x0d, 0x03, 0x0b, 0x03, 0x0b, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=601 */
+
+/* B1=626 computed with 28 blocks, cost=6901M */
+static const uint8_t _B1_626_bc[] = {
+    0x03,
+    /* 491*227*109*73*67*23*23*17  /  double-base chain  /  364 M (=39DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x15, 0xf1, 0x02, 0x14,
+    /* 617*347*331*167*83*17  /  double-base chain  /  329 M (=34DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x22, 0x61, 0x02,
+    /* 503*449*113*59*53*31  /  double-base chain  /  307 M (=36DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x21, 0xf1, 0x02, 0x05,
+    /* 521*409*353*257*173*89*19  /  double-base chain  /  395 M (=43DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0xc1, 0x02, 0x18, 0xf1, 0x02, 0x0f,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 509*499*241*149*43  /  double-base chain  /  292 M (=27DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x01, 0xe1, 0x01, 0x1c,
+    /* 571*487*307*293*11  /  double-base chain  /  291 M (=35DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x0a, 0x41, 0x10, 0x61, 0x0c,
+    /* 557*367*251*239*181*107  /  double-base chain  /  362 M (=40DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0x41, 0x16, 0xe1, 0x03, 0x03,
+    /* 479*457*433*431*13*13*7*7  /  double-base chain  /  371 M (=31DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x08, 0xc1, 0x06, 0x02, 0xe1, 0x01, 0x18,
+    /* 601*463*397*349  /  double-base chain  /  273 M (=29DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x07, 0xc1, 0x01, 0x08, 0x71, 0x11,
+    /* 229*179*97  /  double-base chain  /  175 M (=12DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x08, 0xf1, 0x04, 0x06,
+    /* 193  /  double-base chain  /  63 M (=5DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xe1, 0x01, 0x06,
+    /* 619*317  /  double-base chain  /  141 M (=14DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x09, 0xf1, 0x01, 0x07,
+    /* 563*541*467*419*373*197*137*47*37*29  /  double-base expansion  /  557 M (=59DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x04, 0x62, 0x20,
+    /* 607*599*523*461*379*277*79  /  double-base expansion  /  448 M (=50DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x05, 0x41, 0x20, 0x73, 0x10,
+    /* 443*233*163*157*127*7  /  double-base expansion  /  313 M (=28DBL+2DBLa+6TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0x80, 0x02, 0xff, 0x10, 0x41, 0x0e, 0x72, 0x10,
+    /* 577*569*439*421*383*223*41*11  /  double-base expansion  /  466 M (=40DBL+2DBLa+10TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0x62, 0x06, 0x63, 0x24, 0x00, 0x31, 0xff, 0x10, 0x82, 0x04, 0xa2, 0x08,
+    /* 613*587*401*191*101  /  double-base expansion  /  320 M (=32DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x03, 0xff, 0x10, 0x42, 0x08, 0x51, 0x0c, 0x72, 0x0f,
+    /* 593*389*337*269*61  /  double-base expansion  /  312 M (=34DBL+3DBLa+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0xff, 0x13, 0x43, 0x05, 0x41, 0x1b, 0x72, 0x05,
+    /* 313*281*151*103  /  double-base expansion  /  245 M (=21DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x41, 0x01, 0x42, 0x07, 0x63, 0x10,
+    /* 311*283*271  /  double-base expansion  /  206 M (=12DBL+3DBLa+4TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0x80, 0x04, 0xff, 0x10, 0x53, 0x03, 0x41, 0x03, 0x62, 0x09,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 5*3*3  /  PRAC  /  39 M (=3dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x03, 0x66,
+      /* 5*5  /  PRAC  /  34 M (=2dDBL+4dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x66,
+      /* 19  /  PRAC  /  35 M (=1dDBL+5dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x03, 0x66,
+      /* 547  /  PRAC  /  77 M (=1dDBL+12dADD) */
+      0x69, 0x0d, 0x03, 0x0d, 0x0d, 0x0d, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=626 */
+
+/* B1=651 computed with 29 blocks, cost=7198M */
+static const uint8_t _B1_651_bc[] = {
+    0x03,
+    /* 617*347*331*167*83*17  /  double-base chain  /  329 M (=34DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x22, 0x61, 0x02,
+    /* 643*379*313*193*191*149*101*73*7*7*5*5  /  double-base chain  /  534 M (=56DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0b, 0xd1, 0x04, 0x0d, 0xf1, 0x04, 0x23,
+    /* 521*409*353*257*173*89*19  /  double-base chain  /  395 M (=43DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0xc1, 0x02, 0x18, 0xf1, 0x02, 0x0f,
+    /* 499*197  /  double-base chain  /  126 M (=14DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x0f,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 359*263*211*199*139*131*71*5  /  double-base chain  /  412 M (=42DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x07, 0x41, 0x1d, 0xf1, 0x04, 0x09,
+    /* 439*277*79*37*29*5  /  double-base chain  /  267 M (=32DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x1e, 0xe1, 0x01, 0x04,
+    /* 557*367*251*239*181*107  /  double-base chain  /  362 M (=40DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x12, 0x41, 0x16, 0xe1, 0x03, 0x03,
+    /* 613*349*233*41  /  double-base chain  /  238 M (=21DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0xe1, 0x04, 0x10,
+    /* 587*397*373*283*151  /  double-base chain  /  320 M (=34DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0a, 0x41, 0x07, 0xf1, 0x03, 0x14,
+    /* 647*457*383  /  double-base chain  /  207 M (=20DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0xe1, 0x02, 0x07,
+    /* 619*541*509*229*47  /  double-base chain  /  317 M (=25DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0xc1, 0x01, 0x0e, 0xe1, 0x06, 0x0b,
+    /* 491*487*419*103  /  double-base chain  /  258 M (=17DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0f, 0xe1, 0x06, 0x04,
+    /* 641*607*241*163*13*7  /  double-base chain  /  311 M (=31DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0b, 0xd1, 0x03, 0x0c, 0xf1, 0x01, 0x0b,
+    /* 563*307*227*127  /  double-base chain  /  252 M (=26DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x05, 0x41, 0x16, 0xe1, 0x02, 0x02,
+    /* 601*23  /  double-base chain  /  108 M (=8DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x09,
+    /* 463*269*109*61  /  double-base chain  /  237 M (=17DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xc1, 0x02, 0x10, 0xf1, 0x03, 0x02,
+    /* 577*569*503*449*401*113*59*53*43*31*23*19  /  double-base expansion  /  609 M (=73DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x25, 0x53, 0x1d, 0x61, 0x0a,
+    /* 571*461*431*281*97  /  double-base expansion  /  317 M (=35DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x42, 0x02, 0x41, 0x19, 0x62, 0x0b,
+    /* 631*479*293*157*67*11*11  /  double-base expansion  /  363 M (=31DBL+3DBLa+6TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xa3, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x07, 0x43, 0x07, 0x62, 0x14,
+    /* 547*443*433*311  /  double-base expansion  /  278 M (=24DBL+3DBLa+3TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0x80, 0x03, 0xff, 0x10, 0x41, 0x03, 0x52, 0x0c, 0x73, 0x0c,
+    /* 599*593*389  /  double-base expansion  /  229 M (=5DBL+3DBLa+10TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xa3, 0x09, 0xff, 0x13, 0x42, 0x03, 0x43, 0x03, 0x71, 0x02,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3  /  PRAC  /  44 M (=4dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 13  /  PRAC  /  29 M (=1dDBL+4dADD) */
+      0x69, 0x0d, 0x03, 0x66,
+      /* 17  /  PRAC  /  34 M (=2dDBL+4dADD) */
+      0x69, 0x02, 0x73, 0x0b, 0x03, 0x66,
+      /* 523  /  PRAC  /  80 M (=4dDBL+10dADD) */
+      0x69, 0x0b, 0x02, 0x0d, 0x0d, 0x02, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=651 */
+
+/* B1=676 computed with 25 blocks, cost=7478M */
+static const uint8_t _B1_676_bc[] = {
+    0x03,
+    /* 673*257*241*97*17*13*7*5*3*3  /  double-base chain  /  345 M (=47DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x30,
+    /* 587*367*349*263*107*89*41*7*3  /  double-base chain  /  419 M (=52DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x19, 0x61, 0x1d,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 439*227*83*73*67*37*17*7  /  double-base chain  /  352 M (=39DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x15, 0xf1, 0x02, 0x14,
+    /* 599*509*283*281*239*61*43  /  double-base chain  /  404 M (=46DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x28, 0xd1, 0x01, 0x04, 0xe1, 0x01, 0x05,
+    /* 443*409*353*211*163*127*113*13  /  double-base chain  /  440 M (=46DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x17, 0xd1, 0x01, 0x0d, 0x61, 0x0d,
+    /* 487*389*233*199*149*137*131*31*19  /  double-base chain  /  479 M (=58DBL+4DBLa+1TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x20, 0x41, 0x11, 0x41, 0x05, 0xf1, 0x01, 0x08,
+    /* 499*467*421*197  /  double-base chain  /  258 M (=29DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xe1, 0x02, 0x0f,
+    /* 641*571*523*337*151  /  double-base chain  /  330 M (=32DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x01, 0x51, 0x12, 0xf1, 0x04, 0x10,
+    /* 661*173*139*19  /  double-base chain  /  216 M (=23DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x0b, 0x61, 0x0e,
+    /* 457*193*191*11*11  /  double-base chain  /  238 M (=21DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0c, 0xf1, 0x02, 0x0b,
+    /* 617*503*463*311*181*179*71  /  double-base chain  /  434 M (=43DBL+4DBLa+6TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x09, 0xd1, 0x03, 0x07, 0xd1, 0x01, 0x1b, 0xf1, 0x02, 0x04,
+    /* 557*379*251*109  /  double-base chain  /  255 M (=23DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0x41, 0x0f, 0xe1, 0x04, 0x07,
+    /* 491*401*293*277*59  /  double-base chain  /  314 M (=31DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x06, 0xc1, 0x01, 0x03, 0x51, 0x0d, 0xe1, 0x02, 0x0d,
+    /* 659*461*449*313  /  double-base chain  /  284 M (=25DBL+4DBLa+4TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x04, 0x41, 0x03, 0xc1, 0x01, 0x05, 0xf1, 0x02, 0x11,
+    /* 613*577*271*223  /  double-base chain  /  285 M (=23DBL+5DBLa+4TPL+4ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xd1, 0x01, 0x02, 0xd1, 0x01, 0x0a, 0xd1, 0x01, 0x08, 0xe1, 0x01, 0x02,
+    /* 647*619*607*433*383*229*79  /  double-base chain  /  460 M (=48DBL+5DBLa+4TPL+4ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0a, 0x51, 0x08, 0xc1, 0x01, 0x03, 0xd1, 0x02, 0x06, 0x71, 0x1a,
+    /* 563*541*419*47*29  /  double-base expansion  /  284 M (=29DBL+2DBLa+3TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xff, 0x12, 0x41, 0x0d, 0x72, 0x12,
+    /* 631*601*521*431*347  /  double-base expansion  /  343 M (=37DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x03, 0x41, 0x1b, 0x62, 0x0a,
+    /* 569*547*307  /  double-base expansion  /  210 M (=15DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0x80, 0x02, 0xff, 0x10, 0x41, 0x0c, 0x62, 0x05,
+    /* 643*479*317*167  /  double-base expansion  /  271 M (=23DBL+3DBLa+3TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0x80, 0x01, 0xff, 0x10, 0x52, 0x08, 0x53, 0x09, 0x71, 0x09,
+    /* 653*373*331  /  double-base expansion  /  211 M (=10DBL+2DBLa+8TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x06, 0xff, 0x10, 0x51, 0x04, 0x62, 0x08,
+    /* 397*359*103  /  double-base expansion  /  193 M (=19DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x01, 0x52, 0x0f, 0x72, 0x06,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*5*5*3*3  /  PRAC  /  73 M (=5dDBL+8dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x0a, 0x0a, 0x0a, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=676 */
+
+/* B1=702 computed with 33 blocks, cost=7772M */
+static const uint8_t _B1_702_bc[] = {
+    0x03,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 227*73*67*17  /  double-base chain  /  180 M (=20DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x15,
+    /* 491*439*109*83*37*23*23*7  /  double-base chain  /  357 M (=38DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x12, 0xe1, 0x02, 0x16,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 587*563*463*449*241*17  /  double-base chain  /  361 M (=45DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x1f, 0x41, 0x0c, 0x71, 0x05,
+    /* 499*197  /  double-base chain  /  126 M (=14DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x0f,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 443*409*353*211*163*127*113*13  /  double-base chain  /  440 M (=46DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x17, 0xd1, 0x01, 0x0d, 0x61, 0x0d,
+    /* 607*307*281*251*181*43*13*11  /  double-base chain  /  408 M (=38DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x03, 0xd1, 0x05, 0x09, 0xf1, 0x01, 0x1d,
+    /* 683*503*487*239*151*59  /  double-base chain  /  367 M (=39DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x0e, 0x41, 0x0a, 0x61, 0x12,
+    /* 613*593*349*331*157  /  double-base chain  /  324 M (=38DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x09, 0x51, 0x17, 0x71, 0x09,
+    /* 599*229*103*19  /  double-base chain  /  213 M (=26DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x0f, 0x71, 0x0d,
+    /* 643*571*347  /  double-base chain  /  210 M (=17DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x11, 0xf1, 0x03, 0x02,
+    /* 547*199*173*7*7  /  double-base chain  /  228 M (=23DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x01, 0x61, 0x18,
+    /* 619*433*367*131  /  double-base chain  /  261 M (=29DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0c, 0x51, 0x06, 0x71, 0x0e,
+    /* 523*47  /  double-base chain  /  120 M (=11DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0b, 0x61, 0x02,
+    /* 191  /  double-base chain  /  63 M (=5DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x06,
+    /* 661*61  /  double-base chain  /  128 M (=7DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x02, 0xe1, 0x02, 0x07,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 647*383*269*149  /  double-base expansion  /  253 M (=28DBL+2DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x41, 0x02, 0x62, 0x1c,
+    /* 617*389*313*311*193*79  /  double-base expansion  /  371 M (=39DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x08, 0x53, 0x16, 0x72, 0x0c,
+    /* 659*263*233*167*71*31  /  double-base expansion  /  336 M (=36DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x42, 0x18, 0x51, 0x03, 0x62, 0x0c,
+    /* 691*541*431*101*19  /  double-base expansion  /  296 M (=32DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x51, 0x0c, 0x52, 0x01, 0x72, 0x16,
+    /* 577*509*457  /  double-base expansion  /  213 M (=23DBL+2DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x00, 0x21, 0xff, 0x10, 0x52, 0x16, 0x72, 0x03,
+    /* 641*521*419*397*107  /  double-base expansion  /  334 M (=22DBL+3DBLa+10TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x09, 0x80, 0x02, 0xff, 0x10, 0x42, 0x11, 0x51, 0x05, 0x72, 0x03,
+    /* 631*461*283*11  /  double-base expansion  /  238 M (=22DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x52, 0x08, 0x51, 0x02, 0x62, 0x0f,
+    /* 701*557*89*29  /  double-base expansion  /  247 M (=11DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x05, 0x80, 0x01, 0xff, 0x10, 0x43, 0x03, 0x51, 0x0a, 0x72, 0x01,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5*5*5*5*3  /  PRAC  /  79 M (=5dDBL+9dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x0a, 0x03, 0x0a, 0x0a, 0x03, 0x66,
+      /* 139  /  PRAC  /  62 M (=4dDBL+7dADD) */
+      0x69, 0x02, 0x0b, 0x02, 0x0b, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=702 */
+
+/* B1=729 computed with 31 blocks, cost=7997M */
+static const uint8_t _B1_729_bc[] = {
+    0x03,
+    /* 673*257*241*97*17*13*7*5*3*3  /  double-base chain  /  345 M (=47DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x30,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 149*37*29*17*5*5*5  /  double-base chain  /  211 M (=21DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xe1, 0x04, 0x16,
+    /* 719*677*307*197*101*71  /  double-base chain  /  359 M (=43DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x13, 0x51, 0x0b, 0xf1, 0x01, 0x10,
+    /* 353*103*73  /  double-base chain  /  162 M (=14DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x0f,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 587*397*373*283*151  /  double-base chain  /  320 M (=34DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0a, 0x41, 0x07, 0xf1, 0x03, 0x14,
+    /* 601*541*347*269*163  /  double-base chain  /  322 M (=36DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0b, 0x51, 0x07, 0xe1, 0x01, 0x15,
+    /* 727*683*367*293*139  /  double-base chain  /  327 M (=35DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x20, 0x51, 0x04, 0xe1, 0x01, 0x02,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 181*47*13  /  double-base chain  /  129 M (=11DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x0c,
+    /* 491*127*67  /  double-base chain  /  171 M (=20DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x08, 0x71, 0x0e,
+    /* 701*659*643*61  /  double-base chain  /  264 M (=26DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xc1, 0x02, 0x0e, 0xe1, 0x01, 0x0d,
+    /* 661*499*487*443*11  /  double-base chain  /  307 M (=27DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x12, 0x51, 0x08, 0xe1, 0x02, 0x04,
+    /* 433*431  /  double-base chain  /  137 M (=7DBL+1DBLa+6TPL+1ADDa) */
+    0x11, 0xf1, 0x06, 0x08,
+    /* 617*593*389*331  /  double-base chain  /  276 M (=26DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xc1, 0x02, 0x0d, 0xf1, 0x01, 0x0e,
+    /* 439*409*349*173*11  /  double-base chain  /  289 M (=21DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xc1, 0x02, 0x14, 0xe1, 0x05, 0x02,
+    /* 709*571*211*191  /  double-base chain  /  267 M (=23DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0b, 0xd1, 0x03, 0x0d, 0xf1, 0x02, 0x02,
+    /* 641*359*41  /  double-base chain  /  181 M (=18DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0c, 0xf1, 0x02, 0x08,
+    /* 563*521*227  /  double-base chain  /  207 M (=23DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x07, 0x51, 0x0b, 0x61, 0x08,
+    /* 457*313*167  /  double-base chain  /  194 M (=13DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x0c, 0xf1, 0x01, 0x03,
+    /* 647*557*107*89  /  double-base chain  /  254 M (=16DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x04, 0xd1, 0x02, 0x09, 0xe1, 0x03, 0x06,
+    /* 653*199*109  /  double-base chain  /  194 M (=16DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x06, 0x41, 0x05, 0x71, 0x08,
+    /* 577*569*503*449*401*113*59*53*43*31*23*19  /  double-base expansion  /  609 M (=73DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x25, 0x53, 0x1d, 0x61, 0x0a,
+    /* 607*599*523*461*379*277*79  /  double-base expansion  /  448 M (=50DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x05, 0x41, 0x20, 0x73, 0x10,
+    /* 463*383*281*251*229*193*83*23*7  /  double-base expansion  /  475 M (=47DBL+3DBLa+6TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xa3, 0x03, 0xff, 0x13, 0x53, 0x0f, 0x51, 0x01, 0x72, 0x22,
+    /* 619*479*419*311  /  double-base expansion  /  275 M (=29DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x51, 0x08, 0x52, 0x07, 0x62, 0x11,
+    /* 631*547*509*157  /  double-base expansion  /  277 M (=19DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0x80, 0x03, 0xff, 0x10, 0x42, 0x04, 0x41, 0x07, 0x72, 0x0b,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=729 */
+
+/* B1=756 computed with 34 blocks, cost=8280M */
+static const uint8_t _B1_756_bc[] = {
+    0x03,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 617*347*331*167*83*17  /  double-base chain  /  329 M (=34DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x22, 0x61, 0x02,
+    /* 491*227*109*73*67*23*23*17  /  double-base chain  /  364 M (=39DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x15, 0xf1, 0x02, 0x14,
+    /* 739*439*367*179*173*107  /  double-base chain  /  362 M (=37DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xf1, 0x06, 0x21,
+    /* 643*379*313*149*7*7*5  /  double-base chain  /  310 M (=33DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0b, 0xe1, 0x04, 0x18,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 443*409*353*211*163*127*113*13  /  double-base chain  /  440 M (=46DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x17, 0xd1, 0x01, 0x0d, 0x61, 0x0d,
+    /* 709*503*283  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0x61, 0x12,
+    /* 641*571*523*337*151  /  double-base chain  /  330 M (=32DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x01, 0x51, 0x12, 0xf1, 0x04, 0x10,
+    /* 719*557*317*139*31*11  /  double-base chain  /  325 M (=24DBL+1DBLa+10TPL+1TPLa+1ADD+1ADDa) */
+    0x11, 0x81, 0x04, 0xe1, 0x07, 0x19,
+    /* 683*599*223*157*89  /  double-base chain  /  308 M (=34DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x05, 0xd1, 0x01, 0x04, 0xf1, 0x01, 0x1c,
+    /* 521*271*241*71  /  double-base chain  /  237 M (=26DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x17, 0xe1, 0x01, 0x05,
+    /* 199*19*13  /  double-base chain  /  119 M (=13DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xe1, 0x01, 0x0e,
+    /* 461*421*389  /  double-base chain  /  202 M (=21DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x15, 0xe1, 0x02, 0x02,
+    /* 487*449*181*79*11  /  double-base chain  /  270 M (=32DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x0a, 0x51, 0x0c, 0x71, 0x0d,
+    /* 631*587*569*431*349  /  double-base chain  /  348 M (=26DBL+3DBLa+10TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x15, 0xd1, 0x04, 0x04, 0xf1, 0x02, 0x04,
+    /* 647*457*383  /  double-base chain  /  207 M (=20DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0xe1, 0x02, 0x07,
+    /* 751*463*193  /  double-base chain  /  199 M (=24DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x51, 0x12, 0x61, 0x08,
+    /* 281*41  /  double-base chain  /  111 M (=8DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xe1, 0x02, 0x08,
+    /* 563*541*467*419*373*197*137*47*37*29  /  double-base expansion  /  557 M (=59DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x04, 0x62, 0x20,
+    /* 727*499*269*251*101  /  double-base expansion  /  317 M (=35DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x52, 0x19, 0x41, 0x06, 0x72, 0x07,
+    /* 577*547*311*307*61  /  double-base expansion  /  315 M (=33DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x02, 0x52, 0x0a, 0x62, 0x18,
+    /* 733*701*661*607  /  double-base expansion  /  291 M (=33DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x0e, 0x41, 0x02, 0x62, 0x14,
+    /* 743*433*191*59  /  double-base expansion  /  254 M (=24DBL+3DBLa+1TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x02, 0xff, 0x13, 0x42, 0x08, 0x53, 0x11, 0x71, 0x02,
+    /* 397*229*103*43  /  double-base expansion  /  228 M (=24DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x12, 0x51, 0x05, 0x72, 0x04,
+    /* 677*619*509  /  double-base expansion  /  230 M (=12DBL+3DBLa+6TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xa3, 0x05, 0xff, 0x13, 0x51, 0x02, 0x53, 0x05, 0x62, 0x08,
+    /* 659*593  /  double-base expansion  /  158 M (=14DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x51, 0x06, 0x52, 0x04, 0x62, 0x07,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5*5*5  /  PRAC  /  51 M (=3dDBL+6dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x0a, 0x03, 0x66,
+      /* 359  /  PRAC  /  74 M (=4dDBL+9dADD) */
+      0x69, 0x0b, 0x02, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=756 */
+
+/* B1=783 computed with 35 blocks, cost=8568M */
+static const uint8_t _B1_783_bc[] = {
+    0x03,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 761*659*619*431*139*43*23*17*7  /  double-base chain  /  448 M (=51DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x24, 0xf1, 0x01, 0x11,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 617*347*331*167*83*17  /  double-base chain  /  329 M (=34DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x22, 0x61, 0x02,
+    /* 193*191*101*73*5  /  double-base chain  /  225 M (=23DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x18,
+    /* 739*439*367*179*173*107  /  double-base chain  /  362 M (=37DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xf1, 0x06, 0x21,
+    /* 499*467*421*197  /  double-base chain  /  258 M (=29DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xe1, 0x02, 0x0f,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 773*613*103*11  /  double-base chain  /  220 M (=27DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x1b, 0x61, 0x02,
+    /* 523*269*241*19*5  /  double-base chain  /  239 M (=28DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xe1, 0x01, 0x10,
+    /* 769*661*647*157*67*59*29*13  /  double-base chain  /  424 M (=42DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x0c, 0xd1, 0x02, 0x14, 0xf1, 0x01, 0x0d,
+    /* 337*127*7*7  /  double-base chain  /  156 M (=20DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x15,
+    /* 709*587*353*149*11  /  double-base chain  /  291 M (=20DBL+2DBLa+10TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x02, 0xe1, 0x08, 0x14,
+    /* 577*541*409*227  /  double-base chain  /  271 M (=27DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0a, 0x41, 0x0f, 0xf1, 0x02, 0x05,
+    /* 683*461*271  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x03, 0xe1, 0x01, 0x11,
+    /* 641*631*443*397*313  /  double-base chain  /  339 M (=35DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x0c,
+    /* 701*643*131*109  /  double-base chain  /  254 M (=28DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0x51, 0x0f, 0xe1, 0x01, 0x06,
+    /* 317*311*113*61  /  double-base chain  /  226 M (=21DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x0d, 0xf1, 0x04, 0x0a,
+    /* 727*419*263*229  /  double-base chain  /  270 M (=20DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0e, 0xd1, 0x04, 0x05, 0x71, 0x04,
+    /* 571*547*449*199*71  /  double-base chain  /  320 M (=22DBL+3DBLa+10TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x06, 0x05, 0x41, 0x07, 0xe1, 0x04, 0x0d,
+    /* 719*463*37  /  double-base chain  /  195 M (=11DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x05, 0xc1, 0x06, 0x07, 0x61, 0x02,
+    /* 433  /  double-base chain  /  73 M (=3DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xe1, 0x03, 0x04,
+    /* 557*251  /  double-base chain  /  143 M (=4DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x05, 0xe1, 0x04, 0x01,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 743*593*509*281*163*137*79*23*13  /  double-base expansion  /  492 M (=46DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x05, 0x80, 0x03, 0xff, 0x10, 0x52, 0x03, 0x41, 0x0e, 0x73, 0x20,
+    /* 691*283*239*223*211  /  double-base expansion  /  311 M (=37DBL+2DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x00, 0x21, 0xff, 0x10, 0x42, 0x0e, 0x62, 0x19,
+    /* 599*503*389*383*31  /  double-base expansion  /  313 M (=31DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x03, 0xff, 0x10, 0x41, 0x14, 0x42, 0x0b, 0x72, 0x03,
+    /* 757*491*457*233*89  /  double-base expansion  /  326 M (=26DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x05, 0x42, 0x0d, 0x72, 0x0b,
+    /* 563*521*307*181  /  double-base expansion  /  269 M (=23DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x02, 0xff, 0x10, 0x51, 0x03, 0x42, 0x0e, 0x72, 0x09,
+    /* 607*487*47  /  double-base expansion  /  188 M (=17DBL+2DBLa+2TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x01, 0xff, 0x10, 0x51, 0x01, 0x72, 0x12,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 5*3*3*3*3  /  PRAC  /  61 M (=5dDBL+6dADD) */
+      0x69, 0x0a, 0x03, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 19  /  PRAC  /  35 M (=1dDBL+5dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=783 */
+
+/* B1=811 computed with 34 blocks, cost=8865M */
+static const uint8_t _B1_811_bc[] = {
+    0x03,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 769*193*191*103*101*73*43*19*7*5  /  double-base chain  /  437 M (=46DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x17, 0xf1, 0x03, 0x19,
+    /* 617*347*331*167*83*17  /  double-base chain  /  329 M (=34DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x22, 0x61, 0x02,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 587*563*463*449*241*17  /  double-base chain  /  361 M (=45DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x1f, 0x41, 0x0c, 0x71, 0x05,
+    /* 337*317*271*223*179*137  /  double-base chain  /  357 M (=41DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xc1, 0x01, 0x03, 0xf1, 0x01, 0x1b,
+    /* 491*109*23*23  /  double-base chain  /  185 M (=19DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x14,
+    /* 443*409*353*211*163*127*113*13  /  double-base chain  /  440 M (=46DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x17, 0xd1, 0x01, 0x0d, 0x61, 0x0d,
+    /* 757*467*311*227*61*13  /  double-base chain  /  336 M (=38DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x14, 0x51, 0x13, 0xf1, 0x01, 0x02,
+    /* 787*659*571*461*71*31  /  double-base chain  /  368 M (=34DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0a, 0xd1, 0x05, 0x07, 0xf1, 0x01, 0x14,
+    /* 577*487*251*79*37  /  double-base chain  /  289 M (=33DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x10, 0x51, 0x04, 0xf1, 0x01, 0x10,
+    /* 607*557*509*433*7  /  double-base chain  /  302 M (=28DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x08, 0xc1, 0x02, 0x0d, 0xe1, 0x01, 0x0a,
+    /* 811*773*743  /  double-base chain  /  233 M (=13DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xd1, 0x06, 0x01, 0xe1, 0x01, 0x0d,
+    /* 661*641*229*199  /  double-base chain  /  266 M (=28DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0xd1, 0x01, 0x0f, 0xf1, 0x01, 0x06,
+    /* 599*457*431  /  double-base chain  /  215 M (=19DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0x41, 0x08, 0xe1, 0x02, 0x0b,
+    /* 367*313*89  /  double-base chain  /  189 M (=17DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0x51, 0x0d, 0xf1, 0x01, 0x05,
+    /* 761*521  /  double-base chain  /  156 M (=14DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x41, 0x04, 0xe1, 0x01, 0x06,
+    /* 727*523*107  /  double-base chain  /  210 M (=8DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x02, 0xd1, 0x05, 0x02, 0xf1, 0x01, 0x07,
+    /* 503*439  /  double-base chain  /  152 M (=10DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x06, 0xc1, 0x01, 0x03, 0x61, 0x04,
+    /* 797*739*709*683*631*421*59*47  /  double-base expansion  /  505 M (=55DBL+3DBLa+5TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x04, 0x42, 0x0a, 0x71, 0x2c,
+    /* 719*547*397*281*181*29*11*3  /  double-base expansion  /  399 M (=45DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x01, 0xff, 0x10, 0x41, 0x23, 0x52, 0x08, 0x61, 0x05,
+    /* 647*383*269*149  /  double-base expansion  /  253 M (=28DBL+2DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x41, 0x02, 0x62, 0x1c,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 619*593*419*389*157  /  double-base expansion  /  335 M (=29DBL+3DBLa+6TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x52, 0x0b, 0x61, 0x08,
+    /* 701*499*283*139  /  double-base expansion  /  272 M (=18DBL+3DBLa+6TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xa3, 0x03, 0x80, 0x02, 0xff, 0x10, 0x42, 0x07, 0x43, 0x06, 0x71, 0x08,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5*3*3*3  /  PRAC  /  50 M (=4dDBL+5dADD) */
+      0x69, 0x03, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5*3  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x03, 0x0a, 0x66,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 173  /  PRAC  /  64 M (=2dDBL+9dADD) */
+      0x69, 0x0d, 0x03, 0x0d, 0x0b, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=811 */
+
+/* B1=840 computed with 37 blocks, cost=9243M */
+static const uint8_t _B1_840_bc[] = {
+    0x03,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 821*641*557*179*139*107*83*59*29  /  double-base chain  /  484 M (=63DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x39,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 769*607*331*281*181*17  /  double-base chain  /  350 M (=37DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x10, 0xe1, 0x03, 0x17,
+    /* 739*523*283*263*43  /  double-base chain  /  300 M (=35DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0f, 0xf1, 0x01, 0x16,
+    /* 787*313*227*211*193*11  /  double-base chain  /  334 M (=33DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x1e, 0xe1, 0x02, 0x05,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 587*563*463*449*241*17  /  double-base chain  /  361 M (=45DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x1f, 0x41, 0x0c, 0x71, 0x05,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 661*389*271*127*109*19  /  double-base chain  /  336 M (=23DBL+2DBLa+12TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x02, 0xf1, 0x0a, 0x17,
+    /* 457*439*137*113*7  /  double-base chain  /  261 M (=26DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0a, 0xe1, 0x02, 0x12,
+    /* 491*487*419*103  /  double-base chain  /  258 M (=17DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0f, 0xe1, 0x06, 0x04,
+    /* 229*223*11*7  /  double-base chain  /  169 M (=18DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xf1, 0x01, 0x12,
+    /* 443*409*337*251*149*13  /  double-base chain  /  341 M (=37DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x11, 0xc1, 0x03, 0x13, 0x61, 0x04,
+    /* 829*571*293*131  /  double-base chain  /  270 M (=20DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x02, 0xd1, 0x01, 0x03, 0xe1, 0x03, 0x12,
+    /* 827*811*89  /  double-base chain  /  209 M (=13DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xd1, 0x03, 0x04, 0xe1, 0x03, 0x0a,
+    /* 743*367*199  /  double-base chain  /  208 M (=18DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x03, 0x51, 0x0d, 0xf1, 0x02, 0x05,
+    /* 761*659  /  double-base chain  /  162 M (=8DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0xd1, 0x02, 0x03, 0xe1, 0x03, 0x01,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 823*691*353*317*311  /  double-base expansion  /  338 M (=38DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x51, 0x13, 0x52, 0x0b, 0x72, 0x0b,
+    /* 631*601*521*431*347  /  double-base expansion  /  343 M (=37DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x03, 0x41, 0x1b, 0x62, 0x0a,
+    /* 773*653*647*479*433*71  /  double-base expansion  /  400 M (=38DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x01, 0x80, 0x04, 0xff, 0x10, 0x42, 0x0e, 0x43, 0x10, 0x71, 0x0b,
+    /* 757*401*239*37  /  double-base expansion  /  238 M (=27DBL+1DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x00, 0x21, 0xff, 0x10, 0x72, 0x1c,
+    /* 701*547*499*461*233*13  /  double-base expansion  /  367 M (=37DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x02, 0xff, 0x10, 0x52, 0x16, 0x51, 0x06, 0x72, 0x0c,
+    /* 839*727*709*577*173*47  /  double-base expansion  /  394 M (=32DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x02, 0x80, 0x04, 0xff, 0x10, 0x51, 0x09, 0x43, 0x13, 0x72, 0x07,
+    /* 613*599*277*167*79*7  /  double-base expansion  /  335 M (=29DBL+3DBLa+6TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x07, 0xff, 0x12, 0x41, 0x0d, 0x51, 0x11, 0x72, 0x02,
+    /* 719*617*509*383*61  /  double-base expansion  /  333 M (=25DBL+3DBLa+7TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x05, 0xa3, 0x03, 0x80, 0x01, 0xff, 0x10, 0x52, 0x03, 0x51, 0x0c, 0x63, 0x0d,
+    /* 797*503*397*73  /  double-base expansion  /  266 M (=24DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x02, 0xff, 0x13, 0x41, 0x01, 0x43, 0x03, 0x72, 0x17,
+    /* 683*191*163  /  double-base expansion  /  201 M (=15DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xff, 0x12, 0x41, 0x03, 0x52, 0x0a, 0x71, 0x05,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3  /  PRAC  /  55 M (=5dDBL+5dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5*5  /  PRAC  /  34 M (=2dDBL+4dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 31*19  /  PRAC  /  76 M (=2dDBL+11dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x03, 0x0a, 0x03, 0x0d, 0x0b, 0x03, 0x66,
+      /* 619  /  PRAC  /  81 M (=3dDBL+11dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x02, 0x0d, 0x0b, 0x03, 0x0b, 0x02, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=840 */
+
+/* B1=869 computed with 35 blocks, cost=9566M */
+static const uint8_t _B1_869_bc[] = {
+    0x03,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 821*641*557*179*139*107*83*59*29  /  double-base chain  /  484 M (=63DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x39,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 769*607*331*281*181*17  /  double-base chain  /  350 M (=37DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x10, 0xe1, 0x03, 0x17,
+    /* 587*563*463*449*241*17  /  double-base chain  /  361 M (=45DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x1f, 0x41, 0x0c, 0x71, 0x05,
+    /* 863*787*653*461*397*79  /  double-base chain  /  398 M (=40DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x0e, 0x41, 0x0e, 0xf1, 0x01, 0x0f,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 443*409*353*211*163*127*113*13  /  double-base chain  /  440 M (=46DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x05, 0x17, 0xd1, 0x01, 0x0d, 0x61, 0x0d,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 709*503*283  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0x61, 0x12,
+    /* 797*619*347*317*199*167  /  double-base chain  /  387 M (=35DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x0b, 0xd1, 0x03, 0x12, 0xe1, 0x01, 0x09,
+    /* 829*601*521*389*7*7  /  double-base chain  /  322 M (=36DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x15, 0x51, 0x05, 0xe1, 0x01, 0x0d,
+    /* 647*631*523*47*13  /  double-base chain  /  288 M (=26DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x11, 0x41, 0x04, 0xe1, 0x03, 0x08,
+    /* 761*599*577*31  /  double-base chain  /  260 M (=22DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xd1, 0x01, 0x02, 0xe1, 0x04, 0x07,
+    /* 419*11  /  double-base chain  /  96 M (=8DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x09,
+    /* 857*773*367*191  /  double-base chain  /  283 M (=15DBL+3DBLa+11TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x07, 0x51, 0x0a, 0xf1, 0x06, 0x01,
+    /* 727*719*617  /  double-base chain  /  223 M (=12DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x06, 0x04, 0xe1, 0x03, 0x0a,
+    /* 547*487*293*251  /  double-base chain  /  277 M (=9DBL+3DBLa+14TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x0a, 0x06, 0xc1, 0x02, 0x05, 0xe1, 0x02, 0x01,
+    /* 859*571*73  /  double-base chain  /  207 M (=11DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x06, 0x01, 0x51, 0x04, 0xe1, 0x01, 0x09,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 853*457*229*227*223*89*43*5*5  /  double-base expansion  /  438 M (=54DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x51, 0x11, 0x42, 0x0b, 0x71, 0x1d,
+    /* 839*491*479*431*313*271  /  double-base expansion  /  403 M (=37DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x05, 0xff, 0x10, 0x41, 0x11, 0x41, 0x02, 0x62, 0x15,
+    /* 823*439*433*383*109*103*71*29  /  double-base expansion  /  459 M (=43DBL+3DBLa+7TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x08, 0xff, 0x13, 0x42, 0x0f, 0x43, 0x1c, 0x71, 0x03,
+    /* 701*311*277*149*61*37*19  /  double-base expansion  /  371 M (=39DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x01, 0x80, 0x01, 0xff, 0x10, 0x43, 0x02, 0x51, 0x04, 0x62, 0x24,
+    /* 743*661*659*401*193  /  double-base expansion  /  346 M (=32DBL+3DBLa+4TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x05, 0xff, 0x13, 0x52, 0x12, 0x51, 0x03, 0x63, 0x0e,
+    /* 757*739*337*173  /  double-base expansion  /  276 M (=24DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x04, 0xff, 0x10, 0x42, 0x0f, 0x41, 0x05, 0x62, 0x07,
+    /* 811*509*137  /  double-base expansion  /  210 M (=18DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x80, 0x01, 0xff, 0x10, 0x51, 0x05, 0x51, 0x04, 0x72, 0x0c,
+    /* 827*499  /  double-base expansion  /  158 M (=14DBL+3DBLa+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x03, 0x42, 0x04, 0x61, 0x0a,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3  /  PRAC  /  44 M (=4dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5*3*3  /  PRAC  /  39 M (=3dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x03, 0x66,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 683  /  PRAC  /  81 M (=3dDBL+11dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x02, 0x0b, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=869 */
+
+/* B1=898 computed with 33 blocks, cost=9849M */
+static const uint8_t _B1_898_bc[] = {
+    0x03,
+    /* 821*641*557*179*139*107*83*59*29  /  double-base chain  /  484 M (=63DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x39,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 769*103*43*19*7  /  double-base chain  /  213 M (=23DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xe1, 0x03, 0x18,
+    /* 337*227*127*73*67*17*7*7  /  double-base chain  /  335 M (=40DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x12, 0x71, 0x18,
+    /* 709*613*587*353*211*173*149*89*19*11  /  double-base chain  /  551 M (=43DBL+3DBLa+17TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0xc1, 0x04, 0x14, 0xe1, 0x0c, 0x13,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 863*787*653*461*397*79  /  double-base chain  /  398 M (=40DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x0e, 0x41, 0x0e, 0xf1, 0x01, 0x0f,
+    /* 857*829*797  /  double-base chain  /  221 M (=22DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xe1, 0x03, 0x16,
+    /* 521*271*241*71  /  double-base chain  /  237 M (=26DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x17, 0xe1, 0x01, 0x05,
+    /* 479*443*313*293*113  /  double-base chain  /  312 M (=38DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x51, 0x15, 0x41, 0x03, 0x61, 0x11,
+    /* 659*617*547*379*307*251*13  /  double-base chain  /  428 M (=49DBL+4DBLa+2TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x03, 0x51, 0x0b, 0x51, 0x1e, 0xf1, 0x01, 0x09,
+    /* 757*491*409*367*193*131*11  /  double-base chain  /  412 M (=45DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x04, 0xd1, 0x01, 0x0d, 0xd1, 0x01, 0x1b, 0x61, 0x05,
+    /* 487*317*163  /  double-base chain  /  190 M (=21DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0c, 0x61, 0x0b,
+    /* 883*463*277  /  double-base chain  /  207 M (=20DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x10, 0xe1, 0x02, 0x06,
+    /* 647*457*383  /  double-base chain  /  207 M (=20DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0f, 0xe1, 0x02, 0x07,
+    /* 877*839*311*283*191  /  double-base chain  /  337 M (=36DBL+4DBLa+2TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x0d, 0xc1, 0x02, 0x11, 0x61, 0x08,
+    /* 823*809*701*499*239  /  double-base chain  /  354 M (=35DBL+4DBLa+4TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x15, 0xd1, 0x01, 0x0d, 0xf1, 0x03, 0x03,
+    /* 811*691*569*389*359  /  double-base chain  /  354 M (=35DBL+4DBLa+4TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x11, 0x51, 0x0d, 0x51, 0x07, 0xf1, 0x02, 0x02,
+    /* 677*281*233*109  /  double-base chain  /  252 M (=26DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0c, 0xc1, 0x01, 0x05, 0x61, 0x0c,
+    /* 607*401*347*263*229  /  double-base chain  /  334 M (=27DBL+4DBLa+7TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xd1, 0x01, 0x07, 0x41, 0x0c, 0xf1, 0x05, 0x0a,
+    /* 719*643*599*571  /  double-base chain  /  302 M (=19DBL+4DBLa+9TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x03, 0x51, 0x06, 0x41, 0x0b, 0xe1, 0x08, 0x03,
+    /* 601*503*31  /  double-base chain  /  189 M (=17DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x04, 0x51, 0x08, 0x61, 0x08,
+    /* 577  /  double-base chain  /  75 M (=5DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x06,
+    /* 859*739*727*431*199  /  double-base chain  /  359 M (=37DBL+5DBLa+2TPL+4ADD+1ADDa) */
+    0x11, 0x41, 0x18, 0x41, 0x02, 0x51, 0x08, 0x51, 0x03, 0xf1, 0x02, 0x05,
+    /* 563*541*467*419*373*197*137*47*37*29  /  double-base expansion  /  557 M (=59DBL+3DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x04, 0x62, 0x20,
+    /* 853*773*743*523*509*331*223*17*13  /  double-base expansion  /  534 M (=52DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x11, 0x43, 0x1d, 0x61, 0x09,
+    /* 887*761*683*631*433*181  /  double-base expansion  /  411 M (=45DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xff, 0x12, 0x51, 0x26, 0x42, 0x01, 0x72, 0x09,
+    /* 881*827*439*167*61*41  /  double-base expansion  /  360 M (=36DBL+3DBLa+4TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x04, 0xff, 0x10, 0x51, 0x13, 0x42, 0x11, 0x71, 0x03,
+    /* 661*619*449*421  /  double-base expansion  /  282 M (=30DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x01, 0xff, 0x10, 0x41, 0x08, 0x52, 0x0b, 0x62, 0x0e,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*5*5*3*3*3*3*3  /  PRAC  /  106 M (=8dDBL+11dADD) */
+      0x69, 0x0a, 0x0a, 0x03, 0x0a, 0x03, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 5*3  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x03, 0x0a, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=898 */
+
+/* B1=928 computed with 40 blocks, cost=10089M */
+static const uint8_t _B1_928_bc[] = {
+    0x03,
+    /* 673*257*241*97*17*13*7*5*3*3  /  double-base chain  /  345 M (=47DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x30,
+    /* 769*193*191*103*101*73*43*19*7*5  /  double-base chain  /  437 M (=46DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x17, 0xf1, 0x03, 0x19,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 821*641*557*179*139*107*83*59*29  /  double-base chain  /  484 M (=63DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x39,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 491*109*23*23  /  double-base chain  /  185 M (=19DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x14,
+    /* 907*383*163  /  double-base chain  /  192 M (=20DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x15,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 797*619*347*317*199*167  /  double-base chain  /  387 M (=35DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x0b, 0xd1, 0x03, 0x12, 0xe1, 0x01, 0x09,
+    /* 863*577*571*487*389*113  /  double-base chain  /  402 M (=32DBL+3DBLa+11TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0c, 0xd1, 0x07, 0x0f, 0xf1, 0x01, 0x08,
+    /* 709*503*283  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0x61, 0x12,
+    /* 811*599*367*281*211  /  double-base chain  /  336 M (=26DBL+3DBLa+9TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xc1, 0x04, 0x0c, 0xe1, 0x04, 0x07,
+    /* 919*883*157  /  double-base chain  /  210 M (=17DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x0e, 0xe1, 0x01, 0x05,
+    /* 859*823*439*409*37  /  double-base chain  /  326 M (=28DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0c, 0xd1, 0x04, 0x01, 0x71, 0x12,
+    /* 911*827*751*461  /  double-base chain  /  295 M (=27DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0a, 0xc1, 0x03, 0x0e, 0xf1, 0x01, 0x06,
+    /* 419*11  /  double-base chain  /  96 M (=8DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x09,
+    /* 449*229*89*11  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xf1, 0x01, 0x09,
+    /* 661*443*271*137  /  double-base chain  /  262 M (=24DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x14, 0xc1, 0x02, 0x02, 0xe1, 0x01, 0x05,
+    /* 719*337*151*79  /  double-base chain  /  256 M (=12DBL+2DBLa+10TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0x91, 0x05, 0xd1, 0x05, 0x0b, 0xf1, 0x01, 0x03,
+    /* 647*457  /  double-base chain  /  146 M (=13DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0xf1, 0x01, 0x08,
+    /* 881*251  /  double-base chain  /  144 M (=11DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x0c, 0xe1, 0x03, 0x01,
+    /* 857*617  /  double-base chain  /  154 M (=9DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x04, 0xe1, 0x05, 0x07,
+    /* 757  /  double-base chain  /  85 M (=6DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xe1, 0x01, 0x02,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 839*593*587*431*349*173  /  double-base expansion  /  399 M (=45DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xff, 0x12, 0x51, 0x1a, 0x52, 0x06, 0x62, 0x10,
+    /* 887*761*683*631*433*181  /  double-base expansion  /  411 M (=45DBL+3DBLa+3TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xff, 0x12, 0x51, 0x26, 0x42, 0x01, 0x72, 0x09,
+    /* 877*733*727*563*463*353*149*61*31  /  double-base expansion  /  557 M (=45DBL+3DBLa+14TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xa3, 0x09, 0x80, 0x06, 0xff, 0x10, 0x51, 0x0e, 0x53, 0x0d, 0x72, 0x15,
+    /* 853*773*743*523*509*331*223*17*13  /  double-base expansion  /  534 M (=52DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x08, 0xa3, 0x02, 0xff, 0x13, 0x52, 0x11, 0x43, 0x1d, 0x61, 0x09,
+    /* 829*787*701*397*127*71*47  /  double-base expansion  /  428 M (=42DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x04, 0x80, 0x01, 0xff, 0x10, 0x52, 0x0b, 0x41, 0x19, 0x63, 0x09,
+    /* 739*521*311*227  /  double-base expansion  /  275 M (=23DBL+2DBLa+4TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x02, 0x00, 0x32, 0xff, 0x10, 0x41, 0x04, 0x73, 0x15,
+    /* 607*547  /  double-base expansion  /  151 M (=10DBL+2DBLa+3TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x03, 0xff, 0x10, 0x41, 0x04, 0x72, 0x08,
+    /* 659*499  /  double-base expansion  /  155 M (=13DBL+2DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x00, 0x21, 0xff, 0x10, 0x42, 0x08, 0x62, 0x07,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3  /  PRAC  /  33 M (=3dDBL+3dADD) */
+      0x69, 0x0a, 0x0a, 0x66,
+      /* 3  /  PRAC  /  11 M (=1dDBL+1dADD) */
+      0x69, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 29  /  PRAC  /  40 M (=2dDBL+5dADD) */
+      0x69, 0x02, 0x0d, 0x03, 0x66,
+      /* 313  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x0d, 0x0d, 0x02, 0x0d, 0x0b, 0x03, 0x66,
+      /* 269  /  PRAC  /  70 M (=2dDBL+10dADD) */
+      0x69, 0x03, 0x0d, 0x0d, 0x03, 0x0b, 0x02, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=928 */
+
+/* B1=959 computed with 38 blocks, cost=10470M */
+static const uint8_t _B1_959_bc[] = {
+    0x03,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 761*659*619*431*139*43*23*17*7  /  double-base chain  /  448 M (=51DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x04, 0x24, 0xf1, 0x01, 0x11,
+    /* 911*821*613*607*433*269*5  /  double-base chain  /  427 M (=51DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0a, 0x51, 0x29, 0xe1, 0x01, 0x03,
+    /* 653*601*479*401*293*277*53  /  double-base chain  /  434 M (=52DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0f, 0x41, 0x18, 0x71, 0x10,
+    /* 811*461*263*167*127*109*89*61*47  /  double-base chain  /  492 M (=50DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x01, 0xd1, 0x03, 0x28, 0xf1, 0x02, 0x0c,
+    /* 839*587*523*521*229*211*101*19*19  /  double-base chain  /  507 M (=53DBL+2DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0x81, 0x08, 0x41, 0x35, 0x61, 0x02,
+    /* 739*439*367*179*173*107  /  double-base chain  /  362 M (=37DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xf1, 0x06, 0x21,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 857*599*509*443*283*29  /  double-base chain  /  376 M (=42DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x17, 0x41, 0x11, 0xf1, 0x02, 0x05,
+    /* 467*421  /  double-base chain  /  133 M (=15DBL+1DBLa+1TPL+1ADDa) */
+    0x11, 0xf1, 0x01, 0x10,
+    /* 419*271*17*11  /  double-base chain  /  183 M (=17DBL+1DBLa+4TPL+1ADDa) */
+    0x11, 0xf1, 0x04, 0x12,
+    /* 953*557*347*199*191*23*7  /  double-base chain  /  380 M (=34DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0x51, 0x1f, 0xf1, 0x08, 0x04,
+    /* 709*701*331*103*73  /  double-base chain  /  308 M (=34DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x17, 0xc1, 0x01, 0x0c, 0x61, 0x02,
+    /* 937*859*769*233*157  /  double-base chain  /  339 M (=35DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x06, 0xc1, 0x01, 0x02, 0xf1, 0x03, 0x1e,
+    /* 877*727*647*503*313*193*59  /  double-base chain  /  455 M (=31DBL+3DBLa+16TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x0a, 0x11, 0xc1, 0x06, 0x09, 0x61, 0x08,
+    /* 907*383*163  /  double-base chain  /  192 M (=20DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x15,
+    /* 887*719*239*227*13*11  /  double-base chain  /  322 M (=36DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x16, 0x41, 0x0f, 0xf1, 0x01, 0x02,
+    /* 929*641*563*71*13  /  double-base chain  /  294 M (=32DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0x41, 0x05, 0xe1, 0x01, 0x15,
+    /* 919*881*853*397*223*7  /  double-base chain  /  377 M (=25DBL+3DBLa+13TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0d, 0xd1, 0x05, 0x08, 0xf1, 0x07, 0x07,
+    /* 947*827*241  /  double-base chain  /  217 M (=21DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x02, 0xc1, 0x01, 0x12, 0xe1, 0x01, 0x04,
+    /* 863*577*571*487*389*113  /  double-base chain  /  402 M (=32DBL+3DBLa+11TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x0c, 0xd1, 0x07, 0x0f, 0xf1, 0x01, 0x08,
+    /* 883*797*409  /  double-base chain  /  229 M (=15DBL+2DBLa+6TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0x81, 0x05, 0xc1, 0x01, 0x0d, 0xf1, 0x01, 0x04,
+    /* 787*617*29  /  double-base chain  /  194 M (=16DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x06, 0xd1, 0x02, 0x05, 0x71, 0x08,
+    /* 491*337  /  double-base chain  /  150 M (=8DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x07, 0xc1, 0x02, 0x02, 0xf1, 0x01, 0x02,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 823*691*353*317*311  /  double-base expansion  /  338 M (=38DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x51, 0x13, 0x52, 0x0b, 0x72, 0x0b,
+    /* 773*683*463*457*131*83*79*37*5  /  double-base expansion  /  492 M (=34DBL+3DBLa+15TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x0b, 0xa3, 0x05, 0x80, 0x01, 0xff, 0x10, 0x42, 0x03, 0x53, 0x13, 0x71, 0x0f,
+    /* 941*661*499  /  double-base expansion  /  218 M (=23DBL+2DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x01, 0xff, 0x10, 0x41, 0x02, 0x62, 0x17,
+    /* 829*449*281*181*31  /  double-base expansion  /  307 M (=26DBL+2DBLa+6TPL+1TPLa+1ADD+2ADDa) */
+    0x21, 0xa2, 0x06, 0x80, 0x01, 0x33, 0x21, 0xff, 0x10, 0x53, 0x0a, 0x72, 0x12,
+    /* 743*593*137  /  double-base expansion  /  219 M (=7DBL+3DBLa+8TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0xa3, 0x05, 0x80, 0x02, 0xff, 0x10, 0x42, 0x05, 0x53, 0x01, 0x71, 0x04,
+    /* 757*251*149  /  double-base expansion  /  195 M (=18DBL+2DBLa+2TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x51, 0x0b, 0x62, 0x09,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3  /  PRAC  /  44 M (=4dDBL+4dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 3*3  /  PRAC  /  22 M (=2dDBL+2dADD) */
+      0x69, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 547  /  PRAC  /  77 M (=1dDBL+12dADD) */
+      0x69, 0x0d, 0x03, 0x0d, 0x0d, 0x0d, 0x0b, 0x03, 0x66,
+      /* 631  /  PRAC  /  81 M (=3dDBL+11dADD) */
+      0x69, 0x03, 0x0d, 0x0b, 0x02, 0x0b, 0x02, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=959 */
+
+/* B1=990 computed with 43 blocks, cost=10807M */
+static const uint8_t _B1_990_bc[] = {
+    0x03,
+    /* 593*269*157*101*53*23*23  /  double-base chain  /  339 M (=44DBL+2DBLa+1ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x61, 0x27,
+    /* 809*643*541*307*197*67*5  /  double-base chain  /  387 M (=44DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0a, 0xf1, 0x03, 0x24,
+    /* 983*857*653*571*431*271*191*31*31  /  double-base chain  /  538 M (=60DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x03, 0xd1, 0x01, 0x12, 0xf1, 0x01, 0x2a,
+    /* 769*607*331*281*181*17  /  double-base chain  /  350 M (=37DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x10, 0xe1, 0x03, 0x17,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 761*659*619*139*43  /  double-base chain  /  305 M (=34DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x11, 0xe1, 0x01, 0x13,
+    /* 907*383*163  /  double-base chain  /  192 M (=20DBL+1DBLa+3TPL+1ADDa) */
+    0x11, 0xf1, 0x03, 0x15,
+    /* 739*439*367*179*173*107  /  double-base chain  /  362 M (=37DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x06, 0xf1, 0x06, 0x21,
+    /* 691*613*263*239*233*131*19*7  /  double-base chain  /  422 M (=52DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x19, 0x51, 0x06, 0xe1, 0x01, 0x18,
+    /* 751*733*349*151  /  double-base chain  /  263 M (=28DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x15,
+    /* 661*277*241*73  /  double-base chain  /  239 M (=28DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x1a, 0xe1, 0x01, 0x04,
+    /* 977*467*421*353*347*19*17  /  double-base chain  /  397 M (=45DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x11, 0xc1, 0x01, 0x10, 0xf1, 0x02, 0x0f,
+    /* 337*127*7*7  /  double-base chain  /  156 M (=20DBL+1DBLa+1ADDa) */
+    0x11, 0x71, 0x15,
+    /* 947*829*757*601*311*227*71*47  /  double-base chain  /  501 M (=41DBL+3DBLa+14TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x03, 0x12, 0xc1, 0x03, 0x14, 0xf1, 0x08, 0x06,
+    /* 853*647*599*509*223  /  double-base chain  /  347 M (=31DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x08, 0xc1, 0x03, 0x12, 0xf1, 0x03, 0x08,
+    /* 709*503*283  /  double-base chain  /  204 M (=23DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x07, 0x61, 0x12,
+    /* 641*631*443*397*313  /  double-base chain  /  339 M (=35DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x11, 0xc1, 0x01, 0x09, 0xe1, 0x02, 0x0c,
+    /* 967*827*719*683*113  /  double-base chain  /  346 M (=36DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x05, 0xc1, 0x01, 0x05, 0xe1, 0x01, 0x1d,
+    /* 839*787*521*167*109  /  double-base chain  /  328 M (=30DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x18, 0xc1, 0x01, 0x02, 0xf1, 0x01, 0x07,
+    /* 911*877*547*199  /  double-base chain  /  283 M (=27DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0e, 0xd1, 0x03, 0x07, 0xf1, 0x01, 0x09,
+    /* 941*463*389*137  /  double-base chain  /  268 M (=15DBL+2DBLa+11TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x0e, 0xf1, 0x09, 0x03,
+    /* 971*823*401*229  /  double-base chain  /  276 M (=23DBL+2DBLa+7TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x10, 0xe1, 0x04, 0x09,
+    /* 743*523*449*317*211*11  /  double-base chain  /  363 M (=29DBL+2DBLa+9TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0x81, 0x04, 0x41, 0x1c, 0xe1, 0x06, 0x03,
+    /* 863*773*499*479  /  double-base chain  /  287 M (=31DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x05, 0x41, 0x13, 0xf1, 0x02, 0x0a,
+    /* 919*617*409*83*61  /  double-base chain  /  312 M (=26DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0f, 0xc1, 0x05, 0x09, 0xe1, 0x02, 0x05,
+    /* 491*487*419*103  /  double-base chain  /  258 M (=17DBL+2DBLa+9TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x0f, 0xe1, 0x06, 0x04,
+    /* 821*701*37*13  /  double-base chain  /  224 M (=22DBL+3DBLa+2TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x02, 0x41, 0x0e, 0xe1, 0x01, 0x09,
+    /* 881*811*563  /  double-base chain  /  226 M (=24DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0a, 0x51, 0x08, 0xe1, 0x01, 0x09,
+    /* 929*461*251  /  double-base chain  /  211 M (=12DBL+2DBLa+8TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x07, 0x09, 0xf1, 0x01, 0x05,
+    /* 577  /  double-base chain  /  75 M (=5DBL+1DBLa+2TPL+1ADDa) */
+    0x11, 0xe1, 0x02, 0x06,
+    /* 953*29  /  double-base chain  /  123 M (=8DBL+2DBLa+3TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x08, 0xe1, 0x01, 0x02,
+    /* 887*457  /  double-base chain  /  159 M (=11DBL+3DBLa+3TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x02, 0x51, 0x08, 0xf1, 0x02, 0x04,
+    /* 677*569*379*373*359*41  /  double-base expansion  /  371 M (=38DBL+2DBLa+5TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x03, 0xff, 0x10, 0x51, 0x0d, 0x72, 0x1b,
+    /* 797*433*79  /  double-base expansion  /  192 M (=21DBL+2DBLa+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0xff, 0x12, 0x41, 0x02, 0x62, 0x15,
+    /* 859*727*587*293*193*29  /  double-base expansion  /  379 M (=35DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x02, 0x80, 0x01, 0xff, 0x10, 0x52, 0x14, 0x43, 0x09, 0x71, 0x09,
+    /* 937*557*89*13  /  double-base expansion  /  225 M (=24DBL+2DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x51, 0x09, 0x62, 0x11,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 5*5*3*3*3*3*3*3  /  PRAC  /  100 M (=8dDBL+10dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x03, 0x0a, 0x0a, 0x66,
+      /* 5  /  PRAC  /  17 M (=1dDBL+2dADD) */
+      0x69, 0x03, 0x66,
+      /* 11  /  PRAC  /  28 M (=2dDBL+3dADD) */
+      0x69, 0x02, 0x03, 0x66,
+      /* 883  /  PRAC  /  83 M (=1dDBL+13dADD) */
+      0x69, 0x0d, 0x0d, 0x03, 0x0d, 0x0d, 0x0d, 0x03, 0x66,
+      /* 59  /  PRAC  /  51 M (=3dDBL+6dADD) */
+      0x69, 0x0b, 0x03, 0x0b, 0x02, 0x02, 0x66,
+      /* 149  /  PRAC  /  63 M (=3dDBL+8dADD) */
+      0x69, 0x03, 0x0b, 0x02, 0x0b, 0x02, 0x73, 0x0b, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=990 */
+
+/* B1=1021 computed with 37 blocks, cost=11252M */
+static const uint8_t _B1_1021_bc[] = {
+    0x03,
+    /* 911*787*307*157*149*41  /  double-base chain  /  351 M (=44DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0x41, 0x15, 0xf1, 0x01, 0x19,
+    /* 821*641*557*179*139*107*83*59*29  /  double-base chain  /  484 M (=63DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x08, 0x71, 0x39,
+    /* 673*257*97  /  double-base chain  /  177 M (=23DBL+1DBLa+1ADDa) */
+    0x11, 0x61, 0x18,
+    /* 601*577*349*79*73*23*13*7*5*5  /  double-base chain  /  405 M (=35DBL+1DBLa+12TPL+1ADDa) */
+    0x11, 0xf1, 0x0c, 0x24,
+    /* 953*661*383*223*137*47*13  /  double-base chain  /  389 M (=49DBL+3DBLa+2ADD+1ADDa) */
+    0x11, 0x41, 0x23, 0x41, 0x08, 0x71, 0x09,
+    /* 769*607*331*281*181*17  /  double-base chain  /  350 M (=37DBL+2DBLa+5TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x10, 0xe1, 0x03, 0x17,
+    /* 983*857*653*571*431*271*191*31*31  /  double-base chain  /  538 M (=60DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x03, 0xd1, 0x01, 0x12, 0xf1, 0x01, 0x2a,
+    /* 1013*929*823*563*109*61*53*29*11*11*7  /  double-base chain  /  534 M (=56DBL+3DBLa+8TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x05, 0x01, 0x41, 0x09, 0xf1, 0x03, 0x31,
+    /* 839*587*523*521*229*211*101*19*19  /  double-base chain  /  507 M (=53DBL+2DBLa+7TPL+1TPLa+2ADD+1ADDa) */
+    0x11, 0x81, 0x08, 0x41, 0x35, 0x61, 0x02,
+    /* 1009*947*881*877*797*389*17  /  double-base chain  /  468 M (=53DBL+4DBLa+3TPL+3ADD+1ADDa) */
+    0x11, 0x51, 0x18, 0x51, 0x0e, 0xd1, 0x01, 0x10, 0xf1, 0x02, 0x03,
+    /* 499*467*421*197  /  double-base chain  /  258 M (=29DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0x51, 0x10, 0xe1, 0x02, 0x0f,
+    /* 1019*887*811*541*379  /  double-base chain  /  361 M (=33DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0x41, 0x0e, 0xd1, 0x03, 0x0c, 0xe1, 0x04, 0x0a,
+    /* 463*439*347*227*103  /  double-base chain  /  310 M (=36DBL+3DBLa+1TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0d, 0xc1, 0x01, 0x13, 0x71, 0x07,
+    /* 967*827*719*683*113  /  double-base chain  /  346 M (=36DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x02, 0x05, 0xc1, 0x01, 0x05, 0xe1, 0x01, 0x1d,
+    /* 1021*647*283*7  /  double-base chain  /  230 M (=25DBL+2DBLa+2TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x02, 0xf1, 0x01, 0x19,
+    /* 941*907*733*619*419*151*67  /  double-base chain  /  462 M (=47DBL+4DBLa+6TPL+3ADD+1ADDa) */
+    0x11, 0xd1, 0x06, 0x17, 0x51, 0x06, 0x41, 0x0a, 0x71, 0x0c,
+    /* 739*677*457*367*199  /  double-base chain  /  337 M (=33DBL+3DBLa+5TPL+2ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0d, 0x41, 0x0d, 0xf1, 0x04, 0x0a,
+    /* 991*937*809*659*599*443*409*127  /  double-base chain  /  557 M (=40DBL+4DBLa+18TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x03, 0x05, 0xd1, 0x0a, 0x16, 0xd1, 0x05, 0x0d, 0x71, 0x04,
+    /* 487*317*163  /  double-base chain  /  190 M (=21DBL+2DBLa+1TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0c, 0x61, 0x0b,
+    /* 761*479*233  /  double-base chain  /  205 M (=18DBL+2DBLa+4TPL+1ADD+1ADDa) */
+    0x11, 0xd1, 0x01, 0x0e, 0xf1, 0x03, 0x06,
+    /* 743*359*337*71*23  /  double-base chain  /  291 M (=23DBL+3DBLa+7TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x0b, 0xd1, 0x03, 0x0a, 0xe1, 0x03, 0x05,
+    /* 883*503*293*167  /  double-base chain  /  269 M (=25DBL+3DBLa+4TPL+2ADD+1ADDa) */
+    0x11, 0x51, 0x0b, 0xd1, 0x03, 0x0a, 0xf1, 0x01, 0x07,
+    /* 643*631*593*547  /  double-base chain  /  296 M (=25DBL+4DBLa+5TPL+3ADD+1ADDa) */
+    0x11, 0x41, 0x07, 0x41, 0x03, 0xc1, 0x02, 0x03, 0xf1, 0x03, 0x10,
+    /* 997*727*691*313  /  double-base chain  /  295 M (=30DBL+4DBLa+2TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x02, 0x03, 0x51, 0x0d, 0x51, 0x04, 0x61, 0x0e,
+    /* 919*397*131  /  double-base chain  /  209 M (=13DBL+3DBLa+6TPL+2ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x05, 0xc1, 0x02, 0x03, 0x61, 0x08,
+    /* 701*269  /  double-base chain  /  145 M (=6DBL+2DBLa+6TPL+1ADD+1ADDa) */
+    0x11, 0xc1, 0x01, 0x05, 0xe1, 0x05, 0x03,
+    /* 613*311*251  /  double-base chain  /  217 M (=12DBL+4DBLa+6TPL+3ADD+1ADDa) */
+    0x11, 0xc1, 0x04, 0x03, 0xc1, 0x02, 0x02, 0x51, 0x04, 0x61, 0x07,
+    /* 971*751*461*433*353*277*173  /  double-base expansion  /  463 M (=47DBL+3DBLa+5TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x04, 0xa3, 0x03, 0xff, 0x13, 0x52, 0x23, 0x43, 0x09, 0x61, 0x06,
+    /* 853*773*617*569*509*43  /  double-base expansion  /  394 M (=46DBL+3DBLa+1TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xff, 0x12, 0x52, 0x16, 0x51, 0x14, 0x72, 0x07,
+    /* 757*401*239*37  /  double-base expansion  /  238 M (=27DBL+1DBLa+1TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0x00, 0x21, 0xff, 0x10, 0x72, 0x1c,
+    /* 863*829*491*263*241  /  double-base expansion  /  343 M (=35DBL+3DBLa+2TPL+2TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x02, 0xa3, 0x01, 0x80, 0x01, 0xff, 0x10, 0x51, 0x0a, 0x53, 0x0e, 0x72, 0x0e,
+    /* 977*449*373*89  /  double-base expansion  /  266 M (=26DBL+3DBLa+2TPL+1TPLa+2ADD+1ADDa) */
+    0x21, 0xa2, 0x01, 0x80, 0x02, 0xff, 0x10, 0x41, 0x03, 0x41, 0x0e, 0x72, 0x0c,
+    /* 859*193  /  double-base expansion  /  144 M (=9DBL+2DBLa+3TPL+1TPLa+1ADD+1ADDa) */
+    0x21, 0xa2, 0x03, 0x80, 0x01, 0xff, 0x10, 0x51, 0x04, 0x62, 0x07,
+    /* Switch to Montgomery / last ADDa is in fact a ADDd / -4 M */
+    0x81,
+      /* 3*3*3*3*3*3  /  PRAC  /  66 M (=6dDBL+6dADD) */
+      0x69, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x66,
+      /* 5*5  /  PRAC  /  34 M (=2dDBL+4dADD) */
+      0x69, 0x03, 0x0a, 0x03, 0x66,
+      /* 709  /  PRAC  /  82 M (=2dDBL+12dADD) */
+      0x69, 0x0d, 0x0d, 0x0d, 0x02, 0x03, 0x0d, 0x03, 0x46,
+    /* 2*2*2*2*2*2*2*2*2  /  Montgomery  /  45 M (=9dDBL) */
+    /* done outside of bytecode (for backtracking) */
+    0xff
+  }; /* end of bytecode for B1=1021 */
+
+
+#define mishmash_B1_data_len (sizeof(mishmash_B1_data)/sizeof(mishmash_B1_data_t))
+
+/* Sorted by increasing B1 */
+static mishmash_B1_data_t mishmash_B1_data[] = {
+    { .B1 = 1, .len = sizeof(_B1_1_bc)/sizeof(*_B1_1_bc), .bc = _B1_1_bc },
+    { .B1 = 105, .len = sizeof(_B1_105_bc)/sizeof(*_B1_105_bc), .bc = _B1_105_bc },
+    { .B1 = 115, .len = sizeof(_B1_115_bc)/sizeof(*_B1_115_bc), .bc = _B1_115_bc },
+    { .B1 = 125, .len = sizeof(_B1_125_bc)/sizeof(*_B1_125_bc), .bc = _B1_125_bc },
+    { .B1 = 137, .len = sizeof(_B1_137_bc)/sizeof(*_B1_137_bc), .bc = _B1_137_bc },
+    { .B1 = 148, .len = sizeof(_B1_148_bc)/sizeof(*_B1_148_bc), .bc = _B1_148_bc },
+    { .B1 = 161, .len = sizeof(_B1_161_bc)/sizeof(*_B1_161_bc), .bc = _B1_161_bc },
+    { .B1 = 173, .len = sizeof(_B1_173_bc)/sizeof(*_B1_173_bc), .bc = _B1_173_bc },
+    { .B1 = 187, .len = sizeof(_B1_187_bc)/sizeof(*_B1_187_bc), .bc = _B1_187_bc },
+    { .B1 = 200, .len = sizeof(_B1_200_bc)/sizeof(*_B1_200_bc), .bc = _B1_200_bc },
+    { .B1 = 214, .len = sizeof(_B1_214_bc)/sizeof(*_B1_214_bc), .bc = _B1_214_bc },
+    { .B1 = 229, .len = sizeof(_B1_229_bc)/sizeof(*_B1_229_bc), .bc = _B1_229_bc },
+    { .B1 = 244, .len = sizeof(_B1_244_bc)/sizeof(*_B1_244_bc), .bc = _B1_244_bc },
+    { .B1 = 256, .len = sizeof(_B1_256_bc)/sizeof(*_B1_256_bc), .bc = _B1_256_bc },
+    { .B1 = 260, .len = sizeof(_B1_260_bc)/sizeof(*_B1_260_bc), .bc = _B1_260_bc },
+    { .B1 = 276, .len = sizeof(_B1_276_bc)/sizeof(*_B1_276_bc), .bc = _B1_276_bc },
+    { .B1 = 293, .len = sizeof(_B1_293_bc)/sizeof(*_B1_293_bc), .bc = _B1_293_bc },
+    { .B1 = 310, .len = sizeof(_B1_310_bc)/sizeof(*_B1_310_bc), .bc = _B1_310_bc },
+    { .B1 = 315, .len = sizeof(_B1_315_bc)/sizeof(*_B1_315_bc), .bc = _B1_315_bc },
+    { .B1 = 327, .len = sizeof(_B1_327_bc)/sizeof(*_B1_327_bc), .bc = _B1_327_bc },
+    { .B1 = 345, .len = sizeof(_B1_345_bc)/sizeof(*_B1_345_bc), .bc = _B1_345_bc },
+    { .B1 = 364, .len = sizeof(_B1_364_bc)/sizeof(*_B1_364_bc), .bc = _B1_364_bc },
+    { .B1 = 383, .len = sizeof(_B1_383_bc)/sizeof(*_B1_383_bc), .bc = _B1_383_bc },
+    { .B1 = 403, .len = sizeof(_B1_403_bc)/sizeof(*_B1_403_bc), .bc = _B1_403_bc },
+    { .B1 = 423, .len = sizeof(_B1_423_bc)/sizeof(*_B1_423_bc), .bc = _B1_423_bc },
+    { .B1 = 443, .len = sizeof(_B1_443_bc)/sizeof(*_B1_443_bc), .bc = _B1_443_bc },
+    { .B1 = 464, .len = sizeof(_B1_464_bc)/sizeof(*_B1_464_bc), .bc = _B1_464_bc },
+    { .B1 = 486, .len = sizeof(_B1_486_bc)/sizeof(*_B1_486_bc), .bc = _B1_486_bc },
+    { .B1 = 508, .len = sizeof(_B1_508_bc)/sizeof(*_B1_508_bc), .bc = _B1_508_bc },
+    { .B1 = 512, .len = sizeof(_B1_512_bc)/sizeof(*_B1_512_bc), .bc = _B1_512_bc },
+    { .B1 = 531, .len = sizeof(_B1_531_bc)/sizeof(*_B1_531_bc), .bc = _B1_531_bc },
+    { .B1 = 554, .len = sizeof(_B1_554_bc)/sizeof(*_B1_554_bc), .bc = _B1_554_bc },
+    { .B1 = 577, .len = sizeof(_B1_577_bc)/sizeof(*_B1_577_bc), .bc = _B1_577_bc },
+    { .B1 = 601, .len = sizeof(_B1_601_bc)/sizeof(*_B1_601_bc), .bc = _B1_601_bc },
+    { .B1 = 626, .len = sizeof(_B1_626_bc)/sizeof(*_B1_626_bc), .bc = _B1_626_bc },
+    { .B1 = 651, .len = sizeof(_B1_651_bc)/sizeof(*_B1_651_bc), .bc = _B1_651_bc },
+    { .B1 = 676, .len = sizeof(_B1_676_bc)/sizeof(*_B1_676_bc), .bc = _B1_676_bc },
+    { .B1 = 702, .len = sizeof(_B1_702_bc)/sizeof(*_B1_702_bc), .bc = _B1_702_bc },
+    { .B1 = 729, .len = sizeof(_B1_729_bc)/sizeof(*_B1_729_bc), .bc = _B1_729_bc },
+    { .B1 = 756, .len = sizeof(_B1_756_bc)/sizeof(*_B1_756_bc), .bc = _B1_756_bc },
+    { .B1 = 783, .len = sizeof(_B1_783_bc)/sizeof(*_B1_783_bc), .bc = _B1_783_bc },
+    { .B1 = 811, .len = sizeof(_B1_811_bc)/sizeof(*_B1_811_bc), .bc = _B1_811_bc },
+    { .B1 = 840, .len = sizeof(_B1_840_bc)/sizeof(*_B1_840_bc), .bc = _B1_840_bc },
+    { .B1 = 869, .len = sizeof(_B1_869_bc)/sizeof(*_B1_869_bc), .bc = _B1_869_bc },
+    { .B1 = 898, .len = sizeof(_B1_898_bc)/sizeof(*_B1_898_bc), .bc = _B1_898_bc },
+    { .B1 = 928, .len = sizeof(_B1_928_bc)/sizeof(*_B1_928_bc), .bc = _B1_928_bc },
+    { .B1 = 959, .len = sizeof(_B1_959_bc)/sizeof(*_B1_959_bc), .bc = _B1_959_bc },
+    { .B1 = 990, .len = sizeof(_B1_990_bc)/sizeof(*_B1_990_bc), .bc = _B1_990_bc },
+    { .B1 = 1021, .len = sizeof(_B1_1021_bc)/sizeof(*_B1_1021_bc), .bc = _B1_1021_bc },
+  }; /* end of B1_data array */
+
+#endif /* BYTECODE_MISHMASH_B1_DATA_H */

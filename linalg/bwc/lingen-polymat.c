@@ -600,27 +600,29 @@ void polymat_mul_raw(abdst_field ab,/*{{{*/
 
 void polymat_mul(abdst_field ab, polymat c, polymat a, polymat b)/*{{{*/
 {
+    size_t csize = a->size + b->size; csize -= (csize > 0);
     ASSERT_ALWAYS(a->n == b->m);
     if (polymat_check_pre_init(c)) {
-        polymat_init(ab, c, a->m, b->n, a->size + b->size - 1);
+        polymat_init(ab, c, a->m, b->n, csize);
     }
     ASSERT_ALWAYS(c->m == a->m);
     ASSERT_ALWAYS(c->n == b->n);
-    ASSERT_ALWAYS(c->alloc >= a->size + b->size - 1);
-    c->size = a->size + b->size - 1;
+    ASSERT_ALWAYS(c->alloc >= csize);
+    c->size = csize;
     polymat_mul_raw(ab, c, 0, a, 0, a->size, b, 0, b->size, 0, 0);
 }/*}}}*/
 
 void polymat_addmul(abdst_field ab, polymat c, polymat a, polymat b)/*{{{*/
 {
+    size_t csize = a->size + b->size; csize -= (csize > 0);
     ASSERT_ALWAYS(a->n == b->m);
     if (polymat_check_pre_init(c)) {
-        polymat_init(ab, c, a->m, b->n, a->size + b->size - 1);
+        polymat_init(ab, c, a->m, b->n, csize);
     }
     ASSERT_ALWAYS(c->m == a->m);
     ASSERT_ALWAYS(c->n == b->n);
-    ASSERT_ALWAYS(c->alloc >= a->size + b->size - 1);
-    c->size = a->size + b->size - 1;
+    ASSERT_ALWAYS(c->alloc >= csize);
+    c->size = csize;
     polymat_mul_raw(ab, c, 0, a, 0, a->size, b, 0, b->size, 0, 1);
 }/*}}}*/
 

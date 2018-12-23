@@ -60,7 +60,19 @@ while [ $nn -lt $A_length ] ; do
     let nn+=$random_stem
 done | dd ibs=1 count=$A_length > $wdir/seq
 
-if ! "$bindir/lingen" m=$m n=$n lingen-input-file=$wdir/seq lingen-output-file=$wdir/seq.gen > >(tee $wdir/output > /dev/stderr) ; then
+
+# we used to use process substitution here to have lingen write to >(tee
+# $wdir/output); our goal being to both catch failure of the lingen
+# command, and display+save its output. Alas, there's a race condition,
+# as the subprocess may not have completed when we move on to the check
+# that comes afterwards.
+# 
+# https://stackoverflow.com/questions/4489139/bash-process-substitution-and-syncing
+# 
+# among the possible solutions, I quite like the pipefail option.
+set -o pipefail
+
+if ! "$bindir/lingen" m=$m n=$n lingen-input-file=$wdir/seq lingen-output-file=$wdir/seq.gen 2>&1 | tee $wdir/output ; then
     echo "Error running lingen >&2"
     exit 1
 fi

@@ -239,7 +239,7 @@ void matmul_build_cache(matmul_ptr mm, matrix_u32_ptr m)
     */
     /* read from ->locfile if the raw_matrix_u32 structure has not yet
      * been created. */
-    mm->bind->build_cache(mm, m ? m->p : NULL);
+    mm->bind->build_cache(mm, m ? m->p : NULL, m ? m->size : 0);
 }
 
 static void save_to_local_copy(matmul_ptr mm)

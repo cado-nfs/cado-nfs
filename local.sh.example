@@ -78,7 +78,7 @@
 #
 # Example values:
 # CFLAGS=-O2
-# CFLAGS="-O3 -g -fkeep-inline-functions"
+# CFLAGS="-O3 -funroll-loops -DNDEBUG"
 # CFLAGS=-g
 # CFLAGS="-O2 -DNDEBUG"
 #
@@ -167,6 +167,19 @@
 # variables:
 # HWLOC_LIBDIR=/some/directory
 # HWLOC_INCDIR=/some/directory
+
+############################################################
+# GMPECM: prefix to installed gmp-ecm
+#
+# (GMPECM is optional, but required for JL selection polynomial dlp)
+#
+# Example values:
+# GMPECM=$HOME/Packages/ecm-42.17.0
+#
+# To accomodate special configurations, one may also use the two extra
+# variables:
+# GMPECM_LIBDIR=/some/directory
+# GMPECM_INCDIR=/some/other/directory
 
 ############################################################
 # CURL: prefix to installed Curl

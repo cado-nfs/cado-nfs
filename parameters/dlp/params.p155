@@ -23,10 +23,11 @@ tasks.polyselect.nrkeep = 2000
 # Sieve
 ###########################################################################
 
-lim0 = 17250000
-lim1 = 30940000
-lpb0 = 27
-lpb1 = 27
+tasks.qmin = 15000000
+tasks.lim0 = 17250000
+tasks.lim1 = 30940000
+tasks.lpb0 = 27
+tasks.lpb1 = 27
 tasks.sieve.mfb0 = 54
 tasks.sieve.mfb1 = 54
 tasks.sieve.lambda0 = 2.24

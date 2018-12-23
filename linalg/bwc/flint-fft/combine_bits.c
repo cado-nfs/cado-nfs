@@ -1,35 +1,12 @@
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "stdlib.h"
 #include "gmp.h"
@@ -37,11 +14,11 @@
 #include "fft.h"
 
 /*
- * Evaluate the polynomial \code{poly} of the given \code{length} at 
- * \code{B^coeff_limbs}, where \code{B = 2^FLINT_BITS}, and add the 
- * result to the integer \code{(res, total_limbs)} throwing away any bits 
+ * Evaluate the polynomial ``poly`` of the given ``length`` at 
+ * ``B^coeff_limbs``, where ``B = 2^FLINT_BITS``, and add the 
+ * result to the integer ``(res, total_limbs)`` throwing away any bits 
  * that exceed the given number of limbs. The polynomial coefficients are 
- * assumed to have at least \code{output_limbs} limbs each, however any 
+ * assumed to have at least ``output_limbs`` limbs each, however any 
  * additional limbs are ignored.
  * 
  * If the integer is initially zero the result will just be the evaluation 
@@ -71,18 +48,19 @@ void fft_combine_limbs(mp_limb_t * res, mp_limb_t ** poly, slong length,
 }
 
 /*
- * Evaluate the polynomial \code{poly} of the given \code{length} at
- * \code{2^bits} and add the result to the integer
- * \code{(res, total_limbs)} throwing away any bits that exceed the given
+ * Evaluate the polynomial ``poly`` of the given ``length`` at
+ * ``2^bits`` and add the result to the integer
+ * ``(res, total_limbs)`` throwing away any bits that exceed the given
  * number of limbs. The polynomial coefficients are assumed to have at least
- * \code{output_limbs} limbs each, however any additional limbs are ignored.
+ * ``output_limbs`` limbs each, however any additional limbs are ignored.
  * If the integer is initially zero the result will just be the evaluation
  * of the polynomial.
  * 
+ * 
  */
 void fft_addcombine_bits(mp_limb_t * res, mp_limb_t ** poly, slong length,
-		      mp_bitcnt_t bits, mp_size_t output_limbs,
-		      mp_size_t total_limbs)
+			 mp_bitcnt_t bits, mp_size_t output_limbs,
+			 mp_size_t total_limbs)
 {
     mp_bitcnt_t shift_bits, top_bits = ((FLINT_BITS - 1) & bits);
     mp_size_t coeff_limbs, i;
@@ -104,13 +82,9 @@ void fft_addcombine_bits(mp_limb_t * res, mp_limb_t ** poly, slong length,
 	if (shift_bits) {
 	    mpn_lshift(temp, poly[i], output_limbs + 1, shift_bits);
 	    mpn_add_n(limb_ptr, limb_ptr, temp, output_limbs + 1);
-	} else {
-            /* XXX: it looks as if poly[i] is asserted to not contain the
-             * value 2^nw, which does seem possible to me.
-             */
+	} else
 	    mpn_add(limb_ptr, limb_ptr, output_limbs + 1, poly[i],
 		    output_limbs);
-        }
 
 	shift_bits += top_bits;
 	limb_ptr += (coeff_limbs - 1);

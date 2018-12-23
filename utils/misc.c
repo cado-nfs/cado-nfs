@@ -212,7 +212,7 @@ int mkdir_with_parents(const char * dir, int fatal)
         for( ; dir[pos] == '/' ; pos++) ;
         if (pos == n) break;
         const char * slash = strchr(dir + pos, '/');
-        strncpy(tmp, dir, n);
+        strncpy(tmp, dir, n+1);
         if (slash) {
             pos = slash - dir;
             tmp[pos]='\0';
@@ -291,7 +291,7 @@ const char *size_disp_fine(size_t s, char buf[16], double cutoff)
 	ds /= 1024.0;
 	px++;
     }
-    snprintf(buf, 10, "%.1f%c", ds, *px);
+    snprintf(buf, 10, "%.2f %c%s", ds, *px, px==prefixes ? "" : "B");
     return buf;
 }
 const char *size_disp(size_t s, char buf[16])

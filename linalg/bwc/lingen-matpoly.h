@@ -26,6 +26,7 @@ typedef const struct matpoly_s * matpoly_srcptr;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 void matpoly_init(abdst_field ab, matpoly_ptr p, unsigned int m, unsigned int n, int len);
 int matpoly_check_pre_init(matpoly_srcptr p);
 void matpoly_realloc(abdst_field ab, matpoly_ptr p, size_t newalloc);
@@ -37,6 +38,8 @@ int matpoly_cmp(abdst_field ab MAYBE_UNUSED, matpoly_srcptr a, matpoly_srcptr b)
 static inline abdst_vec matpoly_part(abdst_field ab, matpoly_ptr p, unsigned int i, unsigned int j, unsigned int k);
 static inline abdst_elt matpoly_coeff(abdst_field ab, matpoly_ptr p, unsigned int i, unsigned int j, unsigned int k);
 void matpoly_set_polymat(abdst_field ab MAYBE_UNUSED, matpoly_ptr dst, polymat_srcptr src);
+void matpoly_set_constant_ui(abdst_field ab, matpoly_ptr p, unsigned long e);
+void matpoly_set_constant(abdst_field ab, matpoly_ptr p, absrc_elt e);
 
 #if 0   /* nonexistent ? */
 void matpoly_addmat(abdst_field ab,
@@ -52,6 +55,7 @@ void matpoly_submat(abdst_field ab,
 
 void matpoly_truncate(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src, unsigned int size);
 void matpoly_multiply_column_by_x(abdst_field ab, matpoly_ptr pi, unsigned int j, unsigned int size);
+void matpoly_divide_column_by_x(abdst_field ab, matpoly_ptr pi, unsigned int j, unsigned int size);
 void matpoly_zero_column(abdst_field ab,
         matpoly_ptr dst, unsigned int jdst, unsigned int kdst);
 void matpoly_extract_column(abdst_field ab,
@@ -65,14 +69,13 @@ void matpoly_rshift(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src, unsigne
 
 void matpoly_transpose_dumb(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src);
 
-void matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b);
-void matpoly_addmp(abdst_field ab, matpoly c, matpoly a, matpoly b);
-void matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b);
-void matpoly_mp(abdst_field ab, matpoly c, matpoly a, matpoly b);
-#ifdef __cplusplus
-}
-#endif
+double matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
+double matpoly_addmp(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
+double matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
+double matpoly_mp(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
 
+int matpoly_coeff_is_zero(abdst_field ab, matpoly_srcptr pi, unsigned int k);
+void matpoly_coeff_set_zero(abdst_field ab, matpoly_ptr pi, unsigned int k);
 
 /* {{{ access interface for matpoly */
 static inline abdst_vec matpoly_part(abdst_field ab, matpoly_ptr p, unsigned int i, unsigned int j, unsigned int k) {
@@ -91,6 +94,9 @@ static inline absrc_elt matpoly_coeff_const(abdst_field ab, matpoly_srcptr p, un
 }
 /* }}} */
 
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif	/* LINGEN_MATPOLY_H_ */

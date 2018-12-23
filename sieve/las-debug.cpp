@@ -4,21 +4,59 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdarg.h>
+#include <array>
+#include <memory>
 
 #include "las-config.h"
-#include "las-types.hpp"
+#include "cxx_mpz.hpp"
+#include "las-info.hpp"
 #include "las-debug.hpp"
 #include "las-coordinates.hpp"
+#include "las-threads-work-data.hpp"    /* trace_per_sq_init needs this */
 #include "portability.h"
 
 using namespace std;
-#if defined(__GLIBC__) && (defined(TRACE_K) || defined(CHECK_UNDERFLOW))
+#if defined(__GLIBC__)
 #include <execinfo.h>   /* For backtrace. Since glibc 2.1 */
+#include <signal.h>     /* we use it only with glibc */
 #endif
 #ifdef HAVE_CXXABI_H
 /* We use that to demangle C++ names */
 #include <cxxabi.h>
 #endif
+
+#if defined(__GLIBC__)
+static void signal_handling (int signum)/*{{{*/
+{
+   fprintf (stderr, "*** Error: caught signal \"%s\"\n", strsignal (signum));
+
+   int sz = 100, i;
+   void *buffer [sz];
+   char** text;
+
+   sz = backtrace (buffer, sz);
+   text = backtrace_symbols (buffer, sz);
+
+   fprintf(stderr, "======= Backtrace: =========\n");
+   for (i = 0; i < sz; i++)
+       fprintf (stderr, "%s\n", text [i]);
+
+   signal (signum, SIG_DFL);
+   raise (signum);
+}/*}}}*/
+#endif
+
+void las_install_sighandlers()
+{
+#ifdef __GLIBC__
+    signal (SIGABRT, signal_handling);
+    signal (SIGSEGV, signal_handling);
+#else
+    verbose_output_print(0, 0, "# Cannot catch signals, lack glibc support\n");
+#endif
+}
+
+
 
 /* The trivial calls for when TRACE_K is *not* defined are inlines in
  * las-debug.h */
@@ -27,22 +65,75 @@ using namespace std;
 /* recall that TRACE_K requires TRACK_CODE_PATH ; so we may safely use
  * all where_am_I types here */
 
-struct trace_Nx_t trace_Nx = { 0, UINT_MAX};
-struct trace_ab_t trace_ab = { 0, 0 };
-struct trace_ij_t trace_ij = { 0, UINT_MAX, };
+trace_Nx_t trace_Nx { 0, UINT_MAX};
+trace_ab_t trace_ab { 0, 0 };
+trace_ij_t trace_ij { 0, UINT_MAX, };
+
+/* Those are from the parameter list. */
+std::unique_ptr<trace_ab_t> pl_ab;
+std::unique_ptr<trace_ij_t> pl_ij;
+std::unique_ptr<trace_Nx_t> pl_Nx;
+
+int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
 
 /* two norms of the traced (a,b) pair */
-mpz_t traced_norms[2];
+std::array<cxx_mpz, 2> traced_norms;
+
+void init_trace_k(cxx_param_list & pl)
+{
+    struct trace_ab_t ab;
+    struct trace_ij_t ij;
+    struct trace_Nx_t Nx;
+    int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
+
+    const char *abstr = param_list_lookup_string(pl, "traceab");
+    if (abstr != NULL) {
+        if (sscanf(abstr, "%" SCNd64",%" SCNu64, &ab.a, &ab.b) == 2)
+            have_trace_ab = 1;
+        else {
+            fprintf (stderr, "Invalid value for parameter: -traceab %s\n",
+                     abstr);
+            exit (EXIT_FAILURE);
+        }
+    }
+
+    const char *ijstr = param_list_lookup_string(pl, "traceij");
+    if (ijstr != NULL) {
+        if (sscanf(ijstr, "%d,%u", &ij.i, &ij.j) == 2) {
+            have_trace_ij = 1;
+        } else {
+            fprintf (stderr, "Invalid value for parameter: -traceij %s\n",
+                     ijstr);
+            exit (EXIT_FAILURE);
+        }
+    }
+
+    const char *Nxstr = param_list_lookup_string(pl, "traceNx");
+    if (Nxstr != NULL) {
+        if (sscanf(Nxstr, "%u,%u", &Nx.N, &Nx.x) == 2)
+            have_trace_Nx = 1;
+        else {
+            fprintf (stderr, "Invalid value for parameter: -traceNx %s\n",
+                     Nxstr);
+            exit (EXIT_FAILURE);
+        }
+    }
+    if (have_trace_ab) pl_ab = std::unique_ptr<trace_ab_t>(new trace_ab_t(ab));
+    if (have_trace_ij) pl_ij = std::unique_ptr<trace_ij_t>(new trace_ij_t(ij));
+    if (have_trace_Nx) pl_Nx = std::unique_ptr<trace_Nx_t>(new trace_Nx_t(Nx));
+}
 
 /* This fills all the trace_* structures from the main one. The main
  * structure is the one for which a non-NULL pointer is passed.
  */
-void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
-                       const struct trace_ab_t *ab,
-                       const struct trace_ij_t *ij)
+void trace_per_sq_init(nfs_work const & ws)
 {
+    int logI = ws.conf.logI;
+    unsigned int J = ws.J;
+    qlattice_basis const & Q(ws.Q);
+
 #ifndef TRACE_K
-    if (Nx != NULL || ab != NULL || ij != NULL) {
+    if (pl_Nx || pl_ab || pl_ij) {
         fprintf (stderr, "Error, relation tracing requested but this siever "
                  "was compiled without TRACE_K.\n");
         exit(EXIT_FAILURE);
@@ -50,13 +141,13 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
     return;
 #endif
     /* At most one of the three coordinates must be specified */
-    ASSERT_ALWAYS((Nx != NULL) + (ab != NULL) + (ij != NULL) <= 1);
+    ASSERT_ALWAYS((pl_Nx != NULL) + (pl_ab != NULL) + (pl_ij != NULL) <= 1);
 
-    if (ab != NULL) {
-      trace_ab = *ab;
+    if (pl_ab) {
+      trace_ab = *pl_ab;
       /* can possibly fall outside the q-lattice. We have to check for it */
-      if (ABToIJ(&trace_ij.i, &trace_ij.j, trace_ab.a, trace_ab.b, si)) {
-          IJToNx(&trace_Nx.N, &trace_Nx.x, trace_ij.i, trace_ij.j, si);
+      if (ABToIJ(trace_ij.i, trace_ij.j, trace_ab.a, trace_ab.b, Q)) {
+          IJToNx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
       } else {
           verbose_output_print(TRACE_CHANNEL, 0, "# Relation (%" PRId64 ",%" PRIu64 ") to be traced "
                   "is outside of the current q-lattice\n",
@@ -65,16 +156,17 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
           trace_ij.j=UINT_MAX;
           trace_Nx.N=0;
           trace_Nx.x=UINT_MAX;
+          return;
       }
-    } else if (ij != NULL) {
-        trace_ij = *ij;
-        IJToAB(&trace_ab.a, &trace_ab.b, trace_ij.i, trace_ij.j, si);
-        IJToNx(&trace_Nx.N, &trace_Nx.x, trace_ij.i, trace_ij.j, si);
-    } else if (Nx != NULL) {
-        trace_Nx = *Nx;
+    } else if (pl_ij) {
+        trace_ij = *pl_ij;
+        IJToAB(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
+        IJToNx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
+    } else if (pl_Nx) {
+        trace_Nx = *pl_Nx;
         if (trace_Nx.x < ((size_t) 1 << LOG_BUCKET_REGION)) {
-            NxToIJ(&trace_ij.i, &trace_ij.j, trace_Nx.N, trace_Nx.x, si);
-            IJToAB(&trace_ab.a, &trace_ab.b, trace_ij.i, trace_ij.j, si);
+            NxToIJ(trace_ij.i, trace_ij.j, trace_Nx.N, trace_Nx.x, logI);
+            IJToAB(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
         } else {
             fprintf(stderr, "Error, tracing requested for x=%u but"
                     " this siever was compiled with LOG_BUCKET_REGION=%d\n",
@@ -83,9 +175,9 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
         }
     }
 
-    if ((trace_ij.j < UINT_MAX && trace_ij.j >= si.J)
-         || (trace_ij.i < -(1L << (si.conf.logI_adjusted-1)))
-         || (trace_ij.i >= (1L << (si.conf.logI_adjusted-1))))
+    if ((trace_ij.j < UINT_MAX && trace_ij.j >= J)
+         || (trace_ij.i < -(1L << (logI-1)))
+         || (trace_ij.i >= (1L << (logI-1))))
     {
         verbose_output_print(TRACE_CHANNEL, 0, "# Relation (%" PRId64 ",%" PRIu64 ") to be traced is "
                 "outside of the current (i,j)-rectangle (i=%d j=%u)\n",
@@ -94,6 +186,7 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
         trace_ij.j=UINT_MAX;
         trace_Nx.N=0;
         trace_Nx.x=UINT_MAX;
+        return;
     }
     if (trace_ij.i || trace_ij.j < UINT_MAX) {
         verbose_output_print(TRACE_CHANNEL, 0, "# Tracing relation (a,b)=(%" PRId64 ",%" PRIu64 ") "
@@ -103,18 +196,11 @@ void trace_per_sq_init(sieve_info const & si, const struct trace_Nx_t *Nx,
     }
 
     for(int side = 0 ; side < 2 ; side++) {
-        mpz_init(traced_norms[side]);
         int i = trace_ij.i;
         unsigned j = trace_ij.j;
-        adjustIJsublat(&i, &j, si);
-        si.sides[side].lognorms->norm(traced_norms[side], i, j);
+        adjustIJsublat(i, j, Q.sublat);
+        ws.sides[side].lognorms.norm(traced_norms[side], i, j);
     }
-}
-
-void trace_per_sq_clear(sieve_info const & si MAYBE_UNUSED)
-{
-    for(int side = 0 ; side < 2 ; side++)
-        mpz_clear(traced_norms[side]);
 }
 
 #ifdef TRACE_K
@@ -129,7 +215,7 @@ int test_divisible(where_am_I& w)
     fbprime_t p = w.p;
     if (p==0) return 1;
 
-    const unsigned int logI = w.psi->conf.logI_adjusted;
+    const unsigned int logI = w.logI;
     const unsigned int I = 1U << logI;
 
     const unsigned long X = w.x + (w.N << LOG_BUCKET_REGION);
@@ -148,7 +234,7 @@ int test_divisible(where_am_I& w)
     else
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "# FAILED test_divisible(p=%" FBPRIME_FORMAT
                 ", N=%d, x=%u, side %d): i = %ld, j = %u, norm = %Zd\n",
-                w.p, w.N, w.x, w.side, (long) i, j, traced_norms[w.side]);
+                w.p, w.N, w.x, w.side, (long) i, j, (mpz_srcptr) traced_norms[w.side]);
 
     return rc;
 }
@@ -278,8 +364,8 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
     uint64_t b;
     static unsigned char maxdiff = ~0;
 
-    NxToIJ(&i, &j, w.N, w.x, w.si);
-    IJToAB(&a, &b, i, j, w.si);
+    NxToIJ(&i, &j, w.N, w.x, w.logI);
+    IJToAB(&a, &b, i, j, *w.Q);
     if ((unsigned int) logp + *S > maxdiff)
       {
         maxdiff = logp - *S;
@@ -295,20 +381,25 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
 #endif
 
 
-dumpfile::~dumpfile() {
-    if (f != NULL)
-        fclose(f);
+dumpfile_t::~dumpfile_t() {
+    if (f) fclose(f);
 }
 
-void dumpfile::setname(const char *filename_stem, const mpz_t sq,
-    const mpz_t rho, const int side)
+void dumpfile_t::close() {
+    if (f) fclose(f);
+}
+
+void dumpfile_t::open(const char *filename_stem, las_todo_entry const & doing, int side)
 {
-    if (f != NULL)
-        fclose(f);
+    ASSERT_ALWAYS(!f);
     if (filename_stem != NULL) {
         char *filename;
-        int rc = gmp_asprintf(&filename, "%s.sq%Zd.rho%Zd.side%d.dump",
-            filename_stem, sq, rho, side);
+        int rc = gmp_asprintf(&filename, "%s.%d.sq%Zd.rho%Zd.side%d.dump",
+            filename_stem,
+            doing.side,
+            (mpz_srcptr) doing.p, 
+            (mpz_srcptr) doing.r, 
+            side);
         ASSERT_ALWAYS(rc > 0);
         f = fopen(filename, "w");
         if (f == NULL) {
@@ -318,13 +409,11 @@ void dumpfile::setname(const char *filename_stem, const mpz_t sq,
     }
 }
 
-size_t dumpfile::write(const unsigned char * const data, const size_t size) const {
-    if (f == NULL) {
-        return 0;
-    } else {
-        size_t rc = fwrite(data, sizeof(unsigned char), size, f);
-        ASSERT_ALWAYS(rc == size);
-        return rc;
-    }
+size_t dumpfile_t::write(const unsigned char * const data, const size_t size) const {
+    if (!f) return 0;
+
+    size_t rc = fwrite(data, sizeof(unsigned char), size, f);
+    ASSERT_ALWAYS(rc == size);
+    return rc;
 }
 /* }}} */

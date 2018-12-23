@@ -29,7 +29,7 @@ set(F9_baseargs
         maxbits=10
         I=12 q0=1200000 q1=1200200
         poly=${F9_poly}
-        fb=${F9_roots}
+        fb1=${F9_roots}
         fbc=.
         CHECKSUM_FILE=${F9_checksums}
         LAS_BINARY=${las_path}
@@ -50,7 +50,7 @@ cado_define_test(c90_21505_sieve
         ENVIRONMENT
             I=11 poly=${c90_21505_poly} 
             lim0=404327 lim1=811066 lpb0=23 lpb1=23 mfb0=46 mfb1=46 ncurves0=9
-            ncurves1=10 fb=${c90_21505_roots} sqside=1
+            ncurves1=10 fb1=${c90_21505_roots} sqside=1
             q0=375923 rho=119201
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
@@ -79,7 +79,7 @@ cado_define_test(c90_21553_sieve
         ENVIRONMENT
             I=11 poly=${c90_21553_poly} 
             lim0=404327 lim1=811066 lpb0=23 lpb1=23 mfb0=46 mfb1=46 ncurves0=9
-            ncurves1=10 fb=${c90_21553_roots} sqside=1
+            ncurves1=10 fb1=${c90_21553_roots} sqside=1
             q0=327127 rho=22938
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
@@ -92,6 +92,54 @@ cado_define_test(c90_21553_sieve
         TEST_DEPENDENCIES c90_21553_makefb
         )
 
+set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
+# the only needed thing is test_init_norms at the end of the file. The
+# excerpt commented out below gives material to do a more thorough test.
+
+# set(c95_21684_roots0 ${CMAKE_CURRENT_BINARY_DIR}/c95_21684.roots0.gz)
+# set(c95_21684_roots1 ${CMAKE_CURRENT_BINARY_DIR}/c95_21684.roots1.gz)
+# 
+# cado_define_test(c95_21684_makefb0
+#         PROGRAM
+#             ${makefb_path}
+#             -poly ${c95_21684_poly}
+#             -lim 600000
+#             -maxbits 13
+#             -out ${c95_21684_roots0}
+#             -side 0
+#         TARGET_DEPENDENCIES makefb
+#         )
+# cado_define_test(c95_21684_makefb1
+#         PROGRAM
+#             ${makefb_path}
+#             -poly ${c95_21684_poly}
+#             -lim 850000
+#             -maxbits 13
+#             -out ${c95_21684_roots1}
+#             -side 1
+#         TARGET_DEPENDENCIES makefb
+#         )
+# 
+# cado_define_test(c95_21684_sieve
+#         ENVIRONMENT
+#             I=13 poly=${c95_21684_poly} 
+#             lim0=600000 lim1=850000 lpb0=24 lpb1=25 mfb0=48 mfb1=50 ncurves0=11
+#             ncurves1=14 
+#             fb0=${c95_21684_roots0}
+#             fb1=${c95_21684_roots1}
+#             sqside=1
+#             q0=310049 rho=270571
+#             CHECKSUM_FILE=
+#             LAS_BINARY=${las_path}
+#             "REGEX=reports"
+#         SCRIPT
+#             "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+#             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+#             -v -v --adjust-strategy 0
+#         TARGET_DEPENDENCIES las
+#         TEST_DEPENDENCIES c95_21684_makefb0 c95_21684_makefb1
+#         )
+# 
 
 # Before running F9_sievetest, remove the file with the captured checksums
 # We have to make this a "test" so that ctest runs it, even though it does
@@ -125,6 +173,13 @@ cado_divert_test(F9 sieve
             REFERENCE_REVISION=ede066464ba58b2d6127fa256cef01706282e0ed
         )
 
+cado_divert_test(F9 sieve_recompute_ssdpos
+    APPEND_ARGUMENTS -B 12 -nq 1
+    APPEND_ENVIRONMENT
+        REL_COUNT=54
+        CHECKSUM_FILE=
+)
+
 # go wild for the under-allocation. If this is valgrind-ok, then
 # surely #21513 is fixed. While we're at it, check all kind of possible
 # under-allocation recovers (the base test below serves only as a stem).
@@ -148,6 +203,9 @@ cado_divert_test(F9 sieve_check_overfull
         )
 cado_divert_test(F9_sieve_check_overfull 1short
     APPEND_ENVIRONMENT bkmult=1.1,1s:0.5)
+cado_divert_test(F9_sieve_check_overfull 1short_twosteps
+    APPEND_ARGUMENTS -B 10
+    APPEND_ENVIRONMENT bkmult=1.1,1s:0.5)
 cado_divert_test(F9_sieve_check_overfull 1long
     APPEND_ENVIRONMENT bkmult=1.1,1l:0.5)
 # working with the _2short overruns is a bit subtle. Because if we go
@@ -156,7 +214,7 @@ cado_divert_test(F9_sieve_check_overfull 1long
 # Especially because the case below has only one level-2 bucket anyway
 # (it is so contrived). So we are quite likely to get a plain, unpolite,
 # Segmentation Fault. The check below has been tuned so that the overrun
-# mechanism is indeed triggered should run successfully.
+# mechanism is indeed triggered, and so should run successfully.
 cado_divert_test(F9_sieve_check_overfull 2short
     APPEND_ENVIRONMENT bkmult=1.1,2s:0.48)
 
@@ -251,7 +309,7 @@ set(c120_baseargs
         lim1=10000 lpb1=26 mfb1=28 powlim1=8000
         I=12 q0=15350029 rho=14463285
         poly=${c120_poly}
-        fb=${c120_fb}
+        fb1=${c120_fb}
         t=2)
 
 # Try sieving I (see bug 18814)
@@ -312,16 +370,19 @@ cado_define_test(F9_dupsup
 # Try fake relation generation
 cado_define_test(F9_fakereltest
     SCRIPT
+    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
-    TARGET_DEPENDENCIES fake_rels freerel
+    TARGET_DEPENDENCIES fake_rels freerel las
     TEST_DEPENDENCIES F9_makefb)
 
 # Try with default TRIALDIV_MAXLEN, whatever it may be
-cado_define_test(test_trialdiv.c ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.c LIBRARIES utils tests trialdiv)
+cado_define_test(test_trialdiv.cpp
+    ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.cpp LIBRARIES utils tests trialdiv)
 
 macro (add_trialdiv_test MAXLEN)
-    cado_define_test(test_trialdiv_${MAXLEN} SOURCES test_trialdiv.c ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.c LIBRARIES utils tests)
+    cado_define_test(test_trialdiv_${MAXLEN} SOURCES test_trialdiv.cpp
+        ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.cpp LIBRARIES utils tests)
     set_property(TARGET test_trialdiv_${MAXLEN}
                 PROPERTY COMPILE_DEFINITIONS TRIALDIV_MAXLEN=${MAXLEN})
 endmacro()
@@ -413,6 +474,32 @@ cado_divert_test(test_init_norms bug21518
         --hush-max-jitter 1
         --abort-on-jitter 1,5
         -check-bucket 361
+)
+
+cado_divert_test(test_init_norms bug21684a
+    ARGUMENTS
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly
+    -I 13 -lpb0 24 -lpb1 25 -mfb0 48 -mfb1 50
+    -q0 310049 -rho 270571
+    -sqside 1
+    --hush-max-jitter 1
+    # 21684 has two algebraic sides, so it's fine if we have some extra
+    # jitter.
+    --abort-on-jitter 2,5
+    -check-bucket 505
+)
+
+cado_divert_test(test_init_norms bug21684b
+    ARGUMENTS
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly
+    -I 13 -lpb0 24 -lpb1 25 -mfb0 48 -mfb1 50
+    -q0 310087 -rho 178382
+    -sqside 1
+    --hush-max-jitter 1
+    # 21684 has two algebraic sides, so it's fine if we have some extra
+    # jitter.
+    --abort-on-jitter 2,5
+    -check-bucket 4
 )
 
 # we have no pretense to have optimized code for these cases, so don't

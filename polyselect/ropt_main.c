@@ -598,7 +598,7 @@ declare_usage_basic (param_list pl)
   param_list_decl_usage(pl, "Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
   param_list_decl_usage(pl, "Bg", str);
-  param_list_decl_usage(pl, "v", "(switch) verbose mode");
+  param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "boundmaxlognorm", "Maximum lognorm. Used to compute"
                                                " bounds for rotations for the "
                                                "sieve stage of ropt");
@@ -799,7 +799,7 @@ main_basic (int argc, char **argv)
   }
   else
   {
-    printf ("# Best polynomial found:\n");
+    printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
     cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
                                              bound_f, bound_g, area, NULL);
     printf ("# Average exp_E: %.2f, average E: %.2f\n",

@@ -11,7 +11,7 @@ static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "poly", "input polynomial file");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table");
-  param_list_decl_usage(pl, "check", "(switch) check the renumbering table");
+  param_list_decl_usage(pl, "check", "check the renumbering table");
   verbose_decl_usage(pl);
 }
 

@@ -463,7 +463,7 @@ main (int argc, char *argv[])
   const char *outfilename = NULL;
   int maxbits = 1;  // disable powers by default
   int side = -1;
-  unsigned long lim = 0;
+  unsigned long lim = ULONG_MAX;
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
@@ -501,7 +501,7 @@ main (int argc, char *argv[])
   ASSERT_ALWAYS(1 <= nb_threads);
 
   param_list_parse_ulong(pl, "lim", &lim);
-  if (lim == 0) {
+  if (lim == ULONG_MAX) {
       fprintf(stderr, "Error: parameter -lim is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -518,6 +518,11 @@ main (int argc, char *argv[])
     }
   } else {
     outputfile = stdout;
+  }
+  if (lim == 0) {
+    fclose_maybe_compressed(outputfile, outfilename);
+    param_list_clear(pl);
+    return 0;
   }
 
 

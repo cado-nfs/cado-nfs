@@ -3,6 +3,7 @@
 
 #include <gmp.h>
 #include "facul.hpp"
+#include "facul_ecm.h"
 #include "tab_fm.h"
 #include "tab_point.h"
 
@@ -30,8 +31,8 @@ generate_composite_integer_interval(gmp_randstate_t state,
 /*                To model our factoring methods                        */
 /************************************************************************/
 
-facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
-			      unsigned long B2);
+facul_strategy_t *generate_fm (int method, ec_parameterization_t curve,
+                               unsigned long B1, unsigned long B2);
 
 /************************************************************************/
 /*                      Create Factoring Methods */
@@ -39,7 +40,7 @@ facul_strategy_t *generate_fm(int method, int curve, unsigned long B1,
 
 int *choice_parameters(int method, int len_p_min);
 
-tabular_fm_t *bench_proba_time_pset(int method, int curve,
+tabular_fm_t *bench_proba_time_pset(int method, ec_parameterization_t curve,
 				    gmp_randstate_t state,
 				    int len_p_min, int len_p_max,
 				    int len_n, int *param_region);
@@ -50,7 +51,7 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
-					    int len_n, int method, int curve,
+					    int len_n, int method, ec_parameterization_t curve,
 					    int opt_ch, int *param_sieve);
 
 /************************************************************************/

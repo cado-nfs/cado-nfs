@@ -6,46 +6,37 @@
 #include "fb-types.h"         /* fbprime_t */
 #include "las-base.hpp"
 #include "portability.h"
+#include "las-todo-entry.hpp"
 
 /* implementations for inlines */
 #include "las-arith.hpp"
 
 struct qlattice_basis {
-    int64_t a0, b0, a1, b1;
-    cxx_mpz q;
-    unsigned long q_ulong; // q itself or 0 if q is too large to fit
-    bool prime_sq;
-    std::vector<uint64_t> prime_factors;
-    qlattice_basis() {
-        a0 = a1 = b0 = b1 = 0;
-        q_ulong = 0;
-        prime_sq = true;
-    }
+    las_todo_entry doing;
+
+    int64_t a0=0, b0=0, a1=0, b1=0;
+    unsigned long q_ulong=0;
+    // q (== doing.p) itself or 0 if q is too large to fit
+
+    // handy to have here.
+    sublat_t sublat;
+
+    qlattice_basis() = default;
     inline double skewed_norm0(double s) const { return a0*a0/s+b0*b0*s; }
     inline double skewed_norm1(double s) const { return a1*a1/s+b1*b1*s; }
-    void set_q(mpz_srcptr special_q, bool is_prime) {
-      /* Currently requires prime special-q values.
-         For powers, the base prime would have to be determined and stored in
-         a variable, so that powers of that prime in the factor base can be
-         skipped over. For composite special-q, a list of primes would have to
-         be stored and skipped. */
-      ASSERT_ALWAYS(!mpz_perfect_power_p(special_q));
-      mpz_set(q, special_q);
-      q_ulong = mpz_fits_ulong_p(q) ? mpz_get_ui(q) : 0;
-      prime_sq = is_prime;
-    };
+
     // Assumes ell is prime.
     bool is_coprime_to(unsigned long ell) const {
-        if (prime_sq)
+        if (doing.is_prime()) {
             return (ell != q_ulong);
-        else {
-            for (unsigned int i = 0; i < prime_factors.size(); ++i) {
-                if (prime_factors[i] == ell)
+        } else {
+            for (auto const & p : doing.prime_factors)
+                if (p == ell)
                     return false;
-            }
             return true;
         }
     }
+
     inline bool fits_31bits() const {
         return !(
                  a0 <= INT64_C(-2147483648) ||
@@ -58,9 +49,11 @@ struct qlattice_basis {
                  b1 >= INT64_C( 2147483648)
                  );
     }
-};
 
-int SkewGauss (qlattice_basis &, mpz_srcptr, mpz_srcptr, double);
+    struct too_skewed : public std::exception { };
+
+    qlattice_basis(las_todo_entry const & doing, double skew);
+};
 
 static inline fbprime_t
 fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
@@ -254,5 +247,7 @@ static inline fbprime_t fb_root_in_qlattice_po2 (const fbprime_t p, const fbprim
         return p + ((u * v) & (p - 1));
       }
 }
+
+std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q);
 
 #endif	/* LAS_QLATTICE_HPP_ */

@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "las-dlog-base.hpp"
-#include "las-types.hpp"
+#include "las-info.hpp"
 
 #include <cstdio>
 #include <stdint.h>     /* cstdint is c++11-only */
@@ -9,10 +9,15 @@
 
 #include "utils.h"
 
-void las_dlog_base::declare_parameter_usage(param_list pl)
+void las_dlog_base::declare_usage(param_list pl)
 {
     param_list_decl_usage(pl, "renumber", "renumber table (for the descent)");
     param_list_decl_usage(pl, "log", "log table, as built by reconstructlog");
+    /* These belong to las-siever-config of course. But we do a lookup
+     * from here as well.
+     */
+    param_list_decl_usage(pl, "lpb0", "set large prime bound on side 0 to 2^lpb0");
+    param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
 }
 
 void las_dlog_base::lookup_parameters(param_list pl)

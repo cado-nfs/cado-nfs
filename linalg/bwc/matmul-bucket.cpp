@@ -2016,7 +2016,7 @@ static void builder_push_vsc_slices(struct matmul_bucket_data_s * mm, vsc_slice_
 }
 /* }}} */
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data)
+void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE_UNUSED)
 {
     struct matmul_bucket_data_s * mm = (struct matmul_bucket_data_s *)mm0;
     builder mb[1];

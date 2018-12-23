@@ -3,10 +3,10 @@
 name = F9
 N = 5529373746539492451469451709955220061537996975706118061624681552800446063738635599565773930892108210210778168305399196915314944498011438291393118209
 
-lim0 = 2300000
-lim1 = 1200000
-lpb0 = 26
-lpb1 = 26
+tasks.lim0 = 2300000
+tasks.lim1 = 1200000
+tasks.lpb0 = 26
+tasks.lpb1 = 26
 
 # We supply the SNFS polynomial, so we don't want any polynomial selection
 # to happen. To this effect we set admin and admax both to 0. Note that
@@ -42,7 +42,7 @@ tasks.sieve.mfb1 = 52
 tasks.sieve.lambda0 = 2.1
 tasks.sieve.lambda1 = 2.2
 tasks.I = 12
-tasks.sieve.qmin = 2000000
+tasks.qmin = 2000000
 tasks.sieve.qrange = 5000
 tasks.sieve.sqside = 0
 

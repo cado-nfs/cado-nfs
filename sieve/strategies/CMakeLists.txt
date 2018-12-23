@@ -38,9 +38,9 @@ add_executable(gen_decomp
   ${SUF_UTILS}/tab_decomp.c)
 
 if(MINGW)
-    target_link_libraries(gen_decomp gnurx m)
+    target_link_libraries(gen_decomp gnurx m utils)
 else()
-    target_link_libraries(gen_decomp m)
+    target_link_libraries(gen_decomp m utils)
 endif()
 
 

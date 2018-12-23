@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -ex
 
 if ! [ -d flint2/.git ] ; then
     echo "Need flint2/.git" >&2
@@ -29,6 +29,10 @@ cp flint2/longlong.h flint-fft/
 cp flint2/memory_manager.c flint-fft/
 cp flint2/printf.c flint-fft/
 cp flint2/scanf.c flint-fft/
+cp flint2/exception.c flint-fft/
+cp flint2/exception.h flint-fft/
+mkdir flint-fft/doc
+cp flint2/doc/source/fft.rst flint-fft/doc/
 
 # This is a custom trimmed-down copy.
 
@@ -36,7 +40,7 @@ cat > flint-fft/mpn_extras.h <<EOF
 #ifndef MPN_EXTRAS_H_
 #define MPN_EXTRAS_H_
 
-#include "mpir.h"
+#include "gmp.h"
 #include "flint.h"
 
 #define BITS_TO_LIMBS(b) (((b) + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS)
@@ -65,17 +69,59 @@ wq
 EOF
 done
 
+ex -s flint-fft/fft.h >/dev/null <<EOF
+$
+?ifdef.*__cplusplus
+i
+/* CADO-NFS addition */
+
+/* mpn_mulmod_2expp1 is an internal function exposed by mpir, but the
+ * real symbol is mpn_mulmod_2expp1_basecase anyway. The tarball we're
+ * extracting here has the very same code (with a more permissive
+ * license) as flint_mpn_mulmod_2expp1_basecase
+ *
+ * Bottom line: if we use gmp and not mpir, we may use the code we have
+ * here.
+ */
+#define mpn_mulmod_2expp1 flint_mpn_mulmod_2expp1_basecase
+
+#include "transform_interface.h"
+
+/* end CADO-NFS addition */
+
+.
+wq
+EOF
+
+sed -e '/thread_pool.h/ d' -i flint-fft/memory_manager.c
+sed -e 's/^.*\(fmpz\|mpfr\)/\/\/ &/' -i flint-fft/memory_manager.c
+ex -s flint-fft/memory_manager.c >/dev/null <<EOF
+/global_thread_pool_initialized
+i
+/*
+.
+/}
++
+i
+*/
+.
+wq
+EOF
+
+sed -e 's/t = flint_malloc/t = (mp_ptr) flint_malloc/' -i flint-fft/fft.h
 sed -e '/config.h/ d' -i flint-fft/flint.h
 sed -e '/gmpcompat.h/ d' -i flint-fft/flint.h
 sed -e '/<mpfr.h>/ d' -i flint-fft/flint.h
 sed -e '/mpfr_struct/ d' -i flint-fft/flint.h
 (echo '/MPFR_VERSION_MAJOR' ; echo .,+2d ; echo wq) | ex flint-fft/flint.h
 
+find flint-fft -name '*.[ch]' | xargs -n 1 sed -e "s/FLINT_DLL *//g" -i
+find flint-fft -name '*.[ch]' -o -name fft.rst | xargs -n 1 sed -e "s/fft_combine_bits/fft_addcombine_bits/g" -i
+find flint-fft -name '*.[ch]' | xargs -n 1 sed -e "s/HAVE_OPENMP/defined(_OPENMP)/g" -i
 find flint-fft -name '*.[ch]' | xargs -n 1 indent -kr -i4 -sc -fca -fc1 -lc78
 
 find flint-fft -name '*.h' | xargs -n 1 sed -e "s/^ *\/\/ temp //g" -i
 find flint-fft -type f  | xargs grep -l 'fmpz' | xargs -n 1 sed -e 's/^#include "fmpz/\/\/ #include "fmpz/g' -i
-sed -e 's/^.*\(fmpz\|mpfr\)/\/\/ &/' -i flint-fft/memory_manager.c
 
 (cd flint-fft ; ctags -R . )
 
@@ -91,6 +137,8 @@ for f in \
         ifft_mfa_truncate_sqrt2.c       \
         fft_mfa_truncate_sqrt2_inner.c  \
         fft_mfa_truncate_sqrt2.c        \
+        split_bits.c                    \
+        memory_manager.c                \
     ; do
 ex -s flint-fft/$f > /dev/null <<EOF
 1
@@ -98,11 +146,25 @@ i
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+/* flint uses unprotected openmp pragmas every so often */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 .
 wq
 EOF
 done
 
+#for f in `find flint-fft -name '*.c'` ; do
+#ex -s $f > /dev/null <<EOF
+#1
+#i
+##include "cado.h"
+#.
+#wq
+#EOF
+#done
+#
+git co HEAD flint-fft/transform_interface.c
+git co HEAD flint-fft/transform_interface.h
 
 (cd flint-fft ; ctags -R . )

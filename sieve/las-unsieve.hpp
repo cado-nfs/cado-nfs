@@ -35,6 +35,7 @@ typedef unsigned long pattern_t;
     pattern_t pattern7[7];
     unsieve_data();
     unsieve_data(int logI, int logA);
+    unsieve_data(std::pair<int, int> IA) : unsieve_data(IA.first, IA.second) {};
     unsieve_data(unsieve_data const &);
     unsieve_data& operator=(unsieve_data const &);
     ~unsieve_data();
@@ -51,14 +52,10 @@ struct j_divisibility_helper {
                      inv,   /* p^(-1) (mod 2^32) */
                      bound; /* (2^32-1) / p */
     };
-    uint32_t J;
-    entry *entries;
+    std::vector<entry> entries;
     entry& operator[](int i) { return entries[i]; }
     entry const & operator[](int i) const { return entries[i]; }
-    j_divisibility_helper(uint32_t J = 0);
-    j_divisibility_helper(j_divisibility_helper const &);
-    j_divisibility_helper& operator=(j_divisibility_helper const &);
-    ~j_divisibility_helper();
+    j_divisibility_helper(uint32_t J);
 };
 
 
@@ -69,6 +66,7 @@ extract_j_div(unsigned int (*div)[2], const unsigned int j, j_divisibility_helpe
               const unsigned int pmin, const unsigned int pmax)
 {
     unsigned int c, nr_div = 0;
+    ASSERT(j < j_div.entries.size());
     /* For each distict odd prime factor p of j, if pmin <= p <= pmax,
        store the inverse and bound in array */
     c = j;

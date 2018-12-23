@@ -59,8 +59,6 @@
 #undef mod_2pow_ul
 #undef mod_pow_mp
 #undef mod_2pow_mp
-#undef mod_V_ul
-#undef mod_V_mp
 #undef mod_sprp
 #undef mod_sprp2
 #undef mod_isprime
@@ -72,6 +70,8 @@
 #undef mod_set1
 #undef mod_next
 #undef mod_finished
+#undef mod_fprintf
+#undef mod_printf
 
 #define mod_intinit          MOD_RENAME(intinit)
 #define mod_intclear         MOD_RENAME(intclear)
@@ -131,8 +131,6 @@
 #define mod_2pow_ul          MOD_RENAME(2pow_ul)
 #define mod_pow_mp           MOD_RENAME(pow_mp)
 #define mod_2pow_mp          MOD_RENAME(2pow_mp)
-#define mod_V_ul             MOD_RENAME(V_ul)
-#define mod_V_mp             MOD_RENAME(V_mp)
 #define mod_sprp             MOD_RENAME(sprp)
 #define mod_sprp2            MOD_RENAME(sprp2)
 #define mod_isprime          MOD_RENAME(isprime)
@@ -144,6 +142,8 @@
 #define mod_set1             MOD_RENAME(set1)
 #define mod_next             MOD_RENAME(next)
 #define mod_finished         MOD_RENAME(finished)
+#define mod_fprintf          gmp_fprintf
+#define mod_printf           gmp_printf
 
 /* A function that is not used anywhere. The purpose is solely generating 
    compilation errors if any of the renamed functions, which constitute  
@@ -213,8 +213,6 @@ mod_test_if_functions_exist()
   p = (void*) &mod_2pow_ul;
   p = (void*) &mod_pow_mp;
   p = (void*) &mod_2pow_mp;
-  p = (void*) &mod_V_ul;
-  p = (void*) &mod_V_mp;
   p = (void*) &mod_sprp;
   p = (void*) &mod_sprp2;
   p = (void*) &mod_isprime;

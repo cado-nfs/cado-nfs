@@ -67,7 +67,7 @@ int main(int argc, char * argv[])
     parallelizing_info_init();
 
     parallelizing_info_decl_usage(pl);
-    param_list_decl_usage(pl, "v", "(switch) turn on some demo logging");
+    param_list_decl_usage(pl, "v", "turn on some demo logging");
 
     const char * programname = argv[0];
 

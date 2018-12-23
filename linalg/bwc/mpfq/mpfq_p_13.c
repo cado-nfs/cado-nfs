@@ -131,7 +131,7 @@ void mpfq_p_13_field_specify(mpfq_p_13_dst_field k, unsigned long dummy MAYBE_UN
                 mpz_fdiv_q(k->bigmul_p, k->bigmul_p, k->p);
                 mpz_mul(k->bigmul_p, k->bigmul_p, k->p);
             }
-        } else if (dummy == MPFQ_GROUPSIZE && *(int*)vp == 1) {
+        } else if (dummy == MPFQ_SIMD_GROUPSIZE && *(int*)vp == 1) {
             /* Do nothing, this is an admitted condition */
             return;
         } else {
@@ -432,6 +432,48 @@ void mpfq_p_13_vec_clear(mpfq_p_13_dst_field K MAYBE_UNUSED, mpfq_p_13_vec * v, 
     free(*v);
 }
 
+/* *Mpfq::defaults::vec::generic::code_for_vec_random, Mpfq::defaults::vec, Mpfq::gfp */
+void mpfq_p_13_vec_random(mpfq_p_13_dst_field k, mpfq_p_13_dst_vec w, unsigned int n, gmp_randstate_t state)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_dst_elt x = mpfq_p_13_vec_coeff_ptr(k, w, i);
+        mpfq_p_13_random(k, x, state);
+        }
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_random2, Mpfq::defaults::vec, Mpfq::gfp */
+void mpfq_p_13_vec_random2(mpfq_p_13_dst_field k, mpfq_p_13_dst_vec w, unsigned int n, gmp_randstate_t state)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_dst_elt x = mpfq_p_13_vec_coeff_ptr(k, w, i);
+        mpfq_p_13_random2(k, x, state);
+        }
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_cmp, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_cmp(mpfq_p_13_dst_field k, mpfq_p_13_src_vec u, mpfq_p_13_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, u, i);
+            mpfq_p_13_src_elt y = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        int ret = mpfq_p_13_cmp(k, x, y);
+        if (ret != 0)
+            return ret;
+        }
+        return 0;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_is_zero, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_is_zero(mpfq_p_13_dst_field k, mpfq_p_13_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_p_13_is_zero(k, x))
+            return 0;
+        }
+        return 1;
+}
+
 /* *Mpfq::defaults::vec::io::code_for_vec_asprint, Mpfq::defaults::vec, Mpfq::gfp */
 int mpfq_p_13_vec_asprint(mpfq_p_13_dst_field K MAYBE_UNUSED, char * * pstr, mpfq_p_13_src_vec w, unsigned int n)
 {
@@ -460,7 +502,14 @@ int mpfq_p_13_vec_asprint(mpfq_p_13_dst_field K MAYBE_UNUSED, char * * pstr, mpf
             alloc = len+ltmp+100 + alloc / 4;
             *pstr = (char *)realloc(*pstr, alloc);
         }
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
         strncpy(*pstr+len, tmp, ltmp+4);
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic pop
+#endif
         len += ltmp;
         free(tmp);
     }
@@ -574,6 +623,50 @@ int mpfq_p_13_vec_fscan(mpfq_p_13_dst_field K MAYBE_UNUSED, FILE * file, mpfq_p_
     int ret=mpfq_p_13_vec_sscan(K,w,n,tmp);
     free(tmp);
     return ret;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_hamming_weight, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_hamming_weight(mpfq_p_13_dst_field k, mpfq_p_13_src_vec v, unsigned int n)
+{
+        int w = 0;
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        w += !mpfq_p_13_is_zero(k, x);
+        }
+        return w;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_find_first_set, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_find_first_set(mpfq_p_13_dst_field k, mpfq_p_13_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_p_13_is_zero(k, x))
+            return i;
+        }
+        return -1;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_simd_hamming_weight, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_simd_hamming_weight(mpfq_p_13_dst_field k, mpfq_p_13_src_vec v, unsigned int n)
+{
+        int w = 0;
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        w += mpfq_p_13_simd_hamming_weight(k, x);
+        }
+        return w;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_simd_find_first_set, Mpfq::defaults::vec, Mpfq::gfp */
+int mpfq_p_13_vec_simd_find_first_set(mpfq_p_13_dst_field k, mpfq_p_13_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_p_13_src_elt x = mpfq_p_13_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_p_13_is_zero(k, x))
+            return i * mpfq_p_13_simd_groupsize(k) + mpfq_p_13_simd_hamming_weight(k, x);
+        }
+        return -1;
 }
 
 /* *Mpfq::defaults::vec::alloc::code_for_vec_ur_init, Mpfq::defaults::vec, Mpfq::gfp */
@@ -914,46 +1007,46 @@ static void mpfq_p_13_wrapper_dotprod(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_
     mpfq_p_13_dotprod(vbase->obj, xw, xu1, xu0, n);
 }
 
-static void mpfq_p_13_wrapper_elt_ur_set_ui_all(mpfq_vbase_ptr, mpfq_p_13_dst_elt, unsigned long);
-static void mpfq_p_13_wrapper_elt_ur_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_simd_set_ui_all(mpfq_vbase_ptr, mpfq_p_13_dst_elt, unsigned long);
+static void mpfq_p_13_wrapper_simd_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_p_13_elt_ur_set_ui_all(vbase->obj, p, v);
+    mpfq_p_13_simd_set_ui_all(vbase->obj, p, v);
 }
 
-static void mpfq_p_13_wrapper_elt_ur_set_ui_at(mpfq_vbase_ptr, mpfq_p_13_dst_elt, int, unsigned long);
-static void mpfq_p_13_wrapper_elt_ur_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_simd_add_ui_at(mpfq_vbase_ptr, mpfq_p_13_dst_elt, mpfq_p_13_src_elt, int, unsigned long);
+static void mpfq_p_13_wrapper_simd_add_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, mpfq_p_13_src_elt p0 MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_p_13_elt_ur_set_ui_at(vbase->obj, p, k, v);
+    mpfq_p_13_simd_add_ui_at(vbase->obj, p, p0, k, v);
 }
 
-static void mpfq_p_13_wrapper_set_ui_all(mpfq_vbase_ptr, mpfq_p_13_dst_elt, unsigned long);
-static void mpfq_p_13_wrapper_set_ui_all(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_simd_set_ui_at(mpfq_vbase_ptr, mpfq_p_13_dst_elt, int, unsigned long);
+static void mpfq_p_13_wrapper_simd_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
 {
-    mpfq_p_13_set_ui_all(vbase->obj, p, v);
+    mpfq_p_13_simd_set_ui_at(vbase->obj, p, k, v);
 }
 
-static void mpfq_p_13_wrapper_set_ui_at(mpfq_vbase_ptr, mpfq_p_13_dst_elt, int, unsigned long);
-static void mpfq_p_13_wrapper_set_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt p MAYBE_UNUSED, int k MAYBE_UNUSED, unsigned long v MAYBE_UNUSED)
+static unsigned long mpfq_p_13_wrapper_simd_get_ui_at(mpfq_vbase_ptr, mpfq_p_13_src_elt, int);
+static unsigned long mpfq_p_13_wrapper_simd_get_ui_at(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_elt p MAYBE_UNUSED, int k MAYBE_UNUSED)
 {
-    mpfq_p_13_set_ui_at(vbase->obj, p, k, v);
+    return mpfq_p_13_simd_get_ui_at(vbase->obj, p, k);
 }
 
-static int mpfq_p_13_wrapper_stride(mpfq_vbase_ptr);
-static int mpfq_p_13_wrapper_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+static int mpfq_p_13_wrapper_simd_find_first_set(mpfq_vbase_ptr, mpfq_p_13_src_elt);
+static int mpfq_p_13_wrapper_simd_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_elt p MAYBE_UNUSED)
 {
-    return mpfq_p_13_stride(vbase->obj);
+    return mpfq_p_13_simd_find_first_set(vbase->obj, p);
 }
 
-static int mpfq_p_13_wrapper_offset(mpfq_vbase_ptr, int);
-static int mpfq_p_13_wrapper_offset(mpfq_vbase_ptr vbase MAYBE_UNUSED, int n MAYBE_UNUSED)
+static int mpfq_p_13_wrapper_simd_hamming_weight(mpfq_vbase_ptr, mpfq_p_13_src_elt);
+static int mpfq_p_13_wrapper_simd_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_elt p MAYBE_UNUSED)
 {
-    return mpfq_p_13_offset(vbase->obj, n);
+    return mpfq_p_13_simd_hamming_weight(vbase->obj, p);
 }
 
-static int mpfq_p_13_wrapper_groupsize(mpfq_vbase_ptr);
-static int mpfq_p_13_wrapper_groupsize(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+static int mpfq_p_13_wrapper_simd_groupsize(mpfq_vbase_ptr);
+static int mpfq_p_13_wrapper_simd_groupsize(mpfq_vbase_ptr vbase MAYBE_UNUSED)
 {
-    return mpfq_p_13_groupsize(vbase->obj);
+    return mpfq_p_13_simd_groupsize(vbase->obj);
 }
 
 static int mpfq_p_13_wrapper_poly_scan(mpfq_vbase_ptr, mpfq_p_13_dst_poly);
@@ -1185,9 +1278,9 @@ static void mpfq_p_13_wrapper_vec_conv_ur(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpf
 }
 
 static void mpfq_p_13_wrapper_vec_scal_mul_ur(mpfq_vbase_ptr, mpfq_p_13_dst_vec_ur, mpfq_p_13_src_vec, mpfq_p_13_src_elt, unsigned int);
-static void mpfq_p_13_wrapper_vec_scal_mul_ur(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_vec_ur w MAYBE_UNUSED, mpfq_p_13_src_vec u MAYBE_UNUSED, mpfq_p_13_src_elt x MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_vec_scal_mul_ur(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_vec_ur w MAYBE_UNUSED, mpfq_p_13_src_vec u MAYBE_UNUSED, mpfq_p_13_src_elt c MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    mpfq_p_13_vec_scal_mul_ur(vbase->obj, w, u, x, n);
+    mpfq_p_13_vec_scal_mul_ur(vbase->obj, w, u, c, n);
 }
 
 static void mpfq_p_13_wrapper_vec_ur_rev(mpfq_vbase_ptr, mpfq_p_13_dst_vec_ur, mpfq_p_13_src_vec_ur, unsigned int);
@@ -1262,6 +1355,30 @@ static void mpfq_p_13_wrapper_vec_ur_init(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpf
     mpfq_p_13_vec_ur_init(vbase->obj, v, n);
 }
 
+static int mpfq_p_13_wrapper_vec_simd_find_first_set(mpfq_vbase_ptr, mpfq_p_13_src_vec, unsigned int);
+static int mpfq_p_13_wrapper_vec_simd_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_p_13_vec_simd_find_first_set(vbase->obj, v, n);
+}
+
+static int mpfq_p_13_wrapper_vec_simd_hamming_weight(mpfq_vbase_ptr, mpfq_p_13_src_vec, unsigned int);
+static int mpfq_p_13_wrapper_vec_simd_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_p_13_vec_simd_hamming_weight(vbase->obj, v, n);
+}
+
+static int mpfq_p_13_wrapper_vec_find_first_set(mpfq_vbase_ptr, mpfq_p_13_src_vec, unsigned int);
+static int mpfq_p_13_wrapper_vec_find_first_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_p_13_vec_find_first_set(vbase->obj, v, n);
+}
+
+static int mpfq_p_13_wrapper_vec_hamming_weight(mpfq_vbase_ptr, mpfq_p_13_src_vec, unsigned int);
+static int mpfq_p_13_wrapper_vec_hamming_weight(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+{
+    return mpfq_p_13_vec_hamming_weight(vbase->obj, v, n);
+}
+
 static int mpfq_p_13_wrapper_vec_scan(mpfq_vbase_ptr, mpfq_p_13_vec *, unsigned int *);
 static int mpfq_p_13_wrapper_vec_scan(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_vec * w MAYBE_UNUSED, unsigned int * n MAYBE_UNUSED)
 {
@@ -1323,9 +1440,9 @@ static mpfq_p_13_dst_vec mpfq_p_13_wrapper_vec_subvec(mpfq_vbase_ptr vbase MAYBE
 }
 
 static int mpfq_p_13_wrapper_vec_is_zero(mpfq_vbase_ptr, mpfq_p_13_src_vec, unsigned int);
-static int mpfq_p_13_wrapper_vec_is_zero(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec r MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static int mpfq_p_13_wrapper_vec_is_zero(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_src_vec v MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    return mpfq_p_13_vec_is_zero(vbase->obj, r, n);
+    return mpfq_p_13_vec_is_zero(vbase->obj, v, n);
 }
 
 static int mpfq_p_13_wrapper_vec_cmp(mpfq_vbase_ptr, mpfq_p_13_src_vec, mpfq_p_13_src_vec, unsigned int);
@@ -1353,9 +1470,9 @@ static void mpfq_p_13_wrapper_vec_conv(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p
 }
 
 static void mpfq_p_13_wrapper_vec_scal_mul(mpfq_vbase_ptr, mpfq_p_13_dst_vec, mpfq_p_13_src_vec, mpfq_p_13_src_elt, unsigned int);
-static void mpfq_p_13_wrapper_vec_scal_mul(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_vec w MAYBE_UNUSED, mpfq_p_13_src_vec u MAYBE_UNUSED, mpfq_p_13_src_elt x MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_vec_scal_mul(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_vec w MAYBE_UNUSED, mpfq_p_13_src_vec u MAYBE_UNUSED, mpfq_p_13_src_elt c MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    mpfq_p_13_vec_scal_mul(vbase->obj, w, u, x, n);
+    mpfq_p_13_vec_scal_mul(vbase->obj, w, u, c, n);
 }
 
 static void mpfq_p_13_wrapper_vec_sub(mpfq_vbase_ptr, mpfq_p_13_dst_vec, mpfq_p_13_src_vec, mpfq_p_13_src_vec, unsigned int);
@@ -1550,6 +1667,12 @@ static void mpfq_p_13_wrapper_elt_ur_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq
     mpfq_p_13_elt_ur_set(vbase->obj, z, x);
 }
 
+static ptrdiff_t mpfq_p_13_wrapper_elt_ur_stride(mpfq_vbase_ptr);
+static ptrdiff_t mpfq_p_13_wrapper_elt_ur_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_p_13_elt_ur_stride(vbase->obj);
+}
+
 static void mpfq_p_13_wrapper_elt_ur_clear(mpfq_vbase_ptr, mpfq_p_13_elt_ur *);
 static void mpfq_p_13_wrapper_elt_ur_clear(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_elt_ur * x MAYBE_UNUSED)
 {
@@ -1670,8 +1793,8 @@ static void mpfq_p_13_wrapper_random(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_1
     mpfq_p_13_random(vbase->obj, x, state);
 }
 
-static void mpfq_p_13_wrapper_get_mpz(mpfq_vbase_ptr, mpz_t, mpfq_p_13_src_elt);
-static void mpfq_p_13_wrapper_get_mpz(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_t z MAYBE_UNUSED, mpfq_p_13_src_elt y MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_get_mpz(mpfq_vbase_ptr, mpz_ptr, mpfq_p_13_src_elt);
+static void mpfq_p_13_wrapper_get_mpz(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_ptr z MAYBE_UNUSED, mpfq_p_13_src_elt y MAYBE_UNUSED)
 {
     mpfq_p_13_get_mpz(vbase->obj, z, y);
 }
@@ -1682,8 +1805,8 @@ static void mpfq_p_13_wrapper_get_mpn(mpfq_vbase_ptr vbase MAYBE_UNUSED, mp_limb
     mpfq_p_13_get_mpn(vbase->obj, r, x);
 }
 
-static void mpfq_p_13_wrapper_set_mpz(mpfq_vbase_ptr, mpfq_p_13_dst_elt, mpz_t);
-static void mpfq_p_13_wrapper_set_mpz(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt r MAYBE_UNUSED, mpz_t z MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_set_mpz(mpfq_vbase_ptr, mpfq_p_13_dst_elt, mpz_srcptr);
+static void mpfq_p_13_wrapper_set_mpz(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt r MAYBE_UNUSED, mpz_srcptr z MAYBE_UNUSED)
 {
     mpfq_p_13_set_mpz(vbase->obj, r, z);
 }
@@ -1716,6 +1839,12 @@ static void mpfq_p_13_wrapper_set(mpfq_vbase_ptr, mpfq_p_13_dst_elt, mpfq_p_13_s
 static void mpfq_p_13_wrapper_set(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_13_dst_elt r MAYBE_UNUSED, mpfq_p_13_src_elt s MAYBE_UNUSED)
 {
     mpfq_p_13_set(vbase->obj, r, s);
+}
+
+static ptrdiff_t mpfq_p_13_wrapper_elt_stride(mpfq_vbase_ptr);
+static ptrdiff_t mpfq_p_13_wrapper_elt_stride(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_p_13_elt_stride(vbase->obj);
 }
 
 static void mpfq_p_13_wrapper_clear(mpfq_vbase_ptr, mpfq_p_13_elt *);
@@ -1766,8 +1895,8 @@ static unsigned long mpfq_p_13_wrapper_field_characteristic_bits(mpfq_vbase_ptr 
     return mpfq_p_13_field_characteristic_bits(vbase->obj);
 }
 
-static void mpfq_p_13_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_t);
-static void mpfq_p_13_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_t z MAYBE_UNUSED)
+static void mpfq_p_13_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_ptr);
+static void mpfq_p_13_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_ptr z MAYBE_UNUSED)
 {
     mpfq_p_13_field_characteristic(vbase->obj, z);
 }
@@ -1800,7 +1929,7 @@ void mpfq_p_13_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->impl_name = (const char * (*) ()) mpfq_p_13_wrapper_impl_name;
     vbase->impl_max_characteristic_bits = (unsigned long (*) ()) mpfq_p_13_wrapper_impl_max_characteristic_bits;
     vbase->impl_max_degree = (unsigned long (*) ()) mpfq_p_13_wrapper_impl_max_degree;
-    vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_t)) mpfq_p_13_wrapper_field_characteristic;
+    vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_ptr)) mpfq_p_13_wrapper_field_characteristic;
     vbase->field_characteristic_bits = (unsigned long (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_field_characteristic_bits;
     vbase->field_degree = (int (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_field_degree;
     vbase->field_init = (void (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_field_init;
@@ -1809,14 +1938,15 @@ void mpfq_p_13_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->field_setopt = (void (*) (mpfq_vbase_ptr, unsigned long, void *)) mpfq_p_13_wrapper_field_setopt;
     vbase->init = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_init;
     vbase->clear = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_clear;
+    vbase->elt_stride = (ptrdiff_t (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_elt_stride;
     vbase->set = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_p_13_wrapper_set;
     vbase->set_ui = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_p_13_wrapper_set_ui;
     vbase->set_zero = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_set_zero;
     vbase->get_ui = (unsigned long (*) (mpfq_vbase_ptr, const void *)) mpfq_p_13_wrapper_get_ui;
     vbase->set_mpn = (void (*) (mpfq_vbase_ptr, void *, mp_limb_t *, size_t)) mpfq_p_13_wrapper_set_mpn;
-    vbase->set_mpz = (void (*) (mpfq_vbase_ptr, void *, mpz_t)) mpfq_p_13_wrapper_set_mpz;
+    vbase->set_mpz = (void (*) (mpfq_vbase_ptr, void *, mpz_srcptr)) mpfq_p_13_wrapper_set_mpz;
     vbase->get_mpn = (void (*) (mpfq_vbase_ptr, mp_limb_t *, const void *)) mpfq_p_13_wrapper_get_mpn;
-    vbase->get_mpz = (void (*) (mpfq_vbase_ptr, mpz_t, const void *)) mpfq_p_13_wrapper_get_mpz;
+    vbase->get_mpz = (void (*) (mpfq_vbase_ptr, mpz_ptr, const void *)) mpfq_p_13_wrapper_get_mpz;
     vbase->random = (void (*) (mpfq_vbase_ptr, void *, gmp_randstate_t)) mpfq_p_13_wrapper_random;
     vbase->random2 = (void (*) (mpfq_vbase_ptr, void *, gmp_randstate_t)) mpfq_p_13_wrapper_random2;
     vbase->add = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *)) mpfq_p_13_wrapper_add;
@@ -1837,6 +1967,7 @@ void mpfq_p_13_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->hadamard = (void (*) (mpfq_vbase_ptr, void *, void *, void *, void *)) mpfq_p_13_wrapper_hadamard;
     vbase->elt_ur_init = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_elt_ur_init;
     vbase->elt_ur_clear = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_elt_ur_clear;
+    vbase->elt_ur_stride = (ptrdiff_t (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_elt_ur_stride;
     vbase->elt_ur_set = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_p_13_wrapper_elt_ur_set;
     vbase->elt_ur_set_elt = (void (*) (mpfq_vbase_ptr, void *, const void *)) mpfq_p_13_wrapper_elt_ur_set_elt;
     vbase->elt_ur_set_zero = (void (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_elt_ur_set_zero;
@@ -1893,6 +2024,10 @@ void mpfq_p_13_oo_field_init(mpfq_vbase_ptr vbase)
     /* missing vec_write */
     /* missing vec_import */
     /* missing vec_export */
+    vbase->vec_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_p_13_wrapper_vec_hamming_weight;
+    vbase->vec_find_first_set = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_p_13_wrapper_vec_find_first_set;
+    vbase->vec_simd_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_p_13_wrapper_vec_simd_hamming_weight;
+    vbase->vec_simd_find_first_set = (int (*) (mpfq_vbase_ptr, const void *, unsigned int)) mpfq_p_13_wrapper_vec_simd_find_first_set;
     vbase->vec_ur_init = (void (*) (mpfq_vbase_ptr, void *, unsigned int)) mpfq_p_13_wrapper_vec_ur_init;
     vbase->vec_ur_set_zero = (void (*) (mpfq_vbase_ptr, void *, unsigned int)) mpfq_p_13_wrapper_vec_ur_set_zero;
     vbase->vec_ur_set_vec = (void (*) (mpfq_vbase_ptr, void *, const void *, unsigned int)) mpfq_p_13_wrapper_vec_ur_set_vec;
@@ -1944,13 +2079,13 @@ void mpfq_p_13_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->poly_sscan = (int (*) (mpfq_vbase_ptr, void *, const char *)) mpfq_p_13_wrapper_poly_sscan;
     vbase->poly_fscan = (int (*) (mpfq_vbase_ptr, FILE *, void *)) mpfq_p_13_wrapper_poly_fscan;
     vbase->poly_scan = (int (*) (mpfq_vbase_ptr, void *)) mpfq_p_13_wrapper_poly_scan;
-    vbase->groupsize = (int (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_groupsize;
-    vbase->offset = (int (*) (mpfq_vbase_ptr, int)) mpfq_p_13_wrapper_offset;
-    vbase->stride = (int (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_stride;
-    vbase->set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_p_13_wrapper_set_ui_at;
-    vbase->set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_p_13_wrapper_set_ui_all;
-    vbase->elt_ur_set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_p_13_wrapper_elt_ur_set_ui_at;
-    vbase->elt_ur_set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_p_13_wrapper_elt_ur_set_ui_all;
+    vbase->simd_groupsize = (int (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_simd_groupsize;
+    vbase->simd_hamming_weight = (int (*) (mpfq_vbase_ptr, const void *)) mpfq_p_13_wrapper_simd_hamming_weight;
+    vbase->simd_find_first_set = (int (*) (mpfq_vbase_ptr, const void *)) mpfq_p_13_wrapper_simd_find_first_set;
+    vbase->simd_get_ui_at = (unsigned long (*) (mpfq_vbase_ptr, const void *, int)) mpfq_p_13_wrapper_simd_get_ui_at;
+    vbase->simd_set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_p_13_wrapper_simd_set_ui_at;
+    vbase->simd_add_ui_at = (void (*) (mpfq_vbase_ptr, void *, const void *, int, unsigned long)) mpfq_p_13_wrapper_simd_add_ui_at;
+    vbase->simd_set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_p_13_wrapper_simd_set_ui_all;
     vbase->dotprod = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_13_wrapper_dotprod;
     vbase->oo_field_init = (void (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_oo_field_init;
     vbase->oo_field_clear = (void (*) (mpfq_vbase_ptr)) mpfq_p_13_wrapper_oo_field_clear;

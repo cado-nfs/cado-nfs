@@ -3,17 +3,17 @@
 
 #include "las-config.h"
 
-/* This is copied from LOGNORM_FILL_COMMON_DEFS in las-norms.cpp ; from
- * logI, N, and LOG_BUCKET_REGION, define the integers i0, i1, j0, j1,
- * and I.
- */
-
 /* About row0_is_oddj: in order to check whether a j coordinate is even,
  * we need to take into account the bucket number, especially in case
  * buckets are as large as the sieve region. The row number corresponding
  * to a given i0 is i0/I, but we also need to add bucket_nr*bucket_size/I
  * to this, which is what this flag is for.  Sublat must also be taken
  * into account.
+ */
+
+/* This is copied from LOGNORM_FILL_COMMON_DEFS in las-norms.cpp ; from
+ * logI, N, and LOG_BUCKET_REGION, define the integers i0, i1, j0, j1,
+ * and I.
  */
 
 #define SMALLSIEVE_COMMON_DEFS()                                         \
@@ -28,9 +28,9 @@
     const int i0 = (region_rank_in_line << LOG_BUCKET_REGION) - I/2;          \
     const int i1 MAYBE_UNUSED = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));     \
     /* those are (1,0,0) in the standard case */                        \
-    const int sublatm MAYBE_UNUSED = si.conf.sublat.m ? si.conf.sublat.m : 1; \
-    const unsigned int sublati0 MAYBE_UNUSED = si.conf.sublat.i0;       \
-    const unsigned int sublatj0 MAYBE_UNUSED = si.conf.sublat.j0;       \
+    const int sublatm MAYBE_UNUSED = sl.m ? sl.m : 1; \
+    const unsigned int sublati0 MAYBE_UNUSED = sl.i0;       \
+    const unsigned int sublatj0 MAYBE_UNUSED = sl.j0;       \
     const int row0_is_oddj MAYBE_UNUSED = (j0*sublatm + sublatj0) & 1;  \
     bool has_haxis = !j0;                                               \
     bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);   \
@@ -365,7 +365,22 @@
                 unsigned char logp,					\
                 where_am_I w MAYBE_UNUSED) const			\
         {								\
-            unsigned char * pi = S0 + pos
+            unsigned char * pi = S0 + pos;                              \
+            INTERMEDIARY_FOBJ()
+
+#ifndef TRACE_K
+#define INTERMEDIARY_FOBJ()       do {} while (0)
+#else
+#define INTERMEDIARY_FOBJ() do {					\
+            if (trace_on_range_Nx(w.N, x0 + pos, x0 + S1 - S0)) {	\
+                if ((trace_Nx.x - x0 - pos) % p_or_2p == 0) {           \
+                    WHERE_AM_I_UPDATE(w, x, trace_Nx.x);		\
+                    sieve_increase_logging(S0 + w.x - x0, logp, w);	\
+                }							\
+            }								\
+} while (0)
+#endif
+
 #define END_FOBJ()							\
     return pi - S1;							\
 }}
@@ -484,10 +499,17 @@ do {
     *pi += logp; pi += p_or_2p;
 } while (0);
 END_FOBJ();
+
+/* Gotcha: we're now preventively tracing the small sieve events outside
+ * the asm code, which causes sieve_increase_logging_backend to be
+ * called, and in turn test_divisible, which modifies traced norms (in
+ * debug mode). So for consistency, we mustn't use sieve_increase here,
+ * or the norm would be divided by p twice.
+ */
 BEGIN_FOBJ(manual_oldloop, true);
 #define T do {                                                          \
     WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);                              \
-    sieve_increase (pi, logp, w); pi += p_or_2p;                        \
+    *pi += logp; /* sieve_increase (pi, logp, w); */ pi += p_or_2p;     \
 } while(0)
 while (UNLIKELY(pi + p_or_2p * 12 <= S1))
 { T; T; T; T; T; T; T; T; T; T; T; T; }
@@ -504,7 +526,7 @@ END_FOBJ();
 BEGIN_FOBJ(manual_oldloop_nounroll, true);
 for ( ; pi < S1 ; pi += p_or_2p) {
     WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);
-    sieve_increase (pi, logp, w);
+    *pi += logp; // sieve_increase (pi, logp, w);
 }
 END_FOBJ();
 /*}}}*/

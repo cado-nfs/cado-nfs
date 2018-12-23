@@ -60,7 +60,7 @@ typedef struct {
 
 // The main exported function. Smooth candidate is put in C.
 // Last argument is for changing default strategy. NULL can be passed.
-void smooth_detect(cand_t C, void (*next_cand)(cand_t, void *),
+void smooth_detect(cand_t C, int (*next_cand)(cand_t, void *),
         void *param_next_cand, unsigned long bound,
         const smooth_detect_param_s* param);
 

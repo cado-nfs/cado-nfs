@@ -69,6 +69,7 @@
 
 #define Kinit(a0)	Kcommon_name_(init) (K,a0)
 #define Kclear(a0)	Kcommon_name_(clear) (K,a0)
+#define Kelt_stride()	Kcommon_name_(elt_stride) (K)
 
 #define Kset(a0,a1)	Kcommon_name_(set) (K,a0,a1)
 #define Kset_ui(a0,a1)	Kcommon_name_(set_ui) (K,a0,a1)
@@ -113,6 +114,7 @@
 
 #define Kelt_ur_init(a0)	Kcommon_name_(elt_ur_init) (K,a0)
 #define Kelt_ur_clear(a0)	Kcommon_name_(elt_ur_clear) (K,a0)
+#define Kelt_ur_stride()	Kcommon_name_(elt_ur_stride) (K)
 #define Kelt_ur_set(a0,a1)	Kcommon_name_(elt_ur_set) (K,a0,a1)
 #define Kelt_ur_set_elt(a0,a1)	Kcommon_name_(elt_ur_set_elt) (K,a0,a1)
 #define Kelt_ur_set_zero(a0)	Kcommon_name_(elt_ur_set_zero) (K,a0)
@@ -182,6 +184,12 @@
 #define Kvec_write(a0,a1,a2)	Kcommon_name_(vec_write) (K,a0,a1,a2)
 #define Kvec_import(a0,a1,a2,a3)	Kcommon_name_(vec_import) (K,a0,a1,a2,a3)
 #define Kvec_export(a0,a1,a2,a3)	Kcommon_name_(vec_export) (K,a0,a1,a2,a3)
+#define Kvec_hamming_weight(a0,a1)	Kcommon_name_(vec_hamming_weight) (K,a0,a1)
+#define Kvec_find_first_set(a0,a1)	Kcommon_name_(vec_find_first_set) (K,a0,a1)
+
+#define Kvec_simd_hamming_weight(a0,a1)	Kcommon_name_(vec_simd_hamming_weight) (K,a0,a1)
+#define Kvec_simd_find_first_set(a0,a1)	Kcommon_name_(vec_simd_find_first_set) (K,a0,a1)
+
 
 #define Kvec_ur_init(a0,a1)	Kcommon_name_(vec_ur_init) (K,a0,a1)
 #define Kvec_ur_set_zero(a0,a1)	Kcommon_name_(vec_ur_set_zero) (K,a0,a1)
@@ -243,15 +251,13 @@
 
 
 
-#define Kgroupsize()	Kcommon_name_(groupsize) (K)
-#define Koffset(a0)	Kcommon_name_(offset) (K,a0)
-#define Kstride()	Kcommon_name_(stride) (K)
-#define Kset_ui_at(a0,a1,a2)	Kcommon_name_(set_ui_at) (K,a0,a1,a2)
-#define Kset_ui_all(a0,a1)	Kcommon_name_(set_ui_all) (K,a0,a1)
-
-#define Kelt_ur_set_ui_at(a0,a1,a2)	Kcommon_name_(elt_ur_set_ui_at) (K,a0,a1,a2)
-#define Kelt_ur_set_ui_all(a0,a1)	Kcommon_name_(elt_ur_set_ui_all) (K,a0,a1)
-
+#define Ksimd_groupsize()	Kcommon_name_(simd_groupsize) (K)
+#define Ksimd_hamming_weight(a0)	Kcommon_name_(simd_hamming_weight) (K,a0)
+#define Ksimd_find_first_set(a0)	Kcommon_name_(simd_find_first_set) (K,a0)
+#define Ksimd_get_ui_at(a0,a1)	Kcommon_name_(simd_get_ui_at) (K,a0,a1)
+#define Ksimd_set_ui_at(a0,a1,a2)	Kcommon_name_(simd_set_ui_at) (K,a0,a1,a2)
+#define Ksimd_add_ui_at(a0,a1,a2,a3)	Kcommon_name_(simd_add_ui_at) (K,a0,a1,a2,a3)
+#define Ksimd_set_ui_all(a0,a1)	Kcommon_name_(simd_set_ui_all) (K,a0,a1)
 #define Kdotprod(a0,a1,a2,a3)	Kcommon_name_(dotprod) (K,a0,a1,a2,a3)
 #define Kmul_constant_ui(a0,a1,a2)	Kcommon_name_(mul_constant_ui) (K,a0,a1,a2)
 

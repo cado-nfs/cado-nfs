@@ -1,0 +1,175 @@
+MISHMASH bytecode
+=================
+
+bytecode = array of byte (implemented as uint8_t)
+
+Used to encode different way to perform scalar multiplication for ECM or fast
+exponentitation for p+1.
+This document described the MISHMASH bytecode in the context of ECM, but it can
+easily be translated for P+1.
+
+The MISHMASH bytecode encodes different blocks, each type of block can have its
+own encoding
+
+
+# Environment
+
+R[] = array of point
+      must be of length >= 2
+
+During initialization, the input point will be copied into R[1].
+The output point must be written in R[1] at the end.
+
+
+# Elliptic points
+
+It exists 3 types for the points on the elliptic curve:
+  - n: stands for "normal"
+  - a: stands for "ready for addition"
+  - d: stands for "only for differential elliptic operations"
+
+These 3 types can implemented with the same coordinates system on the same curve
+model or with different coordinates systems and/or different curve models.
+
+
+# Elliptic operations
+
+Depending on the type of the input point(s), the following elliptic operations
+are authorized:
+
+      |       input      |    output    |
+  op  | points  |  type  | point | type |
+------|---------|--------|-------|------|
+ DBL  | P       | n or a | 2 P   |  n   |
+ DBLa | P       | n or a | 2 P   |  a   |
+ TPL  | P       | n or a | 3 P   |  n   |
+ TPLa | P       | n or a | 3 P   |  a   |
+ ADD  | P, Q    |   a    | P + Q |  n   |
+ ADDa | P, Q    |   a    | P + Q |  a   |
+ ADDd | P, Q    |   a    | P + Q |  d   |
+ dDBL | P       |   d    | 2 P   |  d   |
+ dADD | P, Q, R |   d    | P + Q |  d   | with the condition that R = P - Q
+
+Note: it also exists a SUB variant for ADD, ADDa and ADDd
+
+
+# MISHMASH bytecode
+
+  0000nnnn    Beginning of the MISHMASH bytecode
+              Allocate the array R with n+2 points
+              Must be the first byte of the bytecode
+              Cannot be used afterwards
+              Copy input point into R[1]
+  0001nnnn    Beginning of a DBCHAIN block
+              Set R[0] <- R[n] (if n is 0, this is a no-op)
+  0010nnnn    Beginning of a PRECOMP block
+              Set R[0] <- R[n] (if n is 0, this is a no-op)
+  1000nnnn    Beginning of a PRAC block
+              Set R[0] <- R[n] (if n is 0, this is a no-op)
+  11111111    End of the MISHMASH bytecode
+              R[1] contains the results
+              Must be the last byte of the bytecode
+              Cannot be used before
+
+The first bit (= the most significant bit) of a byte describing the beginning of
+a block gives the type of the block: DBCHAIN and PRECOMP are block of type 0,
+PRAC is a block of type 1.
+Important: a block of type 0 cannot appear after a block of type 0
+
+block of type 0:
+  input is of type a
+  output is of type a or d (type d is only for the last block of type 0)
+block of type 1:
+  input is of type d
+  output is of type d
+
+MISHMASH bytecode:
+  input is of type a or d (type d means only block of type 1 can be used)
+  output is of type d
+
+
+# DBCHAIN block
+
+  01fsnnnn dddddddd              R[f] <- 2^d R[0] +/- R[n]
+                                 op: d-1 DBL + 1 DBLa + ADDx
+  10fsnnnn tttttttt              R[f] <- 3^t R[0] +/- R[n]
+                                 op: d-1 TPL + 1 TPLa + ADDx
+  11fsnnnn tttttttt dddddddd     R[f] <- 2^d 3^t R[0] +/- R[n]
+                                 op: t TPL + d-1 DBL + 1 DBLa + ADDx
+
+    The sign is given by s: + if s=0, - if s=1
+    The f bit stands for 'final', it must be 1 only for the last byte of the
+    block.
+    The number of doublings d and the number of triplings t must be > 0.
+    ADDx = ADD if f = 0
+           ADDa if f = 1 and the next block is of type 0
+           ADDd if f = 1 and the next block is of type 1
+
+
+# PRECOMP block
+
+  00askkkk iiiijjjj             R[k] <- R[i] +/- R[j]
+                                op: ADDa if a == 1 else ADD
+  01a0kkkk dddddddd             R[k] <- R[0] <- 2^d R[0]
+                                op: d-1 DBL + DBLa if a == 1 else DBL
+  10a0kkkk tttttttt             R[k] <- R[0] <- 3^t R[0]
+                                op: t-1 TPL + TPLa if a == 1 else TPL
+  11111111                      End of the block
+
+    The sign is given by s: + if s=0, - if s=1
+    The number of doublings d and the number of triplings t must be > 0.
+    In the last two cases, k can be 0 and the second assignment becomes a no-op.
+
+
+
+# PRAC block
+
+  Remarks:
+    - We always maintain R[0]-R[1] = R[2]
+    - This implies that we need len(R) >= 3
+    - In fact, we need len(R) >= 5, because two temporary points are needed
+
+
+  01101001    beginning a of sub-block                          [ 'i' in ASCII ]
+              R[2] <- R[1] <- R[0]
+              R[0] <- 2 R[0]
+  01110011    swap                                              [ 's' in ASCII ]
+              R[0] <-> R[1]
+  01100110    end of sub-block                                  [ 'f' in ASCII ]
+              R[0] <- R[0]+R[1]
+  01000110    end of sub-block and end of PRAC block            [ 'F' in ASCII ]
+              R[1] <- R[0]+R[1]
+  00000001    Apply rule 1
+  00000010    Apply rule 2
+  00000011    Apply rule 3
+  00000100    Apply rule 4
+  00000101    Apply rule 5
+  00000110    Apply rule 6
+  00000111    Apply rule 7
+  00001000    Apply rule 8
+  00001001    Apply rule 9
+  00001010    Equivalent to 01101001 01100110                  [ 'fi' in ASCII ]
+  00001011    Equivalent to 00000011 01110011       [ rule 3 then 's' in ASCII ]
+  00001100    Equivalent to 00000011 01101001 01100110
+                                                   [ rule 3 then 'fi' in ASCII ]
+  00001101    Equivalent to 00001011 00001011   [ (rule 3 then 's' in ASCII)^2 ]
+
+
+
+Implementation
+==============
+
+# ECM
+
+elliptic point:
+  type n: projective point on "a=-1" twisted Edwards curves
+  type a: extended point on "a=-1" twisted Edwards curves
+  type d: XZ-only point on Montgomery curves
+
+
+# P+1
+
+element:
+  type n: not used
+  type a: not used
+  type d: element of the form x^n+1/x^n for n >= 0

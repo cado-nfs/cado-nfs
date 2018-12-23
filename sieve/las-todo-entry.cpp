@@ -1,27 +1,34 @@
 #include "cado.h"
 #include "las-todo-entry.hpp"
 #include "getprime.h"
+#include "gmp_aux.h"
 
-void las_todo_entry::set(const mpz_t _p, const mpz_t _r, const int _side, const int _depth, const int _iteration) {
-    mpz_set(p, _p);
-    mpz_set(r, _r);
-    side = _side;
-    depth = _depth;
-    iteration = _iteration;
-    prime_sq = mpz_probab_prime_p(p, 2);
-    if (prime_sq) return;
+void las_todo_entry::find_prime_factors()
+{
+    prime_factors.clear();
+
+    /* We really do not want composites to be considered as primes... */
+    if (mpz_probab_prime_p(p, 10)) {
+        /* This is rubbish if p does not fit in 64 bits */
+        if (mpz_fits_uint64_p(p))
+            prime_factors.push_back(mpz_get_uint64(p));
+        else
+            prime_factors.push_back(0);
+
+        return;
+    }
 
     // Need to pre-compute the prime factors of the special-q in order to
     // skip them while sieving.
     prime_info pi;
     prime_info_init (pi);
     unsigned long f = 2;
-    mpz_t B;
-    mpz_init(B);
+
+    cxx_mpz B;
     mpz_sqrt(B, p);
     unsigned long bound = mpz_get_ui(B);
-    mpz_clear(B);
-    mpz_t pp;
+
+    cxx_mpz pp;
     mpz_init_set(pp, p);
     while ((f <= bound) && (mpz_cmp_ui(pp, 1) > 0)) {
         if (mpz_divisible_ui_p(pp, f)) {
@@ -29,7 +36,7 @@ void las_todo_entry::set(const mpz_t _p, const mpz_t _r, const int _side, const 
             // Powers are not allowed in special-q
             ASSERT_ALWAYS(!mpz_divisible_ui_p(pp, f));
             prime_factors.push_back(f);
-            if (mpz_probab_prime_p(pp, 2)) {
+            if (mpz_probab_prime_p(pp, 10)) {
                 ASSERT_ALWAYS(mpz_fits_ulong_p(pp));
                 prime_factors.push_back(mpz_get_ui(pp));
                 mpz_set_ui(pp, 1);
@@ -38,5 +45,22 @@ void las_todo_entry::set(const mpz_t _p, const mpz_t _r, const int _side, const 
         f = getprime_mt(pi);
     }
     prime_info_clear (pi);
-    mpz_clear(pp);
+
+    ASSERT_ALWAYS(mpz_cmp_ui(pp, 1) == 0);
 }
+
+/* This format is also parsed by read_sq_comment in dupsup.cpp ! */
+std::ostream& operator<<(std::ostream& os, las_todo_entry const & doing)
+{
+    os << "side-" << doing.side << " q=" << doing.p;
+    if (!doing.is_prime()) {
+        char c = '=';
+        for(auto const & p : doing.prime_factors) {
+            os << c << p;
+            c = '*';
+        }
+    }
+    os << "; rho=" << doing.r;
+    return os;
+}
+

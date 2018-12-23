@@ -16,37 +16,55 @@ struct las_todo_entry {
      */
     cxx_mpz r;
     int side;
-    bool prime_sq;
+    /* The array of prime_factors is valid unless p is a prime above 64
+     * bits.
+     */
     std::vector<uint64_t> prime_factors;
+    bool is_prime() const { return prime_factors.size() == 1; }
 
     /* some fields which are specific to the descent */
     int depth;
     int iteration;      /* number of times we failed on this prime */
 
-    /* Default ctor is just to enable sieve_info default ctor */
     las_todo_entry() : side(0), depth(0), iteration(0) {}
+
     /* Empty p, r is used for "closing brace" */
-    las_todo_entry(const int _side, const int _depth) : side(_side), depth(_depth), iteration(0) { }
-    las_todo_entry(const mpz_t _p, const mpz_t _r, const int _side, const int _depth = 0, const int _iteration = 0) {
-        set(_p, _r, _side, _depth, _iteration);
+    las_todo_entry(const int side, const int depth) : side(side), depth(depth), iteration(0) { }
+
+    las_todo_entry(cxx_mpz const & p, cxx_mpz const & r, const int side, const int depth = 0, const int iteration = 0) :
+        p(p), r(r), side(side), depth(depth), iteration(iteration)
+    {
+        find_prime_factors();
+    }
+
+    las_todo_entry(cxx_mpz const & p, cxx_mpz const & r, const int side, std::vector<uint64_t> & prime_factors, const int depth = 0, const int iteration = 0) :
+        p(p), r(r), side(side), prime_factors(prime_factors), depth(depth), iteration(iteration)
+    {
+        /* make sure that the factorization provided is correct */
+        cxx_mpz t;
+        mpz_set_ui(t, 1);
+        for(auto x : prime_factors)
+            mpz_mul_ui(t, t, x);
+        ASSERT_ALWAYS(mpz_cmp(p, t) == 0);
     }
 
     // Given a *prime* ell, check whether ell is coprime to current
     // entry.
     bool is_coprime_to(unsigned long ell) const {
-        if (prime_sq)
+        if (is_prime()) {
             return (mpz_cmp_ui(p, ell) != 0);
-        else {
-            for (unsigned int i = 0; i < prime_factors.size(); ++i) {
-                if (prime_factors[i] == ell)
+        } else {
+            for (auto p : prime_factors) {
+                if (p == ell)
                     return false;
             }
             return true;
         }
     }
 private:
-    void set(const mpz_t _p, const mpz_t _r, const int _side, const int _depth, const int _iteration);
+    void find_prime_factors();
 };
 
-#endif	/* LAS_TODO_ENTRY_HPP_ */
+std::ostream& operator<<(std::ostream&, las_todo_entry const &);
 
+#endif	/* LAS_TODO_ENTRY_HPP_ */

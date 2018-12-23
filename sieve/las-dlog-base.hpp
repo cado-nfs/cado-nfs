@@ -22,7 +22,7 @@ public:
     las_dlog_base(param_list_ptr pl);
     ~las_dlog_base();
 
-    static void declare_parameter_usage(param_list pl);
+    static void declare_usage(param_list pl);
 };
 
 #endif	/* LAS_DLOG_BASE_HPP_ */

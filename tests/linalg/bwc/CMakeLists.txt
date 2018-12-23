@@ -110,10 +110,11 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1 ${mextra})
             add_dependencies(test-bwc-modp-inhomogeneous-minimal-1rhs-mn1_dependencies
                 plingen_pz plingen_${gfp_layer})
-            #        add_bwc_test(modp-homogeneous-minimal-mn4 bwc-ptrace.sh
-            #            prime=1009 random_matrix_size=50 m=4 n=4 seed=1 ${mextra})
-            #        add_dependencies(modp-homogeneous-minimal-mn4_dependencies
-            #        plingen_pz plingen_${gfp_layer})
+            add_bwc_test(modp-homogeneous-minimal-mn4 bwc-ptrace.sh
+                prime=1009 random_matrix_size=50 m=4 n=4 seed=1
+                random_matrix_minkernel=1 ${mextra})
+            add_dependencies(test-bwc-modp-homogeneous-minimal-mn4_dependencies
+                plingen_pz plingen_${gfp_layer})
             #        add_bwc_test(modp-inhomogeneous-minimal-2rhs-mn2 bwc-ptrace.sh
             #            prime=1009 random_matrix_size=50 nrhs=2 m=2 n=2 seed=1 ${mextra})
             #        add_dependencies(modp-inhomogeneous-minimal-2rhs-mn2_dependencies
@@ -141,8 +142,9 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     # test).
     cado_define_test(test-bwc-plingen-${gfp_layer} SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
+        NO_DEFAULT_RUN
         TARGET_DEPENDENCIES plingen_${gfp_layer})
-    set_tests_properties(test-bwc-plingen-${gfp_layer} PROPERTIES WILL_FAIL 1)
+    # set_tests_properties(test-bwc-plingen-${gfp_layer} PROPERTIES WILL_FAIL 1)
 
     # Note that the thr argument here is used only in MPI
     # context, and ignored otherwise. In MPI context, this triggers the
@@ -178,6 +180,22 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             lingen_threshold=10 lingen_mpi_threshold=40 thr=3x3
             ${extra})
     endif()
+    if(gfp_layer STREQUAL "pz")
+        cado_define_test(test-bwc-plingen-draft
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_pz
+            ARGUMENTS
+lingen_threshold=60  m=4 n=2  prime=101538509534246169632617439 --random-input-with-length 20000  --draft 2 logline_threshold=2048
+            TARGET_DEPENDENCIES plingen_pz
+        )
+    endif()
+
+    cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
+        SOURCES test_matpoly.cpp
+        ARGUMENTS --prime ${p}
+        LIBRARIES utils plingen_${gfp_layer}_support)
+    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
 
@@ -431,3 +449,5 @@ cado_define_test(TEST_NAME test-lingen-crc
 endif()
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
+
+add_subdirectory (flint-fft)

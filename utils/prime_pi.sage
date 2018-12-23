@@ -7,16 +7,20 @@ def nb_special_q(q0,q1,qfac_min=None,qfac_max=infinity,verbose=false):
       kmax = floor(log(q1)/log(qfac_min))
       assert kmax <= 3, "number of special-q factors is assumed <= 3"
       pi1 = prime_pi(min(q1,qfac_max))-prime_pi(max(q0,qfac_min))
+      if pi1 < 0:
+         pi1 = 0
       # count number of composites p*q with q0 <= p*q < q1 and p <= q
       # we thus have p^2 < q1, thus p < sqrt(q1)
       # for each p, we have q0/p <= q < q1/p
       pi2 = 0
       pmax = min(qfac_max,floor(sqrt(q1-1)))
       for p in prime_range(qfac_min,pmax+1):
-         qmin = max(ceil(q0/p),p)
-         qmax = floor((q1-1)/p)
-         assert qmin <= qmax
-         pi2 += prime_pi(qmax) - prime_pi(qmin-1)
+         qmin = max(ceil(q0/p), p)
+         qmax = min(floor((q1-1)/p), qfac_max)
+         assert qfac_min <= qmin, "qfac_min <= qmin"
+         assert qmax <= qfac_max, "qmax <= qfac_max"
+         if qmin < qmax:
+            pi2 += prime_pi(qmax) - prime_pi(qmin-1)
       # q0 <= p*q*r < q1 with p <= q <= r
       pi3 = 0
       pmax = min(qfac_max,floor((q1-1)^(1/3)))
@@ -25,10 +29,12 @@ def nb_special_q(q0,q1,qfac_min=None,qfac_max=infinity,verbose=false):
          qmin = p
          qmax = min(qfac_max,floor(sqrt((q1-1)//p)))
          for q in prime_range(p,qmax+1):
-            rmin = max(ceil(q0/(p*q)),q)
-            rmax = floor((q1-1)/(p*q))
-            assert rmin <= rmax
-            pi3 += prime_pi(rmax) - prime_pi(rmin-1)
+            rmin = max(ceil(q0/(p*q)), q)
+            rmax = min(floor((q1-1)/(p*q)), qfac_max)
+            assert qfac_min <= rmin, "qfac_min <= qmin"
+            assert rmax <= qfac_max, "qmax <= qfac_max"
+            if rmin < rmax:
+               pi3 += prime_pi(rmax) - prime_pi(rmin-1)
       if verbose:
          print pi1, pi2, pi3
       return pi1 + pi2 + pi3

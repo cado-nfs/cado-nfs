@@ -211,10 +211,23 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     uint64_t b = rel->b;
 
     uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
-    for (weight_t i = 0; i < rel->nb; i++) {
-      index_t h = rel->primes[i].h;
-      int side = renumber_get_side_from_index (data->renum_tab, h, data->poly);
-      nonvoidside |= ((uint64_t) 1) << side;
+    if (data->poly->nb_polys > 2) {
+        for (weight_t i = 0; i < rel->nb; i++) {
+          index_t h = rel->primes[i].h;
+          int side = renumber_get_side_from_index (data->renum_tab, h, data->poly);
+          nonvoidside |= ((uint64_t) 1) << side;
+        }
+        /* nonvoidside must *not* be a power of two. If it is, then we
+         * have a nasty problem similar to bug 21707: in a sense, we have
+         * true gem of a relation that yields a trivial norm on one side,
+         * but it's really too bad that we have no effective way to check
+         * for it. */
+        ASSERT_ALWAYS(nonvoidside & (nonvoidside - 1));
+        /* one thing we might do at this point is recompute the norm from
+         * a, b, and data->poly->pols[side], and see if we get \pm1.
+         */
+    } else {
+        nonvoidside = 3;
     }
 
     if (rel->sm_size) {
@@ -235,7 +248,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 ASSERT_ALWAYS(u->deg == S->f->deg - 1);
                 for(int i = 0 ; i < S->nsm; i++) {
-                    ASSERT_ALWAYS(mpz_cmp(u->coeff[S->f->deg-1-i],rel->sm[c + i]) == 0);
+                    ASSERT_ALWAYS(mpz_cmp(u->coeff[i],rel->sm[c + i]) == 0);
                 }
 
 #endif
@@ -260,8 +273,13 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                 mpz_poly_setcoeff_int64(u, 1, -b);
                 compute_sm_piecewise(u, u, S);
                 ASSERT_ALWAYS(u->deg < S->f->deg);
+#if 0 // Legacy SMs
                 for(int i = S->f->deg-1-u->deg; i < S->nsm; i++)
                     mpz_addmul (l, data->smlogs[side][i], u->coeff[S->f->deg-1-i]);
+#else
+                for(int i = 0; i < S->nsm; i++)
+                    mpz_addmul (l, data->smlogs[side][i], u->coeff[i]);
+#endif
                 mpz_mod(l, l, ell);
                 mpz_poly_clear(u);
             }
@@ -1149,12 +1167,12 @@ static void declare_usage(param_list pl)
                                       "(see purge -outdel parameter)");
   param_list_decl_usage(pl, "nrels", "number of relations (same as purge "
                                      "-nrels parameter)");
-  param_list_decl_usage(pl, "partial", "(switch) do not reconstruct everything "
+  param_list_decl_usage(pl, "partial", "do not reconstruct everything "
                                        "that can be reconstructed");
   param_list_decl_usage(pl, "nsm", "number of SM's to add on side 0,1,...");
   param_list_decl_usage(pl, "mt", "number of threads (default 1)");
   param_list_decl_usage(pl, "wanted", "file containing list of wanted logs");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }

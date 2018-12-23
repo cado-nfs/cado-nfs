@@ -27,16 +27,16 @@ static void declare_usage(param_list pl)
     "where (r0,r1) are the bits size for our couple of cofactors.\n");
 
     param_list_decl_usage(pl, "gdc",
-    "(switch)  to precompute all decompositions of cofactors of mfb bits given that \n "
+    "to precompute all decompositions of cofactors of mfb bits given that \n "
 "\t \t it has no prime divisors less than lim. So, you must specify these options:\n"
 			  "\t \t -lim0, -mfb0\n");
     param_list_decl_usage(pl, "gst_r",
-			  "(switch)  to precompute the best strategies \n"
+			  "to precompute the best strategies \n"
 			  "\t \t for one bit size cofactor.\n "
 			  "\t \t You must specify these options:\n"
 			  "\t \t -lim0, -lpb0, -r0, -ncurves, -decomp\n");
     param_list_decl_usage(pl, "gst",
-	"(switch)  to merge two (or all) precomputing did by the option 'gst_r',\n "
+	"to merge two (or all) precomputing did by the option 'gst_r',\n "
 	"\t \t and thus find the best strategie(s) for one (or each) couple (r0,r1).\n"
 	"\t \t So, you must specify these options:\n"
 	"\t \t -lim0, -lim1 ,-in, and ((-r0 -r1) or (-mfb0, -mfb1))\n");

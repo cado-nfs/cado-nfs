@@ -6,13 +6,15 @@
 #include <string.h>
 #include <errno.h>
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
 
-#include "relation.h"
+#include "relation.hpp"
 #include "gzip.h"
 #include "timing.h"
 #include "portability.h"
 #include "relation-tools.h"
-#include "relation.h"
+#include "relation.hpp"
 
 using namespace std;
 
@@ -65,40 +67,44 @@ relation::parse(const char *line)
     return 1;
 }
 
-void
-relation::print (FILE *file, const char *prefix) const
+std::istream& operator>>(std::istream& is, relation& rel)
 {
-    char buf[RELATION_MAX_BYTES], *p = buf;
-    char * fence = buf + sizeof(buf);
-    int c;
-
-    c = strlcpy(p, prefix, fence - p);
-    p += strnlen(prefix, sizeof(buf));
-
-    c = gmp_snprintf(p, fence - p, "%Zd,%Zd", (mpz_srcptr)az, (mpz_srcptr)bz);
-    p += c;
-
-    for(int side = 0 ; side < nb_polys ; side++) {
-        if (p + 1 < fence) *p++ = ':';
-        char * op = p;
-        for(unsigned int i = 0 ; i < sides[side].size() ; i++) {
-            for(int e = sides[side][i].e ; e ; e--) {
-                c = gmp_snprintf(p, fence - p, "%Zx,", (mpz_srcptr) sides[side][i].p);
-                p += c;
-            }
-        }
-        if (p > op) p--;
+    std::string s;
+    if (!getline(is, s, '\n') || !rel.parse(s.c_str())) {
+        is.setstate(std::ios_base::failbit);
+        rel = relation();
     }
-    if (p + 1 < fence) *p++ = '\n';
-    *p = '\0';
-    /* print all in one go, this gives us a chance to minimize the risk
-     * of mixing up output if we don't pay attention to I/O locking too
-     * much in multithreaded context. */
-    size_t written = fwrite (buf, 1, p - buf, file);
-    if (written != (size_t) (p - buf)) {
+    return is;
+}
+
+void relation::print (FILE *file, const char *prefix) const
+{
+    std::ostringstream os;
+    if (prefix) os << prefix;
+    os << *this << '\n';
+    int rc = fputs(os.str().c_str(), file);
+    if (rc < 0) {
         perror("Error writing relation");
         abort();
     }
+}
+
+std::ostream& operator<<(std::ostream& os, relation const &rel)
+{
+    os << rel.az << ',' << rel.bz;
+    os << std::hex;
+    for(int side = 0 ; side < rel.nb_polys ; side++) {
+        os << ':';
+        bool comma=false;
+        for(auto const& v : rel.sides[side]) {
+            for(int e = v.e ; e ; e--) {
+                if (comma) os << ',';
+                os << v.p;
+                comma = true;
+            }
+        }
+    }
+    return os;
 }
 
 void relation::add(int side, mpz_srcptr p)

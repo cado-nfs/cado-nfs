@@ -1,6 +1,6 @@
 #include "cado.h"
 #include <math.h>       /* rint etc */
-#include "las-types.hpp"
+#include "las-info.hpp"
 #include "las-qlattice.hpp"
 #include "las-arith.hpp"
 
@@ -123,7 +123,7 @@ generic_skew_gauss(mpz_t a[2], mpz_t b[2], double skewness)
     return 1;
 }
 
-int
+static int
 SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
            const double skewness)
 {
@@ -152,3 +152,30 @@ SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
     mpz_clear (b[1]);
     return fits ? 1 : 0;
 }
+
+qlattice_basis::qlattice_basis(las_todo_entry const & doing, double skew) :
+    doing(doing)
+{
+    /* Currently requires prime or composite square-free special-q
+     * values, For powers, the base prime would have to be determined and
+     * stored in a variable, so that powers of that prime in the factor
+     * base can be skipped over.  */
+    ASSERT_ALWAYS(!mpz_perfect_power_p(doing.p));
+    q_ulong = mpz_fits_ulong_p(doing.p) ? mpz_get_ui(doing.p) : 0;
+
+    if (!SkewGauss (*this, doing.p, doing.r, skew)) {
+        throw too_skewed();
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q)
+{
+    os << Q.doing << ";"
+        << " a0=" << Q.a0 << ";"
+        << " b0=" << Q.b0 << ";"
+        << " a1=" << Q.a1 << ";"
+        << " b1=" << Q.b1;
+    return os;
+}
+
+

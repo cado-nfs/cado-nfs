@@ -278,7 +278,7 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
                 for(int k = 0 ; k < sm_info[side]->nsm ; k++, smidx++) {
                     if (k <= smpol->deg) {
                         for(size_t j = 0 ; j < limbs_per_ell ; j++) {
-                            returns[i][smidx][j] = mpz_getlimbn(smpol->coeff[smpol->deg-k], j);
+                            returns[i][smidx][j] = mpz_getlimbn(smpol->coeff[k], j);
                         }
                     }
                 }

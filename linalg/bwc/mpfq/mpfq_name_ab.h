@@ -69,6 +69,7 @@
 
 #define abinit(a0,a1)	abcommon_name_(init) (a0,a1)
 #define abclear(a0,a1)	abcommon_name_(clear) (a0,a1)
+#define abelt_stride(a0)	abcommon_name_(elt_stride) (a0)
 
 #define abset(a0,a1,a2)	abcommon_name_(set) (a0,a1,a2)
 #define abset_ui(a0,a1,a2)	abcommon_name_(set_ui) (a0,a1,a2)
@@ -113,6 +114,7 @@
 
 #define abelt_ur_init(a0,a1)	abcommon_name_(elt_ur_init) (a0,a1)
 #define abelt_ur_clear(a0,a1)	abcommon_name_(elt_ur_clear) (a0,a1)
+#define abelt_ur_stride(a0)	abcommon_name_(elt_ur_stride) (a0)
 #define abelt_ur_set(a0,a1,a2)	abcommon_name_(elt_ur_set) (a0,a1,a2)
 #define abelt_ur_set_elt(a0,a1,a2)	abcommon_name_(elt_ur_set_elt) (a0,a1,a2)
 #define abelt_ur_set_zero(a0,a1)	abcommon_name_(elt_ur_set_zero) (a0,a1)
@@ -182,6 +184,12 @@
 #define abvec_write(a0,a1,a2,a3)	abcommon_name_(vec_write) (a0,a1,a2,a3)
 #define abvec_import(a0,a1,a2,a3,a4)	abcommon_name_(vec_import) (a0,a1,a2,a3,a4)
 #define abvec_export(a0,a1,a2,a3,a4)	abcommon_name_(vec_export) (a0,a1,a2,a3,a4)
+#define abvec_hamming_weight(a0,a1,a2)	abcommon_name_(vec_hamming_weight) (a0,a1,a2)
+#define abvec_find_first_set(a0,a1,a2)	abcommon_name_(vec_find_first_set) (a0,a1,a2)
+
+#define abvec_simd_hamming_weight(a0,a1,a2)	abcommon_name_(vec_simd_hamming_weight) (a0,a1,a2)
+#define abvec_simd_find_first_set(a0,a1,a2)	abcommon_name_(vec_simd_find_first_set) (a0,a1,a2)
+
 
 #define abvec_ur_init(a0,a1,a2)	abcommon_name_(vec_ur_init) (a0,a1,a2)
 #define abvec_ur_set_zero(a0,a1,a2)	abcommon_name_(vec_ur_set_zero) (a0,a1,a2)
@@ -243,15 +251,13 @@
 
 
 
-#define abgroupsize(a0)	abcommon_name_(groupsize) (a0)
-#define aboffset(a0,a1)	abcommon_name_(offset) (a0,a1)
-#define abstride(a0)	abcommon_name_(stride) (a0)
-#define abset_ui_at(a0,a1,a2,a3)	abcommon_name_(set_ui_at) (a0,a1,a2,a3)
-#define abset_ui_all(a0,a1,a2)	abcommon_name_(set_ui_all) (a0,a1,a2)
-
-#define abelt_ur_set_ui_at(a0,a1,a2,a3)	abcommon_name_(elt_ur_set_ui_at) (a0,a1,a2,a3)
-#define abelt_ur_set_ui_all(a0,a1,a2)	abcommon_name_(elt_ur_set_ui_all) (a0,a1,a2)
-
+#define absimd_groupsize(a0)	abcommon_name_(simd_groupsize) (a0)
+#define absimd_hamming_weight(a0,a1)	abcommon_name_(simd_hamming_weight) (a0,a1)
+#define absimd_find_first_set(a0,a1)	abcommon_name_(simd_find_first_set) (a0,a1)
+#define absimd_get_ui_at(a0,a1,a2)	abcommon_name_(simd_get_ui_at) (a0,a1,a2)
+#define absimd_set_ui_at(a0,a1,a2,a3)	abcommon_name_(simd_set_ui_at) (a0,a1,a2,a3)
+#define absimd_add_ui_at(a0,a1,a2,a3,a4)	abcommon_name_(simd_add_ui_at) (a0,a1,a2,a3,a4)
+#define absimd_set_ui_all(a0,a1,a2)	abcommon_name_(simd_set_ui_all) (a0,a1,a2)
 #define abdotprod(a0,a1,a2,a3,a4)	abcommon_name_(dotprod) (a0,a1,a2,a3,a4)
 #define abmul_constant_ui(a0,a1,a2,a3)	abcommon_name_(mul_constant_ui) (a0,a1,a2,a3)
 

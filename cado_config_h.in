@@ -44,6 +44,7 @@
 #cmakedefine    HAVE_ARM_NEON
 
 #cmakedefine    HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#cmakedefine    HAVE_GCC_STYLE_ARM_INLINE_ASM
 
 #cmakedefine    VOLATILE_IF_GCC_UBUNTU_BUG
 #cmakedefine    VOLATILE_IF_GCC_58805_BUG
@@ -100,6 +101,8 @@
 
 #cmakedefine    HAVE_HWLOC
 
+#cmakedefine    HAVE_GMPECM
+
 #cmakedefine    HAVE_STD_SHARED_PTR
 #cmakedefine    HAVE_BOOST_SHARED_PTR
 
@@ -123,6 +126,11 @@
 #endif
 
 #cmakedefine    HAVE_JEVENTS
+
+#cmakedefine    HAVE_GLIBC_VECTOR_INTERNALS
+
+#cmakedefine    UINT64_T_IS_UNSIGNED_LONG
+#cmakedefine    UINT64_T_IS_UNSIGNED_LONG_LONG
 
 /* vim:set ft=c: */
 #endif  /* CADO_CONFIG_H_ */

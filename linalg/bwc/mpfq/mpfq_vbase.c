@@ -86,7 +86,7 @@ void mpfq_vbase_oo_field_init_byfeatures(mpfq_vbase_ptr v, ...)
         for(int a ; (a = va_arg(ap, int)) != 0 ; ) {
             if (a == MPFQ_PRIME_MPZ) {
                 mpz_set(p, va_arg(ap, mpz_srcptr));
-            } else if (a == MPFQ_GROUPSIZE) {
+            } else if (a == MPFQ_SIMD_GROUPSIZE) {
                 groupsize = va_arg(ap, int);
             } else if (a == MPFQ_MANDATORY_TAG) {
                 mandatory_tag = va_arg(ap, const char *);
@@ -256,7 +256,7 @@ void mpfq_vbase_oo_field_init_byfeatures(mpfq_vbase_ptr v, ...)
             exit(1);
         }
         v->field_specify(v, MPFQ_PRIME_MPZ, p);
-        v->field_specify(v, MPFQ_GROUPSIZE, &groupsize);
+        v->field_specify(v, MPFQ_SIMD_GROUPSIZE, &groupsize);
         mpz_clear(p);
 }
 

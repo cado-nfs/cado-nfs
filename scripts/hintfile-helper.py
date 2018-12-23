@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# NOTE: this file is unmaintained, and unnecessary now.
+# https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2018-July/000924.html
+
 # Example for the p59 in tests/test_full_p59
 # scripts/hintfile-helper.py
 #   --cadobindir /tmp/cado-nfs-build-master

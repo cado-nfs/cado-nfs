@@ -16,6 +16,7 @@
 #include "modredc_ul.h"
 #include "mod_ul.h"
 #include "modredc_ul_default.h"
+#include "lucas_V_mod.h"
 #include "portability.h"
 
 static int 
@@ -360,7 +361,7 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
   mod_sub (discr, discr, two, pp); /* discr = x^2 - 4 */
 
   if (mod_jacobi(discr, pp) == -1) {
-    mod_V_ul (rr, xx, (p+3)/4, pp);
+    mod_V_eval_ul (rr, NULL, xx, (p+3)/4, pp);
   } else {
     /* Find a suitable c value */
     residue_t cc;
@@ -378,7 +379,7 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
         break;
     }
     ASSERT_ALWAYS(c < p);
-    mod_V_ul (xx, xx, (p+3)/4, pp);
+    mod_V_eval_ul (xx, NULL, xx, (p+3)/4, pp);
     /* Divide out c, using hard-coded functions for small cases */
     while (c % 2 == 0) {
       mod_div2 (xx, xx, pp);

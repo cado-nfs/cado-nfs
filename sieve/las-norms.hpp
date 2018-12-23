@@ -9,6 +9,10 @@
 #include "cado_poly.h"
 #include "logapprox.hpp"
 
+/* Only relevant with --adjust-strategy 2 */
+#define ADJUST_STRATEGY2_MIN_SQUEEZE 0
+#define ADJUST_STRATEGY2_MAX_SQUEEZE 3
+
 double get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X, const double Y);
 
 struct lognorm_base {/*{{{*/
@@ -29,7 +33,11 @@ struct lognorm_base {/*{{{*/
     double scale;      /* scale used for logarithms for fb and norm.
                         * must be of form (int)x * 0.1 */
 
-    lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
+    lognorm_base() = default;
+    lognorm_base(lognorm_base const &) = default;
+    lognorm_base& operator=(lognorm_base const &) = default;
+    lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
+    virtual ~lognorm_base() {}
 
     void norm(mpz_ptr x, int i, unsigned int j) const;
     unsigned char lognorm(int i, unsigned int j) const;
@@ -45,9 +53,21 @@ struct lognorm_base {/*{{{*/
 struct lognorm_reference : public lognorm_base {/*{{{*/
     /* See init_degree_X_norms_bucket_region_referencecode for the
      * explanation of this table. */
+
+    /* Number of bits used to estimate the norms with the old reference code.
+     * Unused otherwise.
+     * This should be large enough: it must be such that all norms are
+     * smaller than 2^(2^NORM_BITS)
+     * This imposes NORM_BITS >= 8, or even >= 9 for large factorizations. */
+    static const int NORM_BITS = 10;
+
     unsigned char lognorm_table[1 << NORM_BITS];
 
-    lognorm_reference(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
+    lognorm_reference() = default;
+    lognorm_reference(lognorm_reference const &) = default;
+    lognorm_reference& operator=(lognorm_reference const &) = default;
+    lognorm_reference(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
+    virtual ~lognorm_reference() {}
     virtual void fill(unsigned char * S, int N) const;
 };
 
@@ -62,29 +82,33 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
      * original one on the segment [-I,I]x{1}.
      */
     piecewise_linear_function G;
-    lognorm_smart(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J);
+    lognorm_smart() = default;
+    lognorm_smart(lognorm_smart const &) = default;
+    lognorm_smart& operator=(lognorm_smart const &) = default;
+    lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
+    virtual ~lognorm_smart() {}
     virtual void fill(unsigned char * S, int N) const;
 };
 
 /*}}}*/
 struct sieve_range_adjust {/*{{{*/
-    friend struct sieve_info;
+    qlattice_basis Q;
 private:
-    las_todo_entry doing;
     siever_config conf;         /* This "conf" field is only used for a
-                                 * few fields. In particular the
-                                 * large prime bounds. We're specifically
-                                 * *not* using the sieving fields, since
-                                 * by design these can be decided *after*
-                                 * the adjustment.  */
+                                 * few fields:
+                                 *      logA
+                                 *      lpb
+                                 * We're specifically *not* using the
+                                 * sieving fields, since by design these
+                                 * can be decided *after* the adjustment.
+                                 */
     cado_poly_srcptr cpoly;
-    int nb_threads;
+    // int nb_threads;  // no longer needed.
     cxx_double_poly fijd[2];
     int logA;
 public:
     int logI;
-    int J;
-    qlattice_basis Q;
+    uint32_t J;
 
 #if 0
     sieve_range_adjust(las_todo_entry const & doing, las_info const & las)
@@ -101,22 +125,19 @@ public:
 #endif
 
     /* This is only for desperate cases. In las-duplicates, for the
-     * moment it seems that we're lacking the las_info structure... */
-    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf, int nb_threads = 1)
-        : doing(doing), conf(conf), cpoly(cpoly), nb_threads(nb_threads)
+     * moment it seems that we're lacking the las_info structure...
+     *
+     * Note that the ctor for qlattice_basis calls SkewGauss
+     */
+    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf)
+        : Q(doing, cpoly->skew), conf(conf), cpoly(cpoly)
     {
         logA = conf.logA;
         logI = J = 0;
     }
-
-
-    int SkewGauss() {
-        int ret = ::SkewGauss(Q, doing.p, doing.r, cpoly->skew);
-        Q.set_q(doing.p, doing.prime_sq);
-        if (!Q.prime_sq)
-            Q.prime_factors = Q.prime_factors;
-        return ret;
-    }
+    sieve_range_adjust() = default;
+    sieve_range_adjust(sieve_range_adjust&&) = default;
+    sieve_range_adjust& operator=(sieve_range_adjust&&) = default;
 
     /* There are three strategies to do a post-SkewGauss adjustment of
      * the q-lattice basis.  */
@@ -131,7 +152,7 @@ public:
     // a fall-back measure for desperate cases.
     // XXX when estimated_yield() wins, this will probably no longer be
     // necessary.
-    int get_minimum_J();
+    uint32_t get_minimum_J();
     void set_minimum_J_anyway();
 
     siever_config const& config() const { return conf; }
@@ -142,6 +163,14 @@ private:
         T & operator()(int i, int j) { return x[2*i+j]; }
         mat(T a, T b, T c, T d) { x[0]=a; x[1]=b; x[2]=c; x[3]=d; }
         mat(T y[4]) { x[0]=y[0]; x[1]=y[1]; x[2]=y[2]; x[3]=y[3]; }
+        std::ostream& print_me(std::ostream& o) const {
+            o << "["
+                << x[0] << ", "
+                << x[1] << ", "
+                << x[2] << ", "
+                << x[3] << "]";
+            return o;
+        }
     };
     template<typename T> struct vec {
         T x[2];
@@ -151,11 +180,17 @@ private:
         T & operator[](int i) { return x[i]; }
         T const& operator()(int i) const { return x[i]; }
         T & operator()(int i) { return x[i]; }
+        std::ostream& print_me(std::ostream& o) const {
+            o << "["
+                << x[0] << ", "
+                << x[1] << "]";
+            return o;
+        }
     };
     friend sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
     friend qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
     void prepare_fijd();
-    int adapt_threads(const char *);
+    int round_to_full_bucket_regions(const char *, std::string const & s = std::string());
     double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
 };/*}}}*/
 

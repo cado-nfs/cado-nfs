@@ -298,7 +298,9 @@ void stats_init(stats_t S) {
   }
 }
 
+#if 0
 void stats_clear(stats_t S) { }
+#endif
 
 void stats_update(stats_t S, double gain, unsigned int i) {
   double newav = S->aver_gain[i]*S->nb_test[i] + gain;
@@ -315,7 +317,7 @@ typedef struct {
   pool_t pool;
   stats_t stats;
   void *param_next_cand;
-  void (*next_cand)(cand_t, void *); // new candidate put in first arg.
+  int (*next_cand)(cand_t, void *); // new candidate put in first arg.
   unsigned long target;              // smoothness bound (in bits)
   double current_effort;             // current effort per candidate.
   double max_effort;
@@ -365,14 +367,22 @@ void my_ecm_factor(mpz_t f, mpz_t z, double B1) {
 
 // One step of smoothness detection: get a new candidate, run a bunch of
 // ECMs, update the pool, and the stats.
-bool smooth_detect_one_step(cand_t winner, context_t ctx) {
+// Return value:
+//   1: smooth
+//   0: non-smooth
+//   -1: early stop, no more candidate to test.
+int smooth_detect_one_step(cand_t winner, context_t ctx) {
   cand_t C;
   cand_init(C);
   // Get a new candidate, not obviously non-smooth
   double gain_u = mpz_sizeinbase(C->u0, 2) - mpz_sizeinbase(C->u, 2);
   double gain_v = mpz_sizeinbase(C->v0, 2) - mpz_sizeinbase(C->v, 2);
   do {
-    ctx->next_cand(C, ctx->param_next_cand);
+    int ret = ctx->next_cand(C, ctx->param_next_cand);
+    if (ret == 0) {
+      cand_clear(C);
+      return -1; // early stop, no more candidate.
+    }
     gain_u += remove_small_factors(C->u);
     gain_v += remove_small_factors(C->v);
     cand_update_check_prime(C);
@@ -428,7 +438,7 @@ bool smooth_detect_one_step(cand_t winner, context_t ctx) {
   if (l > ctx->target) {
     cand_clear(C);
     increase_effort(ctx);
-    return false;
+    return 0;
   }
 
   // Did we factor the candidate completely?
@@ -437,10 +447,11 @@ bool smooth_detect_one_step(cand_t winner, context_t ctx) {
     cand_print(C);
     cand_set(winner, C);
     cand_clear(C);
-    return true;
+    return 1;
   } else {
     pool_insert(ctx->pool, C);
   }
+  cand_clear(C);
 
   B1 = get_B1_from_effort(ctx->current_effort, ctx->minB1);
 
@@ -488,17 +499,17 @@ bool smooth_detect_one_step(cand_t winner, context_t ctx) {
     if (cand_is_factored(c) && l <= ctx->target) {
       cand_print(c);
       cand_set(winner, c);
-      return true;
+      return 1;
     }
   }
   pool_sort(ctx->pool);
   pool_purge(ctx->pool, ctx->max_pool_size, ctx->target);
 
   increase_effort(ctx);
-  return false;
+  return 0;
 }
 
-void smooth_detect(cand_t C, void (*next_cand)(cand_t, void *),
+void smooth_detect(cand_t C, int (*next_cand)(cand_t, void *),
     void *param_next_cand, unsigned long target,
     const smooth_detect_param_s* param) {
   /* fix issue with ECM 6.4.x */
@@ -528,8 +539,8 @@ void smooth_detect(cand_t C, void (*next_cand)(cand_t, void *),
 
   double tm = get_time();
   int cpt = 0;
-  bool found = false;
-  while (!found) {
+  int found = 0;
+  while (found == 0) {
     found = smooth_detect_one_step(C, ctx);
     cpt++;
     if (param->verbose && (cpt % 20 == 0)) {

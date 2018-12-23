@@ -1,39 +1,18 @@
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+/* flint uses unprotected openmp pragmas every so often */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
@@ -41,12 +20,12 @@
 #include "fft.h"
 
 /*
- * Set \code{u = s/2^b1 + t/2^b1)}, \code{v = s/2^b1 - t/2^b1} modulo 
- * \code{B^limbs + 1}. This is used to compute 
- * \code{u = 2^(-ws*tw1)*s + 2^(-ws*tw2)*t)},\\
- * \code{v = 2^(-ws*tw1)*s + 2^(-ws*tw2)*t)} in the matrix fourier algorithm, 
+ * Set ``u = s/2^b1 + t/2^b1)``, ``v = s/2^b1 - t/2^b1`` modulo 
+ * ``B^limbs + 1``. This is used to compute 
+ * ``u = 2^(-ws*tw1)*s + 2^(-ws*tw2)*t)``,\
+ * ``v = 2^(-ws*tw1)*s + 2^(-ws*tw2)*t)`` in the matrix fourier algorithm, 
  * i.e. effectively computing an ordinary butterfly with additional twiddles 
- * by \code{z1^(-rc)} for row $r$ and column $c$ of the matrix of 
+ * by ``z1^(-rc)`` for row `r` and column `c` of the matrix of 
  * coefficients. Aliasing is not allowed.
  * 
  */
@@ -83,11 +62,11 @@ void ifft_butterfly_twiddle(mp_limb_t * u, mp_limb_t * v,
 }
 
 /*
- * As for \code{ifft_radix2} except that the coefficients are spaced by 
- * \code{is} in the array \code{ii} and an additional twist by 
- * \code{z^(-c*i)} is applied to each coefficient where $i$ starts at $r$ 
- * and increases by \code{rs} as one moves from one coefficient to the next. 
- * Here \code{z} corresponds to multiplication by \code{2^ws}. 
+ * As for ``ifft_radix2`` except that the coefficients are spaced by 
+ * ``is`` in the array ``ii`` and an additional twist by 
+ * ``z^(-c*i)`` is applied to each coefficient where `i` starts at `r` 
+ * and increases by ``rs`` as one moves from one coefficient to the next. 
+ * Here ``z`` corresponds to multiplication by ``2^ws``. 
  * 
  */
 void ifft_radix2_twiddle(mp_limb_t ** ii, mp_size_t is,
@@ -124,8 +103,8 @@ void ifft_radix2_twiddle(mp_limb_t ** ii, mp_size_t is,
 }
 
 /*
- * As per \code{ifft_radix2_twiddle} except that the transform is truncated
- * as per\\ \code{ifft_truncate1}.
+ * As per ``ifft_radix2_twiddle`` except that the transform is truncated
+ * as per\\ ``ifft_truncate1``.
  * 
  */
 void ifft_truncate1_twiddle(mp_limb_t ** ii, mp_size_t is,
@@ -181,21 +160,21 @@ void ifft_truncate1_twiddle(mp_limb_t ** ii, mp_size_t is,
 }
 
 /*
- * This is as per the \code{ifft_truncate_sqrt2} function except that the 
+ * This is as per the ``ifft_truncate_sqrt2`` function except that the 
  * matrix fourier algorithm is used for the left and right IFFTs. The total 
- * transform length is $4n$ where \code{n = 2^depth} so that the left and
- * right transforms are both length $2n$. We require \code{trunc > 2*n} and
- * that \code{trunc} is divisible by \code{2*n1}.
+ * transform length is `4n` where ``n = 2^depth`` so that the left and
+ * right transforms are both length `2n`. We require ``trunc > 2*n`` and
+ * that ``trunc`` is divisible by ``2*n1``.
  * 
- * We set \code{n1} to a power of 2 about the square root of $n$.
+ * We set ``n1`` to a power of 2 about the square root of `n`.
  * 
  * As per the matrix fourier FFT the sqrt2 layer is folded into the the 
  * final column IFFTs for better cache locality and the extra twiddles that 
  * occur in the matrix fourier algorithm are combined with the butterflied 
  * performed at the first layer of the final column transforms.
  * 
- * We require $nw$ to be at least 64 and the three temporary space pointers 
- * to point to blocks of size \code{n*w + FLINT_BITS} bits.
+ * We require `nw` to be at least 64 and the three temporary space pointers 
+ * to point to blocks of size ``n*w + FLINT_BITS`` bits.
  * 
  */
 void ifft_mfa_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
@@ -312,8 +291,9 @@ void ifft_mfa_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
 }
 
 /*
- * The outer layers of \code{ifft_mfa_truncate_sqrt2} combined with
+ * The outer layers of ``ifft_mfa_truncate_sqrt2`` combined with
  * normalisation.
+ * 
  * 
  */
 void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
@@ -327,6 +307,7 @@ void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
     mp_bitcnt_t depth = 0;
     mp_bitcnt_t depth2 = 0;
     mp_bitcnt_t limbs = (w * n) / FLINT_BITS;
+    int k = 0;
 
     while ((UWORD(1) << depth) < n2)
 	depth++;
@@ -336,7 +317,12 @@ void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
     /* first half mfa IFFT : n2 rows, n1 cols */
 
     /* column IFFTs */
+#pragma omp parallel for private(i, j, k)
     for (i = 0; i < n1; i++) {
+#if defined(_OPENMP)
+	k = omp_get_thread_num();
+#endif
+
 	for (j = 0; j < n2; j++) {
 	    mp_size_t s = n_revbin(j, depth);
 	    if (j < s)
@@ -346,14 +332,21 @@ void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
 	/* 
 	 * IFFT of length n2 on column i, applying z^{r*i} for rows going up
 	 * in steps of 1 starting at row 0, where z => w bits */
-	ifft_radix2_twiddle(ii + i, n1, n2 / 2, w * n1, t1, t2, w, 0, i, 1);
+	ifft_radix2_twiddle(ii + i, n1, n2 / 2, w * n1, t1 + k, t2 + k, w, 0,
+			    i, 1);
     }
 
     /* second half IFFT : n2 rows, n1 cols */
     ii += 2 * n;
 
     /* column IFFTs with relevant sqrt2 layer butterflies combined */
+
+#pragma omp parallel for private(i, j, k)
     for (i = 0; i < n1; i++) {
+#if defined(_OPENMP)
+	k = omp_get_thread_num();
+#endif
+
 	for (j = 0; j < trunc2; j++) {
 	    mp_size_t s = n_revbin(j, depth);
 	    if (j < s)
@@ -365,7 +358,7 @@ void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
 	    if (w & 1) {
 		if (i & 1)
 		    fft_adjust_sqrt2(ii[i + j * n1], ii[u - 2 * n], u, limbs,
-				     w, *temp);
+				     w, temp[k]);
 		else
 		    fft_adjust(ii[i + j * n1], ii[u - 2 * n], u / 2, limbs,
 			       w);
@@ -376,29 +369,29 @@ void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
 	/* 
 	 * IFFT of length n2 on column i, applying z^{r*i} for rows going up
 	 * in steps of 1 starting at row 0, where z => w bits */
-	ifft_truncate1_twiddle(ii + i, n1, n2 / 2, w * n1, t1, t2, w, 0, i, 1,
-			       trunc2);
+	ifft_truncate1_twiddle(ii + i, n1, n2 / 2, w * n1, t1 + k, t2 + k, w,
+			       0, i, 1, trunc2);
 
 	/* relevant components of final sqrt2 layer of IFFT */
 	if (w & 1) {
 	    for (j = i; j < trunc - 2 * n; j += n1) {
 		if (j & 1)
-		    ifft_butterfly_sqrt2(*t1, *t2, ii[j - 2 * n], ii[j], j,
-					 limbs, w, *temp);
+		    ifft_butterfly_sqrt2(t1[k], t2[k], ii[j - 2 * n], ii[j],
+					 j, limbs, w, temp[k]);
 		else
-		    ifft_butterfly(*t1, *t2, ii[j - 2 * n], ii[j], j / 2,
+		    ifft_butterfly(t1[k], t2[k], ii[j - 2 * n], ii[j], j / 2,
 				   limbs, w);
 
-		SWAP_PTRS(ii[j - 2 * n], *t1);
-		SWAP_PTRS(ii[j], *t2);
+		SWAP_PTRS(ii[j - 2 * n], t1[k]);
+		SWAP_PTRS(ii[j], t2[k]);
 	    }
 	} else {
 	    for (j = i; j < trunc - 2 * n; j += n1) {
-		ifft_butterfly(*t1, *t2, ii[j - 2 * n], ii[j], j, limbs,
+		ifft_butterfly(t1[k], t2[k], ii[j - 2 * n], ii[j], j, limbs,
 			       w / 2);
 
-		SWAP_PTRS(ii[j - 2 * n], *t1);
-		SWAP_PTRS(ii[j], *t2);
+		SWAP_PTRS(ii[j - 2 * n], t1[k]);
+		SWAP_PTRS(ii[j], t2[k]);
 	    }
 	}
 

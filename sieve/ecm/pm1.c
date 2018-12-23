@@ -21,10 +21,9 @@ pm1_stage1 (residue_t x, const unsigned long *E, const int E_nrwords,
 
 
 /* Looks for a factor of the modulus m, using the P-1 algorithm.
-   The parameteres of P-1 are given in plan.
-   Returns 1 if backtracking was used, 0 otherwise. FIXME: Right now always 
-   returns 0. */
-
+ * The parameters of P-1 are given in plan.
+ * Returns 1 if backtracking was used, 0 otherwise.
+ */
 int 
 pm1 (modint_t f, const modulus_t m, const pm1_plan_t *plan)
 {
@@ -83,7 +82,7 @@ pm1 (modint_t f, const modulus_t m, const pm1_plan_t *plan)
   printf ("X = x+1/x; X == %lu /* PARI */\n", mod_get_ul (X, m));
 #endif
   
-  pp1_stage2 (t, X, &(plan->stage2), two, m);
+  bt = pp1_stage2 (t, X, &(plan->stage2), two, m);
   mod_gcd (f, t, m);
   
   mod_clear (one, m);

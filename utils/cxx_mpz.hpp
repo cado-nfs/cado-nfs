@@ -3,11 +3,18 @@
 #include "macros.h"
 
 #include <gmp.h>
+#include <istream>
+#include <ostream>
+
+#include "gmp_aux.h"
 
 struct cxx_mpz {
     mpz_t x;
     cxx_mpz() { mpz_init(x); }
     cxx_mpz(unsigned long p) { mpz_init_set_ui(x, p); }
+#if ULONG_BITS < 64
+    cxx_mpz(uint64_t p) { mpz_init_set_uint64(x, p); }
+#endif
     ~cxx_mpz() { mpz_clear(x); }
     cxx_mpz(cxx_mpz const & o) {
         mpz_init(x);
@@ -69,4 +76,13 @@ struct cxx_mpq{
 extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be called on a mpq reference -- it is the caller's business (via a ctor)")));
 extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
 #endif
+
+inline bool operator==(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) == 0; }
+inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
+inline bool operator<(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) < 0; }
+inline bool operator<(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) < 0; }
+inline std::ostream& operator<<(std::ostream& os, cxx_mpz const& x) { return os << (mpz_srcptr) x; }
+inline std::ostream& operator<<(std::ostream& os, cxx_mpq const& x) { return os << (mpq_srcptr) x; }
+inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (mpz_ptr) x; }
+inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
 #endif	/* CXX_MPZ_HPP_ */

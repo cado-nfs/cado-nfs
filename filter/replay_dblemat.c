@@ -613,7 +613,7 @@ static void declare_usage(param_list pl)
       "dense matrix (default " STR(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "index", "file containing description of rows "
       "(relations-sets) of the matrix");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }

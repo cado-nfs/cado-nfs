@@ -109,6 +109,11 @@ end if;
 // Mx:=Cr*M*Transpose(Cc);
 Mx:=M;
 
+Mp:=Matrix(GF(p),Matrix(M_orig));
+assert Mp eq Submatrix(M,1,1,Nrows(Mp),Ncols(Mp));
+assert Mp eq Submatrix(Mx,1,1,Nrows(Mp),Ncols(Mp));
+
+
 assert Mx[2] eq (Sr*Mx)[2^(sr^-1)];
 assert Transpose(Mx)[2] eq (Sc*Transpose(Mx))[2^(sc^-1)];
 
@@ -253,6 +258,49 @@ while i * m lt Nrows(MM) do
         print i, d, i*m-d;
     end if;
 end while;
+
+
+// one by one
+
+X0:=Matrix(x0);
+Xi:=X0;
+xblock:=[Universe(x0)|];
+for i in [1..64] do
+    xblock cat:= Rows(Xi);
+    Xi:=Xi*MM;
+    printf ".";
+    if #xblock le 32 or #xblock mod 128 eq 0 or (#xblock ge 3600 and #xblock mod 32 eq 0) then
+        printf "\n";
+        time d:=Rank(Matrix(xblock));
+        print #xblock, d, #xblock-d;
+    end if;
+end for;
+for i in [1..64] do
+    xblock cat:= Rows(Xi);
+    Xi:=Xi*MM;
+end for;
+
+
+Y0:=VV[1];
+Yi:=Matrix(Y0);
+Yblock:=[Universe(Y0)|];
+for i in [1..256] do
+    Yblock cat:= Rows(Yi);
+    Yi:=Yi*Transpose(MM);
+    printf ".";
+    if #Yblock le 32 or #Yblock mod 128 eq 0 or (#Yblock ge 2800 and #Yblock mod 32 eq 0) then
+        printf "\n";
+        time d:=Rank(Matrix(Yblock));
+        print #Yblock, d, #Yblock-d;
+    end if;
+end for;
+
+time for i in [1..32] do
+    Yblock cat:= Rows(Yi);
+    Yi:=Yi*Transpose(MM);
+    printf ".";
+end for;
+
 
 */
 
@@ -474,11 +522,33 @@ for k in [0..degF] do
     z:=z*Transpose(MM);
 end for;
 zz:=images + solutions * Transpose(MM);
+MM_nilpotency:=[];
 for j in [0..n div splitwidth - 1] do
     j0:=j*splitwidth;
     j1:=j0+splitwidth;
     printf "Checking that sols%o-%o yields a solution... ", j0, j1;
-    assert IsZero(zz[j0+1..j1]);
+    if IsZero(images) then
+        /* Begin with raw solutions first, and check for trivial zeros each
+         * time */
+        tzz:=Matrix(solutions[j0+1..j1]);
+        for c in [0..10] do
+            if nullspace eq "right" and IsZero(Eltseq(tzz*Transpose(Qsmall))[1..nc_orig]) then
+                printf " ### WARNING: This choice leads to a zero solution vector because of the padding: MM^%o*v is non-zero only on the padded coordinates", c;
+                assert false;
+            end if;
+            tzz:=tzz*Transpose(MM);
+            if IsZero(tzz) then
+                printf "(for MM^%o) ", c+1;
+                Append(~MM_nilpotency, c);
+                break;
+            end if;
+        end for;
+    else
+        /* Then we can't make sense of this nilpotency thing */
+        tzz:=Matrix(zz[j0+1..j1]);
+        Append(~MM_nilpotency, 0);
+    end if;
+    assert IsZero(tzz);
     print " ok";
 end for;
 
@@ -534,7 +604,7 @@ assert Nrows(all_rhs) eq n;
  * had we computed more, we could extend the check somewhat.
  */
 for s in [0..nsols div splitwidth - 1] do
-    assert IsZero(sub_vblock(all_rhs,s) + (SS[s+1])*Transpose(MM));
+    assert IsZero(sub_vblock(all_rhs,s) + (SS[s+1])*Transpose(MM)^(MM_nilpotency[s+1]+1));
 end for;
 
 // RHS has the RHS in rows.
@@ -543,9 +613,9 @@ ww:=[];
 for c in [0..nsols div splitwidth - 1] do
     // v:=&+[mpol_eval(V_0[j],Transpose(MM),F[j,c]): j in [1..n]];
     v:=SS[c+1];
-    assert IsZero(sub_vblock(all_rhs,c) + v * Transpose(MM));
+    assert IsZero(sub_vblock(all_rhs,c) + v * Transpose(MM)^(MM_nilpotency[c+1]+1));
     if nullspace eq "right" then
-        w0:=v * Transpose(Qsmall);
+        w0:=v * Transpose(MM)^(MM_nilpotency[c+1]) * Transpose(Qsmall);
         if splitwidth eq 1 then
             w1:=Transpose(rhscoeffs)[c+1];
         else
@@ -557,7 +627,7 @@ for c in [0..nsols div splitwidth - 1] do
         // as we've defined things, the inhomogeneous systems are only though
         // of as M*X=B, not X*M=B. 
         assert #RHS eq 0;
-        w:=v;
+        w:=v * Transpose(MM)^(MM_nilpotency[c+1]);
         assert IsZero(w * Msmall);
     end if;
     Append(~ww, w);
@@ -580,38 +650,54 @@ print "Checking that gather has computed what we expect";
 load "K.m";
 ker:=[Vector(GF(p),g(x)):x in vars];
 
-if nullspace eq "right" then
-    /* There are two sets of asserts here, and it's admittedly somewhat
-     * confusing.  Depending on whether it succeeded or not, gather may put
-     * varying stuff in the K.sols file.
-     */
-    if Dimension(Parent(ker[1])) eq Ncols(Msmall) then
-        /* It may occur that gather wasn't happy with the solution it got for
-         * the inhomogenous linear system. In that case, the binary K file
-         * misses the rhs coefficients, which is weird. So then, we just have
-         * the following:
+// Data for all solutions come concatenated, but we have 1+nilpotency order
+// each time. Note that when the gather step fails because of a zero solution,
+// we miss the last zero-but-non-zero-padding solution.
+assert #ker eq nsols div splitwidth + &+MM_nilpotency[1..nsols div splitwidth];
+ker_bits:=[];
+stowed:=0;
+for s in [0..nsols div splitwidth - 1] do
+    ker_chunk:=ker[stowed + 1..stowed + 1 + MM_nilpotency[s+1]];
+    early:=ker_chunk[1];
+    late:=ker_chunk[#ker_chunk];
+
+    if nullspace eq "right" then
+        /* There are two sets of asserts here, and it's admittedly somewhat
+         * confusing.  Depending on whether it succeeded or not, gather may
+         * put varying stuff in the K.sols file.
          */
-        assert Matrix(ker) eq Matrix(SS)*Transpose(Qsmall);  
-        assert IsZero(
-            HorizontalJoin(Matrix(ker),Matrix(Transpose(rhscoeffs)[1..#ker])) *
-            VerticalJoin(Transpose(Msmall), Matrix(RHS)));
-    elif Dimension(Parent(ker[1])) eq Ncols(Msmall) + #RHS then
-        /* In contrast, when it is happy, the K file has nrhs extra
-         * coordinates, so that the following holds...
+        if Dimension(Parent(early)) eq Ncols(Msmall) + #RHS then
+            /* In contrast, when gather was happy, the K file has nrhs extra
+             * coordinates, so that the following holds...
+             */
+            assert IsZero(Matrix(late)*Transpose(HorizontalJoin(Msmall, Transpose(Matrix(RHS)))));
+        elif Dimension(Parent(early)) eq Ncols(Msmall) then
+            /* It may occur that gather wasn't happy with the solution it got
+             * for the inhomogenous linear system. In that case, the binary K
+             * file misses the rhs coefficients, which is weird. So then, we
+             * just have the following. And most probably this is all going to
+             * fail.
+             */
+            assert early eq Matrix(SS[s+1])*Transpose(Qsmall);
+            assert false; // don't know how to make sense of the next assert. Anyway the gather program has failed at this point.
+            /*
+            assert IsZero(
+                HorizontalJoin(Matrix(late),Matrix(Transpose(rhscoeffs)[1..#ker])) *
+                VerticalJoin(Transpose(Msmall), Matrix(RHS)));
+                */
+        else
+            /* uh oh */
+            error "I don't understand the dimension of the sequence computed by gather in K.m";
+        end if;
+        /* For completeness, note that the ascii K file is almost identical to
+         * the above except that we acknowledge there the presence of zero
+         * columns in M, so that a handful of coefficients in ker are useless,
+         * and hence chopped out.
          */
-        assert IsZero(Matrix(ker)*Transpose(HorizontalJoin(Msmall, Transpose(Matrix(RHS)))));
     else
-        /* uh oh */
-        error "I don't understand the dimension of the sequence computed by gather in K.m";
+        /* Then it's simpler, because we have no RHS to mess things up */
+        assert IsZero(VerticalJoin(late)*Msmall);
     end if;
-    /* For completeness, note that the ascii K file is almost identical to the
-     * above except that we acknowledge there the presence of zero columns in
-     * M, so that a handful of coefficients in ker are useless, and hence
-     * chopped out.
-     */
-else
-    /* Then it's simpler, because we have no RHS to mess things up */
-    assert IsZero(VerticalJoin(ker)*Msmall);
-end if;
+end for;
 print "Checking that gather has computed what we expect: done";
 

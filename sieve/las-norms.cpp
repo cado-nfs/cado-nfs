@@ -2,6 +2,7 @@
 #include <string.h>
 #include <limits.h>
 #include <cmath>               /* ceil signbit */
+#include <iomanip>
 #include <pthread.h>
 #include <algorithm>
 #include <stdarg.h> /* Required so that GMP defines gmp_vfprintf() */
@@ -243,7 +244,7 @@ get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X,
 /*
  * These are two initializations of the algebraic and rational norms.
  * These 2 initializations compute F(i, const j)=f(i) for each line.
- * f(i)=log2(abs(sum[k=0...d] Ak i^k)+1.)*scale+GUARD = [GUARD...254],
+ * f(i)=log2(abs(sum[k=0...d] Ak i^k)+1.)*scale+LOGNORM_GUARD_BITS = [LOGNORM_GUARD_BITS...254],
  * where Ak are the coefficients of the polynomial.
  *
  * The classical initialization is slow; the only optimization is done
@@ -257,10 +258,11 @@ get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X,
  */
 
 /* {{{ On the ::fill function in lognorm_base derived classes. */
-/* This function is used to initialize lognorms (=log2(F(i,j)*scale+GUARD)
+/* This function is used to initialize lognorms
+ * (=log2(F(i,j)*scale+LOGNORM_GUARD_BITS)
    for the bucket_region S[] number J.
    It's a wrapper; except for trivial degree = 0, it extracts the interesting
-   parameters of the complex structure si and calls the right function.
+   parameters of the lognorm structure and calls the right function.
 
    - For degree 0, S[] is initialized by a memset: always exact.
    - A special ultra fast init function is used for degree = 1; it could be
@@ -269,21 +271,15 @@ get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X,
      computed with a fast log2. The maximal error is always -/+ 1 on S[].
      It's obviously slow.
 
-   - For smart != 0 and others degrees, cf las-config.h for the smart init algo.
-     It's ~10 times faster than the exact init.
-
-   This smart algo needs :
-   -> The roots of d^2(F(i,1)/d(i)^2 must be in sis.roots;
-   -> sis.roots.size() is the number of roots + 1;
-   -> si.roots[sis.nroots - 1] must be = 0.0 : it's a "pseudo" root
-      in order to correct the neigborhood of F(0, const j).
-   Of course, if sis.nroots = 0, no correction is done.
+   - For smart != 0 and degree > 1, we first approximate the polynomial
+     by piecewise linear functions, which are correct up to the
+     prescribed multiplicative factor.
 */
 
 /* }}} */
 
-lognorm_base::lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J)
-    : logI(sc.logI_adjusted), J(J)
+lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J)
+    : logI(logI), J(J)
     /*{{{*/
 {
     int64_t H[4] = { Q.a0, Q.b0, Q.a1, Q.b1 };
@@ -292,16 +288,16 @@ lognorm_base::lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int
      * get_maxnorm_rectangular(). */
 
     mpz_poly_homography (fij, cpoly->pols[side], H);
-    if (sc.side == side) {
-        ASSERT_ALWAYS(mpz_poly_divisible_mpz(fij, Q.q));
-        mpz_poly_divexact_mpz(fij, fij, Q.q);
+    if (Q.doing.side == side) {
+        ASSERT_ALWAYS(mpz_poly_divisible_mpz(fij, Q.doing.p));
+        mpz_poly_divexact_mpz(fij, fij, Q.doing.p);
     }
     double_poly_set_mpz_poly(fijd, fij);
     // Take sublat into account: multiply all coefs by m^deg.
     // We do it only for the floating point version, that is used to
     // compute a bound on the norms, and in the norm_init phase.
-    if (sc.sublat.m > 0)
-        double_poly_mul_double(fijd, fijd, pow(sc.sublat.m, fijd->deg));
+    if (Q.sublat.m > 0)
+        double_poly_mul_double(fijd, fijd, pow(Q.sublat.m, fijd->deg));
 
     int I = 1 << logI;
 
@@ -312,9 +308,9 @@ lognorm_base::lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int
     /* we used to increase artificially maxlog2, purportedly "to allow larger values of J". I don't see why it's useful. */
     // maxlog2 += 2.0;
 
-    /* we want to map 0 <= x < maxlog2 to GUARD <= y < UCHAR_MAX,
-       thus y = GUARD + x * (UCHAR_MAX-GUARD)/maxlog2. */
-    scale = (UCHAR_MAX - GUARD) / maxlog2;
+    /* we want to map 0 <= x < maxlog2 to LOGNORM_GUARD_BITS <= y < UCHAR_MAX,
+       thus y = LOGNORM_GUARD_BITS + x * (UCHAR_MAX-LOGNORM_GUARD_BITS)/maxlog2. */
+    scale = (UCHAR_MAX - LOGNORM_GUARD_BITS) / maxlog2;
 
     /* We require that scale is of the form (int) * 0.025, so that only a small
        number of different factor base slicings can occur. */
@@ -323,14 +319,14 @@ lognorm_base::lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int
     scale = (int)(scale * 40) * 0.025;
 
     verbose_output_start_batch();
-    verbose_output_print (0, 1,
+    verbose_output_print (0, 2,
             "# Side %d: log2(maxnorm)=%1.2f scale=%1.2f, logbase=%1.6f",
             side, maxlog2, scale, exp2 (1. / scale));
 
     /* we want to select relations with a cofactor of less than r bits */
-    double max_lambda = (maxlog2 - GUARD / scale) / sc.sides[side].lpb;
+    double max_lambda = (maxlog2 - LOGNORM_GUARD_BITS / scale) / sc.sides[side].lpb;
     double lambda = sc.sides[side].lambda;
-    double r = maxlog2 - GUARD / scale;
+    double r = maxlog2 - LOGNORM_GUARD_BITS / scale;
 
     /* when lambda = 0 (automatic), we take mfb/lpb + 0.3, which is
        experimentally close to optimal in terms of seconds per relation
@@ -347,11 +343,11 @@ lognorm_base::lognorm_base(siever_config const & sc, cado_poly_srcptr cpoly, int
      * r = std::min(r, lambda ? lambda * sc.sides[side].lpb : sc.sides[side].mfb);
      */
 
-    bound = (unsigned char) (r * scale + GUARD);
+    bound = (unsigned char) (r * scale + LOGNORM_GUARD_BITS);
 
-    verbose_output_print (0, 1, " bound=%u\n", bound);
+    verbose_output_print (0, 2, " bound=%u\n", bound);
     if (lambda > max_lambda)
-        verbose_output_print (0, 1, "# Warning, lambda>%.1f on side %d does "
+        verbose_output_print (0, 2, "# Warning, lambda>%.1f on side %d does "
                 "not make sense (capped to limit)\n", max_lambda, side);
 
     verbose_output_end_batch();
@@ -363,7 +359,7 @@ void lognorm_base::norm(mpz_ptr x, int i, unsigned int j) const {
 unsigned char lognorm_base::lognorm(int i, unsigned int j) const {
     cxx_mpz x;
     norm(x, i, j);
-    return log2(mpz_get_d(x)) * scale + GUARD;
+    return log2(mpz_get_d(x)) * scale + LOGNORM_GUARD_BITS;
 }
 
     /* common definitions -- for the moment it's a macro, eventually I
@@ -390,7 +386,7 @@ unsigned char lognorm_base::lognorm(int i, unsigned int j) const {
         memset(S, 255, i1-i0);						\
         if (has_origin) {						\
             double norm = (log2(fabs(fijd->coeff[fijd->deg]))) * scale;	\
-            S[1 - i0] = GUARD + (unsigned char) (norm);			\
+            S[1 - i0] = LOGNORM_GUARD_BITS + (unsigned char) (norm);			\
         }								\
         /* And now make sure we start at the next line */		\
         S+=I;								\
@@ -401,7 +397,7 @@ unsigned char lognorm_base::lognorm(int i, unsigned int j) const {
 /***********************************************************************/
 
 /* {{{ reference slow code for computing lognorms */
-lognorm_reference::lognorm_reference(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J) : lognorm_base(sc, cpoly, side, Q, J)/*{{{*/
+lognorm_reference::lognorm_reference(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J) : lognorm_base(sc, cpoly, side, Q, logI, J)/*{{{*/
 {
     /* Knowing the norm on the rational side is bounded by 2^(2^k), compute
      * lognorms approximations for k bits of exponent + NORM_BITS-k bits
@@ -411,8 +407,8 @@ lognorm_reference::lognorm_reference(siever_config const & sc, cado_poly_srcptr 
      */
     int k = (int) ceil (log2 (maxlog2));
     int K = 1 << k;
-    ASSERT_ALWAYS(NORM_BITS >= k);
-    int l = NORM_BITS - k;
+    ASSERT_ALWAYS(lognorm_reference::NORM_BITS >= k);
+    int l = lognorm_reference::NORM_BITS - k;
     int L = 1 << l;
 
     /* extract k bits from the exponent, and l bits from the mantissa */
@@ -435,7 +431,7 @@ lognorm_reference::lognorm_reference(siever_config const & sc, cado_poly_srcptr 
             else
             {
                 norm = norm * scale;
-                lognorm_table[(i << l) + j] = GUARD + (unsigned char) norm;
+                lognorm_table[(i << l) + j] = LOGNORM_GUARD_BITS + (unsigned char) norm;
             }
         }
     }
@@ -465,7 +461,7 @@ void lognorm_fill_rat_reference(
     double u0 = fijd->coeff[0];
     double u1 = fijd->coeff[1];
 
-    int l = NORM_BITS - (int) ceil(log2(maxlog2));
+    int l = lognorm_reference::NORM_BITS - (int) ceil(log2(maxlog2));
 
     for(unsigned int j = j0 ; j < j1 ; j++) {
 	double z = u0 * j + u1 * i0;
@@ -500,7 +496,7 @@ void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, double 
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
     double modscale = scale/0x100000;
-    const double offset = 0x3FF00000 - GUARD / modscale;
+    const double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
 
     cxx_double_poly u;
     for (unsigned int j = j0 ; j < j1 ; j++) {
@@ -524,16 +520,16 @@ void lognorm_reference::fill(unsigned char * S, int N) const/*{{{*/
 /***********************************************************************/
 
 /* {{{ faster code */
-lognorm_smart::lognorm_smart(siever_config const & sc, cado_poly_srcptr cpoly, int side, qlattice_basis const & Q, int J) : lognorm_base(sc, cpoly, side, Q, J)/*{{{*/
+lognorm_smart::lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J) : lognorm_base(sc, cpoly, side, Q, logI, J)/*{{{*/
 {
     /* See init_degree_one_norms_bucket_region_smart for the explanation of
      * this table */
     for (int i = 0; i < 257 ; i++)
-        cexp2[i] = lg2_reciprocal((i-GUARD)/scale);
+        cexp2[i] = lg2_reciprocal((i-LOGNORM_GUARD_BITS)/scale);
 
     if (fijd->deg > 1) {
         piecewise_linear_approximator A(fijd, log(2)/scale);
-        int I = 1 << sc.logI_adjusted;
+        int I = 1 << logI;
         G = A.logapprox(-(I/2), I/2);
     }
 }/*}}}*/
@@ -549,17 +545,8 @@ static inline double compute_y(double G, double offset, double modscale) {
  */
 void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, cxx_double_poly const & fijd, const double *cexp2)
 {
-    double u0 = fijd->coeff[0];
-    double u1 = fijd->coeff[1];
-
-    ASSERT_ALWAYS(u1 != 0.);
-
-    using std::signbit;
-    double u1_abs = fabs(u1);
-    double inv_u1_abs = 1/u1_abs;
-
     double modscale = scale / 0x100000;
-    double offset = 0x3FF00000 - GUARD / modscale;
+    double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
     /* The lg2 function wants  a positive value.
      * Here, in the classical rational initialization, the degree of the
      * used polynomial F(i,j) is hardcoded to 1. So, it's possible to have
@@ -569,12 +556,34 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
      */
 // #define COMPUTE_Y(G) lg2 ((G) + 1., offset, modscale)
 #define COMPUTE_Y(G) compute_y(G, offset, modscale)
-    /* COMPUTE_Y(z) returns GUARD + L(z) * scale. Recall that
+    /* COMPUTE_Y(z) returns LOGNORM_GUARD_BITS + L(z) * scale. Recall that
      * we have 0 <= log2(z) - L(z) < 0.0861, for any real z > 0.
      */
 
+    double u0 = fijd->coeff[0];
+    double u1 = fijd->coeff[1];
+
+    if (UNLIKELY(u1 == 0)) {
+        /* constant approximating functions do occur, see bug 21684. This
+         * is triggered in particular by quadratic polynomials, which we
+         * do get with nonlinear polynomial selection.
+         */
+        for (unsigned int j = j0; j < j1; j++) {
+            double g = fabs(u0 * j);
+            uint8_t y = COMPUTE_Y(g);
+            size_t di = i1 - i0;
+            memset_with_writeahead(S, y, di, MEMSET_MIN);
+            S += di;
+        }
+        return;
+    }
+
+    using std::signbit;
+    double u1_abs = fabs(u1);
+    double inv_u1_abs = 1/u1_abs;
+
     for (unsigned int j = j0; j < j1; j++) {
-	int64_t i = i0;
+	int i = i0;
 	double g = fabs(u0 * j + u1 * i0);
 	uint8_t y;
 	double root = -u0 * j / u1;
@@ -593,7 +602,7 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
 	    y = COMPUTE_Y(g);
 	    root_ahead = root >= i0;
 	} else {
-	    y = GUARD;
+	    y = LOGNORM_GUARD_BITS;
 	}
 
 	if (root_ahead) {
@@ -617,9 +626,9 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
                 /* conversion rounding is towards zero, while we want it
                  * to be towards +infinity. */
                 ix += (ix >= 0);
-		if (UNLIKELY((int64_t)ix >= i1))
+                if (UNLIKELY(ix >= (double) i1))
 		    ix = i1;
-		size_t di = (int64_t) ix - i;	/* The cast matters ! */
+		size_t di = (int) ix - i;	/* The cast matters ! */
 		i = ix;
 		if (!di)
                     break;
@@ -675,12 +684,12 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
              * to be towards +infinity. */
             ix += (ix >= 0);
             // ASSERT ((int) ix >= i); // see bug 21518
-            if (LIKELY((int64_t) ix >= i)) {
+            if (LIKELY(ix >= (double) i)) {
                 /* It is most likely that we'll only see this branch. Yet
                  * bug 21518 seems to trigger a nasty corner case */
                 if (UNLIKELY(ix >= i1))
                     ix = i1;
-                size_t di = (int64_t) ix - i;	/* The cast matters ! */
+                size_t di = (int) ix - i;	/* The cast matters ! */
                 i = ix;
                 memset_with_writeahead(S, y, di, MEMSET_MIN);
                 S += di;
@@ -830,9 +839,9 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
     for (int side = 0; side < 2; side++) {
         cxx_mpz_poly fz;
         mpz_poly_homography (fz, cpoly->pols[side], H);
-        if (doing.side == side) {
-            ASSERT_ALWAYS(mpz_poly_divisible_mpz(fz, doing.p));
-            mpz_poly_divexact_mpz(fz, fz, doing.p);
+        if (Q.doing.side == side) {
+            ASSERT_ALWAYS(mpz_poly_divisible_mpz(fz, Q.doing.p));
+            mpz_poly_divexact_mpz(fz, fz, Q.doing.p);
         }
         double_poly_set_mpz_poly(fijd[side], fz);
     }
@@ -873,7 +882,7 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
   if (!keep_logI)
       logI = (logA+1)/2;
   const double I = (double) (1 << logI);
-  const double q = mpz_get_d(doing.p);
+  const double q = mpz_get_d(Q.doing.p);
   const double skew = cpoly->skew;
   const double A = (1 << logI)*sqrt(q*skew);
   const double B = (1 << (logA - logI))*sqrt(q/skew);
@@ -888,12 +897,12 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
       double_poly dpoly;
       double_poly_init (dpoly, cpoly->pols[side]->deg);
       double_poly_set_mpz_poly (dpoly, cpoly->pols[side]);
-      if (conf.sublat.m > 0)
-          double_poly_mul_double(dpoly, dpoly, pow(conf.sublat.m, cpoly->pols[side]->deg));
+      if (Q.sublat.m > 0)
+          double_poly_mul_double(dpoly, dpoly, pow(Q.sublat.m, cpoly->pols[side]->deg));
       double maxnorm = get_maxnorm_circular (dpoly, fudge_factor*A/2.,
               fudge_factor*B);
       double_poly_clear (dpoly);
-      if (side == doing.side)
+      if (side == Q.doing.side)
         maxnorm /= q;
 
       /* in the (i,j)-plane, the sieving region is rectangular */
@@ -919,10 +928,10 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
 
   J = (unsigned int) Jmax;
 
-  return adapt_threads(__func__);
+  return round_to_full_bucket_regions(__func__);
 }//}}}
 
-/* {{{ a few helpers (otherwise I'll menage to get things wrong
+/* {{{ a few helpers (otherwise I'll manage to get things wrong
  * eventually)
  */
 sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) {
@@ -930,7 +939,7 @@ sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const&
 }
 
 qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) {
-    qlattice_basis R;
+    qlattice_basis R = Q;       // copy all non-matrix fields.
     R.a0 = m(0,0) * Q.a0 + m(0,1) * Q.a1;
     R.a1 = m(1,0) * Q.a0 + m(1,1) * Q.a1;
     R.b0 = m(0,0) * Q.b0 + m(0,1) * Q.b1;
@@ -950,7 +959,7 @@ qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis c
  *
  * The range is taken as one half of the 0-centered range whose width and
  * height are 2^(ceil(A/2)-squeeze)) times 2^(floor(A/2)+squeeze+1) --
- * this larger range as size 2^(A+1).
+ * this larger range has size 2^(A+1).
  * 
  * Integration points are chosen as centers of *rectangles* (not
  * squares) which are proportional to the sieve area.
@@ -992,7 +1001,7 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             for(int side = 0 ; side < 2 ; side++) {
                 double z = double_poly_eval_homogeneous(fijd[side], xys[0], xys[1]);
                 double a = log2(fabs(z));
-                double d = dickman_rho(a/lpbs[side]);
+                double d = dickman_rho_local(a/lpbs[side], fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
                 prod *= d;
             }
@@ -1009,23 +1018,6 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
 
 int sieve_range_adjust::adjust_with_estimated_yield()/*{{{*/
 {
-    {
-        std::ostringstream os;
-        for(int side = 0 ; side < 2 ; side++) {
-            cxx_mpz_poly f;
-            mpz_poly_set(f,cpoly->pols[side]);
-            os << "# f"<<side<<"="<<f.print_poly("x")<<"\n";
-            if (side == doing.side)
-                os << "# q"<<side<<"="<<doing.p<<"\n";
-        }
-        os << "# skew="<<cpoly->skew<<"\n";
-        verbose_output_print(0, 2, "%s",os.str().c_str());
-    }
-    {
-        std::ostringstream os;
-        os << "# Initial q-lattice: a0="<<Q.a0<<"; b0="<<Q.b0<<"; a1="<<Q.a1<<"; b1="<<Q.b1<<";\n";
-        verbose_output_print(0, 1, "%s",os.str().c_str());
-    }
     prepare_fijd(); // side-effect of the above
 
     /* List a few candidate matrices which can be used for distorting the
@@ -1108,11 +1100,11 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
     int best_squeeze = -1;
 
     /* We integrate on 2^(2*N-1) points (well, morally 2^(2N), but we halve
-     * that by homogeneity */
+     * that by homogeneity) */
     int N = 5;
 
     double reference = estimate_yield_in_sieve_area(shuffle_matrices[0], 0, N);
-    for(int squeeze = 0 ; squeeze <= 3 ; squeeze++) {
+    for(int squeeze = ADJUST_STRATEGY2_MIN_SQUEEZE ; squeeze <= ADJUST_STRATEGY2_MAX_SQUEEZE ; squeeze++) {
         for(int r = 0 ; r < nmatrices ; r++) {
             if (squeeze == 0 && (r & 1)) continue;
             mat<int> const & Sr(shuffle_matrices[r]);
@@ -1122,7 +1114,7 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
                 best_squeeze = squeeze;
                 best_sum = sum;
             }
-            verbose_output_print(0, 2, "# estimated yield for rectangle #%d,%d: %e\n", r, squeeze, sum);
+            verbose_output_print(0, 4, "# estimated yield for rectangle #%d,%d: %e\n", r, squeeze, sum);
         }
     }
 
@@ -1132,23 +1124,18 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
     Q = shuffle * Q;
     J = 1 << (logA/2    + best_squeeze);
 
-    verbose_output_print(0, 1,
-            "# Adjusting by [%d,%d,%d,%d], logI=%d (%+.2f%%)\n",
-            shuffle(0,0), shuffle(0,1), shuffle(1,0), shuffle(1,1),
-            logI,
-            100.0*(best_sum/reference-1));
-    {
-        std::ostringstream os;
-        os << "# New q-lattice: a0="<<Q.a0<<"; b0="<<Q.b0<<"; a1="<<Q.a1<<"; b1="<<Q.b1<<";\n";
-        verbose_output_print(0, 1, "%s",os.str().c_str());
-    }
+    std::ostringstream adjust_message;
+    adjust_message << "adjusting by ";
+    shuffle.print_me(adjust_message);
+    adjust_message << " (+" << std::fixed << std::setprecision(2) <<
+            100.0*(best_sum/reference-1) << "%)";
 
-    return adapt_threads(__func__);
+    return round_to_full_bucket_regions(__func__, adjust_message.str());
 }/*}}}*/
 
 /* return 0 if we should discard that special-q because the rounded
  * region in the (a,b)-plane is flat to the point of having height 0.
- * For diagnostic, we set si.J to the unrounded value (rounding would
+ * For diagnostic, we set this->J to the unrounded value (rounding would
  * give 0) and then we return "false".
  *
  * The current check for discarding is whether we do fill one bucket
@@ -1207,18 +1194,18 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
      */
     const double skew = cpoly->skew;
     const double rt_skew = sqrt(skew);
-    verbose_output_vfprint(0, 2, gmp_vfprintf,
+    verbose_output_vfprint(0, 3, gmp_vfprintf,
             "# Called sieve_info_adjust_IJ((a0=%" PRId64 "; b0=%" PRId64
-            "; a1=%" PRId64 "; b1=%" PRId64 "), p=%Zd, skew=%f, nb_threads=%d)\n",
+            "; a1=%" PRId64 "; b1=%" PRId64 "), p=%Zd, skew=%f)\n",
             Q.a0, Q.b0, Q.a1, Q.b1,
-            (mpz_srcptr) doing.p, skew, nb_threads);
+            (mpz_srcptr) Q.doing.p, skew);
     if (Q.skewed_norm0(skew) > Q.skewed_norm1(skew)) {
         /* exchange u0 and u1, thus I and J */
         swap(Q.a0, Q.a1);
         swap(Q.b0, Q.b1);
     }
     double maxab1 = MAX(abs(Q.a1) / rt_skew, abs(Q.b1) * rt_skew);
-    double B = sqrt (2.0 * mpz_get_d(doing.p) / sqrt (3.0));
+    double B = sqrt (2.0 * mpz_get_d(Q.doing.p) / sqrt (3.0));
 
     uint32_t I = 1UL << ((logA+1)/2);
     J = 1UL << ((logA-1)/2);
@@ -1228,19 +1215,25 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
     J = MIN((uint32_t) J, I >> 1);
     logI = (logA + 1) / 2;
 
-    return adapt_threads(__func__);
+    return round_to_full_bucket_regions(__func__);
 }/*}}}*/
 
-int sieve_range_adjust::adapt_threads(const char * origin)/*{{{*/
+int sieve_range_adjust::round_to_full_bucket_regions(const char * origin, std::string const & message)/*{{{*/
 {
     /* Compute number of i-lines per bucket region, must be integer */
     uint32_t i = 1U << MAX(LOG_BUCKET_REGION - logI, 0);
-    i *= nb_threads;  /* ensures nb of bucket regions divisible by nb_threads */
+
+    // we no longer need to do that.
+    // i *= nb_threads;  /* ensures nb of bucket regions divisible by nb_threads */
 
     /* Bug 15617: if we round up, we are not true to our promises */
     uint32_t nJ = (J / i) * i; /* Round down to multiple of i */
 
-    verbose_output_print(0, 2, "# %s(): Final logI=%d J=%" PRIu32 "\n", origin, logI, nJ);
+    if (message.empty()) {
+        verbose_output_print(0, 3, "# %s(): logI=%d J=%" PRIu32 "\n", origin, logI, nJ);
+    } else {
+        verbose_output_print(0, 3, "# %s(): logI=%d J=%" PRIu32 " [%s]\n", origin, logI, nJ, message.c_str());
+    }
     /* XXX No rounding if we intend to abort */
     if (nJ > 0) J = nJ;
     return nJ > 0;
@@ -1249,9 +1242,10 @@ int sieve_range_adjust::adapt_threads(const char * origin)/*{{{*/
 /*}}}*/
 
  
-int sieve_range_adjust::get_minimum_J()
+uint32_t sieve_range_adjust::get_minimum_J()
 {
-    return nb_threads << MAX(0, (LOG_BUCKET_REGION - logI));
+    /* no longer dependent on the number of threads */
+    return 1 << MAX(0, (LOG_BUCKET_REGION - logI));
 }
 
 void sieve_range_adjust::set_minimum_J_anyway()

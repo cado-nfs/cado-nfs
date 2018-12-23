@@ -1,44 +1,27 @@
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+/* flint uses unprotected openmp pragmas every so often */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
 #include "fft.h"
 
 /*
- * Split an integer \code{(limbs, total_limbs)} into coefficients of length
- * \code{coeff_limbs} limbs and store as the coefficients of \code{poly}
- * which are assumed to have space for \code{output_limbs + 1} limbs per
+ * Split an integer ``(limbs, total_limbs)`` into coefficients of length
+ * ``coeff_limbs`` limbs and store as the coefficients of ``poly``
+ * which are assumed to have space for ``output_limbs + 1`` limbs per
  * coefficient. The coefficients of the polynomial do not need to be zeroed
  * before calling this function, however the number of coefficients written
  * is returned by the function and any coefficients beyond this point are
@@ -50,12 +33,18 @@ mp_size_t fft_split_limbs(mp_limb_t ** poly, mp_srcptr limbs,
 			  mp_size_t output_limbs)
 {
     mp_size_t i, skip, length = (total_limbs - 1) / coeff_limbs + 1;
+    mp_size_t num = total_limbs / coeff_limbs;
 
-    for (skip = 0, i = 0; skip + coeff_limbs <= total_limbs;
-	 skip += coeff_limbs, i++) {
+#pragma omp parallel for private(i, skip)
+    for (i = 0; i < num; i++) {
+	skip = i * coeff_limbs;
+
 	flint_mpn_zero(poly[i], output_limbs + 1);
 	flint_mpn_copyi(poly[i], limbs + skip, coeff_limbs);
     }
+
+    i = num;
+    skip = i * coeff_limbs;
 
     if (i < length)
 	flint_mpn_zero(poly[i], output_limbs + 1);
@@ -67,9 +56,9 @@ mp_size_t fft_split_limbs(mp_limb_t ** poly, mp_srcptr limbs,
 }
 
 /*
- * Split an integer \code{(limbs, total_limbs)} into coefficients of the 
- * given number of \code{bits} and store as the coefficients of \code{poly} 
- * which are assumed to have space for \code{output_limbs + 1} limbs per 
+ * Split an integer ``(limbs, total_limbs)`` into coefficients of the 
+ * given number of ``bits`` and store as the coefficients of ``poly`` 
+ * which are assumed to have space for ``output_limbs + 1`` limbs per 
  * coefficient. The coefficients of the polynomial do not need to be zeroed 
  * before calling this function, however the number of coefficients written 
  * is returned by the function and any coefficients beyond this point are 
@@ -95,8 +84,13 @@ mp_size_t fft_split_bits(mp_limb_t ** poly, mp_srcptr limbs,
     shift_bits = WORD(0);
     limb_ptr = limbs;
 
+#pragma omp parallel for private(i, limb_ptr, shift_bits)
     for (i = 0; i < length - 1; i++) {
 	flint_mpn_zero(poly[i], output_limbs + 1);
+
+	limb_ptr =
+	    limbs + i * (coeff_limbs - 1) + (i * top_bits) / FLINT_BITS;
+	shift_bits = (i * top_bits) % FLINT_BITS;
 
 	if (!shift_bits) {
 	    flint_mpn_copyi(poly[i], limb_ptr, coeff_limbs);
@@ -116,9 +110,12 @@ mp_size_t fft_split_bits(mp_limb_t ** poly, mp_srcptr limbs,
 	    }
 
 	    poly[i][coeff_limbs - 1] &= mask;
-
 	}
     }
+
+    i = length - 1;
+    limb_ptr = limbs + i * (coeff_limbs - 1) + (i * top_bits) / FLINT_BITS;
+    shift_bits = (i * top_bits) % FLINT_BITS;
 
     flint_mpn_zero(poly[i], output_limbs + 1);
 

@@ -138,7 +138,8 @@ matmul_ptr MATMUL_NAME(init)(abdst_field xx, param_list pl, int optimized_direct
 {
     struct matmul_sliced_data_s * mm;
     mm = new matmul_sliced_data_s;
-    memset(mm, 0, sizeof(struct matmul_sliced_data_s));
+    // see bug 21663
+    memset((void*)mm, 0, sizeof(struct matmul_sliced_data_s));
     mm->xab = xx;
 
     unsigned int npack = L1_CACHE_SIZE;
@@ -162,7 +163,7 @@ matmul_ptr MATMUL_NAME(init)(abdst_field xx, param_list pl, int optimized_direct
 }
 
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data)
+void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE_UNUSED)
 {
     struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
     ASSERT_ALWAYS(data);

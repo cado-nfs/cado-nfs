@@ -37,7 +37,7 @@ typedef struct {
   FILE *file;
 } sieved_params;
 
-void next_cand_sieved_pair(cand_t cand, void *params) {
+int next_cand_sieved_pair(cand_t cand, void *params) {
   sieved_params *param = (sieved_params *)params;
   int ret = pthread_mutex_lock(&param->mutex);
   assert(ret == 0);
@@ -65,6 +65,7 @@ void next_cand_sieved_pair(cand_t cand, void *params) {
   mpz_clear(v);
   mpz_clear(u0);
   pthread_mutex_unlock(&param->mutex);
+  return 1;
 }
 
 void usage(char *argv0) {

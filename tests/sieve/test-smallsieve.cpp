@@ -23,21 +23,12 @@
 
 
 int consistency_check_mode = 0;
-int nthreads = 1;   /* number of threads */
 int quiet = 0;
 int abort_on_fail = 0;
 int only_complete_functions = 0;
 
 /* this is really a mock structure just for the fun of it. */
-struct {
-    struct {
-        sublat_t sublat;
-        int logI_adjusted;
-    } conf;
-    struct {
-        mpz_t q;
-    } qbasis;
-} si;
+sublat_t sl;
 
 
 
@@ -231,21 +222,19 @@ static inline size_t sieve_full_line_new(unsigned char * S0, unsigned char * S1,
     return pi - S1;
 }
 
-void current_I18_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
+void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        int pos = p_pos;
+        int pos = positions[&ssp - &primes.front()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
 
-        size_t overrun = 0; /* tame gcc */
-        unsigned int i_compens_sublat = si.conf.sublat.i0 & 1;
+        unsigned int i_compens_sublat = sl.i0 & 1;
         unsigned int j = j0;
 
 
@@ -256,7 +245,7 @@ void current_I18_branch(std::vector<int> & positions, std::vector<ssp_simple_t> 
          */
         if (j & 1) {
             WHERE_AM_I_UPDATE(w, j, j - j0);
-            overrun = sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
+            sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
                     pos, p, logp, w);
             S0 += I;
             j++;
@@ -265,96 +254,33 @@ void current_I18_branch(std::vector<int> & positions, std::vector<ssp_simple_t> 
         for( ; j < j1 ; ) {
             /* for j even, we sieve only odd pi, so step = 2p. */
             int xpos = ((i_compens_sublat + pos) & 1) ? pos : (pos+p);
-            overrun = sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
+            sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
                     xpos, p+p, logp, w);
             S0 += I;
-            pos += r; if (pos >= (int) p) pos -= p; 
+            pos += r; if (pos >= (int) p) pos -= p;
             if (++j >= j1) break;
 
             /* now j odd again */
             WHERE_AM_I_UPDATE(w, j, j - j0);
-            overrun = sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
+            sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
                     pos, p, logp, w);
             S0 += I;
             pos += r; if (pos >= (int) p) pos -= p;
             ++j;
         }
-        if (logI > LOG_BUCKET_REGION) {
-            /* quick notes for incremental adjustment in case I>B (B =
-             * LOG_BUCKET_REGION).
-             *
-             * Let q = 2^(I-B).
-             * Let N = a*q+b, and N'=N+nthreads=a'*q+b' ; N' is the
-             * next bucket region we'll handle.
-             *
-             * Let nthreads = u*q+v
-             *
-             * The row increase is dj = (N' div q) - (N div q) = a'-a
-             * The fragment increase is di = (N' mod q) - (N mod q) = b'-b
-             *
-             * Of course we have -q < b'-b < q
-             *
-
-             * dj can be written as (N'-N-(b'-b)) div q, which is an
-             * exact division. we rewrite that as:
-             *
-             * dj = u + (v - (b'-b)) div q
-             *
-             * where the division is again exact. Now (v-(b'-b))
-             * satisfies:
-             * -q < v-(b'-b) < 2*q-1
-             *
-             * so that the quotient may only be 0 or 1.
-             *
-             * It is 1 if and only if v >= q + b'-b, which sounds like a
-             * reasonable thing to check.
-             */
-            int N1 = N + nthreads;
-            int Q = logI - LOG_BUCKET_REGION;
-            int dj = (N1>>Q) - j0;
-            int di = (N1&((1<<Q)-1)) - (N&((1<<Q)-1));
-            /* Note that B_mod p is not reduced. It may be <0, and
-             * may also be >= p if we sieved with 2p because of even j
-             */
-    ASSERT(overrun < (int) 2*p);
-    ASSERT(p_pos < (int) p);
-            int B_mod_p = overrun - p_pos;
-            /* We may avoid some of the cost for the modular
-             * reduction, here:
-             *
-             * dj is either always the same thing, or that same thing
-             * + 1.
-             *
-             * di is within a small interval (albeit a centered one).
-             * 
-             * So it seems feasible to get by with a fixed number of
-             * conditional subtractions.
-             */
-            pos = (p_pos + B_mod_p * di + dj * r) % p;
-            if (pos < 0) pos += p;
-        } else {
-            /* skip stride */
-            pos += ssp.get_offset();
-            if (pos >= (int) p) pos -= p;
-        }
-
-        p_pos = pos;
     }
 }/*}}}*/
-void modified_I18_branch_C(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
+void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        int pos = p_pos;
+        int pos = positions[&ssp - &primes.front()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
-
-        size_t overrun = 0; /* tame gcc */
 
         /* we sieve over the area [S0..S0+(i1-i0)], which may
          * actually be just a fragment of a line. After that, if
@@ -363,7 +289,7 @@ void modified_I18_branch_C(std::vector<int> & positions, std::vector<ssp_simple_
          */
         fbprime_t spx = (p+p)^p;
         fbprime_t px = (j0&1)?p:(p+p);
-        /* The increment is i1-i0, not I, to cover the case where 
+        /* The increment is i1-i0, not I, to cover the case where
          * B <= I; we then have i1-i0 = B
          * because there's a min. (and in that case, there's only a
          * single line).
@@ -371,31 +297,15 @@ void modified_I18_branch_C(std::vector<int> & positions, std::vector<ssp_simple_
         for(unsigned int j = j0 ; j < j1 ; ++j) {
             /* for j even, we sieve only odd pi, so step = 2p. */
             WHERE_AM_I_UPDATE(w, j, j);
-            overrun = sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
-                    pos + (((si.conf.sublat.i0^pos^1)&1&~j)?p:0), px, logp, w);
+            sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
+                    pos + (((sl.i0^pos^1)&1&~j)?p:0), px, logp, w);
             S0 += I;
-            pos += r; if (pos >= (int) p) pos -= p; 
+            pos += r; if (pos >= (int) p) pos -= p;
             px ^= spx;
         }
-        if (logI > LOG_BUCKET_REGION) {
-            int N1 = N + nthreads;
-            int Q = logI - LOG_BUCKET_REGION;
-            int dj = (N1>>Q) - j0;
-            int di = (N1&((1<<Q)-1)) - (N&((1<<Q)-1));
-    ASSERT(overrun < (int) 2*p);
-    ASSERT(p_pos < (int) p);
-            int B_mod_p = overrun - p_pos;
-            pos = (p_pos + B_mod_p * di + dj * r) % p;
-            if (pos < 0) pos += p;
-        } else {
-            pos += ssp.get_offset();
-            if (pos >= (int) p) pos -= p;
-        }
-
-        p_pos = pos;
     }
 }/*}}}*/
-void legacy_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
@@ -403,8 +313,7 @@ void legacy_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const
     ASSERT_ALWAYS(logI <= LOG_BUCKET_REGION);
 
     for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        unsigned int pos = p_pos;
+        int pos = positions[&ssp - &primes.front()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -412,18 +321,17 @@ void legacy_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const
 
         unsigned long j;
         const int test_divisibility MAYBE_UNUSED = 0; /* very slow, but nice for debugging */
-        const unsigned long nj = bucket_region >> si.conf.logI_adjusted; /* Nr. of lines 
-                                                                            per bucket region */
+        const unsigned long nj = bucket_region >> logI; /* Nr. of lines per bucket region */
 
         WHERE_AM_I_UPDATE(w, p, p);
 
         //XXX XXX XXX const unsigned char logp = ssd->logp[k];
         unsigned char *S_ptr = S;
         size_t p_or_2p = p;
-        ASSERT(pos < p);
+        ASSERT((fbprime_t) pos < p);
         unsigned int i_compens_sublat = 0;
-        if (si.conf.sublat.m != 0) {
-            i_compens_sublat = si.conf.sublat.i0 & 1;
+        if (sl.m != 0) {
+            i_compens_sublat = sl.i0 & 1;
         }
         j = 0;
         if (row0_is_oddj) goto j_odd;
@@ -445,7 +353,7 @@ void legacy_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const
             }
             SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S_ptr, logp);
             // sieve_full_line(S0, S_ptr, S0 - S, pi - S0, p_or_2p, logp, w);
-            pos += r; if (pos >= p) pos -= p; 
+            pos += r; if (pos >= (int) p) pos -= p;
             /* Next line */
             if (++j >= nj) break;
             p_or_2p >>= 1;
@@ -456,34 +364,23 @@ j_odd:
             S_ptr += I;
             SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S_ptr, logp);
             // sieve_full_line(S0, S_ptr, S0 - S, pi - S0, p_or_2p, logp, w);
-            pos += r; if (pos >= p) pos -= p;
+            pos += r; if (pos >= (int) p) pos -= p;
         } while (++j < nj);
-
-        //XXX XXX XXX XXX adding this here, as it is relevant to the comparison
-        //with branch I18.
-        pos += ssp.get_offset();
-        if (pos >= (unsigned int) p)
-            pos -= p;
-        //XXX XXX XXX XXX
-
-        p_pos = pos;
     }
 }
 /*}}}*/
-void devel_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        int pos = p_pos;
+        int pos = positions[&ssp - &primes.front()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
 
-        size_t overrun = 0; /* tame gcc */
         unsigned int j = j0;
 
         /* we sieve over the area [S0..S0+(i1-i0)], which may
@@ -506,170 +403,35 @@ void devel_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const&
         for( ; j < j1 ; ) {
             /* for S(j) even, we sieve only odd pi, so step = 2p. */
             {
-            int xpos = ((si.conf.sublat.i0 + pos) & 1) ? pos : (pos+p);
-            overrun = sieve_full_line_new_half(S0, S0 + (i1 - i0), S0 - S,
+            int xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
+            sieve_full_line_new_half(S0, S0 + (i1 - i0), S0 - S,
                     xpos, p+p, logp, w);
             }
             S0 += I;
-            pos += r; if (pos >= (int) p) pos -= p; 
+            pos += r; if (pos >= (int) p) pos -= p;
             if (++j >= j1) break;
 
 j_odd_devel:
             /* now S(j) odd again */
             WHERE_AM_I_UPDATE(w, j, j - j0);
-            overrun = sieve_full_line_new(S0, S0 + (i1 - i0), S0 - S,
+            sieve_full_line_new(S0, S0 + (i1 - i0), S0 - S,
                     pos, p, logp, w);
             S0 += I;
             pos += r; if (pos >= (int) p) pos -= p;
             ++j;
         }
-        if (logI > LOG_BUCKET_REGION) {
-            /* quick notes for incremental adjustment in case I>B (B =
-             * LOG_BUCKET_REGION).
-             *
-             * Let q = 2^(I-B).
-             * Let N = a*q+b, and N'=N+nthreads=a'*q+b' ; N' is the
-             * next bucket region we'll handle.
-             *
-             * Let nthreads = u*q+v
-             *
-             * The row increase is dj = (N' div q) - (N div q) = a'-a
-             * The fragment increase is di = (N' mod q) - (N mod q) = b'-b
-             *
-             * Of course we have -q < b'-b < q
-             *
-
-             * dj can be written as (N'-N-(b'-b)) div q, which is an
-             * exact division. we rewrite that as:
-             *
-             * dj = u + (v - (b'-b)) div q
-             *
-             * where the division is again exact. Now (v-(b'-b))
-             * satisfies:
-             * -q < v-(b'-b) < 2*q-1
-             *
-             * so that the quotient may only be 0 or 1.
-             *
-             * It is 1 if and only if v >= q + b'-b, which sounds like a
-             * reasonable thing to check.
-             */
-            int N1 = N + nthreads;
-            int Q = logI - LOG_BUCKET_REGION;
-            int dj = (N1>>Q) - j0;
-            int di = (N1&((1<<Q)-1)) - (N&((1<<Q)-1));
-            /* Note that B_mod p is not reduced. It may be <0, and
-             * may also be >= p if we sieved with 2p because of even j
-             */
-    ASSERT(overrun < (int) 2*p);
-    ASSERT(p_pos < (int) p);
-            int B_mod_p = overrun - p_pos;
-            /* FIXME: we may avoid some of the cost for the modular
-             * reduction, here. Having a mod operation in this place
-             * seems to be a fairly terrible idea.
-             *
-             * dj is either always the same thing, or that same thing +1.
-             * di is within a small interval (albeit a centered one).
-             * 
-             * It seems feasible to get by with a fixed number of
-             * conditional subtractions.
-             */
-            pos = (p_pos + B_mod_p * di + dj * r) % p;
-            if (pos < 0) pos += p;
-        } else {
-            /* skip stride */
-            pos += ssp.get_offset();
-            if (pos >= (int) p) pos -= p;
-        }
-
-        p_pos = pos;
     }
 }
 /*}}}*/
-void legacy_mod_branch(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
     ASSERT_ALWAYS(positions.size() == primes.size());
 
     if (logI > LOG_BUCKET_REGION) {
-    for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        int pos = p_pos;
-
-        const fbprime_t p = ssp.get_p();
-        const fbprime_t r = ssp.get_r();
-        const unsigned char logp = ssp.logp;
-
-        size_t overrun MAYBE_UNUSED = 0; /* tame gcc */
-        unsigned long j;
-        const int test_divisibility MAYBE_UNUSED = 0; /* very slow, but nice for debugging */
-        const unsigned long nj = bucket_region >> si.conf.logI_adjusted; /* Nr. of lines 
-                                                                            per bucket region */
-
-        WHERE_AM_I_UPDATE(w, p, p);
-
-        //XXX XXX XXX const unsigned char logp = ssd->logp[k];
-        unsigned char *S_ptr = S;
-        unsigned char *S1;
-        size_t p_or_2p = p;
-        ASSERT(pos < (int) p);
-        unsigned int i_compens_sublat = 0;
-        if (si.conf.sublat.m != 0) {
-            i_compens_sublat = si.conf.sublat.i0 & 1;
-        }
-        j = 0;
-            if (row0_is_oddj) goto j_odd0;
-        // it is possible to make this code work with sieve_full_line by
-        // uncommenting all lines that match S0. Performance is
-        // apparently identical, but it's not fair to say that this *is*
-        // the reference code, as far as performance is concerned.
-        // unsigned char * S0 MAYBE_UNUSED;
-        do {
-            unsigned char *pi;
-            WHERE_AM_I_UPDATE(w, j, j);
-            // S0 = S_ptr;
-            pi = S_ptr + pos;
-            S1 = S_ptr + (i1 - i0);
-            S_ptr += I;
-            /* for j even, we sieve only odd pi, so step = 2p. */
-            p_or_2p += p_or_2p;
-            if (!((i_compens_sublat + pos) & 1)) {
-                pi += p;
-            }
-            SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S1, logp);
-            overrun = pi - S1;
-            // sieve_full_line(S0, S_ptr, S0 - S, pi - S0, p_or_2p, logp, w);
-            pos += r; if (pos >= (int) p) pos -= p; 
-            /* Next line */
-            if (++j >= nj) break;
-            p_or_2p >>= 1;
-j_odd0:
-            WHERE_AM_I_UPDATE(w, j, j);
-            // S0 = S_ptr;
-            pi = S_ptr + pos;
-            S1 = S_ptr + (i1 - i0);
-            S_ptr += I;
-            SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S1, logp);
-            overrun = pi - S1;
-            pos += r; if (pos >= (int) p) pos -= p;
-        } while (++j < nj);
-
-            int N1 = N + nthreads;
-            int Q = logI - LOG_BUCKET_REGION;
-            int dj = (N1>>Q) - j0;
-            int di = (N1&((1<<Q)-1)) - (N&((1<<Q)-1));
-    ASSERT(overrun < (int) 2*p);
-    ASSERT(p_pos < (int) p);
-            int B_mod_p = overrun - p_pos;
-            pos = (p_pos + B_mod_p * di + dj * r) % p;
-            if (pos < 0) pos += p;
-
-            p_pos = pos;
-        }
-        } else {
         for(auto const & ssp : primes) {
-            int & p_pos(positions[&ssp - &primes.front()]);
-            int pos = p_pos;
+            int pos = positions[&ssp - &primes.front()];
 
             const fbprime_t p = ssp.get_p();
             const fbprime_t r = ssp.get_r();
@@ -677,8 +439,65 @@ j_odd0:
 
             unsigned long j;
             const int test_divisibility MAYBE_UNUSED = 0; /* very slow, but nice for debugging */
-            const unsigned long nj = bucket_region >> si.conf.logI_adjusted; /* Nr. of lines 
-                                                                                per bucket region */
+            const unsigned long nj = bucket_region >> logI; /* Nr. of lines per bucket region */
+
+            WHERE_AM_I_UPDATE(w, p, p);
+
+            //XXX XXX XXX const unsigned char logp = ssd->logp[k];
+            unsigned char *S_ptr = S;
+            unsigned char *S1;
+            size_t p_or_2p = p;
+            ASSERT(pos < (int) p);
+            unsigned int i_compens_sublat = 0;
+            if (sl.m != 0) {
+                i_compens_sublat = sl.i0 & 1;
+            }
+            j = 0;
+            if (row0_is_oddj) goto j_odd0;
+            // it is possible to make this code work with sieve_full_line by
+            // uncommenting all lines that match S0. Performance is
+            // apparently identical, but it's not fair to say that this *is*
+            // the reference code, as far as performance is concerned.
+            // unsigned char * S0 MAYBE_UNUSED;
+            do {
+                unsigned char *pi;
+                WHERE_AM_I_UPDATE(w, j, j);
+                // S0 = S_ptr;
+                pi = S_ptr + pos;
+                S1 = S_ptr + (i1 - i0);
+                S_ptr += I;
+                /* for j even, we sieve only odd pi, so step = 2p. */
+                p_or_2p += p_or_2p;
+                if (!((i_compens_sublat + pos) & 1)) {
+                    pi += p;
+                }
+                SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S1, logp);
+                // sieve_full_line(S0, S_ptr, S0 - S, pi - S0, p_or_2p, logp, w);
+                pos += r; if (pos >= (int) p) pos -= p;
+                /* Next line */
+                if (++j >= nj) break;
+                p_or_2p >>= 1;
+j_odd0:
+                WHERE_AM_I_UPDATE(w, j, j);
+                // S0 = S_ptr;
+                pi = S_ptr + pos;
+                S1 = S_ptr + (i1 - i0);
+                S_ptr += I;
+                SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S1, logp);
+                pos += r; if (pos >= (int) p) pos -= p;
+            } while (++j < nj);
+        }
+    } else {
+        for(auto const & ssp : primes) {
+            int pos = positions[&ssp - &primes.front()];
+
+            const fbprime_t p = ssp.get_p();
+            const fbprime_t r = ssp.get_r();
+            const unsigned char logp = ssp.logp;
+
+            unsigned long j;
+            const int test_divisibility MAYBE_UNUSED = 0; /* very slow, but nice for debugging */
+            const unsigned long nj = bucket_region >> logI; /* Nr. of lines per bucket region */
 
             WHERE_AM_I_UPDATE(w, p, p);
 
@@ -687,8 +506,8 @@ j_odd0:
             size_t p_or_2p = p;
             ASSERT(pos < (int) p);
             unsigned int i_compens_sublat = 0;
-            if (si.conf.sublat.m != 0) {
-                i_compens_sublat = si.conf.sublat.i0 & 1;
+            if (sl.m != 0) {
+                i_compens_sublat = sl.i0 & 1;
             }
             j = 0;
             if (row0_is_oddj) goto j_odd;
@@ -709,7 +528,7 @@ j_odd0:
                     pi += p;
                 }
                 SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S_ptr, logp);
-                pos += r; if (pos >= (int) p) pos -= p; 
+                pos += r; if (pos >= (int) p) pos -= p;
                 /* Next line */
                 if (++j >= nj) break;
                 p_or_2p >>= 1;
@@ -721,30 +540,23 @@ j_odd:
                 SMALLSIEVE_ASSEMBLY_OLD(pi, p_or_2p, S_ptr, logp);
                 pos += r; if (pos >= (int) p) pos -= p;
             } while (++j < nj);
-
-            pos += ssp.get_offset();
-            if (pos >= (int) p) pos -= p;
-
-        p_pos = pos;
-    }
+        }
     }
 }
 /*}}}*/
 
-template<typename even_code, typename odd_code, bool fragment> void devel_branch_meta(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+template<typename even_code, typename odd_code, bool fragment> void devel_branch_meta(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int & p_pos(positions[&ssp - &primes.front()]);
-        int pos = p_pos;
+        int pos = positions[&ssp - &primes.front()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
 
-        overrun_t<fragment> overrun;
         unsigned int j = j0;
 
         /* we sieve over the area [S0..S0+(i1-i0)], which may
@@ -767,116 +579,38 @@ template<typename even_code, typename odd_code, bool fragment> void devel_branch
         for( ; j < j1 ; ) {
             /* for j even, we sieve only odd pi, so step = 2p. */
             {
-            int xpos = ((si.conf.sublat.i0 + pos) & 1) ? pos : (pos+p);
-            overrun = even_code()(S0, S0 + (i1 - i0), S0 - S, xpos, p+p, logp, w);
+            int xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
+            even_code()(S0, S0 + (i1 - i0), S0 - S, xpos, p+p, logp, w);
             }
             S0 += I;
-            pos += r; if (pos >= (int) p) pos -= p; 
+            pos += r; if (pos >= (int) p) pos -= p;
             if (++j >= j1) break;
 
 j_odd_devel0:
             /* now j odd again */
             WHERE_AM_I_UPDATE(w, j, j - j0);
-            overrun = odd_code()(S0, S0 + (i1 - i0), S0 - S, pos, p, logp, w);
+            odd_code()(S0, S0 + (i1 - i0), S0 - S, pos, p, logp, w);
             S0 += I;
             pos += r; if (pos >= (int) p) pos -= p;
             ++j;
         }
-
-        if (fragment) {
-            /* quick notes for incremental adjustment in case I>B (B =
-             * LOG_BUCKET_REGION).
-             *
-             * Let q = 2^(I-B).
-             * Let N = a*q+b, and N'=N+nthreads=a'*q+b' ; N' is the
-             * next bucket region we'll handle.
-             *
-             * Let nthreads = u*q+v
-             *
-             * The row increase is dj = (N' div q) - (N div q) = a'-a
-             * The fragment increase is di = (N' mod q) - (N mod q) = b'-b
-             *
-             * Of course we have -q < b'-b < q
-             *
-             * dj can be written as (N'-N-(b'-b)) div q, which is an
-             * exact division. we rewrite that as:
-             *
-             * dj = u + (v - (b'-b)) div q
-             *
-             * where the division is again exact. Now (v-(b'-b))
-             * satisfies:
-             * -q < v-(b'-b) < 2*q-1
-             *
-             * so that the quotient may only be 0 or 1.
-             *
-             * It is 1 if and only if v >= q + b'-b, which sounds like a
-             * reasonable thing to check.
-             */
-            /* available stuff, for computing the next position:
-             * p_pos was the position of the first hit on the first line
-             *       in this bucket.
-             * pos is the position of the first hit on the next line just
-             *       above this bucket (possibly +p if we just sieved an
-             *       even line -- this is a catch, by the way).
-             * overrun is the position of the first hit on the last line
-             *       a bucket that would be on the right of this one
-             *       (even if we're at the end of a line of buckets. In
-             *       effect, (overrun-p_pos) is congruent to B mod p when
-             *       the bucket is a single line fragment of size B.
-             */
-            int N1 = N + nthreads;
-            int Q = logI - LOG_BUCKET_REGION;
-            int dj = (N1>>Q) - j0;
-            int di = (N1&((1<<Q)-1)) - (N&((1<<Q)-1));
-            /* Note that B_mod p is not reduced. It may be <0, and
-             * may also be >= p if we sieved with 2p because of even j
-             *
-             * (0 <= overrun < 2p), and (0 <= pos < p), so -p < B_mod_p < 2p
-             */
-            int B_mod_p = overrun - p_pos;
-            /* FIXME: we may avoid some of the cost for the modular
-             * reduction, here. Having a mod operation in this place
-             * seems to be a fairly terrible idea.
-             *
-             * dj is either always the same thing, or that same thing +1.
-             * di is within a small interval (albeit a centered one).
-             * 
-             * It seems feasible to get by with a fixed number of
-             * conditional subtractions.
-             */
-            pos = (p_pos + B_mod_p * di + dj * r) % p;
-            if (pos < 0) pos += p;
-        } else {
-            /* skip stride */
-            pos += ssp.get_offset();
-            if (pos >= (int) p) pos -= p;
-
-    }
-        p_pos = pos;
     }
 }/*}}}*/
 
 
-void generated(std::vector<int> & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+void generated(std::vector<int> const & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     std::vector<ssp_t> not_nice_primes;
-    if (logI > LOG_BUCKET_REGION) {
-        small_sieve<true> SS(positions, primes, not_nice_primes, S, logI, N, si.conf.sublat, nthreads);
-        // SS.pattern_sieve2(w);
-        // SS.pattern_sieve3(w);
-        SS.normal_sieve(w);
-    } else {
-        small_sieve<false> SS(positions, primes, not_nice_primes, S, logI, N, si.conf.sublat, nthreads);
-        // SS.pattern_sieve2(w);
-        // SS.pattern_sieve3(w);
-        SS.normal_sieve(w);
-    }
+    small_sieve SS(positions, primes, not_nice_primes, S, logI, N, sl);
+    // SS.pattern_sieve2(w);
+    // SS.pattern_sieve3(w);
+    SS.normal_sieve(w);
 }
 /*}}}*/
 
 
 struct cand_func {
-    typedef void (*ss_func)(std::vector<int> & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED);
+    typedef void (*ss_func)(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED);
     bool sel;
     ss_func f;
     const char * name;
@@ -1172,7 +906,7 @@ void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_
         unsigned long r = gmp_urandomm_ui(rstate, p);
         /* not a problem if we put garbage here */
         unsigned char logp = log2(p)/log2(1.6);
-        allprimes.emplace_back(p, r, logp, nthreads-1);
+        allprimes.emplace_back(p, r, logp);
     }
     if (!quiet) printf("created a list of %zu primes\n", allprimes.size());
     mpz_clear(pz);
@@ -1225,16 +959,11 @@ int main(int argc0, char * argv0[])
     param_list_parse_int(pl, "bmin", &bmin);
     param_list_parse_int(pl, "bmax", &bmax);
 
-    si.conf.logI_adjusted = logI;
     if (!bmax) bmax = logI;
     if (!logA) logA = 2*logI-1;
 
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
-
-    nthreads=1;
-
-    mpz_init_set_ui(si.qbasis.q, 4294967291);
 
     int errors = 0;
 
@@ -1351,7 +1080,6 @@ int main(int argc0, char * argv0[])
         errors += !bbase.test(funcs);
     }
 
-    mpz_clear(si.qbasis.q);
     gmp_randclear(rstate);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;

@@ -1,3 +1,4 @@
+
 ###########################################################################
 #     Parameter file for Cado-NFS ; DLP version
 ###########################################################################
@@ -9,27 +10,6 @@
 
 name = p60
 
-## N is the prime modulo which we want dlogs and ell is the prime
-## factor of N-1 modulo which the computations are done.
-#  N = 53236943330228380237618624445646085674945074907141464418703
-#  ell = 46188898894770668459
-
-# If you don't want the "full column of 1", uncomment the following line.
-# In particular when both polynomials are not monic, this could help.
-# tasks.lcideals = false
-
-## Standard stuff; uncomment and edit according to your config.
-#slaves.nrclients=2
-##tasks.threads = 2
-#tasks.execpath = ...
-#tasks.workdir =  ...
-#slaves.hostnames=localhost
-#slaves.scriptpath=...
-#slaves.basepath=...
-
-## From here, the parameter are similar to factorization.
-
-tasks.I = 11
 
 ###########################################################################
 # Polynomial selection with Kleinjung's algorithm
@@ -37,40 +17,39 @@ tasks.I = 11
 
 tasks.polyselect.degree = 4
 
-tasks.polyselect.admax = 200
+tasks.polyselect.admax = 1000
 tasks.polyselect.incr = 60
 tasks.polyselect.adrange = 500
-tasks.polyselect.P = 420
-tasks.polyselect.nq = 1000
+tasks.polyselect.P = 400
+tasks.polyselect.nq = 250
 tasks.polyselect.ropteffort = 0.01
+
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
 
-lim0 = 50000
-lim1 = 100000
-lpb0 = 17
-lpb1 = 17
-tasks.sieve.mfb0 = 17
-tasks.sieve.mfb1 = 17
-tasks.sieve.lambda0 = 1.2
-tasks.sieve.lambda1 = 1.2
+tasks.I = 11
+tasks.lim0 = 25000
+tasks.lim1 = 25000
+tasks.lpb0 = 17
+tasks.lpb1 = 17
+tasks.sieve.mfb0 = 34
+tasks.sieve.mfb1 = 34
+tasks.sieve.lambda0 = 2.1
+tasks.sieve.lambda1 = 2.1
+tasks.qmin = 10000
+tasks.sieve.qrange = 2000
+tasks.sieve.rels_wanted = 32000
 
-tasks.sieve.qmin = 15000
-tasks.sieve.qrange = 200
-tasks.sieve.rels_wanted = 28000 
-
-# adjust if needed
-# slaves.niceness = 10
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.maxlevel = 15
-tasks.filter.target_density = 100
+tasks.filter.maxlevel = 20
+tasks.filter.target_density = 80
 
 tasks.reconstructlog.partial=false
 
@@ -80,14 +59,15 @@ tasks.reconstructlog.partial=false
 
 tasks.descent.init_I = 11
 tasks.descent.init_ncurves = 10
-tasks.descent.init_lpb = 24
-tasks.descent.init_lim = 100000
-tasks.descent.init_mfb = 48
-tasks.descent.init_tkewness = 200000
+tasks.descent.init_lpb = 27
+tasks.descent.init_lim = 25000
+tasks.descent.init_mfb = 54
+tasks.descent.init_tkewness = 25000
 tasks.descent.I = 11
-tasks.descent.lim0 = 100000
-tasks.descent.lim1 = 100000
+tasks.descent.lim0 = 25000
+tasks.descent.lim1 = 25000
 tasks.descent.lpb0 = 17
 tasks.descent.lpb1 = 17
 tasks.descent.mfb0 = 34
 tasks.descent.mfb1 = 34
+

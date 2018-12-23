@@ -22,14 +22,14 @@ tasks.polyselect.nrkeep = 2
 tasks.polyselect.ropteffort = 1
 
 tasks.I = 9
-lim0 = 30000
-lim1 = 30000
-lpb0 = 17
-lpb1 = 17
+tasks.lim0 = 30000
+tasks.lim1 = 30000
+tasks.lpb0 = 17
+tasks.lpb1 = 17
 tasks.sieve.mfb0 = 18
 tasks.sieve.mfb1 = 18
 
-tasks.sieve.qmin = 50000
+tasks.qmin = 50000
 tasks.sieve.qrange = 1000
 tasks.sieve.rels_wanted = 30000
 

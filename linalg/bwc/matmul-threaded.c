@@ -148,7 +148,7 @@ static void matmul_threaded_blocks_info(struct matmul_threaded_data_s * mm)
             (100.0 * padding / sparse_coeffs));
 }
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data)
+void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE_UNUSED)
 {
     struct matmul_threaded_data_s * mm = (struct matmul_threaded_data_s *) mm0;
     ASSERT_ALWAYS(data);

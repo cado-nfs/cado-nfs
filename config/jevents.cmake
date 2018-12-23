@@ -51,8 +51,6 @@ endif()
 
 # Yeah. CMake docs defines the ``PATH'' to a file as being its dirname. Very
 # helpful documentation there :-((
-message(STATUS "JEVENTS_INCDIR=${JEVENTS_INCDIR}")
-message(STATUS "JEVENTS_LIB=${JEVENTS_LIB}")
 string(COMPARE NOTEQUAL "${JEVENTS_INCDIR}" JEVENTS_INCDIR-NOTFOUND JEVENTS_INCDIR_OK)
 string(COMPARE NOTEQUAL "${JEVENTS_LIB}" JEVENTS_LIB-NOTFOUND JEVENTS_LIBDIR_OK)
 
@@ -62,9 +60,10 @@ if(JEVENTS_INCDIR_OK AND JEVENTS_LIBDIR_OK)
 include_directories(${JEVENTS_INCDIR})
 link_directories(${JEVENTS_LIBDIR})
 include(CheckCSourceCompiles)
-set(CMAKE_REQUIRED_LIBRARIES "-ljevents")
 set(CMAKE_REQUIRED_FLAGS "-L${JEVENTS_LIBDIR}")
+set(CMAKE_REQUIRED_DEFINITIONS)
 set(CMAKE_REQUIRED_INCLUDES ${JEVENTS_INCDIR})
+set(CMAKE_REQUIRED_LIBRARIES "-ljevents")
 CHECK_C_SOURCE_COMPILES("
 #include <rdpmc.h>
 
@@ -77,4 +76,14 @@ int main()
     return 0;
 }
 " HAVE_JEVENTS)
+if(HAVE_JEVENTS)
+    message(STATUS "JEVENTS_INCDIR=${JEVENTS_INCDIR}")
+    message(STATUS "JEVENTS_LIB=${JEVENTS_LIB}")
+else()
+    set(JEVENTS_INCDIR)
+    set(JEVENTS_LIB)
+endif()
+else()
+    set(JEVENTS_INCDIR)
+    set(JEVENTS_LIB)
 endif()

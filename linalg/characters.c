@@ -605,7 +605,7 @@ declare_usage (param_list pl)
   param_list_decl_usage (pl, "lpb1",   "large prime bound on side 1");
   param_list_decl_usage (pl, "t",      "number of threads");
   param_list_decl_usage (pl, "ker",      "input kernel file");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
 int main(int argc, char **argv)

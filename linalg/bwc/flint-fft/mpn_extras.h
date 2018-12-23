@@ -1,7 +1,7 @@
 #ifndef MPN_EXTRAS_H_
 #define MPN_EXTRAS_H_
 
-#include "mpir.h"
+#include "gmp.h"
 #include "flint.h"
 
 #define BITS_TO_LIMBS(b) (((b) + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS)

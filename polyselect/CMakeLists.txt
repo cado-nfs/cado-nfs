@@ -28,3 +28,9 @@ endif()
 install(TARGETS polyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 install(TARGETS polyselect_ropt RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 include(CMakeLists-nodist.txt OPTIONAL)
+
+# dlpolyselect
+add_executable (dlpolyselect dlpolyselect.c ${ropt_sources})
+set_target_properties(dlpolyselect PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+target_link_libraries (dlpolyselect polyselect_common utils)

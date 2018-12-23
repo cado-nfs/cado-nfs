@@ -64,6 +64,7 @@ Required software tools
  - Support for posix threads.
  - The main cado-nfs.py script uses a lot of unix tools: Python, Python3,
    ssh, rsync, gzip to mention but a few.
+ - For a large computation, MySQL is recommended.
 
 Optionally:
 
@@ -94,6 +95,8 @@ is advised to trigger re-configuration of the build system, by the
 special command ``make cmake''. Another way to achieve the same goal is
 to remove the build tree, which is below build/ (normally named as the
 hostname of the current machine): ``make tidy'' should do it.
+Then, of course, you must recompile with ``make'', since ``make cmake''
+is just the equivalent of ``./configure'' in a classical build system.
 
 Optional (alternative): configure using cmake directly
 ======================================================
@@ -301,13 +304,13 @@ that could possibly occur with SNFS polynomials (a degree 4 polynomial
 with Galois group Z/2 x Z/2 is the only reasonable example, next case is
 for degree 8). The CRT approach is a workaround. See crtaglsqrt.c .
 
-Big factorization (more than 200 digits):
-=========================================
+Big factorization (200 digits and more):
+========================================
 
 By default, to decrease memory usage, it is assumed than less than 2^32 (~ four
 billion) relations or ideals are needed and that the ideals will be less than
 2^32 (i.e., the lpb0/lpb1 parameters are less or equal to 32). In the case of
-factorizations of numbers of more than 200 digits, these assumptions may not
+factorizations of numbers of 200 digits and more, these assumptions may not
 hold. In this case, you have to set some variables in your local.sh script
 (see Configure section above for more information on local.sh and section on
 big factorizations in local.sh.example).

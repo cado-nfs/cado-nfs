@@ -1,22 +1,45 @@
 #ifndef STAGE2_H
 #define STAGE2_H
 
-#define NEXT_D 254
-#define NEXT_PASS 255
+#define PAIR_INCR_V (UINT_MAX-1)
+#define PAIR_END UINT_MAX
 
+/* See the comments above the stage2_one_w function in stage2.c for details */
 typedef struct {
   unsigned int B2;
-  unsigned int d;          /* The d parameter for stage 2 */
-  unsigned int s1;
-  unsigned int i0, i1;     /* Stage 2 needs V_{id}(x+1/x) for i0 <= i < i1 */
-  int *S1;                 /* Contains eulerphi(d)/2 elements, for each 
-                              k1 in S1 we precompute V_k(x+1/x) */
-  unsigned char *pairs;    /* For each element in S2, a list of i,j values 
-                              for which to multiply V_{id}(x+1/x) - V_{j}(x+1/x)
-                              to accumulator */
+  unsigned int w;         /* Parameter for the Baby-Step-Giant-Step algorithm */
+  unsigned int U_len;     /* len of U array */
+  unsigned int *U;        /* list of integer coprime to w below w/2 */
+  unsigned int vmin, vmax; /* Upper and lower bound on V */
+  unsigned int *pairs;    /* This array contains the indexes of the U values
+                           * that should be use in the product. We start with
+                           * v=vmin; each time PAIR_INCR_V is seen, we increase
+                           * v by 1. The special value PAIR_END is used as a end
+                           * marker
+                           */
 } stage2_plan_t;
 
-void stage2_make_plan (stage2_plan_t *, unsigned int, unsigned int, int);
+
+/* To compute the cost of stage2, a modular multiplication will be counted as
+ * having cost 1, so the cost of the doubling and the differential addition must
+ * be given with respect to the cost of one modular multiplication.
+ */
+struct stage2_cost_s
+{
+  int is_ecm; /* 1 if we are doing stage2 for ECM, 0 for P-/+1.
+               * If 1 it means we need to homogenize the coordinates of the
+               * points (all projective points must have the same Z-coordinate)
+               * which induces an additional cost.
+               */
+  double dbl; /* cost of a doubling (for an additive group) */
+  double dadd; /* cost of a differential addition (for an additive group) */
+};
+
+typedef struct stage2_cost_s stage2_cost_t;
+
+
+void stage2_make_plan (stage2_plan_t *, unsigned int, unsigned int,
+                       const stage2_cost_t *, int);
 void stage2_clear_plan (stage2_plan_t *);
 
 #endif  /* STAGE2_H */

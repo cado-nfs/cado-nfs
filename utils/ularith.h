@@ -472,6 +472,12 @@ ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2,
     : "=a" (*r1), "=d" (*r2)
     : "%0" (a), "rm" (b)
     : "cc");
+#elif !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+  __asm__ __VOLATILE(
+   "umull   %[r1], %[r2], %[a], %[b]\n\t"
+  : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
+  : [a] "r" (a), [b] "r" (b)
+  );
 #else
   const int half = LONG_BIT / 2;
   const unsigned long mask = (1UL << half) - 1UL;
@@ -514,6 +520,12 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
     : "=a" (*r1), "=d" (*r2)
     : "0" (a)
     : "cc");
+#elif !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+  __asm__ __VOLATILE(
+   "umull   %[r1], %[r2], %[a], %[a]\n\t"
+  : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
+  : [a] "r" (a)
+  );
 #else
   const int half = LONG_BIT / 2;
   const unsigned long mask = (1UL << half) - 1UL;

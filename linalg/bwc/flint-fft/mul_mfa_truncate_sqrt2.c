@@ -1,35 +1,12 @@
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
@@ -37,11 +14,11 @@
 #include "ulong_extras.h"
 
 /*
- * As for \code{mul_truncate_sqrt2} except that the cache friendly matrix
+ * As for ``mul_truncate_sqrt2`` except that the cache friendly matrix
  * fourier algorithm is used.
  * 
- * If \code{n = 2^depth} then we require $nw$ to be at least 64. Here we
- * also require $w$ to be $2^i$ for some $i \geq 0$. 
+ * If ``n = 2^depth`` then we require `nw` to be at least 64. Here we
+ * also require `w` to be `2^i` for some `i \geq 0`. 
  * 
  */
 void mul_mfa_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
@@ -61,17 +38,55 @@ void mul_mfa_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
 
     mp_size_t i, j, trunc;
 
-    mp_limb_t **ii, **jj, *t1, *t2, *s1, *ptr;
-    mp_limb_t *tt;
+    mp_limb_t **ii, **jj, *ptr;
+    mp_limb_t **s1, **t1, **t2, **tt;
 
+#if defined(_OPENMP)
+    int N;
+#endif
+
+    TMP_INIT;
+
+    TMP_START;
+
+#if defined(_OPENMP)
+    N = omp_get_max_threads();
+    ii = flint_malloc((4 * (n + n * size) +
+		       5 * size * N) * sizeof(mp_limb_t));
+#else
     ii = flint_malloc((4 * (n + n * size) + 5 * size) * sizeof(mp_limb_t));
+#endif
     for (i = 0, ptr = (mp_limb_t *) ii + 4 * n; i < 4 * n; i++, ptr += size) {
 	ii[i] = ptr;
     }
-    t1 = ptr;
-    t2 = t1 + size;
-    s1 = t2 + size;
-    tt = s1 + size;
+#if defined(_OPENMP)
+    s1 = TMP_ALLOC(N * sizeof(mp_limb_t *));
+    t1 = TMP_ALLOC(N * sizeof(mp_limb_t *));
+    t2 = TMP_ALLOC(N * sizeof(mp_limb_t *));
+    tt = TMP_ALLOC(N * sizeof(mp_limb_t *));
+
+    s1[0] = ptr;
+    t1[0] = s1[0] + size * N;
+    t2[0] = t1[0] + size * N;
+    tt[0] = t2[0] + size * N;
+
+    for (i = 1; i < N; i++) {
+	s1[i] = s1[i - 1] + size;
+	t1[i] = t1[i - 1] + size;
+	t2[i] = t2[i - 1] + size;
+	tt[i] = tt[i - 1] + 2 * size;
+    }
+#else
+    s1 = TMP_ALLOC(sizeof(mp_limb_t *));
+    t1 = TMP_ALLOC(sizeof(mp_limb_t *));
+    t2 = TMP_ALLOC(sizeof(mp_limb_t *));
+    tt = TMP_ALLOC(sizeof(mp_limb_t *));
+
+    s1[0] = ptr;
+    t1[0] = s1[0] + size;
+    t2[0] = t1[0] + size;
+    tt[0] = t2[0] + size;
+#endif
 
     if (i1 != i2) {
 	jj = flint_malloc(4 * (n + n * size) * sizeof(mp_limb_t));
@@ -87,27 +102,26 @@ void mul_mfa_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
 	trunc = 2 * n + 1;
     trunc = 2 * sqrt * ((trunc + 2 * sqrt - 1) / (2 * sqrt));	/* trunc must 
 								 * be
-								 * isiblible
+								 * divisible
 								 * by 2*sqrt */
 
     j1 = fft_split_bits(ii, i1, n1, bits1, limbs);
     for (j = j1; j < 4 * n; j++)
 	flint_mpn_zero(ii[j], limbs + 1);
 
-    fft_mfa_truncate_sqrt2_outer(ii, n, w, &t1, &t2, &s1, sqrt, trunc);
+    fft_mfa_truncate_sqrt2_outer(ii, n, w, t1, t2, s1, sqrt, trunc);
 
     if (i1 != i2) {
 	j2 = fft_split_bits(jj, i2, n2, bits1, limbs);
 	for (j = j2; j < 4 * n; j++)
 	    flint_mpn_zero(jj[j], limbs + 1);
 
-	fft_mfa_truncate_sqrt2_outer(jj, n, w, &t1, &t2, &s1, sqrt, trunc);
+	fft_mfa_truncate_sqrt2_outer(jj, n, w, t1, t2, s1, sqrt, trunc);
     } else
 	j2 = j1;
 
-    fft_mfa_truncate_sqrt2_inner(ii, jj, n, w, &t1, &t2, &s1, sqrt, trunc,
-				 tt);
-    ifft_mfa_truncate_sqrt2_outer(ii, n, w, &t1, &t2, &s1, sqrt, trunc);
+    fft_mfa_truncate_sqrt2_inner(ii, jj, n, w, t1, t2, s1, sqrt, trunc, tt);
+    ifft_mfa_truncate_sqrt2_outer(ii, n, w, t1, t2, s1, sqrt, trunc);
 
     flint_mpn_zero(r1, r_limbs);
     fft_addcombine_bits(r1, ii, j1 + j2 - 1, bits1, limbs, r_limbs);
@@ -115,4 +129,6 @@ void mul_mfa_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
     flint_free(ii);
     if (i1 != i2)
 	flint_free(jj);
+
+    TMP_END;
 }

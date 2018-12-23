@@ -40,6 +40,10 @@ int main()
 }
 ")
 
+set(CMAKE_REQUIRED_FLAGS)
+set(CMAKE_REQUIRED_DEFINITIONS)
+set(CMAKE_REQUIRED_INCLUDES)
+set(CMAKE_REQUIRED_LIBRARIES)
 CHECK_CXX_SOURCE_COMPILES("${check_shared_ptr_prefix}
 ${check_shared_ptr_suffix}" HAVE_STD_SHARED_PTR_BASIC)
 
@@ -67,11 +71,19 @@ if(NOT HAS_NOT_BUG_21397_STD_VERSION)
     # certainly fine, but we haven't checked whether it's always so. The
     # std:: version, however, is definitely not fine under certain
     # circumstances. See bug #21397
+    set(CMAKE_REQUIRED_FLAGS)
+    set(CMAKE_REQUIRED_DEFINITIONS)
+    set(CMAKE_REQUIRED_INCLUDES)
+    set(CMAKE_REQUIRED_LIBRARIES)
     CHECK_CXX_SOURCE_COMPILES("${check_shared_ptr_prefix}
     ${check_shared_ptr_boost_infix}
     ${check_shared_ptr_suffix}" HAVE_BOOST_SHARED_PTR_BASIC)
 
     if(HAVE_BOOST_SHARED_PTR_BASIC)
+        set(CMAKE_REQUIRED_FLAGS)
+        set(CMAKE_REQUIRED_DEFINITIONS)
+        set(CMAKE_REQUIRED_INCLUDES)
+        set(CMAKE_REQUIRED_LIBRARIES)
         CHECK_CXX_SOURCE_COMPILES("${check_shared_ptr_prefix}
         ${check_shared_ptr_boost_infix}
         ${check_shared_ptr_copy_ctor_suffix}"

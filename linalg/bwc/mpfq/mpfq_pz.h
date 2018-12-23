@@ -152,7 +152,7 @@ extern "C" {
 
 /* Functions operating on the field structure */
 static inline
-void mpfq_pz_field_characteristic(mpfq_pz_dst_field, mpz_t);
+void mpfq_pz_field_characteristic(mpfq_pz_dst_field, mpz_ptr);
 static inline
 unsigned long mpfq_pz_field_characteristic_bits(mpfq_pz_dst_field);
 /* *pz::code_for_field_degree */
@@ -167,6 +167,8 @@ void mpfq_pz_field_specify(mpfq_pz_dst_field, unsigned long, const void *);
 /* Element allocation functions */
 void mpfq_pz_init(mpfq_pz_dst_field, mpfq_pz_elt *);
 void mpfq_pz_clear(mpfq_pz_dst_field, mpfq_pz_elt *);
+static inline
+ptrdiff_t mpfq_pz_elt_stride(mpfq_pz_dst_field);
 
 /* Elementary assignment functions */
 static inline
@@ -178,11 +180,11 @@ void mpfq_pz_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_elt);
 static inline
 unsigned long mpfq_pz_get_ui(mpfq_pz_dst_field, mpfq_pz_src_elt);
 void mpfq_pz_set_mpn(mpfq_pz_dst_field, mpfq_pz_dst_elt, mp_limb_t *, size_t);
-void mpfq_pz_set_mpz(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpz_t);
+void mpfq_pz_set_mpz(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpz_srcptr);
 static inline
 void mpfq_pz_get_mpn(mpfq_pz_dst_field, mp_limb_t *, mpfq_pz_src_elt);
 static inline
-void mpfq_pz_get_mpz(mpfq_pz_dst_field, mpz_t, mpfq_pz_src_elt);
+void mpfq_pz_get_mpz(mpfq_pz_dst_field, mpz_ptr, mpfq_pz_src_elt);
 
 /* Assignment of random values */
 void mpfq_pz_random(mpfq_pz_dst_field, mpfq_pz_dst_elt, gmp_randstate_t);
@@ -209,6 +211,8 @@ int mpfq_pz_inv(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpfq_pz_src_elt);
 /* Operations involving unreduced elements */
 void mpfq_pz_elt_ur_init(mpfq_pz_dst_field, mpfq_pz_elt_ur *);
 void mpfq_pz_elt_ur_clear(mpfq_pz_dst_field, mpfq_pz_elt_ur *);
+static inline
+ptrdiff_t mpfq_pz_elt_ur_stride(mpfq_pz_dst_field);
 static inline
 void mpfq_pz_elt_ur_set(mpfq_pz_dst_field, mpfq_pz_dst_elt_ur, mpfq_pz_src_elt_ur);
 static inline
@@ -258,6 +262,7 @@ void mpfq_pz_vec_add(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_p
 void mpfq_pz_vec_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int);
 void mpfq_pz_vec_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int);
 void mpfq_pz_vec_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
+static inline
 void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned int);
 void mpfq_pz_vec_conv(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int, mpfq_pz_src_vec, unsigned int);
 void mpfq_pz_vec_random(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned int, gmp_randstate_t);
@@ -279,6 +284,10 @@ int mpfq_pz_vec_sscan(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned int *, const ch
 int mpfq_pz_vec_fscan(mpfq_pz_dst_field, FILE *, mpfq_pz_vec *, unsigned int *);
 /* *Mpfq::defaults::vec::io::code_for_vec_scan, pz */
 #define mpfq_pz_vec_scan(K, w, n)	mpfq_pz_vec_fscan(K,stdin,w,n)
+int mpfq_pz_vec_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
+int mpfq_pz_vec_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
+int mpfq_pz_vec_simd_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
+int mpfq_pz_vec_simd_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
 void mpfq_pz_vec_ur_init(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned int);
 void mpfq_pz_vec_ur_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, unsigned int);
 void mpfq_pz_vec_ur_set_vec(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned int);
@@ -291,6 +300,7 @@ void mpfq_pz_vec_ur_add(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_u
 void mpfq_pz_vec_ur_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
 void mpfq_pz_vec_ur_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
 void mpfq_pz_vec_ur_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
+static inline
 void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned int);
 void mpfq_pz_vec_conv_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned int, mpfq_pz_src_vec, unsigned int);
 void mpfq_pz_vec_reduce(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_dst_vec_ur, unsigned int);
@@ -302,8 +312,10 @@ static inline
 mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, int);
 static inline
 mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field, mpfq_pz_src_vec_ur, int);
-ptrdiff_t mpfq_pz_vec_elt_stride(mpfq_pz_dst_field, int);
-ptrdiff_t mpfq_pz_vec_ur_elt_stride(mpfq_pz_dst_field, int);
+/* *pz::code_for_vec_elt_stride */
+#define mpfq_pz_vec_elt_stride(k, n)	((n) * mpfq_pz_elt_stride((k)))
+/* *pz::code_for_vec_ur_elt_stride */
+#define mpfq_pz_vec_ur_elt_stride(k, n)	((n) * mpfq_pz_elt_ur_stride((k)))
 
 /* Polynomial functions */
 static inline
@@ -364,20 +376,20 @@ static inline
 int mpfq_pz_poly_scan(mpfq_pz_dst_field, mpfq_pz_dst_poly);
 
 /* Functions related to SIMD operation */
-/* *simd_pz::code_for_groupsize */
-#define mpfq_pz_groupsize(K)	1
-/* *simd_pz::code_for_offset */
-#define mpfq_pz_offset(K, n)	n /* TO BE DEPRECATED */
-/* *simd_pz::code_for_stride */
-#define mpfq_pz_stride(K)	1 /* TO BE DEPRECATED */
+/* *simd_pz::code_for_simd_groupsize */
+#define mpfq_pz_simd_groupsize(K)	1
 static inline
-void mpfq_pz_set_ui_at(mpfq_pz_dst_field, mpfq_pz_dst_elt, int, unsigned long);
+int mpfq_pz_simd_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_elt);
 static inline
-void mpfq_pz_set_ui_all(mpfq_pz_dst_field, mpfq_pz_dst_elt, unsigned long);
+int mpfq_pz_simd_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_elt);
 static inline
-void mpfq_pz_elt_ur_set_ui_at(mpfq_pz_dst_field, mpfq_pz_dst_elt, int, unsigned long);
+unsigned long mpfq_pz_simd_get_ui_at(mpfq_pz_dst_field, mpfq_pz_src_elt, int);
 static inline
-void mpfq_pz_elt_ur_set_ui_all(mpfq_pz_dst_field, mpfq_pz_dst_elt, unsigned long);
+void mpfq_pz_simd_set_ui_at(mpfq_pz_dst_field, mpfq_pz_dst_elt, int, unsigned long);
+static inline
+void mpfq_pz_simd_add_ui_at(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpfq_pz_src_elt, int, unsigned long);
+static inline
+void mpfq_pz_simd_set_ui_all(mpfq_pz_dst_field, mpfq_pz_dst_elt, unsigned long);
 void mpfq_pz_dotprod(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
 
 /* Member templates related to SIMD operation */
@@ -393,7 +405,7 @@ void mpfq_pz_oo_field_init(mpfq_vbase_ptr);
 /* Implementations for inlines */
 /* *Mpfq::gfp::field::code_for_field_characteristic, pz */
 static inline
-void mpfq_pz_field_characteristic(mpfq_pz_dst_field k, mpz_t z)
+void mpfq_pz_field_characteristic(mpfq_pz_dst_field k, mpz_ptr z)
 {
         mpz_set(z, k->p);
 }
@@ -414,6 +426,13 @@ void mpfq_pz_field_init(mpfq_pz_dst_field k)
     k->io_base = 10;
     mpz_init(k->factor);
     k->ts_info.e=0;
+}
+
+/* *pz::code_for_elt_stride */
+static inline
+ptrdiff_t mpfq_pz_elt_stride(mpfq_pz_dst_field k MAYBE_UNUSED)
+{
+    return mpz_size(k->p) * sizeof(mp_limb_t);
 }
 
 /* *pz::code_for_set */
@@ -454,7 +473,7 @@ void mpfq_pz_get_mpn(mpfq_pz_dst_field k, mp_limb_t * z, mpfq_pz_src_elt x)
 
 /* *pz::code_for_get_mpz */
 static inline
-void mpfq_pz_get_mpz(mpfq_pz_dst_field k, mpz_t z, mpfq_pz_src_elt x)
+void mpfq_pz_get_mpz(mpfq_pz_dst_field k, mpz_ptr z, mpfq_pz_src_elt x)
 {
     int n = mpz_size(k->p);
     mpz_set_ui(z, x[n - 1]);
@@ -462,6 +481,13 @@ void mpfq_pz_get_mpz(mpfq_pz_dst_field k, mpz_t z, mpfq_pz_src_elt x)
         mpz_mul_2exp(z, z, 64);
         mpz_add_ui(z, z, x[i]);
     }
+}
+
+/* *pz::code_for_elt_ur_stride */
+static inline
+ptrdiff_t mpfq_pz_elt_ur_stride(mpfq_pz_dst_field k MAYBE_UNUSED)
+{
+    return mpz_size(k->bigmul_p) * sizeof(mp_limb_t);
 }
 
 /* *pz::code_for_elt_ur_set */
@@ -542,6 +568,18 @@ int mpfq_pz_is_zero(mpfq_pz_dst_field k, mpfq_pz_src_elt x)
         return 1;
 }
 
+/* *Mpfq::defaults::vec::mul::code_for_vec_scal_mul, pz */
+static inline
+void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned int n)
+{
+        unsigned int i;
+    for(i = 0; i < n; i++) {
+        mpfq_pz_src_elt x = mpfq_pz_vec_coeff_ptr_const(K, u, i);
+        mpfq_pz_dst_elt y = mpfq_pz_vec_coeff_ptr(K, w, i);
+        mpfq_pz_mul(K, y, x, c);
+    }
+}
+
 /* *pz::code_for_vec_subvec */
 static inline
 mpfq_pz_dst_vec mpfq_pz_vec_subvec(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, int i)
@@ -568,6 +606,18 @@ static inline
 mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, int i)
 {
     return v + i*mpz_size(K->p);
+}
+
+/* *Mpfq::defaults::vec::mul::code_for_vec_scal_mul_ur, pz */
+static inline
+void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned int n)
+{
+    unsigned int i;
+    for(i = 0; i < n; i++) {
+        mpfq_pz_src_elt x = mpfq_pz_vec_coeff_ptr_const(K, u, i);
+        mpfq_pz_dst_elt_ur y = mpfq_pz_vec_ur_coeff_ptr(K, w, i);
+        mpfq_pz_mul_ur(K, y, x, c);
+    }
 }
 
 /* *pz::code_for_vec_ur_subvec */
@@ -1049,30 +1099,44 @@ int mpfq_pz_poly_scan(mpfq_pz_dst_field k MAYBE_UNUSED, mpfq_pz_dst_poly w)
     return ret;
 }
 
-/* *simd_pz::code_for_set_ui_at */
+/* *simd_pz::code_for_simd_hamming_weight */
 static inline
-void mpfq_pz_set_ui_at(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, int k MAYBE_UNUSED, unsigned long v)
+int mpfq_pz_simd_hamming_weight(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_elt p)
+{
+    return !mpfq_pz_is_zero(K,p);
+}
+
+/* *simd_pz::code_for_simd_find_first_set */
+static inline
+int mpfq_pz_simd_find_first_set(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_elt p)
+{
+    return mpfq_pz_simd_hamming_weight(K,p) - 1;
+}
+
+/* *simd_pz::code_for_simd_get_ui_at */
+static inline
+unsigned long mpfq_pz_simd_get_ui_at(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_elt p, int k MAYBE_UNUSED)
+{
+    return mpfq_pz_get_ui(K,p);
+}
+
+/* *simd_pz::code_for_simd_set_ui_at */
+static inline
+void mpfq_pz_simd_set_ui_at(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, int k MAYBE_UNUSED, unsigned long v)
 {
     mpfq_pz_set_ui(K,p,v);
 }
 
-/* *simd_pz::code_for_set_ui_all */
+/* *simd_pz::code_for_simd_add_ui_at */
 static inline
-void mpfq_pz_set_ui_all(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, unsigned long v)
+void mpfq_pz_simd_add_ui_at(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, mpfq_pz_src_elt p0, int k MAYBE_UNUSED, unsigned long v)
 {
-    mpfq_pz_set_ui(K,p,v);
+    mpfq_pz_add_ui(K,p,p0,v);
 }
 
-/* *simd_pz::code_for_elt_ur_set_ui_at */
+/* *simd_pz::code_for_simd_set_ui_all */
 static inline
-void mpfq_pz_elt_ur_set_ui_at(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, int k MAYBE_UNUSED, unsigned long v)
-{
-    mpfq_pz_set_ui(K,p,v);
-}
-
-/* *simd_pz::code_for_elt_ur_set_ui_all */
-static inline
-void mpfq_pz_elt_ur_set_ui_all(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, unsigned long v)
+void mpfq_pz_simd_set_ui_all(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_elt p, unsigned long v)
 {
     mpfq_pz_set_ui(K,p,v);
 }

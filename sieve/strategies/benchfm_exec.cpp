@@ -24,8 +24,8 @@ static void declare_usage(param_list pl)
 
     param_list_decl_usage(pl, "lb",
 			  "to begin the benchmark with prime numbers of 'lb' bits.");
-    param_list_decl_usage(pl, "p", "(switch) to bench the probabilities.");
-    param_list_decl_usage(pl, "t", "(switch) to bench the times.");
+    param_list_decl_usage(pl, "p", "to bench the probabilities.");
+    param_list_decl_usage(pl, "t", "to bench the times.");
     param_list_decl_usage(pl, "N", "number of tests to run for each bench");
     param_list_decl_usage(pl, "in",
 			  "to locate the file which contains our factoring methods.");

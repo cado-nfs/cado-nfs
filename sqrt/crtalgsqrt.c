@@ -250,20 +250,6 @@ static void WRAP_mpz_submul(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
     }
 }
 
-static void WRAP_barrett_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p, mpz_srcptr q)
-{
-    STOPWATCH_DECL;
-    STOPWATCH_GO();
-    mp_size_t na = mpz_size(a);
-    mp_size_t nb = mpz_size(p);
-    barrett_mod(c,a,p,q);
-    STOPWATCH_GET();
-    if (REPORT_THIS(na, nb) && na > nb + 10) {
-        logprint("<9> mpz_mod %d %d (%.1f) %.1f %.1f (%.1f%%)\n",
-                (int) na, (int) nb, (double)na/nb, t1-t0, w1-w0, rate);
-    }
-}
-
 static void WRAP_mpz_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p)
 {
     STOPWATCH_DECL;
@@ -585,7 +571,7 @@ struct ab_source_s {
     char * sname;
     size_t sname_len;
     size_t nab;
-    char prefix[100];
+    char * prefix;
     int depnum;
     // int cado; // use !numfiles instead.
 
@@ -619,6 +605,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
     char * magic;
     if ((magic = strstr(fname, ".prep.")) != NULL) {
         // then assume kleinjung format.
+        ab->prefix = (char*) malloc(magic - fname + 1);
         strncpy(ab->prefix, fname, magic-fname);
         ab->prefix[magic-fname]='\0';
         magic++;
@@ -631,6 +618,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
     } else if ((magic = strstr(fname, ".dep.alg.")) != NULL) {
         // assume cado format (means only one file, so we don't need to
         // parse, really.
+        ab->prefix = (char*) malloc(magic - fname + 1);
         strncpy(ab->prefix, fname, magic-fname);
         ab->prefix[magic-fname]='\0';
         magic++;
@@ -642,6 +630,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
     } else if ((magic = strstr(fname, ".dep.")) != NULL) {
         // assume cado format (means only one file, so we don't need to
         // parse, really.
+        ab->prefix = (char*) malloc(magic - fname + 1);
         strncpy(ab->prefix, fname, magic-fname);
         ab->prefix[magic-fname]='\0';
         magic++;
@@ -750,6 +739,7 @@ void ab_source_rewind(ab_source_ptr ab)
 void ab_source_init_set(ab_source_ptr ab, ab_source_ptr ab0)
 {
     memcpy(ab, ab0, sizeof(struct ab_source_s));
+    ab->prefix = strdup(ab0->prefix);
     ab->sname = malloc(ab->sname_len);
     ab->file_bases = malloc((ab->nfiles+1) * sizeof(size_t));
     memcpy(ab->file_bases, ab0->file_bases, (ab->nfiles+1) * sizeof(size_t));
@@ -760,6 +750,7 @@ void ab_source_init_set(ab_source_ptr ab, ab_source_ptr ab0)
 void ab_source_clear(ab_source_ptr ab)
 {
     ab_source_rewind(ab);
+    free(ab->prefix);
     free(ab->sname);
     free(ab->file_bases);
     memset(ab, 0, sizeof(ab_source));
@@ -1682,30 +1673,6 @@ void sqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
 }
 /* }}} */
 
-/* {{{ This wraps around barrett reduction, depending on whether we
- * choose to use it or not */
-mpz_ptr my_barrett_init(mpz_srcptr px MAYBE_UNUSED)
-{
-#ifndef WITH_BARRETT
-    return NULL;
-#else
-    if (mpz_size(px) < 10000)
-        return NULL;
-    mpz_ptr qx = malloc(sizeof(mpz_t));
-    mpz_init(qx);
-    barrett_init(qx, px);
-    return qx;
-#endif
-}
-
-void my_barrett_clear(mpz_ptr qx)
-{
-    if (!qx) return;
-    mpz_clear(qx);
-    free(qx);
-}
-/* }}} */
-
 void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* {{{ */
 {
     double w0 = WCT;
@@ -1723,7 +1690,6 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
         logprint("precision %d\n", precision);
     mpz_srcptr pk = power_lookup_const(p->powers, precision);
     mpz_srcptr pl = power_lookup_const(p->powers, lower);
-    mpz_ptr qk = my_barrett_init(pk);
 
     mpz_t ta, tb;
     mpz_init(ta);
@@ -1739,26 +1705,23 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
     mpz_ptr rr[2] = { tb, fprime };
     mpz_poly_srcptr ff[2] = { glob.f_hat, glob.f_hat_diff };
-    mpz_poly_eval_several_mod_mpz_barrett(rr, ff, 2, rx, pk, qk);
+    mpz_poly_eval_several_mod_mpz (rr, ff, 2, rx, pk);
     /* use irx. only one iteration of newton.  */
-    mpz_srcptr ql = NULL;       /* FIXME if we use barrett reduction */
-    WRAP_barrett_mod(fprime, fprime, pl, ql);
+    WRAP_mpz_mod(fprime, fprime, pl);
     WRAP_mpz_mul(ta, irx, fprime);
-    WRAP_barrett_mod(ta, ta, pl, ql);
+    WRAP_mpz_mod(ta, ta, pl);
     mpz_sub_ui(ta,ta,1);
     WRAP_mpz_submul(irx, irx, ta);
-    WRAP_barrett_mod(irx, irx, pl, ql);
+    WRAP_mpz_mod(irx, irx, pl);
 
     mpz_clear(fprime);
 
     WRAP_mpz_mul(tb, irx, tb);
     mpz_sub(rx, rx, tb);
-    WRAP_barrett_mod(rx, rx, pk, qk);
+    WRAP_mpz_mod(rx, rx, pk);
 
     mpz_clear(ta);
     mpz_clear(tb);
-
-    my_barrett_clear(qk);
 }/* }}} */
 
 void prime_initialization(struct prime_data * p)/* {{{ */
@@ -3071,7 +3034,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
     // gmp_fprintf(stderr, "# [%2.2lf] %Zd\n", WCT, p->iHx_mod);
 }/* }}} */
 
-void prime_inversion_lifts_child(struct subtask_info_t * info)
+void * prime_inversion_lifts_child(struct subtask_info_t * info)
 {
     struct prime_data * p = info->p;
     mpz_srcptr px = power_lookup_const(p->powers, glob.prec);
@@ -3089,6 +3052,7 @@ void prime_inversion_lifts_child(struct subtask_info_t * info)
     fprintf(stderr, "# [%2.2lf] [P%dA%d] lifting H^-l\n", WCT, glob.arank, glob.prank);
     inversion_lift(p, p->iHx, Hx, glob.prec);
     mpz_clear(Hx);
+    return NULL;
 }
 
 void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
@@ -3149,7 +3113,7 @@ struct postcomp_subtask_info_t {
     struct wq_task * handle;
 };
 
-void prime_postcomputations_child(struct postcomp_subtask_info_t * info)
+void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
 {
     struct prime_data * p = info->p;
     int j = info->j;
@@ -3255,6 +3219,7 @@ void prime_postcomputations_child(struct postcomp_subtask_info_t * info)
     mpz_clear(z);
     mpf_clear(pxf);
     mpf_clear(ratio);
+    return NULL;
 }
 
 void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t * contribs64, mp_limb_t * contribsN)

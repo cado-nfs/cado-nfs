@@ -77,8 +77,8 @@ typedef struct balancing_header_s * balancing_header_ptr;
 
 struct balancing_s {
     balancing_header h;
-    uint32_t trows;     // target number of rows. ==nrows if no padding
-    uint32_t tcols;     // target number of cols. ==ncols if no padding
+    uint32_t trows;     // number of rows including padding.
+    uint32_t tcols;     // number of cols including padding.
     uint32_t * rowperm; // row index for new mat. --> row index for old mat.
     uint32_t * colperm; // might be equal to colperm.
 };
@@ -103,7 +103,7 @@ extern void balancing_clear(balancing_ptr bal);
 extern void balancing_init(balancing_ptr bal);
 
 /* helper for the functions below */
-static inline unsigned long balancing_row_shuffle_common_(unsigned long r, unsigned long n, uint32_t * shuf)
+static inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, uint32_t * shuf)
 {
     modulusul_t M;
     modul_initmod_ul(M, n);
@@ -130,13 +130,13 @@ static inline unsigned long balancing_pre_shuffle(balancing_ptr bal, unsigned lo
 {
     unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
     if (r >= K) return r;
-    return balancing_row_shuffle_common_(r, K, bal->h->pshuf);
+    return balancing_index_shuffle_common_(r, K, bal->h->pshuf);
 }
 static inline unsigned long balancing_pre_unshuffle(balancing_ptr bal, unsigned long r)
 {
     unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
     if (r >= K) return r;
-    return balancing_row_shuffle_common_(r, K, bal->h->pshuf_inv);
+    return balancing_index_shuffle_common_(r, K, bal->h->pshuf_inv);
 }
 
 

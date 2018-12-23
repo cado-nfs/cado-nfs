@@ -1,11 +1,6 @@
 #ifndef BIGMATPOLY_FT_H_
 #define BIGMATPOLY_FT_H_
 
-
-#ifndef HAVE_MPIR
-#error "This interface is only available with MPIR"
-#endif
-
 #include "mpfq_layer.h"
 #include "lingen-matpoly-ft.h"
 #include "lingen-bigmatpoly.h"
@@ -56,12 +51,12 @@ void bigmatpoly_ft_clear_model(bigmatpoly_ft_ptr p);
 
 void bigmatpoly_ft_swap(bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b);
 
-void bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti);
-void bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti);
+double bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft);
+double bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft);
 
-void bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti);
-void bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti);
-void bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti);
+double bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti, int draft);
+double bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti, int draft);
+double bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti, int draft);
 
 
 /* {{{ access interface for bigmatpoly_ft */
@@ -73,12 +68,13 @@ static inline matpoly_ft_ptr bigmatpoly_ft_cell(bigmatpoly_ft_ptr p, unsigned in
 }
 /* }}} */
 
-void bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj);
-static inline void bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b) { bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX); }
+double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft);
 
-void bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj);
-static inline void bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b) { bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX); }
+double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft);
 
+static inline double bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft) { return bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft); }
+
+static inline double bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft) { return bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft); }
 
 #ifdef __cplusplus
 }

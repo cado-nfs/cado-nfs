@@ -69,6 +69,7 @@ tasks.polyselect.nq = 1000
 
 lim0 = 2000
 lim1 = 2000
+qmin = 2000
 lpb0 = 15
 lpb1 = 15
 tasks.sieve.mfb0 = 17

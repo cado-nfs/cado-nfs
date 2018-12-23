@@ -86,7 +86,7 @@ int main(int argc, char * argv[])
 
     mpfq_vbase_oo_field_init_byfeatures(xx,
                 MPFQ_PRIME_MPZ, prime,
-                MPFQ_GROUPSIZE, groupsize,
+                MPFQ_SIMD_GROUPSIZE, groupsize,
                 MPFQ_DONE);
 
     if (direction == 1) {

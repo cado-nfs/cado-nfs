@@ -381,10 +381,10 @@ MkzInit (filter_matrix_t *mat, int verbose)
 #endif
     if (verbose)
       {
-        fprintf (stderr, "Entering initMarkowitz (type=%d", mat->mkztype);
+        printf ("Entering initMarkowitz (type=%d", mat->mkztype);
         if (mat->mkztype == MKZTYPE_LIGHT)
-          fprintf (stderr, ", wmstmax=%d", mat->wmstmax);
-        fprintf (stderr, ")\n");
+          printf (", wmstmax=%d", mat->wmstmax);
+        printf (")\n");
       }
 
     // compute number of eligible columns in the heap
@@ -395,8 +395,8 @@ MkzInit (filter_matrix_t *mat, int verbose)
     // Allocating heap MKZQ
     size_t tmp_alloc = (sz + 1) * 2 * sizeof(index_t);
     if (verbose)
-      fprintf (stderr, "Allocating heap for %" PRIu64 " columns (%zuMB)\n", sz,
-               tmp_alloc >> 20);
+      printf ("Allocating heap for %" PRIu64 " columns (%zuMB)\n", sz,
+              tmp_alloc >> 20);
     mat->MKZQ = (index_t *) malloc (tmp_alloc);
     ASSERT_ALWAYS(mat->MKZQ != NULL);
     mat->MKZQ[0] = 0;
@@ -405,8 +405,8 @@ MkzInit (filter_matrix_t *mat, int verbose)
     // every j needs a pointer (MKZA)
     tmp_alloc = (mat->ncols + 1) * sizeof(index_t);
     if (verbose)
-      fprintf (stderr, "Allocating pointers to heap: %zuMB\n",
-               tmp_alloc >> 20);
+      printf ("Allocating pointers to heap: %zuMB\n",
+              tmp_alloc >> 20);
     mat->MKZA = (index_t *) malloc (tmp_alloc);
     ASSERT_ALWAYS(mat->MKZA != NULL);
 
@@ -444,11 +444,11 @@ void
 MkzClear (filter_matrix_t *mat, int verbose)
 {
   if (verbose)
-    fprintf(stderr, "Max Markowitz count: %lu\n",
+    printf ("Max Markowitz count: %lu\n",
 	    (unsigned long) MkzGet(mat->MKZQ, mat->MKZQ[0], 1));
 #if MKZ_TIMINGS
-    fprintf(stderr, "MKZT: up=%d down=%d updown=%d count=%d\n",
-	    (int)tmkzup, (int)tmkzdown, (int)tmkzupdown, (int)tmkzcount);
+  printf ("MKZT: up=%d down=%d updown=%d count=%d\n",
+          (int)tmkzup, (int)tmkzdown, (int)tmkzupdown, (int)tmkzcount);
 #endif
     free (mat->MKZQ);
     free (mat->MKZA);

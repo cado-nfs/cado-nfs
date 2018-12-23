@@ -60,9 +60,9 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     unsigned int A_multiplex = bw->n / A_width;
     mpfq_vbase_oo_field_init_byfeatures(A, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, A_width,
+            MPFQ_SIMD_GROUPSIZE, A_width,
             MPFQ_DONE);
-    ASSERT_ALWAYS(A->groupsize(A) * A_multiplex == (unsigned int) bw->n);
+    ASSERT_ALWAYS(A->simd_groupsize(A) * A_multiplex == (unsigned int) bw->n);
 
     matmul_top_init(mmt, A, pi, pl, bw->dir);
 
@@ -219,7 +219,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         /* the kernel() call is not reentrant */
         if (pi->m->trank == 0) {
             dimk = kernel((mp_limb_t *) xymats, NULL,
-                    bw->m, prep_lookahead_iterations * A->groupsize(A) * A_multiplex,
+                    bw->m, prep_lookahead_iterations * A->simd_groupsize(A) * A_multiplex,
                     A->vec_elt_stride(A, prep_lookahead_iterations * A_multiplex)/sizeof(mp_limb_t),
                     0);
         }
@@ -287,7 +287,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     mpfq_vbase A;
     mpfq_vbase_oo_field_init_byfeatures(A, 
             MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_GROUPSIZE, splitwidth,
+            MPFQ_SIMD_GROUPSIZE, splitwidth,
             MPFQ_DONE);
 
     matmul_top_init(mmt, A, pi, pl, bw->dir);
@@ -371,11 +371,13 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         vec_file = fopen(vec_name, "wb");
         ASSERT_ALWAYS(vec_file != NULL);
         printf("// Creating %s\n", vec_name);
-        cheating_vec_init(A, &vec, mmt->n0[!bw->dir]);
-        A->vec_random(A, vec, mmt->n0[!bw->dir], rstate);
-        rc = fwrite(vec, A->vec_elt_stride(A,1), mmt->n0[!bw->dir], vec_file);
-        ASSERT_ALWAYS(rc >= 0 && ((unsigned int) rc) == mmt->n0[!bw->dir]);
-        cheating_vec_clear(A, &vec, mmt->n0[!bw->dir]);
+        unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+        cheating_vec_init(A, &vec, unpadded);
+        A->vec_random(A, vec, unpadded, rstate);
+        A->vec_set_zero(A, A->vec_subvec(A, vec, mmt->n0[bw->dir]), unpadded - mmt->n0[bw->dir]);
+        rc = fwrite(vec, A->vec_elt_stride(A,1), unpadded, vec_file);
+        ASSERT_ALWAYS(rc >= 0 && ((unsigned int) rc) == unpadded);
+        cheating_vec_clear(A, &vec, unpadded);
         fclose(vec_file);
         free(vec_name);
     }
@@ -385,7 +387,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
     {
         /* initialize x -- make it completely deterministic. */
-        unsigned int my_nx = 1;
+        unsigned int my_nx = 4;
         uint32_t * xvecs = (uint32_t*) malloc(my_nx * bw->m * sizeof(uint32_t));
         /* with rhs, consider the strategy where the matrix is kept with
          * its full size, but the SM block is replaced with zeros. Here

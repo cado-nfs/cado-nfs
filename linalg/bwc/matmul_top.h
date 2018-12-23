@@ -154,7 +154,10 @@ extern void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * name, un
 /* do not use this function if you want consistency when the splitting
  * changes ! */
 extern void mmt_vec_set_random_inconsistent(mmt_vec_ptr v, gmp_randstate_t rstate);
+extern unsigned long mmt_vec_hamming_weight(mmt_vec_ptr y);
 extern void mmt_vec_truncate(matmul_top_data_ptr mmt, mmt_vec_ptr v);
+extern void mmt_vec_truncate_above_index(matmul_top_data_ptr mmt, mmt_vec_ptr v, unsigned int idx);
+extern void mmt_vec_truncate_below_index(matmul_top_data_ptr mmt, mmt_vec_ptr v, unsigned int idx);
 extern void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int nx);
 
 extern void matmul_top_mul_cpu(matmul_top_data_ptr mmt, int midx, int d, mmt_vec_ptr w, mmt_vec_ptr v);
@@ -168,8 +171,13 @@ extern void mmt_vec_init(matmul_top_data_ptr mmt, mpfq_vbase_ptr abase, pi_datat
 extern void mmt_vec_clear(matmul_top_data_ptr mmt, mmt_vec_ptr v);
 extern void mmt_own_vec_set(mmt_vec_ptr w, mmt_vec_ptr v);
 extern void mmt_own_vec_set2(mmt_vec_ptr z, mmt_vec_ptr w, mmt_vec_ptr v);
+extern void mmt_vec_swap(mmt_vec_ptr w, mmt_vec_ptr v);
 extern void mmt_full_vec_set(mmt_vec_ptr w, mmt_vec_ptr v);
 extern void mmt_full_vec_set_zero(mmt_vec_ptr v);
+extern void mmt_vec_set_basis_vector_at(mmt_vec_ptr v, int k, unsigned int j);
+extern void mmt_vec_set_basis_vector(mmt_vec_ptr v, unsigned int j);
+extern void mmt_vec_add_basis_vector_at(mmt_vec_ptr v, int k, unsigned int j);
+extern void mmt_vec_add_basis_vector(mmt_vec_ptr v, unsigned int j);
 #if 0
 extern void matmul_top_fill_random_source_generic(matmul_top_data_ptr mmt, size_t stride, mmt_vec_ptr v, int d);
 #endif

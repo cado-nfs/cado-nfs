@@ -177,7 +177,7 @@ static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
     target_excess = excess - chunk;
     if (target_excess < final_excess)
       target_excess = final_excess;
-    fprintf(stdout, "\nStep %u on %u: target excess is %" PRId64 "\n",
+    fprintf(stdout, "\nStep %u of %u: target excess is %" PRId64 "\n",
                     count + 1, nsteps, target_excess);
     fflush(stdout);
 
@@ -208,7 +208,7 @@ static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
 
   /* May need an extra step of clique removal + singletons removal if excess is
      still larger than keep. It may happen due to the fact that each clique does
-     not make the excess go down by one but can (rarely) left the excess
+     not make the excess go down by one but can (rarely) leave the excess
      unchanged. */
   if (excess > final_excess && nsteps > 0)
   {
@@ -334,8 +334,8 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outdel", "outfile for deleted relations (for DL)");
   param_list_decl_usage(pl, "t", "number of threads (default "
                                              STR(DEFAULT_PURGE_NTHREADS) ")");
-  param_list_decl_usage(pl, "v", "(switch) verbose mode");
-  param_list_decl_usage(pl, "force-posix-threads", "(switch)");
+  param_list_decl_usage(pl, "v", "verbose mode");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }

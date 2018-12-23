@@ -1006,6 +1006,16 @@ void random_matrix_get_u32_byrows(gmp_randstate_t rstate, random_matrix_ddata_pt
 {
     int has_coeffs = F->maxcoeff > 0;
 
+    if (arg->withcoeffs != has_coeffs) {
+        fprintf(stderr, "Fatal error, parameters for random matrix generation disagree with the base field.\n");
+        if (!has_coeffs)
+            fprintf(stderr, "Add the \"c=\" information to the random_matrix argument\n");
+        else
+            fprintf(stderr, "Remove the \"c=\" information from the random_matrix argument\n");
+        exit(EXIT_FAILURE);
+    }
+
+
     /* Now we essentially have a copy of printrows above, except that
      * we're outputting binary, and not to a stream but to memory.  */
     uint64_t total_coeffs = 0;
@@ -1083,6 +1093,15 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
     double tot_sq = 0;
 
     int has_coeffs = F->maxcoeff > 0;
+
+    if (arg->withcoeffs != has_coeffs) {
+        fprintf(stderr, "Fatal error, parameters for random matrix generation disagree with the base field.\n");
+        if (!has_coeffs)
+            fprintf(stderr, "Add the \"c=\" information to the random_matrix argument\n");
+        else
+            fprintf(stderr, "Remove the \"c=\" information from the random_matrix argument\n");
+        exit(EXIT_FAILURE);
+    }
 
     size_t alloc = 0;
     ASSERT_ALWAYS(arg->p == NULL);

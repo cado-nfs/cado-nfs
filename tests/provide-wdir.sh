@@ -37,7 +37,10 @@ while [ $# -gt 0 ] ; do
         shift
     elif [ "$1" = "--arg" ] ; then
         shift
-        extra=("${extra[@]}" "$1=$t")
+        case "$1" in
+            -*) extra=("${extra[@]}" "$1" "$t");;
+            *) extra=("${extra[@]}" "$1=$t");;
+        esac
         shift
     elif [ "$1" = "--other" ] ; then
         t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`

@@ -211,19 +211,25 @@ class Parameters(object):
             x=".".join(found+[base])
             return x
 
+    def is_set_explicitly(self, key):
+        '''Returns True if parameter given by key was set explicitly with
+        this level of accuracy.
+        '''
+        return self.locate(key) == key
+
     def unset(self, key):
         '''Set this parameter if it is not yet defined. Returns the value
         of the parameter after the operation
         >>> p = Parameters()
         >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
         >>> p.unset('bar.a')
-        >>> p.get_simple('bar.a', 0)
+        >>> p.get_or_set_default('bar.a', 0)
         1
 
         >>> p.set_simple('bar.a', 2)
         2
 
-        >>> p.get_simple('bar.a', 2)
+        >>> p.get_or_set_default('bar.a', 2)
         2
         '''
         s = key.rsplit('.')
@@ -267,14 +273,14 @@ class Parameters(object):
             v=self.myparams([base], path)
         return self._convert_one_type(path, base, v.get(base), type(value))
 
-    def get_simple(self, key, *args):
+    def get_or_set_default(self, key, *args):
         '''Set this parameter if it is not yet defined. Returns the value
         of the parameter after the operation
         >>> p = Parameters()
         >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
-        >>> p.get_simple('bar.a', 2)
+        >>> p.get_or_set_default('bar.a', 2)
         4
-        >>> p.get_simple('bar.x', 2)
+        >>> p.get_or_set_default('bar.x', 2)
         2
         '''
         s = key.rsplit('.',1)
@@ -298,7 +304,7 @@ class Parameters(object):
         >>> p.readparams(('a=1', 'b=2', 'c=3', 'foo.a=3', 'bar.a=4', 'bar.baz.a=5'))
         >>> p.set_simple('bar.baz.qux.a', 2)
         2
-        >>> p.get_simple('bar.baz.qux.a', 1)
+        >>> p.get_or_set_default('bar.baz.qux.a', 1)
         2
         '''
         s = key.rsplit('.',1)

@@ -148,8 +148,6 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
     if [ ! "x$CMAKE_GENERATOR" == "x" ] ; then
       CMAKE_GENERATOR_OPT="-G$CMAKE_GENERATOR"
-    else
-      unset CMAKE_GENERATOR_OPT
     fi
     (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" $CMAKE_EXTRA_ARGS "$absolute_path_of_source")
 fi

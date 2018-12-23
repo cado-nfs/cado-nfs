@@ -24,11 +24,6 @@ const char * bw_dirtext[] = { "left", "right" };
 
 typedef int (*sortfunc_t) (const void*, const void*);
 
-static int intcmp(const int * a, const int * b)
-{
-    return (*a>*b)-(*b>*a);
-}
-
 void bw_common_decl_usage(param_list pl)/*{{{*/
 {
     /* We declare here the doc parameters which are parsed *in this file* !  */
@@ -228,19 +223,12 @@ void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
         exit(EXIT_FAILURE);
     }
 
+    /* This is used only within secure.cpp, and undergoes some further
+     * treatment: as soon as the post-default interval value is set, it
+     * is also inserted in the list of check stops (this addition used to
+     * be done here).
+     */
     bw->number_of_check_stops = param_list_parse_int_list(pl, "check_stops", bw->check_stops, MAX_NUMBER_OF_CHECK_STOPS, ",");
-    int interval_already_in_check_stops = 0;
-    for(int i = 0 ; i < bw->number_of_check_stops ; i++) {
-        if (bw->check_stops[i] == bw->interval) {
-            interval_already_in_check_stops = 1;
-            break;
-        }
-    }
-    if (!interval_already_in_check_stops) {
-        ASSERT_ALWAYS(bw->number_of_check_stops < MAX_NUMBER_OF_CHECK_STOPS - 1);
-        bw->check_stops[bw->number_of_check_stops++] = bw->interval;
-    }
-    qsort(bw->check_stops, bw->number_of_check_stops, sizeof(int), (sortfunc_t) &intcmp);
 
     if (bw->verbose && bw->can_print)
         param_list_display (pl, stderr);
@@ -251,7 +239,7 @@ static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 {
     /*** defaults ***/
     memset(bw, 0, sizeof(*bw));
-    bw->interval = 1000;
+    bw->interval = 0;
     bw->can_print = 1;
     bw->ys[0] = bw->ys[1] = -1;
     bw->dir = 1;
@@ -425,3 +413,74 @@ int get_rhs_file_header(const char * filename, uint32_t * p_nrows, unsigned int 
     return rc;
 }
 
+/* Given two matrix dimensions (not padded dimensions ! we want the n0[]
+ * field in matmul_top here!), set the bw->end and bw->interval values in
+ * the bw struct */
+static unsigned int bw_set_length_and_interval_common(struct bw_params * bw, unsigned int dims[2], int is_krylov)
+{
+    unsigned int krylov_length;
+    /* The padded dimension is not the important one */
+    krylov_length = MAX(dims[0], dims[1]);
+    krylov_length = iceildiv(krylov_length, bw->m) + iceildiv(krylov_length, bw->n);
+    krylov_length += 2 * iceildiv(bw->m, bw->n);
+    krylov_length += 2 * iceildiv(bw->n, bw->m);
+    krylov_length += 10;
+
+    unsigned int mksol_length = iceildiv(MAX(dims[0], dims[1]), bw->n);
+
+    unsigned int interval_default = next_power_of_2(sqrt(krylov_length));
+    /* avoid too small values. */
+    if (interval_default < 64) interval_default = 64;
+
+    if (bw->interval == 0) {
+        if (bw->can_print) {
+            fprintf(stderr, "Setting interval value to default %u\n", bw->interval);
+        }
+        bw->interval = interval_default;
+    }
+
+    krylov_length = iceildiv(krylov_length, bw->interval) * bw->interval;
+    mksol_length = iceildiv(mksol_length, bw->interval) * bw->interval;
+
+    /* The thing about mksol_length is that because of off-by-ones, our
+     * estimate is quite often off by a bit. So presently, the code just
+     * reads the F file for as long as data can be found there. We do
+     * need the typical expected length for the ETA calculation, though !
+     */
+    if (bw->end == 0) bw->end = is_krylov ? krylov_length : INT_MAX;
+    
+    return is_krylov ? krylov_length : mksol_length;
+}
+
+unsigned int bw_set_length_and_interval_krylov(struct bw_params * bw, unsigned int dims[2])
+{
+    return bw_set_length_and_interval_common(bw, dims, 1);
+}
+unsigned int bw_set_length_and_interval_mksol(struct bw_params * bw, unsigned int dims[2])
+{
+    return bw_set_length_and_interval_common(bw, dims, 0);
+}
+unsigned int bw_set_length_and_interval_lanczos(struct bw_params * bw, unsigned int dim)
+{
+    unsigned int length;
+    length = dim / (bw->n - 0.76) + 10;
+    /* allow some deviation */
+    length += 2*integer_sqrt(length);
+
+    unsigned int interval_default = next_power_of_2(sqrt(length));
+    /* avoid too small values. */
+    if (interval_default < 64) interval_default = 64;
+
+    if (bw->interval == 0) {
+        if (bw->can_print) {
+            fprintf(stderr, "Setting interval value to default %u\n", bw->interval);
+        }
+        bw->interval = interval_default;
+    }
+
+    length = iceildiv(length, bw->interval) * bw->interval;
+
+    if (bw->end == 0) bw->end =length;
+
+    return length;
+}

@@ -1,27 +1,12 @@
-/*=============================================================================
-
-    This file is part of FLINT.
-
-    FLINT is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    FLINT is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with FLINT; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
-
-=============================================================================*/
-/******************************************************************************
-
-    Copyright (C) 2013 William Hart
-
-******************************************************************************/
+/* 
+ * Copyright (C) 2013 William Hart Copyright (C) 2014 Ashish Kedia
+ * 
+ * This file is part of FLINT.
+ * 
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -72,9 +57,8 @@ int parse_fmt(int *floating, const char *fmt)
     return args;
 }
 
-size_t flint_printf(const char *str, ...)
+int flint_vprintf(const char *str, va_list ap)
 {
-    va_list ap;
     size_t len = strlen(str);
     char *str2 = flint_malloc(len + 1);
     int w1 = 0, w2 = 0;
@@ -82,7 +66,7 @@ size_t flint_printf(const char *str, ...)
     double d;
     ulong wu;
     slong w;
-    int args, floating;
+    int args, floating, width = 0, have_width, digits;
     size_t ret;
 
     /* deal with first substring */
@@ -93,9 +77,18 @@ size_t flint_printf(const char *str, ...)
     len -= n;
     str += n;
 
-    va_start(ap, str);
-
     while (len) {		/* deal with fmt spec prefixed strings */
+	have_width = 0;
+	if (isdigit((unsigned char) str[1])) {
+	    width = atoi(str + 1);
+	    have_width = 1;
+	    digits = strspn(str + 1, "0123456789");
+	    if (str[digits + 1] == 'w') {
+		str += digits;
+		len -= digits;
+	    }
+	}
+
 	n = strcspn(str + 2, "%") + 2;	/* be sure to skip a %% */
 	strncpy(str2, str, n);
 	str2[n] = '\0';
@@ -104,21 +97,36 @@ size_t flint_printf(const char *str, ...)
 	case 'w':
 	    if (str[2] == 'x') {
 		wu = (ulong) va_arg(ap, ulong);
-		ret += printf(WORD_FMT "x", wu);
+		if (have_width)
+		    ret += printf(WORD_WIDTH_FMT "x", width, wu);
+		else
+		    ret += printf(WORD_FMT "x", wu);
 		ret += printf("%s", str2 + 3);
 	    } else if (str[2] == 'u') {
 		wu = (ulong) va_arg(ap, ulong);
-		ret += printf(WORD_FMT "u", wu);
+		if (have_width)
+		    ret += printf(WORD_WIDTH_FMT "u", width, wu);
+		else
+		    ret += printf(WORD_FMT "u", wu);
 		ret += printf("%s", str2 + 3);
 	    } else if (str[2] == 'd') {
 		w = (slong) va_arg(ap, slong);
-		ret += printf(WORD_FMT "d", w);
+		if (have_width)
+		    ret += printf(WORD_WIDTH_FMT "d", width, w);
+		else
+		    ret += printf(WORD_FMT "d", w);
 		ret += printf("%s", str2 + 3);
 	    } else {
 		w = (slong) va_arg(ap, slong);
-		ret += printf(WORD_FMT "d", w);
+		if (have_width)
+		    ret += printf(WORD_WIDTH_FMT "d", width, w);
+		else
+		    ret += printf(WORD_FMT "d", w);
 		ret += printf("%s", str2 + 2);
 	    }
+	    break;
+	case '%':		/* Special Case to handle %% */
+	    ret += printf("%s", str2 + 1);
 	    break;
 	default:		/* pass to printf */
 	    args = parse_fmt(&floating, str2);
@@ -152,8 +160,19 @@ size_t flint_printf(const char *str, ...)
 	str += n;
     }
 
-    va_end(ap);
     flint_free(str2);
 
-    return ret;
+    return (int) ret;
+}
+
+int flint_printf(const char *str, ...)
+{
+    va_list ap;
+    int count;
+
+    va_start(ap, str);
+    count = flint_vprintf(str, ap);
+    va_end(ap);
+
+    return count;
 }

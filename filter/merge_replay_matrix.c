@@ -391,7 +391,7 @@ initMatR (filter_matrix_t *mat)
   /* if excess <= keep, we increase cwmax to mergelevelmax, since
      this will be done after the first loop in mergeOneByOne */
   if (mat->rem_nrows <= mat->rem_ncols + mat->keep)
-    mat->cwmax = mat->mergelevelmax;
+    wmax = mat->cwmax = mat->mergelevelmax;
 
 #ifndef FOR_DL
   renumber_columns (mat);

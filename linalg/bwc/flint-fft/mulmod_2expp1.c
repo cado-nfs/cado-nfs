@@ -1,39 +1,18 @@
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+/* flint uses unprotected openmp pragmas every so often */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
@@ -46,9 +25,9 @@
 static mp_size_t mulmod_2expp1_table_n[FFT_N_NUM] = MULMOD_TAB;
 
 /*
- * Performs a naive negacyclic convolution of \code{ii} with \code{jj}, 
- * both of length $m$ and sets $r$ to the result. This is essentially 
- * multiplication of polynomials modulo $x^m + 1$.
+ * Performs a naive negacyclic convolution of ``ii`` with ``jj``, 
+ * both of length `m` and sets `r` to the result. This is essentially 
+ * multiplication of polynomials modulo `x^m + 1`.
  * 
  */
 void fft_naive_convolution_1(mp_limb_t * r, mp_limb_t * ii, mp_limb_t * jj,
@@ -69,11 +48,11 @@ void fft_naive_convolution_1(mp_limb_t * r, mp_limb_t * ii, mp_limb_t * jj,
 }
 
 /*
- * Multiply \code{i1} by \code{i2} modulo \code{B^r_limbs + 1} where 
- * \code{r_limbs = nw/FLINT_BITS} with \code{n = 2^depth}. Uses the 
+ * Multiply ``i1`` by ``i2`` modulo ``B^r_limbs + 1`` where 
+ * ``r_limbs = nw/FLINT_BITS`` with ``n = 2^depth``. Uses the 
  * negacyclic FFT convolution CRT'd with a 1 limb naive convolution. We 
- * require that \code{depth} and \code{w} have been selected as per the 
- * wrapper \code{fft_mulmod_2expp1} below.
+ * require that ``depth`` and ``w`` have been selected as per the 
+ * wrapper ``fft_mulmod_2expp1`` below.
  * 
  */
 void _fft_mulmod_2expp1(mp_limb_t * r1, mp_limb_t * i1, mp_limb_t * i2,
@@ -190,9 +169,10 @@ void _fft_mulmod_2expp1(mp_limb_t * r1, mp_limb_t * i1, mp_limb_t * i2,
 	mpn_sub_1(r1 + ll + 1, r1 + ll + 1, r_limbs - ll, 1);
 
     /* final coefficient wraps around */
-    r1[r_limbs] +=
-	mpn_add_n(r1 + r_limbs - limb_add, r1 + r_limbs - limb_add,
-		  ii[2 * n - 1], limb_add);
+    if (limb_add)
+	r1[r_limbs] +=
+	    mpn_add_n(r1 + r_limbs - limb_add, r1 + r_limbs - limb_add,
+		      ii[2 * n - 1], limb_add);
     c = mpn_sub_n(r1, r1, ii[2 * n - 1] + limb_add, limbs + 1 - limb_add);
     mpn_addmod_2expp1_1(r1 + limbs + 1 - limb_add,
 			r_limbs - limbs - 1 + limb_add, -c);
@@ -204,12 +184,13 @@ void _fft_mulmod_2expp1(mp_limb_t * r1, mp_limb_t * i1, mp_limb_t * i2,
 }
 
 /*
- * As per \code{_fft_mulmod_2expp1} but with a tuned cutoff below which more 
+ * As per ``_fft_mulmod_2expp1`` but with a tuned cutoff below which more 
  * classical methods are used for the convolution. The temporary space is 
- * required to fit \code{n*w + FLINT_BITS} bits. There are no restrictions 
- * on $n$, but if \code{limbs = n*w/FLINT_BITS} then if \code{limbs} exceeds 
- * \code{FFT_MULMOD_2EXPP1_CUTOFF} the function \code{fft_adjust_limbs} must
+ * required to fit ``n*w + FLINT_BITS`` bits. There are no restrictions 
+ * on `n`, but if ``limbs = n*w/FLINT_BITS`` then if ``limbs`` exceeds 
+ * ``FFT_MULMOD_2EXPP1_CUTOFF`` the function ``fft_adjust_limbs`` must
  * be called to increase the number of limbs to an appropriate value.
+ * 
  * 
  */
 void fft_mulmod_2expp1(mp_limb_t * r, mp_limb_t * i1, mp_limb_t * i2,
@@ -256,7 +237,7 @@ void fft_mulmod_2expp1(mp_limb_t * r, mp_limb_t * i1, mp_limb_t * i2,
  * Given a number of limbs, returns a new number of limbs (no more than 
  * the next power of 2) which will work with the Nussbaumer code. It is only 
  * necessary to make this adjustment if 
- * \code{limbs > FFT_MULMOD_2EXPP1_CUTOFF}.
+ * ``limbs > FFT_MULMOD_2EXPP1_CUTOFF``.
  * 
  */
 slong fft_adjust_limbs(mp_size_t limbs)

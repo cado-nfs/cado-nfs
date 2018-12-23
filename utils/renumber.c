@@ -148,7 +148,7 @@ parse_bad_ideals_file (FILE *badidealsfile, renumber_ptr renum)
     renum->bad_ideals.n++;
   ASSERT_ALWAYS (feof (badidealsfile));
 
-  /* Allocate memory to store badideals information */
+  /* Allocate memory to store bad ideal information */
   size_t badideals_pr_size = renum->bad_ideals.n * sizeof (p_r_values_t);
   size_t badideals_int_size = renum->bad_ideals.n * sizeof (int);
   renum->bad_ideals.p = (p_r_values_t *) malloc (badideals_pr_size);
@@ -191,7 +191,7 @@ print_info (FILE * f, renumber_srcptr r, int after_reading)
   fprintf (f, "%s#additional columns = %u\n", pre, r->naddcols);
   if (r->nonmonic)
   {
-    fprintf (f, "%sNon monic polynomial on side:", pre);
+    fprintf (f, "%sNon-monic polynomial on side:", pre);
     for (uint64_t t = r->nonmonic, s = 0; t != 0; t>>=1, s++)
       if (t & ((uint64_t) 1))
         fprintf (f, " %" PRIu64 "", s);
@@ -202,7 +202,7 @@ print_info (FILE * f, renumber_srcptr r, int after_reading)
   for (unsigned int i = 0; i < r->nb_polys; i++)
     fprintf (f, "%slpb%d = %lu\n", pre, i, r->lpb[i]);
 
-  if (after_reading) /* there is more info to print*/
+  if (after_reading) /* there is more info to print */
   {
     fprintf (f, "%ssize = %" PRIu64 "\n%ssmallest prime not cached = "
              "0x%" PRpr " at index 0x%" PRid "\n", pre, r->size, pre,
@@ -212,6 +212,17 @@ print_info (FILE * f, renumber_srcptr r, int after_reading)
                   "0x%" PRid "\n", pre, i, r->biggest_prime_below_lpb[i],
                   r->index_biggest_prime_below_lpb[i]);
   }
+
+  /* if the size of the renumber table exceeds 2^32, check we have compiled
+     with -D__SIZEOF_INDEX__=8 */
+#if __SIZEOF_INDEX__ != 8
+  if (r->size >> 32)
+    {
+      fprintf (stderr, "Error, for 2^32 ideals or more, add -D__SIZEOF_INDEX__=8 to CFLAGS/CXXFLAGS in local.sh\n");
+      abort ();
+    }
+#endif
+
   fflush (stdout);
 }
 
@@ -251,9 +262,10 @@ renumber_sort_ul (unsigned long *r, size_t n)
 }
 
 /* Set r to the largest root of f modulo p such that (p,r) corresponds to an
- * ideal on side s which is not a badideal.
+ * ideal on side s which is not a bad ideal.
  * Note: If there is a projective root, it is the largest (r = p by convention)
  * Return zero if no such root mod p exists, else non-zero
+ * Note: if r is not NULL, put the corresponding root in *r;
  */
 static int
 get_largest_nonbad_root_mod_p (p_r_values_t *r, mpz_poly_srcptr f,
@@ -263,7 +275,8 @@ get_largest_nonbad_root_mod_p (p_r_values_t *r, mpz_poly_srcptr f,
   if (mpz_divisible_ui_p (f->coeff[deg], p)
       && !renumber_is_bad (NULL, NULL, rn, p, p, s))
   {
-    *r = p; /* non bad projective ideal */
+    if (r != NULL)
+      *r = p; /* non bad projective ideal */
     return 1;
   }
 
@@ -274,7 +287,8 @@ get_largest_nonbad_root_mod_p (p_r_values_t *r, mpz_poly_srcptr f,
   {
     if (!renumber_is_bad (NULL, NULL, rn, p, roots[i], s))
     {
-      *r = roots[i];
+      if (r != NULL)
+	*r = roots[i];
       return 2;
     }
   }
@@ -383,17 +397,23 @@ compute_p_from_vp (renumber_srcptr tab, p_r_values_t vp)
   }
 }
 
+/* Note: if r_ptr = NULL, we don't need to compute r. */
 static inline void
-compute_r_side_from_p_vr (p_r_values_t *r, int *side, renumber_srcptr tab,
+compute_r_side_from_p_vr (p_r_values_t *r_ptr, int *side, renumber_srcptr tab,
                           p_r_values_t p, p_r_values_t vr)
 {
+  p_r_values_t r;
+
   *side = 0;
-  *r = vr;
-  while (*r > p)
+  r = vr;
+  while (r > p)
   {
-    *r -= (p + 1);
+    r -= (p + 1);
     *side += 1;
   }
+
+  if (r_ptr != NULL)
+    *r_ptr = r;
 
   if (tab->rat >= 0) /* If there is a rational side */
     if (*side >= tab->rat)
@@ -414,7 +434,7 @@ renumber_init_for_reading (renumber_ptr renumber_info)
  * rat contains the rational side or -1 if no rational side.
  * add_full_col is non-zero if we need to add a column of 1 in the matrix, 0
  * otherwise (for factorization, always 0, for DL 1 if one of the polynomials is
- * not monic). */
+ * non-monic). */
 void
 renumber_init_for_writing (renumber_ptr renumber_info, unsigned int nb_polys,
                            int rat, int lcideals, uint64_t nonmonic,
@@ -435,7 +455,7 @@ renumber_init_for_writing (renumber_ptr renumber_info, unsigned int nb_polys,
   memcpy (renumber_info->lpb, lpb, size_ul);
 
   /* Set max_lpb */
-  renumber_info->max_lpb = lpb[0]; /* There are at least 1 sides */
+  renumber_info->max_lpb = lpb[0]; /* There is at least 1 side */
   for (unsigned int i = 1; i < nb_polys; i++)
     renumber_info->max_lpb = MAX(renumber_info->max_lpb, lpb[i]);
 
@@ -459,7 +479,7 @@ renumber_init_for_writing (renumber_ptr renumber_info, unsigned int nb_polys,
     }
 
   /* Compute the number of additional columns needed in the renumbering table
-   * due to the non monic polynomials.
+   * due to the non-monic polynomials.
    * If lcideals == 0 (as it should be for factorization):
    *    --> no column is added (not needed).
    * If lcideals != 0:
@@ -522,7 +542,7 @@ renumber_clear (renumber_ptr renumber_info)
 }
 
 /* The renumber_t struct _must_ have been initialized before
- * poly = NULL is accepted. It will not print the polynomials on the file */
+ * poly = NULL is accepted. It will not print the polynomials in the file */
 void
 renumber_write_open (renumber_ptr tab, const char *tablefile, 
 		     const char *badidealsfile, cado_poly poly)
@@ -542,9 +562,9 @@ renumber_write_open (renumber_ptr tab, const char *tablefile,
   /* additional columns are always at the beginning of the renumbering table. */
   tab->size = tab->naddcols;
 
-  /* Read bad ideals files */
+  /* Read bad ideal files */
   if (badidealsfile != NULL)
-    parse_bad_ideals_file (fbad, tab); /* update size et bad_ideals.n */
+    parse_bad_ideals_file (fbad, tab); /* update size and bad_ideals.n */
 
   /* Write the first line */
   renumber_write_first_line (tab);
@@ -552,7 +572,7 @@ renumber_write_open (renumber_ptr tab, const char *tablefile,
   /* Print info on stdout (~ what is written on the first line of the file) */
   print_info (stdout, tab, 0);
 
-  /* Write the two polynomials on a line beginning by #, if given */
+  /* Write the polynomials on a line beginning by #, if given */
   if (poly != NULL)
   {
     ASSERT_ALWAYS (poly->nb_polys == (int)tab->nb_polys);
@@ -563,7 +583,7 @@ renumber_write_open (renumber_ptr tab, const char *tablefile,
     }
   }
 
-  /* Write first the bad ideals information at the beginning of file */
+  /* Write first the bad ideal information at the beginning of file */
   if (badidealsfile != NULL)
   {
     for (int i = 0; i < tab->bad_ideals.n; ++i) {
@@ -669,7 +689,7 @@ renumber_read_table (renumber_ptr tab, const char * filename)
   while ((bytes_line = get_one_line(tab->file, s)) > 0)
   {
     bytes_read += bytes_line;
-    if (tab->size >= allocated) /* Not enough space, reallocated tab->table */
+    if (tab->size >= allocated) /* Not enough space, reallocate tab->table */
     {
       allocated += RENUMBER_DEFAULT_SIZE;
       size_t new_size = allocated * sizeof (p_r_values_t);
@@ -682,7 +702,7 @@ renumber_read_table (renumber_ptr tab, const char * filename)
                        || tab->table[tab->size] > tab->table[tab->size-1])
     {
       /* We just switch to a new prime in the renumbering table, see if we need
-       * to cache it (we cached primes below 2^MAX_LOG_CACHED)
+       * to cache it (we cache primes below 2^MAX_LOG_CACHED)
        */
       p_r_values_t p = compute_p_from_vp (tab, tab->table[tab->size]);
       if (p < prime_cache_limit) /* p < 2^MAX_LOG_CACHED */
@@ -965,6 +985,9 @@ renumber_get_first_index_from_p(renumber_srcptr renumber_info,
                             "%" PRpr " are not in the renumbering table\n"
                             "Maybe p is not prime ?\n", __func__, __FILE__,
                             __LINE__, p);
+#if __SIZEOF_INDEX__ != 8
+            fprintf (stderr, "Note: for >= 2^32 ideals or relations, add -D__SIZEOF_INDEX__=8 to CFLAGS/CXXFLAGS in local.sh\n");
+#endif
             abort();
           }
         }
@@ -1067,13 +1090,14 @@ renumber_get_index_from_p_r (renumber_srcptr renumber_info, p_r_values_t p,
   }
 }
 
-/* This function assume that i does not correspond to a bad ideals or an
- * additional columns (i.e., tab[i] != RENUMBER_SPECIAL_VALUE). It will fail
+/* This function assumes that i does not correspond to a bad ideal or an
+ * additional column (i.e., tab[i] != RENUMBER_SPECIAL_VALUE). It will fail
  * if this assumption is not satisfied.
+ * Note: if r = NULL, it means we don't need to compute r.
  */
 void
 renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
-                             p_r_values_t * r, int *side, index_t i,
+                             p_r_values_t *r, int *side, index_t i,
                              cado_poly pol)
 {
   index_t j;
@@ -1097,16 +1121,30 @@ renumber_get_p_r_from_index (renumber_srcptr renumber_info, p_r_values_t *p,
     if (renumber_info->rat == -1 ||
         *p > renumber_info->biggest_prime_below_lpb[renumber_info->rat])
     {
-      *side = renumber_info->nb_polys - 1;
-      while (*side >= 0 && (*p > renumber_info->biggest_prime_below_lpb[*side]
-                            || !get_largest_nonbad_root_mod_p (r,
-                                  pol->pols[*side], *p, *side, renumber_info)))
-        (*side)--;
-      ASSERT_ALWAYS (*side >= 0);
+      if (renumber_info->rat == -1 || renumber_info->nb_polys != 2)
+      {
+        *side = renumber_info->nb_polys - 1;
+        while (*side >= 0 && (*p > renumber_info->biggest_prime_below_lpb[*side]
+                              || !get_largest_nonbad_root_mod_p (r,
+                                   pol->pols[*side], *p, *side, renumber_info)))
+          (*side)--;
+        ASSERT_ALWAYS (*side >= 0);
+      }
+      else /* with a rational side and 2 polys */
+      {
+        *side = 1 - renumber_info->rat;
+        if (r)
+        {
+          int ret = get_largest_nonbad_root_mod_p (r, pol->pols[*side], *p,
+                                                          *side, renumber_info);
+          ASSERT_ALWAYS (ret != 0); /* a root must exist */
+        }
+      }
     }
     else
     {
-      *r = RENUMBER_ROOT_ON_RAT_SIDE; /* root has no meaning on rat side */
+      if (r != NULL)
+	*r = RENUMBER_ROOT_ON_RAT_SIDE; /* root has no meaning on rat side */
       *side = renumber_info->rat;
     }
   }
@@ -1137,7 +1175,7 @@ renumber_get_side_from_index (renumber_srcptr renumber_info, index_t i,
       }
       ASSERT_ALWAYS (b != 0);
     }
-    else /* i corresponds to a bad ideals. */
+    else /* i corresponds to a bad ideal. */
     {
       index_t bad = renumber_info->naddcols;
       int k;
@@ -1153,8 +1191,8 @@ renumber_get_side_from_index (renumber_srcptr renumber_info, index_t i,
   }
   else
   {
-    p_r_values_t p, r;
-    renumber_get_p_r_from_index (renumber_info, &p, &r, &side, i, pol);
+    p_r_values_t p;
+    renumber_get_p_r_from_index (renumber_info, &p, NULL, &side, i, pol);
   }
 
   return side;

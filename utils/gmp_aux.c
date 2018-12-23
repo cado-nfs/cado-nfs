@@ -48,7 +48,7 @@ mpn_copyd(mp_limb_t *rp, const mp_limb_t *up, mp_size_t n)
 
 /* Set z to q. Warning: on 32-bit machines, we cannot use mpz_set_ui! */
 void
-mpz_set_uint64 (mpz_t z, uint64_t q)
+mpz_set_uint64 (mpz_ptr z, uint64_t q)
 {
   if (sizeof (unsigned long) == 8)
     mpz_set_ui (z, (unsigned long) q);
@@ -64,7 +64,7 @@ mpz_set_uint64 (mpz_t z, uint64_t q)
 }
 
 void
-mpz_set_int64 (mpz_t z, int64_t q)
+mpz_set_int64 (mpz_ptr z, int64_t q)
 {
   if (sizeof (long) == 8)
     mpz_set_si (z, (long) q);
@@ -75,6 +75,17 @@ mpz_set_int64 (mpz_t z, int64_t q)
       mpz_set_uint64 (z, -q);
       mpz_neg (z, z);
     }
+}
+void mpz_init_set_uint64 (mpz_ptr z, uint64_t x)
+{
+    mpz_init(z);
+    mpz_set_uint64(z, x);
+}
+
+void mpz_init_set_int64 (mpz_ptr z, int64_t x)
+{
+    mpz_init(z);
+    mpz_set_int64(z, x);
 }
 
 uint64_t
@@ -121,7 +132,7 @@ mpz_fits_int64_p (mpz_srcptr z)
 }
 
 void
-mpz_mul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
+mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
     mpz_mul_ui (a, b, (unsigned long) c);
@@ -135,8 +146,24 @@ mpz_mul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
     }
 }
 
+int
+mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
+{
+  if (sizeof (unsigned long) >= sizeof (uint64_t))
+    return mpz_cmp_ui (a, (unsigned long) c);
+  else
+    {
+      mpz_t d;
+      mpz_init (d);
+      mpz_set_uint64 (d, c);
+      int r = mpz_cmp (a, d);
+      mpz_clear (d);
+      return r;
+    }
+}
+
 void
-mpz_addmul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
+mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
     mpz_addmul_ui (a, b, (unsigned long) c);
@@ -151,7 +178,7 @@ mpz_addmul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
 }
 
 void
-mpz_submul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
+mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
     mpz_submul_ui (a, b, (unsigned long) c);
@@ -166,7 +193,7 @@ mpz_submul_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
 }
 
 void
-mpz_submul_int64 (mpz_t a, mpz_srcptr b, int64_t c)
+mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
   if (c >= 0)
     mpz_submul_uint64 (a, b, (uint64_t) c);
@@ -175,7 +202,7 @@ mpz_submul_int64 (mpz_t a, mpz_srcptr b, int64_t c)
 }
 
 void
-mpz_divexact_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
+mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
     mpz_divexact_ui (a, b, (unsigned long) c);
@@ -190,7 +217,7 @@ mpz_divexact_uint64 (mpz_t a, mpz_srcptr b, uint64_t c)
 }
 
 int
-mpz_divisible_uint64_p (mpz_t a, uint64_t c)
+mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
     return mpz_divisible_ui_p (a, (unsigned long) c);
@@ -208,7 +235,7 @@ mpz_divisible_uint64_p (mpz_t a, uint64_t c)
 }
 
 void
-mpz_mul_int64 (mpz_t a, mpz_srcptr b, int64_t c)
+mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
   if (sizeof (long) == 8)
     mpz_mul_si (a, b, (long) c);
@@ -224,7 +251,7 @@ mpz_mul_int64 (mpz_t a, mpz_srcptr b, int64_t c)
 
 /* a <- a + b * c */
 void
-mpz_addmul_int64 (mpz_t a, mpz_srcptr b, int64_t c)
+mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
   if (sizeof (long) == 8)
     mpz_addmul_si (a, b, (long) c);
@@ -281,11 +308,15 @@ uint64_nextprime (uint64_t q)
 
 #define REPS 3 /* number of Miller-Rabin tests in isprime */
 
-/* For GMP 6.0.0:
+/* For GMP 6.1.2:
    with REPS=1, the smallest composite reported prime is 1537381
-   with REPS=2, it is 1943521
-   with REPS=3, it is 465658903
+                (then 1803601, 1943521, 2237017, 3604201, 5095177, ...);
+   with REPS=2, it is 1943521 (then 16661633, 18790021, 54470491, ...);
+   with REPS=3, it is 465658903 (then 2242724851, 5969607379, 6635692801, ...);
+   with REPS=4, it is 239626837621 (then 277376554153, 537108528133,
+                      898547205403, and no other <= 10^12).
    See also https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
+   and http://www.trnicely.net/misc/mpzspsp.html.
 */
 int
 ulong_isprime (unsigned long p)
@@ -326,8 +357,11 @@ ulong_nextcomposite (unsigned long q, unsigned long pmin)
    returned. The caller must have allocated factor_r with enough space.
    */
 int 
-next_mpz_with_factor_constraints(mpz_t r, unsigned long factor_r[],
-        const mpz_t s, const unsigned long diff, unsigned long pmin,
+next_mpz_with_factor_constraints(mpz_ptr r,
+        unsigned long factor_r[],
+        mpz_srcptr s,
+        unsigned long diff,
+        unsigned long pmin,
         unsigned long pmax)
 {
     ASSERT_ALWAYS(pmin > 2);
@@ -339,6 +373,9 @@ next_mpz_with_factor_constraints(mpz_t r, unsigned long factor_r[],
         mpz_add_ui(r, r, 1);
     }
     while (1) {
+        /* This function is used for the composite special-q code, and it
+         * is really important that no composite special-q is considered
+         * prime.*/
         if (mpz_probab_prime_p(r, 10)) {
             if (mpz_cmp_ui(r, pmax) < 0) {
                 factor_r[0] = mpz_get_ui(r);
@@ -425,7 +462,7 @@ int nbits (uintmax_t p)
    Output: -d/2 <= r < d/2
 */
 void
-mpz_ndiv_qr (mpz_t q, mpz_t r, mpz_t n, const mpz_t d)
+mpz_ndiv_qr (mpz_ptr q, mpz_ptr r, mpz_srcptr n, mpz_srcptr d)
 {
   int s;
 
@@ -442,7 +479,7 @@ mpz_ndiv_qr (mpz_t q, mpz_t r, mpz_t n, const mpz_t d)
 }
 
 void
-mpz_ndiv_qr_ui (mpz_t q, mpz_t r, mpz_t n, unsigned long int d)
+mpz_ndiv_qr_ui (mpz_ptr q, mpz_ptr r, mpz_srcptr n, unsigned long int d)
 {
   int s;
 
@@ -462,7 +499,7 @@ mpz_ndiv_qr_ui (mpz_t q, mpz_t r, mpz_t n, unsigned long int d)
    Output satisfies |n-q*d| <= |d|/2
 */
 void
-mpz_ndiv_q (mpz_t q, mpz_t n, const mpz_t d)
+mpz_ndiv_q (mpz_ptr q, mpz_srcptr n, mpz_srcptr d)
 {
   mpz_t r;
 
@@ -472,7 +509,7 @@ mpz_ndiv_q (mpz_t q, mpz_t n, const mpz_t d)
 }
 
 void
-mpz_ndiv_q_ui (mpz_t q, mpz_t n, unsigned long int d)
+mpz_ndiv_q_ui (mpz_ptr q, mpz_srcptr n, unsigned long int d)
 {
   mpz_t r;
 
@@ -481,9 +518,42 @@ mpz_ndiv_q_ui (mpz_t q, mpz_t n, unsigned long int d)
   mpz_clear (r);
 }
 
+/* a <- b cmod c with -c/2 <= a < c/2 */
+void
+mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
+{
+  mpz_mod (a, b, c); /* now 0 <= a < c */
+
+  size_t n = mpz_size (c);
+  mp_limb_t aj, cj;
+  int sub = 0, sh = GMP_NUMB_BITS - 1;
+
+  if (mpz_getlimbn (a, n-1) >= (mp_limb_t) 1 << sh)
+    sub = 1;
+  else
+    {
+      while (n-- > 0)
+	{
+	  cj = mpz_getlimbn (c, n);
+	  aj = mpz_getlimbn (a, n) << 1;
+	  if (n > 0)
+	    aj |= mpz_getlimbn (a, n-1) >> sh;
+	  if (aj > cj)
+	    {
+	      sub = 1;
+	      break;
+	    }
+	  else if (aj < cj)
+	    break;
+	}
+    }
+  if (sub)
+    mpz_sub (a, a, c);
+}
+
 /* Return non-zero if a and b are coprime, else return 0 if gcd(a, b) != 1 */
 int
-mpz_coprime_p (mpz_t a, mpz_t b)
+mpz_coprime_p (mpz_srcptr a, mpz_srcptr b)
 {
   mpz_t g;
   mpz_init(g);
@@ -494,7 +564,7 @@ mpz_coprime_p (mpz_t a, mpz_t b)
 }
 
 long double
-mpz_get_ld (mpz_t z)
+mpz_get_ld (mpz_srcptr z)
 {
   long double ld;
   double d;

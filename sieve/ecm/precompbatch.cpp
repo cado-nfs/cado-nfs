@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include "portability.h"
 #include "utils.h"
-#include "batch.h"
+#include "batch.hpp"
 
 
 static void declare_usage(param_list pl)
@@ -25,12 +25,11 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char *argv[])
 {
-  param_list pl;
-  cado_poly cpoly;
+  cxx_param_list pl;
+  cxx_cado_poly cpoly;
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
-  param_list_init(pl);
   declare_usage(pl);
 
   argv++, argc--;
@@ -59,7 +58,6 @@ main (int argc, char *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  cado_poly_init(cpoly);
   if (!cado_poly_read(cpoly, filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
@@ -67,17 +65,23 @@ main (int argc, char *argv[])
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
   
-  unsigned long lim[2] = {0, 0};
+  unsigned long lim[2] = {ULONG_MAX, ULONG_MAX};
   param_list_parse_ulong(pl, "lim0", &lim[0]);
   param_list_parse_ulong(pl, "lim1", &lim[1]);
+  if (lim[0] == ULONG_MAX || lim[1] == ULONG_MAX) {
+      fprintf(stderr,
+              "Error: parameters lim[01] are mandatory\n");
+      param_list_print_usage(pl, argv0, stderr);
+      exit(EXIT_FAILURE);
+  }
 
   int batchlpb[2] = {0, 0};
   param_list_parse_int(pl, "batchlpb0", &batchlpb[0]);
   param_list_parse_int(pl, "batchlpb1", &batchlpb[1]);
 
-  if (batchlpb[0] * batchlpb[1] * lim[0] * lim[1] == 0) {
+  if (batchlpb[0] * batchlpb[1] == 0) {
       fprintf(stderr,
-              "Error: parameters batchlpb[01] and lim[01] are mandatory\n");
+              "Error: parameters batchlpb[01] are mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
@@ -91,19 +95,13 @@ main (int argc, char *argv[])
       exit(EXIT_FAILURE);
   }
 
-  mpz_t batchP[2];
-  mpz_init (batchP[0]);
-  mpz_init (batchP[1]);
+  cxx_mpz batchP[2];
 
+  double extra_time = 0;
   for (int side = 0; side < 2; ++side) {
       create_batch_file (batch_file[side], batchP[side], lim[side],
-              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads);
+              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads, extra_time);
   }
-
-  cado_poly_clear(cpoly);
-  mpz_clear (batchP[0]);
-  mpz_clear (batchP[1]);
-  param_list_clear(pl);
 
   return EXIT_SUCCESS;
 }

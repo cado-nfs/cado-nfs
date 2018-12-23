@@ -95,7 +95,11 @@ purge_matrix_set_row_from_rel (purge_matrix_t mat, earlyparsed_relation_ptr rel)
 
   unsigned int nb_above_min_index = 0;
   for (weight_t i = 0; i < rel->nb; i++)
-    nb_above_min_index += (rel->primes[i].h >= mat->col_min_index);
+    {
+      /* check all indices are less than col_max_index */
+      ASSERT_ALWAYS(rel->primes[i].h < mat->col_max_index);
+      nb_above_min_index += (rel->primes[i].h >= mat->col_min_index);
+    }
 
   index_t *tmp_row = index_my_malloc (1 + nb_above_min_index);
   unsigned int next = 0;

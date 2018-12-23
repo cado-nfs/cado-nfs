@@ -69,7 +69,7 @@ static inline void MPN_SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC)
 {
     mp_size_t r = MIN((size_t) ABS(SIZ(SRC)), NLIMBS);
     memcpy((DST),PTR(SRC),r * sizeof(mp_limb_t));
-    memset((DST)+SIZ(SRC),0,((NLIMBS)-r) * sizeof(mp_limb_t));
+    memset((DST)+ABS(SIZ(SRC)),0,((NLIMBS)-r) * sizeof(mp_limb_t));
 }
 
 #endif /* GMP_HACKS_H_ */	

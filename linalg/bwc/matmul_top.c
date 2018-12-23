@@ -100,6 +100,8 @@ void matmul_top_decl_usage(param_list_ptr pl)
             "the matrix balancing file, as computed by mf_bal");
     param_list_decl_usage(pl, "random_matrix",
             "characteristics of a random matrix to be used for staged runs.");
+    param_list_decl_usage(pl, "static_random_matrix",
+            "(unset or set to something arbitrary): indicate that the matrix is fake, and that there is no need to bother with the generation of vectors");
 
     param_list_decl_usage(pl, "rebuild_cache",
             "force rebuilding matrix caches");
@@ -122,6 +124,7 @@ void matmul_top_lookup_parameters(param_list_ptr pl)
     param_list_lookup_string(pl, "matrix");
     param_list_lookup_string(pl, "balancing");
     param_list_lookup_string(pl, "random_matrix");
+    param_list_lookup_string(pl, "static_random_matrix");
     param_list_lookup_string(pl, "rebuild_cache");
     param_list_lookup_string(pl, "export_cachelist");
     param_list_lookup_string(pl, "save_submatrices");
@@ -331,6 +334,14 @@ void mmt_own_vec_set(mmt_vec_ptr w, mmt_vec_ptr v)
     mmt_own_vec_set2(v, w, v);
     w->consistency = 1;
 }
+void mmt_vec_swap(mmt_vec_ptr w, mmt_vec_ptr v)
+{
+    mmt_vec foo;
+    memcpy(foo,v,sizeof(mmt_vec));
+    memcpy(v,w,sizeof(mmt_vec));
+    memcpy(w,foo,sizeof(mmt_vec));
+}
+
 void mmt_full_vec_set(mmt_vec_ptr w, mmt_vec_ptr v)
 {
     ASSERT_ALWAYS(v != NULL);
@@ -371,6 +382,36 @@ void mmt_full_vec_set_zero(mmt_vec_ptr v)
     }
     v->consistency = 2;
     serialize_threads(v->pi->wr[v->d]);
+}
+
+void mmt_vec_set_basis_vector_at(mmt_vec_ptr v, int k, unsigned int j)
+{
+    mmt_full_vec_set_zero(v);
+    mmt_vec_add_basis_vector_at(v,k,j);
+}
+
+void mmt_vec_add_basis_vector_at(mmt_vec_ptr v, int k, unsigned int j)
+{
+    if (v->i0 <= j && j < v->i1) {
+        if (v->siblings) {
+            v->abase->simd_set_ui_at(v->abase, v->abase->vec_coeff_ptr(v->abase, v->v, j - v->i0), k, 1);
+        } else {
+            serialize_threads(v->pi->wr[v->d]);
+            if (v->pi->wr[v->d]->trank == 0)
+                v->abase->simd_set_ui_at(v->abase, v->abase->vec_coeff_ptr(v->abase, v->v, j - v->i0), k, 1);
+            serialize_threads(v->pi->wr[v->d]);
+        }
+    }
+}
+
+void mmt_vec_add_basis_vector(mmt_vec_ptr v, unsigned int j)
+{
+    mmt_vec_add_basis_vector_at(v, 0, j);
+}
+
+void mmt_vec_set_basis_vector(mmt_vec_ptr v, unsigned int j)
+{
+    mmt_vec_set_basis_vector_at(v, 0, j);
 }
 
 void mmt_vec_downgrade_consistency(mmt_vec_ptr v)
@@ -1437,6 +1478,11 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
          * picol->ncores, too.
          *
          * Note that vrow->i1 - vrow->i0 is #rows / picol->totalsize
+         *
+         * Note also that picol->ncores * #rows / picol->totalsize =
+         * #rows / picol->njobs, so that the final thing we compute is
+         * really:
+         *      #rows / mmt->pi->m->njobs * (pirow->njobs - 1)
          */
         size_t data_out_ra = abase->vec_elt_stride(abase,
                 picol->ncores * (mmt->n[!d] / picol->totalsize) /
@@ -1447,6 +1493,10 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
          * the calculation is similar, and we'll use it as a guide. Note
          * of course that if hardware-level multicast is used, our
          * throughput estimation is way off.
+         *
+         * as above, this is really:
+         *      #cols / mmt->pi->m->njobs * (picol->njobs - 1)
+         *
          */
         size_t data_out_ag = abase->vec_elt_stride(abase,
                 pirow->ncores * (mmt->n[d] / pirow->totalsize) /
@@ -1517,6 +1567,9 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
  * correlation effects between row and column weights. In every respect,
  * the matrix we work with consistently is the matrix Mpad*T. T is computed
  * by balancing_pre_shuffle and balancing_pre_unshuffle.
+ *
+ * row i of T has its non-zero coefficient in column
+ * balancing_pre_shuffle(i)
  *
  * Sr and Sc are defined in the balancing file (as list of images). They
  * are such that the matrix Mtwisted = Sr*Mpad*T*Sc^-1 is well balanced
@@ -1862,6 +1915,13 @@ void mmt_vec_untwist(matmul_top_data_ptr mmt, mmt_vec_ptr y)
     // with. pshuf_inv indicates the inverse permutation. a and b do
 void mmt_vec_apply_or_unapply_T_inner(matmul_top_data_ptr mmt, mmt_vec_ptr y, int apply)
 {
+    /* apply: coefficient i of the vector goes to coefficient
+     * balancing_pre_shuffle[i]
+     *
+     * For row vectors this means: apply == (v <- v * T)
+     * For column vectors this means: apply == (v <- T^-1 * v)
+     *
+     */
     if (y->d == 0) return;
     matmul_top_matrix_ptr Mloc = mmt->matrices[mmt->nmatrices - 1];
     ASSERT_ALWAYS(y->consistency == 2);
@@ -2160,22 +2220,66 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename, unsig
     mmt_vec_load(v, filename, itemsondisk);
 }
 
+unsigned long mmt_vec_hamming_weight(mmt_vec_ptr y) {
+    ASSERT_ALWAYS(y->consistency == 2);
+    unsigned long w = y->abase->vec_hamming_weight(y->abase, y->v, y->i1 - y->i0);
+    /* all threads / cores in wiring wr[y->d] share the same data and
+     * thus deduce the same count */
+    pi_allreduce(NULL, &w, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM, y->pi->wr[!y->d]);
+    return w;
+}
+
+/* this is inconsistent in the sense that it's balancing-dependent */
 void mmt_vec_set_random_inconsistent(mmt_vec_ptr v, gmp_randstate_t rstate)
 {
     ASSERT_ALWAYS(v != NULL);
-    v->abase->vec_random(v->abase, v->v, v->i1 - v->i0, rstate);
+    mmt_full_vec_set_zero(v);
+    v->abase->vec_random(v->abase, mmt_my_own_subvec(v), mmt_my_own_size_in_items(v), rstate);
     v->consistency=1;
+    mmt_vec_allreduce(v);
+}
+
+/* _above and _below functions here do not use mmt, but we activate this
+ * same interface nevertheless, for consistency with mmt_vec_truncate */
+void mmt_vec_truncate_above_index(matmul_top_data_ptr mmt MAYBE_UNUSED, mmt_vec_ptr v, unsigned int idx)
+{
+    ASSERT_ALWAYS(v != NULL);
+    if (idx <= v->i0) idx = v->i0;
+    if (v->i0 <= idx && idx < v->i1) {
+        if (v->siblings) {
+            v->abase->vec_set_zero(v->abase, 
+                    v->abase->vec_subvec(v->abase, v->v, idx - v->i0),
+                    v->i1 - idx);
+        } else {
+            serialize_threads(v->pi->wr[v->d]);
+            if (v->pi->wr[v->d]->trank == 0)
+                v->abase->vec_set_zero(v->abase, 
+                        v->abase->vec_subvec(v->abase, v->v, idx - v->i0),
+                        v->i1 - idx);
+            serialize_threads(v->pi->wr[v->d]);
+        }
+    }
+}
+
+void mmt_vec_truncate_below_index(matmul_top_data_ptr mmt MAYBE_UNUSED, mmt_vec_ptr v, unsigned int idx)
+{
+    ASSERT_ALWAYS(v != NULL);
+    if (idx >= v->i1) idx = v->i1;
+    if (v->i0 <= idx && idx < v->i1) {
+        if (v->siblings) {
+            v->abase->vec_set_zero(v->abase, v->v, idx - v->i0);
+        } else {
+            serialize_threads(v->pi->wr[v->d]);
+            if (v->pi->wr[v->d]->trank == 0)
+                v->abase->vec_set_zero(v->abase, v->v, idx - v->i0);
+            serialize_threads(v->pi->wr[v->d]);
+        }
+    }
 }
 
 void mmt_vec_truncate(matmul_top_data_ptr mmt, mmt_vec_ptr v)
 {
-    ASSERT_ALWAYS(v != NULL);
-    if (mmt->n0[v->d] >= v->i0 && mmt->n0[v->d] < v->i1) {
-        v->abase->vec_set_zero(v->abase, 
-                v->abase->vec_subvec(v->abase, 
-                    v->v, mmt->n0[v->d] - v->i0),
-                v->i1 - mmt->n0[v->d]);
-    }
+    mmt_vec_truncate_above_index(mmt, v, mmt->n0[v->d]);
 }
 
 void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int nx)
@@ -2183,8 +2287,6 @@ void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int
     int shared = !y->siblings;
     mpfq_vbase_ptr A = y->abase;
     mmt_full_vec_set_zero(y);
-    void * dummy;
-    cheating_vec_init(A, &dummy, 1);
     if (!shared || y->pi->wr[y->d]->trank == 0) {
         for(int j = 0 ; j < m ; j++) {
             for(unsigned int k = 0 ; k < nx ; k++) {
@@ -2193,24 +2295,12 @@ void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int
                 if (i < y->i0 || i >= y->i1)
                     continue;
                 {
-                    /* We're not doing to do set_ui_at unconditionally,
-                     * because then we would be doing rubbish in presence
-                     * of duplicate coordinates -- which can happen.
-                     *
-                     * So set_ui_at on something which we know is zero
-                     * first, then add.
-                     */
-                    A->set_zero(A, dummy);
-                    A->set_ui_at(A, dummy, j, 1);
-                    A->add(A,
-                            A->vec_coeff_ptr(A, y->v, i - y->i0), 
-                            A->vec_coeff_ptr(A, y->v, i - y->i0),
-                            dummy);
+                    void * x = A->vec_coeff_ptr(A, y->v, i - y->i0);
+                    A->simd_add_ui_at(A, x, x, j, 1);
                 }
             }
         }
     }
-    cheating_vec_clear(A, &dummy, 1);
     y->consistency=2;
     if (shared)
         serialize_threads(y->pi->wr[y->d]);
@@ -2835,7 +2925,7 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
     /* see remark in raw_matrix_u32.h about data ownership for type
      * matrix_u32 */
 
-    if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
+    if (Mloc->mm->cachefile_name && verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
         my_pthread_mutex_lock(mmt->pi->m->th->m);
         printf("[%s] J%uT%u uses cache file %s\n",
                 mmt->pi->nodenumber_s,

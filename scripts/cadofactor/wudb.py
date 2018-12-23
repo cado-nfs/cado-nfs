@@ -745,10 +745,13 @@ class FilesTable(DbTable):
     index = {}
 
 
+# The sqrt_factors table contains the input number to be factored. As
+# such, we must make sure that it's permitted to go at least as far as we
+# intend to go. 200 digits is definitely too small.
 class DictDbTable(DbTable):
     fields = (
         ("rowid", "INTEGER PRIMARY KEY ASC", "UNIQUE NOT NULL"),
-        ("kkey", "VARCHAR(200)", "UNIQUE NOT NULL"),
+        ("kkey", "VARCHAR(300)", "UNIQUE NOT NULL"),
         ("type", "INTEGER", "NOT NULL"),
         ("value", "TEXT", "")
         )
@@ -1281,8 +1284,14 @@ class WuAccess(object): # {
         cursor = self.get_cursor()
         if not self.conn.in_transaction:
             cursor.begin(EXCLUSIVE)
+# This "priority" stuff is the root cause for the server taking time to
+# hand out WUs when the count of available WUs drops to zero.
+# (introduced in 90ae4beb7 -- it's an optional-and-never-used feature
+# anyway)
+#        r = self.mapper.table.where(cursor, limit = 1,
+#                                    order=("priority", "DESC"),
+#                                    eq={"status": WuStatus.AVAILABLE})
         r = self.mapper.table.where(cursor, limit = 1,
-                                    order=("priority", "DESC"),
                                     eq={"status": WuStatus.AVAILABLE})
         assert len(r) <= 1
         if len(r) == 1:

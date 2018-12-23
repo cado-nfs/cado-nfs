@@ -1,5 +1,5 @@
 #ifndef LAS_PLATTICE_H
-#define LAS_PLATTICE_H 1
+#define LAS_PLATTICE_H
 
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/
@@ -452,22 +452,6 @@ struct plattice_sieve_entry : public plattice_info_t {
      : plattice_info_t(p, r, proj, logI), hint(hint) {};
 };
 
-template <int LEVEL>
-class plattice_enumerate_area {
-public:
-    static plattice_x_t value;
-};
-
-/* see bug #21405 */
-template <> plattice_x_t plattice_enumerate_area<1>::value;
-template <> plattice_x_t plattice_enumerate_area<2>::value;
-template <> plattice_x_t plattice_enumerate_area<3>::value;
-
-template <int LEVEL>
-bool
-plattice_enumerate_finished(plattice_x_t x)
-{ return x >= plattice_enumerate_area<LEVEL>::value; }
-
 // Compute 1/x mod m
 // For m=2,3,6, this is trivial. Otherwise, has to be implemented
 static inline uint32_t invmod(uint32_t x, uint32_t m) {
@@ -481,9 +465,15 @@ static inline uint32_t invmod(uint32_t x, uint32_t m) {
     }
 }
 
-// TODO: put this function somewhere in a class: right now it is
-// duplicated in many compilation units.
-static plattice_x_t plattice_starting_point(const plattice_info_t &pli,
+/* This is (currently) common across all instantiations of
+ * plattice_enumerator. However if someday plattice_x_t changes type to
+ * vary depending on the level (which, in my reckoning, is now doable),
+ * then we should probably just move this function to the
+ * plattice_enumerator class anyway (or, equivalently, make it a template
+ * based on plattice_x_t).
+ */
+struct plattice_enumerator_base {
+static plattice_x_t starting_point(const plattice_info_t &pli,
         const int logI, const sublat_t &sublat) {
     int64_t I = int64_t(1)<<logI;
     uint32_t m  = sublat.m;
@@ -566,16 +556,11 @@ static plattice_x_t plattice_starting_point(const plattice_info_t &pli,
     plattice_x_t res = (ii+I/2) + (jj<<logI);
     return res;
 }
-
-
+};
 
 /* Class for enumerating lattice points with the Franke-Kleinjung algorithm */
-// Note: we would have liked to template this class by LEVEL.
-// However, since it is used by fb.h in a place that convert slices, and
-// slices does not know its level, we do the ugly workaround that puts
-// area outside this class.
-// TODO: can we do better in terms of structure of the code?
-class plattice_enumerate_t {
+template<int LEVEL>
+class plattice_enumerator : public plattice_enumerator_base {
 protected:
     // Maybe at some point, the plattice_x_t type could be templated in
     // order to have it 32 bits for non-top levels.
@@ -584,15 +569,23 @@ protected:
     slice_offset_t hint;
     plattice_x_t x;
 
-    static uint32_t maskI;
-    static plattice_x_t even_mask;
 public:
-    static void set_masks(const int _logI) {
-        maskI = (1U << _logI) - 1U;
-        even_mask = (plattice_x_t(1) << _logI) | plattice_x_t(1);
-    }
 
-    plattice_enumerate_t(const plattice_info_t &basis,
+    struct fence {
+        uint32_t maskI;
+        plattice_x_t even_mask;
+        plattice_x_t end;
+        fence(const int logI, int J) {
+            maskI = (1U << logI) - 1U;
+            even_mask = (plattice_x_t(1) << logI) | plattice_x_t(1);
+            end = plattice_x_t(J) << logI;
+        }
+        fence(const int logI, int J, plattice_x_t cap) : fence(logI, J) {
+            if (end >= cap) end = cap;
+        }
+    };
+
+    plattice_enumerator(const plattice_info_t &basis,
             const slice_offset_t hint, const int logI, const sublat_t &sublat)
         : hint(hint)
     {
@@ -603,11 +596,11 @@ public:
         if (!sublat.m) 
             x = plattice_x_t(1) << (logI-1);
         else {
-            x = plattice_starting_point(basis, logI, sublat);
+            x = plattice_enumerator_base::starting_point(basis, logI, sublat);
         }
     }
 
-    plattice_enumerate_t(const plattice_info_t &basis,
+    plattice_enumerator(const plattice_info_t &basis,
             const slice_offset_t hint, const int logI)
         : hint(hint)
     {
@@ -619,18 +612,11 @@ public:
     }
 
 
-    plattice_enumerate_t(const plattice_enumerate_t& src)
-        : hint(src.hint)
-    {
-        inc_a = src.inc_a;
-        inc_c = src.inc_c;
-        bound0 = src.bound0;
-        bound1 = src.bound1;
-        x = src.x;
-    }
+    plattice_enumerator(const plattice_enumerator&) = default;
 
-    void next() {
-      uint32_t i = x & maskI;
+    /* This function is quite critical */
+    void next(fence const & F) {
+      uint32_t i = x & F.maskI;
       if (i >= bound1)
         x += inc_a;
       if (i < bound0)
@@ -638,9 +624,10 @@ public:
     }
 
     /* Currently merely checks that not both are even */
-    bool probably_coprime() const {return (x & even_mask) != 0;}
+    bool probably_coprime(fence const & F) const {return (x & F.even_mask) != 0;}
 
-    void advance_to_next_area(int level);
+    inline bool done(fence const & F) { return x >= F.end; }
+    void advance_to_next_area(fence const & F) { x -= F.end; }
     plattice_x_t get_x() const {return x;}
     void set_x(plattice_x_t xx) {x = xx;}
     plattice_x_t get_bound1() const {return bound1;}
@@ -651,41 +638,45 @@ public:
 /* Also enumerates lattice points, but probably_coprime() does a full gcd()
    to ensure that points are really coprime. Very slow. Not used, just there
    for experimenting.*/
-class plattice_enumerate_coprime_t : public plattice_enumerate_t {
+template<int LEVEL>
+class plattice_enumerator_coprime : public plattice_enumerator<LEVEL> {
   unsigned long u, v;
+  typedef plattice_enumerator<LEVEL> super;
+  typedef typename super::fence fence;
 public:
-  plattice_enumerate_coprime_t(const plattice_info_t &basis,
+  plattice_enumerator_coprime(const plattice_info_t &basis,
           const slice_offset_t hint, const int logI, const sublat_t &sublat)
-    : plattice_enumerate_t(basis, hint, logI, sublat), u(0), v(0) {}
-  void next() {
-    uint32_t i = x & maskI;
-    if (i >= bound1) {
-      x += inc_a; u++;
-    }
-    if (i < bound0) {
-      x += inc_c;
-      v++;
-    }
+    : plattice_enumerator<LEVEL>(basis, hint, logI, sublat), u(0), v(0) {}
+  void next(fence const & F) {
+    uint32_t i = super::x & F.maskI;
+    if (i >= super::bound1) { super::x += super::inc_a; u++; }
+    if (i < super::bound0) { super::x += super::inc_c; v++; }
   }
-  bool probably_coprime() const {
-    return (x & even_mask) != 0 && gcd_ul(u, v) == 1;
+  bool probably_coprime(typename plattice_enumerator<LEVEL>::fence const & F) const {
+    return (super::x & F.even_mask) != 0 && gcd_ul(u, v) == 1;
   }
 };
 
+template<int LEVEL>
 class plattices_vector_t:
-        public std::vector<plattice_enumerate_t> {
+        public std::vector<plattice_enumerator<LEVEL>> {
+    /* The index here is the global index, across all fb parts */
     slice_index_t index;
+    double weight;
 public:
-    /* no copy, but move allowed */
-    plattices_vector_t(plattices_vector_t const&) = delete;
-    plattices_vector_t(plattices_vector_t &&) = default;
-    plattices_vector_t(const slice_index_t index) : index(index) {}
+    plattices_vector_t() = default;
+    plattices_vector_t(slice_index_t index, double weight) : index(index), weight(weight) {}
+    /* returns a global index */
     slice_index_t get_index() const {return index;};
+    slice_index_t get_weight() const {return weight;};
 };
 
 /* Dense version of plattice_info_t and friends for long-term storage in
  * sublat mode. */
 
+/* This can now be a template. We don't use it, so far.
+ */
+template<int /* LEVEL */>
 struct plattice_info_dense_t {
     uint32_t pack[3];
     // This pack of 96 bits is enough to contain
@@ -738,9 +729,9 @@ struct plattice_info_dense_t {
         if (b1 > mask20)
             b1 = mask20;
 
-        pack[0] =   (minus_a0 & mask20) | (b0 << 20);
+        pack[0] = (minus_a0 & mask20) | (b0 << 20);
         pack[1] = ((b0 >> 12) & mask8 ) | ((a1 & mask20) << 8) | (b1 << 28);
-        pack[2] =  ((b1 >> 4) & mask16) | (hint << 16);
+        pack[2] = ((b1 >> 4) & mask16) | (hint << 16);
     }
 
     plattice_info_t unpack(const int logI) const {
@@ -774,12 +765,30 @@ struct plattice_info_dense_t {
 
 };
 
+template<int LEVEL>
 class plattices_dense_vector_t:
-        public std::vector<plattice_info_dense_t>, private NonCopyable {
-    slice_index_t index;
+        public std::vector<plattice_info_dense_t<LEVEL>> {
 public:
-    plattices_dense_vector_t(const slice_index_t index) : index(index) {}
-    slice_index_t get_index() const {return index;};
+#if !GNUC_VERSION(4,7,2)
+    /* Apparently there's a bug in gcc 4.7.2, which does not recognize
+     * that a vector of plattices_dense_vector_t is ok with a move ctor
+     * and no copy ctor. I'm not entirely sure why, and I don't really
+     * want to investigate. Theoretically, defining ctors as below should
+     * be fine.
+     */
+    plattices_dense_vector_t(plattices_dense_vector_t const&) = delete;
+    plattices_dense_vector_t(plattices_dense_vector_t&&) = default;
+    plattices_dense_vector_t& operator=(plattices_dense_vector_t&&) = default;
+    plattices_dense_vector_t() = default;
+#endif
+};
+
+// std::vector<plattices_dense_vector_t<LEVEL>> is for remembering the FK
+// basis in sublat mode, between two different congruences of (i,j) mod
+// m. For simplicity, we remember them only for the toplevel.
+template<int LEVEL>
+struct precomp_plattice_dense_t {
+    typedef std::vector<plattices_dense_vector_t<LEVEL>> type;
 };
 
 

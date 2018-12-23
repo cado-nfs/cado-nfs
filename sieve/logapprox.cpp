@@ -3,6 +3,11 @@
 #include <algorithm>
 #include <cmath>
 
+#define xxxDEBUG_LOGAPPROX
+
+/* This should be 1/Jmax */
+#define SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL  (1.0/262144)
+
 /* modify our left end to include the approximation which is provided
  * on argument.
  * Warning: this is made constant time by using splice(), so that the
@@ -61,15 +66,28 @@ piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r
     uv->coeff[0] = u;
     uv->coeff[1] = v;
     double_poly_cleandeg(uv, 1);
-
     double r0 = std::numeric_limits<double>::lowest();
     double r1 = std::numeric_limits<double>::max();
+
+    if (!v)
+        /* inflection points cause real trouble */
+        fprintf(stderr, "# Warning: logapprox encountered a (quasi-) inflection point. We cannot fulfill our requirements\n");
+
+
     for(double x : roots_off_course(uv, true, r)) {
         if (x < r && x > r0) r0 = x;
         if (x > r && x < r1) r1 = x;
     }
-    ASSERT_ALWAYS(r0 != std::numeric_limits<double>::lowest());
-    ASSERT_ALWAYS(r1 != std::numeric_limits<double>::max());
+
+    /* This should not happen, except maybe near inflection points */
+    if (UNLIKELY(r0 == std::numeric_limits<double>::lowest())) {
+        fprintf(stderr, "# Warning: using last resort bailout code in logapprox\n");
+        r0 = r - SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
+    }
+    if (UNLIKELY(r1 == std::numeric_limits<double>::max())) {
+        fprintf(stderr, "# Warning: using last resort bailout code in logapprox\n");
+        r1 = r + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
+    }
 
     piecewise_linear_function res;
     res.endpoints.push_back(r0);
@@ -121,6 +139,11 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
          */
         todo.endpoints.pop_front();
         double r1 = todo.endpoints.front();
+        /* Arrange so that we don't emit linear approximations on
+         * subintervals that are absurdly close to the existing ones.
+         */
+        double r0s = r0 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
+        double r1s = r1 - SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
 #ifdef DEBUG_LOGAPPROX
         printf("Checking interval %f, %f\n", r0,r1);
 #endif
@@ -133,7 +156,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
         double_poly_cleandeg(guv,1);
         std::vector<double> roots;
         for(double r : roots_off_course(guv)) {
-            if (r >= r0 && r <= r1)
+            if (r >= r0s && r <= r1s)
                 roots.push_back(r);
         }
         sort(begin(roots), end(roots));
@@ -163,8 +186,8 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
                 /* Try to split at the roots of the derivative if we have any */
                 newsplits.push_back(r0);
                 for(auto r: f1_roots) {
-                    if (r <= r0) continue;
-                    if (r >= r1) break;
+                    if (r <= r0s) continue;
+                    if (r >= r1s) break;
                     newsplits.push_back(r);
                 }
                 newsplits.push_back(r1);
@@ -230,7 +253,7 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         piecewise_linear_function s = expand_at_root(r);
         double u1 = done.endpoints.back();
         double v0 = s.endpoints.front();
-        if (v0 > u1) {
+        if (v0 > u1 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL) {
             piecewise_linear_function G = fill_gap(u1, v0);
             done.merge_right(G);
         }
@@ -241,7 +264,7 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         done.merge_right(s);
     }
     double u1 = done.endpoints.back();
-    if (u1 < i1) {
+    if (u1 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL < i1) {
         piecewise_linear_function G = fill_gap(u1, i1);
         done.merge_right(G);
     }

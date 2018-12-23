@@ -2,6 +2,7 @@
 #define POLYMAT_H_
 
 #include "mpfq_layer.h"
+#include "macros.h"
 
 /* This is used only for plingen. */
 

@@ -12,7 +12,7 @@ static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "in", "input file; if not given, read from stdin");
   param_list_decl_usage(pl, "renumber", "renumber table (mandatory)");
-  param_list_decl_usage(pl, "inverse", "(switch) convert index to ideal");
+  param_list_decl_usage(pl, "inverse", "convert index to ideal");
   param_list_decl_usage(pl, "poly", "polynomial file (required for -inverse)");
   verbose_decl_usage(pl);
 }

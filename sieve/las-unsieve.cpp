@@ -3,12 +3,13 @@
 #include <string.h>
 
 #include "las-config.h"
-#include "las-types.hpp"
+#include "las-info.hpp"
 #include "las-unsieve.hpp"
 #include "ularith.h"
 #include "las-norms.hpp"
 #include "las-debug.hpp"
 #include "gcd.h"
+#include "gpf.h"
 #include "memory.h"
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
@@ -38,17 +39,11 @@ unsieve_data::unsieve_data(int logI, int logA)
   entries = new entry[Jmax];
   entries[0] = entry(0,0);
   entries[1] = entry(1,1);
+  gpf_init(Jmax - 1);
   for (unsigned int k = 2U; k < Jmax; k++)
     {
       unsigned int p, c = k;
-      for (p = 2U; p * p <= c; p += 1U + p % 2U)
-        {
-          while (c % p == 0U)
-            c /= p;
-          if (c == 1U)
-            break;
-        }
-      p = (c == 1U) ? p : c;
+      p = gpf_get(k);
       c = k; do {c /= p;} while (c % p == 0);
       entries[k] = entry(p, c);
     }
@@ -320,64 +315,31 @@ unsieve_not_coprime_line(unsigned char * line_start,
   ASSERT_ALWAYS(c <= 1);
 }
 
-
-j_divisibility_helper::j_divisibility_helper(uint32_t J) : J(J)
+j_divisibility_helper::j_divisibility_helper(uint32_t J)
 {
-  /* Store largest prime factor of k in j_div[k].p, for 1 < k < J,
-     and store 0 for k=0, 1 for k=1 */
-  entries = NULL;
-  if (!J) return;
-  ASSERT_ALWAYS(J >= 2);
-  entries = new entry[J];
-  entries[0].p   = 0U;
-  entries[0].cof = 0U;
-  entries[0].inv = 0U;
-  entries[0].bound = 0U;
-  entries[1].p   = 1U;
-  entries[1].cof = 1U;
-  entries[1].inv = 1U;
-  entries[1].inv = UINT_MAX;
-  for (unsigned int k = 2U; k < J; k++) {
-    /* Find largest prime factor of k */
-    unsigned int p, c = k;
-    for (p = 2U; p * p <= c; p += 1U + p % 2U)
-      {
-        while (c % p == 0U)
-          c /= p;
-        if (c == 1U)
-          break;
-      }
-    p = (c == 1U) ? p : c;
-    c = k; do {c /= p;} while (c % p == 0);
-    entries[k].p = p;
-    entries[k].cof = c;
-    entries[k].inv = p == 2 ? 0 : (unsigned int)ularith_invmod(p);
-    entries[k].bound = UINT_MAX / p;
-  }
-}
-
-j_divisibility_helper::j_divisibility_helper(j_divisibility_helper const & o) : J(o.J)
-{
-    entries = NULL;
-    if (J == 0) return;
-    entries = new entry[J];
-    memcpy(entries, o.entries, J * sizeof(entry));
-}
-
-j_divisibility_helper & j_divisibility_helper::operator=(j_divisibility_helper const & o)
-{
-    if (J) delete[] entries;
-    J = o.J;
-    entries = new entry[J];
-    memcpy(entries, o.entries, J * sizeof(entry));
-    return *this;
-}
-
-
-j_divisibility_helper::~j_divisibility_helper()
-{
-    if (!J) return;
-    delete[] entries;
+    /* Store largest prime factor of k in j_div[k].p, for 1 < k < J,
+       and store 0 for k=0, 1 for k=1 */
+    ASSERT_ALWAYS(J >= 2);
+    ASSERT_ALWAYS(!(J & (J-1)));        /* J must be a power of two */
+    entries.reserve(J);
+    entries.push_back({ 0U, 0U, 0U, 0U });
+    entries.push_back({ 1U, 1U, 1U, UINT_MAX });
+    for (unsigned int k = 2; k < J; k++) {
+        /* Find largest prime factor of k */
+        unsigned int p, c = k;
+        for (p = 2U; p * p <= c; p += 1U + p % 2U)
+        {
+            while (c % p == 0U)
+                c /= p;
+            if (c == 1U)
+                break;
+        }
+        p = (c == 1U) ? p : c;
+        c = k; do {c /= p;} while (c % p == 0);
+        unsigned int inv = p == 2 ? 0U : (unsigned int)ularith_invmod(p);
+        unsigned int bound = UINT_MAX / p;
+        entries.push_back({ p, c, inv, bound});
+    }
 }
 
 static inline int

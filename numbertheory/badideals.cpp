@@ -123,6 +123,7 @@ struct badideal {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
+namespace straightforward_poly_io {
 istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
 {
     vector<cxx_mpz> v;
@@ -150,6 +151,7 @@ ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
     }
     return o;
 }/*}}}*/
+}
 
 vector<pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
 {
@@ -521,7 +523,7 @@ int main(int argc, char * argv[])
             if (stmp[i]==',') stmp[i]=' ';
         }
         istringstream is(stmp);
-        if (!(is >> f))
+        if (!(straightforward_poly_io::operator>>(is, f)))
             usage(pl, original_argv, "cannot parse polynomial");
 
         vector<badideal> badideals = badideals_for_polynomial(f, side);

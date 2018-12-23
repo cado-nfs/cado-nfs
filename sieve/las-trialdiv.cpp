@@ -1,6 +1,6 @@
 #include "cado.h"
 #include <iterator>
-#include "las-types.hpp"
+#include "las-info.hpp"
 
 template<typename T>
 unsigned long
@@ -20,28 +20,34 @@ append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly c
     return p;
 }
 
-void sieve_info::init_trialdiv(int side)
+
+trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorbase::key_type fbK, fb_factorbase::slicing const * fbs)
 {
-    sieve_info & si(*this);
+    std::lock_guard<std::mutex> foo(trialdiv_data_cache.mutex());
+    auto it = trialdiv_data_cache.find(fbK);
+    if (it != trialdiv_data_cache.end()) {
+        return &it->second;
+    }
+
+    /* Now compute the trialdiv data for these thresholds. */
+
     /* Our trial division needs odd divisors, 2 is handled by mpz_even_p().
        If the FB primes to trial divide contain 2, we skip over it.
        We assume that if 2 is in the list, it is the first list entry,
        and that it appears at most once. */
 
-    /* XXX This function consider the full contents of the list
-     * si.sides[side].fb to be trialdiv primes, therefore that
-     * sieve_info_split_bucket_fb_for_threads must have already been
-     * called, so that the only primes which are still in s->fb are the
-     * trial-divided ones */
-    sieve_info::side_info & s(si.sides[side]);
-    unsigned long pmax = MIN((unsigned long) si.conf.bucket_thresh,
-                             trialdiv_get_max_p());
-    std::vector<unsigned long> trialdiv_primes;
+    unsigned long pmax = std::min((unsigned long) fbK.thresholds[0],
+                             trialdiv_data::max_p);
+
+    std::vector<unsigned long> trialdiv_primes = fbs->small_sieve_entries.skipped;
 
     /* Maybe we can use the factor base. If we have one, of course ! */
     unsigned long pmax_sofar = 0;
-    if (s.fb) {
-        s.fb->extract_bycost(trialdiv_primes, pmax, si.conf.td_thresh);
+    if (fbs) {
+        for(auto const & pp : fbs->small_sieve_entries.rest) {
+            if (pp.k > 1) continue;
+            trialdiv_primes.push_back(pp.p);
+        }
         cxx_mpz zz(trialdiv_primes.back());
         mpz_nextprime(zz, zz);
         pmax_sofar = MIN(pmax, mpz_get_ui(zz));
@@ -53,16 +59,22 @@ void sieve_info::init_trialdiv(int side)
         unsigned long p;
         /* first seek to the end of the fb. */
         for ( ; (p = getprime_mt (pi)) < pmax_sofar ; );
-        cxx_mpz_poly const & f(si.cpoly->pols[side]);
+
         for(int minroots = 1 ; minroots <= f->deg ; minroots++) {
             p = append_prime_list(std::back_inserter(trialdiv_primes),
-                    pi, MIN(pmax, minroots * si.conf.td_thresh), f, minroots);
+                    pi, MIN(pmax, minroots * fbK.td_thresh), f, minroots);
         }
         prime_info_clear (pi);
     }
 
-    std::sort(trialdiv_primes.begin(), trialdiv_primes.end());
-    size_t n = trialdiv_primes.size();
-    int skip2 = n > 0 && trialdiv_primes[0] == 2;
-    s.trialdiv_data = std::shared_ptr<trialdiv_divisor_t>(trialdiv_init(&trialdiv_primes.front() + skip2, n - skip2), trialdiv_clear);
+    ASSERT(std::is_sorted(trialdiv_primes.begin(), trialdiv_primes.end()));
+    // std::sort(trialdiv_primes.begin(), trialdiv_primes.end());
+    
+    size_t skip2 = !trialdiv_primes.empty() && trialdiv_primes[0] == 2;
+
+    trialdiv_data td(trialdiv_primes, skip2);
+    trialdiv_data_cache[fbK];
+    std::swap(trialdiv_data_cache[fbK], td);
+
+    return &trialdiv_data_cache[fbK];
 }

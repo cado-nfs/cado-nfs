@@ -4,9 +4,11 @@
 #include "las-base.hpp"
 #include "las-todo-entry.hpp"
 #include "fb-types.h"
+#include "fb.hpp"
 #include <string.h>
 #include <string>
 #include <map>
+#include <tuple>
 #include "params.h"
 
 /* siever_config */
@@ -17,34 +19,71 @@
  */
 struct siever_config : public _padded_pod<siever_config> {
     /* The bit size of the special-q. Counting in bits is no necessity,
-     * we could imagine being more accurate */
-    unsigned int bitsize;  /* bitsize == 0 indicates end of table */
-    int side;              /* special-q side */
+     * we could imagine being more accurate. This is set by
+     * siever_config_pool::get_config_for_q  */
+    // unsigned int bitsize __attribute__((deprecated));  /* bitsize == 0 indicates end of table */
+    // int side __attribute__((deprecated));              /* special-q side */
+
     int logA;
+    int logI;   /* see below. logI is initialized late in the game */
+
+    /* This does not really belong here. I'd rather have it at the
+     * las_info level. However for obscure reasons,
+     * las.get_strategies(siever_config&)
+     * wants it.
+     *
+     * FIXME: er. now that get_strategies lives below las, we can do this
+     * move, right ?
+     */
+    unsigned int sublat_bound;
 
 
-    /* For a given logA, we may trigger configurations for various logI
-     * values. logI_adjusted is a sieving-only parameter. */
-    int logI_adjusted;
-    sublat_t sublat;
-    unsigned long bucket_thresh;    // bucket sieve primes >= bucket_thresh
-    unsigned long bucket_thresh1;   // primes above are 2-level bucket-sieved
-    unsigned int td_thresh;
-    unsigned int skipped;           // don't sieve below this
-    unsigned int unsieve_thresh;
+    /* These four parameters are as they are provided in the command
+     * line. In truth, the ones that really matter are the ones in the
+     * fb_factorbase::key_type object that is stored within the
+     * nfs_work structure (in sides[side].fbK).
+     *
+     * In particular, bucket_thresh and bucket_thresh1 below have a
+     * default value that is dependent on:
+     *  - logI -- which is not set here. Well, it exists here, but it is
+     *    set late in the game, after all other fields
+     *    (sieve_range_adjust does that).  And we don't want to go the
+     *    route of making the default value for some of the fields in
+     *    this struct be dynamic depending on a setter function for logI
+     *  - the side, as well.
+     */
+    private:
+    /* access should rather be
+     * via ws.sides[side].fbK.thresholds[0,1]
+     * and ws.sides[side].fbK.{td_thresh, skipped}
+     */
+    unsigned long bucket_thresh = 0;  // bucket sieve primes >= bucket_thresh
+    unsigned long bucket_thresh1 = 0; // primes above are 2-level bucket-sieved
+    unsigned int td_thresh = 1024;
+    unsigned int skipped = 1;         // don't sieve below this
+
+    public:
+    /* the only way to access the four fields above */
+    fb_factorbase::key_type instantiate_thresholds(int side) const;
+
+    public:
+
+    /* unsieve threshold is not related to the factor base. */
+    unsigned int unsieve_thresh = 100;
+
     struct side_config {
         unsigned long lim;    /* factor base bound */
         unsigned long powlim; /* bound on powers in the factor base */
+
         int lpb;              /* large prime bound is 2^lpb */
         int mfb;              /* bound for residuals is 2^mfb */
         int ncurves;          /* number of cofactorization curves */
         double lambda;        /* lambda sieve parameter */
-        unsigned long qmin;   /* smallest q sieved on this side, for dupsup */
-        unsigned long qmax;   /* largest q sieved on this side, for dupsup */
+        
     };
     side_config sides[2];
 
-    void display() const;
+    void display(int side, unsigned int bitsize) const;
 
     static void declare_usage(param_list_ptr pl);
     static bool parse_default(siever_config & sc, param_list_ptr pl);
@@ -61,6 +100,7 @@ struct siever_config : public _padded_pod<siever_config> {
     };
     has_same_config same_config() const { return has_same_config(*this); }
     /*}}}*/
+#if 0
     /*{{{ has_same_config_q */
     struct has_same_config_q {
         siever_config const & sc;
@@ -75,6 +115,7 @@ struct siever_config : public _padded_pod<siever_config> {
         return has_same_config_q(*this);
     }
     /*}}}*/
+#endif
     /* {{{ has_same_fb_parameters */
     struct has_same_fb_parameters {
         siever_config const & sc;
@@ -83,13 +124,6 @@ struct siever_config : public _padded_pod<siever_config> {
         bool operator()(OtherLasType const& o) const { return (*this)(o.conf); }
         bool operator()(siever_config const& o) const {
             bool ok = true;
-            // ok = ok && sc.logI_adjusted == o.logI_adjusted;
-            ok = ok && sc.bucket_thresh == o.bucket_thresh;
-            ok = ok && sc.bucket_thresh1 == o.bucket_thresh1;
-            ok = ok && sc.td_thresh == o.td_thresh;
-            ok = ok && sc.skipped == o.skipped;
-            // ok = ok && sc.bk_multiplier == o.bk_multiplier;
-            ok = ok && sc.unsieve_thresh == o.unsieve_thresh;
             for(int side = 0 ; side < 2 ; side++) {
                 ok = ok && sc.sides[side].lim == o.sides[side].lim;
                 ok = ok && sc.sides[side].powlim == o.sides[side].powlim;
@@ -99,6 +133,7 @@ struct siever_config : public _padded_pod<siever_config> {
     };
     has_same_fb_parameters same_fb_parameters() const { return has_same_fb_parameters(*this); }
     /*}}}*/
+#if 0
     /*{{{ has_same_sieving -- currently duplicates has_same_fb_parameters */
     struct has_same_sieving {
         siever_config const & sc;
@@ -111,6 +146,7 @@ struct siever_config : public _padded_pod<siever_config> {
     };
     has_same_sieving same_sieving() const { return has_same_sieving(*this); }
     /*}}}*/
+#endif
     /*{{{ has_same_cofactoring */
     struct has_same_cofactoring {
         siever_config const & sc;
@@ -127,6 +163,17 @@ struct siever_config : public _padded_pod<siever_config> {
             }
             return ok;
         }
+        struct comparison {
+            bool operator()(siever_config const& a, siever_config const& b) const {
+                return std::tie(
+                        a.sides[0].lambda, a.sides[0].lpb, a.sides[0].mfb, a.sides[0].ncurves,
+                        a.sides[1].lambda, a.sides[1].lpb, a.sides[1].mfb, a.sides[1].ncurves) <
+                    std::tie(
+                        b.sides[0].lambda, b.sides[0].lpb, b.sides[0].mfb, b.sides[0].ncurves,
+                        b.sides[1].lambda, b.sides[1].lpb, b.sides[1].mfb, b.sides[1].ncurves);
+            }
+        };
+
     };
     has_same_cofactoring same_cofactoring() const { return has_same_cofactoring(*this); }
     /*}}}*/
@@ -162,11 +209,20 @@ struct siever_config_pool {
             return &it->second;
     }
 
-    siever_config const * default_config_ptr;
+    /* The siever_config in [base] needs not be complete. The
+     * default_config_ptr field points here if it is complete. If not,
+     * the fields here are just used as a base for initializing the other
+     * configurations.
+     *
+     * Note that while the "base for initializing" functionality is
+     * likely to stay, the notion of a "default config" seems to be
+     * screwed altogether, and we would rather like to see it disappear
+     * someday. Currently it is used for displaying memory usage, setting
+     * defaults for dupqmin, and getting the lim abd lpb parameters
+     * before going to the batch step.
+     */
 
-    /* This needs not be complete. The default_config_ptr field points
-     * here if it is complete. If not, the fields here are just used as a
-     * base for initializing the other configurations */
+    siever_config const * default_config_ptr;
     siever_config base;
 
     siever_config get_config_for_q(las_todo_entry const& doing) const;
@@ -183,6 +239,8 @@ struct siever_config_pool {
             return -1;
         return hints.at(K).expected_success;
     }
+
+    static void declare_usage(cxx_param_list & pl);
 };
 
 #endif	/* LAS_SIEVER_CONFIG_HPP_ */

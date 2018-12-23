@@ -1,4 +1,4 @@
-# Created with: find_test_combinations(100, 1000, 2, 0, 40, 10000)
+# Created with: write_factor_test_file (100, 1000, 0, 2, 40, 10000)
 101761183 10007 10169 # one non-smooth cofactor (order=5003, lpf=5003), one B1-smooth factor (order=164, lpf=41)
 100160063 10007 10009 # one non-smooth cofactor (order=5003, lpf=5003), one B1,B2-smooth factor (order=1668, lpf=139)
 101781521 10009 10169 # one B1,B2-smooth factor (order=1668, lpf=139), one B1-smooth factor (order=164, lpf=41)

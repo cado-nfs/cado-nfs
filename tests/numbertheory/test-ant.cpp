@@ -11,6 +11,7 @@
 using namespace std;
 static char ** original_argv;
 
+namespace straightforward_poly_io {
 istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
 {
     vector<cxx_mpz> v;
@@ -38,6 +39,7 @@ ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
     }
     return o;
 }/*}}}*/
+}
 
 static void decl_usage(param_list_ptr pl)/*{{{*/
 {
@@ -102,7 +104,7 @@ int do_p_maximal_order(param_list_ptr pl) /*{{{*/
     istream in(io.ibuf);
     ostream out(io.obuf);
 
-    if (!(in >> f)) usage(pl, original_argv, "cannot parse polynomial");
+    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
     cxx_mpq_mat M = p_maximal_order(f, p);
     cxx_mpz D;
     cxx_mpz_mat A;
@@ -223,7 +225,7 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
         if (s[0] == '#') continue;
         invalid_argument exc(string("Parse error on input") + s);
         istringstream is0(s);
-        if (!(is0 >> f)) usage(pl, original_argv, "cannot parse polynomial");
+        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw exc;
@@ -264,7 +266,7 @@ int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
     istream in(io.ibuf);
     ostream out(io.obuf);
 
-    if (!(in >> f)) usage(pl, original_argv, "cannot parse polynomial");
+    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
     cxx_mpq_mat M = p_maximal_order(f, p);
     gmp_randstate_t state;
     gmp_randinit_default(state);
@@ -301,7 +303,7 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
         invalid_argument exc(string("Parse error on input") + s);
 
         istringstream is0(s);
-        if (!(is0 >> f)) usage(pl, original_argv, "cannot parse polynomial");
+        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw exc;
@@ -383,7 +385,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
     }
 
 
-    if (!(in >> f)) usage(pl, original_argv, "cannot parse polynomial");
+    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
     cxx_mpq_mat O = p_maximal_order(f, p);
     cxx_mpz_mat M = multiplication_table_of_order(O, f);
 
@@ -493,7 +495,7 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
         invalid_argument exc(string("Parse error on input") + s);
 
         istringstream is0(s);
-        if (!(is0 >> f)) usage(pl, original_argv, "cannot parse polynomial");
+        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw exc;

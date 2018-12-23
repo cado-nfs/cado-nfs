@@ -15,6 +15,8 @@
 #include "version_info.h"
 #include "verbose.h"
 
+typedef int (*sortfunc_t) (const void *, const void *);
+
 static pthread_mutex_t mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
 
 void param_list_init(param_list_ptr pl)
@@ -128,6 +130,11 @@ void param_list_usage_header(param_list_ptr pl, const char * hdr, ...)
 
 void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc)
 {
+    /* Note that duplicate calls to param_list_decl_usage for the same
+     * key will not trigger two distinct prints of the same
+     * documentation string. See the collapsing logic in
+     * param_list_print_usage.
+     */
     if (pl->ndocs == pl->ndocs_alloc) {
         pl->ndocs_alloc += 16;
         pl->docs = (param_list_doc *) realloc(pl->docs,
@@ -164,23 +171,116 @@ static int is_documented_key(param_list_ptr pl, const char *key) {
     return 0;
 }
 
+int pointed_strcmp(const char ** a, const char **b)
+{
+    return strcmp(*a, *b);
+}
+
+int alias_sort(const char *(*a)[2], const char *(*b)[2])
+{
+    return strcmp((*a)[0], (*b)[0]);
+}
+
+int pointed_param_list_doc_cmp_bykey(const param_list_doc_srcptr * a, const param_list_doc_srcptr * b)
+{
+    return strcmp((*a)->key, (*b)->key);
+}
+
+int pointed_param_list_doc_cmp_byaddr(const param_list_doc_srcptr * a, const param_list_doc_srcptr * b)
+{
+    return ((*a) > (*b)) - ((*b) > (*a));
+}
+
 void param_list_print_usage(param_list_ptr pl, const char * argv0, FILE *f)
 {
     if (argv0 != NULL)
         fprintf(f, "Usage: %s <parameters>\n", argv0);
     if (pl->usage_hdr != NULL)
         fputs(pl->usage_hdr, f);
+
+    /* copy the list of switches and aliases, so that we can accurately
+     * report them with -help 
+     */
+    const char ** all_switches = malloc(pl->nswitches * sizeof(char*));
+    int nswitches_kept = 0;
+    for(int i = 0 ; i < pl->nswitches ; ++i) {
+        if (strncmp(pl->switches[i]->switchname, "--", 2) == 0) continue;
+        ASSERT_ALWAYS(pl->switches[i]->switchname[0] == '-');
+        all_switches[nswitches_kept++] = pl->switches[i]->switchname + 1;
+    }
+    qsort(all_switches, nswitches_kept, sizeof(const char*), (sortfunc_t) pointed_strcmp);
+
+    const char *(*all_aliases)[2] = malloc(pl->naliases * 2 * sizeof(char*));
+    int naliases_kept = 0;
+    for(int i = 0 ; i < pl->naliases ; ++i) {
+        if (strncmp(pl->aliases[i]->alias, "--", 2) == 0) continue;
+        if (strncmp(pl->aliases[i]->alias, "-", 1) != 0) continue;
+        all_aliases[naliases_kept][0] = pl->aliases[i]->key;
+        all_aliases[naliases_kept][1] = pl->aliases[i]->alias;
+        naliases_kept++;
+    }
+    qsort(all_aliases, naliases_kept, 2 * sizeof(char*), (sortfunc_t) alias_sort);
+
+    param_list_doc_srcptr * all_docs = malloc(pl->ndocs * sizeof(param_list_doc_srcptr));
+    for(int i = 0 ; i < pl->ndocs ; i ++)
+        all_docs[i] = pl->docs[i];
+    qsort(all_docs, pl->ndocs, sizeof(param_list_doc_srcptr), (sortfunc_t) pointed_param_list_doc_cmp_bykey);
+    /* consolidate */
+    int ndocs_kept = 0;
+    for(int i = 0, j ; i < pl->ndocs ; i += j) {
+        param_list_doc_srcptr di = all_docs[i];
+        for(j = 1 ; i + j < pl->ndocs ; j++) {
+            param_list_doc_srcptr dij = all_docs[i+j];
+            if (strcmp(di->key, dij->key) != 0) break;
+            if (strcmp(di->doc, dij->doc) == 0) continue;
+            fprintf(stderr, "WARNING: two documentation strings for option %s:\n\t%s\n\t%s\n", di->key, all_docs[i]->doc, dij->doc);
+        }
+        all_docs[ndocs_kept++] = di;
+    }
+    qsort(all_docs, ndocs_kept, sizeof(param_list_doc_srcptr), (sortfunc_t) pointed_param_list_doc_cmp_byaddr);
+
     fprintf(f, "The available parameters are the following:\n");
     char whites[20];
     for (int i = 0; i < 20; ++i)
         whites[i] = ' ';
-    for (int i = 0; i < pl->ndocs; ++i) {
-        int l = strlen(pl->docs[i]->key);
+    for (int i = 0; i < ndocs_kept; ++i) {
+        const char * key = all_docs[i]->key;
+        const char * doc = all_docs[i]->doc;
+
+        int sw = bsearch(&key, all_switches, nswitches_kept, sizeof(const char *), (sortfunc_t) pointed_strcmp) != NULL;
+        const char *(*al)[2] = bsearch(&key, all_aliases, naliases_kept, 2 * sizeof(const char *), (sortfunc_t) alias_sort);
+        char * al_string = NULL;
+        if (al) {
+            size_t s = 9;       // "(alias) " incl terminating \0
+            for(int j = 0 ; al + j < all_aliases + naliases_kept ; ++j) {
+                if (strcmp(al[j][0], key) != 0)
+                    break;
+                s += strlen(al[j][1]) + 1;      /* incl space */
+            }
+            al_string = malloc(s);
+            size_t k = 0;
+            k += snprintf(al_string + k, s - k, "(alias");
+            for(int j = 0 ; al + j < all_aliases + naliases_kept ; ++j) {
+                if (strcmp(al[j][0], key) != 0)
+                    break;
+                k += snprintf(al_string + k, s - k, " %s", al[j][1]);
+            }
+            k += snprintf(al_string + k, s - k, ") ");
+            ASSERT_ALWAYS(k + 1 == s);
+        }
+        int l = strlen(key);
         l = MAX(1, 10-l);
         whites[l] ='\0';
-        fprintf(f, "    -%s%s%s\n", pl->docs[i]->key, whites, pl->docs[i]->doc);
+        fprintf(f, "    -%s%s%s%s%s\n", key, whites, 
+                sw ? "(switch) " : "",
+                al_string ? al_string : "",
+                doc);
         whites[l] =' ';
+        if (al_string) free(al_string);
     }
+    free(all_docs);
+    free(all_switches);
+    free(all_aliases);
 }
 
 static void make_room(param_list_ptr pl, unsigned int more)
@@ -225,8 +325,6 @@ struct sorting_data {
     parameter_srcptr s;
     int p;
 };
-
-typedef int (*sortfunc_t) (const void *, const void *);
 
 int paramcmp(const struct sorting_data * a, const struct sorting_data * b)
 {
@@ -470,12 +568,12 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
         pl->nswitches_alloc <<= 1;
         pl->switches = realloc(pl->switches, pl->nswitches_alloc * sizeof(param_list_switch));
     }
-    char * tmp = (char *) malloc(strlen(switchname)+2);
-    tmp[0]='-';
+    char * tmp;
     if (switchname[1] == '-') { // have -- in the switch
-        strncpy(tmp, switchname, strlen(switchname) + 1);
+        tmp = strdup(switchname);
     } else {
-        strncpy(tmp+1, switchname, strlen(switchname) + 1);
+        int rc = asprintf(&tmp, "-%s", switchname);
+        ASSERT_ALWAYS(rc >= 0);
     }
     // put the -- version
     pl->switches[pl->nswitches]->switchname = strdup(tmp);
@@ -776,6 +874,36 @@ int param_list_parse_long_and_long(param_list_ptr pl, const char * key, long * r
     }
     value = end + strlen(sep);
     res[1] = strtol(value, &end, 0);
+    if (*end != '\0') {
+        fprintf(stderr, "Parse error: parameter for key %s"
+                " must match %%d%s%%d; got %s\n",
+                key, sep, orig_value);
+        exit(1);
+    }
+    if (r) {
+        r[0] = res[0];
+        r[1] = res[1];
+    }
+    return seen;
+}
+
+int param_list_parse_ulong_and_ulong(param_list_ptr pl, const char * key, unsigned long * r, const char * sep)
+{
+    char *value;
+    int seen;
+    if (!get_assoc(pl, key, &value, &seen))
+        return 0;
+    char *orig_value = value, * end;
+    unsigned long res[2];
+    res[0] = strtoul(value, &end, 0);
+    if (strncmp(end, sep, strlen(sep)) != 0) {
+        fprintf(stderr, "Parse error: parameter for key %s"
+                " must match %%d%s%%d; got %s\n",
+                key, sep, orig_value);
+        exit(1);
+    }
+    value = end + strlen(sep);
+    res[1] = strtoul(value, &end, 0);
     if (*end != '\0') {
         fprintf(stderr, "Parse error: parameter for key %s"
                 " must match %%d%s%%d; got %s\n",
@@ -1244,7 +1372,7 @@ int param_list_parse_int_list_size(param_list_ptr pl, const char * key , int ** 
   for (;;) {
     int ret = sscanf(tmp, "%d", &i);
     if (ret != 1) {
-      fprintf (stderr, "Error while parsing coffecient array %s[%d]\n", key, *t
+      fprintf (stderr, "Error while parsing coefficient array %s[%d]\n", key, *t
           - 1);
       exit(1);
     }
@@ -1334,11 +1462,12 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
     if(*tmp == '\0') {
       break;
     }
-    if (*tmp != ',') {
+    if (*tmp != ',' && !isspace(*tmp)) {
       fprintf (stderr, "Error while parsing polynomial %s\n", key);
       exit(1);
     }
     tmp++;
+    for( ; *tmp && isspace(*tmp) ; tmp++);
   }
   mpz_clear(coeff);
   return 1;
@@ -1487,7 +1616,14 @@ void param_list_print_command_line(FILE * stream, param_list_ptr pl)
     }
     if (verbose_enabled(CADO_VERBOSE_PRINT_COMPILATION_INFO)) {
 #ifdef  __GNUC__
+#ifndef __ICC
         fprintf (stream, "# Compiled with gcc " __VERSION__ "\n");
+#else
+        /* icc defines __GNUC__ too */
+        fprintf (stream, "# Compiled with icc %d.%d.%d (gcc version %d.%d.%d compatibility)\n",
+                 __ICC / 100, __INTEL_COMPILER % 100, __INTEL_COMPILER_UPDATE,
+                 __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#endif
 
         /* Apple Clang (based on llvm) identifies itself as a flavour of GNUC 4.2.1
            but seems to compile CADO-NFS properly 

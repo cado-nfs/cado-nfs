@@ -3,9 +3,12 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <array>
 
 #include "las-config.h"
+#include "las-todo-entry.hpp"
 #include "las-forwardtypes.hpp"
+#include "cxx_mpz.hpp"
 
 /* FIXME: This does not seem to work well */
 #ifdef  __GNUC__
@@ -14,21 +17,26 @@
 #define TYPE_MAYBE_UNUSED       /**/
 #endif
 
+extern void las_install_sighandlers();
+
 /* {{{ where_am_I (debug) */
 struct where_am_I {
 #ifdef TRACK_CODE_PATH
+    int logI;
+    const qlattice_basis * pQ;
+    struct side_data {
+        const fb_factorbase::slicing * fbs;
+    };
+    side_data sides[2];
     fbprime_t p;        /* current prime or prime power, when applicable */
     fbroot_t r;         /* current root */
     slice_index_t i;    /* Slice index, if applicable */
     slice_offset_t h;   /* Prime hint, if not decoded yet */
-    int fb_idx;         /* index into the factor base si->sides[side]->fb
-                           or into th->sides[side]->fb_bucket */
     unsigned int j;     /* row number in bucket */
     unsigned int x;     /* value in bucket */
     unsigned int N;     /* bucket number */
     int side;
     const las_info * plas;
-    const sieve_info * psi;
 #endif  /* TRACK_CODE_PATH */
 } /* TYPE_MAYBE_UNUSED */;
 
@@ -43,10 +51,8 @@ struct trace_Nx_t { unsigned int N; unsigned int x; };
 struct trace_ab_t { int64_t a; uint64_t b; };
 struct trace_ij_t { int i; unsigned int j; };
 
-extern void trace_per_sq_init(sieve_info const & si,
-        const struct trace_Nx_t *Nx, const struct trace_ab_t *ab,
-        const struct trace_ij_t *ij);
-extern void trace_per_sq_clear(sieve_info const & si);
+extern void init_trace_k(cxx_param_list &);
+extern void trace_per_sq_init(nfs_work const & ws);
 
 /* When TRACE_K is defined, we are exposing some non trivial stuff.
  * Otherwise this all collapses to no-ops */
@@ -58,7 +64,7 @@ extern struct trace_Nx_t trace_Nx;
 extern struct trace_ab_t trace_ab;
 extern struct trace_ij_t trace_ij;
 
-extern mpz_t traced_norms[2];
+extern std::array<cxx_mpz, 2> traced_norms;
 
 static inline int trace_on_spot_N(unsigned int N) {
     if (trace_Nx.x == UINT_MAX) return 0;
@@ -118,12 +124,12 @@ static inline void sieve_increase(unsigned char *S, const unsigned char logp, wh
 /* If -dumpregion is given, dump sieve region to a file to be able to
    compare new sieving code with a known good reference. Beware of
    resulting large files. */
-class dumpfile {
+class dumpfile_t {
     FILE *f = NULL;
-    
 public:
-    ~dumpfile();
-    void setname(const char *, const mpz_t, const mpz_t, int);
+    ~dumpfile_t();
+    void close();
+    void open(const char *filename_stem, las_todo_entry const & doing, int side);
     size_t write(const unsigned char *, size_t) const;
 };
 

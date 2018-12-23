@@ -1094,35 +1094,35 @@ struct reduction_function {
 /* {{{ predefined reduction functions */
 
 /* always: a == my value, b == the other value */
-static void reducer_byte_min(const unsigned char * b, unsigned char * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_byte_max(const unsigned char * b, unsigned char * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_byte_sum(const unsigned char * b, unsigned char * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_byte_bxor(const unsigned char * b, unsigned char * a, int s) { for( ; s-- ; a++, b++) *a ^= *b; }
-static void reducer_int_min(const int * b, int * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_int_max(const int * b, int * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_int_sum(const int * b, int * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_int_band(const int * b, int * a, int s) { for( ; s-- ; a++, b++) *a &= *b; }
-static void reducer_int_bor(const int * b, int * a, int s) { for( ; s-- ; a++, b++) *a |= *b; }
-static void reducer_uint_min(const unsigned int * b, unsigned int * a, unsigned int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_uint_max(const unsigned int * b, unsigned int * a, unsigned int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_uint_sum(const unsigned int * b, unsigned int * a, unsigned int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_uint_band(const unsigned int * b, unsigned int * a, unsigned int s) { for( ; s-- ; a++, b++) *a &= *b; }
-static void reducer_uint_bor(const unsigned int * b, unsigned int * a, unsigned int s) { for( ; s-- ; a++, b++) *a |= *b; }
-static void reducer_double_min(const double * b, double * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_double_max(const double * b, double * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_double_sum(const double * b, double * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_long_min(const long * b, long * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_long_max(const long * b, long * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_long_sum(const long * b, long * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_longlong_min(const long long * b, long long * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_longlong_max(const long long * b, long long * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_longlong_sum(const long long * b, long long * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_ulong_min(const unsigned long * b, unsigned long * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_ulong_max(const unsigned long * b, unsigned long * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_ulong_sum(const unsigned long * b, unsigned long * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
-static void reducer_ulonglong_min(const unsigned long long * b, unsigned long long * a, int s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
-static void reducer_ulonglong_max(const unsigned long long * b, unsigned long long * a, int s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
-static void reducer_ulonglong_sum(const unsigned long long * b, unsigned long long * a, int s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_byte_min(const unsigned char * b, unsigned char * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_byte_max(const unsigned char * b, unsigned char * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_byte_sum(const unsigned char * b, unsigned char * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_byte_bxor(const unsigned char * b, unsigned char * a, size_t s) { for( ; s-- ; a++, b++) *a ^= *b; }
+static void reducer_int_min(const int * b, int * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_int_max(const int * b, int * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_int_sum(const int * b, int * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_int_band(const int * b, int * a, size_t s) { for( ; s-- ; a++, b++) *a &= *b; }
+static void reducer_int_bor(const int * b, int * a, size_t s) { for( ; s-- ; a++, b++) *a |= *b; }
+static void reducer_uint_min(const unsigned int * b, unsigned int * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_uint_max(const unsigned int * b, unsigned int * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_uint_sum(const unsigned int * b, unsigned int * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_uint_band(const unsigned int * b, unsigned int * a, size_t s) { for( ; s-- ; a++, b++) *a &= *b; }
+static void reducer_uint_bor(const unsigned int * b, unsigned int * a, size_t s) { for( ; s-- ; a++, b++) *a |= *b; }
+static void reducer_double_min(const double * b, double * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_double_max(const double * b, double * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_double_sum(const double * b, double * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_long_min(const long * b, long * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_long_max(const long * b, long * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_long_sum(const long * b, long * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_longlong_min(const long long * b, long long * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_longlong_max(const long long * b, long long * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_longlong_sum(const long long * b, long long * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_ulong_min(const unsigned long * b, unsigned long * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_ulong_max(const unsigned long * b, unsigned long * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_ulong_sum(const unsigned long * b, unsigned long * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
+static void reducer_ulonglong_min(const unsigned long long * b, unsigned long long * a, size_t s) { for( ; s-- ; a++, b++) if (*b < *a) *a = *b; }
+static void reducer_ulonglong_max(const unsigned long long * b, unsigned long long * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
+static void reducer_ulonglong_sum(const unsigned long long * b, unsigned long long * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
 
 struct reduction_function predefined_functions[] = {
     { MPI_BYTE,          MPI_MIN,  (thread_reducer_t) reducer_byte_min, },

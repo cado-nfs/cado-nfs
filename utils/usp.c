@@ -95,6 +95,7 @@ sign (mpz_t a)
     return 0;
 }
 
+/* returns log2|a| */
 static double
 ln2 (mpz_t a)
 {
@@ -228,6 +229,7 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
    mpz_t mi, u, v, w;
 
 #ifdef DEBUG
+   printf ("enter usp with "); printPol (p, n);
    gmp_printf ("looking at interval %Zd/2^%d..%Zd/2^%d\n", a, m, b, m);
    printf ("up=%d va=%d vb=%d\n", up, va, vb);
 #endif
@@ -282,6 +284,12 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
                  signValue (mi, lmi, n, q), n, nroots, q, r, verbose, R);
        ri = usp (mi, b, lmi, n, signValue (mi, lmi, n, q),
                  signValue (b, lmi, n, q), n, nroots, q, r, verbose, R);
+       /* restore original a, b */
+       if (lmi > m)
+         {
+           mpz_div_2exp (a, a, 1);
+           mpz_div_2exp (b, b, 1);
+         }
        mpz_clear (mi);
        for (i = 0; i <= n0; i++)
          mpz_clear (q[i]);
@@ -406,6 +414,7 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
 }
 
 /* return the number of real roots of the polynomial p[0]+p[1]*x+...+p[n]*x^n
+   (where n is orig_n below).
    Assume p[n] is not zero.
    T (if not zero) is a bound on the absolute value of the real roots.
    If verbose is non-zero, print the isolating intervals for the roots.
@@ -416,8 +425,13 @@ numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_d
 {
   int i, nroots, n = orig_n;
   mpz_t a, R, R1, *r;
-  double C, pn, x;
+  double pn, x;
   mpf_t aa;
+
+#ifdef DEBUG
+  printf ("enter numberOfRealRoots with ");
+  printPol (p, orig_n);
+#endif
 
   mpz_init (a);
   r = (mpz_t*) malloc ((n+1) * sizeof (mpz_t));
@@ -439,24 +453,28 @@ numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_d
     T = log (T - 0.5) / log (2.0);
   else
     {
+      /* we use here the near optimal Fujiwara bound
+         2*max(|p[n-1]/p[n]|, |p[n-2]/p[n]|^{1/2}, ..., |p[0]/(2p[n])|^{1/n})
+      */
       pn = ln2 (p[n]); /* leading coefficient */
-      C = (mpz_cmp_ui (p[n-1], 0) == 0) ? 0.0
-        : ln2 (p[n-1]) - pn - log (1.0 * n) / log (2.0);
       T = 0.0;
       for (i = 1; i <= n; i++)
         {
           if (mpz_cmp_ui (p[n-i], 0))
             {
-              /* for i=1, we get ln2 (p[n-1]) - pn, which is always
-                 larger than C = ln2 (p[n-1]) - pn - log2 (n) */
-              x = (ln2 (p[n-i]) - pn) / (double) i;
+              if (i < n)
+                x = (ln2 (p[n-i]) - pn) / (double) i;
+              else
+                x = (ln2 (p[n-i]) - pn - 1.0) / (double) i;
               if (x > T)
                 T = x;
             }
         }
-      T += 1.0;
-      T = T + log (1 + exp ((C - T) / log (2.0))) / log (2.0);
+      T += 1.0; /* factor of 2 in Fujiwara bound */
     }
+#ifdef DEBUG
+  printf ("root bound is 2^%f\n", T);
+#endif
   i = 1 + (int) T;
   mpz_set_ui (a, 1);
   mpz_mul_2exp (a, a, i);

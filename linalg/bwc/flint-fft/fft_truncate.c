@@ -1,44 +1,21 @@
 /* 
+ * Copyright (C) 2009, 2011 William Hart
  * 
- * Copyright 2009, 2011 William Hart. All rights reserved.
+ * This file is part of FLINT.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY William Hart ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN 
- * NO EVENT SHALL William Hart OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The views and conclusions contained in the software and documentation are
- * those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of William Hart.
- * 
- */
+ * FLINT is free software: you can redistribute it and/or modify it under the 
+ * terms of the GNU Lesser General Public License (LGPL) as published by the
+ * Free Software Foundation; either version 2.1 of the License, or (at your
+ * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
 #include "gmp.h"
 #include "flint.h"
 #include "fft.h"
 
 /*
- * As for \code{fft_radix2} except that only the first \code{trunc}
+ * As for ``fft_radix2`` except that only the first ``trunc``
  * coefficients of the output are computed. The transform still needs all
- * $2n$ input coefficients to be specified.
+ * `2n` input coefficients to be specified.
  * 
  */
 void fft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
@@ -68,11 +45,11 @@ void fft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
 }
 
 /*
- * As for \code{fft_radix2} except that only the first \code{trunc}
+ * As for ``fft_radix2`` except that only the first ``trunc``
  * coefficients of the output are computed and the input is regarded as
- * having (implied) zero coefficients from coefficient \code{trunc} onwards.
+ * having (implied) zero coefficients from coefficient ``trunc`` onwards.
  * The coefficients must exist as the algorithm needs to use this extra
- * space, but their value is irrelevant. The value of \code{trunc} must be
+ * space, but their value is irrelevant. The value of ``trunc`` must be
  * divisible by 2.
  * 
  */

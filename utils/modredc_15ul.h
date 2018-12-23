@@ -882,7 +882,7 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
     "mulq %[m1]\n\t"         /* rdx:rax <= (2^64-1)*(2^32-1) = 2^96-2^64-2^32+1 */
     "addq %%rax, %[t0]\n\t"
     "movq %[a0], %%rax\n\t"  /* independent, goes in pipe 0 */
-    "adcq %%rdx, %[t1]\n\t"  /* t0:t1 = (a0*b0+u0*m)/2^64 */
+    "adcq %%rdx, %[t1]\n\t"  /* t1:t0 = (a0*b0+u0*m)/2^64 */
     ABORT_IF_CY              /* <= ((2^64-1)^2 + 2^160 - 2^128 - 2^96 - 1)/2^64
                                 <= 2^96 - 2^32 - 2 */
     
@@ -966,9 +966,9 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
   /* One REDC step */
   k = t[0] * m[0].invm; /* k <= W-1 */
   ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl = k*m[0] <= W^2 - 2W + 1 */
-  /* t[0] + pl == 0 (mod W) */
-  if (pl != 0UL)
-    ph++; /* ph <= W-1 */
+  /* t[0] + pl == 0 (mod W) thus if t[0] or pl is not 0, a carry goes in ph */
+  ph += t[0] != 0UL; /* use t[0] instead of pl since it is known earlier */
+  /* ph <= W-1 */
   t[2] = 0UL;
   ularith_add_ul_2ul (&(t[1]), &(t[2]), ph); /* t2:t1:0 = a[0]*b[0] + k*m[0] <= 2*W^2 - 4W + 2, so
                                                 t2:t1 = (a[0]*b[0] + k*m[0]) / W <= 2*W - 4 */
@@ -985,8 +985,8 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
   ularith_add_ul_2ul (&(t[2]), &(t[3]), pl);      /* t3:t2:t1 <= W^2 + W^(3/2) - 3W^(1/2) - 1 */
   k = t[1] * m[0].invm;
   ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl <= W^2 - 2W + 1 */
-  if (pl != 0UL)
-    ph++;
+  /* t[1] + pl == 0 (mod W) thus if t[1] or pl is not 0, a carry goes in ph */
+  ph += t[1] != 0UL;
   ularith_add_ul_2ul (&(t[2]), &(t[3]), ph);      /* t3:t2:t1 <= 2W^2 + W^(3/2) - 2W - 3W^(1/2), t1 = 0 so
 						     t3:t2 <= 2W + W^(1/2) - 3 */
   ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */

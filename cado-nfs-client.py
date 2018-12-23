@@ -760,6 +760,10 @@ class WorkunitProcessor(object):
             else:
                 renice_func = None
 
+            # to override several parameters, use:
+            # --override t 1 --override bkthresh1 15000000
+            # but both the -t and -bkthresh1 parameters should be present on
+            # the las command line
             if self.settings["override"]:
                 mangled=[]
                 orig=re.split(' *', command)

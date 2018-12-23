@@ -1,52 +1,62 @@
 #ifndef LAS_FILL_IN_BUCKETS_HPP_
 #define LAS_FILL_IN_BUCKETS_HPP_
 
-#include "las-types.hpp"
+#include <array>
+#include <memory>
+#include "las-config.h" // FB_MAX_PARTS
 #include "fb-types.h"
 #include "las-plattice.hpp"
-#include "las-threads.hpp"
 #include "tdict.hpp"
+#include "threadpool.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-forwardtypes.hpp"
+#include "multityped_array.hpp"
 
 // This one is used for keeping information of middle primes.
+template<int LEVEL>
 struct precomp_plattice_t {
-    std::vector<plattices_vector_t *> v [2][FB_MAX_PARTS];
-    precomp_plattice_t(precomp_plattice_t const&) = delete;
+    static const int level = LEVEL;
+    typedef precomp_plattice_t type;    /* for multityped_array */
+    typedef std::vector<plattices_vector_t<LEVEL>> vec_type;
+    std::array<vec_type, 2> v;
+    precomp_plattice_t(precomp_plattice_t<LEVEL> const&) = delete;
     precomp_plattice_t() = default;
-    void push(int side, int level, plattices_vector_t&& x) {
-        v[side][level].push_back(new plattices_vector_t(std::move(x)));
+    void push(int side, vec_type&& x) {
+        std::swap(v[side], x);
     }
-    ~precomp_plattice_t() {
-        for(int side = 0 ; side < 2 ; side++) {
-            for (int level = 1; level < FB_MAX_PARTS; ++level) {
-                for(auto & x : v[side][level]) {
-                    delete x;
-                }
-            }
-        }
+    ~precomp_plattice_t() = default;
+    /* This allows us to access the contents with range-based for loops */
+    vec_type & operator()(int side) {
+        return v[side];
     }
-    std::vector<plattices_vector_t *> & operator()(int side, int level) {
-        return v[side][level];
-    }
-    std::vector<plattices_vector_t *> const & operator()(int side, int level) const {
-        return v[side][level];
+    vec_type const & operator()(int side) const {
+        return v[side];
     }
 };
 
 
-// This one is for remembering the FK basis in sublat mode, between two
-// different congruences of (i,j) mod m.
-// For simplicity, we remember them only for the toplevel.
-typedef std::vector<plattices_dense_vector_t *> precomp_plattice_dense_t;
-
 template <int LEVEL>
 void
-downsort_tree(timetree_t&,
+downsort_tree(
+        nfs_work &ws,
+        std::shared_ptr<nfs_work_cofac> wc_p,
+        std::shared_ptr<nfs_aux> aux_p,
+        thread_pool &pool,
         uint32_t bucket_index,
         uint32_t first_region0_index,
-        thread_workspaces &ws,
-        thread_pool &pool,
-        sieve_info& si,
-        precomp_plattice_t const & precomp_plattice);
-void fill_in_buckets(timetree_t&, thread_pool &, thread_workspaces &, sieve_info &, int side);
+        multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice,
+        where_am_I & w);
 
+void fill_in_buckets_toplevel(
+        nfs_work &ws,
+        nfs_aux &aux,
+        thread_pool &pool,
+        int side,
+        where_am_I & w);
+
+void fill_in_buckets_prepare_plattices(
+        nfs_work & ws,
+        thread_pool &pool,
+        int side,
+        multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice);
 #endif

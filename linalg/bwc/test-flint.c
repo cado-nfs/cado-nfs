@@ -5,7 +5,9 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include "utils.h"
 #include "flint-fft/fft.h"
+
 /*{{{ macros */
 #ifndef PTR
 #define PTR(x) ((x)->_mp_d)
@@ -183,7 +185,7 @@ int operand_sizes_fppol(int * cx, int * cy, mpz_t p, int s, gmp_randstate_t rsta
 void fti_disp(struct fft_transform_info* fti)
 {
     printf("fti_bits:=%lu; fti_ks_coeff_bits:=%lu; fti_depth:=%zu;\n",
-            fti->bits, fti->ks_coeff_bits, fti->depth);
+            fti->bits, fti->ks_coeff_bits, (size_t) fti->depth);
     printf("fti_trunc0:=%lu;\n", fti->trunc0);
     printf("fti_w:=%lu;\n", fti->w);
     printf("fti_alg:=%d;\n", fti->alg);
@@ -275,6 +277,7 @@ static void prepare_transforms() {
 
 static void do_renames(const char * step, const char * varname)
 {
+#ifdef DEBUG_FFT
     char * s, * t;
     int rc;
     rc = asprintf(&s, "/tmp/%s_before_%s.m", varname, step);
@@ -291,18 +294,22 @@ static void do_renames(const char * step, const char * varname)
     rename(t, s);
     free(t);
     free(s);
+#else
+    fprintf(stderr, "// no data file for %s (%s)\n", step, varname);
+#endif
 }
 
 /* test multiplication of integers */
 int test_mul(gmp_randstate_t rstate) /*{{{*/
 {
     int xbits, ybits;
+    int nacc = 4;
     operand_sizes(&xbits, &ybits, s, rstate);
 
     fprintf(stderr, "xbits:=%d; ybits:=%d;\n", xbits, ybits);
     int zbits = xbits + ybits;
 
-    fft_get_transform_info(fti, xbits, ybits, 4);
+    fft_get_transform_info(fti, xbits, ybits, nacc);
     fft_get_transform_allocs(fft_alloc_sizes, fti);
     fti_disp(fti);
 
@@ -335,12 +342,16 @@ int test_mul(gmp_randstate_t rstate) /*{{{*/
 int test_mulmod(gmp_randstate_t rstate) /*{{{*/
 {
     int xbits, ybits;
+    int nacc = 4;
     operand_sizes(&xbits, &ybits, s, rstate);
+    int wrap = gmp_urandomm_ui(rstate, 128);
+
+    int minwrap = ybits + wrap;
 
     fprintf(stderr, "xbits:=%d; ybits:=%d;\n", xbits, ybits);
 
-    int wrap = gmp_urandomm_ui(rstate, 128);
-    fft_get_transform_info_mulmod(fti, xbits, ybits, 4, ybits + wrap);
+    fft_get_transform_info_mulmod(fti, xbits, ybits, nacc, minwrap);
+
     fft_get_transform_allocs(fft_alloc_sizes, fti);
     fti_disp(fti);
 
@@ -511,6 +522,8 @@ int main(int argc, char * argv[])
 #if 0
 
 /* This magma script may be run *after* the output of this program */
+/* Note that DEBUG_FFT is necessary for this to make any sense.
+ */
 
 n:=2^fti_depth;
 Z:=Integers();

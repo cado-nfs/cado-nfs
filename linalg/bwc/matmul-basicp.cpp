@@ -98,7 +98,7 @@ matmul_ptr MATMUL_NAME(init)(void* xx, param_list pl, int optimized_direction)
     return (matmul_ptr) mm;
 }
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data)
+void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size)
 {
     ASSERT_ALWAYS(data);
 
@@ -123,6 +123,7 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data)
 
     mm->datasize = nrows_t + 2 * mm->public_->ncoeffs;
 
+    ASSERT_ALWAYS(size == mm->datasize);
     ASSERT_ALWAYS(ptr - data == (ptrdiff_t) mm->datasize);
 }
 

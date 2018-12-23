@@ -23,7 +23,8 @@ extern "C" {
 #define MPFQ_POLYNOMIAL 2       /* this expects an mpfq polynomial */
 #define MPFQ_DEGREE 3           /* int */
 #define MPFQ_IO_TYPE 4          /* for setopt */
-#define MPFQ_GROUPSIZE 5        /* int (SIMD group size) */
+#define MPFQ_SIMD_GROUPSIZE 5   /* int (SIMD group size) */
+#define MPFQ_GROUPSIZE 5        /* (for compatibility, just in case) */
 #define MPFQ_PRIME_MPZ 6        /* mpz_t */
 #define MPFQ_MANDATORY_TAG 7    /* force the tag to be this one ; this is
                                  * of course pointless for the low-level

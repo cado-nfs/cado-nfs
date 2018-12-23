@@ -6,7 +6,7 @@
 // #include <iostream>
 #include <sstream>
 
-#include "las-types.hpp"
+#include "las-info.hpp"
 #include "las-descent-trees.hpp"
 
 using namespace std;
@@ -71,13 +71,13 @@ void descent_tree::display_all_trees(FILE * o)
                 tree_depth(*i),
                 tree_weight(*i)
                 );
-        sit_t si = stats.find((*i)->label);
-        if (si == stats.end()) {
+        sit_t it = stats.find((*i)->label);
+        if (it == stats.end()) {
             list<collected_stats> v;
             v.push_back(w);
             stats.insert(make_pair((*i)->label, v));
         } else {
-            si->second.push_back(w);
+            it->second.push_back(w);
         }
     }
 #if 0
@@ -89,10 +89,10 @@ void descent_tree::display_all_trees(FILE * o)
      * speculative) */
     
     list<string> new_hints;
-    for(sit_t si = stats.begin() ; si != stats.end() ; si++) {
+    for(sit_t it = stats.begin() ; it != stats.end() ; it++) {
         /* Collect and print stats for this sq size */
-        fprintf(o, "# Stats for %s\n", si->first().c_str());
-        int n = si->second.size();
+        fprintf(o, "# Stats for %s\n", it->first().c_str());
+        int n = it->second.size();
         int nok = 0;
         double t1 = 0;
         double t2 = 0;
@@ -105,7 +105,7 @@ void descent_tree::display_all_trees(FILE * o)
         int wmin = 0;
         int wmax = 0;
         typedef list<collected_stats>::iterator lit_t;
-        for(lit_t i = si->second.begin() ; i != si->second.end() ; i++) {
+        for(lit_t i = it->second.begin() ; i != it->second.end() ; i++) {
             nok += i->ok;
             t1 += i->t;
             t2 += i->t * i->t;
@@ -129,15 +129,15 @@ void descent_tree::display_all_trees(FILE * o)
                 tt1, sqrt(tt2-tt1*tt1), tmin, tmax);
 
         ostringstream os;
-        os << si->first()
+        os << it->first()
             << " " << tt1
             << " " << (double) nok / n 
-            << " I=" << si->first.sc->logI;
+            << " I=" << it->first.sc->logI;
         for(int i = 0 ; i < 2 ; i++) {
-            os << " " << si->first.sc->sides[i]->lim
-                << "," << si->first.sc->sides[i]->lpb
-                << "," << si->first.sc->sides[i]->mfb
-                << "," << si->first.sc->sides[i]->lambda;
+            os << " " << it->first.sc->sides[i]->lim
+                << "," << it->first.sc->sides[i]->lpb
+                << "," << it->first.sc->sides[i]->mfb
+                << "," << it->first.sc->sides[i]->lambda;
         }
         new_hints.push_back(os.str());
     }

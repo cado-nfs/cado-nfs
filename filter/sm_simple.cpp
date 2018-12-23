@@ -1,6 +1,10 @@
 /* Shirokauer maps 
 
    Given a list of a,b pairs, compute the corresponding SMs.
+	
+   Each line of input can also be a polynomial, with the following format:
+     p deg c0 c1 ... c_deg
+   where 'p' is just the letter p and the rest are integers.
 
    */
 
