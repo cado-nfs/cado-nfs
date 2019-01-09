@@ -836,6 +836,7 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
 static void
 apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 {
+  static int max_merge = 1;
   /* We first prepare a list of independent ideals of small cost to merge,
      i.e., all rows where those ideals appear are independent.
      This step is mono-thread. */
@@ -844,6 +845,13 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 
   /* determine the largest cmax */
   int cmax = largest_cmax (L, nthreads);
+
+  /* first compute the total number of possible merges */
+  unsigned long total_merges = 0;
+  for (int c = 0; c <= cmax; c++)
+    for (int i = 0; i < nthreads; i++)
+      if (c <= (L+i)->cmax)
+	total_merges += (L+i)->size[c];
 
   merge_list_t l[1]; /* list of independent merges */
   merge_list_init (l);
@@ -856,8 +864,11 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	      index_t j = (L+i)->list[c][k];
 	      int ok = 1;
 	      int w = mat->wt[j];
-	      if (w == mat->cwmax) /* we stop when reaching cwmax */
-		goto done;
+	      if (w > max_merge)
+		{
+		  printf ("First %d-merge (cost %d)\n", w, c - BIAS);
+		  max_merge = w;
+		}
 	      for (int t = 0; t < w && ok; t++)
 		ok = mpz_tstbit (z, mat->R[j][t]) == 0;
 	      if (ok)
@@ -869,9 +880,15 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 		}
 	    }
 	}
- done:
-  printf ("   found %lu independent merges with cwmax=%d\n", l->size,
-	  mat->cwmax);
+  printf ("   found %lu independent merges out of %lu, with cwmax=%d\n",
+	  l->size, total_merges, mat->cwmax);
+
+  /* we increase cwmax only when the ratio of the number of independent merges
+     over the number of possible merges exceeds some threshold (we can exceed
+     MERGE_LEVEL_MAX here, since we don't use the merge routines from mst.c) */
+#define THRESHOLD 0.05
+  if ((double) l->size / (double) total_merges > THRESHOLD)
+    mat->cwmax ++;
 
   /* We notice that the apply_merge_aux() function does not scale well when
      the number of threads is large, this is due to too many concurrent calls
@@ -1005,10 +1022,6 @@ main (int argc, char *argv[])
 
     while (average_density (mat) < target_density)
       {
-	/* we can exceed MERGE_LEVEL_MAX here, since we don't use the
-	   merge routines from mst.c */
-	mat->cwmax ++;
-
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 
 	compute_weights (mat);
