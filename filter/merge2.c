@@ -579,6 +579,16 @@ remove_row (filter_matrix_t *mat, index_t i)
   mat->rows[i] = NULL;
 }
 
+static void MAYBE_UNUSED
+printRow (filter_matrix_t *mat, index_t i)
+{
+  int32_t k = matLengthRow (mat, i);
+  printf ("%lu [%d]:", i, k);
+  for (int j = 1; j <= k; j++)
+    printf (" %lu", mat->rows[i][j]);
+  printf ("\n");
+}
+
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
    if out <> NULL: perform the merge, output to 'out' (history file),
