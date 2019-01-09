@@ -530,10 +530,47 @@ largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
   return (l == j) ? mat->rows[i][k-1] : l;
 }
 
+#define POOL_SIZE 65536
+
+typedef struct {
+  index_t *buf;       /* memory buffer */
+  unsigned long size; /* available size */
+} pool_struct_t;
+typedef pool_struct_t pool_t[1];
+
+static void
+pool_init (pool_t p)
+{
+  p->buf = NULL;
+  p->size = 0;
+}
+
+/* return a chunk of size n (index_t) */
+static index_t*
+pool_malloc (pool_t p, unsigned long n)
+{
+  if (p->size < n)
+    {
+      p->buf = malloc (POOL_SIZE * sizeof (index_t));
+      p->size = POOL_SIZE;
+    }
+  index_t *q = p->buf;
+  p->buf += n;
+  p->size -= n;
+  return q;
+}
+
+static void
+pool_clear (pool_t p MAYBE_UNUSED)
+{
+  /* do nothing since the current pointer is in the middle of the allocated
+     block */
+}
+
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
 static int32_t
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, pool_t p)
 {
   uint32_t k1 = matLengthRow (mat, i1);
   uint32_t k2 = matLengthRow (mat, i2);
@@ -553,7 +590,8 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
     return c;
   /* now perform the real merge */
   index_t *t, *t0;
-  t = malloc ((c + 1) * sizeof (index_t));
+  // t = malloc ((c + 1) * sizeof (index_t));
+  t = pool_malloc (p, c + 1);
   t0 = t;
   *t++ = c;
   t1 = t2 = 1;
@@ -571,7 +609,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
   while (t2 <= k2)
     *t++ = mat->rows[i2][t2++];
   ASSERT (t0 + (c + 1) == t);
-  free (mat->rows[i1]);
+  // free (mat->rows[i1]);
   mat->rows[i1] = t0;
   return c;
 }
@@ -588,7 +626,7 @@ remove_row (filter_matrix_t *mat, index_t i)
    if out <> NULL: perform the merge, output to 'out' (history file),
                    and return the merge cost */
 static int32_t
-merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
+merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out, pool_t p)
 {
   index_t imin, i;
   int32_t cmin, c;
@@ -621,7 +659,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 	{
 	  i = mat->R[j][k];
 	  if (i != imin)
-	    c += add_row (mat, i, imin, 0) - matLengthRow (mat, i);
+	    c += add_row (mat, i, imin, 0, NULL) - matLengthRow (mat, i);
 	}
       return c;
     }
@@ -636,7 +674,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 	  if (i != imin)
 	    {
 	      c -= matLengthRow (mat, i);
-	      add_row (mat, i, imin, 1);
+	      add_row (mat, i, imin, 1, p);
 	      c += matLengthRow (mat, i);
 	      s += sprintf (s, " %lu", i);
 	    }
@@ -743,7 +781,7 @@ compute_merges_aux (cost_list_t *l, int k, int nthreads,
   for (index_t j = k; j < mat->ncols; j += nthreads)
     if (2 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
-	int32_t c = merge_cost_or_do (mat, j, NULL);
+	int32_t c = merge_cost_or_do (mat, j, NULL, NULL);
 	add_cost (l, j, c + BIAS);
 #ifdef DEBUG
 	if (c > cmax)
@@ -826,13 +864,16 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
 		 filter_matrix_t *mat, FILE *out)
 {
   int32_t fill_in = 0;
+  pool_t p;
 
   /* Note: the 2-merges are not necessarily processed in increasing fill-in,
      since those with fill-in < -2 are capped to -3. All we are sure is that
      those with fill-in < -2 (thus -4, -6, -8, ...) are processed first, then
      those with fill-in -2. */
+  pool_init (p);
   for (unsigned long t = k; t < size; t += nthreads)
-    fill_in += merge_cost_or_do (mat, l[t], out);
+    fill_in += merge_cost_or_do (mat, l[t], out, p);
+  pool_clear (p);
 #pragma omp critical
   mat->tot_weight += fill_in;
 }
