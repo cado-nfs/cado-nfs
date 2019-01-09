@@ -397,8 +397,6 @@ compute_weights (filter_matrix_t *mat)
 #pragma omp master
   nthreads = omp_get_num_threads ();
 
-  printf ("compute_weights: using nthreads=%d, cwmax=%d\n", nthreads, mat->cwmax);
-
   /* we first compute buckets (j,i) where thread k processes rows i = k mod nthreads,
      and bucket l corresponds to j = l mod nthreads */
   bucket1_t **B;
@@ -415,7 +413,7 @@ compute_weights (filter_matrix_t *mat)
 
   clear_buckets1 (B, nthreads);
 
-  printf ("compute_weights took %.1fs (cpu), %.1fs (wct)\n",
+  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n",
 	  seconds () - cpu, wct_seconds () - wct);
 }
 
@@ -484,14 +482,12 @@ compute_R (filter_matrix_t *mat)
 	mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
 	mat->wt[j] = 0; /* reset to 0 */
       }
-  printf ("computing tot_weight+initR took %.1fs (cpu), %.1fs (wct)\n",
-	  seconds () - cpu, wct_seconds () - wct);
+    else
+      mat->R[j] = NULL; /* to please freeRj */
 
 #pragma omp parallel
 #pragma omp master
   nthreads = omp_get_num_threads ();
-
-  printf ("compute_R: using nthreads=%d, cwmax=%d\n", nthreads, mat->cwmax);
 
   /* we first compute buckets (j,i) where thread k processes rows i = k mod nthreads,
      and bucket l corresponds to j = l mod nthreads */
@@ -509,7 +505,7 @@ compute_R (filter_matrix_t *mat)
 
   clear_buckets (B, nthreads);
 
-  printf ("compute_R took %.1fs (cpu), %.1fs (wct)\n",
+  printf ("   compute_R took %.1fs (cpu), %.1fs (wct)\n",
 	  seconds () - cpu, wct_seconds () - wct);
 }
 
@@ -874,7 +870,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	    }
 	}
  done:
-  printf ("found %lu independent merges\n", l->size);
+  printf ("   found %lu independent merges\n", l->size);
 
   /* We notice that the apply_merge_aux() function does not scale well when
      the number of threads is large, this is due to too many concurrent calls
@@ -999,37 +995,44 @@ main (int argc, char *argv[])
 	    (double) mat->tot_weight / (double) mat->rem_nrows,
 	    seconds () - cpu0, wct_seconds () - wct0);
 
+    mat->cwmax = 3;
+
     double cpu1 = seconds (), wct1 = wct_seconds ();
 
-    mat->cwmax = 3;
     compute_weights (mat);
 
     compute_R (mat);
-
-    printf ("compute_weights+compute_R took %.1fs (cpu), %.1fs (wct)\n",
-	    seconds () - cpu1, wct_seconds () - wct1);
 
     double cpu2 = seconds (), wct2 = wct_seconds ();
 
     cost_list_t *L = cost_list_init (nthreads);
     compute_merges (L, nthreads, mat);
 
-    printf ("compute_merges took %.1fs (cpu), %.1fs (wct)\n",
+    printf ("   compute_merges took %.1fs (cpu), %.1fs (wct)\n",
 	    seconds () - cpu2, wct_seconds () - wct2);
 
     double cpu3 = seconds (), wct3 = wct_seconds ();
 
     apply_merges (L, nthreads, mat, rep->outfile);
 
-    printf ("apply_merges took %.1fs (cpu), %.1fs (wct)\n",
+    printf ("   apply_merges took %.1fs (cpu), %.1fs (wct)\n",
 	    seconds () - cpu3, wct_seconds () - wct3);
 
     cost_list_clear (L, nthreads);
+
+    printf ("   pass took %.1fs (cpu), %.1fs (wct)\n",
+	    seconds () - cpu1, wct_seconds () - wct1);
 
     printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs\n",
 	    mat->rem_nrows, mat->tot_weight,
 	    (double) mat->tot_weight / (double) mat->rem_nrows,
 	    seconds () - cpu0, wct_seconds () - wct0);
+
+    fclose_maybe_compressed (rep->outfile, outname);
+
+    clearMat (mat);
+
+    param_list_clear (pl);
 
     print_timing_and_memory (stdout, wct0);
 
