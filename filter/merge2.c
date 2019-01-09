@@ -119,9 +119,8 @@ insert_rel_into_table2 (void *context_data, earlyparsed_relation_ptr rel)
   buf[0] = j;
 #endif
 
-  /* do as if the coefficients we're discarding early on are still here
-   */
-  mat->tot_weight += rel->nb;
+  /* only count the non-buried coefficients */
+  mat->tot_weight += j;
 
   /* sort indices to ease row merges */
 #ifndef FOR_DL
@@ -201,13 +200,13 @@ add_bucket1 (bucket1_t *Bi, index_t j, int nthreads)
 
   if (Bi[jj].size == Bi[jj].alloc)
     {
-#ifdef DEBUG      
+#ifdef DEBUG
       printf ("reallocate Bi[%d] from %lu", jj, Bi[jj].alloc);
-#endif      
+#endif
       Bi[jj].alloc += 1 + Bi[jj].alloc / MARGIN;
-#ifdef DEBUG      
+#ifdef DEBUG
       printf (" to %lu\n", Bi[jj].alloc);
-#endif      
+#endif
       Bi[jj].list = realloc (Bi[jj].list, Bi[jj].alloc * sizeof (index_t));
     }
   ASSERT(Bi[jj].size < Bi[jj].alloc);
@@ -314,13 +313,13 @@ add_bucket (bucket_t *Bi, index_t i, index_t j, int nthreads)
 
   if (Bi[jj].size == Bi[jj].alloc)
     {
-#ifdef DEBUG      
+#ifdef DEBUG
       printf ("reallocate B[%d][%d] from %lu", (int) (i % nthreads), jj, Bi[jj].alloc);
-#endif      
+#endif
       Bi[jj].alloc += 1 + Bi[jj].alloc / MARGIN;
-#ifdef DEBUG      
+#ifdef DEBUG
       printf (" to %lu\n", Bi[jj].alloc);
-#endif      
+#endif
       Bi[jj].list = realloc (Bi[jj].list, Bi[jj].alloc * sizeof (index_t));
     }
   ASSERT(Bi[jj].size < Bi[jj].alloc);
@@ -393,7 +392,7 @@ compute_weights (filter_matrix_t *mat)
   memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
 
 #pragma omp parallel
-#pragma omp master  
+#pragma omp master
   nthreads = omp_get_num_threads ();
 
   printf ("compute_weights: using nthreads=%d, cwmax=%d\n", nthreads, mat->cwmax);
@@ -411,22 +410,46 @@ compute_weights (filter_matrix_t *mat)
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
     apply_buckets1_all (B, mat, k, nthreads);
-  
+
   clear_buckets1 (B, nthreads);
 
   printf ("compute_weights took %.1fs (cpu), %.1fs (wct)\n",
 	  seconds () - cpu, wct_seconds () - wct);
 }
 
-/* return the total weight of all columns of weight <= cwmax */
-static unsigned long
+/* return the total weight of the matrix */
+static unsigned long MAYBE_UNUSED
 get_tot_weight (filter_matrix_t *mat)
 {
   int nthreads;
   unsigned long tot_weight = 0;
 
 #pragma omp parallel
-#pragma omp master  
+#pragma omp master
+  nthreads = omp_get_num_threads ();
+
+#pragma omp parallel for schedule(static,1)
+  for (int k = 0; k < nthreads; k++)
+    {
+      unsigned long tot_weight_thread = 0;
+      for (index_t i = k; i < mat->nrows; i += nthreads)
+	if (mat->rows[i] != NULL)
+	  tot_weight_thread += matLengthRow (mat, i);
+#pragma omp critical
+      tot_weight += tot_weight_thread;
+    }
+  return tot_weight;
+}
+
+/* return the total weight of all columns of weight <= cwmax */
+static unsigned long
+get_tot_weight_columns (filter_matrix_t *mat)
+{
+  int nthreads;
+  unsigned long tot_weight = 0;
+
+#pragma omp parallel
+#pragma omp master
   nthreads = omp_get_num_threads ();
 
 #pragma omp parallel for schedule(static,1)
@@ -450,7 +473,7 @@ compute_R (filter_matrix_t *mat)
 
   /* the inverse matrix R is already allocated, but the individual entries
      R[j] are not */
-  unsigned long tot_weight = get_tot_weight (mat);
+  unsigned long tot_weight = get_tot_weight_columns (mat);
   /* FIXME: we could allocate a huge chunk of memory of tot_weight * sizeof (index_t),
      to avoid small allocations, but then we cannot call free anymore on mat->R[j] */
   for (index_t j = 0; j < mat->ncols; j++)
@@ -463,7 +486,7 @@ compute_R (filter_matrix_t *mat)
 	  seconds () - cpu, wct_seconds () - wct);
 
 #pragma omp parallel
-#pragma omp master  
+#pragma omp master
   nthreads = omp_get_num_threads ();
 
   printf ("compute_R: using nthreads=%d, cwmax=%d\n", nthreads, mat->cwmax);
@@ -481,7 +504,7 @@ compute_R (filter_matrix_t *mat)
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
     apply_buckets_all (B, mat, k, nthreads);
-  
+
   clear_buckets (B, nthreads);
 
   printf ("compute_R took %.1fs (cpu), %.1fs (wct)\n",
@@ -545,12 +568,10 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
     *t++ = mat->rows[i1][t1++];
   while (t2 <= k2)
     *t++ = mat->rows[i2][t2++];
-  if (t0 + (c + 1) != t)
-    printf ("c=%u t-t0=%lu\n", c, t - t0);
-  ASSERT_ALWAYS (t0 + (c + 1) == t);
+  ASSERT (t0 + (c + 1) == t);
   free (mat->rows[i1]);
-  mat->rows[i1] = t;
-  return 0;
+  mat->rows[i1] = t0;
+  return c;
 }
 
 static void
@@ -562,7 +583,8 @@ remove_row (filter_matrix_t *mat, index_t i)
 
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
-   if out <> NULL: perform the merge and output to 'out' (history file) */
+   if out <> NULL: perform the merge, output to 'out' (history file),
+                   and return the merge cost */
 static int32_t
 merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 {
@@ -605,12 +627,15 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
     {
       char s0[1024], *s;
       s = s0 + sprintf (s0, "%lu", imin);
+      c = -cmin; /* remove row imin */
       for (int k = 0; k < w; k++)
 	{
 	  i = mat->R[j][k];
 	  if (i != imin)
 	    {
+	      c -= matLengthRow (mat, i);
 	      add_row (mat, i, imin, 1);
+	      c += matLengthRow (mat, i);
 	      s += sprintf (s, " %lu", i);
 	    }
 	}
@@ -623,7 +648,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
       sprintf (s, "\n");
       fprintf (out, s0);
       remove_row (mat, imin);
-      return 0;
+      return c;
     }
 }
 
@@ -661,7 +686,7 @@ cost_list_clear_aux (cost_list_t *l)
 static void
 cost_list_clear (cost_list_t *L, int nthreads)
 {
-#pragma omp parallel for  
+#pragma omp parallel for
     for (int i = 0; i < nthreads; i++)
       cost_list_clear_aux (L + i);
     free (L);
@@ -709,28 +734,28 @@ static void
 compute_merges_aux (cost_list_t *l, int k, int nthreads,
 			 filter_matrix_t *mat)
 {
-#ifdef DEBUG  
+#ifdef DEBUG
   int32_t cmin = INT32_MAX, cmax = INT32_MIN;
   unsigned long nmerges = 0;
-#endif  
+#endif
   for (index_t j = k; j < mat->ncols; j += nthreads)
     if (2 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
 	int32_t c = merge_cost_or_do (mat, j, NULL);
 	add_cost (l, j, c + BIAS);
-#ifdef DEBUG	
+#ifdef DEBUG
 	if (c > cmax)
 	  cmax = c;
 	if (c < cmin)
 	  cmin = c;
 	nmerges ++;
-#endif	
+#endif
       }
-#ifdef DEBUG  
-#pragma omp critical  
+#ifdef DEBUG
+#pragma omp critical
   printf ("l[%d] has cmin=%d cmax=%d nmerges=%lu\n", k, cmin, cmax,
 	  nmerges);
-#endif  
+#endif
 }
 
 static void
@@ -740,13 +765,13 @@ compute_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat)
   for (int i = 0; i < nthreads; i++)
     compute_merges_aux (L + i, i, nthreads, mat);
 
-#ifdef DEBUG  
+#ifdef DEBUG
   unsigned long nmerges = 0;
   for (int i = 0; i < nthreads; i++)
     for (int c = 0; c <= (L+i)->cmax; c++)
       nmerges += (L+i)->size[c];
   printf ("total number of merges: %lu\n", nmerges);
-#endif  
+#endif
 }
 
 typedef struct {
@@ -798,8 +823,16 @@ static void
 apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
 		 filter_matrix_t *mat, FILE *out)
 {
+  int32_t fill_in = 0;
+
+  /* Note: the 2-merges are not necessarily processed in increasing fill-in,
+     since those with fill-in < -2 are capped to -3. All we are sure is that
+     those with fill-in < -2 (thus -4, -6, -8, ...) are processed first, then
+     those with fill-in -2. */
   for (unsigned long t = k; t < size; t += nthreads)
-    merge_cost_or_do (mat, l[t], out);
+    fill_in += merge_cost_or_do (mat, l[t], out);
+#pragma omp critical
+  mat->tot_weight += fill_in;
 }
 
 static void
@@ -845,7 +878,10 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
     apply_merge_aux (l->list, l->size, k, nthreads, mat, out);
-  
+
+  /* each merge decreases the number of rows by one */
+  mat->rem_nrows -= l->size;
+
   merge_list_clear (l);
   mpz_clear (z);
 }
@@ -868,6 +904,7 @@ main (int argc, char *argv[])
 #endif
 
     double tt;
+    double cpu0 = seconds ();
     double wct0 = wct_seconds ();
     param_list pl;
     int verbose = 0;
@@ -944,38 +981,17 @@ main (int argc, char *argv[])
     filter_matrix_read2 (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
-#ifdef DEBUG
-    for (unsigned long i = 0; i < 5; i++)
-      printf ("wt[%lu]=%d\n", i, mat->wt[i]);
-    for (unsigned long i = mat->ncols - 5; i < mat->ncols; i++)
-      printf ("wt[%lu]=%d\n", i, mat->wt[i]);
-#endif
+    printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs\n",
+	    mat->rem_nrows, mat->tot_weight,
+	    (double) mat->tot_weight / (double) mat->rem_nrows,
+	    seconds () - cpu0, wct_seconds () - wct0);
 
     double cpu1 = seconds (), wct1 = wct_seconds ();
 
     mat->cwmax = 3;
     compute_weights (mat);
 
-#ifdef DEBUG    
-    for (unsigned long i = 0; i < 5; i++)
-      printf ("wt[%lu]=%d\n", i, mat->wt[i]);
-    for (unsigned long i = mat->ncols - 5; i < mat->ncols; i++)
-      printf ("wt[%lu]=%d\n", i, mat->wt[i]);
-
-    for (unsigned long i = 0; i < 5; i++)
-      printf ("R[%lu]=%lx\n", i, (unsigned long) mat->R[i]);
-    for (unsigned long i = mat->ncols - 5; i < mat->ncols; i++)
-      printf ("R[%lu]=%lx\n", i, (unsigned long) mat->R[i]);
-#endif    
-
     compute_R (mat);
-
-#ifdef DEBUG    
-    for (unsigned long i = 0; i < 5; i++)
-      printf ("wt[%lu]=%d R[%lu]=%lx\n", i, mat->wt[i], i, (unsigned long) mat->R[i]);
-    for (unsigned long i = mat->ncols - 5; i < mat->ncols; i++)
-      printf ("wt[%lu]=%d R[%lu]=%lx\n", i, mat->wt[i], i, (unsigned long) mat->R[i]);
-#endif    
 
     printf ("compute_weights+compute_R took %.1fs (cpu), %.1fs (wct)\n",
 	    seconds () - cpu1, wct_seconds () - wct1);
@@ -984,7 +1000,7 @@ main (int argc, char *argv[])
 
     cost_list_t *L = cost_list_init (nthreads);
     compute_merges (L, nthreads, mat);
-    
+
     printf ("compute_merges took %.1fs (cpu), %.1fs (wct)\n",
 	    seconds () - cpu2, wct_seconds () - wct2);
 
@@ -996,6 +1012,11 @@ main (int argc, char *argv[])
 	    seconds () - cpu3, wct_seconds () - wct3);
 
     cost_list_clear (L, nthreads);
+
+    printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs\n",
+	    mat->rem_nrows, mat->tot_weight,
+	    (double) mat->tot_weight / (double) mat->rem_nrows,
+	    seconds () - cpu0, wct_seconds () - wct0);
 
     print_timing_and_memory (stdout, wct0);
 
