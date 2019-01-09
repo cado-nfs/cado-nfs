@@ -1997,6 +1997,16 @@ class WorkunitClient(object):
         # TODO: a select loop, maybe ? We could handle the pending
         # uploads, maybe.
         processor.run_commands()
+        # to check the return value of the above command, change the previous
+        # line to ret = processor.run_commands(), and there is an error if
+        # ret is false (if not ret).
+        # Then we can search for a particular string in stderr as follows:
+        # ret = processor.run_commands()
+        # if not ret and re.search("xyx", processor.stdio["stderr"][0]):
+        #    output_something_to_some_log_file
+        #    sys.exit(1)
+        # this is useful if a given error always happens on a given machine
+
         processor.prepare_answer()
 
         # Transfer ownership of "processor" to the schedule_upload
