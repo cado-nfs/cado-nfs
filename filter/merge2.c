@@ -218,7 +218,8 @@ add_bucket1 (bucket1_t *Bi, index_t j, int nthreads)
 static void
 fill_buckets1 (bucket1_t *Bi, filter_matrix_t *mat, index_t i, int nthreads)
 {
-  ASSERT(mat->rows[i] != NULL);
+  if (mat->rows[i] == NULL) /* row was discarded */
+    return;
   for (uint32_t k = 1; k <= matLengthRow (mat, i); k++)
     {
       index_t j = matCell (mat, i, k);
@@ -332,7 +333,8 @@ add_bucket (bucket_t *Bi, index_t i, index_t j, int nthreads)
 static void
 fill_buckets (bucket_t *Bi, filter_matrix_t *mat, index_t i, int nthreads)
 {
-  ASSERT(mat->rows[i] != NULL);
+  if (mat->rows[i] == NULL) /* row was discarded */
+    return;
   for (uint32_t k = 1; k <= matLengthRow (mat, i); k++)
     {
       index_t j = matCell (mat, i, k);
