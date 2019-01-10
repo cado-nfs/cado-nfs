@@ -28,13 +28,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>   /* for _O_BINARY */
+#include <fcntl.h>  /* for _O_BINARY */
 #include <string.h> /* for strcmp */
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 
 // #define DEBUG
+// #define MEM
 
 #include "portability.h"
 
@@ -184,13 +185,28 @@ init_buckets1 (int nthreads, unsigned long tot_weight)
 static void
 clear_buckets1 (bucket1_t **B, int nthreads)
 {
+#ifdef MEM
+  unsigned long mem = 0;
+#endif
   for (int k = 0; k < nthreads; k++)
     {
       for (int j = 0; j < nthreads; j++)
-	free (B[k][j].list);
+	{
+	  free (B[k][j].list);
+#ifdef MEM
+	  mem += B[k][j].alloc * sizeof (index_t);
+#endif
+	}
       free (B[k]);
+#ifdef MEM
+      mem += nthreads * sizeof (bucket1_t);
+#endif
     }
   free (B);
+#ifdef MEM
+  mem += nthreads * sizeof (bucket1_t*);
+  printf ("****** init_buckets1 allocated %luM\n", mem >> 20);
+#endif
 }
 
 static void
@@ -298,13 +314,28 @@ init_buckets (int nthreads, unsigned long tot_weight)
 static void
 clear_buckets (bucket_t **B, int nthreads)
 {
+#ifdef MEM
+  unsigned long mem = 0;
+#endif
   for (int k = 0; k < nthreads; k++)
     {
       for (int j = 0; j < nthreads; j++)
-	free (B[k][j].list);
+	{
+	  free (B[k][j].list);
+#ifdef MEM
+	  mem += B[k][j].alloc * sizeof (index_pair_t);
+#endif
+	}
       free (B[k]);
+#ifdef MEM
+      mem += nthreads * sizeof (bucket_t);
+#endif
     }
   free (B);
+#ifdef MEM
+  mem += nthreads * sizeof (bucket_t*);
+  printf ("****** init_buckets allocated %luM\n", mem >> 20);
+#endif
 }
 
 static void
@@ -470,6 +501,9 @@ compute_R (filter_matrix_t *mat)
 {
   int nthreads;
   double cpu = seconds (), wct = wct_seconds ();
+#ifdef MEM
+  unsigned long mem = 0;
+#endif
 
   /* the inverse matrix R is already allocated, but the individual entries
      R[j] are not */
@@ -480,10 +514,16 @@ compute_R (filter_matrix_t *mat)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
 	mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
+#ifdef MEM
+	mem += mat->wt[j] * sizeof (index_t);
+#endif
 	mat->wt[j] = 0; /* reset to 0 */
       }
     else
       mat->R[j] = NULL; /* to please freeRj */
+#ifdef MEM
+  printf ("****** compute_R allocated %luM\n", mem >> 20);
+#endif
 
 #pragma omp parallel
 #pragma omp master
@@ -583,11 +623,13 @@ static void MAYBE_UNUSED
 printRow (filter_matrix_t *mat, index_t i)
 {
   int32_t k = matLengthRow (mat, i);
-  printf ("%lu [%d]:", i, k);
+  printf ("%lu [%d]:", (unsigned long) i, k);
   for (int j = 1; j <= k; j++)
-    printf (" %lu", mat->rows[i][j]);
+    printf (" %lu", (unsigned long) mat->rows[i][j]);
   printf ("\n");
 }
+
+// #define TRACE_J 10637127
 
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
@@ -604,10 +646,16 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 
   imin = mat->R[j][0];
   cmin = matLengthRow (mat, imin);
+#ifdef TRACE_J
+  if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n", j, imin, cmin);
+#endif
   for (int k = 1; k < w; k++)
     {
       i = mat->R[j][k];
       c = matLengthRow (mat, i);
+#ifdef TRACE_J
+      if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n", j, i, c);
+#endif
       if (c < cmin || (c == cmin && largest_ideal (mat, i, j) <
 		       largest_ideal (mat, imin, j)))
 	/* in case c = cmin, we take the row with the smaller largest
@@ -634,7 +682,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
   else /* perform the real merge and output to history file */
     {
       char s0[1024], *s;
-      s = s0 + sprintf (s0, "%lu", imin);
+      s = s0 + sprintf (s0, "%lu", (unsigned long) imin);
       c = -cmin; /* remove row imin */
       for (int k = 0; k < w; k++)
 	{
@@ -644,7 +692,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 	      c -= matLengthRow (mat, i);
 	      add_row (mat, i, imin, 1);
 	      c += matLengthRow (mat, i);
-	      s += sprintf (s, " %lu", i);
+	      s += sprintf (s, " %lu", (unsigned long) i);
 	    }
 	}
       /* the default sprintf function is thread-safe (see
@@ -681,23 +729,57 @@ cost_list_init (int nthreads)
   return L;
 }
 
+/* return the number of bytes allocated */
+#ifdef MEM
+static unsigned long
+#else
 static void
+#endif
 cost_list_clear_aux (cost_list_t *l)
 {
+#ifdef MEM
+  unsigned long mem = 0;
+#endif
   for (int i = 0; i <= l->cmax; i++)
-    free (l->list[i]);
+    {
+      free (l->list[i]);
+#ifdef MEM
+      mem += l->alloc[i] * sizeof (index_t);
+#endif
+    }
   free (l->list);
   free (l->size);
   free (l->alloc);
+#ifdef MEM
+  mem += l->cmax * sizeof (index_t*);
+  mem += l->cmax * sizeof (unsigned long);
+  mem += l->cmax * sizeof (unsigned long);
+  return mem;
+#endif
 }
 
 static void
 cost_list_clear (cost_list_t *L, int nthreads)
 {
+#ifdef MEM
+  unsigned long mem = 0;
+#endif
 #pragma omp parallel for
     for (int i = 0; i < nthreads; i++)
-      cost_list_clear_aux (L + i);
+      {
+#ifdef MEM
+	unsigned long mem_thread = cost_list_clear_aux (L + i);
+#pragma omp critical
+	mem += mem_thread;
+#else
+	cost_list_clear_aux (L + i);
+#endif
+      }
     free (L);
+#ifdef MEM
+    mem += nthreads * sizeof (cost_list_t);
+    printf ("****** cost_list allocated %luM\n", mem >> 20);
+#endif
 }
 
 /* add pair (j,c) into l */
@@ -896,9 +978,17 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
   /* we increase cwmax only when the ratio of the number of independent merges
      over the number of possible merges exceeds some threshold (we can exceed
      MERGE_LEVEL_MAX here, since we don't use the merge routines from mst.c) */
+  if (mat->cwmax == 2) /* we first process all 2-merges */
+    {
+      if (l->size == 0)
+	mat->cwmax ++;
+    }
+  else
+    {
 #define THRESHOLD 0.05
-  if ((double) l->size / (double) total_merges > THRESHOLD)
-    mat->cwmax ++;
+      if ((double) l->size / (double) total_merges > THRESHOLD)
+	mat->cwmax ++;
+    }
 
   /* We notice that the apply_merge_aux() function does not scale well when
      the number of threads is large, this is due to too many concurrent calls
@@ -1024,9 +1114,10 @@ main (int argc, char *argv[])
     filter_matrix_read2 (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
-    printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs\n",
+    printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
-	    seconds () - cpu0, wct_seconds () - wct0);
+	    seconds () - cpu0, wct_seconds () - wct0,
+	    PeakMemusage () >> 10);
 
     mat->cwmax = 2;
 
@@ -1058,10 +1149,11 @@ main (int argc, char *argv[])
 	printf ("   pass took %.1fs (cpu), %.1fs (wct)\n",
 		seconds () - cpu1, wct_seconds () - wct1);
 
-	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs\n",
+	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
-		seconds () - cpu0, wct_seconds () - wct0);
+		seconds () - cpu0, wct_seconds () - wct0,
+		PeakMemusage () >> 10);
 
       }
 
