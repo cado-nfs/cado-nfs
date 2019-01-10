@@ -1011,7 +1011,8 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
   mat->tot_weight += fill_in;
 }
 
-static void
+/* return the number of merges applied */
+static unsigned long
 apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 {
   static int max_merge = 1;
@@ -1094,11 +1095,14 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
   for (int k = 0; k < nthreads; k++)
     apply_merge_aux (l->list, l->size, k, nthreads, mat, out);
 
-  /* each merge decreases the number of rows by one */
+  /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= l->size;
+  mat->rem_ncols -= l->size;
 
   merge_list_clear (l);
   mpz_clear (z);
+
+  return l->size;
 }
 
 static double
@@ -1227,7 +1231,7 @@ main (int argc, char *argv[])
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
-	apply_merges (L, nthreads, mat, rep->outfile);
+	unsigned long nmerges = apply_merges (L, nthreads, mat, rep->outfile);
 
 	printf ("   apply_merges took %.1fs (cpu), %.1fs (wct)\n",
 		seconds () - cpu3, wct_seconds () - wct3);
@@ -1243,9 +1247,14 @@ main (int argc, char *argv[])
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10);
 
+	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
+	  break;
       }
 
     fclose_maybe_compressed (rep->outfile, outname);
+
+    printf ("Final matrix has N=%lu nc=%lu (%lu) W=%lu\n", mat->rem_nrows,
+	    mat->rem_ncols, mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
 
     clearMat (mat);
 
