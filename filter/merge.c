@@ -55,7 +55,7 @@ static void declare_usage(param_list pl)
                                     STR(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "force-bury-below-index", "columns below this index are buried early on when reading the matrix");
   param_list_decl_usage(pl, "maxlevel", "maximum number of rows in a merge "
-                            "(default " STR(DEFAULT_MERGE_MAXLEVEL) ")");
+                            "(default " STR(MERGE_LEVEL_MAX) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
   param_list_decl_usage(pl, "resume", "resume from history file");
@@ -88,7 +88,7 @@ main (int argc, char *argv[])
     report_t rep[1];
 
     int nthreads = 1;
-    int maxlevel = DEFAULT_MERGE_MAXLEVEL;
+    int maxlevel = MERGE_LEVEL_MAX;
     uint32_t keep = DEFAULT_FILTER_EXCESS;
     uint32_t skip = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
@@ -176,7 +176,7 @@ main (int argc, char *argv[])
     }
     if (maxlevel <= 0 || maxlevel > MERGE_LEVEL_MAX)
     {
-      fprintf (stderr, "Error: maxlevel should be positive and less than %d\n",
+      fprintf (stderr, "Error: maxlevel should be nonnegative and at most %d\n",
                        MERGE_LEVEL_MAX);
       usage (pl, argv0);
     }

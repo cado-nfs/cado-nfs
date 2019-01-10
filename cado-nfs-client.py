@@ -1297,6 +1297,15 @@ class WorkunitClient(object):
         if self.get_files():
             processor = WorkunitProcessor(self.workunit, self.settings)
             processor.run_commands()
+            # to check the return value of the above command, change the previous
+            # line to ret = processor.run_commands(), and there is an error if
+            # ret is false (if not ret).
+            # Then we can search for a particular string in stderr as follows:
+            # ret = processor.run_commands()
+            # if not ret and re.search("xyx", processor.stdio["stderr"][0]):
+            #    output_something_to_some_log_file
+            #    sys.exit(1)
+            # this is useful if a given error always happens on a given machine
             upload_ok = self.upload_result(processor)
             processor.cleanup()
         else:

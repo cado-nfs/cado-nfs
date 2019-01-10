@@ -861,6 +861,8 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
     m = mat->wt[j];
     ASSERT_ALWAYS(m >= 0);
 
+    int is_first = 0; /* is it the first m-merge? */
+
     /* m=0 can happen if two ideals have weight 2, and are in the same 2
        relations: when we merge one of them, the other one will have weight
        0 after the merge */
@@ -876,7 +878,8 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
         mergeForColumn (rep, mat, m, j);
       }
     index_signed_t real_mkz = mat->weight - weight0;
-    if (m > 1 && merge_stats_is_first_merge (merge_data, m))
+    is_first = m > 1 && merge_stats_is_first_merge (merge_data, m);
+    if (is_first)
       {
         fprintf (rep->outfile, "## First %d-merge\n", m);
         print_report (mat);
@@ -915,17 +918,13 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
     }
 
   next_merge:
-    /* if we have not yet reached maxlevel:
-       (a) if we have reached the target excess, we increase cwmax to maxlevel
-       (b) if we have not yet reached keep, and the queue is empty, we increase
-           cwmax by 1 only */
-    if (mat->cwmax < mat->mergelevelmax &&
-        (MkzQueueCardinality (mat) == 0 || excess == mat->keep))
+    /* If we have not yet reached maxlevel, and this is the first m-merge,
+       we increase cwmax by one. Thus we will first consider only the 2-merges
+       and 3-merges, then after the first 3-merge we will consider 4-merges too
+       and so on. */
+    if (mat->cwmax < mat->mergelevelmax && is_first)
       {
-        if (excess == mat->keep)
-          mat->cwmax = mat->mergelevelmax;
-        else /* MkzQueueCardinality (mat) == 0 */
-          mat->cwmax ++;
+        mat->cwmax ++;
         recomputeR (mat);
       }
   }

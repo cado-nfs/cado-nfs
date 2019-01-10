@@ -36,7 +36,6 @@
  * BW. */
 #define MERGE_LEVEL_MAX 64
 
-#define DEFAULT_MERGE_MAXLEVEL 10
 #ifndef FOR_DL
 /* the default value 170 was determined experimentally on RSA-155
    with the git version 0a6a50c */
