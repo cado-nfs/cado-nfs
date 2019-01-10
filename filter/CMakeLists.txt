@@ -1,5 +1,5 @@
 set (bin_list
-        dup1 dup2 purge merge merge2 merge-dl replay replay-dl sm sm_simple reconstructlog-dl
+        dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
 )
 
 set (purge_sources purge_matrix.c singleton_removal.c
@@ -18,14 +18,9 @@ target_link_libraries(filter_galois utils_with_io)
 add_executable(purge ${purge_sources})
 target_link_libraries(purge utils_with_io)
 
-add_executable(merge merge.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)
+add_executable(merge merge2.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
 set_target_properties(merge PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
-
-add_executable(merge2 merge2.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)
-target_link_libraries(merge2 utils_with_io)
-set_target_properties(merge2 PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 add_executable(merge-dl merge.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)

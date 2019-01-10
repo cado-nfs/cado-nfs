@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <omp.h>
 #endif
 
+// #define USE_MST
 // #define DEBUG
 // #define MEM
 
@@ -46,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "markowitz.h" /* for MkzInit */
 #include "merge_mono.h" /* for mergeOneByOne */
 #include "sparse.h"
+#include "mst.h"
 
 static void declare_usage(param_list pl)
 {
@@ -557,7 +559,7 @@ typedef struct {
 } cost_list_t;
 
 /* return the largest ideal of row i (excepted j) */
-static index_t
+static index_t MAYBE_UNUSED
 largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
 {
   uint32_t k = matLengthRow (mat, i);
@@ -631,6 +633,7 @@ printRow (filter_matrix_t *mat, index_t i)
 
 // #define TRACE_J 10637127
 
+#ifndef USE_MST
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
    if out <> NULL: perform the merge, output to 'out' (history file),
@@ -707,6 +710,89 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
       return c;
     }
 }
+#else
+/* Same as reportn from report.c, but output to a string.
+   Assume rep->type = 0.
+   Return the number of characters written. */
+static int
+sreportn (char *str, index_signed_t *ind, int n, MAYBE_UNUSED index_t j)
+{
+  char *str0 = str;
+
+  for (int i = 0; i < n; i++)
+    {
+      str += sprintf (str, "%ld", (long int) ind[i]);
+      if (i < n-1)
+	str += sprintf (str, " ");
+    }
+  str += sprintf (str, "\n");
+  return str - str0;
+}
+
+/* Same as addFatherToSons() from merge_mono.c, but uses add_row instead of
+   addRowsAndUpdate */
+static int
+addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
+		  filter_matrix_t *mat, int m, index_t *ind,
+		  int *father, int *sons)
+{
+  int i, s, t;
+
+  for (i = m - 2; i >= 0; i--)
+    {
+      s = father[i];
+      t = sons[i];
+      if (i == 0)
+        {
+          history[i][1] = ind[s];
+          ASSERT(s == 0);
+        }
+      else
+        history[i][1] = -(ind[s] + 1);
+      // addRowsAndUpdate (mat, ind[t], ind[s], ideal);
+      add_row (mat, ind[t], ind[s], 1);
+      history[i][2] = ind[t];
+      history[i][0] = 2;
+    }
+  return m - 2;
+}
+
+/* compute full spanning tree */
+static int32_t
+merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
+{
+  int32_t c;
+  int32_t w = mat->wt[j];
+
+  ASSERT (2 <= w && w <= mat->cwmax);
+
+  if (out == NULL) /* return the merge cost, does not modify anything */
+    return minCostUsingMST (mat, w, mat->R[j], j);
+  else /* perform the real merge and output to history file */
+    {
+      index_t ind[MERGE_LEVEL_MAX];
+      memcpy (ind, mat->R[j], w * sizeof (index_t));
+      char s0[1024], *s;
+      int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
+      fillRowAddMatrix (A, mat, w, ind, j);
+      /* mimic MSTWithA */
+      int start[MERGE_LEVEL_MAX], end[MERGE_LEVEL_MAX];
+      c = minimalSpanningTree (start, end, w, A);
+      /* c is the weight of the minimal spanning tree, we have to remove
+	 the weights of the initial relations */
+      for (int k = 0; k < w; k++)
+	c -= matLengthRow (mat, ind[k]);
+      index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1];
+      int hmax = addFatherToSons2 (history, mat, w, ind, start, end);
+      s = s0;
+      for (int i = hmax; i >= 0; i--)
+	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0], j);
+      fprintf (out, s0);
+      remove_row (mat, ind[0]);
+      return c;
+    }
+}
+#endif
 
 static void
 cost_list_init_aux (cost_list_t *l)
@@ -976,8 +1062,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	  l->size, total_merges, mat->cwmax);
 
   /* we increase cwmax only when the ratio of the number of independent merges
-     over the number of possible merges exceeds some threshold (we can exceed
-     MERGE_LEVEL_MAX here, since we don't use the merge routines from mst.c) */
+     over the number of possible merges exceeds some threshold */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (l->size == 0)
@@ -987,7 +1072,10 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
     {
 #define THRESHOLD 0.05
       if ((double) l->size / (double) total_merges > THRESHOLD)
-	mat->cwmax ++;
+	{
+	  if (mat->cwmax < MERGE_LEVEL_MAX)
+	    mat->cwmax ++;
+	}
     }
 
   /* We notice that the apply_merge_aux() function does not scale well when
