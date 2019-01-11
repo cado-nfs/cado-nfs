@@ -695,7 +695,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 	      s += sprintf (s, " %lu", (unsigned long) i);
 	    }
 	}
-      /* the default sprintf function is thread-safe (see
+      /* the default fprintf function is thread-safe (see
 	 https://stackoverflow.com/questions/23586682/how-to-use-printf-in-multiple-threads),
 	 thus each line is written atomically in the history file
 	 (the order in which lines from different threads are written is
@@ -770,8 +770,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
     return minCostUsingMST (mat, w, mat->R[j], j);
   else /* perform the real merge and output to history file */
     {
-      index_t ind[MERGE_LEVEL_MAX];
-      memcpy (ind, mat->R[j], w * sizeof (index_t));
+      index_t *ind = mat->R[j];
       char s0[1024], *s;
       int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
       fillRowAddMatrix (A, mat, w, ind, j);
@@ -1059,7 +1058,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 		}
 	    }
 	}
-  printf ("   found %lu independent merges out of %lu, with cwmax=%d\n",
+  printf ("   found %lu independent merges out of %lu (cwmax=%d)\n",
 	  l->size, total_merges, mat->cwmax);
 
   /* we increase cwmax only when the ratio of the number of independent merges
@@ -1218,6 +1217,7 @@ main (int argc, char *argv[])
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
+    int pass = 0;
     while (average_density (mat) < target_density)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
@@ -1246,11 +1246,11 @@ main (int argc, char *argv[])
 	printf ("   pass took %.1fs (cpu), %.1fs (wct)\n",
 		seconds () - cpu1, wct_seconds () - wct1);
 
-	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
+	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM (pass %d)\n",
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10);
+		PeakMemusage () >> 10, ++pass);
 
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
 	  break;
