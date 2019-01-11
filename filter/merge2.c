@@ -1218,9 +1218,14 @@ main (int argc, char *argv[])
       mat->R[j] = NULL;
 
     int pass = 0;
-    while (average_density (mat) < target_density)
+    unsigned long lastN;
+    double lastWoverN;
+    while (1)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
+
+	lastN = mat->rem_nrows;
+	lastWoverN = (double) mat->tot_weight / (double) lastN;
 
 	compute_weights (mat);
 
@@ -1252,9 +1257,21 @@ main (int argc, char *argv[])
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, ++pass);
 
+	if (average_density (mat) >= target_density)
+	  break;
+
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
 	  break;
       }
+
+    /* estimate N for W/N = target_density, assuming W/N = a*N + b */
+    unsigned long N = mat->rem_nrows;
+    double WoverN = (double) mat->tot_weight / (double) N;
+    double a = (lastWoverN - WoverN) / (double) (lastN - N);
+    double b = WoverN - a * (double) N;
+    /* we want target_density = a*N_target + b */
+    printf ("Estimated N=%lu for W/N=%.2f\n",
+	    (unsigned long) ((target_density - b) / a), target_density);
 
     fclose_maybe_compressed (rep->outfile, outname);
 
