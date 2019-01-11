@@ -28,6 +28,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    OpenMP (suggestion of Pierrick Gaudry)
  * in compute_weights, we have some cache misses if thread k writes wt[j]
    and thread k+1 writes wt[j+1]. Organize differently.
+ * instead of counting the weight of all ideals in apply_merges, only take
+   into account the weight of the larger ideals at the beginning of merge,
+   to keep more k-merges with small k. For example we could only consider
+   ideals of index >= J, where J decreases while W/N increases (so that at
+   the end we consider the full weight).
  */
 
 #include "cado.h"
