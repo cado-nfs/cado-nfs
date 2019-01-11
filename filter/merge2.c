@@ -512,17 +512,17 @@ compute_R (filter_matrix_t *mat)
   unsigned long tot_weight = get_tot_weight_columns (mat);
   /* FIXME: we could allocate a huge chunk of memory of tot_weight * sizeof (index_t),
      to avoid small allocations, but then we cannot call free anymore on mat->R[j] */
+#pragma omp parallel for  
   for (index_t j = 0; j < mat->ncols; j++)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
-	mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
+	mat->R[j] = realloc (mat->R[j], mat->wt[j] * sizeof (index_t));
 #ifdef MEM
+#pragma omp critical	
 	mem += mat->wt[j] * sizeof (index_t);
 #endif
 	mat->wt[j] = 0; /* reset to 0 */
       }
-    else
-      mat->R[j] = NULL; /* to please freeRj */
 #ifdef MEM
   printf ("****** compute_R allocated %luM\n", mem >> 20);
 #endif
@@ -707,6 +707,9 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
       sprintf (s, "\n");
       fprintf (out, s0);
       remove_row (mat, imin);
+      /* we can also free R[j] */
+      free (mat->R[j]);
+      mat->R[j] = NULL;
       return c;
     }
 }
@@ -1212,6 +1215,11 @@ main (int argc, char *argv[])
 	    PeakMemusage () >> 10);
 
     mat->cwmax = 2;
+
+    /* initialize R[j] to NULL */
+#pragma omp parallel for    
+    for (index_t j = 0; j < mat->ncols; j++)
+      mat->R[j] = NULL;
 
     while (average_density (mat) < target_density)
       {
