@@ -445,6 +445,7 @@ compute_weights (filter_matrix_t *mat)
 
   printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n",
 	  seconds () - cpu, wct_seconds () - wct);
+  fflush (stdout);
 }
 
 /* return the total weight of the matrix */
@@ -546,6 +547,7 @@ compute_R (filter_matrix_t *mat)
 
   printf ("   compute_R took %.1fs (cpu), %.1fs (wct)\n",
 	  seconds () - cpu, wct_seconds () - wct);
+  fflush (stdout);
 }
 
 typedef struct {
@@ -1209,6 +1211,7 @@ main (int argc, char *argv[])
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
+    fflush (stdout);
 
     mat->cwmax = 2;
 
@@ -1238,6 +1241,7 @@ main (int argc, char *argv[])
 
 	printf ("   compute_merges took %.1fs (cpu), %.1fs (wct)\n",
 		seconds () - cpu2, wct_seconds () - wct2);
+	fflush (stdout);
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
@@ -1245,6 +1249,7 @@ main (int argc, char *argv[])
 
 	printf ("   apply_merges took %.1fs (cpu), %.1fs (wct)\n",
 		seconds () - cpu3, wct_seconds () - wct3);
+	fflush (stdout);
 
 	cost_list_clear (L, nthreads);
 
@@ -1256,6 +1261,7 @@ main (int argc, char *argv[])
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, ++pass);
+	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
 	  break;
