@@ -19,10 +19,15 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-/* Algorithm: digest and interpolation from Cavallar02.
-
-  Stefania Cavallar, On the Number Field Sieve Integer Factorisation Algorithm,
-  PhD thesis, University of Leiden, 2002, 108 pages.
+/* Possible improvements:
+ * in compute_weights, only consider ideals of index >= threshold[cwmax],
+   where threshold[cwmax] is either guessed or computed at the first pass
+   (normally the weight of an ideal can only increase)
+ * in apply_merges, we can start applying merges before computing the full
+   list of independent merges: see worker_thread or producer/consumer with
+   OpenMP
+ * in compute_weights, we have some cache misses if thread k writes wt[j]
+   and thread k+1 writes wt[j+1]. Organize differently.
  */
 
 #include "cado.h"
@@ -34,7 +39,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <omp.h>
 #endif
 
-#define USE_MST
+/* USE_MST = 0: do not use spanning tree for merges
+   USE_MST = 1: only use spanning tree to *apply* the merges
+   USE_MST = 2: use spanning tree both to estimate and apply the merges */
+#define USE_MST 1
 // #define DEBUG
 // #define MEM
 
@@ -646,13 +654,12 @@ printRow (filter_matrix_t *mat, index_t i)
 
 // #define TRACE_J 10637127
 
-#ifndef USE_MST
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
    if out <> NULL: perform the merge, output to 'out' (history file),
                    and return the merge cost */
-static int32_t
-merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
+static int32_t MAYBE_UNUSED
+merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 {
   index_t imin, i;
   int32_t cmin, c;
@@ -726,7 +733,7 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
       return c;
     }
 }
-#else
+
 /* Same as reportn from report.c, but output to a string.
    Assume rep->type = 0.
    Return the number of characters written. */
@@ -774,8 +781,8 @@ addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
 }
 
 /* compute full spanning tree */
-static int32_t
-merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
+static int32_t MAYBE_UNUSED
+merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
 {
   int32_t c;
   int32_t w = mat->wt[j];
@@ -807,7 +814,23 @@ merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
       return c;
     }
 }
+
+static int32_t
+merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
+{
+#if USE_MST == 0
+  return merge_cost_or_do_classical (mat, j, out);
+#elif USE_MST == 1
+  if (out == NULL)
+    return merge_cost_or_do_classical (mat, j, out);
+  else
+    return merge_cost_or_do_spanning (mat, j, out);
+#elif USE_MST == 2
+  return merge_cost_or_do_spanning (mat, j, out);
+#else
+#error "USE_MST should be 0, 1, or 2"
 #endif
+}
 
 static void
 cost_list_init_aux (cost_list_t *l)
@@ -1220,6 +1243,8 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read2 (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
+
+    printf ("Using USE_MST=%d\n", USE_MST);
 
     printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
