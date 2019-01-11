@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    (normally the weight of an ideal can only increase)
  * in apply_merges, we can start applying merges before computing the full
    list of independent merges: see worker_thread or producer/consumer with
-   OpenMP
+   OpenMP (suggestion of Pierrick Gaudry)
  * in compute_weights, we have some cache misses if thread k writes wt[j]
    and thread k+1 writes wt[j+1]. Organize differently.
  */
