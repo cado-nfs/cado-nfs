@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <omp.h>
 #endif
 
-// #define USE_MST
+#define USE_MST
 // #define DEBUG
 // #define MEM
 
@@ -371,8 +371,9 @@ fill_buckets (bucket_t *Bi, filter_matrix_t *mat, index_t i, int nthreads)
   for (uint32_t k = 1; k <= matLengthRow (mat, i); k++)
     {
       index_t j = matCell (mat, i, k);
-      /* we only consider ideals of weight <= cwmax */
-      if (mat->wt[j] <= mat->cwmax)
+      /* we only consider ideals of weight <= cwmax,
+	 for which wt[j] was reset to 0 in compute_R */
+      if (mat->wt[j] == 0)
 	add_bucket (Bi, i, j, nthreads);
     }
 }
@@ -408,11 +409,7 @@ apply_buckets_all (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
     {
       bucket_t Bik = B[i][k];
       for (unsigned long t = 0; t < Bik.size; t++)
-	{
-	  index_t j = Bik.list[t].j;
-	  if (mat->wt[j] <= mat->cwmax)
-	    add_R_entry (mat, j, Bik.list[t].i);
-	}
+	add_R_entry (mat, Bik.list[t].j, Bik.list[t].i);
     }
 }
 
