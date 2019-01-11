@@ -49,6 +49,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "sparse.h"
 #include "mst.h"
 
+/* 0: compute_weights
+   1: compute_R
+   2: compute_merges
+   3: apply_merges
+   4: pass */
+double cpu_t[5] = {0};
+double wct_t[5] = {0};
+
 static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "mat", "input purged file");
@@ -443,9 +451,12 @@ compute_weights (filter_matrix_t *mat)
 
   clear_buckets1 (B, nthreads);
 
-  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n",
-	  seconds () - cpu, wct_seconds () - wct);
+  cpu = seconds () - cpu;
+  wct = wct_seconds () - wct;
+  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
   fflush (stdout);
+  cpu_t[0] += cpu;
+  wct_t[0] += wct;
 }
 
 /* return the total weight of the matrix */
@@ -510,13 +521,13 @@ compute_R (filter_matrix_t *mat)
   unsigned long tot_weight = get_tot_weight_columns (mat);
   /* FIXME: we could allocate a huge chunk of memory of tot_weight * sizeof (index_t),
      to avoid small allocations, but then we cannot call free anymore on mat->R[j] */
-#pragma omp parallel for  
+#pragma omp parallel for
   for (index_t j = 0; j < mat->ncols; j++)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
 	mat->R[j] = realloc (mat->R[j], mat->wt[j] * sizeof (index_t));
 #ifdef MEM
-#pragma omp critical	
+#pragma omp critical
 	mem += mat->wt[j] * sizeof (index_t);
 #endif
 	mat->wt[j] = 0; /* reset to 0 */
@@ -545,9 +556,12 @@ compute_R (filter_matrix_t *mat)
 
   clear_buckets (B, nthreads);
 
-  printf ("   compute_R took %.1fs (cpu), %.1fs (wct)\n",
-	  seconds () - cpu, wct_seconds () - wct);
+  cpu = seconds () - cpu;
+  wct = wct_seconds () - wct;
+  printf ("   compute_R took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
   fflush (stdout);
+  cpu_t[1] += cpu;
+  wct_t[1] += wct;
 }
 
 typedef struct {
@@ -1216,7 +1230,7 @@ main (int argc, char *argv[])
     mat->cwmax = 2;
 
     /* initialize R[j] to NULL */
-#pragma omp parallel for    
+#pragma omp parallel for
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
@@ -1239,22 +1253,33 @@ main (int argc, char *argv[])
 	cost_list_t *L = cost_list_init (nthreads);
 	compute_merges (L, nthreads, mat);
 
+	cpu2 = seconds () - cpu2;
+	wct2 = wct_seconds () - wct2;
 	printf ("   compute_merges took %.1fs (cpu), %.1fs (wct)\n",
-		seconds () - cpu2, wct_seconds () - wct2);
+		cpu2, wct2);
 	fflush (stdout);
+	cpu_t[2] += cpu2;
+	wct_t[2] += wct2;
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
 	unsigned long nmerges = apply_merges (L, nthreads, mat, rep->outfile);
 
+	cpu3 = seconds () - cpu3;
+	wct3 = wct_seconds () - wct3;
 	printf ("   apply_merges took %.1fs (cpu), %.1fs (wct)\n",
-		seconds () - cpu3, wct_seconds () - wct3);
+		cpu3, wct3);
 	fflush (stdout);
+	cpu_t[3] += cpu3;
+	wct_t[3] += wct3;
 
 	cost_list_clear (L, nthreads);
 
-	printf ("   pass took %.1fs (cpu), %.1fs (wct)\n",
-		seconds () - cpu1, wct_seconds () - wct1);
+	cpu1 = seconds () - cpu1;
+	wct1 = wct_seconds () - wct1;
+	printf ("   pass took %.1fs (cpu), %.1fs (wct)\n", cpu1, wct1);
+	cpu_t[4] += cpu1;
+	wct_t[4] += wct1;
 
 	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM (pass %d)\n",
 		mat->rem_nrows, mat->tot_weight,
@@ -1270,6 +1295,8 @@ main (int argc, char *argv[])
 	  break;
       }
 
+    fclose_maybe_compressed (rep->outfile, outname);
+
     /* estimate N for W/N = target_density, assuming W/N = a*N + b */
     unsigned long N = mat->rem_nrows;
     double WoverN = (double) mat->tot_weight / (double) N;
@@ -1279,7 +1306,17 @@ main (int argc, char *argv[])
     printf ("Estimated N=%lu for W/N=%.2f\n",
 	    (unsigned long) ((target_density - b) / a), target_density);
 
-    fclose_maybe_compressed (rep->outfile, outname);
+    printf ("compute_weights: %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[0], wct_t[0]);
+    printf ("compute_R      : %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[1], wct_t[1]);
+    printf ("compute_merges : %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[2], wct_t[2]);
+    printf ("apply_merges   : %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[3], wct_t[3]);
+    printf ("pass           : %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[4], wct_t[4]);
+
 
     printf ("Final matrix has N=%lu nc=%lu (%lu) W=%lu\n", mat->rem_nrows,
 	    mat->rem_ncols, mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
