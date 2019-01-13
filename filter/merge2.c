@@ -198,8 +198,12 @@ static void
 compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
                          int nthreads)
 {
+  index_t j0, j1;
+  j0 = k * (mat->ncols / nthreads);
+  j1 = (k < nthreads - 1) ? (k+1) * (mat->ncols / nthreads) : mat->ncols;
   for (int l = 1; l < nthreads; l++)
-    for (index_t j = k; j < mat->ncols; j += nthreads)
+    // for (index_t j = k; j < mat->ncols; j += nthreads)
+    for (index_t j = j0; j < j1; j++)
       if (Wt[0][j] + Wt[l][j] <= mat->cwmax)
         Wt[0][j] += Wt[l][j];
       else
