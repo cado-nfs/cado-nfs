@@ -70,6 +70,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 double cpu_t[5] = {0};
 double wct_t[5] = {0};
 
+#define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
+
 static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "mat", "input purged file");
@@ -172,132 +174,81 @@ filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
-/********************** level-1 buckets (to compute weights) *************************/
-
-typedef struct
+/* threak k accumulates in Wt[k] all weights of rows = k mod nthreads */
+static void
+compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
+                         int nthreads)
 {
-  index_t *list;
-  unsigned long alloc;
-  unsigned long size;
-} bucket1_t;
+  Wt[k] = malloc (mat->ncols * sizeof (unsigned char));
+  unsigned char *wtk = Wt[k];
+  memset (wtk, 0, mat->ncols * sizeof (unsigned char));
+  for (index_t i = k; i < mat->nrows; i += nthreads)
+    if (mat->rows[i] != NULL)
+      for (uint32_t l = 1; l <= matLengthRow (mat, i); l++)
+        {
+          index_t j = matCell (mat, i, l);
+          if (wtk[j] <= mat->cwmax)
+            wtk[j] ++;
+        }
+}
 
-#define MARGIN 5 /* reallocate with increment 1/MARGIN */
-
-/* bucket B[k][j] contains buckets for thread k, with ideals = j mod nthreads */
-static bucket1_t**
-init_buckets1 (int nthreads, unsigned long tot_weight)
+/* thread k accumulates in Wt[0] all weights for j = k mod nthreads,
+   saturating at cwmax + 1 */
+static void
+compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
+                         int nthreads)
 {
-  bucket1_t **B;
-  unsigned long w = tot_weight / (nthreads * nthreads);
+  for (int l = 1; l < nthreads; l++)
+    for (index_t j = k; j < mat->ncols; j += nthreads)
+      if (Wt[0][j] + Wt[l][j] <= mat->cwmax)
+        Wt[0][j] += Wt[l][j];
+      else
+        Wt[0][j] = mat->cwmax + 1;
+}
 
-  w += w / MARGIN;
-  B = malloc (nthreads * sizeof (bucket1_t*));
+/* compute column weights (in fact, saturate to cwmax + 1 since we only need to
+   know whether the weights are <= cwmax or not) */
+static void
+compute_weights (filter_matrix_t *mat)
+{
+  int nthreads;
+  unsigned char **Wt;
+  double cpu = seconds (), wct = wct_seconds ();
+
+#pragma omp parallel
+#pragma omp master
+  nthreads = omp_get_num_threads ();
+
+  Wt = malloc (nthreads * sizeof (unsigned char*));
+
+  /* first thread k fills Wt[k] with rows = k mod nthreads */
+#pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
-    {
-      B[k] = malloc (nthreads * sizeof (bucket1_t));
-      for (int j = 0; j < nthreads; j++)
-	{
-	  B[k][j].list = malloc (w * sizeof (index_t));
-	  B[k][j].alloc = w;
-	  B[k][j].size = 0;
-	}
-    }
-  return B;
-}
+    compute_weights_thread1 (mat, Wt, k, nthreads);
 
-static void
-clear_buckets1 (bucket1_t **B, int nthreads)
-{
-#ifdef MEM
-  unsigned long mem = 0;
-#endif
+  /* then we accumulate all weights in Wt[0] */
+#pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
-    {
-      for (int j = 0; j < nthreads; j++)
-	{
-	  free (B[k][j].list);
-#ifdef MEM
-	  mem += B[k][j].alloc * sizeof (index_t);
-#endif
-	}
-      free (B[k]);
-#ifdef MEM
-      mem += nthreads * sizeof (bucket1_t);
-#endif
-    }
-  free (B);
-#ifdef MEM
-  mem += nthreads * sizeof (bucket1_t*);
-  printf ("****** init_buckets1 allocated %luM\n", mem >> 20);
-#endif
+    compute_weights_thread2 (mat, Wt, k, nthreads);
+
+  /* copy Wt[0] into wt */
+#pragma omp parallel for schedule(static)
+  for (index_t j = 0; j < mat->ncols; j++)
+    mat->wt[j] = Wt[0][j];
+
+  for (int k = 0; k < nthreads; k++)
+    free (Wt[k]);
+  free (Wt);
+
+  cpu = seconds () - cpu;
+  wct = wct_seconds () - wct;
+  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
+  fflush (stdout);
+  cpu_t[0] += cpu;
+  wct_t[0] += wct;
 }
 
-static void
-add_bucket1 (bucket1_t *Bi, index_t j, int nthreads)
-{
-  int jj = j % nthreads;
-
-  if (Bi[jj].size == Bi[jj].alloc)
-    {
-#ifdef DEBUG
-      printf ("reallocate Bi[%d] from %lu", jj, Bi[jj].alloc);
-#endif
-      Bi[jj].alloc += 1 + Bi[jj].alloc / MARGIN;
-#ifdef DEBUG
-      printf (" to %lu\n", Bi[jj].alloc);
-#endif
-      Bi[jj].list = realloc (Bi[jj].list, Bi[jj].alloc * sizeof (index_t));
-    }
-  ASSERT(Bi[jj].size < Bi[jj].alloc);
-  Bi[jj].list[Bi[jj].size] = j;
-  Bi[jj].size ++;
-}
-
-/* add ideals j for row i, where Bi = B[i % nthreads] */
-static void
-fill_buckets1 (bucket1_t *Bi, filter_matrix_t *mat, index_t i, int nthreads)
-{
-  if (mat->rows[i] == NULL) /* row was discarded */
-    return;
-  for (uint32_t k = 1; k <= matLengthRow (mat, i); k++)
-    {
-      index_t j = matCell (mat, i, k);
-      add_bucket1 (Bi, j, nthreads);
-    }
-}
-
-static void
-fill_buckets1_all (bucket1_t **B, filter_matrix_t *mat, index_t i, int nthreads)
-{
-  bucket1_t *Bi = B[i % nthreads];
-  while (i < mat->nrows)
-    {
-      fill_buckets1 (Bi, mat, i, nthreads);
-      i += nthreads;
-    }
-}
-
-/* Apply all buckets B[i][k] to compute the column weights. Since B[i][k] contains
-   ideals j such that j = k mod nthreads, and two threads use a different value of k,
-   this ensures there cannot be any conflict in incrementing mat->wt[j].
-   We saturate to cwmax+1, since we only need to know iff the weight is <= cwmax. */
-static void
-apply_buckets1_all (bucket1_t **B, filter_matrix_t *mat, index_t k, int nthreads)
-{
-  ASSERT(mat->cwmax < INT32_MAX);
-  for (int i = 0; i < nthreads; i++)
-    {
-      bucket1_t Bik = B[i][k];
-      for (unsigned long t = 0; t < Bik.size; t++)
-	{
-	  index_t j = Bik.list[t];
-	  if (mat->wt[j] <= mat->cwmax)
-	    mat->wt[j] ++;
-	}
-    }
-}
-
-/*************** level-2 buckets (to compute inverse matrix) *************************/
+/*************** level-2 buckets (to compute inverse matrix) *****************/
 
 typedef struct
 {
@@ -432,44 +383,6 @@ apply_buckets_all (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
       for (unsigned long t = 0; t < Bik.size; t++)
 	add_R_entry (mat, Bik.list[t].j, Bik.list[t].i);
     }
-}
-
-/* compute column weights (in fact, saturate to cwmax + 1 since we only need to
-   know whether the weights are <= cwmax or not) */
-static void
-compute_weights (filter_matrix_t *mat)
-{
-  int nthreads;
-  double cpu = seconds (), wct = wct_seconds ();
-
-  memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
-
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
-
-  /* we first compute buckets (j,i) where thread k processes rows i = k mod nthreads,
-     and bucket l corresponds to j = l mod nthreads */
-  bucket1_t **B;
-  B = init_buckets1 (nthreads, mat->tot_weight);
-  /* thread 0 deals with rows 0, n, 2n, ...;
-     thread 1 deals with rows 1, n+1, 2n+1, ...; and so on, where n = nthreads */
-#pragma omp parallel for
-  for (int k = 0; k < nthreads; k++)
-    fill_buckets1_all (B, mat, k, nthreads);
-
-#pragma omp parallel for schedule(static,1)
-  for (int k = 0; k < nthreads; k++)
-    apply_buckets1_all (B, mat, k, nthreads);
-
-  clear_buckets1 (B, nthreads);
-
-  cpu = seconds () - cpu;
-  wct = wct_seconds () - wct;
-  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
-  fflush (stdout);
-  cpu_t[0] += cpu;
-  wct_t[0] += wct;
 }
 
 /* return the total weight of the matrix */
@@ -730,7 +643,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 	 non deterministic, but does not matter since the merges are
 	 independent) */
       sprintf (s, "\n");
-      fprintf (out, s0);
+      fprintf (out, "%s", s0);
       remove_row (mat, imin);
       /* we can also free R[j] */
       free (mat->R[j]);
@@ -814,7 +727,7 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
       s = s0;
       for (int i = hmax; i >= 0; i--)
 	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0], j);
-      fprintf (out, s0);
+      fprintf (out, "%s", s0);
       remove_row (mat, ind[0]);
       return c;
     }
