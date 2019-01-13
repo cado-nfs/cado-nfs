@@ -23,8 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
  * in apply_merges, we can start applying merges before computing the full
    list of independent merges: see worker_thread or producer/consumer with
    OpenMP (suggestion of Pierrick Gaudry)
- * in compute_weights, we have some cache misses if thread k writes wt[j]
-   and thread k+1 writes wt[j+1]. Organize differently.
  * instead of counting the weight of all ideals in apply_merges, only take
    into account the weight of the larger ideals at the beginning of merge,
    to keep more k-merges with small k. For example we could only consider
@@ -187,7 +185,7 @@ compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
       for (uint32_t l = matLengthRow (mat, i); l >= 1; l--)
         {
           index_t j = matCell (mat, i, l);
-          if (j < j0)
+          if (j < j0) /* since ideals are sorted, all others will be < j0 too */
             break;
           else if (wtk[j - j0] <= mat->cwmax)
             wtk[j - j0] ++;
