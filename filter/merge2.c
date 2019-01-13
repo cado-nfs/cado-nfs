@@ -20,9 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 /* Possible improvements:
- * in compute_weights, only consider ideals of index >= threshold[cwmax],
-   where threshold[cwmax] is either guessed or computed at the first pass
-   (normally the weight of an ideal can only increase)
  * in apply_merges, we can start applying merges before computing the full
    list of independent merges: see worker_thread or producer/consumer with
    OpenMP (suggestion of Pierrick Gaudry)
@@ -174,21 +171,26 @@ filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
-/* threak k accumulates in Wt[k] all weights of rows = k mod nthreads */
+/* Threak k accumulates in Wt[k] all weights of rows = k mod nthreads.
+   We only consider ideals of index >= j0.
+   We put the weight of ideal j, j >= j0, in Wt[k][j-j0]. */
 static void
 compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
-                         int nthreads)
+                         int nthreads, index_t j0)
 {
-  Wt[k] = malloc (mat->ncols * sizeof (unsigned char));
+  index_t n = mat->ncols - j0;
+  Wt[k] = malloc (n * sizeof (unsigned char));
+  memset (Wt[k], 0, n * sizeof (unsigned char));
   unsigned char *wtk = Wt[k];
-  memset (wtk, 0, mat->ncols * sizeof (unsigned char));
   for (index_t i = k; i < mat->nrows; i += nthreads)
     if (mat->rows[i] != NULL)
-      for (uint32_t l = 1; l <= matLengthRow (mat, i); l++)
+      for (uint32_t l = matLengthRow (mat, i); l >= 1; l--)
         {
           index_t j = matCell (mat, i, l);
-          if (wtk[j] <= mat->cwmax)
-            wtk[j] ++;
+          if (j < j0)
+            break;
+          else if (wtk[j - j0] <= mat->cwmax)
+            wtk[j - j0] ++;
         }
 }
 
@@ -196,24 +198,55 @@ compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
    saturating at cwmax + 1 */
 static void
 compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
-                         int nthreads)
+                         int nthreads, index_t j0)
 {
-  index_t j0, j1;
-  j0 = k * (mat->ncols / nthreads);
-  j1 = (k < nthreads - 1) ? (k+1) * (mat->ncols / nthreads) : mat->ncols;
+  index_t t0, t1;
+  index_t n = mat->ncols - j0;
+  t0 = k * (n / nthreads);
+  t1 = (k < nthreads - 1) ? (k+1) * (n / nthreads) : n;
   for (int l = 1; l < nthreads; l++)
-    // for (index_t j = k; j < mat->ncols; j += nthreads)
-    for (index_t j = j0; j < j1; j++)
-      if (Wt[0][j] + Wt[l][j] <= mat->cwmax)
-        Wt[0][j] += Wt[l][j];
+    for (index_t t = t0; t < t1; t++)
+      if (Wt[0][t] + Wt[l][t] <= mat->cwmax)
+        Wt[0][t] += Wt[l][t];
       else
-        Wt[0][j] = mat->cwmax + 1;
+        Wt[0][t] = mat->cwmax + 1;
+}
+
+/* for 2 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
+   mat->wt[j] = w */
+static void
+compute_jmin (filter_matrix_t *mat, index_t *jmin)
+{
+  /* first initialize to ncols */
+  for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
+    jmin[w] = mat->ncols;
+
+#pragma omp parallel for
+  for (index_t j = 0; j < mat->ncols; j++)
+    {
+      int32_t w = mat->wt[j];
+      /* the condition j < jmin[w] is true only for the smallest j,
+         thus the critical part below is run at most MERGE_LEVEL_MAX times */
+      if (j < jmin[w])
+#pragma omp critical
+        jmin[w] = j;
+    }
+  jmin[0] = 1; /* to tell that jmin was initialized */
+  /* make jmin[w] = min(jmin[w'], 2 <= w' <= w) */
+  for (int w = 3; w <= MERGE_LEVEL_MAX; w++)
+    if (jmin[w-1] < jmin[w])
+      jmin[w] = jmin[w-1];
+#ifdef DEBUG
+  for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
+    printf ("jmin[%d]=%u ", w, jmin[w]);
+  printf ("\n");
+#endif
 }
 
 /* compute column weights (in fact, saturate to cwmax + 1 since we only need to
    know whether the weights are <= cwmax or not) */
 static void
-compute_weights (filter_matrix_t *mat)
+compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   int nthreads;
   unsigned char **Wt;
@@ -225,24 +258,47 @@ compute_weights (filter_matrix_t *mat)
 
   Wt = malloc (nthreads * sizeof (unsigned char*));
 
+  int saved_cwmax = 0;
+  index_t j0;
+  if (jmin[0] == 0) /* jmin was not initialized */
+    {
+      saved_cwmax = mat->cwmax;
+      /* set cwmax to MERGE_LEVEL_MAX to compute jmin[] below */
+      mat->cwmax = MERGE_LEVEL_MAX;
+      j0 = 0;
+    }
+  else
+    /* we only need to consider ideals of index >= j0, assuming the weight of
+       an ideal cannot decrease (except when decreasing to zero when merged) */
+    j0 = jmin[mat->cwmax];
+
   /* first thread k fills Wt[k] with rows = k mod nthreads */
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
-    compute_weights_thread1 (mat, Wt, k, nthreads);
+    compute_weights_thread1 (mat, Wt, k, nthreads, j0);
 
   /* then we accumulate all weights in Wt[0] */
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
-    compute_weights_thread2 (mat, Wt, k, nthreads);
+    compute_weights_thread2 (mat, Wt, k, nthreads, j0);
 
   /* copy Wt[0] into wt */
 #pragma omp parallel for schedule(static)
-  for (index_t j = 0; j < mat->ncols; j++)
-    mat->wt[j] = Wt[0][j];
+  for (index_t j = 0; j < j0; j++)
+    mat->wt[j] = mat->cwmax + 1;
+#pragma omp parallel for schedule(static)
+  for (index_t j = j0; j < mat->ncols; j++)
+    mat->wt[j] = Wt[0][j - j0];
 
   for (int k = 0; k < nthreads; k++)
     free (Wt[k]);
   free (Wt);
+
+  if (jmin[0] == 0) /* jmin was not initialized */
+    {
+      compute_jmin (mat, jmin);
+      mat->cwmax = saved_cwmax;
+    }
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
@@ -1181,6 +1237,10 @@ main (int argc, char *argv[])
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
+    /* jmin[w] for w <= MERGE_LEVEL_MAX is the smallest column of weight w
+       at beginning. */
+    index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
+
     int pass = 0;
     unsigned long lastN;
     double lastWoverN;
@@ -1191,7 +1251,7 @@ main (int argc, char *argv[])
 	lastN = mat->rem_nrows;
 	lastWoverN = (double) mat->tot_weight / (double) lastN;
 
-	compute_weights (mat);
+	compute_weights (mat, jmin);
 
 	compute_R (mat);
 
