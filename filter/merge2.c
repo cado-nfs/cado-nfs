@@ -1081,7 +1081,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
      over the number of possible merges exceeds some threshold */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
-      if (l->size == 0)
+      if (l->size == total_merges)
 	mat->cwmax ++;
     }
   else
