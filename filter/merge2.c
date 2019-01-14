@@ -1326,6 +1326,7 @@ main (int argc, char *argv[])
 
     printf ("Final matrix has N=%lu nc=%lu (%lu) W=%lu\n", mat->rem_nrows,
 	    mat->rem_ncols, mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
+    fflush (stdout);
 
     clearMat (mat);
 
