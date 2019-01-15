@@ -1075,12 +1075,13 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	}
   printf ("   found %lu independent merges out of %lu (cwmax=%d)\n",
 	  l->size, total_merges, mat->cwmax);
+  fflush (stdout);
 
   /* we increase cwmax only when the ratio of the number of independent merges
      over the number of possible merges exceeds some threshold */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
-      if (l->size == 0)
+      if (l->size == total_merges)
 	mat->cwmax ++;
     }
   else
@@ -1338,6 +1339,7 @@ main (int argc, char *argv[])
 
     printf ("Final matrix has N=%lu nc=%lu (%lu) W=%lu\n", mat->rem_nrows,
 	    mat->rem_ncols, mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
+    fflush (stdout);
 
     clearMat (mat);
 
