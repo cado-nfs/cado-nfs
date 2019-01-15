@@ -1077,22 +1077,13 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	  l->size, total_merges, mat->cwmax);
   fflush (stdout);
 
-  /* we increase cwmax only when the ratio of the number of independent merges
-     over the number of possible merges exceeds some threshold */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (l->size == total_merges)
 	mat->cwmax ++;
     }
   else
-    {
-#define THRESHOLD 0.05
-      if ((double) l->size / (double) total_merges > THRESHOLD)
-	{
-	  if (mat->cwmax < MERGE_LEVEL_MAX)
-	    mat->cwmax ++;
-	}
-    }
+    mat->cwmax ++;
 
   /* We notice that the apply_merge_aux() function does not scale well when
      the number of threads is large, this is due to too many concurrent calls
