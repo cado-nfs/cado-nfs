@@ -1167,25 +1167,30 @@ static unsigned long
 apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 {
   static int max_merge = 1;
+  static int cbound = BIAS;
   /* We first prepare a list of independent ideals of small cost to merge,
      i.e., all rows where those ideals appear are independent.
      This step is mono-thread. */
   mpz_t z; /* bit vector to detect rows not yet used */
   mpz_init (z);
 
+  cbound += 8;
+
   /* determine the largest cmax */
-  int cmax = largest_cmax (L, nthreads);
+  int cmax_max = cbound;
+  int cmin = INT_MAX, cmax = INT_MIN;
+  unsigned long csum = 0;
 
   /* first compute the total number of possible merges */
   unsigned long total_merges = 0;
-  for (int c = 0; c <= cmax; c++)
+  for (int c = 0; c <= cmax_max; c++)
     for (int i = 0; i < nthreads; i++)
       if (c <= (L+i)->cmax)
 	total_merges += (L+i)->size[c];
 
   merge_list_t l[1]; /* list of independent merges */
   merge_list_init (l);
-  for (int c = 0; c <= cmax; c++)
+  for (int c = 0; c <= cmax_max; c++)
     for (int i = 0; i < nthreads; i++)
       if (c <= (L+i)->cmax)
 	{
@@ -1207,11 +1212,17 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 		  for (int t = 0; t < w; t++)
 		    mpz_setbit (z, mat->R[j][t]);
 		  merge_list_add (l, j);
+                  if (c > cmax)
+                    cmax = c;
+                  if (c < cmin)
+                    cmin = c;
+                  csum += c;
 		}
 	    }
 	}
-  printf ("   found %lu independent merges out of %lu (cwmax=%d)\n",
-	  l->size, total_merges, mat->cwmax);
+  printf ("   found %lu/%lu independent merges (min %d, avg %d, max %d) [cwmax=%d]\n",
+	  l->size, total_merges, cmin - BIAS,
+          (int) (csum / l->size) - BIAS, cmax - BIAS, mat->cwmax);
   fflush (stdout);
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
