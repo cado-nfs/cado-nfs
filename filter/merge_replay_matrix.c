@@ -278,10 +278,11 @@ incrS (int w)
   return (w >= 0) ? w + 1 : w - 1;
 }
 
-/* initialize the sparse matrix mat */
+/* Initialize the sparse matrix mat.
+   If initR is 0, does not initialize R and the heap. */
 void
 initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
-         uint32_t nburied, uint32_t force_bury_below_index)
+         uint32_t nburied, uint32_t force_bury_below_index, int initR)
 {
   mat->keep  = keep;
   mat->mergelevelmax = maxlevel;
@@ -301,11 +302,16 @@ initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
   mat->wt = (int32_t *) malloc (mat->ncols * sizeof (int32_t));
   ASSERT_ALWAYS (mat->wt != NULL);
   memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
-  mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
-  ASSERT_ALWAYS(mat->R != NULL);
 
-  /* initialize the heap for heavy rows */
-  heap_init (mat->Heavy, mat->nrows, mat->mergelevelmax);
+  mat->initR = initR;
+  if (initR)
+    {
+      mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
+      ASSERT_ALWAYS(mat->R != NULL);
+
+      /* initialize the heap for heavy rows */
+      heap_init (mat->Heavy, mat->nrows, mat->mergelevelmax);
+    }
 }
 
 void
@@ -322,7 +328,8 @@ clearMat (filter_matrix_t *mat)
   free (mat->R);
 
   /* free the memory for the heap of heavy rows */
-  heap_clear (mat->Heavy);
+  if (mat->initR)
+    heap_clear (mat->Heavy);
 }
 
 #ifndef FOR_DL

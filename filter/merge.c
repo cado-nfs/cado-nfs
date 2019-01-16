@@ -197,7 +197,7 @@ main (int argc, char *argv[])
     ASSERT_ALWAYS(rep->outfile != NULL);
 
     /* Init structure containing the matrix and the heap of potential merges */
-    initMat (mat, maxlevel, keep, skip, force_bury_below_index);
+    initMat (mat, maxlevel, keep, skip, force_bury_below_index, 1);
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();

@@ -63,6 +63,7 @@ typedef struct {
   int wmstmax;
   int mkztype;           /* which type of count */
   heap Heavy;            /* heap for heavy rows */
+  int initR;             /* does initMat initialize R and heap? */
 } filter_matrix_t;
 
 #ifdef __cplusplus
@@ -72,7 +73,7 @@ extern "C" {
 #define compute_WN(mat) ((double) (mat)->rem_nrows * (double) (mat)->weight)
 #define compute_WoverN(mat) (((double)(mat)->weight)/((double)(mat)->rem_nrows))
 
-void initMat(filter_matrix_t *, int, uint32_t, uint32_t, uint32_t);
+void initMat(filter_matrix_t *, int, uint32_t, uint32_t, uint32_t, int);
 void clearMat (filter_matrix_t *mat);
 void fillmat(filter_matrix_t *mat);
 void filter_matrix_read (filter_matrix_t *, const char *);

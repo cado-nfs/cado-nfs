@@ -733,7 +733,7 @@ mpi_slave(report_t *rep, int mpi_rank, filter_matrix_t *mat, FILE *purgedfile, c
 	    jmax = (int32_t)buf[1];
 	    mpi_err2("A slave does not need to do too much things...\n... but has to treat C[%d..%d[\n", jmin, jmax);
 	    tt = seconds();
-	    initMat(mat, jmin, jmax);
+	    initMat(mat, jmin, jmax, 1);
 	    initWeightFromFile(mat, purgedfile);
 	    fclose_maybe_compressed(purgedfile, purgedname);
 	    fillSWAR(mat);

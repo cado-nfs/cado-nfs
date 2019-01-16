@@ -61,9 +61,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    1: compute_R
    2: compute_merges
    3: apply_merges
-   4: pass */
-double cpu_t[5] = {0};
-double wct_t[5] = {0};
+   4: pass
+   5: renumber */
+double cpu_t[6] = {0};
+double wct_t[6] = {0};
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
@@ -167,6 +168,138 @@ filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
 		       EARLYPARSE_NEED_INDEX, NULL, NULL);
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
+}
+
+/* set bit j of z to 1 for every ideal index j in relations = k mod nthreads */
+static void
+renumber_get_zk (mpz_t z, filter_matrix_t *mat, int k, int nthreads)
+{
+  for (index_t i = k; i < mat->nrows; i += nthreads)
+    for (uint32_t l = 1; l <= matLengthRow (mat, i); l++)
+      {
+        index_t j = matCell (mat, i, l);
+        mpz_setbit (z, j);
+      }
+}
+
+/* zk[0] <- zk[0] or zk[1] or zk[2] ... or zk[nthreads-1] */
+static void
+renumber_get_z_xor (mpz_t *zk, index_t ncols, int k, int nthreads)
+{
+  /* nlimbs is the total number of limbs of each zk[i] */
+  index_t nlimbs = (ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
+  /* m is the number of limbs processed by each thread */
+  index_t m = (nlimbs + nthreads - 1) / nthreads;
+  index_t i0 = k * m;
+  index_t i1 = i0 + m;
+  if (i1 > ncols)
+    i1 = ncols;
+  ASSERT_ALWAYS(i0 <= ncols);
+  ASSERT_ALWAYS(i0 <= i1);
+  mp_limb_t *z0 = zk[0]->_mp_d + i0;
+  for (int j = 1; j < nthreads; j++)
+    mpn_ior_n (z0, z0, zk[j]->_mp_d + i0, i1 - i0);
+}
+
+static void
+renumber_get_z (mpz_t z, filter_matrix_t *mat)
+{
+  int nthreads;
+  mpz_t *zk;
+
+#pragma omp parallel
+#pragma omp master
+  nthreads = omp_get_num_threads ();
+
+  zk = malloc (nthreads * sizeof (mpz_t));
+  for (int k = 0; k < nthreads; k++)
+    mpz_init2 (zk[k], mat->ncols);
+#pragma omp parallel for schedule(static,1)
+  for (int k = 0; k < nthreads; k++)
+    renumber_get_zk (zk[k], mat, k, nthreads);
+
+#pragma omp parallel for schedule(static,1)
+  for (int k = 0; k < nthreads; k++)
+    renumber_get_z_xor (zk, mat->ncols, k, nthreads);
+  /* normalize zk[0] */
+  index_t n = (mat->ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
+  while (n > 0 && zk[0]->_mp_d[n-1] == 0)
+    n --;
+  zk[0]->_mp_size = n;
+  mpz_swap (z, zk[0]);
+
+  for (int k = 0; k < nthreads; k++)
+    mpz_clear (zk[k]);
+  free (zk);
+}
+
+/* replace ideals j by p[j], for rows = k mod nthreads */
+static void
+renumber_mat_thread (filter_matrix_t *mat, index_t *p, int k, int nthreads)
+{
+  for (index_t i = k; i < mat->nrows; i += nthreads)
+    {
+      index_t *row = mat->rows[i];
+      for (uint32_t l = 1; l <= row[0]; l++)
+        row[l] = p[row[l]];
+    }
+}
+
+/* replace all ideals j by p[j] */
+static void
+renumber_mat (filter_matrix_t *mat, index_t *p)
+{
+  int nthreads;
+
+#pragma omp parallel
+#pragma omp master
+  nthreads = omp_get_num_threads ();
+
+#pragma omp parallel for schedule(static,1)
+  for (int k = 0; k < nthreads; k++)
+    renumber_mat_thread (mat, p, k, nthreads);
+}
+
+/* renumber the columns of mat to have consecutive indices 0..ncols-1 */
+static void
+renumber (filter_matrix_t *mat)
+{
+  double cpu = seconds (), wct = wct_seconds ();
+  mpz_t z; /* bit j of z is set if wt[j] > 0 */
+  mpz_init (z);
+
+  /* first compute the columns of weight > 0 */
+  renumber_get_z (z, mat);
+
+  /* now compute p[j] such that ideal j is renamed to p[j] <= j */
+  index_t *p = malloc (mat->ncols * sizeof (index_t));
+  index_t i = 0, j = 0;
+  while (1)
+    {
+      j = mpz_scan1 (z, j); /* next set bit */
+      if (j < mat->ncols)
+        p[j++] = i++;
+      else
+        break;
+    }
+  ASSERT_ALWAYS(i == mpz_popcount (z));
+
+  renumber_mat (mat, p);
+
+  free (p);
+  mpz_clear (z);
+
+  /* reset ncols */
+  mat->ncols = mat->rem_ncols = i;
+  printf ("exit renumber, ncols=%lu\n", mat->ncols);
+  fflush (stdout);
+
+  cpu = seconds () - cpu;
+  wct = wct_seconds () - wct;
+  printf ("   renumber took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
+  fflush (stdout);
+  cpu_t[5] += cpu;
+  wct_t[5] += wct;
 }
 
 /* Threak k accumulates in Wt[k] all weights of rows = k mod nthreads.
@@ -443,8 +576,9 @@ apply_buckets_all (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
     }
 }
 
+#if 0
 /* return the total weight of the matrix */
-static unsigned long MAYBE_UNUSED
+static unsigned
 get_tot_weight (filter_matrix_t *mat)
 {
   int nthreads;
@@ -466,6 +600,7 @@ get_tot_weight (filter_matrix_t *mat)
     }
   return tot_weight;
 }
+#endif
 
 /* return the total weight of all columns of weight <= cwmax */
 static unsigned long
@@ -556,7 +691,7 @@ typedef struct {
 } cost_list_t;
 
 /* return the largest ideal of row i (excepted j) */
-static index_t MAYBE_UNUSED
+static index_t
 largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
 {
   uint32_t k = matLengthRow (mat, i);
@@ -618,7 +753,8 @@ remove_row (filter_matrix_t *mat, index_t i)
   mat->rows[i] = NULL;
 }
 
-static void MAYBE_UNUSED
+#ifdef DEBUG
+static void
 printRow (filter_matrix_t *mat, index_t i)
 {
   int32_t k = matLengthRow (mat, i);
@@ -627,6 +763,7 @@ printRow (filter_matrix_t *mat, index_t i)
     printf (" %lu", (unsigned long) mat->rows[i][j]);
   printf ("\n");
 }
+#endif
 
 // #define TRACE_J 10637127
 
@@ -634,7 +771,7 @@ printRow (filter_matrix_t *mat, index_t i)
    if out is NULL: return the merge cost
    if out <> NULL: perform the merge, output to 'out' (history file),
                    and return the merge cost */
-static int32_t MAYBE_UNUSED
+static int32_t
 merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 {
   index_t imin, i;
@@ -714,7 +851,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
    Assume rep->type = 0.
    Return the number of characters written. */
 static int
-sreportn (char *str, index_signed_t *ind, int n, MAYBE_UNUSED index_t j)
+sreportn (char *str, index_signed_t *ind, int n)
 {
   char *str0 = str;
 
@@ -757,7 +894,7 @@ addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
 }
 
 /* compute full spanning tree */
-static int32_t MAYBE_UNUSED
+static int32_t
 merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
 {
   int32_t c;
@@ -784,7 +921,7 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
       int hmax = addFatherToSons2 (history, mat, w, ind, start, end);
       s = s0;
       for (int i = hmax; i >= 0; i--)
-	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0], j);
+	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0]);
       fprintf (out, "%s", s0);
       remove_row (mat, ind[0]);
       return c;
@@ -1083,7 +1220,10 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
 	mat->cwmax ++;
     }
   else
-    mat->cwmax ++;
+    {
+      if (mat->cwmax < MERGE_LEVEL_MAX)
+        mat->cwmax ++;
+    }
 
   /* We notice that the apply_merge_aux() function does not scale well when
      the number of threads is large, this is due to too many concurrent calls
@@ -1214,8 +1354,8 @@ main (int argc, char *argv[])
     rep->outfile = fopen_maybe_compressed (outname, "w");
     ASSERT_ALWAYS(rep->outfile != NULL);
 
-    /* Init structure containing the matrix and the heap of potential merges */
-    initMat (mat, MERGE_LEVEL_MAX, keep, skip, 0);
+    /* initialize the matrix structure */
+    initMat (mat, MERGE_LEVEL_MAX, keep, skip, 0, 0);
 
     /* we bury the 'skip' ideals of smallest index */
     mat->force_bury_below_index = skip;
@@ -1224,6 +1364,11 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read2 (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
+
+    renumber (mat);
+
+    mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
+    ASSERT_ALWAYS(mat->R != NULL);
 
     printf ("Using USE_MST=%d\n", USE_MST);
 
@@ -1316,6 +1461,8 @@ main (int argc, char *argv[])
     printf ("Estimated N=%lu for W/N=%.2f\n",
 	    (unsigned long) ((target_density - b) / a), target_density);
 
+    printf ("renumber       : %.1fs (cpu), %.1fs (wct)\n",
+	    cpu_t[5], wct_t[5]);
     printf ("compute_weights: %.1fs (cpu), %.1fs (wct)\n",
 	    cpu_t[0], wct_t[0]);
     printf ("compute_R      : %.1fs (cpu), %.1fs (wct)\n",
