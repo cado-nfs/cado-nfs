@@ -2002,7 +2002,7 @@ class WorkunitClient(object):
         # ret is false (if not ret).
         # Then we can search for a particular string in stderr as follows:
         # ret = processor.run_commands()
-        # if not ret and re.search("xyx", processor.stdio["stderr"][0]):
+        # if not ret and re.search("xyx", str(processor.stdio["stderr"][0])):
         #    output_something_to_some_log_file
         #    sys.exit(1)
         # this is useful if a given error always happens on a given machine
