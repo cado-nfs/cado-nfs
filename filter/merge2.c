@@ -1059,38 +1059,25 @@ add_cost (cost_list_t *l, index_t j, int32_t c)
 /* compute the merge costs for columns j = k mod nthreads */
 static void
 compute_merges_aux (cost_list_t *l, int k, int nthreads,
-			 filter_matrix_t *mat)
+		    filter_matrix_t *mat, int cbound)
 {
-#ifdef DEBUG
-  int32_t cmin = INT32_MAX, cmax = INT32_MIN;
-  unsigned long nmerges = 0;
-#endif
   for (index_t j = k; j < mat->ncols; j += nthreads)
     if (2 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
-	int32_t c = merge_cost_or_do (mat, j, NULL);
-	add_cost (l, j, c + BIAS);
-#ifdef DEBUG
-	if (c > cmax)
-	  cmax = c;
-	if (c < cmin)
-	  cmin = c;
-	nmerges ++;
-#endif
+	int32_t c = merge_cost_or_do (mat, j, NULL) + BIAS;
+	if (c <= cbound)
+	  add_cost (l, j, c);
       }
-#ifdef DEBUG
-#pragma omp critical
-  printf ("l[%d] has cmin=%d cmax=%d nmerges=%lu\n", k, cmin, cmax,
-	  nmerges);
-#endif
 }
 
+/* accumulate in L all merges of (biased) cost <= cbound */
 static void
-compute_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat)
+compute_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat,
+		int cbound)
 {
 #pragma omp parallel for schedule(static,1)
   for (int i = 0; i < nthreads; i++)
-    compute_merges_aux (L + i, i, nthreads, mat);
+    compute_merges_aux (L + i, i, nthreads, mat, cbound);
 
 #ifdef DEBUG
   unsigned long nmerges = 0;
@@ -1164,20 +1151,17 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
 
 /* return the number of merges applied */
 static unsigned long
-apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out)
+apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
+	      int cmax_max)
 {
   static int max_merge = 1;
-  static int cbound = BIAS;
   /* We first prepare a list of independent ideals of small cost to merge,
      i.e., all rows where those ideals appear are independent.
      This step is mono-thread. */
   mpz_t z; /* bit vector to detect rows not yet used */
   mpz_init (z);
 
-  cbound += 8;
-
   /* determine the largest cmax */
-  int cmax_max = cbound;
   int cmin = INT_MAX, cmax = INT_MIN;
   unsigned long csum = 0;
 
@@ -1403,9 +1387,20 @@ main (int argc, char *argv[])
     int pass = 0;
     unsigned long lastN;
     double lastWoverN;
+    int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
     while (1)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
+
+#define CBOUND_INCR 8
+	/* At each pass, we increase cbound to allow more merges.
+	   If one decreases CBOUND_INCR, the final matrix will be smaller,
+	   but merge will take more time.
+	   If one increases CBOUND_INCR, merge will be faster, but the final
+	   matrix will be larger.
+	   The value CBOUND_INCR=8 seems to give similar matrix sizes to what
+	   we got with the previous merge. */
+	cbound += CBOUND_INCR;
 
 	lastN = mat->rem_nrows;
 	lastWoverN = (double) mat->tot_weight / (double) lastN;
@@ -1417,7 +1412,7 @@ main (int argc, char *argv[])
 	double cpu2 = seconds (), wct2 = wct_seconds ();
 
 	cost_list_t *L = cost_list_init (nthreads);
-	compute_merges (L, nthreads, mat);
+	compute_merges (L, nthreads, mat, cbound);
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
@@ -1429,7 +1424,8 @@ main (int argc, char *argv[])
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
-	unsigned long nmerges = apply_merges (L, nthreads, mat, rep->outfile);
+	unsigned long nmerges = apply_merges (L, nthreads, mat, rep->outfile,
+					      cbound);
 
 	cpu3 = seconds () - cpu3;
 	wct3 = wct_seconds () - wct3;
