@@ -170,6 +170,7 @@ filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
+#ifndef FOR_DL
 /* set bit j of z to 1 for every ideal index j in relations = k mod nthreads */
 static void
 renumber_get_zk (mpz_t z, filter_matrix_t *mat, int k, int nthreads)
@@ -304,6 +305,7 @@ renumber (filter_matrix_t *mat)
   cpu_t[5] += cpu;
   wct_t[5] += wct;
 }
+#endif /* FOR_DL */
 
 /* Threak k accumulates in Wt[k] all weights of rows = k mod nthreads.
    We only consider ideals of index >= j0.
@@ -943,7 +945,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
    Assume rep->type = 0.
    Return the number of characters written. */
 static int
-sreportn (char *str, index_signed_t *ind, int n)
+sreportn (char *str, index_signed_t *ind, int n, MAYBE_UNUSED index_t j)
 {
   char *str0 = str;
 
@@ -953,6 +955,9 @@ sreportn (char *str, index_signed_t *ind, int n)
       if (i < n-1)
 	str += sprintf (str, " ");
     }
+#ifdef FOR_DL
+  str += sprintf (str, " #%lu", (unsigned long) j);
+#endif
   str += sprintf (str, "\n");
   return str - str0;
 }
@@ -1013,7 +1018,7 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
       int hmax = addFatherToSons2 (history, mat, w, ind, j, start, end);
       s = s0;
       for (int i = hmax; i >= 0; i--)
-	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0]);
+	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0], j);
       fprintf (out, "%s", s0);
       remove_row (mat, ind[0]);
       return c;
@@ -1456,7 +1461,10 @@ main (int argc, char *argv[])
     filter_matrix_read2 (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
+#ifndef FOR_DL
+    /* for the discrete logarithm, we need to keep the ideal indices */
     renumber (mat);
+#endif
 
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
