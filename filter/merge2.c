@@ -242,9 +242,9 @@ renumber_mat_thread (filter_matrix_t *mat, index_t *p, int k, int nthreads)
 {
   for (index_t i = k; i < mat->nrows; i += nthreads)
     {
-      index_t *row = mat->rows[i];
-      for (uint32_t l = 1; l <= row[0]; l++)
-        row[l] = p[row[l]];
+      typerow_t *row = mat->rows[i];
+      for (uint32_t l = 1; l <= rowCell(row,0); l++)
+        rowCell(row,l) = p[rowCell(row,l)];
     }
 }
 
@@ -699,14 +699,16 @@ largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
 {
   uint32_t k = matLengthRow (mat, i);
   ASSERT (k > 1);
-  index_t l = mat->rows[i][k];
-  return (l == j) ? mat->rows[i][k-1] : l;
+  index_t l = rowCell(mat->rows[i],k);
+  return (l == j) ? rowCell(mat->rows[i],k-1) : l;
 }
 
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
+#ifndef FOR_DL
 static int32_t
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
+         MAYBE_UNUSED index_t j)
 {
   uint32_t k1 = matLengthRow (mat, i1);
   uint32_t k2 = matLengthRow (mat, i2);
@@ -748,6 +750,93 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit)
   mat->rows[i1] = t0;
   return c;
 }
+#else /* FOR_DL: j is the ideal to be merged */
+static int32_t
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
+         MAYBE_UNUSED index_t j)
+{
+  /* first look for the exponents of j in i1 and i2 */
+  uint32_t k1 = matLengthRow (mat, i1);
+  uint32_t k2 = matLengthRow (mat, i2);
+  ideal_merge_t *r1 = mat->rows[i1];
+  ideal_merge_t *r2 = mat->rows[i2];
+  int e1 = 0, e2 = 0;
+  /* search by decreasing ideals as the ideal to be merged is likely large */
+  for (int l = k1; l >= 1; l--)
+    if (r1[l].id == j)
+      {
+        e1 = r1[l].e;
+        break;
+      }
+  for (int l = k2; l >= 1; l--)
+    if (r2[l].id == j)
+      {
+        e2 = r2[l].e;
+        break;
+      }
+
+  ASSERT (e1 != 0 && e2 != 0);
+
+  int d = (int) gcd_int64 ((int64_t) e1, (int64_t) e2);
+  e1 /= -d;
+  e2 /= d;
+  /* we will multiply row i1 by e2, and row i2 by e1 */
+
+  int32_t c = 0;
+  uint32_t t1 = 1, t2 = 1;
+
+  while (t1 <= k1 && t2 <= k2)
+    {
+      if (r1[t1].id == r2[t2].id)
+        {
+          /* if exponent do not cancel, add 1 to cost */
+          c += r1[t1].e * e2 + r2[t2].e * e1 != 0;
+          t1 ++, t2 ++;
+        }
+      else if (r1[t1].id < r2[t2].id)
+	t1 ++, c ++;
+      else
+	t2 ++, c ++;
+    }
+  c += (k1 + 1 - t1) + (k2 + 1 - t2);
+
+  if (doit == 0)
+    return c;
+
+  /* now perform the real merge */
+  ideal_merge_t *t, *t0;
+  t = malloc ((c + 1) * sizeof (ideal_merge_t));
+  t0 = t;
+  (*t++).id = c; /* length of the new relation */
+  t1 = t2 = 1;
+  while (t1 <= k1 && t2 <= k2)
+    {
+      if (r1[t1].id == r2[t2].id)
+        {
+          int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
+          if (e != 0) /* exponents do not cancel */
+            {
+              (*t).id = r1[t1].id;
+              (*t).e = e;
+              t ++;
+            }
+          t1 ++, t2 ++;
+        }
+      else if (r1[t1].id < r2[t2].id)
+        *t++ = r1[t1++];
+      else
+	*t++ = r2[t2++];
+    }
+  while (t1 <= k1)
+    *t++ = r1[t1++];
+  while (t2 <= k2)
+    *t++ = r2[t2++];
+  ASSERT (t0 + (c + 1) == t);
+  free (mat->rows[i1]);
+  mat->rows[i1] = t0;
+  return c;
+}
+#endif
 
 static void
 remove_row (filter_matrix_t *mat, index_t i)
@@ -814,7 +903,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 	{
 	  i = mat->R[j][k];
 	  if (i != imin)
-	    c += add_row (mat, i, imin, 0) - matLengthRow (mat, i);
+	    c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
 	}
       return c;
     }
@@ -829,7 +918,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 	  if (i != imin)
 	    {
 	      c -= matLengthRow (mat, i);
-	      add_row (mat, i, imin, 1);
+	      add_row (mat, i, imin, 1, j);
 	      c += matLengthRow (mat, i);
 	      s += sprintf (s, " %lu", (unsigned long) i);
 	    }
@@ -872,7 +961,7 @@ sreportn (char *str, index_signed_t *ind, int n)
    addRowsAndUpdate */
 static int
 addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
-		  filter_matrix_t *mat, int m, index_t *ind,
+		  filter_matrix_t *mat, int m, index_t *ind, index_t j,
 		  int *father, int *sons)
 {
   int i, s, t;
@@ -889,7 +978,7 @@ addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
       else
         history[i][1] = -(ind[s] + 1);
       // addRowsAndUpdate (mat, ind[t], ind[s], ideal);
-      add_row (mat, ind[t], ind[s], 1);
+      add_row (mat, ind[t], ind[s], 1, j);
       history[i][2] = ind[t];
       history[i][0] = 2;
     }
@@ -921,7 +1010,7 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
       for (int k = 0; k < w; k++)
 	c -= matLengthRow (mat, ind[k]);
       index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1];
-      int hmax = addFatherToSons2 (history, mat, w, ind, start, end);
+      int hmax = addFatherToSons2 (history, mat, w, ind, j, start, end);
       s = s0;
       for (int i = hmax; i >= 0; i--)
 	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0]);
