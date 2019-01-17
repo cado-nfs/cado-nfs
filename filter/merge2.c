@@ -194,8 +194,11 @@ renumber_get_z_xor (mpz_t *zk, index_t ncols, int k, int nthreads)
   index_t i1 = i0 + m;
   if (i1 > nlimbs)
     i1 = nlimbs;
-  ASSERT_ALWAYS(i0 <= nlimbs);
-  ASSERT_ALWAYS(i0 <= i1);
+  /* Warning: we can have i0 > nlimbs: take for example ncols=66242 with
+     nthreads=64, then we get nlimbs=1036. For k=63, we have i0 = 1071. */
+  if (i0 >= i1)
+    return;
+  /* now we have i0 < i1 <= nlimbs thus the mpn_ior_n call below is valid */
   mp_limb_t *z0 = zk[0]->_mp_d + i0;
   for (int j = 1; j < nthreads; j++)
     mpn_ior_n (z0, z0, zk[j]->_mp_d + i0, i1 - i0);
