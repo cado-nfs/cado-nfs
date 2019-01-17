@@ -192,9 +192,9 @@ renumber_get_z_xor (mpz_t *zk, index_t ncols, int k, int nthreads)
   index_t m = (nlimbs + nthreads - 1) / nthreads;
   index_t i0 = k * m;
   index_t i1 = i0 + m;
-  if (i1 > ncols)
-    i1 = ncols;
-  ASSERT_ALWAYS(i0 <= ncols);
+  if (i1 > nlimbs)
+    i1 = nlimbs;
+  ASSERT_ALWAYS(i0 <= nlimbs);
   ASSERT_ALWAYS(i0 <= i1);
   mp_limb_t *z0 = zk[0]->_mp_d + i0;
   for (int j = 1; j < nthreads; j++)
