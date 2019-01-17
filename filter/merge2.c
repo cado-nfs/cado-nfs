@@ -1204,9 +1204,13 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
 		}
 	    }
 	}
-  printf ("   found %lu/%lu independent merges (min %d, avg %d, max %d) [cwmax=%d]\n",
-	  l->size, total_merges, cmin - BIAS,
-          (int) (csum / l->size) - BIAS, cmax - BIAS, mat->cwmax);
+  if (l->size == 0)
+    printf ("   found 0/%lu independent merges [cwmax=%d]\n",
+	    total_merges, mat->cwmax);
+  else
+    printf ("   found %lu/%lu independent merges (min %d, avg %d, max %d) [cwmax=%d]\n",
+	    l->size, total_merges, cmin - BIAS,
+	    (int) (csum / l->size) - BIAS, cmax - BIAS, mat->cwmax);
   fflush (stdout);
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
