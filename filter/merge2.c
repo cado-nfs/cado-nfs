@@ -1028,6 +1028,23 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
 static int32_t
 merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
 {
+  /* deal with 1-merges separately */
+  if (mat->wt[j] == 1)
+    {
+      if (out == NULL)
+        return -3; /* ensure all 1-merges are processed before 2-merges with no
+                      cancellation */
+      else
+        {
+          char s[1024];
+          index_signed_t i = mat->R[j][0]; /* only row containing j */
+          sreportn (s, &i, 1, j);
+          fprintf (out, "%s", s);
+          remove_row (mat, i);
+          return -3;
+        }
+    }
+
 #if USE_MST == 0
   return merge_cost_or_do_classical (mat, j, out);
 #elif USE_MST == 1
@@ -1159,7 +1176,7 @@ compute_merges_aux (cost_list_t *l, int k, int nthreads,
 		    filter_matrix_t *mat, int cbound)
 {
   for (index_t j = k; j < mat->ncols; j += nthreads)
-    if (2 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
+    if (1 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
 	int32_t c = merge_cost_or_do (mat, j, NULL) + BIAS;
 	if (c <= cbound)
@@ -1449,6 +1466,17 @@ main (int argc, char *argv[])
     rep->type = 0;
     rep->outfile = fopen_maybe_compressed (outname, "w");
     ASSERT_ALWAYS(rep->outfile != NULL);
+
+    /* some explanation about the history file */
+    fprintf (rep->outfile, "# Every line starting with # is ignored.\n");
+    fprintf (rep->outfile, "# A line i1 i2 ... ik means that row i1 ");
+    fprintf (rep->outfile, "is added to i2, ..., ik, and row i1\n");
+    fprintf (rep->outfile, "# is removed afterwards ");
+    fprintf (rep->outfile, "(where row 0 is the first line in *.purged.gz).\n");
+#ifdef FOR_DL
+    fprintf (rep->outfile, "# A line ending with #j ");
+    fprintf (rep->outfile, "means that ideal of index j should be merged.\n");
+#endif
 
     /* initialize the matrix structure */
     initMat (mat, MERGE_LEVEL_MAX, keep, skip, 0, 0);
