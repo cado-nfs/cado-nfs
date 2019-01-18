@@ -708,6 +708,7 @@ largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
 #ifndef FOR_DL
+/* special code for factorization */
 static int32_t
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
          MAYBE_UNUSED index_t j)
@@ -815,7 +816,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
     {
       if (r1[t1].id == r2[t2].id)
         {
-          int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
+          int32_t e = e2 * r1[t1].e + e1 * r2[t2].e;
           if (e != 0) /* exponents do not cancel */
             {
               (*t).id = r1[t1].id;
@@ -825,14 +826,30 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
           t1 ++, t2 ++;
         }
       else if (r1[t1].id < r2[t2].id)
-        *t++ = r1[t1++];
+        {
+          (*t).id = r1[t1].id;
+          (*t).e = e2 * r1[t1].e;
+          t1 ++, t ++;
+        }
       else
-	*t++ = r2[t2++];
+        {
+          (*t).id = r2[t2].id;
+          (*t).e = e1 * r2[t2].e;
+          t2 ++, t ++;
+        }
     }
   while (t1 <= k1)
-    *t++ = r1[t1++];
+    {
+      (*t).id = r1[t1].id;
+      (*t).e = e2 * r1[t1].e;
+      t1 ++, t ++;
+    }
   while (t2 <= k2)
-    *t++ = r2[t2++];
+    {
+      (*t).id = r2[t2].id;
+      (*t).e = e1 * r2[t2].e;
+      t2 ++, t ++;
+    }
   ASSERT (t0 + (c + 1) == t);
   free (mat->rows[i1]);
   mat->rows[i1] = t0;
