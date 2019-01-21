@@ -1513,10 +1513,10 @@ main (int argc, char *argv[])
 
     printf ("Using USE_MST=%d\n", USE_MST);
 
-    printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
+    printf ("N=%" PRIu64 " W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
-	    (unsigned long) (PeakMemusage () >> 10));
+	    PeakMemusage () >> 10);
     fflush (stdout);
 
     mat->cwmax = 2;
@@ -1593,7 +1593,7 @@ main (int argc, char *argv[])
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
-		(unsigned long) (PeakMemusage () >> 10), ++pass);
+		PeakMemusage () >> 10, ++pass);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
