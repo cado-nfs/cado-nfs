@@ -1760,14 +1760,6 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             False
         ),
         (
-            "stats_tries",
-            int,
-            "0 0 0",
-            Statistics.add_list,
-            re.compile(r"# Stat: tried (\d+) ad-value\(s\), found (\d+) polynomial\(s\), (\d+) below maxnorm"),
-            False
-        ),
-        (
             "stats_total_time",
             float,
             "0",
