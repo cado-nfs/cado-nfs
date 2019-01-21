@@ -11,8 +11,6 @@ files.nodist
 files.unknown
 linalg/bwc/bind_threads.sh
 linalg/bwc/bwc.sty
-filter/merge_mpi.c
-filter/merge_mpi.h
 scripts/estimate_matsize.sh
 scripts/polsel_effort
 scripts/plot_params.sh

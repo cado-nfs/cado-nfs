@@ -17,22 +17,6 @@
 /***************** memory allocation on R[j] *********************************/
 
 static void
-mallocRj (filter_matrix_t *mat, index_t j, int32_t w)
-{
-  if (w == 0)
-    {
-      /* This can happen because we do not renumber columns in purge,
-	 thus the range of the j-values is larger than the number of
-	 columns. We simply ignore those columns. */
-      mat->R[j] = NULL;
-      return;
-    }
-  mat->R[j] = (index_t *) malloc((w + 1) * sizeof(index_t));
-  FATAL_ERROR_CHECK(mat->R[j] == NULL, "Cannot allocate memory");
-  mat->R[j][0] = 0; /* last index used */
-}
-
-static void
 reallocRj (filter_matrix_t *mat, index_t j, int32_t w)
 {
   mat->R[j] = (index_t *) realloc (mat->R[j], (w + 1) * sizeof(index_t));
@@ -78,23 +62,6 @@ comp_weight_function (int32_t w MAYBE_UNUSED, int maxlevel MAYBE_UNUSED)
 #endif
 }
 
-static void
-heap_init (heap H, index_t nrows, int maxlevel)
-{
-  H->list = malloc (nrows * sizeof (index_t));
-  FATAL_ERROR_CHECK(H->list == NULL, "Cannot allocate memory");
-  H->size = 0;
-  H->alloc = nrows;
-  H->index = malloc (nrows * sizeof (index_t));
-  FATAL_ERROR_CHECK(H->index == NULL, "Cannot allocate memory");
-  for (unsigned long i = 0; i < nrows; i++)
-    H->index[i] = UINT32_MAX;
-  for (int w = 0; w < 256; w++)
-    comp_weight[w] = comp_weight_function (w, maxlevel);
-  printf ("Using weight function lambda=%d for clique removal\n",
-          USE_WEIGHT_LAMBDA);
-}
-
 /* fill the heap of heavy rows */
 void
 heap_fill (filter_matrix_t *mat)
@@ -104,13 +71,6 @@ heap_fill (filter_matrix_t *mat)
       ASSERT_ALWAYS(mat->rows[i] != NULL);
       heap_push (mat->Heavy, mat, i);
     }
-}
-
-static void
-heap_clear (heap H)
-{
-  free (H->list);
-  free (H->index);
 }
 
 static float
@@ -281,8 +241,7 @@ incrS (int w)
 /* Initialize the sparse matrix mat.
    If initR is 0, does not initialize R and the heap. */
 void
-initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
-         uint32_t nburied, uint32_t force_bury_below_index, int initR)
+initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep, uint32_t skip)
 {
   mat->keep  = keep;
   mat->mergelevelmax = maxlevel;
@@ -290,8 +249,7 @@ initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
      the Markowitz queue is empty */
   mat->cwmax = 2;
   ASSERT_ALWAYS (mat->cwmax < 255); /* 255 is reserved for saturated values */
-  mat->nburied = nburied;
-  mat->force_bury_below_index = force_bury_below_index;
+  mat->skip = skip;
 
   mat->weight = 0;
   mat->tot_weight = 0;
@@ -302,16 +260,6 @@ initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep,
   mat->wt = (int32_t *) malloc (mat->ncols * sizeof (int32_t));
   ASSERT_ALWAYS (mat->wt != NULL);
   memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
-
-  mat->initR = initR;
-  if (initR)
-    {
-      mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
-      ASSERT_ALWAYS(mat->R != NULL);
-
-      /* initialize the heap for heavy rows */
-      heap_init (mat->Heavy, mat->nrows, mat->mergelevelmax);
-    }
 }
 
 void
@@ -326,94 +274,6 @@ clearMat (filter_matrix_t *mat)
   for (j = 0; j < mat->ncols; j++)
     freeRj (mat, j);
   free (mat->R);
-
-  /* free the memory for the heap of heavy rows */
-  if (mat->initR)
-    heap_clear (mat->Heavy);
-}
-
-#ifndef FOR_DL
-/* Renumber the non-zero columns to contiguous values [0, 1, 2, ...]
- * We can use this function only for factorization because in this case we do
- * not need the indexes of the columns (contrary to DL where the indexes of the
- * column are printed in the history file). */
-static void
-renumber_columns (filter_matrix_t *mat)
-{
-  index_t *p = NULL;
-
-  p = (index_t *) malloc (mat->ncols * sizeof (index_t));
-  ASSERT_ALWAYS (p != NULL);
-
-  /* first compute the mapping of column indices */
-  index_t h = 0;
-  for (uint64_t j = 0; j < mat->ncols; j++)
-  {
-    /* at this point wt[j] = 0 if ideal j never appears in relations,
-     * or wt[j] > 0 if ideal j appears in relations */
-    ASSERT(mat->wt[j] >= 0);
-    if (mat->wt[j] > 0)
-    {
-      /* index j is mapped to h, with h <= j */
-      p[j] = h;
-#if TRACE_COL >= 0
-      if (TRACE_COL == h || TRACE_COL == j)
-        printf ("TRACE_COL: column %lu is renumbered into %u\n", j, h);
-#endif
-      mat->wt[h] = mat->wt[j];
-      h++;
-    }
-  }
-  /* h should be equal to rem_ncols, which is the number of columns with
-   * non-zero weight */
-  ASSERT_ALWAYS(h + mat->nburied == mat->rem_ncols);
-
-  /* Realloc mat->wt */
-  mat->wt = realloc (mat->wt, h * sizeof (int32_t));
-  ASSERT_ALWAYS(mat->wt != 0);
-  /* Reset mat->ncols to behave as if they were no non-zero columns. */
-  mat->ncols = h;
-
-  /* apply mapping to the rows. As p is a non decreasing function, the rows are
-   * still sorted after this operation. */
-  for (uint64_t i = 0; i < mat->nrows; i++)
-    for (index_t j = 1; j <= matLengthRow(mat, i); j++)
-      {
-        index_t h = matCell (mat, i, j);
-        setCell (mat->rows[i], j, p[h], 1); /* for factorization, the exponent
-                                               does not matter */
-      }
-
-  free (p);
-}
-#endif
-
-/* initialize Rj[j] for light columns, i.e., for those of weight <= cwmax */
-static void
-initMatR (filter_matrix_t *mat)
-{
-  index_t h;
-  int32_t wmax = mat->cwmax;
-
-#ifndef FOR_DL
-  renumber_columns (mat);
-#endif
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for (h = 0; h < mat->ncols; h++)
-    {
-      int32_t w;
-      w = mat->wt[h];
-      if (w <= wmax)
-        mallocRj (mat, h, w);
-      else /* weight is larger than cwmax */
-        {
-          mat->wt[h] = -mat->wt[h]; // trick!!!
-          mat->R[h] = NULL;
-        }
-    }
 }
 
 static void
@@ -598,7 +458,7 @@ void * insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
     index_t h = rel->primes[i].h;
     mat->rem_ncols += (mat->wt[h] == 0);
     mat->wt[h] += (mat->wt[h] != SMAX(int32_t));
-    if (h < mat->force_bury_below_index) continue;
+    if (h < mat->skip) continue;
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
     /* For factorization, they should not be any multiplicity here.
@@ -636,218 +496,6 @@ void * insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
 int cmp_u64(const uint64_t * a, const uint64_t * b)
 {
     return (*a > *b) - (*b > *a);
-}
-
-void
-filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
-{
-  uint64_t nread, h;
-  char *fic[2] = {(char *) purgedname, NULL};
-
-  /* read all rels */
-  nread = filter_rels(fic, (filter_rels_callback_t) &insert_rel_into_table, mat,
-                      EARLYPARSE_NEED_INDEX, NULL, NULL);
-  ASSERT_ALWAYS(nread == mat->nrows);
-  mat->rem_nrows = nread;
-
-  /* print weight count */
-  uint64_t nbm[256], total;
-  total = weight_count (mat, nbm);
-  for (h = 1; h <= (uint64_t) mat->mergelevelmax; h++)
-    printf ("There are %" PRIu64 " column(s) of weight %" PRIu64 "\n", nbm[h], h);
-  printf ("Total %" PRIu64 " columns\n", total);
-  ASSERT_ALWAYS(mat->rem_ncols == mat->ncols - nbm[0]);
-
-  ASSERT_ALWAYS(mat->force_bury_below_index <= mat->nburied);
-
-  int weight_buried_is_exact = 1;
-  uint64_t weight_buried = 0;
-  uint64_t i;
-  uint64_t smallest_non_buried = mat->force_bury_below_index;
-  
-  /* number of columns to bury without counting those for which we
-   * already know which decision we'll take based on
-   * force_bury_below_index. Note that we mustn't count the empty columns
-   * in that range !
-   */
-  uint64_t empty_cols_in_force_bury_range = 0;
-  for(i = 0 ; i < mat->force_bury_below_index ; i++)
-      if (!mat->wt[i]) empty_cols_in_force_bury_range++;
-  uint64_t nburied2 = mat->nburied - (mat->force_bury_below_index - empty_cols_in_force_bury_range);
-
-  /* Bury heavy columns. The 'nburied' heaviest column are buried. */
-  /* Buried columns are not taken into account by merge. */
-  if (mat->nburied)
-  {
-      uint64_t *heaviest = NULL;
-      int32_t buried_min = SMAX(int32_t);
-
-      if (nburied2) {
-          heaviest = (uint64_t *) malloc (nburied2 * sizeof (uint64_t));
-          ASSERT_ALWAYS(heaviest != NULL);
-          for (i = 0; i < nburied2; i++)
-              heaviest[i] = UMAX(uint64_t);
-
-          /* Find the 'nburied2' heaviest columns among them which were not
-           * forced to be buried. */
-          for (i = mat->force_bury_below_index; i < mat->ncols; i++)
-          {
-              int32_t w_cur = mat->wt[i];
-              uint64_t j = nburied2;
-
-              while (j > 0 && (heaviest[j-1] == UMAX(uint64_t) ||
-                          w_cur > mat->wt[heaviest[j-1]]))
-              {
-                  if (j < nburied2)
-                      heaviest[j] = heaviest[j-1];
-                  j--;
-              }
-              if (j < nburied2)
-                  heaviest[j] = i;
-          }
-
-          int32_t buried_max = mat->wt[heaviest[0]];
-          buried_min = mat->wt[heaviest[nburied2-1]];
-
-          if (buried_max == SMAX(int32_t))
-              weight_buried_is_exact = 0;
-
-          /* Compute weight of buried part of the matrix. */
-          for (i = 0; i < mat->force_bury_below_index; i++)
-          {
-              int32_t w = mat->wt[i];
-              if (w > buried_max) buried_max = w;
-              weight_buried += w;
-#if DEBUG >= 1
-              fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n", i, w);
-#endif
-          }
-          for (i = 0; i < nburied2; i++)
-          {
-              int32_t w = mat->wt[heaviest[i]];
-              /* since we saturate the weights at 2^31-1, weight_buried might be less
-                 than the real weight of buried columns, however this can occur only
-                 when the number of rows exceeds 2^32-1 */
-              weight_buried += w;
-#if DEBUG >= 1
-              fprintf(stderr, "# Burying j=%" PRIu64 " (wt = %" PRId32 ")\n",
-                      heaviest[i], w);
-#endif
-          }
-
-          /* detect the smallest non-buried index. We can't do that
-           * online, because we don't keep track preciely enough of the
-           * time a column leaves the high score table.
-           *
-           * Note that we must pay attention to the columns which were
-           * taken out during singleton removal.
-           */
-          uint64_t *heaviest_indices = malloc(nburied2 * sizeof (uint64_t));
-          ASSERT_ALWAYS(heaviest_indices);
-          memcpy(heaviest_indices, heaviest, nburied2 * sizeof (uint64_t));
-          qsort(heaviest_indices, nburied2, sizeof(uint64_t), (int(*)(const void*,const void*))cmp_u64);
-          for(i = 0 ; i < nburied2 ; i++) {
-              for( ; smallest_non_buried < heaviest_indices[i] ; smallest_non_buried++)
-                  if (mat->wt[smallest_non_buried])
-                      break;
-              if (smallest_non_buried < heaviest_indices[i])
-                  break;
-              smallest_non_buried = heaviest_indices[i] + 1;
-          }
-          free(heaviest_indices);
-
-          printf("# Number of buried columns is %" PRId64 "+%" PRIu64 " (min_weight=%" PRId32 ", "
-                  "max_weight=%" PRId32 ")\n", mat->force_bury_below_index - empty_cols_in_force_bury_range, nburied2, buried_min, buried_max);
-      } else {
-          printf("# Number of buried columns is %" PRId64 "+0\n",
-                  mat->force_bury_below_index - empty_cols_in_force_bury_range);
-      }
-      printf ("# Index of the first non-buried column is %" PRIu64 " (weight %" PRId32 ")\n",
-              smallest_non_buried, mat->wt[smallest_non_buried]);
-    if (weight_buried_is_exact)
-      printf("# Weight of the buried part of the matrix: %" PRIu64 "\n",
-             weight_buried);
-    else /* weight_buried is only a lower bound */
-      printf("# Weight of the buried part of the matrix is >= %" PRIu64 "\n",
-             weight_buried);
-
-    /* Remove buried columns from rows in mat structure */
-    if (nburied2) {
-        printf("# Start to remove buried columns from rels...\n");
-        fflush (stdout);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-        for (i = 0; i < mat->nrows; i++)
-        {
-            unsigned int k = 1;
-            for (unsigned int j = 1; j <= matLengthRow(mat, i) ; j++)
-            {
-                index_t cur_id = matCell(mat, i, j);
-                int32_t w = mat->wt[cur_id];
-                unsigned int is_buried;
-                if (w < buried_min)
-                    is_buried = 0;
-                else if (w > buried_min)
-                    is_buried = 1;
-                else /* w == buried_min */
-                {
-                    unsigned int l = nburied2;
-                    is_buried = 0;
-                    while (l > 0 && w == mat->wt[heaviest[l-1]])
-                    {
-                        if (heaviest[l-1] == cur_id)
-                            is_buried = 1;
-                        l--;
-                    }
-                }
-                if (!is_buried) /* not a buried column */
-                {
-                    /* we can put any exponent since we don't bury columns in DL */
-                    setCell(mat->rows[i], k, cur_id, 1);
-                    k ++;
-                }
-            }
-            setCell(mat->rows[i], 0, k - 1, 1);
-            mat->rows[i] = reallocRow (mat->rows[i], k);
-        }
-        printf ("# Done\n");
-    }
-
-    /* reset to 0 the weight of the buried columns */
-    for (unsigned int j = 0; j < mat->force_bury_below_index; j++)
-      mat->wt[j] = 0;
-    for (unsigned int j = 0; j < nburied2; j++)
-      mat->wt[heaviest[j]] = 0;
-
-    /* compute the matrix weight */
-    mat->weight = 0;
-    for (i = 0; i < mat->nrows; i++)
-      mat->weight += matLengthRow(mat, i);
-
-    if (nburied2) free (heaviest);
-  }
-  else
-
-  {
-    printf("# No columns were buried.\n");
-    mat->weight = mat->tot_weight;
-  }
-  printf("# Weight of the active part of the matrix: %" PRIu64 "\n# Total "
-         "weight of the matrix: %" PRIu64 "\n", mat->weight, mat->tot_weight);
-  if (weight_buried_is_exact)
-    ASSERT_ALWAYS (mat->weight + weight_buried == mat->tot_weight);
-  else /* weight_buried is only a lower bound */
-    ASSERT_ALWAYS (mat->weight + weight_buried <= mat->tot_weight);
-
-  /* Allocate mat->R[h] if necessary */
-  initMatR (mat);
-
-  /* Re-read all rels (in memory) to fill-in mat->R */
-  printf("# Start to fill-in columns of the matrix...\n");
-  fflush (stdout);
-  fillR (mat);
-  printf ("# Done\n");
 }
 
 void

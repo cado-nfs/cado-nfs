@@ -47,9 +47,9 @@
 #define DEFAULT_MERGE_WMSTMAX 7 /* relevant only if mkztype == MKZTYPE_LIGHT */
 
 #ifndef FOR_DL
-#define DEFAULT_MERGE_SKIP 32
+#define DEFAULT_MERGE_SKIP 32 /* for factorization */
 #else
-#define DEFAULT_MERGE_SKIP 0
+#define DEFAULT_MERGE_SKIP 0  /* for discrete logarithm */
 #endif
 
 
