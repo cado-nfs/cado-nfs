@@ -2,6 +2,9 @@
 
 #include <string.h>
 #include <stdio.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #include "portability.h"
 #include "utils_with_io.h"
