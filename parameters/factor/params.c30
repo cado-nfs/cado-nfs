@@ -13,10 +13,10 @@ name = c30
 
 tasks.polyselect.degree=3
 
-tasks.polyselect.admax = 2000
+tasks.polyselect.admax = 5000
 tasks.polyselect.incr = 20
-tasks.polyselect.adrange = 1000
-tasks.polyselect.P = 500
+tasks.polyselect.adrange = 2500
+tasks.polyselect.P = 1000
 tasks.polyselect.nq = 3
 tasks.polyselect.nrkeep = 2
 tasks.polyselect.ropteffort = 1
