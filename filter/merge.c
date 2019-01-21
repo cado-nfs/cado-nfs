@@ -86,6 +86,20 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+static int
+get_num_threads (void)
+{
+  int nthreads;
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#pragma omp master
+  nthreads = omp_get_num_threads ();
+#else
+  nthreads = 1;
+#endif
+  return nthreads;
+}
+
 #ifndef FOR_DL
 /* sort row[0], row[1], ..., row[n-1] in non-decreasing order */
 static void
@@ -208,9 +222,7 @@ renumber_get_z (mpz_t z, filter_matrix_t *mat)
   int nthreads;
   mpz_t *zk;
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
   zk = malloc (nthreads * sizeof (mpz_t));
   for (int k = 0; k < nthreads; k++)
@@ -252,9 +264,7 @@ renumber_mat (filter_matrix_t *mat, index_t *p)
 {
   int nthreads;
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
@@ -385,9 +395,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   unsigned char **Wt;
   double cpu = seconds (), wct = wct_seconds ();
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
   Wt = malloc (nthreads * sizeof (unsigned char*));
 
@@ -586,9 +594,7 @@ get_tot_weight (filter_matrix_t *mat)
   int nthreads;
   unsigned long tot_weight = 0;
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
@@ -611,9 +617,7 @@ get_tot_weight_columns (filter_matrix_t *mat)
   int nthreads;
   unsigned long tot_weight = 0;
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
@@ -657,9 +661,7 @@ compute_R (filter_matrix_t *mat)
   printf ("****** compute_R allocated %luM\n", mem >> 20);
 #endif
 
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
+  nthreads = get_num_threads ();
 
   /* we first compute buckets (j,i) where thread k processes rows i = k mod nthreads,
      and bucket l corresponds to j = l mod nthreads */
