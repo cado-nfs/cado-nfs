@@ -1,4 +1,4 @@
-/* merge2 --- new merge program
+/* merge --- new merge program
 
 Copyright 2019 Paul Zimmermann.
 
@@ -77,6 +77,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
+  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "v", "verbose level");
   param_list_decl_usage(pl, "t", "number of threads");
 }
@@ -1434,6 +1435,7 @@ main (int argc, char *argv[])
 
     const char *purgedname = param_list_lookup_string (pl, "mat");
     const char *outname = param_list_lookup_string (pl, "out");
+    const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
 
     param_list_parse_int (pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
@@ -1462,6 +1464,8 @@ main (int argc, char *argv[])
       fprintf(stderr, "Error, missing -out command line argument\n");
       usage (pl, argv0);
     }
+
+    set_antebuffer_path (argv0, path_antebuffer);
 
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
