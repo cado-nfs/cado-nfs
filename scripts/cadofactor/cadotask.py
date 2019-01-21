@@ -3983,7 +3983,7 @@ class MergeDLPTask(Task):
     @property
     def programs(self):
         input = {"purged": Request.GET_PURGED_FILENAME}
-        return ((cadoprograms.MergeDLP, ("out", "keep"), input),
+        return ((cadoprograms.MergeDLP, ("out"), input),
                 (cadoprograms.ReplayDLP, ("ideals", "history", "index", "out"), input))
     @property
     def paramnames(self):
@@ -4015,7 +4015,6 @@ class MergeDLPTask(Task):
             historyfile = self.workdir.make_filename("history" + use_gz)
             (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.MergeDLP.name)
             p = cadoprograms.MergeDLP(out=historyfile,
-                                   keep=keep,
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
@@ -4097,14 +4096,13 @@ class MergeTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,  \
-            {"skip": None, "keep": None, "gzip": True})
+            {"skip": None, "gzip": True})
     
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         skip = int(self.progparams[0].get("skip", 32))
         self.progparams[0].setdefault("skip", skip)
-        self.progparams[0].setdefault("keep", skip + 128)
 
     def run(self):
         super().run()
