@@ -43,7 +43,6 @@
 #else /* for discrete log, a smaller density is better */
 #define DEFAULT_MERGE_TARGET_DENSITY 100.0
 #endif
-#define DEFAULT_MERGE_WMSTMAX 7
 
 #ifndef FOR_DL
 #define DEFAULT_MERGE_SKIP 32 /* for factorization */
