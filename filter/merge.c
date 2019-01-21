@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>  /* for _O_BINARY */
-#include <string.h> /* for strcmp */
+#include <gmp.h>    /* for mpn_ior_n */
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -292,7 +292,7 @@ renumber (filter_matrix_t *mat)
 
   /* reset ncols */
   mat->ncols = mat->rem_ncols = i;
-  printf ("exit renumber, ncols=%lu\n", mat->ncols);
+  printf ("exit renumber, ncols=%" PRIu64 "\n", mat->ncols);
   fflush (stdout);
 
   cpu = seconds () - cpu;
@@ -1466,12 +1466,12 @@ main (int argc, char *argv[])
 #if (__SIZEOF_INDEX__ == 4)
     if (mat->nrows >> 32)
       {
-	fprintf (stderr, "Error, nrows = %lu larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->nrows);
+	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->nrows);
 	exit (EXIT_FAILURE);
       }
     if (mat->ncols >> 32)
       {
-	fprintf (stderr, "Error, ncols = %lu larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->ncols);
+	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->ncols);
 	exit (EXIT_FAILURE);
       }
 #endif
@@ -1516,7 +1516,7 @@ main (int argc, char *argv[])
     printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
-	    PeakMemusage () >> 10);
+	    (unsigned long) PeakMemusage () >> 10);
     fflush (stdout);
 
     mat->cwmax = 2;
@@ -1589,11 +1589,11 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
-	printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM (pass %d)\n",
+	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM (pass %d)\n",
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10, ++pass);
+		(unsigned long) PeakMemusage () >> 10, ++pass);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
@@ -1628,8 +1628,9 @@ main (int argc, char *argv[])
 	    cpu_t[4], wct_t[4]);
 
 
-    printf ("Final matrix has N=%lu nc=%lu (%lu) W=%lu\n", mat->rem_nrows,
-	    mat->rem_ncols, mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
+    printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
+	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
+	    mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
     fflush (stdout);
 
     clearMat (mat);
