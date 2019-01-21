@@ -76,6 +76,7 @@ static void declare_usage(param_list pl)
                                     STR(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
+  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "v", "verbose level");
   param_list_decl_usage(pl, "t", "number of threads");
 }
@@ -1412,6 +1413,7 @@ main (int argc, char *argv[])
     argv++,argc--;
 
     param_list_configure_switch(pl, "v", &verbose);
+    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */
