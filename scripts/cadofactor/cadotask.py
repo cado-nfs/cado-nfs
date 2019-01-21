@@ -2253,7 +2253,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         
         if self.bestpoly is None:
             self.logger.error ("No polynomial found. Consider increasing the "
-                               "search range bound admax, or maxnorm")
+                               "search range bound admax")
             return False
         self.logger.info("Finished, best polynomial from file %s has Murphy_E "
                          "= %g", self.state["bestfile"] , self.bestpoly.MurphyE)
