@@ -1760,14 +1760,6 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             False
         ),
         (
-            "stats_tries",
-            int,
-            "0 0 0",
-            Statistics.add_list,
-            re.compile(r"# Stat: tried (\d+) ad-value\(s\), found (\d+) polynomial\(s\), (\d+) below maxnorm"),
-            False
-        ),
-        (
             "stats_total_time",
             float,
             "0",
@@ -2261,7 +2253,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         
         if self.bestpoly is None:
             self.logger.error ("No polynomial found. Consider increasing the "
-                               "search range bound admax, or maxnorm")
+                               "search range bound admax")
             return False
         self.logger.info("Finished, best polynomial from file %s has Murphy_E "
                          "= %g", self.state["bestfile"] , self.bestpoly.MurphyE)
