@@ -1516,7 +1516,7 @@ main (int argc, char *argv[])
     printf ("N=%lu W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
-	    (unsigned long) PeakMemusage () >> 10);
+	    (unsigned long) (PeakMemusage () >> 10));
     fflush (stdout);
 
     mat->cwmax = 2;
@@ -1593,7 +1593,7 @@ main (int argc, char *argv[])
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
-		(unsigned long) PeakMemusage () >> 10, ++pass);
+		(unsigned long) (PeakMemusage () >> 10), ++pass);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
