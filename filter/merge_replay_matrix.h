@@ -59,7 +59,6 @@ typedef struct {
                             to have a 32-bit table as long as the Markowitz
                             queue has less than 2^32 entries. */
   int wmstmax;
-  int mkztype;           /* which type of count */
   heap Heavy;            /* heap for heavy rows */
 } filter_matrix_t;
 
@@ -89,8 +88,6 @@ void print_row(filter_matrix_t *mat, index_t i);
 void freeRj(filter_matrix_t *mat, index_t j);
 void remove_i_from_Rj(filter_matrix_t *mat, index_t i, index_t j);
 void add_i_to_Rj(filter_matrix_t *mat, index_t i, index_t j);
-int decrS(int w);
-int incrS(int w);
 int weightSum(filter_matrix_t *mat, index_t i1, index_t i2, index_t j);
 void fillTabWithRowsForGivenj(index_t *ind, filter_matrix_t *mat, index_t j);
 void destroyRow(filter_matrix_t *mat, index_t i);

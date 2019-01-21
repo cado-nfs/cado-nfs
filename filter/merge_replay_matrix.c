@@ -11,7 +11,6 @@
 #include "filter_config.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"
-#include "markowitz.h"
 #include "mst.h"
 
 /***************** memory allocation on R[j] *********************************/
@@ -176,22 +175,6 @@ heap_pop (heap H, filter_matrix_t *mat MAYBE_UNUSED)
 }
 
 /*****************************************************************************/
-
-int
-decrS (int w)
-{
-  /* since MkzDecreaseColWeight is only called for mat->wt[j] >= 0
-     in removeCellAndUpdate(), we always have w >= 0 here */
-  ASSERT(w >= 0);
-  return w - 1;
-}
-
-/* increment the absolute value of a signed number */
-int
-incrS (int w)
-{
-  return (w >= 0) ? w + 1 : w - 1;
-}
 
 /* Initialize the sparse matrix mat.
    If initR is 0, does not initialize R and the heap. */

@@ -69,8 +69,6 @@ filter/singleton_removal.h
 filter/singleton_simple.cpp
 filter/clique_removal.cpp
 filter/clique_removal.h
-filter/markowitz.c
-filter/markowitz.h
 filter/merge.c
 filter/mst.c
 filter/mst.h

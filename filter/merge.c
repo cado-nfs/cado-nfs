@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "utils_with_io.h"
 #include "merge_replay_matrix.h" /* for filter_matrix_t */
 #include "report.h"     /* for report_t */
-#include "markowitz.h" /* for MkzInit */
 #include "sparse.h"
 #include "mst.h"
 
