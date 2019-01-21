@@ -1513,7 +1513,7 @@ main (int argc, char *argv[])
 
     printf ("Using USE_MST=%d\n", USE_MST);
 
-    printf ("N=%" PRIu64 " W=%lu W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
+    printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
@@ -1611,8 +1611,8 @@ main (int argc, char *argv[])
     double a = (lastWoverN - WoverN) / (double) (lastN - N);
     double b = WoverN - a * (double) N;
     /* we want target_density = a*N_target + b */
-    printf ("Estimated N=%lu for W/N=%.2f\n",
-	    (unsigned long) ((target_density - b) / a), target_density);
+    printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
+	    (uint64_t) ((target_density - b) / a), target_density);
 
     printf ("renumber       : %.1fs (cpu), %.1fs (wct)\n",
 	    cpu_t[5], wct_t[5]);
