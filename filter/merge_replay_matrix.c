@@ -179,9 +179,8 @@ heap_pop (heap H, filter_matrix_t *mat MAYBE_UNUSED)
 /* Initialize the sparse matrix mat.
    If initR is 0, does not initialize R and the heap. */
 void
-initMat (filter_matrix_t *mat, uint32_t keep, uint32_t skip)
+initMat (filter_matrix_t *mat, uint32_t skip)
 {
-  mat->keep  = keep;
   /* we start with cwmax = 2, and we increase it in mergeOneByOne() when
      the Markowitz queue is empty */
   mat->cwmax = 2;

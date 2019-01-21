@@ -70,15 +70,12 @@ static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
-  param_list_decl_usage(pl, "keep", "excess to keep (default "
-                                    STR(DEFAULT_FILTER_EXCESS) ")");
   param_list_decl_usage(pl, "skip", "number of heavy columns to bury (default "
                                     STR(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-  param_list_decl_usage(pl, "v", "verbose level");
   param_list_decl_usage(pl, "t", "number of threads");
 }
 
@@ -1396,7 +1393,6 @@ main (int argc, char *argv[])
     report_t rep[1];
 
     int nthreads = 1;
-    uint32_t keep = DEFAULT_FILTER_EXCESS;
     uint32_t skip = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
@@ -1408,12 +1404,10 @@ main (int argc, char *argv[])
     double cpu0 = seconds ();
     double wct0 = wct_seconds ();
     param_list pl;
-    int verbose = 0;
     param_list_init (pl);
     declare_usage(pl);
     argv++,argc--;
 
-    param_list_configure_switch(pl, "v", &verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
@@ -1442,7 +1436,6 @@ main (int argc, char *argv[])
     omp_set_num_threads (nthreads);
 #endif
 
-    param_list_parse_uint (pl, "keep", &keep);
     param_list_parse_uint (pl, "skip", &skip);
 
     param_list_parse_double (pl, "target_density", &target_density);
@@ -1500,7 +1493,7 @@ main (int argc, char *argv[])
 #endif
 
     /* initialize the matrix structure */
-    initMat (mat, keep, skip);
+    initMat (mat, skip);
 
     /* we bury the 'skip' ideals of smallest index */
     mat->skip = skip;

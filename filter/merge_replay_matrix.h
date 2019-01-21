@@ -44,7 +44,6 @@ typedef struct {
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
-  int64_t keep;        /* target for nrows-ncols */
   index_t **R;         /* R[j][k] contains the indices of the rows containing
                           the ideal of index j, 0 <= j < ncols,
                           1 <= k <= R[j][0], for weight(j) <= cwmax.
@@ -68,7 +67,7 @@ extern "C" {
 #define compute_WN(mat) ((double) (mat)->rem_nrows * (double) (mat)->weight)
 #define compute_WoverN(mat) (((double)(mat)->weight)/((double)(mat)->rem_nrows))
 
-void initMat(filter_matrix_t *, uint32_t, uint32_t);
+void initMat(filter_matrix_t *, uint32_t);
 void clearMat (filter_matrix_t *mat);
 void fillmat(filter_matrix_t *mat);
 void filter_matrix_read (filter_matrix_t *, const char *);
