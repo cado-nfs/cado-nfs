@@ -50,7 +50,6 @@ tasks.sieve.rels_wanted = 460000
 # Filtering
 ###########################################################################
 
-tasks.filter.maxlevel = 25
 tasks.filter.target_density = 100
 
 tasks.reconstructlog.partial=false

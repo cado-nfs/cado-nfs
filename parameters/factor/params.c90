@@ -308,8 +308,6 @@ tasks.filter.add_ratio = 0.1
     # Number of additional required relations before next filtering step
     # expressed as a ratio of the number of unique relations already collected
     # Default value is 0.1 (i.e. number of additional relation is equal to 10% of number of unique relations)
-# tasks.filter.maxlevel = 20		# perform up to <maxlevel>-way merges
-                                        # (no need to define it anymore)
 tasks.filter.target_density = 170       # stop merging when the average density
 				        # per row attains target_density
 tasks.filter.required_excess=0.0        # Controls extra sieving:

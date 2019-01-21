@@ -92,16 +92,6 @@ MkzUpQueue(index_t *Q, index_t *A, index_t k)
 #endif
 }
 
-static void
-MkzInsert(index_t *Q, index_t *A, index_t dj, index_t count)
-{
-    Q[0]++;
-    MkzSet(Q, Q[0], 0, dj);
-    MkzSet(Q, Q[0], 1, count);
-    A[dj] = Q[0];
-    MkzUpQueue(Q, A, Q[0]);
-}
-
 // Move Q[k] down, by keeping the structure of Q as a heap, i.e.,
 // each node has a smaller cost than its two left and right nodes
 static void
@@ -161,34 +151,6 @@ MkzMoveUpOrDown(index_t *Q, index_t *A, index_t k)
 #endif
 }
 
-// Remove (Q, A)[k].
-static void
-MkzDelete(index_t *Q, index_t *A, index_t k)
-{
-#if MKZ_DEBUG >= 1
-    fprintf(stderr, "MKZ: deleting (Q, A)[%d]=[%d, %d]\n", k,
-	    MkzGet(Q, k, 0), MkzGet(Q, k, 1));
-#endif
-    // we put Q[Q[0]] in Q[k]
-    MkzAssign (Q, A, k, Q[0]);
-    Q[0]--;
-    MkzMoveUpOrDown(Q, A, k);
-}
-
-#if 0
-// Remove (Q, A)[k].
-void
-MkzRemove(index_t *dj, index_t *mkz, index_t *Q, uint32_t *A, index_t k)
-{
-    *dj = MkzGet(Q, k, 0);
-    *mkz = MkzGet(Q, k, 1);
-    A[*dj] = MKZ_INF;
-    MkzAssign(Q, A, k, Q[0]);
-    Q[0]--;
-    MkzMoveUpOrDown(Q, A, k);
-}
-#endif
-
 #if MKZ_DEBUG >= 1
 static int MAYBE_UNUSED
 MkzIsHeap(index_t *Q)
@@ -212,28 +174,6 @@ MkzIsHeap(index_t *Q)
 	}
     }
     return 1;
-}
-#endif
-
-#if MKZ_DEBUG >= 1
-static void
-MkzCheck(filter_matrix_t *mat)
-{
-  uint64_t dj;
-  int maxlevel = mat->mergelevelmax;
-
-  for(dj = 0; dj < mat->ncols; dj++)
-  {
-    if (0 < mat->wt[dj] && mat->wt[dj] <= maxlevel)
-	  {
-      if(MkzGet(mat->MKZQ, mat->MKZA[dj], 0) != (index_t) dj)
-      {
-        fprintf(stderr, "GASP: %" PRId32 " <> %" PRIu64 " in MkzCheck\n",
-                        MkzGet(mat->MKZQ, mat->MKZA[dj], 0), dj);
-        exit (1);
-      }
-    }
-  }
 }
 #endif
 
@@ -331,115 +271,6 @@ MkzCount(filter_matrix_t *mat, index_t j)
   return cost;
 }
 
-/* pop the top element from the heap, return 0 iff heap is empty */
-int
-MkzPopQueue(index_t *dj, index_signed_t *mkz, filter_matrix_t *mat)
-{
-  index_t *Q = mat->MKZQ;
-  index_t *A = mat->MKZA;
-
-  if (Q[0] == 0)
-    return 0;
-
-  /* Q[0] contains the number of items in Q[], thus the first element is
-     stored in Q[2..3] */
-  *dj = MkzGet(Q, 1, 0);
-  *mkz = MkzGet(Q, 1, 1);
-  while (mat->wt[*dj] > mat->mergelevelmax)
-    {
-      /* remove heavy column */
-      MkzDelete (Q, A, 1);
-      A[*dj] = MKZ_INF;
-
-      if (MkzQueueCardinality (mat) == 0)
-        return 0;
-
-      *dj = MkzGet(Q, 1, 0);
-      *mkz = MkzGet(Q, 1, 1);
-    }
-  A[*dj] = MKZ_INF; /* already done in MkzRemoveJ, but if we don't do it,
-                       we get A[j1]=A[j2] for some j1 <> j2 */
-  if (Q[0] > 1)
-    {
-      MkzAssign(Q, A, 1, Q[0]); /* move entry of index Q[0] to index 1 */
-      MkzDownQueue(Q, A, 1);    /* reorder heap structure */
-    }
-  Q[0]--;                   /* decrease number of entries in Q,A */
-  return 1;
-}
-
-void
-MkzInit (filter_matrix_t *mat, int verbose)
-{
-    int32_t *mkz;
-    index_t j;
-    uint64_t sz = 0;
-    int maxlevel = mat->mergelevelmax;
-
-#if MKZ_TIMINGS
-    tmkzup = tmkzdown = tmkzupdown = tmkzcount = 0.0;
-#endif
-    if (verbose)
-      {
-        printf ("Entering initMarkowitz (type=%d", mat->mkztype);
-        if (mat->mkztype == MKZTYPE_LIGHT)
-          printf (", wmstmax=%d", mat->wmstmax);
-        printf (")\n");
-      }
-
-    // compute number of eligible columns in the heap
-    for (j = 0; j < mat->ncols; j++)
-      if (0 < mat->wt[j] && mat->wt[j] <= maxlevel)
-        sz++;
-
-    // Allocating heap MKZQ
-    size_t tmp_alloc = (sz + 1) * 2 * sizeof(index_t);
-    if (verbose)
-      printf ("Allocating heap for %" PRIu64 " columns (%zuMB)\n", sz,
-              tmp_alloc >> 20);
-    mat->MKZQ = (index_t *) malloc (tmp_alloc);
-    ASSERT_ALWAYS(mat->MKZQ != NULL);
-    mat->MKZQ[0] = 0;
-    mat->MKZQ[1] = (index_t) sz; // why not?
-    
-    // every j needs a pointer (MKZA)
-    tmp_alloc = (mat->ncols + 1) * sizeof(index_t);
-    if (verbose)
-      printf ("Allocating pointers to heap: %zuMB\n",
-              tmp_alloc >> 20);
-    mat->MKZA = (index_t *) malloc (tmp_alloc);
-    ASSERT_ALWAYS(mat->MKZA != NULL);
-
-    mkz = malloc (mat->ncols * sizeof (int32_t));
-    ASSERT_ALWAYS(mkz != NULL);
-
-    /* since the computation of the Markowitz cost is read-only,
-       we can perform it in parallel */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-    for(j = 0; j < mat->ncols; j++)
-      if (0 < mat->wt[j] && mat->wt[j] <= maxlevel)
-        mkz[j] = MkzCount(mat, j);
-      else
-        mkz[j] = INT32_MIN;
-
-    /* insertion in the heap cannot be done in parallel */
-    for(j = 0; j < mat->ncols; j++)
-      if (mkz[j] != INT32_MIN)
-        MkzInsert(mat->MKZQ, mat->MKZA, j, mkz[j]);
-      else
-        mat->MKZA[j] = MKZ_INF;
-
-    free (mkz);
-    
-#if MKZ_DEBUG >= 1
-    MkzCheck(mat);
-    fprintf(stderr, "Initial queue is\n");
-    MkzPrintQueue(mat->MKZQ);
-#endif
-}
-
 void
 MkzClear (filter_matrix_t *mat, int verbose)
 {
@@ -533,27 +364,4 @@ MkzDecreaseColWeight(filter_matrix_t *mat, index_t j)
     fprintf(stderr, "Decreasing col %d; was %d\n", j, mat->wt[dj]);
 #endif
     mat->wt[dj] = decrS(mat->wt[dj]);
-}
-
-/* remove column j from and update matrix */
-void
-MkzRemoveJ(filter_matrix_t *mat, index_t j)
-{
-    mat->wt[j] = 0;
-
-    /* This can happen when maxlevel < weight[j] <= cwmax initially, thus
-       A[j] was initialized to MKZ_INF, but because of a merge it becomes
-       larger than cwmax. */
-    if (mat->MKZA[j] == MKZ_INF)
-      return;
-
-#if MKZ_DEBUG >= 1
-    fprintf(stderr, "Removing col %d of weight %d\n", j, mat->wt[j]);
-#endif
-    // remove j from the QA structure
-    MkzDelete (mat->MKZQ, mat->MKZA, mat->MKZA[j]);
-    mat->MKZA[j] = MKZ_INF;
-#if MKZ_DEBUG >= 1
-    MkzIsHeap(mat->MKZQ);
-#endif
 }

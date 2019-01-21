@@ -45,7 +45,6 @@ typedef struct {
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
   int64_t keep;        /* target for nrows-ncols */
-  int mergelevelmax;   /* says it */
   index_t **R;         /* R[j][k] contains the indices of the rows containing
                           the ideal of index j, 0 <= j < ncols,
                           1 <= k <= R[j][0], for weight(j) <= cwmax.
@@ -71,7 +70,7 @@ extern "C" {
 #define compute_WN(mat) ((double) (mat)->rem_nrows * (double) (mat)->weight)
 #define compute_WoverN(mat) (((double)(mat)->weight)/((double)(mat)->rem_nrows))
 
-void initMat(filter_matrix_t *, int, uint32_t, uint32_t);
+void initMat(filter_matrix_t *, uint32_t, uint32_t);
 void clearMat (filter_matrix_t *mat);
 void fillmat(filter_matrix_t *mat);
 void filter_matrix_read (filter_matrix_t *, const char *);
@@ -97,7 +96,6 @@ void fillTabWithRowsForGivenj(index_t *ind, filter_matrix_t *mat, index_t j);
 void destroyRow(filter_matrix_t *mat, index_t i);
 void heap_fill (filter_matrix_t *mat);
 void heap_push (heap H, filter_matrix_t *mat, index_t i);
-void heap_delete (heap H, filter_matrix_t *mat, index_t i);
 index_t heap_pop (heap H, filter_matrix_t *mat);
 void recomputeR (filter_matrix_t *mat);
 

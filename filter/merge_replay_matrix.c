@@ -37,31 +37,6 @@ freeRj (filter_matrix_t *mat, index_t j)
    to comp_weight_function */
 static float comp_weight[256];
 
-static inline float
-comp_weight_function (int32_t w MAYBE_UNUSED, int maxlevel MAYBE_UNUSED)
-{
-#define USE_WEIGHT_LAMBDA 0 /* LAMBDA = 0 seems to be better */
-#if USE_WEIGHT_LAMBDA == 0
-  /* we only count ideals of weight > maxlevel, assuming all those of weight
-     <= maxlevel will be merged */
-    return (w <= maxlevel) ? 0.0 : 1.0;
-#elif USE_WEIGHT_LAMBDA == 1
-    return powf (2.0 / 3.0, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 2
-    return powf (0.5, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 3
-    return powf (0.8, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 4
-    return 1.0 / log2f ((float) w);
-#elif USE_WEIGHT_LAMBDA == 5
-    return 2.0 / (float) w;
-#elif USE_WEIGHT_LAMBDA == 6
-    return 4.0 / (float) (w * w);
-#else
-#error "Invalid value of USE_WEIGHT_LAMBDA"
-#endif
-}
-
 /* fill the heap of heavy rows */
 void
 heap_fill (filter_matrix_t *mat)
@@ -136,26 +111,6 @@ moveDown (heap H, filter_matrix_t *mat, index_t n)
     }
   H->list[n] = i;
   H->index[i] = n;
-}
-
-/* remove relation i from heap */
-void
-heap_delete (heap H, filter_matrix_t *mat, index_t i)
-{
-  index_t n = H->index[i];
-
-  ASSERT(H->size > 0);
-
-  /* here, the row of cell n of the heap is invalid */
-
-  /* put last entry in position n (if not already last) */
-  H->size --;
-  if (n < H->size)
-    {
-      H->list[n] = H->list[H->size];
-      /* adjust heap */
-      moveDown (H, mat, n);
-    }
 }
 
 /* 1,2 -> 0, 3,4 -> 1, 5,6 -> 2, ... */
@@ -241,10 +196,9 @@ incrS (int w)
 /* Initialize the sparse matrix mat.
    If initR is 0, does not initialize R and the heap. */
 void
-initMat (filter_matrix_t *mat, int maxlevel, uint32_t keep, uint32_t skip)
+initMat (filter_matrix_t *mat, uint32_t keep, uint32_t skip)
 {
   mat->keep  = keep;
-  mat->mergelevelmax = maxlevel;
   /* we start with cwmax = 2, and we increase it in mergeOneByOne() when
      the Markowitz queue is empty */
   mat->cwmax = 2;
@@ -276,77 +230,6 @@ clearMat (filter_matrix_t *mat)
   free (mat->R);
 }
 
-static void
-recompute_weights (filter_matrix_t *mat)
-{
-  uint64_t i, h;
-
-  /* reset the weights to zero */
-  memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
-
-  /* recompute the weights */
-  for (i = 0; i < mat->nrows; i++)
-    if (mat->rows[i] != NULL) /* row is still active */
-      for (unsigned int k = 1 ; k <= matLengthRow(mat, i); k++)
-        {
-          h = matCell(mat, i, k);
-          mat->wt[h] ++;
-        }
-}
-
-static void
-reinitMatR (filter_matrix_t *mat)
-{
-  index_t h;
-  int32_t wmax = mat->cwmax;
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for (h = 0; h < mat->ncols; h++)
-    {
-      int32_t w;
-      w = mat->wt[h];
-      if (w <= wmax)
-        {
-          reallocRj (mat, h, w);
-          mat->R[h][0] = 0; /* we reset the weights to 0 */
-        }
-      else /* weight is larger than cwmax */
-        {
-          mat->wt[h] = -mat->wt[h]; // trick!!!
-          /* If w > wmax, since wmax is only increasing, we have already
-             destroyed the column before, thus mat->R[h] should be NULL. */
-          ASSERT(mat->R[h] == NULL);
-        }
-    }
-}
-
-static void
-fillR (filter_matrix_t *mat)
-{
-  uint64_t i, h;
-
-  for (i = 0; i < mat->nrows; i++)
-    if (mat->rows[i] != NULL) /* row i is still active */
-      for (unsigned int k = 1 ; k <= matLengthRow(mat, i); k++)
-        {
-          h = matCell(mat, i, k);
-          if (mat->wt[h] > 0)
-            {
-              ASSERT(mat->R[h] != NULL);
-              mat->R[h][0]++;
-              mat->R[h][mat->R[h][0]] = i;
-            }
-        }
-
-#if TRACE_COL >= 0
-  h = TRACE_COL;
-  printf ("TRACE_COL: weight of ideal %lu is %d\n", h, mat->wt[h]);
-  ASSERT_ALWAYS(mat->wt[h] <= 0 || (uint32_t) mat->wt[h] == mat->R[h][0]);
-#endif
-}
-
 /* Put in nbm[w] for 0 <= w < 256, the number of ideals of weight w.
    Return the number of active columns (w > 0). */
 unsigned long
@@ -363,31 +246,6 @@ weight_count (filter_matrix_t *mat, uint64_t *nbm)
       active += mat->wt[h] > 0;
     }
   return active;
-}
-
-void
-recomputeR (filter_matrix_t *mat)
-{
-#ifdef TIMINGS
-  trecomputeR -= seconds ();
-#endif
-
-  /* recompute the column weights */
-  recompute_weights (mat);
-
-  /* re-allocate the matrix R */
-  reinitMatR (mat);
-
-  /* fill the matrix R */
-  fillR (mat);
-
-  /* recompute the Markowitz structure */
-  MkzClear (mat, 0);
-  MkzInit (mat, 0);
-
-#ifdef TIMINGS
-  trecomputeR += seconds ();
-#endif
 }
 
 void

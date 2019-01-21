@@ -53,7 +53,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "merge_replay_matrix.h" /* for filter_matrix_t */
 #include "report.h"     /* for report_t */
 #include "markowitz.h" /* for MkzInit */
-#include "merge_mono.h" /* for mergeOneByOne */
 #include "sparse.h"
 #include "mst.h"
 
@@ -979,12 +978,12 @@ sreportn (char *str, index_signed_t *ind, int n, MAYBE_UNUSED index_t j)
   return str - str0;
 }
 
-/* Same as addFatherToSons() from merge_mono.c, but uses add_row instead of
-   addRowsAndUpdate */
+/* Perform the row additions given by the minimal spanning tree (stored in
+   history[][]). */
 static int
-addFatherToSons2 (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
-		  filter_matrix_t *mat, int m, index_t *ind, index_t j,
-		  int *father, int *sons)
+addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
+                 filter_matrix_t *mat, int m, index_t *ind, index_t j,
+                 int *father, int *sons)
 {
   int i, s, t;
 
@@ -1032,7 +1031,7 @@ merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
       for (int k = 0; k < w; k++)
 	c -= matLengthRow (mat, ind[k]);
       index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1];
-      int hmax = addFatherToSons2 (history, mat, w, ind, j, start, end);
+      int hmax = addFatherToSons (history, mat, w, ind, j, start, end);
       s = s0;
       for (int i = hmax; i >= 0; i--)
 	s += sreportn (s, (index_signed_t*) (history[i]+1), history[i][0], j);
@@ -1496,7 +1495,7 @@ main (int argc, char *argv[])
 #endif
 
     /* initialize the matrix structure */
-    initMat (mat, MERGE_LEVEL_MAX, keep, skip);
+    initMat (mat, keep, skip);
 
     /* we bury the 'skip' ideals of smallest index */
     mat->skip = skip;

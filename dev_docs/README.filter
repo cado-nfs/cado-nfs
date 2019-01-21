@@ -12,7 +12,7 @@ purge -poly <poly_file> -nrels <n> <rel_file>  >  <purged_file>
      index_in_rel_file nb_of_entries ncol_1 ncol_2 ...
      ...
 
-merge -prune <p> -merge <m> -mat <purged_file> -maxlevel <l> -cwmax <c> -rwmax <r> [-v] > <history_file>
+merge -prune <p> -merge <m> -mat <purged_file> -cwmax <c> -rwmax <r> [-v] > <history_file>
   Perform the merging. Keep the info in the history file, that contains on each
   line the indices of two rows to be added.
 

@@ -72,8 +72,6 @@ filter/clique_removal.h
 filter/markowitz.c
 filter/markowitz.h
 filter/merge.c
-filter/merge_mono.c
-filter/merge_mono.h
 filter/mst.c
 filter/mst.h
 filter/purge.c
