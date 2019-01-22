@@ -186,6 +186,9 @@ filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
 static void
 renumber_get_zk (mpz_t z, filter_matrix_t *mat, int k, int nthreads)
 {
+  /* first ensure all bits of z are set to 0 */
+  index_t n = (mat->ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
+  memset (z->_mp_d, 0, n * sizeof (mp_limb_t));
   for (index_t i = k; i < mat->nrows; i += nthreads)
     for (uint32_t l = 1; l <= matLengthRow (mat, i); l++)
       {
