@@ -1562,9 +1562,10 @@ main (int argc, char *argv[])
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
-    /* jmin[w] for w <= MERGE_LEVEL_MAX is the smallest column of weight w
-       at beginning. */
-    index_t jmin[MERGE_LEVEL_MAX + 1];
+    /* jmin[w] for 1 <= w <= MERGE_LEVEL_MAX is the smallest column of weight w
+       at beginning. We set jmin[0] to 0 to tell that jmin[] was not
+       initialized. */
+    index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
 
     int pass = 0;
     unsigned long lastN;
