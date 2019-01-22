@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    USE_MST = 2: use spanning tree both to estimate and apply the merges */
 #define USE_MST 1
 // #define DEBUG
+// #define TRACE_J 0xb8
 
 #include "portability.h"
 
@@ -464,6 +465,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   fflush (stdout);
   cpu_t[0] += cpu;
   wct_t[0] += wct;
+
+#ifdef TRACE_J
+  printf ("TRACE_J: wt[%lu]=%u\n", (unsigned long) TRACE_J, mat->wt[TRACE_J]);
+#endif
 }
 
 /*************** level-2 buckets (to compute inverse matrix) *****************/
@@ -759,6 +764,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   return c;
 }
 #else /* FOR_DL: j is the ideal to be merged */
+#define INT32_MIN_64 (int64_t) INT32_MIN
+#define INT32_MAX_64 (int64_t) INT32_MAX
+
 static int32_t
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
          MAYBE_UNUSED index_t j)
@@ -768,7 +776,8 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   uint32_t k2 = matLengthRow (mat, i2);
   ideal_merge_t *r1 = mat->rows[i1];
   ideal_merge_t *r2 = mat->rows[i2];
-  int e1 = 0, e2 = 0;
+  int32_t e1 = 0, e2 = 0;
+
   /* search by decreasing ideals as the ideal to be merged is likely large */
   for (int l = k1; l >= 1; l--)
     if (r1[l].id == j)
@@ -783,7 +792,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
         break;
       }
 
-  ASSERT (e1 != 0 && e2 != 0);
+  /* we always check e1 and e2 are not zero, in order to prevent from zero
+     exponents that would come from exponent overflows in previous merges */
+  ASSERT_ALWAYS (e1 != 0 && e2 != 0);
 
   int d = (int) gcd_int64 ((int64_t) e1, (int64_t) e2);
   e1 /= -d;
@@ -797,8 +808,22 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
     {
       if (r1[t1].id == r2[t2].id)
         {
-          /* if exponent do not cancel, add 1 to cost */
-          c += r1[t1].e * e2 + r2[t2].e * e1 != 0;
+          /* If exponent do not cancel, add 1 to cost.
+             Warning: we should ensure that r1[t1].e * e2 does not overflow,
+             same for r2[t2].e * e1 and the sum.
+             In fact, since the sum is computed modulo 2^32, the only bad case
+             is when the sum is a non-zero multiple of 2^32. */
+          int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
+          if (e != 0)
+            c ++; /* we are sure that the sum is not zero */
+          else
+            {
+              /* We compute the sum with 64-bit integers. Since all values are
+                 in [-2^31, 2^31-1], the sum is in [-2^63,2^63-2^33+2], thus
+                 always fits into an int64_t. */
+              int64_t ee = (int64_t) r1[t1].e * (int64_t) e2 + (int64_t) r2[t2].e * (int64_t) e1;
+              c += ee != 0;
+            }
           t1 ++, t2 ++;
         }
       else if (r1[t1].id < r2[t2].id)
@@ -817,15 +842,18 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   t0 = t;
   (*t++).id = c; /* length of the new relation */
   t1 = t2 = 1;
+  int64_t e;
   while (t1 <= k1 && t2 <= k2)
     {
       if (r1[t1].id == r2[t2].id)
         {
-          int32_t e = e2 * r1[t1].e + e1 * r2[t2].e;
+          /* as above, the exponent e below cannot overflow */
+          e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
           if (e != 0) /* exponents do not cancel */
             {
               (*t).id = r1[t1].id;
-              (*t).e = e;
+              ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+              (*t).e = (int32_t) e;
               t ++;
             }
           t1 ++, t2 ++;
@@ -833,26 +861,34 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
       else if (r1[t1].id < r2[t2].id)
         {
           (*t).id = r1[t1].id;
-          (*t).e = e2 * r1[t1].e;
+          e = (int64_t) e2 * (int64_t) r1[t1].e;
+          ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+          (*t).e = (int32_t) e;
           t1 ++, t ++;
         }
       else
         {
           (*t).id = r2[t2].id;
-          (*t).e = e1 * r2[t2].e;
+          e = (int64_t) e1 * (int64_t) r2[t2].e;
+          ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+          (*t).e = (int32_t) e;
           t2 ++, t ++;
         }
     }
   while (t1 <= k1)
     {
       (*t).id = r1[t1].id;
-      (*t).e = e2 * r1[t1].e;
+      e = (int64_t) e2 * (int64_t) r1[t1].e;
+      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+      (*t).e = (int32_t) e;
       t1 ++, t ++;
     }
   while (t2 <= k2)
     {
       (*t).id = r2[t2].id;
-      (*t).e = e1 * r2[t2].e;
+      e = (int64_t) e1 * (int64_t) r2[t2].e;
+      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+      (*t).e = (int32_t) e;
       t2 ++, t ++;
     }
   ASSERT (t0 + (c + 1) == t);
@@ -870,18 +906,20 @@ remove_row (filter_matrix_t *mat, index_t i)
 }
 
 #ifdef DEBUG
-static void
+static void MAYBE_UNUSED
 printRow (filter_matrix_t *mat, index_t i)
 {
   int32_t k = matLengthRow (mat, i);
   printf ("%lu [%d]:", (unsigned long) i, k);
   for (int j = 1; j <= k; j++)
+#ifndef FOR_DL
     printf (" %lu", (unsigned long) mat->rows[i][j]);
+#else
+    printf (" %lu^%d", (unsigned long) mat->rows[i][j].id, mat->rows[i][j].e);
+#endif
   printf ("\n");
 }
 #endif
-
-// #define TRACE_J 10637127
 
 /* classical cost: merge the row of smaller weight with the other ones:
    if out is NULL: return the merge cost
@@ -898,15 +936,17 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 
   imin = mat->R[j][0];
   cmin = matLengthRow (mat, imin);
-#ifdef TRACE_J
-  if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n", j, imin, cmin);
+#ifdef TRACE_Jxxx
+  if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n",
+                            (unsigned long) j, (unsigned long) imin, cmin);
 #endif
   for (int k = 1; k < w; k++)
     {
       i = mat->R[j][k];
       c = matLengthRow (mat, i);
-#ifdef TRACE_J
-      if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n", j, i, c);
+#ifdef TRACE_Jxxx
+      if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n",
+                                (unsigned long) j, (unsigned long) i, c);
 #endif
       if (c < cmin || (c == cmin && largest_ideal (mat, i, j) <
 		       largest_ideal (mat, imin, j)))
@@ -933,6 +973,10 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
     }
   else /* perform the real merge and output to history file */
     {
+#ifdef TRACE_J
+      if (j == TRACE_J) printf ("TRACE_J: merge ideal %lu\n",
+                                (unsigned long) j);
+#endif
       char s0[1024], *s;
       s = s0 + sprintf (s0, "%lu", (unsigned long) imin);
       c = -cmin; /* remove row imin */
