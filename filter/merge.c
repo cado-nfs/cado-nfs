@@ -364,13 +364,13 @@ compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
         Wt[0][t] = mat->cwmax + 1;
 }
 
-/* for 2 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
+/* for 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
    mat->wt[j] = w */
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
   /* first initialize to ncols */
-  for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
+  for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
     jmin[w] = mat->ncols;
 
 #ifdef HAVE_OPENMP
@@ -381,11 +381,13 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
       int32_t w = mat->wt[j];
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
-      if (j < jmin[w])
+      ASSERT(w > 0);
+      if (w <= MERGE_LEVEL_MAX)
+        if (j < jmin[w])
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-        jmin[w] = j;
+          jmin[w] = j;
     }
   jmin[0] = 1; /* to tell that jmin was initialized */
   /* make jmin[w] = min(jmin[w'], 2 <= w' <= w) */
@@ -1562,7 +1564,7 @@ main (int argc, char *argv[])
 
     /* jmin[w] for w <= MERGE_LEVEL_MAX is the smallest column of weight w
        at beginning. */
-    index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
+    index_t jmin[MERGE_LEVEL_MAX + 1];
 
     int pass = 0;
     unsigned long lastN;
@@ -1639,14 +1641,17 @@ main (int argc, char *argv[])
 
     fclose_maybe_compressed (rep->outfile, outname);
 
-    /* estimate N for W/N = target_density, assuming W/N = a*N + b */
-    unsigned long N = mat->rem_nrows;
-    double WoverN = (double) mat->tot_weight / (double) N;
-    double a = (lastWoverN - WoverN) / (double) (lastN - N);
-    double b = WoverN - a * (double) N;
-    /* we want target_density = a*N_target + b */
-    printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
-	    (uint64_t) ((target_density - b) / a), target_density);
+    if (average_density (mat) > target_density)
+      {
+        /* estimate N for W/N = target_density, assuming W/N = a*N + b */
+        unsigned long N = mat->rem_nrows;
+        double WoverN = (double) mat->tot_weight / (double) N;
+        double a = (lastWoverN - WoverN) / (double) (lastN - N);
+        double b = WoverN - a * (double) N;
+        /* we want target_density = a*N_target + b */
+        printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
+                (uint64_t) ((target_density - b) / a), target_density);
+      }
 
     printf ("renumber       : %.1fs (cpu), %.1fs (wct)\n",
 	    cpu_t[5], wct_t[5]);
