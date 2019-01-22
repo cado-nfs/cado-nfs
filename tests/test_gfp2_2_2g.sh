@@ -77,6 +77,8 @@ tasks.sieve.mfb1 = 17
 tasks.sieve.qrange = 100
 # tasks.sieve.rels_wanted = 10000
 
+tasks.filter.target_density = 50
+
 tasks.linalg.allow_zero_on_rhs = 1
 tasks.reconstructlog.partial = true
 checkdlp = false
