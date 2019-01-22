@@ -44,7 +44,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    USE_MST = 2: use spanning tree both to estimate and apply the merges */
 #define USE_MST 1
 // #define DEBUG
-// #define MEM
 
 #include "portability.h"
 
@@ -227,11 +226,15 @@ renumber_get_z (mpz_t z, filter_matrix_t *mat)
   zk = malloc (nthreads * sizeof (mpz_t));
   for (int k = 0; k < nthreads; k++)
     mpz_init2 (zk[k], mat->ncols);
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     renumber_get_zk (zk[k], mat, k, nthreads);
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     renumber_get_z_xor (zk, mat->ncols, k, nthreads);
   /* normalize zk[0] */
@@ -266,7 +269,9 @@ renumber_mat (filter_matrix_t *mat, index_t *p)
 
   nthreads = get_num_threads ();
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     renumber_mat_thread (mat, p, k, nthreads);
 }
@@ -364,14 +369,18 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
   for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
     jmin[w] = mat->ncols;
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (index_t j = 0; j < mat->ncols; j++)
     {
       int32_t w = mat->wt[j];
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
       if (j < jmin[w])
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
         jmin[w] = j;
     }
   jmin[0] = 1; /* to tell that jmin was initialized */
@@ -414,20 +423,28 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     j0 = jmin[mat->cwmax];
 
   /* first thread k fills Wt[k] with rows = k mod nthreads */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     compute_weights_thread1 (mat, Wt, k, nthreads, j0);
 
   /* then we accumulate all weights in Wt[0] */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     compute_weights_thread2 (mat, Wt, k, nthreads, j0);
 
   /* copy Wt[0] into wt */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static)
+#endif
   for (index_t j = 0; j < j0; j++)
     mat->wt[j] = mat->cwmax + 1;
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static)
+#endif
   for (index_t j = j0; j < mat->ncols; j++)
     mat->wt[j] = Wt[0][j - j0];
 
@@ -489,28 +506,13 @@ init_buckets (int nthreads, unsigned long tot_weight)
 static void
 clear_buckets (bucket_t **B, int nthreads)
 {
-#ifdef MEM
-  unsigned long mem = 0;
-#endif
   for (int k = 0; k < nthreads; k++)
     {
       for (int j = 0; j < nthreads; j++)
-	{
-	  free (B[k][j].list);
-#ifdef MEM
-	  mem += B[k][j].alloc * sizeof (index_pair_t);
-#endif
-	}
+        free (B[k][j].list);
       free (B[k]);
-#ifdef MEM
-      mem += nthreads * sizeof (bucket_t);
-#endif
     }
   free (B);
-#ifdef MEM
-  mem += nthreads * sizeof (bucket_t*);
-  printf ("****** init_buckets allocated %luM\n", mem >> 20);
-#endif
 }
 
 static void
@@ -596,14 +598,18 @@ get_tot_weight (filter_matrix_t *mat)
 
   nthreads = get_num_threads ();
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     {
       unsigned long tot_weight_thread = 0;
       for (index_t i = k; i < mat->nrows; i += nthreads)
 	if (mat->rows[i] != NULL)
 	  tot_weight_thread += matLengthRow (mat, i);
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
       tot_weight += tot_weight_thread;
     }
   return tot_weight;
@@ -619,14 +625,18 @@ get_tot_weight_columns (filter_matrix_t *mat)
 
   nthreads = get_num_threads ();
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     {
       unsigned long tot_weight_thread = 0;
       for (index_t j = k; j < mat->ncols; j += nthreads)
 	if (mat->wt[j] <= mat->cwmax)
 	  tot_weight_thread += mat->wt[j];
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
       tot_weight += tot_weight_thread;
     }
   return tot_weight;
@@ -637,29 +647,21 @@ compute_R (filter_matrix_t *mat)
 {
   int nthreads;
   double cpu = seconds (), wct = wct_seconds ();
-#ifdef MEM
-  unsigned long mem = 0;
-#endif
 
   /* the inverse matrix R is already allocated, but the individual entries
      R[j] are not */
   unsigned long tot_weight = get_tot_weight_columns (mat);
   /* FIXME: we could allocate a huge chunk of memory of tot_weight * sizeof (index_t),
      to avoid small allocations, but then we cannot call free anymore on mat->R[j] */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (index_t j = 0; j < mat->ncols; j++)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
 	mat->R[j] = realloc (mat->R[j], mat->wt[j] * sizeof (index_t));
-#ifdef MEM
-#pragma omp critical
-	mem += mat->wt[j] * sizeof (index_t);
-#endif
 	mat->wt[j] = 0; /* reset to 0 */
       }
-#ifdef MEM
-  printf ("****** compute_R allocated %luM\n", mem >> 20);
-#endif
 
   nthreads = get_num_threads ();
 
@@ -669,11 +671,15 @@ compute_R (filter_matrix_t *mat)
   B = init_buckets (nthreads, tot_weight);
   /* thread 0 deals with rows 0, n, 2n, ...;
      thread 1 deals with rows 1, n+1, 2n+1, ...; and so on, where n = nthreads */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (int k = 0; k < nthreads; k++)
     fill_buckets_all (B, mat, k, nthreads);
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     apply_buckets_all (B, mat, k, nthreads);
 
@@ -1090,63 +1096,34 @@ cost_list_init (int nthreads)
   cost_list_t *L;
 
   L = malloc (nthreads * sizeof (cost_list_t));
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (int i = 0; i < nthreads; i++)
     cost_list_init_aux (L + i);
   return L;
 }
 
 /* return the number of bytes allocated */
-#ifdef MEM
-static unsigned long
-#else
 static void
-#endif
 cost_list_clear_aux (cost_list_t *l)
 {
-#ifdef MEM
-  unsigned long mem = 0;
-#endif
   for (int i = 0; i <= l->cmax; i++)
-    {
-      free (l->list[i]);
-#ifdef MEM
-      mem += l->alloc[i] * sizeof (index_t);
-#endif
-    }
+    free (l->list[i]);
   free (l->list);
   free (l->size);
   free (l->alloc);
-#ifdef MEM
-  mem += l->cmax * sizeof (index_t*);
-  mem += l->cmax * sizeof (unsigned long);
-  mem += l->cmax * sizeof (unsigned long);
-  return mem;
-#endif
 }
 
 static void
 cost_list_clear (cost_list_t *L, int nthreads)
 {
-#ifdef MEM
-  unsigned long mem = 0;
-#endif
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
     for (int i = 0; i < nthreads; i++)
-      {
-#ifdef MEM
-	unsigned long mem_thread = cost_list_clear_aux (L + i);
-#pragma omp critical
-	mem += mem_thread;
-#else
-	cost_list_clear_aux (L + i);
-#endif
-      }
+      cost_list_clear_aux (L + i);
     free (L);
-#ifdef MEM
-    mem += nthreads * sizeof (cost_list_t);
-    printf ("****** cost_list allocated %luM\n", mem >> 20);
-#endif
 }
 
 /* add pair (j,c) into l */
@@ -1205,7 +1182,9 @@ static void
 compute_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat,
 		int cbound)
 {
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int i = 0; i < nthreads; i++)
     compute_merges_aux (L + i, i, nthreads, mat, cbound);
 
@@ -1275,7 +1254,9 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
      those with fill-in -2. */
   for (unsigned long t = k; t < size; t += nthreads)
     fill_in += merge_cost_or_do (mat, l[t], out);
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
   mat->tot_weight += fill_in;
 }
 
@@ -1366,7 +1347,9 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
     nthreads = MAX_THREADS;
 
   /* now apply in parallel the independent merges */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
+#endif
   for (int k = 0; k < nthreads; k++)
     apply_merge_aux (l->list, l->size, k, nthreads, mat, out);
 
@@ -1524,7 +1507,9 @@ main (int argc, char *argv[])
     mat->cwmax = 2;
 
     /* initialize R[j] to NULL */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
