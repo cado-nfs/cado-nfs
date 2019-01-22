@@ -381,8 +381,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
       int32_t w = mat->wt[j];
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
-      ASSERT(w > 0);
-      if (w <= MERGE_LEVEL_MAX)
+      if (0 < w && w <= MERGE_LEVEL_MAX)
         if (j < jmin[w])
 #ifdef HAVE_OPENMP
 #pragma omp critical
