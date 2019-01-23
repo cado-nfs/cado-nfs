@@ -709,16 +709,6 @@ typedef struct {
   int cmax;             /* all costs are <= cmax */
 } cost_list_t;
 
-/* return the largest ideal of row i (excepted j) */
-static index_t
-largest_ideal (filter_matrix_t *mat, index_t i, index_t j)
-{
-  uint32_t k = matLengthRow (mat, i);
-  ASSERT (k > 1);
-  index_t l = rowCell(mat->rows[i],k);
-  return (l == j) ? rowCell(mat->rows[i],k-1) : l;
-}
-
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
 #ifndef FOR_DL
@@ -952,10 +942,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
       if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n",
                                 (unsigned long) j, (unsigned long) i, c);
 #endif
-      if (c < cmin || (c == cmin && largest_ideal (mat, i, j) <
-		       largest_ideal (mat, imin, j)))
-	/* in case c = cmin, we take the row with the smaller largest
-	   ideal (excepted j) */
+      if (c < cmin)
 	{
 	  imin = i;
 	  cmin = c;
@@ -971,6 +958,11 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 	{
 	  i = mat->R[j][k];
 	  if (i != imin)
+            /* It is crucial here to take into account cancellations of
+               coefficients, and not to simply add the length of both
+               rows minus 2. Indeed, if row 'a' was added to two
+               relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
+               all ideals from 'a' will cancel. */
 	    c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
 	}
       return c;
