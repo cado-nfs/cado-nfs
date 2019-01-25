@@ -32,8 +32,29 @@
 /* Merge */
 /*********/
 
+// #define DEBUG_STACK
 /* Maximum level for a merge. */
 #define MERGE_LEVEL_MAX 32
+/* Maximum number of characters of a merge in the history file.
+   For a k-merge, we have k-1 lines written in the same string.
+   Each line consists of k numbers written in decimal:
+   - if __SIZEOF_INDEX__=4, each number is a 32-bit value (<=10 digits)
+   - if __SIZEOF_INDEX__=8, each number is a 64-bit value (<=20 digits)
+   We also have k-1 spaces per line, an optional minus sign for the first
+   number, a final \n, and (for DLP) an extra number of 10/20
+   digits and two extra characters (" #"). Plus an extra \0 (end of string).
+   This gives a total of:
+   - (k-1)*(k*10*__SIZEOF_INDEX__/4 + k+1)+1 for the factorization
+   - (k-1)*((k+1)*10*__SIZEOF_INDEX__/4 + k+3)+1 for DLP
+   For MERGE_LEVEL_MAX=32 this gives:
+   - __SIZEOF_INDEX__=4: 10944 for the factorization, 11316 for DLP
+   - __SIZEOF_INDEX__=8: 20864 for the factorization, 21546 for DLP
+*/
+#ifndef FOR_DL
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (MERGE_LEVEL_MAX * 10 * (__SIZEOF_INDEX__ / 4) + MERGE_LEVEL_MAX + 1) + 1)
+#else
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * ((MERGE_LEVEL_MAX + 1) * 10 * (__SIZEOF_INDEX__ / 4) + MERGE_LEVEL_MAX + 3) + 1)
+#endif
 
 #ifndef FOR_DL
 /* the default value 170 was determined experimentally on RSA-155
