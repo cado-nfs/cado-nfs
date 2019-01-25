@@ -45,6 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define USE_MST 1
 // #define DEBUG
 // #define TRACE_J 0xb8
+#define CBOUND_INCR 8
 
 #include "portability.h"
 
@@ -1419,7 +1420,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (l->size == total_merges)
-	mat->cwmax ++;
+        mat->cwmax ++;
     }
   else
     {
@@ -1618,7 +1619,6 @@ main (int argc, char *argv[])
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 
-#define CBOUND_INCR 8
 	/* At each pass, we increase cbound to allow more merges.
 	   If one decreases CBOUND_INCR, the final matrix will be smaller,
 	   but merge will take more time.
@@ -1626,7 +1626,7 @@ main (int argc, char *argv[])
 	   matrix will be larger.
 	   The value CBOUND_INCR=8 seems to give similar matrix sizes to what
 	   we got with the previous merge. */
-	cbound += CBOUND_INCR;
+        cbound += CBOUND_INCR;
 
 	lastN = mat->rem_nrows;
 	lastWoverN = (double) mat->tot_weight / (double) lastN;
