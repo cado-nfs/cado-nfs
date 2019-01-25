@@ -96,11 +96,12 @@ minCostUsingMST (filter_matrix_t *mat, int m, index_t *ind, index_t j)
     int father[MERGE_LEVEL_MAX];
 #else
     int **A, w;
-    A = malloc (MERGE_LEVEL_MAX * sizeof (int*));
-    for (int i = 0; i < MERGE_LEVEL_MAX; i++)
-      A[i] = malloc (MERGE_LEVEL_MAX * sizeof (int));
-    int *sons = malloc (MERGE_LEVEL_MAX * sizeof (int));
-    int *father = malloc (MERGE_LEVEL_MAX * sizeof (int));
+    A = malloc (m * sizeof (int*));
+    int *sons = malloc ((m + 2) * m * sizeof (int));
+    int *father = sons + m;
+    A[0] = father + m;
+    for (int i = 1; i < m; i++)
+      A[i] = A[i-1] + m;
 #endif
 
     fillRowAddMatrix (A, mat, m, ind, j);
@@ -110,10 +111,8 @@ minCostUsingMST (filter_matrix_t *mat, int m, index_t *ind, index_t j)
     for (int i = 0; i < m; i++)
       w -= matLengthRow(mat, ind[i]);
 #ifdef DEBUG_STACK
-    for (int i = 0; i < MERGE_LEVEL_MAX; i++)
-      free (A[i]);
     free (sons);
-    free (father);
+    free (A);
 #endif
     return w;
 }
