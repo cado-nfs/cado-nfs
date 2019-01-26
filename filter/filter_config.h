@@ -38,24 +38,35 @@
 /* Maximum level for a merge. */
 #define MERGE_LEVEL_MAX 32
 /* Maximum number of characters of a merge in the history file.
-   For a k-merge, we have k-1 lines written in the same string.
-   Each line consists of k numbers written in decimal:
+   For a k-merge, we have up to k-1 lines written in the same string.
+   Each line is of the following form:
+   i1 i2 ... in
+   which means that line i1 has to be added to i2, ..., in and then destroyed,
+   or:
+   -(i1+1) i2 ... in
+   which means that line i1 has to be added to i2, ..., in, but not destroyed.
+   The sum of n-1 over all such lines must equal k.
+   Each line consists of numbers written in decimal:
    - if __SIZEOF_INDEX__=4, each number is a 32-bit value (<=10 digits)
    - if __SIZEOF_INDEX__=8, each number is a 64-bit value (<=20 digits)
-   We also have k-1 spaces per line, an optional minus sign for the first
-   number, a final \n, and (for DLP) an extra number of 10/20
+   The worst case (in term of total length) is when we only have lines of
+   the form "i1 i2" or "-(i1+1) i2". This is precisely what we get with the
+   spanning tree algorithm. We then get exactly k-1 lines: first k-2 with a
+   minus sign (row i1 not destroyed), and last one without minus sign (row
+   destroyed).
+   We also a final \n per line, and (for DLP) an extra number of 10/20
    digits and two extra characters (" #"). Plus an extra \0 (end of string).
-   This gives a total of:
-   - (k-1)*(k*10*__SIZEOF_INDEX__/4 + k+1)+1 for the factorization
-   - (k-1)*((k+1)*10*__SIZEOF_INDEX__/4 + k+3)+1 for DLP
+   This gives a maximum of:
+   - (k-1)*(2*10*__SIZEOF_INDEX__/4 + 3) for the factorization
+   - (k-1)*(3*10*__SIZEOF_INDEX__/4 + 5) for DLP
    For MERGE_LEVEL_MAX=32 this gives:
-   - __SIZEOF_INDEX__=4: 10944 for the factorization, 11316 for DLP
-   - __SIZEOF_INDEX__=8: 20864 for the factorization, 21546 for DLP
+   - __SIZEOF_INDEX__=4: 713 for the factorization, 1085 for DLP
+   - __SIZEOF_INDEX__=8: 1333 for the factorization, 2015 for DLP
 */
 #ifndef FOR_DL
-#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (MERGE_LEVEL_MAX * 10 * (__SIZEOF_INDEX__ / 4) + MERGE_LEVEL_MAX + 1) + 1)
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (2 * 10 * (__SIZEOF_INDEX__ / 4) + 3))
 #else
-#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * ((MERGE_LEVEL_MAX + 1) * 10 * (__SIZEOF_INDEX__ / 4) + MERGE_LEVEL_MAX + 3) + 1)
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (3 * 10 * (__SIZEOF_INDEX__ / 4) + 5))
 #endif
 
 #ifndef FOR_DL

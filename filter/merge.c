@@ -1009,7 +1009,7 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
     }
 }
 
-/* Same as reportn from report.c, but output to a string.
+/* Output a list of merges to a string.
    Assume rep->type = 0.
    size is the length of str.
    Return the number of characters written, except the final \0
