@@ -47,11 +47,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // #define TRACE_J 0xb8
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
-   long time (typically 10 times more than with CBOUND_INCR=10).
-   Experimentally on the RSA-512 matrix, CBOUND_INCR=11 gives a
-   matrix which is only within 0.5% of the matrix obtained with CBOUND_INCR=1,
+   long time (typically 10 times more than with CBOUND_INCR=10). */
+#ifndef FOR_DL
+/* Experimentally on the RSA-512 matrix, CBOUND_INCR=11 gives a matrix which
+   is 0.5% larger than the matrix obtained with CBOUND_INCR=1,
    and takes only 20% more time than with CBOUND_INCR=20. */
 #define CBOUND_INCR 11
+#else
+/* For the p180 matrix (http://caramba.loria.fr/p180.txt), CBOUND_INCR=20
+   gives a matrix which is 0.2% larger than the matrix obtained with
+   CBOUND_INCR=1 (with target_density=200), and takes only 17% more time than
+   with CBOUND_INCR=30. */
+#define CBOUND_INCR 20
+#endif
 
 #include "portability.h"
 
