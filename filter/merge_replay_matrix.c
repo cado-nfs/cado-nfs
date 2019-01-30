@@ -203,12 +203,18 @@ clearMat (filter_matrix_t *mat)
 {
   uint64_t i, j;
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (i = 0; i < mat->nrows; i++)
     free (mat->rows[i]);
   free (mat->rows);
   free (mat->wt);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (j = 0; j < mat->ncols; j++)
-    freeRj (mat, j);
+    free (mat->R[j]);
   free (mat->R);
 }
 
