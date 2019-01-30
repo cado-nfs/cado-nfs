@@ -1712,8 +1712,10 @@ main (int argc, char *argv[])
                 (uint64_t) ((target_density - b) / a), target_density);
       }
 
+#ifndef FOR_DL /* we don't do renumbering for DL */
     printf ("renumber       : %.1fs (cpu), %.1fs (wct)\n",
 	    cpu_t[5], wct_t[5]);
+#endif
     printf ("compute_weights: %.1fs (cpu), %.1fs (wct)\n",
 	    cpu_t[0], wct_t[0]);
     printf ("compute_R      : %.1fs (cpu), %.1fs (wct)\n",
