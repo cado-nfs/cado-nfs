@@ -138,7 +138,7 @@ sort_relation (index_t *row, unsigned int n)
 
 /* callback function called by filter_rels */
 static void *
-insert_rel_into_table2 (void *context_data, earlyparsed_relation_ptr rel)
+insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
 {
   filter_matrix_t *mat = (filter_matrix_t *) context_data;
   unsigned int j = 0;
@@ -184,14 +184,14 @@ insert_rel_into_table2 (void *context_data, earlyparsed_relation_ptr rel)
 }
 
 static void
-filter_matrix_read2 (filter_matrix_t *mat, const char *purgedname)
+filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 {
   uint64_t nread;
   char *fic[2] = {(char *) purgedname, NULL};
 
   /* read all rels */
-  nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table2, mat,
-		       EARLYPARSE_NEED_INDEX, NULL, NULL);
+  nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
+                       mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
 }
@@ -1592,7 +1592,7 @@ main (int argc, char *argv[])
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();
-    filter_matrix_read2 (mat, purgedname);
+    filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
 #ifndef FOR_DL

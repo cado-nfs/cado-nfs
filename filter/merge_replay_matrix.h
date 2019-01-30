@@ -15,14 +15,6 @@
 #define cmp_typerow_t cmp_ideal_merge
 #endif
 
-typedef struct {
-  index_t *list;
-  unsigned long size;
-  unsigned long alloc;
-  index_t *index; /* relation i is stored at list[index[i]] */
-} heap_t;
-typedef heap_t heap[1];
-
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
   int verbose;         /* verbose level */
@@ -57,7 +49,6 @@ typedef struct {
                             (either too heavy initially or deleted). It is safe
                             to have a 32-bit table as long as the Markowitz
                             queue has less than 2^32 entries. */
-  heap Heavy;            /* heap for heavy rows */
 } filter_matrix_t;
 
 #ifdef __cplusplus
@@ -69,30 +60,17 @@ extern "C" {
 
 void initMat(filter_matrix_t *, uint32_t);
 void clearMat (filter_matrix_t *mat);
-void fillmat(filter_matrix_t *mat);
-void filter_matrix_read (filter_matrix_t *, const char *);
-void matR_disable_cols (filter_matrix_t *, const char *);
 
 void print_row(filter_matrix_t *mat, index_t i);
 
 #define matCell(mat, i, k) rowCell(mat->rows[i], k)
 #define rowLength(row, i) rowCell(row[i], 0)
-#define setRowLength(row, v) setCell(row, 0, v, 1)
 #define matLengthRow(mat, i) matCell(mat, i, 0)
 #define isRowNull(mat, i) ((mat)->rows[(i)] == NULL)
 
 #define SPARSE_ITERATE(mat, i, k) for((k)=1; (k)<=lengthRow((mat),(i)); (k)++)
 
-void freeRj(filter_matrix_t *mat, index_t j);
-void remove_i_from_Rj(filter_matrix_t *mat, index_t i, index_t j);
-void add_i_to_Rj(filter_matrix_t *mat, index_t i, index_t j);
 int weightSum(filter_matrix_t *mat, index_t i1, index_t i2, index_t j);
-void fillTabWithRowsForGivenj(index_t *ind, filter_matrix_t *mat, index_t j);
-void destroyRow(filter_matrix_t *mat, index_t i);
-void heap_fill (filter_matrix_t *mat);
-void heap_push (heap H, filter_matrix_t *mat, index_t i);
-index_t heap_pop (heap H, filter_matrix_t *mat);
-void recomputeR (filter_matrix_t *mat);
 
 #ifdef __cplusplus
 }
