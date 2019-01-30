@@ -1603,7 +1603,8 @@ main (int argc, char *argv[])
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
 
-    printf ("Using USE_MST=%d\n", USE_MST);
+    printf ("Using USE_MST=%d, MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d\n",
+            USE_MST, MERGE_LEVEL_MAX, CBOUND_INCR);
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
