@@ -74,27 +74,6 @@ weight_count (filter_matrix_t *mat, uint64_t *nbm)
   return active;
 }
 
-#ifndef FOR_DL
-/* sort row[0], row[1], ..., row[n-1] in non-decreasing order */
-static void
-sort_relation (index_t *row, unsigned int n)
-{
-  unsigned int i, j;
-
-  for (i = 1; i < n; i++)
-    {
-      index_t t = row[i];
-      if (t < row[i-1])
-        {
-          row[i] = row[i-1];
-          for (j = i - 1; j > 0 && t < row[j-1]; j--)
-            row[j] = row[j-1];
-          row[j] = t;
-        }
-    }
-}
-#endif
-
 int cmp_u64(const uint64_t * a, const uint64_t * b)
 {
     return (*a > *b) - (*b > *a);
