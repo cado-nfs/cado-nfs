@@ -203,6 +203,14 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
+static void
+print_timings (char *s, double cpu, double wct)
+{
+  printf ("%s %.1fs (cpu), %.1fs (wct) [cpu/wct=%.1f]\n",
+	  s, cpu, wct, cpu / wct);
+  fflush (stdout);
+}
+
 #ifndef FOR_DL
 /* set bit j of z to 1 for every ideal index j in relations = k mod nthreads */
 static void
@@ -338,8 +346,7 @@ renumber (filter_matrix_t *mat)
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
-  printf ("   renumber took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
-  fflush (stdout);
+  print_timings ("   renumber took", cpu, wct);
   cpu_t[5] += cpu;
   wct_t[5] += wct;
 }
@@ -487,8 +494,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
-  printf ("   compute_weights took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
-  fflush (stdout);
+  print_timings ("   compute_weights took", cpu, wct);
   cpu_t[0] += cpu;
   wct_t[0] += wct;
 
@@ -718,8 +724,7 @@ compute_R (filter_matrix_t *mat)
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
-  printf ("   compute_R took %.1fs (cpu), %.1fs (wct)\n", cpu, wct);
-  fflush (stdout);
+  print_timings ("   compute_R took", cpu, wct);
   cpu_t[1] += cpu;
   wct_t[1] += wct;
 }
@@ -1657,9 +1662,7 @@ main (int argc, char *argv[])
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
-	printf ("   compute_merges took %.1fs (cpu), %.1fs (wct)\n",
-		cpu2, wct2);
-	fflush (stdout);
+	print_timings ("   compute_merges took", cpu2, wct2);
 	cpu_t[2] += cpu2;
 	wct_t[2] += wct2;
 
@@ -1670,9 +1673,7 @@ main (int argc, char *argv[])
 
 	cpu3 = seconds () - cpu3;
 	wct3 = wct_seconds () - wct3;
-	printf ("   apply_merges took %.1fs (cpu), %.1fs (wct)\n",
-		cpu3, wct3);
-	fflush (stdout);
+	print_timings ("   apply_merges took", cpu3, wct3);
 	cpu_t[3] += cpu3;
 	wct_t[3] += wct3;
 
@@ -1680,7 +1681,7 @@ main (int argc, char *argv[])
 
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
-	printf ("   pass took %.1fs (cpu), %.1fs (wct)\n", cpu1, wct1);
+	print_timings ("   pass took", cpu1, wct1);
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
@@ -1713,20 +1714,13 @@ main (int argc, char *argv[])
       }
 
 #ifndef FOR_DL /* we don't do renumbering for DL */
-    printf ("renumber       : %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[5], wct_t[5]);
+    print_timings ("renumber       :", cpu_t[5], wct_t[5]);
 #endif
-    printf ("compute_weights: %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[0], wct_t[0]);
-    printf ("compute_R      : %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[1], wct_t[1]);
-    printf ("compute_merges : %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[2], wct_t[2]);
-    printf ("apply_merges   : %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[3], wct_t[3]);
-    printf ("pass           : %.1fs (cpu), %.1fs (wct)\n",
-	    cpu_t[4], wct_t[4]);
-
+    print_timings ("compute_weights:", cpu_t[0], wct_t[0]);
+    print_timings ("compute_R      :", cpu_t[1], wct_t[1]);
+    print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
+    print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
+    print_timings ("pass           :", cpu_t[4], wct_t[4]);
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
