@@ -61,6 +61,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define CBOUND_INCR 20
 #endif
 
+/* We notice that the apply_merge_aux() function does not scale well when
+   the number of threads is large, this is due to too many concurrent calls
+   to malloc/free in add_row when performing the merges in parallel.
+   We thus limit the number of threads in this part (experimentally
+   MAX_THREADS=16 seems optimal to minimize the wall-clock time). */
+#define MAX_THREADS 16
+
 #include "portability.h"
 
 #include "filter_config.h"
@@ -338,7 +345,7 @@ renumber (filter_matrix_t *mat)
 }
 #endif /* FOR_DL */
 
-/* Threak k accumulates in Wt[k] all weights of rows = k mod nthreads.
+/* Thread k accumulates in Wt[k] all weights of rows = k mod nthreads.
    We only consider ideals of index >= j0.
    We put the weight of ideal j, j >= j0, in Wt[k][j-j0]. */
 static void
@@ -1442,13 +1449,6 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
         mat->cwmax ++;
     }
 
-  /* We notice that the apply_merge_aux() function does not scale well when
-     the number of threads is large, this is due to too many concurrent calls
-     to malloc/free in add_row when performing the merges in parallel.
-     We thus limit the number of threads in this part (experimentally
-     MAX_THREADS=16 seems optimal to minimize the wall-clock time). */
-#define MAX_THREADS 16
-
   /* reduce the number of threads to avoid blocking issues with malloc/free */
   if (nthreads > MAX_THREADS)
     nthreads = MAX_THREADS;
@@ -1603,8 +1603,8 @@ main (int argc, char *argv[])
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
 
-    printf ("Using USE_MST=%d, MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d\n",
-            USE_MST, MERGE_LEVEL_MAX, CBOUND_INCR);
+    printf ("Using USE_MST=%d, MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, MAX_THREADS=%d\n",
+            USE_MST, MERGE_LEVEL_MAX, CBOUND_INCR, MAX_THREADS);
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
