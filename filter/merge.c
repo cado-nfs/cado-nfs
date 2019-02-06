@@ -39,10 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <omp.h>
 #endif
 
-/* USE_MST = 0: do not use spanning tree for merges
-   USE_MST = 1: only use spanning tree to *apply* the merges
-   USE_MST = 2: use spanning tree both to estimate and apply the merges */
-#define USE_MST 1
 // #define DEBUG
 // #define TRACE_J 0xb8
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
@@ -88,7 +84,8 @@ double wct_t[6] = {0};
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
-static void declare_usage(param_list pl)
+static void
+declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
@@ -393,8 +390,9 @@ compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
         Wt[0][t] = mat->cwmax + 1;
 }
 
-/* for 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
-   mat->wt[j] = w */
+/* For 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
+   mat->wt[j] = w. This routine is called only once, at the first call of
+   compute_weights. */
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
@@ -624,34 +622,6 @@ apply_buckets_all (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
 	add_R_entry (mat, Bik.list[t].j, Bik.list[t].i);
     }
 }
-
-#if 0
-/* return the total weight of the matrix */
-static unsigned
-get_tot_weight (filter_matrix_t *mat)
-{
-  int nthreads;
-  unsigned long tot_weight = 0;
-
-  nthreads = get_num_threads ();
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
-#endif
-  for (int k = 0; k < nthreads; k++)
-    {
-      unsigned long tot_weight_thread = 0;
-      for (index_t i = k; i < mat->nrows; i += nthreads)
-	if (mat->rows[i] != NULL)
-	  tot_weight_thread += matLengthRow (mat, i);
-#ifdef HAVE_OPENMP
-#pragma omp critical
-#endif
-      tot_weight += tot_weight_thread;
-    }
-  return tot_weight;
-}
-#endif
 
 /* return the total weight of all columns of weight <= cwmax */
 static unsigned long
@@ -942,18 +912,20 @@ printRow (filter_matrix_t *mat, index_t i)
 }
 #endif
 
-/* classical cost: merge the row of smaller weight with the other ones:
-   if out is NULL: return the merge cost
-   if out <> NULL: perform the merge, output to 'out' (history file),
-                   and return the merge cost */
+/* classical cost: merge the row of smaller weight with the other ones,
+   and return the merge cost (taking account of cancellations) */
 static int32_t
-merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
+merge_cost (filter_matrix_t *mat, index_t j)
 {
   index_t imin, i;
   int32_t cmin, c;
   int32_t w = mat->wt[j];
 
-  ASSERT (2 <= w && w <= mat->cwmax);
+  ASSERT (1 <= w && w <= mat->cwmax);
+
+  if (w == 1)
+    return -3; /* ensure all 1-merges are processed before 2-merges with no
+		  cancellation */
 
   imin = mat->R[j][0];
   cmin = matLengthRow (mat, imin);
@@ -976,63 +948,21 @@ merge_cost_or_do_classical (filter_matrix_t *mat, index_t j, FILE *out)
 	}
     }
 
-  if (out == NULL) /* return the merge cost, does not modify anything */
+  /* we remove row imin and add it to all w-1 others: cmin * (w - 2)
+     the column j disappears: -w */
+  c = -cmin; /* remove row imin */
+  for (int k = 0; k < w; k++)
     {
-      /* we remove row imin and add it to all w-1 others: cmin * (w - 2)
-	 the column j disappears: -w */
-      c = -cmin; /* remove row imin */
-      for (int k = 0; k < w; k++)
-	{
-	  i = mat->R[j][k];
-	  if (i != imin)
-            /* It is crucial here to take into account cancellations of
-               coefficients, and not to simply add the length of both
-               rows minus 2. Indeed, if row 'a' was added to two
-               relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
-               all ideals from 'a' will cancel. */
-	    c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
-	}
-      return c;
+      i = mat->R[j][k];
+      if (i != imin)
+	/* It is crucial here to take into account cancellations of
+	   coefficients, and not to simply add the length of both
+	   rows minus 2. Indeed, if row 'a' was added to two
+	   relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
+	   all ideals from 'a' will cancel. */
+	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
     }
-  else /* perform the real merge and output to history file */
-    {
-#ifdef TRACE_J
-      if (j == TRACE_J) printf ("TRACE_J: merge ideal %lu\n",
-                                (unsigned long) j);
-#endif
-      char s[MERGE_CHAR_MAX];
-      int n; /* number of characters written to s (except final \0) */
-      n = snprintf (s, MERGE_CHAR_MAX, "%lu", (unsigned long) imin);
-      ASSERT(n < MERGE_CHAR_MAX);
-      c = -cmin; /* remove row imin */
-      for (int k = 0; k < w; k++)
-	{
-	  i = mat->R[j][k];
-	  if (i != imin)
-	    {
-	      c -= matLengthRow (mat, i);
-	      add_row (mat, i, imin, 1, j);
-	      c += matLengthRow (mat, i);
-	      n += snprintf (s + n, MERGE_CHAR_MAX - n, " %lu",
-                             (unsigned long) i);
-              ASSERT (n < MERGE_CHAR_MAX);
-	    }
-	}
-      /* the default fprintf function is thread-safe (see
-	 https://stackoverflow.com/questions/23586682/how-to-use-printf-in-multiple-threads),
-	 thus each line is written atomically in the history file
-	 (the order in which lines from different threads are written is
-	 non deterministic, but does not matter since the merges are
-	 independent) */
-      n += snprintf (s + n, MERGE_CHAR_MAX - n, "\n");
-      ASSERT (n < MERGE_CHAR_MAX);
-      fprintf (out, "%s", s);
-      remove_row (mat, imin);
-      /* we can also free R[j] */
-      free (mat->R[j]);
-      mat->R[j] = NULL;
-      return c;
-    }
+  return c;
 }
 
 /* Output a list of merges to a string.
@@ -1067,15 +997,9 @@ sreportn (char *str, size_t size, index_signed_t *ind, int n,
 /* Perform the row additions given by the minimal spanning tree (stored in
    history[][]). */
 static int
-#ifndef DEBUG_STACK
 addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
                  filter_matrix_t *mat, int m, index_t *ind, index_t j,
                  int *father, int *sons)
-#else
-addFatherToSons (index_t **history,
-                 filter_matrix_t *mat, int m, index_t *ind, index_t j,
-                 int *father, int *sons)
-#endif
 {
   int i, s, t;
 
@@ -1098,106 +1022,51 @@ addFatherToSons (index_t **history,
   return m - 2;
 }
 
-/* compute full spanning tree */
+/* perform the merge, computing the full spanning tree */
 static int32_t
-merge_cost_or_do_spanning (filter_matrix_t *mat, index_t j, FILE *out)
+merge_do (filter_matrix_t *mat, index_t j, FILE *out)
 {
   int32_t c;
   int32_t w = mat->wt[j];
 
-  ASSERT (2 <= w && w <= mat->cwmax);
+  ASSERT (1 <= w && w <= mat->cwmax);
 
-  if (out == NULL) /* return the merge cost, does not modify anything */
-    return minCostUsingMST (mat, w, mat->R[j], j);
-  else /* perform the real merge and output to history file */
+  if (w == 1)
     {
-      index_t *ind = mat->R[j];
       char s[MERGE_CHAR_MAX];
-      int n = 0; /* number of characters written to s (except final \0) */
-#ifndef DEBUG_STACK
-      int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
-#else
-      int **A;
-      A = malloc (w * sizeof (int*));
-      A[0] = malloc ((w + 2) * w * sizeof (int));
-      for (int i = 1; i < w; i++)
-        A[i] = A[i-1] + w;
-#endif
-      fillRowAddMatrix (A, mat, w, ind, j);
-      /* mimic MSTWithA */
-#ifndef DEBUG_STACK
-      int start[MERGE_LEVEL_MAX], end[MERGE_LEVEL_MAX];
-#else
-      int *start = A[w-1] + w;
-      int *end = start + w;
-#endif
-      c = minimalSpanningTree (start, end, w, A);
-      /* c is the weight of the minimal spanning tree, we have to remove
-	 the weights of the initial relations */
-      for (int k = 0; k < w; k++)
-	c -= matLengthRow (mat, ind[k]);
-#ifndef DEBUG_STACK
-      index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1];
-#else
-      index_t **history;
-      history = malloc (w * sizeof (index_t*));
-      history[0] = malloc (w * (w + 1) * sizeof (index_t));
-      for (int i = 1; i < w; i++)
-        history[i] = history[i-1] + w + 1;
-#endif
-      int hmax = addFatherToSons (history, mat, w, ind, j, start, end);
-      for (int i = hmax; i >= 0; i--)
-        {
-          n += sreportn (s + n, MERGE_CHAR_MAX - n,
-                         (index_signed_t*) (history[i]+1), history[i][0], j);
-          ASSERT(n < MERGE_CHAR_MAX);
-        }
+      int n MAYBE_UNUSED;
+      index_signed_t i = mat->R[j][0]; /* only row containing j */
+      n = sreportn (s, MERGE_CHAR_MAX, &i, 1, j);
+      ASSERT(n < MERGE_CHAR_MAX);
       fprintf (out, "%s", s);
-      remove_row (mat, ind[0]);
-#ifdef DEBUG_STACK
-      free (A[0]);
-      free (history[0]);
-      free (A);
-      free (history);
-#endif
-      return c;
+      remove_row (mat, i);
+      return -3;
     }
-}
 
-static int32_t
-merge_cost_or_do (filter_matrix_t *mat, index_t j, FILE *out)
-{
-  /* deal with 1-merges separately */
-  if (mat->wt[j] == 1)
+  /* perform the real merge and output to history file */
+  index_t *ind = mat->R[j];
+  char s[MERGE_CHAR_MAX];
+  int n = 0; /* number of characters written to s (except final \0) */
+  int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
+  fillRowAddMatrix (A, mat, w, ind, j);
+  /* mimic MSTWithA */
+  int start[MERGE_LEVEL_MAX], end[MERGE_LEVEL_MAX];
+  c = minimalSpanningTree (start, end, w, A);
+  /* c is the weight of the minimal spanning tree, we have to remove
+     the weights of the initial relations */
+  for (int k = 0; k < w; k++)
+    c -= matLengthRow (mat, ind[k]);
+  index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1];
+  int hmax = addFatherToSons (history, mat, w, ind, j, start, end);
+  for (int i = hmax; i >= 0; i--)
     {
-      if (out == NULL)
-        return -3; /* ensure all 1-merges are processed before 2-merges with no
-                      cancellation */
-      else
-        {
-          char s[MERGE_CHAR_MAX];
-          int n MAYBE_UNUSED;
-          index_signed_t i = mat->R[j][0]; /* only row containing j */
-          n = sreportn (s, MERGE_CHAR_MAX, &i, 1, j);
-          ASSERT(n < MERGE_CHAR_MAX);
-          fprintf (out, "%s", s);
-          remove_row (mat, i);
-          return -3;
-        }
+      n += sreportn (s + n, MERGE_CHAR_MAX - n,
+		     (index_signed_t*) (history[i]+1), history[i][0], j);
+      ASSERT(n < MERGE_CHAR_MAX);
     }
-
-#if USE_MST == 0
-  return merge_cost_or_do_classical (mat, j, out);
-#elif USE_MST == 1
-  if (out == NULL)
-    return merge_cost_or_do_classical (mat, j, out);
-  else
-    return merge_cost_or_do_spanning (mat, j, out);
-#elif USE_MST == 2
-  return merge_cost_or_do_spanning (mat, j, out);
-#else
-#error "USE_MST should be 0, 1, or 2"
-#endif
+  fprintf (out, "%s", s);
+  remove_row (mat, ind[0]);
+  return c;
 }
 
 static void
@@ -1290,7 +1159,7 @@ compute_merges_aux (cost_list_t *l, int k, int nthreads,
   for (index_t j = k; j < mat->ncols; j += nthreads)
     if (1 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
-	int32_t c = merge_cost_or_do (mat, j, NULL) + BIAS;
+	int32_t c = merge_cost (mat, j) + BIAS;
 	if (c <= cbound)
 	  add_cost (l, j, c);
       }
@@ -1350,16 +1219,6 @@ merge_list_clear (merge_list_t *l)
   free (l->list);
 }
 
-int
-largest_cmax (cost_list_t *L, int nthreads)
-{
-  int cmax = 0;
-  for (int i = 0; i < nthreads; i++)
-    if ((L + i)->cmax > cmax)
-      cmax = (L + i)->cmax;
-  return cmax;
-}
-
 /* apply merges of index = k mod nthreads */
 static void
 apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
@@ -1372,7 +1231,7 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
      those with fill-in < -2 (thus -4, -6, -8, ...) are processed first, then
      those with fill-in -2. */
   for (unsigned long t = k; t < size; t += nthreads)
-    fill_in += merge_cost_or_do (mat, l[t], out);
+    fill_in += merge_do (mat, l[t], out);
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
@@ -1608,8 +1467,8 @@ main (int argc, char *argv[])
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
 
-    printf ("Using USE_MST=%d, MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, MAX_THREADS=%d\n",
-            USE_MST, MERGE_LEVEL_MAX, CBOUND_INCR, MAX_THREADS);
+    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, MAX_THREADS=%d\n",
+            MERGE_LEVEL_MAX, CBOUND_INCR, MAX_THREADS);
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),

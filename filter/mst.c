@@ -17,14 +17,9 @@
 
 /* naive implementation of Prim's algorithm:
    we put in start[i] and end[i] the values s and t of each edge (s, t) */
-#ifndef DEBUG_STACK
 int
 minimalSpanningTree (int *start, int *end, int m,
 		     int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX])
-#else
-int
-minimalSpanningTree (int *start, int *end, int m, int **A)
-#endif
 {
   int n, k, i, j, w = 0, imin, jmin, wmin;
   int S[MERGE_LEVEL_MAX], T[MERGE_LEVEL_MAX];
@@ -67,15 +62,9 @@ minimalSpanningTree (int *start, int *end, int m, int **A)
 /* given an ideal of weight m, fills the m x m matrix A so that
    A[i][j] is the weight of the sum of the i-th and j-th rows
    containing the ideal, for 0 <= i, j < m */
-#ifndef DEBUG_STACK
 void
 fillRowAddMatrix(int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX], filter_matrix_t *mat,
                  int m, index_t *ind, index_t ideal)
-#else
-void
-fillRowAddMatrix(int **A, filter_matrix_t *mat,
-                 int m, index_t *ind, index_t ideal)
-#endif
 {
     int i, j;
 
@@ -90,19 +79,9 @@ fillRowAddMatrix(int **A, filter_matrix_t *mat,
 int
 minCostUsingMST (filter_matrix_t *mat, int m, index_t *ind, index_t j)
 {
-#ifndef DEBUG_STACK
     int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX], w;
     int sons[MERGE_LEVEL_MAX];
     int father[MERGE_LEVEL_MAX];
-#else
-    int **A, w;
-    A = malloc (m * sizeof (int*));
-    int *sons = malloc ((m + 2) * m * sizeof (int));
-    int *father = sons + m;
-    A[0] = father + m;
-    for (int i = 1; i < m; i++)
-      A[i] = A[i-1] + m;
-#endif
 
     fillRowAddMatrix (A, mat, m, ind, j);
     w = minimalSpanningTree (father, sons, m, A);
@@ -110,10 +89,6 @@ minCostUsingMST (filter_matrix_t *mat, int m, index_t *ind, index_t j)
        initial relations */
     for (int i = 0; i < m; i++)
       w -= matLengthRow(mat, ind[i]);
-#ifdef DEBUG_STACK
-    free (sons);
-    free (A);
-#endif
     return w;
 }
 

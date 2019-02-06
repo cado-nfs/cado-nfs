@@ -32,9 +32,6 @@
 /* Merge */
 /*********/
 
-/* Define DEBUG_STACK to replace the stack allocations of arrays of size
-   MERGE_LEVEL_MAX x MERGE_LEVEL_MAX by calls to malloc. */
-// #define DEBUG_STACK
 /* Maximum level for a merge. */
 #define MERGE_LEVEL_MAX 32
 /* Maximum number of characters of a merge in the history file.
