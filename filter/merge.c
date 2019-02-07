@@ -1498,14 +1498,13 @@ main (int argc, char *argv[])
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 
-	/* At each pass, we increase cbound to allow more merges.
-	   If one decreases CBOUND_INCR, the final matrix will be smaller,
-	   but merge will take more time.
+	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
+	   merges. If one decreases CBOUND_INCR, the final matrix will be
+	   smaller, but merge will take more time.
 	   If one increases CBOUND_INCR, merge will be faster, but the final
-	   matrix will be larger.
-	   The value CBOUND_INCR=8 seems to give similar matrix sizes to what
-	   we got with the previous merge. */
-        cbound += CBOUND_INCR;
+	   matrix will be larger. */
+	if (mat->cwmax > 2)
+	  cbound += CBOUND_INCR;
 
 	lastN = mat->rem_nrows;
 	lastWoverN = (double) mat->tot_weight / (double) lastN;
