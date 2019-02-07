@@ -662,7 +662,8 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
             return false;
         }
 
-        /* We're not going to try this method mode than once */
+        /* If fm[j].arith is still CHOOSE_NONE after the call to
+	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
         fm[0].arith = modset_t::CHOOSE_NONE;
         fm[1].arith = modset_t::CHOOSE_NONE;
 
@@ -680,7 +681,8 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         /* In this case, no prime factor was stored, no composite was
          * stored: the input number has not been changed, we move on to
          * the next method */
-        if (nf == 0) {
+        if (nf == 0 && fm[0].arith == modset_t::CHOOSE_NONE
+	            && fm[1].arith == modset_t::CHOOSE_NONE) {
             composites.front().second = pm;
             continue;
         }

@@ -779,8 +779,13 @@ struct process_bucket_region_run : public process_bucket_region_spawn {
         WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);
 
         /* This is local to this thread */
-        for(int side = 0 ; side < 2 ; side++)
-            S[side] = tws.sides[side].bucket_region;
+        for(int side = 0 ; side < 2 ; side++) {
+            nfs_work::side_data & wss(ws.sides[side]);
+            if (wss.no_fb())
+                S[side] = NULL;
+            else
+                S[side] = tws.sides[side].bucket_region;
+        }
 
         SS = tws.SS;
         memset(SS, 0, BUCKET_REGION);
@@ -1062,12 +1067,14 @@ struct cofac_standalone {
     cxx_mpz az, bz;
 #endif
     cofac_standalone() : a(0), b(0) {/*{{{*/
+        S[0] = S[1] = 0;
 #ifdef SUPPORT_LARGE_Q
         mpz_set_ui(az, 0);
         mpz_set_ui(bz, 0);
 #endif
     }/*}}}*/
     cofac_standalone(int N, size_t x, int logI, qlattice_basis const & Q) {/*{{{*/
+        S[0] = S[1] = 0;
         NxToAB (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
         NxToABmpz (az, bz, N, x, logI, Q);
@@ -1397,7 +1404,11 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         /* start building a new object. This is a swap operation */
         cur = cofac_standalone(N, x, ws.conf.logI, ws.Q);
-        cur.S = {{ S[0][x], S[1][x] }};
+
+        for(int side = 0 ; side < 2 ; side++) {
+            if (ws.sides[side].no_fb()) continue;
+            cur.S[side] = S[side][x];
+        }
 
 #ifdef TRACE_K/*{{{*/
         if (cur.trace_on_spot())
@@ -1648,7 +1659,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
         WHERE_AM_I_UPDATE(w, side, side);
         nfs_work::side_data & wss(ws.sides[side]);
         if (wss.no_fb()) {
-            memset(S[side], 0, BUCKET_REGION);
+            ASSERT_ALWAYS(S[side] == NULL);
             continue;
         }
 
