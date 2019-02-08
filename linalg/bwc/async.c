@@ -381,6 +381,7 @@ void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int
             printf("%s: N=%d ; ETA (N=%d): %s [%.3f s/iter]\n",
                    stage,
                    iter, timing->end_mark, eta_string, avdwct);
+            fflush (stdout);
         }
     }
     /* We're sharing via thread_broadcast data which sits on the stack of
