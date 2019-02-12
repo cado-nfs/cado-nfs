@@ -26,12 +26,11 @@ typedef struct {
   typerow_t **rows;    /* rows[i][k] contains indices of an ideal of row[i] 
                           with 1 <= k <= rows[i][0] */
                        /* FOR_DL: struct containing also the exponent */
-  int32_t *wt;         /* weight w of column j, if w <= cwmax,
-                          else <= 0 for a deleted column
-                          (trick: we store -w if w > cwmax) */
-                       /* 32 bits is sufficient as we only want precise weight
+  unsigned char *wt;   /* weight w of column j, if w <= cwmax,
+                          else 0 for a deleted column */
+                       /* 8 bits is sufficient as we only want precise weight
                           for column of low weight. If the weight exceeds
-                          2^31-1, we saturate at 2^31-1 */
+                          255, we saturate at 255 */
   uint64_t skip;       /* number of buried/skipped columns of smaller index */
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */

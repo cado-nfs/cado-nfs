@@ -152,7 +152,7 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   {
     index_t h = rel->primes[i].h;
     mat->rem_ncols += (mat->wt[h] == 0);
-    mat->wt[h] += (mat->wt[h] != SMAX(int32_t));
+    mat->wt[h] += (mat->wt[h] != UMAX(unsigned char));
     if (h < mat->skip) continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
@@ -364,7 +364,8 @@ compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
   index_t i1 = (index_t) (k + 1) * h;
   if (i1 > mat->nrows)
     i1 = mat->nrows;
-  Wt[k] = malloc (n * sizeof (unsigned char));
+  if (k != 0) /* Wt[0] is mat->wt + j0 */
+    Wt[k] = malloc (n * sizeof (unsigned char));
   memset (Wt[k], 0, n * sizeof (unsigned char));
   unsigned char *wtk = Wt[k];
   for (index_t i = i0; i < i1; i++)
@@ -379,8 +380,8 @@ compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
         }
 }
 
-/* thread k accumulates in Wt[0] all weights for j = k mod nthreads,
-   saturating at cwmax + 1 */
+/* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
+   saturating at cwmax + 1. */
 static void
 compute_weights_thread2 (filter_matrix_t *mat, unsigned char **Wt, int k,
                          int nthreads, index_t j0)
@@ -412,7 +413,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
 #endif
   for (index_t j = 0; j < mat->ncols; j++)
     {
-      int32_t w = mat->wt[j];
+      unsigned char w = mat->wt[j];
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
       if (0 < w && w <= MERGE_LEVEL_MAX)
@@ -422,16 +423,13 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
 #endif
           jmin[w] = j;
     }
+
   jmin[0] = 1; /* to tell that jmin was initialized */
+
   /* make jmin[w] = min(jmin[w'], 2 <= w' <= w) */
   for (int w = 3; w <= MERGE_LEVEL_MAX; w++)
     if (jmin[w-1] < jmin[w])
       jmin[w] = jmin[w-1];
-#ifdef DEBUG
-  for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
-    printf ("jmin[%d]=%u ", w, jmin[w]);
-  printf ("\n");
-#endif
 }
 
 /* compute column weights (in fact, saturate to cwmax + 1 since we only need to
@@ -461,7 +459,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
-  /* first thread k fills Wt[k] with rows = k mod nthreads */
+  /* trick: we use wt for Wt[0] */
+  Wt[0] = mat->wt + j0;
+
+  /* first, thread k fills Wt[k] with subset of rows */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
 #endif
@@ -475,19 +476,15 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   for (int k = 0; k < nthreads; k++)
     compute_weights_thread2 (mat, Wt, k, nthreads, j0);
 
-  /* copy Wt[0] into wt */
+  /* initialize wt[0..j0-1] to 255 */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static)
 #endif
   for (index_t j = 0; j < j0; j++)
-    mat->wt[j] = mat->cwmax + 1;
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-  for (index_t j = j0; j < mat->ncols; j++)
-    mat->wt[j] = Wt[0][j - j0];
+    mat->wt[j] = 255;
 
-  for (int k = 0; k < nthreads; k++)
+  /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
+  for (int k = 1; k < nthreads; k++)
     free (Wt[k]);
   free (Wt);
 
@@ -621,7 +618,7 @@ add_R_entry (filter_matrix_t *mat, index_t j, index_t i)
 static void
 apply_buckets_all (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
 {
-  ASSERT(mat->cwmax < INT32_MAX);
+  ASSERT(mat->cwmax < 255);
   for (int i = 0; i < nthreads; i++)
     {
       bucket_t Bik = B[i][k];
@@ -926,7 +923,7 @@ merge_cost (filter_matrix_t *mat, index_t j)
 {
   index_t imin, i;
   int32_t cmin, c;
-  int32_t w = mat->wt[j];
+  int w = mat->wt[j];
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -1034,7 +1031,7 @@ static int32_t
 merge_do (filter_matrix_t *mat, index_t j, FILE *out)
 {
   int32_t c;
-  int32_t w = mat->wt[j];
+  int w = mat->wt[j];
 
   ASSERT (1 <= w && w <= mat->cwmax);
 

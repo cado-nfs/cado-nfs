@@ -31,9 +31,9 @@ initMat (filter_matrix_t *mat, uint32_t skip)
 
   mat->rows = (typerow_t **) malloc (mat->nrows * sizeof (typerow_t *));
   ASSERT_ALWAYS (mat->rows != NULL);
-  mat->wt = (int32_t *) malloc (mat->ncols * sizeof (int32_t));
+  mat->wt = (unsigned char *) malloc (mat->ncols * sizeof (unsigned char));
   ASSERT_ALWAYS (mat->wt != NULL);
-  memset (mat->wt, 0, mat->ncols * sizeof (int32_t));
+  memset (mat->wt, 0, mat->ncols * sizeof (unsigned char));
 }
 
 void
@@ -54,24 +54,6 @@ clearMat (filter_matrix_t *mat)
   for (j = 0; j < mat->ncols; j++)
     free (mat->R[j]);
   free (mat->R);
-}
-
-/* Put in nbm[w] for 0 <= w < 256, the number of ideals of weight w.
-   Return the number of active columns (w > 0). */
-unsigned long
-weight_count (filter_matrix_t *mat, uint64_t *nbm)
-{
-  uint64_t h, active = 0;
-
-  for (h = 0; h < 256; h++)
-    nbm[h] = 0;
-  for (h = 0; h < mat->ncols; h++)
-    {
-      if (0 <= mat->wt[h] && mat->wt[h] < 256)
-        nbm[mat->wt[h]]++;
-      active += mat->wt[h] > 0;
-    }
-  return active;
 }
 
 int cmp_u64(const uint64_t * a, const uint64_t * b)
