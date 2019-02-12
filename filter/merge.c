@@ -349,18 +349,25 @@ renumber (filter_matrix_t *mat)
 }
 #endif /* FOR_DL */
 
-/* Thread k accumulates in Wt[k] all weights of rows = k mod nthreads.
+/* Thread k accumulates in Wt[k] the weights of the k-th block of rows.
    We only consider ideals of index >= j0.
-   We put the weight of ideal j, j >= j0, in Wt[k][j-j0]. */
+   We put the weight of ideal j, j >= j0, in Wt[k][j-j0].
+   Note: this way of splitting the rows scales better when nthreads > 1
+   than the modular splitting (taking i = k mod nthreads). */
 static void
 compute_weights_thread1 (filter_matrix_t *mat, unsigned char **Wt, int k,
                          int nthreads, index_t j0)
 {
   index_t n = mat->ncols - j0;
+  index_t h = (mat->nrows + nthreads - 1) / nthreads; /*ceil(nrows/nthreads)*/
+  index_t i0 = (index_t) k * h;
+  index_t i1 = (index_t) (k + 1) * h;
+  if (i1 > mat->nrows)
+    i1 = mat->nrows;
   Wt[k] = malloc (n * sizeof (unsigned char));
   memset (Wt[k], 0, n * sizeof (unsigned char));
   unsigned char *wtk = Wt[k];
-  for (index_t i = k; i < mat->nrows; i += nthreads)
+  for (index_t i = i0; i < i1; i++)
     if (mat->rows[i] != NULL)
       for (uint32_t l = matLengthRow (mat, i); l >= 1; l--)
         {
