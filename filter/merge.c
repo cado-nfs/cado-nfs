@@ -126,8 +126,6 @@ get_thread_num (void)
 {
   int i;
 #ifdef HAVE_OPENMP
-#pragma omp parallel
-#pragma omp master
   i = omp_get_thread_num ();
 #else
   i = 0;
