@@ -105,6 +105,7 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+/* wrapper for omp_get_num_threads, returns 1 when OpenMP is not available */
 static int
 get_num_threads (void)
 {
@@ -117,6 +118,21 @@ get_num_threads (void)
   nthreads = 1;
 #endif
   return nthreads;
+}
+
+/* wrapper for omp_get_thread_num, returns 0 when OpenMP is not available */
+static int
+get_thread_num (void)
+{
+  int i;
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#pragma omp master
+  i = omp_get_thread_num ();
+#else
+  i = 0;
+#endif
+  return i;
 }
 
 #ifndef FOR_DL
@@ -567,7 +583,7 @@ fill_buckets (bucket_t **B, filter_matrix_t *mat, index_t i, int nthreads,
 {
   if (mat->rows[i] == NULL) /* row was discarded */
     return;
-  bucket_t *Bi = B[omp_get_thread_num ()];
+  bucket_t *Bi = B[get_thread_num ()];
   for (uint32_t k = matLengthRow (mat, i); k >= 1; k--)
     {
       index_t j = matCell (mat, i, k);
