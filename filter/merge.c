@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
+#include <malloc.h>
 
 // #define DEBUG
 // #define TRACE_J 0xb8
@@ -56,13 +57,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    with CBOUND_INCR=30. */
 #define CBOUND_INCR 20
 #endif
-
-/* We notice that the apply_merge_aux() function does not scale well when
-   the number of threads is large, this is due to too many concurrent calls
-   to malloc/free in add_row when performing the merges in parallel.
-   We thus limit the number of threads in this part (experimentally
-   MAX_THREADS=16 seems optimal to minimize the wall-clock time). */
-#define MAX_THREADS 16
 
 #include "portability.h"
 
@@ -1018,7 +1012,6 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
         }
       else
         history[i][1] = -(ind[s] + 1);
-      // addRowsAndUpdate (mat, ind[t], ind[s], ideal);
       add_row (mat, ind[t], ind[s], 1, j);
       history[i][2] = ind[t];
       history[i][0] = 2;
@@ -1327,10 +1320,6 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
         mat->cwmax ++;
     }
 
-  /* reduce the number of threads to avoid blocking issues with malloc/free */
-  if (nthreads > MAX_THREADS)
-    nthreads = MAX_THREADS;
-
   /* now apply in parallel the independent merges */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
@@ -1405,6 +1394,11 @@ main (int argc, char *argv[])
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #endif
+    /* experimentally, setting the number of arenas to twice the number of
+       threads seems optimal (man mallopt says it should match the number of
+       threads) */
+    int arenas = 2 * nthreads;
+    mallopt (M_ARENA_MAX, arenas);
 
     param_list_parse_uint (pl, "skip", &skip);
 
@@ -1481,8 +1475,8 @@ main (int argc, char *argv[])
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
 
-    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, MAX_THREADS=%d\n",
-            MERGE_LEVEL_MAX, CBOUND_INCR, MAX_THREADS);
+    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
+            MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
