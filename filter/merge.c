@@ -1207,6 +1207,20 @@ merge_list_init (merge_list_t *l)
 }
 
 static void
+merge_list_swap (merge_list_t *l, merge_list_t *newl)
+{
+  index_t *t = l->list;
+  l->list = newl->list;
+  newl->list = t;
+  unsigned long tmp = l->size;
+  l->size = newl->size;
+  newl->size = tmp;
+  tmp = l->alloc;
+  l->alloc = newl->alloc;
+  newl->alloc = tmp;
+}
+
+static void
 merge_list_add (merge_list_t *l, index_t j)
 {
   if (l->size == l->alloc)
@@ -1245,21 +1259,83 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
   mat->tot_weight += fill_in;
 }
 
+typedef struct
+{
+  int c, cmax;     /* c goes from 0 to cmax */
+  int i, nthreads; /* i goes from 0 to nthreads-1 */
+  unsigned long k; /* k goes from 0 to (L+i)->size[c]-1 */
+} status_t;
+
+static void
+init_status (status_t *s, int cmax, int nthreads)
+{
+  s->c = 0;
+  s->cmax = cmax;
+  s->i = 0;
+  s->nthreads = nthreads;
+  s->k = 0;
+}
+
+static void
+work (filter_matrix_t *mat, int k, int nthreads,
+      merge_list_t *l, merge_list_t *newl, unsigned long wanted, mpz_t z,
+      cost_list_t *L, status_t *s, FILE *out)
+{
+  ASSERT(nthreads >= 2);
+  if (k == nthreads - 1) /* thread nthreads-1 computes up to 'wanted' merges
+			    and puts them in newl */
+    {
+      newl->size = 0;
+      while (s->c <= s->cmax && newl->size < wanted)
+	{
+	  /* the current (c,i,k) is not necessarily valid */
+	  if (s->c > (L+(s->i))->cmax)
+	    (s->i) ++;
+	  /* here c <= (L+i)->cmax */
+	  else if (s->i >= s->nthreads)
+	    {
+	      (s->c) ++;
+	      s->i = 0;
+	    }
+	  /* here c <= (L+i)->cmax and i < s->nthreads */
+	  else if (s->k >= (L+(s->i))->size[s->c])
+	    {
+	      (s->i) ++;
+	      s->k = 0;
+	    }
+	  /* here c <= (L+i)->cmax, i < s->nthreads, and
+	     k < (L+i)->size[c] */
+	  else
+	    {
+	      index_t j = (L+(s->i))->list[s->c][s->k];
+	      int ok = 1;
+	      int w = mat->wt[j];
+	      for (int t = 0; t < w && ok; t++)
+		ok = mpz_tstbit (z, mat->R[j][t]) == 0;
+	      if (ok) /* mark rows used */
+		{
+		  for (int t = 0; t < w; t++)
+		    mpz_setbit (z, mat->R[j][t]);
+		  merge_list_add (newl, j);
+		}
+	      (s->k) ++; /* go to the next merge */
+	    }
+	}
+    }
+  else /* the other threads apply the merges in l */
+    apply_merge_aux (l->list, l->size, k, nthreads - 1, mat, out);
+}
+
 /* return the number of merges applied */
 static unsigned long
 apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
 	      int cmax_max)
 {
-  static int max_merge = 1;
   /* We first prepare a list of independent ideals of small cost to merge,
      i.e., all rows where those ideals appear are independent.
      This step is mono-thread. */
   mpz_t z; /* bit vector to detect rows not yet used */
   mpz_init (z);
-
-  /* determine the largest cmax */
-  int cmin = INT_MAX, cmax = INT_MIN;
-  unsigned long csum = 0;
 
   /* first compute the total number of possible merges */
   unsigned long total_merges = 0;
@@ -1268,46 +1344,34 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
       if (c <= (L+i)->cmax)
 	total_merges += (L+i)->size[c];
 
-  merge_list_t l[1]; /* list of independent merges */
+  merge_list_t l[1], newl[1]; /* list of independent merges */
   merge_list_init (l);
-  for (int c = 0; c <= cmax_max; c++)
-    for (int i = 0; i < nthreads; i++)
-      if (c <= (L+i)->cmax)
-	{
-	  for (unsigned long k = 0; k < (L+i)->size[c]; k++)
-	    {
-	      index_t j = (L+i)->list[c][k];
-	      int ok = 1;
-	      int w = mat->wt[j];
-	      if (w > max_merge)
-		{
-		  printf ("First %d-merge (cost %d)\n", w, c - BIAS);
-		  max_merge = w;
-		}
-	      for (int t = 0; t < w && ok; t++)
-		ok = mpz_tstbit (z, mat->R[j][t]) == 0;
-	      if (ok)
-		{
-		  /* mark rows used */
-		  for (int t = 0; t < w; t++)
-		    mpz_setbit (z, mat->R[j][t]);
-		  merge_list_add (l, j);
-                  if (c > cmax)
-                    cmax = c;
-                  if (c < cmin)
-                    cmin = c;
-                  csum += c;
-		}
-	    }
-	}
-  if (l->size == 0)
-    printf ("   found 0/%lu independent merges [cwmax=%d]\n",
-	    total_merges, mat->cwmax);
-  else
-    printf ("   found %lu/%lu independent merges (min %d, avg %d, max %d) [cwmax=%d]\n",
-	    l->size, total_merges, cmin - BIAS,
-	    (int) (csum / l->size) - BIAS, cmax - BIAS, mat->cwmax);
-  fflush (stdout);
+  merge_list_init (newl);
+  unsigned long wanted = total_merges / 24;
+  status_t s[1];
+  init_status (s, cmax_max, nthreads);
+  /* we need nthreads2 >= 2 */
+  int nthreads2 = (nthreads == 1) ? 2 : nthreads;
+  if (wanted < (unsigned long) nthreads2 - 1)
+    wanted = nthreads2 - 1;
+  while (1)
+    {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for schedule(static,1)
+#endif
+      for (int k = 0; k < nthreads2; k++)
+	work (mat, k, nthreads2, l, newl, wanted, z, L, s, out);
+
+      /* each merge decreases the number of rows and columns by one */
+      mat->rem_nrows -= l->size;
+      mat->rem_ncols -= l->size;
+
+      if (s->c > cmax_max && newl->size == 0)
+	break;
+
+      /* swap l and newl */
+      merge_list_swap (l, newl);
+    }
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
@@ -1320,18 +1384,8 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
         mat->cwmax ++;
     }
 
-  /* now apply in parallel the independent merges */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
-#endif
-  for (int k = 0; k < nthreads; k++)
-    apply_merge_aux (l->list, l->size, k, nthreads, mat, out);
-
-  /* each merge decreases the number of rows and columns by one */
-  mat->rem_nrows -= l->size;
-  mat->rem_ncols -= l->size;
-
   merge_list_clear (l);
+  merge_list_clear (newl);
   mpz_clear (z);
 
   return l->size;
@@ -1498,7 +1552,6 @@ main (int argc, char *argv[])
        initialized. */
     index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
 
-    int pass = 0;
     unsigned long lastN;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
@@ -1551,11 +1604,11 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM (pass %d)\n",
+	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM [cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10, ++pass);
+		PeakMemusage () >> 10, mat->cwmax);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
