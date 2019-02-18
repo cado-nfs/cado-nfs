@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
+#ifdef HAVE_MALLOPT
 #include <malloc.h>
+#endif
 
 // #define DEBUG
 // #define TRACE_J 0xb8
@@ -1437,11 +1439,14 @@ main (int argc, char *argv[])
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #endif
+
+#ifdef HAVE_MALLOPT
     /* experimentally, setting the number of arenas to twice the number of
        threads seems optimal (man mallopt says it should match the number of
        threads) */
     int arenas = 2 * nthreads;
     mallopt (M_ARENA_MAX, arenas);
+#endif
 
     param_list_parse_uint (pl, "skip", &skip);
 
@@ -1518,8 +1523,13 @@ main (int argc, char *argv[])
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
 
+#ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
             MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
+#else
+    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d\n",
+            MERGE_LEVEL_MAX, CBOUND_INCR);
+#endif
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
