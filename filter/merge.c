@@ -19,17 +19,6 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-/* Possible improvements:
- * in apply_merges, we can start applying merges before computing the full
-   list of independent merges: see worker_thread or producer/consumer with
-   OpenMP (suggestion of Pierrick Gaudry)
- * instead of counting the weight of all ideals in apply_merges, only take
-   into account the weight of the larger ideals at the beginning of merge,
-   to keep more k-merges with small k. For example we could only consider
-   ideals of index >= J, where J decreases while W/N increases (so that at
-   the end we consider the full weight).
- */
-
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
