@@ -1280,14 +1280,14 @@ work (filter_matrix_t *mat, int k, int nthreads,
       while (s->c <= s->cmax && newl->size < wanted)
 	{
 	  /* the current (c,i,k) is not necessarily valid */
-	  if (s->c > (L+(s->i))->cmax)
-	    (s->i) ++;
-	  /* here c <= (L+i)->cmax */
-	  else if (s->i >= s->nthreads)
+	  if (s->i >= s->nthreads)
 	    {
 	      (s->c) ++;
 	      s->i = 0;
 	    }
+	  /* here i < s->nthreads */
+	  else if (s->c > (L+(s->i))->cmax)
+	    (s->i) ++;
 	  /* here c <= (L+i)->cmax and i < s->nthreads */
 	  else if (s->k >= (L+(s->i))->size[s->c])
 	    {
