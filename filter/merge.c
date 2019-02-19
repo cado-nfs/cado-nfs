@@ -461,9 +461,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 	Wt[k] = malloc (n * sizeof (unsigned char));
       memset (Wt[k], 0, n * sizeof (unsigned char));
     }
+
   /* using schedule(dynamic,128) here is crucial, since during merge,
-     the distribution of row lengths is no longer uniform (and idem for
-     the discarded rows) */
+     the distribution of row lengths is no longer uniform (including
+     discarded rows) */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,128)
 #endif
@@ -666,6 +667,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
      nthreads, and bucket l corresponds to j = l mod nthreads */
   bucket_t **B;
   B = init_buckets (nthreads, tot_weight);
+
   /* Using schedule(dynamic,128) below is critical for performance,
      since during the merge the row lengths are no longer uniform. */
 #ifdef HAVE_OPENMP
@@ -1139,48 +1141,29 @@ add_cost (cost_list_t *l, index_t j, int32_t c)
    with cancellation give biased cost 0, so they will be merged first */
 #define BIAS 3
 
-/* compute the merge costs for columns j = k mod nthreads, j >= j0 */
+/* compute the merge cost for column j, and adds it to l if needed */
 static void
-compute_merges_aux (cost_list_t *l, int k, int nthreads,
-		    filter_matrix_t *mat, int cbound, index_t j0)
+compute_merges_aux (cost_list_t *l, index_t j,
+		     filter_matrix_t *mat, int cbound)
 {
-  /* we start at j = k + lambda * nthreads >= j0
-     thus lambda = ceil((j0-k)/nthreads) */
-  index_t j;
-  if (j0 < (index_t) k)
-    j = k;
-  else
+  if (1 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
     {
-      j = (j0 - k + nthreads - 1) / nthreads; /* lambda */
-      j = (index_t) k + j * (index_t) nthreads;
+      int32_t c = merge_cost (mat, j) + BIAS;
+      if (c <= cbound)
+	add_cost (l + get_thread_num (), j, c);
     }
-  for (; j < mat->ncols; j += nthreads)
-    if (1 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
-      {
-	int32_t c = merge_cost (mat, j) + BIAS;
-	if (c <= cbound)
-	  add_cost (l, j, c);
-      }
 }
 
 /* accumulate in L all merges of (biased) cost <= cbound */
 static void
-compute_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat,
+compute_merges (cost_list_t *L, filter_matrix_t *mat,
 		int cbound, index_t j0)
 {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
+#pragma omp parallel for schedule(dynamic,128)
 #endif
-  for (int i = 0; i < nthreads; i++)
-    compute_merges_aux (L + i, i, nthreads, mat, cbound, j0);
-
-#ifdef DEBUG
-  unsigned long nmerges = 0;
-  for (int i = 0; i < nthreads; i++)
-    for (int c = 0; c <= (L+i)->cmax; c++)
-      nmerges += (L+i)->size[c];
-  printf ("total number of merges: %lu\n", nmerges);
-#endif
+  for (index_t j = j0; j < mat->ncols; j++)
+    compute_merges_aux (L, j, mat, cbound);
 }
 
 typedef struct {
@@ -1576,7 +1559,7 @@ main (int argc, char *argv[])
 	double cpu2 = seconds (), wct2 = wct_seconds ();
 
 	cost_list_t *L = cost_list_init (nthreads);
-	compute_merges (L, nthreads, mat, cbound, jmin[mat->cwmax]);
+	compute_merges (L, mat, cbound, jmin[mat->cwmax]);
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
