@@ -48,6 +48,7 @@ typedef struct {
                             (either too heavy initially or deleted). It is safe
                             to have a 32-bit table as long as the Markowitz
                             queue has less than 2^32 entries. */
+  index_t *p;            /* permutation used to renumber the columns */
 } filter_matrix_t;
 
 #ifdef __cplusplus

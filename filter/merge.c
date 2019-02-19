@@ -207,7 +207,6 @@ print_timings (char *s, double cpu, double wct)
   fflush (stdout);
 }
 
-#ifndef FOR_DL
 /* set bit j of z to 1 for every ideal index j in relations = k mod nthreads */
 static void
 renumber_get_zk (mpz_t z, filter_matrix_t *mat, int k, int nthreads)
@@ -293,9 +292,10 @@ renumber_mat_thread (filter_matrix_t *mat, index_t *p, int k, int nthreads)
 
 /* replace all ideals j by p[j] */
 static void
-renumber_mat (filter_matrix_t *mat, index_t *p)
+renumber_mat (filter_matrix_t *mat)
 {
   int nthreads;
+  index_t *p = mat->p;
 
   nthreads = get_num_threads ();
 
@@ -314,29 +314,38 @@ renumber (filter_matrix_t *mat)
   mpz_t z; /* bit j of z is set if wt[j] > 0 */
   mpz_init (z);
 
-  /* first compute the columns of weight > 0 */
+  /* first compute the columns of positive weight */
   renumber_get_z (z, mat);
 
   /* now compute p[j] such that ideal j is renamed to p[j] <= j */
-  index_t *p = malloc (mat->ncols * sizeof (index_t));
+  mat->p = malloc (mat->ncols * sizeof (index_t));
   index_t i = 0, j = 0;
   while (1)
     {
       j = mpz_scan1 (z, j); /* next set bit */
       if (j < mat->ncols)
-        p[j++] = i++;
+        mat->p[j++] = i++;
       else
         break;
     }
-  ASSERT_ALWAYS(i == mpz_popcount (z));
+  ASSERT(i == mpz_popcount (z));
+  mat->rem_ncols = i;
 
-  renumber_mat (mat, p);
+  renumber_mat (mat);
 
-  free (p);
+#ifndef FOR_DL
+  free (mat->p);
+#else
+  /* for the discrete logarithm, we keep the inverse of p, to print the
+     original columns in the history file */
+  for (i = j = 0; j < mat->ncols; j++)
+    if (mat->p[j] == i) /* necessarily i <= j */
+      mat->p[i++] = j;
+#endif
   mpz_clear (z);
 
   /* reset ncols */
-  mat->ncols = mat->rem_ncols = i;
+  mat->ncols = mat->rem_ncols;
   printf ("exit renumber, ncols=%" PRIu64 "\n", mat->ncols);
   fflush (stdout);
 
@@ -346,7 +355,6 @@ renumber (filter_matrix_t *mat)
   cpu_t[5] += cpu;
   wct_t[5] += wct;
 }
-#endif /* FOR_DL */
 
 /* Thread k accumulates weights in Wt[k].
    We only consider ideals of index >= j0, and put the weight of ideal j,
@@ -962,8 +970,11 @@ merge_cost (filter_matrix_t *mat, index_t j)
    Return the number of characters written, except the final \0
    (or that would have been written if that number >= size) */
 static int
-sreportn (char *str, size_t size, index_signed_t *ind, int n,
-          MAYBE_UNUSED index_t j)
+#ifndef FOR_DL
+sreportn (char *str, size_t size, index_signed_t *ind, int n)
+#else
+sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
+#endif
 {
   size_t m = 0; /* number of characters written */
 
@@ -1026,7 +1037,11 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
       char s[MERGE_CHAR_MAX];
       int n MAYBE_UNUSED;
       index_signed_t i = mat->R[j][0]; /* only row containing j */
-      n = sreportn (s, MERGE_CHAR_MAX, &i, 1, j);
+#ifndef FOR_DL
+      n = sreportn (s, MERGE_CHAR_MAX, &i, 1);
+#else
+      n = sreportn (s, MERGE_CHAR_MAX, &i, 1, mat->p[j]);
+#endif
       ASSERT(n < MERGE_CHAR_MAX);
       fprintf (out, "%s", s);
       remove_row (mat, i);
@@ -1050,8 +1065,14 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
   int hmax = addFatherToSons (history, mat, w, ind, j, start, end);
   for (int i = hmax; i >= 0; i--)
     {
+#ifndef FOR_DL
       n += sreportn (s + n, MERGE_CHAR_MAX - n,
-		     (index_signed_t*) (history[i]+1), history[i][0], j);
+		     (index_signed_t*) (history[i]+1), history[i][0]);
+#else
+      n += sreportn (s + n, MERGE_CHAR_MAX - n,
+		     (index_signed_t*) (history[i]+1), history[i][0],
+		     mat->p[j]);
+#endif
       ASSERT(n < MERGE_CHAR_MAX);
     }
   fprintf (out, "%s", s);
@@ -1498,10 +1519,7 @@ main (int argc, char *argv[])
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
-#ifndef FOR_DL
-    /* for the discrete logarithm, we need to keep the ideal indices */
     renumber (mat);
-#endif
 
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
     ASSERT_ALWAYS(mat->R != NULL);
@@ -1628,6 +1646,9 @@ main (int argc, char *argv[])
 	    mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
     fflush (stdout);
 
+#ifdef FOR_DL
+    free (mat->p);
+#endif
     clearMat (mat);
 
     param_list_clear (pl);
