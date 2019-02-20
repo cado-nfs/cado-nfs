@@ -348,7 +348,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
     printf ("Sorting %" PRIu64 " columns by decreasing weight\n",
             (uint64_t) small_ncols);
     fflush (stdout);
-    qsort (tmp, small_ncols, 2*sizeof(index_t), cmp_index);
+    qsort (tmp, small_ncols, 2*sizeof(index_t), cmp_index2);
     memset (colweight, 0, ncols * sizeof(index_t));
     // useful for BW + skipping heavy part only...
     for (j = nb - 1, k = 1; j >= 0; j -= 2)

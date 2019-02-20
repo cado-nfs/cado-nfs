@@ -99,11 +99,21 @@ cmp_ideal_merge (const void *p, const void *q)
   return (x.id <= y.id ? -1 : 1);
 }
 
-/* We also compare x[1] and y[1] to make the code deterministic
-   since in case x[0] = y[0], qsort() may give different results on
-   different machines */
+/* compare two index_t's */
 static inline int
 cmp_index (const void *p, const void *q)
+{
+  index_t x = *((index_t *)p);
+  index_t y = *((index_t *)q);
+  return (x <= y ? -1 : 1);
+}
+
+/* Compare two pairs of index_t's.
+   We also compare x[1] and y[1] to make the code deterministic
+   since in case x[0] = y[0], qsort() may give different results on
+   different machines. */
+static inline int
+cmp_index2 (const void *p, const void *q)
 {
   index_t *x = (index_t*) p;
   index_t *y = (index_t*) q;

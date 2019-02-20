@@ -189,6 +189,21 @@ lingen_threshold=60  m=4 n=2  prime=101538509534246169632617439 --random-input-w
         )
     endif()
 
+    if(gfp_layer STREQUAL "p_1")
+        cado_define_test(test-bwc-lingen-21744
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_p_1
+            ARGUMENTS
+            --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
+            prime=485263
+            TARGET_DEPENDENCIES plingen_p_1)
+
+        cado_define_test(test-bwc-lingen-21744-bis
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_p_1
+            ARGUMENTS
+            --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
+            TARGET_DEPENDENCIES plingen_p_1)
+    endif()
+
     cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
         SOURCES test_matpoly.cpp
         ARGUMENTS --prime ${p}
