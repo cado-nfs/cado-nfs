@@ -31,8 +31,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <malloc.h>
 #endif
 
+/* define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
+   a merge in routine merge_cost */
+// #define MARKOWITZ
+
+/* define DEBUG if printRow is needed */
 // #define DEBUG
-// #define TRACE_J 0xb8
+
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
    long time (typically 10 times more than with CBOUND_INCR=10). */
@@ -499,10 +504,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   print_timings ("   compute_weights took", cpu, wct);
   cpu_t[0] += cpu;
   wct_t[0] += wct;
-
-#ifdef TRACE_J
-  printf ("TRACE_J: wt[%lu]=%u\n", (unsigned long) TRACE_J, mat->wt[TRACE_J]);
-#endif
 }
 
 /*************** level-2 buckets (to compute inverse matrix) *****************/
@@ -561,13 +562,7 @@ add_bucket (bucket_t *Bi, index_t i, index_t j, int nthreads)
 
   if (Bi[jj].size == Bi[jj].alloc)
     {
-#ifdef DEBUG
-      printf ("reallocate B[%d][%d] from %lu", (int) (i % nthreads), jj, Bi[jj].alloc);
-#endif
       Bi[jj].alloc += 1 + Bi[jj].alloc / MARGIN;
-#ifdef DEBUG
-      printf (" to %lu\n", Bi[jj].alloc);
-#endif
       Bi[jj].list = realloc (Bi[jj].list, Bi[jj].alloc * sizeof (index_pair_t));
     }
   ASSERT(Bi[jj].size < Bi[jj].alloc);
@@ -928,18 +923,10 @@ merge_cost (filter_matrix_t *mat, index_t j)
 
   imin = mat->R[j][0];
   cmin = matLengthRow (mat, imin);
-#ifdef TRACE_Jxxx
-  if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n",
-                            (unsigned long) j, (unsigned long) imin, cmin);
-#endif
   for (int k = 1; k < w; k++)
     {
       i = mat->R[j][k];
       c = matLengthRow (mat, i);
-#ifdef TRACE_Jxxx
-      if (j == TRACE_J) printf ("TRACE_J: j=%lu i=%lu c=%d\n",
-                                (unsigned long) j, (unsigned long) i, c);
-#endif
       if (c < cmin)
 	{
 	  imin = i;
@@ -959,7 +946,11 @@ merge_cost (filter_matrix_t *mat, index_t j)
 	   rows minus 2. Indeed, if row 'a' was added to two
 	   relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
 	   all ideals from 'a' will cancel. */
+#ifndef MARKOWITZ
 	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
+#else /* estimation with Markowitz pivoting: might miss cancellations */
+	c += cmin - 2;
+#endif
     }
   return c;
 }
