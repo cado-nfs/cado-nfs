@@ -58,6 +58,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "sparse.h"
 #include "mst.h"
 
+/* Note about variables used in the code:
+ * cwmax is the (current) maximal weight of columns that will be considered
+   for a merge. It starts at cwmax=2. Once we have performed *all* 2-merges,
+   we increase cwmax to 3, and at each step of the algorithm, we increase it
+   by 1 (not waiting for all 3-merges to be completed).
+ * cbound is the maximum (current) fill-in that is allowed for a merge
+   (in fact, it is a biased value to avoid negative values, one should subtract
+    BIAS from cbound to get the actual value). It starts at 0, and once all
+    the 2-merges have been performed (which all give a negative fill-in, thus
+    they will all be allowed), we increase cbound by CBOUND_INCR at each step
+    of the algorithm (where CBOUND_INCR differs for integer factorization and
+    discrete logarithm).
+ * j0 means that we assume that columns of index < j0 cannot have
+   weight <= cwmax. It depends on cwmax (decreases when cwmax increases).
+   At the first call to compute_weights(), the values j0(cwmax=2) up to
+   j0(MERGE_LEVEL_MAX) are computed once for all (since the weight of a
+   column usually does not decrease, the values of j0 should remain correct
+   during the algorithm, but not optimal).
+   In several places we use the fact that the rows are sorted by increasing
+   columns: if we start from the end, we can stop at soon as j < j0.
+*/
+
 /* 0: compute_weights
    1: compute_R
    2: compute_merges
