@@ -33,8 +33,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* Define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
    a merge in routine merge_cost. If defined, this is used as the average
-   number of cancellations per row addition. */
-// #define MARKOWITZ 19
+   number of cancellations per row addition.
+   Try 3 for integer factorization, 19 for discrete logarithm, to get about
+   the same number of steps than without defining MARKOWITZ. */
+// #define MARKOWITZ 3
 
 /* define DEBUG if printRow is needed */
 // #define DEBUG
