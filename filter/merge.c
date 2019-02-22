@@ -31,9 +31,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <malloc.h>
 #endif
 
-/* define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
-   a merge in routine merge_cost */
-// #define MARKOWITZ
+/* Define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
+   a merge in routine merge_cost. If defined, this is used as the average
+   number of cancellations per row addition. */
+// #define MARKOWITZ 19
 
 /* define DEBUG if printRow is needed */
 // #define DEBUG
@@ -971,7 +972,7 @@ merge_cost (filter_matrix_t *mat, index_t j)
 #ifndef MARKOWITZ
 	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
 #else /* estimation with Markowitz pivoting: might miss cancellations */
-	c += cmin - 2;
+        c += cmin - 2 - MARKOWITZ;
 #endif
     }
   return c;
@@ -1571,9 +1572,12 @@ main (int argc, char *argv[])
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
+    int pass = 0;
     while (1)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
+
+	pass ++;
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
@@ -1625,11 +1629,11 @@ main (int argc, char *argv[])
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
 	  / (double) (lastN - mat->rem_nrows);
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [cwmax=%d]\n",
+	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
 		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10, mat->cwmax);
+		PeakMemusage () >> 10, pass, mat->cwmax);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
