@@ -1431,6 +1431,7 @@ int main(int argc, char *argv[])
     if (!(opt_ab || opt_side0 || opt_side1 || opt_gcd))
         opt_ab = opt_side0 = opt_side1 = opt_gcd = 1;
 
+    double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
     /*
@@ -1557,6 +1558,6 @@ int main(int argc, char *argv[])
     cado_poly_clear (pol);
     param_list_clear (pl);
     mpz_clear (Np);
-    print_timing_and_memory (stderr, wct0);
+    print_timing_and_memory (stderr, cpu0, wct0);
     return 0;
 }

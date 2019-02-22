@@ -801,6 +801,7 @@ main(int argc, char *argv[])
   uint64_t nrows, ncols;
   typerow_t **newrows;
   int bin, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
+  double cpu0 = seconds ();
   double wct0 = wct_seconds ();
 
 #ifdef HAVE_MINGW
@@ -912,6 +913,6 @@ main(int argc, char *argv[])
                  bin, idealsfilename, for_msieve, Nmax);
 
   param_list_clear(pl);
-  print_timing_and_memory (stdout, wct0);
+  print_timing_and_memory (stdout, cpu0, wct0);
   return 0;
 }

@@ -1488,10 +1488,10 @@ void usage()
 }
 
 static int
-print_and_exit (double wct0, int ret)
+print_and_exit (double cpu0, double wct0, int ret)
 {
   /* print usage of time and memory */
-  print_timing_and_memory (stdout, wct0);
+  print_timing_and_memory (stdout, cpu0, wct0);
   if (ret != 0)
     fprintf (stderr, "No solution found\n");
   return ret; /* 0 if a solution was found, non-zero otherwise */
@@ -1503,6 +1503,7 @@ int main(int argc, char *argv[])
 
     param_list pl;
 
+    double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
     bw_common_init(bw, &argc, &argv);
@@ -1745,7 +1746,7 @@ int main(int argc, char *argv[])
         nresults += chance_list[j];
     }
     if (nresults == 0)
-      return print_and_exit (wct0, 1);
+      return print_and_exit (cpu0, wct0, 1);
 
     polmat F;
     compute_final_F_from_PI(F, pi_left);
@@ -1808,7 +1809,7 @@ int main(int argc, char *argv[])
 #endif/*}}}*/
     // print_chance_list(sequence_length, chance_list);
 
-    return print_and_exit (wct0, 0);
+    return print_and_exit (cpu0, wct0, 0);
 }
 
 /* vim: set sw=4 sta et: */

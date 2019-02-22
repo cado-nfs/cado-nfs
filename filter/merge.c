@@ -1519,6 +1519,9 @@ main (int argc, char *argv[])
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
+    double cpu_after_read = seconds ();
+    double wct_after_read = wct_seconds ();
+
     renumber (mat);
 
     mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
@@ -1658,7 +1661,9 @@ main (int argc, char *argv[])
 
     param_list_clear (pl);
 
-    print_timing_and_memory (stdout, wct0);
+    print_timing_and_memory (stdout, cpu0, wct0);
+    printf ("After matrix read:\n");
+    print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
 
     return 0;
 }
