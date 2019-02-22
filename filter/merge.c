@@ -1552,7 +1552,7 @@ main (int argc, char *argv[])
        initialized. */
     index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
 
-    unsigned long lastN;
+    unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
     while (1)
@@ -1568,7 +1568,8 @@ main (int argc, char *argv[])
 	  cbound += CBOUND_INCR;
 
 	lastN = mat->rem_nrows;
-	lastWoverN = (double) mat->tot_weight / (double) lastN;
+	lastW = mat->tot_weight;
+	lastWoverN = (double) lastW / (double) lastN;
 
 	compute_weights (mat, jmin);
 
@@ -1604,9 +1605,13 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM [cwmax=%d]\n",
+	/* estimate current average fill-in */
+	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
+	  / (double) (lastN - mat->rem_nrows);
+
+	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
-		(double) mat->tot_weight / (double) mat->rem_nrows,
+		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, mat->cwmax);
 	fflush (stdout);
