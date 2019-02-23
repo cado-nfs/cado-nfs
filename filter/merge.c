@@ -32,11 +32,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #endif
 
 /* Define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
-   a merge in routine merge_cost. If defined, this is used as the average
-   number of cancellations per row addition.
-   Try 3 for integer factorization, 19 for discrete logarithm, to get about
-   the same number of steps than without defining MARKOWITZ. */
-// #define MARKOWITZ 3
+   a merge in routine merge_cost (instead of computing the real fill-in
+   when adding the row of smallest weight to the other ones. */
+#define MARKOWITZ
 
 /* define DEBUG if printRow is needed */
 // #define DEBUG
@@ -47,14 +45,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifndef FOR_DL
 /* Experimentally on the RSA-512 matrix, CBOUND_INCR=11 gives a matrix which
    is 0.5% larger than the matrix obtained with CBOUND_INCR=1,
-   and takes only 20% more time than with CBOUND_INCR=20. */
+   and takes only 20% more time than with CBOUND_INCR=20.
+   With MARKOWITZ, CBOUND_INCR=13 gives a similar number of steps than
+   without MARKOWITZ and CBOUND_INCR=11. */
 #define CBOUND_INCR 11
 #else
 /* For the p180 matrix (http://caramba.loria.fr/p180.txt), CBOUND_INCR=20
    gives a matrix which is 0.2% larger than the matrix obtained with
    CBOUND_INCR=1 (with target_density=200), and takes only 17% more time than
-   with CBOUND_INCR=30. */
-#define CBOUND_INCR 20
+   with CBOUND_INCR=30.
+   With MARKOWITZ, CBOUND_INCR=31 gives a similar number of steps than
+   without MARKOWITZ and CBOUND_INCR=20. */
+#define CBOUND_INCR 31
 #endif
 
 #include "portability.h"
@@ -974,7 +976,7 @@ merge_cost (filter_matrix_t *mat, index_t j)
 #ifndef MARKOWITZ
 	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
 #else /* estimation with Markowitz pivoting: might miss cancellations */
-        c += cmin - 2 - MARKOWITZ;
+        c += cmin - 2;
 #endif
     }
   return c;
