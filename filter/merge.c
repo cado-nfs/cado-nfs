@@ -48,7 +48,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    and takes only 20% more time than with CBOUND_INCR=20.
    With MARKOWITZ, CBOUND_INCR=13 gives a similar number of steps than
    without MARKOWITZ and CBOUND_INCR=11. */
+#ifndef MARKOWITZ
 #define CBOUND_INCR 11
+#else
+#define CBOUND_INCR 13
+#endif
 #else
 /* For the p180 matrix (http://caramba.loria.fr/p180.txt), CBOUND_INCR=20
    gives a matrix which is 0.2% larger than the matrix obtained with
@@ -56,7 +60,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    with CBOUND_INCR=30.
    With MARKOWITZ, CBOUND_INCR=31 gives a similar number of steps than
    without MARKOWITZ and CBOUND_INCR=20. */
+#ifndef MARKOWITZ
+#define CBOUND_INCR 20
+#else
 #define CBOUND_INCR 31
+#endif
 #endif
 
 #include "portability.h"
