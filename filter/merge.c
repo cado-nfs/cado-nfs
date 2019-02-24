@@ -506,7 +506,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     {
       index_t n = mat->ncols - j0;
       if (k != 0)
-	Wt[k] = malloc (n * sizeof (unsigned char));
+	       Wt[k] = malloc (n * sizeof (unsigned char));
       memset (Wt[k], 0, n * sizeof (unsigned char));
     }
 
@@ -655,25 +655,14 @@ apply_buckets (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
 static unsigned long
 get_tot_weight_columns (filter_matrix_t *mat)
 {
-  int nthreads;
   unsigned long tot_weight = 0;
 
-  nthreads = get_num_threads ();
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
+#pragma omp parallel for reduction(+:tot_weight)
 #endif
-  for (int k = 0; k < nthreads; k++)
-    {
-      unsigned long tot_weight_thread = 0;
-      for (index_t j = k; j < mat->ncols; j += nthreads)
-	if (mat->wt[j] <= mat->cwmax)
-	  tot_weight_thread += mat->wt[j];
-#ifdef HAVE_OPENMP
-#pragma omp critical
-#endif
-      tot_weight += tot_weight_thread;
-    }
+  for (index_t j = 0; j < mat->ncols; j++)
+	  if (mat->wt[j] <= mat->cwmax)
+      tot_weight += mat->wt[j];
   return tot_weight;
 }
 
