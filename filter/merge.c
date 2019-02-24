@@ -149,13 +149,11 @@ get_num_threads (void)
 static int
 get_thread_num (void)
 {
-  int i;
 #ifdef HAVE_OPENMP
-  i = omp_get_thread_num ();
+  return omp_get_thread_num ();
 #else
-  i = 0;
+  return 0;
 #endif
-  return i;
 }
 
 #ifndef FOR_DL
@@ -247,142 +245,101 @@ print_timings (char *s, double cpu, double wct)
   fflush (stdout);
 }
 
-/* set bit j of z to 1 for every ideal index j in relations = k mod nthreads */
-static void
-renumber_get_zk (mpz_t z, filter_matrix_t *mat, int k, int nthreads)
-{
-  /* first ensure all bits of z are set to 0 */
-  index_t n = (mat->ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
-  memset (z->_mp_d, 0, n * sizeof (mp_limb_t));
-  for (index_t i = k; i < mat->nrows; i += nthreads)
-    for (uint32_t l = 1; l <= matLengthRow (mat, i); l++)
-      {
-        index_t j = matCell (mat, i, l);
-        mpz_setbit (z, j);
-      }
-}
-
-/* zk[0] <- zk[0] or zk[1] or zk[2] ... or zk[nthreads-1] */
-static void
-renumber_get_z_xor (mpz_t *zk, index_t ncols, int k, int nthreads)
-{
-  /* nlimbs is the total number of limbs of each zk[i] */
-  index_t nlimbs = (ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
-  /* m is the number of limbs processed by each thread */
-  index_t m = (nlimbs + nthreads - 1) / nthreads;
-  index_t i0 = k * m;
-  index_t i1 = i0 + m;
-  if (i1 > nlimbs)
-    i1 = nlimbs;
-  /* Warning: we can have i0 > nlimbs: take for example ncols=66242 with
-     nthreads=64, then we get nlimbs=1036. For k=63, we have i0 = 1071. */
-  if (i0 >= i1)
-    return;
-  /* now we have i0 < i1 <= nlimbs thus the mpn_ior_n call below is valid */
-  mp_limb_t *z0 = zk[0]->_mp_d + i0;
-  for (int j = 1; j < nthreads; j++)
-    mpn_ior_n (z0, z0, zk[j]->_mp_d + i0, i1 - i0);
-}
-
-static void
-renumber_get_z (mpz_t z, filter_matrix_t *mat)
-{
-  int nthreads;
-  mpz_t *zk;
-
-  nthreads = get_num_threads ();
-
-  zk = malloc (nthreads * sizeof (mpz_t));
-  for (int k = 0; k < nthreads; k++)
-    mpz_init2 (zk[k], mat->ncols);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
-#endif
-  for (int k = 0; k < nthreads; k++)
-    renumber_get_zk (zk[k], mat, k, nthreads);
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
-#endif
-  for (int k = 0; k < nthreads; k++)
-    renumber_get_z_xor (zk, mat->ncols, k, nthreads);
-  /* normalize zk[0] */
-  index_t n = (mat->ncols + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
-  while (n > 0 && zk[0]->_mp_d[n-1] == 0)
-    n --;
-  zk[0]->_mp_size = n;
-  mpz_swap (z, zk[0]);
-
-  for (int k = 0; k < nthreads; k++)
-    mpz_clear (zk[k]);
-  free (zk);
-}
-
-/* replace ideals j by p[j], for rows = k mod nthreads */
-static void
-renumber_mat_thread (filter_matrix_t *mat, index_t *p, int k, int nthreads)
-{
-  for (index_t i = k; i < mat->nrows; i += nthreads)
-    {
-      typerow_t *row = mat->rows[i];
-      for (uint32_t l = 1; l <= rowCell(row,0); l++)
-        rowCell(row,l) = p[rowCell(row,l)];
-    }
-}
-
-/* replace all ideals j by p[j] */
-static void
-renumber_mat (filter_matrix_t *mat)
-{
-  int nthreads;
-  index_t *p = mat->p;
-
-  nthreads = get_num_threads ();
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(static,1)
-#endif
-  for (int k = 0; k < nthreads; k++)
-    renumber_mat_thread (mat, p, k, nthreads);
-}
-
 /* renumber the columns of mat to have consecutive indices 0..ncols-1 */
 static void
 renumber (filter_matrix_t *mat)
 {
   double cpu = seconds (), wct = wct_seconds ();
-  mpz_t z; /* bit j of z is set if wt[j] > 0 */
-  mpz_init (z);
 
-  /* first compute the columns of positive weight */
-  renumber_get_z (z, mat);
+  /* compute p[j] such that ideal j is renamed to p[j] <= j */
+  uint64_t size = 1 + mat->ncols / 64;
+  mat->p = malloc(64 * size * sizeof (index_t));
 
-  /* now compute p[j] such that ideal j is renamed to p[j] <= j */
-  mat->p = malloc (mat->ncols * sizeof (index_t));
-  index_t i = 0, j = 0;
-  while (1)
+  /* detect non-empty columns */
+  int T = omp_get_max_threads();
+  uint64_t * local_p[T];
+  uint64_t partial[T];
+
+  #pragma omp parallel
+  {
+    /* each thread observe some rows and mark the corresponding columns in local_p */
+    int tid = omp_get_thread_num();
+    int T = omp_get_num_threads();
+    local_p[tid] = malloc(size * sizeof(uint64_t));
+    memset(local_p[tid], 0, size * sizeof(uint64_t));
+
+    #pragma omp for
+    for (uint64_t i = 0; i < mat->nrows; i++)
+      for (index_t l = 1; l <= matLengthRow(mat, i); l++) {
+        index_t j = matCell(mat, i, l);
+        uint64_t outside = j / 64;
+        uint64_t inside = j & 63;
+        local_p[tid][outside] |= (1ull << inside);
+      }
+    
+    /* accumumate marks over all threads */
+    #pragma omp for schedule(static)
+    for (uint64_t j = 0; j < size; j++)
+      for (int t = 1; t < T; t++)
+        local_p[0][j] |= local_p[t][j];
+
+    #pragma omp barrier
+
+    /* count non-empty columns in each chunk*/
+    uint64_t weight = 0;
+    #pragma omp for
+    for (uint64_t j = 0; j < size; j++)
+      weight += __builtin_popcountll(local_p[0][j]);
+    partial[tid] = weight;
+
+    #pragma omp barrier
+
+    /* prefix-sum the column counts (sequentially) */
+    #pragma omp master
     {
-      j = mpz_scan1 (z, j); /* next set bit */
-      if (j < mat->ncols)
-        mat->p[j++] = i++;
-      else
-        break;
+      uint64_t s = 0;
+      for (int t = 0; t < T; t++) {
+        uint64_t tmp = partial[t];
+        partial[t] = s;
+        s += tmp;
+      }
+      mat->rem_ncols = s;
     }
-  ASSERT(i == mpz_popcount (z));
-  mat->rem_ncols = i;
 
-  renumber_mat (mat);
+    #pragma omp barrier
+
+    /* compute the new column indices */
+    uint64_t s = partial[tid];
+    #pragma omp for schedule(static)
+    for (uint64_t i = 0; i < size; i++) {
+      uint64_t bitmask = local_p[0][i];
+      for (uint64_t j = 0; j < 64; j++) {
+        mat->p[i * 64 + j] = s;
+        if (bitmask & (1ull << j))
+          s++;
+      }
+    }
+
+    #pragma omp barrier
+
+    /* perform the renumbering in all rows */
+    #pragma omp for
+    for (uint64_t i = 0; i < mat->nrows; i++)
+      for (index_t l = 1; l <= matLengthRow(mat, i); l++)
+        matCell(mat, i, l) = mat->p[matCell(mat, i, l)];
+  
+    free(local_p[tid]);
+  } /* end of parallel section */
 
 #ifndef FOR_DL
-  free (mat->p);
+  free(mat->p);
 #else
   /* for the discrete logarithm, we keep the inverse of p, to print the
      original columns in the history file */
-  for (i = j = 0; j < mat->ncols; j++)
+  for (uint64_t i = 0, j = 0; j < mat->ncols; j++)
     if (mat->p[j] == i) /* necessarily i <= j */
       mat->p[i++] = j;
 #endif
-  mpz_clear (z);
 
   /* reset ncols */
   mat->ncols = mat->rem_ncols;
