@@ -827,7 +827,12 @@ mergeOneByOne (report_t *rep, filter_matrix_t *mat, int maxlevel,
   double report_incr = REPORT_INCR;
   double report_next = ceil (WoverN / report_incr) * report_incr;
 
+
   int64_t excess;
+  /* initially, the excess should be >= keep */
+  excess = mat->rem_nrows - mat->rem_ncols;
+  ASSERT_ALWAYS(excess >= mat->keep);
+
   /* stop when excess = keep and (WoverN >= target or queue is empty) */
   while ((excess = mat->rem_nrows - mat->rem_ncols) > mat->keep ||
          (WoverN < target_density || MkzQueueCardinality (mat) > 0))
