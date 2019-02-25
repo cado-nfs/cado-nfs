@@ -97,7 +97,7 @@ struct merge_matrix {
 
 
     int cwmax=0;
-    int maxlevel = DEFAULT_MERGE_MAXLEVEL;
+    int maxlevel = MERGE_LEVEL_MAX;
     size_t keep = DEFAULT_FILTER_EXCESS; /* target for initial_nrows-initial_ncols */
     size_t nburied = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
@@ -580,7 +580,7 @@ void merge_matrix::declare_usage(param_list_ptr pl) { /*{{{ */
             STR(DEFAULT_MERGE_SKIP) ")");
     param_list_decl_usage(pl, "maxlevel",
             "maximum number of rows in a merge " "(default "
-            STR(DEFAULT_MERGE_MAXLEVEL) ")");
+            STR(MERGE_LEVEL_MAX) ")");
     param_list_decl_usage(pl, "excess_inject_ratio",
             "fraction of excess to prune when stepping mergelevel"
             " (default " STR(DEFAULT_EXCESS_INJECT_RATIO) ")");
