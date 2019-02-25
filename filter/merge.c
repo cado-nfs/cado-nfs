@@ -130,31 +130,48 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+#ifdef HAVE_OPENMP
 /* wrapper for omp_get_num_threads, returns 1 when OpenMP is not available */
-static int
-get_num_threads (void)
+static int get_num_threads()
 {
   int nthreads;
-#ifdef HAVE_OPENMP
 #pragma omp parallel
 #pragma omp master
   nthreads = omp_get_num_threads ();
-#else
-  nthreads = 1;
-#endif
   return nthreads;
 }
 
-/* wrapper for omp_get_thread_num, returns 0 when OpenMP is not available */
-static int
-get_thread_num (void)
+static int get_thread_num()
 {
-#ifdef HAVE_OPENMP
   return omp_get_thread_num ();
-#else
-  return 0;
-#endif
 }
+#else
+  static int get_num_threads()
+  {
+    return 1;
+  }
+
+  static int omp_get_max_threads()
+  {
+    return 1;
+  }
+
+  static int omp_get_num_threads()
+  {
+    return 1;
+  }
+
+  static int omp_get_thread_num()
+  {
+    return 0;
+  }
+
+  static int get_thread_num()
+  {
+    return 0;
+  }
+#endif
+
 
 #ifndef FOR_DL
 /* sort row[0], row[1], ..., row[n-1] in non-decreasing order */
@@ -407,9 +424,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
   for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
     jmin[w] = mat->ncols;
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
+  #pragma omp parallel for
   for (index_t j = 0; j < mat->ncols; j++)
     {
       unsigned char w = mat->wt[j];
@@ -614,9 +629,7 @@ get_tot_weight_columns (filter_matrix_t *mat)
 {
   unsigned long tot_weight = 0;
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for reduction(+:tot_weight)
-#endif
+  #pragma omp parallel for reduction(+:tot_weight)
   for (index_t j = 0; j < mat->ncols; j++)
 	  if (mat->wt[j] <= mat->cwmax)
       tot_weight += mat->wt[j];
