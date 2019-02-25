@@ -369,6 +369,7 @@ int main(int argc, char **argv)
     _fmode = _O_BINARY;		/* Binary open for all files */
 #endif
 
+    double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
     param_list_init(pl);
@@ -644,7 +645,7 @@ int main(int argc, char **argv)
 
     purge_matrix_clear (mat);
     /* print usage of time and memory */
-    print_timing_and_memory (stdout, wct0);
+    print_timing_and_memory (stdout, cpu0, wct0);
 
     param_list_clear(pl);
 

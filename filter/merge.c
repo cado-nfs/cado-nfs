@@ -103,6 +103,7 @@ main (int argc, char *argv[])
 #endif
 
     double tt;
+    double cpu0 = seconds ();
     double wct0 = wct_seconds ();
     param_list pl;
     int verbose = 0;
@@ -238,7 +239,7 @@ main (int argc, char *argv[])
 
     printf ("Total merge time: %.2f seconds\n", seconds ());
 
-    print_timing_and_memory (stdout, wct0);
+    print_timing_and_memory (stdout, cpu0, wct0);
 
     return 0;
 }

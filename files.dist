@@ -651,6 +651,7 @@ utils/timing.cpp
 utils/timing.h
 utils/typedefs.h
 utils/ularith.h
+utils/u64arith.h
 utils/usp.c
 utils/usp.h
 utils/utils.h
@@ -1342,3 +1343,4 @@ config/check_uint64_type.cmake
 utils/lock_guarded_container.hpp
 sieve/las-memory.cpp
 sieve/las-memory.hpp
+tests/linalg/bwc/A.21744

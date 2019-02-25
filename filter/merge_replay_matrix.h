@@ -9,22 +9,6 @@
 
 #include "utils.h"  /* for ideal_merge_t */
 
-static inline int
-cmp_index (const void *p, const void *q)
-{
-  index_t x = *((index_t *)p);
-  index_t y = *((index_t *)q);
-  return (x <= y ? -1 : 1);
-}
-
-static inline int
-cmp_ideal_merge (const void *p, const void *q)
-{
-  ideal_merge_t x = *((ideal_merge_t *)p);
-  ideal_merge_t y = *((ideal_merge_t *)q);
-  return (x.id <= y.id ? -1 : 1);
-}
-
 #ifndef FOR_DL
 #define typerow_t index_t
 #define cmp_typerow_t cmp_index

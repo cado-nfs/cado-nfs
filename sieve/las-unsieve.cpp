@@ -42,7 +42,7 @@ unsieve_data::unsieve_data(int logI, int logA)
   gpf_init(Jmax - 1);
   for (unsigned int k = 2U; k < Jmax; k++)
     {
-      unsigned int p, c = k;
+      unsigned int p, c;
       p = gpf_get(k);
       c = k; do {c /= p;} while (c % p == 0);
       entries[k] = entry(p, c);
@@ -590,8 +590,12 @@ search_survivors_in_line(unsigned char * const SS[2],
 
         unsieve_not_coprime_line(Sf, j, i0, i1, td_max + 1, us);
 
-        /* TODO: implement an SSE2 version ! */
+#if defined(HAVE_SSE2)
+        search_survivors_in_line_sse2_oneside(Sf, b, j, i0, i1, N, j_div, td_max,
+                survivors);
+#else
         search_survivors_in_line1_oneside(Sf, b, j, i0, i1, N, j_div, td_max,
                 survivors);
+#endif
     }
 }

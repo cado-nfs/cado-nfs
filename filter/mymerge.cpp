@@ -2456,6 +2456,7 @@ int main(int argc, char *argv[])
 
     double tt;
     double wct0 = wct_seconds();
+    double cpu0 = seconds();
     param_list pl;
     int verbose = 0;
     param_list_init(pl);
@@ -2546,7 +2547,7 @@ int main(int argc, char *argv[])
 
     if (!M.comm_rank) {
         printf("Total merge time: %.2f seconds\n", seconds());
-        print_timing_and_memory(stdout, wct0);
+        print_timing_and_memory(stdout, cpu0, wct0);
     }
 
     MPI_Finalize();

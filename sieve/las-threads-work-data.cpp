@@ -54,6 +54,7 @@ nfs_work::thread_data::thread_data(nfs_work & ws)
 nfs_work::thread_data::~thread_data()
 {
     for(int side = 0 ; side < 2 ; side++) {
+        if (ws.sides[side].no_fb()) continue;
         ws.local_memory.free_bucket_region(sides[side].bucket_region);
         sides[side].bucket_region = NULL;
     }
@@ -64,6 +65,7 @@ nfs_work::thread_data::~thread_data()
 void nfs_work::thread_data::allocate_bucket_regions()
 {
     for(int side = 0 ; side < 2 ; side++) {
+        if (ws.sides[side].no_fb()) continue;
         sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
     }
     /* Allocate memory for the intermediate sum (only one for both sides) */

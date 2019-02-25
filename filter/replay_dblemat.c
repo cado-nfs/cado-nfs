@@ -627,6 +627,7 @@ usage(param_list pl, char *argv0)
 
 int main(int argc, char *argv[])
 {
+  double cpu0 = seconds ();
   double wct0 = wct_seconds ();
 
 #ifdef HAVE_MINGW
@@ -958,6 +959,6 @@ int main(int argc, char *argv[])
   free(MM_col_wt);
 
   param_list_clear(pl);
-  print_timing_and_memory (stdout, wct0);
+  print_timing_and_memory (stdout, cpu0, wct0);
   return 0;
 }

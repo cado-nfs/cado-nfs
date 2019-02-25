@@ -35,7 +35,7 @@ extern double seconds (void);
 extern double seconds_thread (void);
 extern void seconds_user_sys (double *);
 extern double wct_seconds (void);
-extern void print_timing_and_memory (FILE*, double);
+extern void print_timing_and_memory (FILE*, double, double);
 extern void thread_seconds_user_sys(double *);
 
 /* we provide an interface to collect the timings of the subprocesses.

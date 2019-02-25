@@ -991,7 +991,10 @@ def chain_dict(d1, d2):
 
 class RealTimeOutputFilter:
     def __init__(self, logger, filename):
-        self.stdout = open(filename, "w")
+        # the buffering=1 option is needed so that the stdout files are
+        # not buffered, cf
+        # docs.python.org/3.7/library/functions.html?highlight=open#open
+        self.stdout = open(filename, mode="w", buffering=1)
         self.logger = logger
     def filter(self, data):
         self.stdout.write(data)

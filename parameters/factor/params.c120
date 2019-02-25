@@ -45,7 +45,9 @@ tasks.sieve.qrange = 10000
 ###########################################################################
 
 tasks.filter.purge.keep = 170
-tasks.filter.target_density = 155.0
+# for a c120, a density of 100 is close to optimal (determined experimentally
+# with -t 16, and BWC cost W*N + C*N^2, with C = 17.2)
+tasks.filter.target_density = 100
 
 ###########################################################################
 # Linear algebra

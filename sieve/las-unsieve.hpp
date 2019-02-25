@@ -100,6 +100,12 @@ void search_survivors_in_line_sse2(unsigned char * const SS[2],
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max,
         std::vector<uint32_t> &survivors);
+void search_survivors_in_line_sse2_oneside(unsigned char * const SS,
+        const unsigned char bound,
+        unsigned int j, int i0, int i1,
+        int N, j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors);
 #endif
 
 #endif	/* LAS_UNSIEVE_HPP_ */

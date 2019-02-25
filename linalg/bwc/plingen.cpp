@@ -203,7 +203,21 @@ static int lexcmp2(const int x[2], const int y[2])
 
 /* }}} */
 
-static inline unsigned int expected_pi_length(dims * d, unsigned int len)/*{{{*/
+static void minmax_delta(dims * d, unsigned int * delta, unsigned int * mi, unsigned int * ma)
+{
+    *mi = delta[0];
+    *ma = delta[0];
+    unsigned int m = d->m;
+    unsigned int n = d->n;
+    unsigned int b = m + n;
+    for(unsigned int i = 0 ; i < b ; ++i) {
+        if (delta[i] < *mi) *mi = delta[i];
+        if (delta[i] > *ma) *ma = delta[i];
+    }
+}
+
+
+static inline unsigned int expected_pi_length(dims * d, unsigned int * delta, unsigned int len)/*{{{*/
 {
     /* The idea is that we want something which may account for something
      * exceptional, bounded by probability 2^-64. This corresponds to a
@@ -223,6 +237,13 @@ static inline unsigned int expected_pi_length(dims * d, unsigned int len)/*{{{*/
      * expected_pi_length(d,0) times in a row, then the cause must be
      * more than sheer luck, and we use it to detect generating rows.
      */
+
+    unsigned int mi, ma;
+    if (delta)
+        minmax_delta(d, delta, &mi, &ma);
+    else
+        mi = ma = 0;
+
     unsigned int m = d->m;
     unsigned int n = d->n;
     unsigned int b = m + n;
@@ -242,14 +263,14 @@ static inline unsigned int expected_pi_length(dims * d, unsigned int len)/*{{{*/
     mpz_clear(p);
     // unsigned int safety = iceildiv(abgroupsize(ab), m * sizeof(abelt));
     unsigned int safety = iceildiv(64, m * l);
-    return res + safety;
+    return res + safety + ma - mi;
 }/*}}}*/
 
 static inline unsigned int expected_pi_length_lowerbound(dims * d, unsigned int len)/*{{{*/
 {
     /* generically we expect that len*m % (m+n) columns have length
      * 1+\lfloor(len*m/(m+n))\rfloor, and the others have length one more.
-     * For one column to a length less than \lfloor(len*m/(m+n))\rfloor,
+     * For one column to have a length less than \lfloor(len*m/(m+n))\rfloor,
      * it takes probability 2^-(m*l) using the notations above. Therefore
      * we can simply count 2^(64-m*l) accidental zero cancellations at
      * most below the bound.
@@ -306,7 +327,9 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
 
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity. */
-    unsigned int pi_room_base = expected_pi_length(d, E->size);
+    unsigned int mi, ma;
+    minmax_delta(d, delta, &mi, &ma);
+    unsigned int pi_room_base = expected_pi_length(d, delta, E->size);
 
     matpoly_init(ab, pi, b, b, pi_room_base);
     pi->size = pi_room_base;
@@ -318,6 +341,13 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
     matpoly_set_constant_ui(ab, pi, 1);
     for(unsigned int i = 0 ; i < b ; i++) {
         pi_lengths[i] = 1;
+        /* Fix for check 21744-bis. Our column priority will allow adding
+         * to a row if its delta is above the average. But then this
+         * might surprise us, because in truth we dont start with
+         * something of large degree here. So we're bumping pi_length a
+         * little bit to accomodate for this situation.
+         */
+        pi_lengths[i] += delta[i] - mi;
     }
 
     /* Keep a list of columns which have been used as pivots at the
@@ -371,9 +401,10 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
             for(unsigned int jl = 0 ; jl < nj ; ++jl) {
                 for(unsigned int i = 0 ; i < m ; ++i) {
                     unsigned int j = todo[jl];
+                    unsigned int lj = MIN(pi_lengths[j], t + 1);
                     abelt_ur_set_zero(ab, e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
-                        for(unsigned int s = 0 ; s < pi_lengths[j] ; s++) {
+                        for(unsigned int s = 0 ; s < lj ; s++) {
                             abmul_ur(ab, tmp_ur,
                                     matpoly_coeff_const(ab, E, i, k, t - s),
                                     matpoly_coeff(ab, pi, k, j, s));
@@ -413,14 +444,14 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
              * like this to be impossible by mere chance. Thus we want n*k >
              * luck_mini, which can easily be checked */
 
-            int luck_mini = expected_pi_length(d, 0);
+            int luck_mini = expected_pi_length(d, NULL, 0);
             unsigned int luck_sure = 0;
 
             printf("t=%d, canceled columns:", bm->t);
             for(unsigned int j = 0 ; j < b ; j++) {
                 if (bm->lucky[j] > 0) {
                     printf(" %u", j);
-                    luck_sure += bm->lucky[j] > luck_mini;
+                    luck_sure += bm->lucky[j] >= luck_mini;
                 }
             }
 
@@ -542,7 +573,8 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
          * not really matter where we put their computation, provided
          * that the columns that we do read are done at this point.
          */
-        for(unsigned int j = 0; j < b; j++) {
+        for(unsigned int jl = 0; jl < b; jl++) {
+            unsigned int j = ctable[jl][1];
             if (!is_pivot[j])
                 pivot_columns.push_back(j);
         }
@@ -569,16 +601,21 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
                  */
 
 #ifndef NDEBUG
-                for(unsigned int kl = m ; kl < b ; kl++) {
-                    unsigned int k = pivot_columns[kl];
-                    absrc_elt Tkj = matpoly_coeff_const(ab, T, k, j, 0);
-                    ASSERT(abcmp_ui(ab, Tkj, k==j) == 0);
-                }
-                for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
-                    unsigned int k = pivot_columns[kl];
-                    absrc_elt Tkj = matpoly_coeff_const(ab, T, k, j, 0);
-                    if (abcmp_ui(ab, Tkj, 0) == 0) continue;
-                    ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+                {
+                    for(unsigned int kl = m ; kl < b ; kl++) {
+                        unsigned int k = pivot_columns[kl];
+                        absrc_elt Tkj = matpoly_coeff_const(ab, T, k, j, 0);
+                        ASSERT_ALWAYS(abcmp_ui(ab, Tkj, k==j) == 0);
+                    }
+                    for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
+                        unsigned int k = pivot_columns[kl];
+                        absrc_elt Tkj = matpoly_coeff_const(ab, T, k, j, 0);
+                        if (abcmp_ui(ab, Tkj, 0) == 0) continue;
+                        ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+                    }
                 }
 #endif
 
@@ -1366,9 +1403,9 @@ bw_lingen_recursive(bmstatus_ptr bm, matpoly pi, matpoly E, unsigned int *delta)
     matpoly_truncate(ab, E_left, E, half);
 
     /* prepare for MP ! */
-    unsigned int pi_expect = expected_pi_length(d, E->size);
+    unsigned int pi_expect = expected_pi_length(d, delta, E->size);
     unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E->size);
-    unsigned int pi_left_expect = expected_pi_length(d, half);
+    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
     matpoly_rshift(ab, E, E, half + 1 - pi_left_expect_used_for_shift);
@@ -1415,7 +1452,7 @@ bw_lingen_recursive(bmstatus_ptr bm, matpoly pi, matpoly E, unsigned int *delta)
 
     int do_right = !draft || stats.spent_so_far() < draft;
 
-    unsigned int pi_right_expect = expected_pi_length(d, E_right->size);
+    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right->size);
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right->size);
     if (do_right) {
         done = bw_lingen_single(bm, pi_right, E_right, delta);
@@ -1535,9 +1572,9 @@ int bw_biglingen_recursive(bmstatus_ptr bm, bigmatpoly pi, bigmatpoly E, unsigne
     bigmatpoly_truncate_loc(ab, E_left, E, half);
 
     /* prepare for MP ! */
-    unsigned int pi_expect = expected_pi_length(d, E->size);
+    unsigned int pi_expect = expected_pi_length(d, delta, E->size);
     unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E->size);
-    unsigned int pi_left_expect = expected_pi_length(d, half);
+    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
     bigmatpoly_rshift(ab, E, E, half + 1 - pi_left_expect_used_for_shift);
@@ -1585,7 +1622,7 @@ int bw_biglingen_recursive(bmstatus_ptr bm, bigmatpoly pi, bigmatpoly E, unsigne
     int do_right = !draft || stats.spent_so_far() < draft;
     MPI_Allreduce(MPI_IN_PLACE, &do_right, 1, MPI_INT, MPI_MIN, bm->com[0]);
 
-    unsigned int pi_right_expect = expected_pi_length(d, E_right->size);
+    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right->size);
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right->size);
     if (do_right) {
         done = bw_biglingen_collective(bm, pi_right, E_right, delta);
@@ -3011,7 +3048,7 @@ unsigned int count_lucky_columns(bmstatus_ptr bm)/*{{{*/
     unsigned int m = d->m;
     unsigned int n = d->n;
     unsigned int b = m + n;
-    int luck_mini = expected_pi_length(d, 0);
+    int luck_mini = expected_pi_length(d, NULL, 0);
     MPI_Bcast(bm->lucky, b, MPI_UNSIGNED, 0, bm->com[0]);
     unsigned int nlucky = 0;
     for(unsigned int j = 0 ; j < b ; nlucky += bm->lucky[j++] >= luck_mini) ;
@@ -3050,7 +3087,7 @@ int check_luck_condition(bmstatus_ptr bm)/*{{{*/
             printf("Random input: faking successful computation\n");
         }
         for(unsigned int j = 0 ; j < n ; j++) {
-            bm->lucky[(j * 1009) % (m+n)] = expected_pi_length(d, 0);
+            bm->lucky[(j * 1009) % (m+n)] = expected_pi_length(d, NULL, 0);
         }
         return check_luck_condition(bm);
     }

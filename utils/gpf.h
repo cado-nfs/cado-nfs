@@ -1,9 +1,11 @@
 #ifndef GPF_H_
 #define GPF_H_
 
-/* A look-up table of the largest prime factor of an integer
+/* A look-up table of the largest prime factor of a non-negative integer i.
 
 Before calling gpf_get(i), gpf_init(m) must have been called with m >= i.
+
+gpf_get(0) = 0, gpf_get(1) = 1.
 
 */
 

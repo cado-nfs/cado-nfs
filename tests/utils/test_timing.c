@@ -136,7 +136,7 @@ int test_wct_seconds()
 
 int test_print_timing_and_memory()
 {
-    print_timing_and_memory (stdout, wct_seconds() - 1000);
+    print_timing_and_memory (stdout, seconds () - 17, wct_seconds() - 1000);
     return 1;
 }
 

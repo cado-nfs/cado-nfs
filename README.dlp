@@ -110,7 +110,8 @@ The algorithm works "mutatis mutandis" for discrete logarithm computations
 in GF(p^k). The only difference is that the two polynomials must have a
 common irreducible factor of degree k over GF(p). Polynomial selection
 for this case is not yet included, so you must build them by yourself,
-based on constructions available in the literature. Also the individual
+based on constructions available in the literature, and import it as
+indicated in scripts/cadofactor/README. Also the individual
 logarithm has to be implemented for that case.
 
 For DLP in GF(p^2), things are sligthly more integrated:

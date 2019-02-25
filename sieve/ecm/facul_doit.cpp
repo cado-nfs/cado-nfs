@@ -387,10 +387,10 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 /*****************************************************************************/
 
 /*
-  This function applies one factoring method 'method' on a cofactor 'm'
+  This function applies one factoring method 'method' on an integer 'm'
   and returns: 
-       -1 if m is not smooth.
-       n if we found n factors and store them in 'factors'.
+       FACUL_NOT_SMOOTH (-1) if m is not smooth.
+       n if we found n prime factors and store them in 'factors'.
 
   Remark: if m has more than two factors, it's possible that 
   we need to try another factorization on f (or/and  m/f). So
