@@ -31,6 +31,8 @@
 #define xxxROW_TABLE_USES_COMPRESSIBLE_HEAP
 #define xxxROW_TABLE_USES_SMALL_SIZE_POOL
 
+#define COEFFICIENT_CAP 32
+
 #if defined(R_TABLE_USES_SMALL_SIZE_POOL) || defined(ROW_TABLE_USES_SMALL_SIZE_POOL)
 #define DEBUG_SMALL_SIZE_POOL
 #include "small_size_pool.hpp"
@@ -1259,7 +1261,7 @@ struct row_combiner /*{{{*/ {
     {
         weight_of_sum(S);
 #ifdef FOR_DL
-        if (std::abs((int64_t) emax0 * (int64_t) e1) + std::abs((int64_t) emax1 * (int64_t) e0) > 32)
+        if (std::abs((int64_t) emax0 * (int64_t) e1) + std::abs((int64_t) emax1 * (int64_t) e0) > COEFFICIENT_CAP)
             return INT_MAX;
 #endif
         return sumweight;
@@ -1392,6 +1394,8 @@ size_t merge_matrix::collectively_remove_rows(std::vector<size_t> const & killed
 size_t merge_matrix::remove_excess(size_t count)/*{{{*/
 {
     size_t excess = nrows - global_ncols;
+
+    ASSERT_ALWAYS(keep <= excess);
 
     ASSERT_ALWAYS(heavy_rows.size() <= excess);
 
@@ -1775,6 +1779,15 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
     // coefficients _I_ will have to store as elements of the r-th new
     // row among the ones in the q-th merge ordered by peer p
 
+    // all_contrib_sizes[(p * n + q) * w + r] =
+    // all_contrib_sizes[(p * n * w) + q * w + r] =
+    // the total number of coefficients that all peers, collectively,
+    // have for the r-th new row from the q-th merge ordered by peer p
+    displ::displ_vec_t all_contrib_sizes(comm_size * n * w, 0);
+    MPI_Allreduce((void*) &remote_contrib_sizes[0],
+            (void*) &all_contrib_sizes[0],
+            n * w, MPI_INT, MPI_SUM, comm);
+
     /* mpi-2.1 lacks const in prototypes... */
     MPI_Alltoallv(
             (void*)&my_coeffs[0],
@@ -1796,6 +1809,8 @@ collective_merge_operation::row_batch_t collective_merge_operation::allgather_ro
         std::vector<size_t> const& col(all_row_indices[pq]);
         if (col.empty()) continue;
         for(size_t r = 0 ; r < col.size() - 1 ; r++) {
+            int sx = all_contrib_sizes[pq * w + r];
+            if (!sx) continue;
             // remote_contrib_sizes[(peer * n + q) * w + r] = the
             // number of new coefficients _I_ will have to store as
             // elements of the r-th new row among the ones in the
@@ -1982,7 +1997,7 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
 #if FOR_DL
             /* how about the max coefficent when we combine rows s and t ? */
             exponent_type e = emax[s] * std::abs(xx(s,t)) + emax[t] * std::abs(xx(t,s));
-            if (e > 32)
+            if (e > COEFFICIENT_CAP)
                 weights(s, t) = INT_MAX;
 #endif
             /* make the matrix symmetric */
@@ -2004,8 +2019,10 @@ matrix<int> batch_compute_weights(collective_merge_operation::row_batch_t const 
  *  - if a merge involves a row which already appears in another
  *    merge of the same batch.
  *  - if a merge is for a column which appeared in another merge.
+ *  - if (for DL) a merge would cause a coefficient to grow above the
+ *  defined cap.
  *
- * Note that provided the former event does not occur, the latter does
+ * Note that provided the 1st event does not occur, the second does
  * not occur either.
  */
 void merge_matrix::parallel_pivot(collective_merge_operation & CM)
@@ -2034,6 +2051,15 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
      *
      * Note that this loop is free of MPI calls.
      */
+    std::vector<size_t> removed_row_indices;
+    removed_row_indices.reserve(n * comm_size * cwmax);
+
+    /* I'm not totally sure -- I need this for proper access to the
+     * all_row_indices field further below */
+    ASSERT_ALWAYS(CM.n == my_col_indices.size());
+
+    std::vector<bool> did_merge(my_col_indices.size(), false);
+
     for(size_t q = 0 ; q < my_col_indices.size() ; q++) {
         size_t j = my_col_indices[q];
         size_t lj = j / comm_size;
@@ -2052,30 +2078,54 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
 
         std::pair<int, std::vector<std::pair<int, int>>> mst;
 
-        if (wj == 1) {
-            mst.first = -batch[0].size();
-        } else if (wj == 2) {
-            mst.first = -2;
-            mst.second.push_back(std::make_pair(0,1));
-        } else {
-            mst = minimum_spanning_tree(batch_compute_weights(batch, j));
-        }
-
         /* Do the merge, but locally first */
         row_batch_t new_row_batch;
-        for(auto const & edge : mst.second) {
-            row_combiner C(batch[edge.first], batch[edge.second], j);
+
+        if (wj == 1) {
+            /* Simply drop it ! */
+            mst.first = -batch[0].size();
+        } else if (wj == 2) {
+            // mst.first = -2;
+            // mst.second.push_back(std::make_pair(0,1));
+            row_combiner C(batch[0], batch[1], j);
+#ifdef FOR_DL
+            C.weight_of_sum();
+            if (std::abs((int64_t) C.emax0 * (int64_t) C.e1) + std::abs((int64_t) C.emax1 * (int64_t) C.e0) > COEFFICIENT_CAP)
+                continue;
+#endif
             new_row_batch.push_back(C.subtract_naively());
+        } else {
+            mst = minimum_spanning_tree(batch_compute_weights(batch, j));
+#ifdef FOR_DL
+            if (mst.second.empty()) {
+                /* the MST code found out that the graph was disconnected,
+                 * probably because of the coefficient cap. Skip.
+                 */
+                continue;
+            }
+#endif
+            for(auto const & edge : mst.second) {
+                row_combiner C(batch[edge.first], batch[edge.second], j);
+                new_row_batch.push_back(C.subtract_naively());
+            }
         }
+
         my_merged_new_rows.push_back(std::move(new_row_batch));
+
+        /* Only add to removed_row_indices if we effectively did the
+         * merge.
+         */
+        did_merge[q] = true;
+        ASSERT_ALWAYS(q < CM.n);
+        for(int peer = 0 ; peer < comm_size ; peer++) {
+            auto const & x(CM.all_row_indices[peer * CM.n + q]);
+            removed_row_indices.insert(removed_row_indices.end(), x.begin(), x.end());
+        }
+
     }
 
     collective_merge_operation::row_batch_t all_merged_new_rows = CM.allgather_rows(my_merged_new_rows);
 
-    std::vector<size_t> removed_row_indices;
-    removed_row_indices.reserve(n * comm_size * cwmax);
-    for(auto const & x : CM.all_row_indices)
-        removed_row_indices.insert(removed_row_indices.end(), x.begin(), x.end());
     sort(removed_row_indices.begin(), removed_row_indices.end());
 
     std::vector<std::pair<size_t, row_weight_t>> inserted_row_indices;
@@ -2097,6 +2147,7 @@ void merge_matrix::parallel_pivot(collective_merge_operation & CM)
     batch_Rj_update(removed_row_indices, inserted_row_indices);
 
     for(size_t q = 0 ; q < my_col_indices.size() ; q++) {
+        if (!did_merge[q]) continue;
         size_t j = my_col_indices[q];
         size_t lj = j / comm_size;
         collective_merge_operation::row_batch_t const & batch(row_batches[q]);
