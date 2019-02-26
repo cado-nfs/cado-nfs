@@ -1,5 +1,9 @@
 #include "cado.h"
 
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #ifdef HAVE_OPENMP
@@ -39,21 +43,15 @@ initMat (filter_matrix_t *mat, uint32_t skip)
 void
 clearMat (filter_matrix_t *mat)
 {
-  uint64_t i, j;
+  uint64_t i;
 
-#ifdef HAVE_OPENMP
 #pragma omp parallel for
-#endif
   for (i = 0; i < mat->nrows; i++)
     free (mat->rows[i]);
   free (mat->rows);
   free (mat->wt);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for (j = 0; j < mat->ncols; j++)
-    free (mat->R[j]);
-  free (mat->R);
+  free (mat->Rp);
+  free (mat->Ri);
 }
 
 int cmp_u64(const uint64_t * a, const uint64_t * b)

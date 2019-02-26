@@ -35,19 +35,11 @@ typedef struct {
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
-  index_t **R;         /* R[j][k] contains the indices of the rows containing
-                          the ideal of index j, 0 <= j < ncols,
-                          1 <= k <= R[j][0], for weight(j) <= cwmax.
-                          R[j][k] = UMAX(index_t) if the corresponding row has
-                                                                  been deleted.
-                        R[j]=NULL for weight(j) > cwmax. */
-  index_t *MKZQ;         /* priority queue for Markowitz stuff */
-  index_t *MKZA;         /* MKZA[j] gives u s.t. MKZQ[2*u] = j and
-                            MKZQ[2*u+1] is the Markowitz cost of column j,
-                            otherwise it is MKZ_INF if the column is inactive
-                            (either too heavy initially or deleted). It is safe
-                            to have a 32-bit table as long as the Markowitz
-                            queue has less than 2^32 entries. */
+  index_t *Rp, *Ri;    /* (part of) transposed matrix in CSR format:
+                          Rp has size ncols + 1, and Ri has size nnz where nnz
+                          is the number of elements in the transposed matrix.
+                          Column j has Rp[j+1] - Rp[j] elements, which are
+                          located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
   index_t *p;            /* permutation used to renumber the columns */
 } filter_matrix_t;
 

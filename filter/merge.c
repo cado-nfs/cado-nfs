@@ -513,116 +513,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   wct_t[0] += wct;
 }
 
-/*************** level-2 buckets (to compute inverse matrix) *****************/
-
-typedef struct
-{
-  index_t j; /* ideal index */
-  index_t i; /* row index */
-} index_pair_t;
-
-typedef struct
-{
-  index_pair_t *list;
-  unsigned long alloc;
-  unsigned long size;
-} bucket_t;
-
-/* bucket B[k][j] contains buckets for thread k, with ideals = j mod nthreads */
-static bucket_t**
-init_buckets (int nthreads, unsigned long tot_weight)
-{
-  bucket_t **B;
-  unsigned long w = tot_weight / (nthreads * nthreads);
-
-  w += w / MARGIN;
-  B = malloc (nthreads * sizeof (bucket_t*));
-  for (int k = 0; k < nthreads; k++)
-    {
-      B[k] = malloc (nthreads * sizeof (bucket_t));
-      for (int j = 0; j < nthreads; j++)
-	{
-	  B[k][j].list = malloc (w * sizeof (index_pair_t));
-	  B[k][j].alloc = w;
-	  B[k][j].size = 0;
-	}
-    }
-  return B;
-}
-
-static void
-clear_buckets (bucket_t **B, int nthreads)
-{
-  for (int k = 0; k < nthreads; k++)
-    {
-      for (int j = 0; j < nthreads; j++)
-        free (B[k][j].list);
-      free (B[k]);
-    }
-  free (B);
-}
-
-static void
-add_bucket (bucket_t *Bi, index_t i, index_t j, int nthreads)
-{
-  int jj = j % nthreads;
-
-  if (Bi[jj].size == Bi[jj].alloc)
-    {
-      Bi[jj].alloc += 1 + Bi[jj].alloc / MARGIN;
-      Bi[jj].list = realloc (Bi[jj].list, Bi[jj].alloc * sizeof (index_pair_t));
-    }
-  ASSERT(Bi[jj].size < Bi[jj].alloc);
-  Bi[jj].list[Bi[jj].size].i = i;
-  Bi[jj].list[Bi[jj].size].j = j;
-  Bi[jj].size ++;
-}
-
-/* add pairs (j,i) for row i, for j >= j0 */
-static void
-fill_buckets (bucket_t **B, filter_matrix_t *mat, index_t i, int nthreads,
-	      index_t j0)
-{
-  if (mat->rows[i] == NULL) /* row was discarded */
-    return;
-  bucket_t *Bi = B[get_thread_num ()];
-  for (uint32_t k = matLengthRow (mat, i); k >= 1; k--)
-    {
-      index_t j = matCell (mat, i, k);
-      /* we use here the fact that the rows are sorted by increasing values */
-      if (j < j0)
-	break;
-      /* we only consider ideals of weight <= cwmax,
-	 for which wt[j] was reset to 0 in compute_R */
-      if (mat->wt[j] == 0)
-	add_bucket (Bi, i, j, nthreads);
-    }
-}
-
-static void
-add_R_entry (filter_matrix_t *mat, index_t j, index_t i)
-{
-  int k = mat->wt[j];
-
-  mat->R[j][k] = i;
-  mat->wt[j] = k + 1;
-}
-
-/* Apply all buckets B[i][k] to compute the inverse matrix. Since B[i][k] contains
-   ideals j such that j = k mod nthreads, and two threads use a different value of k,
-   this ensures there cannot be any conflict in incrementing mat->wt[j]. */
-static void
-apply_buckets (bucket_t **B, filter_matrix_t *mat, index_t k, int nthreads)
-{
-  ASSERT(mat->cwmax < 255);
-  for (int i = 0; i < nthreads; i++)
-    {
-      bucket_t Bik = B[i][k];
-      for (unsigned long t = 0; t < Bik.size; t++)
-	add_R_entry (mat, Bik.list[t].j, Bik.list[t].i);
-    }
-}
-
 /* return the total weight of all columns of weight <= cwmax */
 static unsigned long
 get_tot_weight_columns (filter_matrix_t *mat)
@@ -631,49 +521,68 @@ get_tot_weight_columns (filter_matrix_t *mat)
 
   #pragma omp parallel for reduction(+:tot_weight)
   for (index_t j = 0; j < mat->ncols; j++)
-	  if (mat->wt[j] <= mat->cwmax)
+    if (mat->wt[j] <= mat->cwmax)
       tot_weight += mat->wt[j];
   return tot_weight;
 }
 
 /* computes the transposed matrix for columns of weight <= cwmax
-   (we only have to consider columns >= j0) */
+   (we only consider columns >= j0) */
 static void
 compute_R (filter_matrix_t *mat, index_t j0)
 {
-  int nthreads;
   double cpu = seconds (), wct = wct_seconds ();
 
-  /* the inverse matrix R is already allocated, but the individual entries
-     R[j] are not */
+  /* allocate the transposed matrix R in CSR format */
   unsigned long tot_weight = get_tot_weight_columns (mat);
+  mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
+  mat->Ri = malloc (tot_weight * sizeof (index_t));
 
-#pragma omp parallel for
+  index_t *Rp = mat->Rp;
+  index_t *Ri = mat->Ri;
+
+  /* initialize the row pointers */
+  index_t s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
-    if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
-      {
-	mat->R[j] = realloc (mat->R[j], mat->wt[j] * sizeof (index_t));
-	mat->wt[j] = 0; /* reset to 0 */
-      }
+    {
+      Rp[j] = s;
+      if (mat->wt[j] <= mat->cwmax)
+        s += mat->wt[j];
+    }
+  Rp[mat->ncols] = s;
 
-  nthreads = get_num_threads ();
-
-  /* we first compute buckets (j,i) where thread k processes rows i = k mod
-     nthreads, and bucket l corresponds to j = l mod nthreads */
-  bucket_t **B;
-  B = init_buckets (nthreads, tot_weight);
-
-  /* Using schedule(dynamic,128) below is critical for performance,
-     since during the merge the row lengths are no longer uniform. */
-#pragma omp parallel for schedule(dynamic,128)
+  /* dispatch entries */
   for (index_t i = 0; i < mat->nrows; i++)
-    fill_buckets (B, mat, i, nthreads, j0);
+    if (mat->rows[i] != NULL) /* row was not discarded */
+      for (index_t k = matLengthRow(mat, i); k >= 1; k--)
+        {
+          index_t j = matCell (mat, i, k);
+          /* since ideals are sorted by increasing value, we can stop
+             when we encounter j < j0 */
+          if (j < j0)
+            break;
+          /* we only accumulate ideals of weight <= cwmax */
+          if (mat->wt[j] > mat->cwmax)
+            continue;
+          index_t s = Rp[j];
+          Ri[s] = i;
+          Rp[j] = s + 1;
+        }
 
-#pragma omp parallel for schedule(static,1)
-  for (int k = 0; k < nthreads; k++)
-    apply_buckets (B, mat, k, nthreads);
-
-  clear_buckets (B, nthreads);
+  /* restore the original Rp[] values */
+  s = 0;
+  for (index_t j = j0; j < mat->ncols; j++)
+    {
+      index_t old = Rp[j];
+      Rp[j] = s;
+      if (mat->wt[j] <= mat->cwmax)
+        {
+          s += mat->wt[j];
+          /* the new value should be Rp[j] + wt[j] */
+          ASSERT_ALWAYS(old == Rp[j] + mat->wt[j]);
+        }
+    }
+  Rp[mat->ncols] = s;
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
@@ -909,11 +818,12 @@ merge_cost (filter_matrix_t *mat, index_t j)
     return -3; /* ensure all 1-merges are processed before 2-merges with no
 		  cancellation */
 
-  imin = mat->R[j][0];
+  index_t s = mat->Rp[j];
+  imin = mat->Ri[s];
   cmin = matLengthRow (mat, imin);
   for (int k = 1; k < w; k++)
     {
-      i = mat->R[j][k];
+      i = mat->Ri[s + k];
       c = matLengthRow (mat, i);
       if (c < cmin)
 	{
@@ -927,7 +837,7 @@ merge_cost (filter_matrix_t *mat, index_t j)
   c = -cmin; /* remove row imin */
   for (int k = 0; k < w; k++)
     {
-      i = mat->R[j][k];
+      i = mat->Ri[s + k];
       if (i != imin)
 	/* It is crucial here to take into account cancellations of
 	   coefficients, and not to simply add the length of both
@@ -1008,6 +918,7 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
 {
   int32_t c;
   int w = mat->wt[j];
+  index_t t = mat->Rp[j];
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -1015,7 +926,7 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
     {
       char s[MERGE_CHAR_MAX];
       int n MAYBE_UNUSED;
-      index_signed_t i = mat->R[j][0]; /* only row containing j */
+      index_signed_t i = mat->Ri[t]; /* only row containing j */
 #ifndef FOR_DL
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1);
 #else
@@ -1028,7 +939,7 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
     }
 
   /* perform the real merge and output to history file */
-  index_t *ind = mat->R[j];
+  index_t *ind = mat->Ri + t;
   char s[MERGE_CHAR_MAX];
   int n = 0; /* number of characters written to s (except final \0) */
   int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
@@ -1274,14 +1185,15 @@ work (filter_matrix_t *mat, int k, int nthreads,
 	  else
 	    {
 	      index_t j = (L+(s->i))->list[s->c][s->k];
+              index_t u = mat->Rp[j];
 	      int ok = 1;
 	      int w = mat->wt[j];
 	      for (int t = 0; t < w && ok; t++)
-		ok = mpz_tstbit (z, mat->R[j][t]) == 0;
+		ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
 	      if (ok) /* mark rows used */
 		{
 		  for (int t = 0; t < w; t++)
-		    mpz_setbit (z, mat->R[j][t]);
+		    mpz_setbit (z, mat->Ri[u + t]);
 		  merge_list_add (newl, j);
 		}
 	      (s->k) ++; /* go to the next merge */
@@ -1493,9 +1405,6 @@ main (int argc, char *argv[])
 
     renumber (mat);
 
-    mat->R = (index_t **) malloc (mat->ncols * sizeof(index_t *));
-    ASSERT_ALWAYS(mat->R != NULL);
-
 #ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
             MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
@@ -1511,11 +1420,6 @@ main (int argc, char *argv[])
     fflush (stdout);
 
     mat->cwmax = 2;
-
-    /* initialize R[j] to NULL */
-#pragma omp parallel for
-    for (index_t j = 0; j < mat->ncols; j++)
-      mat->R[j] = NULL;
 
     /* jmin[w] for 1 <= w <= MERGE_LEVEL_MAX is the smallest column of weight w
        at beginning. We set jmin[0] to 0 to tell that jmin[] was not
