@@ -541,6 +541,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t *Rp = mat->Rp;
   index_t *Ri = mat->Ri;
 
+  double cpu1 = seconds (), wct1 = wct_seconds ();
   /* initialize the row pointers */
   index_t s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
@@ -550,8 +551,11 @@ compute_R (filter_matrix_t *mat, index_t j0)
         s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
+  print_timings ("   initialize took", seconds () - cpu1, wct_seconds ()-wct1);
 
   /* dispatch entries */
+  cpu1 = seconds ();
+  wct1 = wct_seconds ();
   for (index_t i = 0; i < mat->nrows; i++)
     if (mat->rows[i] != NULL) /* row was not discarded */
       for (index_t k = matLengthRow(mat, i); k >= 1; k--)
@@ -568,8 +572,11 @@ compute_R (filter_matrix_t *mat, index_t j0)
           Ri[s] = i;
           Rp[j] = s + 1;
         }
+  print_timings ("   dispatch took", seconds () - cpu1, wct_seconds ()-wct1);
 
   /* restore the original Rp[] values */
+  cpu1 = seconds ();
+  wct1 = wct_seconds ();
   s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
@@ -583,6 +590,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
         }
     }
   Rp[mat->ncols] = s;
+  print_timings ("   restore took", seconds () - cpu1, wct_seconds ()-wct1);
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
