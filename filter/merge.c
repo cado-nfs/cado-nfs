@@ -1,6 +1,3 @@
-#ifdef  __GNUC__
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#endif
 /* merge --- new merge program
 
 Copyright 2019 Charles Bouillaguet and Paul Zimmermann.
@@ -23,6 +20,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h"
+/* the following should come after cado.h, which sets -Werror=all */
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>  /* for _O_BINARY */
