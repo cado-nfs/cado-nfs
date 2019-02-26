@@ -1,6 +1,9 @@
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 /* merge --- new merge program
 
-Copyright 2019 Paul Zimmermann.
+Copyright 2019 Charles Bouillaguet and Paul Zimmermann.
 
 This file is part of CADO-NFS.
 
