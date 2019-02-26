@@ -342,8 +342,6 @@ renumber (filter_matrix_t *mat)
       }
     }
 
-    #pragma omp barrier
-
     /* perform the renumbering in all rows */
     #pragma omp for
     for (uint64_t i = 0; i < mat->nrows; i++)
@@ -513,19 +511,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   wct_t[0] += wct;
 }
 
-/* return the total weight of all columns of weight <= cwmax */
-static unsigned long
-get_tot_weight_columns (filter_matrix_t *mat)
-{
-  unsigned long tot_weight = 0;
-
-  #pragma omp parallel for reduction(+:tot_weight)
-  for (index_t j = 0; j < mat->ncols; j++)
-    if (mat->wt[j] <= mat->cwmax)
-      tot_weight += mat->wt[j];
-  return tot_weight;
-}
-
 /* computes the transposed matrix for columns of weight <= cwmax
    (we only consider columns >= j0) */
 static void
@@ -534,9 +519,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   double cpu = seconds (), wct = wct_seconds ();
 
   /* allocate the transposed matrix R in CSR format */
-  unsigned long tot_weight = get_tot_weight_columns (mat);
   mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
-  mat->Ri = malloc (tot_weight * sizeof (index_t));
 
   index_t *Rp = mat->Rp;
   index_t *Ri = mat->Ri;
@@ -550,6 +533,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
         s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
+  mat->Ri = malloc (s * sizeof (index_t));
 
   /* dispatch entries */
   for (index_t i = 0; i < mat->nrows; i++)
