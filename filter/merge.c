@@ -273,7 +273,8 @@ renumber (filter_matrix_t *mat)
   double cpu = seconds (), wct = wct_seconds ();
 
   /* compute p[j] such that ideal j is renamed to p[j] <= j */
-  uint64_t size = 1 + mat->ncols / 64;
+  /* we use 64-bit words, thus need to round to an integer multiple of 64 */
+  uint64_t size = 1 + (mat->ncols - 1) / 64; /* ceil(ncols/64) */
   mat->p = malloc(64 * size * sizeof (index_t));
 
   /* detect non-empty columns */
@@ -283,7 +284,7 @@ renumber (filter_matrix_t *mat)
 
   #pragma omp parallel
   {
-    /* each thread observe some rows and mark the corresponding columns in local_p */
+    /* each thread observes some rows and marks the corresponding columns in local_p */
     int tid = omp_get_thread_num();
     int T = omp_get_num_threads();
     local_p[tid] = malloc(size * sizeof(uint64_t));
@@ -295,10 +296,10 @@ renumber (filter_matrix_t *mat)
         index_t j = matCell(mat, i, l);
         uint64_t outside = j / 64;
         uint64_t inside = j & 63;
-        local_p[tid][outside] |= (1ull << inside);
+        local_p[tid][outside] |= ((uint64_t) 1u) << inside;
       }
     
-    /* accumumate marks over all threads */
+    /* accumulate marks over all threads */
     #pragma omp for schedule(static)
     for (uint64_t j = 0; j < size; j++)
       for (int t = 1; t < T; t++)
@@ -306,7 +307,7 @@ renumber (filter_matrix_t *mat)
 
     #pragma omp barrier
 
-    /* count non-empty columns in each chunk*/
+    /* count non-empty columns in each chunk */
     uint64_t weight = 0;
     #pragma omp for
     for (uint64_t j = 0; j < size; j++)
@@ -336,7 +337,7 @@ renumber (filter_matrix_t *mat)
       uint64_t bitmask = local_p[0][i];
       for (uint64_t j = 0; j < 64; j++) {
         mat->p[i * 64 + j] = s;
-        if (bitmask & (1ull << j))
+        if (bitmask & (((uint64_t) 1) << j))
           s++;
       }
     }
