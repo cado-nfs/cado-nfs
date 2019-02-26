@@ -435,9 +435,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
       if (0 < w && w <= MERGE_LEVEL_MAX)
         if (j < jmin[w])
-#ifdef HAVE_OPENMP
 #pragma omp critical
-#endif
           jmin[w] = j;
     }
 
@@ -474,9 +472,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   Wt[0] = mat->wt + j0;
 
   /* first, thread k fills Wt[k] with subset of rows */
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
-#endif
   for (int k = 0; k < nthreads; k++)
     {
       index_t n = mat->ncols - j0;
@@ -488,16 +484,12 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   /* using schedule(dynamic,128) here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
      discarded rows) */
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,128)
-#endif
   for (index_t i = 0; i < mat->nrows; i++)
     compute_weights_by_row (mat, Wt, i, j0);
 
   /* then we accumulate all weights in Wt[0] */
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
-#endif
   for (int k = 0; k < nthreads; k++)
     compute_weights_by_col (mat, Wt, k, nthreads, j0);
 
@@ -651,9 +643,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
      R[j] are not */
   unsigned long tot_weight = get_tot_weight_columns (mat);
 
-#ifdef HAVE_OPENMP
 #pragma omp parallel for
-#endif
   for (index_t j = j0; j < mat->ncols; j++)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
@@ -670,15 +660,11 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   /* Using schedule(dynamic,128) below is critical for performance,
      since during the merge the row lengths are no longer uniform. */
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,128)
-#endif
   for (index_t i = 0; i < mat->nrows; i++)
     fill_buckets (B, mat, i, nthreads, j0);
 
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
-#endif
   for (int k = 0; k < nthreads; k++)
     apply_buckets (B, mat, k, nthreads);
 
@@ -1083,9 +1069,7 @@ cost_list_init (int nthreads)
   cost_list_t *L;
 
   L = malloc (nthreads * sizeof (cost_list_t));
-#ifdef HAVE_OPENMP
 #pragma omp parallel for
-#endif
   for (int i = 0; i < nthreads; i++)
     cost_list_init_aux (L + i);
   return L;
@@ -1105,9 +1089,7 @@ cost_list_clear_aux (cost_list_t *l)
 static void
 cost_list_clear (cost_list_t *L, int nthreads)
 {
-#ifdef HAVE_OPENMP
 #pragma omp parallel for
-#endif
     for (int i = 0; i < nthreads; i++)
       cost_list_clear_aux (L + i);
     free (L);
@@ -1168,9 +1150,7 @@ static void
 compute_merges (cost_list_t *L, filter_matrix_t *mat,
 		int cbound, index_t j0)
 {
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,128)
-#endif
   for (index_t j = j0; j < mat->ncols; j++)
     compute_merges_aux (L, j, mat, cbound);
 }
@@ -1236,9 +1216,7 @@ apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
      those with fill-in -2. */
   for (unsigned long t = k; t < size; t += nthreads)
     fill_in += merge_do (mat, l[t], out);
-#ifdef HAVE_OPENMP
 #pragma omp critical
-#endif
   mat->tot_weight += fill_in;
 }
 
@@ -1339,9 +1317,7 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
     wanted = nthreads2 - 1;
   while (1)
     {
-#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static,1)
-#endif
       for (int k = 0; k < nthreads2; k++)
 	work (mat, k, nthreads2, l, newl, wanted, z, L, s, out);
 
@@ -1532,9 +1508,7 @@ main (int argc, char *argv[])
     mat->cwmax = 2;
 
     /* initialize R[j] to NULL */
-#ifdef HAVE_OPENMP
 #pragma omp parallel for
-#endif
     for (index_t j = 0; j < mat->ncols; j++)
       mat->R[j] = NULL;
 
