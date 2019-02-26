@@ -355,11 +355,14 @@ renumber (filter_matrix_t *mat)
 #ifndef FOR_DL
   free(mat->p);
 #else
-  /* for the discrete logarithm, we keep the inverse of p, to print the
-     original columns in the history file */
+  /* For the discrete logarithm, we keep the inverse of p, to print the
+     original columns in the history file.
+     Warning: for a column j of weight 0, we have p[j] = p[j'] where
+     j' is the smallest column > j of positive weight, thus we only consider
+     j such that p[j] < p[j+1], or j = ncols-1. */
   for (uint64_t i = 0, j = 0; j < mat->ncols; j++)
-    if (mat->p[j] == i) /* necessarily i <= j */
-      mat->p[i++] = j;
+    if (mat->p[j] == i && (j + 1 == mat->ncols || mat->p[j] < mat->p[j+1]))
+      mat->p[i++] = j; /* necessarily i <= j */
 #endif
 
   /* reset ncols */
