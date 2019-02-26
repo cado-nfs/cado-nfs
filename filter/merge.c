@@ -520,10 +520,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   /* allocate the transposed matrix R in CSR format */
   mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
-
   index_t *Rp = mat->Rp;
-  index_t *Ri = mat->Ri;
-
+ 
   /* initialize the row pointers */
   index_t s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
@@ -533,7 +531,9 @@ compute_R (filter_matrix_t *mat, index_t j0)
         s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
+  
   mat->Ri = malloc (s * sizeof (index_t));
+  index_t *Ri = mat->Ri;
 
   /* dispatch entries */
   for (index_t i = 0; i < mat->nrows; i++)
