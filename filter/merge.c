@@ -136,15 +136,6 @@ usage (param_list pl, char *argv0)
 
 #ifdef HAVE_OPENMP
 /* wrapper for omp_get_num_threads, returns 1 when OpenMP is not available */
-static int get_num_threads()
-{
-  int nthreads;
-#pragma omp parallel
-#pragma omp master
-  nthreads = omp_get_num_threads ();
-  return nthreads;
-}
-
 static int get_thread_num()
 {
   return omp_get_thread_num ();
@@ -376,50 +367,6 @@ renumber (filter_matrix_t *mat)
   wct_t[5] += wct;
 }
 
-/* Thread k accumulates weights in Wt[k].
-   We only consider ideals of index >= j0, and put the weight of ideal j,
-   j >= j0, in Wt[k][j-j0]. */
-static void
-compute_weights_by_row (filter_matrix_t *mat, unsigned char **Wt,
-			index_t i, index_t j0)
-{
-  if (mat->rows[i] == NULL) /* row was discarded */
-    return;
-  int k = get_thread_num ();
-  unsigned char *wtk = Wt[k];
-  for (uint32_t l = matLengthRow (mat, i); l >= 1; l--)
-    {
-      index_t j = matCell (mat, i, l);
-      if (j < j0) /* assume ideals are sorted by increasing order */
-	break;
-      else if (wtk[j - j0] <= mat->cwmax)
-	wtk[j - j0] ++;
-    }
-}
-
-/* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
-   saturating at cwmax + 1:
-   Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
-static void
-compute_weights_by_col (filter_matrix_t *mat, unsigned char **Wt, int k,
-			int nthreads, index_t j0)
-{
-  index_t t0, t1;
-  index_t n = mat->ncols - j0;
-  t0 = k * (n / nthreads);
-  t1 = (k < nthreads - 1) ? (k+1) * (n / nthreads) : n;
-  unsigned char *wt0 = Wt[0];
-  for (int l = 1; l < nthreads; l++)
-    {
-      unsigned char *wtl = Wt[l];
-      for (index_t t = t0; t < t1; t++)
-	if (wt0[t] + wtl[t] <= mat->cwmax)
-	  wt0[t] += wtl[t];
-	else
-	  wt0[t] = mat->cwmax + 1;
-    }
-}
-
 /* For 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
    mat->wt[j] = w. This routine is called only once, at the first call of
    compute_weights. */
@@ -455,13 +402,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
 static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
-  int nthreads;
-  unsigned char **Wt;
   double cpu = seconds (), wct = wct_seconds ();
-
-  nthreads = get_num_threads ();
-
-  Wt = malloc (nthreads * sizeof (unsigned char*));
 
   index_t j0;
   if (jmin[0] == 0) /* jmin was not initialized */
@@ -471,35 +412,55 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
-  /* trick: we use wt for Wt[0] */
-  Wt[0] = mat->wt + j0;
+  unsigned char *Wt[omp_get_max_threads()];
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int tid = omp_get_thread_num();
+    index_t n = mat->ncols - j0;
+    if (tid == 0)
+        Wt[0] = mat->wt + j0; /* trick: we use wt for Wt[0] */
+    else
+        Wt[tid] = malloc (n * sizeof (unsigned char));
+    memset (Wt[tid], 0, n * sizeof (unsigned char));
 
-  /* first, thread k fills Wt[k] with subset of rows */
-#pragma omp parallel for schedule(static,1)
-  for (int k = 0; k < nthreads; k++)
-    {
-      index_t n = mat->ncols - j0;
-      if (k != 0)
-	       Wt[k] = malloc (n * sizeof (unsigned char));
-      memset (Wt[k], 0, n * sizeof (unsigned char));
-    }
+    unsigned char *Wt0 = Wt[0];
+    unsigned char *Wtk = Wt[tid];
 
-  /* using schedule(dynamic,128) here is crucial, since during merge,
+    /* Thread k accumulates weights in Wt[k].
+     We only consider ideals of index >= j0, and put the weight of ideal j,
+     j >= j0, in Wt[k][j-j0]. */
+
+    /* using schedule(dynamic,128) here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
      discarded rows) */
-#pragma omp parallel for schedule(dynamic,128)
-  for (index_t i = 0; i < mat->nrows; i++)
-    compute_weights_by_row (mat, Wt, i, j0);
+    #pragma omp for schedule(dynamic, 128)
+    for (index_t i = 0; i < mat->nrows; i++) {
+      if (mat->rows[i] == NULL) /* row was discarded */
+        continue;
+      for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
+        index_t j = matCell (mat, i, l);
+        if (j < j0) /* assume ideals are sorted by increasing order */
+          break;
+        else if (Wtk[j - j0] <= mat->cwmax)
+          Wtk[j - j0]++;
+      }
+    }
 
-  /* then we accumulate all weights in Wt[0] */
-#pragma omp parallel for schedule(static,1)
-  for (int k = 0; k < nthreads; k++)
-    compute_weights_by_col (mat, Wt, k, nthreads, j0);
+    /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
+       saturating at cwmax + 1:
+       Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
+    #pragma omp for
+    for (index_t i = 0; i < n; i++)
+      for (int t = 1; t < T; t++)
+        if (Wt0[i] + Wt[t][i] <= mat->cwmax)
+          Wt0[i] = Wt0[i] + Wt[t][i];
+        else
+          Wt0[i] = mat->cwmax + 1;
 
-  /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
-  for (int k = 1; k < nthreads; k++)
-    free (Wt[k]);
-  free (Wt);
+    if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
+      free (Wt[tid]);
+  }
 
   if (jmin[0] == 0) /* jmin was not initialized */
     compute_jmin (mat, jmin);
