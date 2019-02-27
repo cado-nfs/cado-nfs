@@ -378,6 +378,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
       if (0 < w && w <= MERGE_LEVEL_MAX)
+        /* This should be replaced by a compare-and-swap */
         #pragma omp critical
         if (j < jmin[w])
           jmin[w] = j;
@@ -406,6 +407,9 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
+  /* proposition : allocate everything of size mat->ncols.
+     This saves substractions later at label (*)  */
+
   unsigned char *Wt[omp_get_max_threads()];
   #pragma omp parallel
   {
@@ -418,9 +422,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
         Wt[tid] = malloc (n * sizeof (unsigned char));
     memset (Wt[tid], 0, n * sizeof (unsigned char));
 
-    unsigned char *Wt0 = Wt[0];
-    unsigned char *Wtk = Wt[tid];
-
     /* Thread k accumulates weights in Wt[k].
      We only consider ideals of index >= j0, and put the weight of ideal j,
      j >= j0, in Wt[k][j-j0]. */
@@ -428,6 +429,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     /* using schedule(dynamic,128) here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
      discarded rows) */
+    unsigned char *Wtk = Wt[tid];
     #pragma omp for schedule(dynamic, 128)
     for (index_t i = 0; i < mat->nrows; i++) {
       if (mat->rows[i] == NULL) /* row was discarded */
@@ -436,7 +438,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
         index_t j = matCell (mat, i, l);
         if (j < j0) /* assume ideals are sorted by increasing order */
           break;
-        else if (Wtk[j - j0] <= mat->cwmax)
+        else if (Wtk[j - j0] <= mat->cwmax)      /* (*) HERE */
           Wtk[j - j0]++;
       }
     }
@@ -444,7 +446,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
        saturating at cwmax + 1:
        Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
-    #pragma omp for
+    unsigned char *Wt0 = Wt[0];
+    #pragma omp for schedule(static)
     for (index_t i = 0; i < n; i++)
       for (int t = 1; t < T; t++)
         if (Wt0[i] + Wt[t][i] <= mat->cwmax)
@@ -550,11 +553,11 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   while (t1 <= k1 && t2 <= k2)
     {
       if (mat->rows[i1][t1] == mat->rows[i2][t2])
-	t1 ++, t2 ++;
+	      t1 ++, t2 ++;
       else if (mat->rows[i1][t1] < mat->rows[i2][t2])
-	t1 ++, c ++;
+	      t1 ++, c ++;
       else
-	t2 ++, c ++;
+	      t2 ++, c ++;
     }
   c += (k1 + 1 - t1) + (k2 + 1 - t2);
   if (doit == 0)
@@ -568,11 +571,11 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   while (t1 <= k1 && t2 <= k2)
     {
       if (mat->rows[i1][t1] == mat->rows[i2][t2])
-	t1 ++, t2 ++;
+	      t1 ++, t2 ++;
       else if (mat->rows[i1][t1] < mat->rows[i2][t2])
-	*t++ = mat->rows[i1][t1++];
+	      *t++ = mat->rows[i1][t1++];
       else
-	*t++ = mat->rows[i2][t2++];
+	      *t++ = mat->rows[i2][t2++];
     }
   while (t1 <= k1)
     *t++ = mat->rows[i1][t1++];
