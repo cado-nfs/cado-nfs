@@ -378,8 +378,8 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
       /* the condition j < jmin[w] is true only for the smallest j,
          thus the critical part below is run at most MERGE_LEVEL_MAX times */
       if (0 < w && w <= MERGE_LEVEL_MAX)
+        #pragma omp critical
         if (j < jmin[w])
-#pragma omp critical
           jmin[w] = j;
     }
 
