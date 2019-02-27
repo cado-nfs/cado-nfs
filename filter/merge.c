@@ -1050,137 +1050,46 @@ compute_merges (cost_list_t *L, filter_matrix_t *mat,
     compute_merges_aux (L, j, mat, cbound);
 }
 
-typedef struct {
-  index_t *list;
-  unsigned long size;
-  unsigned long alloc;
-} merge_list_t;
-
 static void
-merge_list_init (merge_list_t *l)
+work (filter_matrix_t *mat, int i, mpz_t z, cost_list_t *L, FILE *out)
 {
-  l->list = NULL;
-  l->size = 0;
-  l->alloc = 0;
-}
-
-static void
-merge_list_swap (merge_list_t *l, merge_list_t *newl)
-{
-  index_t *t = l->list;
-  l->list = newl->list;
-  newl->list = t;
-  unsigned long tmp = l->size;
-  l->size = newl->size;
-  newl->size = tmp;
-  tmp = l->alloc;
-  l->alloc = newl->alloc;
-  newl->alloc = tmp;
-}
-
-static void
-merge_list_add (merge_list_t *l, index_t j)
-{
-  if (l->size == l->alloc)
+  /* thread i processes L[i] */
+  cost_list_t *Li = L + i;
+  int32_t fill_in = 0, nmerges = 0;
+  for (int c = 0; c <= Li->cmax; c++)
     {
-      unsigned long new_alloc = l->alloc;
-      new_alloc += 1 + l->alloc / MARGIN;
-      l->list = realloc (l->list, new_alloc * sizeof (index_t));
-      l->alloc = new_alloc;
-    }
-  l->list[l->size] = j;
-  l->size ++;
-}
-
-static void
-merge_list_clear (merge_list_t *l)
-{
-  free (l->list);
-}
-
-/* apply merges of index = k mod nthreads */
-static void
-apply_merge_aux (index_t *l, unsigned long size, int k, int nthreads,
-		 filter_matrix_t *mat, FILE *out)
-{
-  int32_t fill_in = 0;
-
-  /* Note: the 2-merges are not necessarily processed in increasing fill-in,
-     since those with fill-in < -2 are capped to -3. All we are sure is that
-     those with fill-in < -2 (thus -4, -6, -8, ...) are processed first, then
-     those with fill-in -2. */
-  for (unsigned long t = k; t < size; t += nthreads)
-    fill_in += merge_do (mat, l[t], out);
+      for (index_t k = 0; k < Li->size[c]; k++)
+        {
+          index_t j = Li->list[c][k];
+          index_t u = mat->Rp[j];
+          int ok = 1;
+          int w = mat->wt[j];
+          for (int t = 0; t < w && ok; t++)
+            ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
+          if (ok) /* potential merge, enter critical section */
 #pragma omp critical
-  mat->tot_weight += fill_in;
-}
-
-typedef struct
-{
-  int c, cmax;     /* c goes from 0 to cmax */
-  int i, nthreads; /* i goes from 0 to nthreads-1 */
-  unsigned long k; /* k goes from 0 to (L+i)->size[c]-1 */
-} status_t;
-
-static void
-init_status (status_t *s, int cmax, int nthreads)
-{
-  s->c = 0;
-  s->cmax = cmax;
-  s->i = 0;
-  s->nthreads = nthreads;
-  s->k = 0;
-}
-
-static void
-work (filter_matrix_t *mat, int k, int nthreads,
-      merge_list_t *l, merge_list_t *newl, unsigned long wanted, mpz_t z,
-      cost_list_t *L, status_t *s, FILE *out)
-{
-  ASSERT(nthreads >= 2);
-  if (k == nthreads - 1) /* thread nthreads-1 computes up to 'wanted' merges
-			    and puts them in newl */
-    {
-      newl->size = 0;
-      while (s->c <= s->cmax && newl->size < wanted)
-	{
-	  /* the current (c,i,k) is not necessarily valid */
-	  if (s->i >= s->nthreads)
-	    {
-	      (s->c) ++;
-	      s->i = 0;
-	    }
-	  /* here i < s->nthreads */
-	  else if (s->c > (L+(s->i))->cmax)
-	    (s->i) ++;
-	  /* here c <= (L+i)->cmax and i < s->nthreads */
-	  else if (s->k >= (L+(s->i))->size[s->c])
-	    {
-	      (s->i) ++;
-	      s->k = 0;
-	    }
-	  /* here c <= (L+i)->cmax, i < s->nthreads, and
-	     k < (L+i)->size[c] */
-	  else
-	    {
-	      index_t j = (L+(s->i))->list[s->c][s->k];
-              index_t u = mat->Rp[j];
-	      int ok = 1;
-	      int w = mat->wt[j];
-	      for (int t = 0; t < w && ok; t++)
-		ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
-	      if (ok) /* mark rows used */
-		{
-		  for (int t = 0; t < w; t++)
-		    mpz_setbit (z, mat->Ri[u + t]);
-		  merge_list_add (newl, j);
-		}
-	      (s->k) ++; /* go to the next merge */
-	    }
-	}
+            {
+              /* check again, since another thread might have reserved a row */
+              for (int t = 0; t < w && ok; t++)
+                ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
+              if (ok) /* reserve rows */
+                for (int t = 0; t < w; t++)
+                  mpz_setbit (z, mat->Ri[u + t]);
+            }
+          if (ok)
+            {
+              fill_in += merge_do (mat, j, out);
+              nmerges ++;
+            }
+        }
     }
-  else /* the other threads apply the merges in l */
-    apply_merge_aux (l->list, l->size, k, nthreads - 1, mat, out);
+#pragma omp critical
+  {
+    mat->tot_weight += fill_in;
+    /* each merge decreases the number of rows and columns by one */
+    mat->rem_nrows -= nmerges;
+    mat->rem_ncols -= nmerges;
+  }
 }
 
 /* return the number of merges applied */
@@ -1201,36 +1110,15 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
       if (c <= (L+i)->cmax)
 	total_merges += (L+i)->size[c];
 
-  merge_list_t l[1], newl[1]; /* list of independent merges */
-  merge_list_init (l);
-  merge_list_init (newl);
-  unsigned long wanted = total_merges / 24;
-  status_t s[1];
-  init_status (s, cmax_max, nthreads);
-  /* we need nthreads2 >= 2 */
-  int nthreads2 = (nthreads == 1) ? 2 : nthreads;
-  if (wanted < (unsigned long) nthreads2 - 1)
-    wanted = nthreads2 - 1;
-  while (1)
-    {
+  unsigned long nmerges = mat->nrows;
 #pragma omp parallel for schedule(static,1)
-      for (int k = 0; k < nthreads2; k++)
-	work (mat, k, nthreads2, l, newl, wanted, z, L, s, out);
-
-      /* each merge decreases the number of rows and columns by one */
-      mat->rem_nrows -= l->size;
-      mat->rem_ncols -= l->size;
-
-      if (s->c > cmax_max && newl->size == 0)
-	break;
-
-      /* swap l and newl */
-      merge_list_swap (l, newl);
-    }
+  for (int k = 0; k < nthreads; k++)
+    work (mat, k, z, L, out);
+  nmerges = nmerges - mat->nrows;
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
-      if (l->size == total_merges)
+      if (nmerges == total_merges)
         mat->cwmax ++;
     }
   else
@@ -1239,11 +1127,9 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
         mat->cwmax ++;
     }
 
-  merge_list_clear (l);
-  merge_list_clear (newl);
   mpz_clear (z);
 
-  return l->size;
+  return nmerges;
 }
 
 static double
