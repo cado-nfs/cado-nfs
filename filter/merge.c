@@ -135,17 +135,11 @@ usage (param_list pl, char *argv0)
 }
 
 #ifdef HAVE_OPENMP
-/* wrapper for omp_get_num_threads, returns 1 when OpenMP is not available */
-static int get_thread_num()
+static int get_thread_num()  /* TODO: remove this */
 {
   return omp_get_thread_num ();
 }
 #else
-  static int get_num_threads()
-  {
-    return 1;
-  }
-
   static int omp_get_max_threads()
   {
     return 1;
