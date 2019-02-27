@@ -408,7 +408,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     j0 = jmin[mat->cwmax];
 
   /* proposition : allocate everything of size mat->ncols.
-     This saves substractions later at label (*)  */
+     This saves subtractions later at label (*)  */
 
   unsigned char *Wt[omp_get_max_threads()];
   #pragma omp parallel
