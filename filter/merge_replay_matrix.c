@@ -50,8 +50,6 @@ clearMat (filter_matrix_t *mat)
     free (mat->rows[i]);
   free (mat->rows);
   free (mat->wt);
-  free (mat->Rp);
-  free (mat->Ri);
 }
 
 int cmp_u64(const uint64_t * a, const uint64_t * b)

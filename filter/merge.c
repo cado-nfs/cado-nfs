@@ -518,8 +518,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
 {
   double cpu = seconds (), wct = wct_seconds ();
 
-  /* allocate the transposed matrix R in CSR format */
-  mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
   index_t *Rp = mat->Rp;
  
   /* initialize the row pointers */
@@ -531,8 +529,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
         s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
-  
-  mat->Ri = malloc (s * sizeof (index_t));
+
+  /* FIXME: if the previous size of Ri was >= s, we could keep it
+     (avoiding the realloc) */
+  mat->Ri = realloc (mat->Ri, s * sizeof (index_t));
   index_t *Ri = mat->Ri;
 
   /* dispatch entries */
@@ -557,14 +557,9 @@ compute_R (filter_matrix_t *mat, index_t j0)
   s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
-      index_t old = Rp[j];
       Rp[j] = s;
       if (mat->wt[j] <= mat->cwmax)
-        {
-          s += mat->wt[j];
-          /* the new value should be Rp[j] + wt[j] */
-          ASSERT_ALWAYS(old == Rp[j] + mat->wt[j]);
-        }
+        s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
 
@@ -1389,6 +1384,12 @@ main (int argc, char *argv[])
 
     renumber (mat);
 
+    /* Allocate the transposed matrix R in CSR format. Since Rp is of fixed
+       size, we allocate it for once. However, the size of Ri will vary from
+       step to step. */
+    mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
+    mat->Ri = NULL;
+
 #ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
             MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
@@ -1515,6 +1516,8 @@ main (int argc, char *argv[])
 #ifdef FOR_DL
     free (mat->p);
 #endif
+    free (mat->Rp);
+    free (mat->Ri);
     clearMat (mat);
 
     param_list_clear (pl);
