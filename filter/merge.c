@@ -553,7 +553,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
           Rp[j] = s + 1;
         }
 
-  /* restore the original Rp[] values */
+  /* Restore the original Rp[] values. We could avoid this by storing
+     Rp[j+1] = Rp[j] + wt[j] into Rp[j] in the initialization loop, and
+     then decrementing Rp[j] in the "dispatch" loop (cf Knuth volume 3,
+     about bucket sort). */
   s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
