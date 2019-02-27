@@ -1012,10 +1012,11 @@ compute_merges (cost_list_t *L, filter_matrix_t *mat,
 }
 
 static void
-work (filter_matrix_t *mat, int i, mpz_t z, cost_list_t *L, FILE *out)
+work (filter_matrix_t *mat, mpz_t z, cost_list_t *L, FILE *out)
 {
-  /* thread i processes L[i] */
-  cost_list_t *Li = L + i;
+  /* thread tid processes L[tid] */
+  int tid = omp_get_thread_num();
+  cost_list_t *Li = &L[tid];
   int32_t fill_in = 0, nmerges = 0;
   for (int c = 0; c <= Li->cmax; c++)
     {
@@ -1025,14 +1026,16 @@ work (filter_matrix_t *mat, int i, mpz_t z, cost_list_t *L, FILE *out)
           index_t u = mat->Rp[j];
           int ok = 1;
           int w = mat->wt[j];
+          /* merge is possible if all its rows are "available" */
           for (int t = 0; t < w && ok; t++)
-            ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
-          if (ok) /* potential merge, enter critical section */
-#pragma omp critical
-            {
+            ok = (0 == mpz_tstbit (z, mat->Ri[u + t]));
+          
+          if (ok) 
+            #pragma omp critical
+            { /* potential merge, enter critical section */
               /* check again, since another thread might have reserved a row */
               for (int t = 0; t < w && ok; t++)
-                ok = mpz_tstbit (z, mat->Ri[u + t]) == 0;
+                ok = (0 == mpz_tstbit (z, mat->Ri[u + t]));
               if (ok) /* reserve rows */
                 for (int t = 0; t < w; t++)
                   mpz_setbit (z, mat->Ri[u + t]);
@@ -1055,8 +1058,7 @@ work (filter_matrix_t *mat, int i, mpz_t z, cost_list_t *L, FILE *out)
 
 /* return the number of merges applied */
 static unsigned long
-apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
-	      int cmax_max)
+apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
 {
   /* We first prepare a list of independent ideals of small cost to merge,
      i.e., all rows where those ideals appear are independent.
@@ -1065,16 +1067,18 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
   mpz_init (z);
 
   /* first compute the total number of possible merges */
+  int T = omp_get_max_threads();
   unsigned long total_merges = 0;
   for (int c = 0; c <= cmax_max; c++)
-    for (int i = 0; i < nthreads; i++)
-      if (c <= (L+i)->cmax)
-	total_merges += (L+i)->size[c];
+    for (int t = 0; t < T; t++)
+      if (c <= L[t].cmax)
+	total_merges += L[t].size[c];
 
   unsigned long nmerges = mat->nrows;
-#pragma omp parallel for schedule(static,1)
-  for (int k = 0; k < nthreads; k++)
-    work (mat, k, z, L, out);
+
+  #pragma omp parallel num_threads(T)
+  work (mat, z, L, out);
+  
   nmerges = nmerges - mat->nrows;
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
@@ -1297,8 +1301,7 @@ main (int argc, char *argv[])
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
-	unsigned long nmerges = apply_merges (L, nthreads, mat, rep->outfile,
-					      cbound);
+	unsigned long nmerges = apply_merges (L, mat, rep->outfile, cbound);
 
 	cpu3 = seconds () - cpu3;
 	wct3 = wct_seconds () - wct3;
