@@ -367,29 +367,26 @@ renumber (filter_matrix_t *mat)
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
-  /* first initialize to ncols */
-  for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
-    jmin[w] = mat->ncols;
-
-  #pragma omp parallel for
-  for (index_t j = 0; j < mat->ncols; j++)
-    {
+  #pragma omp parallel reduction(min: jmin[0:MERGE_LEVEL_MAX])
+  {
+    /* first initialize to ncols */
+    for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
+      jmin[w] = mat->ncols;
+ 
+    #pragma omp for schedule(static)
+    for (index_t j = 0; j < mat->ncols; j++) {
       unsigned char w = mat->wt[j];
-      /* the condition j < jmin[w] is true only for the smallest j,
-         thus the critical part below is run at most MERGE_LEVEL_MAX times */
-      if (0 < w && w <= MERGE_LEVEL_MAX)
-        /* This should be replaced by a compare-and-swap */
-        #pragma omp critical
-        if (j < jmin[w])
-          jmin[w] = j;
+      if (0 < w && w <= MERGE_LEVEL_MAX && j < jmin[w])
+        jmin[w] = j;
     }
+  }
 
   jmin[0] = 1; /* to tell that jmin was initialized */
 
   /* make jmin[w] = min(jmin[w'], 1 <= w' <= w) */
   for (int w = 2; w <= MERGE_LEVEL_MAX; w++)
-    if (jmin[w-1] < jmin[w])
-      jmin[w] = jmin[w-1];
+    if (jmin[w - 1] < jmin[w])
+      jmin[w] = jmin[w - 1];
 }
 
 /* compute column weights (in fact, saturate to cwmax + 1 since we only need to
