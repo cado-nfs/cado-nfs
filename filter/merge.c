@@ -1071,11 +1071,11 @@ apply_merges (cost_list_t *L, int nthreads, filter_matrix_t *mat, FILE *out,
       if (c <= (L+i)->cmax)
 	total_merges += (L+i)->size[c];
 
-  unsigned long nmerges = mat->nrows;
+  unsigned long nmerges = mat->rem_nrows;
 #pragma omp parallel for schedule(static,1)
   for (int k = 0; k < nthreads; k++)
     work (mat, k, z, L, out);
-  nmerges = nmerges - mat->nrows;
+  nmerges = nmerges - mat->rem_nrows;
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
