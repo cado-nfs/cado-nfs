@@ -367,7 +367,7 @@ renumber (filter_matrix_t *mat)
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
-  #pragma omp parallel reduction(min: jmin[0:MERGE_LEVEL_MAX])
+  #pragma omp parallel reduction(min: jmin[1:MERGE_LEVEL_MAX])
   {
     /* first initialize to ncols */
     for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
