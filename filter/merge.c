@@ -364,20 +364,38 @@ renumber (filter_matrix_t *mat)
 /* For 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
    mat->wt[j] = w. This routine is called only once, at the first call of
    compute_weights. */
+
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
-  #pragma omp parallel reduction(min: jmin[1:MERGE_LEVEL_MAX])
+  /* unfortunately, reduction on array sections requires OpenMP >= 4.5,
+     which is not yet THAT widespread. We work around the problem */
+  index_t tjmin[omp_get_max_threads()][MERGE_LEVEL_MAX + 1];
+
+  #pragma omp parallel /* reduction(min: jmin[1:MERGE_LEVEL_MAX]) */
   {
+    int T = omp_get_num_threads();
+    int tid = omp_get_thread_num();
+    
+    index_t *local = tjmin[tid];
+
     /* first initialize to ncols */
     for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
-      jmin[w] = mat->ncols;
+      local[w] = mat->ncols;
  
     #pragma omp for schedule(static)
     for (index_t j = 0; j < mat->ncols; j++) {
       unsigned char w = mat->wt[j];
-      if (0 < w && w <= MERGE_LEVEL_MAX && j < jmin[w])
-        jmin[w] = j;
+      if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
+        local[w] = j;
+    }
+
+    #pragma omp for schedule(static)
+    for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
+      jmin[w] = mat->ncols;
+      for (int t = 0; t < T; t++)
+        if (jmin[w] < tjmin[t][w])
+          jmin[w] = tjmin[t][w];
     }
   }
 
