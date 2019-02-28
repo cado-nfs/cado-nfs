@@ -488,9 +488,13 @@ compute_R (filter_matrix_t *mat, index_t j0)
     }
   Rp[mat->ncols] = s;
 
-  /* FIXME: if the previous size of Ri was >= s, we could keep it
-     (avoiding the realloc) */
-  mat->Ri = realloc (mat->Ri, s * sizeof (index_t));
+  /* reallocate Ri if the previous allocated size was less than s */
+  if (mat->Ri_alloc < s)
+    {
+      /* allocate more to avoid several allocations with a small difference */
+      mat->Ri_alloc = s + s / MARGIN;
+      mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
+    }
   index_t *Ri = mat->Ri;
 
   /* dispatch entries */
@@ -1238,6 +1242,7 @@ main (int argc, char *argv[])
        step to step. */
     mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
     mat->Ri = NULL;
+    mat->Ri_alloc = 0;
 
 #ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
