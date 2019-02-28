@@ -40,6 +40,7 @@ typedef struct {
                           is the number of elements in the transposed matrix.
                           Column j has Rp[j+1] - Rp[j] elements, which are
                           located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
+  unsigned long Ri_alloc; /* allocated size of the Ri field (in index_t) */
   index_t *p;            /* permutation used to renumber the columns */
 } filter_matrix_t;
 

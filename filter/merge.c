@@ -405,7 +405,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     j0 = jmin[mat->cwmax];
 
   /* proposition : allocate everything of size mat->ncols.
-     This saves substractions later at label (*)  */
+     This saves subtractions later at label (*)  */
 
   unsigned char *Wt[omp_get_max_threads()];
   #pragma omp parallel
@@ -485,9 +485,13 @@ compute_R (filter_matrix_t *mat, index_t j0)
     }
   Rp[mat->ncols] = s;
 
-  /* FIXME: if the previous size of Ri was >= s, we could keep it
-     (avoiding the realloc) */
-  mat->Ri = realloc (mat->Ri, s * sizeof (index_t));
+  /* reallocate Ri if the previous allocated size was less than s */
+  if (mat->Ri_alloc < s)
+    {
+      /* allocate more to avoid several allocations with a small difference */
+      mat->Ri_alloc = s + s / MARGIN;
+      mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
+    }
   index_t *Ri = mat->Ri;
 
   /* dispatch entries */
@@ -510,8 +514,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   /* Restore the original Rp[] values. We could avoid this by storing
      Rp[j+1] = Rp[j] + wt[j] into Rp[j] in the initialization loop, and
-     then decrementing Rp[j] in the "dispatch" loop (cf Knuth volume 3,
-     about bucket sort). */
+     then decrementing Rp[j] in the "dispatch" loop (this trick was already
+     used by Donald Knuth in Algorithm D (Distribution counting), The Art
+     of Computer Programming, volume 3, Sorting and Searching. */
+
   s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
@@ -1071,12 +1077,12 @@ apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
       if (c <= L[t].cmax)
 	total_merges += L[t].size[c];
 
-  unsigned long nmerges = mat->nrows;
+  unsigned long nmerges = mat->rem_nrows;
 
   #pragma omp parallel num_threads(T)
   work (mat, z, L, out);
   
-  nmerges = nmerges - mat->nrows;
+  nmerges = nmerges - mat->rem_nrows;
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
@@ -1237,6 +1243,7 @@ main (int argc, char *argv[])
        step to step. */
     mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
     mat->Ri = NULL;
+    mat->Ri_alloc = 0;
 
 #ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
