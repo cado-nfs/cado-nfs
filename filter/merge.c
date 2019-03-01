@@ -540,7 +540,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 	     and puts in s the new value of a */
 	  s = __sync_sub_and_fetch (&(Rp[j]), 1);
 #else
-	  #pragma omp atomic
+	  #pragma omp critical
 	  {
 	    s = Rp[j] - 1;
 	    Rp[j] = s;
@@ -1072,6 +1072,8 @@ work (filter_matrix_t *mat, mpz_t z, cost_list_t *L, FILE *out)
             }
         }
     }
+  /* FIXME: we could use __sync_add_and_fetch, but this part should not be
+     critical in terms of efficiency (to be checked) */
 #pragma omp critical
   {
     mat->tot_weight += fill_in;
