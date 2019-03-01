@@ -504,6 +504,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
      Knuth in Algorithm D (Distribution counting), The Art
      of Computer Programming, volume 3, Sorting and Searching. */
 
+  /* TODO: parallelize this prefix-sum computations (see renumber):
+     1) each thread computes the sum of its range
+     2) one computes (sequentially) the prefix-sum on the ranges sums
+     3) each thread propagates the prefix-sum on its range */
   index_t s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
