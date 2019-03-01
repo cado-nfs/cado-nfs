@@ -394,7 +394,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
     for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
       jmin[w] = mat->ncols;
       for (int t = 0; t < T; t++)
-        if (jmin[w] < tjmin[t][w])
+        if (jmin[w] > tjmin[t][w])
           jmin[w] = tjmin[t][w];
     }
   }
