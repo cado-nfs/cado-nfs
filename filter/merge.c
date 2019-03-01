@@ -546,11 +546,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
 	     and puts in s the new value of a */
 	  s = __sync_sub_and_fetch (&(Rp[j]), 1);
 #else
-	  #pragma omp critical
-	  {
-	    s = Rp[j] - 1;
-	    Rp[j] = s;
-	  }
+	  #pragma omp atomic
+	  s = --Rp[j];
 #endif
           Ri[s] = i;
         }
