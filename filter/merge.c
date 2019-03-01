@@ -515,9 +515,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
       mat->Ri_alloc = s + s / MARGIN;
       mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
     }
-  index_t *Ri = mat->Ri;
+  index_t *Ri = mat->Ri - 1; /* trick: avoids writing Ri[s-1] below */
 
   /* dispatch entries */
+  #pragma omp parallel for
   for (index_t i = 0; i < mat->nrows; i++)
     if (mat->rows[i] != NULL) /* row was not discarded */
       for (index_t k = matLengthRow(mat, i); k >= 1; k--)
@@ -530,9 +531,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
           /* we only accumulate ideals of weight <= cwmax */
           if (mat->wt[j] > mat->cwmax)
             continue;
-          index_t s = Rp[j] - 1;
+	  /* s = __sync_fetch_and_sub (&a, 1) decrements a by 1,
+	     and puts in s the original value of a */
+          index_t s = __sync_fetch_and_sub (&(Rp[j]), 1);
           Ri[s] = i;
-          Rp[j] = s;
         }
 
   cpu = seconds () - cpu;
