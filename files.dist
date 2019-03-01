@@ -1285,6 +1285,8 @@ utils/cxx_misc.hpp
 sieve/fb-slice-weight.cpp
 sieve/fb-slice-weight.hpp
 config/glibc_vector_internals.cmake
+config/check_uint64_type.cmake
+config/tcmalloc.cmake
 utils/mmap_allocator.cpp
 utils/mmap_allocator.hpp
 utils/mmappable_vector.hpp
@@ -1322,7 +1324,6 @@ utils/hwloc-aux.c
 utils/hwloc-aux.h
 sieve/las-parallel.cpp
 sieve/las-parallel.hpp
-config/check_uint64_type.cmake
 utils/lock_guarded_container.hpp
 sieve/las-memory.cpp
 sieve/las-memory.hpp
