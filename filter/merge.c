@@ -493,13 +493,18 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   index_t *Rp = mat->Rp;
  
-  /* initialize the row pointers */
+  /* Initialize the row pointers to Rp[j] + wt[j]. We will then decrease them
+     to Rp[j] in the "dispatch" loop (this trick was already used by Donald
+     Knuth in Algorithm D (Distribution counting), The Art
+     of Computer Programming, volume 3, Sorting and Searching. */
+
   index_t s = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
+      unsigned char w = mat->wt[j];
+      if (w <= mat->cwmax)
+        s += w;
       Rp[j] = s;
-      if (mat->wt[j] <= mat->cwmax)
-        s += mat->wt[j];
     }
   Rp[mat->ncols] = s;
 
@@ -525,25 +530,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
           /* we only accumulate ideals of weight <= cwmax */
           if (mat->wt[j] > mat->cwmax)
             continue;
-          index_t s = Rp[j];
+          index_t s = Rp[j] - 1;
           Ri[s] = i;
-          Rp[j] = s + 1;
+          Rp[j] = s;
         }
-
-  /* Restore the original Rp[] values. We could avoid this by storing
-     Rp[j+1] = Rp[j] + wt[j] into Rp[j] in the initialization loop, and
-     then decrementing Rp[j] in the "dispatch" loop (this trick was already
-     used by Donald Knuth in Algorithm D (Distribution counting), The Art
-     of Computer Programming, volume 3, Sorting and Searching. */
-
-  s = 0;
-  for (index_t j = j0; j < mat->ncols; j++)
-    {
-      Rp[j] = s;
-      if (mat->wt[j] <= mat->cwmax)
-        s += mat->wt[j];
-    }
-  Rp[mat->ncols] = s;
 
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
