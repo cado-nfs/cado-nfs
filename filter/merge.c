@@ -430,16 +430,17 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   {
     int T = omp_get_num_threads();
     int tid = omp_get_thread_num();
-    index_t n = mat->ncols - j0;
+    
+    /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
     if (tid == 0)
-        Wt[0] = mat->wt + j0; /* trick: we use wt for Wt[0] */
+        Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
     else
-        Wt[tid] = malloc (n * sizeof (unsigned char));
-    memset (Wt[tid], 0, n * sizeof (unsigned char));
+        Wt[tid] = malloc (mat->ncols * sizeof (unsigned char));
+    memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (unsigned char));
 
     /* Thread k accumulates weights in Wt[k].
      We only consider ideals of index >= j0, and put the weight of ideal j,
-     j >= j0, in Wt[k][j-j0]. */
+     j >= j0, in Wt[k][j]. */
 
     /* using schedule(dynamic,128) here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
@@ -453,8 +454,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
         index_t j = matCell (mat, i, l);
         if (j < j0) /* assume ideals are sorted by increasing order */
           break;
-        else if (Wtk[j - j0] <= mat->cwmax)      /* (*) HERE */
-          Wtk[j - j0]++;
+        else if (Wtk[j] <= mat->cwmax)      /* (*) HERE */
+          Wtk[j]++;
       }
     }
 
@@ -463,12 +464,17 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
     unsigned char *Wt0 = Wt[0];
     #pragma omp for schedule(static)
-    for (index_t i = 0; i < n; i++)
+    for (index_t i = j0; i < mat->ncols; i++) {
+      unsigned char val = Wt0[i];
       for (int t = 1; t < T; t++)
-        if (Wt0[i] + Wt[t][i] <= mat->cwmax)
-          Wt0[i] = Wt0[i] + Wt[t][i];
-        else
-          Wt0[i] = mat->cwmax + 1;
+        if (val + Wt[t][i] <= mat->cwmax)
+          val += Wt[t][i];
+        else {
+          val = mat->cwmax + 1;
+          break;
+        }
+      Wt0[i] = val;
+    }
 
     if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
       free (Wt[tid]);
