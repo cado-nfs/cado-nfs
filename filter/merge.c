@@ -283,7 +283,7 @@ renumber (filter_matrix_t *mat)
         uint64_t inside = j & 63;
         local_p[tid][outside] |= ((uint64_t) 1u) << inside;
       }
-    
+
     /* accumulate marks over all threads */
     #pragma omp for schedule(static)
     for (uint64_t j = 0; j < size; j++)
@@ -332,7 +332,7 @@ renumber (filter_matrix_t *mat)
     for (uint64_t i = 0; i < mat->nrows; i++)
       for (index_t l = 1; l <= matLengthRow(mat, i); l++)
         matCell(mat, i, l) = mat->p[matCell(mat, i, l)];
-  
+
     free(local_p[tid]);
   } /* end of parallel section */
 
@@ -376,13 +376,13 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
   {
     int T = omp_get_num_threads();
     int tid = omp_get_thread_num();
-    
+
     index_t *local = tjmin[tid];
 
     /* first initialize to ncols */
     for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
       local[w] = mat->ncols;
- 
+
     #pragma omp for schedule(static)
     for (index_t j = 0; j < mat->ncols; j++) {
       unsigned char w = mat->wt[j];
@@ -492,7 +492,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   double cpu = seconds (), wct = wct_seconds ();
 
   index_t *Rp = mat->Rp;
- 
+
   /* Initialize the row pointers to Rp[j] + wt[j]. We will then decrease them
      to Rp[j] in the "dispatch" loop (this trick was already used by Donald
      Knuth in Algorithm D (Distribution counting), The Art
@@ -515,7 +515,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
       mat->Ri_alloc = s + s / MARGIN;
       mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
     }
-  index_t *Ri = mat->Ri - 1; /* trick: avoids writing Ri[s-1] below */
+  index_t *Ri = mat->Ri;
 
   cpu_t[6] += seconds () - cpu;
   wct_t[6] += wct_seconds () - wct;
@@ -534,9 +534,18 @@ compute_R (filter_matrix_t *mat, index_t j0)
           /* we only accumulate ideals of weight <= cwmax */
           if (mat->wt[j] > mat->cwmax)
             continue;
-	  /* s = __sync_fetch_and_sub (&a, 1) decrements a by 1,
-	     and puts in s the original value of a */
-          index_t s = __sync_fetch_and_sub (&(Rp[j]), 1);
+          index_t s;
+#ifdef HAVE_SYNC_FETCH
+	  /* s = __sync_sub_and_fetch (&a, 1) decrements a by 1,
+	     and puts in s the new value of a */
+	  s = __sync_sub_and_fetch (&(Rp[j]), 1);
+#else
+	  #pragma omp atomic
+	  {
+	    s = Rp[j] - 1;
+	    Rp[j] = s;
+	  }
+#endif
           Ri[s] = i;
         }
 
@@ -1045,8 +1054,8 @@ work (filter_matrix_t *mat, mpz_t z, cost_list_t *L, FILE *out)
           /* merge is possible if all its rows are "available" */
           for (int t = 0; t < w && ok; t++)
             ok = (0 == mpz_tstbit (z, mat->Ri[u + t]));
-          
-          if (ok) 
+
+          if (ok)
             #pragma omp critical
             { /* potential merge, enter critical section */
               /* check again, since another thread might have reserved a row */
@@ -1094,7 +1103,7 @@ apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
 
   #pragma omp parallel num_threads(T)
   work (mat, z, L, out);
-  
+
   nmerges = nmerges - mat->rem_nrows;
 
   if (mat->cwmax == 2) /* we first process all 2-merges */
