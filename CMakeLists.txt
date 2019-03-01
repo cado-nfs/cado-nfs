@@ -251,6 +251,9 @@ string_join(GF2X_CXX_FLAGS " " ${CMAKE_CXX_FLAGS} "-I${GMP_INCDIR}" "-I${CADO_NF
 string_join(GF2X_LDFLAGS " " ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,-rpath,${GMP_LIBDIR}" "-L${GMP_LIBDIR}")
 endif()
 
+# locates tcmalloc
+include(${CADO_NFS_SOURCE_DIR}/config/tcmalloc.cmake)
+
 #####
 include(CheckTypeSize)
 CHECK_TYPE_SIZE("unsigned long int" ulong_size)
