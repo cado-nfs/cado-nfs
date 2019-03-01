@@ -1136,6 +1136,37 @@ average_density (filter_matrix_t *mat)
   return (double) mat->tot_weight / (double) mat->rem_nrows;
 }
 
+#ifdef DEBUG
+/* duplicate the matrix, where the lines of mat_copy are
+   not allocated individually by malloc, but all at once */
+static void
+copy_matrix (filter_matrix_t *mat)
+{
+  unsigned long weight = mat->tot_weight;
+  unsigned long s = weight + mat->nrows;
+  index_t *T = malloc (s * sizeof (index_t));
+  index_t *p = T;
+  double cpu = seconds (), wct = wct_seconds ();
+  for (index_t i = 0; i < mat->nrows; i++)
+    {
+      if (mat->rows[i] == NULL)
+	{
+	  p[0] = 0;
+	  p ++;
+	}
+      else
+	{
+	  memcpy (p, mat->rows[i], (mat->rows[i][0] + 1) * sizeof (index_t));
+	  p += mat->rows[i][0] + 1;
+	}
+    }
+  print_timings ("   copy_matrix took", seconds () - cpu,
+		 wct_seconds () - wct);
+  ASSERT_ALWAYS(p == T + s);
+  free (T);
+}
+#endif
+
 int
 main (int argc, char *argv[])
 {
@@ -1295,6 +1326,8 @@ main (int argc, char *argv[])
        at beginning. We set jmin[0] to 0 to tell that jmin[] was not
        initialized. */
     index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
+
+    // copy_matrix (mat);
 
     unsigned long lastN, lastW;
     double lastWoverN;
