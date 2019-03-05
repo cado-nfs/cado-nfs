@@ -275,7 +275,8 @@ renumber (filter_matrix_t *mat)
     local_p[tid] = malloc(size * sizeof(uint64_t));
     memset(local_p[tid], 0, size * sizeof(uint64_t));
 
-    #pragma omp for
+    /* static scheduling is OK since rows have identical weight distribution in the input matrix */
+    #pragma omp for schedule(static)
     for (uint64_t i = 0; i < mat->nrows; i++)
       for (index_t l = 1; l <= matLengthRow(mat, i); l++) {
         index_t j = matCell(mat, i, l);
@@ -290,7 +291,7 @@ renumber (filter_matrix_t *mat)
       for (int t = 1; t < T; t++)
         local_p[0][j] |= local_p[t][j];
 
-    #pragma omp barrier
+    /************ BEGIN PREFIX SUM ********************/
 
     /* count non-empty columns in each chunk */
     uint64_t weight = 0;
@@ -326,6 +327,8 @@ renumber (filter_matrix_t *mat)
           s++;
       }
     }
+
+    /**************** END PREFIX SUM ***************/
 
     /* perform the renumbering in all rows */
     #pragma omp for
@@ -421,9 +424,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     /* we only need to consider ideals of index >= j0, assuming the weight of
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
-
-  /* proposition : allocate everything of size mat->ncols.
-     This saves subtractions later at label (*)  */
 
   unsigned char *Wt[omp_get_max_threads()];
   #pragma omp parallel
