@@ -195,8 +195,9 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   {
     index_t h = rel->primes[i].h;
     mat->rem_ncols += (mat->wt[h] == 0);
-    mat->wt[h] += (mat->wt[h] != UMAX(unsigned char));
-    if (h < mat->skip) continue; /* we skip (bury) the first 'skip' indices */
+    mat->wt[h] += (mat->wt[h] != UMAX(col_weight_t));
+    if (h < mat->skip)
+        continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
     /* For factorization, they should not be any multiplicity here.
@@ -388,7 +389,7 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
 
     #pragma omp for schedule(static)
     for (index_t j = 0; j < mat->ncols; j++) {
-      unsigned char w = mat->wt[j];
+      col_weight_t w = mat->wt[j];
       if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
         local[w] = j;
     }
@@ -425,7 +426,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
-  unsigned char *Wt[omp_get_max_threads()];
+  col_weight_t *Wt[omp_get_max_threads()];
   #pragma omp parallel
   {
     int T = omp_get_num_threads();
@@ -435,8 +436,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     if (tid == 0)
         Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
     else
-        Wt[tid] = malloc (mat->ncols * sizeof (unsigned char));
-    memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (unsigned char));
+        Wt[tid] = malloc (mat->ncols * sizeof (col_weight_t));
+    memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (col_weight_t));
 
     /* Thread k accumulates weights in Wt[k].
      We only consider ideals of index >= j0, and put the weight of ideal j,
@@ -445,7 +446,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     /* using schedule(dynamic,128) here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
      discarded rows) */
-    unsigned char *Wtk = Wt[tid];
+    col_weight_t *Wtk = Wt[tid];
     #pragma omp for schedule(dynamic, 128)
     for (index_t i = 0; i < mat->nrows; i++) {
       if (mat->rows[i] == NULL) /* row was discarded */
@@ -462,10 +463,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
        saturating at cwmax + 1:
        Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
-    unsigned char *Wt0 = Wt[0];
+    col_weight_t *Wt0 = Wt[0];
     #pragma omp for schedule(static)
     for (index_t i = j0; i < mat->ncols; i++) {
-      unsigned char val = Wt0[i];
+      col_weight_t val = Wt0[i];
       for (int t = 1; t < T; t++)
         if (val + Wt[t][i] <= mat->cwmax)
           val += Wt[t][i];
@@ -514,7 +515,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t nonempty_rows = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
-      unsigned char w = mat->wt[j];
       col_weight_t w = mat->wt[j];
       if (w <= mat->cwmax) {
         s += w;

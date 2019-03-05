@@ -15,6 +15,9 @@
 #define cmp_typerow_t cmp_ideal_merge
 #endif
 
+#define col_weight_t unsigned char
+
+
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
   int verbose;         /* verbose level */
@@ -26,7 +29,7 @@ typedef struct {
   typerow_t **rows;    /* rows[i][k] contains indices of an ideal of row[i] 
                           with 1 <= k <= rows[i][0] */
                        /* FOR_DL: struct containing also the exponent */
-  unsigned char *wt;   /* weight w of column j, if w <= cwmax,
+  col_weight_t *wt;    /* weight w of column j, if w <= cwmax,
                           else 0 for a deleted column */
                        /* 8 bits is sufficient as we only want precise weight
                           for column of low weight. If the weight exceeds

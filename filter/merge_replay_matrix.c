@@ -35,9 +35,9 @@ initMat (filter_matrix_t *mat, uint32_t skip)
 
   mat->rows = (typerow_t **) malloc (mat->nrows * sizeof (typerow_t *));
   ASSERT_ALWAYS (mat->rows != NULL);
-  mat->wt = (unsigned char *) malloc (mat->ncols * sizeof (unsigned char));
+  mat->wt = (col_weight_t *) malloc (mat->ncols * sizeof (col_weight_t));
   ASSERT_ALWAYS (mat->wt != NULL);
-  memset (mat->wt, 0, mat->ncols * sizeof (unsigned char));
+  memset (mat->wt, 0, mat->ncols * sizeof(col_weight_t));
 }
 
 void
