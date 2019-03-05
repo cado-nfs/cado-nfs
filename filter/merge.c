@@ -553,14 +553,12 @@ compute_R (filter_matrix_t *mat, index_t j0)
           if (mat->wt[j] > mat->cwmax)
             continue;
           index_t s;
-#ifdef HAVE_SYNC_FETCH
-	  /* s = __sync_sub_and_fetch (&a, 1) decrements a by 1,
-	     and puts in s the new value of a */
-	  s = __sync_sub_and_fetch (&(Rp[j]), 1);
-#else
-	  #pragma omp atomic
-	  s = --Rp[j];
-#endif
+	  /* atomic capture: updates the value of a variable while capturing
+	     the original or final value of the variable atomically.
+	     We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
+	     but the following is as efficient and more portable. */
+	  #pragma omp atomic capture
+	  s = --(Rp[j]);
           Ri[s] = i;
         }
     }
