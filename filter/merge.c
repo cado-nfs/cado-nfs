@@ -511,11 +511,15 @@ compute_R (filter_matrix_t *mat, index_t j0)
      See for example Chapter 2 of "Introduction to Parallel Algorithms"
      by Joseph JaJa (1992). */
   index_t s = 0;
+  index_t nonempty_rows = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
       unsigned char w = mat->wt[j];
-      if (w <= mat->cwmax)
+      col_weight_t w = mat->wt[j];
+      if (w <= mat->cwmax) {
         s += w;
+        nonempty_rows++;
+      }
       Rp[j] = s;
     }
   Rp[mat->ncols] = s;
@@ -533,9 +537,11 @@ compute_R (filter_matrix_t *mat, index_t j0)
   wct_t[6] += wct_seconds () - wct;
 
   /* dispatch entries */
-  #pragma omp parallel for
+  uint64_t nnz = 0;
+  #pragma omp parallel for reduction(+:nnz)
   for (index_t i = 0; i < mat->nrows; i++)
-    if (mat->rows[i] != NULL) /* row was not discarded */
+    if (mat->rows[i] != NULL) {/* row was not discarded */
+      nnz += matLengthRow(mat, i);
       for (index_t k = matLengthRow(mat, i); k >= 1; k--)
         {
           index_t j = matCell (mat, i, k);
@@ -557,7 +563,13 @@ compute_R (filter_matrix_t *mat, index_t j0)
 #endif
           Ri[s] = i;
         }
-
+    }
+  
+  printf("*** (non-empty) rows in transpose: %d VS rows in transpose : %" PRId64 ". Ratio = %.1f%%\n", 
+        nonempty_rows, mat->ncols, (100. * nonempty_rows) / mat->ncols);
+  printf("*** NNZ in transpose: %d. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n", 
+        Rp[mat->ncols], nnz, (100.0 * Rp[mat->ncols]) / nnz);
+  printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (mat->ncols + Rp[mat->ncols]) * sizeof(index_t));
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
@@ -1391,8 +1403,9 @@ main (int argc, char *argv[])
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
 	  / (double) (lastN - mat->rem_nrows);
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
+	printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
+                9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
 		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, pass, mat->cwmax);
