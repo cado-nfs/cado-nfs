@@ -2170,7 +2170,13 @@ main (int argc, char *argv[])
                       sqrt (data_var (data_opt_lognorm)));
               printf ("# Stat: opt proj. alpha (nr/min/av/max/std): %lu/%1.3f/%1.3f/%1.3f/%1.3f\n",
                   collisions_good, opt_proj_alpha->min, data_mean (opt_proj_alpha), opt_proj_alpha->max, sqrt (data_var (opt_proj_alpha)));
-              printf ("# Stat: exp_E (nr/min/av/max/std): %lu/%1.2f/%1.2f/%1.2f/%1.2f\n",
+              /* the exp_E statistics can be used as follows: if the mean is
+                 m and the standard deviation s, then assuming a normal
+                 distribution, the minimum order statistic for K polynomials
+                 is given by:
+                 m - s*(sqrt(2log(K))-(log(log(K))+1.377)/(2*sqrt(2log(K))))
+              */
+              printf ("# Stat: exp_E (nr/min/av/max/std): %lu/%1.2f/%1.2f/%1.2f/%1.3f\n",
                       collisions_good, data_exp_E->min, Emean,
                       data_exp_E->max, sqrt (data_var (data_exp_E)));
             }

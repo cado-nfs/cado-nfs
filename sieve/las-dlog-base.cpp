@@ -113,6 +113,10 @@ void las_dlog_base::read()
      * [index] [p] [side] rat [log]
      * [index] [p] [side] [r] [log]
      * [index] SM col [i] [log]
+     * where by default side=0 means the rational side, side=1 the algebraic one
+     * r is the root of f(x) mod p, where f is the algebraic polynomial
+     * log is the virtual logarithm
+     * (see https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2019-February/000998.html)
      *
      * Here we care only about the index anyway. By the way, this index
      * is written in hex.
