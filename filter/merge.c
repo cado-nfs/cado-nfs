@@ -420,10 +420,14 @@ static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   double cpu = seconds (), wct = wct_seconds ();
+  unsigned char cwmax = mat->cwmax;
 
   index_t j0;
   if (jmin[0] == 0) /* jmin was not initialized */
-    j0 = 0;
+    {
+      j0 = 0;
+      cwmax = MERGE_LEVEL_MAX;
+    }
   else
     /* we only need to consider ideals of index >= j0, assuming the weight of
        an ideal cannot decrease (except when decreasing to zero when merged) */
@@ -458,7 +462,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
         index_t j = matCell (mat, i, l);
         if (j < j0) /* assume ideals are sorted by increasing order */
           break;
-        else if (Wtk[j] <= mat->cwmax)      /* (*) HERE */
+        else if (Wtk[j] <= cwmax)      /* (*) HERE */
           Wtk[j]++;
       }
     }
@@ -471,10 +475,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     for (index_t i = j0; i < mat->ncols; i++) {
       col_weight_t val = Wt0[i];
       for (int t = 1; t < T; t++)
-        if (val + Wt[t][i] <= mat->cwmax)
+        if (val + Wt[t][i] <= cwmax)
           val += Wt[t][i];
         else {
-          val = mat->cwmax + 1;
+          val = cwmax + 1;
           break;
         }
       Wt0[i] = val;
@@ -588,6 +592,44 @@ typedef struct {
   int cmax;             /* all costs are <= cmax */
 } cost_list_t;
 
+#ifdef WT2
+static void
+decrease_weight (filter_matrix_t *mat, index_t j)
+{
+  /* only decrease the weight if <= MERGE_LEVEL_MAX,
+     since we saturate to MERGE_LEVEL_MAX+1 */
+  if (mat->wt2[j] <= MERGE_LEVEL_MAX)
+    /* is update is enough, or do we need capture? */
+    #pragma omp atomic update
+    mat->wt2[j]--;
+}
+
+static void
+increase_weight (filter_matrix_t *mat, index_t j)
+{
+  /* only increase the weight if <= MERGE_LEVEL_MAX,
+     since we saturate to MERGE_LEVEL_MAX+1 */
+  if (mat->wt2[j] <= MERGE_LEVEL_MAX)
+    #pragma omp atomic update
+    mat->wt2[j]++;
+}
+
+static void
+check_weights (filter_matrix_t *mat)
+{
+  for (index_t j = 0; j < mat->ncols; j++)
+    if (mat->wt[j] <= mat->cwmax)
+      {
+	if (mat->wt2[j] != mat->wt[j])
+	  {
+	    printf ("Error: j=%lu wt=%u wt2=%u\n",
+		    (unsigned long) j, mat->wt[j], mat->wt2[j]);
+	    exit (1);
+	  }
+      }
+}
+#endif
+
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
 #ifndef FOR_DL
@@ -621,16 +663,31 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   while (t1 <= k1 && t2 <= k2)
     {
       if (mat->rows[i1][t1] == mat->rows[i2][t2])
-	      t1 ++, t2 ++;
+	{
+#ifdef WT2
+	  decrease_weight (mat, mat->rows[i1][t1]);
+#endif
+	  t1 ++, t2 ++;
+	}
       else if (mat->rows[i1][t1] < mat->rows[i2][t2])
-	      *t++ = mat->rows[i1][t1++];
+	*t++ = mat->rows[i1][t1++];
       else
-	      *t++ = mat->rows[i2][t2++];
+	{
+#ifdef WT2
+	  increase_weight (mat, mat->rows[i2][t2]);
+#endif
+	  *t++ = mat->rows[i2][t2++];
+	}
     }
   while (t1 <= k1)
     *t++ = mat->rows[i1][t1++];
   while (t2 <= k2)
-    *t++ = mat->rows[i2][t2++];
+    {
+#ifdef WT2
+      increase_weight (mat, mat->rows[i2][t2]);
+#endif
+      *t++ = mat->rows[i2][t2++];
+    }
   ASSERT (t0 + (c + 1) == t);
   free (mat->rows[i1]);
   mat->rows[i1] = t0;
@@ -773,6 +830,11 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
 static void
 remove_row (filter_matrix_t *mat, index_t i)
 {
+#ifdef WT2
+  int32_t k = matLengthRow (mat, i);
+  for (int j = 1; j <= k; j++)
+    decrease_weight (mat, mat->rows[i][j]);
+#endif
   free (mat->rows[i]);
   mat->rows[i] = NULL;
 }
@@ -1353,6 +1415,9 @@ main (int argc, char *argv[])
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
     int pass = 0;
+#ifdef WT2
+    mat->wt2 = malloc (mat->ncols * sizeof (unsigned char));
+#endif
     while (1)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
@@ -1372,6 +1437,15 @@ main (int argc, char *argv[])
 	lastWoverN = (double) lastW / (double) lastN;
 
 	compute_weights (mat, jmin);
+#ifdef WT2
+	if (pass != 1)
+	  check_weights (mat);
+#endif
+
+#ifdef WT2
+	/* copy all weights to wt2 */
+	memcpy (mat->wt2, mat->wt, mat->ncols * sizeof (unsigned char));
+#endif
 
 	compute_R (mat, jmin[mat->cwmax]);
 
@@ -1422,6 +1496,9 @@ main (int argc, char *argv[])
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
 	  break;
       }
+#ifdef WT2
+    free (mat->wt2);
+#endif
 
     fclose_maybe_compressed (rep->outfile, outname);
 

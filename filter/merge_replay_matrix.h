@@ -17,6 +17,7 @@
 
 #define col_weight_t unsigned char
 
+// #define WT2
 
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
@@ -34,6 +35,9 @@ typedef struct {
                        /* 8 bits is sufficient as we only want precise weight
                           for column of low weight. If the weight exceeds
                           255, we saturate at 255 */
+#ifdef WT2  
+  col_weight_t *wt2;   /* copy of wt (work in progress) */
+#endif  
   uint64_t skip;       /* number of buried/skipped columns of smaller index */
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
