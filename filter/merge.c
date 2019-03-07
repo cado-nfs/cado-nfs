@@ -1124,39 +1124,57 @@ compute_merges (cost_list_t *L, filter_matrix_t *mat,
 }
 
 static void
-work (filter_matrix_t *mat, mpz_t z, cost_list_t *L, FILE *out)
+work (filter_matrix_t *mat, uint64_t *busy_rows, cost_list_t *L, FILE *out)
 {
   /* thread tid processes L[tid] */
   int tid = omp_get_thread_num();
   cost_list_t *Li = &L[tid];
   int32_t fill_in = 0, nmerges = 0;
+
   for (int c = 0; c <= Li->cmax; c++)
     {
       for (index_t k = 0; k < Li->size[c]; k++)
         {
           index_t j = Li->list[c][k];
           index_t u = mat->Rp[j];
-          int ok = 1;
           int w = mat->wt[j];
-          /* merge is possible if all its rows are "available" */
-          for (int t = 0; t < w && ok; t++)
-            ok = (0 == mpz_tstbit (z, mat->Ri[u + t]));
 
+          /* merge is possible if all its rows are "available" */
+          int ok = 1;
+          for (int k = 0; k < w; k++) {
+            index_t i = mat->Ri[u + k];
+            uint64_t x = i / 64;
+            uint64_t y = i & 63;
+            if (busy_rows[x] & (1ull << y)) {
+              ok = 0;
+              break;
+            }
+          }
           if (ok)
             #pragma omp critical
             { /* potential merge, enter critical section */
               /* check again, since another thread might have reserved a row */
-              for (int t = 0; t < w && ok; t++)
-                ok = (0 == mpz_tstbit (z, mat->Ri[u + t]));
+              for (int k = 0; k < w; k++) {
+                index_t i = mat->Ri[u + k];
+                uint64_t x = i / 64;
+                uint64_t y = i & 63;
+                if (busy_rows[x] & (1ull << y)) {
+                  ok = 0;
+                  break;
+                }
+              }             
               if (ok) /* reserve rows */
-                for (int t = 0; t < w; t++)
-                  mpz_setbit (z, mat->Ri[u + t]);
-            }
-          if (ok)
-            {
-              fill_in += merge_do (mat, j, out);
-              nmerges ++;
-            }
+                for (int k = 0; k < w; k++) {
+                  index_t i = mat->Ri[u + k];
+                  uint64_t x = i / 64;
+                  uint64_t y = i & 63;
+                  busy_rows[x] |= (1ull << y);
+                }
+            } /* end critical */
+          if (ok) {
+            fill_in += merge_do (mat, j, out);
+            nmerges ++;
+          }
         }
     }
   /* FIXME: we could use __sync_add_and_fetch, but this part should not be
@@ -1174,11 +1192,7 @@ work (filter_matrix_t *mat, mpz_t z, cost_list_t *L, FILE *out)
 static unsigned long
 apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
 {
-  /* We first prepare a list of independent ideals of small cost to merge,
-     i.e., all rows where those ideals appear are independent.
-     This step is mono-thread. */
-  mpz_t z; /* bit vector to detect rows not yet used */
-  mpz_init (z);
+  
 
   /* first compute the total number of possible merges */
   int T = omp_get_max_threads();
@@ -1188,10 +1202,14 @@ apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
       if (c <= L[t].cmax)
 	total_merges += L[t].size[c];
 
+  int size = 1 + mat->nrows / 64;
+  uint64_t busy_rows[size];
+  memset(busy_rows, 0, sizeof(uint64_t) * size);
+
   unsigned long nmerges = mat->rem_nrows;
 
-  #pragma omp parallel num_threads(T)
-  work (mat, z, L, out);
+  #pragma omp parallel
+  work (mat, busy_rows, L, out);
 
   nmerges = nmerges - mat->rem_nrows;
 
@@ -1205,8 +1223,6 @@ apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
       if (mat->cwmax < MERGE_LEVEL_MAX)
         mat->cwmax ++;
     }
-
-  mpz_clear (z);
 
   return nmerges;
 }
