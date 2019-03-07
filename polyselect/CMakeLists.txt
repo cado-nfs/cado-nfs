@@ -14,7 +14,7 @@ add_executable (polyselect polyselect.c polyselect_str.c polyselect_arith.c ${ro
 add_executable (polyselect_ropt ropt_main.c ${ropt_sources})
 set_target_properties(polyselect_ropt PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
-add_executable (polyselect_gfpn EXCLUDE_FROM_ALL polyselect_gfpn.c gfpkdlpolyselect.c ${ropt_sources})
+add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.c ${ropt_sources})
 
 # the utils library already includes -lgmp and -lm
 target_link_libraries (polyselect_gfpn  polyselect_common utils)

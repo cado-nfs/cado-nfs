@@ -242,8 +242,8 @@
 ############################################################
 # For big factorizations, increase the size of variable.
 # If you want to use large prime bound > 32, uncomment the following line
-# FLAGS_SIZE="-D__SIZEOF_P_R_VALUES__=8"
+# FLAGS_SIZE="-DSIZEOF_P_R_VALUES=8"
 # If you want to be able to handle more than 2^32 ideals in your factor base or
 # have more than 2^32 relations (for large prime bound > 35 or 36), uncomment
 # the following line
-# FLAGS_SIZE="-D__SIZEOF_P_R_VALUES__=8 -D__SIZEOF_INDEX__=8"
+# FLAGS_SIZE="-DSIZEOF_P_R_VALUES=8 -DSIZEOF_INDEX=8"

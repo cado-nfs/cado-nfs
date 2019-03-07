@@ -475,7 +475,7 @@ int main(int argc, char **argv)
     if (((col_max_index_arg >> 32) != 0) && sizeof(index_t) < 8)
     {
       fprintf(stderr, "Error, -col-max-index is too large for a 32-bit "
-                      "program\nSee #define __SIZEOF_INDEX__ in typedefs.h\n");
+                      "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
       exit(EXIT_FAILURE);
     }
     if (nthreads == 0)

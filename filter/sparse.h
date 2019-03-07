@@ -12,11 +12,11 @@
 #else
 #define setRawCell(row, k, v, c) row[k] = v
 #define rowFullCell(row, k) rowCell(row, k)
-#if __SIZEOF_INDEX__ == 4 || __SIZEOF_INDEX__ == 8
+#if SIZEOF_INDEX == 4 || SIZEOF_INDEX == 8
 #define rowCell(row, k) row[k]
 #define setCell(row, k, v, c) row[k] = v
 #define compressRow(row, buf, n) memcpy(row,buf,(n+1)*sizeof (typerow_t))
-#else /* experimental code for 5 <= __SIZEOF_INDEX__ <= 7, for factorization */
+#else /* experimental code for 5 <= SIZEOF_INDEX <= 7, for factorization */
 index_t rowCell (index_t *row, int k);
 void setCell (index_t *row, int k, index_t j, exponent_t e);
 void compressRow (index_t *row, index_t *buf, int n);

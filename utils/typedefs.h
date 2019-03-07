@@ -5,43 +5,43 @@
 #include "ularith.h" /* NEEDED for LONG_BIT (32 or 64) */
 
 /* data type to store the (p,r) values */
-#ifndef __SIZEOF_P_R_VALUES__
-#define __SIZEOF_P_R_VALUES__ 4
-#elif __SIZEOF_P_R_VALUES__ != 4 && __SIZEOF_P_R_VALUES__ != 8
-#error "Defined constant __SIZEOF_P_R_VALUES__ should be 4 or 8"
+#ifndef SIZEOF_P_R_VALUES
+#define SIZEOF_P_R_VALUES 4
+#elif SIZEOF_P_R_VALUES != 4 && SIZEOF_P_R_VALUES != 8
+#error "Defined constant SIZEOF_P_R_VALUES should be 4 or 8"
 #endif
 
 /* data type to store the renumber table */
-#ifndef __SIZEOF_INDEX__
-#define __SIZEOF_INDEX__ 4
-#elif __SIZEOF_INDEX__ < 4 || 8 < __SIZEOF_INDEX__
-#error "Defined constant __SIZEOF_INDEX__ should be in [4..8]"
+#ifndef SIZEOF_INDEX
+#define SIZEOF_INDEX 4
+#elif SIZEOF_INDEX < 4 || 8 < SIZEOF_INDEX
+#error "Defined constant SIZEOF_INDEX should be in [4..8]"
 #endif
 
-#if __SIZEOF_INDEX__ > __SIZEOF_P_R_VALUES__
-#error "__SIZEOF_INDEX__ should be smaller or equal to __SIZEOF_P_R_VALUES__"
+#if SIZEOF_INDEX > SIZEOF_P_R_VALUES
+#error "SIZEOF_INDEX should be smaller or equal to SIZEOF_P_R_VALUES"
 #endif
 
-#if (__SIZEOF_P_R_VALUES__ * 8) > LONG_BIT
-#error "__SIZEOF_P_R_VALUES__ cannot be greater than LONG_BIT / 8"
+#if (SIZEOF_P_R_VALUES * 8) > LONG_BIT
+#error "SIZEOF_P_R_VALUES cannot be greater than LONG_BIT / 8"
 #endif
 
-#if __SIZEOF_P_R_VALUES__ == 4
+#if SIZEOF_P_R_VALUES == 4
 #define p_r_values_t uint32_t
 #define PRpr PRIx32
 #define SCNpr SCNx32
-#else /* __SIZEOF_P_R_VALUES__ == 8 */
+#else /* SIZEOF_P_R_VALUES == 8 */
 #define p_r_values_t uint64_t
 #define PRpr PRIx64
 #define SCNpr SCNx64
 #endif
 
-#if __SIZEOF_INDEX__ == 4
+#if SIZEOF_INDEX == 4
 #define index_t uint32_t
 #define index_signed_t int32_t
 #define PRid PRIx32
 #define SCNid SCNx32
-#else /* __SIZEOF_INDEX__ == 8 */
+#else /* SIZEOF_INDEX == 8 */
 #define index_t uint64_t
 #define index_signed_t int64_t
 #define PRid PRIx64

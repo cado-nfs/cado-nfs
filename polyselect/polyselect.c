@@ -64,7 +64,7 @@ unsigned long collisions = 0;
 unsigned long collisions_good = 0;
 double *best_opt_logmu, *best_exp_E;
 double optimize_time = 0.0;
-mpz_t admin, admax;
+mpz_t admin, adcur, admax;
 int tries = 0;
 double target_E = 0.0; /* target E-value, 0.0 if not given */
 
@@ -198,7 +198,7 @@ estimate_weibull_moments2 (double *beta, double *eta, data_t s)
 }
 
 /* print poly info */
-void
+static void
 print_poly_info ( char *buf,
                   size_t size,
                   mpz_t *f,
@@ -207,7 +207,7 @@ print_poly_info ( char *buf,
                   const mpz_t n,
                   const int raw,
                   const char *prefix,
-                  bool raw_option )
+                  bool raw_option)
 {
   unsigned int i, nroots;
   double skew, logmu, exp_E;
@@ -220,31 +220,32 @@ print_poly_info ( char *buf,
 
   if (raw_option)
     {
-      np += snprintf(buf + np, size - np, "# Raw polynomial:\n");
+      np += snprintf (buf + np, size - np, "# Raw polynomial:\n");
       data_add (raw_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
   else
     {
-      snprintf(buf + np, size - np, "# Size-optimized polynomial:\n");
+      snprintf (buf + np, size - np, "# Size-optimized polynomial:\n");
       data_add (opt_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
 
-  np += gmp_snprintf(buf + np, size - np, "%sn: %Zd\n", prefix, n);
-  np += gmp_snprintf(buf + np, size - np, "%sY1: %Zd\n%sY0: %Zd\n", prefix, g[1], prefix, g[0]);
+  np += gmp_snprintf (buf + np, size - np, "%sn: %Zd\n", prefix, n);
+  np += gmp_snprintf (buf + np, size - np, "%sY1: %Zd\n%sY0: %Zd\n", prefix, g[1], prefix, g[0]);
   for (i = d + 1; i -- != 0; )
-    np += gmp_snprintf(buf + np, size - np, "%sc%u: %Zd\n", prefix, i, f[i]);
+    np += gmp_snprintf (buf + np, size - np, "%sc%u: %Zd\n", prefix, i, f[i]);
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   nroots = numberOfRealRoots (f, d, 0, 0, NULL);
   logmu = L2_lognorm (F, skew);
   exp_E = logmu + expected_rotation_gain (F, G);
   if (raw == 1)
-    np += snprintf(buf + np, size - np, "# raw exp_E");
+    np += snprintf (buf + np, size - np, "# raw exp_E");
   else
-    np += snprintf(buf + np, size - np, "# exp_E");
+    np += snprintf (buf + np, size - np, "# exp_E");
 
-  np += snprintf(buf + np, size - np, " %1.2f, lognorm %1.2f, skew %1.2f, %u rroots\n",
+  np += snprintf (buf + np, size - np, " %1.2f, lognorm %1.2f, skew %1.2f, %u rroots\n",
            exp_E, logmu, skew, nroots);
 
+  /* estimate the parameters of a Weibull distribution for E */
   if (!raw_option && target_E != 0.0)
     {
       double beta, eta, prob;
@@ -266,19 +267,40 @@ print_poly_info ( char *buf,
       prob = 1.0 - exp (- pow (target_E / eta, beta));
       if (prob == 0) /* for x small, exp(x) ~ 1+x */
         prob = pow (target_E / eta, beta);
-      np += snprintf(buf + np, size - np,
+      np += snprintf (buf + np, size - np,
                "# E: %lu, min %.2f, avg %.2f, max %.2f, stddev %.2f\n",
                data_exp_E->size, data_exp_E->min, data_mean (data_exp_E),
                data_exp_E->max, sqrt (data_var (data_exp_E)));
-      np += snprintf(buf + np, size - np,
+      np += snprintf (buf + np, size - np,
               "# target_E=%.2f: collisions=%.2e, time=%.2e"
                " (beta=%.2f,eta=%.2f)\n",
                target_E, 1.0 / prob, seconds () / (prob * collisions_good),
                beta, eta);
     }
 
+  /* estimate the minimal E-value, assuming a normal distribution for E */
+  if (!raw_option && verbose)
+    {
+      unsigned long n = data_exp_E->size; /* #polynomials found so far */
+      double time_per_poly = seconds () / n; /* average time per poly */
+      double mu = data_mean (data_exp_E); /* average E */
+      double sigma = sqrt (data_var (data_exp_E)); /* stddev(E) */
+      double adrange = mpz_get_d (admax) - mpz_get_d (admin);
+      double done = mpz_get_d (adcur) - mpz_get_d (admin);
+      double ratio_done = adrange / done;
+      double K = (double) n * ratio_done;
+      /* minimal order statistics */
+      double x = sqrt (2.0 * log (K));
+      double y  = log (log (K)) + 1.377;
+      double best_exp_E = mu - sigma * (x - y / (2.0 * x));
+      np += snprintf (buf + np, size - np,
+                      "# %.2fs/poly, total %.0fs, mu %.2f, sigma %.3f, best exp_E %.2f\n",
+                      time_per_poly, seconds () * ratio_done, mu, sigma,
+                      best_exp_E);
+    }
+
   if (!raw_option)
-    np += snprintf(buf + np, size - np, "\n");
+    np += snprintf (buf + np, size - np, "\n");
   ASSERT_ALWAYS(np < size);
 }
 
@@ -323,6 +345,7 @@ check_divexact(mpz_t r, const mpz_t d, const char *d_name MAYBE_UNUSED, const mp
   mpz_divexact (r, d, q);
 }
 
+/* ad is the leading coefficient of the raw (non-optimized) polynomial */
 static void
 output_polynomials (mpz_t *fold, const unsigned long d, mpz_t *gold,
                     const mpz_t N, mpz_t *f, mpz_t *g)
@@ -1874,17 +1897,17 @@ next_ad (mpz_t ad, int i)
   int ret;
 
   mutex_lock (&lock);
-  ret = mpz_cmp (admin, admax) < 0;
+  ret = mpz_cmp (adcur, admax) < 0;
   if (ret)
     {
-      mpz_set (ad, admin);
+      mpz_set (ad, adcur);
       tries ++;
       if (verbose >= 1)
         {
           gmp_printf ("# thread %d: ad=%Zd\n", i, ad);
           fflush (stdout);
         }
-      mpz_add_ui (admin, admin, incr);
+      mpz_add_ui (adcur, adcur, incr);
     }
   mutex_unlock (&lock);
   return ret;
@@ -1915,7 +1938,7 @@ declare_usage(param_list pl)
   snprintf (str, 200, "maximum number of special-q's considered\n"
             "               for each ad (default %d)", DEFAULT_NQ);
   param_list_decl_usage(pl, "nq", str);
-  snprintf(str, 200, "number of polynomials kept (default %d)", KEEP);
+  snprintf (str, 200, "number of polynomials kept (default %d)", KEEP);
   param_list_decl_usage(pl, "keep", str);
   param_list_decl_usage(pl, "out", "filename for msieve-format output");
   snprintf (str, 200, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
@@ -1954,6 +1977,7 @@ main (int argc, char *argv[])
 
   mpz_init (N);
   mpz_init (admin);
+  mpz_init (adcur);
   mpz_init (admax);
   cado_poly_init (best_poly);
   cado_poly_init (curr_poly);
@@ -2130,14 +2154,15 @@ main (int argc, char *argv[])
       exit (1);
     }
 
-  /* if admin = 0, start from incr */
-  if (mpz_cmp_ui (admin, 0) == 0)
-    mpz_set_ui (admin, incr);
+  mpz_set (adcur, admin);
+  /* if adcur = 0, start from incr */
+  if (mpz_cmp_ui (adcur, 0) == 0)
+    mpz_set_ui (adcur, incr);
 
-  /* admin should be a non-zero multiple of 'incr', since when the global
+  /* adcur should be a non-zero multiple of 'incr', since when the global
      [admin, admax] range is cut by cado-nfs.py between different workunits,
      some bounds might no longer be multiple of 'incr'. */
-  mpz_add_ui (admin, admin, (incr - mpz_fdiv_ui (admin, incr)) % incr);
+  mpz_add_ui (adcur, adcur, (incr - mpz_fdiv_ui (adcur, incr)) % incr);
 
   int i;
   for (i = 0; i < nthreads; i++)
@@ -2214,6 +2239,7 @@ main (int argc, char *argv[])
 
   mpz_clear (N);
   mpz_clear (admin);
+  mpz_clear (adcur);
   mpz_clear (admax);
   cado_poly_clear (best_poly);
   cado_poly_clear (curr_poly);

@@ -188,9 +188,6 @@ void hash_grow (hash_t);
 void hash_clear (hash_t);
 void shash_clear (shash_t);
 
-void print_poly_info (char *, size_t, mpz_t *, unsigned int, mpz_t *, const mpz_t, int,
-                      const char *, bool);
-
 void data_init (data_t);
 void data_clear (data_t);
 void data_add (data_t, double);

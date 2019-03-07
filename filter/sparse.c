@@ -138,7 +138,7 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
     setRawCell(tmp, 0, k-1, 1);
 
     // copy back
-#if defined(FOR_DL) || __SIZEOF_INDEX__ == 4 || __SIZEOF_INDEX__ == 8
+#if defined(FOR_DL) || SIZEOF_INDEX == 4 || SIZEOF_INDEX == 8
     free(rows[i1]);
     if(k == len)
       rows[i1] = tmp;
@@ -268,11 +268,11 @@ mallocRow (uint32_t n)
 {
   typerow_t *row;
 
-#if defined(FOR_DL) || __SIZEOF_INDEX__ == 4 || __SIZEOF_INDEX__ == 8
+#if defined(FOR_DL) || SIZEOF_INDEX == 4 || SIZEOF_INDEX == 8
   row = (typerow_t*) malloc (n * sizeof (typerow_t));
 #else
-  /* for 5 <= __SIZEOF_INDEX__ <= 7, we need n*__SIZEOF_INDEX__ bytes */
-  row = (typerow_t*) malloc (n * __SIZEOF_INDEX__);
+  /* for 5 <= SIZEOF_INDEX <= 7, we need n*SIZEOF_INDEX bytes */
+  row = (typerow_t*) malloc (n * SIZEOF_INDEX);
 #endif
   FATAL_ERROR_CHECK(row == NULL, "Cannot allocate memory");
   return row;
@@ -282,35 +282,35 @@ mallocRow (uint32_t n)
 typerow_t*
 reallocRow (typerow_t *row, uint32_t n)
 {
-#if defined(FOR_DL) || __SIZEOF_INDEX__ == 4 || __SIZEOF_INDEX__ == 8
+#if defined(FOR_DL) || SIZEOF_INDEX == 4 || SIZEOF_INDEX == 8
   row = (typerow_t*) realloc (row, n * sizeof (typerow_t));
 #else
-  /* for 5 <= __SIZEOF_INDEX__ <= 7, we need n*__SIZEOF_INDEX__ bytes */
-  row = (typerow_t*) realloc (row, n * __SIZEOF_INDEX__);
+  /* for 5 <= SIZEOF_INDEX <= 7, we need n*SIZEOF_INDEX bytes */
+  row = (typerow_t*) realloc (row, n * SIZEOF_INDEX);
 #endif
   FATAL_ERROR_CHECK(row == NULL, "Cannot allocate memory");
-  if (n * __SIZEOF_INDEX__ == 50) printf ("row=%lx\n", (unsigned long) row);
+  if (n * SIZEOF_INDEX == 50) printf ("row=%lx\n", (unsigned long) row);
   return row;
 }
 
 
-/* experimental code for factorization with 5 <= __SIZEOF_INDEX__ <= 7 */
-#if !defined(FOR_DL) && 5 <= __SIZEOF_INDEX__ && __SIZEOF_INDEX__ <= 7
+/* experimental code for factorization with 5 <= SIZEOF_INDEX <= 7 */
+#if !defined(FOR_DL) && 5 <= SIZEOF_INDEX && SIZEOF_INDEX <= 7
 
 /* We use the following data structure for a matrix row:
 
- * each entry has __SIZEOF_INDEX__ bytes which are stored consecutively
+ * each entry has SIZEOF_INDEX bytes which are stored consecutively
    (little endian, i.e., smallest byte first)
  * the first entry represents the length (say n) of the row
- * thus we have in total (n+1)*__SIZEOF_INDEX__ bytes */
+ * thus we have in total (n+1)*SIZEOF_INDEX bytes */
 
 index_t
 rowCell (index_t *row, int k)
 {
   index_t res = 0;
-  uint8_t *ptr = ((uint8_t*) row) + k * __SIZEOF_INDEX__;
+  uint8_t *ptr = ((uint8_t*) row) + k * SIZEOF_INDEX;
 
-  for (int t = 0; t < __SIZEOF_INDEX__; t++)
+  for (int t = 0; t < SIZEOF_INDEX; t++)
     res += ((index_t) ptr[t]) << (t * 8);
   return res;
 }
@@ -319,10 +319,10 @@ rowCell (index_t *row, int k)
    used */
 void setCell(index_t *row, int k, index_t j, exponent_t e MAYBE_UNUSED)
 {
-  uint8_t *ptr = ((uint8_t*) row) + k * __SIZEOF_INDEX__;
+  uint8_t *ptr = ((uint8_t*) row) + k * SIZEOF_INDEX;
   index_t j0 = j;
 
-  for (int t = 0; t < __SIZEOF_INDEX__; t++)
+  for (int t = 0; t < SIZEOF_INDEX; t++)
     {
       ptr[t] = (uint8_t) j;
       j >>= 8;

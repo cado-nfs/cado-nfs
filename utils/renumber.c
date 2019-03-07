@@ -214,11 +214,11 @@ print_info (FILE * f, renumber_srcptr r, int after_reading)
   }
 
   /* if the size of the renumber table exceeds 2^32, check we have compiled
-     with -D__SIZEOF_INDEX__=8 */
-#if __SIZEOF_INDEX__ != 8
+     with -DSIZEOF_INDEX=8 */
+#if SIZEOF_INDEX != 8
   if (r->size >> 32)
     {
-      fprintf (stderr, "Error, for 2^32 ideals or more, add -D__SIZEOF_INDEX__=8 to CFLAGS/CXXFLAGS in local.sh\n");
+      fprintf (stderr, "Error, for 2^32 ideals or more, add -DSIZEOF_INDEX=8 to CFLAGS/CXXFLAGS in local.sh\n");
       abort ();
     }
 #endif
@@ -474,7 +474,7 @@ renumber_init_for_writing (renumber_ptr renumber_info, unsigned int nb_polys,
   if (renumber_info->nb_bits > 8 * sizeof(p_r_values_t))
     {
       fprintf (stderr, "Error, p_r_values_t is too small to store ideals, "
-               "recompile with FLAGS_SIZE=\"-D__SIZEOF_P_R_VALUES__=8\"\n");
+               "recompile with FLAGS_SIZE=\"-DSIZEOF_P_R_VALUES=8\"\n");
       exit (1);
     }
 
@@ -985,8 +985,8 @@ renumber_get_first_index_from_p(renumber_srcptr renumber_info,
                             "%" PRpr " are not in the renumbering table\n"
                             "Maybe p is not prime ?\n", __func__, __FILE__,
                             __LINE__, p);
-#if __SIZEOF_INDEX__ != 8
-            fprintf (stderr, "Note: for >= 2^32 ideals or relations, add -D__SIZEOF_INDEX__=8 to CFLAGS/CXXFLAGS in local.sh\n");
+#if SIZEOF_INDEX != 8
+            fprintf (stderr, "Note: for >= 2^32 ideals or relations, add -DSIZEOF_INDEX=8 to CFLAGS/CXXFLAGS in local.sh\n");
 #endif
             abort();
           }
