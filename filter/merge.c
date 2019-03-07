@@ -111,6 +111,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 double cpu_t[7] = {0};
 double wct_t[7] = {0};
 
+static int verbose = 0; /* verbosity level */
+
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
 static void
@@ -125,6 +127,7 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
+  param_list_decl_usage(pl, "v", "verbose mode");
 }
 
 static void
@@ -431,7 +434,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   {
     int T = omp_get_num_threads();
     int tid = omp_get_thread_num();
-    
+
     /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
     if (tid == 0)
         Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
@@ -562,12 +565,15 @@ compute_R (filter_matrix_t *mat, index_t j0)
           Ri[s] = i;
         }
     }
-  
-  printf("*** (non-empty) rows in transpose: %d VS rows in transpose : %" PRId64 ". Ratio = %.1f%%\n", 
-        nonempty_rows, mat->ncols, (100. * nonempty_rows) / mat->ncols);
-  printf("*** NNZ in transpose: %d. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n", 
-        Rp[mat->ncols], nnz, (100.0 * Rp[mat->ncols]) / nnz);
-  printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (mat->ncols + Rp[mat->ncols]) * sizeof(index_t));
+
+  if (verbose > 0)
+    {
+      printf("*** (non-empty) rows in transpose: %lu VS rows in transpose : %" PRId64 ". Ratio = %.1f%%\n",
+             (unsigned long) nonempty_rows, mat->ncols, (100. * nonempty_rows) / mat->ncols);
+      printf("*** NNZ in transpose: %lu. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
+             (unsigned long) Rp[mat->ncols], nnz, (100.0 * Rp[mat->ncols]) / nnz);
+      printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (mat->ncols + Rp[mat->ncols]) * sizeof(index_t));
+    }
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
@@ -1204,6 +1210,7 @@ main (int argc, char *argv[])
     declare_usage(pl);
     argv++,argc--;
 
+    param_list_configure_switch (pl, "-v", &verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW

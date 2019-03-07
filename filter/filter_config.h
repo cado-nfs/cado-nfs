@@ -44,8 +44,8 @@
    which means that line i1 has to be added to i2, ..., in, but not destroyed.
    The sum of n-1 over all such lines must equal k.
    Each line consists of numbers written in decimal:
-   - if __SIZEOF_INDEX__=4, each number is a 32-bit value (<=10 digits)
-   - if __SIZEOF_INDEX__=8, each number is a 64-bit value (<=20 digits)
+   - if SIZEOF_INDEX=4, each number is a 32-bit value (<=10 digits)
+   - if SIZEOF_INDEX=8, each number is a 64-bit value (<=20 digits)
    The worst case (in term of total length) is when we only have lines of
    the form "i1 i2" or "-(i1+1) i2". This is precisely what we get with the
    spanning tree algorithm. We then get exactly k-1 lines: first k-2 with a
@@ -54,16 +54,16 @@
    We also a final \n per line, and (for DLP) an extra number of 10/20
    digits and two extra characters (" #"). Plus an extra \0 (end of string).
    This gives a maximum of:
-   - (k-1)*(2*10*__SIZEOF_INDEX__/4 + 3) for the factorization
-   - (k-1)*(3*10*__SIZEOF_INDEX__/4 + 5) for DLP
+   - (k-1)*(2*10*SIZEOF_INDEX/4 + 3) for the factorization
+   - (k-1)*(3*10*SIZEOF_INDEX/4 + 5) for DLP
    For MERGE_LEVEL_MAX=32 this gives:
-   - __SIZEOF_INDEX__=4: 713 for the factorization, 1085 for DLP
-   - __SIZEOF_INDEX__=8: 1333 for the factorization, 2015 for DLP
+   - SIZEOF_INDEX=4: 713 for the factorization, 1085 for DLP
+   - SIZEOF_INDEX=8: 1333 for the factorization, 2015 for DLP
 */
 #ifndef FOR_DL
-#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (2 * 10 * (__SIZEOF_INDEX__ / 4) + 3))
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (2 * 10 * (SIZEOF_INDEX / 4) + 3))
 #else
-#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (3 * 10 * (__SIZEOF_INDEX__ / 4) + 5))
+#define MERGE_CHAR_MAX ((MERGE_LEVEL_MAX - 1) * (3 * 10 * (SIZEOF_INDEX / 4) + 5))
 #endif
 
 #ifndef FOR_DL
