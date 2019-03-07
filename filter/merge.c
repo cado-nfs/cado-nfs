@@ -152,11 +152,6 @@ usage (param_list pl, char *argv0)
   {
     return 0;
   }
-
-  static int get_thread_num()
-  {
-    return 0;
-  }
 #endif
 
 
