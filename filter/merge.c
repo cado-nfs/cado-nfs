@@ -513,22 +513,22 @@ compute_R (filter_matrix_t *mat, index_t j0)
      3) each thread propagates the prefix-sum on its range.
      See for example Chapter 2 of "Introduction to Parallel Algorithms"
      by Joseph JaJa (1992). */
-  index_t s = 0;
-  index_t nonempty_rows = 0;
-  for (index_t j = j0; j < mat->ncols; j++)
-    {
-      col_weight_t w = mat->wt[j];
-      if (w <= mat->cwmax) {
-        s += w;
-        nonempty_rows++;
-      }
-      Rp[j] = s;
+  index_t Rnz = 0;
+  index_t Rn = 0;
+  for (index_t j = j0; j < mat->ncols; j++) {
+    col_weight_t w = mat->wt[j];
+    if (0 < w && w <= mat->cwmax) {
+      Rq[j] = Rn;
+      Rqinv[Rn] = j;
+      Rp[Rn] = Rnz;
+      Rnz += w;
+      Rn++;
     }
-  Rp[mat->ncols] = s;
+  }
+  Rp[Rn] = s;
 
   /* reallocate Ri if the previous allocated size was less than s */
-  if (mat->Ri_alloc < s)
-    {
+  if (mat->Ri_alloc < s) {
       /* allocate more to avoid several allocations with a small difference */
       mat->Ri_alloc = s + s / MARGIN;
       mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
@@ -539,39 +539,41 @@ compute_R (filter_matrix_t *mat, index_t j0)
   wct_t[6] += wct_seconds () - wct;
 
   /* dispatch entries */
-  uint64_t nnz = 0;
-  #pragma omp parallel for reduction(+:nnz)
-  for (index_t i = 0; i < mat->nrows; i++)
-    if (mat->rows[i] != NULL) {/* row was not discarded */
-      nnz += matLengthRow(mat, i);
-      for (index_t k = matLengthRow(mat, i); k >= 1; k--)
-        {
-          index_t j = matCell (mat, i, k);
-          /* since ideals are sorted by increasing value, we can stop
-             when we encounter j < j0 */
-          if (j < j0)
-            break;
-          /* we only accumulate ideals of weight <= cwmax */
-          if (mat->wt[j] > mat->cwmax)
-            continue;
-          index_t s;
-	  /* atomic capture: updates the value of a variable while capturing
-	     the original or final value of the variable atomically.
-	     We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
-	     but the following is as efficient and more portable. */
-	  #pragma omp atomic capture
-	  s = --(Rp[j]);
-          Ri[s] = i;
-        }
+
+  uint64_t mat_nnz = 0; /* observed non-zero in original matrix */
+  #pragma omp parallel for schedule(dynamic, 128) reduction(+:mat_nnz)
+  for (index_t i = 0; i < mat->nrows; i++) {
+    if (mat->rows[i] == NULL)
+      continue /* row was discarded */
+    mat_nnz += matLengthRow(mat, i);
+    for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
+      index_t j = matCell (mat, i, k);
+      /* since ideals are sorted by increasing value, we can stop
+         when we encounter j < j0 */
+      if (j < j0)
+        break;
+      /* we only accumulate ideals of weight <= cwmax */
+      if (mat->wt[j] > mat->cwmax)
+        continue;
+      index_t r = Rq[j];  /* column j in mat corresponds to row i in R */
+	    /* atomic capture: updates the value of a variable while capturing
+	       the original or final value of the variable atomically.
+	       We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
+	       but the following is as efficient and more portable. */
+      index_t s;
+      #pragma omp atomic capture
+	    s = --Rp[r];
+      Ri[s] = i;
     }
+  }
 
   if (verbose > 0)
     {
-      printf("*** (non-empty) rows in transpose: %lu VS rows in transpose : %" PRId64 ". Ratio = %.1f%%\n",
-             (unsigned long) nonempty_rows, mat->ncols, (100. * nonempty_rows) / mat->ncols);
+      printf("*** Transpose: (non-empty) rows : %lu VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
+        Rn, mat->ncols, (100. * Rn) / mat->ncols);
       printf("*** NNZ in transpose: %lu. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
-             (unsigned long) Rp[mat->ncols], nnz, (100.0 * Rp[mat->ncols]) / nnz);
-      printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (mat->ncols + Rp[mat->ncols]) * sizeof(index_t));
+        Rn, mat_nnz, (100.0 * Rnz) / nnz);
+      printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (Rn + Rnz) * sizeof(index_t));
     }
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
@@ -851,7 +853,8 @@ printRow (filter_matrix_t *mat, index_t i)
 #endif
 
 /* classical cost: merge the row of smaller weight with the other ones,
-   and return the merge cost (taking account of cancellations) */
+   and return the merge cost (taking account of cancellations).
+   i is the index of a row in R. */
 static int32_t
 merge_cost (filter_matrix_t *mat, index_t j)
 {
