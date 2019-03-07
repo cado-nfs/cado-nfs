@@ -501,6 +501,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
   double cpu = seconds (), wct = wct_seconds ();
 
   index_t *Rp = mat->Rp;
+  index_t *Rq = mat->Rq;
+  index_t *Rqinv = mat->Rqinv;
 
   /* Initialize the row pointers to Rp[j] + wt[j]. We will then decrease them
      to Rp[j] in the "dispatch" loop (this trick was already used by Donald
@@ -520,19 +522,20 @@ compute_R (filter_matrix_t *mat, index_t j0)
     if (0 < w && w <= mat->cwmax) {
       Rq[j] = Rn;
       Rqinv[Rn] = j;
-      Rp[Rn] = Rnz;
       Rnz += w;
+      Rp[Rn] = Rnz;
       Rn++;
     }
   }
-  Rp[Rn] = s;
+  Rp[Rn] = Rnz;
+  mat->Rn = Rn;
 
   /* reallocate Ri if the previous allocated size was less than s */
-  if (mat->Ri_alloc < s) {
-      /* allocate more to avoid several allocations with a small difference */
-      mat->Ri_alloc = s + s / MARGIN;
-      mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
-    }
+  if (mat->Ri_alloc < Rnz) {
+    /* allocate more to avoid several allocations with a small difference */
+    mat->Ri_alloc = Rnz + Rnz / MARGIN;
+    mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
+  }
   index_t *Ri = mat->Ri;
 
   cpu_t[6] += seconds () - cpu;
@@ -544,7 +547,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   #pragma omp parallel for schedule(dynamic, 128) reduction(+:mat_nnz)
   for (index_t i = 0; i < mat->nrows; i++) {
     if (mat->rows[i] == NULL)
-      continue /* row was discarded */
+      continue; /* row was discarded */
     mat_nnz += matLengthRow(mat, i);
     for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
       index_t j = matCell (mat, i, k);
@@ -556,23 +559,24 @@ compute_R (filter_matrix_t *mat, index_t j0)
       if (mat->wt[j] > mat->cwmax)
         continue;
       index_t r = Rq[j];  /* column j in mat corresponds to row i in R */
-	    /* atomic capture: updates the value of a variable while capturing
+	    
+      /* atomic capture: updates the value of a variable while capturing
 	       the original or final value of the variable atomically.
 	       We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
 	       but the following is as efficient and more portable. */
       index_t s;
       #pragma omp atomic capture
-	    s = --Rp[r];
+	    s = --Rp[r];  // no political pun intended
       Ri[s] = i;
     }
   }
 
   if (verbose > 0)
     {
-      printf("*** Transpose: (non-empty) rows : %lu VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
+      printf("*** Transpose: (non-empty) rows : %d VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
         Rn, mat->ncols, (100. * Rn) / mat->ncols);
-      printf("*** NNZ in transpose: %lu. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
-        Rn, mat_nnz, (100.0 * Rnz) / nnz);
+      printf("*** NNZ in transpose: %d. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
+        Rnz, mat_nnz, (100.0 * Rnz) / mat_nnz);
       printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (Rn + Rnz) * sizeof(index_t));
     }
   cpu = seconds () - cpu;
@@ -581,13 +585,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
   cpu_t[1] += cpu;
   wct_t[1] += wct;
 }
-
-typedef struct {
-  index_t **list;       /* list[c] is a list of j-values with merge cost c */
-  unsigned long *size;  /* size[c] is the length of list[c] */
-  unsigned long *alloc; /* alloc[c] is the allocated size of list[c] */
-  int cmax;             /* all costs are <= cmax */
-} cost_list_t;
 
 #ifdef WT2
 static void
@@ -858,7 +855,6 @@ printRow (filter_matrix_t *mat, index_t i)
 static int32_t
 merge_cost (filter_matrix_t *mat, index_t i)
 {
-  index_t j = mat->Rqinv[i];
   index_t lo = mat->Rp[i];
   index_t hi = mat->Rp[i + 1];
   int w = hi - lo;
@@ -872,7 +868,7 @@ merge_cost (filter_matrix_t *mat, index_t i)
   /* find shortest row in the merged column */
   index_t imin = mat->Ri[lo];
   index_t cmin = matLengthRow (mat, imin);
-  for (int k = lo + 1; k < hi; k++)
+  for (index_t k = lo + 1; k < hi; k++)
     {
       index_t i = mat->Ri[k];
       index_t c = matLengthRow(mat, i);
@@ -886,7 +882,7 @@ merge_cost (filter_matrix_t *mat, index_t i)
   /* we remove row imin and add it to all w-1 others: cmin * (w - 2)
      the column j disappears: -w */
   index_t c = -cmin; /* remove row imin */
-  for (int k = lo; k < hi; k++)
+  for (index_t k = lo; k < hi; k++)
     {
       index_t i = mat->Ri[k];
       if (i != imin)
@@ -896,6 +892,7 @@ merge_cost (filter_matrix_t *mat, index_t i)
 	         relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
 	         all ideals from 'a' will cancel. */
         #ifndef MARKOWITZ
+          index_t j = mat->Rqinv[i];
         	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
         #else /* estimation with Markowitz pivoting: might miss cancellations */
           c += cmin - 2;
@@ -1036,7 +1033,7 @@ static int
 compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 {
   index_t Rn = mat->Rn;
-  int cost[Rn];
+  int * cost = malloc(Rn * sizeof(*cost));
   int T = omp_get_max_threads();
   index_t count[T][cbound + 1];
   // int Lp[cbound + 2];  cost pointers
@@ -1086,6 +1083,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       L[tcount[c]++] = i;
     }
   } /* end parallel section */
+  free(cost);
   return s;
 }
 
