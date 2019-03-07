@@ -856,11 +856,12 @@ printRow (filter_matrix_t *mat, index_t i)
    and return the merge cost (taking account of cancellations).
    i is the index of a row in R. */
 static int32_t
-merge_cost (filter_matrix_t *mat, index_t j)
+merge_cost (filter_matrix_t *mat, index_t i)
 {
-  index_t imin, i;
-  int32_t cmin, c;
-  int w = mat->wt[j];
+  index_t j = mat->Rqinv[i];
+  index_t lo = mat->Rp[i];
+  index_t hi = mat->Rp[i + 1];
+  int w = hi - lo;
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -868,37 +869,37 @@ merge_cost (filter_matrix_t *mat, index_t j)
     return -3; /* ensure all 1-merges are processed before 2-merges with no
 		  cancellation */
 
-  index_t s = mat->Rp[j];
-  imin = mat->Ri[s];
-  cmin = matLengthRow (mat, imin);
-  for (int k = 1; k < w; k++)
+  /* find shortest row in the merged column */
+  index_t imin = mat->Ri[lo];
+  index_t cmin = matLengthRow (mat, imin);
+  for (int k = lo + 1; k < hi; k++)
     {
-      i = mat->Ri[s + k];
-      c = matLengthRow (mat, i);
-      if (c < cmin)
-	{
-	  imin = i;
-	  cmin = c;
-	}
+      index_t i = mat->Ri[k];
+      index_t c = matLengthRow(mat, i);
+      if (c < cmin) 
+        {
+	        imin = i;
+	        cmin = c;
+	      }
     }
 
   /* we remove row imin and add it to all w-1 others: cmin * (w - 2)
      the column j disappears: -w */
-  c = -cmin; /* remove row imin */
-  for (int k = 0; k < w; k++)
+  index_t c = -cmin; /* remove row imin */
+  for (int k = lo; k < hi; k++)
     {
-      i = mat->Ri[s + k];
+      index_t i = mat->Ri[k];
       if (i != imin)
-	/* It is crucial here to take into account cancellations of
-	   coefficients, and not to simply add the length of both
-	   rows minus 2. Indeed, if row 'a' was added to two
-	   relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
-	   all ideals from 'a' will cancel. */
-#ifndef MARKOWITZ
-	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
-#else /* estimation with Markowitz pivoting: might miss cancellations */
-        c += cmin - 2;
-#endif
+	      /* It is crucial here to take into account cancellations of
+	         coefficients, and not to simply add the length of both
+	         rows minus 2. Indeed, if row 'a' was added to two
+	         relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
+	         all ideals from 'a' will cancel. */
+        #ifndef MARKOWITZ
+        	c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
+        #else /* estimation with Markowitz pivoting: might miss cancellations */
+          c += cmin - 2;
+        #endif
     }
   return c;
 }
