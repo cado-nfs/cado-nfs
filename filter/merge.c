@@ -1034,7 +1034,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   index_t Rn = mat->Rn;
   int cost[Rn];
   int T = omp_get_max_threads();
-  int count[T][cbound + 1];
+  index_t count[T][cbound + 1];
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
@@ -1046,9 +1046,10 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   #pragma omp parallel
   {
     int tid = omp_get_thread_num();
+    index_t *tcount = &count[tid][0];
 
-    int *tcount = &count[tid][0];
-    
+    memset(tcount, 0, (cbound + 1) * sizeof(index_t));
+
     #pragma omp for
     for (index_t i = 0; i < Rn; i++) {
         int c = cost[i];
@@ -1062,7 +1063,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   for (int c = 0; c <= cbound; c++) {
      // Lp[c] = s;                     /* global row pointer in L */
      for (int t = 0; t < T; t++) {
-        int w = count[t][c];       /* per-thread row pointer in L */
+        index_t w = count[t][c];       /* per-thread row pointer in L */
         count[t][c] = s;
         s += w;
      }
@@ -1071,7 +1072,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
  #pragma omp parallel
   {
     int tid = omp_get_thread_num();
-        int *tcount = &count[tid][0];
+    index_t *tcount = &count[tid][0];
 
     #pragma omp for
     for (index_t i = 0; i < Rn; i++) {
@@ -1416,6 +1417,8 @@ main (int argc, char *argv[])
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
+  if (verbose > 0)
+    printf("*** compute_merges: %d candidate merges\n", n_possible_merges);
 	print_timings ("   compute_merges took", cpu2, wct2);
 	cpu_t[2] += cpu2;
 	wct_t[2] += wct2;
