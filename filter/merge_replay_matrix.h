@@ -42,13 +42,16 @@ typedef struct {
   uint64_t weight;     /* number of non-zero coefficients in the active part */
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
+  index_t Rn;          /* number of rows in R */
   index_t *Rp, *Ri;    /* (part of) transposed matrix in CSR format:
-                          Rp has size ncols + 1, and Ri has size nnz where nnz
+                          Rp has size Rn + 1, and Ri has size nnz where nnz
                           is the number of elements in the transposed matrix.
                           Column j has Rp[j+1] - Rp[j] elements, which are
                           located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
+  index_t *Rq, *Rqinv;  /* row i of R corresponds to column Rqinv[i] or [self];
+                          column j of [self] corresponds to row Rq[j] of R. */
   unsigned long Ri_alloc; /* allocated size of the Ri field (in index_t) */
-  index_t *p;            /* permutation used to renumber the columns */
+  index_t *p;          /* permutation used to renumber the columns */
 } filter_matrix_t;
 
 #ifdef __cplusplus

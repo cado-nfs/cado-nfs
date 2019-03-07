@@ -137,12 +137,7 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
-#ifdef HAVE_OPENMP
-static int get_thread_num()  /* TODO: remove this */
-{
-  return omp_get_thread_num ();
-}
-#else
+#ifndef HAVE_OPENMP
   static int omp_get_max_threads()
   {
     return 1;
@@ -964,13 +959,14 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
   return m - 2;
 }
 
-/* perform the merge, computing the full spanning tree */
+/* perform the merge described by the i-th row of R, computing the full spanning tree */
 static int32_t
-merge_do (filter_matrix_t *mat, index_t j, FILE *out)
+merge_do (filter_matrix_t *mat, index_t i, FILE *out)
 {
   int32_t c;
-  int w = mat->wt[j];
-  index_t t = mat->Rp[j];
+  index_t t = mat->Rp[i];
+  int w = mat->Rp[i + 1] - t;
+  index_t j = mat->Rqinv[i];
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -1022,188 +1018,147 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
   return c;
 }
 
-static cost_list_t*
-cost_list_init()
-{
-  int T = omp_get_max_threads();
-  cost_list_t *L = malloc (T * sizeof (*L));
-  for (int t = 0; t < T; t++) {
-    L[t].list = NULL;
-    L[t].size = 0;
-    L[t].alloc = 0;
-    L[t].cmax = -1;
-  }
-  return L;
-}
-
-static void
-cost_list_clear (cost_list_t *L)
-{
-  int T = omp_get_max_threads();
-  for (int t = 0; t < T; t++) {
-    for (int i = 0; i <= L[t].cmax; i++)
-      free(L[t].list[i]);
-    free(L[t].list);
-    free(L[t].size);
-    free(L[t].alloc);
-  }
-  free (L);
-}
-
-/* insert pair (j, c) into and handle dynamic arrays */
-static void
-add_cost (cost_list_t *l, index_t j, int32_t c)
-{
-  if (c < 0)
-    c = 0; /* ensures all costs are >= 0 */
-  if (c > l->cmax)
-    {
-      l->list = realloc (l->list, (c + 1) * sizeof (index_t*));
-      l->size = realloc(l->size, (c + 1) * sizeof (unsigned long));
-      l->alloc = realloc(l->alloc, (c + 1) * sizeof (unsigned long));
-      for (int i = l->cmax + 1; i <= c; i++)
-	{
-	  l->list[i] = NULL;
-	  l->size[i] = 0;
-	  l->alloc[i] = 0;
-	}
-      l->cmax = c;
-    }
-  ASSERT(c <= l->cmax);
-  if (l->size[c] == l->alloc[c])
-    {
-      unsigned long new_alloc = l->alloc[c];
-      new_alloc += 1 + new_alloc / MARGIN;
-      l->list[c] = realloc (l->list[c], new_alloc * sizeof (index_t));
-      l->alloc[c] = new_alloc;
-    }
-  ASSERT(l->size[c] < l->alloc[c]);
-  l->list[c][l->size[c]] = j;
-  l->size[c] ++;
-}
-
 /* since merge costs might be negative (for weight 2), we translate them by 3,
    so that 2-merges with no cancellation give biased cost -2+3=1, and those
    with cancellation give biased cost 0, so they will be merged first */
 #define BIAS 3
 
-/* compute the merge cost for column j, and adds it to l if needed */
-static void
-compute_merges_aux (cost_list_t *l, index_t j,
-		     filter_matrix_t *mat, int cbound)
+
+/* accumulate in L all merges of (biased) cost <= cbound. 
+   L must be preallocated.
+   L is a linear array and the merges appear by increasing cost. 
+   Returns the size of L. */
+static int
+compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 {
-  if (1 <= mat->wt[j] && mat->wt[j] <= mat->cwmax)
-    {
-      int32_t c = merge_cost (mat, j) + BIAS;
-      if (c <= cbound)
-	add_cost (l + get_thread_num (), j, c);
+  index_t Rn = mat->Rn;
+  int cost[Rn];
+  int T = omp_get_max_threads();
+  int count[T][cbound + 1];
+  // int Lp[cbound + 2];  cost pointers
+
+  /* compute the cost of all candidate merges */
+  #pragma omp parallel for schedule(dynamic, 64)   /* TODO: dynamic really necessary? */
+  for (index_t i = 0; i < Rn; i++)
+    cost[i] = merge_cost (mat, i) + BIAS;
+
+  /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
+  #pragma omp parallel
+  {
+    int tid = omp_get_thread_num();
+
+    int *tcount = &count[tid][0];
+    
+    #pragma omp for
+    for (index_t i = 0; i < Rn; i++) {
+        int c = cost[i];
+        if (c <= cbound)
+          tcount[c]++;
     }
+  } /* end parallel section */
+
+  /* prefix-sum */
+  int s = 0;                                
+  for (int c = 0; c <= cbound; c++) {
+     // Lp[c] = s;                     /* global row pointer in L */
+     for (int t = 0; t < T; t++) {
+        int w = count[t][c];       /* per-thread row pointer in L */
+        count[t][c] = s;
+        s += w;
+     }
+  }
+
+ #pragma omp parallel
+  {
+    int tid = omp_get_thread_num();
+        int *tcount = &count[tid][0];
+
+    #pragma omp for
+    for (index_t i = 0; i < Rn; i++) {
+      int c = cost[i];
+      if (c > cbound)
+        continue;
+      L[tcount[c]++] = i;
+    }
+  } /* end parallel section */
+  return s;
 }
 
-/* accumulate in L all merges of (biased) cost <= cbound */
-static void
-compute_merges (cost_list_t *L, filter_matrix_t *mat,
-		int cbound, index_t j0)
+
+/* return the number of merges applied */
+static unsigned long
+apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 {
-#pragma omp parallel for schedule(dynamic,128)
-  for (index_t j = j0; j < mat->ncols; j++)
-    compute_merges_aux (L, j, mat, cbound);
-}
+  int size = 1 + mat->nrows / 64;
+  uint64_t busy_rows[size];
+  memset(busy_rows, 0, sizeof(uint64_t) * size);
 
-static void
-work (filter_matrix_t *mat, uint64_t *busy_rows, cost_list_t *L, FILE *out)
-{
-  /* thread tid processes L[tid] */
-  int tid = omp_get_thread_num();
-  cost_list_t *Li = &L[tid];
-  int32_t fill_in = 0, nmerges = 0;
+  unsigned long nrows = mat->rem_nrows;
 
-  for (int c = 0; c <= Li->cmax; c++)
-    {
-      for (index_t k = 0; k < Li->size[c]; k++)
-        {
-          index_t j = Li->list[c][k];
-          index_t u = mat->Rp[j];
-          int w = mat->wt[j];
+  #pragma omp parallel
+  {
+    int32_t fill_in = 0, nmerges = 0;
+    #pragma omp for schedule(dynamic, 16)
+    for (index_t it = 0; it < total_merges; it++) {
+      index_t i = L[it];
+      index_t lo = mat->Rp[i];
+      index_t hi = mat->Rp[i + 1];
 
-          /* merge is possible if all its rows are "available" */
-          int ok = 1;
-          for (int k = 0; k < w; k++) {
-            index_t i = mat->Ri[u + k];
+      /* merge is possible if all its rows are "available" */
+      int ok = 1;
+      for (index_t k = lo; k < hi; k++) {
+        index_t i = mat->Ri[k];
+        uint64_t x = i / 64;
+        uint64_t y = i & 63;
+        if (busy_rows[x] & (1ull << y)) {
+          ok = 0;
+          break;
+        }
+      }
+      if (ok)
+        #pragma omp critical
+        { /* potential merge, enter critical section */
+          /* check again, since another thread might have reserved a row */
+          for (index_t k = lo; k < hi; k++) {
+            index_t i = mat->Ri[k];
             uint64_t x = i / 64;
             uint64_t y = i & 63;
             if (busy_rows[x] & (1ull << y)) {
               ok = 0;
               break;
             }
-          }
-          if (ok)
-            #pragma omp critical
-            { /* potential merge, enter critical section */
-              /* check again, since another thread might have reserved a row */
-              for (int k = 0; k < w; k++) {
-                index_t i = mat->Ri[u + k];
-                uint64_t x = i / 64;
-                uint64_t y = i & 63;
-                if (busy_rows[x] & (1ull << y)) {
-                  ok = 0;
-                  break;
-                }
-              }             
-              if (ok) /* reserve rows */
-                for (int k = 0; k < w; k++) {
-                  index_t i = mat->Ri[u + k];
-                  uint64_t x = i / 64;
-                  uint64_t y = i & 63;
-                  busy_rows[x] |= (1ull << y);
-                }
-            } /* end critical */
-          if (ok) {
-            fill_in += merge_do (mat, j, out);
-            nmerges ++;
-          }
-        }
+          }             
+          if (ok) /* reserve rows */
+            for (index_t k = lo; k < hi; k++) {
+              index_t i = mat->Ri[k];
+              uint64_t x = i / 64;
+              uint64_t y = i & 63;
+              busy_rows[x] |= (1ull << y);
+            }
+        } /* end critical */
+      if (ok) {
+        fill_in += merge_do(mat, i, out);
+        nmerges ++;
+      }
     }
-  /* FIXME: we could use __sync_add_and_fetch, but this part should not be
-     critical in terms of efficiency (to be checked) */
-#pragma omp critical
-  {
-    mat->tot_weight += fill_in;
-    /* each merge decreases the number of rows and columns by one */
-    mat->rem_nrows -= nmerges;
-    mat->rem_ncols -= nmerges;
-  }
-}
 
-/* return the number of merges applied */
-static unsigned long
-apply_merges (cost_list_t *L, filter_matrix_t *mat, FILE *out, int cmax_max)
-{
-  
+    /* All merges processed; update global state */
+    #pragma omp critical
+    {
+      mat->tot_weight += fill_in;
+      /* each merge decreases the number of rows and columns by one */
+      mat->rem_nrows -= nmerges;
+      mat->rem_ncols -= nmerges;
+    }
+  } /* end parallel section */
 
-  /* first compute the total number of possible merges */
-  int T = omp_get_max_threads();
-  unsigned long total_merges = 0;
-  for (int c = 0; c <= cmax_max; c++)
-    for (int t = 0; t < T; t++)
-      if (c <= L[t].cmax)
-	total_merges += L[t].size[c];
+  unsigned long nmerges = nrows - mat->rem_nrows; /* merges effectively accomplished */
 
-  int size = 1 + mat->nrows / 64;
-  uint64_t busy_rows[size];
-  memset(busy_rows, 0, sizeof(uint64_t) * size);
-
-  unsigned long nmerges = mat->rem_nrows;
-
-  #pragma omp parallel
-  work (mat, busy_rows, L, out);
-
-  nmerges = nmerges - mat->rem_nrows;
-
+  /* settings for next pass */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (nmerges == total_merges)
-        mat->cwmax ++;
+        mat->cwmax++;
     }
   else
     {
@@ -1388,6 +1343,8 @@ main (int argc, char *argv[])
        size, we allocate it for once. However, the size of Ri will vary from
        step to step. */
     mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
+    mat->Rq = malloc (mat->ncols * sizeof (index_t));
+    mat->Rqinv = malloc (mat->ncols * sizeof (index_t));
     mat->Ri = NULL;
     mat->Ri_alloc = 0;
 
@@ -1454,8 +1411,8 @@ main (int argc, char *argv[])
 
 	double cpu2 = seconds (), wct2 = wct_seconds ();
 
-	cost_list_t *L = cost_list_init (nthreads);
-	compute_merges (L, mat, cbound, jmin[mat->cwmax]);
+	index_t *L = malloc(mat->Rn * sizeof(index_t));
+	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
@@ -1465,7 +1422,7 @@ main (int argc, char *argv[])
 
 	double cpu3 = seconds (), wct3 = wct_seconds ();
 
-	unsigned long nmerges = apply_merges (L, mat, rep->outfile, cbound);
+	unsigned long nmerges = apply_merges (L, n_possible_merges, mat, rep->outfile);
 
 	cpu3 = seconds () - cpu3;
 	wct3 = wct_seconds () - wct3;
@@ -1473,7 +1430,7 @@ main (int argc, char *argv[])
 	cpu_t[3] += cpu3;
 	wct_t[3] += wct3;
 
-	cost_list_clear (L, nthreads);
+  free(L);
 
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
@@ -1537,6 +1494,8 @@ main (int argc, char *argv[])
 #endif
     free (mat->Rp);
     free (mat->Ri);
+    free (mat->Rq);
+    free (mat->Rqinv);
     clearMat (mat);
 
     param_list_clear (pl);
