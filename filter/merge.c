@@ -1022,48 +1022,35 @@ merge_do (filter_matrix_t *mat, index_t j, FILE *out)
   return c;
 }
 
-static void
-cost_list_init_aux (cost_list_t *l)
-{
-  l->list = NULL;
-  l->size = 0;
-  l->alloc = 0;
-  l->cmax = -1;
-}
-
 static cost_list_t*
-cost_list_init (int nthreads)
+cost_list_init()
 {
-  cost_list_t *L;
-
-  L = malloc (nthreads * sizeof (cost_list_t));
-#pragma omp parallel for
-  for (int i = 0; i < nthreads; i++)
-    cost_list_init_aux (L + i);
+  int T = omp_get_max_threads();
+  cost_list_t *L = malloc (T * sizeof (*L));
+  for (int t = 0; t < T; t++) {
+    L[t].list = NULL;
+    L[t].size = 0;
+    L[t].alloc = 0;
+    L[t].cmax = -1;
+  }
   return L;
 }
 
-/* return the number of bytes allocated */
 static void
-cost_list_clear_aux (cost_list_t *l)
+cost_list_clear (cost_list_t *L)
 {
-  for (int i = 0; i <= l->cmax; i++)
-    free (l->list[i]);
-  free (l->list);
-  free (l->size);
-  free (l->alloc);
+  int T = omp_get_max_threads();
+  for (int t = 0; t < T; t++) {
+    for (int i = 0; i <= L[t].cmax; i++)
+      free(L[t].list[i]);
+    free(L[t].list);
+    free(L[t].size);
+    free(L[t].alloc);
+  }
+  free (L);
 }
 
-static void
-cost_list_clear (cost_list_t *L, int nthreads)
-{
-#pragma omp parallel for
-    for (int i = 0; i < nthreads; i++)
-      cost_list_clear_aux (L + i);
-    free (L);
-}
-
-/* add pair (j,c) into l */
+/* insert pair (j, c) into and handle dynamic arrays */
 static void
 add_cost (cost_list_t *l, index_t j, int32_t c)
 {
