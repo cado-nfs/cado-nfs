@@ -1093,7 +1093,7 @@ static unsigned long
 apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 {
   int size = 1 + mat->nrows / 64;
-  uint64_t busy_rows[size];
+  uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
   memset(busy_rows, 0, sizeof(uint64_t) * size);
 
   unsigned long nrows = mat->rem_nrows;
@@ -1169,6 +1169,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
         mat->cwmax ++;
     }
 
+  free(busy_rows);
   return nmerges;
 }
 
