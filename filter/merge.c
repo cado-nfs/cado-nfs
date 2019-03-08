@@ -551,7 +551,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
       if (mat->wt[j] > mat->cwmax)
         continue;
       index_t r = Rq[j];  /* column j in mat corresponds to row i in R */
-	    
+
       /* atomic capture: updates the value of a variable while capturing
 	       the original or final value of the variable atomically.
 	       We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
@@ -579,6 +579,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
 }
 
 #ifdef WT2
+// #define TRACE_J 1438672
+
 static void
 decrease_weight (filter_matrix_t *mat, index_t j)
 {
@@ -600,19 +602,28 @@ increase_weight (filter_matrix_t *mat, index_t j)
     mat->wt2[j]++;
 }
 
-static void
+static void MAYBE_UNUSED
 check_weights (filter_matrix_t *mat)
 {
   for (index_t j = 0; j < mat->ncols; j++)
-    if (mat->wt[j] <= mat->cwmax)
+    /* if wt2[j] <= MERGE_LEVEL_MAX, it did not overflow, thus it should
+       be correct */
+    if (mat->wt2[j] <= MERGE_LEVEL_MAX)
       {
-	if (mat->wt2[j] != mat->wt[j])
+	if (mat->wt2[j] <= mat->cwmax && mat->wt[j] != mat->wt2[j])
+	  {
+	    printf ("Error: j=%lu wt=%u wt2=%u\n",
+		    (unsigned long) j, mat->wt[j], mat->wt2[j]);
+	    exit (1);
+	  }
+	else if (mat->wt2[j] > mat->cwmax && mat->wt[j] <= mat->cwmax)
 	  {
 	    printf ("Error: j=%lu wt=%u wt2=%u\n",
 		    (unsigned long) j, mat->wt[j], mat->wt2[j]);
 	    exit (1);
 	  }
       }
+  /* if wt2[j] > MERGE_LEVEL_MAX, we cannot conclude anything */
 }
 #endif
 
@@ -817,9 +828,9 @@ static void
 remove_row (filter_matrix_t *mat, index_t i)
 {
 #ifdef WT2
-  int32_t k = matLengthRow (mat, i);
-  for (int j = 1; j <= k; j++)
-    decrease_weight (mat, mat->rows[i][j]);
+  int32_t w = matLengthRow (mat, i);
+  for (int k = 1; k <= w; k++)
+    decrease_weight (mat, mat->rows[i][k]);
 #endif
   free (mat->rows[i]);
   mat->rows[i] = NULL;
@@ -864,7 +875,7 @@ merge_cost (filter_matrix_t *mat, index_t i)
     {
       index_t i = mat->Ri[k];
       index_t c = matLengthRow(mat, i);
-      if (c < cmin) 
+      if (c < cmin)
         {
 	        imin = i;
 	        cmin = c;
@@ -1017,9 +1028,9 @@ merge_do (filter_matrix_t *mat, index_t i, FILE *out)
 #define BIAS 3
 
 
-/* accumulate in L all merges of (biased) cost <= cbound. 
+/* accumulate in L all merges of (biased) cost <= cbound.
    L must be preallocated.
-   L is a linear array and the merges appear by increasing cost. 
+   L is a linear array and the merges appear by increasing cost.
    Returns the size of L. */
 static int
 compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
@@ -1052,7 +1063,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   } /* end parallel section */
 
   /* prefix-sum */
-  int s = 0;                                
+  int s = 0;
   for (int c = 0; c <= cbound; c++) {
      // Lp[c] = s;                     /* global row pointer in L */
      for (int t = 0; t < T; t++) {
@@ -1122,7 +1133,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
               ok = 0;
               break;
             }
-          }             
+          }
           if (ok) /* reserve rows */
             for (index_t k = lo; k < hi; k++) {
               index_t i = mat->Ri[k];
@@ -1392,15 +1403,27 @@ main (int argc, char *argv[])
 	lastW = mat->tot_weight;
 	lastWoverN = (double) lastW / (double) lastN;
 
-	compute_weights (mat, jmin);
-#ifdef WT2
-	if (pass != 1)
-	  check_weights (mat);
+#ifdef TRACE_J
+	for (index_t i = 0; i < mat->ncols; i++)
+	  {
+	    if (mat->rows[i] == NULL)
+	      continue;
+	    for (index_t k = 1; k <= matLengthRow(mat, i); k++)
+	      if (mat->rows[i][k] == TRACE_J)
+		printf ("ideal %d in row %u\n", TRACE_J, i);
+	  }
 #endif
 
-#ifdef WT2
-	/* copy all weights to wt2 */
-	memcpy (mat->wt2, mat->wt, mat->ncols * sizeof (unsigned char));
+#ifndef WT2
+	compute_weights (mat, jmin);
+#else
+	if (pass == 1)
+	  {
+	    compute_weights (mat, jmin);
+	    memcpy (mat->wt2, mat->wt, mat->ncols * sizeof (unsigned char));
+	  }
+	else
+	  memcpy (mat->wt, mat->wt2, mat->ncols * sizeof (unsigned char));
 #endif
 
 	compute_R (mat, jmin[mat->cwmax]);
@@ -1428,6 +1451,11 @@ main (int argc, char *argv[])
 	print_timings ("   apply_merges took", cpu3, wct3);
 	cpu_t[3] += cpu3;
 	wct_t[3] += wct3;
+
+#ifdef TRACE_J
+	printf ("j=%d wt=%u wt2=%u\n", TRACE_J, mat->wt[TRACE_J],
+		mat->wt2[TRACE_J]);
+#endif
 
   free(L);
 
