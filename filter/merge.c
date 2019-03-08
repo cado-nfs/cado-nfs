@@ -108,8 +108,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    3: apply_merges
    4: pass
    5: renumber */
-double cpu_t[7] = {0};
-double wct_t[7] = {0};
+double cpu_t[6] = {0};
+double wct_t[6] = {0};
 
 static int verbose = 0; /* verbosity level */
 
@@ -532,9 +532,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
     mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
   }
   index_t *Ri = mat->Ri;
-
-  cpu_t[6] += seconds () - cpu;
-  wct_t[6] += wct_seconds () - wct;
 
   /* dispatch entries */
 
@@ -1481,7 +1478,6 @@ main (int argc, char *argv[])
 #endif
     print_timings ("compute_weights:", cpu_t[0], wct_t[0]);
     print_timings ("compute_R      :", cpu_t[1], wct_t[1]);
-    print_timings ("compute_R_prep :", cpu_t[6], wct_t[6]);
     print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
     print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
     print_timings ("pass           :", cpu_t[4], wct_t[4]);
