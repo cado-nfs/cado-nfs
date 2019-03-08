@@ -312,6 +312,7 @@ polyselect/ropt_str.h
 polyselect/ropt_tree.c
 polyselect/ropt_tree.h
 polyselect/ropt_main.c
+polyselect/rotate2.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
 scripts/call_cmake.sh
