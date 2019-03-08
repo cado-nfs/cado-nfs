@@ -20,3 +20,5 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 double MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K);
+double MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K);
+double ncx2_pdf (double x, double k, double lam, double epsilon);

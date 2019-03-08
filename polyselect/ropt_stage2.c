@@ -868,9 +868,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   mpz_t tmpv, tmpu;
   MurphyE_pq *local_E_pqueue;
   sievescore_pq *sievescore;
-  sievearray_t sa; /* the rootsieve scores are recorded in sa->array[],
-                      which is an array of int16_t,
-                      cf https://gforge.inria.fr/tracker/?aid=21542 */
+  sievearray_t sa;
 
   mpz_poly F, G;
   F->coeff = s2param->f;
@@ -884,7 +882,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   len_A = (unsigned long) (s2param->Amax - s2param->Amin + 1);
   len_B = (unsigned long) (s2param->Bmax - s2param->Bmin + 1);
 
-  /* size of sieving array that fits in memory, may change later */
+  /* size of sieveing array that fits in memory, may change later */
   size_array_mem = SIZE_SIEVEARRAY;
   if (len_B < (double) size_array_mem / len_A)
     size_array_mem = len_B * len_A;
@@ -1007,7 +1005,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
       /* use E for ranking: takes slightly less time */
       double skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
       double E = L2_lognorm (F, skew);
-      double alpha = get_alpha (F, ALPHA_BOUND);
+      double alpha = get_alpha_prime (F, ALPHA_BOUND);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv, 
                          s2param->MOD, -(E + alpha));
 #endif

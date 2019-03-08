@@ -135,7 +135,5 @@ extern void cado_poly_init(cxx_cado_poly & pl) __attribute__((error("cado_poly_i
 extern void cado_poly_clear(cxx_cado_poly & pl) __attribute__((error("cado_poly_clear must not be called on a cado_poly reference -- it is the caller's business (via a dtor)")));
 #endif
 
-
-
 #endif
 #endif	/* CADO_POLY_H_ */

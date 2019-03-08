@@ -28,3 +28,4 @@ endif()
 
 cado_define_test(test_auxiliary.c LIBRARIES utils tests polyselect_common)
 cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
+cado_define_test(test_murphyE.c LIBRARIES polyselect_common tests)

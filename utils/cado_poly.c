@@ -258,6 +258,10 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr poly, const char *prefix)
   {
     mpz_poly_fprintf_cado_format (fp, poly->pols[0], 'Y', prefix);
     mpz_poly_fprintf_cado_format (fp, poly->pols[1], 'c', prefix);
+    printf ("# f=");
+    mpz_poly_fprintf (fp, poly->pols[1]);
+    printf ("# g=");
+    mpz_poly_fprintf (fp, poly->pols[0]);
   }
   else
   {
@@ -279,16 +283,16 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr poly, const char *prefix)
    otherwise print exp_E */
 void
 cado_poly_fprintf_info (FILE *fp, double lognorm, double exp_E, double alpha,
-                        double alpha_proj, unsigned int nrroots,
+                        double alpha_prime, unsigned int nrroots,
                         const char *prefix)
 {
   if (prefix)
     fputs (prefix, fp);
   /* Always print "# " after the prefix and before the info line. */
-  fprintf (fp, "# lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
+  fprintf (fp, "# lognorm %1.2f, %s %1.2f, alpha %1.2f (alpha' %1.2f),"
              " %u real root%s\n",
              lognorm, (exp_E == 0) ? "E" : "exp_E",
-             (exp_E == 0) ? lognorm + alpha : exp_E, alpha, alpha_proj,
+             (exp_E == 0) ? lognorm + alpha : exp_E, alpha, alpha_prime,
              nrroots, (nrroots <= 1) ? "" : "s");
 }
 
@@ -299,6 +303,6 @@ cado_poly_fprintf_MurphyE (FILE *fp, double MurphyE, double bound_f,
   if (prefix)
     fputs (prefix, fp);
   /* Always print "# " after the prefix and before the MurphyE line. */
-  fprintf (fp, "# MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.2e\n", bound_f, bound_g,
-               area, MurphyE);
+  fprintf (fp, "# MurphyE'(Bf=%.3e,Bg=%.3e,area=%.3e)=%.2e\n",
+           bound_f, bound_g, area, MurphyE);
 }

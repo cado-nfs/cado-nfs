@@ -1,6 +1,6 @@
 /* Auxiliary routines for polynomial selection
 
-Copyright 2008-2017 Emmanuel Thome, Paul Zimmermann
+Copyright 2008, 2009, 2010, 2013 Emmanuel Thome, Paul Zimmermann
 
 This file is part of CADO-NFS.
 
@@ -1103,13 +1103,13 @@ poly_shift_divp (mpz_t *h, unsigned int d, unsigned long r, unsigned long p)
 /********************* computation of alpha **********************************/
 
 /* Auxiliary routine for special_valuation(), see below. It returns the
-   average p-valuation of the polynomial f. Works recursively.
-   Assumes f is square-free, otherwise it will loop. */
+   average p-valuation of the polynomial f. Works recursively. */
 static double
 special_val0 (mpz_poly_srcptr f, unsigned long p)
 {
   double v;
   mpz_t c,  *h;
+  int v0;
   unsigned long *roots, r, r0;
   int i, d = f->deg, nroots;
   mpz_poly g, H;
@@ -1117,6 +1117,7 @@ special_val0 (mpz_poly_srcptr f, unsigned long p)
   mpz_init (c);
   mpz_poly_content (c, f);
   for (v = 0.0; mpz_divisible_ui_p (c, p); v++, mpz_divexact_ui (c, c, p));
+  v0 = (int) v;
 
   mpz_poly_init(g, d);
   g->deg = d;
@@ -1153,25 +1154,29 @@ special_val0 (mpz_poly_srcptr f, unsigned long p)
       r = roots[i];
       mpz_poly_eval_diff_ui (c, g, r);
       if (mpz_divisible_ui_p (c, p) == 0) /* g'(r) <> 0 mod p */
-        v += 1.0 / (double) (p - 1);
+  v += 1.0 / (double) (p - 1);
       else /* hard case */
-        {
-          /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
-             to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
-             Warning: we can have h = f, and thus an infinite loop, when
-             the p-valuation of f is d, and f has a single root r/(1-p) of
-             multiplicity d.
-             Moreover if f(x) = c*p^d*(x-r+b*p)^d, where c is coprime to p,
-             then h(x) = f(p*x+r)/p^d = c*p^d*(x+b)^d, and most likely after
-             at most p iterations we'll go back to f(x), thus we should avoid
-             all cases where f(x) has a root of multiplicity d, but how to
-             check that efficiently? And which value to return in such a case?
-          */
-          ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
-          poly_shift_divp (h, d, r - r0, p);
-          r0 = r;
-          v += special_val0 (H, p) / (double) p;
-        }
+  {
+    /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
+       to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
+       Warning: we can have h = f, and thus an infinite loop, when
+       the p-valuation of f is d, and f has a single root r/(1-p) of
+       multiplicity d.
+       Moreover if f(x) = c*p^d*(x-r+b*p)^d, where c is coprime to p,
+       then h(x) = f(p*x+r)/p^d = c*p^d*(x+b)^d, and most likely after
+       at most p iterations we'll go back to f(x), thus we should avoid
+       all cases where f(x) has a root of multiplicity d, but how to
+       check that efficiently? And which value to return in such a case?
+    */
+    ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
+    poly_shift_divp (h, d, r - r0, p);
+    r0 = r;
+    if (v0 != d) /* this should catch all the cases where f(x) has a
+        root of multiplicity d, but also more cases.
+        In those cases we avoid an infinite loop, but the
+        result is probably wrong. */
+      v += special_val0 (H, p) / (double) p;
+  }
     }
   free (roots);
   mpz_poly_clear (H);
@@ -1179,6 +1184,125 @@ special_val0 (mpz_poly_srcptr f, unsigned long p)
   mpz_clear (c);
 
   return v;
+}
+
+/* Return the mean of the affine p-valuation, and put the 2nd moment in 'Exx'.
+   w is the the current valuation in the p-ary tree (one branch for each root
+   mod p) */
+static double
+dist_valuation_affine_aux (mpz_poly_srcptr f, unsigned long p, double w,
+                           double *Exx)
+{
+  double v, pd = (double) p;
+  mpz_t c,  *h;
+  unsigned long v0;
+  unsigned long *roots, r, r0;
+  int i, d = f->deg, nroots;
+  mpz_poly g, H;
+
+  mpz_init (c);
+  mpz_poly_content (c, f);
+  for (v0 = 0; mpz_divisible_ui_p (c, p); v0++, mpz_divexact_ui (c, c, p));
+  w += (double) v0;
+
+  v = *Exx = 0.0;
+
+  mpz_poly_init(g, d);
+  g->deg = d;
+
+  /* g <- f/p^v */
+  if (v0 != 0)
+    {
+      mpz_ui_pow_ui (c, p, v0); /* p^v0 */
+      for (i = 0; i <= d; i++)
+        mpz_divexact (g->coeff[i], f->coeff[i], c);
+    }
+  else
+    mpz_poly_set (g, f);
+
+  mpz_poly_init (H, d);
+  H->deg = d;
+  h = H->coeff;
+  /* first compute h(x) = g(px) */
+  mpz_set_ui (c, 1);
+  for (i = 0; i <= d; i++)
+    {
+      mpz_mul (h[i], g->coeff[i], c);
+      mpz_mul_ui (c, c, p);
+    }
+  /* Search for roots of g mod p */
+  ASSERT (d > 0);
+  roots = (unsigned long*) malloc (d * sizeof (unsigned long));
+  FATAL_ERROR_CHECK(roots == NULL, "not enough memory");
+
+  nroots = mpz_poly_roots_ulong (roots, g, p);
+  ASSERT (nroots <= d);
+  for (r0 = 0, i = 0; i < nroots; i++)
+    {
+      r = roots[i];
+      mpz_poly_eval_diff_ui (c, g, r);
+      if (mpz_divisible_ui_p (c, p) == 0) /* simple root */
+        {
+          v += ((pd - 1.0) * w + pd) / (pd * (pd - 1.0));
+          *Exx += w * w / pd + 2.0 * w / (pd - 1)
+            + (pd + 1.0) / ((pd - 1) * (pd - 1));
+        }
+      else /* multiple root */
+        {
+          double v1, Exx1;
+          poly_shift_divp (h, d, r - r0, p);
+          r0 = r;
+          v1 = dist_valuation_affine_aux (H, p, w, &Exx1);
+          v += v1 / pd;
+          *Exx += Exx1 / pd;
+        }
+    }
+  /* for non-roots */
+  i = p - nroots;
+  v += w * (double) i / pd;
+  *Exx += w * w * (double) i / pd;
+  free (roots);
+  mpz_poly_clear (H);
+  mpz_poly_clear (g);
+  mpz_clear (c);
+
+  return v;
+}
+
+/* Return the mean of the affine p-valuation, and put the 2nd moment in 'Exx'.
+   The mean returned should match special_val0 (f, p). */
+static double
+dist_valuation_affine (mpz_poly_srcptr f, unsigned long p, double *Exx)
+{
+  return dist_valuation_affine_aux (f, p, 0, Exx);
+}
+
+/* Return the mean of the p-valuation of F(a,b) for gcd(a,b)=1, and put the 2nd
+   moment in 'Exx'. The mean returned should match special_valuation(f,p). */
+static double
+dist_valuation_homogeneous_coprime (mpz_poly_srcptr f, unsigned long p,
+                                    double *Exx)
+{
+  double v = dist_valuation_affine (f, p, Exx);
+  mpz_poly G; /* will contain rev(f)(p*x) */
+  mpz_t t, *g;
+  double v1, Exx1;
+  int d = f->deg, i;
+
+  mpz_poly_init (G, d);
+  G->deg = d;
+  g = G->coeff;
+  mpz_init_set_ui (t, 1);  /* will contains p^i */
+  for (i = 0; i <= d; i++)
+    {
+      mpz_mul (g[i], f->coeff[d - i], t);
+      mpz_mul_ui (t, t, p);
+    }
+  v1 = dist_valuation_affine (G, p, &Exx1);
+  mpz_poly_clear (G);
+  mpz_clear (t);
+  *Exx = (*Exx * (double) p + Exx1) / (double) (p + 1);
+  return (v * (double) p + v1) / (double) (p + 1);
 }
 
 /* Compute the average valuation of F(a,b) for gcd(a,b)=1, for a prime p
@@ -1281,7 +1405,7 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
     }
 }
 
-/* Compute the value alpha(F) from Murphy's thesis, page 49:
+/* Compute the value alpha(F) from Murhy's thesis, page 49:
    alpha(F) = sum(prime p <= B, (1 - q_p*p/(p+1)) log(p)/(p-1))
    where q_p is the number of roots of F mod p, including the number of
    projective roots (i.e., the zeros of the reciprocal polynomial mod p).
@@ -1323,6 +1447,85 @@ get_alpha (mpz_poly_srcptr f, unsigned long B)
         alpha += (1.0 / (double) (p - 1) - e) * log ((double) p);
       }
   mpz_clear (disc);
+  return alpha;
+}
+
+/* return the 0.9 quantile of the normal distribution with mean alpha and
+   variance given by dist_alpha */
+double
+get_alpha_prime (mpz_poly_srcptr f, unsigned long B)
+{
+  double alpha, var;
+
+  alpha = dist_alpha (f, B, &var);
+  /* compute standard deviation from variance */
+  /* the 0.8981 quantile of N(m,sigma) is m + 1.2707994625519516 * sigma */
+  return alpha - 1.2707994625519516 * sqrt (var);
+}
+
+/* Return the expected average alpha(f,p),
+   and put the variance in 'var'. */
+double
+dist_alpha_p (mpz_poly_srcptr f, unsigned long p, double *V)
+{
+  double alpha, e, exx, logp, v;
+
+  alpha = 0.0;
+
+  logp = log ((double) p);
+  e = dist_valuation_homogeneous_coprime (f, p, &exx);
+  alpha = (1.0 / (double) (p - 1) - e) * logp;
+  v = exx - e * e; /* variance of the p-valuation */
+  *V = v * logp * logp;
+  return alpha;
+}
+
+/* Return the expected average alpha,
+   and put the variance in 'var'. */
+double
+dist_alpha (mpz_poly_srcptr f, unsigned long B, double *V)
+{
+  double alpha, v;
+  unsigned long p;
+
+  alpha = *V = 0.0;
+
+  for (p = 2; p <= B; p += 1 + (p > 2))
+    {
+      if (ulong_isprime (p))
+        {
+          alpha += dist_alpha_p (f, p, &v);
+          *V += v;
+        }
+    }
+  return alpha;
+}
+
+/* Return the expected average log of B-smooth part,
+   and put the 2nd moment in 'Exx'.
+   The B-smooth part is on average cof - alpha (with alpha < 0 usually),
+   where cof = sum(log(p)/(p-1), p prime < B). */
+double
+dist_smooth (mpz_poly_srcptr f, unsigned long B, double *Exx)
+{
+  double alpha, e, exx, logp, v, V;
+  unsigned long p;
+
+  alpha = V = 0.0;
+
+  for (p = 2; p <= B; p += 1 + (p > 2))
+    {
+      if (ulong_isprime (p))
+        {
+          logp = log ((double) p);
+          e = dist_valuation_homogeneous_coprime (f, p, &exx);
+          alpha += e * logp;
+          v = exx - e * e; /* variance of the p-valuation */
+          v *= logp * logp; /* variance of the p-valuation * log(p) */
+          V += v; /* total up to here */
+        }
+    }
+  *Exx = V + alpha * alpha;
   return alpha;
 }
 
@@ -1374,7 +1577,7 @@ special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
   Until now, since this will only be done several
   times, hence the speed is not critical.
 
-  Note that, the returned alpha is the -val * log(p)
+  Note that, the returned alpha is the  -val * log(p)
   part in the alpha. Hence, we can just add
   this to our affine part.
 */
@@ -1526,26 +1729,15 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
 }
 #endif
 
+
 /**************************** rotation ***************************************/
 
 /* replace f + k0 * x^t * (b*x + m) by f + k * x^t * (b*x + m), and return k */
 long
 rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t)
 {
-  /* Warning: k - k0 might not be representable in a long! */
-  unsigned long diff;
-  if (k >= k0)
-    {
-      diff = k - k0; /* k - k0 always fits in an unsigned long */
-      mpz_addmul_ui (f[t + 1], b, diff);
-      mpz_addmul_ui (f[t], m, diff);
-    }
-  else
-    {
-      diff = k0 - k;
-      mpz_submul_ui (f[t + 1], b, diff);
-      mpz_submul_ui (f[t], m, diff);
-    }
+  mpz_addmul_si (f[t + 1], b, k - k0);
+  mpz_addmul_si (f[t], m, k - k0);
   return k;
 }
 
@@ -1595,7 +1787,7 @@ double
 print_cadopoly (FILE *fp, cado_poly p)
 {
    unsigned int nroots = 0;
-   double alpha, alpha_proj, logmu, e;
+   double alpha, alpha_prime, logmu, e;
    mpz_poly F, G;
 
    F->coeff = p->pols[ALG_SIDE]->coeff;
@@ -1608,9 +1800,9 @@ print_cadopoly (FILE *fp, cado_poly p)
 
 #ifdef DEBUG
    fprintf (fp, "# ");
-   fprint_polynomial (fp, F->coeff, F->deg);
+   mpz_poly_fprintf (fp, F);
    fprintf (fp, "# ");
-   fprint_polynomial (fp, G->coeff, G->deg);
+   mpz_poly_fprintf (fp, G);
 #endif
 
    fprintf (fp, "skew: %1.3f\n", p->skew);
@@ -1619,20 +1811,19 @@ print_cadopoly (FILE *fp, cado_poly p)
    {
     logmu = L2_lognorm (G, p->skew);
     alpha = get_alpha (G, ALPHA_BOUND);
-    alpha_proj = get_alpha_projective (G, ALPHA_BOUND);
+    alpha_prime = get_alpha_prime (G, ALPHA_BOUND);
     nroots = numberOfRealRoots (G->coeff, G->deg, 0, 0, NULL);
-    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
-                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
+    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (alpha': %1.2f), E: %1.2f, "
+                 "nr: %u\n", logmu, alpha, alpha_prime, logmu + alpha, nroots);
    }
 
    logmu = L2_lognorm (F, p->skew);
    alpha = get_alpha (F, ALPHA_BOUND);
-   alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
+   alpha_prime = get_alpha_prime (F, ALPHA_BOUND);
    nroots = numberOfRealRoots (F->coeff, F->deg, 0, 0, NULL);
-   fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
-                "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
-
-   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K);
+   fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (alpha': %1.2f), E: %1.2f, "
+                "nr: %u\n", logmu, alpha, alpha_prime, logmu + alpha, nroots);
+   e = MurphyE_chi2 (p, bound_f, bound_g, area, MURPHY_K);
    cado_poly_fprintf_MurphyE (fp, e, bound_f, bound_g, area, "");
 
    return e;
@@ -1683,8 +1874,7 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
        fflush(stdout);
      }
    else
-     e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K);
-
+     e = MurphyE_chi2 (cpoly, bound_f, bound_g, area, MURPHY_K);
    cado_poly_clear (cpoly);
    return e;
 }
@@ -1724,19 +1914,19 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
                              int final)
 {
   unsigned int nrroots;
-  double lognorm, alpha, alpha_proj, exp_E;
+  double lognorm, alpha, alpha_prime, exp_E;
 
   nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
   if (poly->skew <= 0.0) /* If skew is undefined, compute it. */
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
   alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-  alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+  alpha_prime = get_alpha_prime (poly->pols[ALG_SIDE], ALPHA_BOUND);
   exp_E = (final) ? 0.0 : lognorm
     + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
 
   cado_poly_fprintf (stdout, poly, prefix);
-  cado_poly_fprintf_info (fp, lognorm, exp_E, alpha, alpha_proj, nrroots,
+  cado_poly_fprintf_info (fp, lognorm, exp_E, alpha, alpha_prime, nrroots,
                           prefix);
   return (final) ? lognorm + alpha : exp_E;
 }
@@ -1767,14 +1957,14 @@ expected_alpha (double S)
   return -0.824 * (t - (log (logS) + 1.3766) / (2 * t));
 }
 
-/* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
+/* Compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
    to f(x), the lognorm does not exceed maxlognorm (with skewness s) */
 void
 expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
                  double maxlognorm, double s)
 {
-  mpz_t fi, fip1, kmin, kmax, k;
   double n2;
+  mpz_t fi, fip1, kmin, kmax, k;
 
   mpz_init_set (fi, f->coeff[i]);
   mpz_init_set (fip1, f->coeff[i+1]);

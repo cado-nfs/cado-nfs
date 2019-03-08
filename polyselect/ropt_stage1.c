@@ -919,10 +919,10 @@ ropt_stage1 ( ropt_poly_t poly,
     /* use exp_E as benchmark instead of alpha. */
     double skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
     alpha_lat = L2_lognorm (Fuv, skew);
-    alpha_lat += get_alpha (Fuv, ALPHA_BOUND);
+    alpha_lat += get_alpha_prime (Fuv, ALPHA_BOUND);
 #else
     //alpha_lat = get_alpha (fuv, poly->d, primes[s1param->tlen_e_sl-1]);
-    alpha_lat = get_alpha (Fuv, ALPHA_BOUND);
+    alpha_lat = get_alpha_prime (Fuv, ALPHA_BOUND);
 #endif
 
 #if DEBUG_ROPT_STAGE1

@@ -28,16 +28,23 @@
 #include "size_optimization.h"
 #include "omp.h"
 
+/* define DIST to compute alpha' instead of alpha */
+#define DIST
+
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
 // #define TRACE_V 7
 // #define TRACE_W 3
 
-/* The algorithm is very sensitive to GUARD_ALPHA: with GUARD_ALPHA=1.0,
-   almost 87% of the time is spent checking potential records.
-   With GUARD_ALPHA=0.5, only about 20% of the time is spent for that. */
+/* the algorithm with -E is very sensitive to GUARD_ALPHA: with GUARD_ALPHA=1.0
+   and DIST undefined, almost 87% of the time is spent checking potential
+   records */
+#ifndef DIST
 #define GUARD_ALPHA 0.5
+#else
+#define GUARD_ALPHA 0.6
+#endif
 
 /* global variables */
 int verbose = 0;                /* verbosity level */
@@ -59,7 +66,7 @@ double effort = DBL_MAX;        /* total effort */
 typedef struct sieve_data {
   uint16_t q;
   uint16_t s;
-  float nu;
+  float nu, va;
 } sieve_data;
 
 static void
@@ -143,6 +150,15 @@ get_roots (unsigned long *roots, unsigned long f, unsigned long g,
     }
   return nroots;
 }
+
+#ifdef DIST
+/* return the 0.897 quantile from mean 'm' and variance 'v' */
+static double
+quantile (double m, double v)
+{
+  return m - 1.2707994625519516 * sqrt (v);
+}
+#endif
 
 #define TRIES 10
 
@@ -340,6 +356,8 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
           for (int ic = 0; ic < *nc; ic++)
             for (int id = 0; id < nd; id++)
               {
+                /* FIXME: should we optimize for alpha or for alpha' here
+                   when DIST is defined? */
                 double alpha = c[ic].alpha + d[id].alpha;
 		/* if alpha is larger (i.e., worse) than the last element,
 		   since d[] is sorted by increasing values of alpha, we
@@ -357,7 +375,7 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
       Q *= q;
     }
 
-  /* if u = -u0, check the class of the initial polynomial (-v0,-w0) */
+  /* if u = -u0, add the class of the initial polynomial (-v0,-w0) if not in */
   if (u == -u0)
     {
       int included = -1;
@@ -369,15 +387,22 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
                 included, c[included].alpha);
       else
         {
+          printf ("class of initial polynomial is not included");
+          if (*nc > 0)
+            printf (" (last %.2f)\n", c[*nc - 1].alpha);
+          else
+            printf ("\n");
+        }
+      if (included == -1)
+        {
           double alpha = 0;
           for (int j = 0; j < nfactors; j++)
             alpha += average_alpha (poly, get_mod (-v0, factors[j]),
                                     get_mod (-w0, factors[j]), factors[j]);
-          printf ("class of initial polynomial is not included");
-          if (*nc > 0)
-            printf (" (last %.2f wrt %.2f)\n", c[*nc - 1].alpha, alpha);
-          else
-            printf (" (%.2f)\n", alpha);
+          if (*nc == keep)
+            (*nc) --; /* remove the last class */
+          *nc = insert_class (c, *nc, keep, alpha, get_mod (-v0, mod),
+                              get_mod (-w0, mod), vmin, vmax, mod);
         }
     }
 
@@ -426,9 +451,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
       fflush (stdout);
     }
 
-  /* Ensure wminz % mod = modw. Since mod <= MAX_LONG, we have
-     s := wminz % mod < MAX_LONG thus modw - s fits in a long and
-     there is no underflow below. */
+  /* ensure wminz % mod = modw */
   long t = get_mod (modw - mpz_fdiv_ui (wminz, mod), mod);
   ASSERT_ALWAYS(0 <= t && t < mod);
   mpz_add_ui (wminz, wminz, t);
@@ -472,9 +495,13 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
   unsigned long *roots = malloc (B * sizeof (long));
   ASSERT_ALWAYS(roots != NULL);
   float *L;
-  double nu;
+  double pr, nu;
   L = malloc (B * sizeof (float));
-
+#ifdef DIST
+  float *L2;
+  double nu2;
+  L2 = malloc (B * sizeof (float));
+#endif
   /* sieve data: sieve_q contains the largest p^k < B for each prime p,
      it thus fits in an uint16_t if B does;
      sieve_s contains the first index i multiple of q where the contribution
@@ -486,15 +513,29 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
       long p = Primes[l], s, t, q;
       double logp = log ((double) p);
       memset (L, 0, B * sizeof (float));
-      for (q = p; q <= Q[l]; q *= p)
+#ifdef DIST
+      memset (L2, 0, B * sizeof (float));
+#endif
+      long k;
+      for (q = p, k = 1; q <= Q[l]; q *= p, k++) /* invariant: q = p^k */
         {
           /* the contribution is log(p)/p^(k-1)/(p+1) when the exponent k
              is not the largest one, and log(p)/p^(k-1)/(p+1)*p/(p-1) for the
              largest exponent k */
-          nu = logp / (double) q * (double) p / (double) (p + 1);
+          pr = 1.0 / (double) q * (double) p / (double) (p + 1);
+          nu = logp;
+#ifdef DIST
+          nu2 = logp * logp * (double) (2 * k - 1);
+#endif
 #ifndef ORIGINAL
           if (q == Q[l])
-            nu *= (double) p / (double) (p - 1);
+            {
+              nu *= (double) p / (double) (p - 1);
+#ifdef DIST
+              nu2 = logp * logp * (double) (2 * k * p - 2 * k - p + 3)
+                * (double) p / (double) ((p - 1) * (p - 1));
+#endif
+            }
 #endif
           for (long x = 0; x < q; x++)
             {
@@ -511,7 +552,12 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
                   long w = roots[i];
                   /* update for w+t*q */
                   for (t = 0; t < Q[l] / q; t++)
-                    L[w + t * q] += nu;
+                    {
+                      L[w + t * q] += pr * nu;
+#ifdef DIST
+                      L2[w + t * q] += pr * nu2;
+#endif
+                    }
                 }
             }
         }
@@ -523,6 +569,9 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
           nu = L[w];
           if (nu == 0.0)
             continue;
+#ifdef DIST
+          nu2 = L2[w];
+#endif
           /* compute s = w+t*q-wmin such that s - q < 0 <= s, i.e.,
              (t-1)*q < wmin-w <= t*q: t = ceil((wmin-w)/q) */
           if (wmin - w < 0)
@@ -533,6 +582,9 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
           sieve_d[sieve_n].q = q;
           sieve_d[sieve_n].s = s;
           sieve_d[sieve_n].nu = nu;
+#ifdef DIST
+          sieve_d[sieve_n].va = nu2 - nu * nu;
+#endif
           sieve_n ++;
         }
     }
@@ -542,7 +594,8 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
 #define LEN (1<<14) /* length of the sieve array */
 
   float *A = malloc (LEN * sizeof (float));
-  ASSERT_ALWAYS(A != NULL);
+  float *A2 = malloc (LEN * sizeof (float));
+  ASSERT_ALWAYS(A != NULL && A2 != NULL);
 
   /* we sieve by chunks of LEN cells at a time */
   long wcur = wmin;
@@ -550,7 +603,12 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
     {
       /* A[j] corresponds to w = wcur + j */
       for (long j = 0; j < LEN; j++)
-        A[j] = expected;
+        {
+          A[j] = expected;
+#ifdef DIST
+          A2[j] = 0.0;
+#endif
+        }
 
 #if defined(TRACE_V) && defined(TRACE_W)
       if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
@@ -566,6 +624,9 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
           float nu = sieve_d[i].nu;
           /* if mod=1, a given value of s corresponds to w = wcur + s
              if mod>1, then s corresponds to w = mod*(wcur + s) + modw */
+#ifdef DIST
+          float va = sieve_d[i].va;
+#endif
           while (s < LEN)
             {
 #if defined(TRACE_V) && defined(TRACE_W)
@@ -574,55 +635,74 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
                         q, TRACE_W, A[s], A[s] - nu);
 #endif
               A[s] -= nu;
+#ifdef DIST
+              A2[s] += va;
+#endif
               s += q;
             }
           sieve_d[i].s = s - LEN;
         }
 
       /* check for the smallest A[s] */
+      double measure;
       /* if wcur + LEN > wmax, we check only wmax - wcur entries */
       long maxj = (wcur + LEN <= wmax) ? LEN : wmax - wcur;
       for (long j = 0; j < maxj; j++)
         {
-          tot_alpha_local += A[j];
+#ifndef DIST
+          measure = A[j];
+#else
+          measure = quantile (A[j], A2[j]);
+#endif
+          tot_alpha_local += measure;
           tot_pols_local += 1;
           /* print alpha and E of original polynomial */
           if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
             {
               w = wcur + j; /* local value of w, the global one is mod * w + modw */
               rotate_aux (poly->pols[ALG_SIDE]->coeff, G1, G0, 0, w, 0);
-              double skew = poly->skew; /* save skewness */
+              double skew = poly->skew;
               poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
-              /* restore g */
-              mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* this can only occur for one thread, thus no need to put
-                 #pragma omp critical */
+                 #pragma omp critical here */
+#ifndef DIST
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
               gmp_printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
-                          u, v, mod * w + modw, lognorm, A[j], E);
+                          u, v, mod * w + modw, lognorm, measure, E);
+#else
+              double E = MurphyE_chi2 (poly, Bf, Bg, area, MURPHY_K);
+              gmp_printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha'_aff=%.2f (%.2f,%.2f) E'=%.2e [original]\n",
+                          u, v, mod * w + modw, lognorm, measure, A[j], A2[j], E);
+#endif
               fflush (stdout);
-              /* restore the original polynomial (w=0) and skewness */
+              /* restore skew and g */
               poly->skew = skew;
+              mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+              /* restore the original polynomial (w=0) */
               rotate_aux (poly->pols[ALG_SIDE]->coeff, G1, G0, w, 0, 0);
             }
-          if (A[j] < best_alpha + guard_alpha)
+          if (measure < best_alpha + guard_alpha)
             {
               w = wcur + j;
-              /* compute E */
+              /* first compute E (or E') */
               rotate_aux (poly->pols[ALG_SIDE]->coeff, G1, G0, 0, w, 0);
-              double skew = poly->skew; /* save skewness */
+              double skew = poly->skew;
               poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+#ifndef DIST
               double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
-              /* restore g */
-              mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              /* restore the original polynomial (w=0) and skewness */
+#else
+              double E = MurphyE_chi2 (poly, Bf, Bg, area, MURPHY_K);
+#endif
+              /* restore skew and g */
               poly->skew = skew;
+              mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+              /* restore the original polynomial (w=0) */
               rotate_aux (poly->pols[ALG_SIDE]->coeff, G1, G0, w, 0, 0);
 
               if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
@@ -631,10 +711,15 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
                   bestu = u;
                   bestv = v;
                   mpz_set_si (bestw, mod * w + modw);
-                  best_alpha = (double) A[j];
+                  best_alpha = measure;
                   best_E = E;
+#ifndef DIST
                   gmp_printf ("u=%ld v=%ld w=%Zd lognorm=%.2f est_alpha_aff=%.2f E=%.2e\n",
                               u, v, bestw, lognorm, best_alpha, E);
+#else
+                  gmp_printf ("u=%ld v=%ld w=%Zd lognorm=%.2f est_alpha'_aff=%.2f (%.2f,%.2f) E'=%.2e\n",
+                              u, v, bestw, lognorm, best_alpha, A[j], A2[j], E);
+#endif
                   fflush (stdout);
                 }
             }
@@ -651,10 +736,13 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
 
   free (sieve_d);
   free (L);
+  free (A);
   free (roots);
   mpz_clear (ump);
-
-  free (A);
+#ifdef DIST
+  free (L2);
+  free (A2);
+#endif
 
  end:
   cado_poly_clear (poly);
@@ -691,7 +779,7 @@ rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
   int n;
   c = best_classes (poly, mod, keep, vmin, vmax, &n, u);
   ASSERT_ALWAYS (n <= keep);
-  printf ("u=%ld: kept %d class(es)", u, n);
+  printf ("u=%ld: kept %d classes", u, n);
   if (n == 0)
     printf ("\n");
   else
@@ -849,10 +937,7 @@ best_mod (double area, double maxeffort, double keep)
   double e;
   do {
     mod = l[i];
-    /* The number of polynomials sieved is approximately area/mod^2*keep.
-       Note: there is a bias when vmax-vmin is smaller than mod, since we
-       only keep classes that contain at least an element in [vmin, vmax],
-       thus the probability is larger than (vmax-vmin)/mod. */
+    /* the number of polynomials sieved is approximately area/mod^2*keep */
     e = area / (double) mod / (double) mod * (double) keep;
     if (e <= maxeffort)
       break;
@@ -939,10 +1024,6 @@ main (int argc, char **argv)
             argv += 2;
             argc -= 2;
           }
-        /* use http://oeis.org/A051451 for -mod:
-           1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360, 720720, 12252240,
-           232792560, 5354228880, 26771144400, 80313433200, 2329089562800,
-           72201776446800, 144403552893600 */
         else if (strcmp (argv[1], "-mod") == 0)
           {
             mod = strtol (argv [2], NULL, 10);
@@ -1057,8 +1138,13 @@ main (int argc, char **argv)
                 poly->pols[RAT_SIDE]->coeff[0], u0, 0, 2);
 
     /* perform the best rotation */
+#ifndef DIST
     gmp_printf ("best rotation: u=%ld v=%ld w=%Zd alpha=%1.2f\n",
             bestu, bestv, bestw, best_alpha);
+#else
+    gmp_printf ("best rotation: u=%ld v=%ld w=%Zd alpha'=%1.2f\n",
+            bestu, bestv, bestw, best_alpha);
+#endif
 
     /* perform the best rotation */
     rotate_aux (poly->pols[ALG_SIDE]->coeff, poly->pols[RAT_SIDE]->coeff[1],
@@ -1077,7 +1163,11 @@ main (int argc, char **argv)
     time = seconds () - time;
     printf ("# Sieved %.2e polynomials in %.2f seconds (%.2es/p)\n",
             tot_pols, time, time / tot_pols);
+#ifndef DIST
     printf ("# Average alpha %.2f\n", tot_alpha / tot_pols);
+#else
+    printf ("# Average alpha' %.2f\n", tot_alpha / tot_pols);
+#endif
 
     free (Primes);
     free (Q);
