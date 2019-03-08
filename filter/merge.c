@@ -568,10 +568,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   if (verbose > 0)
     {
-      printf("*** Transpose: (non-empty) rows : %d VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
-        Rn, mat->ncols, (100. * Rn) / mat->ncols);
-      printf("*** NNZ in transpose: %d. NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
-        Rnz, mat_nnz, (100.0 * Rnz) / mat_nnz);
+      printf("*** Transpose: (non-empty) rows : %" PRIu64 " VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
+             (uint64_t) Rn, mat->ncols, (100. * Rn) / mat->ncols);
+      printf("*** NNZ in transpose: %" PRIu64 ". NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
+        (uint64_t) Rnz, mat_nnz, (100.0 * Rnz) / mat_nnz);
       printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (Rn + Rnz) * sizeof(index_t));
     }
   cpu = seconds () - cpu;
@@ -1416,7 +1416,8 @@ main (int argc, char *argv[])
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
   if (verbose > 0)
-    printf("*** compute_merges: %d candidate merges\n", n_possible_merges);
+    printf("*** compute_merges: %" PRIu64 " candidate merges\n",
+           (uint64_t) n_possible_merges);
 	print_timings ("   compute_merges took", cpu2, wct2);
 	cpu_t[2] += cpu2;
 	wct_t[2] += wct2;
