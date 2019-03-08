@@ -569,6 +569,7 @@ tests/sieve/ecm/test_chains.c
 tests/polyselect/CMakeLists.txt
 tests/polyselect/test_auxiliary.c
 tests/polyselect/test_rho.c
+tests/polyselect/test_murphyE.c
 tests/filter/CMakeLists.txt
 tests/filter/testsm.sh
 tests/filter/testsm.p59.poly
