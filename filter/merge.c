@@ -578,7 +578,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
   wct_t[1] += wct;
 }
 
-#ifdef WT2
 // #define TRACE_J 1438672
 
 static void
@@ -586,10 +585,10 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 {
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt2[j] <= MERGE_LEVEL_MAX)
+  if (mat->wt[j] <= MERGE_LEVEL_MAX)
     /* is update is enough, or do we need capture? */
     #pragma omp atomic update
-    mat->wt2[j]--;
+    mat->wt[j]--;
 }
 
 static void
@@ -597,35 +596,10 @@ increase_weight (filter_matrix_t *mat, index_t j)
 {
   /* only increase the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt2[j] <= MERGE_LEVEL_MAX)
+  if (mat->wt[j] <= MERGE_LEVEL_MAX)
     #pragma omp atomic update
-    mat->wt2[j]++;
+    mat->wt[j]++;
 }
-
-static void MAYBE_UNUSED
-check_weights (filter_matrix_t *mat)
-{
-  for (index_t j = 0; j < mat->ncols; j++)
-    /* if wt2[j] <= MERGE_LEVEL_MAX, it did not overflow, thus it should
-       be correct */
-    if (mat->wt2[j] <= MERGE_LEVEL_MAX)
-      {
-	if (mat->wt2[j] <= mat->cwmax && mat->wt[j] != mat->wt2[j])
-	  {
-	    printf ("Error: j=%lu wt=%u wt2=%u\n",
-		    (unsigned long) j, mat->wt[j], mat->wt2[j]);
-	    exit (1);
-	  }
-	else if (mat->wt2[j] > mat->cwmax && mat->wt[j] <= mat->cwmax)
-	  {
-	    printf ("Error: j=%lu wt=%u wt2=%u\n",
-		    (unsigned long) j, mat->wt[j], mat->wt2[j]);
-	    exit (1);
-	  }
-      }
-  /* if wt2[j] > MERGE_LEVEL_MAX, we cannot conclude anything */
-}
-#endif
 
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1 */
@@ -661,18 +635,14 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
     {
       if (mat->rows[i1][t1] == mat->rows[i2][t2])
 	{
-#ifdef WT2
 	  decrease_weight (mat, mat->rows[i1][t1]);
-#endif
 	  t1 ++, t2 ++;
 	}
       else if (mat->rows[i1][t1] < mat->rows[i2][t2])
 	*t++ = mat->rows[i1][t1++];
       else
 	{
-#ifdef WT2
 	  increase_weight (mat, mat->rows[i2][t2]);
-#endif
 	  *t++ = mat->rows[i2][t2++];
 	}
     }
@@ -680,9 +650,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
     *t++ = mat->rows[i1][t1++];
   while (t2 <= k2)
     {
-#ifdef WT2
       increase_weight (mat, mat->rows[i2][t2]);
-#endif
       *t++ = mat->rows[i2][t2++];
     }
   ASSERT (t0 + (c + 1) == t);
@@ -782,6 +750,8 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
               (*t).e = (int32_t) e;
               t ++;
             }
+          else
+            decrease_weight (mat, r1[t1].id);
           t1 ++, t2 ++;
         }
       else if (r1[t1].id < r2[t2].id)
@@ -798,6 +768,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
           e = (int64_t) e1 * (int64_t) r2[t2].e;
           ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
           (*t).e = (int32_t) e;
+          increase_weight (mat, r2[t2].id);
           t2 ++, t ++;
         }
     }
@@ -815,6 +786,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
       e = (int64_t) e1 * (int64_t) r2[t2].e;
       ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
       (*t).e = (int32_t) e;
+      increase_weight (mat, r2[t2].id);
       t2 ++, t ++;
     }
   ASSERT (t0 + (c + 1) == t);
@@ -827,11 +799,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
 static void
 remove_row (filter_matrix_t *mat, index_t i)
 {
-#ifdef WT2
   int32_t w = matLengthRow (mat, i);
   for (int k = 1; k <= w; k++)
-    decrease_weight (mat, mat->rows[i][k]);
-#endif
+    decrease_weight (mat, rowCell(mat->rows[i], k));
   free (mat->rows[i]);
   mat->rows[i] = NULL;
 }
@@ -1382,9 +1352,6 @@ main (int argc, char *argv[])
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
     int pass = 0;
-#ifdef WT2
-    mat->wt2 = malloc (mat->ncols * sizeof (unsigned char));
-#endif
     while (1)
       {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
@@ -1414,17 +1381,10 @@ main (int argc, char *argv[])
 	  }
 #endif
 
-#ifndef WT2
-	compute_weights (mat, jmin);
-#else
+        /* we only compute the weights at pass 1, afterwards they will be
+           updated at each merge */
 	if (pass == 1)
-	  {
-	    compute_weights (mat, jmin);
-	    memcpy (mat->wt2, mat->wt, mat->ncols * sizeof (unsigned char));
-	  }
-	else
-	  memcpy (mat->wt, mat->wt2, mat->ncols * sizeof (unsigned char));
-#endif
+          compute_weights (mat, jmin);
 
 	compute_R (mat, jmin[mat->cwmax]);
 
@@ -1452,12 +1412,7 @@ main (int argc, char *argv[])
 	cpu_t[3] += cpu3;
 	wct_t[3] += wct3;
 
-#ifdef TRACE_J
-	printf ("j=%d wt=%u wt2=%u\n", TRACE_J, mat->wt[TRACE_J],
-		mat->wt2[TRACE_J]);
-#endif
-
-  free(L);
+        free(L);
 
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
@@ -1483,9 +1438,6 @@ main (int argc, char *argv[])
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
 	  break;
       }
-#ifdef WT2
-    free (mat->wt2);
-#endif
 
     fclose_maybe_compressed (rep->outfile, outname);
 
