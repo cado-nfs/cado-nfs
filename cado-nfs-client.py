@@ -1180,27 +1180,36 @@ class WorkunitProcessor(object):
     def apply_overrides(self, command):
         # to override several parameters, use:
         # --override t 1 --override bkthresh1 15000000
-        # but both the -t and -bkthresh1 parameters should be present on
-        # the las command line
         if self.settings["OVERRIDE"] is None:
             return command
 
         mangled = []
         orig = re.split(' *', command)
+        used_overrides = {}
         while orig:
             a = orig.pop(0)
-            repl = None
+            krepl = None
             for sub in self.settings["OVERRIDE"]:
                 if re.match('^-{1,2}' + sub[0] + '$', a):
-                    repl = sub[1]
+                    krepl = sub
+                    used_overrides[sub[0]]=True
             mangled.append(a)
-            if repl is not None:
+            if krepl is not None:
+                k,repl = krepl
                 oldvalue = orig.pop(0)
                 logging.info("Overriding argument %s %s"
                              " by %s %s in command line"
                              " (substitution %s %s)",
-                             a, oldvalue, a, sub[1], sub[0], sub[1])
-                mangled.append(sub[1])
+                             a, oldvalue, a, repl, k, repl)
+                mangled.append(repl)
+        # apply the overrides even to flags which were *NOT* present in
+        # the initial command line.
+        for f,v in self.settings["override"]:
+            if f in used_overrides:
+                continue
+            mangled.append('-' + f)
+            mangled.append(v)
+
 
         return ' '.join(mangled)
 
