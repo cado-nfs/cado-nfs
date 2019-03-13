@@ -125,7 +125,7 @@ static int verbose = 0; /* verbosity level */
 /*************************** heap structures *********************************/
 
 #ifdef USE_HEAP
-#define PAGE_SIZE (1<<18)
+#define PAGE_SIZE (1<<18) /* seems to be optimal for RSA-512 */
 
 typedef struct {
   char** pages;          /* list of pages */
@@ -1429,7 +1429,6 @@ main (int argc, char *argv[])
 #ifdef USE_HEAP
     /* allocate heaps */
     heap_init (global_heap);
-    printf ("global_heap: size=%lu\n", global_heap->size);
     local_heap = malloc (nthreads * sizeof (heap_t));
     for (int i = 0; i < nthreads; i++)
       heap_init (local_heap[i]);
