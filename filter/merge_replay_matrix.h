@@ -17,6 +17,10 @@
 
 #define col_weight_t unsigned char
 
+/* define USE_CSR to use the CSR format for the transposed matrix
+   (otherwise the LIL format will be used) */
+#define USE_CSR
+
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
   int verbose;         /* verbose level */
@@ -25,7 +29,7 @@ typedef struct {
   uint64_t rem_nrows;  /* number of remaining rows */
   uint64_t rem_ncols;  /* number of remaining columns, including the buried
                           columns */
-  typerow_t **rows;    /* rows[i][k] contains indices of an ideal of row[i] 
+  typerow_t **rows;    /* rows[i][k] contains indices of an ideal of row[i]
                           with 1 <= k <= rows[i][0] */
                        /* FOR_DL: struct containing also the exponent */
   col_weight_t *wt;    /* weight w of column j, if w <= cwmax,
@@ -38,14 +42,18 @@ typedef struct {
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
   index_t Rn;          /* number of rows in R */
+#ifdef USE_CSR
   index_t *Rp, *Ri;    /* (part of) transposed matrix in CSR format:
                           Rp has size Rn + 1, and Ri has size nnz where nnz
                           is the number of elements in the transposed matrix.
                           Column j has Rp[j+1] - Rp[j] elements, which are
                           located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
-  index_t *Rq, *Rqinv;  /* row i of R corresponds to column Rqinv[i] or [self];
-                          column j of [self] corresponds to row Rq[j] of R. */
   unsigned long Ri_alloc; /* allocated size of the Ri field (in index_t) */
+#else
+  index_t **R;         /* (part of) transposed matrix in LIL format */
+#endif
+  index_t *Rq, *Rqinv; /* row i of R corresponds to column Rqinv[i] of [self];
+                          column j of [self] corresponds to row Rq[j] of R. */
   index_t *p;          /* permutation used to renumber the columns */
 } filter_matrix_t;
 
