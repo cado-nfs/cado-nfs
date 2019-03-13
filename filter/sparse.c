@@ -315,9 +315,8 @@ rowCell (index_t *row, int k)
   return res;
 }
 
-/* this function is only used for factorization, where the exponent e is not
-   used */
-void setCell(index_t *row, int k, index_t j, exponent_t e MAYBE_UNUSED)
+/* this function is only used for factorization, when 5 <= SIZEOF_INDEX <= 7 */
+void setCell(index_t *row, int k, index_t j)
 {
   uint8_t *ptr = ((uint8_t*) row) + k * SIZEOF_INDEX;
   index_t j0 = j;
@@ -336,7 +335,7 @@ void setCell(index_t *row, int k, index_t j, exponent_t e MAYBE_UNUSED)
 void compressRow (index_t *row, index_t *buf, int n)
 {
   for (int k = 0; k <= n; k++)
-    setCell (row, k, buf[k], 1);
+    setCell (row, k, buf[k]);
 }
 
 #endif

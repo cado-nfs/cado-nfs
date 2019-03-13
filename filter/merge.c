@@ -122,6 +122,59 @@ static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
+/*************************** heap structures *********************************/
+
+#ifdef USE_HEAP
+#define PAGE_SIZE 65536
+
+typedef struct {
+  char** pages;          /* list of pages */
+  unsigned long size;    /* number of pages allocated */
+  unsigned long current; /* pages[size-1] + current is the first free cell */
+} heap_struct_t;
+typedef heap_struct_t heap_t[1];
+
+heap_t global_heap;      /* global heap */
+heap_t *local_heap;      /* local heap (one per thread) */
+
+static void MAYBE_UNUSED
+heap_init (heap_t h)
+{
+  h->pages = malloc (1 * sizeof (char*));
+  h->pages[0] = (char*) malloc (PAGE_SIZE * sizeof (char));
+  h->size = 1;
+  h->current = 0;
+}
+
+/* s is in bytes */
+static void MAYBE_UNUSED *
+heap_malloc (heap_t h, size_t s)
+{
+  unsigned long cur = h->current;
+  if (cur + s <= PAGE_SIZE)
+    {
+      h->current += s;
+      return h->pages[h->size - 1] + cur;
+    }
+  /* otherwise we allocate a new page */
+  h->pages = realloc (h->pages, (h->size + 1) * sizeof (char*));
+  h->pages[h->size] = malloc (PAGE_SIZE * sizeof (char));
+  h->current = s;
+  h->size ++;
+  return h->pages[h->size - 1];
+}
+
+static void MAYBE_UNUSED
+heap_clear (heap_t h)
+{
+  for (unsigned long i = 0; i < h->size; i++)
+    free (h->pages[i]);
+  free (h->pages);
+}
+#endif
+
+/*****************************************************************************/
+
 static void
 declare_usage(param_list pl)
 {
@@ -225,7 +278,11 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   qsort (&(buf[1]), j, sizeof(typerow_t), cmp_typerow_t);
 #endif
 
+#ifdef USE_HEAP
+  mat->rows[rel->num] = heap_malloc (global_heap, (j + 1) * sizeof (typerow_t));
+#else
   mat->rows[rel->num] = mallocRow (j + 1);
+#endif
   compressRow (mat->rows[rel->num], buf, j);
 
   return NULL;
@@ -652,7 +709,12 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
     return c;
   /* now perform the real merge */
   index_t *t, *t0;
+#ifdef USE_HEAP
+  int tid = omp_get_thread_num ();
+  t = heap_malloc (local_heap[tid], (c + 1) * sizeof (index_t));
+#else
   t = malloc ((c + 1) * sizeof (index_t));
+#endif
   t0 = t;
   *t++ = c;
   t1 = t2 = 1;
@@ -679,7 +741,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
       *t++ = mat->rows[i2][t2++];
     }
   ASSERT (t0 + (c + 1) == t);
+#ifndef USE_HEAP
   free (mat->rows[i1]);
+#endif
   mat->rows[i1] = t0;
   return c;
 }
@@ -757,7 +821,12 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
 
   /* now perform the real merge */
   ideal_merge_t *t, *t0;
+#ifdef USE_HEAP
+  int tid = omp_get_thread_num ();
+  t = heap_malloc (local_heap[tid], (c + 1) * sizeof (ideal_merge_t));
+#else
   t = malloc ((c + 1) * sizeof (ideal_merge_t));
+#endif
   t0 = t;
   (*t++).id = c; /* length of the new relation */
   t1 = t2 = 1;
@@ -815,7 +884,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
       t2 ++, t ++;
     }
   ASSERT (t0 + (c + 1) == t);
+#ifndef USE_HEAP
   free (mat->rows[i1]);
+#endif
   mat->rows[i1] = t0;
   return c;
 }
@@ -827,8 +898,10 @@ remove_row (filter_matrix_t *mat, index_t i)
   int32_t w = matLengthRow (mat, i);
   for (int k = 1; k <= w; k++)
     decrease_weight (mat, rowCell(mat->rows[i], k));
+#ifndef USE_HEAP
   free (mat->rows[i]);
   mat->rows[i] = NULL;
+#endif
 }
 
 #ifdef DEBUG
@@ -1274,7 +1347,7 @@ main (int argc, char *argv[])
     omp_set_num_threads (nthreads);
 #endif
 
-#ifdef HAVE_MALLOPT
+#if defined(HAVE_MALLOPT) && !defined(USE_HEAP)
     /* experimentally, setting the number of arenas to twice the number of
        threads seems optimal (man mallopt says it should match the number of
        threads) */
@@ -1344,6 +1417,15 @@ main (int argc, char *argv[])
     /* we bury the 'skip' ideals of smallest index */
     mat->skip = skip;
 
+#ifdef USE_HEAP
+    /* allocate heaps */
+    heap_init (global_heap);
+    printf ("global_heap: size=%lu\n", global_heap->size);
+    local_heap = malloc (nthreads * sizeof (heap_t));
+    for (int i = 0; i < nthreads; i++)
+      heap_init (local_heap[i]);
+#endif
+
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();
     filter_matrix_read (mat, purgedname);
@@ -1368,7 +1450,7 @@ main (int argc, char *argv[])
     memset(touched_columns, 0, mat->ncols * sizeof(*touched_columns));
 #endif
 
-#ifdef HAVE_MALLOPT
+#if defined(HAVE_MALLOPT) && !defined(USE_HEAP)
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
             MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
 #else
@@ -1426,7 +1508,7 @@ main (int argc, char *argv[])
 	      continue;
 	    for (index_t k = 1; k <= matLengthRow(mat, i); k++)
 	      if (mat->rows[i][k] == TRACE_J)
-		printf ("ideal %d in row %u\n", TRACE_J, i);
+		printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
 	  }
 #endif
 
@@ -1540,6 +1622,14 @@ main (int argc, char *argv[])
     free (mat->Rq);
     free (mat->Rqinv);
     clearMat (mat);
+
+#ifdef USE_HEAP
+    /* free heaps */
+    heap_clear (global_heap);
+    for (int i = 0; i < nthreads; i++)
+      heap_clear (local_heap[i]);
+    free (local_heap);
+#endif
 
     param_list_clear (pl);
 
