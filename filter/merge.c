@@ -643,7 +643,8 @@ decrease_weight (filter_matrix_t *mat, index_t j)
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
   if (mat->wt[j] <= MERGE_LEVEL_MAX)
-    /* is update is enough, or do we need capture? */
+    /* update is enough, we do not need capture since we are not interested
+       by the value of wt[j] */
     #pragma omp atomic update
     mat->wt[j]--;
 }
