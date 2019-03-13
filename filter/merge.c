@@ -125,7 +125,7 @@ static int verbose = 0; /* verbosity level */
 /*************************** heap structures *********************************/
 
 #ifdef USE_HEAP
-#define PAGE_SIZE 65536
+#define PAGE_SIZE (1<<18)
 
 typedef struct {
   char** pages;          /* list of pages */
@@ -1355,7 +1355,8 @@ main (int argc, char *argv[])
     omp_set_num_threads (nthreads);
 #endif
 
-#if defined(HAVE_MALLOPT) && !defined(USE_HEAP)
+#if defined(HAVE_MALLOPT) && !defined(USE_HEAP) && !defined(HAVE_TCMALLOC)
+#define USE_ARENAS
     /* experimentally, setting the number of arenas to twice the number of
        threads seems optimal (man mallopt says it should match the number of
        threads) */
@@ -1458,13 +1459,18 @@ main (int argc, char *argv[])
     memset(touched_columns, 0, mat->ncols * sizeof(*touched_columns));
 #endif
 
-#if defined(HAVE_MALLOPT) && !defined(USE_HEAP)
-    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
-            MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
-#else
-    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d\n",
+    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d",
             MERGE_LEVEL_MAX, CBOUND_INCR);
+#ifdef USE_ARENAS
+    printf (", M_ARENA_MAX=%d", arenas);
 #endif
+#ifdef HAVE_TCMALLOC
+    printf (", HAVE_TCMALLOC");
+#endif
+#ifdef USE_HEAP
+    printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
+#endif
+    printf ("\n");
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
