@@ -40,6 +40,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    when adding the row of smallest weight to the other ones. */
 #define MARKOWITZ
 
+/* #define BIG_BROTHER */
+
+#ifdef BIG_BROTHER
+    unsigned char *touched_columns = NULL;
+#endif
+
+
 /* define DEBUG if printRow is needed */
 // #define DEBUG
 
@@ -525,6 +532,16 @@ compute_R (filter_matrix_t *mat, index_t j0)
   Rp[Rn] = Rnz;
   mat->Rn = Rn;
 
+#ifdef BIG_BROTHER
+  index_t n_empty = 0;
+  for (index_t j = 0; j < mat->ncols; j++)
+    if (mat->wt[j] == 0)
+      n_empty++;
+  printf("$$$     empty: %d\n", n_empty);
+  printf("$$$     light: %d\n", Rn);
+#endif
+
+
   /* reallocate Ri if the previous allocated size was less than s */
   if (mat->Ri_alloc < Rnz) {
     /* allocate more to avoid several allocations with a small difference */
@@ -585,10 +602,14 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 {
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX)
+  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     /* is update is enough, or do we need capture? */
     #pragma omp atomic update
     mat->wt[j]--;
+#ifdef BIG_BROTHER
+    touched_columns[j] = 1;
+#endif
+  }
 }
 
 static void
@@ -596,9 +617,13 @@ increase_weight (filter_matrix_t *mat, index_t j)
 {
   /* only increase the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX)
+  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     #pragma omp atomic update
     mat->wt[j]++;
+#ifdef BIG_BROTHER
+    touched_columns[j] = 1;
+#endif
+  }
 }
 
 /* doit == 0: return the weight of row i1 + row i2
@@ -1056,6 +1081,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       L[tcount[c]++] = i;
     }
   } /* end parallel section */
+
+#ifdef BIG_BROTHER
+  printf("$$$     cheap: %d\n", s);
+#endif
+
   free(cost);
   return s;
 }
@@ -1141,6 +1171,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       if (mat->cwmax < MERGE_LEVEL_MAX)
         mat->cwmax ++;
     }
+
+#ifdef BIG_BROTHER
+  printf("$$$     merged: %ld\n", nmerges);
+  index_t n_rows = 0;
+  for (int i = 0; i < size; i++)
+    n_rows += __builtin_popcountll(busy_rows[i]);
+  printf("$$$     affected-rows: %d\n", n_rows);
+#endif
 
   free(busy_rows);
   return nmerges;
@@ -1325,6 +1363,11 @@ main (int argc, char *argv[])
     mat->Ri = NULL;
     mat->Ri_alloc = 0;
 
+#ifdef BIG_BROTHER
+    touched_columns = malloc(mat->ncols * sizeof(*touched_columns));
+    memset(touched_columns, 0, mat->ncols * sizeof(*touched_columns));
+#endif
+
 #ifdef HAVE_MALLOPT
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d, M_ARENA_MAX=%d\n",
             MERGE_LEVEL_MAX, CBOUND_INCR, arenas);
@@ -1337,6 +1380,11 @@ main (int argc, char *argv[])
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
+#ifdef BIG_BROTHER
+    printf("$$$ N: %" PRId64 "\n", mat->nrows);
+    printf("$$$ start:\n");
+#endif
+
     fflush (stdout);
 
     mat->cwmax = 2;
@@ -1354,6 +1402,7 @@ main (int argc, char *argv[])
     int pass = 0;
     while (1)
       {
+
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 
 	pass ++;
@@ -1380,6 +1429,13 @@ main (int argc, char *argv[])
 		printf ("ideal %d in row %u\n", TRACE_J, i);
 	  }
 #endif
+
+#ifdef BIG_BROTHER
+    printf("$$$   - pass: %d\n", pass);
+    printf("$$$     cwmax: %d\n", mat->cwmax);
+    printf("$$$     cbound: %d\n", cbound);
+#endif
+
 
         /* we only compute the weights at pass 1, afterwards they will be
            updated at each merge */
@@ -1419,6 +1475,15 @@ main (int argc, char *argv[])
 	print_timings ("   pass took", cpu1, wct1);
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
+
+#ifdef BIG_BROTHER
+  int n_cols = 0;
+  for (unsigned int j = 0; j < mat->ncols; j++) {
+    n_cols += touched_columns[j];
+    touched_columns[j] = 0;
+  }
+  printf("$$$     affected-columns: %d\n", n_cols);
+#endif
 
 	/* estimate current average fill-in */
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
