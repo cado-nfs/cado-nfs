@@ -47,7 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #endif
 
 
-/* define DEBUG if printRow is needed */
+/* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
 
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
@@ -901,14 +901,21 @@ remove_row (filter_matrix_t *mat, index_t i)
     decrease_weight (mat, rowCell(mat->rows[i], k));
 #ifndef USE_HEAP
   free (mat->rows[i]);
-  mat->rows[i] = NULL;
 #endif
+  /* even with USE_HEAP, we need to set rows[i] to NULL to know that this
+     row was discarded */
+  mat->rows[i] = NULL;
 }
 
 #ifdef DEBUG
 static void MAYBE_UNUSED
 printRow (filter_matrix_t *mat, index_t i)
 {
+  if (mat->rows[i] == NULL)
+    {
+      printf ("row %u has been discarded\n", i);
+      return;
+    }
   int32_t k = matLengthRow (mat, i);
   printf ("%lu [%d]:", (unsigned long) i, k);
   for (int j = 1; j <= k; j++)
@@ -1267,7 +1274,7 @@ average_density (filter_matrix_t *mat)
 #ifdef DEBUG
 /* duplicate the matrix, where the lines of mat_copy are
    not allocated individually by malloc, but all at once */
-static void
+static void MAYBE_UNUSED
 copy_matrix (filter_matrix_t *mat)
 {
   unsigned long weight = mat->tot_weight;
