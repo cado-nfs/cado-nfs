@@ -535,6 +535,42 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 }
 
 #ifdef USE_CSR
+/* cache-resident buffer for (i, j) pairs. One such entry per output bucket.
+   Invariants:  row[CACHELINE_SIZE - 1] contains COUNT[...] for this bucket,
+    col[CACHELINE_SIZE - 1] contains offset of the first entry in this buffer. 
+   */
+#define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
+
+struct cacheline_t {
+  index_t row[CACHELINE_SIZE];
+  index_t col[CACHELINE_SIZE];
+};
+
+
+#if __AVX__
+#include <immintrin.h>
+void store_nontemp_64B(void * dst, void * src)
+{
+  register __m256i * d1 = (__m256i*) dst;
+  register __m256i s1 = *((__m256i*) src);
+  register __m256i * d2 = d1+1;
+  register __m256i s2 = *(((__m256i*) src)+1);
+  _mm256_stream_si256(d1, s1);
+  _mm256_stream_si256(d2, s2);
+  /* note : it can also be done using SSE for non-AVX machines */
+}
+#else
+void store_nontemp_64B(void * dst, void * src)
+{
+  index_t *in = src;
+  index_t *out = dst;
+  for (int i = 0; i < CACHELINE_SIZE; i++)
+    out[i] = in[i];
+}
+#endif
+
+
+
 /* computes the transposed matrix for columns of weight <= cwmax
    (we only consider columns >= j0) */
 static void
@@ -545,19 +581,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t *Rp = mat->Rp;
   index_t *Rq = mat->Rq;
   index_t *Rqinv = mat->Rqinv;
+  uint64_t nrows = mat->nrows;
   uint64_t ncols = mat->ncols;
   int cwmax = mat->cwmax;
-  /* Initialize the row pointers to Rp[j] + wt[j]. We will then decrease them
-     to Rp[j] in the "dispatch" loop (this trick was already used by Donald
-     Knuth in Algorithm D (Distribution counting), The Art
-     of Computer Programming, volume 3, Sorting and Searching. */
 
-  /* TODO: parallelize this prefix-sum computations (see renumber):
-     1) each thread computes the sum of its range
-     2) one computes (sequentially) the prefix-sum on the ranges sums
-     3) each thread propagates the prefix-sum on its range.
-     See for example Chapter 2 of "Introduction to Parallel Algorithms"
-     by Joseph JaJa (1992). */
   int T = omp_get_max_threads();
   index_t tRnz[T];
   index_t tRn[T];
@@ -626,59 +653,83 @@ compute_R (filter_matrix_t *mat, index_t j0)
 #endif
 
 
-  /* reallocate Ri if the previous allocated size was less than s */
-  if (mat->Ri_alloc < Rnz) {
-    /* allocate more to avoid several allocations with a small difference */
-    mat->Ri_alloc = Rnz + Rnz / MARGIN;
-    mat->Ri = realloc (mat->Ri, mat->Ri_alloc * sizeof (index_t));
-  }
-  index_t *Ri = mat->Ri;
 
+  index_t *Mi = aligned_alloc(64, Rnz * sizeof(index_t));
+  index_t *Mj = aligned_alloc(64, Rnz * sizeof(index_t));
+  index_t *Ri = aligned_alloc(64, Rnz * sizeof(index_t));
+  index_t ptr = 0;
+
+  #pragma omp parallel
+  {
+        /* extract submatrix */
+        index_t tptr;
+        index_t slot = 0;
+        #define BUFFER_SIZE 1024
+        index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
+        index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
+
+        #pragma omp for schedule(dynamic, 128) 
+        for (index_t i = 0; i < nrows; i++) {
+                if (mat->rows[i] == NULL)
+                        continue; /* row was discarded */
+                for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
+                        index_t j = matCell (mat, i, k);
+                        if (j < j0)
+                                break;
+                        if (mat->wt[j] > cwmax)
+                                continue;
+                        row[slot] = i;
+                        col[slot] = Rq[j];
+                        if (slot == BUFFER_SIZE - 1) {
+                                #pragma omp atomic capture
+                                { tptr = ptr; ptr += BUFFER_SIZE; }
+                                for (int j = 0; j < BUFFER_SIZE; j += 64 / sizeof(index_t)) {
+                                        store_nontemp_64B(Mi + tptr, row + j);
+                                        store_nontemp_64B(Mj + tptr, col + j);
+                                        tptr += 64 / sizeof(index_t);
+                                }
+                                slot = 0;
+                        } else {
+                                slot++;
+                        }
+                }
+        }
+        /* purge buffer */
+        #pragma omp atomic capture
+        { tptr = ptr; ptr += slot; }
+        for (index_t i = 0; i < slot; i++) {
+                Mi[tptr + i] = row[i];
+                Mj[tptr + i] = col[i];
+        }
+  }
+  ASSERT(ptr == Rnz);
+  
   /* dispatch entries */
-
-  uint64_t mat_nnz = 0; /* observed non-zero in original matrix */
-  #pragma omp parallel for schedule(dynamic, 128) reduction(+:mat_nnz)
-  for (index_t i = 0; i < mat->nrows; i++) {
-    if (mat->rows[i] == NULL)
-      continue; /* row was discarded */
-    mat_nnz += matLengthRow(mat, i);
-    for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
-      index_t j = matCell (mat, i, k);
-      /* since ideals are sorted by increasing value, we can stop
-         when we encounter j < j0 */
-      if (j < j0)
-        break;
-      /* we only accumulate ideals of weight <= cwmax */
-      if (mat->wt[j] > cwmax)
-        continue;
-      index_t r = Rq[j];  /* column j in mat corresponds to row i in R */
-
-      /* atomic capture: updates the value of a variable while capturing
-	       the original or final value of the variable atomically.
-	       We could write s = __sync_sub_and_fetch (&(Rp[j]), 1) instead,
-	       but the following is as efficient and more portable. */
-      index_t s;
-      #pragma omp atomic capture
-	    s = --Rp[r];  // no political pun intended
-      Ri[s] = i;
-    }
+  #pragma omp parallel for
+  for (index_t k = 0; k < Rnz; k++) {
+          index_t i = Mi[k];
+          index_t j = Mj[k];
+          assert(j < Rn);
+          index_t s;
+          #pragma omp atomic capture
+          {s = Rp[j]; --Rp[j]; }
+          assert(s > 0);
+          assert(s - 1 < Rnz);
+          Ri[s - 1] = i;
   }
+  free(Mi);
+  free(Mj);
 
-  if (verbose > 0)
-    {
-      printf("*** Transpose: (non-empty) rows : %" PRIu64 " VS columns in ``mat'' : %" PRId64 ". Ratio = %.1f%%\n",
-             (uint64_t) Rn, mat->ncols, (100. * Rn) / mat->ncols);
-      printf("*** NNZ in transpose: %" PRIu64 ". NNZ in (non-discarded rows of) original matrix = %" PRId64 ". Ratio = %.1f%%\n",
-        (uint64_t) Rnz, mat_nnz, (100.0 * Rnz) / mat_nnz);
-      printf("*** size of transpose %.1fMB\n", 9.5367431640625e-07 * (Rn + Rnz) * sizeof(index_t));
-    }
+  /* save */
+  mat->Rn = Rn;
+  mat->Ri = Ri;
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
   cpu_t[1] += cpu;
   wct_t[1] += wct;
 }
-#else
+#else /* List of List transpose */
 static void
 compute_R (filter_matrix_t *mat, index_t j0)
 {
@@ -1820,6 +1871,8 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
+        free(mat->Ri);
+
 #ifdef BIG_BROTHER
   int n_cols = 0;
   for (unsigned int j = 0; j < mat->ncols; j++) {
@@ -1884,7 +1937,6 @@ main (int argc, char *argv[])
 #endif
 #ifdef USE_CSR
     free (mat->Rp);
-    free (mat->Ri);
     free (mat->Rq);
     free (mat->Rqinv);
 #else
