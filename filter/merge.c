@@ -670,8 +670,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
                              to its initial value in the dispatch loop below */
           Rn ++;
         }
-      else
-        mat->wt[j] = mat->cwmax + 1;
     }
   mat->Rn = Rn;
 
@@ -1217,7 +1215,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
         Rqinv[i] = j;
         cost[i++] = merge_cost (mat, j) + BIAS;
       }
-  printf ("i=%u Rn=%u\n", i, Rn);
   ASSERT_ALWAYS(i == Rn);
 #endif
 
