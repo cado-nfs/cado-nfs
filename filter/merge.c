@@ -563,7 +563,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t *Rp = mat->Rp;
   index_t *Rq = mat->Rq;
   index_t *Rqinv = mat->Rqinv;
-
+  uint64_t ncols = mat->ncols;
+  int cwmax = mat->cwmax;
   /* Initialize the row pointers to Rp[j] + wt[j]. We will then decrease them
      to Rp[j] in the "dispatch" loop (this trick was already used by Donald
      Knuth in Algorithm D (Distribution counting), The Art
@@ -575,24 +576,67 @@ compute_R (filter_matrix_t *mat, index_t j0)
      3) each thread propagates the prefix-sum on its range.
      See for example Chapter 2 of "Introduction to Parallel Algorithms"
      by Joseph JaJa (1992). */
-  index_t Rnz = 0;
-  index_t Rn = 0;
-  for (index_t j = j0; j < mat->ncols; j++) {
-    col_weight_t w = mat->wt[j];
-    if (0 < w && w <= mat->cwmax) {
-      Rq[j] = Rn;
-      Rqinv[Rn] = j;
-      Rnz += w;
-      Rp[Rn] = Rnz;
-      Rn++;
+  int T = omp_get_max_threads();
+  index_t tRnz[T];
+  index_t tRn[T];
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int tid = omp_get_thread_num();
+    index_t Rnz = 0;
+    index_t Rn = 0;
+    #pragma omp for schedule(static) nowait
+    for (index_t j = j0; j < ncols; j++) {
+      col_weight_t w = mat->wt[j];
+      if (0 < w && w <= cwmax) {
+        Rnz += w;
+        Rn++;
+      }
     }
-  }
-  Rp[Rn] = Rnz;
-  mat->Rn = Rn;
+    tRnz[tid] = Rnz;
+    tRn[tid] = Rn;
+
+    #pragma omp barrier
+
+    /* prefix-sum (sequentially) */
+    #pragma omp master
+    {
+      index_t r = 0;
+      index_t s = 0;
+      for (int t = 0; t < T; t++) {
+        index_t w = tRnz[t];
+        index_t n = tRn[t];
+        tRnz[t] = r;
+        tRn[t] = s;
+        r += w;
+        s += n;
+      }
+      Rp[s] = r;
+      mat->Rn = s;
+    }
+
+    #pragma omp barrier
+    Rnz = tRnz[tid];
+    Rn = tRn[tid];
+
+    #pragma omp for schedule(static)
+    for (index_t j = j0; j < ncols; j++) {
+      col_weight_t w = mat->wt[j];
+      if (0 < w && w <= cwmax) {
+        Rq[j] = Rn;
+        Rqinv[Rn] = j;
+        Rnz += w;
+        Rp[Rn] = Rnz;
+        Rn++;
+      }
+    }
+  } /* end parallel section */
+  index_t Rn = mat->Rn;
+  index_t Rnz = Rp[Rn];
 
 #ifdef BIG_BROTHER
   index_t n_empty = 0;
-  for (index_t j = 0; j < mat->ncols; j++)
+  for (index_t j = 0; j < ncols; j++)
     if (mat->wt[j] == 0)
       n_empty++;
   printf("$$$     empty: %d\n", n_empty);
@@ -623,7 +667,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
       if (j < j0)
         break;
       /* we only accumulate ideals of weight <= cwmax */
-      if (mat->wt[j] > mat->cwmax)
+      if (mat->wt[j] > cwmax)
         continue;
       index_t r = Rq[j];  /* column j in mat corresponds to row i in R */
 
