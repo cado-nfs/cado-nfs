@@ -658,25 +658,22 @@ compute_R (filter_matrix_t *mat, index_t j0)
 {
   double cpu = seconds (), wct = wct_seconds ();
 
-  /* first compute Rn and allocate */
-  index_t *Rq = mat->Rq;
-  index_t *Rqinv = mat->Rqinv;
+  /* first allocate R[j] */
   index_t Rn = 0;
   for (index_t j = j0; j < mat->ncols; j++)
     {
       col_weight_t w = mat->wt[j];
-      if (0 < w && w <= MERGE_LEVEL_MAX)
+      if (0 < w && w <= mat->cwmax)
         {
-          Rq[j] = Rn;
-          Rqinv[Rn] = j;
+          mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
           mat->wt[j] = 0; /* trick: we put wt[j] to 0, it will be put back
                              to its initial value in the dispatch loop below */
           Rn ++;
         }
+      else
+        mat->wt[j] = mat->cwmax + 1;
     }
   mat->Rn = Rn;
-  for (index_t k = 0; k < Rn; k++)
-    mat->R[k] = malloc (MERGE_LEVEL_MAX * sizeof (index_t));
 
   /* dispatch entries */
   col_weight_t *wt = mat->wt;
@@ -691,13 +688,12 @@ compute_R (filter_matrix_t *mat, index_t j0)
       if (j < j0)
         break;
       /* we only accumulate ideals of weight <= MERGE_LEVEL_MAX */
-      if (mat->wt[j] > MERGE_LEVEL_MAX)
+      if (mat->wt[j] > mat->cwmax)
         continue;
-      index_t r = Rq[j];  /* column j in mat corresponds to row r in R */
       index_t s;
       #pragma omp atomic capture
       s = wt[j]++;
-      mat->R[r][s] = i;
+      mat->R[j][s] = i;
     }
   }
 
@@ -996,7 +992,7 @@ merge_cost (filter_matrix_t *mat, index_t id)
   index_t hi = mat->Rp[id + 1];
   int w = hi - lo;
 #else
-  index_t j = mat->Rqinv[id];
+  index_t j = id;
   int w = mat->wt[j];
   index_t lo = 0;
   index_t hi = w;
@@ -1121,11 +1117,12 @@ static int32_t
 merge_do (filter_matrix_t *mat, index_t id, FILE *out)
 {
   int32_t c;
-  index_t j = mat->Rqinv[id];
 #ifdef USE_CSR
+  index_t j = mat->Rqinv[id];
   index_t t = mat->Rp[id];
   int w = mat->Rp[id + 1] - t;
 #else
+  index_t j = id;
   int w = mat->wt[j];
 #endif
 
@@ -1207,9 +1204,22 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
+#ifdef USE_CSR
   #pragma omp parallel for schedule(dynamic, 64)   /* TODO: dynamic really necessary? */
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
+#else
+  index_t i = 0;
+  index_t *Rqinv = malloc (Rn * sizeof (index_t));
+  for (index_t j = 0; j < mat->ncols; j++)
+    if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
+      {
+        Rqinv[i] = j;
+        cost[i++] = merge_cost (mat, j) + BIAS;
+      }
+  printf ("i=%u Rn=%u\n", i, Rn);
+  ASSERT_ALWAYS(i == Rn);
+#endif
 
   /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
   #pragma omp parallel
@@ -1248,7 +1258,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       int c = cost[i];
       if (c > cbound)
         continue;
+#ifdef USE_CSR
       L[tcount[c]++] = i;
+#else
+      L[tcount[c]++] = Rqinv[i];
+#endif
     }
   } /* end parallel section */
 
@@ -1257,6 +1271,9 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 #endif
 
   free(cost);
+#ifndef USE_CSR
+  free (Rqinv);
+#endif
   return s;
 }
 
@@ -1282,7 +1299,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       index_t hi = mat->Rp[id + 1];
 #else
       index_t lo = 0;
-      index_t j = mat->Rqinv[id];
+      index_t j = id;
       index_t hi = mat->wt[j];
 #endif
 
@@ -1558,11 +1575,13 @@ main (int argc, char *argv[])
     mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
     mat->Ri = NULL;
     mat->Ri_alloc = 0;
-#else
-    mat->R = malloc (mat->ncols * sizeof (index_t*));
-#endif
     mat->Rq = malloc (mat->ncols * sizeof (index_t));
     mat->Rqinv = malloc (mat->ncols * sizeof (index_t));
+#else
+    mat->R = malloc (mat->ncols * sizeof (index_t*));
+    for (index_t j = 0; j < mat->ncols; j++)
+      mat->R[j] = NULL;
+#endif
 
 #ifdef BIG_BROTHER
     touched_columns = malloc(mat->ncols * sizeof(*touched_columns));
@@ -1675,6 +1694,13 @@ main (int argc, char *argv[])
 	wct_t[3] += wct3;
 
         free(L);
+#ifndef USE_CSR
+        for (index_t j = 0; j < mat->ncols; j++)
+          {
+            free (mat->R[j]);
+            mat->R[j] = NULL;
+          }
+#endif
 
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
@@ -1744,13 +1770,13 @@ main (int argc, char *argv[])
 #ifdef USE_CSR
     free (mat->Rp);
     free (mat->Ri);
-#else
-    for (index_t k = 0; k < mat->Rn; k++)
-      free (mat->R[k]);
-    free (mat->R);
-#endif
     free (mat->Rq);
     free (mat->Rqinv);
+#else
+    for (index_t j = 0; j < mat->ncols; j++)
+      free (mat->R[j]);
+    free (mat->R);
+#endif
     clearMat (mat);
 
 #ifdef USE_HEAP
