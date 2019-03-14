@@ -1283,11 +1283,11 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
   memset(busy_rows, 0, sizeof(uint64_t) * size);
 
-  unsigned long nrows = mat->rem_nrows;
+  unsigned long nmerges = 0;
+  int64_t fill_in = 0;
 
-  #pragma omp parallel
+  #pragma omp parallel reduction(+: fill_in, nmerges)
   {
-    int32_t fill_in = 0, nmerges = 0;
     #pragma omp for schedule(dynamic, 16)
     for (index_t it = 0; it < total_merges; it++) {
       index_t id = L[it];
@@ -1349,19 +1349,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
         nmerges ++;
       }
     }
-
-    /* All merges processed; update global state */
-    #pragma omp critical
-    {
-      mat->tot_weight += fill_in;
-      /* each merge decreases the number of rows and columns by one */
-      mat->rem_nrows -= nmerges;
-      mat->rem_ncols -= nmerges;
-    }
   } /* end parallel section */
 
-  unsigned long nmerges = nrows - mat->rem_nrows; /* merges effectively accomplished */
-
+      
+  mat->tot_weight += fill_in;
+  /* each merge decreases the number of rows and columns by one */
+  mat->rem_nrows -= nmerges;
+  mat->rem_ncols -= nmerges;
+  
   /* settings for next pass */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
