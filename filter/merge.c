@@ -1844,7 +1844,9 @@ main (int argc, char *argv[])
 
     printf ("After cleaning memory:\n");    
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
-    printf ("After matrix read:\n");
+
+    /* print total time and memory (including reading the input matrix,
+       initializing and free-ing all data) */
     print_timing_and_memory (stdout, cpu0, wct0);
 
     return 0;
