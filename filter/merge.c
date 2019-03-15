@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    when adding the row of smallest weight to the other ones. */
 #define MARKOWITZ
 
-/* #define BIG_BROTHER */
+#define BIG_BROTHER
 
 #ifdef BIG_BROTHER
     unsigned char *touched_columns = NULL;
@@ -1328,10 +1328,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   memset(busy_rows, 0, sizeof(uint64_t) * size);
 
   unsigned long nmerges = 0;
+  unsigned long discarded = 0;
+  unsigned long eventually_discarded = 0;
   int64_t fill_in = 0;
+  double contention = 0;
 
-  #pragma omp parallel reduction(+: fill_in, nmerges)
+  #pragma omp parallel reduction(+: fill_in, nmerges, discarded, eventually_discarded) reduction(max: contention)
   {
+    contention = 0;
     #pragma omp for schedule(dynamic, 16)
     for (index_t it = 0; it < total_merges; it++) {
       index_t id = L[it];
@@ -1359,10 +1363,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
           break;
         }
       }
-      if (ok)
+      if (!ok)
+        discarded++;
+      if (ok) {
+        double start = wct_seconds();
         #pragma omp critical
         { /* potential merge, enter critical section */
           /* check again, since another thread might have reserved a row */
+          contention += wct_seconds() - start;
           for (index_t k = lo; k < hi; k++) {
 #ifdef USE_CSR
             index_t i = mat->Ri[k];
@@ -1376,6 +1384,8 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
               break;
             }
           }
+          if (!ok)
+            eventually_discarded++;
           if (ok) /* reserve rows */
             for (index_t k = lo; k < hi; k++) {
 #ifdef USE_CSR
@@ -1388,6 +1398,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
               busy_rows[x] |= (1ull << y);
             }
         } /* end critical */
+      }
       if (ok) {
         fill_in += merge_do(mat, id, out);
         nmerges ++;
@@ -1414,7 +1425,10 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
     }
 
 #ifdef BIG_BROTHER
+  printf("$$$     discarded: %ld\n", discarded);
+  printf("$$$     eventually_discarded: %ld\n", eventually_discarded);
   printf("$$$     merged: %ld\n", nmerges);
+  printf("$$$     max-contention: %.2fs\n", contention);
   index_t n_rows = 0;
   for (int i = 0; i < size; i++)
     n_rows += __builtin_popcountll(busy_rows[i]);
@@ -1800,6 +1814,9 @@ main (int argc, char *argv[])
 	    mat->rem_nrows - mat->rem_ncols, mat->tot_weight);
     fflush (stdout);
 
+    printf ("Before cleaning memory:\n");
+    print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
+    
 #ifdef FOR_DL
     free (mat->p);
 #endif
@@ -1825,9 +1842,10 @@ main (int argc, char *argv[])
 
     param_list_clear (pl);
 
-    print_timing_and_memory (stdout, cpu0, wct0);
-    printf ("After matrix read:\n");
+    printf ("After cleaning memory:\n");    
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
+    printf ("After matrix read:\n");
+    print_timing_and_memory (stdout, cpu0, wct0);
 
     return 0;
 }
