@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    when adding the row of smallest weight to the other ones. */
 #define MARKOWITZ
 
-#define BIG_BROTHER
+// #define BIG_BROTHER
 
 #ifdef BIG_BROTHER
     unsigned char *touched_columns = NULL;
