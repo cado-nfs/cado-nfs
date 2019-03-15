@@ -1320,6 +1320,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
 
 /* return the number of merges applied */
+#ifdef USE_CSR
 static unsigned long
 apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 {
@@ -1339,23 +1340,13 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
     #pragma omp for schedule(dynamic, 16)
     for (index_t it = 0; it < total_merges; it++) {
       index_t id = L[it];
-#ifdef USE_CSR
       index_t lo = mat->Rp[id];
       index_t hi = mat->Rp[id + 1];
-#else
-      index_t lo = 0;
-      index_t j = id;
-      index_t hi = mat->wt[j];
-#endif
 
       /* merge is possible if all its rows are "available" */
       int ok = 1;
       for (index_t k = lo; k < hi; k++) {
-#ifdef USE_CSR
         index_t i = mat->Ri[k];
-#else
-        index_t i = mat->R[id][k];
-#endif
         uint64_t x = i / 64;
         uint64_t y = i & 63;
         if (busy_rows[x] & (1ull << y)) {
@@ -1372,11 +1363,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
           /* check again, since another thread might have reserved a row */
           contention += wct_seconds() - start;
           for (index_t k = lo; k < hi; k++) {
-#ifdef USE_CSR
             index_t i = mat->Ri[k];
-#else
-            index_t i = mat->R[id][k];
-#endif
             uint64_t x = i / 64;
             uint64_t y = i & 63;
             if (busy_rows[x] & (1ull << y)) {
@@ -1388,11 +1375,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
             eventually_discarded++;
           if (ok) /* reserve rows */
             for (index_t k = lo; k < hi; k++) {
-#ifdef USE_CSR
               index_t i = mat->Ri[k];
-#else
-              index_t i = mat->R[id][k];
-#endif
               uint64_t x = i / 64;
               uint64_t y = i & 63;
               busy_rows[x] |= (1ull << y);
@@ -1406,12 +1389,12 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
     }
   } /* end parallel section */
 
-      
+
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= nmerges;
   mat->rem_ncols -= nmerges;
-  
+
   /* settings for next pass */
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
@@ -1438,6 +1421,103 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   free(busy_rows);
   return nmerges;
 }
+#else
+static unsigned long
+apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
+{
+  int size = 1 + mat->nrows / 64;
+  uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
+  memset(busy_rows, 0, sizeof(uint64_t) * size);
+
+  index_t *T; /* todo list */
+  T = malloc (total_merges * sizeof (index_t));
+  unsigned long nmerges = 0;
+
+  /* When the transposed matrix is in LIL-format, we need to first compute all
+     independent merges before applying them. The reason is that wt[j] is used
+     to know how many relations are involved in a merge: since we update wt[j]
+     incrementally, it might be wrong when we consider a potential merge. */
+
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(dynamic, 16)
+    for (index_t it = 0; it < total_merges; it++) {
+      index_t id = L[it];
+      index_t lo = 0;
+      index_t j = id;
+      index_t hi = mat->wt[j];
+
+      /* merge is possible if all its rows are "available" */
+      int ok = 1;
+      for (index_t k = lo; k < hi; k++) {
+        index_t i = mat->R[id][k];
+        uint64_t x = i / 64;
+        uint64_t y = i & 63;
+        if (busy_rows[x] & (1ull << y)) {
+          ok = 0;
+          break;
+        }
+      }
+      if (ok) {
+        #pragma omp critical
+        { /* potential merge, enter critical section */
+          /* check again, since another thread might have reserved a row */
+          for (index_t k = lo; k < hi; k++) {
+            index_t i = mat->R[id][k];
+            uint64_t x = i / 64;
+            uint64_t y = i & 63;
+            if (busy_rows[x] & (1ull << y)) {
+              ok = 0;
+              break;
+            }
+          }
+          if (ok) /* reserve rows */
+            for (index_t k = lo; k < hi; k++) {
+              index_t i = mat->R[id][k];
+              uint64_t x = i / 64;
+              uint64_t y = i & 63;
+              busy_rows[x] |= (1ull << y);
+            }
+        } /* end critical */
+      }
+      if (ok) /* put merge in T */
+        {
+          index_t s;
+          #pragma omp atomic capture
+          s = nmerges ++;
+          T[s] = id;
+        }
+    }
+  } /* end parallel section */
+
+  /* now we apply the merges in T */
+  int64_t fill_in = 0;
+  #pragma omp parallel for schedule(dynamic, 16)
+  for (index_t k = 0; k < nmerges; k++)
+    fill_in += merge_do (mat, T[k], out);
+
+  mat->tot_weight += fill_in;
+  /* each merge decreases the number of rows and columns by one */
+  mat->rem_nrows -= nmerges;
+  mat->rem_ncols -= nmerges;
+
+  /* settings for next pass */
+  if (mat->cwmax == 2) /* we first process all 2-merges */
+    {
+      if (nmerges == total_merges)
+        mat->cwmax++;
+    }
+  else
+    {
+      if (mat->cwmax < MERGE_LEVEL_MAX)
+        mat->cwmax ++;
+    }
+
+  free (busy_rows);
+  free (T);
+  return nmerges;
+}
+#endif
 
 static double
 average_density (filter_matrix_t *mat)
@@ -1816,7 +1896,7 @@ main (int argc, char *argv[])
 
     printf ("Before cleaning memory:\n");
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
-    
+
 #ifdef FOR_DL
     free (mat->p);
 #endif
@@ -1842,7 +1922,7 @@ main (int argc, char *argv[])
 
     param_list_clear (pl);
 
-    printf ("After cleaning memory:\n");    
+    printf ("After cleaning memory:\n");
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
 
     /* print total time and memory (including reading the input matrix,
