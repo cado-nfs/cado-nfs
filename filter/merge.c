@@ -28,9 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdlib.h>
 #include <fcntl.h>  /* for _O_BINARY */
 #include <gmp.h>    /* for mpn_ior_n */
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+
 #ifdef HAVE_MALLOPT
 #include <malloc.h>
 #endif
@@ -197,22 +195,6 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
-#ifndef HAVE_OPENMP
-  static int omp_get_max_threads()
-  {
-    return 1;
-  }
-
-  static int omp_get_num_threads()
-  {
-    return 1;
-  }
-
-  static int omp_get_thread_num()
-  {
-    return 0;
-  }
-#endif
 
 
 #ifndef FOR_DL
