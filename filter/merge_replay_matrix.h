@@ -50,7 +50,6 @@ typedef struct {
                           located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
   index_t *Rq, *Rqinv; /* row i of R corresponds to column Rqinv[i] of [self];
                           column j of [self] corresponds to row Rq[j] of R. */
-  unsigned long Ri_alloc; /* allocated size of the Ri field (in index_t) */
 #else
   index_t **R;         /* transposed matrix in LIL format. This matrix has
                           always size ncols, where ncols is the value *after*

@@ -84,6 +84,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "report.h"     /* for report_t */
 #include "sparse.h"
 #include "mst.h"
+#include "transpose.h"
 
 /* Note about variables used in the code:
  * cwmax is the (current) maximal weight of columns that will be considered
@@ -179,9 +180,9 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
   param_list_decl_usage(pl, "skip", "number of heavy columns to bury (default "
-                                    STR(DEFAULT_MERGE_SKIP) ")");
+				    STR(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
-                            " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
+			    " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
@@ -208,12 +209,12 @@ sort_relation (index_t *row, unsigned int n)
     {
       index_t t = row[i];
       if (t < row[i-1])
-        {
-          row[i] = row[i-1];
-          for (j = i - 1; j > 0 && t < row[j-1]; j--)
-            row[j] = row[j-1];
-          row[j] = t;
-        }
+	{
+	  row[i] = row[i-1];
+	  for (j = i - 1; j > 0 && t < row[j-1]; j--)
+	    row[j] = row[j-1];
+	  row[j] = t;
+	}
     }
 }
 #endif
@@ -232,7 +233,7 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
     mat->rem_ncols += (mat->wt[h] == 0);
     mat->wt[h] += (mat->wt[h] != UMAX(col_weight_t));
     if (h < mat->skip)
-        continue; /* we skip (bury) the first 'skip' indices */
+	continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
     /* For factorization, they should not be any multiplicity here.
@@ -278,7 +279,7 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 
   /* read all rels */
   nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
-                       mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
+		       mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
 }
@@ -319,17 +320,17 @@ renumber (filter_matrix_t *mat)
     #pragma omp for schedule(static)
     for (uint64_t i = 0; i < mat->nrows; i++)
       for (index_t l = 1; l <= matLengthRow(mat, i); l++) {
-        index_t j = matCell(mat, i, l);
-        uint64_t outside = j / 64;
-        uint64_t inside = j & 63;
-        local_p[tid][outside] |= ((uint64_t) 1u) << inside;
+	index_t j = matCell(mat, i, l);
+	uint64_t outside = j / 64;
+	uint64_t inside = j & 63;
+	local_p[tid][outside] |= ((uint64_t) 1u) << inside;
       }
 
     /* accumulate marks over all threads */
     #pragma omp for schedule(static)
     for (uint64_t j = 0; j < size; j++)
       for (int t = 1; t < T; t++)
-        local_p[0][j] |= local_p[t][j];
+	local_p[0][j] |= local_p[t][j];
 
     /************ BEGIN PREFIX SUM ********************/
 
@@ -347,9 +348,9 @@ renumber (filter_matrix_t *mat)
     {
       uint64_t s = 0;
       for (int t = 0; t < T; t++) {
-        uint64_t tmp = partial[t];
-        partial[t] = s;
-        s += tmp;
+	uint64_t tmp = partial[t];
+	partial[t] = s;
+	s += tmp;
       }
       mat->rem_ncols = s;
     }
@@ -362,9 +363,9 @@ renumber (filter_matrix_t *mat)
     for (uint64_t i = 0; i < size; i++) {
       uint64_t bitmask = local_p[0][i];
       for (uint64_t j = 0; j < 64; j++) {
-        mat->p[i * 64 + j] = s;
-        if (bitmask & (((uint64_t) 1) << j))
-          s++;
+	mat->p[i * 64 + j] = s;
+	if (bitmask & (((uint64_t) 1) << j))
+	  s++;
       }
     }
 
@@ -374,7 +375,7 @@ renumber (filter_matrix_t *mat)
     #pragma omp for
     for (uint64_t i = 0; i < mat->nrows; i++)
       for (index_t l = 1; l <= matLengthRow(mat, i); l++)
-        matCell(mat, i, l) = mat->p[matCell(mat, i, l)];
+	matCell(mat, i, l) = mat->p[matCell(mat, i, l)];
 
     free(local_p[tid]);
   } /* end of parallel section */
@@ -430,15 +431,15 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
     for (index_t j = 0; j < mat->ncols; j++) {
       col_weight_t w = mat->wt[j];
       if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
-        local[w] = j;
+	local[w] = j;
     }
 
     #pragma omp for schedule(static)
     for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
       jmin[w] = mat->ncols;
       for (int t = 0; t < T; t++)
-        if (jmin[w] > tjmin[t][w])
-          jmin[w] = tjmin[t][w];
+	if (jmin[w] > tjmin[t][w])
+	  jmin[w] = tjmin[t][w];
     }
   }
 
@@ -477,9 +478,9 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 
     /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
     if (tid == 0)
-        Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
+	Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
     else
-        Wt[tid] = malloc (mat->ncols * sizeof (col_weight_t));
+	Wt[tid] = malloc (mat->ncols * sizeof (col_weight_t));
     memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (col_weight_t));
 
     /* Thread k accumulates weights in Wt[k].
@@ -493,13 +494,13 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     #pragma omp for schedule(dynamic, 128)
     for (index_t i = 0; i < mat->nrows; i++) {
       if (mat->rows[i] == NULL) /* row was discarded */
-        continue;
+	continue;
       for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
-        index_t j = matCell (mat, i, l);
-        if (j < j0) /* assume ideals are sorted by increasing order */
-          break;
-        else if (Wtk[j] <= cwmax)      /* (*) HERE */
-          Wtk[j]++;
+	index_t j = matCell (mat, i, l);
+	if (j < j0) /* assume ideals are sorted by increasing order */
+	  break;
+	else if (Wtk[j] <= cwmax)      /* (*) HERE */
+	  Wtk[j]++;
       }
     }
 
@@ -511,12 +512,12 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     for (index_t i = j0; i < mat->ncols; i++) {
       col_weight_t val = Wt0[i];
       for (int t = 1; t < T; t++)
-        if (val + Wt[t][i] <= cwmax)
-          val += Wt[t][i];
-        else {
-          val = cwmax + 1;
-          break;
-        }
+	if (val + Wt[t][i] <= cwmax)
+	  val += Wt[t][i];
+	else {
+	  val = cwmax + 1;
+	  break;
+	}
       Wt0[i] = val;
     }
 
@@ -535,42 +536,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 }
 
 #ifdef USE_CSR
-/* cache-resident buffer for (i, j) pairs. One such entry per output bucket.
-   Invariants:  row[CACHELINE_SIZE - 1] contains COUNT[...] for this bucket,
-    col[CACHELINE_SIZE - 1] contains offset of the first entry in this buffer. 
-   */
-#define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
-
-struct cacheline_t {
-  index_t row[CACHELINE_SIZE];
-  index_t col[CACHELINE_SIZE];
-};
-
-
-#if __AVX__
-#include <immintrin.h>
-void store_nontemp_64B(void * dst, void * src)
-{
-  register __m256i * d1 = (__m256i*) dst;
-  register __m256i s1 = *((__m256i*) src);
-  register __m256i * d2 = d1+1;
-  register __m256i s2 = *(((__m256i*) src)+1);
-  _mm256_stream_si256(d1, s1);
-  _mm256_stream_si256(d2, s2);
-  /* note : it can also be done using SSE for non-AVX machines */
-}
-#else
-void store_nontemp_64B(void * dst, void * src)
-{
-  index_t *in = src;
-  index_t *out = dst;
-  for (int i = 0; i < CACHELINE_SIZE; i++)
-    out[i] = in[i];
-}
-#endif
-
-
-
 /* computes the transposed matrix for columns of weight <= cwmax
    (we only consider columns >= j0) */
 static void
@@ -585,6 +550,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   uint64_t ncols = mat->ncols;
   int cwmax = mat->cwmax;
 
+  /* compute the number of rows, the indices of the rowd and the row pointers */
   int T = omp_get_max_threads();
   index_t tRnz[T];
   index_t tRn[T];
@@ -598,8 +564,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
     for (index_t j = j0; j < ncols; j++) {
       col_weight_t w = mat->wt[j];
       if (0 < w && w <= cwmax) {
-        Rnz += w;
-        Rn++;
+	Rnz += w;
+	Rn++;
       }
     }
     tRnz[tid] = Rnz;
@@ -607,21 +573,21 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
     #pragma omp barrier
 
-    /* prefix-sum (sequentially) */
+    /* prefix-sum over the T threads (sequentially) */
     #pragma omp master
     {
       index_t r = 0;
       index_t s = 0;
       for (int t = 0; t < T; t++) {
-        index_t w = tRnz[t];
-        index_t n = tRn[t];
-        tRnz[t] = r;
-        tRn[t] = s;
-        r += w;
-        s += n;
+	index_t w = tRnz[t];
+	index_t n = tRn[t];
+	tRnz[t] = r;
+	tRn[t] = s;
+	r += w;
+	s += n;
       }
-      Rp[s] = r;
       mat->Rn = s;
+      Rp[s] = r; /* set the last row pointer */
     }
 
     #pragma omp barrier
@@ -632,16 +598,22 @@ compute_R (filter_matrix_t *mat, index_t j0)
     for (index_t j = j0; j < ncols; j++) {
       col_weight_t w = mat->wt[j];
       if (0 < w && w <= cwmax) {
-        Rq[j] = Rn;
-        Rqinv[Rn] = j;
-        Rnz += w;
-        Rp[Rn] = Rnz;
-        Rn++;
+	Rq[j] = Rn;
+	Rqinv[Rn] = j;
+	#ifdef TRANSPOSE_EASY_WAY
+	Rnz += w;
+	Rp[Rn] = Rnz;
+	#else
+	Rp[Rn] = Rnz;
+	Rnz += w;
+	#endif
+	Rn++;
       }
     }
   } /* end parallel section */
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
+
 
 #ifdef BIG_BROTHER
   index_t n_empty = 0;
@@ -652,8 +624,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   printf("$$$     light: %d\n", Rn);
 #endif
 
-
-
+  /* extract submatrix */
   index_t *Mi = aligned_alloc(64, Rnz * sizeof(index_t));
   index_t *Mj = aligned_alloc(64, Rnz * sizeof(index_t));
   index_t *Ri = aligned_alloc(64, Rnz * sizeof(index_t));
@@ -661,62 +632,50 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   #pragma omp parallel
   {
-        /* extract submatrix */
-        index_t tptr;
-        index_t slot = 0;
-        #define BUFFER_SIZE 1024
-        index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
-        index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
+	index_t tptr;
+	index_t slot = 0;
+	#define BUFFER_SIZE 1024
+	index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
+	index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
 
-        #pragma omp for schedule(dynamic, 128) 
-        for (index_t i = 0; i < nrows; i++) {
-                if (mat->rows[i] == NULL)
-                        continue; /* row was discarded */
-                for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
-                        index_t j = matCell (mat, i, k);
-                        if (j < j0)
-                                break;
-                        if (mat->wt[j] > cwmax)
-                                continue;
-                        row[slot] = i;
-                        col[slot] = Rq[j];
-                        if (slot == BUFFER_SIZE - 1) {
-                                #pragma omp atomic capture
-                                { tptr = ptr; ptr += BUFFER_SIZE; }
-                                for (int j = 0; j < BUFFER_SIZE; j += 64 / sizeof(index_t)) {
-                                        store_nontemp_64B(Mi + tptr, row + j);
-                                        store_nontemp_64B(Mj + tptr, col + j);
-                                        tptr += 64 / sizeof(index_t);
-                                }
-                                slot = 0;
-                        } else {
-                                slot++;
-                        }
-                }
-        }
-        /* purge buffer */
-        #pragma omp atomic capture
-        { tptr = ptr; ptr += slot; }
-        for (index_t i = 0; i < slot; i++) {
-                Mi[tptr + i] = row[i];
-                Mj[tptr + i] = col[i];
-        }
+	#pragma omp for schedule(dynamic, 128) 
+	for (index_t i = 0; i < nrows; i++) {
+		if (mat->rows[i] == NULL)
+			continue; /* row was discarded */
+		for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
+			index_t j = matCell (mat, i, k);
+			if (j < j0)
+				break;
+			if (mat->wt[j] > cwmax)
+				continue;
+			row[slot] = i;
+			col[slot] = Rq[j];
+			if (slot == BUFFER_SIZE - 1) {
+				#pragma omp atomic capture
+				{ tptr = ptr; ptr += BUFFER_SIZE; }
+				for (int j = 0; j < BUFFER_SIZE; j += 64 / sizeof(index_t)) {
+					store_nontemp_64B(Mi + tptr, row + j);
+					store_nontemp_64B(Mj + tptr, col + j);
+					tptr += 64 / sizeof(index_t);
+				}
+				slot = 0;
+			} else {
+				slot++;
+			}
+		}
+	}
+	/* purge buffer */
+	#pragma omp atomic capture
+	{ tptr = ptr; ptr += slot; }
+	for (index_t i = 0; i < slot; i++) {
+		Mi[tptr + i] = row[i];
+		Mj[tptr + i] = col[i];
+	}
   }
   ASSERT(ptr == Rnz);
   
-  /* dispatch entries */
-  #pragma omp parallel for
-  for (index_t k = 0; k < Rnz; k++) {
-          index_t i = Mi[k];
-          index_t j = Mj[k];
-          assert(j < Rn);
-          index_t s;
-          #pragma omp atomic capture
-          {s = Rp[j]; --Rp[j]; }
-          assert(s > 0);
-          assert(s - 1 < Rnz);
-          Ri[s - 1] = i;
-  }
+  /* finally... */
+  transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
   free(Mi);
   free(Mj);
 
@@ -741,12 +700,12 @@ compute_R (filter_matrix_t *mat, index_t j0)
     {
       col_weight_t w = mat->wt[j];
       if (0 < w && w <= mat->cwmax)
-        {
-          mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
-          mat->wt[j] = 0; /* trick: we put wt[j] to 0, it will be put back
-                             to its initial value in the dispatch loop below */
-          Rn ++;
-        }
+	{
+	  mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
+	  mat->wt[j] = 0; /* trick: we put wt[j] to 0, it will be put back
+			     to its initial value in the dispatch loop below */
+	  Rn ++;
+	}
     }
   mat->Rn = Rn;
 
@@ -759,12 +718,12 @@ compute_R (filter_matrix_t *mat, index_t j0)
     for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
       index_t j = matCell (mat, i, k);
       /* since ideals are sorted by increasing value, we can stop
-         when we encounter j < j0 */
+	 when we encounter j < j0 */
       if (j < j0)
-        break;
+	break;
       /* we only accumulate ideals of weight <= MERGE_LEVEL_MAX */
       if (mat->wt[j] > mat->cwmax)
-        continue;
+	continue;
       index_t s;
       #pragma omp atomic capture
       s = wt[j]++;
@@ -894,14 +853,14 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   for (int l = k1; l >= 1; l--)
     if (r1[l].id == j)
       {
-        e1 = r1[l].e;
-        break;
+	e1 = r1[l].e;
+	break;
       }
   for (int l = k2; l >= 1; l--)
     if (r2[l].id == j)
       {
-        e2 = r2[l].e;
-        break;
+	e2 = r2[l].e;
+	break;
       }
 
   /* we always check e1 and e2 are not zero, in order to prevent from zero
@@ -919,25 +878,25 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   while (t1 <= k1 && t2 <= k2)
     {
       if (r1[t1].id == r2[t2].id)
-        {
-          /* If exponent do not cancel, add 1 to cost.
-             Warning: we should ensure that r1[t1].e * e2 does not overflow,
-             same for r2[t2].e * e1 and the sum.
-             In fact, since the sum is computed modulo 2^32, the only bad case
-             is when the sum is a non-zero multiple of 2^32. */
-          int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
-          if (e != 0)
-            c ++; /* we are sure that the sum is not zero */
-          else
-            {
-              /* We compute the sum with 64-bit integers. Since all values are
-                 in [-2^31, 2^31-1], the sum is in [-2^63,2^63-2^33+2], thus
-                 always fits into an int64_t. */
-              int64_t ee = (int64_t) r1[t1].e * (int64_t) e2 + (int64_t) r2[t2].e * (int64_t) e1;
-              c += ee != 0;
-            }
-          t1 ++, t2 ++;
-        }
+	{
+	  /* If exponent do not cancel, add 1 to cost.
+	     Warning: we should ensure that r1[t1].e * e2 does not overflow,
+	     same for r2[t2].e * e1 and the sum.
+	     In fact, since the sum is computed modulo 2^32, the only bad case
+	     is when the sum is a non-zero multiple of 2^32. */
+	  int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
+	  if (e != 0)
+	    c ++; /* we are sure that the sum is not zero */
+	  else
+	    {
+	      /* We compute the sum with 64-bit integers. Since all values are
+		 in [-2^31, 2^31-1], the sum is in [-2^63,2^63-2^33+2], thus
+		 always fits into an int64_t. */
+	      int64_t ee = (int64_t) r1[t1].e * (int64_t) e2 + (int64_t) r2[t2].e * (int64_t) e1;
+	      c += ee != 0;
+	    }
+	  t1 ++, t2 ++;
+	}
       else if (r1[t1].id < r2[t2].id)
 	t1 ++, c ++;
       else
@@ -963,37 +922,37 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   while (t1 <= k1 && t2 <= k2)
     {
       if (r1[t1].id == r2[t2].id)
-        {
-          /* as above, the exponent e below cannot overflow */
-          e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
-          if (e != 0) /* exponents do not cancel */
-            {
-              (*t).id = r1[t1].id;
-              ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-              (*t).e = (int32_t) e;
-              t ++;
-            }
-          else
-            decrease_weight (mat, r1[t1].id);
-          t1 ++, t2 ++;
-        }
+	{
+	  /* as above, the exponent e below cannot overflow */
+	  e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
+	  if (e != 0) /* exponents do not cancel */
+	    {
+	      (*t).id = r1[t1].id;
+	      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	      (*t).e = (int32_t) e;
+	      t ++;
+	    }
+	  else
+	    decrease_weight (mat, r1[t1].id);
+	  t1 ++, t2 ++;
+	}
       else if (r1[t1].id < r2[t2].id)
-        {
-          (*t).id = r1[t1].id;
-          e = (int64_t) e2 * (int64_t) r1[t1].e;
-          ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-          (*t).e = (int32_t) e;
-          t1 ++, t ++;
-        }
+	{
+	  (*t).id = r1[t1].id;
+	  e = (int64_t) e2 * (int64_t) r1[t1].e;
+	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	  (*t).e = (int32_t) e;
+	  t1 ++, t ++;
+	}
       else
-        {
-          (*t).id = r2[t2].id;
-          e = (int64_t) e1 * (int64_t) r2[t2].e;
-          ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-          (*t).e = (int32_t) e;
-          increase_weight (mat, r2[t2].id);
-          t2 ++, t ++;
-        }
+	{
+	  (*t).id = r2[t2].id;
+	  e = (int64_t) e1 * (int64_t) r2[t2].e;
+	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	  (*t).e = (int32_t) e;
+	  increase_weight (mat, r2[t2].id);
+	  t2 ++, t ++;
+	}
     }
   while (t1 <= k1)
     {
@@ -1095,9 +1054,9 @@ merge_cost (filter_matrix_t *mat, index_t id)
 #endif
       index_t c = matLengthRow(mat, i);
       if (c < cmin)
-        {
-	        imin = i;
-	        cmin = c;
+	{
+		imin = i;
+		cmin = c;
 	      }
     }
 
@@ -1113,16 +1072,16 @@ merge_cost (filter_matrix_t *mat, index_t id)
 #endif
       if (i != imin)
 	      /* It is crucial here to take into account cancellations of
-	         coefficients, and not to simply add the length of both
-	         rows minus 2. Indeed, if row 'a' was added to two
-	         relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
-	         all ideals from 'a' will cancel. */
-        #ifndef MARKOWITZ
-          index_t j = mat->Rqinv[id];
-          c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
-        #else /* estimation with Markowitz pivoting: might miss cancellations */
-          c += cmin - 2;
-        #endif
+		 coefficients, and not to simply add the length of both
+		 rows minus 2. Indeed, if row 'a' was added to two
+		 relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
+		 all ideals from 'a' will cancel. */
+	#ifndef MARKOWITZ
+	  index_t j = mat->Rqinv[id];
+	  c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
+	#else /* estimation with Markowitz pivoting: might miss cancellations */
+	  c += cmin - 2;
+	#endif
     }
   return c;
 }
@@ -1146,10 +1105,10 @@ sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
       m += snprintf (str + m, size - m, "%ld", (long int) ind[i]);
       ASSERT(m < size);
       if (i < n-1)
-        {
-          m += snprintf (str + m, size - m, " ");
-          ASSERT(m < size);
-        }
+	{
+	  m += snprintf (str + m, size - m, " ");
+	  ASSERT(m < size);
+	}
     }
 #ifdef FOR_DL
   m += snprintf (str + m, size - m, " #%lu", (unsigned long) j);
@@ -1163,8 +1122,8 @@ sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
    history[][]). */
 static int
 addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
-                 filter_matrix_t *mat, int m, index_t *ind, index_t j,
-                 int *father, int *sons)
+		 filter_matrix_t *mat, int m, index_t *ind, index_t j,
+		 int *father, int *sons)
 {
   int i, s, t;
 
@@ -1173,12 +1132,12 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
       s = father[i];
       t = sons[i];
       if (i == 0)
-        {
-          history[i][1] = ind[s];
-          ASSERT(s == 0);
-        }
+	{
+	  history[i][1] = ind[s];
+	  ASSERT(s == 0);
+	}
       else
-        history[i][1] = -(ind[s] + 1);
+	history[i][1] = -(ind[s] + 1);
       add_row (mat, ind[t], ind[s], 1, j);
       history[i][2] = ind[t];
       history[i][0] = 2;
@@ -1289,8 +1248,8 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   for (index_t j = 0; j < mat->ncols; j++)
     if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
       {
-        Rqinv[i] = j;
-        cost[i++] = merge_cost (mat, j) + BIAS;
+	Rqinv[i] = j;
+	cost[i++] = merge_cost (mat, j) + BIAS;
       }
   ASSERT_ALWAYS(i == Rn);
 #endif
@@ -1305,9 +1264,9 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
     #pragma omp for
     for (index_t i = 0; i < Rn; i++) {
-        int c = cost[i];
-        if (c <= cbound)
-          tcount[c]++;
+	int c = cost[i];
+	if (c <= cbound)
+	  tcount[c]++;
     }
   } /* end parallel section */
 
@@ -1316,9 +1275,9 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   for (int c = 0; c <= cbound; c++) {
      // Lp[c] = s;                     /* global row pointer in L */
      for (int t = 0; t < T; t++) {
-        index_t w = count[t][c];       /* per-thread row pointer in L */
-        count[t][c] = s;
-        s += w;
+	index_t w = count[t][c];       /* per-thread row pointer in L */
+	count[t][c] = s;
+	s += w;
      }
   }
 
@@ -1331,7 +1290,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
     for (index_t i = 0; i < Rn; i++) {
       int c = cost[i];
       if (c > cbound)
-        continue;
+	continue;
 #ifdef USE_CSR
       L[tcount[c]++] = i;
 #else
@@ -1379,45 +1338,45 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       /* merge is possible if all its rows are "available" */
       int ok = 1;
       for (index_t k = lo; k < hi; k++) {
-        index_t i = mat->Ri[k];
-        uint64_t x = i / 64;
-        uint64_t y = i & 63;
-        if (busy_rows[x] & (1ull << y)) {
-          ok = 0;
-          break;
-        }
+	index_t i = mat->Ri[k];
+	uint64_t x = i / 64;
+	uint64_t y = i & 63;
+	if (busy_rows[x] & (1ull << y)) {
+	  ok = 0;
+	  break;
+	}
       }
       if (!ok)
-        discarded++;
+	discarded++;
       if (ok) {
-        double start = wct_seconds();
-        #pragma omp critical
-        { /* potential merge, enter critical section */
-          /* check again, since another thread might have reserved a row */
-          contention += wct_seconds() - start;
-          for (index_t k = lo; k < hi; k++) {
-            index_t i = mat->Ri[k];
-            uint64_t x = i / 64;
-            uint64_t y = i & 63;
-            if (busy_rows[x] & (1ull << y)) {
-              ok = 0;
-              break;
-            }
-          }
-          if (!ok)
-            eventually_discarded++;
-          if (ok) /* reserve rows */
-            for (index_t k = lo; k < hi; k++) {
-              index_t i = mat->Ri[k];
-              uint64_t x = i / 64;
-              uint64_t y = i & 63;
-              busy_rows[x] |= (1ull << y);
-            }
-        } /* end critical */
+	double start = wct_seconds();
+	#pragma omp critical
+	{ /* potential merge, enter critical section */
+	  /* check again, since another thread might have reserved a row */
+	  contention += wct_seconds() - start;
+	  for (index_t k = lo; k < hi; k++) {
+	    index_t i = mat->Ri[k];
+	    uint64_t x = i / 64;
+	    uint64_t y = i & 63;
+	    if (busy_rows[x] & (1ull << y)) {
+	      ok = 0;
+	      break;
+	    }
+	  }
+	  if (!ok)
+	    eventually_discarded++;
+	  if (ok) /* reserve rows */
+	    for (index_t k = lo; k < hi; k++) {
+	      index_t i = mat->Ri[k];
+	      uint64_t x = i / 64;
+	      uint64_t y = i & 63;
+	      busy_rows[x] |= (1ull << y);
+	    }
+	} /* end critical */
       }
       if (ok) {
-        fill_in += merge_do(mat, id, out);
-        nmerges ++;
+	fill_in += merge_do(mat, id, out);
+	nmerges ++;
       }
     }
   } /* end parallel section */
@@ -1432,12 +1391,12 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (nmerges == total_merges)
-        mat->cwmax++;
+	mat->cwmax++;
     }
   else
     {
       if (mat->cwmax < MERGE_LEVEL_MAX)
-        mat->cwmax ++;
+	mat->cwmax ++;
     }
 
 #ifdef BIG_BROTHER
@@ -1483,43 +1442,43 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       /* merge is possible if all its rows are "available" */
       int ok = 1;
       for (index_t k = lo; k < hi; k++) {
-        index_t i = mat->R[id][k];
-        uint64_t x = i / 64;
-        uint64_t y = i & 63;
-        if (busy_rows[x] & (1ull << y)) {
-          ok = 0;
-          break;
-        }
+	index_t i = mat->R[id][k];
+	uint64_t x = i / 64;
+	uint64_t y = i & 63;
+	if (busy_rows[x] & (1ull << y)) {
+	  ok = 0;
+	  break;
+	}
       }
       if (ok) {
-        #pragma omp critical
-        { /* potential merge, enter critical section */
-          /* check again, since another thread might have reserved a row */
-          for (index_t k = lo; k < hi; k++) {
-            index_t i = mat->R[id][k];
-            uint64_t x = i / 64;
-            uint64_t y = i & 63;
-            if (busy_rows[x] & (1ull << y)) {
-              ok = 0;
-              break;
-            }
-          }
-          if (ok) /* reserve rows */
-            for (index_t k = lo; k < hi; k++) {
-              index_t i = mat->R[id][k];
-              uint64_t x = i / 64;
-              uint64_t y = i & 63;
-              busy_rows[x] |= (1ull << y);
-            }
-        } /* end critical */
+	#pragma omp critical
+	{ /* potential merge, enter critical section */
+	  /* check again, since another thread might have reserved a row */
+	  for (index_t k = lo; k < hi; k++) {
+	    index_t i = mat->R[id][k];
+	    uint64_t x = i / 64;
+	    uint64_t y = i & 63;
+	    if (busy_rows[x] & (1ull << y)) {
+	      ok = 0;
+	      break;
+	    }
+	  }
+	  if (ok) /* reserve rows */
+	    for (index_t k = lo; k < hi; k++) {
+	      index_t i = mat->R[id][k];
+	      uint64_t x = i / 64;
+	      uint64_t y = i & 63;
+	      busy_rows[x] |= (1ull << y);
+	    }
+	} /* end critical */
       }
       if (ok) /* put merge in T */
-        {
-          index_t s;
-          #pragma omp atomic capture
-          s = nmerges ++;
-          T[s] = id;
-        }
+	{
+	  index_t s;
+	  #pragma omp atomic capture
+	  s = nmerges ++;
+	  T[s] = id;
+	}
     }
   } /* end parallel section */
 
@@ -1538,12 +1497,12 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   if (mat->cwmax == 2) /* we first process all 2-merges */
     {
       if (nmerges == total_merges)
-        mat->cwmax++;
+	mat->cwmax++;
     }
   else
     {
       if (mat->cwmax < MERGE_LEVEL_MAX)
-        mat->cwmax ++;
+	mat->cwmax ++;
     }
 
   free (busy_rows);
@@ -1737,7 +1696,6 @@ main (int argc, char *argv[])
        step to step. */
     mat->Rp = malloc ((mat->ncols + 1) * sizeof (index_t));
     mat->Ri = NULL;
-    mat->Ri_alloc = 0;
     mat->Rq = malloc (mat->ncols * sizeof (index_t));
     mat->Rqinv = malloc (mat->ncols * sizeof (index_t));
 #else
@@ -1752,7 +1710,7 @@ main (int argc, char *argv[])
 #endif
 
     printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d",
-            MERGE_LEVEL_MAX, CBOUND_INCR);
+	    MERGE_LEVEL_MAX, CBOUND_INCR);
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
@@ -1825,10 +1783,10 @@ main (int argc, char *argv[])
 #endif
 
 
-        /* we only compute the weights at pass 1, afterwards they will be
-           updated at each merge */
+	/* we only compute the weights at pass 1, afterwards they will be
+	   updated at each merge */
 	if (pass == 1)
-          compute_weights (mat, jmin);
+	  compute_weights (mat, jmin);
 
 	compute_R (mat, jmin[mat->cwmax]);
 
@@ -1839,9 +1797,8 @@ main (int argc, char *argv[])
 
 	cpu2 = seconds () - cpu2;
 	wct2 = wct_seconds () - wct2;
-  if (verbose > 0)
-    printf("*** compute_merges: %" PRIu64 " candidate merges\n",
-           (uint64_t) n_possible_merges);
+	if (verbose > 0)
+		printf("*** compute_merges: %" PRIu64 " candidate merges\n", (uint64_t) n_possible_merges);
 	print_timings ("   compute_merges took", cpu2, wct2);
 	cpu_t[2] += cpu2;
 	wct_t[2] += wct2;
@@ -1856,13 +1813,15 @@ main (int argc, char *argv[])
 	cpu_t[3] += cpu3;
 	wct_t[3] += wct3;
 
-        free(L);
-#ifndef USE_CSR
-        for (index_t j = 0; j < mat->ncols; j++)
-          {
-            free (mat->R[j]);
-            mat->R[j] = NULL;
-          }
+	free(L);
+#ifdef USE_CSR
+	free(mat->Ri);
+#else
+	for (index_t j = 0; j < mat->ncols; j++)
+	  {
+	    free (mat->R[j]);
+	    mat->R[j] = NULL;
+	  }
 #endif
 
 	cpu1 = seconds () - cpu1;
@@ -1871,7 +1830,6 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
-        free(mat->Ri);
 
 #ifdef BIG_BROTHER
   int n_cols = 0;
@@ -1888,7 +1846,7 @@ main (int argc, char *argv[])
 
 	printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
-                9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
+		9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
 		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, pass, mat->cwmax);
@@ -1905,14 +1863,14 @@ main (int argc, char *argv[])
 
     if (average_density (mat) > target_density)
       {
-        /* estimate N for W/N = target_density, assuming W/N = a*N + b */
-        unsigned long N = mat->rem_nrows;
-        double WoverN = (double) mat->tot_weight / (double) N;
-        double a = (lastWoverN - WoverN) / (double) (lastN - N);
-        double b = WoverN - a * (double) N;
-        /* we want target_density = a*N_target + b */
-        printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
-                (uint64_t) ((target_density - b) / a), target_density);
+	/* estimate N for W/N = target_density, assuming W/N = a*N + b */
+	unsigned long N = mat->rem_nrows;
+	double WoverN = (double) mat->tot_weight / (double) N;
+	double a = (lastWoverN - WoverN) / (double) (lastN - N);
+	double b = WoverN - a * (double) N;
+	/* we want target_density = a*N_target + b */
+	printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
+		(uint64_t) ((target_density - b) / a), target_density);
       }
 
 #ifndef FOR_DL /* we don't do renumbering for DL */
