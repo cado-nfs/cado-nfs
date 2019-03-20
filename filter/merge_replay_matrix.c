@@ -32,6 +32,7 @@ initMat (filter_matrix_t *mat, uint32_t skip)
   mat->weight = 0;
   mat->tot_weight = 0;
   mat->rem_ncols = 0;
+  mat->initial_ncols = mat->ncols;
 
   mat->rows = (typerow_t **) malloc (mat->nrows * sizeof (typerow_t *));
   ASSERT_ALWAYS (mat->rows != NULL);

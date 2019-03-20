@@ -113,9 +113,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    2: compute_merges
    3: apply_merges
    4: pass
-   5: renumber */
-double cpu_t[6] = {0};
-double wct_t[6] = {0};
+   5: renumber
+   6: recompress */
+double cpu_t[7] = {0};
+double wct_t[7] = {0};
 
 static int verbose = 0; /* verbosity level */
 
@@ -404,6 +405,101 @@ renumber (filter_matrix_t *mat)
   cpu_t[5] += cpu;
   wct_t[5] += wct;
 }
+
+/* stack non-empty columns at the begining. Update mat->p (for DL) and jmin */
+static void recompress(filter_matrix_t *mat, index_t *jmin)
+{
+	double cpu = seconds (), wct = wct_seconds ();
+	uint64_t nrows = mat->nrows;
+	uint64_t ncols = mat->ncols;
+	
+	/* sends the old column number to the new one */
+	index_t *p = malloc(ncols * sizeof(*p));
+	col_weight_t *nwt = malloc(mat->rem_ncols * sizeof(*nwt));
+
+	/* compute the number of non-empty columns */
+	int T = omp_get_max_threads();
+	index_t tm[T];
+	#pragma omp parallel
+	{
+		int T = omp_get_num_threads();
+		int t = omp_get_thread_num();
+		index_t m = 0;
+		#pragma omp for schedule(static) nowait
+		for (index_t j = 0; j < ncols; j++)
+			if (0 < mat->wt[j])
+				m++;
+		tm[t] = m;
+
+		#pragma omp barrier
+
+		/* prefix-sum over the T threads (sequentially) */
+		#pragma omp master
+		{
+			index_t s = 0;
+			for (int t = 0; t < T; t++) {
+				index_t m = tm[t];
+				tm[t] = s;
+				s += m;
+			}
+			mat->rem_ncols = s;
+		}
+
+		#pragma omp barrier
+
+		/* compute the new column indices */
+		m = tm[t];
+		#pragma omp for schedule(static)
+		for (index_t j = 0; j < ncols; j++) {
+			ASSERT(m <= j);
+			p[j] = m;
+			if (0 < mat->wt[j])
+				m++;
+		}
+
+		/* rewrite the row indices */
+		#pragma omp for schedule(dynamic, 128)
+		for (uint64_t i = 0; i < nrows; i++) {
+			if (mat->rows[i] == NULL) 	/* row was discarded */
+				continue;
+			for (index_t l = 1; l <= matLengthRow(mat, i); l++)
+				matCell(mat, i, l) = p[matCell(mat, i, l)];
+		}  
+	
+		/* update mat->wt */
+		#pragma omp for schedule(static)
+		for (index_t j = 0; j < ncols; j++)
+			if (0 < mat->wt[j])
+				nwt[p[j]] = mat->wt[j];
+		
+		#ifdef FOR_DL
+  			/* update mat->p. It sends actual indices in mat to original indices in the purge file */
+			// before : mat->p[i] == original
+			//  after : mat->p[p[i]] == original
+			#pragma omp for schedule(static)
+			for (index_t j = 0; j < mat->rem_ncols; j++)
+				mat->p[p[j]] = mat->p[j];
+		#endif
+	} /* end parallel section */
+
+	free(mat->wt);
+	mat->wt = nwt;
+
+	/* update jmin */
+	for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
+		jmin[w] = p[jmin[w]];
+
+	free(p);
+
+	/* this was the goal all along ! */
+	mat->ncols = mat->rem_ncols;
+	cpu = seconds () - cpu;
+	wct = wct_seconds () - wct;
+	print_timings ("   recompress took", cpu, wct);
+	cpu_t[6] += cpu;
+	wct_t[6] += wct;
+}
+
 
 /* For 1 <= w <= MERGE_LEVEL_MAX, put in jmin[w] the smallest index j such that
    mat->wt[j] = w. This routine is called only once, at the first call of
@@ -1837,6 +1933,11 @@ main (int argc, char *argv[])
 	  }
 #endif
 
+	if (mat->rem_ncols < 0.66 * mat->ncols) {
+		printf("============== Recompress ==============\n");
+		recompress(mat, jmin);
+	}
+
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
 	print_timings ("   pass took", cpu1, wct1);
@@ -1894,6 +1995,8 @@ main (int argc, char *argv[])
     print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
     print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
     print_timings ("pass           :", cpu_t[4], wct_t[4]);
+    print_timings ("recompress     :", cpu_t[6], wct_t[6]);
+
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,

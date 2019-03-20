@@ -56,6 +56,7 @@ typedef struct {
                           the initial column renumbering. */
 #endif
   index_t *p;          /* permutation used to renumber the columns */
+  uint64_t initial_ncols; /* number of columns in the purge file */
 } filter_matrix_t;
 
 #ifdef __cplusplus
