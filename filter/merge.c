@@ -620,8 +620,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
   for (index_t j = 0; j < ncols; j++)
     if (mat->wt[j] == 0)
       n_empty++;
+  double before_extraction = wct_seconds();
   printf("$$$     empty: %d\n", n_empty);
   printf("$$$     light: %d\n", Rn);
+  printf("$$$     row-count: %.2f\n", before_extraction - wct);
 #endif
 
   /* extract submatrix */
@@ -638,7 +640,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 	index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
 	index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
 
-	#pragma omp for schedule(dynamic, 128) 
+	#pragma omp for schedule(dynamic, 1024) 
 	for (index_t i = 0; i < nrows; i++) {
 		if (mat->rows[i] == NULL)
 			continue; /* row was discarded */
@@ -674,10 +676,21 @@ compute_R (filter_matrix_t *mat, index_t j0)
   }
   ASSERT(ptr == Rnz);
   
+  #ifdef BIG_BROTHER
+    double before_compression = wct_seconds();
+    printf("$$$     extraction: %.2f\n", before_compression - before_extraction);
+  #endif
+
+
   /* finally... */
   transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
   free(Mi);
   free(Mj);
+
+  #ifdef BIG_BROTHER
+    printf("$$$     conversion: %.2f\n", wct_seconds() - before_compression);
+  #endif
+
 
   /* save */
   mat->Rn = Rn;

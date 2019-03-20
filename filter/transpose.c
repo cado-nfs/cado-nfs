@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "portability.h"
 #include "typedefs.h"
+#include "utils.h"
 #include "transpose.h"
 
 #include <math.h>
@@ -41,6 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <assert.h>
 #include <string.h>
 
+// #define BIG_BROTHER
 
 /* OK, so we can do this the easy way, or the hard way. */
 
@@ -72,12 +74,17 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
    Uses a parallel radix sort with a software write-combining buffer.
    Relies on aligned_alloc (OK in C11) and OpenMP. */
 
-#define MAX_RADIX_BITS 12
+#define MAX_RADIX_BITS 10   /* was experimentally found to be OK */
 
 /* L1 cache line has size 64 on most CPUs */
 #define MAX_PASSES 4 
 #define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
 
+
+/* cache-resident buffer for (i, j) pairs. One such entry per output bucket.
+   Invariants:  row[CACHELINE_SIZE - 1] contains COUNT[...] for this bucket,
+        col[CACHELINE_SIZE - 1] contains offset of the first entry in this buffer. 
+   */
 
 /* cache-resident buffer for (i, j) pairs. One such entry per output bucket.
    Invariants:  row[CACHELINE_SIZE - 1] contains COUNT[...] for this bucket,
@@ -122,8 +129,9 @@ static inline void wc_flush(struct cacheline_t * self, index_t count, index_t st
 }
 
 /* push an (i,j) pair into the buffer */
-static inline void wc_push(index_t i, index_t j, struct cacheline_t * self, index_t *OUTi, index_t *OUTj)
+static inline void wc_push(index_t i, index_t j, struct cacheline_t * buffer, index_t bucket_idx, index_t *OUTi, index_t *OUTj)
 {
+    struct cacheline_t *self = buffer + bucket_idx;
     index_t count = self->row[CACHELINE_SIZE - 1];
     index_t start = self->col[CACHELINE_SIZE - 1];
     index_t slot = count & (CACHELINE_SIZE - 1);
@@ -148,10 +156,58 @@ static inline void wc_purge(struct cacheline_t * buffer, int n_buckets, index_t 
     }
 }
 
-// static inline int MIN(int a, int b) {
-//     return (a < b) ? a : b;
-// }
 
+struct half_cacheline_t {
+    index_t row[CACHELINE_SIZE];
+};
+
+/* Setup the buffer for a new pass */
+static inline void wc_half_prime(struct half_cacheline_t *buffer, char *start, const index_t *COUNT, int n_buckets)
+{
+    for (int i = 0; i < n_buckets; i++ ) {
+        buffer[i].row[CACHELINE_SIZE - 1] = COUNT[i];
+        start[i] = COUNT[i] & (CACHELINE_SIZE - 1);
+    }
+}
+
+/* Transfer data stored in this buffer to the output arrays.
+   Assumption: this buckget is filled to the end */
+static inline void wc_half_flush(struct half_cacheline_t * self, index_t count, char start, index_t *OUTi)
+{
+    index_t target = count & ~(CACHELINE_SIZE - 1);
+    if (start == 0) {   /* incomplete flush */
+        store_nontemp_64B(OUTi + target, self->row);
+    } else {            /* complete cache line flush */
+        for (int i = start; i < CACHELINE_SIZE; i++)
+            OUTi[target + i] = self->row[i];
+    }
+}
+
+/* push an (i,j) pair into the buffer */
+static inline void wc_half_push(index_t i, struct half_cacheline_t * buffer, char *start, index_t bucket_idx, index_t *OUTi)
+{
+    struct half_cacheline_t *self = buffer + bucket_idx;
+    index_t count = self->row[CACHELINE_SIZE - 1];
+    index_t slot = count & (CACHELINE_SIZE - 1);
+    self->row[slot] = i;
+    if (slot == CACHELINE_SIZE - 1) {
+        wc_half_flush(self, count, start[bucket_idx], OUTi);
+        start[bucket_idx] = 0;
+    }
+    self->row[CACHELINE_SIZE - 1] = count + 1;
+}
+
+/* flush all buffer entries to the OUT arrays */
+static inline void wc_half_purge(struct half_cacheline_t * buffer, char *start, int n_buckets, index_t *OUTi)
+{
+    for (int i = 0; i < n_buckets; i++) {
+        index_t count = buffer[i].row[CACHELINE_SIZE - 1];
+        index_t target = count & ~(CACHELINE_SIZE - 1);
+        index_t start_ptr = start[i];
+        for (index_t j = target + start_ptr; j < count; j++)
+            OUTi[j] = buffer[i].row[j - target];
+    }
+}
 
 struct ctx_t {
     int bits;
@@ -227,13 +283,6 @@ static void planification(struct ctx_t *ctx, index_t Rn, index_t nnz, index_t *s
 }
 
 
-
-static inline void WC_STEP(index_t i, index_t j, int bucket_idx, struct cacheline_t *buffer, index_t *OUTi, index_t *OUTj)
-{
-    wc_push(i, j, &buffer[bucket_idx], OUTi, OUTj);
-}
-
-
 /* returns k such that buckets [0:k] are non-empty. */
 static int partitioning(
             const struct ctx_t *ctx, 
@@ -291,8 +340,7 @@ static int partitioning(
         index_t i = Ai[k];
         index_t j = Aj[k];
         index_t b = (j >> shift) & mask;
-        //wc_push(i, j, buffer + b, OUTi, OUTj);
-        WC_STEP(i, j, b, buffer, OUTi, OUTj);
+        wc_push(i, j, buffer, b, OUTi, OUTj);
     }
     wc_purge(buffer, size, OUTi, OUTj);
 
@@ -372,7 +420,7 @@ static void histogram(struct ctx_t *ctx, const index_t *Aj, index_t lo,
 
 
 /* sequentially transpose a single bucket */
-static void transpose_bucket(struct ctx_t *ctx, struct cacheline_t *buffer, index_t lo, index_t hi)
+void transpose_bucket(struct ctx_t *ctx, struct cacheline_t *buffer, index_t lo, index_t hi)
 {
     int n = ctx->n_passes;
     index_t csize = ctx->seq_count_size;
@@ -389,13 +437,13 @@ static void transpose_bucket(struct ctx_t *ctx, struct cacheline_t *buffer, inde
     memset(COUNT, 0, csize * sizeof(*COUNT));
     histogram(ctx, INj, lo, hi, n, W);
 
-    /* prefix-sum */
     for (int p = 1; p < n; p++) {
         index_t shift = ctx->shift[p];
         index_t mask = ctx->mask[p];
         index_t *OUTi = ctx->OUTi[p];
         index_t *OUTj = ctx->OUTj[p];
 
+        /* prefix-sum */
         index_t s = lo;
         index_t size = ctx->n_buckets[p];
         for (index_t i = 0; i < size; i++) {
@@ -403,16 +451,30 @@ static void transpose_bucket(struct ctx_t *ctx, struct cacheline_t *buffer, inde
             W[p][i] = s;
             s += w;
         }
-        assert(s == hi);
 
-        wc_prime(buffer, W[p], size);
-        for (index_t k = lo; k < hi; k++) {
-            index_t i = INi[k];
-            index_t j = INj[k];
-            int b = (j >> shift) & mask;
-            WC_STEP(i, j, b, buffer, OUTi, OUTj);
+        if (p < n - 1) {   
+            /* full pass */
+            wc_prime(buffer, W[p], size);
+            for (index_t k = lo; k < hi; k++) {
+                index_t i = INi[k];
+                index_t j = INj[k];
+                int b = (j >> shift) & mask;
+                wc_push(i, j, buffer, b, OUTi, OUTj);
+            }
+            wc_purge(buffer, size, OUTi, OUTj);
+        } else {        
+            /* last pass: we don't need to write the j values */
+            struct half_cacheline_t *half_buffer = (struct half_cacheline_t *) buffer;
+            char start[size];
+            wc_half_prime(half_buffer, start, W[p], size);
+            for (index_t k = lo; k < hi; k++) {
+                index_t i = INi[k];
+                index_t j = INj[k];
+                int b = (j >> shift) & mask;
+                wc_half_push(i, half_buffer, start, b, OUTi);
+            }
+            wc_half_purge(half_buffer, start, size, OUTi);
         }
-        wc_purge(buffer, size, OUTi, OUTj);
 
         /* check 
         for (index_t b = 0; b < size - 1; b++)
@@ -437,19 +499,17 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
 {
     (void) Rp;
     
-    if (nnz > 0xffffffff && sizeof(index_t) == 4)
-        assert(0);  /* this code assumes that the number of non-zero entries fits on an index_t */
-
     struct ctx_t ctx;
     index_t *scratch = aligned_alloc(64, 3 * ((nnz | 63) + 1) * sizeof(index_t));   
     planification(&ctx, Rn, nnz, scratch, Ri);
 
 
-#ifdef VERBOSE
-    printf("bits = %d, passes = %d, radix = [", ctx.bits, ctx.n_passes);
+#ifdef BIG_BROTHER
+    printf("$$$     transpose:\n");
+    printf("$$$        bits: %d\n", ctx.bits);
+    printf("$$$        passes: \n");
     for (int p = 0; p < ctx.n_passes; p++)
-        printf("%d, ", ctx.radix[p]);
-    printf("], size(count) = %ld (per thread)\n", ctx.seq_count_size * sizeof(index_t));
+        printf("$$$         - %d \n", ctx.radix[p]);
 #endif
 
     int size = ctx.par_count_size;
@@ -462,23 +522,49 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
     #pragma omp parallel
     {
         struct cacheline_t * buffer = wc_alloc();
-
+        #ifdef BIG_BROTHER
+                double start = wct_seconds();
+        #endif
         int tmp = partitioning(&ctx, Ai, Aj, nnz, buffer, tCOUNT, gCOUNT);
 
         #pragma omp master
-        non_empty = tmp;
+        {
+                non_empty = tmp;
+                #ifdef BIG_BROTHER
+                        printf("$$$        buckets: %d\n", non_empty);
+                        printf("$$$        partitioning-wct: %.2f\n", wct_seconds() - start);
+                        index_t smallest = nnz;
+                        index_t biggest = 0;
+                        for (int i = 0; i < non_empty; i++) {
+                                index_t size = gCOUNT[i + 1] - gCOUNT[i];
+                                smallest = MIN(smallest, size);
+                                biggest = MAX(biggest, size);
+                        }
+                        printf("$$$        smallest-bucket: %d\n", smallest);
+                        printf("$$$        avg-bucket: %" PRId64 "\n", nnz / non_empty);
+                        printf("$$$        biggest-bucket: %d\n", biggest);
+                #endif
+        }
 
         #pragma omp barrier
-
-        assert(gCOUNT[0] == 0);
-        assert(gCOUNT[non_empty] == nnz);
+        #ifdef BIG_BROTHER
+        double sub_start = wct_seconds(); 
+        #endif
 
         if (ctx.n_passes > 1)
             #pragma omp for schedule(dynamic, 1)
             for (int i = 0; i < non_empty; i++)
                 transpose_bucket(&ctx, buffer, gCOUNT[i], gCOUNT[i + 1]);
         free(buffer);
+
+        #pragma omp master
+        {
+                #ifdef BIG_BROTHER
+                        printf("$$$        buckets-wct: %.2f\n", wct_seconds() - sub_start);
+                #endif
+        }
+
     }
     free(scratch);
-}   
+}      
 #endif
