@@ -258,10 +258,6 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr poly, const char *prefix)
   {
     mpz_poly_fprintf_cado_format (fp, poly->pols[0], 'Y', prefix);
     mpz_poly_fprintf_cado_format (fp, poly->pols[1], 'c', prefix);
-    printf ("# f=");
-    mpz_poly_fprintf (fp, poly->pols[1]);
-    printf ("# g=");
-    mpz_poly_fprintf (fp, poly->pols[0]);
   }
   else
   {
