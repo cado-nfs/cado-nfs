@@ -21,6 +21,11 @@ target_link_libraries(purge utils_with_io)
 
 add_executable(merge merge.c mst.c merge_replay_matrix.c sparse.c transpose.c)
 if (TCMALLOC_LIB)
+  # tcmalloc is distributed within gperftools, under the terms of the
+  # 3-clause BSD License (see https://github.com/gperftools/gperftools),
+  # which is LGPL-compatible.
+  # See https://github.com/gperftools/gperftools/blob/master/COPYING
+  # and https://www.gnu.org/licenses/license-list.html.
   target_link_libraries(merge utils_with_io ${TCMALLOC_LIB})
 else()
   target_link_libraries(merge utils_with_io)
