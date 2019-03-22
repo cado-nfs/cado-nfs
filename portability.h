@@ -335,17 +335,17 @@ static inline long pagesize ()
 #include <omp.h>
 #else
 /* minimal stub */
-static int omp_get_max_threads()
+int omp_get_max_threads()
 {
   return 1;
 }
 
-static int omp_get_num_threads()
+int omp_get_num_threads()
 {
   return 1;
 }
 
-static int omp_get_thread_num()
+int omp_get_thread_num()
 {
   return 0;
 }
