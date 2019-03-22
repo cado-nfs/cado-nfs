@@ -31,6 +31,9 @@ else()
   target_link_libraries(merge utils_with_io)
 endif()
 
+# with tcmalloc, it is recommended to add
+# -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
+# (see https://github.com/gperftools/gperftools)
 set_target_properties(merge PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 

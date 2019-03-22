@@ -1657,6 +1657,64 @@ copy_matrix (filter_matrix_t *mat)
 }
 #endif
 
+#if 0
+/* This function outputs the matrix in file 'out' in Sage format:
+   M = matrix(...). Then to obtain a figure in Sage:
+   sage: %runfile out.sage
+   sage: M2 = matrix(RDF,512)
+   sage: for i in range(512):
+            for j in range(512):
+               M2[i,j] = float(log(1+M[i,j]))
+   sage: matrix_plot(M2,cmap='Greys')
+   sage: matrix_plot(M2,cmap='Greys').save("mat.png")
+*/
+static void
+output_matrix (filter_matrix_t *mat, char *out)
+{
+#define GREY_SIZE 512
+    unsigned long grey[GREY_SIZE][GREY_SIZE];
+    unsigned long hi = mat->nrows / GREY_SIZE;
+    unsigned long hj = mat->ncols / GREY_SIZE;
+    for (int i = 0; i < GREY_SIZE; i++)
+      for (int j = 0; j < GREY_SIZE; j++)
+	grey[i][j] = 0;
+    for (index_t i = 0; i < mat->nrows; i++)
+      {
+	ASSERT_ALWAYS (mat->rows[i] != NULL);
+	index_t ii = i / hi;
+	if (ii >= GREY_SIZE)
+	  ii = GREY_SIZE - 1;
+	for (unsigned int k = 1; k <= matLengthRow(mat, i); k++)
+	  {
+	    index_t j = matCell(mat, i, k);
+	    index_t jj = j / hj;
+	    if (jj >= GREY_SIZE)
+	      jj = GREY_SIZE - 1;
+	    grey[ii][jj] ++;
+	  }
+      }
+    FILE *fp = fopen (out, "w");
+    fprintf (fp, "M=matrix([");
+    for (int i = 0; i < GREY_SIZE; i++)
+      {
+	fprintf (fp, "[");
+	// int k = (267 + i * 163) % 512; /* to shuffle the rows */
+	int k = i;
+	for (int j = 0; j < GREY_SIZE; j++)
+	  {
+	    fprintf (fp, "%lu", grey[k][j]);
+	    if (j + 1 < GREY_SIZE)
+	      fprintf (fp, ",");
+	  }
+	fprintf (fp, "]");
+	if (i + 1 < GREY_SIZE)
+	  fprintf (fp, ",");
+      }
+    fprintf (fp, "])\n");
+    fclose (fp);
+}
+#endif
+
 int
 main (int argc, char *argv[])
 {
@@ -1798,6 +1856,8 @@ main (int argc, char *argv[])
     double wct_after_read = wct_seconds ();
 
     renumber (mat);
+
+    // output_matrix (mat, "out.sage");
 
 #ifdef USE_CSR
     /* Allocate the transposed matrix R in CSR format. Since Rp is of fixed
