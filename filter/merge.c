@@ -442,7 +442,8 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 				tm[t] = s;
 				s += m;
 			}
-			mat->rem_ncols = s;
+                        /* we should find the number of remaining columns */
+                        ASSERT_ALWAYS(s == mat->rem_ncols);
 		}
 
 		#pragma omp barrier
@@ -464,23 +465,37 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 				continue;
 			for (index_t l = 1; l <= matLengthRow(mat, i); l++)
 				matCell(mat, i, l) = p[matCell(mat, i, l)];
-		}  
-	
+		}
+
 		/* update mat->wt */
 		#pragma omp for schedule(static)
 		for (index_t j = 0; j < ncols; j++)
-			if (0 < mat->wt[j])
-				nwt[p[j]] = mat->wt[j];
-		
-		#ifdef FOR_DL
-  			/* update mat->p. It sends actual indices in mat to original indices in the purge file */
-			// before : mat->p[i] == original
-			//  after : mat->p[p[i]] == original
-			#pragma omp for schedule(static)
-			for (index_t j = 0; j < ncols; j++)
-                          mat->p[p[j]] = mat->p[j];
-		#endif
+                  if (0 < mat->wt[j])
+                    nwt[p[j]] = mat->wt[j];
+
 	} /* end parallel section */
+
+        #ifdef FOR_DL
+        /* update mat->p. It sends actual indices in mat to original indices in the purge file */
+        // before : mat->p[i] == original
+        //  after : mat->p[p[i]] == original
+        /* Warning: in multi-thread mode, one should take care not to write
+           some mat->p[j] before it is used by another thread.
+           Consider for example ncols = 4 with 2 threads, and active
+           columns 1 and 2. Then we have p[1] = 0 and p[2] = 1.
+           Thus thread 0 executes mat->p[0] = mat->p[1], and thread 1 executes
+           mat->p[1] = mat->p[2]. If thread 1 is ahead of thread 0, the final
+           value of mat->p[0] will be wrong (it will be the initial value of
+           mat->p[2], instead of the initial value of mat->p[1]).
+           To solve that problem, we store the new values in another array. */
+        index_t *new_p = malloc (mat->rem_ncols * sizeof (index_t));
+        #pragma omp for schedule(static)
+        for (index_t j = 0; j < ncols; j++)
+          if (0 < mat->wt[j])
+            new_p[p[j]] = mat->p[j];
+        free (mat->p);
+        mat->p = new_p;
+        #endif
 
 	free(mat->wt);
 	mat->wt = nwt;
@@ -491,7 +506,7 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 
 	free(p);
 
-	/* this was the goal all along ! */
+	/* this was the goal all along! */
 	mat->ncols = mat->rem_ncols;
 	cpu = seconds () - cpu;
 	wct = wct_seconds () - wct;
