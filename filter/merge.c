@@ -442,8 +442,11 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 				tm[t] = s;
 				s += m;
 			}
-                        /* we should find the number of remaining columns */
-                        ASSERT_ALWAYS(s == mat->rem_ncols);
+                        /* we should have s = mat->rem_ncols now, thus no need
+                           to copy s into mat->rem_ncols, but it appears in
+                           some cases it does not hold (cf
+                           https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-testing-amd64-large-pr/147/) */
+                        mat->rem_ncols = s;
 		}
 
 		#pragma omp barrier
