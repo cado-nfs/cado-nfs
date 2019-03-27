@@ -477,8 +477,8 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 			// before : mat->p[i] == original
 			//  after : mat->p[p[i]] == original
 			#pragma omp for schedule(static)
-			for (index_t j = 0; j < mat->rem_ncols; j++)
-				mat->p[p[j]] = mat->p[j];
+			for (index_t j = 0; j < ncols; j++)
+                          mat->p[p[j]] = mat->p[j];
 		#endif
 	} /* end parallel section */
 

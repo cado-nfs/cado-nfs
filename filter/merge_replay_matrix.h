@@ -55,7 +55,8 @@ typedef struct {
                           always size ncols, where ncols is the value *after*
                           the initial column renumbering. */
 #endif
-  index_t *p;          /* permutation used to renumber the columns */
+  index_t *p;          /* internal renumbering function: the original ideal
+                          corresponding to column j is p[j] >= j */
   uint64_t initial_ncols; /* number of columns in the purge file */
 } filter_matrix_t;
 
