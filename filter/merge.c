@@ -1930,6 +1930,25 @@ main (int argc, char *argv[])
 
     // copy_matrix (mat);
 
+#if defined(DEBUG) && defined(FOR_DL)
+    /* compute the minimum/maximum coefficients */
+    int32_t min_exp = 0, max_exp = 0;
+    for (index_t i = 0; i < mat->nrows; i++)
+      if (mat->rows[i] != NULL)
+	{
+	  ideal_merge_t *ri = mat->rows[i];
+	  for (unsigned int k = 1; k <= matLengthRow (mat, i); k++)
+	    {
+	      int32_t e = ri[k].e;
+	      if (e < min_exp)
+		min_exp = e;
+	      if (e > max_exp)
+		max_exp = e;
+	    }
+	}
+    printf ("min_exp=%d max_exp=%d\n", min_exp, max_exp);
+#endif
+
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
@@ -2051,6 +2070,23 @@ main (int argc, char *argv[])
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
 	  break;
       }
+
+#if defined(DEBUG) && defined(FOR_DL)
+    min_exp = 0; max_exp = 0;
+    for (index_t i = 0; i < mat->nrows; i++)
+      if (mat->rows[i] != NULL)
+	{
+	  for (unsigned int k = 1; k <= matLengthRow (mat, i); k++)
+	    {
+	      int32_t e = mat->rows[i][k].e;
+	      if (e < min_exp)
+		min_exp = e;
+	      if (e > max_exp)
+		max_exp = e;
+	    }
+	}
+    printf ("min_exp=%d max_exp=%d\n", min_exp, max_exp);
+#endif
 
     fclose_maybe_compressed (rep->outfile, outname);
 
