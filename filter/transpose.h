@@ -20,7 +20,8 @@ static inline void store_nontemp_64B(void * dst, void * src);
    The current code only reads them though. */
 void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t n, index_t *Rp, index_t *Ri);
 
-
+/* L1 cache line has size 64 on most CPUs */
+#define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
 
 #if __AVX__
 #include <immintrin.h>

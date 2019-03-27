@@ -75,11 +75,7 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
    Relies on aligned_alloc (OK in C11) and OpenMP. */
 
 #define MAX_RADIX_BITS 10   /* was experimentally found to be OK */
-
-/* L1 cache line has size 64 on most CPUs */
 #define MAX_PASSES 4 
-#define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
-
 
 /* cache-resident buffer for (i, j) pairs. One such entry per output bucket.
    Invariants:  row[CACHELINE_SIZE - 1] contains COUNT[...] for this bucket,
