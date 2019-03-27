@@ -39,7 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 
 // #define BIG_BROTHER
@@ -248,7 +247,7 @@ static void planification(struct ctx_t *ctx, index_t Rn, index_t nnz, index_t *s
         bits -= r;
         s_shift += r;
     }
-    assert(bits == 0);
+    ASSERT (bits == 0);
 
     /* common to all passes */
     int s_count = 0;
@@ -269,10 +268,10 @@ static void planification(struct ctx_t *ctx, index_t Rn, index_t nnz, index_t *s
         }
 
         /* check alignment */
-        unsigned long check = (unsigned long) ctx->OUTi[p];
-        assert((check & (ULONG_BITS - 1)) == 0);
+        unsigned long check MAYBE_UNUSED = (unsigned long) ctx->OUTi[p];
+        ASSERT ((check & (ULONG_BITS - 1)) == 0);
         check = (unsigned long) ctx->OUTj[p];
-        assert((check & (ULONG_BITS - 1)) == 0);
+        ASSERT ((check & (ULONG_BITS - 1)) == 0);
     }
     ctx->par_count_size = ctx->n_buckets[0];
     ctx->seq_count_size = s_count;
@@ -294,7 +293,7 @@ static int partitioning(
     index_t shift = ctx->shift[0];
     index_t *OUTi = ctx->OUTi[0];
     index_t *OUTj = ctx->OUTj[0];
-    assert(size == mask + 1);
+    ASSERT (size == mask + 1);
 
     /* parallel partitioning */
     int t = omp_get_thread_num();
@@ -325,7 +324,7 @@ static int partitioning(
                 last = i;
         }
         gCOUNT[size] = s;
-        assert(s == nnz);
+        ASSERT (s == nnz);
     }
 
     #pragma omp barrier
@@ -350,7 +349,7 @@ static int partitioning(
             if (c != b) {
                 printf("discrepancy in bucket %d for index %d: found (%d, %d) which should be in bucket %d\n", 
                     b, k, i, j, c);
-                assert(0);
+                ASSERT(0);
             }
         }
     */
@@ -410,7 +409,7 @@ static void histogram(struct ctx_t *ctx, const index_t *Aj, index_t lo,
 #endif
     default:
         printf("Ask the programmer to hardcode more passes in (radix) transpose...\n");
-        assert(0);
+        ASSERT_ALWAYS(0);
     }
 }
 
@@ -481,7 +480,7 @@ void transpose_bucket(struct ctx_t *ctx, struct cacheline_t *buffer, index_t lo,
                 if (c != b) {
                     printf("pass %d, discrepancy in bucket %d for index %d: found (%d, %d) which should be in bucket %d\n", 
                         p, b, k, i, j, c);
-                    assert(0);
+                    ASSERT(0);
                 }
             }
         */
