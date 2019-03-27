@@ -267,11 +267,12 @@ static void planification(struct ctx_t *ctx, index_t Rn, index_t nnz, index_t *s
             ctx->OUTj[p] = scratch + 2*((nnz | 63) + 1);
         }
 
-        /* check alignment */
+        /* check alignment: the hardcoded value of 63 corresponds to the
+           L1 cache size on modern cpus */
         unsigned long check MAYBE_UNUSED = (unsigned long) ctx->OUTi[p];
-        ASSERT ((check & (ULONG_BITS - 1)) == 0);
+        ASSERT ((check & 63) == 0);
         check = (unsigned long) ctx->OUTj[p];
-        ASSERT ((check & (ULONG_BITS - 1)) == 0);
+        ASSERT ((check & 63) == 0);
     }
     ctx->par_count_size = ctx->n_buckets[0];
     ctx->seq_count_size = s_count;
