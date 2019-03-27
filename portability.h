@@ -335,20 +335,26 @@ static inline long pagesize ()
 #include <omp.h>
 #else
 /* minimal stub */
-int omp_get_max_threads()
+#ifdef __cplusplus
+extern "C" {
+#endif
+static inline int omp_get_max_threads()
 {
   return 1;
 }
 
-int omp_get_num_threads()
+static inline int omp_get_num_threads()
 {
   return 1;
 }
 
-int omp_get_thread_num()
+static inline int omp_get_thread_num()
 {
   return 0;
 }
+#ifdef __cplusplus
+}
 #endif
+#endif /* HAVE_OPENMP */
 
 #endif /* ifndef CADO_PORTABILITY_H_ */
