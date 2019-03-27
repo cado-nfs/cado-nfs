@@ -269,10 +269,10 @@ static void planification(struct ctx_t *ctx, index_t Rn, index_t nnz, index_t *s
         }
 
         /* check alignment */
-        uint64_t check = (uint64_t) ctx->OUTi[p];
-        assert((check & 63) == 0);
-        check = (uint64_t) ctx->OUTj[p];
-        assert((check & 63) == 0);
+        unsigned long check = (unsigned long) ctx->OUTi[p];
+        assert((check & (ULONG_BITS - 1)) == 0);
+        check = (unsigned long) ctx->OUTj[p];
+        assert((check & (ULONG_BITS - 1)) == 0);
     }
     ctx->par_count_size = ctx->n_buckets[0];
     ctx->seq_count_size = s_count;
