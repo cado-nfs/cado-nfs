@@ -46,6 +46,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* OK, so we can do this the easy way, or the hard way. */
 
+#ifndef HAVE_ALIGNED_ALLOC
+void*
+aligned_alloc (size_t alignment, size_t size)
+{
+  return malloc_aligned (size, alignment); /* defined in utils/memory.c */
+}
+#endif
+
 #ifdef TRANSPOSE_EASY_WAY
 /* simple, cheap and dirty. 
    This is similar to algorithm 2 in "Parallel Transposition of Sparse Data Structures", 
