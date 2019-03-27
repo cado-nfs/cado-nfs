@@ -502,7 +502,8 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 
 	/* update jmin */
 	for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
-		jmin[w] = p[jmin[w]];
+          /* Warning: we might have jmin[w] = ncols. */
+          jmin[w] = (jmin[w] < ncols) ? p[jmin[w]] : mat->rem_ncols;
 
 	free(p);
 
