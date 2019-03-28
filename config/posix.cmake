@@ -24,6 +24,8 @@ set(CMAKE_REQUIRED_LIBRARIES)
 
 # on openbsd-59-amd64, posix_memalign is buggy, thus we can't only test for
 # its existence, but that it really works correctly
+include(CheckFunctionExists)
+# CHECK_FUNCTION_EXISTS(posix_memalign      HAVE_POSIX_MEMALIGN)
 include(${PROJECT_SOURCE_DIR}/config/posix_memalign.cmake)
 
 include(${PROJECT_SOURCE_DIR}/config/search_for_function.cmake)
