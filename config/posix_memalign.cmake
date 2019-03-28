@@ -1,6 +1,7 @@
-# posix_memalign is buggy on openbsd-59-amd64 with gcc 4.2.1
+# posix_memalign is buggy on openbsd-59-amd64
+# both with gcc 4.2.1 and egcc (based on gcc 4.9.3)
   
-include(CheckCXXSourceCompiles)
+include(CheckCSourceRuns)
 
 set(check_posix_memalign_code "
 #include <stdlib.h>
@@ -17,11 +18,7 @@ int main()
 }
 ")
 
-set(CMAKE_REQUIRED_FLAGS)
-set(CMAKE_REQUIRED_DEFINITIONS)
-set(CMAKE_REQUIRED_INCLUDES)
-set(CMAKE_REQUIRED_LIBRARIES)
-CHECK_CXX_SOURCE_COMPILES("${check_posix_memalign_code}" HAVE_POSIX_MEMALIGN)
+CHECK_C_SOURCE_RUNS("${check_posix_memalign_code}" HAVE_POSIX_MEMALIGN)
 
 if(HAVE_POSIX_MEMALIGN)
     message(STATUS "Testing whether posix_memalign exists and works -- yes")
