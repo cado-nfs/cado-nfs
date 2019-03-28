@@ -22,8 +22,9 @@ set(CMAKE_REQUIRED_DEFINITIONS)
 set(CMAKE_REQUIRED_INCLUDES)
 set(CMAKE_REQUIRED_LIBRARIES)
 
-include(CheckFunctionExists)
-CHECK_FUNCTION_EXISTS(posix_memalign	HAVE_POSIX_MEMALIGN)
+# on openbsd-59-amd64, posix_memalign is buggy, thus we can't only test for
+# its existence, but that it really works correctly
+include(${PROJECT_SOURCE_DIR}/config/posix_memalign.cmake)
 
 include(${PROJECT_SOURCE_DIR}/config/search_for_function.cmake)
 search_for_function(nanosleep HAVE_NANOSLEEP)
