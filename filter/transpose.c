@@ -94,7 +94,7 @@ struct cacheline_t {
 /* Allocate the buffer */
 static struct cacheline_t * wc_alloc()
 {
-    return aligned_alloc(64, sizeof(struct cacheline_t) *  (1 << MAX_RADIX_BITS));
+  return malloc_aligned (sizeof(struct cacheline_t) *  (1 << MAX_RADIX_BITS), 64);
 }
 
 /* Setup the buffer for a new pass */
@@ -496,7 +496,7 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
     (void) Rp;
     
     struct ctx_t ctx;
-    index_t *scratch = aligned_alloc(64, 3 * ((nnz | 63) + 1) * sizeof(index_t));   
+    index_t *scratch = malloc_aligned (3 * ((nnz | 63) + 1) * sizeof(index_t), 64);
     planification(&ctx, Rn, nnz, scratch, Ri);
 
 
@@ -551,7 +551,7 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
             #pragma omp for schedule(dynamic, 1)
             for (int i = 0; i < non_empty; i++)
                 transpose_bucket(&ctx, buffer, gCOUNT[i], gCOUNT[i + 1]);
-        free(buffer);
+        free_aligned (buffer);
 
         #pragma omp master
         {
@@ -561,6 +561,6 @@ void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t Rn, index_t *Rp, 
         }
 
     }
-    free(scratch);
+    free_aligned (scratch);
 }      
 #endif

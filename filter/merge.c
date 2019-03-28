@@ -742,9 +742,9 @@ compute_R (filter_matrix_t *mat, index_t j0)
 #endif
 
   /* extract submatrix */
-  index_t *Mi = aligned_alloc(64, Rnz * sizeof(index_t));
-  index_t *Mj = aligned_alloc(64, Rnz * sizeof(index_t));
-  index_t *Ri = aligned_alloc(64, Rnz * sizeof(index_t));
+  index_t *Mi = malloc_aligned (Rnz * sizeof(index_t), 64);
+  index_t *Mj = malloc_aligned (Rnz * sizeof(index_t), 64);
+  index_t *Ri = malloc_aligned (Rnz * sizeof(index_t), 64);
   index_t ptr = 0;
 
   #pragma omp parallel
@@ -799,8 +799,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
   /* finally... */
   transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
-  free(Mi);
-  free(Mj);
+  free_aligned (Mi);
+  free_aligned (Mj);
 
   #ifdef BIG_BROTHER
     printf("$$$     conversion: %.2f\n", wct_seconds() - before_compression);
