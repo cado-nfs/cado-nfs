@@ -1,5 +1,6 @@
 # posix_memalign is buggy on openbsd-59-amd64
 # both with gcc 4.2.1 and egcc (based on gcc 4.9.3)
+# (see https://marc.info/?l=openbsd-bugs&m=155377511718586)
   
 include(CheckCSourceRuns)
 
