@@ -2022,7 +2022,7 @@ main (int argc, char *argv[])
 
 	free(L);
 #ifdef USE_CSR
-	free(mat->Ri);
+	free_aligned (mat->Ri);
 #else
 	for (index_t j = 0; j < mat->ncols; j++)
 	  {
