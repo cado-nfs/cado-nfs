@@ -170,9 +170,9 @@ static inline void wc_half_prime(struct half_cacheline_t *buffer, char *start, c
 static inline void wc_half_flush(struct half_cacheline_t * self, index_t count, char start, index_t *OUTi)
 {
     index_t target = count & ~(CACHELINE_SIZE - 1);
-    if (start == 0) {   /* incomplete flush */
+    if (start == 0) {   /* complete cache line flush */
         store_nontemp_64B(OUTi + target, self->row);
-    } else {            /* complete cache line flush */
+    } else {            /* incomplete flush */
         for (int i = start; i < CACHELINE_SIZE; i++)
             OUTi[target + i] = self->row[i];
     }
