@@ -602,7 +602,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
      We only consider ideals of index >= j0, and put the weight of ideal j,
      j >= j0, in Wt[k][j]. */
 
-    /* using schedule(dynamic,128) here is crucial, since during merge,
+    /* using a dynamic schedule here is crucial, since during merge,
      the distribution of row lengths is no longer uniform (including
      discarded rows) */
     col_weight_t *Wtk = Wt[tid];
@@ -1367,7 +1367,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
   /* compute the cost of all candidate merges */
 #ifdef USE_CSR
-  #pragma omp parallel for schedule(dynamic, 64)   /* TODO: dynamic really necessary? */
+  /* A dynamic schedule is needed here, since the columns of larger index have
+     smaller weight, thus the load would not be evenly distributed with a
+     static schedule. The value 128 was determined optimal experimentally
+     on the RSA-512 benchmark with 32 threads. */
+  #pragma omp parallel for schedule(dynamic, 128)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
 #else
