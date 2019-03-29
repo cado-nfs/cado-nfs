@@ -141,8 +141,8 @@ bool test(const unsigned long iter, const size_t arraysize,
   }
   ok &= (nr_errors == 0);
 #if ARRAY_ON_HEAP
-  free(sievearray);
-  free(sievearray2);
+  free_aligned (sievearray);
+  free_aligned (sievearray2);
 #endif
   return ok;
 }
