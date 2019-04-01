@@ -2113,9 +2113,7 @@ main (int argc, char *argv[])
 		(uint64_t) ((target_density - b) / a), target_density);
       }
 
-#ifndef FOR_DL /* we don't do renumbering for DL */
     print_timings ("renumber       :", cpu_t[5], wct_t[5]);
-#endif
     print_timings ("compute_weights:", cpu_t[0], wct_t[0]);
     print_timings ("compute_R      :", cpu_t[1], wct_t[1]);
     print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
