@@ -729,6 +729,12 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
+  if (Rn == 0) /* the transpose code does not like Rn = 0 */
+    {
+      mat->Ri = NULL;
+      goto end;
+    }
+
 
 #ifdef BIG_BROTHER
   index_t n_empty = 0;
@@ -810,6 +816,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   /* save */
   mat->Rn = Rn;
   mat->Ri = Ri;
+ end:
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
