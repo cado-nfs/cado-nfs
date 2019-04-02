@@ -1903,6 +1903,11 @@ main (int argc, char *argv[])
 #ifdef USE_HEAP
     printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
 #endif
+#ifdef HAVE_OPENMP
+    /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
+       201511 is OpenMP 4.5 */
+    printf (", OpenMP %d", _OPENMP);
+#endif
     printf ("\n");
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
