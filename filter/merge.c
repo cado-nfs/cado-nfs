@@ -1455,19 +1455,14 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 static unsigned long
 apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 {
-  int size = 1 + mat->nrows / 64;
-  uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
-  memset(busy_rows, 0, sizeof(uint64_t) * size);
+  char * busy_rows = malloc(mat->nrows * sizeof (char));
+  memset (busy_rows, 0, mat->nrows * sizeof (char));
 
   unsigned long nmerges = 0;
-  unsigned long discarded = 0;
-  unsigned long eventually_discarded = 0;
   int64_t fill_in = 0;
-  double contention = 0;
 
-  #pragma omp parallel reduction(+: fill_in, nmerges, discarded, eventually_discarded) reduction(max: contention)
+  #pragma omp parallel reduction(+: fill_in, nmerges)
   {
-    contention = 0;
     #pragma omp for schedule(dynamic, 16)
     for (index_t it = 0; it < total_merges; it++) {
       index_t id = L[it];
@@ -1478,38 +1473,26 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       int ok = 1;
       for (index_t k = lo; k < hi; k++) {
 	index_t i = mat->Ri[k];
-	uint64_t x = i / 64;
-	uint64_t y = i & 63;
-	if (busy_rows[x] & (1ull << y)) {
+	if (busy_rows[i]) {
 	  ok = 0;
 	  break;
 	}
       }
-      if (!ok)
-	discarded++;
       if (ok) {
-	double start = wct_seconds();
 	#pragma omp critical
 	{ /* potential merge, enter critical section */
 	  /* check again, since another thread might have reserved a row */
-	  contention += wct_seconds() - start;
 	  for (index_t k = lo; k < hi; k++) {
 	    index_t i = mat->Ri[k];
-	    uint64_t x = i / 64;
-	    uint64_t y = i & 63;
-	    if (busy_rows[x] & (1ull << y)) {
+	    if (busy_rows[i]) {
 	      ok = 0;
 	      break;
 	    }
 	  }
-	  if (!ok)
-	    eventually_discarded++;
 	  if (ok) /* reserve rows */
 	    for (index_t k = lo; k < hi; k++) {
 	      index_t i = mat->Ri[k];
-	      uint64_t x = i / 64;
-	      uint64_t y = i & 63;
-	      busy_rows[x] |= (1ull << y);
+	      busy_rows[i] = 1;
 	    }
 	} /* end critical */
       }
@@ -1539,10 +1522,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
     }
 
 #ifdef BIG_BROTHER
-  printf("$$$     discarded: %ld\n", discarded);
-  printf("$$$     eventually_discarded: %ld\n", eventually_discarded);
   printf("$$$     merged: %ld\n", nmerges);
-  printf("$$$     max-contention: %.2fs\n", contention);
   index_t n_rows = 0;
   for (int i = 0; i < size; i++)
     n_rows += __builtin_popcountll(busy_rows[i]);
@@ -1728,7 +1708,6 @@ output_matrix (filter_matrix_t *mat, char *out)
     for (int i = 0; i < GREY_SIZE; i++)
       {
 	fprintf (fp, "[");
-	// int k = (267 + i * 163) % 512; /* to shuffle the rows */
 	int k = i;
 	for (int j = 0; j < GREY_SIZE; j++)
 	  {
