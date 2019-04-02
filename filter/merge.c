@@ -1479,22 +1479,26 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	}
       }
       if (ok) {
-	#pragma omp critical
-	{ /* potential merge, enter critical section */
 	  /* check again, since another thread might have reserved a row */
 	  for (index_t k = lo; k < hi; k++) {
 	    index_t i = mat->Ri[k];
-	    if (busy_rows[i]) {
-	      ok = 0;
-	      break;
-	    }
-	  }
-	  if (ok) /* reserve rows */
-	    for (index_t k = lo; k < hi; k++) {
-	      index_t i = mat->Ri[k];
+#ifdef HAVE_SYNC_FETCH
+            if (!__sync_bool_compare_and_swap (&(busy_rows[i]), 0, 1))
+	      {
+		ok = 0;
+		break;
+	      }
+#else
+	    /* FIXME: can we use atomic capture here? */
+	    #pragma omp critical
+	    if (busy_rows[i] == 0)
 	      busy_rows[i] = 1;
-	    }
-	} /* end critical */
+	    else
+	      ok = 0;
+	    if (ok == 0)
+	      break;
+#endif
+	  }
       }
       if (ok) {
 	fill_in += merge_do(mat, id, out);
