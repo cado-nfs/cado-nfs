@@ -1506,7 +1506,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	    char not_ok = 0;
 	    /* we could use __sync_bool_compare_and_swap here,
 	       but this is more portable and as efficient */
+            #if defined(HAVE_OPENMP) && _OPENMP > 201107
+	    /* the form of atomic capture below does not seem to be
+	       recognized by OpenMP 3.5 (_OPENMP = 201107), see
+	       https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-centos-6-i386/165 */
 	    #pragma omp atomic capture
+	    #else
+	    #pragma omp critical
+	    #endif
 	    { not_ok = busy_rows[i]; busy_rows[i] = 1; }
 	    if (not_ok)
 	      {
@@ -1925,6 +1932,11 @@ main (int argc, char *argv[])
 #endif
 #ifdef USE_HEAP
     printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
+#endif
+#ifdef HAVE_OPENMP
+    /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
+       201511 is OpenMP 4.5 */
+    printf (", OpenMP %d", _OPENMP);
 #endif
     printf ("\n");
 
