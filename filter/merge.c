@@ -1528,18 +1528,6 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   mat->rem_nrows -= nmerges;
   mat->rem_ncols -= nmerges;
 
-  /* settings for next pass */
-  if (mat->cwmax == 2) /* we first process all 2-merges */
-    {
-      if (nmerges == total_merges)
-	mat->cwmax++;
-    }
-  else
-    {
-      if (mat->cwmax < MERGE_LEVEL_MAX)
-	mat->cwmax ++;
-    }
-
   double end = wct_seconds();
 
 #ifdef BIG_BROTHER
@@ -1977,12 +1965,12 @@ main (int argc, char *argv[])
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
     int pass = 0;
-    while (1)
-      {
+    
 
+    /****** begin main loop ******/
+    while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
-
-	pass ++;
+	pass++;
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
@@ -1990,52 +1978,58 @@ main (int argc, char *argv[])
 	   If one increases CBOUND_INCR, merge will be faster, but the final
 	   matrix will be larger. */
 	if (mat->cwmax > 2)
-	  cbound += CBOUND_INCR;
+		cbound += CBOUND_INCR;
 
 	lastN = mat->rem_nrows;
 	lastW = mat->tot_weight;
 	lastWoverN = (double) lastW / (double) lastN;
 
-#ifdef TRACE_J
-	for (index_t i = 0; i < mat->ncols; i++)
-	  {
-	    if (mat->rows[i] == NULL)
-	      continue;
-	    for (index_t k = 1; k <= matLengthRow(mat, i); k++)
-	      if (mat->rows[i][k] == TRACE_J)
+	#ifdef TRACE_J
+	for (index_t i = 0; i < mat->ncols; i++) {
+		if (mat->rows[i] == NULL)
+			continue;
+		for (index_t k = 1; k <= matLengthRow(mat, i); k++)
+			if (mat->rows[i][k] == TRACE_J)
 		printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
-	  }
-#endif
+	}
+	#endif
 
-#ifdef BIG_BROTHER
-    printf("$$$   - pass: %d\n", pass);
-    printf("$$$     cwmax: %d\n", mat->cwmax);
-    printf("$$$     cbound: %d\n", cbound);
-#endif
-
+	#ifdef BIG_BROTHER
+		printf("$$$   - pass: %d\n", pass);
+		printf("$$$     cwmax: %d\n", mat->cwmax);
+		printf("$$$     cbound: %d\n", cbound);
+	#endif
 
 	/* we only compute the weights at pass 1, afterwards they will be
 	   updated at each merge */
 	if (pass == 1)
-	  compute_weights (mat, jmin);
+		compute_weights (mat, jmin);
 
 	compute_R (mat, jmin[mat->cwmax]);
 
 	index_t *L = malloc(mat->Rn * sizeof(index_t));
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
-	unsigned long nmerges = apply_merges (L, n_possible_merges, mat, rep->outfile);
+	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, rep->outfile);
 	free(L);
 
-#ifdef USE_CSR
-	free_aligned (mat->Ri);
-#else
-	for (index_t j = 0; j < mat->ncols; j++)
-	  {
-	    free (mat->R[j]);
-	    mat->R[j] = NULL;
-	  }
-#endif
+	#ifdef USE_CSR
+		free_aligned (mat->Ri);
+	#else
+		for (index_t j = 0; j < mat->ncols; j++) {
+			free(mat->R[j]);
+			mat->R[j] = NULL;
+		}
+	#endif
+
+	/* settings for next pass */
+  	if (mat->cwmax == 2) { /* we first process all 2-merges */
+		if (nmerges == n_possible_merges)
+			mat->cwmax++;
+	} else {
+		if (mat->cwmax < MERGE_LEVEL_MAX)
+			mat->cwmax ++;
+	}
 
 	if (mat->rem_ncols < 0.66 * mat->ncols) {
 		printf("============== Recompress ==============\n");
@@ -2066,11 +2060,13 @@ main (int argc, char *argv[])
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
-	  break;
+		break;
 
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
-	  break;
-      }
+		break;
+    }
+    /****** end main loop ******/
+
 
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;
