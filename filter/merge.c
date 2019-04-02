@@ -1482,22 +1482,16 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	  /* check again, since another thread might have reserved a row */
 	  for (index_t k = lo; k < hi; k++) {
 	    index_t i = mat->Ri[k];
-#ifdef HAVE_SYNC_FETCH
-            if (!__sync_bool_compare_and_swap (&(busy_rows[i]), 0, 1))
+	    char not_ok = 0;
+	    /* we could use __sync_bool_compare_and_swap here,
+	       but this is more portable and as efficient */
+	    #pragma omp atomic capture
+	    { not_ok = busy_rows[i]; busy_rows[i] = 1; }
+	    if (not_ok)
 	      {
 		ok = 0;
 		break;
 	      }
-#else
-	    /* FIXME: can we use atomic capture here? */
-	    #pragma omp critical
-	    if (busy_rows[i] == 0)
-	      busy_rows[i] = 1;
-	    else
-	      ok = 0;
-	    if (ok == 0)
-	      break;
-#endif
 	  }
       }
       if (ok) {
