@@ -893,7 +893,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
        by the value of wt[j] */
     #pragma omp atomic update
     mat->wt[j]--;
-#ifdef BIG_BROTHER
+#ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
   }
@@ -907,7 +907,7 @@ increase_weight (filter_matrix_t *mat, index_t j)
   if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     #pragma omp atomic update
     mat->wt[j]++;
-#ifdef BIG_BROTHER
+#ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
   }
@@ -1540,7 +1540,13 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   	for (int i = 0; i < size; i++)
   	  n_rows += __builtin_popcountll(busy_rows[i]);
   	printf("$$$       affected-rows: %d\n", n_rows);
-	printf("$$$       affected-columns: %d\n", affected_columns);
+
+  	index_t n_cols = 0;
+  	for (index_t j = 0; j < mat->ncols; j++) {
+  		n_cols += touched_columns[j];
+  		touched_columns[j] = 0;
+  	}
+	printf("$$$       affected-columns: %d\n", n_columns);
   #endif
   printf("$$$       timings:\n");
   printf("$$$         total: %.2f\n", end - wct3);
