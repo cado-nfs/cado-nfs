@@ -38,7 +38,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    when adding the row of smallest weight to the other ones. */
 #define MARKOWITZ
 
-// #define BIG_BROTHER
+/* a lot of verbosity */
+#define BIG_BROTHER 
+
+/* some more verbosity which requires additional operations */
+// #define BIG_BROTHER_EXPENSIVE
 
 #ifdef BIG_BROTHER
     unsigned char *touched_columns = NULL;
@@ -729,23 +733,15 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
+  double before_extraction = wct_seconds();
+  double before_compression = before_extraction;
+  double end_time;
+
   if (Rn == 0) /* the transpose code does not like Rn = 0 */
     {
       mat->Ri = NULL;
       goto end;
     }
-
-
-#ifdef BIG_BROTHER
-  index_t n_empty = 0;
-  for (index_t j = 0; j < ncols; j++)
-    if (mat->wt[j] == 0)
-      n_empty++;
-  double before_extraction = wct_seconds();
-  printf("$$$     empty: %d\n", n_empty);
-  printf("$$$     light: %d\n", Rn);
-  printf("$$$     row-count: %.2f\n", before_extraction - wct);
-#endif
 
   /* extract submatrix */
   index_t *Mi = malloc_aligned (Rnz * sizeof(index_t), 64);
@@ -796,27 +792,38 @@ compute_R (filter_matrix_t *mat, index_t j0)
 	}
   }
   ASSERT(ptr == Rnz);
+  before_compression = wct_seconds();
   
-  #ifdef BIG_BROTHER
-    double before_compression = wct_seconds();
-    printf("$$$     extraction: %.2f\n", before_compression - before_extraction);
-  #endif
-
-
   /* finally... */
   transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
   free_aligned (Mi);
   free_aligned (Mj);
 
-  #ifdef BIG_BROTHER
-    printf("$$$     conversion: %.2f\n", wct_seconds() - before_compression);
-  #endif
-
-
   /* save */
   mat->Rn = Rn;
   mat->Ri = Ri;
  end:
+  end_time = wct_seconds();
+
+ #ifdef BIG_BROTHER
+  printf("$$$     compute_R:\n");
+  #ifdef BIG_BROTHER_EXPENSIVE
+  	index_t n_empty = 0;
+  	for (index_t j = 0; j < ncols; j++)
+		if (mat->wt[j] == 0)
+			n_empty++;
+  	printf("$$$       empty-columns: %d\n", n_empty);
+  #endif 
+  printf("$$$       Rn: %d\n", Rn);
+  printf("$$$       Rnz: %d\n", Rnz);
+  printf("$$$       timings:\n");
+  printf("$$$         row-count: %.2f\n", before_extraction - wct);
+  printf("$$$         extraction: %.2f\n", before_compression - before_extraction);
+  printf("$$$         conversion: %.2f\n", end_time - before_compression);
+  printf("$$$         total: %.2f\n", end_time - wct);
+#endif
+
+
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
@@ -1366,6 +1373,7 @@ merge_do (filter_matrix_t *mat, index_t id, FILE *out)
 static int
 compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 {
+  double cpu = seconds(), wct = wct_seconds();
   index_t Rn = mat->Rn;
   int * cost = malloc(Rn * sizeof(*cost));
   int T = omp_get_max_threads();
@@ -1438,14 +1446,23 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
     }
   } /* end parallel section */
 
-#ifdef BIG_BROTHER
-  printf("$$$     cheap: %d\n", s);
-#endif
-
   free(cost);
 #ifndef USE_CSR
   free (Rqinv);
 #endif
+
+  double end = wct_seconds();
+  #ifdef BIG_BROTHER
+  	printf("$$$     compute_merges:\n");
+  	printf("$$$       candidate-merges: %d\n", s);
+  	printf("$$$       timings:\n");
+  	printf("$$$         total: %.2f\n", end - wct);
+  #endif
+  double cpu2 = seconds() - cpu;
+  double wct2 = end - wct;
+  print_timings ("   compute_merges took", cpu2, wct2);
+  cpu_t[2] += cpu2;
+  wct_t[2] += wct2;
   return s;
 }
 
@@ -1455,13 +1472,17 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 static unsigned long
 apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 {
+  double cpu3 = seconds (), wct3 = wct_seconds ();
   char * busy_rows = malloc(mat->nrows * sizeof (char));
   memset (busy_rows, 0, mat->nrows * sizeof (char));
 
   unsigned long nmerges = 0;
+  unsigned long discarded_early = 0;
+  unsigned long discarded_late = 0;
   int64_t fill_in = 0;
 
-  #pragma omp parallel reduction(+: fill_in, nmerges)
+
+  #pragma omp parallel reduction(+: fill_in, nmerges, discarded_early, discarded_late)
   {
     #pragma omp for schedule(dynamic, 16)
     for (index_t it = 0; it < total_merges; it++) {
@@ -1475,6 +1496,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	index_t i = mat->Ri[k];
 	if (busy_rows[i]) {
 	  ok = 0;
+          discarded_early++;
 	  break;
 	}
       }
@@ -1489,6 +1511,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	    { not_ok = busy_rows[i]; busy_rows[i] = 1; }
 	    if (not_ok)
 	      {
+                discarded_late++;
 		ok = 0;
 		break;
 	      }
@@ -1498,10 +1521,10 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	fill_in += merge_do(mat, id, out);
 	nmerges ++;
       }
-    }
-  } /* end parallel section */
+    }  /* for */
+  } /* parallel section */
 
-
+  
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= nmerges;
@@ -1519,15 +1542,30 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	mat->cwmax ++;
     }
 
-#ifdef BIG_BROTHER
-  printf("$$$     merged: %ld\n", nmerges);
-  index_t n_rows = 0;
-  for (int i = 0; i < size; i++)
-    n_rows += __builtin_popcountll(busy_rows[i]);
-  printf("$$$     affected-rows: %d\n", n_rows);
-#endif
+  double end = wct_seconds();
 
+#ifdef BIG_BROTHER
+  printf("$$$     apply-merges:\n");
+  printf("$$$       discarded-early: %ld\n", discarded_early);
+  printf("$$$       discarded-late: %ld\n", discarded_late);
+  printf("$$$       merged: %ld\n", nmerges);
+  #ifdef BIG_BROTHER_EXPENSIVE
+  	index_t n_rows = 0;
+  	for (int i = 0; i < size; i++)
+  	  n_rows += __builtin_popcountll(busy_rows[i]);
+  	printf("$$$       affected-rows: %d\n", n_rows);
+	printf("$$$       affected-columns: %d\n", affected_columns);
+  #endif
+  printf("$$$       timings:\n");
+  printf("$$$         total: %.2f\n", end - wct3);
+#endif
   free(busy_rows);
+
+  cpu3 = seconds () - cpu3;
+  wct3 = end - wct3;
+  print_timings ("   apply_merges took", cpu3, wct3);
+  cpu_t[3] += cpu3;
+  wct_t[3] += wct3;
   return nmerges;
 }
 #else
@@ -1985,30 +2023,12 @@ main (int argc, char *argv[])
 
 	compute_R (mat, jmin[mat->cwmax]);
 
-	double cpu2 = seconds (), wct2 = wct_seconds ();
-
 	index_t *L = malloc(mat->Rn * sizeof(index_t));
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
-	cpu2 = seconds () - cpu2;
-	wct2 = wct_seconds () - wct2;
-	if (verbose > 0)
-		printf("*** compute_merges: %" PRIu64 " candidate merges\n", (uint64_t) n_possible_merges);
-	print_timings ("   compute_merges took", cpu2, wct2);
-	cpu_t[2] += cpu2;
-	wct_t[2] += wct2;
-
-	double cpu3 = seconds (), wct3 = wct_seconds ();
-
 	unsigned long nmerges = apply_merges (L, n_possible_merges, mat, rep->outfile);
-
-	cpu3 = seconds () - cpu3;
-	wct3 = wct_seconds () - wct3;
-	print_timings ("   apply_merges took", cpu3, wct3);
-	cpu_t[3] += cpu3;
-	wct_t[3] += wct3;
-
 	free(L);
+
 #ifdef USE_CSR
 	free_aligned (mat->Ri);
 #else
@@ -2030,15 +2050,10 @@ main (int argc, char *argv[])
 	cpu_t[4] += cpu1;
 	wct_t[4] += wct1;
 
-
-#ifdef BIG_BROTHER
-  int n_cols = 0;
-  for (unsigned int j = 0; j < mat->ncols; j++) {
-    n_cols += touched_columns[j];
-    touched_columns[j] = 0;
-  }
-  printf("$$$     affected-columns: %d\n", n_cols);
-#endif
+	#ifdef BIG_BROTHER
+	    printf("$$$     timings:\n");
+	    printf("$$$       total: %.2f\n", wct1);
+	#endif
 
 	/* estimate current average fill-in */
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
