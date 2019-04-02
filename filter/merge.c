@@ -33,11 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <malloc.h>
 #endif
 
-/* Define MARKOWITZ to use Markowitz pivoting to estimate the fill-in of
-   a merge in routine merge_cost (instead of computing the real fill-in
-   when adding the row of smallest weight to the other ones. */
-#define MARKOWITZ
-
 /* a lot of verbosity */
 // #define BIG_BROTHER 
 
@@ -54,30 +49,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
-   long time (typically 10 times more than with CBOUND_INCR=10). */
+   long time (typically 10 times more than with CBOUND_INCR=10).
+   Those values were determined experimentally. */
 #ifndef FOR_DL
-/* Experimentally on the RSA-512 matrix, CBOUND_INCR=11 gives a matrix which
-   is 0.5% larger than the matrix obtained with CBOUND_INCR=1,
-   and takes only 20% more time than with CBOUND_INCR=20.
-   With MARKOWITZ, CBOUND_INCR=13 gives a similar number of steps than
-   without MARKOWITZ and CBOUND_INCR=11. */
-#ifndef MARKOWITZ
-#define CBOUND_INCR 11
-#else
 #define CBOUND_INCR 13
-#endif
-#else
-/* For the p180 matrix (http://caramba.loria.fr/p180.txt), CBOUND_INCR=20
-   gives a matrix which is 0.2% larger than the matrix obtained with
-   CBOUND_INCR=1 (with target_density=200), and takes only 17% more time than
-   with CBOUND_INCR=30.
-   With MARKOWITZ, CBOUND_INCR=31 gives a similar number of steps than
-   without MARKOWITZ and CBOUND_INCR=20. */
-#ifndef MARKOWITZ
-#define CBOUND_INCR 20
 #else
 #define CBOUND_INCR 31
-#endif
 #endif
 
 #include "portability.h"
@@ -1186,7 +1163,7 @@ merge_cost (filter_matrix_t *mat, index_t id)
 #else
   index_t imin = mat->R[id][0];
 #endif
-  index_t cmin = matLengthRow (mat, imin);
+  int32_t cmin = matLengthRow (mat, imin);
   for (index_t k = lo + 1; k < hi; k++)
     {
 #ifdef USE_CSR
@@ -1194,7 +1171,7 @@ merge_cost (filter_matrix_t *mat, index_t id)
 #else
       index_t i = mat->R[id][k];
 #endif
-      index_t c = matLengthRow(mat, i);
+      int32_t c = matLengthRow(mat, i);
       if (c < cmin)
 	{
 		imin = i;
@@ -1202,30 +1179,8 @@ merge_cost (filter_matrix_t *mat, index_t id)
 	      }
     }
 
-  /* we remove row imin and add it to all w-1 others: cmin * (w - 2)
-     the column j disappears: -w */
-  index_t c = -cmin; /* remove row imin */
-  for (index_t k = lo; k < hi; k++)
-    {
-#ifdef USE_CSR
-      index_t i = mat->Ri[k];
-#else
-      index_t i = mat->R[id][k];
-#endif
-      if (i != imin)
-	      /* It is crucial here to take into account cancellations of
-		 coefficients, and not to simply add the length of both
-		 rows minus 2. Indeed, if row 'a' was added to two
-		 relation-sets 'b' and 'c', and 'b' and 'c' are merged together,
-		 all ideals from 'a' will cancel. */
-	#ifndef MARKOWITZ
-	  index_t j = mat->Rqinv[id];
-	  c += add_row (mat, i, imin, 0, j) - matLengthRow (mat, i);
-	#else /* estimation with Markowitz pivoting: might miss cancellations */
-	  c += cmin - 2;
-	#endif
-    }
-  return c;
+  /* fill-in formula for Markowitz pivoting */
+  return (hi - lo - 1) * (cmin - 2) - cmin;
 }
 
 /* Output a list of merges to a string.
