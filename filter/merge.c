@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define MARKOWITZ
 
 /* a lot of verbosity */
-#define BIG_BROTHER 
+// #define BIG_BROTHER 
 
 /* some more verbosity which requires additional operations */
 // #define BIG_BROTHER_EXPENSIVE
@@ -733,9 +733,9 @@ compute_R (filter_matrix_t *mat, index_t j0)
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
-  double before_extraction = wct_seconds();
-  double before_compression = before_extraction;
-  double end_time;
+  MAYBE_UNUSED double before_extraction = wct_seconds();
+  MAYBE_UNUSED double before_compression = before_extraction;
+  MAYBE_UNUSED double end_time;
 
   if (Rn == 0) /* the transpose code does not like Rn = 0 */
     {
@@ -1481,7 +1481,6 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   unsigned long discarded_late = 0;
   int64_t fill_in = 0;
 
-
   #pragma omp parallel reduction(+: fill_in, nmerges, discarded_early, discarded_late)
   {
     #pragma omp for schedule(dynamic, 16)
@@ -1523,7 +1522,6 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       }
     }  /* for */
   } /* parallel section */
-
   
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
