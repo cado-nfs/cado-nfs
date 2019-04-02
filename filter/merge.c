@@ -1485,7 +1485,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	    char not_ok = 0;
 	    /* we could use __sync_bool_compare_and_swap here,
 	       but this is more portable and as efficient */
+            #if GNUC_VERSION_ATLEAST(4,8,3)
+	    /* the form of atomic capture below does not seem to be
+	       recognized by GCC 4.8.2, see
+	       https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-centos-6-i386/165 */
 	    #pragma omp atomic capture
+	    #else
+	    #pragma omp critical
+	    #endif
 	    { not_ok = busy_rows[i]; busy_rows[i] = 1; }
 	    if (not_ok)
 	      {
