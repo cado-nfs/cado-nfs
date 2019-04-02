@@ -817,10 +817,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
   printf("$$$       Rn: %d\n", Rn);
   printf("$$$       Rnz: %d\n", Rnz);
   printf("$$$       timings:\n");
-  printf("$$$         row-count: %.2f\n", before_extraction - wct);
-  printf("$$$         extraction: %.2f\n", before_compression - before_extraction);
-  printf("$$$         conversion: %.2f\n", end_time - before_compression);
-  printf("$$$         total: %.2f\n", end_time - wct);
+  printf("$$$         row-count: %f\n", before_extraction - wct);
+  printf("$$$         extraction: %f\n", before_compression - before_extraction);
+  printf("$$$         conversion: %f\n", end_time - before_compression);
+  printf("$$$         total: %f\n", end_time - wct);
 #endif
 
 
@@ -1456,7 +1456,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   	printf("$$$     compute_merges:\n");
   	printf("$$$       candidate-merges: %d\n", s);
   	printf("$$$       timings:\n");
-  	printf("$$$         total: %.2f\n", end - wct);
+  	printf("$$$         total: %f\n", end - wct);
   #endif
   double cpu2 = seconds() - cpu;
   double wct2 = end - wct;
@@ -1549,7 +1549,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	printf("$$$       affected-columns: %d\n", n_columns);
   #endif
   printf("$$$       timings:\n");
-  printf("$$$         total: %.2f\n", end - wct3);
+  printf("$$$         total: %f\n", end - wct3);
 #endif
   free(busy_rows);
 
@@ -2050,7 +2050,7 @@ main (int argc, char *argv[])
 
 	#ifdef BIG_BROTHER
 	    printf("$$$     timings:\n");
-	    printf("$$$       total: %.2f\n", wct1);
+	    printf("$$$       total: %f\n", wct1);
 	#endif
 
 	/* estimate current average fill-in */
