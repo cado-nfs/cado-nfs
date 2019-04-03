@@ -149,7 +149,10 @@ buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
   double cpu = seconds (), wct = wct_seconds ();
   for (int i = 0; i < nthreads; i++)
     {
-      fprintf (out, Buf[i].buf);
+      /* it is important to check whether size=0, otherwise the previous
+         buffer will be printed twice */
+      if (Buf[i].size != 0)
+        fprintf (out, Buf[i].buf);
       Buf[i].size = 0;
     }
   cpu = seconds () - cpu;
