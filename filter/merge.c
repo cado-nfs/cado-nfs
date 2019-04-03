@@ -152,7 +152,7 @@ buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
       /* it is important to check whether size=0, otherwise the previous
          buffer will be printed twice */
       if (Buf[i].size != 0)
-        fprintf (out, Buf[i].buf);
+        fprintf (out, "%s", Buf[i].buf);
       Buf[i].size = 0;
     }
   cpu = seconds () - cpu;
