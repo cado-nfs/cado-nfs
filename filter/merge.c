@@ -27,11 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>  /* for _O_BINARY */
-#include <gmp.h>    /* for mpn_ior_n */
-
-#ifdef HAVE_MALLOPT
-#include <malloc.h>
-#endif
 
 /* a lot of verbosity */
 // #define BIG_BROTHER 
@@ -1828,15 +1823,6 @@ main (int argc, char *argv[])
     param_list_parse_int (pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
-#endif
-
-#if defined(HAVE_MALLOPT) && !defined(USE_HEAP) && !defined(HAVE_TCMALLOC)
-#define USE_ARENAS
-    /* experimentally, setting the number of arenas to twice the number of
-       threads seems optimal (man mallopt says it should match the number of
-       threads) */
-    int arenas = 2 * nthreads;
-    mallopt (M_ARENA_MAX, arenas);
 #endif
 
     param_list_parse_uint (pl, "skip", &skip);
