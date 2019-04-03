@@ -137,7 +137,7 @@ buffer_init (int nthreads)
 static void
 buffer_add (buffer_struct_t *buf, char *s)
 {
-  size_t n = strlen (s);
+  size_t n = strlen (s) + 1; /* count final '\0' */
   if (buf->size + n > buf->alloc)
     {
       buf->alloc = buf->size + n;
@@ -145,7 +145,7 @@ buffer_add (buffer_struct_t *buf, char *s)
       buf->buf = realloc (buf->buf, buf->alloc * sizeof (char));
     }
   memcpy (buf->buf + buf->size, s, n * sizeof (char));
-  buf->size += n;
+  buf->size += n - 1; /* don't count final '\0' */
 }
 
 static void
