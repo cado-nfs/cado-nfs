@@ -95,13 +95,82 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    3: apply_merges
    4: pass
    5: renumber
-   6: recompress */
-double cpu_t[7] = {0};
-double wct_t[7] = {0};
+   6: recompress
+   7: buffer_flush */
+double cpu_t[8] = {0};
+double wct_t[8] = {0};
 
 static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
+
+static void
+print_timings (char *s, double cpu, double wct)
+{
+  printf ("%s %.1fs (cpu), %.1fs (wct) [cpu/wct=%.1f]\n",
+	  s, cpu, wct, cpu / wct);
+  fflush (stdout);
+}
+
+/*************************** output buffer ***********************************/
+
+typedef struct {
+  char* buf;
+  size_t size;  /* used size */
+  size_t alloc; /* allocated size */
+} buffer_struct_t;
+
+static buffer_struct_t*
+buffer_init (int nthreads)
+{
+  buffer_struct_t *Buf;
+  Buf = malloc (nthreads * sizeof (buffer_struct_t));
+  for (int i = 0; i < nthreads; i++)
+    {
+      Buf[i].buf = NULL;
+      Buf[i].size = 0;
+      Buf[i].alloc = 0;
+    }
+  return Buf;
+}
+
+static void
+buffer_add (buffer_struct_t *buf, char *s)
+{
+  size_t n = strlen (s);
+  if (buf->size + n > buf->alloc)
+    {
+      buf->alloc = buf->size + n;
+      buf->alloc += buf->alloc / MARGIN;
+      buf->buf = realloc (buf->buf, buf->alloc * sizeof (char));
+    }
+  memcpy (buf->buf + buf->size, s, n * sizeof (char));
+  buf->size += n;
+}
+
+static void
+buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
+{
+  double cpu = seconds (), wct = wct_seconds ();
+  for (int i = 0; i < nthreads; i++)
+    {
+      fprintf (out, Buf[i].buf);
+      Buf[i].size = 0;
+    }
+  cpu = seconds () - cpu;
+  wct = wct_seconds () - wct;
+  print_timings ("   buffer_flush took", cpu, wct);
+  cpu_t[7] += cpu;
+  wct_t[7] += wct;
+}
+
+static void
+buffer_clear (buffer_struct_t *Buf, int nthreads)
+{
+  for (int i = 0; i < nthreads; i++)
+    free (Buf[i].buf);
+  free (Buf);
+}
 
 /*************************** heap structures *********************************/
 
@@ -264,14 +333,6 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 		       mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
-}
-
-static void
-print_timings (char *s, double cpu, double wct)
-{
-  printf ("%s %.1fs (cpu), %.1fs (wct) [cpu/wct=%.1f]\n",
-	  s, cpu, wct, cpu / wct);
-  fflush (stdout);
 }
 
 /* renumber the columns of mat to have consecutive indices 0..ncols-1 */
@@ -1245,7 +1306,7 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
 /* perform the merge described by the id-th row of R,
    computing the full spanning tree */
 static int32_t
-merge_do (filter_matrix_t *mat, index_t id, FILE *out)
+merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
 {
   int32_t c;
 #ifdef USE_CSR
@@ -1274,7 +1335,7 @@ merge_do (filter_matrix_t *mat, index_t id, FILE *out)
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1, mat->p[j]);
 #endif
       ASSERT(n < MERGE_CHAR_MAX);
-      fprintf (out, "%s", s);
+      buffer_add (buf, s);
       remove_row (mat, i);
       return -3;
     }
@@ -1310,7 +1371,7 @@ merge_do (filter_matrix_t *mat, index_t id, FILE *out)
 #endif
       ASSERT(n < MERGE_CHAR_MAX);
     }
-  fprintf (out, "%s", s);
+  buffer_add (buf, s);
   remove_row (mat, ind[0]);
   return c;
 }
@@ -1425,7 +1486,8 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 /* return the number of merges applied */
 #ifdef USE_CSR
 static unsigned long
-apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
+apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
+	      buffer_struct_t *Buf)
 {
   double cpu3 = seconds (), wct3 = wct_seconds ();
   char * busy_rows = malloc(mat->nrows * sizeof (char));
@@ -1443,6 +1505,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
       index_t id = L[it];
       index_t lo = mat->Rp[id];
       index_t hi = mat->Rp[id + 1];
+      int tid = omp_get_thread_num ();
 
       /* merge is possible if all its rows are "available" */
       int ok = 1;
@@ -1479,7 +1542,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
 	  }
       }
       if (ok) {
-	fill_in += merge_do(mat, id, out);
+	fill_in += merge_do(mat, id, Buf + tid);
 	nmerges ++;
       }
     }  /* for */
@@ -1934,6 +1997,8 @@ main (int argc, char *argv[])
     printf ("min_exp=%d max_exp=%d\n", min_exp, max_exp);
 #endif
 
+    buffer_struct_t *Buf = buffer_init (nthreads);
+
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
@@ -1983,7 +2048,8 @@ main (int argc, char *argv[])
 	index_t *L = malloc(mat->Rn * sizeof(index_t));
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
-	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, rep->outfile);
+	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
+	buffer_flush (Buf, nthreads, rep->outfile);
 	free(L);
 
 	#ifdef USE_CSR
@@ -2040,6 +2106,7 @@ main (int argc, char *argv[])
     }
     /****** end main loop ******/
 
+    buffer_clear (Buf, nthreads);
 
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;
@@ -2079,7 +2146,7 @@ main (int argc, char *argv[])
     print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
     print_timings ("pass           :", cpu_t[4], wct_t[4]);
     print_timings ("recompress     :", cpu_t[6], wct_t[6]);
-
+    print_timings ("buffer_flush   :", cpu_t[7], wct_t[7]);
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
