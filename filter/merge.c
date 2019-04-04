@@ -1585,7 +1585,8 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 }
 #else
 static unsigned long
-apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
+apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
+	      buffer_struct_t *Buf)
 {
   int size = 1 + mat->nrows / 64;
   uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
@@ -1656,7 +1657,10 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat, FILE *out)
   int64_t fill_in = 0;
   #pragma omp parallel for schedule(dynamic, 16)
   for (index_t k = 0; k < nmerges; k++)
-    fill_in += merge_do (mat, T[k], out);
+    {
+      int tid = omp_get_thread_num ();
+      fill_in += merge_do (mat, T[k], Buf + tid);
+    }
 
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
