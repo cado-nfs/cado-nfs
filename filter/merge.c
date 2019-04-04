@@ -1393,13 +1393,19 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   memset (busy_rows, 0, mat->nrows * sizeof (char));
 
   unsigned long nmerges = 0;
+  int64_t fill_in = 0;
+#ifdef BIG_BROTHER
   unsigned long discarded_early = 0;
   unsigned long discarded_late = 0;
-  int64_t fill_in = 0;
+#endif
 
+#ifdef BIG_BROTHER
   #pragma omp parallel reduction(+: fill_in, nmerges, discarded_early, discarded_late)
+#else
+  #pragma omp parallel reduction(+: fill_in, nmerges)
+#endif
   {
-    #pragma omp for schedule(dynamic, 16)
+    #pragma omp for schedule(guided)
     for (index_t it = 0; it < total_merges; it++) {
       index_t id = L[it];
       index_t lo = mat->Rp[id];
@@ -1412,7 +1418,9 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 	index_t i = mat->Ri[k];
 	if (busy_rows[i]) {
 	  ok = 0;
+#ifdef BIG_BROTHER
           discarded_early++;
+#endif
 	  break;
 	}
       }
@@ -1434,7 +1442,9 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 	    { not_ok = busy_rows[i]; busy_rows[i] = 1; }
 	    if (not_ok)
 	      {
+#ifdef BIG_BROTHER
                 discarded_late++;
+#endif
 		ok = 0;
 		break;
 	      }
@@ -1461,8 +1471,8 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   printf("$$$       merged: %ld\n", nmerges);
   #ifdef BIG_BROTHER_EXPENSIVE
   	index_t n_rows = 0;
-  	for (int i = 0; i < size; i++)
-  	  n_rows += __builtin_popcountll(busy_rows[i]);
+  	for (index_t i = 0; i < mat->nrows; i++)
+  	  n_rows += busy_rows[i];
   	printf("$$$       affected-rows: %d\n", n_rows);
 
   	index_t n_cols = 0;
@@ -1470,7 +1480,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   		n_cols += touched_columns[j];
   		touched_columns[j] = 0;
   	}
-	printf("$$$       affected-columns: %d\n", n_columns);
+	printf("$$$       affected-columns: %d\n", n_cols);
   #endif
   printf("$$$       timings:\n");
   printf("$$$         total: %f\n", end - wct3);
@@ -1707,6 +1717,8 @@ main (int argc, char *argv[])
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
 
+    buffer_struct_t *Buf = buffer_init (nthreads);
+
     double cpu_after_read = seconds ();
     double wct_after_read = wct_seconds ();
 
@@ -1783,8 +1795,6 @@ main (int argc, char *argv[])
 	}
     printf ("min_exp=%d max_exp=%d\n", min_exp, max_exp);
 #endif
-
-    buffer_struct_t *Buf = buffer_init (nthreads);
 
     unsigned long lastN, lastW;
     double lastWoverN;
