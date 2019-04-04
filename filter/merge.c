@@ -690,7 +690,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   wct_t[0] += wct;
 }
 
-#ifdef USE_CSR
 /* computes the transposed matrix for columns of weight <= cwmax
    (we only consider columns >= j0) */
 static void
@@ -866,56 +865,6 @@ compute_R (filter_matrix_t *mat, index_t j0)
   cpu_t[1] += cpu;
   wct_t[1] += wct;
 }
-#else /* List of List transpose */
-static void
-compute_R (filter_matrix_t *mat, index_t j0)
-{
-  double cpu = seconds (), wct = wct_seconds ();
-
-  /* first allocate R[j] */
-  index_t Rn = 0;
-  for (index_t j = j0; j < mat->ncols; j++)
-    {
-      col_weight_t w = mat->wt[j];
-      if (0 < w && w <= mat->cwmax)
-	{
-	  mat->R[j] = malloc (mat->wt[j] * sizeof (index_t));
-	  mat->wt[j] = 0; /* trick: we put wt[j] to 0, it will be put back
-			     to its initial value in the dispatch loop below */
-	  Rn ++;
-	}
-    }
-  mat->Rn = Rn;
-
-  /* dispatch entries */
-  col_weight_t *wt = mat->wt;
-  #pragma omp parallel for schedule(dynamic, 128)
-  for (index_t i = 0; i < mat->nrows; i++) {
-    if (mat->rows[i] == NULL)
-      continue; /* row was discarded */
-    for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
-      index_t j = matCell (mat, i, k);
-      /* since ideals are sorted by increasing value, we can stop
-	 when we encounter j < j0 */
-      if (j < j0)
-	break;
-      /* we only accumulate ideals of weight <= MERGE_LEVEL_MAX */
-      if (mat->wt[j] > mat->cwmax)
-	continue;
-      index_t s;
-      #pragma omp atomic capture
-      s = wt[j]++;
-      mat->R[j][s] = i;
-    }
-  }
-
-  cpu = seconds () - cpu;
-  wct = wct_seconds () - wct;
-  print_timings ("   compute_R took", cpu, wct);
-  cpu_t[1] += cpu;
-  wct_t[1] += wct;
-}
-#endif
 
 // #define TRACE_J 1438672
 
@@ -1199,16 +1148,9 @@ printRow (filter_matrix_t *mat, index_t i)
 static int32_t
 merge_cost (filter_matrix_t *mat, index_t id)
 {
-#ifdef USE_CSR
   index_t lo = mat->Rp[id];
   index_t hi = mat->Rp[id + 1];
   int w = hi - lo;
-#else
-  index_t j = id;
-  int w = mat->wt[j];
-  index_t lo = 0;
-  index_t hi = w;
-#endif
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -1217,19 +1159,11 @@ merge_cost (filter_matrix_t *mat, index_t id)
 		  cancellation */
 
   /* find shortest row in the merged column */
-#ifdef USE_CSR
   index_t imin = mat->Ri[lo];
-#else
-  index_t imin = mat->R[id][0];
-#endif
   int32_t cmin = matLengthRow (mat, imin);
   for (index_t k = lo + 1; k < hi; k++)
     {
-#ifdef USE_CSR
       index_t i = mat->Ri[k];
-#else
-      index_t i = mat->R[id][k];
-#endif
       int32_t c = matLengthRow(mat, i);
       if (c < cmin)
 	{
@@ -1307,14 +1241,9 @@ static int32_t
 merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
 {
   int32_t c;
-#ifdef USE_CSR
   index_t j = mat->Rqinv[id];
   index_t t = mat->Rp[id];
   int w = mat->Rp[id + 1] - t;
-#else
-  index_t j = id;
-  int w = mat->wt[j];
-#endif
 
   ASSERT (1 <= w && w <= mat->cwmax);
 
@@ -1322,11 +1251,7 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
     {
       char s[MERGE_CHAR_MAX];
       int n MAYBE_UNUSED;
-#ifdef USE_CSR
       index_signed_t i = mat->Ri[t]; /* only row containing j */
-#else
-      index_signed_t i = mat->R[id][0]; /* only row containing j */
-#endif
 #ifndef FOR_DL
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1);
 #else
@@ -1339,11 +1264,7 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
     }
 
   /* perform the real merge and output to history file */
-#ifdef USE_CSR
   index_t *ind = mat->Ri + t;
-#else
-  index_t *ind = mat->R[id];
-#endif
   char s[MERGE_CHAR_MAX];
   int n = 0; /* number of characters written to s (except final \0) */
   int A[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX];
@@ -1395,7 +1316,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
-#ifdef USE_CSR
   /* A dynamic schedule is needed here, since the columns of larger index have
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
@@ -1403,17 +1323,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   #pragma omp parallel for schedule(dynamic, 128)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
-#else
-  index_t i = 0;
-  index_t *Rqinv = malloc (Rn * sizeof (index_t));
-  for (index_t j = 0; j < mat->ncols; j++)
-    if (0 < mat->wt[j] && mat->wt[j] <= mat->cwmax)
-      {
-	Rqinv[i] = j;
-	cost[i++] = merge_cost (mat, j) + BIAS;
-      }
-  ASSERT_ALWAYS(i == Rn);
-#endif
 
   /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
   #pragma omp parallel
@@ -1452,18 +1361,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       int c = cost[i];
       if (c > cbound)
 	continue;
-#ifdef USE_CSR
       L[tcount[c]++] = i;
-#else
-      L[tcount[c]++] = Rqinv[i];
-#endif
     }
   } /* end parallel section */
 
   free(cost);
-#ifndef USE_CSR
-  free (Rqinv);
-#endif
 
   double end = wct_seconds();
   #ifdef BIG_BROTHER
@@ -1482,7 +1384,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
 
 /* return the number of merges applied */
-#ifdef USE_CSR
 static unsigned long
 apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 	      buffer_struct_t *Buf)
@@ -1583,107 +1484,6 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   wct_t[3] += wct3;
   return nmerges;
 }
-#else
-static unsigned long
-apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
-	      buffer_struct_t *Buf)
-{
-  int size = 1 + mat->nrows / 64;
-  uint64_t * busy_rows = malloc(size * sizeof(*busy_rows));
-  memset(busy_rows, 0, sizeof(uint64_t) * size);
-
-  index_t *T; /* todo list */
-  T = malloc (total_merges * sizeof (index_t));
-  unsigned long nmerges = 0;
-
-  /* When the transposed matrix is in LIL-format, we need to first compute all
-     independent merges before applying them. The reason is that wt[j] is used
-     to know how many relations are involved in a merge: since we update wt[j]
-     incrementally, it might be wrong when we consider a potential merge. */
-
-  #pragma omp parallel
-  {
-    #pragma omp for schedule(dynamic, 16)
-    for (index_t it = 0; it < total_merges; it++) {
-      index_t id = L[it];
-      index_t lo = 0;
-      index_t j = id;
-      index_t hi = mat->wt[j];
-
-      /* merge is possible if all its rows are "available" */
-      int ok = 1;
-      for (index_t k = lo; k < hi; k++) {
-	index_t i = mat->R[id][k];
-	uint64_t x = i / 64;
-	uint64_t y = i & 63;
-	if (busy_rows[x] & (1ull << y)) {
-	  ok = 0;
-	  break;
-	}
-      }
-      if (ok) {
-	#pragma omp critical
-	{ /* potential merge, enter critical section */
-	  /* check again, since another thread might have reserved a row */
-	  for (index_t k = lo; k < hi; k++) {
-	    index_t i = mat->R[id][k];
-	    uint64_t x = i / 64;
-	    uint64_t y = i & 63;
-	    if (busy_rows[x] & (1ull << y)) {
-	      ok = 0;
-	      break;
-	    }
-	  }
-	  if (ok) /* reserve rows */
-	    for (index_t k = lo; k < hi; k++) {
-	      index_t i = mat->R[id][k];
-	      uint64_t x = i / 64;
-	      uint64_t y = i & 63;
-	      busy_rows[x] |= (1ull << y);
-	    }
-	} /* end critical */
-      }
-      if (ok) /* put merge in T */
-	{
-	  index_t s;
-	  #pragma omp atomic capture
-	  s = nmerges ++;
-	  T[s] = id;
-	}
-    }
-  } /* end parallel section */
-
-  /* now we apply the merges in T */
-  int64_t fill_in = 0;
-  #pragma omp parallel for schedule(dynamic, 16)
-  for (index_t k = 0; k < nmerges; k++)
-    {
-      int tid = omp_get_thread_num ();
-      fill_in += merge_do (mat, T[k], Buf + tid);
-    }
-
-  mat->tot_weight += fill_in;
-  /* each merge decreases the number of rows and columns by one */
-  mat->rem_nrows -= nmerges;
-  mat->rem_ncols -= nmerges;
-
-  /* settings for next pass */
-  if (mat->cwmax == 2) /* we first process all 2-merges */
-    {
-      if (nmerges == total_merges)
-	mat->cwmax++;
-    }
-  else
-    {
-      if (mat->cwmax < MERGE_LEVEL_MAX)
-	mat->cwmax ++;
-    }
-
-  free (busy_rows);
-  free (T);
-  return nmerges;
-}
-#endif
 
 static double
 average_density (filter_matrix_t *mat)
@@ -1914,7 +1714,6 @@ main (int argc, char *argv[])
 
     // output_matrix (mat, "out.sage");
 
-#ifdef USE_CSR
     /* Allocate the transposed matrix R in CSR format. Since Rp is of fixed
        size, we allocate it for once. However, the size of Ri will vary from
        step to step. */
@@ -1922,11 +1721,6 @@ main (int argc, char *argv[])
     mat->Ri = NULL;
     mat->Rq = malloc (mat->ncols * sizeof (index_t));
     mat->Rqinv = malloc (mat->ncols * sizeof (index_t));
-#else
-    mat->R = malloc (mat->ncols * sizeof (index_t*));
-    for (index_t j = 0; j < mat->ncols; j++)
-      mat->R[j] = NULL;
-#endif
 
 #ifdef BIG_BROTHER
     touched_columns = malloc(mat->ncols * sizeof(*touched_columns));
@@ -2045,14 +1839,7 @@ main (int argc, char *argv[])
 	buffer_flush (Buf, nthreads, rep->outfile);
 	free(L);
 
-	#ifdef USE_CSR
-		free_aligned (mat->Ri);
-	#else
-		for (index_t j = 0; j < mat->ncols; j++) {
-			free(mat->R[j]);
-			mat->R[j] = NULL;
-		}
-	#endif
+	free_aligned (mat->Ri);
 
 	/* settings for next pass */
   	if (mat->cwmax == 2) { /* we first process all 2-merges */
@@ -2152,15 +1939,9 @@ main (int argc, char *argv[])
 #ifdef FOR_DL
     free (mat->p);
 #endif
-#ifdef USE_CSR
     free (mat->Rp);
     free (mat->Rq);
     free (mat->Rqinv);
-#else
-    for (index_t j = 0; j < mat->ncols; j++)
-      free (mat->R[j]);
-    free (mat->R);
-#endif
     clearMat (mat);
 
 #ifdef USE_HEAP

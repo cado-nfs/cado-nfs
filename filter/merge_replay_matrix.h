@@ -17,10 +17,6 @@
 
 #define col_weight_t unsigned char
 
-/* define USE_CSR to use the CSR format for the transposed matrix
-   (otherwise the LIL format will be used) */
-#define USE_CSR
-
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
   int verbose;         /* verbose level */
@@ -42,7 +38,6 @@ typedef struct {
   uint64_t tot_weight; /* Initial total number of non-zero coefficients */
   int cwmax;           /* bound on weight of j to enter the SWAR structure */
   index_t Rn;          /* number of rows in R (potential merges) */
-#ifdef USE_CSR
   index_t *Rp, *Ri;    /* (part of) transposed matrix in CSR format:
                           Rp has size Rn + 1, and Ri has size nnz where nnz
                           is the number of elements in the transposed matrix.
@@ -50,11 +45,6 @@ typedef struct {
                           located from Ri[Rp[j]] to Ri[Rp[j+1]-1]. */
   index_t *Rq, *Rqinv; /* row i of R corresponds to column Rqinv[i] of [self];
                           column j of [self] corresponds to row Rq[j] of R. */
-#else
-  index_t **R;         /* transposed matrix in LIL format. This matrix has
-                          always size ncols, where ncols is the value *after*
-                          the initial column renumbering. */
-#endif
   index_t *p;          /* internal renumbering function: the original ideal
                           corresponding to column j is p[j] >= j */
   uint64_t initial_ncols; /* number of columns in the purge file */
