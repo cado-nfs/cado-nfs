@@ -2095,8 +2095,6 @@ main (int argc, char *argv[])
     }
     /****** end main loop ******/
 
-    buffer_clear (Buf, nthreads);
-
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;
     for (index_t i = 0; i < mat->nrows; i++)
@@ -2144,6 +2142,8 @@ main (int argc, char *argv[])
 
     printf ("Before cleaning memory:\n");
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
+
+    buffer_clear (Buf, nthreads);
 
 #ifdef FOR_DL
     free (mat->p);
