@@ -1861,8 +1861,9 @@ main (int argc, char *argv[])
 	}
 
 	if (mat->rem_ncols < 0.66 * mat->ncols) {
-		printf("============== Recompress ==============\n");
-		recompress(mat, jmin);
+	  static int pass = 0;
+	  printf("============== Recompress %d ==============\n", ++pass);
+	  recompress(mat, jmin);
 	}
 
 	cpu1 = seconds () - cpu1;
