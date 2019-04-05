@@ -38,6 +38,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
     unsigned char *touched_columns = NULL;
 #endif
 
+/* define CANCEL to count column cancellations */
+// #define CANCEL
+#ifdef CANCEL
+#define CANCEL_MAX 2048
+unsigned long cancel_rows = 0;
+unsigned long cancel_cols[CANCEL_MAX] = {0,};
+#endif
 
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
@@ -906,6 +913,10 @@ static int32_t
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
 	 MAYBE_UNUSED index_t j)
 {
+#ifdef CANCEL
+  #pragma omp atomic update
+  cancel_rows ++;
+#endif
   uint32_t k1 = matLengthRow (mat, i1);
   uint32_t k2 = matLengthRow (mat, i2);
   int32_t c = 0;
@@ -919,6 +930,12 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
       else
 	      t2 ++, c ++;
     }
+#ifdef CANCEL
+  int cancel = (t1 - 1) + (t2 - 1) - c;
+  ASSERT_ALWAYS(cancel < CANCEL_MAX);
+  #pragma omp atomic update
+  cancel_cols[cancel] ++;
+#endif
   c += (k1 + 1 - t1) + (k2 + 1 - t2);
   if (doit == 0)
     return c;
@@ -969,6 +986,10 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
 static int32_t
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
 {
+#ifdef CANCEL
+  #pragma omp atomic update
+  cancel_rows ++;
+#endif
   /* first look for the exponents of j in i1 and i2 */
   uint32_t k1 = matLengthRow (mat, i1);
   uint32_t k2 = matLengthRow (mat, i2);
@@ -1029,6 +1050,12 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
       else
 	t2 ++, c ++;
     }
+#ifdef CANCEL
+  int cancel = (t1 - 1) + (t2 - 1) - c;
+  ASSERT_ALWAYS(cancel < CANCEL_MAX);
+  #pragma omp atomic update
+  cancel_cols[cancel] ++;
+#endif
   c += (k1 + 1 - t1) + (k2 + 1 - t2);
 
   if (doit == 0)
@@ -1971,6 +1998,18 @@ main (int argc, char *argv[])
     /* print total time and memory (including reading the input matrix,
        initializing and free-ing all data) */
     print_timing_and_memory (stdout, cpu0, wct0);
+
+#ifdef CANCEL
+    unsigned long tot_cancel = 0;
+    printf ("cancel_rows=%lu\n", cancel_rows);
+    for (int i = 0; i < CANCEL_MAX; i++)
+      if (cancel_cols[i] != 0)
+	{
+	  tot_cancel += cancel_cols[i] * i;
+	  printf ("cancel_cols[%d]=%lu\n", i, cancel_cols[i]);
+	}
+    printf ("tot_cancel=%lu\n", tot_cancel);
+#endif
 
     return 0;
 }
