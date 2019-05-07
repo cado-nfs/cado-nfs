@@ -409,6 +409,8 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
         bw-common.c
         plingen.cpp
         plingen-tuning.cpp
+        plingen-tune-cutoffs.cpp
+        plingen-tuning-cache.cpp
         tree_stats.cpp
         )
 

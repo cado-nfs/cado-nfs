@@ -41,7 +41,7 @@
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */
 #include "plingen.h"
-#include "plingen-tuning.h"
+#include "plingen-tuning.hpp"
 #include "logline.h"
 #include "tree_stats.hpp"
 
@@ -92,30 +92,9 @@ int rank0_exit_code = EXIT_SUCCESS;
 int global_flag_ascii = 0;
 int global_flag_tune = 0;
 
-struct bmstatus_s {
-    dims d[1];
-    unsigned int t;
-    int * lucky;
-
-    double t_basecase;
-    double t_mp;
-    double t_mul;
-    double t_cp_io;
-
-    unsigned int lingen_threshold;
-    unsigned int lingen_mpi_threshold;
-    int mpi_dims[2]; /* mpi_dims[0] = mpi[0] * thr[0] */
-    MPI_Comm com[3]; /* [0]: MPI_COMM_WORLD, reordered.
-                        [1]: row-wise
-                        [2]: column-wise */
-};
-typedef struct bmstatus_s bmstatus[1];
-typedef struct bmstatus_s *bmstatus_ptr;
-
-
 tree_stats stats;
 
-void plingen_decl_usage(param_list_ptr pl)
+void plingen_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "ascii",
             "read and write data in ascii");
@@ -3139,7 +3118,7 @@ void print_node_assignment(MPI_Comm comm)
         MPI_Comm_get_name(comm, name, &len);
         name[79]=0;
         for(int i = 0 ; i < size ; i++) {
-            printf("%s rank %d: %s\n", name, i, global + i * sz);
+            printf("# %s rank %d: %s\n", name, i, global + i * sz);
         }
     }
     free(global);
@@ -3155,14 +3134,14 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     abfield_characteristic(ab, p);
     abfield_specify(bm->d->ab, MPFQ_PRIME_MPZ, p);
     unsigned int t0 = bm->t;
-    unsigned int * delta = (unsigned int*) malloc((m + n) * sizeof(unsigned int));
+    unsigned int * delta = new unsigned int[m+n];
     for(unsigned int j = 0 ; j < m + n ; delta[j++]=t0);
     matpoly pi, E;
     matpoly_init(ab, E, m, m+n, L);
     matpoly_fill_random(ab, E, L, rstate);
     matpoly_init(ab, pi, 0,0,0);
     bw_lingen_basecase_raw(bm, pi, E, delta);
-    free(delta);
+    delete[] delta;
     bmstatus_clear(bm);
     mpz_clear(p);
 }
@@ -3173,10 +3152,9 @@ int main(int argc, char *argv[])
     bmstatus bm;
     dims * d = bm->d;
 
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
 
     bw_common_decl_usage(pl);
     plingen_decl_usage(pl);
@@ -3306,7 +3284,7 @@ int main(int argc, char *argv[])
          * thr[0]*thr[1].
          */
         if (!rank)
-            printf("size=%d mpi=%dx%d thr=%dx%d\n", size, mpi[0], mpi[1], thr[0], thr[1]);
+            printf("# size=%d mpi=%dx%d thr=%dx%d\n", size, mpi[0], mpi[1], thr[0], thr[1]);
         ASSERT_ALWAYS(size == mpi[0] * mpi[1] * thr[0] * thr[1]);
         /* The mpi and thr command line argument lead to the same number
          * of working processes than with krylov. Except that here, we're
@@ -3372,7 +3350,7 @@ int main(int argc, char *argv[])
     }
 
     if (global_flag_tune) {
-        plingen_tuning(bm->d->ab, bm->d->m, bm->d->n, bm->com[0], pl);
+        plingen_tuning(bm->d, bm->com[0], pl);
         MPI_Finalize();
         return 0;
     }
@@ -3508,8 +3486,6 @@ int main(int argc, char *argv[])
     if (ffile) free(ffile);
 
     gmp_randclear(rstate);
-
-    param_list_clear(pl);
 
     bw_common_clear(bw);
 

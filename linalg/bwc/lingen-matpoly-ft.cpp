@@ -16,7 +16,7 @@
 #define MUL_FTI_DEPTH_ADJ_36_36_36 { { 1, 6 }, { 2, 3 }, { 3, 2 }, { 6, 1 }, { 7, 2 }, { 14, 1 }, { 23, 0 }, { 26, 1 }, { 44, 0 }, { 46, 1 }, { 54, 0 }, { 61, 1 }, { 62, 0 }, }
 
 
-void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int m, unsigned int n, struct fft_transform_info * fti)
+void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int m, unsigned int n, const struct fft_transform_info * fti)
 {
     size_t fft_alloc_sizes[3];
     fft_get_transform_allocs(fft_alloc_sizes, fti);
@@ -36,7 +36,7 @@ void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int
     }
 }
 
-void matpoly_ft_clear(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft_transform_info * fti MAYBE_UNUSED)
+void matpoly_ft_clear(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti MAYBE_UNUSED)
 {
     free(t->data);
     memset(t, 0, sizeof(*t));
@@ -122,11 +122,11 @@ struct ft_wrap<false, T>
 
 struct ft_base {/*{{{*/
     abdst_field ab;
-    struct fft_transform_info * fti;
+    const struct fft_transform_info * fti;
     size_t fft_alloc_sizes[3];
     int draft;
 
-    ft_base(abdst_field ab, struct fft_transform_info * fti, int draft) : ab(ab), fti(fti), draft(draft) 
+    ft_base(abdst_field ab, const struct fft_transform_info * fti, int draft) : ab(ab), fti(fti), draft(draft) 
     {
         fft_get_transform_allocs(fft_alloc_sizes, fti);
     }
@@ -168,19 +168,19 @@ struct matpoly_ft_dft_code : public ft_base {
         }
     };
     
-    matpoly_ft_dft_code(abdst_field ab, matpoly_ft_ptr t, matpoly_srcptr a, struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), t(t), a(a) {
+    matpoly_ft_dft_code(abdst_field ab, matpoly_ft_ptr t, matpoly_srcptr a, const struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), t(t), a(a) {
         ASSERT_ALWAYS(t->m == a->m);
         ASSERT_ALWAYS(t->n == a->n);
     }
     double operator()() { return choose(*this); }
 };
 
-double matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr a, struct fft_transform_info * fti, int draft)
+double matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr a, const struct fft_transform_info * fti, int draft)
 {
     return matpoly_ft_dft_code(ab, t, a, fti, draft)();
 }
 
-void matpoly_ft_zero(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft_transform_info * fti)
+void matpoly_ft_zero(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti)
 {
     size_t fft_alloc_sizes[3];
     fft_get_transform_allocs(fft_alloc_sizes, fti);
@@ -196,7 +196,7 @@ void matpoly_ft_zero(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft_t
     }
 }
 
-void matpoly_ft_export(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft_transform_info * fti)
+void matpoly_ft_export(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti)
 {
     size_t fft_alloc_sizes[3];
     fft_get_transform_allocs(fft_alloc_sizes, fti);
@@ -212,7 +212,7 @@ void matpoly_ft_export(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft
     }
 }
 
-void matpoly_ft_import(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft_transform_info * fti)
+void matpoly_ft_import(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti)
 {
     size_t fft_alloc_sizes[3];
     fft_get_transform_allocs(fft_alloc_sizes, fti);
@@ -228,7 +228,7 @@ void matpoly_ft_import(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, struct fft
     }
 }
 
-void matpoly_ft_add(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti)
+void matpoly_ft_add(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti)
 {
     /* Recall that this is for polynomials ! */
     ASSERT_ALWAYS(t0->m == t1->m);
@@ -288,7 +288,7 @@ struct matpoly_ft_addmul_code : public ft_base {
         }
     };
     
-    matpoly_ft_addmul_code(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), u(u), t0(t0), t1(t1) {
+    matpoly_ft_addmul_code(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), u(u), t0(t0), t1(t1) {
         ASSERT_ALWAYS(t0->n == t1->m);
         ASSERT_ALWAYS(t0->m == u->m);
         ASSERT_ALWAYS(t1->n == u->n);
@@ -296,19 +296,19 @@ struct matpoly_ft_addmul_code : public ft_base {
     double operator()() { return choose(*this); }
 };
 
-double matpoly_ft_addmul(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti, int draft)
+double matpoly_ft_addmul(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti, int draft)
 {
     return matpoly_ft_addmul_code(ab, u, t0, t1, fti, draft)();
 }
 
-double matpoly_ft_mul(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti, int draft)
+double matpoly_ft_mul(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti, int draft)
 {
     matpoly_ft_zero(ab, u, fti);
     return matpoly_ft_addmul(ab, u, t0, t1, fti, draft);
 }
 
 /*
-void matpoly_ft_sub(abdst_field ab, matpoly_ft_ptr t0, matpoly_ft_ptr t1, struct fft_transform_info * fti);
+void matpoly_ft_sub(abdst_field ab, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti);
 */
 
 struct matpoly_ft_ift_code : public ft_base {
@@ -338,14 +338,14 @@ struct matpoly_ft_ift_code : public ft_base {
         }
     };
     
-    matpoly_ft_ift_code(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), a(a), t(t) {
+    matpoly_ft_ift_code(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, const struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), a(a), t(t) {
         ASSERT_ALWAYS(t->m == a->m);
         ASSERT_ALWAYS(t->n == a->n);
     }
     double operator()() { return choose(*this); }
 };
 
-double matpoly_ft_ift(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, struct fft_transform_info * fti, int draft)
+double matpoly_ft_ift(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, const struct fft_transform_info * fti, int draft)
 {
     return matpoly_ft_ift_code(ab, a, t, fti, draft)();
 }
@@ -379,14 +379,14 @@ struct matpoly_ft_ift_mp_code : public ft_base {
         }
     };
     
-    matpoly_ft_ift_mp_code(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, unsigned int shift, struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), a(a), t(t), shift(shift) {
+    matpoly_ft_ift_mp_code(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, unsigned int shift, const struct fft_transform_info * fti, int draft) : ft_base(ab, fti, draft), a(a), t(t), shift(shift) {
         ASSERT_ALWAYS(t->m == a->m);
         ASSERT_ALWAYS(t->n == a->n);
     }
     double operator()() { return choose(*this); }
 };
 
-double matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, unsigned int shift, struct fft_transform_info * fti, int draft)
+double matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, unsigned int shift, const struct fft_transform_info * fti, int draft)
 {
     return matpoly_ft_ift_mp_code(ab, a, t, shift, fti, draft)();
 }

@@ -1308,7 +1308,7 @@ void fft_do_ift_fppol_mp(mp_limb_t * x, mp_size_t cx, void * y, void * temp, con
         assert((j+1) * np <= nx);
 
         /* TODO: rather read these from ptrs directly */
-        /* How much words does [bit0..bit1[ span ? */
+        /* How many words does [bit0..bit1[ span ? */
         mp_size_t w0 = bit0 / FLINT_BITS;
         mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
 
