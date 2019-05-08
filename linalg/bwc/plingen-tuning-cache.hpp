@@ -5,7 +5,7 @@
 #include <map>
 
 struct plingen_tuning_cache {
-    static size_t round_operand_size(size_t x, int bits=6) {/*{{{*/
+    static size_t round_operand_size(size_t x, int bits=2) {/*{{{*/
     /* round x up to the next size that has all but its six most significant
      * bits set to 0.
      */

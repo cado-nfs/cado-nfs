@@ -80,6 +80,7 @@ struct lingen_platform_characteristics {/*{{{*/
 
     /* We give timings for a run on r*r nodes, with T threads per node */
     /* Note that all of this can also be auto-detected, a priori */
+    MPI_Comm comm;
     unsigned int r;
     unsigned int T;     /* **PHYSICAL** cores, or we say rubbish  */
     int openmp_threads;
@@ -90,122 +91,54 @@ struct lingen_platform_characteristics {/*{{{*/
      * rather conservative for HPC networks */
     static constexpr double mpi_xput = 1e9;
 
-    static void lookup_parameters(cxx_param_list & pl) {
-        param_list_lookup_string(pl, "max_ram");
-        param_list_lookup_string(pl, "tuning_T");
-        param_list_lookup_string(pl, "tuning_r");
-        param_list_lookup_string(pl, "mpi");
-        param_list_lookup_string(pl, "thr");
-    }
+    static void lookup_parameters(cxx_param_list & pl);
+    static void declare_usage(cxx_param_list & pl);
+    lingen_platform_characteristics(MPI_Comm comm, cxx_param_list & pl);
+};/*}}}*/
 
-    static void declare_usage(cxx_param_list & pl) {
-        /* TODO: this shall supersede mpi= and thr= that are currently
-         * parsed from within plingen.cpp */
-        param_list_decl_usage(pl, "max_ram",
-                "Maximum local memory to be used for transforms and matrices, in GB");
-        param_list_decl_usage(pl, "tuning_T",
-                "For --tune only: target number of threads (if for different platform)");
-        param_list_decl_usage(pl, "tuning_r",
-                "For --tune only: size of the mpi grid (the grid would be r times r)");
-    }
 
-    lingen_platform_characteristics(cxx_param_list & pl) {/*{{{*/
+void lingen_platform_characteristics::lookup_parameters(cxx_param_list & pl) {/*{{{*/
+    param_list_lookup_string(pl, "max_ram");
+    param_list_lookup_string(pl, "tuning_T");
+    param_list_lookup_string(pl, "tuning_r");
+    param_list_lookup_string(pl, "mpi");
+    param_list_lookup_string(pl, "thr");
+}/*}}}*/
 
-        int mpi[2];
-        int thr[2];
+void lingen_platform_characteristics::declare_usage(cxx_param_list & pl) {/*{{{*/
+    /* TODO: this shall supersede mpi= and thr= that are currently
+     * parsed from within plingen.cpp */
+    param_list_decl_usage(pl, "max_ram",
+            "Maximum local memory to be used for transforms and matrices, in GB");
+    param_list_decl_usage(pl, "tuning_T",
+            "For --tune only: target number of threads (if for different platform)");
+    param_list_decl_usage(pl, "tuning_r",
+            "For --tune only: size of the mpi grid (the grid would be r times r)");
+}/*}}}*/
 
-        param_list_parse_intxint(pl, "mpi", mpi);
-        param_list_parse_intxint(pl, "thr", thr);
+lingen_platform_characteristics::lingen_platform_characteristics(MPI_Comm comm, cxx_param_list & pl) : comm(comm) {/*{{{*/
 
-        T = thr[0] * thr[1];
-        r = mpi[0];
+    int mpi[2];
+    int thr[2];
 
-        double dtmp = 1;
-        param_list_parse_double(pl, "max_ram", &dtmp);
-        available_ram = dtmp * (1 << 30);
+    param_list_parse_intxint(pl, "mpi", mpi);
+    param_list_parse_intxint(pl, "thr", thr);
 
-        param_list_parse_uint(pl, "tuning_T", &T);
-        param_list_parse_uint(pl, "tuning_r", &r);
+    T = thr[0] * thr[1];
+    r = mpi[0];
 
-        openmp_threads = 1;
+    double dtmp = 1;
+    param_list_parse_double(pl, "max_ram", &dtmp);
+    available_ram = dtmp * (1 << 30);
+
+    param_list_parse_uint(pl, "tuning_T", &T);
+    param_list_parse_uint(pl, "tuning_r", &r);
+
+    openmp_threads = 1;
 #ifdef HAVE_OPENMP
-        openmp_threads = omp_get_max_threads();
+    openmp_threads = omp_get_max_threads();
 #endif
-    }/*}}}*/
-};/*}}}*/
-
-struct lingen_substep_scheduling_characteristics {/*{{{*/
-    typedef lingen_platform_characteristics pc_t;
-    typedef lingen_substep_scheduling_characteristics sc_t;
-
-    /* output characteristics -- the ones we have to choose */
-
-    /* batch, shrink0, shrink2. Used to be static parameters, now they're
-     * dynamic.
-     *
-     * batch: with batch=b, schedule b times more simultaneous
-     *  transforms, so that we can have more parallelism. Costs b times
-     *  more RAM
-     * shrink0: divide the number of transforms on dimension 0 (m/n for
-     *  MP, (m+n)/r for MUL) so as to save memory
-     * shrink2: divide the number of transforms on dimension 2 (m+n)/r
-     *  for both MP and MUL) so as to save memory
-     */
-
-    /* shrink0 and shrink2 are important. Here, we restrict our operation
-     * to shrink0*shrink2 multiplications of matrices of size
-     * (n0/shrink0) times (n2/shrink2).
-     */
-    unsigned int shrink0 = 1, shrink2 = 1;
-
-    /* batch is not used much, because it goes in the direction of
-     * spending _more_ memory, which is rarely what we're interested in.
-     * What this does is that several steps of the outer loop (off size
-     * n1/r) are done simultaneously: more transforms are kept live.
-     */
-    unsigned int batch = 1;
-
-    template<typename OP>
-    void optimize(lingen_substep_characteristics<OP> const & U, pc_t const & P) { /* {{{ */
-        unsigned int nr0 = iceildiv(U.n0, P.r);
-        unsigned int nr1 = iceildiv(U.n1, P.r);
-        unsigned int nr2 = iceildiv(U.n2, P.r);
-
-        sc_t res = *this;
-
-        for( ; batch < nr1 && U.get_peak_ram(P, *this) <= P.available_ram ; ) {
-            *this = res;
-            res.batch++;
-        }
-
-        for( ; U.get_peak_ram(P, *this) > P.available_ram ; ) {
-            unsigned int nrs0 = iceildiv(nr0, shrink0);
-            unsigned int nrs2 = iceildiv(nr2, shrink2);
-            if (nrs0 < nrs2 && shrink2 < nr2) {
-                shrink2++;
-            } else if (shrink0 < nr0) {
-                shrink0++;
-            } else {
-                char buf[20];
-                std::ostringstream os;
-                os << "Fatal error:"
-                    << " it is not possible to complete this calculation with only "
-                    << size_disp(P.available_ram, buf)
-                    << " of memory for intermediate transforms.\n";
-                os << "Based on the cost for input length "
-                    << U.input_length
-                    << ", we need at the very least "
-                    << size_disp(U.get_peak_ram(P, *this), buf);
-                os << " [with shrink=(" << shrink0 << "," << shrink2
-                    << "), batch=" << batch << "]\n";
-                fputs(os.str().c_str(), stderr);
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
-    /* }}} */
-};/*}}}*/
-
+}/*}}}*/
 template<typename OP>
 struct lingen_substep_characteristics {/*{{{*/
     typedef lingen_platform_characteristics pc_t;
@@ -492,79 +425,50 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
+template<typename OP>
+void optimize(lingen_substep_scheduling_characteristics & S, lingen_substep_characteristics<OP> const & U, lingen_platform_characteristics const & P) { /* {{{ */
+        unsigned int nr0 = iceildiv(U.n0, P.r);
+        unsigned int nr1 = iceildiv(U.n1, P.r);
+        unsigned int nr2 = iceildiv(U.n2, P.r);
+
+        lingen_substep_scheduling_characteristics res = S;
+
+        for( ; S.batch < nr1 && U.get_peak_ram(P, S) <= P.available_ram ; ) {
+            S = res;
+            res.batch++;
+        }
+
+        for( ; U.get_peak_ram(P, S) > P.available_ram ; ) {
+            unsigned int nrs0 = iceildiv(nr0, S.shrink0);
+            unsigned int nrs2 = iceildiv(nr2, S.shrink2);
+            if (nrs0 < nrs2 && S.shrink2 < nr2) {
+                S.shrink2++;
+            } else if (S.shrink0 < nr0) {
+                S.shrink0++;
+            } else {
+                char buf[20];
+                std::ostringstream os;
+                os << "Fatal error:"
+                    << " it is not possible to complete this calculation with only "
+                    << size_disp(P.available_ram, buf)
+                    << " of memory for intermediate transforms.\n";
+                os << "Based on the cost for input length "
+                    << U.input_length
+                    << ", we need at the very least "
+                    << size_disp(U.get_peak_ram(P, S), buf);
+                os << " [with shrink=(" << S.shrink0 << "," << S.shrink2
+                    << "), batch=" << S.batch << "]\n";
+                fputs(os.str().c_str(), stderr);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    /* }}} */
 
 /* This object is passed as a companion info to a call
  * of bw_biglingen_recursive ; it is computed by the code in this file,
  * but once tuning is over, it is essentially fixed.
  */
-#if 0
-struct matrix_product_schedule {
-
-    /* recursion depth */
-    unsigned int depth;
-
-    matrix_product_schedule_with_transforms(size_t input_length, const char * step, tcache_key const & K)
-        : input_length(input_length), step(step), K(K) {}
-
-#if 0
-    void report_time_stats_human(double reference=0) const {/*{{{*/
-        double T_dft0, T_dft2, T_conv, T_ift, T_comm;
-        std::tie(T_dft0, T_dft2, T_conv, T_ift, T_comm) = global;
-        double T_total = T_dft0 + T_dft2 + T_conv + T_ift + T_comm;
-        char buf[80] = { '\0' };
-
-        if (reference) {
-            snprintf(buf, sizeof(buf), " [efficiency %.1f%%]", 100.0 * reference / (r * r * T * T_total));
-        }
-
-        printf("# total %s %u-threaded time on %u nodes [shrink=(%u,%u) batch=%u]:"
-                " %.1f + %.1f + %.1f + %.1f + %.1f = %.1f [%.1f days] %s\n",
-                step,
-                T,
-                r*r,
-                shrink0,
-                shrink2,
-                batch,
-                T_dft0, T_dft2, T_conv, T_ift, T_comm,
-                T_total, T_total/86400, buf);
-    }/*}}}*/
-#endif
-
-    void report_comm_and_peakmem_human() const {/*{{{*/
-        char buf[20];
-        size_t comm = compute_derived_comm();
-        printf("# %s comm per node %s\n", step, size_disp(comm, buf));
-        size_t peakram = compute_derived_peak_ram();
-        printf("# %s peak memory [shrink=(%u,%u) batch=%u]: %s\n",
-                step, shrink0, shrink2, batch, size_disp(peakram, buf));
-    }/*}}}*/
-#if 0
-    void report_stats_parsable() const {/*{{{*/
-        /* This data will go to a timing cache file, so that we can
-         * easily rerun the program.
-         */
-        double tt_dft0;
-        double tt_dft2;
-        double tt_conv;
-        double tt_ift;
-        double dummy_tt_comm; /* zero */
-        char buf[20];
-
-        std::tie(tt_dft0, tt_dft2, tt_conv, tt_ift, dummy_tt_comm) = tcache[K];
-
-        size_t peakram = compute_derived_peak_ram();
-
-        printf("#;depth;recursive_input_length;step;step_op1_length;step_op2_length;size_one_transform;tt_dft0;tt_dft2;tt_conv;tt_ift\n");
-        printf(";%d;%zu;%s;%zu;%zu;%s;%.2f;%.2f;%.2f;%.2f\n",
-                depth,
-                input_length,
-                step, asize, bsize, 
-                size_disp(peakram, buf),
-                tt_dft0, tt_dft2, tt_conv, tt_ift);
-    }/*}}}*/
-#endif
-};
-#endif
 
 struct plingen_tuner {
     typedef lingen_platform_characteristics pc_t;
@@ -611,8 +515,8 @@ struct plingen_tuner {
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
 
-    plingen_tuner(dims * d, cxx_param_list & pl) :
-        ab(d->ab), m(d->m), n(d->n), P(pl)
+    plingen_tuner(dims * d, MPI_Comm comm, cxx_param_list & pl) :
+        ab(d->ab), m(d->m), n(d->n), P(comm, pl)
     {
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, 1);
@@ -752,17 +656,20 @@ struct plingen_tuner {
                 m, m+n, m+n,
                 asize, bsize, csize);
     } /* }}} */
-    void compute_schedules_for_mp(int i) { /* {{{ */
+    void compute_schedules_for_mp(int i, bool print) { /* {{{ */
         int printed_mem_once=0;
         for(auto const & cw : calls_and_weights_at_depth(i)) {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mp_substep(cw);
-            if (!printed_mem_once++)
-                step.report_size_stats_human();
             lingen_substep_scheduling_characteristics S;
-            S.optimize(step, P);
-            step.get_and_report_call_time(P, S, C);
+            optimize(S, step, P);
+            if (print && !printed_mem_once++) {
+                step.report_size_stats_human();
+                step.get_and_report_call_time(P, S, C);
+            } else {
+                step.get_call_time(P, S, C);
+            }
             schedules_mp[L] = S;
         }
     } /* }}} */
@@ -794,45 +701,49 @@ struct plingen_tuner {
         return L >= 2;
     }
 
-    void compute_schedules_for_mul(int i) { /* {{{ */
+    void compute_schedules_for_mul(int i, bool print) { /* {{{ */
         int printed_mem_once=0;
         for(auto const & cw : calls_and_weights_at_depth(i)) {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mul_substep(cw);
-            if (!printed_mem_once++)
-                step.report_size_stats_human();
             lingen_substep_scheduling_characteristics S;
-            S.optimize(step, P);
-            step.get_and_report_call_time(P, S, C);
+            optimize(S, step, P);
+            if (print && !printed_mem_once++) {
+                step.report_size_stats_human();
+                step.get_and_report_call_time(P, S, C);
+            } else {
+                step.get_call_time(P, S, C);
+            }
             schedules_mul[L] = S;
         }
     } /* }}} */
 
-    void tune() {
+    void tune_local() {
         int fl = log2(L) + 1;
 
         /* with basecase_keep_until == 0, then we never measure basecase */
         bool basecase_eliminated = !basecase_keep_until;
         std::map<size_t, std::tuple<bool, std::array<double, 3> >, plingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
+        size_t peak = 0;
 
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
-            // printf("########## Measuring time at depth %d ##########\n", i);
-
-            /* calls_and_weights_at_depth must return a sorted list */
-            // bool same = L0 == L1;
-            // bool approx_same = L0r == L1r;
-            // unsigned int weight0 = std::get<3>(cws.first());
-            // unsigned int weight1 = (1u << i) - weight0;
+            printf("####################### Measuring time at depth %d #######################\n", i);
+            compute_schedules_for_mp(i, true);
+            compute_schedules_for_mul(i, true);
 
             double time_b = 0;
             double time_r = 0;
             double time_m = 0;
             double time_r_self = 0;
             double time_m_self = 0;
+            size_t ram_mp = 0;
+            size_t ram_mul = 0;
+
+            bool basecase_was_eliminated = basecase_eliminated;
 
             for(size_t idx = 0 ; idx < cws.size() ; idx++) {
                 auto const & cw(cws[idx]);
@@ -863,6 +774,14 @@ struct plingen_tuner {
                         ttrchildren = 0;
                         ttrchildren += std::get<1>(best[Lleft])[std::get<0>(best[Lleft])];
                         ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
+
+                        size_t m;
+                        m = MP.get_peak_ram(P, schedules_mp[L]);
+                        if (m > ram_mp) ram_mp = m;
+                        if (m > peak) peak = m;
+                        m = MUL.get_peak_ram(P, schedules_mul[L]);
+                        if (m > ram_mul) ram_mul = m;
+                        if (m > peak) peak = m;
                     }
 
                     if (ttb >= basecase_keep_until * (ttr + ttrchildren))
@@ -881,36 +800,61 @@ struct plingen_tuner {
 
             size_t L0 = std::get<0>(cws.front());
             size_t L1 = std::get<0>(cws.back());
-            // ASSERT_ALWAYS(L0 <= L1);
+            /* calls_and_weights_at_depth must return a sorted list */
+            ASSERT_ALWAYS(L0 <= L1);
             size_t L0r = plingen_tuning_cache::round_operand_size(L0);
             size_t L1r = plingen_tuning_cache::round_operand_size(L1);
-
+            bool approx_same = L0r == L1r;
             bool rec0 = std::get<0>(best[L0]);
             bool rec1 = std::get<0>(best[L1]);
 
             std::ostringstream os;
-            os << "Time at depth " << i << ":";
+            // os << "Depth " << i << ":";
             std::string oss = os.str();
             int pad = oss.size();
             const char * msg = oss.c_str();
-            const char * msg2 = " ";
+            const char * msg2 = "";
             const char * strbest = " [BEST]";
-            if (basecase_eliminated || !recursion_makes_sense(L1))
+            if (basecase_was_eliminated || !recursion_makes_sense(L1))
                 strbest="";
-            if (!basecase_eliminated) {
+            if (time_b < DBL_MAX) {
                 const char * isbest = (!rec0 && !rec1) ? strbest : "";
-                printf("# %*s basecase(threshold>%zu): %.2f [%.1fd]%s\n", pad, msg, L1, time_b, time_b / 86400, isbest);
+                printf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n", pad, msg, L1,
+                        time_b, time_b / 86400, isbest);
                 msg = msg2;
             }
-            if (L1r != L0r && recursion_makes_sense(L1)) {
+            if (!approx_same && recursion_makes_sense(L1)) {
                 const char * isbest = (rec0 && !rec1) ? strbest : "";
-                printf("# %*s mixed(threshold=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, L1, time_m, time_m / 86400, time_m_self, time_m_self / 86400, isbest);
+                std::ostringstream os2;
+                os2 << " mixed(threshold=" << L1 << "): ";
+                std::string ss2 = os2.str();
+                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
+                        time_m, time_m / 86400, time_m_self, time_m_self / 86400, isbest);
                 msg = msg2;
+                int pad2 = pad + ss2.size();
+                char buf[20];
+                if (ram_mp > ram_mul) {
+                    printf("#%*s(memory(MP): %s)\n", pad2, msg, size_disp(ram_mp, buf));
+                } else {
+                    printf("#%*s(memory(MUL): %s)\n", pad2, msg, size_disp(ram_mul, buf));
+                }
+
             }
             if (recursion_makes_sense(L0)) {
                 const char * isbest = rec0 ? strbest : "";
-                printf("# %*s recursive(threshold<=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, L0, time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
+                std::ostringstream os2;
+                os2 << " recursive(threshold<=" << L0 << "): ";
+                std::string ss2 = os2.str();
+                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
+                        time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
                 msg = msg2;
+                int pad2 = pad + ss2.size();
+                char buf[20];
+                if (ram_mp > ram_mul) {
+                    printf("#%*s(memory(MP): %s)\n", pad2, msg, size_disp(ram_mp, buf));
+                } else {
+                    printf("#%*s(memory(MUL): %s)\n", pad2, msg, size_disp(ram_mul, buf));
+                }
             }
 
             if (rec0) {
@@ -934,6 +878,7 @@ struct plingen_tuner {
                 }
             }
         }
+        printf("################################# Total ##################################\n");
         printf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
         size_t size_com0;
         double tt_com0;
@@ -942,228 +887,43 @@ struct plingen_tuner {
         printf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
         double time_best = std::get<1>(best[L])[std::get<0>(best[L])];
         time_best += tt_com0;
-        printf("# Expected total time: %.2f [%.1fd]\n", time_best, time_best / 86400);
+        printf("# Expected total time: %.2f [%.1fd], peak memory %s\n", time_best, time_best / 86400, size_disp(peak, buf));
+        printf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
+    }
+    template<typename T>
+        typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value && std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
+        share(T & m, int root, MPI_Comm comm)
+        {
+            typedef typename T::key_type K;
+            typedef typename T::mapped_type M;
+            typedef std::pair<K, M> V;
+
+            int rank;
+            MPI_Comm_rank(comm, &rank);
+            std::vector<V> serial;
+            serial.insert(serial.end(), m.begin(), m.end());
+            unsigned long ns;
+            MPI_Bcast(&ns, 1, MPI_UNSIGNED_LONG, root, comm);
+            if (rank) serial.assign(ns, V());
+            MPI_Bcast(&serial.front(), ns * sizeof(V), MPI_BYTE, 0, comm);
+            if (rank) m.insert(serial.begin(), serial.end());
+        }
+
+    void tune() {
+        int rank;
+        MPI_Comm_rank(P.comm, &rank);
+
+        if (rank == 0)
+            tune_local();
+
+        share(schedules_mp, 0, P.comm);
+        share(schedules_mul, 0, P.comm);
     }
 };
 
-void plingen_tune_full(dims * d, cxx_param_list & pl)/*{{{*/
-{
-    plingen_tuner tuner(d, pl);
-
-    tuner.tune();
-
-#if 0
-    size_t L = N/n + N/m;
-
-    /* with basecase_keep_until == 0, then we never measure basecase */
-    bool basecase_eliminated = !basecase_keep_until;
-
-    size_t suggest_threshold = 0;
-
-    double tt_com0 = tuner.compute_and_report_mpi_threshold_comm();
-
-    double tt_total = tt_com0;
-    double tt_total_nocomm = 0;
-    size_t peakpeak=0;
-
-
-    /* At depth i=log2(L) we run with input length L/2^i < 1, which means
-     * sometimes a matrix, sometimes not. For sure, it makes no sense to
-     * go _below_ that and use recursive calls at this depth */
-
-    int floor = log2(L) + 1;
-
-    // std::vector<matrix_product_schedule_with_transforms> schedules_mp;
-    // std::vector<matrix_product_schedule_with_transforms> schedules_mul;
-    // std::vector<std::pair<size_t, size_t>> aux_mems;
-
-    for(int i = floor ; i>=0 ; i--) {
-
-        printf("########## Measuring time at depth %d ##########\n", i);
-
-        char buf[20];
-
-        /* During recursive calls proper, we need:
-         *  - storage for our input and our output, that need often not
-         *    live simultaneously. For simplicity we'll count both, but
-         *    this overlap is clearly a gross upper bound.
-         *    our input is 1/r^2*m*(m+n)*\ell  (with \ell = L/2^i)
-         *    our output is 1/r^2*(m+n)*(m+n)*(m/(m+n))*\ell , i.e. the
-         *    same
-         *  - storage *at all levels above the current one* (i.e. with
-         *    lower depth) for the data that is still live and need to
-         *    exist until after we return. This count is maximized in the
-         *    rightmost branch, where pi_left at all levels must be kept.
-         *    pi_left at depth 0 is
-         *                  1/r^2*(m+n)*(m+n)*(m/(m+n))*L/2
-         *    so the cumulated cost above is twice that minus our
-         *    pi_right (i.e. L/2 above should instead be counted as
-         *    L-L/2^i).
-         */
-        size_t c0 = iceildiv(m,r)*iceildiv(m+n,r)*mpz_size(tuner.p);
-        size_t mem_our_input_and_output = 2 * c0 * iceildiv(L, 1 << i);
-        size_t mem_upper_layers = c0 * (L - (L >> i));
-
-        double tt_basecase_total = 0;
-        double tt_mp_total = 0;
-        double tt_mul_total = 0;
-        size_t peak_mp = 0;
-        size_t peak_mul = 0;
-        aux_mems.push_back(std::make_pair(mem_our_input_and_output, mem_upper_layers));
-
-        /* Arrange so that transforms + reserved storage does not exceed
-         * our ram budget.
-         */
-        tuner.max_transform_ram = max_ram - mem_our_input_and_output - mem_upper_layers;
-        if (!basecase_eliminated)
-            tt_basecase_total = tuner.compute_and_report_basecase(i);
-
-        if (i < floor) {
-            try {
-                tuner.compute_schedules_for_mp(i);
-                tuner.compute_schedules_for_mul(i);
-                tt_mp_total  = schedules_mp.back() .compute_derived_timings();
-                peak_mp      = schedules_mp.back() .compute_derived_peak_ram();
-                tt_mul_total = schedules_mul.back().compute_derived_timings();
-                peak_mul     = schedules_mul.back().compute_derived_peak_ram();
-            } catch (std::string & e) {
-                fputs("\n", stderr);
-                fprintf(stderr, "##################################\n");
-                fputs(e.c_str(), stderr);
-                fprintf(stderr, "##################################\n");
-                fputs("\n", stderr);
-                exit(EXIT_FAILURE);
-            }
-        } else {
-            /* We have no other option than to use the basecase
-             * algorithm.
-             */
-            tt_mp_total = DBL_MAX;
-            tt_mul_total = DBL_MAX;
-        }
-
-        double tt_ontop = tt_mp_total + tt_mul_total;
-
-        if (i == floor) {
-            suggest_threshold = 0;
-            tt_total_nocomm = tt_basecase_total;
-        } else if (!basecase_eliminated) {
-            printf("# cost of doing depth %d by a recursive call:\n"
-                    "#     cost at depth %d: %.1f [%.1f days]\n"
-                    "#     cost at depth %d (MP+MUL): %.1f [%.1f days]\n"
-                    "#     total: %.1f [%.1f days]\n",
-                    i,
-                    i+1, tt_total_nocomm, tt_total_nocomm / 86400,
-                    i, tt_ontop, tt_ontop / 86400,
-                    (tt_total_nocomm + tt_ontop),
-                    (tt_total_nocomm + tt_ontop) / 86400
-                    );
-            if (tt_total_nocomm != 0 && tt_total_nocomm + tt_ontop < tt_basecase_total) {
-                if (suggest_threshold == 0) {
-                    suggest_threshold = L>>i;
-                    printf("# suggest lingen_threshold = %zu\n", L>>i);
-                }
-                if (basecase_keep_until * (tt_total_nocomm + tt_ontop) < tt_basecase_total) {
-                    printf("# no longer counting basecase cost\n");
-                    basecase_eliminated = true;
-                }
-                tt_total_nocomm += tt_ontop;
-            } else {
-                printf("# basecase still seems to win for depth %d, input length <= %zu\n", i, iceildiv(L, 1<<i));
-                suggest_threshold = 0;
-                tt_total_nocomm = tt_basecase_total;
-            }
-        } else {
-            printf( "# added cost at depth %d (MP+MUL): %.1f [%.1f days]\n",
-                    i, tt_ontop, tt_ontop / 86400);
-            tt_total_nocomm += tt_ontop;
-        }
-
-        size_t tmem = std::max(peak_mp, peak_mul);
-        size_t rmem = mem_our_input_and_output + mem_upper_layers + tmem;
-
-        printf("# Total reserved memory per node at depth %d: %s\n",
-                i,
-                size_disp(rmem, buf));
-        printf("#     operands at the levels above: %s\n",
-                size_disp(mem_upper_layers, buf));
-        printf("#     operands at this level: %s\n",
-                size_disp(mem_our_input_and_output, buf));
-        printf("#     transforms at this level: %s\n",
-                size_disp(tmem, buf));
-
-        tt_total = tt_total_nocomm + tt_com0;
-        printf("# Cumulated time so far %.1f [%.1f days],"
-                " peak RAM = %s, incl. %.1f days comm"
-                " at lingen_mpi_threshold=%zu\n",
-                tt_total, tt_total / 86400,
-                size_disp(rmem, buf),
-                tt_com0 / 86400,
-                suggest_threshold);
-        peakpeak = std::max(peakpeak, rmem);
-    }
-    {
-        printf("#### Summary\n");
-        unsigned int i;
-        char buf[20];
-        for(i = 0 ; i < schedules_mp.size() ; ++i) {
-            /* should be const, really, but not until we get rid of
-             * matrix_product_schedule_with_transforms::per_matrix */
-            if ((L >> i) < suggest_threshold) break;
-            auto & Smp(*(schedules_mp.end()-i-1));
-            auto & Smul(*(schedules_mul.end()-i-1));
-            auto const & MM(*(aux_mems.end()-i-1));
-            printf("# depth=%u, input size %zu..%zu:\n", i, L >> i, iceildiv(L,1<<i));
-            printf("#    operands %s\n", size_disp(MM.first, buf));
-            printf("#    operands above %s\n", size_disp(MM.second, buf));
-            printf("#    MP[shrink=(%u,%u) batch=%u] time=%.1f [%.1f days] RAM=%s\n",
-                    Smp.shrink0,
-                    Smp.shrink2,
-                    Smp.batch,
-                    Smp.compute_derived_timings(),
-                    Smp.compute_derived_timings() / 86400,
-                    size_disp(Smp.compute_derived_peak_ram(), buf));
-            printf("#    MUL[shrink=(%u,%u) batch=%u] time=%.1f [%.1f days] RAM=%s\n",
-                    Smul.shrink0,
-                    Smul.shrink2,
-                    Smul.batch,
-                    Smul.compute_derived_timings(),
-                    Smul.compute_derived_timings() / 86400,
-                    size_disp(Smul.compute_derived_peak_ram(), buf));
-        }
-        {
-            printf("# depth=%u: communication time=%.1f [%.1f days]\n",
-                    i, tt_com0, tt_com0/86400);
-            double ttb = tuner.compute_and_report_basecase(i);
-            printf("# depth=%u: basecase time=%.1f [%.1f days]\n",
-                    i, ttb, ttb/86400);
-        }
-        printf("# Cumulated time %.1f [%.1f days],"
-                " peak RAM = %s, incl. %.1f days comm"
-                " at lingen_mpi_threshold=%zu\n",
-                tt_total, tt_total / 86400,
-                size_disp(peakpeak, buf),
-                tt_com0 / 86400,
-                suggest_threshold);
-    }
-
-    printf("(%u,%u,%u,%.1f,%1.f)\n",m,n,r,tt_total,(double)peakpeak/1024./1024./1024.);
-#endif
-}/*}}}*/
-
 void plingen_tuning(dims * d, MPI_Comm comm, cxx_param_list & pl)
 {
-    int rank;
-
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
-
-    MPI_Comm_rank(comm, &rank);
-
-    if (rank == 0) {
-        plingen_tune_full(d, pl);
-    }
-
+    plingen_tuner(d, comm, pl).tune();
     return;
 }
 
