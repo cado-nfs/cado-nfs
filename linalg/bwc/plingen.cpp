@@ -40,7 +40,7 @@
 
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */
-#include "plingen.h"
+#include "plingen.hpp"
 #include "plingen-tuning.hpp"
 #include "logline.h"
 #include "tree_stats.hpp"

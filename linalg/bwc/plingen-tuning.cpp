@@ -28,9 +28,10 @@
 #include "lingen-matpoly.h"
 // #include "lingen-bigpolymat.h" // 20150826: deleted.
 #include "lingen-matpoly-ft.h"
-#include "plingen.h"
+#include "plingen.hpp"
 #include "plingen-tuning.hpp"
 #include "plingen-tuning-cache.hpp"
+#include "lingen-platform.hpp"
 
 #include <vector>
 #include <array>
@@ -46,7 +47,6 @@ using namespace std;
 
 template<typename>
 struct lingen_substep_characteristics;
-struct lingen_platform_characteristics;
 struct lingen_substep_scheduling_characteristics;
 struct plingen_tuner;
 
@@ -75,73 +75,9 @@ struct op_mp {/*{{{*/
     }
 };/*}}}*/
 
-struct lingen_platform_characteristics {/*{{{*/
-    /* input characteristics -- the ones we have to live with */
-
-    /* We give timings for a run on r*r nodes, with T threads per node */
-    /* Note that all of this can also be auto-detected, a priori */
-    MPI_Comm comm;
-    unsigned int r;
-    unsigned int T;     /* **PHYSICAL** cores, or we say rubbish  */
-    int openmp_threads;
-
-    size_t available_ram;
-
-    /* Assume we output something like one gigabyte per second. This is
-     * rather conservative for HPC networks */
-    static constexpr double mpi_xput = 1e9;
-
-    static void lookup_parameters(cxx_param_list & pl);
-    static void declare_usage(cxx_param_list & pl);
-    lingen_platform_characteristics(MPI_Comm comm, cxx_param_list & pl);
-};/*}}}*/
-
-
-void lingen_platform_characteristics::lookup_parameters(cxx_param_list & pl) {/*{{{*/
-    param_list_lookup_string(pl, "max_ram");
-    param_list_lookup_string(pl, "tuning_T");
-    param_list_lookup_string(pl, "tuning_r");
-    param_list_lookup_string(pl, "mpi");
-    param_list_lookup_string(pl, "thr");
-}/*}}}*/
-
-void lingen_platform_characteristics::declare_usage(cxx_param_list & pl) {/*{{{*/
-    /* TODO: this shall supersede mpi= and thr= that are currently
-     * parsed from within plingen.cpp */
-    param_list_decl_usage(pl, "max_ram",
-            "Maximum local memory to be used for transforms and matrices, in GB");
-    param_list_decl_usage(pl, "tuning_T",
-            "For --tune only: target number of threads (if for different platform)");
-    param_list_decl_usage(pl, "tuning_r",
-            "For --tune only: size of the mpi grid (the grid would be r times r)");
-}/*}}}*/
-
-lingen_platform_characteristics::lingen_platform_characteristics(MPI_Comm comm, cxx_param_list & pl) : comm(comm) {/*{{{*/
-
-    int mpi[2];
-    int thr[2];
-
-    param_list_parse_intxint(pl, "mpi", mpi);
-    param_list_parse_intxint(pl, "thr", thr);
-
-    T = thr[0] * thr[1];
-    r = mpi[0];
-
-    double dtmp = 1;
-    param_list_parse_double(pl, "max_ram", &dtmp);
-    available_ram = dtmp * (1 << 30);
-
-    param_list_parse_uint(pl, "tuning_T", &T);
-    param_list_parse_uint(pl, "tuning_r", &r);
-
-    openmp_threads = 1;
-#ifdef HAVE_OPENMP
-    openmp_threads = omp_get_max_threads();
-#endif
-}/*}}}*/
 template<typename OP>
 struct lingen_substep_characteristics {/*{{{*/
-    typedef lingen_platform_characteristics pc_t;
+    typedef lingen_platform pc_t;
     typedef lingen_substep_scheduling_characteristics sc_t;
     typedef plingen_tuning_cache tc_t;
 
@@ -426,19 +362,19 @@ struct lingen_substep_characteristics {/*{{{*/
 };/*}}}*/
 
 template<typename OP>
-void optimize(lingen_substep_scheduling_characteristics & S, lingen_substep_characteristics<OP> const & U, lingen_platform_characteristics const & P) { /* {{{ */
+void optimize(lingen_substep_scheduling_characteristics & S, lingen_substep_characteristics<OP> const & U, lingen_platform const & P, size_t reserved) { /* {{{ */
         unsigned int nr0 = iceildiv(U.n0, P.r);
         unsigned int nr1 = iceildiv(U.n1, P.r);
         unsigned int nr2 = iceildiv(U.n2, P.r);
 
         lingen_substep_scheduling_characteristics res = S;
 
-        for( ; S.batch < nr1 && U.get_peak_ram(P, S) <= P.available_ram ; ) {
+        for( ; S.batch < nr1 && (reserved + U.get_peak_ram(P, S)) <= P.available_ram ; ) {
             S = res;
             res.batch++;
         }
 
-        for( ; U.get_peak_ram(P, S) > P.available_ram ; ) {
+        for( ; (reserved + U.get_peak_ram(P, S)) > P.available_ram ; ) {
             unsigned int nrs0 = iceildiv(nr0, S.shrink0);
             unsigned int nrs2 = iceildiv(nr2, S.shrink2);
             if (nrs0 < nrs2 && S.shrink2 < nr2) {
@@ -456,6 +392,9 @@ void optimize(lingen_substep_scheduling_characteristics & S, lingen_substep_char
                     << U.input_length
                     << ", we need at the very least "
                     << size_disp(U.get_peak_ram(P, S), buf);
+                os  << ", plus "
+                    << size_disp(reserved, buf)
+                    << " for reserved memory at upper levels";
                 os << " [with shrink=(" << S.shrink0 << "," << S.shrink2
                     << "), batch=" << S.batch << "]\n";
                 fputs(os.str().c_str(), stderr);
@@ -465,13 +404,8 @@ void optimize(lingen_substep_scheduling_characteristics & S, lingen_substep_char
     }
     /* }}} */
 
-/* This object is passed as a companion info to a call
- * of bw_biglingen_recursive ; it is computed by the code in this file,
- * but once tuning is over, it is essentially fixed.
- */
-
 struct plingen_tuner {
-    typedef lingen_platform_characteristics pc_t;
+    typedef lingen_platform pc_t;
     typedef lingen_substep_scheduling_characteristics sc_t;
 
     /* imported from the dims struct */
@@ -481,7 +415,7 @@ struct plingen_tuner {
     size_t N;
     size_t L;
 
-    lingen_platform_characteristics P;
+    lingen_platform P;
 
     plingen_tuning_cache C;
 
@@ -499,7 +433,7 @@ struct plingen_tuner {
     std::map<size_t, lingen_substep_scheduling_characteristics> schedules_mp, schedules_mul;
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
-        lingen_platform_characteristics::declare_usage(pl);
+        lingen_platform::declare_usage(pl);
         param_list_decl_usage(pl, "tuning_N",
                 "For --tune only: target size for the corresponding matrix");
         param_list_decl_usage(pl, "tuning_timing_cache_filename",
@@ -509,7 +443,7 @@ struct plingen_tuner {
     }/*}}}*/
 
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
-        lingen_platform_characteristics::lookup_parameters(pl);
+        lingen_platform::lookup_parameters(pl);
         param_list_lookup_string(pl, "tuning_N");
         param_list_lookup_string(pl, "tuning_timing_cache_filename");
         param_list_lookup_string(pl, "basecase-keep-until");
@@ -656,14 +590,14 @@ struct plingen_tuner {
                 m, m+n, m+n,
                 asize, bsize, csize);
     } /* }}} */
-    void compute_schedules_for_mp(int i, bool print) { /* {{{ */
+    void compute_schedules_for_mp(int i, bool print, size_t reserved=0) { /* {{{ */
         int printed_mem_once=0;
         for(auto const & cw : calls_and_weights_at_depth(i)) {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mp_substep(cw);
             lingen_substep_scheduling_characteristics S;
-            optimize(S, step, P);
+            optimize(S, step, P, reserved);
             if (print && !printed_mem_once++) {
                 step.report_size_stats_human();
                 step.get_and_report_call_time(P, S, C);
@@ -701,14 +635,14 @@ struct plingen_tuner {
         return L >= 2;
     }
 
-    void compute_schedules_for_mul(int i, bool print) { /* {{{ */
+    void compute_schedules_for_mul(int i, bool print, size_t reserved) { /* {{{ */
         int printed_mem_once=0;
         for(auto const & cw : calls_and_weights_at_depth(i)) {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mul_substep(cw);
             lingen_substep_scheduling_characteristics S;
-            optimize(S, step, P);
+            optimize(S, step, P, reserved);
             if (print && !printed_mem_once++) {
                 step.report_size_stats_human();
                 step.get_and_report_call_time(P, S, C);
@@ -719,7 +653,9 @@ struct plingen_tuner {
         }
     } /* }}} */
 
-    void tune_local() {
+    lingen_hints_t tune_local() {
+        lingen_hints_t hints;
+
         int fl = log2(L) + 1;
 
         /* with basecase_keep_until == 0, then we never measure basecase */
@@ -727,13 +663,44 @@ struct plingen_tuner {
         std::map<size_t, std::tuple<bool, std::array<double, 3> >, plingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
         size_t peak = 0;
+        char buf[20];
 
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
             printf("####################### Measuring time at depth %d #######################\n", i);
-            compute_schedules_for_mp(i, true);
-            compute_schedules_for_mul(i, true);
+            /* For input length L, we need the following reserved
+             * storage:
+             *
+             *  - storage for our input and our output, that need often not
+             *    live simultaneously. For simplicity we'll count both, but
+             *    this overlap is clearly a gross upper bound.
+             *    our input is 1/r^2*m*(m+n)*\ell  (with \ell = L/2^i)
+             *    our output is 1/r^2*(m+n)*(m+n)*(m/(m+n))*\ell , i.e. the
+             *    same
+             *    XXX todo: improve the approximation above, it's in fact
+             *    a bit embarrassing since it forces us to use larger
+             *    shrinks than really needed at the top level.
+             *
+             *  - storage *at all levels above the current one* (i.e. with
+             *    lower depth) for the data that is still live and need to
+             *    exist until after we return. This count is maximized in the
+             *    rightmost branch, where pi_left at all levels must be kept.
+             *    pi_left at depth 0 is
+             *                  1/r^2*(m+n)*(m+n)*(m/(m+n))*L/2
+             *    so the cumulated cost above is twice that minus our
+             *    pi_right (i.e. L/2 above should instead be counted as
+             *    L-L/2^i).
+             */
+            size_t c0 = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+            size_t mem_our_input_and_output = 2 * c0 * iceildiv(L, 1 << i);
+            size_t mem_upper_layers = c0 * (L - (L >> i));
+            size_t reserved = mem_our_input_and_output + mem_upper_layers;
+
+            printf("# reserved storage <= %s\n", size_disp(reserved, buf));
+
+            compute_schedules_for_mp(i, true, reserved);
+            compute_schedules_for_mul(i, true, reserved);
 
             double time_b = 0;
             double time_r = 0;
@@ -763,23 +730,33 @@ struct plingen_tuner {
                     double ttr = DBL_MAX;
                     double ttrchildren = DBL_MAX;
 
+                    lingen_call_companion::key K { i, L };
+                    lingen_call_companion U;
+                    U.weight = weight;
+
                     if (!recursion_makes_sense(L) || !basecase_eliminated)
                         ttb = compute_and_report_basecase(L);
 
                     if (recursion_makes_sense(L)) {
                         auto MUL = mul_substep(cw);
                         auto MP  = mp_substep(cw);
-                        ttr = MP.get_call_time(P, schedules_mp[L], C)
-                            + MUL.get_call_time(P, schedules_mul[L], C);
+
+                        U.mp.S = schedules_mp[L];
+                        U.mul.S = schedules_mul[L];
+
+                        U.mp.tt = MP.get_call_time(P, U.mp.S, C);
+                        U.mul.tt = MUL.get_call_time(P, U.mul.S, C);
+
+                        ttr = U.mp.tt + U.mul.tt;
                         ttrchildren = 0;
                         ttrchildren += std::get<1>(best[Lleft])[std::get<0>(best[Lleft])];
                         ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
 
                         size_t m;
-                        m = MP.get_peak_ram(P, schedules_mp[L]);
+                        m = U.mp.ram = MP.get_peak_ram(P, schedules_mp[L]);
                         if (m > ram_mp) ram_mp = m;
                         if (m > peak) peak = m;
-                        m = MUL.get_peak_ram(P, schedules_mul[L]);
+                        m = U.mul.ram = MUL.get_peak_ram(P, schedules_mul[L]);
                         if (m > ram_mul) ram_mul = m;
                         if (m > peak) peak = m;
                     }
@@ -789,6 +766,11 @@ struct plingen_tuner {
 
                     bool rwin = ttb >= (ttr + ttrchildren);
                     best[L] = { rwin, {ttb, ttr + ttrchildren, ttr} };
+
+                    U.recurse = rwin;
+                    U.ttb = ttb;
+
+                    hints[K] = U;
                 }
 
                 time_b += std::get<1>(best[L])[0] * weight;
@@ -883,12 +865,12 @@ struct plingen_tuner {
         size_t size_com0;
         double tt_com0;
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
-        char buf[20];
         printf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
         double time_best = std::get<1>(best[L])[std::get<0>(best[L])];
         time_best += tt_com0;
         printf("# Expected total time: %.2f [%.1fd], peak memory %s\n", time_best, time_best / 86400, size_disp(peak, buf));
         printf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
+        return hints;
     }
     template<typename T>
         typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value && std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
@@ -909,22 +891,25 @@ struct plingen_tuner {
             if (rank) m.insert(serial.begin(), serial.end());
         }
 
-    void tune() {
+    lingen_hints_t tune() {
         int rank;
         MPI_Comm_rank(P.comm, &rank);
+        lingen_hints_t hints;
 
         if (rank == 0)
-            tune_local();
+            hints = tune_local();
 
-        share(schedules_mp, 0, P.comm);
-        share(schedules_mul, 0, P.comm);
+        share(hints, 0, P.comm);
+        // share(schedules_mp, 0, P.comm);
+        // share(schedules_mul, 0, P.comm);
+
+        return hints;
     }
 };
 
-void plingen_tuning(dims * d, MPI_Comm comm, cxx_param_list & pl)
+lingen_hints_t plingen_tuning(dims * d, MPI_Comm comm, cxx_param_list & pl)
 {
-    plingen_tuner(d, comm, pl).tune();
-    return;
+    return plingen_tuner(d, comm, pl).tune();
 }
 
 void plingen_tuning_decl_usage(cxx_param_list & pl)

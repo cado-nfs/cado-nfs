@@ -28,7 +28,7 @@
 #include "lingen-matpoly.h"
 // #include "lingen-bigpolymat.h" // 20150826: deleted.
 #include "lingen-matpoly-ft.h"
-#include "plingen.h"
+#include "plingen.hpp"
 #include "plingen-tune-cutoffs.hpp"
 
 #include <vector>

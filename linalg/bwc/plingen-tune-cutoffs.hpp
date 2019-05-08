@@ -2,7 +2,7 @@
 #define PLINGEN_TUNE_CUTOFFS_HPP_
 
 #include "params.h"
-#include "plingen.h"
+#include "plingen.hpp"
 #include "select_mpi.h"
 
 extern void plingen_tune_cutoffs_decl_usage(cxx_param_list & pl);

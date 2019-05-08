@@ -1,5 +1,5 @@
-#ifndef PLINGEN_H_
-#define PLINGEN_H_
+#ifndef PLINGEN_HPP_
+#define PLINGEN_HPP_
 
 /* This contains some definitions for lingen mod p.
  *
@@ -42,4 +42,4 @@ extern void bmstatus_init(bmstatus_ptr bm, unsigned int m, unsigned int n);
 extern void bmstatus_clear(bmstatus_ptr bm);
 
 
-#endif	/* PLINGEN_H_ */
+#endif	/* PLINGEN_HPP_ */

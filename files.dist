@@ -676,7 +676,7 @@ linalg/bwc/mpfq/mpfq_p_3.h
 linalg/bwc/mpfq/mpfq_p_3_t.c
 linalg/bwc/mpfq/mpfq_p_3_t.h
 linalg/bwc/plingen.cpp
-linalg/bwc/plingen.h
+linalg/bwc/plingen.hpp
 linalg/bwc/plingen-tuning-cache.cpp
 linalg/bwc/plingen-tuning-cache.hpp
 linalg/bwc/plingen-tune-cutoffs.cpp
@@ -1340,6 +1340,8 @@ sieve/las-memory.hpp
 tests/linalg/bwc/A.21744
 tests/sieve/F9.with_hints.hints
 tests/sieve/F9.with_hints.todo
+linalg/bwc/lingen-platform.cpp
+linalg/bwc/lingen-platform.hpp
 tests/utils/test_sha1.c
 utils/sha1.c
 utils/sha1.h
