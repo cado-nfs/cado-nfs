@@ -1342,6 +1342,7 @@ tests/sieve/F9.with_hints.hints
 tests/sieve/F9.with_hints.todo
 linalg/bwc/lingen-platform.cpp
 linalg/bwc/lingen-platform.hpp
+linalg/bwc/lingen-substep-schedule.h
 tests/utils/test_sha1.c
 utils/sha1.c
 utils/sha1.h

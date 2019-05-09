@@ -7,10 +7,13 @@
 
 class tree_stats {
     struct small_step_time {
-        double real = 0, artificial = 0;
+        double real = 0;
+        double artificial = 0;  // only for deprecated draft mode.
+        double theoretical=0;   // expected time to the current point
         small_step_time operator+=(small_step_time const & x) {
             real += x.real;
             artificial += x.artificial;
+            theoretical += x.theoretical;
             return *this;
         }
     };
@@ -72,7 +75,7 @@ class tree_stats {
      */
     int draft = 0;
 public:
-    unsigned int depth;
+    unsigned int depth = 0;
     inline int is_draft_mode() const { return draft; }
     inline void set_draft_mode(int d) { draft = d; }
     
@@ -81,7 +84,7 @@ public:
 
     void final_print();
 
-    void begin_smallstep(const char * func MAYBE_UNUSED);
+    void begin_smallstep(const char * func MAYBE_UNUSED, double theory=0);
     void end_smallstep();
 
     struct sentinel {

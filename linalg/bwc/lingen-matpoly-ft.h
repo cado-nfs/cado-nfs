@@ -3,6 +3,7 @@
 
 #include "lingen-matpoly.h"
 #include "flint-fft/fft.h"
+#include "lingen-substep-schedule.h"
 
 struct matpoly_ft_s {
     unsigned int m;
@@ -35,11 +36,13 @@ double matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, unsign
 
 
 /* In a way, this is the only real API exported by this module */
-double matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft);
-static inline double matpoly_mul_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft) { return matpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft); }
+double matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
 
-double matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft);
-static inline double matpoly_mp_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft) { return matpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft); }
+static inline double matpoly_mul_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft, const struct lingen_substep_schedule * S) { return matpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
+
+double matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
+
+static inline double matpoly_mp_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft, const struct lingen_substep_schedule * S) { return matpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
 
 
 #ifdef __cplusplus

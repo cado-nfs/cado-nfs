@@ -389,7 +389,7 @@ double bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr 
     return matpoly_ft_ift_mp(ab, bigmatpoly_my_cell(a), bigmatpoly_ft_my_cell(ta), shift, fti, draft);
 }
 
-double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft)/*{{{*/
+double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
 {
     size_t csize = a->size + b->size; csize -= (csize > 0);
     bigmatpoly_ft tc, ta, tb;
@@ -431,7 +431,7 @@ double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bi
     return x0;
 }/*}}}*/
 
-double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft)/*{{{*/
+double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
 {
     bigmatpoly_ft tc, ta, tb;
     mpz_t p;

@@ -97,6 +97,7 @@ void tree_stats::print(unsigned int level)
                 if (code[0]) code[0]++;
                 for(auto const & y : F.small_steps) {
                     double t = y.second.real + y.second.artificial;
+                    double th = y.second.theoretical;
                     unsigned int n = F.ncalled;
                     if (k < curstack.size()) {
                         running_stats const& r(curstack[k]);
@@ -108,14 +109,16 @@ void tree_stats::print(unsigned int level)
                                 /* also count the artificial time */
                                 t += z->second.real;
                                 t += z->second.artificial;
+                                th += z->second.theoretical;
                                 n++;
                             }
                         }
                     }
-                    printf("%s   (%s %u/%u %.2g -> %.1f)\n",
+                    printf("%s   (%s %u/%u [%.1f%%] %.2g -> %.1f)\n",
                             prefix,
                             y.first.c_str(),
                             n, F.projected_calls,
+                            100.0*t / th,
                             t / n,
                             t * (double) F.projected_calls / n);
                 }
@@ -324,7 +327,7 @@ void tree_stats::final_print()
     }
 }
 
-void tree_stats::begin_smallstep(const char * func)
+void tree_stats::begin_smallstep(const char * func, double theory)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -352,6 +355,7 @@ void tree_stats::begin_smallstep(const char * func)
     // ASSERT_ALWAYS(ssi.second);
     s.substep = &(s.small_steps[func]);
     s.substep->real -= wct_seconds();
+    s.substep->theoretical += theory;
 }
 
 void tree_stats::end_smallstep()

@@ -7,6 +7,7 @@
 #include "flint-fft/fft.h"
 
 #include "select_mpi.h"
+#include "lingen-substep-schedule.h"
 
 /* This defines an MPI-shared polynomial matrix type */
 
@@ -68,13 +69,13 @@ static inline matpoly_ft_ptr bigmatpoly_ft_cell(bigmatpoly_ft_ptr p, unsigned in
 }
 /* }}} */
 
-double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft);
+double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
 
-double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft);
+double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
 
-static inline double bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft) { return bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft); }
+static inline double bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
 
-static inline double bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft) { return bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft); }
+static inline double bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
 
 #ifdef __cplusplus
 }

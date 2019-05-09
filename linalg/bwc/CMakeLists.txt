@@ -408,10 +408,10 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(plingen_${v}_sources
         bw-common.c
         plingen.cpp
-        lingen-platform.cpp
         plingen-tuning.cpp
         plingen-tune-cutoffs.cpp
         plingen-tuning-cache.cpp
+        lingen-platform.cpp
         tree_stats.cpp
         )
 

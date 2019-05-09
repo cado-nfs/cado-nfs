@@ -4,7 +4,7 @@
 #include "params.h"
 #include "select_mpi.h"
 
-struct lingen_platform {/*{{{*/
+struct lingen_platform {
     /* input characteristics -- the ones we have to live with */
 
     /* We give timings for a run on r*r nodes, with T threads per node */
@@ -23,7 +23,7 @@ struct lingen_platform {/*{{{*/
     static void lookup_parameters(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
     lingen_platform(MPI_Comm comm, cxx_param_list & pl);
-};/*}}}*/
+};
 
 
 #endif	/* LINGEN_PLATFORM_HPP_ */

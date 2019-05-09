@@ -21,11 +21,11 @@ void one_test(cxx_mpz const & p, unsigned int m, unsigned int len1, unsigned int
     matpoly_fill_random(ab, Q, len2, rstate);
 
     matpoly_mul(ab, R0, P, Q, 0);
-    matpoly_mul_caching(ab, R1, P, Q, 0);
+    matpoly_mul_caching(ab, R1, P, Q, 0, NULL);
 
     /* segfault ? */
     matpoly_mp(ab, M0, P, Q, 0);
-    matpoly_mp_caching(ab, M1, P, Q, 0);
+    matpoly_mp_caching(ab, M1, P, Q, 0,  NULL);
 
     ASSERT_ALWAYS(matpoly_cmp(ab, R0, R1) == 0);
     ASSERT_ALWAYS(matpoly_cmp(ab, M0, M1) == 0);
