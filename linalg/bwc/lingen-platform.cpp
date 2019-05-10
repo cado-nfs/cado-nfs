@@ -37,6 +37,16 @@ lingen_platform::lingen_platform(MPI_Comm comm, cxx_param_list & pl) : comm(comm
     T = thr[0] * thr[1];
     r = mpi[0];
 
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    if (mpi[0] != mpi[1]) {
+        if (!rank)
+            fprintf(stderr, "The current plingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
+                    mpi[0], mpi[1]);
+        abort();
+    }
+
     double dtmp = 1;
     param_list_parse_double(pl, "max_ram", &dtmp);
     available_ram = dtmp * (1 << 30);

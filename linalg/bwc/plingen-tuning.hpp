@@ -17,6 +17,7 @@ size_t plingen_round_operand_size(size_t x, int bits=2);
 
 struct lingen_call_companion {
     bool recurse;
+    bool go_mpi;
     unsigned int weight;
     double ttb;
     struct {

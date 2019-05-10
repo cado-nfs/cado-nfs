@@ -23,6 +23,12 @@ struct lingen_platform {
     static void lookup_parameters(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
     lingen_platform(MPI_Comm comm, cxx_param_list & pl);
+
+    lingen_platform single() const {
+        lingen_platform res = *this;
+        res.r = 1;
+        return res;
+    }
 };
 
 

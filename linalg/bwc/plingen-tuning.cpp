@@ -348,7 +348,7 @@ struct lingen_substep_characteristics {/*{{{*/
                 S.batch,
                 size_disp(get_peak_ram(P, S), buf));
         fflush(stdout);
-        double tt=get_call_time(P, S, C);
+        double tt = get_call_time(P, S, C);
         printf("%.2f%s\n",
                 tt,
                 cached ? " [from cache]" : "");
@@ -630,20 +630,30 @@ struct plingen_tuner {
     }
 
     void compute_schedules_for_mul(int i, bool print, size_t reserved) { /* {{{ */
-        int printed_mem_once=0;
-        for(auto const & cw : calls_and_weights_at_depth(i)) {
-            size_t L = std::get<0>(cw);
-            if (!recursion_makes_sense(L)) continue;
-            auto step = mul_substep(cw);
-            lingen_substep_schedule S;
-            optimize(S, step, P, reserved);
-            if (print && !printed_mem_once++) {
-                step.report_size_stats_human();
-                step.get_and_report_call_time(P, S, C);
-            } else {
-                step.get_call_time(P, S, C);
+        // we might want to consider the option of a single-node layer as
+        // well. The effect of making this distinction between
+        // lingen_threshold and lingen_mpi_threshold is not clear though,
+        // since presently our formulas don't give rise to much
+        // difference.
+        // std::vector<lingen_platform> pps { P.single(), P };
+        std::vector<lingen_platform> pps { P };
+        for(auto const & pp : pps) {
+            int printed_mem_once=0;
+            for(auto const & cw : calls_and_weights_at_depth(i)) {
+                size_t L = std::get<0>(cw);
+                if (!recursion_makes_sense(L)) continue;
+                auto step = mul_substep(cw);
+
+                lingen_substep_schedule S;
+                optimize(S, step, pp, reserved);
+                if (print && !printed_mem_once++) {
+                    step.report_size_stats_human();
+                    step.get_and_report_call_time(pp, S, C);
+                } else {
+                    step.get_call_time(pp, S, C);
+                }
+                schedules_mul[L] = S;
             }
-            schedules_mul[L] = S;
         }
     } /* }}} */
 
@@ -771,6 +781,10 @@ struct plingen_tuner {
                     best[L] = { rwin, {ttb, ttr + ttrchildren, ttr} };
 
                     U.recurse = rwin;
+                    /* See comment in compute_schedules_for_mul.
+                     * Presently we don't identify cases where
+                     * lingen_threshold makes sense at all */
+                    U.go_mpi = rwin;
                     U.ttb = ttb;
 
                     hints[K] = U;

@@ -1753,14 +1753,14 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned
     unsigned int t1 = bm.t + E->size;
 
     lingen_call_companion const & C = bm.companion(bm.depth(), E->size);
-    bool recurse = C.recurse;
-    // bool recurse = E->size >= bm.lingen_mpi_threshold;
+    bool go_mpi = C.go_mpi;
+    // bool go_mpi = E->size >= bm.lingen_mpi_threshold;
 
     if (load_mpi_checkpoint_file(bm, pi, t0, t1, delta, &done))
         return done;
 
     // fprintf(stderr, "Enter %s\n", __func__);
-    if (recurse) {
+    if (go_mpi) {
         done = bw_biglingen_recursive(bm, pi, E, delta);
     } else {
         /* Fall back to local code */
