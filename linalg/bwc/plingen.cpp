@@ -92,7 +92,7 @@ int rank0_exit_code = EXIT_SUCCESS;
 int global_flag_ascii = 0;
 int global_flag_tune = 0;
 
-struct bmstatus {
+struct bmstatus {/*{{{*/
     bw_dimensions d;
     unsigned int t;
     std::vector<int> lucky;
@@ -115,9 +115,14 @@ struct bmstatus {
 
     int depth() const { return stats.depth; }
 
-    bmstatus(unsigned int m, unsigned int n);
-
-    lingen_call_companion const& companion(int depth, size_t L)
+    bmstatus(unsigned int m, unsigned int n)/*{{{*/
+    {
+        memset(&d, 0, sizeof(bw_dimensions));
+        d.m = m;
+        d.n = n;
+        lucky.assign(m+n, 0);
+    }/*}}}*/
+    lingen_call_companion const& companion(int depth, size_t L)/*{{{*/
     {
         lingen_hints_t::key_type K { depth, L };
 
@@ -145,19 +150,15 @@ struct bmstatus {
                 " depth=%d input_length=%zu\n",
                 it->first.depth, it->first.L);
         return it->second;
-    }
-    bool recurse(int depth, size_t L) {
+    }/*}}}*/
+    bool recurse(int depth, size_t L) {/*{{{*/
         return companion(depth, L).recurse;
-    }
-};
+    }/*}}}*/
+};/*}}}*/
 
-bmstatus::bmstatus(unsigned int m, unsigned int n)/*{{{*/
-{
-    memset(&d, 0, sizeof(bw_dimensions));
-    d.m = m;
-    d.n = n;
-    lucky.assign(m+n, 0);
-}/*}}}*/
+
+
+
 
 void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
 {
@@ -1852,8 +1853,6 @@ struct bm_io {/*{{{*/
         void compute_final_F(Reader& pi, unsigned int * delta);
     template<class Writer>
         void compute_E(Writer& E, unsigned int expected, unsigned int allocated);
-
-
 };
 /*}}}*/
 
@@ -1961,7 +1960,7 @@ void bm_io::clear_one_F_coeff(unsigned int deg)/*{{{*/
  * collective calls.
  */
 #ifdef  ENABLE_MPI_LINGEN
-class bigmatpoly_read_task { /* {{{ */
+class bigmatpoly_sink_task { /* {{{ */
     /* This reads a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable. */
     bigmatpoly_srcptr xpi;
@@ -1972,7 +1971,7 @@ class bigmatpoly_read_task { /* {{{ */
     int rank;
 
     public:
-    bigmatpoly_read_task(bm_io & aa, bigmatpoly_srcptr xpi) : xpi(xpi) {
+    bigmatpoly_sink_task(bm_io & aa, bigmatpoly_srcptr xpi) : xpi(xpi) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -2015,11 +2014,11 @@ class bigmatpoly_read_task { /* {{{ */
         return coeff_const_locked(i, j, k);
     }
 
-    ~bigmatpoly_read_task() {
+    ~bigmatpoly_sink_task() {
         matpoly_clear(ab, pi);
     }
 };      /* }}} */
-class bigmatpoly_write_task { /* {{{ */
+class bigmatpoly_source_task { /* {{{ */
     /* This writes a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable.
      * Note that in any case, the coefficient indices must be progressive
@@ -2033,10 +2032,10 @@ class bigmatpoly_write_task { /* {{{ */
     int rank;
 
     /* forbid copies */
-    bigmatpoly_write_task(bigmatpoly_write_task const &) = delete;
+    bigmatpoly_source_task(bigmatpoly_source_task const &) = delete;
 
     public:
-    bigmatpoly_write_task(bm_io & aa, bigmatpoly_ptr xE) : xE(xE) {
+    bigmatpoly_source_task(bm_io & aa, bigmatpoly_ptr xE) : xE(xE) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -2114,16 +2113,16 @@ class bigmatpoly_write_task { /* {{{ */
         set_size(length);
     }
 
-    ~bigmatpoly_write_task() {
+    ~bigmatpoly_source_task() {
         matpoly_clear(ab, E);
     }
     friend void matpoly_extract_column(abdst_field ab,
-        bigmatpoly_write_task& dst, unsigned int jdst, unsigned int kdst,
+        bigmatpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc);
 };
 
 void matpoly_extract_column(abdst_field ab,
-        bigmatpoly_write_task& dst, unsigned int jdst, unsigned int kdst,
+        bigmatpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc)
 {
     dst.coeff_locked(0, jdst, kdst);
@@ -2132,14 +2131,14 @@ void matpoly_extract_column(abdst_field ab,
 
 /* }}} */
 #endif  /* ENABLE_MPI_LINGEN */
-class matpoly_read_task {/*{{{*/
+class matpoly_sink_task {/*{{{*/
     /* This does the same, but for a simple matpoly. Of course this is
      * much simpler ! */
     matpoly_srcptr pi;
     abdst_field ab;
 
     public:
-    matpoly_read_task(bm_io & aa, matpoly_srcptr pi) :
+    matpoly_sink_task(bm_io & aa, matpoly_srcptr pi) :
             pi(pi),
             ab(aa.bm.d.ab)
     {
@@ -2159,17 +2158,17 @@ class matpoly_read_task {/*{{{*/
         return coeff_const_locked(i, j, k);
     }
 
-    ~matpoly_read_task() { }
+    ~matpoly_sink_task() { }
 };/*}}}*/
-class matpoly_write_task { /* {{{ */
+class matpoly_source_task { /* {{{ */
     matpoly_ptr E;
     abdst_field ab;
 
     /* forbid copies */
-    matpoly_write_task(matpoly_write_task&) {}
+    matpoly_source_task(matpoly_source_task&) {}
 
     public:
-    matpoly_write_task(bm_io & aa, matpoly_ptr E) :
+    matpoly_source_task(bm_io & aa, matpoly_ptr E) :
         E(E),
         ab(aa.bm.d.ab)
     {
@@ -2191,13 +2190,13 @@ class matpoly_write_task { /* {{{ */
         return coeff_locked(i, j, k);
     }
     void finalize(unsigned int length) { set_size(length); }
-    ~matpoly_write_task() { }
+    ~matpoly_source_task() { }
     friend void matpoly_extract_column(abdst_field ab,
-        matpoly_write_task& dst, unsigned int jdst, unsigned int kdst,
+        matpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc);
 };
 void matpoly_extract_column(abdst_field ab,
-        matpoly_write_task& dst, unsigned int jdst, unsigned int kdst,
+        matpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc)
 {
     matpoly_extract_column(ab, dst.E, jdst, kdst, src, jsrc, ksrc);
@@ -3139,7 +3138,7 @@ void display_deltas(bmstatus & bm, unsigned int * delta)/*{{{*/
     }
 }/*}}}*/
 
-void print_node_assignment(MPI_Comm comm)
+void print_node_assignment(MPI_Comm comm)/*{{{*/
 {
     int rank;
     int size;
@@ -3166,26 +3165,101 @@ void print_node_assignment(MPI_Comm comm)
         }
     }
     free(global);
-}
+}/*}}}*/
 
-/* used by testing code */
-void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)
+void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
 {
+    /* used by testing code */
     bmstatus bm(m,n);
     mpz_t p;
     mpz_init(p);
     abfield_characteristic(ab, p);
     abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, p);
     unsigned int t0 = bm.t;
-    unsigned int * delta = new unsigned int[m+n];
-    for(unsigned int j = 0 ; j < m + n ; delta[j++]=t0);
+    std::vector<unsigned int> delta(m+n, t0);
     matpoly pi, E;
     matpoly_init(ab, E, m, m+n, L);
     matpoly_fill_random(ab, E, L, rstate);
     matpoly_init(ab, pi, 0,0,0);
-    bw_lingen_basecase_raw(bm, pi, E, delta);
-    delete[] delta;
+    bw_lingen_basecase_raw(bm, pi, E, &delta.front());
     mpz_clear(p);
+}/*}}}*/
+
+template<typename T> struct matpoly_multiplex {};
+
+template<> struct matpoly_multiplex<bigmatpoly> {
+    typedef bigmatpoly_ptr ptr;
+    typedef bigmatpoly_srcptr srcptr;
+    typedef bigmatpoly_source_task source_task;
+    typedef bigmatpoly_sink_task sink_task;
+    static void init_model(ptr model, MPI_Comm * comm, unsigned int m, unsigned int n) { bigmatpoly_init_model(model, comm, m, n); }
+    static void clear_model(ptr model) { bigmatpoly_clear_model(model); }
+    static void init(abdst_field ab, ptr p, srcptr model, unsigned int m, unsigned int n, int len) { bigmatpoly_init(ab, p, model, m, n, len); }
+    static void clear(abdst_field ab, ptr p) { bigmatpoly_clear(ab, p); }
+    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_biglingen_collective(bm, pi, E, delta); }
+    static size_t alloc(srcptr p) { return bigmatpoly_my_cell_const(p)->alloc; }
+};
+
+template<> struct matpoly_multiplex<matpoly> {
+    typedef matpoly_ptr ptr;
+    typedef matpoly_srcptr srcptr;
+    typedef matpoly_source_task source_task;
+    typedef matpoly_sink_task sink_task;
+    static void init_model(ptr, MPI_Comm *, unsigned int, unsigned int) { }
+    static void clear_model(ptr) { }
+    static void init(abdst_field ab, ptr p, srcptr, unsigned int m, unsigned int n, int len) { matpoly_init(ab, p, m, n, len); }
+    static void clear(abdst_field ab, ptr p) { matpoly_clear(ab, p); }
+    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_lingen_single(bm, pi, E, delta); }
+    static size_t alloc(srcptr p) { return p->alloc; }
+
+};
+
+/* Some of the early reading must be done before we even start, since
+ * the code that we run depends on the input size.
+ */
+template<typename T>
+void lingen_main_code(abdst_field ab, bm_io & aa)
+{
+    int rank;
+    bmstatus & bm(aa.bm);
+    MPI_Comm_rank(bm.com[0], &rank);
+    unsigned int m = bm.d.m;
+    unsigned int n = bm.d.n;
+    unsigned int guess = aa.guessed_length;
+    size_t safe_guess = aa.ascii ? ceil(1.05 * guess) : guess;
+    T model;
+    T pi, E;
+
+    std::vector<unsigned int> delta(m+n, bm.t);
+
+    matpoly_multiplex<T>::init_model(model, bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
+    matpoly_multiplex<T>::init(ab, E, model, m, m+n, safe_guess);
+    matpoly_multiplex<T>::init(ab, pi, model, 0, 0, 0);   /* pre-init for now */
+
+    typename matpoly_multiplex<T>::source_task E_source(aa, E);
+    aa.compute_E(E_source, guess, safe_guess);
+    aa.end_read();
+
+    matpoly_multiplex<T>::bw_lingen(bm, pi, E, &delta.front());
+    bm.stats.final_print();
+
+    if (!draft_mode) {
+        display_deltas(bm, &delta.front());
+        if (!rank) printf("(pi->alloc = %zu)\n", matpoly_multiplex<T>::alloc(pi));
+    }
+
+    if (!draft_mode && check_luck_condition(bm)) {
+        aa.begin_write();
+        aa.set_write_behind_size(&delta.front());
+        typename matpoly_multiplex<T>::sink_task pi_sink(aa, pi);
+        aa.compute_final_F(pi_sink, &delta.front());
+        aa.end_write();
+    }
+
+    /* clear everything */
+    matpoly_multiplex<T>::clear(ab, E);
+    matpoly_multiplex<T>::clear(ab, pi);
+    matpoly_multiplex<T>::clear_model(model);
 }
 
 
@@ -3417,11 +3491,6 @@ int main(int argc, char *argv[])
 
     aa.compute_initial_F();
 
-    /* this is somewhat ugly, too */
-    unsigned int t0 = bm.t;
-    unsigned int * delta = (unsigned int*) malloc((m + n) * sizeof(unsigned int));
-    for(unsigned int j = 0 ; j < m + n ; delta[j++]=t0);
-
     int go_mpi = aa.guessed_length >= bm.lingen_mpi_threshold;
 
     if (go_mpi && !rank) {
@@ -3434,46 +3503,9 @@ int main(int argc, char *argv[])
 
     bm.stats.set_draft_mode(draft_mode);
 
-    if (size > 1) {
+    if (go_mpi && size > 1) {
 #ifdef  ENABLE_MPI_LINGEN
-        unsigned int m = aa.bm.d.m;
-        unsigned int n = aa.bm.d.n;
-        unsigned int b = m + n;
-        unsigned int guess = aa.guessed_length;
-        size_t safe_guess = aa.ascii ? ceil(1.05 * guess) : guess;
-        bigmatpoly model;
-        bigmatpoly pi, E;
-
-        bigmatpoly_init_model(model, bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
-        bigmatpoly_init(ab, E, model, m, b, safe_guess);
-        bigmatpoly_init(ab, pi, model, 0, 0, 0);   /* pre-init for now */
-
-        bigmatpoly_write_task writer(aa, E);
-
-        aa.compute_E(writer, guess, safe_guess);
-
-        aa.end_read();
-
-        bw_biglingen_collective(bm, pi, E, delta);
-        bm.stats.final_print();
-
-        if (!draft_mode) {
-            display_deltas(bm, delta);
-            if (!rank) printf("(pi->alloc = %zu)\n", bigmatpoly_my_cell(pi)->alloc);
-        }
-
-        if (!draft_mode && check_luck_condition(bm)) {
-            aa.begin_write();
-            aa.set_write_behind_size(delta);
-            bigmatpoly_read_task xpi_reader(aa, pi);
-            aa.compute_final_F(xpi_reader, delta);
-            aa.end_write();
-        }
-
-        /* clear everything */
-        bigmatpoly_clear(ab, E);
-        bigmatpoly_clear(ab, pi);
-        bigmatpoly_clear_model(model);
+        lingen_main_code<bigmatpoly>(ab, aa);
 #else
         /* The ENABLE_MPI_LINGEN flag should be turned on for a proper
          * MPI run.
@@ -3481,44 +3513,7 @@ int main(int argc, char *argv[])
         ASSERT_ALWAYS(0);
 #endif
     } else {
-        unsigned int m = aa.bm.d.m;
-        unsigned int n = aa.bm.d.n;
-        unsigned int b = m + n;
-        unsigned int guess = aa.guessed_length;
-        size_t safe_guess = aa.ascii ? ceil(1.05 * guess) : guess;
-
-        matpoly pi, E;
-
-
-        matpoly_init(ab, E, m, b, safe_guess);
-        matpoly_init(ab, pi, 0, 0, 0);  /* pre-init for now */
-
-
-        matpoly_write_task E_writer(aa, E);
-
-        aa.compute_E(E_writer, guess, safe_guess);
-        aa.end_read();
-
-        bw_lingen_single(bm, pi, E, delta);
-        bm.stats.final_print();
-
-        if (!draft_mode) {
-            display_deltas(bm, delta);
-            if (!rank) printf("(pi->alloc = %zu)\n", pi->alloc);
-        }
-
-        if (!draft_mode && check_luck_condition(bm)) {
-            aa.begin_write();
-            aa.set_write_behind_size(delta);
-            matpoly_read_task pi_reader(aa, pi);
-            aa.compute_final_F(pi_reader, delta);
-            aa.end_write();
-        }
-
-        /* clear everything */
-        matpoly_clear(ab, E);
-        matpoly_clear(ab, pi);
-
+        lingen_main_code<matpoly>(ab, aa);
     }
 
     if (!rank && !draft_mode && random_input_length) {
@@ -3528,7 +3523,6 @@ int main(int argc, char *argv[])
         printf("t_cp_io = %.2f\n", bm.t_cp_io);
     }
 
-    free(delta);
     abfield_clear(ab);
     if (ffile) free(ffile);
 
