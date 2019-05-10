@@ -457,8 +457,8 @@ struct plingen_tuner {
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
 
-    plingen_tuner(dims * d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
-        ab(d->ab), m(d->m), n(d->n), L(L), P(comm, pl)
+    plingen_tuner(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
+        ab(d.ab), m(d.m), n(d.n), L(L), P(comm, pl)
     {
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, 1);
@@ -933,7 +933,7 @@ void lingen_hints_t::share(int root, MPI_Comm comm)
     MPI_Bcast(&tt_scatter_per_unit, 1, MPI_DOUBLE, root, comm);
 }
 
-lingen_hints_t plingen_tuning(dims * d, size_t L, MPI_Comm comm, cxx_param_list & pl)
+lingen_hints_t plingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
     return plingen_tuner(d, L, comm, pl).tune();
 }

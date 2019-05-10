@@ -45,6 +45,6 @@ struct lingen_hints_t : public std::map<lingen_call_companion::key, lingen_call_
 
 void plingen_tuning_decl_usage(cxx_param_list & pl);
 void plingen_tuning_lookup_parameters(cxx_param_list & pl);
-lingen_hints_t plingen_tuning(dims * d, size_t, MPI_Comm comm, cxx_param_list & pl);
+lingen_hints_t plingen_tuning(bw_dimensions & d, size_t, MPI_Comm comm, cxx_param_list & pl);
 
 #endif	/* PLINGEN_TUNING_HPP_ */

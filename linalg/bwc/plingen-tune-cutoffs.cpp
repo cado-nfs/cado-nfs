@@ -1270,7 +1270,7 @@ void plingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigne
 }/*}}}*/
 #endif
 
-void plingen_tune_cutoffs(dims * d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
+void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
 {
     cxx_mpz p;
     gmp_randstate_t rstate;
@@ -1283,10 +1283,10 @@ void plingen_tune_cutoffs(dims * d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list &
     param_list_parse_uint(pl, "B", &bench_atleast_uptothis);
     param_list_parse_int(pl, "catchsig", &catchsig);
 
-    abdst_field ab = d->ab;
-    unsigned int m = d->m;
-    unsigned int n = d->n;
-    abfield_characteristic(d->ab, p);
+    abdst_field ab = d.ab;
+    unsigned int m = d.m;
+    unsigned int n = d.n;
+    abfield_characteristic(d.ab, p);
 
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
@@ -1375,7 +1375,7 @@ void plingen_tune_cutoffs(dims * d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list &
     if (tune_bm_basecase) {
         bmstatus bm;
         bmstatus_init(bm, m, n);
-        abfield_specify(bm->d->ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
+        abfield_specify(bm->d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
         unsigned int t0 = bm->t;
         unsigned int maxtune = 10000 / (m * n);
         for(unsigned int k = 10 ; k < maxtune ; k += k/10) {

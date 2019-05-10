@@ -12,9 +12,9 @@
 #include "mpfq_layer.h"
 
 /* TODO: Rename ! */
-typedef struct {
+struct bw_dimensions {
     unsigned int m,n,nrhs;
     abfield ab;
-} dims;
+};
 
 #endif	/* PLINGEN_HPP_ */
