@@ -139,9 +139,11 @@
 
 #define abasprint(a0,a1,a2)	abcommon_name_(asprint) (a0,a1,a2)
 #define abfprint(a0,a1,a2)	abcommon_name_(fprint) (a0,a1,a2)
+#define abcxx_out(a0,a1,a2)	abcommon_name_(cxx_out) (a0,a1,a2)
 #define abprint(a0,a1)	abcommon_name_(print) (a0,a1)
 #define absscan(a0,a1,a2)	abcommon_name_(sscan) (a0,a1,a2)
 #define abfscan(a0,a1,a2)	abcommon_name_(fscan) (a0,a1,a2)
+#define abcxx_in(a0,a1,a2)	abcommon_name_(cxx_in) (a0,a1,a2)
 #define abscan(a0,a1)	abcommon_name_(scan) (a0,a1)
 #define abread(a0,a1,a2)	abcommon_name_(read) (a0,a1,a2)
 #define abimportdata(a0,a1,a2,a3,a4)	abcommon_name_(importdata) (a0,a1,a2,a3,a4)
@@ -180,6 +182,8 @@
 #define abvec_sscan(a0,a1,a2,a3)	abcommon_name_(vec_sscan) (a0,a1,a2,a3)
 #define abvec_fscan(a0,a1,a2,a3)	abcommon_name_(vec_fscan) (a0,a1,a2,a3)
 #define abvec_scan(a0,a1,a2)	abcommon_name_(vec_scan) (a0,a1,a2)
+#define abvec_cxx_out(a0,a1,a2,a3)	abcommon_name_(vec_cxx_out) (a0,a1,a2,a3)
+#define abvec_cxx_in(a0,a1,a2,a3)	abcommon_name_(vec_cxx_in) (a0,a1,a2,a3)
 #define abvec_read(a0,a1,a2,a3)	abcommon_name_(vec_read) (a0,a1,a2,a3)
 #define abvec_write(a0,a1,a2,a3)	abcommon_name_(vec_write) (a0,a1,a2,a3)
 #define abvec_import(a0,a1,a2,a3,a4)	abcommon_name_(vec_import) (a0,a1,a2,a3,a4)
@@ -248,6 +252,8 @@
 #define abpoly_sscan(a0,a1,a2)	abcommon_name_(poly_sscan) (a0,a1,a2)
 #define abpoly_fscan(a0,a1,a2)	abcommon_name_(poly_fscan) (a0,a1,a2)
 #define abpoly_scan(a0,a1)	abcommon_name_(poly_scan) (a0,a1)
+#define abpoly_cxx_out(a0,a1,a2)	abcommon_name_(poly_cxx_out) (a0,a1,a2)
+#define abpoly_cxx_in(a0,a1,a2)	abcommon_name_(poly_cxx_in) (a0,a1,a2)
 
 
 
