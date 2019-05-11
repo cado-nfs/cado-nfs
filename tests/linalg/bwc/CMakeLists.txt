@@ -181,14 +181,6 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             lingen_threshold=10 lingen_mpi_threshold=40 thr=3x3
             ${extra})
     endif()
-    if(gfp_layer STREQUAL "pz")
-        cado_define_test(test-bwc-plingen-draft
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_pz
-            ARGUMENTS
-lingen_threshold=60  m=4 n=2  prime=101538509534246169632617439 --random-input-with-length 20000  --draft 2 logline_threshold=2048
-            TARGET_DEPENDENCIES plingen_pz
-        )
-    endif()
 
     if(gfp_layer STREQUAL "p_1")
         cado_define_test(test-bwc-lingen-21744

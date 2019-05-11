@@ -63,7 +63,6 @@
 
 static unsigned int display_threshold = 10;
 static int with_timings = 0;
-static int draft_mode = 0;
 
 /* This is an indication of the number of bytes we read at a time for A
  * (input) and F (output) */
@@ -209,8 +208,6 @@ void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
             "use recursive algorithm above this size");
     param_list_decl_usage(pl, "save_gathered_checkpoints",
             "save global checkpoints files, instead of per-job files");
-    param_list_decl_usage(pl, "draft",
-            "activate draft mode, give minimal number of seconds _per measure_");
 
     param_list_configure_switch(pl, "--tune", &global_flag_tune);
     param_list_configure_switch(pl, "--ascii", &global_flag_ascii);
@@ -1414,7 +1411,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) /
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
     int done;
-    double art;
 
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
@@ -1429,8 +1425,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) /
     matpoly_init(ab, pi_left, 0, 0, 0);
     matpoly_init(ab, pi_right, 0, 0, 0);
     matpoly_init(ab, E_right, 0, 0, 0);
-
-    int draft = bm.stats.is_draft_mode();
 
     matpoly_truncate(ab, E_left, E, half);
 
@@ -1469,28 +1463,22 @@ bw_lingen_recursive(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) /
             bm.t, depth,"", caching ? "-caching" : "",
             E->size, pi_left->size, E->size - pi_left->size + 1);
 
-    /* the artificial time is the time we've skipped by not doing the mp
-     * in full. It gets measured only if draft==true */
     if (caching)
-        art = matpoly_mp_caching(ab, E_right, E, pi_left, draft, &C.mp.S);
+        matpoly_mp_caching(ab, E_right, E, pi_left, &C.mp.S);
     else
-        art = matpoly_mp(ab, E_right, E, pi_left, draft);
-    bm.stats.add_artificial_time(art);
+        matpoly_mp(ab, E_right, E, pi_left);
 
     matpoly_clear(ab, E);
 
     logline_end(&(bm.t_mp), "");
     bm.stats.end_smallstep();
 
-    int do_right = !draft || bm.stats.spent_so_far() < draft;
-
     unsigned int pi_right_expect = expected_pi_length(d, delta, E_right->size);
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right->size);
-    if (do_right) {
-        done = bw_lingen_single(bm, pi_right, E_right, delta);
-        ASSERT_ALWAYS(pi_right->size <= pi_right_expect);
-        ASSERT_ALWAYS(done || pi_right->size >= pi_right_expect_lowerbound);
-    }
+
+    done = bw_lingen_single(bm, pi_right, E_right, delta);
+    ASSERT_ALWAYS(pi_right->size <= pi_right_expect);
+    ASSERT_ALWAYS(done || pi_right->size >= pi_right_expect_lowerbound);
 
     matpoly_clear(ab, E_right);
 
@@ -1499,15 +1487,10 @@ bw_lingen_recursive(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) /
             bm.t, depth, "", caching ? "-caching" : "",
             pi_left->size, pi_right->size, pi_left->size + pi_right->size - 1);
 
-    /* when we're just measuring the time, we fake the computation by
-     * just squaring pi_left.  */
-    matpoly_ptr piX = do_right ? pi_right : pi_left;
-
     if (caching)
-        art = matpoly_mul_caching(ab, pi, pi_left, piX, draft, &C.mul.S);
+        matpoly_mul_caching(ab, pi, pi_left, pi_right, &C.mul.S);
     else
-        art = matpoly_mul(ab, pi, pi_left, piX, draft);
-    bm.stats.add_artificial_time(art);
+        matpoly_mul(ab, pi, pi_left, pi_right);
 
     /* Note that the leading coefficients of pi_left and pi_right are not
      * necessarily full-rank, so that we have to fix potential zeros. If
@@ -1516,11 +1499,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) /
      */
     for(; pi->size > pi_expect ; pi->size--) {
         /* These coefficients really must be zero */
-        if (!draft) {
-            ASSERT_ALWAYS(matpoly_coeff_is_zero(ab, pi, pi->size - 1));
-        } else {
-            matpoly_coeff_set_zero(ab, pi, pi->size - 1);
-        }
+        ASSERT_ALWAYS(matpoly_coeff_is_zero(ab, pi, pi->size - 1));
     }
     ASSERT_ALWAYS(pi->size <= pi_expect);
     /* Now below pi_expect, it's not impossible to have a few
@@ -1584,7 +1563,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned 
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
     int done;
-    double art;
 
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -1602,8 +1580,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned 
     bigmatpoly_init(ab, pi_left, pi, 0, 0, 0);
     bigmatpoly_init(ab, pi_right, pi, 0, 0, 0);
     bigmatpoly_init(ab, E_right, E, 0, 0, 0);
-
-    int draft = bm.stats.is_draft_mode();
 
     bigmatpoly_truncate_loc(ab, E_left, E, half);
 
@@ -1642,29 +1618,22 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned 
             bm.t, depth, "", caching ? "-caching" : "",
             E->size, pi_left->size, E->size - pi_left->size + 1);
 
-    /* the artificial time is the time we've skipped by not doing the mp
-     * in full. It gets measured only if draft==true */
     if (caching)
-        art = bigmatpoly_mp_caching(ab, E_right, E, pi_left, draft, &C.mp.S);
+        bigmatpoly_mp_caching(ab, E_right, E, pi_left, &C.mp.S);
     else
-        art = bigmatpoly_mp(ab, E_right, E, pi_left, draft);
-    bm.stats.add_artificial_time(art);
+        bigmatpoly_mp(ab, E_right, E, pi_left);
 
     bigmatpoly_clear(ab, E);
 
     logline_end(&bm.t_mp, "");
     bm.stats.end_smallstep();
 
-    int do_right = !draft || bm.stats.spent_so_far() < draft;
-    MPI_Allreduce(MPI_IN_PLACE, &do_right, 1, MPI_INT, MPI_MIN, bm.com[0]);
-
     unsigned int pi_right_expect = expected_pi_length(d, delta, E_right->size);
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right->size);
-    if (do_right) {
-        done = bw_biglingen_collective(bm, pi_right, E_right, delta);
-        ASSERT_ALWAYS(pi_right->size <= pi_right_expect);
-        ASSERT_ALWAYS(done || pi_right->size >= pi_right_expect_lowerbound);
-    }
+
+    done = bw_biglingen_collective(bm, pi_right, E_right, delta);
+    ASSERT_ALWAYS(pi_right->size <= pi_right_expect);
+    ASSERT_ALWAYS(done || pi_right->size >= pi_right_expect_lowerbound);
     
     bigmatpoly_clear(ab, E_right);
 
@@ -1673,16 +1642,10 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned 
             bm.t, depth, "", caching ? "-caching" : "",
             pi_left->size, pi_right->size, pi_left->size + pi_right->size - 1);
 
-    /* when we're just measuring the time, we're going to fake the
-     * computation by just squaring pi_left.
-     */
-    bigmatpoly_ptr piX = do_right ? pi_right : pi_left;
-
     if (caching)
-        art = bigmatpoly_mul_caching(ab, pi, pi_left, piX, draft, &C.mul.S);
+        bigmatpoly_mul_caching(ab, pi, pi_left, pi_right, &C.mul.S);
     else
-        art = bigmatpoly_mul(ab, pi, pi_left, piX, draft);
-    bm.stats.add_artificial_time(art);
+        bigmatpoly_mul(ab, pi, pi_left, pi_right);
 
     /* Note that the leading coefficients of pi_left and pi_right are not
      * necessarily full-rank, so that we have to fix potential zeros. If
@@ -1691,11 +1654,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned 
      */
     for(; pi->size > pi_expect ; pi->size--) {
         /* These coefficients really must be zero */
-        if (!draft) {
-            ASSERT_ALWAYS(bigmatpoly_coeff_is_zero(ab, pi, pi->size - 1));
-        } else {
-            bigmatpoly_coeff_set_zero_loc(ab, pi, pi->size - 1);
-        }
+        ASSERT_ALWAYS(bigmatpoly_coeff_is_zero(ab, pi, pi->size - 1));
     }
     ASSERT_ALWAYS(pi->size <= pi_expect);
     /* Now below pi_expect, it's not impossible to have a few
@@ -3246,12 +3205,10 @@ void lingen_main_code(abdst_field ab, bm_io & aa)
     matpoly_multiplex<T>::bw_lingen(bm, pi, E, &delta.front());
     bm.stats.final_print();
 
-    if (!draft_mode) {
-        display_deltas(bm, &delta.front());
-        if (!rank) printf("(pi->alloc = %zu)\n", matpoly_multiplex<T>::alloc(pi));
-    }
+    display_deltas(bm, &delta.front());
+    if (!rank) printf("(pi->alloc = %zu)\n", matpoly_multiplex<T>::alloc(pi));
 
-    if (!draft_mode && check_luck_condition(bm)) {
+    if (check_luck_condition(bm)) {
         if (random_input_length) {
             aa.output_flow<T, bm_output_checksum>(pi, delta);
         } else if (split_output_file) {
@@ -3296,7 +3253,6 @@ int main(int argc, char *argv[])
     param_list_parse_int(pl, "split-output-file", &split_output_file);
     param_list_parse_int(pl, "split-input-file", &split_input_file);
     param_list_parse_int(pl, "caching", &caching);
-    param_list_parse_int(pl, "draft", &draft_mode);
 
     const char * afile = param_list_lookup_string(pl, "afile");
 
@@ -3506,8 +3462,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    bm.stats.set_draft_mode(draft_mode);
-
     if (go_mpi && size > 1) {
 #ifdef ENABLE_MPI_LINGEN
         lingen_main_code<bigmatpoly>(ab, aa);
@@ -3521,7 +3475,7 @@ int main(int argc, char *argv[])
         lingen_main_code<matpoly>(ab, aa);
     }
 
-    if (!rank && !draft_mode && random_input_length) {
+    if (!rank && random_input_length) {
         printf("t_basecase = %.2f\n", bm.t_basecase);
         printf("t_mp = %.2f\n", bm.t_mp);
         printf("t_mul = %.2f\n", bm.t_mul);

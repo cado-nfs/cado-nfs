@@ -68,9 +68,9 @@ struct op_mul {/*{{{*/
     static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc) {
         fft_get_transform_info_fppol(fti, p, n1, n2, nacc);
     }
-    static inline double ift(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, const struct fft_transform_info * fti, int draft)
+    static inline void ift(abdst_field ab, matpoly_ptr a, matpoly_ft_ptr t, const struct fft_transform_info * fti)
     {
-        return matpoly_ft_ift(ab, a, t, fti, draft);
+        matpoly_ft_ift(ab, a, t, fti);
     }
 };/*}}}*/
 struct op_mp {/*{{{*/
@@ -79,11 +79,11 @@ struct op_mp {/*{{{*/
     static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc) {
         fft_get_transform_info_fppol_mp(fti, p, nmin, nmax, nacc);
     }
-    static inline double ift(abdst_field ab, matpoly_ptr c, matpoly_ft_ptr tc, const struct fft_transform_info * fti, int draft)
+    static inline void ift(abdst_field ab, matpoly_ptr c, matpoly_ft_ptr tc, const struct fft_transform_info * fti)
     {
         mp_bitcnt_t cbits = fti->ks_coeff_bits;
         unsigned shift = MIN(fti->bits1 / cbits, fti->bits2 / cbits) - 1;
-        return matpoly_ft_ift_mp(ab, c, tc, shift, fti, draft);
+        matpoly_ft_ift_mp(ab, c, tc, shift, fti);
     }
 };/*}}}*/
 
@@ -171,21 +171,21 @@ struct lingen_substep_characteristics {/*{{{*/
         double tt = 0;
 
         tt = -wct_seconds();
-        matpoly_ft_dft(ab, ta, a, fti, 0);
+        matpoly_ft_dft(ab, ta, a, fti);
         tt_dft0 = wct_seconds() + tt;
 
         tt = -wct_seconds();
-        matpoly_ft_dft(ab, tb, b, fti, 0);
+        matpoly_ft_dft(ab, tb, b, fti);
         tt_dft2 = wct_seconds() + tt;
 
         tt = -wct_seconds();
-        matpoly_ft_mul(ab, tc, ta, tb, fti, 0);
+        matpoly_ft_mul(ab, tc, ta, tb, fti);
         tt_conv = wct_seconds() + tt;
 
         tt = -wct_seconds();
         c->size = csize;
         ASSERT_ALWAYS(c->size <= c->alloc);
-        OP::ift(ab, c, tc, fti, 0);
+        OP::ift(ab, c, tc, fti);
         tt_ift = wct_seconds() + tt;
 
         matpoly_ft_clear(ab, ta, fti);

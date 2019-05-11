@@ -69,10 +69,10 @@ void matpoly_rshift(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src, unsigne
 
 void matpoly_transpose_dumb(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src);
 
-double matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
-double matpoly_addmp(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
-double matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
-double matpoly_mp(abdst_field ab, matpoly c, matpoly a, matpoly b, int draft);
+void matpoly_addmul(abdst_field ab, matpoly c, matpoly a, matpoly b);
+void matpoly_addmp(abdst_field ab, matpoly c, matpoly a, matpoly b);
+void matpoly_mul(abdst_field ab, matpoly c, matpoly a, matpoly b);
+void matpoly_mp(abdst_field ab, matpoly c, matpoly a, matpoly b);
 
 int matpoly_coeff_is_zero(abdst_field ab, matpoly_srcptr pi, unsigned int k);
 void matpoly_coeff_set_zero(abdst_field ab, matpoly_ptr pi, unsigned int k);

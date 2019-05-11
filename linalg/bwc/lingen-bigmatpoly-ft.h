@@ -52,12 +52,12 @@ void bigmatpoly_ft_clear_model(bigmatpoly_ft_ptr p);
 
 void bigmatpoly_ft_swap(bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b);
 
-double bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft);
-double bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft);
+void bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti);
+void bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti);
 
-double bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti, int draft);
-double bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti, int draft);
-double bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti, int draft);
+void bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti);
+void bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti);
+void bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti);
 
 
 /* {{{ access interface for bigmatpoly_ft */
@@ -69,13 +69,13 @@ static inline matpoly_ft_ptr bigmatpoly_ft_cell(bigmatpoly_ft_ptr p, unsigned in
 }
 /* }}} */
 
-double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
+void bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S);
+void bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-static inline double bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
+static inline void bigmatpoly_mul_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, S); }
 
-static inline double bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, int draft, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, draft, S); }
+static inline void bigmatpoly_mp_caching(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, S); }
 
 #ifdef __cplusplus
 }

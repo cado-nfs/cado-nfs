@@ -242,7 +242,7 @@ static void bigmatpoly_ft_allgather_col(abdst_field ab, bigmatpoly_ft_ptr a, str
 }
 /* }}} */
 
-double bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft)/*{{{*/
+void bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti)/*{{{*/
 {
     abort();
     ASSERT_ALWAYS(a->n == b->m);
@@ -265,26 +265,14 @@ double bigmatpoly_ft_mul(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr 
     bigmatpoly_ft_zero(ab, c, fti);
     ASSERT_ALWAYS(a->n == b->m);
 
-    double tt0=0, tt;
-    unsigned long c0 = 0;
-    int set = 0;
-    double x0 = 0;
-
-    if (draft) { tt=wct_seconds(); tt0 -= tt; }
-    for(unsigned int k = 0 ; k < a->n1 && !set ; k++) {
-        x0 += matpoly_ft_addmul(ab, lc, 
+    for(unsigned int k = 0 ; k < a->n1 ; k++) {
+        matpoly_ft_addmul(ab, lc, 
                 bigmatpoly_ft_cell(a, irank, k),
-                bigmatpoly_ft_cell(b, k, jrank), fti, draft);
-        if (draft) { ++c0; set = (tt0 + (tt = wct_seconds())) >= draft; }
+                bigmatpoly_ft_cell(b, k, jrank), fti);
     }
-
-    if (!set) return x0;
-    tt0 += tt;
-    /* The *real* time we've spent is tt0, we should not count it */
-    return (tt0 + x0) * a->n1 / c0 - tt0;
 }/*}}}*/
 
-double bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti, int draft)/*{{{*/
+void bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr a, bigmatpoly_ft_ptr b, struct fft_transform_info * fti)/*{{{*/
 {
     ASSERT_ALWAYS(a->n == b->m);
     ASSERT_ALWAYS(a->n1 == b->m1);
@@ -309,13 +297,7 @@ double bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr
     matpoly_ft_ptr lc = bigmatpoly_ft_my_cell(c);
     bigmatpoly_ft_zero(ab, c, fti);
 
-    double tt0=0, tt=0; /* tt=0: placate gcc */
-    unsigned long c0 = 0;
-    int set = 0;
-    double x0 = 0;
-
-    if (draft) { tt=wct_seconds(); tt0 -= tt; }
-    for(unsigned int k = 0 ; k < a->n1 && !set ; k++) {
+    for(unsigned int k = 0 ; k < a->n1 ; k++) {
         logline_printf(1, "MUL-round %u/%u", k, a->n1);
 
         logline_printf(1, "; row");
@@ -344,52 +326,37 @@ double bigmatpoly_ft_mul2(abdst_field ab, bigmatpoly_ft_ptr c, bigmatpoly_ft_ptr
         /* This is one part of the product.
          * XXX This must be parallelized !!!
          */
-        x0 += matpoly_ft_addmul(ab, lc, xa, xb, fti, draft);
+        matpoly_ft_addmul(ab, lc, xa, xb, fti);
 
         logline_printf(1, "; done\n");
         /* cleanup */
         if (!leader_a) matpoly_ft_clear(ab, xa, fti);
         if (!leader_b) matpoly_ft_clear(ab, xb, fti);
-
-        if (draft) {
-            ++c0;
-            /* very important: the leader decides whether we'll continue
-             * or not !
-             */
-            MPI_Barrier(a->com[0]);
-            set = (tt0 + (tt = wct_seconds())) >= draft;
-            MPI_Bcast(&set, 1, MPI_INT, 0, a->com[0]);
-        }
     }
 
     MPI_Type_free(&mpi_ft);
-
-    if (!set) return x0;
-    tt0 += tt;
-    /* The *real* time we've spent is tt0, we should not count it */
-    return (tt0 + x0) * a->n1 / c0 - tt0;
 }/*}}}*/
 
 
 
-double bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti, int draft)
+void bigmatpoly_ft_dft(abdst_field ab, bigmatpoly_ft_ptr ta, bigmatpoly_ptr a, struct fft_transform_info * fti)
 {
-    return matpoly_ft_dft(ab, bigmatpoly_ft_my_cell(ta), bigmatpoly_my_cell(a), fti, draft);
+    matpoly_ft_dft(ab, bigmatpoly_ft_my_cell(ta), bigmatpoly_my_cell(a), fti);
 }
 
-double bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti, int draft)
-{
-    bigmatpoly_set_size(a, a->size);
-    return matpoly_ft_ift(ab, bigmatpoly_my_cell(a), bigmatpoly_ft_my_cell(ta), fti, draft);
-}
-
-double bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti, int draft)
+void bigmatpoly_ft_ift(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, struct fft_transform_info * fti)
 {
     bigmatpoly_set_size(a, a->size);
-    return matpoly_ft_ift_mp(ab, bigmatpoly_my_cell(a), bigmatpoly_ft_my_cell(ta), shift, fti, draft);
+    matpoly_ft_ift(ab, bigmatpoly_my_cell(a), bigmatpoly_ft_my_cell(ta), fti);
 }
 
-double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
+void bigmatpoly_ft_ift_mp(abdst_field ab, bigmatpoly_ptr a, bigmatpoly_ft_ptr ta, unsigned int shift, struct fft_transform_info * fti)
+{
+    bigmatpoly_set_size(a, a->size);
+    matpoly_ft_ift_mp(ab, bigmatpoly_my_cell(a), bigmatpoly_ft_my_cell(ta), shift, fti);
+}
+
+void bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
 {
     size_t csize = a->size + b->size; csize -= (csize > 0);
     bigmatpoly_ft tc, ta, tb;
@@ -406,8 +373,6 @@ double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bi
     fft_get_transform_allocs(fft_alloc_sizes, fti);
     logline_printf(1, "FT size=%zuk\n", fft_alloc_sizes[0]>>10);
 
-    double x0 = 0;
-
     bigmatpoly_clear(ab, c);
     bigmatpoly_ptr model = a;
     bigmatpoly_ft_ptr ftmodel = (bigmatpoly_ft_ptr) a;
@@ -416,22 +381,20 @@ double bigmatpoly_mul_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bi
     bigmatpoly_ft_init(ab, tb, ftmodel, b->m, b->n, fti);
     bigmatpoly_ft_init(ab, tc, ftmodel, a->m, b->n, fti);
     logline_printf(1, "DFT(A, %u*%u)\n", a->m0, a->n0);
-    x0 += bigmatpoly_ft_dft(ab, ta, a, fti, draft);
+    bigmatpoly_ft_dft(ab, ta, a, fti);
     logline_printf(1, "DFT(B, %u*%u)\n", b->m0, b->n0);
-    x0 += bigmatpoly_ft_dft(ab, tb, b, fti, draft);
-    x0 += bigmatpoly_ft_mul2(ab, tc, ta, tb, fti, draft);
+    bigmatpoly_ft_dft(ab, tb, b, fti);
+    bigmatpoly_ft_mul2(ab, tc, ta, tb, fti);
     c->size = csize;
     logline_printf(1, "IFT(C, %u*%u)\n", c->m0, c->n0);
-    x0 += bigmatpoly_ft_ift(ab, c, tc, fti, draft);
+    bigmatpoly_ft_ift(ab, c, tc, fti);
     bigmatpoly_ft_clear(ab, ta, fti);
     bigmatpoly_ft_clear(ab, tb, fti);
     bigmatpoly_ft_clear(ab, tc,  fti);
     mpz_clear(p);
-
-    return x0;
 }/*}}}*/
 
-double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, int draft, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
+void bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, bigmatpoly b, unsigned int adj, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
 {
     bigmatpoly_ft tc, ta, tb;
     mpz_t p;
@@ -447,8 +410,6 @@ double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, big
     fft_get_transform_allocs(fft_alloc_sizes, fti);
     logline_printf(1, "FT size=%zuk\n", fft_alloc_sizes[0]>>10);
 
-    double x0 = 0;
-
     bigmatpoly_clear(ab, c);
     bigmatpoly_ptr model = a;
     bigmatpoly_ft_ptr ftmodel = (bigmatpoly_ft_ptr) a;
@@ -459,18 +420,16 @@ double bigmatpoly_mp_caching_adj(abdst_field ab, bigmatpoly c, bigmatpoly a, big
     bigmatpoly_ft_init(ab, tb, ftmodel, b->m, b->n, fti);
     bigmatpoly_ft_init(ab, tc, ftmodel, a->m, b->n, fti);
     logline_printf(1, "DFT(A, %u*%u)\n", a->m0, a->n0);
-    x0 += bigmatpoly_ft_dft(ab, ta, a, fti, draft);
+    bigmatpoly_ft_dft(ab, ta, a, fti);
     logline_printf(1, "DFT(B, %u*%u)\n", b->m0, b->n0);
-    x0 += bigmatpoly_ft_dft(ab, tb, b, fti, draft);
-    x0 += bigmatpoly_ft_mul2(ab, tc, ta, tb, fti, draft);
+    bigmatpoly_ft_dft(ab, tb, b, fti);
+    bigmatpoly_ft_mul2(ab, tc, ta, tb, fti);
     c->size = MAX(a->size, b->size) - MIN(a->size, b->size) + 1;
     logline_printf(1, "IFT-MP(C, %u*%u)\n", c->m0, c->n0);
-    x0 += bigmatpoly_ft_ift_mp(ab, c, tc, MIN(a->size, b->size) - 1, fti, draft);
+    bigmatpoly_ft_ift_mp(ab, c, tc, MIN(a->size, b->size) - 1, fti);
     bigmatpoly_ft_clear(ab, ta, fti);
     bigmatpoly_ft_clear(ab, tb, fti);
     bigmatpoly_ft_clear(ab, tc,  fti);
     mpz_clear(p);
-
-    return x0;
 }/*}}}*/
 
