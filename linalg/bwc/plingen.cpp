@@ -847,7 +847,10 @@ int matpoly_write(abdst_field ab, FILE * f, matpoly_srcptr M, unsigned int k0, u
             if (!err && ascii) err = fprintf(f, "\n") <= 0;
         }
         if (ascii) err = err || fprintf(f, "\n") <= 0;
-        if (err) return (matnb == 0) ? (int) (k - k0) : -1;
+        if (err) {
+            abclear(ab, &tmp);
+            return (matnb == 0) ? (int) (k - k0) : -1;
+        }
     }
     abclear(ab, &tmp);
     return k1 - k0;
@@ -877,7 +880,10 @@ int matpoly_write_split(abdst_field ab, FILE ** fw, matpoly_srcptr M, unsigned i
                 if (!err) matnb++;
             }
         }
-        if (err) return (matnb == 0) ? (int) (k - k0) : -1;
+        if (err) {
+            abclear(ab, &tmp);
+            return (matnb == 0) ? (int) (k - k0) : -1;
+        }
     }
     abclear(ab, &tmp);
     return k1 - k0;
