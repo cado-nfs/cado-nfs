@@ -1997,48 +1997,21 @@ struct bm_output_splitfile {/*{{{*/
 
 };/*}}}*/
 
-class sha1_checksumming_streambuf: public std::streambuf
-{
-    SHA1_CTX ctx;
-public:
-    sha1_checksumming_streambuf() {
-        SHA1Init(&ctx);
-    }
-    ~sha1_checksumming_streambuf() {
-        uint8_t dest[20];
-        SHA1Final(dest, &ctx);
-        char out[41];
-        for(int i = 0 ; i < 20 ; i++) {
-            snprintf(out + 2*i, 3, "%02x", (unsigned int) dest[i]);
-        }
-        printf("checksum: %s\n", out);
-    }
-private:
-    virtual int overflow(int c)
-    {
-        if (c == EOF) return !EOF;
-        unsigned char cc = c;
-        SHA1Update(&ctx, &cc, 1);
-        return c;
-    }
-
-    virtual int sync() { return 0; }
-};
-
-class sha1_checksumming_stream : public std::ostream
-{
-    sha1_checksumming_streambuf cbuf;
-public:
-    sha1_checksumming_stream() : std::ostream(&cbuf) {}
-};
-
 struct bm_output_checksum {/*{{{*/
     bm_io & aa;
     matpoly_srcptr P;
     sha1_checksumming_stream f;
-    bm_output_checksum(bm_io & aa, matpoly_srcptr P, const char * dummy MAYBE_UNUSED = NULL)
-        : aa(aa), P(P) { }
-    ~bm_output_checksum() { }
+    const char * suffix;
+    bm_output_checksum(bm_io & aa, matpoly_srcptr P, const char * suffix = NULL)
+        : aa(aa), P(P), suffix(suffix) { }
+    ~bm_output_checksum() {
+        char out[41];
+        f.checksum(out);
+        if (suffix)
+            printf("checksum(%s): %s\n", suffix, out);
+        else
+            printf("checksum: %s\n", out);
+    }
     void write1(unsigned int deg)
     {
         if (!aa.leader()) return;
