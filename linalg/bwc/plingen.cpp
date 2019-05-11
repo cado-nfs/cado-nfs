@@ -1812,13 +1812,13 @@ unsigned int get_max_delta_on_solutions(bmstatus & bm, unsigned int * delta)/*{{
 
 /**********************************************************************/
 
+struct bm_io;
+
 struct bm_io {/*{{{*/
     bmstatus & bm;
     unsigned int t0;
     FILE ** fr; /* array of n files when split_input_file is supported
                    (which is not the case as of now),
-                   or otherwise just a 1-element array */
-    FILE ** fw; /* array of n^2 files (with split_output_file)
                    or otherwise just a 1-element array */
     char * iobuf;
     const char * input_file;
@@ -1836,23 +1836,27 @@ struct bm_io {/*{{{*/
     unsigned int k;
     unsigned int guessed_length;
 
+    bool leader() const {
+        int rank;
+        MPI_Comm_rank(bm.com[0], &rank);
+        return rank == 0;
+    }
     unsigned int set_write_behind_size(unsigned int * delta);
-    void write_one_F_coeff(unsigned int deg);
-    void clear_one_F_coeff(unsigned int deg);
+    void zero1(unsigned int deg);
     int read1(unsigned int io_window);
     bm_io(bmstatus & bm, const char * input_file, const char * output_file, int ascii);
     ~bm_io();
     void begin_read();
     void end_read();
-    void begin_write();
-    void end_write();
     void guess_length();
     void compute_initial_F() ;
 
-    template<class Reader>
-        void compute_final_F(Reader& pi, unsigned int * delta);
-    template<class Writer>
-        void compute_E(Writer& E, unsigned int expected, unsigned int allocated);
+    template<class Consumer, class Sink>
+        void compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & delta);
+    template<class Producer>
+        void compute_E(Producer& E, unsigned int expected, unsigned int allocated);
+    template<typename T, typename Sink>
+        void output_flow(T & pi, std::vector<unsigned int> & delta);
 };
 /*}}}*/
 
@@ -1900,37 +1904,124 @@ unsigned int bm_io::set_write_behind_size(unsigned int * delta)/*{{{*/
          * writing */
         window++;
     }
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-    if (rank) return window;
-    matpoly_realloc(ab, F, window);
-    matpoly_zero(ab, F);
-    F->size = window;
+    if (leader()) {
+        matpoly_realloc(ab, F, window);
+        matpoly_zero(ab, F);
+        F->size = window;
+    }
     return window;
 }/*}}}*/
 
-/* Note that coefficients of F are written transposed */
-void bm_io::write_one_F_coeff(unsigned int deg)/*{{{*/
-{
-    bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
-    deg = deg % F->alloc;
-    bool transpose = 1;
-    // if (random_input_length) return;
-    /* what the heck ?
-    if (!ascii || !random_input_length)
-        matpoly_write(ab, f, F, deg, deg + 1, ascii, 1);
-        */
-    if (random_input_length) {
-        /* we used to do this only in the non-ascii case */
-        matpoly_write(ab, fw[0], F, deg, deg + 1, ascii, transpose);
-    } else if (split_output_file) {
-        matpoly_write_split(ab, fw, F, deg, deg + 1, ascii);
-    } else {
-        matpoly_write(ab, fw[0], F, deg, deg + 1, ascii, transpose);
+/* {{{ bm_output_* classes: the link from the in-memory structures to the
+ * filesystem.
+ * Note that coefficients are written transposed */
+struct bm_output_singlefile {/*{{{*/
+    bm_io & aa;
+    matpoly_srcptr P;
+    FILE * f;
+    char * iobuf;
+    char * filename;
+    bm_output_singlefile(bm_io &aa, matpoly_srcptr P, const char * suffix = "")
+        : aa(aa), P(P)
+    {
+        if (!aa.leader()) return;
+        int rc = asprintf(&filename, "%s%s", aa.output_file, suffix);
+        ASSERT_ALWAYS(rc >= 0);
+        f = fopen(filename, aa.ascii ? "w" : "wb");
+        DIE_ERRNO_DIAG(f == NULL, "fopen", filename);
+        iobuf = (char*) malloc(2 * io_block_size);
+        setbuffer(f, iobuf, 2 * io_block_size);
     }
-}/*}}}*/
-void bm_io::clear_one_F_coeff(unsigned int deg)/*{{{*/
+    ~bm_output_singlefile()
+    {
+        if (!aa.leader()) return;
+        printf("Saved %s\n", filename);
+        free(filename);
+        fclose(f);
+        free(iobuf);
+    }
+    void write1(unsigned int deg)
+    {
+        if (!aa.leader()) return;
+        deg = deg % P->alloc;
+        matpoly_write(aa.bm.d.ab, f, P, deg, deg + 1, aa.ascii, 1);
+    }
+};/*}}}*/
+struct bm_output_splitfile {/*{{{*/
+    bm_io & aa;
+    matpoly_srcptr P;
+    FILE ** fw;
+    bm_output_splitfile(bm_io & aa, matpoly_srcptr P, const char * suffix = "")
+        : aa(aa), P(P)
+    {
+        if (!aa.leader()) return;
+        fw = (FILE**) malloc(P->m * P->n * sizeof(FILE*));
+        for(unsigned int i = 0 ; i < P->m ; i++) {
+            for(unsigned int j = 0 ; j < P->n ; j++) {
+                FILE * f;
+                char * str;
+                int rc = asprintf(&str, "%s.sols%d-%d.%d-%d%s",
+                        aa.output_file,
+                        j, j + 1,
+                        i, i + 1, suffix);
+                ASSERT_ALWAYS(rc >= 0);
+                f = fopen(str, aa.ascii ? "w" : "wb");
+                DIE_ERRNO_DIAG(f == NULL, "fopen", str);
+                fw[i*P->n+j] = f;
+                free(str);
+            }
+        }
+        /* Do we want specific caching bufs here ? I doubt it */
+        /*
+           iobuf = (char*) malloc(2 * io_block_size);
+           setbuffer(f, iobuf, 2 * io_block_size);
+           */
+    }
+    ~bm_output_splitfile() {
+        if (!aa.leader()) return;
+        for(unsigned int i = 0 ; i < P->m ; i++) {
+            for(unsigned int j = 0 ; j < P->n ; j++) {
+                fclose(fw[i*P->n+j]);
+            }
+        }
+        free(fw);
+    }
+    void write1(unsigned int deg)
+    {
+        if (!aa.leader()) return;
+        deg = deg % P->alloc;
+        matpoly_write_split(aa.bm.d.ab, fw, P, deg, deg + 1, aa.ascii);
+    }
+
+};/*}}}*/
+struct bm_output_checksum {/*{{{*/
+    bm_io & aa;
+    matpoly_srcptr P;
+    FILE * f;
+    bm_output_checksum(bm_io & aa, matpoly_srcptr P, const char * dummy MAYBE_UNUSED = NULL)
+        : aa(aa), P(P)
+    {
+        if (!aa.leader()) return;
+        /* It's horrible. I really want "checksum" to be printed at the
+         * exact right moment, hence the following hack...  */
+        f = popen("(echo \"checksum:\" ; sha1sum) | xargs echo", "w");
+        DIE_ERRNO_DIAG(f == NULL, "popen", "random sink");
+    }
+    ~bm_output_checksum()
+    {
+        if (!aa.leader()) return;
+        pclose(f);
+    }
+    void write1(unsigned int deg)
+    {
+        if (!aa.leader()) return;
+        deg = deg % P->alloc;
+        matpoly_write(aa.bm.d.ab, f, P, deg, deg + 1, aa.ascii, 1);
+    }
+};/*}}}*/
+/* }}} */
+
+void bm_io::zero1(unsigned int deg)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
@@ -1960,7 +2051,7 @@ void bm_io::clear_one_F_coeff(unsigned int deg)/*{{{*/
  * collective calls.
  */
 #ifdef  ENABLE_MPI_LINGEN
-class bigmatpoly_sink_task { /* {{{ */
+class bigmatpoly_consumer_task { /* {{{ */
     /* This reads a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable. */
     bigmatpoly_srcptr xpi;
@@ -1971,7 +2062,7 @@ class bigmatpoly_sink_task { /* {{{ */
     int rank;
 
     public:
-    bigmatpoly_sink_task(bm_io & aa, bigmatpoly_srcptr xpi) : xpi(xpi) {
+    bigmatpoly_consumer_task(bm_io & aa, bigmatpoly_srcptr xpi) : xpi(xpi) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -2014,11 +2105,11 @@ class bigmatpoly_sink_task { /* {{{ */
         return coeff_const_locked(i, j, k);
     }
 
-    ~bigmatpoly_sink_task() {
+    ~bigmatpoly_consumer_task() {
         matpoly_clear(ab, pi);
     }
 };      /* }}} */
-class bigmatpoly_source_task { /* {{{ */
+class bigmatpoly_producer_task { /* {{{ */
     /* This writes a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable.
      * Note that in any case, the coefficient indices must be progressive
@@ -2032,10 +2123,10 @@ class bigmatpoly_source_task { /* {{{ */
     int rank;
 
     /* forbid copies */
-    bigmatpoly_source_task(bigmatpoly_source_task const &) = delete;
+    bigmatpoly_producer_task(bigmatpoly_producer_task const &) = delete;
 
     public:
-    bigmatpoly_source_task(bm_io & aa, bigmatpoly_ptr xE) : xE(xE) {
+    bigmatpoly_producer_task(bm_io & aa, bigmatpoly_ptr xE) : xE(xE) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -2113,16 +2204,16 @@ class bigmatpoly_source_task { /* {{{ */
         set_size(length);
     }
 
-    ~bigmatpoly_source_task() {
+    ~bigmatpoly_producer_task() {
         matpoly_clear(ab, E);
     }
     friend void matpoly_extract_column(abdst_field ab,
-        bigmatpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
+        bigmatpoly_producer_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc);
 };
 
 void matpoly_extract_column(abdst_field ab,
-        bigmatpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
+        bigmatpoly_producer_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc)
 {
     dst.coeff_locked(0, jdst, kdst);
@@ -2131,14 +2222,14 @@ void matpoly_extract_column(abdst_field ab,
 
 /* }}} */
 #endif  /* ENABLE_MPI_LINGEN */
-class matpoly_sink_task {/*{{{*/
+class matpoly_consumer_task {/*{{{*/
     /* This does the same, but for a simple matpoly. Of course this is
      * much simpler ! */
     matpoly_srcptr pi;
     abdst_field ab;
 
     public:
-    matpoly_sink_task(bm_io & aa, matpoly_srcptr pi) :
+    matpoly_consumer_task(bm_io & aa, matpoly_srcptr pi) :
             pi(pi),
             ab(aa.bm.d.ab)
     {
@@ -2158,17 +2249,17 @@ class matpoly_sink_task {/*{{{*/
         return coeff_const_locked(i, j, k);
     }
 
-    ~matpoly_sink_task() { }
+    ~matpoly_consumer_task() { }
 };/*}}}*/
-class matpoly_source_task { /* {{{ */
+class matpoly_producer_task { /* {{{ */
     matpoly_ptr E;
     abdst_field ab;
 
     /* forbid copies */
-    matpoly_source_task(matpoly_source_task&) {}
+    matpoly_producer_task(matpoly_producer_task&) {}
 
     public:
-    matpoly_source_task(bm_io & aa, matpoly_ptr E) :
+    matpoly_producer_task(bm_io & aa, matpoly_ptr E) :
         E(E),
         ab(aa.bm.d.ab)
     {
@@ -2190,13 +2281,13 @@ class matpoly_source_task { /* {{{ */
         return coeff_locked(i, j, k);
     }
     void finalize(unsigned int length) { set_size(length); }
-    ~matpoly_source_task() { }
+    ~matpoly_producer_task() { }
     friend void matpoly_extract_column(abdst_field ab,
-        matpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
+        matpoly_producer_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc);
 };
 void matpoly_extract_column(abdst_field ab,
-        matpoly_source_task& dst, unsigned int jdst, unsigned int kdst,
+        matpoly_producer_task& dst, unsigned int jdst, unsigned int kdst,
         matpoly_ptr src, unsigned int jsrc, unsigned int ksrc)
 {
     matpoly_extract_column(ab, dst.E, jdst, kdst, src, jsrc, ksrc);
@@ -2205,8 +2296,8 @@ void matpoly_extract_column(abdst_field ab,
 /* }}} */
 
 
-template<class Reader>
-void bm_io::compute_final_F(Reader& pi, unsigned int * delta)/*{{{*/
+template<class Consumer, class Sink>
+void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & delta)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
@@ -2219,7 +2310,7 @@ void bm_io::compute_final_F(Reader& pi, unsigned int * delta)/*{{{*/
 
     /* We are not interested by pi->size, but really by the number of
      * coefficients for the columns which give solutions. */
-    unsigned int maxdelta = get_max_delta_on_solutions(bm, delta);
+    unsigned int maxdelta = get_max_delta_on_solutions(bm, &delta.front());
 
     if (leader) printf("Final f(X)=f0(X)pi(X) has degree %u\n", maxdelta);
 
@@ -2259,142 +2350,105 @@ void bm_io::compute_final_F(Reader& pi, unsigned int * delta)/*{{{*/
          */
 
         matpoly rhs;
-        if (leader) {
-            matpoly_init(ab, rhs, d.nrhs, n, 1);
-            rhs->size = 1;
-        }
+        matpoly_init(ab, rhs, d.nrhs, n, 1);
+        rhs->size = 1;
 
-        /* Now redo the exact same loop as above, this time
-         * adding the contributions to the rhs matrix. */
-        for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
-            for(unsigned int jF = 0 ; jF < n ; jF++) {
-                unsigned int jpi = sols[jF];
-                unsigned int iF, offset;
-                if (ipi < n) {
-                    iF = ipi;
-                    offset = 0;
-                } else {
-                    iF = fdesc[ipi-n][1];
-                    offset = t0 - fdesc[ipi-n][0];
-                }
-                if (iF >= d.nrhs) continue;
-                ASSERT_ALWAYS(delta[jpi] >= offset);
-                unsigned kpi = delta[jpi] - offset;
+        {
+            Sink Srhs(*this, rhs, ".rhs");
 
-                ASSERT_ALWAYS(d.nrhs);
-                ASSERT_ALWAYS(iF < d.nrhs);
-                ASSERT_ALWAYS(jF < n);
-                absrc_elt src = pi.coeff_const(ipi, jpi, kpi);
+            /* Now redo the exact same loop as above, this time
+             * adding the contributions to the rhs matrix. */
+            for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
+                for(unsigned int jF = 0 ; jF < n ; jF++) {
+                    unsigned int jpi = sols[jF];
+                    unsigned int iF, offset;
+                    if (ipi < n) {
+                        iF = ipi;
+                        offset = 0;
+                    } else {
+                        iF = fdesc[ipi-n][1];
+                        offset = t0 - fdesc[ipi-n][0];
+                    }
+                    if (iF >= d.nrhs) continue;
+                    ASSERT_ALWAYS(delta[jpi] >= offset);
+                    unsigned kpi = delta[jpi] - offset;
 
-                if (leader) {
-                    abdst_elt dst = matpoly_coeff(ab, rhs, iF, jF, 0);
-                    abadd(ab, dst, dst, src);
-                }
-            }
-        }
+                    ASSERT_ALWAYS(d.nrhs);
+                    ASSERT_ALWAYS(iF < d.nrhs);
+                    ASSERT_ALWAYS(jF < n);
+                    absrc_elt src = pi.coeff_const(ipi, jpi, kpi);
 
-        if (leader) {
-            /* Now comes the time to prioritize the different solutions. Our
-             * goal is to get the unessential solutions last ! */
-            int (*sol_score)[2];
-            sol_score = (int (*)[2]) malloc(n * 2 * sizeof(int));
-            memset(sol_score, 0, n * 2 * sizeof(int));
-            /* score per solution is the number of non-zero coefficients,
-             * that's it. Since we have access to lexcmp2, we want to use it.
-             * Therefore, desiring the highest scoring solutions first, we
-             * negate the hamming weight.
-             */
-            for(unsigned int jF = 0 ; jF < n ; jF++) {
-                sol_score[jF][1] = jF;
-                for(unsigned int iF = 0 ; iF < d.nrhs ; iF++) {
-                    int z = !abis_zero(ab, matpoly_coeff(ab, rhs, iF, jF, 0));
-                    sol_score[jF][0] -= z;
+                    if (leader) {
+                        abdst_elt dst = matpoly_coeff(ab, rhs, iF, jF, 0);
+                        abadd(ab, dst, dst, src);
+                    }
                 }
             }
-            qsort(sol_score, n, 2 * sizeof(int), (sortfunc_t) & lexcmp2);
 
             if (leader) {
-                printf("Reordered solutions:\n");
-                for(unsigned int i = 0 ; i < n ; i++) {
-                    printf(" %d (col %d in pi, weight %d on rhs vectors)\n", sol_score[i][1], sols[sol_score[i][1]], -sol_score[i][0]);
-                }
-            }
-
-            /* We'll now modify the sols[] array, so that we get a reordered
-             * F, too (and mksol/gather don't have to care about our little
-             * tricks */
-            {
-                matpoly rhs2;
-                matpoly_init(ab, rhs2, d.nrhs, n, 1);
-                rhs2->size = 1;
-                for(unsigned int i = 0 ; i < n ; i++) {
-                    matpoly_extract_column(ab, rhs2, i, 0, rhs, sol_score[i][1], 0);
-                }
-                matpoly_swap(rhs2, rhs);
-                matpoly_clear(ab, rhs2);
-                if (sol_score[0][0] == 0) {
-                    if (allow_zero_on_rhs) {
-                        printf("Note: all solutions have zero contribution on the RHS vectors -- we will just output right kernel vectors (ok because of allow_zero_on_rhs=1)\n");
-                    } else {
-                        fprintf(stderr, "ERROR: all solutions have zero contribution on the RHS vectors -- we will just output right kernel vectors (maybe use allow_zero_on_rhs ?)\n");
-                        rank0_exit_code = EXIT_FAILURE;
+                /* Now comes the time to prioritize the different solutions. Our
+                 * goal is to get the unessential solutions last ! */
+                int (*sol_score)[2];
+                sol_score = (int (*)[2]) malloc(n * 2 * sizeof(int));
+                memset(sol_score, 0, n * 2 * sizeof(int));
+                /* score per solution is the number of non-zero coefficients,
+                 * that's it. Since we have access to lexcmp2, we want to use it.
+                 * Therefore, desiring the highest scoring solutions first, we
+                 * negate the hamming weight.
+                 */
+                for(unsigned int jF = 0 ; jF < n ; jF++) {
+                    sol_score[jF][1] = jF;
+                    for(unsigned int iF = 0 ; iF < d.nrhs ; iF++) {
+                        int z = !abis_zero(ab, matpoly_coeff(ab, rhs, iF, jF, 0));
+                        sol_score[jF][0] -= z;
                     }
                 }
-                /* ugly: use sol_score[i][0] now to provide the future
-                 * "sols" array. We'll get rid of sol_score right afterwards
-                 * anyway.
-                 */
-                for(unsigned int i = 0 ; i < n ; i++) {
-                    sol_score[i][0] = sols[sol_score[i][1]];
-                }
-                for(unsigned int i = 0 ; i < n ; i++) {
-                    sols[i] = sol_score[i][0];
-                }
-            }
+                qsort(sol_score, n, 2 * sizeof(int), (sortfunc_t) & lexcmp2);
 
-            free(sol_score);
-
-            /* Because we've done the swap above, the rhs matrix is now a
-             * matrix with dimension nrhs * n, as required.
-             *
-             * XXX hmm. there are nrhs contributions, but n solutions. So
-             * we'd better get that transposed, right ?
-             */
-            matpoly_transpose_dumb(ab, rhs, rhs);
-
-            if (split_output_file) {
-                FILE ** fw = (FILE**) malloc(d.n * d.nrhs * sizeof(FILE*));
-                for(unsigned int i = 0 ; i < d.n ; i++) {
-                    for(unsigned int j = 0 ; j < d.nrhs ; j++) {
-                        char * tmp;
-                        int rc = asprintf(&tmp, "%s.sols%u-%u.%u-%u.rhs",
-                                output_file, i, i+1, j, j+1);
-                        ASSERT_ALWAYS(rc >= 0);
-                        fw[i*d.nrhs+j] = fopen(tmp, ascii ? "w" : "wb");
-                        ASSERT_ALWAYS(fw[i*d.nrhs+j]);
-                        free(tmp);
+                if (leader) {
+                    printf("Reordered solutions:\n");
+                    for(unsigned int i = 0 ; i < n ; i++) {
+                        printf(" %d (col %d in pi, weight %d on rhs vectors)\n", sol_score[i][1], sols[sol_score[i][1]], -sol_score[i][0]);
                     }
                 }
-                matpoly_write_split(ab, fw, rhs, 0, 1, ascii);
-                for(unsigned int i = 0 ; i < d.n * d.nrhs ; i++) {
-                    fclose(fw[i]);
+
+                /* We'll now modify the sols[] array, so that we get a reordered
+                 * F, too (and mksol/gather don't have to care about our little
+                 * tricks */
+                {
+                    matpoly rhs2;
+                    matpoly_init(ab, rhs2, d.nrhs, n, 1);
+                    rhs2->size = 1;
+                    for(unsigned int i = 0 ; i < n ; i++) {
+                        matpoly_extract_column(ab, rhs2, i, 0, rhs, sol_score[i][1], 0);
+                    }
+                    matpoly_swap(rhs2, rhs);
+                    matpoly_clear(ab, rhs2);
+                    if (sol_score[0][0] == 0) {
+                        if (allow_zero_on_rhs) {
+                            printf("Note: all solutions have zero contribution on the RHS vectors -- we will just output right kernel vectors (ok because of allow_zero_on_rhs=1)\n");
+                        } else {
+                            fprintf(stderr, "ERROR: all solutions have zero contribution on the RHS vectors -- we will just output right kernel vectors (maybe use allow_zero_on_rhs ?)\n");
+                            rank0_exit_code = EXIT_FAILURE;
+                        }
+                    }
+                    /* ugly: use sol_score[i][0] now to provide the future
+                     * "sols" array. We'll get rid of sol_score right afterwards
+                     * anyway.
+                     */
+                    for(unsigned int i = 0 ; i < n ; i++) {
+                        sol_score[i][0] = sols[sol_score[i][1]];
+                    }
+                    for(unsigned int i = 0 ; i < n ; i++) {
+                        sols[i] = sol_score[i][0];
+                    }
                 }
-            } else {
-                /* we used to write F transposed, but we no longer do
-                 * that.
-                 */
-                char * tmp;
-                int rc = asprintf(&tmp, "%s.rhs", output_file);
-                ASSERT_ALWAYS(rc >= 0);
-                FILE * f = fopen(tmp, ascii ? "w" : "wb");
-                ASSERT_ALWAYS(f);
-                matpoly_write(ab, f, rhs, 0, 1, ascii, 0);
-                fclose(f);
-                printf("Note: contributions to RHS coefficients saved to the rhs file %s\n", tmp);
-                free(tmp);
+                free(sol_score);
+
+                Srhs.write1(0);
             }
-            matpoly_clear(ab, rhs);
         }
+        matpoly_clear(ab, rhs);
     }
 
     /* we need to read pi backwards. The number of coefficients in pi is
@@ -2463,8 +2517,8 @@ void bm_io::compute_final_F(Reader& pi, unsigned int * delta)/*{{{*/
         }
         /* coefficient of degree maxdelta-kpi-window is now complete */
         if (kpi + window <= maxdelta) {
-            write_one_F_coeff((maxdelta-kpi) - window);
-            clear_one_F_coeff((maxdelta-kpi) - window);
+            S.write1((maxdelta-kpi) - window);
+            zero1((maxdelta-kpi) - window);
         }
         /* Now use our coefficient. This might tinker with
          * coefficients up to degree kpi-(window-1) in the file F */
@@ -2539,7 +2593,7 @@ void bm_io::compute_final_F(Reader& pi, unsigned int * delta)/*{{{*/
     /* flush the pipe */
     if (leader && window <= maxdelta) {
         for(unsigned int s = window ; s-- > 0 ; )
-            write_one_F_coeff(maxdelta - s);
+            S.write1(maxdelta - s);
     }
 
     free(sols);
@@ -2686,76 +2740,6 @@ void bm_io::end_read()/*{{{*/
     free(fr);
     fr = NULL;
     free(iobuf);
-    iobuf = 0;
-}/*}}}*/
-
-void bm_io::begin_write()/*{{{*/
-{
-    bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
-    unsigned int n = d.n;
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-    if (rank) return;
-
-    matpoly_init(ab, F, n, n, t0 + 1);
-
-    if (random_input_length) {
-        /* It's horrible. I really want "checksum" to be printed at the
-         * exact right moment, hence the following hack...  */
-        fw = (FILE**) malloc(sizeof(FILE*));
-        fw[0] = popen("(echo \"checksum:\" ; sha1sum) | xargs echo", "w");
-        DIE_ERRNO_DIAG(fw[0] == NULL, "popen", "random sink");
-    } else if (split_output_file) {
-        fw = (FILE**) malloc(n*n*sizeof(FILE*));
-        for(unsigned int i = 0 ; i < n ; i++) {
-            for(unsigned int j = 0 ; j < n ; j++) {
-                FILE * f;
-                char * str;
-                int rc = asprintf(&str, "%s.sols%d-%d.%d-%d",
-                        output_file,
-                        j, j + 1,
-                        i, i + 1);
-                ASSERT_ALWAYS(rc >= 0);
-                f = fopen(str, ascii ? "w" : "wb");
-                DIE_ERRNO_DIAG(f == NULL, "fopen", str);
-                /* I doubt the iobuf makes sense in this case */
-                /*
-                   iobuf = (char*) malloc(2 * io_block_size);
-                   setbuffer(f, iobuf, 2 * io_block_size);
-                   */
-                fw[i*n+j] = f;
-            }
-        }
-    } else {
-        fw = (FILE**) malloc(sizeof(FILE*));
-        fw[0] = fopen(output_file, ascii ? "w" : "wb");
-        DIE_ERRNO_DIAG(fw[0] == NULL, "fopen", output_file);
-        iobuf = (char*) malloc(2 * io_block_size);
-        setbuffer(fw[0], iobuf, 2 * io_block_size);
-    }
-}/*}}}*/
-
-void bm_io::end_write()/*{{{*/
-{
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-    if (rank) return;
-    matpoly_clear(bm.d.ab, F);
-    if (random_input_length) {
-        pclose(fw[0]);
-    } else if (split_output_file) {
-        for(unsigned int i = 0 ; i < bm.d.n ; i++) {
-            for(unsigned int j = 0 ; j < bm.d.n ; j++) {
-                fclose(fw[i*bm.d.n+j]);
-            }
-        }
-    } else {
-        fclose(fw[0]);
-    }
-    free(fw);
-    fw = NULL;
-    if (iobuf) free(iobuf);
     iobuf = 0;
 }/*}}}*/
 
@@ -3190,8 +3174,8 @@ template<typename T> struct matpoly_multiplex {};
 template<> struct matpoly_multiplex<bigmatpoly> {
     typedef bigmatpoly_ptr ptr;
     typedef bigmatpoly_srcptr srcptr;
-    typedef bigmatpoly_source_task source_task;
-    typedef bigmatpoly_sink_task sink_task;
+    typedef bigmatpoly_producer_task producer_task;
+    typedef bigmatpoly_consumer_task consumer_task;
     static void init_model(ptr model, MPI_Comm * comm, unsigned int m, unsigned int n) { bigmatpoly_init_model(model, comm, m, n); }
     static void clear_model(ptr model) { bigmatpoly_clear_model(model); }
     static void init(abdst_field ab, ptr p, srcptr model, unsigned int m, unsigned int n, int len) { bigmatpoly_init(ab, p, model, m, n, len); }
@@ -3203,8 +3187,8 @@ template<> struct matpoly_multiplex<bigmatpoly> {
 template<> struct matpoly_multiplex<matpoly> {
     typedef matpoly_ptr ptr;
     typedef matpoly_srcptr srcptr;
-    typedef matpoly_source_task source_task;
-    typedef matpoly_sink_task sink_task;
+    typedef matpoly_producer_task producer_task;
+    typedef matpoly_consumer_task consumer_task;
     static void init_model(ptr, MPI_Comm *, unsigned int, unsigned int) { }
     static void clear_model(ptr) { }
     static void init(abdst_field ab, ptr p, srcptr, unsigned int m, unsigned int n, int len) { matpoly_init(ab, p, m, n, len); }
@@ -3213,6 +3197,28 @@ template<> struct matpoly_multiplex<matpoly> {
     static size_t alloc(srcptr p) { return p->alloc; }
 
 };
+
+template<typename T, typename Sink>
+void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
+{
+    unsigned int n = bm.d.n;
+    int rank;
+    MPI_Comm_rank(bm.com[0], &rank);
+    if (rank) return;
+
+    matpoly_init(bm.d.ab, F, n, n, t0 + 1);
+
+    set_write_behind_size(&delta.front());
+
+    Sink S(*this, F);
+
+    typename matpoly_multiplex<T>::consumer_task pi_consumer(*this, pi);
+
+    compute_final_F(S, pi_consumer, delta);
+
+    matpoly_clear(bm.d.ab, F);
+}
+
 
 /* Some of the early reading must be done before we even start, since
  * the code that we run depends on the input size.
@@ -3236,8 +3242,8 @@ void lingen_main_code(abdst_field ab, bm_io & aa)
     matpoly_multiplex<T>::init(ab, E, model, m, m+n, safe_guess);
     matpoly_multiplex<T>::init(ab, pi, model, 0, 0, 0);   /* pre-init for now */
 
-    typename matpoly_multiplex<T>::source_task E_source(aa, E);
-    aa.compute_E(E_source, guess, safe_guess);
+    typename matpoly_multiplex<T>::producer_task E_producer(aa, E);
+    aa.compute_E(E_producer, guess, safe_guess);
     aa.end_read();
 
     matpoly_multiplex<T>::bw_lingen(bm, pi, E, &delta.front());
@@ -3249,11 +3255,13 @@ void lingen_main_code(abdst_field ab, bm_io & aa)
     }
 
     if (!draft_mode && check_luck_condition(bm)) {
-        aa.begin_write();
-        aa.set_write_behind_size(&delta.front());
-        typename matpoly_multiplex<T>::sink_task pi_sink(aa, pi);
-        aa.compute_final_F(pi_sink, &delta.front());
-        aa.end_write();
+        if (random_input_length) {
+            aa.output_flow<T, bm_output_checksum>(pi, delta);
+        } else if (split_output_file) {
+            aa.output_flow<T, bm_output_splitfile>(pi, delta);
+        } else {
+            aa.output_flow<T, bm_output_singlefile>(pi, delta);
+        }
     }
 
     /* clear everything */
