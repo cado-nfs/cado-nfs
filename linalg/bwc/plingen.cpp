@@ -32,7 +32,7 @@
 
 #define ENABLE_MPI_LINGEN
 
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
 #include "lingen-bigmatpoly.h"
 #endif
 
@@ -156,10 +156,6 @@ struct bmstatus {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/
 };/*}}}*/
-
-
-
-
 
 void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
 {
@@ -1137,7 +1133,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly pi, unsigned int t0, unsigned in
     return ok;
 }/*}}}*/
 
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
 int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly xpi, unsigned int t0, unsigned int t1, unsigned int *delta, int * p_done)/*{{{*/
 {
     int size;
@@ -1401,7 +1397,7 @@ int save_mpi_checkpoint_file(bmstatus & bm, bigmatpoly xpi, unsigned int t0, uns
 /* Forward declaration, it's used by the recursive version */
 int bw_lingen_single(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta);
 
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
 int bw_biglingen_collective(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned int *delta);
 #endif
 
@@ -1575,7 +1571,7 @@ int bw_lingen_single(bmstatus & bm, matpoly pi, matpoly E, unsigned int *delta) 
     return done;
 }/*}}}*/
 
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
 int bw_biglingen_recursive(bmstatus & bm, bigmatpoly pi, bigmatpoly E, unsigned int *delta) /*{{{*/
 {
     int depth = bm.depth();
@@ -1819,9 +1815,7 @@ unsigned int get_max_delta_on_solutions(bmstatus & bm, unsigned int * delta)/*{{
 }/*}}}*/
 
 /**********************************************************************/
-
-struct bm_io;
-
+/* {{{ reading A and writing F ... */
 struct bm_io {/*{{{*/
     bmstatus & bm;
     unsigned int t0;
@@ -1996,7 +1990,6 @@ struct bm_output_splitfile {/*{{{*/
     }
 
 };/*}}}*/
-
 struct bm_output_checksum {/*{{{*/
     bm_io & aa;
     matpoly_srcptr P;
@@ -2050,7 +2043,7 @@ void bm_io::zero1(unsigned int deg)/*{{{*/
  * Pay attention to the fact that the calls to these structures are
  * collective calls.
  */
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
 class bigmatpoly_consumer_task { /* {{{ */
     /* This reads a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable. */
@@ -3039,6 +3032,61 @@ void bm_io::compute_E(Writer& E, unsigned int expected, unsigned int allocated)/
     E.finalize(final_length);
 }/*}}}*/
 
+template<typename T> struct matpoly_multiplex {};
+
+#ifdef ENABLE_MPI_LINGEN
+template<> struct matpoly_multiplex<bigmatpoly> {
+    typedef bigmatpoly_ptr ptr;
+    typedef bigmatpoly_srcptr srcptr;
+    typedef bigmatpoly_producer_task producer_task;
+    typedef bigmatpoly_consumer_task consumer_task;
+    static void init_model(ptr model, MPI_Comm * comm, unsigned int m, unsigned int n) { bigmatpoly_init_model(model, comm, m, n); }
+    static void clear_model(ptr model) { bigmatpoly_clear_model(model); }
+    static void init(abdst_field ab, ptr p, srcptr model, unsigned int m, unsigned int n, int len) { bigmatpoly_init(ab, p, model, m, n, len); }
+    static void clear(abdst_field ab, ptr p) { bigmatpoly_clear(ab, p); }
+    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_biglingen_collective(bm, pi, E, delta); }
+    static size_t alloc(srcptr p) { return bigmatpoly_my_cell_const(p)->alloc; }
+};
+#endif
+
+template<> struct matpoly_multiplex<matpoly> {
+    typedef matpoly_ptr ptr;
+    typedef matpoly_srcptr srcptr;
+    typedef matpoly_producer_task producer_task;
+    typedef matpoly_consumer_task consumer_task;
+    static void init_model(ptr, MPI_Comm *, unsigned int, unsigned int) { }
+    static void clear_model(ptr) { }
+    static void init(abdst_field ab, ptr p, srcptr, unsigned int m, unsigned int n, int len) { matpoly_init(ab, p, m, n, len); }
+    static void clear(abdst_field ab, ptr p) { matpoly_clear(ab, p); }
+    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_lingen_single(bm, pi, E, delta); }
+    static size_t alloc(srcptr p) { return p->alloc; }
+
+};
+
+template<typename T, typename Sink>
+void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
+{
+    unsigned int n = bm.d.n;
+    int rank;
+    MPI_Comm_rank(bm.com[0], &rank);
+    if (rank) return;
+
+    matpoly_init(bm.d.ab, F, n, n, t0 + 1);
+
+    set_write_behind_size(&delta.front());
+
+    Sink S(*this, F);
+
+    typename matpoly_multiplex<T>::consumer_task pi_consumer(*this, pi);
+
+    compute_final_F(S, pi_consumer, delta);
+
+    matpoly_clear(bm.d.ab, F);
+}
+
+
+/*}}}*/
+
 void usage()
 {
     fprintf(stderr, "Usage: ./plingen [options, to be documented]\n");
@@ -3046,7 +3094,6 @@ void usage()
             "General information about bwc options is in the README file\n");
     exit(EXIT_FAILURE);
 }
-
 
 unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
 {
@@ -3168,56 +3215,6 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     bw_lingen_basecase_raw(bm, pi, E, &delta.front());
     mpz_clear(p);
 }/*}}}*/
-
-template<typename T> struct matpoly_multiplex {};
-
-template<> struct matpoly_multiplex<bigmatpoly> {
-    typedef bigmatpoly_ptr ptr;
-    typedef bigmatpoly_srcptr srcptr;
-    typedef bigmatpoly_producer_task producer_task;
-    typedef bigmatpoly_consumer_task consumer_task;
-    static void init_model(ptr model, MPI_Comm * comm, unsigned int m, unsigned int n) { bigmatpoly_init_model(model, comm, m, n); }
-    static void clear_model(ptr model) { bigmatpoly_clear_model(model); }
-    static void init(abdst_field ab, ptr p, srcptr model, unsigned int m, unsigned int n, int len) { bigmatpoly_init(ab, p, model, m, n, len); }
-    static void clear(abdst_field ab, ptr p) { bigmatpoly_clear(ab, p); }
-    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_biglingen_collective(bm, pi, E, delta); }
-    static size_t alloc(srcptr p) { return bigmatpoly_my_cell_const(p)->alloc; }
-};
-
-template<> struct matpoly_multiplex<matpoly> {
-    typedef matpoly_ptr ptr;
-    typedef matpoly_srcptr srcptr;
-    typedef matpoly_producer_task producer_task;
-    typedef matpoly_consumer_task consumer_task;
-    static void init_model(ptr, MPI_Comm *, unsigned int, unsigned int) { }
-    static void clear_model(ptr) { }
-    static void init(abdst_field ab, ptr p, srcptr, unsigned int m, unsigned int n, int len) { matpoly_init(ab, p, m, n, len); }
-    static void clear(abdst_field ab, ptr p) { matpoly_clear(ab, p); }
-    static int bw_lingen(bmstatus & bm, ptr pi, ptr E, unsigned int *delta) { return bw_lingen_single(bm, pi, E, delta); }
-    static size_t alloc(srcptr p) { return p->alloc; }
-
-};
-
-template<typename T, typename Sink>
-void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
-{
-    unsigned int n = bm.d.n;
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-    if (rank) return;
-
-    matpoly_init(bm.d.ab, F, n, n, t0 + 1);
-
-    set_write_behind_size(&delta.front());
-
-    Sink S(*this, F);
-
-    typename matpoly_multiplex<T>::consumer_task pi_consumer(*this, pi);
-
-    compute_final_F(S, pi_consumer, delta);
-
-    matpoly_clear(bm.d.ab, F);
-}
 
 
 /* Some of the early reading must be done before we even start, since
@@ -3505,14 +3502,14 @@ int main(int argc, char *argv[])
         if (size) {
             printf("Expected length %u exceeds MPI threshold %u, going MPI now.\n", aa.guessed_length, bm.lingen_mpi_threshold);
         } else {
-            printf("Expected length %u exceeds MPI threshold %u, but the process is not running  in an MPI context.\n", aa.guessed_length, bm.lingen_mpi_threshold);
+            printf("Expected length %u exceeds MPI threshold %u, but the process is not running in an MPI context.\n", aa.guessed_length, bm.lingen_mpi_threshold);
         }
     }
 
     bm.stats.set_draft_mode(draft_mode);
 
     if (go_mpi && size > 1) {
-#ifdef  ENABLE_MPI_LINGEN
+#ifdef ENABLE_MPI_LINGEN
         lingen_main_code<bigmatpoly>(ab, aa);
 #else
         /* The ENABLE_MPI_LINGEN flag should be turned on for a proper
