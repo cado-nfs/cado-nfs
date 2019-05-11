@@ -163,7 +163,7 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
     if (v STREQUAL "m128" AND NOT HAVE_SSE41)
         message(STATUS "GF(2) arithmetic backend m128 not compiled in, sse-4.1 support missing")
     else()
-        set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}_t.c )
+        set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
         set(COMPILE_MPFQ_BINARY_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
         set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_BINARY_FIELD_${v}")
         message(STATUS "GF(2) arithmetic backend enabled for factoring linear algebra: ${v}")
@@ -171,7 +171,7 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
 endforeach(v)
 
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}_t.c )
+    set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
     set(COMPILE_MPFQ_PRIME_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
     set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_PRIME_FIELD_${v}")
     message(STATUS "GF(p) arithmetic backend enabled for DL linear algebra: ${v}")
@@ -422,6 +422,7 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen-polymat.c
         # lingen-bigpolymat.c # deleted 20150826
         mpfq/mpfq_${v}.c
+        mpfq/mpfq_${v}.cpp
         lingen-matpoly-ft.cpp
         lingen-bigmatpoly-ft.c)
 

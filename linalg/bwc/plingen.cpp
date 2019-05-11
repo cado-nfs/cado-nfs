@@ -18,8 +18,8 @@
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
-
 #include <assert.h>
+#include <fstream>
 
 #include "portability.h"
 #include "macros.h"
@@ -44,6 +44,7 @@
 #include "plingen-tuning.hpp"
 #include "logline.h"
 #include "tree_stats.hpp"
+#include "sha1.h"
 
 /* Call tree for methods within this program:
  *
@@ -821,7 +822,7 @@ double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)/*{
  * most k1-k0) successfully written, or
  * -1 on error (e.g. when some matrix was only partially written).
  */
-int matpoly_write(abdst_field ab, FILE * f, matpoly_srcptr M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+int matpoly_write(abdst_field ab, std::ostream& os, matpoly_srcptr M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int m = transpose ? M->n : M->m;
     unsigned int n = transpose ? M->m : M->n;
@@ -837,16 +838,16 @@ int matpoly_write(abdst_field ab, FILE * f, matpoly_srcptr M, unsigned int k0, u
                 x = transpose ? matpoly_coeff_const(ab, M, j, i, k)
                               : matpoly_coeff_const(ab, M, i, j, k);
                 if (ascii) {
-                    if (j) err = fprintf(f, " ") <= 0;
-                    if (!err) err = abfprint(ab, f, x) <= 0;
+                    if (j) err = !(os << " ");
+                    if (!err) err = !(abcxx_out(ab, os, x));
                 } else {
-                    err = fwrite(x, abvec_elt_stride(ab, 1), 1, f) < 1;
+                    err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
                 }
                 if (!err) matnb++;
             }
-            if (!err && ascii) err = fprintf(f, "\n") <= 0;
+            if (!err && ascii) err = !(os << "\n");
         }
-        if (ascii) err = err || fprintf(f, "\n") <= 0;
+        if (ascii) err = err || !(os << "\n");
         if (err) {
             abclear(ab, &tmp);
             return (matnb == 0) ? (int) (k - k0) : -1;
@@ -859,7 +860,8 @@ int matpoly_write(abdst_field ab, FILE * f, matpoly_srcptr M, unsigned int k0, u
 /* fw must be an array of FILE* pointers of exactly the same size as the
  * matrix to be written.
  */
-int matpoly_write_split(abdst_field ab, FILE ** fw, matpoly_srcptr M, unsigned int k0, unsigned int k1, int ascii)
+template<typename Ostream>
+int matpoly_write_split(abdst_field ab, std::vector<Ostream> & fw, matpoly_srcptr M, unsigned int k0, unsigned int k1, int ascii)
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M->size && k1 <= M->size));
     abelt tmp;
@@ -869,13 +871,13 @@ int matpoly_write_split(abdst_field ab, FILE ** fw, matpoly_srcptr M, unsigned i
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < M->m ; i++) {
             for(unsigned int j = 0 ; !err && j < M->n ; j++) {
-                FILE * f = fw[i*M->n+j];
+                std::ostream& os = fw[i*M->n+j];
                 absrc_elt x = matpoly_coeff_const(ab, M, i, j, k);
                 if (ascii) {
-                    err = abfprint(ab, f, x) <= 0;
-                    if (!err) err = fprintf(f, "\n") <= 0;
+                    err = !(abcxx_out(ab, os, x));
+                    if (!err) err = !(os << "\n");
                 } else {
-                    err = fwrite(x, abvec_elt_stride(ab, 1), 1, f) < 1;
+                    err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
                 }
                 if (!err) matnb++;
             }
@@ -1077,20 +1079,19 @@ int cp_info::load_data_file(matpoly pi, size_t pi_size)/*{{{*/
 int cp_info::save_data_file(matpoly pi, size_t pi_size)/*{{{*/
 {
     abdst_field ab = bm.d.ab;
-    FILE * data = fopen(datafile, "wb");
+    std::ofstream data(datafile, std::ios_base::out | std::ios_base::binary);
     int rc;
-    if (data == NULL) {
+    if (!data) {
         fprintf(stderr, "Warning: cannot open %s\n", datafile);
         unlink(auxfile);
         return 0;
     }
     rc = matpoly_write(ab, data, pi, 0, pi_size, 0, 0);
     if (rc != (int) pi->size) goto cp_info_save_data_file_bailout;
-    rc = fclose(data);
-    if (rc == 0)
+    data.close();
+    if (!data)
         return 1;
 cp_info_save_data_file_bailout:
-    fclose(data);
     unlink(datafile);
     unlink(auxfile);
     return 0;
@@ -1305,14 +1306,15 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly xpi, unsigned in
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {
-            FILE * data = NULL;
-            int rc;
-            if (!rank) ok = (data = fopen(cp.datafile, "wb")) != NULL;
+            std::ofstream data;
+            if (!rank) {
+                data.open(cp.datafile, std::ios_base::out | std::ios_base::binary);
+                ok = (bool) data;
+            }
             MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
             if (!ok) {
                 if (!rank)
                     fprintf(stderr, "Warning: cannot open %s\n", cp.datafile);
-                if (data) free(data);
                 break;
             }
 
@@ -1334,8 +1336,8 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly xpi, unsigned in
             matpoly_clear(ab, pi);
 
             if (!rank) {
-                rc = fclose(data);
-                ok = ok && (rc == 0);
+                data.close();
+                ok = ok && (bool) data;
             }
         } while (0);
         MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
@@ -1924,7 +1926,7 @@ unsigned int bm_io::set_write_behind_size(unsigned int * delta)/*{{{*/
 struct bm_output_singlefile {/*{{{*/
     bm_io & aa;
     matpoly_srcptr P;
-    FILE * f;
+    std::ofstream f;
     char * iobuf;
     char * filename;
     bm_output_singlefile(bm_io &aa, matpoly_srcptr P, const char * suffix = "")
@@ -1933,17 +1935,19 @@ struct bm_output_singlefile {/*{{{*/
         if (!aa.leader()) return;
         int rc = asprintf(&filename, "%s%s", aa.output_file, suffix);
         ASSERT_ALWAYS(rc >= 0);
-        f = fopen(filename, aa.ascii ? "w" : "wb");
-        DIE_ERRNO_DIAG(f == NULL, "fopen", filename);
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (!aa.ascii) mode |= std::ios_base::binary;  
+        f.open(filename, mode);
+        DIE_ERRNO_DIAG(!f, "fopen", filename);
         iobuf = (char*) malloc(2 * io_block_size);
-        setbuffer(f, iobuf, 2 * io_block_size);
+        f.rdbuf()->pubsetbuf(iobuf, 2 * io_block_size);
     }
     ~bm_output_singlefile()
     {
         if (!aa.leader()) return;
         printf("Saved %s\n", filename);
         free(filename);
-        fclose(f);
+        f.close();
         free(iobuf);
     }
     void write1(unsigned int deg)
@@ -1956,24 +1960,23 @@ struct bm_output_singlefile {/*{{{*/
 struct bm_output_splitfile {/*{{{*/
     bm_io & aa;
     matpoly_srcptr P;
-    FILE ** fw;
+    std::vector<std::ofstream> fw;
     bm_output_splitfile(bm_io & aa, matpoly_srcptr P, const char * suffix = "")
         : aa(aa), P(P)
     {
         if (!aa.leader()) return;
-        fw = (FILE**) malloc(P->m * P->n * sizeof(FILE*));
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (!aa.ascii) mode |= std::ios_base::binary;  
         for(unsigned int i = 0 ; i < P->m ; i++) {
             for(unsigned int j = 0 ; j < P->n ; j++) {
-                FILE * f;
                 char * str;
                 int rc = asprintf(&str, "%s.sols%d-%d.%d-%d%s",
                         aa.output_file,
                         j, j + 1,
                         i, i + 1, suffix);
                 ASSERT_ALWAYS(rc >= 0);
-                f = fopen(str, aa.ascii ? "w" : "wb");
-                DIE_ERRNO_DIAG(f == NULL, "fopen", str);
-                fw[i*P->n+j] = f;
+                fw.emplace_back(std::ofstream { str, mode } );
+                DIE_ERRNO_DIAG(!fw.back(), "fopen", str);
                 free(str);
             }
         }
@@ -1984,13 +1987,6 @@ struct bm_output_splitfile {/*{{{*/
            */
     }
     ~bm_output_splitfile() {
-        if (!aa.leader()) return;
-        for(unsigned int i = 0 ; i < P->m ; i++) {
-            for(unsigned int j = 0 ; j < P->n ; j++) {
-                fclose(fw[i*P->n+j]);
-            }
-        }
-        free(fw);
     }
     void write1(unsigned int deg)
     {
@@ -2000,24 +1996,49 @@ struct bm_output_splitfile {/*{{{*/
     }
 
 };/*}}}*/
+
+class sha1_checksumming_streambuf: public std::streambuf
+{
+    SHA1_CTX ctx;
+public:
+    sha1_checksumming_streambuf() {
+        SHA1Init(&ctx);
+    }
+    ~sha1_checksumming_streambuf() {
+        uint8_t dest[20];
+        SHA1Final(dest, &ctx);
+        char out[41];
+        for(int i = 0 ; i < 20 ; i++) {
+            snprintf(out + 2*i, 3, "%02x", (unsigned int) dest[i]);
+        }
+        printf("checksum: %s\n", out);
+    }
+private:
+    virtual int overflow(int c)
+    {
+        if (c == EOF) return !EOF;
+        unsigned char cc = c;
+        SHA1Update(&ctx, &cc, 1);
+        return c;
+    }
+
+    virtual int sync() { return 0; }
+};
+
+class sha1_checksumming_stream : public std::ostream
+{
+    sha1_checksumming_streambuf cbuf;
+public:
+    sha1_checksumming_stream() : std::ostream(&cbuf) {}
+};
+
 struct bm_output_checksum {/*{{{*/
     bm_io & aa;
     matpoly_srcptr P;
-    FILE * f;
+    sha1_checksumming_stream f;
     bm_output_checksum(bm_io & aa, matpoly_srcptr P, const char * dummy MAYBE_UNUSED = NULL)
-        : aa(aa), P(P)
-    {
-        if (!aa.leader()) return;
-        /* It's horrible. I really want "checksum" to be printed at the
-         * exact right moment, hence the following hack...  */
-        f = popen("(echo \"checksum:\" ; sha1sum) | xargs echo", "w");
-        DIE_ERRNO_DIAG(f == NULL, "popen", "random sink");
-    }
-    ~bm_output_checksum()
-    {
-        if (!aa.leader()) return;
-        pclose(f);
-    }
+        : aa(aa), P(P) { }
+    ~bm_output_checksum() { }
     void write1(unsigned int deg)
     {
         if (!aa.leader()) return;
