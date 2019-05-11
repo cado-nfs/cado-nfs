@@ -5,7 +5,7 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.h"
+#include "lingen-matpoly.hpp"
 #include "flint-fft/fft.h"
 
 int matpoly_check_pre_init(matpoly_srcptr p)

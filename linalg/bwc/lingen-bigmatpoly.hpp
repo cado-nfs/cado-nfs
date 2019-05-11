@@ -2,7 +2,7 @@
 #define BIGMATPOLY_H_
 
 #include "mpfq_layer.h"
-#include "lingen-matpoly.h"
+#include "lingen-matpoly.hpp"
 
 #include "select_mpi.h"
 

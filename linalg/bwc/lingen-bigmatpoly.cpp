@@ -4,8 +4,8 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.h"
-#include "lingen-bigmatpoly.h"
+#include "lingen-matpoly.hpp"
+#include "lingen-bigmatpoly.hpp"
 
 /* {{{  init/zero/clear interface for bigmatpoly */
 matpoly_ptr bigmatpoly_my_cell(bigmatpoly_ptr p)
@@ -66,7 +66,7 @@ void bigmatpoly_init(abdst_field ab, bigmatpoly_ptr p, bigmatpoly_srcptr model, 
     p->n1 = model->n1;
     memcpy(p->com, model->com, 3 * sizeof(MPI_Comm));
 
-    p->cells = malloc(p->m1*p->n1*sizeof(matpoly));
+    p->cells = (matpoly*) malloc(p->m1*p->n1*sizeof(matpoly));
     memset(p->cells, 0, p->m1*p->n1*sizeof(matpoly));
     /* Either none or all must be non-zero */
     ASSERT_ALWAYS((!m||!n||!len) ^ (m&&n&&len));
@@ -473,7 +473,7 @@ void bigmatpoly_gather_mat_partial(abdst_field ab, matpoly_ptr dst, bigmatpoly_s
         ASSERT_ALWAYS(dst->n == src->n);
         ASSERT_ALWAYS(dst->alloc >= length);
         dst->size = length;
-        MPI_Request * reqs = malloc(src->m1 * src->n1
+        MPI_Request * reqs = (MPI_Request*) malloc(src->m1 * src->n1
                 * src->m0 * src->n0 * sizeof(MPI_Request));
         MPI_Request * req = reqs;
         /* the master receives data from everyone */
@@ -518,7 +518,7 @@ void bigmatpoly_gather_mat_partial(abdst_field ab, matpoly_ptr dst, bigmatpoly_s
         free(reqs);
     } else {
         // All the other nodes send their data.
-        MPI_Request * reqs = malloc(src->m0 * src->n0 * sizeof(MPI_Request));
+        MPI_Request * reqs = new MPI_Request[src->m0 * src->n0];
         MPI_Request * req = reqs;
         /* receive. Each job will receive exactly dst->m0 transfers */
         matpoly_srcptr me = bigmatpoly_my_cell_const(src);
@@ -542,7 +542,7 @@ void bigmatpoly_gather_mat_partial(abdst_field ab, matpoly_ptr dst, bigmatpoly_s
                 req++;
             }
         }
-        free(reqs);
+        delete[] reqs;
     }
     MPI_Type_free(&mt);
 }
@@ -577,8 +577,7 @@ void bigmatpoly_scatter_mat_partial(abdst_field ab,
     ASSERT_ALWAYS(irank * (int) dst->n1 + jrank == rank);
 
     if (!rank) {
-        MPI_Request * reqs = malloc(dst->m1 * dst->n1
-                * dst->m0 * dst->n0 * sizeof(MPI_Request));
+        MPI_Request * reqs = new MPI_Request[dst->m1 * dst->n1 * dst->m0 * dst->n0];
         MPI_Request * req = reqs;
         /* the master sends data to everyone */
         for(unsigned int i1 = 0 ; i1 < dst->m1 ; i1++) {
@@ -618,9 +617,9 @@ void bigmatpoly_scatter_mat_partial(abdst_field ab,
                 }
             }
         }
-        free(reqs);
+        delete[] reqs;
     } else {
-        MPI_Request * reqs = malloc(dst->m0 * dst->n0 * sizeof(MPI_Request));
+        MPI_Request * reqs = new MPI_Request[dst->m0 * dst->n0];
         MPI_Request * req = reqs;
         matpoly_ptr me = bigmatpoly_my_cell(dst);
         for(unsigned int i0 = 0 ; i0 < dst->m0 ; i0++) {
@@ -642,7 +641,7 @@ void bigmatpoly_scatter_mat_partial(abdst_field ab,
                 req++;
             }
         }
-        free(reqs);
+        delete[] reqs;
     }
     MPI_Type_free(&mt);
 }

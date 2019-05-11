@@ -17,7 +17,7 @@ typedef struct polymat_s polymat[1];
 typedef struct polymat_s * polymat_ptr;
 typedef const struct polymat_s * polymat_srcptr;
 
-#include "lingen-matpoly.h"
+#include "lingen-matpoly.hpp"
 
 /* {{{ cut-off structures */
 /* This structure is used to decide which algorithm to use for a given

@@ -24,10 +24,10 @@
 #include "macros.h"
 #include "utils.h"
 #include "mpfq_layer.h"
-#include "lingen-polymat.h"
-#include "lingen-matpoly.h"
+#include "lingen-polymat.hpp"
+#include "lingen-matpoly.hpp"
 // #include "lingen-bigpolymat.h" // 20150826: deleted.
-#include "lingen-matpoly-ft.h"
+#include "lingen-matpoly-ft.hpp"
 #include "plingen.hpp"
 #include "plingen-tune-cutoffs.hpp"
 

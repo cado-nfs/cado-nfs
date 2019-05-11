@@ -28,15 +28,15 @@
 #include "memusage.h"
 
 /* lingen-matpoly is the default code. */
-#include "lingen-matpoly.h"
+#include "lingen-matpoly.hpp"
 
 #define ENABLE_MPI_LINGEN
 
 #ifdef ENABLE_MPI_LINGEN
-#include "lingen-bigmatpoly.h"
+#include "lingen-bigmatpoly.hpp"
 #endif
 
-#include "lingen-bigmatpoly-ft.h"
+#include "lingen-bigmatpoly-ft.hpp"
 
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */

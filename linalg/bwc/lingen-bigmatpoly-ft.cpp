@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include "portability.h"
 #include "macros.h"
-#include "lingen-matpoly-ft.h"
-#include "lingen-bigmatpoly-ft.h"
+#include "lingen-matpoly-ft.hpp"
+#include "lingen-bigmatpoly-ft.hpp"
 #include "logline.h"
 
 /* This is the interface for doing products of polynomial matrices by
@@ -76,7 +76,7 @@ void bigmatpoly_ft_init(abdst_field ab, bigmatpoly_ft_ptr p, bigmatpoly_ft_srcpt
     p->n1 = model->n1;
     memcpy(p->com, model->com, 3 * sizeof(MPI_Comm));
 
-    p->cells = malloc(p->m1*p->n1*sizeof(matpoly_ft));
+    p->cells = (matpoly_ft*) malloc(p->m1*p->n1*sizeof(matpoly_ft));
     memset(p->cells, 0, p->m1*p->n1*sizeof(matpoly_ft));
     /* Either none or all must be non-zero */
     ASSERT_ALWAYS((!m||!n) ^ (m&&n));

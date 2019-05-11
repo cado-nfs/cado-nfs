@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.h"
-#include "lingen-matpoly-ft.h"
+#include "lingen-matpoly.hpp"
+#include "lingen-matpoly-ft.hpp"
 #include "logline.h"
 
 #ifdef HAVE_OPENMP
@@ -15,8 +15,7 @@
 
 #define MUL_FTI_DEPTH_ADJ_36_36_36 { { 1, 6 }, { 2, 3 }, { 3, 2 }, { 6, 1 }, { 7, 2 }, { 14, 1 }, { 23, 0 }, { 26, 1 }, { 44, 0 }, { 46, 1 }, { 54, 0 }, { 61, 1 }, { 62, 0 }, }
 
-
-void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int m, unsigned int n, const struct fft_transform_info * fti)
+void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int m, unsigned int n, const struct fft_transform_info * fti)/*{{{*/
 {
     size_t fft_alloc_sizes[3];
     fft_get_transform_allocs(fft_alloc_sizes, fti);
@@ -34,13 +33,13 @@ void matpoly_ft_init(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, unsigned int
             fft_transform_prepare(tij, fti);
         }
     }
-}
+}/*}}}*/
 
-void matpoly_ft_clear(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti MAYBE_UNUSED)
+void matpoly_ft_clear(abdst_field ab MAYBE_UNUSED, matpoly_ft_ptr t, const struct fft_transform_info * fti MAYBE_UNUSED)/*{{{*/
 {
     free(t->data);
     memset(t, 0, sizeof(*t));
-}
+}/*}}}*/
 
 void matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr a, const struct fft_transform_info * fti)
 {
@@ -282,6 +281,7 @@ void matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, un
     matpoly_ft_clear(ab, tc,  fti);
     mpz_clear(p);
 }/*}}}*/
+
 void matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
 {
     matpoly_ft tc, ta, tb;

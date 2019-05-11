@@ -1,7 +1,7 @@
 #ifndef LINGEN_MATPOLY_FT_H_
 #define LINGEN_MATPOLY_FT_H_
 
-#include "lingen-matpoly.h"
+#include "lingen-matpoly.hpp"
 #include "flint-fft/fft.h"
 #include "lingen-substep-schedule.h"
 

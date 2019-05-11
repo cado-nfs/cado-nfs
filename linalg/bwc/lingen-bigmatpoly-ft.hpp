@@ -2,8 +2,8 @@
 #define BIGMATPOLY_FT_H_
 
 #include "mpfq_layer.h"
-#include "lingen-matpoly-ft.h"
-#include "lingen-bigmatpoly.h"
+#include "lingen-matpoly-ft.hpp"
+#include "lingen-bigmatpoly.hpp"
 #include "flint-fft/fft.h"
 
 #include "select_mpi.h"

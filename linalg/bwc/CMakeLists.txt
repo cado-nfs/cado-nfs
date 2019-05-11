@@ -417,14 +417,14 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     set(plingen_${v}_support_sources
         logline.c
-        lingen-matpoly.c
-        lingen-bigmatpoly.c
-        lingen-polymat.c
+        lingen-matpoly.cpp
+        lingen-bigmatpoly.cpp
+        lingen-polymat.cpp
         # lingen-bigpolymat.c # deleted 20150826
         mpfq/mpfq_${v}.c
         mpfq/mpfq_${v}.cpp
         lingen-matpoly-ft.cpp
-        lingen-bigmatpoly-ft.c)
+        lingen-bigmatpoly-ft.cpp)
 
     # make plingen_pz a default target, but not the others.
     if(v STREQUAL "pz")

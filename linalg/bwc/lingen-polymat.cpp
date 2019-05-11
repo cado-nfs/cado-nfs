@@ -5,7 +5,7 @@
 #include <gmp.h>
 #include "portability.h"
 #include "macros.h"
-#include "lingen-polymat.h"
+#include "lingen-polymat.hpp"
 
 #define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
 #define POLYMAT_MP_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
@@ -46,7 +46,7 @@ void polymat_cutoff_info_clear(struct polymat_cutoff_info * c)
 
 void polymat_cutoff_add_step(struct polymat_cutoff_info * c, unsigned int size, unsigned int alg)
 {
-    c->table = realloc(c->table, (c->table_size + 1) * sizeof(unsigned int [2]));
+    c->table = (unsigned int (*)[2]) realloc(c->table, (c->table_size + 1) * sizeof(unsigned int [2]));
     if (c->table) ASSERT_ALWAYS(size > c->table[c->table_size-1][0]);
     c->table[c->table_size][0] = size;
     c->table[c->table_size][1] = alg;
@@ -63,7 +63,7 @@ static void polymat_set_generic_cutoff(struct polymat_cutoff_info * slot, const 
     }
     memcpy(slot, new_cutoff, sizeof(struct polymat_cutoff_info));
     if (slot->table) {
-        slot->table = malloc(slot->table_size * sizeof(unsigned int [2]));
+        slot->table = (unsigned int (*)[2]) malloc(slot->table_size * sizeof(unsigned int [2]));
         memcpy(slot->table, new_cutoff->table, slot->table_size * sizeof(unsigned int [2]));
     }
 }
