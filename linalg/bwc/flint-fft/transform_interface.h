@@ -75,7 +75,7 @@ void fft_do_dft(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const 
 void fft_do_ift(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti);
 void fft_mul(void * z, const void * y0, const void * y1, void * temp, const struct fft_transform_info * fti);
 void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * qtemp, const struct fft_transform_info * fti);
-void fft_add(void * z, void * y0, void * y1, const struct fft_transform_info * fti);
+void fft_add(void * z, const void * y0, const void * y1, const struct fft_transform_info * fti);
 void fft_zero(void * z, const struct fft_transform_info * fti);
 void fft_get_transform_info_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc);
 void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc);

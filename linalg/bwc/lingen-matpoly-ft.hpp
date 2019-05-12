@@ -5,49 +5,35 @@
 #include "flint-fft/fft.h"
 #include "lingen-substep-schedule.h"
 
-struct matpoly_ft_s {
-    unsigned int m;
-    unsigned int n;
-    void * data;
+struct matpoly_ft {
+    abdst_field ab = NULL;
+    unsigned int m = 0;
+    unsigned int n = 0;
+    const struct fft_transform_info * fti = NULL;
+    void * data = NULL;
+    int check_pre_init() const { return data == NULL; }
+    matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const struct fft_transform_info * fti);
+    matpoly_ft() = default;
+    ~matpoly_ft();
+    void zero();
+    void dft(matpoly const & p);
+    void add(matpoly_ft const & t0, matpoly_ft const & t1);
+    void sub(matpoly_ft const & t0, matpoly_ft const & t1);
+    void mul(matpoly_ft const & t0, matpoly_ft const & t1);
+    void addmul(matpoly_ft const & t0, matpoly_ft const & t1);
+    void ift(matpoly & p);
+    void ift_mp(matpoly & p, unsigned int shift);
+    void to_export();
+    void to_import();
 };
 
-typedef struct matpoly_ft_s matpoly_ft[1];
-typedef struct matpoly_ft_s * matpoly_ft_ptr;
-typedef const struct matpoly_ft_s * matpoly_ft_srcptr;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void matpoly_ft_init(abdst_field ab, matpoly_ft_ptr t, unsigned int m, unsigned int n, const struct fft_transform_info * fti);
-void matpoly_ft_zero(abdst_field ab, matpoly_ft_ptr t, const struct fft_transform_info * fti);
-void matpoly_ft_export(abdst_field ab, matpoly_ft_ptr t, const struct fft_transform_info * fti);
-void matpoly_ft_import(abdst_field ab, matpoly_ft_ptr t, const struct fft_transform_info * fti);
-void matpoly_ft_clear(abdst_field ab, matpoly_ft_ptr t, const struct fft_transform_info * fti);
-void matpoly_ft_dft(abdst_field ab, matpoly_ft_ptr t, matpoly_ptr p, const struct fft_transform_info * fti);
-void matpoly_ft_add(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti);
-/*
-void matpoly_ft_sub(abdst_field ab, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti);
-*/
-void matpoly_ft_mul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti);
-void matpoly_ft_addmul(abdst_field ab, matpoly_ft_ptr u, matpoly_ft_ptr t0, matpoly_ft_ptr t1, const struct fft_transform_info * fti);
-void matpoly_ft_ift(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, const struct fft_transform_info * fti);
-void matpoly_ft_ift_mp(abdst_field ab, matpoly_ptr p, matpoly_ft_ptr t, unsigned int shift, const struct fft_transform_info * fti);
-
-
 /* In a way, this is the only real API exported by this module */
-void matpoly_mul_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, const struct lingen_substep_schedule * S);
+void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-static inline void matpoly_mul_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, const struct lingen_substep_schedule * S) { return matpoly_mul_caching_adj(ab, c, a, b, UINT_MAX, S); }
+static inline void matpoly_mul_caching(matpoly & c, matpoly const & a, matpoly const & b, const struct lingen_substep_schedule * S) { return matpoly_mul_caching_adj(c, a, b, UINT_MAX, S); }
 
-void matpoly_mp_caching_adj(abdst_field ab, matpoly c, matpoly a, matpoly b, unsigned int adj, const struct lingen_substep_schedule * S);
+void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-static inline void matpoly_mp_caching(abdst_field ab, matpoly c, matpoly a, matpoly b, const struct lingen_substep_schedule * S) { return matpoly_mp_caching_adj(ab, c, a, b, UINT_MAX, S); }
-
-
-#ifdef __cplusplus
-}
-#endif
-
+static inline void matpoly_mp_caching(matpoly & c, matpoly const & a, matpoly const & b, const struct lingen_substep_schedule * S) { return matpoly_mp_caching_adj(c, a, b, UINT_MAX, S); }
 
 #endif	/* LINGEN_MATPOLY_FT_H_ */

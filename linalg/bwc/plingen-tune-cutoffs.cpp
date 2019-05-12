@@ -807,35 +807,26 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
      * clearly makes no sense */
     for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
         unsigned int input_length = (m+n) * k / m;
-        polymat pi, piref, piL, piR;
-        matpoly xpi, xpiref, xpiL, xpiR;
-        polymat_init(ab, piL, m+n, m+n, k);
-        polymat_init(ab, piR, m+n, m+n, k);
-        polymat_init(ab, pi, m+n, m+n, 2*k-1);
-        polymat_init(ab, piref, m+n, m+n, 2*k-1);
-        polymat_fill_random(ab, piL, k, rstate);
-        polymat_fill_random(ab, piR, k, rstate);
+        polymat piL  (ab, m+n, m+n, k);
+        polymat piR  (ab, m+n, m+n, k);
+        polymat pi   (ab, m+n, m+n, 2*k-1);
+        polymat piref(ab, m+n, m+n, 2*k-1);
+        piL.fill_random(k, rstate);
+        piR.fill_random(k, rstate);
         
-        /* of course we know the allocation needs, but we'll lazy-allocate
-         * here, to save ram */
-        matpoly_init(ab, xpiL, 0, 0, 0);
-        matpoly_init(ab, xpiR, 0, 0, 0);
-        matpoly_init(ab, xpi, 0, 0, 0);
-        matpoly_init(ab, xpiref, 0, 0, 0);
-
         ostringstream extra_info;
 
         if (finder.still_meaningful_to_test(0)) {
             /* disable kara for a minute */
             polymat_set_mul_kara_cutoff(always_basecase, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(0); !x.done(); ++x) {
-                polymat_mul(ab, pi, piL, piR);
+                pi.mul(piL, piR);
                 x.set_since_last();
             }
-            if (piref->size == 0) {
-                polymat_swap(pi, piref);
+            if (piref.size == 0) {
+                piref = std::move(pi);
                 // fprintf(stderr, "BASIS0\n");
-            } else if (polymat_cmp(ab, pi, piref) != 0) {
+            } else if (pi.cmp(piref) != 0) {
                 fprintf(stderr, "MISMATCH0!\n");
             }
         }
@@ -849,28 +840,34 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
             finder.export_kara_cutoff_data_force_kara_now(improved, k);
             polymat_set_mul_kara_cutoff(improved, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(1); !x.done(); ++x) {
-                polymat_mul(ab, pi, piL, piR);
+                pi.mul(piL, piR);
                 x.set_since_last();
             }
-            if (piref->size == 0) {
-                polymat_swap(pi, piref);
+            if (piref.size == 0) {
+                piref = std::move(pi);
                 // fprintf(stderr, "BASIS1\n");
-            } else if (polymat_cmp(ab, pi, piref) != 0) {
+            } else if (pi.cmp(piref) != 0) {
                 fprintf(stderr, "MISMATCH1!\n");
             }
         }
 
         /* don't exaggerate our memory requirements */
-        matpoly_set_polymat(ab, xpiL, piL);
-        polymat_clear(ab, piL);
-        matpoly_set_polymat(ab, xpiR, piR);
-        polymat_clear(ab, piR);
-        if (piref->size) {
-            matpoly_set_polymat(ab, xpiref, piref);
+        matpoly xpiL;
+        xpiL.set_polymat(piL);
+        piL = polymat();
+
+        matpoly xpiR;
+        xpiR.set_polymat(piR);
+        piR = polymat();
+
+        matpoly xpiref;
+        if (piref.size) {
+            xpiref.set_polymat(piref);
+            piref = polymat();
         }
-        polymat_clear(ab, piref);
-        matpoly_init(ab, xpi, m+n, m+n, 2*k-1);
-        polymat_clear(ab, pi);
+
+        matpoly xpi(ab, m+n, m+n, 2*k-1);
+        pi = polymat();
 
         /* we should make the effort of converting polymat to matpoly,
          * right ? */
@@ -879,13 +876,13 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                matpoly_mul(ab, xpi, xpiL, xpiR);
+                xpi.mul(xpiL, xpiR);
                 x.set_since_last();
             }
-            if (xpiref->size == 0) {
-                matpoly_swap(xpi, xpiref);
+            if (xpiref.size == 0) {
+                xpiref = std::move(xpi);
                 // fprintf(stderr, "BASIS2\n");
-            } else if (matpoly_cmp(ab, xpi, xpiref) != 0) {
+            } else if (xpi.cmp(xpiref) != 0) {
                 fprintf(stderr, "MISMATCH2!\n");
             }
         }
@@ -926,13 +923,13 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
             mpz_clear(p);
 #else
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_mul_caching_adj(ab, xpi, xpiL, xpiR, adj, NULL);
+                matpoly_mul_caching_adj(xpi, xpiL, xpiR, adj, NULL);
                 x.set_since_last();
             }
 #endif
-            if (xpiref->size == 0) {
-                matpoly_swap(xpi, xpiref);
-            } else if (matpoly_cmp(ab, xpi, xpiref) != 0) {
+            if (xpiref.size == 0) {
+                xpiref = std::move(xpi);
+            } else if (xpi.cmp(xpiref) != 0) {
                 fprintf(stderr, "MISMATCH3!\n");
             }
         }
@@ -941,15 +938,6 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
             << " " << finder.summarize_for_this_length(k)
             << extra_info.str()
             << "\n";
-
-        polymat_clear(ab, piL);
-        polymat_clear(ab, piR);
-        polymat_clear(ab, pi);
-        polymat_clear(ab, piref);
-        matpoly_clear(ab, xpiL);
-        matpoly_clear(ab, xpiR);
-        matpoly_clear(ab, xpi);
-        matpoly_clear(ab, xpiref);
     }
     hup_caught = 0;
 
@@ -1032,19 +1020,12 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
          * k+input_length-1
          */
         unsigned int E_length = k + input_length - 1;
-        polymat ER, E, piL, ERref;
-        matpoly xER, xE, xpiL, xERref;
-        polymat_init(ab, E, m, m+n, E_length);
-        polymat_init(ab, piL, m+n, m+n, k);
-        polymat_init(ab, ER, m, m+n, input_length);
-        polymat_init(ab, ERref, m, m+n, input_length);
-        polymat_fill_random(ab, E, E_length, rstate);
-        polymat_fill_random(ab, piL, k, rstate);
-
-        matpoly_init(ab, xE, m, m+n, E_length);
-        matpoly_init(ab, xpiL, m+n, m+n, k);
-        matpoly_init(ab, xER, m, m+n, input_length);
-        matpoly_init(ab, xERref, m, m+n, input_length);
+        polymat E(ab, m, m+n, E_length);
+        polymat piL(ab, m+n, m+n, k);
+        polymat ER(ab, m, m+n, input_length);
+        polymat ERref(ab, m, m+n, input_length);
+        E.fill_random(E_length, rstate);
+        piL.fill_random(k, rstate);
 
         ostringstream extra_info;
 
@@ -1052,13 +1033,13 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             /* disable kara for a minute */
             polymat_set_mp_kara_cutoff(always_basecase, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(0); !x.done(); ++x) {
-                polymat_mp(ab, ER, E, piL);
+                ER.mp(E, piL);
                 x.set_since_last();
             }
-            if (ERref->size == 0) {
-                polymat_swap(ER, ERref);
+            if (ERref.size == 0) {
+                ERref = std::move(ER);
                 // fprintf(stderr, "BASIS0\n");
-            } else if (polymat_cmp(ab, ER, ERref) != 0) {
+            } else if (ER.cmp(ERref) != 0) {
                 fprintf(stderr, "MISMATCH0!\n");
             }
         }
@@ -1072,28 +1053,34 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             finder.export_kara_cutoff_data_force_kara_now(improved, k);
             polymat_set_mp_kara_cutoff(improved, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(1); !x.done(); ++x) {
-                polymat_mp(ab, ER, E, piL);
+                ER.mp(E, piL);
                 x.set_since_last();
             }
-            if (ERref->size == 0) {
-                polymat_swap(ER, ERref);
+            if (ERref.size == 0) {
+                ERref = std::move(ER);
                 // fprintf(stderr, "BASIS1\n");
-            } else if (polymat_cmp(ab, ER, ERref) != 0) {
+            } else if (ER.cmp(ERref) != 0) {
                 fprintf(stderr, "MISMATCH1!\n");
             }
         }
 
         /* don't exaggerate our memory requirements */
-        matpoly_set_polymat(ab, xpiL, piL);
-        polymat_clear(ab, piL);
-        matpoly_set_polymat(ab, xE, E);
-        polymat_clear(ab, E);
-        if (ERref->size) {
-            matpoly_set_polymat(ab, xERref, ERref);
+        matpoly xpiL(ab, m+n, m+n, k);
+        xpiL.set_polymat(piL);
+        piL = polymat();
+
+        matpoly xE(ab, m, m+n, E_length);
+        xE.set_polymat(E);
+        E = polymat();
+
+        matpoly xERref(ab, m, m+n, input_length);
+        if (ERref.size) {
+            xERref.set_polymat(ERref);
         }
-        polymat_clear(ab, ERref);
-        matpoly_init(ab, xER, m, m+n, input_length);
-        polymat_clear(ab, ER);
+        ERref = polymat();
+
+        matpoly xER(ab, m, m+n, input_length);
+        ER = polymat();
 
         /* we should make the effort of converting polymat to matpoly,
          * right ? */
@@ -1102,13 +1089,13 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                matpoly_mp(ab, xER, xE, xpiL);
+                xER.mp(xE, xpiL);
                 x.set_since_last();
             }
-            if (xERref->size == 0) {
-                matpoly_swap(xER, xERref);
+            if (xERref.size == 0) {
+                xERref = std::move(xER);
                 // fprintf(stderr, "BASIS2\n");
-            } else if (matpoly_cmp(ab, xER, xERref) != 0) {
+            } else if (xER.cmp(xERref) != 0) {
                 fprintf(stderr, "MISMATCH2!\n");
             }
         }
@@ -1156,12 +1143,12 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             mpz_clear(p);
 #endif
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_mp_caching_adj(ab, xER, xE, xpiL, adj, NULL);
+                matpoly_mp_caching_adj(xER, xE, xpiL, adj, NULL);
                 x.set_since_last();
             }
-            if (xERref->size == 0) {
-                matpoly_swap(xER, xERref);
-            } else if (matpoly_cmp(ab, xER, xERref) != 0) {
+            if (xERref.size == 0) {
+                xERref = std::move(xER);
+            } else if (xER.cmp(xERref) != 0) {
                 fprintf(stderr, "MISMATCH3!\n");
             }
         }
@@ -1170,15 +1157,6 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             << " " << finder.summarize_for_this_length(k)
             << extra_info.str()
             << "\n";
-
-        polymat_clear(ab, E);
-        polymat_clear(ab, piL);
-        polymat_clear(ab, ER);
-        polymat_clear(ab, ERref);
-        matpoly_clear(ab, xE);
-        matpoly_clear(ab, xpiL);
-        matpoly_clear(ab, xER);
-        matpoly_clear(ab, xERref);
     }
     hup_caught = 0;
 
@@ -1327,30 +1305,29 @@ void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_par
          * (presently, this has Karatsuba complexity)
          */
         for(unsigned int k = 10 ; k < maxtune ; k+= k/10) {
-            polymat E, piL, piR, pi, Er;
             unsigned int sE = k*(m+2*n)/(m+n);
             unsigned int spi = k*m/(m+n);
-            polymat_init(ab, E, m, m+n, sE);
-            polymat_init(ab, piL, m+n, m+n, spi);
-            polymat_init(ab, piR, m+n, m+n, spi);
-            polymat_init(ab, pi, m+n, m+n, spi*2);
-            polymat_init(ab, Er, m, m+n, sE-spi+1);
-            E->size = sE;
-            for(unsigned int v = 0 ; v < E->m * E->n * E->size ; v++) {
-                abrandom(ab, abvec_coeff_ptr(ab, E->x, v), rstate);
+            polymat E(ab, m, m+n, sE);
+            polymat piL(ab, m+n, m+n, spi);
+            polymat piR(ab, m+n, m+n, spi);
+            polymat pi(ab, m+n, m+n, spi*2);
+            polymat Er(ab, m, m+n, sE-spi+1);
+            E.size = sE;
+            for(unsigned int v = 0 ; v < E.m * E.n * E.size ; v++) {
+                abrandom(ab, abvec_coeff_ptr(ab, E.x, v), rstate);
             }
-            piL->size = spi;
-            piR->size = spi;
-            for(unsigned int v = 0 ; v < piL->m * piL->n * piL->size ; v++) {
-                abrandom(ab, abvec_coeff_ptr(ab, piL->x, v), rstate);
-                abrandom(ab, abvec_coeff_ptr(ab, piR->x, v), rstate);
+            piL.size = spi;
+            piR.size = spi;
+            for(unsigned int v = 0 ; v < piL.m * piL.n * piL.size ; v++) {
+                abrandom(ab, abvec_coeff_ptr(ab, piL.x, v), rstate);
+                abrandom(ab, abvec_coeff_ptr(ab, piR.x, v), rstate);
             }
             double ttmp = 0, ttmul = 0;
             ttmp -= seconds();
-            polymat_mp(ab, Er, E, piL);
+            Er.mp(E, piL);
             ttmp += seconds();
             ttmul -= seconds();
-            polymat_mul(ab, pi, piL, piR);
+            pi.mul(piL, piR);
             ttmul += seconds();
             double ttmpq = ttmp / (k*k);
             double ttmulq = ttmul / (k*k);
@@ -1362,12 +1339,7 @@ void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_par
                     ttmpk, ttmulk, ttmpk + ttmulk
                     );
             // (seconds()-tt) / (k*k)); // ((sE-spi) * spi) / (m*(m+n)*(m+n)));
-            // printf("%zu %.2e\n", E->size, (seconds()-tt) / (k*k)); // (spi * spi) / ((m+n)*(m+n)*(m+n)));
-            polymat_clear(ab, E);
-            polymat_clear(ab, piL);
-            polymat_clear(ab, piR);
-            polymat_clear(ab, pi);
-            polymat_clear(ab, Er);
+            // printf("%zu %.2e\n", E.size, (seconds()-tt) / (k*k)); // (spi * spi) / ((m+n)*(m+n)*(m+n)));
         }
     }
 

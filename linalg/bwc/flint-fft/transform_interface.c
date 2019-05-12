@@ -1391,7 +1391,7 @@ void fft_mul(void * z, const void * y0, const void * y1, void * temp, const stru
 }
 
 static __inline__
-void mpn_addmod_2expp1(mp_limb_t * z, mp_limb_t * x, mp_limb_t * y, mp_size_t limbs)
+void mpn_addmod_2expp1(mp_limb_t * z, const mp_limb_t * x, const mp_limb_t * y, mp_size_t limbs)
 {
     /* This adds two normalized representatives modulo B^limbs + 1, with
      * B=2^FLINT_BITS. Result is normalized.
@@ -1428,7 +1428,7 @@ void mpn_addmod_2expp1(mp_limb_t * z, mp_limb_t * x, mp_limb_t * y, mp_size_t li
         if (c2) mpn_zero(z, limbs);
         z[limbs] = c2;
     } else if (c0 == 1) {
-        mp_limb_t * nz = x[limbs] ? y : x;
+        const mp_limb_t * nz = x[limbs] ? y : x;
         mp_limb_t c2 = mpn_sub_1(z, nz, limbs, 1);
         if (c2) mpn_zero(z, limbs);
         z[limbs] = c2;
@@ -1447,12 +1447,12 @@ void fft_zero(void * z, const struct fft_transform_info * fti)
     mpn_zero(area, (4*n+2) * (rsize0 + 1));
 }
 
-void fft_add(void * z, void * y0, void * y1, const struct fft_transform_info * fti)
+void fft_add(void * z, const void * y0, const void * y1, const struct fft_transform_info * fti)
 {
     /* See fft_mul */
     mp_size_t rsize0 = fti_rsize0(fti);
-    mp_limb_t ** p0 = (mp_limb_t **) y0;
-    mp_limb_t ** p1 = (mp_limb_t **) y1;
+    const mp_limb_t ** p0 = (const mp_limb_t **) y0;
+    const mp_limb_t ** p1 = (const mp_limb_t **) y1;
     mp_limb_t ** q = (mp_limb_t **) z;
     mp_size_t trunc = fti_trunc(fti);
 

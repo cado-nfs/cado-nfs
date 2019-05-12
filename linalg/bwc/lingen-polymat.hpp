@@ -4,20 +4,92 @@
 #include "mpfq_layer.h"
 #include "macros.h"
 
-/* This is used only for plingen. */
-
-struct polymat_s {
-    unsigned int m;
-    unsigned int n;
-    size_t size;
-    size_t alloc;
-    abvec x;
-};
-typedef struct polymat_s polymat[1];
-typedef struct polymat_s * polymat_ptr;
-typedef const struct polymat_s * polymat_srcptr;
+struct matpoly;
+struct polymat;
 
 #include "lingen-matpoly.hpp"
+
+/* This is used only for plingen. */
+
+struct polymat {
+    abdst_field ab = NULL;
+    unsigned int m = 0;
+    unsigned int n = 0;
+    size_t size = 0;
+    size_t alloc = 0;
+    abvec x = NULL;
+
+    polymat() : polymat(NULL, 0,0,0) {}
+    polymat(polymat const&) = delete;
+    polymat& operator=(polymat const&) = delete;
+    polymat(polymat &&);
+    polymat& operator=(polymat &&);
+    ~polymat();
+    polymat(abdst_field ab, unsigned int m, unsigned int n, int len);
+    int check_pre_init() const;
+    void realloc(size_t newalloc);
+    void zero();
+#if 0
+    void swap(polymat & b);
+#endif
+    void fill_random(unsigned int nsize, gmp_randstate_t rstate);
+    int cmp(polymat const & b);
+
+    /* {{{ access interface for polymat */
+    inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k) {
+        /* Assume row-major in all circumstances. Old code used to support
+         * various orderings, here we don't */
+        ASSERT_ALWAYS(size);
+        return abvec_subvec(ab, x, (k*m+i)*n+j);
+    }
+    inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
+        return abvec_coeff_ptr(ab, part(i,j,k),0);
+    }
+    inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k) const {
+        /* Assume row-major in all circumstances. Old code used to support
+         * various orderings, here we don't */
+        ASSERT_ALWAYS(size);
+        return abvec_subvec_const(ab, (absrc_vec)x,(k*m+i)*n+j);
+    }
+    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
+        return abvec_coeff_ptr_const(ab, part(i,j,k),0);
+    }
+    /* }}} */
+
+    void addmat(
+        unsigned int kc,
+        polymat const & a, unsigned int ka,
+        polymat const & b, unsigned int kb);
+    void submat(
+        unsigned int kc,
+        polymat const & a, unsigned int ka,
+        polymat const & b, unsigned int kb);
+    void mulmat(
+        unsigned int kc,
+        polymat const & a, unsigned int ka,
+        polymat const & b, unsigned int kb);
+    void addmulmat(
+        unsigned int kc,
+        polymat const & a, unsigned int ka,
+        polymat const & b, unsigned int kb);
+    void multiply_column_by_x(unsigned int j, unsigned int size);
+    void truncate(polymat const & src, unsigned int nsize);
+    void extract_column(
+        unsigned int jdst, unsigned int kdst,
+        polymat const & src, unsigned int jsrc, unsigned int ksrc);
+    void extract_row_fragment(
+        unsigned int i1, unsigned int j1,
+        polymat const & src, unsigned int i0, unsigned int j0,
+        unsigned int n);
+    void mul(polymat const & a, polymat const & b);
+    void addmul(polymat const & a, polymat const & b);
+    void mp(polymat const & a, polymat const & b);
+    void addmp(polymat const & a, polymat const & b);
+
+    void set_matpoly(matpoly const &);
+    void rshift(polymat const & src, unsigned int k);
+
+};
 
 /* {{{ cut-off structures */
 /* This structure is used to decide which algorithm to use for a given
@@ -62,78 +134,5 @@ void polymat_set_mp_kara_cutoff(const struct polymat_cutoff_info * new_cutoff, s
 }
 #endif
 /* }}} */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-void polymat_init(abdst_field ab, polymat_ptr p, unsigned int m, unsigned int n, int len);
-int polymat_check_pre_init(polymat_srcptr p);
-void polymat_realloc(abdst_field ab, polymat_ptr p, size_t newalloc);
-void polymat_zero(abdst_field ab, polymat_ptr p);
-void polymat_clear(abdst_field ab, polymat_ptr p);
-void polymat_fill_random(abdst_field ab MAYBE_UNUSED, polymat_ptr a, unsigned int size, gmp_randstate_t rstate);
-void polymat_swap(polymat_ptr a, polymat_ptr b);
-int polymat_cmp(abdst_field ab MAYBE_UNUSED, polymat_srcptr a, polymat_srcptr b);
-static inline abdst_vec polymat_part(abdst_field ab, polymat_ptr p, unsigned int i, unsigned int j, unsigned int k);
-static inline abdst_elt polymat_coeff(abdst_field ab, polymat_ptr p, unsigned int i, unsigned int j, unsigned int k);
-
-void polymat_set_matpoly(abdst_field ab MAYBE_UNUSED, polymat_ptr a, matpoly_srcptr b);
-
-
-
-void polymat_addmat(abdst_field ab,
-        polymat c, unsigned int kc,
-        polymat a, unsigned int ka,
-        polymat b, unsigned int kb);
-
-void polymat_submat(abdst_field ab,
-        polymat c, unsigned int kc,
-        polymat a, unsigned int ka,
-        polymat b, unsigned int kb);
-
-void polymat_truncate(abdst_field ab, polymat_ptr dst, polymat_ptr src, unsigned int size);
-void polymat_multiply_column_by_x(abdst_field ab, polymat_ptr pi, unsigned int j, unsigned int size);
-void polymat_extract_column(abdst_field ab,
-        polymat_ptr dst, unsigned int jdst, unsigned int kdst,
-        polymat_ptr src, unsigned int jsrc, unsigned int ksrc);
-void polymat_extract_row_fragment(abdst_field ab,
-        polymat_ptr dst, unsigned int i1, unsigned int j1,
-        polymat_ptr src, unsigned int i0, unsigned int j0,
-        unsigned int n);
-void polymat_rshift(abdst_field ab, polymat_ptr dst, polymat_ptr src, unsigned int k);
-
-
-void polymat_addmul(abdst_field ab, polymat c, polymat a, polymat b);
-void polymat_addmp(abdst_field ab, polymat c, polymat a, polymat b);
-void polymat_mul(abdst_field ab, polymat c, polymat a, polymat b);
-void polymat_mp(abdst_field ab, polymat c, polymat a, polymat b);
-
-
-#ifdef __cplusplus
-}
-#endif
-
-/* {{{ access interface for polymat */
-static inline abdst_vec polymat_part(abdst_field ab, polymat_ptr p, unsigned int i, unsigned int j, unsigned int k) {
-    /* Assume row-major in all circumstances. Old code used to support
-     * various orderings, here we don't */
-    ASSERT_ALWAYS(p->size);
-    return abvec_subvec(ab, p->x, (k*p->m+i)*p->n+j);
-}
-static inline abdst_elt polymat_coeff(abdst_field ab, polymat_ptr p, unsigned int i, unsigned int j, unsigned int k) {
-    return abvec_coeff_ptr(ab, polymat_part(ab, p,i,j,k),0);
-}
-static inline absrc_vec polymat_part_const(abdst_field ab, polymat_srcptr p, unsigned int i, unsigned int j, unsigned int k) {
-    /* Assume row-major in all circumstances. Old code used to support
-     * various orderings, here we don't */
-    ASSERT_ALWAYS(p->size);
-    return abvec_subvec_const(ab, (absrc_vec)p->x,(k*p->m+i)*p->n+j);
-}
-static inline absrc_elt polymat_coeff_const(abdst_field ab, polymat_srcptr p, unsigned int i, unsigned int j, unsigned int k) {
-    return abvec_coeff_ptr_const(ab, polymat_part_const(ab, p,i,j,k),0);
-}
-/* }}} */
-
-
 
 #endif	/* POLYMAT_H_ */

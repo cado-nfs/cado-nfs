@@ -8,27 +8,26 @@ void one_test(cxx_mpz const & p, unsigned int m, unsigned int len1, unsigned int
     abfield ab;
     abfield_init(ab);
     abfield_specify(ab, MPFQ_PRIME_MPZ, p);
-    matpoly P, Q, R0, R1, M0, M1;
 
-    matpoly_init(ab, P, 1, m, len1);
-    matpoly_init(ab, Q, m, 1, len2);
-    matpoly_init(ab, R0, 0, 0, 0);
-    matpoly_init(ab, R1, 0, 0, 0);
-    matpoly_init(ab, M0, 0, 0, 0);
-    matpoly_init(ab, M1, 0, 0, 0);
+    matpoly P(ab, 1, m, len1);
+    matpoly Q(ab, m, 1, len2);
+    matpoly R0;
+    matpoly R1;
+    matpoly M0;
+    matpoly M1;
 
-    matpoly_fill_random(ab, P, len1, rstate);
-    matpoly_fill_random(ab, Q, len2, rstate);
+    P.fill_random(len1, rstate);
+    Q.fill_random(len2, rstate);
 
-    matpoly_mul(ab, R0, P, Q);
-    matpoly_mul_caching(ab, R1, P, Q, NULL);
+    R0.mul(P, Q);
+    matpoly_mul_caching(R1, P, Q, NULL);
 
     /* segfault ? */
-    matpoly_mp(ab, M0, P, Q);
-    matpoly_mp_caching(ab, M1, P, Q, NULL);
+    M0.mp(P, Q);
+    matpoly_mp_caching(M1, P, Q, NULL);
 
-    ASSERT_ALWAYS(matpoly_cmp(ab, R0, R1) == 0);
-    ASSERT_ALWAYS(matpoly_cmp(ab, M0, M1) == 0);
+    ASSERT_ALWAYS(R0.cmp(R1) == 0);
+    ASSERT_ALWAYS(M0.cmp(M1) == 0);
 
     abfield_clear(ab);
 }
