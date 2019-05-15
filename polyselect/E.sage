@@ -220,7 +220,8 @@ def MurphyE_combined_aux2(f,g,B,verbose=false):
 # value than MurphyE)
 def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sample',verbose=false):
     l = MurphyE_combined_aux2(f,g,B,verbose)
-    print "number of residue classes:", len(l)
+    if verbose:
+       print "number of residue classes:", len(l)
     df = f.degree()
     dg = g.degree()
     E = 0
