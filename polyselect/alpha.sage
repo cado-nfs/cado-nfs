@@ -1,3 +1,4 @@
+from scipy.stats import ncx2
 
 # Code for computing alpha, and some variations around it.
 # The main function exported here is alpha(f,p)
@@ -65,6 +66,51 @@ def average_valuation_affine(f,p):
             v += average_valuation_affine(f2, p)/p
     return v
 
+# return E[x] and E[x^2] where x is the random variable corresponding to the
+# p-valuation of f
+# w is the current valuation in the p-ary tree (one branch for each root mod p)
+def dist_valuation_affine_aux(f,p,w):
+    v = valuation (f.content(), p)
+    ZP= f.parent()
+    x = ZP.gen()
+    fv = ZP(f/p^v)
+    Q = GF(p)['x'](fv.derivative())
+    Ex = Ex2 = 0
+    w += v
+    l = fv.roots(GF(p))
+    for r,_ in l:
+        if Q(r) != 0:
+            # E[x] += (w+1)*(1/p-1/p^2) + (w+2)*(1/p^2-1/p^3) + (w+3)*...
+            #      += ((p - 1)*w + p)/(p^2 - p)
+            # Note: if we subtract the term -w/p below, it gives Ex += 1/(p-1)
+            Ex += ((p - 1)*w + p)/(p^2 - p)
+            # E[x^2] += (w+1)^2*(1/p-1/p^2) + (w+2)^2*(1/p^2-1/p^3) + ...
+            # += (p^2*w^2+2*p^2*w-2*p*w^2+p^2-2*p*w+w^2+p)/((p-1)^2*p)
+            # Note: if we subtract the term -w^2/p below, it gives
+            # (2*p*w+p-2*w+1)/(p-1)^2, which still depends on w
+            Ex2 += (p^2*w^2+2*p^2*w-2*p*w^2+p^2-2*p*w+w^2+p)/((p-1)^2*p)
+        else:
+            # we expand fv(r0+p*x) and divide by p since here we consider
+            # only one of the p classes r0+p*x for 0 <= r0 < p
+            f2 = fv(ZZ(r)+p*x)
+            v1, e1 = dist_valuation_affine_aux(f2, p, w)
+            Ex += v1/p
+            Ex2 += e1/p
+        # for roots, we subtract w/p to Ex and w^2/p to Ex2,
+        # which with the addition of w and w^2 after the loop,
+        # has the effect to add w/p and w^2/p for non-roots
+        Ex -= w/p
+        Ex2 -= w^2/p
+    Ex += w
+    Ex2 += w^2
+    return Ex, Ex2
+
+# return E[x] and E[x^2] where x is the random variable corresponding to the
+# p-valuation of f
+# E[x] should equal average_valuation_affine(f,p)
+def dist_valuation_affine(f,p):
+   return dist_valuation_affine_aux(f,p,0)
+
 # same as average_valuation_affine, but for the class a/b = r mod p
 def average_valuation_affine_sub(f,p,r):
     x = f.parent().0
@@ -115,6 +161,22 @@ def average_valuation_homogeneous_coprime(f,p):
     r /= p+1
     return r
 
+# return the average and variance of the p-valuation of F(a,b)
+# for gcd(a,b)=1 where F is the homogeneous polynomial associated to f.
+# Ex should equal average_valuation_homogeneous_coprime(f,f.disc(),p)
+def dist_valuation_homogeneous_coprime(f,p):
+    Ex, Exx = dist_valuation_affine(f, p)
+    ZP= f.parent()
+    x = ZP.gen()
+    Ex1, Exx1 = dist_valuation_affine((f.reverse())(p*x), p)
+    # we have Exx = E[x^2 for r affine root] with P[affine root]=p/(p+1)
+    # and Exx1 = E[x^2 for r projective root] with P[projective root]=1/(p+1)
+    # thus E[x^2] = p/(p+1)*Exx + 1/(p+1)*Exx1
+    Ex = (Ex*p+Ex1)/(p+1)
+    Exx = (Exx*p+Exx1)/(p+1)
+    V = Exx - Ex^2
+    return Ex, V
+
 # same as average_valuation_homogeneous_coprime, but for a/b = r/s mod p
 def average_valuation_homogeneous_coprime_sub(f,p,r,s):
     if s <> 0:
@@ -136,6 +198,16 @@ def alpha_p(f,disc,p):
     Computes the contribution at p of the alpha value of f
     """
     return float((1/(p-1)-average_valuation_homogeneous_coprime(f,p))*log(p))
+
+# return (mean,variance) of alpha(f,p)
+# the first return value should equal alpha_p_nodisc(f,p)
+def dist_alpha_p(f,p):
+    m, v = dist_valuation_homogeneous_coprime(f,p)
+    # subtract from 1/(p-1)
+    m = 1/(p-1)-m # variance is unchanged
+    # multiply by log(p)
+    logp = float(log(p))
+    return m*logp, v*logp^2
 
 def alpha_p_nodisc(f,p):
     """
@@ -208,6 +280,19 @@ def alpha(f,B):
     f = R(f)
     disc = f.discriminant()
     return sum([alpha_p(f, disc, p) for p in prime_range(2,B+1)])
+
+# return (mean,variance) of the sum alpha_p(f,p) for all primes <= B
+# the mean should equal alpha(f,B)
+def dist_alpha(f,B):
+    x = f.variables()[0]
+    R.<x> = PolynomialRing(ZZ)
+    f = R(f)
+    v = V = 0
+    for p in prime_range(2,B+1):
+       v1, V1 = dist_alpha_p(f, p)
+       v += v1
+       V += V1
+    return v, V
 
 def alpha_affine(f,B):
     """
