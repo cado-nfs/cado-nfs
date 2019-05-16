@@ -4,12 +4,12 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
 #include <algorithm>
 #include <sys/types.h>
@@ -18,7 +18,7 @@
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
-#include <assert.h>
+#include <cassert>
 #include <fstream>
 
 #include "portability.h"

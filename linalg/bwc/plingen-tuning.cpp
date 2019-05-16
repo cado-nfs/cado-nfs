@@ -117,7 +117,6 @@ struct lingen_substep_characteristics {/*{{{*/
 
     private:
 
-    /* it's easier to compute it at ctor time (TODO) */
     size_t transform_ram;
     struct fft_transform_info fti[1];
 

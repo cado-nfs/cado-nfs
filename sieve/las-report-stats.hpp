@@ -4,7 +4,7 @@
 #include <string>
 #include <array>
 #include <memory>
-#include <string.h>
+#include <cstring>
 #include <string>
 #include <sstream>
 #include "tdict.hpp"
