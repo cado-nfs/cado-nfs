@@ -1443,8 +1443,11 @@ void fft_zero(void * z, const struct fft_transform_info * fti)
     mp_limb_t ** ptrs = (mp_limb_t **) z;
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
-    mp_limb_t * area = ptrs[0];
-    mpn_zero(area, (4*n+2) * (rsize0 + 1));
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2)*sizeof(mp_limb_t *));
+    mpn_zero(data, (4*n+2) * (rsize0 + 1));
+    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        ptrs[i] = data + i * (rsize0 + 1);
+    }
 }
 
 void fft_add(void * z, const void * y0, const void * y1, const struct fft_transform_info * fti)
