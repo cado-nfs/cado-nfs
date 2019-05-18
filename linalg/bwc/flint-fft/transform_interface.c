@@ -677,6 +677,23 @@ void fft_transform_prepare(void * x, const struct fft_transform_info * fti)
     }
 }
 
+/* Can be used to check sanity of transforms, for debugging a priori */
+int fft_transform_check(const void * x, const struct fft_transform_info * fti, int diag)
+{
+    mp_size_t n = 1 << fti->depth;
+    mp_size_t rsize0 = fti_rsize0(fti);
+    mp_limb_t ** ptrs = (mp_limb_t **) x;
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(x, (4*n+2)*sizeof(mp_limb_t *));
+
+    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        ptrdiff_t d = ptrs[i] - data;
+        if (d < 0) { if (diag) fprintf(stderr, "ptrs[%lu] below range\n", i); return 0; }
+        if (d % (rsize0 + 1) != 0) { if (diag) fprintf(stderr, "ptrs[%lu] badly aligned\n", i); return 0;  }
+        if (d / (rsize0 + 1) >= (4*n+2)) { if (diag) fprintf(stderr, "ptrs[%lu] above range\n", i); return 0; }
+    }
+    return 1;
+}
+
 void fft_transform_export(void * x, const struct fft_transform_info * fti)
 {
     mp_size_t n = 1 << fti->depth;
@@ -744,9 +761,7 @@ void fft_split_fppol(void * y, const mp_limb_t * x, mp_size_t cx, const struct f
     mp_size_t nx = cx * np;
     mp_size_t ks_coeff_bits = fti->ks_coeff_bits;
     /* We re-implement fft_split_bits */
-    mp_limb_t * area = ptrs[0]; // assumes fft_transform_prepare()
-    mpn_zero(area, (4*n+2) * (rsize0 + 1));
-
+    fft_zero(y, fti);
 
     /* source area: polynomial over Fp[x], flat.
      *  pointer x
@@ -794,7 +809,7 @@ void fft_split_fppol(void * y, const mp_limb_t * x, mp_size_t cx, const struct f
     mp_size_t zword_offset = 0; /* relative to chunk start */
     mp_size_t zbit_offset = 0;
     mp_size_t zuntil_fence = 0;
-    mp_limb_t * zw = ptrs[0];
+    mp_limb_t * zw = NULL;
 
     /* Load the initial fence values */
     xuntil_fence = mpz_sizeinbase(p, 2);
@@ -1210,14 +1225,9 @@ static void fft_do_ift_backend(void * y, void * temp, const struct fft_transform
 void fft_do_dft(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const struct fft_transform_info * fti)
 {
     /* See mul_truncate_sqrt2 */
-    mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
-    mp_limb_t ** ptrs = (mp_limb_t **) y;
-
-    mp_size_t j = fft_split_bits(y, x, nx, fti->bits, rsize0);
-    for( ; j < 4 * n + 2; j++)
-        mpn_zero(ptrs[j], rsize0 + 1);
-
+    fft_zero(y, fti);
+    fft_split_bits(y, x, nx, fti->bits, rsize0);
     fft_do_dft_backend(y, temp, fti);                                          
 }
 
@@ -1499,6 +1509,9 @@ void fft_add(void * z, const void * y0, const void * y1, const struct fft_transf
 
 void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * qtemp, const struct fft_transform_info * fti)
 {
+    ASSERT(fft_transform_check(y0, fti, 0));
+    ASSERT(fft_transform_check(y1, fti, 0));
+    ASSERT(fft_transform_check(z, fti, 0));
     /* See mul_truncate_sqrt2 */
     mp_size_t nw = fti->w << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);

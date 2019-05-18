@@ -82,6 +82,7 @@ void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr
 void fft_do_dft_fppol(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const struct fft_transform_info * fti, mpz_srcptr p);
 void fft_do_ift_fppol(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p);
 void fft_do_ift_fppol_mp(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p, mp_size_t shift);
+int fft_transform_check(const void * x, const struct fft_transform_info * fti, int);
 
 /* fft_transform_export modifies the transform area in x and makes it
  * position independent, so that the data may be moved, or transferred to
