@@ -127,7 +127,7 @@ class worker_thread {
   worker_thread& operator=(worker_thread const &) = delete;
 public:
   worker_thread(worker_thread&&) = default;
-  worker_thread& operator=(worker_thread&&) = delete;
+  // worker_thread& operator=(worker_thread&&) = default;
   int rank() const;
   int nthreads() const;
   /* It doesn't seem that unholy to me to have a thread access the pool
