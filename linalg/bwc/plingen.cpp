@@ -154,6 +154,9 @@ struct bmstatus {/*{{{*/
     bool recurse(int depth, size_t L) {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/
+    bool recurse(size_t L) {/*{{{*/
+        return companion(stats.depth, L).recurse;
+    }/*}}}*/
 };/*}}}*/
 
 void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
@@ -242,15 +245,27 @@ static int lexcmp2(const int x[2], const int y[2])
 
 /* }}} */
 
-std::tuple<unsigned int, unsigned int> get_minmax_delta(bw_dimensions & d, std::vector<unsigned int> const & delta)/*{{{*/
+std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int> const & delta)/*{{{*/
 {
     unsigned int maxdelta = 0;
     unsigned int mindelta = UINT_MAX;
-    for(unsigned int j = 0 ; j < d.m + d.n ; j++) {
-        if (delta[j] > maxdelta) maxdelta = delta[j];
-        if (delta[j] < mindelta) mindelta = delta[j];
+    for(auto x : delta) {
+        if (x > maxdelta) maxdelta = x;
+        if (x < mindelta) mindelta = x;
     }
     return std::make_tuple(mindelta, maxdelta);
+}/*}}}*/
+unsigned int get_min_delta(std::vector<unsigned int> const & delta)/*{{{*/
+{
+    unsigned int mindelta, maxdelta;
+    std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
+    return mindelta;
+}/*}}}*/
+unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
+{
+    unsigned int mindelta, maxdelta;
+    std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
+    return maxdelta;
 }/*}}}*/
 std::tuple<unsigned int, unsigned int> get_minmax_delta_on_solutions(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{*/
 {
@@ -317,7 +332,7 @@ static inline unsigned int expected_pi_length(bw_dimensions & d, std::vector<uns
     // see comment above.
 
     unsigned int mi, ma;
-    std::tie(mi, ma) = get_minmax_delta(d, delta);
+    std::tie(mi, ma) = get_minmax_delta(delta);
 
     return expected_pi_length(d, len) + ma - mi;
 }/*}}}*/
@@ -384,7 +399,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity. */
     unsigned int mi, ma;
-    std::tie(mi, ma) = get_minmax_delta(d, delta);
+    std::tie(mi, ma) = get_minmax_delta(delta);
 
     unsigned int pi_room_base = expected_pi_length(d, delta, E.size);
 
@@ -394,7 +409,8 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     /* Also keep track of the
      * number of coefficients for the columns of pi. Set pi to Id */
 
-    std::vector<unsigned int>pi_lengths(b, 1);
+    std::vector<unsigned int> pi_lengths(b, 1);
+    std::vector<unsigned int> pi_real_lengths(b, 1);
     pi.set_constant_ui(1);
 
     for(unsigned int i = 0 ; i < b ; i++) {
@@ -456,7 +472,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
             for(unsigned int jl = 0 ; jl < nj ; ++jl) {
                 for(unsigned int i = 0 ; i < m ; ++i) {
                     unsigned int j = todo[jl];
-                    unsigned int lj = MIN(pi_lengths[j], t + 1);
+                    unsigned int lj = MIN(pi_real_lengths[j], t + 1);
                     abelt_ur_set_zero(ab, e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
                         for(unsigned int s = 0 ; s < lj ; s++) {
@@ -670,6 +686,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
                         absrc_elt Tkj = T.coeff(k, j, 0);
                         if (abcmp_ui(ab, Tkj, 0) == 0) continue;
                         ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+                        pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
                     }
                 }
 #endif
@@ -678,7 +695,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 #pragma omp for collapse(2)
 #endif
                 for(unsigned int i = 0 ; i < b ; i++) {
-                    for(unsigned int s = 0 ; s < pi_lengths[j] ; s++) {
+                    for(unsigned int s = 0 ; s < pi_real_lengths[j] ; s++) {
                         abdst_elt piijs = pi.coeff(i, j, s);
 
                         abelt_ur_set_elt(ab, tmp_pi, piijs);
@@ -717,14 +734,14 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
         /* {{{ Now for all pivots, multiply column in pi by x */
         for (unsigned int j = 0; j < b ; j++) {
             if (!is_pivot[j]) continue;
-            if (pi_lengths[j] >= pi.alloc) {
+            if (pi_real_lengths[j] >= pi.alloc) {
                 if (!generator_found) {
                     pi.realloc(pi.alloc + MAX(pi.alloc / (m+n), 1));
                     printf("t=%u, expanding allocation for pi (now %zu%%) ; lengths: ",
                             bm.t,
                             100 * pi.alloc / pi_room_base);
                     for(unsigned int j = 0; j < b; j++)
-                        printf(" %u", pi_lengths[j]);
+                        printf(" %u", pi_real_lengths[j]);
                     printf("\n");
                 } else {
                     ASSERT_ALWAYS(bm.lucky[j] <= 0);
@@ -733,11 +750,13 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
                                 bm.t, j);
                     bm.lucky[j] = -1;
                     pi_lengths[j]++;
+                    pi_real_lengths[j]++;
                     delta[j]++;
                     continue;
                 }
             }
-            pi.multiply_column_by_x(j, pi_lengths[j]);
+            pi.multiply_column_by_x(j, pi_real_lengths[j]);
+            pi_real_lengths[j]++;
             pi_lengths[j]++;
             delta[j]++;
         }
@@ -746,15 +765,15 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 
     pi.size = 0;
     for(unsigned int j = 0; j < b; j++) {
-        if (pi_lengths[j] > pi.size)
-            pi.size = pi_lengths[j];
+        if (pi_real_lengths[j] > pi.size)
+            pi.size = pi_real_lengths[j];
     }
     /* Given the structure of the computation, there's no reason for the
      * initial estimate to go wrong.
      */
     ASSERT_ALWAYS(pi.size <= pi.alloc);
     for(unsigned int j = 0; j < b; j++) {
-        for(unsigned int k = pi_lengths[j] ; k < pi.size ; k++) {
+        for(unsigned int k = pi_real_lengths[j] ; k < pi.size ; k++) {
             for(unsigned int i = 0 ; i < b ; i++) {
                 ASSERT_ALWAYS(abis_zero(ab, pi.coeff(i, j, k)));
             }
@@ -1404,6 +1423,15 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta);
 #endif
 
+std::string sha1sum(matpoly const & X)
+{
+    sha1_checksumming_stream S;
+    S.write((const char *) X.x, X.m*(X.n)*X.alloc*sizeof(mp_limb_t));
+    char checksum[41];
+    S.checksum(checksum);
+    return std::string(checksum);
+}
+
 int
 bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
@@ -1454,6 +1482,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     /* XXX I don't understand why I need to do this. It seems to me that
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
+    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
     if (pi_left_expect_used_for_shift != pi_left.size)
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
 
@@ -1495,11 +1524,21 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
      * we don't, the degree of pi artificially grows with the recursive
      * level.
      */
+#if 1
+    /* In fact, it's not entirely impossible that pi grows more than
+     * what we had expected on entry, e.g. if we have one early
+     * generator. So we can't just do this. Most of the time it will
+     * work, but we can't claim that it will always work.
+     *
+     * One possible sign is when the entry deltas are somewhat even, and
+     * the result deltas are unbalanced.
+     */
     for(; pi.size > pi_expect ; pi.size--) {
         /* These coefficients really must be zero */
         ASSERT_ALWAYS(pi.coeff_is_zero(pi.size - 1));
     }
     ASSERT_ALWAYS(pi.size <= pi_expect);
+#endif
     /* Now below pi_expect, it's not impossible to have a few
      * cancellations as well.
      */
@@ -1531,7 +1570,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
     // fprintf(stderr, "Enter %s\n", __func__);
-    if (E.size < bm.lingen_threshold) {
+    if (!bm.recurse(E.size)) {
         bm.t_basecase -= seconds();
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();
@@ -1599,6 +1638,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     /* XXX I don't understand why I need to do this. It seems to me that
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
+    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
     if (pi_left_expect_used_for_shift != pi_left.size)
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
 
@@ -1640,11 +1680,21 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
      * we don't, the degree of pi artificially grows with the recursive
      * level.
      */
+#if 1
+    /* In fact, it's not entirely impossible that pi grows more than
+     * what we had expected on entry, e.g. if we have one early
+     * generator. So we can't just do this. Most of the time it will
+     * work, but we can't claim that it will always work.
+     *
+     * One possible sign is when the entry deltas are somewhat even, and
+     * the result deltas are unbalanced.
+     */
     for(; pi.size > pi_expect ; pi.size--) {
         /* These coefficients really must be zero */
         ASSERT_ALWAYS(pi.coeff_is_zero(pi.size - 1));
     }
     ASSERT_ALWAYS(pi.size <= pi_expect);
+#endif
     /* Now below pi_expect, it's not impossible to have a few
      * cancellations as well.
      */
@@ -3398,6 +3448,9 @@ int main(int argc, char *argv[])
         printf("t_mp = %.2f\n", bm.t_mp);
         printf("t_mul = %.2f\n", bm.t_mul);
         printf("t_cp_io = %.2f\n", bm.t_cp_io);
+        long peakmem = PeakMemusage();
+        if (peakmem > 0)
+            printf("# PeakMemusage (MB) = %ld \n", peakmem >> 10);
     }
 
     abfield_clear(ab);

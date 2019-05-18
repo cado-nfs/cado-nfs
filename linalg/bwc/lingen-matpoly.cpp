@@ -161,8 +161,8 @@ void matpoly::add(matpoly const & a, matpoly const & b)
 }
 #endif
 
-/* shift by a multiplication by x all coefficients of degree k and above
- * in column j. (that is, whole polynomial entries if k==0)
+/* shift by a multiplication by x all coefficients of degree less than
+ * nsize in column j.
  */
 void matpoly::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
 {

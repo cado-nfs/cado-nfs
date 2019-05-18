@@ -70,7 +70,7 @@ struct op_mul {/*{{{*/
     }
     static inline void ift(matpoly & a, matpoly_ft & t, const struct fft_transform_info *)
     {
-        t.ift(a);
+        ::ift(a, t);
     }
 };/*}}}*/
 struct op_mp {/*{{{*/
@@ -83,7 +83,7 @@ struct op_mp {/*{{{*/
     {
         mp_bitcnt_t cbits = fti->ks_coeff_bits;
         unsigned shift = MIN(fti->bits1 / cbits, fti->bits2 / cbits) - 1;
-        tc.ift_mp(c, shift);
+        ::ift_mp(c, tc, shift);
     }
 };/*}}}*/
 
@@ -165,11 +165,11 @@ struct lingen_substep_characteristics {/*{{{*/
 
         double tt = 0;
 
-        tt = -wct_seconds(); ta.dft(a); tt_dft0 = wct_seconds() + tt;
+        tt = -wct_seconds(); dft(ta, a); tt_dft0 = wct_seconds() + tt;
 
-        tt = -wct_seconds(); tb.dft(b); tt_dft2 = wct_seconds() + tt;
+        tt = -wct_seconds(); dft(tb, b); tt_dft2 = wct_seconds() + tt;
 
-        tt = -wct_seconds(); tc.mul(ta, tb); tt_conv = wct_seconds() + tt;
+        tt = -wct_seconds(); mul(tc, ta, tb); tt_conv = wct_seconds() + tt;
 
         tt = -wct_seconds();
         c.size = csize;

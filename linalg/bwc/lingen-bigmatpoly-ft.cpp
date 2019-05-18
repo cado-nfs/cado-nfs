@@ -216,7 +216,7 @@ void bigmatpoly_ft::mul(bigmatpoly_ft & a, bigmatpoly_ft & b)/*{{{*/
     ASSERT_ALWAYS(a.n == b.m);
 
     for(unsigned int k = 0 ; k < a.n1 ; k++)
-        lc.addmul(a.cell(irank(), k), b.cell(k, jrank()));
+        addmul(lc, a.cell(irank(), k), b.cell(k, jrank()));
 }/*}}}*/
 
 void bigmatpoly_ft::mul2(bigmatpoly_ft & a, bigmatpoly_ft & b)/*{{{*/
@@ -267,7 +267,7 @@ void bigmatpoly_ft::mul2(bigmatpoly_ft & a, bigmatpoly_ft & b)/*{{{*/
         /* This is one part of the product.
          * XXX This must be parallelized !!!
          */
-        lc.addmul(xa, xb);
+        addmul(lc, xa, xb);
 
         logline_printf(1, "; done\n");
     }
@@ -279,19 +279,19 @@ void bigmatpoly_ft::mul2(bigmatpoly_ft & a, bigmatpoly_ft & b)/*{{{*/
 
 void bigmatpoly_ft::dft(bigmatpoly const & a)
 {
-    my_cell().dft(a.my_cell());
+    ::dft(my_cell(), a.my_cell());
 }
 
 void bigmatpoly_ft::ift(bigmatpoly & a)
 {
     a.set_size(a.size); /* this is weird. This probably has side-effects, but those are not too well documented, and relying on them here seems just obnoxious */
-    my_cell().ift(a.my_cell());
+    ::ift(a.my_cell(), my_cell());
 }
 
 void bigmatpoly_ft::ift_mp(bigmatpoly & a, unsigned int shift)
 {
     a.set_size(a.size);
-    my_cell().ift_mp(a.my_cell(), shift);
+    ::ift_mp(a.my_cell(), my_cell(), shift);
 }
 
 void bigmatpoly_mul_caching_adj(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, unsigned int adj, const struct lingen_substep_schedule * S MAYBE_UNUSED)/*{{{*/
