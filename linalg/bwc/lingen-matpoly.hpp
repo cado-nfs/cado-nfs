@@ -1,9 +1,12 @@
 #ifndef LINGEN_MATPOLY_H_
 #define LINGEN_MATPOLY_H_
 
+#include <mutex>
+#include <list>
+
 #include "mpfq_layer.h"
 
-struct matpoly;
+class matpoly;
 struct polymat;
 
 #include "lingen-polymat.hpp"
@@ -36,7 +39,50 @@ struct submatrix_range {
  * Note that this ends up being exactly the same data type as polymat.
  * The difference here is that the stride is not the same.
  */
-struct matpoly {
+class matpoly {
+    class memory_pool {
+        std::mutex mm;
+        public:
+        size_t allowed=0;
+        size_t allocated=0;
+        size_t peak=0;
+        void * alloc(size_t);
+        void free(void *, size_t);
+        void * realloc(void * p, size_t s0, size_t s);
+        size_t max_inaccuracy = 0;
+        void report_inaccuracy(ssize_t diff);
+    };
+#if 0
+    struct memory_pool {
+        struct layer {
+            std::mutex mm;
+            size_t allowed=0;
+            ssize_t allocated=0;
+            ssize_t peak=0;
+            layer(size_t s) : allowed(s) { allocated=peak=0; }
+            void * alloc(memory_pool& M, size_t);
+            void free(memory_pool& M, void *, size_t);
+            void *realloc(memory_pool& M, void *, size_t, size_t);
+        };
+        std::mutex mm;
+        std::list<memory_pool::layer> layers;
+        void * alloc(size_t);
+        void free(void *, size_t);
+        void *realloc(void *, size_t, size_t);
+        layer & current_pool();
+        size_t max_inaccuracy = 0;
+        void report_inaccuracy(ssize_t diff);
+    };
+#endif
+    static memory_pool memory;
+public:
+    class memory_pool_guard {
+        size_t s;
+        public:
+        memory_pool_guard(size_t s);
+        ~memory_pool_guard();
+    };
+    // static void add_to_main_memory_pool(size_t s);
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;

@@ -1,12 +1,29 @@
 #ifndef LINGEN_MATPOLY_FT_H_
 #define LINGEN_MATPOLY_FT_H_
 
+#include <mutex>
 #include "lingen-matpoly.hpp"
 #include "flint-fft/fft.h"
 #include "lingen-substep-schedule.h"
 #include "misc.h"
 
 struct matpoly_ft {
+private:
+    class memory_pool {
+        std::mutex mm;
+        public:
+        size_t allowed=0;
+        size_t allocated=0;
+        size_t peak=0;
+        void * alloc(size_t);
+        void free(void *, size_t);
+    };
+    static memory_pool memory;
+public:
+    struct memory_pool_guard {
+        memory_pool_guard(size_t s);
+        ~memory_pool_guard();
+    };
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;

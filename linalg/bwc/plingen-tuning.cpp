@@ -658,43 +658,34 @@ struct plingen_tuner {
         std::map<size_t, std::tuple<bool, std::array<double, 3> >, plingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
         size_t peak = 0;
+        int ipeak = -1;
 
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
             printf("####################### Measuring time at depth %d #######################\n", i);
-            /* For input length L, we need the following reserved
-             * storage:
-             *
-             *  - storage for our input and our output, that need often not
-             *    live simultaneously. For simplicity we'll count both, but
-             *    this overlap is clearly a gross upper bound.
-             *    our input is 1/r^2*m*(m+n)*\ell  (with \ell = L/2^i)
-             *    our output is 1/r^2*(m+n)*(m+n)*(m/(m+n))*\ell , i.e. the
-             *    same
-             *    XXX todo: improve the approximation above, it's in fact
-             *    a bit embarrassing since it forces us to use larger
-             *    shrinks than really needed at the top level.
-             *
-             *  - storage *at all levels above the current one* (i.e. with
-             *    lower depth) for the data that is still live and need to
-             *    exist until after we return. This count is maximized in the
-             *    rightmost branch, where pi_left at all levels must be kept.
-             *    pi_left at depth 0 is
-             *                  1/r^2*(m+n)*(m+n)*(m/(m+n))*L/2
-             *    so the cumulated cost above is twice that minus our
-             *    pi_right (i.e. L/2 above should instead be counted as
-             *    L-L/2^i).
+            /* For input length L, the reserved
+             * storage at depth i is
+             *   RMP'(i)  = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[2\alpha\ell_i]
+             *   RMUL'(i) = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[4\alpha\ell_i]
+             * with the notations \alpha=m/(m+n), \ell_i=L/2^(i+1), and
+             * [] denotes ceiling.
+             * The details of the computation are in the comments in
+             * plingen.cpp
              */
-            size_t c0 = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
-            size_t mem_our_input_and_output = 2 * c0 * iceildiv(L, 1 << i);
-            size_t mem_upper_layers = c0 * (L - (L >> i));
-            size_t reserved = mem_our_input_and_output + mem_upper_layers;
+            size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+            size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+            size_t reserved_base = base_E * (L - (L >> i));
+            size_t reserved_mp  = base_pi * iceildiv(m * iceildiv(L, 1<<i), m+n);
+            size_t reserved_mul = base_pi * iceildiv(m * iceildiv(2*L, 1<<i), m+n);
+            reserved_mp += reserved_base;
+            reserved_mul += reserved_base;
 
-            printf("# reserved storage <= %s\n", size_disp(reserved, buf));
+            printf("# MP reserved storage = %s\n", size_disp(reserved_mp, buf));
+            compute_schedules_for_mp(i, true, reserved_mp);
 
-            compute_schedules_for_mp(i, true, reserved);
-            compute_schedules_for_mul(i, true, reserved);
+            printf("# MUL reserved storage = %s\n", size_disp(reserved_mul, buf));
+            compute_schedules_for_mul(i, true, reserved_mul);
 
             double time_b = 0;
             double time_r = 0;
@@ -748,11 +739,13 @@ struct plingen_tuner {
 
                         size_t m;
                         m = U.mp.ram = MP.get_peak_ram(P, schedules_mp[L]);
+                        m += U.mp.reserved_ram = reserved_mp;
                         if (m > ram_mp) ram_mp = m;
-                        if (m > peak) peak = m;
+                        if (m > peak) { ipeak = i; peak = m; }
                         m = U.mul.ram = MUL.get_peak_ram(P, schedules_mul[L]);
+                        m += U.mul.reserved_ram = reserved_mul;
                         if (m > ram_mul) ram_mul = m;
-                        if (m > peak) peak = m;
+                        if (m > peak) { ipeak = i; peak = m; }
                     }
 
                     if (ttb >= basecase_keep_until * (ttr + ttrchildren))
@@ -813,10 +806,17 @@ struct plingen_tuner {
                 msg = msg2;
                 int pad2 = pad + ss2.size();
                 char buf[20];
+                char buf2[20];
                 if (ram_mp > ram_mul) {
-                    printf("#%*s(memory(MP): %s)\n", pad2, msg, size_disp(ram_mp, buf));
+                    printf("#%*s(memory(MP): %s, incl %s reserved)\n",
+                            pad2, msg,
+                            size_disp(ram_mp, buf),
+                            size_disp(reserved_mp, buf2));
                 } else {
-                    printf("#%*s(memory(MUL): %s)\n", pad2, msg, size_disp(ram_mul, buf));
+                    printf("#%*s(memory(MUL): %s, incl %s reserved)\n",
+                            pad2, msg,
+                            size_disp(ram_mul, buf),
+                            size_disp(reserved_mul, buf2));
                 }
 
             }
@@ -830,10 +830,17 @@ struct plingen_tuner {
                 msg = msg2;
                 int pad2 = pad + ss2.size();
                 char buf[20];
+                char buf2[20];
                 if (ram_mp > ram_mul) {
-                    printf("#%*s(memory(MP): %s)\n", pad2, msg, size_disp(ram_mp, buf));
+                    printf("#%*s(memory(MP): %s, incl %s reserved)\n",
+                            pad2, msg,
+                            size_disp(ram_mp, buf),
+                            size_disp(reserved_mp, buf2));
                 } else {
-                    printf("#%*s(memory(MUL): %s)\n", pad2, msg, size_disp(ram_mul, buf));
+                    printf("#%*s(memory(MUL): %s, incl %s reserved)\n",
+                            pad2, msg,
+                            size_disp(ram_mul, buf),
+                            size_disp(reserved_mul, buf2));
                 }
             }
 
@@ -866,7 +873,9 @@ struct plingen_tuner {
         printf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
         double time_best = std::get<1>(best[L])[std::get<0>(best[L])];
         time_best += tt_com0;
-        printf("# Expected total time: %.2f [%.1fd], peak memory %s\n", time_best, time_best / 86400, size_disp(peak, buf));
+        printf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
+        hints.ipeak=ipeak;
+        hints.peak=peak;
         printf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
 
         /* This one is strictly linear anyway */

@@ -17,6 +17,35 @@
 
 #define MUL_FTI_DEPTH_ADJ_36_36_36 { { 1, 6 }, { 2, 3 }, { 3, 2 }, { 6, 1 }, { 7, 2 }, { 14, 1 }, { 23, 0 }, { 26, 1 }, { 44, 0 }, { 46, 1 }, { 54, 0 }, { 61, 1 }, { 62, 0 }, }
 
+matpoly_ft::memory_pool matpoly_ft::memory;
+
+matpoly_ft::memory_pool_guard::memory_pool_guard(size_t s)
+{
+    ASSERT_ALWAYS(memory.allocated == 0);
+    memory.peak = 0;
+    memory.allowed = s;
+}
+matpoly_ft::memory_pool_guard::~memory_pool_guard() {
+    ASSERT_ALWAYS(matpoly_ft::memory.allocated == 0);
+}
+
+void * matpoly_ft::memory_pool::alloc(size_t s)
+{
+    std::lock_guard<std::mutex> dummy(mm);
+    ASSERT_ALWAYS(allocated + s <= allowed);
+    allocated += s;
+    if (allocated > peak) peak = allocated;
+    return malloc(s);
+}
+void matpoly_ft::memory_pool::free(void * p, size_t s)
+{
+    std::lock_guard<std::mutex> dummy(mm);
+    ASSERT_ALWAYS(allocated >= s);
+    allocated -= s;
+    ::free(p);
+}
+
+
 matpoly_ft::matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const struct fft_transform_info * fti)/*{{{*/
     : ab(ab)
     , m(m)
@@ -24,7 +53,7 @@ matpoly_ft::matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const str
     , fti(fti)
 {
     fft_get_transform_allocs(fft_alloc_sizes, fti);
-    data = malloc(m * n * fft_alloc_sizes[0]);
+    data = memory.alloc(m * n * fft_alloc_sizes[0]);
     memset(data, 0, m * n * fft_alloc_sizes[0]);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for collapse(2)
@@ -38,7 +67,8 @@ matpoly_ft::matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const str
 
 matpoly_ft::~matpoly_ft() /* {{{ */
 {
-    free(data);
+    if (data)
+        memory.free(data, m * n * fft_alloc_sizes[0]);
 }/*}}}*/
 
 matpoly_ft::matpoly_ft(matpoly_ft && a)
@@ -55,7 +85,7 @@ matpoly_ft::matpoly_ft(matpoly_ft && a)
 matpoly_ft& matpoly_ft::operator=(matpoly_ft&& a)
 {
     if (data)
-        free(data);
+        memory.free(data, m * n * fft_alloc_sizes[0]);
     fti = a.fti;
     ab = a.ab;
     memcpy(fft_alloc_sizes, a.fft_alloc_sizes, sizeof(fft_alloc_sizes));

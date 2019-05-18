@@ -23,6 +23,7 @@ struct lingen_call_companion {
     struct {
         lingen_substep_schedule S;
         double tt;
+        size_t reserved_ram;
         size_t ram;
     } mp, mul;
     struct key {
@@ -40,6 +41,8 @@ struct lingen_hints_t : public std::map<lingen_call_companion::key, lingen_call_
     typedef std::map<lingen_call_companion::key, lingen_call_companion> super;
     double tt_scatter_per_unit;
     double tt_gather_per_unit;
+    int ipeak;
+    size_t peak;
     void share(int root, MPI_Comm comm);
 };
 

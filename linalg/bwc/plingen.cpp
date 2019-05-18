@@ -1426,7 +1426,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
-    S.write((const char *) X.x, X.m*(X.n)*X.alloc*sizeof(mp_limb_t));
+    S.write((const char *) X.x, X.m*(X.n)*X.size*sizeof(mp_limb_t));
     char checksum[41];
     S.checksum(checksum);
     return std::string(checksum);
@@ -1448,6 +1448,11 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
     size_t half = E.size - (E.size / 2);
+    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
+    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
+    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
+    unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
+    unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
     /* declare an lazy-alloc all matrices */
     matpoly E_left;
@@ -1458,11 +1463,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     E_left.truncate(E, half);
 
     /* prepare for MP ! */
-    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
-    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
-    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
-    unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
-    unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
     E.rshift(E, half + 1 - pi_left_expect_used_for_shift);
 
     done = bw_lingen_single(bm, pi_left, E_left, delta);
@@ -1490,10 +1490,12 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
             bm.t, depth,"", caching ? "-caching" : "",
             E.size, pi_left.size, E.size - pi_left.size + 1);
 
-    if (caching)
+    if (caching) {
+        matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         matpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
-    else
+    } else {
         E_right.mp(E, pi_left);
+    }
 
     E = matpoly();
 
@@ -1514,10 +1516,12 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
             bm.t, depth, "", caching ? "-caching" : "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
 
-    if (caching)
+    if (caching) {
+        matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         matpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
-    else
+    } else {
         pi.mul(pi_left, pi_right);
+    }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
      * necessarily full-rank, so that we have to fix potential zeros. If
@@ -2618,15 +2622,9 @@ bm_io::~bm_io()/*{{{*/
 
 void bm_io::begin_read()/*{{{*/
 {
-    bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     if (rank) return;
-
-    matpoly A(ab, m, n, 1);
 
     if (random_input_length) {
         /* see below. I think it would be a bug to not do that */
@@ -3146,6 +3144,106 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     mpz_clear(p);
 }/*}}}*/
 
+/* Counting memory usage in the recursive algorithm.
+ *
+ * The recursive algorithm is designed to allow the allocated memory for
+ * the input to be reused for placing the output. Some memory might have
+ * been saved by upper layers. We also have some local allocation.
+ *
+ * Notations: The algorithm starts at depth 0 with an
+ * input length L, and the notation \ell_i denotes L/2^(i+1). We have
+ * \ell_i=2\ell_{i+1}. The notation \alpha denotes m/(m+n). Note that the
+ * input has size \alpha*(1-\alpha)*L times (m+n)^2*\log_2(p) (divided by
+ * r^2 if relevant).
+ *
+ * We define five quantities. All are understood as multiples of
+ * (m+n)^2*\log_2(p).
+ *
+ * MP(i) is the extra storage needed for the MP operation at depth i.
+ *
+ * MUL(i) is the extra storage needed for the MUL operation at depth i.
+ *
+ * IO(i) is the common size of the input and output data of the call at
+ *       depth i. We have
+ *              IO(i) = 2\alpha\ell_i
+ *
+ * ST(i) is the storage *at all levels above the current one* (i.e. with
+ *    depth strictly less than i) for the data that is still live and
+ *    need to exist until after we return. This count is maximized in the
+ *    leftmost branch, where chopped E at all levels must be kept.
+ *    chopped E at depth i (not counted in ST(i) !) is:
+ *          \alpha(1+\alpha) \ell_i
+ *    (counted as the degree it takes to make the necessary data that
+ *    we want to use to compute E_right),
+ *    so the cumulated cost above is twice the depth 0 value, minus the
+ *    depth i value, i.e.
+ *              ST(i) = \alpha(1+\alpha)(L-2\ell_i).
+ * SP(i) is the "spike" at depth i: not counting allocation that is
+ *    already reserved for IO or ST, this is the amount of extra memory
+ *    that is required by the call at depth i. We have:
+ *      SP(i) = max {
+ *              \alpha\ell_i,
+ *              \alpha\ell_i-2\alpha\ell_i+\alpha(1+\alpha)\ell_i+SP(i+1),
+ *             2\alpha\ell_i-2\alpha\ell_i+\alpha(1+\alpha)\ell_i+MP(i),
+ *             2\alpha\ell_i-2\alpha\ell_i+SP(i+1)
+ *             4\alpha\ell_i-2\alpha\ell_i+MUL(i)
+ *             }
+ *            = max {
+ *              \alpha\ell_i-2\alpha\ell_i+\alpha(1+\alpha)\ell_i+SP(i+1),
+ *             2\alpha\ell_i-2\alpha\ell_i+\alpha(1+\alpha)\ell_i+MP(i),
+ *             4\alpha\ell_i-2\alpha\ell_i+MUL(i)
+ *                           }
+ * 
+ * Combining this together, and using
+ * ST(i)+\alpha(1+\alpha)\ell_i=ST(i+1), we have:
+ *
+ * IO(i)+ST(i)+SP(i) = max {
+ *              IO(i+1)+ST(i+1)+SP(i+1),
+ *              ST(i) + 2\alpha\ell_i+\alpha(1+\alpha)\ell_i+MP(i),
+ *              ST(i) + 4\alpha\ell_i+MUL(i)
+ *                      }
+ *                   = max {
+ *              IO(i+1)+ST(i+1)+SP(i+1),
+ *              \alpha(1+\alpha)(L-\ell_i)  + 2\alpha\ell_i + MP(i),
+ *              \alpha(1+\alpha)(L-2\ell_i) + 4\alpha\ell_i + MUL(i)
+ *                      }
+ *                   = max {
+ *              IO(i+1)+ST(i+1)+SP(i+1),
+ *              \alpha((1+\alpha)L+(1-\alpha)\ell_i) + MP(i),
+ *              \alpha((1+\alpha)L+2(1-\alpha)\ell_i) + MUL(i),
+ *                      }
+ *
+ * Let RMP(i) be the amount of memory that is reserved while we are doing
+ * the MP operation, and define RMUL similarly. We have:
+ *      RMP(i)  = \alpha(1+\alpha)(L-\ell_i)  + 2\alpha\ell_i
+ *      RMUL(i) = \alpha(1+\alpha)(L-2\ell_i) + 4\alpha\ell_i
+ * whence:
+ *      RMP(i) = \alpha((1+\alpha)L+(1-\alpha)\ell_i)
+ *      RMUL(i) = \alpha((1+\alpha)L+2(1-\alpha)\ell_i)
+ *
+ * We have RMP(i) <= RMUL(i) <= RMP(0) <= RMUL(0) = 2\alpha*L. We'll use
+ * the un-simplified expression later.
+ *
+ * Furthermore IO(infinity)=SP(infinity)=0, and ST(infinity)=\alpha(1+\alpha)L
+ *
+ * So that eventually, the amount of reserved memory for the whole
+ * algorithm is RMUL(0)=2\alpha*L (which is 2/(1-\alpha)=2*(1+m/n) times
+ * the input size). On top of that we have the memory required
+ * for the transforms.
+ *
+ *
+ * When going MPI, matrices may be rounded with some inaccuracy.
+ * Splitting in two a 3x3 matrix leads to a 2x2 chunk, which is 1.77
+ * times more than the simplistic proportionality rule.
+ *
+ * Therefore it makes sense to distinguish between matrices of size
+ * m*(m+n) and (m+n)*(m+n). If we recompute RMUL(i) by taking this into
+ * account, we obtain:
+ *      [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[4\alpha\ell_i]
+ * where we only paid attention to the rounding issues with dimensions,
+ * as those are more important than for degrees. Bottom line, the max is
+ * expected to be for i=0, and that will be made only of pi matrices.
+ */
 
 /* Some of the early reading must be done before we even start, since
  * the code that we run depends on the input size.
@@ -3162,6 +3260,23 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
     size_t safe_guess = aa.ascii ? ceil(1.05 * guess) : guess;
 
     std::vector<unsigned int> delta(m+n, bm.t);
+
+    
+    /* c0 is (1+m/n) times the input size */
+    size_t c0 = abvec_elt_stride(bm.d.ab,
+                iceildiv(m+n, bm.mpi_dims[0]) *
+                iceildiv(m+n, bm.mpi_dims[1]) *
+                iceildiv(m*safe_guess, m+n));
+    matpoly::memory_pool_guard main(2*c0);
+    if (!rank) {
+        char buf[20];
+        printf("# Estimated memory for JUST transforms (per node): %s\n",
+                size_disp(2*c0, buf));
+        printf("# Estimated peak total memory (per node): max at depth %d: %s\n",
+                bm.hints.ipeak,
+                size_disp(bm.hints.peak, buf));
+    }
+
 
     T E  = F.init(ab, m, m+n, safe_guess);
     T pi = F.init(ab, 0, 0, 0);   /* pre-init for now */
@@ -3401,6 +3516,16 @@ int main(int argc, char *argv[])
 
     /* TODO: read the a files in scattered mode */
 
+    /* This is our estimate of the *global amount of memory* that the
+     * program will use.
+     */
+    size_t exp_lenA = 2 + iceildiv(bm.d.m, bm.d.n);
+    matpoly::memory_pool_guard main_memory(
+            /* bm_io */
+            abvec_elt_stride(bm.d.ab,bm.d.m*bm.d.n*exp_lenA) +   /* bm_io A */
+            abvec_elt_stride(bm.d.ab,bm.d.m*bm.d.m) +   /* bm_io M */
+            0);
+
     /* We now have a protected structure for a_reading task which does
      * the right thing concerning parallelism among MPI nodes (meaning
      * that non-root nodes essentially do nothing while the master job
@@ -3409,7 +3534,11 @@ int main(int argc, char *argv[])
     aa.begin_read();
     aa.guess_length();
 
-    bm.hints = plingen_tuning(bm.d, aa.guessed_length, bm.com[0], pl);
+    {
+        matpoly::memory_pool_guard blanket(SIZE_MAX);
+        matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
+        bm.hints = plingen_tuning(bm.d, aa.guessed_length, bm.com[0], pl);
+    }
 
     if (global_flag_tune) {
         MPI_Finalize();
@@ -3450,7 +3579,7 @@ int main(int argc, char *argv[])
         printf("t_cp_io = %.2f\n", bm.t_cp_io);
         long peakmem = PeakMemusage();
         if (peakmem > 0)
-            printf("# PeakMemusage (MB) = %ld \n", peakmem >> 10);
+            printf("# PeakMemusage (MB) = %ld (VmPeak: can be misleading)\n", peakmem >> 10);
     }
 
     abfield_clear(ab);

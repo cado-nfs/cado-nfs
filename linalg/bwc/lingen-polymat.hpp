@@ -4,7 +4,7 @@
 #include "mpfq_layer.h"
 #include "macros.h"
 
-struct matpoly;
+class matpoly;
 struct polymat;
 
 #include "lingen-matpoly.hpp"
