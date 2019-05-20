@@ -10,17 +10,31 @@
 
 matpoly::memory_pool matpoly::memory;
 
-matpoly::memory_pool_guard::memory_pool_guard(size_t newsize) : s(newsize)
+matpoly::memory_pool_guard::memory_pool_guard(size_t newsize, bool stack_based) : s(newsize)
 {
+#if 0
     if (s == SIZE_MAX)
         s -= memory.allowed;
     memory.allowed += s;
+#else
+    memory.layers.emplace_back(s, stack_based);
+#endif
 }
 matpoly::memory_pool_guard::~memory_pool_guard() {
+#if 0
     ASSERT_ALWAYS(matpoly::memory.allocated <= s);
     memory.allowed -= s;
+#else
+    ASSERT_ALWAYS(matpoly::memory.layers.back().allocated == 0);
+    memory.layers.pop_back();
+#endif
 }
-void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
+matpoly::memory_pool::layer::layer(size_t s, bool /* stack_based */)
+{
+    allowed = s;
+}
+
+void matpoly::memory_pool::layer::report_inaccuracy(ssize_t diff)
 {
     char buf[20];
     if (diff < 0 && (size_t) -diff > max_inaccuracy) {
@@ -34,7 +48,12 @@ void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
     }
 }
 
-void * matpoly::memory_pool::alloc(size_t s)
+void * matpoly::memory_pool::layer::roll(size_t s, std::list<std::pair<void *&, size_t>>)
+{
+    return alloc(s);
+}
+
+void * matpoly::memory_pool::layer::alloc(size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
     if (allocated + s > allowed)
@@ -43,14 +62,14 @@ void * matpoly::memory_pool::alloc(size_t s)
     if (allocated > peak) peak = allocated;
     return malloc(s);
 }
-void matpoly::memory_pool::free(void * p, size_t s)
+void matpoly::memory_pool::layer::free(void * p, size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
     ASSERT_ALWAYS(allocated >= s);
     allocated -= s;
     ::free(p);
 }
-void * matpoly::memory_pool::realloc(void * p, size_t s0, size_t s)
+void * matpoly::memory_pool::layer::realloc(void * p, size_t s0, size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
     /* We allow reallocating stuff that was not allocated at the present

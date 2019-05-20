@@ -39,18 +39,71 @@ struct submatrix_range {
  * Note that this ends up being exactly the same data type as polymat.
  * The difference here is that the stride is not the same.
  */
+
+#define xxxUSE_STACK_ALLOCATION_MODEL
+
 class matpoly {
-    class memory_pool {
+    struct memory_pool {
+        class layer {
+            std::mutex mm;
+#ifdef USE_STACK_ALLOCATION_MODEL
+            void * top;     /* next area to allocate */
+            void * base;    /* base of the allocation */
+            size_t allowed_coarse=0;
+            size_t allocated_coarse=0;
+            /* We have
+             *      base <= top
+             *      top = base + allocated_coarse
+             *      top <= base + allowed_coarse
+             *
+             * And as for the user-visible counts:
+             *      allowed <= allowed_coarse
+             *      allocated <= allocated_coarse
+             *
+             * "coarse" allocation typically includes pagesize rounding + red
+             * area.
+             */
+#endif
+            public:
+            size_t allowed=0;
+            size_t allocated=0;
+            size_t peak=0;
+            size_t max_inaccuracy = 0;
+            /* This takes a list of pointers (and sizes of pointed-to areas)
+             * that are on top of the stack (in order: the last one must
+             * really be on top), and insert a new hole just before them (of
+             * the requested size).
+             * The pointers areas are moved, and the pointers are modified
+             * accordingly.
+             *
+             * This is implemented as a simple alloc() call when
+             * USE_STACK_ALLOCATION_MODEL is not defined.
+             */
+            void * roll(size_t, std::list<std::pair<void * &, size_t>> pointers);
+            void * alloc(size_t);
+            void free(void *, size_t);
+            void * realloc(void * p, size_t s0, size_t s);
+            void report_inaccuracy(ssize_t diff);
+            layer(size_t, bool stack_based=false);
+        };
         std::mutex mm;
-        public:
-        size_t allowed=0;
-        size_t allocated=0;
-        size_t peak=0;
-        void * alloc(size_t);
-        void free(void *, size_t);
-        void * realloc(void * p, size_t s0, size_t s);
-        size_t max_inaccuracy = 0;
-        void report_inaccuracy(ssize_t diff);
+        std::list<memory_pool::layer> layers;
+        inline void * roll(size_t s, std::list<std::pair<void * &, size_t>> p) {
+            ASSERT_ALWAYS(!layers.empty());
+            return layers.back().roll(s, p);
+        }
+        void * alloc(size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            return layers.back().alloc(s);
+        }
+        void free(void * p, size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            layers.back().free(p, s);
+        }
+        void * realloc(void * p, size_t s0, size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            return layers.back().realloc(p, s0, s);
+        }
     };
 #if 0
     struct memory_pool {
@@ -79,7 +132,7 @@ public:
     class memory_pool_guard {
         size_t s;
         public:
-        memory_pool_guard(size_t s);
+        memory_pool_guard(size_t s, bool stack_based=false);
         ~memory_pool_guard();
     };
     // static void add_to_main_memory_pool(size_t s);
