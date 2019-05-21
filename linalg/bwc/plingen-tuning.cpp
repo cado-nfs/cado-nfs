@@ -418,9 +418,10 @@ struct plingen_tuner {
     const char * timing_cache_filename = NULL;
 
     /* stop measuring the time taken by the basecase when it is
-     * more than this number times the time taken by the other operations
+     * more than this number times the time taken by the other
+     * alternatives
      */
-    unsigned int basecase_keep_until = 4;
+    double basecase_keep_until = 1.8;
 
     std::map<size_t, lingen_substep_schedule> schedules_mp, schedules_mul;
 
@@ -445,7 +446,7 @@ struct plingen_tuner {
         gmp_randseed_ui(rstate, 1);
         abfield_characteristic(ab, p);
 
-        param_list_parse_uint(pl, "basecase-keep-until", &basecase_keep_until);
+        param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
 
         timing_cache_filename = param_list_lookup_string(pl, "tuning_timing_cache_filename");
         C.load(timing_cache_filename);
@@ -654,7 +655,7 @@ struct plingen_tuner {
         int fl = log2(L) + 1;
 
         /* with basecase_keep_until == 0, then we never measure basecase */
-        bool basecase_eliminated = !basecase_keep_until;
+        bool basecase_eliminated = basecase_keep_until == 0;
         std::map<size_t, std::tuple<bool, std::array<double, 3> >, plingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
         size_t peak = 0;
