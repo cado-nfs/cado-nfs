@@ -44,34 +44,16 @@ struct submatrix_range {
 
 class matpoly {
     struct memory_pool {
-        class layer {
-            std::mutex mm;
-            public:
-            size_t allowed=0;
-            size_t allocated=0;
-            size_t peak=0;
-            size_t max_inaccuracy = 0;
-            void * alloc(size_t);
-            void free(void *, size_t);
-            void * realloc(void * p, size_t s0, size_t s);
-            void report_inaccuracy(ssize_t diff);
-            layer(size_t);
-            ~layer();
-        };
         std::mutex mm;
-        std::list<memory_pool::layer> layers;
-        void * alloc(size_t s) {
-            ASSERT_ALWAYS(!layers.empty());
-            return layers.back().alloc(s);
-        }
-        void free(void * p, size_t s) {
-            ASSERT_ALWAYS(!layers.empty());
-            layers.back().free(p, s);
-        }
-        void * realloc(void * p, size_t s0, size_t s) {
-            ASSERT_ALWAYS(!layers.empty());
-            return layers.back().realloc(p, s0, s);
-        }
+        public:
+        size_t allowed=0;
+        size_t allocated=0;
+        size_t peak=0;
+        size_t max_inaccuracy = 0;
+        void * alloc(size_t);
+        void free(void *, size_t);
+        void * realloc(void * p, size_t s0, size_t s);
+        void report_inaccuracy(ssize_t diff);
     };
     static memory_pool memory;
 public:
