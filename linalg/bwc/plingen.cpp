@@ -3002,8 +3002,6 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
     MPI_Comm_rank(bm.com[0], &rank);
     if (rank) return;
 
-    matpoly::memory_pool_guard dummy(SIZE_MAX);
-
     F = matpoly(bm.d.ab, n, n, t0 + 1);
 
     set_write_behind_size(delta);
@@ -3013,10 +3011,6 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
     typename matpoly_factory<T>::consumer_task pi_consumer(*this, pi);
 
     compute_final_F(S, pi_consumer, delta);
-
-    /* We need this because we want all our deallocation to happen before
-     * the guard's dtor gets called */
-    F = matpoly();
 }
 
 
