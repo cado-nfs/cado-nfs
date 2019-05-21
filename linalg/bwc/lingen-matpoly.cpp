@@ -10,17 +10,24 @@
 
 matpoly::memory_pool matpoly::memory;
 
-matpoly::memory_pool_guard::memory_pool_guard(size_t newsize) : s(newsize)
+matpoly::memory_pool_guard::memory_pool_guard(size_t s)
 {
-    if (s == SIZE_MAX)
-        s -= memory.allowed;
-    memory.allowed += s;
+    memory.layers.emplace_back(s);
 }
+
+matpoly::memory_pool::layer::~layer()
+{
+}
+
 matpoly::memory_pool_guard::~memory_pool_guard() {
-    ASSERT_ALWAYS(matpoly::memory.allocated <= s);
-    memory.allowed -= s;
+    ASSERT_ALWAYS(matpoly::memory.layers.back().allocated == 0);
+    memory.layers.pop_back();
 }
-void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
+matpoly::memory_pool::layer::layer(size_t s) : allowed(s)
+{
+}
+
+void matpoly::memory_pool::layer::report_inaccuracy(ssize_t diff)
 {
     char buf[20];
     if (diff < 0 && (size_t) -diff > max_inaccuracy) {
@@ -34,7 +41,7 @@ void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
     }
 }
 
-void * matpoly::memory_pool::alloc(size_t s)
+void * matpoly::memory_pool::layer::alloc(size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
     if (allocated + s > allowed)
@@ -43,152 +50,25 @@ void * matpoly::memory_pool::alloc(size_t s)
     if (allocated > peak) peak = allocated;
     return malloc(s);
 }
-void matpoly::memory_pool::free(void * p, size_t s)
+void matpoly::memory_pool::layer::free(void * p, size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
     ASSERT_ALWAYS(allocated >= s);
     allocated -= s;
     ::free(p);
 }
-void * matpoly::memory_pool::realloc(void * p, size_t s0, size_t s)
+void * matpoly::memory_pool::layer::realloc(void * p, size_t s, size_t ns)
 {
+    if (s == ns) return p;
     std::lock_guard<std::mutex> dummy(mm);
     /* We allow reallocating stuff that was not allocated at the present
      * recursive level */
-    if (allocated + (s-s0) > allowed)
-        report_inaccuracy((allocated + s - s0) - allowed);
-    allocated -= s0;
-    allocated += s;
-    return ::realloc(p, s);
-}
-
-#if 0
-/* this implementation had a grand goal in mind, but unfrotunately it's
- * broken, as the max value that we seek entails a trade-off between
- * stacked allocation and local allocation. This goes to the point where
- * a recursive structure like the one here buys us quite little, and is a
- * real hassle to maintain.
- */
-matpoly::memory_pool matpoly::memory;
-
-void matpoly::add_to_main_memory_pool(size_t s)
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    ASSERT_ALWAYS(!matpoly::memory.layers.empty());
-    matpoly::memory_pool::layer & main(matpoly::memory.layers.front());
-    main.allowed += s;
-}
-
-matpoly::memory_pool_guard::memory_pool_guard(size_t s)
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    if (matpoly::memory.layers.empty()) {
-        matpoly::memory.layers.emplace_back(s);
-        return;
-    }
-    matpoly::memory_pool::layer & main(matpoly::memory.layers.front());
-    /* Now we're drawing from the main allocated
-     * amount, so we should check that we're allowed to do so.
-     */
-    ASSERT_ALWAYS(main.allocated + s <= main.allowed);
-    main.allocated += s;
-    if (main.allocated > main.peak) main.peak = main.allocated;
-    matpoly::memory.layers.emplace_back(s);
-}
-
-matpoly::memory_pool_guard::~memory_pool_guard()
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    ASSERT_ALWAYS(!matpoly::memory.layers.empty());
-    matpoly::memory_pool::layer & top(matpoly::memory.layers.back());
-    matpoly::memory_pool::layer & main(matpoly::memory.layers.front());
-    /* Given that we sometimes reallocate memory, the transition from
-     * input to output might be sometimes in exact in terms of storage so
-     * we need to fix that.
-     */
-    size_t leftover = top.allocated;
-    if (&top != &main) {
-        /* release the memory amount that we had reserved, put it back to the
-         * global pool */
-        ASSERT_ALWAYS(main.allocated >= (ssize_t) top.allowed);
-        main.allocated -= top.allowed;
-        matpoly::memory.layers.pop_back();
-        matpoly::memory.layers.back().allocated += leftover;
-    } else {
-        ASSERT_ALWAYS(leftover == 0);
-        matpoly::memory.layers.pop_back();
-    }
-}
-
-matpoly::memory_pool::layer & matpoly::memory_pool::current_pool()
-{
-    /* This should be mutex-protected */
-    ASSERT_ALWAYS(!layers.empty());
-    layer & top(layers.back());
-    // matpoly::memory_pool::layer & main(layers.front());
-    return top;
-}
-
-void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
-{
-    char buf[20];
-    if (diff < 0 && (size_t) -diff > max_inaccuracy) {
-        fprintf(stderr, "# Over-estimating the amount of reserved RAM by %s\n",
-                size_disp((size_t) -diff, buf));
-        max_inaccuracy = -diff;
-    } else if (diff > 0 && (size_t) diff > max_inaccuracy) {
-        fprintf(stderr, "# Under-estimating the amount of reserved RAM by %s\n",
-                size_disp((size_t) diff, buf));
-        max_inaccuracy = diff;
-    }
-}
-
-void * matpoly::memory_pool::layer::alloc(memory_pool & M, size_t s)
-{
-    std::lock_guard<std::mutex> dummy(mm);
-    if (allocated + s > allowed)
-        M.report_inaccuracy((allocated + s) - allowed);
-    allocated += s;
-    if (allocated > peak) peak = allocated;
-    return malloc(s);
-}
-void matpoly::memory_pool::layer::free(memory_pool & M, void * p, size_t s)
-{
-    std::lock_guard<std::mutex> dummy(mm);
-    if (allocated < (ssize_t) s)
-        M.report_inaccuracy(allocated - s);
+    if (allocated + (ns - s) > allowed)
+        report_inaccuracy((allocated + ns - s) - allowed);
     allocated -= s;
-    ::free(p);
+    allocated += ns;
+    return ::realloc(p, ns);
 }
-void * matpoly::memory_pool::layer::realloc(memory_pool & M, void * p, size_t s0, size_t s)
-{
-    std::lock_guard<std::mutex> dummy(mm);
-    /* We allow reallocating stuff that was not allocated at the present
-     * recursive level */
-    if (allocated + (ssize_t) (s-s0) > (ssize_t) allowed)
-        M.report_inaccuracy((allocated + s - s0) - allowed);
-    allocated -= s0;
-    allocated += s;
-    return ::realloc(p, s);
-}
-
-void * matpoly::memory_pool::alloc(size_t s)
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    return current_pool().alloc(*this, s);
-}
-void matpoly::memory_pool::free(void * p, size_t s)
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    current_pool().free(*this, p, s);
-}
-
-void * matpoly::memory_pool::realloc(void * p, size_t s0, size_t s)
-{
-    std::lock_guard<std::mutex> dummy(matpoly::memory.mm);
-    return current_pool().realloc(*this, p, s0, s);
-}
-#endif
 
 int matpoly::check_pre_init() const
 {
@@ -206,17 +86,26 @@ int matpoly::check_pre_init() const
 matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc(len) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     ASSERT(!m == !n);
-    ASSERT(!m == !len);
     if (!m) return;
     size = 0;
-    x = (abdst_vec) memory.alloc(abvec_elt_stride(ab, m*n*alloc));
+    if (!len) {
+        alloc=0;
+        return;
+    }
     // abvec_init(ab, &(x), m*n*alloc);
+    x = (abdst_vec) memory.alloc(alloc_size());
     abvec_set_zero(ab, x, m*n*alloc);
 }
+size_t matpoly::alloc_size() const
+{
+    return abvec_elt_stride(ab, m*n*alloc);
+}
+
 matpoly::~matpoly() {
-    if (x)
+    if (x) {
         memory.free(x, abvec_elt_stride(ab, m*n*alloc));
         // abvec_clear(ab, &(x), m*n*alloc);
+    }
 }
 matpoly::matpoly(matpoly && a)
     : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)
@@ -229,7 +118,7 @@ matpoly::matpoly(matpoly && a)
 }
 matpoly& matpoly::operator=(matpoly&& a)
 {
-    if (m) {
+    if (x) {
         memory.free(x, abvec_elt_stride(ab, m*n*alloc));
         // abvec_clear(ab, &(x), m*n*alloc);
     }
@@ -310,14 +199,6 @@ void matpoly::set_constant(absrc_elt e) {
     for(unsigned int i = 0 ; i < m ; ++i)
         abset(ab, coeff(i, i, 0), e);
 }
-#if 0
-void matpoly::swap(matpoly & a)
-{
-    matpoly x = std::move(*this);
-    *this = std::move(a);
-    a = std::move(x);
-}
-#endif
 /* }}} */
 
 void matpoly::fill_random(unsigned int nsize, gmp_randstate_t rstate)
@@ -334,23 +215,6 @@ int matpoly::cmp(matpoly const& b) const
     if (size != b.size) return (size > b.size) - (b.size > size);
     return abvec_cmp(ab, x, b.x, m*n*size);
 }
-
-#if 0   /* unused ? */
-/* polymat didn't have a proper add(), which is somewhat curious */
-void matpoly::add(matpoly const & a, matpoly const & b)
-{
-    ASSERT_ALWAYS(size == a.size);
-    ASSERT_ALWAYS(size == b.size);
-    for(unsigned int i = 0 ; i < a.m ; i++) {
-        for(unsigned int j = 0 ; j < a.n ; j++) {
-            abvec_add(ab,
-                      part(i, j, 0),
-                    a.part(i, j, 0),
-                    b.part(i, j, 0), size);
-        }
-    }
-}
-#endif
 
 /* shift by a multiplication by x all coefficients of degree less than
  * nsize in column j.
@@ -376,12 +240,6 @@ void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
 void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
 {
     ASSERT_ALWAYS(nsize <= src.alloc);
-    if (this == &src) {
-        /* Never used by the code, so far. We're leaving garbage coeffs
-         * on top, could this be a problem ? */
-        size = nsize;
-        return;
-    }
     if (check_pre_init()) {
         /* Need to call ctor... */
         *this = matpoly(src.ab, src.m, src.n, nsize);
@@ -389,6 +247,7 @@ void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
     ASSERT_ALWAYS(m == src.m);
     ASSERT_ALWAYS(n == src.n);
     ASSERT_ALWAYS(nsize <= alloc);
+    ASSERT_ALWAYS(nsize <= src.size);
     size = nsize;
     /* XXX Much more cumbersome here than for polymat, of course */
     for(unsigned int i = 0 ; i < src.m ; i++) {
@@ -465,7 +324,6 @@ void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
             abvec_set(ab, part(i, j, 0), src.part(i, j, k), newsize);
         }
     }
-    if (this == &src) realloc(newsize);
 }/*}}}*/
 
 void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
@@ -614,4 +472,21 @@ void matpoly::coeff_set_zero(unsigned int k)
     for(unsigned int j = 0; j < m; j++)
         for(unsigned int i = 0 ; i < n ; i++)
             abset_zero(ab, coeff(i, j, k));
+}
+
+/* This puts the truncated polynomial on top, and the shifted one
+ * inbetween.
+ */
+matpoly matpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
+{
+    /* arrange a hole for the other matrix which will be the chopped one,
+     * and then truncate in a later step. We want to return the truncated
+     * matrix and let *this point to the chopped one, though
+     */
+    matpoly other(ab, m, n, size - shiftcount);
+    other.rshift(*this, shiftcount);
+    truncate(*this, truncated_size);
+    shrink_to_fit();
+    std::swap(*this, other);
+    return other;
 }

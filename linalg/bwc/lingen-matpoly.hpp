@@ -3,6 +3,8 @@
 
 #include <mutex>
 #include <list>
+#include <tuple>
+#include <functional>   /* reference_wrapper */
 
 #include "mpfq_layer.h"
 
@@ -39,41 +41,38 @@ struct submatrix_range {
  * Note that this ends up being exactly the same data type as polymat.
  * The difference here is that the stride is not the same.
  */
+
 class matpoly {
-    class memory_pool {
-        std::mutex mm;
-        public:
-        size_t allowed=0;
-        size_t allocated=0;
-        size_t peak=0;
-        void * alloc(size_t);
-        void free(void *, size_t);
-        void * realloc(void * p, size_t s0, size_t s);
-        size_t max_inaccuracy = 0;
-        void report_inaccuracy(ssize_t diff);
-    };
-#if 0
     struct memory_pool {
-        struct layer {
+        class layer {
             std::mutex mm;
+            public:
             size_t allowed=0;
-            ssize_t allocated=0;
-            ssize_t peak=0;
-            layer(size_t s) : allowed(s) { allocated=peak=0; }
-            void * alloc(memory_pool& M, size_t);
-            void free(memory_pool& M, void *, size_t);
-            void *realloc(memory_pool& M, void *, size_t, size_t);
+            size_t allocated=0;
+            size_t peak=0;
+            size_t max_inaccuracy = 0;
+            void * alloc(size_t);
+            void free(void *, size_t);
+            void * realloc(void * p, size_t s0, size_t s);
+            void report_inaccuracy(ssize_t diff);
+            layer(size_t);
+            ~layer();
         };
         std::mutex mm;
         std::list<memory_pool::layer> layers;
-        void * alloc(size_t);
-        void free(void *, size_t);
-        void *realloc(void *, size_t, size_t);
-        layer & current_pool();
-        size_t max_inaccuracy = 0;
-        void report_inaccuracy(ssize_t diff);
+        void * alloc(size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            return layers.back().alloc(s);
+        }
+        void free(void * p, size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            layers.back().free(p, s);
+        }
+        void * realloc(void * p, size_t s0, size_t s) {
+            ASSERT_ALWAYS(!layers.empty());
+            return layers.back().realloc(p, s0, s);
+        }
     };
-#endif
     static memory_pool memory;
 public:
     class memory_pool_guard {
@@ -91,6 +90,7 @@ public:
     abvec x = NULL;
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
+    size_t alloc_size() const;
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
@@ -101,6 +101,7 @@ public:
     ~matpoly();
     int check_pre_init() const;
     void realloc(size_t);
+    inline void shrink_to_fit() { realloc(size); }
     void zero();
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
@@ -120,9 +121,6 @@ public:
     /* }}} */
     void set_constant_ui(unsigned long e);
     void set_constant(absrc_elt e);
-#if 0
-    void swap(matpoly&);
-#endif
     void fill_random(unsigned int size, gmp_randstate_t rstate);
     int cmp(matpoly const & b) const;
     void multiply_column_by_x(unsigned int j, unsigned int size);
@@ -172,15 +170,7 @@ public:
     const_view_t view(submatrix_range S) const { ASSERT_ALWAYS(S.valid(*this)); return const_view_t(*this, S); }
     view_t view() { return view_t(*this); }
     const_view_t view() const { return const_view_t(*this); }
+    matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
 };
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
 
 #endif	/* LINGEN_MATPOLY_H_ */

@@ -784,10 +784,12 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     return generator_found;
 }
 int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly const & E, std::vector<unsigned int> & delta)
+bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
 {
     tree_stats::sentinel dummy(bm.stats, __func__, E.size, false);
-    return bw_lingen_basecase_raw(bm, pi, E, delta);
+    int done = bw_lingen_basecase_raw(bm, pi, E, delta);
+    E = matpoly();
+    return done;
 }
 /*}}}*/
 
@@ -1460,15 +1462,14 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     matpoly pi_right;
     matpoly E_right;
 
-    E_left.truncate(E, half);
+    E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
-    /* prepare for MP ! */
-    E.rshift(E, half + 1 - pi_left_expect_used_for_shift);
-
+    // this (now) consumes E_left entirely, and leaves only pi on top of
+    // the stack (just above the chopped E) */
     done = bw_lingen_single(bm, pi_left, E_left, delta);
 
     ASSERT_ALWAYS(pi_left.size);
-    E_left = matpoly();
+    // E_left = matpoly();
 
     if (done) {
         pi = std::move(pi_left);
@@ -1483,20 +1484,28 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
     ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
-    if (pi_left_expect_used_for_shift != pi_left.size)
+    if (pi_left_expect_used_for_shift != pi_left.size) {
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
+        /* Don't shrink_to_fit at this point, because we've only made a
+         * minor adjustment, and E is not on top of the stack anyway */
+    }
 
     logline_begin(stdout, z, "t=%u %*sMP%s(%zu, %zu) -> %zu",
             bm.t, depth,"", caching ? "-caching" : "",
             E.size, pi_left.size, E.size - pi_left.size + 1);
 
+    /* stack is E, pi_left. Want to get rid of E right after this
+     * operation. So we need to:
+     *  - put E last
+     *  - then create E_right right before E. */
+    E_right = matpoly(d.ab, d.m, d.m+d.n,
+            E.size - pi_left.size + 1);
     if (caching) {
         matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         matpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
     } else {
         E_right.mp(E, pi_left);
     }
-
     E = matpoly();
 
     logline_end(&(bm.t_mp), "");
@@ -1509,13 +1518,19 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     ASSERT_ALWAYS(pi_right.size <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.size >= pi_right_expect_lowerbound);
 
-    E_right = matpoly();
+    /* stack is now pi_left, pi_right */
 
     bm.stats.begin_smallstep("MUL", C.mul.tt);
     logline_begin(stdout, z, "t=%u %*sMUL%s(%zu, %zu) -> %zu",
             bm.t, depth, "", caching ? "-caching" : "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
 
+    /* We want pi to be on top of the allocation stack at the end of the
+     * computation. Therefore it's important that we put pi_left and
+     * pi_right on top, so that they can be on top of the stack at the
+     * moment when we clear them.
+     */
+    pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
     if (caching) {
         matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         matpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
@@ -2709,14 +2724,6 @@ void bm_io::guess_length()/*{{{*/
             /* First coefficient is always lighter, so we add a +1. */
             guessed_length = 1 + expected_length;
         }
-#if 0
-        /* we don't have the struct bw at hand here... */
-        if (bw->end || bw->start) {
-            printf("(Note: from bw parameters, we expect %u).\n",
-                    bw->end - bw->start);
-        }
-        printf(".\n");
-#endif
     }
     MPI_Bcast(&(guessed_length), 1, MPI_UNSIGNED, 0, bm.com[0]);
 }/*}}}*/
@@ -3002,6 +3009,8 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
     MPI_Comm_rank(bm.com[0], &rank);
     if (rank) return;
 
+    matpoly::memory_pool_guard dummy(SIZE_MAX);
+
     F = matpoly(bm.d.ab, n, n, t0 + 1);
 
     set_write_behind_size(delta);
@@ -3011,6 +3020,10 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
     typename matpoly_factory<T>::consumer_task pi_consumer(*this, pi);
 
     compute_final_F(S, pi_consumer, delta);
+
+    /* We need this because we want all our deallocation to happen before
+     * the guard's dtor gets called */
+    F = matpoly();
 }
 
 
@@ -3442,21 +3455,6 @@ int main(int argc, char *argv[])
         if (!rank)
             printf("# size=%d mpi=%dx%d thr=%dx%d\n", size, mpi[0], mpi[1], thr[0], thr[1]);
         ASSERT_ALWAYS(size == mpi[0] * mpi[1]);
-#if 0
-        ASSERT_ALWAYS(size == mpi[0] * mpi[1] * thr[0] * thr[1]);
-        /* The mpi and thr command line argument lead to the same number
-         * of working processes than with krylov. Except that here, we're
-         * not really doing threads, but running real mpi jobs with their
-         * own address space (hence mpirun will need a bigger -n
-         * argument).  In a sense, here we strive to follow the semantics
-         * used in bwc otherwise.  In fact, we should probably use the
-         * pi_comm structures as well, so that we can say that we
-         * consistently use the same infrastructure.  For simplicity of
-         * the code, we don't.
-         */
-        bm.mpi_dims[0] *= thr[0];
-        bm.mpi_dims[1] *= thr[1];
-#endif
         if (bm.mpi_dims[0] != bm.mpi_dims[1]) {
             if (!rank)
                 fprintf(stderr, "The current plingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
@@ -3467,23 +3465,9 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "The process grid dimensions must divide gcd(m,n)\n");
             abort();
         }
-#if 0
-        int tl_grank = rank % (thr[0] * thr[1]); // thread-level global rank
-        int tl_irank = tl_grank / thr[1];
-        int tl_jrank = tl_grank % thr[1];
-        int ml_grank = rank / (thr[0] * thr[1]); // thread-level global rank
-        int ml_irank = ml_grank / mpi[1];
-        int ml_jrank = ml_grank % mpi[1];
-        int irank = ml_irank * thr[0] + tl_irank;
-        int jrank = ml_jrank * thr[1] + tl_jrank;
-        int newrank = irank * mpi[1] * thr[1] + jrank;
-
-        MPI_Comm_split(MPI_COMM_WORLD, 0, newrank, &(bm.com[0]));
-#else
         int irank = rank / mpi[1];
         int jrank = rank % mpi[1];
         bm.com[0] = MPI_COMM_WORLD;
-#endif
         /* MPI Api has some very deprecated prototypes */
         MPI_Comm_set_name(bm.com[0], (char*) "world");
 
