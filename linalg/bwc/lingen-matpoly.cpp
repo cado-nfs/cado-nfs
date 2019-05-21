@@ -7,9 +7,6 @@
 #include "utils.h"
 #include "lingen-matpoly.hpp"
 #include "flint-fft/fft.h"
-#ifdef __linux
-#include <sys/mman.h>
-#endif
 
 matpoly::memory_pool matpoly::memory;
 
@@ -23,64 +20,18 @@ matpoly::memory_pool_guard::memory_pool_guard(size_t newsize, bool stack_based) 
     memory.layers.emplace_back(s, stack_based);
 #endif
 }
-
-#if 0
-void paint_red(void *, size_t) {}
-void paint_white(void *, size_t) {}
-#else
-void paint_red(void * p, size_t s)
-{
-    int rc = mprotect(p, s, PROT_NONE);
-    ASSERT_ALWAYS(rc == 0);
-}
-
-void paint_white(void * p, size_t s)
-{
-    int rc = mprotect(p, s, PROT_READ|PROT_WRITE);
-    ASSERT_ALWAYS(rc == 0);
-}
-#endif
-
-matpoly::memory_pool::layer::~layer()
-{
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    if (is_stack_based())
-        munmap(base, pagesize() + allowed_coarse);
-#endif
-#endif
-}
-
 matpoly::memory_pool_guard::~memory_pool_guard() {
+#if 0
+    ASSERT_ALWAYS(matpoly::memory.allocated <= s);
+    memory.allowed -= s;
+#else
     ASSERT_ALWAYS(matpoly::memory.layers.back().allocated == 0);
     memory.layers.pop_back();
+#endif
 }
-matpoly::memory_pool::layer::layer(size_t s, bool stack_based)
-    : allowed(s)
+matpoly::memory_pool::layer::layer(size_t s, bool /* stack_based */)
 {
-    if (!stack_based)
-        return;
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    /* How much memory should we allocate for the coarse section ? We
-     * expect to use this storage for pieces that are of exponentially
-     * decreasing size, down to some lower bound that is basically the
-     * recursion level. Each item has an extra cost of two pages (one for
-     * rounding, one for the red zone). The number of items is basically
-     * the logarithm of the requested size, times the number of items per
-     * size. This is admittedly an ad hoc measure.
-     */
-    int nitems = 1;
-    for(size_t x = 1 ; s > x ; nitems++, x<<=1);
-    /* E E_chopped E_left E_right pi_left pi_right pi ==> <= 10 */
-    nitems *= 10;
-    allowed_coarse = (iceildiv(allowed, pagesize()) + 2 * nitems) * pagesize();
-    base = mmap(NULL, pagesize() + allowed_coarse, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-    ASSERT_ALWAYS(base != MAP_FAILED);
-    top = pointer_arith(base, pagesize());
-    paint_red(base, pagesize() + allowed_coarse);
-#endif
-#endif
+    allowed = s;
 }
 
 void matpoly::memory_pool::layer::report_inaccuracy(ssize_t diff)
@@ -97,157 +48,37 @@ void matpoly::memory_pool::layer::report_inaccuracy(ssize_t diff)
     }
 }
 
-void * matpoly::memory_pool::layer::insert_high(size_t request, std::list<std::pair<void *, size_t>> & pointers MAYBE_UNUSED)
+void * matpoly::memory_pool::layer::roll(size_t s, std::list<std::pair<void *&, size_t>>)
 {
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    if (is_stack_based()) {
-        size_t request_s1 = iceildiv(request, pagesize()) * pagesize();
-        size_t request_s2 = request_s1 + pagesize();
-        ASSERT_ALWAYS(allocated_coarse + pagesize() == (size_t) ((char*)top - (char*)base));
-        ASSERT_ALWAYS(allocated_coarse + request_s2 <= allowed_coarse);
-        /* First accomodate a usable area that is precisely as big as I
-         * want it to be. But on top (while I want it somewhere below --
-         * I know that !).
-         */
-        paint_white(top, request_s1);
-        /* Have a variable that gives the upper bound of the
-         * not-yet-moved areas. Above this pointer, we guarantee that
-         * we'll always have an RW zone of size request_s1 followed by a
-         * red zone, after the not_yet_moved address.
-         */
-        void * not_yet_moved=top;
-        top = pointer_arith(top, request_s2);
-        allocated_coarse += request_s2;
-        for(auto x = pointers.rbegin() ; x != pointers.rend() ; ++x) {
-            ASSERT_ALWAYS(not_yet_moved >= base);
-            void * & p(x->first);
-            size_t s = x->second;
-            size_t s1 = iceildiv(s, pagesize()) * pagesize();
-            size_t s2 = s1 + pagesize();
-            ASSERT_ALWAYS(p == pointer_arith_const(not_yet_moved, -pagesize()-s));
-            paint_white(pointer_arith(not_yet_moved, -pagesize()), pagesize());
-            memmove(pointer_arith(p, request_s2), p, s);
-            p = pointer_arith(p, request_s2);
-            not_yet_moved = pointer_arith(not_yet_moved, -s2);
-            paint_red(pointer_arith(not_yet_moved, request_s1), pagesize());
-        }
-        return pointer_arith(not_yet_moved, request_s1 - request);
-    }
-#endif
-#endif
-    return alloc(request);
-}
-
-void matpoly::memory_pool::layer::roll(std::list<std::pair<void *, size_t>> & pointers MAYBE_UNUSED)
-{
-#ifdef USE_STACK_ALLOCATION_MODEL
-    if (pointers.size() <= 1) return;
-#ifdef __linux
-    void *& p(pointers.back().first);
-    size_t s(pointers.back().second);
-    void * np = insert_high(s, pointers);
-    memmove(np, p, s);
-    free(p, s);
-    p = np;
-#endif
-#endif
+    return alloc(s);
 }
 
 void * matpoly::memory_pool::layer::alloc(size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    if (is_stack_based()) {
-        ASSERT_ALWAYS(allocated_coarse + pagesize() == (size_t) ((char*)top - (char*)base));
-        size_t s1 = iceildiv(s, pagesize()) * pagesize();
-        size_t s2 = s1 + pagesize();
-        ASSERT_ALWAYS(allocated_coarse + s2 <= allowed_coarse);
-        paint_white(top, s1);
-        void * ret = pointer_arith(top, s1 - s);
-        top = pointer_arith(top, s2);
-        allocated_coarse += s2;
-        return ret;
-    }
-#endif
-#endif
     if (allocated + s > allowed)
         report_inaccuracy((allocated + s) - allowed);
     allocated += s;
     if (allocated > peak) peak = allocated;
     return malloc(s);
 }
-#ifdef USE_STACK_ALLOCATION_MODEL
-bool matpoly::memory_pool::layer::is_on_top(const void * p, size_t s) const
-{
-#ifdef __linux
-    return p == pointer_arith_const(top, - pagesize() - s);
-#else
-    return true;
-#endif
-}
-#endif
 void matpoly::memory_pool::layer::free(void * p, size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    if (is_stack_based()) {
-        ASSERT_ALWAYS(allocated_coarse + pagesize() == (size_t) ((char*)top - (char*)base));
-        ASSERT_ALWAYS(is_on_top(p, s));
-        size_t s1 = iceildiv(s, pagesize()) * pagesize();
-        size_t s2 = s1 + pagesize();
-        top = pointer_arith(top, -s2);
-        paint_red(top, s1);
-        allocated_coarse -= s2;
-        return;
-    }
-#endif
-#endif
     ASSERT_ALWAYS(allocated >= s);
     allocated -= s;
     ::free(p);
 }
-void * matpoly::memory_pool::layer::realloc(void * p, size_t s, size_t ns)
+void * matpoly::memory_pool::layer::realloc(void * p, size_t s0, size_t s)
 {
-    if (s == ns) return p;
     std::lock_guard<std::mutex> dummy(mm);
-#ifdef USE_STACK_ALLOCATION_MODEL
-#ifdef __linux
-    if (is_stack_based()) {
-        ASSERT_ALWAYS(allocated_coarse + pagesize() == (size_t) ((char*)top - (char*)base));
-        ASSERT_ALWAYS(is_on_top(p, s));
-        size_t s1 = iceildiv(s, pagesize()) * pagesize();
-        size_t s2 = s1 + pagesize();
-        size_t ns1 = iceildiv(ns, pagesize()) * pagesize();
-        size_t ns2 = ns1 + pagesize();
-        void * oldtop = pointer_arith(top, -s2);
-        ASSERT_ALWAYS(allocated_coarse + ns2 - s2 <= allowed_coarse);
-        allocated_coarse += ns2-s2;
-        void * np = pointer_arith(oldtop, ns1-ns);
-        top = pointer_arith(oldtop, ns2);
-        if (ns1 == s1) {
-            memmove(np, p, std::min(s, ns));
-        } else if (ns1 > s1) {
-            paint_white(pointer_arith(oldtop, s1), ns1-s1);
-            memmove(np, p, s);
-        } else {
-            /* shrink */
-            memmove(np, p, ns);
-            paint_red(pointer_arith(oldtop, ns1), s1-ns1);
-        }
-        return np;
-    }
-#endif
-#endif
     /* We allow reallocating stuff that was not allocated at the present
      * recursive level */
-    if (allocated + (ns - s) > allowed)
-        report_inaccuracy((allocated + ns - s) - allowed);
-    allocated -= s;
-    allocated += ns;
-    return ::realloc(p, ns);
+    if (allocated + (s-s0) > allowed)
+        report_inaccuracy((allocated + s - s0) - allowed);
+    allocated -= s0;
+    allocated += s;
+    return ::realloc(p, s);
 }
 
 #if 0
@@ -391,35 +222,20 @@ int matpoly::check_pre_init() const
 /* with the exception of matpoly_realloc, all functions here are exactly
  * identical to those in lingen-polymat.c */
 /* {{{ init/zero/clear interface for matpoly */
-matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len, std::list<std::reference_wrapper<matpoly>> roll_them) : ab(ab), m(m), n(n), alloc(len) {
+matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc(len) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     ASSERT(!m == !n);
+    ASSERT(!m == !len);
     if (!m) return;
     size = 0;
-    if (!len) {
-        alloc=0;
-        return;
-    }
+    x = (abdst_vec) memory.alloc(abvec_elt_stride(ab, m*n*alloc));
     // abvec_init(ab, &(x), m*n*alloc);
-    std::list<std::pair<void *, size_t>> rolled_ptrs;
-    for(auto R : roll_them)
-        rolled_ptrs.emplace_back(R.get().x, R.get().alloc_size());
-    x = (abdst_vec) memory.insert_high(alloc_size(), rolled_ptrs);
-    auto it = rolled_ptrs.begin();
-    for(auto jt = roll_them.begin() ; jt != roll_them.end() ; ++jt, ++it)
-        jt->get().x = (abdst_vec) it->first;
     abvec_set_zero(ab, x, m*n*alloc);
 }
-size_t matpoly::alloc_size() const
-{
-    return abvec_elt_stride(ab, m*n*alloc);
-}
-
 matpoly::~matpoly() {
-    if (x) {
+    if (x)
         memory.free(x, abvec_elt_stride(ab, m*n*alloc));
         // abvec_clear(ab, &(x), m*n*alloc);
-    }
 }
 matpoly::matpoly(matpoly && a)
     : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)
@@ -432,7 +248,7 @@ matpoly::matpoly(matpoly && a)
 }
 matpoly& matpoly::operator=(matpoly&& a)
 {
-    if (x) {
+    if (m) {
         memory.free(x, abvec_elt_stride(ab, m*n*alloc));
         // abvec_clear(ab, &(x), m*n*alloc);
     }
@@ -486,17 +302,6 @@ void matpoly::realloc(size_t newalloc) {
     }
     alloc = newalloc;
 }
-void matpoly::roll(std::list<std::reference_wrapper<matpoly>> roll_them)
-{
-    std::list<std::pair<void *, size_t>> rolled_ptrs;
-    for(auto R : roll_them)
-        rolled_ptrs.emplace_back(R.get().x, R.get().alloc_size());
-    memory.roll(rolled_ptrs);
-    auto it = rolled_ptrs.begin();
-    for(auto jt = roll_them.begin() ; jt != roll_them.end() ; ++jt, ++it)
-        jt->get().x = (abdst_vec) it->first;
-}
-
 void matpoly::zero() {
     size = 0;
     abvec_set_zero(ab, x, m*n*alloc);
@@ -590,6 +395,12 @@ void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
 void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
 {
     ASSERT_ALWAYS(nsize <= src.alloc);
+    if (this == &src) {
+        /* Never used by the code, so far. We're leaving garbage coeffs
+         * on top, could this be a problem ? */
+        size = nsize;
+        return;
+    }
     if (check_pre_init()) {
         /* Need to call ctor... */
         *this = matpoly(src.ab, src.m, src.n, nsize);
@@ -597,7 +408,6 @@ void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
     ASSERT_ALWAYS(m == src.m);
     ASSERT_ALWAYS(n == src.n);
     ASSERT_ALWAYS(nsize <= alloc);
-    ASSERT_ALWAYS(nsize <= src.size);
     size = nsize;
     /* XXX Much more cumbersome here than for polymat, of course */
     for(unsigned int i = 0 ; i < src.m ; i++) {
@@ -674,6 +484,7 @@ void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
             abvec_set(ab, part(i, j, 0), src.part(i, j, k), newsize);
         }
     }
+    if (this == &src) realloc(newsize);
 }/*}}}*/
 
 void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
@@ -822,21 +633,4 @@ void matpoly::coeff_set_zero(unsigned int k)
     for(unsigned int j = 0; j < m; j++)
         for(unsigned int i = 0 ; i < n ; i++)
             abset_zero(ab, coeff(i, j, k));
-}
-
-/* This puts the truncated polynomial on top, and the shifted one
- * inbetween.
- */
-matpoly matpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
-{
-    /* arrange a hole for the other matrix which will be the chopped one,
-     * and then truncate in a later step. We want to return the truncated
-     * matrix and let *this point to the chopped one, though
-     */
-    matpoly other(ab, m, n, size - shiftcount, { *this });
-    other.rshift(*this, shiftcount);
-    truncate(*this, truncated_size);
-    shrink_to_fit();
-    std::swap(*this, other);
-    return other;
 }

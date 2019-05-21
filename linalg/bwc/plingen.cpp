@@ -784,13 +784,10 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     return generator_found;
 }
 int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
+bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly const & E, std::vector<unsigned int> & delta)
 {
     tree_stats::sentinel dummy(bm.stats, __func__, E.size, false);
-    int done = bw_lingen_basecase_raw(bm, pi, E, delta);
-    matpoly::roll({E, pi});
-    E = matpoly();
-    return done;
+    return bw_lingen_basecase_raw(bm, pi, E, delta);
 }
 /*}}}*/
 
@@ -1463,22 +1460,15 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     matpoly pi_right;
     matpoly E_right;
 
-    E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
-
-#if 0
     E_left.truncate(E, half);
-    E_left.shrink_to_fit();
+
     /* prepare for MP ! */
     E.rshift(E, half + 1 - pi_left_expect_used_for_shift);
-    E.shrink_to_fit();
-#endif
 
-    // this (now) consumes E_left entirely, and leaves only pi on top of
-    // the stack (just above the chopped E) */
     done = bw_lingen_single(bm, pi_left, E_left, delta);
 
     ASSERT_ALWAYS(pi_left.size);
-    // E_left = matpoly();
+    E_left = matpoly();
 
     if (done) {
         pi = std::move(pi_left);
@@ -1493,30 +1483,20 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
     ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
-    if (pi_left_expect_used_for_shift != pi_left.size) {
+    if (pi_left_expect_used_for_shift != pi_left.size)
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
-        /* Don't shrink_to_fit at this point, because we've only made a
-         * minor adjustment, and E is not on top of the stack anyway */
-    }
 
     logline_begin(stdout, z, "t=%u %*sMP%s(%zu, %zu) -> %zu",
             bm.t, depth,"", caching ? "-caching" : "",
             E.size, pi_left.size, E.size - pi_left.size + 1);
 
-    /* stack is E, pi_left. Want to get rid of E right after this
-     * operation. So we need to:
-     *  - put E last
-     *  - then create E_right right before E. */
-    matpoly::roll({E, pi_left});
-    E_right = matpoly(d.ab, d.m, d.m+d.n,
-            E.size - pi_left.size + 1,
-            {E});
     if (caching) {
         matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         matpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
     } else {
         E_right.mp(E, pi_left);
     }
+
     E = matpoly();
 
     logline_end(&(bm.t_mp), "");
@@ -1529,19 +1509,13 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     ASSERT_ALWAYS(pi_right.size <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.size >= pi_right_expect_lowerbound);
 
-    /* stack is now pi_left, pi_right */
+    E_right = matpoly();
 
     bm.stats.begin_smallstep("MUL", C.mul.tt);
     logline_begin(stdout, z, "t=%u %*sMUL%s(%zu, %zu) -> %zu",
             bm.t, depth, "", caching ? "-caching" : "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
 
-    /* We want pi to be on top of the allocation stack at the end of the
-     * computation. Therefore it's important that we put pi_left and
-     * pi_right on top, so that they can be on top of the stack at the
-     * moment when we clear them.
-     */
-    pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1, {pi_left, pi_right});
     if (caching) {
         matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         matpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
@@ -3299,7 +3273,7 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
                 iceildiv(m+n, bm.mpi_dims[0]) *
                 iceildiv(m+n, bm.mpi_dims[1]) *
                 iceildiv(m*safe_guess, m+n));
-    matpoly::memory_pool_guard main(2*c0, true);
+    matpoly::memory_pool_guard main(2*c0);
     if (!rank) {
         char buf[20];
         printf("# Estimated memory for JUST transforms (per node): %s\n",

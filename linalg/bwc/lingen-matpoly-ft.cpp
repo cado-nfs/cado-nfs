@@ -387,8 +387,7 @@ std::string sha1sum_block(matpoly_ft const & X, size_t s)
 template<typename T>
 static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
 {
-    if (c.m != a.m || c.n != a.n || c.alloc != OP.csize)
-        c = matpoly(a.ab, a.m, b.n, OP.csize);
+    c = matpoly(a.ab, a.m, b.n, OP.csize);
     unsigned int q0 = a.m / S->shrink0;
     unsigned int r0 = a.m % S->shrink0;
     unsigned int q2 = b.n / S->shrink2;

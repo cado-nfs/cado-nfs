@@ -55,7 +55,6 @@ struct bigmatpoly : public bigmatpoly_model {
     void finish_init(abdst_field ab, unsigned int m, unsigned int n, int len);
     int check_pre_init() const;
     // void realloc(int newalloc);
-    inline void shrink_to_fit() { my_cell().shrink_to_fit(); }
     void zero();
 
     void set_size(size_t size);

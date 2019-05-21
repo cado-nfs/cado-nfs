@@ -3,8 +3,6 @@
 
 #include <mutex>
 #include <list>
-#include <tuple>
-#include <functional>   /* reference_wrapper */
 
 #include "mpfq_layer.h"
 
@@ -42,18 +40,15 @@ struct submatrix_range {
  * The difference here is that the stride is not the same.
  */
 
-/* the "stack" allocation model is meant to alleviate the problem of
- * memory fragmentation. As it turns out, it's actually ineffective.
- */
-#define USE_STACK_ALLOCATION_MODEL
+#define xxxUSE_STACK_ALLOCATION_MODEL
 
 class matpoly {
     struct memory_pool {
         class layer {
             std::mutex mm;
 #ifdef USE_STACK_ALLOCATION_MODEL
-            void * top = nullptr;     /* next area to allocate */
-            void * base = nullptr;    /* base of the allocation */
+            void * top;     /* next area to allocate */
+            void * base;    /* base of the allocation */
             size_t allowed_coarse=0;
             size_t allocated_coarse=0;
             /* We have
@@ -68,12 +63,8 @@ class matpoly {
              * "coarse" allocation typically includes pagesize rounding + red
              * area.
              */
-            bool is_stack_based() const { return base != NULL; }
-#else
-            bool is_stack_based() const { return false; }
 #endif
             public:
-            bool is_on_top(const void * p, size_t s) const;
             size_t allowed=0;
             size_t allocated=0;
             size_t peak=0;
@@ -88,24 +79,18 @@ class matpoly {
              * This is implemented as a simple alloc() call when
              * USE_STACK_ALLOCATION_MODEL is not defined.
              */
-            void * insert_high(size_t, std::list<std::pair<void *, size_t>> & pointers);
-            void roll(std::list<std::pair<void *, size_t>> & pointers);
+            void * roll(size_t, std::list<std::pair<void * &, size_t>> pointers);
             void * alloc(size_t);
             void free(void *, size_t);
             void * realloc(void * p, size_t s0, size_t s);
             void report_inaccuracy(ssize_t diff);
             layer(size_t, bool stack_based=false);
-            ~layer();
         };
         std::mutex mm;
         std::list<memory_pool::layer> layers;
-        inline void * insert_high(size_t s, std::list<std::pair<void *, size_t>> & p) {
+        inline void * roll(size_t s, std::list<std::pair<void * &, size_t>> p) {
             ASSERT_ALWAYS(!layers.empty());
-            return layers.back().insert_high(s, p);
-        }
-        inline void roll(std::list<std::pair<void *, size_t>> & p) {
-            ASSERT_ALWAYS(!layers.empty());
-            layers.back().roll(p);
+            return layers.back().roll(s, p);
         }
         void * alloc(size_t s) {
             ASSERT_ALWAYS(!layers.empty());
@@ -119,11 +104,6 @@ class matpoly {
             ASSERT_ALWAYS(!layers.empty());
             return layers.back().realloc(p, s0, s);
         }
-        bool is_on_top(const void * p, size_t s) {
-            ASSERT_ALWAYS(!layers.empty());
-            return layers.back().is_on_top(p, s);
-        }
-
     };
 #if 0
     struct memory_pool {
@@ -164,16 +144,9 @@ public:
     abvec x = NULL;
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
-    size_t alloc_size() const;
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
-    matpoly(abdst_field ab, unsigned int m, unsigned int n, int len,
-            std::list<std::reference_wrapper<matpoly>> = {}
-            );
-    static void roll(std::list<std::reference_wrapper<matpoly>>);
-    bool is_on_top() const {
-        return memory.is_on_top(x, alloc_size());
-    }
+    matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly(matpoly &&);
@@ -181,7 +154,6 @@ public:
     ~matpoly();
     int check_pre_init() const;
     void realloc(size_t);
-    inline void shrink_to_fit() { realloc(size); }
     void zero();
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
@@ -253,7 +225,15 @@ public:
     const_view_t view(submatrix_range S) const { ASSERT_ALWAYS(S.valid(*this)); return const_view_t(*this, S); }
     view_t view() { return view_t(*this); }
     const_view_t view() const { return const_view_t(*this); }
-    matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif	/* LINGEN_MATPOLY_H_ */
