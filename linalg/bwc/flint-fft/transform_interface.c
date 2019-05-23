@@ -718,6 +718,10 @@ void fft_transform_import(void * x, const struct fft_transform_info * fti)
 {
     mp_size_t n = 1 << fti->depth;
     mp_limb_t ** ptrs = (mp_limb_t **) x;
+    if (ptrs[0] == NULL) {
+        ASSERT_ALWAYS(ptrs[1] == NULL);
+        return;
+    }
     if (sizeof(unsigned long) == sizeof(mp_limb_t *)) {
         unsigned long * offs = (unsigned long *) x;
         for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
@@ -1509,9 +1513,9 @@ void fft_add(void * z, const void * y0, const void * y1, const struct fft_transf
 
 void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * qtemp, const struct fft_transform_info * fti)
 {
-    ASSERT(fft_transform_check(y0, fti, 0));
-    ASSERT(fft_transform_check(y1, fti, 0));
-    ASSERT(fft_transform_check(z, fti, 0));
+    ASSERT(fft_transform_check(y0, fti, 1));
+    ASSERT(fft_transform_check(y1, fti, 1));
+    ASSERT(fft_transform_check(z, fti, 1));
     /* See mul_truncate_sqrt2 */
     mp_size_t nw = fti->w << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);

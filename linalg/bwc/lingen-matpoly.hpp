@@ -13,6 +13,30 @@ struct polymat;
 
 #include "lingen-polymat.hpp"
 
+class subdivision {
+    unsigned int n;
+    unsigned int k;
+    unsigned int q;
+    unsigned int r;
+    public:
+    unsigned int total_size() const { return n; }
+    unsigned int nblocks() const { return k; }
+    subdivision(unsigned int n, unsigned int k) : n(n), k(k), q(n/k), r(n%k) {}
+    inline unsigned int nth_block_size(unsigned int i) const
+    {
+        return q + (i < r);
+    }
+    inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int i) const
+    {
+        unsigned int i0 = i * q + std::min(i, r);
+        return std::make_tuple(i0, i0 + nth_block_size(i0));
+    }
+    inline unsigned int block_size_upper_bound() const { return q + (r != 0); }
+    inline unsigned int flatten(unsigned int idx, unsigned int pos) const {
+        return idx * q + std::min(idx, r) + pos;
+    }
+};
+
 struct submatrix_range {
     unsigned int i0=0,j0=0;
     unsigned int i1=0,j1=0;
@@ -81,7 +105,7 @@ public:
     matpoly(matpoly &&);
     matpoly& operator=(matpoly &&);
     ~matpoly();
-    int check_pre_init() const;
+    bool check_pre_init() const { return x == NULL; }
     void realloc(size_t);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
@@ -117,10 +141,15 @@ public:
         matpoly const & src, unsigned int i0, unsigned int j0,
         unsigned int n);
     void rshift(matpoly const &, unsigned int k);
+
+    /* It is probably wise to avoid the four functions below. The
+     * first-class citizens are the caching alternatives.
+     */
     void addmul(matpoly const & a, matpoly const & b);
     void mul(matpoly const & a, matpoly const & b);
     void addmp(matpoly const & a, matpoly const & c);
     void mp(matpoly const & a, matpoly const & c);
+
     void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero(unsigned int k);

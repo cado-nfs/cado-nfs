@@ -65,16 +65,6 @@ void * matpoly::memory_pool::realloc(void * p, size_t s, size_t ns)
     return ::realloc(p, ns);
 }
 
-int matpoly::check_pre_init() const
-{
-    if (m && n && alloc)
-        return 0;
-    if (!m && !n && !alloc)
-        return 1;
-    abort();
-    return 0;
-}
-
 /* with the exception of matpoly_realloc, all functions here are exactly
  * identical to those in lingen-polymat.c */
 /* {{{ init/zero/clear interface for matpoly */
@@ -469,15 +459,8 @@ void matpoly::coeff_set_zero(unsigned int k)
             abset_zero(ab, coeff(i, j, k));
 }
 
-/* This puts the truncated polynomial on top, and the shifted one
- * inbetween.
- */
 matpoly matpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
 {
-    /* arrange a hole for the other matrix which will be the chopped one,
-     * and then truncate in a later step. We want to return the truncated
-     * matrix and let *this point to the chopped one, though
-     */
     matpoly other(ab, m, n, size - shiftcount);
     other.rshift(*this, shiftcount);
     truncate(*this, truncated_size);

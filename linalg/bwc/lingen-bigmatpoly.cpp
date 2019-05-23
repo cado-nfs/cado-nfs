@@ -46,8 +46,10 @@ void bigmatpoly::finish_init(abdst_field ab, unsigned int m, unsigned int n, int
     ASSERT_ALWAYS(check_pre_init());
     this->m = m;
     this->n = n;
-    m0 = m / m1;
-    n0 = n / n1;
+    // m0 = subdivision(m, m1).nth_block_size(irank());;
+    // n0 = subdivision(n, n1).nth_block_size(jrank());;
+    m0 = subdivision(m, m1).block_size_upper_bound();
+    n0 = subdivision(n, n1).block_size_upper_bound();
     size = len;
     my_cell() = matpoly(ab, m0, n0, len);
 }
@@ -68,9 +70,10 @@ bigmatpoly::bigmatpoly(abdst_field ab, bigmatpoly_model const & model, unsigned 
 {
     cells.reserve(m1*n1);
     for(unsigned int k = m1*n1; k--;) cells.emplace_back();
-    m0 = m / m1;
-    n0 = n / n1;
-    size = len; /* XXX ??? */
+    // m0 = subdivision(m, m1).nth_block_size(irank());;
+    // n0 = subdivision(n, n1).nth_block_size(jrank());;
+    m0 = subdivision(m, m1).block_size_upper_bound();
+    n0 = subdivision(n, n1).block_size_upper_bound();
     /* Either none or all must be non-zero */
     ASSERT_ALWAYS((!m||!n||!len) ^ (m&&n&&len));
     if (!len)
@@ -86,7 +89,10 @@ bigmatpoly::bigmatpoly(abdst_field ab, bigmatpoly_model const & model, unsigned 
 }
 
 bigmatpoly::bigmatpoly(bigmatpoly && a)
-    : ab(a.ab), m(a.m), n(a.n)
+    : bigmatpoly_model(a.get_model())
+    , ab(a.ab)
+    , m(a.m), n(a.n)
+    , m0(a.m0), n0(a.n0)
 {
     size=a.size;
     a.m0=a.n0=a.m=a.n=a.size=0;
@@ -94,9 +100,12 @@ bigmatpoly::bigmatpoly(bigmatpoly && a)
 }
 bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a)
 {
+    get_model() = a.get_model();
     ab = a.ab;
     m = a.m;
     n = a.n;
+    m0 = a.m0;
+    n0 = a.n0;
     size=a.size;
     a.m0=a.n0=a.m=a.n=a.size=0;
     std::swap(cells, a.cells);
@@ -104,23 +113,7 @@ bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a)
 }
 
 
-/* This checks the validity of the m,n,size fields. If the structure
- * corresponds to a lazy allocation state, this function returns 1. If
- * the structure corresponds to something fully initializaed already,
- * this function returns 0. If the fields are filled in an inconsistent
- * manner, abort() is called.
- */
-int bigmatpoly::check_pre_init() const
-{
-    if (m && n && size)
-        return 0;
-    if (!m && !n && !size)
-        return 1;
-    abort();
-    return 0;
-}
-
-
+#if 0
 /* Return a bitmask indicating whether bigmatpoly_provision_{row,col} has
  * been called on this matrix before. bit 0 is for row, bit 1 is for col.
  * If the returned value is zero, then we really have only the local part
@@ -152,7 +145,6 @@ void bigmatpoly::provision_row()
     }
 }
 
-#if 0
 /* Rarely useful. We do need it because we resort to a kludgy
  * implementation of scatter_mat, which calls for provisioning on all
  * rows.
@@ -166,7 +158,6 @@ void bigmatpoly::unprovision_row()
             them = matpoly();
     }
 }
-#endif
 
 /* We are a right multiplicand. This is a no-op if space for our col has
  * already been allocated */
@@ -179,6 +170,7 @@ void bigmatpoly::provision_col() // bigmatpoly & p(*this)
             them = matpoly(ab, m0, n0, my_cell().alloc);
     }
 }
+#endif
 
 /* Set size to be large enough to receive the given number of
  * coefficients. If space is provisioned for other cells in row or
@@ -251,8 +243,8 @@ void bigmatpoly::swap(bigmatpoly & a)
 
 void bigmatpoly::truncate_loc(bigmatpoly & src, unsigned int nsize)/*{{{*/
 {
-    ASSERT_ALWAYS(src.provisioned());
-    ASSERT_ALWAYS(provisioned());
+    // ASSERT_ALWAYS(src.provisioned());
+    // ASSERT_ALWAYS(provisioned());
     if (check_pre_init()) {
         finish_init(src.ab, src.m, src.n, nsize);
     }
@@ -279,8 +271,8 @@ void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
     matpoly & me = my_cell();
     if (check_pre_init())
         finish_init(src.ab, src.m, src.n, src.size - k);
-    ASSERT_ALWAYS(provisioned() == 0);
-    ASSERT_ALWAYS(src.provisioned() == 0);
+    // ASSERT_ALWAYS(provisioned() == 0);
+    // ASSERT_ALWAYS(src.provisioned() == 0);
     me.rshift(src.my_cell(), k);
     size = me.size;
 }
@@ -303,6 +295,7 @@ void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
     }									\
 } while (0)
 
+#if 0
 /* {{{ allgather operations */
 void bigmatpoly::allgather_row()
 {
@@ -389,6 +382,7 @@ void bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
         lb.addmp(a.cell(irank(), k), c.cell(k, jrank()));
     }
 }/*}}}*/
+#endif
 
 /*
  * gather to node 0, or scatter from node 0, but use "partial" transfer
@@ -416,21 +410,24 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
 
     matpoly const & me = my_cell();
 
+    subdivision R(m, m1);       /* Row split */
+    subdivision C(n, n1);       /* Col split */
+
     // Node 0 receives data
     if (!rank()) {
         ASSERT_ALWAYS(dst.m == m);
         ASSERT_ALWAYS(dst.n == n);
         ASSERT_ALWAYS(dst.alloc >= length);
         dst.size = length;
-        MPI_Request * reqs = new MPI_Request[m1 * n1 * m0 * n0];
+        MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
         /* the master receives data from everyone */
-        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
-            for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-                for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                    for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
-                        unsigned int ii = i1 * m0 + i0;
-                        unsigned int jj = j1 * n0 + j0;
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                        unsigned int ii = R.flatten(i1, i0);
+                        unsigned int jj = C.flatten(j1, j0);
                         unsigned int peer = i1 * n1 + j1;
                         unsigned int tag = ii * n + jj;
                         abdst_vec to = dst.part(ii, jj, 0);
@@ -449,10 +446,10 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
         }
 
         req = reqs;
-        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
-            for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-                for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                    for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
                         unsigned int peer = i1 * n1 + j1;
                         if (peer)
                             MPI_Wait(req, MPI_STATUS_IGNORE);
@@ -464,15 +461,13 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
         delete[] reqs;
     } else {
         // All the other nodes send their data.
-        MPI_Request * reqs = new MPI_Request[m0 * n0];
+        MPI_Request * reqs = new MPI_Request[m0r() * n0r()];
         MPI_Request * req = reqs;
         /* receive. Each job will receive exactly dst.m0 transfers */
-        for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
-                unsigned int i1 = irank();
-                unsigned int j1 = jrank();
-                unsigned int ii = i1 * m0 + i0;
-                unsigned int jj = j1 * n0 + j0;
+        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
+                unsigned int ii = R.flatten(irank(), i0);
+                unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
                 absrc_vec from = me.part(i0, j0, offset);
                 /* battle const-deprived MPI prototypes... */
@@ -481,8 +476,8 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
             }
         }
         req = reqs;
-        for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
+        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
                 MPI_Wait(req, MPI_STATUS_IGNORE);
                 req++;
             }
@@ -515,16 +510,19 @@ void bigmatpoly::scatter_mat_partial(
 
     matpoly & me = my_cell();
 
+    subdivision R(m, m1);       /* Row split */
+    subdivision C(n, n1);       /* Col split */
+
     if (!rank()) {
-        MPI_Request * reqs = new MPI_Request[m1 * n1 * m0 * n0];
+        MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
         /* the master sends data to everyone */
-        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
-            for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-                for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                    for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
-                        unsigned int ii = i1 * m0 + i0;
-                        unsigned int jj = j1 * n0 + j0;
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                        unsigned int ii = R.flatten(i1, i0);
+                        unsigned int jj = C.flatten(j1, j0);
                         unsigned int peer = i1 * n1 + j1;
                         unsigned int tag = ii * n + jj;
                         absrc_vec from = src.part(ii, jj, 0);
@@ -544,10 +542,10 @@ void bigmatpoly::scatter_mat_partial(
         }
 
         req = reqs;
-        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
-            for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-                for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                    for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
                         unsigned int peer = i1 * n1 + j1;
                         if (peer)
                             MPI_Wait(req, MPI_STATUS_IGNORE);
@@ -558,14 +556,12 @@ void bigmatpoly::scatter_mat_partial(
         }
         delete[] reqs;
     } else {
-        MPI_Request * reqs = new MPI_Request[m0 * n0];
+        MPI_Request * reqs = new MPI_Request[m0r() * n0r()];
         MPI_Request * req = reqs;
-        for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
-                unsigned int i1 = irank();
-                unsigned int j1 = jrank();
-                unsigned int ii = i1 * m0 + i0;
-                unsigned int jj = j1 * n0 + j0;
+        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
+                unsigned int ii = R.flatten(irank(), i0);
+                unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
                 abdst_vec to = me.part(i0, j0, offset);
                 MPI_Irecv(to, 1, mt, 0, tag, com[0], req);
@@ -573,8 +569,8 @@ void bigmatpoly::scatter_mat_partial(
             }
         }
         req = reqs;
-        for(unsigned int i0 = 0 ; i0 < m0 ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0 ; j0++) {
+        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
                 MPI_Wait(req, MPI_STATUS_IGNORE);
                 req++;
             }
@@ -640,9 +636,11 @@ void bigmatpoly::scatter_mat(matpoly const & src)
 
     /* dst must be in pre-init mode */
     ASSERT_ALWAYS(check_pre_init());
+    ASSERT_ALWAYS(ab);
+    ASSERT_ALWAYS(!src.ab || ab == src.ab);
 
     /* Allocate enough space on each node */
-    finish_init(src.ab, shell.m, shell.n, shell.alloc);
+    finish_init(ab, shell.m, shell.n, shell.alloc);
     // bigmatpoly_set_size(dst, shell.size);
 
     if (!rank()) {
@@ -668,4 +666,14 @@ void bigmatpoly::scatter_mat(matpoly const & src)
         scatter_mat_partial(src_partial, offset, len);
         offset += len;
     }
+}
+
+bigmatpoly bigmatpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
+{
+    bigmatpoly other(ab, get_model(), m, n, size - shiftcount);
+    other.rshift(*this, shiftcount);
+    truncate_loc(*this, truncated_size);
+    shrink_to_fit();
+    std::swap(*this, other);
+    return other;
 }

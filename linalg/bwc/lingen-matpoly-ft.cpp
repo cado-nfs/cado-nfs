@@ -284,49 +284,7 @@ void ift_mp(matpoly::view_t a, matpoly_ft::view_t t, unsigned int shift)
 
 }
 
-/* middle product and multiplication are really the same thing, so better
- * avoid code duplication */
-
-struct op_mul {/*{{{*/
-    size_t csize;
-    op_mul(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = a.size + b.size; csize -= (csize > 0);
-        fft_get_transform_info_fppol(fti, a.ab->p, a.size, b.size, a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
-    }
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift(a, t);
-    }
-};/*}}}*/
-struct op_mp {/*{{{*/
-    size_t csize;
-    unsigned int shift;
-    op_mp(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = MAX(a.size, b.size) - MIN(a.size, b.size) + 1;
-        shift = MIN(a.size, b.size) - 1;
-        fft_get_transform_info_fppol_mp(fti, a.ab->p, MIN(a.size, b.size), MAX(a.size, b.size), a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
-    }
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift_mp(a, t, shift);
-    }
-};/*}}}*/
-
-static inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int q, unsigned int r, unsigned int i)
-{
-    unsigned int i0 = i * q + std::min(i, r);
-    unsigned int i1 = i0 + q + (i < r);
-    return std::make_tuple(i0, i1);
-}
-
+#if 0
 std::string sha1sum_block(matpoly const & X, size_t s)
 {
     std::stringstream ss;
@@ -383,16 +341,55 @@ std::string sha1sum_block(matpoly_ft const & X, size_t s)
     }
     return ss.str();
 }
+#endif
+
+/* middle product and multiplication are really the same thing, so better
+ * avoid code duplication */
+
+struct op_mul {/*{{{*/
+    size_t csize;
+    op_mul(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
+    {
+        csize = a.size + b.size; csize -= (csize > 0);
+        fft_get_transform_info_fppol(fti, a.ab->p, a.size, b.size, a.n);
+        if (adj != UINT_MAX)
+            fft_transform_info_adjust_depth(fti, adj);
+    }
+
+    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
+    {
+        ::ift(a, t);
+    }
+};/*}}}*/
+struct op_mp {/*{{{*/
+    size_t csize;
+    unsigned int shift;
+    op_mp(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
+    {
+        csize = MAX(a.size, b.size) - MIN(a.size, b.size) + 1;
+        shift = MIN(a.size, b.size) - 1;
+        fft_get_transform_info_fppol_mp(fti, a.ab->p, MIN(a.size, b.size), MAX(a.size, b.size), a.n);
+        if (adj != UINT_MAX)
+            fft_transform_info_adjust_depth(fti, adj);
+    }
+
+    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
+    {
+        ::ift_mp(a, t, shift);
+    }
+};/*}}}*/
 
 template<typename T>
 static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
 {
     if (c.m != a.m || c.n != a.n || c.alloc != OP.csize)
         c = matpoly(a.ab, a.m, b.n, OP.csize);
-    unsigned int q0 = a.m / S->shrink0;
-    unsigned int r0 = a.m % S->shrink0;
-    unsigned int q2 = b.n / S->shrink2;
-    unsigned int r2 = b.n % S->shrink2;
+
+    const unsigned int r = 1; // only for notational consistency w/ bigmatpoly
+
+    subdivision mpi_split(a.n, r);
+    subdivision shrink0_split(a.m, S->shrink0);
+    subdivision shrink2_split(b.n, S->shrink2);
     /* The order in which we do the transforms is not really our main
      * concern at this point. If sharing makes sense, then probably
      * shrink0 and shrink2 do not. So they're serving opposite purposes.
@@ -400,8 +397,7 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.
      */
     matpoly_ft ta,tb,tc;
-    const unsigned int r = 1; // only for notational consistency w/ bigmatpoly
-    const unsigned int nr1 = iceildiv(a.n, r);
+    const unsigned int nr1 = mpi_split.block_size_upper_bound();
     const unsigned int rank = 0;
     ASSERT_ALWAYS(rank < r);
     bool inner_is_row_major;
@@ -424,14 +420,14 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
         }
     }
     unsigned int k0mpi,k1mpi;
-    std::tie(k0mpi, k1mpi) = nth_block(a.n / r, a.n % r, rank);
+    std::tie(k0mpi, k1mpi) = mpi_split.nth_block(rank);
     for(unsigned int round0 = 0 ; round0 < S->shrink0 ; round0++) {
         unsigned int i0,i1;
-        std::tie(i0, i1) = nth_block(q0, r0, round0);
+        std::tie(i0, i1) = shrink0_split.nth_block(round0);
         unsigned int nrs0 = i1-i0;
         for(unsigned int round2 = 0 ; round2 < S->shrink2 ; round2++) {
             unsigned int j0,j1;
-            std::tie(j0, j1) = nth_block(q2, r2, round2);
+            std::tie(j0, j1) = shrink2_split.nth_block(round2);
             unsigned int nrs2 = j1-j0;
             submatrix_range Rc(i0,j0,i1-i0,j1-j0);
             submatrix_range Rct(0,0,i1-i0,j1-j0);

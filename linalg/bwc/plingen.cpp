@@ -77,9 +77,6 @@ static int split_output_file = 0; /* do split by ourselves */
 
 gmp_randstate_t rstate;
 
-static int caching = 1;
-static unsigned int caching_threshold = 10;
-
 static const char * checkpoint_directory;
 static unsigned int checkpoint_threshold = 100;
 static int save_gathered_checkpoints = 0;
@@ -149,6 +146,9 @@ struct bmstatus {/*{{{*/
         fprintf(stderr, "# Using nearby configuration for"
                 " depth=%d input_length=%zu\n",
                 it->first.depth, it->first.L);
+
+        hints[K]=it->second;
+
         return it->second;
     }/*}}}*/
     bool recurse(int depth, size_t L) {/*{{{*/
@@ -192,10 +192,6 @@ void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ffile",
             "output generator file");
 
-    param_list_decl_usage(pl, "caching",
-            "whether we should use transform caching");
-    param_list_decl_usage(pl, "caching-threshold",
-            "threshold for transform caching");
     param_list_decl_usage(pl, "checkpoint-directory",
             "where to save checkpoints");
     param_list_decl_usage(pl, "checkpoint-threshold",
@@ -1464,12 +1460,10 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
-    // this (now) consumes E_left entirely, and leaves only pi on top of
-    // the stack (just above the chopped E) */
+    // this (now) consumes E_left entirely.
     done = bw_lingen_single(bm, pi_left, E_left, delta);
 
     ASSERT_ALWAYS(pi_left.size);
-    // E_left = matpoly();
 
     if (done) {
         pi = std::move(pi_left);
@@ -1487,26 +1481,19 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     if (pi_left_expect_used_for_shift != pi_left.size) {
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
         /* Don't shrink_to_fit at this point, because we've only made a
-         * minor adjustment, and E is not on top of the stack anyway */
+         * minor adjustment. */
     }
 
-    logline_begin(stdout, z, "t=%u %*sMP%s(%zu, %zu) -> %zu",
-            bm.t, depth,"", caching ? "-caching" : "",
+    logline_begin(stdout, z, "t=%u %*sMP(%zu, %zu) -> %zu",
+            bm.t, depth,"",
             E.size, pi_left.size, E.size - pi_left.size + 1);
 
-    /* stack is E, pi_left. Want to get rid of E right after this
-     * operation. So we need to:
-     *  - put E last
-     *  - then create E_right right before E. */
-    E_right = matpoly(d.ab, d.m, d.m+d.n,
-            E.size - pi_left.size + 1);
-    if (caching) {
+    {
+        E_right = matpoly(d.ab, d.m, d.m+d.n, E.size - pi_left.size + 1);
         matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         matpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
-    } else {
-        E_right.mp(E, pi_left);
+        E = matpoly();
     }
-    E = matpoly();
 
     logline_end(&(bm.t_mp), "");
     bm.stats.end_smallstep();
@@ -1521,21 +1508,14 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     /* stack is now pi_left, pi_right */
 
     bm.stats.begin_smallstep("MUL", C.mul.tt);
-    logline_begin(stdout, z, "t=%u %*sMUL%s(%zu, %zu) -> %zu",
-            bm.t, depth, "", caching ? "-caching" : "",
+    logline_begin(stdout, z, "t=%u %*sMUL(%zu, %zu) -> %zu",
+            bm.t, depth, "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
 
-    /* We want pi to be on top of the allocation stack at the end of the
-     * computation. Therefore it's important that we put pi_left and
-     * pi_right on top, so that they can be on top of the stack at the
-     * moment when we clear them.
-     */
-    pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
-    if (caching) {
+    {
+        pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
         matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         matpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
-    } else {
-        pi.mul(pi_left, pi_right);
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
@@ -1622,6 +1602,11 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     /* we have to start with something large enough to get
      * all coefficients of E_right correct */
     size_t half = E.size - (E.size / 2);
+    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
+    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
+    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
+    unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
+    unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
     /* declare an lazy-alloc all matrices */
     bigmatpoly_model const& model(E);
@@ -1630,15 +1615,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     bigmatpoly pi_left(model);
     bigmatpoly pi_right(model);
 
-    E_left.truncate_loc(E, half);
-
-    /* prepare for MP ! */
-    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
-    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
-    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
-    unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
-    unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
-    E.rshift(E, half + 1 - pi_left_expect_used_for_shift);
+    E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
     done = bw_biglingen_collective(bm, pi_left, E_left, delta);
 
@@ -1658,19 +1635,25 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
     ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
-    if (pi_left_expect_used_for_shift != pi_left.size)
+    if (pi_left_expect_used_for_shift != pi_left.size) {
         E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
+        /* Don't shrink_to_fit at this point, because we've only made a
+         * minor adjustment. */
+    }
 
-    logline_begin(stdout, z, "t=%u %*sMPI-MP%s(%zu, %zu) -> %zu",
-            bm.t, depth, "", caching ? "-caching" : "",
+    logline_begin(stdout, z, "t=%u %*sMPI-MP(%zu, %zu) -> %zu",
+            bm.t, depth, "",
             E.size, pi_left.size, E.size - pi_left.size + 1);
 
-    if (caching)
+    {
+        ASSERT_ALWAYS(pi_left.ab);
+        ASSERT_ALWAYS(E.ab);
+        /* XXX should we pre-alloc ? We do that in the non-mpi case, but
+         * that seems to be useless verbosity */
         bigmatpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
-    else
-        E_right.mp(E, pi_left);
-
-    E = bigmatpoly(model);
+        E = bigmatpoly(model);
+        ASSERT_ALWAYS(E_right.ab);
+    }
 
     logline_end(&bm.t_mp, "");
     bm.stats.end_smallstep();
@@ -1685,14 +1668,18 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     E_right = bigmatpoly(model);
 
     bm.stats.begin_smallstep("MUL", C.mul.tt);
-    logline_begin(stdout, z, "t=%u %*sMPI-MUL%s(%zu, %zu) -> %zu",
-            bm.t, depth, "", caching ? "-caching" : "",
+    logline_begin(stdout, z, "t=%u %*sMPI-MUL(%zu, %zu) -> %zu",
+            bm.t, depth, "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
 
-    if (caching)
+    {
+        ASSERT_ALWAYS(pi_left.ab);
+        ASSERT_ALWAYS(pi_right.ab);
+        /* XXX should we pre-alloc ? We do that in the non-mpi case, but
+         * that seems to be useless verbosity */
         bigmatpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
-    else
-        pi.mul(pi_left, pi_right);
+        ASSERT_ALWAYS(pi.ab);
+    }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
      * necessarily full-rank, so that we have to fix potential zeros. If
@@ -1778,6 +1765,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 
         double expect1 = bm.hints.tt_scatter_per_unit * E.size;
         bm.stats.begin_smallstep("scatter(L+R)", expect1);
+        pi = bigmatpoly(ab, E.get_model(), b, b, 0);
         pi.scatter_mat(spi);
         MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
         MPI_Bcast(&delta[0], b, MPI_UNSIGNED, 0, bm.com[0]);
@@ -3005,9 +2993,6 @@ template<typename T, typename Sink>
 void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
 {
     unsigned int n = bm.d.n;
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-    if (rank) return;
 
     matpoly::memory_pool_guard dummy(SIZE_MAX);
 
@@ -3346,7 +3331,6 @@ int main(int argc, char *argv[])
     param_list_parse_uint(pl, "random-input-with-length", &random_input_length);
     param_list_parse_int(pl, "split-output-file", &split_output_file);
     param_list_parse_int(pl, "split-input-file", &split_input_file);
-    param_list_parse_int(pl, "caching", &caching);
 
     const char * afile = param_list_lookup_string(pl, "afile");
 
@@ -3395,18 +3379,13 @@ int main(int argc, char *argv[])
         MPI_Bcast(&bm.d.nrhs, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     }
 
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    abdst_field ab = d.ab;
-
-    abfield_init(ab);
-    abfield_specify(ab, MPFQ_PRIME_MPZ, bw->p);
+    abfield_init(d.ab);
+    abfield_specify(d.ab, MPFQ_PRIME_MPZ, bw->p);
 
     bm.lingen_threshold = 10;
     bm.lingen_mpi_threshold = 1000;
     param_list_parse_uint(pl, "lingen_threshold", &(bm.lingen_threshold));
     param_list_parse_uint(pl, "display-threshold", &(display_threshold));
-    param_list_parse_uint(pl, "caching-threshold", &(caching_threshold));
     param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
     param_list_parse_uint(pl, "io-block-size", &(io_block_size));
     gmp_randseed_ui(rstate, bw->seed);
@@ -3459,10 +3438,6 @@ int main(int argc, char *argv[])
             if (!rank)
                 fprintf(stderr, "The current plingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
                     bm.mpi_dims[0], bm.mpi_dims[1]);
-            abort();
-        } else if ((m % bm.mpi_dims[0] != 0) || (n % bm.mpi_dims[0] != 0)) {
-            if (!rank)
-                fprintf(stderr, "The process grid dimensions must divide gcd(m,n)\n");
             abort();
         }
         int irank = rank / mpi[1];
@@ -3544,7 +3519,7 @@ int main(int argc, char *argv[])
     if (go_mpi && size > 1) {
         matpoly_factory<bigmatpoly> F(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
 #ifdef ENABLE_MPI_LINGEN
-        lingen_main_code(F, ab, aa);
+        lingen_main_code(F, d.ab, aa);
 #else
         /* The ENABLE_MPI_LINGEN flag should be turned on for a proper
          * MPI run.
@@ -3553,7 +3528,7 @@ int main(int argc, char *argv[])
 #endif
     } else {
         matpoly_factory<matpoly> F;
-        lingen_main_code(F, ab, aa);
+        lingen_main_code(F, d.ab, aa);
     }
 
     if (!rank && random_input_length) {
@@ -3566,7 +3541,7 @@ int main(int argc, char *argv[])
             printf("# PeakMemusage (MB) = %ld (VmPeak: can be misleading)\n", peakmem >> 10);
     }
 
-    abfield_clear(ab);
+    abfield_clear(d.ab);
     if (ffile) free(ffile);
 
     gmp_randclear(rstate);

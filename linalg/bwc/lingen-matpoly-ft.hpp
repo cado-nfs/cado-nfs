@@ -33,7 +33,7 @@ public:
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
 
-    int check_pre_init() const { return data == NULL; }
+    bool check_pre_init() const { return data == NULL; }
     matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const struct fft_transform_info * fti);
     matpoly_ft(abdst_field ab, const struct fft_transform_info * fti) : ab(ab), fti(fti) {
         fft_get_transform_allocs(fft_alloc_sizes, fti);

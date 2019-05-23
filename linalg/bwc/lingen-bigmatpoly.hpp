@@ -19,19 +19,33 @@ struct bigmatpoly_model {
                                  */
     bigmatpoly_model() = default;
     bigmatpoly_model(MPI_Comm * comm, unsigned int m, unsigned int n);
+    bigmatpoly_model & get_model() { return *this; }
+    bigmatpoly_model const & get_model() const { return *this; }
 
+    bool is_square() const { return m1 == n1; }
+    bool operator==(bigmatpoly_model const & o) const {
+        return memcmp(this, &o, sizeof(*this)) == 0;
+    }
     int rank() const;
     int irank() const;
     int jrank() const;
 };
 
+/* TODO: it now seems that the entire cells vector can be dropped in
+ * favor of just storing the local cell. This would simplify the
+ * implementation significantly.
+ */
 struct bigmatpoly : public bigmatpoly_model {
     abdst_field ab = NULL;
     unsigned int m = 0;     /* total number of rows */
     unsigned int n = 0;     /* total number of cols */
     /* The following three are also in cells */
-    unsigned int m0 = 0;      /* number of rows per block */
-    unsigned int n0 = 0;      /* number of cols per block */
+    unsigned int m0 = 0;      /* upper bound on the number of rows per block */
+    unsigned int n0 = 0;      /* upper bound on the number of cols per block */
+    /* This gives the *relevant* entries. On some nodes, du to rounding,
+     * not all entries in the local cell are relevant */
+    unsigned int m0r() const { return subdivision(m, m1).nth_block_size(irank()); }
+    unsigned int n0r() const { return subdivision(n, n1).nth_block_size(jrank()); }
     size_t size = 0;
     std::vector<matpoly> cells;
 
@@ -53,7 +67,8 @@ struct bigmatpoly : public bigmatpoly_model {
     /* }}} */
 
     void finish_init(abdst_field ab, unsigned int m, unsigned int n, int len);
-    int check_pre_init() const;
+    bool check_pre_init() const { return size == 0; }
+
     // void realloc(int newalloc);
     inline void shrink_to_fit() { my_cell().shrink_to_fit(); }
     void zero();
@@ -68,8 +83,10 @@ struct bigmatpoly : public bigmatpoly_model {
     void truncate_loc(bigmatpoly & src, unsigned int size);
     void rshift(bigmatpoly & src, unsigned int k);
 
+#if 0
     void mul(bigmatpoly & a, bigmatpoly & b);
     void mp(bigmatpoly & a, bigmatpoly & b);
+#endif
 
     void scatter_mat(matpoly const & src);
     void gather_mat(matpoly & dst) const;
@@ -77,12 +94,16 @@ struct bigmatpoly : public bigmatpoly_model {
     void scatter_mat_partial(matpoly const & src, size_t offset, size_t length);
     void gather_mat_partial(matpoly & dst, size_t offset, size_t length) const;
 
+    bigmatpoly truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount);
+
+#if 0
     private:
     int provisioned() const;
     void provision_row();
     void provision_col();
     void allgather_row();
     void allgather_col();
+#endif
 };
 
 #endif	/* BIGMATPOLY_HPP_ */

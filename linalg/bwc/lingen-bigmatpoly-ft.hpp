@@ -11,6 +11,7 @@
 
 /* This defines an MPI-shared polynomial matrix type */
 
+#if 0
 struct bigmatpoly_ft : public bigmatpoly_model {
     abdst_field ab;
     unsigned int m;     /* total number of rows */
@@ -53,13 +54,14 @@ private:
     void provision_row();
     void provision_col();
 };
+#endif
 
-void bigmatpoly_mul_caching_adj(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, unsigned int adj, const struct lingen_substep_schedule * S);
+void bigmatpoly_mul_caching_adj(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-void bigmatpoly_mp_caching_adj(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, unsigned int adj, const struct lingen_substep_schedule * S);
+void bigmatpoly_mp_caching_adj(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
 
-static inline void bigmatpoly_mul_caching(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(c, a, b, UINT_MAX, S); }
+static inline void bigmatpoly_mul_caching(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(c, a, b, UINT_MAX, S); }
 
-static inline void bigmatpoly_mp_caching(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(c, a, b, UINT_MAX, S); }
+static inline void bigmatpoly_mp_caching(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(c, a, b, UINT_MAX, S); }
 
 #endif	/* BIGMATPOLY_FT_HPP_ */
