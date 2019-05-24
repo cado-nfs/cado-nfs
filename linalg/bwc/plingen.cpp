@@ -1663,6 +1663,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         bigmatpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
+        MPI_Barrier(bm.com[0]);
     }
 
     logline_end(&bm.t_mp, "");
@@ -1689,6 +1690,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
          * that seems to be useless verbosity */
         bigmatpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
         ASSERT_ALWAYS(pi.ab);
+        MPI_Barrier(bm.com[0]);
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
@@ -1789,6 +1791,8 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     // fprintf(stderr, "Leave %s\n", __func__);
 
     save_mpi_checkpoint_file(bm, pi, t0, t1, delta, done);
+
+    MPI_Barrier(bm.com[0]);
 
     return done;
 }/*}}}*/

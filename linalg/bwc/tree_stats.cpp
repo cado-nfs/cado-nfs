@@ -57,7 +57,6 @@ void tree_stats::print(unsigned int level)
     // int nok=0;
     // double firstok = 0;
     unsigned int tree_trimmed_breadth = 0;
-    const char * prefix = draft ? "##DRAFT## ":"";
 
     for(unsigned int k = 0 ; k < stack.size() ; k++) {
         level_stats & u(stack[k]);
@@ -88,8 +87,7 @@ void tree_stats::print(unsigned int level)
                 function_stats const& F(x.second);
                 sum += F.projected_time;
                 time_to_go += F.projected_time - F.spent;
-                printf("%s%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f)\n",
-                        prefix,
+                printf("%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f)\n",
                         k, (const char*) code,
                         F.min_inputsize, F.max_inputsize,
                         key.c_str(),
@@ -115,8 +113,7 @@ void tree_stats::print(unsigned int level)
                             }
                         }
                     }
-                    printf("%s   (%s %u/%u [%.1f%%] %.2g -> %.1f)\n",
-                            prefix,
+                    printf("   (%s %u/%u [%.1f%%] %.2g -> %.1f)\n",
                             y.first.c_str(),
                             n, F.projected_calls,
                             100.0*t / th,
@@ -144,8 +141,7 @@ void tree_stats::print(unsigned int level)
                 level_th += n ? t : th;
             }
             sum += level_th * exp_ncalls;
-            printf("%s%u * [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
-                    prefix,
+            printf("%u * [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
                     k,
                     r.inputsize,
                     r.func.c_str(),
@@ -160,8 +156,7 @@ void tree_stats::print(unsigned int level)
                 unsigned int n = y.second.ncalled;
                 double ratio = n ? t/th : 1;
                 time_to_go += ratio * th * (exp_ncalls - n);
-                printf("%s   (%s %u/%u %.2g -> %.1f)\n",
-                        prefix,
+                printf("   (%s %u/%u %.2g -> %.1f)\n",
                         y.first.c_str(),
                         n, exp_ncalls,
                         n ? t / n : th,
@@ -173,21 +168,8 @@ void tree_stats::print(unsigned int level)
 
     }
 
-    /*
-    if (nstars && nok >= 2) {
-        printf("%sexpected time for levels 0-%u: %.1f (total: %.1f)\n",
-                prefix,
-                nstars-1, complement, sum + complement);
-    }
-    */
-
     /* Note that time_to_go is only relative to the levels for which we
      * have got at least one data point */
-
-    if (draft) {
-        /* draft mode means that we're going to start over anyway ! */
-        time_to_go = sum;
-    }
 
     {
         /* print ETA */
@@ -202,11 +184,7 @@ void tree_stats::print(unsigned int level)
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        if (draft) {
-            printf("%slingen expected duration: %f s (ETA from now: %s)\n", prefix, sum, eta_string);
-        } else {
-            printf("lingen ETA: %s\n", eta_string);
-        }
+        printf("lingen ETA: %s\n", eta_string);
     }
 }
 
@@ -338,7 +316,7 @@ void tree_stats::final_print()
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        if (!draft) printf("lingen done at: %s\n", eta_string);
+        printf("lingen done at: %s\n", eta_string);
     }
 }
 
