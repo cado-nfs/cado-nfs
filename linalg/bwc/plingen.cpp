@@ -782,8 +782,12 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 int
 bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
 {
+    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
     tree_stats::sentinel dummy(bm.stats, __func__, E.size, false);
+    bm.stats.plan_smallstep("basecase", C.ttb);
+    bm.stats.begin_smallstep("basecase");
     int done = bw_lingen_basecase_raw(bm, pi, E, delta);
+    bm.stats.end_smallstep();
     E = matpoly();
     return done;
 }
@@ -1440,6 +1444,9 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.size);
 
+    bm.stats.plan_smallstep("MP", C.mp.tt);
+    bm.stats.plan_smallstep("MUL", C.mul.tt);
+
     bw_dimensions & d = bm.d;
     int done;
 
@@ -1470,7 +1477,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
         return done;
     }
 
-    bm.stats.begin_smallstep("MP", C.mp.tt);
+    bm.stats.begin_smallstep("MP");
     ASSERT_ALWAYS(pi_left.size <= pi_left_expect);
     ASSERT_ALWAYS(done || pi_left.size >= pi_left_expect_lowerbound);
 
@@ -1507,7 +1514,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     /* stack is now pi_left, pi_right */
 
-    bm.stats.begin_smallstep("MUL", C.mul.tt);
+    bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
@@ -1593,6 +1600,9 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.size);
 
+    bm.stats.plan_smallstep("MP", C.mp.tt);
+    bm.stats.plan_smallstep("MUL", C.mul.tt);
+
     bw_dimensions & d = bm.d;
     int done;
 
@@ -1627,7 +1637,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         return done;
     }
 
-    bm.stats.begin_smallstep("MP", C.mp.tt);
+    bm.stats.begin_smallstep("MP");
     ASSERT_ALWAYS(pi_left.size <= pi_left_expect);
     ASSERT_ALWAYS(done || pi_left.size >= pi_left_expect_lowerbound);
 
@@ -1667,7 +1677,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     
     E_right = bigmatpoly(model);
 
-    bm.stats.begin_smallstep("MUL", C.mul.tt);
+    bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMPI-MUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
             pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
@@ -1755,7 +1765,8 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         matpoly spi;
 
         double expect0 = bm.hints.tt_gather_per_unit * E.size;
-        bm.stats.begin_smallstep("gather(L+R)", expect0);
+        bm.stats.plan_smallstep("gather(L+R)", expect0);
+        bm.stats.begin_smallstep("gather(L+R)");
         E.gather_mat(sE);
         bm.stats.end_smallstep();
 
@@ -1764,7 +1775,8 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
             done = bw_lingen_single(bm, spi, sE, delta);
 
         double expect1 = bm.hints.tt_scatter_per_unit * E.size;
-        bm.stats.begin_smallstep("scatter(L+R)", expect1);
+        bm.stats.plan_smallstep("scatter(L+R)", expect1);
+        bm.stats.begin_smallstep("scatter(L+R)");
         pi = bigmatpoly(ab, E.get_model(), b, b, 0);
         pi.scatter_mat(spi);
         MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);

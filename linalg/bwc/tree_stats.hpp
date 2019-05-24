@@ -4,16 +4,19 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <climits>
 
 class tree_stats {
     struct small_step_time {
         double real = 0;
         double artificial = 0;  // only for deprecated draft mode.
         double theoretical=0;   // expected time to the current point
+        unsigned int ncalled = 0;
         small_step_time operator+=(small_step_time const & x) {
             real += x.real;
             artificial += x.artificial;
             theoretical += x.theoretical;
+            ncalled += x.ncalled;
             return *this;
         }
     };
@@ -84,7 +87,8 @@ public:
 
     void final_print();
 
-    void begin_smallstep(const char * func MAYBE_UNUSED, double theory=0);
+    void plan_smallstep(const char * func, double theory=0);
+    void begin_smallstep(const char * func);
     void end_smallstep();
 
     struct sentinel {

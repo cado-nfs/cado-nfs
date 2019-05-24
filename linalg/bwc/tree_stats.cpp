@@ -53,10 +53,9 @@ void tree_stats::print(unsigned int level)
 
     double sum = 0;
     double time_to_go = 0;
-    int nstars=0;
-    int nok=0;
-    double firstok = 0;
-    double complement = 0;
+    // int nstars=0;
+    // int nok=0;
+    // double firstok = 0;
     unsigned int tree_trimmed_breadth = 0;
     const char * prefix = draft ? "##DRAFT## ":"";
 
@@ -72,6 +71,7 @@ void tree_stats::print(unsigned int level)
              */
             double pt = u.projected_time(tree_total_breadth, tree_trimmed_breadth);
 
+            /*
             if (nstars && nok == 0) {
                 firstok = pt;
             } else if (nstars && nok == 1) {
@@ -79,6 +79,7 @@ void tree_stats::print(unsigned int level)
                 complement = ratio * firstok * (pow(ratio, nstars) - 1) / (ratio - 1);
             }
             nok++;
+            */
 
             char code[2]={'\0', '\0'};
             if (u.size() > 1) code[0] = 'a';
@@ -135,36 +136,50 @@ void tree_stats::print(unsigned int level)
             ASSERT_ALWAYS(k < curstack.size());
             running_stats const& r(curstack[k]);
             unsigned int exp_ncalls = round((double) tree_total_breadth / r.inputsize);
-            printf("%s%u * [%u, %s] 0/%u\n",
+            double level_th = 0;
+            for(auto const & y : r.small_steps) {
+                double t = y.second.real + y.second.artificial;
+                double th = y.second.theoretical;
+                unsigned int n = y.second.ncalled;
+                level_th += n ? t : th;
+            }
+            sum += level_th * exp_ncalls;
+            printf("%s%u * [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
                     prefix,
                     k,
                     r.inputsize,
                     r.func.c_str(),
-                    exp_ncalls);
+                    exp_ncalls,
+                    level_th, level_th * exp_ncalls,
+                    sum);
             for(auto const & y : r.small_steps) {
-                unsigned int n = 0;
                 ASSERT_ALWAYS(&(y.second) != r.substep);
                 /* also count the artificial time */
                 double t = y.second.real + y.second.artificial;
-                n++;
+                double th = y.second.theoretical;
+                unsigned int n = y.second.ncalled;
+                double ratio = n ? t/th : 1;
+                time_to_go += ratio * th * (exp_ncalls - n);
                 printf("%s   (%s %u/%u %.2g -> %.1f)\n",
                         prefix,
                         y.first.c_str(),
                         n, exp_ncalls,
-                        t / n,
-                        t * (double) exp_ncalls / n);
+                        n ? t / n : th,
+                        exp_ncalls * (n ? t / n : th));
             }
-            nstars++;
+            // nstars++;
             continue;
         }
 
     }
 
+    /*
     if (nstars && nok >= 2) {
         printf("%sexpected time for levels 0-%u: %.1f (total: %.1f)\n",
                 prefix,
                 nstars-1, complement, sum + complement);
     }
+    */
 
     /* Note that time_to_go is only relative to the levels for which we
      * have got at least one data point */
@@ -178,7 +193,7 @@ void tree_stats::print(unsigned int level)
         /* print ETA */
         time_t eta[1];
         char eta_string[32] = "not available yet\n";
-        *eta = wct_seconds() + time_to_go + complement;
+        *eta = wct_seconds() + time_to_go;
 #ifdef HAVE_CTIME_R
         ctime_r(eta, eta_string);
 #else
@@ -188,7 +203,7 @@ void tree_stats::print(unsigned int level)
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
         if (draft) {
-            printf("%slingen expected duration: %f s (ETA from now: %s)\n", prefix, sum + complement, eta_string);
+            printf("%slingen expected duration: %f s (ETA from now: %s)\n", prefix, sum, eta_string);
         } else {
             printf("lingen ETA: %s\n", eta_string);
         }
@@ -327,7 +342,19 @@ void tree_stats::final_print()
     }
 }
 
-void tree_stats::begin_smallstep(const char * func, double theory)
+void tree_stats::plan_smallstep(const char * func, double theory)
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank) return;
+    ASSERT_ALWAYS(!curstack.empty());
+    running_stats& s(curstack.back());
+    s.substep = &(s.small_steps[func]);
+    s.substep->theoretical += theory;
+    s.substep = NULL;
+}
+
+void tree_stats::begin_smallstep(const char * func)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -355,7 +382,6 @@ void tree_stats::begin_smallstep(const char * func, double theory)
     // ASSERT_ALWAYS(ssi.second);
     s.substep = &(s.small_steps[func]);
     s.substep->real -= wct_seconds();
-    s.substep->theoretical += theory;
 }
 
 void tree_stats::end_smallstep()
@@ -366,5 +392,6 @@ void tree_stats::end_smallstep()
     ASSERT_ALWAYS(!curstack.empty());
     running_stats& s(curstack.back());
     s.substep->real += wct_seconds();
+    s.substep->ncalled++;
     s.substep = NULL;
 }
