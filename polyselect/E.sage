@@ -48,8 +48,7 @@ def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     # eps_rel does not seem to work, thus we use eps_abs
     # see https://trac.sagemath.org/ticket/22156#comment:4
     i = numerical_integral(v1, 0, pi)[0]
-    tol = i/1000
-    return numerical_integral(v1, 0, pi, eps_abs=tol)
+    return numerical_integral(v1, 0, pi, eps_abs=i/1000)
 
 # same as MurphyE_int, but integrates between roots of f and g
 def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
@@ -104,7 +103,8 @@ def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     # FIXME: once eps_rel is fixed, we should use it here
     # (see https://trac.sagemath.org/ticket/22156#comment:4)
     foo = lambda t: numerical_integral(v1(r=t), 0, pi)[0]
-    return numerical_integral(foo, 0, 1)
+    i = numerical_integral(foo, 0, 1)[0]
+    return numerical_integral(foo, 0, 1, eps_abs=i/1000)
 
 # Compute all roots of f mod p, including projective roots, with multiplicities
 # Projective roots are encoded by (p,e) with e the multiplicity.
@@ -272,6 +272,7 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
        print "largest:", largest
     return E
 
+# use sampling over the angles, numerical integration over alpha
 def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
     df = f.degree()
     dg = g.degree()
@@ -301,7 +302,9 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        E += v1
-    return sum([E(t=j/h)*ncx2.pdf(j/h,k,lam) for j in srange(0.5,K)])/(h*K)
+#    return sum([E(t=j/h)*ncx2.pdf(j/h,k,lam) for j in srange(0.5,K)])/(h*K)
+    foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
+    return numerical_integral(foo, 0, 100)[0]
 
 # example: RSA-768 polynomials
 # skewness 44204.72 norm 1.35e+28 alpha -7.30 Murphy_E 3.79e-09
