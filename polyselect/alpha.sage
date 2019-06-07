@@ -75,33 +75,19 @@ def dist_valuation_affine_aux(f,p,w):
     x = ZP.gen()
     fv = ZP(f/p^v)
     Q = GF(p)['x'](fv.derivative())
-    Ex = Ex2 = 0
     w += v
     l = fv.roots(GF(p))
+    Ex = v
+    Ex2 = 0
     for r,_ in l:
         if Q(r) != 0:
-            # E[x] += (w+1)*(1/p-1/p^2) + (w+2)*(1/p^2-1/p^3) + (w+3)*...
-            #      += ((p - 1)*w + p)/(p^2 - p)
-            # Note: if we subtract the term -w/p below, it gives Ex += 1/(p-1)
-            Ex += ((p - 1)*w + p)/(p^2 - p)
-            # E[x^2] += (w+1)^2*(1/p-1/p^2) + (w+2)^2*(1/p^2-1/p^3) + ...
-            # += (p^2*w^2+2*p^2*w-2*p*w^2+p^2-2*p*w+w^2+p)/((p-1)^2*p)
-            # Note: if we subtract the term -w^2/p below, it gives
-            # (2*p*w+p-2*w+1)/(p-1)^2, which still depends on w
-            Ex2 += (p^2*w^2+2*p^2*w-2*p*w^2+p^2-2*p*w+w^2+p)/((p-1)^2*p)
+            Ex += 1/(p-1)
+            Ex2 += 2*w/(p-1) + (p+1)/(p-1)^2
         else:
-            # we expand fv(r0+p*x) and divide by p since here we consider
-            # only one of the p classes r0+p*x for 0 <= r0 < p
             f2 = fv(ZZ(r)+p*x)
             v1, e1 = dist_valuation_affine_aux(f2, p, w)
             Ex += v1/p
-            Ex2 += e1/p
-        # for roots, we subtract w/p to Ex and w^2/p to Ex2,
-        # which with the addition of w and w^2 after the loop,
-        # has the effect to add w/p and w^2/p for non-roots
-        Ex -= w/p
-        Ex2 -= w^2/p
-    Ex += w
+            Ex2 += e1/p - w^2/p
     Ex2 += w^2
     return Ex, Ex2
 
