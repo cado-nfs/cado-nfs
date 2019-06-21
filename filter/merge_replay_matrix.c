@@ -39,6 +39,8 @@ initMat (filter_matrix_t *mat, uint32_t skip)
   mat->wt = (col_weight_t *) malloc (mat->ncols * sizeof (col_weight_t));
   ASSERT_ALWAYS (mat->wt != NULL);
   memset (mat->wt, 0, mat->ncols * sizeof(col_weight_t));
+  mat->p = NULL; /* recompress() assumes mat->p = 0 at the beginning,
+                    in which case it just renumbers */
 }
 
 void
