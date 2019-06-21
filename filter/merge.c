@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdlib.h>
 #include <fcntl.h>  /* for _O_BINARY */
 
+int pass = 0;
+
 /* a lot of verbosity */
 // #define BIG_BROTHER 
 
@@ -45,6 +47,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 unsigned long cancel_rows = 0;
 unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #endif
+
+/* define USE_HEAP for custom memory management */
+#define USE_HEAP
 
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
@@ -179,53 +184,251 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 
 /*************************** heap structures *********************************/
 
+/* Allocates and garbage-collects relations (i.e. arrays of typerow_t). 
+   This works using PAGES. */
+
 #ifdef USE_HEAP
-#define PAGE_SIZE (1<<18) /* seems to be optimal for RSA-512 */
+#define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
-typedef struct {
-  char** pages;          /* list of pages */
-  unsigned long size;    /* number of pages allocated */
-  unsigned long current; /* pages[size-1] + current is the first free cell */
-} heap_struct_t;
-typedef heap_struct_t heap_t[1];
+struct page_t {
+        struct pagelist_t *list;
+        int i;                /* page number, for debugging purposes */
+        int generation;       /* pass in which this page was filled. */
+        int ptr;              /* data[ptr:PAGE_SIZE] is available*/
+        typerow_t data[PAGE_SIZE];
+};
 
-heap_t global_heap;      /* global heap */
-heap_t *local_heap;      /* local heap (one per thread) */
+struct pagelist_t {
+        struct pagelist_t *next;
+        struct pagelist_t *prev;
+        struct page_t *page;
+};
 
-static void MAYBE_UNUSED
-heap_init (heap_t h)
+int n_pages, n_full_pages, n_empty_pages;
+struct pagelist_t headnode;
+struct pagelist_t *full_pages, *empty_pages;
+
+struct page_t **active_page;
+size_t *heap_waste;
+
+
+/* provide an empty page */
+static struct page_t *
+heap_get_free_page()
 {
-  h->pages = malloc (1 * sizeof (char*));
-  h->pages[0] = (char*) malloc (PAGE_SIZE * sizeof (char));
-  h->size = 1;
-  h->current = 0;
+        struct page_t *page = NULL;
+        #pragma omp critical(pagelist)
+        {
+                if (empty_pages != NULL) {
+                        page = empty_pages->page;
+                        empty_pages = empty_pages->next;
+                        n_empty_pages--;
+                } else {
+                        n_pages++;   /* we will malloc() it, update count while still in critical section */
+                }
+        }
+        if (page == NULL) {
+                page = malloc(sizeof(struct page_t));
+                struct pagelist_t *item = malloc(sizeof(struct pagelist_t));
+                page->list = item;
+                item->page = page;
+                page->i = n_pages;
+        }
+        page->ptr = 0;
+        page->generation = pass;
+        return page;
 }
 
-/* s is in bytes */
-static void MAYBE_UNUSED *
-heap_malloc (heap_t h, size_t s)
+/* provide the oldest full page with generation < max_generation, or NULL if none is available, 
+   and remove it from the list of full pages */
+MAYBE_UNUSED static struct page_t *
+heap_get_full_page(int max_generation)
 {
-  unsigned long cur = h->current;
-  if (cur + s <= PAGE_SIZE)
-    {
-      h->current += s;
-      return h->pages[h->size - 1] + cur;
-    }
-  /* otherwise we allocate a new page */
-  h->pages = realloc (h->pages, (h->size + 1) * sizeof (char*));
-  h->pages[h->size] = malloc (PAGE_SIZE * sizeof (char));
-  h->current = s;
-  h->size ++;
-  return h->pages[h->size - 1];
+        struct pagelist_t *item = NULL;
+        struct page_t *page = NULL;
+        #pragma omp critical(pagelist)
+        {
+                item = full_pages->next;
+                if (item->page != NULL && item->page->generation < max_generation) {
+                        page = item->page;
+                        item->next->prev = item->prev;
+                        item->prev->next = item->next;
+                        n_full_pages--;
+                }
+        }
+        return page;
 }
 
-static void MAYBE_UNUSED
-heap_clear (heap_t h)
+
+/* declare that the given page is empty */
+MAYBE_UNUSED static  void
+heap_clear_page(struct page_t *page)
 {
-  for (unsigned long i = 0; i < h->size; i++)
-    free (h->pages[i]);
-  free (h->pages);
+        struct pagelist_t *item = page->list;
+        #pragma omp critical(pagelist)
+        {
+                item->next = empty_pages;
+                empty_pages = item;
+                n_empty_pages++;
+        }
 }
+
+/* declare that the given page is full. Insert to the left of the list of full pages. 
+   The list is sorted (following next) by increasing generation. */
+static void
+heap_release_page(struct page_t *page)
+{
+        struct pagelist_t *list = page->list;
+        struct pagelist_t *target;
+        #pragma omp critical(pagelist)
+        {
+                target = full_pages->prev;
+                while (target->page != NULL && page->generation < target->page->generation)
+                        target = target->prev;
+                list->next = target;
+                list->prev = target->prev;
+                list->next->prev = list;
+                list->prev->next = list;
+                n_full_pages++;
+        }
+}
+
+// set up the page linked lists
+static void
+heap_setup()
+{
+        full_pages = &headnode;
+        full_pages->page = NULL;
+        full_pages->next = full_pages;
+        full_pages->prev = full_pages;
+        
+        empty_pages = NULL;
+        int T = omp_get_max_threads();
+        active_page = malloc(T * sizeof(*active_page));
+        heap_waste = malloc(T * sizeof(*heap_waste));
+
+        #pragma omp parallel
+        {
+                int t = omp_get_thread_num();
+                active_page[t] = heap_get_free_page();
+                heap_waste[t] = 0;
+        }
+}
+
+
+/* Returns a pointer to allocated space holding a size-s array of typerow_t.
+   This function is thread-safe thanks to the threadprivate directive above. */
+static inline typerow_t *
+heap_malloc (size_t s)
+{
+  ASSERT(s <= PAGE_SIZE);
+  int t = omp_get_thread_num();
+  struct page_t *page = active_page[t];
+  ASSERT(page != NULL);
+  /* enough room in active page ?*/
+  if (page->ptr + s >= PAGE_SIZE) {
+        heap_release_page(page);
+        page = heap_get_free_page();
+        active_page[t] = page;
+  }
+  typerow_t *alloc = page->data + page->ptr;
+  page->ptr += s;
+  return alloc;
+}
+
+/* Allocate space for row i, holding s coefficients in row[1:s+1] (row[0] == s).
+   This writes s in row[0]. The size of the row must not change afterwards. Thread-safe.
+*/
+static inline typerow_t *
+heap_alloc_row (index_t i, size_t s)
+{
+  typerow_t *alloc = heap_malloc(s + 2);
+  setCell(alloc, 0, i, 0);   /* setCell is defined in sparse.h */
+  setCell(alloc, 1, s, 0);
+  return alloc + 1;
+}
+
+/* given the pointer provided by heap_alloc_row, mark the row as deleted.
+   Thread-safe */
+static inline void
+heap_destroy_row (typerow_t *row)
+{
+  int t = omp_get_thread_num();
+  setCell(row, -1, (index_t) -1, 0);   /* this is in sparse.h */
+  heap_waste[t] += row[0] + 2;
+}
+
+/* Copy non-garbage data to the active page of the current thread, then
+   return the page to the freelist. Thread-safe.
+   Warning : this may fill the current active page and release it. */
+static int
+collect_page(filter_matrix_t *mat, struct page_t *page)
+{
+        int garbage = 0;
+        int bot = 0;
+        int top = page->ptr;
+        typerow_t *data = page->data;
+        while (bot < top) {
+                index_t i = rowCell(data, bot);
+                typerow_t *old = data + bot + 1;
+                index_t size = rowCell(old, 0);
+                // printf("[bot=%d] Examining row %d, size %d\n", bot, i, size);
+                if (i == (index_t) -1) {
+                        garbage += size + 2;
+                } else {
+                        ASSERT(mat->rows[i] == old);
+                        typerow_t * new = heap_alloc_row(i, size);
+                        memcpy(new, old, (size + 1) * sizeof(typerow_t));
+                        setCell(new, -1, rowCell(old, -1), 0);
+                        mat->rows[i] = new; 
+                }
+                bot += size + 2;
+        }
+        garbage += PAGE_SIZE - top;
+        heap_clear_page(page);
+        // printf("Collected page %d : %.0f%% wasted\n", page->i, 100. * garbage / PAGE_SIZE);
+        return garbage;
+}
+
+/* examine every full pages not created during the current pass and reclaim all lost space */
+MAYBE_UNUSED static void 
+full_garbage_collection(filter_matrix_t *mat)
+{
+        // I don't want to collect pages just filled during the collection
+        int max_generation;
+        if (pass == 2)
+                max_generation = 2;
+        else
+                max_generation = pass - 1;   // tradeoff.
+        
+        int T = omp_get_max_threads();
+        size_t total_waste = 0;
+        for (int t = 0; t < T; t++)
+                total_waste += heap_waste[t];
+        double waste = ((double) total_waste) / n_pages / PAGE_SIZE;        
+
+        /* less than 1/3 of the heap in garbage? Do nothing at all */
+        if (waste < 0.5)
+                return;
+
+        printf("Starting collection with %.0f%% of waste...", 100 * waste);
+        fflush(stdout);
+        
+        int i = 0;
+        int initial_full_pages = n_full_pages;
+        struct page_t *page;
+        #pragma omp parallel reduction(+:i) private(page)
+        while ((page = heap_get_full_page(max_generation)) != NULL) {
+                collect_page(mat, page);
+                i++;
+        }
+
+        for (int t = 0; t < T; t++)
+                heap_waste[t] = 0;
+
+        printf("%d pages examined (vs %d full pages)\n", i, initial_full_pages);
+}
+
 #endif
 
 /*****************************************************************************/
@@ -318,11 +521,11 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
 #endif
 
 #ifdef USE_HEAP
-  mat->rows[rel->num] = heap_malloc (global_heap, (j + 1) * sizeof (typerow_t));
+  mat->rows[rel->num] = heap_alloc_row(rel->num, j);
 #else
-  mat->rows[rel->num] = mallocRow (j + 1);
+  mat->rows[rel->num] = malloc((j + 1) * sizeof (typerow_t));
 #endif
-  compressRow (mat->rows[rel->num], buf, j);
+  compressRow (mat->rows[rel->num], buf, j);  /* sparse.c, simple copy loop... */
 
   return NULL;
 }
@@ -805,7 +1008,8 @@ increase_weight (filter_matrix_t *mat, index_t j)
 }
 
 /* doit == 0: return the weight of row i1 + row i2
-   doit <> 0: add row i2 to row i1 */
+   doit <> 0: add row i2 to row i1.
+   New memory is allocated and the old space is freeed */
 #ifndef FOR_DL
 /* special code for factorization */
 static int32_t
@@ -841,8 +1045,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
   /* now perform the real merge */
   index_t *t, *t0;
 #ifdef USE_HEAP
-  int tid = omp_get_thread_num ();
-  t = heap_malloc (local_heap[tid], (c + 1) * sizeof (index_t));
+  t = heap_alloc_row(i1, c);
 #else
   t = malloc ((c + 1) * sizeof (index_t));
 #endif
@@ -872,7 +1075,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
       *t++ = mat->rows[i2][t2++];
     }
   ASSERT (t0 + (c + 1) == t);
-#ifndef USE_HEAP
+#ifdef USE_HEAP
+  heap_destroy_row(mat->rows[i1]);
+#else
   free (mat->rows[i1]);
 #endif
   mat->rows[i1] = t0;
@@ -963,8 +1168,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   /* now perform the real merge */
   ideal_merge_t *t, *t0;
 #ifdef USE_HEAP
-  int tid = omp_get_thread_num ();
-  t = heap_malloc (local_heap[tid], (c + 1) * sizeof (ideal_merge_t));
+  t = heap_alloc_row(t1, c);
 #else
   t = malloc ((c + 1) * sizeof (ideal_merge_t));
 #endif
@@ -1025,7 +1229,9 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
       t2 ++, t ++;
     }
   ASSERT (t0 + (c + 1) == t);
-#ifndef USE_HEAP
+#ifdef USE_HEAP
+  heap_destroy_row(mat->rows[i1]);
+#else
   free (mat->rows[i1]);
 #endif
   mat->rows[i1] = t0;
@@ -1039,11 +1245,11 @@ remove_row (filter_matrix_t *mat, index_t i)
   int32_t w = matLengthRow (mat, i);
   for (int k = 1; k <= w; k++)
     decrease_weight (mat, rowCell(mat->rows[i], k));
-#ifndef USE_HEAP
+#ifdef USE_HEAP
+  heap_destroy_row(mat->rows[i]);
+#else
   free (mat->rows[i]);
 #endif
-  /* even with USE_HEAP, we need to set rows[i] to NULL to know that this
-     row was discarded */
   mat->rows[i] = NULL;
 }
 
@@ -1590,6 +1796,11 @@ main (int argc, char *argv[])
       usage (pl, argv0);
     }
 
+#ifdef USE_HEAP
+    heap_setup();
+#endif
+
+
     set_antebuffer_path (argv0, path_antebuffer);
 
     /* Read number of rows and cols on first line of purged file */
@@ -1630,13 +1841,6 @@ main (int argc, char *argv[])
     /* we bury the 'skip' ideals of smallest index */
     mat->skip = skip;
 
-#ifdef USE_HEAP
-    /* allocate heaps */
-    heap_init (global_heap);
-    local_heap = malloc (nthreads * sizeof (heap_t));
-    for (int i = 0; i < nthreads; i++)
-      heap_init (local_heap[i]);
-#endif
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();
@@ -1726,13 +1930,13 @@ main (int argc, char *argv[])
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
-    int pass = 0;
-    
 
     /****** begin main loop ******/
     while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	pass++;
+        if (pass == 2 || mat->cwmax > 2)
+                full_garbage_collection(mat);
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
@@ -1823,6 +2027,7 @@ main (int argc, char *argv[])
 		break;
     }
     /****** end main loop ******/
+    pass++;
 
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;
@@ -1880,14 +2085,10 @@ main (int argc, char *argv[])
     free (mat->Rp);
     free (mat->Rq);
     free (mat->Rqinv);
-    clearMat (mat);
 
-#ifdef USE_HEAP
-    /* free heaps */
-    heap_clear (global_heap);
-    for (int i = 0; i < nthreads; i++)
-      heap_clear (local_heap[i]);
-    free (local_heap);
+#ifndef USE_HEAP
+    /* We don't free the heap. It's pointless, long and complicated */
+    clearMat (mat);
 #endif
 
     param_list_clear (pl);
