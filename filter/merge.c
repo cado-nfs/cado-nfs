@@ -209,7 +209,7 @@ struct pagelist_t headnode;
 struct pagelist_t *full_pages, *empty_pages;
 
 struct page_t **active_page;
-size_t *heap_waste;
+long long *heap_waste;
 
 
 /* provide an empty page */
@@ -324,7 +324,7 @@ heap_malloc (size_t s)
   ASSERT(s <= PAGE_SIZE);
   int t = omp_get_thread_num();
   struct page_t *page = active_page[t];
-  ASSERT(page != NULL);
+  // ASSERT(page != NULL);
   /* enough room in active page ?*/
   if (page->ptr + s >= PAGE_SIZE) {
         heap_release_page(page);
@@ -343,8 +343,10 @@ static inline typerow_t *
 heap_alloc_row (index_t i, size_t s)
 {
   typerow_t *alloc = heap_malloc(s + 2);
-  setCell(alloc, 0, i, 0);   /* setCell is defined in sparse.h */
-  setCell(alloc, 1, s, 0);
+  rowCell(alloc, 0) = i;
+  rowCell(alloc, 1) = s;
+  // setCell(alloc, 0, i, 0xbadcafe);   /* setCell is defined in sparse.h */
+  // setCell(alloc, 1, s, 0);
   return alloc + 1;
 }
 
@@ -354,8 +356,9 @@ static inline void
 heap_destroy_row (typerow_t *row)
 {
   int t = omp_get_thread_num();
-  setCell(row, -1, (index_t) -1, 0);   /* this is in sparse.h */
-  heap_waste[t] += row[0] + 2;
+  rowCell(row, -1) = (index_signed_t) -1;
+  // setCell(row, -1, (index_signed_t) -1, 0xbadbeef);   /* this is in sparse.h */
+  heap_waste[t] += rowCell(row, 0) + 2;
 }
 
 /* Copy non-garbage data to the active page of the current thread, then
@@ -369,11 +372,10 @@ collect_page(filter_matrix_t *mat, struct page_t *page)
         int top = page->ptr;
         typerow_t *data = page->data;
         while (bot < top) {
-                index_t i = rowCell(data, bot);
+                index_signed_t i = rowCell(data, bot);
                 typerow_t *old = data + bot + 1;
                 index_t size = rowCell(old, 0);
-                // printf("[bot=%d] Examining row %d, size %d\n", bot, i, size);
-                if (i == (index_t) -1) {
+                if (i == (index_signed_t) -1) {
                         garbage += size + 2;
                 } else {
                         ASSERT(mat->rows[i] == old);
@@ -384,28 +386,31 @@ collect_page(filter_matrix_t *mat, struct page_t *page)
                 }
                 bot += size + 2;
         }
-        garbage += PAGE_SIZE - top;
+
+        int t = omp_get_thread_num();
+        heap_waste[t] -= garbage;
+
         heap_clear_page(page);
         // printf("Collected page %d : %.0f%% wasted\n", page->i, 100. * garbage / PAGE_SIZE);
         return garbage;
+}
+
+static double
+heap_waste_ratio()
+{
+        int T = omp_get_max_threads();
+        long long total_waste = 0;
+        for (int t = 0; t < T; t++)
+                total_waste += heap_waste[t];
+        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_SIZE;        
+        return waste;
 }
 
 /* examine every full pages not created during the current pass and reclaim all lost space */
 MAYBE_UNUSED static void 
 full_garbage_collection(filter_matrix_t *mat)
 {
-        // I don't want to collect pages just filled during the collection
-        int max_generation;
-        if (pass == 2)
-                max_generation = 2;
-        else
-                max_generation = pass - 1;   // tradeoff.
-        
-        int T = omp_get_max_threads();
-        size_t total_waste = 0;
-        for (int t = 0; t < T; t++)
-                total_waste += heap_waste[t];
-        double waste = ((double) total_waste) / n_pages / PAGE_SIZE;        
+        double waste = heap_waste_ratio();
 
         /* less than 1/3 of the heap in garbage? Do nothing at all */
         if (waste < 0.5)
@@ -413,6 +418,13 @@ full_garbage_collection(filter_matrix_t *mat)
 
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
         fflush(stdout);
+        
+        // I don't want to collect pages just filled during the collection
+        int max_generation;
+        if (pass == 2)
+                max_generation = 2;
+        else
+                max_generation = pass - 2;   // tradeoff.
         
         int i = 0;
         int initial_full_pages = n_full_pages;
@@ -423,10 +435,9 @@ full_garbage_collection(filter_matrix_t *mat)
                 i++;
         }
 
-        for (int t = 0; t < T; t++)
-                heap_waste[t] = 0;
-
-        printf("%d pages examined (vs %d full pages)\n", i, initial_full_pages);
+        double page_ratio = (double) i / initial_full_pages;
+        double recycling = 1 - heap_waste_ratio() / waste;
+        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste\n", 100 * page_ratio, 100 * recycling);
 }
 
 #endif
@@ -1168,7 +1179,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   /* now perform the real merge */
   ideal_merge_t *t, *t0;
 #ifdef USE_HEAP
-  t = heap_alloc_row(t1, c);
+  t = heap_alloc_row(i1, c);
 #else
   t = malloc ((c + 1) * sizeof (ideal_merge_t));
 #endif
