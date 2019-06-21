@@ -50,7 +50,7 @@ size_t find_smooth (
         FILE *out,
         int nthreads MAYBE_UNUSED, double &);
 
-std::list<relation> factor (cofac_list const &, cxx_cado_poly const&, int[2], int[2], FILE*, int, double&);
+std::list<relation> factor (cofac_list const &, cxx_cado_poly const&, int[2], int[2], int, FILE*, int, double&);
 void create_batch_file (const char*, cxx_mpz &, unsigned long, unsigned long,
                         cxx_mpz_poly const &, FILE*, int, double &);
 

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <unistd.h>
+#include "misc.h"
 
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
@@ -22,40 +23,57 @@
 #define LARGE_PAGE_SIZE (2UL*1024*1024)
 #endif
 
+#include "utils.h"
 #include "las-memory.hpp"
 
 // memory.h provides some back-ends that we use here.
 #include "memory.h"
 
+const size_t small_size_cutoff = 4096;
+
 las_memory_accessor::~las_memory_accessor()
 {
-    std::lock_guard<std::mutex> dummy(bucket_regions_pool.mutex());
+    // std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
     // ASSERT_ALWAYS(bucket_regions_pool.empty());
     for(auto x : large_pages_for_pool) free_aligned(x);
     large_pages_for_pool.clear();
 }
 
-unsigned char * las_memory_accessor::alloc_bucket_region()
+void * las_memory_accessor::alloc_frequent_size(size_t size)
 {
-    std::lock_guard<std::mutex> dummy(bucket_regions_pool.mutex());
-    if (bucket_regions_pool.empty()) {
+    if (size <= small_size_cutoff)
+        return malloc_aligned(size, 128);
+    if (size == 0)
+        return NULL;
+    size_t rsize = next_power_of_2(size);
+    std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
+    auto & pool(frequent_regions_pool[rsize]);
+    ASSERT_ALWAYS(rsize <= LARGE_PAGE_SIZE);
+    if (pool.empty()) {
         /* allocate some more */
+        verbose_output_print(1, 2, "# Allocating new large page dedicated to returning memory areas of size %zu\n", rsize);
         unsigned char * w = static_cast<unsigned char*>(malloc_aligned(LARGE_PAGE_SIZE, LARGE_PAGE_SIZE));
         ASSERT_ALWAYS(w != 0);
-        for(size_t s = 0 ; s + bucket_region_size() <= LARGE_PAGE_SIZE ; s += bucket_region_size())
-            bucket_regions_pool.push(w + s);
-        large_pages_for_pool.push_back(w);
+        for(size_t s = 0 ; s + rsize <= LARGE_PAGE_SIZE ; s += rsize)
+            pool.push((void *) (w + s));
+        large_pages_for_pool.push_back((void *) w);
     }
-    unsigned char * v = bucket_regions_pool.top();
-    bucket_regions_pool.pop();
+    void * v = pool.top();
+    pool.pop();
     return v;
 }
 
-void las_memory_accessor::free_bucket_region(unsigned char * v)
+void las_memory_accessor::free_frequent_size(void * v, size_t size)
 {
+    if (size <= small_size_cutoff) {
+        free_aligned(v);
+        return;
+    }
     if (!v) return;
-    std::lock_guard<std::mutex> dummy(bucket_regions_pool.mutex());
-    bucket_regions_pool.push(v);
+    size_t rsize = next_power_of_2(size);
+    std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
+    auto & pool(frequent_regions_pool[rsize]);
+    pool.push(v);
 }
 
 void * las_memory_accessor::physical_alloc(size_t size, bool affect)

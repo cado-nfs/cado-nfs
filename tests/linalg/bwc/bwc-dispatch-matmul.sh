@@ -98,7 +98,8 @@ set \
     sanity_check_vector=H1	\
     rebuild_cache=1	\
     skip_bw_early_rank_check=1       \
-    matmul_bucket_methods=small1,small2,large
+    matmul_bucket_methods=small1,small2,large   \
+    ys=0..64
 
 if [ "$hostfile" ] ; then
     set "$@" hostfile="$hostfile"

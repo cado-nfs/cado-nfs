@@ -119,7 +119,7 @@ void (*get_rebinder(const char * impl, const char * dimpl))(matmul_ptr mm)
     CONFIGURE_MATMUL_LIB(p_8       , basicp)
     */
     } else {
-        fprintf(stderr, "Cannot find the proper rebinder for data backend = %s and matmul backend = %s ; are the corresponding configuration lines present both in " __FILE__ " and linalg/bwc/CMakeLists.txt ?\n", dimpl, impl);
+        fprintf(stderr, "Cannot find the proper rebinder for data backend = %s and matmul backend = %s ; are the corresponding configuration lines present in local.sh or linalg/bwc/CMakeLists.txt ?\n", dimpl, impl);
         return NULL;
     }
 }

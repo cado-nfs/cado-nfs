@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import re
 import os.path
 from fractions import gcd
@@ -48,9 +49,9 @@ def re_cap_n_fp(prefix, n, suffix=""):
     if n > 0:
         # The first CAP_FP pattern is mandatory, and can have zero or more
         # whitespace in front
-        template += "\s*{cap_fp}"
+        template += r"\s*{cap_fp}"
         # The remaining FP_CAPs are optional, and have 1 or more whitespace
-        template += "(?:\s+{cap_fp})?" * (n - 1)
+        template += r"(?:\s+{cap_fp})?" * (n - 1)
     template += suffix
     return template.format(**REGEXES)
 
@@ -1486,7 +1487,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             {"maxwu": 10, 
              "wutimeout": 10800,  # Default: 3h
              "maxresubmit": 5, 
-             "maxwuerror": 2,   # increase if job are often killed badly.
+             "maxwuerror": 2,   # increase if jobs are often killed badly.
              "maxtimedout": 100, 
              "maxfailed": 100})
     
@@ -2453,6 +2454,8 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         if self.params["fastSM"]:
             self.progparams[0].setdefault("easySM", self.params["ell"])
         self.bestpoly = None
+        if "bestpoly" in self.state:
+            self.bestpoly = Polynomials(self.state["bestpoly"].splitlines())
             
     def run(self):
         super().run()
@@ -2473,6 +2476,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         filename = self.workdir.make_filename("poly")
         self.bestpoly.create_file(filename)
         self.state["polyfilename"] = filename.get_wdir_relative()
+        self.state["bestpoly"] = str(self.bestpoly)
         self.logger.info("Selected polynomial has MurphyE %f",
                 self.bestpoly.MurphyE);
         return True
@@ -2590,10 +2594,12 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         return self.get_state_filename("polyfilename")
 
     def get_poly(self):
-        return self.bestpoly
+        if not "bestpoly" in self.state:
+            return None
+        return Polynomials(self.state["bestpoly"].splitlines())
 
     def get_have_two_alg_sides(self):
-            return True
+        return True
 
     def need_more_wus(self):
         return 1 + self.state["rnext"] < self.params["modm"]
@@ -2981,7 +2987,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                     dv=f
                 s=1
             for pp in p[s:]:
-                r=re.compile("(\d+[a-z]+):(.*)")
+                r=re.compile(r"(\d+[a-z]+):(.*)")
                 m=r.match(pp)
                 assert m is not None
                 assert len(m.groups())==2
@@ -3010,7 +3016,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (str,),
             "0",
             SievingTask.combine_bkmult,
-            re.compile("#.*max bucket fill -bkmult ([\d\.]+(?:,\d[sl]:[\d\.]+)*)"),
+            re.compile(r"#.*max bucket fill -bkmult ([\d\.]+(?:,\d[sl]:[\d\.]+)*)"),
             False
         ),
         (
@@ -3140,7 +3146,10 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                          self.state["rels_wanted"])
         return True
 
-    re_rel = re.compile(b"(-?\d*),(\d*):(.*)")
+    if tuple(sys.version_info)[0] < 3:
+        re_rel = re.compile(bytes(r"(-?\d*),(\d*):(.*)"))
+    else:
+        re_rel = re.compile(bytes(r"(-?\d*),(\d*):(.*)","ascii"))
     def verify_relation(self, line, poly):
         """ Check that the primes listed for a relation divide the value of
             the polynomials """

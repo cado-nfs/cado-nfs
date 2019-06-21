@@ -146,6 +146,7 @@ derived_variables() {
     else
         splitwidth=1
     fi
+    : ${simd=$splitwidth}
 }
 
 prepare_wdir() {
@@ -300,6 +301,7 @@ prepare_common_arguments() {
         prime=$prime
         nullspace=$nullspace
         interval=$interval
+        simd=$simd
 
 EOF
     if [ "$mm_impl" ] ; then common="$common mm_impl=$mm_impl" ; fi
@@ -414,7 +416,7 @@ fi
 Nh=$((${BASH_REMATCH[1]}*${BASH_REMATCH[3]}))
 Nv=$((${BASH_REMATCH[2]}*${BASH_REMATCH[4]}))
 
-bfile="`basename $matrix .bin`.${Nh}x${Nv}.bin"
+bfile="`basename $matrix .bin`.${Nh}x${Nv}/`basename $matrix .bin`.${Nh}x${Nv}.bin"
 
 
 # This is for the **unbalanced** matrix !!
@@ -552,9 +554,9 @@ done
 # }}}
 
 echo "Saving check vectors to magma format" # {{{
-if [ -f "$wdir/C.0" ] ; then
-    $cmd $magmaprintmode < $wdir/C.0 > $mdir/C0.m
-    $cmd $magmaprintmode < $wdir/C.$interval > $mdir/Ci.m
+if [ -f "$wdir/C0-$splitwidth.0" ] ; then
+    $cmd $magmaprintmode < $wdir/C0-$splitwidth.0 > $mdir/C0.m
+    $cmd $magmaprintmode < $wdir/C0-$splitwidth.$interval > $mdir/Ci.m
 else
     echo "var:=0;" > $mdir/C0.m
     echo "var:=0;" > $mdir/Ci.m

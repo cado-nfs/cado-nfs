@@ -75,7 +75,11 @@ void load_x(uint32_t ** xs, unsigned int m, unsigned int *pnx,
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for (unsigned int i = 0 ; i < *pnx * m; i++) {
             rc = fscanf(f, "%" SCNu32, &((*xs)[i]));
-            FATAL_ERROR_CHECK(rc != 1, "short read in X");
+            if (rc != 1) {
+                fprintf(stderr, "Short read in X, after reading data for %u rows (compared to expected %u)\n",
+                        i / *pnx, m);
+                abort();
+            }
         }
         fclose(f);
     }

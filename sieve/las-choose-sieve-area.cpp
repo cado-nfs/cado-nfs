@@ -153,7 +153,7 @@ bool choose_sieve_area(las_info const & las,
         qlattice_basis & Q,
         uint32_t & J)
 {
-    timetree_t & timer(aux_p->timer_special_q);
+    timetree_t & timer(aux_p->rt.timer);
     return choose_sieve_area(las, &timer, doing, conf, Q, J);
 }
 

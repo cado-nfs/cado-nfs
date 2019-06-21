@@ -24,8 +24,8 @@ class mmappable_vector: public std::vector<T, A> {
 
         mmappable_vector(): Base() { }
 
-        /* I think this does plain crap */
-        mmappable_vector(const mmappable_vector<T, A> &other): Base(other) { } 
+        mmappable_vector(const mmappable_vector<T, A> &) = default;
+        mmappable_vector& operator=(const mmappable_vector<T, A> &) = default;
 
         /* This is not conforming, since the container
          * requirements for this signature stipulate that the

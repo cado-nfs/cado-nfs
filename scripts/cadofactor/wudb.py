@@ -41,6 +41,8 @@ else:
 import patterns
 import cadologger
 import logging
+from collections.abc import MutableMapping
+from collections.abc import Mapping
 
 DEBUG = 1
 exclusive_transaction = [None, None]
@@ -433,7 +435,7 @@ class CursorWrapperBase(object,metaclass=abc.ABCMeta):
 class DB_base(object):
     @property
     def general_pattern(self):
-        return "(?:db:)?(\w+)://(?:(?:(\w+)(?::(.*))?@)?(?:([\w\.]+)|\[([\d:]+)*\])(?::(\d+))?/)?(.*)$"
+        return r"(?:db:)?(\w+)://(?:(?:(\w+)(?::(.*))?@)?(?:([\w\.]+)|\[([\d:]+)*\])(?::(\d+))?/)?(.*)$"
     def __init__(self, uri, backend_pattern=None):
         self.uri = uri
         foo=re.match(self.general_pattern,uri)
@@ -764,7 +766,7 @@ class DictDbTable(DbTable):
         super().__init__(*args, **kwargs)
 
 
-class DictDbAccess(collections.MutableMapping):
+class DictDbAccess(MutableMapping):
     """ A DB-backed flat dictionary.
 
     Flat means that the value of each dictionary entry must be a type that
@@ -861,7 +863,7 @@ class DictDbAccess(collections.MutableMapping):
     def get_cursor(self):
         return self._conn.cursor()
 
-    # Implement the abstract methods defined by collections.MutableMapping
+    # Implement the abstract methods defined by collections.abc.MutableMapping
     # All but __del__ and __setitem__ are simply passed through to the self._data
     # dictionary
 
@@ -962,7 +964,7 @@ class DictDbAccess(collections.MutableMapping):
 
         Values from default dict are merged into self, *not* overwriting
         existing values in self '''
-        if key is None and isinstance(default, collections.Mapping):
+        if key is None and isinstance(default, Mapping):
             update = {key:default[key] for key in default if not key in self}
             if update:
                 self.update(update, commit=commit)
@@ -1172,7 +1174,7 @@ class WuAccess(object): # {
     def _checkstatus(wu, status):
         #logger.debug("WuAccess._checkstatus(%s, %s)", wu, status)
         wu_status = wu["status"]
-        if isinstance(status, collections.Container):
+        if isinstance(status, collections.abc.Container):
             ok = wu_status in status
         else:
             ok = wu_status == status

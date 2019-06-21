@@ -164,7 +164,7 @@ void ringbuf_mark_done(ringbuf_ptr r)
     pthread_mutex_lock(r->mx);
     assert(!r->done);
     r->done = 1;
-    pthread_cond_signal(r->bored);
+    pthread_cond_broadcast(r->bored);
     pthread_mutex_unlock(r->mx);
 }
 
@@ -180,7 +180,7 @@ int ringbuf_get(ringbuf_ptr r, char * p, size_t s)
 {
     pthread_mutex_lock(r->mx);
     // fprintf(stderr, "get(%zu): (ravail: %zu, wavail: %zu)\n", s, r->avail_to_read, r->avail_to_write);
-    if (!r->done && r->avail_to_read < RINGBUF_ALIGNED_RETURNS) {
+    while (!r->done && r->avail_to_read < RINGBUF_ALIGNED_RETURNS) {
         // fprintf(stderr, "get(%zu): on hold (ravail: %zu, wavail: %zu)\n", s, r->avail_to_read, r->avail_to_write);
         r->empty_count++;
         pthread_cond_wait(r->bored, r->mx);
@@ -262,6 +262,7 @@ ssize_t ringbuf_feed_stream(ringbuf_ptr r, FILE * f)
         if (local_w_avail == 0) {
             pthread_mutex_lock(r->mx);
             for( ; ! r->avail_to_write ; ) {
+                r->full_count++;
                 pthread_cond_wait(r->bored, r->mx);
             }
             local_w_avail = r->avail_to_write;

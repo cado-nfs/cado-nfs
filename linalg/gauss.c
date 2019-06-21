@@ -435,7 +435,7 @@ int kernel(mp_limb_t* mat, mp_limb_t** ker, int nrows, int ncols,
  * matrix lmat * mat form a basis of the row span of the matrix mat,
  * while the last (nrows-r) (most significant bits) rows are zero.
  *
- * lmat is expected to be already allocated, and to have a striding equal
+ * lmat is expected to be already allocated, and to have a stride equal
  * to limbs_per_col.
  *
  * elim_table is an extra field, which should only be used when ncols is

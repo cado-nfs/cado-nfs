@@ -4,6 +4,7 @@
 #include <set>
 #include <list>
 #include <stack>
+#include <map>
 #include "macros.h"
 #include "las-config.h"
 #include "lock_guarded_container.hpp"
@@ -16,7 +17,7 @@
  */
 
 class las_memory_accessor {
-    lock_guarded_container<std::stack<unsigned char*>> bucket_regions_pool;
+    lock_guarded_container<std::map<size_t, std::stack<void *>>> frequent_regions_pool;
     std::list<void*> large_pages_for_pool;
 
     /* large memory chunks follow the same logic as in utils/memory.c,
@@ -48,8 +49,10 @@ class las_memory_accessor {
         /* round to next multiple of 128 */
         return (((BUCKET_REGION + MEMSET_MIN) - 1) | 127) + 1;
     }
-    unsigned char * alloc_bucket_region();
-    void free_bucket_region(unsigned char *);
+    void * alloc_frequent_size(size_t);
+    void free_frequent_size(void *, size_t);
+    inline unsigned char * alloc_bucket_region() { return (unsigned char *) alloc_frequent_size(bucket_region_size()); }
+    inline void free_bucket_region(unsigned char * p) { free_frequent_size((void *) p, bucket_region_size()); }
 
     void * physical_alloc(size_t, bool = false) ATTR_ASSUME_ALIGNED(256);
     void physical_free(void*, size_t);

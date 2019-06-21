@@ -12,6 +12,8 @@ nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
     o.SS = NULL;
 }
 
+#if 0
+/* See comment in las-threads-work-data.hpp */
 nfs_work::thread_data::thread_data(thread_data const & o)
     : ws(o.ws)
 {
@@ -35,20 +37,18 @@ nfs_work::thread_data::thread_data(thread_data const & o)
     memcpy(SS, o.SS, BUCKET_REGION);
 #endif
 }
+#endif
 
-/* our promise is that allocation only occurs when explicitly asked, so
- * we do not call local_memory.alloc_bucket_region() yet.
- */
 nfs_work::thread_data::thread_data(nfs_work & ws)
     : ws(ws)
 {
-#if 0
     for(int side = 0 ; side < 2 ; side++) {
+        sides[side].bucket_region = NULL;
+        if (ws.sides[side].no_fb()) continue;
         sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
     }
     /* Allocate memory for the intermediate sum (only one for both sides) */
     SS = ws.local_memory.alloc_bucket_region();
-#endif
 }
 
 nfs_work::thread_data::~thread_data()
@@ -62,14 +62,21 @@ nfs_work::thread_data::~thread_data()
     SS = NULL;
 }
 
+/* only used once a siever_config has been attached to the parent structure */
 void nfs_work::thread_data::allocate_bucket_regions()
 {
     for(int side = 0 ; side < 2 ; side++) {
-        if (ws.sides[side].no_fb()) continue;
-        sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
+        if (ws.sides[side].no_fb()) {
+            if (sides[side].bucket_region)
+                ws.local_memory.free_bucket_region(sides[side].bucket_region);
+        } else {
+            if (!sides[side].bucket_region)
+                sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
+        }
     }
     /* Allocate memory for the intermediate sum (only one for both sides) */
-    SS = ws.local_memory.alloc_bucket_region();
+    if (!SS)
+        SS = ws.local_memory.alloc_bucket_region();
 }
 
 void nfs_work::zeroinit_defaults()
@@ -86,9 +93,14 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
     : las(_las),
     local_memory(_las.local_memory_accessor()),
     nr_workspaces(nr_workspaces),
-    sides {{ {nr_workspaces}, {nr_workspaces} }},
-    th(_las.number_of_threads_per_subjob(), thread_data(*this))
+    sides {{ {nr_workspaces}, {nr_workspaces} }}
 {
+    // we cannot do this because thread_data has no copy ctor (on
+    // purpose)
+    // th(_las.number_of_threads_per_subjob(), thread_data(*this))
+    th.reserve(_las.number_of_threads_per_subjob());
+    for(int x = _las.number_of_threads_per_subjob() ; x-- ; )
+        th.emplace_back(*this);
     zeroinit_defaults();
     sides[0].dumpfile.open(las.dump_filename, Q.doing, 0);
     sides[1].dumpfile.open(las.dump_filename, Q.doing, 1);
@@ -130,6 +142,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
     pool.drain_queue(2);
 }
 
+/* only used once a siever_config has been attached to the structure */
 void nfs_work::allocate_bucket_regions() {
     for(auto & T : th)
         T.allocate_bucket_regions();
@@ -323,6 +336,13 @@ void nfs_work::prepare_for_new_q(las_info & las0) {
 
     jd = las0.get_j_divisibility_helper(J);
     us = las0.get_unsieve_data(conf);
+
+    /* we may now allocate the bucket regions for all threads. Those are
+     * quite unsignificant of course, but in cases where we have gobs of
+     * threads, we'd rather not allocate RAM for memory we won't actually
+     * need because of the absence of factor base on some side.
+     */
+    allocate_bucket_regions();
 }
 
 /* Yes, it's quite unfortunate that we add so much red tape.

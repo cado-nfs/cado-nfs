@@ -1,5 +1,5 @@
 #include "cado.h"
-#include <stdio.h>
+#include <cstdio>
 #include <pthread.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
@@ -152,9 +152,6 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         ASSERT_ALWAYS(nrhs <= A_multiplex);
 
         for(unsigned int j = 0 ; j < A_multiplex ; j++) {
-            char * tmp;
-            int rc = asprintf(&tmp, "V%u-%u.0", j * A_width, (j+1) * A_width);
-            ASSERT_ALWAYS(rc >= 0);
             /* Random generation + save is better done as writing random data
              * to a file followed by reading it: this way, seeding works
              * better.
@@ -163,12 +160,12 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
                 /* create it as an extraction from the rhs file */
                 ASSERT_ALWAYS(0);       /* implement me... See GF(p) below. */
             } else {
-                mmt_vec_set_random_through_file(y, tmp, unpadded, rstate);
+                mmt_vec_set_random_through_file(y, "V%u-%u.0", unpadded, rstate, j * A_width);
             }
             if (tcan_print) {
-                printf("// generated %s (trial # %u)\n", tmp, ntri);
+                printf("// generated V%u-%u.0 (trial # %u)\n", 
+                        j * A_width, (j + 1) * A_width, ntri);
             }
-            free(tmp);
 
             // compute x^T M y, x^T M^2 y, and so on. Since we do that
             // piecewise for the different vectors, we first collect

@@ -1,162 +1,56 @@
 /* Some commonly used assembly helper macros for arithmetic on 
-   unsigned long. 
-   Defining ULARITH_VERBOSE_ASM puts in the asm output a line for each
+   unsigned 64-bit integers. 
+   Defining U64ARITH_VERBOSE_ASM puts in the asm output a line for each
    function call that shows what registers/memory locations the operands 
    are in.
-   Defining ULARITH_NO_ASM avoids asm macros and uses the C fallback code
+   Defining U64ARITH_NO_ASM avoids asm macros and uses the C fallback code
    where available.
 */
 
-#ifndef UL_ARITH_H__
-
-#define UL_ARITH_H__
+#ifndef U64_ARITH_H__
+#define U64_ARITH_H__
 
 #include <assert.h>
-#include <limits.h>
+#include <stdint.h>
 #include <gmp.h>
 #include "macros.h"
 
-/* <limits.h> defines LONG_BIT only with _XOPEN_SOURCE defined, but if 
-   another header (such as <stdio.h>) already included <features.h> before 
-   _XOPEN_SOURCE was set to 1, future includes of <features.h> are
-   short-circuited and _XOPEN_SOURCE is ignored. */
-
-#ifndef LONG_BIT
-#ifdef LONG_MAX /* ISO C99 requires LONG_MAX in limits.h */
-#if LONG_MAX == 2147483647L
-#define LONG_BIT 32
-#else
-#define LONG_BIT 64
-#endif /* if LONG_MAX == 2147483647L */
-#elif defined __LONG_MAX__
-#if __LONG_MAX__ == 2147483647L
-#define LONG_BIT 32
-#else
-#define LONG_BIT 64
-#endif /* if __LONG_MAX__ == 2147483647L */
-#else /* elif defined __LONG_MAX__ */
-#error Cannot guess LONG_BIT, please define
-#endif /* elif defined __LONG_MAX__ else */
-#endif /* ifndef LONG_BIT */
-
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
 #ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
+#define ASSERT_EXPENSIVE(x) ASSERT_ALWAYS(x)
 #else
 #define ASSERT_EXPENSIVE(x)
 #endif
 
-/* On 32 bit x86, the general constraint for, e.g., the source operand
-   of add is "g". For x86_64, it is "rme", since immediate constants
-   must be 32 bit. */
-#if defined(__i386__) && defined(__GNUC__)
-#define ULARITH_CONSTRAINT_G "g"
-#elif defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-#define ULARITH_CONSTRAINT_G "rme"
-#endif
 
-#ifdef DEAD_CODE /* Unused and untested. Here be dragons. */
-/* Increases r if a != 0 */
-static inline void
-ularith_inc_nz (unsigned long *r, const unsigned long a)
-{
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_inc_nz (%0, %1)\n" : : "X" (*r), "X" (a));
-#endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  __asm__ __VOLATILE (
-    "cmpq $1, %1\n\t"
-    "sbbq $-1, %0\n\t"
-    : "+r" (*r)
-    : "rm" (a)
-    : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "cmpl $1, %1\n\t"
-    "sbbl $-1, %0\n\t"
-    : "+r" (*r)
-    : "rm" (a)
-    : "cc");
-#else
-  if (a != 0)
-    *r += 1;
-#endif
-}
-#endif
-
-/* Let a = a1 + 2^k * a2, b = b1 + 2^k * b2, where k is number of bits
-   in an unsigned long. Return 1 if a > b, and 0 if a <= b. */
+/* Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a > b,
+   and 0 if a <= b. */
 static inline int
-ularith_gt_2ul_2ul(unsigned long, unsigned long,
-                   unsigned long, unsigned long) ATTRIBUTE((const));
+u64arith_gt_2_2(uint64_t, uint64_t, uint64_t, uint64_t) ATTRIBUTE((const));
 static inline int
-ularith_gt_2ul_2ul(const unsigned long a1, const unsigned long a2,
-                   const unsigned long b1, const unsigned long b2)
+u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
+                const uint64_t b1, const uint64_t b2)
 {
   return a2 > b2 || (a2 == b2 && a1 > b1);
 }
 
-/* Add an unsigned long to two unsigned longs with carry propagation from 
+
+/* Add two uint64_t to two uint64_t with carry propagation from 
    low word (r1) to high word (r2). Any carry out from high word is lost. */
 
 static inline void
-ularith_add_ul_2ul (unsigned long *r1, unsigned long *r2,
-                    const unsigned long a)
+u64arith_add_2_2 (uint64_t *r1, uint64_t *r2, 
+		  const uint64_t a1, const uint64_t a2)
 {
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_add_ul_2ul (%0, %1, %2)\n" : : 
-           "X" (*r1), "X" (*r2), "X" (a));
-#endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  __asm__ __VOLATILE (
-    "addq %2, %0\n\t"
-    "adcq $0, %1\n"
-    : "+&r" (*r1), "+r" (*r2) 
-    : "rme" (a)
-    : "cc"); /* TODO: add commutativity and alternative for add to 
-                memory */
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "addl %2, %0\n\t"
-    "adcl $0, %1\n"
-    : "+&r" (*r1), "+r" (*r2)
-    : "g" (a)
-    : "cc");
-#else
-  *r1 += a;
-  if (*r1 < a)
-    (*r2)++;
-#endif
-}
-
-
-/* Add two unsigned longs to two unsigned longs with carry propagation from 
-   low word (r1) to high word (r2). Any carry out from high word is lost. */
-
-static inline void
-ularith_add_2ul_2ul (unsigned long *r1, unsigned long *r2, 
-			 const unsigned long a1, const unsigned long a2)
-{
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_add_2ul_2ul (%0, %1, %2, %3)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_add_2_2 (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "addq %2, %0\n\t"
     "adcq %3, %1\n"
     : "+&r" (*r1), "+r" (*r2)
     : "rme" (a1), "rme" (a2)
-    : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "addl %2, %0\n\t"
-    "adcl %3, %1\n"
-    : "+&r" (*r1), "+r" (*r2)
-    : "g" (a1), "g" (a2)
     : "cc");
 #else
   *r1 += a1;
@@ -164,20 +58,33 @@ ularith_add_2ul_2ul (unsigned long *r1, unsigned long *r2,
 #endif
 }
 
-/* Adds two unsigned longs from two unsigned longs with carry propagation 
+/* Add a uint64_t to two uint64_t with carry propagation from low word (r1)
+   to high word (r2). Any carry out from high word is lost. */
+
+static inline void
+u64arith_add_1_2 (uint64_t *r1, uint64_t *r2, const uint64_t a)
+{
+  /* We have assembly only for x86_64 and on that architecture, this function
+     would generate the same code as u64arith_add_2_2() with an immediate
+     zero value for the high word, so we fall back to that. */
+  u64arith_add_2_2(r1, r2, a, 0);
+}
+
+
+/* Adds two uint64_t from two uint64_t with carry propagation 
    from low word (r1) to high word (r2). Returns 1 if there was a carry out 
    from high word, otherwise returns 0. */
 
 static inline char
-ularith_add_2ul_2ul_cy (unsigned long *r1, unsigned long *r2, 
-			const unsigned long a1, const unsigned long a2)
+u64arith_add_2_2_cy (uint64_t *r1, uint64_t *r2, 
+		     const uint64_t a1, const uint64_t a2)
 {
   char cy;
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_add_2ul_2ul_cy (%0, %1, %2, %3)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_add_2_2_cy (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "addq %3, %0\n\t"
     "adcq %4, %1\n\t"
@@ -185,20 +92,11 @@ ularith_add_2ul_2ul_cy (unsigned long *r1, unsigned long *r2,
     : "+&r" (*r1), "+r" (*r2), "=r" (cy)
     : "rme" (a1), "rme" (a2)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "addl %3, %0\n\t"
-    "adcl %4, %1\n"
-    "setc %2\n"
-    : "+&r" (*r1), "+r" (*r2), "=r" (cy)
-    : "g" (a1), "g" (a2)
-    : "cc");
 #else
-  unsigned long u1 = *r1 + a1, u2 = *r2 + a2;
-  if (u1 < *r1)
-    u2++;
+  uint64_t u1 = *r1 + a1,
+           u2 = *r2 + a2 + (u1 < *r1);
   /* Overflow occurred iff the sum is smaller than one of the summands */
-  cy = ularith_gt_2ul_2ul(a1, a2, u1, u2);
+  cy = u64arith_gt_2_2(a1, a2, u1, u2);
   *r1 = u1;
   *r2 = u2;
 #endif
@@ -207,22 +105,21 @@ ularith_add_2ul_2ul_cy (unsigned long *r1, unsigned long *r2,
 
 
 /* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
-MAYBE_UNUSED
 static inline void
-ularith_addmod_ul_ul (unsigned long *r, const unsigned long a,
-               const unsigned long b, const unsigned long m)
+u64arith_addmod_1_1 (uint64_t *r, const uint64_t a,
+                     const uint64_t b, const uint64_t m)
 {
   ASSERT_EXPENSIVE (a < m && b <= m);
 
-#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   {
-    unsigned long t = a + b, tr = a - m;
+    uint64_t t = a + b, tr = a - m;
 
     __asm__ __VOLATILE (
-      "add %2, %0\n\t"   /* tr += b */
+      "addq %2, %0\n\t"   /* tr += b */
       "cmovnc %1, %0\n\t"  /* if (!cy) tr = t */
       : "+&r" (tr)
-      : "rm" (t), ULARITH_CONSTRAINT_G (b)
+      : "rm" (t), "rme" (b)
       : "cc"
     );
     ASSERT_EXPENSIVE (tr == ((a >= m - b) ? (a - (m - b)) : (a + b)));
@@ -236,34 +133,27 @@ ularith_addmod_ul_ul (unsigned long *r, const unsigned long a,
 }
 
 
-/* Subtract an unsigned long from two unsigned longs with borrow propagation 
+/* Subtract an uint64_t from two uint64_t with borrow propagation 
    from low word (r1) to high word (r2). Any borrow out from high word is 
    lost. */
 
 static inline void
-ularith_sub_ul_2ul (unsigned long *r1, unsigned long *r2, 
-			const unsigned long a)
+u64arith_sub_1_2 (uint64_t *r1, uint64_t *r2, 
+                  const uint64_t a)
 {
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_sub_ul_2ul  (%0, %1, %2)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sub_1_2  (%0, %1, %2)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "subq %2, %0\n\t"
     "sbbq $0, %1\n"
     : "+&r" (*r1), "+r" (*r2)
     : "rme" (a)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "subl %2, %0\n\t"
-    "sbbl $0, %1\n"
-    : "+&r" (*r1), "+r" (*r2)
-    : "g" (a)
-    : "cc");
 #else
-  unsigned long u = *r1;
+  uint64_t u = *r1;
   *r1 -= a;
   if (*r1 > u)
     (*r2)--;
@@ -271,34 +161,27 @@ ularith_sub_ul_2ul (unsigned long *r1, unsigned long *r2,
 }
 
 
-/* Subtract two unsigned longs from two unsigned longs with borrow propagation 
+/* Subtract two uint64_t from two uint64_t with borrow propagation 
    from low word (r1) to high word (r2). Any borrow out from high word is 
    lost. */
 
 static inline void
-ularith_sub_2ul_2ul (unsigned long *r1, unsigned long *r2, 
-			 const unsigned long a1, const unsigned long a2)
+u64arith_sub_2_2 (uint64_t *r1, uint64_t *r2, 
+		  const uint64_t a1, const uint64_t a2)
 {
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_sub_2ul_2ul (%0, %1, %2, %3)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sub_2_2 (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "subq %2, %0\n\t"
     "sbbq %3, %1\n"
     : "+&r" (*r1), "+r" (*r2)
     : "rme" (a1), "rme" (a2)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "subl %2, %0\n\t"
-    "sbbl %3, %1\n"
-    : "+&r" (*r1), "+r" (*r2)
-    : "g" (a1), "g" (a2)
-    : "cc");
 #else
-  unsigned long u = *r1;
+  uint64_t u = *r1;
   *r1 -= a1;
   *r2 -= a2;
   if (*r1 > u)
@@ -306,20 +189,20 @@ ularith_sub_2ul_2ul (unsigned long *r1, unsigned long *r2,
 #endif
 }
 
-/* Subtract two unsigned longs from two unsigned longs with borrow propagation 
+/* Subtract two uint64_t from two uint64_t with borrow propagation 
    from low word (r1) to high word (r2). Returns 1 if there was a borrow out 
    from high word, otherwise returns 0. */
 
 static inline char
-ularith_sub_2ul_2ul_cy (unsigned long *r1, unsigned long *r2, 
-			const unsigned long a1, const unsigned long a2)
+u64arith_sub_2_2_cy (uint64_t *r1, uint64_t *r2, 
+                     const uint64_t a1, const uint64_t a2)
 {
   char cy;
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_sub_2ul_2ul_cy (%0, %1, %2, %3)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sub_2_2_cy (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "subq %3, %0\n\t"
     "sbbq %4, %1\n\t"
@@ -327,48 +210,34 @@ ularith_sub_2ul_2ul_cy (unsigned long *r1, unsigned long *r2,
     : "+&r" (*r1), "+r" (*r2), "=r" (cy)
     : "rme" (a1), "rme" (a2)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "subl %3, %0\n\t"
-    "sbbl %4, %1\n"
-    "setc %2\n"
-    : "+&r" (*r1), "+r" (*r2), "=q" (cy)
-    : "g" (a1), "g" (a2)
-    : "cc");
 #else
-  unsigned long u1 = *r1 - a1, u2 = *r2 - a2;
+  uint64_t u1 = *r1 - a1, u2 = *r2 - a2;
   if (a1 > *r1)
     u2--;
-  cy = ularith_gt_2ul_2ul(a1, a2, *r1, *r2);
+  cy = u64arith_gt_2_2(a1, a2, *r1, *r2);
   *r1 = u1;
   *r2 = u2;
 #endif
   return cy;
 }
 
+
 /* Subtract only if result is non-negative */
 
 static inline void
-ularith_sub_ul_ul_ge (unsigned long *r, const unsigned long a)
+u64arith_sub_1_1_ge (uint64_t *r, const uint64_t a)
 {
-  unsigned long t = *r;
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_sub_2ul_2ul_ge (%0, %1, %2, %3)\n" : : 
+  uint64_t t = *r;
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sub_1_1_ge (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "subq %2, %0\n\t" /* r -= a */
     "cmovc %1, %0\n\t" /* If there's a borrow, restore r from t */
     : "+&r" (*r)
     : "r" (t), "rme" (a)
-    : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "subl %2, %0\n\t"
-    "cmovc %1, %0\n\t"
-    : "+&r" (*r)
-    : "r" (t), "g" (a)
     : "cc");
 #else
   t -= a;
@@ -379,15 +248,15 @@ ularith_sub_ul_ul_ge (unsigned long *r, const unsigned long a)
 
 
 static inline void
-ularith_sub_2ul_2ul_ge (unsigned long *r1, unsigned long *r2, 
-			const unsigned long a1, const unsigned long a2)
+u64arith_sub_2_2_ge (uint64_t *r1, uint64_t *r2, 
+                     const uint64_t a1, const uint64_t a2)
 {
-  unsigned long t1 = *r1, t2 = *r2;
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_sub_2ul_2ul_ge (%0, %1, %2, %3)\n" : : 
+  uint64_t t1 = *r1, t2 = *r2;
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sub_2_2_ge (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "subq %4, %0\n\t" /* r1 -= a1 */
     "sbbq %5, %1\n\t" /* r2 -= a2 + cy */
@@ -396,16 +265,8 @@ ularith_sub_2ul_2ul_ge (unsigned long *r1, unsigned long *r2,
     : "+&r" (*r1), "+&r" (*r2)
     : "r" (t1), "r" (t2), "rme" (a1), "rme" (a2)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE ( "subl %4, %0\n\t"
-    "sbbl %5, %1\n\t"
-    "cmovc %2, %0\n\t"
-    "cmovc %3, %1\n\t"
-    : "+&r" (*r1), "+&r" (*r2)
-    : "r" (t1), "r" (t2), "g" (a1), "g" (a2)
-    : "cc");
 #else
-  if (!ularith_gt_2ul_2ul(a1, a2, *r1, *r2))
+  if (!u64arith_gt_2_2(a1, a2, *r1, *r2))
     {
       *r1 = t1 - a1;
       *r2 = t2 - a2 - (a1 > t1);
@@ -414,21 +275,20 @@ ularith_sub_2ul_2ul_ge (unsigned long *r1, unsigned long *r2,
 }
 
 
-MAYBE_UNUSED
 static inline void
-ularith_submod_ul_ul (unsigned long *r, const unsigned long a,
-                      const unsigned long b, const unsigned long m)
+u64arith_submod_1_1 (uint64_t *r, const uint64_t a,
+                     const uint64_t b, const uint64_t m)
 {
   ASSERT_EXPENSIVE (a < m && b < m);
-#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   {
-    unsigned long tr, t = a;
+    uint64_t tr, t = a;
     __asm__ __VOLATILE (
       "sub %2, %1\n\t"  /* t -= b ( = a - b) */
       "lea (%1,%3,1), %0\n\t" /* tr = t + m ( = a - b + m) */
       "cmovnc %1, %0\n\t" /* if (a >= b) tr = t */
       : "=&r" (tr), "+&r" (t)
-      : ULARITH_CONSTRAINT_G (b), "r" (m)
+      : "rme" (b), "r" (m)
       : "cc"
     );
     r[0] = tr;
@@ -436,7 +296,7 @@ ularith_submod_ul_ul (unsigned long *r, const unsigned long a,
 #elif 1
   /* Seems to be faster than the one below */
   {
-    unsigned long t = 0UL, tr;
+    uint64_t t = 0, tr;
     if ((tr = a - b) > a)
       t = m;
     r[0] = tr + t;
@@ -449,51 +309,51 @@ ularith_submod_ul_ul (unsigned long *r, const unsigned long a,
 }
 
 
-/* Multiply two unsigned long "a" and "b" and put the result as 
+/* Multiply two uint64_t "a" and "b" and put the result as 
    r2:r1 (r2 being the high word) */
 
 static inline void
-ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2, 
-			   const unsigned long a, const unsigned long b)
+u64arith_mul_1_1_2 (uint64_t *r1, uint64_t *r2, 
+		    const uint64_t a, const uint64_t b)
 {
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_mul_ul_ul_2ul (%0, %1, %2, %3)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_mul_1_1_2 (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a), "X" (b));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "mulq %3"
     : "=a" (*r1), "=d" (*r2)
     : "%0" (a), "rm" (b)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "mull %3"
-    : "=a" (*r1), "=d" (*r2)
-    : "%0" (a), "rm" (b)
-    : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+#elif 0 && !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+/*
+  This is the 32-bit code. Do not use.
+  TODO: use correct instruction for ARM64. Need an ARM64 system to test.
+  Raspberry Pi in principle has a 64-bit cpu, but Raspbian runs it in
+  32-bit mode. There are experimental 64-bit OS for the Pi, though. */
+*/
   __asm__ __VOLATILE(
    "umull   %[r1], %[r2], %[a], %[b]\n\t"
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a), [b] "r" (b)
   );
 #else
-  const int half = LONG_BIT / 2;
-  const unsigned long mask = (1UL << half) - 1UL;
-  unsigned long t1, t2, p1, p2;
+  const uint64_t mask = ((uint64_t)1 << 32) - 1;
+  const uint64_t ah = a >> 32, al = a & mask, bh = b >> 32, bl = b & mask;
+  uint64_t t1, t2, p1, p2;
 
-  t1 = (a & mask) * (b & mask);
-  t2 = 0UL;
-  p1 = (a >> half) * (b & mask);
-  p2 = p1 >> half;
-  p1 = (p1 & mask) << half;
-  ularith_add_2ul_2ul (&t1, &t2, p1, p2);
-  p1 = (a & mask) * (b >> half);
-  p2 = p1 >> half;
-  p1 = (p1 & mask) << half;
-  ularith_add_2ul_2ul (&t1, &t2, p1, p2);
-  t2 += (a >> half) * (b >> half);
+  t1 = al * bl;
+  t2 = 0;
+  p1 = ah * bl;
+  p2 = p1 >> 32;
+  p1 = (p1 & mask) << 32;
+  u64arith_add_2_2 (&t1, &t2, p1, p2);
+  p1 = al * bh;
+  p2 = p1 >> 32;
+  p1 = (p1 & mask) << 32;
+  u64arith_add_2_2 (&t1, &t2, p1, p2);
+  t2 += ah * bh;
   *r1 = t1; 
   *r2 = t2;
 #endif
@@ -501,125 +361,58 @@ ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2,
 
 
 static inline void
-ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2, 
-		    const unsigned long a)
+u64arith_sqr_1_2 (uint64_t *r1, uint64_t *r2, 
+		  const uint64_t a)
 {
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_mul_ul_ul_2ul (%0, %1, %2)\n" : : 
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_sqr_1_2 (%0, %1, %2)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a));
 #endif
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "mulq %%rax"
     : "=a" (*r1), "=d" (*r2)
     : "0" (a)
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "mull %%eax"
-    : "=a" (*r1), "=d" (*r2)
-    : "0" (a)
-    : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+#elif 0 && !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
+/*
+  This is the 32-bit code. Do not use.
+  TODO: use correct instruction for ARM64. Need an ARM64 system to test.
+  Raspberry Pi in principle has a 64-bit cpu, but Raspbian runs it in
+  32-bit mode. There are experimental 64-bit OS for the Pi, though. */
+*/
   __asm__ __VOLATILE(
    "umull   %[r1], %[r2], %[a], %[a]\n\t"
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a)
   );
 #else
-  const int half = LONG_BIT / 2;
-  const unsigned long mask = (1UL << half) - 1UL;
-  unsigned long t1, t2, p1, p2;
+  const uint64_t mask = ((uint64_t)1 << 32) - 1;
+  const uint64_t ah = a >> 32, al = a & mask;
+  uint64_t t1, t2, p1, p2;
 
-  t1 = (a & mask) * (a & mask);
-  t2 = 0UL;
-  p1 = (a >> half) * (a & mask);
-  p2 = p1 >> half;
-  p1 = (p1 & mask) << half;
-  ularith_add_2ul_2ul (&t1, &t2, p1, p2);
-  ularith_add_2ul_2ul (&t1, &t2, p1, p2);
-  t2 += (a >> half) * (a >> half);
+  t1 = al * al;
+  t2 = 0;
+  p1 = ah * al;
+  p2 = p1 >> 32;
+  p1 = (p1 & mask) << 32;
+  u64arith_add_2_2 (&t1, &t2, p1, p2);
+  u64arith_add_2_2 (&t1, &t2, p1, p2);
+  t2 += ah * ah;
   *r1 = t1; 
   *r2 = t2;
 #endif
 }
 
 
-/* Integer division of a two ulong value a2:a1 by a ulong divisor. Returns
-   quotient and remainder. */
-
-static inline void
-ularith_div_2ul_ul_ul (unsigned long *q, unsigned long *r, 
-			   const unsigned long a1, const unsigned long a2, 
-			   const unsigned long b)
-{
-  ASSERT(a2 < b); /* Or there will be quotient overflow */
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_div_2ul_ul_ul (%0, %1, %2, %3, %4)\n" : : 
-           "X" (*q), "X" (*r), "X" (a1), "X" (a2), "X" (b));
-#endif
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-  __asm__ __VOLATILE (
-    "divq %4"
-    : "=a" (*q), "=d" (*r)
-    : "0" (a1), "1" (a2), "rm" (b)
-    : "cc");
-#elif defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "divl %4"
-    : "=a" (*q), "=d" (*r)
-    : "0" (a1), "1" (a2), "rm" (b)
-    : "cc");
-#else
-  mp_limb_t A[2] = {a1, a2};
-  ASSERT(sizeof(unsigned long) == sizeof(mp_limb_t));
-  r[0] = mpn_divmod_1 (A, A, 2, b);
-  q[0] = A[0];
-#endif
-}
-
-
-/* Integer division of a two longint value by a longint divisor. Returns
-   only remainder. */
-
-static inline void
-ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
-                 const unsigned long a2, const unsigned long b)
-{
-  ASSERT(a2 < b); /* Or there will be quotient overflow */
-#ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_div_2ul_ul_ul_r (%0, %1, %2, %3)\n" : : 
-           "X" (*r), "X" (a1), "X" (a2), "X" (b));
-#endif
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-  __asm__ __VOLATILE (
-    "divq %3"
-    : "+a" (a1), "=d" (*r)
-    : "1" (a2), "rm" (b)
-    : "cc");
-#elif defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "divl %3"
-    : "+a" (a1), "=d" (*r)
-    : "1" (a2), "rm" (b)
-    : "cc");
-#else
-  mp_limb_t A[2] = {a1, a2};
-  ASSERT(sizeof(unsigned long) == sizeof(mp_limb_t));
-  r[0] = mpn_divmod_1 (A, A, 2, b);
-#endif
-}
-
-
 /* Set *r to lo shifted right by i bits, filling in the low bits from hi into the high
-   bits of *r. I.e., *r = (hi * 2^LONG_BIT + lo) / 2^i. Assumes 0 <= i < LONG_BIT. */
-MAYBE_UNUSED
+   bits of *r. I.e., *r = (hi * 2^64 + lo) / 2^i. Assumes 0 <= i < 64. */
 static inline void
-ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
+u64arith_shrd (uint64_t *r, const uint64_t hi, const uint64_t lo,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (0 <= i && i < LONG_BIT);
-#ifdef ULARITH_VERBOSE_ASM
+  ASSERT_EXPENSIVE (i < 64);
+#ifdef U64ARITH_VERBOSE_ASM
 /* Disable the "uninitialized" warning here, as *r is only written to and
    does not need to be initialized, but we need to write (*r) here so the
    "X" constraint can be resolved even when r does not have an address, e.g.,
@@ -632,84 +425,90 @@ ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
 #endif
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  __asm__ ("# ularith_shrd (*r=%0, hi=%1, lo=%2, i=%3)\n" : : 
+  __asm__ ("# u64arith_shrd (*r=%0, hi=%1, lo=%2, i=%3)\n" : : 
            "X" (*r), "X" (hi), "X" (lo), "X" (i));
 #if GNUC_VERSION_ATLEAST(4,6,0)
 #pragma GCC diagnostic pop
 #endif
 #endif
 
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "shrdq %3, %1, %0\n"
     : "=rm" (*r)
     : "r" (hi), "0" (lo), "cJ" (i) /* i can be in %cl or a literal constant < 64 */
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "shrdl %3, %1, %0\n"
-    : "=rm" (*r)
-    : "r" (hi), "0" (lo), "cI" (i) /* i can be in %cl or a literal constant < 32 */
-    : "cc");
 #else
-  if (i > 0) /* shl by LONG_BIT is no-op on x86! */
-    *r = (lo >> i) | (hi << (LONG_BIT - i));
+  if (i > 0) /* shl by 64 is no-op on x86! */
+    *r = (lo >> i) | (hi << (64 - i));
   else
     *r = lo;
 #endif
 }
 
-/* Set *r to hi shifted left by i bits, filling in the high bits from lo into the low
-   bits of *r. I.e., *r = (hi + lo*2^-LONG_BIT) * 2^i. Assumes 0 <= i < LONG_BIT. */
-MAYBE_UNUSED
+
+/* Shift the 128-bit integer in lo:hi right by i bits */
+
 static inline void
-ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
+u64arith_shr_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
+{
+  u64arith_shrd(lo, *hi, *lo, i);
+  *hi >>= i;
+}
+
+/* Set *r to hi shifted left by i bits, filling in the high bits from lo into the low
+   bits of *r. I.e., *r = (hi + lo*2^-64) * 2^i. Assumes 0 <= i < 64. */
+static inline void
+u64arith_shld (uint64_t *r, const uint64_t lo, const uint64_t hi,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (0 <= i && i < LONG_BIT);
-#ifdef ULARITH_VERBOSE_ASM
+  ASSERT_EXPENSIVE (i < 64);
+#ifdef U64ARITH_VERBOSE_ASM
 #if GNUC_VERSION_ATLEAST(4,4,0)
 #if GNUC_VERSION_ATLEAST(4,6,0)
 #pragma GCC diagnostic push
 #endif
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  __asm__ ("# ularith_shld (*r=%0, lo=%1, hi=%2, i=%3)\n" : : 
+  __asm__ ("# u64arith_shld (*r=%0, lo=%1, hi=%2, i=%3)\n" : : 
            "X" (*r), "X" (lo), "X" (hi), "X" (i));
 #if GNUC_VERSION_ATLEAST(4,6,0)
 #pragma GCC diagnostic pop
 #endif
 #endif
 
-#if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "shldq %3, %1, %0\n"
     : "=rm" (*r)
     : "r" (lo), "0" (hi), "cJ" (i) /* i can be in %cl or a literal constant < 64 */
     : "cc");
-#elif !defined (ULARITH_NO_ASM) && defined(__i386__) && defined(__GNUC__)
-  __asm__ __VOLATILE (
-    "shldl %3, %1, %0\n"
-    : "=rm" (*r)
-    : "r" (lo), "0" (hi), "cI" (i) /* i can be in %cl or a literal constant < 32 */
-    : "cc");
 #else
-  if (i > 0) /* shr by LONG_BIT is no-op on x86! */
-    *r = (hi << i) | (lo >> (LONG_BIT - i));
+  if (i > 0) /* shr by 64 is no-op on x86! */
+    *r = (hi << i) | (lo >> (64 - i));
   else
     *r = hi;
 #endif
 }
 
-/* Returns number of trailing zeros in a. a must not be zero */
-MAYBE_UNUSED
-static inline int
-ularith_ctz (const unsigned long a)
+
+/* Shift the 128-bit integer in lo:hi left by i bits */
+
+static inline void
+u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 {
-#if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \
+  u64arith_shld(hi, *lo, *hi, i);
+  *lo <<= i;
+}
+
+/* Returns number of trailing zeros in a. a must not be zero */
+static inline int
+u64arith_ctz (const uint64_t a)
+{
+#if !defined (U64ARITH_NO_ASM) && defined(__GNUC__) && \
     (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
-  ASSERT_EXPENSIVE (a != 0UL);
-  return __builtin_ctzl(a);
+  ASSERT_EXPENSIVE (a != 0);
+  return __builtin_ctzll(a);
 #else
   static const unsigned char trailing_zeros[256] =
     {8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
@@ -721,8 +520,8 @@ ularith_ctz (const unsigned long a)
      6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
      5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0};
   char lsh, t = 0;
-  unsigned long y = a;
-  ASSERT_EXPENSIVE (a != 0UL);
+  uint64_t y = a;
+  ASSERT_EXPENSIVE (a != 0);
   do {
     lsh = trailing_zeros [(unsigned char) y];
     y >>= lsh;
@@ -733,47 +532,236 @@ ularith_ctz (const unsigned long a)
 }
 
 /* Returns number of leading zeros in a. a must not be zero */
-MAYBE_UNUSED
 static inline int
-ularith_clz (const unsigned long a)
+u64arith_clz (const uint64_t a)
 {
-#if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \
+#if !defined (U64ARITH_NO_ASM) && defined(__GNUC__) && \
     (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
-  ASSERT_EXPENSIVE (a != 0UL);
-  return __builtin_clzl(a);
+  ASSERT_EXPENSIVE (a != 0);
+  if (sizeof(uint64_t) == sizeof(unsigned long))
+    return __builtin_clzl(a);
+  else if (sizeof(uint64_t) == sizeof(unsigned long long))
+    return __builtin_clzll(a);
+  else
+    assert(sizeof(uint64_t) == sizeof(unsigned long) || sizeof(uint64_t) == sizeof(unsigned long long));
 #else
-  unsigned long t = 1UL << (LONG_BIT - 1);
+  uint64_t t = (uint64_t)1 << (64 - 1);
   int i;
-  ASSERT_EXPENSIVE (a != 0UL);
-  for (i = 0; (a & t) == 0UL; i++)
+  ASSERT_EXPENSIVE (a != 0);
+  for (i = 0; (a & t) == 0; i++)
     t >>= 1;
   return i;
 #endif
 }
 
 
-/* Compute 1/n (mod 2^wordsize) */
-MAYBE_UNUSED
-static inline unsigned long
-ularith_invmod (const unsigned long n)
-{
-  unsigned long r;
+/* Let A = a1 + a2*2^64. Returns q = floor(A / b), r = A mod b. Requires
+   a2 < b. Slow, simple binary grammar-school division. Used as reference
+   for testing faster code on machines without hardware division. */
 
-  ASSERT (n % 2UL != 0UL);
+static inline void
+u64arith_divqr_2_1_1_slow (uint64_t *q, uint64_t *r,
+		      const uint64_t a1, const uint64_t a2,
+		      const uint64_t b)
+{
+  uint64_t R1 = a1, R2 = a2, D1 = 0, D2 = b, M = (uint64_t)1 << 63, Q = 0;
+
+  ASSERT(a2 < b); /* Or there will be quotient overflow */
+
+  for (int i = 0; i < 64; i++) {
+    u64arith_shr_2(&D2, &D1, 1);
+    /* if R >= D */
+    if (!u64arith_gt_2_2(D1, D2, R1, R2)) {
+      u64arith_sub_2_2(&R1, &R2, D1, D2); /* R := R - D */
+      Q += M;
+    }
+    M >>= 1;
+  }
+
+#ifdef WANT_ASSERT_EXPENSIVE
+  ASSERT_EXPENSIVE(R2 == 0 && R1 < b);
+  uint64_t P1, P2;
+  u64arith_mul_1_1_2(&P1, &P2, Q, b);
+  u64arith_add_2_2(&P1, &P2, R1, R2);
+  ASSERT_EXPENSIVE(P1 == a1 && P2 == a2);
+#endif
+  *q = Q;
+  *r = R1;
+}
+
+
+/* Computes (2^128-1) / d - 1 for 2^63 <= d < 2^64. */
+
+static inline uint64_t
+u64arith_reciprocal_for_div(const uint64_t d)
+{
+  /* Assumes 2^63 <= d <= 2^64-1 */
+  const uint64_t one = 1;
+  assert(d >= (one << 63));
+  /* lut[i] = (2^19 - 3 * 256) / (i + 256) */
+  static const uint16_t lut[256] = {2045, 2037, 2029, 2021, 2013, 2005, 1998,
+    1990, 1983, 1975, 1968, 1960, 1953, 1946, 1938, 1931, 1924, 1917, 1910,
+    1903, 1896, 1889, 1883, 1876, 1869, 1863, 1856, 1849, 1843, 1836, 1830,
+    1824, 1817, 1811, 1805, 1799, 1792, 1786, 1780, 1774, 1768, 1762, 1756,
+    1750, 1745, 1739, 1733, 1727, 1722, 1716, 1710, 1705, 1699, 1694, 1688,
+    1683, 1677, 1672, 1667, 1661, 1656, 1651, 1646, 1641, 1636, 1630, 1625,
+    1620, 1615, 1610, 1605, 1600, 1596, 1591, 1586, 1581, 1576, 1572, 1567,
+    1562, 1558, 1553, 1548, 1544, 1539, 1535, 1530, 1526, 1521, 1517, 1513,
+    1508, 1504, 1500, 1495, 1491, 1487, 1483, 1478, 1474, 1470, 1466, 1462,
+    1458, 1454, 1450, 1446, 1442, 1438, 1434, 1430, 1426, 1422, 1418, 1414,
+    1411, 1407, 1403, 1399, 1396, 1392, 1388, 1384, 1381, 1377, 1374, 1370,
+    1366, 1363, 1359, 1356, 1352, 1349, 1345, 1342, 1338, 1335, 1332, 1328,
+    1325, 1322, 1318, 1315, 1312, 1308, 1305, 1302, 1299, 1295, 1292, 1289,
+    1286, 1283, 1280, 1276, 1273, 1270, 1267, 1264, 1261, 1258, 1255, 1252,
+    1249, 1246, 1243, 1240, 1237, 1234, 1231, 1228, 1226, 1223, 1220, 1217,
+    1214, 1211, 1209, 1206, 1203, 1200, 1197, 1195, 1192, 1189, 1187, 1184,
+    1181, 1179, 1176, 1173, 1171, 1168, 1165, 1163, 1160, 1158, 1155, 1153,
+    1150, 1148, 1145, 1143, 1140, 1138, 1135, 1133, 1130, 1128, 1125, 1123,
+    1121, 1118, 1116, 1113, 1111, 1109, 1106, 1104, 1102, 1099, 1097, 1095,
+    1092, 1090, 1088, 1086, 1083, 1081, 1079, 1077, 1074, 1072, 1070, 1068,
+    1066, 1064, 1061, 1059, 1057, 1055, 1053, 1051, 1049, 1047, 1044, 1042,
+    1040, 1038, 1036, 1034, 1032, 1030, 1028, 1026, 1024};
+
+  const uint64_t
+      d0 = d % 2,
+      d9 = d >> 55, /* 2^8 <= d9 < 2^9 */
+      d40 = (d >> 24) + 1, /* 2^39 + 1 <= d40 < 2^40+1 */
+      d63 = d / 2 + d0; /* ceil(d/2), 2^62 <= d63 <= 2^63 */
+  
+  uint64_t
+    v0 = lut[d9 - 256],
+    v1 = (1<<11)*v0 - (v0*v0*d40 >> 40) - 1,
+    v2 = (v1 << 13) + (v1 * ((one << 60) - v1 * d40) >> 47),
+    p1, p2;
+  
+  u64arith_mul_1_1_2(&p1, &p2, v2, ((v2 / 2) & (-d0)) - v2 * d63);
+  uint64_t v3 = (v2 << 31) + p2 / 2;
+  
+  u64arith_mul_1_1_2(&p1, &p2, v3, d);
+  u64arith_add_2_2(&p1, &p2, d, d);
+  uint64_t v4 = v3 - p2;
+
+  return v4;
+}
+
+
+/* Integer division of two uint64_t values a2:a1 by a uint64_t divisor b.
+   Returns quotient and remainder. Uses the algorithm described in
+   Niels Möller and Torbjörn Granlund, Improved Division by Invariant
+   Integers, IEEE Transactions on Computers (Volume: 60, Issue: 2,
+   Feb. 2011) */
+
+static inline void
+u64arith_divqr_2_1_1_recip (uint64_t *q, uint64_t *r,
+		      const uint64_t a1, const uint64_t a2,
+		      const uint64_t b)
+{
+  if (a2 == 0) {
+    *q = a1 / b;
+    *r = a1 % b;
+    return;
+  }
+
+  uint64_t u0 = a1, u1 = a2, d = b;
+  /* Left-adjust dividend and divisor */
+  const int s = u64arith_clz(d);
+  u64arith_shl_2(&u0, &u1, s);
+  d <<= s;
+  const uint64_t v = u64arith_reciprocal_for_div(d);
+  uint64_t q0, q1;
+  u64arith_mul_1_1_2(&q0, &q1, v, u1);
+  u64arith_add_2_2(&q0, &q1, u0, u1);
+  q1++;
+  uint64_t r0 = u0 - q1*d;
+  if (r0 > q0) {
+    q1--;
+    r0 += d;
+  }
+  if (r0 >= d) {
+    q1++;
+    r0 -= d;
+  }
+  r0 >>= s;
+#ifdef WANT_ASSERT_EXPENSIVE
+  uint64_t P1, P2;
+  u64arith_mul_1_1_2(&P1, &P2, q1, b);
+  u64arith_add_2_2(&P1, &P2, r0, 0);
+  // printf("a1=%lu, a2=%lu, b=%lu, s=%d, q1=%lu, r0=%lu\n", a1, a2, b, s, q1, r0);
+  ASSERT_EXPENSIVE(P1 == a1 && P2 == a2);
+#endif
+  *q = q1;
+  *r = r0;
+}
+
+
+/* Integer division of two uint64_t values a2:a1 by a uint64_t divisor b.
+   Returns quotient and remainder. */
+
+static inline void
+u64arith_divqr_2_1_1 (uint64_t *q, uint64_t *r,
+		      const uint64_t a1, const uint64_t a2,
+		      const uint64_t b)
+{
+  ASSERT(a2 < b); /* Or there will be quotient overflow */
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_divqr_2_1_1 (%0, %1, %2, %3, %4)\n" : : 
+           "X" (*q), "X" (*r), "X" (a1), "X" (a2), "X" (b));
+#endif
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  __asm__ __VOLATILE (
+    "divq %4"
+    : "=a" (*q), "=d" (*r)
+    : "0" (a1), "1" (a2), "rm" (b)
+    : "cc");
+#else 
+  /* TODO: Replace by Möller/Granlund "Improved Division by Invariant Integers" */
+  u64arith_divqr_2_1_1_recip(q, r, a1, a2, b);
+#endif
+}
+
+
+/* Integer division of two uint64_t values by a uint64_t divisor. Returns
+   only remainder. */
+
+static inline void
+u64arith_divr_2_1_1 (uint64_t *r, uint64_t a1, const uint64_t a2,
+                     const uint64_t b)
+{
+  ASSERT(a2 < b); /* Or there will be quotient overflow */
+#ifdef U64ARITH_VERBOSE_ASM
+  __asm__ ("# u64arith_divr_2_1_1 (%0, %1, %2, %3)\n" : : 
+           "X" (*r), "X" (a1), "X" (a2), "X" (b));
+#endif
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  __asm__ __VOLATILE (
+    "divq %3"
+    : "+a" (a1), "=d" (*r)
+    : "1" (a2), "rm" (b)
+    : "cc");
+#else
+  uint64_t dummy;
+  u64arith_divqr_2_1_1(&dummy, r, a1, a2, b);
+#endif
+}
+
+
+/* Compute 1/n (mod 2^wordsize) */
+static inline uint64_t
+u64arith_invmod (const uint64_t n)
+{
+  uint64_t r;
+
+  ASSERT (n % 2 != 0);
   
   /* Suggestion from PLM: initing the inverse to (3*n) XOR 2 gives the
      correct inverse modulo 32, then 3 (for 32 bit) or 4 (for 64 bit) 
      Newton iterations are enough. */
-  r = (3UL * n) ^ 2UL;
+  r = (3 * n) ^ 2;
   /* Newton iteration */
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
-#if LONG_BIT == 32
-  r = 2UL * r - r * r * n;
-#else /* LONG_BIT == 32 */
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
+  r = 2 * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
+  r = 2 * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
 #if 0
-  r = 2UL * r - r * r * n;
+  r = 2 * r - r * r * n;
 #else
   /*
     r*n = k*2^32 + 1
@@ -784,26 +772,25 @@ ularith_invmod (const unsigned long n)
     r' = r - r * k*2^32
     r' = r - ((r * k) % 2^32) * 2^32
   */
-  unsigned int k = (unsigned int)(r * n >> 32);
-  k *= (unsigned int) r;
-  r = r - ((unsigned long)k << 32);
+  uint32_t k = (uint32_t)(r * n >> 32);
+  k *= (uint32_t) r;
+  r = r - ((uint64_t)k << 32);
 #endif
-#endif /* LONG_BIT == 32 */
 
   return r;
 }
 
 /* Compute n/2 (mod m), where m must be odd. */
-static inline unsigned long
-ularith_div2mod (const unsigned long n, const unsigned long m)
+static inline uint64_t
+u64arith_div2mod (const uint64_t n, const uint64_t m)
 {
-#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  unsigned long s = n, t = m;
-  ASSERT_EXPENSIVE (m % 2UL != 0UL);
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  uint64_t s = n, t = m;
+  ASSERT_EXPENSIVE (m % 2 != 0);
 
   __asm__ __VOLATILE(
 	  "add %1, %0\n\t"
-	  "rcr $1, %0\n\t"
+	  "rcr $1, %0\n\t" /* FIXME: rcr is SLOW! */
 	  "shr $1, %1\n\t"
 	  "cmovnc %1, %0\n"
 	  : "+&r" (t), "+&r" (s)
@@ -811,27 +798,26 @@ ularith_div2mod (const unsigned long n, const unsigned long m)
 	  );
   return t;
 #else
-  ASSERT_EXPENSIVE (m % 2UL != 0UL);
-  if (n % 2UL == 0UL)
-    return n / 2UL;
+  ASSERT_EXPENSIVE (m % 2 != 0);
+  if (n % 2 == 0)
+    return n / 2;
   else
-    return n / 2UL + m / 2UL + 1UL;
+    return n / 2 + m / 2 + 1;
 #endif
 }
 
 
 /* Integer (truncated) square root of n */
-static inline unsigned long
-ularith_sqrt (const unsigned long n)
+static inline uint64_t
+u64arith_sqrt (const uint64_t n)
 {
   unsigned int i;
-  unsigned long xs, c, d, s2;
-  const unsigned int l = (unsigned int)sizeof (unsigned long) * 8 - 1
-                       - (unsigned int)__builtin_clzl(n);
+  uint64_t xs, c, d, s2;
+  const unsigned int l = 63 - (unsigned int)__builtin_clzl(n);
 
   d = n; /* d = n - x^2 */
-  xs = 0UL;
-  s2 = 1UL << (l - l % 2);
+  xs = 0;
+  s2 = (uint64_t)1 << (l - l % 2);
 
   for (i = l / 2; i != 0; i--)
     {
@@ -843,7 +829,7 @@ ularith_sqrt (const unsigned long n)
       if (d >= c)
         {
           d -= c;
-          xs |= s2; /* x |= 1UL << i <=> xs |= 1UL << (2*i) */
+          xs |= s2; /* x |= 1 << i <=> xs |= 1 << (2*i) */
         }
       s2 >>= 2;
     }
@@ -871,49 +857,46 @@ ularith_sqrt (const unsigned long n)
    p (1 - 1/den) + 1 - 1/den =
    p + 1 - (p + 1)/den < p + 1.
    Thus t is almost a properly reduced residue for rem/den (mod p).
-   As p fits in unsigned long, so does t, and we can compute t modulo
-   2^LONGBITS; since den is odd, we can multiply by den^{-1} mod 2^LONGBITS
+   As p fits in uint64_t, so does t, and we can compute t modulo
+   2^64; since den is odd, we can multiply by den^{-1} mod 2^64
    to effect division by den.
 
    Finally we compute (t + ratio)/2^k mod p = num/(den*2^k) mod p.  */
 
-static inline unsigned long
-ularith_post_process_inverse(const unsigned long r, const unsigned long p,
-  const unsigned long rem, const unsigned long den_inv,
-  const unsigned long ratio, const unsigned long k)
+static inline uint64_t
+u64arith_post_process_inverse(const uint64_t r, const uint64_t p,
+  const uint64_t rem, const uint64_t den_inv,
+  const uint64_t ratio, const uint64_t k)
 {
-  unsigned long t = (r * p + rem) * den_inv;
-  const unsigned long ratio_p = (ratio >= p) ? ratio % p : ratio;
+  uint64_t t = (r * p + rem) * den_inv;
+  const uint64_t ratio_p = (ratio >= p) ? ratio % p : ratio;
   ASSERT_ALWAYS(t <= p); /* Cheap and fairly strong test */
-  /* ularith_addmod_ul_ul() accepts third operand == p and still produces
+  /* u64arith_addmod_1_1() accepts third operand == p and still produces
      a properly reduced sum mod p. */
-  ularith_addmod_ul_ul (&t, ratio_p, t, p);
+  u64arith_addmod_1_1 (&t, ratio_p, t, p);
 
   ASSERT_EXPENSIVE(t < p);
   ASSERT_EXPENSIVE(k == 0 || p % 2 == 1);
-  for (unsigned long j = 0; j < k; j++) {
-    t = ularith_div2mod(t, p);
+  for (uint64_t j = 0; j < k; j++) {
+    t = u64arith_div2mod(t, p);
   }
   return t;
 }
 
 
-/* Computes r = ((phigh * 2^LONG_BITS + plow) / 2^LONG_BITS) % m
-   Requires phigh < m and invm = -1/m (mod 2^LONG_BITS). */
+/* Computes r = ((phigh * 2^64 + plow) / 2^64) % m
+   Requires phigh < m and invm = -1/m (mod 2^64). */
 
 static inline void
-ularith_redc(unsigned long *r, const unsigned long plow,
-             const unsigned long phigh, const unsigned long m,
-             const unsigned long invm)
+u64arith_redc(uint64_t *r, const uint64_t plow,
+             const uint64_t phigh, const uint64_t m,
+             const uint64_t invm)
 {
-  unsigned long t = phigh;
-#ifndef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-  unsigned long tlow, thigh;
-#endif
+  uint64_t t = phigh;
 
   ASSERT_EXPENSIVE (phigh < m);
 
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
 
   /* TODO: are the register constraints watertight?
      %rax gets modified but putting tlow as an output constraint with "+"
@@ -934,20 +917,21 @@ ularith_redc(unsigned long *r, const unsigned long plow,
     : "%rdx", "cc"
   );
 #else
+  uint64_t tlow, thigh;
   tlow = plow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m);
+  u64arith_mul_1_1_2 (&tlow, &thigh, tlow, m);
   /* Let w = 2^wordsize. We know (phigh * w + plow) + (thigh * w + tlow)
      == 0 (mod w) so either plow == tlow == 0, or plow !=0 and tlow != 0.
      In the former case we want phigh + thigh + 1, in the latter
      phigh + thigh. Since t = phigh < m, and modredcul_add can handle the
      case where the second operand is equal to m, adding 1 is safe */
 
-  t += (plow != 0UL) ? 1UL : 0UL; /* Does not depend on the mul */
+  t += (plow != 0) ? 1 : 0; /* Does not depend on the mul */
 
-  ularith_addmod_ul_ul(r, t, thigh, m);
+  u64arith_addmod_1_1(r, t, thigh, m);
 #endif
   ASSERT_EXPENSIVE (r[0] < m);
 }
 
 
-#endif /* ifndef UL_ARITH_H__ */
+#endif /* ifndef U64_ARITH_H__ */

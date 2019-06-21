@@ -1,7 +1,7 @@
 #include "cado.h"
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
+#include <cstdio>
+#include <cstring>
+#include <cerrno>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "matmul_top.h"
@@ -75,6 +75,9 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             MPFQ_PRIME_MPZ, bw->p,
             MPFQ_SIMD_GROUPSIZE, As_width,
             MPFQ_DONE);
+    /* How many F files do we need to read simultaneously to form
+     * solutions[1]-solutions[0] columns ? */
+    unsigned int Af_multiplex = As_width / Av_width;
     /* }}} */
 
     /* {{{ ... and the combined operations */
@@ -177,6 +180,20 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     ASSERT_ALWAYS(bw->end == INT_MAX || bw->end % bw->interval == 0);
 
+    pi_interleaving_flip(pi);
+    if (bw->checkpoint_precious) {
+        if (tcan_print) {
+            printf("As per interval=%d checkpoint_precious=%d, we'll load vectors every %d iterations, and print timings every %d iterations\n",
+                    bw->interval,
+                    bw->checkpoint_precious,
+                    bw->checkpoint_precious,
+                    bw->interval);
+        }
+    } else {
+        bw->checkpoint_precious = bw->interval;
+    }
+    pi_interleaving_flip(pi);
+
     /* {{{ Prepare temp space for F coefficients */
     /* F plays the role of a right-hand-side in mksol. Vector iterates
      * have to be multiplied on the right by a matrix corresponding to
@@ -205,19 +222,38 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      * Same considerations apply w.r.t the memory footprint.
      *
      * We have Av_multiplex "sets of rows", and As_multiplex "sets of columns".
+     *
+     * This is complicated further by the facts that the "sets of
+     * columns" above (on which we do spmv) are actually divided into
+     * several smaller sets. The number of these subsets is Af_multiplex,
+     * and each holds splitwidth columns.
      */
-    void ** fcoeffs = new void*[Av_multiplex * As_multiplex];
     size_t one_fcoeff = As->vec_elt_stride(As, Av->simd_groupsize(Av));
     if (tcan_print) {
-        printf("Each thread allocates %zd kb for the F matrices\n",
-                (Av_multiplex *
-                 As_multiplex *
-                 one_fcoeff *
-                 bw->interval) >> 10);
+        char buf[20];
+        printf("Each thread allocates %d*%u*%u*%zu*%d=%s for the F matrices\n",
+                Af_multiplex > 1 ? 2 : 1,
+                Av_multiplex,
+                As_multiplex,
+                one_fcoeff,
+                bw->interval,
+                size_disp(
+                    (Af_multiplex > 1 ? 2 : 1) *
+                    Av_multiplex *
+                    As_multiplex *
+                    one_fcoeff *
+                    bw->interval, buf));
     }
+    void ** fcoeffs = new void*[Av_multiplex * As_multiplex];
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
         cheating_vec_init(As, &(fcoeffs[k]), one_fcoeff * bw->interval);
         As->vec_set_zero(As, fcoeffs[k], one_fcoeff * bw->interval);
+    }
+    ASSERT_ALWAYS(Av_width * Af_multiplex == (unsigned int) As->simd_groupsize(As));
+    void * fcoeff_tmp = NULL;
+    if (Af_multiplex > 1) {
+            cheating_vec_init(As, &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
+            As->vec_set_zero(As, fcoeff_tmp, one_fcoeff / Af_multiplex * bw->interval);
     }
     /* }}} */
     
@@ -232,204 +268,259 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     /* }}} */
 
+    int bw_end_copy = bw->end; /* avoid race conditions w/ interleaving */
     pi_interleaving_flip(pi);
     pi_interleaving_flip(pi);
 
-    for(int s = bw->start ; s < bw->end ; s += bw->interval ) {
+    for(int s = bw->start ; s < bw_end_copy ; s += bw->checkpoint_precious ) {
         serialize(pi->m);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int ys[2] = { i * splitwidth, (i + 1) * splitwidth };
             char * v_name = NULL;
-            int rc = asprintf(&v_name, "V%u-%u.%u", ys[0], ys[1], s);
+            int rc = asprintf(&v_name, "V%s.%u", "%u-%u", s);
             ASSERT_ALWAYS(rc >= 0);
-            if (tcan_print) {
-                printf(fake ? "Creating fake %s..." : "Loading %s ...",
-                        v_name);
-                fflush(stdout);
-            }
             if (fake) {
-                mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate);
+                mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate, ys[0]);
             } else {
-                mmt_vec_load(vi[i], v_name, unpadded);
+                mmt_vec_load(vi[i], v_name, unpadded, ys[0]);
                 mmt_vec_reduce_mod_p(vi[i]);
             }
             mmt_vec_twist(mmt, vi[i]);
-            if (tcan_print) { printf("done\n"); }
             free(v_name);
         }
+
         serialize(pi->m);
-        if (pi->m->trank == 0 && pi->m->jrank == 0) {
-            int rc0 = 0, rc = 0;
+
+        mmt_full_vec_set_zero(ymy[0]);
+
+        int sx = MIN(bw_end_copy, s + bw->checkpoint_precious);
+        if (tcan_print) {
+            /*
+            printf("// bw->start=%d bw_end_copy=%d sx=%d s=%d\n",
+                    bw->start,
+                    bw_end_copy,
+                    sx, s);
+                    */
+            printf("about to do %d iterations starting from vectors at iteration %d to handle the coefficients of degree [%d..%d] in F\n", sx-s-1, s, s, sx-1);
+        }
+
+        /* read coefficients of F by windows */
+        int n_windows = bw->checkpoint_precious / bw->interval;
+
+        for(int i_window = 0 ; i_window < n_windows ; i_window++) {
+            /* We'll read from coefficient s0 */
+            int s0 = s + (n_windows - 1 - i_window) * bw->interval;
+            int s1 = s + (n_windows     - i_window) * bw->interval;
+            if (s0 >= bw_end_copy)
+                continue;
+
+            /* This is used only on the leader node */
+            bool short_read = false;
+
+            serialize(pi->m);
+            if (pi->m->trank == 0 && pi->m->jrank == 0) {
+                int rc0 = 0, rc = 0;
+                for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
+                    for(unsigned int j = 0 ; j < As_multiplex ; j++) {
+                        void * ff = fcoeffs[j * Av_multiplex + i];
+                        /* points to bw->interval * one_fcoeff */
+                        /* Zero out first, then read; when we reach EOF while
+                         * reading F, it is crucially important that we have
+                         * a zero area past the end of the file ! */
+                        As->vec_set_zero(As, ff, one_fcoeff * bw->interval);
+
+                        /* Now read piece by piece */
+                        for(unsigned int k = 0 ; k < Af_multiplex ; k++) {
+                            void * buffer;
+                            if (Af_multiplex == 1) {
+                                buffer = ff;
+                            } else {
+                                buffer = fcoeff_tmp;
+                            }
+
+                            char * tmp;
+                            unsigned int sol0, sol1;
+                            sol0 = (j * Af_multiplex + k) * Av_width;
+                            sol0 += solutions[0];
+                            sol1 = sol0 + Av_width;
+                            rc = asprintf(&tmp, "F.sols%u-%u.%u-%u",
+                                    sol0, sol1,
+                                    i * Av_width, (i + 1) * Av_width);
+
+                            // printf("[%d] reading from %s\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
+                            FILE * f = fopen(tmp, "rb");
+                            DIE_ERRNO_DIAG(f == NULL, "fopen", tmp);
+                            rc = fseek(f, one_fcoeff / Af_multiplex * s0, SEEK_SET);
+                            if (rc >= 0) {
+                                /* Read everything in one go. We might want to
+                                 * reconsider how the coefficients inside the
+                                 * individual F files are written -- transposed or
+                                 * not. Of course that does not matter for the prime
+                                 * case where individual F files are polynomials, but
+                                 * surely it does in the binary case where individual
+                                 * F files are a priori made of 64*64 matrices.
+                                 */
+                                rc = fread(buffer, one_fcoeff / Af_multiplex, bw->interval, f);
+                                ASSERT_ALWAYS(rc >= 0 && rc <= bw->interval);
+                                if (Af_multiplex > 1) {
+                                    /* spread to fcoeff */
+                                    const void * src = buffer;
+                                    void * dst = Av->vec_subvec(Av, ff, k);
+                                    for(unsigned int row = 0 ; row < Av_width *  rc; row++) {
+                                        memcpy(dst, src, Av->vec_elt_stride(Av, 1));
+                                        src = Av->vec_subvec_const(Av, src, 1);
+                                        dst = Av->vec_subvec(Av, dst, Af_multiplex);
+                                    }
+                                }
+                            } else {
+                                /* Otherwise we're off bounds already, don't try
+                                 * to read anything...
+                                 */
+                                rc = 0;
+                            }
+
+                            if (i == 0 && j == 0 && k == 0) rc0 = rc;
+
+                            if (rc != rc0) {
+                                fprintf(stderr, "Inconsistency in number of "
+                                        "coefficients for F files\n");
+                                exit(EXIT_FAILURE);
+                            }
+                            /* TODO: *maybe* transpose the F coefficients
+                             * at this point */
+                            fclose(f);
+                            free(tmp);
+                        }
+                    }
+                }
+
+                if (rc0 < bw->interval) {
+                    short_read = true;
+                    if (s1 != sx) {
+                        fprintf(stderr, "Problem while reading coefficients of f for degrees [%d..%d[ ; we should not have a short read given that bw->end=%d\n",
+                                s0, s1, bw_end_copy);
+                        exit(EXIT_FAILURE);
+                    }
+                    sx = bw_end_copy = s0+rc;
+                }
+            }
+            serialize(pi->m);
+            pi_bcast(&s0, 1, BWC_PI_INT, 0, 0, pi->m);
+            pi_bcast(&s1, 1, BWC_PI_INT, 0, 0, pi->m);
+            pi_bcast(&sx, 1, BWC_PI_INT, 0, 0, pi->m);
+            pi_bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0, pi->m);
+
+            serialize_threads(mmt->pi->m);
+
+            if (s0 == bw_end_copy)
+                continue;
+
+            if (bw_end_copy < s1)
+                s1 = bw_end_copy;
+
+            if (tcan_print && short_read)
+                printf("We read %d coefficients from F in total\n", bw_end_copy);
+
+            /* broadcast f */
             for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                 for(unsigned int j = 0 ; j < As_multiplex ; j++) {
                     void * ff = fcoeffs[i * As_multiplex + j];
-
-                    /* Zero out first, then read; when we reach EOF while
-                     * reading F, it is crucially important that we have
-                     * a zero area past the end of the file ! */
-                    As->vec_set_zero(As, ff, one_fcoeff * bw->interval);
-
-                    char * tmp;
-                    rc = asprintf(&tmp, "F.sols%u-%u.%u-%u",
-                            solutions[0] + j * As_width,
-                            solutions[0] + (j + 1) * As_width,
-                            i * Av_width, (i + 1) * Av_width);
-
-                    FILE * f = fopen(tmp, "rb");
-                    DIE_ERRNO_DIAG(f == NULL, "fopen", tmp);
-                    rc = fseek(f, one_fcoeff * s, SEEK_SET);
-                    if (rc >= 0) {
-                        /* Read everything in one go. We might want to
-                         * reconsider how the coefficients inside the
-                         * individual F files are written -- transposed or
-                         * not. Of course that does not matter for the prime
-                         * case where individual F files are polynomials, but
-                         * surely it does in the binary case where individual
-                         * F files are a priori made of 64*64 matrices.
-                         */
-                        rc = fread(ff, one_fcoeff, bw->interval, f);
-                        ASSERT_ALWAYS(rc >= 0 && rc <= bw->interval);
-                    } else {
-                        /* Otherwise we're off bounds already, don't try
-                         * to read anything...
-                         */
-                        rc = 0;
-                    }
-
-                    if (i == 0 && j == 0) rc0 = rc;
-
-                    if (rc != rc0) {
-                        fprintf(stderr, "Inconsistency in number of "
-                                "coefficients for F files "
-                                "F.0-%u.sols%u-%u and %s\n",
-                                Av_width,
-                                solutions[0], solutions[0] + As_width,
-                                tmp);
-                        exit(EXIT_FAILURE);
-                    }
-                    /* TODO: *maybe* transpose the F coefficients at this
-                     * point */
-                    fclose(f);
-                    free(tmp);
+                    pi_bcast(ff, Av->simd_groupsize(Av) * (s1 - s0), As_pi, 0, 0, pi->m);
                 }
             }
 
-            if (rc0 < bw->interval) {
-                printf("We read %d coefficients from F in total\n", s+rc);
-                bw->end = s+rc;
-            }
-        }
-        if (pi->m->trank == 0) {
-            /* we're good friends with the global leader. Try to grasp
-             * the information about the end value -- it might have
-             * changed because of EOF. We're not so disturbed
-             * by serialization points here. */
-            int err = MPI_Bcast(&(bw->end), 1, MPI_INT, 0, pi->m->pals);
-            ASSERT_ALWAYS(!err);
-        }
-        serialize(pi->m);
-
-        /* broadcast f */
-        for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
-            for(unsigned int j = 0 ; j < As_multiplex ; j++) {
-                void * ff = fcoeffs[i * As_multiplex + j];
-                pi_bcast(ff, Av->simd_groupsize(Av) * bw->interval, As_pi, 0, 0, pi->m);
-            }
-        }
-
-        serialize(pi->m);
-
-        /* this loop on j is somewhat ridiculous, because we know that we
-         * force As_multiplex to be equal to 1 above. But well,
-         * conceivably, we *could* do that. It's a bit crazy because it
-         * has no advantage over multiple mksol runs (hmm, except maybe
-         * with interleaving on ?).
-         *
-         * (also, given the way it is presently, As_multiplex > 1 will
-         * wreak havoc with timings).
-         */
-        for(unsigned int j = 0 ; j < As_multiplex ; j++) {
-            /* Create an empty slot in program execution, so that we don't
-             * impose strong constraints on twist/untwist_vector being free of
-             * MPI calls.
-            pi_interleaving_flip(pi);
-            pi_interleaving_flip(pi);
-            mmt_vec_twist(mmt, ymy[0]);
-             */
-
-            mmt_full_vec_set_zero(ymy[0]);
-
             serialize(pi->m);
 
-            /* Despite the fact that the bw->end value might lead us
-             * to stop earlier, we want to stop at multiples of the checking
-             * interval. That's important, otherwise the last bunch of
-             * computations won't be checked.
-             */
+                /* Despite the fact that the bw->end value might lead us
+                 * to stop earlier, we want to stop at multiples of the checking
+                 * interval. That's important, otherwise the last bunch of
+                 * computations won't be checked.
+                 */
 
-            pi_interleaving_flip(pi);
+                pi_interleaving_flip(pi);
 
-            size_t eblock = mmt_my_own_size_in_items(ymy[0]);
+                size_t eblock = mmt_my_own_size_in_items(ymy[0]);
 
-            for(int k = 0 ; k < bw->interval ; k++) {
-                if (k)
-                    matmul_top_mul(mmt, ymy, timing);
+                for(int k = 0 ; k < s1 - s0 ; k++) {
 
-                serialize_threads(pi->m);
+                    serialize_threads(pi->m);
 
-                for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
-                        void * ff = fcoeffs[i * As_multiplex + j];
+                    /*
+                    if (tcan_print) {
+                        printf("// %d\n", bw->start + sx - s1 + k);
+                        printf("v:=v+f[%d];\n", s1 - 1 - k);
+                    }
+                    */
+
+                    for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
+                        void * ff = fcoeffs[i * As_multiplex /* + j */];
                         /* or maybe transpose here instead ?? */
                         AvxAs->addmul_tiny(Av, As,
                                 mmt_my_own_subvec(ymy[0]),
                                 mmt_my_own_subvec(vi[i]),
                                 As->vec_subvec(As, ff,
-                                    (bw->interval - 1 - k) * Av->simd_groupsize(Av)),
+                                    (s1 - s0 - 1 - k) * Av->simd_groupsize(Av)),
                                 eblock);
+                    }
+                    ymy[0]->consistency = 1;
+
+                    mmt_vec_broadcast(ymy[0]);
+                    /* we're doing something which we normally avoid: write
+                     * on the next input vector. This means a race condition
+                     * with the forthcoming spmv, so we have to serialize.
+                     *
+                     * I believe we could probably get away with this.
+                     */
+
+                    serialize_threads(pi->m);
+
+                    /* It's equivalent to doing the multiply at the
+                     * beginning of the loop with the condition
+                     *  if (i_window || k)
+                     * except that by doing it here, we'll avoid nasty
+                     * surprises with displayed timings.
+                     *
+                     * (and also it might well be more correct like this
+                     * at the end of the computation, when we begin
+                     * halway through a range of coefficients).
+                     */
+                    if (i_window < n_windows-1 || k < s1 - s0 - 1) {
+                        // if (tcan_print) printf("v:=M*v;\n");
+                        matmul_top_mul(mmt, ymy, timing);
+
+                        timing_check(pi, timing, bw->start + sx - s1 + k + 1, tcan_print);
+                    }
                 }
-                ymy[0]->consistency = 1;
-                mmt_vec_broadcast(ymy[0]);
-                /* we're doing something which we normally avoid: write
-                 * on the next input vector. This means a race condition
-                 * with the forthcoming spmv, so we have to serialize.
-                 *
-                 * I believe we could probably get away with this.
-                 */
 
-                serialize_threads(pi->m);
+                serialize(pi->m);
+                /* See remark above. */
+                pi_interleaving_flip(pi);
+                pi_interleaving_flip(pi);
 
-                timing_check(pi, timing, s+k+1, tcan_print);
-            }
-
-            serialize(pi->m);
-            /* See remark above. */
-            pi_interleaving_flip(pi);
-            pi_interleaving_flip(pi);
-
-            mmt_vec_untwist(mmt, ymy[0]);
-
-            // FIXME. serialize here ??
-            // serialize(pi->m);
-
-            if (!fake) {
-                char * s_name;
-                int rc = asprintf(&s_name, "S.sols%u-%u.%u-%u",
-                        solutions[0] + j * As_width,
-                        solutions[0] + (j + 1) * As_width,
-                        s, s + bw->interval);
-                ASSERT_ALWAYS(rc >= 0);
-                mmt_vec_save(ymy[0], s_name, unpadded);
-                free(s_name);
-            }
-
+            // reached s + bw->interval. Count our time on cpu, and compute the sum.
+            timing_disp_collective_oneline(pi, timing, bw->start + sx - s0, tcan_print, "mksol");
         }
-        serialize(pi->m);
 
-        // reached s + bw->interval. Count our time on cpu, and compute the sum.
-        timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "mksol");
+        mmt_vec_untwist(mmt, ymy[0]);
+
+        if (!fake) {
+            /* We have only one (block of) vectors at a time, so j=0,
+             * really (and As_multiplex == 1)
+             */
+            int j = 0;
+            char * s_name;
+            int rc = asprintf(&s_name, "S.sols%s.%u-%u",
+                    "%u-%u",
+                    s, s + bw->checkpoint_precious);
+            ASSERT_ALWAYS(rc >= 0);
+            ASSERT_ALWAYS(ymy[0]->abase->simd_groupsize(ymy[0]->abase) == (int) As_width);
+            mmt_vec_save(ymy[0], s_name, unpadded,
+                    solutions[0] + j * As_width);
+            free(s_name);
+        }
     }
 
-    timing->end_mark = bw->start + bw->interval * iceildiv(bw->end - bw->start, bw->interval);
+    timing->end_mark = bw->start + bw->interval * iceildiv(bw_end_copy - bw->start, bw->interval);
 
     timing_final_tally(pi, timing, tcan_print, "mksol");
 
@@ -447,6 +538,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         cheating_vec_clear(As, &(fcoeffs[k]), one_fcoeff * bw->interval);
     }
     delete[] fcoeffs;
+
+    if (Af_multiplex > 1) {
+        cheating_vec_clear(As, &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
+    }
 
     for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
         mmt_vec_clear(mmt, ymy[i]);

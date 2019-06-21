@@ -57,6 +57,7 @@ struct las_report {
     };
     std::shared_ptr<count_matrix> survivor_counts;
     std::shared_ptr<count_matrix> report_counts;
+
     void accumulate_and_clear(las_report && q)
     {
         {
@@ -95,11 +96,15 @@ struct las_report {
         q = las_report();
     }
     void mark_survivor(uint8_t S0, uint8_t S1) {
+        /* This *must* be called on a *private* las_report structure, so
+         * that taking the mutex is not necessary */
         if (survivor_counts) {
             (*survivor_counts.get())[S0][S1]++;
         }
     }
     void mark_report(uint8_t S0, uint8_t S1) {
+        /* This *must* be called on a *private* las_report structure, so
+         * that taking the mutex is not necessary */
         if (survivor_counts) {
             (*report_counts.get())[S0][S1]++;
         }

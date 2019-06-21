@@ -107,14 +107,14 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         }
 
         mmt_vec_set_x_indices(my, gxvecs, MIN(nchecks, bw->m), nx);
-        mmt_vec_save(my, "C.0", unpadded);
+        mmt_vec_save(my, "C%u-%u.0", unpadded, 0);
 
         free(gxvecs);
     } else {
         char * tmp;
-        int rc = asprintf(&tmp, "C.%d", bw->start);
+        int rc = asprintf(&tmp, "C%s.%d", "%u-%u", bw->start);
         ASSERT_ALWAYS(rc >= 0);
-        mmt_vec_load(my, tmp, unpadded);
+        mmt_vec_load(my, tmp, unpadded, 0);
         if (tcan_print) {
             printf("loaded %s\n", tmp);
         }
@@ -199,9 +199,9 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_untwist(mmt, my);
         {
             char * tmp;
-            int rc = asprintf(&tmp, "C.%d", k);
+            int rc = asprintf(&tmp, "C%s.%d", "%u-%u", k);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(my, tmp, unpadded);
+            mmt_vec_save(my, tmp, unpadded, 0);
             if (tcan_print) {
                 printf("saved %s\n", tmp);
             }

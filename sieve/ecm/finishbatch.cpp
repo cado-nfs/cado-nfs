@@ -26,6 +26,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
     param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
     param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
+    param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
 
     verbose_decl_usage(pl);
 }
@@ -38,6 +39,7 @@ main (int argc, char *argv[])
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
   int doecm = 0;
+  int ncurves = 50;
 
   declare_usage(pl);
 
@@ -117,6 +119,8 @@ main (int argc, char *argv[])
       exit(EXIT_FAILURE);
   }
 
+  param_list_parse_int(pl, "ncurves", &ncurves);
+
   std::array<cxx_mpz, 2> batchP;
 
   double extra_time = 0;
@@ -139,25 +143,45 @@ main (int argc, char *argv[])
   mpz_set_ui(q, 1);
   // Create a fake special-q
   std::vector<uint64_t> empty;
-  las_todo_entry doing(q, q, 0, empty);
+  las_todo_entry fake_q(q, q, 0, empty);
+
+  // If the special-q info is present, we will use it. Otherwise, the
+  // fake sq will be used everywhere. This list keeps in memory all the
+  // special q encountered.
+  std::list<las_todo_entry> list_q;
+  list_q.push_back(fake_q);
+
   long a;
   unsigned long b;
   while (fgets(str, MAX_SIZE, inp)) {
-      if (str[0] == '#') continue;
+      if (str[0] == '#') {
+          cxx_mpz r;
+          int side;
+          int ret = gmp_sscanf(str, "# q = (%Zd, %Zd, %d)",
+                  &q, &r, &side);
+          if (ret == 3) {
+              std::vector<uint64_t> primes;
+              uint64_t qq = mpz_get_uint64(q);
+              primes.push_back(qq);
+              las_todo_entry this_q(q, r, side, primes);
+              list_q.push_back(this_q);
+          }
+          continue;
+      }
       gmp_sscanf(str, "%ld %lu %Zd %Zd\n", &a, &b, (mpz_ptr) norms[0], (mpz_ptr) norms[1]);
-      List.emplace_back(a, b, norms, &doing);
+      List.emplace_back(a, b, norms, &list_q.back());
   }
   fclose_maybe_compressed(inp, infilename);
 
   find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, stdout, nb_threads, extra_time);
-        for(auto const & rel : smooth) {
-            std::ostringstream os;
-            os << rel << "\n";
-            printf("%s\n", os.str().c_str());
-        }
+      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time);
+      for(auto const & rel : smooth) {
+          std::ostringstream os;
+          os << rel << "\n";
+          printf("%s", os.str().c_str());
+      }
   } else {
       for (auto const & x : List) {
           gmp_printf("%" PRIi64 " %" PRIu64 " %Zd %Zd\n",

@@ -157,16 +157,16 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_set_0n(v, mmt->n0[0]);
         /* We save the Z files, although it's useless, the checking done
          * here is allright */
-        mmt_vec_save(v, "Z.0", mmt->n0[0]);
+        mmt_vec_save(v, "Z%u-%u.0", mmt->n0[0], 0);
         mmt_apply_identity(vi, v);
         mmt_vec_allreduce(vi);
         mmt_vec_clear_padding(vi, mmt->n0[1], mmt->n0[0]);
         mmt_vec_check_equal_0n(vi, mmt->n0[1]);
-        mmt_vec_save(vi, "ZI.0", mmt->n0[1]);
+        mmt_vec_save(vi, "ZI%u-%u.0", mmt->n0[1], 0);
         mmt_apply_identity(vii, vi);
         mmt_vec_allreduce(vii);
         mmt_vec_check_equal_0n(vii, MIN(mmt->n0[0], mmt->n0[1]));
-        mmt_vec_save(vi, "ZII.0", mmt->n0[0]);
+        mmt_vec_save(vi, "ZII%u-%u.0", mmt->n0[0], 0);
         mmt_vec_clear(mmt, v);
         mmt_vec_clear(mmt, vi);
         mmt_vec_clear(mmt, vii);
@@ -330,7 +330,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_init(mmt,0,0, y,  1, /* shared ! */ 1, mmt->n[1]);
         mmt_vec_init(mmt,0,0, my, 0,                0, mmt->n[0]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(y, "Y.0", mmt->n0[1], rstate);
+        mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt->n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
          */
         mmt_vec_apply_T(mmt, y);
@@ -341,7 +341,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
          */
         mmt_vec_allreduce(my);
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "MY.0", mmt->n0[0]);
+        mmt_vec_save(my, "MY%u-%u.0", mmt->n0[0], 0);
         mmt_vec_clear(mmt, y);
         mmt_vec_clear(mmt, my);
     }
@@ -354,7 +354,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_init(mmt,0,0, w,  0, /* shared ! */ 1, mmt->n[0]);
         mmt_vec_init(mmt,0,0, wm, 1,                0, mmt->n[1]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(w, "W.0", mmt->n0[0], rstate);
+        mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt->n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
         matmul_top_mul_cpu(mmt, 0, w->d, wm, w);
         /* It's not the same if we do allreduce+untwist, thus stay on the
@@ -369,7 +369,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_allreduce(wm);
         mmt_vec_untwist(mmt, wm);
         mmt_vec_unapply_T(mmt, wm);
-        mmt_vec_save(wm, "WM.0", mmt->n0[1]);
+        mmt_vec_save(wm, "WM%u-%u.0", mmt->n0[1], 0);
         mmt_vec_clear(mmt, w);
         mmt_vec_clear(mmt, wm);
     }
@@ -393,33 +393,33 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
             /* prepare a first vector */
             mmt_vec_set_x_indices(x, xx, m, nx);
-            rc = asprintf(&tmp, "Xa.%d", d);
+            rc = asprintf(&tmp, "Xa%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d]);
+            mmt_vec_save(x, tmp, mmt->n[d], 0);
             free(tmp);
 
             /* and then a second vector, which should be equal */
             indices_twist(mmt, xx, nx * m, d);
             mmt_vec_set_x_indices(x, xx, m, nx);
             mmt_vec_untwist(mmt, x);
-            rc = asprintf(&tmp, "Xb.%d", d);
+            rc = asprintf(&tmp, "Xb%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d]);
+            mmt_vec_save(x, tmp, mmt->n[d], 0);
             free(tmp);
 
             /* now for the twisted versions, too */
             mmt_vec_set_x_indices(x, xx, m, nx);
             mmt_vec_twist(mmt, x);
-            rc = asprintf(&tmp, "XTa.%d", d);
+            rc = asprintf(&tmp, "XTa%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d]);
+            mmt_vec_save(x, tmp, mmt->n[d], 0);
             free(tmp);
 
             indices_twist(mmt, xx, nx * m, d);
             mmt_vec_set_x_indices(x, xx, m, nx);
-            rc = asprintf(&tmp, "XTb.%d", d);
+            rc = asprintf(&tmp, "XTb%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d]);
+            mmt_vec_save(x, tmp, mmt->n[d], 0);
             free(tmp);
 
             mmt_vec_clear(mmt, x);

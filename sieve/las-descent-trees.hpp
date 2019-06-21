@@ -6,6 +6,7 @@
 #include <list>
 #include <set>
 #include <map>
+#include <mutex>
 #include <pthread.h>
 #include <algorithm>    /* max */
 #include <cmath>        /* isfinite is c99 and std::isfinite is c++11 ;
@@ -27,7 +28,7 @@
 struct descent_tree {
     private:
         /* we have const members which need to lock the mutex */
-        mutable pthread_mutex_t tree_lock;
+        mutable std::mutex tree_lock;
     public:
     struct tree_label {
         int side = 0;
@@ -151,11 +152,7 @@ struct descent_tree {
     visited_t visited;
 
 
-    descent_tree() {
-        pthread_mutex_init(&tree_lock, NULL);
-    }
     ~descent_tree() {
-        pthread_mutex_destroy(&tree_lock);
         typedef std::list<tree *>::iterator it_t;
         for(it_t i = forest.begin() ; i != forest.end() ; i++)
             delete *i;
@@ -163,9 +160,11 @@ struct descent_tree {
     }
 
     /* designing a copy ctor for this structure would be tedious */
+    descent_tree() = default;
     descent_tree(descent_tree const& t) = delete;
 
     void new_node(las_todo_entry const & doing) {
+        std::lock_guard<std::mutex> lock(tree_lock);
         int level = doing.depth;
         ASSERT_ALWAYS(level == (int) current.size());
         tree * kid = new tree(tree_label(doing.side, doing.p, doing.r));
@@ -209,9 +208,8 @@ struct descent_tree {
      * should be taken now, and register this relation has having been
      * taken */
     bool must_take_decision() {
-        pthread_mutex_lock(&tree_lock);
+        std::lock_guard<std::mutex> lock(tree_lock);
         bool res = current.back()->contender.wins_the_game();
-        pthread_mutex_unlock(&tree_lock);
         return res;
     }
 
@@ -225,7 +223,7 @@ struct descent_tree {
     /* this returns true if the decision should be taken now */
     bool new_candidate_relation(candidate_relation& newcomer)
     {
-        pthread_mutex_lock(&tree_lock);
+        std::lock_guard<std::mutex> lock(tree_lock);
         candidate_relation & defender(current.back()->contender);
         if (newcomer < defender) {
             if (newcomer.outstanding.empty()) {
@@ -247,15 +245,13 @@ struct descent_tree {
             }
         }
         bool res = defender.wins_the_game();
-        pthread_mutex_unlock(&tree_lock);
         return res;
     }
 
     bool must_avoid(relation const& rel) const {
         relation_ab ab = rel;
-        pthread_mutex_lock(&tree_lock);
+        std::lock_guard<std::mutex> lock(tree_lock);
         bool answer = visited.find(ab) != visited.end();
-        pthread_mutex_unlock(&tree_lock);
         return answer;
     }
     int depth() {

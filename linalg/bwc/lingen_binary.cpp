@@ -439,7 +439,7 @@ void read_data_for_series(polmat& A MAYBE_UNUSED, unsigned int ondisk_length)
     using namespace globals;
 
     /* It's slightly non-trivial. polmat entries are polynomials, so
-     * we've got to cope with the non-trivial striding */
+     * we've got to cope with the non-trivial stride */
     
     { /* {{{ check file size */
         struct stat sbuf[1];
@@ -596,6 +596,8 @@ void bw_commit_f(polmat& F)
          * Below, j is a row index; i is a column index in the final F,
          * and pick[i] is a column index of the F with (m+n) columns.
          *
+         * The result is padded to an n*n matrix (with zeroes for
+         * nres<=i<n).
          */
         for(unsigned int j = 0 ; j < n ; j++) {
             unsigned long * v = buf + j * (n / ULONG_BITS);
@@ -609,6 +611,13 @@ void bw_commit_f(polmat& F)
             unsigned long * b = buf;
             for(unsigned int i = 0 ; i < n ; i++) {
                 for(unsigned int j = 0 ; j < n ; j+=64) {
+                    /* sols j - (j+64) . i - (i+64) is going to be a
+                     * polynomial with matrix entries (64*64 matrices).
+                     * Each entry will be written as a set of 64 64-bit
+                     * word, each 64-bit word being a row, and its 64
+                     * bits corresponding to the solution indices j to
+                     * j+63
+                     */
                     FILE * f = fw[(i/64)*(n/64)+(j/64)];
                     size_t s = 64 / ULONG_BITS;
                     rz = fwrite(b, sizeof(unsigned long), s, f);

@@ -190,7 +190,7 @@ void matpoly_truncate(abdst_field ab, matpoly_ptr dst, matpoly_srcptr src, unsig
     }
 }/*}}}*/
 
-/* XXX compared to polymat, our diffferent striding has a consequence,
+/* XXX compared to polymat, our diffferent stride has a consequence,
  * clearly ! */
 void matpoly_extract_column(abdst_field ab,/*{{{*/
         matpoly_ptr dst, unsigned int jdst, unsigned int kdst,

@@ -8,7 +8,7 @@
 /* We use abvec because this offers the possibility of having flat data
  *
  * Note that this ends up being exactly the same data type as polymat.
- * The difference here is that the striding is not the same.
+ * The difference here is that the stride is not the same.
  */
 struct matpoly_s {
     unsigned int m;

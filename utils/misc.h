@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <string.h>
 #include <gmp.h>
+#ifdef __cplusplus
+#include <type_traits>
+#endif
 #include "macros.h"
 #include "portability.h"
 
@@ -89,6 +92,9 @@ static inline unsigned long integer_sqrt(unsigned long a)
         if (z == x || z == y) return y;
     }
 }
+
+#ifndef __cplusplus
+/* we have a template variant of this for C++ code */
 static inline unsigned long next_power_of_2(unsigned long x)
 {
     /* round x to the next power of two */
@@ -98,6 +104,7 @@ static inline unsigned long next_power_of_2(unsigned long x)
     }
     return x;
 }
+#endif
 
 /* Best X86 medium memcpy with pointers & size length already cache
    lines aligned on modern X86, so dst/src/lg & 0x3F = 0 */
@@ -225,6 +232,25 @@ const char *size_disp(size_t s, char buf[16]);
 }
 #endif
 
+#ifdef __cplusplus
+template<typename T>
+static inline T next_power_of_2(T x)
+{
+    static_assert(
+            std::is_same<T, unsigned long>::value ||
+            std::is_same<T, unsigned int>::value ||
+            std::is_same<T, size_t>::value,
+            "not supported for this type");
+    /* round x to the next power of two */
+    for( ; x & (x - 1) ; ) {
+        T low = x ^ (x - 1);
+        x += (low >> 1) + 1;
+    }
+    return x;
+}
+#endif
+
+#else
 #if 0
 #ifdef __cplusplus
 // declare c++ containers as vector<T,pagealigned_allocator<T>>

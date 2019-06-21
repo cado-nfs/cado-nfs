@@ -978,7 +978,7 @@ inline void fft_combo_inplace(
 {
     /* This is not satisfactory. It would be better to replace the input
      * in place. The only reason we can't do this is because ncoeffs_in
-     * and ncoeffs_out differ, so that we have a different data striding
+     * and ncoeffs_out differ, so that we have a different data stride
      * in the input and the output.
      */
     // XXX The +1 seems to be bogus.

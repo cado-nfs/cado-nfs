@@ -13,7 +13,7 @@ import os,time
 
 attach alpha.sage
 attach integral.sage
-
+attach E.sage
 
 # optional
 attach gnuplot_stuff.sage
@@ -315,15 +315,22 @@ def skew_l2norm_tk_circular(f, verbose=false):
    else:
       raise ValueError, "skew_l2norm_tk_circular not yet implemented for degree %d" % f.degree()
 
-def L2_combined_skewness (f, g, Bf, Bg, area):
+# return the skewness optimizing the Murphy-E value
+def L2_combined_skewness (f, g, Bf, Bg, area, verbose=false):
    a = skew_l2norm_tk_circular (f)
+   if verbose:
+      print "optimal skewness(f) = ", a
    b = skew_l2norm_tk_circular (g)
+   if verbose:
+      print "optimal skewness(g) = ", b
    if b < a:
       a, b = b, a
    # now a <= b
    va = MurphyE (f, g, a, Bf, Bg, area)
    vb = MurphyE (f, g, b, Bf, Bg, area)
    while b - a > a * 0.001:
+      if verbose:
+         print "a=", a, "va=", va, "b=", b, "vb=", vb
       c = (2 * a + b) / 3.0
       vc = MurphyE (f, g, c, Bf, Bg, area)
       d = (a + 2 * b) / 3.0
@@ -334,6 +341,38 @@ def L2_combined_skewness (f, g, Bf, Bg, area):
          b, vb = d, vd
       else:
          a, va = c, vc
+   return (a + b) * 0.5
+
+# return the skewness optimizing the lognorm sum
+def L2_combined_skewness2 (f, g, verbose=false):
+   a = skew_l2norm_tk_circular (f)
+   b = skew_l2norm_tk_circular (g)
+   if b < a:
+      a, b = b, a
+   # now a <= b
+   va = l2norm_tk_circular (f, a) + l2norm_tk_circular (g, a)
+   if verbose:
+      print "a=", a, "va=", va
+   vb = l2norm_tk_circular (f, b) + l2norm_tk_circular (g, b)
+   if verbose:
+      print "b=", b, "vb=", vb
+   while b - a > a * 0.001:
+      c = (2 * a + b) / 3.0
+      vc = l2norm_tk_circular (f, c) + l2norm_tk_circular (g, c)
+      if verbose:
+      	 print "c=", c, "vc=", vc
+      d = (a + 2 * b) / 3.0
+      vd = l2norm_tk_circular (f, d) + l2norm_tk_circular (g, d)
+      if verbose:
+      	 print "d=", d, "vd=", vd
+      max_left = max(va, vc)
+      max_right = max(vd, vb)
+      if max_left < max_right: # maximum in a or c
+         b, vb = d, vd
+      else:
+         a, va = c, vc
+      if verbose:
+      	 print "a=", a, "b=", b
    return (a + b) * 0.5
 
 def square_l2norm_tk_sym(f,s):

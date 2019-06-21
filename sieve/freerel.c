@@ -209,8 +209,11 @@ struct th_buf_s
   uint64_t nroots_tot; /* nb of entry in the local renumbering table */
   uint64_t nprimes_out; /* nb of treated primes */
   uint64_t nfreerels;
-  unsigned long freerels_p[NB_PRIMES_PER_BUFFER];
-  uint64_t freerels_first_index[NB_PRIMES_PER_BUFFER];
+  unsigned long freerels_p[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
+  uint64_t freerels_first_index[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
+  uint64_t freerels_second_index[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
+  int freerels_first_deg[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
+  int freerels_second_deg[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
 };
 
 typedef struct th_buf_s th_buf_t[1];
@@ -374,6 +377,16 @@ pthread_primes_consumer (void *arg)
     {
       unsigned long p = *my_p++;  /* p is the current prime */
       /* Compute the roots on each side */
+      int t = 0; /* number of polynomials with maximal number of roots
+                    where p does not divide leading coefficient,
+                    with pmin <= p <= pmax */
+      int max_roots[NB_POLYS_MAX]; /* indices of polynomials with maximal number of
+                                      roots where does not divide leading coefficient,
+                                      with pmin <= p <= pmax */
+      int offset_roots[NB_POLYS_MAX]; /* offset for the number of roots:
+                                         offset_roots[0] = 0
+                                         offset_roots[1] = nroots[0],
+                                         offset_roots[2] = nroots[0] + nroots[1],... */
       for (unsigned int side = 0; side < npolys; side++)
       {
         if (UNLIKELY(p > my_data->lpb[side]))
@@ -410,25 +423,44 @@ pthread_primes_consumer (void *arg)
             }
           }
         }
+        if (side == 0)
+          offset_roots[side] = 0;
+        else
+          offset_roots[side] = offset_roots[side - 1] + nroots[side - 1];
+        /* Check if this polynomial has a maximal number of roots.
+           Warning: we count projective roots as well. */
+        if (nroots[side] == deg[side] &&
+            my_data->pmin <= p && p <= my_data->pmax)
+          max_roots[t++] = side;
       }
 
       /* Write in the temporary local renumbering table */
       out->cur += renumber_write_buffer_p (out->cur, out->end - out->cur, my_data->tab, p, roots, nroots);
       char_buffer_resize (out, RENUMBER_MAX_SIZE_PER_PRIME);
 
-      /* Check if p corresponds to a freerel */
-      /* FIXME: What should be done when npolys != 2 ? */
-      if (npolys == 2)
-      {
-        if (UNLIKELY(nroots[0] == deg[0] && nroots[1] == deg[1] &&
-                     p >= my_data->pmin && p <= my_data->pmax))
+      /* Check if p corresponds to free relations.
+         For 2 polynomials, this happens when the number of roots modulo p
+         is maximal for both polynomials.
+         For 3 or more polynomials, let t be the number of polynomials such
+         that the number of roots modulo p is maximal.
+         Then the number of free relations is t-1 (see Section 4.6 from
+         the PhD thesis from Marije Elkenbracht-Huizing, "Factoring integers
+         with the Number Field Sieve") */
+      for (int i = 1; i < t; i++)
         {
+          int j1 = max_roots[i-1];
+          int j2 = max_roots[i];
+          /* free relation between poly[j1] and poly[j2] */
           local_buf->freerels_p[local_buf->nfreerels] = p;
           local_buf->freerels_first_index[local_buf->nfreerels] =
-                                              local_buf->nroots_tot;
+            local_buf->nroots_tot + offset_roots[j1];
+          local_buf->freerels_first_deg[local_buf->nfreerels] = deg[j1];
+          local_buf->freerels_second_index[local_buf->nfreerels] =
+            local_buf->nroots_tot + offset_roots[j2];
+          local_buf->freerels_second_deg[local_buf->nfreerels] = deg[j2];
           local_buf->nfreerels++;
+          ASSERT(local_buf->nfreerels <= (NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER);
         }
-      }
 
       for (unsigned int side = 0; side < npolys; side++)
         local_buf->nroots_tot += nroots[side];
@@ -565,9 +597,13 @@ generate_renumber_and_freerels (const char *outfilename,
     for (uint64_t k = 0; k < local_buf->nfreerels; k++)
     {
       uint64_t index = local_buf->freerels_first_index[k] + renumber_table->size;
-      uint64_t last_index = index + sum_degs;
+      uint64_t last_index = index + local_buf->freerels_first_deg[k];
       fprintf (outfile, "%lx,0:%" PRIx64, local_buf->freerels_p[k], index);
       index++;
+      for (; index < last_index; index++)
+        fprintf (outfile, ",%" PRIx64, index);
+      index = local_buf->freerels_second_index[k] + renumber_table->size;
+      last_index = index + local_buf->freerels_second_deg[k];
       for (; index < last_index; index++)
         fprintf (outfile, ",%" PRIx64, index);
       fputc ('\n', outfile);

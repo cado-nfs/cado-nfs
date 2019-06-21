@@ -36,6 +36,8 @@ tasks.sieve.ncurves0 = 13
 tasks.sieve.ncurves1 = 13
 tasks.I = 15
 
+tasks.qmin = 50000000
+
 tasks.sieve.qrange = 10000
 tasks.qmin = 50000000
 

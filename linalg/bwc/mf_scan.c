@@ -13,6 +13,11 @@
 void usage(int rc)
 {
     fprintf(stderr,
+    "######## THIS PROGRAM IS DEPRECATED ##########################\n"
+    "## It is only useful when converting to/from ascii          ##\n"
+    "## If you only want to create .rw and .cw files from binary ##\n"
+    "## matrix files, use the better program mf_scan2.           ##\n"
+    "##############################################################\n"
     "This program make one reading pass through a matrix, producing one or\n"
     "several output files. Depending on the arguments given, the behaviour\n"
     "differs.\n"

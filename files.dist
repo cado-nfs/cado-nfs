@@ -503,6 +503,7 @@ tests/utils/test_modredcul_batchinv_ul.c
 tests/utils/test_dllist.c
 tests/utils/test_verbose.c
 tests/utils/test_modredc2ul2_Q_to_Fp.c
+tests/utils/test_u64arith.cpp
 tests/test_iter.c
 tests/test_iter.h
 tests/tests_common.h
@@ -1331,3 +1332,15 @@ utils/lock_guarded_container.hpp
 sieve/las-memory.cpp
 sieve/las-memory.hpp
 tests/linalg/bwc/A.21744
+tests/sieve/F9.with_hints.hints
+tests/sieve/F9.with_hints.todo
+tests/utils/test_sha1.c
+utils/sha1.c
+utils/sha1.h
+linalg/bwc/mf_scan2.cpp
+linalg/bwc/mpfq/mpfq_m128.c
+linalg/bwc/mpfq/mpfq_m128.h
+linalg/bwc/mpfq/mpfq_m128_t.c
+linalg/bwc/mpfq/mpfq_m128_t.h
+config/popcnt.c
+config/popcnt.cmake

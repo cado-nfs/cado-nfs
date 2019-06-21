@@ -150,7 +150,7 @@ extern size_t mmt_my_own_offset_in_items(mmt_vec_ptr v);
 extern size_t mmt_my_own_offset_in_bytes(mmt_vec_ptr v);
 extern void * mmt_my_own_subvec(mmt_vec_ptr v);
 
-extern void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * name, unsigned int itemsondisk, gmp_randstate_t rstate);
+extern void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position);
 /* do not use this function if you want consistency when the splitting
  * changes ! */
 extern void mmt_vec_set_random_inconsistent(mmt_vec_ptr v, gmp_randstate_t rstate);
@@ -181,10 +181,8 @@ extern void mmt_vec_add_basis_vector(mmt_vec_ptr v, unsigned int j);
 #if 0
 extern void matmul_top_fill_random_source_generic(matmul_top_data_ptr mmt, size_t stride, mmt_vec_ptr v, int d);
 #endif
-extern int mmt_vec_load_stream(pi_file_handle f, mmt_vec_ptr v, unsigned int itemsondisk);
-extern int mmt_vec_save_stream(pi_file_handle f, mmt_vec_ptr v, unsigned int itemsondisk);
-extern int mmt_vec_load(mmt_vec_ptr v, const char * name, unsigned int itemsondisk);
-extern int mmt_vec_save(mmt_vec_ptr v, const char * name, unsigned int itemsondisk);
+extern int mmt_vec_load(mmt_vec_ptr v, const char * name, unsigned int itemsondisk, unsigned int block_position);
+extern int mmt_vec_save(mmt_vec_ptr v, const char * name, unsigned int itemsondisk, unsigned int block_position);
 extern void mmt_vec_reduce_mod_p(mmt_vec_ptr v);
 extern void mmt_vec_clear_padding(mmt_vec_ptr v, size_t unpadded, size_t padded);
 

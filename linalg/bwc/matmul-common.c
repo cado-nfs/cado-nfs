@@ -43,7 +43,7 @@ FILE * matmul_common_reload_cache_fopen(size_t stride, struct matmul_public_s * 
     MATMUL_COMMON_READ_ONE32(nbytes_check, f);
     /* It's not fatal. It only deserves a warning */
     if (nbytes_check != stride) {
-        fprintf(stderr, "Warning: cached matrix file fits data with different striding\n");
+        fprintf(stderr, "Warning: cached matrix file fits data with different stride\n");
     }
 
     MATMUL_COMMON_READ_ONE32(mm->dim[0], f);

@@ -28,7 +28,7 @@ fi
 
 ## default parameters: can be overriden using env variables
 ## these correspond more or less to a DLP-512.
-: ${I=12}
+: ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
 : ${lpb0=19}
@@ -44,6 +44,9 @@ fi
 : ${qfac_max=100000}
 : ${dlp=true}
 : ${shrink_factor=1}
+: ${extra_las_params=""}
+: ${threads=2}
+: ${parallel=false}
 
 ## The following can also be overriden with env variables
 # the [qmin,qmax] range is split into $NCHUNKS sub-ranges
@@ -73,11 +76,11 @@ rootfile0="$wdir/roots0.gz"
 rootfile1="$wdir/roots1.gz"
 if [ ! -e $rootfile0 ]; then
     echo "Root file for side 0 not in wdir: building it..."
-    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim0 -side 0 -t 2 -out $rootfile0
+    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim0 -side 0 -t $threads -out $rootfile0
 fi
 if [ ! -e $rootfile1 ]; then
     echo "Root file for side 1 not in wdir: building it..."
-    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim1 -side 1 -t 2 -out $rootfile1
+    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim1 -side 1 -t $threads -out $rootfile1
 fi
 
 ## if wdir does not contain a renumber table, build it
@@ -85,7 +88,7 @@ renumberfile=$wdir/renumber.gz
 if [ ! -e $renumberfile ]; then
     echo "Renumber file not in wdir: building it..."
     $CADO_BUILD/sieve/freerel -poly $polyfile -renumber $renumberfile \
-      -out /dev/null -pmax 1 -lpb0 $lpb0 -lpb1 $lpb1 -t 2
+      -out /dev/null -pmax 1 -lpb0 $lpb0 -lpb1 $lpb1 -t $threads
 fi
 
 ## deal with composite special-q's
@@ -146,25 +149,35 @@ for i in `seq 0 $((nsides-1))`; do
 
     ## sample with real sieving and build fake rels
     for i in `seq 1 $NCHUNKS`; do
+        (
+            q0=$((qmin + (i-1)*qrange))
+            q1=$((qmin + i*qrange))
+            echo "Dealing with qrange=[$q0,$q1]"
+            echo "  Sampling..."
+            cmd="$CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 \
+              -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side \
+              -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las \
+              -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE \
+              -t $threads -sync -v -dup -dup-qmin $dupqmin $extra_las_params"
+            echo $cmd
+            $cmd > $wdir/sample.side${side}.${q0}-${q1}
+            echo "  Building fake relations..."
+            cmd="$CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1 \
+              -q0 $q0 -q1 $q1 -sqside $side $compsq_fake \
+              -sample $wdir/sample.side${side}.${q0}-${q1} \
+              -shrink-factor $shrink_factor \
+              -renumber $renumberfile"
+            echo $cmd
+            $cmd > $wdir/fakerels.side${side}.${q0}-${q1}
+        ) &
+        if [ $parallel == "false" ]; then
+            wait
+        fi
+    done
+    wait
+    for i in `seq 1 $NCHUNKS`; do
         q0=$((qmin + (i-1)*qrange))
         q1=$((qmin + i*qrange))
-        echo "Dealing with qrange=[$q0,$q1]"
-        echo "  Sampling..."
-        cmd="$CADO_BUILD/sieve/las -I $I -poly $polyfile -q0 $q0 -q1 $q1 \
-          -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side \
-          -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las \
-          -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE \
-          -t 1 -v -dup -dup-qmin $dupqmin"
-        echo $cmd
-        $cmd > $wdir/sample.side${side}.${q0}-${q1}
-        echo "  Building fake relations..."
-        cmd="$CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1 \
-          -q0 $q0 -q1 $q1 -sqside $side $compsq_fake \
-          -sample $wdir/sample.side${side}.${q0}-${q1} \
-          -shrink-factor $shrink_factor \
-          -renumber $renumberfile"
-        echo $cmd
-        $cmd > $wdir/fakerels.side${side}.${q0}-${q1}
         fakefiles+=("$wdir/fakerels.side${side}.${q0}-${q1}")
     done
 done
@@ -177,7 +190,7 @@ nprimes=`echo "(2*2^$lpb0/l(2^$lpb0) + 2*2^$lpb1/l(2^$lpb1))/$shrink_factor" | b
 
 # purge
 $CADO_BUILD/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3 \
-    -col-min-index 2000 -col-max-index $nprimes -t 2 ${fakefiles[@]} \
+    -col-min-index 2000 -col-max-index $nprimes -t $threads ${fakefiles[@]} \
     2>&1 | tee $wdir/purge.log
 
 # Did we get a positive excess?

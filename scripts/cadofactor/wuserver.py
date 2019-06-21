@@ -236,7 +236,7 @@ class HtmlGen(io.BytesIO):
 
 
 class MyHandler(http.server.CGIHTTPRequestHandler):
-    clientid_pattern = re.compile("^clientid=([\w.+-]*)$")
+    clientid_pattern = re.compile(r"^clientid=([\w.+-]*)$")
 
     # The instance variable rbufsize is used by StreamRequestHandler to set
     # the buffer size of the read file object attached to the socket.
