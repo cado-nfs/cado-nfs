@@ -29,6 +29,7 @@ initMat (filter_matrix_t *mat, uint32_t skip)
   ASSERT_ALWAYS (mat->cwmax < 255); /* 255 is reserved for saturated values */
   mat->skip = skip;
 
+  mat->p = NULL;
   mat->weight = 0;
   mat->tot_weight = 0;
   mat->rem_ncols = 0;
