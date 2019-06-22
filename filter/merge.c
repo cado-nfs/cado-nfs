@@ -50,6 +50,8 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
 
 /* define USE_HEAP for custom memory management */
 #define USE_HEAP
+#define GC_MAX_GARBAGE_RATIO   0.33    /* only run the collection when there is this much garbage */
+#define GC_COLLECTION_LATENCY   5     /* wait before collecting */
 
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
@@ -208,8 +210,8 @@ int n_pages, n_full_pages, n_empty_pages;
 struct pagelist_t headnode;
 struct pagelist_t *full_pages, *empty_pages;
 
-struct page_t **active_page;
-long long *heap_waste;
+struct page_t **active_page; /* active page of each thread */
+long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
 
 
 /* provide an empty page */
@@ -345,10 +347,22 @@ heap_alloc_row (index_t i, size_t s)
   typerow_t *alloc = heap_malloc(s + 2);
   rowCell(alloc, 0) = i;
   rowCell(alloc, 1) = s;
-  // setCell(alloc, 0, i, 0xbadcafe);   /* setCell is defined in sparse.h */
-  // setCell(alloc, 1, s, 0);
   return alloc + 1;
 }
+
+/* Shrinks the row. It must be the last one allocated by this thread. Thread-safe. */
+static void
+heap_resize_last_row (typerow_t *row, index_t new_size)
+{
+  int t = omp_get_thread_num();
+  struct page_t *page = active_page[t];
+  index_t old_size = rowCell(row, 0);
+  ASSERT(row + old_size + 1 == page->data + page->ptr);
+  int delta = old_size - new_size;
+  rowCell(row, 0) = new_size;
+  page->ptr -= delta;
+}
+
 
 /* given the pointer provided by heap_alloc_row, mark the row as deleted.
    Thread-safe */
@@ -357,7 +371,6 @@ heap_destroy_row (typerow_t *row)
 {
   int t = omp_get_thread_num();
   rowCell(row, -1) = (index_signed_t) -1;
-  // setCell(row, -1, (index_signed_t) -1, 0xbadbeef);   /* this is in sparse.h */
   heap_waste[t] += rowCell(row, 0) + 2;
 }
 
@@ -386,12 +399,9 @@ collect_page(filter_matrix_t *mat, struct page_t *page)
                 }
                 bot += size + 2;
         }
-
         int t = omp_get_thread_num();
         heap_waste[t] -= garbage;
-
         heap_clear_page(page);
-        // printf("Collected page %d : %.0f%% wasted\n", page->i, 100. * garbage / PAGE_SIZE);
         return garbage;
 }
 
@@ -411,9 +421,9 @@ MAYBE_UNUSED static void
 full_garbage_collection(filter_matrix_t *mat)
 {
         double waste = heap_waste_ratio();
-
-        /* less than 1/3 of the heap in garbage? Do nothing at all */
-        if (waste < 0.5)
+        // actual_waste = waste * (n_pages - n_empty_pages) / PAGE_SIZE
+        /* Not enough garbage? Do nothing at all */
+        if (waste < GC_MAX_GARBAGE_RATIO)
                 return;
 
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
@@ -424,20 +434,22 @@ full_garbage_collection(filter_matrix_t *mat)
         if (pass == 2)
                 max_generation = 2;
         else
-                max_generation = pass - 2;   // tradeoff.
+                max_generation = pass - GC_COLLECTION_LATENCY;   // tradeoff.
         
         int i = 0;
         int initial_full_pages = n_full_pages;
         struct page_t *page;
-        #pragma omp parallel reduction(+:i) private(page)
+        long long collected_garbage = 0;
+        #pragma omp parallel reduction(+:i, collected_garbage) private(page)
         while ((page = heap_get_full_page(max_generation)) != NULL) {
-                collect_page(mat, page);
+                collected_garbage += collect_page(mat, page);
                 i++;
         }
 
         double page_ratio = (double) i / initial_full_pages;
         double recycling = 1 - heap_waste_ratio() / waste;
-        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste\n", 100 * page_ratio, 100 * recycling);
+        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n", 
+        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
 }
 
 #endif
@@ -631,7 +643,18 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 	} /* end parallel section */
 
         #ifdef FOR_DL
-        /* update mat->p. It sends actual indices in mat to original indices in the purge file */
+        /* For the discrete logarithm, we keep the inverse of p, to print the
+	original columns in the history file.
+	Warning: for a column j of weight 0, we have p[j] = p[j'] where
+	j' is the smallest column > j of positive weight, thus we only consider
+	j such that p[j] < p[j+1], or j = ncols-1. */
+        if (mat->p == NULL) {
+        	mat->p = malloc(mat->rem_ncols * sizeof (index_t));
+		for (uint64_t i = 0, j = 0; j < mat->ncols; j++)
+			if (p[j] == i && (j + 1 == mat->ncols || p[j] < p[j+1]))
+				mat->p[i++] = j; /* necessarily i <= j */
+        } else {
+	/* update mat->p. It sends actual indices in mat to original indices in the purge file */
         // before : mat->p[i] == original
         //  after : mat->p[p[i]] == original
         /* Warning: in multi-thread mode, one should take care not to write
@@ -643,20 +666,14 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
            value of mat->p[0] will be wrong (it will be the initial value of
            mat->p[2], instead of the initial value of mat->p[1]).
            To solve that problem, we store the new values in another array. */
-	if (mat->p == NULL) {
-	  mat->p = malloc(mat->rem_ncols * sizeof (index_t));
-	  for (uint64_t i = 0, j = 0; j < mat->ncols; j++)
-	    if (p[j] == i && (j + 1 == mat->ncols || p[j] < p[j+1]))
-	      mat->p[i++] = j; /* necessarily i <= j */
-	} else {
-	  index_t *new_p = malloc (mat->rem_ncols * sizeof (index_t));
-          #pragma omp for schedule(static)
-	  for (index_t j = 0; j < ncols; j++)
-	    if (0 < mat->wt[j])
-	      new_p[p[j]] = mat->p[j];
-	  free(mat->p);
-	  mat->p = new_p;
-	}
+        	index_t *new_p = malloc (mat->rem_ncols * sizeof (index_t));
+        	#pragma omp for schedule(static)
+		for (index_t j = 0; j < ncols; j++)
+			if (0 < mat->wt[j])
+				new_p[p[j]] = mat->p[j];
+		free(mat->p);
+		mat->p = new_p;
+        }
         #endif
 
 	free(mat->wt);
@@ -988,7 +1005,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 
 // #define TRACE_J 1438672
 
-static void
+static inline void
 decrease_weight (filter_matrix_t *mat, index_t j)
 {
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
@@ -1004,7 +1021,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
   }
 }
 
-static void
+static inline void
 increase_weight (filter_matrix_t *mat, index_t j)
 {
   /* only increase the weight if <= MERGE_LEVEL_MAX,
@@ -1023,105 +1040,89 @@ increase_weight (filter_matrix_t *mat, index_t j)
    New memory is allocated and the old space is freeed */
 #ifndef FOR_DL
 /* special code for factorization */
-static int32_t
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit,
-	 MAYBE_UNUSED index_t j)
+static void
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
 {
+	index_t k1 = matLengthRow(mat, i1);
+	index_t k2 = matLengthRow(mat, i2);
+	index_t t1 = 1, t2 = 1;
+	index_t t = 0;
+
 #ifdef CANCEL
-  #pragma omp atomic update
-  cancel_rows ++;
+	#pragma omp atomic update
+	cancel_rows ++;
 #endif
-  uint32_t k1 = matLengthRow (mat, i1);
-  uint32_t k2 = matLengthRow (mat, i2);
-  int32_t c = 0;
-  uint32_t t1 = 1, t2 = 1;
-  while (t1 <= k1 && t2 <= k2)
-    {
-      if (mat->rows[i1][t1] == mat->rows[i2][t2])
-	      t1 ++, t2 ++;
-      else if (mat->rows[i1][t1] < mat->rows[i2][t2])
-	      t1 ++, c ++;
-      else
-	      t2 ++, c ++;
-    }
+
+	/* fast-track : don't precompute the size */
+#ifdef USE_HEAP
+	typerow_t *sum = heap_alloc_row(i1, k1 + k2);
+#else
+	typerow_t *sum = malloc((k1 + k2) * sizeof(*sum));  /* over-allocation: let it be...*/
+#endif
+
+	while (t1 <= k1 && t2 <= k2) {
+		if (mat->rows[i1][t1] == mat->rows[i2][t2]) {
+			decrease_weight(mat, mat->rows[i1][t1]);
+			t1 ++, t2 ++;
+		} else if (mat->rows[i1][t1] < mat->rows[i2][t2]) {
+			sum[++t] = mat->rows[i1][t1++];
+		} else {
+			increase_weight(mat, mat->rows[i2][t2]);
+			sum[++t] = mat->rows[i2][t2++];
+		}
+	}
+	while (t1 <= k1)
+	      sum[++t] = mat->rows[i1][t1++];
+	while (t2 <= k2) {
+	    increase_weight(mat, mat->rows[i2][t2]);
+	    sum[++t] = mat->rows[i2][t2++];
+	}
+	ASSERT(t <= k1 + k2 - 1);
+
 #ifdef CANCEL
-  int cancel = (t1 - 1) + (t2 - 1) - c;
-  ASSERT_ALWAYS(cancel < CANCEL_MAX);
-  #pragma omp atomic update
-  cancel_cols[cancel] ++;
+	int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
+	ASSERT_ALWAYS(cancel < CANCEL_MAX);
+	#pragma omp atomic update
+	cancel_cols[cancel] ++;
 #endif
-  c += (k1 + 1 - t1) + (k2 + 1 - t2);
-  if (doit == 0)
-    return c;
-  /* now perform the real merge */
-  index_t *t, *t0;
+
 #ifdef USE_HEAP
-  t = heap_alloc_row(i1, c);
+	heap_resize_last_row(sum, t);
+	heap_destroy_row(mat->rows[i1]);
 #else
-  t = malloc ((c + 1) * sizeof (index_t));
+	sum[0] = t;
+	free(mat->rows[i1]);
 #endif
-  t0 = t;
-  *t++ = c;
-  t1 = t2 = 1;
-  while (t1 <= k1 && t2 <= k2)
-    {
-      if (mat->rows[i1][t1] == mat->rows[i2][t2])
-	{
-	  decrease_weight (mat, mat->rows[i1][t1]);
-	  t1 ++, t2 ++;
-	}
-      else if (mat->rows[i1][t1] < mat->rows[i2][t2])
-	*t++ = mat->rows[i1][t1++];
-      else
-	{
-	  increase_weight (mat, mat->rows[i2][t2]);
-	  *t++ = mat->rows[i2][t2++];
-	}
-    }
-  while (t1 <= k1)
-    *t++ = mat->rows[i1][t1++];
-  while (t2 <= k2)
-    {
-      increase_weight (mat, mat->rows[i2][t2]);
-      *t++ = mat->rows[i2][t2++];
-    }
-  ASSERT (t0 + (c + 1) == t);
-#ifdef USE_HEAP
-  heap_destroy_row(mat->rows[i1]);
-#else
-  free (mat->rows[i1]);
-#endif
-  mat->rows[i1] = t0;
-  return c;
+	mat->rows[i1] = sum;
+	return;
 }
 #else /* FOR_DL: j is the ideal to be merged */
 #define INT32_MIN_64 (int64_t) INT32_MIN
 #define INT32_MAX_64 (int64_t) INT32_MAX
 
-static int32_t
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
-{
+static void
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
+{  
 #ifdef CANCEL
-  #pragma omp atomic update
-  cancel_rows ++;
+	#pragma omp atomic update
+	cancel_rows ++;
 #endif
+
   /* first look for the exponents of j in i1 and i2 */
   uint32_t k1 = matLengthRow (mat, i1);
   uint32_t k2 = matLengthRow (mat, i2);
-  ideal_merge_t *r1 = mat->rows[i1];
-  ideal_merge_t *r2 = mat->rows[i2];
+  typerow_t *r1 = mat->rows[i1];
+  typerow_t *r2 = mat->rows[i2];
   int32_t e1 = 0, e2 = 0;
 
   /* search by decreasing ideals as the ideal to be merged is likely large */
   for (int l = k1; l >= 1; l--)
-    if (r1[l].id == j)
-      {
+    if (r1[l].id == j) {
 	e1 = r1[l].e;
 	break;
       }
   for (int l = k2; l >= 1; l--)
-    if (r2[l].id == j)
-      {
+    if (r2[l].id == j) {
 	e2 = r2[l].e;
 	break;
       }
@@ -1135,70 +1136,25 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
   e2 /= d;
   /* we will multiply row i1 by e2, and row i2 by e1 */
 
-  int32_t c = 0;
-  uint32_t t1 = 1, t2 = 1;
-
-  while (t1 <= k1 && t2 <= k2)
-    {
-      if (r1[t1].id == r2[t2].id)
-	{
-	  /* If exponent do not cancel, add 1 to cost.
-	     Warning: we should ensure that r1[t1].e * e2 does not overflow,
-	     same for r2[t2].e * e1 and the sum.
-	     In fact, since the sum is computed modulo 2^32, the only bad case
-	     is when the sum is a non-zero multiple of 2^32. */
-	  int32_t e = r1[t1].e * e2 + r2[t2].e * e1;
-	  if (e != 0)
-	    c ++; /* we are sure that the sum is not zero */
-	  else
-	    {
-	      /* We compute the sum with 64-bit integers. Since all values are
-		 in [-2^31, 2^31-1], the sum is in [-2^63,2^63-2^33+2], thus
-		 always fits into an int64_t. */
-	      int64_t ee = (int64_t) r1[t1].e * (int64_t) e2 + (int64_t) r2[t2].e * (int64_t) e1;
-	      c += ee != 0;
-	    }
-	  t1 ++, t2 ++;
-	}
-      else if (r1[t1].id < r2[t2].id)
-	t1 ++, c ++;
-      else
-	t2 ++, c ++;
-    }
-#ifdef CANCEL
-  int cancel = (t1 - 1) + (t2 - 1) - c;
-  ASSERT_ALWAYS(cancel < CANCEL_MAX);
-  #pragma omp atomic update
-  cancel_cols[cancel] ++;
-#endif
-  c += (k1 + 1 - t1) + (k2 + 1 - t2);
-
-  if (doit == 0)
-    return c;
+  index_t t1 = 1, t2 = 1, t = 0;
 
   /* now perform the real merge */
-  ideal_merge_t *t, *t0;
+  typerow_t *sum;
 #ifdef USE_HEAP
-  t = heap_alloc_row(i1, c);
+  sum = heap_alloc_row(i1, k1 + k2 - 1);
 #else
-  t = malloc ((c + 1) * sizeof (ideal_merge_t));
+  sum = malloc ((k1 + k2) * sizeof(*sum));
 #endif
-  t0 = t;
-  (*t++).id = c; /* length of the new relation */
-  t1 = t2 = 1;
+
   int64_t e;
-  while (t1 <= k1 && t2 <= k2)
-    {
-      if (r1[t1].id == r2[t2].id)
-	{
+  while (t1 <= k1 && t2 <= k2) {
+      if (r1[t1].id == r2[t2].id) {
 	  /* as above, the exponent e below cannot overflow */
 	  e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
-	  if (e != 0) /* exponents do not cancel */
-	    {
-	      (*t).id = r1[t1].id;
+	  if (e != 0) { /* exponents do not cancel */
 	      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-	      (*t).e = (int32_t) e;
-	      t ++;
+	      t++;
+	      setCell(sum, t, r1[t1].id, e);
 	    }
 	  else
 	    decrease_weight (mat, r1[t1].id);
@@ -1206,49 +1162,58 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, int doit, index_t j)
 	}
       else if (r1[t1].id < r2[t2].id)
 	{
-	  (*t).id = r1[t1].id;
 	  e = (int64_t) e2 * (int64_t) r1[t1].e;
 	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-	  (*t).e = (int32_t) e;
-	  t1 ++, t ++;
+	  t++;
+	  setCell(sum, t, r1[t1].id, e);
+	  t1 ++;
 	}
       else
 	{
-	  (*t).id = r2[t2].id;
 	  e = (int64_t) e1 * (int64_t) r2[t2].e;
 	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-	  (*t).e = (int32_t) e;
+	  t++;
+	  setCell(sum, t, r2[t2].id, e);
 	  increase_weight (mat, r2[t2].id);
-	  t2 ++, t ++;
+	  t2 ++;
 	}
     }
-  while (t1 <= k1)
-    {
-      (*t).id = r1[t1].id;
+  while (t1 <= k1) {
       e = (int64_t) e2 * (int64_t) r1[t1].e;
       ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-      (*t).e = (int32_t) e;
-      t1 ++, t ++;
+      t++;
+      setCell(sum, t, r1[t1].id, e);
+      t1 ++;
     }
-  while (t2 <= k2)
-    {
-      (*t).id = r2[t2].id;
+  while (t2 <= k2) {
       e = (int64_t) e1 * (int64_t) r2[t2].e;
       ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-      (*t).e = (int32_t) e;
+      t++;
+      setCell(sum, t, r2[t2].id, e);
       increase_weight (mat, r2[t2].id);
-      t2 ++, t ++;
+      t2 ++;
     }
-  ASSERT (t0 + (c + 1) == t);
+  ASSERT(t <= k1 + k2 - 1);
+
+
+#ifdef CANCEL
+	int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
+	ASSERT_ALWAYS(cancel < CANCEL_MAX);
+	#pragma omp atomic update
+	cancel_cols[cancel] ++;
+#endif
+
 #ifdef USE_HEAP
+  heap_resize_last_row(sum, t);
   heap_destroy_row(mat->rows[i1]);
 #else
+  setCell(sum, 0, t, 0);
   free (mat->rows[i1]);
 #endif
-  mat->rows[i1] = t0;
-  return c;
+  mat->rows[i1] = sum;
 }
 #endif
+
 
 static void
 remove_row (filter_matrix_t *mat, index_t i)
@@ -1371,7 +1336,7 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
 	}
       else
 	history[i][1] = -(ind[s] + 1);
-      add_row (mat, ind[t], ind[s], 1, j);
+      add_row (mat, ind[t], ind[s], j);
       history[i][2] = ind[t];
       history[i][0] = 2;
     }
@@ -1811,7 +1776,6 @@ main (int argc, char *argv[])
     heap_setup();
 #endif
 
-
     set_antebuffer_path (argv0, path_antebuffer);
 
     /* Read number of rows and cols on first line of purged file */
@@ -1946,9 +1910,12 @@ main (int argc, char *argv[])
     while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	pass++;
+
+	#ifdef USE_HEAP
         if (pass == 2 || mat->cwmax > 2)
                 full_garbage_collection(mat);
-
+	#endif
+	
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
 	   smaller, but merge will take more time.
