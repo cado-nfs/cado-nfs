@@ -59,8 +59,9 @@ Required software tools
    In practice, your probability of success is best with either GCC
    version 4.7 or newer, LLVM Clang 4.0.0 or newer, Apple Clang 6.0.0 or
    newer, or ICC version 14 or newer.
- - GNU make and CMake (2.8.11 or later) for building (CMake is installed
-   on the fly if missing. This feature requires an Internet connection.)
+ - GNU make and CMake (cmake 3.4 or later) for building (CMake is
+   installed on the fly if missing. This feature requires an Internet
+   connection.)
  - Support for posix threads.
  - The main cado-nfs.py script uses a lot of unix tools: Python, Python3,
    ssh, rsync, gzip to mention but a few.

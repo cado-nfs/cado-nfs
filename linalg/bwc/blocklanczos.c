@@ -203,7 +203,7 @@ void blstate_set_start(struct blstate * bl)
     }
     /* matmul_top_vec_init has already set V to zero */
     /* for bw->dir=0, mmt->n0[0] is the number of rows. */
-    mmt_vec_set_random_through_file(bl->V[0], "blstart.0", mmt->n0[bw->dir], bl->rstate);
+    mmt_vec_set_random_through_file(bl->V[0], "blstart.0.V%u-%u.i0", mmt->n0[bw->dir], bl->rstate, 0);
     mmt_own_vec_set(bl->y, bl->V[0]);
 }
 
@@ -215,29 +215,45 @@ void blstate_load(struct blstate * bl, unsigned int iter)
     matmul_top_data_ptr mmt = bl->mmt;
     parallelizing_info_ptr pi = mmt->pi;
 
-    char * filename;
-    int rc = asprintf(&filename, "blstate.%u", iter);
+    char * filename_base;
+    int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    pi_file_handle f;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Loading %s...", filename); fflush(stdout); }
+    if (tcan_print) { printf("Loading %s.* ...", filename_base); fflush(stdout); }
 
-    pi_file_open(f, mmt->pi, bw->dir, filename, "rb");
+    char * tmp;
+
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        bit_vector_read_from_stream(bl->D[i1], f->f);
+        rc = asprintf(&tmp, "%s.control", filename_base);
+        ASSERT_ALWAYS(rc >= 0);
+        FILE * f = fopen(tmp, "rb");
+        bit_vector_read_from_stream(bl->D[i1], f);
         size_t rc;
-        rc = fread(bl->L[i1], sizeof(mat64), 1, f->f);
+        rc = fread(bl->L[i1], sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
-        rc = fread(bl->L[i2], sizeof(mat64), 1, f->f);
+        rc = fread(bl->L[i2], sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
+        fclose(f);
+        free(tmp);
     }
-    mmt_vec_load_stream(f, bl->V[i0], mmt->n0[bw->dir]);
-    mmt_vec_load_stream(f, bl->V[i1], mmt->n0[bw->dir]);
-    mmt_vec_load_stream(f, bl->V[i2], mmt->n0[bw->dir]);
 
-    pi_file_close(f);
+    rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_load(bl->V[i0], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
+
+    rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_load(bl->V[i1], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
+
+    rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_load(bl->V[i2], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
+
     if (tcan_print) { printf("done\n"); fflush(stdout); }
-    free(filename);
+    free(filename_base);
 }
 
 void blstate_save(struct blstate * bl, unsigned int iter)
@@ -248,27 +264,42 @@ void blstate_save(struct blstate * bl, unsigned int iter)
     matmul_top_data_ptr mmt = bl->mmt;
     parallelizing_info_ptr pi = mmt->pi;
 
-    char * filename;
-    int rc = asprintf(&filename, "blstate.%u", iter);
+    char * filename_base;
+    int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    pi_file_handle f;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Saving %s...", filename); fflush(stdout); }
+    if (tcan_print) { printf("Saving %s.* ...", filename_base); fflush(stdout); }
 
-    pi_file_open(f, mmt->pi, bw->dir, filename, "wb");
+    char * tmp;
+
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        bit_vector_write_to_stream(bl->D[i1], f->f);
+        rc = asprintf(&tmp, "%s.control", filename_base);
+        ASSERT_ALWAYS(rc >= 0);
+        FILE * f = fopen(tmp, "wb");
+        bit_vector_write_to_stream(bl->D[i1], f);
         size_t rc;
-        rc = fwrite(bl->L[i1], sizeof(mat64), 1, f->f);
+        rc = fwrite(bl->L[i1], sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
+        fclose(f);
+        free(tmp);
     }
-    mmt_vec_save_stream(f, bl->V[i0], mmt->n0[bw->dir]);
-    mmt_vec_save_stream(f, bl->V[i1], mmt->n0[bw->dir]);
-    mmt_vec_save_stream(f, bl->V[i2], mmt->n0[bw->dir]);
+    rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->V[i0], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
 
-    pi_file_close(f);
+    rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->V[i1], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
+
+    rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->V[i2], tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
+
     if (tcan_print) { printf("done\n"); fflush(stdout); }
-    free(filename);
+    free(filename_base);
 }
 
 /* Given a *BINARY* vector block of *EXACTLY* 64 vectors (that is, we
@@ -373,18 +404,21 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
     /* bw->dir=0: mmt->n0[bw->dir] = number of rows */
     /* bw->dir=1: mmt->n0[bw->dir] = number of columns */
 
-    pi_file_handle f;
-    const char * filename = "bl-auxiliary.bin";
-    pi_file_open(f, mmt->pi, bw->dir, filename, "wb");
+    const char * filename_base = "blaux";
+    char * tmp;
+    int rc;
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Saving %s...\n", filename); fflush(stdout); }
+    if (tcan_print) { printf("Saving %s.* ...\n", filename_base); fflush(stdout); }
 
     mmt_full_vec_set(bl->y, bl->V[i0]);
 
     /* save raw V because it's conceivably useful */
     ASSERT_ALWAYS(bl->y->n == mmt->n[bw->dir]);
-    mmt_vec_save_stream(f, bl->y, mmt->n0[bw->dir]);
+    rc = asprintf(&tmp, "%s.Y%s", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->y, tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
 
     mmt_vec_twist(mmt, bl->y);
     matmul_top_mul_cpu(mmt, 0, bl->y->d, bl->my, bl->y);
@@ -399,7 +433,11 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
      * should clean up the mess done in mksol & gather.
      */
     ASSERT_ALWAYS(bl->my->n == mmt->n[!bw->dir]);
-    mmt_vec_save_stream(f, bl->my, mmt->n0[!bw->dir]);
+    ASSERT_ALWAYS(bl->y->n == mmt->n[bw->dir]);
+    rc = asprintf(&tmp, "%s.MY%s", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->my, tmp, mmt->n0[!bw->dir], 0);
+    free(tmp);
 
     /* Do some rank calculations */
     /* m0 is just temp stuff. */
@@ -418,8 +456,14 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
         m1[i] = 0;
     }
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        size_t rc = fwrite(m1, sizeof(mat64), 1, f->f);
+        rc = asprintf(&tmp, "%s.M1", filename_base);
+        ASSERT_ALWAYS(rc >= 0);
+        FILE * f = fopen(tmp, "wb");
+        ASSERT_ALWAYS(f);
+        size_t rc = fwrite(m1, sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
+        fclose(f);
+        free(tmp);
     }
     /* Now set y = m1 * V */
     mmt_full_vec_set(bl->y, bl->V[i0]);
@@ -438,8 +482,14 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
         m2[i] = 0;
     }
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        size_t rc = fwrite(m2, sizeof(mat64), 1, f->f);
+        rc = asprintf(&tmp, "%s.M2", filename_base);
+        ASSERT_ALWAYS(rc >= 0);
+        FILE * f = fopen(tmp, "wb");
+        ASSERT_ALWAYS(f);
+        size_t rc = fwrite(m2, sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
+        fclose(f);
+        free(tmp);
     }
     serialize(mmt->pi->m);
     /* Now apply m2*m1 to v, for real */
@@ -456,12 +506,14 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
 
     /* Now save the reduced kernel basis */
     ASSERT_ALWAYS(bl->y->n == mmt->n[bw->dir]);
-    mmt_vec_save_stream(f, bl->y, mmt->n0[bw->dir]);
+    rc = asprintf(&tmp, "%s.YR%s", filename_base, "%u-%u");
+    ASSERT_ALWAYS(rc >= 0);
+    mmt_vec_save(bl->y, tmp, mmt->n0[bw->dir], 0);
+    free(tmp);
 
-    pi_file_close(f);
-    if (tcan_print) { printf("Saving %s...done\n", filename); fflush(stdout); }
+    if (tcan_print) { printf("Saving %s.* ...done\n", filename_base); fflush(stdout); }
 
-    mmt_vec_save(bl->y, "blsolution.0", mmt->n0[bw->dir]);
+    mmt_vec_save(bl->y, "blsolution%u-%u.0", mmt->n0[bw->dir], 0);
 }
 
 

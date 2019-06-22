@@ -42,8 +42,8 @@
 class nfs_work {
     public:
     las_info const & las;
-    private:
     las_memory_accessor & local_memory;
+    private:
 
     const int nr_workspaces;
 
@@ -208,9 +208,17 @@ class nfs_work {
          */
 
         thread_data(nfs_work &);
-        thread_data(thread_data const &);
+
+        /* Currently we prevent thread_data to be copy-able, so that the
+         * situation of what we do with the thread-private pointers on
+         * the bucket region is more clear. But we could as well arrange
+         * so that this is possible.
+         */
+        thread_data(thread_data const &) = delete;
         thread_data(thread_data &&);
         ~thread_data();
+        friend class nfs_work;
+        private:
         void allocate_bucket_regions();
     };
 
@@ -227,7 +235,9 @@ class nfs_work {
     void prepare_for_new_q(las_info &);
 
     void allocate_buckets(nfs_aux&, thread_pool&);
+    private:
     void allocate_bucket_regions();
+    public:
     void buckets_alloc();
     void buckets_free();
 

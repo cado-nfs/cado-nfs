@@ -49,10 +49,11 @@ const char * my_basename(const char * x)
 }
 
 struct Cfile : public string {
+    unsigned int j0, j1;
     unsigned int stretch;
     Cfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "C.%u", &stretch);
-        if (rc != 1) throw std::runtime_error("want C.%u");
+        int rc = sscanf(my_basename(x), "C%u-%u.%u", &j0, &j1, &stretch);
+        if (rc != 3) throw std::runtime_error("want C%u-%u.%u");
     }
     inline bool operator<(Cfile const& o) {
         return stretch < o.stretch;
@@ -230,6 +231,11 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
             fprintf(stderr, "Parse error on %s: %s\n", argv[i], e.what());
             exit(EXIT_FAILURE);
         }
+    }
+
+    for(auto & C : Cfiles) {
+        ASSERT_ALWAYS(C.j0 == 0);
+        ASSERT_ALWAYS(C.j1 == (unsigned int) nchecks);
     }
 
     std::sort(Cfiles.begin(), Cfiles.end());

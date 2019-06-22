@@ -110,6 +110,7 @@ int main (int argc, char **argv)
 
   table = (weight_t *)malloc(col_max_index*sizeof(weight_t));
   ASSERT_ALWAYS(table != NULL);
+  memset(table, 0, col_max_index*sizeof(weight_t));
 
   filter_rels(argv,
       (filter_rels_callback_t) &update_table,

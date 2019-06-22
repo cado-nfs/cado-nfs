@@ -17,6 +17,7 @@ set (sources
 	modified_files.c threadpool.cpp mpz_poly_bivariate.c
         gmpxx.cpp
         rho.c gpf.cpp
+        sha1.c
 )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)

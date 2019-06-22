@@ -163,7 +163,11 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
-    FILE * batch_print_survivors;
+    const char *batch_print_survivors_filename; // basename for the files
+    uint64_t    batch_print_survivors_filesize; // number of survivors per file
+    int         batch_print_survivors_counter;  // current index of filename
+    pthread_t  *batch_print_survivors_thid;     // id of the thread doing writing (if any)
+
     const char *batch_file[2];
     int batchlpb[2];
     int batchmfb[2];

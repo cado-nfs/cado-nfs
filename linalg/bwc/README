@@ -338,14 +338,14 @@ wdir/X                              X vector used for Krylov.
 wdir/C.<n>                          check vector = trsp(M)^n * X  (See note (T))
     created by secure
     read by krylov
-wdir/V<n1>-<n2>.0                   columns <n1>..<n2> (n2 exclusive) of Y
-    created by split ifile=Y.0 ofile-fmt=V%u-%u.0 splits=[...,]<n1>,<n2>[,...]
+wdir/V<n1>-<n2>.0                   starting vectors
+    created by prep
     read by krylov mksol
 wdir/A<n1>-<n2>.<j1>-<j2>       krylov sequence data.
     created by krylov
     read by acollect. acollect replaces all these files by a file matching the
     same pattern, read in turn by lingen.
-wdir/V<n1>-<n2>.<j>             columns <n1>..<n2> of M^j Y (See note (T))
+wdir/V<n1>-<n2>.<j>             columns <n1>..<n2> of M^j V_{n_1,n_2} (See note (T))
     created by krylov while computing.
     never read again unless for external checking (not all of it implemented
     yet)
@@ -492,7 +492,7 @@ build
     must match the width which is used eventually for krylov/mksol,
     otherwise data block sizes might be chosen too large or too small. In
     the latter case, you will encounter the warning ``cached matrix file
-    fits data with different striding''. This is not innocuous for
+    fits data with different stride''. This is not innocuous for
     krylov/mksol, as it hurts performance.
 
     Once /tmp/wdir/mat.h0.v0.bucket.bin (or /tmp/wdir/mat.h0.v0.bucketT.bin)

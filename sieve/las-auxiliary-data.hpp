@@ -3,6 +3,7 @@
 
 #include <unordered_set>
 #include <tuple>
+#include <mutex>
 #include "las-threads.hpp"
 #include "las-todo-entry.hpp"
 #include "las-report-stats.hpp"
@@ -23,6 +24,12 @@
  * bucket regions per thread. Thus the checksums are not necessarily
  * clonable between runs with different numbers of threads.
  */
+
+struct report_and_timer {
+    las_report rep;
+    timetree_t timer;
+    std::mutex mm;
+};
 
 class sieve_checksum {
   static const unsigned int checksum_prime = 4294967291u; /* < 2^32 */
@@ -81,16 +88,23 @@ class nfs_aux {/*{{{*/
     std::shared_ptr<rel_hash_t> rel_hash_p;
     rel_hash_t & get_rel_hash() { return * rel_hash_p ; }
 
-    /* These fields are initialized by the caller, and the caller itself
-     * will collate them with the global counters.
-     */
-    typedef std::tuple<las_report, timetree_t> caller_stuff;
-    las_report & rep;
-    timetree_t & timer_special_q;
     where_am_I w;
 
-    /* This boolean is set to true when we successfully run all the
-     * sieving without any need for reallocation */
+    report_and_timer rt;
+
+    /* The creator scope must fill these fields by hand. The final report
+     * will be collated into these two. A reasonable way to go is to
+     * first set a default destination that is essentially a trash can,
+     * and modify it to something that is a better-defined destination
+     * once we're sure we won't have exceptions.
+     *
+     * The boolean value "complete" is typically used to distinguish
+     * between the case where this destination is a trash can versus when
+     * we successfully run all the sieving without any need for
+     *
+     * See las_subjob()
+     */
+    report_and_timer * dest_rt = nullptr;
     bool complete = false;
 
     /* This gets completed somewhat late */
@@ -110,7 +124,7 @@ class nfs_aux {/*{{{*/
     std::vector<thread_data> th;
 
     timetree_t & get_timer(worker_thread * worker) {
-        return worker->is_synchronous() ? timer_special_q : th[worker->rank()].timer;
+        return worker->is_synchronous() ? rt.timer : th[worker->rank()].timer;
     }
 
     double qt0;
@@ -119,14 +133,12 @@ class nfs_aux {/*{{{*/
     nfs_aux(las_info const & las,
             las_todo_entry const & doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
-            caller_stuff & c,
             int nthreads)
         :
             las(las),   /* shame... */
             doing(doing),
             rel_hash_p(rel_hash_p),
-            rep(std::get<0>(c)),
-            timer_special_q(std::get<1>(c)),
+            dest_rt(nullptr),
             th(nthreads)//, thread_data(*this))
     {
         wct_qt0 = wct_seconds();

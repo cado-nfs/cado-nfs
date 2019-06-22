@@ -250,7 +250,7 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
         /* We'll discover the max size in the strip once again */
         uint32_t mlen = 0;
 
-        /* striding for the entries in one row is g==sgrp_size.
+        /* stride for the entries in one row is g==sgrp_size.
          * Entry g*l+k corresponds to index l in row k.  A
          * complete block of g indices is covered by the n threads in
          * g/(nb) blocks of b rows (g/nb blocks from each thread).

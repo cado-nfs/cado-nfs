@@ -9,6 +9,8 @@
 #include "mpfq/mpfq_u64k3.h"
 #elif defined(SELECT_MPFQ_LAYER_u64k4)
 #include "mpfq/mpfq_u64k4.h"
+#elif defined(SELECT_MPFQ_LAYER_m128)
+#include "mpfq/mpfq_m128.h"
 #elif defined(SELECT_MPFQ_LAYER_u64n)
 #error "argh"
 #include "mpfq/mpfq_u64n.h"

@@ -44,63 +44,19 @@ static inline uint32_t bits_11_0(uint32_t x) {
   return (x & mask_11_0);
 }
 
-
 void cpuid(uint32_t res[4], uint32_t op) {
-    volatile uint64_t saved[4];
-    volatile uint32_t pre_res[4];
     __asm__ __volatile__(
-            "movq %%rax, 0(%[src])\n"
-            "movq %%rbx, 8(%[src])\n"
-            "movq %%rcx, 16(%[src])\n"
-            "movq %%rdx, 24(%[src])\n"
-            "movl %[op], %%eax\n"
             "cpuid\n"
-            "movl %%eax, 0(%[res])\n"
-            "movl %%ebx, 4(%[res])\n"
-            "movl %%ecx, 8(%[res])\n"
-            "movl %%edx, 12(%[res])\n"
-            "movq 0(%[src]), %%rax\n"
-            "movq 8(%[src]), %%rbx\n"
-            "movq 16(%[src]), %%rcx\n"
-            "movq 24(%[src]), %%rdx\n"
-            :
-            : [op]"m"(op), [res]"D"(pre_res), [src]"S"(saved)
-            : "memory"
-            );
-    res[0] = pre_res[0];
-    res[1] = pre_res[1];
-    res[2] = pre_res[2];
-    res[3] = pre_res[3];
+            : "=a"(res[0]), "=b"(res[1]), "=c"(res[2]), "=d"(res[3])
+            : "a"(op));
 }
 
 /* variant which sets the ecx register to given value */
 void cpuid2(uint32_t res[4], uint32_t op, uint32_t ecx) {
-    volatile uint64_t saved[4];
-    volatile uint32_t pre_res[4];
     __asm__ __volatile__(
-            "movq %%rax, 0(%[src])\n"
-            "movq %%rbx, 8(%[src])\n"
-            "movq %%rcx, 16(%[src])\n"
-            "movq %%rdx, 24(%[src])\n"
-            "movl %[op], %%eax\n"
-            "movl %[ecx], %%ecx\n"
             "cpuid\n"
-            "movl %%eax, 0(%[res])\n"
-            "movl %%ebx, 4(%[res])\n"
-            "movl %%ecx, 8(%[res])\n"
-            "movl %%edx, 12(%[res])\n"
-            "movq 0(%[src]), %%rax\n"
-            "movq 8(%[src]), %%rbx\n"
-            "movq 16(%[src]), %%rcx\n"
-            "movq 24(%[src]), %%rdx\n"
-            :
-            : [op]"m"(op), [ecx]"m"(ecx), [res]"D"(pre_res), [src]"S"(saved)
-            : "memory"
-            );
-    res[0] = pre_res[0];
-    res[1] = pre_res[1];
-    res[2] = pre_res[2];
-    res[3] = pre_res[3];
+            : "=a"(res[0]), "=b"(res[1]), "=c"(res[2]), "=d"(res[3])
+            : "a"(op), "c"(ecx));
 }
 
 // str should be 13 byte long, at least.

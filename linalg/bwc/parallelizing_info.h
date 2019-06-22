@@ -284,6 +284,8 @@ extern void pi_file_close(pi_file_handle_ptr f);
  * the sum of the individual sizes, in case of padding */
 extern ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize);
 extern ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize);
+extern ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos);
+extern ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos);
 
 /* the parallelizing_info layer has some collective operations which
  * deliberately have prototypes simlar or identical to their mpi

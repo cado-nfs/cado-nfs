@@ -6,7 +6,7 @@
 
 MPFQ:=$$HOME/Mp/mpfq/src
 
-mpfq_tag_list:=u64k1 u64k2 u64k3 u64k4 p_1 p_2 p_3 p_4 p_5 p_6 p_7 p_8 p_9 p_10 p_11 p_12 p_13 p_14 p_15 pz
+mpfq_tag_list:=m128 u64k1 u64k2 u64k3 u64k4 p_1 p_2 p_3 p_4 p_5 p_6 p_7 p_8 p_9 p_10 p_11 p_12 p_13 p_14 p_15 pz
 
 all: basic prime-fields prepend-includes
 
@@ -20,8 +20,9 @@ basic:
 	/bin/cp -f $(MPFQ)/include/mpfq.h .
 	/bin/cp -f $(MPFQ)/gfp/mpfq_gfp_common.h .
 	/bin/cp -f $(MPFQ)/test/mpfq_test.c.meta ../../../tests/linalg/bwc/mpfq/
-	$(MPFQ)/test/mk_name_k.pl  name=ab --noshift > mpfq_name_ab.h
-	$(MPFQ)/test/mk_name_k.pl  name=K > ../../../tests/linalg/bwc/mpfq/mpfq_name_K.h
+	-rm -f mpfq_*.?pp
+	$(MPFQ)/test/mk_name_k.pl  name=ab --noshift | sed -e '/cxx/ d' > mpfq_name_ab.h
+	$(MPFQ)/test/mk_name_k.pl  name=K | sed -e '/cxx/ d' > ../../../tests/linalg/bwc/mpfq/mpfq_name_K.h
 
 # for tag in $(filter p%,$(mpfq_tag_list)) ; do (echo '#include "cado.h"' ; sed -e "s/TAG/$$tag/g" -e "/^#line/ d" -e "/^#warning/ d" < $(MPFQ)/test/mpfq_test.c.meta) > ../../../tests/linalg/bwc/mpfq/mpfq_test_$$tag.c ; done
 

@@ -1711,9 +1711,29 @@ ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size)
 }
 
 
+/* size is the chunk size on each core */
 ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
 {
+    return pi_file_write_chunk(f, buf, size, totalsize, 1, 0, 1);
+}
+
+/* Here, we write a fragment of a "virtual" file (of size totalsize) that
+ * is made of several independent files. Think of entries in that virtual
+ * file as being [chunksize] bytes long, and then we write specifically
+ * bytes spos to epos of each of these chunks.
+ *
+ */
+ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
+{
     ASSERT_ALWAYS(size <= ULONG_MAX);
+    ASSERT_ALWAYS(spos <= chunksize);
+    ASSERT_ALWAYS(spos <= epos);
+    ASSERT_ALWAYS(epos <= chunksize);
+    ASSERT_ALWAYS(totalsize % chunksize == 0);
+    ASSERT_ALWAYS(size % chunksize == 0);
+    size_t loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t loc_size = (size / chunksize) * (epos - spos);
+    size_t chunk_per_rank = size / chunksize;
 
     /* Some sanity checking. This is not technically required: of
      * course we would be able to cope with uneven data sets.
@@ -1736,7 +1756,7 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
      * outer threads, it is not possible to concatenate similarly,
      * because we have writes relative to the mpi-level interleaved.
      */
-    void * sbuf = shared_malloc_set_zero(f->pi->m, size * nci);
+    void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
 
     long res = 0;
     int failed = 0;
@@ -1750,7 +1770,19 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
                     serialize_threads(f->pi->m);
-                    if (xco == co) memcpy(sbuf + ci * size, buf, size);
+                    if (xco == co) {
+                        void * wptr = sbuf + ci * loc_size;
+                        const void * rptr = buf + spos;
+                        if (epos - spos == chunksize) {
+                            memcpy(wptr, rptr, loc_size);
+                        } else {
+                            for(size_t i = 0 ; i < chunk_per_rank ; ++i) {
+                                memcpy(wptr, rptr, epos - spos);
+                                wptr += epos - spos;
+                                rptr += chunksize;
+                            }
+                        }
+                    }
                     serialize_threads(f->pi->m);
                 }
                 if (f->pi->m->trank == 0) {
@@ -1758,24 +1790,22 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
                     if (!jm) {
                         /* leader node to receive data */
                         if (xj) {       /* except its own... */
-                            MPI_Recv(sbuf, size * nci, MPI_BYTE,
+                            MPI_Recv(sbuf, loc_size * nci, MPI_BYTE,
                                     xj, xj, f->pi->m->pals,
                                     MPI_STATUS_IGNORE);
                         }
                         if (!failed) {
-                            size_t wanna_write = MIN(size * nci, totalsize - res);
-                            if (wanna_write < size * nci) {
-                                ASSERT_ALWAYS(area_is_zero(sbuf, wanna_write, size * nci));
-                            }
+                            size_t wanna_write = MIN(nci * loc_size, loc_totalsize - res);
+                            if (wanna_write < nci * loc_size)
+                                ASSERT_ALWAYS(area_is_zero(sbuf, wanna_write, nci * loc_size));
                             ssize_t x = fwrite(sbuf, 1, wanna_write, f->f);
                             res += x;
-                            if (x < (ssize_t) wanna_write) {
+                            if (x < (ssize_t) wanna_write)
                                 failed=1;
-                            }
                         }
                     } else if (jm == xj) {
                         /* my turn to send data */
-                        MPI_Send(sbuf, size * nci, MPI_BYTE,
+                        MPI_Send(sbuf, loc_size * nci, MPI_BYTE,
                                 0, xj, f->pi->m->pals);
                     }
                 }
@@ -1789,7 +1819,20 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
 
 ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
 {
+    return pi_file_read_chunk(f, buf, size, totalsize, 1, 0, 1);
+}
+
+ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
+{
     ASSERT_ALWAYS(size <= ULONG_MAX);
+    ASSERT_ALWAYS(spos <= chunksize);
+    ASSERT_ALWAYS(spos <= epos);
+    ASSERT_ALWAYS(epos <= chunksize);
+    ASSERT_ALWAYS(totalsize % chunksize == 0);
+    ASSERT_ALWAYS(size % chunksize == 0);
+    size_t loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t loc_size = (size / chunksize) * (epos - spos);
+    size_t chunk_per_rank = size / chunksize;
 
     /* Some sanity checking. This is not technically required: of
      * course we would be able to cope with uneven data sets.
@@ -1808,7 +1851,7 @@ ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t total
     unsigned int jo  = f->pi->wr[f->outer]->jrank;
     unsigned int jm  = f->pi->m->jrank;
 
-    void * sbuf = shared_malloc_set_zero(f->pi->m, size * nci);
+    void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
 
     long res = 0;
     int failed = 0;
@@ -1824,22 +1867,21 @@ ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t total
                     /* only one thread per node does something. */
                     if (!jm) {
                         /* leader node to read then send data */
-                        memset(sbuf, 0, nci * size);
+                        memset(sbuf, 0, nci * loc_size);
                         if (!failed) {
-                            size_t wanna_read = MIN(size * nci, totalsize - res);
+                            size_t wanna_read = MIN(nci * loc_size, loc_totalsize - res);
                             ssize_t x = fread(sbuf, 1, wanna_read, f->f);
                             res += x;
-                            if (x < (ssize_t) wanna_read) {
+                            if (x < (ssize_t) wanna_read)
                                 failed=1;
-                            }
                         }
                         if (xj) {       /* except to itself... */
-                            MPI_Send(sbuf, size * nci, MPI_BYTE,
+                            MPI_Send(sbuf, loc_size * nci, MPI_BYTE,
                                     xj, xj, f->pi->m->pals);
                         }
                     } else if (jm == xj) {
                         /* my turn to receive data */
-                        MPI_Recv(sbuf, size * nci, MPI_BYTE,
+                        MPI_Recv(sbuf, loc_size * nci, MPI_BYTE,
                                 0, xj, f->pi->m->pals,
                                 MPI_STATUS_IGNORE);
                     }
@@ -1849,7 +1891,19 @@ ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t total
                     serialize_threads(f->pi->m);
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
-                    if (xco == co) memcpy(buf, sbuf + ci * size, size);
+                    if (xco == co) {
+                        void * wptr = buf + spos;
+                        const void * rptr = sbuf + ci * loc_size;
+                        if (epos - spos == chunksize) {
+                            memcpy(wptr, rptr, loc_size);
+                        } else {
+                            for(size_t i = 0 ; i < chunk_per_rank ; ++i) {
+                                memcpy(wptr, rptr, epos - spos);
+                                wptr += chunksize;
+                                rptr += epos - spos;
+                            }
+                        }
+                    }
                     serialize_threads(f->pi->m);
                 }
             }

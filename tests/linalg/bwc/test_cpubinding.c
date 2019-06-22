@@ -38,9 +38,17 @@ int do_cpubinding_tests(const char * cpubinding_conf)
     for( ; fgets(line, sizeof(line), f) ; ) {
         int pos = 0;
         int want = 0;
+        const char * find_magic2 =  "# EXPECT_FIND2";
         const char * find_magic =  "# EXPECT_FIND";
         const char * fail_magic =  "# EXPECT_FAIL";
-        if (strncmp(line, find_magic, strlen(find_magic)) == 0) {
+        if (strncmp(line, find_magic2, strlen(find_magic2)) == 0) {
+#if HWLOC_API_VERSION >= 0x020000
+            pos += strlen(find_magic2);
+            want = 1;
+#else
+            continue;
+#endif
+        } else if (strncmp(line, find_magic, strlen(find_magic)) == 0) {
             pos += strlen(find_magic);
             want = 1;
         } else if (strncmp(line, fail_magic, strlen(fail_magic)) == 0) {

@@ -35,14 +35,23 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
 
 nfs_aux::~nfs_aux()
 {
-    ASSERT_ALWAYS(!timer_special_q.running());
+    ASSERT_ALWAYS(!rt.timer.running());
 
-    if (!complete)
+    ASSERT_ALWAYS(dest_rt);
+
+    if (!complete) {
+        std::lock_guard<std::mutex> lock(rt.mm);
+        dest_rt->rep.accumulate_and_clear(std::move(rt.rep));
+        dest_rt->timer += rt.timer;
         return;
+    }
 
+    /* locking is not needed here, since rt.rep is our private timer and all
+     * threads completed their subtasks.
+     */
     for (auto & T : th) {
-        rep.accumulate_and_clear(std::move(T.rep));
-        timer_special_q += T.timer;
+        rt.rep.accumulate_and_clear(std::move(T.rep));
+        rt.timer += T.timer;
         for (int side = 0; side < 2; side++)
             checksum_post_sieve[side].update(T.checksum_post_sieve[side]);
     }
@@ -50,10 +59,10 @@ nfs_aux::~nfs_aux()
     verbose_output_start_batch();
 
     if (tdict::global_enable >= 2) {
-        verbose_output_print (0, 1, "%s", timer_special_q.display().c_str());
+        verbose_output_print (0, 1, "%s", rt.timer.display().c_str());
 
         timetree_t::timer_data_type t = 0;
-        for(auto const &c : timer_special_q.filter_by_category()) {
+        for(auto const &c : rt.timer.filter_by_category()) {
             std::ostringstream os;
             os << std::fixed << std::setprecision(2) << c.second;
             verbose_output_print (0, 1, "# %s: %s\n",
@@ -66,7 +75,7 @@ nfs_aux::~nfs_aux()
         verbose_output_print (0, 1, "# total counted time: %s\n", os.str().c_str());
     }
 
-    rep.display_survivor_counters();
+    rt.rep.display_survivor_counters();
 
     verbose_output_print(0, 2,
             "# Checksums over sieve region: "
@@ -76,12 +85,12 @@ nfs_aux::~nfs_aux()
 
     verbose_output_vfprint(0, 1, gmp_vfprintf,
             "# %lu %s\n",
-            rep.reports,
+            rt.rep.reports,
             las.batch ? "survivor(s) saved" : "relation(s)"
             );
 
     if (las.suppress_duplicates)
-        verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rep.duplicates);
+        verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rt.rep.duplicates);
 
     qt0 = seconds() - qt0;
     wct_qt0 = wct_seconds() - wct_qt0;
@@ -90,9 +99,9 @@ nfs_aux::~nfs_aux()
      * stuff asynchronously. Other thread might have been processing
      * other special-qs during that time.
      */
-    double qtts = qt0 - rep.tn[0] - rep.tn[1] - rep.ttf - rep.ttcof;
-    if (rep.survivors.after_sieve != rep.survivors.not_both_even) {
-        verbose_output_print(0, 1, "# Warning: found %ld hits with i,j both even (not a bug, but should be very rare)\n", rep.survivors.after_sieve - rep.survivors.not_both_even);
+    double qtts = qt0 - rt.rep.tn[0] - rt.rep.tn[1] - rt.rep.ttf - rt.rep.ttcof;
+    if (rt.rep.survivors.after_sieve != rt.rep.survivors.not_both_even) {
+        verbose_output_print(0, 1, "# Warning: found %ld hits with i,j both even (not a bug, but should be very rare)\n", rt.rep.survivors.after_sieve - rt.rep.survivors.not_both_even);
     }
 #ifdef HAVE_RUSAGE_THREAD
     int dont_print_tally = 0;
@@ -123,18 +132,24 @@ nfs_aux::~nfs_aux()
         };
         verbose_output_print(0, 1, fmt_always[sync_at_special_q != 0], qt0);
         verbose_output_print(0, 2, fmt[sync_at_special_q != 0],
-                rep.tn[0],
-                rep.tn[1],
+                rt.rep.tn[0],
+                rt.rep.tn[1],
                 qtts,
-                rep.ttbuckets_fill,
-                rep.ttbuckets_apply,
-                qtts-rep.ttbuckets_fill-rep.ttbuckets_apply,
-                rep.ttf + rep.ttcof, rep.ttf, rep.ttcof,
+                rt.rep.ttbuckets_fill,
+                rt.rep.ttbuckets_apply,
+                qtts-rt.rep.ttbuckets_fill-rt.rep.ttbuckets_apply,
+                rt.rep.ttf + rt.rep.ttcof, rt.rep.ttf, rt.rep.ttcof,
                 wct_qt0);
         verbose_output_print(0, 1, "\n");
     }
 
     verbose_output_end_batch();
+
+    {
+        std::lock_guard<std::mutex> lock(dest_rt->mm);
+        dest_rt->rep.accumulate_and_clear(std::move(rt.rep));
+        dest_rt->timer += rt.timer;
+    }
 }
 
 #ifndef DISABLE_TIMINGS

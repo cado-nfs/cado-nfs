@@ -3,10 +3,21 @@
 
 /* MPFQ generated file -- do not edit */
 
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+#include "mpfq_m128.h"
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 #include "mpfq_u64k1.h"
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 #include "mpfq_u64k2.h"
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 #include "mpfq_u64k3.h"
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 #include "mpfq_u64k4.h"
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
 /* Active handler: simd_u64k */
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
@@ -16,13 +27,25 @@
 /* Active handler: trivialities */
 /* Active handler: simd_char2 */
 /* Options used:{
-   family=[ u64k1, u64k2, u64k3, u64k4, ],
+   family=[
+    { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+    { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+    { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+    { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+    { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+    ],
    k=4,
    tag=u64k4,
    vbase_stuff={
     choose_byfeatures=<code>,
     families=[
-     [ u64k1, u64k2, u64k3, u64k4, ],
+     [
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_1, tag=p_1, }, ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_10, tag=p_10, }, ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_11, tag=p_11, }, ],
@@ -41,6 +64,13 @@
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_pz, tag=pz, }, ],
      ],
     member_templates_restrict={
+     m128=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      p_1=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_1, tag=p_1, }, ],
      p_10=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_10, tag=p_10, }, ],
      p_11=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_11, tag=p_11, }, ],
@@ -57,10 +87,34 @@
      p_8=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_8, tag=p_8, }, ],
      p_9=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_9, tag=p_9, }, ],
      pz=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_pz, tag=pz, }, ],
-     u64k1=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k2=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k3=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k4=[ u64k1, u64k2, u64k3, u64k4, ],
+     u64k1=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k2=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k3=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k4=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      },
     vc:includes=[ <stdarg.h>, ],
     },
@@ -120,30 +174,126 @@
 /* Member templates related to SIMD operation */
 
 /* Object-oriented interface */
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_dotprod(mpfq_u64k4_dst_field, mpfq_m128_dst_field, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k1_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_dotprod(mpfq_u64k4_dst_field, mpfq_u64k1_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k1_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k2_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_dotprod(mpfq_u64k4_dst_field, mpfq_u64k2_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k2_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k3_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_dotprod(mpfq_u64k4_dst_field, mpfq_u64k3_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k3_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_dotprod(mpfq_u64k4_dst_field, mpfq_u64k4_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k4_src_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_addmul_tiny(mpfq_u64k4_dst_field, mpfq_m128_dst_field, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k1_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k1_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_addmul_tiny(mpfq_u64k4_dst_field, mpfq_u64k1_dst_field, mpfq_u64k1_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k1_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k2_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_addmul_tiny(mpfq_u64k4_dst_field, mpfq_u64k2_dst_field, mpfq_u64k2_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k2_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k3_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k3_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_addmul_tiny(mpfq_u64k4_dst_field, mpfq_u64k3_dst_field, mpfq_u64k3_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k3_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k4_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_addmul_tiny(mpfq_u64k4_dst_field, mpfq_u64k4_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec, mpfq_u64k4_dst_vec, unsigned int);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_wrapper_transpose(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_m128_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_m128
+void mpfq_u64k4_m128_transpose(mpfq_u64k4_dst_field, mpfq_m128_dst_field, mpfq_u64k4_dst_vec, mpfq_m128_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_wrapper_transpose(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k1_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
 void mpfq_u64k4_u64k1_transpose(mpfq_u64k4_dst_field, mpfq_u64k1_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k1_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_wrapper_transpose(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k2_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
 void mpfq_u64k4_u64k2_transpose(mpfq_u64k4_dst_field, mpfq_u64k2_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k2_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_wrapper_transpose(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k3_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
 void mpfq_u64k4_u64k3_transpose(mpfq_u64k4_dst_field, mpfq_u64k3_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k3_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_wrapper_transpose(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
+#ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
 void mpfq_u64k4_u64k4_transpose(mpfq_u64k4_dst_field, mpfq_u64k4_dst_field, mpfq_u64k4_dst_vec, mpfq_u64k4_src_vec);
+#endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
+
 
 #endif  /* MPFQ_U64K4_T_H_ */
 

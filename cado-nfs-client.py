@@ -762,23 +762,30 @@ class WorkunitProcessor(object):
 
             # to override several parameters, use:
             # --override t 1 --override bkthresh1 15000000
-            # but both the -t and -bkthresh1 parameters should be present on
-            # the las command line
             if self.settings["override"]:
                 mangled=[]
                 orig=re.split(' *', command)
+                used_overrides={}
                 while orig:
                     a=orig.pop(0)
-                    repl=None
+                    krepl=None
                     for sub in self.settings["override"]:
                         if re.match('^-{1,2}' + sub[0] + '$', a):
-                            repl=sub[1]
+                            krepl=sub
+                            used_overrides[sub[0]]=True
                     mangled.append(a)
-                    if repl is not None:
+                    if krepl is not None:
+                        k,repl = krepl
                         oldvalue=orig.pop(0)
-                        logging.info("Overriding argument %s %s by %s %s in command line (substitution %s %s)" % (a, oldvalue, a, sub[1], sub[0], sub[1]))
-                        mangled.append(sub[1])
+                        logging.info("Overriding argument %s %s by %s %s in command line (substitution %s %s)" % (a, oldvalue, a, repl, k, repl))
+                        mangled.append(repl)
+                for f,v in self.settings["override"]:
+                    if f in used_overrides:
+                        continue
+                    mangled.append('-' + f)
+                    mangled.append(v)
                 command=' '.join(mangled)
+
 
             (returncode, stdout, stderr) = run_command(command, shell=True,
                     preexec_fn=renice_func)

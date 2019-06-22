@@ -721,15 +721,9 @@ struct process_bucket_region_run : public process_bucket_region_spawn {
 
     unsigned char *SS;
     
-    /* FIXME: Having the "primes" array allocated to BUCKET_REGION seems
-     * grossly wrong. See e-mail exchange ET/PG 20170622141358 */
     struct side_data {/*{{{*/
         bucket_array_complete purged;   /* for purge_buckets */
         bucket_primes_t primes;         /* for resieving */
-        side_data() :
-            purged(bucket_array_complete(BUCKET_REGION)),
-            primes(bucket_primes_t(BUCKET_REGION))
-        {}
     };/*}}}*/
 
     std::array<side_data, 2> sides;
@@ -781,10 +775,12 @@ struct process_bucket_region_run : public process_bucket_region_spawn {
         /* This is local to this thread */
         for(int side = 0 ; side < 2 ; side++) {
             nfs_work::side_data & wss(ws.sides[side]);
-            if (wss.no_fb())
+            if (wss.no_fb()) {
                 S[side] = NULL;
-            else
+            } else {
                 S[side] = tws.sides[side].bucket_region;
+                ASSERT_ALWAYS(S[side]);
+            }
         }
 
         SS = tws.SS;
@@ -1521,7 +1517,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
         } else {
-            ASSERT_ALWAYS(ws.las.batch || ws.las.batch_print_survivors);
+            ASSERT_ALWAYS(ws.las.batch || ws.las.batch_print_survivors_filename);
 
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
@@ -1597,19 +1593,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         rep.survivors.enter_cofactoring++;
 
-        if (ws.las.batch_print_survivors) {
-            // In sublat mode, some non-primitive survivors can exist.
-            // The cofactoring via ECM is made aware of this, but not the
-            // batch mode, so we have to ensure it.
-            rep.reports++;
-            if (ws.conf.sublat_bound && !cur.ab_coprime()) continue;
-            verbose_output_start_batch ();
-            cur.print_as_survivor(ws.las.batch_print_survivors);
-            verbose_output_end_batch ();
-            continue;
-        }
-
-        if (ws.las.batch)
+        // we'll do the printing later.
+        if (ws.las.batch || ws.las.batch_print_survivors_filename)
         {
             /* see above */
             rep.reports++;
@@ -1617,12 +1602,16 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* make sure threads don't write the cofactor list at the
              * same time !!! */
             cur.transfer_to_cofac_list(ws.cofac_candidates, aux_p->doing);
-            continue; /* we deal with all cofactors at the end of las */
+            continue; /* we deal with all cofactors at the end of subjob */
         }
 
         auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
 #ifndef  DLP_DESCENT
+        /* We must make sure that we join the async threads at some
+         * point, otherwise we'll leak memory. It seems more appropriate
+         * to batch-join only, so this is done at the las_subjob level */
+        // worker->get_pool().get_result(1, false);
         worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
 #else
         /* We must proceed synchronously for the descent */
@@ -1701,9 +1690,15 @@ void process_bucket_region_run::operator()() {/*{{{*/
      */
 
     /* These two steps used to be called "prepare_cofactoring" */
-    for(int side = 0 ; do_resieve && side < 2 ; side++) {
+    for(int side = 0 ; !survivors.empty() && do_resieve && side < 2 ; side++) {
         MARK_TIMER_FOR_SIDE(timer, side);
+        sides[side].purged.allocate_memory(ws.local_memory, BUCKET_REGION);
         purge_buckets(side);
+        size_t ns = survivors.size();
+        double maxnorm = ws.sides[side].lognorms.get_maxlog2();
+        double logp_lb = log2(ws.sides[side].fbK.td_thresh);
+        size_t nprimes_max = ns * maxnorm / logp_lb;
+        sides[side].primes.allocate_memory(ws.local_memory, nprimes_max);
         resieve(side);
     }
 
@@ -2465,8 +2460,8 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
 void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
 {
     nfs_aux & aux(*aux_p);
-    timetree_t & timer_special_q(aux.timer_special_q);
-    las_report& rep(aux.rep);
+    timetree_t & timer_special_q(aux.rt.timer);
+    las_report& rep(aux.rt.rep);
     where_am_I & w(aux.w);
 
     /* essentially update the fij polynomials and the max log bounds */
@@ -2492,8 +2487,7 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
         {
             /* allocate_bucket_regions is probably ridiculously cheap in
              * comparison to allocate_buckets */
-            ws.allocate_bucket_regions();
-
+            // ws.allocate_bucket_regions();
             ws.allocate_buckets(*aux_p, pool);
         }
 
@@ -2619,8 +2613,8 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
 
     ASSERT_ALWAYS(mpz_poly_is_root(las.cpoly->pols[aux.doing.side], r, p));
 
-    timetree_t& timer_special_q(aux.timer_special_q);
-    las_report& rep(aux.rep);
+    timetree_t& timer_special_q(aux.rt.timer);
+    las_report& rep(aux.rt.rep);
 
     // arrange so that we don't have the same header line as the one
     // which prints the q-lattice basis
@@ -2681,7 +2675,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     /* Currently we assume that we're doing sieving + resieving on
      * both sides, or we're not. In the latter case, we expect to
      * complete the factoring work with batch cofactorization */
-    ASSERT_ALWAYS(las.batch || las.batch_print_survivors || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
+    ASSERT_ALWAYS(las.batch || las.batch_print_survivors_filename || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
@@ -2759,16 +2753,74 @@ void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer)
 #endif
 }
 
-void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & global_report, timetree_t & global_timer)/*{{{*/
+struct ps_params {
+    std::shared_ptr<cofac_list> M;
+    las_info & las;
+    ps_params(std::shared_ptr<cofac_list> M, las_info & las) : M(M), las(las) {}
+};
+
+void *print_survivors_internal(void * arg)
+{
+    struct ps_params *params = (struct ps_params *)arg;
+    cofac_list const & M = * params->M;
+    las_info &las = params->las;
+        
+    std::string filename = las.batch_print_survivors_filename;
+    filename.append(".");
+    filename.append(std::to_string(las.batch_print_survivors_counter));
+    std::string filename_part = filename;
+    filename_part.append(".part");
+
+    las.batch_print_survivors_counter++;
+    FILE * out = fopen(filename_part.c_str(), "w");
+    las_todo_entry const * curr_sq = NULL;
+    for (auto const &s : M) {
+        if (s.doing_p != curr_sq) {
+            curr_sq = s.doing_p;
+            gmp_fprintf(out,
+                    "# q = (%Zd, %Zd, %d)\n",
+                    (mpz_srcptr) s.doing_p->p, (mpz_srcptr) s.doing_p->r, s.doing_p->side);
+        }
+        gmp_fprintf(out,
+                "%" PRId64 " %" PRIu64 " %Zd %Zd\n", s.a, s.b,
+                (mpz_srcptr) s.cofactor[0],
+                (mpz_srcptr) s.cofactor[1]);
+    }
+    fclose(out);
+    rename(filename_part.c_str(), filename.c_str());
+    delete params; // was newed by caller.
+    return NULL;
+}
+
+void print_survivors(std::shared_ptr<cofac_list> M, las_info & las)
+{
+    // first, wait for the previous IO job to finish writing (if any)
+    if (las.batch_print_survivors_thid) {
+        pthread_join(*las.batch_print_survivors_thid, NULL);
+    } else {
+        // we are the first writing instance.
+        las.batch_print_survivors_thid = (pthread_t *)malloc(sizeof(pthread_t));
+        // this will be freed by the dtor of las_info
+    }
+
+    auto params = new struct ps_params(M, las);
+    // will be deleted by the tread
+
+    pthread_create(las.batch_print_survivors_thid, NULL,
+            &print_survivors_internal, params);
+}
+
+void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
 {
     where_am_I w MAYBE_UNUSED;
     WHERE_AM_I_UPDATE(w, plas, &las);
 
     las.set_subjob_binding(subjob);
 
-    std::list<nfs_aux::caller_stuff> aux_good;
-    std::list<nfs_aux::caller_stuff> aux_botched;
+    report_and_timer botched;
 
+    int nwaste = 0;
+    int nq = 0;
     double cumulated_wait_time = 0;     /* for this subjob only */
     {
         /* add scoping to control dtor call */
@@ -2825,15 +2877,12 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
 
             /* pick a new entry from the stack, and do a few sanity checks */
             todo.push_closing_brace(doing.depth);
-#endif
 
-            /* We set this aside because we may have to rollback our changes
-             * if we catch an exception because of full buckets. */
-            auto saved_todo = todo.save();
-
-#ifdef DLP_DESCENT
             las.tree.new_node(doing);
 #endif
+
+            /* (non-blocking) join results from detached cofac */
+            for(task_result * r ; (r = pool.get_result(1, false)) ; delete r);
 
             /* We'll convert that to a shared_ptr later on, because this is
              * to be kept by the cofactoring tasks that will linger on quite
@@ -2844,31 +2893,18 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
              */
             auto rel_hash_p = std::make_shared<nfs_aux::rel_hash_t>();
 
+            nq++;
+
             for(;;) {
-                /* We're playing a very dangerous game here. rep and timer
-                 * below are created here, at the end of a temp list. When
-                 * exiting this loop, they will still be live somewhere,
-                 * either in aux_good or aux_botched. The nfs_aux data holds
-                 * references to this stuff. But this nfs_aux is expected to
-                 * live slightly longer, so it will tinker with these structs
-                 * at a time where they've already been moved to aux_good (or
-                 * even aux_botched, if an exception occurs late during 1l
-                 * downsorting). We must be sure that all threads are done
-                 * when we finally consume the aux_good and aux_botched
-                 * lists!
-                 *
-                 * Note that the lifetime of the nfs_aux object *is*
-                 * thread-safe, because the shared_ptr construct provides
-                 * this guarantee. Helgrind, however, is not able to
-                 * detect it properly, and sees stuff happening in the
-                 * nfs_aux dtor as conflicting with what is done in the
-                 * try{} block. This is a false positive. cado-nfs.supp
-                 * has an explicit suppression for this.
+                /*
+                 * The lifetime of the nfs_aux object *is* thread-safe,
+                 * because the shared_ptr construct provides this
+                 * guarantee. Helgrind, however, is not able to detect it
+                 * properly, and sees stuff happening in the nfs_aux dtor
+                 * as conflicting with what is done in the try{} block.
+                 * This is a false positive. cado-nfs.supp has an
+                 * explicit suppression for this.
                  */
-                std::list<nfs_aux::caller_stuff> aux_pending;
-                aux_pending.push_back({});
-                las_report & rep(std::get<0>(aux_pending.back()));
-                timetree_t & timer_special_q(std::get<1>(aux_pending.back()));
 
                 /* ready to start over if we encounter an exception */
                 try {
@@ -2877,8 +2913,13 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, doing, rel_hash_p, aux_pending.back(), las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(las, doing, rel_hash_p, las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
+                    las_report & rep(aux.rt.rep);
+                    timetree_t & timer_special_q(aux.rt.timer);
+                    /* in case we get an exception */
+                    aux.dest_rt = &botched;
+
                     ACTIVATE_TIMER(timer_special_q);
 
                     prepare_timer_layout_for_multithreaded_tasks(timer_special_q);
@@ -2893,9 +2934,9 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
                         break;
                     }
 
-                    /* for statistics */
-                    rep.nr_sq_processed++;
-
+                    /* At this point we no longer risk an exception,
+                     * therefore it is safe to tinker with the todo list
+                     */
 #ifdef DLP_DESCENT
                     postprocess_specialq_descent(las, todo, doing, timer_special_q);
 #endif
@@ -2917,20 +2958,34 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
                             /* we can release the mutex now */
 #else
                             las.L.splice(las.L.end(), workspaces.cofac_candidates);
+                            if (las.batch_print_survivors_filename) {
+                                while (las.L.size() >= las.batch_print_survivors_filesize) {
+                                    // M is another list containing the
+                                    // elements that are going to be printed
+                                    // by another thread.
+                                    auto M = std::make_shared<cofac_list>();
+                                    auto it = las.L.begin();
+                                    for (uint64_t i = 0; i < las.batch_print_survivors_filesize; ++i) {
+                                        ++it;
+                                    }
+                                    M->splice(M->end(), las.L, las.L.begin(), it);
+                                    print_survivors(M, las);
+                                }
+                            }
 #endif
                         }
                         workspaces.cofac_candidates.clear();
                     }
 
                     aux.complete = true;
-                    aux_good.splice(aux_good.end(), aux_pending);
+                    aux.dest_rt = &global_rt;
 
                     if (exit_after_rel_found > 1 && rep.reports > 0)
                         break;
 
                     break;
                 } catch (buckets_are_full const & e) {
-                    aux_botched.splice(aux_botched.end(), aux_pending);
+                    nwaste++;
                     verbose_output_vfprint (2, 1, gmp_vfprintf,
                             "# redoing q=%Zd, rho=%Zd because %s buckets are full\n"
                             "# %s\n",
@@ -2969,10 +3024,6 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
                     if (las.config_pool.default_config_ptr) {
                         expected_memory_usage(las.config_pool.base, las, true, base_memory);
                     }
-                    /* we have to roll back the updates we made to
-                     * this structure. */
-                    todo.restore(std::move(saved_todo));
-                    // las.tree.ditch_node();
                     continue;
                 }
                 break;
@@ -2985,32 +3036,22 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, las_report & g
         cumulated_wait_time = pool.cumulated_wait_time;
     }
 
-    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&lock);
+    {
+        std::lock_guard<std::mutex> lock(global_rt.mm);
 
-    for(auto & P : aux_good) {
-        global_report.accumulate_and_clear(std::move(std::get<0>(P)));
-        global_timer += std::get<1>(P);
+        global_rt.rep.nr_sq_processed += nq;
+        global_rt.rep.nwaste += nwaste;
+        global_rt.rep.waste += botched.rep.tn[0];
+        global_rt.rep.waste += botched.rep.tn[1];
+        global_rt.rep.waste += botched.rep.ttbuckets_fill;
+        global_rt.rep.waste += botched.rep.ttbuckets_apply;
+        global_rt.rep.waste += botched.rep.ttf;
+        global_rt.rep.waste += botched.rep.ttcof;
+        global_rt.rep.cumulated_wait_time += cumulated_wait_time;
+
     }
-    las_report botched_report;
-    timetree_t botched_timer;
-    for(auto & P : aux_botched) {
-        botched_report.accumulate_and_clear(std::move(std::get<0>(P)));
-        botched_timer += std::get<1>(P);
-    }
 
-    global_report.nwaste += aux_botched.size();
-    global_report.waste += botched_report.tn[0];
-    global_report.waste += botched_report.tn[1];
-    global_report.waste += botched_report.ttbuckets_fill;
-    global_report.waste += botched_report.ttbuckets_apply;
-    global_report.waste += botched_report.ttf;
-    global_report.waste += botched_report.ttcof;
-    global_report.cumulated_wait_time += cumulated_wait_time;
-
-    pthread_mutex_unlock(&lock);
-
-    verbose_output_print(0, 1, "# subjob %d done, now waiting for other jobs\n", subjob);
+    verbose_output_print(0, 1, "# subjob %d done (%d special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
 int main (int argc0, char *argv0[])/*{{{*/
@@ -3059,8 +3100,29 @@ int main (int argc0, char *argv0[])/*{{{*/
     las_output.set(pl);
 
     las_info las(pl);    /* side effects: prints cmdline and flags */
+#ifdef SAFE_BUCKET_ARRAYS
+      verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
+#endif
+#ifdef SAFE_BUCKETS_SINGLE
+      verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
+#endif
 
     las_todo_list todo(las.cpoly, pl);
+
+    if (todo.print_todo_list) {
+        for(;;) {
+            las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
+            if (!doing_p) break;
+            las_todo_entry& doing(*doing_p);
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
+                    "%d %Zd %Zd\n",
+                    doing.side,
+                    (mpz_srcptr) doing.p,
+                    (mpz_srcptr) doing.r);
+        }
+        las_output.release();
+        return EXIT_SUCCESS;
+    }
 
     /* If qmin is not given, use lim on the special-q side by default.
      * This makes sense only if the relevant fields have been filled from
@@ -3125,11 +3187,15 @@ int main (int argc0, char *argv0[])/*{{{*/
             exit(EXIT_FAILURE);
         }
     }
+
+    ASSERT_ALWAYS(las.number_of_threads_total() > 0);
+
     las.display_binding_info();
     if (las.config_pool.default_config_ptr)
         expected_memory_usage(las.config_pool.base, las, true, base_memory);
 
-    las.prepare_sieve_shared_data(pl);
+    // already done below set_parallel
+    // las.prepare_sieve_shared_data(pl);
     las.load_factor_base(pl);
 
 
@@ -3137,8 +3203,7 @@ int main (int argc0, char *argv0[])/*{{{*/
      * now.  Most of the accounting is done per special_q, and this will
      * be summarized once we're done with the multithreaded run.
      */
-    las_report global_report;
-    timetree_t global_timer;
+    report_and_timer global_rt;
 
     t0 = seconds ();
     wct = wct_seconds();
@@ -3163,13 +3228,12 @@ int main (int argc0, char *argv0[])/*{{{*/
                     std::ref(las),
                     subjob,
                     std::ref(todo),
-                    std::ref(global_report),
-                    std::ref(global_timer)
+                    std::ref(global_rt)
                 ));
     }
     for(auto & t : subjobs) t.join();
 
-    verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_report.cumulated_wait_time);
+    verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
 
 #ifdef DLP_DESCENT
     if (recursive_descent) {
@@ -3180,10 +3244,21 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     las.set_loose_binding();
 
+    if (las.batch_print_survivors_filename) {
+        auto M = std::make_shared<cofac_list>();
+        M->splice(M->end(), las.L);
+        print_survivors(M, las);
+        // this is the last writing. We need to wait for it to finish.
+        pthread_join(*las.batch_print_survivors_thid, NULL);
+    }
+
     if (las.batch)
       {
           timetree_t batch_timer;
-          auto z = call_dtor([&]() { global_timer += batch_timer; });
+          auto z = call_dtor([&]() {
+                  std::lock_guard<std::mutex> lock(global_rt.mm);
+                  global_rt.timer += batch_timer;
+                  });
           ACTIVATE_TIMER(batch_timer);
 
         /* We need to access lim[01] and lpb[01] */
@@ -3222,10 +3297,24 @@ int main (int argc0, char *argv0[])/*{{{*/
         /* We may go back to our general thread placement at this point.
          * Currently the code below still uses openmp */
 
+        int ncurves = MAX(sc0.sides[0].ncurves, sc0.sides[1].ncurves);
+
+        // Possible issue: if lpb=batchlp, ECM is still used for finding
+        // the sieved primes in order to print the smooth relations.
+        // In that case, we need enough curves to find them.
+        if (las.batchlpb[0] == lpb[0] || las.batchlpb[1] == lpb[1]) {
+            ncurves = MAX(ncurves, 30);
+        }
+
+        if (ncurves <= 0) {
+            ncurves = 50; // use the same default as finishbatch
+        }
+
         std::list<relation> rels = factor (las.L,
                 las.cpoly,
                 las.batchlpb,
                 lpb,
+                ncurves,
 		las_output.output,
                 las.number_of_threads_loose(),
                 extra_time);
@@ -3251,10 +3340,10 @@ int main (int argc0, char *argv0[])/*{{{*/
             verbose_output_print(0, 1, "%s\n", os.str().c_str());
         }
         verbose_output_end_batch();
-        global_report.reports = nondup;
+        global_rt.rep.reports = nondup;
 
 	tcof_batch = seconds () - tcof_batch;
-	global_report.ttcof += tcof_batch;
+	global_rt.rep.ttcof += tcof_batch;
       }
 
     t0 = seconds () - t0;
@@ -3262,19 +3351,19 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     if (las.adjust_strategy < 2) {
         verbose_output_print (2, 1, "# Average J=%1.0f for %lu special-q's, max bucket fill -bkmult %s\n",
-                global_report.total_J / (double) global_report.nr_sq_processed, global_report.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
+                global_rt.rep.total_J / (double) global_rt.rep.nr_sq_processed, global_rt.rep.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
     } else {
         verbose_output_print (2, 1, "# Average logI=%1.1f for %lu special-q's, max bucket fill -bkmult %s\n",
-                global_report.total_logI / (double) global_report.nr_sq_processed, global_report.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
+                global_rt.rep.total_logI / (double) global_rt.rep.nr_sq_processed, global_rt.rep.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
     }
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %u pushed\n",
-            global_report.nr_sq_discarded, todo.nq_pushed);
+            global_rt.rep.nr_sq_discarded, todo.nq_pushed);
 
     if (tdict::global_enable >= 1) {
-        verbose_output_print (0, 1, "#\n# Hierarchical timings:\n%s", global_timer.display().c_str());
+        verbose_output_print (0, 1, "#\n# Hierarchical timings:\n%s", global_rt.timer.display().c_str());
 
         timetree_t::timer_data_type t = 0;
-        auto D = global_timer.filter_by_category();
+        auto D = global_rt.timer.filter_by_category();
         for(auto const &c : D)
             t += c.second;
         std::ostringstream os;
@@ -3289,7 +3378,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         }
         verbose_output_print (0, 1, "# total counted time: %s\n#\n", os.str().c_str());
     }
-    global_report.display_survivor_counters();
+    global_rt.rep.display_survivor_counters();
 
 
     if (las_output.verbose)
@@ -3307,15 +3396,15 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
 
 
-    verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_report.nwaste, global_report.waste);
+    verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_rt.rep.nwaste, global_rt.rep.waste);
 
-    t0 -= global_report.waste;
+    t0 -= global_rt.rep.waste;
 
     tts = t0;
-    tts -= global_report.tn[0];
-    tts -= global_report.tn[1];
-    tts -= global_report.ttf;
-    tts -= global_report.ttcof;
+    tts -= global_rt.rep.tn[0];
+    tts -= global_rt.rep.tn[1];
+    tts -= global_rt.rep.ttf;
+    tts -= global_rt.rep.ttcof;
 
     if (dont_print_tally && las.number_of_threads_total() > 1) 
         verbose_output_print (2, 1, "# Total cpu time %1.2fs [tally available only in mono-thread]\n", t0);
@@ -3324,16 +3413,16 @@ int main (int argc0, char *argv0[])/*{{{*/
                 " (%1.1f + %1.1f + %1.1f),"
                 " factor %1.1f (%1.1f + %1.1f)] (not incl wasted time)\n",
                 t0,
-                global_report.tn[0],
-                global_report.tn[1],
+                global_rt.rep.tn[0],
+                global_rt.rep.tn[1],
                 tts,
-                global_report.ttbuckets_fill,
-                global_report.ttbuckets_apply,
-                tts-global_report.ttbuckets_fill-global_report.ttbuckets_apply,
-		global_report.ttf + global_report.ttcof, global_report.ttf, global_report.ttcof);
+                global_rt.rep.ttbuckets_fill,
+                global_rt.rep.ttbuckets_apply,
+                tts-global_rt.rep.ttbuckets_fill-global_rt.rep.ttbuckets_apply,
+		global_rt.rep.ttf + global_rt.rep.ttcof, global_rt.rep.ttf, global_rt.rep.ttcof);
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
-                 wct, wct / (double) global_report.nr_sq_processed, wct / (double) global_report.reports);
+                 wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);
 
     /* memory usage */
     if (las_output.verbose >= 1 && las.config_pool.default_config_ptr) {
@@ -3344,11 +3433,11 @@ int main (int argc0, char *argv0[])/*{{{*/
         verbose_output_print (2, 1, "# PeakMemusage (MB) = %ld \n",
                 peakmem >> 10);
     if (las.suppress_duplicates) {
-        verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", global_report.duplicates);
+        verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", global_rt.rep.duplicates);
     }
     verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
-            global_report.reports, t0 / (double) global_report.reports,
-            (double) global_report.reports / (double) global_report.nr_sq_processed,
+            global_rt.rep.reports, t0 / (double) global_rt.rep.reports,
+            (double) global_rt.rep.reports / (double) global_rt.rep.nr_sq_processed,
             wct,
             100*t0/wct);
 
@@ -3362,6 +3451,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     /* In essence, almost a dtor, but we want it to be before the pl dtor */
     las_output.release();
 
-    return 0;
+    return EXIT_SUCCESS;
 }/*}}}*/
 

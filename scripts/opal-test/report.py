@@ -3,10 +3,7 @@
 import sys
 import re
 from math import log, sqrt
-try:
-  from collections.abc import Iterable
-except ImportError:
-  from collections import Iterable
+from collections.abc import Iterable
 
 RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
 CAP_FP = "(%s)" % RE_FP

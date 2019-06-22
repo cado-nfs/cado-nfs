@@ -47,6 +47,9 @@ mn m n prime         same meaning as for bwc programs.
 nullspace            same meaning as for bwc programs.
 ys                   same meaning as for bwc programs (krylov)
 solutions            same meaning as for bwc programs (mksol, gather)
+simd                 SIMD width to be used for krylov (ys=) and mksol,
+                     gather (solutions=) programs. Defaults to 64 if
+                     prime=2 or 1 otherwise
 lingen_mpi           like mpi, but for plingen only (and someday lingen).
 
 matrix               input matrix file. Must be a complete path. Binary, 32-b LE
@@ -93,6 +96,7 @@ EOF
 # $program denotes either a simple command, or something prepended by ':'
 # which indicates something having a special meaning for the script.
 my $main = shift @ARGV or usage;
+
 my $my_cmdline="$0 $main @ARGV";
 
 # ----- cmake substituted variables -----
@@ -212,6 +216,7 @@ my $mpi_extra_args;
 my ($m, $n);
 my $prime;
 my $splitwidth;
+my $simd;
 
 # my $force_complete;
 my $stop_at_step;
@@ -276,6 +281,7 @@ while (my ($k,$v) = each %$param) {
     if ($k eq 'random_matrix') { $random_matrix=$v; }
     # Some parameters which are simply _not_ relevant to the bwc programs.
     if ($k eq 'hostfile') { $hostfile=$v; next; }
+    if ($k eq 'simd') { $simd=$v; next; }
     if ($k eq 'mpi_extra_args') { $mpi_extra_args=$v; next; }
     ## if ($k eq 'force_complete') { $force_complete=$v; next; }
     if ($k eq 'stop_at_step') {
@@ -334,17 +340,23 @@ while (my ($k,$v) = each %$param) {
 $nh = $mpi_split[0] * $thr_split[0];
 $nv = $mpi_split[1] * $thr_split[1];
 $splitwidth = ($prime == 2) ? 64 : 1;
+
+if (!defined($simd)) {
+    $simd = $splitwidth;
+}
+
 # }}}
 
 print "$my_cmdline\n" if $my_verbose_flags->{'cmdline'};
 
-if ($main =~ /:(?:mpi|s)run(?:_single)?/) {
+if ($main =~ /^:(?:mpi|s)run(?:_single)?$/) {
     # ok, this is really an ugly ugly hack. We have some mpi detection
     # magic in this script, which we would like to use. So the :mpirun
     # meta-command is just for that. Of course the argument requirements
     # are mostly waived in this case.
     $matrix=$param->{'matrix'}=$0;
     $param->{'prime'}=2;
+    $param->{'simd'}=$simd=64;
     $m=$n=64;
     $wdir=$param->{'wdir'}="/";
     if ($main =~ /^:srun/) {
@@ -437,7 +449,7 @@ if (!defined($random_matrix)) {
 #  - ys=
 #    --> this is valid only for krylov, for *one* sequence run.
 #    In general, this must correspond to an interval defining a sequence
-#    (i.o.w. two consecutive multiples of splitwidth).
+#    (i.o.w. two consecutive multiples of simd width).
 #    For interleaving, this is a bit trickier, since two
 #    contiguous intervals are to be treated.
 # The code below is just setting sensible defaults.
@@ -450,20 +462,18 @@ if ((!defined($m) || !defined($n))) {
 }
 
 if (!defined($param->{'solutions'})) {
-    if ($prime == 2) {
-        if ($param->{'interleaving'}) {
-            $param->{'solutions'}=[qw/0-64 64-128/];
-        } else {
-            $param->{'solutions'}=['0-64'];
-        }
-    } else {
-        $param->{'solutions'}=['0-1'];
+    $param->{'solutions'}=["0-$simd"];
+    if ($param->{'interleaving'}) {
+        $param->{'solutions'} = [ "0-" . (2*$simd) ];
     }
 } else {
     # make that a list.
     $param->{'solutions'} = [ split(',',$param->{'solutions'}) ];
 }
 
+for (@{$param->{'solutions'}}) {
+    /^\d+-\d+$/ or die "the 'solutions' parameter must match \\d+-\\d+";
+}
 
 # Default settings for ys= --> see krylov / mksol / gather.
 # }}}
@@ -760,6 +770,12 @@ sub detect_mpi {
 EOMSG
         exit 1;
     }
+
+    # Some final tweaks.
+    if ($mpi_ver =~ /^mvapich2/) {
+        print "## setting MV2_ENABLE_AFFINITY=0 (for mvapich2)\n";
+        $ENV{'MV2_ENABLE_AFFINITY'}=0;
+    }
 }
 
 # Starting daemons for mpich2 1.[012].x and mvapich2 ; we're assuming
@@ -900,93 +916,108 @@ if ($mpi_needed) {
 
     # quirk. If called with srun, then we want to avoid mpiexec anyway.
     if ($main =~ /^:srun/) {
-        push @mpi_precmd, 'srun';
+        push @mpi_precmd, 'srun', '--cpu-bind=verbose,none', '-u';
+	if ($mpi_ver =~ /^openmpi/) {
+            # srun might like that we give it the hint that we're running
+            # openmpi.
+            push @mpi_precmd, "--mpi=openmpi";
+	}
+        # quirk
+        $main =~ s/^:srun://;
     } else {
+        # Otherwise we'll start via mpiexec, and we need to be informed
+        # on the list of nodes.
         push @mpi_precmd, "$mpi/mpiexec";
-    }
 
-    my $auto_hostfile_pattern="/tmp/hosts_XXXXXXXX";
+        my $auto_hostfile_pattern="/tmp/hosts_XXXXXXXX";
 
-    # Need hosts. Put that to the list @hosts first.
-    if ($main =~ /^:srun/) {
-	    print STDERR "srun environment detected, not detecting hostfile.\n";
-    } elsif (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
-	    print STDERR "OAR environment detected, setting hostfile.\n";
-	    get_mpi_hosts_oar;
-	    $auto_hostfile_pattern="/tmp/hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
-    } elsif (exists($ENV{'PBS_JOBID'}) && !defined($hostfile) && !scalar @hosts ) {
-	    print STDERR "Torque/OpenPBS environment detected, setting hostfile.\n";
-	    get_mpi_hosts_torque;
-	    $auto_hostfile_pattern="/tmp/hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
-    } elsif (exists($ENV{'PE_HOSTFILE'}) && exists($ENV{'NSLOTS'})) {
+        # Need hosts. Put that to the list @hosts first.
+        if ($main =~ /^:srun/) {
+            print STDERR "srun environment detected, not detecting hostfile.\n";
+        } elsif (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
+            print STDERR "OAR environment detected, setting hostfile.\n";
+            get_mpi_hosts_oar;
+            $auto_hostfile_pattern="/tmp/hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
+        } elsif (exists($ENV{'PBS_JOBID'}) && !defined($hostfile) && !scalar @hosts ) {
+            print STDERR "Torque/OpenPBS environment detected, setting hostfile.\n";
+            get_mpi_hosts_torque;
+            $auto_hostfile_pattern="/tmp/hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
+        } elsif (exists($ENV{'PE_HOSTFILE'}) && exists($ENV{'NSLOTS'}) && !defined($hostfile) && !scalar @hosts) {
             print STDERR "Oracle/SGE environment detected, setting hostfile.\n";
-	    get_mpi_hosts_sge;
-    } elsif (exists($ENV{'SLURM_STEP_NODELIST'})) {
+            get_mpi_hosts_sge;
+            # } elsif (exists($ENV{'SLURM_STEP_NODELIST'})) {
+            # not clear that I want this detection to be done _only_ within a
+            # job step. I do see cases where mpiexec from the batch itself seems
+            # to make sense
+        } elsif (exists($ENV{'SLURM_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
             get_mpi_hosts_slurm;
-    }
-
-    if (scalar @hosts) {
-        # I think that when doing so, the file will get deleted at
-        # program exit only.
-        my $fh = File::Temp->new(TEMPLATE=>$auto_hostfile_pattern);
-        $hostfile = $fh->filename;
-        push @tempfiles, $fh;
-        for my $h (@hosts) { print $fh "$h\n"; }
-        close $fh;
-    }
-
-    if (defined($hostfile)) {
-        if ($needs_mpd) {
-            # Assume daemons do the job.
-        } elsif ($mpi_ver =~ /^\+hydra/) {
-            my_setenv 'HYDRA_HOST_FILE', $hostfile;
-            # I used to have various setups using --hostfile for openmpi,
-            # --file in some other cases and so on. I think that
-            # -machinefile is documented in the published standard, so
-            # it's better to stick to it.
-#        } elsif ($mpi_ver =~ /^openmpi/) {
-#            push @mpi_precmd, "--hostfile", $hostfile;
-#        } else {
-#            push @mpi_precmd, "-file", $hostfile;
-        } else {
-            push @mpi_precmd, "-machinefile", $hostfile;
         }
 
-    }
-    if (!defined($hostfile)) {
-        # At this point we're going to run processes on localhost.
-        if ($mpi_ver =~ /^\+hydra/) {
-            my_setenv 'HYDRA_USE_LOCALHOST', 1;
+        if (scalar @hosts) {
+            # I think that when doing so, the file will get deleted at
+            # program exit only.
+            my $fh = File::Temp->new(TEMPLATE=>$auto_hostfile_pattern);
+            $hostfile = $fh->filename;
+            push @tempfiles, $fh;
+            for my $h (@hosts) { print $fh "$h\n"; }
+            close $fh;
         }
-        # Otherwise we'll assume that the simple setup will work fine.
-    }
-    check_mpd_daemons();
-    if (!$needs_mpd) {
-        # Then we must configure ssh
-        # Note that openmpi changes the name of the option pretty
-        # frequently.
-        if ($mpi_ver =~ /^openmpi-1\.2/) {
-            push @mpi_precmd, qw/--mca pls_rsh_agent/, ssh_program();
-        } elsif ($mpi_ver =~ /^openmpi-1\.[34]/) {
-            push @mpi_precmd, qw/--mca plm_rsh_agent/, ssh_program();
-        } elsif ($mpi_ver =~ /^openmpi-1\.[56]/) {
-            push @mpi_precmd, qw/--mca orte_rsh_agent/, ssh_program();
-        } elsif ($mpi_ver =~ /^openmpi/) {
-            push @mpi_precmd, qw/--mca plm_rsh_agent/, ssh_program();
-            if (version_ge($mpi_ver, "openmpi-1.8")) {
-                # This is VERY important for bwc ! The default policy for
-                # openmpi 1.8 seems to be by slot, which obviously
-                # schedules most of the desired jobs on only one node...
-                # which doesn't work too well.
-                if (!$param->{'only_mpi'}) {
-                    # with only_mpi=1, the default policy works fine.
-                    push @mpi_precmd, qw/--mca rmaps_base_mapping_policy/, 'node';
-                }
+
+        if (defined($hostfile)) {
+            if ($needs_mpd) {
+                # Assume daemons do the job.
+            } elsif ($mpi_ver =~ /^\+hydra/) {
+                my_setenv 'HYDRA_HOST_FILE', $hostfile;
+                # I used to have various setups using --hostfile for openmpi,
+                # --file in some other cases and so on. I think that
+                # -machinefile is documented in the published standard, so
+                # it's better to stick to it.
+                #        } elsif ($mpi_ver =~ /^openmpi/) {
+                #            push @mpi_precmd, "--hostfile", $hostfile;
+                #        } else {
+                #            push @mpi_precmd, "-file", $hostfile;
+            } else {
+                push @mpi_precmd, "-machinefile", $hostfile;
             }
-        } elsif ($mpi_ver =~ /^mpich2/ || $mpi_ver =~ /^mvapich2/) {
-            # Not older mpich2's, which need a daemon.
-            push @mpi_precmd, qw/-launcher ssh -launcher-exec/, ssh_program();
+
         }
+        if (!defined($hostfile)) {
+            # At this point we're going to run processes on localhost.
+            if ($mpi_ver =~ /^\+hydra/) {
+                my_setenv 'HYDRA_USE_LOCALHOST', 1;
+            }
+            # Otherwise we'll assume that the simple setup will work fine.
+        }
+        check_mpd_daemons();
+        if (!$needs_mpd) {
+            # Then we must configure ssh
+            # Note that openmpi changes the name of the option pretty
+            # frequently.
+            if ($mpi_ver =~ /^openmpi-1\.2/) {
+                push @mpi_precmd, qw/--mca pls_rsh_agent/, ssh_program();
+            } elsif ($mpi_ver =~ /^openmpi-1\.[34]/) {
+                push @mpi_precmd, qw/--mca plm_rsh_agent/, ssh_program();
+            } elsif ($mpi_ver =~ /^openmpi-1\.[56]/) {
+                push @mpi_precmd, qw/--mca orte_rsh_agent/, ssh_program();
+            } elsif ($mpi_ver =~ /^openmpi/) {
+                push @mpi_precmd, qw/--mca plm_rsh_agent/, ssh_program();
+                if (version_ge($mpi_ver, "openmpi-1.8")) {
+                    # This is VERY important for bwc ! The default policy for
+                    # openmpi 1.8 seems to be by slot, which obviously
+                    # schedules most of the desired jobs on only one node...
+                    # which doesn't work too well.
+                    if (!$param->{'only_mpi'}) {
+                        # with only_mpi=1, the default policy works fine.
+                        push @mpi_precmd, qw/--mca rmaps_base_mapping_policy/, 'node';
+                    }
+                }
+            } elsif ($mpi_ver =~ /^mpich2/ || $mpi_ver =~ /^mvapich2/) {
+                # Not older mpich2's, which need a daemon.
+                push @mpi_precmd, qw/-launcher ssh -launcher-exec/, ssh_program();
+            }
+        }
+        # End of section where we try to set up the proper options so
+        # that mpiexec reaches the desired nodes correctly.
     }
     if (defined($mpi_extra_args)) {
         push @mpi_precmd, split(' ', $mpi_extra_args);
@@ -1159,24 +1190,29 @@ sub get_cached_leadernode_filelist {
     my @x;
     if (defined(my $z = $cache->{$key})) {
         @x = @$z;
-    } elsif (!$hostfile) {
-        # We're running locally, thus there's no need to go to a remote
-        # place just to run find -printf.
-        my $dh;
-        opendir $dh, $wdir;
-        for (readdir $dh) {
-            push @x, [$_, (stat "$wdir/$_")[7]];
-        }
-        closedir $dh;
     } else {
-        my $foo = join(' ', @mpi_precmd_single, "find $wdir -maxdepth 1 -follow -type f -a -printf '%s %p\\n'");
-        for my $line (`$foo`) {
-            $line =~ s/^\s*//;
-            chomp($line);
-            $line =~ s/^(\d+)\s+//;
-            my $s = $1;
-            push @x, [basename($line), $s];
+        if (!$hostfile) {
+            print STDERR "Listing files in $wdir via readdir\n";
+            # We're running locally, thus there's no need to go to a remote
+            # place just to run find -printf.
+            my $dh;
+            opendir $dh, $wdir;
+            for (readdir $dh) {
+                push @x, [$_, (stat "$wdir/$_")[7]];
+            }
+            closedir $dh;
+        } else {
+            my $foo = join(' ', @mpi_precmd_single, "find $wdir -maxdepth 1 -follow -type f -a -printf '%s %p\\n'");
+            print STDERR "Listing files in $wdir via $foo\n";
+            for my $line (`$foo`) {
+                $line =~ s/^\s*//;
+                chomp($line);
+                $line =~ s/^(\d+)\s+//;
+                my $s = $1;
+                push @x, [basename($line), $s];
+            }
         }
+        $cache->{$key}=\@x;
     }
     if ($opt && $opt eq 'HASH') { # we could also use wantarray
         my $h = {};
@@ -1204,11 +1240,10 @@ sub get_cached_bfile {
     my $key = 'balancing';
     return undef if defined($random_matrix);
     if ($param->{$key}) {
-        $cache->{$key}=[$param->{$key}];
+        $cache->{$key}=$param->{$key};
     }
     if (defined(my $z = $cache->{$key})) {
-        my @x = @$z;
-        return wantarray ? @x : $x[0];
+        return $z;
     }
     # We're checking on the leader node only. Because the other nodes
     # don't really mind if they don't see the balancing file.
@@ -1217,8 +1252,9 @@ sub get_cached_bfile {
     my $x = $matrix;
     $x =~ s{^(?:.*/)?([^/]+)$}{$1};
     $x =~ s/\.(?:bin|txt)$//;
-    my $bfile = "$wdir/$x.${nh}x${nv}.bin";
+    my $bfile = "$wdir/$x.${nh}x${nv}/$x.${nh}x${nv}.bin";
     if (!-f $bfile) {
+        print STDERR "$bfile: not found\n";
         return undef;
     }
     $cache->{$key} = $bfile;
@@ -1272,18 +1308,8 @@ sub get_nrows_ncols {
         return @x;
     }
     if (defined(my $balancing = get_cached_bfile)) {
-        sysopen(my $fh, $balancing, O_RDONLY) or die "$balancing: $!";
-        sysread($fh, my $bhdr, 24);
-        my @xx = unpack("LLLLLL", $bhdr);
-        my $zero = shift @xx;
-        die "$balancing: no leading 32-bit zero" unless $zero == 0;
-        my $magic = shift @xx;
-        die "$balancing: bad file magic" unless $magic == 0xba1a0000;
-        $cache->{'balancing_header'} = \@xx;
-        my @x = @xx;
-        close($fh);
-        shift @x;
-        shift @x;
+        my ($bnh, $bnv, $bnrows, $bncols) = get_cached_balancing_header;
+        my @x = ($bnrows, $bncols);
         $cache->{$key} = \@x;
         return @x;
     }
@@ -1326,6 +1352,12 @@ sub list_files_generic {
 sub list_vfiles {
     my ($f, $filesize) = list_files_generic(2, qr/V(\d+)-(\d+)\.(\d+)/);
     if ($filesize) {    # take the occasion to store it.
+        for my $k (keys %$f) {
+            $k =~ /^(\d+)\.\.(\d+)$/ or die "Bad key $k returned by list_files_generic";
+            if ($2-$1 != $splitwidth) {
+                die "Problem with the width of V files: $1-$2 is not good";
+            }
+        }
         # Note that it might happen that we haven't computed the
         # balancing file yet.
         my ($bnrows, $bncols) = get_nrows_ncols;
@@ -1351,10 +1383,17 @@ sub lexcmp {
 sub list_afiles {
     my ($f, $filesize) = list_files_generic(2, qr/A(\d+)-(\d+)\.(\d+)-(\d+)/);
     if ($filesize) {    # take the occasion to store it.
-        (my $k = (keys %$f)[0]) =~ /^(\d+)\.\.(\d+)$/;
-        my $length = $m * ($2-$1) * ($f->{$k}->[0]->[1] - $f->{$k}->[0]->[0]);
-        eval { store_cached_entry('nbytes_per_splitwidth', $filesize / ($length / $splitwidth));};
-        die "Problem with the size of A files:\n$@" if $@;
+        for my $k (keys %$f) {
+            $k =~ /^(\d+)\.\.(\d+)$/ or die "Bad key $k returned by list_files_generic";
+            # We can tolerate $2-$1 == $n, because we still have acollect
+            # around.
+            if ($2-$1 != $splitwidth && $2-$1 != $n) {
+                die "Problem with the width of A files: $1-$2 is not good";
+            }
+            my $length = $m * ($2-$1) * ($f->{$k}->[0]->[1] - $f->{$k}->[0]->[0]);
+            eval { store_cached_entry('nbytes_per_splitwidth', $filesize / ($length / $splitwidth));};
+            die "Problem with the size of A files:\n$@" if $@;
+        }
     }
     @{$f->{$_}} = sort { lexcmp($a, $b) } @{$f->{$_}} for keys %$f;
     return $f;
@@ -1363,14 +1402,16 @@ sub list_afiles {
 sub list_sfiles {
     my ($f, $filesize) = list_files_generic(2, qr/S\.sols(\d+)-(\d+)\.(\d+)-(\d+)/);
     if ($filesize) {    # take the occasion to store it.
-        my ($bnh, $bnv, $bnrows, $bncols) = get_cached_balancing_header;
+        for my $k (keys %$f) {
+            $k =~ /^(\d+)\.\.(\d+)$/ or die "Bad key $k returned by list_files_generic";
+            if ($2-$1 != $splitwidth) {
+                die "Problem with the width of S files: $1-$2 is not good";
+            }
+        }
+        my ($bnrows, $bncols) = get_nrows_ncols;
         my $N = $bncols > $bnrows ? $bncols : $bnrows;
-        # In some cases (mksol for n=128 and p=2) we may create files
-        # with larger data width than just $splitwidth. This should be
-        # seen in the file name.
-        (my $k = (keys %$f)[0]) =~ /^(\d+)\.\.(\d+)/; 
-        my $length = ($2-$1)*$N;
-        eval { store_cached_entry('nbytes_per_splitwidth', $filesize / ($length/$splitwidth)); };
+        my $length = $N;
+        eval { store_cached_entry('nbytes_per_splitwidth', $filesize / $length); };
         die "Problem with the size of S files:\n$@" if $@;
     }
     # Because our S pattern now includes the iteration range, we pick
@@ -1422,6 +1463,12 @@ sub max_mksol_iteration {
     my @x;
     for my $file (keys %$leader_files) {
         $file =~ /^F\.sols(\d+)-(\d+)\.(\d+)-(\d+)$/ or next;
+        if ($2-$1 != $splitwidth) {
+            die "Problem with the width of F files: $1-$2 is not good";
+        }
+        if ($4-$3 != $splitwidth) {
+            die "Problem with the width of F files: $1-$2 is not good";
+        }
         my $size = $leader_files->{$file};
         return $size / (($2-$1)*($4-$3)/$splitwidth*$nbytes_per_splitwidth);
     }
@@ -1449,7 +1496,7 @@ sub task_common_run {
     @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^plingen/;
     @_ = grep !/^save_submatrices?=/, @_ unless $program =~ /^(prep|krylov|mksol|gather)$/;
     # are we absolutely sure that lingen needs no matrix ?
-    @_ = grep !/^ys=/, @_ unless $program =~ /krylov$/;
+    @_ = grep !/^ys=/, @_ unless $program =~ /(krylov|dispatch)$/;
     @_ = grep !/^solutions=/, @_ unless $program =~ /(?:mksol|gather)$/;
     @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|plingen.*|mksol)$/;
     @_ = grep !/(?:precmd|tolerate_failure)/, @_;
@@ -1466,7 +1513,7 @@ sub task_common_run {
             unshift @_, @mpi_precmd_lingen;
         } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup)$/) {
             unshift @_, @mpi_precmd_single;
-        } elsif ($program =~ /\/(?:prep|secure|krylov|mksol|gather)$/) {
+        } elsif ($program =~ /\/(?:prep|secure|krylov|mksol|gather|dispatch)$/) {
             unshift @_, @mpi_precmd;
         } else {
             die "Don't know the parallel status of program $program ... ?";
@@ -1498,13 +1545,20 @@ sub subtask_krylov_todo {
     # function returns true, and this check is provided by the caller.
     my $length = shift;
     my $morecheck = shift || sub{1;};
+
+    my @ys;
+    if (defined($random_matrix)) {
+        my @ys=();
+        for(my $x = 0; $x < $n ; $x += $simd) {
+            my $y = $x + $simd;
+            push @ys, "ys=$x..$y";
+        }
+        return @ys;
+    }
+
     # We unconditionally do a check of the latest V checkpoint found in
     # $wdir, for all vectors.
     my @all_ys = map { [ $_*$splitwidth, ($_+1)*$splitwidth ] } (0..$n/$splitwidth - 1);
-
-    if (defined($random_matrix)) {
-        return map { "ys=$_->[0]..$_->[1] start=0"} @all_ys;
-    }
 
     my $vfiles = list_vfiles;
     my $vstarts = {};
@@ -1522,61 +1576,70 @@ sub subtask_krylov_todo {
         print " last $current_task checkpoint is $vstarts->{$yrange}\n";
     }
 
-    my @ys;
+    my @todo;
+
+    my $ys_comment='';
     if (@ys = grep { /^ys/ } @main_args) {
         @ys = map { /^(?:ys=)?(\d+)\.\.(\d+)$/; $_=[$1, $2]; } @ys;
-    } elsif ($param->{'interleaving'}) {
-        my @t = @all_ys;
-        # merge 2 by 2.
-        @ys = ();
-        while (scalar @t >= 2) {
-            my ($a, $b0) = @{shift @t};
-            my ($b1, $c) = @{shift @t};
-            push @ys, [ $a, $c ];
+        $ys_comment = ' (from command line)';
+        # Do we also have a specification for the starting checkpoint ?
+        if (my @ss = grep { /^start/ } @main_args) {
+            my ($start) = grep { s/^start=(\d+)/$1/; } @ss;
+            my $yrange = $ys[0]->[0] . ".." . $ys[0]->[1];
+            my %ok = map { $_ => 1 } grep { $_ == 0 || &$morecheck($yrange, $_); } @{$vfiles->{$yrange}};
+            if ($ok{$start}) {
+                print "## Forcing ys=$yrange start=$start as requested on command line\n";
+                push @todo, "ys=$yrange start=$start";
+                return @todo;
+            } else {
+                my @avail = sort { $a <=> $b } keys %ok;
+                task_check_message 'error', "Cannot start at ys=$yrange start=$start: missing checkpoints (available: @avail)";
+            }
         }
-        # Maybe there's a last one.
-        push @ys, @t;
     } else {
-        @ys = @all_ys;
+        my $y;
+        for(my $x = 0; $x < $n ; $x = $y) {
+            $y = $x + $simd;
+            $y += $simd if $param->{'interleaving'};
+            $y = $n if $y > $n;
+            push @ys, [ $x, $y];
+        }
+        $ys_comment = "simd=$simd" if $simd > $splitwidth;
+        $ys_comment .= ", interleaving" if $param->{'interleaving'};
+        $ys_comment = " ($ys_comment)" if $ys_comment;
     }
 
-    print "## range list for krylov: ".join(" ", map {"$_->[0]-$_->[1]";} @ys)."\n";
+    print "## range list for krylov: ".join(" ", map {"$_->[0]..$_->[1]";} @ys)."$ys_comment\n";
 
-    my @todo;
     my @impossible;
     for my $ab (@ys) {
         # most ys are double ranges, except maybe the last one.
         my ($a, $b) = @{$ab};
         my $yrange = $a . ".." . $b;
         my $start;
-        if ($param->{'interleaving'} && !($b - $a == $splitwidth && $b == $n)) {
-            # interleaving is quite special. At the moment we must make
-            # sure that the start points for both vectors agree, although
-            # admittedly this restriction is quite artificial.
-            next if $b - $a == $splitwidth && $b == $n;
-            die unless $b-$a == 2 * $splitwidth;
-            my @subs = ([$a, int(($a+$b)/2)], [int(($a+$b)/2), $b]);
-            my @sub_starts;
-            for (@subs) {
-                my $r = $_->[0]."..".$_->[1];
-                defined(my $s = $vstarts->{$r}) or do {
-                    task_check_message 'error',
-                    "No starting vector for range $r"
-                    . " (interleaved sub-range from $yrange)\n";
-                };
-                push @sub_starts, $s;
-            } 
-            if ($sub_starts[0] ne $sub_starts[1]) {
-                task_check_message 'error',
-                "Inconsistent start vectors for the two"
-                . " interleaved sub-ranges from $yrange"
-                . " (first at $sub_starts[0],"
-                . " second at $sub_starts[1])\n";
-            };
-            $start = $sub_starts[0];
-        } else {
-            $start = $vstarts->{$yrange};
-        }
+        # now all saved vectors are for width = $splitwidth ; given that
+        # we have one single start= argument, we need to make sure that
+        # all the sub-vectors have reached the same checkpoint.
+        my $discard;
+        for(my $x = $a; $x < $b ; $x += $splitwidth) {
+            my $r = $x."..".($x + $splitwidth);
+            my $s = $vstarts->{$r};
+            if (!defined($s)) {
+                task_check_message 'warning',
+                "No starting vector for range $r"
+                . " (sub-range from $yrange)\n";
+                $discard = 1;
+            } elsif (!defined($start)) {
+                $start = $s;
+            } elsif ($s != $start) {
+                task_check_message 'warning',
+                "Inconsistent start vectors for the "
+                . " sub-ranges from $yrange"
+                . " (found both $start and $s)\n";
+                $discard = 1;
+            }
+        } 
+        undef $start if $discard;
         if (!defined($start)) {
             print STDERR "## Can't schedule any work for $yrange, as *NO* checkpoint is here\n";
             push @impossible, $yrange;
@@ -1650,14 +1713,61 @@ sub task_prep {
 # {{{ secure -- this is now just a subtask of krylov or mksol
 sub subtask_secure {
     return if $param->{'skip_online_checks'};
+    my $wanted_stops={};
+    if (defined(my $x = $param->{'interval'})) {
+        $wanted_stops->{$x}=1;
+    }
+    if (defined(my $x = $param->{'check_stops'})) {
+        my @x = split(',', $x);
+        $wanted_stops->{$_}=1 for @x;
+    }
     my $leader_files = get_cached_leadernode_filelist 'HASH';
-    my @x = grep { /^C\.\d+$/ && !/^C\.0$/ } keys %$leader_files;
-    unless (@x) {
-        task_check_message 'missing', "no check vector found\n";
+
+    my $mustrun = 0;
+    if (scalar keys %$wanted_stops) {
+        $wanted_stops->{0}=1;
+        for (keys %$wanted_stops) {
+            next if $leader_files->{"C0-$splitwidth.$_"};
+            task_check_message 'missing', "missing check vector C0-$splitwidth.$_\n";
+            $mustrun = 1;
+        }
+    } else {
+        # we can only check for the existence of _some_ check vector.
+        my @x = grep { /^C0-(\d+)\.\d+$/ && ($1 == $splitwidth) && !/^C0-\d+\.0$/ } keys %$leader_files;
+        unless (@x) {
+            task_check_message 'missing', "no check vector found\n";
+            $mustrun = 1;
+        }
+    }
+    if ($mustrun) {
         task_common_run('secure', @main_args);
+    } else {
+        my $x = join(", ", sort { $a <=> $b } keys %$wanted_stops);
+        task_check_message 'ok', "All auxiliary files for checkpointing are here, good (wanted: $x).\n";
     }
 }
 # }}}
+
+sub task_dispatch {
+    task_begin_message;
+    return if defined $random_matrix;
+    if (defined(get_cached_bfile)) {
+        task_check_message 'ok', "All balancing files are present, good.\n";
+        return;
+    }
+    # we do need to keep the ys, because those control the width that get
+    # passed to the cache building procedures.
+    task_common_run('dispatch', @main_args);
+}
+
+sub task_secure {
+    task_begin_message;
+    if (defined($random_matrix)) {
+        task_check_message 'ok', "No checkpoint verification with random_matrix\n";
+    } else {
+        subtask_secure;
+    }
+}
 
 # {{{ krylov
 sub task_krylov {
@@ -1693,9 +1803,11 @@ sub task_krylov {
     task_check_message 'missing',
                 "Pending tasks for krylov:\n" . join("\n", @todo);
     for my $t (@todo) {
-        # take out ys from main_args, put the right one in place if
-        # needed.
-        my @args = grep { !/^ys/ } @main_args;
+        # take out ys and start from main_args, put the right ones in place if
+        # needed. (note that if both were specified, this is essentially
+        # putting the very same parameters back in place, but with the
+        # benefit of having performed a check inbetween).
+        my @args = grep { !/^ys/ && !/^start/ } @main_args;
         push @args, split(' ', $t);
         task_common_run 'krylov', @args;
     }
@@ -1879,16 +1991,27 @@ sub task_mksol {
     print "## mksol max iteration is $length\n";
 
     my @solutions=@{$param->{'solutions'}};
+    print "## main solution ranges for mksol ".join(" ", @solutions)."\n";
+
     my @all_solutions = map
                         { $_=sprintf("%d-%d",
                                 $_*$splitwidth,
                                 ($_+1)*$splitwidth);
                         } (0..$n/$splitwidth-1);
+
     my %solutions_importance;
     $solutions_importance{$_}=0 for (@all_solutions);
     for (@solutions) {
-        die "nothing for key $_: we kave only @all_solutions" unless defined $solutions_importance{$_};
-        $solutions_importance{$_}=1;
+        /^(\d+)-(\d+)$/ or die;
+        my $x=$1;
+        my $y;
+        my $z=$2;
+        for( ; $x < $z ; $x = $y) {
+            $y = $x + $splitwidth;
+            my $s = "$x-$y";
+            die "No solution file defined for $s: we have only @all_solutions" unless defined $solutions_importance{$s};
+            $solutions_importance{$s}=1;
+        }
     }
     my @todo;
     my @only_start = grep(/^start=\d+$/, @main_args);
@@ -1900,19 +2023,40 @@ sub task_mksol {
         task_check_message 'ok', "Command line imposes one specific subtask @todo";
     } else {
         for my $s (@solutions) {
-            my $optional = ($solutions_importance{$s} == 0);
-            my $n = 0;
             $s =~ /^(\d+)-(\d+)$/ or die;
-            my $graph = $sfiles->{"$1..$2"};
-            while (defined(my $e = $graph->{$n})) {
-                $n = $e;
+            my $x=$1;
+            my $y;
+            my $z=$2;
+            my $all_optional=1;
+            my $n_common;
+            # scan all subranges.
+            for( ; $x < $z ; $x = $y) {
+                $y = $x + $splitwidth;
+                my $s = "$x-$y";
+                my $optional = ($solutions_importance{$s} == 0);
+                $all_optional = 0 unless $optional;
+                # find latest checkpoint for that subrange
+                my $n = 0;
+                $s =~ /^(\d+)-(\d+)$/ or die;
+                my $graph = $sfiles->{"$1..$2"};
+                while (defined(my $e = $graph->{$n})) {
+                    $n = $e;
+                }
+                my $msg = "## S files for $s --> last mksol checkpoint is $n";
+                $msg .= " (DONE!)" if $n >= $length;
+                $msg .= " (optional)" if $optional;
+                print "$msg\n";
+                if (!defined($n_common)) {
+                    $n_common = $n;
+                } elsif ($n_common != $n) {
+                    task_check_message 'warning',
+                    "Inconsistent latest vectors for the "
+                    . " sub-ranges from $s"
+                    . " (found both $n_common and $n)\n";
+                }
             }
-            my $msg = "## S files for $s --> last mksol checkpoint is $n";
-            $msg .= " (DONE!)" if $n >= $length;
-            $msg .= " (optional)" if $optional;
-            print "$msg\n";
-            if ($n < $length) {
-                push @todo, "solutions=$s start=$n" unless $optional;
+            if ($n_common < $length) {
+                push @todo, "solutions=$s start=$n_common" unless $all_optional;
             }
         }
         if ($@) {
@@ -1958,18 +2102,43 @@ sub task_gather {
                         } (0..$n/$splitwidth-1);
     my %solutions_importance;
     $solutions_importance{$_}=0 for (@all_solutions);
-    for (@solutions) {
-        die unless defined $solutions_importance{$_};
-        $solutions_importance{$_}=1;
-    }
-    for my $s (@all_solutions) {
-        my $kfile = "K.sols$s.0";
-        my $optional = ($solutions_importance{$s} == 0);
-        # Do we have that solution file ?
-        next if exists $leader_files->{$kfile};
-        next if $optional;
-        push @missing, $kfile;
-        push @todo, "solutions=$s";
+    for my $s (@solutions) {
+        $s =~ /^(\d+)-(\d+)$/ or die;
+        my @loc_found;
+        my @loc_notfound;
+        my $x=$1;
+        my $y;
+        my $z=$2;
+        for( ; $x < $z ; $x = $y) {
+            $y = $x + $splitwidth;
+            my $ls = "$x-$y";
+            die "No solution file defined for $s: we have only @all_solutions" unless defined $solutions_importance{$ls};
+            $solutions_importance{$ls}=1;
+
+            my $kfile = "K.sols$ls.0";
+            if (exists $leader_files->{$kfile}) {
+                push @loc_found, $kfile;
+            } else {
+                push @loc_notfound, $kfile;
+            }
+        }
+        if (@loc_found && @loc_notfound) {
+            task_check_message 'error', "not all files are consistent for solutions=$s : found @loc_found, missing @loc_notfound";
+        }
+        next if @loc_found;
+        push @missing, @loc_notfound;
+        if ($param->{'interleaving'}) {
+            # Gather doesn't support interleaving at all, so let's do two
+            # distinct executions.
+            $s =~ /^(\d+)-(\d+)$/ or die;
+            my $x=$1;
+            my $y=int(($1+$2)/2);
+            my $z=$2;
+            push @todo, "solutions=$x-$y";
+            push @todo, "solutions=$y-$z";
+        } else {
+            push @todo, "solutions=$s";
+        }
     }
     if (@missing == 0) {
         task_check_message 'ok', "All solution files produced by gather seem to be present, good.";
@@ -2003,21 +2172,36 @@ sub task_gather {
 
     for my $s (@solutions) {
         $s =~ /^(\d+)-(\d+)$/ or die;
-        my $key = "sols$1-$2";
-        my $optional = ($solutions_importance{$s} == 0);
-        my $l = 4+length($s); $c0 = $l if $l > $c0;
-        my $n = $cmat->{$key} || 'NONE'; $cmat->{$key} = $n;
-        $l = length($n); $c = $l if $l > $c;
-        next if $optional;
-        push @missing, "S.sols$s" if $n eq 'NONE' || $n =~ /\*$/; 
+        my $x=$1;
+        my $y;
+        my $z=$2;
+        for( ; $x < $z ; $x = $y) {
+            $y = $x + $splitwidth;
+            my $ls = "$x-$y";
+            my $key = "sols$ls";
+            my $optional = ($solutions_importance{$ls} == 0);
+            my $l = 4+length($ls); $c0 = $l if $l > $c0;
+            my $n = $cmat->{$key} || 'NONE'; $cmat->{$key} = $n;
+            $l = length($n); $c = $l if $l > $c;
+            next if $optional;
+            push @missing, "S.sols$s" if $n eq 'NONE' || $n =~ /\*$/; 
+        }
     }
     print "## Number of S files found:\n";
     for my $s (@solutions) { 
-        my $optional = ($solutions_importance{$s} == 0);
-        print "##    " . sprintf("%${c0}s","$s") . " | "
-            . sprintf("%${c}s", $cmat->{"sols$s"})
-            . ($optional ? " (optional)" : "")
-            . "\n";
+        $s =~ /^(\d+)-(\d+)$/ or die;
+        my $x=$1;
+        my $y;
+        my $z=$2;
+        for( ; $x < $z ; $x = $y) {
+            $y = $x + $splitwidth;
+            my $ls = "$x-$y";
+            my $optional = ($solutions_importance{$ls} == 0);
+            print "##    " . sprintf("%${c0}s","$ls") . " | "
+                . sprintf("%${c}s", $cmat->{"sols$ls"})
+                . ($optional ? " (optional)" : "")
+                . "\n";
+        }
     }
     # }}}
 
@@ -2060,29 +2244,39 @@ sub task_cleanup {
     my @todo;
     my @solutions=@{$param->{'solutions'}};
     for my $sol (@solutions) {
-        my $wfile = "W.sols$sol";
-        if (exists($leader_files->{$wfile})) {
-            task_check_message 'ok', "Solution $sol is already computed in file $wfile, good.\n";
-            next;
-        }
-        my @ks =
-            sort {
-                basename($a)=~/\.(\d+)$/; my $xa=$1;
-                basename($b)=~/\.(\d+)$/; my $xb=$1;
-                $xa <=> $xb;
+        $sol =~ /^(\d+)-(\d+)$/ or die;
+        my $x=$1;
+        my $y;
+        my $z=$2;
+        for( ; $x < $z ; $x = $y) {
+            $y = $x + $splitwidth;
+            my $s = "$x-$y";
+
+            my $wfile = "W.sols$s";
+            if (exists($leader_files->{$wfile})) {
+                task_check_message 'ok', "Solution $s is already computed in file $wfile, good.\n";
+                next;
             }
-            grep {
-                /^(.*)\.\d+$/ && $1 eq "K.sols$sol";
+
+            my @ks =
+                sort {
+                    basename($a)=~/\.(\d+)$/; my $xa=$1;
+                    basename($b)=~/\.(\d+)$/; my $xb=$1;
+                    $xa <=> $xb;
+                }
+                grep {
+                    /^(.*)\.\d+$/ && $1 eq "K.sols$s";
+                }
+                (keys %$leader_files);
+
+            if (!@ks) {
+                task_check_message 'error', "No files created by gather for solution $sol";
+                $err=1;
+            } else {
+                task_check_message 'missing', "Will run cleanup to compute $wfile from the files:", @ks;
             }
-            (keys %$leader_files);
-        
-        if (!@ks) {
-            task_check_message 'error', "No files created by gather for solution $sol";
-            $err=1;
-        } else {
-            task_check_message 'missing', "Will run cleanup to compute $wfile from the files:", @ks;
+            push @todo, [$s, $wfile, @ks];
         }
-        push @todo, [$sol, $wfile, @ks];
     }
     for my $klist (@todo) {
         my $sol = shift @$klist;
@@ -2092,29 +2286,51 @@ sub task_cleanup {
         my $nsols = $2-$1;
         task_common_run('cleanup', "--ncols", $nsols, "--out", $wfile, @x);
     }
-    if (scalar @solutions == 1 && (!-f"$wdir/W" || ((stat "$wdir/W")[7] lt (stat "$wdir/W.sols$solutions[0]")[7]))) {
+    if (scalar @todo == 1 && (!-f"$wdir/W" || ((stat "$wdir/W")[7] lt (stat "$wdir/W.sols$solutions[0]")[7]))) {
         print STDERR "## Providing $wdir/W as an alias to $wdir/W.sols$solutions[0]\n";
         symlink "$wdir/W.sols$solutions[0]", "$wdir/W";
     }
 }
 # }}}
 
-my @tasks = (
-    [ 'prep', \&task_prep],
-    [ 'krylov', \&task_krylov],
-    [ 'lingen', \&task_lingen],
-    [ 'mksol', \&task_mksol],
-    [ 'gather', \&task_gather],
-    [ 'cleanup', \&task_cleanup],
-);
+my $tasks = {
+    prep	=> \&task_prep,
+    krylov	=> \&task_krylov,
+    # also keep "secure" and "dispatch", but just as handy proxies.
+    secure	=> \&task_secure,
+    dispatch	=> \&task_dispatch,
+    lingen	=> \&task_lingen,
+    mksol	=> \&task_mksol,
+    gather	=> \&task_gather,
+    cleanup	=> \&task_cleanup,
+};
 
-for my $tc (@tasks) {
-    if ($main eq $tc->[0] || $main eq ':complete') {
-        if ($stop_at_step && $tc->[0] eq $stop_at_step) {
-            print "Exiting early, because of stop_at_step=$stop_at_step\n";
-            last;
-        }
-        $current_task = $tc->[0];
-        &{$tc->[1]}(@main_args);
+my @complete = qw(
+        prep
+        krylov
+        lingen
+        mksol
+        gather
+        cleanup
+    );
+
+my @tasks_todo=();
+
+if ($main eq ':complete') {
+    @tasks_todo=@complete;
+} else {
+    @tasks_todo=($main);
+}
+
+for (@tasks_todo) {
+    $current_task = $_;
+    if ($stop_at_step && $current_task eq $stop_at_step) {
+        print "Exiting early, because of stop_at_step=$stop_at_step\n";
+        last;
+    }
+    if (defined($tasks->{$current_task})) {
+        &{$tasks->{$current_task}}(@main_args);
+    } else {
+        die "No task by that name: $current_task";
     }
 }

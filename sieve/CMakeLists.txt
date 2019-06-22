@@ -72,6 +72,7 @@ add_executable(dupsup
     las-parallel.cpp
     las-memory.cpp
     bucket.cpp
+    las-todo-list.cpp las-galois.cpp
 
     dupsup.cpp las-duplicate.cpp
     las-cofactor.cpp fb.cpp

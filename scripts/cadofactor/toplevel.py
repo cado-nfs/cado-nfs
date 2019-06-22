@@ -217,7 +217,7 @@ class Cado_NFS_toplevel(object):
                 return len([x for x in lines if re.match("processor", x)])
             cpu_cores=set()
             for x in lines:
-                foo=re.match("cpu cores\s*:\s*(\d+)", x)
+                foo=re.match(r"cpu cores\s*:\s*(\d+)", x)
                 if foo:
                     cpu_cores.add(foo.group(1))
             if len(cpu_cores) == 0:
@@ -304,7 +304,7 @@ class Cado_NFS_toplevel(object):
         return max(int(backquote("getconf _NPROCESSORS_ONLN")[0]), 1)
 
     def filter_out_N_paramfile_workdir(self):
-        ''' This function takes, and modifies, the namespace self.args
+        r''' This function takes, and modifies, the namespace self.args
         which has been returned by parser.parse_args(). It looks for
         "special" arguments among the positional arguments in
         self.args.options, and take them out to get a different status.
@@ -417,15 +417,15 @@ class Cado_NFS_toplevel(object):
                 if foo:
                     matches += foo.groups()
                 return foo
-            if match_and_store(matches, "^N=(\d+)$",x):
+            if match_and_store(matches, r"^N=(\d+)$",x):
                 supplied_N.append(matches[0])
-            elif match_and_store(matches, "^(\d+)$",x):
+            elif match_and_store(matches, r"^(\d+)$",x):
                 supplied_N.append(matches[0])
             elif len(supplied_parameters) == 0 and os.path.isfile(x):
                 supplied_parameters.append(x)
             elif len(supplied_workdir) == 0 and (os.path.isdir(x) or not os.path.exists(x) and os.path.exists(os.path.dirname(x))):
                 supplied_workdir.append(x)
-            elif match_and_store(matches, "(?:tasks\.)?workdir=(.*)", x):
+            elif match_and_store(matches, r"(?:tasks\.)?workdir=(.*)", x):
                 supplied_workdir.append(matches[0])
             elif re.search("=",x):
                 # if re.match("tasks.threads=(.*)", x):

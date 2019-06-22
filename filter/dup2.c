@@ -248,14 +248,16 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
     local_cost++;
   }
 
-  if (local_cost > 100)
-    {
-      static int count = 0;
-      if (count++ < 10)
-        fprintf (stderr, "Warning, insertion cost %1.0f for a=%" PRId64
-                 " b=%" PRIu64 " h=%" PRIu64 " i=%" PRIu64 " j=%u\n",
-                 local_cost, rel->a, rel->b, h, i, j);
-    }
+  /* The largest block for a linear probing table of size m with l entries
+     behaves like (log(m)-1.5*log(log(m)))/(beta-1-log(beta)) where beta = l/m.
+     See B. Pittel, Linear probing: the probable largest
+     search time grows logarithmically with the number of records, Journal
+     of Algorithms 8, number 2, 236-249, 1987.
+     Here we have m = K and l <= nrels_expected.
+     Since we take K >= 6/5 * nrels_expected, we have beta <= 5/6,
+     the factor 1/(beta-1-log(beta)) is bounded by 64.
+     For m=2e8, the largest block can have up to length 938,
+     thus it is not surprising to have local_cost > 100. */
 
   cost += local_cost;
 
@@ -793,7 +795,7 @@ main (int argc, char *argv[])
 
   if (!*files_already_renumbered) {
       if (nrels_tot != nrels_expected) {
-          fprintf(stderr, "Warning: number of relations read (%" PRIu64") does not match with the number of relations expected (%lu)\n", nrels_tot, nrels_expected);
+          fprintf(stderr, "Warning: number of relations read (%" PRIu64") does not match the number of relations expected (%lu)\n", nrels_tot, nrels_expected);
       }
   } else {
       /* when we have renumbered files, we know that we won't have the

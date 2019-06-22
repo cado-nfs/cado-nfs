@@ -88,6 +88,7 @@ print_error_line (prime_t prime, mpz_t norm[],
     gmp_fprintf (stderr, "#   %s, factorization of the norm on side %u is not "
                          "complete (%Zu is missing)\n", str, side, norm[side]);
   }
+  fflush (stderr);
 }
 
 static inline void
@@ -154,8 +155,11 @@ process_one_relation (earlyparsed_relation_ptr rel)
   unsigned long err = 0;
 
   if (verbose)
-    fprintf (stderr, "# relation %" PRIu64 " with (a,b) = (%" PRId64 ","
-                     "%" PRIu64 "):\n", rel->num, rel->a, rel->b);
+    {
+      fprintf (stderr, "# relation %" PRIu64 " with (a,b) = (%" PRId64 ","
+	       "%" PRIu64 "):\n", rel->num, rel->a, rel->b);
+      fflush (stderr);
+    }
 
   /* Look for which sides are in use */
   for(weight_t i = 0; i < rel->nb ; i++)
@@ -169,7 +173,10 @@ process_one_relation (earlyparsed_relation_ptr rel)
       mpz_poly_ptr ps = cpoly->pols[side];
       mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
       if (verbose)
-        gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side]);
+	{
+	  gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side]);
+	  fflush (stderr);
+	}
     }
     else
       mpz_set_ui (norm[side], 1);
@@ -260,6 +267,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
               gmp_fprintf (stderr, "#   factorization of the norm on side %u is "
                                    "not complete, need to add %" PRpr "^%u\n",
                                    side, p, e);
+	      fflush (stderr);
             }
           }
         }
@@ -267,8 +275,11 @@ process_one_relation (earlyparsed_relation_ptr rel)
       prime_info_clear (pi);
 
       if (more_job (norm, cpoly->nb_polys))
-        gmp_fprintf (stderr, "#   factorization of the norm is still not "
-                             "complete on at least one side\n");
+	{
+	  gmp_fprintf (stderr, "#   factorization of the norm is still not "
+		       "complete on at least one side\n");
+	  fflush (stderr);
+	}
     }
 
     /* check that ideals appearing in the relations are below the lpb. We
@@ -299,7 +310,10 @@ process_one_relation (earlyparsed_relation_ptr rel)
     mpz_clear(norm[side]);
 
   if (verbose)
-    fprintf (stderr, "#   end with error status %lx\n", err);
+    {
+      fprintf (stderr, "#   end with error status %lx\n", err);
+      fflush (stderr);
+    }
   return err;
 }
 

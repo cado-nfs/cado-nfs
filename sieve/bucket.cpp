@@ -169,10 +169,20 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
   n_bucket = new_n_bucket;
 
   if (new_size_b_align > size_b_align) {
+    int all_null =  (bucket_write == NULL) &&
+                    (bucket_start == NULL) &&
+                    (bucket_read == NULL);
+    int none_null = bucket_write &&
+                    bucket_start &&
+                    bucket_read;
+    ASSERT_ALWAYS(all_null || none_null);
+    if (none_null) {
+        verbose_output_print(0, 1, "# [%d%c] Changing bucket allocation from %zu bytes to %zu bytes\n", LEVEL, HINT::rtti[0], size_b_align, new_size_b_align);
+        free(bucket_write);
+        free(bucket_start);
+        free(bucket_read);
+    }
     size_b_align = new_size_b_align;
-    ASSERT_ALWAYS(bucket_write == NULL);
-    ASSERT_ALWAYS(bucket_start == NULL);
-    ASSERT_ALWAYS(bucket_read == NULL);
     bucket_write = (update_t **) malloc_pagealigned (size_b_align);
     /* bucket_start is allocated as an array of n_bucket+1 pointers */
     size_t alloc_bstart = MAX(size_b_align, (n_bucket+1) * sizeof(void*));
@@ -181,6 +191,10 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
     memset(bucket_write, 0, size_b_align);
     memset(bucket_start, 0, alloc_bstart);
     memset(bucket_read, 0, size_b_align);
+    if (none_null) {
+        /* must refresh this pointer too */
+        free_slice_start();
+    }
   }
 
   /* This requires size_b_align to have been set to the new value */
@@ -194,9 +208,18 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
       cur += ((i & bitmask_line_ordinate) != 0) ? bs_odd : bs_even;
   }
   reset_pointers();
-#ifdef SAFE_BUCKETS
-  verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS is on !\n");
+#ifdef SAFE_BUCKET_ARRAYS
+  verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
 #endif
+}
+
+template <int LEVEL, typename HINT>
+void
+bucket_array_t<LEVEL, HINT>::free_slice_start()
+{
+  free(slice_start); slice_start = NULL;
+  free(slice_index); slice_index = NULL;
+  alloc_slices = 0;
 }
 
 template <int LEVEL, typename HINT>

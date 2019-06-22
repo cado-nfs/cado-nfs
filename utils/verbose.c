@@ -16,20 +16,23 @@ static pthread_cond_t io_cond[1] = {PTHREAD_COND_INITIALIZER};
 static int batch_locked = 0;
 static pthread_t batch_owner;
 
-const char * verbose_flag_list[] = 
+struct {
+    const char * name;
+    int def;
+} verbose_flag_list[] = 
 {
-    [G(CMDLINE)]                = "print-cmdline",
-    [G(MODIFIED_FILES)]         = "print-modified-files",
-    [G(COMPILATION_INFO)]       = "print-compilation-info",
-    [G(BWC_DISPATCH_SLAVES)]    = "bwc-dispatch-slaves",
-    [G(BWC_DISPATCH_MASTER)]    = "bwc-dispatch-master",
-    [G(BWC_TIMING_GRIDS)]       = "bwc-timing-grids",
-    [G(BWC_ITERATION_TIMINGS)]  = "bwc-iteration-timings",
-    [G(BWC_CACHE_BUILD)]        = "bwc-cache-build",
-    [G(BWC_DISPATCH_OUTER)]     = "bwc-dispatch-outer",
-    [G(BWC_CPUBINDING)]         = "bwc-cpubinding",
-    [G(BWC_CACHE_MAJOR_INFO)]   = "bwc-cache-major-info",
-    [G(BWC_LOADING_MKSOL_FILES)]= "bwc-loading-mksol-files",
+    [G(CMDLINE)]                = { "print-cmdline", 1 },
+    [G(MODIFIED_FILES)]         = { "print-modified-files", 1 },
+    [G(COMPILATION_INFO)]       = { "print-compilation-info", 1 },
+    [G(BWC_DISPATCH_SLAVES)]    = { "bwc-dispatch-slaves", 0 },
+    [G(BWC_DISPATCH_MASTER)]    = { "bwc-dispatch-master", 0 },
+    [G(BWC_TIMING_GRIDS)]       = { "bwc-timing-grids", 1 },
+    [G(BWC_ITERATION_TIMINGS)]  = { "bwc-iteration-timings", 1 },
+    [G(BWC_CACHE_BUILD)]        = { "bwc-cache-build", 0 },
+    [G(BWC_DISPATCH_OUTER)]     = { "bwc-dispatch-outer", 0 },
+    [G(BWC_CPUBINDING)]         = { "bwc-cpubinding", 1 },
+    [G(BWC_CACHE_MAJOR_INFO)]   = { "bwc-cache-major-info", 0 },
+    [G(BWC_LOADING_MKSOL_FILES)]= { "bwc-loading-mksol-files", 1 },
 };
 
 struct {
@@ -45,6 +48,9 @@ struct {
             F(BWC_DISPATCH_MASTER) |
             F(BWC_DISPATCH_OUTER) |
             F(BWC_CACHE_BUILD) },
+    { "all-bwc-cache",
+            F(BWC_CACHE_MAJOR_INFO) |
+            F(BWC_CACHE_BUILD) },
     { "all-bwc-sub-timings", 
             F(BWC_TIMING_GRIDS) |
             F(BWC_ITERATION_TIMINGS) },
@@ -59,6 +65,14 @@ uint64_t verbose_flag_word;
 void verbose_interpret_parameters(param_list pl)
 {
     verbose_flag_word = ~0UL;
+
+    /* mark these defaults. */
+    for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
+        if (verbose_flag_list[i].def == 0) {
+            uint64_t mask = UINT64_C(1) << (int) i;
+            verbose_flag_word = verbose_flag_word & ~mask;
+        }
+    }
 
     const char * v = param_list_lookup_string(pl, "verbose_flags");
     if (!v) return;
@@ -81,7 +95,7 @@ void verbose_interpret_parameters(param_list pl)
 
         uint64_t mask = 0;
         for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
-            if (strcmp(p, verbose_flag_list[i]) == 0) {
+            if (strcmp(p, verbose_flag_list[i].name) == 0) {
                 mask = UINT64_C(1) << (int) i;
                 break;
             }
