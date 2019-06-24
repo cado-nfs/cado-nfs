@@ -1854,9 +1854,6 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-#ifdef HAVE_TCMALLOC
-    printf (", HAVE_TCMALLOC");
-#endif
 #ifdef USE_HEAP
     printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
 #endif

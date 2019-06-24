@@ -194,17 +194,3 @@
    fun:_ZN7nfs_auxD1Ev
    ...
 }
-
-{
-   tcmalloc_leaks
-   Memcheck:Free
-   fun:free
-   fun:_ZN15MallocExtension10InitializeEv
-   obj:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4.5.3
-   fun:call_init.part.0
-   fun:call_init
-   fun:_dl_init
-   ...
-}
-
-

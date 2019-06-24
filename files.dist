@@ -1288,7 +1288,6 @@ sieve/fb-slice-weight.cpp
 sieve/fb-slice-weight.hpp
 config/glibc_vector_internals.cmake
 config/check_uint64_type.cmake
-config/tcmalloc.cmake
 utils/mmap_allocator.cpp
 utils/mmap_allocator.hpp
 utils/mmappable_vector.hpp

@@ -20,29 +20,12 @@ target_link_libraries(purge utils_with_io)
 
 
 add_executable(merge merge.c mst.c merge_replay_matrix.c sparse.c transpose.c)
-if (TCMALLOC_LIB)
-  # tcmalloc is distributed within gperftools, under the terms of the
-  # 3-clause BSD License (see https://github.com/gperftools/gperftools),
-  # which is LGPL-compatible.
-  # See https://github.com/gperftools/gperftools/blob/master/COPYING
-  # and https://www.gnu.org/licenses/license-list.html.
-  target_link_libraries(merge utils_with_io ${TCMALLOC_LIB})
-else()
-  target_link_libraries(merge utils_with_io)
-endif()
-
-# with tcmalloc, it is recommended to add
-# -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-# (see https://github.com/gperftools/gperftools)
+target_link_libraries(merge utils_with_io)
 set_target_properties(merge PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 add_executable(merge-dl merge.c mst.c merge_replay_matrix.c sparse.c transpose.c)
-if (TCMALLOC_LIB)
-  target_link_libraries(merge-dl utils_with_io ${TCMALLOC_LIB})
-else()
-  target_link_libraries(merge-dl utils_with_io)
-endif()
+target_link_libraries(merge-dl utils_with_io)
 set_target_properties(merge-dl PROPERTIES
   COMPILE_FLAGS "-DFOR_DL ${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 

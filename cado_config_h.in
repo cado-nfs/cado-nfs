@@ -129,8 +129,6 @@
 
 #cmakedefine    HAVE_GLIBC_VECTOR_INTERNALS
 
-#cmakedefine    HAVE_TCMALLOC
-
 #cmakedefine    HAVE_ALIGNED_ALLOC
 
 #cmakedefine    UINT64_T_IS_UNSIGNED_LONG
