@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 int pass = 0;
 
 /* a lot of verbosity */
-// #define BIG_BROTHER 
+// #define BIG_BROTHER
 
 /* some more verbosity which requires additional operations */
 // #define BIG_BROTHER_EXPENSIVE
@@ -186,7 +186,7 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 
 /*************************** heap structures *********************************/
 
-/* Allocates and garbage-collects relations (i.e. arrays of typerow_t). 
+/* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
    This works using PAGES. */
 
 #ifdef USE_HEAP
@@ -241,7 +241,7 @@ heap_get_free_page()
         return page;
 }
 
-/* provide the oldest full page with generation < max_generation, or NULL if none is available, 
+/* provide the oldest full page with generation < max_generation, or NULL if none is available,
    and remove it from the list of full pages */
 MAYBE_UNUSED static struct page_t *
 heap_get_full_page(int max_generation)
@@ -275,7 +275,7 @@ heap_clear_page(struct page_t *page)
         }
 }
 
-/* declare that the given page is full. Insert to the left of the list of full pages. 
+/* declare that the given page is full. Insert to the left of the list of full pages.
    The list is sorted (following next) by increasing generation. */
 static void
 heap_release_page(struct page_t *page)
@@ -303,7 +303,7 @@ heap_setup()
         full_pages->page = NULL;
         full_pages->next = full_pages;
         full_pages->prev = full_pages;
-        
+
         empty_pages = NULL;
         int T = omp_get_max_threads();
         active_page = malloc(T * sizeof(*active_page));
@@ -395,7 +395,7 @@ collect_page(filter_matrix_t *mat, struct page_t *page)
                         typerow_t * new = heap_alloc_row(i, size);
                         memcpy(new, old, (size + 1) * sizeof(typerow_t));
                         setCell(new, -1, rowCell(old, -1), 0);
-                        mat->rows[i] = new; 
+                        mat->rows[i] = new;
                 }
                 bot += size + 2;
         }
@@ -412,12 +412,12 @@ heap_waste_ratio()
         long long total_waste = 0;
         for (int t = 0; t < T; t++)
                 total_waste += heap_waste[t];
-        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_SIZE;        
+        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_SIZE;
         return waste;
 }
 
 /* examine every full pages not created during the current pass and reclaim all lost space */
-MAYBE_UNUSED static void 
+MAYBE_UNUSED static void
 full_garbage_collection(filter_matrix_t *mat)
 {
         double waste = heap_waste_ratio();
@@ -428,14 +428,14 @@ full_garbage_collection(filter_matrix_t *mat)
 
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
         fflush(stdout);
-        
+
         // I don't want to collect pages just filled during the collection
         int max_generation;
         if (pass == 2)
                 max_generation = 2;
         else
                 max_generation = pass - GC_COLLECTION_LATENCY;   // tradeoff.
-        
+
         int i = 0;
         int initial_full_pages = n_full_pages;
         struct page_t *page;
@@ -448,7 +448,7 @@ full_garbage_collection(filter_matrix_t *mat)
 
         double page_ratio = (double) i / initial_full_pages;
         double recycling = 1 - heap_waste_ratio() / waste;
-        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n", 
+        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
         	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
 }
 
@@ -574,12 +574,12 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 	double cpu = seconds (), wct = wct_seconds ();
 	uint64_t nrows = mat->nrows;
 	uint64_t ncols = mat->ncols;
-	
+
 	/* sends the old column number to the new one */
 	index_t *p = malloc(ncols * sizeof(*p));
-	
+
         /* new column weights */
-        col_weight_t *nwt = malloc(mat->rem_ncols * sizeof(*nwt));  
+        col_weight_t *nwt = malloc(mat->rem_ncols * sizeof(*nwt));
 
 	/* compute the number of non-empty columns */
 	int T = omp_get_max_threads();
@@ -929,7 +929,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 	index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
 	index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
 
-	#pragma omp for schedule(dynamic, 1024) 
+	#pragma omp for schedule(dynamic, 1024)
 	for (index_t i = 0; i < nrows; i++) {
 		if (mat->rows[i] == NULL)
 			continue; /* row was discarded */
@@ -965,7 +965,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   }
   ASSERT(ptr == Rnz);
   before_compression = wct_seconds();
-  
+
   /* finally... */
   transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
   free_aligned (Mi);
@@ -985,7 +985,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 		if (mat->wt[j] == 0)
 			n_empty++;
   	printf("$$$       empty-columns: %d\n", n_empty);
-  #endif 
+  #endif
   printf("$$$       Rn: %d\n", Rn);
   printf("$$$       Rnz: %d\n", Rnz);
   printf("$$$       timings:\n");
@@ -1037,7 +1037,7 @@ increase_weight (filter_matrix_t *mat, index_t j)
 
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1.
-   New memory is allocated and the old space is freeed */
+   New memory is allocated and the old space is freed */
 #ifndef FOR_DL
 /* special code for factorization */
 static void
@@ -1102,7 +1102,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
 
 static void
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
-{  
+{
 #ifdef CANCEL
 	#pragma omp atomic update
 	cancel_rows ++;
@@ -1564,7 +1564,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
       }
     }  /* for */
   } /* parallel section */
-  
+
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= nmerges;
@@ -1912,7 +1912,7 @@ main (int argc, char *argv[])
         if (pass == 2 || mat->cwmax > 2)
                 full_garbage_collection(mat);
 	#endif
-	
+
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
 	   smaller, but merge will take more time.
