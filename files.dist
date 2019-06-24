@@ -29,7 +29,6 @@ config/gcc-bugs.cmake
 config/gmp.cmake
 config/inline-assembly.c
 config/inline-assembly-arm.c
-config/mallopt.cmake
 config/math.cmake
 config/posix.cmake
 config/mpi.cmake

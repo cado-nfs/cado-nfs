@@ -58,8 +58,6 @@
 #cmakedefine    HAVE_CLOG
 #cmakedefine    HAVE_EXP2
 
-#cmakedefine	HAVE_MALLOPT
-
 #cmakedefine    HAVE_STDCPP_MATH_SPEC_FUNCS
 
 #cmakedefine    HAVE_RESOURCE_H
