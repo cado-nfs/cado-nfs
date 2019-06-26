@@ -1016,7 +1016,7 @@ class ServerPool(object): # {{{
 
         if not self.has_https:
             if settings["CERTSHA1"] is not None:
-                logging.warn("Option --certsha1 makes sense only with"
+                logging.warning("Option --certsha1 makes sense only with"
                              " https URLs,"
                              " ignoring it.")
             for ss in settings["SERVER"]:
@@ -1024,7 +1024,7 @@ class ServerPool(object): # {{{
             return
 
         if settings["CERTSHA1"] is None:
-            logging.warn("https URLs were given"
+            logging.warning("https URLs were given"
                          " but no --certsha1 option,"
                          " NO SSL VALIDATION WILL BE PERFORMED.")
             for ss in settings["SERVER"]:
@@ -1782,7 +1782,7 @@ class InputDownloader(object):
             if peer is None and workunit.is_stale():
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
-                logging.warn("Old workunit %s has passed deadline (%s),"
+                logging.warning("Old workunit %s has passed deadline (%s),"
                              " ignoring",
                              workunit.get_id(), dline)
                 workunit.cleanup()
@@ -1804,7 +1804,7 @@ class InputDownloader(object):
             if workunit.is_stale():
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
-                logging.warn("Old workunit %s has passed deadline (%s),"
+                logging.warning("Old workunit %s has passed deadline (%s),"
                              " ignoring",
                              workunit.get_id(), dline)
                 workunit.cleanup()
