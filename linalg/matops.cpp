@@ -930,7 +930,7 @@ static inline void MAYBE_UNUSED mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, u
         __m128i * w0 = (__m128i*) w;
         // TODO: It's possible to expand more, and use a __m128i
         // mb[4][2], or even [4]. This wouldn't change the code much
-        // (see the u128 version), and is likely to speed things up a
+        // (see the m128 version), and is likely to speed things up a
         // wee bit maybe.
         __m128i mb[4] = {
             _mm_setzero_si128(),

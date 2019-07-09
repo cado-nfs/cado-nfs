@@ -349,10 +349,10 @@ code for details on how to use this. Functions are all following the mpfq
 api.
 
 Currently the following are implemented:
-  abase-u64     // uint64_t
-  abase-u128    // uint128_t, packed into SSE2 if possible.
-  abase-u64k    // block of k unint64_t, size known at compile-time
-  abase-u64n    // block of n unint64_t, size not known at compile-time
+  abase-u64k1   // uint64_t
+  abase-m128    // uint128_t, packed into SSE2
+  abase-u64k#   // block of # uint64_t, size known at compile-time, with
+                // # being 1,2,3, or 4
 
 The main use of this type is for vectors to be multiplied by the binary
 matrix. We have for instance in matmul.[ch] a function called:

@@ -26,18 +26,6 @@
 #ifdef __cplusplus
 #include "mpfq/mpfq_m128.hpp"
 #endif /* __cplusplus */
-#elif defined(SELECT_MPFQ_LAYER_u64n)
-#error "argh"
-#include "mpfq/mpfq_u64n.h"
-#ifdef __cplusplus
-#include "mpfq/mpfq_u64n.hpp"
-#endif /* __cplusplus */
-#elif defined(SELECT_MPFQ_LAYER_u128)
-#error "argh"
-#include "mpfq/mpfq_u128.h"
-#ifdef __cplusplus
-#include "mpfq/mpfq_u128.hpp"
-#endif /* __cplusplus */
 #elif defined(SELECT_MPFQ_LAYER_p16) /* This is really the first non-gf2 try */
 #define NOT_OVER_GF2
 #include "mpfq/mpfq_p16.h"
