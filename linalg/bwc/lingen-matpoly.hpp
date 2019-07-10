@@ -42,6 +42,7 @@ struct submatrix_range {
     unsigned int i1=0,j1=0;
     unsigned int nrows() const { return i1-i0; }
     unsigned int ncols() const { return j1-j0; }
+    size_t size() const { return (size_t) nrows() * (size_t) ncols(); }
     submatrix_range & range() { return *this; }
     submatrix_range const & range() const { return *this; }
     submatrix_range() = default;

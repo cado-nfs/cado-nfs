@@ -165,15 +165,25 @@ struct lingen_substep_characteristics {/*{{{*/
 
         double tt = 0;
 
-        tt = -wct_seconds(); dft(ta, a); tt_dft0 = wct_seconds() + tt;
-
-        tt = -wct_seconds(); dft(tb, b); tt_dft2 = wct_seconds() + tt;
-
-        tt = -wct_seconds(); mul(tc, ta, tb); tt_conv = wct_seconds() + tt;
-
+        dft(ta, a);     /* warm up */
         tt = -wct_seconds();
+        dft(ta, a);
+        tt_dft0 = wct_seconds() + tt;
+
+        dft(tb, b);     /* warm up */
+        tt = -wct_seconds();
+        dft(tb, b);
+        tt_dft2 = wct_seconds() + tt;
+
+        mul(tc, ta, tb); /* warm up */
+        tt = -wct_seconds();
+        mul(tc, ta, tb);
+        tt_conv = wct_seconds() + tt;
+
         c.size = csize;
         ASSERT_ALWAYS(c.size <= c.alloc);
+        OP::ift(c, tc, fti);    /* warm up */
+        tt = -wct_seconds();
         OP::ift(c, tc, fti);
         tt_ift = wct_seconds() + tt;
 

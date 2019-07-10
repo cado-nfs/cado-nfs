@@ -1,11 +1,12 @@
 #include "cado.h"
 #include "mpfq_layer.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include "portability.h"
 #include "macros.h"
 #include "lingen-matpoly-ft.hpp"
 #include "lingen-bigmatpoly-ft.hpp"
 #include "logline.h"
+#include "fmt/format.h"
 
 /* This is the interface for doing products of polynomial matrices by
  * caching transforms, and transferring them over MPI. There are
@@ -366,6 +367,7 @@ void bigmatpoly_mp_caching_adj(bigmatpoly & c, bigmatpoly & a, bigmatpoly & b, u
 
 struct op_mul {/*{{{*/
     size_t csize;
+    static const char * name() { return "MUL"; }
     op_mul(bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, fft_transform_info * fti)
     {
         csize = a.size + b.size; csize -= (csize > 0);
@@ -381,6 +383,7 @@ struct op_mul {/*{{{*/
 };/*}}}*/
 struct op_mp {/*{{{*/
     size_t csize;
+    static const char * name() { return "MP"; }
     unsigned int shift;
     op_mp(bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, fft_transform_info * fti)
     {
@@ -398,7 +401,7 @@ struct op_mp {/*{{{*/
 };/*}}}*/
 
 template<typename T>
-static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
+static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
 {
     bigmatpoly_model const & model(a.get_model());
 
@@ -440,6 +443,7 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
      * dynamically because of rounding issues: e.g. for 13=7+6, we
      * will do both 7*6 and 6*7 in the inner loops.
      */
+    stats.begin_smallstep("alloc");
     bool inner_is_row_major = nrs0 < nrs2;
     if (inner_is_row_major) {
         ta = matpoly_ft(a.ab, nrs0, r * S->batch, fti);
@@ -448,6 +452,7 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
         ta = matpoly_ft(a.ab, 1, r * S->batch, fti);
         tb = matpoly_ft(a.ab, r * S->batch, nrs2, fti);
     }
+    stats.end_smallstep();
 
     for(unsigned int round0 = 0 ; round0 < S->shrink0 ; round0++) {
         unsigned int i0,i1;
@@ -477,8 +482,14 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
                     submatrix_range Rbtx(b.irank()*S->batch,0, S->batch, 1);
                     matpoly_ft::view_t ta_loc = ta.view(Rat);
                     matpoly_ft::view_t tb_loc = tb.view(Rbt);
+
+                    stats.begin_smallstep("dft_A", ta_loc.size());
                     ta.zero();  // for safety because of rounding.
                     dft(ta_loc, a.my_cell().view(Ra));
+                    stats.end_smallstep();
+
+                    /* XXX not sure about ncalls here */
+                    stats.begin_smallstep("dft_A_comm", ta_loc.size());
                     // allgather ta among r nodes.
                     to_export(ta.view(Ratx));
                     /* The data isn't contiguous, so we have to do
@@ -489,20 +500,31 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
                                 mpi_ft, a.get_model().com[1]);
                     }
                     to_import(ta);
+                    stats.end_smallstep();
+
                     for(unsigned int j = 0 ; j < j1-j0 ; j++) {
-                        tb.zero();
                         submatrix_range Rb(bk0-bk0mpi,j0+j,bk1-bk0,1);
+                        stats.begin_smallstep("dft_B", tb_loc.size());
+                        tb.zero();
                         dft(tb_loc, b.my_cell().view(Rb));
+                        stats.end_smallstep();
+
+                        /* XXX not sure about ncalls here */
+                        stats.begin_smallstep("dft_B_comm", tb_loc.size());
                         // allgather tb among r nodes
                         to_export(tb.view(Rbtx));
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 tb.data, S->batch,
                                 mpi_ft, b.get_model().com[2]);
                         to_import(tb);
+                        stats.end_smallstep();
+
+                        stats.begin_smallstep("addmul");
                         // rounding might surprise us.
                         addmul(tc.view(submatrix_range(0,j,i1-i0,1)),
                                 ta.view(submatrix_range(0,0,i1-i0,ta.ncols())),
                                 tb.view(submatrix_range(0,0,tb.nrows(),1)));
+                        stats.end_smallstep();
                     }
                 } else {
                     submatrix_range Rb(bk0-bk0mpi,j0,           bk1-bk0, j1-j0);
@@ -512,27 +534,44 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
                     submatrix_range Ratx(0,a.jrank()*S->batch,1,S->batch);
                     matpoly_ft::view_t ta_loc = ta.view(Rat);
                     matpoly_ft::view_t tb_loc = tb.view(Rbt);
+
+                    stats.begin_smallstep("dft_B", tb_loc.size());
                     tb.zero();
                     dft(tb_loc, b.my_cell().view(Rb));
+                    stats.end_smallstep();
+
+                    /* XXX not sure about ncalls here */
+                    stats.begin_smallstep("dft_B_comm", tb_loc.size());
                     // allgather tb among r nodes
                     to_export(tb.view(Rbtx));
                     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                             tb.data, nrs2 * S->batch,
                             mpi_ft, b.get_model().com[2]);
                     to_import(tb);
+                    stats.end_smallstep();
+
                     for(unsigned int i = i0 ; i < i1 ; i++) {
+                        stats.begin_smallstep("dft_A", ta_loc.size());
                         ta.zero();
                         submatrix_range Ra(i,ak0-ak0mpi,1,ak1-ak0);
                         dft(ta_loc, a.my_cell().view(Ra));
+                        stats.end_smallstep();
+
+                        /* XXX not sure about ncalls here */
+                        stats.begin_smallstep("dft_A_comm", ta_loc.size());
                         // allgather ta among r nodes
                         to_export(ta.view(Ratx));
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 ta.data, S->batch,
                                 mpi_ft, a.get_model().com[1]);
                         to_import(ta);
+                        stats.end_smallstep();
+
+                        stats.begin_smallstep("addmul");
                         addmul(tc.view(submatrix_range(i-i0,0,1,j1-j0)),
                                 ta.view(submatrix_range(0,0,1,ta.ncols())),
                                 tb.view(submatrix_range(0,0,tb.nrows(),j1-j0)));
+                        stats.end_smallstep();
                     }
                 }
             }
@@ -544,16 +583,16 @@ static void mp_or_mul(T& OP, bigmatpoly & c, bigmatpoly const & a, bigmatpoly co
     MPI_Type_free(&mpi_ft);
 }/*}}}*/
 
-void bigmatpoly_mp_caching_adj(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+void bigmatpoly_mp_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
     struct fft_transform_info fti[1];
     op_mp OP(a, b, adj, fti);
-    mp_or_mul(OP, c, a, b, fti, S);
+    mp_or_mul(OP, t, c, a, b, fti, S);
 } /* }}} */
-void bigmatpoly_mul_caching_adj(bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+void bigmatpoly_mul_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
     struct fft_transform_info fti[1];
     op_mul OP(a, b, adj, fti);
-    mp_or_mul(OP, c, a, b, fti, S);
+    mp_or_mul(OP, t, c, a, b, fti, S);
 } /* }}} */
 

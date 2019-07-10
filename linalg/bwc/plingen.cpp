@@ -1660,7 +1660,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         ASSERT_ALWAYS(E.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
+        bigmatpoly_mp_caching(bm.stats, E_right, E, pi_left, &C.mp.S);
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
         MPI_Barrier(bm.com[0]);
@@ -1688,7 +1688,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         ASSERT_ALWAYS(pi_right.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
+        bigmatpoly_mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul.S);
         ASSERT_ALWAYS(pi.ab);
         MPI_Barrier(bm.com[0]);
     }
@@ -3149,7 +3149,7 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     mpz_init(p);
     abfield_characteristic(ab, p);
     abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, p);
-    unsigned int t0 = bm.t;
+    unsigned int t0 = bm.t = iceildiv(m,n);
     std::vector<unsigned int> delta(m+n, t0);
     matpoly E(ab, m, m+n, L);
     E.fill_random(L, rstate);
