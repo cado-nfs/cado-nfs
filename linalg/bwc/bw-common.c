@@ -108,17 +108,17 @@ void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc,
         param_list_print_usage(pl, bw->original_argv[0], stderr);
         exit(EXIT_FAILURE);
     }
-
-    if (bw->can_print) {
-        param_list_print_command_line(stderr, pl);
-        param_list_print_command_line(stdout, pl);
-    }
 }
 /*}}}*/
 
 void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
 {
     verbose_interpret_parameters(pl);
+
+    if (bw->can_print) {
+        param_list_print_command_line(stderr, pl);
+        param_list_print_command_line(stdout, pl);
+    }
 
     const char * tmp;
 
