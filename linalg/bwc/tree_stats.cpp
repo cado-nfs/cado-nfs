@@ -197,14 +197,14 @@ void tree_stats::print(unsigned int)
     }
 }
 
-void tree_stats::enter(const char * func, unsigned int inputsize, bool recurse)
+void tree_stats::enter(std::string const & func, unsigned int inputsize, bool leaf)
 {
     int rank;
     if (depth == 0)
         tree_total_breadth = inputsize;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { ++depth; return; }
-    running_stats s(inputsize, !recurse);
+    running_stats s(inputsize, leaf);
     s.heat_up();
     // ASSERT_ALWAYS(curstack.empty() || !curstack.back().second.in_substep());
     curstack.push_back({func, s});
@@ -292,14 +292,30 @@ void tree_stats::final_print()
     }
 }
 
-void tree_stats::plan_smallstep(std::string const & func, double theory)
+void tree_stats::begin_plan_smallstep(std::string const & func, double theory)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) return;
     ASSERT_ALWAYS(!curstack.empty());
     running_stats& s(curstack.back().second);
-    s.steps[func].theoretical += theory;
+
+    step_time::steps_t * where = &s.steps;
+    if (!s.nested_substeps.empty())
+        where = & s.current_substep().steps;
+    running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
+    s.nested_substeps.push_back(it);
+
+    it->second.theoretical += theory;
+}
+void tree_stats::end_plan_smallstep()
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank) return;
+    ASSERT_ALWAYS(!curstack.empty());
+    running_stats& s(curstack.back().second);
+    s.nested_substeps.pop_back();
 }
 
 void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)

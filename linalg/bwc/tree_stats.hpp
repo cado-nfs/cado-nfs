@@ -39,6 +39,12 @@
  *    sub-timers.
  */
 
+/* 
+ *  - TODO: maybe replace map by simple vectors -- this will allow a
+ *    better ordering of the reported timings. Maybe this will also make
+ *    it possible to remove or simplify curstack
+ */
+
 class tree_stats {
     
     struct step_time {
@@ -61,7 +67,9 @@ class tree_stats {
         void heat_up(double wct = wct_seconds()) { real -= wct; }
         void cool_down(double wct = wct_seconds()) { real += wct; }
 
-        double theoretical=0;   // expected time to the current point. This is increased by tree_stats::plan_smallstep()
+        // expected time per call. This is set by tree_stats::plan_smallstep()
+        // (actually it is _increased_ by plan_smallstep)
+        double theoretical=0;
 
         typedef std::map<std::string, step_time> steps_t;
         steps_t steps;
@@ -146,23 +154,45 @@ class tree_stats {
 public:
     unsigned int depth = 0;
     
-    void enter(const char * func, unsigned int inputsize, bool recurse = true); 
+    void enter(std::string const & func, unsigned int inputsize, bool leaf = false); 
     void leave();
-
-    void final_print();
-
-    void plan_smallstep(std::string const & func, double theory=0);
-    void begin_smallstep(std::string const & func, unsigned int ncalls=1);
-    void end_smallstep();
-
     struct sentinel {
         tree_stats & stats;
         sentinel(sentinel const&) = delete;
         sentinel(tree_stats & stats,
-                const char * func, unsigned int inputsize, bool recurse = true)
-            : stats(stats) { stats.enter(func, inputsize, recurse); }
+                std::string const & func, unsigned int inputsize, bool leaf = false)
+            : stats(stats) { stats.enter(func, inputsize, leaf); }
         ~sentinel() { stats.leave(); }
     };
+
+    void begin_smallstep(std::string const & func, unsigned int ncalls=1);
+    void end_smallstep();
+    struct smallstep_sentinel {
+        tree_stats & stats;
+        smallstep_sentinel(smallstep_sentinel const&) = delete;
+        smallstep_sentinel(tree_stats & stats,
+                std::string const & func, unsigned int ncalls=1)
+            : stats(stats) { stats.begin_smallstep(func, ncalls); }
+        ~smallstep_sentinel() { stats.end_smallstep(); }
+    };
+
+
+    void begin_plan_smallstep(std::string const & func, double theory=0);
+    void end_plan_smallstep();
+    struct plan_smallstep_sentinel {
+        tree_stats & stats;
+        plan_smallstep_sentinel(plan_smallstep_sentinel const&) = delete;
+        plan_smallstep_sentinel(tree_stats & stats,
+                std::string const & func, double theory=0)
+            : stats(stats) { stats.begin_plan_smallstep(func, theory); }
+        ~plan_smallstep_sentinel() { stats.end_plan_smallstep(); }
+    };
+    inline void plan_smallstep(std::string const & func, double theory=0)
+    {
+        plan_smallstep_sentinel dummy(*this, func, theory);
+    }
+
+    void final_print();
 };
 
 #endif	/* TREE_STATS_HPP_ */

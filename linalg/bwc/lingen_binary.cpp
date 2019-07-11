@@ -1085,7 +1085,7 @@ static bool go_quadratic(polmat& E, polmat& pi)/*{{{*/
 {
     using namespace globals;
     using namespace std;
-    tree_stats::sentinel dummy(stats, __func__, E.ncoef, false);
+    tree_stats::sentinel dummy(stats, __func__, E.ncoef, true);
 
     unsigned int deg = E.ncoef - 1;
     for(unsigned int j = 0 ; j < E.ncols ; j++) {

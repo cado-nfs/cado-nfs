@@ -4,17 +4,17 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
-#include <assert.h>
-#include <float.h>
+#include <cassert>
+#include <cfloat>
 #ifdef  HAVE_SIGHUP
-#include <signal.h>
+#include <csignal>
 #endif
 #ifdef  HAVE_OPENMP
 #include <omp.h>
@@ -324,6 +324,18 @@ struct lingen_substep_characteristics {/*{{{*/
         /* This is for _one_ call only (one node in the tree).
          * We must apply multiplier coefficients (typically 1<<depth) */
         return T_dft0 + T_dft2 + T_conv + T_ift + T_comm;
+    }/*}}}*/
+
+    void save_call_times( lingen_call_companion::mul_or_mp_times & D, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+        D.S = S;
+        D.tt = get_call_time(P, D.S, C);
+        auto ft = get_ft_times(C);
+        D.t_dft_A = ft[0];
+        D.t_dft_B = ft[1];
+        D.t_dft_A_comm = get_transform_ram() / P.mpi_xput;
+        D.t_dft_B_comm = ft[1];
+        D.t_addmul = ft[2];
+        D.t_ift_C = ft[3];
     }/*}}}*/
 
     double get_and_report_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
@@ -737,11 +749,8 @@ struct plingen_tuner {
                         auto MUL = mul_substep(cw);
                         auto MP  = mp_substep(cw);
 
-                        U.mp.S = schedules_mp[L];
-                        U.mul.S = schedules_mul[L];
-
-                        U.mp.tt = MP.get_call_time(P, U.mp.S, C);
-                        U.mul.tt = MUL.get_call_time(P, U.mul.S, C);
+                        MP.save_call_times(U.mp, P, schedules_mp[L], C);
+                        MUL.save_call_times(U.mul, P, schedules_mul[L], C);
 
                         ttr = U.mp.tt + U.mul.tt;
                         ttrchildren = 0;

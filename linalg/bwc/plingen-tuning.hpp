@@ -20,12 +20,19 @@ struct lingen_call_companion {
     bool go_mpi;
     unsigned int weight;
     double ttb;
-    struct {
+    struct mul_or_mp_times {
         lingen_substep_schedule S;
-        double tt;
+        double tt;      /* time per call to the mul operation */
+        double t_dft_A; /* time per dft of the first operand, and so on */
+        double t_dft_A_comm;
+        double t_dft_B;
+        double t_dft_B_comm;
+        double t_addmul;
+        double t_ift_C;
         size_t reserved_ram;
         size_t ram;
-    } mp, mul;
+    };
+    mul_or_mp_times mp, mul;
     struct key {
         int depth;
         size_t L;
