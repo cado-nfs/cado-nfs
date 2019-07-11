@@ -763,6 +763,11 @@ struct plingen_tuner {
                         basecase_eliminated = true;
 
                     bool rwin = ttb >= (ttr + ttrchildren);
+                    /* if basecase_keep_until < 1, then we probably want
+                     * to prevent the basecase from being counted as
+                     * winning at this point.
+                     */
+                    rwin = rwin || basecase_eliminated;
                     best[L] = { rwin, {ttb, ttr + ttrchildren, ttr} };
 
                     U.recurse = rwin;
