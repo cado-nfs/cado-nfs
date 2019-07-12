@@ -7,7 +7,7 @@
  * implementation.
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "mpfq_layer.h"
 

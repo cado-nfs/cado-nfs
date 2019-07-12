@@ -5,9 +5,11 @@
 #include <vector>
 #include <map>
 #include <climits>
+#include <cmath>
 #include <ostream>
 #include "macros.h"
 #include "timing.h"
+#include "params.h"
 
 /* This structure is meant to help the timing of a recursive tree-like
  * algorithms like the linear generator algorithm we use in block
@@ -39,6 +41,8 @@
  *    sub-timers.
  */
 
+extern size_t lingen_round_operand_size(size_t x, int bits = 2);
+
 /* 
  *  - TODO: maybe replace map by simple vectors -- this will allow a
  *    better ordering of the reported timings. Maybe this will also make
@@ -46,7 +50,11 @@
  */
 
 class tree_stats {
-    
+    static int max_nesting;
+    public:
+    static void interpret_parameters(cxx_param_list & pl);
+    static void declare_usage(cxx_param_list & pl);
+    private:
     struct step_time {
         double real = 0;
         /* We have an ncalled field for each small step, because we _can_
@@ -63,26 +71,74 @@ class tree_stats {
          * completion.
          */
         unsigned int ncalled = 0;
+        unsigned int total_ncalls = 0;
+        inline double projected_time() const {
+            return ncalled ? real * total_ncalls / (double) ncalled : NAN;
+        }
         bool is_hot() const { return real < 0; }
         void heat_up(double wct = wct_seconds()) { real -= wct; }
         void cool_down(double wct = wct_seconds()) { real += wct; }
 
         // expected time per call. This is set by tree_stats::plan_smallstep()
         // (actually it is _increased_ by plan_smallstep)
-        double theoretical=0;
+        double planned_time = 0;
+        unsigned int planned_calls = 0;
+        unsigned int items_per_call = 1;
+        // items_pending is only non-zero when we're doing the small
+        // steps. It doesn't make sense to take it into account for +=.
+        unsigned int items_pending = 0;
 
         typedef std::map<std::string, step_time> steps_t;
         steps_t steps;
+
+        step_time const * find_pending_smallstep() const {
+            if (items_pending) return this;
+            for(auto const & x : steps) {
+                auto y = x.second.find_pending_smallstep();
+                if (y) return y;
+            }
+            return nullptr;
+        }
+        bool has_pending_smallsteps() const {
+            return find_pending_smallstep() != nullptr;
+        }
+
         step_time & operator+=(step_time const & x) {
             ASSERT_ALWAYS(!is_hot());
+            ASSERT_ALWAYS(total_ncalls == 0 || total_ncalls == x.total_ncalls);
+            total_ncalls = x.total_ncalls;
+            ASSERT_ALWAYS(items_per_call == 1 || items_per_call == x.items_per_call);
+            ASSERT_ALWAYS(ncalled <= planned_calls);
+            ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
+            ASSERT_ALWAYS(x.ncalled <= x.planned_calls);
+            ASSERT_ALWAYS(x.ncalled + 1 >= x.planned_calls);
+            items_per_call = x.items_per_call;
             if (!x.is_hot()) {
                 real += x.real;
                 ncalled += x.ncalled;
             }
-            theoretical += x.theoretical;
+            planned_time += x.planned_time;
+            planned_calls += x.planned_calls;
+            ASSERT_ALWAYS(ncalled <= planned_calls);
+            ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
             for(auto const & s : x.steps)
                 steps[s.first] += s.second;
             return *this;
+        }
+    };
+
+    struct function_with_input_size {
+        std::string func;
+        unsigned int inputsize;
+        function_with_input_size(std::string const & func, unsigned int inputsize)
+            : func(func)
+            , inputsize(inputsize)
+        {
+        }
+        bool operator<(function_with_input_size const& a) const {
+            if (func < a.func) return true;
+            if (func > a.func) return false;
+            return lingen_round_operand_size(inputsize) < lingen_round_operand_size(a.inputsize);
         }
     };
 
@@ -104,34 +160,13 @@ class tree_stats {
     struct function_stats : public step_time {
         unsigned int min_inputsize = UINT_MAX;
         unsigned int max_inputsize = 0;
-        unsigned int sum_inputsize = 0;
-        /* 8d85180cc : how much of the total input size for this function
-         * is actually _not_ processed recursively.
-         * This value is either sum_inputsize or 0. (but two functions at
-         * the same level may conceivably have different behaviours).
-         */
-        unsigned int trimmed = 0;
-        /* projected_calls and projected_time are cached value, computed
-         * by level_stats::projected_time()
-         */
-        double projected_time = 0;
-        unsigned int projected_calls = 0;
         function_stats & operator+=(running_stats const&);
     };
 
-    struct level_stats : public std::map<std::string, function_stats> {
-        /* compute the projected time at this level, knowing the total
-         * called size at this level as well as the total size that was
-         * trimmed in the calls below.
-         */
-        double projected_time(unsigned int total_breadth, unsigned int trimmed_breadth);
+    struct level_stats : public std::map<function_with_input_size, function_stats> {
+        /* compute the projected time at this level */
+        double projected_time();
         double last_printed_projected_time;
-        /* cached value, computed by projected_time. It is typically used
-         * also by loops that call projected_time(), since the
-         * trimmed_breadth argument of the projected_time() call is
-         * typically the sum of the trimmed_here value for the levels of
-         * smaller depth. */
-        unsigned int trimmed_here;       /* trimmed at this level ! */
     };
 
     std::vector<level_stats> levels;
@@ -146,7 +181,7 @@ class tree_stats {
         std::ostream & os,
         step_time::steps_t const & FS,
         unsigned int ncalled,
-        unsigned int projected_calls,
+        unsigned int total_ncalls,
         int nesting);
 
     void print(unsigned int level);
@@ -154,14 +189,14 @@ class tree_stats {
 public:
     unsigned int depth = 0;
     
-    void enter(std::string const & func, unsigned int inputsize, bool leaf = false); 
+    void enter(std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false); 
     void leave();
     struct sentinel {
         tree_stats & stats;
         sentinel(sentinel const&) = delete;
         sentinel(tree_stats & stats,
-                std::string const & func, unsigned int inputsize, bool leaf = false)
-            : stats(stats) { stats.enter(func, inputsize, leaf); }
+                std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false)
+            : stats(stats) { stats.enter(func, inputsize, total_ncalls, leaf); }
         ~sentinel() { stats.leave(); }
     };
 
@@ -177,19 +212,23 @@ public:
     };
 
 
-    void begin_plan_smallstep(std::string const & func, double theory=0);
+    void begin_plan_smallstep(std::string const & func, weighted_double const &);
     void end_plan_smallstep();
     struct plan_smallstep_sentinel {
         tree_stats & stats;
         plan_smallstep_sentinel(plan_smallstep_sentinel const&) = delete;
         plan_smallstep_sentinel(tree_stats & stats,
-                std::string const & func, double theory=0)
+                std::string const & func, weighted_double const & theory)
             : stats(stats) { stats.begin_plan_smallstep(func, theory); }
         ~plan_smallstep_sentinel() { stats.end_plan_smallstep(); }
     };
-    inline void plan_smallstep(std::string const & func, double theory=0)
+    inline void plan_smallstep(std::string const & func, weighted_double const & theory)
     {
         plan_smallstep_sentinel dummy(*this, func, theory);
+    }
+    inline void plan_smallstep(std::string const & func, double theory)
+    {
+        plan_smallstep(func, { 1, theory });
     }
 
     void final_print();

@@ -18,27 +18,37 @@
 
 using namespace std;
 
-double tree_stats::level_stats::projected_time(unsigned int total_breadth, unsigned int trimmed_breadth)
+size_t lingen_round_operand_size(size_t x, int bits) {/*{{{*/
+    /* round x up to the next size that has all but its six most significant
+     * bits set to 0.
+     */
+    if (x == 0) return x;
+    x -= 1;
+    size_t y = x >> bits;
+    for(int i = 1 ; y ; y >>= i) x |= y;
+    x += 1;
+    return x;
+}/*}}}*/
+
+int tree_stats::max_nesting = 0;
+
+void tree_stats::interpret_parameters(cxx_param_list & pl)
 {
-    // return total_breadth * spent / sum_inputsize;
-    unsigned int sum_inputsize = 0;
-    // unsigned int ncalled = 0;
-    trimmed_here = 0;
-    for(auto const & x : *this) {
-        function_stats const& F(x.second);
-        sum_inputsize += F.sum_inputsize;
-        trimmed_here += F.trimmed;
-    }
+    param_list_parse_int(pl, "tree_stats_max_nesting", &max_nesting);
+}
+
+
+void tree_stats::declare_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within plingen");
+}
+
+double tree_stats::level_stats::projected_time()
+{
     /* Now count the contribution of each sub-function */
     double contrib = 0;
-    for(auto & x : *this) {
-        function_stats & F(x.second);
-        double r = (double) (total_breadth - trimmed_breadth) / sum_inputsize;
-        ASSERT_ALWAYS(sum_inputsize <= (total_breadth - trimmed_breadth));
-        F.projected_calls = round(r * F.ncalled);
-        F.projected_time = r * F.real;
-        contrib += F.projected_time;
-    }
+    for(auto & x : *this)
+        contrib += x.second.projected_time();
     return contrib;
 }
 
@@ -46,40 +56,64 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
         std::ostream & os,
         step_time::steps_t const & FS,
         unsigned int ncalled,
-        unsigned int projected_calls,
+        unsigned int total_ncalls,
         int nesting)
 {
     std::string prefix(2 + nesting, ' ');
 
+    if (nesting >= max_nesting)
+        return os;
+
     for(auto const & y : FS) {
         std::string const & func(y.first);
-        double t = y.second.real;
-        double th = y.second.theoretical;
         unsigned int n = y.second.ncalled;
+        double t = y.second.real;
+        unsigned int items_per_call = y.second.items_per_call;
+        double th = y.second.planned_time;
+        double th_n = y.second.planned_calls;
         os << prefix
            << "(" << func;
-        if (n) {
-            unsigned int projected_n = n * projected_calls / ncalled;
-            os << " "
-               << fmt::sprintf("%u/%u", n, projected_n);
-        }
+        /* For a function that has been entered k times (each time going
+         * through a tree of small steps), we have the following values
+         * for the different step_time objects (here, t0 is some
+         * theoretical value, t1 is a measured value)
+         *
+         * top-level (parent of the function_stats) object, **NOT**
+         * printed by this function:
+         *      ncalled = k
+         *      real = k * t1 (without children)
+         *      total_ncalls = should be a power of two.
+         *      projected_time = total_ncalls/ncalled * real
+         *
+         * small steps:
+         *      items_per_call = X (X can be the contribution of multiple
+         *          calls to begin_smallstep, with ncalls arguments summing
+         *          up to X).
+         *      ncalled = k * X
+         *      planned_time = k * X * t0
+         *      real = k * X * t1
+         */
+        size_t projected_n = (size_t) total_ncalls * items_per_call;
+        os << " "
+            << fmt::sprintf("%u/%zu", n, projected_n);
         if (n) {
             if (th)
-                os << fmt::sprintf(" [%.1f%%]", 100.0*t / th);
+                os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));
             os << " " << fmt::sprintf("%.2g -> %.1f",
-                    t / n, t * (double) projected_calls / ncalled);
+                    t / n, t / n * (double) total_ncalls);
         } else if (th) {
-            /* At this point we don't know in advance how many calls of
-             * this small step we will have per level. This should be
-             * added to plan_smallstep XXX
-             */
-            int call_ratio = 1;
-            os << " " << fmt::sprintf("%.2g -> %.1f",
-                    th, th * call_ratio * (double) projected_calls);
+            /* Since n == 0, begin_smallstep has never been called.
+             * We only had plan_smallstep, and we had it only once,
+             * so that th corresponds t 
+             * that th_n corresponds to one call of the function, not
+             * more */
+            ASSERT_ALWAYS(th_n == 1);
+            os << fmt::sprintf(" %.2g -> %.1f",
+                    (th/th_n), (th/th_n) * (double) total_ncalls);
         }
         os << ")\n";
         recursively_print_substeps_at_depth(os, y.second.steps,
-                ncalled, projected_calls, nesting+1);
+                ncalled, total_ncalls, nesting+1);
     }
     return os;
 }
@@ -94,7 +128,6 @@ void tree_stats::print(unsigned int)
 
     double sum = 0;
     double time_to_go = 0;
-    unsigned int tree_trimmed_breadth = 0;
 
     std::ostringstream os;
 
@@ -117,25 +150,25 @@ void tree_stats::print(unsigned int)
         /* Compute projected time for this level based on the total
          * breadth, and the calls which we had so far.
          */
-        double pt = u.projected_time(tree_total_breadth, tree_trimmed_breadth);
+        double pt = u.projected_time();
         u.last_printed_projected_time = pt;
 
         char mixedlevel_code = (u.size() <= 1) ? '\0' : 'a';
 
         for(auto x = u.cbegin(); x != u.cend(); ++x, mixedlevel_code++) {
-            string const& func(x->first);
+            string const& func(x->first.func);
             function_stats const& F(x->second);
-            sum += F.projected_time;
-            time_to_go += F.projected_time - F.real;
+            sum += F.projected_time();
+            time_to_go += F.projected_time() - F.real;
             /* when printing at this level, we must take into account the
              * running_stats pointed to by "extra" as well.
              */
             os << k;
             if (mixedlevel_code) os << mixedlevel_code;
             os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, func)
-               << " " << fmt::sprintf("%u/%u", F.ncalled, F.projected_calls)
+               << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls)
                << " " << fmt::sprintf("%.2g -> %.1f",
-                       F.real / F.ncalled, F.projected_time)
+                       F.real / F.ncalled, F.projected_time())
                << " " << fmt::sprintf(" (total: %.1f)", sum)
                << "\n";
 
@@ -145,32 +178,32 @@ void tree_stats::print(unsigned int)
                 wip = nullptr;
             }
 
-            recursively_print_substeps_at_depth(os, FS.steps, F.ncalled, F.projected_calls, 0);
+            recursively_print_substeps_at_depth(os, FS.steps, F.ncalled, F.total_ncalls, 0);
         }
 
-        /* Since the running stats are a differetn type, with different
+        /* Since the running stats are a different type, with different
          * semantics, we must do things a bit differently.
          */
         if (wip) {
             std::string const & func(wip->first);
             running_stats const & r(wip->second);
-            unsigned int exp_ncalls = round((double) tree_total_breadth / r.inputsize);
             double level_th = 0;
             for(auto const & y : r.steps) {
                 double t = y.second.real;
-                double th = y.second.theoretical;
+                double th = y.second.planned_time;
                 unsigned int n = y.second.ncalled;
                 level_th += n ? t : th;
+                time_to_go += th * (r.total_ncalls - n);
             }
-            sum += level_th * exp_ncalls;
+            sum += level_th * r.total_ncalls;;
             os << fmt::sprintf("%u * [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
                     k,
                     r.inputsize,
                     func.c_str(),
-                    exp_ncalls,
-                    level_th, level_th * exp_ncalls,
+                    r.total_ncalls,
+                    level_th, level_th * r.total_ncalls,
                     sum);
-            recursively_print_substeps_at_depth(os, r.steps, 1, exp_ncalls, 0);
+            recursively_print_substeps_at_depth(os, r.steps, 1, r.total_ncalls, 0);
         }
 
     }
@@ -197,7 +230,7 @@ void tree_stats::print(unsigned int)
     }
 }
 
-void tree_stats::enter(std::string const & func, unsigned int inputsize, bool leaf)
+void tree_stats::enter(std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf)
 {
     int rank;
     if (depth == 0)
@@ -205,6 +238,7 @@ void tree_stats::enter(std::string const & func, unsigned int inputsize, bool le
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { ++depth; return; }
     running_stats s(inputsize, leaf);
+    s.total_ncalls = total_ncalls;
     s.heat_up();
     // ASSERT_ALWAYS(curstack.empty() || !curstack.back().second.in_substep());
     curstack.push_back({func, s});
@@ -219,8 +253,6 @@ tree_stats::function_stats& tree_stats::function_stats::operator+=(tree_stats::r
     (tree_stats::step_time&)*this += (tree_stats::step_time const&) s;
     if (s.inputsize < min_inputsize) min_inputsize = s.inputsize;
     if (s.inputsize > max_inputsize) max_inputsize = s.inputsize;
-    sum_inputsize += s.inputsize;
-    if (s.leaf) trimmed += s.inputsize;
     return *this;
 }
 
@@ -242,30 +274,31 @@ void tree_stats::leave()
     unsigned int level = --depth;
     ASSERT_ALWAYS(depth == curstack.size());
     ASSERT_ALWAYS(level < levels.size());
+    ASSERT_ALWAYS(!s.has_pending_smallsteps());
 
     /* merge our running stats into the level_stats */
-    function_stats & F(levels[level][sfunc]);
+    function_with_input_size fi { sfunc, s.inputsize };
+    function_stats & F(levels[level][fi]);
     F += s;
+    F.planned_calls++;  /* just for consistency */
     F.ncalled++;
 
     /* Is it any useful to print something new ? */
     if (now < last_print_time + 2) return;
 
     int needprint = 0;
-    unsigned int trimmed_breadth = 0;
     for(unsigned int k = 0 ; !needprint && k < levels.size() ; k++) {
         level_stats & u(levels[k]);
-        double t = u.projected_time(tree_total_breadth, trimmed_breadth);
+        double t = u.projected_time();
         double t0 = u.last_printed_projected_time;
         needprint = (t < 0.98 * t0) || (t > 1.02 * t0);
-        trimmed_breadth += u.trimmed_here;
     }
 
     if (!needprint)
         return;
 
     last_print_time = now;
-    last_print_position = make_pair(level, F.sum_inputsize);
+    last_print_position = make_pair(level, F.ncalled);
 
     print(level);
 }
@@ -273,7 +306,7 @@ void tree_stats::leave()
 void tree_stats::final_print()
 {
     ASSERT_ALWAYS(depth == 0);
-    if (last_print_position != make_pair(0u, tree_total_breadth))
+    if (last_print_position != make_pair(0u, 1u))
         print(0);
     {
         /* print ETA */
@@ -292,7 +325,7 @@ void tree_stats::final_print()
     }
 }
 
-void tree_stats::begin_plan_smallstep(std::string const & func, double theory)
+void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double const & theory)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -306,7 +339,12 @@ void tree_stats::begin_plan_smallstep(std::string const & func, double theory)
     running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
     s.nested_substeps.push_back(it);
 
-    it->second.theoretical += theory;
+    step_time & S(it->second);
+    S.total_ncalls = s.total_ncalls;
+    S.items_per_call = theory.n;
+    S.planned_time += theory.t * theory.n;
+    ASSERT_ALWAYS(S.ncalled == S.planned_calls);
+    S.planned_calls++;
 }
 void tree_stats::end_plan_smallstep()
 {
@@ -348,9 +386,12 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
     if (!s.nested_substeps.empty())
         where = & s.current_substep().steps;
     running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
+    it->second.total_ncalls = s.total_ncalls;
     s.nested_substeps.push_back(it);
-    s.current_substep().ncalled += ncalls;
-    s.current_substep().heat_up();
+    step_time & S(s.current_substep());
+    S.items_pending += ncalls;
+    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+    S.heat_up();
 }
 
 void tree_stats::end_smallstep()
@@ -360,7 +401,12 @@ void tree_stats::end_smallstep()
     if (rank) return;
     ASSERT_ALWAYS(!curstack.empty());
     running_stats& s(curstack.back().second);
-    s.current_substep().cool_down();
-    // s.current_substep().ncalled++;
+    step_time & S(s.current_substep());
+    S.cool_down();
+    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+    if (S.items_pending == S.items_per_call) {
+        S.ncalled++;
+        S.items_pending = 0;
+    }
     s.nested_substeps.pop_back();
 }

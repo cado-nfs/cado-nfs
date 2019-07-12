@@ -214,6 +214,7 @@ void plingen_decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_configure_alias(pl, "seed", "random_seed");
 
     plingen_tuning_decl_usage(pl);
+    tree_stats::declare_usage(pl);
 }/*}}}*/
 
 /*{{{ basecase */
@@ -783,7 +784,7 @@ int
 bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size, true);
+    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     int done = bw_lingen_basecase_raw(bm, pi, E, delta);
@@ -1442,25 +1443,29 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     lingen_call_companion const & C = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size);
+    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
 
     {
         bm.stats.begin_plan_smallstep("MP", C.mp.tt);
+        /*
         bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
         bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
         bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
         bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
-        bm.stats.plan_smallstep("addmul", C.mp.t_addmul);
+        bm.stats.plan_smallstep("addmul", C.mp.t_conv);
         bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
+        */
         bm.stats.end_plan_smallstep();
 
         bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
+        /*
         bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
         bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
         bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
         bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
-        bm.stats.plan_smallstep("addmul", C.mul.t_addmul);
+        bm.stats.plan_smallstep("addmul", C.mul.t_conv);
         bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
+        */
         bm.stats.end_plan_smallstep();
     }
 
@@ -1615,10 +1620,28 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     lingen_call_companion const & C = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size);
+    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
 
-    bm.stats.plan_smallstep("MP", C.mp.tt);
-    bm.stats.plan_smallstep("MUL", C.mul.tt);
+    {
+        bm.stats.begin_plan_smallstep("MP", C.mp.tt);
+        bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
+        bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
+        bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
+        bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
+        bm.stats.plan_smallstep("addmul", C.mp.t_conv);
+        bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
+        bm.stats.end_plan_smallstep();
+
+        bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
+        bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
+        bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
+        bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
+        bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
+        bm.stats.plan_smallstep("addmul", C.mul.t_conv);
+        bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
+        bm.stats.end_plan_smallstep();
+    }
+
 
     bw_dimensions & d = bm.d;
     int done;
@@ -3497,6 +3520,7 @@ int main(int argc, char *argv[])
      * avoid failures down the line */
     plingen_tuning_lookup_parameters(pl);
     
+    tree_stats::interpret_parameters(pl);
     logline_interpret_parameters(pl);
 
     if (param_list_warn_unused(pl)) {

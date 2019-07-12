@@ -4,7 +4,7 @@
 #include <tuple>
 #include <map>
 
-#include "plingen-tuning.hpp"  // plingen_round_operand_size
+#include "plingen-tuning.hpp"  // lingen_round_operand_size
 
 struct plingen_tuning_cache {
     struct basecase_key : public std::tuple<size_t, unsigned int, unsigned int, size_t, int> {
@@ -29,33 +29,33 @@ struct plingen_tuning_cache {
 
     struct coarse_compare {
         bool operator()(size_t const &a, size_t const& b) const {
-            size_t ca = plingen_round_operand_size(a);
-            size_t cb = plingen_round_operand_size(b);
+            size_t ca = lingen_round_operand_size(a);
+            size_t cb = lingen_round_operand_size(b);
             return ca < cb;
         }
         bool operator()(basecase_key const &a, basecase_key const& b) const {
             basecase_key ca = a;
             basecase_key cb = b;
-            std::get<3>(ca) = plingen_round_operand_size(std::get<3>(ca));
-            std::get<3>(cb) = plingen_round_operand_size(std::get<3>(cb));
+            std::get<3>(ca) = lingen_round_operand_size(std::get<3>(ca));
+            std::get<3>(cb) = lingen_round_operand_size(std::get<3>(cb));
             return ca < cb;
         }
         bool operator()(mul_key const &a, mul_key const& b) const {
             mul_key ca = a;
             mul_key cb = b;
-            std::get<1>(ca) = plingen_round_operand_size(std::get<1>(ca));
-            std::get<2>(ca) = plingen_round_operand_size(std::get<2>(ca));
-            std::get<1>(cb) = plingen_round_operand_size(std::get<1>(cb));
-            std::get<2>(cb) = plingen_round_operand_size(std::get<2>(cb));
+            std::get<1>(ca) = lingen_round_operand_size(std::get<1>(ca));
+            std::get<2>(ca) = lingen_round_operand_size(std::get<2>(ca));
+            std::get<1>(cb) = lingen_round_operand_size(std::get<1>(cb));
+            std::get<2>(cb) = lingen_round_operand_size(std::get<2>(cb));
             return ca < cb;
         }
         bool operator()(mp_key const &a, mp_key const& b) const {
             mp_key ca = a;
             mp_key cb = b;
-            std::get<1>(ca) = plingen_round_operand_size(std::get<1>(ca));
-            std::get<2>(ca) = plingen_round_operand_size(std::get<2>(ca));
-            std::get<1>(cb) = plingen_round_operand_size(std::get<1>(cb));
-            std::get<2>(cb) = plingen_round_operand_size(std::get<2>(cb));
+            std::get<1>(ca) = lingen_round_operand_size(std::get<1>(ca));
+            std::get<2>(ca) = lingen_round_operand_size(std::get<2>(ca));
+            std::get<1>(cb) = lingen_round_operand_size(std::get<1>(cb));
+            std::get<2>(cb) = lingen_round_operand_size(std::get<2>(cb));
             return ca < cb;
         }
     };

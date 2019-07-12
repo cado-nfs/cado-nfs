@@ -32,6 +32,7 @@
 #include "plingen-tuning.hpp"
 #include "plingen-tuning-cache.hpp"
 #include "lingen-platform.hpp"
+#include "tree_stats.hpp"
 
 #include <vector>
 #include <array>
@@ -50,21 +51,10 @@ struct lingen_substep_characteristics;
 struct lingen_substep_schedule;
 struct plingen_tuner;
 
-size_t plingen_round_operand_size(size_t x, int bits) {/*{{{*/
-    /* round x up to the next size that has all but its six most significant
-     * bits set to 0.
-     */
-    if (x == 0) return x;
-    x -= 1;
-    size_t y = x >> bits;
-    for(int i = 1 ; y ; y >>= i) x |= y;
-    x += 1;
-    return x;
-}/*}}}*/
-
 struct op_mul {/*{{{*/
     static constexpr const char * name = "MUL";
     typedef plingen_tuning_cache::mul_key key_type;
+    typedef plingen_tuning_cache::mul_value cache_value_type;
     static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc) {
         fft_get_transform_info_fppol(fti, p, n1, n2, nacc);
     }
@@ -211,8 +201,40 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 
     private:
+    struct parallelizable_timing : public weighted_double
+    {
+        parallelizable_timing(unsigned int n, double d) {
+            this->n = n;
+            this->t = d;
+        }
+        parallelizable_timing(double d) : parallelizable_timing(1, d) {}
+        parallelizable_timing() : parallelizable_timing(0, 0) {}
+        parallelizable_timing& operator*=(unsigned int x) {
+            n *= x;
+            return *this;
+        }
+        parallelizable_timing operator*(unsigned int x) const { 
+            parallelizable_timing X = *this;
+            X *= x;
+            return X;
+        }
+        parallelizable_timing& parallelize(unsigned int k, unsigned int T) {
+            /* This counts the time of doing k times the same thing, but
+             * in parallel. What we do is that we keep the multiplier
+             * independent of the parallelism value T, but we divide the
+             * average time (thereby making an amortized time).
+             */
+            n *= k;
+            t *= iceildiv(k, T) / (double) k;
+            return *this;
+        }
+        operator double() const { return n * t; }
+        double operator+(parallelizable_timing const & b) const { return *this + (double) b; }
+        double operator+(double y) const { return (double) *this + y; }
+    };
+
     /* This returns the communication time _per call_ */
-    double get_comm_time(pc_t const & P, sc_t const & S) const { /* {{{ */
+    std::pair<parallelizable_timing, parallelizable_timing> get_comm_time(pc_t const & P, sc_t const & S) const { /* {{{ */
         /* TODO: maybe include some model of latency... */
 
         /* Each of the r*r nodes has local matrices size (at most)
@@ -229,21 +251,22 @@ struct lingen_substep_characteristics {/*{{{*/
         unsigned int nrs2 = iceildiv(nr2, S.shrink2);
         unsigned int ns0 = P.r * nrs0;
         unsigned int ns2 = P.r * nrs2;
-        size_t comm = get_transform_ram() * (ns0+ns2) * nr1;
-        comm *= S.shrink0 * S.shrink2;
-        return comm;
+        parallelizable_timing T = get_transform_ram() / P.mpi_xput;
+        T *= nr1;
+        T *= S.shrink0 * S.shrink2;
+        return { T * ns0, T * ns2 };
     }/*}}}*/
 
     public:
-    double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+
+    std::array<parallelizable_timing, 6> get_call_time_backend(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         auto ft = get_ft_times(C);
         double tt_dft0 = ft[0];
         double tt_dft2 = ft[1];
         double tt_conv = ft[2];
         double tt_ift = ft[3];
 
-        double T_dft0, T_dft2, T_conv, T_ift, T_comm;
-
+        parallelizable_timing T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2;
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
@@ -271,9 +294,9 @@ struct lingen_substep_characteristics {/*{{{*/
          */
 
         /* These are just base values, we'll multiply them later on */
-        T_dft0 = nr1b * tt_dft0;
-        T_dft2 = nr1b * tt_dft2;
-        T_conv = nr1b * tt_conv;
+        T_dft0 = { nr1b, tt_dft0 };
+        T_dft2 = { nr1b, tt_dft2 };
+        T_conv = { nr1b, tt_conv };
         T_ift  = tt_ift;
 
         /* First, we must decide on the scheduling order for the loop.
@@ -286,9 +309,11 @@ struct lingen_substep_characteristics {/*{{{*/
 
         if (nrs0 < nrs2) {
             /* then we want many live transforms on side 0. */
-            T_dft0 *= iceildiv(nrs0 * S.batch, P.T);
-            T_dft2 *= nrs2 * iceildiv(S.batch, P.T);
-            T_conv *= nrs2 * P.r * S.batch * iceildiv(nrs0, P.T);
+            T_dft0.parallelize(nrs0 * S.batch, P.T);
+            T_dft2.parallelize(S.batch, P.T);
+            T_dft2 *= nrs2;
+            T_conv.parallelize(nrs0, P.T);
+            T_conv *= nrs2 * P.r * S.batch;
         } else {
             /* then we want many live transforms on side 2. */
             /* typical loop (on each node)
@@ -307,36 +332,47 @@ struct lingen_substep_characteristics {/*{{{*/
                 compute nrs0 * nrs2 inverse transforms locally, in parallel
                 free nrs0 * nrs2 transforms.
             */
-            T_dft0 *= nrs0 * iceildiv(S.batch, P.T);
-            T_dft2 *= iceildiv(nrs2 * S.batch, P.T);
-            T_conv *= nrs0 * P.r * S.batch * iceildiv(nrs2, P.T);
+            T_dft0.parallelize(S.batch, P.T);
+            T_dft0 *= nrs0;
+            T_dft2.parallelize(nrs2 * S.batch, P.T);
+            T_conv.parallelize(nrs2, P.T);
+            T_conv *= nrs0 * P.r * S.batch;
         }
 
-        T_ift *= iceildiv(nrs0*nrs2, P.T);
+        T_ift.parallelize(nrs0*nrs2, P.T);
 
         T_dft0 *= S.shrink0 * S.shrink2;
         T_dft2 *= S.shrink0 * S.shrink2;
         T_conv *= S.shrink0 * S.shrink2;
         T_ift  *= S.shrink0 * S.shrink2;
 
-        T_comm = get_comm_time(P, S) / P.mpi_xput;
+        std::tie(T_comm0, T_comm2) = get_comm_time(P, S);
 
         /* This is for _one_ call only (one node in the tree).
          * We must apply multiplier coefficients (typically 1<<depth) */
-        return T_dft0 + T_dft2 + T_conv + T_ift + T_comm;
+        return { T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 };
     }/*}}}*/
 
-    void save_call_times( lingen_call_companion::mul_or_mp_times & D, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    void save_call_times(lingen_call_companion::mul_or_mp_times & D, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         D.S = S;
-        D.tt = get_call_time(P, D.S, C);
-        auto ft = get_ft_times(C);
-        D.t_dft_A = ft[0];
-        D.t_dft_B = ft[1];
-        D.t_dft_A_comm = get_transform_ram() / P.mpi_xput;
-        D.t_dft_B_comm = ft[1];
-        D.t_addmul = ft[2];
-        D.t_ift_C = ft[3];
+        auto A = get_call_time_backend(P, S, C); 
+        double tt = 0;
+        for(auto const & a : A) tt = tt + a;
+        D.tt = { 1, tt };
+        D.t_dft_A = A[0];
+        D.t_dft_B = A[1];
+        D.t_conv = A[2];
+        D.t_ift_C = A[3];
+        D.t_dft_A_comm = A[4];
+        D.t_dft_B_comm = A[5];
     }/*}}}*/
+    double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const {
+        auto A = get_call_time_backend(P, S, C);
+        double tt = 0;
+        for(auto const & a : A)
+            tt = tt + a;
+        return tt;
+    }
 
     double get_and_report_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         const char * step = OP::name;
@@ -720,12 +756,18 @@ struct plingen_tuner {
 
             bool basecase_was_eliminated = basecase_eliminated;
 
+            ASSERT_ALWAYS(cws.size() <= 2);
+
             for(size_t idx = 0 ; idx < cws.size() ; idx++) {
                 auto const & cw(cws[idx]);
                 size_t L, Lleft, Lright;
                 unsigned int weight;
                 std::tie(L, Lleft, Lright, weight) = cw;
 
+                /* the weight is the number of calls that must be made
+                 * with this input length. The sum of weights at this
+                 * depth must equal the total input length, whatever the
+                 * level */
                 ASSERT_ALWAYS(weight);
 
                 if (!L) {
@@ -733,14 +775,17 @@ struct plingen_tuner {
                     continue;
                 }
 
-                if (best.find(L) == best.end()) {
+                lingen_call_companion::key K { i, L };
+
+                /* We **MUST** create hints[K], at this point */
+
+                if (hints.find(K) == hints.end()) {
                     double ttb = DBL_MAX;
                     double ttr = DBL_MAX;
                     double ttrchildren = DBL_MAX;
 
-                    lingen_call_companion::key K { i, L };
                     lingen_call_companion U;
-                    U.weight = weight;
+                    U.total_ncalls = 0;
 
                     if (!recursion_makes_sense(L) || !basecase_eliminated)
                         ttb = compute_and_report_basecase(L);
@@ -752,7 +797,7 @@ struct plingen_tuner {
                         MP.save_call_times(U.mp, P, schedules_mp[L], C);
                         MUL.save_call_times(U.mul, P, schedules_mul[L], C);
 
-                        ttr = U.mp.tt + U.mul.tt;
+                        ttr = U.mp.tt.t + U.mul.tt.t;
                         ttrchildren = 0;
                         ttrchildren += std::get<1>(best[Lleft])[std::get<0>(best[Lleft])];
                         ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
@@ -786,8 +831,11 @@ struct plingen_tuner {
                     U.go_mpi = rwin;
                     U.ttb = ttb;
 
+                    ASSERT_ALWAYS(hints.find(K) == hints.end());
                     hints[K] = U;
                 }
+                ASSERT_ALWAYS(best.find(L) != best.end());
+                hints[K].total_ncalls += weight;
 
                 time_b += std::get<1>(best[L])[0] * weight;
                 time_r += std::get<1>(best[L])[1] * weight;
@@ -800,8 +848,8 @@ struct plingen_tuner {
             size_t L1 = std::get<0>(cws.back());
             /* calls_and_weights_at_depth must return a sorted list */
             ASSERT_ALWAYS(L0 <= L1);
-            size_t L0r = plingen_round_operand_size(L0);
-            size_t L1r = plingen_round_operand_size(L1);
+            size_t L0r = lingen_round_operand_size(L0);
+            size_t L1r = lingen_round_operand_size(L1);
             bool approx_same = L0r == L1r;
             bool rec0 = std::get<0>(best[L0]);
             bool rec1 = std::get<0>(best[L1]);
@@ -826,8 +874,10 @@ struct plingen_tuner {
                 std::ostringstream os2;
                 os2 << " mixed(threshold=" << L1 << "): ";
                 std::string ss2 = os2.str();
-                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
-                        time_m, time_m / 86400, time_m_self, time_m_self / 86400, isbest);
+                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                        pad, msg, ss2.c_str(),
+                        time_m, time_m / 86400,
+                        time_m_self, time_m_self / 86400, isbest);
                 msg = msg2;
                 int pad2 = pad + ss2.size();
                 char buf[20];

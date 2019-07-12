@@ -443,7 +443,6 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
      * dynamically because of rounding issues: e.g. for 13=7+6, we
      * will do both 7*6 and 6*7 in the inner loops.
      */
-    stats.begin_smallstep("alloc");
     bool inner_is_row_major = nrs0 < nrs2;
     if (inner_is_row_major) {
         ta = matpoly_ft(a.ab, nrs0, r * S->batch, fti);
@@ -452,7 +451,6 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
         ta = matpoly_ft(a.ab, 1, r * S->batch, fti);
         tb = matpoly_ft(a.ab, r * S->batch, nrs2, fti);
     }
-    stats.end_smallstep();
 
     for(unsigned int round0 = 0 ; round0 < S->shrink0 ; round0++) {
         unsigned int i0,i1;
@@ -488,8 +486,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                     dft(ta_loc, a.my_cell().view(Ra));
                     stats.end_smallstep();
 
-                    /* XXX not sure about ncalls here */
-                    stats.begin_smallstep("dft_A_comm", ta_loc.size());
+                    stats.begin_smallstep("dft_A_comm", r * ta_loc.size());
                     // allgather ta among r nodes.
                     to_export(ta.view(Ratx));
                     /* The data isn't contiguous, so we have to do
@@ -509,8 +506,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                         dft(tb_loc, b.my_cell().view(Rb));
                         stats.end_smallstep();
 
-                        /* XXX not sure about ncalls here */
-                        stats.begin_smallstep("dft_B_comm", tb_loc.size());
+                        stats.begin_smallstep("dft_B_comm", r * tb_loc.size());
                         // allgather tb among r nodes
                         to_export(tb.view(Rbtx));
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
@@ -519,7 +515,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                         to_import(tb);
                         stats.end_smallstep();
 
-                        stats.begin_smallstep("addmul");
+                        stats.begin_smallstep("addmul", (i1-i0) * tb.nrows());
                         // rounding might surprise us.
                         addmul(tc.view(submatrix_range(0,j,i1-i0,1)),
                                 ta.view(submatrix_range(0,0,i1-i0,ta.ncols())),
@@ -540,8 +536,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                     dft(tb_loc, b.my_cell().view(Rb));
                     stats.end_smallstep();
 
-                    /* XXX not sure about ncalls here */
-                    stats.begin_smallstep("dft_B_comm", tb_loc.size());
+                    stats.begin_smallstep("dft_B_comm", r * tb_loc.size());
                     // allgather tb among r nodes
                     to_export(tb.view(Rbtx));
                     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
@@ -557,8 +552,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                         dft(ta_loc, a.my_cell().view(Ra));
                         stats.end_smallstep();
 
-                        /* XXX not sure about ncalls here */
-                        stats.begin_smallstep("dft_A_comm", ta_loc.size());
+                        stats.begin_smallstep("dft_A_comm", r * ta_loc.size());
                         // allgather ta among r nodes
                         to_export(ta.view(Ratx));
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
@@ -567,7 +561,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                         to_import(ta);
                         stats.end_smallstep();
 
-                        stats.begin_smallstep("addmul");
+                        stats.begin_smallstep("addmul", ta.ncols() * (j1-j0));
                         addmul(tc.view(submatrix_range(i-i0,0,1,j1-j0)),
                                 ta.view(submatrix_range(0,0,1,ta.ncols())),
                                 tb.view(submatrix_range(0,0,tb.nrows(),j1-j0)));
@@ -577,7 +571,9 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
             }
             c.size = OP.csize;
             c.my_cell().size = OP.csize;
+            stats.begin_smallstep("ift_C", tc.nrows() * tc.ncols());
             OP.ift(c.my_cell().view(Rc), tc.view(Rct));
+            stats.end_smallstep();
         }
     }
     MPI_Type_free(&mpi_ft);

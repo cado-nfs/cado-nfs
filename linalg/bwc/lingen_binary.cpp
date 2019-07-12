@@ -1138,13 +1138,16 @@ static bool go_quadratic(polmat& E, polmat& pi)/*{{{*/
     return finished;
 }/*}}}*/
 
-static bool compute_lingen(polmat& E, polmat& pi);
+static bool compute_lingen(polmat& E, polmat& pi, int depth = 0);
 
 template<typename fft_type>/*{{{*/
-static bool go_recursive(polmat& E, polmat& pi)
+static bool go_recursive(polmat& E, polmat& pi, int depth)
 {
     using namespace globals;
-    tree_stats::sentinel dummy(stats, fft_type::name(), E.ncoef);
+    tree_stats::sentinel dummy(stats, fft_type::name(), E.ncoef, 1 << depth);
+
+    stats.plan_smallstep("MP", 0);
+    stats.plan_smallstep("MUL", 0);
 
     /* E is known up to O(X^E.ncoef), so we'll consider this is a problem
      * of degree E.ncoef -- this is exactly the number of increases we
@@ -1187,7 +1190,7 @@ static bool go_recursive(polmat& E, polmat& pi)
     {
         polmat E_left;
         E_left.set_mod_xi(E, llen);
-        finished_early = compute_lingen(E_left, pi_left);
+        finished_early = compute_lingen(E_left, pi_left, depth + 1);
     }
 
     long pi_l_deg = pi_left.maxdeg();
@@ -1298,7 +1301,7 @@ static bool go_recursive(polmat& E, polmat& pi)
     E.xdiv_resize(llen - kill, rlen); /* This chops off some data */
 
     polmat pi_right;
-    finished_early = compute_lingen(E, pi_right);
+    finished_early = compute_lingen(E, pi_right, depth + 1);
     int pi_r_deg = pi_right.maxdeg();
     unsigned long pi_right_length = pi_right.maxlength();
 
@@ -1351,7 +1354,7 @@ static bool go_recursive(polmat& E, polmat& pi)
     return finished_early;
 }/*}}}*/
 
-static bool compute_lingen(polmat& E, polmat& pi)
+static bool compute_lingen(polmat& E, polmat& pi, int depth)
 {
     /* reads the data in the global thing, E and delta. ;
      * compute the linear generator from this.
@@ -1373,12 +1376,12 @@ static bool compute_lingen(polmat& E, polmat& pi)
         b = go_quadratic(E, pi);
     } else if (deg_E < cantor_threshold) {
         /* The bound is such that deg + deg/4 is 64 words or less */
-        b = go_recursive<gf2x_fake_fft>(E, pi);
+        b = go_recursive<gf2x_fake_fft>(E, pi, depth);
     } else {
         /* Presently, c128 requires input polynomials that are large
          * enough.
          */
-        b = go_recursive<gf2x_cantor_fft>(E, pi);
+        b = go_recursive<gf2x_cantor_fft>(E, pi, depth);
     }
 
     /*
@@ -1510,13 +1513,12 @@ int main(int argc, char *argv[])
 {
     using namespace globals;
 
-    param_list pl;
+    cxx_param_list pl;
 
     double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
 
     bw_common_decl_usage(pl);
     /* {{{ declare local parameters and switches */
@@ -1530,6 +1532,7 @@ int main(int argc, char *argv[])
     param_list_decl_usage(pl, "split-output-file",
             "work with split files on output");
     /* }}} */
+    tree_stats::declare_usage(pl);
     logline_decl_usage(pl);
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
@@ -1560,13 +1563,13 @@ int main(int argc, char *argv[])
     param_list_parse_int(pl, "split-input-file", &split_input_file);
 
     /* }}} */
+    tree_stats::interpret_parameters(pl);
     logline_interpret_parameters(pl);
 
     if (param_list_warn_unused(pl)) {
         param_list_print_usage(pl, bw->original_argv[0], stderr);
         exit(EXIT_FAILURE);
     }
-    param_list_clear(pl);
 
 #ifdef  HAVE_OPENMP
     omp_set_num_threads (nthreads);
