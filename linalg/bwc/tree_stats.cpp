@@ -131,6 +131,7 @@ void tree_stats::print(unsigned int)
 
     std::ostringstream os;
 
+    int total_transition_levels = 0;
     for(unsigned int k = 0 ; k < levels.size() ; k++) {
         /* At depth k, we have:
          *  - cold timers for several functions, in levels[k]
@@ -155,6 +156,8 @@ void tree_stats::print(unsigned int)
 
         char mixedlevel_code = (u.size() <= 1) ? '\0' : 'a';
 
+        bool all_functions_are_transitions = true;
+
         for(auto x = u.cbegin(); x != u.cend(); ++x, mixedlevel_code++) {
             string const& func(x->first.func);
             function_stats const& F(x->second);
@@ -163,10 +166,15 @@ void tree_stats::print(unsigned int)
             /* when printing at this level, we must take into account the
              * running_stats pointed to by "extra" as well.
              */
-            os << k;
-            if (mixedlevel_code) os << mixedlevel_code;
+            if (!F.is_transition_level()) {
+                os << k-total_transition_levels;
+                if (mixedlevel_code) os << mixedlevel_code;
+                all_functions_are_transitions = false;
+            } else {
+                os << "--";
+            }
             os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, func)
-               << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls)
+               << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls())
                << " " << fmt::sprintf("%.2g -> %.1f",
                        F.real / F.ncalled, F.projected_time())
                << " " << fmt::sprintf(" (total: %.1f)", sum)
@@ -178,7 +186,7 @@ void tree_stats::print(unsigned int)
                 wip = nullptr;
             }
 
-            recursively_print_substeps_at_depth(os, FS.steps, F.ncalled, F.total_ncalls, 0);
+            recursively_print_substeps_at_depth(os, FS.steps, F.ncalled, F.total_ncalls(), 0);
         }
 
         /* Since the running stats are a different type, with different
@@ -193,19 +201,24 @@ void tree_stats::print(unsigned int)
                 double th = y.second.planned_time;
                 unsigned int n = y.second.ncalled;
                 level_th += n ? t : th;
-                time_to_go += th * (r.total_ncalls - n);
+                time_to_go += th * (r.total_ncalls() - n);
             }
-            sum += level_th * r.total_ncalls;;
-            os << fmt::sprintf("%u * [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
-                    k,
+            if (!r.is_transition_level()) {
+                os << k-total_transition_levels;
+                all_functions_are_transitions = false;
+            } else {
+                os << "--";
+            }
+            sum += level_th * r.total_ncalls();
+            os << fmt::sprintf("* [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
                     r.inputsize,
                     func.c_str(),
-                    r.total_ncalls,
-                    level_th, level_th * r.total_ncalls,
+                    r.total_ncalls(),
+                    level_th, level_th * r.total_ncalls(),
                     sum);
-            recursively_print_substeps_at_depth(os, r.steps, 1, r.total_ncalls, 0);
+            recursively_print_substeps_at_depth(os, r.steps, 1, r.total_ncalls(), 0);
         }
-
+        if (all_functions_are_transitions) total_transition_levels++;
     }
 
     puts(os.str().c_str());
@@ -230,7 +243,7 @@ void tree_stats::print(unsigned int)
     }
 }
 
-void tree_stats::enter(std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf)
+void tree_stats::enter(std::string const & func, unsigned int inputsize, int total_ncalls, bool leaf)
 {
     int rank;
     if (depth == 0)
@@ -238,12 +251,19 @@ void tree_stats::enter(std::string const & func, unsigned int inputsize, unsigne
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { ++depth; return; }
     running_stats s(inputsize, leaf);
-    s.total_ncalls = total_ncalls;
+    s.set_total_ncalls(total_ncalls);
     s.heat_up();
     // ASSERT_ALWAYS(curstack.empty() || !curstack.back().second.in_substep());
     curstack.push_back({func, s});
     ++depth;
-    ASSERT_ALWAYS(depth == curstack.size());
+    // we used to have the following, but now we allow ourselves to
+    // insert empty shells between levels (so that intermediate
+    // operations such as the mpi gather and scatter steps can be
+    // identified as small steps of something...)
+    // ASSERT_ALWAYS(depth == curstack.size());
+    //
+    // Bottom line, we can only assert the weaker:
+    ASSERT_ALWAYS(depth <= curstack.size());
     if (curstack.size() > levels.size())
         levels.insert(levels.end(), curstack.size() - levels.size(), level_stats());
 }
@@ -340,7 +360,7 @@ void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double 
     s.nested_substeps.push_back(it);
 
     step_time & S(it->second);
-    S.total_ncalls = s.total_ncalls;
+    S.set_total_ncalls(s.total_ncalls());
     S.items_per_call = theory.n;
     S.planned_time += theory.t * theory.n;
     ASSERT_ALWAYS(S.ncalled == S.planned_calls);
@@ -386,7 +406,7 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
     if (!s.nested_substeps.empty())
         where = & s.current_substep().steps;
     running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
-    it->second.total_ncalls = s.total_ncalls;
+    it->second.set_total_ncalls(s.total_ncalls());
     s.nested_substeps.push_back(it);
     step_time & S(s.current_substep());
     S.items_pending += ncalls;

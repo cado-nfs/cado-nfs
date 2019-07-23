@@ -71,13 +71,21 @@ class tree_stats {
          * completion.
          */
         unsigned int ncalled = 0;
-        unsigned int total_ncalls = 0;
+        protected:
+        /* If negative, then this is a transition level only */
+        int _total_ncalls = 0;
+        public:
+        void set_total_ncalls(int t) { _total_ncalls = t; }
+        unsigned int total_ncalls() const { return std::abs(_total_ncalls); }
+        bool is_transition_level() const { return _total_ncalls < 0; }
+
         inline double projected_time() const {
-            return ncalled ? real * total_ncalls / (double) ncalled : NAN;
+            return ncalled ? real * total_ncalls() / (double) ncalled : NAN;
         }
         bool is_hot() const { return real < 0; }
         void heat_up(double wct = wct_seconds()) { real -= wct; }
         void cool_down(double wct = wct_seconds()) { real += wct; }
+
 
         // expected time per call. This is set by tree_stats::plan_smallstep()
         // (actually it is _increased_ by plan_smallstep)
@@ -105,8 +113,8 @@ class tree_stats {
 
         step_time & operator+=(step_time const & x) {
             ASSERT_ALWAYS(!is_hot());
-            ASSERT_ALWAYS(total_ncalls == 0 || total_ncalls == x.total_ncalls);
-            total_ncalls = x.total_ncalls;
+            ASSERT_ALWAYS(_total_ncalls == 0 || _total_ncalls == x._total_ncalls);
+            _total_ncalls = x._total_ncalls;
             ASSERT_ALWAYS(items_per_call == 1 || items_per_call == x.items_per_call);
             ASSERT_ALWAYS(ncalled <= planned_calls);
             ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
@@ -187,11 +195,15 @@ class tree_stats {
 
     void print(unsigned int level);
 
-public:
-    unsigned int depth = 0;
-    
-    void enter(std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false); 
+private:
+    void enter(std::string const & func, unsigned int inputsize, int total_ncalls, bool leaf = false); 
     void leave();
+    unsigned int depth = 0;
+    unsigned int transition_levels_in_depth = 0;
+public:
+    unsigned int non_transition_depth() const {
+        return depth - transition_levels_in_depth;
+    }
     struct sentinel {
         tree_stats & stats;
         sentinel(sentinel const&) = delete;
@@ -199,6 +211,14 @@ public:
                 std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false)
             : stats(stats) { stats.enter(func, inputsize, total_ncalls, leaf); }
         ~sentinel() { stats.leave(); }
+    };
+    struct transition_sentinel {
+        tree_stats & stats;
+        transition_sentinel(transition_sentinel const&) = delete;
+        transition_sentinel(tree_stats & stats,
+                std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false)
+            : stats(stats) { stats.transition_levels_in_depth++; stats.enter(func, inputsize, -total_ncalls, leaf); }
+        ~transition_sentinel() { stats.leave(); stats.transition_levels_in_depth--; }
     };
 
     void begin_smallstep(std::string const & func, unsigned int ncalls=1);

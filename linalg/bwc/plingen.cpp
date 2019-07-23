@@ -111,7 +111,7 @@ struct bmstatus {/*{{{*/
 
     tree_stats stats;
 
-    int depth() const { return stats.depth; }
+    int depth() const { return stats.non_transition_depth(); }
 
     bmstatus(unsigned int m, unsigned int n)/*{{{*/
     {
@@ -156,7 +156,7 @@ struct bmstatus {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/
     bool recurse(size_t L) {/*{{{*/
-        return companion(stats.depth, L).recurse;
+        return companion(depth(), L).recurse;
     }/*}}}*/
 };/*}}}*/
 
@@ -1804,6 +1804,8 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         /* This entails gathering E locally, computing pi locally, and
          * dispathing it back. */
 
+        tree_stats::transition_sentinel dummy(bm.stats, "mpi threshold", E.size, C.total_ncalls);
+
         matpoly sE(ab, m, b, E.size);
         matpoly spi;
 
@@ -3028,7 +3030,10 @@ template<> struct matpoly_factory<bigmatpoly> {
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return bigmatpoly(ab, model, m, n, len);
     }
-    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) { return bw_biglingen_collective(bm, pi, E, delta); }
+    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
+        tree_stats::transition_sentinel dummy(bm.stats, __func__, E.size, 1);
+        return bw_biglingen_collective(bm, pi, E, delta);
+    }
     static size_t alloc(T const & p) { return p.my_cell().alloc; }
 };
 #endif
@@ -3041,7 +3046,10 @@ template<> struct matpoly_factory<matpoly> {
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return matpoly(ab, m, n, len);
     }
-    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) { return bw_lingen_single(bm, pi, E, delta); }
+    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
+        tree_stats::transition_sentinel dummy(bm.stats, __func__, E.size, 1);
+        return bw_lingen_single(bm, pi, E, delta);
+    }
     static size_t alloc(T const & p) { return p.alloc; }
 
 };
