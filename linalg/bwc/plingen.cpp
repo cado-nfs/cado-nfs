@@ -3432,7 +3432,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);
     }
-    if (rhs_name) {
+    if (rhs_name && strcmp(rhs_name, "none") != 0) {
         if (!rank)
             get_rhs_file_header(rhs_name, NULL, &(bm.d.nrhs), NULL);
         MPI_Bcast(&bm.d.nrhs, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
