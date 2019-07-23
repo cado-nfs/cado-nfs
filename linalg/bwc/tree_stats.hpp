@@ -152,9 +152,10 @@ class tree_stats {
             : inputsize(inputsize)
             , leaf(leaf)
             , time_children(0)
-        {}
+        { }
         std::vector<steps_t::iterator> nested_substeps;
         step_time& current_substep() { return nested_substeps.back()->second; }
+        step_time const & current_substep() const { return nested_substeps.back()->second; }
     };
 
     struct function_stats : public step_time {
