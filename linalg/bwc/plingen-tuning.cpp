@@ -507,12 +507,21 @@ struct plingen_tuner {
 
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
 
+        /* only the leader will do the tuning, so only the leader cares
+         * about loading/saving it...
+         */
         timing_cache_filename = param_list_lookup_string(pl, "tuning_timing_cache_filename");
-        C.load(timing_cache_filename);
+        int rank;
+        MPI_Comm_rank(P.comm, &rank);
+        if (rank == 0)
+            C.load(timing_cache_filename);
     }
 
     ~plingen_tuner() {
-        C.save(timing_cache_filename);
+        int rank;
+        MPI_Comm_rank(P.comm, &rank);
+        if (rank == 0)
+            C.save(timing_cache_filename);
         gmp_randclear(rstate);
     }
 
