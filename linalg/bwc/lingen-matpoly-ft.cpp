@@ -138,6 +138,20 @@ void zero(matpoly_ft::view_t t)
     }
 }
 
+void fill_random(matpoly_ft::view_t t, gmp_randstate_t rstate)
+{
+    unsigned int nrows = t.nrows();
+    unsigned int ncols = t.ncols();
+#ifdef HAVE_OPENMP
+#pragma omp parallel for collapse(2)
+#endif
+    for(unsigned int i = 0 ; i < nrows ; i++) {
+        for(unsigned int j = 0 ; j < ncols ; j++) {
+            fft_fill_random(t.part(i,j), t.M.fti, rstate);
+        }
+    }
+}
+
 void to_export(matpoly_ft::view_t t)
 {
     unsigned int nrows = t.nrows();

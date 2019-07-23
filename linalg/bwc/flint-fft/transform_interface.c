@@ -40,8 +40,8 @@
 #include "fft.h"
 #include "ulong_extras.h"
 #include "fft_tuning.h"
-#include "fft.h"
 #include "timing.h"
+#include "gmp_aux.h"
 
 #ifndef iceildiv
 /* unfortunately this fails miserably if x+y-1 overflows */
@@ -1461,6 +1461,24 @@ void fft_zero(void * z, const struct fft_transform_info * fti)
     mpn_zero(data, (4*n+2) * (rsize0 + 1));
     for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
         ptrs[i] = data + i * (rsize0 + 1);
+    }
+}
+
+/* XXX This is ugly. I'm not even certain that some assert won't blow
+ * up...
+ */
+void fft_fill_random(void * z, const struct fft_transform_info * fti, gmp_randstate_t rstate)
+{
+    mp_limb_t ** ptrs = (mp_limb_t **) z;
+    mp_size_t n = 1 << fti->depth;
+    mp_size_t rsize0 = fti_rsize0(fti);
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2)*sizeof(mp_limb_t *));
+    mpn_zero(data, (4*n+2) * (rsize0 + 1));
+    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        ptrs[i] = data + i * (rsize0 + 1);
+        /* This is provided by MPIR, and we also have an ugly wrapper in
+         * gmp-aux.h */
+        mpn_randomb(ptrs[i], rstate, rsize0 + 1);
     }
 }
 

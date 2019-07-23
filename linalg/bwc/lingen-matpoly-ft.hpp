@@ -51,7 +51,9 @@ public:
         return pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
     void zero(submatrix_range const & R);
+    void fill_random(submatrix_range const & R, gmp_randstate_t rstate);
     inline void zero() { zero(view()); }
+    inline void fill_random(gmp_randstate_t rstate) { fill_random(view(), rstate); }
     void to_import(submatrix_range const & R);
     void to_export(submatrix_range const & R);
     void to_import() { to_import(view()); }
@@ -125,6 +127,7 @@ void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, u
 static inline void matpoly_mp_caching(matpoly & c, matpoly const & a, matpoly const & b, const struct lingen_substep_schedule * S = NULL) { return matpoly_mp_caching_adj(c, a, b, UINT_MAX, S); }
 
 void zero(matpoly_ft::view_t);
+void fill_random(matpoly_ft::view_t, gmp_randstate_t);
 void dft(matpoly_ft::view_t, matpoly::const_view_t);
 void ift(matpoly::view_t, matpoly_ft::view_t);
 void ift_mp(matpoly::view_t, matpoly_ft::view_t, unsigned int shift);
@@ -136,6 +139,7 @@ void to_import(matpoly_ft::view_t);
 void to_export(matpoly_ft::view_t);
 
 inline void matpoly_ft::zero(submatrix_range const & R) { ::zero(view(R)); }
+inline void matpoly_ft::fill_random(submatrix_range const & R, gmp_randstate_t rstate) { ::fill_random(view(R), rstate); }
 inline void matpoly_ft::to_import(submatrix_range const & R) { ::to_import(view(R)); }
 inline void matpoly_ft::to_export(submatrix_range const & R) { ::to_export(view(R)); }
 #endif	/* LINGEN_MATPOLY_FT_H_ */
