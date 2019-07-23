@@ -14,9 +14,9 @@
 #include <vector>
 
 #include <hwloc.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
 #include "utils.h"
 #include "cpubinding.h"
