@@ -223,6 +223,8 @@ public:
 
     void begin_smallstep(std::string const & func, unsigned int ncalls=1);
     void end_smallstep();
+    /* skip = begin+end, but do nothing inbetween */
+    void skip_smallstep(std::string const & func, unsigned int ncalls=1);
     struct smallstep_sentinel {
         tree_stats & stats;
         smallstep_sentinel(smallstep_sentinel const&) = delete;
@@ -231,6 +233,7 @@ public:
             : stats(stats) { stats.begin_smallstep(func, ncalls); }
         ~smallstep_sentinel() { stats.end_smallstep(); }
     };
+    bool local_smallsteps_done() const;
 
 
     void begin_plan_smallstep(std::string const & func, weighted_double const &);

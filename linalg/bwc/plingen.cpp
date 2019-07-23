@@ -1626,18 +1626,34 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     {
         bm.stats.begin_plan_smallstep("MP", C.mp.tt);
         bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
-        bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
+        bm.stats.begin_plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
+        bm.stats.plan_smallstep("export", C.mp.t_dft_A_comm);
+        bm.stats.plan_smallstep("comm", C.mp.t_dft_A_comm);
+        bm.stats.plan_smallstep("import", C.mp.t_dft_A_comm);
+        bm.stats.end_plan_smallstep();
         bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
-        bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
+        bm.stats.begin_plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
+        bm.stats.plan_smallstep("export", C.mp.t_dft_B_comm);
+        bm.stats.plan_smallstep("comm", C.mp.t_dft_B_comm);
+        bm.stats.plan_smallstep("import", C.mp.t_dft_B_comm);
+        bm.stats.end_plan_smallstep();
         bm.stats.plan_smallstep("addmul", C.mp.t_conv);
         bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
         bm.stats.end_plan_smallstep();
 
         bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
         bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
-        bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
+        bm.stats.begin_plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
+        bm.stats.plan_smallstep("export", C.mul.t_dft_A_comm);
+        bm.stats.plan_smallstep("comm", C.mul.t_dft_A_comm);
+        bm.stats.plan_smallstep("import", C.mul.t_dft_A_comm);
+        bm.stats.end_plan_smallstep();
         bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
-        bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
+        bm.stats.begin_plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
+        bm.stats.plan_smallstep("export", C.mul.t_dft_B_comm);
+        bm.stats.plan_smallstep("comm", C.mul.t_dft_B_comm);
+        bm.stats.plan_smallstep("import", C.mul.t_dft_B_comm);
+        bm.stats.end_plan_smallstep();
         bm.stats.plan_smallstep("addmul", C.mul.t_conv);
         bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
         bm.stats.end_plan_smallstep();

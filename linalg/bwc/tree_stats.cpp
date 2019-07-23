@@ -430,3 +430,42 @@ void tree_stats::end_smallstep()
     }
     s.nested_substeps.pop_back();
 }
+
+void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank) return;
+    ASSERT_ALWAYS(!curstack.empty());
+    running_stats& s(curstack.back().second);
+    step_time::steps_t * where = &s.steps;
+    if (!s.nested_substeps.empty())
+        where = & s.current_substep().steps;
+    running_stats::steps_t::iterator it = where->insert({func, step_time()}).first;
+    it->second.set_total_ncalls(s.total_ncalls());
+    s.nested_substeps.push_back(it);
+    step_time & S(s.current_substep());
+    S.items_pending += ncalls;
+    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+    if (S.items_pending == S.items_per_call) {
+        S.ncalled++;
+        S.items_pending = 0;
+    }
+    s.nested_substeps.pop_back();
+}
+
+bool tree_stats::local_smallsteps_done() const
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank) return true;
+    ASSERT_ALWAYS(!curstack.empty());
+    running_stats const & s(curstack.back().second);
+    step_time::steps_t const * where = &s.steps;
+    if (!s.nested_substeps.empty())
+        where = & s.current_substep().steps;
+    for(auto const & s : *where) {
+        if (s.second.items_pending) return false;
+    }
+    return true;
+}

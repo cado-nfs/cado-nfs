@@ -501,14 +501,23 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                     matpoly_ft::view_t ta_loc = ta.view(Rat);
                     matpoly_ft::view_t tb_loc = tb.view(Rbt);
 
-                    stats.begin_smallstep("dft_A", ta_loc.size());
+                    /* the true count is ta_loc.size(), but 
+                     * upper bounds are:
+                     *  i1-i0 <= nrs0
+                     *  ak1-ak0 <= S->batch
+                     */
+                    stats.begin_smallstep("dft_A", nrs0 * S->batch);
                     ta.zero();  // for safety because of rounding.
                     dft(ta_loc, a.my_cell().view(Ra));
                     stats.end_smallstep();
 
-                    stats.begin_smallstep("dft_A_comm", r * ta_loc.size());
+                    /* r * ta_loc.size() <= r * nrs0 * S->batch */
+                    stats.begin_smallstep("dft_A_comm", r * nrs0 * S->batch);
                     // allgather ta among r nodes.
+                    stats.begin_smallstep("export", r * nrs0 * S->batch);
                     to_export(ta.view(Ratx));
+                    stats.end_smallstep();
+                    stats.begin_smallstep("comm", r * nrs0 * S->batch);
                     /* The data isn't contiguous, so we have to do
                      * several allgather operations.  */
                     for(unsigned int i = i0 ; i < i1 ; i++) {
@@ -516,31 +525,53 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                                 ta.part(i-i0,0), S->batch,
                                 mpi_ft, a.get_model().com[1]);
                     }
+                    stats.end_smallstep();
+                    stats.begin_smallstep("import", r * nrs0 * S->batch);
                     to_import(ta);
                     stats.end_smallstep();
+                    stats.end_smallstep();
 
-                    for(unsigned int j = 0 ; j < j1-j0 ; j++) {
-                        submatrix_range Rb(bk0-bk0mpi,j0+j,bk1-bk0,1);
-                        stats.begin_smallstep("dft_B", tb_loc.size());
+                    unsigned int j;
+                    for(j = j0 ; j < j1 ; j++) {
+                        submatrix_range Rb(bk0-bk0mpi,j,bk1-bk0,1);
+                        /* tb_loc.size = bk1-bk0 <= S->batch */
+                        stats.begin_smallstep("dft_B", S->batch);
                         tb.zero();
                         dft(tb_loc, b.my_cell().view(Rb));
                         stats.end_smallstep();
 
-                        stats.begin_smallstep("dft_B_comm", r * tb_loc.size());
+                        /* r * tb_loc.size() <= r * S->batch */
+                        stats.begin_smallstep("dft_B_comm", r * S->batch);
                         // allgather tb among r nodes
+                        stats.begin_smallstep("export", r * S->batch);
                         to_export(tb.view(Rbtx));
+                        stats.end_smallstep();
+                        stats.begin_smallstep("comm", r * S->batch);
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 tb.data, S->batch,
                                 mpi_ft, b.get_model().com[2]);
+                        stats.end_smallstep();
+                        stats.begin_smallstep("import", r * S->batch);
                         to_import(tb);
                         stats.end_smallstep();
+                        stats.end_smallstep();
 
-                        stats.begin_smallstep("addmul", (i1-i0) * tb.nrows());
+                        /* (i1-i0) * tb.nrows() <= nrs0 * tb.nrows() */
+                        stats.begin_smallstep("addmul", nrs0 * tb.nrows());
                         // rounding might surprise us.
-                        addmul(tc.view(submatrix_range(0,j,i1-i0,1)),
+                        addmul(tc.view(submatrix_range(0,j-j0,i1-i0,1)),
                                 ta.view(submatrix_range(0,0,i1-i0,ta.ncols())),
                                 tb.view(submatrix_range(0,0,tb.nrows(),1)));
                         stats.end_smallstep();
+                    }
+                    for( ; j < j0 + nrs2 ; j++) {
+                        stats.skip_smallstep("dft_B", S->batch);
+                        stats.begin_smallstep("dft_B_comm", r * S->batch);
+                        stats.skip_smallstep("export", r * S->batch);
+                        stats.skip_smallstep("comm", r * S->batch);
+                        stats.skip_smallstep("import", r * S->batch);
+                        stats.end_smallstep();
+                        stats.skip_smallstep("addmul", nrs0 * tb.nrows());
                     }
                 } else {
                     submatrix_range Rb(bk0-bk0mpi,j0,           bk1-bk0, j1-j0);
@@ -551,52 +582,85 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                     matpoly_ft::view_t ta_loc = ta.view(Rat);
                     matpoly_ft::view_t tb_loc = tb.view(Rbt);
 
-                    stats.begin_smallstep("dft_B", tb_loc.size());
+                    /* the true count is tb_loc.size(), but 
+                     * upper bounds are:
+                     *  j1-j0 <= nrs2
+                     *  bk1-bk0 <= S->batch
+                     */
+                    stats.begin_smallstep("dft_B", nrs2 * S->batch);
                     tb.zero();
                     dft(tb_loc, b.my_cell().view(Rb));
                     stats.end_smallstep();
 
-                    stats.begin_smallstep("dft_B_comm", r * tb_loc.size());
+                    /* r * tb_loc.size() <= r * nrs2 * S->batch */
+                    stats.begin_smallstep("dft_B_comm", r * nrs2 * S->batch);
+                    stats.begin_smallstep("export", r * nrs2 * S->batch);
                     // allgather tb among r nodes
                     to_export(tb.view(Rbtx));
+                    stats.end_smallstep();
+                    stats.begin_smallstep("comm", r * nrs2 * S->batch);
                     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                             tb.data, nrs2 * S->batch,
                             mpi_ft, b.get_model().com[2]);
+                    stats.end_smallstep();
+                    stats.begin_smallstep("import", r * nrs2 * S->batch);
                     to_import(tb);
                     stats.end_smallstep();
+                    stats.end_smallstep();
 
-                    for(unsigned int i = i0 ; i < i1 ; i++) {
-                        stats.begin_smallstep("dft_A", ta_loc.size());
+                    unsigned int i;
+                    for(i = i0 ; i < i1 ; i++) {
+                        /* ta_loc.size() = ak1-ak0 <= S->batch */
+                        stats.begin_smallstep("dft_A", S->batch);
                         ta.zero();
                         submatrix_range Ra(i,ak0-ak0mpi,1,ak1-ak0);
                         dft(ta_loc, a.my_cell().view(Ra));
                         stats.end_smallstep();
 
-                        stats.begin_smallstep("dft_A_comm", r * ta_loc.size());
+                        /* r * ta_loc.size() <= r * S->batch */
+                        stats.begin_smallstep("dft_A_comm", r * S->batch);
+                        stats.begin_smallstep("export", r * S->batch);
                         // allgather ta among r nodes
                         to_export(ta.view(Ratx));
+                        stats.end_smallstep();
+                        stats.begin_smallstep("comm", r * S->batch);
                         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 ta.data, S->batch,
                                 mpi_ft, a.get_model().com[1]);
+                        stats.end_smallstep();
+                        stats.begin_smallstep("import", r * S->batch);
                         to_import(ta);
                         stats.end_smallstep();
+                        stats.end_smallstep();
 
-                        stats.begin_smallstep("addmul", ta.ncols() * (j1-j0));
+                        /* (j1-j0) * ta.ncols() <= nrs2 * ta.ncols() */
+                        stats.begin_smallstep("addmul", ta.ncols() * nrs2);
                         addmul(tc.view(submatrix_range(i-i0,0,1,j1-j0)),
                                 ta.view(submatrix_range(0,0,1,ta.ncols())),
                                 tb.view(submatrix_range(0,0,tb.nrows(),j1-j0)));
                         stats.end_smallstep();
                     }
+                    for( ; i < i0 + nrs0 ; i++) {
+                        stats.skip_smallstep("dft_A", S->batch);
+                        stats.begin_smallstep("dft_A_comm", r * S->batch);
+                        stats.skip_smallstep("export", r * S->batch);
+                        stats.skip_smallstep("comm", r * S->batch);
+                        stats.skip_smallstep("import", r * S->batch);
+                        stats.end_smallstep();
+                        stats.skip_smallstep("addmul", ta.ncols() * nrs2);
+                    }
                 }
             }
             c.size = OP.csize;
             c.my_cell().size = OP.csize;
-            stats.begin_smallstep("ift_C", tc.nrows() * tc.ncols());
+            /* tc.size() <= nrs0 * nrs2 */
+            stats.begin_smallstep("ift_C", nrs0 * nrs2);
             OP.ift(c.my_cell().view(Rc), tc.view(Rct));
             stats.end_smallstep();
         }
     }
     MPI_Type_free(&mpi_ft);
+    ASSERT_ALWAYS(stats.local_smallsteps_done());
 }/*}}}*/
 
 void bigmatpoly_mp_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
