@@ -3047,7 +3047,6 @@ template<> struct matpoly_factory<bigmatpoly> {
         return bigmatpoly(ab, model, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
-        tree_stats::transition_sentinel dummy(bm.stats, __func__, E.size, 1);
         return bw_biglingen_collective(bm, pi, E, delta);
     }
     static size_t alloc(T const & p) { return p.my_cell().alloc; }
@@ -3063,7 +3062,6 @@ template<> struct matpoly_factory<matpoly> {
         return matpoly(ab, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
-        tree_stats::transition_sentinel dummy(bm.stats, __func__, E.size, 1);
         return bw_lingen_single(bm, pi, E, delta);
     }
     static size_t alloc(T const & p) { return p.alloc; }
