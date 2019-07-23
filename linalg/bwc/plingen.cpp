@@ -3359,6 +3359,8 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
     /* clear everything */
 }
 
+/* We don't have a header file for this one */
+extern "C" void check_for_mpi_problems();
 
 int main(int argc, char *argv[])
 {
@@ -3549,6 +3551,13 @@ int main(int argc, char *argv[])
     bm_io aa(bm, afile, ffile, global_flag_ascii);
     aa.begin_read();
     aa.guess_length();
+
+    /* run the mpi problem detection only if we're certain that we're at
+     * least close to the ballpark where this sort of checks make sense.
+     */
+    if ((size_t) aa.guessed_length * (size_t) (bm.d.m + bm.d.n) * (size_t) abvec_elt_stride(bm.d.ab, 1) >= (1 << 28)) {
+        check_for_mpi_problems();
+    }
 
     {
         matpoly::memory_pool_guard blanket(SIZE_MAX);

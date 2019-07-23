@@ -417,6 +417,7 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     set(plingen_${v}_support_sources
         logline.c
+        check_mpi_problems.c
         lingen-matpoly.cpp
         lingen-bigmatpoly.cpp
         lingen-polymat.cpp

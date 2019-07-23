@@ -1405,3 +1405,4 @@ utils/fmt/format.h
 utils/fmt/ostream.h
 utils/fmt/printf.h
 scripts/resubmit-tools.sh
+linalg/bwc/check_mpi_problems.c
