@@ -2763,7 +2763,7 @@ void bm_io::guess_length()/*{{{*/
             double avg = avg_matsize(ab, m, n, ascii);
             double expected_length = filesize / avg;
             if (!rank)
-                printf("Expect roughly %.2f items in the sequence.\n", expected_length);
+                printf("# Expect roughly %.2f items in the sequence.\n", expected_length);
 
             /* First coefficient is always lighter, so we add a +1. */
             guessed_length = 1 + expected_length;

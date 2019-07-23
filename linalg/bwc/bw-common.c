@@ -148,7 +148,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
     param_list_parse_int(pl, "yes_i_insist", &yes_i_insist);
 
     if (bw->skip_online_checks && bw->keep_rolling_checkpoints) {
-        fprintf(stderr, "The combination of skip_online_checks and keep_rolling_checkpointsis a dangerous match.");
+        fprintf(stderr, "The combination of skip_online_checks and keep_rolling_checkpoints is a dangerous match.");
         if (!yes_i_insist) {
             printf("\n");
             exit(EXIT_FAILURE);
