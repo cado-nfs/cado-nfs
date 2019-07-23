@@ -1954,9 +1954,10 @@ sub task_lingen {
         push @args, "afile=$concatenated_A";
         push @args, "ffile=F";
         push @args, grep { /^(?:mn|m|n|wdir|prime|rhs|lingen_mpi)=/ || /allow_zero_on_rhs/ } @main_args;
-        if (!$mpi_needed && ($thr_split[0]*$thr_split[1] != 1)) {
-            print "## non-MPI build, avoiding multithreaded plingen\n";
-            @args = grep { !/^(mpi|thr)=/ } @args;
+        if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
+            print "## non-MPI build, avoiding multi-node plingen\n";
+            # We keep thr=
+            @args = grep { !/^(mpi)=/ } @args;
         }
         push @args, grep { /^verbose_flags=/ } @main_args;
         if (! -f "$wdir/$concatenated_A.gen") {

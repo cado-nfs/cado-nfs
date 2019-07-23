@@ -3464,6 +3464,8 @@ int main(int argc, char *argv[])
 
     /* }}} */
 
+    /* TODO: we should rather use lingen_platform.
+     */
     /* {{{ Parse MPI args. Make bm.com[0] a better mpi communicator */
     bm.mpi_dims[0] = 1;
     bm.mpi_dims[1] = 1;
@@ -3477,7 +3479,14 @@ int main(int argc, char *argv[])
          */
         int mpi[2] = { bm.mpi_dims[0], bm.mpi_dims[1], };
         int thr[2] = {1,1};
-        param_list_parse_intxint(pl, "thr", thr);
+#ifdef  HAVE_OPENMP
+        if (param_list_parse_intxint(pl, "thr", thr)) {
+            if (!rank)
+                printf("# Limiting number of openmp threads to %d\n",
+                        thr[0] * thr[1]);
+            omp_set_num_threads(thr[0] * thr[1]);
+        }
+#endif
 
 #ifdef  FAKEMPI_H_
         if (mpi[0]*mpi[1] > 1) {
@@ -3485,10 +3494,6 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 #endif
-        /* Asssume numbering in MPI_COMM_WORLD is all mpi jobs from the
-         * same node together. So we pick them by bunches of size
-         * thr[0]*thr[1].
-         */
         if (!rank)
             printf("# size=%d mpi=%dx%d thr=%dx%d\n", size, mpi[0], mpi[1], thr[0], thr[1]);
         ASSERT_ALWAYS(size == mpi[0] * mpi[1]);

@@ -61,16 +61,16 @@ dotest() {
     p="$1"; shift
     seed="$1"; shift
 
-    unset thr
+    unset mpi
     unset ascii
 
     args=()
-    mt_args=()
+    mpi_args=()
     for x in "$@" ; do
         case "$x" in
             plingen_program=*) eval "$x";;
-            lingen_mpi_threshold*) mt_args+=("$x");;
-            thr*) mt_args+=("$x"); thr="${x#thr=}";;
+            lingen_mpi_threshold*) mpi_args+=("$x");;
+            mpi*) mpi_args+=("$x"); mpi="${x#mpi=}";;
             *) args+=("$x");
                 if [[ "$x" =~ ascii ]] ; then
                     if [ "$p" -gt 1048576 ] ; then
@@ -160,14 +160,14 @@ EOF
 
     mpi_bindir=$(perl -ne '/HAVE_MPI\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
 
-    if [ "$mpi_bindir" ] && [ "${mt_args[*]}" ] && [ "$thr" ] ; then
-        set `echo $thr | tr 'x' ' '`
+    if [ "$mpi_bindir" ] && [ "${mpi_args[*]}" ] && [ "$mpi" ] ; then
+        set `echo $mpi | tr 'x' ' '`
         if ! [ "$1" ] || ! [ "$2" ] ; then
-            echo "Bad test configuration, thr should be of the form \d+x\d+ for MPI test" >&2
+            echo "Bad test configuration, mpi should be of the form \d+x\d+ for MPI test" >&2
             exit 1
         fi
         njobs=$(($1*$2))
-        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mt_args[@]}"
+        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mpi_args[@]}"
 
         [ -f "$G.gen" ]
         SHA1=$($SHA1BIN < $G.gen)
