@@ -452,12 +452,32 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
         tb = matpoly_ft(a.ab, r * S->batch, nrs2, fti);
     }
 
+    ASSERT_ALWAYS(a.irank() == b.irank());
+    ASSERT_ALWAYS(a.jrank() == b.jrank());
+    // unsigned int imax = mpi_split0.nth_block_size(a.irank());
+    // unsigned int jmax = mpi_split2.nth_block_size(b.jrank());
+
+    /* We must both count the number of transforms we really have to deal
+     * with, as well as the theoretical upper bound, because the latter
+     * was used to count the theoretical time.
+     *
+     * For the upper bounds, ak1-ak0 and bk1-bk0 are always replaced by
+     * S->batch.
+     */
     for(unsigned int round0 = 0 ; round0 < S->shrink0 ; round0++) {
         unsigned int i0,i1;
         std::tie(i0, i1) = shrink_split0.nth_block(round0);
+        // TODO: we only have true data for [xi0,xi1[, not [i0,i1[
+        // unsigned int xi0 = std::min(i0, imax);
+        // unsigned int xi1 = std::min(i1, imax);
+
         for(unsigned int round2 = 0 ; round2 < S->shrink2 ; round2++) {
             unsigned int j0,j1;
             std::tie(j0, j1) = shrink_split2.nth_block(round2);
+            // TODO: we only have true data for [xj0,xj1[, not [j0,j1[
+            // unsigned int xj0 = std::min(j0, jmax);
+            // unsigned int xj1 = std::min(j1, jmax);
+
             submatrix_range Rc (i0,j0,i1-i0,j1-j0);
             submatrix_range Rct (0, 0,i1-i0,j1-j0);
 
