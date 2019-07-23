@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <stdexcept>
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -3567,7 +3568,12 @@ int main(int argc, char *argv[])
     {
         matpoly::memory_pool_guard blanket(SIZE_MAX);
         matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
-        bm.hints = plingen_tuning(bm.d, aa.guessed_length, bm.com[0], pl);
+        try {
+            bm.hints = plingen_tuning(bm.d, aa.guessed_length, bm.com[0], pl);
+        } catch (std::overflow_error const & e) {
+            fputs(e.what(), stderr);
+            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+        }
     }
 
     if (global_flag_tune) {

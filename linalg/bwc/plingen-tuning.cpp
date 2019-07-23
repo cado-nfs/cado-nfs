@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <cassert>
 #include <cfloat>
+#include <stdexcept>
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
@@ -449,7 +450,7 @@ void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> co
                 os << " [with shrink=(" << S.shrink0 << "," << S.shrink2
                     << "), batch=" << S.batch << "]\n";
                 fputs(os.str().c_str(), stderr);
-                exit(EXIT_FAILURE);
+                throw std::overflow_error(os.str());
             }
         }
     }
