@@ -112,14 +112,12 @@ public:
     void zero();
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
-        ASSERT_ALWAYS(size);
         return abvec_subvec(ab, x, (i*n+j)*alloc+k);
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
         return abvec_coeff_ptr(ab, part(i,j,k), 0);
     }
     inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k=0) const {
-        ASSERT_ALWAYS(size);
         return abvec_subvec_const(ab, x, (i*n+j)*alloc+k);
     }
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
