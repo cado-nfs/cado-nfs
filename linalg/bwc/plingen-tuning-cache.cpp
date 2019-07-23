@@ -1,6 +1,6 @@
 #include "cado.h"
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
 
 #include "plingen-tuning-cache.hpp"
 #include "macros.h"
@@ -39,11 +39,7 @@ typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
     parse_tuple(std::istream& is, std::tuple<T...>& tup)
 {
     if (n) {
-        char c;
-        std::ios_base::fmtflags ff = is.flags();
-        is.flags(ff & ~std::ios_base::skipws);
-        is >> c;
-        is.flags(ff);
+        char c = is.get();
         if (c != ';' && c != ' ') {
             is.setstate(std::ios_base::failbit);
             return is;
@@ -56,6 +52,59 @@ template <typename... T>
 std::istream& operator>>(std::istream& is, std::tuple<T...>& tup)
 {
     return parse_tuple<0>(is, tup);
+}
+
+template<typename T, typename U>
+std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
+{
+    is >> x.first;
+    char c = is.get();
+    if (!is || c != ',') {
+        /* since c++11, unget clears eofbit */
+        is.setstate(std::ios_base::failbit);
+        return is;
+    }
+    is >> x.second;
+    return is;
+}
+
+template<typename T>
+std::istream& operator>>(std::istream& is, std::list<T> & L)
+{
+    /* Reads a ***COMMA*** separatd list */
+    L.clear();
+    for(unsigned int item = 0 ; ; item++) {
+        if (item) {
+            char c = is.get();
+            if (!is || c != ',') {
+                /* since c++11, unget clears eofbit */
+                is.unget();
+                return is;
+            }
+        }
+        T x;
+        is >> x;
+        L.emplace_back(std::move(x));
+    }
+}
+
+template<typename T, typename U>
+std::ostream& operator<<(std::ostream& os, std::pair<T,U> const & x)
+{
+    os << x.first << ',' << x.second;
+    return os;
+}
+
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, std::list<T> const & L)
+{
+    unsigned int item=0;
+    for(auto const & x : L) {
+        if (item++) os << ',';
+        os << x;
+    }
+    return os;
 }
 
 template <typename T, size_t n>
@@ -113,7 +162,12 @@ void plingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
 
     FILE * f = fopen(timing_cache_filename, "r");
 
-    if (f == NULL && errno == ENOENT) return;
+    if (f == NULL && errno == ENOENT) {
+        printf("# %s: no cache file found\n", timing_cache_filename);
+        return;
+    }
+
+    printf("# reading timing cache from %s\n", timing_cache_filename);
 
     ASSERT_ALWAYS(f);
     for(;;) {

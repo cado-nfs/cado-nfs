@@ -3,6 +3,9 @@
 
 #include <tuple>
 #include <map>
+#include <array>
+#include <list>
+#include <utility>
 
 #include "plingen-tuning.hpp"  // lingen_round_operand_size
 
@@ -24,8 +27,8 @@ struct plingen_tuning_cache {
             mp_key(Args&&... args) : super(args...) {}
     };
     typedef double basecase_value;
-    typedef std::array<double, 4> mul_value;
-    typedef std::array<double, 4> mp_value;
+    typedef std::array<std::list<std::pair<unsigned int, double>>, 4> mul_value;
+    typedef std::array<std::list<std::pair<unsigned int, double>>, 4> mp_value;
 
     struct coarse_compare {
         bool operator()(size_t const &a, size_t const& b) const {
@@ -61,8 +64,8 @@ struct plingen_tuning_cache {
     };
 
     std::map<basecase_key, double, coarse_compare> basecase_cache;
-    std::map<mul_key, std::array<double, 4>, coarse_compare> mul_cache;
-    std::map<mp_key, std::array<double, 4>, coarse_compare> mp_cache;
+    std::map<mul_key, std::array<std::list<std::pair<unsigned int, double>>, 4>, coarse_compare> mul_cache;
+    std::map<mp_key, std::array<std::list<std::pair<unsigned int, double>>, 4>, coarse_compare> mp_cache;
 
     void load(const char * timing_cache_filename);
     void save(const char * timing_cache_filename);
