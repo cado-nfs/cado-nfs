@@ -10,21 +10,44 @@
 
 matpoly::memory_pool matpoly::memory;
 
-matpoly::memory_pool_guard::memory_pool_guard(size_t newsize) : s(newsize)
+matpoly::memory_pool_guard::memory_pool_guard(size_t s) : mysize(s)
 {
-    if (s == SIZE_MAX)
-        s = SIZE_MAX - memory.allowed;
-    memory.allowed += s;
+    oldsize = memory.allowed;
+    if (oldsize == SIZE_MAX || s == SIZE_MAX)
+        memory.allowed = SIZE_MAX;
+    else
+        memory.allowed += s;
+    if (oldsize == 0)
+        ASSERT_ALWAYS(memory.allocated == 0);
+        memory.peak = 0;
 }
-
 matpoly::memory_pool_guard::~memory_pool_guard() {
-    ASSERT_ALWAYS(memory.allocated + s <= memory.allowed);
-    memory.allowed -= s;
+    if (oldsize == 0)
+        ASSERT_ALWAYS(memory.allocated == 0);
+    if (memory.allowed != SIZE_MAX)
+        memory.allowed -= mysize;
+    else
+        memory.allowed = oldsize;
+    /* We don't do memory.allowed = oldsize unconditionally, because of
+     * the inaccuracy tolerance:
+     *  - guards that set the memory loose (and subsequent guards, if
+     *  any) will never trigger a change of the .allowed field, of
+     *  course, and will never report inaccuracy.  For these, setting to
+     *  oldsize is naturally the only thing to do.
+     *  - on the other hand, more precise guards may see memory.allowed
+     *  grow above the initial value, which we still record as oldsize.
+     *  For these, we must not use oldsize. We simply subtract the amount
+     *  of memory we had provisioned, and the growth that happened since
+     *  the ctor will continue to accumulate, which is what we want.
+     */
+    ASSERT_ALWAYS(memory.allocated <= memory.allowed);
 }
 
-void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
+
+void matpoly::memory_pool::report_inaccuracy(size_t diff)
 {
     char buf[20];
+    /*
     if (diff < 0 && (size_t) -diff > max_inaccuracy) {
         fprintf(stderr, "# Over-estimating the amount of reserved RAM by %s\n",
                 size_disp((size_t) -diff, buf));
@@ -34,13 +57,20 @@ void matpoly::memory_pool::report_inaccuracy(ssize_t diff)
                 size_disp((size_t) diff, buf));
         max_inaccuracy = diff;
     }
+    */
+    cumulated_inaccuracy += diff;
+    fprintf(stderr, "# Under-estimating the amount of reserved RAM by %s\n",
+            size_disp(cumulated_inaccuracy, buf));
 }
 
 void * matpoly::memory_pool::alloc(size_t s)
 {
     std::lock_guard<std::mutex> dummy(mm);
-    if (allocated + s > allowed)
-        report_inaccuracy((allocated + s) - allowed);
+    if (allocated + s > allowed) {
+        size_t d = (allocated + s) - allowed;
+        report_inaccuracy(d);
+        allowed += d;
+    }
     allocated += s;
     if (allocated > peak) peak = allocated;
     return malloc(s);
@@ -58,8 +88,11 @@ void * matpoly::memory_pool::realloc(void * p, size_t s, size_t ns)
     std::lock_guard<std::mutex> dummy(mm);
     /* We allow reallocating stuff that was not allocated at the present
      * recursive level */
-    if (allocated + (ns - s) > allowed)
-        report_inaccuracy((allocated + ns - s) - allowed);
+    if (allocated + (ns - s) > allowed) {
+        size_t d = (allocated + ns - s) - allowed;
+        report_inaccuracy(d);
+        allowed += d;
+    }
     allocated -= s;
     allocated += ns;
     return ::realloc(p, ns);

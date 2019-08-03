@@ -996,12 +996,13 @@ struct plingen_tuner {
                 strbest="";
             if (time_b < DBL_MAX) {
                 const char * isbest = (!rec0 && !rec1) ? strbest : "";
-                printf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n", pad, msg, L1,
+                printf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n",
+                        pad, msg, L1,
                         time_b, time_b / 86400, isbest);
                 msg = msg2;
             }
             if (!approx_same && recursion_makes_sense(L1)) {
-                const char * isbest = (rec0 && !rec1) ? strbest : "";
+                const char * isbest = (rec1 && !rec0) ? strbest : "";
                 std::ostringstream os2;
                 os2 << " mixed(threshold=" << L1 << "): ";
                 std::string ss2 = os2.str();
@@ -1056,7 +1057,7 @@ struct plingen_tuner {
                     printf("# We expect lingen_mpi_threshold <= %zu\n", L0);
                     upper_threshold = L0;
                 }
-            } else if (rec0 && !rec1) {
+            } else if (rec1 && !rec0) {
                 ASSERT_ALWAYS(cws.size() == 2);
                 // threshold is =L1
                 if (upper_threshold != L1) {

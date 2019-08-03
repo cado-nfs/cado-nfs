@@ -74,16 +74,18 @@ class matpoly {
         size_t allowed=0;
         size_t allocated=0;
         size_t peak=0;
-        size_t max_inaccuracy = 0;
+        size_t cumulated_inaccuracy = 0;
         void * alloc(size_t);
         void free(void *, size_t);
         void * realloc(void * p, size_t s0, size_t s);
-        void report_inaccuracy(ssize_t diff);
+        private:
+        void report_inaccuracy(size_t diff);
     };
     static memory_pool memory;
 public:
     class memory_pool_guard {
-        size_t s;
+        size_t oldsize;
+        size_t mysize;
         public:
         memory_pool_guard(size_t s);
         ~memory_pool_guard();

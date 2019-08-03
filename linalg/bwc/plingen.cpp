@@ -1715,6 +1715,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     {
         ASSERT_ALWAYS(pi_left.ab);
         ASSERT_ALWAYS(E.ab);
+        matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
         bigmatpoly_mp_caching(bm.stats, E_right, E, pi_left, &C.mp.S);
@@ -1743,6 +1744,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     {
         ASSERT_ALWAYS(pi_left.ab);
         ASSERT_ALWAYS(pi_right.ab);
+        matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
         bigmatpoly_mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul.S);
@@ -3625,9 +3627,27 @@ int main(int argc, char *argv[])
          */
         ASSERT_ALWAYS(0);
 #endif
-    } else {
+    } else if (!rank) {
+        /* We don't want to bother with memory problems in the non-mpi
+         * case when the tuning was done for MPI: this is because the
+         * per-transform ram was computed in the perspective of an MPI
+         * run, and not for a plain run.
+         */
         matpoly_factory<matpoly> F;
-        lingen_main_code(F, d.ab, aa);
+        if (size > 1) {
+            matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
+            lingen_main_code(F, d.ab, aa);
+        } else {
+            /* on the other hand, plain non-mpi code should benefit from
+             * that safety net, since the tuning is expected to have
+             * computed the needed ram correctly.
+             */
+            lingen_main_code(F, d.ab, aa);
+        }
+    } else {
+        /* we have go_mpi == 0 and rank > 0 : all we have to do is
+         * wait...
+         */
     }
 
     if (!rank && random_input_length) {

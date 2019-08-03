@@ -19,14 +19,22 @@
 
 matpoly_ft::memory_pool matpoly_ft::memory;
 
-matpoly_ft::memory_pool_guard::memory_pool_guard(size_t s)
+matpoly_ft::memory_pool_guard::memory_pool_guard(size_t s) : mysize(s)
 {
-    ASSERT_ALWAYS(memory.allocated == 0);
-    memory.peak = 0;
-    memory.allowed = s;
+    oldsize = memory.allowed;
+    if (oldsize == SIZE_MAX || s == SIZE_MAX)
+        memory.allowed = SIZE_MAX;
+    else
+        memory.allowed += s;
+    if (oldsize == 0)
+        ASSERT_ALWAYS(memory.allocated == 0);
+        memory.peak = 0;
 }
 matpoly_ft::memory_pool_guard::~memory_pool_guard() {
-    ASSERT_ALWAYS(matpoly_ft::memory.allocated == 0);
+    if (oldsize == 0)
+        ASSERT_ALWAYS(memory.allocated == 0);
+    memory.allowed = oldsize;
+    ASSERT_ALWAYS(memory.allocated <= memory.allowed);
 }
 
 void * matpoly_ft::memory_pool::alloc(size_t s)

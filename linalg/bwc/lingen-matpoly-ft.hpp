@@ -21,6 +21,8 @@ private:
     static memory_pool memory;
 public:
     struct memory_pool_guard {
+        size_t oldsize;
+        size_t mysize;
         memory_pool_guard(size_t s);
         ~memory_pool_guard();
     };
