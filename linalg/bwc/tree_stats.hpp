@@ -56,6 +56,7 @@ class tree_stats {
     static void declare_usage(cxx_param_list & pl);
     private:
     struct step_time {
+        std::string name;
         double real = 0;
         /* We have an ncalled field for each small step, because we _can_
          * have a substep called several times per enclosing level.
@@ -96,6 +97,10 @@ class tree_stats {
         // steps. It doesn't make sense to take it into account for +=.
         unsigned int items_pending = 0;
 
+        step_time(std::string const & name) : name(name) {}
+        step_time(step_time const &) = default;
+        step_time(step_time &&) = default;
+
         typedef std::map<std::string, step_time> steps_t;
         steps_t steps;
 
@@ -129,8 +134,13 @@ class tree_stats {
             planned_calls += x.planned_calls;
             ASSERT_ALWAYS(ncalled <= planned_calls);
             ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
-            for(auto const & s : x.steps)
-                steps[s.first] += s.second;
+            for(auto const & s : x.steps) {
+                auto itb = steps.emplace(s);
+                step_time & N(itb.first->second);
+                ASSERT_ALWAYS(N.name == s.second.name);
+                if (!itb.second) N += s.second;
+                // steps[s.first] += s.second;
+            }
             return *this;
         }
     };
@@ -148,6 +158,9 @@ class tree_stats {
             if (func > a.func) return false;
             return lingen_round_operand_size(inputsize) < lingen_round_operand_size(a.inputsize);
         }
+        bool operator==(function_with_input_size const& a) const {
+            return func == a.func && lingen_round_operand_size(inputsize) == lingen_round_operand_size(a.inputsize);
+        }
     };
 
     struct running_stats : public step_time {
@@ -156,8 +169,9 @@ class tree_stats {
         unsigned int inputsize;
         bool leaf;
         double time_children;
-        running_stats(unsigned int inputsize, bool leaf)
-            : inputsize(inputsize)
+        running_stats(std::string const & name, unsigned int inputsize, bool leaf)
+            : step_time(name)
+            , inputsize(inputsize)
             , leaf(leaf)
             , time_children(0)
         { }
@@ -170,6 +184,10 @@ class tree_stats {
         unsigned int min_inputsize = UINT_MAX;
         unsigned int max_inputsize = 0;
         function_stats & operator+=(running_stats const&);
+        function_stats (running_stats const& r) : step_time(r) {
+            ASSERT_ALWAYS(!r.is_hot());
+            min_inputsize = max_inputsize = r.inputsize;
+        }
     };
 
     struct level_stats : public std::map<function_with_input_size, function_stats> {
@@ -179,7 +197,7 @@ class tree_stats {
     };
 
     std::vector<level_stats> levels;
-    typedef std::vector<std::pair<std::string, running_stats>> curstack_t;
+    typedef std::vector<std::pair<function_with_input_size, running_stats>> curstack_t;
     curstack_t curstack;
 
     unsigned int tree_total_breadth;

@@ -282,7 +282,8 @@ struct lingen_substep_characteristics {/*{{{*/
             for(unsigned int i = 0 ; i < 4 ; i++) {
                 std::vector<double> tvec(TMAX + 1, -1);
                 for(auto const & x : C[K][i])
-                    tvec[x.first] = x.second;
+                    if (x.first < tvec.size())
+                        tvec[x.first] = x.second;
                 res[i] = parallelizable_timing(tvec);
             }
             return res;

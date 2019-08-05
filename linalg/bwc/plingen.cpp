@@ -1593,6 +1593,8 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 
     int done;
 
+    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
+
     if (load_checkpoint_file(bm, pi, t0, t1, delta, &done))
         return done;
 
@@ -1600,6 +1602,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (!bm.recurse(E.size)) {
+        tree_stats::transition_sentinel dummy(bm.stats, "recursive threshold", E.size, C.total_ncalls);
         bm.t_basecase -= seconds();
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();

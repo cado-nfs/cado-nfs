@@ -159,7 +159,7 @@ void tree_stats::print(unsigned int)
         bool all_functions_are_transitions = true;
 
         for(auto x = u.cbegin(); x != u.cend(); ++x, mixedlevel_code++) {
-            string const& func(x->first.func);
+            function_with_input_size const& fi(x->first);
             function_stats const& F(x->second);
             sum += F.projected_time();
             time_to_go += F.projected_time() - F.real;
@@ -173,7 +173,7 @@ void tree_stats::print(unsigned int)
             } else {
                 os << "--";
             }
-            os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, func)
+            os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, fi.func)
                << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls())
                << " " << fmt::sprintf("%.2g -> %.1f",
                        F.real / F.ncalled, F.projected_time())
@@ -181,7 +181,7 @@ void tree_stats::print(unsigned int)
                << "\n";
 
             step_time FS = F;
-            if (wip && wip->first == func) {
+            if (wip && wip->first == fi) {
                 FS += wip->second;
                 wip = nullptr;
             }
@@ -193,7 +193,7 @@ void tree_stats::print(unsigned int)
          * semantics, we must do things a bit differently.
          */
         if (wip) {
-            std::string const & func(wip->first);
+            function_with_input_size const & fi(wip->first);
             running_stats const & r(wip->second);
             double level_th = 0;
             for(auto const & y : r.steps) {
@@ -212,7 +212,7 @@ void tree_stats::print(unsigned int)
             sum += level_th * r.total_ncalls();
             os << fmt::sprintf("* [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
                     r.inputsize,
-                    func.c_str(),
+                    fi.func,
                     r.total_ncalls(),
                     level_th, level_th * r.total_ncalls(),
                     sum);
@@ -250,11 +250,11 @@ void tree_stats::enter(std::string const & func, unsigned int inputsize, int tot
         tree_total_breadth = inputsize;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { ++depth; return; }
-    running_stats s(inputsize, leaf);
+    running_stats s(func, inputsize, leaf);
     s.set_total_ncalls(total_ncalls);
     s.heat_up();
     // ASSERT_ALWAYS(curstack.empty() || !curstack.back().second.in_substep());
-    curstack.push_back({func, s});
+    curstack.push_back({{func, inputsize}, s});
     ++depth;
     // we used to have the following, but now we allow ourselves to
     // insert empty shells between levels (so that intermediate
@@ -283,7 +283,7 @@ void tree_stats::leave()
     if (rank) { --depth; return; }
     double now = wct_seconds();
     auto sback = std::move(curstack.back());
-    std::string const & sfunc = sback.first;
+    function_with_input_size const & sfunc = sback.first;
     running_stats & s = sback.second;
     curstack.pop_back();
 
@@ -297,9 +297,12 @@ void tree_stats::leave()
     ASSERT_ALWAYS(!s.has_pending_smallsteps());
 
     /* merge our running stats into the level_stats */
-    function_with_input_size fi { sfunc, s.inputsize };
-    function_stats & F(levels[level][fi]);
-    F += s;
+    function_with_input_size fi = sfunc;
+    //function_stats & F(levels[level][fi]);
+    // F += s;
+    auto itb = levels[level].emplace(fi, s);
+    function_stats & F(itb.first->second);
+    if (!itb.second) F += s;
     F.planned_calls++;  /* just for consistency */
     F.ncalled++;
 
@@ -314,8 +317,7 @@ void tree_stats::leave()
         needprint = (t < 0.98 * t0) || (t > 1.02 * t0);
     }
 
-    if (!needprint)
-        return;
+    if (!needprint) return;
 
     last_print_time = now;
     last_print_position = make_pair(level, F.ncalled);
@@ -356,7 +358,7 @@ void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double 
     step_time::steps_t * where = &s.steps;
     if (!s.nested_substeps.empty())
         where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
+    running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
     s.nested_substeps.push_back(it);
 
     step_time & S(it->second);
@@ -405,7 +407,7 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
     step_time::steps_t * where = &s.steps;
     if (!s.nested_substeps.empty())
         where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it =where->insert({func, step_time()}).first;
+    running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
     it->second.set_total_ncalls(s.total_ncalls());
     s.nested_substeps.push_back(it);
     step_time & S(s.current_substep());
@@ -441,7 +443,7 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
     step_time::steps_t * where = &s.steps;
     if (!s.nested_substeps.empty())
         where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it = where->insert({func, step_time()}).first;
+    running_stats::steps_t::iterator it = where->insert({func, step_time(func)}).first;
     it->second.set_total_ncalls(s.total_ncalls());
     s.nested_substeps.push_back(it);
     step_time & S(s.current_substep());
