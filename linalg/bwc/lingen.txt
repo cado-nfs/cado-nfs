@@ -10,31 +10,6 @@ Transform caching, and tuning
 Linear system solving
 
 ************************************************************************
-* Fact 1.
-
-The binary lingen program is not as parallel as plingen. In 2015, work
-was done towards making the binary lingen openmp-capable. 
-
-
-The best option as far as parallelism is concerned is to use the plingen
-code structure. This cannot be done before the inner arithmetic gets a
-review.
-
-Note that plingen, too, could benefit from some more parallelism (at the
-node level).
-
-
-************************************************************************
-* Fact 2.
-
-Memory consumption of the program is significant. For a 12g input, it's
-about 400g total. Analysis seems to show that in fact, it's quite
-reasonable. (work done in december 2015 to trim this down).
-
-The main outstanding thing to trim down memory usage is to introduce a
-middle product.
-
-************************************************************************
 * Fact 3: inner arithmetic sucks.
 
 Middle products appear in the course of the computation. They are done

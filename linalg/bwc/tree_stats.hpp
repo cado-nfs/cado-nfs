@@ -10,6 +10,7 @@
 #include "macros.h"
 #include "timing.h"
 #include "params.h"
+#include "lingen_round_operand_size.hpp"
 
 /* This structure is meant to help the timing of a recursive tree-like
  * algorithms like the linear generator algorithm we use in block
@@ -40,8 +41,6 @@
  *  - step_time timer objects an have recursive structure, and contain
  *    sub-timers.
  */
-
-extern size_t lingen_round_operand_size(size_t x, int bits = 2);
 
 /* 
  *  - TODO: maybe replace map by simple vectors -- this will allow a

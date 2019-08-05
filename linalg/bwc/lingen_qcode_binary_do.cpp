@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "lingen_mat_types.hpp"
-#include "lingen_qcode.h"
+#include "lingen_qcode_binary.h"
 #include "utils.h"
 
 using namespace std;

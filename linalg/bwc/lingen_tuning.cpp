@@ -25,14 +25,14 @@
 #include "macros.h"
 #include "utils.h"
 #include "mpfq_layer.h"
-#include "lingen-polymat.hpp"
-#include "lingen-matpoly.hpp"
-// #include "lingen-bigpolymat.hpp" // 20150826: deleted.
-#include "lingen-matpoly-ft.hpp"
-#include "plingen.hpp"
-#include "plingen-tuning.hpp"
-#include "plingen-tuning-cache.hpp"
-#include "lingen-platform.hpp"
+#include "lingen_polymat.hpp"
+#include "lingen_matpoly.hpp"
+// #include "lingen_bigpolymat.hpp" // 20150826: deleted.
+#include "lingen_matpoly_ft.hpp"
+#include "lingen.hpp"
+#include "lingen_tuning.hpp"
+#include "lingen_tuning_cache.hpp"
+#include "lingen_platform.hpp"
 #include "tree_stats.hpp"
 
 #include <vector>
@@ -50,12 +50,12 @@ using namespace std;
 template<typename>
 struct lingen_substep_characteristics;
 struct lingen_substep_schedule;
-struct plingen_tuner;
+struct lingen_tuner;
 
 struct op_mul {/*{{{*/
     static constexpr const char * name = "MUL";
-    typedef plingen_tuning_cache::mul_key key_type;
-    typedef plingen_tuning_cache::mul_value cache_value_type;
+    typedef lingen_tuning_cache::mul_key key_type;
+    typedef lingen_tuning_cache::mul_value cache_value_type;
     static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc) {
         fft_get_transform_info_fppol(fti, p, n1, n2, nacc);
     }
@@ -66,8 +66,8 @@ struct op_mul {/*{{{*/
 };/*}}}*/
 struct op_mp {/*{{{*/
     static constexpr const char * name = "MP";
-    typedef plingen_tuning_cache::mp_key key_type;
-    typedef plingen_tuning_cache::mp_value cache_value_type;
+    typedef lingen_tuning_cache::mp_key key_type;
+    typedef lingen_tuning_cache::mp_value cache_value_type;
     static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc) {
         fft_get_transform_info_fppol_mp(fti, p, nmin, nmax, nacc);
     }
@@ -83,7 +83,7 @@ template<typename OP>
 struct lingen_substep_characteristics {/*{{{*/
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
-    typedef plingen_tuning_cache tc_t;
+    typedef lingen_tuning_cache tc_t;
 
     abdst_field ab;
     gmp_randstate_t & rstate;
@@ -578,7 +578,7 @@ void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> co
     }
     /* }}} */
 
-struct plingen_tuner {
+struct lingen_tuner {
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
 
@@ -590,7 +590,7 @@ struct plingen_tuner {
 
     lingen_platform P;
 
-    plingen_tuning_cache C;
+    lingen_tuning_cache C;
 
     cxx_mpz p;
 
@@ -620,7 +620,7 @@ struct plingen_tuner {
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
 
-    plingen_tuner(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
+    lingen_tuner(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
         ab(d.ab), m(d.m), n(d.n), L(L), P(comm, pl)
     {
         gmp_randinit_default(rstate);
@@ -639,7 +639,7 @@ struct plingen_tuner {
             C.load(timing_cache_filename);
     }
 
-    ~plingen_tuner() {
+    ~lingen_tuner() {
         int rank;
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)
@@ -666,7 +666,7 @@ struct plingen_tuner {
 
         double tt;
 
-        plingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
+        lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
         if (!C.has(K)) {
             tt = wct_seconds();
@@ -829,7 +829,7 @@ struct plingen_tuner {
         }
     } /* }}} */
 
-    lingen_hints_t tune_local() {
+    lingen_hints tune_local() {
         size_t N = m*n*L/(m+n);
         char buf[20];
         printf("# Measuring lingen data for N ~ %zu m=%u n=%u for a %zu-bit prime p, using a %u*%u grid of %u-thread nodes [max target RAM = %s]\n",
@@ -840,13 +840,13 @@ struct plingen_tuner {
         printf("# Note: non-cached basecase measurements are done using openmp as it is configured for the running code, that is, with %d threads\n", P.openmp_threads);
 #endif
 
-        lingen_hints_t hints;
+        lingen_hints hints;
 
         int fl = log2(L) + 1;
 
         /* with basecase_keep_until == 0, then we never measure basecase */
         bool basecase_eliminated = basecase_keep_until == 0;
-        std::map<size_t, std::tuple<bool, std::array<double, 3> >, plingen_tuning_cache::coarse_compare> best;
+        std::map<size_t, std::tuple<bool, std::array<double, 3> >, lingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
         size_t peak = 0;
         int ipeak = -1;
@@ -862,7 +862,7 @@ struct plingen_tuner {
              * with the notations \alpha=m/(m+n), \ell_i=L/2^(i+1), and
              * [] denotes ceiling.
              * The details of the computation are in the comments in
-             * plingen.cpp
+             * lingen.cpp
              */
             size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
             size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
@@ -1092,10 +1092,10 @@ struct plingen_tuner {
 
         return hints;
     }
-    lingen_hints_t tune() {
+    lingen_hints tune() {
         int rank;
         MPI_Comm_rank(P.comm, &rank);
-        lingen_hints_t hints;
+        lingen_hints hints;
 
         if (rank == 0)
             hints = tune_local();
@@ -1106,43 +1106,18 @@ struct plingen_tuner {
     }
 };
 
-template<typename T>
-    typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value && std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
-share(T & m, int root, MPI_Comm comm)
+lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-    typedef typename T::key_type K;
-    typedef typename T::mapped_type M;
-    typedef std::pair<K, M> V;
-
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    std::vector<V> serial;
-    serial.insert(serial.end(), m.begin(), m.end());
-    unsigned long ns = serial.size();
-    MPI_Bcast(&ns, 1, MPI_UNSIGNED_LONG, root, comm);
-    if (rank) serial.assign(ns, V());
-    MPI_Bcast(&serial.front(), ns * sizeof(V), MPI_BYTE, 0, comm);
-    if (rank) m.insert(serial.begin(), serial.end());
-}
-void lingen_hints_t::share(int root, MPI_Comm comm)
-{
-    ::share((super&) *this, root, comm);
-    MPI_Bcast(&tt_gather_per_unit, 1, MPI_DOUBLE, root, comm);
-    MPI_Bcast(&tt_scatter_per_unit, 1, MPI_DOUBLE, root, comm);
+    return lingen_tuner(d, L, comm, pl).tune();
 }
 
-lingen_hints_t plingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
+void lingen_tuning_decl_usage(cxx_param_list & pl)
 {
-    return plingen_tuner(d, L, comm, pl).tune();
+    lingen_tuner::declare_usage(pl);
 }
 
-void plingen_tuning_decl_usage(cxx_param_list & pl)
+void lingen_tuning_lookup_parameters(cxx_param_list & pl)
 {
-    plingen_tuner::declare_usage(pl);
-}
-
-void plingen_tuning_lookup_parameters(cxx_param_list & pl)
-{
-    plingen_tuner::lookup_parameters(pl);
+    lingen_tuner::lookup_parameters(pl);
 }
 

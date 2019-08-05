@@ -2,12 +2,12 @@
 #define BIGMATPOLY_FT_HPP_
 
 #include "mpfq_layer.h"
-#include "lingen-matpoly-ft.hpp"
-#include "lingen-bigmatpoly.hpp"
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_bigmatpoly.hpp"
 #include "flint-fft/fft.h"
 
 #include "select_mpi.h"
-#include "lingen-substep-schedule.h"
+#include "lingen_substep_schedule.h"
 #include "tree_stats.hpp"
 
 /* This defines an MPI-shared polynomial matrix type */

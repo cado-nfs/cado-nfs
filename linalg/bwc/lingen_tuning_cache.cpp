@@ -2,7 +2,7 @@
 #include <sstream>
 #include <cstdio>
 
-#include "plingen-tuning-cache.hpp"
+#include "lingen_tuning_cache.hpp"
 #include "macros.h"
 
 #include <tuple>
@@ -137,26 +137,26 @@ std::istream& operator>>(std::istream& is, std::array<T, n>& arr)
 }
 
 
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::basecase_key & K) {
-    return is >> (plingen_tuning_cache::basecase_key::super&) K;
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key & K) {
+    return is >> (lingen_tuning_cache::basecase_key::super&) K;
 }
-std::ostream& operator<<(std::ostream& os, plingen_tuning_cache::basecase_key const & K) {
-    return os << (plingen_tuning_cache::basecase_key::super const&) K;
+std::ostream& operator<<(std::ostream& os, lingen_tuning_cache::basecase_key const & K) {
+    return os << (lingen_tuning_cache::basecase_key::super const&) K;
 }
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::mul_key & K) {
-    return is >> (plingen_tuning_cache::mul_key::super&) K;
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::mul_key & K) {
+    return is >> (lingen_tuning_cache::mul_key::super&) K;
 }
-std::ostream& operator<<(std::ostream& os, plingen_tuning_cache::mul_key const & K) {
-    return os << (plingen_tuning_cache::mul_key::super const&) K;
+std::ostream& operator<<(std::ostream& os, lingen_tuning_cache::mul_key const & K) {
+    return os << (lingen_tuning_cache::mul_key::super const&) K;
 }
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::mp_key & K) {
-    return is >> (plingen_tuning_cache::mp_key::super&) K;
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::mp_key & K) {
+    return is >> (lingen_tuning_cache::mp_key::super&) K;
 }
-std::ostream& operator<<(std::ostream& os, plingen_tuning_cache::mp_key const & K) {
-    return os << (plingen_tuning_cache::mp_key::super const&) K;
+std::ostream& operator<<(std::ostream& os, lingen_tuning_cache::mp_key const & K) {
+    return os << (lingen_tuning_cache::mp_key::super const&) K;
 }
 
-void plingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
+void lingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
 {
     if (timing_cache_filename == NULL) return;
 
@@ -215,7 +215,7 @@ void plingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
     fclose(f);
 }/*}}}*/
 
-void plingen_tuning_cache::save(const char * timing_cache_filename)/*{{{*/
+void lingen_tuning_cache::save(const char * timing_cache_filename)/*{{{*/
 {
     if (timing_cache_filename == NULL) return;
 

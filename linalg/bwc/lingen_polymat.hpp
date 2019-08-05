@@ -7,9 +7,9 @@
 class matpoly;
 struct polymat;
 
-#include "lingen-matpoly.hpp"
+#include "lingen_matpoly.hpp"
 
-/* This is used only for plingen. */
+/* This is used only for lingen. */
 
 struct polymat {
     abdst_field ab = NULL;

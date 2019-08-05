@@ -1,5 +1,5 @@
-#ifndef LINGEN_QCODE_H_
-#define LINGEN_QCODE_H_
+#ifndef LINGEN_QCODE_BINARY_H_
+#define LINGEN_QCODE_BINARY_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,4 +62,4 @@ static inline void lingen_qcode_hook_output(lingen_qcode_data_ptr qq, unsigned i
 }
 #endif
 
-#endif	/* LINGEN_QCODE_H_ */
+#endif	/* LINGEN_QCODE_BINARY_H_ */

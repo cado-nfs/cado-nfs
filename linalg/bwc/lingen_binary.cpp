@@ -1,22 +1,22 @@
 #include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h> /* for PRIx64 macro and strtoumax */
+#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes> /* for PRIx64 macro and strtoumax */
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <ctime>
 #include <unistd.h>
 #include <list>
 #include <cstdio>
 #include <gmp.h>
-#include <errno.h>
-#include <ctype.h>
+#include <cerrno>
+#include <cctype>
 #include <utility>
 #include <vector>
 #include <set>
@@ -39,7 +39,7 @@
 #include "tree_stats.hpp"
 #include "logline.h"
 
-#include "lingen_qcode.h"
+#include "lingen_qcode_binary.h"
 
 #include "gf2x-fft.h"
 #include "lingen_mat_types.hpp"

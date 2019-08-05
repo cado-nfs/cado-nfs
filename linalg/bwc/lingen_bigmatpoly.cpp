@@ -1,11 +1,11 @@
 #include "cado.h"
 #include "mpfq_layer.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.hpp"
-#include "lingen-bigmatpoly.hpp"
+#include "lingen_matpoly.hpp"
+#include "lingen_bigmatpoly.hpp"
 
 int bigmatpoly_model::rank() const
 {

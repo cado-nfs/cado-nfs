@@ -4,17 +4,17 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
-#include <assert.h>
-#include <float.h>
+#include <cassert>
+#include <cfloat>
 #ifdef  HAVE_SIGHUP
-#include <signal.h>
+#include <csignal>
 #endif
 #ifdef  HAVE_OPENMP
 #include <omp.h>
@@ -24,12 +24,12 @@
 #include "macros.h"
 #include "utils.h"
 #include "mpfq_layer.h"
-#include "lingen-polymat.hpp"
-#include "lingen-matpoly.hpp"
-// #include "lingen-bigpolymat.h" // 20150826: deleted.
-#include "lingen-matpoly-ft.hpp"
-#include "plingen.hpp"
-#include "plingen-tune-cutoffs.hpp"
+#include "lingen_polymat.hpp"
+#include "lingen_matpoly.hpp"
+// #include "lingen_bigpolymat.h" // 20150826: deleted.
+#include "lingen_matpoly_ft.hpp"
+#include "lingen.hpp"
+#include "lingen_tune_cutoffs.hpp"
 
 #include <vector>
 #include <array>
@@ -42,13 +42,13 @@
 
 using namespace std;
 
-void plingen_tune_cutoffs_decl_usage(cxx_param_list & pl)
+void lingen_tune_cutoffs_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "B",        "minimum end of bench span window");
     param_list_decl_usage(pl, "catchsig", "enable intercepting ^C");
 }
 
-void plingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl)
+void lingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "B");
     param_list_lookup_string(pl, "catchsig");
@@ -419,7 +419,7 @@ void catch_control_signals()
  * polymat_mp_kara_threshold
  */
 
-void plingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
+void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -458,7 +458,7 @@ void plingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, 
     cout << "\n";
 
     /* for multiplication */
-    cout << "# Note: for input length k within plingen,"
+    cout << "# Note: for input length k within lingen,"
         << " we use ncoeffs=k*m/(m+n) = "<<(double)m/(m+n)<<"*k\n";
 
     /* This is for forcing the bench to run until a large length. This is
@@ -588,7 +588,7 @@ void plingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, 
 
     gmp_randclear(rstate);
 }/*}}}*/
-void plingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
+void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -627,7 +627,7 @@ void plingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
     cout << "\n";
 
     /* for multiplication */
-    cout << "# Note: for input length k within plingen,"
+    cout << "# Note: for input length k within lingen,"
         << " we use ncoeffs=k*m/(m+n) = "<<(double)m/(m+n)<<"*k\n";
 
     /* This is for forcing the bench to run until a large length. This is
@@ -761,7 +761,7 @@ void plingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
 }/*}}}*/
 
 
-void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -791,7 +791,7 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
         cout << ", " << finder.method_name(i);
     }
     cout << "\n";
-    cout << "# Note: for input length k within plingen,"
+    cout << "# Note: for input length k within lingen,"
         << " we use ncoeffs=k*m/(m+n) = "<<(double)m/(m+n)<<"*k\n";
     /* input length k means we consider the pi polynomial which is
      * created by k successive steps. So this mulitplication, in effect,
@@ -957,7 +957,7 @@ void plingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_lis
     polymat_cutoff_info_clear(improved);
 }/*}}}*/
 
-void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -988,7 +988,7 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
     }
     cout << "\n";
 
-    cout << "# Note: for input length k within plingen, "
+    cout << "# Note: for input length k within lingen, "
          << " we use MP((1+m/(m+n))k,m/(m+n)k)->k"
          << " = MP("    <<1+(double)m/(m+n)<<"*k"
                         <<", "
@@ -1177,7 +1177,7 @@ void plingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
 
 #if 0
 /* 20150826: bigpolymat deleted */
-void plingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned int m1, unsigned int n1, MPI_Comm comm)/*{{{*/
+void lingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned int m1, unsigned int n1, MPI_Comm comm)/*{{{*/
 {
     int rank;
     MPI_Comm_rank(comm, &rank);
@@ -1248,7 +1248,7 @@ void plingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigne
 }/*}}}*/
 #endif
 
-void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
+void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
 {
     cxx_mpz p;
     gmp_randstate_t rstate;
@@ -1284,12 +1284,12 @@ void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_par
      * Must investigate */
 
     cutoff_list cl_mp = NULL;
-    // plingen_tune_mp_fti_depth(ab, m, n, &cl_mp);
-    plingen_tune_mp(ab, m, n, cl_mp);
+    // lingen_tune_mp_fti_depth(ab, m, n, &cl_mp);
+    lingen_tune_mp(ab, m, n, cl_mp);
 
     cutoff_list cl_mul = NULL;
-    // plingen_tune_mul_fti_depth(ab, m, n, &cl_mul);
-    plingen_tune_mul(ab, m, n, cl_mul);
+    // lingen_tune_mul_fti_depth(ab, m, n, &cl_mul);
+    lingen_tune_mul(ab, m, n, cl_mul);
 
     // int tune_bm_basecase = 1;
     int tune_mp = 1;
@@ -1376,15 +1376,15 @@ void plingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_par
     /* This should normally be reasonably quick, and running it every
      * time can be considered as an option */
     if (rank == 0) {
-        plingen_tune_mul(ab, m, n);
-        plingen_tune_mp(ab, m, n);
+        lingen_tune_mul(ab, m, n);
+        lingen_tune_mp(ab, m, n);
     }
     extern polymat_cutoff_info polymat_mul_kara_cutoff;
     extern polymat_cutoff_info polymat_mp_kara_cutoff;
     bigpolymat_bcast_polymat_cutoff(&polymat_mul_kara_cutoff, 0, comm);
     bigpolymat_bcast_polymat_cutoff(&polymat_mp_kara_cutoff, 0, comm);
 
-    plingen_tune_bigmul(ab, m, n, mpi[0]*thr[0], mpi[1]*thr[1], comm);
+    lingen_tune_bigmul(ab, m, n, mpi[0]*thr[0], mpi[1]*thr[1], comm);
 #endif
 
     gmp_randclear(rstate);

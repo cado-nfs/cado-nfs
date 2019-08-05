@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include "portability.h"
 #include "macros.h"
-#include "lingen-matpoly-ft.hpp"
-#include "lingen-bigmatpoly-ft.hpp"
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_bigmatpoly_ft.hpp"
 #include "logline.h"
 #include "fmt/format.h"
 

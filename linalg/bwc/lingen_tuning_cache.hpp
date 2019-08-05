@@ -1,5 +1,5 @@
-#ifndef PLINGEN_TUNING_CACHE_HPP_
-#define PLINGEN_TUNING_CACHE_HPP_
+#ifndef LINGEN_TUNING_CACHE_HPP_
+#define LINGEN_TUNING_CACHE_HPP_
 
 #include <tuple>
 #include <map>
@@ -7,9 +7,9 @@
 #include <list>
 #include <utility>
 
-#include "plingen-tuning.hpp"  // lingen_round_operand_size
+#include "lingen_round_operand_size.hpp"
 
-struct plingen_tuning_cache {
+struct lingen_tuning_cache {
     struct basecase_key : public std::tuple<size_t, unsigned int, unsigned int, size_t, int> {
         typedef std::tuple<size_t, unsigned int, unsigned int, size_t, int> super;
         basecase_key() = default;
@@ -78,11 +78,11 @@ struct plingen_tuning_cache {
     mp_value & operator[](mp_key const & K) { return mp_cache[K]; }
 };
 
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::basecase_key &);
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::mul_key &);
-std::istream& operator>>(std::istream& is, plingen_tuning_cache::basecase_key &);
-std::ostream& operator<<(std::ostream& is, plingen_tuning_cache::basecase_key const &);
-std::ostream& operator<<(std::ostream& is, plingen_tuning_cache::mul_key const &);
-std::ostream& operator<<(std::ostream& is, plingen_tuning_cache::basecase_key const &);
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::mul_key &);
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
+std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::basecase_key const &);
+std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::mul_key const &);
+std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::basecase_key const &);
 
-#endif	/* PLINGEN_TUNING_CACHE_HPP_ */
+#endif	/* LINGEN_TUNING_CACHE_HPP_ */

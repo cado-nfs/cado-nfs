@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "mpfq_layer.h"
-#include "lingen-matpoly.hpp"
+#include "lingen_matpoly.hpp"
 
 #include "select_mpi.h"
 

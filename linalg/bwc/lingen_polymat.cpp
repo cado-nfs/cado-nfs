@@ -1,11 +1,11 @@
 #include "cado.h"
 #include "mpfq_layer.h"
-#include <stdlib.h>
-#include <limits.h>
+#include <cstdlib>
+#include <climits>
 #include <gmp.h>
 #include "portability.h"
 #include "macros.h"
-#include "lingen-polymat.hpp"
+#include "lingen_polymat.hpp"
 
 #define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
 #define POLYMAT_MP_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}

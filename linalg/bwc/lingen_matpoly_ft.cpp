@@ -3,8 +3,8 @@
 #include <sstream>
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.hpp"
-#include "lingen-matpoly-ft.hpp"
+#include "lingen_matpoly.hpp"
+#include "lingen_matpoly_ft.hpp"
 #include "logline.h"
 #include "sha1.h"
 

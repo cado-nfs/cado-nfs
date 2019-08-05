@@ -18,18 +18,6 @@
 
 using namespace std;
 
-size_t lingen_round_operand_size(size_t x, int bits) {/*{{{*/
-    /* round x up to the next size that has all but its six most significant
-     * bits set to 0.
-     */
-    if (x == 0) return x;
-    x -= 1;
-    size_t y = x >> bits;
-    for(int i = 1 ; y ; y >>= i) x |= y;
-    x += 1;
-    return x;
-}/*}}}*/
-
 int tree_stats::max_nesting = 0;
 
 void tree_stats::interpret_parameters(cxx_param_list & pl)
@@ -40,7 +28,7 @@ void tree_stats::interpret_parameters(cxx_param_list & pl)
 
 void tree_stats::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within plingen");
+    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
 }
 
 double tree_stats::level_stats::projected_time()

@@ -2,7 +2,7 @@
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
-#include "lingen-platform.hpp"
+#include "lingen_platform.hpp"
 
 void lingen_platform::lookup_parameters(cxx_param_list & pl) {
     param_list_lookup_string(pl, "max_ram");
@@ -14,7 +14,7 @@ void lingen_platform::lookup_parameters(cxx_param_list & pl) {
 
 void lingen_platform::declare_usage(cxx_param_list & pl) {
     /* TODO: this shall supersede mpi= and thr= that are currently
-     * parsed from within plingen.cpp */
+     * parsed from within lingen.cpp */
     param_list_decl_usage(pl, "max_ram",
             "Maximum local memory to be used for transforms and matrices, in GB");
     param_list_decl_usage(pl, "tuning_thr",
@@ -42,7 +42,7 @@ lingen_platform::lingen_platform(MPI_Comm comm, cxx_param_list & pl) : comm(comm
 
     if (mpi[0] != mpi[1]) {
         if (!rank)
-            fprintf(stderr, "The current plingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
+            fprintf(stderr, "The current lingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
                     mpi[0], mpi[1]);
         abort();
     }

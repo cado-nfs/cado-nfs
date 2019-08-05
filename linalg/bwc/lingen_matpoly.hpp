@@ -11,7 +11,7 @@
 class matpoly;
 struct polymat;
 
-#include "lingen-polymat.hpp"
+#include "lingen_polymat.hpp"
 
 class subdivision {
     unsigned int n;
@@ -59,7 +59,7 @@ struct submatrix_range {
     }
 };
 
-/* This is used only for plingen. */
+/* This is used only for lingen. */
 
 /* We use abvec because this offers the possibility of having flat data
  *

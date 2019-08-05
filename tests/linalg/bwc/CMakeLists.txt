@@ -1,6 +1,6 @@
-# NOTE: most GF(p) checks here depend on plingen_pz ; this is artifical,
+# NOTE: most GF(p) checks here depend on lingen_pz ; this is artifical,
 # and caused by the fact that bwc.pl is for the moment unable to call
-# anything else than plingen_pz
+# anything else than lingen_pz
 
 macro(add_bwc_test nm script)
     cado_define_test(test-bwc-${nm} SCRIPT
@@ -58,7 +58,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         if(gfp_layer STREQUAL "pz")
             set(t TRUE)
             set(width "z")
-            set(extra "plingen_program=plingen_pz")
+            set(extra "lingen_program=lingen_pz")
         endif()
     endif()
     set(p "${prime_${width}}")
@@ -66,7 +66,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     else()
         add_bwc_test(modp-inhomogeneous-${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
         add_dependencies(test-bwc-modp-inhomogeneous-${gfp_layer}_dependencies
-            plingen_pz plingen_${gfp_layer})
+            lingen_pz lingen_${gfp_layer})
         if(gfp_layer STREQUAL "p_1")
             set(mextra)
             # Only try to enable magma if CHECKS_EXPENSIVE is set.
@@ -79,73 +79,73 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             add_bwc_test(modp-inhomogeneous-minimal-3rhs-mn6 bwc-ptrace.sh prime=1009
                 random_matrix_size=50 nrhs=3 m=6 n=6 seed=1 ${mextra})
             add_dependencies(test-bwc-modp-inhomogeneous-minimal-3rhs-mn6_dependencies
-                plingen_pz plingen_${gfp_layer})
+                lingen_pz lingen_${gfp_layer})
 
             add_bwc_test(modp-inhomogeneous-minimal-2rhs-mn4 bwc-ptrace.sh
                 prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1 ${mextra})
             add_dependencies(test-bwc-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
-                plingen_pz plingen_${gfp_layer})
+                lingen_pz lingen_${gfp_layer})
 
             if (HAVE_MPI)
                 add_bwc_test(mpi1-modp-inhomogeneous-minimal-2rhs-mn4 bwc-ptrace.sh
                     prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
                     mpi=2x3 lingen_mpi=2x2 ${mextra})
                 add_dependencies(test-bwc-mpi1-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
-                    plingen_pz plingen_${gfp_layer})
+                    lingen_pz lingen_${gfp_layer})
                 add_bwc_test(mpi2-modp-inhomogeneous-minimal-2rhs-mn4 bwc-ptrace.sh
                     prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
                     mpi=3x2 lingen_mpi=2x2 ${mextra})
                 add_dependencies(test-bwc-mpi2-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
-                    plingen_pz plingen_${gfp_layer})
+                    lingen_pz lingen_${gfp_layer})
             endif()
 
             if(DEFINED ENV{CHECKS_EXPENSIVE})
                 add_bwc_test(modp-inhomogeneous-minimal-2rhs-mn4-expensive bwc-ptrace.sh
                     prime=1237940039285380274899124357 random_matrix_size=200 nrhs=2 m=4 n=4 seed=1 ${mextra})
                 add_dependencies(test-bwc-modp-inhomogeneous-minimal-2rhs-mn4-expensive_dependencies
-                    plingen_pz plingen_${gfp_layer})
+                    lingen_pz lingen_${gfp_layer})
             endif()
 
             add_bwc_test(modp-inhomogeneous-minimal-1rhs-mn1 bwc-ptrace.sh
                 prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1 ${mextra})
             add_dependencies(test-bwc-modp-inhomogeneous-minimal-1rhs-mn1_dependencies
-                plingen_pz plingen_${gfp_layer})
+                lingen_pz lingen_${gfp_layer})
             add_bwc_test(modp-homogeneous-minimal-mn4 bwc-ptrace.sh
                 prime=1009 random_matrix_size=50 m=4 n=4 seed=1
                 random_matrix_minkernel=1 ${mextra})
             add_dependencies(test-bwc-modp-homogeneous-minimal-mn4_dependencies
-                plingen_pz plingen_${gfp_layer})
+                lingen_pz lingen_${gfp_layer})
             #        add_bwc_test(modp-inhomogeneous-minimal-2rhs-mn2 bwc-ptrace.sh
             #            prime=1009 random_matrix_size=50 nrhs=2 m=2 n=2 seed=1 ${mextra})
             #        add_dependencies(modp-inhomogeneous-minimal-2rhs-mn2_dependencies
-            #        plingen_pz plingen_${gfp_layer})
+            #        lingen_pz lingen_${gfp_layer})
         endif()
         add_bwc_test(modp-secure-continuation-${gfp_layer} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
     endif()
 
-    # Also add some plingen tests if it so occurs that the current
+    # Also add some lingen tests if it so occurs that the current
     # backend can process them
     # Each test has the following arguments
-    # plingen test name
+    # lingen test name
     # reference sha1 sum for generator
     # m
     # n
     # length of sequence to compute
     # p
     # seed for random generation (entries are (2^k*(seed/1000) mod q) + (3^k*(seed%1000) mod q) mod p, with q=2^20-3).
-    # arguments to be passed to plingen (including mpi arguments)
+    # arguments to be passed to lingen (including mpi arguments)
 
     # we create a phony first test, so as to limit the risk of having
     # several tests trigger the same build dependency on
-    # plingen_${gfp_layer} at the same time. Of course, the bare test
+    # lingen_${gfp_layer} at the same time. Of course, the bare test
     # here does not have the require arguments, so it will fail (we avoid
     # NO_DEFAULT_RUN in this case, precisely because we want a phony
     # test).
-    cado_define_test(test-bwc-plingen-${gfp_layer} SCRIPT
+    cado_define_test(test-bwc-lingen-${gfp_layer} SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
         NO_DEFAULT_RUN
-        TARGET_DEPENDENCIES plingen_${gfp_layer})
-    # set_tests_properties(test-bwc-plingen-${gfp_layer} PROPERTIES WILL_FAIL 1)
+        TARGET_DEPENDENCIES lingen_${gfp_layer})
+    # set_tests_properties(test-bwc-lingen-${gfp_layer} PROPERTIES WILL_FAIL 1)
 
     # Note that the mpi and lingen_mpi_threshold arguments here are used
     # only in MPI context, and ignored otherwise (that is, the test runs
@@ -153,19 +153,19 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     # code (actually the test gets run twice, once with the threads, once
     # without. Both have to succeed, of course).
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_1")
-        cado_divert_test(test-bwc-plingen-${gfp_layer} test0
+        cado_divert_test(test-bwc-lingen-${gfp_layer} test0
             ${CADO_NFS_BINARY_DIR}
             2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
             lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             max_ram=0.0001
             ${extra})
-        cado_divert_test(test-bwc-plingen-${gfp_layer} test1
+        cado_divert_test(test-bwc-lingen-${gfp_layer} test1
             ${CADO_NFS_BINARY_DIR}
             f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
             lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             max_ram=0.0001
             ${extra})
-        cado_divert_test(test-bwc-plingen-${gfp_layer} test2
+        cado_divert_test(test-bwc-lingen-${gfp_layer} test2
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
             lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
@@ -173,7 +173,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${extra})
     endif()
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
-        cado_divert_test(test-bwc-plingen-${gfp_layer} test4
+        cado_divert_test(test-bwc-lingen-${gfp_layer} test4
             ${CADO_NFS_BINARY_DIR}
             00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
             1532495540865888858358347027150309183618739122183602191 1111
@@ -184,23 +184,23 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     if(gfp_layer STREQUAL "p_1")
         cado_define_test(test-bwc-lingen-21744
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_p_1
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
             prime=485263
-            TARGET_DEPENDENCIES plingen_p_1)
+            TARGET_DEPENDENCIES lingen_p_1)
 
         cado_define_test(test-bwc-lingen-21744-bis
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/plingen_p_1
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
-            TARGET_DEPENDENCIES plingen_p_1)
+            TARGET_DEPENDENCIES lingen_p_1)
     endif()
 
     cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
         SOURCES test_matpoly.cpp
         ARGUMENTS --prime ${p}
-        LIBRARIES utils plingen_${gfp_layer}_support)
+        LIBRARIES utils lingen_${gfp_layer}_support)
     set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")

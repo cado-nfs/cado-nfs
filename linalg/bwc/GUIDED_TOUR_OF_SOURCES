@@ -143,16 +143,16 @@ linalg/bwc/parse-flint-fft-doc.pl
     caching interface.
 
 
-linalg/bwc/lingen-bigmatpoly-ft.c
-linalg/bwc/lingen-bigmatpoly-ft.h
-linalg/bwc/lingen-bigmatpoly.c
-linalg/bwc/lingen-bigmatpoly.h
-linalg/bwc/lingen-matpoly-ft.cpp
-linalg/bwc/lingen-matpoly-ft.h
-linalg/bwc/lingen-matpoly.c
-linalg/bwc/lingen-matpoly.h
-linalg/bwc/lingen-polymat.c
-linalg/bwc/lingen-polymat.h
+linalg/bwc/lingen_bigmatpoly_ft.c
+linalg/bwc/lingen_bigmatpoly_ft.h
+linalg/bwc/lingen_bigmatpoly.c
+linalg/bwc/lingen_bigmatpoly.h
+linalg/bwc/lingen_matpoly_ft.cpp
+linalg/bwc/lingen_matpoly_ft.h
+linalg/bwc/lingen_matpoly.c
+linalg/bwc/lingen_matpoly.h
+linalg/bwc/lingen_polymat.c
+linalg/bwc/lingen_polymat.h
 
     => low-level arithmetic code that multiplies matrices of polynomials
     over prime fields, used for lingen in BW over GF(p)
@@ -166,9 +166,9 @@ linalg/bwc/lingen_mat_types.hpp
     then forwarded to GF2X.
 
 
-linalg/bwc/lingen_qcode.c
-linalg/bwc/lingen_qcode.h
-linalg/bwc/lingen_qcode_do.cpp
+linalg/bwc/lingen_qcode_binary.c
+linalg/bwc/lingen_qcode_binary.h
+linalg/bwc/lingen_qcode_binary_do.cpp
 
     => low-level arithmetic code that does the quadratic base case of BW
     over GF(2)
@@ -227,11 +227,7 @@ linalg/bwc/dispatch.cpp
 linalg/bwc/prep.cpp
 linalg/bwc/secure.cpp
 linalg/bwc/krylov.cpp
-linalg/bwc/lingen_binary.cpp
-linalg/bwc/plingen-tuning.cpp
-linalg/bwc/plingen-tuning.h
-linalg/bwc/plingen.cpp
-linalg/bwc/plingen.h
+linalg/bwc/lingen-*
 linalg/bwc/mksol.cpp
 linalg/bwc/gather.cpp
 linalg/bwc/cleanup.c

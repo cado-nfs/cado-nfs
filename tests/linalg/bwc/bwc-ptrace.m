@@ -520,7 +520,7 @@ degA:=mdeg(A);
 coldegs:=[mdeg(mcol(Fr,j)):j in [1..n]];
 
 /* At this point, in the case where no "nrhs" argument has been passed to
- * plingen, the computed matrix F should be such that the following predicates
+ * lingen, the computed matrix F should be such that the following predicates
  * hold.
  */
 
@@ -566,7 +566,7 @@ else
     assert exists(e) { e : e in [0..4] | &and[IsZero(mdiv(mcol(AxFx,j),e+coldegs[j])):j in [1..n]]};
     print "Degree offset for generator is", e;
 end if;
-print "Checking generator computed by plingen: done";
+print "Checking generator computed by lingen: done";
 
 /* ok. Now think about this a bit more. This means we have many zeroes. So
  * something ought to be the null vector, right ?

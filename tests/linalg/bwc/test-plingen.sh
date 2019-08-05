@@ -53,7 +53,7 @@ dotest() {
     shift
 
     : ${TMPDIR:=/tmp}
-    TMPDIR=`mktemp -d $TMPDIR/plingen-test.XXXXXXXXXX`
+    TMPDIR=`mktemp -d $TMPDIR/lingen-test.XXXXXXXXXX`
 
     m="$1"; shift
     n="$1"; shift
@@ -68,7 +68,7 @@ dotest() {
     mpi_args=()
     for x in "$@" ; do
         case "$x" in
-            plingen_program=*) eval "$x";;
+            lingen_program=*) eval "$x";;
             lingen_mpi_threshold*) mpi_args+=("$x");;
             mpi*) mpi_args+=("$x"); mpi="${x#mpi=}";;
             *) args+=("$x");
@@ -86,14 +86,14 @@ dotest() {
     nbits_prime=$(sizeinbase2 $p)
     nwords=$((1+nbits_prime/wordsize))
 
-    : ${plingen_program:=plingen_p_$nwords}
+    : ${lingen_program:=lingen_p_$nwords}
 
     F="$TMPDIR/base"
     if [ "$ascii" ] ; then
         # The perl code below generates ascii test cases which are good
         # provided that p is small. Otherwise, the smallish coefficients
         # we generate are inappropriate and lead to failure, since
-        # plingen guesses the length of the ascii input file.
+        # lingen guesses the length of the ascii input file.
         read -s -r -d '' code <<-'EOF'
             my ($m, $n, $kmax, $p, $seed) = @ARGV;
             my $u = int($seed / 1000);
@@ -143,7 +143,7 @@ EOF
     cat $F $F $F > $G
     rm -f $F
 
-    $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
+    $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
     [ -f "$G.gen" ]
     SHA1=$($SHA1BIN < $G.gen)
     SHA1="${SHA1%% *}"
@@ -167,7 +167,7 @@ EOF
             exit 1
         fi
         njobs=$(($1*$2))
-        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mpi_args[@]}"
+        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mpi_args[@]}"
 
         [ -f "$G.gen" ]
         SHA1=$($SHA1BIN < $G.gen)

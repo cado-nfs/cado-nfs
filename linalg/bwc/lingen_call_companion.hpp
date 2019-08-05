@@ -1,13 +1,9 @@
-#ifndef PLINGEN_TUNING_HPP_
-#define PLINGEN_TUNING_HPP_
+#ifndef LINGEN_CALL_COMPANION_HPP_
+#define LINGEN_CALL_COMPANION_HPP_
 
-#include "params.h"
-#include "plingen.hpp"
-#include "select_mpi.h"
-#include "timing.h"     /* for weighted_double */
-#include "lingen-substep-schedule.h"
-#include "tree_stats.hpp"
-#include <map>
+#include "lingen_substep_schedule.h"
+#include "timing.h"     /* weighted_double */
+#include "lingen_round_operand_size.hpp"
 
 /* This object is passed as a companion info to a call
  * of bw_biglingen_recursive ; it is computed by the code in
@@ -58,17 +54,5 @@ struct lingen_call_companion {
     };
 };
 
-struct lingen_hints_t : public std::map<lingen_call_companion::key, lingen_call_companion> {
-    typedef std::map<lingen_call_companion::key, lingen_call_companion> super;
-    double tt_scatter_per_unit;
-    double tt_gather_per_unit;
-    int ipeak;
-    size_t peak;
-    void share(int root, MPI_Comm comm);
-};
 
-void plingen_tuning_decl_usage(cxx_param_list & pl);
-void plingen_tuning_lookup_parameters(cxx_param_list & pl);
-lingen_hints_t plingen_tuning(bw_dimensions & d, size_t, MPI_Comm comm, cxx_param_list & pl);
-
-#endif	/* PLINGEN_TUNING_HPP_ */
+#endif	/* LINGEN_CALL_COMPANION_HPP_ */

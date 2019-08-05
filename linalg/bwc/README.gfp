@@ -16,10 +16,10 @@ to the word size of the prime you're working with must be included.
 
 
 In order to test on the matrix you like, the following compilation
-command should be issued (note that plingen_pz is not part of "make
+command should be issued (note that lingen_pz is not part of "make
 all" ; bwc_full is, though).
 
-    make bwc_full plingen_pz
+    make bwc_full lingen_pz
 
 Your matrix must be stored in binary format in a file, let's suppose it's
 /tmp/matrix.bin ; format is 32-bit little-endian, each row as row length,

@@ -2,9 +2,9 @@
 #define LINGEN_MATPOLY_FT_H_
 
 #include <mutex>
-#include "lingen-matpoly.hpp"
+#include "lingen_matpoly.hpp"
 #include "flint-fft/fft.h"
-#include "lingen-substep-schedule.h"
+#include "lingen_substep_schedule.h"
 #include "misc.h"
 
 struct matpoly_ft {

@@ -7,10 +7,10 @@
 #ifndef LINGEN_MAT_TYPES_HPP_
 #define LINGEN_MAT_TYPES_HPP_
 
-#include <stdint.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
 
 #include <algorithm>
@@ -28,19 +28,6 @@
 
 /* Number of words holding B bits ; better naming sought. */
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
-
-/* Starting with gcc 4.3, -Wempty-body moans for loops like
- * for(;(x=x->next)!=NULL;y++);
- * It must shut up.
- *
- * Unfortunately the apple-bastardized gcc-4.2.1 backported this feature,
- * which gives rise to spurious warnings in that case as well. Since
- * there is no way to tell whether this pragma will be recognized or not,
- * we accept the change...
- */
-// #if defined(__cplusplus) && GNUC_VERSION_ATLEAST(4,3,0)
-// #pragma GCC diagnostic ignored "-Wempty-body"
-// #endif
 
 /* See the discussion in lingen_binary about the pros and cons of data
  * ordering schemes */

@@ -365,9 +365,10 @@ link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
 add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.c
-    lingen_qcode.c lingen_qcode_do.cpp)
+    lingen_round_operand_size.cpp
+    lingen_qcode_binary.c lingen_qcode_binary_do.cpp)
 # This **MUST** match the #define in gf2x/Makefile.am
-set_source_files_properties(lingen_qcode_do.cpp COMPILE_FLAGS
+set_source_files_properties(lingen_qcode_binary_do.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
 set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
@@ -405,50 +406,74 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
 endif()
 
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(plingen_${v}_sources
+    set(lingen_${v}_sources
         bw-common.c
-        plingen.cpp
-        plingen-tuning.cpp
-        plingen-tune-cutoffs.cpp
-        plingen-tuning-cache.cpp
-        lingen-platform.cpp
+        lingen.cpp
+        lingen_tuning.cpp
+        lingen_tune_cutoffs.cpp
+        lingen_tuning_cache.cpp
+        lingen_platform.cpp
         tree_stats.cpp
+        lingen_round_operand_size.cpp
+        lingen_hints.cpp
         )
 
-    set(plingen_${v}_support_sources
+    set(lingen_${v}_support_sources
         logline.c
         check_mpi_problems.c
-        lingen-matpoly.cpp
-        lingen-bigmatpoly.cpp
-        lingen-polymat.cpp
-        # lingen-bigpolymat.c # deleted 20150826
+        # I don't have the courage to ditch lingen_polymat entirely right
+        # now, because it's a bit tied inside lingen_tune_cutoffs.cpp
+        # (which I seldom use, if ever). But really, it should go. On the
+        # other hand, some of the functionality in
+        # lingen_tune_cutoffs.cpp should probably be made more of
+        # a first-class citizen
+        lingen_polymat.cpp
+        # lingen_bigpolymat.c # deleted 20150826
         mpfq/mpfq_${v}.c
         mpfq/mpfq_${v}.cpp
-        lingen-matpoly-ft.cpp
-        lingen-bigmatpoly-ft.cpp)
+        )
 
-    # make plingen_pz a default target, but not the others.
-    if(v STREQUAL "pz")
-        add_library(plingen_${v}_support ${plingen_${v}_support_sources})
-        add_executable(plingen_${v} ${plingen_${v}_sources})
-        install(TARGETS plingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
+    if (v STREQUAL "u64k1")
+        set(lingen_${v}_sources
+            ${lingen_${v}_sources}
+            lingen_qcode_binary.c
+            lingen_qcode_binary_do.cpp)
+        set(lingen_${v}_support_sources
+            ${lingen_${v}_support_sources})
     else()
-        add_library(plingen_${v}_support EXCLUDE_FROM_ALL ${plingen_${v}_support_sources})
-        add_executable(plingen_${v} EXCLUDE_FROM_ALL ${plingen_${v}_sources})
+        set(lingen_${v}_sources
+            ${lingen_${v}_sources}
+            lingen_qcode_prime.cpp)
+        set(lingen_${v}_support_sources
+            ${lingen_${v}_support_sources}
+            lingen_matpoly.cpp
+            lingen_bigmatpoly.cpp
+            lingen_matpoly_ft.cpp
+            lingen_bigmatpoly_ft.cpp)
     endif()
 
-    target_link_libraries(plingen_${v}_support flint-fft ${gmp_libname} utils)
-    target_link_libraries(plingen_${v} plingen_${v}_support)
+    # make lingen_pz a default target, but not the others.
+    if(v STREQUAL "pz")
+        add_library(lingen_${v}_support ${lingen_${v}_support_sources})
+        add_executable(lingen_${v} ${lingen_${v}_sources})
+        install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
+    else()
+        add_library(lingen_${v}_support EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
+        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
+    endif()
+
+    target_link_libraries(lingen_${v}_support flint-fft ${gmp_libname} utils)
+    target_link_libraries(lingen_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.
 
-    # set_source_files_properties(plingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-    set_target_properties(plingen_${v}_support PROPERTIES
+    # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
+    set_target_properties(lingen_${v}_support PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
-    set_target_properties(plingen_${v} PROPERTIES
+    set_target_properties(lingen_${v} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )

@@ -50,7 +50,7 @@ solutions            same meaning as for bwc programs (mksol, gather)
 simd                 SIMD width to be used for krylov (ys=) and mksol,
                      gather (solutions=) programs. Defaults to 64 if
                      prime=2 or 1 otherwise
-lingen_mpi           like mpi, but for plingen only (and someday lingen).
+lingen_mpi           like mpi, but for lingen only
 
 matrix               input matrix file. Must be a complete path. Binary, 32-b LE
 rhs                  rhs file for inhomogeneous systems (ascii with header)
@@ -557,7 +557,7 @@ if (!defined($random_matrix) && !-d $wdir) {        # create $wdir on script nod
 #    --> Simply put, the former is prepended before all important
 #    mpi-level programs (secure krylov mksol gather), while the
 #    other is of course for leader-node-only programs.
-#  - @mpi_precmd_lingen (currently this is only for *plingen*)
+#  - @mpi_precmd_lingen
 #    --> use lingen_mpi (no lingen_thr exists at this point)
 #  - $mpi_needed
 #    --> to be used to check whether we want mpi. This is important
@@ -1488,7 +1488,7 @@ sub task_common_run {
     # take out the ones we don't need (and acollect shares some
     # peculiarities).
     @_ = grep !/^(skip_bw_early_rank_check|rebuild_cache|cpubinding|balancing.*|interleaving|matrix|mm_impl|mpi|thr)?=/, @_ if $program =~ /(lingen|acollect$)/;
-    if ($program =~ /plingen/) {
+    if ($program =~ /lingen/) {
         @_ = map { s/^lingen_mpi\b/mpi/; $_; } @_;
     } else {
         @_ = grep !/^lingen_mpi?=/, @_;
@@ -1496,12 +1496,12 @@ sub task_common_run {
     @_ = grep !/cantor_threshold/, @_ unless $program =~ /lingen/ && $prime == 2;
     @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
     @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
-    @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^plingen/;
+    @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^lingen/;
     @_ = grep !/^save_submatrices?=/, @_ unless $program =~ /^(prep|krylov|mksol|gather)$/;
     # are we absolutely sure that lingen needs no matrix ?
     @_ = grep !/^ys=/, @_ unless $program =~ /(krylov|dispatch)$/;
     @_ = grep !/^solutions=/, @_ unless $program =~ /(?:mksol|gather)$/;
-    @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|plingen.*|mksol)$/;
+    @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|lingen.*|mksol)$/;
     @_ = grep !/(?:precmd|tolerate_failure)/, @_;
 
     $program="$bindir/$program";
@@ -1512,7 +1512,7 @@ sub task_common_run {
     }
 
     if ($mpi_needed) {
-        if ($program =~ /\/plingen[^\/]*$/) {
+        if ($program =~ /\/lingen[^\/]*$/) {
             unshift @_, @mpi_precmd_lingen;
         } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup)$/) {
             unshift @_, @mpi_precmd_single;
@@ -1955,13 +1955,13 @@ sub task_lingen {
         push @args, "ffile=F";
         push @args, grep { /^(?:mn|m|n|wdir|prime|rhs|lingen_mpi)=/ || /allow_zero_on_rhs/ } @main_args;
         if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
-            print "## non-MPI build, avoiding multi-node plingen\n";
+            print "## non-MPI build, avoiding multi-node lingen\n";
             # We keep thr=
             @args = grep { !/^(mpi)=/ } @args;
         }
         push @args, grep { /^verbose_flags=/ } @main_args;
         if (! -f "$wdir/$concatenated_A.gen") {
-            task_common_run("plingen_pz", @args);
+            task_common_run("lingen_pz", @args);
         } else {
             task_check_message 'ok', "lingen already has .gen file, good.";
         }

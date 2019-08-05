@@ -1,6 +1,6 @@
 #include "cado.h"
-#include "lingen-matpoly.hpp"
-#include "lingen-matpoly-ft.hpp"
+#include "lingen_matpoly.hpp"
+#include "lingen_matpoly_ft.hpp"
 #include "utils.h"
 
 void one_test(cxx_mpz const & p, unsigned int m, unsigned int len1, unsigned int len2, gmp_randstate_t rstate)

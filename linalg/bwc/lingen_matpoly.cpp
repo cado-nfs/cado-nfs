@@ -1,11 +1,11 @@
 #include "cado.h"
 #include "mpfq_layer.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include <gmp.h>
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "lingen-matpoly.hpp"
+#include "lingen_matpoly.hpp"
 #include "flint-fft/fft.h"
 
 matpoly::memory_pool matpoly::memory;
