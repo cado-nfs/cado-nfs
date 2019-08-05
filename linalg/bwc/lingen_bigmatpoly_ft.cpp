@@ -527,7 +527,9 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                     }
                     stats.end_smallstep();
                     stats.begin_smallstep("import", r * nrs0 * S->batch);
-                    to_import(ta);
+                    /* we imported data from everywhere, we can now put
+                     * it back to local format */
+                    to_import(ta.view(submatrix_range(0,0,i1-i0,ta.ncols())));
                     stats.end_smallstep();
                     stats.end_smallstep();
 
@@ -604,7 +606,7 @@ static void mp_or_mul(T& OP, tree_stats & stats, bigmatpoly & c, bigmatpoly cons
                             mpi_ft, b.get_model().com[2]);
                     stats.end_smallstep();
                     stats.begin_smallstep("import", r * nrs2 * S->batch);
-                    to_import(tb);
+                    to_import(tb.view(submatrix_range(0,0,tb.nrows(),j1-j0)));
                     stats.end_smallstep();
                     stats.end_smallstep();
 

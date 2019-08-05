@@ -73,6 +73,24 @@ matpoly_ft::matpoly_ft(abdst_field ab, unsigned int m, unsigned int n, const str
     }
 }/*}}}*/
 
+int matpoly_ft::check() const { return ::check(view()); }
+
+int check(matpoly_ft::const_view_t t)
+{
+    int ok = 1;
+    for(unsigned int i = 0 ; i < t.nrows() ; i++) {
+        for(unsigned int j = 0 ; j < t.ncols() ; j++) {
+            if (!fft_transform_check(t.part(i,j), t.M.fti, 1))
+                ok = 0;
+        }
+    }
+    return ok;
+}
+int check(matpoly_ft::view_t t)
+{
+    return check((matpoly_ft::const_view_t) t);
+}
+
 matpoly_ft::~matpoly_ft() /* {{{ */
 {
     if (data)
@@ -164,6 +182,7 @@ void to_export(matpoly_ft::view_t t)
 {
     unsigned int nrows = t.nrows();
     unsigned int ncols = t.ncols();
+    ASSERT_ALWAYS(check(t));
 #ifdef HAVE_OPENMP
 #pragma omp parallel for collapse(2)
 #endif
@@ -186,6 +205,7 @@ void to_import(matpoly_ft::view_t t)
             fft_transform_import(t.part(i,j), t.M.fti);
         }
     }
+    ASSERT_ALWAYS(check(t));
 }
 
 void add(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const_view_t t1)
@@ -216,6 +236,9 @@ void addmul(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const
     ASSERT_ALWAYS(t1.ncols() == ncols);
     ASSERT_ALWAYS(t0.ncols() == nadd);
     ASSERT_ALWAYS(t1.nrows() == nadd);
+    ASSERT_ALWAYS(check(t0));
+    ASSERT_ALWAYS(check(t1));
+    ASSERT_ALWAYS(check(t));
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif

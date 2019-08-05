@@ -46,6 +46,7 @@ public:
     matpoly_ft(matpoly_ft &&);
     matpoly_ft& operator=(matpoly_ft &&);
     ~matpoly_ft();
+    int check() const;
     inline void * part(unsigned int i, unsigned int j) {
         return pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
@@ -140,6 +141,8 @@ void addmul(matpoly_ft::view_t, matpoly_ft::const_view_t, matpoly_ft::const_view
 void to_import(matpoly_ft::view_t);
 void to_export(matpoly_ft::view_t);
 
+int check(matpoly_ft::view_t);
+int check(matpoly_ft::const_view_t);
 inline void matpoly_ft::zero(submatrix_range const & R) { ::zero(view(R)); }
 inline void matpoly_ft::fill_random(submatrix_range const & R, gmp_randstate_t rstate) { ::fill_random(view(R), rstate); }
 inline void matpoly_ft::to_import(submatrix_range const & R) { ::to_import(view(R)); }
