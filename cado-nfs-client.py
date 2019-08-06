@@ -974,7 +974,8 @@ class WorkunitClient(object):
             except urllib_error.URLError as error:
                 conn = None
                 errorstr = "URL error: %s" % str(error)
-                current_error = error.errno
+                if error.args:
+                    current_error = error.args[0].errno
             except BadStatusLine as error:
                 conn = None
                 errorstr = "Bad Status line: %s" % str(error)
