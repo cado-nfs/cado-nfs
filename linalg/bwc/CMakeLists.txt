@@ -405,6 +405,11 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 endif()
 
+add_executable(check_mpi_problems EXCLUDE_FROM_ALL check_mpi_problems.c)
+set_target_properties(check_mpi_problems PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DWANT_MAIN"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
         bw-common.c

@@ -5,6 +5,8 @@
 #include <string.h>
 #include "select_mpi.h"
 
+long failed_offset = 0;
+
 int check_if_large_allgather_is_ok(MPI_Comm comm0)
 {
     /* This check is here to provoke early failure under openmpi, with
@@ -25,16 +27,28 @@ int check_if_large_allgather_is_ok(MPI_Comm comm0)
      [node-1:04815] ***    and potentially your MPI job)
      [node-1.nancy.grid5000.fr:04793] 1 more process has sent help message help-mtl-psm2.txt / message too big
 
+     * Are we safe with the OFI mtl ? not really. As it happens, this
+     * same check fails as well, with the rather unpleasant specifics
+     * that the MPI_Allgather call returns fine -- only the copied data
+     * doesn't quite meet the expectations... :-((((
+     *
+     * It seems that to avoir this error, one has to use --mca pml ob1 .
+     * At least on omnipath. I haven't checked on infiniband.
+     */
+    /*
      * This function returns:
      *  0 on success.
-     *  an non-zero MPI Error code if MPI_Allgather returned one.
+     *  a non-zero MPI Error code if MPI_Allgather returned one.
+     *  -1 if no MPI Error code was returned, but the result of Allgather
+     *  was wrong.
      *  -2 if memory allocation failed.
      *
      * (note that the MPI document guarantees that MPI error codes are
      * positive integers)
      */
+
     size_t s = 1 << 16;
-    unsigned int items_at_a_time = 1 << 16;
+    unsigned int items_at_a_time = (1 << 16) + 1;
     MPI_Datatype mpi_ft;
     MPI_Type_contiguous(s, MPI_BYTE, &mpi_ft);
     MPI_Type_commit(&mpi_ft);
@@ -59,6 +73,7 @@ int check_if_large_allgather_is_ok(MPI_Comm comm0)
     if (comm_rank0 < number_of_nodes_for_test) {
         MPI_Comm_set_errhandler(comm, MPI_ERRORS_RETURN);
         void * data = malloc(items_at_a_time * comm_size * s);
+        memset(data, 0, items_at_a_time * comm_size * s);
         int alloc_ok = data != NULL;
         MPI_Allreduce(MPI_IN_PLACE, &alloc_ok, 1, MPI_INT, MPI_MIN, comm);
         if (alloc_ok) {
@@ -66,6 +81,14 @@ int check_if_large_allgather_is_ok(MPI_Comm comm0)
             rc = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                     data, items_at_a_time,
                     mpi_ft, comm);
+            if (rc == 0) {
+                void * p = memchr(data, 0, items_at_a_time * comm_size * s);
+                if (p != NULL) {
+                    /* We found a zero, we shouldn't ! */
+                    rc = -1;
+                    failed_offset = ((char*)p)-(char*)data;
+                }
+            }
             MPI_Barrier(comm);
         } else {
             rc = -2;
@@ -113,13 +136,14 @@ const char * error_explanation_mpi[] = {
     "      --mca btl_openib_allow_ib true \\",
     "      --mca btl openib \\",
     "      --mca mtl ^ofi \\",
+    "      --mca pml ob1 \\",
     "      ./a.out",
     "  On Intel OmniPath:",
     "    mpiexec -n 4 --prefix /opt/openmpi-4.0.1/ \\",
     "      --mca btl_openib_allow_ib true \\",
     "      --mca btl openib \\",
     "      --mca mtl ^psm2 \\",
-    "      --mca pml ^ucx \\",
+    "      --mca pml ob1 \\",
     "      ./a.out",
 };
 
@@ -148,13 +172,30 @@ void check_large_allgather_or_abort(const char * prefix)
         return;
     }
 
+    int someone_has_minusone = (err == -1);
+    MPI_Allreduce(MPI_IN_PLACE, &someone_has_minusone, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    if (someone_has_minusone) {
+        long * offsets = malloc(size * sizeof(long));
+        offsets[rank] = failed_offset;
+        MPI_Gather(&failed_offset, 1, MPI_LONG,
+                offsets, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+        if (!rank) {
+            for(int i = 0 ; i < size ; i++) {
+                fprintf(stderr, "node %d failed_offset = 0x%lx\n", i, offsets[i]);
+        }
+        }
+        free(offsets);
+    }
+
     if (!rank) {
-        /* MPI_ERR_OTHER... mostly useless */
-        char error[1024];
-        int errorlen = sizeof(error);
-        MPI_Error_string(err, error, &errorlen);
-        fprintf(stderr, "%sMPI error returned:\n%s%s\n",
-                prefix, prefix, error);
+        if (err > 0) { /* return an MPI Error if we've got one. */
+            /* MPI_ERR_OTHER... mostly useless */
+            char error[1024];
+            int errorlen = sizeof(error);
+            MPI_Error_string(err, error, &errorlen);
+            fprintf(stderr, "%sMPI error returned:\n%s%s\n",
+                    prefix, prefix, error);
+        }
         size_t s = sizeof(error_explanation_mpi)/sizeof(error_explanation_mpi[0]);
         fprintf(stderr, "%s%s\n%s%s\n",
                 prefix,
@@ -263,6 +304,7 @@ void check_for_mpi_problems()
         printf("# Skipping MPI checks (only %d node)\n", size);
     } else {
         check_large_mpi_send_or_abort("# ");
+        // check_large_allgather_or_abort("# ");
         check_large_allgather_or_abort("# ");
     }
 }
