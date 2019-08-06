@@ -67,6 +67,7 @@ pclmulqdq)
    1a - write complete specifications and a test suite for the file
         lingen-matpoly.c (which deals with matrices having polynomial
         entries over GF(p) !).
+        [ partly done, at least we have a complete test suite now ]
    1b - convert this test suite to what we expect for base field GF(2).
    1c - write a new file, e.g. lingen-matpoly-binary.c, and in particular the
         functions matpoly_addmp and matpoly_addmul ; those are critical.

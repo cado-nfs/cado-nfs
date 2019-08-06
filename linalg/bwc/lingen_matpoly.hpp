@@ -83,6 +83,16 @@ class matpoly {
     };
     static memory_pool memory;
 public:
+    /* if we ever want the check binary to make sure that the
+     * specification works correctly also wrt. pre-init state. Not sure
+     * it's terribly useful.
+     *
+    struct must_be_pre_init : public std::runtime_error {
+        must_be_pre_init() : std::runtime_error("this data should be in pre-init state") {}
+    };
+    void make_sure_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
+    void make_sure_not_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
+    */
     class memory_pool_guard {
         size_t oldsize;
         size_t mysize;
@@ -105,10 +115,11 @@ public:
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
+    matpoly& set(matpoly const&);
     matpoly(matpoly &&);
     matpoly& operator=(matpoly &&);
     ~matpoly();
-    bool check_pre_init() const { return x == NULL; }
+    bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT { return x == NULL; }
     void realloc(size_t);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
@@ -133,19 +144,29 @@ public:
     void multiply_column_by_x(unsigned int j, unsigned int size);
     void divide_column_by_x(unsigned int j, unsigned int size);
     void truncate(matpoly const & src, unsigned int size);
+    void truncate(unsigned int size) { truncate(*this, size); }
+    int tail_is_zero(unsigned int size);
+    void zero_pad(unsigned int nsize); /* changes size to nsize */
     void extract_column(
         unsigned int jdst, unsigned int kdst,
         matpoly const & src, unsigned int jsrc, unsigned int ksrc);
-    void transpose_dumb(matpoly const & src);
     void zero_column(unsigned int jdst, unsigned int kdst);
+#if 0
+    /* These two are implemented, but unused and untested anyway */
+    void transpose_dumb(matpoly const & src);
     void extract_row_fragment(unsigned int i1, unsigned int j1,
         matpoly const & src, unsigned int i0, unsigned int j0,
         unsigned int n);
+#endif
     void rshift(matpoly const &, unsigned int k);
 
-    /* It is probably wise to avoid the four functions below. The
+    /* It is probably wise to avoid the mul and mp functions below. The
      * first-class citizens are the caching alternatives.
      */
+    void add(matpoly const & a, matpoly const & b);
+    void add(matpoly const & a) { add(*this, a); }
+    void sub(matpoly const & a, matpoly const & b);
+    void sub(matpoly const & a) { sub(*this, a); }
     void addmul(matpoly const & a, matpoly const & b);
     void mul(matpoly const & a, matpoly const & b);
     void addmp(matpoly const & a, matpoly const & c);

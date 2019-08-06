@@ -432,9 +432,13 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
 
     const unsigned int r = 1; // only for notational consistency w/ bigmatpoly
 
+    unsigned int batch = S ? S->batch : a.n;
+    unsigned int shrink0 = S ? S->shrink0 : 1;
+    unsigned int shrink2 = S ? S->shrink2 : 1;
+
     subdivision mpi_split(a.n, r);
-    subdivision shrink0_split(a.m, S->shrink0);
-    subdivision shrink2_split(b.n, S->shrink2);
+    subdivision shrink0_split(a.m, shrink0);
+    subdivision shrink2_split(b.n, shrink2);
     /* The order in which we do the transforms is not really our main
      * concern at this point. If sharing makes sense, then probably
      * shrink0 and shrink2 do not. So they're serving opposite purposes.
@@ -448,8 +452,8 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
     bool inner_is_row_major;
     {
         /* first, upper bounds on nrs0 and nrs2 */
-        unsigned int nrs0 = iceildiv(a.m, S->shrink0);
-        unsigned int nrs2 = iceildiv(b.n, S->shrink2);
+        unsigned int nrs0 = iceildiv(a.m, shrink0);
+        unsigned int nrs2 = iceildiv(b.n, shrink2);
         tc = matpoly_ft (c.ab, nrs0, nrs2, fti);
         /* We must decide on an ordering beforehand. We cannot do this
          * dynamically because of rounding issues: e.g. for 13=7+6, we
@@ -457,20 +461,20 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
          */
         inner_is_row_major = nrs0 < nrs2;
         if (inner_is_row_major) {
-            ta = matpoly_ft(a.ab, nrs0, r * S->batch, fti);
-            tb = matpoly_ft(a.ab, r * S->batch, 1, fti);
+            ta = matpoly_ft(a.ab, nrs0, r * batch, fti);
+            tb = matpoly_ft(a.ab, r * batch, 1, fti);
         } else {
-            ta = matpoly_ft(a.ab, 1, r * S->batch, fti);
-            tb = matpoly_ft(a.ab, r * S->batch, nrs2, fti);
+            ta = matpoly_ft(a.ab, 1, r * batch, fti);
+            tb = matpoly_ft(a.ab, r * batch, nrs2, fti);
         }
     }
     unsigned int k0mpi,k1mpi;
     std::tie(k0mpi, k1mpi) = mpi_split.nth_block(rank);
-    for(unsigned int round0 = 0 ; round0 < S->shrink0 ; round0++) {
+    for(unsigned int round0 = 0 ; round0 < shrink0 ; round0++) {
         unsigned int i0,i1;
         std::tie(i0, i1) = shrink0_split.nth_block(round0);
         unsigned int nrs0 = i1-i0;
-        for(unsigned int round2 = 0 ; round2 < S->shrink2 ; round2++) {
+        for(unsigned int round2 = 0 ; round2 < shrink2 ; round2++) {
             unsigned int j0,j1;
             std::tie(j0, j1) = shrink2_split.nth_block(round2);
             unsigned int nrs2 = j1-j0;
@@ -479,18 +483,18 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
 
             /* Now do a subblock */
             tc.zero();
-            for(unsigned int k = 0 ; k < nr1 ; k += S->batch) {
+            for(unsigned int k = 0 ; k < nr1 ; k += batch) {
                 unsigned int k0 = k0mpi + k;
-                unsigned int k1 = MIN(k1mpi, k0 + S->batch);
+                unsigned int k1 = MIN(k1mpi, k0 + batch);
                 if (inner_is_row_major) {
                     submatrix_range Ra(i0,k0,nrs0,k1-k0);
-                    submatrix_range Rat(0,rank*S->batch, nrs0,k1-k0);
+                    submatrix_range Rat(0,rank*batch, nrs0,k1-k0);
                     ta.zero();  // for safety because of rounding.
                     dft(ta.view(Rat), a.view(Ra));
                     // allgather ta among r nodes.
                     for(unsigned int j = 0 ; j < nrs2 ; j++) {
                         tb.zero();
-                        dft(tb.view(submatrix_range(rank*S->batch,0,k1-k0,1)),
+                        dft(tb.view(submatrix_range(rank*batch,0,k1-k0,1)),
                                 b.view(submatrix_range(k0,j0+j,k1-k0,1)));
                         // allgather tb among r nodes
                         // rounding might surprise us.
@@ -500,13 +504,13 @@ static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, 
                     }
                 } else {
                     submatrix_range Rb(k0,j0,k1-k0,nrs2);
-                    submatrix_range Rbt(rank*S->batch,0,k1-k0,nrs2);
+                    submatrix_range Rbt(rank*batch,0,k1-k0,nrs2);
                     tb.zero();
                     dft(tb.view(Rbt), b.view(Rb));
                     // allgather tb among r nodes
                     for(unsigned int i = 0 ; i < nrs0 ; i++) {
                         ta.zero();
-                        dft(ta.view(submatrix_range(0,rank*S->batch,1,k1-k0)),
+                        dft(ta.view(submatrix_range(0,rank*batch,1,k1-k0)),
                                 a.view(submatrix_range(i0+i,k0,1,k1-k0)));
                         // allgather ta among r nodes
                         addmul(tc.view(submatrix_range(i,0,1,nrs2)),

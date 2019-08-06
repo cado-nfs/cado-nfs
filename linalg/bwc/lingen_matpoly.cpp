@@ -104,15 +104,15 @@ void * matpoly::memory_pool::realloc(void * p, size_t s, size_t ns)
 matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc(len) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     ASSERT(!m == !n);
-    if (!m) return;
-    size = 0;
-    if (!len) {
-        alloc=0;
+    if (!m) {
+        ASSERT_ALWAYS(!len);
         return;
     }
-    // abvec_init(ab, &(x), m*n*alloc);
-    x = (abdst_vec) memory.alloc(alloc_size());
-    abvec_set_zero(ab, x, m*n*alloc);
+    if (alloc) {
+        // abvec_init(ab, &(x), m*n*alloc);
+        x = (abdst_vec) memory.alloc(alloc_size());
+        abvec_set_zero(ab, x, m*n*alloc);
+    }
 }
 size_t matpoly::alloc_size() const
 {
@@ -151,43 +151,75 @@ matpoly& matpoly::operator=(matpoly&& a)
     a.ab=NULL;
     return *this;
 }
+matpoly& matpoly::set(matpoly const& a)
+{
+    if (x) {
+        memory.free(x, abvec_elt_stride(ab, m*n*alloc));
+        // abvec_clear(ab, &(x), m*n*alloc);
+    }
+    ab = a.ab;
+    m = a.m;
+    n = a.n;
+    alloc = a.alloc;
+    size = a.size;
+    // abvec_init(ab, &(x), m*n*alloc);
+    x = (abdst_vec) memory.alloc(alloc_size());
+    abvec_set(ab, x, a.x, m*n*alloc);
+    return *this;
+}
 
+/* For structures in pre_init state, this is equivalent to an initial
+ * allocation.
+ *
+ * If data is grown, old data is kept, and the 'size' field is unchanged.
+ *
+ * If data is shrunk below the previous value of 'size', then 'size' is
+ * set to zero.
+ *
+ * The contents of the data area above 'size' on return is unspecified.
+ */
 void matpoly::realloc(size_t newalloc) {
-    check_pre_init();
-    size_t oldsize = abvec_elt_stride(ab, m*n*alloc);
-    size_t newsize = abvec_elt_stride(ab, m*n*newalloc);
+    ASSERT_ALWAYS(size <= alloc);
+    size_t oldmem = abvec_elt_stride(ab, m*n*alloc);
+    size_t newmem = abvec_elt_stride(ab, m*n*newalloc);
+
     /* zero out the newly added data */
     if (newalloc > alloc) {
         /* allocate new space, then inflate */
         // abvec_reinit(ab, &(x), m*n*alloc, m*n*newalloc);
-        x = (abdst_vec) memory.realloc(x, oldsize, newsize);
+        x = (abdst_vec) memory.realloc(x, oldmem, newmem);
         abvec rhead = abvec_subvec(ab, x, m*n*alloc);
         abvec whead = abvec_subvec(ab, x, m*n*newalloc);
-        for(unsigned int i = m ; i-- ; ) {
-            for(unsigned int j = n ; j-- ; ) {
-                whead = abvec_subvec(ab, whead, -newalloc);
-                rhead = abvec_subvec(ab, rhead, -alloc);
-                abvec_set(ab, whead, rhead, alloc);
-                abvec_set_zero(ab,
-                        abvec_subvec(ab, whead, alloc),
-                        newalloc - alloc);
+        if (size)
+            for(unsigned int i = m ; i-- ; ) {
+                for(unsigned int j = n ; j-- ; ) {
+                    whead = abvec_subvec(ab, whead, -newalloc);
+                    rhead = abvec_subvec(ab, rhead, -alloc);
+                    abvec_set(ab, whead, rhead, size);
+                    abvec_set_zero(ab,
+                            abvec_subvec(ab, whead, alloc),
+                            newalloc - alloc);
+                }
             }
-        }
     } else {
+        if (size > newalloc)
+            size = 0;
         /* deflate, then free space */
         ASSERT_ALWAYS(size <= newalloc);
         abvec rhead = x;
         abvec whead = x;
-        for(unsigned int i = 0 ; i < m ; i++) {
-            for(unsigned int j = 0 ; j < n ; j++) {
-                abvec_set(ab, whead, rhead, newalloc);
-                whead = abvec_subvec(ab, whead, newalloc);
-                rhead = abvec_subvec(ab, rhead, alloc);
+        if (size)
+            for(unsigned int i = 0 ; i < m ; i++) {
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    abvec_set(ab, whead, rhead, size);
+                    whead = abvec_subvec(ab, whead, newalloc);
+                    rhead = abvec_subvec(ab, rhead, alloc);
+                }
             }
-        }
         // abvec_reinit(ab, &(x), m*n*alloc, m*n*newalloc);
-        x =(abdst_vec)  memory.realloc(x, oldsize, newsize);
+        x =(abdst_vec)  memory.realloc(x, oldmem, newmem);
     }
+    // if (!size) abvec_set_zero(ab, x, m*n*alloc);
     alloc = newalloc;
 }
 void matpoly::zero() {
@@ -223,15 +255,39 @@ void matpoly::fill_random(unsigned int nsize, gmp_randstate_t rstate)
 {
     ASSERT_ALWAYS(nsize <= alloc);
     size = nsize;
-    abvec_random(ab, x, m*n*size, rstate);
+    if (size == alloc) {
+        abvec_random(ab, x, m*n*size, rstate);
+    } else if (size) {
+        for(unsigned int i = 0 ; i < m ; i++) {
+            for(unsigned int j = 0 ; j < n ; j++) {
+                abvec_random(ab, part(i, j), size, rstate);
+            }
+        }
+    }
 }
 
 int matpoly::cmp(matpoly const& b) const
 {
     ASSERT_ALWAYS(n == b.n);
     ASSERT_ALWAYS(m == b.m);
-    if (size != b.size) return (size > b.size) - (b.size > size);
-    return abvec_cmp(ab, x, b.x, m*n*size);
+    if (size != b.size) {
+        return (size > b.size) - (b.size > size);
+    } else if (size == 0 && b.size == 0) {
+        /* This is for the "intermediary pre-init" state. size is zero,
+         * but a priori the dimension fields are ok. x might be NULL or
+         * not, it depends on the previous life of the object */
+        return 0;
+    } else if (size == alloc && b.size == b.alloc) {
+        return abvec_cmp(ab, x, b.x, m*n*size);
+    } else {
+        for(unsigned int i = 0 ; i < m ; i++) {
+            for(unsigned int j = 0 ; j < n ; j++) {
+                int r = abvec_cmp(ab, part(i, j), b.part(i, j), size);
+                if (r) return r;
+            }
+        }
+        return 0;
+    }
 }
 
 /* shift by a multiplication by x all coefficients of degree less than
@@ -267,6 +323,7 @@ void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
     ASSERT_ALWAYS(nsize <= alloc);
     ASSERT_ALWAYS(nsize <= src.size);
     size = nsize;
+    if (this == &src) return;
     /* XXX Much more cumbersome here than for polymat, of course */
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
@@ -274,7 +331,34 @@ void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
         }
     }
 }/*}}}*/
+int matpoly::tail_is_zero(unsigned int size0)/*{{{*/
+{
+    ASSERT_ALWAYS(size0 <= size);
+    for(unsigned int i = 0 ; i < m ; i++) {
+        for(unsigned int j = 0 ; j < n ; j++) {
+            if (!abvec_is_zero(ab, part(i, j, size0), size - size0))
+                return 0;
+        }
+    }
+    return 1;
+}/*}}}*/
+void matpoly::zero_pad(unsigned int nsize)/*{{{*/
+{
+    ASSERT_ALWAYS(nsize >= size);
+    if (check_pre_init() || nsize > alloc)
+        realloc(nsize);
+    for(unsigned int i = 0 ; i < m ; i++) {
+        for(unsigned int j = 0 ; j < n ; j++) {
+            abvec_set_zero(ab, part(i, j, size), nsize - size);
+        }
+    }
+    size = nsize;
+}/*}}}*/
 
+
+/* This takes coefficient ksrc of column jsrc, and copies it to
+ * coefficient kdst of column jdst
+ */
 /* XXX compared to polymat, our diffferent stride has a consequence,
  * clearly ! */
 void matpoly::extract_column( /*{{{*/
@@ -286,6 +370,7 @@ void matpoly::extract_column( /*{{{*/
         abset(ab, coeff(i, jdst, kdst), src.coeff(i, jsrc, ksrc));
 }/*}}}*/
 
+#if 0
 void matpoly::transpose_dumb(matpoly const & src) /*{{{*/
 {
     if (this == &src) {
@@ -308,6 +393,7 @@ void matpoly::transpose_dumb(matpoly const & src) /*{{{*/
     }
     *this = std::move(tmp);
 }/*}}}*/
+#endif
 
 void matpoly::zero_column(unsigned int jdst, unsigned int kdst) /*{{{*/
 {
@@ -315,6 +401,7 @@ void matpoly::zero_column(unsigned int jdst, unsigned int kdst) /*{{{*/
         abset_zero(ab, coeff(i, jdst, kdst));
 }/*}}}*/
 
+#if 0
 void matpoly::extract_row_fragment(/*{{{*/
         unsigned int i1, unsigned int j1,
         matpoly const & src, unsigned int i0, unsigned int j0,
@@ -325,6 +412,7 @@ void matpoly::extract_row_fragment(/*{{{*/
     for(unsigned int k = 0 ; k < n ; k++)
         abvec_set(ab, part(i1, j1 + k, 0), src.part(i0, j0 + k, 0), size);
 }/*}}}*/
+#endif
 
 void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
 {
@@ -344,6 +432,54 @@ void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
     }
 }/*}}}*/
 
+void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
+{
+    size_t csize = std::max(a.size, b.size);
+    ASSERT_ALWAYS(a.m == b.m);
+    ASSERT_ALWAYS(a.n == b.n);
+    if (check_pre_init()) {
+        *this = matpoly(a.ab, a.m, a.n, csize);
+    }
+    if (alloc < csize)
+        realloc(csize);
+    ASSERT_ALWAYS(alloc >= csize);
+
+    for(unsigned int i = 0 ; i < m ; ++i) {
+        for(unsigned int j = 0 ; j < n ; ++j) {
+            size_t s0 = std::min(a.size, b.size);
+            abvec_add(ab, part(i, j), a.part(i, j), b.part(i, j), s0);
+            if (a.size > s0)
+                abvec_set(ab, part(i, j, s0), a.part(i, j, s0), a.size - s0);
+            if (b.size > s0)
+                abvec_set(ab, part(i, j, s0), b.part(i, j, s0), b.size - s0);
+        }
+    }
+    size = csize;
+}/*}}}*/
+void matpoly::sub(matpoly const & a, matpoly const & b)/*{{{*/
+{
+    size_t csize = std::max(a.size, b.size);
+    ASSERT_ALWAYS(a.m == b.m);
+    ASSERT_ALWAYS(a.n == b.n);
+    if (check_pre_init()) {
+        *this = matpoly(a.ab, a.m, a.n, csize);
+    }
+    if (alloc < csize)
+        realloc(csize);
+    ASSERT_ALWAYS(alloc >= csize);
+
+    for(unsigned int i = 0 ; i < m ; ++i) {
+        for(unsigned int j = 0 ; j < n ; ++j) {
+            size_t s0 = std::min(a.size, b.size);
+            abvec_sub(ab, part(i, j), a.part(i, j), b.part(i, j), s0);
+            if (a.size > s0)
+                abvec_set(ab, part(i, j, s0), a.part(i, j, s0), a.size - s0);
+            if (b.size > s0)
+                abvec_neg(ab, part(i, j, s0), b.part(i, j, s0), b.size - s0);
+        }
+    }
+    size = csize;
+}/*}}}*/
 void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
@@ -361,31 +497,37 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     ASSERT_ALWAYS(n == b.n);
     ASSERT_ALWAYS(alloc >= csize);
 
+    if (a.size == 0 || b.size == 0)
+        return;
+
     for(unsigned int i = 0 ; i < m ; ++i) {
         for(unsigned int j = 0 ; j < n ; ++j) {
             abvec_set_zero(ab, part(i, j, size), csize - size);
         }
     }
 
-    size = csize;
+    if (csize >= size)
+        zero_pad(csize);
+
     abvec_ur tmp[2];
-    abvec_ur_init(ab, &tmp[0], size);
-    abvec_ur_init(ab, &tmp[1], size);
+    abvec_ur_init(ab, &tmp[0], csize);
+    abvec_ur_init(ab, &tmp[1], csize);
 
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < b.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), size);
+            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), csize);
             for(unsigned int k = 0 ; k < a.n; k++) {
                 abvec_conv_ur(ab, tmp[0],
                         a.part(i, k, 0), a.size,
                         b.part(k, j, 0), b.size);
-                abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], size);
+                abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], csize);
             }
-            abvec_reduce(ab, part(i, j, 0), tmp[1], size);
+            abvec_reduce(ab, part(i, j, 0), tmp[1], csize);
         }
     }
-    abvec_ur_clear(ab, &tmp[0], size);
-    abvec_ur_clear(ab, &tmp[1], size);
+    abvec_ur_clear(ab, &tmp[0], csize);
+    abvec_ur_clear(ab, &tmp[1], csize);
+    size = csize;
 }/*}}}*/
 
 void matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
@@ -421,17 +563,22 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
     ASSERT_ALWAYS(m == a.m);
     ASSERT_ALWAYS(n == c.n);
     ASSERT_ALWAYS(alloc >= nb);
-    size = nb;
+
+    if (a.size == 0 || c.size == 0)
+        return;
+
+    if (nb >= size)
+        zero_pad(nb);
 
     /* We are going to make it completely stupid for a beginning. */
     /* XXX XXX XXX FIXME !!! */
     abvec_ur tmp[2];
     abvec_ur_init(ab, &tmp[0], fullsize);
-    abvec_ur_init(ab, &tmp[1], size);
+    abvec_ur_init(ab, &tmp[1], nb);
 
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < c.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), size);
+            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), nb);
             for(unsigned int k = 0 ; k < a.n ; k++) {
                 abvec_conv_ur(ab, tmp[0],
                         a.part(i, k, 0), a.size,
@@ -440,11 +587,11 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
                         abvec_ur_subvec(ab, tmp[0], MIN(a.size, c.size) - 1),
                         nb);
             }
-            abvec_reduce(ab, part(i, j, 0), tmp[1], size);
+            abvec_reduce(ab, part(i, j, 0), tmp[1], nb);
         }
     }
     abvec_ur_clear(ab, &tmp[0], fullsize);
-    abvec_ur_clear(ab, &tmp[1], size);
+    abvec_ur_clear(ab, &tmp[1], nb);
 }/*}}}*/
 
 void matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
