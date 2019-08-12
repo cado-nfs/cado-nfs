@@ -200,6 +200,17 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif
 
+#ifndef ATTRIBUTE_WARN_UNUSED_RESULT
+/* https://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/Function-Attributes.html#Function-Attributes
+ * https://gcc.gnu.org/onlinedocs/gcc-3.4.6/gcc/Function-Attributes.html#Function-Attributes
+ */
+#if GNUC_VERSION_ATLEAST(3,4,0)
+#define ATTRIBUTE_WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
+#else
+#define ATTRIBUTE_WARN_UNUSED_RESULT
+#endif
+#endif
+
 #ifndef ATTRIBUTE_DEPRECATED
 #if GNUC_VERSION_ATLEAST(3,1,1)
 #define ATTRIBUTE_DEPRECATED __attribute__ ((deprecated))

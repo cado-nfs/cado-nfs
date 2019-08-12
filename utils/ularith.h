@@ -505,7 +505,7 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
 		    const unsigned long a)
 {
 #ifdef ULARITH_VERBOSE_ASM
-  __asm__ ("# ularith_mul_ul_ul_2ul (%0, %1, %2)\n" : : 
+  __asm__ ("# ularith_sqr_ul_2ul (%0, %1, %2)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a));
 #endif
 #if !defined (ULARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)

@@ -118,10 +118,10 @@ class RemoteCommand(Command):
         # host
         global PRINTED_SSHAUTH_WARNING
         if not PRINTED_SSHAUTH_WARNING and not "SSH_AUTH_SOCK" in os_environ:
-            logger.warn("No SSH_AUTH_SOCK shell environment variable found.")
-            logger.warn("Make sure to set up an ssh key and ssh-agent to "
+            logger.warning("No SSH_AUTH_SOCK shell environment variable found.")
+            logger.warning("Make sure to set up an ssh key and ssh-agent to "
                         "avoid ssh asking for a passphrase.")
-            logger.warn("See documentation for ssh-keygen and ssh-agent for "
+            logger.warning("See documentation for ssh-keygen and ssh-agent for "
                         "details.")
             PRINTED_SSHAUTH_WARNING = True
         cmdline = program.make_command_line()

@@ -529,6 +529,7 @@ struct timetree_t {
     inline void nop() const {}
     inline void start() const {}
     inline void stop() const {}
+    void add_foreign_time(timer_data_type const &) const {}
 };
 
 namespace tdict {

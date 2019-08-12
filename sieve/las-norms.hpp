@@ -24,6 +24,7 @@ struct lognorm_base {/*{{{*/
     double maxlog2;      /* Bound on the log in base 2. This is
                             intermediary data, really. */
     public:
+    double get_maxlog2() const { return maxlog2; }
     cxx_mpz_poly fij;  /* coefficients of F(a0*i+a1*j, b0*i+b1*j)
                         * (divided by q on the special-q side) */
 

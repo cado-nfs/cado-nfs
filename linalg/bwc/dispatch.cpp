@@ -72,13 +72,13 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
-    const char * tmp = param_list_lookup_string(pl, "sanity_check_vector");
+    const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
     int only_export = param_list_lookup_string(pl, "export_cachelist") != NULL;
 
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
     // check is currently only valid for GF(2).
-    if (tmp != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0) {
+    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt->abase->simd_groupsize(mmt->abase)) {
         /* We have computed a sanity check vector, which is H=M*K, with K
          * constant and easily given. Note that we have not computed K*M,
          * but really M*K. Thus independently of which side we prefer, we
@@ -105,12 +105,12 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         matmul_top_mul(mmt, ymy, NULL);
         mmt_vec_untwist(mmt, y);
 
-        mmt_vec_save(y, "Hx", unpadded);
+        mmt_vec_save(y, "Hx%u-%u", unpadded, 0);
 
         // compare if files are equal.
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             char cmd[1024];
-            int rc = snprintf(cmd, 80, "diff -q %s Hx", tmp);
+            int rc = snprintf(cmd, 80, "diff -q %s Hx0-64", sanity_check_vector);
             ASSERT_ALWAYS(rc>=0);
             rc = system(cmd);
             if (rc) {
@@ -147,7 +147,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         how_many = intersect_two_intervals(&offset_c, &offset_v,
                 my->i0, my->i1,
                 y->i0, y->i1);
-        A->dotprod(A, dp0,
+        A->vec_set_zero(A, dp0, A->simd_groupsize(A));
+        A->add_dotprod(A, dp0,
                 A->vec_subvec(A, my->v, offset_c),
                 A->vec_subvec(A, y->v, offset_v),
                 how_many);
@@ -170,7 +171,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             mmt_vec_clear(mmt, myy[1]);
         }
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "Hy", unpadded);
+        mmt_vec_save(my, "Hy%u-%u", unpadded, 0);
 
         mmt_full_vec_set_zero(y);
         ASSERT_ALWAYS(y->siblings);     /* shared vector undesired */
@@ -179,7 +180,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
-        A->dotprod(A, dp1,
+        A->vec_set_zero(A, dp1, A->simd_groupsize(A));
+        A->add_dotprod(A, dp1,
                 A->vec_subvec(A, my->v, offset_c),
                 A->vec_subvec(A, y->v, offset_v),
                 how_many);
@@ -231,8 +233,10 @@ int main(int argc, char * argv[])
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
     // param_list_clear(pl);
 

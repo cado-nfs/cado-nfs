@@ -42,7 +42,7 @@ while [ $# -gt 0 ] ; do
         shift
     elif [ "$1" = "--nullspace" ] ; then
         shift
-        bwc_extra=("${bwc_extra[@]}" "nullspace=$1")
+        bwc_extra+=("nullspace=$1")
         nullspace=$1
         shift
     else
@@ -52,8 +52,8 @@ while [ $# -gt 0 ] ; do
                 nh=$((x*nh))
                 x=`echo $1 | cut -d= -f2 | cut -dx -f2`
                 nv=$((x*nv))
-                mpithr_args=("${mpithr_args[@]}" "$1")
-                bwc_extra=("${bwc_extra[@]}" "$1")
+                mpithr_args+=("$1")
+                bwc_extra+=("$1")
                 shift
                 ;;
             *) usage;;
@@ -101,11 +101,11 @@ $bindir/mf_bal $nh $nv $wdir/mat.bin skip_decorrelating_permutation=1 out=$wdir/
 $bindir/bwc.pl :mpirun "${mpithr_args[@]}" -- $bindir/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
 
 if [ $nullspace = left ] ; then
-    $bindir/../../tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution.0 $wdir/blsolution.0.image
-    if ! file_is_zero $wdir/blsolution.0.image ; then
+    $bindir/../../tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
+    if ! file_is_zero $wdir/blsolution0-64.0.image ; then
         echo "Apparently we have v*M != 0 ; BAD !" >&2
         exit 1
-    elif file_is_zero $wdir/blsolution.0 ; then
+    elif file_is_zero $wdir/blsolution0-64.0 ; then
         if [ $nrows -gt $ncols ] ; then
             echo "Found trivial kernel although M is singular ; BAD !" >&2
             echo "Or it could be that Ker M \\cap {\\langle y \\rangle \\cup Im M} = 0" >&2
@@ -116,11 +116,11 @@ if [ $nullspace = left ] ; then
         fi
     fi
 else
-    $bindir/../../tests/linalg/bwc/short_matmul $wdir/mat.bin $wdir/blsolution.0 $wdir/blsolution.0.image
-    if ! file_is_zero $wdir/blsolution.0.image ; then
+    $bindir/../../tests/linalg/bwc/short_matmul $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
+    if ! file_is_zero $wdir/blsolution0-64.0.image ; then
         echo "Apparently we have M*v != 0 ; BAD !" >&2
         exit 1
-    elif file_is_zero $wdir/blsolution.0 ; then
+    elif file_is_zero $wdir/blsolution0-64.0 ; then
         if [ $nrows -lt $ncols ] ; then
             echo "Found trivial kernel although M is singular ; BAD !" >&2
             echo "Or it could be that Ker M \\cap {\\langle y \\rangle \\cup Im M} = 0" >&2

@@ -605,74 +605,164 @@ mmt_vec_broadcast(mmt_vec_ptr v)
 
 /* {{{ generic interfaces for load/save */
 /* {{{ load */
-int mmt_vec_load_stream(pi_file_handle f, mmt_vec_ptr v, unsigned int itemsondisk)
+int mmt_vec_load(mmt_vec_ptr v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
     ASSERT_ALWAYS(v != NULL);
     serialize(v->pi->m);
+    int tcan_print = v->pi->m->trank == 0 && v->pi->m->jrank == 0;
+
+    ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
+
+    mpz_t p;
+    mpz_init(p);
+    v->abase->field_characteristic(v->abase, p);
+    int char2 = mpz_cmp_ui(p, 2) == 0;
+    mpz_clear(p);
+    int splitwidth = char2 ? 64 : 1;
+    unsigned int Adisk_width = splitwidth;
+    unsigned int Adisk_multiplex = v->abase->simd_groupsize(v->abase) / Adisk_width;
+
     size_t sizeondisk = v->abase->vec_elt_stride(v->abase, itemsondisk);
     void * mychunk = mmt_my_own_subvec(v);
     size_t mysize = mmt_my_own_size_in_bytes(v);
-    ssize_t s = pi_file_read(f, mychunk, mysize, sizeondisk);
-    int ok =  s >= 0 && (size_t) s == sizeondisk;
-    v->consistency = ok;
-    /* not clear it's useful, but well. */
-    if (ok) mmt_vec_broadcast(v);
-    serialize_threads(v->pi->m);
-    return ok;
-}
-int mmt_vec_load(mmt_vec_ptr v, const char * filename, unsigned int itemsondisk)
-{
-    ASSERT_ALWAYS(v != NULL);
-    serialize(v->pi->m);
+    size_t bigstride = v->abase->vec_elt_stride(v->abase, 1);
+    size_t smallstride = bigstride / Adisk_multiplex;
 
-    pi_file_handle f;
-    int ok = pi_file_open(f, v->pi, v->d, filename, "rb");
-    if (ok) {
-        ok = mmt_vec_load_stream(f, v, itemsondisk);
-        pi_file_close(f);
-    }
-    if (!ok) {
-        if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
-            fprintf(stderr, "ERROR: failed to load %s\n", filename);
+    int global_ok = 1;
+
+    for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
+        unsigned int b0 = block_position + b * Adisk_width;
+        char * filename;
+        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        double tt = -wct_seconds();
+        if (tcan_print) {
+            printf("Loading %s ...", filename);
+            fflush(stdout);
         }
-        if (v->pi->m->trank == 0)
-            MPI_Abort(v->pi->m->pals, EXIT_FAILURE);
+        pi_file_handle f;
+        int ok = pi_file_open(f, v->pi, v->d, filename, "rb");
+        /* "ok" is globally consistent after pi_file_open */
+        if (!ok) {
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to load %s: %s\n", filename, strerror(errno));
+            }
+        } else {
+            ASSERT_ALWAYS(v != NULL);
+            serialize(v->pi->m);
+            ssize_t s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
+                    bigstride, b * smallstride, (b+1) * smallstride);
+            int ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            /* "ok" is globally consistent after pi_file_read_chunk */
+            if (!ok) {
+                if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                    fprintf(stderr, "ERROR: failed to load %s: short read, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                }
+            }
+            v->consistency = ok;
+            /* not clear it's useful, but well. */
+            if (ok) mmt_vec_broadcast(v);
+            serialize_threads(v->pi->m);
+            pi_file_close(f);
+        }
+        free(filename);
+        tt += wct_seconds();
+        if (ok && tcan_print) {
+            char buf[20], buf2[20];
+            printf(" done [%s in %.2fs, %s/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex, buf),
+                    tt,
+                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+        }
+        global_ok = global_ok && ok;
     }
+
     serialize_threads(v->pi->m);
-    return ok;
+    return global_ok;
 }
 /* }}} */
 /* {{{ save */
-int mmt_vec_save_stream(pi_file_handle f, mmt_vec_ptr v, unsigned int itemsondisk)
+int mmt_vec_save(mmt_vec_ptr v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
-    ASSERT_ALWAYS(v != NULL);
-    ASSERT_ALWAYS(v->consistency == 2);
     serialize_threads(v->pi->m);
+    int tcan_print = v->pi->m->trank == 0 && v->pi->m->jrank == 0;
+
+    ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
+
+    mpz_t p;
+    mpz_init(p);
+    v->abase->field_characteristic(v->abase, p);
+    int char2 = mpz_cmp_ui(p, 2) == 0;
+    mpz_clear(p);
+    int splitwidth = char2 ? 64 : 1;
+    unsigned int Adisk_width = splitwidth;
+    unsigned int Adisk_multiplex = v->abase->simd_groupsize(v->abase) / Adisk_width;
+
     size_t sizeondisk = v->abase->vec_elt_stride(v->abase, itemsondisk);
     void * mychunk = mmt_my_own_subvec(v);
     size_t mysize = mmt_my_own_size_in_bytes(v);
-    ssize_t s = pi_file_write(f, mychunk, mysize, sizeondisk);
-    serialize_threads(v->pi->m);
-    return s >= 0 && (size_t) s == sizeondisk;
-}
-int mmt_vec_save(mmt_vec_ptr v, const char * filename, unsigned int itemsondisk)
-{
-    serialize_threads(v->pi->m);
+    size_t bigstride = v->abase->vec_elt_stride(v->abase, 1);
+    size_t smallstride = bigstride / Adisk_multiplex;
 
-    pi_file_handle f;
-    int ok = pi_file_open(f, v->pi, v->d, filename, "wb");
-    if (ok) {
-        ok = mmt_vec_save_stream(f, v, itemsondisk);
-        pi_file_close(f);
-    }
-    if (!ok) {
-        if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
-            fprintf(stderr, "WARNING: failed to save %s\n", filename);
-            unlink(filename);
+    int global_ok = 1;
+
+    for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
+        unsigned int b0 = block_position + b * Adisk_width;
+        char * filename;
+        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        char * tmpfilename;
+        asprintf(&tmpfilename, "%s.tmp", filename);
+        double tt = -wct_seconds();
+        if (tcan_print) {
+            printf("Saving %s ...", filename);
+            fflush(stdout);
         }
+        pi_file_handle f;
+        int ok = pi_file_open(f, v->pi, v->d, tmpfilename, "wb");
+        /* "ok" is globally consistent after pi_file_open */
+        if (!ok) {
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "WARNING: failed to save %s: %s\n", filename, strerror(errno));
+                unlink(tmpfilename);    // just in case
+            }
+        } else {
+            ASSERT_ALWAYS(v != NULL);
+            ASSERT_ALWAYS(v->consistency == 2);
+            serialize_threads(v->pi->m);
+            ssize_t s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
+                    bigstride, b * smallstride, (b+1) * smallstride);
+            serialize_threads(v->pi->m);
+            ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            /* "ok" is globally consistent after pi_file_write_chunk */
+            if (!ok && v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to save %s: short write, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+            }
+            ok = pi_file_close(f);
+            if (!ok && v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to save %s: failed fclose, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+            }
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                ok = rename(tmpfilename, filename) == 0;
+                if (!ok) {
+                    fprintf(stderr, "ERROR: failed to save %s: failed rename, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                }
+            }
+            pi_bcast(&ok, 1, BWC_PI_INT, 0, 0, v->pi->m);
+        }
+        free(filename);
+        free(tmpfilename);
+        tt += wct_seconds();
+        if (tcan_print) {
+            char buf[20], buf2[20];
+            printf(" done [%s in %.2fs, %s/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex, buf),
+                    tt,
+                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+        }
+        global_ok = global_ok && ok;
     }
+
     serialize_threads(v->pi->m);
-    return ok;
+    return global_ok;
 }
 /* }}} */
 /* }}} */
@@ -2187,7 +2277,7 @@ void matmul_top_mul_comm(mmt_vec_ptr v, mmt_vec_ptr w)
 // Doing a mmt_vec_broadcast columns will ensure that each row contains
 // the complete data set for our vector.
 
-void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename, unsigned int itemsondisk, gmp_randstate_t rstate)
+void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_pattern, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position)
 {
     /* FIXME: this generates the complete vector on rank 0, saves it, and
      * loads it again. But I'm a bit puzzled by the choice of saving a
@@ -2195,29 +2285,64 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename, unsig
      * incorrect, we want n0[!d] here.
      */
     mpfq_vbase_ptr A = v->abase;
-    pi_datatype_ptr A_pi = v->pitype;
     parallelizing_info_ptr pi = v->pi;
+    int tcan_print = v->pi->m->trank == 0 && v->pi->m->jrank == 0;
 
-    if (pi->m->trank == 0) {
-        void * y;
-        cheating_vec_init(A, &y, v->n);
-        A->vec_set_zero(A, y, v->n);
-        /* we generate garbage for the padding coordinates too, but
-         * that's not really an issue since that does not get written,
-         * thanks to itemsondisk conveying the info about the correct
-         * size
-         */
-        A->vec_random(A, y, v->n, rstate);
-        int err = MPI_Bcast(y, v->n, A_pi->datatype, 0, pi->m->pals);
-        ASSERT_ALWAYS(!err);
-        FILE * f = fopen(filename, "wb");
-        ASSERT_ALWAYS(f);
-        int rc = fwrite(y, A->vec_elt_stride(A,1), itemsondisk, f);
-        ASSERT_ALWAYS(rc == (int) itemsondisk);
-        fclose(f);
-        cheating_vec_clear(A, &y, v->n);
+    mpz_t p;
+    mpz_init(p);
+    v->abase->field_characteristic(v->abase, p);
+    int char2 = mpz_cmp_ui(p, 2) == 0;
+    mpz_clear(p);
+    int splitwidth = char2 ? 64 : 1;
+    unsigned int Adisk_width = splitwidth;
+    unsigned int Adisk_multiplex = v->abase->simd_groupsize(v->abase) / Adisk_width;
+
+    ASSERT_ALWAYS(itemsondisk % Adisk_multiplex == 0);
+    unsigned int loc_itemsondisk = itemsondisk / Adisk_multiplex;
+
+    if (pi->m->trank == 0 && pi->m->jrank == 0) {
+        for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
+            unsigned int b0 = block_position + b * Adisk_width;
+            char * filename;
+            asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+
+            /* we want to create v->n / Adisk_multiplex entries --
+             * but we can't do that with access to just A. So we
+             * generate slightly more, and rely on itemsondisk to do
+             * the job of properly cutting the overflowing data.
+             */
+
+            size_t nitems = iceildiv(v->n, Adisk_multiplex);
+            void * y;
+            cheating_vec_init(A, &y, nitems);
+            A->vec_set_zero(A, y, nitems);
+            A->vec_random(A, y, nitems, rstate);
+            double tt = -wct_seconds();
+            if (tcan_print) {
+                printf("Creating fake vector %s...", filename);
+                fflush(stdout);
+            }
+            FILE * f = fopen(filename, "wb");
+            ASSERT_ALWAYS(f);
+            int rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
+            ASSERT_ALWAYS(rc == (int) loc_itemsondisk);
+            fclose(f);
+            tt += wct_seconds();
+            if (tcan_print) {
+                size_t sizeondisk = A->vec_elt_stride(A, loc_itemsondisk);
+                char buf[20], buf2[20];
+                printf(" done [%s in %.2fs, %s/s]\n",
+                        size_disp(sizeondisk / Adisk_multiplex, buf),
+                        tt,
+                        size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+            }
+            cheating_vec_clear(A, &y, v->n);
+
+            free(filename);
+        }
     }
-    mmt_vec_load(v, filename, itemsondisk);
+    int ok = mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
+    ASSERT_ALWAYS(ok);
 }
 
 unsigned long mmt_vec_hamming_weight(mmt_vec_ptr y) {
@@ -2306,6 +2431,26 @@ void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int
         serialize_threads(y->pi->wr[y->d]);
 }
 
+/* Set to the zero vector, except for the first n entries that are taken
+ * from the vector v
+ */
+void mmt_vec_set_expanded_copy_of_local_data(mmt_vec_ptr y, const void * v, unsigned int n)
+{
+    int shared = !y->siblings;
+    mpfq_vbase_ptr A = y->abase;
+    mmt_full_vec_set_zero(y);
+    if (!shared || y->pi->wr[y->d]->trank == 0) {
+        for(unsigned int i = y->i0 ; i < y->i1 && i < n ; i++) {
+            A->set(A,
+                    A->vec_coeff_ptr(A, y->v, i - y->i0),
+                    A->vec_coeff_ptr_const(A, v, i));
+        }
+    }
+    y->consistency=2;
+    if (shared)
+        serialize_threads(y->pi->wr[y->d]);
+}
+
 
 
 /**********************************************************************/
@@ -2332,10 +2477,7 @@ static char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx
     return res;
 }
 
-/* return an allocated string with the name of a balancing file for this
- * matrix and this mpi/thr split.
- */
-static char* matrix_get_derived_balancing_filename(const char * matrixname, parallelizing_info_ptr pi)
+static char* matrix_get_derived_cache_subdir(const char * matrixname, parallelizing_info_ptr pi)
 {
     /* input is NULL in the case of random matrices */
     if (!matrixname) return NULL;
@@ -2351,9 +2493,38 @@ static char* matrix_get_derived_balancing_filename(const char * matrixname, para
     } else {
         t++;
     }
-    int rc = asprintf(&t, "%s.%ux%u.bin", t, nh, nv);
+    int rc = asprintf(&t, "%s.%ux%u", t, nh, nv);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
+    return t;
+}
+
+static void matrix_create_derived_cache_subdir(const char * matrixname, parallelizing_info_ptr pi)
+{
+    char * d = matrix_get_derived_cache_subdir(matrixname, pi);
+    struct stat sbuf[1];
+    int rc = stat(d, sbuf);
+    if (rc < 0 && errno == ENOENT) {
+        rc = mkdir(d, 0777);
+        if (rc < 0 && errno != EEXIST) {
+            fprintf(stderr, "mkdir(%s): %s\n", d, strerror(errno));
+        }
+    }
+    free(d);
+}
+
+/* return an allocated string with the name of a balancing file for this
+ * matrix and this mpi/thr split.
+ */
+static char* matrix_get_derived_balancing_filename(const char * matrixname, parallelizing_info_ptr pi)
+{
+    /* input is NULL in the case of random matrices */
+    if (!matrixname) return NULL;
+    char * dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    char * t;
+    int rc = asprintf(&t, "%s/%s.bin", dn, dn);
+    free(dn);
+    ASSERT_ALWAYS(rc >=0);
     return t;
 }
 
@@ -2361,8 +2532,6 @@ static char* matrix_get_derived_cache_filename_stem(const char * matrixname, par
 {
     /* input is NULL in the case of random matrices */
     if (!matrixname) return NULL;
-    unsigned int nh = pi->wr[1]->totalsize;
-    unsigned int nv = pi->wr[0]->totalsize;
     char * copy = strdup(matrixname);
     char * t;
     if (strlen(copy) > 4 && strcmp((t = copy + strlen(copy) - 4), ".bin") == 0) {
@@ -2378,7 +2547,9 @@ static char* matrix_get_derived_cache_filename_stem(const char * matrixname, par
         pi_comm_ptr wr = pi->wr[d];
         pos[d] = wr->jrank * wr->ncores + wr->trank;
     }
-    int rc = asprintf(&t, "%s.%ux%u.%08" PRIx32 ".h%d.v%d", t, nh, nv, checksum, pos[1], pos[0]);
+    char * dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    int rc = asprintf(&t, "%s/%s.%08" PRIx32 ".h%d.v%d", dn, dn, checksum, pos[1], pos[0]);
+    free(dn);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
     return t;
@@ -2388,8 +2559,6 @@ static char* matrix_get_derived_submatrix_filename(const char * matrixname, para
 {
     /* input is NULL in the case of random matrices */
     if (!matrixname) return NULL;
-    unsigned int nh = pi->wr[1]->totalsize;
-    unsigned int nv = pi->wr[0]->totalsize;
     char * copy = strdup(matrixname);
     char * t;
     if (strlen(copy) > 4 && strcmp((t = copy + strlen(copy) - 4), ".bin") == 0) {
@@ -2405,7 +2574,9 @@ static char* matrix_get_derived_submatrix_filename(const char * matrixname, para
         pi_comm_ptr wr = pi->wr[d];
         pos[d] = wr->jrank * wr->ncores + wr->trank;
     }
-    int rc = asprintf(&t, "%s.%ux%u.h%d.v%d.bin", t, nh, nv, pos[1], pos[0]);
+    char * dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    int rc = asprintf(&t, "%s/%s.h%d.v%d.bin", dn, dn, pos[1], pos[0]);
+    free(dn);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
     return t;
@@ -2434,6 +2605,8 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data_ptr mmt, int i
                     /* withcoeffs being a switch for param_list, it is
                      * clobbered by the configure_switch mechanism */
                     mba.withcoeffs = !is_char2(mmt->abase);
+                    matrix_create_derived_cache_subdir(Mloc->mname, mmt->pi);
+
                     mf_bal(&mba);
                 } else {
                     fprintf(stderr, "Cannot access balancing file %s: %s\n", Mloc->bname, strerror(errno));
@@ -2815,14 +2988,41 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
             printf("Now trying to load matrix cache files\n");
         }
         if (sqread) {
-            for(unsigned int j = 0 ; j < mmt->pi->m->ncores ; j++) {
+            for(unsigned int j = 0 ; j < mmt->pi->m->ncores ; j += sqread) {
                 serialize_threads(mmt->pi->m);
-                if (j == mmt->pi->m->trank) {
+                double t_read = -wct_seconds();
+                if (j / sqread == mmt->pi->m->trank / sqread)
                     cache_loaded = matmul_reload_cache(Mloc->mm);
+                serialize(mmt->pi->m);
+                t_read += wct_seconds();
+                if (mmt->pi->m->jrank == 0 && mmt->pi->m->trank == j && cache_loaded) {
+                    printf("[%s] J%uT%u-%u: read cache %s (and others) in %.2fs (round %u/%u)\n",
+                    mmt->pi->nodenumber_s,
+                    mmt->pi->m->jrank,
+                    mmt->pi->m->trank,
+                    MIN(mmt->pi->m->ncores, mmt->pi->m->trank + sqread) - 1,
+                    Mloc->mm->cachefile_name,
+                    t_read,
+                    j / sqread, iceildiv(mmt->pi->m->ncores, sqread)
+                    );
                 }
             }
         } else {
+            double t_read = -wct_seconds();
             cache_loaded = matmul_reload_cache(Mloc->mm);
+            serialize(mmt->pi->m);
+            t_read += wct_seconds();
+            if (mmt->pi->m->jrank == 0 && mmt->pi->m->trank == 0 && cache_loaded) {
+                printf("[%s] J%u: read cache %s (and others) in %.2fs\n",
+                        mmt->pi->nodenumber_s,
+                        mmt->pi->m->jrank,
+                        Mloc->mm->cachefile_name,
+                        t_read
+                      );
+            }
+        }
+        if (!mmt->pi->m->trank) {
+            printf("J%u %s done reading (result=%d)\n", mmt->pi->m->jrank, mmt->pi->nodename, cache_loaded);
         }
     }
 
@@ -2877,6 +3077,15 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
             if (can_print) {
                 printf("Matrix dispatching starts\n");
             }
+
+            /* It might be that the leader and the other nodes do _not_
+             * share a common filesystem, in which case we must do this
+             * also here.
+             */
+            if (mmt->pi->m->trank == 0)
+                matrix_create_derived_cache_subdir(Mloc->mname, mmt->pi);
+            serialize_threads(mmt->pi->m);
+
             balancing_get_matrix_u32(mmt->pi, pl, m);
 
             int ssm = 0;
@@ -2892,6 +3101,16 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
         }
     }
 
+    if (can_print && Mloc->bname) {
+        balancing bal;
+        balancing_init(bal);
+        balancing_read_header(bal, Mloc->bname);
+        balancing_set_row_col_count(bal);
+        printf("Matrix: total %" PRIu32 " rows %" PRIu32 " cols "
+                "%" PRIu64 " coeffs\n",
+                bal->h->nrows, bal->h->ncols, bal->h->ncoeffs);
+        balancing_clear(bal);
+    }
 
     if (!sqb) {
         if (!cache_loaded) {
@@ -2906,10 +3125,12 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
             matmul_save_cache(Mloc->mm);
         }
     } else {
-        for(unsigned int j = 0 ; j < mmt->pi->m->ncores + 1 ; j++) {
+        if (can_print)
+            printf("Building local caches %d at a time\n", sqb);
+        for(unsigned int j = 0 ; j < mmt->pi->m->ncores + sqb ; j += sqb) {
             serialize_threads(mmt->pi->m);
             if (cache_loaded) continue;
-            if (j == mmt->pi->m->trank) {
+            if (j / sqb == mmt->pi->m->trank / sqb) {
                 if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO))
                     printf("[%s] J%uT%u building cache for %s\n",
                             mmt->pi->nodenumber_s,
@@ -2917,11 +3138,12 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
                             mmt->pi->m->trank,
                             Mloc->locfile);
                 matmul_build_cache(Mloc->mm, m);
-            } else if (j == mmt->pi->m->trank + 1) {
+            } else if (j / sqb == mmt->pi->m->trank / sqb + 1) {
                 matmul_save_cache(Mloc->mm);
             }
         }
     }
+
     /* see remark in raw_matrix_u32.h about data ownership for type
      * matrix_u32 */
 
@@ -2941,6 +3163,25 @@ void matmul_top_report(matmul_top_data_ptr mmt, double scale)
     for(int midx = 0 ; midx < mmt->nmatrices ; midx++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[midx];
         matmul_report(Mloc->mm, scale);
+        size_t max_report_size = 0;
+        pi_allreduce(&Mloc->mm->report_string_size, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX, mmt->pi->m);
+        char * all_reports = malloc(mmt->pi->m->totalsize * max_report_size);
+        memset(all_reports, 0, mmt->pi->m->totalsize * max_report_size);
+        memcpy(all_reports + max_report_size * (mmt->pi->m->jrank * mmt->pi->m->ncores + mmt->pi->m->trank), Mloc->mm->report_string, Mloc->mm->report_string_size);
+        pi_allgather(NULL, 0, 0,
+                all_reports, max_report_size, BWC_PI_BYTE, mmt->pi->m);
+
+        if (max_report_size > 1 && mmt->pi->m->jrank == 0 && mmt->pi->m->trank == 0) {
+            for(unsigned int j = 0 ; j < mmt->pi->m->njobs ; j++) {
+                for(unsigned int t = 0 ; t < mmt->pi->m->ncores ; t++) {
+                    char * locreport = all_reports + max_report_size * (j * mmt->pi->m->ncores + t);
+                    printf("##### J%uT%u timing report:\n%s",
+                            j, t, locreport);
+                }
+            }
+        }
+        serialize(mmt->pi->m);
+        free(all_reports);
     }
 }
 

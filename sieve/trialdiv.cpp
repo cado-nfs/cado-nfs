@@ -4,9 +4,9 @@
 #if VERBOSE
 #include <stdio.h>
 #endif
-#include <stdlib.h>
-#include <limits.h>
-#include <math.h>
+#include <cstdlib>
+#include <climits>
+#include <cmath>
 #include "ularith.h"
 #include "modredc_ul.h"
 #include "trialdiv.hpp"
@@ -15,7 +15,7 @@
 /* shortcoming of C++11. C++17 would (I think) allow this be defined
  * directly in the struct body and get a real compile-time constant,
  * without the need for an out-of-class definition. However, on top of
- * that, clang complaints on sqrt not being constexp, which is a bit
+ * that, clang complaints on sqrt not being constexpr, which is a bit
  * weird given that the prototype appears to mention it as being
  * constexpr. Anyway.
  */
@@ -25,6 +25,7 @@ unsigned long trialdiv_data::max_p =
                 std::min(
                         (unsigned long) (std::sqrt(ULONG_MAX / (TRIALDIV_MAXLEN - 1)) - 1),
                         ULONG_MAX);
+/* clang warns on this with ABI=32 (division by zero undefined). Compiler bug */
 
 static void
 trialdiv_init_divisor (trialdiv_divisor_t *d, const unsigned long p)

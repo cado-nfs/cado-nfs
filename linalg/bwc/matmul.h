@@ -72,6 +72,9 @@ struct matmul_public_s {
      * is not required to match the on-disk structure exactly.
      */
 #endif  /* BUILD_DYNAMICALLY_LINKABLE_BWC */
+
+    char * report_string;
+    size_t report_string_size;
 };
 
 

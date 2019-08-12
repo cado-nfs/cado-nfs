@@ -1,11 +1,11 @@
 #include "cado.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <unistd.h>
-#include <limits.h>
+#include <climits>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <vector>
 #include <array>
 #include <set>
@@ -30,10 +30,12 @@
 using namespace std;
 
 struct sfile_info {/*{{{*/
+    unsigned int s0,s1;
     unsigned int iter0;
     unsigned int iter1;
     char name[NAME_MAX];
-    static bool match(sfile_info& v, const char * name, unsigned int sol0, unsigned int sol1) {
+    char name_pattern[NAME_MAX];
+    static bool match(sfile_info& v, const char * name) {
         int k;
         int rc;
         unsigned int s0,s1;
@@ -41,19 +43,28 @@ struct sfile_info {/*{{{*/
         rc = sscanf(name, "S.sols%u-%u.%u-%u%n", &s0, &s1, &iter0, &iter1, &k);
         if (rc < 4 || k != (int) strlen(name))
             return false;
-        if (s0 != sol0 || s1 != sol1)
-            return false;
+        v.s0 = s0;
+        v.s1 = s1;
         v.iter0 = iter0;
         v.iter1 = iter1;
         size_t res = strlcpy(v.name, name, NAME_MAX);
         ASSERT_ALWAYS(res < NAME_MAX);
+        snprintf(v.name_pattern, sizeof(name_pattern), "S.sols%%u-%%u.%u-%u", iter0, iter1);
         return true;
     }
 };/*}}}*/
 
 static bool operator<(sfile_info const & a, sfile_info const & b)/*{{{*/
 {
-    return a.iter1 < b.iter1;
+    if (a.iter1 < b.iter1) return true;
+    if (a.iter1 > b.iter1) return false;
+    if (a.iter0 < b.iter0) return true;
+    if (a.iter0 > b.iter0) return false;
+    if (a.s1 < b.s1) return true;
+    if (a.s1 > b.s1) return false;
+    if (a.s0 < b.s0) return true;
+    if (a.s0 > b.s0) return false;
+    return false;
 }/*}}}*/
 
 int exitcode = 0;
@@ -61,6 +72,8 @@ int exitcode = 0;
 vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
 {
     int leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int splitwidth = char2 ? 64 : 1;
     vector<sfile_info> res;
     serialize_threads(pi->m);
     if (leader) {
@@ -69,7 +82,7 @@ vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
         struct dirent * de;
         for( ; (de = readdir(dir)) != NULL ; ) {
             sfile_info sf;
-            if (!sfile_info::match(sf, de->d_name, bw->solutions[0], bw->solutions[1]))
+            if (!sfile_info::match(sf, de->d_name))
                 continue;
             res.push_back(sf);
             if (bw->interval && sf.iter1 % bw->interval != 0) {
@@ -81,13 +94,36 @@ vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
             }
         }
         closedir(dir);
-
         sort(res.begin(), res.end());
+
+        vector<sfile_info> res2;
+        auto it = res.begin();
+        for( ; it < res.end() ; ) {
+            if (it->s0 < bw->solutions[0] || it->s0 >= bw->solutions[1]) {
+                it++;
+                continue;
+            }
+            /* try to read a complete set of files at this iteration */
+            unsigned int x = bw->solutions[0];
+            unsigned int z = bw->solutions[1];
+            bool ok = true;
+            auto current = *it;
+            for(unsigned int y ; ok && x < z ; x = y, it++) {
+                y = x + splitwidth;
+                ok = it->s0 == x && it->s1 == y;
+            }
+            if (ok) {
+                current.s0 = bw->solutions[0];
+                current.s1 = bw->solutions[1];
+                res2.push_back(current);
+            }
+        }
+        std::swap(res, res2);
 
         unsigned int prev_iter = 0;
         for(size_t i = 0 ; i < res.size() ; i++) {
             sfile_info const & cur(res[i]);
-            if (cur.iter0 != prev_iter) {
+            if (cur.iter0 && cur.iter0 != prev_iter) {
                 fprintf(stderr, "Within the set of S files, file "
                         "%s seems to be the first "
                         "to come after iteration %u, therefore there is "
@@ -370,10 +406,12 @@ struct rhs /*{{{*/ {
     mpfq_vbase_ptr A;
     unsigned int nrhs;
     void * rhscoeffs;
+    abase_proxy natural;
+    mpfq_vbase_ptr Av;
 
     rhs(rhs const&) = delete;
 
-    rhs(matmul_top_data_ptr mmt, const char * rhs_name, unsigned int solutions[2]) : mmt(mmt), A(mmt->abase) /* {{{ */
+    rhs(matmul_top_data_ptr mmt, const char * rhs_name, unsigned int solutions[2]) : mmt(mmt), A(mmt->abase), natural(abase_proxy::most_natural(mmt->pi)) /* {{{ */
     {
         nrhs = 0;
         rhscoeffs = NULL;
@@ -384,9 +422,14 @@ struct rhs /*{{{*/ {
         int tcan_print = bw->can_print && pi->m->trank == 0;
         int leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
+        /* This is just for a check -- in truth, it might be that the
+         * code here works correctly for inhomogeneous characteristic 2,
+         * but that would be pure chance, as it was never tested */
         int char2 = mpz_cmp_ui(bw->p, 2) == 0;
         ASSERT_ALWAYS(!char2);
         ASSERT_ALWAYS(A->simd_groupsize(A) == 1);
+
+        Av = natural.A;
 
         if (leader)
             get_rhs_file_header(rhs_name, NULL, &nrhs, NULL);
@@ -411,25 +454,35 @@ struct rhs /*{{{*/ {
 
         if (leader) {
             int splitwidth = char2 ? 64 : 1;
-            unsigned int Av_width = splitwidth;
+            ASSERT_ALWAYS(Av->simd_groupsize(Av) == splitwidth);
+
+            if (char2 || solutions[1] != solutions[0] + splitwidth) {
+                ASSERT_ALWAYS(0);/* never tested. I did attempt to code it right for the simd case though, but did not test. */
+            }
+            unsigned int Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
             for(unsigned int j = 0 ; j < nrhs ; j++) {
-                char * tmp;
-                int rc = asprintf(&tmp, "F.sols%u-%u.%u-%u.rhs", solutions[0], solutions[1], j, j+Av_width);
-                if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                    printf("loading %s\n", tmp);
+                for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
+                    char * tmp;
+                    unsigned int s0 = solutions[0] + i * splitwidth;
+                    unsigned int s1 = solutions[0] + (i + 1) * splitwidth;
+                    int rc = asprintf(&tmp, "F.sols%u-%u.%u-%u.rhs", s0, s1, j, j+splitwidth);
+                    if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
+                        printf("loading %s\n", tmp);
+                    }
+                    ASSERT_ALWAYS(rc >= 0);
+                    FILE * f = fopen(tmp, "rb");
+                    ASSERT_ALWAYS(f);
+                    rc = fread(
+                            Av->vec_subvec(Av, rhscoeffs, j * Av_multiplex + i),
+                            Av->vec_elt_stride(Av,1),
+                            1, f);
+                    ASSERT_ALWAYS(rc == 1);
+                    if (Av->is_zero(Av, Av->vec_coeff_ptr_const(Av, rhscoeffs, j * Av_multiplex + i))) {
+                        printf("Notice: coefficient for vector V%u-%u in file %s is zero\n", j, j+1, tmp);
+                    }
+                    fclose(f);
+                    free(tmp);
                 }
-                ASSERT_ALWAYS(rc >= 0);
-                FILE * f = fopen(tmp, "rb");
-                rc = fread(
-                        A->vec_subvec(A, rhscoeffs, j),
-                        A->vec_elt_stride(A,1),
-                        1, f);
-                ASSERT_ALWAYS(rc == 1);
-                if (A->is_zero(A, A->vec_coeff_ptr_const(A, rhscoeffs, j))) {
-                    printf("Notice: coefficient for vector V%u-%u in file %s is zero\n", j, j+1, tmp);
-                }
-                fclose(f);
-                free(tmp);
             }
         }
         pi_bcast(rhscoeffs, nrhs, mmt->pitype, 0, 0, pi->m);
@@ -439,10 +492,16 @@ struct rhs /*{{{*/ {
         if (rhscoeffs)
             cheating_vec_clear(A, &rhscoeffs, nrhs);
     }/*}}}*/
-    void fwrite_rhs_coeffs(FILE * f) /* {{{ */
+    void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) /* {{{ */
     {
-        int rc = fwrite(rhscoeffs, A->vec_elt_stride(A, 1), nrhs, f);
-        ASSERT_ALWAYS(rc == (int) nrhs);
+        unsigned int Av_multiplex = A->simd_groupsize(A) / Av->simd_groupsize(Av);
+        for(unsigned int j = 0 ; j < nrhs ; j++) {
+            int rc = fwrite(
+                    Av->vec_subvec(Av, rhscoeffs, j * Av_multiplex + i),
+                    Av->vec_elt_stride(Av,1),
+                    1, f);
+            ASSERT_ALWAYS(rc == 1);
+        }
     }/*}}}*/
     void fprint_rhs_coeffs(FILE * f2) /* {{{ */
     {
@@ -460,7 +519,6 @@ struct rhs /*{{{*/ {
         parallelizing_info_ptr pi = mmt->pi;
         mpfq_vbase_ptr A = mmt->abase;
         ASSERT_ALWAYS(y->abase == A);
-        int tcan_print = bw->can_print && pi->m->trank == 0;
         unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
         size_t eblock = mmt_my_own_size_in_items(y);
 
@@ -472,14 +530,8 @@ struct rhs /*{{{*/ {
         mmt_vec_init(mmt,Av,Av_pi, vi,bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            char * tmp;
-            int rc = asprintf(&tmp, "V%u-%u.0", j, j + 1);
-            ASSERT_ALWAYS(rc >= 0);
-            if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                printf("loading %s\n", tmp);
-            }
-            mmt_vec_load(vi, tmp, unpadded);
-            free(tmp);
+            int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
+            ASSERT_ALWAYS(ok);
 
             natural.templates(A)->addmul_tiny(Av, A, 
                     mmt_my_own_subvec(y),
@@ -490,6 +542,7 @@ struct rhs /*{{{*/ {
 
         mmt_vec_clear(mmt, vi);
 
+        /* addmul_tiny degrades consistency ! */
         y->consistency = 1;
         mmt_vec_broadcast(y);
         mmt_vec_reduce_mod_p(y);
@@ -1136,13 +1189,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     rhs R(mmt, param_list_lookup_string(pl, "rhs"), solutions);
 
-    char * kprefix;
-
     if (tcan_print)
         printf("Trying to build solutions %u..%u\n", solutions[0], solutions[1]);
-
-    int rc = asprintf(&kprefix, "K.sols%u-%u", solutions[0], solutions[1]);
-    ASSERT_ALWAYS(rc >= 0);
 
 
     { /* {{{ Collect now the sum of the LHS contributions */
@@ -1152,7 +1200,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                 printf("loading %s\n", sl[i].name);
             }
-            mmt_vec_load(svec, sl[i].name, unpadded);
+            int ok = mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
+            ASSERT_ALWAYS(ok);
 
             A->vec_add(A,
                     mmt_my_own_subvec(y), 
@@ -1238,10 +1287,10 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         /* {{{ save file. If input is zero, bail out */
         {
             char * tmp;
-            int rc = asprintf(&tmp, "%s%s.%d", input_is_zero ? "zero" : "",
-                    kprefix, i-1);
+            int rc = asprintf(&tmp, "%sK.sols%%u-%%u.%d", input_is_zero ? "zero" : "",
+                    i-1);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(y_saved, tmp, unpadded);
+            mmt_vec_save(y_saved, tmp, unpadded, solutions[0]);
             if (input_is_zero) {
                 if (tcan_print)
                     fprintf(stderr,
@@ -1255,15 +1304,20 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                             i-1,
                             bw->dir ? " * V" : "",
                             pad_is_zero ? "also" : "NOT");
-                if (tcan_print && !pad_is_zero)
+                if (tcan_print && !pad_is_zero) {
+                    char * tmp2;
+                    asprintf(&tmp2, tmp, solutions[0], solutions[1]);
                     fprintf(stderr,
                             "For reference, this useless vector (non-zero out, zero in) is stored in %s."
                             "\n",
-                            tmp);
+                            tmp2);
+                    free(tmp2);
+                }
                 serialize(pi->m);
                 pthread_mutex_lock(pi->m->th->m);
                 exitcode=1;
                 pthread_mutex_unlock(pi->m->th->m);
+                free(tmp);
                 return NULL;
             }
             free(tmp);
@@ -1323,63 +1377,67 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
          * winning_iter==0 always.
          */
         ASSERT_ALWAYS(winning_iter == 0 || !R);
-
-        char * tmp;
-        int rc = asprintf(&tmp, "%s.%u", kprefix, winning_iter);
-        ASSERT_ALWAYS(rc >= 0);
-        /* {{{ append the RHS coefficients if relevant */
-        if (R) {
-            printf("Expanding %s so as to include the coefficients for the %d RHS columns\n", tmp, R.nrhs);
-            FILE * f = fopen(tmp, "ab");
-            ASSERT_ALWAYS(f);
-            rc = fseek(f, 0, SEEK_END);
+        int splitwidth = char2 ? 64 : 1;
+        unsigned int Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
+        for(unsigned int i = 0 ; i < Av_multiplex ; ++i) {
+            unsigned int sol0 = solutions[0] + i * splitwidth;
+            unsigned int sol1 = sol0 + splitwidth;
+            char * tmp;
+            int rc = asprintf(&tmp, "K.sols%u-%u.%u", sol0, sol1, winning_iter);
             ASSERT_ALWAYS(rc >= 0);
-            R.fwrite_rhs_coeffs(f);
-            fclose(f);
-        }
-
-        printf("%s is now a %s nullspace vector for %s"
-                " (for a square M of dimension %" PRIu32"x%" PRIu32").\n",
-                tmp,
-                bw_dirtext[bw->dir],
-                R ? "(M|RHS)" : "M",
-                unpadded, unpadded);
-        /* }}} */
-
-        char * tmp2;
-        rc = asprintf(&tmp2, "%s.%u.txt", kprefix, winning_iter);
-        ASSERT_ALWAYS(rc >= 0);
-        /* {{{ write an ascii version while we're at it */
-        {
-            FILE * f  = fopen(tmp, "rb");
-            FILE * f2 = fopen(tmp2, "w");
-            ASSERT_ALWAYS(f);
-            ASSERT_ALWAYS(f2);
-            void * data = malloc(A->vec_elt_stride(A, 1));
-            for(uint32_t i = 0 ; i < mmt->n0[bw->dir] ; i++) {
-                size_t rc = fread(data, A->vec_elt_stride(A, 1), 1, f);
-                ASSERT_ALWAYS(rc == 1);
-                A->fprint(A, f2, data);
-                fprintf(f2, "\n");
+            /* {{{ append the RHS coefficients if relevant */
+            if (R) {
+                printf("Expanding %s so as to include the coefficients for the %d RHS columns\n", tmp, R.nrhs);
+                FILE * f = fopen(tmp, "ab");
+                ASSERT_ALWAYS(f);
+                rc = fseek(f, 0, SEEK_END);
+                ASSERT_ALWAYS(rc >= 0);
+                R.fwrite_rhs_coeffs(f, i);
+                fclose(f);
             }
-            free(data);
-            R.fprint_rhs_coeffs(f2);
-            fclose(f2);
-        }
 
-        printf("%s (in ascii) is now a %s nullspace vector for %s"
-                " (for the original M, of dimension %" PRIu32"x%" PRIu32").\n",
-                tmp2,
-                bw_dirtext[bw->dir],
-                R ? "(M|RHS)" : "M",
-                mmt->n0[0], mmt->n0[1]);
-        /* }}} */
-        free(tmp2);
-        free(tmp);
+            printf("%s is now a %s nullspace vector for %s"
+                    " (for a square M of dimension %" PRIu32"x%" PRIu32").\n",
+                    tmp,
+                    bw_dirtext[bw->dir],
+                    R ? "(M|RHS)" : "M",
+                    unpadded, unpadded);
+            /* }}} */
+
+            char * tmp2;
+            rc = asprintf(&tmp2, "K.sols%u-%u.%u.txt", sol0, sol0 + splitwidth, winning_iter);
+            ASSERT_ALWAYS(rc >= 0);
+            /* {{{ write an ascii version while we're at it */
+            {
+                FILE * f  = fopen(tmp, "rb");
+                FILE * f2 = fopen(tmp2, "w");
+                ASSERT_ALWAYS(f);
+                ASSERT_ALWAYS(f2);
+                void * data = malloc(A->vec_elt_stride(A, 1));
+                for(uint32_t i = 0 ; i < mmt->n0[bw->dir] ; i++) {
+                    size_t rc = fread(data, A->vec_elt_stride(A, 1) / Av_multiplex, 1, f);
+                    ASSERT_ALWAYS(rc == 1);
+                    A->fprint(A, f2, data);
+                    fprintf(f2, "\n");
+                }
+                free(data);
+                R.fprint_rhs_coeffs(f2);
+                fclose(f2);
+            }
+
+            printf("%s (in ascii) is now a %s nullspace vector for %s"
+                    " (for the original M, of dimension %" PRIu32"x%" PRIu32").\n",
+                    tmp2,
+                    bw_dirtext[bw->dir],
+                    R ? "(M|RHS)" : "M",
+                    mmt->n0[0], mmt->n0[1]);
+            /* }}} */
+            free(tmp2);
+            free(tmp);
+        }
     }
 
     serialize(pi->m);
-    free(kprefix);
 
     mmt_vec_clear(mmt, y_saved);
     mmt_vec_clear(mmt, y);
@@ -1424,8 +1482,10 @@ int main(int argc, char * argv[])
     param_list_lookup_string(pl, "rhscoeffs");
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(gather_prog, pl, 0);

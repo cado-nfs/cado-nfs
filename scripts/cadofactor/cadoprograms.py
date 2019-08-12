@@ -221,7 +221,7 @@ class Sha1Cache(object):
         # Check whether the file on disk changed
         if realpath in self._sha1 and not self._sha1[realpath][1] == file_id:
             logger = logging.getLogger("Sha1Cache")
-            logger.warn("File %s changed! Discarding old SHA1 sum", realpath)
+            logger.warning("File %s changed! Discarding old SHA1 sum", realpath)
             del(self._sha1[realpath])
         if not realpath in self._sha1:
             logger = logging.getLogger("Sha1Cache")
@@ -1056,6 +1056,7 @@ class SM(Program):
                  ell: Parameter(),
                  nsm: Parameter()=None,
                  threads: Parameter("t")=None,
+                 sm_mode: Parameter("sm-mode")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
  
@@ -1075,6 +1076,7 @@ class ReconstructLog(Program):
                  relsdel: Parameter(),
                  nrels: Parameter(),
                  partial: Toggle()=None,
+                 sm_mode: Parameter("sm-mode")=None,
                  nsm: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
@@ -1096,6 +1098,7 @@ class Descent(Program):
                  init_lim: Parameter("init-lim", prefix="--"),
                  init_mfb: Parameter("init-mfb", prefix="--"),
                  init_tkewness: Parameter("init-tkewness", prefix="--"),
+                 sm_mode: Parameter("sm-mode", prefix="--")=None,
                  I: Parameter(prefix="--"),
                  lpb0: Parameter(prefix="--"),
                  lpb1: Parameter(prefix="--"),

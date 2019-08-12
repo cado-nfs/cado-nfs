@@ -565,10 +565,13 @@ int main(int argc, char **argv) {
   printf("Total CPU time: %.1f s\n", ((double)(clock() - tm)) / CLOCKS_PER_SEC);
   free(thid);
   free(thparam);
-  cado_poly_clear(cpoly);
-  mpz_poly_clear(params.f);
+  if (gotpoly)
+    cado_poly_clear(cpoly);
+  if (jl) {
+    mpz_poly_clear(params.f);
+    mpz_clear(params.m);
+  }
   mpz_clear(params.p);
   mpz_clear(params.z);
-  mpz_clear(params.m);
   return EXIT_SUCCESS;
 }

@@ -860,12 +860,9 @@ namespace details {
             __m128i data[2];
 #endif
             elt() { zero(); }
-            elt(elt const& a) {
-                data[0] = a.data[0];
-#ifndef HAVE_AVX2
-                data[1] = a.data[1];
-#endif
-            }
+            elt(elt const& a) = default;
+            elt& operator=(elt const& a) = default;
+
             /* we do not construct (nor affect) from mpz, because we're not
              * positional */
             void zero() {

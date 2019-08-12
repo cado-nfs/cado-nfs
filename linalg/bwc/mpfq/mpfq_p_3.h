@@ -40,7 +40,13 @@
    vbase_stuff={
     choose_byfeatures=<code>,
     families=[
-     [ u64k1, u64k2, u64k3, u64k4, ],
+     [
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_1, tag=p_1, }, ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_10, tag=p_10, }, ],
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_11, tag=p_11, }, ],
@@ -59,6 +65,13 @@
      [ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_pz, tag=pz, }, ],
      ],
     member_templates_restrict={
+     m128=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      p_1=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_1, tag=p_1, }, ],
      p_10=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_10, tag=p_10, }, ],
      p_11=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_11, tag=p_11, }, ],
@@ -75,10 +88,34 @@
      p_8=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_8, tag=p_8, }, ],
      p_9=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_p_9, tag=p_9, }, ],
      pz=[ { cpp_ifdef=COMPILE_MPFQ_PRIME_FIELD_pz, tag=pz, }, ],
-     u64k1=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k2=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k3=[ u64k1, u64k2, u64k3, u64k4, ],
-     u64k4=[ u64k1, u64k2, u64k3, u64k4, ],
+     u64k1=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k2=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k3=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
+     u64k4=[
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_m128, tag=m128, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k1, tag=u64k1, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k2, tag=u64k2, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k3, tag=u64k3, },
+      { cpp_ifdef=COMPILE_MPFQ_BINARY_FIELD_u64k4, tag=u64k4, },
+      ],
      },
     vc:includes=[ <stdarg.h>, ],
     },
@@ -109,7 +146,6 @@
      [ (?^:mpfq_p_3_dst_poly\b), void *, ],
      ],
     },
-   vtag=p_3,
    w=64,
    } */
 
@@ -445,7 +481,7 @@ static inline
 void mpfq_p_3_simd_add_ui_at(mpfq_p_3_dst_field, mpfq_p_3_dst_elt, mpfq_p_3_src_elt, int, unsigned long);
 static inline
 void mpfq_p_3_simd_set_ui_all(mpfq_p_3_dst_field, mpfq_p_3_dst_elt, unsigned long);
-void mpfq_p_3_dotprod(mpfq_p_3_dst_field, mpfq_p_3_dst_vec, mpfq_p_3_src_vec, mpfq_p_3_src_vec, unsigned int);
+void mpfq_p_3_add_dotprod(mpfq_p_3_dst_field, mpfq_p_3_dst_vec, mpfq_p_3_src_vec, mpfq_p_3_src_vec, unsigned int);
 
 /* Member templates related to SIMD operation */
 

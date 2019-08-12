@@ -9,8 +9,6 @@ dev_docs/
 files.dist
 files.nodist
 files.unknown
-linalg/bwc/bind_threads.sh
-linalg/bwc/bwc.sty
 filter/merge_mpi.c
 filter/merge_mpi.h
 scripts/estimate_matsize.sh
@@ -145,8 +143,6 @@ scripts/make_graphs
 scripts/rsa704.test
 linalg/bwc/update-flint.sh
 linalg/bwc/parse-flint-fft-doc.pl
-linalg/bwc/creating-sm-example.m
-linalg/bwc/sm-outside-matrix.m
 sieve/strategies/script_bench.sh
 sieve/strategies/script_fm.sh
 sieve/strategies/script_mg.sh

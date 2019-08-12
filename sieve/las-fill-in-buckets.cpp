@@ -1056,7 +1056,7 @@ template <int LEVEL, typename TARGET_HINT>
 static void
 fill_in_buckets_one_side(nfs_work &ws, nfs_aux & aux, thread_pool &pool, const int side, where_am_I & w)
 {
-    timetree_t & timer(aux.timer_special_q);
+    timetree_t & timer(aux.rt.timer);
     nfs_work::side_data & wss(ws.sides[side]);
 
     /* We're just pushing tasks, here. */
@@ -1189,7 +1189,7 @@ downsort_tree_inner(
     where_am_I & w)
 {
     nfs_aux & aux(*aux_p);
-    timetree_t & timer(aux.timer_special_q);
+    timetree_t & timer(aux.rt.timer);
 
     typedef typename hints_proxy<WITH_HINTS>::l my_longhint_t;
     typedef typename hints_proxy<WITH_HINTS>::s my_shorthint_t;

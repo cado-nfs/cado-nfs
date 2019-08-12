@@ -434,8 +434,13 @@ struct small_sieve : public small_sieve_base {/*{{{*/
                     }
                     int c;
                     for(c = 1 ; c < (e-s) && !(s[c] < s[c-1]) ; c++);
-                    if (c <= 16)
-                        fprintf(stderr, "warning, the prime list looks really ugly\n");
+                    if (c <= 16) {
+                        if (s != s0) {
+                            /* s != s0 : cf mail ET->{PG,PZ} 201906071825
+                             */
+                            fprintf(stderr, "warning, the prime list looks really ugly\n");
+                        }
+                    }
                     /*
                     fprintf(stderr, "ssp entries [%zd..%zd[ (out of %zu) are sorted\n",
                             s-s0, s+c-s0, primes.size());

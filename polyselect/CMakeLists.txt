@@ -10,6 +10,8 @@ set (ropt_sources
 
 add_library(polyselect_common ${CADO_SHARED} auxiliary.c murphyE.c area.c size_optimization.c)
 add_executable (polyselect polyselect.c polyselect_str.c polyselect_arith.c ${ropt_sources})
+set_target_properties(polyselect PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 add_executable (polyselect_ropt ropt_main.c ${ropt_sources})
 set_target_properties(polyselect_ropt PROPERTIES

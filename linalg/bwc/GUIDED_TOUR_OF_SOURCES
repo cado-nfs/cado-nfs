@@ -1,3 +1,263 @@
+
+File listing, and purpose of each file (20190710)
+-------------------------------------------------
+
+Please always look up the history of each file to see how current it can
+possibly be. A file that has hardly been touched for many years is quite
+surely completely outdated.
+
+
+linalg/bwc/CMakeLists-nodist.txt
+linalg/bwc/CMakeLists.txt
+linalg/bwc/Makefile
+
+    => build system
+
+
+linalg/bwc/GUIDED_TOUR_OF_SOURCES
+linalg/bwc/README
+linalg/bwc/README.gfp
+
+    => some bits of documentation
+
+
+linalg/bwc/mpfq_layer.h
+linalg/bwc/mpfq/*
+
+    => low-level code that performs arithmetic in the base field. This is
+    aut-generated from mpfq, and in truth only a very tiny portion of
+    mpfq is actually used.
+
+
+linalg/bwc/arith-modp.hpp
+
+    => low-level arithmetic code used for operations modulo p when doing
+    linear algebra over prime fields
+
+
+linalg/bwc/matmul-basic.c
+linalg/bwc/matmul-basicp.cpp
+linalg/bwc/matmul-bucket.cpp
+linalg/bwc/matmul-common.c
+linalg/bwc/matmul-common.h
+linalg/bwc/matmul-libnames.h.in
+linalg/bwc/matmul-mf.c
+linalg/bwc/matmul-mf.h
+linalg/bwc/matmul-sliced.cpp
+linalg/bwc/matmul-sub-large-fbd.S
+linalg/bwc/matmul-sub-large-fbd.h
+linalg/bwc/matmul-sub-large-fbi.S
+linalg/bwc/matmul-sub-large-fbi.h
+linalg/bwc/matmul-sub-small1.S
+linalg/bwc/matmul-sub-small1.h
+linalg/bwc/matmul-sub-small2.S
+linalg/bwc/matmul-sub-small2.h
+linalg/bwc/matmul-sub-vsc-combine.S
+linalg/bwc/matmul-sub-vsc-combine.h
+linalg/bwc/matmul-sub-vsc-dispatch.S
+linalg/bwc/matmul-sub-vsc-dispatch.h
+linalg/bwc/matmul-threaded.c
+linalg/bwc/matmul-zone.cpp
+linalg/bwc/matmul.c
+linalg/bwc/matmul.h
+linalg/bwc/matmul_facade.c
+linalg/bwc/matmul_facade.h
+
+    => low-level code that creates the in-memory matrix cache for fast
+    matrix-times-vector evaluation. The important entry points are
+    linalg/bwc/matmul-bucket.cpp for matrices over GF(2) and
+    linalg/bwc/matmul-zone.cpp for matrices over GF(p)
+
+
+linalg/bwc/bench_matcache.c
+linalg/bwc/build_matcache.c
+
+    => utilities & bench code for the matrix cache ; this builds upon the
+    matmul_ files.
+
+
+linalg/bwc/balancing.c
+linalg/bwc/balancing.h
+linalg/bwc/intersections.c
+linalg/bwc/intersections.h
+linalg/bwc/balancing_curl_source.c
+linalg/bwc/balancing_curl_source.h
+linalg/bwc/balancing_data_source.h
+linalg/bwc/balancing_file_source.c
+linalg/bwc/balancing_file_source.h
+linalg/bwc/balancing_mpi_source.c
+linalg/bwc/balancing_mpi_source.h
+linalg/bwc/balancing_workhorse.c
+linalg/bwc/balancing_workhorse.h
+linalg/bwc/raw_matrix_u32.h
+linalg/bwc/mf.c
+linalg/bwc/mf.h
+linalg/bwc/mf_bal.c
+linalg/bwc/mf_bal.h
+linalg/bwc/mf_bal_main.c
+linalg/bwc/mf_scan.c
+linalg/bwc/mf_scan2.cpp
+
+    => code that implements the dispatching of matrix data to several
+    nodes. The balancing_curl_source code is mostly outdated. The mf_
+    files define some auxiliary binaries that are useful, even used in
+    test scripts.
+
+
+linalg/bwc/random_matrix.c
+linalg/bwc/random_matrix.h
+
+    => code to generate random matrices (including an API to do that on
+    the fly)
+
+
+linalg/bwc/parallelizing_info.c
+linalg/bwc/parallelizing_info.h
+
+    => backend that implements the hybrid MPI+threads computing model
+    used by bwc. Take it with a grain of salt: by the time it was
+    written, MPI-3 didn't exist, and this was the only way to go. Now
+    with the MPI-3 MPI_Win primitives, we would perhaps have been able to
+    do without all this complication.
+
+
+linalg/bwc/matmul_top.c
+linalg/bwc/matmul_top.h
+
+    => very important piece of code. This implements the parallel
+    matrix-times-vector operation.
+
+
+linalg/bwc/bwc.pl
+
+    => main driver scripts, prepares command lines for binaries.
+
+
+linalg/bwc/flint-fft/*
+linalg/bwc/test-flint.c
+linalg/bwc/update-flint.sh
+linalg/bwc/parse-flint-fft-doc.pl
+
+    => low-level arithmetic that is specific to the lingen part of BW,
+    and only over GF(p). This includes an ad hoc implementation of an FFT
+    caching interface.
+
+
+linalg/bwc/lingen-bigmatpoly-ft.c
+linalg/bwc/lingen-bigmatpoly-ft.h
+linalg/bwc/lingen-bigmatpoly.c
+linalg/bwc/lingen-bigmatpoly.h
+linalg/bwc/lingen-matpoly-ft.cpp
+linalg/bwc/lingen-matpoly-ft.h
+linalg/bwc/lingen-matpoly.c
+linalg/bwc/lingen-matpoly.h
+linalg/bwc/lingen-polymat.c
+linalg/bwc/lingen-polymat.h
+
+    => low-level arithmetic code that multiplies matrices of polynomials
+    over prime fields, used for lingen in BW over GF(p)
+
+
+linalg/bwc/strassen-thresholds.h
+linalg/bwc/lingen_mat_types.hpp
+
+    => low-level arithmetic code that deals with matrices of polynomials
+    over GF(2), used for lingen in BW over GF(2). The multiplication is
+    then forwarded to GF2X.
+
+
+linalg/bwc/lingen_qcode.c
+linalg/bwc/lingen_qcode.h
+linalg/bwc/lingen_qcode_do.cpp
+
+    => low-level arithmetic code that does the quadratic base case of BW
+    over GF(2)
+
+
+
+linalg/bwc/blocklanczos.c
+
+    => top-level implementation of block Lanczos (builds upon matmul_top,
+    really).
+
+
+linalg/bwc/cpubinding.cpp
+linalg/bwc/cpubinding.h
+linalg/bwc/worker-threads.c
+linalg/bwc/worker-threads.h
+
+    => used for threads. cpubinding plays an important role, while
+    worker-threads is actually mostly unused. most of the thread-level
+    stuff is handled by either parallelizing_info or openmp.
+
+
+linalg/bwc/async.c
+linalg/bwc/async.h
+linalg/bwc/logline.c
+linalg/bwc/logline.h
+linalg/bwc/tree_stats.cpp
+linalg/bwc/tree_stats.hpp
+
+    => utility code for printing intermediate timings (async.[ch]: per
+    iteration timings, e.g. in krylov and mksol ; logline.[ch] and
+    tree_stats.[ch]pp: used in (p)lingen).
+
+
+linalg/bwc/acollect.c
+
+    => utility code for stitching together all A files before calling
+    lingen. This should not exist.
+
+
+linalg/bwc/bw-common.c
+linalg/bwc/bw-common.h
+linalg/bwc/bwc_config_h.in
+linalg/bwc/cheating_vec_init.h
+linalg/bwc/rolling.c
+linalg/bwc/rolling.h
+linalg/bwc/xvectors.c
+linalg/bwc/xvectors.h
+linalg/bwc/xdotprod.c
+linalg/bwc/xdotprod.h
+
+    => utility files (from the most to the least general).
+
+
+linalg/bwc/dispatch.cpp
+linalg/bwc/prep.cpp
+linalg/bwc/secure.cpp
+linalg/bwc/krylov.cpp
+linalg/bwc/lingen_binary.cpp
+linalg/bwc/plingen-tuning.cpp
+linalg/bwc/plingen-tuning.h
+linalg/bwc/plingen.cpp
+linalg/bwc/plingen.h
+linalg/bwc/mksol.cpp
+linalg/bwc/gather.cpp
+linalg/bwc/cleanup.c
+linalg/bwc/bwccheck.cpp
+
+    => main code for the different binaries. See linalg/bwc/README
+
+
+linalg/bwc/README.TORQUE
+linalg/bwc/TODO
+linalg/bwc/lingen.txt
+    
+    => outdated documentation
+
+
+linalg/bwc/bcast-file.c
+
+    => debug/bench/example code to share a file across multiple nodes
+    over MPI. Can be handy in scripts.
+
+
+linalg/bwc/bench_polmatmul.cpp
+
+    => old bench code, being phased out.
+
+
 The pi_go() function
 --------------------
 

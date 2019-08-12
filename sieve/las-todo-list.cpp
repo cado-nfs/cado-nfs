@@ -33,6 +33,11 @@ static void next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsig
     next_legitimate_specialq(r, t, s, diff, L);
 }
 
+void las_todo_list::configure_switches(cxx_param_list & pl)
+{
+    param_list_configure_switch(pl, "-allow-compsq", NULL);
+    param_list_configure_switch(pl, "-print-todo-list", NULL);
+}
 
 void las_todo_list::declare_usage(cxx_param_list & pl)
 {
@@ -46,6 +51,7 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "allow-compsq", "allows composite special-q");
     param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
     param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
+    param_list_decl_usage(pl, "print-todo-list", "only print the special-q's to be sieved");
 }
 
 las_todo_list::~las_todo_list()
@@ -70,7 +76,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             exit(EXIT_FAILURE);
         }
         if (param_list_lookup_string(pl, "q1"))
-            verbose_output_print(0, 1, "Warning: argument -nq takes priority over -q1 ; -q1 ignored\n");
+            verbose_output_print(0, 1, "# Warning: argument -nq takes priority over -q1 ; -q1 ignored\n");
     }
 
     sqside = 1;
@@ -109,6 +115,8 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         fprintf(stderr, "-galois and -allow-compsq are incompatible options at the moment");
         exit(EXIT_FAILURE);
     }
+
+    print_todo_list = param_list_parse_switch(pl, "-print-todo-list");
 
     /* It's not forbidden to miss -q0 */
     param_list_parse_mpz(pl, "q0", q0);

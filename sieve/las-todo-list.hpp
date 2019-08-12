@@ -37,12 +37,14 @@ class las_todo_list : private std::stack<las_todo_entry> {
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
+    bool print_todo_list = false;
     uint64_t qfac_min = 1024;
     uint64_t qfac_max = UINT64_MAX;
 
     unsigned int nq_pushed = 0;
 
     /*{{{*/
+    size_t size() const { return super::size(); }
     void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
         std::lock_guard<std::mutex> foo(mm);
@@ -90,6 +92,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
         std::swap((super&)*this, x);
     }
 
+    static void configure_switches(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
 };
 

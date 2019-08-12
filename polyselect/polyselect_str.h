@@ -137,19 +137,13 @@ INLINE
 void
 shash_add (shash_t H, uint64_t i)
 {
-  /*
-  unsigned int j;
-  uint64_t **cur;
-  */
-
   *(H->current[i & (SHASH_NBUCKETS - 1)])++ = i;
-  /*
-  if (UNLIKELY(H->current[i & (SHASH_NBUCKETS - 1)] >= H->base[i & (SHASH_NBUCKETS - 1)]))
+  if (UNLIKELY(H->current[i & (SHASH_NBUCKETS - 1)] >= H->base[(i & (SHASH_NBUCKETS - 1)) + 1]))
     {
-      fprintf (stderr, "A Shash bucket is full.\n");
+      fprintf (stderr, "Shash bucket %" PRIu64 " is full.\n",
+               i & (SHASH_NBUCKETS - 1));
       exit (1);
     }
-  */
 }
 
 /* declarations */

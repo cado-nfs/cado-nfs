@@ -134,10 +134,7 @@ void print_all_sm(FILE *out, sm_side_info *sm_info, int nb_polys,
     if (sm_info[side]->nsm == 0)
       continue;
     if (c++) fprintf(out, " ");
-    print_sm (out,
-        sm[side],
-        sm_info[side]->nsm,
-        sm_info[side]->f->deg);
+    print_sm (out, sm_info[side], sm[side]);
   }
   fprintf(out, "\n");
 }
@@ -284,6 +281,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "index", "(required) index file");
   param_list_decl_usage(pl, "out", "output file (stdout if not given)");
   param_list_decl_usage(pl, "ell", "(required) group order");
+  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
   param_list_decl_usage(pl, "nsm", "number of SM on side 0,1,... (default is "
                                    "computed by the program)");
   param_list_decl_usage(pl, "t", "number of threads on each mpi job (default 1)");
@@ -428,6 +426,8 @@ int main (int argc, char **argv)
     }
   }
 
+  const char * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
+
   if (param_list_warn_unused(pl)) {
     if (idoio) {
       usage (argv0, NULL, pl);
@@ -447,6 +447,7 @@ int main (int argc, char **argv)
 
   for(int side = 0 ; side < pol->nb_polys ; side++) {
       sm_side_info_init(sm_info[side], F[side], ell);
+      sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
   for (int side = 0; side < pol->nb_polys; side++) {

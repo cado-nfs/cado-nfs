@@ -193,7 +193,7 @@ void blockmatrix_reverse_columns(blockmatrix c, const blockmatrix a)
         blockmatrix_reverse_rows(c, c);
         blockmatrix_transpose(c, c);
     } else {
-        /* different striding. Better to allocate */
+        /* different stride. Better to allocate */
         blockmatrix ta = blockmatrix_alloc(a->ncols, a->nrows);
         blockmatrix_transpose(ta, a);
         blockmatrix_reverse_rows(ta, ta);

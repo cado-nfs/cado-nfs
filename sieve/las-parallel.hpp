@@ -57,7 +57,8 @@ public:
     static void declare_usage(cxx_param_list & pl) {
         param_list_decl_usage(pl, "t", "Number of threads and subjobs. Use -t help for extended documentation");
 #ifdef HAVE_HWLOC
-        param_list_decl_usage(pl, "job-memory", "Estimated memory per subjobs, used for job placement (see -t help)");
+        param_list_decl_usage(pl, "job-memory", "Estimated memory per subjobs, used for job placement (see -t help) (in gigabytes, floating point values allowed)");
+        param_list_decl_usage(pl, "memory-margin", "Keep this amount of RAM free for the rest of the world (see -t help) (in gigabytes, floating point values allowed)");
 #else
         param_list_decl_usage(pl, "job-memory", "(unused, needs hwloc)\n");
 #endif

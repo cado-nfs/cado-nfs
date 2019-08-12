@@ -389,7 +389,7 @@ void transpose_inplace(Kelt * f, unsigned int t)
     }
 }
 
-// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set striding
+// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set stride
 // in g to be 1UL<<t1 values, for 1UL<<t2 rows.
 //
 // doing this in place would be somewhat tricky, but maybe reachable

@@ -18,6 +18,7 @@ void las_info::configure_aliases(cxx_param_list & pl)
 void las_info::configure_switches(cxx_param_list & pl)
 {
     cxx_cado_poly::configure_switches(pl);
+    las_todo_list::configure_switches(pl);
     param_list_configure_switch(pl, "-allow-compsq", NULL);
     param_list_configure_switch(pl, "-dup", NULL);
     param_list_configure_switch(pl, "-batch", NULL);
@@ -59,7 +60,8 @@ void las_info::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "batchmfb1", "cofactor bound on side 1 to be considered after batch cofactorization. After primes below 2^batchlpb1 have been extracted, cofactors below this bound will go through ecm. Defaults to lpb1.");
     param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization. Primes between lim0 and 2^batchlpb0 will be extracted by product trees. Defaults to lpb0.");
     param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
-    param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to the specified file (or pipe) for an external cofactorization");
+    param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
+    param_list_decl_usage(pl, "batch-print-survivors-filesize", "write that many survivors per file");
 
 
     param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
@@ -211,12 +213,12 @@ las_info::las_info(cxx_param_list & pl)
     }
 
 
-    const char * bps = param_list_lookup_string(pl, "batch-print-survivors");
-    if (bps) {
-        batch_print_survivors = fopen(bps, "w");
-        ASSERT_ALWAYS(batch_print_survivors != NULL);
-    } else {
-        batch_print_survivors = NULL;
+    batch_print_survivors_filename = param_list_lookup_string(pl, "batch-print-survivors");
+    if (batch_print_survivors_filename) {
+        batch_print_survivors_counter = 0;
+        batch_print_survivors_thid = NULL;
+        batch_print_survivors_filesize = 1000000;
+        param_list_parse_uint64(pl, "batch-print-survivors-filesize", &batch_print_survivors_filesize);
     }
     // }}} 
 
@@ -229,8 +231,11 @@ las_info::~las_info()/*{{{*/
 
     // ----- general operational flags {{{
     gmp_randclear(rstate);
+
+    // ----- batch_print_survivors
+    if (batch_print_survivors_filename) {
+        free(batch_print_survivors_thid);
+    }
     // }}}
 
-    // ----- batch mode: very little
-    if (batch_print_survivors) fclose(batch_print_survivors);
 }/*}}}*/

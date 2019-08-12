@@ -18,9 +18,9 @@ name = c310
 tasks.polyselect.degree = 6
 
 tasks.polyselect.P = 10000000
-tasks.polyselect.admax = 2e8
-tasks.polyselect.adrange = 5e3
-tasks.polyselect.incr = 60
+tasks.polyselect.admax = 2e17
+tasks.polyselect.adrange = 14898723840
+tasks.polyselect.incr = 465585120
 tasks.polyselect.nq = 1296 # this is 6^4
 tasks.polyselect.nrkeep = 100
 tasks.wutimeout = 24000 # required for rootsieve in degree 6
@@ -29,15 +29,17 @@ tasks.wutimeout = 24000 # required for rootsieve in degree 6
 # Sieve
 ###########################################################################
 
-tasks.lim0 = 700000000
-tasks.lim1 = 1430000000
-tasks.lpb0 = 35
-tasks.lpb1 = 36
-tasks.sieve.mfb0 = 70
-tasks.sieve.mfb1 = 105
+tasks.lim0 = 2147483647 # cannot exceed 2^31-1 due to bug #21094
+tasks.lim1 = 2147483647 # cannot exceed 2^31-1 due to bug #21094
+tasks.lpb0 = 38
+tasks.lpb1 = 40
+tasks.sieve.mfb0 = 76
+tasks.sieve.mfb1 = 120
 tasks.sieve.ncurves0 = 30
-tasks.sieve.ncurves1 = 30
-tasks.I = 16
+tasks.sieve.ncurves1 = 40
+tasks.I = 20
+
+tasks.qmin = 1073741823
 
 tasks.sieve.qrange = 10000
 
@@ -46,7 +48,7 @@ tasks.sieve.qrange = 10000
 ###########################################################################
 
 tasks.filter.purge.keep = 160
-tasks.filter.target_density = 170.0
+tasks.filter.target_density = 200
 
 ###########################################################################
 # Linear algebra

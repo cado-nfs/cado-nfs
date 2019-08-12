@@ -38,13 +38,13 @@ while [ $# -gt 0 ] ; do
     elif [ "$1" = "--arg" ] ; then
         shift
         case "$1" in
-            -*) extra=("${extra[@]}" "$1" "$t");;
-            *) extra=("${extra[@]}" "$1=$t");;
+            -*) extra+=("$1" "$t");;
+            *) extra+=("$1=$t");;
         esac
         shift
     elif [ "$1" = "--other" ] ; then
         t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`
-        temps=("${temps[@]}" "$t")
+        temps+=("$t")
         if [ "$CADO_DEBUG" ] ; then
             echo "debug mode, data will be left in $t (in addition to other temp directories above)"
         fi
@@ -63,7 +63,7 @@ while [ $# -gt 0 ] ; do
     if [ "$1" = "--" ] ; then
         break
     else
-        main=("${main[@]}" "$1")
+        main+=("$1")
         shift
     fi
 done

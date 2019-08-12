@@ -7,8 +7,9 @@
 
 #include <stdint.h>
 #include "cado-endian.h"
-#define xxxSAFE_BUCKETS
-#ifdef SAFE_BUCKETS
+#define xxxSAFE_BUCKETS_SINGLE
+#define xxxSAFE_BUCKET_ARRAYS
+#if defined(SAFE_BUCKETS_SINGLE) || defined(SAFE_BUCKET_ARRAYS)
 #include <exception>
 #include <stdio.h>
 #include <limits>
@@ -334,6 +335,7 @@ private:
     ASSERT_ALWAYS(size_b_align % sizeof(update_t *) == 0);
     return (slice_start + i_slice * size_b_align / sizeof(update_t *));
   }
+  void free_slice_start();
   void realloc_slice_start(size_t);
   void log_this_update (const update_t update, uint64_t offset,
                         uint64_t bucket_number, where_am_I& w) const;
@@ -426,9 +428,9 @@ public:
   double max_full (unsigned int * fullest_index = NULL) const;
   double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
-     SAFE_BUCKETS is defined. */
+     SAFE_BUCKET_ARRAYS is defined. */
   void push_update(const int i, const update_t &update) {
-#ifdef SAFE_BUCKETS
+#ifdef SAFE_BUCKET_ARRAYS
       if (bucket_write[i] >= bucket_start[i + 1]) {
           fprintf(stderr, "# Warning: hit end of bucket nb %d\n", i);
           ASSERT_ALWAYS(0);
@@ -521,20 +523,29 @@ class bucket_single {
   update_t *read;  /* read and write are "weak" references into the allocated memory */
   update_t *write;
   size_t _size;
+  las_memory_accessor * used_accessor = nullptr;
 public:
-  bucket_single (const size_t size) : _size(size)
-  {
-    // start = electric_new<update_t>(size);
-    start = new update_t[size];
+  bucket_single () {
+    start = nullptr;
     read = start;
     write = start;
+    _size = 0;
+  }
+
+  void allocate_memory(las_memory_accessor & memory, size_t size)
+  {
+      used_accessor = &memory;
+      _size = size;
+      start = (update_t *) used_accessor->alloc_frequent_size(_size * sizeof(update_t));
+      read = start;
+      write = start;
   }
 
   ~bucket_single() {
-    // electric_delete(start,_size);
-    delete[] start;
-    start = read  = write = NULL;
-    _size = 0;
+      if (start)
+          used_accessor->free_frequent_size((update_t *) start, _size * sizeof(update_t));
+      start = read  = write = NULL;
+      _size = 0;
   }
 
   /* A few of the standard container methods */
@@ -543,13 +554,13 @@ public:
   size_t size() const {return write - start;}
 
   /* Main writing function: appends update to bucket number i.
-   * If SAFE_BUCKETS is not #defined, then there is no checking that there is
+   * If SAFE_BUCKETS_SINGLE is not #defined, then there is no checking that there is
    * enough room for the update. This could lead to a segfault, with the
    * current implementation!
    */
   void push_update (const update_t &update)
   {
-#ifdef SAFE_BUCKETS
+#ifdef SAFE_BUCKETS_SINGLE
       if (start + _size <= write) {
           fprintf(stderr, "# Warning: hit end of bucket\n");
           ASSERT_ALWAYS(0);
@@ -559,7 +570,7 @@ public:
       *(write++) = update;
   }
   const update_t &get_next_update () {
-#ifdef SAFE_BUCKETS
+#ifdef SAFE_BUCKETS_SINGLE
     ASSERT_ALWAYS (read < write);
 #endif
     return *read++; 
@@ -574,8 +585,7 @@ public:
 class bucket_primes_t : public bucket_single<1, primehint_t> {
   typedef bucket_single<1, primehint_t> super;
 public:  
-  bucket_primes_t (const size_t size) : super(size){}
-  ~bucket_primes_t(){}
+  // allocate_memory (las_memory_accessor & memory, const size_t size) { super::allocate_memory(memory, size); }
   void purge (const bucket_array_t<1, shorthint_t> &BA, 
           int i, fb_factorbase::slicing const & fb, const unsigned char *S);
 };
@@ -584,8 +594,7 @@ public:
 class bucket_array_complete : public bucket_single<1, longhint_t> {
     typedef bucket_single<1, longhint_t> super;
 public:  
-  bucket_array_complete (const size_t size) : super(size){}
-  ~bucket_array_complete(){}
+  // allocate_memory (las_memory_accessor & memory, const size_t size) { super::allocate_memory(memory, size); }
   template <typename HINT>
   void purge (const bucket_array_t<1, HINT> &BA, int i, const unsigned char *S);
   template <typename HINT>

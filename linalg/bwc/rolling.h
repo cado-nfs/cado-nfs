@@ -4,6 +4,10 @@
 #include "balancing.h"
 
 #ifdef __cplusplus
+#include <string>
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -21,6 +25,13 @@ extern "C" {
 extern void keep_rolling_checkpoints(const char * stem, unsigned int v);
 
 #ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+static inline void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
+{
+    keep_rolling_checkpoints(stem.c_str(), v);
 }
 #endif
 

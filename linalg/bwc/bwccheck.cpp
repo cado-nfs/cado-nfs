@@ -1,5 +1,5 @@
 #include "cado.h"
-#include <stdio.h>
+#include <cstdio>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <utility>
 
 #include "bwc_config.h"
 #include "parallelizing_info.h"
@@ -26,7 +27,7 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
-
+#include "fmt/printf.h"
 
 using namespace std;
 
@@ -35,6 +36,7 @@ using namespace std;
 // n
 // prime
 //
+// wdir only as a way to shorten file names.
 // nullspace ??
 
 const char * my_basename(const char * x)
@@ -49,13 +51,53 @@ const char * my_basename(const char * x)
 }
 
 struct Cfile : public string {
+    unsigned int j0, j1;
     unsigned int stretch;
     Cfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "C.%u", &stretch);
-        if (rc != 1) throw std::runtime_error("want C.%u");
+        int rc = sscanf(my_basename(x), "Cv%u-%u.%u", &j0, &j1, &stretch);
+        if (rc != 3) throw std::runtime_error("want Cv%u-%u.%u");
     }
     inline bool operator<(Cfile const& o) {
         return stretch < o.stretch;
+    }
+};
+
+struct Dfile : public string {
+    unsigned int j0, j1;
+    unsigned int stretch;
+    Dfile(const char * x) : string(x) {
+        int rc = sscanf(my_basename(x), "Cd%u-%u.%u", &j0, &j1, &stretch);
+        if (rc != 3) throw std::runtime_error("want Cd%u-%u.%u");
+    }
+    inline bool operator<(Dfile const& o) {
+        return stretch < o.stretch;
+    }
+};
+
+struct Rfile : public string {
+    unsigned int nchecks;
+    Rfile(const char * x) : string(x) {
+        unsigned int nc0, nc1;
+        int rc = sscanf(my_basename(x), "Cr0-%u.0-%u", &nc0, &nc1);
+        if (rc != 2) throw std::runtime_error("want Cr0-%u.0-%u");
+        nchecks = nc0;
+        if (nc0 != nc1) throw std::runtime_error("want Cr0-NCHECKS.0-NCHECKS");
+    }
+    inline bool operator<(Rfile const& o) {
+        return nchecks < o.nchecks;
+    }
+};
+
+struct Tfile : public string {
+    unsigned int nchecks;
+    int m;
+    Tfile(const char * x) : string(x) {
+        int rc = sscanf(my_basename(x), "Ct0-%u.0-%d", &nchecks, &m);
+        if (rc != 2) throw std::runtime_error("want Ct0-%u.0-%d");
+    }
+    inline bool operator<(Tfile const& o) {
+        if (nchecks != o.nchecks) return nchecks < o.nchecks;
+        return m < o.m;
     }
 };
 
@@ -161,119 +203,67 @@ void vec_free(mpfq_vbase_ptr A, void *& z, size_t vsize)
     cheating_vec_clear(A, &z, vsize);
 }
 
-void vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
+int vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
 {
-    if (prefix) printf("%sload %s\n", prefix, v.c_str());
-    FILE * f = fopen(v.c_str(), "rb");
-    ASSERT_ALWAYS(f != NULL);
-    int rc = fread(z, A->elt_stride(A), vsize, f);
-    ASSERT_ALWAYS(rc >= 0);
-    ASSERT_ALWAYS((size_t) rc == vsize);
-    fclose(f);
+    fmt::printf("%sload %s ...", prefix, v);
+    FILE * f;
+    if ((f = fopen(v.c_str(), "rb")) != NULL) {
+        int rc = fread(z, A->elt_stride(A), vsize, f);
+        if (rc >= 0 && (size_t) rc == vsize) {
+            fmt::printf(" done\n");
+            return rc;
+        }
+        fclose(f);
+    }
+    fmt::printf(" failed\n");
+    return -1;
 }
 
 size_t vec_items(mpfq_vbase_ptr A, string const & v)
 {
     struct stat sbuf[1];
     int rc = stat(v.c_str(), sbuf);
+    if (rc < 0 && errno == ENOENT)
+        return 0;
     ASSERT_ALWAYS(rc == 0);
     return sbuf->st_size / A->elt_stride(A);
 }
 
-/* This is *not* a parallel program, so we depart significantly from the
- * way programs such as krylov or mksol are written.
- *
- */
-void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
+template<typename T>
+size_t common_size(mpfq_vbase_ptr Ac, std::vector<T> const & Cfiles, const char * name)
 {
-    int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    mpfq_vbase Ac;
-    mpfq_vbase_oo_field_init_byfeatures(Ac, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, nchecks,
-            MPFQ_DONE);
-
-    vector<Cfile> Cfiles;
-    vector<Vfile> Vfiles;
-    vector<Afile> Afiles;
-    // vector<Ffile> Ffiles;
-    // vector<Sfile> Sfiles;
-
-    for(int i = 0 ; i < argc ; i++) {
-        try {
-            const char * p = my_basename(argv[i]);
-            if (*p && p[strlen(p)-1] == '~')
-                continue;
-            switch(*p) {
-                case 'C': Cfiles.push_back(argv[i]); break;
-                case 'A': Afiles.push_back(argv[i]); break;
-                case 'V': Vfiles.push_back(argv[i]); break;
-#if 0
-                case 'F':
-                          if (strncmp(p, "F.sols", 6) == 0)
-                              Ffiles.push_back(argv[i]);
-                          /* We purposefully skip the F files.
-                           */
-                          break;
-                case 'S': Sfiles.push_back(argv[i]); break;
-#endif
-                  /* since we changed the format, and since we
-                   * were not doing checks of any sort yet
-                   * anyway, just discard them right away */
-                case 'F': case 'S': break;
-                default:
-                  fprintf(stderr, "File name not recognized: %s\n", argv[i]);
-                  exit(EXIT_FAILURE);
-            }
-        } catch (std::runtime_error& e) {
-            fprintf(stderr, "Parse error on %s: %s\n", argv[i], e.what());
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    std::sort(Cfiles.begin(), Cfiles.end());
-    std::sort(Afiles.begin(), Afiles.end());
-    std::sort(Vfiles.begin(), Vfiles.end());
-    // std::sort(Ffiles.begin(), Ffiles.end());
-    // std::sort(Sfiles.begin(), Sfiles.end());
-
-    /* How many (j0-j1) ranges do we have for V files */
-    typedef std::map<pair<unsigned int, unsigned int>, vector<Vfile> > vseq_t;
-    vseq_t Vsequences;
-    for(unsigned int i = 0 ; i < Vfiles.size() ; i++) {
-        vseq_t::iterator it = Vsequences.find(Vfiles[i].seq_id());
-        if (it == Vsequences.end()) {
-            it = Vsequences.insert(make_pair(Vfiles[i].seq_id(), vseq_t::mapped_type())).first;
-        }
-        it->second.push_back(Vfiles[i]);
-    }
-    for(vseq_t::iterator it = Vsequences.begin(); it != Vsequences.end(); it++) {
-        std::sort(it->second.begin(), it->second.end());
-    }
-
-    /* Check that C files have consistent size */
     size_t vsize = 0;
+    std::string vsize_first;
 
-    for(unsigned int cc = 0 ; cc < Cfiles.size() ; cc++) {
-        Cfile& C(Cfiles[cc]);
-
+    for(auto & C : Cfiles) {
         size_t items = vec_items(Ac, C);
-
+        if (items == 0) {
+            fmt::printf("%s has disappeared\n", C);
+            continue;
+        }
         if (vsize == 0) {
             vsize = items;
+            vsize_first = C;
         } else if (vsize != items) {
-            fprintf(stderr, "File sizes disagree for %s (%zu items) and %s (%zu items)\n",
-                    Cfiles[0].c_str(), vsize,
-                    C.c_str(), items);
+            fmt::fprintf(stderr,
+                    "File sizes disagree for %s (%zu items) and %s (%zu items)\n",
+                    vsize_first, vsize, C, items);
             exit(EXIT_FAILURE);
         }
     }
-    printf("C files have %zu coordinates\n", vsize);
+    if (vsize) printf("%s files have %zu coordinates\n", name, vsize);
+    return vsize;
+}
 
-    int nok=0;
+typedef std::map<pair<unsigned int, unsigned int>, vector<Vfile> > vseq_t;
+void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & Cfiles, int & nfailed)/*{{{*/
+{
+    if (Cfiles.empty()) return;
 
-    for(unsigned int i0 = 0 ; i0 < Cfiles.size() - 1 ; i0++) {
+    int nchecks = Ac->simd_groupsize(Ac);
+    size_t vsize = common_size(Ac, Cfiles, "Cv");
+
+    for(unsigned int i0 = 0 ; i0 + 1 < Cfiles.size() ; i0++) {
         Cfile& C_i0(Cfiles[i0]);
         void * Cv_i0;
         vec_alloc(Ac, Cv_i0, vsize);
@@ -284,9 +274,9 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
             Cfile& C_i1(Cfiles[i1]);
             const char * c = C_i1.c_str();
 
-            printf("Doing checks for distance %d using %s and %s\n",
+            fmt::printf("Doing checks for distance %d using %s and %s\n",
                     C_i1.stretch - C_i0.stretch,
-                    C_i0.c_str(), C_i1.c_str()
+                    C_i0, C_i1
                     );
 
             void * Cv_i1;
@@ -297,9 +287,9 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
             /* {{{ check all V files together */
             for(vseq_t::iterator it = Vsequences.begin(); it != Vsequences.end(); it++)
             {
-                vector<Vfile>& Vs(it->second);
+                vector<Vfile> & Vs(it->second);
 
-                printf(" checks on V files for sequence %u-%u\n",
+                fmt::printf(" checks on V files for sequence %u-%u\n",
                         it->first.first, it->first.second);
 
                 mpfq_vbase Av;
@@ -316,7 +306,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
                 for(unsigned int i = 0 ; i < Vs.size() ; i++) {
                     size_t items = vec_items(Av, Vs[i]);
                     if (items != vsize) {
-                        fprintf(stderr, "%s has %zu coordinates, different from expected %zu\n", Vs[i].c_str(), items, vsize);
+                        fmt::fprintf(stderr, "%s has %zu coordinates, different from expected %zu\n", Vs[i], items, vsize);
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -339,10 +329,12 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
                     if (j == Vs.size()) continue;
 
                     if (!has_read_Cv_i0++)
-                        vec_read(Ac, Cv_i0, C_i0, vsize, " ");
+                        if (vec_read(Ac, Cv_i0, C_i0, vsize, " ") < 0)
+                            continue;
 
                     if (!has_read_Cv_i1++)
-                        vec_read(Ac, Cv_i1, C_i1, vsize, " ");
+                        if (vec_read(Ac, Cv_i1, C_i1, vsize, " ") < 0)
+                            continue;
 
                     Vs[j].checks++;
                     const char * vi = Vs[i].c_str();
@@ -353,34 +345,38 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
                     if (strncmp(vj, c, my_basename(c) - c) == 0) {
                         vj += my_basename(c) - c;
                     }
-                    printf("  check %s against %s\n", vi, vj);
+                    fmt::printf("  check %s against %s\n", vi, vj);
                     if (Vs[i].n != Vv_iter) {
-                        vec_read(Ac, Vv, Vs[i].c_str(), vsize, "   ");
+                        if (vec_read(Ac, Vv, Vs[i].c_str(), vsize, "   ") < 0)
+                            continue;
                         Vv_iter = Vs[i].n;
                     }
 
                     Av->vec_set_zero(Av, dotprod_scratch[0], nchecks);
 
                     /* compute the dot product */
-                    AvxAc->dotprod(Av, Ac, 
+                    AvxAc->add_dotprod(Av, Ac, 
                             dotprod_scratch[0],
                             Cv_i1, Vv, vsize);
 
-                    vec_read(Ac, Vv, Vs[j].c_str(), vsize, "   ");
+                    if (vec_read(Ac, Vv, Vs[j].c_str(), vsize, "   ") < 0)
+                        continue;
+
                     Vv_iter = Vs[j].n;
 
-                    AvxAc->dotprod(Av, Ac, 
+                    Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
+                    AvxAc->add_dotprod(Av, Ac, 
                             dotprod_scratch[1],
                             Cv_i0, Vv, vsize);
 
                     int cmp = Av->vec_cmp(Av, dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
-                    printf("  check %s against %s -> %s\n",
+                    fmt::printf("  check %s against %s -> %s\n",
                             vi, vj, cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
 
                     if (cmp != 0) {
-                        nok++;
-                        fprintf(stderr, " check %s against %s -> %s\n",
+                        nfailed++;
+                        fmt::fprintf(stderr, " check %s against %s -> %s\n",
                                 vi, vj, cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
                     }
                 }
@@ -392,18 +388,332 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
             }
             /* }}} */
 
-            /* {{{ check A files */
-
-            /* }}} */
-
             vec_free(Ac, Cv_i1, vsize);
         }
         vec_free(Ac, Cv_i0, vsize);
     }
+}/*}}}*/
 
-    if (nok) {
-        printf("%d checks FAILED !!!!!!!!!!!!!!!!!\n", nok);
-        fprintf(stderr, "%d checks FAILED !!!!!!!!!!!!!!!!!\n", nok);
+void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::vector<Afile> const & Afiles, std::vector<Dfile> const & Dfiles, Rfile & R, Tfile & T, int & nfailed)
+{
+    if (Dfiles.empty())
+        return;
+    void * Dv = NULL;
+    size_t vsize = common_size(Ac, Dfiles, "Cd");
+    int nchecks = Ac->simd_groupsize(Ac);
+
+    size_t rsize = vec_items(Ac, R) / nchecks;
+    fmt::printf("Cr file has %zu coordinates\n", rsize);
+
+    ASSERT_ALWAYS(vec_items(Ac, T) ==  (size_t) bw->m);
+
+    vec_alloc(Ac, Dv, vsize);
+
+    int rc;
+
+    void * Tdata = NULL;
+    cheating_vec_init(Ac, &Tdata, bw->m);
+    FILE * Tfile = fopen(T.c_str(), "rb");
+    rc = fread(Tdata, Ac->vec_elt_stride(Ac, bw->m), 1, Tfile);
+    ASSERT_ALWAYS(rc == 1);
+    fclose(Tfile);
+
+    void * Rdata = NULL;
+    cheating_vec_init(Ac, &Rdata, Ac->vec_elt_stride(Ac, nchecks) * rsize);
+    FILE * Rfile = fopen(R.c_str(), "rb");
+    rc = fread(Rdata, Ac->vec_elt_stride(Ac, nchecks), rsize, Rfile);
+    ASSERT_ALWAYS(rc == (int) rsize);
+    fclose(Rfile);
+
+    for(auto & D : Dfiles) {
+        if (D.stretch > rsize) {
+            fmt::fprintf(stderr, "Cannot do checks using %s, too few items in R file\n", R);
+            continue;
+        }
+        fmt::printf("Doing A file checks for distance %d using %s\n"
+                "  (as well as %s and %s)\n",
+                D.stretch, D, T, R);
+        int has_read_D = 0;
+        /* first scan potential base files V, and the restrict to cases
+         * where we have all the required A files to do a check...
+         */
+        for(auto & V0 : Vfiles) {
+            /* Look for "A%u-%u.%u-%u" % (V0.j0, V0.j1, V0.n,
+             * V0.n+D.stretch), or any collection of files that would
+             * concatenate to exactly this file */
+            std::ostringstream a_list;
+            size_t n_reach = V0.n;
+            /* A_files are sorted */
+            for(auto const & A : Afiles) {
+                if (A.j1 <= V0.j0) continue;
+                if (A.j0 > V0.j0) break;
+                if (A.n0 > n_reach) break;
+                if (A.n1 <= n_reach) continue;
+                if (A.n0 <= n_reach) {
+                    ASSERT_ALWAYS(n_reach == V0.n || n_reach == A.n0);
+                    /* Since we (still) collate A files, it's important
+                     * to be able to do this check even if V starts in
+                     * the middle of the A file -- this accounts for the
+                     * n_reach == V0.n possibility. Otherwise, we must
+                     * go from one A file to the next, hence the
+                     * requirement that n_reach == A.n0 .*/
+                    n_reach = A.n1;
+                    a_list << " " << A;
+                }
+                if (n_reach >= V0.n + D.stretch)
+                    break;
+            }
+
+            if (n_reach < V0.n + D.stretch)
+                continue;
+
+            fmt::printf("  check %s against %u entries of%s\n",
+                    V0, D.stretch, a_list.str());
+
+            mpfq_vbase Av;
+            mpfq_vbase_oo_field_init_byfeatures(Av, 
+                    MPFQ_PRIME_MPZ, bw->p,
+                    MPFQ_SIMD_GROUPSIZE, V0.j1 - V0.j0,
+                    MPFQ_DONE);
+            mpfq_vbase_tmpl AvxAc;
+            mpfq_vbase_oo_init_templates(AvxAc, Av, Ac);
+
+            void * dotprod_scratch[3];
+            vec_alloc(Av, dotprod_scratch[0], nchecks);
+            vec_alloc(Av, dotprod_scratch[1], nchecks);
+            vec_alloc(Av, dotprod_scratch[2], nchecks);
+
+            /* read data from the A files. We redo the detection loop
+             * that we had above */
+            n_reach = V0.n;
+            for(auto const & A : Afiles) {
+                if (A.j1 <= V0.j0) continue;
+                if (A.j0 > V0.j0) break;
+                if (A.n0 > n_reach) break;
+                if (A.n1 <= n_reach) continue;
+                if (A.n0 <= n_reach) {
+                    ASSERT_ALWAYS(n_reach == V0.n || n_reach == A.n0);
+                    fmt::printf("   read %lu small %d*%d matrices from %s\n",
+                            std::min(A.n1, V0.n + D.stretch) - n_reach,
+                            bw->m, bw->n, A);
+                    FILE * a = fopen(A.c_str(), "rb");
+                    for(unsigned int p = n_reach ; p < A.n1 && p < V0.n + D.stretch ; p++) {
+                        Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
+                        for(int c = 0 ; c < bw->m ; c += nchecks) {
+                            int rc;
+                            for(int r = 0 ; r < nchecks ; r++) {
+                                size_t simd = Av->simd_groupsize(Av);
+                                size_t rowsize = (A.j1 - A.j0) / simd;
+                                size_t matsize = bw->m * rowsize;
+                                size_t nmats = p - A.n0;
+
+                                rc = fseek(a, Av->vec_elt_stride(Av,
+                                            nmats * matsize +
+                                            (c + r) * rowsize +
+                                            (V0.j0 - A.j0) / simd),
+                                        SEEK_SET);
+                                ASSERT_ALWAYS(rc == 0);
+                                rc = fread(Av->vec_subvec(Av, dotprod_scratch[2], r), Av->vec_elt_stride(Av, 1), 1, a);
+                                ASSERT_ALWAYS(rc == 1);
+                            }
+                            AvxAc->add_dotprod(Av, Ac,
+                                    dotprod_scratch[1],
+                                    Ac->vec_subvec(Ac, Tdata, c),
+                                    dotprod_scratch[2],
+                                    nchecks);
+                        }
+                        AvxAc->add_dotprod(Av, Ac,
+                                dotprod_scratch[0],
+                                Ac->vec_subvec(Ac, Rdata, (p - V0.n) * nchecks),
+                                dotprod_scratch[1],
+                                nchecks);
+                    }
+                    fclose(a);
+                    n_reach = A.n1;
+                }
+                if (n_reach >= V0.n + D.stretch)
+                    break;
+            }
+
+            int can_check = 1;
+
+            if (!has_read_D++)
+                if (vec_read(Ac, Dv, D.c_str(), vsize, "   ") < 0)
+                    can_check = 0;
+
+            if (can_check) {
+                void * Vv;
+
+                vec_alloc(Av, Vv, vsize);
+                if (vec_read(Av, Vv, V0.c_str(), vsize, "   ") < 0)
+                    can_check = 0;
+
+                if (can_check) {
+                    Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
+                    AvxAc->add_dotprod(Av, Ac, 
+                            dotprod_scratch[1],
+                            Dv, Vv, vsize);
+                }
+
+                vec_free(Av, Vv, vsize);
+            }
+
+            if (can_check) {
+                int cmp = Av->vec_cmp(Av, dotprod_scratch[0], dotprod_scratch[1], nchecks);
+
+                fmt::printf("  check %s against %u entries of%s -> %s\n",
+                        V0, D.stretch, a_list.str(),
+                        cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
+
+                if (cmp != 0) {
+                    nfailed++;
+                    fmt::fprintf(stderr, "  check %s against %u entries of%s -> %s\n",
+                            V0, D.stretch, a_list.str(),
+                            cmp == 0 ? "ok" : "NOK NOK NOK NOK NOK");
+
+                }
+            }
+
+            if (!can_check)
+                fmt::printf("  (check aborted because of missing files)\n");
+
+            vec_free(Av, dotprod_scratch[2], nchecks);
+            vec_free(Av, dotprod_scratch[1], nchecks);
+            vec_free(Av, dotprod_scratch[0], nchecks);
+
+            Av->oo_field_clear(Av);
+        }
+    }
+    cheating_vec_clear(Ac, &Rdata, Ac->vec_elt_stride(Ac, nchecks) * rsize);
+    cheating_vec_clear(Ac, &Tdata, bw->m);
+    vec_free(Ac, Dv, vsize);
+}
+
+/* This is *not* a parallel program, so we depart significantly from the
+ * way programs such as krylov or mksol are written.
+ *
+ */
+void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
+{
+    int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
+    int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
+    mpfq_vbase Ac;
+    mpfq_vbase_oo_field_init_byfeatures(Ac, 
+            MPFQ_PRIME_MPZ, bw->p,
+            MPFQ_SIMD_GROUPSIZE, nchecks,
+            MPFQ_DONE);
+
+    vector<Cfile> Cfiles;
+    vector<Dfile> Dfiles;
+    vector<Rfile> Rfiles;
+    vector<Tfile> Tfiles;
+    vector<Vfile> Vfiles;
+    vector<Afile> Afiles;
+    // vector<Ffile> Ffiles;
+    // vector<Sfile> Sfiles;
+
+    for(int i = 0 ; i < argc ; i++) {
+        try {
+            const char * p = my_basename(argv[i]);
+            if (*p && p[strlen(p)-1] == '~')
+                continue;
+            switch(*p) {
+                case 'C': 
+                    switch(p[1]) {
+                        case 'v': Cfiles.push_back(argv[i]); break;
+                        case 'd': Dfiles.push_back(argv[i]); break;
+                        case 'r': Rfiles.push_back(argv[i]); break;
+                        case 't': Tfiles.push_back(argv[i]); break;
+                    }
+                    break;
+                case 'A': Afiles.push_back(argv[i]); break;
+                case 'V': Vfiles.push_back(argv[i]); break;
+#if 0
+                case 'F':
+                          if (strncmp(p, "F.sols", 6) == 0)
+                              Ffiles.push_back(argv[i]);
+                          /* We purposefully skip the F files.
+                          */
+                          break;
+                case 'S': Sfiles.push_back(argv[i]); break;
+#endif
+                          /* since we changed the format, and since we
+                           * were not doing checks of any sort yet
+                           * anyway, just discard them right away */
+                case 'F': case 'S': break;
+                default:
+                                    fmt::fprintf(stderr, "File name not recognized: %s\n", argv[i]);
+                                    exit(EXIT_FAILURE);
+            }
+        } catch (std::runtime_error& e) {
+            fmt::fprintf(stderr, "Parse error on %s: %s\n", argv[i], e.what());
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* {{{ some consistency checks */
+    for(auto & C : Cfiles) {
+        ASSERT_ALWAYS(C.j0 == 0);
+        ASSERT_ALWAYS(C.j1 == (unsigned int) nchecks);
+    }
+    for(auto & D : Dfiles) {
+        ASSERT_ALWAYS(D.j0 == 0);
+        ASSERT_ALWAYS(D.j1 == (unsigned int) nchecks);
+    }
+    ASSERT_ALWAYS(Rfiles.size() <= 1);
+    ASSERT_ALWAYS(Tfiles.size() <= 1);
+    for(auto & R : Rfiles) {
+        ASSERT_ALWAYS(R.nchecks == (unsigned int) nchecks);
+    }
+    for(auto & T : Tfiles) {
+        ASSERT_ALWAYS(T.nchecks == (unsigned int) nchecks);
+        /* T files for different m's could maybe coexist, at least in
+         * theory. However since both C and D depend on T, this does not
+         * seem very viable */
+        ASSERT_ALWAYS(T.m == bw->m);
+    }
+    /* }}} */
+
+    /* {{{ sort */
+    std::sort(Cfiles.begin(), Cfiles.end());
+    std::sort(Dfiles.begin(), Dfiles.end());
+    std::sort(Rfiles.begin(), Rfiles.end());
+    std::sort(Afiles.begin(), Afiles.end());
+    std::sort(Vfiles.begin(), Vfiles.end());
+    // std::sort(Ffiles.begin(), Ffiles.end());
+    // std::sort(Sfiles.begin(), Sfiles.end());
+    /* }}} */
+
+    /* {{{ split V files in sequences -- what for ? */
+    /* How many (j0-j1) ranges do we have for V files */
+    vseq_t Vsequences;
+    for(unsigned int i = 0 ; i < Vfiles.size() ; i++) {
+        vseq_t::iterator it = Vsequences.find(Vfiles[i].seq_id());
+        if (it == Vsequences.end()) {
+            it = Vsequences.insert(make_pair(Vfiles[i].seq_id(), vseq_t::mapped_type())).first;
+        }
+        it->second.push_back(Vfiles[i]);
+    }
+    for(vseq_t::iterator it = Vsequences.begin(); it != Vsequences.end(); it++) {
+        std::sort(it->second.begin(), it->second.end());
+    }
+    /* }}} */
+
+    int nfailed = 0;
+
+    check_V_files(Ac, Vsequences, Cfiles, nfailed);
+
+    /* Check A files using V, D, T, and R */
+    if ((Tfiles.empty() || Rfiles.empty()) && !Dfiles.empty()) {
+        fmt::fprintf(stderr, "It makes no sense to provide Cd files and no Cr and Ct file\n");
+        exit(EXIT_FAILURE);
+    } else if (!Tfiles.empty() && !Rfiles.empty() && !Dfiles.empty()) {
+        check_A_files(Ac, Vfiles, Afiles, Dfiles, Rfiles.front(), Tfiles.front(), nfailed);
+    }
+
+    if (nfailed) {
+        fmt::printf("%d checks FAILED !!!!!!!!!!!!!!!!!\n", nfailed);
+        fmt::fprintf(stderr, "%d checks FAILED !!!!!!!!!!!!!!!!!\n", nfailed);
         exit(EXIT_FAILURE);
     }
 
@@ -442,86 +752,86 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
         printf("Each thread allocates %zd kb for the Ac matrices\n",
                 Ac->vec_elt_stride(Ac, bw->m*bw->interval) >> 10);
     }
-        if (!bw->skip_online_checks) {
-            Ac->vec_set_zero(Ac, ahead, nchecks);
-            AxAc->dotprod(Ac, Ac, ahead,
-                    mmt_my_own_subvec(check_vector),
-                    mmt_my_own_subvec(ymy[0]),
-                    mmt_my_own_size_in_items(ymy[0]));
-        }
-
-        for(int i = 0 ; i < bw->interval ; i++) {
-            /* Compute the product by x */
-            x_dotprod(Ac->vec_subvec(Ac, xymats, i * bw->m),
-                    gxvecs, bw->m, nx, ymy[0], 1);
-
-            matmul_top_mul(mmt, ymy, timing);
-
-            timing_check(pi, timing, s+i+1, tcan_print);
-        }
-        serialize(pi->m);
-
-        /* See remark above. */
-        pi_interleaving_flip(pi);
-        pi_interleaving_flip(pi);
-
-        if (!bw->skip_online_checks) {
-            /* Last dot product. This must cancel ! */
-            x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
-
-            pi_allreduce(NULL, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
-            if (!Ac->vec_is_zero(Ac, ahead, nchecks)) {
-                printf("Failed check at iteration %d\n", s + bw->interval);
-                exit(1);
-            }
-        }
-
-        mmt_vec_untwist(mmt, ymy[0]);
-
-        /* Now (and only now) collect the xy matrices */
-        pi_allreduce(NULL, xymats,
-                bw->m * bw->interval,
-                mmt->pitype, BWC_PI_SUM, pi->m);
-
-        if (pi->m->trank == 0 && pi->m->jrank == 0) {
-            char * tmp;
-            int rc;
-            rc = asprintf(&tmp, A_FILE_PATTERN, ys[0], ys[1], s, s+bw->interval);
-            FILE * f = fopen(tmp, "wb");
-            rc = fwrite(xymats, Ac->vec_elt_stride(Ac, 1), bw->m*bw->interval, f);
-            if (rc != bw->m*bw->interval) {
-                fprintf(stderr, "Ayee -- short write\n");
-                // make sure our input data won't be deleted -- this
-                // chunk will have to be redone later, maybe the disk
-                // failure is temporary (?)
-            }
-            fclose(f);
-            free(tmp);
-        }
-
-        mmt_vec_save(ymy[0], v_name, s + bw->interval, unpadded);
-
-        if (pi->m->trank == 0 && pi->m->jrank == 0)
-            keep_rolling_checkpoints(v_name, s + bw->interval);
-
-        serialize(pi->m);
-
-        // reached s + bw->interval. Count our time on cpu, and compute the sum.
-        timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "check");
+    if (!bw->skip_online_checks) {
+        Ac->vec_set_zero(Ac, ahead, nchecks);
+        AxAc->dotprod(Ac, Ac, ahead,
+                mmt_my_own_subvec(check_vector),
+                mmt_my_own_subvec(ymy[0]),
+                mmt_my_own_size_in_items(ymy[0]));
     }
 
-    free(gxvecs);
-    free(v_name);
+    for(int i = 0 ; i < bw->interval ; i++) {
+        /* Compute the product by x */
+        x_dotprod(Ac->vec_subvec(Ac, xymats, i * bw->m),
+                gxvecs, bw->m, nx, ymy[0], 1);
 
-    for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
-        mmt_vec_clear(mmt, ymy[i]);
+        matmul_top_mul(mmt, ymy, timing);
+
+        timing_check(pi, timing, s+i+1, tcan_print);
     }
-    free(ymy);
+    serialize(pi->m);
+
+    /* See remark above. */
+    pi_interleaving_flip(pi);
+    pi_interleaving_flip(pi);
+
+    if (!bw->skip_online_checks) {
+        /* Last dot product. This must cancel ! */
+        x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
+
+        pi_allreduce(NULL, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
+        if (!Ac->vec_is_zero(Ac, ahead, nchecks)) {
+            printf("Failed check at iteration %d\n", s + bw->interval);
+            exit(1);
+        }
+    }
+
+    mmt_vec_untwist(mmt, ymy[0]);
+
+    /* Now (and only now) collect the xy matrices */
+    pi_allreduce(NULL, xymats,
+            bw->m * bw->interval,
+            mmt->pitype, BWC_PI_SUM, pi->m);
+
+    if (pi->m->trank == 0 && pi->m->jrank == 0) {
+        char * tmp;
+        int rc;
+        rc = asprintf(&tmp, A_FILE_PATTERN, ys[0], ys[1], s, s+bw->interval);
+        FILE * f = fopen(tmp, "wb");
+        rc = fwrite(xymats, Ac->vec_elt_stride(Ac, 1), bw->m*bw->interval, f);
+        if (rc != bw->m*bw->interval) {
+            fprintf(stderr, "Ayee -- short write\n");
+            // make sure our input data won't be deleted -- this
+            // chunk will have to be redone later, maybe the disk
+            // failure is temporary (?)
+        }
+        fclose(f);
+        free(tmp);
+    }
+
+    mmt_vec_save(ymy[0], v_name, s + bw->interval, unpadded);
+
+    if (pi->m->trank == 0 && pi->m->jrank == 0)
+        keep_rolling_checkpoints(v_name, s + bw->interval);
+
+    serialize(pi->m);
+
+    // reached s + bw->interval. Count our time on cpu, and compute the sum.
+    timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "check");
+}
+
+free(gxvecs);
+free(v_name);
+
+for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
+    mmt_vec_clear(mmt, ymy[i]);
+}
+free(ymy);
 #endif
 
-    Ac->oo_field_clear(Ac);
+Ac->oo_field_clear(Ac);
 
-    return NULL;
+return NULL;
 }
 
 
@@ -547,8 +857,10 @@ int main(int argc, char * argv[])
     bw_common_interpret_parameters(bw, pl);
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     check_prog(pl, argc, argv);

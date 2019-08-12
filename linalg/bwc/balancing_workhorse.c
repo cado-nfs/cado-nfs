@@ -410,7 +410,7 @@ void mf_progress(data_source_ptr s, data_dest_ptr d, time_t dt, const char * nam
     char buf[16];
     char buf2[16];
     if (!name) return;
-    printf("%s: %s, %" PRIu32 " rows in %d s ; %s/s  \r",
+    printf("%s: %s, %" PRIu32 " rows in %d s ; %s/s  \n",
             name,
             size_disp(s->pos * sizeof(uint32_t), buf), d->r, (int) dt,
             size_disp(dt > 0 ? (size_t) (s->pos * sizeof(uint32_t) / dt) : 0, buf2));

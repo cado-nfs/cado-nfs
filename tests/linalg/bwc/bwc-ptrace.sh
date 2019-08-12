@@ -2,6 +2,8 @@
 
 set -e
 
+exec < /dev/null
+
 if [ "$CADO_DEBUG" ] ; then
     set -x
 fi
@@ -46,12 +48,12 @@ pass_bwcpl_args=("$@")
 : ${random_matrix_maxcoeff=10}
 : ${random_matrix_minkernel=10}
 : ${mats=$HOME/Local/mats}
-: ${matsfallback=/local/rsa768/mats}
 : ${pre_wipe=}
 : ${seed=$RANDOM}
 : ${balancing_options=reorder=columns}
+: ${script_steps=wipecheck,matrix,bwc.pl/:complete,bwccheck,magma}
 
-pass_bwcpl_args=("${pass_bwcpl_args[@]}" "seed=$seed")
+pass_bwcpl_args+=("seed=$seed")
 
 wordsize=64
 # XXX note that $wdir is wiped out by this script !
@@ -124,10 +126,7 @@ argument_checking() {
             echo "Unsupported combination of arguments for specifying system" >&2
             echo "Detected arguments:" >&2
             for a in matrix rhsfile nrhs random_matrix_size random_matrix_maxcoeff ; do
-                v=`eval echo '$'"$a"`
-                if [ "$v" != "" ] ; then
-                    echo "$a=$v" >&2
-                fi
+                if [ "${!a}" ] ; then echo "$a=${!a}" >&2 ; fi
             done
             echo "Supported combinations:">&2
             echo "matrix rhsfile nrhs" >&2
@@ -140,24 +139,35 @@ argument_checking() {
 }
 
 derived_variables() {
-    if ! [ -d $mats ] ; then mats=$matsfallback; fi
+    if ! [ -d $mats ] ; then mats=$wdir; fi
     if [ "$prime" = 2 ] ; then
         splitwidth=64
     else
         splitwidth=1
     fi
+    : ${simd=$splitwidth}
 }
 
 prepare_wdir() {
-    if [ -d $wdir ] ; then
-        if [ "$pre_wipe" ] ; then
-            rm -rf $wdir 2>/dev/null
-        else
-            echo "Won't wipe $wdir unless \$pre_wipe is set" >&2
+    if [[ $script_steps =~ wipecheck ]] ; then
+        if [ -d $wdir ] ; then
+            if [ "$pre_wipe" ] ; then
+                rm -rf $wdir 2>/dev/null
+            else
+                echo "Won't wipe $wdir unless \$pre_wipe is set" >&2
+                exit 1
+            fi
+        fi
+        mkdir $wdir
+    elif [[ $script_steps =~ keepdir ]] ; then
+        if ! [ -d $wdir ] ; then
+            echo "cannot work with keepdir: $wdir does not exist" >&2
             exit 1
         fi
+    else
+        echo "Want either wipecheck or keepdir in script_steps" >&2
+        exit 1
     fi
-    mkdir $wdir
 }
 
 
@@ -198,14 +208,14 @@ create_test_matrix_if_needed() {
     if [ "$prime" = 2 ] ; then
         basename=$mats/t${escaped_size}
         matrix="$basename.matrix.bin"
-        rmargs=("${rmargs[@]}"  --k$nullspace ${random_matrix_minkernel})
+        rmargs+=(--k$nullspace ${random_matrix_minkernel})
         # ncols=
     elif ! [ "$nrhs" ] ; then
         basename=$mats/t${escaped_size}p
         matrix="$basename.matrix.bin"
-        rmargs=("${rmargs[@]}" --k$nullspace ${random_matrix_minkernel})
-        rmargs=("${rmargs[@]}" -c ${random_matrix_maxcoeff})
-        rmargs=("${rmargs[@]}" -Z)
+        rmargs+=(--k$nullspace ${random_matrix_minkernel})
+        rmargs+=(-c ${random_matrix_maxcoeff})
+        rmargs+=(-Z)
     else
         # This is an experimental mode. In the DLP context, we have a
         # matrix with N rows, N-r ideal columns, and r Schirokauer maps.   
@@ -223,29 +233,31 @@ create_test_matrix_if_needed() {
         # consider.
         density=$((${#random_matrix_size}*${#random_matrix_size}*2))
         if [ "$density" -lt 12 ] ; then density=12; fi
-        rmargs=("${rmargs[@]}" -d $density -Z)
+        rmargs+=(-d $density -Z)
         matrix="$basename.matrix.bin"
         rhsfile="$basename.rhs.txt"
-        rmargs=("${rmargs[@]}" -c ${random_matrix_maxcoeff})
-        rmargs=("${rmargs[@]}" rhs="$nrhs,$prime,$rhsfile")
+        rmargs+=(-c ${random_matrix_maxcoeff})
+        rmargs+=(rhs="$nrhs,$prime,$rhsfile")
     fi
     rmargs=($nrows $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
-    ${bindir}/random_matrix "${rmargs[@]}"
     rwfile=${matrix%%bin}rw.bin
     cwfile=${matrix%%bin}cw.bin
     ncols=$outer_ncols
     nrows=$outer_nrows
-    data_ncols=$((`wc -c < $cwfile` / 4))
-    data_nrows=$((`wc -c < $rwfile` / 4))
-    if [ "$data_ncols" -lt "$ncols" ] ; then
-        if [ "$prime" = 2 ] || ! [ "$nrhs" ] ; then
-            echo "padding $cwfile with $((ncols-data_ncols)) zero columns"
-            dd if=/dev/zero bs=4 count=$((ncols-data_ncols)) >> $cwfile
+    if [[ $script_steps =~ matrix ]] ; then
+        ${bindir}/random_matrix "${rmargs[@]}"
+        data_ncols=$((`wc -c < $cwfile` / 4))
+        data_nrows=$((`wc -c < $rwfile` / 4))
+        if [ "$data_ncols" -lt "$ncols" ] ; then
+            if [ "$prime" = 2 ] || ! [ "$nrhs" ] ; then
+                echo "padding $cwfile with $((ncols-data_ncols)) zero columns"
+                dd if=/dev/zero bs=4 count=$((ncols-data_ncols)) >> $cwfile
+            fi
         fi
-    fi
-    if [ "$data_nrows" -lt "$nrows" ] ; then
-        echo "padding $cwfile with $((nrows-data_nrows)) zero rows"
-        dd if=/dev/zero bs=4 count=$((nrows-data_nrows)) >> $rwfile
+        if [ "$data_nrows" -lt "$nrows" ] ; then
+            echo "padding $cwfile with $((nrows-data_nrows)) zero rows"
+            dd if=/dev/zero bs=4 count=$((nrows-data_nrows)) >> $rwfile
+        fi
     fi
 }
 
@@ -253,6 +265,9 @@ create_test_matrix_if_needed() {
 # provided by the user (which may be ither in text or binary format). In
 # this case, we must make sure that we have the .cw and .rw files too.
 create_auxiliary_weight_files() {
+    if ! [[ $script_steps =~ matrix ]] ; then
+        return
+    fi
     if [ "$prime" != 2 ] ; then withcoeffs=--withcoeffs ; fi
     case "$matrix" in
         *.txt)
@@ -289,7 +304,7 @@ create_auxiliary_weight_files() {
 
 prepare_common_arguments() {
     # This sets the common arguments for all bwc binaries
-    read -s -r -d '' common <<-EOF
+    common=(
         matrix=$matrix
         balancing_options=$balancing_options
         mpi=$mpi
@@ -300,10 +315,10 @@ prepare_common_arguments() {
         prime=$prime
         nullspace=$nullspace
         interval=$interval
-
-EOF
-    if [ "$mm_impl" ] ; then common="$common mm_impl=$mm_impl" ; fi
-    if [ "$prime" != 2 ] ; then common="$common lingen_mpi=$lingen_mpi" ; fi
+        simd=$simd
+    )
+    if [ "$mm_impl" ] ; then common+=(mm_impl=$mm_impl) ; fi
+    if [ "$prime" != 2 ] ; then common+=(lingen_mpi=$lingen_mpi) ; fi
 }
 
 argument_checking
@@ -317,27 +332,29 @@ else
     # This also sets rwfile cwfile nrows ncols
     create_auxiliary_weight_files
 fi
+for f in matrix cwfile rwfile ; do
+    if ! [ -f "${!f}" ] ; then echo "Missing file $f=${!f}" >&2 ; exit 1 ; fi
+done
 
 # if [ "$magma" ] ; then interval=1 ; fi
 
 prepare_common_arguments
 
 if [ "$rhsfile" ] ; then
-    common="$common rhs=$rhsfile"
+    common+=(rhs=$rhsfile)
 fi
 
 for v in tolerate_failure stop_at_step keep_rolling_checkpoints checkpoint_precious skip_online_checks interleaving ; do
-    c="$(eval echo \$$v)"
-    if [ "$c" ] ; then
-        common="$common $v=$c"
-    fi
+    if [ "${!v}" ] ; then common+=("$v=${!v}") ; fi
 done
 
-set $common
+if ! [[ $script_steps =~ magma ]] ; then
+    magma=
+fi
 
 if [ "$magma" ] ; then
     echo "### Enabling magma checking ###"
-    set "$@" save_submatrices=1
+    common+=(save_submatrices=1)
     if [ -d "$magma" ] ; then
         if [ -x "$magma/magma" ] ; then
             magma="$magma/magma"
@@ -349,26 +366,48 @@ if [ "$magma" ] ; then
 fi
 
 if ! [ "$magma" ] ; then
-    $bindir/bwc.pl :complete "$@" "${pass_bwcpl_args[@]}"
-    rc=$?
-    $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
-    grep NOK $wdir/bwccheck.log || :
+    rc=0
+    if [[ $script_steps =~ bwc\.pl/([a-z:/]*) ]] ; then
+        IFS=/ read -a bwcpl_steps <<< "${BASH_REMATCH[1]}"
+        for s in "${bwcpl_steps}" ; do
+            if ! $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+                rc=$?
+                break
+            fi
+        done
+    fi
+    if [[ $script_steps =~ bwccheck ]] ; then
+        $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
+        grep NOK $wdir/bwccheck.log || :
+    fi
     exit $rc
 else
     set +e
-    $bindir/bwc.pl :complete "$@" "${pass_bwcpl_args[@]}" 
-    rc=$?
-    $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
-    grep NOK $wdir/bwccheck.log
+    rc=0
+    if [[ $script_steps =~ bwc\.pl/([a-z:/]*) ]] ; then
+        IFS=/ read -a bwcpl_steps <<< "${BASH_REMATCH[1]}"
+        for s in "${bwcpl_steps}" ; do
+            if ! $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+                rc=$?
+                break
+            fi
+        done
+    fi
+    if [[ $script_steps =~ bwccheck ]] ; then
+        $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
+        grep NOK $wdir/bwccheck.log
+    fi
     set +x
-    if [ $rc = 0 ] ; then
-        echo " ========== SUCCESS ! bwc.pl returned true ========== "
-        echo " ========== SUCCESS ! bwc.pl returned true ========== "
-        echo " ========== SUCCESS ! bwc.pl returned true ========== "
-    else
-        echo " ########## FAILURE ! bwc.pl returned false ########## "
-        echo " ########## FAILURE ! bwc.pl returned false ########## "
-        echo " ########## FAILURE ! bwc.pl returned false ########## "
+    if [[ $script_steps =~ bwc\.pl([a-z:/]*) ]] ; then
+        if [ "$rc" = 0 ] ; then
+            echo " ========== SUCCESS ! bwc.pl returned true ========== "
+            echo " ========== SUCCESS ! bwc.pl returned true ========== "
+            echo " ========== SUCCESS ! bwc.pl returned true ========== "
+        else
+            echo " ########## FAILURE ! bwc.pl returned false ########## "
+            echo " ########## FAILURE ! bwc.pl returned false ########## "
+            echo " ########## FAILURE ! bwc.pl returned false ########## "
+        fi
     fi
 fi
 
@@ -391,10 +430,7 @@ cmd=`dirname $0`/convert_magma.pl
 # nullspace
 
 for v in wdir matrix m n prime interval splitwidth cmd rwfile cwfile nullspace ; do
-    a=`eval echo '$'"$v"`
-    if ! [ "$a" ] ; then
-        echo "Missing parameter \$$v" >&2
-    fi
+    if ! [ "${!v}" ] ; then echo "Missing parameter \$$v" >&2 ; fi
 done
 
 
@@ -414,7 +450,7 @@ fi
 Nh=$((${BASH_REMATCH[1]}*${BASH_REMATCH[3]}))
 Nv=$((${BASH_REMATCH[2]}*${BASH_REMATCH[4]}))
 
-bfile="`basename $matrix .bin`.${Nh}x${Nv}.bin"
+bfile="`basename $matrix .bin`.${Nh}x${Nv}/`basename $matrix .bin`.${Nh}x${Nv}.bin"
 
 
 # This is for the **unbalanced** matrix !!
@@ -552,12 +588,27 @@ done
 # }}}
 
 echo "Saving check vectors to magma format" # {{{
-if [ -f "$wdir/C.0" ] ; then
-    $cmd $magmaprintmode < $wdir/C.0 > $mdir/C0.m
-    $cmd $magmaprintmode < $wdir/C.$interval > $mdir/Ci.m
+if [ -f "$wdir/Cv0-$splitwidth.0" ] ; then
+    $cmd $magmaprintmode < $wdir/Cv0-$splitwidth.0 > $mdir/Cv0.m
+    $cmd $magmaprintmode < $wdir/Cv0-$splitwidth.$interval > $mdir/Cvi.m
 else
-    echo "var:=0;" > $mdir/C0.m
-    echo "var:=0;" > $mdir/Ci.m
+    echo "var:=0;" > $mdir/Cv0.m
+    echo "var:=0;" > $mdir/Cvi.m
+fi
+if [ -f "$wdir/Cd0-$splitwidth.$interval" ] ; then
+    $cmd $magmaprintmode < $wdir/Cd0-$splitwidth.$interval > $mdir/Cdi.m
+else
+    echo "var:=0;" > $mdir/Cdi.m
+fi
+if [ -f "$wdir/Cr0-$splitwidth.0-$splitwidth" ] ; then
+    $cmd $magmaprintmode < $wdir/Cr0-$splitwidth.0-$splitwidth > $mdir/Cr.m
+else
+    echo "var:=0;" > $mdir/Cr.m
+fi
+if [ -f "$wdir/Ct0-$splitwidth.0-$m" ] ; then
+    $cmd $magmaprintmode < $wdir/Ct0-$splitwidth.0-$m > $mdir/Ct.m
+else
+    echo "var:=0;" > $mdir/Ct.m
 fi
 # }}}
 
@@ -567,13 +618,12 @@ echo "Saving krylov sequence to magma format" # {{{
 afile=(`find $wdir -name 'A*[0-9]' -a -type f`)
 if [ "${#afile[@]}" != 1 ] ; then
     echo "########## FAILURE ! Krylov sequence not finished #############"
-    find $wdir -name 'A*[0-9]' -a -type f | xargs -n 1 echo "### Found file "
-    exit 1
+    find $wdir -name 'A*[0-9]' -a -type f | xargs -r -n 1 echo "### Found file "
+else
+    afile=$(basename "${afile[0]}")
+    $cmd $magmaprintmode < $wdir/$afile > $mdir/A.m
 fi
-afile=$(basename "${afile[0]}")
-$cmd $magmaprintmode < $wdir/$afile > $mdir/A.m
 # }}}
-
 
 echo "Saving linear generator to magma format" # {{{
 #    $cmd spvector64 < $wdir/$afile.gen > $mdir/F.m
@@ -599,6 +649,7 @@ print_all_Ffiles() {
         for s in `seq 0 $splitwidth $((n-1))` ; do
             let s1=s+splitwidth
             basename=F.sols${s}-${s1}.${j}-${j1}
+            if [ -f "$wdir/$basename" ] ; then
             $cmd $magmaprintmode < $wdir/$basename > $mdir/$basename.m
             cat <<-EOF
                 load "$mdir/$basename.m";
@@ -613,6 +664,7 @@ EOF
                         Append(~Rj, g(var));
 EOF
                 fi
+            fi
             fi
         done
         echo "Append(~Fchunks, Fj);"

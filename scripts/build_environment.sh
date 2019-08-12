@@ -65,7 +65,13 @@ relative_path_of_cwd="${called_from##$absolute_path_of_source}"
 # The source directory may contain a hint script with several useful
 # preferences. Its job is to put environment variables. Quite notably,
 # $build_tree is amongst these.
-if [ -f "${up_path}/local.sh" ] ; then
+if [ "$LOCAL_SH" ] ; then
+    if [ -f "$LOCAL_SH" ] ; then
+        . "$LOCAL_SH"
+    else
+        echo "Weird, LOCAL_SH=$LOCAL_SH points to nonexisting file" >&2
+    fi
+elif [ -f "${up_path}/local.sh" ] ; then
     . "${up_path}/local.sh"
 fi
 

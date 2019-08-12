@@ -284,15 +284,15 @@ void pool_print(const pool_t p) {
 // obtained after running x curves.
 ///////////////////////////////////////////////////////////////////////////////
 
-#define N 2048
+#define MAX_CPT 2048
 typedef struct {
-  double aver_gain[N];      // average number of bits removed after i curves
-  unsigned long nb_test[N]; // size of the sample on which this avearge was done
+  double aver_gain[MAX_CPT];  // average number of bits removed after i curves
+  unsigned long nb_test[MAX_CPT]; // size of the sample on which this avearge was done
 } stats_s;
 typedef stats_s stats_t[1];
 
 void stats_init(stats_t S) {
-  for(unsigned int i = 0; i < N; ++i) {
+  for(unsigned int i = 0; i < MAX_CPT; ++i) {
     S->aver_gain[i] = 0.0;
     S->nb_test[i] = 0;
   }
@@ -303,10 +303,30 @@ void stats_clear(stats_t S) { }
 #endif
 
 void stats_update(stats_t S, double gain, unsigned int i) {
+  if (i >= MAX_CPT) {
+    abort();
+  }
   double newav = S->aver_gain[i]*S->nb_test[i] + gain;
   S->nb_test[i]++;
   newav /= S->nb_test[i];
   S->aver_gain[i] = newav;
+}
+
+int stats_is_below_average(stats_t S, double gain, unsigned int i) {
+  if (S->nb_test[i] <= 100)
+    return 0; // not enough data to conclude
+  else
+    return gain < EA_THRESHOLD*S->aver_gain[i];
+}
+
+void stats_print(stats_t S) {
+  printf("[");
+  for (int i = 1; i < 500; ++i) {
+    if (S->nb_test[i] <= 100)
+      break;
+    printf(" %.0f", S->aver_gain[i]);
+  }
+  printf(" ]\n");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -424,9 +444,12 @@ int smooth_detect_one_step(cand_t winner, context_t ctx) {
       }
     }
     // if both gain are below average, then abort this candidate
-    if (gain_u < EA_THRESHOLD*ctx->stats->aver_gain[cpt] &&
-        gain_v < EA_THRESHOLD*ctx->stats->aver_gain[cpt])
+    if (stats_is_below_average(ctx->stats, gain_u, cpt) &&
+        stats_is_below_average(ctx->stats, gain_v, cpt)) {
+      // mark it as unsmooth, by increasing lpu
+      C->lpu = UINT_MAX;
       break;
+    }
     // remember current effort for this number, and increase B1.
     C->effort += B1;
     B1 += sqrt(B1);
@@ -549,6 +572,8 @@ void smooth_detect(cand_t C, int (*next_cand)(cand_t, void *),
       printf("current_effort = %.0f\n", ctx->current_effort);
       printf("current max B1 = %.0f\n",
           get_B1_from_effort(ctx->current_effort, ctx->minB1));
+      printf("current stats:\n");
+      stats_print(ctx->stats);
       pool_print(ctx->pool);
     }
   }

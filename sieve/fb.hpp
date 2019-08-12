@@ -184,8 +184,8 @@ public:
       roots[i] = e.roots[i].r;
   }
   fbprime_t get_q() const {return p;}
-  fbroot_t get_r(const size_t i) const {return roots[i];};
-  fbroot_t get_proj(const size_t i MAYBE_UNUSED) const {return false;};
+  fbroot_t get_r(const size_t i) const {return roots[i];}
+  fbroot_t get_proj(const size_t i MAYBE_UNUSED) const {return false;}
   double weight() const {return 1./p * Nr_roots;}
   /* Allow sorting by p */
   bool operator<(const fb_entry_x_roots<Nr_roots> &other) const {return this->p < other.p;}

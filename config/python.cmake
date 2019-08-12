@@ -23,7 +23,7 @@ message(STATUS "${PYTHON_EXECUTABLE} --version returned: ${_VERSION}")
 string(REPLACE "Python " "" PYTHON_VERSION_STRING "${_VERSION}")
 
 # Minumum acceptable Python version. Let's assume future versions are ok, too.
-set(_Python_MINIMUM_ACCEPTED 3.2)
+set(_Python_MINIMUM_ACCEPTED 3.3)
 
 # Check that the interpreter is one of the accepted versions
 if ("${PYTHON_VERSION_STRING}" VERSION_LESS "${_Python_MINIMUM_ACCEPTED}")

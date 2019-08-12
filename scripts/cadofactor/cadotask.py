@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import re
 import os.path
 from fractions import gcd
@@ -48,9 +49,9 @@ def re_cap_n_fp(prefix, n, suffix=""):
     if n > 0:
         # The first CAP_FP pattern is mandatory, and can have zero or more
         # whitespace in front
-        template += "\s*{cap_fp}"
+        template += r"\s*{cap_fp}"
         # The remaining FP_CAPs are optional, and have 1 or more whitespace
-        template += "(?:\s+{cap_fp})?" * (n - 1)
+        template += r"(?:\s+{cap_fp})?" * (n - 1)
     template += suffix
     return template.format(**REGEXES)
 
@@ -1486,7 +1487,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             {"maxwu": 10, 
              "wutimeout": 10800,  # Default: 3h
              "maxresubmit": 5, 
-             "maxwuerror": 2,   # increase if job are often killed badly.
+             "maxwuerror": 2,   # increase if jobs are often killed badly.
              "maxtimedout": 100, 
              "maxfailed": 100})
     
@@ -1993,7 +1994,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
@@ -2010,7 +2011,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
                               poly)
             return (0, 0)
         if not poly.lognorm:
-            self.logger.warn("Polynomial in file %s has no lognorm, skipping it",
+            self.logger.warning("Polynomial in file %s has no lognorm, skipping it",
                              filename)
             return (0, 0)
         if self._add_poly_heap_db(poly):
@@ -2082,7 +2083,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             poly = Polynomials(text)
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2250,7 +2251,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             # If the poly file got lost somehow, write it again
             filename = self.get_state_filename("polyfilename")
             if filename is None or not filename.isfile():
-                self.logger.warn("Polynomial file disappeared, writing again")
+                self.logger.warning("Polynomial file disappeared, writing again")
                 self.write_poly_file()
             return True
         
@@ -2318,7 +2319,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
@@ -2334,7 +2335,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                 raise
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2349,7 +2350,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                               poly)
             return None
         if not poly.MurphyE:
-            self.logger.warn("Polynomial in file %s has no Murphy E value",
+            self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
         # in case poly.MurphyE = self.bestpoly.MurphyE (MurphyE is printed
         # only with 3 digits in the cxxx.poly file), we choose the polynomial
@@ -2424,7 +2425,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     def get_will_import(self):
         return "import" in self.params
 
-class PolyselJLTask(ClientServerTask, patterns.Observer):
+class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
     """ Find a polynomial pair using Joux-Lercier for DL in GF(p), uses client/server """
     @property
     def name(self):
@@ -2449,6 +2450,8 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        if "import" in self.params:
+            self.logger.warning('Have "import" parameter')
         assert self.params["nrkeep"] > 0
         self.state["rnext"] = self.state.get("rnext", 0)
         qmin = self.params["qmin"]
@@ -2461,26 +2464,31 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         if self.params["fastSM"]:
             self.progparams[0].setdefault("easySM", self.params["ell"])
         self.bestpoly = None
+        if "bestpoly" in self.state:
+            self.bestpoly = Polynomials(self.state["bestpoly"].splitlines())
             
     def run(self):
         super().run()
+       
+        if not "import" in self.params:
+            if self.is_done():
+                self.logger.info("Already finished - nothing to do")
+                return True
+            
+            # Submit all the WUs we need to reach the final modr
+            while self.need_more_wus():
+                self.submit_one_wu()
+            
+            # Wait for all the WUs to finish
+            while self.get_number_outstanding_wus() > 0:
+                self.wait()
+            
+            self.logger.info("Finished")
 
-        if self.is_done():
-            self.logger.info("Already finished - nothing to do")
-            return True
-        
-        # Submit all the WUs we need to reach the final modr
-        while self.need_more_wus():
-            self.submit_one_wu()
-        
-        # Wait for all the WUs to finish
-        while self.get_number_outstanding_wus() > 0:
-            self.wait()
-        
-        self.logger.info("Finished")
         filename = self.workdir.make_filename("poly")
         self.bestpoly.create_file(filename)
         self.state["polyfilename"] = filename.get_wdir_relative()
+        self.state["bestpoly"] = str(self.bestpoly)
         self.logger.info("Selected polynomial has MurphyE %f",
                 self.bestpoly.MurphyE);
         return True
@@ -2554,7 +2562,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
@@ -2567,7 +2575,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
                               poly)
             return 0
         if not poly.MurphyE:
-            self.logger.warn("Polynomial in file %s has no MurphyE, skipping it",
+            self.logger.warning("Polynomial in file %s has no MurphyE, skipping it",
                              filename)
             return 0
         if self.bestpoly is None or (self.bestpoly.MurphyE < poly.MurphyE or
@@ -2583,7 +2591,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
             poly = Polynomials(text)
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2598,10 +2606,12 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         return self.get_state_filename("polyfilename")
 
     def get_poly(self):
-        return self.bestpoly
+        if not "bestpoly" in self.state:
+            return None
+        return Polynomials(self.state["bestpoly"].splitlines())
 
     def get_have_two_alg_sides(self):
-            return True
+        return True
 
     def need_more_wus(self):
         return 1 + self.state["rnext"] < self.params["modm"]
@@ -2751,14 +2761,14 @@ class FactorBaseTask(Task):
         if "outputfile1" in self.state:
             prevpoly = Polynomials(self.state["poly"].splitlines())
             if poly != prevpoly:
-                self.logger.warn("Received different polynomial, "
+                self.logger.warning("Received different polynomial, "
                                  "discarding old factor base file")
                 del(self.state["outputfile1"])
                 del(self.state["outputfile0"])
             else:
                 for key in check_params:
                     if self.state[key] != check_params[key]:
-                        self.logger.warn("Parameter %s changed, discarding old "
+                        self.logger.warning("Parameter %s changed, discarding old "
                                          "factor base file", key)
                         del(self.state["outputfile1"])
                         del(self.state["outputfile0"])
@@ -2881,12 +2891,12 @@ class FreeRelTask(Task):
             discard = False
             prevpoly = Polynomials(self.state["poly"].splitlines())
             if poly != prevpoly:
-                self.logger.warn("Received different polynomial, discarding "
+                self.logger.warning("Received different polynomial, discarding "
                                  "old free relations file")
                 discard = True
             elif self.state["lpb1"] != self.progparams[0]["lpb1"] or \
                  self.state["lpb0"] != self.progparams[0]["lpb0"]:
-                self.logger.warn("Parameter lpb1/lpb0 changed, discarding old "
+                self.logger.warning("Parameter lpb1/lpb0 changed, discarding old "
                                  "free relations file")
                 discard = True
             if discard:
@@ -2989,7 +2999,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                     dv=f
                 s=1
             for pp in p[s:]:
-                r=re.compile("(\d+[a-z]+):(.*)")
+                r=re.compile(r"(\d+[a-z]+):(.*)")
                 m=r.match(pp)
                 assert m is not None
                 assert len(m.groups())==2
@@ -3018,7 +3028,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (str,),
             "0",
             SievingTask.combine_bkmult,
-            re.compile("#.*max bucket fill -bkmult ([\d\.]+(?:,\d[sl]:[\d\.]+)*)"),
+            re.compile(r"#.*max bucket fill -bkmult ([\d\.]+(?:,\d[sl]:[\d\.]+)*)"),
             False
         ),
         (
@@ -3122,7 +3132,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             return True
         output_files = message.get_output_files()
         if len(output_files) != 1:
-            self.logger.warn("Received output with %d files: %s" % (len(output_files), ", ".join(output_files)))
+            self.logger.warning("Received output with %d files: %s" % (len(output_files), ", ".join(output_files)))
             return False
         stderrfilename = message.get_stderrfile(0)
         ok = self.add_file(output_files[0], stderrfilename, commit=False)
@@ -3148,7 +3158,10 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                          self.state["rels_wanted"])
         return True
 
-    re_rel = re.compile(b"(-?\d*),(\d*):(.*)")
+    if tuple(sys.version_info)[0] < 3:
+        re_rel = re.compile(bytes(r"(-?\d*),(\d*):(.*)"))
+    else:
+        re_rel = re.compile(bytes(r"(-?\d*),(\d*):(.*)","ascii"))
     def verify_relation(self, line, poly):
         """ Check that the primes listed for a relation divide the value of
             the polynomials """
@@ -3863,17 +3876,17 @@ class PurgeTask(Task):
         last_nrels = self.state.get("last_output_nrels", 0)
         last_nprimes = self.state.get("last_output_nprimes", 0)
         if last_input_nrels >= input_nrels:
-            self.logger.warn("Previously stored input nrels (%d) is no "
+            self.logger.warning("Previously stored input nrels (%d) is no "
                              "smaller than value from new run (%d)",
                              last_input_nrels, input_nrels)
             return
         if nrels <= last_nrels:
-            self.logger.warn("Previously stored nrels (%d) is no "
+            self.logger.warning("Previously stored nrels (%d) is no "
                              "smaller than value from new run (%d)",
                              last_nrels, nrels)
             return
         if nprimes <= last_nprimes:
-            self.logger.warn("Previously stored nprimes (%d) is no "
+            self.logger.warning("Previously stored nprimes (%d) is no "
                              "smaller than value from new run (%d)",
                              last_nprimes, nprimes)
             return
@@ -4316,7 +4329,7 @@ class LinAlgDLPTask(Task):
         super().run()
 
         if self.state["ran_already"] and self.params["force_wipeout"]:
-                self.logger.warn("Ran before, but force_wipeout is set. "
+                self.logger.warning("Ran before, but force_wipeout is set. "
                                  "Wiping out working directory.")
                 self.workdir.make_dirname(subdir="bwc").rmtree()
                 self.state["ran_already"] = False
@@ -4587,7 +4600,7 @@ class LinAlgTask(Task, HasStatistics):
         super().run()
 
         if self.state["ran_already"] and self.params["force_wipeout"]:
-                self.logger.warn("Ran before, but force_wipeout is set. "
+                self.logger.warning("Ran before, but force_wipeout is set. "
                                  "Wiping out working directory.")
                 self.workdir.make_dirname(subdir="bwc").rmtree()
                 self.state["ran_already"] = False
@@ -5309,12 +5322,12 @@ class StartClientsTask(Task):
         # Check for old clients which we did not mean to start this run
         for cid in set(self.pids) - set(self.used_ids):
             if self.is_alive(cid):
-                self.logger.warn("Client id %s (Host %s, PID %d), launched "
+                self.logger.warning("Client id %s (Host %s, PID %d), launched "
                                  "in a previous run and not meant to be "
                                  "launched this time, is still running",
                                  cid, self.hosts[cid], self.pids[cid])
             else:
-                self.logger.warn("Client id %s (Host %s, PID %d), launched "
+                self.logger.warning("Client id %s (Host %s, PID %d), launched "
                                  "in a previous run and not meant to be "
                                  "launched this time, seems to have died. "
                                  "I'll forget about this client.",

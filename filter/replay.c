@@ -891,6 +891,13 @@ main(int argc, char *argv[])
          nrows, ncols);
   fflush(stdout);
 
+#if SIZEOF_INDEX == 4
+  if (ncols >= UINT32_MAX) {
+      fprintf(stderr, "You must recompile with -DSIZEOF_INDEX=8\n");
+      exit(EXIT_FAILURE);
+  }
+#endif
+
   /* Allocate memory for rows of the matrix */
   newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
   ASSERT_ALWAYS(newrows != NULL);

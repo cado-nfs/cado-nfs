@@ -168,8 +168,13 @@ class topology_level {
 public:
     string object;
     int n;
+    bool has_memory = false;
     topology_level() {}
-    topology_level(string const& s, int n) : object(s), n(n) {
+    topology_level(string const& s, int n, bool has_memory = false)
+        : object(s)
+        , n(n)
+        , has_memory(has_memory)
+    {
         if (s == "Socket") object="Package";
     }
     friend istream& operator>>(istream& is, topology_level& t);
@@ -184,6 +189,14 @@ istream& operator>>(istream& is, topology_level& t)
 {
     string s;
     if (!(is>>s)) return is;
+    /* This makes sense only with hwloc-2.x, but we might want to avoid
+     * having code compiled for hwloc-1.x choke on files that were
+     * intended for hwloc-2.x
+     */
+    if (s == "[NUMANode]") {
+        t.has_memory=1;
+        return is;
+    }
     string::size_type colon = s.find(':');
     if (colon != string::npos) {
         t.object = s.substr(0, colon);
@@ -196,7 +209,10 @@ istream& operator>>(istream& is, topology_level& t)
 }
 ostream& operator<<(ostream& os, const topology_level& t)
 {
-    return os << t.object << ":" << t.n;
+    os << t.object << ":" << t.n;
+    if (t.has_memory)
+        os << " [" << "NUMANode" << "]";
+    return os;
 }
 /* }}} */
 
@@ -214,14 +230,28 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
 
     synthetic_topology result;
 
+#if HWLOC_API_VERSION >= 0x020000
+    bool root_has_memory = obj->memory_arity > 0;
+#endif
+
     for(unsigned int arity = obj->arity ; arity ; arity = obj->arity) {
         obj = obj->first_child;
         char t[64];
         int d = hwloc_obj_type_snprintf(t, sizeof(t), obj, 1);
         if (d >= (int) sizeof(t))
             throw overflow_error("Too long hwloc type name.");
-        result.push_back(topology_level(t, arity));
+        topology_level T(t, arity);
+#if HWLOC_API_VERSION >= 0x020000
+        T.has_memory = obj->memory_arity > 0;
+#endif
+        result.push_back(T);
     }
+
+#if HWLOC_API_VERSION >= 0x020000
+    if (root_has_memory)
+        result.front().has_memory = true;
+#endif
+
     return result;
 }
 
@@ -353,7 +383,118 @@ ostream& operator<<(ostream& os, list<matching_string> const& L)
 
 istream& operator>>(istream& is, list<matching_string>& L)
 {
-    return parse_and_copy_to_list(is, L);
+    parse_and_copy_to_list(is, L);
+    /* Our parser may either encounter matching strings for hwloc-1.x or hwloc-2.x. In the former case, we have NUMANode objects that we must place differently. In the latter case our parser inserted hwloc-2.x memory objects at temporary places, and we must adjust the list accordingly. */
+    
+#if HWLOC_API_VERSION >= 0x020000
+    list<matching_string> L2 { };
+    /* our section matching must be smart enough to do the right thing
+     * with NUMANode matchers that we have here and there. Most often, we
+     * want our binding logic to remain sensible to the position of the
+     * NUMANode information. So we can't just ditch it.
+     *
+     * See:
+     *
+     * https://www.open-mpi.org/projects/hwloc/doc/v2.0.3/a00327.php
+     *
+     */
+    int is_version = 0;
+    for(; !L.empty() ;) {
+        auto &x = L.front();
+        if (x.has_memory) {
+            if (is_version == 1) {
+                throw invalid_argument("")
+                    << "Invalid matching string:"
+                    << "can't have both hwloc-1.x and hwloc-2.x syntax";
+            } else if (is_version == 2) {
+                throw invalid_argument("")
+                    << "Invalid matching string:"
+                    << "found memory objects at two different levels";
+            }
+            is_version = 2;
+            if (L2.empty()) {
+                throw invalid_argument("")
+                    << "Invalid matching string:"
+                    << "memory objects cannot be on top";
+            }
+            L2.back().has_memory=1;
+            L.pop_front();
+            continue;
+        }
+        if (x.object != "NUMANode") {
+            L2.splice(L2.end(), L, L.begin());
+            continue;
+        }
+        if (is_version == 2) {
+            throw invalid_argument("")
+                << "Invalid matching string:"
+                << "can't have both hwloc-1.x and hwloc-2.x syntax";
+        } else if (is_version == 1) {
+            throw invalid_argument("")
+                << "Invalid matching string:"
+                << "found memory objects at two different levels";
+        }
+        is_version = 1;
+        int n = x.n;
+        
+        if (n == 1) {
+            /* I think that hwloc-1.x *NEVER* outputs this:
+             *
+             * - If there's one single level in the machine, we have
+             *   no NUMANode in the hierarchy, e.g.:
+             *     Socket:2 L2Cache:2 L1Cache:2 Core:1 PU:1
+             *
+             * - If there are several, they're counted as different
+             *   objects, and come earlier in the hierarchy than the item
+             *   they contain:
+             *     NUMANode:2 Package:1
+             *
+             * The former goes unchanged, of course. The latter is
+             * changed to Package:2 [NUMANode]
+             *
+             * In a situation where we have two items at the level
+             * directly under NUMANode, e.g.:
+             *     NUMANode:2 Package:2
+             *
+             * Then we must insert a Group item as follows:
+             *     Group:2 [NUMANode] Package:2
+             */
+
+            /* The temptation is to just refuse to parse this. Now in
+             * fact, it's also quite easy to form something that is
+             * synctactically correct anyway, so we might as well do
+             * it.
+             */
+            if (!L2.empty())
+                L2.back().has_memory = true;
+            continue;
+        }
+        L.pop_front();
+        if (L.empty()) {
+            throw invalid_argument("")
+                << "Invalid matching string:"
+                <<" NUMANode must be followed by something";
+        }
+        auto & next = L.front();
+        if (!next.joker.empty()) {
+            throw invalid_argument("")
+                << "Invalid matching string:"
+                <<" NUMANode followed by a joker would have ambiguous meaning with hwloc-2.x";
+        }
+        next.n *= n;
+        next.has_memory = 1;
+        L2.splice(L2.end(), L, L.begin());
+    }
+    if (!is_version) {
+        ASSERT_ALWAYS(!L2.empty());
+        /* then we have an hwloc-1.x version string, let's mark its
+         * topmost item as having memory */
+        L2.front().has_memory = true;
+    }
+    L=std::move(L2);
+#endif
+
+    return is;
 }
 
 /* }}} */
@@ -392,14 +533,16 @@ istream& operator>>(istream& f, conf_file& result)
                     throw invalid_argument("")
                         << "Found two sections with header " << current.first;
                 }
-                result.insert(current);
+                result.insert(std::move(current));
             }
 
-            current = conf_file::value_type();
+            conf_file::key_type key_in_conf;
 
-            if (!(istringstream(s.substr(i0, i1 - i0)) >> current.first)) {
+            if (!(istringstream(s.substr(i0, i1 - i0)) >> key_in_conf)) {
                 goto conf_file_parse_error;
             }
+
+            current = { key_in_conf, {} };
             continue;
         }
         is.putback(c);
@@ -415,7 +558,9 @@ istream& operator>>(istream& f, conf_file& result)
                 /* try special cases */
                 goto conf_file_parse_error;
             }
-            current.second.insert(make_pair(t, v));
+            if (!current.first.empty()) {
+                current.second.insert(make_pair(t, v));
+            }
             continue;
         }
 
@@ -427,7 +572,7 @@ conf_file_parse_error:
             throw invalid_argument("")
                 << "Found two sections with header " << current.first;
         }
-        result.insert(current);
+        result.insert(std::move(current));
     }
 
     /* reaching EOF is *normal* here ! */
@@ -478,8 +623,8 @@ bool compare_to_section_title(ostream& os, synthetic_topology & topology, list<m
                 t->n *= g;
             }
             if (t->object.find("Core") == string::npos) {
-                os << PRE << "Warning: @merge_caches should encounter Caches above a \"Core\"\n";
-                os << PRE << "Warning: got " << *t << " instead, weird.\n";
+                os << PRE << "Warning: @merge_caches should encounter one or several Caches above a \"Core\"\n";
+                os << PRE << "Warning: got " << *t << " instead, weird (but harmless).\n";
             }
             njokers++;
             continue;
@@ -496,6 +641,9 @@ bool compare_to_section_title(ostream& os, synthetic_topology & topology, list<m
         }
         /* now compare the topology level *t with the section title token s */
         if (s != *t) return false;
+#if HWLOC_API_VERSION >= 0x020000
+        if (s.has_memory != t->has_memory) return false;
+#endif
         t++;
     }
 
@@ -856,7 +1004,6 @@ void cpubinder::stage()
     for(auto it = stopo.begin() ; it != stopo.end() ; g*=it++->n) ;
     ASSERT_ALWAYS(g == npu);
     */
-
     vector<pinning_group> slots;
     for(hwloc_obj_t pu = hwloc_get_obj_by_depth(topology, depth-1, 0) ;
             pu != NULL;
@@ -874,6 +1021,26 @@ void cpubinder::stage()
 
     os << PRE << "Reduced topology: " << stopo << endl;
     os << PRE << "Applying mapping: " << mapping << endl;
+
+#if HWLOC_API_VERSION >= 0x020000
+    int numa_depth = hwloc_get_memory_parents_depth(topology);
+    std::string numa_replace;
+    {
+        hwloc_obj_t pu = hwloc_get_obj_by_depth(topology, numa_depth, 0);
+        char t[64];
+        int d = hwloc_obj_type_snprintf(t, sizeof(t), pu, 1);
+        if (d >= (int) sizeof(t))
+            throw overflow_error("Too long hwloc type name.");
+        numa_replace = t;
+    }
+    for(auto & x : mapping) {
+        if (x.object == "NUMANode") {
+            x.object = numa_replace;
+            os << PRE << "Found legacy hwloc-1.x mapping string,"
+                << "replacing NUMANode by " << numa_replace << endl;
+        }
+    }
+#endif
 
     for( ;jt != mapping.rend() ; jt++) {
         if (!jt->group) {

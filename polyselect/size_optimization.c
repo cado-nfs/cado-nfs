@@ -84,7 +84,7 @@ list_mpz_sort_and_remove_dup (list_mpz_ptr l, const int verbose)
   for (unsigned int i = 1; i < len; i++)
     if (mpz_cmp (l->tab[i], l->tab[l->len-1]) != 0)
       list_mpz_append (l, l->tab[i]);
-    else if (verbose > 1)
+    else if (verbose > 2)
       gmp_fprintf (stderr, "# sopt: Remove duplicate %Zd\n", l->tab[i]);
 }
 
@@ -207,7 +207,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
   nb_q3roots = double_poly_compute_all_roots_with_bound (roots_q3, res,
 						 SOPT_MAX_VALUE_FOR_Q_ROOTS);
 
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf (stderr, "# sopt: q-roots of Res(c3,c4) or Res(c3,c4)' = {");
     for (i = 0; i < nb_q3roots; i++)
@@ -264,7 +264,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
             }
         }
 
-      if (verbose > 1)
+      if (verbose > 2)
         {
           if (i < nb_q3roots)
             fprintf (stderr, "# sopt: process rational approximation %f of %f\n",
@@ -283,7 +283,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
         list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
-        if (verbose > 1)
+        if (verbose > 2)
           gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c4)\n",
                        list_k->tab[list_k->len-1]);
       }
@@ -299,7 +299,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
         list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
-        if (verbose > 1)
+        if (verbose > 2)
           gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c3)\n",
                        list_k->tab[list_k->len-1]);
       }
@@ -328,7 +328,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
         list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
-        if (verbose > 1)
+        if (verbose > 2)
           gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of "
                                "Res(c3,c2))\n", list_k->tab[list_k->len-1]);
       }
@@ -338,7 +338,7 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
         list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
-        if (verbose > 1)
+        if (verbose > 2)
           gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of derivative "
                                "of Res(c3,c2)\n", list_k->tab[list_k->len-1]);
       }
@@ -470,7 +470,7 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
   /* compute roots of res */
   nb_q2roots = double_poly_compute_all_roots_with_bound (roots_q2, res,
 						   SOPT_MAX_VALUE_FOR_Q_ROOTS);
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf (stderr, "# sopt: q-roots of Res(c2,c3) or Res(c2,c3)' = {");
     for (i = 0; i < nb_q2roots; i++)
@@ -519,7 +519,7 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
             }
         }
 
-      if (verbose > 1)
+      if (verbose > 2)
         fprintf (stderr, "# sopt: process rational approximation %f of %f\n",
                          q2_rat, roots_q2[i]);
 
@@ -532,7 +532,7 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
         list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
-        if (verbose > 1)
+        if (verbose > 2)
           gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c3)\n",
                        list_k->tab[list_k->len-1]);
       }
@@ -583,7 +583,7 @@ mpz_poly_fprintf_short (FILE *out, mpz_poly_srcptr f)
 static inline void
 mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
 {
-  if (verbose > 1)
+  if (verbose > 2)
     mpz_poly_fprintf (out, f);
   else
     mpz_poly_fprintf_short (out, f);
@@ -631,7 +631,7 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   mpz_init (tmp);
   mpz_poly_init (ftmp, f_raw->deg);
 
-  if (verbose > 1)
+  if (verbose > 2)
   {
     fprintf (stderr, "# sopt:       starting local descent with polynomials:\n"
                      "# sopt:       f_raw = ");
@@ -766,7 +766,7 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
     }
   }
 
-  if (verbose > 1)
+  if (verbose > 2)
   {
     fprintf (stderr, "# sopt:       end of local descent after %u iterations "
                      "with polynomials:\n" "# sopt:       f_opt = ", iter);
@@ -963,7 +963,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
 					  (mpz_poly_ptr) g_raw);
 
 
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf (stderr, "\n# sopt: start size-optimization with polynomials:\n"
                      "# sopt: f_raw = ");
@@ -1007,19 +1007,19 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       sopt_find_translations_deg6 (list_k, f_raw, g_raw, verbose, sopt_effort);
     else if (d == 5)
       sopt_find_translations_deg5 (list_k, f_raw, g_raw, verbose, sopt_effort);
-    if (verbose)
+    if (verbose > 1)
       fprintf (stderr, "# sopt: %" PRIu64 " values for the translations were "
                        "computed and added in list_k\n", list_k->len);
 
     /* Add 0 to the list of translations to try */
     mpz_set_ui (tmp, 0);
     list_mpz_append (list_k, tmp);
-    if (verbose)
+    if (verbose > 1)
       fprintf (stderr, "# sopt: k = 0 was added list_k\n");
 
     /* Sort list_k by increasing order and remove duplicates */
     list_mpz_sort_and_remove_dup (list_k, verbose);
-    if (verbose)
+    if (verbose > 1)
       fprintf (stderr, "# sopt: It remains %" PRIu64 " values after sorting"
                        " and removing duplicates\n", list_k->len);
   }
@@ -1028,7 +1028,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
     /* Start with list_k = {0} */
     mpz_set_ui (tmp, 0);
     list_mpz_append (list_k, tmp);
-    if (verbose)
+    if (verbose > 1)
       fprintf (stderr, "# sopt: Start with list_k = { 0 }\n");
   }
 
@@ -1047,7 +1047,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
      row vectors). */
   LLL_init (&U, d, d);
 
-  if (verbose)
+  if (verbose > 1)
     fprintf (stderr, "# sopt: Start processing all k in list_k of length "
                      "%" PRIu64 "\n", list_k->len);
 
@@ -1082,7 +1082,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       lognorm += expected_rotation_gain (fld, gld);
       if (lognorm < best_lognorm)
         {
-          if (verbose)
+          if (verbose > 1)
             {
               gmp_fprintf (stderr, "# sopt:       better lognorm %.2f (previ"
                            "ous was %.2f) for skew = %Zd and k = %Zd\n",
@@ -1117,7 +1117,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   mpz_clear (tmp);
   mpz_clear (tmp2);
 
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf (stderr, "# sopt: end of size-optimization, best polynomials are\n");
     fprintf (stderr, "# sopt: f_opt = ");

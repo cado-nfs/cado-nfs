@@ -3,7 +3,7 @@
 # Debug tools to track down ideals and relations in the filtering step.
 # Examples are at the end of the file.
 
-DIRNAME="/local/rsa768/dup_ffs137/test.filter"
+DIRNAME="/tmp/test.filter"
 PREFIX="test."
 
 PURGEDFILE="${DIRNAME}/${PREFIX}rels.purged.gz" # produced by purge

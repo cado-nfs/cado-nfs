@@ -148,6 +148,9 @@ void prepare_indexrange(indexrange *Ind, renumber_t ren_tab,
     Ind[0].init();
     Ind[1].init();
     for (index_t i = 0; i < ren_tab->size; i++) {
+        if (renumber_is_additional_column(ren_tab, i)) {
+            continue;
+        }
         int side = renumber_get_side_from_index(ren_tab, i, cpoly);
         Ind[side].append(i);
         if (compsq && (side == sqside)) {

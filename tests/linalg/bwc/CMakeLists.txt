@@ -5,7 +5,7 @@
 macro(add_bwc_test nm script)
     cado_define_test(test-bwc-${nm} SCRIPT
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
-        ${CADO_NFS_SOURCE_DIR}/linalg/bwc/${script}
+        ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
         bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
         TARGET_DEPENDENCIES bwc_full)
 endmacro()
@@ -64,7 +64,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(p "${prime_${width}}")
     if(gfp_layer STREQUAL "pz")
     else()
-        add_bwc_test(modp-inhomogeneous-${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 ${extra})
+        add_bwc_test(modp-inhomogeneous-${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
         add_dependencies(test-bwc-modp-inhomogeneous-${gfp_layer}_dependencies
             plingen_pz plingen_${gfp_layer})
         if(gfp_layer STREQUAL "p_1")
@@ -120,6 +120,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             #        add_dependencies(modp-inhomogeneous-minimal-2rhs-mn2_dependencies
             #        plingen_pz plingen_${gfp_layer})
         endif()
+        add_bwc_test(modp-secure-continuation-${gfp_layer} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
     endif()
 
     # Also add some plingen tests if it so occurs that the current
@@ -214,38 +215,45 @@ lingen_threshold=60  m=4 n=2  prime=101538509534246169632617439 --random-input-w
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
 
-add_bwc_test(mod2-plain bwc-trace.sh random_matrix_size=800 m=64 n=64 seed=1 thr=2x2)
+add_bwc_test(mod2-plain bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2)
 add_dependencies(test-bwc-mod2-plain_dependencies mf_scan)
-add_bwc_test(mod2-padded bwc-trace.sh random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2)
+add_bwc_test(mod2-padded bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2)
 add_dependencies(test-bwc-mod2-padded_dependencies mf_scan)
+
+add_bwc_test(mod2-secure-continuation bwc-test-secure-continuation.sh
+    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64)
+add_dependencies(test-bwc-mod2-secure-continuation_dependencies mf_scan)
 
 # Note: because of stop_at_step here, we're not verifying what we're
 # doing, which is a bit stupid.
-add_bwc_test(mod2-rolling bwc-trace.sh random_matrix_size=2000
+add_bwc_test(mod2-rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=2000
     interval=10 keep_rolling_checkpoints=2 checkpoint_precious=40 m=64 n=64
     seed=1 thr=2x2 stop_at_step=lingen)
 add_dependencies(test-bwc-mod2-rolling_dependencies mf_scan)
 
-add_bwc_test(mod2-8k bwc-trace.sh random_matrix_size=8000 m=128 n=128 seed=1 thr=2)
+add_bwc_test(mod2-8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2)
 add_dependencies(test-bwc-mod2-8k_dependencies mf_scan)
 
-add_bwc_test(mod2-oddthr bwc-trace.sh random_matrix_size=800 m=128 n=128 seed=1 thr=3)
+if (COMPILE_MPFQ_BINARY_FIELD_m128)
+add_bwc_test(mod2-8k-simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128)
+add_dependencies(test-bwc-mod2-8k-simd128_dependencies mf_scan)
+endif()
+
+add_bwc_test(mod2-oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3)
 add_dependencies(test-bwc-mod2-oddthr_dependencies mf_scan)
 
-# temporarily disabling this test, until I get to re-enabling the
-# feature.
-# add_bwc_test(mod2-interleaving bwc-trace.sh random_matrix_size=800 m=128 n=128
-#     interleaving=1 seed=1 thr=2)
-# add_dependencies(test-bwc-mod2-oddthr_dependencies mf_scan)
+add_bwc_test(mod2-interleaving bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128
+    interleaving=1 seed=1 thr=2)
+add_dependencies(test-bwc-mod2-oddthr_dependencies mf_scan)
  
-add_bwc_test(mod2-m-neq-n bwc-trace.sh random_matrix_size=400 m=128 n=64
+add_bwc_test(mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5)
 add_dependencies(test-bwc-mod2-m-neq-n_dependencies mf_scan)
 if (HAVE_MPI)
-add_bwc_test(mpi1-mod2-m-neq-n bwc-trace.sh random_matrix_size=400 m=128 n=64
+add_bwc_test(mpi1-mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5 mpi=2x3 lingen_mpi=2x2)
 add_dependencies(test-bwc-mpi1-mod2-m-neq-n_dependencies mf_scan)
-add_bwc_test(mpi2-mod2-m-neq-n bwc-trace.sh random_matrix_size=400 m=128 n=64
+add_bwc_test(mpi2-mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5 mpi=3x2 lingen_mpi=2x2)
 add_dependencies(test-bwc-mpi2-mod2-m-neq-n_dependencies mf_scan)
 endif()
@@ -261,6 +269,33 @@ if(HAVE_CXX11 AND HAVE_HWLOC)
         ARGUMENTS
         --cpubinding ${CMAKE_CURRENT_SOURCE_DIR}/cpubind_config_file_for_tests.conf
         LIBRARIES utils bwc_base)
+endif()
+
+cado_define_test(test-parallelizing_info.cpp
+    ARGUMENTS thr=2x2
+    LIBRARIES utils bwc_base
+    )
+set_target_properties(test-parallelizing_info PROPERTIES
+            LINKER_LANGUAGE CXX
+            COMPILE_FLAGS "--mpi"
+            LINK_FLAGS "--mpi")
+if (HAVE_MPI)
+    # mimick what we did with test_hello (which, in a way, tests most of
+    # the same code anyway)
+    cado_define_test(test-parallelizing_info_mpi PROGRAM
+        ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl
+        NO_DEFAULT_RUN
+        TARGET_DEPENDENCIES test-parallelizing_info
+        TEST_DEPENDENCIES test-parallelizing_info)
+    macro(test_parallelizing_info_mpi code)
+        cado_divert_test(test-parallelizing_info_mpi ${code} ARGUMENTS
+            :mpirun ${ARGN}
+            -- ${CMAKE_CURRENT_BINARY_DIR}/test-parallelizing_info -v ${ARGN}
+            TEST_DEPENDENCIES test-parallelizing_info)
+    endmacro()
+    test_parallelizing_info_mpi(2122 mpi=2x1 thr=2x2)
+    test_parallelizing_info_mpi(1322 mpi=1x3 thr=2x2)
+    test_parallelizing_info_mpi(3222 mpi=3x2 thr=2x2)
 endif()
 
 macro(test_dispatch_matmul testname)

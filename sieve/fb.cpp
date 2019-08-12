@@ -242,6 +242,7 @@ fb_entry_general::parse_line (const char * lineptr, const unsigned long linenr)
         exit (EXIT_FAILURE);
     }
 
+    invq = compute_invq(q);
     lineptr++; /* Skip colon after q */
     const bool longversion = (strchr(lineptr, ':') != NULL);
 
@@ -1520,7 +1521,6 @@ fb_factorbase::read(const char * const filename)
             overflow++;
             continue;
         }
-        C.invq = compute_invq(C.q);
 
         if (C.p > maxprime) maxprime = C.p;
 

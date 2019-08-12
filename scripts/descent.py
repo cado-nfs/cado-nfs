@@ -55,14 +55,19 @@ import random
 from queue import Queue, Empty
 from threading import Thread
 
+has_hwloc = None
+
 # This gives the boring info about the file names for everything, and
 # the boilerplate arguments to be fed to binaries.
 class GeneralClass(object):
 
     def declare_args(parser):
-        parser.add_argument("--no-wipe",
-                help="Keep working files",
-                action="store_true")
+        # parser.add_argument("--no-wipe",
+        #         help="Keep working files",
+        #         action="store_true")
+        parser.add_argument("--sm-mode",
+                help="Select SM mode",
+                type=str)
         parser.add_argument("--datadir",
                 help="cadofactor working directory",
                 type=str)
@@ -233,6 +238,12 @@ class GeneralClass(object):
                     d[s][int(i)]=value.strip()
                 else:
                     d[key] = value.strip()
+            if 'poly0' in d:
+                assert 'Y' not in d
+                d['Y'] = [ int(x) for x in d["poly0"].split(',') ]
+            if 'poly1' in d:
+                assert 'c' not in d
+                d['c'] = [ int(x) for x in d["poly1"].split(',') ]
         return d
 
     def p(self):
@@ -367,7 +378,7 @@ class LogBase(object):
     def __init__(self, general):
         self.known={}
         self.badideals=[]
-        self.SMs = []
+        self.SMs = [ [], [] ]
         self.fullcolumn = None
         try:
             print ("--- Reading %s to find which are the known logs ---" % general.log())
@@ -376,7 +387,7 @@ class LogBase(object):
                 if p == "bad" and side == "ideals":
                     self.badideals.append(int(r))
                 elif p == "SM":
-                    self.SMs.append(int(value[0]))
+                    self.SMs[int(side)].append(int(value[0]))
                 else:
                     # for rational side, we actually don't have the root.
                     # We force it to be on side 0 (legacy, again...)
@@ -399,7 +410,9 @@ class LogBase(object):
                     if i % 1000000 == 0:
                         print("Reading line %d" % i)
                     process(line)
-            print("Found %d bad ideals, %d known logs, and %d SMs in %s" %(len(self.badideals), len(self.known),len(self.SMs), general.log()))
+            print("Found %d bad ideals, %d known logs, and %d,%d SMs in %s"
+                %(len(self.badideals), len(self.known),
+                len(self.SMs[0]), len(self.SMs[1]), general.log()))
         except:
             raise ValueError("Error while reading %s" % general.log())
     def has(self,p,r,side):
@@ -417,8 +430,13 @@ class LogBase(object):
         self.known[(p,r,side)] = log
     def bad_ideal(self,i):
         return self.badideals[i]
-    def SM(self,i):
-        return self.SMs[i]
+    def allSM(self,i):
+        SM = self.SMs[0] + self.SMs[1]
+        return SM[i]
+    def nSM(self,side):
+        return len(self.SMs[side])
+    def SM(self,side,i):
+        return self.SMs[side][i]
     def full_column(self):
         return self.fullcolumn
 
@@ -579,7 +597,7 @@ class DescentUpperClass(object):
                 help="ECM maximal effort" + c,
                 default=100000)
         parser.add_argument("--init-side",
-                help="Side of the bootstrap (when there is no rational side",
+                help="Side of the bootstrap (when there is no rational side)",
                 default=1)
         # Slave las processes in the initial step.
         parser.add_argument("--slaves",
@@ -613,7 +631,7 @@ class DescentUpperClass(object):
             self.minB1    = int(args.init_minB1)
             self.slaves   = int(args.slaves)
             # the final step needs to know the init side as well.
-            general.init_side = args.init_side
+            general.init_side = int(args.init_side)
 
     def __isqrt(self, n):
         x = n
@@ -744,22 +762,35 @@ class DescentUpperClass(object):
         if os.path.exists(relsfilename):
             processes = [important_file(relsfilename,[])]
         else:
+            fbcfilename = os.path.join(tmpdir, prefix + "fbc")
+            call_common = [ general.las_bin(),
+                      "-poly", polyfilename,
+                      "-lim0", self.lim,
+                      "-lim1", self.lim,
+                      "-lpb0", self.lpb,
+                      "-lpb1", self.lpb,
+                      "-mfb0", self.mfb,
+                      "-mfb1", self.mfb,
+                      "-ncurves0", self.ncurves,
+                      "-ncurves1", self.ncurves,
+                      "-fbc", fbcfilename,
+                      "-I", self.I
+                ]
+            def fbc_call():
+                call_that = call_common + [
+                        "-q0", self.tkewness,
+                        "-q1", self.tkewness,
+                        "-nq", 0,
+                        "-t", "machine,1,pu" if has_hwloc else "4"
+                ]
+                call_that = [str(x) for x in call_that]
+                return call_that
             def construct_call(q0,q1):
-                call_that = [ general.las_bin(),
-                          "-poly", polyfilename,
-                          "-lim0", self.lim,
-                          "-lim1", self.lim,
-                          "-lpb0", self.lpb,
-                          "-lpb1", self.lpb,
-                          "-mfb0", self.mfb,
-                          "-mfb1", self.mfb,
-                          "-ncurves0", self.ncurves,
-                          "-ncurves1", self.ncurves,
-                          "-I", self.I,
+                call_that = call_common + [
                           "-q0", q0,
                           "-q1", q1,
                           "--exit-early", 2,
-                          "-t", 4
+                          "-t", "auto" if has_hwloc else "4"
                 ]
                 call_that = [str(x) for x in call_that]
                 return call_that
@@ -767,6 +798,25 @@ class DescentUpperClass(object):
             call_params = [(os.path.join(relsfilename+"."+str(i)), # outfile
                             self.tkewness+100000*i, #q0
                             self.tkewness+100000*(i+1)) for i in range(self.slaves)] #q1
+
+            if not os.path.exists(fbcfilename):
+                all_ok = True
+                for t in call_params:
+                    if not os.path.exists(t[0]):
+                        all_ok = False
+                        break
+
+                if all_ok:
+                    print (" - Using %s" % fbcfilename)
+                else:
+                    print (" - Factor base cache -")
+                    with open(os.devnull, 'w') as devnull:
+                        subprocess.check_call(fbc_call(), stdout=devnull)
+                    print (" - done -")
+
+            # Whether or not the output files are already present, this
+            # will do the right thing and run the new processes only if
+            # needed.
             processes = [important_file(outfile, construct_call(q0,q1)) for (outfile,q0,q1) in call_params]
 
         q = Queue()
@@ -1015,6 +1065,7 @@ class DescentMiddleClass(object):
                 "--mfb0", self.args.mfb0,
                 "--lpb1", general.lpb1(),
                 "--mfb1", self.args.mfb1,
+                "-t", "machine,1,pu" if has_hwloc else "4"
              ]
         s += [ "--todo", todofile ]
         call_that=[str(x) for x in s]
@@ -1116,6 +1167,8 @@ class DescentLowerClass(object):
                         "-out", SMfile,
                         "-ell", general.ell()
                     ]
+        if self.args.sm_mode is not None:
+            call_that += [ "-sm-mode", self.args.sm_mode ]
         call_that = [str(x) for x in call_that]
         print("command line:\n" + " ".join(call_that))
         with open(os.devnull, 'w') as devnull:
@@ -1146,7 +1199,7 @@ class DescentLowerClass(object):
                 acc_log += logDB.fullcolumn
             sm = SM[irel]
             for i in range(len(sm)):
-                acc_log += logDB.SM(i)*sm[i]
+                acc_log += logDB.allSM(i)*sm[i]
             for side in range(2):
                 for p, k in list_p[side]:
                     ideal = ideals_above_p(p, k, a, b, side, general)
@@ -1242,9 +1295,12 @@ class DescentLowerClass(object):
             factored = [ general.initfacu, general.initfacv ]
             for i in range(0,2):
                 for xx in factored[i]:
-                    vlog[i] += general.logDB.get_log(xx[0], xx[1], general.init_side)
-                for j in range(len(SM2[i])):
-                    vlog[i] += logDB.SM(j)*SM2[i][j]
+                    vlog[i] += logDB.get_log(xx[0], xx[1], general.init_side)
+                ind_shift = 0
+                if general.init_side == 1:
+                    ind_shift = logDB.nSM(0)
+                for j in range(logDB.nSM(general.init_side)):
+                    vlog[i] += logDB.SM(general.init_side,j)*SM2[i][ind_shift+j]
                 vlog[i] = vlog[i] % ell
 
             log_target = (vlog[0] - vlog[1]) % ell
@@ -1311,6 +1367,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     sys.stdout = drive_me_crazy(sys.stdout, args.timestamp)
+
+    las_bin = os.path.join(args.cadobindir, "sieve", "las")
+    cp = subprocess.Popen([ las_bin, "-help" ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+    if re.search("unused, needs hwloc", cp.stderr.read().decode()):
+        has_hwloc = False
+    else:
+        has_hwloc = True
 
 
     general = GeneralClass(args)

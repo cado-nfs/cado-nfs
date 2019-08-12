@@ -62,7 +62,7 @@ while [ $# -gt 0 ] ; do
                 nh=$((x*nh))
                 x=`echo $1 | cut -d= -f2 | cut -dx -f2`
                 nv=$((x*nv))
-                bwc_extra=("${bwc_extra[@]}" "$1")
+                bwc_extra+=("$1")
                 shift
                 ;;
             *) echo "Unexpected arg: $1" >&2 ; usage;;
@@ -108,7 +108,7 @@ if [ $nrows != $ncols ] ; then
 else
     mf_bal_extra=(--reorder columns)
 fi
-# mf_bal_extra=("${mf_bal_extra[@]}" skip_decorrelating_permutation=true)
+# mf_bal_extra+=(skip_decorrelating_permutation=true)
 redirect_unless_debug $wdir/bal.out $bindir/linalg/bwc/mf_bal $nh $nv $wdir/mat.bin out=$wdir/bal.bin "${mf_bal_extra[@]}" "${extra_args_mf[@]}"
 B=$wdir/bal.bin
 
@@ -118,23 +118,26 @@ echo "## backends to test: ${backends[*]}"
 if [ "$prime" = 2 ] ; then
     case "$arith_layer" in
         u64k*) n=$((`echo $arith_layer | cut -c5-` * 64)); m=$n;;
+        m128) n=128; m=128;;
         *) echo "unknown arithmetic layer $arith_layer" >&2; exit 1;;
     esac
     bwc_common=(m=$m n=$n)
     nullspace_values=(left RIGHT)
+    splitwidth=64
 else
     bwc_common=(m=1 n=1)
     nullspace_values=(LEFT right)
+    splitwidth=1
 fi
 
 
 for impl in "${backends[@]}" ; do
-    rm -f $wdir/Xa.0 $wdir/Xb.0
-    rm -f $wdir/Xa.1 $wdir/Xb.1
-    rm -f $wdir/XTa.0 $wdir/XTb.0
-    rm -f $wdir/XTa.1 $wdir/XTb.1
-    rm -f $wdir/MY.0 $wdir/sMY.0
-    rm -f $wdir/WM.0 $wdir/sWM.0
+    rm -f $wdir/Xa0-$splitwidth.0 $wdir/Xb0-$splitwidth.0
+    rm -f $wdir/Xa0-$splitwidth.1 $wdir/Xb0-$splitwidth.1
+    rm -f $wdir/XTa0-$splitwidth.0 $wdir/XTb0-$splitwidth.0
+    rm -f $wdir/XTa0-$splitwidth.1 $wdir/XTb0-$splitwidth.1
+    rm -f $wdir/MY0-$splitwidth.0 $wdir/sMY0-$splitwidth.0
+    rm -f $wdir/WM0-$splitwidth.0 $wdir/sWM0-$splitwidth.0
 
     # The nullspace argument is just for selecting the preferred
     # direction for the matrix times vector product. But in the spmv_test
@@ -144,16 +147,16 @@ for impl in "${backends[@]}" ; do
     for ns in ${nullspace_values[@]} ; do
         redirect_unless_debug $wdir/spmv-$impl-left.out $bindir/linalg/bwc/bwc.pl :mpirun ${bwc_extra} -- $bindir/tests/linalg/bwc/spmv_test wdir=$wdir "${bwc_common[@]}" prime=$prime balancing=$B matrix=$wdir/mat.bin nullspace=$ns mm_impl=$impl no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
         # check done within the C code.
-        # diff -q $wdir/Z.0 $wdir/ZI.0
-        # diff -q $wdir/Z.0 $wdir/ZII.0
-        diff -q $wdir/Xa.0 $wdir/Xb.0
-        diff -q $wdir/Xa.1 $wdir/Xb.1
-        diff -q $wdir/XTa.0 $wdir/XTb.0
-        diff -q $wdir/XTa.1 $wdir/XTb.1
+        # diff -q $wdir/Z0-$splitwidth.0 $wdir/ZI0-$splitwidth.0
+        # diff -q $wdir/Z0-$splitwidth.0 $wdir/ZII0-$splitwidth.0
+        diff -q $wdir/Xa0-$splitwidth.0 $wdir/Xb0-$splitwidth.0
+        diff -q $wdir/Xa0-$splitwidth.1 $wdir/Xb0-$splitwidth.1
+        diff -q $wdir/XTa0-$splitwidth.0 $wdir/XTb0-$splitwidth.0
+        diff -q $wdir/XTa0-$splitwidth.1 $wdir/XTb0-$splitwidth.1
     done
-    $bindir/tests/linalg/bwc/short_matmul -p $prime $wdir/mat.bin  $wdir/Y.0  $wdir/sMY.0 > /dev/null 2>&1
-    diff -q $wdir/MY.0 $wdir/sMY.0
-    $bindir/tests/linalg/bwc/short_matmul -p $prime -t $wdir/mat.bin  $wdir/W.0  $wdir/sWM.0 > /dev/null 2>&1
-    diff -q $wdir/WM.0 $wdir/sWM.0
+    $bindir/tests/linalg/bwc/short_matmul -p $prime $wdir/mat.bin  $wdir/Y0-$splitwidth.0  $wdir/sMY0-$splitwidth.0 > /dev/null 2>&1
+    diff -q $wdir/MY0-$splitwidth.0 $wdir/sMY0-$splitwidth.0
+    $bindir/tests/linalg/bwc/short_matmul -p $prime -t $wdir/mat.bin  $wdir/W0-$splitwidth.0  $wdir/sWM0-$splitwidth.0 > /dev/null 2>&1
+    diff -q $wdir/WM0-$splitwidth.0 $wdir/sWM0-$splitwidth.0
     echo "spmv ${nrows}x${ncols} $impl left ok ${bwc_extra[@]}"
 done

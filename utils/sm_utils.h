@@ -6,32 +6,60 @@
  * choices, in case there are still parts of the code that make reference
  * to them.
  *
- * Legacy choice:
+ * Normally, for compatibility with previous data files, we strive to
+ * provide access to the old computation conventions. Be aware, however,
+ * that this is inherently fragile, and not always tested. The chosen SM
+ * mode must be consistent throughout the computation.
+ *
+ * Legacy choice (internal name SM_MODE_LEGACY_PRE2018, argument
+ * --sm-mode legacy)
+ *
  *   Compute modulo f(x), with an exponent corresponding to the LCM of
  *   all factors modulo ell. Then take the coefficients of the resulting
  *   polynomials, starting with the one with largest degree, in order to
  *   avoid jokes with the constant coefficient and Galois effects.
  *
- * Transitional:
+ * Transitional: (same)
  *   Do this computation using CRT modulo all factors of f(x), but
  *   keeping the compatibility with the legacy choice.
  *
- * Current choice:
+ * Choice activated in ec940b55a (summer 2018); (internal name
+ * SM_MODE_2018, argument --sm-mode 2018. This is also the current
+ * default, so that --sm-mode default is an alias to this)
  *   Select a subset of factors of f(x) mod ell so that their degrees sum
  *   up to (just) at least the number of required SMs. See
  *   sm_side_info_init() for the basic algorithm that chooses these
  *   factors.
  *   Then compute modulo each factor f_i(x) mod ell, with the exponent
  *   attached to the degree of this factor. Each coefficient of the
- *   resulting polynomial contributes directly to the output SMs (no
- *   CRT).
+ *   resulting polynomial, taken in increasing degree order, contributes
+ *   to a list of deg(f_1)+...+deg(f_k) coordinates. The nsm furst
+ *   coordinates of this list are elected as the SM vector.
  *
+ * Alternate mode, maybe better (internal name SM_MODE_2019REV, argument
+ * --sm-mode 2019rev)
+ *   This is almost the same as the previous one, except that the list of
+ *   deg(f_1)+...+deg(f_k) coordinates is built by taking the
+ *   coefficients of each of the components in reverse degree order.
+ *
+ * Potential future extension (internal name
+ * SM_MODE_PSEUDORANDOM_COMBINATION, argument --sm-mode pseudorandom).
+ *   We might consider implementing some sort of pseudo-random
+ *   combination of the coefficients. The exact details are not yet
+ *   defined. (not implemented).
  */
 
 
 #define MAX_LEN_RELSET 1024
 
 #include "mpz_poly.h"
+
+enum sm_mode {
+    SM_MODE_LEGACY_PRE2018 = 1,
+    SM_MODE_2018 = 2,
+    SM_MODE_2019REV = 3,
+    SM_MODE_PSEUDORANDOM_COMBINATION = 4, /* not implemented yet */
+};
 
 struct sm_side_info_s {
     int unit_rank;
@@ -45,6 +73,8 @@ struct sm_side_info_s {
     int is_factor_used[MAX_DEGREE];
     mpz_t exponent;
     mpz_t * exponents;
+    mpz_t * matrix;
+    enum sm_mode mode;
 };
 typedef struct sm_side_info_s sm_side_info[1];
 typedef struct sm_side_info_s * sm_side_info_ptr;
@@ -65,6 +95,7 @@ extern "C" {
 #endif
 
 void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell);
+void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string);
 void sm_side_info_clear(sm_side_info_ptr sm);
 void sm_side_info_print(FILE * out, sm_side_info_srcptr sm);
 
@@ -83,14 +114,10 @@ void sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
 			  mpz_poly * abpolys, mpz_poly_ptr *F, int nb_polys, 
 			  const mpz_t ell2);
 
-// Taking a polynomial modulo F as input, compute the corresponding SM
-// as a polynomial.
-void compute_sm_straightforward(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcptr sm);
-
 // Print coeffs of the SM polynomial
-void print_sm (FILE *, mpz_poly, int, int);
+void print_sm (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM);
 // same, with a delimiter
-void print_sm2 (FILE *f, mpz_poly SM, int nSM, int d, const char * delim);
+void print_sm2 (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM, const char * delim);
 
 /* This does the same as compute_sm_straightforward, except that it works piecewise on
  * the different components. It is thus noticeably faster. Results are

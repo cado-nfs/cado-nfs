@@ -7,7 +7,8 @@
 20160201 edit the MPI section
 20130724 general update
 
-See bwc-ptrace.sh and bwc-ptrace.m for the most up-to-date checks
+See $CADO/tests/linalg/bwc/bwc-ptrace.sh and
+$CADO/tests/linalg/bwc/bwc-ptrace.m for the most up-to-date checks
 relative to the exact meaning of most files for the case of linear
 systems over GF(p) or GF(2). More generally, all GF(p) specific
 information is in README.gfp
@@ -318,6 +319,18 @@ This list links at who creates what and uses what. The prefix ``mat'' is
 actually replaced by the basename of the input matrix, with suffixes
 removed.
 
+Angle brackets indicate variables whose meaning is as follows
+    nh  number of rows of the matrix split
+    nv  number of columns of the matrix split
+    bchecksum   checksum computed by mf_bal
+    m   block Wiedemann parameter
+    n   block Wiedemann parameter
+    splitwidth  64 when working with prime=2, 1 otherwise.
+    j   arbitrary integer
+    n1,n2 integers such that 0<=n1<n2<=n
+    s1,s2 integers such that 0<=s1<s2<=n
+    j1,j2 integers such that 0<=j1<j2
+
 wdir/mat.<nh>x<nv>.bin  permutations used for balancing.
 wdir/mat.<nh>x<nv>.<bchecksum>.bin  permutations used for balancing.
     Both files are identical. The former is used as a shorthand.
@@ -332,20 +345,29 @@ wdir/mat.<nh>x<nv>.hi.vj.bin        sub-matrix files.
 wdir/mat.<nh>x<nv>.<bchecksum>.hi.vj-MMMMMM.bin       in-memory version of the sub-matrices
     created by {prep,secure,krylov,mksol,gather} if not found.
     used by {prep,secure,krylov,mksol,gather}
-wdir/X                              X vector used for Krylov.
+wdir/X0-splitwidth                  X vector used for Krylov.
     created by prep
     read by krylov and secure
-wdir/C.<n>                          check vector = trsp(M)^n * X  (See note (T))
-    created by secure
-    read by krylov
-wdir/V<n1>-<n2>.0                   columns <n1>..<n2> (n2 exclusive) of Y
-    created by split ifile=Y.0 ofile-fmt=V%u-%u.0 splits=[...,]<n1>,<n2>[,...]
+wdir/Ct0-<splitwidth>.<j>           random check matrix of size m*splitwidth
+    created by secure   [see more documentation in secure.cpp]
+    read by krylov and bwccheck
+wdir/Cr0-<splitwidth>.0-<splitwidth> sequence of random check matrices of size splitwidth*splitwidth
+    created by secure   [see more documentation in secure.cpp]
+    read by bwccheck
+wdir/Cv0-<splitwidth>.<j>           check vector = trsp(M)^j * X * Ct (See note (T))
+    created by secure   [see more documentation in secure.cpp]
+    read by krylov and bwccheck
+wdir/Cd0-<splitwidth>.<j>           check vector = \sum_{0<=i<j} trsp(M)^i * X * Ct * Cr[i] (See note (T))
+    created by secure   [see more documentation in secure.cpp]
+    read by bwccheck
+wdir/V<n1>-<n2>.0                   starting vectors
+    created by prep
     read by krylov mksol
 wdir/A<n1>-<n2>.<j1>-<j2>       krylov sequence data.
     created by krylov
     read by acollect. acollect replaces all these files by a file matching the
     same pattern, read in turn by lingen.
-wdir/V<n1>-<n2>.<j>             columns <n1>..<n2> of M^j Y (See note (T))
+wdir/V<n1>-<n2>.<j>             columns <n1>..<n2> of M^j V_{n_1,n_2} (See note (T))
     created by krylov while computing.
     never read again unless for external checking (not all of it implemented
     yet)
@@ -354,7 +376,7 @@ wdir/F.sols<s1>-<s2>.<j1>-<j2>.rhs  linear generator.
     created by lingen
     read by mksol
     the .rhs files are only defined for j2 <= the total number of rhs
-    vecgtors.
+    vectors.
 wdir/S.sols<s1>-<s2>.<n1>-<n2>  mksol sequence data.
     created by mksol
     read by gather
@@ -452,8 +474,8 @@ dispatch
     the matrix Mt, are ``twisted'' by the permutation related to the one
     computed by mf_bal. Output vectors are not affected, they are
     invariant under the permutation. For reference, here is how the
-    internal data looks like (bwc-ptrace.m is supposed to have
-    authoritative check lines for this).
+    internal data looks like ($CADO/tests/linalg/bwc/bwc-ptrace.m is
+    supposed to have authoritative check lines for this).
 
     In the case of nullspace=left, we have
         Ytwisted = Y * (P*Sc)^-1 -- or P*Sc*Y if written transposed.
@@ -492,7 +514,7 @@ build
     must match the width which is used eventually for krylov/mksol,
     otherwise data block sizes might be chosen too large or too small. In
     the latter case, you will encounter the warning ``cached matrix file
-    fits data with different striding''. This is not innocuous for
+    fits data with different stride''. This is not innocuous for
     krylov/mksol, as it hurts performance.
 
     Once /tmp/wdir/mat.h0.v0.bucket.bin (or /tmp/wdir/mat.h0.v0.bucketT.bin)

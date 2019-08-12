@@ -287,11 +287,11 @@ def alpha_affine(f,B):
     disc = f.discriminant()
     return sum([alpha_p_affine(f, disc, p) for p in prime_range(2,B+1)])
 
-# return statistics (min, max, avg, std) for the projective alpha for K random
-# irreducible polynomials of degree 'degree', and coefficients in -10^10..10^10
-def stats_alpha_projective(ad,degree,K):
-   set_random_seed(1) # to get deterministic results
-   l = []
+# return the average projective alpha for K random irreducible polynomials of
+# degree 'degree', and coefficients in -10^10..10^10
+# for ad=p^k, we conjecture it is -log(p)*(1/p+1/p^2+...+1/p^k)
+def average_alpha_projective(ad,degree,K):
+   s = 0
    R.<x> = ZZ[]
    lp = prime_divisors(ad)
    for k in range(K):
@@ -325,61 +325,70 @@ def stats_alpha_projective(ad,degree,K):
 # 2520 (-2.42, -1.39, -1.69, 0.217)
 def stats_alpha_projective_records(degree,K):
    best = 1
-   ad = 0
+   T = dict() # records value for p^k
+   ad = 1
    while true:
       ad += 1
-      r = stats_alpha_projective(ad,degree,K)
-      if r[2] < best:
-         best = r[2]
-         print ad, r
+      s = 0
+      l = prime_divisors(ad)
+      for p in l:
+         k = ad.valuation(p)
+         if not T.has_key(p^k):
+            if conjecture:
+               T[p^k] = -log(1.0*p)*(1-1/p^k)/(p-1)
+            else:
+               T[p^k] = average_alpha_projective(p^k,degree,K)
+         s += T[p^k]
+      if s < best:
+         best = s
+         print ad, s
 
-# If we consider 10000 random irreducible polynomials (of degree 5) with
-# leading coefficient ad, the records for the average projective alpha are:
-# ad alpha
-# 1 0
-# 2 -0.360690687857
-# 3 -0.369037600417
-# 4 -0.509931774087
-# 6 -0.730588833099
-# 12 -0.878720091232
-# 24 -0.946481583101
-# 30 -1.04940896209
-# 60 -1.19986394549
-# 120 -1.26667891471
-# 180 -1.31231327574
-# 210 -1.32294380312
-# 360 -1.38818816912
-# 420 -1.47641320724
-# 840 -1.54315029826
-# 1260 -1.5916463863
-# 2520 -1.66107247254
-# 4620 -1.69245754414
-# 5040 -1.70643311481
-# 9240 -1.76238361373
-# 13860 -1.8092879226
-# 27720 -1.87554651074
-# 55440 -1.92230149269
-# 110880 -1.9409975078
-# 120120 -1.95548978794
-# 138600 -1.9579224421
-# 180180 -2.00300045817
-# 360360 -2.07759306437
-# 720720 -2.11776935996
-# 1441440 -2.12997717254
-# 1801800 -2.14915176062
-# 2162160 -2.15017287971
-# 3063060 -2.17025643763
-# 3603600 -2.19357626159
-# 6126120 -2.23852322631
-# 12252240 -2.28536035419
-# 24504480 -2.29913075626
-# 30630600 -2.32088761142
-# 58198140 -2.32116657149
-# 61261200 -2.35980719547
-# 116396280 -2.39334666315
-# 183783600 -2.39692462272
-# 232792560 -2.43637124145
-# 465585120 -2.45262230569
+# Assuming that alpha_projective for a leading coefficient p^k is
+# -log(p) * (1/p + ... + 1/p^k), the record values of alpha_projective are
+# given by stats_alpha_projective_records(6,1000,true), here up to 10^9:
+# 2 -0.346574
+# 3 -0.366204
+# 4 -0.519860
+# 6 -0.712778
+# 12 -0.886064
+# 24 -0.972708
+# 30 -1.034665
+# 60 -1.207952
+# 120 -1.294595
+# 180 -1.330020
+# 240 -1.337917
+# 360 -1.416663
+# 420 -1.485939
+# 840 -1.572583
+# 1260 -1.608007
+# 1680 -1.615904
+# 2520 -1.694651
+# 4620 -1.703930
+# 5040 -1.737972
+# 9240 -1.790573
+# 13860 -1.825998
+# 18480 -1.833895
+# 27720 -1.912641
+# 55440 -1.955963
+# 110880 -1.977624
+# 120120 -1.987877
+# 166320 -1.996652
+# 180180 -2.023302
+# 240240 -2.031199
+# 360360 -2.109945
+# 720720 -2.153267
+# 1441440 -2.174927
+# 2162160 -2.193956
+# 3603600 -2.217644
+# 6126120 -2.276605
+# 12252240 -2.319926
+# 24504480 -2.341587
+# 36756720 -2.360616
+# 61261200 -2.384304
+# 116396280 -2.431575
+# 232792560 -2.474897
+# 465585120 -2.496558
+# 698377680 -2.515586
 def alpha_projective(f,B):
     """
     Computes the projective part of the alpha value of f, up to prime bound B.

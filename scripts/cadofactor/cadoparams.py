@@ -425,7 +425,7 @@ class Parameters(object):
             if isinstance(dest[key], dict):
                 raise KeyError('Key %s already exists as subdictionary' % key)
             elif dest[key][0] != value:
-                logger.warn("Parameter %s, previously set to value %s, overwritten with value %s"
+                logger.warning("Parameter %s, previously set to value %s, overwritten with value %s"
                             % (joinpath, dest[key][0], value))
         dest[key] = [value, False]
 

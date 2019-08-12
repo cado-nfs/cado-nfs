@@ -181,15 +181,15 @@ struct mpfq_vbase_s {
     void (*simd_set_ui_at)(mpfq_vbase_ptr, void *, int, unsigned long);
     void (*simd_add_ui_at)(mpfq_vbase_ptr, void *, const void *, int, unsigned long);
     void (*simd_set_ui_all)(mpfq_vbase_ptr, void *, unsigned long);
-    void (*dotprod)(mpfq_vbase_ptr, void *, const void *, const void *, unsigned int);
+    void (*add_dotprod)(mpfq_vbase_ptr, void *, const void *, const void *, unsigned int);
     void (*mul_constant_ui)(mpfq_vbase_ptr, void *, const void *, unsigned long);
     void (*oo_field_init)(mpfq_vbase_ptr);
     void (*oo_field_clear)(mpfq_vbase_ptr);
 };
 
 struct mpfq_vbase_tmpl_s {
-    void (*dotprod)(mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int);
-    void (*addmul_tiny)(mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int);
+    void (*add_dotprod)(mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int);
+    void (*addmul_tiny)(mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int);
     void (*transpose)(mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *);
 };
 typedef struct mpfq_vbase_s mpfq_vbase[1];
