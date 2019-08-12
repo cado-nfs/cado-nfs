@@ -5,6 +5,7 @@
 #include "lingen_matpoly.hpp"
 #include "flint-fft/fft.h"
 #include "lingen_substep_schedule.h"
+#include "tree_stats.hpp"
 #include "misc.h"
 
 struct matpoly_ft {

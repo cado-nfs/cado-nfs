@@ -922,6 +922,18 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             }
             mpz_clear(p);
 #else
+            /* TODO: matpoly_mul_caching_adj, being the back-end of
+             * matpoly_mul_caching, is likely to gain a stats argument
+             * someday (not if deemed useless, though). If this happens,
+             * we'll have to add the "stats" argument here only so that the
+             * whole thing compiles. Alas this won't work out of the box, the
+             * stats structure must receive information regarding the
+             * planned substeps, prior to the call. So either we fix the
+             * code here, either we loosen our API complexity to this
+             * regard, or we ditch this tune-cutoffs file entirely.
+             * (anyway the more important plingen_tuning code also needs
+             * some update so that this change can happen).
+             */
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
                 matpoly_mul_caching_adj(xpi, xpiL, xpiR, adj, NULL);
                 x.set_since_last();
@@ -1142,6 +1154,8 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
             }
             mpz_clear(p);
 #endif
+            /* see remark above about matpoly_mul_caching gaining a stats
+             * argument someday */
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
                 matpoly_mp_caching_adj(xER, xE, xpiL, adj, NULL);
                 x.set_since_last();

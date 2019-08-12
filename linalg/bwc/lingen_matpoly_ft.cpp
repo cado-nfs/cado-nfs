@@ -388,154 +388,46 @@ std::string sha1sum_block(matpoly_ft const & X, size_t s)
 }
 #endif
 
-/* middle product and multiplication are really the same thing, so better
- * avoid code duplication */
+#include "lingen_matpoly_bigmatpoly_ft_common.hpp"
 
-struct op_mul {/*{{{*/
-    size_t csize;
-    op_mul(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = a.size + b.size; csize -= (csize > 0);
-        fft_get_transform_info_fppol(fti, a.ab->p, a.size, b.size, a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
+template<> struct OP_CTX<matpoly> : public OP_CTX_base<matpoly> {
+    typedef matpoly T;
+    template<typename... Args>
+    OP_CTX(Args&&... args) : OP_CTX_base<T>(args...) {}
+    inline int a_irank() const { return 0; }
+    inline int b_irank() const { return 0; }
+    inline int a_jrank() const { return 0; }
+    inline int b_jrank() const { return 0; }
+    inline int mesh_size() const { return 1; }
+    static const bool uses_mpi = false;
+    inline void mesh_checks() const { }
+    void alloc_c_if_needed(size_t size) {
+        if (c.m != a.m || c.n != a.n || c.alloc != size)
+            c = T(a.ab, a.m, b.n, size);
     }
+    inline matpoly const & a_local()const  { return a; }
+    inline matpoly const & b_local() const { return b; }
+    inline matpoly & c_local() { return c; }
+    inline void do_allgather(void *, int) const {}
+    inline void begin_smallstep(std::string const &, unsigned int) const { }
+    inline void end_smallstep() const {}
+    inline void skip_smallstep(std::string const &, unsigned int) const { }
+    inline bool local_smallsteps_done() const { return true; }
+};
 
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift(a, t);
-    }
-};/*}}}*/
-struct op_mp {/*{{{*/
-    size_t csize;
-    unsigned int shift;
-    op_mp(matpoly const & a, matpoly const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = MAX(a.size, b.size) - MIN(a.size, b.size) + 1;
-        shift = MIN(a.size, b.size) - 1;
-        fft_get_transform_info_fppol_mp(fti, a.ab->p, MIN(a.size, b.size), MAX(a.size, b.size), a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
-    }
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift_mp(a, t, shift);
-    }
-};/*}}}*/
-
-template<typename T>
-static void mp_or_mul(T& OP, matpoly & c, matpoly const & a, matpoly const & b, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
-{
-    if (c.m != a.m || c.n != a.n || c.alloc != OP.csize)
-        c = matpoly(a.ab, a.m, b.n, OP.csize);
-
-    const unsigned int r = 1; // only for notational consistency w/ bigmatpoly
-
-    unsigned int batch = S ? S->batch : a.n;
-    unsigned int shrink0 = S ? S->shrink0 : 1;
-    unsigned int shrink2 = S ? S->shrink2 : 1;
-
-    subdivision mpi_split(a.n, r);
-    subdivision shrink0_split(a.m, shrink0);
-    subdivision shrink2_split(b.n, shrink2);
-    /* The order in which we do the transforms is not really our main
-     * concern at this point. If sharing makes sense, then probably
-     * shrink0 and shrink2 do not. So they're serving opposite purposes.
-     */
-    /* Declare ta, tb, tc early on so that we don't malloc/free n times.
-     */
-    matpoly_ft ta,tb,tc;
-    const unsigned int nr1 = mpi_split.block_size_upper_bound();
-    const unsigned int rank = 0;
-    ASSERT_ALWAYS(rank < r);
-    bool inner_is_row_major;
-    {
-        /* first, upper bounds on nrs0 and nrs2 */
-        unsigned int nrs0 = iceildiv(a.m, shrink0);
-        unsigned int nrs2 = iceildiv(b.n, shrink2);
-        tc = matpoly_ft (c.ab, nrs0, nrs2, fti);
-        /* We must decide on an ordering beforehand. We cannot do this
-         * dynamically because of rounding issues: e.g. for 13=7+6, we
-         * will do both 7*6 and 6*7 in the inner loops.
-         */
-        inner_is_row_major = nrs0 < nrs2;
-        if (inner_is_row_major) {
-            ta = matpoly_ft(a.ab, nrs0, r * batch, fti);
-            tb = matpoly_ft(a.ab, r * batch, 1, fti);
-        } else {
-            ta = matpoly_ft(a.ab, 1, r * batch, fti);
-            tb = matpoly_ft(a.ab, r * batch, nrs2, fti);
-        }
-    }
-    unsigned int k0mpi,k1mpi;
-    std::tie(k0mpi, k1mpi) = mpi_split.nth_block(rank);
-    for(unsigned int round0 = 0 ; round0 < shrink0 ; round0++) {
-        unsigned int i0,i1;
-        std::tie(i0, i1) = shrink0_split.nth_block(round0);
-        unsigned int nrs0 = i1-i0;
-        for(unsigned int round2 = 0 ; round2 < shrink2 ; round2++) {
-            unsigned int j0,j1;
-            std::tie(j0, j1) = shrink2_split.nth_block(round2);
-            unsigned int nrs2 = j1-j0;
-            submatrix_range Rc(i0,j0,i1-i0,j1-j0);
-            submatrix_range Rct(0,0,i1-i0,j1-j0);
-
-            /* Now do a subblock */
-            tc.zero();
-            for(unsigned int k = 0 ; k < nr1 ; k += batch) {
-                unsigned int k0 = k0mpi + k;
-                unsigned int k1 = MIN(k1mpi, k0 + batch);
-                if (inner_is_row_major) {
-                    submatrix_range Ra(i0,k0,nrs0,k1-k0);
-                    submatrix_range Rat(0,rank*batch, nrs0,k1-k0);
-                    ta.zero();  // for safety because of rounding.
-                    dft(ta.view(Rat), a.view(Ra));
-                    // allgather ta among r nodes.
-                    for(unsigned int j = 0 ; j < nrs2 ; j++) {
-                        tb.zero();
-                        dft(tb.view(submatrix_range(rank*batch,0,k1-k0,1)),
-                                b.view(submatrix_range(k0,j0+j,k1-k0,1)));
-                        // allgather tb among r nodes
-                        // rounding might surprise us.
-                        addmul(tc.view(submatrix_range(0,j,nrs0,1)),
-                                ta.view(submatrix_range(0,0,nrs0,ta.ncols())),
-                                tb.view(submatrix_range(0,0,tb.nrows(),1)));
-                    }
-                } else {
-                    submatrix_range Rb(k0,j0,k1-k0,nrs2);
-                    submatrix_range Rbt(rank*batch,0,k1-k0,nrs2);
-                    tb.zero();
-                    dft(tb.view(Rbt), b.view(Rb));
-                    // allgather tb among r nodes
-                    for(unsigned int i = 0 ; i < nrs0 ; i++) {
-                        ta.zero();
-                        dft(ta.view(submatrix_range(0,rank*batch,1,k1-k0)),
-                                a.view(submatrix_range(i0+i,k0,1,k1-k0)));
-                        // allgather ta among r nodes
-                        addmul(tc.view(submatrix_range(i,0,1,nrs2)),
-                                ta.view(submatrix_range(0,0,1,ta.ncols())),
-                                tb.view(submatrix_range(0,0,tb.nrows(),nrs2)));
-                    }
-                }
-            }
-            c.size = OP.csize;
-            ASSERT_ALWAYS(c.size <= c.alloc);
-            OP.ift(c.view(Rc), tc.view(Rct));
-        }
-    }
-}/*}}}*/
 
 void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
     struct fft_transform_info fti[1];
-    op_mp OP(a, b, adj, fti);
-    mp_or_mul(OP, c, a, b, fti, S);
+    op_mp<matpoly> OP(a, b, adj, fti);
+    OP_CTX<matpoly> CTX(c, a, b, fti);
+    mp_or_mul(CTX, OP, fti, S);
 } /* }}} */
 void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
     struct fft_transform_info fti[1];
-    op_mul OP(a, b, adj, fti);
-    mp_or_mul(OP, c, a, b, fti, S);
+    op_mul<matpoly> OP(a, b, adj, fti);
+    OP_CTX<matpoly> CTX(c, a, b, fti);
+    mp_or_mul(CTX, OP, fti, S);
 } /* }}} */
 

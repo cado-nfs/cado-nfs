@@ -1413,3 +1413,4 @@ linalg/bwc/lingen_call_companion.hpp
 linalg/bwc/lingen_hints.hpp
 linalg/bwc/lingen_round_operand_size.cpp
 linalg/bwc/lingen_round_operand_size.hpp
+linalg/bwc/lingen_matpoly_bigmatpoly_ft_common.hpp
