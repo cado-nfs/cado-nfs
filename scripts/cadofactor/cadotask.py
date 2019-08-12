@@ -2269,6 +2269,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             return False
         self.logger.info("Finished, best polynomial from file %s has Murphy_E "
                          "= %g", self.state["bestfile"] , self.bestpoly.MurphyE)
+        self.logger.info("Best polynomial is:\n%s", str(self.bestpoly))
         self.print_rank()
         self.write_poly_file()
         return True
