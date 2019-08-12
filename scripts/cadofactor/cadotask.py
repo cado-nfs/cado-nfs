@@ -160,7 +160,7 @@ class Polynomials(object):
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
-    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE'\s*\((.*)\)\s*=", 1))
     re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
     # the 'lognorm' variable now represents the expected E-value
