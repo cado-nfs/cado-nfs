@@ -78,7 +78,7 @@ def dist_valuation_affine_aux(f,p,w):
     w += v
     l = fv.roots(GF(p))
     Ex = v
-    Ex2 = 0
+    Ex2 = w^2
     for r,_ in l:
         if Q(r) != 0:
             Ex += 1/(p-1)
@@ -88,7 +88,6 @@ def dist_valuation_affine_aux(f,p,w):
             v1, e1 = dist_valuation_affine_aux(f2, p, w)
             Ex += v1/p
             Ex2 += e1/p - w^2/p
-    Ex2 += w^2
     return Ex, Ex2
 
 # return E[x] and E[x^2] where x is the random variable corresponding to the
