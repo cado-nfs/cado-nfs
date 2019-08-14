@@ -1,6 +1,6 @@
 /* Compute Murphy's E-value.
 
-Copyright 2010, 2013 Paul Zimmermann
+Copyright 2010-2019 Paul Zimmermann and Nicolas David.
 
 This file is part of CADO-NFS.
 
@@ -47,6 +47,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "auxiliary.h"
 #include "rho.h"
 
+/* define USE_VARIANT to use the simple variant of E', that consists in using
+   MurphyE, with alpha replaced by alpha - std, where std is the standard
+   deviation corresponding to the measure whose mean is alpha */
+// #define USE_VARIANT
+
 double
 MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
 {
@@ -62,6 +67,14 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
   double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
   alpha_f = get_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND);
+#ifdef USE_VARIANT
+  double mu, Exx;
+  mu = dist_smooth (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &Exx);
+  ASSERT_ALWAYS(alpha_f == mu);
+  /* patch: replace alpha_f by alpha_f - sig */
+  double Var = Exx - mu * mu;
+  alpha_f -= sqrt (Var);
+#endif
   alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
   one_over_logBf = 1.0 / log (Bf);
   one_over_logBg = 1.0 / log (Bg);
@@ -133,10 +146,16 @@ ncx2_pdf (double x, double k, double lam, double epsilon)
 
 
 
-/* return the E_value with a non central chi2 density for \alpha. It is an alternative of the MurphyE fun */
+/* return the E_value with a non central chi2 density for \alpha.
+   It is an alternative of the MurphyE function. */
 double
 MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
 {
+#ifdef USE_VARIANT
+  /* temporary patch: we compute the classical MurphyE, but with alpha
+     replaced by alpha - std(alpha) */
+  return MurphyE (cpoly, Bf, Bg, area, K);
+#else
   double E = 0.0, x, y, ti, h;
   double alpha_f, alpha_g, xi, yi, vf, vg, cof;
   double one_over_logBf, one_over_logBg;
@@ -207,4 +226,5 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   E = E / (K * h);
 
   return E;
+#endif
 }
