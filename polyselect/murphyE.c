@@ -66,13 +66,14 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_init (g, cpoly->pols[RAT_SIDE]->deg);
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
   double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
+#ifndef USE_VARIANT
   alpha_f = get_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND);
-#ifdef USE_VARIANT
-  double mu, v;
-  mu = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
-  ASSERT_ALWAYS(alpha_f == mu);
-  ASSERT_ALWAYS(v >= 0);
+#else
   /* patch: replace alpha_f by alpha_f - stddev */
+  double v;
+  /* we divide ALPHA_BOUND by 2 on the algebraic side, so that the rootsieve
+     takes about the same time as in the master branch */
+  alpha_f = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND / 2, &v);
   alpha_f -= sqrt (v);
 #endif
   alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
@@ -173,8 +174,8 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   lam = v / 2 - mu;
   k = mu - lam;
 
-  /* For K=200, the time spent in MurphyE_chi2() within polyselect_ropt is only
-     about 10%, thus since K=1000 by default, we divide it by 5. */
+  /* we divide K so that the time spent in the rootsieve is comparable
+     to that of the master branch (on a c120) */
   K /= 5;
 
   x = sqrt (area * cpoly->skew);
