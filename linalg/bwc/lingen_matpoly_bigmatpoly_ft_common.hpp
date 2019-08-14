@@ -109,8 +109,8 @@ static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info
      * dynamically because of rounding issues: e.g. for 13=7+6, we
      * will do both 7*6 and 6*7 in the inner loops.
      */
-    bool inner_is_row_major = nrs0 < nrs2;
-    if (inner_is_row_major) {
+    bool compute_result_by_cols = nrs0 < nrs2;
+    if (compute_result_by_cols) {
         ta = matpoly_ft(a.ab, nrs0, r * batch, fti);
         tb = matpoly_ft(a.ab, r * batch, 1, fti);
     } else {
@@ -162,7 +162,7 @@ static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info
                 unsigned int ak1 = MIN(ak1mpi, ak0 + batch);
                 unsigned int bk0 = bk0mpi + k;
                 unsigned int bk1 = MIN(bk1mpi, bk0 + batch);
-                if (inner_is_row_major) {
+                if (compute_result_by_cols) {
                     submatrix_range Ra(i0, ak0-ak0mpi, i1-i0, ak1-ak0);
                     submatrix_range Rat(0, CTX.a_jrank()*batch, i1-i0, ak1-ak0);
                     submatrix_range Ratx(0, CTX.a_jrank()*batch, i1-i0, batch);

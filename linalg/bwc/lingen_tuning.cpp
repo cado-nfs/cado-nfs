@@ -345,14 +345,34 @@ struct lingen_substep_characteristics {/*{{{*/
     }
 
     public:
+    int mesh_size(pc_t const & P) const {
+        return P.r;
+    }
+    subdivision mpi_split0(pc_t const & P) const {
+        return subdivision(n0, mesh_size(P));
+    }
+    subdivision mpi_split1(pc_t const & P) const {
+        return subdivision(n1, mesh_size(P));
+    }
+    subdivision mpi_split2(pc_t const & P) const {
+        return subdivision(n2, mesh_size(P));
+    }
+    subdivision shrink_split0(pc_t const & P, sc_t const & S) const {
+        return subdivision(mpi_split0(P).block_size_upper_bound(), S.shrink0);
+    }
+    subdivision shrink_split2(pc_t const & P, sc_t const & S) const {
+        return subdivision(mpi_split2(P).block_size_upper_bound(), S.shrink2);
+    }
+    bool compute_result_by_cols(pc_t const & P, sc_t const & S) const {
+        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
+        return nrs0 < nrs2;
+    }
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
-        unsigned int nr0 = iceildiv(n0, P.r);
-        unsigned int nr2 = iceildiv(n2, P.r);
+        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
 
-        unsigned int nrs0 = iceildiv(nr0, S.shrink0);
-        unsigned int nrs2 = iceildiv(nr2, S.shrink2);
-
-        return get_transform_ram() * (S.batch * P.r * (nrs0 + nrs2) + nrs0*nrs2);
+        return get_transform_ram() * (S.batch * P.r * (1 + std::min(nrs0, nrs2)) + nrs0*nrs2);
     }/*}}}*/
 
         private:
@@ -362,18 +382,17 @@ struct lingen_substep_characteristics {/*{{{*/
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
-         * care more about the shrinked submatrices, though */
-        unsigned int nr0 = iceildiv(n0, P.r);
-        unsigned int nr1 = iceildiv(n1, P.r);
-        unsigned int nr2 = iceildiv(n2, P.r);
+         * care more about the shrunk submatrices, though */
+        unsigned int nr1 = mpi_split1(P).block_size_upper_bound();
+        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
 
         /* The shrink parameters will divide the size of the local
          * matrices we consider by numbers shrink0 and shrink2. This
          * increases the time, and decreases the memory footprint */
-        unsigned int nrs0 = iceildiv(nr0, S.shrink0);
-        unsigned int nrs2 = iceildiv(nr2, S.shrink2);
-        unsigned int ns0 = P.r * nrs0;
-        unsigned int ns2 = P.r * nrs2;
+        unsigned int ns0 = nrs0 * mesh_size(P);
+        unsigned int ns2 = nrs2 * mesh_size(P);
+
         parallelizable_timing T = get_transform_ram() / P.mpi_xput;
         T *= S.batch * iceildiv(nr1, S.batch);
         T *= S.shrink0 * S.shrink2;
@@ -393,16 +412,14 @@ struct lingen_substep_characteristics {/*{{{*/
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
-         * care more about the shrinked submatrices, though */
-        unsigned int nr0 = iceildiv(n0, P.r);
-        unsigned int nr1 = iceildiv(n1, P.r);
-        unsigned int nr2 = iceildiv(n2, P.r);
+         * care more about the shrunk submatrices, though */
+        unsigned int nr1 = mpi_split1(P).block_size_upper_bound();
 
         /* The shrink parameters will divide the size of the local
          * matrices we consider by numbers shrink0 and shrink2. This
          * increases the time, and decreases the memory footprint */
-        unsigned int nrs0 = iceildiv(nr0, S.shrink0);
-        unsigned int nrs2 = iceildiv(nr2, S.shrink2);
+        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
         // unsigned int ns0 = r * nrs0;
         // unsigned int ns2 = r * nrs2;
 
@@ -537,9 +554,9 @@ struct lingen_substep_characteristics {/*{{{*/
 
 template<typename OP>
 void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> const & U, lingen_platform const & P, size_t reserved) { /* {{{ */
-        unsigned int nr0 = iceildiv(U.n0, P.r);
-        unsigned int nr1 = iceildiv(U.n1, P.r);
-        unsigned int nr2 = iceildiv(U.n2, P.r);
+        unsigned int nr0 = U.mpi_split0(P).block_size_upper_bound();
+        unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
+        unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
 
         lingen_substep_schedule res = S;
 
@@ -549,8 +566,8 @@ void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> co
         }
 
         for( ; (reserved + U.get_peak_ram(P, S)) > P.available_ram ; ) {
-            unsigned int nrs0 = iceildiv(nr0, S.shrink0);
-            unsigned int nrs2 = iceildiv(nr2, S.shrink2);
+            unsigned int nrs0 = U.shrink_split0(P, S).block_size_upper_bound();
+            unsigned int nrs2 = U.shrink_split2(P, S).block_size_upper_bound();
             if (nrs0 < nrs2 && S.shrink2 < nr2) {
                 S.shrink2++;
             } else if (S.shrink0 < nr0) {

@@ -347,9 +347,9 @@ void reduce_mod_2(index_t *frel, int *nf) {
 }
 
 void shrink_indices(index_t *frel, int nf, int shrink_factor) {
-    // Indices below this threshold are not shrinked
+    // Indices below this threshold are not shrunk
     // FIXME: I am not sure we should keep the heavy weight columns
-    // un-shrinked. The answer might be different in DL and in facto...
+    // un-shrunk. The answer might be different in DL and in facto...
     const index_t noshrink_threshold = 0;
     for (int i = 0; i < nf; ++i) {
 //        if (frel[i] >= noshrink_threshold) {
