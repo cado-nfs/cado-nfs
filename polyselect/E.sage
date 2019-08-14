@@ -273,7 +273,7 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
     return E
 
 # use sampling over the angles, numerical integration over alpha
-def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
+def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
     df = f.degree()
     dg = g.degree()
     B = 2000
@@ -284,7 +284,8 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
     lam = v/2 - mu
     k = mu - lam
     # we should ensure k >= 0
-    assert k > 0, "k > 0"
+    if verbose and k <= 0:
+       print f,g,skew,Bf,Bg,area,K,sq
     var('t')
     alpha_f = cof - t
     alpha_g = alpha(g,B)
@@ -293,7 +294,7 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
     sx = sqrt(area*skew)
     sy = sqrt(area/skew)
     for i in range(K):
-       theta_i = float(pi/K*(i+0.5))
+       theta_i = RDF(pi/K*(i+0.5))
        xi = cos(theta_i)*sx
        yi = sin(theta_i)*sy
        fi = f(xi/yi)*yi^df/sq
@@ -302,9 +303,9 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        E += v1
-#    return sum([E(t=j/h)*ncx2.pdf(j/h,k,lam) for j in srange(0.5,K)])/(h*K)
-    foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
-    return numerical_integral(foo, 0, 100)[0]
+    return sum([E(t=j/h)*ncx2.pdf(j/h,k,lam) for j in srange(0.5,K)])/(h*K)
+#    foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
+#    return numerical_integral(foo, 0, 100)[0]
 
 # example: RSA-768 polynomials
 # skewness 44204.72 norm 1.35e+28 alpha -7.30 Murphy_E 3.79e-09

@@ -102,24 +102,26 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
   return E / (double) K;
 }
 
-/* Return bessel_I (a, y) with tolerance 'epsilon':
+#define BESSEL_I_EPS 0.00001
+
+/* Return bessel_I (a, y) with tolerance BESSEL_I_EPS:
    bessel_I (a, y) = (y/2)^a * sum ((y^2/4)^j/factorial(j)/gamma(a+j+1),
    j, 0, infinity).
 */
 static double
-bessel_I (double a, double y, double epsilon)
+bessel_I (double a, double y)
 {
   double s, c, z, j = 1.0;
 
-  if (y < epsilon * sqrt(a + 1.0))
+  if (y < BESSEL_I_EPS * sqrt(a + 1.0))
     return pow (y / 2, a) / tgamma (a + 1.0); /* order-1 expansion around 0 */
-  else if (epsilon * y > fabs (a * a - 0.25))
+  else if (BESSEL_I_EPS * y > fabs (a * a - 0.25))
     return exp (y) / sqrt (2 * PI * y); /* asymptotic expansion */
   else
     {
       s = c = 1.0 / tgamma (a + 1.0);
       z = y * y * 0.25;
-      while (fabs (c) > epsilon * fabs (s))
+      while (fabs (c) > BESSEL_I_EPS * fabs (s))
         {
           c *= z / (j * (a + j));
           s = s + c;
@@ -136,16 +138,12 @@ bessel_I (double a, double y, double epsilon)
    from scipy.stats import ncx2
    ncx2.pdf(x, k, lam) */
 double
-ncx2_pdf (double x, double k, double lam, double epsilon)
+ncx2_pdf (double x, double k, double lam)
 {
-  double I = bessel_I (0.5 * k - 1.0, sqrt (lam * x), epsilon);
+  double I = bessel_I (0.5 * k - 1.0, sqrt (lam * x));
   double ret = 0.5 * exp (-0.5 * (x + lam)) * pow (x / lam, 0.25 * k - 0.5) * I;
   return ret;
 }
-
-
-
-
 
 /* return the E_value with a non central chi2 density for \alpha.
    It is an alternative of the MurphyE function. */
@@ -192,8 +190,8 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
      chi2 measure */
   double *pdf = malloc (K * sizeof (double));
   ASSERT_ALWAYS(pdf != NULL);
-  for (int j = 1; j < K; j++)
-    pdf[j] = ncx2_pdf (j / h, k, lam, 0.001);
+  for (int j = 0; j < K; j++)
+    pdf[j] = ncx2_pdf ((0.5 + (double) j) / h, k, lam);
   for (int i = 0; i < K; i++)
     {
 	  ti = PI / (double) K * ((double) i + 0.5);
@@ -209,18 +207,24 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
 	  vg *= one_over_logBg;
           vg = dickman_rho (vg);
 
-          for (int j = 1; j < K; j++)
+          double Ej = 0.0;
+
+          for (int j = 0; j < K; j++)
             {
               double vfj;
 
-              alpha_f = cof - (double) j / h;
+              alpha_f = cof - (0.5 + (double) j) / h;
               vfj = vf + alpha_f;
               vfj *= one_over_logBf;
 
               double t = dickman_rho (vfj) * vg * pdf[j];
 
-              E += t;
+              /* we accumulate locally in Ej, to avoid huge rounding errors
+                 if accumulating in E, since Ej has smaller magnitude */
+              Ej += t;
             }
+
+          E += Ej;
     }
   free (pdf);
   double_poly_clear (f);
