@@ -73,7 +73,6 @@ double get_alpha (mpz_poly_srcptr, unsigned long);
 double get_alpha_prime (mpz_poly_srcptr, unsigned long);
 double dist_alpha (mpz_poly_srcptr f, unsigned long B, double *V);
 double dist_alpha_p (mpz_poly_srcptr f, unsigned long B, double *V);
-double dist_smooth (mpz_poly_srcptr f, unsigned long B, double *Exx);
 double get_alpha_projective (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p);

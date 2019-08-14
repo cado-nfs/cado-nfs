@@ -1501,34 +1501,6 @@ dist_alpha (mpz_poly_srcptr f, unsigned long B, double *V)
   return alpha;
 }
 
-/* Return the expected average log of B-smooth part,
-   and put the 2nd moment in 'Exx'.
-   The B-smooth part is on average cof - alpha (with alpha < 0 usually),
-   where cof = sum(log(p)/(p-1), p prime < B). */
-double
-dist_smooth (mpz_poly_srcptr f, unsigned long B, double *Exx)
-{
-  double alpha, e, exx, logp, v, V;
-  unsigned long p;
-
-  alpha = V = 0.0;
-
-  for (p = 2; p <= B; p += 1 + (p > 2))
-    {
-      if (ulong_isprime (p))
-        {
-          logp = log ((double) p);
-          e = dist_valuation_homogeneous_coprime (f, p, &exx);
-          alpha += e * logp;
-          v = exx - e * e; /* variance of the p-valuation */
-          v *= logp * logp; /* variance of the p-valuation * log(p) */
-          V += v; /* total up to here */
-        }
-    }
-  *Exx = V + alpha * alpha;
-  return alpha;
-}
-
 /* affine part of the special valution for polynomial f over p. */
 double
 special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)

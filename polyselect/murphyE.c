@@ -68,12 +68,12 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
   alpha_f = get_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND);
 #ifdef USE_VARIANT
-  double mu, Exx;
-  mu = dist_smooth (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &Exx);
+  double mu, v;
+  mu = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
   ASSERT_ALWAYS(alpha_f == mu);
-  /* patch: replace alpha_f by alpha_f - sig */
-  double Var = Exx - mu * mu;
-  alpha_f -= sqrt (Var);
+  ASSERT_ALWAYS(v >= 0);
+  /* patch: replace alpha_f by alpha_f - stddev */
+  alpha_f -= sqrt (v);
 #endif
   alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
   one_over_logBf = 1.0 / log (Bf);
@@ -160,21 +160,23 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double alpha_f, alpha_g, xi, yi, vf, vg, cof;
   double one_over_logBf, one_over_logBg;
   double_poly f, g;
-  double k, lam, mu, sig;
+  double k, lam, mu, v;
+  unsigned long p;
 
-  mu = dist_smooth (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &sig);
-  lam = (sig - mu * mu) / 2 - mu;
+  /* sum([1.0/(p-1)*log(p*1.0) for p in prime_range(ALPHA_BOUND)]) */
+  for (cof = 0.0, p = 2; p < ALPHA_BOUND; p += 1 + (p > 2))
+    if (ulong_isprime (p))
+      cof += log ((double) p) / (double) (p - 1);
+
+  mu = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
+  mu = cof - mu;
+  lam = v / 2 - mu;
   k = mu - lam;
 
   /* For K=200, the time spent in MurphyE_chi2() within polyselect_ropt is only
      about 10%, thus since K=1000 by default, we divide it by 5. */
   K /= 5;
 
-  /* sum([1.0/(p-1)*log(p*1.0) for p in prime_range(2000)]) */
-  unsigned long p;
-  for (cof = 0.0, p = 2; p < ALPHA_BOUND; p += 1 + (p > 2))
-    if (ulong_isprime (p))
-      cof += log ((double) p) / (double) (p - 1);
   x = sqrt (area * cpoly->skew);
   y = sqrt (area / cpoly->skew);
   h = (double) K / 100.0;
