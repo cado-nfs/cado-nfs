@@ -172,9 +172,11 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   lam = v / 2 - mu;
   k = mu - lam;
 
+#if 0
   /* we divide K so that the time spent in the rootsieve is comparable
      to that of the master branch (on a c120) */
   K /= 5;
+#endif
 
   x = sqrt (area * cpoly->skew);
   y = sqrt (area / cpoly->skew);
