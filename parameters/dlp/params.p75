@@ -59,9 +59,9 @@ tasks.reconstructlog.partial=false
 
 tasks.descent.init_I = 11
 tasks.descent.init_ncurves = 15
-tasks.descent.init_lpb = 31
+tasks.descent.init_lpb = 32
 tasks.descent.init_lim = 60000
-tasks.descent.init_mfb = 62
+tasks.descent.init_mfb = 64
 tasks.descent.init_tkewness = 60000
 tasks.descent.I = 11
 tasks.descent.lim0 = 60000
