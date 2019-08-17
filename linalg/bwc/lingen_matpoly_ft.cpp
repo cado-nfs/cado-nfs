@@ -418,16 +418,14 @@ template<> struct OP_CTX<matpoly> : public OP_CTX_base<matpoly> {
 
 void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
-    struct fft_transform_info fti[1];
-    op_mp<matpoly> OP(a, b, adj, fti);
-    OP_CTX<matpoly> CTX(c, a, b, fti);
-    mp_or_mul(CTX, OP, fti, S);
+    op_mp OP(a, b, adj);
+    OP_CTX<matpoly> CTX(c, a, b);
+    mp_or_mul(CTX, OP, OP.fti, S);
 } /* }}} */
 void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
-    struct fft_transform_info fti[1];
-    op_mul<matpoly> OP(a, b, adj, fti);
-    OP_CTX<matpoly> CTX(c, a, b, fti);
-    mp_or_mul(CTX, OP, fti, S);
+    op_mul OP(a, b, adj);
+    OP_CTX<matpoly> CTX(c, a, b);
+    mp_or_mul(CTX, OP, OP.fti, S);
 } /* }}} */
 

@@ -33,7 +33,7 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
     tree_stats & stats;
     typedef bigmatpoly T;
     template<typename... Args>
-    OP_CTX(tree_stats & stats, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
+    OP_CTX(tree_stats & stats, fft_transform_info const * fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
         size_t fft_alloc_sizes[3];
         fft_get_transform_allocs(fft_alloc_sizes, fti);
         size_t tsize = fft_alloc_sizes[0];
@@ -84,16 +84,14 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
 
 void bigmatpoly_mp_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
-    struct fft_transform_info fti[1];
-    op_mp<bigmatpoly> OP(a, b, adj, fti);
-    OP_CTX<bigmatpoly> CTX(stats, c, a, b, fti);
-    mp_or_mul(CTX, OP, fti, S);
+    op_mp OP(a, b, adj);
+    OP_CTX<bigmatpoly> CTX(stats, OP.fti, c, a, b);
+    mp_or_mul(CTX, OP, OP.fti, S);
 } /* }}} */
 void bigmatpoly_mul_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
 {
-    struct fft_transform_info fti[1];
-    op_mul<bigmatpoly> OP(a, b, adj, fti);
-    OP_CTX<bigmatpoly> CTX(stats, c, a, b, fti);
-    mp_or_mul(CTX, OP, fti, S);
+    op_mul OP(a, b, adj);
+    OP_CTX<bigmatpoly> CTX(stats, OP.fti, c, a, b);
+    mp_or_mul(CTX, OP, OP.fti, S);
 } /* }}} */
 

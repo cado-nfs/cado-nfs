@@ -16,58 +16,17 @@
 #include "lingen_matpoly.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "flint-fft/transform_interface.h"
+#include "lingen_mul_substeps.hpp"
 
 template<typename T>
 struct OP_CTX_base {
     T & c;
     T const & a;
     T const & b;
-    const struct fft_transform_info * fti;
-    OP_CTX_base(T & c, T const & a, T const & b, const struct fft_transform_info * fti) : c(c), a(a), b(b), fti(fti) {}
+    OP_CTX_base(T & c, T const & a, T const & b) : c(c), a(a), b(b) {}
 };
 
 template<typename T> struct OP_CTX;
-
-
-/* middle product and multiplication are really the same thing, so better
- * avoid code duplication */
-
-template<typename T>
-struct op_mul {/*{{{*/
-    size_t csize;
-    static const char * name() { return "MUL"; }
-    op_mul(T const & a, T const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = a.size + b.size; csize -= (csize > 0);
-        fft_get_transform_info_fppol(fti, a.ab->p, a.size, b.size, a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
-    }
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift(a, t);
-    }
-};/*}}}*/
-template<typename T>
-struct op_mp {/*{{{*/
-    size_t csize;
-    static const char * name() { return "MP"; }
-    unsigned int shift;
-    op_mp(T const & a, T const & b, unsigned int adj, fft_transform_info * fti)
-    {
-        csize = MAX(a.size, b.size) - MIN(a.size, b.size) + 1;
-        shift = MIN(a.size, b.size) - 1;
-        fft_get_transform_info_fppol_mp(fti, a.ab->p, MIN(a.size, b.size), MAX(a.size, b.size), a.n);
-        if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
-    }
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t)
-    {
-        ::ift_mp(a, t, shift);
-    }
-};/*}}}*/
 
 template<typename OP_CTX_T, typename OP_T>
 static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info * fti, const struct lingen_substep_schedule * S)/*{{{*/
