@@ -908,7 +908,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.size - pi_left.size + 1);
         matpoly_ft::memory_pool_guard dummy(SIZE_MAX);//C.mp.ram);
-        matpoly_mp_caching(E_right, E, pi_left, &C.mp.S);
+        matpoly_mp_caching(E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
 
@@ -932,7 +932,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
         matpoly_ft::memory_pool_guard dummy(SIZE_MAX);//C.mul.ram);
-        matpoly_mul_caching(pi, pi_left, pi_right, &C.mul.S);
+        matpoly_mul_caching(pi, pi_left, pi_right, & C.mul);
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
@@ -1105,10 +1105,9 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     {
         ASSERT_ALWAYS(pi_left.ab);
         ASSERT_ALWAYS(E.ab);
-        matpoly_ft::memory_pool_guard dummy(C.mp.ram);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mp_caching(bm.stats, E_right, E, pi_left, &C.mp.S);
+        bigmatpoly_mp_caching(bm.stats, E_right, E, pi_left, &C.mp);
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
         MPI_Barrier(bm.com[0]);
@@ -1134,10 +1133,9 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     {
         ASSERT_ALWAYS(pi_left.ab);
         ASSERT_ALWAYS(pi_right.ab);
-        matpoly_ft::memory_pool_guard dummy(C.mul.ram);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul.S);
+        bigmatpoly_mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul);
         ASSERT_ALWAYS(pi.ab);
         MPI_Barrier(bm.com[0]);
     }

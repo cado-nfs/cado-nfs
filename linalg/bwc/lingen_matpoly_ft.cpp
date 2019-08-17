@@ -413,19 +413,20 @@ template<> struct OP_CTX<matpoly> : public OP_CTX_base<matpoly> {
     inline void end_smallstep() const {}
     inline void skip_smallstep(std::string const &, unsigned int) const { }
     inline bool local_smallsteps_done() const { return true; }
+    template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
+        mp_or_mul(*this, op, op.fti, M ? & M->S : NULL);
+    }
 };
 
 
-void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
-    op_mp OP(a, b, adj);
-    OP_CTX<matpoly> CTX(c, a, b);
-    mp_or_mul(CTX, OP, OP.fti, S);
+    op_mp op(a, b, adj);
+    OP_CTX<matpoly>(c, a, b).doit(op, M);
 } /* }}} */
-void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
-    op_mul OP(a, b, adj);
-    OP_CTX<matpoly> CTX(c, a, b);
-    mp_or_mul(CTX, OP, OP.fti, S);
+    op_mul op(a, b, adj);
+    OP_CTX<matpoly>(c, a, b).doit(op, M);
 } /* }}} */
 

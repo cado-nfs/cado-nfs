@@ -80,18 +80,20 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
     inline bool local_smallsteps_done() {
         return stats.local_smallsteps_done();
     }
+    template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
+        mp_or_mul(*this, op, op.fti, M ? & M->S : NULL);
+    }
 };
 
-void bigmatpoly_mp_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+
+void bigmatpoly_mp_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)
 {
     op_mp OP(a, b, adj);
-    OP_CTX<bigmatpoly> CTX(stats, OP.fti, c, a, b);
-    mp_or_mul(CTX, OP, OP.fti, S);
-} /* }}} */
-void bigmatpoly_mul_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S)/*{{{*/
+    OP_CTX<bigmatpoly>(stats, OP.fti, c, a, b).doit(OP, M);
+}
+void bigmatpoly_mul_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)
 {
     op_mul OP(a, b, adj);
-    OP_CTX<bigmatpoly> CTX(stats, OP.fti, c, a, b);
-    mp_or_mul(CTX, OP, OP.fti, S);
-} /* }}} */
+    OP_CTX<bigmatpoly>(stats, OP.fti, c, a, b).doit(OP, M);
+}
 

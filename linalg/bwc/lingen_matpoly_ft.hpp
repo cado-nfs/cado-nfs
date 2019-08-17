@@ -7,6 +7,7 @@
 #include "lingen_substep_schedule.hpp"
 #include "tree_stats.hpp"
 #include "misc.h"
+#include "lingen_call_companion.hpp"
 
 struct matpoly_ft {
 private:
@@ -122,13 +123,13 @@ public:
 };
 
 /* In a way, this is the only real API exported by this module */
-void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S = NULL);
+void matpoly_mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M = NULL);
 
-static inline void matpoly_mul_caching(matpoly & c, matpoly const & a, matpoly const & b, const struct lingen_substep_schedule * S = NULL) { return matpoly_mul_caching_adj(c, a, b, UINT_MAX, S); }
+static inline void matpoly_mul_caching(matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M = NULL) { return matpoly_mul_caching_adj(c, a, b, UINT_MAX, M); }
 
-void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S = NULL);
+void matpoly_mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M = NULL);
 
-static inline void matpoly_mp_caching(matpoly & c, matpoly const & a, matpoly const & b, const struct lingen_substep_schedule * S = NULL) { return matpoly_mp_caching_adj(c, a, b, UINT_MAX, S); }
+static inline void matpoly_mp_caching(matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M = NULL) { return matpoly_mp_caching_adj(c, a, b, UINT_MAX, M); }
 
 void zero(matpoly_ft::view_t);
 void fill_random(matpoly_ft::view_t, gmp_randstate_t);

@@ -10,12 +10,14 @@
 #include "lingen_substep_schedule.hpp"
 #include "tree_stats.hpp"
 
-void bigmatpoly_mul_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
+/* This defines an MPI-shared polynomial matrix type */
 
-void bigmatpoly_mp_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);
+void bigmatpoly_mul_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
 
-static inline void bigmatpoly_mul_caching(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mul_caching_adj(t, c, a, b, UINT_MAX, S); }
+void bigmatpoly_mp_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
 
-static inline void bigmatpoly_mp_caching(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, const struct lingen_substep_schedule * S) { return bigmatpoly_mp_caching_adj(t, c, a, b, UINT_MAX, S); }
+static inline void bigmatpoly_mul_caching(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M) { return bigmatpoly_mul_caching_adj(t, c, a, b, UINT_MAX, M); }
+
+static inline void bigmatpoly_mp_caching(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M) { return bigmatpoly_mp_caching_adj(t, c, a, b, UINT_MAX, M); }
 
 #endif	/* BIGMATPOLY_FT_HPP_ */
