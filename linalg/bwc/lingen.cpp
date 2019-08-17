@@ -2310,7 +2310,7 @@ void bm_io::compute_initial_F() /*{{{ */
         /* We always have one extra coefficient of back log */
         ASSERT_ALWAYS(t0 == k - 1);
 
-        printf("Found satisfying init data for t0=%d\n", t0);
+        printf("Found satisfactory init data for t0=%d\n", t0);
 
         /* We've also got some adjustments to make: room for one extra
          * coefficient is needed in A. Reading of further coefficients will
@@ -2962,7 +2962,13 @@ int main(int argc, char *argv[])
         matpoly::memory_pool_guard blanket(SIZE_MAX);
         matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
         try {
-            bm.hints = lingen_tuning(bm.d, aa.guessed_length, bm.com[0], pl);
+            /* iceildiv(m,n) is t0. We subtract 1 because we usually work
+             * with shifted inputs in order to deal with homogenous
+             * systems. If rhs==n however, the input isn't shifted. Cf
+             * bm_compute_E.
+             */
+            size_t L = aa.guessed_length - iceildiv(bm.d.m, bm.d.n) - (bm.d.n != bm.d.nrhs);
+            bm.hints = lingen_tuning(bm.d, L, bm.com[0], pl);
         } catch (std::overflow_error const & e) {
             fputs(e.what(), stderr);
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
