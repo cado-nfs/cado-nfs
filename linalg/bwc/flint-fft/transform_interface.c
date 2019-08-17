@@ -953,7 +953,12 @@ void fft_combine_fppol(mp_limb_t * x, mp_size_t cx, void * y, const struct fft_t
             temp[nwritten-1] &= topmask;
         }
         /* TODO: Barrett ! */
-        mpn_tdiv_qr(temp + ksspan, x + j * np, 0, temp, nwritten, p->_mp_d, mpz_size(p));
+        assert(nwritten <= np + ksspan);
+        /* XXX tdiv_qr does not work if the dividend is smaller than the
+         * divisor !
+         */
+        if (nwritten >= np)
+            mpn_tdiv_qr(temp + ksspan, x + j * np, 0, temp, nwritten, p->_mp_d, mpz_size(p));
     }
     free(temp);
     free(xtemp);
@@ -1339,7 +1344,11 @@ void fft_do_ift_fppol_mp(mp_limb_t * x, mp_size_t cx, void * y, void * temp, con
             smalltemp[nwritten-1] &= topmask;
         }
         /* TODO: Barrett ! */
-        mpn_tdiv_qr(smalltemp + ksspan, x + j * np, 0, smalltemp, nwritten, p->_mp_d, mpz_size(p));
+        /* XXX tdiv_qr does not work if the dividend is smaller than the
+         * divisor !
+         */
+        if (nwritten >= np)
+            mpn_tdiv_qr(smalltemp + ksspan, x + j * np, 0, smalltemp, nwritten, p->_mp_d, mpz_size(p));
     }
 
     free(smalltemp);
