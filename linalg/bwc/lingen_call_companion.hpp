@@ -41,6 +41,13 @@ struct lingen_call_companion {
             t_ift_C;
         size_t reserved_ram;
         size_t ram;
+
+        /* we store the per-transform ram here, so that we can act
+         * appropriately if we ever detect that it changes for one
+         * specific call */
+        size_t per_transform_ram;
+
+        size_t asize, bsize, csize;
     };
     mul_or_mp_times mp, mul;
     struct key {

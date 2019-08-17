@@ -494,7 +494,9 @@ struct lingen_substep_characteristics {/*{{{*/
         return { T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 };
     }/*}}}*/
 
-    void save_call_times(lingen_call_companion::mul_or_mp_times & D, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+
+    lingen_call_companion::mul_or_mp_times get_companion(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+        lingen_call_companion::mul_or_mp_times D;
         D.S = S;
         auto A = get_call_time_backend(P, S, C); 
         double tt = 0;
@@ -506,6 +508,12 @@ struct lingen_substep_characteristics {/*{{{*/
         D.t_ift_C = A[3];
         D.t_dft_A_comm = A[4];
         D.t_dft_B_comm = A[5];
+        D.per_transform_ram = get_transform_ram();
+        D.ram = get_peak_ram(P, S);
+        D.asize = asize;
+        D.bsize = bsize;
+        D.csize = csize;
+        return D;
     }/*}}}*/
     double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const {
         auto A = get_call_time_backend(P, S, C);
@@ -763,7 +771,10 @@ struct lingen_tuner {
         ASSERT_ALWAYS(weight);
 
         size_t csize = length_E_right;
-        size_t bsize = iceildiv(m * length_E_left, m+n);
+        /* pi is the identity matrix for zero coefficients, but the
+         * identity matrix already has length 1.
+         */
+        size_t bsize = 1 + iceildiv(m * length_E_left, m+n);
         size_t asize = csize + bsize - 1;
 
         ASSERT_ALWAYS(asize);
@@ -802,8 +813,8 @@ struct lingen_tuner {
         ASSERT_ALWAYS(length_E >= 2);
         ASSERT_ALWAYS(weight);
 
-        size_t asize = iceildiv(m * length_E_left, m+n);
-        size_t bsize = iceildiv(m * length_E_right, m+n);
+        size_t asize = 1 + iceildiv(m * length_E_left, m+n);
+        size_t bsize = 1 + iceildiv(m * length_E_right, m+n);
         size_t csize = asize + bsize - 1;
 
         ASSERT_ALWAYS(asize);
@@ -941,11 +952,13 @@ struct lingen_tuner {
                         ttb = compute_and_report_basecase(L);
 
                     if (recursion_makes_sense(L)) {
-                        auto MUL = mul_substep(cw);
-                        auto MP  = mp_substep(cw);
+                        auto MP = mp_substep(cw);
+                        U.mp = MP.get_companion(P, schedules_mp[L], C);
+                        U.mp.reserved_ram = reserved_mp;
 
-                        MP.save_call_times(U.mp, P, schedules_mp[L], C);
-                        MUL.save_call_times(U.mul, P, schedules_mul[L], C);
+                        auto MUL = mul_substep(cw);
+                        U.mul = MUL.get_companion(P, schedules_mul[L], C);
+                        U.mul.reserved_ram = reserved_mp;
 
                         ttr = U.mp.tt.t + U.mul.tt.t;
                         ttrchildren = 0;
@@ -953,12 +966,11 @@ struct lingen_tuner {
                         ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
 
                         size_t m;
-                        m = U.mp.ram = MP.get_peak_ram(P, schedules_mp[L]);
-                        m += U.mp.reserved_ram = reserved_mp;
+                        m = U.mp.ram + U.mp.reserved_ram;
                         if (m > ram_mp) ram_mp = m;
                         if (m > peak) { ipeak = i; peak = m; }
-                        m = U.mul.ram = MUL.get_peak_ram(P, schedules_mul[L]);
-                        m += U.mul.reserved_ram = reserved_mul;
+
+                        m = U.mul.ram + U.mul.reserved_ram;
                         if (m > ram_mul) ram_mul = m;
                         if (m > peak) { ipeak = i; peak = m; }
                     }

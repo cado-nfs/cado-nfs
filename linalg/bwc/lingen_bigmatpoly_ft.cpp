@@ -81,6 +81,22 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
         return stats.local_smallsteps_done();
     }
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
+        if (M && op.get_transform_ram() > M->per_transform_ram) {
+            fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
+                    OP::name,
+                    a.size,
+                    b.size,
+                    op.get_transform_ram(),
+                    M->per_transform_ram,
+                    M->asize,
+                    M->bsize
+                   );
+            size_t ntransforms = M->ram / M->per_transform_ram;
+            ASSERT_ALWAYS(M->ram % M->per_transform_ram == 0);
+            M->per_transform_ram = op.get_transform_ram();
+            M->ram = ntransforms * M->per_transform_ram;
+        }
+        matpoly_ft::memory_pool_guard dummy(M ? M->ram : SIZE_MAX);
         mp_or_mul(*this, op, op.fti, M ? & M->S : NULL);
     }
 };
