@@ -629,6 +629,7 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
         for(unsigned int shrink2 : all_splits_of(nr2)) {
             unsigned int nrs0 = U.shrink_split0(P, shrink0).block_size_upper_bound();
             unsigned int nrs2 = U.shrink_split2(P, shrink2).block_size_upper_bound();
+#if 1
             /* first the splits with b0 == nrs0 */
             {
                 unsigned int b0 = nrs0;
@@ -669,6 +670,27 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
                     }
                 }
             }
+#else
+            /* replicate the old choices. */
+            for(unsigned int b1 : all_splits_of(nr1)) {
+                lingen_substep_schedule S;
+                S.shrink0 = shrink0;
+                S.shrink2 = shrink2;
+                if (nrs0 < nrs2) {
+                    S.batch = { nrs0, b1, 1 };
+                } else {
+                    S.batch = { 1, b1, nrs2 };
+                }
+                size_t my_ram = U.get_peak_ram(P, S);
+                if (reserved + my_ram <= P.available_ram) {
+                    all_schedules.push_back(S);
+                }
+                if (my_ram < min_my_ram) {
+                    min_my_ram = my_ram;
+                    S_lean = S;
+                }
+            }
+#endif
         }
     }
     std::sort(all_schedules.begin(), all_schedules.end());
