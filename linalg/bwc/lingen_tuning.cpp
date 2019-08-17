@@ -48,38 +48,6 @@
 
 using namespace std;
 
-template<typename>
-struct lingen_substep_characteristics;
-struct lingen_substep_schedule;
-struct lingen_tuner;
-
-struct op_mul {/*{{{*/
-    static constexpr const char * name = "MUL";
-    typedef lingen_tuning_cache::mul_key key_type;
-    typedef lingen_tuning_cache::mul_value cache_value_type;
-    static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc) {
-        fft_get_transform_info_fppol(fti, p, n1, n2, nacc);
-    }
-    static inline void ift(matpoly & a, matpoly_ft & t, const struct fft_transform_info *)
-    {
-        ::ift(a, t);
-    }
-};/*}}}*/
-struct op_mp {/*{{{*/
-    static constexpr const char * name = "MP";
-    typedef lingen_tuning_cache::mp_key key_type;
-    typedef lingen_tuning_cache::mp_value cache_value_type;
-    static inline void fti_prepare(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc) {
-        fft_get_transform_info_fppol_mp(fti, p, nmin, nmax, nacc);
-    }
-    static inline void ift(matpoly & c, matpoly_ft & tc, const struct fft_transform_info * fti)
-    {
-        mp_bitcnt_t cbits = fti->ks_coeff_bits;
-        unsigned shift = MIN(fti->bits1 / cbits, fti->bits2 / cbits) - 1;
-        ::ift_mp(c, tc, shift);
-    }
-};/*}}}*/
-
 template<typename OP>
 struct lingen_substep_characteristics {/*{{{*/
     typedef lingen_platform pc_t;
@@ -111,7 +79,9 @@ struct lingen_substep_characteristics {/*{{{*/
     private:
 
     size_t transform_ram;
-    struct fft_transform_info fti[1];
+    OP op;
+    typedef typename lingen_tuning_cache_key<OP>::key_type cache_key_type;
+    typedef typename lingen_tuning_cache_key<OP>::value_type cache_value_type;
 
     public:
 
@@ -122,14 +92,12 @@ struct lingen_substep_characteristics {/*{{{*/
         asize(asize), bsize(bsize), csize(csize)
     {
         abfield_characteristic(ab, p);
-        OP::fti_prepare(fti, p, asize, bsize, n1);
-        size_t fft_alloc_sizes[3];
-        fft_get_transform_allocs(fft_alloc_sizes, fti);
-        transform_ram = fft_alloc_sizes[0];
+        op = OP(p, asize, bsize, n1);
+        transform_ram = op.get_transform_ram();
     }/*}}}*/
 
     bool has_cached_time(tc_t const & C) const {
-        typename OP::key_type K { mpz_sizeinbase(p, 2), asize, bsize };
+        cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         return C.has(K);
     }
 
@@ -224,7 +192,7 @@ struct lingen_substep_characteristics {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
         matpoly a(ab, nparallel, 1, asize);
         a.fill_random(asize, rstate);
-        matpoly_ft ta(ab, a.m, a.n, fti);
+        matpoly_ft ta(ab, a.m, a.n, op.fti);
         double tt = -wct_seconds();
         dft(ta, a);
         tt = (tt + wct_seconds());
@@ -235,13 +203,13 @@ struct lingen_substep_characteristics {/*{{{*/
     double get_ift_times_parallel(unsigned int nparallel) const {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
         matpoly c(ab, nparallel, 1, csize);
-        matpoly_ft tc(ab, c.m, c.n, fti);
+        matpoly_ft tc(ab, c.m, c.n, op.fti);
         /* This is important, since otherwise the inverse transform won't
          * work */
         c.size = csize;
         tc.fill_random(rstate);
         double tt = -wct_seconds();
-        OP::ift(c, tc, fti);
+        op.ift(c, tc);
         tt = (tt + wct_seconds());
         // printf("# ift time for %u threads: %.3f\n", nparallel, tt);
         return tt;
@@ -249,9 +217,9 @@ struct lingen_substep_characteristics {/*{{{*/
 
     double get_conv_times_parallel(unsigned int nparallel) const {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
-        matpoly_ft ta(ab, nparallel, 1, fti);
-        matpoly_ft tb(ab, 1, 1, fti);
-        matpoly_ft tc(ab, nparallel, 1, fti);
+        matpoly_ft ta(ab, nparallel, 1, op.fti);
+        matpoly_ft tb(ab, 1, 1, op.fti);
+        matpoly_ft tc(ab, nparallel, 1, op.fti);
         ta.fill_random(rstate);
         tb.fill_random(rstate);
         double tt = -wct_seconds();
@@ -274,7 +242,7 @@ struct lingen_substep_characteristics {/*{{{*/
     }
 
     std::array<parallelizable_timing, 4> get_ft_times(tc_t & C) const {/*{{{*/
-        typename OP::key_type K { mpz_sizeinbase(p, 2), asize, bsize };
+        cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         
         unsigned int TMAX = omp_get_max_threads();
 
@@ -319,7 +287,7 @@ struct lingen_substep_characteristics {/*{{{*/
             complete_tvec(tvec_conv, &lingen_substep_characteristics::get_conv_times_parallel, kl, kh);
         }
 
-        typename OP::cache_value_type cached_res;
+        cache_value_type cached_res;
         for(unsigned int i = 1 ; i <= TMAX ; i++) {
             if (tvec_dft[i] >= 0) cached_res[0].push_back( { i, tvec_dft[i] } );
             if (tvec_dft[i] >= 0) cached_res[1].push_back( { i, tvec_dft[i] } );

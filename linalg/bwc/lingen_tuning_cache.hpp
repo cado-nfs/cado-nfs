@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "lingen_round_operand_size.hpp"
+#include "lingen_mul_substeps.hpp"
 
 struct lingen_tuning_cache {
     struct basecase_key : public std::tuple<size_t, unsigned int, unsigned int, size_t, int> {
@@ -76,6 +77,16 @@ struct lingen_tuning_cache {
     basecase_value & operator[](basecase_key const & K) { return basecase_cache[K]; }
     mul_value & operator[](mul_key const & K) { return mul_cache[K]; }
     mp_value & operator[](mp_key const & K) { return mp_cache[K]; }
+};
+
+template<typename T> struct lingen_tuning_cache_key {};
+template<> struct lingen_tuning_cache_key<op_mp> {
+    typedef lingen_tuning_cache::mp_key key_type;
+    typedef lingen_tuning_cache::mp_value value_type;
+};
+template<> struct lingen_tuning_cache_key<op_mul> {
+    typedef lingen_tuning_cache::mp_key key_type;
+    typedef lingen_tuning_cache::mp_value value_type;
 };
 
 std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
