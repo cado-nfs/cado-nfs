@@ -51,7 +51,7 @@ struct bmstatus {/*{{{*/
         d.n = n;
         lucky.assign(m+n, 0);
     }/*}}}*/
-    lingen_call_companion const& companion(int depth, size_t L);
+    lingen_call_companion & companion(int depth, size_t L);
     bool recurse(int depth, size_t L) {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/

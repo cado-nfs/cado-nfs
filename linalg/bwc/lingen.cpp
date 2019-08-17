@@ -151,7 +151,7 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
     tree_stats::declare_usage(pl);
 }/*}}}*/
 
-    lingen_call_companion const& bmstatus::companion(int depth, size_t L)/*{{{*/
+    lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
     {
         lingen_hints::key_type K { depth, L };
 
@@ -831,7 +831,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     int depth = bm.depth();
     size_t z = E.size;
 
-    lingen_call_companion const & C = bm.companion(depth, z);
+    lingen_call_companion & C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
 
@@ -980,7 +980,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 
     int done;
 
-    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
+    lingen_call_companion & C = bm.companion(bm.depth(), E.size);
 
     if (load_checkpoint_file(bm, pi, t0, t1, delta, &done))
         return done;
@@ -1009,7 +1009,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     int depth = bm.depth();
     size_t z = E.size;
 
-    lingen_call_companion const & C = bm.companion(depth, z);
+    lingen_call_companion & C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
 
@@ -1197,7 +1197,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     unsigned int t0 = bm.t;
     unsigned int t1 = bm.t + E.size;
 
-    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
+    lingen_call_companion & C = bm.companion(bm.depth(), E.size);
     bool go_mpi = C.go_mpi;
     // bool go_mpi = E.size >= bm.lingen_mpi_threshold;
 
