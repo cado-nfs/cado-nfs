@@ -34,6 +34,7 @@
 #include "lingen_tuning_cache.hpp"
 #include "lingen_platform.hpp"
 #include "tree_stats.hpp"
+#include "lingen_substep_schedule.hpp"
 
 #include <vector>
 #include <array>

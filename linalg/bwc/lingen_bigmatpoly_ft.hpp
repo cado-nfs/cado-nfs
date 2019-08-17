@@ -7,7 +7,7 @@
 #include "flint-fft/fft.h"
 
 #include "select_mpi.h"
-#include "lingen_substep_schedule.h"
+#include "lingen_substep_schedule.hpp"
 #include "tree_stats.hpp"
 
 void bigmatpoly_mul_caching_adj(tree_stats & t, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, const struct lingen_substep_schedule * S);

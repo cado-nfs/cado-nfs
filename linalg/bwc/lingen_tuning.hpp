@@ -6,7 +6,7 @@
 #include "lingen.hpp"
 #include "select_mpi.h"
 #include "timing.h"     /* for weighted_double */
-#include "lingen_substep_schedule.h"
+#include "lingen_substep_schedule.hpp"
 #include "tree_stats.hpp"
 #include "lingen_hints.hpp"
 

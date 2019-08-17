@@ -1,7 +1,7 @@
 #ifndef LINGEN_CALL_COMPANION_HPP_
 #define LINGEN_CALL_COMPANION_HPP_
 
-#include "lingen_substep_schedule.h"
+#include "lingen_substep_schedule.hpp"
 #include "timing.h"     /* weighted_double */
 #include "lingen_round_operand_size.hpp"
 
