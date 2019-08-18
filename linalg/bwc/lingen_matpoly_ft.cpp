@@ -168,6 +168,7 @@ void fill_random(matpoly_ft::view_t t, gmp_randstate_t rstate)
 {
     unsigned int nrows = t.nrows();
     unsigned int ncols = t.ncols();
+// the rstate is shared: it is not safe to openmp-it.
 #ifdef HAVE_OPENMP
 #pragma omp parallel for collapse(2)
 #endif
