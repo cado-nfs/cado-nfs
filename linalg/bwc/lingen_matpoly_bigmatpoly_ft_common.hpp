@@ -41,7 +41,7 @@ static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info
     CTX.mesh_checks();
     const unsigned int r = CTX.mesh_size();
 
-    unsigned int batch = S ? S->batch : a.n;
+    unsigned int batch = S ? S->batch[1] : a.n;
     unsigned int shrink0 = S ? S->shrink0 : 1;
     unsigned int shrink2 = S ? S->shrink2 : 1;
 
@@ -62,6 +62,12 @@ static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info
     /* first, upper bounds on nrs0 and nrs2 */
     unsigned int nrs0 = shrink_split0.block_size_upper_bound();
     unsigned int nrs2 = shrink_split2.block_size_upper_bound();
+
+    unsigned int batch0 = S ? S->batch[0] : nrs0;
+    unsigned int batch2 = S ? S->batch[2] : nrs2;
+
+    ASSERT_ALWAYS(batch0 == nrs0 || batch2 == nrs2);
+
     tc = matpoly_ft (c.ab, nrs0, nrs2, fti);
 
     /* We must decide on an ordering beforehand. We cannot do this
@@ -70,9 +76,11 @@ static void mp_or_mul(OP_CTX_T & CTX, OP_T & OP, const struct fft_transform_info
      */
     bool compute_result_by_cols = nrs0 < nrs2;
     if (compute_result_by_cols) {
+        ASSERT_ALWAYS(batch0 == nrs0);
         ta = matpoly_ft(a.ab, nrs0, r * batch, fti);
         tb = matpoly_ft(a.ab, r * batch, 1, fti);
     } else {
+        ASSERT_ALWAYS(batch2 == nrs2);
         ta = matpoly_ft(a.ab, 1, r * batch, fti);
         tb = matpoly_ft(a.ab, r * batch, nrs2, fti);
     }

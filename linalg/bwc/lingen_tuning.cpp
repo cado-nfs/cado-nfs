@@ -335,13 +335,14 @@ struct lingen_substep_characteristics {/*{{{*/
     bool compute_result_by_cols(pc_t const & P, sc_t const & S) const {
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        return nrs0 < nrs2;
+        ASSERT_ALWAYS(S.batch[0] == nrs0 || S.batch[2] == nrs2);
+        return S.batch[0] == nrs0;
     }
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
 
-        return get_transform_ram() * (S.batch * P.r * (1 + std::min(nrs0, nrs2)) + nrs0*nrs2);
+        return get_transform_ram() * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
     }/*}}}*/
 
         private:
@@ -363,7 +364,7 @@ struct lingen_substep_characteristics {/*{{{*/
         unsigned int ns2 = nrs2 * mesh_size(P);
 
         parallelizable_timing T = get_transform_ram() / P.mpi_xput;
-        T *= S.batch * iceildiv(nr1, S.batch);
+        T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
         T *= S.shrink0 * S.shrink2;
         return { T * ns0, T * ns2 };
     }/*}}}*/
@@ -392,7 +393,7 @@ struct lingen_substep_characteristics {/*{{{*/
         // unsigned int ns0 = r * nrs0;
         // unsigned int ns2 = r * nrs2;
 
-        unsigned int nr1b = iceildiv(nr1, S.batch);
+        unsigned int nr1b = iceildiv(nr1, S.batch[1]);
 
         /* The 1-threaded timing will be obtained by setting T=batch=1.  */
 
@@ -416,37 +417,16 @@ struct lingen_substep_characteristics {/*{{{*/
          * transforms.
          */
 
-        if (nrs0 < nrs2) {
-            /* then we want many live transforms on side 0. */
-            T_dft0.parallelize(nrs0 * S.batch, P.T);
-            T_dft2.parallelize(S.batch, P.T);
-            T_dft2 *= nrs2;
-            T_conv.parallelize(nrs0, P.T);
-            T_conv *= nrs2 * P.r * S.batch;
-        } else {
-            /* then we want many live transforms on side 2. */
-            /* typical loop (on each node)
-                allocate space for nrs0 * nrs2 transforms.
-                for(k = 0 ; k < nr1 ; k += batch)
-                    allocate space for batch * nrs2 * r transforms for b_(k..k+batch-1,j) (this takes into account the * r multiplier that is necessary for the received data).
-                    compute batch * nrs2 transforms locally. This can be done in parallel
-                    share batch * nrs2 transforms with r peers.
-                    for(i = 0 ; i < nrs0 ; i++)
-                        allocate space for batch * r transforms for a_(i,k..k+batch-1) (this takes into account the * r multiplier that is necessary for the received data).
-                        compute batch transforms locally. This can be done in parallel
-                        share batch transforms with r peers.
-                        compute and accumulate r*batch*nrs2 convolution products into only nrs2 destination variables (therefore r*batch passes are necessary in order to avoid conflicts).
-                        free batch * r transforms
-                    free batch * nrs2 * r transforms
-                compute nrs0 * nrs2 inverse transforms locally, in parallel
-                free nrs0 * nrs2 transforms.
-            */
-            T_dft0.parallelize(S.batch, P.T);
-            T_dft0 *= nrs0;
-            T_dft2.parallelize(nrs2 * S.batch, P.T);
-            T_conv.parallelize(nrs2, P.T);
-            T_conv *= nrs0 * P.r * S.batch;
-        }
+        T_dft0.parallelize(S.batch[0] * S.batch[1], P.T);
+        T_dft0 *= iceildiv(nrs0, S.batch[0]);
+
+        T_dft2.parallelize(S.batch[1] * S.batch[2], P.T);
+        T_dft2 *= iceildiv(nrs2, S.batch[2]);
+
+        T_conv.parallelize(S.batch[0] * S.batch[2], P.T);
+        T_conv *= P.r * S.batch[1];
+        T_conv *= iceildiv(nrs0, S.batch[0]);
+        T_conv *= iceildiv(nrs2, S.batch[2]);
 
         T_ift.parallelize(nrs0*nrs2, P.T);
 
@@ -496,12 +476,12 @@ struct lingen_substep_characteristics {/*{{{*/
         bool cached = has_cached_time(C);
         char buf[20];
 
-        printf("# %s(@%zu) [shrink=(%u,%u) batch=%u] %s, ",
+        printf("# %s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
                 step,
                 input_length,
                 S.shrink0,
                 S.shrink2,
-                S.batch,
+                S.batch[0], S.batch[1], S.batch[2],
                 size_disp(get_peak_ram(P, S), buf));
         fflush(stdout);
         double tt = get_call_time(P, S, C);
@@ -535,11 +515,17 @@ void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> co
         unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
         unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
 
+        if (nr0 < nr2) {
+            S.batch[0] = nr0; S.batch[2] = 1;
+        } else {
+            S.batch[0] = 1; S.batch[2] = nr2;
+        }
+
         lingen_substep_schedule res = S;
 
-        for( ; S.batch < nr1 && (reserved + U.get_peak_ram(P, S)) <= P.available_ram ; ) {
+        for( ; S.batch[1] < nr1 && (reserved + U.get_peak_ram(P, S)) <= P.available_ram ; ) {
             S = res;
-            res.batch++;
+            res.batch[1]++;
         }
 
         for( ; (reserved + U.get_peak_ram(P, S)) > P.available_ram ; ) {
@@ -564,9 +550,17 @@ void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> co
                     << size_disp(reserved, buf)
                     << " for reserved memory at upper levels";
                 os << " [with shrink=(" << S.shrink0 << "," << S.shrink2
-                    << "), batch=" << S.batch << "]\n";
+                    << "), batch=("
+                    << S.batch[0] << ','
+                    << S.batch[1] << ','
+                    << S.batch[2] << ")]\n";
                 fputs(os.str().c_str(), stderr);
                 throw std::overflow_error(os.str());
+            }
+            if (nrs0 < nrs2) {
+                S.batch[0] = nrs0; S.batch[2] = 1;
+            } else {
+                S.batch[0] = 1; S.batch[2] = nrs2;
             }
         }
     }

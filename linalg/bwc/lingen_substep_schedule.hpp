@@ -1,5 +1,7 @@
-#ifndef LINGEN_SUBSTEP_SCHEDULE_H_
-#define LINGEN_SUBSTEP_SCHEDULE_H_
+#ifndef LINGEN_SUBSTEP_SCHEDULE_HPP_
+#define LINGEN_SUBSTEP_SCHEDULE_HPP_
+
+#include <array>
 
 struct lingen_substep_schedule {
     /* output characteristics -- the ones we have to choose */
@@ -23,17 +25,33 @@ struct lingen_substep_schedule {
     unsigned int shrink0;
     unsigned int shrink2;
 
-    /* batch is not used much, because it goes in the direction of
-     * spending _more_ memory, which is rarely what we're interested in.
-     * What this does is that several steps of the outer loop (off size
-     * n1/r) are done simultaneously: more transforms are kept live.
+    /* We may batch in all three dimensions. At most, batch is {n0, n1,
+     * n2}. More generally, if it is {b0,b1,b2}, then the amount of RAM
+     * spent for transforms is r * b1 * (b0 + b2) transforms. This brings
+     * the benefit of computing b0*b1 transforms simultaneously on A, and
+     * b1*b2 transforms simultaneously on B.
+     *
+     * The outer loop, of size n1/r, is processed b1 steps at a time.
      */
-    unsigned int batch;
+    std::array<unsigned int, 3> batch;
 
-#ifdef __cplusplus
-    lingen_substep_schedule() : shrink0(1), shrink2(1), batch(1) {}
+    lingen_substep_schedule() : shrink0(1), shrink2(1), batch {1,1,1}  {}
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
-#endif
+
+    bool operator<(lingen_substep_schedule const & o) const {
+        if (shrink0 < o.shrink0) return true;
+        if (shrink0 > o.shrink0) return false;
+        if (shrink2 < o.shrink2) return true;
+        if (shrink2 > o.shrink2) return false;
+        if (batch < o.batch) return true;
+        if (batch > o.batch) return false;
+        return false;
+    }
+    bool operator==(lingen_substep_schedule const & o) const {
+        return shrink0 == o.shrink0
+            && shrink2 == o.shrink2
+            && batch == o.batch;
+    }
 };
 
-#endif	/* LINGEN_SUBSTEP_SCHEDULE_H_ */
+#endif	/* LINGEN_SUBSTEP_SCHEDULE_HPP_ */
