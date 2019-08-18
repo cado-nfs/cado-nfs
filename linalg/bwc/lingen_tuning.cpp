@@ -14,6 +14,7 @@
 #include <cassert>
 #include <cfloat>
 #include <stdexcept>
+#include <algorithm>
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
@@ -27,14 +28,15 @@
 #include "mpfq_layer.h"
 #include "lingen_polymat.hpp"
 #include "lingen_matpoly.hpp"
-// #include "lingen_bigpolymat.hpp" // 20150826: deleted.
 #include "lingen_matpoly_ft.hpp"
 #include "lingen.hpp"
 #include "lingen_tuning.hpp"
 #include "lingen_tuning_cache.hpp"
 #include "lingen_platform.hpp"
 #include "tree_stats.hpp"
+#include "fmt/format.h"
 #include "lingen_substep_schedule.hpp"
+#include "lingen_mul_substeps.hpp"
 
 #include <vector>
 #include <array>
@@ -475,6 +477,38 @@ struct lingen_substep_characteristics {/*{{{*/
         return tt;
     }
 
+    struct schedule_sorter {
+        lingen_substep_characteristics const & U;
+        lingen_platform const & P;
+        lingen_tuning_cache & C;
+        schedule_sorter(lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C) :
+            U(U), P(P), C(C)
+        {}
+        bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {
+            double ta = U.get_call_time(P, a, C);
+            double tb = U.get_call_time(P, b, C);
+            if (ta != tb) return ta < tb;
+#if 0
+            /* Doesn't make much sense, since timing comparisons will
+             * almost certainly always return unequal. But well, who
+             * knows...
+             */
+            size_t za = U.get_peak_ram(P, a);
+            size_t zb = U.get_peak_ram(P, b);
+            return za < zb;
+#endif
+            /* Favor more batching instead */
+            unsigned int Ba = a.batch[1] * std::min(a.batch[0], a.batch[2]);
+            unsigned int Bb = b.batch[1] * std::min(b.batch[0], b.batch[2]);
+            if (Ba != Bb)
+                return Ba > Bb;
+            return false;
+        }
+    };
+    schedule_sorter get_schedule_sorter(lingen_platform const & P, lingen_tuning_cache & C) const {
+        return schedule_sorter(*this, P, C);
+    }
+
     double get_and_report_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         const char * step = OP::name;
         bool cached = has_cached_time(C);
@@ -485,7 +519,9 @@ struct lingen_substep_characteristics {/*{{{*/
                 input_length,
                 S.shrink0,
                 S.shrink2,
-                S.batch[0], S.batch[1], S.batch[2],
+                S.batch[0],
+                S.batch[1],
+                S.batch[2],
                 size_disp(get_peak_ram(P, S), buf));
         fflush(stdout);
         double tt = get_call_time(P, S, C);
@@ -513,62 +549,121 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
+/* Given n>=1 return the list of all integers k such that 1<=k<=n such
+ * that it is possible to divide n into k blocks (not necessarily of
+ * equal size) but such that all the splits that are obtained this way
+ * have different maximal block sizes.
+ *
+ * The returned list is such that k->iceildiv(n, k) actually performs the
+ * reversal of the list. And furthermore, for all k's such that k^2<=n,
+ * the obtained splits are different. Hence it suffices to iterate over
+ * all these k's
+ */
+std::vector<unsigned int> all_splits_of(unsigned int n)
+{
+    std::vector<unsigned int> res;
+    for(unsigned int k = 1 ; k * k <= n ; k++) res.push_back(k);
+    unsigned int j = res.size();
+    if (res[j-1] * res[j-1] == n) j--;
+    for( ; j-- ; ) res.push_back(iceildiv(n, res[j]));
+    return res;
+}
+
 template<typename OP>
-void optimize(lingen_substep_schedule & S, lingen_substep_characteristics<OP> const & U, lingen_platform const & P, size_t reserved) { /* {{{ */
-        unsigned int nr0 = U.mpi_split0(P).block_size_upper_bound();
-        unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
-        unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
-
-        if (nr0 < nr2) {
-            S.batch[0] = nr0; S.batch[2] = 1;
-        } else {
-            S.batch[0] = 1; S.batch[2] = nr2;
-        }
-
-        lingen_substep_schedule res = S;
-
-        for( ; S.batch[1] < nr1 && (reserved + U.get_peak_ram(P, S)) <= P.available_ram ; ) {
-            S = res;
-            res.batch[1]++;
-        }
-
-        for( ; (reserved + U.get_peak_ram(P, S)) > P.available_ram ; ) {
-            unsigned int nrs0 = U.shrink_split0(P, S).block_size_upper_bound();
-            unsigned int nrs2 = U.shrink_split2(P, S).block_size_upper_bound();
-            if (nrs0 < nrs2 && S.shrink2 < nr2) {
-                S.shrink2++;
-            } else if (S.shrink0 < nr0) {
-                S.shrink0++;
-            } else {
-                char buf[20];
-                std::ostringstream os;
-                os << "Fatal error:"
-                    << " it is not possible to complete this calculation with only "
-                    << size_disp(P.available_ram, buf)
-                    << " of memory for intermediate transforms.\n";
-                os << "Based on the cost for input length "
-                    << U.input_length
-                    << ", we need at the very least "
-                    << size_disp(U.get_peak_ram(P, S), buf);
-                os  << ", plus "
-                    << size_disp(reserved, buf)
-                    << " for reserved memory at upper levels";
-                os << " [with shrink=(" << S.shrink0 << "," << S.shrink2
-                    << "), batch=("
-                    << S.batch[0] << ','
-                    << S.batch[1] << ','
-                    << S.batch[2] << ")]\n";
-                fputs(os.str().c_str(), stderr);
-                throw std::overflow_error(os.str());
+lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, lingen_platform const & P, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
+    unsigned int nr0 = U.mpi_split0(P).block_size_upper_bound();
+    unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
+    unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
+    size_t min_my_ram = SIZE_MAX;
+    lingen_substep_schedule S_lean;
+    std::vector<lingen_substep_schedule> all_schedules;
+    for(unsigned int shrink0 : all_splits_of(nr0)) {
+        for(unsigned int shrink2 : all_splits_of(nr2)) {
+            unsigned int nrs0 = U.shrink_split0(P, shrink0).block_size_upper_bound();
+            unsigned int nrs2 = U.shrink_split2(P, shrink2).block_size_upper_bound();
+            /* first the splits with b0 == nrs0 */
+            {
+                unsigned int b0 = nrs0;
+                for(unsigned int b1 : all_splits_of(nr1)) {
+                    for(unsigned int b2 : all_splits_of(nrs2)) {
+                        lingen_substep_schedule S;
+                        S.shrink0 = shrink0;
+                        S.shrink2 = shrink2;
+                        S.batch = { b0, b1, b2 };
+                        size_t my_ram = U.get_peak_ram(P, S);
+                        if (reserved + my_ram <= P.available_ram) {
+                            all_schedules.push_back(S);
+                        }
+                        if (my_ram < min_my_ram) {
+                            min_my_ram = my_ram;
+                            S_lean = S;
+                        }
+                    }
+                }
             }
-            if (nrs0 < nrs2) {
-                S.batch[0] = nrs0; S.batch[2] = 1;
-            } else {
-                S.batch[0] = 1; S.batch[2] = nrs2;
+            /* then the splits with b2 == nrs2 */
+            {
+                unsigned int b2 = nrs2;
+                for(unsigned int b1 : all_splits_of(nr1)) {
+                    for(unsigned int b0 : all_splits_of(nrs0)) {
+                        lingen_substep_schedule S;
+                        S.shrink0 = shrink0;
+                        S.shrink2 = shrink2;
+                        S.batch = { b0, b1, b2 };
+                        size_t my_ram = U.get_peak_ram(P, S);
+                        if (reserved + my_ram <= P.available_ram) {
+                            all_schedules.push_back(S);
+                        }
+                        if (my_ram < min_my_ram) {
+                            min_my_ram = my_ram;
+                            S_lean = S;
+                        }
+                    }
+                }
             }
         }
     }
-    /* }}} */
+    std::sort(all_schedules.begin(), all_schedules.end());
+    auto it = std::unique(all_schedules.begin(), all_schedules.end());
+    all_schedules.erase(it, all_schedules.end());
+
+    if (all_schedules.empty()) {
+        char buf[20];
+        std::ostringstream os;
+        os << "Fatal error:"
+            << " it is not possible to complete this calculation with only "
+            << size_disp(P.available_ram, buf)
+            << " of memory for intermediate transforms.\n";
+        os << "Based on the cost for input length "
+            << U.input_length
+            << ", we need at the very least "
+            << size_disp(U.get_peak_ram(P, S_lean), buf);
+        os  << ", plus "
+            << size_disp(reserved, buf)
+            << " for reserved memory at upper levels";
+        os << " [with shrink="
+            << fmt::format("({},{})",
+                    S_lean.shrink0, S_lean.shrink2)
+            << ", batch="
+            << fmt::format("({},{},{})",
+                    S_lean.batch[0], S_lean.batch[1], S_lean.batch[2])
+            << "]\n";
+        fputs(os.str().c_str(), stderr);
+        throw std::overflow_error(os.str());
+    }
+
+    for(auto & S : all_schedules) {
+        /* This should ensure that all timings are obtained from cache */
+        U.get_call_time(P, S, C);
+    }
+
+    std::sort(all_schedules.begin(), all_schedules.end(),
+            U.get_schedule_sorter(P, C));
+
+    lingen_substep_schedule S = all_schedules.front();
+    return S;
+}
+/* }}} */
 
 struct lingen_tuner {
     typedef lingen_platform pc_t;
@@ -757,8 +852,7 @@ struct lingen_tuner {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mp_substep(cw);
-            lingen_substep_schedule S;
-            optimize(S, step, P, reserved);
+            lingen_substep_schedule S = optimize(step, P, C, reserved);
             if (print && !printed_mem_once++) {
                 step.report_size_stats_human();
                 step.get_and_report_call_time(P, S, C);
@@ -811,8 +905,7 @@ struct lingen_tuner {
                 if (!recursion_makes_sense(L)) continue;
                 auto step = mul_substep(cw);
 
-                lingen_substep_schedule S;
-                optimize(S, step, pp, reserved);
+                lingen_substep_schedule S = optimize(step, pp, C, reserved);
                 if (print && !printed_mem_once++) {
                     step.report_size_stats_human();
                     step.get_and_report_call_time(pp, S, C);
