@@ -907,7 +907,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.size - pi_left.size + 1);
-        matpoly_ft::memory_pool_guard dummy(SIZE_MAX);//C.mp.ram);
         matpoly_mp_caching(E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
@@ -931,7 +930,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
-        matpoly_ft::memory_pool_guard dummy(SIZE_MAX);//C.mul.ram);
         matpoly_mul_caching(pi, pi_left, pi_right, & C.mul);
     }
 
