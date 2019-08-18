@@ -47,7 +47,7 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
     inline int b_irank() const { return b.irank(); }
     inline int a_jrank() const { return a.jrank(); }
     inline int b_jrank() const { return b.jrank(); }
-    inline int mesh_size() const { return a.n1; }
+    inline int mesh_inner_size() const { return a.n1; }
     static const bool uses_mpi = true;
     inline void mesh_checks() const {
         ASSERT_ALWAYS(a.get_model().is_square());
@@ -97,7 +97,7 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
             M->ram = ntransforms * M->per_transform_ram;
         }
         matpoly_ft::memory_pool_guard dummy(M ? M->ram : SIZE_MAX);
-        mp_or_mul(*this, op, op.fti, M ? & M->S : NULL);
+        mp_or_mul<OP_CTX<bigmatpoly>, OP>(*this, op, M ? & M->S : NULL)();
     }
 };
 

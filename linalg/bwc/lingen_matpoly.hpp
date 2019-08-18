@@ -14,13 +14,14 @@ struct polymat;
 #include "lingen_polymat.hpp"
 
 class subdivision {
-    unsigned int n;
-    unsigned int k;
-    unsigned int q;
-    unsigned int r;
+    unsigned int n = 0;
+    unsigned int k = 0;
+    unsigned int q = 0;
+    unsigned int r = 0;
     public:
     unsigned int total_size() const { return n; }
     unsigned int nblocks() const { return k; }
+    subdivision() {}
     subdivision(unsigned int n, unsigned int k) : n(n), k(k), q(n/k), r(n%k) {}
     inline unsigned int nth_block_size(unsigned int i) const
     {
@@ -34,6 +35,9 @@ class subdivision {
     inline unsigned int block_size_upper_bound() const { return q + (r != 0); }
     inline unsigned int flatten(unsigned int idx, unsigned int pos) const {
         return idx * q + std::min(idx, r) + pos;
+    }
+    static subdivision by_block_size(unsigned int n, unsigned int b) {
+        return subdivision(n, iceildiv(n, b));
     }
 };
 

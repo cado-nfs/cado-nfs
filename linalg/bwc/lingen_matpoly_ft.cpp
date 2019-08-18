@@ -399,7 +399,7 @@ template<> struct OP_CTX<matpoly> : public OP_CTX_base<matpoly> {
     inline int b_irank() const { return 0; }
     inline int a_jrank() const { return 0; }
     inline int b_jrank() const { return 0; }
-    inline int mesh_size() const { return 1; }
+    inline int mesh_inner_size() const { return 1; }
     static const bool uses_mpi = false;
     inline void mesh_checks() const { }
     void alloc_c_if_needed(size_t size) {
@@ -431,7 +431,7 @@ template<> struct OP_CTX<matpoly> : public OP_CTX_base<matpoly> {
             M->ram = ntransforms * M->per_transform_ram;
         }
         matpoly_ft::memory_pool_guard dummy(M ? M->ram : SIZE_MAX);
-        mp_or_mul(*this, op, op.fti, M ? & M->S : NULL);
+        mp_or_mul<OP_CTX<matpoly>, OP>(*this, op, M ? & M->S : NULL)();
     }
 };
 

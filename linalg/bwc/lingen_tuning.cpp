@@ -305,6 +305,7 @@ struct lingen_substep_characteristics {/*{{{*/
         return { tt_dft0, tt_dft2, tt_conv, tt_ift };
     }/*}}}*/
 
+    public:
     size_t get_transform_ram() const { return transform_ram; }
     std::tuple<size_t, size_t, size_t> get_operand_ram() const {
         return {
@@ -312,25 +313,29 @@ struct lingen_substep_characteristics {/*{{{*/
             n1 * n2 * bsize * mpz_size(p) * sizeof(mp_limb_t),
             n0 * n2 * csize * mpz_size(p) * sizeof(mp_limb_t) };
     }
-
-    public:
-    int mesh_size(pc_t const & P) const {
+    int mesh_inner_size(pc_t const & P) const {
         return P.r;
     }
     subdivision mpi_split0(pc_t const & P) const {
-        return subdivision(n0, mesh_size(P));
+        return subdivision(n0, mesh_inner_size(P));
     }
     subdivision mpi_split1(pc_t const & P) const {
-        return subdivision(n1, mesh_size(P));
+        return subdivision(n1, mesh_inner_size(P));
     }
     subdivision mpi_split2(pc_t const & P) const {
-        return subdivision(n2, mesh_size(P));
+        return subdivision(n2, mesh_inner_size(P));
+    }
+    subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {
+        return subdivision(mpi_split0(P).block_size_upper_bound(), shrink0);
+    }
+    subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {
+        return subdivision(mpi_split2(P).block_size_upper_bound(), shrink2);
     }
     subdivision shrink_split0(pc_t const & P, sc_t const & S) const {
-        return subdivision(mpi_split0(P).block_size_upper_bound(), S.shrink0);
+        return shrink_split0(P, S.shrink0);
     }
     subdivision shrink_split2(pc_t const & P, sc_t const & S) const {
-        return subdivision(mpi_split2(P).block_size_upper_bound(), S.shrink2);
+        return shrink_split2(P, S.shrink2);
     }
     bool compute_result_by_cols(pc_t const & P, sc_t const & S) const {
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
@@ -341,7 +346,6 @@ struct lingen_substep_characteristics {/*{{{*/
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-
         return get_transform_ram() * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
     }/*}}}*/
 
@@ -360,8 +364,8 @@ struct lingen_substep_characteristics {/*{{{*/
         /* The shrink parameters will divide the size of the local
          * matrices we consider by numbers shrink0 and shrink2. This
          * increases the time, and decreases the memory footprint */
-        unsigned int ns0 = nrs0 * mesh_size(P);
-        unsigned int ns2 = nrs2 * mesh_size(P);
+        unsigned int ns0 = nrs0 * mesh_inner_size(P);
+        unsigned int ns2 = nrs2 * mesh_inner_size(P);
 
         parallelizable_timing T = get_transform_ram() / P.mpi_xput;
         T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
