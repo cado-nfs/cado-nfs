@@ -145,6 +145,10 @@ ncx2_pdf (double x, double k, double lam)
   return ret;
 }
 
+/* define DEBUG to append in /tmp/log.sage some lines that help to
+   compare the MurphyE_chi2() C-code to the corresponding Sage one */
+// #define DEBUG
+
 /* return the E_value with a non central chi2 density for \alpha.
    It is an alternative of the MurphyE function. */
 double
@@ -231,6 +235,28 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_clear (g);
 
   E = E / (K * h);
+
+#ifdef DEBUG
+  FILE *fp = NULL;
+  fp = fopen ("/tmp/log.sage", "a");
+  fprintf (fp, "foo(");
+  for (int i = cpoly->pols[ALG_SIDE]->deg; i >= 0; i--)
+    {
+      gmp_fprintf (fp, "(%Zd)*x^%d", cpoly->pols[ALG_SIDE]->coeff[i], i);
+      if (i > 0)
+        fprintf (fp, "+");
+    }
+  fprintf (fp, ",");
+  for (int i = cpoly->pols[RAT_SIDE]->deg; i >= 0; i--)
+    {
+      gmp_fprintf (fp, "(%Zd)*x^%d", cpoly->pols[RAT_SIDE]->coeff[i], i);
+      if (i > 0)
+        fprintf (fp, "+");
+    }
+  fprintf (fp, ",%.16e,%.16e,%.16e,%.16e,%d,%.16e)\n",
+           cpoly->skew, Bf, Bg, area, K, E);
+  fclose (fp);
+#endif
 
   return E;
 #endif
