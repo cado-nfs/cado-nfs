@@ -785,7 +785,7 @@ main_basic (int argc, char **argv)
   }
   else
   {
-    printf ("# Best polynomial found:\n");
+    printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
     cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
                                              bound_f, bound_g, area, NULL);
     printf ("# Average exp_E: %.2f, average E: %.2f\n",
