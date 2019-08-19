@@ -190,45 +190,93 @@ struct lingen_substep_characteristics {/*{{{*/
     };/*}}}*/
 
 
+    /* We can measure timings in one of three manners here.
+     *  - "cache-hot" do repeatedly the same thing, on identical data.
+     *  - "cache-cold", quick: do the calculation only once (malloc,
+     *  compute, free).
+     *  - "cache-cold", thorough: do the calculation on matrices of
+     *  different inputs.
+     *
+     * None is a true winner. "cache-hot" is easily optimistic, and both
+     * "cache-cold" options are somewhat pessimistic.
+     */
+
     double get_dft_times_parallel(unsigned int nparallel) const {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
-        matpoly a(ab, nparallel, 1, asize);
-        a.fill_random(asize, rstate);
-        matpoly_ft ta(ab, a.m, a.n, op.fti);
-        double tt = -wct_seconds();
-        dft(ta, a);
-        tt = (tt + wct_seconds());
-        // printf("# dft time for %u threads: %.3f\n", nparallel, tt);
-        return tt;
+        double tt = 0;
+        unsigned int n = 1;
+        const bool measure_cache_cold_quickly = true;
+        for( ; ; ) {
+            matpoly a(ab, nparallel, n, asize);
+            a.fill_random(asize, rstate);
+            matpoly_ft ta(ab, a.m, a.n, op.fti);
+            tt = -wct_seconds();
+            for(unsigned int i = 0 ; i < n ; i++) {
+                submatrix_range R(0,i,a.m,1);
+                dft(ta.view(R), a.view(R));
+            }
+            tt = (tt + wct_seconds());
+            if (measure_cache_cold_quickly) break;
+            if ((tt > 0 && n >= 100) || tt >= 1) break;
+            if (tt >= 0.01) n = n / tt; else n *= 2;
+        }
+        printf("# dft time for %u threads: %.3g / %u = %.3g\n",
+                nparallel, tt, n, tt / n);
+        return tt / n;
     }/*}}}*/
 
     double get_ift_times_parallel(unsigned int nparallel) const {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
-        matpoly c(ab, nparallel, 1, csize);
-        matpoly_ft tc(ab, c.m, c.n, op.fti);
-        /* This is important, since otherwise the inverse transform won't
-         * work */
-        c.size = csize;
-        tc.fill_random(rstate);
-        double tt = -wct_seconds();
-        op.ift(c, tc);
-        tt = (tt + wct_seconds());
-        // printf("# ift time for %u threads: %.3f\n", nparallel, tt);
-        return tt;
+        double tt = 0;
+        unsigned int n = 1;
+        const bool measure_cache_cold_quickly = true;
+        for( ; ; ) {
+            matpoly c(ab, nparallel, n, csize);
+            matpoly_ft tc(ab, c.m, c.n, op.fti);
+            /* This is important, since otherwise the inverse transform won't
+             * work */
+            c.size = csize;
+            tc.fill_random(rstate);
+            tt = -wct_seconds();
+            for(unsigned int i = 0 ; i < n ; i++) {
+                submatrix_range R(0,i,c.m,1);
+                op.ift(c.view(R), tc.view(R));
+            }
+            tt = (tt + wct_seconds());
+            if (measure_cache_cold_quickly) break;
+            if ((tt > 0 && n >= 100) || tt >= 1) break;
+            if (tt >= 0.01) n = n / tt; else n *= 2;
+        }
+        printf("# ift time for %u threads: %.3g / %u = %.3g\n",
+                nparallel, tt, n, tt / n);
+        return tt / n;
     }/*}}}*/
 
     double get_conv_times_parallel(unsigned int nparallel) const {/*{{{*/
         ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
-        matpoly_ft ta(ab, nparallel, 1, op.fti);
-        matpoly_ft tb(ab, 1, 1, op.fti);
-        matpoly_ft tc(ab, nparallel, 1, op.fti);
-        ta.fill_random(rstate);
-        tb.fill_random(rstate);
-        double tt = -wct_seconds();
-        mul(tc, ta, tb);
-        tt = (tt + wct_seconds());
-        // printf("# conv time for %u threads: %.3f\n", nparallel, tt);
-        return tt;
+        double tt = 0;
+        unsigned int n = 1;
+        const bool measure_cache_cold_quickly = true;
+        for( ; ; ) {
+            matpoly_ft ta(ab, nparallel, n, op.fti);
+            matpoly_ft tb(ab, n, 1, op.fti);
+            matpoly_ft tc(ab, nparallel, 1, op.fti);
+            ta.fill_random(rstate);
+            tb.fill_random(rstate);
+            tt = -wct_seconds();
+            for(unsigned int i = 0 ; i < n ; i++) {
+                submatrix_range Ra(0,i,ta.m,1);
+                submatrix_range Rb(i,0,tb.n,1);
+                mul(tc, ta.view(Ra), tb.view(Rb));
+            }
+            tt = (tt + wct_seconds());
+            if (measure_cache_cold_quickly) break;
+            if ((tt > 0 && n >= 100) || tt >= 1) break;
+            if (tt >= 0.01) n = n / tt; else n *= 2;
+        }
+        printf("# conv time for %u threads: %.3g / %u = %.3g\n",
+                nparallel, tt, n, tt / n);
+        return tt / n;
     }/*}}}*/
 
     typedef double (lingen_substep_characteristics<OP>::*timer_member)(unsigned int) const;
