@@ -728,12 +728,13 @@ class DescentUpperClass(object):
                                 f.write("1 %d %d\n" % (p, r))
         return todofilename, [Num, Den, fnum, fden], descrelfile
 
-    def do_descent_for_real(self, z):
+    def do_descent_for_real(self, z, seed):
         p = general.p()
         bound = p.bit_length() // 2 + 20
         # make the randomness deterministic to be able to replay
         # interrupted computations.
-        random.seed(42)
+        random.seed(seed)
+        general.initrandomizer = random.randrange(p)
         while True:
             zz = pow(z, general.initrandomizer, p)
             gg = self.__myxgcd(zz, p, self.tkewness)
@@ -746,7 +747,7 @@ class DescentUpperClass(object):
             general.initrandomizer = random.randrange(p)
 
         tmpdir = general.tmpdir()
-        prefix = general.prefix() + ".descent.%s.init." % general.short_target()
+        prefix = general.prefix() + ".descent.%s.%s.init." % (general.short_target(), seed)
 
         polyfilename = os.path.join(tmpdir, prefix + "poly")
         with open(polyfilename, 'w') as f:
@@ -865,7 +866,9 @@ class DescentUpperClass(object):
 
         sys.stdout.write('\n')
         if not rel:
-            raise NameError("No relation found!")
+            print("No relation found!")
+            print("Trying again with another random seed...")
+            return None, None, None
         print("Taking relation %s\n" % rel)
         rel = rel.split(':')
         a,b = [int(x) for x in rel[0].split(',')]
@@ -880,6 +883,14 @@ class DescentUpperClass(object):
 
         assert(abs(Num) == functools.reduce(lambda x,y:x*y,factNum,1))
         assert(abs(Den) == functools.reduce(lambda x,y:x*y,factDen,1))
+
+        lc_ratpol = int(general.poly_data()["Y"][1])
+        for q in factNum + factDen:
+            if not self.logDB.has(q,-1,0):
+                if lc_ratpol % q == 0:
+                    print("Would need to descend %s which divides the lc of the rational poly." % q)
+                    print("Trying again with a new seed.")
+                    return None, None, None
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
 
@@ -981,7 +992,13 @@ class DescentUpperClass(object):
     def do_descent(self, z):
         if not self.external:
             if general.has_rational_side():
-                return self.do_descent_for_real(z)
+                seed=42
+                while True:
+                    tdf, spl, frf = self.do_descent_for_real(z, seed)
+                    if tdf != None:
+                        return tdf, spl, frf
+                    else:
+                        seed += 1
             else:
                 return self.do_descent_nonlinear(z)
         else:
