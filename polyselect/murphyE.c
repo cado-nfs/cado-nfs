@@ -71,9 +71,7 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
 #else
   /* patch: replace alpha_f by alpha_f - stddev */
   double v;
-  /* we divide ALPHA_BOUND by 2 on the algebraic side, so that the rootsieve
-     takes about the same time as in the master branch */
-  alpha_f = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND / 2, &v);
+  alpha_f = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
   alpha_f -= sqrt (v);
 #endif
   alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
