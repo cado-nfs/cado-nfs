@@ -180,7 +180,7 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
 
   x = sqrt (area * cpoly->skew);
   y = sqrt (area / cpoly->skew);
-  h = (double) K / 100.0;
+  h = (double) K / (2 * cof);
   double_poly_init (f, cpoly->pols[ALG_SIDE]->deg);
   double_poly_init (g, cpoly->pols[RAT_SIDE]->deg);
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
