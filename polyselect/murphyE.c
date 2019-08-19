@@ -147,6 +147,10 @@ ncx2_pdf (double x, double k, double lam)
    compare the MurphyE_chi2() C-code to the corresponding Sage one */
 // #define DEBUG
 
+#ifndef COF_MULT
+#define COF_MULT 2
+#endif
+
 /* return the E_value with a non central chi2 density for \alpha.
    It is an alternative of the MurphyE function. */
 double
@@ -180,7 +184,7 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
 
   x = sqrt (area * cpoly->skew);
   y = sqrt (area / cpoly->skew);
-  h = (double) K / (2 * cof);
+  h = (double) K / (COF_MULT * cof);
   double_poly_init (f, cpoly->pols[ALG_SIDE]->deg);
   double_poly_init (g, cpoly->pols[RAT_SIDE]->deg);
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
