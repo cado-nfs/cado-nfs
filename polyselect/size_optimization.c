@@ -1080,6 +1080,11 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       double lognorm = sopt_local_descent (fld, gld, ft, gt, 1, d-2,
                                            SOPT_DEFAULT_MAX_STEPS, verbose);
       lognorm += expected_rotation_gain (fld, gld);
+#ifdef POLYSELECT_CLASSICAL
+      /* we only keep polynomial pairs with Res(f,g) = +/-N */
+      if (mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) != 0)
+        continue;
+#endif
       if (lognorm < best_lognorm)
         {
           if (verbose > 1)
