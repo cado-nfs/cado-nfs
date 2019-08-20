@@ -33,8 +33,9 @@ set(prime_z 69617318994479297159441705409245167921344429126717528237597542082203
 if(HAVE_PERL_DIGEST_MD5)
 macro(add_lingen_binary_test testname)
     cado_define_test(test-bwc-lingen-binary-${testname} SCRIPT
+        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
         ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
-        ${CADO_NFS_BINARY_DIR} ${ARGN}
+        bindir=${CADO_NFS_BINARY_DIR} ${ARGN}
         TARGET_DEPENDENCIES lingen)
 endmacro()
 
@@ -43,10 +44,11 @@ endmacro()
 # add_lingen_binary_test(test0 1dea0d8879d125aa280e26b8573f932f6bccea75,d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd 64 64 160 1 lingen_threshold=10)
 
 # todo presumably, on 32 bit, we get something different for the sha1sum.
-add_lingen_binary_test(test0 893801e0727d840353a35b2623430fb758e4d379 64 64 160 1 lingen_threshold=10)
+add_lingen_binary_test(test0 expect_sha1_F=893801e0727d840353a35b2623430fb758e4d379 m=64 n=64 sequence_length=160 seed=1 -- lingen_threshold=10)
 
 # The test below fails on 32bit. This should be investigated.
-# add_lingen_binary_test(test1 30b90451fb828f08caa160f96c585c4b1c0951a8 64 64 200 1 lingen_threshold=10)
+# add_lingen_binary_test(test1
+# expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_threshold=10)
 endif()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})

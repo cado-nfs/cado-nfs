@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
 # Create a fake sequence
 
 # Note that if we arrive here, we are 64-bit only, since the GFP backends
@@ -18,38 +18,67 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
     exit 1
 fi
 
-bindir="$1"
-shift
+while [ $# -gt 0 ] ; do
+    if [[ "$1" =~ ^(seed|m|n|sequence_length|expect_sha1_F)=[0-9a-f]+$ ]] ; then
+        eval "$1"
+        shift
+        continue
+    elif [[ "$1" =~ ^wdir=(.+)$ ]] ; then
+        wdir="${BASH_REMATCH[1]}"
+        if ! [ -d "$wdir" ] ; then
+            echo "wdir $wdir does not exist" >&2
+            exit 1
+        fi
+        shift
+        continue
+    elif [[ "$1" =~ ^bindir=(.+)$ ]] ; then
+        bindir="${BASH_REMATCH[1]}"
+        if ! [ -d "$bindir" ] ; then
+            echo "bindir $bindir does not exist" >&2
+            exit 1
+        fi
+        shift
+        continue
+    elif [ "$1" = -- ]  ; then
+        shift
+        break
+    else
+        echo "argument $1 not understood" >&2
+        exit 1
+    fi
+done
+
+tail_args=("$@")
+
+for v in m n sequence_length seed wdir bindir expect_sha1_F ; do
+    if ! [ "${!v}" ] ; then
+        echo "\$$v must be provided" >&2
+        exit 1
+    fi
+done
+
+if ! [ -d "$bindir" ] ; then
+    echo "bindir $bindir does not exist" >&2
+    exit 1
+fi
+
+if ! [ -d "$wdir" ] ; then
+    echo "wdir $wdir does not exist" >&2
+    exit 1
+fi
+
+TMPDIR="$wdir"
+REFERENCE_SHA1="$expect_sha1_F"
+length="$sequence_length"
 
 dotest() {
-    REFERENCE_SHA1="$1"
-    shift
-
-    : ${TMPDIR:=/tmp}
-    TMPDIR=`mktemp -d $TMPDIR/lingen-test.XXXXXXXXXX`
-
-    m="$1"; shift
-    n="$1"; shift
-    length="$1"; shift
-    seed="$1"; shift
-
-    # this is just copying the argument array here. Could do more if we
-    # considered having influential parameters here.
-    args=()
-    mt_args=()
-    for x in "$@" ; do
-        case "$x" in
-            *) args+=("$x");;
-        esac
-    done
-
     F="$TMPDIR/base"
     "`dirname $0`"/perlrandom.pl $((m*n*length/8)) $seed > $F
     G="$TMPDIR/seq.bin"
     cat $F $F $F > $G
     rm -f $F
 
-    $bindir/linalg/bwc/lingen m=$m n=$n prime=2 --lingen-input-file $G --lingen-output-file $G.gen "${args[@]}"
+    $bindir/linalg/bwc/lingen m=$m n=$n prime=2 --lingen-input-file $G --lingen-output-file $G.gen "${tail_args[@]}"
     [ -f "$G.gen" ]
     SHA1=$($SHA1BIN < $G.gen)
     SHA1="${SHA1%% *}"
@@ -68,10 +97,6 @@ dotest() {
     else
         echo "========= $SHA1 ========"
     fi
-    rm -f $G.gen
-
-    rm -rf "$TMPDIR"
 }
 
 dotest "$@"
-
