@@ -1082,10 +1082,11 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       lognorm += expected_rotation_gain (fld, gld);
 #ifdef POLYSELECT_CLASSICAL
       /* we only keep polynomial pairs with Res(f,g) = +/-N */
-      if (mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) != 0)
-        continue;
-#endif
+      if (lognorm < best_lognorm &&
+          mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) != 0)
+#else
       if (lognorm < best_lognorm)
+#endif
         {
           if (verbose > 1)
             {
