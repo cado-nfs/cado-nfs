@@ -1083,7 +1083,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
 #ifdef POLYSELECT_CLASSICAL
       /* we only keep polynomial pairs with Res(f,g) = +/-N */
       if (lognorm < best_lognorm &&
-          mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) != 0)
+          mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) == 0)
 #else
       if (lognorm < best_lognorm)
 #endif
