@@ -41,7 +41,7 @@ tasks.qmin = 1000000
 tasks.sieve.qrange = 10000
 
 # with that value, most factorizations will need only one filtering attempt
-tasks.sieve.rels_wanted = 13378786
+tasks.sieve.rels_wanted = 13382615
 
 ###########################################################################
 # Filtering
