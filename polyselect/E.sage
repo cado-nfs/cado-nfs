@@ -278,7 +278,10 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
     dg = g.degree()
     B = 2000
     cof = sum([log(1.0*p)/(p-1) for p in prime_range(B)])
+    if verbose:
+       print "cof=", cof
     mu, v = dist_alpha (f, B)
+    alpha0 = mu
     mu = cof - mu
     # mu = k + lam, v = 2*(k+2*lam)
     lam = v/2 - mu
@@ -290,9 +293,16 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
     alpha_f = cof - t
     alpha_g = alpha(g,B)
     E = 0
-    h = K/100 # so that we integrate up to t=100
+    tmin,tmax = 0,6*cof
+    # tmid = cof - alpha0 + sqrt(v)
+    # twidth = 3*sqrt(v)
+    # tmin = tmid - twidth
+    # tmax = tmid + twidth
     sx = sqrt(area*skew)
     sy = sqrt(area/skew)
+    if tmin < 0:
+       tmin = 0
+    h = K/(tmax-tmin) # we integrate over tmin <= t <= tmax
     for i in range(K):
        theta_i = RDF(pi/K*(i+0.5))
        xi = cos(theta_i)*sx
@@ -303,9 +313,53 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        E += v1
-    return sum([E(t=j/h)*ncx2.pdf(j/h,k,lam) for j in srange(0.5,K)])/(h*K)
-#    foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
-#    return numerical_integral(foo, 0, 100)[0]
+    return sum([E(t=tmin+j/h)*ncx2.pdf(tmin+j/h,k,lam) for j in srange(0.5,K)])/(h*K)
+    # alternate using the normal distribution
+    # loc is the mean, scale is the standard deviation
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html#scipy.stats.norm
+    # return sum([E(t=tmin+j/h)*norm.pdf(tmin+j/h,loc=cof-alpha0,scale=sqrt(v)) for j in srange(0.5,K)])/(h*K)
+    # foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
+    # return numerical_integral(foo, tmin, tmax)[0]
+
+# same as MurphyE_int_chi2, but also integrates for g
+def MurphyE_int_chi3(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
+    df = f.degree()
+    dg = g.degree()
+    B = 2000
+    cof = sum([log(1.0*p)/(p-1) for p in prime_range(B)])
+    if verbose:
+       print "cof=", cof
+    muf, vf = dist_alpha (f, B)
+    var('t')
+    alpha_f = cof - t
+    mug, vg = dist_alpha (g, B)
+    var('u')
+    alpha_g = cof - u
+    E = 0
+    # tmin,tmax = 0,6*cof
+    tmin = 0
+    tmax = 6*cof
+    sx = sqrt(area*skew)
+    sy = sqrt(area/skew)
+    h = K/(tmax-tmin) # we integrate over tmin <= t <= tmax
+    # print muf,vf,mug,vg
+    for i in range(K):
+       theta_i = RDF(pi/K*(i+0.5))
+       xi = cos(theta_i)*sx
+       yi = sin(theta_i)*sy
+       fi = f(xi/yi)*yi^df/sq
+       gi = g(xi/yi)*yi^dg
+       ui = (log(abs(fi))+alpha_f)/log(Bf)
+       vi = (log(abs(gi))+alpha_g)/log(Bg)
+       v1 = dickman_rho(ui) * dickman_rho(vi)
+       E += v1
+    Tf = dict()
+    for j in srange(0.5,K):
+       Tf[j] = norm.pdf(tmin+j/h,cof-muf,sqrt(vf))
+    Tg = dict()
+    for jg in srange(0.5,K):
+       Tg[jg] = norm.pdf(tmin+jg/h,cof-mug,sqrt(vg))
+    return sum([E(t=tmin+j/h,u=tmin+jg/h)*Tf[j]*Tg[jg] for j in srange(0.5,K) for jg in srange(0.5,K)])/(h*h*K)
 
 # example: RSA-768 polynomials
 # skewness 44204.72 norm 1.35e+28 alpha -7.30 Murphy_E 3.79e-09
