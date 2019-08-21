@@ -1,5 +1,8 @@
 load alpha.sage
 
+from scipy.stats import ncx2
+from scipy.stats import norm
+
 # implements the formula on pages 86-87 of Murphy's thesis
 # s is the skewness
 # Bf = 1e7; Bg = 5e6; area = 1e16 are the default values used by pol51opt.c
@@ -322,7 +325,8 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
     # return numerical_integral(foo, tmin, tmax)[0]
 
 # same as MurphyE_int_chi2, but also integrates for g
-def MurphyE_int_chi3(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
+# the default value of K is 100 only since this routine is in O(K^2)
+def MurphyE_int_chi3(f,g,skew,Bf,Bg,area,K=100,sq=1,verbose=false):
     df = f.degree()
     dg = g.degree()
     B = 2000
@@ -336,9 +340,7 @@ def MurphyE_int_chi3(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
     var('u')
     alpha_g = cof - u
     E = 0
-    # tmin,tmax = 0,6*cof
-    tmin = 0
-    tmax = 6*cof
+    tmin,tmax = 0,6*cof
     sx = sqrt(area*skew)
     sy = sqrt(area/skew)
     h = K/(tmax-tmin) # we integrate over tmin <= t <= tmax

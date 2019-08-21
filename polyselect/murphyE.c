@@ -147,8 +147,12 @@ ncx2_pdf (double x, double k, double lam)
    compare the MurphyE_chi2() C-code to the corresponding Sage one */
 // #define DEBUG
 
+/* COF_MULT is used to control the range of integration in MurphyE_chi2:
+   we integrate over [0, COF_MULT * cof], where cof is the sum of log(p)/(p-1)
+   for p < ALPHA_BOUND. Thus for ALPHA_BOUND=2000 and COF_MULT=6 (which seems
+   to be close to optimal), we have cof = 7.048 and integrate over [0,42.3]. */
 #ifndef COF_MULT
-#define COF_MULT 2
+#define COF_MULT 6
 #endif
 
 /* return the E_value with a non central chi2 density for \alpha.
