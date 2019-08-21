@@ -764,7 +764,6 @@ parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
 parameters/dlp/params.p100
-parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
 parameters/dlp/Joux-Lercier/params.p40
@@ -798,7 +797,6 @@ parameters/dlp/p85.hint
 parameters/dlp/p90.hint
 parameters/dlp/p95.hint
 parameters/dlp/p100.hint
-filter/filter_badideals.c
 linalg/bwc/lingen_matpoly_ft.hpp
 linalg/bwc/lingen_matpoly_ft.cpp
 linalg/bwc/lingen_bigmatpoly_ft.cpp
@@ -887,7 +885,6 @@ tests/sieve/strategies/test_generate_strategies.cpp
 tests/sieve/strategies/test_main_script.sh
 sieve/strategies/script_gen_dec.sh
 sieve/strategies/README.rsa704
-sieve/iqsort.h
 linalg/bwc/tree_stats.cpp
 linalg/bwc/tree_stats.hpp
 tests/linalg/bwc/perlrandom.pl
@@ -1247,7 +1244,6 @@ tests/numbertheory/badideals.rsa220.stdout
 tests/numbertheory/badideals.small-example.input
 tests/numbertheory/badideals.small-example.stdout
 tests/numbertheory/test-badideals.sh
-scripts/cadofactor/wudb.py
 tests/utils/test_mpz_mat.c
 gf2x/toom128.c
 utils/tdict.hpp
