@@ -1,7 +1,7 @@
 #ifndef MPFQ_LAYER_H_
 #define MPFQ_LAYER_H_
 
-#if defined(SELECT_MPFQ_LAYER_u64k1) || defined(SELECT_MPFQ_LAYER_u64)
+#if defined(SELECT_MPFQ_LAYER_u64k1)
 #include "mpfq/mpfq_u64k1.h"
 #ifdef __cplusplus
 #include "mpfq/mpfq_u64k1.hpp"
