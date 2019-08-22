@@ -125,8 +125,8 @@ if __name__ == '__main__':
     dlp = dlp_param["dlp"]
     checkdlp_param = parameters.myparams({"checkdlp": True ,}, "")
     checkdlp = checkdlp_param["checkdlp"]
-    target_param = parameters.myparams({"target": 0,}, "")
-    target = int(target_param["target"])
+    target_param = parameters.myparams({"target": "",}, "")
+    target = target_param["target"]
     if factors is None:
         toplevel_params.purge_temp_files(nopurge=True)
         sys.exit("Error occurred, terminating")

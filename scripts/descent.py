@@ -101,6 +101,9 @@ class GeneralClass(object):
         parser.add_argument("--log",
                 help="File with known logs",
                 type=str)
+        parser.add_argument("--gfpext",
+                help="Degree of extension (default 1)",
+                type=int)
         parser.add_argument("--numbertheorydata",
                 help="File with numbertheory data",
                 type=str)
@@ -249,6 +252,17 @@ class GeneralClass(object):
     def p(self):
         d=self.poly_data()
         return int(d["n"])
+    def extdeg(self):
+        if args.gfpext:
+            return args.gfpext
+        else:
+            return 1
+
+    def target(self):
+        if self.extdeg() == 1:
+            return int(args.target)
+        else:
+            return [int(x) for x in args.target.split(",")]
     
     # short name for the target, to be used in filenames
     def short_target(self):
@@ -920,6 +934,10 @@ class DescentUpperClass(object):
         tmpdir = general.tmpdir()
         prefix = general.prefix() + ".descent.%s.upper." % general.short_target()
         polyfilename = os.path.join(tmpdir, prefix + "poly")
+        if general.extdeg() == 1:
+            zz = [ z ]
+        else:
+            zz = z
         call_that = [ general.descentinit_bin(),
                 "-poly", general.poly(),
                 "-mt", 4,
@@ -927,11 +945,11 @@ class DescentUpperClass(object):
                 "-mineff", self.mineff,
                 "-maxeff", self.maxeff,
                 "-side", self.side,
-                "-target", self.lpb,
+                "-extdeg", general.extdeg(),
+                "-lpb", self.lpb,
                 "-seed", 42,
                 "-jl",
-                p, z
-                ]
+                p ] + z
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
         with important_file(initfilename, call_that) as f:
@@ -987,7 +1005,6 @@ class DescentUpperClass(object):
 
         return todofilename, [general.initU, general.initV,
                 general.initfacu, general.initfacv], None
-
 
     def do_descent(self, z):
         if not self.external:
@@ -1274,7 +1291,7 @@ class DescentLowerClass(object):
             print("log(3)=%d" % logDB.get_log(3, -1, 0))
             print("# target=%s" % args.target)
             print("log(target)=%d" % log_target)
-            check_result(2, logDB.get_log(2, -1, 0), args.target, log_target, p, ell)
+            check_result(2, logDB.get_log(2, -1, 0), int(args.target), log_target, p, ell)
         else:
             ## No rational side; more complicated.
             # We need to compute the SMs for U and V.
@@ -1370,7 +1387,7 @@ if __name__ == '__main__':
 
     # Required
     parser.add_argument("--target", help="Element whose DL is wanted",
-            type=int, required=True)
+            type=str, required=True)
     parser.add_argument("--timestamp",
             help="Prefix all lines with a time stamp",
             action="store_true")
@@ -1394,13 +1411,12 @@ if __name__ == '__main__':
     else:
         has_hwloc = True
 
-
     general = GeneralClass(args)
     init = DescentUpperClass(general, args)
     middle = DescentMiddleClass(general, args)
     lower = DescentLowerClass(general, args)
 
-    todofile, initial_split, firstrelsfile = init.do_descent(int(args.target))
+    todofile, initial_split, firstrelsfile = init.do_descent(general.target())
     relsfile = middle.do_descent(todofile)
     if firstrelsfile:
         lower.do_descent([firstrelsfile, relsfile], initial_split)

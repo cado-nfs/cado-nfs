@@ -5050,7 +5050,7 @@ class DescentTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"target": int, "execpath": str})
+                {"target": str, "gfpext": int, "execpath": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5501,7 +5501,7 @@ class Request(Message):
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
         DoesLogging, cadoparams.UseParameters, patterns.Mediator):
-    """ The complete factorization, aggregate of the individual tasks """
+    """ The complete factorization / dlp, aggregate of the individual tasks """
     @property
     def name(self):
         return "tasks"
@@ -5513,10 +5513,11 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
         return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False, "target": 0}
+                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+                "target": ""}
     @property
     def title(self):
-        return "Complete Factorization"
+        return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
