@@ -2704,7 +2704,7 @@ class PolyselGFpnTask(Task, DoesImport):
         self.state.update(update)
 
     def get_poly(self):
-        return self.state["poly"];
+        return Polynomials(self.state["poly"].splitlines());
 
     def get_poly_filename(self):
         return self.get_state_filename("polyfilename")
