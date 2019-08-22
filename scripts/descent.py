@@ -949,7 +949,7 @@ class DescentUpperClass(object):
                 "-lpb", self.lpb,
                 "-seed", 42,
                 "-jl",
-                p ] + z
+                p ] + zz
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
         with important_file(initfilename, call_that) as f:
