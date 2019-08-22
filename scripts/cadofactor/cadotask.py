@@ -5814,6 +5814,19 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.fatal("Premature exit within %s. Bye.", last_task)
             return None
 
+        # Print the defining polynomial of the finite field used for
+        # representing elements.
+        # This assumes that the last line of the poly file contains this
+        # information. This is currently the case for polyselect_gfpn.c
+        # but of course, this won't be the case for a user-defined poly
+        # file that has been imported (anyway, in that case, the user
+        # should know what she is doing).
+        if self.params["dlp"] and self.params["gfpext"] > 1:
+            polyfile = self.request_map[Request.GET_POLYNOMIAL_FILENAME]()
+            with open(str(polyfile), "r") as ff:
+                s = ff.read().splitlines()[-1].split()[-1]
+                self.logger.info("The polynomial defining the finite field is %s", s)
+
         if self.params["dlp"]:
             ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()
             if self.params["target"]:
