@@ -154,7 +154,7 @@ if __name__ == '__main__':
                 assert pow(int(target), log2*((p-1) // ell), p) == pow(2, logtarget*((p-1) // ell), p)
         else:
             logger.info("No check was performed. Logarithms of the factor base elements are in %s" % factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
-        if target != 0:
+        if target != "":
             logtarget = int(factors[4])
             logger.info("target = " + str(target))
             logger.info("log(target) = " + str(logtarget))
