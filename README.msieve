@@ -15,6 +15,7 @@ The format of relations used by CADO-NFS is the same as the one used by ggnfs
 or msieve.
 
 1) First, convert the polynomial from Msieve format to CADO format using:
+   $ make convert_poly
    $ build/<hostname>/misc/convert_poly -if msieve < input.poly > output.poly
 
 2) Since ggnfs doesn't print prime factors under 10000, and CADO-NFS requires
