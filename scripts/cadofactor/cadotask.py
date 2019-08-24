@@ -2704,7 +2704,7 @@ class PolyselGFpnTask(Task, DoesImport):
         self.state.update(update)
 
     def get_poly(self):
-        return self.state["poly"];
+        return Polynomials(self.state["poly"].splitlines());
 
     def get_poly_filename(self):
         return self.get_state_filename("polyfilename")
@@ -5050,7 +5050,7 @@ class DescentTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"target": int, "execpath": str})
+                {"target": str, "gfpext": int, "execpath": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5501,7 +5501,7 @@ class Request(Message):
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
         DoesLogging, cadoparams.UseParameters, patterns.Mediator):
-    """ The complete factorization, aggregate of the individual tasks """
+    """ The complete factorization / dlp, aggregate of the individual tasks """
     @property
     def name(self):
         return "tasks"
@@ -5513,10 +5513,11 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
         return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False, "target": 0}
+                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+                "target": ""}
     @property
     def title(self):
-        return "Complete Factorization"
+        return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
@@ -5813,6 +5814,19 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         if last_task and not last_status:
             self.logger.fatal("Premature exit within %s. Bye.", last_task)
             return None
+
+        # Print the defining polynomial of the finite field used for
+        # representing elements.
+        # This assumes that the last line of the poly file contains this
+        # information. This is currently the case for polyselect_gfpn.c
+        # but of course, this won't be the case for a user-defined poly
+        # file that has been imported (anyway, in that case, the user
+        # should know what she is doing).
+        if self.params["dlp"] and self.params["gfpext"] > 1:
+            polyfile = self.request_map[Request.GET_POLYNOMIAL_FILENAME]()
+            with open(str(polyfile), "r") as ff:
+                s = ff.read().splitlines()[-1].split()[-1]
+                self.logger.info("The polynomial defining the finite field is %s", s)
 
         if self.params["dlp"]:
             ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()

@@ -743,6 +743,7 @@ linalg/bwc/flint-fft/ulong_extras.h
 linalg/bwc/test-flint.c
 filter/filter_badideals.c
 parameters/dlp/params.p2dd20
+parameters/dlp/p2dd20.hint
 parameters/dlp/p155.hint
 parameters/dlp/params.p155
 parameters/dlp/params.p30

@@ -1087,6 +1087,7 @@ class Descent(Program):
     subdir = "scripts"
     def __init__(self, *,
                  target: Parameter(prefix="--"),
+                 gfpext: Parameter(prefix="--"),
                  prefix: Parameter(prefix="--"),
                  datadir: Parameter(prefix="--"),
                  cadobindir: Parameter(prefix="--"),
@@ -1098,6 +1099,7 @@ class Descent(Program):
                  init_lim: Parameter("init-lim", prefix="--"),
                  init_mfb: Parameter("init-mfb", prefix="--"),
                  init_tkewness: Parameter("init-tkewness", prefix="--"),
+                 init_side: Parameter("init-side", prefix="--")=None,
                  sm_mode: Parameter("sm-mode", prefix="--")=None,
                  I: Parameter(prefix="--"),
                  lpb0: Parameter(prefix="--"),
