@@ -42,7 +42,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* prime bounds for the computation of alpha */
 #define ALPHA_BOUND_SMALL  100
+#ifndef ALPHA_BOUND /* allows to define ALPHA_BOUND in local.sh */
 #define ALPHA_BOUND       2000
+#endif
 
 #define MURPHY_K 1000
 
