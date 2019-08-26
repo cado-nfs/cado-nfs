@@ -2201,12 +2201,14 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         self.bestpoly = None
+        self.best_polys = []
         if "import" in self.params and "bestpoly" in self.state:
             self.logger.warning('Have "import" parameter, discarding '
                                 'previously found best polynomial')
             self.state.clear(["bestpoly", "bestfile"])
         if "bestpoly" in self.state:
             self.bestpoly = Polynomials(self.state["bestpoly"].splitlines())
+            self.best_polys = [self.bestpoly]
         self.state.setdefault("nr_poly_submitted", 0)
         # I don't understand why the area is based on one particular side.
         self.progparams[0].setdefault("area", 2.**(2*self.params["I"]-1) \
@@ -2262,6 +2264,17 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         # Wait for all the WUs to finish
         while self.get_number_outstanding_wus() > 0:
             self.wait()
+
+        # Print up to 'nrkeep' best polynomials found
+        if False:
+           for i in range(len(self.best_polys)):
+              self.logger.info("Best polynomial %d is\n%s", i,
+                               str(self.best_polys[i]))
+        else:
+           n = len(self.best_polys)
+           self.logger.info("Kept %d polynomials with MurphyE from %g to %g\n",
+                            n, self.best_polys[0].MurphyE,
+                            self.best_polys[n-1].MurphyE)
         
         if self.bestpoly is None:
             self.logger.error ("No polynomial found. Consider increasing the "
@@ -2306,12 +2319,43 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not self.bestpoly is old_bestpoly:
             self.write_poly_file()
 
+    @staticmethod
+    def read_blocks(input):
+        """ Return blocks of consecutive non-empty lines from input
+        
+        Whitespace is stripped; a line containing only whitespace is
+        considered empty. An empty block is never returned.
+        
+        >>> list(Polysel1Task.read_blocks(['', 'a', 'b', '', 'c', '', '', 'd', 'e', '']))
+        [['a', 'b'], ['c'], ['d', 'e']]
+        """
+        block = []
+        for line in input:
+            line = line.strip()
+            if line:
+                block.append(line)
+            else:
+                if block:
+                    yield block
+                block = []
+        if block:
+            yield block
+
     def process_polyfile(self, filename, commit=True):
-        poly = self.parse_poly(filename)
-        if not poly is None:
-            self.bestpoly = poly
-            update = {"bestpoly": str(poly), "bestfile": filename}
-            self.state.update(update, commit=commit)
+        try:
+            polyfile = self.read_log_warning(filename)
+        except (OSError, IOError) as e:
+            if e.errno == 2: # No such file or directory
+                self.logger.error("File '%s' does not exist", filename)
+                return None
+            else:
+                raise
+        for block in self.read_blocks(polyfile):
+           poly = self.parse_poly(block, filename)
+           if not poly is None:
+               self.bestpoly = poly
+               update = {"bestpoly": str(poly), "bestfile": filename}
+               self.state.update(update, commit=commit)
     
     def read_log_warning(self, filename):
         """ Read lines from file. If a "# WARNING" line occurs, log it.
@@ -2324,10 +2368,10 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                      filename, line.strip())
                 yield line
 
-    def parse_poly(self, filename):
+    def parse_poly(self, text, filename):
         poly = None
         try:
-            poly = Polynomials(self.read_log_warning(filename))
+            poly = Polynomials(text)
         except (OSError, IOError) as e:
             if e.errno == 2: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
@@ -2344,7 +2388,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             return None
         
         if not poly:
-            self.logger.info('No polynomial found in %s', filename)
+            # This happens when all polynomials are parsed
             return None
         if poly.getN() != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
@@ -2353,6 +2397,17 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not poly.MurphyE:
             self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
+        nrkeep = 10 # we keep up to 'nrkeep' best polynomials
+        if len(self.best_polys) < nrkeep:
+           self.best_polys.append(poly)
+        elif poly.MurphyE > self.best_polys[nrkeep-1].MurphyE:
+           self.best_polys[nrkeep-1] = poly
+        i = len(self.best_polys) - 1
+        while i > 0 and self.best_polys[i].MurphyE > self.best_polys[i-1].MurphyE:
+           t = self.best_polys[i]
+           self.best_polys[i] = self.best_polys[i-1]
+           self.best_polys[i-1] = t
+           i = i - 1
         # in case poly.MurphyE = self.bestpoly.MurphyE (MurphyE is printed
         # only with 3 digits in the cxxx.poly file), we choose the polynomial
         # with the smallest skewness, to avoid non-determinism in polynomial
