@@ -1,0 +1,13 @@
+Before making a release:
+
+*) check with ./configure --disable-hardware-specific-code
+
+*) check the ABI for differences between the previous version and this one.
+   use abidiff from abigail tools.
+   E.g.:
+   > $ abidiff gf2x-1.1/.libs/libgf2x.so.1.0.0 gf2x-1.2/.libs/libgf2x.so.1.0.2
+   > Functions changes summary: 16 Removed, 4 Changed, 20 Added functions
+   > Variables changes summary: 0 Removed, 0 Changed, 1 Added variable
+ 
+   (the latter, incidentally, shows that I've made a mess of that thing
+   when doing 1.2).

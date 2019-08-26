@@ -979,16 +979,6 @@ gf2x/already_tuned/x86_sse2/gf2x_mul6.h
 gf2x/already_tuned/x86_sse2/gf2x_mul7.h
 gf2x/already_tuned/x86_sse2/gf2x_mul8.h
 gf2x/already_tuned/x86_sse2/gf2x_mul9.h
-gf2x/apps/COPYING
-gf2x/apps/Makefile.am
-gf2x/apps/Makefile.in
-gf2x/apps/check-factor-000.sh
-gf2x/apps/check-factor-001.sh
-gf2x/apps/check-factor-002.sh
-gf2x/apps/check-factor-003.sh
-gf2x/apps/factor.cpp
-gf2x/apps/halfgcd.cpp
-gf2x/apps/halfgcd.hpp
 gf2x/bench.c
 gf2x/config/acinclude.m4
 gf2x/config/compile
@@ -1013,7 +1003,6 @@ gf2x/fft/Makefile.in
 gf2x/fft/README
 gf2x/fft/debug/check_cantor.m
 gf2x/fft/debug/check_cantor.sh
-gf2x/fft/fft_adapter.hpp
 gf2x/fft/gf2x-cantor-fft.c
 gf2x/fft/gf2x-cantor-fft.h
 gf2x/fft/gf2x-fake-fft.c
@@ -1036,7 +1025,6 @@ gf2x/fft/mpfq/x86_64/mpfq_2_128.h
 gf2x/fft/mpfq/x86_64/mpfq_2_64.c
 gf2x/fft/mpfq/x86_64/mpfq_2_64.h
 gf2x/gf2x.c
-gf2x/gf2x.h
 gf2x/gf2x/gf2x-config-export.h.in
 gf2x/gf2x/gf2x-config.h.in
 gf2x/gf2x/gf2x-impl-export.h
@@ -1411,3 +1399,9 @@ linalg/bwc/lingen_round_operand_size.cpp
 linalg/bwc/lingen_round_operand_size.hpp
 linalg/bwc/lingen_matpoly_bigmatpoly_ft_common.hpp
 linalg/bwc/lingen_mul_substeps.hpp
+gf2x/README.release
+gf2x/check-gf2x-version.c
+gf2x/fft/gf2x-fft-adapter.hpp
+gf2x/fft/gf2x_fft_check.c
+gf2x/gf2x.h.in.in
+gf2x/gf2x.pc.in

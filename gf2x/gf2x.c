@@ -38,6 +38,8 @@
 /* We _do_ need the inlines here. */
 #include "gf2x/gf2x-small.h"
 
+int gf2x_lib_version_code = GF2X_VERSION_CODE;
+
 void gf2x_mul_basecase(unsigned long * c, const unsigned long * a,
 			 long na, const unsigned long * b, long nb)
 {

@@ -722,3 +722,30 @@ fi
 AC_SUBST(EXEEXT_FOR_BUILD,$gf2x_cv_prog_exeext_for_build)
 ])
 
+
+AC_DEFUN([GF2X_CHECK_VISIBILITY_HIDDEN],
+[
+AC_CACHE_CHECK([for __attribute__((visibility("hidden")))],
+    ac_cv_hidden_visibility_attribute, [
+    cat > conftest.c <<EOF
+int __attribute__ ((visibility ("hidden"))) foo (void) { return 1; }
+int __attribute__ ((visibility ("default"))) bar (void) { return 1; }
+int baz (void) { return 1; }
+EOF
+    ac_cv_hidden_visibility_attribute=no
+    if AC_TRY_COMMAND(${CC-cc} -fvisibility=hidden -Werror -S conftest.c -o conftest.s 1>&AS_MESSAGE_LOG_FD);
+    then
+        if (grep '\.hidden.*foo' conftest.s && grep '\.hidden.*baz' conftest.s && ! grep '\.hidden.*bar' conftest.s) >/dev/null;
+        then
+            ac_cv_hidden_visibility_attribute=yes
+        fi
+    fi
+    rm -f conftest.*
+    ])
+if test $ac_cv_hidden_visibility_attribute = yes;
+then
+    AC_DEFINE(HAVE_HIDDEN_VISIBILITY_ATTRIBUTE, 1,
+          [Define if __attribute__((visibility("hidden"))) is supported.])
+fi
+AM_CONDITIONAL([HAVE_HIDDEN_VISIBILITY_ATTRIBUTE],[test "x$ac_cv_hidden_visibility_attribute" = xyes])
+])

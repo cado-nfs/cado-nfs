@@ -360,16 +360,24 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 	if (R(N))
 	    a[I(N)] &= MASK(R(N));
 	/* now we have a = H0:H1 */
-	if (R(N) > 0)
-	    s1 = a[I(N)];
 	// ASSERT(I(N) >= 0);
-	s2 = Lsh(a + I(N), a, I(N), R(N));
-	if (R(N) > 0) {
-	    a[I(N)] ^= s1;	/* restore high R(N) bits */
-	    a[2 * I(N)] = s2 ^ (s1 << R(N));
-	    if (2 * R(N) > WLEN)
-		a[2 * I(N) + 1] = s1 >> (WLEN - R(N));
-	}
+        if (I(N)) {
+            if (R(N) > 0)
+                s1 = a[I(N)];
+            s2 = Lsh(a + I(N), a, I(N), R(N));
+            if (R(N) > 0) {
+                a[I(N)] ^= s1;	/* restore high R(N) bits if they were
+                                   overwritten by Lsh above.  */
+                a[2 * I(N)] = s2 ^ (s1 << R(N));
+                if (2 * R(N) > WLEN)
+                    a[2 * I(N) + 1] = s1 >> (WLEN - R(N));
+            }
+        } else {
+            if (2 * R(N) > WLEN) {
+                a[1] = a[0] >> (WLEN - R(N));
+            }
+            a[0] ^= a[0] << R(N);
+        }
 	/* now we have a = H0:H1:H0:H1 */
 	AddRsh(a, b + I(N + l), W(2 * N) - I(N + l), R(N + l));
 	/* now we have a = H0+H2:H1:H0:H1 */
@@ -629,6 +637,12 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
 		Lsh(c + j + z, C[i] + z, cn - j - z, k);
 	    }
 	    /* then deal with the low bits of C[i], overlapping with C[i-1] */
+            /* Note that z may be larger than the full width of C, for
+             * very small cases. If this happens, then of course we don't
+             * need to read that many bits from C[i]
+             */
+            if (z > W(2*Np)) z--;
+            ASSERT(z <= W(2*Np));
 	    if (j + z < cn)
 		c[j + z] ^= AddLsh(c + j, C[i], z, k);
 	    else if (j < cn)

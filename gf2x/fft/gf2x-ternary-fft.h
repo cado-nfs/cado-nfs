@@ -51,23 +51,23 @@ typedef unsigned long gf2x_ternary_fft_t;
 typedef gf2x_ternary_fft_t * gf2x_ternary_fft_ptr;
 typedef const gf2x_ternary_fft_t * gf2x_ternary_fft_srcptr;
 
-extern size_t gf2x_ternary_fft_size(gf2x_ternary_fft_info_srcptr o);
-extern gf2x_ternary_fft_ptr gf2x_ternary_fft_get(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t k);
-extern gf2x_ternary_fft_srcptr gf2x_ternary_fft_get_const(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_srcptr ptr, size_t k);
-extern void gf2x_ternary_fft_zero(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t n);
-extern void gf2x_ternary_fft_cpy(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr y, gf2x_ternary_fft_srcptr x);
-extern gf2x_ternary_fft_ptr gf2x_ternary_fft_alloc(gf2x_ternary_fft_info_srcptr o, size_t n);
-extern void gf2x_ternary_fft_free(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t n);
-extern void gf2x_ternary_fft_dft(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a);
-extern void gf2x_ternary_fft_compose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
-extern void gf2x_ternary_fft_addcompose_n(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr * ta, gf2x_ternary_fft_srcptr * tb, size_t n);
-extern void gf2x_ternary_fft_addcompose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
-extern void gf2x_ternary_fft_add(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
-extern void gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size_t bits_c, gf2x_ternary_fft_ptr tr);
-extern void gf2x_ternary_fft_init(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, ...);
-extern void gf2x_ternary_fft_init_similar(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, gf2x_ternary_fft_info_srcptr other);
-extern int gf2x_ternary_fft_compatible(gf2x_ternary_fft_info_srcptr o1, gf2x_ternary_fft_info_srcptr o2);
-extern void gf2x_ternary_fft_clear(gf2x_ternary_fft_info_ptr o);
+extern size_t GF2X_EXPORTED gf2x_ternary_fft_size(gf2x_ternary_fft_info_srcptr o);
+extern gf2x_ternary_fft_ptr GF2X_EXPORTED gf2x_ternary_fft_get(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t k);
+extern gf2x_ternary_fft_srcptr GF2X_EXPORTED gf2x_ternary_fft_get_const(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_srcptr ptr, size_t k);
+extern void GF2X_EXPORTED gf2x_ternary_fft_zero(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t n);
+extern void GF2X_EXPORTED gf2x_ternary_fft_cpy(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr y, gf2x_ternary_fft_srcptr x);
+extern gf2x_ternary_fft_ptr GF2X_EXPORTED gf2x_ternary_fft_alloc(gf2x_ternary_fft_info_srcptr o, size_t n);
+extern void GF2X_EXPORTED gf2x_ternary_fft_free(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t n);
+extern void GF2X_EXPORTED gf2x_ternary_fft_dft(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a);
+extern void GF2X_EXPORTED gf2x_ternary_fft_compose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
+extern void GF2X_EXPORTED gf2x_ternary_fft_addcompose_n(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr * ta, gf2x_ternary_fft_srcptr * tb, size_t n);
+extern void GF2X_EXPORTED gf2x_ternary_fft_addcompose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
+extern void GF2X_EXPORTED gf2x_ternary_fft_add(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb);
+extern void GF2X_EXPORTED gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size_t bits_c, gf2x_ternary_fft_ptr tr);
+extern void GF2X_EXPORTED gf2x_ternary_fft_init(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, ...);
+extern void GF2X_EXPORTED gf2x_ternary_fft_init_similar(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, gf2x_ternary_fft_info_srcptr other);
+extern int GF2X_EXPORTED gf2x_ternary_fft_compatible(gf2x_ternary_fft_info_srcptr o1, gf2x_ternary_fft_info_srcptr o2);
+extern void GF2X_EXPORTED gf2x_ternary_fft_clear(gf2x_ternary_fft_info_ptr o);
 
 
 static inline int gf2x_ternary_fft_recoverorder(gf2x_ternary_fft_info_srcptr o) { return ((o)->K * ((o)->split ? -1 : 1)); }

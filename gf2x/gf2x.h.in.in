@@ -30,6 +30,27 @@
 #ifndef GF2X_H_
 #define GF2X_H_
 
+/* This section of the header file is modified by ./configure */
+#define GF2X_VERSION_MAJOR      @GF2X_VERSION_MAJOR@
+#define GF2X_VERSION_MINOR      @GF2X_VERSION_MINOR@
+#define GF2X_VERSION_PATCHLEVEL      @GF2X_VERSION_PATCHLEVEL@
+/* For example, 10300 is gf2x-1.3.0
+ * Versions before gf2x-1.3.0 had no version code */
+#define GF2X_VERSION_CODE (((GF2X_VERSION_MAJOR) * 10000) + ((GF2X_VERSION_MINOR) * 100) + (GF2X_VERSION_PATCHLEVEL))
+
+/* This is defined if gf2x was configured with --enable-fft-interface */
+/* If it was, then the header file gf2x/gf2x-fft.h may be included */
+#undef  GF2X_HAS_FFT_INTERFACE_SUPPORT
+
+/* This is defined if gf2x was compiled from an LGPL tarball */
+#undef  GF2X_IS_LGPL_VARIANT
+
+/* End of the section that is modified by ./configure */
+
+#ifndef GF2X_EXPORTED
+#define GF2X_EXPORTED
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,7 +66,7 @@ extern "C" {
  * The destination pointer c may alias either a or b (that is, one may
  * have c==a or c==b), but any other kind of overlap is unsupported).
  */
-extern void gf2x_mul(unsigned long *c,
+extern void GF2X_EXPORTED gf2x_mul(unsigned long *c,
 		const unsigned long *a, unsigned long an,
 		const unsigned long *b, unsigned long bn);
 
@@ -55,17 +76,21 @@ struct gf2x_mul_pool_s {
 	size_t stk_size;
 };
 typedef struct gf2x_mul_pool_s gf2x_mul_pool_t[1];
-extern void gf2x_mul_pool_init(gf2x_mul_pool_t);
-extern void gf2x_mul_pool_clear(gf2x_mul_pool_t);
+extern void GF2X_EXPORTED gf2x_mul_pool_init(gf2x_mul_pool_t);
+extern void GF2X_EXPORTED gf2x_mul_pool_clear(gf2x_mul_pool_t);
 
 /* If the gf2x_mul_pool_t arg is passed as NULL, a new pool is created
  * (and freed) for that multiplication */
-extern void gf2x_mul_r(unsigned long *c,
+extern void GF2X_EXPORTED gf2x_mul_r(unsigned long *c,
 		const unsigned long *a, unsigned long an,
 		const unsigned long *b, unsigned long bn, gf2x_mul_pool_t);
+
+extern const char * gf2x_toom_gpl_status GF2X_EXPORTED;
+extern int gf2x_lib_version_code GF2X_EXPORTED;
 
 #ifdef __cplusplus
 }
 #endif
 
+/* vim: set ft=cpp: */
 #endif	/* GF2X_H_ */

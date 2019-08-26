@@ -28,12 +28,18 @@
 #ifndef GF2X_FFT_H_
 #define GF2X_FFT_H_
 
+/* 64 may also be used */
+#ifndef CANTOR_BASE_FIELD_SIZE
+#define CANTOR_BASE_FIELD_SIZE 128
+#endif
+
+#include "gf2x.h"
 #include "gf2x-fake-fft.h"
 #include "gf2x-cantor-fft.h"
 #include "gf2x-ternary-fft.h"
 
 #ifdef __cplusplus
-#include "fft_adapter.hpp"
+#include "gf2x-fft-adapter.hpp"
 DEFINE_FFT_ADAPTER(gf2x_fake_fft)
 DEFINE_FFT_ADAPTER(gf2x_cantor_fft)
 DEFINE_FFT_ADAPTER(gf2x_ternary_fft)

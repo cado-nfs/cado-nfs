@@ -45,6 +45,22 @@
 
 #include "gf2x-cantor-fft.h"
 
+/* Actually including mpfq is reserved for the c file. The header has
+ * merely defined the main typedefs */
+#if CANTOR_BASE_FIELD_SIZE == 128
+#if GF2X_WORDSIZE == 64
+#include "mpfq/x86_64/mpfq_2_128.h"
+#else
+#include "mpfq/i386/mpfq_2_128.h"
+#endif
+#else
+#if GF2X_WORDSIZE == 64
+#include "mpfq/x86_64/mpfq_2_64.h"
+#else
+#include "mpfq/i386/mpfq_2_64.h"
+#endif
+#endif
+
 /* The following flags affect the behaviour of the program */
 
 #define xxxCANTOR_GM            /* Use Gao-Mateer recursion */
@@ -389,7 +405,7 @@ void transpose_inplace(Kelt * f, unsigned int t)
     }
 }
 
-// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set stride
+// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set striding
 // in g to be 1UL<<t1 values, for 1UL<<t2 rows.
 //
 // doing this in place would be somewhat tricky, but maybe reachable

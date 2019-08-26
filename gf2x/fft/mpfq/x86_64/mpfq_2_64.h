@@ -104,6 +104,8 @@ void mpfq_2_64_field_setopt(mpfq_2_64_dst_field, unsigned long, void *);
 #define mpfq_2_64_init(f, px)	/**/
 /* *Mpfq::defaults::flatdata::code_for_clear, Mpfq::gf2n::trivialities */
 #define mpfq_2_64_clear(f, px)	/**/
+/* *Mpfq::defaults::flatdata::code_for_elt_stride, Mpfq::gf2n::trivialities */
+#define mpfq_2_64_elt_stride(k)	sizeof(mpfq_2_64_elt)
 
 /* Elementary assignment functions */
 static inline
@@ -173,6 +175,8 @@ unsigned long mpfq_2_64_trace(mpfq_2_64_dst_field, mpfq_2_64_src_elt);
 #define mpfq_2_64_elt_ur_init(f, px)	/**/
 /* *Mpfq::defaults::flatdata::code_for_elt_ur_clear, Mpfq::gf2n::trivialities */
 #define mpfq_2_64_elt_ur_clear(f, px)	/**/
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_stride, Mpfq::gf2n::trivialities */
+#define mpfq_2_64_elt_ur_stride(k)	sizeof(mpfq_2_64_elt_ur)
 static inline
 void mpfq_2_64_elt_ur_set(mpfq_2_64_dst_field, mpfq_2_64_dst_elt_ur, mpfq_2_64_src_elt_ur);
 static inline
@@ -291,9 +295,9 @@ mpfq_2_64_dst_elt mpfq_2_64_vec_ur_coeff_ptr(mpfq_2_64_dst_field, mpfq_2_64_dst_
 static inline
 mpfq_2_64_src_elt mpfq_2_64_vec_ur_coeff_ptr_const(mpfq_2_64_dst_field, mpfq_2_64_src_vec_ur, int);
 /* *Mpfq::defaults::flatdata::code_for_vec_elt_stride, Mpfq::gf2n::trivialities */
-#define mpfq_2_64_vec_elt_stride(K, n)	((n)*sizeof(mpfq_2_64_elt))
+#define mpfq_2_64_vec_elt_stride(k, n)	((n) * mpfq_2_64_elt_stride((k)))
 /* *Mpfq::defaults::flatdata::code_for_vec_ur_elt_stride, Mpfq::gf2n::trivialities */
-#define mpfq_2_64_vec_ur_elt_stride(K, n)	((n)*sizeof(mpfq_2_64_elt_ur))
+#define mpfq_2_64_vec_ur_elt_stride(k, n)	((n) * mpfq_2_64_elt_ur_stride((k)))
 
 /* Polynomial functions */
 static inline

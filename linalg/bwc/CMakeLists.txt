@@ -376,7 +376,7 @@ set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
 # set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
 # "-DCANTOR_BASE_FIELD_SIZE=128 -DLINGEN_BINARY_TRACE_MALLOCS=20")
 install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
-target_link_libraries(lingen bwc_base utils gf2x)
+target_link_libraries(lingen bwc_base utils gf2x-fft gf2x)
 add_dependencies(lingen gf2x-build)
 
 # It's ugly. FindOpenMP.cmake doesn't know how to differentiate between

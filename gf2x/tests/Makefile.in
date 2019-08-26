@@ -118,8 +118,8 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 check_PROGRAMS = check-addmul$(EXEEXT) check-mul$(EXEEXT) \
-	check_ternary$(EXEEXT) bench_ternary$(EXEEXT) \
-	check_ternaryns$(EXEEXT) $(am__EXEEXT_1)
+	check_ternary$(EXEEXT) check_ternaryns$(EXEEXT) \
+	$(am__EXEEXT_1) bench_ternary$(EXEEXT)
 TESTS = check-addmul$(EXEEXT) $(SYNTHESIZED_TESTS)
 
 # Do more tests only on 64-bit machines.
@@ -274,7 +274,8 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 DIST_COMMON = $(srcdir)/Makefile.am $(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/gf2x/gf2x-config.h \
-	$(top_builddir)/gf2x/gf2x-config-export.h
+	$(top_builddir)/gf2x/gf2x-config-export.h \
+	$(top_builddir)/gf2x.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 @ENABLE_FFT_INTERFACE_TRUE@am__EXEEXT_1 = check_cantor64$(EXEEXT) \
@@ -439,7 +440,7 @@ AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
 am__v_at_1 = 
-DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/gf2x
+DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/gf2x -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/bench_ternary-bench.Po \
@@ -779,6 +780,9 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 FGREP = @FGREP@
+GF2X_VERSION_MAJOR = @GF2X_VERSION_MAJOR@
+GF2X_VERSION_MINOR = @GF2X_VERSION_MINOR@
+GF2X_VERSION_PATCHLEVEL = @GF2X_VERSION_PATCHLEVEL@
 GF2X_WORDSIZE = @GF2X_WORDSIZE@
 GREP = @GREP@
 INSTALL = @INSTALL@
@@ -798,7 +802,6 @@ LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
-MAYBE_APPS = @MAYBE_APPS@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
@@ -845,6 +848,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+gf2x_fft_lib_version = @gf2x_fft_lib_version@
 gf2x_lib_version = @gf2x_lib_version@
 host = @host@
 host_alias = @host_alias@
@@ -903,7 +907,6 @@ SYNTHESIZED_TESTS = check_1_1_1_819ea234.mul check_2_2_1_928e7e94.mul \
 	$(am__append_14) $(am__append_15) $(am__append_16) \
 	$(am__append_17) $(am__append_18) $(am__append_19) \
 	$(am__append_20)
-# -- end generated code --
 TEST_EXTENSIONS = .mul .fft
 EXTRA_DIST = test-tools.h check-and-bench-common.h do-check-mul.sh \
 	do-check-fft.sh
@@ -937,9 +940,6 @@ TERNARY_NS = -DENGINE_TERNARY -DARTIFICIAL_NON_SPLIT_VERSION
 check_ternary_SOURCES = $(general_fftcheck_sources)
 check_ternary_CFLAGS = $(AM_CFLAGS) $(TERNARY)
 check_ternary_LDADD = $(top_builddir)/fft/libternary.la
-bench_ternary_SOURCES = bench.c check-and-bench-common.c test-tools.c
-bench_ternary_CFLAGS = $(AM_CFLAGS) $(TERNARY)
-bench_ternary_LDADD = $(top_builddir)/fft/libternary.la
 check_ternaryns_SOURCES = $(general_fftcheck_sources)
 check_ternaryns_CFLAGS = $(AM_CFLAGS) $(TERNARY_NS)
 check_ternaryns_LDADD = $(top_builddir)/fft/libternary.la
@@ -967,6 +967,9 @@ check_ternaryns_LDADD = $(top_builddir)/fft/libternary.la
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_SOURCES = $(general_fftcheck_sources)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_CFLAGS = $(AM_CFLAGS) $(C128gmt)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_LDADD = $(top_builddir)/fft/libcantor128gmt.la
+bench_ternary_SOURCES = bench.c check-and-bench-common.c test-tools.c
+bench_ternary_CFLAGS = $(AM_CFLAGS) $(TERNARY)
+bench_ternary_LDADD = $(top_builddir)/fft/libternary.la
 # We'll run the *.fft tests above as:
 #       ./do-check-fft.sh -m check_cantor64_100_1_00000000.fft
 FFT_LOG_COMPILER = $(srcdir)/do-check-fft.sh

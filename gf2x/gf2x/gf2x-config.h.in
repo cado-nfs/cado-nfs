@@ -8,6 +8,9 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
+/* This is defined if gf2x was configured with --enable-fft-interface */
+#undef GF2X_HAS_FFT_INTERFACE_SUPPORT
+
 /* Define if pclmul code as present in the source tree is supported by the
    compiler */
 #undef GF2X_HAVE_PCLMUL_SUPPORT
@@ -28,6 +31,9 @@
    compiler */
 #undef GF2X_HAVE_SSSE3_SUPPORT
 
+/* This is defined if gf2x was compiled from an LGPL tarball */
+#undef GF2X_IS_LGPL_VARIANT
+
 /* Have LGPL code (no GPL taint) */
 #undef GPL_CODE_PRESENT
 
@@ -40,6 +46,9 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define if __attribute__((visibility("hidden"))) is supported. */
+#undef HAVE_HIDDEN_VISIBILITY_ATTRIBUTE
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
