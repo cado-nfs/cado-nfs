@@ -9,11 +9,11 @@ from scipy.stats import norm
 # Bf = 1e11; Bg = 1e11; area = 1e18 # values used for RSA-768
 # area is the sieve area, about 2^(2*I-1)*q
 # sq is the value of the current special-q (experimental)
-def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False):
+def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False.B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000) # pol51opt.c uses alpha=0 for the linear polynomial
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B) # pol51opt.c uses alpha=0 for the linear polynomial
     E = 0
     sx = sqrt(area*s)
     sy = sqrt(area/s)
@@ -87,11 +87,11 @@ def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
 
 # instead of integrating on the half-circle, integrate on the disk
 # (this is supposed to give the probability to find a relation)
-def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta,r')
@@ -276,10 +276,9 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
     return E
 
 # use sampling over the angles, numerical integration over alpha
-def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false):
+def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
     df = f.degree()
     dg = g.degree()
-    B = 2000
     cof = sum([log(1.0*p)/(p-1) for p in prime_range(B)])
     if verbose:
        print "cof=", cof
