@@ -697,6 +697,7 @@ class Polyselect3(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
+                 verbose : Toggle("v")=None,
                  threads : Parameter("t", checktype=int)=None,
                  num :  Parameter(checktype=int)=None,
                  poly : Parameter(is_input_file=True),
