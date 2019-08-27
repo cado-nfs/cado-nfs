@@ -134,6 +134,9 @@ class PolynomialParseException(Exception):
     """ Exception class for signaling errors during polynomial parsing """
     pass
 
+class TaskException(Exception):
+    """ Exception class for signaling errors during task execution """
+    pass
 
 class Polynomials(object):
     r""" A class that represents a polynomial
@@ -1125,7 +1128,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
     def run(self):
         if not self.params["run"]:
             self.logger.info("Stopping at %s", self.name)
-            raise Exception("Job aborted because of a forcibly disabled task")
+            raise TaskException("Job aborted because of a forcibly disabled task")
         self.logger.info("Starting")
         self.logger.debug("%s.run(): Task state: %s", self.name, self.state)
         super().run()
@@ -2265,7 +2268,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         while self.get_number_outstanding_wus() > 0:
             self.wait()
 
-        # Print up to 'nrkeep' best polynomials found
+        # Print best polynomials found
         if False:
            for i in range(len(self.best_polys)):
               self.logger.info("Best polynomial %d is\n%s", i,
@@ -2397,16 +2400,19 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not poly.MurphyE:
             self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
-        nrkeep = 10 # we keep up to 'nrkeep' best polynomials
-        if len(self.best_polys) < nrkeep:
+        margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
+        if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
            self.best_polys.append(poly)
-        elif poly.MurphyE > self.best_polys[nrkeep-1].MurphyE:
-           self.best_polys[nrkeep-1] = poly
         i = len(self.best_polys) - 1
         while i > 0 and self.best_polys[i].MurphyE > self.best_polys[i-1].MurphyE:
            t = self.best_polys[i]
            self.best_polys[i] = self.best_polys[i-1]
            self.best_polys[i-1] = t
+           i = i - 1
+        # remove polynomials with MurphyE < margin*bestMurphyE
+        i = len(self.best_polys) - 1
+        while self.best_polys[i].MurphyE < margin * self.best_polys[0].MurphyE:
+           del self.best_polys[i]
            i = i - 1
         # in case poly.MurphyE = self.bestpoly.MurphyE (MurphyE is printed
         # only with 3 digits in the cxxx.poly file), we choose the polynomial
@@ -5847,6 +5853,10 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         except KeyboardInterrupt:
             self.logger.fatal("Received KeyboardInterrupt. Terminating")
             had_interrupt = True
+
+        except TaskException as e:
+           self.stop_all_clients()
+           raise e
 
         self.stop_all_clients()
         self.servertask.shutdown()
