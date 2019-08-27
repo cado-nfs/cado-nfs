@@ -207,7 +207,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         p->pols[RAT_SIDE]->coeff = g;
         p->pols[RAT_SIDE]->deg = dg;
         p->skew = skew;
-        E = MurphyE (p, Bf, Bg, Area, MURPHY_K);
+        E = MurphyE (p, Bf, Bg, Area, MURPHY_K, ALPHA_BOUND);
 	END_TIMER (TIMER_MURPHYE);
         if (E <= bestE)
             return 0;

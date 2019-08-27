@@ -446,7 +446,8 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   ropt_poly->skew = L2_combined_skewness2 (ropt_poly->pols[0],
                                            ropt_poly->pols[1],
                                            SKEWNESS_DEFAULT_PREC);
-  curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K);
+  curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
+                          ALPHA_BOUND);
 
   if (nthreads > 1)
     pthread_mutex_lock (&lock);

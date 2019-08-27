@@ -314,6 +314,7 @@ polyselect/ropt_tree.h
 polyselect/ropt_main.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
+polyselect/polyselect3.c
 scripts/call_cmake.sh
 scripts/gdb.py
 scripts/install-cmake.sh

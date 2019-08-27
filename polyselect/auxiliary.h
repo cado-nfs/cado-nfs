@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.h"
 #include "mpz_poly.h"
 
-
 /* The polynomial selection algorithms that use a linear polynomial will
  * put it on the side given by the following. */
 // FIXME: atm, changing these does not work. It should...
@@ -45,8 +44,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifndef ALPHA_BOUND /* allows to define ALPHA_BOUND in local.sh */
 #define ALPHA_BOUND       2000
 #endif
-
-#define MURPHY_K 1000
 
 extern double bound_f, bound_g, area;
 
