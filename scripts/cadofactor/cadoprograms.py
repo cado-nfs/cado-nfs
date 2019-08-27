@@ -691,6 +691,21 @@ class PolyselectRopt(Program):
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
+class Polyselect3(Program):
+    binary = "polyselect3"
+    name = binary
+    subdir = "polyselect"
+
+    def __init__(self, *,
+                 threads : Parameter("t", checktype=int)=None,
+                 num :  Parameter(checktype=int)=None,
+                 poly : Parameter(is_input_file=True),
+                 Bf : Parameter(checktype=float)=None,
+                 Bg : Parameter(checktype=float)=None,
+                 area : Parameter(checktype=float)=None,
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
 class PolyselectGFpn(Program):
     binary = "polyselect_gfpn"
     name = binary

@@ -164,6 +164,8 @@ class Polynomials(object):
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
     re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    # MurphyF is the refined value of MurphyE produced by polyselect3
+    re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
     re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
     # the 'lognorm' variable now represents the expected E-value
@@ -184,6 +186,7 @@ class Polynomials(object):
             and polyselect_ropt
         """
         self.MurphyE = 0.
+        self.MurphyF = 0.
         self.skew = 0.
         self.MurphyParams = None
         self.revision = None
@@ -232,6 +235,13 @@ class Polynomials(object):
                         "Line '%s' redefines Murphy E value" % line)
                 self.MurphyParams = match.group(1)
                 self.MurphyE = float(match.group(2))
+                continue
+            match = self.re_MurphyF.match(line)
+            if match:
+                if self.MurphyF:
+                    raise PolynomialParseException(
+                        "Line '%s' redefines Murphy F value" % line)
+                self.MurphyF = float(match.group(2))
                 continue
             match = self.re_skew.match(line)
             if match:
@@ -2208,7 +2218,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if "import" in self.params and "bestpoly" in self.state:
             self.logger.warning('Have "import" parameter, discarding '
                                 'previously found best polynomial')
-            self.state.clear(["bestpoly", "bestfile"])
+            self.state.clear(["bestpoly"])
         if "bestpoly" in self.state:
             self.bestpoly = Polynomials(self.state["bestpoly"].splitlines())
             self.best_polys = [self.bestpoly]
@@ -2231,9 +2241,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
-            self.logger.info("Best polynomial previously found in %s has "
-                             "Murphy_E = %g",
-                             self.state["bestfile"], self.bestpoly.MurphyE)
+            self.logger.info("Best polynomial previously has Murphy_E = %g",
+                             self.bestpoly.MurphyE)
         
         if self.did_import() and "import_ropt" in self.params:
             self.logger.critical("The import and import_ropt parameters "
@@ -2275,16 +2284,47 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                str(self.best_polys[i]))
         else:
            n = len(self.best_polys)
-           self.logger.info("Kept %d polynomials with MurphyE from %g to %g\n",
+           self.logger.info("Kept %d polynomials with MurphyE from %g to %g",
                             n, self.best_polys[0].MurphyE,
                             self.best_polys[n-1].MurphyE)
+
+        # save best polynomials in cxxx.poly.0, cxxx.poly.1, ...
+        # and run polyselect3
+        n = len(self.best_polys)
+        for i in range(n):
+           filename = self.workdir.make_filename("poly." + str(i))
+           self.best_polys[i].create_file(filename)
+        # remove ropteffort since polyselect3 does not use it
+        self.progparams[0].pop("ropteffort", None)
+        filename = self.workdir.make_filename("poly")
+        p = cadoprograms.Polyselect3(poly=filename, num=n,
+                                     **self.progparams[0])
+        process = cadocommand.Command(p)
+        (rc, stdout, stderr) = process.wait()
+
+        # select the polynomial pair with the largest Murphy-E
+        best_i = -1
+        best_MurphyF = 0.0
+        for i in range(n):
+           filename = self.workdir.make_filename("poly." + str(i))
+           f = open(str(filename), "r")
+           poly = Polynomials(f.read().splitlines())
+           f.close()
+           self.logger.info("Polynomial %s had MurphyE %g, refined to %g",
+                            filename, poly.MurphyE, poly.MurphyF)
+           if best_i == -1 or poly.MurphyF > best_MurphyF:
+              best_i = i
+              best_MurphyF = poly.MurphyF
+              self.bestpoly = poly
+        filename = self.workdir.make_filename("poly." + str(best_i))
+        self.logger.info("Best polynomial is %s", filename)
         
         if self.bestpoly is None:
             self.logger.error ("No polynomial found. Consider increasing the "
                                "search range bound admax, or maxnorm")
             return False
-        self.logger.info("Finished, best polynomial from file %s has Murphy_E "
-                         "= %g", self.state["bestfile"] , self.bestpoly.MurphyE)
+        self.logger.info("Finished, best polynomial has Murphy_E = %g",
+                         self.bestpoly.MurphyE)
         self.logger.info("Best polynomial is:\n%s", str(self.bestpoly))
         self.print_rank()
         self.write_poly_file()
@@ -2357,7 +2397,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
            poly = self.parse_poly(block, filename)
            if not poly is None:
                self.bestpoly = poly
-               update = {"bestpoly": str(poly), "bestfile": filename}
+               update = {"bestpoly": str(poly)}
                self.state.update(update, commit=commit)
     
     def read_log_warning(self, filename):

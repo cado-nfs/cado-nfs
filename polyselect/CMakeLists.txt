@@ -19,6 +19,8 @@ set_target_properties(polyselect_ropt PROPERTIES
 add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.c ${ropt_sources})
 
 add_executable (polyselect3 polyselect3.c)
+set_target_properties(polyselect3 PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 # the utils library already includes -lgmp and -lm
 target_link_libraries (polyselect_gfpn  polyselect_common utils)

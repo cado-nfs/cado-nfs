@@ -1,22 +1,34 @@
 /* Recomputes the Murphy-E value with a larger value of ALPHA_BOUND
    on the top polynomials found after the rootsieve:
 
-   polyselect3 -poly cxxx.poly
+   polyselect3 -poly cxxx.poly -num 10 -Bf ... -Bg ... -area ...
+
+   will process cxxx.poly.0, cxxx.poly.1, ..., cxxx.poly.9
+   and add the new Murphy-E value at the end of each file.
 */
 
 #include "cado.h"
+/* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
+   OpenMP pragma. It should come after cado.h, which sets -Werror=all. */
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 #include "utils.h"
 #include "murphyE.h"
 #include "auxiliary.h"
+#ifdef HAVE_OPENMP
+#include "omp.h"
+#endif
 
 static void
 declare_usage (param_list pl)
 {
-  param_list_decl_usage(pl, "poly", "polynomial file");
+  param_list_decl_usage(pl, "poly", "polynomial prefix");
+  param_list_decl_usage(pl, "t", "number of threads");
+  param_list_decl_usage(pl, "num", "number of files to process");
   param_list_decl_usage(pl, "Bf", "factor base bound on the algebraic side");
   param_list_decl_usage(pl, "Bg", "factor base bound on the linear side");
   param_list_decl_usage(pl, "area", "sieving area");
-  param_list_decl_usage(pl, "I", "sieving parameter I");
   verbose_decl_usage(pl);
 }
 
@@ -24,15 +36,14 @@ int
 main (int argc, char *argv[])
 {
   param_list pl;
-  cado_poly cpoly;
   FILE *f;
   char *argv0 = argv[0];
   double Bf, Bg, area;
-  int I;
+  int nthreads = 1;
+  int num = 1; /* number of files to process */
 
   param_list_init(pl);
   declare_usage(pl);
-  cado_poly_init(cpoly);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -52,6 +63,12 @@ main (int argc, char *argv[])
   }
   verbose_interpret_parameters (pl);
   param_list_print_command_line (stdout, pl);
+
+  param_list_parse_int (pl, "t", &nthreads);
+#ifdef HAVE_OPENMP
+  omp_set_num_threads (nthreads);
+#endif
+  param_list_parse_int (pl, "num", &num);
 
   const char * filename;
   if ((filename = param_list_lookup_string (pl, "poly")) == NULL)
@@ -75,31 +92,36 @@ main (int argc, char *argv[])
       exit (EXIT_FAILURE);
     }
 
-  int has_area = param_list_parse_double (pl, "area", &area);
-  int has_I = param_list_parse_int (pl, "I", &I);
-  if (has_area == 0 && has_I == 0)
+  if (param_list_parse_double (pl, "area", &area) == 0)
     {
-      fprintf (stderr, "Error: parameter -area or -I is mandatory\n");
+      fprintf (stderr, "Error: parameter -area is mandatory\n");
       param_list_print_usage (pl, argv0, stderr);
       exit (EXIT_FAILURE);
-    }
+   }
 
-  if (!cado_poly_read (cpoly, filename))
+#pragma omp parallel for
+  for (int i = 0; i < num; i++)
     {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
-      exit (EXIT_FAILURE);
+      cado_poly cpoly;
+      char s[1024];
+      FILE *fp;
+
+      cado_poly_init (cpoly);
+      sprintf (s, "%s.%d", filename, i);
+      if (!cado_poly_read (cpoly, s))
+        {
+          fprintf (stderr, "Error reading polynomial file %s\n", s);
+          exit (EXIT_FAILURE);
+        }
+
+      double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * ALPHA_BOUND);
+      fp = fopen (s, "a");
+      fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.2e\n",
+               Bf, Bg, area, e);
+      fclose (fp);
+      cado_poly_clear (cpoly);
     }
 
-  if (has_I)
-    area = Bf * pow (2.0, (double) (2 * I - 1));
-
-  double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * ALPHA_BOUND);
-  f = fopen (filename, "a");
-  fprintf (f, "# MurphyE (Bf=%.3e,Bg=%.3e,area=%.3e) = %.2e [B=%u]\n",
-           Bf, Bg, area, e, 10 * ALPHA_BOUND);
-  fclose (f);
-
-  cado_poly_clear (cpoly);
   param_list_clear(pl);
 
   return 0;
