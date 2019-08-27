@@ -324,9 +324,9 @@ class Polynomials(object):
                     in enumerate(self.polyg) if not coeff == 0]
         if not self.MurphyE == 0.:
             if self.MurphyParams:
-                arr.append("# MurphyE (%s) = %g\n" % (self.MurphyParams, self.MurphyE))
+                arr.append("# MurphyE' (%s) = %g\n" % (self.MurphyParams, self.MurphyE))
             else:
-                arr.append("# MurphyE = %g\n" % self.MurphyE)
+                arr.append("# MurphyE' = %g\n" % self.MurphyE)
         if not self.revision == None:
             arr.append("# found by revision %s\n" % self.revision)
         if not self.lognorm == 0.:
