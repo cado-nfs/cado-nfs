@@ -116,7 +116,7 @@ main (int argc, char *argv[])
 
       double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * ALPHA_BOUND);
       fp = fopen (s, "a");
-      fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.2e\n",
+      fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.3e\n",
                Bf, Bg, area, e);
       fclose (fp);
       cado_poly_clear (cpoly);
