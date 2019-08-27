@@ -29,6 +29,7 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "Bf", "factor base bound on the algebraic side");
   param_list_decl_usage(pl, "Bg", "factor base bound on the linear side");
   param_list_decl_usage(pl, "area", "sieving area");
+  param_list_decl_usage(pl, "v", "verbose level");
   verbose_decl_usage(pl);
 }
 
@@ -41,9 +42,11 @@ main (int argc, char *argv[])
   double Bf, Bg, area;
   int nthreads = 1;
   int num = 1; /* number of files to process */
+  int verbose = 0;
 
   param_list_init(pl);
   declare_usage(pl);
+  param_list_configure_switch (pl, "-v", &verbose);
 
   argv++, argc--;
   for( ; argc ; ) {
