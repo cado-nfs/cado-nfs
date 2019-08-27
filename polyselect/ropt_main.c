@@ -433,8 +433,8 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   ropt_poly->skew = L2_combined_skewness2 (ropt_poly->pols[0],
                                            ropt_poly->pols[1],
                                            SKEWNESS_DEFAULT_PREC);
-  // curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K);
-  curr_MurphyE = MurphyE_chi2 (ropt_poly, bound_f, bound_g, area, MURPHY_K);
+  curr_MurphyE = MurphyE_chi2 (ropt_poly, bound_f, bound_g, area, MURPHY_K,
+                               ALPHA_BOUND);
 
   if (nthreads > 1)
     pthread_mutex_lock (&lock);
@@ -454,7 +454,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   total_E += cado_poly_fprintf_with_info_and_MurphyE (stdout, ropt_poly,
                                                       curr_MurphyE,
                                                       bound_f, bound_g, area,
-                                                      "# ");
+                                                      NULL);
   nb_optimized += 1.0;
   printf ("### Best MurphyE so far is %.2e, av. exp_E %.2f, av. E %.2f\n",
           best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
@@ -787,7 +787,7 @@ main_basic (int argc, char **argv)
   {
     printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
     cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
-                                             bound_f, bound_g, area, NULL);
+                                             bound_f, bound_g, area, "# ");
     printf ("# Average exp_E: %.2f, average E: %.2f\n",
             total_exp_E / (double) nb_input_polys,
             total_E / (double) nb_input_polys);

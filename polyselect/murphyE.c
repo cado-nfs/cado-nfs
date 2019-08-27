@@ -53,7 +53,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // #define USE_VARIANT
 
 double
-MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
+MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K,
+         unsigned long B)
 {
   double E = 0, x, y, ti;
   double alpha_f, alpha_g, xi, yi, vf, vg;
@@ -67,14 +68,14 @@ MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
   double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
 #ifndef USE_VARIANT
-  alpha_f = get_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND);
+  alpha_f = get_alpha (cpoly->pols[ALG_SIDE], B);
 #else
   /* patch: replace alpha_f by alpha_f - stddev */
   double v;
-  alpha_f = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
+  alpha_f = dist_alpha (cpoly->pols[ALG_SIDE], B, &v);
   alpha_f -= sqrt (v);
 #endif
-  alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
+  alpha_g = get_alpha (cpoly->pols[RAT_SIDE], B);
   one_over_logBf = 1.0 / log (Bf);
   one_over_logBg = 1.0 / log (Bg);
   for (int i = 0; i < K; i++)

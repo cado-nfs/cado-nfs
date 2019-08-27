@@ -362,7 +362,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
                   poly->skew = L2_combined_skewness2 (poly->pols[0],
                                                       poly->pols[1],
                                                       SKEWNESS_DEFAULT_PREC);
-                  E = MurphyE_chi2 (poly, Bf, Bg, area, MURPHY_K);
+                  E = MurphyE_chi2 (poly, Bf, Bg, area, MURPHY_K, ALPHA_BOUND);
                   if (E > best_E)
 #pragma omp critical
                     {
@@ -956,7 +956,7 @@ main (int argc, char **argv)
     best_alphaprime = get_alpha_prime (poly->pols[ALG_SIDE], ALPHA_BOUND);
     poly->skew = L2_combined_skewness2 (poly->pols[0], poly->pols[1],
                                       SKEWNESS_DEFAULT_PREC);
-    best_E = MurphyE_chi2 (poly, bound_f, bound_g, area, MURPHY_K);
+    best_E = MurphyE_chi2 (poly, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
     printf ("u=0 v=0 w=0 alpha'=%1.2f (%1.2f,%1.2f) E=%.2e\n",
             best_alphaprime, best_alpha, best_var, best_E);
 

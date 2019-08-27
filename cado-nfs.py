@@ -148,7 +148,7 @@ if __name__ == '__main__':
             logger.info("  log3 = " + str(log3))
             assert (p-1) % ell == 0
             assert pow(3, log2*((p-1) // ell), p) == pow(2, log3*((p-1) // ell), p)
-            if target != 0:
+            if target != "":
                 logtarget = int(factors[4])
                 logger.info("Also check log(target) vs log(2) ...")
                 assert pow(int(target), log2*((p-1) // ell), p) == pow(2, logtarget*((p-1) // ell), p)

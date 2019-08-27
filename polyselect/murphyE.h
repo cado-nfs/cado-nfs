@@ -19,6 +19,10 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-double MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K);
-double MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K);
+#define MURPHY_K 1000
+
+double MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K,
+                unsigned long B);
+double MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K,
+                     unsigned long B);
 double ncx2_pdf (double x, double k, double lam, double epsilon);
