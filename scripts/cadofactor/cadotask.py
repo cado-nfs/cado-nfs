@@ -3178,7 +3178,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             # (the cado-nfs linear algebra is so fast that we should avoid
             # oversieving if we want to optimize the total wall-clock time,
             # assuming we use as many cores for sieving and linear algebra).
-            guess_factor = 0.80
+            guess_factor = 0.81
             n0 = 2 ** self.progparams[0]["lpb0"]
             n1 =  2 ** self.progparams[0]["lpb1"]
             n01 = int(guess_factor * (n0 / log (n0) + n1 / log (n1)))
