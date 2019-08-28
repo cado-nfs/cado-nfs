@@ -32,11 +32,11 @@ def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
     return E/K
 
 # same as MurphyE, but using numerical integration instead of sampling
-def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta')
@@ -54,15 +54,15 @@ def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     return numerical_integral(v1, 0, pi, eps_abs=i/1000)
 
 # same as MurphyE_int, but integrates between roots of f and g
-def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
     l = (f*g).roots(ring=RR)
     l = [arccot(r/s) for r,_ in l]
     l = [x+(1-sign(x))*RR(pi)/2 for x in l]
     l.sort()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta')
