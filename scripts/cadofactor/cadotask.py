@@ -3173,7 +3173,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             # For rsa140 with lpb[01]=29, using guess_factor = 0.91
             # gives an initial excess of about 13%, we estimate
             # guess_factor = 0.85 would be enough to get a square matrix.
-            # We use 0.80 which might yield some extra filtering attempts
+            # We use 0.81 which might yield some extra filtering attempts
             # in some cases, but which should avoid too much initial excess
             # (the cado-nfs linear algebra is so fast that we should avoid
             # oversieving if we want to optimize the total wall-clock time,
