@@ -28,6 +28,7 @@
 
 #define Kfield	Kcommon_name_(field)
 #define Kdst_field	Kcommon_name_(dst_field)
+#define Ksrc_field	Kcommon_name_(src_field)
 
 #define Kelt	Kcommon_name_(elt)
 #define Kdst_elt	Kcommon_name_(dst_elt)
@@ -59,9 +60,12 @@
 #define Kimpl_max_degree()	Kcommon_name_(impl_max_degree) ()
 
 
+
 #define Kfield_characteristic(a0)	Kcommon_name_(field_characteristic) (K,a0)
+#define Kfield_characteristic_srcptr()	Kcommon_name_(field_characteristic_srcptr) (K)
 #define Kfield_characteristic_bits()	Kcommon_name_(field_characteristic_bits) (K)
 #define Kfield_degree()	Kcommon_name_(field_degree) (K)
+
 #define Kfield_init()	Kcommon_name_(field_init) (K)
 #define Kfield_clear()	Kcommon_name_(field_clear) (K)
 #define Kfield_specify(a0,a1)	Kcommon_name_(field_specify) (K,a0,a1)

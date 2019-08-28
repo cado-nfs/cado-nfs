@@ -1931,6 +1931,12 @@ static unsigned long mpfq_p_14_wrapper_field_characteristic_bits(mpfq_vbase_ptr 
     return mpfq_p_14_field_characteristic_bits(vbase->obj);
 }
 
+static mpz_srcptr mpfq_p_14_wrapper_field_characteristic_srcptr(mpfq_vbase_ptr);
+static mpz_srcptr mpfq_p_14_wrapper_field_characteristic_srcptr(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_p_14_field_characteristic_srcptr(vbase->obj);
+}
+
 static void mpfq_p_14_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_ptr);
 static void mpfq_p_14_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_ptr z MAYBE_UNUSED)
 {
@@ -1966,6 +1972,7 @@ void mpfq_p_14_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->impl_max_characteristic_bits = (unsigned long (*) ()) mpfq_p_14_wrapper_impl_max_characteristic_bits;
     vbase->impl_max_degree = (unsigned long (*) ()) mpfq_p_14_wrapper_impl_max_degree;
     vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_ptr)) mpfq_p_14_wrapper_field_characteristic;
+    vbase->field_characteristic_srcptr = (mpz_srcptr (*) (mpfq_vbase_ptr)) mpfq_p_14_wrapper_field_characteristic_srcptr;
     vbase->field_characteristic_bits = (unsigned long (*) (mpfq_vbase_ptr)) mpfq_p_14_wrapper_field_characteristic_bits;
     vbase->field_degree = (int (*) (mpfq_vbase_ptr)) mpfq_p_14_wrapper_field_degree;
     vbase->field_init = (void (*) (mpfq_vbase_ptr)) mpfq_p_14_wrapper_field_init;

@@ -136,6 +136,15 @@
 
 
 /* Functions operating on the field structure */
+/* *simd_m128::code_for_field_characteristic_srcptr */
+mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field K MAYBE_UNUSED)
+{
+        /* yes, this is ugly */
+        static mp_limb_t limbs[1] = {2};
+        static __mpz_struct a = { 1, 1, limbs };
+        return &a;
+}
+
 /* *simd_m128::code_for_field_specify */
 void mpfq_m128_field_specify(mpfq_m128_dst_field K MAYBE_UNUSED, unsigned long tag, const void * x MAYBE_UNUSED)
 {
@@ -1148,6 +1157,12 @@ static int mpfq_m128_wrapper_field_degree(mpfq_vbase_ptr vbase MAYBE_UNUSED)
     return mpfq_m128_field_degree(vbase->obj);
 }
 
+static mpz_srcptr mpfq_m128_wrapper_field_characteristic_srcptr(mpfq_vbase_ptr);
+static mpz_srcptr mpfq_m128_wrapper_field_characteristic_srcptr(mpfq_vbase_ptr vbase MAYBE_UNUSED)
+{
+    return mpfq_m128_field_characteristic_srcptr(vbase->obj);
+}
+
 static void mpfq_m128_wrapper_field_characteristic(mpfq_vbase_ptr, mpz_ptr);
 static void mpfq_m128_wrapper_field_characteristic(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpz_ptr z MAYBE_UNUSED)
 {
@@ -1183,6 +1198,7 @@ void mpfq_m128_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->impl_max_characteristic_bits = (unsigned long (*) ()) mpfq_m128_wrapper_impl_max_characteristic_bits;
     vbase->impl_max_degree = (unsigned long (*) ()) mpfq_m128_wrapper_impl_max_degree;
     vbase->field_characteristic = (void (*) (mpfq_vbase_ptr, mpz_ptr)) mpfq_m128_wrapper_field_characteristic;
+    vbase->field_characteristic_srcptr = (mpz_srcptr (*) (mpfq_vbase_ptr)) mpfq_m128_wrapper_field_characteristic_srcptr;
     /* missing field_characteristic_bits */
     vbase->field_degree = (int (*) (mpfq_vbase_ptr)) mpfq_m128_wrapper_field_degree;
     vbase->field_init = (void (*) (mpfq_vbase_ptr)) mpfq_m128_wrapper_field_init;

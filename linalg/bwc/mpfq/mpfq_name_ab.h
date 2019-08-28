@@ -28,6 +28,7 @@
 
 #define abfield	abcommon_name_(field)
 #define abdst_field	abcommon_name_(dst_field)
+#define absrc_field	abcommon_name_(src_field)
 
 #define abelt	abcommon_name_(elt)
 #define abdst_elt	abcommon_name_(dst_elt)
@@ -59,9 +60,12 @@
 #define abimpl_max_degree()	abcommon_name_(impl_max_degree) ()
 
 
+
 #define abfield_characteristic(a0,a1)	abcommon_name_(field_characteristic) (a0,a1)
+#define abfield_characteristic_srcptr(a0)	abcommon_name_(field_characteristic_srcptr) (a0)
 #define abfield_characteristic_bits(a0)	abcommon_name_(field_characteristic_bits) (a0)
 #define abfield_degree(a0)	abcommon_name_(field_degree) (a0)
+
 #define abfield_init(a0)	abcommon_name_(field_init) (a0)
 #define abfield_clear(a0)	abcommon_name_(field_clear) (a0)
 #define abfield_specify(a0,a1,a2)	abcommon_name_(field_specify) (a0,a1,a2)

@@ -151,6 +151,7 @@
 
 typedef void * mpfq_m128_field[1];
 typedef void * mpfq_m128_dst_field;
+typedef const void * mpfq_m128_src_field;
 
 typedef __m128i mpfq_m128_elt[1];
 typedef __m128i * mpfq_m128_dst_elt;
@@ -189,7 +190,8 @@ extern "C" {
 
 /* Functions operating on the field structure */
 static inline
-void mpfq_m128_field_characteristic(mpfq_m128_dst_field, mpz_ptr);
+void mpfq_m128_field_characteristic(mpfq_m128_src_field, mpz_ptr);
+mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field);
 /* *simd_m128::code_for_field_degree */
 #define mpfq_m128_field_degree(K)	1
 static inline
@@ -388,7 +390,7 @@ void mpfq_m128_oo_field_init(mpfq_vbase_ptr);
 /* Implementations for inlines */
 /* *simd_m128::code_for_field_characteristic */
 static inline
-void mpfq_m128_field_characteristic(mpfq_m128_dst_field K MAYBE_UNUSED, mpz_ptr z)
+void mpfq_m128_field_characteristic(mpfq_m128_src_field K MAYBE_UNUSED, mpz_ptr z)
 {
     mpz_set_ui(z,2);
 }

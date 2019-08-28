@@ -151,6 +151,7 @@
 
 typedef mpfq_p_field mpfq_p_10_field;
 typedef mpfq_p_dst_field mpfq_p_10_dst_field;
+typedef mpfq_p_src_field mpfq_p_10_src_field;
 
 typedef unsigned long mpfq_p_10_elt[10];
 typedef unsigned long * mpfq_p_10_dst_elt;
@@ -189,9 +190,11 @@ extern "C" {
 
 /* Functions operating on the field structure */
 static inline
-void mpfq_p_10_field_characteristic(mpfq_p_10_dst_field, mpz_ptr);
+void mpfq_p_10_field_characteristic(mpfq_p_10_src_field, mpz_ptr);
 static inline
-unsigned long mpfq_p_10_field_characteristic_bits(mpfq_p_10_dst_field);
+mpz_srcptr mpfq_p_10_field_characteristic_srcptr(mpfq_p_10_src_field);
+static inline
+unsigned long mpfq_p_10_field_characteristic_bits(mpfq_p_10_src_field);
 /* *Mpfq::gfp::field::code_for_field_degree, Mpfq::gfp */
 #define mpfq_p_10_field_degree(K)	1
 static inline
@@ -496,14 +499,21 @@ void mpfq_p_10_oo_field_init(mpfq_vbase_ptr);
 /* Implementations for inlines */
 /* *Mpfq::gfp::field::code_for_field_characteristic, Mpfq::gfp */
 static inline
-void mpfq_p_10_field_characteristic(mpfq_p_10_dst_field k, mpz_ptr z)
+void mpfq_p_10_field_characteristic(mpfq_p_10_src_field k, mpz_ptr z)
 {
         mpz_set(z, k->p);
 }
 
+/* *Mpfq::gfp::field::code_for_field_characteristic_srcptr, Mpfq::gfp */
+static inline
+mpz_srcptr mpfq_p_10_field_characteristic_srcptr(mpfq_p_10_src_field k)
+{
+    return k->p;
+}
+
 /* *Mpfq::gfp::field::code_for_field_characteristic_bits, Mpfq::gfp */
 static inline
-unsigned long mpfq_p_10_field_characteristic_bits(mpfq_p_10_dst_field k)
+unsigned long mpfq_p_10_field_characteristic_bits(mpfq_p_10_src_field k)
 {
         return mpz_sizeinbase(k->p, 2);
 }

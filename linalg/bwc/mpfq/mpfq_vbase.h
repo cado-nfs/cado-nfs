@@ -25,6 +25,7 @@ struct mpfq_vbase_s {
     unsigned long (*impl_max_characteristic_bits)();
     unsigned long (*impl_max_degree)();
     void (*field_characteristic)(mpfq_vbase_ptr, mpz_ptr);
+    mpz_srcptr (*field_characteristic_srcptr)(mpfq_vbase_ptr);
     unsigned long (*field_characteristic_bits)(mpfq_vbase_ptr);
     int (*field_degree)(mpfq_vbase_ptr);
     void (*field_init)(mpfq_vbase_ptr);

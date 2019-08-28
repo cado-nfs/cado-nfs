@@ -151,6 +151,7 @@
 
 typedef void * mpfq_u64k1_field[1];
 typedef void * mpfq_u64k1_dst_field;
+typedef const void * mpfq_u64k1_src_field;
 
 typedef uint64_t mpfq_u64k1_elt[1];
 typedef uint64_t * mpfq_u64k1_dst_elt;
@@ -190,6 +191,7 @@ extern "C" {
 /* Functions operating on the field structure */
 /* *simd_char2::code_for_field_characteristic */
 #define mpfq_u64k1_field_characteristic(K, z)	mpz_set_ui(z,2)
+mpz_srcptr mpfq_u64k1_field_characteristic_srcptr(mpfq_u64k1_src_field);
 /* *simd_u64k::code_for_field_degree */
 #define mpfq_u64k1_field_degree(f)	1
 static inline
