@@ -168,8 +168,7 @@ class Polynomials(object):
     re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
     re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
-    # the 'lognorm' variable now represents the expected E-value
-    re_lognorm = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
+    re_exp_E = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
     
     # Keys that can occur in a polynomial file, in their preferred ordering,
     # and whether the key is mandatory or not. The preferred ordering is used
@@ -190,7 +189,7 @@ class Polynomials(object):
         self.skew = 0.
         self.MurphyParams = None
         self.revision = None
-        self.lognorm = 0.
+        self.exp_E = 0.
         self.params = {}
         polyf = Polynomial()
         polyg = Polynomial()
@@ -253,12 +252,12 @@ class Polynomials(object):
                 continue
             # If this is a comment line telling the expected E-value,
             # extract the value and store it
-            match = self.re_lognorm.match(line)
+            match = self.re_exp_E.match(line)
             if match:
-                if self.lognorm != 0:
+                if self.exp_E != 0:
                     raise PolynomialParseException(
                         "Line '%s' redefines exp_E value" % line)
-                self.lognorm = float(match.group(1))
+                self.exp_E = float(match.group(1))
                 continue
             # Drop comment, strip whitespace
             line2 = line.split('#', 1)[0].strip()
@@ -329,8 +328,8 @@ class Polynomials(object):
                 arr.append("# MurphyE = %.3e\n" % self.MurphyE)
         if not self.revision == None:
             arr.append("# found by revision %s\n" % self.revision)
-        if not self.lognorm == 0.:
-            arr.append("# exp_E %g\n" % self.lognorm)
+        if not self.exp_E == 0.:
+            arr.append("# exp_E %g\n" % self.exp_E)
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
                 arr.append("# poly%d = %s\n" % (i, str(self.tabpoly[i])))
@@ -1845,7 +1844,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         stored in the heap must be at the specified index in the DB.
         """
         assert len(self.poly_heap) == len(self.best_polynomials)
-        for lognorm, (key, poly) in self.poly_heap:
+        for exp_E, (key, poly) in self.poly_heap:
             assert self.best_polynomials[key] == str(poly)
 
     def import_existing_polynomials(self):
@@ -1857,8 +1856,8 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
                 print("Adding old polynomial at DB index %s: %s" %
                       (oldkey, self.best_polynomials[oldkey]))
             poly = Polynomials(self.best_polynomials[oldkey].splitlines())
-            if not poly.lognorm:
-                self.logger.error("Polynomial at DB index %s has no lognorm", oldkey)
+            if not poly.exp_E:
+                self.logger.error("Polynomial at DB index %s has no exp_E", oldkey)
                 continue
             newkey = self._add_poly_heap(poly)
             if newkey is None:
@@ -1866,23 +1865,23 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
                 # the heap. Thus it did not get added and must be removed from
                 # the DB
                 if debug:
-                    print("Deleting polynomial lognorm=%f, key=%s" % 
-                          (poly.lognorm, oldkey))
+                    print("Deleting polynomial exp_E=%f, key=%s" %
+                          (poly.exp_E, oldkey))
                 del(self.best_polynomials[oldkey])
             elif newkey != oldkey:
                 # Heap is full, worst one in heap (with key=newkey) was
                 # overwritten and its DB entry gets replaced with poly from
                 # key=oldkey
                 if debug:
-                    print("Overwriting poly lognorm=%f, key=%s with poly "
-                          "lognorm=%f, key=%s" %
+                    print("Overwriting poly exp_E=%f, key=%s with poly "
+                          "exp_E=%f, key=%s" %
                           (self.poly_heap[0][0], newkey, poly, oldkey))
                 self.best_polynomials.clear(oldkey, commit=False)
                 self.best_polynomials.update({newkey: poly}, commit=True)
             else:
                 # Last case newkey == oldkey: nothing to do
                 if debug:
-                    print("Adding lognorm=%f, key=%s" % (poly.lognorm, oldkey))
+                    print("Adding exp_E=%f, key=%s" % (poly.exp_E, oldkey))
 
     def run(self):
         if self.send_request(Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL):
@@ -1903,7 +1902,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         if "import_sopt" in self.params:
             self.import_files(self.params["import_sopt"])
 
-        worstmsg = ", worst lognorm %f" % -self.poly_heap[0][0] \
+        worstmsg = ", worst exp_E %f" % -self.poly_heap[0][0] \
                 if self.poly_heap else ""
         self.logger.info("%d polynomials in queue from previous run%s", 
                          len(self.poly_heap), worstmsg)
@@ -1996,7 +1995,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         self.logger.info("Parsed %d polynomials, added %d to priority queue (has %s)",
                          totalparsed, totaladded, fullmsg)
         if totaladded:
-            self.logger.info("Worst polynomial in queue now has lognorm %f",
+            self.logger.info("Worst polynomial in queue now has exp_E %f",
                              -self.poly_heap[0][0])
                                      
     
@@ -2023,8 +2022,8 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return (0, 0)
-        if not poly.lognorm:
-            self.logger.warning("Polynomial in file %s has no lognorm, skipping it",
+        if not poly.exp_E:
+            self.logger.warning("Polynomial in file %s has no exp_E, skipping it",
                              filename)
             return (0, 0)
         if self._add_poly_heap_db(poly):
@@ -2046,7 +2045,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         """ Add a polynomial to the heap
         
         If the heap is full (nrkeep), the worst polynomial (i.e., with the
-        largest lognorm) is replaced if the new one is better.
+        largest exp_E) is replaced if the new one is better.
         Returns the key (as a str) under which the polynomial was added,
         or None if it was not added.
         """
@@ -2060,33 +2059,33 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         if key == self.params["nrkeep"]:
             # Should we store this poly at all, i.e., is it better than
             # the worst one in the heap?
-            worstnorm = -self.poly_heap[0][0]
-            if worstnorm <= poly.lognorm:
+            worst_exp_E = -self.poly_heap[0][0]
+            if worst_exp_E <= poly.exp_E:
                 if debug:
-                    self.logger.debug("_add_poly_heap(): new poly lognorm %f, "
+                    self.logger.debug("_add_poly_heap(): new poly exp_E %f, "
                           "worst in heap has %f. Not adding",
-                          poly.lognorm, worstnorm)
+                           poly.exp_E, worst_exp_E)
                 return None
             # Pop the worst poly from heap and re-use its DB index
             key = heapq.heappop(self.poly_heap)[1][0]
             if debug:
-                self.logger.debug("_add_poly_heap(): new poly lognorm %f, "
+                self.logger.debug("_add_poly_heap(): new poly exp_E %f, "
                     "worst in heap has %f. Replacing DB index %s",
-                     poly.lognorm, worstnorm, key)
+                     poly.exp_E, worst_exp_E, key)
         else:
             # Heap was not full
             if debug:
                 self.logger.debug("_add_poly_heap(): heap was not full, adding "
-                    "poly with lognorm %f at DB index %s", poly.lognorm, key)
+                    "poly with exp_E %f at DB index %s", poly.exp_E, key)
 
         # The DB requires the key to be a string. In order to have
         # identical data in DB and heap, we store key as str everywhere.
         key = str(key)
 
         # Python heapq stores a minheap, so in order to have the worst
-        # polynomial (with largest norm) easily accessible, we use
-        # -lognorm as the heap key
-        new_entry = (-poly.lognorm, (key, poly))
+        # polynomial (with largest exp_E) easily accessible, we use
+        # -exp_E as the heap key
+        new_entry = (-poly.exp_E, (key, poly))
         heapq.heappush(self.poly_heap, new_entry)
         return key
 
@@ -2112,7 +2111,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         return [entry[1][1] for entry in self.poly_heap]
 
     def get_poly_rank(self, search_poly):
-        """ Return how many polynomnials with lognorm less than the lognorm
+        """ Return how many polynomnials with exp_E less than the exp_E
         of the size-optimized version of search_poly there are in the
         priority queue.
         
@@ -2124,7 +2123,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         # Search for the raw polynomial pair by comparing the leading
         # coefficients of both polynomials
         found = None
-        for (index, (lognorm, (key, poly))) in enumerate(self.poly_heap):
+        for (index, (exp_E, (key, poly))) in enumerate(self.poly_heap):
             if search_poly.polyg.same_lc(poly.polyg):
                if not found is None:
                    self.logger.warning("Found more than one match for:\n%s", search_poly)
@@ -2135,10 +2134,10 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             return None
         # print("search_poly: %s" % search_poly)
         # print("Poly found in heap: %s" % self.poly_heap[found][1][1])
-        search_lognorm = -self.poly_heap[found][0]
+        search_exp_E = -self.poly_heap[found][0]
         rank = 0
-        for (lognorm, (key, poly)) in self.poly_heap:
-            if -lognorm < search_lognorm:
+        for (exp_E, (key, poly)) in self.poly_heap:
+            if -exp_E < search_exp_E:
                 rank += 1
         return rank
 
