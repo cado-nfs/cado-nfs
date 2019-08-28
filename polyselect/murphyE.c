@@ -150,8 +150,8 @@ ncx2_pdf (double x, double k, double lam)
 
 /* COF_MULT is used to control the range of integration in MurphyE_chi2:
    we integrate over [0, COF_MULT * cof], where cof is the sum of log(p)/(p-1)
-   for p < ALPHA_BOUND. Thus for ALPHA_BOUND=2000 and COF_MULT=6 (which seems
-   to be close to optimal), we have cof = 7.048 and integrate over [0,42.3]. */
+   for p < B. Thus for B=2000 and COF_MULT=6 (which seems to be close to
+   optimal), we have cof = 7.048 and integrate over [0,42.3]. */
 #ifndef COF_MULT
 #define COF_MULT 6
 #endif
@@ -159,12 +159,13 @@ ncx2_pdf (double x, double k, double lam)
 /* return the E_value with a non central chi2 density for \alpha.
    It is an alternative of the MurphyE function. */
 double
-MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
+MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K,
+              unsigned long B)
 {
 #ifdef USE_VARIANT
   /* temporary patch: we compute the classical MurphyE, but with alpha
      replaced by alpha - std(alpha) */
-  return MurphyE (cpoly, Bf, Bg, area, K);
+  return MurphyE (cpoly, Bf, Bg, area, K, B);
 #else
   double E = 0.0, x, y, ti, h;
   double alpha_f, alpha_g, xi, yi, vf, vg, cof;
@@ -173,12 +174,12 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double k, lam, mu, v;
   unsigned long p;
 
-  /* sum([1.0/(p-1)*log(p*1.0) for p in prime_range(ALPHA_BOUND)]) */
-  for (cof = 0.0, p = 2; p < ALPHA_BOUND; p += 1 + (p > 2))
+  /* sum([1.0/(p-1)*log(p*1.0) for p in prime_range(B)]) */
+  for (cof = 0.0, p = 2; p < B; p += 1 + (p > 2))
     if (ulong_isprime (p))
       cof += log ((double) p) / (double) (p - 1);
 
-  mu = dist_alpha (cpoly->pols[ALG_SIDE], ALPHA_BOUND, &v);
+  mu = dist_alpha (cpoly->pols[ALG_SIDE], B, &v);
   mu = cof - mu;
   lam = v / 2 - mu;
   k = mu - lam;
@@ -194,7 +195,7 @@ MurphyE_chi2 (cado_poly cpoly, double Bf, double Bg, double area, int K)
   double_poly_init (g, cpoly->pols[RAT_SIDE]->deg);
   double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
   double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
-  alpha_g = get_alpha (cpoly->pols[RAT_SIDE], ALPHA_BOUND);
+  alpha_g = get_alpha (cpoly->pols[RAT_SIDE], B);
   one_over_logBf = 1.0 / log (Bf);
   one_over_logBg = 1.0 / log (Bg);
   /* here j / h fits with the integration parameter with a non central

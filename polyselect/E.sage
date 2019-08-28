@@ -9,7 +9,7 @@ from scipy.stats import norm
 # Bf = 1e11; Bg = 1e11; area = 1e18 # values used for RSA-768
 # area is the sieve area, about 2^(2*I-1)*q
 # sq is the value of the current special-q (experimental)
-def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False.B=2000):
+def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
     df = f.degree()
     dg = g.degree()
     alpha_f = alpha(f,B)
@@ -283,14 +283,15 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
     if verbose:
        print "cof=", cof
     mu, v = dist_alpha (f, B)
+    if verbose:
+       print "mu=", mu, "v=", v
     alpha0 = mu
     mu = cof - mu
     # mu = k + lam, v = 2*(k+2*lam)
     lam = v/2 - mu
     k = mu - lam
-    # we should ensure k >= 0
-    if verbose and k <= 0:
-       print f,g,skew,Bf,Bg,area,K,sq
+    if verbose:
+       print "lam=", lam, "k=", k
     var('t')
     alpha_f = cof - t
     alpha_g = alpha(g,B)
@@ -315,13 +316,16 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        E += v1
-    return sum([E(t=tmin+j/h)*ncx2.pdf(tmin+j/h,k,lam) for j in srange(0.5,K)])/(h*K)
-    # alternate using the normal distribution
-    # loc is the mean, scale is the standard deviation
-    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html#scipy.stats.norm
-    # return sum([E(t=tmin+j/h)*norm.pdf(tmin+j/h,loc=cof-alpha0,scale=sqrt(v)) for j in srange(0.5,K)])/(h*K)
-    # foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
-    # return numerical_integral(foo, tmin, tmax)[0]
+    if k >= 0:
+       return sum([E(t=tmin+j/h)*ncx2.pdf(tmin+j/h,k,lam) for j in srange(0.5,K)])/(h*K)
+       # foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
+       # return numerical_integral(foo, tmin, tmax)[0]
+    else:
+       # alternate using the normal distribution
+       # loc is the mean, scale is the standard deviation
+       # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html#scipy.stats.norm
+       print "Warning, k<0: using a normal distribution instead of non-central chi-squared"
+       return sum([E(t=tmin+j/h)*norm.pdf(tmin+j/h,loc=cof-alpha0,scale=sqrt(v)) for j in srange(0.5,K)])/(h*K)
 
 # same as MurphyE_int_chi2, but also integrates for g
 # the default value of K is 100 only since this routine is in O(K^2)
