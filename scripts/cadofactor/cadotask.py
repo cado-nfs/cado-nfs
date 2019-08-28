@@ -324,9 +324,9 @@ class Polynomials(object):
                     in enumerate(self.polyg) if not coeff == 0]
         if not self.MurphyE == 0.:
             if self.MurphyParams:
-                arr.append("# MurphyE' (%s) = %g\n" % (self.MurphyParams, self.MurphyE))
+                arr.append("# MurphyE' (%s) = %.3e\n" % (self.MurphyParams, self.MurphyE))
             else:
-                arr.append("# MurphyE' = %g\n" % self.MurphyE)
+                arr.append("# MurphyE' = %.3e\n" % self.MurphyE)
         if not self.revision == None:
             arr.append("# found by revision %s\n" % self.revision)
         if not self.lognorm == 0.:
@@ -2241,7 +2241,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
-            self.logger.info("Best polynomial previously has Murphy_E = %g",
+            self.logger.info("Best polynomial previously has Murphy_E = %.3e",
                              self.bestpoly.MurphyE)
         
         if self.did_import() and "import_ropt" in self.params:
@@ -2284,7 +2284,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                str(self.best_polys[i]))
         else:
            n = len(self.best_polys)
-           self.logger.info("Kept %d polynomials with MurphyE from %g to %g",
+           self.logger.info("Kept %d polynomials with MurphyE from %.3e to %.3e",
                             n, self.best_polys[0].MurphyE,
                             self.best_polys[n-1].MurphyE)
 
@@ -2310,7 +2310,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
            f = open(str(filename), "r")
            poly = Polynomials(f.read().splitlines())
            f.close()
-           self.logger.info("Polynomial %s had MurphyE %g, refined to %g",
+           self.logger.info("Polynomial %s had MurphyE %.3e, refined to %.3e",
                             filename, poly.MurphyE, poly.MurphyF)
            if best_i == -1 or poly.MurphyF > best_MurphyF:
               best_i = i
@@ -2323,7 +2323,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             self.logger.error ("No polynomial found. Consider increasing the "
                                "search range bound admax, or maxnorm")
             return False
-        self.logger.info("Finished, best polynomial has Murphy_E = %g",
+        self.logger.info("Finished, best polynomial has Murphy_E = %.3e",
                          self.bestpoly.MurphyE)
         self.logger.info("Best polynomial is:\n%s", str(self.bestpoly))
         self.print_rank()
@@ -2463,12 +2463,12 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if self.bestpoly is None or (poly.MurphyE > self.bestpoly.MurphyE or
             poly.MurphyE == self.bestpoly.MurphyE and poly.skew < self.bestpoly.skew):
             self.logger.info("New best polynomial from file %s:"
-                             " Murphy E = %g" % (filename, poly.MurphyE))
+                             " Murphy E = %.3e" % (filename, poly.MurphyE))
             self.logger.debug("New best polynomial is:\n%s", poly)
             return poly
         else:
-            self.logger.info("Best polynomial from file %s with E=%g is "
-                             "no better than current best with E=%g",
+            self.logger.info("Best polynomial from file %s with E=%.3e is "
+                             "no better than current best with E=%.3e",
                              filename, poly.MurphyE, self.bestpoly.MurphyE)
         return None
     
