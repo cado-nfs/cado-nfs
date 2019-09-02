@@ -1,6 +1,16 @@
 #ifndef POLYSELECT_SIZE_OPTIMIZATION_H_
 #define POLYSELECT_SIZE_OPTIMIZATION_H_
 
+typedef struct
+{
+  mpz_t *tab;
+  uint64_t len;
+  uint64_t alloc;
+} list_mpz_s;
+typedef list_mpz_s list_mpz_t[1];
+typedef list_mpz_s * list_mpz_ptr;
+typedef const list_mpz_s * list_mpz_srcptr;
+
 /* Default maximal number of steps in size_optimize_local_descent */
 #define SOPT_DEFAULT_MAX_STEPS 300
 
