@@ -3085,7 +3085,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     def paramnames(self):
         return self.join_params(super().paramnames, {
             "qmin": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
-            "lim1": int, "gzip": True, "sqside": 1})
+            "lim1": int, "gzip": True, "sqside": 1, "adjust-strategy": 0})
 
     def combine_bkmult(*lists):
         d={}
@@ -3203,16 +3203,19 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                 self.workdir.make_filename("%d-%d%s" % (q0, q1, use_gz))
             self.check_files_exist([outputfilename], "output",
                                    shouldexist=False)
+            strategy = self.params["adjust-strategy"]
             if not have_two_alg:
                 p = cadoprograms.Las(q0=q0, q1=q1,
                                      factorbase1=fb1,
                                      out=outputfilename, stats_stderr=True,
+                                     adjust_strategy=strategy,
                                      **self.merged_args[0])
             else:
                 p = cadoprograms.Las(q0=q0, q1=q1,
                                      factorbase0=fb0,
                                      factorbase1=fb1,
                                      out=outputfilename, stats_stderr=True,
+                                     adjust_strategy=strategy,
                                      **self.merged_args[0])
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
             self.state.update({"qnext": q1}, commit=True)
