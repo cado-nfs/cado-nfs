@@ -292,7 +292,7 @@ tasks.sieve.qrange = 10000		# The size of an elementary sieving task
     # assigned as a workunit to a client. This parameter controls the size of
     # individual tasks.
 
-tasks.sieve.adjust-strategy = 0         # Sieving strategy
+tasks.sieve.adjust_strategy = 0         # Sieving strategy
     # The sieving strategy can be 0 (default), 1, or 2.
     # Values 1 or 2 require more work than 0, but usually give more relations.
 
