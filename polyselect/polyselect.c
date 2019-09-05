@@ -71,7 +71,6 @@ unsigned long collisions_good = 0;
 double *best_opt_logmu, *best_exp_E;
 double optimize_time = 0.0;
 mpz_t admin, admax;
-int tries = 0;
 double target_E = 0.0; /* target E-value, 0.0 if not given */
 
 /* inline function */
@@ -2187,8 +2186,8 @@ main (int argc, char *argv[])
         }
     }
 
-  printf ("# Stat: tried %d ad-value(s), found %d polynomial(s), %d size-optimized, %d rootsieved\n",
-          tries, tot_found, opt_found, ros_found);
+  printf ("# Stat: tried %lu ad-value(s), found %d polynomial(s), %d size-optimized, %d rootsieved\n",
+          idx_max, tot_found, opt_found, ros_found);
 
   for (int i = 0; i < nthreads ; i++)
     {
