@@ -69,7 +69,7 @@ gf2x_mul_karax_internal (__m128i *c, const __m128i *a,
       {
         gf2x_mul_basecase ((unsigned long*) c, (unsigned long*) a, 2 * n - odd,
                            (unsigned long*) b, 2 * n - odd);
-	return;
+        return;
       }
 
     n2 = (n + 1) / 2;		/* ceil(n/2) */

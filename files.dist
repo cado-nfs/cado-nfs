@@ -1007,7 +1007,6 @@ gf2x/fft/gf2x-cantor-fft.c
 gf2x/fft/gf2x-cantor-fft.h
 gf2x/fft/gf2x-fake-fft.c
 gf2x/fft/gf2x-fake-fft.h
-gf2x/fft/gf2x-fft.h
 gf2x/fft/gf2x-ternary-fft.c
 gf2x/fft/gf2x-ternary-fft.h
 gf2x/fft/mpfq/README.mpfq
@@ -1401,7 +1400,13 @@ linalg/bwc/lingen_matpoly_bigmatpoly_ft_common.hpp
 linalg/bwc/lingen_mul_substeps.hpp
 gf2x/README.release
 gf2x/check-gf2x-version.c
-gf2x/fft/gf2x-fft-adapter.hpp
 gf2x/fft/gf2x_fft_check.c
 gf2x/gf2x.h.in.in
 gf2x/gf2x.pc.in
+gf2x/fft/generate-api.pl
+gf2x/fft/template.h
+gf2x/fft/gf2x-fft-impl-utils.h
+gf2x/fft/mpfq/remove_mpfq_malloc_calls.patch
+gf2x/fft/gf2x-fft.c
+gf2x/fft/gf2x-fft.h.in
+gf2x/fft/mpfq/mpfq-api.pl

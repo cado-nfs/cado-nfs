@@ -152,11 +152,43 @@ TESTS = check-addmul$(EXEEXT) $(SYNTHESIZED_TESTS)
 @WORDSIZE_IS_64_TRUE@    check_ternaryns_100000_2_cd1293a5.fft          \
 @WORDSIZE_IS_64_TRUE@    check_ternaryns_100000_3_91e7d307.fft
 
+# check_PROGRAMS+=check_cantor64gm
+# check_cantor64gm_SOURCES=$(general_fftcheck_sources)
+# check_cantor64gm_CFLAGS=$(AM_CFLAGS) $(C64gm)
+# check_cantor64gm_LDADD=$(top_builddir)/fft/libcantor64gm.la
+# SYNTHESIZED_TESTS+=   \
+#     check_cantor64gm_1000_1_c28bc2e3.fft            \
+#     check_cantor64gm_1000_2_77db95cc.fft            \
+#     check_cantor64gm_1000_3_6dc06b2f.fft
+# if WORDSIZE_IS_64
+# SYNTHESIZED_TESTS+=   \
+#     check_cantor64gm_10000_1_2706ca53.fft           \
+#     check_cantor64gm_10000_2_3f32a516.fft           \
+#     check_cantor64gm_10000_3_fd7bba07.fft           \
+#     check_cantor64gm_100000_1_fca70ced.fft          \
+#     check_cantor64gm_100000_2_cd1293a5.fft          \
+#     check_cantor64gm_100000_3_91e7d307.fft
+# endif
+# check_PROGRAMS+=check_cantor64gmt
+# check_cantor64gmt_SOURCES=$(general_fftcheck_sources)
+# check_cantor64gmt_CFLAGS=$(AM_CFLAGS) $(C64gmt)
+# check_cantor64gmt_LDADD=$(top_builddir)/fft/libcantor64gmt.la
+# SYNTHESIZED_TESTS+=   \
+#     check_cantor64gmt_1000_1_c28bc2e3.fft            \
+#     check_cantor64gmt_1000_2_77db95cc.fft            \
+#     check_cantor64gmt_1000_3_6dc06b2f.fft
+# if WORDSIZE_IS_64
+# SYNTHESIZED_TESTS+=   \
+#     check_cantor64gmt_10000_1_2706ca53.fft           \
+#     check_cantor64gmt_10000_2_3f32a516.fft           \
+#     check_cantor64gmt_10000_3_fd7bba07.fft           \
+#     check_cantor64gmt_100000_1_fca70ced.fft          \
+#     check_cantor64gmt_100000_2_cd1293a5.fft          \
+#     check_cantor64gmt_100000_3_91e7d307.fft
+# endif
 @ENABLE_FFT_INTERFACE_TRUE@am__append_4 = check_cantor64 \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor64nt check_cantor64gm \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor64gmt check_cantor128 \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128nt check_cantor128gm \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128gmt
+@ENABLE_FFT_INTERFACE_TRUE@	check_cantor64nt check_cantor128 \
+@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128nt
 @ENABLE_FFT_INTERFACE_TRUE@am__append_5 = \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor64_1000_1_c28bc2e3.fft            \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor64_1000_2_77db95cc.fft            \
@@ -184,37 +216,11 @@ TESTS = check-addmul$(EXEEXT) $(SYNTHESIZED_TESTS)
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64nt_100000_3_91e7d307.fft
 
 @ENABLE_FFT_INTERFACE_TRUE@am__append_9 = \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gm_1000_1_c28bc2e3.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gm_1000_2_77db95cc.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gm_1000_3_6dc06b2f.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_10 = \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_10000_1_2706ca53.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_10000_2_3f32a516.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_10000_3_fd7bba07.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_100000_1_fca70ced.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_100000_2_cd1293a5.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gm_100000_3_91e7d307.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@am__append_11 = \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gmt_1000_1_c28bc2e3.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gmt_1000_2_77db95cc.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor64gmt_1000_3_6dc06b2f.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_12 = \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_10000_1_2706ca53.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_10000_2_3f32a516.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_10000_3_fd7bba07.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_100000_1_fca70ced.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_100000_2_cd1293a5.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor64gmt_100000_3_91e7d307.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@am__append_13 = \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128_1000_1_c28bc2e3.fft            \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128_1000_2_77db95cc.fft            \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128_1000_3_6dc06b2f.fft
 
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_14 = \
+@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_10 = \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128_10000_1_2706ca53.fft           \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128_10000_2_3f32a516.fft           \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128_10000_3_fd7bba07.fft           \
@@ -222,44 +228,18 @@ TESTS = check-addmul$(EXEEXT) $(SYNTHESIZED_TESTS)
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128_100000_2_cd1293a5.fft          \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128_100000_3_91e7d307.fft
 
-@ENABLE_FFT_INTERFACE_TRUE@am__append_15 = \
+@ENABLE_FFT_INTERFACE_TRUE@am__append_11 = \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128nt_1000_1_c28bc2e3.fft            \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128nt_1000_2_77db95cc.fft            \
 @ENABLE_FFT_INTERFACE_TRUE@    check_cantor128nt_1000_3_6dc06b2f.fft
 
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_16 = \
+@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_12 = \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_10000_1_2706ca53.fft           \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_10000_2_3f32a516.fft           \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_10000_3_fd7bba07.fft           \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_100000_1_fca70ced.fft          \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_100000_2_cd1293a5.fft          \
 @ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128nt_100000_3_91e7d307.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@am__append_17 = \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gm_1000_1_c28bc2e3.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gm_1000_2_77db95cc.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gm_1000_3_6dc06b2f.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_18 = \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_10000_1_2706ca53.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_10000_2_3f32a516.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_10000_3_fd7bba07.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_100000_1_fca70ced.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_100000_2_cd1293a5.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gm_100000_3_91e7d307.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@am__append_19 = \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gmt_1000_1_c28bc2e3.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gmt_1000_2_77db95cc.fft            \
-@ENABLE_FFT_INTERFACE_TRUE@    check_cantor128gmt_1000_3_6dc06b2f.fft
-
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@am__append_20 = \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_10000_1_2706ca53.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_10000_2_3f32a516.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_10000_3_fd7bba07.fft           \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_100000_1_fca70ced.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_100000_2_cd1293a5.fft          \
-@ENABLE_FFT_INTERFACE_TRUE@@WORDSIZE_IS_64_TRUE@    check_cantor128gmt_100000_3_91e7d307.fft
 
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -280,12 +260,8 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 @ENABLE_FFT_INTERFACE_TRUE@am__EXEEXT_1 = check_cantor64$(EXEEXT) \
 @ENABLE_FFT_INTERFACE_TRUE@	check_cantor64nt$(EXEEXT) \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor64gm$(EXEEXT) \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor64gmt$(EXEEXT) \
 @ENABLE_FFT_INTERFACE_TRUE@	check_cantor128$(EXEEXT) \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128nt$(EXEEXT) \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128gm$(EXEEXT) \
-@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128gmt$(EXEEXT)
+@ENABLE_FFT_INTERFACE_TRUE@	check_cantor128nt$(EXEEXT)
 am_bench_ternary_OBJECTS = bench_ternary-bench.$(OBJEXT) \
 	bench_ternary-check-and-bench-common.$(OBJEXT) \
 	bench_ternary-test-tools.$(OBJEXT)
@@ -317,39 +293,13 @@ check_cantor128_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(check_cantor128_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
-am__check_cantor128gm_SOURCES_DIST = check.c check-and-bench-common.c \
-	test-tools.c
-am__objects_2 = check_cantor128gm-check.$(OBJEXT) \
-	check_cantor128gm-check-and-bench-common.$(OBJEXT) \
-	check_cantor128gm-test-tools.$(OBJEXT)
-@ENABLE_FFT_INTERFACE_TRUE@am_check_cantor128gm_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_2)
-check_cantor128gm_OBJECTS = $(am_check_cantor128gm_OBJECTS)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gm_DEPENDENCIES = $(top_builddir)/fft/libcantor128gm.la
-check_cantor128gm_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(check_cantor128gm_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
-	-o $@
-am__check_cantor128gmt_SOURCES_DIST = check.c check-and-bench-common.c \
-	test-tools.c
-am__objects_3 = check_cantor128gmt-check.$(OBJEXT) \
-	check_cantor128gmt-check-and-bench-common.$(OBJEXT) \
-	check_cantor128gmt-test-tools.$(OBJEXT)
-@ENABLE_FFT_INTERFACE_TRUE@am_check_cantor128gmt_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_3)
-check_cantor128gmt_OBJECTS = $(am_check_cantor128gmt_OBJECTS)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_DEPENDENCIES = $(top_builddir)/fft/libcantor128gmt.la
-check_cantor128gmt_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(check_cantor128gmt_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
 am__check_cantor128nt_SOURCES_DIST = check.c check-and-bench-common.c \
 	test-tools.c
-am__objects_4 = check_cantor128nt-check.$(OBJEXT) \
+am__objects_2 = check_cantor128nt-check.$(OBJEXT) \
 	check_cantor128nt-check-and-bench-common.$(OBJEXT) \
 	check_cantor128nt-test-tools.$(OBJEXT)
 @ENABLE_FFT_INTERFACE_TRUE@am_check_cantor128nt_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_4)
+@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_2)
 check_cantor128nt_OBJECTS = $(am_check_cantor128nt_OBJECTS)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128nt_DEPENDENCIES = $(top_builddir)/fft/libcantor128nt.la
 check_cantor128nt_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
@@ -358,11 +308,11 @@ check_cantor128nt_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	-o $@
 am__check_cantor64_SOURCES_DIST = check.c check-and-bench-common.c \
 	test-tools.c
-am__objects_5 = check_cantor64-check.$(OBJEXT) \
+am__objects_3 = check_cantor64-check.$(OBJEXT) \
 	check_cantor64-check-and-bench-common.$(OBJEXT) \
 	check_cantor64-test-tools.$(OBJEXT)
 @ENABLE_FFT_INTERFACE_TRUE@am_check_cantor64_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_5)
+@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_3)
 check_cantor64_OBJECTS = $(am_check_cantor64_OBJECTS)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor64_DEPENDENCIES =  \
 @ENABLE_FFT_INTERFACE_TRUE@	$(top_builddir)/fft/libcantor64.la
@@ -370,58 +320,32 @@ check_cantor64_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(check_cantor64_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o \
 	$@
-am__check_cantor64gm_SOURCES_DIST = check.c check-and-bench-common.c \
-	test-tools.c
-am__objects_6 = check_cantor64gm-check.$(OBJEXT) \
-	check_cantor64gm-check-and-bench-common.$(OBJEXT) \
-	check_cantor64gm-test-tools.$(OBJEXT)
-@ENABLE_FFT_INTERFACE_TRUE@am_check_cantor64gm_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_6)
-check_cantor64gm_OBJECTS = $(am_check_cantor64gm_OBJECTS)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gm_DEPENDENCIES = $(top_builddir)/fft/libcantor64gm.la
-check_cantor64gm_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(check_cantor64gm_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
-	-o $@
-am__check_cantor64gmt_SOURCES_DIST = check.c check-and-bench-common.c \
-	test-tools.c
-am__objects_7 = check_cantor64gmt-check.$(OBJEXT) \
-	check_cantor64gmt-check-and-bench-common.$(OBJEXT) \
-	check_cantor64gmt-test-tools.$(OBJEXT)
-@ENABLE_FFT_INTERFACE_TRUE@am_check_cantor64gmt_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_7)
-check_cantor64gmt_OBJECTS = $(am_check_cantor64gmt_OBJECTS)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gmt_DEPENDENCIES = $(top_builddir)/fft/libcantor64gmt.la
-check_cantor64gmt_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(check_cantor64gmt_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
-	-o $@
 am__check_cantor64nt_SOURCES_DIST = check.c check-and-bench-common.c \
 	test-tools.c
-am__objects_8 = check_cantor64nt-check.$(OBJEXT) \
+am__objects_4 = check_cantor64nt-check.$(OBJEXT) \
 	check_cantor64nt-check-and-bench-common.$(OBJEXT) \
 	check_cantor64nt-test-tools.$(OBJEXT)
 @ENABLE_FFT_INTERFACE_TRUE@am_check_cantor64nt_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_8)
+@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_4)
 check_cantor64nt_OBJECTS = $(am_check_cantor64nt_OBJECTS)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor64nt_DEPENDENCIES = $(top_builddir)/fft/libcantor64nt.la
 check_cantor64nt_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(check_cantor64nt_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
-am__objects_9 = check_ternary-check.$(OBJEXT) \
+am__objects_5 = check_ternary-check.$(OBJEXT) \
 	check_ternary-check-and-bench-common.$(OBJEXT) \
 	check_ternary-test-tools.$(OBJEXT)
-am_check_ternary_OBJECTS = $(am__objects_9)
+am_check_ternary_OBJECTS = $(am__objects_5)
 check_ternary_OBJECTS = $(am_check_ternary_OBJECTS)
 check_ternary_DEPENDENCIES = $(top_builddir)/fft/libternary.la
 check_ternary_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(check_ternary_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-am__objects_10 = check_ternaryns-check.$(OBJEXT) \
+am__objects_6 = check_ternaryns-check.$(OBJEXT) \
 	check_ternaryns-check-and-bench-common.$(OBJEXT) \
 	check_ternaryns-test-tools.$(OBJEXT)
-am_check_ternaryns_OBJECTS = $(am__objects_10)
+am_check_ternaryns_OBJECTS = $(am__objects_6)
 check_ternaryns_OBJECTS = $(am_check_ternaryns_OBJECTS)
 check_ternaryns_DEPENDENCIES = $(top_builddir)/fft/libternary.la
 check_ternaryns_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
@@ -450,24 +374,12 @@ am__depfiles_remade = ./$(DEPDIR)/bench_ternary-bench.Po \
 	./$(DEPDIR)/check_cantor128-check-and-bench-common.Po \
 	./$(DEPDIR)/check_cantor128-check.Po \
 	./$(DEPDIR)/check_cantor128-test-tools.Po \
-	./$(DEPDIR)/check_cantor128gm-check-and-bench-common.Po \
-	./$(DEPDIR)/check_cantor128gm-check.Po \
-	./$(DEPDIR)/check_cantor128gm-test-tools.Po \
-	./$(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po \
-	./$(DEPDIR)/check_cantor128gmt-check.Po \
-	./$(DEPDIR)/check_cantor128gmt-test-tools.Po \
 	./$(DEPDIR)/check_cantor128nt-check-and-bench-common.Po \
 	./$(DEPDIR)/check_cantor128nt-check.Po \
 	./$(DEPDIR)/check_cantor128nt-test-tools.Po \
 	./$(DEPDIR)/check_cantor64-check-and-bench-common.Po \
 	./$(DEPDIR)/check_cantor64-check.Po \
 	./$(DEPDIR)/check_cantor64-test-tools.Po \
-	./$(DEPDIR)/check_cantor64gm-check-and-bench-common.Po \
-	./$(DEPDIR)/check_cantor64gm-check.Po \
-	./$(DEPDIR)/check_cantor64gm-test-tools.Po \
-	./$(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po \
-	./$(DEPDIR)/check_cantor64gmt-check.Po \
-	./$(DEPDIR)/check_cantor64gmt-test-tools.Po \
 	./$(DEPDIR)/check_cantor64nt-check-and-bench-common.Po \
 	./$(DEPDIR)/check_cantor64nt-check.Po \
 	./$(DEPDIR)/check_cantor64nt-test-tools.Po \
@@ -499,19 +411,13 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(bench_ternary_SOURCES) $(check_addmul_SOURCES) \
 	$(check_mul_SOURCES) $(check_cantor128_SOURCES) \
-	$(check_cantor128gm_SOURCES) $(check_cantor128gmt_SOURCES) \
 	$(check_cantor128nt_SOURCES) $(check_cantor64_SOURCES) \
-	$(check_cantor64gm_SOURCES) $(check_cantor64gmt_SOURCES) \
 	$(check_cantor64nt_SOURCES) $(check_ternary_SOURCES) \
 	$(check_ternaryns_SOURCES)
 DIST_SOURCES = $(bench_ternary_SOURCES) $(check_addmul_SOURCES) \
 	$(check_mul_SOURCES) $(am__check_cantor128_SOURCES_DIST) \
-	$(am__check_cantor128gm_SOURCES_DIST) \
-	$(am__check_cantor128gmt_SOURCES_DIST) \
 	$(am__check_cantor128nt_SOURCES_DIST) \
 	$(am__check_cantor64_SOURCES_DIST) \
-	$(am__check_cantor64gm_SOURCES_DIST) \
-	$(am__check_cantor64gmt_SOURCES_DIST) \
 	$(am__check_cantor64nt_SOURCES_DIST) $(check_ternary_SOURCES) \
 	$(check_ternaryns_SOURCES)
 am__can_run_installinfo = \
@@ -780,6 +686,9 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 FGREP = @FGREP@
+GF2X_FFT_VERSION_MAJOR = @GF2X_FFT_VERSION_MAJOR@
+GF2X_FFT_VERSION_MINOR = @GF2X_FFT_VERSION_MINOR@
+GF2X_FFT_VERSION_PATCHLEVEL = @GF2X_FFT_VERSION_PATCHLEVEL@
 GF2X_VERSION_MAJOR = @GF2X_VERSION_MAJOR@
 GF2X_VERSION_MINOR = @GF2X_VERSION_MINOR@
 GF2X_VERSION_PATCHLEVEL = @GF2X_VERSION_PATCHLEVEL@
@@ -903,10 +812,7 @@ SYNTHESIZED_TESTS = check_1_1_1_819ea234.mul check_2_2_1_928e7e94.mul \
 	check_ternaryns_1000_3_6dc06b2f.fft $(am__append_3) \
 	$(am__append_5) $(am__append_6) $(am__append_7) \
 	$(am__append_8) $(am__append_9) $(am__append_10) \
-	$(am__append_11) $(am__append_12) $(am__append_13) \
-	$(am__append_14) $(am__append_15) $(am__append_16) \
-	$(am__append_17) $(am__append_18) $(am__append_19) \
-	$(am__append_20)
+	$(am__append_11) $(am__append_12)
 TEST_EXTENSIONS = .mul .fft
 EXTRA_DIST = test-tools.h check-and-bench-common.h do-check-mul.sh \
 	do-check-fft.sh
@@ -949,24 +855,12 @@ check_ternaryns_LDADD = $(top_builddir)/fft/libternary.la
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor64nt_SOURCES = $(general_fftcheck_sources)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor64nt_CFLAGS = $(AM_CFLAGS) $(C64nt)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor64nt_LDADD = $(top_builddir)/fft/libcantor64nt.la
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gm_SOURCES = $(general_fftcheck_sources)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gm_CFLAGS = $(AM_CFLAGS) $(C64gm)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gm_LDADD = $(top_builddir)/fft/libcantor64gm.la
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gmt_SOURCES = $(general_fftcheck_sources)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gmt_CFLAGS = $(AM_CFLAGS) $(C64gmt)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor64gmt_LDADD = $(top_builddir)/fft/libcantor64gmt.la
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128_SOURCES = $(general_fftcheck_sources)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128_CFLAGS = $(AM_CFLAGS) $(C128)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128_LDADD = $(top_builddir)/fft/libcantor128.la
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128nt_SOURCES = $(general_fftcheck_sources)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128nt_CFLAGS = $(AM_CFLAGS) $(C128nt)
 @ENABLE_FFT_INTERFACE_TRUE@check_cantor128nt_LDADD = $(top_builddir)/fft/libcantor128nt.la
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gm_SOURCES = $(general_fftcheck_sources)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gm_CFLAGS = $(AM_CFLAGS) $(C128gm)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gm_LDADD = $(top_builddir)/fft/libcantor128gm.la
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_SOURCES = $(general_fftcheck_sources)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_CFLAGS = $(AM_CFLAGS) $(C128gmt)
-@ENABLE_FFT_INTERFACE_TRUE@check_cantor128gmt_LDADD = $(top_builddir)/fft/libcantor128gmt.la
 bench_ternary_SOURCES = bench.c check-and-bench-common.c test-tools.c
 bench_ternary_CFLAGS = $(AM_CFLAGS) $(TERNARY)
 bench_ternary_LDADD = $(top_builddir)/fft/libternary.la
@@ -1033,14 +927,6 @@ check_cantor128$(EXEEXT): $(check_cantor128_OBJECTS) $(check_cantor128_DEPENDENC
 	@rm -f check_cantor128$(EXEEXT)
 	$(AM_V_CCLD)$(check_cantor128_LINK) $(check_cantor128_OBJECTS) $(check_cantor128_LDADD) $(LIBS)
 
-check_cantor128gm$(EXEEXT): $(check_cantor128gm_OBJECTS) $(check_cantor128gm_DEPENDENCIES) $(EXTRA_check_cantor128gm_DEPENDENCIES) 
-	@rm -f check_cantor128gm$(EXEEXT)
-	$(AM_V_CCLD)$(check_cantor128gm_LINK) $(check_cantor128gm_OBJECTS) $(check_cantor128gm_LDADD) $(LIBS)
-
-check_cantor128gmt$(EXEEXT): $(check_cantor128gmt_OBJECTS) $(check_cantor128gmt_DEPENDENCIES) $(EXTRA_check_cantor128gmt_DEPENDENCIES) 
-	@rm -f check_cantor128gmt$(EXEEXT)
-	$(AM_V_CCLD)$(check_cantor128gmt_LINK) $(check_cantor128gmt_OBJECTS) $(check_cantor128gmt_LDADD) $(LIBS)
-
 check_cantor128nt$(EXEEXT): $(check_cantor128nt_OBJECTS) $(check_cantor128nt_DEPENDENCIES) $(EXTRA_check_cantor128nt_DEPENDENCIES) 
 	@rm -f check_cantor128nt$(EXEEXT)
 	$(AM_V_CCLD)$(check_cantor128nt_LINK) $(check_cantor128nt_OBJECTS) $(check_cantor128nt_LDADD) $(LIBS)
@@ -1048,14 +934,6 @@ check_cantor128nt$(EXEEXT): $(check_cantor128nt_OBJECTS) $(check_cantor128nt_DEP
 check_cantor64$(EXEEXT): $(check_cantor64_OBJECTS) $(check_cantor64_DEPENDENCIES) $(EXTRA_check_cantor64_DEPENDENCIES) 
 	@rm -f check_cantor64$(EXEEXT)
 	$(AM_V_CCLD)$(check_cantor64_LINK) $(check_cantor64_OBJECTS) $(check_cantor64_LDADD) $(LIBS)
-
-check_cantor64gm$(EXEEXT): $(check_cantor64gm_OBJECTS) $(check_cantor64gm_DEPENDENCIES) $(EXTRA_check_cantor64gm_DEPENDENCIES) 
-	@rm -f check_cantor64gm$(EXEEXT)
-	$(AM_V_CCLD)$(check_cantor64gm_LINK) $(check_cantor64gm_OBJECTS) $(check_cantor64gm_LDADD) $(LIBS)
-
-check_cantor64gmt$(EXEEXT): $(check_cantor64gmt_OBJECTS) $(check_cantor64gmt_DEPENDENCIES) $(EXTRA_check_cantor64gmt_DEPENDENCIES) 
-	@rm -f check_cantor64gmt$(EXEEXT)
-	$(AM_V_CCLD)$(check_cantor64gmt_LINK) $(check_cantor64gmt_OBJECTS) $(check_cantor64gmt_LDADD) $(LIBS)
 
 check_cantor64nt$(EXEEXT): $(check_cantor64nt_OBJECTS) $(check_cantor64nt_DEPENDENCIES) $(EXTRA_check_cantor64nt_DEPENDENCIES) 
 	@rm -f check_cantor64nt$(EXEEXT)
@@ -1083,24 +961,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128-check-and-bench-common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128-check.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128-test-tools.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gm-check-and-bench-common.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gm-check.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gm-test-tools.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gmt-check.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128gmt-test-tools.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128nt-check-and-bench-common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128nt-check.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor128nt-test-tools.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64-check-and-bench-common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64-check.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64-test-tools.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gm-check-and-bench-common.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gm-check.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gm-test-tools.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gmt-check.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64gmt-test-tools.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64nt-check-and-bench-common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64nt-check.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_cantor64nt-test-tools.Po@am__quote@ # am--include-marker
@@ -1223,90 +1089,6 @@ check_cantor128-test-tools.obj: test-tools.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128_CFLAGS) $(CFLAGS) -c -o check_cantor128-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
 
-check_cantor128gm-check.o: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-check.o -MD -MP -MF $(DEPDIR)/check_cantor128gm-check.Tpo -c -o check_cantor128gm-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-check.Tpo $(DEPDIR)/check_cantor128gm-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor128gm-check.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-
-check_cantor128gm-check.obj: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-check.obj -MD -MP -MF $(DEPDIR)/check_cantor128gm-check.Tpo -c -o check_cantor128gm-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-check.Tpo $(DEPDIR)/check_cantor128gm-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor128gm-check.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-
-check_cantor128gm-check-and-bench-common.o: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-check-and-bench-common.o -MD -MP -MF $(DEPDIR)/check_cantor128gm-check-and-bench-common.Tpo -c -o check_cantor128gm-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-check-and-bench-common.Tpo $(DEPDIR)/check_cantor128gm-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor128gm-check-and-bench-common.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-
-check_cantor128gm-check-and-bench-common.obj: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-check-and-bench-common.obj -MD -MP -MF $(DEPDIR)/check_cantor128gm-check-and-bench-common.Tpo -c -o check_cantor128gm-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-check-and-bench-common.Tpo $(DEPDIR)/check_cantor128gm-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor128gm-check-and-bench-common.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-
-check_cantor128gm-test-tools.o: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-test-tools.o -MD -MP -MF $(DEPDIR)/check_cantor128gm-test-tools.Tpo -c -o check_cantor128gm-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-test-tools.Tpo $(DEPDIR)/check_cantor128gm-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor128gm-test-tools.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-
-check_cantor128gm-test-tools.obj: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -MT check_cantor128gm-test-tools.obj -MD -MP -MF $(DEPDIR)/check_cantor128gm-test-tools.Tpo -c -o check_cantor128gm-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gm-test-tools.Tpo $(DEPDIR)/check_cantor128gm-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor128gm-test-tools.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gm_CFLAGS) $(CFLAGS) -c -o check_cantor128gm-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-
-check_cantor128gmt-check.o: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-check.o -MD -MP -MF $(DEPDIR)/check_cantor128gmt-check.Tpo -c -o check_cantor128gmt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-check.Tpo $(DEPDIR)/check_cantor128gmt-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor128gmt-check.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-
-check_cantor128gmt-check.obj: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-check.obj -MD -MP -MF $(DEPDIR)/check_cantor128gmt-check.Tpo -c -o check_cantor128gmt-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-check.Tpo $(DEPDIR)/check_cantor128gmt-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor128gmt-check.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-
-check_cantor128gmt-check-and-bench-common.o: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-check-and-bench-common.o -MD -MP -MF $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Tpo -c -o check_cantor128gmt-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Tpo $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor128gmt-check-and-bench-common.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-
-check_cantor128gmt-check-and-bench-common.obj: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-check-and-bench-common.obj -MD -MP -MF $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Tpo -c -o check_cantor128gmt-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Tpo $(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor128gmt-check-and-bench-common.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-
-check_cantor128gmt-test-tools.o: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-test-tools.o -MD -MP -MF $(DEPDIR)/check_cantor128gmt-test-tools.Tpo -c -o check_cantor128gmt-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-test-tools.Tpo $(DEPDIR)/check_cantor128gmt-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor128gmt-test-tools.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-
-check_cantor128gmt-test-tools.obj: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -MT check_cantor128gmt-test-tools.obj -MD -MP -MF $(DEPDIR)/check_cantor128gmt-test-tools.Tpo -c -o check_cantor128gmt-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128gmt-test-tools.Tpo $(DEPDIR)/check_cantor128gmt-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor128gmt-test-tools.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128gmt_CFLAGS) $(CFLAGS) -c -o check_cantor128gmt-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-
 check_cantor128nt-check.o: check.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor128nt_CFLAGS) $(CFLAGS) -MT check_cantor128nt-check.o -MD -MP -MF $(DEPDIR)/check_cantor128nt-check.Tpo -c -o check_cantor128nt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor128nt-check.Tpo $(DEPDIR)/check_cantor128nt-check.Po
@@ -1390,90 +1172,6 @@ check_cantor64-test-tools.obj: test-tools.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor64-test-tools.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64_CFLAGS) $(CFLAGS) -c -o check_cantor64-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-
-check_cantor64gm-check.o: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-check.o -MD -MP -MF $(DEPDIR)/check_cantor64gm-check.Tpo -c -o check_cantor64gm-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-check.Tpo $(DEPDIR)/check_cantor64gm-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor64gm-check.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-
-check_cantor64gm-check.obj: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-check.obj -MD -MP -MF $(DEPDIR)/check_cantor64gm-check.Tpo -c -o check_cantor64gm-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-check.Tpo $(DEPDIR)/check_cantor64gm-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor64gm-check.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-
-check_cantor64gm-check-and-bench-common.o: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-check-and-bench-common.o -MD -MP -MF $(DEPDIR)/check_cantor64gm-check-and-bench-common.Tpo -c -o check_cantor64gm-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-check-and-bench-common.Tpo $(DEPDIR)/check_cantor64gm-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor64gm-check-and-bench-common.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-
-check_cantor64gm-check-and-bench-common.obj: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-check-and-bench-common.obj -MD -MP -MF $(DEPDIR)/check_cantor64gm-check-and-bench-common.Tpo -c -o check_cantor64gm-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-check-and-bench-common.Tpo $(DEPDIR)/check_cantor64gm-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor64gm-check-and-bench-common.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-
-check_cantor64gm-test-tools.o: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-test-tools.o -MD -MP -MF $(DEPDIR)/check_cantor64gm-test-tools.Tpo -c -o check_cantor64gm-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-test-tools.Tpo $(DEPDIR)/check_cantor64gm-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor64gm-test-tools.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-
-check_cantor64gm-test-tools.obj: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -MT check_cantor64gm-test-tools.obj -MD -MP -MF $(DEPDIR)/check_cantor64gm-test-tools.Tpo -c -o check_cantor64gm-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gm-test-tools.Tpo $(DEPDIR)/check_cantor64gm-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor64gm-test-tools.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gm_CFLAGS) $(CFLAGS) -c -o check_cantor64gm-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-
-check_cantor64gmt-check.o: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-check.o -MD -MP -MF $(DEPDIR)/check_cantor64gmt-check.Tpo -c -o check_cantor64gmt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-check.Tpo $(DEPDIR)/check_cantor64gmt-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor64gmt-check.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
-
-check_cantor64gmt-check.obj: check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-check.obj -MD -MP -MF $(DEPDIR)/check_cantor64gmt-check.Tpo -c -o check_cantor64gmt-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-check.Tpo $(DEPDIR)/check_cantor64gmt-check.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check.c' object='check_cantor64gmt-check.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-check.obj `if test -f 'check.c'; then $(CYGPATH_W) 'check.c'; else $(CYGPATH_W) '$(srcdir)/check.c'; fi`
-
-check_cantor64gmt-check-and-bench-common.o: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-check-and-bench-common.o -MD -MP -MF $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Tpo -c -o check_cantor64gmt-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Tpo $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor64gmt-check-and-bench-common.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-check-and-bench-common.o `test -f 'check-and-bench-common.c' || echo '$(srcdir)/'`check-and-bench-common.c
-
-check_cantor64gmt-check-and-bench-common.obj: check-and-bench-common.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-check-and-bench-common.obj -MD -MP -MF $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Tpo -c -o check_cantor64gmt-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Tpo $(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check-and-bench-common.c' object='check_cantor64gmt-check-and-bench-common.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-check-and-bench-common.obj `if test -f 'check-and-bench-common.c'; then $(CYGPATH_W) 'check-and-bench-common.c'; else $(CYGPATH_W) '$(srcdir)/check-and-bench-common.c'; fi`
-
-check_cantor64gmt-test-tools.o: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-test-tools.o -MD -MP -MF $(DEPDIR)/check_cantor64gmt-test-tools.Tpo -c -o check_cantor64gmt-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-test-tools.Tpo $(DEPDIR)/check_cantor64gmt-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor64gmt-test-tools.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-test-tools.o `test -f 'test-tools.c' || echo '$(srcdir)/'`test-tools.c
-
-check_cantor64gmt-test-tools.obj: test-tools.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -MT check_cantor64gmt-test-tools.obj -MD -MP -MF $(DEPDIR)/check_cantor64gmt-test-tools.Tpo -c -o check_cantor64gmt-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/check_cantor64gmt-test-tools.Tpo $(DEPDIR)/check_cantor64gmt-test-tools.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='test-tools.c' object='check_cantor64gmt-test-tools.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64gmt_CFLAGS) $(CFLAGS) -c -o check_cantor64gmt-test-tools.obj `if test -f 'test-tools.c'; then $(CYGPATH_W) 'test-tools.c'; else $(CYGPATH_W) '$(srcdir)/test-tools.c'; fi`
 
 check_cantor64nt-check.o: check.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(check_cantor64nt_CFLAGS) $(CFLAGS) -MT check_cantor64nt-check.o -MD -MP -MF $(DEPDIR)/check_cantor64nt-check.Tpo -c -o check_cantor64nt-check.o `test -f 'check.c' || echo '$(srcdir)/'`check.c
@@ -1922,24 +1620,12 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/check_cantor128-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor128-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor128-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-test-tools.Po
@@ -2003,24 +1689,12 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/check_cantor128-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor128-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor128-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gm-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor128gmt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor128nt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor64-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gm-test-tools.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-check-and-bench-common.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-check.Po
-	-rm -f ./$(DEPDIR)/check_cantor64gmt-test-tools.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-check-and-bench-common.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-check.Po
 	-rm -f ./$(DEPDIR)/check_cantor64nt-test-tools.Po

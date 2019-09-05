@@ -38,9 +38,11 @@
 /* We _do_ need the inlines here. */
 #include "gf2x/gf2x-small.h"
 
+#include "gf2x/gf2x-thresholds.h"
+
 int gf2x_lib_version_code = GF2X_VERSION_CODE;
 
-void gf2x_mul_basecase(unsigned long * c, const unsigned long * a,
+void gf2x_mul_basecase_inner(unsigned long * c, const unsigned long * a,
 			 long na, const unsigned long * b, long nb)
 {
     assert(c != a);
@@ -59,9 +61,10 @@ void gf2x_mul_basecase(unsigned long * c, const unsigned long * a,
 	case 8: gf2x_mul8(c, a, b); return;
 	case 9: gf2x_mul9(c, a, b); return;
 	default:
-	    fprintf (stderr, "gf2x_mul_basecase: ran off end of switch\n"
-		    "na=nb=%ld ; decrease GF2X_MUL_KARA_THRESHOLD\n", na);
-            abort();
+#if GF2X_GNUC_VERSION_ATLEAST(4,5,0)
+            __builtin_unreachable();
+#endif
+            return;
 	}
     } else if (na < nb) {
         /* FIXME -- this does not seem efficient */
@@ -72,7 +75,7 @@ void gf2x_mul_basecase(unsigned long * c, const unsigned long * a,
             c[nb + i] = gf2x_addmul_1_n(c + i, c + i, b, nb, a[i]);
         }
     } else {
-        gf2x_mul_basecase(c, b, nb, a, na);
+        gf2x_mul_basecase_inner(c, b, nb, a, na);
     }
 }
 
@@ -95,24 +98,26 @@ void gf2x_mul_pool_clear(gf2x_mul_pool_t p)
     p->stk_size = 0;
 }
 
-void gf2x_mul(unsigned long * c,
+int gf2x_mul(unsigned long * c,
         const unsigned long * a, unsigned long sa,
         const unsigned long * b, unsigned long sb)
 {
-    gf2x_mul_r(c, a, sa, b, sb, NULL);
+    return gf2x_mul_r(c, a, sa, b, sb, NULL);
 }
 
-void gf2x_mul_r(unsigned long * c,
+int gf2x_mul_r(unsigned long * c,
         const unsigned long * a, unsigned long sa,
         const unsigned long * b, unsigned long sb, gf2x_mul_pool_t pool)
 {
+    int rc = 0;
     unsigned long sc = sa + sb;
     /* As a starting guess, assume that c may alias a or b */
     unsigned long * dst = c;
+    gf2x_mul_pool_t xxpool;
+    struct gf2x_mul_pool_s * xpool = NULL;
 
     if (sa > sb) {
-        gf2x_mul_r(c, b, sb, a, sa, pool);
-        return;
+        return gf2x_mul_r(c, b, sb, a, sa, pool);
     }
     // now sa <= sb (note: sa and sb are interchanged in Toom3uMul etc)
 
@@ -120,6 +125,10 @@ void gf2x_mul_r(unsigned long * c,
         /* This calls the hand-crafted code if sa == sb */
         if (dst == a || dst == b) {
             dst = malloc(sc * sizeof(unsigned long));
+            if (dst == NULL) {
+                rc = GF2X_ERROR_OUT_OF_MEMORY;
+                goto end_of_gf2x_mul_r;
+            }
         }
         gf2x_mul_basecase(dst, a, sa, b, sb);
         goto end_of_gf2x_mul_r;
@@ -140,7 +149,7 @@ void gf2x_mul_r(unsigned long * c,
     /* Note that dst aliasing a or b works with fft. */
 
     if (sc >= GF2X_MUL_FFT_THRESHOLD && K && K != 1) {
-        gf2x_mul_fft(dst, a, sa, b, sb, K);
+        rc = gf2x_mul_fft(dst, a, sa, b, sb, K);
         goto end_of_gf2x_mul_r;
     }
 #endif
@@ -158,8 +167,6 @@ void gf2x_mul_r(unsigned long * c,
           sp = sp2; /* worst-case required */
       }
 
-    gf2x_mul_pool_t xxpool;
-    struct gf2x_mul_pool_s * xpool;
     if (pool == NULL) {
         gf2x_mul_pool_init(xxpool);
         xpool = xxpool;
@@ -168,13 +175,23 @@ void gf2x_mul_r(unsigned long * c,
     }
 
     if (xpool->stk_size < sp) {
-        xpool->stk = realloc(xpool->stk, sp * sizeof(unsigned long));
+        void * p = realloc(xpool->stk, sp * sizeof(unsigned long));
+        if (p == NULL) {
+            rc = GF2X_ERROR_OUT_OF_MEMORY;
+            goto end_of_gf2x_mul_r;
+        }
+        xpool->stk = p;
         xpool->stk_size = sp;
     }
 
     /* None of the alternatives below supports c aliasing a or b */
-    if (dst == a || dst == b)
+    if (dst == a || dst == b) {
         dst = malloc(sc * sizeof(unsigned long));
+        if (dst == NULL) {
+            rc = GF2X_ERROR_OUT_OF_MEMORY;
+            goto end_of_gf2x_mul_r;
+        }
+    }
 
     if (sa == sb) {
         // Avoid copy in common case
@@ -226,15 +243,16 @@ void gf2x_mul_r(unsigned long * c,
             ptr = ptr + i;
         }
     }
-    if (pool == NULL) {
-        gf2x_mul_pool_clear(xpool);
-    }
 end_of_gf2x_mul_r:
+    if (pool == NULL && xpool != NULL) {
+        gf2x_mul_pool_clear(xxpool);
+    }
     if (dst && dst != c) {
         /* Then we have allocated a temp buffer */
         memcpy(c, dst, sc * sizeof(unsigned long));
         free(dst);
     }
+    return rc;
 }
 
 /* vim: set sw=4 sta et: */

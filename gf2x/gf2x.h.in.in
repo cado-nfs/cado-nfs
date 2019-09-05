@@ -57,6 +57,9 @@ extern "C" {
 
 #include <stddef.h>     /* size_t */
 
+#define GF2X_ERROR_INVALID_ARGUMENTS -1
+#define GF2X_ERROR_OUT_OF_MEMORY -2
+
 /* This is the toplevel multiplication routine, the only one that really
  * matters. a and b point to polynomials whose coefficients span an and
  * bn machine words (unsigned longs).
@@ -65,8 +68,11 @@ extern "C" {
  *
  * The destination pointer c may alias either a or b (that is, one may
  * have c==a or c==b), but any other kind of overlap is unsupported).
+ *
+ * Returns 0 on success, or a negative error code among the GF2X_ERROR_*
+ * codes above if an error occurred.
  */
-extern void GF2X_EXPORTED gf2x_mul(unsigned long *c,
+extern int GF2X_EXPORTED gf2x_mul(unsigned long *c,
 		const unsigned long *a, unsigned long an,
 		const unsigned long *b, unsigned long bn);
 
@@ -81,12 +87,20 @@ extern void GF2X_EXPORTED gf2x_mul_pool_clear(gf2x_mul_pool_t);
 
 /* If the gf2x_mul_pool_t arg is passed as NULL, a new pool is created
  * (and freed) for that multiplication */
-extern void GF2X_EXPORTED gf2x_mul_r(unsigned long *c,
+extern int GF2X_EXPORTED gf2x_mul_r(unsigned long *c,
 		const unsigned long *a, unsigned long an,
 		const unsigned long *b, unsigned long bn, gf2x_mul_pool_t);
 
 extern const char * gf2x_toom_gpl_status GF2X_EXPORTED;
 extern int gf2x_lib_version_code GF2X_EXPORTED;
+
+/* multiply with a guarantee than no fft (and no extra allocation) is
+ * done. stk must point to at least gf2x_toomspace unsigned longs
+ */
+extern void GF2X_EXPORTED gf2x_mul_toom(unsigned long *c, const unsigned long *a,
+			    const unsigned long *b, long n,
+			    unsigned long *stk);
+extern long GF2X_EXPORTED gf2x_toomspace(long n);
 
 #ifdef __cplusplus
 }

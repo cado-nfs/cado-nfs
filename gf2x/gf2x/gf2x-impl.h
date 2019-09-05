@@ -54,15 +54,56 @@
 #define ASSERT(x)	assert(x)
 #endif
 
+/* We use it for internal checking of the proper propagation of errors.
+ */
+#ifndef GF2X_ATTRIBUTE_WARN_UNUSED_RESULT
+/* https://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/Function-Attributes.html#Function-Attributes
+ * https://gcc.gnu.org/onlinedocs/gcc-3.4.6/gcc/Function-Attributes.html#Function-Attributes
+ */
+#ifndef GF2X_GNUC_VERSION_ATLEAST
+#define GF2X_LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
+#define GF2X_LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && GF2X_LEXGE2(Y,Z,B,C)))
+#define GF2X_LEXLE2(X,Y,A,B) GF2X_LEXGE2(A,B,X,Y)
+#define GF2X_LEXLE3(X,Y,Z,A,B,C) GF2X_LEXGE3(A,B,C,X,Y,Z)
+#ifndef GF2X_GNUC_VERSION_ATLEAST
+#ifndef __GNUC__
+#define GF2X_GNUC_VERSION_ATLEAST(X,Y,Z) 0
+#else
+#define GF2X_GNUC_VERSION_ATLEAST(X,Y,Z)     \
+    GF2X_LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+#endif
+#endif
+#endif
+#if GF2X_GNUC_VERSION_ATLEAST(3,4,0)
+#define GF2X_ATTRIBUTE_WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
+#else
+#define GF2X_ATTRIBUTE_WARN_UNUSED_RESULT
+#endif
+#endif
+#ifndef MAX
+#define MAX(a,b)        ((a)<(b) ? (b) : (a))
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern long gf2x_toomspace(long n);
 extern long gf2x_toomuspace(long n);
-extern void gf2x_mul_basecase(unsigned long * c, const unsigned long * a,
-			 long na, const unsigned long * b, long nb);
 
+extern void gf2x_mul_basecase_inner(unsigned long * c, const unsigned long * a,
+			 long na, const unsigned long * b, long nb);
+#if GF2X_GNUC_VERSION_ATLEAST(3, 4, 0)
+#define gf2x_is_static_true(x) (__builtin_constant_p((x)) && (x))
+#define gf2x_static_assert(name, x) char name[gf2x_is_static_true(x)] GF2X_MAYBE_UNUSED
+#else
+#define gf2x_static_assert(name, x) /**/
+#endif
+#define gf2x_mul_basecase(c,a,na,b,nb) do {			        \
+    gf2x_static_assert(dummy, MAX(na, nb) < GF2X_MUL_KARA_THRESHOLD);   \
+    gf2x_mul_basecase_inner(c, a, na, b, nb);				\
+} while (0)
 
 extern void gf2x_mul_toom(unsigned long *c, const unsigned long *a,
 			const unsigned long *b, long n, unsigned long *stk);
@@ -93,8 +134,13 @@ extern short gf2x_best_utoom(unsigned long);
 extern long gf2x_toomuspace(long);
 
 
-extern void gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
-		            const unsigned long *b, size_t bn, long K);
+/* gf2x_mul_fft returns 0 on success, and a negative error
+ * code among the GF2X_ERROR_* constants defined in gf2x.h.
+ */
+
+extern int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
+		            const unsigned long *b, size_t bn, long K)
+                        GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
 
 
 /* tunetoom.c need to poke into toom.c's tables ; that's very ugly. So

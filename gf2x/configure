@@ -742,6 +742,9 @@ build_os
 build_vendor
 build_cpu
 build
+GF2X_FFT_VERSION_PATCHLEVEL
+GF2X_FFT_VERSION_MINOR
+GF2X_FFT_VERSION_MAJOR
 GF2X_VERSION_PATCHLEVEL
 GF2X_VERSION_MINOR
 GF2X_VERSION_MAJOR
@@ -2565,6 +2568,12 @@ GF2X_VERSION_MINOR=3
 
 GF2X_VERSION_PATCHLEVEL=0
 
+GF2X_FFT_VERSION_MAJOR=GF2X_VERSION_MAJOR
+
+GF2X_FFT_VERSION_MINOR=GF2X_VERSION_MINOR
+
+GF2X_FFT_VERSION_PATCHLEVEL=GF2X_VERSION_PATCHLEVEL
+
 
 if test "x$CFLAGS" != x ; then
  has_CFLAGS_from_env=yes
@@ -4173,6 +4182,8 @@ fi
 # 1:2:0 gf2x-1.2 -- that was a mistake
 # 2:0:0 gf2x-1.2.x branch
 # 3:0:0 gf2x-1.3 branch
+# the big changes to the fft interfaces (aug 2018) were done before gf2x-1.3 was
+# actually released, so we retain the version number 3:0:0.
 gf2x_lib_version=3:0:0
 
 gf2x_fft_lib_version=3:0:0
@@ -19096,17 +19107,7 @@ fi
 ac_config_headers="$ac_config_headers gf2x/gf2x-config.h gf2x/gf2x-config-export.h gf2x.h"
 
 
-#if test -d "$srcdir/gf2x-fft" ; then
-# AC_MSG_NOTICE([Enabling optional gf2x-fft])
-# AC_CONFIG_SUBDIRS([gf2x-fft])
-# MAYBE_GF2X_FFT=gf2x-fft
-#else
-# AC_MSG_NOTICE([optional gf2x-fft not found])
-# MAYBE_GF2X_FFT=
-#fi
-#AC_SUBST([MAYBE_GF2X_FFT])
-
-ac_config_files="$ac_config_files version.sh Makefile tests/Makefile lowlevel/Makefile src/Makefile fft/Makefile gf2x.h.in gf2x.pc"
+ac_config_files="$ac_config_files version.sh Makefile tests/Makefile lowlevel/Makefile src/Makefile fft/Makefile fft/gf2x-fft.h gf2x.h.in gf2x.pc"
 
 
 cat >confcache <<\_ACEOF
@@ -20271,6 +20272,7 @@ do
     "lowlevel/Makefile") CONFIG_FILES="$CONFIG_FILES lowlevel/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "fft/Makefile") CONFIG_FILES="$CONFIG_FILES fft/Makefile" ;;
+    "fft/gf2x-fft.h") CONFIG_FILES="$CONFIG_FILES fft/gf2x-fft.h" ;;
     "gf2x.h.in") CONFIG_FILES="$CONFIG_FILES gf2x.h.in" ;;
     "gf2x.pc") CONFIG_FILES="$CONFIG_FILES gf2x.pc" ;;
 

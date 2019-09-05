@@ -118,11 +118,6 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@ENABLE_FFT_INTERFACE_TRUE@am__append_1 = -I$(srcdir)/mpfq \
-@ENABLE_FFT_INTERFACE_TRUE@	-I$(top_srcdir)/fft/mpfq
-@ENABLE_FFT_INTERFACE_TRUE@am__append_2 = libgf2x-fft.la
-@ENABLE_FFT_INTERFACE_TRUE@am__append_3 = fft/gf2x-fake-fft.c \
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-cantor-fft.c
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/acinclude.m4 \
@@ -134,8 +129,8 @@ am__aclocal_m4_deps = $(top_srcdir)/config/acinclude.m4 \
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
-	$(am__configure_deps) $(am__gf2x_include_HEADERS_DIST) \
-	$(nobase_include_HEADERS) $(am__DIST_COMMON)
+	$(am__configure_deps) $(nobase_include_HEADERS) \
+	$(am__DIST_COMMON)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
@@ -172,8 +167,7 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" \
-	"$(DESTDIR)$(gf2x_includedir)" "$(DESTDIR)$(includedir)" \
-	"$(DESTDIR)$(includedir)"
+	"$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 ARFLAGS = cru
 AM_V_AR = $(am__v_AR_@AM_V@)
@@ -190,30 +184,15 @@ am__objects_2 = libgf2x_local_a-gf2x.$(OBJEXT) \
 	libgf2x_local_a-toom-gpl.$(OBJEXT) $(am__objects_1)
 am_libgf2x_local_a_OBJECTS = $(am__objects_2)
 libgf2x_local_a_OBJECTS = $(am_libgf2x_local_a_OBJECTS)
-@ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_DEPENDENCIES =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(top_builddir)/libgf2x.la
-am__libgf2x_fft_la_SOURCES_DIST = fft/gf2x-fake-fft.c \
-	fft/gf2x-cantor-fft.c
-@ENABLE_FFT_INTERFACE_TRUE@am__objects_3 = fft/libgf2x_fft_la-gf2x-fake-fft.lo \
-@ENABLE_FFT_INTERFACE_TRUE@	fft/libgf2x_fft_la-gf2x-cantor-fft.lo
-am__objects_4 = $(am__objects_3)
-@ENABLE_FFT_INTERFACE_TRUE@am_libgf2x_fft_la_OBJECTS =  \
-@ENABLE_FFT_INTERFACE_TRUE@	$(am__objects_4)
-libgf2x_fft_la_OBJECTS = $(am_libgf2x_fft_la_OBJECTS)
+libgf2x_la_LIBADD =
+am__objects_3 = fft/libgf2x_la-gf2x-ternary-fft.lo
+am_libgf2x_la_OBJECTS = libgf2x_la-gf2x.lo libgf2x_la-toom.lo \
+	libgf2x_la-toom128.lo libgf2x_la-toom-gpl.lo $(am__objects_3)
+libgf2x_la_OBJECTS = $(am_libgf2x_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-libgf2x_fft_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libgf2x_fft_la_CFLAGS) $(CFLAGS) $(libgf2x_fft_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
-@ENABLE_FFT_INTERFACE_TRUE@am_libgf2x_fft_la_rpath = -rpath $(libdir)
-libgf2x_la_LIBADD =
-am__objects_5 = fft/libgf2x_la-gf2x-ternary-fft.lo
-am_libgf2x_la_OBJECTS = libgf2x_la-gf2x.lo libgf2x_la-toom.lo \
-	libgf2x_la-toom128.lo libgf2x_la-toom-gpl.lo $(am__objects_5)
-libgf2x_la_OBJECTS = $(am_libgf2x_la_OBJECTS)
 libgf2x_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libgf2x_la_CFLAGS) \
 	$(CFLAGS) $(libgf2x_la_LDFLAGS) $(LDFLAGS) -o $@
@@ -240,8 +219,6 @@ am__depfiles_remade = ./$(DEPDIR)/libgf2x_la-gf2x.Plo \
 	./$(DEPDIR)/libgf2x_local_a-toom-gpl.Po \
 	./$(DEPDIR)/libgf2x_local_a-toom.Po \
 	./$(DEPDIR)/libgf2x_local_a-toom128.Po \
-	fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Plo \
-	fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Plo \
 	fft/$(DEPDIR)/libgf2x_la-gf2x-ternary-fft.Plo \
 	fft/$(DEPDIR)/libgf2x_local_a-gf2x-ternary-fft.Po
 am__mv = mv -f
@@ -263,10 +240,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libgf2x_local_a_SOURCES) $(libgf2x_fft_la_SOURCES) \
-	$(libgf2x_la_SOURCES)
-DIST_SOURCES = $(libgf2x_local_a_SOURCES) \
-	$(am__libgf2x_fft_la_SOURCES_DIST) $(libgf2x_la_SOURCES)
+SOURCES = $(libgf2x_local_a_SOURCES) $(libgf2x_la_SOURCES)
+DIST_SOURCES = $(libgf2x_local_a_SOURCES) $(libgf2x_la_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -281,11 +256,7 @@ am__can_run_installinfo = \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
 DATA = $(pkgconfig_DATA)
-am__gf2x_include_HEADERS_DIST = fft/gf2x-fft.h fft/gf2x-fake-fft.h \
-	fft/gf2x-cantor-fft.h fft/gf2x-ternary-fft.h \
-	fft/gf2x-fft-adapter.hpp
-HEADERS = $(gf2x_include_HEADERS) $(nobase_include_HEADERS) \
-	$(nobase_nodist_include_HEADERS)
+HEADERS = $(nobase_include_HEADERS) $(nobase_nodist_include_HEADERS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 am__recursive_targets = \
@@ -400,6 +371,9 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 FGREP = @FGREP@
+GF2X_FFT_VERSION_MAJOR = @GF2X_FFT_VERSION_MAJOR@
+GF2X_FFT_VERSION_MINOR = @GF2X_FFT_VERSION_MINOR@
+GF2X_FFT_VERSION_PATCHLEVEL = @GF2X_FFT_VERSION_PATCHLEVEL@
 GF2X_VERSION_MAJOR = @GF2X_VERSION_MAJOR@
 GF2X_VERSION_MINOR = @GF2X_VERSION_MINOR@
 GF2X_VERSION_PATCHLEVEL = @GF2X_VERSION_PATCHLEVEL@
@@ -505,27 +479,11 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I config --install
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) $(am__append_1)
-FFT_SOURCES = $(am__append_3)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(top_builddir)/fft -I$(top_srcdir)/fft
 FFT_SOURCES_ALWAYS = fft/gf2x-ternary-fft.c
-FFT_LIBS = $(am__append_2)
-@ENABLE_FFT_INTERFACE_TRUE@gf2x_includedir = $(includedir)/gf2x
-@ENABLE_FFT_INTERFACE_TRUE@gf2x_include_HEADERS = \
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-fft.h			\
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-fake-fft.h		\
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-cantor-fft.h		\
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-ternary-fft.h		\
-@ENABLE_FFT_INTERFACE_TRUE@	fft/gf2x-fft-adapter.hpp
-
-lib_LTLIBRARIES = libgf2x.la $(FFT_LIBS)
+lib_LTLIBRARIES = libgf2x.la
 noinst_LIBRARIES = libgf2x-local.a
 @HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE@VH_FLAG = -fvisibility=hidden -DGF2X_EXPORTED="__attribute__((visibility(\"default\")))"
-
-# default which gets shipped
-@ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_CFLAGS = $(AM_CFLAGS) $(VH_FLAG) -DCANTOR_BASE_FIELD_SIZE=128
-@ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_SOURCES = $(FFT_SOURCES)
-@ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_LIBADD = $(top_builddir)/libgf2x.la
-@ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_LDFLAGS = -version-info @gf2x_fft_lib_version@ -no-undefined
 libgf2x_la_SOURCES = gf2x.c toom.c toom128.c toom-gpl.c $(FFT_SOURCES_ALWAYS)
 libgf2x_la_CFLAGS = $(AM_CFLAGS) $(VH_FLAG)
 libgf2x_local_a_SOURCES = $(libgf2x_la_SOURCES)
@@ -698,13 +656,6 @@ libgf2x-local.a: $(libgf2x_local_a_OBJECTS) $(libgf2x_local_a_DEPENDENCIES) $(EX
 	$(AM_V_at)-rm -f libgf2x-local.a
 	$(AM_V_AR)$(libgf2x_local_a_AR) libgf2x-local.a $(libgf2x_local_a_OBJECTS) $(libgf2x_local_a_LIBADD)
 	$(AM_V_at)$(RANLIB) libgf2x-local.a
-fft/libgf2x_fft_la-gf2x-fake-fft.lo: fft/$(am__dirstamp) \
-	fft/$(DEPDIR)/$(am__dirstamp)
-fft/libgf2x_fft_la-gf2x-cantor-fft.lo: fft/$(am__dirstamp) \
-	fft/$(DEPDIR)/$(am__dirstamp)
-
-libgf2x-fft.la: $(libgf2x_fft_la_OBJECTS) $(libgf2x_fft_la_DEPENDENCIES) $(EXTRA_libgf2x_fft_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libgf2x_fft_la_LINK) $(am_libgf2x_fft_la_rpath) $(libgf2x_fft_la_OBJECTS) $(libgf2x_fft_la_LIBADD) $(LIBS)
 fft/libgf2x_la-gf2x-ternary-fft.lo: fft/$(am__dirstamp) \
 	fft/$(DEPDIR)/$(am__dirstamp)
 
@@ -727,8 +678,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgf2x_local_a-toom-gpl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgf2x_local_a-toom.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgf2x_local_a-toom128.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@fft/$(DEPDIR)/libgf2x_la-gf2x-ternary-fft.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@fft/$(DEPDIR)/libgf2x_local_a-gf2x-ternary-fft.Po@am__quote@ # am--include-marker
 
@@ -832,20 +781,6 @@ fft/libgf2x_local_a-gf2x-ternary-fft.obj: fft/gf2x-ternary-fft.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_local_a_CFLAGS) $(CFLAGS) -c -o fft/libgf2x_local_a-gf2x-ternary-fft.obj `if test -f 'fft/gf2x-ternary-fft.c'; then $(CYGPATH_W) 'fft/gf2x-ternary-fft.c'; else $(CYGPATH_W) '$(srcdir)/fft/gf2x-ternary-fft.c'; fi`
 
-fft/libgf2x_fft_la-gf2x-fake-fft.lo: fft/gf2x-fake-fft.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_fft_la_CFLAGS) $(CFLAGS) -MT fft/libgf2x_fft_la-gf2x-fake-fft.lo -MD -MP -MF fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Tpo -c -o fft/libgf2x_fft_la-gf2x-fake-fft.lo `test -f 'fft/gf2x-fake-fft.c' || echo '$(srcdir)/'`fft/gf2x-fake-fft.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Tpo fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fft/gf2x-fake-fft.c' object='fft/libgf2x_fft_la-gf2x-fake-fft.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_fft_la_CFLAGS) $(CFLAGS) -c -o fft/libgf2x_fft_la-gf2x-fake-fft.lo `test -f 'fft/gf2x-fake-fft.c' || echo '$(srcdir)/'`fft/gf2x-fake-fft.c
-
-fft/libgf2x_fft_la-gf2x-cantor-fft.lo: fft/gf2x-cantor-fft.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_fft_la_CFLAGS) $(CFLAGS) -MT fft/libgf2x_fft_la-gf2x-cantor-fft.lo -MD -MP -MF fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Tpo -c -o fft/libgf2x_fft_la-gf2x-cantor-fft.lo `test -f 'fft/gf2x-cantor-fft.c' || echo '$(srcdir)/'`fft/gf2x-cantor-fft.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Tpo fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fft/gf2x-cantor-fft.c' object='fft/libgf2x_fft_la-gf2x-cantor-fft.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_fft_la_CFLAGS) $(CFLAGS) -c -o fft/libgf2x_fft_la-gf2x-cantor-fft.lo `test -f 'fft/gf2x-cantor-fft.c' || echo '$(srcdir)/'`fft/gf2x-cantor-fft.c
-
 libgf2x_la-gf2x.lo: gf2x.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libgf2x_la_CFLAGS) $(CFLAGS) -MT libgf2x_la-gf2x.lo -MD -MP -MF $(DEPDIR)/libgf2x_la-gf2x.Tpo -c -o libgf2x_la-gf2x.lo `test -f 'gf2x.c' || echo '$(srcdir)/'`gf2x.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgf2x_la-gf2x.Tpo $(DEPDIR)/libgf2x_la-gf2x.Plo
@@ -911,27 +846,6 @@ uninstall-pkgconfigDATA:
 	@list='$(pkgconfig_DATA)'; test -n "$(pkgconfigdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(pkgconfigdir)'; $(am__uninstall_files_from_dir)
-install-gf2x_includeHEADERS: $(gf2x_include_HEADERS)
-	@$(NORMAL_INSTALL)
-	@list='$(gf2x_include_HEADERS)'; test -n "$(gf2x_includedir)" || list=; \
-	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(gf2x_includedir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(gf2x_includedir)" || exit 1; \
-	fi; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(gf2x_includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(gf2x_includedir)" || exit $$?; \
-	done
-
-uninstall-gf2x_includeHEADERS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(gf2x_include_HEADERS)'; test -n "$(gf2x_includedir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(gf2x_includedir)'; $(am__uninstall_files_from_dir)
 install-nobase_includeHEADERS: $(nobase_include_HEADERS)
 	@$(NORMAL_INSTALL)
 	@list='$(nobase_include_HEADERS)'; test -n "$(includedir)" || list=; \
@@ -1286,7 +1200,7 @@ check: check-recursive
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(DATA) $(HEADERS) gf2x.h
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(gf2x_includedir)" "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -1337,8 +1251,6 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom-gpl.Po
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom.Po
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom128.Po
-	-rm -f fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Plo
-	-rm -f fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Plo
 	-rm -f fft/$(DEPDIR)/libgf2x_la-gf2x-ternary-fft.Plo
 	-rm -f fft/$(DEPDIR)/libgf2x_local_a-gf2x-ternary-fft.Po
 	-rm -f Makefile
@@ -1357,8 +1269,7 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-gf2x_includeHEADERS \
-	install-nobase_includeHEADERS \
+install-data-am: install-nobase_includeHEADERS \
 	install-nobase_nodist_includeHEADERS install-pkgconfigDATA
 
 install-dvi: install-dvi-recursive
@@ -1398,8 +1309,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom-gpl.Po
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom.Po
 	-rm -f ./$(DEPDIR)/libgf2x_local_a-toom128.Po
-	-rm -f fft/$(DEPDIR)/libgf2x_fft_la-gf2x-cantor-fft.Plo
-	-rm -f fft/$(DEPDIR)/libgf2x_fft_la-gf2x-fake-fft.Plo
 	-rm -f fft/$(DEPDIR)/libgf2x_la-gf2x-ternary-fft.Plo
 	-rm -f fft/$(DEPDIR)/libgf2x_local_a-gf2x-ternary-fft.Po
 	-rm -f Makefile
@@ -1418,8 +1327,7 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-gf2x_includeHEADERS uninstall-libLTLIBRARIES \
-	uninstall-nobase_includeHEADERS \
+uninstall-am: uninstall-libLTLIBRARIES uninstall-nobase_includeHEADERS \
 	uninstall-nobase_nodist_includeHEADERS uninstall-pkgconfigDATA
 
 .MAKE: $(am__recursive_targets) all install-am install-strip
@@ -1435,9 +1343,8 @@ uninstall-am: uninstall-gf2x_includeHEADERS uninstall-libLTLIBRARIES \
 	distcleancheck distdir distuninstallcheck dvi dvi-am html \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-gf2x_includeHEADERS install-html \
-	install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-man \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-libLTLIBRARIES install-man \
 	install-nobase_includeHEADERS \
 	install-nobase_nodist_includeHEADERS install-pdf \
 	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
@@ -1445,8 +1352,8 @@ uninstall-am: uninstall-gf2x_includeHEADERS uninstall-libLTLIBRARIES \
 	installdirs-am maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
-	uninstall-am uninstall-gf2x_includeHEADERS \
-	uninstall-libLTLIBRARIES uninstall-nobase_includeHEADERS \
+	uninstall-am uninstall-libLTLIBRARIES \
+	uninstall-nobase_includeHEADERS \
 	uninstall-nobase_nodist_includeHEADERS uninstall-pkgconfigDATA
 
 .PRECIOUS: Makefile

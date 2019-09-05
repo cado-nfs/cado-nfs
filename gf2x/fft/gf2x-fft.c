@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -25,43 +25,11 @@
    02110-1301, USA.
 */
 
-#ifndef TUNING_COMMON_H_
-#define TUNING_COMMON_H_
+#include "gf2x/gf2x-config.h"
 
-extern double mulstep;
-extern FILE * rp;
+#include "gf2x.h"
+#include "gf2x/gf2x-impl.h"
 
-extern double MINTIME;
+#include "gf2x-fft.h"
 
-#define TIME(x, i)				\
-  { long j, k = 1;				\
-    double s0 = seconds ();			\
-    do {					\
-      for (j = 0; j < k; j++) (i);		\
-      k = 2 * k;				\
-      x = seconds () - s0;			\
-    } while (x < MINTIME);			\
-    (x) = (x) / (k - 1);			\
-  }
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void set_clock_resolution ();
-extern void random_wordstring(unsigned long * a, long n);
-
-extern void check(const unsigned long *a, long m,
-	   const unsigned long *b, long n,
-	   const char * cname, const unsigned long *c,
-           const char * dname, const unsigned long *d);
-
-extern void set_tuning_output();
-extern void close_tuning_output();
-extern int handle_tuning_mulstep(int * p_argc, char *** p_argv);
-extern int handle_tuning_outfile(int * p_argc, char *** p_argv);
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* TUNING_COMMON_H_ */
+int gf2x_fft_lib_version_code = GF2X_FFT_VERSION_CODE;

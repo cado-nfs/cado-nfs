@@ -3,14 +3,20 @@ gf2x-1.3.0:
       offered no way to distinguish between versions. For developers, an
       example of how this can be done in config scripts is in
       check-gf2x-version.c
-    - the shared library major version number has been increased to 2.0.0
+    - the shared library major version number has been increased to 3.0.0
       (as we should have done for 1.2, in fact)
     - gf2x now compiles fine with icc
-    - the shared libraries now expose only the official functions, not the
-      internal ones.
     - the fft dynamic library is now a separate file, and a build with or
       without --enable-fft-interface does not affect the generated
       libgf2x.so in any way.
+    - the shared libraries now expose only the official functions, not the
+      internal ones. In particular, even though libgf2x in itself uses
+      the ternary fft code, that code is not exposed in the external abi
+      of libgf2x. If you intend to use it, you must use libgf2x-fft.so
+      (compiled with --enable-fft-interface).
+    - the fft interface api has been significantly modified and improved.
+      A new interface for computing middle products has been added.
+      The C++ wrapper code has been improved (no longer an ugly macro).
     - packaging bugs that affected usability of the fft interface have
       been fixed.
     - two long-standing bugs in the ternary FFT for ridiculously small
