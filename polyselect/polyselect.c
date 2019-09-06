@@ -536,8 +536,22 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
      If p^2 divides R, with p prime to d*ad, then we can accumulate p into l,
      which will give an even smaller R' = R/p^2.
      Note: this might produce duplicate polynomials, since a given p*l
-     might be found in different ways.
+     might be found in different ways. For example with revision b5a1635 and
+     polyselect -P 60000 -N 12939597433839929710052817774007139127064894178566832462175875720079522272519444917218095639720802504629187785806903263303 -degree 5 -t 1 -admin 780 -admax 840 -incr 60 -nq 2317
+     the polynomial with Y1 = 35641965604484971 is found four times:
+     * once with q = 92537 = 37 * 41 * 61
+     * then with q = 182573 = 41 * 61 * 73
+     * then with q = 110741 = 37 * 41 * 73
+     * and finally with q = 164761 = 37 * 61 * 73
+     As a workaround, we only allow p > qmax, the largest prime factor of q.
   */
+
+  /* compute the largest prime factor of q */
+  unsigned long qmax = 1;
+  for (unsigned long j = 0; j < LEN_SPECIAL_Q - 1; j++)
+    if ((q % SPECIAL_Q[j]) == 0)
+      qmax = SPECIAL_Q[j];
+
   mpz_mul_ui (m, ad, d);
   mpz_pow_ui (m, m, d);
   mpz_divexact (m, m, ad);
@@ -557,7 +571,7 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
      overhead will be small too. */
   for (p = 2; p <= Primes[lenPrimes - 1]; p = getprime_mt (pi))
     {
-      if (d % p == 0 || mpz_divisible_ui_p (ad, p))
+      if (p <= qmax || d % p == 0 || mpz_divisible_ui_p (ad, p))
         continue;
       while (mpz_divisible_ui_p (t, p * p))
         {
@@ -1344,7 +1358,6 @@ collision_on_batch_sq_r ( header_t header,
 #endif
 
   /* we proceed with BATCH_SIZE many rq for each time */
-  i = count = 0;
   int re = 1, num_rq;
   while (re) {
     /* compute BATCH_SIZE such many rqqz[] */
