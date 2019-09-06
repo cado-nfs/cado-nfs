@@ -743,7 +743,6 @@ linalg/bwc/flint-fft/split_bits.c
 linalg/bwc/flint-fft/transform_interface.c
 linalg/bwc/flint-fft/transform_interface.h
 linalg/bwc/flint-fft/ulong_extras.h
-linalg/bwc/test-flint.c
 filter/filter_badideals.c
 parameters/dlp/params.p2dd20
 parameters/dlp/p2dd20.hint
@@ -1410,3 +1409,12 @@ gf2x/fft/mpfq/remove_mpfq_malloc_calls.patch
 gf2x/fft/gf2x-fft.c
 gf2x/fft/gf2x-fft.h.in
 gf2x/fft/mpfq/mpfq-api.pl
+linalg/bwc/lingen_submatrix.hpp
+linalg/bwc/mpfq_fake.hpp
+linalg/bwc/lingen_matpoly_binary.cpp
+linalg/bwc/lingen_matpoly_binary.hpp
+linalg/bwc/lingen_memory_pool.cpp
+linalg/bwc/lingen_memory_pool.hpp
+tests/linalg/bwc/flint-fft/test-flint-debug-magma.sh
+tests/linalg/bwc/flint-fft/test-flint.c
+tests/linalg/bwc/flint-fft/test-flint.m

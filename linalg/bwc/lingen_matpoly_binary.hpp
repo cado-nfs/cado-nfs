@@ -1,61 +1,58 @@
-#ifndef LINGEN_MATPOLY_HPP_
-#define LINGEN_MATPOLY_HPP_
+#ifndef LINGEN_MATPOLY_BINARY_HPP_
+#define LINGEN_MATPOLY_BINARY_HPP_
+
+/* The outer interface of the matpoly_binary type is exactly the same as
+ * for the matpoly type. This is enforced by the test program. In
+ * particular, we copy even the "abdst_field" argument that is passed
+ * everywhere, with the slight catch that the code *here* does not use it
+ * at all.
+ *
+ * We have two options:
+ *
+ * For convenience, consider this binary matpoly type as
+ * linked to the u64k1 type
+ *
+ * Replace all the "ab" stuff by empty proxies.
+ *
+ * I haven't made my mind yet as to which is best.
+ */
+
+#include <cstdlib>
+#include <gmp.h>
 
 #include <mutex>
-#include <list>
-#include <tuple>
-#include <functional>   /* reference_wrapper */
 
-#include "mpfq_layer.h"
-
-class matpoly;
-struct polymat;
-
-#include "lingen_polymat.hpp"
-#include "lingen_submatrix.hpp"
+#include "cado_config.h"
+#include "macros.h"
 #include "lingen_memory_pool.hpp"
-
-/* This is used only for lingen. */
-
-/* We use abvec because this offers the possibility of having flat data
- *
- * Note that this ends up being exactly the same data type as polymat.
- * The difference here is that the stride is not the same.
- */
+#include "lingen_submatrix.hpp"
+#include "mpfq_fake.hpp"
 
 class matpoly {
     static memory_pool_loose memory;
     friend decltype(memory)::guard<matpoly>;
 public:
     typedef decltype(memory)::guard<matpoly> memory_guard;
-    static constexpr bool over_gf2 = false;
-    /* if we ever want the check binary to make sure that the
-     * specification works correctly also wrt. pre-init state. Not sure
-     * it's terribly useful.
-     *
-    struct must_be_pre_init : public std::runtime_error {
-        must_be_pre_init() : std::runtime_error("this data should be in pre-init state") {}
-    };
-    void make_sure_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
-    void make_sure_not_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
-    */
+    static constexpr bool over_gf2 = true;
     // static void add_to_main_memory_pool(size_t s);
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
     size_t size = 0;
+    /* alloc_words is the number of unsigned longs used to store each
+     * coefficient */
 private:
-    size_t alloc = 0;
-    abvec x = NULL;
+    size_t alloc_words = 0;
+    unsigned long * x = NULL;
+#define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
+    static inline size_t b2w(size_t n) { return BITS_TO_WORDS(n, ULONG_BITS); }/*{{{*/
+    // inline size_t colstride() const { return nrows() * stride(); }/*}}}*/
+    size_t alloc_size_words() const { return nrows() * ncols() * alloc_words; }
 public:
-    inline size_t capacity() const { return alloc; }
+    inline size_t capacity() const { return alloc_words * ULONG_BITS; }
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
-    size_t alloc_size() const;
-    const void * data_area() const { return x; }
-    size_t data_size() const { return m * n * abvec_elt_stride(ab, size); }
-
-    matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
+    matpoly() { m=n=0; size=0; alloc_words=0; ab=NULL; x=NULL; }
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
@@ -64,59 +61,73 @@ public:
     matpoly& operator=(matpoly &&);
     ~matpoly();
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT { return x == NULL; }
-    void realloc(size_t);
+    void realloc(size_t new_number_of_coeffs);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
-        return abvec_subvec(ab, x, (i*n+j)*alloc+k);
+        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
+        return x + (i*n+j)*alloc_words+k / ULONG_BITS;
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
-        return abvec_coeff_ptr(ab, part(i,j,k), 0);
+        return part(i,j,k);
     }
     inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return abvec_subvec_const(ab, x, (i*n+j)*alloc+k);
+        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
+        return x + (i*n+j)*alloc_words+k / ULONG_BITS;
     }
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return abvec_coeff_ptr_const(ab, part(i,j,k), 0);
+        return part(i,j,k);
     }
     /* }}} */
+
+    /* The interfaces below used to exist for the old binary "polmat"
+     * type, and we wish to do away with them.
+     */
+    void addpoly(unsigned int i, unsigned int j, matpoly const& y, unsigned int iy, unsigned int jy) __attribute__((deprecated));
+    void xmul_poly(unsigned int i, unsigned int j, unsigned long s) __attribute__((deprecated));
+    unsigned long * poly(unsigned int i, unsigned int j) __attribute__((deprecated)) { return part(i, j); }
+    const unsigned long * poly(unsigned int i, unsigned int j) const __attribute__((deprecated)) { return part(i, j); }
+
     void set_constant_ui(unsigned long e);
-    void set_constant(absrc_elt e);
+    void set_constant(absrc_elt e) { set_constant_ui(*e); }
     void fill_random(unsigned int size, gmp_randstate_t rstate);
     int cmp(matpoly const & b) const;
     void multiply_column_by_x(unsigned int j, unsigned int size);
     void divide_column_by_x(unsigned int j, unsigned int size);
     void truncate(matpoly const & src, unsigned int size);
     void truncate(unsigned int size) { truncate(*this, size); }
-    int tail_is_zero(unsigned int size);
+    /* This checks that coefficients of degree k to size-1 are zero.
+     */
+    int tail_is_zero(unsigned int k) const;
+private:
+    /* not to be confused with the former. a priori this is an
+     * implementation detail. At times, we want to assert that.
+     */
+    bool high_word_is_clear() const;
+    void clear_high_word();
+public:
     void zero_pad(unsigned int nsize); /* changes size to nsize */
     void extract_column(
         unsigned int jdst, unsigned int kdst,
         matpoly const & src, unsigned int jsrc, unsigned int ksrc);
     void zero_column(unsigned int jdst, unsigned int kdst);
-#if 0
-    /* These two are implemented, but unused and untested anyway */
-    void transpose_dumb(matpoly const & src);
-    void extract_row_fragment(unsigned int i1, unsigned int j1,
-        matpoly const & src, unsigned int i0, unsigned int j0,
-        unsigned int n);
-#endif
     void rshift(matpoly const &, unsigned int k);
+
+    void add(matpoly const & a, matpoly const & b);
+    void sub(matpoly const & a, matpoly const & b);
+    void add(matpoly const & a) { add(*this, a); }
+    void sub(matpoly const & a) { sub(*this, a); }
 
     /* It is probably wise to avoid the mul and mp functions below. The
      * first-class citizens are the caching alternatives.
      */
-    void add(matpoly const & a, matpoly const & b);
-    void add(matpoly const & a) { add(*this, a); }
-    void sub(matpoly const & a, matpoly const & b);
-    void sub(matpoly const & a) { sub(*this, a); }
-    void addmul(matpoly const & a, matpoly const & b);
     void mul(matpoly const & a, matpoly const & b);
-    void addmp(matpoly const & a, matpoly const & c);
     void mp(matpoly const & a, matpoly const & c);
+    void addmul(matpoly const & a, matpoly const & b);
+    void addmp(matpoly const & a, matpoly const & c);
 
-    void set_polymat(polymat const & src);
+    // void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero(unsigned int k);
     struct view_t;
@@ -150,4 +161,4 @@ public:
     matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
 };
 
-#endif	/* LINGEN_MATPOLY_HPP_ */
+#endif	/* LINGEN_MATPOLY_BINARY_HPP_ */

@@ -1,12 +1,12 @@
-#ifndef THREADPOOL_H_
-#define THREADPOOL_H_
+#ifndef THREADPOOL_HPP_
+#define THREADPOOL_HPP_
 
 #include <pthread.h>
 #include <queue>
 #include <vector>
 #include <exception>
-#include <stdarg.h>
-#include <errno.h>
+#include <cstdarg>
+#include <cerrno>
 #include <memory>
 #include <mutex>
 
@@ -313,4 +313,4 @@ public:
 #endif
 };
 
-#endif
+#endif  /* THREADPOOL_HPP_ */

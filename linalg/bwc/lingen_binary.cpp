@@ -1,4 +1,5 @@
 #include "cado.h"
+#include "flint-fft/transform_interface.h"
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>
 #include <cstdlib>
@@ -44,37 +45,45 @@
 #include "gf2x-fft.h"
 #include "lingen_mat_types.hpp"
 
-/* we need a partial specialization because gf2x_fake_fft does its own
+/* we need a partial specialization because gf2x_fake_fft_info does its own
  * allocation within addcompose (for the moment)
  */
 template<>
-void compose_inner<gf2x_fake_fft, strassen_default_selector>(
-        tpolmat<gf2x_fake_fft>& dst,
-        tpolmat<gf2x_fake_fft> const & s1,
-        tpolmat<gf2x_fake_fft> const & s2,
-        gf2x_fake_fft& o, strassen_default_selector const& s)
+void compose_inner<gf2x_fake_fft_info, strassen_default_selector>(
+        tpolmat<gf2x_fake_fft_info>& dst,
+        tpolmat<gf2x_fake_fft_info> const & s1,
+        tpolmat<gf2x_fake_fft_info> const & s2,
+        gf2x_fake_fft_info& o, strassen_default_selector const& s)
 {
-    typedef gf2x_fake_fft fft_type;
+    typedef gf2x_fake_fft_info fft_type;
     tpolmat<fft_type> tmp(s1.nrows, s2.ncols, o);
     ASSERT(s1.ncols == s2.nrows);
     unsigned int nbits;
-    nbits = o.size() * sizeof(remove_pointer<fft_type::ptr>::t) * CHAR_BIT;
+    nbits = o.transform_size() * sizeof(remove_pointer<fft_type::ptr>::t) * CHAR_BIT;
     if (s(s1.nrows, s1.ncols, s2.ncols, nbits)) {
         compose_strassen(tmp, s1, s2, o, s);
     } else {
         tmp.zero();
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for collapse(2) schedule(static)
+#pragma omp parallel
 #endif  /* HAVE_OPENMP */
-        for(unsigned int i = 0 ; i < s1.nrows ; i++) {
-            for(unsigned int j = 0 ; j < s2.ncols ; j++) {
-                fft_type::ptr x = o.alloc(1);
-                for(unsigned int k = 0 ; k < s1.ncols ; k++) {
-                    o.compose(x, s1.poly(i,k), s2.poly(k,j));
-                    o.add(tmp.poly(i,j), tmp.poly(i,j), x);
+        {
+            size_t sizes[3];
+            o.get_alloc_sizes(sizes);
+            fft_type::ptr temp1 = (fft_type::ptr) malloc(sizes[1]);
+            fft_type::ptr temp2 = (fft_type::ptr) malloc(sizes[2]);
+#ifdef  HAVE_OPENMP
+#pragma omp for collapse(2) schedule(static)
+#endif  /* HAVE_OPENMP */
+            for(unsigned int i = 0 ; i < s1.nrows ; i++) {
+                for(unsigned int j = 0 ; j < s2.ncols ; j++) {
+                    for(unsigned int k = 0 ; k < s1.ncols ; k++) {
+                        o.addcompose(tmp.poly(i, j), s1.poly(i,k), s2.poly(k,j), temp1, temp2);
+                    }
                 }
-                o.free(x, 1);
             }
+            free(temp1);
+            free(temp2);
         }
     }
     dst.swap(tmp);
@@ -1144,7 +1153,7 @@ template<typename fft_type>/*{{{*/
 static bool go_recursive(polmat& E, polmat& pi, int depth)
 {
     using namespace globals;
-    tree_stats::sentinel dummy(stats, fft_type::name(), E.ncoef, 1 << depth);
+    tree_stats::sentinel dummy(stats, fft_type::name, E.ncoef, 1 << depth);
 
     stats.plan_smallstep("MP", 0);
     stats.plan_smallstep("MUL", 0);
@@ -1267,14 +1276,18 @@ static bool go_recursive(polmat& E, polmat& pi, int depth)
          * not a degree. */
         tpolmat<fft_type> pi_l_hat;
         // takes lengths.
-        fft_type o(E_length, expected_pi_deg + 1,
+        // XXX we're just duplicating what used to be the behaviour of
+        // this code before the gf2x update. Of course we now have an mp
+        // interface in gf2x, and we shall use that eventually. But most
+        // probably *NOT* with the present code base.
+        fft_type o = fft_type::mul_info(E_length, expected_pi_deg + 1);
                 /* E_length + expected_pi_deg - kill, */
-                m + n);
+                // m + n);
 
         stats.begin_smallstep("MP");
         logline_begin(stdout, E_length,
                 "t=%u DFT_pi_left(%lu) [%s]",
-                t, pi_left_length, fft_type::name());
+                t, pi_left_length, fft_type::name);
         transform(pi_l_hat, pi_left, o, pi_l_deg + 1);
         /* retain pi_left */
         logline_end(&t_dft_pi_left, "");
@@ -1285,7 +1298,7 @@ static bool go_recursive(polmat& E, polmat& pi, int depth)
                 (unsigned long) (E_length - (llen - pi_l_deg)),
                 pi_left_length,
                 E_length - llen,
-                fft_type::name());
+                fft_type::name);
         fft_combo_inplace(E, pi_l_hat, o, E_length, E_length + pi_l_deg - kill + 1);
         logline_end(&t_mp, "");
         stats.end_smallstep();
@@ -1311,11 +1324,11 @@ static bool go_recursive(polmat& E, polmat& pi, int depth)
         /* NOTE: The transform() calls expect a number of coefficients,
          * not a degree. */
         tpolmat<fft_type> pi_r_hat;
-        fft_type o(pi_l_deg + 1, pi_r_deg + 1, m + n);
+        fft_type o = fft_type::mul_info(pi_l_deg + 1, pi_r_deg + 1 /* , m + n */);
 
         stats.begin_smallstep("MUL");
         logline_begin(stdout, E_length, "t=%u DFT_pi_right(%lu) [%s]",
-                t, pi_right_length, fft_type::name());
+                t, pi_right_length, fft_type::name);
         transform(pi_r_hat, pi_right, o, pi_r_deg + 1);
         { polmat X; pi_right.swap(X); }
         logline_end(&t_dft_pi_right, "");
@@ -1325,7 +1338,7 @@ static bool go_recursive(polmat& E, polmat& pi, int depth)
                 pi_left_length,
                 pi_right_length,
                 pi_left_length + pi_right_length - 1,
-                fft_type::name());
+                fft_type::name);
         fft_combo_inplace(pi_left, pi_r_hat, o, pi_l_deg + 1, pi_l_deg + pi_r_deg + 1);
         logline_end(&t_mul, "");
         stats.end_smallstep();
@@ -1376,12 +1389,12 @@ static bool compute_lingen(polmat& E, polmat& pi, int depth)
         b = go_quadratic(E, pi);
     } else if (deg_E < cantor_threshold) {
         /* The bound is such that deg + deg/4 is 64 words or less */
-        b = go_recursive<gf2x_fake_fft>(E, pi, depth);
+        b = go_recursive<gf2x_fake_fft_info>(E, pi, depth);
     } else {
         /* Presently, c128 requires input polynomials that are large
          * enough.
          */
-        b = go_recursive<gf2x_cantor_fft>(E, pi, depth);
+        b = go_recursive<gf2x_cantor_fft_info>(E, pi, depth);
     }
 
     /*

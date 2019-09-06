@@ -56,14 +56,15 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     string(REGEX MATCH "p_([0-9]+)" t "${gfp_layer}")
     if(t)
         set(width ${CMAKE_MATCH_1})
+        set(p "${prime_${width}}")
+    elseif(gfp_layer STREQUAL "pz")
+        set(t TRUE)
+        set(width "z")
+        set(extra "lingen_program=lingen_pz")
+        set(p "${prime_${width}}")
     else()
-        if(gfp_layer STREQUAL "pz")
-            set(t TRUE)
-            set(width "z")
-            set(extra "lingen_program=lingen_pz")
-        endif()
+        message(FATAL_ERROR "bad arithmetic backend ${gfp_layer}")
     endif()
-    set(p "${prime_${width}}")
     if(gfp_layer STREQUAL "pz")
     else()
         add_bwc_test(modp-inhomogeneous-${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
@@ -72,11 +73,8 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         if(gfp_layer STREQUAL "p_1")
             set(mextra)
             # Only try to enable magma if CHECKS_EXPENSIVE is set.
-            if(DEFINED ENV{CHECKS_EXPENSIVE})
-                find_program(MAGMA magma HINTS ENV MAGMA)
-                if (MAGMA)
-                    set(mextra magma=${MAGMA})
-                endif()
+            if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
+                set(mextra magma=${MAGMA})
             endif()
             add_bwc_test(modp-inhomogeneous-minimal-3rhs-mn6 bwc-ptrace.sh prime=1009
                 random_matrix_size=50 nrhs=3 m=6 n=6 seed=1 ${mextra})
@@ -174,6 +172,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             max_ram=0.01
             ${extra})
     endif()
+
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
         cado_divert_test(test-bwc-lingen-${gfp_layer} test4
             ${CADO_NFS_BINARY_DIR}
@@ -207,6 +206,27 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
+
+foreach(gfp_layer u64k1)
+    link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
+    link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
+    include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
+    include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+    cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
+        SOURCES test_matpoly.cpp
+        LIBRARIES utils lingen_${gfp_layer}_support)
+    # (unused for p=2 anyway)
+    # ARGUMENTS --prime 2
+    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+endforeach()
+
+add_executable(check_mpi_problems EXCLUDE_FROM_ALL
+        ${CADO_NFS_SOURCE_DIR}/linalg/bwc/check_mpi_problems.c)
+set_target_properties(check_mpi_problems PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DWANT_MAIN"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 
 
 add_bwc_test(mod2-plain bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2)
@@ -319,7 +339,7 @@ set_target_properties(test_hello PROPERTIES
             COMPILE_FLAGS "--mpi"
             LINK_FLAGS "--mpi")
 
-add_executable(spmv_test spmv_test.c)
+add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.c)
 set_target_properties(spmv_test PROPERTIES
             LINKER_LANGUAGE CXX
             COMPILE_FLAGS "--mpi"

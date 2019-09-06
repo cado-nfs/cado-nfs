@@ -1,5 +1,5 @@
-#ifndef SMALLSET_H_
-#define SMALLSET_H_
+#ifndef SMALLSET_HPP_
+#define SMALLSET_HPP_
 
 #include "macros.h"
 
@@ -340,4 +340,4 @@ public:
 };
 
 #endif /* if defined(HAVE_SSE2) */
-#endif /* ifndef SMALLSET_H_ */
+#endif /* ifndef SMALLSET_HPP_ */

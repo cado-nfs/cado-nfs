@@ -25,13 +25,17 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "mpfq_layer.h"
 #include "memusage.h"
 
 /* Really, this should be always on. XXX FIXME */
 #define ENABLE_MPI_LINGEN
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#include "mpfq_fake.hpp"
+#include "lingen_matpoly_binary.hpp"
+#include "lingen_qcode_binary.h"
+#else
+#include "mpfq_layer.h"
 /* lingen-matpoly is the default code. */
 #include "lingen_matpoly.hpp"
 #ifdef ENABLE_MPI_LINGEN
@@ -186,8 +190,15 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 
 /*}}}*/
 
-/* TODO: adapt for GF(2) */
-double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)/*{{{*/
+#ifdef SELECT_MPFQ_LAYER_u64k1  /*{{{*/
+double avg_matsize(abdst_field, unsigned int m, unsigned int n, int ascii)
+{
+    ASSERT_ALWAYS(!ascii);
+    ASSERT_ALWAYS((m*n) % 64 == 0);
+    return ((m*n)/64) * sizeof(uint64_t);
+}
+#else
+double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
 {
     if (!ascii) {
         /* Easy case first. If we have binary input, then we know a priori
@@ -226,7 +237,8 @@ double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)/*{
     double matsize = (avg + 1) * m * n + 1;
     // printf("Expect roughly %.2f bytes for each sequence matrix.\n", matsize);
     return matsize;
-}/*}}}*/
+}
+#endif/*}}}*/
 
 /* {{{ I/O helpers */
 /* TODO: adapt for GF(2) */
@@ -250,8 +262,7 @@ int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned 
         for(unsigned int i = 0 ; !err && i < m ; i++) {
             for(unsigned int j = 0 ; !err && j < n ; j++) {
                 absrc_elt x;
-                x = transpose ? M.coeff(j, i, k)
-                              : M.coeff(i, j, k);
+                x = transpose ? M.coeff(j, i, k) : M.coeff(i, j, k);
                 if (ascii) {
                     if (j) err = !(os << " ");
                     if (!err) err = !(abcxx_out(ab, os, x));
@@ -819,12 +830,13 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
-    S.write((const char *) X.x, X.m*(X.n)*X.size*sizeof(mp_limb_t));
+    S.write((const char *) X.data_area(), X.data_size());
     char checksum[41];
     S.checksum(checksum);
     return std::string(checksum);
 }
 
+template<typename fft_type>
 int
 bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
@@ -907,7 +919,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.size - pi_left.size + 1);
-        matpoly_mp_caching(E_right, E, pi_left, & C.mp);
+        matpoly_ft<fft_type>::mp_caching(E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
 
@@ -930,7 +942,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
-        matpoly_mul_caching(pi, pi_left, pi_right, & C.mul);
+        matpoly_ft<fft_type>::mul_caching(pi, pi_left, pi_right, & C.mul);
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
@@ -992,7 +1004,8 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();
     } else {
-        done = bw_lingen_recursive(bm, pi, E, delta);
+        typedef fft_transform_info fft_type;
+        done = bw_lingen_recursive<fft_type>(bm, pi, E, delta);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
@@ -1002,6 +1015,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 }/*}}}*/
 
 #ifdef ENABLE_MPI_LINGEN
+template<typename fft_type>
 int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
     int depth = bm.depth();
@@ -1105,7 +1119,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         ASSERT_ALWAYS(E.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mp_caching(bm.stats, E_right, E, pi_left, &C.mp);
+        bigmatpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, &C.mp);
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
         MPI_Barrier(bm.com[0]);
@@ -1133,7 +1147,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         ASSERT_ALWAYS(pi_right.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
-        bigmatpoly_mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul);
+        bigmatpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul);
         ASSERT_ALWAYS(pi.ab);
         MPI_Barrier(bm.com[0]);
     }
@@ -1202,7 +1216,8 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (go_mpi) {
-        done = bw_biglingen_recursive(bm, pi, E, delta);
+        typedef fft_transform_info fft_type;
+        done = bw_biglingen_recursive<fft_type>(bm, pi, E, delta);
     } else {
         /* Fall back to local code */
         /* This entails gathering E locally, computing pi locally, and
@@ -1380,7 +1395,7 @@ struct bm_output_singlefile {/*{{{*/
     void write1(unsigned int deg)
     {
         if (!aa.leader()) return;
-        deg = deg % P.alloc;
+        deg = deg % P.capacity();
         matpoly_write(aa.bm.d.ab, f, P, deg, deg + 1, aa.ascii, 1);
     }
 };/*}}}*/
@@ -1418,7 +1433,7 @@ struct bm_output_splitfile {/*{{{*/
     void write1(unsigned int deg)
     {
         if (!aa.leader()) return;
-        deg = deg % P.alloc;
+        deg = deg % P.capacity();
         matpoly_write_split(aa.bm.d.ab, fw, P, deg, deg + 1, aa.ascii);
     }
 
@@ -1441,7 +1456,7 @@ struct bm_output_checksum {/*{{{*/
     void write1(unsigned int deg)
     {
         if (!aa.leader()) return;
-        deg = deg % P.alloc;
+        deg = deg % P.capacity();
         matpoly_write(aa.bm.d.ab, f, P, deg, deg + 1, aa.ascii, 1);
     }
 };/*}}}*/
@@ -1452,7 +1467,7 @@ void bm_io::zero1(unsigned int deg)/*{{{*/
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
     unsigned int n = d.n;
-    deg = deg % F.alloc;
+    deg = deg % F.capacity();
     for(unsigned int j = 0 ; j < n ; j++) {
         for(unsigned int i = 0 ; i < n ; i++) {
             abset_zero(ab, F.coeff(i, j, deg));
@@ -1723,7 +1738,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
 
     if (leader) printf("Final f(X)=f0(X)pi(X) has degree %u\n", maxdelta);
 
-    unsigned int window = F.alloc;
+    unsigned int window = F.capacity();
 
     /* Which columns of F*pi will make the final generator ? */
     std::vector<unsigned int> sols(n, 0);
@@ -1982,8 +1997,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
         if (leader && s > next_report_s) {
             double tt = wct_seconds();
             if (tt > next_report_t) {
-                printf(
-                        "Written %u coefficients (%.1f%%) in %.1f s\n",
+                printf( "Written %u coefficients (%.1f%%) in %.1f s\n",
                         s, 100.0 * s / pi.size(), tt-tt0);
                 next_report_t = tt + 10;
                 next_report_s = s + pi.size() / 100;
@@ -2019,9 +2033,9 @@ int bm_io::read1(unsigned int io_window)/*{{{*/
         ASSERT_ALWAYS(A.size == io_window);
     } else {
         ASSERT_ALWAYS(A.size == k);
-        if (k >= A.alloc)
-            A.realloc(A.alloc + 1);
-        ASSERT_ALWAYS(k < A.alloc);
+        if (k >= A.capacity())
+            A.realloc(A.capacity() + 1);
+        ASSERT_ALWAYS(k < A.capacity());
         A.size++;
     }
     if (random_input_length) {
@@ -2433,7 +2447,7 @@ template<> struct matpoly_factory<bigmatpoly> {
     static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
         return bw_biglingen_collective(bm, pi, E, delta);
     }
-    static size_t alloc(T const & p) { return p.my_cell().alloc; }
+    static size_t capacity(T const & p) { return p.my_cell().capacity(); }
 };
 #endif
 
@@ -2448,8 +2462,7 @@ template<> struct matpoly_factory<matpoly> {
     static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
         return bw_lingen_single(bm, pi, E, delta);
     }
-    static size_t alloc(T const & p) { return p.alloc; }
-
+    static size_t capacity(T const & p) { return p.capacity(); }
 };
 
 template<typename T, typename Sink>
@@ -2457,8 +2470,16 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
 {
     unsigned int n = bm.d.n;
 
-    matpoly::memory_pool_guard dummy(SIZE_MAX);
+    matpoly::memory_guard dummy(SIZE_MAX);
 
+    /* This object will store the rolling coefficients of the resulting
+     * F. Since we compute coefficients on the fly, using F0 which has
+     * degree t0, we need a memory of t0+1 coefficients in order to
+     * always have one correct coefficient.
+     *
+     * Also, in the binary case where we want to store coefficients in
+     * windows of 64, we need some extra room.
+     */
     F = matpoly(bm.d.ab, n, n, t0 + 1);
 
     set_write_behind_size(delta);
@@ -2711,7 +2732,7 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
                 iceildiv(m+n, bm.mpi_dims[0]) *
                 iceildiv(m+n, bm.mpi_dims[1]) *
                 iceildiv(m*safe_guess, m+n));
-    matpoly::memory_pool_guard main(2*c0);
+    matpoly::memory_guard main(2*c0);
     if (!rank) {
         char buf[20];
         printf("# Estimated memory for JUST transforms (per node): %s\n",
@@ -2734,7 +2755,7 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
     bm.stats.final_print();
 
     display_deltas(bm, delta);
-    if (!rank) printf("(pi.alloc = %zu)\n", matpoly_factory<T>::alloc(pi));
+    if (!rank) printf("(pi.alloc = %zu)\n", matpoly_factory<T>::capacity(pi));
 
     if (check_luck_condition(bm)) {
         if (random_input_length) {
@@ -2933,7 +2954,7 @@ int main(int argc, char *argv[])
      * program will use.
      */
     size_t exp_lenA = 2 + iceildiv(bm.d.m, bm.d.n);
-    matpoly::memory_pool_guard main_memory(
+    matpoly::memory_guard main_memory(
             /* bm_io */
             abvec_elt_stride(bm.d.ab,bm.d.m*bm.d.n*exp_lenA) +   /* bm_io A */
             abvec_elt_stride(bm.d.ab,bm.d.m*bm.d.m) +   /* bm_io M */
@@ -2955,8 +2976,8 @@ int main(int argc, char *argv[])
     }
 
     {
-        matpoly::memory_pool_guard blanket(SIZE_MAX);
-        matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
+        matpoly::memory_guard blanket(SIZE_MAX);
+        typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
         try {
             /* iceildiv(m,n) is t0. We subtract 1 because we usually work
              * with shifted inputs in order to deal with homogenous
@@ -3006,7 +3027,7 @@ int main(int argc, char *argv[])
          */
         matpoly_factory<matpoly> F;
         if (size > 1) {
-            matpoly_ft::memory_pool_guard blanket_ft(SIZE_MAX);
+            typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
             lingen_main_code(F, d.ab, aa);
         } else {
             /* on the other hand, plain non-mpi code should benefit from

@@ -1,72 +1,82 @@
 #ifndef LINGEN_MUL_SUBSTEPS_HPP_
 #define LINGEN_MUL_SUBSTEPS_HPP_
 
-#include "lingen_matpoly.hpp"
+/* Use matpoly as imported from lingen_matpoly_ft.hpp */
 #include "lingen_matpoly_ft.hpp"
-#include "flint-fft/transform_interface.h"
 
 /* middle product and multiplication are really the same thing, so better
  * avoid code duplication */
 
+template<typename fft_type>
 struct op_mul {
-    fft_transform_info fti[1];
+    typedef fft_type FFT;
+    fft_type fti;
     size_t csize = 0;
     static constexpr const char * name = "MUL";
     op_mul() = default;
-    op_mul(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX)
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    op_mul(size_t asize, size_t bsize, unsigned int adj MAYBE_UNUSED = UINT_MAX) : fti(fft_type::mul_info(asize, bsize))
     {
         csize = asize + bsize; csize -= (csize > 0);
-        fft_get_transform_info_fppol(fti, p, asize, bsize, nacc);
         if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
+            fti.adjust(GF2X_FFT_ADJUST_DEPTH, adj);
     }
     template<typename T>
-    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.ab->p, a.size, b.size, a.n, adj)
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.size, b.size, adj)
     {}
-    // op_mul(bigmatpoly const & a, bigmatpoly const & b, fft_transform_info * fti, unsigned int adj = UINT_MAX) : op_mul(a.ab->p, a.size, b.size, a.n, fti, adj)
-    // {}
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t) const
+#else
+    op_mul(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX) : fti(fft_type::polynomial_mul_info(p, asize, bsize, nacc))
     {
-        ::ift(a, t);
+        csize = asize + bsize; csize -= (csize > 0);
+        if (adj != UINT_MAX) fti.adjust_depth(adj);
     }
+    template<typename T>
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.size, b.size, a.n, adj)
+    {}
+#endif
 
     size_t get_transform_ram() const {
         size_t fft_alloc_sizes[3];
-        fft_get_transform_allocs(fft_alloc_sizes, fti);
+        fti.get_alloc_sizes(fft_alloc_sizes);
         return fft_alloc_sizes[0];
     }
 };
 
+template<typename fft_type>
 struct op_mp {
-    fft_transform_info fti[1];
+    typedef fft_type FFT;
+    fft_type fti;
     size_t csize = 0;
     static constexpr const char * name = "MP";
     unsigned int shift = 0;
     op_mp() = default;
-    op_mp(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX)
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    op_mp(size_t asize, size_t bsize, unsigned int MAYBE_UNUSED adj = UINT_MAX) : fti(fft_type::mp_info(asize, bsize))
     {
         csize = MAX(asize, bsize) - MIN(asize, bsize) + 1;
         shift = MIN(asize, bsize) - 1;
-        fft_get_transform_info_fppol_mp(fti, p, MIN(asize, bsize), MAX(asize, bsize), nacc);
         if (adj != UINT_MAX)
-            fft_transform_info_adjust_depth(fti, adj);
+            fti.adjust(GF2X_FFT_ADJUST_DEPTH, adj);
+    }
+    template<typename T>
+    op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mp(a.size, b.size, adj)
+    {}
+#else
+    op_mp(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX) : fti(fft_type::polynomial_mp_info(p, asize, bsize, nacc))
+    {
+        csize = MAX(asize, bsize) - MIN(asize, bsize) + 1;
+        shift = MIN(asize, bsize) - 1;
+        if (adj != UINT_MAX) fti.adjust_depth(adj);
     }
     template<typename T>
     op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX)
-        : op_mp(a.ab->p, a.size, b.size, a.n, adj)
+        : op_mp(abfield_characteristic_srcptr(a.ab), a.size, b.size, a.n, adj)
     {}
-    // op_mp(bigmatpoly const & a, bigmatpoly const & b, fft_transform_info * fti, unsigned int adj = UINT_MAX) : op_mp(a.ab->p, a.size, b.size, a.n, fti, adj)
-    // {}
-
-    inline void ift(matpoly::view_t a, matpoly_ft::view_t t) const
-    {
-        ::ift_mp(a, t, shift);
-    }
+#endif
 
     size_t get_transform_ram() const {
         size_t fft_alloc_sizes[3];
-        fft_get_transform_allocs(fft_alloc_sizes, fti);
+        fti.get_alloc_sizes(fft_alloc_sizes);
         return fft_alloc_sizes[0];
     }
 };

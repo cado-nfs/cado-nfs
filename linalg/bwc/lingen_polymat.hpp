@@ -1,5 +1,5 @@
-#ifndef POLYMAT_H_
-#define POLYMAT_H_
+#ifndef LINGEN_POLYMAT_HPP_
+#define LINGEN_POLYMAT_HPP_
 
 #include "mpfq_layer.h"
 #include "macros.h"
@@ -135,4 +135,4 @@ void polymat_set_mp_kara_cutoff(const struct polymat_cutoff_info * new_cutoff, s
 #endif
 /* }}} */
 
-#endif	/* POLYMAT_H_ */
+#endif	/* LINGEN_POLYMAT_HPP_ */

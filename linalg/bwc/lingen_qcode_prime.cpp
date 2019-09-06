@@ -179,7 +179,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 
     ASSERT(pi.m == 0);
     ASSERT(pi.n == 0);
-    ASSERT(pi.alloc == 0);
+    ASSERT(pi.capacity() == 0);
 
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity. */
@@ -519,12 +519,12 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
         /* {{{ Now for all pivots, multiply column in pi by x */
         for (unsigned int j = 0; j < b ; j++) {
             if (!is_pivot[j]) continue;
-            if (pi_real_lengths[j] >= pi.alloc) {
+            if (pi_real_lengths[j] >= pi.capacity()) {
                 if (!generator_found) {
-                    pi.realloc(pi.alloc + MAX(pi.alloc / (m+n), 1));
+                    pi.realloc(pi.capacity() + MAX(pi.capacity() / (m+n), 1));
                     printf("t=%u, expanding allocation for pi (now %zu%%) ; lengths: ",
                             bm.t,
-                            100 * pi.alloc / pi_room_base);
+                            100 * pi.capacity() / pi_room_base);
                     for(unsigned int j = 0; j < b; j++)
                         printf(" %u", pi_real_lengths[j]);
                     printf("\n");
@@ -556,7 +556,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     /* Given the structure of the computation, there's no reason for the
      * initial estimate to go wrong.
      */
-    ASSERT_ALWAYS(pi.size <= pi.alloc);
+    ASSERT_ALWAYS(pi.size <= pi.capacity());
     for(unsigned int j = 0; j < b; j++) {
         for(unsigned int k = pi_real_lengths[j] ; k < pi.size ; k++) {
             for(unsigned int i = 0 ; i < b ; i++) {
@@ -564,7 +564,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
             }
         }
     }
-    pi.size = MIN(pi.size, pi.alloc);
+    pi.size = MIN(pi.size, pi.capacity());
 
     return generator_found;
 }

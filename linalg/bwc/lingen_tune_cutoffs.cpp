@@ -489,7 +489,7 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
 
         for(int index = 0 ; index < nadjs ; index++) {
             struct fft_transform_info fti[1];
-            fft_get_transform_info_fppol(fti, p, k, k, m+n);
+            fft_transform_info_init_fppol(fti, p, k, k, m+n);
             fft_transform_info_set_first_guess(fti);
             if (index == 0) {
                 extra_info << "(from " << fti->depth << ")";
@@ -505,7 +505,7 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             fft_transform_info_adjust_depth(fti, nadjs-1-index);
 
             size_t fft_alloc_sizes[3];
-            fft_get_transform_allocs(fft_alloc_sizes, fti);
+            fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
             void * tt = malloc(fft_alloc_sizes[2]);
             void * qt = malloc(fft_alloc_sizes[1]);
 
@@ -518,33 +518,33 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
 
                 double t_dftA=0;
                 for(bt y = bt(t_dftA, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tA, fti);
-                    fft_do_dft_fppol(tA, (mp_limb_t*)A, k, qt, fti, p);
+                    fft_prepare(fti, tA);
+                    fft_dft(fti, tA, (mp_limb_t*)A, k, qt);
                     y.set_since_last();
                 }
                 x.inject(t_dftA, (m+n)*(m+n));
 
                 double t_dftB=0;
                 for(bt y = bt(t_dftB, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tB, fti);
-                    fft_do_dft_fppol(tB, (mp_limb_t*)B, k, qt, fti, p);
+                    fft_prepare(fti, tB);
+                    fft_dft(fti, tB, (mp_limb_t*)B, k, qt);
                     y.set_since_last();
                 }
                 x.inject(t_dftB, (m+n)*(m+n));
 
                 double t_conv=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tC, fti);
-                    fft_zero(tC, fti);
-                    fft_addmul(tC, tA, tB, tt, qt, fti);
+                    fft_prepare(fti, tC);
+                    fft_zero(fti, tC);
+                    fft_addcompose(fti, tC, tA, tB, tt, qt);
                     y.set_since_last();
                 }
                 x.inject(t_conv, (m+n)*(m+n)*(m+n));
 
                 double t_iftC=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tC, fti);
-                    fft_do_ift_fppol((mp_limb_t*)C, 2*k-1, tC, qt, fti, p);
+                    fft_prepare(fti, tC);
+                    fft_ift(fti, (mp_limb_t*)C, 2*k-1, tC, qt);
                     y.set_since_last();
                 }
                 x.inject(t_iftC, (m+n)*(m+n));
@@ -660,7 +660,7 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
 
         for(int index = 0 ; index < nadjs ; index++) {
             struct fft_transform_info fti[1];
-            fft_get_transform_info_fppol_mp(fti, p, k, E_length, m+n);
+            fft_transform_info_init_fppol_mp(fti, p, k, E_length, m+n);
             fft_transform_info_set_first_guess(fti);
             if (index == 0) {
                 extra_info << "(from " << fti->depth << ")";
@@ -676,7 +676,7 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
             fft_transform_info_adjust_depth(fti, nadjs-1-index);
 
             size_t fft_alloc_sizes[3];
-            fft_get_transform_allocs(fft_alloc_sizes, fti);
+            fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
             void * tt = malloc(fft_alloc_sizes[2]);
             void * qt = malloc(fft_alloc_sizes[1]);
 
@@ -689,33 +689,33 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
 
                 double t_dftA=0;
                 for(bt y = bt(t_dftA, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tA, fti);
-                    fft_do_dft_fppol(tA, (mp_limb_t*)A, E_length, qt, fti, p);
+                    fft_prepare(fti, tA);
+                    fft_dft(fti, tA, (mp_limb_t*)A, E_length, qt);
                     y.set_since_last();
                 }
                 x.inject(t_dftA, m*(m+n));
 
                 double t_dftB=0;
                 for(bt y = bt(t_dftB, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tB, fti);
-                    fft_do_dft_fppol(tB, (mp_limb_t*)B, k, qt, fti, p);
+                    fft_prepare(fti, tB);
+                    fft_dft(fti, tB, (mp_limb_t*)B, k, qt);
                     y.set_since_last();
                 }
                 x.inject(t_dftB, (m+n)*(m+n));
 
                 double t_conv=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tC, fti);
-                    fft_zero(tC, fti);
-                    fft_addmul(tC, tA, tB, tt, qt, fti);
+                    fft_prepare(fti, tC);
+                    fft_zero(fti, tC);
+                    fft_addcompose(fti, tC, tA, tB, tt, qt);
                     y.set_since_last();
                 }
                 x.inject(t_conv, m*(m+n)*(m+n));
 
                 double t_iftC=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
-                    fft_transform_prepare(tC, fti);
-                    fft_do_ift_fppol_mp((mp_limb_t*)C, input_length, tC, qt, fti, p, k-1);
+                    fft_prepare(fti, tC);
+                    fft_ift(fti, (mp_limb_t*)C, input_length, tC, qt);
                     y.set_since_last();
                 }
                 x.inject(t_iftC, m*(m+n));
@@ -763,6 +763,7 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
 
 void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
+    typedef fft_transform_info fft_type;
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
@@ -905,17 +906,17 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             matpoly_clear(ab, xpi);
             matpoly_init(ab, xpi, m+n, m+n, xpiL->size + xpiR->size - 1);
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft_init(ab, tpiL, xpiL->m, xpiL->n, fti);
-                matpoly_ft_init(ab, tpiR, xpiR->m, xpiR->n, fti);
-                matpoly_ft_init(ab, tpi, xpiL->m, xpiR->n, fti);
-                matpoly_ft_dft(ab, tpiL, xpiL, fti);
-                matpoly_ft_dft(ab, tpiR, xpiR, fti);
-                matpoly_ft_mul(ab, tpi, tpiL, tpiR, fti);
+                matpoly_ft_init(fti, ab, tpiL, xpiL->m, xpiL->n);
+                matpoly_ft_init(fti, ab, tpiR, xpiR->m, xpiR->n);
+                matpoly_ft_init(fti, ab, tpi, xpiL->m, xpiR->n);
+                matpoly_ft_dft(fti, ab, tpiL, xpiL);
+                matpoly_ft_dft(fti, ab, tpiR, xpiR);
+                matpoly_ft_mul(fti, ab, tpi, tpiL, tpiR);
                 xpi->size = xpiL->size + xpiR->size - 1;
                 ASSERT_ALWAYS(xpi->size <= xpi->alloc);
-                matpoly_ft_ift(ab, xpi, tpi, fti);
-                matpoly_ft_clear(ab, tpiL, fti);
-                matpoly_ft_clear(ab, tpiR, fti);
+                matpoly_ft_ift(fti, ab, xpi, tpi);
+                matpoly_ft_clear(fti, ab, tpiL);
+                matpoly_ft_clear(fti, ab, tpiR);
                 matpoly_ft_clear(ab, tpi,  fti);
                 x.set_since_last();
                 s++;
@@ -935,7 +936,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
              * some update so that this change can happen).
              */
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_mul_caching_adj(xpi, xpiL, xpiR, adj, NULL);
+                matpoly_ft<fft_type>::mul_caching_adj(xpi, xpiL, xpiR, adj, NULL);
                 x.set_since_last();
             }
 #endif
@@ -971,6 +972,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
 
 void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
+    typedef fft_transform_info fft_type;
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
@@ -1131,23 +1133,23 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
             matpoly_clear(ab, xER);
             matpoly_init(ab, xER, m, m+n, input_length);
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft_init(ab, tpiL, xpiL->m, xpiL->n, fti);
-                matpoly_ft_init(ab, tE, xE->m, xE->n, fti);
-                matpoly_ft_init(ab, tER, xE->m, xpiL->n, fti);
-                matpoly_ft_dft(ab, tE, xE, fti);
-                matpoly_ft_dft(ab, tpiL, xpiL, fti);
+                matpoly_ft_init(fti, ab, tpiL, xpiL->m, xpiL->n);
+                matpoly_ft_init(fti, ab, tE, xE->m, xE->n);
+                matpoly_ft_init(fti, ab, tER, xE->m, xpiL->n);
+                matpoly_ft_dft(fti, ab, tE, xE);
+                matpoly_ft_dft(fti, ab, tpiL, xpiL);
                 /* length E_length * length k ==> length input_length
                  * with E_length = input_length + k - 1
                  *
                  * we'll shift by k-1 coefficients, because k is the
                  * smallest length
                  */
-                matpoly_ft_mul(ab, tER, tE, tpiL, fti);
+                matpoly_ft_mul(fti, ab, tER, tE, tpiL);
                 xER->size = input_length;
                 ASSERT_ALWAYS(xER->size <= xER->alloc);
-                matpoly_ft_ift_mp(ab, xER, tER, k-1, fti);
-                matpoly_ft_clear(ab, tpiL, fti);
-                matpoly_ft_clear(ab, tE, fti);
+                matpoly_ft_ift_mp(fti, ab, xER, tER, k-1);
+                matpoly_ft_clear(fti, ab, tpiL);
+                matpoly_ft_clear(fti, ab, tE);
                 matpoly_ft_clear(ab, tER,  fti);
                 x.set_since_last();
                 s++;
@@ -1157,7 +1159,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
             /* see remark above about matpoly_mul_caching gaining a stats
              * argument someday */
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_mp_caching_adj(xER, xE, xpiL, adj, NULL);
+                matpoly_ft<fft_type>::mp_caching_adj(xER, xE, xpiL, adj, NULL);
                 x.set_since_last();
             }
             if (xERref.size == 0) {

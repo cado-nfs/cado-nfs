@@ -80,11 +80,11 @@ struct lingen_tuning_cache {
 };
 
 template<typename T> struct lingen_tuning_cache_key {};
-template<> struct lingen_tuning_cache_key<op_mp> {
+template<typename fft_type> struct lingen_tuning_cache_key<op_mp<fft_type>> {
     typedef lingen_tuning_cache::mp_key key_type;
     typedef lingen_tuning_cache::mp_value value_type;
 };
-template<> struct lingen_tuning_cache_key<op_mul> {
+template<typename fft_type> struct lingen_tuning_cache_key<op_mul<fft_type>> {
     typedef lingen_tuning_cache::mp_key key_type;
     typedef lingen_tuning_cache::mp_value value_type;
 };

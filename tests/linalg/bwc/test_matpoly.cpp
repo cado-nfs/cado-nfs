@@ -1,39 +1,51 @@
 #include "cado.h"
 #include <gmp.h>
-#include "lingen_matpoly.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "utils.h"
 #include "gmp_aux.h"
 
-struct matpoly_checker {
+struct matpoly_checker_base {
     abfield ab;
     unsigned int m;
     unsigned int n;
     unsigned int len1;
     unsigned int len2;
-    matpoly::memory_pool_guard dummy;
-    matpoly_ft::memory_pool_guard dummy_ft;
+    matpoly::memory_guard dummy;
+
     gmp_randstate_t rstate;
     /* tests are free to seed and re-seed the checker's private rstate, a
      * priori with this random seed which was taken from the initial
      * random state */
     unsigned long seed;
 
-    matpoly_checker(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
+    matpoly_checker_base(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
         : m(m)
-          , n(n)
-          , len1(len1)
-          , len2(len2)
-          , dummy(SIZE_MAX)
-          , dummy_ft(SIZE_MAX)
-          , seed(gmp_urandomm_ui(rstate0, ULONG_MAX))
+        , n(n)
+        , len1(len1)
+        , len2(len2)
+        , dummy(SIZE_MAX)
+        , seed(gmp_urandomm_ui(rstate0, ULONG_MAX))
     {
         abfield_init(ab);
-        abfield_specify(ab, MPFQ_PRIME_MPZ, p);
+        abfield_specify(ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
     }
-    ~matpoly_checker() {
+    matpoly_checker_base(matpoly_checker_base const & o)
+        : m(o.m)
+        , n(o.n)
+        , len1(o.len1)
+        , len2(o.len2)
+        , dummy(SIZE_MAX)
+        , seed(o.seed)
+    {
+        cxx_mpz p;
+        abfield_init(ab);
+        abfield_specify(ab, MPFQ_PRIME_MPZ, abfield_characteristic_srcptr(o.ab));
+        gmp_randinit_default(rstate);
+        gmp_randseed_ui(rstate, seed);
+    }
+    ~matpoly_checker_base() {
         gmp_randclear(rstate);
         abfield_clear(ab);
     }
@@ -76,7 +88,7 @@ struct matpoly_checker {
         matpoly P1(ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.fill_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.fill_random(len1, rstate);
-        int ok = P0.alloc >= len1 && P1.alloc >= len1+len2 && P0.cmp(P1) == 0;
+        int ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
         return ok;
     }
 
@@ -104,34 +116,6 @@ struct matpoly_checker {
          * unspecified.
          */
         return ok;
-    }
-
-    int mul_and_mul_caching_are_consistent() {
-        matpoly P(ab, n, n, len1);
-        matpoly Q(ab, n, n, len2);
-        matpoly R0;
-        matpoly R1;
-
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
-
-        R0.mul(P, Q);
-        matpoly_mul_caching(R1, P, Q, NULL);
-        return (R0.cmp(R1) == 0);
-    }
-
-    int mp_and_mp_caching_are_consistent() {
-        matpoly P(ab, m,   n, len1);
-        matpoly Q(ab, n, n, len2);
-        matpoly M0;
-        matpoly M1;
-
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
-
-        M0.mp(P, Q);
-        matpoly_mp_caching(M1, P, Q, NULL);
-        return M0.cmp(M1) == 0;
     }
 
     int mulx_then_divx() {
@@ -367,9 +351,55 @@ struct matpoly_checker {
     }
 };
 
+template<typename fft_type>
+struct matpoly_checker_ft : public matpoly_checker_base {
+    typename matpoly_ft<fft_type>::memory_guard dummy_ft;
+
+    matpoly_checker_ft(matpoly_checker_base const & base)
+        : matpoly_checker_base(base)
+        , dummy_ft(SIZE_MAX)
+    {}
+    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
+        : matpoly_checker_base(p, m, n, len1, len2, rstate0)
+        , dummy_ft(SIZE_MAX)
+    {}
+    int mul_and_mul_caching_are_consistent() {
+        matpoly P(ab, n, n, len1);
+        matpoly Q(ab, n, n, len2);
+        matpoly R0;
+        matpoly R1;
+
+        P.fill_random(len1, rstate);
+        Q.fill_random(len2, rstate);
+
+        R0.mul(P, Q);
+        matpoly_ft<fft_type>::mul_caching(R1, P, Q, NULL);
+        return (R0.cmp(R1) == 0);
+    }
+
+    int mp_and_mp_caching_are_consistent() {
+        matpoly P(ab, m,   n, len1);
+        matpoly Q(ab, n, n, len2);
+        matpoly M0;
+        matpoly M1;
+
+        P.fill_random(len1, rstate);
+        Q.fill_random(len2, rstate);
+
+        M0.mp(P, Q);
+        matpoly_ft<fft_type>::mp_caching(M1, P, Q, NULL);
+        return M0.cmp(M1) == 0;
+    }
+
+};
+
 void declare_usage(cxx_param_list & pl)
 {
+#ifndef SELECT_MPFQ_LAYER_u64k1
     param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
+#else
+    param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
+#endif
     param_list_decl_usage(pl, "m", "dimension m");
     param_list_decl_usage(pl, "n", "dimension n");
     param_list_decl_usage(pl, "len1", "length 1");
@@ -401,11 +431,16 @@ int main(int argc, char * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
+#ifndef SELECT_MPFQ_LAYER_u64k1
     if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
         fprintf(stderr, "--prime is mandatory\n");
         param_list_print_command_line (stdout, pl);
         exit(EXIT_FAILURE);
     }
+#else
+    mpz_set_ui(p, 2);   /* unused anyway */
+    param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
+#endif
     param_list_parse_uint(pl, "m", &m);
     param_list_parse_uint(pl, "n", &n);
     param_list_parse_uint(pl, "len1", &len1);
@@ -417,15 +452,13 @@ int main(int argc, char * argv[])
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);
 
-    matpoly_checker checker(p, m, n, len1, len2, rstate);
+    matpoly_checker_base checker(p, m, n, len1, len2, rstate);
 
     ASSERT_ALWAYS(checker.ctor_and_pre_init());
     ASSERT_ALWAYS(checker.move_ctor());
     ASSERT_ALWAYS(checker.copy_ctor());
     ASSERT_ALWAYS(checker.fill_random_is_deterministic());
     ASSERT_ALWAYS(checker.realloc_does_what_it_says());
-    ASSERT_ALWAYS(checker.mul_and_mul_caching_are_consistent());
-    ASSERT_ALWAYS(checker.mp_and_mp_caching_are_consistent());
     ASSERT_ALWAYS(checker.mulx_then_divx());
     ASSERT_ALWAYS(checker.truncate_is_like_mulx_then_divx_everywhere());
     ASSERT_ALWAYS(checker.rshift_is_like_divx_everywhere());
@@ -435,6 +468,30 @@ int main(int argc, char * argv[])
     ASSERT_ALWAYS(checker.mul_is_distributive());
     ASSERT_ALWAYS(checker.mp_is_distributive());
     ASSERT_ALWAYS(checker.coeff_is_zero_and_zero_column_agree());
+
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    {
+        matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+    {
+        matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+    {
+        matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+#else
+    {
+        matpoly_checker_ft<fft_transform_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+#endif
 
     gmp_randclear(rstate);
 }

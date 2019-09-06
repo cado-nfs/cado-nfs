@@ -28,14 +28,15 @@
 
 #include "lingen_matpoly_bigmatpoly_ft_common.hpp"
 
-template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
+template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_base<bigmatpoly> {
     MPI_Datatype mpi_ft;
     tree_stats & stats;
     typedef bigmatpoly T;
+    typedef fft_type FFT;
     template<typename... Args>
-    OP_CTX(tree_stats & stats, fft_transform_info const * fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
+    OP_CTX(tree_stats & stats, fft_transform_info const & fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
         size_t fft_alloc_sizes[3];
-        fft_get_transform_allocs(fft_alloc_sizes, fti);
+        fft_transform_info_get_alloc_sizes(&fti, fft_alloc_sizes);
         size_t tsize = fft_alloc_sizes[0];
         MPI_Type_contiguous(tsize, MPI_BYTE, &mpi_ft);
         MPI_Type_commit(&mpi_ft);
@@ -96,20 +97,29 @@ template<> struct OP_CTX<bigmatpoly> : public OP_CTX_base<bigmatpoly> {
             M->per_transform_ram = op.get_transform_ram();
             M->ram = ntransforms * M->per_transform_ram;
         }
-        matpoly_ft::memory_pool_guard dummy(M ? M->ram : SIZE_MAX);
-        mp_or_mul<OP_CTX<bigmatpoly>, OP>(*this, op, M ? & M->S : NULL)();
+        typename matpoly_ft<fft_type>::memory_guard dummy(M ? M->ram : SIZE_MAX);
+        mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M ? & M->S : NULL)();
     }
 };
 
+template<typename fft_type>
+void bigmatpoly_ft<fft_type>::mp_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+{
+    op_mp<fft_type> op(a, b, UINT_MAX);
+    OP_CTX<bigmatpoly, fft_type>(stats, op.fti, c, a, b).doit(op, M);
+}
+template<typename fft_type>
+void bigmatpoly_ft<fft_type>::mul_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+{
+    op_mul<fft_type> op(a, b, UINT_MAX);
+    OP_CTX<bigmatpoly, fft_type>(stats, op.fti, c, a, b).doit(op, M);
+}
 
-void bigmatpoly_mp_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)
-{
-    op_mp OP(a, b, adj);
-    OP_CTX<bigmatpoly>(stats, OP.fti, c, a, b).doit(OP, M);
-}
-void bigmatpoly_mul_caching_adj(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)
-{
-    op_mul OP(a, b, adj);
-    OP_CTX<bigmatpoly>(stats, OP.fti, c, a, b).doit(OP, M);
-}
+#ifdef SELECT_MPFQ_LAYER_u64k1
+template class bigmatpoly_ft<gf2x_fake_fft>;
+template class bigmatpoly_ft<gf2x_cantor_fft>;
+template class bigmatpoly_ft<gf2x_ternary_fft>;
+#else
+template class bigmatpoly_ft<fft_transform_info>;
+#endif
 

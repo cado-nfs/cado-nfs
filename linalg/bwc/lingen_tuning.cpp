@@ -25,10 +25,12 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#include "mpfq_layer.h"
+#ifndef SELECT_MPFQ_LAYER_u64k1
 #include "lingen_polymat.hpp"
-#include "lingen_matpoly.hpp"
+#endif
 #include "lingen_matpoly_ft.hpp"
+#include "lingen_mul_substeps.hpp"
+
 #include "lingen.hpp"
 #include "lingen_tuning.hpp"
 #include "lingen_tuning_cache.hpp"
@@ -36,7 +38,6 @@
 #include "tree_stats.hpp"
 #include "fmt/format.h"
 #include "lingen_substep_schedule.hpp"
-#include "lingen_mul_substeps.hpp"
 
 #include <vector>
 #include <array>
@@ -209,11 +210,11 @@ struct lingen_substep_characteristics {/*{{{*/
         for( ; ; ) {
             matpoly a(ab, nparallel, n, asize);
             a.fill_random(asize, rstate);
-            matpoly_ft ta(ab, a.m, a.n, op.fti);
+            matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
             tt = -wct_seconds();
             for(unsigned int i = 0 ; i < n ; i++) {
                 submatrix_range R(0,i,a.m,1);
-                dft(ta.view(R), a.view(R));
+                matpoly_ft<typename OP::FFT>::dft(ta.view(R), a.view(R));
             }
             tt = (tt + wct_seconds());
             if (measure_cache_cold_quickly) break;
@@ -232,15 +233,15 @@ struct lingen_substep_characteristics {/*{{{*/
         const bool measure_cache_cold_quickly = true;
         for( ; ; ) {
             matpoly c(ab, nparallel, n, csize);
-            matpoly_ft tc(ab, c.m, c.n, op.fti);
+            matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
             /* This is important, since otherwise the inverse transform won't
              * work */
             c.size = csize;
-            tc.fill_random(rstate);
+            tc.zero(); /* would be .fill_random(rstate) if we had it */
             tt = -wct_seconds();
             for(unsigned int i = 0 ; i < n ; i++) {
                 submatrix_range R(0,i,c.m,1);
-                op.ift(c.view(R), tc.view(R));
+                matpoly_ft<typename OP::FFT>::ift(c.view(R), tc.view(R));
             }
             tt = (tt + wct_seconds());
             if (measure_cache_cold_quickly) break;
@@ -258,16 +259,16 @@ struct lingen_substep_characteristics {/*{{{*/
         unsigned int n = 1;
         const bool measure_cache_cold_quickly = true;
         for( ; ; ) {
-            matpoly_ft ta(ab, nparallel, n, op.fti);
-            matpoly_ft tb(ab, n, 1, op.fti);
-            matpoly_ft tc(ab, nparallel, 1, op.fti);
-            ta.fill_random(rstate);
-            tb.fill_random(rstate);
+            matpoly_ft<typename OP::FFT> ta(nparallel, n, op.fti);
+            matpoly_ft<typename OP::FFT> tb(n, 1, op.fti);
+            matpoly_ft<typename OP::FFT> tc(nparallel, 1, op.fti);
+            ta.zero(); /* would be .fill_random(rstate) if we had it */
+            tb.zero(); /* would be .fill_random(rstate) if we had it */
             tt = -wct_seconds();
             for(unsigned int i = 0 ; i < n ; i++) {
                 submatrix_range Ra(0,i,ta.m,1);
                 submatrix_range Rb(i,0,tb.n,1);
-                mul(tc, ta.view(Ra), tb.view(Rb));
+                matpoly_ft<typename OP::FFT>::mul(tc, ta.view(Ra), tb.view(Rb));
             }
             tt = (tt + wct_seconds());
             if (measure_cache_cold_quickly) break;
@@ -735,6 +736,7 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
 }
 /* }}} */
 
+template<typename fft_type>
 struct lingen_tuner {
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
@@ -890,7 +892,7 @@ struct lingen_tuner {
         }
     }
 
-    lingen_substep_characteristics<op_mp> mp_substep(weighted_call_t const & cw) { /* {{{ */
+    lingen_substep_characteristics<op_mp<fft_type>> mp_substep(weighted_call_t const & cw) { /* {{{ */
         size_t length_E;
         size_t length_E_left;
         size_t length_E_right;
@@ -911,7 +913,7 @@ struct lingen_tuner {
         ASSERT_ALWAYS(asize);
         ASSERT_ALWAYS(bsize);
 
-        return lingen_substep_characteristics<op_mp>(
+        return lingen_substep_characteristics<op_mp<fft_type>>(
                 ab, rstate, length_E,
                 m, m+n, m+n,
                 asize, bsize, csize);
@@ -932,7 +934,7 @@ struct lingen_tuner {
             schedules_mp[L] = S;
         }
     } /* }}} */
-    lingen_substep_characteristics<op_mul> mul_substep(weighted_call_t const & cw) { /* {{{ */
+    lingen_substep_characteristics<op_mul<fft_type>> mul_substep(weighted_call_t const & cw) { /* {{{ */
         size_t length_E;
         size_t length_E_left;
         size_t length_E_right;
@@ -950,7 +952,7 @@ struct lingen_tuner {
         ASSERT_ALWAYS(asize);
         ASSERT_ALWAYS(bsize);
 
-        return lingen_substep_characteristics<op_mul>(
+        return lingen_substep_characteristics<op_mul<fft_type>>(
                 ab, rstate, length_E,
                 m+n, m+n, m+n,
                 asize, bsize, csize);
@@ -1265,18 +1267,19 @@ struct lingen_tuner {
     }
 };
 
+/* For the moment we're only hooking the fft_transform_info version */
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-    return lingen_tuner(d, L, comm, pl).tune();
+    return lingen_tuner<fft_transform_info>(d, L, comm, pl).tune();
 }
 
 void lingen_tuning_decl_usage(cxx_param_list & pl)
 {
-    lingen_tuner::declare_usage(pl);
+    lingen_tuner<fft_transform_info>::declare_usage(pl);
 }
 
 void lingen_tuning_lookup_parameters(cxx_param_list & pl)
 {
-    lingen_tuner::lookup_parameters(pl);
+    lingen_tuner<fft_transform_info>::lookup_parameters(pl);
 }
 

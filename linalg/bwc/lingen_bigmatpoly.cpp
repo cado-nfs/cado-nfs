@@ -141,7 +141,7 @@ void bigmatpoly::provision_row()
         if (j == (unsigned int) jrank()) continue;
         matpoly & them = cell(irank(), j);
         if (them.check_pre_init())
-            them = matpoly(ab, m0, n0, my_cell().alloc);
+            them = matpoly(ab, m0, n0, my_cell().capacity());
     }
 }
 
@@ -167,7 +167,7 @@ void bigmatpoly::provision_col() // bigmatpoly & p(*this)
         if (i == (unsigned int) irank()) continue;
         matpoly & them = cell(i, jrank());
         if (them.check_pre_init())
-            them = matpoly(ab, m0, n0, my_cell().alloc);
+            them = matpoly(ab, m0, n0, my_cell().capacity());
     }
 }
 #endif
@@ -179,7 +179,7 @@ void bigmatpoly::provision_col() // bigmatpoly & p(*this)
 void bigmatpoly::set_size(size_t nsize)
 {
     matpoly & me = my_cell();
-    ASSERT_ALWAYS(nsize <= me.alloc);
+    ASSERT_ALWAYS(nsize <= me.capacity());
     size = nsize;
     me.size = nsize;
     for(unsigned int j = 0 ; j < n1 ; j++) {
@@ -187,14 +187,14 @@ void bigmatpoly::set_size(size_t nsize)
         matpoly & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.size = nsize;
-        ASSERT_ALWAYS(nsize <= them.alloc);
+        ASSERT_ALWAYS(nsize <= them.capacity());
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
         matpoly & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.size = nsize;
-        ASSERT_ALWAYS(nsize <= them.alloc);
+        ASSERT_ALWAYS(nsize <= them.capacity());
     }
 }
 
@@ -306,10 +306,10 @@ void bigmatpoly::allgather_row()
         unsigned long dsize = data.size;
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[1]);
         data.size = dsize;
-        ASSERT_ALWAYS(data.size <= data.alloc);
-        ASSERT_ALWAYS((data.m * data.n * data.alloc) < (size_t) INT_MAX);
+        ASSERT_ALWAYS(data.size <= data.capacity());
+        ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
-                data.m * data.n, data.alloc * abvec_elt_stride(ab, 1),
+                data.m * data.n, data.capacity() * abvec_elt_stride(ab, 1),
                 MPI_BYTE,
                 MPI_Bcast(data.x, _datasize, _datatype, k, com[1])
         );
@@ -324,10 +324,10 @@ void bigmatpoly::allgather_col()
         unsigned long dsize = data.size;
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[2]);
         data.size = dsize;
-        ASSERT_ALWAYS(data.size <= data.alloc);
-        ASSERT_ALWAYS((data.m * data.n * data.alloc) < (size_t) INT_MAX);
+        ASSERT_ALWAYS(data.size <= data.capacity());
+        ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
-                data.m * data.n, data.alloc * abvec_elt_stride(ab, 1),
+                data.m * data.n, data.capacity() * abvec_elt_stride(ab, 1),
                 MPI_BYTE,
                 MPI_Bcast(data.x, _datasize, _datatype, k, com[2])
         );
@@ -376,7 +376,7 @@ void bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     lb.zero();
     set_size(size);
     ASSERT_ALWAYS(lb.size == size);
-    ASSERT_ALWAYS(lb.alloc >= lb.size);
+    ASSERT_ALWAYS(lb.capacity() >= lb.size);
 
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
         lb.addmp(a.cell(irank(), k), c.cell(k, jrank()));
@@ -417,7 +417,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     if (!rank()) {
         ASSERT_ALWAYS(dst.m == m);
         ASSERT_ALWAYS(dst.n == n);
-        ASSERT_ALWAYS(dst.alloc >= length);
+        ASSERT_ALWAYS(dst.capacity() >= length);
         dst.size = length;
         MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
@@ -433,7 +433,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                         abdst_vec to = dst.part(ii, jj, 0);
                         if (peer == 0) {
                             /* talk to ourself */
-                            ASSERT_ALWAYS(offset + length <= me.alloc);
+                            ASSERT_ALWAYS(offset + length <= me.capacity());
                             absrc_vec from = me.part(i0, j0, offset);
                             abvec_set(ab, to, from, length);
                         } else {
@@ -630,7 +630,7 @@ void bigmatpoly::scatter_mat(matpoly const & src)
         unsigned int n;
         size_t size;
         size_t alloc;
-    } shell { src.m, src.n, src.size, src.alloc };
+    } shell { src.m, src.n, src.size, src.capacity() };
 
     MPI_Bcast(&shell, sizeof(shell), MPI_BYTE, 0, com[0]);
 

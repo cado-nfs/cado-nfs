@@ -1,6 +1,10 @@
 #ifndef MPFQ_LAYER_H_
 #define MPFQ_LAYER_H_
 
+#if defined(MPFQ_FAKE_HPP_) && defined(MPFQ_LAYER_H_)
+#error "mpfq_layer.h and mpfq_fake.hpp are incomaptible"
+#endif
+
 #if defined(SELECT_MPFQ_LAYER_u64k1)
 #include "mpfq/mpfq_u64k1.h"
 #ifdef __cplusplus

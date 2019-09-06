@@ -609,6 +609,11 @@ set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Usi
 
 cado_define_test(test_iceildiv.c)
 
+# used by some tests.
+if(DEFINED ENV{CHECKS_EXPENSIVE})
+find_program(MAGMA magma HINTS ENV MAGMA)
+endif()
+
 add_subdirectory (scripts)
 add_subdirectory (utils)
 add_subdirectory (sieve)

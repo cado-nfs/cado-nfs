@@ -367,7 +367,7 @@ struct polmat { /* {{{ */
     void xmul_poly(unsigned int i, unsigned int j, unsigned long s=1) {/*{{{*/
         ASSERT(i < nrows);
         ASSERT(j < ncols);
-        unsigned long * dst = x + (j * nrows + i) * stride();
+        unsigned long * dst = poly(i, j);
         ASSERT(1 <= s && s <= GMP_LIMB_BITS-1);
         mpn_lshift(dst, dst, stride(), s);
         /* We may have garbage for the low bits. It may matter, or maybe
@@ -688,19 +688,28 @@ template<typename fft_type> struct tpolmat /* {{{ */
 template<typename fft_type>
 void transform(tpolmat<fft_type>& dst, polmat& src, fft_type& o, int d)
 {
+    typedef typename fft_type::ptr ptr;
     // clock_t t = clock();
     tpolmat<fft_type> tmp(src.nrows, src.ncols, o);
     tmp.zero();
     src.clear_highbits();
-    {
+    size_t sizes[3];
+    o.get_alloc_sizes(sizes);
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for collapse(2) schedule(static)
+#pragma omp parallel
+#endif  /* HAVE_OPENMP */
+    {
+        ptr temp1 = (ptr) malloc(o.size1_bytes());
+        // fft_type::ptr temp2 = new typename fft_type::t[sizes[2]];
+#ifdef  HAVE_OPENMP
+#pragma omp for collapse(2) schedule(static)
 #endif  /* HAVE_OPENMP */
         for(unsigned int j = 0 ; j < src.ncols ; j++) {
             for(unsigned int i = 0 ; i < src.nrows ; i++) {
-                o.dft(tmp.poly(i,j), src.poly(i,j), d);
+                o.dft(tmp.poly(i,j), src.poly(i,j), d, temp1);
             }
         }
+        free(temp1);
     }
     dst.swap(tmp);
     /*
@@ -905,25 +914,33 @@ void compose_inner(
         tpolmat<fft_type> const & s2,
         fft_type& o, selector_type const& s)
 {
+    typedef typename fft_type::ptr ptr;
     tpolmat<fft_type> tmp(s1.nrows, s2.ncols, o);
     ASSERT(s1.ncols == s2.nrows);
     unsigned int nbits;
-    nbits = o.size() * sizeof(typename remove_pointer<typename fft_type::ptr>::t) * CHAR_BIT;
+    nbits = o.size() * sizeof(typename remove_pointer<ptr>::elt) * CHAR_BIT;
     if (s(s1.nrows, s1.ncols, s2.ncols, nbits)) {
         compose_strassen(tmp, s1, s2, o, s);
     } else {
         tmp.zero();
-        {
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for collapse(2) schedule(static)
+#pragma omp parallel
+#endif  /* HAVE_OPENMP */
+        {
+            ptr temp1 = (ptr) malloc(o.size1_bytes());
+            ptr temp2 = (ptr) malloc(o.size2_bytes());
+#ifdef  HAVE_OPENMP
+#pragma omp for collapse(2) schedule(static)
 #endif  /* HAVE_OPENMP */
             for(unsigned int i = 0 ; i < s1.nrows ; i++) {
                 for(unsigned int j = 0 ; j < s2.ncols ; j++) {
                     for(unsigned int k = 0 ; k < s1.ncols ; k++) {
-                        o.addcompose(tmp.poly(i,j), s1.poly(i,k), s2.poly(k,j));
+                        o.addcompose(tmp.poly(i,j), s1.poly(i,k), s2.poly(k,j), temp2, temp1);
                     }
                 }
             }
+            free(temp1);
+            free(temp2);
         }
     }
     dst.swap(tmp);
@@ -963,6 +980,8 @@ inline void fft_combo_inplace(
         int ncoeffs_out
         )
 {
+    typedef typename fft_type::ptr ptr;
+    typedef typename fft_type::srcptr srcptr;
     /* This is not satisfactory. It would be better to replace the input
      * in place. The only reason we can't do this is because ncoeffs_in
      * and ncoeffs_out differ, so that we have a different data stride
@@ -975,7 +994,7 @@ inline void fft_combo_inplace(
     ASSERT(dst.ncols == s.nrows);
     dst.clear_highbits();
 
-    typename fft_type::srcptr * t1s = new typename fft_type::srcptr[dst.ncols];
+    srcptr * t1s = new srcptr[dst.ncols];
     for(unsigned int k = 0 ; k < dst.ncols ; k++) {
         t1s[k] = tmp1.poly(0,k);
     }
@@ -983,30 +1002,53 @@ inline void fft_combo_inplace(
     for(unsigned int i = 0 ; i < dst.nrows ; i++) {
         tmp1.zero();
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for schedule(static)
+#pragma omp parallel
 #endif  /* HAVE_OPENMP */
-        for(unsigned int k = 0 ; k < dst.ncols ; k++) {
-            o.dft(tmp1.poly(0,k), dst.poly(i,k), ncoeffs_in);
+        {
+            ptr temp1 = (ptr) malloc(o.size1_bytes());
+#ifdef  HAVE_OPENMP
+#pragma omp for schedule(static)
+#endif  /* HAVE_OPENMP */
+            for(unsigned int k = 0 ; k < dst.ncols ; k++) {
+                o.dft(tmp1.poly(0,k), dst.poly(i,k), ncoeffs_in, temp1);
+            }
+            free(temp1);
         }
 
         /* now do the multiplication */
         tmp2.zero();
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for schedule(static)
+#pragma omp parallel
 #endif  /* HAVE_OPENMP */
-        for(unsigned int j = 0 ; j < s.ncols ; j++) {
-            typename fft_type::srcptr * sjs = new typename fft_type::srcptr[dst.ncols];
-            for(unsigned int k = 0 ; k < dst.ncols ; k++) sjs[k] = s.poly(k,j);
-            o.addcompose_n(tmp2.poly(0,j), t1s, sjs, dst.ncols);
-            delete[] sjs;
+        {
+            ptr temp1 = (ptr) malloc(o.size1_bytes());
+            ptr temp2 = (ptr) malloc(o.size2_bytes());
+#ifdef  HAVE_OPENMP
+#pragma omp for schedule(static)
+#endif  /* HAVE_OPENMP */
+            for(unsigned int j = 0 ; j < s.ncols ; j++) {
+                srcptr * sjs = new srcptr[dst.ncols];
+                for(unsigned int k = 0 ; k < dst.ncols ; k++) sjs[k] = s.poly(k,j);
+                o.addcompose_n(tmp2.poly(0,j), t1s, sjs, dst.ncols, temp2, temp1);
+                delete[] sjs;
+            }
+            free(temp1);
+            free(temp2);
         }
 
         /* and the inverse transform */
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for schedule(static)
+#pragma omp parallel
 #endif  /* HAVE_OPENMP */
-        for(unsigned int j = 0 ; j < dst.ncols ; j++) {
-            o.ift(new_dst.poly(i,j), ncoeffs_out, tmp2.poly(0,j));
+        {
+            ptr temp1 = (ptr) malloc(o.size1_bytes());
+#ifdef  HAVE_OPENMP
+#pragma omp for schedule(static)
+#endif  /* HAVE_OPENMP */
+            for(unsigned int j = 0 ; j < dst.ncols ; j++) {
+                o.ift(new_dst.poly(i,j), ncoeffs_out, tmp2.poly(0,j), temp1);
+            }
+            free(temp1);
         }
     }
     for(unsigned int j = 0 ; j < dst.ncols ; j++) {
@@ -1020,17 +1062,23 @@ inline void fft_combo_inplace(
 template<typename fft_type>
 void itransform(polmat& dst, tpolmat<fft_type>& src, fft_type& o, int d)
 {
+    typedef typename fft_type::ptr ptr;
     // XXX The +1 seems to be bogus.
     polmat tmp(src.nrows, src.ncols, d + 1);
-    {
 #ifdef  HAVE_OPENMP
-#pragma omp parallel for collapse(2) schedule(static)
+#pragma omp parallel
+#endif  /* HAVE_OPENMP */
+    {
+        ptr temp1 = (ptr) malloc(o.size1_bytes());
+#ifdef  HAVE_OPENMP
+#pragma omp for collapse(2) schedule(static)
 #endif  /* HAVE_OPENMP */
         for(unsigned int j = 0 ; j < src.ncols ; j++) {
             for(unsigned int i = 0 ; i < src.nrows ; i++) {
-                o.ift(tmp.poly(i,j), d, src.poly(i,j));
+                o.ift(tmp.poly(i,j), d, src.poly(i,j), temp1);
             }
         }
+        free(temp1);
     }
     for(unsigned int j = 0 ; j < src.ncols ; j++) {
         tmp.setdeg(j);

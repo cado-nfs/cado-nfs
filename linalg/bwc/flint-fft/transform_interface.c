@@ -1,7 +1,10 @@
+#ifdef DEBUG_FFT
+#define _GNU_SOURCE     /* DEBUG_FFT wants asprintf */
+#endif
 
 /* 
  * 
- * Copyright 2013, Emmanuel Thomé.
+ * Copyright 2013, 2014, 2018, 2019, Emmanuel Thomé.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -526,7 +529,7 @@ void fft_transform_info_adjust_depth(struct fft_transform_info * fti, unsigned i
     ASSERT_ALWAYS(fft_transform_info_check(fti));
 }
 
-void fft_get_transform_info_mulmod(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
+void fft_transform_info_init_mulmod(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
 {
 
     memset(fti, 0, sizeof(*fti));
@@ -547,17 +550,26 @@ void fft_get_transform_info_mulmod(struct fft_transform_info * fti, mp_bitcnt_t 
         fft_transform_info_adjust_depth(fti, 0);
     }
 
+    fti->p = NULL;
+    fti->mp_shift = 0;
+
+#ifdef DEBUG_FFT
+    const char * tmp = getenv("TMPDIR");
+    if (!tmp) tmp = "/tmp";
+    strncpy(fti->tmpdir, tmp, sizeof(fti->tmpdir));
+    fti->tmpdir[sizeof(fti->tmpdir)-1]='\0';
+#endif
 }
 
-void fft_get_transform_info(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc)
+void fft_transform_info_init(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc)
 {
-    fft_get_transform_info_mulmod(fti, bits1, bits2, nacc, 0);
+    fft_transform_info_init_mulmod(fti, bits1, bits2, nacc, 0);
 }
 
 #if 0
 /* This is almost the same as
  *
- *      fft_get_transform_info(fti, bitsmin, bitsmax-bitsmin, nacc)
+ *      fft_transform_info_init(fti, bitsmin, bitsmax-bitsmin, nacc)
  *
  * except that there is one extra optimization we can't do. When we
  * assert above that j1+j2-1 has to be less than 4n, this still allows
@@ -567,7 +579,7 @@ void fft_get_transform_info(struct fft_transform_info * fti, mp_bitcnt_t bits1, 
  * constraints differ. We want iceildiv(bitsmax, bits) <= 4*n
  *
  */
-void fft_get_transform_info_mp(struct fft_transform_info * fti, mp_bitcnt_t bitsmin, mp_bitcnt_t bitsmax, unsigned int nacc)
+void fft_transform_info_init_mp(struct fft_transform_info * fti, mp_bitcnt_t bitsmin, mp_bitcnt_t bitsmax, unsigned int nacc)
 {
     assert(bitsmax >= bitsmin);
     mp_bitcnt_t bits1 = bitsmin;
@@ -579,7 +591,7 @@ void fft_get_transform_info_mp(struct fft_transform_info * fti, mp_bitcnt_t bits
      * Bottom line: we want j1+j2, not j1+j2-1, to fit within 4*n
      */
 
-    fft_get_transform_info_generic(fti, bits1, bits2, nacc, 1);
+    fft_transform_info_init_generic(fti, bits1, bits2, nacc, 1);
 }
 #endif
 
@@ -588,7 +600,7 @@ void fft_get_transform_info_mp(struct fft_transform_info * fti, mp_bitcnt_t bits
  * using Kronecker substitution.
  * (we hare talking *length* n1 and n2, hence degrees n1-1 and n2-1).
  */
-void fft_get_transform_info_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc)
+void fft_transform_info_init_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc)
 {
     /* The maximum number of summands is MIN(n1, n2) */
     mp_bitcnt_t cbits = 2 * mpz_sizeinbase(p, 2) + FLINT_CLOG2(nacc * FLINT_MIN(n1, n2));
@@ -596,16 +608,19 @@ void fft_get_transform_info_fppol(struct fft_transform_info * fti, mpz_srcptr p,
      * bits for the product. */
     if ((n1+n2)*cbits < 4096)
         cbits=iceildiv(4096, n1+n2);
-    fft_get_transform_info(fti, n1 * cbits, n2 * cbits, nacc);
+    fft_transform_info_init(fti, n1 * cbits, n2 * cbits, nacc);
     fti->ks_coeff_bits = cbits;
+
+    fti->p = p;
+    fti->mp_shift = 0;
 }
 
 /* middle product of two polynomials of length nmin and nmax, with nmin
  * <= nmax. */
-void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc)
+void fft_transform_info_init_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc)
 {
     if (nmin > nmax) {
-        fft_get_transform_info_fppol_mp(fti, p, nmax, nmin, nacc);
+        fft_transform_info_init_fppol_mp(fti, p, nmax, nmin, nacc);
         return;
     }
 
@@ -614,7 +629,7 @@ void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr
     /* See above */
     if (nmax*cbits < 4096)
         cbits=iceildiv(4096, nmax);
-    fft_get_transform_info_mulmod(fti,
+    fft_transform_info_init_mulmod(fti,
             nmin * cbits,
             nmax * cbits,
             nacc,
@@ -626,6 +641,9 @@ void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr
             nmax * cbits + FLINT_CLOG2(nacc) + 1);
     /* The maximum number of summands is nmin */
     fti->ks_coeff_bits = cbits;
+
+    fti->p = p;
+    fti->mp_shift = nmin - 1;
 }
 
 
@@ -635,9 +653,9 @@ void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr
  * [0]: space to be allocated (size_t) for each transform.
  * [1]: temp space to be passed alongside with each transform
  *      (needs be allocated only once). This same amount is also needed
- *      when calling fft_addmul
- * [2]: temp space to be passed alongside with each fft_mul or fft_addmul
- *       convolution (needs be allocated only once).
+ *      when calling fft_addcompose
+ * [2]: temp space to be passed alongside with each fft_compose or
+ *      fft_addcompose convolution (needs be allocated only once).
  *
  * spaces returned in [1] and [2] are independent and the same area may
  * be used for both, but of course the caller must then ensure that they
@@ -646,66 +664,95 @@ void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr
  * Note that the size returned in [0] for each transform entails slight
  * overallocation due to pointer swap tricks here and there.
  */
-void fft_get_transform_allocs(size_t sizes[3], const struct fft_transform_info * fti)
+void fft_transform_info_get_alloc_sizes(const struct fft_transform_info * fti, size_t sizes[3])
 {
     mp_size_t w = fti->w;
     mp_size_t n = 1 << fti->depth;
     size_t chunks = ((w * n) / FLINT_BITS + 1) * sizeof(mp_limb_t);
+
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
 
     /* alloc sizes are the same irrespective of whether or not we use MFA */
 
     /* See mul_truncate_sqrt2 and fft_truncate_sqrt2 */
     /* 4n ptrs to areas of [size] limbs, with size=(n*w/64)+1 */
     /* plus two areas which are here for pointer swaps */
-    sizes[0] = (4 * n + 2) * (sizeof(mp_limb_t *) + chunks);
+    sizes[0] = (4 * n + 2 * N) * (sizeof(mp_limb_t *) + chunks);
     /* transform temp: 1 temp areas of [size] limbs */
-    sizes[1] = chunks;
+    sizes[1] = N * chunks;
     /* conv temp: 1 temp areas of 2*[size] limbs */
-    sizes[2] = 2 * chunks;
+    sizes[2] = 2 * N * chunks;
 }
 
 #define VOID_POINTER_ADD(x, k) (((char*)(x))+(k))
 
-void fft_transform_prepare(void * x, const struct fft_transform_info * fti)
+void fft_prepare(const struct fft_transform_info * fti, void * x)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) x;
-    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(x, (4*n+2)*sizeof(mp_limb_t *));
-    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(x, (4*n+2*N)*sizeof(mp_limb_t *));
+    for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
         ptrs[i] = data + i * (rsize0 + 1);
     }
 }
 
 /* Can be used to check sanity of transforms, for debugging a priori */
-int fft_transform_check(const void * x, const struct fft_transform_info * fti, int diag)
+int fft_check(const struct fft_transform_info * fti, const void * x, int diag)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) x;
-    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(x, (4*n+2)*sizeof(mp_limb_t *));
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(x, (4*n+2*N)*sizeof(mp_limb_t *));
 
-    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+    for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
         ptrdiff_t d = ptrs[i] - data;
         if (d < 0) { if (diag) fprintf(stderr, "ptrs[%lu] below range\n", i); return 0; }
         if (d % (rsize0 + 1) != 0) { if (diag) fprintf(stderr, "ptrs[%lu] badly aligned\n", i); return 0;  }
-        if (d / (rsize0 + 1) >= (4*n+2)) { if (diag) fprintf(stderr, "ptrs[%lu] above range\n", i); return 0; }
+        if (d / (rsize0 + 1) >= (4*n+2*N)) { if (diag) fprintf(stderr, "ptrs[%lu] above range\n", i); return 0; }
     }
     return 1;
 }
 
-void fft_transform_export(void * x, const struct fft_transform_info * fti)
+void fft_export(const struct fft_transform_info * fti, void * x)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_size_t n = 1 << fti->depth;
     mp_limb_t ** ptrs = (mp_limb_t **) x;
     if (sizeof(unsigned long) == sizeof(mp_limb_t *)) {
         unsigned long * offs = (unsigned long *) x;
-        for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
             offs[i] = ptrs[i] - (mp_limb_t *) x;
         }
     } else if (sizeof(unsigned int) == sizeof(mp_limb_t *)) {
         unsigned int * offs = (unsigned int *) x;
-        for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
             offs[i] = ptrs[i] - (mp_limb_t *) x;
         }
     } else {
@@ -714,8 +761,15 @@ void fft_transform_export(void * x, const struct fft_transform_info * fti)
 }
 
 
-void fft_transform_import(void * x, const struct fft_transform_info * fti)
+void fft_import(const struct fft_transform_info * fti, void * x)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_size_t n = 1 << fti->depth;
     mp_limb_t ** ptrs = (mp_limb_t **) x;
     if (ptrs[0] == NULL) {
@@ -724,12 +778,12 @@ void fft_transform_import(void * x, const struct fft_transform_info * fti)
     }
     if (sizeof(unsigned long) == sizeof(mp_limb_t *)) {
         unsigned long * offs = (unsigned long *) x;
-        for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
             ptrs[i] = (mp_limb_t *) x + offs[i];
         }
     } else if (sizeof(unsigned int) == sizeof(mp_limb_t *)) {
         unsigned int * offs = (unsigned int *) x;
-        for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+        for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
             ptrs[i] = (mp_limb_t *) x + offs[i];
         }
     } else {
@@ -741,21 +795,21 @@ void fft_transform_import(void * x, const struct fft_transform_info * fti)
 void * fft_transform_alloc(const struct fft_transform_info * fti)
 {
     size_t allocs[3];
-    fft_get_transform_allocs(allocs, fti);
+    fft_transform_info_get_alloc_sizes(fti, allocs);
     void * data = malloc(allocs[0]);
-    fft_transform_prepare(data, fti);
+    fft_prepare(fti, data);
     return data;
 }
 /* }}} */
 
 /* {{{ kronecker-schönhage */
-void fft_split_fppol(void * y, const mp_limb_t * x, mp_size_t cx, const struct fft_transform_info * fti, mpz_srcptr p)
+static void fft_split_fppol(const struct fft_transform_info * fti, void * y, const mp_limb_t * x, mp_size_t cx, mpz_srcptr p)
 {
     /* XXX We are implicitly asserting that the transform here is
-     * straight out of fft_transform_prepare(). If it is not, then we
+     * straight out of fft_prepare(). If it is not, then we
      * will have trouble. Should we enforce this as an API requirement,
      * or sanitize the transform area by ourselves ? If the latter, is
-     * there any point then in keeping fft_transform_prepare called
+     * there any point then in keeping fft_prepare called
      * within fft_transform_alloc ? Probably not */
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
@@ -765,7 +819,7 @@ void fft_split_fppol(void * y, const mp_limb_t * x, mp_size_t cx, const struct f
     mp_size_t nx = cx * np;
     mp_size_t ks_coeff_bits = fti->ks_coeff_bits;
     /* We re-implement fft_split_bits */
-    fft_zero(y, fti);
+    fft_zero(fti, y);
 
     /* source area: polynomial over Fp[x], flat.
      *  pointer x
@@ -901,7 +955,7 @@ void fft_split_fppol(void * y, const mp_limb_t * x, mp_size_t cx, const struct f
  * The nx first coefficients of the result (each occupying mpz_size(p)
  * limbs) go to the limb array x.
  */
-void fft_combine_fppol(mp_limb_t * x, mp_size_t cx, void * y, const struct fft_transform_info * fti, mpz_srcptr p)
+void fft_combine_fppol(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t cx, void * y, mpz_srcptr p)
 {
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) y;
@@ -988,7 +1042,7 @@ void fft_combine_fppol(mp_limb_t * x, mp_size_t cx, void * y, const struct fft_t
  * presence of a carry is directly decided from the presence of the bit
  * just before the lowest polynomial coefficient in R[x].
  */
-void fft_combine_fppol_mp(mp_limb_t * x, mp_size_t cx, void * y, const struct fft_transform_info * fti, mpz_srcptr p)
+void fft_combine_fppol_mp(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t cx, void * y, mpz_srcptr p)
 {
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) y;
@@ -1080,11 +1134,14 @@ void fft_combine_fppol_mp(mp_limb_t * x, mp_size_t cx, void * y, const struct ff
 /* }}} */
 
 #ifdef DEBUG_FFT/*{{{*/
-void fft_debug_print_ft(const char * filename, void * y, const struct fft_transform_info * fti)
+void fft_debug_print_ft(const struct fft_transform_info * fti, const char * basename, void * y)
 {
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) y;
+    char * filename;
+    int rc = asprintf(&filename, "%s/%s", fti->tmpdir, basename);
+    if (rc < 0) abort();
     FILE * f = fopen(filename, "w");
     if (f == NULL) {
         fprintf(stderr, "%s: %s\n", filename, strerror(errno));
@@ -1116,26 +1173,34 @@ void fft_debug_print_ft(const char * filename, void * y, const struct fft_transf
     }
     fprintf(f, "];\n");
     fclose(f);
+    free(filename);
 }
 #endif/*}}}*/
 
 /* {{{ dft/ift backends */
-static void fft_do_dft_backend(void * y, void * temp, const struct fft_transform_info * fti)
+static void fft_dft_backend(const struct fft_transform_info * fti, void * y, void * temp)
 {
 #ifdef DEBUG_FFT
-    fft_debug_print_ft("/tmp/before_dft.m", y, fti);
+    fft_debug_print_ft(fti, "before_dft.m", y);
 #endif
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) y;
     mp_size_t trunc = fti_trunc(fti);
 
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0)
+        N = omp_get_max_threads();
+#endif
     mp_limb_t ** tslot0 = ptrs + 4 * n;
-    mp_limb_t ** tslot1 = ptrs + 4 * n + 1;
-    mp_limb_t * s1 = temp;
+    mp_limb_t ** tslot1 = ptrs + 4 * n + N;
+    mp_limb_t * s1[N];
+    for(int i = 0 ; i < N ; i++)
+        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1));
 
     if (fti->alg == 0) {
-        fft_truncate_sqrt2(y, n, fti->w, tslot0, tslot1, &s1, trunc);
+        fft_truncate_sqrt2(y, n, fti->w, tslot0, tslot1, s1, trunc);
         for (mp_size_t j = 0; j < trunc; j++) {
             mpn_normmod_2expp1(ptrs[j], rsize0);
         }
@@ -1151,7 +1216,7 @@ static void fft_do_dft_backend(void * y, void * temp, const struct fft_transform
         mp_size_t trunc2 = (trunc - 2 * n) / n1;
 
         /* outer */
-        fft_mfa_truncate_sqrt2_outer(ptrs, n, fti->w, tslot0, tslot1, &s1, n1, trunc);
+        fft_mfa_truncate_sqrt2_outer(ptrs, n, fti->w, tslot0, tslot1, s1, n1, trunc);
 
         /* inner layers */
         for (mp_size_t s = 0; s < trunc2; s++) {
@@ -1171,28 +1236,35 @@ static void fft_do_dft_backend(void * y, void * temp, const struct fft_transform
          * and then outer steps */
     }
 #ifdef DEBUG_FFT
-    fft_debug_print_ft("/tmp/after_dft.m", y, fti);
+    fft_debug_print_ft(fti, "after_dft.m", y);
 #endif
 }
 
-static void fft_do_ift_backend(void * y, void * temp, const struct fft_transform_info * fti)
+static void fft_ift_backend(const struct fft_transform_info * fti, void * y, void * temp)
 {
 #ifdef DEBUG_FFT
-    fft_debug_print_ft("/tmp/before_ift.m", y, fti);
+    fft_debug_print_ft(fti, "before_ift.m", y);
 #endif
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
     mp_limb_t ** ptrs = (mp_limb_t **) y;
     mp_size_t trunc = fti_trunc(fti);
 
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0)
+        N = omp_get_max_threads();
+#endif
     mp_limb_t ** tslot0 = ptrs + 4 * n;
-    mp_limb_t ** tslot1 = ptrs + 4 * n + 1;
-    mp_limb_t * s1 = temp;
+    mp_limb_t ** tslot1 = ptrs + 4 * n + N;
+    mp_limb_t * s1[N];
+    for(int i = 0 ; i < N ; i++)
+        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1));
 
     /* TODO: do we have to have inputs reduced ? */
 
     if (fti->alg == 0) {
-        ifft_truncate_sqrt2(y, n, fti->w, tslot0, tslot1, &s1, trunc);
+        ifft_truncate_sqrt2(y, n, fti->w, tslot0, tslot1, s1, trunc);
         for (mp_size_t j = 0; j < trunc; j++) {
             mpn_div_2expmod_2expp1(ptrs[j], ptrs[j], rsize0, fti->depth + 2);
             mpn_normmod_2expp1(ptrs[j], rsize0);
@@ -1222,142 +1294,137 @@ static void fft_do_ift_backend(void * y, void * temp, const struct fft_transform
         }
 
         /* outer. Does the division and normalization. */
-        ifft_mfa_truncate_sqrt2_outer(ptrs, n, fti->w, tslot0, tslot1, &s1, n1, trunc);
+        ifft_mfa_truncate_sqrt2_outer(ptrs, n, fti->w, tslot0, tslot1, s1, n1, trunc);
     }
 #ifdef DEBUG_FFT
-    fft_debug_print_ft("/tmp/after_ift.m", y, fti);
+    fft_debug_print_ft(fti, "after_ift.m", y);
 #endif
 }
 /* }}} */
 
 /* {{{ dft/ift frontends */
-void fft_do_dft(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const struct fft_transform_info * fti)
+void fft_dft(const struct fft_transform_info * fti, void * y, const mp_limb_t * x, mp_size_t nx_or_cx, void * temp)
 {
-    /* See mul_truncate_sqrt2 */
-    mp_size_t rsize0 = fti_rsize0(fti);
-    fft_zero(y, fti);
-    fft_split_bits(y, x, nx, fti->bits, rsize0);
-    fft_do_dft_backend(y, temp, fti);                                          
-}
-
-/* This does the same as above, except that x is an array of nx
- * coefficients modulo p, each taking mpz_size(p) limbs
- */
-void fft_do_dft_fppol(void * y, const mp_limb_t * x, mp_size_t cx, void * temp, const struct fft_transform_info * fti, mpz_srcptr p)
-{
-    fft_split_fppol(y, x, cx, fti, p);
-    fft_do_dft_backend(y, temp, fti);
-}
-
-void fft_do_ift(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti)
-{
-    mp_size_t w = fti->w;
-    mp_size_t n = 1 << fti->depth;
-    mp_bitcnt_t nw = (mp_bitcnt_t) n * w;
-    mp_size_t rsize0 = nw/FLINT_BITS;  /* need rsize0+1 words for x\in R */
-    fft_do_ift_backend(y, temp, fti);
-    mpn_zero(x, nx);
-    if (!fti->minwrap) {
-        fft_addcombine_bits(x, y, fti->trunc0, fti->bits, rsize0, nx);
-        return;
+    if (fti->p) {
+        /* here, x is an array of cx coefficients modulo p, each taking
+         * mpz_size(p) limbs */
+        mp_size_t cx = nx_or_cx;
+        fft_split_fppol(fti, y, x, cx, fti->p);
+    } else {
+        /* See mul_truncate_sqrt2 */
+        mp_size_t nx = nx_or_cx;
+        mp_size_t rsize0 = fti_rsize0(fti);
+        fft_zero(fti, y);
+        fft_split_bits(y, x, nx, fti->bits, rsize0);
     }
-
-    /* it's slightly less trivial here. We perform the overwrap. (ok, in
-     * typical middle product uses, we don't need it. But it's cheap).
-     */
-    /* we want at least (4*n-1)*bits+n*w bits in the output zone */
-    mp_bitcnt_t need = (4*n-1)*fti->bits+nw;
-    assert(nx >= (mp_size_t) iceildiv(need, FLINT_BITS));
-    fft_addcombine_bits(x, y, fti->trunc0, fti->bits, rsize0, nx);
-    /* bits above 4*n*fti->bits need to wrap around */
-    mp_bitcnt_t outneed = need - 4*n*fti->bits;
-    mp_size_t outneedlimbs = iceildiv(outneed, FLINT_BITS);
-    assert(outneedlimbs <= rsize0 + 1);
-    mp_size_t toplimb = (4*n*fti->bits) / FLINT_BITS;
-    mp_bitcnt_t topoffset = (4*n*fti->bits) % FLINT_BITS;
-    mp_size_t cy;
-    mpn_zero(temp, rsize0 + 1);
-    do {
-        if (topoffset) {
-            mpn_rshift(temp, x + toplimb, nx - toplimb, topoffset);
-            x[toplimb] &= ((1UL<<topoffset)-1);
-            if (nx - toplimb > 1)
-                memset(x + toplimb + 1, 0, (nx - toplimb - 1) * sizeof(mp_limb_t));
-        } else {
-            memcpy(temp, x + toplimb, (nx - toplimb) * sizeof(mp_limb_t));
-            memset(x + toplimb, 0, (nx - toplimb) * sizeof(mp_limb_t));
-        }
-        cy = mpn_add_n(x, x, temp, outneedlimbs);
-        cy = mpn_add_1(x + outneedlimbs, x + outneedlimbs, toplimb - outneedlimbs, cy);
-        mpn_add_1(x + toplimb, x + toplimb, nx - toplimb, cy);
-    } while (cy);
+    fft_dft_backend(fti, y, temp);                                          
 }
 
-/* Same, but store the result as a polynomial over GF(p). nx must be a
- * multiple of mpz_size(p)
- */
-void fft_do_ift_fppol(mp_limb_t * x, mp_size_t cx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p)
+void fft_ift(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t nx_or_cx, void * y, void * temp)
 {
-    fft_do_ift_backend(y, temp, fti);
-    fft_combine_fppol(x, cx, y, fti, p);
-}
+    fft_ift_backend(fti, y, temp);
+    if (fti->p && !fti->mp_shift) {
+        /* product of polynomials mod p */
+        mp_size_t cx = nx_or_cx;
+        fft_combine_fppol(fti, x, cx, y, fti->p);
+    } else if (fti->p && fti->mp_shift) {
+        /* middle product of polynomials mod p */
+        mp_size_t cx = nx_or_cx;
+        mp_size_t nbigtemp = fft_get_mulmod_output_minlimbs(fti);
+        mp_limb_t * bigtemp = malloc(nbigtemp * sizeof(mp_limb_t));
+        mp_size_t rsize0 = fti_rsize0(fti);
+        mpn_zero(bigtemp, nbigtemp);
+        fft_addcombine_bits(bigtemp, y, fti->trunc0, fti->bits, rsize0, nbigtemp);
 
-void fft_do_ift_fppol_mp(mp_limb_t * x, mp_size_t cx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p, mp_size_t shift)
-{
-    fft_do_ift_backend(y, temp, fti);
-    mp_size_t nbigtemp = fft_get_mulmod_output_minlimbs(fti);
-    mp_limb_t * bigtemp = malloc(nbigtemp * sizeof(mp_limb_t));
-    mp_size_t rsize0 = fti_rsize0(fti);
-    mpn_zero(bigtemp, nbigtemp);
-    fft_addcombine_bits(bigtemp, y, fti->trunc0, fti->bits, rsize0, nbigtemp);
+        mp_size_t np = mpz_size(fti->p);
+        mp_size_t nx = cx * np;
 
-    mp_size_t np = mpz_size(p);
-    mp_size_t nx = cx * np;
+        mp_size_t ksspan = (fti->ks_coeff_bits / FLINT_BITS + 2);
+        mp_limb_t * smalltemp = malloc((2*ksspan+1) * sizeof(mp_limb_t));
+        mp_limb_t topmask = (1UL << (fti->ks_coeff_bits % FLINT_BITS)) - 1UL;
 
-    mp_size_t ksspan = (fti->ks_coeff_bits / FLINT_BITS + 2);
-    mp_limb_t * smalltemp = malloc((2*ksspan+1) * sizeof(mp_limb_t));
-    mp_limb_t topmask = (1UL << (fti->ks_coeff_bits % FLINT_BITS)) - 1UL;
+        mpn_zero(x, nx);
 
-    mpn_zero(x, nx);
+        for(mp_size_t j = 0 ; j * np < nx ; j++) {
+            mp_bitcnt_t bit0 = (j+fti->mp_shift) * fti->ks_coeff_bits;
+            mp_bitcnt_t bit1 = (j+fti->mp_shift+1) * fti->ks_coeff_bits;
+            assert(j * np < nx);
+            assert((j+1) * np <= nx);
 
-    for(mp_size_t j = 0 ; j * np < nx ; j++) {
-        mp_bitcnt_t bit0 = (j+shift) * fti->ks_coeff_bits;
-        mp_bitcnt_t bit1 = (j+shift+1) * fti->ks_coeff_bits;
-        assert(j * np < nx);
-        assert((j+1) * np <= nx);
+            /* TODO: rather read these from ptrs directly */
+            /* How many words does [bit0..bit1[ span ? */
+            mp_size_t w0 = bit0 / FLINT_BITS;
+            mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
 
-        /* TODO: rather read these from ptrs directly */
-        /* How many words does [bit0..bit1[ span ? */
-        mp_size_t w0 = bit0 / FLINT_BITS;
-        mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
+            assert(w1 - w0 <= ksspan);
 
-        assert(w1 - w0 <= ksspan);
-
-        mp_size_t nwritten = (fti->ks_coeff_bits + FLINT_BITS - 1) / FLINT_BITS;
-        assert(nwritten == w1 - w0 || nwritten+1 == w1-w0);
-        if (bit0 % FLINT_BITS) {
-            mpn_rshift(smalltemp, bigtemp + w0, w1 - w0, bit0 % FLINT_BITS);
-        } else {
-            mpn_copyi(smalltemp, bigtemp + w0, w1 - w0);
+            mp_size_t nwritten = (fti->ks_coeff_bits + FLINT_BITS - 1) / FLINT_BITS;
+            assert(nwritten == w1 - w0 || nwritten+1 == w1-w0);
+            if (bit0 % FLINT_BITS) {
+                mpn_rshift(smalltemp, bigtemp + w0, w1 - w0, bit0 % FLINT_BITS);
+            } else {
+                mpn_copyi(smalltemp, bigtemp + w0, w1 - w0);
+            }
+            if (topmask) {
+                smalltemp[nwritten-1] &= topmask;
+            }
+            /* TODO: Barrett ! */
+            /* XXX tdiv_qr does not work if the dividend is smaller than the
+             * divisor !
+             */
+            if (nwritten >= np)
+                mpn_tdiv_qr(smalltemp + ksspan, x + j * np, 0, smalltemp, nwritten, fti->p->_mp_d, mpz_size(fti->p));
         }
-        if (topmask) {
-            smalltemp[nwritten-1] &= topmask;
+
+        free(smalltemp);
+        free(bigtemp);
+    } else {
+        /* normal case: integers */
+        mp_size_t nx = nx_or_cx;
+        mp_size_t w = fti->w;
+        mp_size_t n = 1 << fti->depth;
+        mp_bitcnt_t nw = (mp_bitcnt_t) n * w;
+        mp_size_t rsize0 = nw/FLINT_BITS;  /* need rsize0+1 words for x\in R */
+        mpn_zero(x, nx);
+        if (!fti->minwrap) {
+            fft_addcombine_bits(x, y, fti->trunc0, fti->bits, rsize0, nx);
+            return;
         }
-        /* TODO: Barrett ! */
-        /* XXX tdiv_qr does not work if the dividend is smaller than the
-         * divisor !
+
+        /* it's slightly less trivial here. We perform the overwrap. (ok, in
+         * typical middle product uses, we don't need it. But it's cheap).
          */
-        if (nwritten >= np)
-            mpn_tdiv_qr(smalltemp + ksspan, x + j * np, 0, smalltemp, nwritten, p->_mp_d, mpz_size(p));
+        /* we want at least (4*n-1)*bits+n*w bits in the output zone */
+        mp_bitcnt_t need = (4*n-1)*fti->bits+nw;
+        assert(nx >= (mp_size_t) iceildiv(need, FLINT_BITS));
+        fft_addcombine_bits(x, y, fti->trunc0, fti->bits, rsize0, nx);
+        /* bits above 4*n*fti->bits need to wrap around */
+        mp_bitcnt_t outneed = need - 4*n*fti->bits;
+        mp_size_t outneedlimbs = iceildiv(outneed, FLINT_BITS);
+        assert(outneedlimbs <= rsize0 + 1);
+        mp_size_t toplimb = (4*n*fti->bits) / FLINT_BITS;
+        mp_bitcnt_t topoffset = (4*n*fti->bits) % FLINT_BITS;
+        mp_size_t cy;
+        mpn_zero(temp, rsize0 + 1);
+        do {
+            if (topoffset) {
+                mpn_rshift(temp, x + toplimb, nx - toplimb, topoffset);
+                x[toplimb] &= ((1UL<<topoffset)-1);
+                if (nx - toplimb > 1)
+                    memset(x + toplimb + 1, 0, (nx - toplimb - 1) * sizeof(mp_limb_t));
+            } else {
+                memcpy(temp, x + toplimb, (nx - toplimb) * sizeof(mp_limb_t));
+                memset(x + toplimb, 0, (nx - toplimb) * sizeof(mp_limb_t));
+            }
+            cy = mpn_add_n(x, x, temp, outneedlimbs);
+            cy = mpn_add_1(x + outneedlimbs, x + outneedlimbs, toplimb - outneedlimbs, cy);
+            mpn_add_1(x + toplimb, x + toplimb, nx - toplimb, cy);
+        } while (cy);
     }
-
-    free(smalltemp);
-    free(bigtemp);
 }
-
 /* }}} */
 
-void fft_mul(void * z, const void * y0, const void * y1, void * temp, const struct fft_transform_info * fti)
+void fft_compose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp)
 {
     /* See mul_truncate_sqrt2 */
     mp_size_t nw = fti->w << fti->depth;
@@ -1461,14 +1528,21 @@ void mpn_addmod_2expp1(mp_limb_t * z, const mp_limb_t * x, const mp_limb_t * y, 
     }
 }
 
-void fft_zero(void * z, const struct fft_transform_info * fti)
+void fft_zero(const struct fft_transform_info * fti, void * z)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_limb_t ** ptrs = (mp_limb_t **) z;
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
-    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2)*sizeof(mp_limb_t *));
-    mpn_zero(data, (4*n+2) * (rsize0 + 1));
-    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2*N)*sizeof(mp_limb_t *));
+    mpn_zero(data, (4*n+2*N) * (rsize0 + 1));
+    for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
         ptrs[i] = data + i * (rsize0 + 1);
     }
 }
@@ -1476,14 +1550,21 @@ void fft_zero(void * z, const struct fft_transform_info * fti)
 /* XXX This is ugly. I'm not even certain that some assert won't blow
  * up...
  */
-void fft_fill_random(void * z, const struct fft_transform_info * fti, gmp_randstate_t rstate)
+void fft_fill_random(const struct fft_transform_info * fti, void * z, gmp_randstate_t rstate)
 {
+    int N = 1;
+#if defined(_OPENMP)
+    if (fti->alg != 0) {
+        /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
+        N = omp_get_max_threads();
+    }
+#endif
     mp_limb_t ** ptrs = (mp_limb_t **) z;
     mp_size_t n = 1 << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
-    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2)*sizeof(mp_limb_t *));
-    mpn_zero(data, (4*n+2) * (rsize0 + 1));
-    for(mp_size_t i = 0 ; i < 4*n+2 ; i++) {
+    mp_limb_t * data = (mp_limb_t*) VOID_POINTER_ADD(z, (4*n+2*N)*sizeof(mp_limb_t *));
+    mpn_zero(data, (4*n+2*N) * (rsize0 + 1));
+    for(mp_size_t i = 0 ; i < 4*n+2*N ; i++) {
         ptrs[i] = data + i * (rsize0 + 1);
         /* This is provided by MPIR, and we also have an ugly wrapper in
          * gmp-aux.h */
@@ -1491,9 +1572,9 @@ void fft_fill_random(void * z, const struct fft_transform_info * fti, gmp_randst
     }
 }
 
-void fft_add(void * z, const void * y0, const void * y1, const struct fft_transform_info * fti)
+void fft_add(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1)
 {
-    /* See fft_mul */
+    /* See fft_compose */
     mp_size_t rsize0 = fti_rsize0(fti);
     const mp_limb_t ** p0 = (const mp_limb_t **) y0;
     const mp_limb_t ** p1 = (const mp_limb_t **) y1;
@@ -1538,11 +1619,11 @@ void fft_add(void * z, const void * y0, const void * y1, const struct fft_transf
     }
 }
 
-void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * qtemp, const struct fft_transform_info * fti)
+void fft_addcompose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp, void * qtemp)
 {
-    ASSERT(fft_transform_check(y0, fti, 1));
-    ASSERT(fft_transform_check(y1, fti, 1));
-    ASSERT(fft_transform_check(z, fti, 1));
+    ASSERT(fft_check(fti, y0, 1));
+    ASSERT(fft_check(fti, y1, 1));
+    ASSERT(fft_check(fti, z, 1));
     /* See mul_truncate_sqrt2 */
     mp_size_t nw = fti->w << fti->depth;
     mp_size_t rsize0 = fti_rsize0(fti);
@@ -1604,7 +1685,7 @@ void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * 
 
 
 
-void get_ft_hash(mpz_t h, int bits_per_coeff, void * data, const struct fft_transform_info * fti)
+void get_ft_hash(const struct fft_transform_info * fti, mpz_t h, int bits_per_coeff, void * data)
 {
     mp_limb_t ** ptrs = data;
     mp_size_t trunc = fti_trunc(fti);

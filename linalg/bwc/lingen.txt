@@ -67,10 +67,12 @@ pclmulqdq)
    1a - write complete specifications and a test suite for the file
         lingen-matpoly.c (which deals with matrices having polynomial
         entries over GF(p) !).
-        [ partly done, at least we have a complete test suite now ]
+        [ done ]
    1b - convert this test suite to what we expect for base field GF(2).
+        [ done ]
    1c - write a new file, e.g. lingen-matpoly-binary.c, and in particular the
         functions matpoly_addmp and matpoly_addmul ; those are critical.
+        [ done ]
    1d - First functionality test: enabling this from plingen so that we
         get a validation. This might imply disabling the bigmatpoly
         layer.
@@ -78,9 +80,13 @@ pclmulqdq)
 
  WP 2.
    2a - specifications and tests for lingen-matpoly-ft.c
+        [ done ]
    2b - updated test suite
+        [ done ]
    2c - lingen-matpoly-ft-binary.c ; we might focus on c128 to start with.
+        [ done ]
    2d - validation check.
+        [ done ]
 
    Again, preparing 2d can conceivably be independent from the rest.
 

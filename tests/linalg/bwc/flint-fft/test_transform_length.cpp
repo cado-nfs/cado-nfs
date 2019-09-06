@@ -47,25 +47,25 @@ void test_transform_length()
      * check here.
      */
     struct fft_transform_info fti[1];
-    fft_get_transform_info_mulmod(fti, 1e6, 8e5, 12, 1e6 + 4); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 1e6, 8e5, 4, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 1345570, 706750, 4, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 1e6, 8e5, 12, 1e6 + 4); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 1e6, 8e5, 4, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 1345570, 706750, 4, 0); fti_explain(fti);
     /* This one is a corner case: we have bits above the firstwrap
      * position, yet those do not really wrap */
-    fft_get_transform_info_mulmod(fti, 1351600, 721000, 1, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 1351600, 721000, 1, 0); fti_explain(fti);
 
-    fft_get_transform_info_mulmod(fti, 1e7, 8e6, 4, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 14e7, 7e7, 8, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 6e8, 4e8, 8, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 8e8, 7e8, 8, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 14e8, 14e8, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 1e7, 8e6, 4, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 14e7, 7e7, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 6e8, 4e8, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 8e8, 7e8, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 14e8, 14e8, 8, 0); fti_explain(fti);
 
 #if ULONG_BITS == 64
-    fft_get_transform_info_mulmod(fti, 3e9, 5e9, 8, 0); fti_explain(fti);
-    fft_get_transform_info_mulmod(fti, 6e9, 4e9, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 3e9, 5e9, 8, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 6e9, 4e9, 8, 0); fti_explain(fti);
 #endif
 
-    fft_get_transform_info_mulmod(fti, 10780, 4900, 16, 0); fti_explain(fti);
+    fft_transform_info_init_mulmod(fti, 10780, 4900, 16, 0); fti_explain(fti);
 }
 
 int main()

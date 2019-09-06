@@ -1,28 +1,14 @@
 #ifndef TRANSFORM_INTERFACE_H_
 #define TRANSFORM_INTERFACE_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string.h>
+
+#include "gmp.h"
+#include "flint.h"
 
 #define xxxDEBUG_FFT
 
-struct fft_transform_info {
-    mp_bitcnt_t bits1;
-    mp_bitcnt_t bits2;
-    unsigned int nacc;
-    mp_size_t w;        /* Use sqrt(2)^w as a root of unity */
-    mp_size_t depth;    /* Let n=2^depth. We work modulo 2^(wn)+1. Do a
-                           transform length 4n. */
-    mp_bitcnt_t bits;   /* Chunk sizes in bits */
-    mp_size_t trunc0;   /* Number of coeffs of the transform computed.
-                           This is not exactly the fourier transform
-                           truncation point, because the truncation point
-                           is also subject to a few extra criteria. */
-    mp_bitcnt_t ks_coeff_bits;  /* This is used only for kronecker substitution */
-    mp_bitcnt_t minwrap;        /* zero when no wraparound wanted */
-    int alg;            /* alg==1: use matrix fourier algorithm */
-};
+struct fft_transform_info;
 
 /* The transform data is provided as an opaque void* pointer ; in reality
  * its structure may be written as the following pseudo-C code.
@@ -64,26 +50,30 @@ struct fft_transform_info {
  * bit of the row index.
  */
 
-void fft_get_transform_info(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc);
-void fft_get_transform_info_mulmod(struct fft_transform_info * fti, mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void fft_transform_info_init(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc);
+void fft_transform_info_init_mulmod(struct fft_transform_info * fti, mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap);
 void fft_transform_info_adjust_depth(struct fft_transform_info * fti, unsigned int adj);
 void fft_transform_info_set_first_guess(struct fft_transform_info * fti);
 int fft_transform_info_check(const struct fft_transform_info * fti);
-void fft_get_transform_allocs(size_t sizes[3], const struct fft_transform_info * fti);
-void fft_transform_prepare(void * x, const struct fft_transform_info * fti);
-void fft_do_dft(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const struct fft_transform_info * fti);
-void fft_do_ift(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti);
-void fft_mul(void * z, const void * y0, const void * y1, void * temp, const struct fft_transform_info * fti);
-void fft_addmul(void * z, const void * y0, const void * y1, void * temp, void * qtemp, const struct fft_transform_info * fti);
-void fft_add(void * z, const void * y0, const void * y1, const struct fft_transform_info * fti);
-void fft_zero(void * z, const struct fft_transform_info * fti);
-void fft_fill_random(void * z, const struct fft_transform_info * fti, gmp_randstate_t rstate);
-void fft_get_transform_info_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc);
-void fft_get_transform_info_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc);
-void fft_do_dft_fppol(void * y, const mp_limb_t * x, mp_size_t nx, void * temp, const struct fft_transform_info * fti, mpz_srcptr p);
-void fft_do_ift_fppol(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p);
-void fft_do_ift_fppol_mp(mp_limb_t * x, mp_size_t nx, void * y, void * temp, const struct fft_transform_info * fti, mpz_srcptr p, mp_size_t shift);
-int fft_transform_check(const void * x, const struct fft_transform_info * fti, int);
+void fft_transform_info_get_alloc_sizes(const struct fft_transform_info * fti, size_t sizes[3]);
+
+void fft_prepare(const struct fft_transform_info * fti, void * x);
+void fft_dft(const struct fft_transform_info * fti, void * y, const mp_limb_t * x, mp_size_t nx, void * temp);
+void fft_ift(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t nx, void * y, void * temp);
+void fft_compose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp);
+void fft_addcompose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp, void * qtemp);
+void fft_add(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1);
+void fft_zero(const struct fft_transform_info * fti, void * z);
+void fft_fill_random(const struct fft_transform_info * fti, void * z, gmp_randstate_t rstate);
+
+
+void fft_transform_info_init_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc);
+void fft_transform_info_init_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc);
+int fft_check(const struct fft_transform_info * fti, const void * x, int);
 
 /* fft_transform_export modifies the transform area in x and makes it
  * position independent, so that the data may be moved, or transferred to
@@ -94,12 +84,99 @@ int fft_transform_check(const void * x, const struct fft_transform_info * fti, i
  * fft_transform_import must be called on x to revert the effect of
  * fft_transform_export (possibly after moving/transferring).
  */
-void fft_transform_export(void * x, const struct fft_transform_info * fti);
-void fft_transform_import(void * x, const struct fft_transform_info * fti);
+void fft_export(const struct fft_transform_info * fti, void * x);
+void fft_import(const struct fft_transform_info * fti, void * x);
 /* indicates whether the integer returned is actually reduced modulo some
  * B^n-a, with a=\pm1. Returns n, and sets a. If the result is known to
  * be valid in Z, then n is returned as 0.
  */
+
+
+struct fft_transform_info {
+    mp_bitcnt_t bits1;
+    mp_bitcnt_t bits2;
+    unsigned int nacc;
+    mp_size_t w;        /* Use sqrt(2)^w as a root of unity */
+    mp_size_t depth;    /* Let n=2^depth. We work modulo 2^(wn)+1. Do a
+                           transform length 4n. */
+    mp_bitcnt_t bits;   /* Chunk sizes in bits */
+    mp_size_t trunc0;   /* Number of coeffs of the transform computed.
+                           This is not exactly the fourier transform
+                           truncation point, because the truncation point
+                           is also subject to a few extra criteria. */
+    mp_bitcnt_t ks_coeff_bits;  /* This is used only for kronecker substitution */
+    mp_bitcnt_t minwrap;        /* zero when no wraparound wanted */
+    int alg;            /* alg==1: use matrix fourier algorithm */
+    mpz_srcptr p;       /* non-NULL if we're doing Kronecker substitution
+                           to multiply polynomials over GF(p). This is
+                           the (pointer to) prime that got passed to the
+                           ctor, therefore it is essential that this
+                           prime remains alive throughout the lifetime of
+                           the fft_transform_info object !!! */
+    unsigned int mp_shift;      /* non-zero if we're doing a middle
+                           product of polynomials over GF(p).  This is
+                           the number of GF(p) coefficients that are
+                           taken out from the result, and for which any
+                           wraparound garbage is not important to us. */
+#ifdef DEBUG_FFT
+    char tmpdir[FILENAME_MAX];
+#endif
+#ifdef __cplusplus
+    typedef void * ptr;
+    typedef const void * srcptr;
+    /* only for uniformity with callers that deal with other interfaces -- it's not even clear we'll need that. */
+    fft_transform_info() { memset(this, 0, sizeof(*this)); }
+    inline fft_transform_info(mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc) {
+        fft_transform_info_init(this, bits1, bits2, nacc);
+    }
+    static inline fft_transform_info mul_info(mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc) {
+        return fft_transform_info(bits1, bits2, nacc);
+    }
+    static inline fft_transform_info mulmod_info(mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap) {
+        fft_transform_info fti;
+        fft_transform_info_init_mulmod(&fti, xbits, ybits, nacc, minwrap);
+        return fti;
+    }
+    static inline fft_transform_info polynomial_mul_info(mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc)
+    {
+        fft_transform_info fti;
+        fft_transform_info_init_fppol(&fti, p, n1, n2, nacc);
+        return fti;
+    }
+    static inline fft_transform_info polynomial_mp_info(mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc)
+    {
+        fft_transform_info fti;
+        fft_transform_info_init_fppol_mp(&fti, p, nmin, nmax, nacc);
+        return fti;
+    }
+    inline void adjust_depth(unsigned int adj) { fft_transform_info_adjust_depth(this, adj); }
+    inline void get_alloc_sizes(size_t sizes[3]) const {
+        fft_transform_info_get_alloc_sizes(this, sizes);
+    }
+    inline void prepare(ptr x) const { fft_prepare(this, x); }
+    inline void dft(ptr y, const mp_limb_t * x, mp_size_t nx, ptr temp) const {
+        fft_dft(this, y, x, nx, temp);
+    }
+    inline void ift(mp_limb_t * x, mp_size_t nx, ptr y, ptr temp) const {
+        fft_ift(this, x, nx, y, temp);
+    }
+    inline void add(ptr z, srcptr y0, srcptr y1) const {
+        return fft_add(this, z, y0, y1);
+    }
+    inline void compose(ptr z, srcptr y0, srcptr y1, ptr temp) const {
+        fft_compose(this, z, y0, y1, temp);
+    }
+    inline void addcompose(ptr z, srcptr y0, srcptr y1, ptr temp, ptr qtemp) const {
+        fft_addcompose(this, z, y0, y1, temp, qtemp);
+    }
+    inline void zero(ptr x) const { fft_zero(this, x); }
+    inline void fill_random(ptr x, gmp_randstate_t rstate) const { fft_fill_random(this, x, rstate); }
+    inline int check(srcptr x, int c) const { return fft_check(this, x, c); }
+    inline void to_export(ptr x) const { fft_export(this, x); }
+    inline void to_import(ptr x) const { fft_import(this, x); }
+#endif
+};
+
 static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a)
 {
     *a=1;

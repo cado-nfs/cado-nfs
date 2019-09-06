@@ -360,10 +360,11 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
 
 # Also lingen.
 
+### This is the old binary lingen code. It is meant to go away.
+link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
-
+include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
 add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.c
     lingen_round_operand_size.cpp
     lingen_qcode_binary.c lingen_qcode_binary_do.cpp)
@@ -378,12 +379,14 @@ set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
 install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 target_link_libraries(lingen bwc_base utils gf2x-fft gf2x)
 add_dependencies(lingen gf2x-build)
-
 # It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
 # required compile-time flags and required link-time flags...
 set_target_properties(lingen PROPERTIES
     COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+
+
+
 
 add_executable(cleanup cleanup.c)
 target_link_libraries(cleanup bitlinalg utils m)
@@ -398,63 +401,67 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
     set_target_properties(flint-fft PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-    add_executable(test-flint test-flint.c)
-    target_link_libraries(test-flint flint-fft utils ${gmp_libname})
-    set_target_properties(test-flint PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+    add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
+    set_target_properties(flint-fft-debug PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 endif()
 
-add_executable(check_mpi_problems EXCLUDE_FROM_ALL check_mpi_problems.c)
-set_target_properties(check_mpi_problems PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DWANT_MAIN"
-    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+# These files are not dependent on the mpfq layer, therefore it's ok tu
+# put all of them in a common convenience library.
+add_library(lingen_common_support 
+    lingen_memory_pool.cpp
+    logline.c
+    check_mpi_problems.c
+    tree_stats.cpp
+    lingen_round_operand_size.cpp
+    bw-common.c
+    lingen_platform.cpp
+    lingen_hints.cpp
+    )
 
-foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
-        bw-common.c
         lingen.cpp
         lingen_tuning.cpp
-        lingen_tune_cutoffs.cpp
         lingen_tuning_cache.cpp
-        lingen_platform.cpp
-        tree_stats.cpp
-        lingen_round_operand_size.cpp
-        lingen_hints.cpp
         )
 
     set(lingen_${v}_support_sources
-        logline.c
-        check_mpi_problems.c
-        # I don't have the courage to ditch lingen_polymat entirely right
-        # now, because it's a bit tied inside lingen_tune_cutoffs.cpp
-        # (which I seldom use, if ever). But really, it should go. On the
-        # other hand, some of the functionality in
-        # lingen_tune_cutoffs.cpp should probably be made more of
-        # a first-class citizen
-        lingen_polymat.cpp
-        # lingen_bigpolymat.c # deleted 20150826
-        mpfq/mpfq_${v}.c
-        mpfq/mpfq_${v}.cpp
-        )
-
+            lingen_matpoly_ft.cpp
+            )
     if (v STREQUAL "u64k1")
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
             lingen_qcode_binary.c
-            lingen_qcode_binary_do.cpp)
+            lingen_qcode_binary_do.cpp
+            )
         set(lingen_${v}_support_sources
-            ${lingen_${v}_support_sources})
+            ${lingen_${v}_support_sources}
+            lingen_matpoly_binary.cpp
+            )
     else()
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
-            lingen_qcode_prime.cpp)
+            lingen_tune_cutoffs.cpp
+            lingen_qcode_prime.cpp
+            )
         set(lingen_${v}_support_sources
             ${lingen_${v}_support_sources}
+            mpfq/mpfq_${v}.c
+            mpfq/mpfq_${v}.cpp
+            # I don't have the courage to ditch lingen_polymat entirely
+            # right now, because it's a bit tied inside
+            # lingen_tune_cutoffs.cpp (which I seldom use, if ever). But
+            # really, it should go. On the other hand, some of the
+            # functionality in lingen_tune_cutoffs.cpp should probably be
+            # made more of a first-class citizen
+            lingen_polymat.cpp
+            # lingen_bigpolymat.c # deleted 20150826
             lingen_matpoly.cpp
             lingen_bigmatpoly.cpp
-            lingen_matpoly_ft.cpp
-            lingen_bigmatpoly_ft.cpp)
+            lingen_bigmatpoly_ft.cpp
+            )
     endif()
 
     # make lingen_pz a default target, but not the others.
@@ -467,7 +474,14 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
         add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
     endif()
 
-    target_link_libraries(lingen_${v}_support flint-fft ${gmp_libname} utils)
+    if (v STREQUAL "u64k1")
+        add_dependencies(lingen_${v}_support gf2x-build)
+        target_link_libraries(lingen_${v}_support gf2x-fft gf2x)
+    else()
+        target_link_libraries(lingen_${v}_support flint-fft)
+    endif()
+
+    target_link_libraries(lingen_${v}_support lingen_common_support ${gmp_libname} utils)
     target_link_libraries(lingen_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
@@ -483,6 +497,7 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
 endforeach(v)
+
 
 add_custom_target(bwc_matmul)
 add_dependencies(bwc_matmul ${all_matmul_libs})
