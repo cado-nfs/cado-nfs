@@ -108,7 +108,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
      * is always (b0+b2)*b1, with the processing order being determined
      * by which of b0==nrs0 or b2==nrs2 holds.
      */
-    void dft_A_for_block(unsigned int iloop0, unsigned int iloop1)/*{{{*/
+    void dft_A_for_block(unsigned int i0, unsigned int iloop0, unsigned int iloop1)/*{{{*/
     {
         unsigned int aj = CTX.a_jrank();
         unsigned int ak0mpi, ak1mpi;
@@ -126,9 +126,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         unsigned int ii0, ii1;
         std::tie(ii0, ii1) = loop0.nth_block(iloop0);
 
-        submatrix_range Ra   (ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
-        submatrix_range Rat  (0,   aj * b1,    ii1 - ii0, ak1-ak0);
-        submatrix_range Ratx (0,   aj * b1,    ii1 - ii0, b1);
+        submatrix_range Ra  (i0 + ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
+        submatrix_range Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
+        submatrix_range Ratx(     0,   aj * b1,    ii1 - ii0, b1);
 
         CTX.begin_smallstep("dft_A", b0 * b1);
         ta.zero();  // for safety because of rounding.
@@ -160,7 +160,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         CTX.end_smallstep();
     }/*}}}*/
 
-    void dft_B_for_block(unsigned int iloop1, unsigned int iloop2)/*{{{*/
+    void dft_B_for_block(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
     {
         unsigned int bi = CTX.b_jrank();
         unsigned int bk0mpi, bk1mpi;
@@ -179,9 +179,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         std::tie(jj0, jj1) = loop2.nth_block(iloop2);
 
 
-        submatrix_range Rb   (bk0-bk0mpi, jj0, bk1-bk0, jj1 - jj0);
-        submatrix_range Rbt  (bi * b1,      0, bk1-bk0, jj1 - jj0);
-        submatrix_range Rbtx (bi * b1,      0, b1,      jj1 - jj0);
+        submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
+        submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
+        submatrix_range Rbtx (bi * b1,      0,      b1,      jj1 - jj0);
 
         CTX.begin_smallstep("dft_B", b1 * b2);
         tb.zero();
@@ -295,9 +295,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
                     ASSERT_ALWAYS(loop0.nblocks() == 1);
                     ASSERT_ALWAYS(nrs0 == b0);
                     unsigned int iloop0 = 0;
-                    dft_A_for_block(iloop0, iloop1);
+                    dft_A_for_block(i0, iloop0, iloop1);
                     for(unsigned int iloop2 = 0 ; iloop2 < loop2.nblocks() ; iloop2++) {
-                        dft_B_for_block(iloop1, iloop2);
+                        dft_B_for_block(j0, iloop1, iloop2);
 
                         addmul_for_block(iloop0, iloop2);
                     }
@@ -317,9 +317,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
                     ASSERT_ALWAYS(loop2.nblocks() == 1);
                     ASSERT_ALWAYS(nrs2 == b2);
                     unsigned int iloop2 = 0;
-                    dft_B_for_block(iloop1, iloop2);
+                    dft_B_for_block(j0, iloop1, iloop2);
                     for(unsigned int iloop0 = 0 ; iloop0 < loop0.nblocks() ; iloop0++) {
-                        dft_A_for_block(iloop0, iloop1);
+                        dft_A_for_block(i0, iloop0, iloop1);
 
                         addmul_for_block(iloop0, iloop2);
                     }
