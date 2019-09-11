@@ -34,6 +34,7 @@ if(ENABLE_SHARED)
 endif()
 install(TARGETS polyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 install(TARGETS polyselect_ropt RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
+install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 include(CMakeLists-nodist.txt OPTIONAL)
 
 # dlpolyselect
