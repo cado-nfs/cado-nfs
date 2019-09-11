@@ -531,6 +531,7 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
   mpz_mul_ui (mtilde, mtilde, q);
   mpz_add (mtilde, mtilde, rq);
   mpz_add (mtilde, mtilde, m0);
+  /* we should have Ntilde - mtilde^d = 0 mod {p1^2,p2^2,q^2} */
 
   /* Small improvement: we have Ntilde = mtilde^d + l^2*R with R small.
      If p^2 divides R, with p prime to d*ad, then we can accumulate p into l,
@@ -555,7 +556,7 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
   mpz_mul_ui (m, ad, d);
   mpz_pow_ui (m, m, d);
   mpz_divexact (m, m, ad);
-  mpz_mul (m, m, N); /* t := Ntilde = d^d*ad^(d-1)*N */
+  mpz_mul (m, m, N); /* m := Ntilde = d^d*ad^(d-1)*N */
   mpz_pow_ui (t, mtilde, d);
   mpz_sub (t, m, t);
   mpz_divexact (t, t, l);
@@ -906,7 +907,7 @@ collision_on_p (header_t header, proots_t R, shash_t H)
       nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d,
                               p);
       tot_roots += nrp;
-      roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
+      nrp = roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
       proots_add (R, nrp, rp, nprimes);
       for (j = 0; j < nrp; j++, c++)
             {
@@ -1484,8 +1485,7 @@ find_suitable_lq (header_t header, qroots_t SQ_R, unsigned long *k)
   /* If all factors in sq have d roots, then a single special-q is enough.
      Otherwise, we consider special-q's from combinations of k primes among lq,
      so that the total number of combinations is at least nq. */
-  for (lq = *k; number_comb (SQ_R, *k, lq) < (unsigned long) nq &&
-         lq < SQ_R->size; lq++);
+  for (lq = *k; number_comb (SQ_R, *k, lq) < nq && lq < SQ_R->size; lq++);
 
   return lq;
 }
@@ -1801,15 +1801,15 @@ gmp_collision_on_sq ( header_t header,
 
   tot =  binom (N, K);
 
-  if (tot > (unsigned long) nq)
-    tot = (unsigned long) nq;
+  if (tot > nq)
+    tot = nq;
 
   if (tot < BATCH_SIZE)
     tot = BATCH_SIZE;
 
 #ifdef DEBUG_POLYSELECT
   fprintf (stderr, "# Info: n=%lu, k=%lu, (n,k)=%lu"
-	   ", maxnq=%d, nq=%lu\n", N, K, binom(N, K), nq, tot);
+	   ", maxnq=%lu, nq=%lu\n", N, K, binom(N, K), nq, tot);
 #endif
 
   i = 0;
