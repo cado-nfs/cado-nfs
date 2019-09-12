@@ -153,6 +153,9 @@ struct fft_transform_info {
     inline void get_alloc_sizes(size_t sizes[3]) const {
         fft_transform_info_get_alloc_sizes(this, sizes);
     }
+    inline size_t size0_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[0]; }
+    inline size_t size1_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[1]; }
+    inline size_t size2_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[2]; }
     inline void prepare(ptr x) const { fft_prepare(this, x); }
     inline void dft(ptr y, const mp_limb_t * x, mp_size_t nx, ptr temp) const {
         fft_dft(this, y, x, nx, temp);

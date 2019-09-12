@@ -402,6 +402,16 @@ struct gf2x_cantor_fft_info {
     /* pod: yes */
 #ifdef __cplusplus
 
+    // a C++ compilation unit that (odr-) uses this interface must include a
+    // definition like
+    //
+    // constexpr const char * gf2x_cantor_fft_info::name;
+    //
+    // Note that libgf2x-fft has no C++ compilation unit, so we request
+    // the user to do this extra bit of work.
+    //
+    // Note also that as per C++11 9.4.2.3, this is only necessary if the
+    // member is odr-used. 
     static constexpr const char * name = "gf2x_cantor_fft";
 
     class ctor_fails: public std::exception
@@ -450,7 +460,7 @@ struct gf2x_cantor_fft_info {
     inline size_t size0_bytes() const {
         size_t sizes[3];
         gf2x_cantor_fft_info_get_alloc_sizes(this, sizes);
-        return sizes[1];
+        return sizes[0];
     }
     inline size_t size1_bytes() const {
         size_t sizes[3];

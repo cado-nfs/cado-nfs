@@ -320,6 +320,16 @@ struct XXX_info {
     /* BEGIN SECTION 3: member function proxies for the XXX_info type */
 #ifdef __cplusplus
 
+    // a C++ compilation unit that (odr-) uses this interface must include a
+    // definition like
+    //
+    // constexpr const char * XXX_info::name;
+    //
+    // Note that libgf2x-fft has no C++ compilation unit, so we request
+    // the user to do this extra bit of work.
+    //
+    // Note also that as per C++11 9.4.2.3, this is only necessary if the
+    // member is odr-used. 
     static constexpr const char * name = "XXX";
 
     class ctor_fails: public std::exception
@@ -379,7 +389,7 @@ struct XXX_info {
     inline size_t size0_bytes() const {
         size_t sizes[3];
         XXX_info_get_alloc_sizes(this, sizes);
-        return sizes[1];
+        return sizes[0];
     }
     inline size_t size1_bytes() const {
         size_t sizes[3];
