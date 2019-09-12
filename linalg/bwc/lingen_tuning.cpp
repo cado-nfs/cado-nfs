@@ -838,7 +838,8 @@ struct lingen_tuner {
         // precisely caused by the fact that gather() and scatter() all
         // imply one contention point which is the central node.
         // data0 = data0 / (r*r);
-        return { 2 * data0, 2 * data0 / P.mpi_xput};
+        std::tuple<size_t, double> vv { 2 * data0, 2 * data0 / P.mpi_xput};
+        return vv;
     }/*}}}*/
 
     double compute_and_report_basecase(size_t length) { /*{{{*/
@@ -896,17 +897,13 @@ struct lingen_tuner {
         size_t v = L % (1 << i);
 
         if (v) {
-            std::vector<weighted_call_t> res
-            {{
-                 { 2*Q + u,     Q + u, Q,     (1 << i) - v },
-                 { 2*Q + u + 1, Q + 1, Q + u, v },
-            }};
+            weighted_call_t w0 { 2*Q + u,     Q + u, Q,     (1 << i) - v };
+            weighted_call_t w1 { 2*Q + u + 1, Q + 1, Q + u, v };
+            std::vector<weighted_call_t> res {{ w0, w1 }};
             return res;
         } else {
-            std::vector<weighted_call_t> res
-            {{
-                 { 2*Q + u,     Q + u, Q,     (1 << i) - v },
-            }};
+            weighted_call_t w0 { 2*Q + u,     Q + u, Q,     (1 << i) - v };
+            std::vector<weighted_call_t> res {{ w0 }};
             return res;
         }
     }
@@ -1082,7 +1079,8 @@ struct lingen_tuner {
                 ASSERT_ALWAYS(weight);
 
                 if (!L) {
-                    best[L] = { false, { 0, 0, 0 }};
+                    decltype(best)::mapped_type v { false, { 0, 0, 0 }};
+                    best[L] = v;
                     continue;
                 }
 
@@ -1134,7 +1132,8 @@ struct lingen_tuner {
                      * winning at this point.
                      */
                     rwin = rwin || basecase_eliminated;
-                    best[L] = { rwin, {ttb, ttr + ttrchildren, ttr} };
+                    decltype(best)::mapped_type vv { rwin, {ttb, ttr + ttrchildren, ttr} };
+                    best[L] = vv;
 
                     U.recurse = rwin;
                     /* See comment in compute_schedules_for_mul.
