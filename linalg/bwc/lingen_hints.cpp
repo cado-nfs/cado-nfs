@@ -3,8 +3,22 @@
 #include "lingen_hints.hpp"
 #include <vector>
 
+#if __GNUG__ && __GNUC__ < 5
+/* ugly workaround. g++ has no standards-conforming is_trivially_copyable
+ * https://stackoverflow.com/questions/25123458/is-trivially-copyable-is-not-a-member-of-std
+ */
+namespace std {
+    template<typename T>
+    struct is_trivially_copyable {
+        static constexpr const bool value = __has_trivial_copy(T);
+    };
+}
+#else
+#define IS_TRIVIALLY_COPYABLE(T) std::is_trivially_copyable<T>::value
+#endif
+
 template<typename T>
-    typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value && std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
+    typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
 share(T & m, int root, MPI_Comm comm)
 {
     typedef typename T::key_type K;
