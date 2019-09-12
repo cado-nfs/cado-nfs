@@ -372,7 +372,7 @@ struct lingen_substep_characteristics {/*{{{*/
         parallelizable_timing tt_ift(tvec_ift);
         parallelizable_timing tt_conv(tvec_conv);
 
-        return { tt_dft0, tt_dft2, tt_conv, tt_ift };
+        return {{ tt_dft0, tt_dft2, tt_conv, tt_ift }};
     }/*}}}*/
 
     public:
@@ -513,7 +513,7 @@ struct lingen_substep_characteristics {/*{{{*/
 
         /* This is for _one_ call only (one node in the tree).
          * We must apply multiplier coefficients (typically 1<<depth) */
-        return { T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 };
+        return {{ T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 }};
     }/*}}}*/
 
 
