@@ -365,6 +365,19 @@ def check_rho(a,b,N):
          maxerr=err
          print x, err
 
+# given a rootsieve space of S points, estimate the best alpha value
+# which is the solution of f(x)^S = 1/2 for f(x) = 1/2*(1 - erf(x/sqrt(2)))
+def expected_alpha(S):
+   R = RealField(100)
+   y = R(1/2) # (1/2*(1 - erf(x/sqrt(2))))^S = y
+   y = y^(1/S) # 1/2*(1 - erf(x/sqrt(2))) = y
+   y = 2*y # 1 - erf(x/sqrt(2)) = y
+   # 1-erf(-t) ~ 2 - 1/sqrt(pi)/t/exp(t^2) for t -> +oo
+   y = 2 - y # 1/sqrt(pi)/t/exp(t^2) = y
+   t = x/sqrt(2)
+   eq = 1/sqrt(pi)/t/exp(t^2) == y
+   return -find_root(eq, 0, 20)
+
 def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
    s = skew_l2norm_tk_circular(f)
    if verbose:

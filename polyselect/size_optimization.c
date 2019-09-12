@@ -12,16 +12,6 @@
 /******************************************************************************/
 
 /***************** List of mpz_t, to handle list of translations **************/
-typedef struct
-{
-  mpz_t *tab;
-  uint64_t len;
-  uint64_t alloc;
-} list_mpz_s;
-typedef list_mpz_s list_mpz_t[1];
-typedef list_mpz_s * list_mpz_ptr;
-typedef const list_mpz_s * list_mpz_srcptr;
-
 static inline void
 list_mpz_realloc (list_mpz_ptr l, uint64_t newalloc)
 {
@@ -602,8 +592,8 @@ mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
    Will look for polynomials of the form
    [f_raw + (k[deg_rotation]*x^deg_rotation + ... + k[1]*x + k[0])*g_raw](x+kt)
    and g(x+kt)
-   Optimized polynomial are return in f_opt and g_opt, and the function returns
-   the skew lognorm of f_opt.
+   Optimized polynomials are returned in f_opt and g_opt, and the function
+   returns the skew lognorm of f_opt.
 
    To use only translation: use_translation = 1 and deg_rotation = -1
    To use only rotation   : use_transaltion = 0 and deg_rotation >= 0

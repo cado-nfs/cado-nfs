@@ -7,8 +7,8 @@
 
 unsigned long invert (unsigned long, unsigned long);
 
-void roots_lift (uint64_t*, mpz_t, unsigned long, mpz_t, unsigned long,
-                 unsigned long int);
+unsigned long roots_lift (uint64_t*, mpz_t, unsigned long, mpz_t,
+                          unsigned long, unsigned long int);
 
 void first_comb (unsigned long, unsigned long *);
 

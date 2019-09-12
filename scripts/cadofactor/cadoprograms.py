@@ -840,6 +840,7 @@ class Las(Program):
                  allow_compsq: Toggle("allow-compsq")=None,
                  qfac_min: Parameter("qfac-min", checktype=int)=None,
                  qfac_max: Parameter("qfac-max", checktype=int)=None,
+                 adjust_strategy: Parameter("adjust-strategy", checktype=int)=None,
                  stats_stderr: Toggle("stats-stderr")=None,
                  # We have no checktype for parameters of the form <int>,<int>,
                  # so these are passed just as strings

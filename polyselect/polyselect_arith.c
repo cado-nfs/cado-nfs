@@ -3,14 +3,16 @@
 #include "polyselect_str.h"
 #include "portability.h"
 
-/* lift the n roots r[0..n-1] of N = x^d (mod p) to roots of
-   N = (m0 + r)^d (mod p^2) */
-void
+/* Lift the n roots r[0..n-1] of N = x^d (mod p) to roots of
+   N = (m0 + r)^d (mod p^2).
+   Return the number of lifted roots (might be less than n if some root is 0).
+*/
+unsigned long
 roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
             unsigned long p, unsigned long n)
 {
   uint64_t pp;
-  unsigned long j, inv;
+  unsigned long i, j, inv;
   mpz_t tmp, lambda;
   mpz_init (tmp);
   mpz_init (lambda);
@@ -18,11 +20,13 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
   pp *= (uint64_t) p;
 
   if (sizeof (unsigned long) == 8) {
-    for (j = 0; j < n; j++) {
+    for (i = j = 0; j < n; j++) {
+        if (r[j] == 0)
+           continue;
 	/* we have for r=r[j]: r^d = N (mod p), lift mod p^2:
 	   (r+lambda*p)^d = N (mod p^2) implies
 	   r^d + d*lambda*p*r^(d-1) = N (mod p^2)
-	   lambda = (N - r^d)/(p*d*r^(d-1)) mod p */
+           lambda = (N - r^d)/(p*d*r^(d-1)) mod p */
 	mpz_ui_pow_ui (tmp, r[j], d - 1);
 	mpz_mul_ui (lambda, tmp, r[j]);    /* lambda = r^d */
 	mpz_sub (lambda, N, lambda);
@@ -35,7 +39,7 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 
 	/* subtract m0 to get roots of (m0+r)^d = N (mod p^2) */
 	mpz_sub (lambda, lambda, m0);
-	r[j] = mpz_fdiv_ui (lambda, pp);
+	r[i++] = mpz_fdiv_ui (lambda, pp);
       }
   }
   else {
@@ -55,7 +59,9 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 #endif
     }
 
-    for (j = 0; j < n; j++) {
+    for (i = j = 0; j < n; j++) {
+        if (rz[j] == 0)
+          continue;
 	mpz_pow_ui (tmp, rz[j], d - 1);
 	mpz_mul (lambda, tmp, rz[j]);    /* lambda = r^d */
 	mpz_sub (lambda, N, lambda);
@@ -71,7 +77,7 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 	mpz_sub (lambda, lambda, m0);
 	mpz_set_uint64 (tmpz, pp);
 	mpz_fdiv_r (rz[j], lambda, tmpz);
-	r[j] = mpz_get_uint64 (rz[j]);
+	r[i++] = mpz_get_uint64 (rz[j]);
       }
 
     for (j = 0; j < n; j++)
@@ -83,6 +89,7 @@ roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
 
   mpz_clear (tmp);
   mpz_clear (lambda);
+  return i;
 }
 
 

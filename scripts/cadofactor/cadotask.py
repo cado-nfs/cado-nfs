@@ -3085,7 +3085,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     def paramnames(self):
         return self.join_params(super().paramnames, {
             "qmin": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
-            "lim1": int, "gzip": True, "sqside": 1})
+            "lim1": int, "gzip": True, "sqside": 1, "adjust_strategy": 0})
 
     def combine_bkmult(*lists):
         d={}
