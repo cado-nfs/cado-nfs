@@ -114,6 +114,14 @@ struct lingen_substep_characteristics {/*{{{*/
     }
 
     private:
+    static inline int max_threads() {
+#ifdef HAVE_OPENMP
+        return omp_get_max_threads();
+#else
+        return 1;
+#endif
+    }
+
     class parallelizable_timing : public weighted_double/*{{{*/
     {
         std::vector<double> concurrent_timings;
@@ -121,7 +129,7 @@ struct lingen_substep_characteristics {/*{{{*/
         double get_concurrent_time(unsigned int k) {
             /* How long does it take to do k operations in parallel ? */
             ASSERT_ALWAYS(k > 0);
-            ASSERT_ALWAYS(k <= (unsigned int) omp_get_max_threads());
+            ASSERT_ALWAYS(k <= (unsigned int) max_threads());
             unsigned int kl=1, kh=1;
             double tl=t, th=t;
             for(unsigned int i = 1 ; i <= k ; i++) {
@@ -129,7 +137,7 @@ struct lingen_substep_characteristics {/*{{{*/
                 kl = i;
                 tl = concurrent_timings[i];
             }
-            for(unsigned int i = omp_get_max_threads() ; i >= k ; i--) {
+            for(unsigned int i = max_threads() ; i >= k ; i--) {
                 if (concurrent_timings[i] < 0) continue;
                 kh = i;
                 th = concurrent_timings[i];
@@ -141,16 +149,18 @@ struct lingen_substep_characteristics {/*{{{*/
         }
         public:
         parallelizable_timing(std::vector<double> const & c) : concurrent_timings(c) {
-            ASSERT_ALWAYS(c.size() == (size_t) omp_get_max_threads() + 1);
+            ASSERT_ALWAYS(c.size() == (size_t) max_threads() + 1);
             this->n = 1;
             this->t = concurrent_timings[1];
         }
-        parallelizable_timing(unsigned int n, double d) : concurrent_timings(omp_get_max_threads()+1, -1) {
+        parallelizable_timing(unsigned int n, double d)
+            : concurrent_timings(max_threads()+1, -1)
+        {
             this->n = n;
             this->t = d;
             /* for safety */
             concurrent_timings[1] = d;
-            concurrent_timings[omp_get_max_threads()] = d;
+            concurrent_timings[max_threads()] = d;
         }
         parallelizable_timing(double d) : parallelizable_timing(1, d) {}
         parallelizable_timing() : parallelizable_timing(0, 0) {}
@@ -179,12 +189,12 @@ struct lingen_substep_characteristics {/*{{{*/
              * effectively does
              *  this->n *= k
              *  this->t *= iceildiv(k, T) / (double) k;
-             * However, even with T <= omp_get_max_threads(), this
+             * However, even with T <= max_threads(), this
              * process is likely to give somewhat different results
              * because not everything achieves perfect parallelism at the
              * CPU level.
              *
-             * Note that T should really be omp_get_max_threads().
+             * Note that T should really be max_threads().
              */
             unsigned int qk = k / T;
             unsigned int rk = k - qk * T;
@@ -212,7 +222,7 @@ struct lingen_substep_characteristics {/*{{{*/
      */
 
     double get_dft_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
+        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
         double tt = 0;
         unsigned int n = 1;
         const bool measure_cache_cold_quickly = true;
@@ -236,7 +246,7 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 
     double get_ift_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
+        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
         double tt = 0;
         unsigned int n = 1;
         const bool measure_cache_cold_quickly = true;
@@ -263,7 +273,7 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 
     double get_conv_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) omp_get_max_threads());
+        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
         double tt = 0;
         unsigned int n = 1;
         const bool measure_cache_cold_quickly = true;
@@ -304,7 +314,7 @@ struct lingen_substep_characteristics {/*{{{*/
     std::array<parallelizable_timing, 4> get_ft_times(tc_t & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         
-        unsigned int TMAX = omp_get_max_threads();
+        unsigned int TMAX = max_threads();
 
         if (C.has(K)) {
             std::array<parallelizable_timing, 4> res;
