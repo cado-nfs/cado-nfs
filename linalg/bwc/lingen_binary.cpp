@@ -40,7 +40,8 @@
 #include "tree_stats.hpp"
 #include "logline.h"
 
-#include "lingen_qcode_binary.h"
+#define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
+#include "lingen_qcode_binary.hpp"
 
 #include "gf2x-fft.h"
 #include "lingen_mat_types.hpp"
@@ -248,7 +249,7 @@ namespace globals {
     unsigned int m,n;
     unsigned int t,t0,sequence_length;
     std::vector<unsigned int> delta;
-    std::vector<unsigned int> chance_list;
+    std::vector<int> chance_list;
 
 #ifdef DO_EXPENSIVE_CHECKS
     polmat E_saved;
@@ -838,7 +839,7 @@ void compute_f_init(polmat& A)/*{{{*/
     delete[] pcols;
 
     t0 = exponent[r-1] + 1;
-    printf("Found satisfying init data for t0=%d\n", t0);
+    printf("Found satisfactory init data for t0=%d\n", t0);
                     
     if (r!=m) {
         printf("This amount of data is insufficient. "
@@ -1126,12 +1127,13 @@ static bool go_quadratic(polmat& E, polmat& pi)/*{{{*/
             }
         }
         unsigned int vdelta[m + n];
-        unsigned int vch[m + n];
+        int vch[m + n];
         copy(delta.begin(), delta.end(), vdelta);
         copy(chance_list.begin(), chance_list.end(), vch);
         lingen_qcode_hook_delta(qq, vdelta);
         lingen_qcode_hook_chance_list(qq, vch);
         qq->t = t;
+        qq->luck_mini = 2;
         lingen_qcode_do(qq);
         finished = qq->t < t + qq->length;
         t = qq->t;
@@ -1533,6 +1535,9 @@ int main(int argc, char *argv[])
 
     bw_common_init(bw, &argc, &argv);
 
+    param_list_configure_alias(pl, "lingen-input-file", "afile");
+    param_list_configure_alias(pl, "lingen-output-file", "ffile");
+
     bw_common_decl_usage(pl);
     /* {{{ declare local parameters and switches */
     param_list_decl_usage(pl, "lingen-input-file", "input file for lingen. Defaults to auto fetched from wdir");
@@ -1553,6 +1558,7 @@ int main(int argc, char *argv[])
     bw_common_interpret_parameters(bw, pl);
     /* {{{ interpret our parameters */
     {
+        param_list_lookup_string(pl, "prime");
         const char * tmp = param_list_lookup_string(pl, "lingen-input-file");
         if (tmp) {
             size_t rc = strlcpy(input_file, tmp, sizeof(input_file));

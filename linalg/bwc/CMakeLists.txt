@@ -367,9 +367,18 @@ include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
 add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.c
     lingen_round_operand_size.cpp
-    lingen_qcode_binary.c lingen_qcode_binary_do.cpp)
+    lingen_qcode_binary.cpp
+    # matpoly isn't really used by the legacy lingen, but the basecase code in
+    # qcode_binary is shared between the two implementations now, and some of
+    # the interface there relies on matpoly being available.
+    # the two other files are just pulled by this.
+    lingen_matpoly_binary.cpp
+    lingen_memory_pool.cpp
+    lingen_bmstatus.cpp
+    lingen_expected_pi_length.cpp
+    )
 # This **MUST** match the #define in gf2x/Makefile.am
-set_source_files_properties(lingen_qcode_binary_do.cpp COMPILE_FLAGS
+set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
 set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
@@ -382,7 +391,8 @@ add_dependencies(lingen gf2x-build)
 # It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
 # required compile-time flags and required link-time flags...
 set_target_properties(lingen PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    COMPILE_FLAGS
+    "-DSELECT_MPFQ_LAYER_u64k1 --mpi ${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
 
@@ -425,6 +435,8 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen.cpp
         lingen_tuning.cpp
         lingen_tuning_cache.cpp
+        lingen_expected_pi_length.cpp
+        lingen_bmstatus.cpp
         )
 
     set(lingen_${v}_support_sources
@@ -433,8 +445,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     if (v STREQUAL "u64k1")
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
-            lingen_qcode_binary.c
-            lingen_qcode_binary_do.cpp
+            lingen_qcode_binary.cpp
             )
         set(lingen_${v}_support_sources
             ${lingen_${v}_support_sources}

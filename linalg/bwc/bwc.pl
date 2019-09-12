@@ -1521,7 +1521,10 @@ sub task_common_run {
         } else {
             die "Don't know the parallel status of program $program ... ?";
         }
+    } else {
+        @_ = grep { !/^(mpi)=/ } @_;
     }
+
     eval { dosystem @_; };
 
     if ($@) {

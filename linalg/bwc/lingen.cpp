@@ -26,15 +26,17 @@
 #include "macros.h"
 #include "utils.h"
 #include "memusage.h"
+#include "lingen_expected_pi_length.hpp"
 
-/* Really, this should be always on. XXX FIXME */
-#define ENABLE_MPI_LINGEN
 
 #ifdef SELECT_MPFQ_LAYER_u64k1
 #include "mpfq_fake.hpp"
 #include "lingen_matpoly_binary.hpp"
-#include "lingen_qcode_binary.h"
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_qcode_binary.hpp"
 #else
+/* Really, this should be always on. XXX FIXME */
+#define ENABLE_MPI_LINGEN
 #include "mpfq_layer.h"
 /* lingen-matpoly is the default code. */
 #include "lingen_matpoly.hpp"
@@ -49,6 +51,7 @@
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */
 #include "lingen.hpp"
+#include "lingen_bmstatus.hpp"
 #include "lingen_tuning.hpp"
 #include "logline.h"
 #include "tree_stats.hpp"
@@ -155,50 +158,22 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
     tree_stats::declare_usage(pl);
 }/*}}}*/
 
-    lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
-    {
-        lingen_hints::key_type K { depth, L };
-
-        if (hints.find(K) != hints.end())
-            return hints[K];
-
-        fprintf(stderr, "# No tuned configuration for"
-                " depth=%d input_length=%zu\n",
-                depth, L);
-
-        struct same_depth {
-            int d;
-            bool operator()(lingen_hints::value_type const & kv) const {
-                return kv.first.depth == d;
-            }
-        };
-
-        auto it = std::find_if(hints.begin(), hints.end(), same_depth { depth } );
-        if (it == hints.end()) {
-            fprintf(stderr, "# No tuned configuration for"
-                    " depth=%d !!!\n", depth);
-            exit(EXIT_FAILURE);
-        }
-        fprintf(stderr, "# Using nearby configuration for"
-                " depth=%d input_length=%zu\n",
-                it->first.depth, it->first.L);
-
-        hints[K]=it->second;
-
-        return it->second;
-    }/*}}}*/
-
 /*}}}*/
 
-#ifdef SELECT_MPFQ_LAYER_u64k1  /*{{{*/
-double avg_matsize(abdst_field, unsigned int m, unsigned int n, int ascii)
+/*{{{ avg_matsize */
+template<bool over_gf2>
+double avg_matsize(abdst_field, unsigned int m, unsigned int n, int ascii);
+
+template<>
+double avg_matsize<true>(abdst_field, unsigned int m, unsigned int n, int ascii)
 {
     ASSERT_ALWAYS(!ascii);
     ASSERT_ALWAYS((m*n) % 64 == 0);
     return ((m*n)/64) * sizeof(uint64_t);
 }
-#else
-double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
+
+template<>
+double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int ascii)
 {
     if (!ascii) {
         /* Easy case first. If we have binary input, then we know a priori
@@ -221,27 +196,28 @@ double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
      * (k-((b^k-1)/(b-1)-1)/p)  with b = Ceiling(Log(p)/Log(b)).
      */
     double avg;
-    mpz_t p, a;
-    mpz_init(p);
-    mpz_init(a);
-    abfield_characteristic(ab, p);
-    unsigned long k = ceil(log(mpz_get_d(p))/log(10));
+    cxx_mpz a;
+    double pd = mpz_get_d(abfield_characteristic_srcptr(ab));
+    unsigned long k = ceil(log(pd)/log(10));
     unsigned long b = 10;
     mpz_ui_pow_ui(a, b, k);
     mpz_sub_ui(a, a, 1);
     mpz_fdiv_q_ui(a, a, b-1);
-    avg = k - mpz_get_d(a) / mpz_get_d(p);
-    mpz_clear(p);
-    mpz_clear(a);
+    avg = k - mpz_get_d(a) / pd;
     // printf("Expect roughly %.2f decimal digits for integers mod p.\n", avg);
     double matsize = (avg + 1) * m * n + 1;
     // printf("Expect roughly %.2f bytes for each sequence matrix.\n", matsize);
     return matsize;
 }
-#endif/*}}}*/
+
+double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
+{
+    return avg_matsize<matpoly::over_gf2>(ab, m, n, ascii);
+}
+/*}}}*/
 
 /* {{{ I/O helpers */
-/* TODO: adapt for GF(2) */
+
 /* {{{ matpoly_write
  * writes some of the matpoly data to f, either in ascii or binary
  * format. This can be used to write only part of the data (degrees
@@ -249,13 +225,13 @@ double avg_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
  * most k1-k0) successfully written, or
  * -1 on error (e.g. when some matrix was only partially written).
  */
+
+#ifndef SELECT_MPFQ_LAYER_u64k1
 int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
-    abelt tmp;
-    abinit(ab, &tmp);
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -275,13 +251,67 @@ int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned 
         }
         if (ascii) err = err || !(os << "\n");
         if (err) {
-            abclear(ab, &tmp);
             return (matnb == 0) ? (int) (k - k0) : -1;
         }
     }
-    abclear(ab, &tmp);
     return k1 - k0;
 }
+#else
+int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+{
+    unsigned int m = M.m;
+    unsigned int n = M.n;
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
+    ASSERT_ALWAYS(m % ULONG_BITS == 0);
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    size_t ulongs_per_mat = m * n / ULONG_BITS;
+    std::vector<unsigned long> buf(ulongs_per_mat);
+    for(unsigned int k = k0 ; k < k1 ; k++) {
+        buf.assign(ulongs_per_mat, 0);
+        bool err = false;
+        size_t kq = k / ULONG_BITS;
+        size_t kr = k % ULONG_BITS;
+        unsigned long km = 1UL << kr;
+        if (!transpose) {
+            for(unsigned int i = 0 ; i < m ; i++) {
+                unsigned long * v = &(buf[i * (n / ULONG_BITS)]);
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    unsigned int jq = j / ULONG_BITS;
+                    unsigned int jr = j % ULONG_BITS;
+                    unsigned long bit = (M.part(i, j)[kq] & km) != 0;
+                    v[jq] |= bit << jr;
+                }
+            }
+        } else {
+            for(unsigned int j = 0 ; j < n ; j++) {
+                unsigned long * v = &(buf[j * (m / ULONG_BITS)]);
+                for(unsigned int i = 0 ; i < m ; i++) {
+                    unsigned int iq = i / ULONG_BITS;
+                    unsigned int ir = i % ULONG_BITS;
+                    unsigned long bit = (M.part(i, j)[kq] & km) != 0;
+                    v[iq] |= bit << ir;
+                }
+            }
+        }
+        if (ascii) {
+            /* do we have an endian-robust wordsize-robust convention for
+             * printing bitstrings in hex ?
+             *
+             * it's not even clear that we should care -- after all, as
+             * long as mksol follows a consistent convention too, we
+             * should be fine.
+             */
+            abort();
+        } else {
+            err = !(os.write((const char*) &buf[0], ulongs_per_mat * sizeof(unsigned long)));
+        }
+        if (err) return -1;
+    }
+    return k1 - k0;
+}
+#endif
+/* }}} */
+
 
 /* fw must be an array of FILE* pointers of exactly the same size as the
  * matrix to be written.
@@ -290,8 +320,6 @@ template<typename Ostream>
 int matpoly_write_split(abdst_field ab, std::vector<Ostream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
-    abelt tmp;
-    abinit(ab, &tmp);
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -309,11 +337,9 @@ int matpoly_write_split(abdst_field ab, std::vector<Ostream> & fw, matpoly const
             }
         }
         if (err) {
-            abclear(ab, &tmp);
             return (matnb == 0) ? (int) (k - k0) : -1;
         }
     }
-    abclear(ab, &tmp);
     return k1 - k0;
 }
 /* }}} */
@@ -329,14 +355,13 @@ int matpoly_write_split(abdst_field ab, std::vector<Ostream> & fw, matpoly const
  * been already allocated.
  */
 
+#ifndef SELECT_MPFQ_LAYER_u64k1
 int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     ASSERT_ALWAYS(!M.check_pre_init());
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
-    abelt tmp;
-    abinit(ab, &tmp);
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -355,9 +380,62 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
         }
         if (err) return (matnb == 0) ? (int) (k - k0) : -1;
     }
-    abclear(ab, &tmp);
     return k1 - k0;
-}/* }}} */
+}
+#else
+int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+{
+    unsigned int m = M.m;
+    unsigned int n = M.n;
+    ASSERT_ALWAYS(m % ULONG_BITS == 0);
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    size_t ulongs_per_mat = m * n / ULONG_BITS;
+    std::vector<unsigned long> buf(ulongs_per_mat);
+    for(unsigned int k = k0 ; k < k1 ; k++) {
+        if (ascii) {
+            /* do we have an endian-robust wordsize-robust convention for
+             * printing bitstrings in hex ?
+             *
+             * it's not even clear that we should care -- after all, as long as
+             * mksol follows a consistent convention too, we should be fine.
+             */
+            abort();
+        } else {
+            int rc = fwrite((const char*) &buf[0], sizeof(unsigned long), ulongs_per_mat, f);
+            if (rc != (int) ulongs_per_mat)
+                return k - k0;
+        }
+        M.zero_pad(k + 1);
+        size_t kq = k / ULONG_BITS;
+        size_t kr = k % ULONG_BITS;
+        if (!transpose) {
+            for(unsigned int i = 0 ; i < m ; i++) {
+                unsigned long * v = &(buf[i * (n / ULONG_BITS)]);
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    unsigned int jq = j / ULONG_BITS;
+                    unsigned int jr = j % ULONG_BITS;
+                    unsigned long jm = 1UL << jr;
+                    unsigned long bit = v[jq] & jm;
+                    M.part(i, j)[kq] |= bit << kr;
+                }
+            }
+        } else {
+            for(unsigned int j = 0 ; j < n ; j++) {
+                unsigned long * v = &(buf[j * (m / ULONG_BITS)]);
+                for(unsigned int i = 0 ; i < m ; i++) {
+                    unsigned int iq = i / ULONG_BITS;
+                    unsigned int ir = i % ULONG_BITS;
+                    unsigned long im = 1UL << ir;
+                    unsigned long bit = v[iq] & im;
+                    M.part(i, j)[kq] |= bit << kr;
+                }
+            }
+        }
+    }
+    return k1 - k0;
+}
+#endif
+/* }}} */
 
 /* }}} */
 
@@ -830,6 +908,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
+    ASSERT_ALWAYS(X.is_tight());
     S.write((const char *) X.data_area(), X.data_size());
     char checksum[41];
     S.checksum(checksum);
@@ -1004,7 +1083,11 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();
     } else {
+#ifndef SELECT_MPFQ_LAYER_u64k1
         typedef fft_transform_info fft_type;
+#else
+        typedef gf2x_cantor_fft_info fft_type;
+#endif
         done = bw_lingen_recursive<fft_type>(bm, pi, E, delta);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
@@ -1275,6 +1358,11 @@ struct bm_io {/*{{{*/
     char * iobuf = NULL;
     const char * input_file = NULL;
     const char * output_file = NULL;
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    static constexpr const unsigned int simd = ULONG_BITS;
+#else
+    static constexpr const unsigned int simd = 1;
+#endif
     int ascii = 0;
     /* This is only a rolling window ! */
     matpoly A, F;
@@ -1285,7 +1373,9 @@ struct bm_io {/*{{{*/
      * In writing mode, k is the number of coefficients of F which have
      * been written so far.
      */
-    unsigned int k = 0;
+    unsigned int next_coeff_to_fetch_from_source = 0;   // ROOT ONLY!
+    unsigned int next_coeff_to_consume = 0;     // ROOT ONLY!
+
     unsigned int guessed_length = 0;
 
     bool leader() const {
@@ -1295,7 +1385,7 @@ struct bm_io {/*{{{*/
     }
     unsigned int set_write_behind_size(std::vector<unsigned int> const & delta);
     void zero1(unsigned int deg);
-    int read1(unsigned int io_window);
+    unsigned int fetch_more_from_source(unsigned int io_window, unsigned int batch);
     bm_io(bm_io const&)=delete;
     bm_io(bmstatus & bm, const char * input_file, const char * output_file, int ascii);
     ~bm_io();
@@ -1354,6 +1444,7 @@ unsigned int bm_io::set_write_behind_size(std::vector<unsigned int> const & delt
          * writing */
         window++;
     }
+    window = simd * iceildiv(window, simd);
     if (leader()) {
         F.realloc(window);
         F.zero();
@@ -1465,12 +1556,15 @@ struct bm_output_checksum {/*{{{*/
 void bm_io::zero1(unsigned int deg)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
     unsigned int n = d.n;
     deg = deg % F.capacity();
     for(unsigned int j = 0 ; j < n ; j++) {
         for(unsigned int i = 0 ; i < n ; i++) {
-            abset_zero(ab, F.coeff(i, j, deg));
+#ifndef SELECT_MPFQ_LAYER_u64k1
+            abset_zero(d.ab, F.coeff(i, j, deg));
+#else
+            F.coeff_accessor(i, j, deg) += F.coeff(i, j, deg);
+#endif
         }
     }
 }/*}}}*/
@@ -1495,6 +1589,7 @@ void bm_io::zero1(unsigned int deg)/*{{{*/
 class bigmatpoly_consumer_task { /* {{{ */
     /* This reads a bigmatpoly, by chunks, so that the memory footprint
      * remains reasonable. */
+    size_t simd;
     bigmatpoly const & xpi;
     matpoly pi; /* This is only temp storage ! */
     unsigned int B;
@@ -1502,7 +1597,7 @@ class bigmatpoly_consumer_task { /* {{{ */
     int rank;
 
     public:
-    bigmatpoly_consumer_task(bm_io & aa, bigmatpoly const & xpi) : xpi(xpi) {
+    bigmatpoly_consumer_task(bm_io & aa, bigmatpoly const & xpi) : simd(aa.simd), xpi(xpi) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -1513,6 +1608,7 @@ class bigmatpoly_consumer_task { /* {{{ */
         /* Decide on the temp storage size */
         double avg = avg_matsize(d.ab, n, n, aa.ascii);
         B = iceildiv(io_block_size, avg);
+        B = simd * iceildiv(B, simd);
         if (!rank && !random_input_length) {
             printf("Writing F to %s\n", aa.output_file);
             printf("Writing F by blocks of %u coefficients"
@@ -1527,12 +1623,15 @@ class bigmatpoly_consumer_task { /* {{{ */
 
     inline unsigned int size() { return xpi.size; }
 
+    /* locked means that we don't want to change the current access window */
     inline absrc_elt coeff_const_locked(unsigned int i, unsigned int j, unsigned int k) {
         ASSERT(!rank);
         ASSERT(k0 != UINT_MAX && k - k0 < B);
+        /* Note that only the const variant is ok to use in the binary case */
         return pi.coeff(i, j, k - k0);
     }
 
+    /* Here, we adjust the access window so as to access coefficient k */
     absrc_elt coeff_const(unsigned int i, unsigned int j, unsigned int k) {
         if (k0 == UINT_MAX || k - k0 >= B) {
             k0 = k - (k % B);
@@ -1550,6 +1649,7 @@ class bigmatpoly_producer_task { /* {{{ */
      * Note that in any case, the coefficient indices must be progressive
      * in the write.
      */
+    size_t simd;
     bigmatpoly & xE;
     matpoly E; /* This is only temp storage ! */
     unsigned int B;
@@ -1560,7 +1660,7 @@ class bigmatpoly_producer_task { /* {{{ */
     bigmatpoly_producer_task(bigmatpoly_producer_task const &) = delete;
 
     public:
-    bigmatpoly_producer_task(bm_io & aa, bigmatpoly & xE) : xE(xE) {
+    bigmatpoly_producer_task(bm_io & aa, bigmatpoly & xE) : simd(aa.simd), xE(xE) {
         bmstatus & bm = aa.bm;
         bw_dimensions & d = bm.d;
         unsigned int m = d.m;
@@ -1572,6 +1672,7 @@ class bigmatpoly_producer_task { /* {{{ */
         /* Decide on the MPI chunk size */
         double avg = avg_matsize(d.ab, m, n, 0);
         B = iceildiv(io_block_size, avg);
+        B = simd * iceildiv(B, simd);
 
         if (!rank) {
             /* TODO: move out of here */
@@ -1679,24 +1780,27 @@ class matpoly_consumer_task {/*{{{*/
     ~matpoly_consumer_task() { }
 };/*}}}*/
 class matpoly_producer_task { /* {{{ */
+    size_t simd;
     matpoly & E;
 
     /* forbid copies */
     matpoly_producer_task(matpoly_producer_task const &) = delete;
 
     public:
-    matpoly_producer_task(bm_io & aa, matpoly & E) :
-        E(E)
+    matpoly_producer_task(bm_io & aa, matpoly & E) : simd(aa.simd), E(E)
     {
-            /* TODO: move out of here */
-            if (aa.input_file)
-                printf("Reading A from %s\n", aa.input_file);
+        /* TODO: move out of here */
+        if (aa.input_file)
+            printf("Reading A from %s\n", aa.input_file);
     }
 
-    inline unsigned int chunk_size() const { return 1; }
-    inline void set_size(unsigned int s) { E.size = s; }
+    inline unsigned int chunk_size() const { return simd; }
+    inline void set_size(unsigned int s) {
+        E.size = s;
+    }
     // inline unsigned int size() { return E.size; }
 
+#if 0
     abdst_elt coeff_locked(unsigned int i, unsigned int j, unsigned int k) {
         E.size += (E.size == k);
         ASSERT(E.size == k + 1);
@@ -1704,6 +1808,16 @@ class matpoly_producer_task { /* {{{ */
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
         return coeff_locked(i, j, k);
+    }
+#endif
+    void mark_coeff_as_read(unsigned int, unsigned int, unsigned int k) {
+        E.size += (E.size == k);
+        ASSERT(E.size == k + 1);
+    }
+    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
+        mark_coeff_as_read(i, j, k);
+        // note that for the binary case, this is a const accessor.
+        return E.coeff(i, j, k);
     }
     void finalize(unsigned int length) { set_size(length); }
     ~matpoly_producer_task() { }
@@ -1779,8 +1893,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
         {
             Sink Srhs(*this, rhs, ".rhs");
 
-            /* Now redo the exact same loop as above, this time
-             * adding the contributions to the rhs matrix. */
+            /* adding the contributions to the rhs matrix. */
             for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
                 for(unsigned int jF = 0 ; jF < n ; jF++) {
                     unsigned int jpi = sols[jF];
@@ -1802,8 +1915,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                     absrc_elt src = pi.coeff_const(ipi, jpi, kpi);
 
                     if (leader) {
-                        abdst_elt dst = rhs.coeff(iF, jF, 0);
-                        abadd(ab, dst, dst, src);
+                        rhs.coeff_accessor(iF, jF, 0) += src;
                     }
                 }
             }
@@ -1979,18 +2091,15 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                 if (maxdelta < kpi + subtract) continue;
                 unsigned int kF = (maxdelta - kpi) - subtract;
                 unsigned int kF1 = kF - (iF < d.nrhs);
-                abdst_elt dst;
                 if (kF1 == UINT_MAX) {
                     /* this has been addressed in the first pass,
                      * earlier.
                      */
                     continue;
-                } else {
-                    dst = F.coeff(iF, jF, kF1 % window);
                 }
                 absrc_elt src = pi.coeff_const_locked(ipi, jpi, kpi);
                 ASSERT_ALWAYS(kF <= delta[jpi] || abis_zero(ab, src));
-                abadd(ab, dst, dst, src);
+                F.coeff_accessor(iF, jF, kF1 % window) += src;
             }
         }
 
@@ -2011,32 +2120,39 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
     }
 }/*}}}*/
 
-/* read 1 coefficient into the sliding window of input coefficients of
- * the input series A. The io_window parameter controls the size of the
- * sliding window. There are in fact two behaviours:
+/* read 1 (or (batch)) coefficient(s) into the sliding window of input
+ * coefficients of the input series A. The io_window parameter controls
+ * the size of the sliding window. There are in fact two behaviours:
  *  - io_window == 0: there is no sliding window, really, and the new
  *    coefficient is appended as the last coefficient of A.
  *  - io_window > 0: there, we really have a sliding window. Coeffs
  *    occupy places in a circular fashion within the buffer.
  */
-int bm_io::read1(unsigned int io_window)/*{{{*/
+unsigned int bm_io::fetch_more_from_source(unsigned int io_window, unsigned int batch)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
     static unsigned int generated_random_coefficients = 0;
+    int rank;
+    MPI_Comm_rank(bm.com[0], &rank);
+    ASSERT_ALWAYS(rank == 0);
 
-    unsigned int pos = k;
+    unsigned int pos = next_coeff_to_fetch_from_source;
+    ASSERT_ALWAYS(A.size % simd == 0);
+    ASSERT_ALWAYS(next_coeff_to_fetch_from_source % simd == 0);
+    ASSERT_ALWAYS(batch % simd == 0);
+    ASSERT_ALWAYS(n % simd == 0);
     if (io_window) {
         pos = pos % io_window;
         ASSERT_ALWAYS(A.size == io_window);
+        ASSERT_ALWAYS(pos / io_window == (pos + batch - 1) / io_window);
     } else {
-        ASSERT_ALWAYS(A.size == k);
-        if (k >= A.capacity())
-            A.realloc(A.capacity() + 1);
-        ASSERT_ALWAYS(k < A.capacity());
-        A.size++;
+        ASSERT_ALWAYS(A.size == next_coeff_to_fetch_from_source);
+        if (next_coeff_to_fetch_from_source >= A.capacity())
+            A.realloc(A.capacity() + batch);
+        ASSERT_ALWAYS(next_coeff_to_fetch_from_source < A.capacity());
+        A.size += batch;
     }
     if (random_input_length) {
         if (generated_random_coefficients >= random_input_length)
@@ -2044,42 +2160,75 @@ int bm_io::read1(unsigned int io_window)/*{{{*/
 
         for (unsigned int i = 0; i < m ; i++) {
             for (unsigned int j = 0; j < n ; j++) {
-                abdst_elt x = A.coeff(i, j, pos);
-                abrandom(ab, x, rstate);
+                for (unsigned int b = 0; b < batch ; b += simd) {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+                    unsigned int sq = (pos + b) / simd;
+                    A.coeff(i, j)[sq] = gmp_urandomb_ui(rstate, simd);
+#else
+                    abrandom(d.ab, A.coeff(i, j, pos + b), rstate);
+#endif
+                }
             }
         }
-        generated_random_coefficients++;
-        k++;
-        return 1;
+        generated_random_coefficients += batch;
+        next_coeff_to_fetch_from_source += batch;
+        return batch;
     }
 
     for (unsigned int i = 0; i < m ; i++) {
         for (unsigned int j = 0; j < n ; j++) {
-            abdst_elt x = A.coeff(i, j, pos);
-            int rc;
-            if (ascii) {
-                rc = abfscan(ab, fr[0], x);
-                /* rc is the number of bytes read -- non-zero on success */
-            } else {
-                size_t elemsize = abvec_elt_stride(ab, 1);
-                rc = fread(x, elemsize, 1, fr[0]);
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            memset(A.part(i, j) + (pos / simd), 0, abvec_elt_stride(d.ab, batch));
+#else
+            memset(A.coeff(i, j, pos), 0, abvec_elt_stride(d.ab, batch));
+#endif
+        }
+    }
+
+    for (unsigned int b = 0; b < batch ; b++ ) {
+        for (unsigned int i = 0; i < m ; i++) {
+            for (unsigned int j = 0; j < n ; j+= simd) {
+                int rc;
+#ifdef SELECT_MPFQ_LAYER_u64k1
+                if (ascii)
+                    abort();
+                unsigned long data = 0;
+                rc = fread(&data, sizeof(unsigned long), 1, fr[0]);
                 rc = rc == 1;
-                abnormalize(ab, x);
-            }
-            if (!rc) {
-                if (i == 0 && j == 0) {
-                    return 0;
+                unsigned int sq = (pos + b) / simd;
+                unsigned int sr = b % simd;
+                for(unsigned int jr = 0 ; jr < simd ; jr++) {
+                    unsigned long bit = (data & (1UL << jr)) != 0;
+                    A.coeff(i, j + jr)[sq] ^= bit << sr;
                 }
-                fprintf(stderr,
-                        "Parse error while reading coefficient (%d,%d,%d)%s\n",
-                        i, j, 1 + k,
-                        ascii ? "" : " (forgot --ascii?)");
-                exit(EXIT_FAILURE);
+#else
+                abdst_elt x = A.coeff(i, j, pos + b);
+                if (ascii) {
+                    rc = abfscan(d.ab, fr[0], x);
+                    /* rc is the number of bytes read -- non-zero on success */
+                } else {
+                    size_t elemsize = abvec_elt_stride(d.ab, 1);
+                    rc = fread(x, elemsize, 1, fr[0]);
+                    rc = rc == 1;
+                    abnormalize(d.ab, x);
+                }
+#endif
+                if (!rc) {
+                    if (i == 0 && j == 0) {
+                        next_coeff_to_fetch_from_source += b;
+                        return b;
+                    }
+                    fprintf(stderr,
+                            "Parse error while reading coefficient (%d,%d,%d)%s\n",
+                            i, j, 1 + next_coeff_to_fetch_from_source,
+                            ascii ? "" : " (forgot --ascii?)");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
-    k++;
-    return 1;
+    next_coeff_to_fetch_from_source += batch;
+    return batch;
 }/*}}}*/
 
 bm_io::bm_io(bmstatus & bm, const char * input_file, const char * output_file, int ascii)/*{{{*/
@@ -2104,7 +2253,8 @@ void bm_io::begin_read()/*{{{*/
 
     if (random_input_length) {
         /* see below. I think it would be a bug to not do that */
-        read1(0);
+        fetch_more_from_source(0, simd);
+        next_coeff_to_consume++;
         return;
     }
 
@@ -2126,10 +2276,11 @@ void bm_io::begin_read()/*{{{*/
      * the coefficient needed at that point in time, while we will also
      * (in the DL case) need data from the previous read.
      */
-    if (!read1(0)) {
+    if (fetch_more_from_source(0, simd) < simd) {
         fprintf(stderr, "Read error from %s\n", input_file);
         exit(EXIT_FAILURE);
     }
+    next_coeff_to_consume++;
 }/*}}}*/
 
 void bm_io::end_read()/*{{{*/
@@ -2205,7 +2356,7 @@ void bm_io::compute_initial_F() /*{{{ */
         ASSERT(A.m == m);
         ASSERT(A.n == n);
 
-        abelt tmp;
+        abelt tmp MAYBE_UNUSED;
         abinit(ab, &tmp);
 
         /* First try to create the initial F matrix */
@@ -2226,16 +2377,46 @@ void bm_io::compute_initial_F() /*{{{ */
         std::vector<unsigned int> cnum(m, 0);
         unsigned int r = 0;
 
-        for (unsigned int k = 0; r < m ; k++) {
-            /* read a new coefficient */
-            read1(0);
+        for (unsigned int k = 1; r < m ; k++) {
+            /*
+             * k is the candidate for becoming the value t0.
+             *
+             * coefficient of degree t0 of the initial A*F is in fact
+             * coefficient of degree t0 of A'*F, where column j of A' is
+             * column j of A, divided by X if j >= bm.d.nrhs.
+             *
+             * (recall that 0<=bm.d.nrhs<=n)
+             *
+             * Therefore, for j >= bm.d.nrhs, the contribution to
+             * coefficient of degree k (tentative t0) of A'*F comes from
+             * the following data from A:
+             *  for cols of A with j < bm.d.rhs:  coeffs 0 <= deg <= k-1 
+             *  for cols of A with j >= bm.d.rhs: coeffs 1 <= deg <= k
+             *
+             * This means that here, we're going to read data from the
+             * following coefficient of A
+             *  k   if bm.d.nrhs < n
+             *  k-1 if bm.d.nrhs = n
+             */
+            unsigned int k_access = k - (bm.d.nrhs == n);
+
+            if (rank == 0) {
+                if (k_access >= next_coeff_to_consume)
+                    next_coeff_to_consume++;
+                ASSERT_ALWAYS(k_access < next_coeff_to_consume);
+                if (k_access >= next_coeff_to_fetch_from_source) {
+                    /* read a new coefficient into A */
+                    fetch_more_from_source(0, simd);
+                }
+                ASSERT_ALWAYS(k_access <= next_coeff_to_fetch_from_source);
+            }
 
             for (unsigned int j = 0; r < m && j < n; j++) {
                 /* Extract a full column into M (column j, degree k in A) */
                 /* adjust the coefficient degree to take into account the
                  * fact that for SM columns, we might in fact be
                  * interested by the _previous_ coefficient */
-                M.extract_column(r, 0, A, j, k + (j >= bm.d.nrhs));
+                M.extract_column(r, 0, A, j, k - (j < bm.d.nrhs));
 
                 /* Now reduce it modulo all other columns */
                 for (unsigned int v = 0; v < r; v++) {
@@ -2247,25 +2428,27 @@ void bm_io::compute_initial_F() /*{{{ */
                      */
                     /* add M[u,r]*column v of M to column r of M */
                     for(unsigned int i = 0 ; i < m ; i++) {
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                        abmul(ab, tmp, M.coeff(i, v, 0), M.coeff(u, r, 0));
+                        abadd(ab, M.coeff(i, r, 0), M.coeff(i, r, 0), tmp);
+#else
                         if (i == u) continue;
-                        abmul(ab, tmp,
-                                  M.coeff(i, v, 0),
-                                  M.coeff(u, r, 0));
-                        abadd(ab, M.coeff(i, r, 0),
-                                  M.coeff(i, r, 0),
-                                  tmp);
+                        abelt x = { M.coeff(i, v, 0)[0] & M.coeff(u, r, 0)[0] };
+                        M.coeff_accessor(i, r, 0) += x;
+#endif
                     }
-                    abset_zero(ab,
-                            M.coeff(u, r, 0));
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                    abset_zero(ab, M.coeff(u, r, 0));
+#endif
                 }
                 unsigned int u = 0;
                 for( ; u < m ; u++) {
-                    if (abcmp_ui(ab, M.coeff(u, r, 0), 0) != 0)
+                    if (!abis_zero(ab, M.coeff(u, r, 0)))
                         break;
                 }
                 if (u == m) {
                     printf("[X^%d] A, col %d does not increase rank (still %d)\n",
-                           k + (j >= bm.d.nrhs), j, r);
+                           k - (j < bm.d.nrhs), j, r);
 
                     /* we need at least m columns to get as starting matrix
                      * with full rank. Given that we have n columns per
@@ -2283,9 +2466,12 @@ void bm_io::compute_initial_F() /*{{{ */
                 /* Bingo, it's a new independent col. */
                 pivots[r] = u;
                 cnum[r] = j;
-                exponents[r] = k;
+                exponents[r] = k - 1;
 
                 /* Multiply the column so that the pivot becomes -1 */
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                /* this is all trivial in characteristic two, of course
+                 */
                 int rc = abinv(ab, tmp, M.coeff(u, r, 0));
                 if (!rc) {
                     fprintf(stderr, "Error, found a factor of the modulus: ");
@@ -2299,13 +2485,14 @@ void bm_io::compute_initial_F() /*{{{ */
                               M.coeff(i, r, 0),
                               tmp);
                 }
+#endif
 
                 r++;
 
                 // if (r == m)
                     printf
                         ("[X^%d] A, col %d increases rank to %d (head row %d)%s\n",
-                         k + (j >= bm.d.nrhs), j, r, u,
+                         k - (j < bm.d.nrhs), j, r, u,
                          (j < bm.d.nrhs) ? " (column not shifted because of the RHS)":"");
             }
         }
@@ -2316,19 +2503,26 @@ void bm_io::compute_initial_F() /*{{{ */
             exit(EXIT_FAILURE);
         }
 
+        /* t0 is the k value for the loop index when we exited the loop.
+         */
         t0 = exponents[r - 1] + 1;
-        /* We always have one extra coefficient of back log */
-        ASSERT_ALWAYS(t0 == k - 1);
+
+        /* Coefficients of degree up to t0-1 of A' are read. Unless
+         * bm.d.nrhs == n, for at least one of the columns of A, this
+         * means up to degree t0.
+         */
+        if (rank == 0)
+            ASSERT_ALWAYS(bm_io::next_coeff_to_consume == t0 + (bm.d.nrhs < n));
 
         printf("Found satisfactory init data for t0=%d\n", t0);
 
         /* We've also got some adjustments to make: room for one extra
          * coefficient is needed in A. Reading of further coefficients will
-         * pickup where they stopped, and will always leave the last t0+2
-         * coefficients readable. */
-        A.realloc(t0 + 2);
-        A.size++;
-
+         * pickup where they stopped, and will always leave the last
+         * t0+1+simd coefficients readable. */
+        unsigned int window = simd + simd * iceildiv(t0 + 1, simd);
+        A.realloc(window);
+        A.zero_pad(window);
 
         for(unsigned int j = 0 ; j < m ; j++) {
             fdesc[j][0] = exponents[j];
@@ -2359,32 +2553,62 @@ void bm_io::compute_E(Writer& E, unsigned int expected, unsigned int allocated)/
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
 
-    unsigned int window = t0 + 2;
+    unsigned int window = simd + simd * iceildiv(t0 + 1, simd);
 
     double tt0 = wct_seconds();
     double next_report_t = tt0 + 10;
     unsigned next_report_k = expected / 100;
 
     int over = 0;
-    unsigned int final_length = UINT_MAX;
+    unsigned int final_length = allocated - t0;
 
-    for(unsigned int kE = 0 ; kE + t0 < allocated ; kE ++) {
+    /* For the moment, despite the simd nature of the data, we'll compute
+     * E one coeff at a time.
+     */
+    for(unsigned int kE = 0 ; kE + t0 < allocated ; kE++) {
+        /* See the discussion in compute_initial_F ; to form coefficient
+         * of degree kE of E, which is coefficient of degree t0+kE of
+         * A'*F, we need to access the following coefficient of A:
+         *
+         *      t0+kE+1   if bm.d.nrhs < n
+         *      t0+kE     if bm.d.nrhs = n
+         *
+         * more specifically, multiplying by row j of F will access
+         * column j of A, and only coefficients of deg <= t0+kE+(j>=bm.d.nrhs)
+         */
+        
+        unsigned int k_access = kE + t0 + (bm.d.nrhs < n);
 
-        if (kE % E.chunk_size() || kE + t0 >= expected) {
+        if (k_access % E.chunk_size() == 0 || kE + t0 >= expected) {
+            /* check periodically */
             MPI_Bcast(&over, 1, MPI_INT, 0, bm.com[0]);
             if (over) break;
         }
-        if (rank == 0 && !over) {
-            over = !read1(window);
-            if (over) {
-                printf("EOF met after reading %u coefficients\n", k);
-                final_length = kE;
+
+        if (rank == 0) {
+            if (!over && k_access >= next_coeff_to_fetch_from_source) {
+                unsigned int b = fetch_more_from_source(window, simd);
+                over = b < simd;
+                if (over) {
+                    printf("EOF met after reading %u coefficients\n", next_coeff_to_fetch_from_source);
+                    final_length = kE + b;
+                }
+            }
+            if (!over) {
+                if (k_access >= next_coeff_to_consume) next_coeff_to_consume++;
+                ASSERT_ALWAYS(k_access < next_coeff_to_consume);
+                ASSERT_ALWAYS(k_access < next_coeff_to_fetch_from_source);
             }
         }
 
+        /* This merely makes sure that coefficient E is writable: this
+         * call may change the view window for E, and in
+         * the case of an MPI run, this view window will be eventually
+         * pushed to other nodes
+         */
         E.coeff(0, 0, kE);
 
-        if (over || rank)
+        if (rank || kE >= final_length)
             continue;
 
         if (kE + t0 > allocated) {
@@ -2393,15 +2617,17 @@ void bm_io::compute_E(Writer& E, unsigned int expected, unsigned int allocated)/
 
         for(unsigned int j = 0 ; j < n ; j++) {
             /* If the first columns of F are the identity matrix, then
-             * in E we get data from coefficient kE+t0 in A. More
+             * in E we get data from coefficient kE+t0 in A', i.e.
+             * coefficient of degree kE+t0+(j>=nrhs) in column j of A. More
              * generally, if it's x^q*identity, we read
-             * coeficient of index kE + t0 - q.
+             * coeficient of index kE + t0 + (j>=nrhs) - q.
              *
              * Note that we prefer to take q=0 anyway, since a
              * choice like q=t0 would create duplicate rows in E,
              * and that would be bad.
              */
             unsigned int kA = kE + t0 + (j >= bm.d.nrhs);
+            ASSERT_ALWAYS(!rank || kA < next_coeff_to_consume);
             matpoly_extract_column(E, j, kE, A, j, kA % window);
         }
 
@@ -2409,26 +2635,24 @@ void bm_io::compute_E(Writer& E, unsigned int expected, unsigned int allocated)/
             unsigned int jA = fdesc[jE-n][1];
             unsigned int offset = fdesc[jE-n][0];
             unsigned int kA = kE + offset + (jA >= bm.d.nrhs);
+            ASSERT_ALWAYS(!rank || kA < next_coeff_to_consume);
             matpoly_extract_column(E, jE, kE, A, jA, kA % window);
         }
-        /* This is because k integrates some backlog because of
-         * the SM / non-SM distinction (for DL) */
-        ASSERT_ALWAYS(kE + 1 + t0 + 1 == k);
-        if (k > next_report_k) {
+        ASSERT_ALWAYS(!rank || k_access + 1 ==  next_coeff_to_consume);
+        if (k_access > next_report_k) {
             double tt = wct_seconds();
             if (tt > next_report_t) {
                 printf(
                         "Read %u coefficients (%.1f%%)"
                         " in %.1f s (%.1f MB/s)\n",
-                        k, 100.0 * k / expected,
-                        tt-tt0, k * avg_matsize(ab, m, n, ascii) / (tt-tt0)/1.0e6);
+                        k_access, 100.0 * k_access / expected,
+                        tt-tt0, k_access * avg_matsize(ab, m, n, ascii) / (tt-tt0)/1.0e6);
                 next_report_t = tt + 10;
-                next_report_k = k + expected / 100;
+                next_report_k = k_access + expected / 100;
             }
         }
     }
     MPI_Bcast(&final_length, 1, MPI_UNSIGNED, 0, bm.com[0]);
-    ASSERT_ALWAYS(final_length != UINT_MAX);
     E.finalize(final_length);
 }/*}}}*/
 
@@ -2569,6 +2793,7 @@ void display_deltas(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{
     MPI_Comm_rank(bm.com[0], &rank);
 
     if (!rank) {
+        /*
         printf("Final, t=%u: delta =", bm.t);
         for(unsigned int j = 0; j < m + n; j++) {
             printf(" %u", delta[j]);
@@ -2576,6 +2801,36 @@ void display_deltas(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{
                 printf("(*)");
             }
         }
+        printf("\n");
+        */
+        printf("Final, t=%4u: delta =", bm.t);
+        unsigned int last = UINT_MAX;
+        unsigned int nrep = 0;
+        int overflow = INT_MAX;
+        for(unsigned int i = 0 ; i < m + n ; i++) {
+            unsigned int d = delta[i];
+            if (d == last && (bm.lucky[i] < 0) == overflow) {
+                nrep++;
+                continue;
+            }
+            // Flush the pending repeats
+            if (last != UINT_MAX) {
+                printf(" %u", last);
+                if (overflow)
+                    printf(" (*)");
+                if (nrep > 1)
+                    printf(" [%u]", nrep);
+            }
+            last = d;
+            overflow = bm.lucky[i] < 0;
+            nrep = 1;
+        }
+        ASSERT_ALWAYS(last != UINT_MAX);
+        printf(" %u", last);
+        if (overflow)
+            printf(" (*)");
+        if (nrep > 1)
+            printf(" [%u]", nrep);
         printf("\n");
     }
 }/*}}}*/
@@ -2977,7 +3232,11 @@ int main(int argc, char *argv[])
 
     {
         matpoly::memory_guard blanket(SIZE_MAX);
+#ifndef SELECT_MPFQ_LAYER_u64k1
         typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
+#else
+        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
+#endif
         try {
             /* iceildiv(m,n) is t0. We subtract 1 because we usually work
              * with shifted inputs in order to deal with homogenous
@@ -3010,8 +3269,8 @@ int main(int argc, char *argv[])
     }
 
     if (go_mpi && size > 1) {
-        matpoly_factory<bigmatpoly> F(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
 #ifdef ENABLE_MPI_LINGEN
+        matpoly_factory<bigmatpoly> F(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
         lingen_main_code(F, d.ab, aa);
 #else
         /* The ENABLE_MPI_LINGEN flag should be turned on for a proper
@@ -3027,7 +3286,11 @@ int main(int argc, char *argv[])
          */
         matpoly_factory<matpoly> F;
         if (size > 1) {
+#ifndef SELECT_MPFQ_LAYER_u64k1
             typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
+#else
+            typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
+#endif
             lingen_main_code(F, d.ab, aa);
         } else {
             /* on the other hand, plain non-mpi code should benefit from

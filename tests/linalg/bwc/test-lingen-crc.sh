@@ -15,6 +15,10 @@ while [ $# -gt 0 ] ; do
         eval "$1"
         shift
         continue
+    elif [[ "$1" =~ ^(expect_crc_[a-zA-Z]+)=([0-9a-f]+(,[0-9a-f]+)*)$ ]] ; then
+        eval "`echo "${BASH_REMATCH[1]}=(${BASH_REMATCH[2]})" | tr , ' '`"
+        shift
+        continue
     elif [[ "$1" =~ ^wdir=(.+)$ ]] ; then
         wdir="${BASH_REMATCH[1]}"
         if ! [ -d "$wdir" ] ; then
@@ -37,7 +41,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-if ! [ "$expect_crc_pi" ] || ! [ "$expect_crc_F" ] ; then
+if ! [ "${#expect_crc_pi}" ] || ! [ "${#expect_crc_F}" ] ; then
     echo "Please set expect_crc_pi and expect_crc_F on the command line" >&2
     exit 1
 fi
@@ -78,10 +82,27 @@ if ! "$bindir/lingen" m=$m n=$n lingen-input-file=$wdir/seq lingen-output-file=$
 fi
 
 rc=0
-for s in "crc(pi)=$expect_crc_pi" "crc(F)=$expect_crc_F" ; do
-    if ! grep -q "$s" $wdir/output ; then
-        echo "String $s" not found in $wdir/output >&2
-        rc=1
+gotpi=
+gotF=
+for c in "${expect_crc_F[@]}" ; do
+    if grep -q "crc(F)=$c" $wdir/output ; then
+        gotF=1
+        break
     fi
 done
+for c in "${expect_crc_pi[@]}" ; do
+    if grep -q "crc(pi)=$c" $wdir/output ; then
+        gotpi=1
+        break
+    fi
+done
+if ! [ "$gotpi" ] ; then
+    echo "No accepted crc(pi) found in $wdir/output (expected: ${expect_crc_pi[*]})" >&2
+    rc=1
+fi
+if ! [ "$gotF" ] ; then
+    echo "No accepted crc(F) found in $wdir/output (expected: ${expect_crc_F[*]})" >&2
+    rc=1
+fi
+
 exit $rc

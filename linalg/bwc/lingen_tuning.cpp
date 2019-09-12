@@ -26,7 +26,10 @@
 #include "macros.h"
 #include "utils.h"
 #ifndef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_polymat.hpp"
+#include "lingen_qcode_prime.hpp"
+// #include "lingen_polymat.hpp"
+#else
+#include "lingen_qcode_binary.hpp"
 #endif
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
@@ -58,8 +61,8 @@ struct lingen_substep_characteristics {/*{{{*/
     typedef lingen_tuning_cache tc_t;
 
     abdst_field ab;
-    gmp_randstate_t & rstate;
     cxx_mpz p;
+    gmp_randstate_t & rstate;
 
     /* length of the input (E) for the call under consideration ; this is
      * not the input length for the overall algorithm ! */
@@ -89,13 +92,19 @@ struct lingen_substep_characteristics {/*{{{*/
     public:
 
     lingen_substep_characteristics(abdst_field ab, gmp_randstate_t & rstate, size_t input_length, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
-        ab(ab), rstate(rstate),
+        ab(ab),
+        rstate(rstate),
         input_length(input_length),
         n0(n0), n1(n1), n2(n2),
         asize(asize), bsize(bsize), csize(csize)
     {
-        abfield_characteristic(ab, p);
+#ifdef SELECT_MPFQ_LAYER_u64k1
+        mpz_set_ui(p, 2);
+        op = OP(asize, bsize);
+#else
+        mpz_set(p, abfield_characteristic_srcptr(ab));
         op = OP(p, asize, bsize, n1);
+#endif
         transform_ram = op.get_transform_ram();
     }/*}}}*/
 
@@ -598,10 +607,13 @@ struct lingen_substep_characteristics {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-/* Given n>=1 return the list of all integers k such that 1<=k<=n such
+/* Given n>=1 return the list of all integers k (1<=k<=n) such
  * that it is possible to divide n into k blocks (not necessarily of
  * equal size) but such that all the splits that are obtained this way
  * have different maximal block sizes.
+ *
+ * (in the binary case we impose that block sizes are always multiples of
+ * 64)
  *
  * The returned list is such that k->iceildiv(n, k) actually performs the
  * reversal of the list. And furthermore, for all k's such that k^2<=n,
@@ -610,6 +622,10 @@ struct lingen_substep_characteristics {/*{{{*/
  */
 std::vector<unsigned int> all_splits_of(unsigned int n)
 {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    ASSERT_ALWAYS(n % 64 == 0);
+    n /= 64;
+#endif
     std::vector<unsigned int> res;
     for(unsigned int k = 1 ; k * k <= n ; k++) res.push_back(k);
     unsigned int j = res.size();
@@ -743,6 +759,8 @@ struct lingen_tuner {
 
     /* imported from the dims struct */
     abdst_field ab;
+    cxx_mpz p;
+
     unsigned int m,n;
 
     size_t L;
@@ -750,8 +768,6 @@ struct lingen_tuner {
     lingen_platform P;
 
     lingen_tuning_cache C;
-
-    cxx_mpz p;
 
     gmp_randstate_t rstate;
 
@@ -780,11 +796,16 @@ struct lingen_tuner {
     }/*}}}*/
 
     lingen_tuner(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
-        ab(d.ab), m(d.m), n(d.n), L(L), P(comm, pl)
+        ab(d.ab), 
+        m(d.m), n(d.n), L(L), P(comm, pl)
     {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+        mpz_set_ui(p, 2);
+#else
+        mpz_set (p, abfield_characteristic_srcptr(ab));
+#endif
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, 1);
-        abfield_characteristic(ab, p);
 
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
 
@@ -821,8 +842,6 @@ struct lingen_tuner {
     }/*}}}*/
 
     double compute_and_report_basecase(size_t length) { /*{{{*/
-        extern void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate);
-
         double tt;
 
         lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
@@ -1270,16 +1289,28 @@ struct lingen_tuner {
 /* For the moment we're only hooking the fft_transform_info version */
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
+#ifndef SELECT_MPFQ_LAYER_u64k1
     return lingen_tuner<fft_transform_info>(d, L, comm, pl).tune();
+#else
+    return lingen_tuner<gf2x_cantor_fft_info>(d, L, comm, pl).tune();
+#endif
 }
 
 void lingen_tuning_decl_usage(cxx_param_list & pl)
 {
+#ifndef SELECT_MPFQ_LAYER_u64k1
     lingen_tuner<fft_transform_info>::declare_usage(pl);
+#else
+    lingen_tuner<gf2x_cantor_fft_info>::declare_usage(pl);
+#endif
 }
 
 void lingen_tuning_lookup_parameters(cxx_param_list & pl)
 {
+#ifndef SELECT_MPFQ_LAYER_u64k1
     lingen_tuner<fft_transform_info>::lookup_parameters(pl);
+#else
+    lingen_tuner<gf2x_cantor_fft_info>::lookup_parameters(pl);
+#endif
 }
 

@@ -54,6 +54,7 @@ public:
     size_t alloc_size() const;
     const void * data_area() const { return x; }
     size_t data_size() const { return m * n * abvec_elt_stride(ab, size); }
+    bool is_tight() const { return alloc == size; }
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
@@ -73,6 +74,22 @@ public:
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
         return abvec_coeff_ptr(ab, part(i,j,k), 0);
+    }
+    struct coeff_accessor_proxy {
+        abdst_field ab;
+        abdst_elt p;
+        coeff_accessor_proxy(matpoly& F, unsigned int i,
+                unsigned int j, unsigned int k)
+            : ab(F.ab), p(F.coeff(i, j, k))
+        {
+        }
+        coeff_accessor_proxy& operator+=(absrc_elt x) {
+            abadd(ab, p, p, x);
+            return *this;
+        }
+    };
+    inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
+        return coeff_accessor_proxy(*this, i, j, k);
     }
     inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k=0) const {
         return abvec_subvec_const(ab, x, (i*n+j)*alloc+k);

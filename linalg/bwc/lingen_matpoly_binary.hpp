@@ -50,6 +50,11 @@ private:
     size_t alloc_size_words() const { return nrows() * ncols() * alloc_words; }
 public:
     inline size_t capacity() const { return alloc_words * ULONG_BITS; }
+    const void * data_area() const { return x; }
+    bool is_tight() const { return alloc_words == b2w(size); }
+    size_t data_size() const {
+        return m * n * b2w(size) * sizeof(unsigned long);
+    }
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
     matpoly() { m=n=0; size=0; alloc_words=0; ab=NULL; x=NULL; }
@@ -65,19 +70,46 @@ public:
     inline void shrink_to_fit() { realloc(size); }
     void zero();
     /* {{{ access interface for matpoly */
-    inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
+    inline abdst_vec part(unsigned int i, unsigned int j) {
+        unsigned int k = 0;
         ASSERT_ALWAYS((k % ULONG_BITS) == 0);
         return x + (i*n+j)*alloc_words+k / ULONG_BITS;
     }
-    inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
-        return part(i,j,k);
+    inline abdst_elt coeff(unsigned int i, unsigned int j) {
+        unsigned int k = 0;
+        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
+        return part(i,j) + k/ULONG_BITS;
     }
-    inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k=0) const {
+    inline absrc_vec part(unsigned int i, unsigned int j) const {
+        unsigned int k=0;
         ASSERT_ALWAYS((k % ULONG_BITS) == 0);
         return x + (i*n+j)*alloc_words+k / ULONG_BITS;
     }
+    /* This one is a bit special, as it makes it possible to read one
+     * coefficient exactly. It's R/O access, though. */
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return part(i,j,k);
+        unsigned int kq = k / ULONG_BITS;
+        unsigned int kr = k % ULONG_BITS;
+        unsigned long km = 1UL << kr;
+        static constexpr abelt coeffbits[2] = { {0}, {1} };
+        return coeffbits[((part(i,j)[kq] & km) != 0)];
+    }
+    struct coeff_accessor_proxy {
+        unsigned long * p;
+        unsigned int kr;
+        coeff_accessor_proxy(matpoly& F, unsigned int i,
+                unsigned int j, unsigned int k)
+        {
+            p = F.coeff(i, j) + (k / ULONG_BITS);
+            kr = k % ULONG_BITS;
+        }
+        coeff_accessor_proxy& operator+=(absrc_elt x) {
+            *p ^= *x << kr;
+            return *this;
+        }
+    };
+    inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
+        return coeff_accessor_proxy(*this, i, j, k);
     }
     /* }}} */
 

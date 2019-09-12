@@ -888,9 +888,8 @@ linalg/bwc/tree_stats.cpp
 linalg/bwc/tree_stats.hpp
 tests/linalg/bwc/perlrandom.pl
 tests/linalg/bwc/test-lingen.sh
-linalg/bwc/lingen_qcode_binary.c
-linalg/bwc/lingen_qcode_binary_do.cpp
-linalg/bwc/lingen_qcode_binary.h
+linalg/bwc/lingen_qcode_binary.cpp
+linalg/bwc/lingen_qcode_binary.hpp
 utils/version_info.h
 utils/version_info.c.in
 sieve/las-base.hpp
@@ -1418,3 +1417,7 @@ linalg/bwc/lingen_memory_pool.hpp
 tests/linalg/bwc/flint-fft/test-flint-debug-magma.sh
 tests/linalg/bwc/flint-fft/test-flint.c
 tests/linalg/bwc/flint-fft/test-flint.m
+linalg/bwc/lingen_expected_pi_length.cpp
+linalg/bwc/lingen_expected_pi_length.hpp
+linalg/bwc/lingen_bmstatus.cpp
+linalg/bwc/lingen_bmstatus.hpp

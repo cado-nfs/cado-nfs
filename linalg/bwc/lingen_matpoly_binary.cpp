@@ -86,6 +86,7 @@ void matpoly::realloc(size_t new_ncoeffs) {
 
     /* zero out the newly added data */
     if (newalloc_words > alloc_words) {
+        newalloc_words = MAX(newalloc_words, alloc_words + alloc_words / 8);
         /* allocate new space, then inflate */
         x = (unsigned long *) memory.realloc(x, oldmem, newmem);
         const unsigned long * rhead = x + m * n * alloc_words;
@@ -132,7 +133,7 @@ void matpoly::set_constant_ui(unsigned long e) {
     if (!e) return;
     size = 1;
     for(unsigned int i = 0 ; i < m ; ++i)
-        *coeff(i, i, 0) = e;
+        *coeff(i, i) = e;
 }
 /* }}} */
 
@@ -349,7 +350,7 @@ void matpoly::extract_column( /*{{{*/
     ASSERT_ALWAYS(dw <= alloc_words);
 
     for(unsigned int i = 0 ; i < m ; i++) {
-        const unsigned long * ps = part(i, jsrc);
+        const unsigned long * ps = src.part(i, jsrc);
         unsigned long * pd = part(i, jdst);
         pd[dw] = (pd[dw] & ~dbit) | (dbit & -((ps[sw] & sbit) != 0));
     }
@@ -479,9 +480,9 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
         for(unsigned int j = 0 ; j < b.n ; j++) {
             for(unsigned int k = 0 ; k < a.n; k++) {
                 gf2x_mul(tmp,
-                        a.part(i, k, 0), b2w(a.size),
-                        b.part(k, j, 0), b2w(b.size));
-                mpn_xor_n(part(i, j, 0), part(i, j, 0), tmp, b2w(csize));
+                        a.part(i, k), b2w(a.size),
+                        b.part(k, j), b2w(b.size));
+                mpn_xor_n(part(i, j), part(i, j), tmp, b2w(csize));
             }
         }
     }
@@ -531,10 +532,10 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
         for(unsigned int j = 0 ; j < c.n ; j++) {
             for(unsigned int k = 0 ; k < a.n ; k++) {
                 gf2x_mul(tmp,
-                        a.part(i, k, 0), b2w(a.size),
-                        c.part(k, j, 0), b2w(c.size));
+                        a.part(i, k), b2w(a.size),
+                        c.part(k, j), b2w(c.size));
                 CopyBitsRsh(tmp, tmp, nb, shift);
-                mpn_xor_n(part(i, j, 0), part(i, j, 0), tmp, b2w(nb));
+                mpn_xor_n(part(i, j), part(i, j), tmp, b2w(nb));
             }
         }
     }

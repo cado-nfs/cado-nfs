@@ -78,7 +78,7 @@ dotest() {
     cat $F $F $F > $G
     rm -f $F
 
-    $bindir/linalg/bwc/lingen m=$m n=$n prime=2 --lingen-input-file $G --lingen-output-file $G.gen "${tail_args[@]}"
+    $bindir/linalg/bwc/lingen m=$m n=$n prime=2 --afile $G --ffile $G.gen "${tail_args[@]}"
     [ -f "$G.gen" ]
     SHA1=$($SHA1BIN < $G.gen)
     SHA1="${SHA1%% *}"
