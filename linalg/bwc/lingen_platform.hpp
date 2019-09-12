@@ -18,7 +18,7 @@ struct lingen_platform {
 
     /* Assume we output something like one gigabyte per second. This is
      * rather conservative for HPC networks */
-    static constexpr double mpi_xput = 1e9;
+    double mpi_xput = 1e9;
 
     static void lookup_parameters(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);

@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <tuple>
+#include <algorithm>
 
 #include "macros.h"
 
