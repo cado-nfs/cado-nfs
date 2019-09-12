@@ -1923,7 +1923,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
             if (leader) {
                 /* Now comes the time to prioritize the different solutions. Our
                  * goal is to get the unessential solutions last ! */
-                std::vector<std::array<int, 2>> sol_score(n, {0, 0});
+                std::vector<std::array<int, 2>> sol_score(n, {{0, 0}});
                 /* score per solution is the number of non-zero coefficients,
                  * that's it. Since we have access to lexcmp2, we want to use it.
                  * Therefore, desiring the highest scoring solutions first, we
