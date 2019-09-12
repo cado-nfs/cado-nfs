@@ -59,7 +59,7 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
 /* CBOUND_INCR is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
    long time (typically 10 times more than with CBOUND_INCR=10).
-   Those values were determined experimentally. */
+   The following values were determined experimentally. */
 #ifndef FOR_DL
 #define CBOUND_INCR 13
 #else
