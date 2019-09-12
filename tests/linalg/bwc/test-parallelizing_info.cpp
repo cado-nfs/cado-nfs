@@ -10,7 +10,8 @@ void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void
 {
     serialize(pi->m);
     char * report_string;
-    asprintf(&report_string, "J%uT%u\n", pi->m->jrank, pi->m->trank);
+    int rc = asprintf(&report_string, "J%uT%u\n", pi->m->jrank, pi->m->trank);
+    ASSERT_ALWAYS(rc >= 0);
     size_t report_string_size = strlen(report_string) + 1;
 
         size_t max_report_size = 0;
@@ -28,7 +29,8 @@ void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void
                     if (verbose) printf("##### J%uT%u timing report:\n%s",
                             j, t, locreport);
                     char * their;
-                    asprintf(&their, "J%uT%u\n", j, t);
+                    rc = asprintf(&their, "J%uT%u\n", j, t);
+                    ASSERT_ALWAYS(rc >= 0);
                     ASSERT_ALWAYS(strcmp(locreport, their) == 0);
                 }
             }
