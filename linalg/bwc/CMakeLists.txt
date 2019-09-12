@@ -429,6 +429,7 @@ add_library(lingen_common_support
     lingen_platform.cpp
     lingen_hints.cpp
     )
+target_link_libraries(lingen_common_support ${gmp_libname} utils)
 
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
@@ -492,7 +493,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         target_link_libraries(lingen_${v}_support flint-fft)
     endif()
 
-    target_link_libraries(lingen_${v}_support lingen_common_support ${gmp_libname} utils)
+    target_link_libraries(lingen_${v}_support lingen_common_support)
     target_link_libraries(lingen_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
