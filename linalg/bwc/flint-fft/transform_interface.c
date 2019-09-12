@@ -539,7 +539,7 @@ void fft_transform_info_init_mulmod(struct fft_transform_info * fti MAYBE_UNUSED
      */
 }
 
-static void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
+void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
 {
     memset(fti, 0, sizeof(*fti));
     fti->bits1 = bits1;
