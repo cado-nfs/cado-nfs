@@ -87,7 +87,7 @@ public:
     }
     /* This one is a bit special, as it makes it possible to read one
      * coefficient exactly. It's R/O access, though. */
-    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
+    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
         unsigned int kq = k / ULONG_BITS;
         unsigned int kr = k % ULONG_BITS;
         unsigned long km = 1UL << kr;

@@ -448,6 +448,18 @@ int main(int argc, char * argv[])
     param_list_parse_ulong(pl, "seed", &seed);
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    if (m & 63) {
+        unsigned int nm = 64 * iceildiv(m, 64);
+        printf("Round m=%u to m=%u\n", m, nm);
+        m = nm;
+    }
+    if (n & 63) {
+        unsigned int nn = 64 * iceildiv(n, 64);
+        printf("Round n=%u to n=%u\n", n, nn);
+        n = nn;
+    }
+#endif
 
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);

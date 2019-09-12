@@ -558,9 +558,9 @@ int matpoly::coeff_is_zero(unsigned int k) const
 {
     unsigned int kq = k / ULONG_BITS;
     unsigned long kbit = 1UL << (k % ULONG_BITS);
-    for(unsigned int j = 0; j < m; j++)
-        for(unsigned int i = 0 ; i < n ; i++)
-            if (coeff(i, j)[kq] & kbit)
+    for(unsigned int i = 0 ; i < m ; i++)
+        for(unsigned int j = 0; j < n; j++)
+            if (part(i, j)[kq] & kbit)
                 return 0;
     return 1;
 }
@@ -568,8 +568,8 @@ void matpoly::coeff_set_zero(unsigned int k)
 {
     unsigned int kq = k / ULONG_BITS;
     unsigned long kbit = 1UL << (k % ULONG_BITS);
-    for(unsigned int j = 0; j < m; j++)
-        for(unsigned int i = 0 ; i < n ; i++)
+    for(unsigned int i = 0 ; i < m ; i++)
+        for(unsigned int j = 0; j < n; j++)
             coeff(i, j)[kq] &= ~kbit;
 }
 
