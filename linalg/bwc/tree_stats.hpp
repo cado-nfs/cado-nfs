@@ -98,7 +98,8 @@ class tree_stats {
 
         step_time(std::string const & name) : name(name) {}
         step_time(step_time const &) = default;
-        step_time(step_time &&) = default;
+        step_time& operator=(step_time const &) = default;
+        step_time& operator=(step_time &&) = default;
 
         typedef std::map<std::string, step_time> steps_t;
         steps_t steps;

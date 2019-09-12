@@ -35,7 +35,7 @@ struct lingen_substep_schedule {
      */
     std::array<unsigned int, 3> batch;
 
-    lingen_substep_schedule() : shrink0(1), shrink2(1), batch {1,1,1}  {}
+    lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
 
     bool operator<(lingen_substep_schedule const & o) const {
