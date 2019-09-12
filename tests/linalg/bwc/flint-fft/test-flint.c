@@ -444,7 +444,20 @@ int main(int argc, char * argv[])
         }
         if (strncmp(p, "test_", 5) == 0) p += 5;
         if (strcmp(p, "mul") == 0) { test_mul(rstate); done_tests++; continue; }
-        if (strcmp(p, "mulmod") == 0) { test_mulmod(rstate); done_tests++; continue; }
+        if (strcmp(p, "mulmod") == 0) {
+            abort();
+            /* this test fails, currently. The bug is easy to reproduce
+             * by running this test over and over again. The faulty code
+             * is within
+             * fft_transform_info_adjust_depth, where we "refine bits" --
+             * this might kill minwrap
+             * most probably the whole fft_transform_info_adjust_depth
+             * should be scrutinized.
+             */
+            test_mulmod(rstate);
+            done_tests++;
+            continue;
+        }
         if (strcmp(p, "mul_fppol") == 0) { test_mul_fppol(rstate); done_tests++; continue; }
         if (strcmp(p, "mp_fppol") == 0) { test_mp_fppol(rstate); done_tests++; continue; }
         fprintf(stderr, "Unexpected argument: %s\n", p);

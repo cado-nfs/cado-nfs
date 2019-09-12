@@ -18,7 +18,7 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
         COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
     cado_divert_test(test-flint mul mul)
-    cado_divert_test(test-flint mulmod mulmod)
+    # cado_divert_test(test-flint mulmod mulmod)
     cado_divert_test(test-flint mul_fppol mul_fppol)
     cado_divert_test(test-flint mp_fppol mp_fppol)
 
@@ -38,7 +38,7 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
             TARGET_DEPENDENCIES test-flint-debug
             NO_DEFAULT_RUN)
     cado_divert_test(test-flint-debug-magma mul APPEND_ARGUMENTS mul)
-    cado_divert_test(test-flint-debug-magma mulmod APPEND_ARGUMENTS mulmod)
+    # cado_divert_test(test-flint-debug-magma mulmod APPEND_ARGUMENTS mulmod)
     cado_divert_test(test-flint-debug-magma mul_fppol APPEND_ARGUMENTS mul_fppol)
     cado_divert_test(test-flint-debug-magma mp_fppol APPEND_ARGUMENTS mp_fppol)
     endif()

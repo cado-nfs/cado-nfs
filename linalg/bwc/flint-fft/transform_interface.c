@@ -529,9 +529,18 @@ void fft_transform_info_adjust_depth(struct fft_transform_info * fti, unsigned i
     ASSERT_ALWAYS(fft_transform_info_check(fti));
 }
 
-void fft_transform_info_init_mulmod(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
+void fft_transform_info_init_mulmod(struct fft_transform_info * fti MAYBE_UNUSED, mp_bitcnt_t bits1 MAYBE_UNUSED, mp_bitcnt_t bits2 MAYBE_UNUSED, unsigned int nacc MAYBE_UNUSED, mp_bitcnt_t minwrap MAYBE_UNUSED)
 {
+    abort();
+    /* we have a bug, quite possibly only when doing
+     * fft_transform_info_adjust_depth. See the test-flint.c code.
+     * However, better disable this
+     * interface that we don't use, for the time being.
+     */
+}
 
+static void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
+{
     memset(fti, 0, sizeof(*fti));
     fti->bits1 = bits1;
     fti->bits2 = bits2;
@@ -563,7 +572,7 @@ void fft_transform_info_init_mulmod(struct fft_transform_info * fti, mp_bitcnt_t
 
 void fft_transform_info_init(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc)
 {
-    fft_transform_info_init_mulmod(fti, bits1, bits2, nacc, 0);
+    fft_transform_info_init_mulmod_inner(fti, bits1, bits2, nacc, 0);
 }
 
 #if 0
@@ -629,7 +638,7 @@ void fft_transform_info_init_fppol_mp(struct fft_transform_info * fti, mpz_srcpt
     /* See above */
     if (nmax*cbits < 4096)
         cbits=iceildiv(4096, nmax);
-    fft_transform_info_init_mulmod(fti,
+    fft_transform_info_init_mulmod_inner(fti,
             nmin * cbits,
             nmax * cbits,
             nacc,
