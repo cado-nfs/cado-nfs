@@ -187,23 +187,23 @@ extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_info_get_alloc_sizes(
 
 /* End of automatically generated section */
 
-/* define mpfq_2_XXX_elt, but do not include mpfq as it is not part of
- * the set of exported headers.
+/* gf2x_cantor_fft_elt is actually the same as mpfq_2_XXX_elt, but we don't
+ * want to define mpfq_2_XXX_elt just yet. The .c file will include mpfq
+ * itself, and that would mean two typedefs for the same thing.
+ * (and we don't want mpfq be part of the exported interface)
  */
 #if CANTOR_BASE_FIELD_SIZE == 128
 #if GF2X_WORDSIZE == 64
-typedef unsigned long mpfq_2_128_elt[2];
+typedef unsigned long gf2x_cantor_fft_elt[2];
 #else
-typedef unsigned long mpfq_2_128_elt[4];
+typedef unsigned long gf2x_cantor_fft_elt[4];
 #endif
-typedef mpfq_2_128_elt gf2x_cantor_fft_elt;
 #else
 #if GF2X_WORDSIZE == 64
-typedef unsigned long mpfq_2_64_elt[1];
+typedef unsigned long gf2x_cantor_fft_elt[1];
 #else
-typedef unsigned long mpfq_2_64_elt[2];
+typedef unsigned long gf2x_cantor_fft_elt[2];
 #endif
-typedef mpfq_2_64_elt gf2x_cantor_fft_elt;
 #endif
 /* The section below is automatically generated */
 /* inline: export import prepare */
