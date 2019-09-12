@@ -3152,6 +3152,15 @@ int main(int argc, char *argv[])
                         thr[0] * thr[1]);
             omp_set_num_threads(thr[0] * thr[1]);
         }
+#else
+        if (param_list_parse_intxint(pl, "thr", thr)) {
+            if (thr[0]*thr[1] != 1) {
+                if (!rank) {
+                    fprintf(stderr, "This program only wants openmp for multithreading. Ignoring thr argument.\n");
+                }
+                param_list_add_key(pl, "thr", "1x1", PARAMETER_FROM_CMDLINE);
+            }
+        }
 #endif
 
 #ifdef  FAKEMPI_H_
