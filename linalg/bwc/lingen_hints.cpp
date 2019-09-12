@@ -3,7 +3,8 @@
 #include "lingen_hints.hpp"
 #include <vector>
 
-#if defined(__GNUC__) && ! GNUC_VERSION_ATLEAST(5, 0, 0)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__ICC)
+#if ! GNUC_VERSION_ATLEAST(5, 0, 0)
 /* ugly workaround. g++ < 5 has no standards-conforming is_trivially_copyable
  * https://stackoverflow.com/questions/25123458/is-trivially-copyable-is-not-a-member-of-std
  *
@@ -17,6 +18,7 @@ namespace std {
         static constexpr const bool value = __has_trivial_copy(T);
     };
 }
+#endif
 #endif
 
 template<typename T>
