@@ -353,11 +353,18 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
                 }
 #endif
 
+                /* Icc 2019 synthetizes a pragma omp single around
+                 * accesses to pi_real_lengths. I don't think it makes
+                 * sense in that particular case, it's fine enough here
+                 * to read the data now after the critical section above.
+                 */
+                unsigned int dummy = pi_real_lengths[j];
+
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
                 for(unsigned int i = 0 ; i < b ; i++) {
-                    for(unsigned int s = 0 ; s < pi_real_lengths[j] ; s++) {
+                    for(unsigned int s = 0 ; s < dummy ; s++) {
                         abdst_elt piijs = pi.coeff(i, j, s);
 
                         abelt_ur_set_elt(ab, tmp_pi, piijs);
