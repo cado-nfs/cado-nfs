@@ -3,9 +3,13 @@
 #include "lingen_hints.hpp"
 #include <vector>
 
-#if __GNUG__ && __GNUC__ < 5
-/* ugly workaround. g++ has no standards-conforming is_trivially_copyable
+#if defined(__GNUC__) && ! GNUC_VERSION_ATLEAST(5, 0, 0)
+/* ugly workaround. g++ < 5 has no standards-conforming is_trivially_copyable
  * https://stackoverflow.com/questions/25123458/is-trivially-copyable-is-not-a-member-of-std
+ *
+ * (I think that it's the only use in the cado-nfs source tree thus far,
+ * so it's fine to have it here. Otherwise it would escalate to cado.h,
+ * probably)
  */
 namespace std {
     template<typename T>
@@ -13,8 +17,6 @@ namespace std {
         static constexpr const bool value = __has_trivial_copy(T);
     };
 }
-#else
-#define IS_TRIVIALLY_COPYABLE(T) std::is_trivially_copyable<T>::value
 #endif
 
 template<typename T>
