@@ -665,7 +665,7 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
                         lingen_substep_schedule S;
                         S.shrink0 = shrink0;
                         S.shrink2 = shrink2;
-                        S.batch = { b0, b1, b2 };
+                        S.batch = {{ b0, b1, b2 }};
                         size_t my_ram = U.get_peak_ram(P, S);
                         if (reserved + my_ram <= P.available_ram) {
                             all_schedules.push_back(S);
@@ -685,7 +685,7 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
                         lingen_substep_schedule S;
                         S.shrink0 = shrink0;
                         S.shrink2 = shrink2;
-                        S.batch = { b0, b1, b2 };
+                        S.batch = {{ b0, b1, b2 }};
                         size_t my_ram = U.get_peak_ram(P, S);
                         if (reserved + my_ram <= P.available_ram) {
                             all_schedules.push_back(S);
@@ -1089,7 +1089,7 @@ struct lingen_tuner {
                 ASSERT_ALWAYS(weight);
 
                 if (!L) {
-                    decltype(best)::mapped_type v { false, { 0, 0, 0 }};
+                    decltype(best)::mapped_type v { false, {{ 0, 0, 0 }}};
                     best[L] = v;
                     continue;
                 }
@@ -1142,7 +1142,7 @@ struct lingen_tuner {
                      * winning at this point.
                      */
                     rwin = rwin || basecase_eliminated;
-                    decltype(best)::mapped_type vv { rwin, {ttb, ttr + ttrchildren, ttr} };
+                    decltype(best)::mapped_type vv { rwin, {{ttb, ttr + ttrchildren, ttr}} };
                     best[L] = vv;
 
                     U.recurse = rwin;
