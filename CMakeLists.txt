@@ -136,47 +136,23 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
     # Someday we'll enable c11. This will provide us aligned_alloc.
 endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-g -W -Wall ${CMAKE_CXX_FLAGS}")
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-        # only gcc-4.8 is supposed to be c++11-complete. But for what we
-        # use, gcc-4.7 will be ok.
-        message(STATUS "Enabling C++11 support")
-        set(HAVE_CXX11 1)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+        message(FATAL_ERROR "cado-nfs requires gcc version 5 or greater")
     endif()
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7 AND
-        CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-        # see comment in utils/smallset.h
-        message(STATUS "Forcing -fabi-version=6 for g++-4.[789]")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fabi-version=6")
-    endif()
-    if(HAVE_CXX11)
-        if(MINGW)
-            set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
-        else()
-            set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
-        endif()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
-        endif()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
-                CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
-            # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
-        endif()
+    set(HAVE_CXX11 1)
+    if(MINGW)
+        set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
-        # It seems that even g++-4.6.3, as shipped in ubuntu 12.04, is
-        # sufficient for the little we use, provided we use the -std=c++0x
-        # flag (-std=c++11 replaced it with gcc-4.7.0).
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6.3)
-            set (CMAKE_CXX_FLAGS "-std=c++0x -Wno-c++11-compat -g -W -Wall ${CMAKE_CXX_FLAGS}")
-        else()
-            if(MINGW)
-                set (CMAKE_CXX_FLAGS "-std=gnu++98 ${CMAKE_CXX_FLAGS}")
-            else()
-                set (CMAKE_CXX_FLAGS "-std=c++98 ${CMAKE_CXX_FLAGS}")
-            endif()
-        endif()
+        set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+    endif()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
+            CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
+        # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
     endif()
 endif()
 
