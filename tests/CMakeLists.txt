@@ -476,7 +476,7 @@ cado_define_test(full_c30
         ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
         --server-threads 2
     TARGET_DEPENDENCIES
-        polyselect polyselect_ropt
+        polyselect polyselect_ropt polyselect3
         freerel makefb
         las
         dup1 dup2 purge merge replay
