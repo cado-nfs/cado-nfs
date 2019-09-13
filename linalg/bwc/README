@@ -776,6 +776,9 @@ Using bwc.pl with MPI (updated 20160201)
     have to be edited to best suit your combination (please submit your
     changes to the cado-nfs-discuss mailing list, if you do so).
 
+    Note: for some schedulers (including OAR), bwc.pl automatically recognizes
+    the hostnames, thus there is no need to supply hosts=...
+
     Note: Some additional scheduler-specific bits and pieces (consider them as
     example documentation status only -- none are part of regular tests):
     openpbs/torque : linalg/bwc/README.TORQUE
