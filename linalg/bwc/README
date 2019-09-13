@@ -778,7 +778,14 @@ Using bwc.pl with MPI (updated 20160201)
 
     Note: Some additional scheduler-specific bits and pieces (consider them as
     example documentation status only -- none are part of regular tests):
-    openpbs/torque : linalg/bwc/README.TORQUE
+    OAR            : linalg/bwc/README.OAR
+    openpbs/torque : linalg/bwc/README.TORQUE   (outdated)
+
+    Regarding the MPI implementation, see the following. Again, this
+    should all be seen as example documentation at a given point in time
+    only:
+    openmpi        : linalg/bwc/README.OpenMPI
+    Intel MPI      : linalg/bwc/README.IntelMPI
 
     Note: see also cpu binding below.
 
