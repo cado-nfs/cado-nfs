@@ -127,7 +127,16 @@ struct lingen_substep_characteristics {/*{{{*/
         std::vector<double> concurrent_timings;
         bool counted_as_parallel = false;
         double get_concurrent_time(unsigned int k) {
-            /* How long does it take to do k operations in parallel ? */
+            /* How long does it take (WCT) to do k operations in parallel ? */
+            /* Ideally, this should be almost constant as long as k is
+             * less than the number of threads, and then it should reach
+             * linear behaviour (but we're restricting to small k
+             * anyway).
+             * In practice, "constant" isn't really constant because
+             * there's some overhead. After all, all cores and
+             * hyperthreads are competing for cache, for example. So we
+             * allow a linear regression.
+             */
             ASSERT_ALWAYS(k > 0);
             ASSERT_ALWAYS(k <= (unsigned int) max_threads());
             unsigned int kl=1, kh=1;
@@ -198,8 +207,11 @@ struct lingen_substep_characteristics {/*{{{*/
              */
             unsigned int qk = k / T;
             unsigned int rk = k - qk * T;
-            double tt = qk * T * get_concurrent_time(T);
-            if (rk) tt += rk * get_concurrent_time(rk);
+            /* get_concurrent_time returns the wall-clock time needed to
+             * do T dfts in parallel
+             */
+            double tt = qk * get_concurrent_time(T);
+            if (rk) tt += get_concurrent_time(rk);
             n *= k;
             t = tt / k;
             return *this;
@@ -221,87 +233,118 @@ struct lingen_substep_characteristics {/*{{{*/
      * "cache-cold" options are somewhat pessimistic.
      */
 
-    double get_dft_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
-        double tt = 0;
-        unsigned int n = 1;
-        const bool measure_cache_cold_quickly = true;
-        for( ; ; ) {
-            matpoly a(ab, nparallel, n, asize);
-            a.fill_random(asize, rstate);
-            matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
-            tt = -wct_seconds();
-            for(unsigned int i = 0 ; i < n ; i++) {
-                submatrix_range R(0,i,a.m,1);
-                matpoly_ft<typename OP::FFT>::dft(ta.view(R), a.view(R));
-            }
-            tt = (tt + wct_seconds());
-            if (measure_cache_cold_quickly) break;
-            if ((tt > 0 && n >= 100) || tt >= 1) break;
-            if (tt >= 0.01) n = n / tt; else n *= 2;
-        }
-        printf("# dft time for %u threads: %.3g / %u = %.3g\n",
-                nparallel, tt, n, tt / n);
-        return tt / n;
-    }/*}}}*/
-
-    double get_ift_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
-        double tt = 0;
-        unsigned int n = 1;
-        const bool measure_cache_cold_quickly = true;
-        for( ; ; ) {
-            matpoly c(ab, nparallel, n, csize);
-            matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
-            /* This is important, since otherwise the inverse transform won't
-             * work */
-            c.size = csize;
-            tc.zero(); /* would be .fill_random(rstate) if we had it */
-            tt = -wct_seconds();
-            for(unsigned int i = 0 ; i < n ; i++) {
-                submatrix_range R(0,i,c.m,1);
-                matpoly_ft<typename OP::FFT>::ift(c.view(R), tc.view(R));
-            }
-            tt = (tt + wct_seconds());
-            if (measure_cache_cold_quickly) break;
-            if ((tt > 0 && n >= 100) || tt >= 1) break;
-            if (tt >= 0.01) n = n / tt; else n *= 2;
-        }
-        printf("# ift time for %u threads: %.3g / %u = %.3g\n",
-                nparallel, tt, n, tt / n);
-        return tt / n;
-    }/*}}}*/
-
-    double get_conv_times_parallel(unsigned int nparallel) const {/*{{{*/
-        ASSERT_ALWAYS(nparallel <= (unsigned int) max_threads());
-        double tt = 0;
-        unsigned int n = 1;
-        const bool measure_cache_cold_quickly = true;
-        for( ; ; ) {
-            matpoly_ft<typename OP::FFT> ta(nparallel, n, op.fti);
-            matpoly_ft<typename OP::FFT> tb(n, 1, op.fti);
-            matpoly_ft<typename OP::FFT> tc(nparallel, 1, op.fti);
-            ta.zero(); /* would be .fill_random(rstate) if we had it */
-            tb.zero(); /* would be .fill_random(rstate) if we had it */
-            tt = -wct_seconds();
-            for(unsigned int i = 0 ; i < n ; i++) {
-                submatrix_range Ra(0,i,ta.m,1);
-                submatrix_range Rb(i,0,tb.n,1);
-                matpoly_ft<typename OP::FFT>::mul(tc, ta.view(Ra), tb.view(Rb));
-            }
-            tt = (tt + wct_seconds());
-            if (measure_cache_cold_quickly) break;
-            if ((tt > 0 && n >= 100) || tt >= 1) break;
-            if (tt >= 0.01) n = n / tt; else n *= 2;
-        }
-        printf("# conv time for %u threads: %.3g / %u = %.3g\n",
-                nparallel, tt, n, tt / n);
-        return tt / n;
-    }/*}}}*/
-
-    typedef double (lingen_substep_characteristics<OP>::*timer_member)(unsigned int) const;
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
-    void complete_tvec(std::vector<double> & tvec, timer_member F, unsigned int kl, unsigned int kh) const
+
+    typedef double (lingen_substep_characteristics<OP>::*raw_timer_member)(unsigned int, unsigned int, unsigned int) const;
+
+    double measure_dft_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
+        matpoly a(ab, nparallel, k, asize);
+        a.fill_random(asize, rstate);
+        matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
+        double tt = -wct_seconds();
+        for(unsigned int i = 0 ; i < n ; i++) {
+            submatrix_range R(0,i % k,a.m,1);
+            matpoly_ft<typename OP::FFT>::dft(ta.view(R), a.view(R));
+        }
+        return tt + wct_seconds();
+    }/*}}}*/
+
+    double measure_ift_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
+        matpoly c(ab, nparallel, k, csize);
+        matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
+        /* This is important, since otherwise the inverse transform won't
+         * work */
+        c.size = csize;
+        tc.zero(); /* would be .fill_random(rstate) if we had it */
+        double tt = -wct_seconds();
+        for(unsigned int i = 0 ; i < n ; i++) {
+            submatrix_range R(0,i % k,c.m,1);
+            matpoly_ft<typename OP::FFT>::ift(c.view(R), tc.view(R));
+        }
+        return tt + wct_seconds();
+    }/*}}}*/
+
+    double measure_conv_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
+        matpoly_ft<typename OP::FFT> ta(nparallel, k, op.fti);
+        matpoly_ft<typename OP::FFT> tb(k, 1, op.fti);
+        matpoly_ft<typename OP::FFT> tc(nparallel, 1, op.fti);
+        ta.zero(); /* would be .fill_random(rstate) if we had it */
+        tb.zero(); /* would be .fill_random(rstate) if we had it */
+        double tt = -wct_seconds();
+        for(unsigned int i = 0 ; i < n ; i++) {
+            submatrix_range Ra(0,i%k,ta.m,1);
+            submatrix_range Rb(i%k,0,tb.n,1);
+            matpoly_ft<typename OP::FFT>::mul(tc, ta.view(Ra), tb.view(Rb));
+        }
+        return tt + wct_seconds();
+    }/*}}}*/
+
+    /* returns the WCT needed to do the operation named (name), timed via
+     * timer function (F), doing it with (nparallel) threads working at
+     * the same time (at our level -- we don't preclude the use of more
+     * omp threads at the level below).
+     */
+    double wrapper_times_parallel(raw_timer_member F, const char * name, unsigned int nparallel) const {/*{{{*/
+        double tt = 0;
+        unsigned int n = 1;
+        enum { CACHE_COLD_QUICK, CACHE_COLD_SLOW, CACHE_HOT } type;
+        type = CACHE_HOT;
+
+        const int meaningful_tests = 20;
+        const double meaningful_time = 0.4;
+        const double measurable_time = 0.01;
+        const int base_growth_fraction = 1;
+        const int compulsory_growth_fraction = 4;
+
+        unsigned int k = 1;
+        switch(type) {
+            case CACHE_COLD_QUICK:
+                /* measure cache-cold, but make it really quick -- only 1
+                 * repeat, and be done with it.
+                 */
+                tt = CALL_MEMBER_FN(*this, F)(nparallel, n, n);
+                printf("# %s %u %u %3g\n", name, nparallel, n, tt);
+                break;
+            case CACHE_COLD_SLOW:
+                /* k = n:
+                 * measure something repeatedly, so that at least the insn
+                 * cache is hot, but not necessarily the data cache: we cycle
+                 * over a large data set.
+                 */
+                k = n;
+                no_break();
+            case CACHE_HOT:
+                /* k = 1 (i.e. when not falling through):
+                 * Here we have a unique data set, so that we're cache
+                 * hot.
+                 */
+                for( ; ; ) {
+                    tt = CALL_MEMBER_FN(*this, F)(nparallel, n, k);
+                    // printf("# %s %u %u %3g\n", name, nparallel, n, tt);
+                    if (tt > 0 && n >= meaningful_tests)
+                        break;
+                    if (tt >= meaningful_time)
+                        break;
+                    if (tt >= measurable_time)
+                        n = MAX(n + MAX(1, n / compulsory_growth_fraction),
+                                MIN(meaningful_tests,
+                                    meaningful_time * n / tt)
+                                );
+                    else
+                        n += n / base_growth_fraction;
+                }
+        }
+
+        printf("# wct for %u %s in parallel, %u times: %.3g = %.3g each\n",
+                nparallel,
+                name,
+                n,
+                tt,
+                tt / n);
+        return tt / n;
+    }/*}}}*/
+
+    void complete_tvec(std::vector<double> & tvec, raw_timer_member F, const char * name, unsigned int kl, unsigned int kh) const
     {
         /* The ideal expected behaviour is that this should be constant.
          * But it's not, since flint uses openmp itself. We're doing
@@ -314,13 +357,26 @@ struct lingen_substep_characteristics {/*{{{*/
         double th = tvec[kh];
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
-        tvec[k] = CALL_MEMBER_FN(*this, F)(k);
+        tvec[k] = wrapper_times_parallel(F, name, k);
         double tk = tvec[k];
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
         if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
-        complete_tvec(tvec, F, kl, k);
-        complete_tvec(tvec, F, k, kh);
+        complete_tvec(tvec, F, name, kl, k);
+        complete_tvec(tvec, F, name, k, kh);
     }
+
+    std::vector<double> fill_tvec(raw_timer_member F, const char * name) const {
+        unsigned int TMAX = max_threads();
+        unsigned int kl = 1;
+        std::vector<double> tvec(TMAX + 1, -1);
+        tvec[1] = wrapper_times_parallel(F, name, 1);
+        unsigned int kh=TMAX;
+        if (kh > 1)
+            tvec[kh] = wrapper_times_parallel(F, name, kh);
+        complete_tvec(tvec, F, name, kl, kh);
+        return tvec;
+    }
+
 
     std::array<parallelizable_timing, 4> get_ft_times(tc_t & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
@@ -339,34 +395,9 @@ struct lingen_substep_characteristics {/*{{{*/
             return res;
         }
 
-
-        std::vector<double> tvec_dft(TMAX + 1, -1);
-        {
-            unsigned int kl = 1;
-            tvec_dft[1] = get_dft_times_parallel(1);
-            unsigned int kh=TMAX;
-            if (kh > 1)
-                tvec_dft[kh] = get_dft_times_parallel(kh);
-            complete_tvec(tvec_dft, &lingen_substep_characteristics::get_dft_times_parallel, kl, kh);
-        }
-        std::vector<double> tvec_ift(TMAX + 1, -1);
-        {
-            unsigned int kl = 1;
-            tvec_ift[1] = get_ift_times_parallel(1);
-            unsigned int kh=TMAX;
-            if (kh > 1)
-                tvec_ift[kh] = get_ift_times_parallel(kh);
-            complete_tvec(tvec_ift, &lingen_substep_characteristics::get_ift_times_parallel, kl, kh);
-        }
-        std::vector<double> tvec_conv(TMAX + 1, -1);
-        {
-            unsigned int kl = 1;
-            tvec_conv[1] = get_conv_times_parallel(1);
-            unsigned int kh=TMAX;
-            if (kh > 1)
-                tvec_conv[kh] = get_conv_times_parallel(kh);
-            complete_tvec(tvec_conv, &lingen_substep_characteristics::get_conv_times_parallel, kl, kh);
-        }
+        std::vector<double> tvec_dft = fill_tvec(&lingen_substep_characteristics::measure_dft_raw , "dft");
+        std::vector<double> tvec_ift = fill_tvec(&lingen_substep_characteristics::measure_ift_raw , "ift");
+        std::vector<double> tvec_conv= fill_tvec(&lingen_substep_characteristics::measure_conv_raw, "conv");
 
         cache_value_type cached_res;
         for(unsigned int i = 1 ; i <= TMAX ; i++) {
@@ -458,12 +489,11 @@ struct lingen_substep_characteristics {/*{{{*/
 
     std::array<parallelizable_timing, 6> get_call_time_backend(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         auto ft = get_ft_times(C);
-        double tt_dft0 = ft[0];
-        double tt_dft2 = ft[1];
-        double tt_conv = ft[2];
-        double tt_ift = ft[3];
-
-        parallelizable_timing T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2;
+        /* These are just base values, we'll multiply them later on */
+        parallelizable_timing T_dft0 = ft[0];
+        parallelizable_timing T_dft2 = ft[1];
+        parallelizable_timing T_conv = ft[2];
+        parallelizable_timing T_ift = ft[3];
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
@@ -478,8 +508,6 @@ struct lingen_substep_characteristics {/*{{{*/
         // unsigned int ns0 = r * nrs0;
         // unsigned int ns2 = r * nrs2;
 
-        unsigned int nr1b = iceildiv(nr1, S.batch[1]);
-
         /* The 1-threaded timing will be obtained by setting T=batch=1.  */
 
         /* Locally, we'll add together r matrices of size nrs0*nrs2,
@@ -487,12 +515,6 @@ struct lingen_substep_characteristics {/*{{{*/
          * nrs0*batch and batch*nrs2. The operation will be repeated
          * nr1/batch * times.
          */
-
-        /* These are just base values, we'll multiply them later on */
-        T_dft0 = { nr1b, tt_dft0 };
-        T_dft2 = { nr1b, tt_dft2 };
-        T_conv = { nr1b, tt_conv };
-        T_ift  = tt_ift;
 
         /* First, we must decide on the scheduling order for the loop.
          * Either we compute, collect, and store all transforms on side
@@ -504,22 +526,28 @@ struct lingen_substep_characteristics {/*{{{*/
 
         T_dft0.parallelize(S.batch[0] * S.batch[1], P.T);
         T_dft0 *= iceildiv(nrs0, S.batch[0]);
+        T_dft0 *= iceildiv(nr1, S.batch[1]);
 
         T_dft2.parallelize(S.batch[1] * S.batch[2], P.T);
         T_dft2 *= iceildiv(nrs2, S.batch[2]);
+        T_dft2 *= iceildiv(nr1, S.batch[1]);
 
         T_conv.parallelize(S.batch[0] * S.batch[2], P.T);
-        T_conv *= P.r * S.batch[1];
+        T_conv *= P.r * iceildiv(nr1, S.batch[1]) * S.batch[1];
         T_conv *= iceildiv(nrs0, S.batch[0]);
         T_conv *= iceildiv(nrs2, S.batch[2]);
 
-        T_ift.parallelize(nrs0*nrs2, P.T);
+        T_ift.parallelize(S.batch[0] * S.batch[2], P.T);
+        T_ift *= iceildiv(nrs0, S.batch[0]);
+        T_ift *= iceildiv(nrs2, S.batch[2]);
 
         T_dft0 *= S.shrink0 * S.shrink2;
         T_dft2 *= S.shrink0 * S.shrink2;
         T_conv *= S.shrink0 * S.shrink2;
         T_ift  *= S.shrink0 * S.shrink2;
 
+        parallelizable_timing T_comm0;
+        parallelizable_timing T_comm2;
         std::tie(T_comm0, T_comm2) = get_comm_time(P, S);
 
         /* This is for _one_ call only (one node in the tree).
