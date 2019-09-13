@@ -1153,7 +1153,7 @@ struct lingen_tuner {
                         basecase_eliminated = true;
 
                     if (!forced)
-                        rwin = ttb >= basecase_keep_until * (ttr + ttrchildren);
+                        rwin = ttb >= std::min(1.0, basecase_keep_until) * (ttr + ttrchildren);
 
                     /* if basecase_keep_until < 1, then we probably want
                      * to prevent the basecase from being counted as
