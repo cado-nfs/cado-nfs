@@ -149,7 +149,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         /* The data isn't contiguous, so we have to do
          * several allgather operations.  */
         for(unsigned int i = 0 ; i < ii1 - ii0 ; i++) {
-            CTX.do_allgather(ta.part(i, 0), b1);
+            CTX.a_allgather(ta.part(i, 0), b1);
         }
         CTX.end_smallstep();
         CTX.begin_smallstep("import", r * b0 * b1);
@@ -162,7 +162,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
 
     void dft_B_for_block(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
     {
-        unsigned int bi = CTX.b_jrank();
+        unsigned int bi = CTX.b_irank();
         unsigned int bk0mpi, bk1mpi;
         std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
 
@@ -199,7 +199,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         tb.view(Rbtx).to_export();
         CTX.end_smallstep();
         CTX.begin_smallstep("comm", r * b1 * b2);
-        CTX.do_allgather(tb.data, b1 * b2);
+        CTX.b_allgather(tb.data, b1 * b2);
         CTX.end_smallstep();
         CTX.begin_smallstep("import", r * b1 * b2);
         tb.view(Rbtxx).to_import();

@@ -34,7 +34,8 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
     inline matpoly const & a_local()const  { return a; }
     inline matpoly const & b_local() const { return b; }
     inline matpoly & c_local() { return c; }
-    inline void do_allgather(void *, int) const {}
+    inline void a_allgather(void *, int) const {}
+    inline void b_allgather(void *, int) const {}
     inline void begin_smallstep(std::string const &, unsigned int) const { }
     inline void end_smallstep() const {}
     inline void skip_smallstep(std::string const &, unsigned int) const { }

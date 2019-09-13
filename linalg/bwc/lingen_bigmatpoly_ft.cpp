@@ -63,10 +63,18 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
     inline matpoly const & a_local() { return a.my_cell(); }
     inline matpoly const & b_local() { return b.my_cell(); }
     inline matpoly & c_local() { return c.my_cell(); }
-    inline void do_allgather(void * p, int n) {
+    private:
+    inline void do_allgather(void * p, MPI_Comm com, int n) {
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, 
                 p, n,
-                mpi_ft, a.get_model().com[1]);
+                mpi_ft, com);
+    }
+    public:
+    inline void a_allgather(void * p, int n) {
+        do_allgather(p, a.get_model().com[1], n);
+    }
+    inline void b_allgather(void * p, int n) {
+        do_allgather(p, b.get_model().com[2], n);
     }
     inline void begin_smallstep(std::string const & func, unsigned int n) {
         stats.begin_smallstep(func, n);
