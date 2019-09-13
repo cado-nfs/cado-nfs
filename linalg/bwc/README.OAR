@@ -1,9 +1,15 @@
+
+Host names
+==========
+
 For OAR, bwc.pl automatically recognizes the hostnames, thus there is no need
 to supply hosts=...
 
-For Open MPI v2.0.2, it might be necessary to add the following option to the
-bwc.pl command line:
+Process launcher
+================
 
-   mpi_extra_args='--mca mtl ofi --mca pml ob1'
-
-Maybe also --mca btl openib and --mca btl_openib_allow_ib true.
+OAR typically usees the oarsh wrapper as a connection meanns to run
+processes on other nodes. bwc.pl should auto-detect OAR properly, and
+tries its best to inform the underlying MPI implementation that oarsh
+should be used. This is at least tested regularly on OpenMPI (see also
+README.OpenMPI).
