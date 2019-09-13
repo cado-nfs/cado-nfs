@@ -95,6 +95,7 @@ linalg/bwc/CMakeLists.txt
 linalg/bwc/GUIDED_TOUR_OF_SOURCES
 linalg/bwc/Makefile
 linalg/bwc/README
+linalg/bwc/README.OAR
 linalg/bwc/README.TORQUE
 linalg/bwc/TODO
 linalg/bwc/mpfq_layer.h
