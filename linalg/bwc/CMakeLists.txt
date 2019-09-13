@@ -430,6 +430,10 @@ add_library(lingen_common_support
     lingen_hints.cpp
     )
 target_link_libraries(lingen_common_support ${gmp_libname} utils)
+set_target_properties(lingen_common_support PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    )
 
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
