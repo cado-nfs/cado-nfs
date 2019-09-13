@@ -338,13 +338,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                 }
             }
 
-            /* c.size and c_local.size are different fields in the mpi
-             * case, and must be kept in sync */
-            c.size = OP.csize;
-            CTX.c_local().size = OP.csize;
-            /* tc.size() <= nrs0 * nrs2 */
+            CTX.c.set_size(OP.csize);
+            /* tc.get_size()() <= nrs0 * nrs2 */
             CTX.begin_smallstep("ift_C", nrs0 * nrs2);
-            ASSERT_ALWAYS(CTX.c_local().size <= CTX.c_local().capacity());
+            ASSERT_ALWAYS(CTX.c_local().get_size() <= CTX.c_local().capacity());
             submatrix_range Rc(i0, j0, i1-i0, j1-j0);
             submatrix_range Rct(0,  0, i1-i0, j1-j0);
             matpoly_ft<fft_type>::ift(CTX.c_local().view(Rc), tc.view(Rct));

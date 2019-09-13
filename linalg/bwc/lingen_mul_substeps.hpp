@@ -22,7 +22,7 @@ struct op_mul {
             fti.adjust(GF2X_FFT_ADJUST_DEPTH, adj);
     }
     template<typename T>
-    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.size, b.size, adj)
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.get_size(), b.get_size(), adj)
     {}
 #else
     op_mul(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX) : fti(fft_type::polynomial_mul_info(p, asize, bsize, nacc))
@@ -31,7 +31,7 @@ struct op_mul {
         if (adj != UINT_MAX) fti.adjust_depth(adj);
     }
     template<typename T>
-    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.size, b.size, a.n, adj)
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
 
@@ -59,7 +59,7 @@ struct op_mp {
             fti.adjust(GF2X_FFT_ADJUST_DEPTH, adj);
     }
     template<typename T>
-    op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mp(a.size, b.size, adj)
+    op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mp(a.get_size(), b.get_size(), adj)
     {}
 #else
     op_mp(mpz_srcptr p, size_t asize, size_t bsize, unsigned int nacc, unsigned int adj = UINT_MAX) : fti(fft_type::polynomial_mp_info(p, asize, bsize, nacc))
@@ -70,7 +70,7 @@ struct op_mp {
     }
     template<typename T>
     op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX)
-        : op_mp(abfield_characteristic_srcptr(a.ab), a.size, b.size, a.n, adj)
+        : op_mp(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
 

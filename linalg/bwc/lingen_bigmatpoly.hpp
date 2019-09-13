@@ -49,8 +49,10 @@ struct bigmatpoly : public bigmatpoly_model {
      * not all entries in the local cell are relevant */
     unsigned int m0r() const { return subdivision(m, m1).nth_block_size(irank()); }
     unsigned int n0r() const { return subdivision(n, n1).nth_block_size(jrank()); }
+    private:
     size_t size = 0;
     std::vector<matpoly> cells;
+    public:
 
     bigmatpoly(bigmatpoly_model const &);
     bigmatpoly(abdst_field, bigmatpoly_model const &, unsigned int m, unsigned int n, int len);
@@ -76,6 +78,7 @@ struct bigmatpoly : public bigmatpoly_model {
     inline void shrink_to_fit() { my_cell().shrink_to_fit(); }
     void zero();
 
+    inline size_t get_size() const { return size; }
     void set_size(size_t size);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero_loc(unsigned int k);

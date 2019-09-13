@@ -531,17 +531,17 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector
      *
      * (A priori we're not talking immense sizes at the recursive threshold anyway).
      */
-    matpoly tmp_pi(bm.d.ab, E.ncols(), E.ncols(), E.size); // pi_deg_bound(deg) + 1);
+    matpoly tmp_pi(bm.d.ab, E.ncols(), E.ncols(), E.get_size()); // pi_deg_bound(deg) + 1);
 
-    /* (expected_pi_length would do as well, but E.size is firmly on the safe side!)
+    /* (expected_pi_length would do as well, but E.get_size() is firmly on the safe side!)
      */
-    tmp_pi.zero_pad(E.size);
+    tmp_pi.zero_pad(E.get_size());
 
     bool finished = false;
 
     {
         lingen_qcode_data qq;
-        lingen_qcode_init(qq, E.nrows(), E.ncols(), E.size, tmp_pi.size);
+        lingen_qcode_init(qq, E.nrows(), E.ncols(), E.get_size(), tmp_pi.get_size());
         for(unsigned int i = 0 ; i < E.nrows() ; i++) {
             for(unsigned int j = 0 ; j < E.ncols() ; j++) {
                 lingen_qcode_hook_input(qq, i, j, E.part(i,j));
@@ -579,8 +579,8 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector
 
 int bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)/*{{{*/
 {
-    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls, true);
+    lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
+    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     

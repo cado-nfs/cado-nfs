@@ -111,7 +111,7 @@ struct matpoly_checker_base {
         /* If data is shrunk below the previous value of 'size', then
          * 'size' is set to zero.  */
         P1.realloc(len1-1);
-        ok = ok && P1.size == 0;
+        ok = ok && P1.get_size() == 0;
         /* Note: The content of the data area above 'size' on return is
          * unspecified.
          */
@@ -270,12 +270,12 @@ struct matpoly_checker_base {
         Q.fill_random(len2, rstate);
         R.add(P, Q);
         R.sub(Q);
-        R.truncate(P.size);
+        R.truncate(P.get_size());
         if (R.cmp(P) != 0) return 0;
 
         R.add(Q, P);
         R.sub(P);
-        R.truncate(Q.size);
+        R.truncate(Q.get_size());
         if (R.cmp(Q) != 0) return 0;
 
         return 1;
@@ -344,7 +344,7 @@ struct matpoly_checker_base {
     {
         matpoly P(ab, m,   n, len1 + 2);
         P.fill_random(len1, rstate);
-        unsigned int k = P.size / 2;
+        unsigned int k = P.get_size() / 2;
         for(unsigned int j = 0 ; j < n ; j++)
             P.zero_column(j, k);
         return P.coeff_is_zero(k);

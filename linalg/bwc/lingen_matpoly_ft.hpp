@@ -216,7 +216,7 @@ public:
                     typename fft_type::ptr tij = t.part(i, j);
                     absrc_vec aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
-                    t.M.fti.dft(tij, (const mp_limb_t *) aij, a.M.size, tt);
+                    t.M.fti.dft(tij, (const mp_limb_t *) aij, a.M.get_size(), tt);
                 }
             }
             free(tt);
@@ -241,7 +241,7 @@ public:
                     typename fft_type::ptr tij = t.part(i,j);
                     abdst_vec aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
-                    t.M.fti.ift((mp_limb_t *) aij, a.M.size, tij, tt);
+                    t.M.fti.ift((mp_limb_t *) aij, a.M.get_size(), tij, tt);
                 }
             }
             free(tt);

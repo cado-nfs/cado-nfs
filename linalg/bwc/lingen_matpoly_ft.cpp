@@ -44,8 +44,8 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
         if (M && op.get_transform_ram() > M->per_transform_ram) {
             fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
                     OP::name,
-                    a.size,
-                    b.size,
+                    a.get_size(),
+                    b.get_size(),
                     op.get_transform_ram(),
                     M->per_transform_ram,
                     M->asize,

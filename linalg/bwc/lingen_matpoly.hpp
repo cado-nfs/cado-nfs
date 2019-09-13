@@ -43,12 +43,15 @@ public:
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
-    size_t size = 0;
 private:
+    size_t size = 0;
     size_t alloc = 0;
     abvec x = NULL;
 public:
     inline size_t capacity() const { return alloc; }
+    inline size_t get_size() const { return size; }
+    void set_size(size_t s) { size = s; }
+
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
     size_t alloc_size() const;

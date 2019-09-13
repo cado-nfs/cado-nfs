@@ -57,7 +57,7 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
         ASSERT_ALWAYS(a.jrank() == b.jrank());
     }
     void alloc_c_if_needed(size_t size) const {
-        if (c.m != a.m || c.n != a.n || c.size != size)
+        if (c.m != a.m || c.n != a.n || c.get_size() != size)
             c = T(a.ab, a.get_model(), a.m, b.n, size);
     }
     inline matpoly const & a_local() { return a.my_cell(); }
@@ -92,8 +92,8 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
         if (M && op.get_transform_ram() > M->per_transform_ram) {
             fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
                     OP::name,
-                    a.size,
-                    b.size,
+                    a.get_size(),
+                    b.get_size(),
                     op.get_transform_ram(),
                     M->per_transform_ram,
                     M->asize,

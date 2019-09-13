@@ -107,8 +107,14 @@ struct polymat_ur {
     abdst_field ab;
     unsigned int m;
     unsigned int n;
+    private:
     size_t size;
     size_t alloc;
+    public:
+    inline size_t capacity() const { return alloc; }
+    inline size_t get_size() const { return size; }
+    void set_size(size_t s) { size = s; }
+
     abvec_ur x;
     polymat_ur() : polymat_ur(NULL, 0,0,0) {}
     ~polymat_ur();
@@ -468,7 +474,7 @@ void polymat_mul_raw_basecase(/*{{{*/
         int transpose, int add)
 {
     unsigned int nc = na + nb - 1;
-    ASSERT_ALWAYS(c.alloc >= xc + nc);
+    ASSERT_ALWAYS(c.capacity() >= xc + nc);
 
     polymat_ur tmat_ur(c.ab, c.m, c.n, 1);
 
@@ -488,7 +494,7 @@ void polymat_mul_raw_basecase(/*{{{*/
             tmat_ur.reducemat(c, xc + k, 0);
         } else {
             polymat tmat(c.ab, c.m, c.n, 1);
-            tmat.size = 1;
+            tmat.set_size(1);
             tmat_ur.reducemat(tmat, 0, 0);
             c.addmat(xc + k, c, xc + k, tmat, 0);
         }
@@ -510,7 +516,7 @@ void polymat_mul_raw_kara(/*{{{*/
     }
 
     unsigned int nc = na + nb - 1;
-    ASSERT_ALWAYS(c.alloc >= xc + nc);
+    ASSERT_ALWAYS(c.capacity() >= xc + nc);
     if (!add) {
         bwmat_zero_coeffs(c.ab, c.part(0, 0, xc), 1, c.m*c.n*nc);
     }
@@ -520,8 +526,8 @@ void polymat_mul_raw_kara(/*{{{*/
     {
         polymat s(c.ab, a.m, a.n, m1);
         polymat t(c.ab, b.m, b.n, m1);
-        s.size = m1;
-        t.size = m1;
+        s.set_size(m1);
+        t.set_size(m1);
         for(unsigned int k = 0 ; k < m0 ; k++) {
             s.addmat(k, a, xa + k, a, xa + m0 + k);
             t.addmat(k, b, xb + k, b, xb + m0 + k);
@@ -536,8 +542,8 @@ void polymat_mul_raw_kara(/*{{{*/
     {
         polymat q0(c.ab, c.m, c.n, 2*m0-1);
         polymat q2(c.ab, c.m, c.n, 2*m1-1);
-        q0.size = 2*m0-1;
-        q2.size = 2*m1-1;
+        q0.set_size(2*m0-1);
+        q2.set_size(2*m1-1);
         polymat_mul_raw_kara(q0, 0, a, xa, m0, b, xb, m0, transpose, 0);
         polymat_mul_raw_kara(q2, 0, a, xa+m0, m1, b, xb+m0, m1, transpose, 0);
         for(unsigned int k = 0 ; k < 2*m0 - 1 ; k++) {
@@ -672,10 +678,10 @@ void polymat_mp_raw_basecase(/*{{{*/
         return;
     }
     unsigned int nb = nc - na + 1;
-    ASSERT_ALWAYS(b.alloc >= xb + nb);
+    ASSERT_ALWAYS(b.capacity() >= xb + nb);
 
     polymat_ur tmat_ur(b.ab, b.m, b.n, 1);
-    tmat_ur.size = 1;
+    tmat_ur.set_size(1);
 
     for(unsigned int j = 0 ; j < nb ; j++) {
         tmat_ur.zero();
@@ -691,7 +697,7 @@ void polymat_mp_raw_basecase(/*{{{*/
             tmat_ur.reducemat(b, xb + j, 0);
         } else {
             polymat tmat(b.ab, b.m, b.n, 1);
-            tmat.size = 1;
+            tmat.set_size(1);
             tmat_ur.reducemat(tmat, 0, 0);
             b.addmat(xb + j, b, xb + j, tmat, 0);
         }
@@ -731,7 +737,7 @@ void polymat_mp_raw_kara(/*{{{*/
      * produces m1 coefficients. This goes to offset 0 (well, xb) in b. */
     {
         polymat t(c.ab, c.m, c.n, 2*m1-1);
-        t.size = 2*m1-1;
+        t.set_size(2*m1-1);
         for(unsigned int k = 0 ; k < 2*m1 - 1 ; k++) {
             t.addmat(k, c, span_c0[0] + k, c, span_c11[0] + k);
         }
@@ -743,10 +749,10 @@ void polymat_mp_raw_kara(/*{{{*/
     {
         /* q1 is MP(a1-a0, b11), i.e. MP(m1, 2*m1-1) again */
         polymat q1(b.ab, b.m, b.n, m1);
-        q1.size = m1;
+        q1.set_size(m1);
         {
             polymat s(b.ab, a.m, a.n, m1);
-            s.size = m1;
+            s.set_size(m1);
             bwmat_copy_coeffs(b.ab,
                     s.part(0,0,0),1,
                     a.part(0,0,span_a1[0]),1,
@@ -767,7 +773,7 @@ void polymat_mp_raw_kara(/*{{{*/
         {
             /* This goes to offset m1 in b */
             polymat t(c.ab, c.m, c.n, 2*m0-1);
-            t.size = 2*m0-1;
+            t.set_size(2*m0-1);
             for(unsigned int k = 0 ; k < 2*m0 - 1 ; k++) {
                 t.addmat(k, c, span_c10[0] + k, c, span_c2[0] + k);
             }
@@ -903,13 +909,13 @@ void polymat::addmp(polymat const & a, polymat const & c)/*{{{*/
 
 void polymat::set_matpoly(matpoly const & src)
 {
-    *this = polymat(src.ab, src.m, src.n, src.size);
+    *this = polymat(src.ab, src.m, src.n, src.get_size());
 
-    size = src.size;
+    size = src.get_size();
 
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
-            for(unsigned int k = 0 ; k < src.size ; k++) {
+            for(unsigned int k = 0 ; k < src.get_size() ; k++) {
                 abset(ab,
                         coeff(i, j, k),
                         src.coeff(i, j, k));

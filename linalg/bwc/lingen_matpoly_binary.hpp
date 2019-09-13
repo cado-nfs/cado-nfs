@@ -38,10 +38,10 @@ public:
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
-    size_t size = 0;
     /* alloc_words is the number of unsigned longs used to store each
      * coefficient */
 private:
+    size_t size = 0;
     size_t alloc_words = 0;
     unsigned long * x = NULL;
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
@@ -57,6 +57,8 @@ public:
     }
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
+    inline size_t get_size() const { return size; }
+    void set_size(size_t s) { size = s; }
     matpoly() { m=n=0; size=0; alloc_words=0; ab=NULL; x=NULL; }
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;

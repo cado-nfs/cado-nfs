@@ -15,8 +15,13 @@ struct polymat {
     abdst_field ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
+    private:
     size_t size = 0;
     size_t alloc = 0;
+    public:
+    inline size_t capacity() const { return alloc; }
+    inline size_t get_size() const { return size; }
+    void set_size(size_t s) { size = s; }
     abvec x = NULL;
 
     polymat() : polymat(NULL, 0,0,0) {}

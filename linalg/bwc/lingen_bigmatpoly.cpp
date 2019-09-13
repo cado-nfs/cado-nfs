@@ -63,6 +63,12 @@ bigmatpoly::bigmatpoly(bigmatpoly_model const & model)
 {
     m0 = n0 = 0;
     size = 0;
+    /* except that finish_init wants this allocated. We could, of course,
+     * do the reservation in finish_init, but better have both ctors
+     * leave the same post-condition.
+     */
+    cells.reserve(m1*n1);
+    for(unsigned int k = m1*n1; k--;) cells.emplace_back();
 }
 
 bigmatpoly::bigmatpoly(abdst_field ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
@@ -181,19 +187,19 @@ void bigmatpoly::set_size(size_t nsize)
     matpoly & me = my_cell();
     ASSERT_ALWAYS(nsize <= me.capacity());
     size = nsize;
-    me.size = nsize;
+    me.set_size(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
         matpoly & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
-        them.size = nsize;
+        them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
         matpoly & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
-        them.size = nsize;
+        them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
 }
@@ -249,7 +255,7 @@ void bigmatpoly::truncate_loc(bigmatpoly & src, unsigned int nsize)/*{{{*/
         finish_init(src.ab, src.m, src.n, nsize);
     }
     my_cell().truncate(src.my_cell(), nsize);
-    size = my_cell().size;
+    size = my_cell().get_size();
 }
 /*}}}*/
 
@@ -274,7 +280,7 @@ void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
     // ASSERT_ALWAYS(provisioned() == 0);
     // ASSERT_ALWAYS(src.provisioned() == 0);
     me.rshift(src.my_cell(), k);
-    size = me.size;
+    size = me.get_size();
 }
 /*}}}*/
 
@@ -418,7 +424,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
         ASSERT_ALWAYS(dst.m == m);
         ASSERT_ALWAYS(dst.n == n);
         ASSERT_ALWAYS(dst.capacity() >= length);
-        dst.size = length;
+        dst.set_size(length);
         MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
         /* the master receives data from everyone */
@@ -591,11 +597,11 @@ void bigmatpoly::gather_mat(matpoly & dst) const
         if (dst.check_pre_init()) {
             dst = matpoly(ab, m, n, size);
         }
-        dst.size = size;
+        dst.set_size(size);
 
         // Leader creates a buffer matpoly of size length
         dst_partial = matpoly(ab, m, n, length);
-        dst_partial.size = length;
+        dst_partial.set_size(length);
     }
 
     size_t offset = 0;
@@ -630,7 +636,7 @@ void bigmatpoly::scatter_mat(matpoly const & src)
         unsigned int n;
         size_t size;
         size_t alloc;
-    } shell { src.m, src.n, src.size, src.capacity() };
+    } shell { src.m, src.n, src.get_size(), src.capacity() };
 
     MPI_Bcast(&shell, sizeof(shell), MPI_BYTE, 0, com[0]);
 
@@ -646,7 +652,7 @@ void bigmatpoly::scatter_mat(matpoly const & src)
     if (!rank()) {
         // Leader creates a buffer matpoly of size length
         src_partial = matpoly(src.ab, src.m, src.n, length);
-        src_partial.size = length;
+        src_partial.set_size(length);
     }
 
     size_t offset = 0;

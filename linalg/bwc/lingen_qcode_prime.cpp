@@ -63,10 +63,10 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     unsigned int mi, ma;
     std::tie(mi, ma) = get_minmax_delta(delta);
 
-    unsigned int pi_room_base = expected_pi_length(d, delta, E.size);
+    unsigned int pi_room_base = expected_pi_length(d, delta, E.get_size());
 
     pi = matpoly(ab, b, b, pi_room_base);
-    pi.size = pi_room_base;
+    pi.set_size(pi_room_base);
 
     /* Also keep track of the
      * number of coefficients for the columns of pi. Set pi to Id */
@@ -92,12 +92,12 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     std::vector<int> is_pivot(b, 0);
 
     matpoly e(ab, m, b, 1);
-    e.size = 1;
+    e.set_size(1);
 
     matpoly T(ab, b, b, 1);
     int (*ctable)[2] = new int[b][2];
 
-    for (unsigned int t = 0; t < E.size ; t++, bm.t++) {
+    for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
 
         /* {{{ Update the columns of e for degree t. Save computation
          * time by not recomputing those which can easily be derived from
@@ -432,23 +432,24 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
         /* }}} */
     }
 
-    pi.size = 0;
+    unsigned int pisize = 0;
     for(unsigned int j = 0; j < b; j++) {
-        if (pi_real_lengths[j] > pi.size)
-            pi.size = pi_real_lengths[j];
+        if (pi_real_lengths[j] > pisize)
+            pisize = pi_real_lengths[j];
     }
     /* Given the structure of the computation, there's no reason for the
      * initial estimate to go wrong.
      */
-    ASSERT_ALWAYS(pi.size <= pi.capacity());
+    ASSERT_ALWAYS(pisize <= pi.capacity());
+    pi.set_size(pisize);
+
     for(unsigned int j = 0; j < b; j++) {
-        for(unsigned int k = pi_real_lengths[j] ; k < pi.size ; k++) {
+        for(unsigned int k = pi_real_lengths[j] ; k < pi.get_size() ; k++) {
             for(unsigned int i = 0 ; i < b ; i++) {
                 ASSERT_ALWAYS(abis_zero(ab, pi.coeff(i, j, k)));
             }
         }
     }
-    pi.size = MIN(pi.size, pi.capacity());
 
     return generator_found;
 }
@@ -458,8 +459,8 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 int
 bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
 {
-    lingen_call_companion const & C = bm.companion(bm.depth(), E.size);
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls, true);
+    lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
+    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     int done = bw_lingen_basecase_raw(bm, pi, E, delta);

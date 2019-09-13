@@ -824,7 +824,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
                 pi.mul(piL, piR);
                 x.set_since_last();
             }
-            if (piref.size == 0) {
+            if (piref.get_size() == 0) {
                 piref = std::move(pi);
                 // fprintf(stderr, "BASIS0\n");
             } else if (pi.cmp(piref) != 0) {
@@ -844,7 +844,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
                 pi.mul(piL, piR);
                 x.set_since_last();
             }
-            if (piref.size == 0) {
+            if (piref.get_size() == 0) {
                 piref = std::move(pi);
                 // fprintf(stderr, "BASIS1\n");
             } else if (pi.cmp(piref) != 0) {
@@ -862,7 +862,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
         piR = polymat();
 
         matpoly xpiref;
-        if (piref.size) {
+        if (piref.get_size()) {
             xpiref.set_polymat(piref);
             piref = polymat();
         }
@@ -880,7 +880,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
                 xpi.mul(xpiL, xpiR);
                 x.set_since_last();
             }
-            if (xpiref.size == 0) {
+            if (xpiref.get_size() == 0) {
                 xpiref = std::move(xpi);
                 // fprintf(stderr, "BASIS2\n");
             } else if (xpi.cmp(xpiref) != 0) {
@@ -940,7 +940,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
                 x.set_since_last();
             }
 #endif
-            if (xpiref.size == 0) {
+            if (xpiref.get_size() == 0) {
                 xpiref = std::move(xpi);
             } else if (xpi.cmp(xpiref) != 0) {
                 fprintf(stderr, "MISMATCH3!\n");
@@ -1050,7 +1050,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
                 ER.mp(E, piL);
                 x.set_since_last();
             }
-            if (ERref.size == 0) {
+            if (ERref.get_size() == 0) {
                 ERref = std::move(ER);
                 // fprintf(stderr, "BASIS0\n");
             } else if (ER.cmp(ERref) != 0) {
@@ -1070,7 +1070,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
                 ER.mp(E, piL);
                 x.set_since_last();
             }
-            if (ERref.size == 0) {
+            if (ERref.get_size() == 0) {
                 ERref = std::move(ER);
                 // fprintf(stderr, "BASIS1\n");
             } else if (ER.cmp(ERref) != 0) {
@@ -1088,7 +1088,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
         E = polymat();
 
         matpoly xERref(ab, m, m+n, input_length);
-        if (ERref.size) {
+        if (ERref.get_size()) {
             xERref.set_polymat(ERref);
         }
         ERref = polymat();
@@ -1106,7 +1106,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
                 xER.mp(xE, xpiL);
                 x.set_since_last();
             }
-            if (xERref.size == 0) {
+            if (xERref.get_size() == 0) {
                 xERref = std::move(xER);
                 // fprintf(stderr, "BASIS2\n");
             } else if (xER.cmp(xERref) != 0) {
@@ -1162,7 +1162,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
                 matpoly_ft<fft_type>::mp_caching_adj(xER, xE, xpiL, adj, NULL);
                 x.set_since_last();
             }
-            if (xERref.size == 0) {
+            if (xERref.get_size() == 0) {
                 xERref = std::move(xER);
             } else if (xER.cmp(xERref) != 0) {
                 fprintf(stderr, "MISMATCH3!\n");
@@ -1328,13 +1328,13 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
             polymat piR(ab, m+n, m+n, spi);
             polymat pi(ab, m+n, m+n, spi*2);
             polymat Er(ab, m, m+n, sE-spi+1);
-            E.size = sE;
-            for(unsigned int v = 0 ; v < E.m * E.n * E.size ; v++) {
+            E.set_size(sE);
+            for(unsigned int v = 0 ; v < E.m * E.n * E.get_size() ; v++) {
                 abrandom(ab, abvec_coeff_ptr(ab, E.x, v), rstate);
             }
-            piL.size = spi;
-            piR.size = spi;
-            for(unsigned int v = 0 ; v < piL.m * piL.n * piL.size ; v++) {
+            piL.set_size(spi);
+            piR.set_size(spi);
+            for(unsigned int v = 0 ; v < piL.m * piL.n * piL.get_size() ; v++) {
                 abrandom(ab, abvec_coeff_ptr(ab, piL.x, v), rstate);
                 abrandom(ab, abvec_coeff_ptr(ab, piR.x, v), rstate);
             }
@@ -1355,7 +1355,7 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
                     ttmpk, ttmulk, ttmpk + ttmulk
                     );
             // (seconds()-tt) / (k*k)); // ((sE-spi) * spi) / (m*(m+n)*(m+n)));
-            // printf("%zu %.2e\n", E.size, (seconds()-tt) / (k*k)); // (spi * spi) / ((m+n)*(m+n)*(m+n)));
+            // printf("%zu %.2e\n", E.get_size(), (seconds()-tt) / (k*k)); // (spi * spi) / ((m+n)*(m+n)*(m+n)));
         }
     }
 

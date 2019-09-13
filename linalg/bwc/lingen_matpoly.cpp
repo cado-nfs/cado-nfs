@@ -525,12 +525,12 @@ void matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
 
 void matpoly::set_polymat(polymat const & src)
 {
-    *this = matpoly(src.ab, src.m, src.n, src.size);
-    size = src.size;
+    *this = matpoly(src.ab, src.m, src.n, src.get_size());
+    set_size(src.get_size());
 
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
-            for(unsigned int k = 0 ; k < src.size ; k++) {
+            for(unsigned int k = 0 ; k < size ; k++) {
                 abset(ab, coeff(i, j, k), src.coeff(i, j, k));
             }
         }

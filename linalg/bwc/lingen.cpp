@@ -231,7 +231,7 @@ int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned 
 {
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
-    ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -261,7 +261,7 @@ int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int
 {
     unsigned int m = M.m;
     unsigned int n = M.n;
-    ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     ASSERT_ALWAYS(m % ULONG_BITS == 0);
     ASSERT_ALWAYS(n % ULONG_BITS == 0);
     size_t ulongs_per_mat = m * n / ULONG_BITS;
@@ -319,7 +319,7 @@ int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int
 template<typename Ostream>
 int matpoly_write_split(abdst_field ab, std::vector<Ostream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
 {
-    ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -361,7 +361,7 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
     ASSERT_ALWAYS(!M.check_pre_init());
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
-    ASSERT_ALWAYS(k0 == k1 || (k0 < M.size && k1 <= M.size));
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -570,9 +570,9 @@ int cp_info::load_data_file(matpoly & pi, size_t pi_size)/*{{{*/
         return 0;
     }
     pi = matpoly(ab, m+n, m+n, pi_size);
-    pi.size = pi_size;
-    rc = matpoly_read(ab, data, pi, 0, pi.size, 0, 0);
-    if (rc != (int) pi.size) { fclose(data); return 0; }
+    pi.set_size(pi_size);
+    rc = matpoly_read(ab, data, pi, 0, pi.get_size(), 0, 0);
+    if (rc != (int) pi.get_size()) { fclose(data); return 0; }
     rc = fclose(data);
     return rc == 0;
 }/*}}}*/
@@ -591,10 +591,8 @@ int cp_info::save_data_file(matpoly const & pi, size_t pi_size)/*{{{*/
         return 0;
     }
     rc = matpoly_write(ab, data, pi, 0, pi_size, 0, 0);
-    if (rc != (int) pi.size) goto cp_info_save_data_file_bailout;
-    data.close();
-    if (!data)
-        return 1;
+    if (rc != (int) pi.get_size()) goto cp_info_save_data_file_bailout;
+    if (data.good()) return 1;
 cp_info_save_data_file_bailout:
     unlink(datafile);
     unlink(auxfile);
@@ -614,7 +612,7 @@ int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
      * noteworthy if the checkpoint file does not exist. */
     int ok = cp.load_aux_file(&pi_size, delta, p_done);
     if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Reading checkpoint %s", cp.datafile);
+        logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
         ok = cp.load_data_file(pi, pi_size);
         logline_end(&bm.t_cp_io,"");
         if (!ok)
@@ -630,11 +628,11 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
     cp_info cp(bm, t0, t1, 0);
-    logline_begin(stdout, SIZE_MAX, "Saving checkpoint %s%s",
+    logline_begin(stdout, SIZE_MAX, "Saving %s%s",
             cp.datafile,
             cp.mpi ? " (MPI, scattered)" : "");
-    int ok = cp.save_aux_file(pi.size, delta, done);
-    if (ok) ok = cp.save_data_file(pi, pi.size);
+    int ok = cp.save_aux_file(pi.get_size(), delta, done);
+    if (ok) ok = cp.save_data_file(pi, pi.get_size());
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
         fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
@@ -664,7 +662,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(p_done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Reading checkpoint %s (MPI, scattered)",
+        logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
                 cp.datafile);
         do {
             FILE * data = fopen(cp.datafile, "rb");
@@ -678,9 +676,9 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
                 break;
             }
             xpi.finish_init(ab, m+n, m+n, pi_size);
-            xpi.size = pi_size;
-            rc = matpoly_read(ab, data, xpi.my_cell(), 0, xpi.size, 0, 0);
-            ok = ok && rc == (int) xpi.size;
+            xpi.set_size(pi_size);
+            rc = matpoly_read(ab, data, xpi.my_cell(), 0, xpi.get_size(), 0, 0);
+            ok = ok && rc == (int) xpi.get_size();
             rc = fclose(data);
             ok = ok && (rc == 0);
         } while (0);
@@ -703,13 +701,13 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, t0, t1, 1);
-    int ok = cp.save_aux_file(xpi.size, delta, done);
+    int ok = cp.save_aux_file(xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (!ok && !rank) unlink(cp.auxfile);
     if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Saving checkpoint %s (MPI, scattered)",
+        logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, scattered)",
                 cp.datafile);
-        ok = cp.save_data_file(xpi.my_cell(), xpi.size);
+        ok = cp.save_data_file(xpi.my_cell(), xpi.get_size());
         logline_end(&bm.t_cp_io,"");
         MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
         if (!ok) {
@@ -743,7 +741,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(p_done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Reading checkpoint %s (MPI, gathered)",
+        logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
                 cp.datafile);
         do {
             FILE * data = NULL;
@@ -764,10 +762,10 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
 
             /* This is only temp storage ! */
             matpoly pi(ab, m + n, m + n, B);
-            pi.size = B;
+            pi.zero_pad(B);
 
-            for(unsigned int k = 0 ; ok && k < xpi.size ; k += B) {
-                unsigned int nc = MIN(B, xpi.size - k);
+            for(unsigned int k = 0 ; ok && k < xpi.get_size() ; k += B) {
+                unsigned int nc = MIN(B, xpi.get_size() - k);
                 if (!rank)
                     ok = matpoly_read(ab, data, pi, 0, nc, 0, 0) == (int) nc;
                 MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
@@ -802,9 +800,9 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     unsigned int n = d.n;
     cp_info cp(bm, t0, t1, 1);
     cp.datafile = cp.gdatafile;
-    logline_begin(stdout, SIZE_MAX, "Saving checkpoint %s (MPI, gathered)",
+    logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
             cp.datafile);
-    int ok = cp.save_aux_file(xpi.size, delta, done);
+    int ok = cp.save_aux_file(xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {
@@ -825,10 +823,10 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
 
             /* This is only temp storage ! */
             matpoly pi(ab, m + n, m + n, B);
-            pi.size = B;
+            pi.zero_pad(B);
 
-            for(unsigned int k = 0 ; ok && k < xpi.size ; k += B) {
-                unsigned int nc = MIN(B, xpi.size - k);
+            for(unsigned int k = 0 ; ok && k < xpi.get_size() ; k += B) {
+                unsigned int nc = MIN(B, xpi.get_size() - k);
                 xpi.gather_mat_partial(pi, k, nc);
                 if (!rank)
                     ok = matpoly_write(ab, data, pi, 0, nc, 0, 0) == (int) nc;
@@ -920,11 +918,11 @@ int
 bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
     int depth = bm.depth();
-    size_t z = E.size;
+    size_t z = E.get_size();
 
     lingen_call_companion & C = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
+    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
 
     {
         /* smallstep planning is currently disabled in
@@ -953,9 +951,9 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
-    size_t half = E.size - (E.size / 2);
-    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
-    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
+    size_t half = E.get_size() - (E.get_size() / 2);
+    unsigned int pi_expect = expected_pi_length(d, delta, E.get_size());
+    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
     unsigned int pi_left_expect = expected_pi_length(d, delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
@@ -971,7 +969,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     // this (now) consumes E_left entirely.
     done = bw_lingen_single(bm, pi_left, E_left, delta);
 
-    ASSERT_ALWAYS(pi_left.size);
+    ASSERT_ALWAYS(pi_left.get_size());
 
     if (done) {
         pi = std::move(pi_left);
@@ -979,25 +977,25 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     }
 
     bm.stats.begin_smallstep("MP");
-    ASSERT_ALWAYS(pi_left.size <= pi_left_expect);
-    ASSERT_ALWAYS(done || pi_left.size >= pi_left_expect_lowerbound);
+    ASSERT_ALWAYS(pi_left.get_size() <= pi_left_expect);
+    ASSERT_ALWAYS(done || pi_left.get_size() >= pi_left_expect_lowerbound);
 
     /* XXX I don't understand why I need to do this. It seems to me that
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
-    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
-    if (pi_left_expect_used_for_shift != pi_left.size) {
-        E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
+    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.get_size());
+    if (pi_left_expect_used_for_shift != pi_left.get_size()) {
+        E.rshift(E, pi_left_expect_used_for_shift - pi_left.get_size());
         /* Don't shrink_to_fit at this point, because we've only made a
          * minor adjustment. */
     }
 
     logline_begin(stdout, z, "t=%u %*sMP(%zu, %zu) -> %zu",
             bm.t, depth,"",
-            E.size, pi_left.size, E.size - pi_left.size + 1);
+            E.get_size(), pi_left.get_size(), E.get_size() - pi_left.get_size() + 1);
 
     {
-        E_right = matpoly(d.ab, d.m, d.m+d.n, E.size - pi_left.size + 1);
+        E_right = matpoly(d.ab, d.m, d.m+d.n, E.get_size() - pi_left.get_size() + 1);
         matpoly_ft<fft_type>::mp_caching(E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
@@ -1005,22 +1003,22 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     logline_end(&(bm.t_mp), "");
     bm.stats.end_smallstep();
 
-    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.size);
-    unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.size);
+    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
+    unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
     done = bw_lingen_single(bm, pi_right, E_right, delta);
-    ASSERT_ALWAYS(pi_right.size <= pi_right_expect);
-    ASSERT_ALWAYS(done || pi_right.size >= pi_right_expect_lowerbound);
+    ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
+    ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
     /* stack is now pi_left, pi_right */
 
     bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
-            pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
+            pi_left.get_size(), pi_right.get_size(), pi_left.get_size() + pi_right.get_size() - 1);
 
     {
-        pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.size + pi_right.size - 1);
+        pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.get_size() + pi_right.get_size() - 1);
         matpoly_ft<fft_type>::mul_caching(pi, pi_left, pi_right, & C.mul);
     }
 
@@ -1029,6 +1027,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
      * we don't, the degree of pi artificially grows with the recursive
      * level.
      */
+    unsigned int pisize = pi.get_size();
 #if 1
     /* In fact, it's not entirely impossible that pi grows more than
      * what we had expected on entry, e.g. if we have one early
@@ -1038,20 +1037,20 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
      * One possible sign is when the entry deltas are somewhat even, and
      * the result deltas are unbalanced.
      */
-    for(; pi.size > pi_expect ; pi.size--) {
+    for(; pisize > pi_expect ; pisize--) {
         /* These coefficients really must be zero */
-        ASSERT_ALWAYS(pi.coeff_is_zero(pi.size - 1));
+        ASSERT_ALWAYS(pi.coeff_is_zero(pisize - 1));
     }
-    ASSERT_ALWAYS(pi.size <= pi_expect);
+    ASSERT_ALWAYS(pisize <= pi_expect);
 #endif
     /* Now below pi_expect, it's not impossible to have a few
      * cancellations as well.
      */
-    for(; pi.size ; pi.size--) {
-        if (!pi.coeff_is_zero(pi.size - 1)) break;
+    for(; pisize ; pisize--) {
+        if (!pi.coeff_is_zero(pisize - 1)) break;
     }
-    ASSERT_ALWAYS(done || pi.size >= pi_expect_lowerbound);
-
+    pi.set_size(pisize);
+    ASSERT_ALWAYS(done || pisize >= pi_expect_lowerbound);
 
     logline_end(&bm.t_mul, "");
     bm.stats.end_smallstep();
@@ -1065,11 +1064,11 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
     MPI_Comm_rank(bm.com[0], &rank);
     ASSERT_ALWAYS(!rank);
     unsigned int t0 = bm.t;
-    unsigned int t1 = bm.t + E.size;
+    unsigned int t1 = bm.t + E.get_size();
 
     int done;
 
-    lingen_call_companion & C = bm.companion(bm.depth(), E.size);
+    lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
 
     if (load_checkpoint_file(bm, pi, t0, t1, delta, &done))
         return done;
@@ -1077,8 +1076,8 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
     // fprintf(stderr, "Enter %s\n", __func__);
-    if (!bm.recurse(E.size)) {
-        tree_stats::transition_sentinel dummy(bm.stats, "recursive threshold", E.size, C.total_ncalls);
+    if (!bm.recurse(E.get_size())) {
+        tree_stats::transition_sentinel dummy(bm.stats, "recursive threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();
@@ -1102,11 +1101,11 @@ template<typename fft_type>
 int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
     int depth = bm.depth();
-    size_t z = E.size;
+    size_t z = E.get_size();
 
     lingen_call_companion & C = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.size, C.total_ncalls);
+    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
 
     {
         bm.stats.begin_plan_smallstep("MP", C.mp.tt);
@@ -1153,9 +1152,9 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     /* we have to start with something large enough to get
      * all coefficients of E_right correct */
-    size_t half = E.size - (E.size / 2);
-    unsigned int pi_expect = expected_pi_length(d, delta, E.size);
-    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.size);
+    size_t half = E.get_size() - (E.get_size() / 2);
+    unsigned int pi_expect = expected_pi_length(d, delta, E.get_size());
+    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
     unsigned int pi_left_expect = expected_pi_length(d, delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
@@ -1171,7 +1170,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     done = bw_biglingen_collective(bm, pi_left, E_left, delta);
 
-    ASSERT_ALWAYS(pi_left.size);
+    ASSERT_ALWAYS(pi_left.get_size());
     E_left = bigmatpoly(model);
 
     if (done) {
@@ -1180,22 +1179,22 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     }
 
     bm.stats.begin_smallstep("MP");
-    ASSERT_ALWAYS(pi_left.size <= pi_left_expect);
-    ASSERT_ALWAYS(done || pi_left.size >= pi_left_expect_lowerbound);
+    ASSERT_ALWAYS(pi_left.get_size() <= pi_left_expect);
+    ASSERT_ALWAYS(done || pi_left.get_size() >= pi_left_expect_lowerbound);
 
     /* XXX I don't understand why I need to do this. It seems to me that
      * MP(XA, B) and MP(A, B) should be identical whenever deg A > deg B.
      */
-    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.size);
-    if (pi_left_expect_used_for_shift != pi_left.size) {
-        E.rshift(E, pi_left_expect_used_for_shift - pi_left.size);
+    ASSERT_ALWAYS(pi_left_expect_used_for_shift >= pi_left.get_size());
+    if (pi_left_expect_used_for_shift != pi_left.get_size()) {
+        E.rshift(E, pi_left_expect_used_for_shift - pi_left.get_size());
         /* Don't shrink_to_fit at this point, because we've only made a
          * minor adjustment. */
     }
 
     logline_begin(stdout, z, "t=%u %*sMPI-MP(%zu, %zu) -> %zu",
             bm.t, depth, "",
-            E.size, pi_left.size, E.size - pi_left.size + 1);
+            E.get_size(), pi_left.get_size(), E.get_size() - pi_left.get_size() + 1);
 
     {
         ASSERT_ALWAYS(pi_left.ab);
@@ -1211,19 +1210,19 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     logline_end(&bm.t_mp, "");
     bm.stats.end_smallstep();
 
-    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.size);
-    unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.size);
+    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
+    unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
     done = bw_biglingen_collective(bm, pi_right, E_right, delta);
-    ASSERT_ALWAYS(pi_right.size <= pi_right_expect);
-    ASSERT_ALWAYS(done || pi_right.size >= pi_right_expect_lowerbound);
+    ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
+    ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
     
     E_right = bigmatpoly(model);
 
     bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMPI-MUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
-            pi_left.size, pi_right.size, pi_left.size + pi_right.size - 1);
+            pi_left.get_size(), pi_right.get_size(), pi_left.get_size() + pi_right.get_size() - 1);
 
     {
         ASSERT_ALWAYS(pi_left.ab);
@@ -1240,6 +1239,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
      * we don't, the degree of pi artificially grows with the recursive
      * level.
      */
+    unsigned int pisize = pi.get_size();
 #if 1
     /* In fact, it's not entirely impossible that pi grows more than
      * what we had expected on entry, e.g. if we have one early
@@ -1249,19 +1249,20 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
      * One possible sign is when the entry deltas are somewhat even, and
      * the result deltas are unbalanced.
      */
-    for(; pi.size > pi_expect ; pi.size--) {
+    for(; pisize > pi_expect ; pisize--) {
         /* These coefficients really must be zero */
-        ASSERT_ALWAYS(pi.coeff_is_zero(pi.size - 1));
+        ASSERT_ALWAYS(pi.coeff_is_zero(pisize - 1));
     }
-    ASSERT_ALWAYS(pi.size <= pi_expect);
+    ASSERT_ALWAYS(pisize <= pi_expect);
 #endif
     /* Now below pi_expect, it's not impossible to have a few
      * cancellations as well.
      */
-    for(; pi.size ; pi.size--) {
-        if (!pi.coeff_is_zero(pi.size - 1)) break;
+    for(; pisize ; pisize--) {
+        if (!pi.coeff_is_zero(pisize - 1)) break;
     }
-    ASSERT_ALWAYS(done || pi.size >= pi_expect_lowerbound);
+    pi.set_size(pisize);
+    ASSERT_ALWAYS(done || pisize >= pi_expect_lowerbound);
 
     logline_end(&bm.t_mul, "");
     bm.stats.end_smallstep();
@@ -1288,11 +1289,11 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     MPI_Comm_rank(bm.com[0], &rank);
     MPI_Comm_size(bm.com[0], &size);
     unsigned int t0 = bm.t;
-    unsigned int t1 = bm.t + E.size;
+    unsigned int t1 = bm.t + E.get_size();
 
-    lingen_call_companion & C = bm.companion(bm.depth(), E.size);
+    lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
     bool go_mpi = C.go_mpi;
-    // bool go_mpi = E.size >= bm.lingen_mpi_threshold;
+    // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
     if (load_mpi_checkpoint_file(bm, pi, t0, t1, delta, &done))
         return done;
@@ -1306,12 +1307,12 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         /* This entails gathering E locally, computing pi locally, and
          * dispathing it back. */
 
-        tree_stats::transition_sentinel dummy(bm.stats, "mpi threshold", E.size, C.total_ncalls);
+        tree_stats::transition_sentinel dummy(bm.stats, "mpi threshold", E.get_size(), C.total_ncalls);
 
-        matpoly sE(ab, m, b, E.size);
+        matpoly sE(ab, m, b, E.get_size());
         matpoly spi;
 
-        double expect0 = bm.hints.tt_gather_per_unit * E.size;
+        double expect0 = bm.hints.tt_gather_per_unit * E.get_size();
         bm.stats.plan_smallstep("gather(L+R)", expect0);
         bm.stats.begin_smallstep("gather(L+R)");
         E.gather_mat(sE);
@@ -1321,7 +1322,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         if (!rank)
             done = bw_lingen_single(bm, spi, sE, delta);
 
-        double expect1 = bm.hints.tt_scatter_per_unit * E.size;
+        double expect1 = bm.hints.tt_scatter_per_unit * E.get_size();
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
         bm.stats.begin_smallstep("scatter(L+R)");
         pi = bigmatpoly(ab, E.get_model(), b, b, 0);
@@ -1446,9 +1447,9 @@ unsigned int bm_io::set_write_behind_size(std::vector<unsigned int> const & delt
     }
     window = simd * iceildiv(window, simd);
     if (leader()) {
-        F.realloc(window);
-        F.zero();
-        F.size = window;
+        // F.realloc(window);
+        F.zero_pad(window);
+        // F.set_size(window);
     }
     return window;
 }/*}}}*/
@@ -1621,7 +1622,7 @@ class bigmatpoly_consumer_task { /* {{{ */
 
     inline unsigned int chunk_size() const { return B; }
 
-    inline unsigned int size() { return xpi.size; }
+    inline unsigned int size() { return xpi.get_size(); }
 
     /* locked means that we don't want to change the current access window */
     inline absrc_elt coeff_const_locked(unsigned int i, unsigned int j, unsigned int k) {
@@ -1636,8 +1637,8 @@ class bigmatpoly_consumer_task { /* {{{ */
         if (k0 == UINT_MAX || k - k0 >= B) {
             k0 = k - (k % B);
             pi.zero();
-            pi.size = B;
-            xpi.gather_mat_partial(pi, k0, MIN(xpi.size - k0, B));
+            pi.set_size(B);
+            xpi.gather_mat_partial(pi, k0, MIN(xpi.get_size() - k0, B));
         }
         if (rank) return NULL;
         return coeff_const_locked(i, j, k);
@@ -1703,8 +1704,8 @@ class bigmatpoly_producer_task { /* {{{ */
         ASSERT(k0 != UINT_MAX && k - k0 < B);
         ASSERT(!rank);
 
-        E.size += (E.size == k - k0);
-        ASSERT(E.size == k - k0 + 1);
+        E.set_size(E.get_size() + (E.get_size() == k - k0));
+        ASSERT(E.get_size() == k - k0 + 1);
 
         return E.coeff(i, j, k - k0);
     }
@@ -1712,7 +1713,7 @@ class bigmatpoly_producer_task { /* {{{ */
     abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
         if (k0 == UINT_MAX) {
             E.zero();
-            E.size = 0;
+            E.set_size(0);
             ASSERT(k == 0);
             k0 = 0;
         } else {
@@ -1768,7 +1769,7 @@ class matpoly_consumer_task {/*{{{*/
 
     inline unsigned int chunk_size() const { return 1; }
 
-    inline unsigned int size() { return pi.size; }
+    inline unsigned int size() { return pi.get_size(); }
 
     absrc_elt coeff_const_locked(unsigned int i, unsigned int j, unsigned int k) {
         return pi.coeff(i, j, k);
@@ -1796,7 +1797,7 @@ class matpoly_producer_task { /* {{{ */
 
     inline unsigned int chunk_size() const { return simd; }
     inline void set_size(unsigned int s) {
-        E.size = s;
+        E.set_size(s);
     }
     // inline unsigned int size() { return E.size; }
 
@@ -1811,8 +1812,8 @@ class matpoly_producer_task { /* {{{ */
     }
 #endif
     void mark_coeff_as_read(unsigned int, unsigned int, unsigned int k) {
-        E.size += (E.size == k);
-        ASSERT(E.size == k + 1);
+        E.set_size(E.get_size() + (E.get_size() == k));
+        ASSERT(E.get_size() == k + 1);
     }
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
         mark_coeff_as_read(i, j, k);
@@ -1888,7 +1889,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
          */
 
         matpoly rhs(ab, d.nrhs, n, 1);
-        rhs.size = 1;
+        rhs.zero_pad(1);
 
         {
             Sink Srhs(*this, rhs, ".rhs");
@@ -1950,7 +1951,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                  * tricks */
                 {
                     matpoly rhs2(ab, d.nrhs, n, 1);
-                    rhs2.size = 1;
+                    rhs2.zero_pad(1);
                     for(unsigned int i = 0 ; i < n ; i++) {
                         rhs2.extract_column(i, 0, rhs, sol_score[i][1], 0);
                     }
@@ -2031,7 +2032,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                             sols[j], delta[sols[j]], delta[sols[j]]-1);
                     window++;
                     F.realloc(window);
-                    F.size = window;
+                    F.set_size(window);
                     delta[sols[j]]--;
                     /* shift this column */
                     for(unsigned int k = 1 ; k < window ; k++) {
@@ -2139,20 +2140,20 @@ unsigned int bm_io::fetch_more_from_source(unsigned int io_window, unsigned int 
     ASSERT_ALWAYS(rank == 0);
 
     unsigned int pos = next_coeff_to_fetch_from_source;
-    ASSERT_ALWAYS(A.size % simd == 0);
+    ASSERT_ALWAYS(A.get_size() % simd == 0);
     ASSERT_ALWAYS(next_coeff_to_fetch_from_source % simd == 0);
     ASSERT_ALWAYS(batch % simd == 0);
     ASSERT_ALWAYS(n % simd == 0);
     if (io_window) {
         pos = pos % io_window;
-        ASSERT_ALWAYS(A.size == io_window);
+        ASSERT_ALWAYS(A.get_size() == io_window);
         ASSERT_ALWAYS(pos / io_window == (pos + batch - 1) / io_window);
     } else {
-        ASSERT_ALWAYS(A.size == next_coeff_to_fetch_from_source);
+        ASSERT_ALWAYS(A.get_size() == next_coeff_to_fetch_from_source);
         if (next_coeff_to_fetch_from_source >= A.capacity())
             A.realloc(A.capacity() + batch);
         ASSERT_ALWAYS(next_coeff_to_fetch_from_source < A.capacity());
-        A.size += batch;
+        A.set_size(A.get_size() + batch);
     }
     if (random_input_length) {
         if (generated_random_coefficients >= random_input_length)
@@ -2366,7 +2367,7 @@ void bm_io::compute_initial_F() /*{{{ */
          * from the first coefficients of A */
 
         matpoly M(ab, m, m, 1);
-        M.size = 1;
+        M.zero_pad(1);
 
         /* For each integer i between 0 and m-1, we have a column, picked
          * from column cnum[i] of coeff exponent[i] of A which, once reduced modulo

@@ -255,7 +255,7 @@ struct lingen_substep_characteristics {/*{{{*/
             matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
             /* This is important, since otherwise the inverse transform won't
              * work */
-            c.size = csize;
+            c.set_size(csize);
             tc.zero(); /* would be .fill_random(rstate) if we had it */
             tt = -wct_seconds();
             for(unsigned int i = 0 ; i < n ; i++) {
