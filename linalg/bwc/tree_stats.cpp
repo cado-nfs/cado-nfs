@@ -81,9 +81,10 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
          *      planned_time = k * X * t0
          *      real = k * X * t1
          */
-        size_t projected_n = (size_t) total_ncalls * items_per_call;
         os << " "
-            << fmt::sprintf("%u/%zu", n, projected_n);
+            << fmt::sprintf("%zu/%zu",
+                    items_per_call * (size_t) n,
+                    items_per_call * (size_t) total_ncalls);
         if (n) {
             if (th)
                 os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));

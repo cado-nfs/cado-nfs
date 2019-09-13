@@ -27,7 +27,7 @@ struct OP_CTX_base {
 
 template<typename T, typename fft_type> struct OP_CTX;
 
-template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
+template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { 
     typedef typename OP_CTX_T::T T;
     typedef typename OP_CTX_T::FFT fft_type;
     OP_CTX_T & CTX;
@@ -352,6 +352,6 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul { /*{{{*/
         }
         ASSERT_ALWAYS(CTX.local_smallsteps_done());
     }
-};/*}}}*/
+};
 
 #endif	/* LINGEN_MATPOLY_BIGMATPOLY_FT_COMMON_HPP_ */
