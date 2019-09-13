@@ -15,7 +15,7 @@ bwc.pl command line, at least in the omnipath case.
 In the infiniband situation, the following settings can be used to force
 the (old) verbs interface:
     --mca btl openib and --mca btl_openib_allow_ib true.
-while in contrast, newer OpenMPI implementation (4.0.x or later) should
+while in contrast, newer OpenMPI implementations (4.0.x or later) should
 use the ucx software stack (as of 2019, it seems to be hit and miss).
 
 We hope to make this document evolve so as to contain more usable
