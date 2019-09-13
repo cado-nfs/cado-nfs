@@ -55,7 +55,6 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
         ASSERT_ALWAYS(a.get_model() == b.get_model());
         ASSERT_ALWAYS(a.irank() == b.irank());
         ASSERT_ALWAYS(a.jrank() == b.jrank());
-        ASSERT_ALWAYS(a.get_model().com[1] == b.get_model().com[2]);
     }
     void alloc_c_if_needed(size_t size) const {
         if (c.m != a.m || c.n != a.n || c.size != size)
