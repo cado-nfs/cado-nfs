@@ -800,6 +800,8 @@ struct lingen_tuner {
      */
     double basecase_keep_until = 1.8;
 
+    unsigned int forced_lingen_mpi_threshold = UINT_MAX;
+
     std::map<size_t, lingen_substep_schedule> schedules_mp, schedules_mul;
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
@@ -838,6 +840,8 @@ struct lingen_tuner {
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)
             C.load(timing_cache_filename);
+
+        param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_lingen_mpi_threshold);
     }
 
     ~lingen_tuner() {
@@ -1117,7 +1121,24 @@ struct lingen_tuner {
                     lingen_call_companion U;
                     U.total_ncalls = 0;
 
-                    if (!recursion_makes_sense(L) || !basecase_eliminated)
+                    bool forced = false;
+                    bool rwin;
+
+                    if (recursion_makes_sense(L) && forced_lingen_mpi_threshold != UINT_MAX) {
+                        if (L >= forced_lingen_mpi_threshold) {
+                            printf("# Forcing recursion at this level,"
+                                    " since L=%zu>=lingen_mpi_threshold=%u\n",
+                                    L, forced_lingen_mpi_threshold);
+                            rwin = true;
+                        } else {
+                            printf("# Forcing basecase at this level,"
+                                    " since L=%zu<lingen_mpi_threshold=%u\n",
+                                    L, forced_lingen_mpi_threshold);
+                            rwin = false;
+                        }
+                        forced = true;
+                    }
+                    if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
                         ttb = compute_and_report_basecase(L);
 
                     if (recursion_makes_sense(L)) {
@@ -1147,7 +1168,9 @@ struct lingen_tuner {
                     if (ttb >= basecase_keep_until * (ttr + ttrchildren))
                         basecase_eliminated = true;
 
-                    bool rwin = ttb >= (ttr + ttrchildren);
+                    if (!forced)
+                        rwin = ttb >= basecase_keep_until * (ttr + ttrchildren);
+
                     /* if basecase_keep_until < 1, then we probably want
                      * to prevent the basecase from being counted as
                      * winning at this point.
@@ -1274,7 +1297,11 @@ struct lingen_tuner {
             }
         }
         printf("################################# Total ##################################\n");
-        printf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
+        if (forced_lingen_mpi_threshold != UINT_MAX) {
+            printf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
+        } else {
+            printf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
+        }
         size_t size_com0;
         double tt_com0;
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
