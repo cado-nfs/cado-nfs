@@ -92,8 +92,9 @@ int read_afiles(struct afile_list * a)
             fprintf(stderr, "stat(%s): %s\n", de->d_name, strerror(errno));
             exit(EXIT_FAILURE);
         }
-        ssize_t expected = bits_per_coeff / CHAR_BIT;
+        ssize_t expected = bits_per_coeff;
         expected *= A->n1-A->n0;
+        expected /= CHAR_BIT;
         expected *= A->j1-A->j0;
         expected *= bw->m;
 
