@@ -237,6 +237,15 @@ struct lingen_substep_characteristics {/*{{{*/
 
     typedef double (lingen_substep_characteristics<OP>::*raw_timer_member)(unsigned int, unsigned int, unsigned int) const;
 
+    /* the three functions below return the WCT needed to do the
+     * operation named (name) doing it with (nparallel) threads working
+     * at the same time (at our level -- we don't preclude the use of
+     * more omp threads at the level below). The computation is repeated
+     * (n) times, and we work with allocated space that is (k) times
+     * bigger than what is necessary to accomodate the (nparallel)
+     * parallel calls.
+     */
+
     double measure_dft_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
         matpoly a(ab, nparallel, k, asize);
         a.fill_random(asize, rstate);
@@ -279,75 +288,10 @@ struct lingen_substep_characteristics {/*{{{*/
         return tt + wct_seconds();
     }/*}}}*/
 
-    /* returns the WCT needed to do the operation named (name), timed via
-     * timer function (F), doing it with (nparallel) threads working at
-     * the same time (at our level -- we don't preclude the use of more
-     * omp threads at the level below).
-     */
-    double wrapper_times_parallel(raw_timer_member F, const char * name, unsigned int nparallel) const {/*{{{*/
-        double tt = 0;
-        unsigned int n = 1;
-        enum { CACHE_COLD_QUICK, CACHE_COLD_SLOW, CACHE_HOT } type;
-        type = CACHE_HOT;
-
-        const int meaningful_tests = 20;
-        const double meaningful_time = 0.4;
-        const double measurable_time = 0.01;
-        const int base_growth_fraction = 1;
-        const int compulsory_growth_fraction = 4;
-
-        unsigned int k = 1;
-        switch(type) {
-            case CACHE_COLD_QUICK:
-                /* measure cache-cold, but make it really quick -- only 1
-                 * repeat, and be done with it.
-                 */
-                tt = CALL_MEMBER_FN(*this, F)(nparallel, n, n);
-                printf("# %s %u %u %3g\n", name, nparallel, n, tt);
-                break;
-            case CACHE_COLD_SLOW:
-                /* k = n:
-                 * measure something repeatedly, so that at least the insn
-                 * cache is hot, but not necessarily the data cache: we cycle
-                 * over a large data set.
-                 */
-                k = n;
-                no_break();
-            case CACHE_HOT:
-                /* k = 1 (i.e. when not falling through):
-                 * Here we have a unique data set, so that we're cache
-                 * hot.
-                 */
-                for( ; ; ) {
-                    tt = CALL_MEMBER_FN(*this, F)(nparallel, n, k);
-                    // printf("# %s %u %u %3g\n", name, nparallel, n, tt);
-                    if (tt > 0 && n >= meaningful_tests)
-                        break;
-                    if (tt >= meaningful_time)
-                        break;
-                    if (tt >= measurable_time)
-                        n = MAX(n + MAX(1, n / compulsory_growth_fraction),
-                                MIN(meaningful_tests,
-                                    meaningful_time * n / tt)
-                                );
-                    else
-                        n += n / base_growth_fraction;
-                }
-        }
-
-        printf("# wct for %u %s in parallel, %u times: %.3g = %.3g each\n",
-                nparallel,
-                name,
-                n,
-                tt,
-                tt / n);
-        return tt / n;
-    }/*}}}*/
-
-    void complete_tvec(std::vector<double> & tvec, raw_timer_member F, const char * name, unsigned int kl, unsigned int kh) const
+    void complete_tvec(std::ostream& os, std::vector<double> & tvec, raw_timer_member F, const char * name, unsigned int kl, unsigned int kh) const
     {
         /* The ideal expected behaviour is that this should be constant.
-         * But it's not, since flint uses openmp itself. We're doing
+         * But it's not, since flint itself uses openmp. We're doing
          * better, since we're coarser grain. But still, as timing goes,
          * this means that we should be prepared to have a roughly linear
          * curve.
@@ -357,23 +301,35 @@ struct lingen_substep_characteristics {/*{{{*/
         double th = tvec[kh];
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
-        tvec[k] = wrapper_times_parallel(F, name, k);
-        double tk = tvec[k];
+        double tk = CALL_MEMBER_FN(*this, F)(k, 1, 1);
+        os << fmt::format(" {}:{:.2f}", k, tk);
+        tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
         if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
-        complete_tvec(tvec, F, name, kl, k);
-        complete_tvec(tvec, F, name, k, kh);
+        complete_tvec(os, tvec, F, name, kl, k);
+        complete_tvec(os, tvec, F, name, k, kh);
     }
 
     std::vector<double> fill_tvec(raw_timer_member F, const char * name) const {
         unsigned int TMAX = max_threads();
-        unsigned int kl = 1;
         std::vector<double> tvec(TMAX + 1, -1);
-        tvec[1] = wrapper_times_parallel(F, name, 1);
+        std::stringstream os;
+
+        unsigned int kl = 1;
+        double tl = CALL_MEMBER_FN(*this, F)(kl, 1, 1);
+        tvec[kl] = tl;
+        os << fmt::format(" {}:{:.2f}", kl, tl);
+
         unsigned int kh=TMAX;
-        if (kh > 1)
-            tvec[kh] = wrapper_times_parallel(F, name, kh);
-        complete_tvec(tvec, F, name, kl, kh);
+        if (kh > 1) {
+            double th = CALL_MEMBER_FN(*this, F)(kh, 1, 1);
+            tvec[kh] = th;
+            os << fmt::format(" {}:{:.2f}", kh, th);
+        }
+
+        complete_tvec(os, tvec, F, name, kl, kh);
+
+        printf("# wct for %s by nthreads:%s\n", name, os.str().c_str());
         return tvec;
     }
 
