@@ -303,10 +303,21 @@ struct lingen_substep_characteristics {/*{{{*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
     void complete_tvec(std::vector<double> & tvec, timer_member F, unsigned int kl, unsigned int kh) const
     {
+        /* The ideal expected behaviour is that this should be constant.
+         * But it's not, since flint uses openmp itself. We're doing
+         * better, since we're coarser grain. But still, as timing goes,
+         * this means that we should be prepared to have a roughly linear
+         * curve.
+         */
         if (kh <= kl + 1) return;
-        if (tvec[kh] - tvec[kl] <= 0.1 * tvec[kl]) return;
+        double tl = tvec[kl];
+        double th = tvec[kh];
+        if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
         tvec[k] = CALL_MEMBER_FN(*this, F)(k);
+        double tk = tvec[k];
+        double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
+        if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
         complete_tvec(tvec, F, kl, k);
         complete_tvec(tvec, F, k, kh);
     }
