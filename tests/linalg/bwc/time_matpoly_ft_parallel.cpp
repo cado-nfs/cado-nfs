@@ -3,6 +3,7 @@
 #include "lingen_matpoly_ft.hpp"
 #include "utils.h"
 #include "gmp_aux.h"
+#include "lingen_substep_characteristics.hpp"
 
 struct matpoly_checker_base {
     abfield ab;
@@ -109,6 +110,39 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         return tt / n;
     }
 
+    void doit_mul(size_t L) {
+        typedef lingen_substep_characteristics<op_mul<fft_type>> X_t;
+        size_t LE = L / 2;
+        size_t Lpi = m * LE / (m + n);
+        X_t X(ab, rstate,
+                0,      /* not used -- this field should probably go away
+                           anyway */
+                m+n, m+n, m+n,
+                Lpi, Lpi, Lpi+Lpi-1);
+        X.fill_tvec(&X_t::measure_dft_raw , "dft");
+        X.fill_tvec(&X_t::measure_ift_raw , "ift");
+        X.fill_tvec(&X_t::measure_conv_raw, "conv");
+    }
+
+    void doit_mp(size_t L) {
+        typedef lingen_substep_characteristics<op_mp<fft_type>> X_t;
+        size_t LE = L / 2;
+        size_t Lpi = m * LE / (m + n);
+        X_t X(ab, rstate,
+                0,      /* not used -- this field should probably go away
+                           anyway */
+                m, m+n, m+n,
+                LE + Lpi, Lpi, LE + 1);
+        X.fill_tvec(&X_t::measure_dft_raw , "dft");
+        X.fill_tvec(&X_t::measure_ift_raw , "ift");
+        X.fill_tvec(&X_t::measure_conv_raw, "conv");
+    }
+
+    void doit(size_t L) {
+        doit_mp(L);
+        doit_mul(L);
+    }
+
     /*
     int mp_and_mp_caching_are_consistent() {
         matpoly P(ab, m,   n, len1);
@@ -202,23 +236,28 @@ int main(int argc, char * argv[])
 
     matpoly_checker_base checker(p, m, n, len1, len2, rstate);
 
+    size_t L = len1;
 #ifdef SELECT_MPFQ_LAYER_u64k1
     {
         matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
         checker_ft.time_dft(thr);
+        checker_ft.doit(L);
     }
     {
         matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
         checker_ft.time_dft(thr);
+        checker_ft.doit(L);
     }
     {
         matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
         checker_ft.time_dft(thr);
+        checker_ft.doit(L);
     }
 #else
     {
         matpoly_checker_ft<fft_transform_info> checker_ft(checker);
         checker_ft.time_dft(thr);
+        checker_ft.doit(L);
     }
 #endif
 

@@ -1425,3 +1425,4 @@ linalg/bwc/lingen_bmstatus.hpp
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 linalg/bwc/README.IntelMPI
 linalg/bwc/README.OpenMPI
+linalg/bwc/lingen_substep_characteristics.hpp
