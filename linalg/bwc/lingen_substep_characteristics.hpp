@@ -113,10 +113,6 @@ struct lingen_substep_characteristics {
         std::vector<double> concurrent_timings;
         bool counted_as_parallel = false;
         unsigned int max_parallel() const { return concurrent_timings.size() - 1; }
-        public:
-        struct cannot : public std::exception {
-            const char * what() const noexcept override { return "cannot do this level of parallelism"; }
-        };
         private:
         double get_concurrent_time(unsigned int k) {
             /* How long does it take (WCT) to do k operations in parallel ? */
@@ -130,7 +126,7 @@ struct lingen_substep_characteristics {
              * allow a linear regression.
              */
             ASSERT_ALWAYS(k > 0);
-            if (k > max_parallel()) throw cannot();
+            ASSERT_ALWAYS(k <= max_parallel());
             unsigned int kl=1, kh=1;
             double tl=t, th=t;
             for(unsigned int i = 1 ; i <= k ; i++) {
@@ -197,7 +193,7 @@ struct lingen_substep_characteristics {
              *
              * Note that T should really be max_threads().
              */
-            if (T > max_parallel()) throw cannot();
+            T = std::min(T, max_parallel());
             unsigned int qk = k / T;
             unsigned int rk = k - qk * T;
             /* get_concurrent_time returns the wall-clock time needed to
@@ -249,6 +245,8 @@ struct lingen_substep_characteristics {
             size_t R = U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
             R += U.get_transform_ram();
             unsigned int n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (unsigned int) max_threads());
             if (n == 0) throw std::overflow_error("not enough RAM");
             return n;
         }
@@ -270,6 +268,8 @@ struct lingen_substep_characteristics {
             size_t R = U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
             R += U.get_transform_ram();
             unsigned int n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (unsigned int) max_threads());
             if (n == 0) throw std::overflow_error("not enough RAM");
             return n;
         }
@@ -293,6 +293,8 @@ struct lingen_substep_characteristics {
         unsigned int max_parallel() {
             /* for k = nparallel, we need 2k+1 transforms in ram */
             unsigned int n = (P.available_ram / U.get_transform_ram() - 1) / 2;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (unsigned int) max_threads());
             if (n == 0) throw std::overflow_error("not enough RAM");
             return n;
         }
@@ -374,43 +376,72 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 
     private:
+    template<typename T>
+    parallelizable_timing get_ft_time_from_cache_or_recompute(T F, typename cache_value_type::value_type & store) const
+    {
+        if (!store.empty()) {
+            /* what do we have in cache, to start with ? We need to know how
+             * many threads max were considered at the time when the tuning
+             * was made.
+             */
+            unsigned int th_cache = 0;
+            for(auto const & x : store) {
+                if (x.first > th_cache)
+                    th_cache = x.first;
+            }
+            /* How many threads do we support max on the current platform ?
+             * This is not necessarily equal.
+             */
+            if (F.max_parallel() == th_cache) {
+                std::vector<double> tvec(th_cache + 1, -1);
+                for(auto const & x : store) {
+                    tvec[x.first] = x.second;
+                }
+                return parallelizable_timing(tvec);
+            }
+            std::cout << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
+        }
+
+        std::vector<double> tvec = fill_tvec(F);
+        for(unsigned int i = 1 ; i < tvec.size() ; i++) {
+            if (tvec[i] >= 0) store.push_back( { i, tvec[i] } );
+        }
+        return parallelizable_timing(tvec);
+    }
+
     std::array<parallelizable_timing, 4> get_ft_times(pc_t const& P, tc_t & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         
-        unsigned int TMAX = max_threads();
-
-        if (C.has(K)) {
-            std::array<parallelizable_timing, 4> res;
-            for(unsigned int i = 0 ; i < 4 ; i++) {
-                std::vector<double> tvec(TMAX + 1, -1);
-                for(auto const & x : C[K][i])
-                    if (x.first < tvec.size())
-                        tvec[x.first] = x.second;
-                res[i] = parallelizable_timing(tvec);
-            }
-            return res;
-        }
-
-        std::vector<double> tvec_dft = fill_tvec(microbench_dft(P, *this));
-        std::vector<double> tvec_ift = fill_tvec(microbench_ift(P, *this));
-        std::vector<double> tvec_conv= fill_tvec(microbench_conv(P, *this));
-
+        std::array<parallelizable_timing, 4> res;
         cache_value_type cached_res;
-        for(unsigned int i = 1 ; i <= TMAX ; i++) {
-            if (tvec_dft[i] >= 0) cached_res[0].push_back( { i, tvec_dft[i] } );
-            if (tvec_dft[i] >= 0) cached_res[1].push_back( { i, tvec_dft[i] } );
-            if (tvec_conv[i] >= 0) cached_res[2].push_back( { i, tvec_conv[i] } );
-            if (tvec_ift[i] >= 0) cached_res[3].push_back( { i, tvec_ift[i] } );
+
+        if (C.has(K))
+            cached_res = C[K];
+
+        {
+            microbench_dft F(P, *this);
+            res[0] = get_ft_time_from_cache_or_recompute(F, cached_res[0]);
+            res[1] = res[0];
+            cached_res[1] = cached_res[0];
         }
 
+        {
+            microbench_ift F(P, *this);
+            res[2] = get_ft_time_from_cache_or_recompute(F, cached_res[2]);
+        }
+
+        {
+            microbench_conv F(P, *this);
+            res[3] = get_ft_time_from_cache_or_recompute(F, cached_res[3]);
+        }
+
+        /* A priori this is either all-fresh or all-old. But nothing in
+         * the code checks that the situation is indeed the same for the
+         * four items.
+         */
         C[K] = cached_res;
 
-        parallelizable_timing tt_dft0(tvec_dft);
-        parallelizable_timing tt_dft2(tvec_dft);
-        parallelizable_timing tt_ift(tvec_ift);
-        parallelizable_timing tt_conv(tvec_conv);
-
-        return {{ tt_dft0, tt_dft2, tt_conv, tt_ift }};
+        return res;
     }/*}}}*/
 
     public:
