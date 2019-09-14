@@ -5,10 +5,9 @@
 #include "timing.h"     /* weighted_double */
 #include "lingen_round_operand_size.hpp"
 
-/* This object is passed as a companion info to a call
- * of bw_biglingen_recursive ; it is computed by the code in
- * plingen-tuning.cpp
- * but once tuning is over, it is essentially fixed.
+/* This object is passed as a companion info to a call of
+ * bw_biglingen_recursive ; it is computed by the code in
+ * plingen-tuning.cpp but once tuning is over, it is essentially fixed.
  */
 
 struct lingen_call_companion {

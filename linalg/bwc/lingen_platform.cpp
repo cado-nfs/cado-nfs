@@ -4,6 +4,18 @@
 #endif
 #include "lingen_platform.hpp"
 
+/* TODO: fetch data from hwloc */
+
+/* TODO tuning_XXX here are mostly leftovers, they should go. OTOH, this
+ * platform class is where we should declare, parse, and host the mpi and
+ * thr parameters.
+ *
+ * As to tuning specifics, the question is if/how we retain the
+ * posibility to compute the optimal schedules on a machine given a cache
+ * that was computed elsewhere. A priori, this all remains possible, but
+ * hasn't been used much. At least we should bear this in mind when using
+ * hwloc here, because this makes a difference.
+ */
 void lingen_platform::lookup_parameters(cxx_param_list & pl) {
     param_list_lookup_string(pl, "max_ram");
     param_list_lookup_string(pl, "tuning_thr");

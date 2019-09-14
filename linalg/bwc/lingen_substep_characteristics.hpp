@@ -2,15 +2,23 @@
 #define LINGEN_SUBSTEP_CHARACTERISTICS_HPP_
 
 #include <sstream>
+#include "cxx_mpz.hpp"
 #include "fmt/format.h"
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
 #include "lingen_tuning_cache.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "lingen_call_companion.hpp"
 
+/* This file is an offspring from lingen_tuning.cpp - some of it is not
+ * really polished to the expected level of a usable interface. It
+ * happens to be also used by the binary
+ * time_matpoly_ft_parallel_${gfp_layer}
+ */
 template<typename OP>
 struct lingen_substep_characteristics {
+    typedef lingen_substep_characteristics<OP> ch_t;
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
     typedef lingen_tuning_cache tc_t;
@@ -63,10 +71,10 @@ struct lingen_substep_characteristics {
         transform_ram = op.get_transform_ram();
     }/*}}}*/
 
-    bool has_cached_time(tc_t const & C) const {
+    bool has_cached_time(tc_t const & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         return C.has(K);
-    }
+    }/*}}}*/
 
     private:
     static inline int max_threads() {
@@ -77,10 +85,38 @@ struct lingen_substep_characteristics {
 #endif
     }
 
+    /* tl;dr: array of doubles is input, weighted_double is output.
+     *
+     * A parallelizable timing is created from an array of
+     * micro-measurements that tell how long (WCT) it takes to do k times
+     * the same operation in parallel, for k less than some bound
+     * (typically the number of threads, but it can be less if RAM
+     * allows only so many operations in parallel).
+     *
+     * We _use_ a parallelizable timing in the form of the parent
+     * weighted_double, essentially. This carries the info on the
+     * _amortized time_ (t) it takes to do some number (n) of operations.
+     * Originally t is initialized to what the array of concurrent
+     * timings says of what happens for just one thread.
+     *
+     * The gist of it is that we have the .parallelize() method. It
+     * changes the underlying weighted_double to reflect the amortized
+     * timing, again, but when some number of operations are done in
+     * parallel.
+     *
+     * This is in contrast with operator*(), which counts more operations
+     * to do but not in parallel.
+     */
     class parallelizable_timing : public weighted_double/*{{{*/
     {
         std::vector<double> concurrent_timings;
         bool counted_as_parallel = false;
+        unsigned int max_parallel() const { return concurrent_timings.size() - 1; }
+        public:
+        struct cannot : public std::exception {
+            const char * what() const noexcept override { return "cannot do this level of parallelism"; }
+        };
+        private:
         double get_concurrent_time(unsigned int k) {
             /* How long does it take (WCT) to do k operations in parallel ? */
             /* Ideally, this should be almost constant as long as k is
@@ -93,7 +129,7 @@ struct lingen_substep_characteristics {
              * allow a linear regression.
              */
             ASSERT_ALWAYS(k > 0);
-            ASSERT_ALWAYS(k <= (unsigned int) max_threads());
+            if (k > max_parallel()) throw cannot();
             unsigned int kl=1, kh=1;
             double tl=t, th=t;
             for(unsigned int i = 1 ; i <= k ; i++) {
@@ -113,21 +149,21 @@ struct lingen_substep_characteristics {
         }
         public:
         parallelizable_timing(std::vector<double> const & c) : concurrent_timings(c) {
-            ASSERT_ALWAYS(c.size() == (size_t) max_threads() + 1);
+            // ASSERT_ALWAYS(c.size() == (size_t) max_threads() + 1);
             this->n = 1;
             this->t = concurrent_timings[1];
         }
-        parallelizable_timing(unsigned int n, double d)
-            : concurrent_timings(max_threads()+1, -1)
-        {
-            this->n = n;
-            this->t = d;
-            /* for safety */
-            concurrent_timings[1] = d;
-            concurrent_timings[max_threads()] = d;
-        }
-        parallelizable_timing(double d) : parallelizable_timing(1, d) {}
-        parallelizable_timing() : parallelizable_timing(0, 0) {}
+        /* This ctor is only for something that we will _never_
+         * parallelize, so that we have no use for an array of
+         * concurrent_timings.
+         * In other cases, we insist on providing the
+         * concurrent_timings array, via the other ctor.
+         */
+        parallelizable_timing(double d)
+            : weighted_double { 1, d }
+            , concurrent_timings { d } {}
+        parallelizable_timing() : weighted_double { 0, 0 } {}
+
         parallelizable_timing& operator*=(unsigned int x) {
             n *= x;
             return *this;
@@ -160,6 +196,7 @@ struct lingen_substep_characteristics {
              *
              * Note that T should really be max_threads().
              */
+            if (T > max_parallel()) throw cannot();
             unsigned int qk = k / T;
             unsigned int rk = k - qk * T;
             /* get_concurrent_time returns the wall-clock time needed to
@@ -202,50 +239,78 @@ struct lingen_substep_characteristics {
      * parallel calls.
      */
 
-    double measure_dft_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
-        matpoly a(ab, nparallel, k, asize);
-        a.fill_random(asize, rstate);
-        matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
-        double tt = -wct_seconds();
-        for(unsigned int i = 0 ; i < n ; i++) {
-            submatrix_range R(0,i % k,a.m,1);
-            matpoly_ft<typename OP::FFT>::dft(ta.view(R), a.view(R));
+    struct microbench_dft { /*{{{*/
+        pc_t P;
+        ch_t const & U;
+        static constexpr const char * name = "dft";
+        microbench_dft(pc_t const& P, ch_t const & U) : P(P), U(U) {}
+        unsigned int max_parallel() {
+            size_t R = U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
+            R += U.get_transform_ram();
+            unsigned int n = P.available_ram / R;
+            if (n == 0) throw std::overflow_error("not enough RAM");
+            return n;
         }
-        return tt + wct_seconds();
-    }/*}}}*/
+        double operator()(unsigned int nparallel) {
+            matpoly a(U.ab, nparallel, 1, U.asize);
+            a.fill_random(U.asize, U.rstate);
+            matpoly_ft<typename OP::FFT> ta(a.m, a.n, U.op.fti);
+            double tt = -wct_seconds();
+            matpoly_ft<typename OP::FFT>::dft(ta, a);
+            return tt + wct_seconds();
+        }
+    };/*}}}*/
+    struct microbench_ift { /*{{{*/
+        pc_t P;
+        ch_t const & U;
+        static constexpr const char * name = "ift";
+        microbench_ift(pc_t const& P, ch_t const & U) : P(P), U(U) {}
+        unsigned int max_parallel() {
+            size_t R = U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
+            R += U.get_transform_ram();
+            unsigned int n = P.available_ram / R;
+            if (n == 0) throw std::overflow_error("not enough RAM");
+            return n;
+        }
+        double operator()(unsigned int nparallel) {
+            matpoly c(U.ab, nparallel, 1, U.csize);
+            matpoly_ft<typename OP::FFT> tc(c.m, c.n, U.op.fti);
+            /* This is important, since otherwise the inverse transform won't
+             * work */
+            c.set_size(U.csize);
+            tc.zero(); /* would be .fill_random(rstate) if we had it */
+            double tt = -wct_seconds();
+            matpoly_ft<typename OP::FFT>::ift(c, tc);
+            return tt + wct_seconds();
+        }
+    };/*}}}*/
+    struct microbench_conv { /*{{{*/
+        pc_t P;
+        ch_t const & U;
+        static constexpr const char * name = "conv";
+        microbench_conv(pc_t const& P, ch_t const & U) : P(P), U(U) {}
+        unsigned int max_parallel() {
+            /* for k = nparallel, we need 2k+1 transforms in ram */
+            unsigned int n = (P.available_ram / U.get_transform_ram() - 1) / 2;
+            if (n == 0) throw std::overflow_error("not enough RAM");
+            return n;
+        }
+        double operator()(unsigned int nparallel) {
+            matpoly c(U.ab, nparallel, 1, U.csize);
+            matpoly_ft<typename OP::FFT> tc(c.m, c.n, U.op.fti);
+            /* This is important, since otherwise the inverse transform won't
+             * work */
+            c.set_size(U.csize);
+            tc.zero(); /* would be .fill_random(rstate) if we had it */
+            double tt = -wct_seconds();
+            matpoly_ft<typename OP::FFT>::ift(c, tc);
+            return tt + wct_seconds();
+        }
+    };/*}}}*/
 
-    double measure_ift_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
-        matpoly c(ab, nparallel, k, csize);
-        matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
-        /* This is important, since otherwise the inverse transform won't
-         * work */
-        c.set_size(csize);
-        tc.zero(); /* would be .fill_random(rstate) if we had it */
-        double tt = -wct_seconds();
-        for(unsigned int i = 0 ; i < n ; i++) {
-            submatrix_range R(0,i % k,c.m,1);
-            matpoly_ft<typename OP::FFT>::ift(c.view(R), tc.view(R));
-        }
-        return tt + wct_seconds();
-    }/*}}}*/
-
-    double measure_conv_raw(unsigned int nparallel, unsigned int n, unsigned int k) const {/*{{{*/
-        matpoly_ft<typename OP::FFT> ta(nparallel, k, op.fti);
-        matpoly_ft<typename OP::FFT> tb(k, 1, op.fti);
-        matpoly_ft<typename OP::FFT> tc(nparallel, 1, op.fti);
-        ta.zero(); /* would be .fill_random(rstate) if we had it */
-        tb.zero(); /* would be .fill_random(rstate) if we had it */
-        double tt = -wct_seconds();
-        for(unsigned int i = 0 ; i < n ; i++) {
-            submatrix_range Ra(0,i%k,ta.m,1);
-            submatrix_range Rb(i%k,0,tb.n,1);
-            matpoly_ft<typename OP::FFT>::mul(tc, ta.view(Ra), tb.view(Rb));
-        }
-        return tt + wct_seconds();
-    }/*}}}*/
     private:
-
-    void complete_tvec(std::ostream& os, std::vector<double> & tvec, raw_timer_member F, const char * name, unsigned int kl, unsigned int kh) const
+    template<typename T>
+    void complete_tvec(std::ostream& os, std::vector<double> & tvec, T & F, unsigned int kl, unsigned int kh) const/*{{{*/
     {
         /* The ideal expected behaviour is that this should be constant.
          * But it's not, since flint itself uses openmp. We're doing
@@ -258,41 +323,47 @@ struct lingen_substep_characteristics {
         double th = tvec[kh];
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
-        double tk = CALL_MEMBER_FN(*this, F)(k, 1, 1);
-        os << fmt::format(" {}:{:.2f}", k, tk);
+        double tk = F(k);
+        os << fmt::format(" {}:{:.2g}", k, tk);
         tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
         if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
-        complete_tvec(os, tvec, F, name, kl, k);
-        complete_tvec(os, tvec, F, name, k, kh);
-    }
+        complete_tvec(os, tvec, F, kl, k);
+        complete_tvec(os, tvec, F, k, kh);
+    }/*}}}*/
 
     public:
-    std::vector<double> fill_tvec(raw_timer_member F, const char * name) const {
-        unsigned int TMAX = max_threads();
-        std::vector<double> tvec(TMAX + 1, -1);
+    template<typename T>
+    std::vector<double> fill_tvec(T F) const {/*{{{*/
         std::stringstream os;
-
-        unsigned int kl = 1;
-        double tl = CALL_MEMBER_FN(*this, F)(kl, 1, 1);
-        tvec[kl] = tl;
-        os << fmt::format(" {}:{:.2f}", kl, tl);
-
-        unsigned int kh=TMAX;
-        if (kh > 1) {
-            double th = CALL_MEMBER_FN(*this, F)(kh, 1, 1);
-            tvec[kh] = th;
-            os << fmt::format(" {}:{:.2f}", kh, th);
+        unsigned int TMAX = max_threads();
+        if (F.max_parallel() < TMAX) {
+            TMAX = F.max_parallel();
+            os << fmt::format(" [capped to {}]", TMAX);
         }
 
-        complete_tvec(os, tvec, F, name, kl, kh);
+        std::vector<double> tvec(TMAX + 1, -1);
 
-        printf("# wct for %s by nthreads:%s\n", name, os.str().c_str());
+        unsigned int kl = 1;
+        double tl = F(kl);
+        tvec[kl] = tl;
+        os << fmt::format(" {}:{:.2g}", kl, tl);
+
+        unsigned int kh = TMAX;
+        if (kh > 1) {
+            double th = F(kh);
+            tvec[kh] = th;
+            os << fmt::format(" {}:{:.2g}", kh, th);
+        }
+
+        complete_tvec(os, tvec, F, kl, kh);
+
+        printf("# wct for %s by nthreads:%s\n", F.name, os.str().c_str());
         return tvec;
-    }
+    }/*}}}*/
 
-
-    std::array<parallelizable_timing, 4> get_ft_times(tc_t & C) const {/*{{{*/
+    private:
+    std::array<parallelizable_timing, 4> get_ft_times(pc_t const& P, tc_t & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         
         unsigned int TMAX = max_threads();
@@ -309,9 +380,9 @@ struct lingen_substep_characteristics {
             return res;
         }
 
-        std::vector<double> tvec_dft = fill_tvec(&lingen_substep_characteristics::measure_dft_raw , "dft");
-        std::vector<double> tvec_ift = fill_tvec(&lingen_substep_characteristics::measure_ift_raw , "ift");
-        std::vector<double> tvec_conv= fill_tvec(&lingen_substep_characteristics::measure_conv_raw, "conv");
+        std::vector<double> tvec_dft = fill_tvec(microbench_dft(P, *this));
+        std::vector<double> tvec_ift = fill_tvec(microbench_ift(P, *this));
+        std::vector<double> tvec_conv= fill_tvec(microbench_conv(P, *this));
 
         cache_value_type cached_res;
         for(unsigned int i = 1 ; i <= TMAX ; i++) {
@@ -333,76 +404,47 @@ struct lingen_substep_characteristics {
 
     public:
     size_t get_transform_ram() const { return transform_ram; }
-    std::tuple<size_t, size_t, size_t> get_operand_ram() const {
+    /* {{{ std::tuple<size_t, size_t, size_t> get_operand_ram() const {
         return {
             n0 * n1 * asize * mpz_size(p) * sizeof(mp_limb_t),
             n1 * n2 * bsize * mpz_size(p) * sizeof(mp_limb_t),
             n0 * n2 * csize * mpz_size(p) * sizeof(mp_limb_t) };
     }
-    int mesh_inner_size(pc_t const & P) const {
+    *//*}}}*/
+    int mesh_inner_size(pc_t const & P) const {/*{{{*/
         return P.r;
-    }
-    subdivision mpi_split0(pc_t const & P) const {
+    }/*}}}*/
+    subdivision mpi_split0(pc_t const & P) const {/*{{{*/
         return subdivision(n0, mesh_inner_size(P));
-    }
-    subdivision mpi_split1(pc_t const & P) const {
+    }/*}}}*/
+    subdivision mpi_split1(pc_t const & P) const {/*{{{*/
         return subdivision(n1, mesh_inner_size(P));
-    }
-    subdivision mpi_split2(pc_t const & P) const {
+    }/*}}}*/
+    subdivision mpi_split2(pc_t const & P) const {/*{{{*/
         return subdivision(n2, mesh_inner_size(P));
-    }
-    subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {
+    }/*}}}*/
+    subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {/*{{{*/
         return subdivision(mpi_split0(P).block_size_upper_bound(), shrink0);
-    }
-    subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {
+    }/*}}}*/
+    subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {/*{{{*/
         return subdivision(mpi_split2(P).block_size_upper_bound(), shrink2);
-    }
-    subdivision shrink_split0(pc_t const & P, sc_t const & S) const {
+    }/*}}}*/
+    subdivision shrink_split0(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split0(P, S.shrink0);
-    }
-    subdivision shrink_split2(pc_t const & P, sc_t const & S) const {
+    }/*}}}*/
+    subdivision shrink_split2(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split2(P, S.shrink2);
-    }
-    bool compute_result_by_cols(pc_t const & P, sc_t const & S) const {
-        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
-        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        ASSERT_ALWAYS(S.batch[0] == nrs0 || S.batch[2] == nrs2);
-        return S.batch[0] == nrs0;
-    }
+    }/*}}}*/
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
         return get_transform_ram() * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
     }/*}}}*/
 
-        private:
-    /* This returns the communication time _per call_ */
-    std::pair<parallelizable_timing, parallelizable_timing> get_comm_time(pc_t const & P, sc_t const & S) const { /* {{{ */
-        /* TODO: maybe include some model of latency... */
-
-        /* Each of the r*r nodes has local matrices size (at most)
-         * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
-         * care more about the shrunk submatrices, though */
-        unsigned int nr1 = mpi_split1(P).block_size_upper_bound();
-        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
-        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-
-        /* The shrink parameters will divide the size of the local
-         * matrices we consider by numbers shrink0 and shrink2. This
-         * increases the time, and decreases the memory footprint */
-        unsigned int ns0 = nrs0 * mesh_inner_size(P);
-        unsigned int ns2 = nrs2 * mesh_inner_size(P);
-
-        parallelizable_timing T = get_transform_ram() / P.mpi_xput;
-        T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
-        T *= S.shrink0 * S.shrink2;
-        return { T * ns0, T * ns2 };
-    }/*}}}*/
-
-    public:
+    private:
 
     std::array<parallelizable_timing, 6> get_call_time_backend(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
-        auto ft = get_ft_times(C);
+        auto ft = get_ft_times(P, C);
         /* These are just base values, we'll multiply them later on */
         parallelizable_timing T_dft0 = ft[0];
         parallelizable_timing T_dft2 = ft[1];
@@ -419,23 +461,17 @@ struct lingen_substep_characteristics {
          * increases the time, and decreases the memory footprint */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        // unsigned int ns0 = r * nrs0;
-        // unsigned int ns2 = r * nrs2;
+        unsigned int ns0 = nrs0 * mesh_inner_size(P);
+        unsigned int ns2 = nrs2 * mesh_inner_size(P);
 
         /* The 1-threaded timing will be obtained by setting T=batch=1.  */
 
         /* Locally, we'll add together r matrices of size nrs0*nrs2,
          * which will be computed as products of vectors of size
-         * nrs0*batch and batch*nrs2. The operation will be repeated
-         * nr1/batch * times.
-         */
-
-        /* First, we must decide on the scheduling order for the loop.
-         * Either we compute, collect, and store all transforms on side
-         * 0, and then use the index on side 0 as the inner loop (so that
-         * the transforms on side 0 stay live much longer), or the
-         * converse. This depends on which size has the larger number of
-         * transforms.
+         * batch[0]*batch[1] and batch[1]*batch[2]. (with wither
+         * batch[0]==nrs0 or batch[2]==nrs2). The operation will be
+         * repeated nrs0/batch[0] * nr1/batch[1] * nrs2/batch[2] times
+         * (not all multipliers apply to everyone).
          */
 
         T_dft0.parallelize(S.batch[0] * S.batch[1], P.T);
@@ -447,7 +483,8 @@ struct lingen_substep_characteristics {
         T_dft2 *= iceildiv(nr1, S.batch[1]);
 
         T_conv.parallelize(S.batch[0] * S.batch[2], P.T);
-        T_conv *= P.r * iceildiv(nr1, S.batch[1]) * S.batch[1];
+        T_conv *= mesh_inner_size(P) * S.batch[1];
+        T_conv *= iceildiv(nr1, S.batch[1]) * S.batch[1];
         T_conv *= iceildiv(nrs0, S.batch[0]);
         T_conv *= iceildiv(nrs2, S.batch[2]);
 
@@ -455,19 +492,26 @@ struct lingen_substep_characteristics {
         T_ift *= iceildiv(nrs0, S.batch[0]);
         T_ift *= iceildiv(nrs2, S.batch[2]);
 
+        /* Now the communication time _per call_ */
+        /* TODO: maybe include some model of latency... */
+        parallelizable_timing T = get_transform_ram() / P.mpi_xput;
+        T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
+        parallelizable_timing T_comm0 = T * ns0;
+        parallelizable_timing T_comm2 = T * ns2;
+
         T_dft0 *= S.shrink0 * S.shrink2;
         T_dft2 *= S.shrink0 * S.shrink2;
         T_conv *= S.shrink0 * S.shrink2;
         T_ift  *= S.shrink0 * S.shrink2;
-
-        parallelizable_timing T_comm0;
-        parallelizable_timing T_comm2;
-        std::tie(T_comm0, T_comm2) = get_comm_time(P, S);
+        T_comm0 *= S.shrink0 * S.shrink2;
+        T_comm2 *= S.shrink0 * S.shrink2;
 
         /* This is for _one_ call only (one node in the tree).
          * We must apply multiplier coefficients (typically 1<<depth) */
         return {{ T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 }};
     }/*}}}*/
+
+    public:
 
 
     lingen_call_companion::mul_or_mp_times get_companion(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
@@ -490,22 +534,23 @@ struct lingen_substep_characteristics {
         D.csize = csize;
         return D;
     }/*}}}*/
-    double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const {
+    double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const {/*{{{*/
         auto A = get_call_time_backend(P, S, C);
         double tt = 0;
         for(auto const & a : A)
             tt = tt + a;
         return tt;
-    }
+    }/*}}}*/
 
-    struct schedule_sorter {
+    private:
+    struct schedule_sorter {/*{{{*/
         lingen_substep_characteristics const & U;
         lingen_platform const & P;
         lingen_tuning_cache & C;
         schedule_sorter(lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C) :
             U(U), P(P), C(C)
         {}
-        bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {
+        bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {/*{{{*/
             double ta = U.get_call_time(P, a, C);
             double tb = U.get_call_time(P, b, C);
             if (ta != tb) return ta < tb;
@@ -524,11 +569,13 @@ struct lingen_substep_characteristics {
             if (Ba != Bb)
                 return Ba > Bb;
             return false;
-        }
-    };
-    schedule_sorter get_schedule_sorter(lingen_platform const & P, lingen_tuning_cache & C) const {
-        return schedule_sorter(*this, P, C);
-    }
+        }/*}}}*/
+    };/*}}}*/
+
+    public:
+    void sort_schedules(std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, lingen_tuning_cache & C) const {/*{{{*/
+        sort(schedules.begin(), schedules.end(), schedule_sorter(*this, P, C));
+    }/*}}}*/
 
     double get_and_report_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         const char * step = OP::name;

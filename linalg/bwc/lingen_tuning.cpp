@@ -192,8 +192,7 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
         U.get_call_time(P, S, C);
     }
 
-    std::sort(all_schedules.begin(), all_schedules.end(),
-            U.get_schedule_sorter(P, C));
+    U.sort_schedules(all_schedules, P, C);
 
     lingen_substep_schedule S = all_schedules.front();
     return S;
@@ -392,9 +391,13 @@ struct lingen_tuner {
             size_t L = std::get<0>(cw);
             if (!recursion_makes_sense(L)) continue;
             auto step = mp_substep(cw);
-            lingen_substep_schedule S = optimize(step, P, C, reserved);
-            if (print && !printed_mem_once++) {
+            bool print_here = print && !printed_mem_once++;
+            if (print_here)
                 step.report_size_stats_human();
+
+            lingen_substep_schedule S = optimize(step, P, C, reserved);
+
+            if (print_here) {
                 step.get_and_report_call_time(P, S, C);
             } else {
                 step.get_call_time(P, S, C);
