@@ -1,7 +1,8 @@
 #ifndef LINGEN_SUBSTEP_CHARACTERISTICS_HPP_
 #define LINGEN_SUBSTEP_CHARACTERISTICS_HPP_
 
-#include <sstream>
+#include <iostream>
+
 #include "cxx_mpz.hpp"
 #include "fmt/format.h"
 #include "lingen_platform.hpp"
@@ -325,6 +326,7 @@ struct lingen_substep_characteristics {
         unsigned int k = (kl + kh) / 2;
         double tk = F(k);
         os << fmt::format(" {}:{:.2g}", k, tk);
+        os.flush();
         tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
         if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
@@ -335,7 +337,13 @@ struct lingen_substep_characteristics {
     public:
     template<typename T>
     std::vector<double> fill_tvec(T F) const {/*{{{*/
-        std::stringstream os;
+        /* can't make my mind as to whether I should just output that to
+         * the terminal, or stow it in a string first...
+         */
+        std::ostream& os(std::cout);
+
+        os << "# wct for " << F.name << " by nthreads:";
+
         unsigned int TMAX = max_threads();
         if (F.max_parallel() < TMAX) {
             TMAX = F.max_parallel();
@@ -348,17 +356,20 @@ struct lingen_substep_characteristics {
         double tl = F(kl);
         tvec[kl] = tl;
         os << fmt::format(" {}:{:.2g}", kl, tl);
+        os.flush();
+
 
         unsigned int kh = TMAX;
         if (kh > 1) {
             double th = F(kh);
             tvec[kh] = th;
             os << fmt::format(" {}:{:.2g}", kh, th);
+            os.flush();
         }
 
         complete_tvec(os, tvec, F, kl, kh);
 
-        printf("# wct for %s by nthreads:%s\n", F.name, os.str().c_str());
+        os << std::endl;
         return tvec;
     }/*}}}*/
 
