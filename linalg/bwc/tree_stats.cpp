@@ -234,6 +234,8 @@ void tree_stats::print(unsigned int)
 
 void tree_stats::enter(std::string const & func, unsigned int inputsize, int total_ncalls, bool leaf)
 {
+    if (func.find(" ") != std::string::npos)
+        abort();
     int rank;
     if (depth == 0)
         tree_total_breadth = inputsize;
@@ -295,6 +297,9 @@ void tree_stats::leave()
     F.planned_calls++;  /* just for consistency */
     F.ncalled++;
 
+#define xxxFORCE_PRINT_ALWAYS
+
+#ifndef FORCE_PRINT_ALWAYS
     /* Is it any useful to print something new ? */
     if (now < last_print_time + 2) return;
 
@@ -307,6 +312,7 @@ void tree_stats::leave()
     }
 
     if (!needprint) return;
+#endif
 
     last_print_time = now;
     last_print_position = make_pair(level, F.ncalled);

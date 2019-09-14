@@ -458,8 +458,8 @@ struct cp_info {
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
     ~cp_info();
-    int save_aux_file(size_t pi_size, std::vector<unsigned int> const & delta, int done);
-    int load_aux_file(size_t * p_pi_size, std::vector<unsigned int> & delta, int * p_done);
+    bool save_aux_file(tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done);
+    bool load_aux_file(tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done);
     int load_data_file(matpoly & pi, size_t pi_size);
     int save_data_file(matpoly const & pi, size_t pi_size);
 };
@@ -492,68 +492,44 @@ cp_info::~cp_info()
     free(auxfile);
 }
 
-int cp_info::save_aux_file(size_t pi_size, std::vector<unsigned int> const & delta, int done)/*{{{*/
+bool cp_info::save_aux_file(tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
     unsigned int n = d.n;
     if (rank) return 1;
-    FILE * aux = fopen(auxfile, "w");
-    int rc;
-    if (aux == NULL) {
-        fprintf(stderr, "Warning: cannot open %s\n", auxfile);
-        return 0;
-    }
-    rc = fprintf(aux, "%zu\n", pi_size);
-    if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    for(unsigned int i = 0 ; i < m + n ; i++) {
-        rc = fprintf(aux, "%s%u", i?" ":"", delta[i]);
-        if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    }
-    rc = fprintf(aux, "\n");
-    if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    for(unsigned int i = 0 ; i < m + n ; i++) {
-        rc = fprintf(aux, "%s%d", i?" ":"", bm.lucky[i]);
-        if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    }
-    rc = fprintf(aux, "\n");
-    if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    rc = fprintf(aux, "%d\n", done);
-    if (rc <= 0) goto cp_info_save_aux_file_bailout;
-    rc = fclose(aux);
-    if (rc == 0) return 1;
-cp_info_save_aux_file_bailout:
-    fclose(aux);
-    unlink(auxfile);
-    return 0;
+    std::ofstream os(auxfile);
+    os << pi_size << "\n";
+    for(unsigned int i = 0 ; i < m + n ; i++) os << " " << delta[i];
+    os << "\n";
+    for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.lucky[i];
+    os << "\n";
+    os << done;
+    os << "\n";
+    os << stats;
+    bool ok = os.good();
+    if (!ok)
+        unlink(auxfile);
+    return ok;
 }/*}}}*/
 
-int cp_info::load_aux_file(size_t * p_pi_size, std::vector<unsigned int> & delta, int * p_done)/*{{{*/
+bool cp_info::load_aux_file(tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
     unsigned int n = d.n;
     if (rank) return 1;
-    FILE * aux = fopen(auxfile, "r");
-    int rc;
-    if (aux == NULL) {
-        // fprintf(stderr, "Warning: cannot open %s\n", auxfile);
-        return 0;
-    }
-    rc = fscanf(aux, "%zu", p_pi_size);
-    if (rc != 1) { fclose(aux); return 0; }
+    std::ifstream is(auxfile);
+    is >> pi_size;
     for(unsigned int i = 0 ; i < m + n ; i++) {
-        rc = fscanf(aux, "%u", &(delta[i]));
-        if (rc != 1) { fclose(aux); return 0; }
+        is >> delta[i];
     }
     for(unsigned int i = 0 ; i < m + n ; i++) {
-        rc = fscanf(aux, "%d", &(bm.lucky[i]));
-        if (rc != 1) { fclose(aux); return 0; }
+        is >> bm.lucky[i];
     }
-    rc = fscanf(aux, "%d", p_done);
-    if (rc != 1) { fclose(aux); return 0; }
-    rc = fclose(aux);
-    return rc == 0;
+    is >> done;
+    is >> stats;
+    return is.good();
 }/*}}}*/
 
 /* TODO: adapt for GF(2) */
@@ -599,7 +575,7 @@ cp_info_save_data_file_bailout:
     return 0;
 }/*}}}*/
 
-int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int * p_done)/*{{{*/
+int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
@@ -610,7 +586,7 @@ int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     size_t pi_size;
     /* Don't output a message just now, since after all it's not
      * noteworthy if the checkpoint file does not exist. */
-    int ok = cp.load_aux_file(&pi_size, delta, p_done);
+    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
         ok = cp.load_data_file(pi, pi_size);
@@ -631,7 +607,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     logline_begin(stdout, SIZE_MAX, "Saving %s%s",
             cp.datafile,
             cp.mpi ? " (MPI, scattered)" : "");
-    int ok = cp.save_aux_file(pi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.stats, pi.get_size(), delta, done);
     if (ok) ok = cp.save_data_file(pi, pi.get_size());
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
@@ -640,7 +616,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
 }/*}}}*/
 
 #ifdef ENABLE_MPI_LINGEN
-int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int * p_done)/*{{{*/
+int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -655,12 +631,12 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
     cp_info cp(bm, t0, t1, 1);
     ASSERT_ALWAYS(xpi.check_pre_init());
     size_t pi_size;
-    int ok = cp.load_aux_file(&pi_size, delta, p_done);
+    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
-    MPI_Bcast(p_done, 1, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
                 cp.datafile);
@@ -701,7 +677,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, t0, t1, 1);
-    int ok = cp.save_aux_file(xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.stats, xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (!ok && !rank) unlink(cp.auxfile);
     if (ok) {
@@ -721,7 +697,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     return ok;
 }/*}}}*/
 
-int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int * p_done)/*{{{*/
+int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
@@ -734,12 +710,12 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
     cp_info cp(bm, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     size_t pi_size;
-    int ok = cp.load_aux_file(&pi_size, delta, p_done);
+    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
-    MPI_Bcast(p_done, 1, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
                 cp.datafile);
@@ -802,7 +778,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     cp.datafile = cp.gdatafile;
     logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
             cp.datafile);
-    int ok = cp.save_aux_file(xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.stats, xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {
@@ -851,7 +827,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     return ok;
 }/*}}}*/
 
-int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int * p_done)/*{{{*/
+int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     /* read scattered checkpoint with higher priority if available,
      * because we like distributed I/O. Otherwise, read gathered
@@ -868,14 +844,14 @@ int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, u
     int scattered_ok = aux_ok && sdata_ok;
     MPI_Allreduce(MPI_IN_PLACE, &scattered_ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (scattered_ok) {
-        ok = load_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, delta, p_done);
+        ok = load_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, delta, done);
         if (ok) return ok;
     }
     int gdata_ok = rank || access(cp.gdatafile, R_OK) == 0;
     int gathered_ok = aux_ok && gdata_ok;
     MPI_Bcast(&gathered_ok, 1, MPI_INT, 0, bm.com[0]);
     if (gathered_ok) {
-        ok = load_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, delta, p_done);
+        ok = load_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, delta, done);
     }
     return ok;
 }/*}}}*/
@@ -1070,14 +1046,14 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 
     lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
 
-    if (load_checkpoint_file(bm, pi, t0, t1, delta, &done))
+    if (load_checkpoint_file(bm, pi, t0, t1, delta, done))
         return done;
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (!bm.recurse(E.get_size())) {
-        tree_stats::transition_sentinel dummy(bm.stats, "recursive threshold", E.get_size(), C.total_ncalls);
+        tree_stats::transition_sentinel dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
         done = bw_lingen_basecase(bm, pi, E, delta);
         bm.t_basecase += seconds();
@@ -1295,7 +1271,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     bool go_mpi = C.go_mpi;
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
-    if (load_mpi_checkpoint_file(bm, pi, t0, t1, delta, &done))
+    if (load_mpi_checkpoint_file(bm, pi, t0, t1, delta, done))
         return done;
 
     // fprintf(stderr, "Enter %s\n", __func__);
@@ -1307,7 +1283,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         /* This entails gathering E locally, computing pi locally, and
          * dispathing it back. */
 
-        tree_stats::transition_sentinel dummy(bm.stats, "mpi threshold", E.get_size(), C.total_ncalls);
+        tree_stats::transition_sentinel dummy(bm.stats, "mpi_threshold", E.get_size(), C.total_ncalls);
 
         matpoly sE(ab, m, b, E.get_size());
         matpoly spi;
