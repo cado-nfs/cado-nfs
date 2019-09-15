@@ -24,7 +24,7 @@ class subdivision {
     inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int i) const
     {
         unsigned int i0 = i * q + std::min(i, r);
-        return std::make_tuple(i0, i0 + nth_block_size(i0));
+        return std::make_tuple(i0, i0 + nth_block_size(i));
     }
     inline unsigned int block_size_upper_bound() const { return q + (r != 0); }
     inline unsigned int flatten(unsigned int idx, unsigned int pos) const {
