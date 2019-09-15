@@ -35,20 +35,37 @@ struct lingen_substep_schedule {
      * The outer loop, of size n1/r, is processed b1 steps at a time.
      */
     std::array<unsigned int, 3> batch;
+    private:
+    static constexpr const char * io_token_shrink = "shrink";
+    static constexpr const char * io_token_batch = "batch";
+    public:
 
     lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
 
     std::ostream& serialize(std::ostream& os) const
     {
-        return os << " " << shrink0 << " " << shrink2
-            << " " << batch[0] << " " << batch[1] << " " << batch[2];
+        os << " " << io_token_shrink << " " << shrink0 << " " << shrink2;
+        os << " " << io_token_batch << " " << batch[0] << " " << batch[1] << " " << batch[2];
+        return os;
     }
 
     std::istream& unserialize(std::istream& is)
     {
-        return is >> shrink0 >> shrink2
-            >> batch[0] >> batch[1] >> batch[2];
+        std::string s;
+        is >> s;
+        if (s != io_token_shrink) {
+            is.setstate(std::ios::failbit);
+            return is;
+        }
+        is >> shrink0 >> shrink2;
+        is >> s;
+        if (s != io_token_batch) {
+            is.setstate(std::ios::failbit);
+            return is;
+        }
+        is >> batch[0] >> batch[1] >> batch[2];
+        return is;
     }
 
     bool operator<(lingen_substep_schedule const & o) const {

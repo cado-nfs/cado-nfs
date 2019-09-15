@@ -17,19 +17,17 @@ struct lingen_hints : public std::map<lingen_call_companion::key, lingen_call_co
         for(is >> n ; is && n-- ; ) {
             key_type K;
             mapped_type M;
-            is >> K >> M;
+            is >> K;
+            is >> M;
             emplace(std::move(K), std::move(M));
         }
-        is >> tt_scatter_per_unit >> tt_gather_per_unit >> ipeak >> peak;
         return is;
     }
     std::ostream& serialize(std::ostream& os) const {
-        os << size();
+        os << size() << "\n";
         for(auto const & x : *this) {
-            os << " " << x.first << " " << x.second << "\n";
+            os << x.first << " " << x.second << "\n";
         }
-        os << " " << tt_scatter_per_unit << " " << tt_gather_per_unit << " " << ipeak << " " << peak;
-        os << "\n";
         return os;
     }
 };

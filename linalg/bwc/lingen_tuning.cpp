@@ -220,7 +220,7 @@ struct lingen_tuner {
     gmp_randstate_t rstate;
 
     const char * timing_cache_filename = NULL;
-    const char * results_filename = NULL;
+    const char * schedule_filename = NULL;
 
     /* stop measuring the time taken by the basecase when it is
      * more than this number times the time taken by the other
@@ -234,8 +234,8 @@ struct lingen_tuner {
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
         lingen_platform::declare_usage(pl);
-        param_list_decl_usage(pl, "tuning_results_filename",
-                "Save (and re-load if it exists) tuning results from this file");
+        param_list_decl_usage(pl, "tuning_schedule_filename",
+                "Save (and re-load if it exists) tuning schedule from this file");
         param_list_decl_usage(pl, "tuning_timing_cache_filename",
                 "Save (and re-load) timings for individual transforms in this file\n");
         param_list_decl_usage(pl, "basecase-keep-until",
@@ -244,7 +244,7 @@ struct lingen_tuner {
 
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
         lingen_platform::lookup_parameters(pl);
-        param_list_lookup_string(pl, "tuning_results_filename");
+        param_list_lookup_string(pl, "tuning_schedule_filename");
         param_list_lookup_string(pl, "tuning_timing_cache_filename");
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
@@ -263,7 +263,7 @@ struct lingen_tuner {
 
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
 
-        results_filename = param_list_lookup_string(pl, "tuning_results_filename");
+        schedule_filename = param_list_lookup_string(pl, "tuning_schedule_filename");
 
         /* only the leader will do the tuning, so only the leader cares
          * about loading/saving it...
@@ -392,25 +392,30 @@ struct lingen_tuner {
                 m, m+n, m+n,
                 asize, bsize, csize);
     } /* }}} */
-    void compute_schedules_for_mp(int i, bool print, size_t reserved=0) { /* {{{ */
+    void compute_schedules_for_mp(weighted_call_t const & cw, bool print, size_t reserved=0) { /* {{{ */
         int printed_mem_once=0;
-        for(auto const & cw : calls_and_weights_at_depth(i)) {
-            size_t L = std::get<0>(cw);
-            if (!recursion_makes_sense(L)) continue;
-            auto step = mp_substep(cw);
-            bool print_here = print && !printed_mem_once++;
-            if (print_here)
-                step.report_size_stats_human();
+        size_t L = std::get<0>(cw);
+        ASSERT_ALWAYS (recursion_makes_sense(L));
+        auto step = mp_substep(cw);
+        bool print_here = print && !printed_mem_once++;
+        if (print_here)
+            step.report_size_stats_human();
 
-            lingen_substep_schedule S = optimize(step, P, C, reserved);
-
-            if (print_here) {
-                step.get_and_report_call_time(P, S, C);
-            } else {
-                step.get_call_time(P, S, C);
-            }
-            schedules_mp[L] = S;
+        lingen_substep_schedule S;
+        if (schedules_mp.find(L) != schedules_mp.end()) {
+            printf("# Using imposed schedule from results file\n");
+            S = schedules_mp[L];
+        } else {
+            /* get the schedule by trying all possibilities */
+            S = optimize(step, P, C, reserved);
         }
+
+        if (print_here) {
+            step.get_and_report_call_time(P, S, C);
+        } else {
+            step.get_call_time(P, S, C);
+        }
+        schedules_mp[L] = S;
     } /* }}} */
     lingen_substep_characteristics<op_mul<fft_type>> mul_substep(weighted_call_t const & cw) { /* {{{ */
         size_t length_E;
@@ -440,34 +445,40 @@ struct lingen_tuner {
         return L >= 2;
     }
 
-    void compute_schedules_for_mul(int i, bool print, size_t reserved) { /* {{{ */
+    void compute_schedules_for_mul(weighted_call_t const & cw, bool print, size_t reserved) { /* {{{ */
         // we might want to consider the option of a single-node layer as
         // well. The effect of making this distinction between
         // lingen_threshold and lingen_mpi_threshold is not clear though,
         // since presently our formulas don't give rise to much
         // difference.
+        // (on the other hand, it seems that there's real potential there
+        // -- we might want to scale from smaller to larger grids, we
+        // don't have to go to the full dimension in one go.
+        // )
         // std::vector<lingen_platform> pps { P.single(), P };
-        std::vector<lingen_platform> pps { P };
-        for(auto const & pp : pps) {
-            int printed_mem_once=0;
-            for(auto const & cw : calls_and_weights_at_depth(i)) {
-                size_t L = std::get<0>(cw);
-                if (!recursion_makes_sense(L)) continue;
-                auto step = mul_substep(cw);
+        int printed_mem_once=0;
+        size_t L = std::get<0>(cw);
+        ASSERT_ALWAYS (recursion_makes_sense(L));
+        auto step = mul_substep(cw);
 
-                lingen_substep_schedule S = optimize(step, pp, C, reserved);
-                if (print && !printed_mem_once++) {
-                    step.report_size_stats_human();
-                    step.get_and_report_call_time(pp, S, C);
-                } else {
-                    step.get_call_time(pp, S, C);
-                }
-                schedules_mul[L] = S;
-            }
+        lingen_substep_schedule S;
+        if (schedules_mul.find(L) != schedules_mul.end()) {
+            printf("# Using imposed schedule from results file\n");
+            S = schedules_mul[L];
+        } else {
+            /* get the schedule by trying all possibilities */
+            S = optimize(step, P, C, reserved);
         }
+        if (print && !printed_mem_once++) {
+            step.report_size_stats_human();
+            step.get_and_report_call_time(P, S, C);
+        } else {
+            step.get_call_time(P, S, C);
+        }
+        schedules_mul[L] = S;
     } /* }}} */
 
-    lingen_hints tune_local() {
+    lingen_hints tune_local(lingen_hints & stored_hints) {
         size_t N = m*n*L/(m+n);
         char buf[20];
         printf("# Measuring lingen data for N ~ %zu m=%u n=%u for a %zu-bit prime p, using a %u*%u grid of %u-thread nodes [max target RAM = %s]\n",
@@ -477,8 +488,12 @@ struct lingen_tuner {
 #ifdef HAVE_OPENMP
         printf("# Note: non-cached basecase measurements are done using openmp as it is configured for the running code, that is, with %d threads\n", P.openmp_threads);
 #endif
-
         lingen_hints hints;
+
+        bool impose_hints = !stored_hints.empty();
+        if (impose_hints) {
+            printf("# While we are doing timings here, we'll take schedule decisions based on the hints found in %s when they apply\n", schedule_filename);
+        }
 
         int fl = log2(L) + 1;
 
@@ -511,11 +526,7 @@ struct lingen_tuner {
             reserved_mul += reserved_base;
 
             printf("# MP reserved storage = %s\n", size_disp(reserved_mp, buf));
-            compute_schedules_for_mp(i, true, reserved_mp);
-
             printf("# MUL reserved storage = %s\n", size_disp(reserved_mul, buf));
-            compute_schedules_for_mul(i, true, reserved_mul);
-
             double time_b = 0;
             double time_r = 0;
             double time_m = 0;
@@ -561,24 +572,52 @@ struct lingen_tuner {
                     bool forced = false;
                     bool rwin;
 
-                    if (recursion_makes_sense(L) && forced_lingen_mpi_threshold != UINT_MAX) {
-                        if (L >= forced_lingen_mpi_threshold) {
-                            printf("# Forcing recursion at this level,"
-                                    " since L=%zu>=lingen_mpi_threshold=%u\n",
-                                    L, forced_lingen_mpi_threshold);
-                            rwin = true;
-                        } else {
-                            printf("# Forcing basecase at this level,"
-                                    " since L=%zu<lingen_mpi_threshold=%u\n",
-                                    L, forced_lingen_mpi_threshold);
-                            rwin = false;
-                        }
+                    if (stored_hints.find(K) != stored_hints.end()) {
+                        printf("# Re-using stored schedule\n");
                         forced = true;
+                        rwin = stored_hints[K].recurse;
+                        if (rwin) {
+                            printf("# Forcing recursion at this level\n");
+                        } else {
+                            printf("# Forcing basecase at this level\n");
+                        }
+                    } else {
+                        if (impose_hints) {
+                            printf("# No stored schedule found, computing new one\n");
+                        }
+                        forced = recursion_makes_sense(L) && forced_lingen_mpi_threshold != UINT_MAX;
+                        if (forced) {
+                            rwin = L >= forced_lingen_mpi_threshold;
+                            if (rwin) {
+                                printf("# Forcing recursion at this level,"
+                                        " since L=%zu>="
+                                        "lingen_mpi_threshold=%u\n",
+                                        L, forced_lingen_mpi_threshold);
+                            } else {
+                                printf("# Forcing basecase at this level,"
+                                        " since L=%zu<"
+                                        "lingen_mpi_threshold=%u\n",
+                                        L, forced_lingen_mpi_threshold);
+                            }
+                        }
                     }
+
                     if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
                         ttb = compute_and_report_basecase(L);
 
                     if (recursion_makes_sense(L)) {
+                        if (stored_hints.find(K) != stored_hints.end()) {
+                            schedules_mp[L] = stored_hints[K].mp.S;
+                            schedules_mul[L] = stored_hints[K].mul.S;
+                        }
+                        /* If we had something in stored_hints, the calls
+                         * below will do less, but will still augment
+                         * schedules_mp[L] and schedules_mul[L] with the
+                         * appropriate timings.
+                         */
+                        compute_schedules_for_mp(cw, true, reserved_mp);
+                        compute_schedules_for_mul(cw, true, reserved_mul);
+
                         auto MP = mp_substep(cw);
                         U.mp = MP.get_companion(P, schedules_mp[L], C);
                         U.mp.reserved_ram = reserved_mp;
@@ -762,22 +801,23 @@ struct lingen_tuner {
         lingen_hints hints;
 
         if (rank == 0) {
-            if (results_filename) {
-                std::ifstream is(results_filename);
-                if (is && is >> hints) {
-                    fprintf(stderr, "# Read tuning results from %s\n", results_filename);
+            lingen_hints stored_hints;
+            if (schedule_filename) {
+                std::ifstream is(schedule_filename);
+                if (is && is >> stored_hints) {
+                    fprintf(stderr, "# Read tuning schedule from %s\n", schedule_filename);
                 } else {
-                    fprintf(stderr, "# Failed to read tuning results from %s\n", results_filename);
-                    hints = tune_local();
-                    std::ofstream os(results_filename);
-                    if (os && os << hints) {
-                        fprintf(stderr, "# Written tuning results to %s\n", results_filename);
-                    } else {
-                        fprintf(stderr, "# Failed to write tuning results to %s\n", results_filename);
-                    }
+                    fprintf(stderr, "# Failed to read tuning schedule from %s\n", schedule_filename);
                 }
-            } else {
-                hints = tune_local();
+            }
+            hints = tune_local(stored_hints);
+            if (schedule_filename && stored_hints.empty()) {
+                std::ofstream os(schedule_filename);
+                if (os && os << hints) {
+                    fprintf(stderr, "# Written tuning schedule to %s\n", schedule_filename);
+                } else {
+                    fprintf(stderr, "# Failed to write tuning schedule to %s\n", schedule_filename);
+                }
             }
         }
 

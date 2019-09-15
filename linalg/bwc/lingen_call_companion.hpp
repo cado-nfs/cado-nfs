@@ -48,9 +48,15 @@ struct lingen_call_companion {
         size_t per_transform_ram;
 
         size_t asize, bsize, csize;
+        
+        /* This unserializes only part of the data: the schedule S/
+         * The rest is always recomputed.
+         */
         std::istream& unserialize(std::istream& is) {
             S.unserialize(is);
-            is  >> tt.n >> tt.t
+            /*
+            is
+                >> tt.n >> tt.t
                 >> t_dft_A.n >> t_dft_A.t
                 >> t_dft_A_comm.n >> t_dft_A_comm.t
                 >> t_dft_B.n >> t_dft_B.t
@@ -63,10 +69,12 @@ struct lingen_call_companion {
                 >> asize
                 >> bsize
                 >> csize;
+                */
             return is;
         }
         std::ostream& serialize(std::ostream& os) const {
             S.serialize(os);
+            /*
             os  << " " << tt.n << " " << tt.t
                 << " " << t_dft_A.n << " " << t_dft_A.t
                 << " " << t_dft_A_comm.n << " " << t_dft_A_comm.t
@@ -80,36 +88,76 @@ struct lingen_call_companion {
                 << " " << asize
                 << " " << bsize
                 << " " << csize;
+                */
             return os;
         }
     };/*}}}*/
     mul_or_mp_times mp, mul;
+
+    /* This unserializes only part of the data -- recurse, go_mpi,
+     * and the schedules. The rest is always recomputed.
+     */
+    private:
+    static constexpr const char * io_token_recursive = "recursive";
+    static constexpr const char * io_token_quadratic = "quadratic";
+    static constexpr const char * io_token_collective = "collective";
+    static constexpr const char * io_token_single = "single";
+    static constexpr const char * io_token_MP = "MP";
+    static constexpr const char * io_token_MUL = "MUL";
+    static constexpr const char * io_token_ignored = "-";
+    public:
     std::istream& unserialize(std::istream& is) {
-        is >> recurse
-            >> go_mpi
-            >> ttb
-            >> total_ncalls;
-        for(int i = 2 ; is && i-- ; ) {
-            std::string s;
+        std::string s;
+        is >> s;
+        if (s == io_token_recursive) {
+            recurse = true;
+        } else if (s == io_token_quadratic) {
+            recurse = false;
+        } else {
+            is.setstate(std::ios::failbit);
+            return is;
+        }
+        if (recurse) {
             is >> s;
-            if (s == "MP") {
-                mp.unserialize(is);
-            } else if (s == "MUL") {
-                mul.unserialize(is);
+            if (s == io_token_collective) {
+                go_mpi = true;
+            } else if (s == io_token_single) {
+                go_mpi = false;
             } else {
                 is.setstate(std::ios::failbit);
+                return is;
+            }
+            for(int i = 2 ; is && i-- ; ) {
+                std::string s;
+                is >> s;
+                if (s == io_token_MP) {
+                    mp.unserialize(is);
+                } else if (s == io_token_MUL) {
+                    mul.unserialize(is);
+                } else {
+                    is.setstate(std::ios::failbit);
+                }
             }
         }
+            /*
+            >> ttb
+            >> total_ncalls
+            */
+            ;
         return is;
     }
     std::ostream& serialize(std::ostream& os) const {
-        os << " " << recurse
-            << " " << go_mpi
+        os << " " << (recurse ? io_token_recursive : io_token_quadratic);
+        if (recurse) {
+            os << " " << (go_mpi ? io_token_collective : io_token_single);
+            os << "\n";
+            os << "\t" << io_token_MP;  mp.serialize(os); os << "\n";
+            os << "\t" << io_token_MUL; mul.serialize(os); os << "\n";
+        }
+        /*
             << " " << ttb
             << " " << total_ncalls;
-        os << "\n";
-        os << "\t" "MP"; mp.serialize(os); os << "\n";
-        os << "\t" "MUL"; mul.serialize(os); os << "\n";
+            */
         return os;
     }
     struct key {
@@ -144,7 +192,5 @@ inline std::ostream& operator<<(std::ostream& os, lingen_call_companion::key con
 inline std::istream& operator>>(std::istream& is, lingen_call_companion::key & c) {
     return c.unserialize(is);
 }
-
-
 
 #endif	/* LINGEN_CALL_COMPANION_HPP_ */
