@@ -605,7 +605,7 @@ struct lingen_tuner {
                     if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
                         ttb = compute_and_report_basecase(L);
 
-                    if (recursion_makes_sense(L)) {
+                    if (recursion_makes_sense(L) && !(forced && !rwin)) {
                         if (stored_hints.find(K) != stored_hints.end()) {
                             schedules_mp[L] = stored_hints[K].mp.S;
                             schedules_mul[L] = stored_hints[K].mul.S;
