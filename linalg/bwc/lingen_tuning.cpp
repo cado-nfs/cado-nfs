@@ -460,6 +460,10 @@ struct lingen_tuner {
         size_t L = std::get<0>(cw);
         ASSERT_ALWAYS (recursion_makes_sense(L));
         auto step = mul_substep(cw);
+        bool print_here = print && !printed_mem_once++;
+
+        if (print_here)
+            step.report_size_stats_human();
 
         lingen_substep_schedule S;
         if (schedules_mul.find(L) != schedules_mul.end()) {
@@ -469,8 +473,8 @@ struct lingen_tuner {
             /* get the schedule by trying all possibilities */
             S = optimize(step, P, C, reserved);
         }
-        if (print && !printed_mem_once++) {
-            step.report_size_stats_human();
+
+        if (print_here) {
             step.get_and_report_call_time(P, S, C);
         } else {
             step.get_call_time(P, S, C);
@@ -504,6 +508,8 @@ struct lingen_tuner {
         size_t peak = 0;
         int ipeak = -1;
 
+        /* TODO: the control logic of this function is miserable. fix it.
+         */
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
@@ -539,6 +545,8 @@ struct lingen_tuner {
 
             ASSERT_ALWAYS(cws.size() <= 2);
 
+            bool forceidx[2] = { false, false };
+
             for(size_t idx = 0 ; idx < cws.size() ; idx++) {
                 auto const & cw(cws[idx]);
                 size_t L, Lleft, Lright;
@@ -570,7 +578,10 @@ struct lingen_tuner {
                     U.total_ncalls = 0;
 
                     bool forced = false;
-                    bool rwin;
+                    /* the true value is initialized early if we happen
+                     * to set the "force" flag, or later.
+                     */
+                    bool rwin = false;
 
                     if (stored_hints.find(K) != stored_hints.end()) {
                         printf("# Re-using stored schedule\n");
@@ -701,7 +712,7 @@ struct lingen_tuner {
                         time_b, time_b / 86400, isbest);
                 msg = msg2;
             }
-            if (!approx_same && recursion_makes_sense(L1)) {
+            if (!approx_same && recursion_makes_sense(L1) && !(forceidx[1] && !rec1)) {
                 const char * isbest = (rec1 && !rec0) ? strbest : "";
                 std::ostringstream os2;
                 os2 << " mixed(threshold=" << L1 << "): ";
@@ -727,7 +738,7 @@ struct lingen_tuner {
                 }
 
             }
-            if (recursion_makes_sense(L0)) {
+            if (recursion_makes_sense(L0) && !(forceidx[0] && !rec0)) {
                 const char * isbest = rec0 ? strbest : "";
                 std::ostringstream os2;
                 os2 << " recursive(threshold<=" << L0 << "): ";
