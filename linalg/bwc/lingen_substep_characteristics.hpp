@@ -503,8 +503,6 @@ struct lingen_substep_characteristics {
          * increases the time, and decreases the memory footprint */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        unsigned int ns0 = nrs0 * mesh_inner_size(P);
-        unsigned int ns2 = nrs2 * mesh_inner_size(P);
 
         /* The 1-threaded timing will be obtained by setting T=batch=1.  */
 
@@ -525,21 +523,22 @@ struct lingen_substep_characteristics {
         T_dft2 *= iceildiv(nr1, S.batch[1]);
 
         T_conv.parallelize(S.batch[0] * S.batch[2], P.T);
-        T_conv *= mesh_inner_size(P) * S.batch[1];
+        T_conv *= mesh_inner_size(P);
         T_conv *= iceildiv(nr1, S.batch[1]) * S.batch[1];
         T_conv *= iceildiv(nrs0, S.batch[0]);
         T_conv *= iceildiv(nrs2, S.batch[2]);
 
-        T_ift.parallelize(S.batch[0] * S.batch[2], P.T);
-        T_ift *= iceildiv(nrs0, S.batch[0]);
-        T_ift *= iceildiv(nrs2, S.batch[2]);
+        T_ift.parallelize(nrs0 * nrs2, P.T);
 
         /* Now the communication time _per call_ */
         /* TODO: maybe include some model of latency... */
         parallelizable_timing T = get_transform_ram() / P.mpi_xput;
         T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
-        parallelizable_timing T_comm0 = T * ns0;
-        parallelizable_timing T_comm2 = T * ns2;
+        T *= mesh_inner_size(P);
+        parallelizable_timing T_comm0 = T;
+        parallelizable_timing T_comm2 = T;
+        T_comm0 *= S.batch[0] * iceildiv(nrs0, S.batch[0]);
+        T_comm2 *= S.batch[2] * iceildiv(nrs2, S.batch[2]);
 
         T_dft0 *= S.shrink0 * S.shrink2;
         T_dft2 *= S.shrink0 * S.shrink2;
