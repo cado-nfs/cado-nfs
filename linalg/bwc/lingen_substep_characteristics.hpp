@@ -344,7 +344,10 @@ struct lingen_substep_characteristics {
          */
         std::ostream& os(std::cout);
 
-        os << "# wct for " << F.name << " by nthreads:";
+        /* does that count as non-odr-use ? */
+        constexpr const char * Fname = F.name;
+
+        os << "# wct for " << Fname << " by nthreads:";
 
         unsigned int TMAX = max_threads();
         if (F.max_parallel() < TMAX) {
