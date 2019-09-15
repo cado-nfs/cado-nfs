@@ -2,6 +2,7 @@
 #define LINGEN_SUBSTEP_SCHEDULE_HPP_
 
 #include <array>
+#include <istream>
 
 struct lingen_substep_schedule {
     /* output characteristics -- the ones we have to choose */
@@ -37,6 +38,18 @@ struct lingen_substep_schedule {
 
     lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
+
+    std::ostream& serialize(std::ostream& os) const
+    {
+        return os << " " << shrink0 << " " << shrink2
+            << " " << batch[0] << " " << batch[1] << " " << batch[2];
+    }
+
+    std::istream& unserialize(std::istream& is)
+    {
+        return is >> shrink0 >> shrink2
+            >> batch[0] >> batch[1] >> batch[2];
+    }
 
     bool operator<(lingen_substep_schedule const & o) const {
         if (shrink0 < o.shrink0) return true;

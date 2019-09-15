@@ -52,6 +52,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 using namespace std;
 
@@ -219,6 +220,7 @@ struct lingen_tuner {
     gmp_randstate_t rstate;
 
     const char * timing_cache_filename = NULL;
+    const char * results_filename = NULL;
 
     /* stop measuring the time taken by the basecase when it is
      * more than this number times the time taken by the other
@@ -232,14 +234,17 @@ struct lingen_tuner {
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
         lingen_platform::declare_usage(pl);
+        param_list_decl_usage(pl, "tuning_results_filename",
+                "Save (and re-load if it exists) tuning results from this file");
         param_list_decl_usage(pl, "tuning_timing_cache_filename",
-                "For --tune only: save (and re-load) timings for individual transforms in this file\n");
+                "Save (and re-load) timings for individual transforms in this file\n");
         param_list_decl_usage(pl, "basecase-keep-until",
-                "For --tune only: stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
+                "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
     }/*}}}*/
 
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
         lingen_platform::lookup_parameters(pl);
+        param_list_lookup_string(pl, "tuning_results_filename");
         param_list_lookup_string(pl, "tuning_timing_cache_filename");
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
@@ -257,6 +262,8 @@ struct lingen_tuner {
         gmp_randseed_ui(rstate, 1);
 
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
+
+        results_filename = param_list_lookup_string(pl, "tuning_results_filename");
 
         /* only the leader will do the tuning, so only the leader cares
          * about loading/saving it...
@@ -754,8 +761,25 @@ struct lingen_tuner {
         MPI_Comm_rank(P.comm, &rank);
         lingen_hints hints;
 
-        if (rank == 0)
-            hints = tune_local();
+        if (rank == 0) {
+            if (results_filename) {
+                std::ifstream is(results_filename);
+                if (is && is >> hints) {
+                    fprintf(stderr, "# Read tuning results from %s\n", results_filename);
+                } else {
+                    fprintf(stderr, "# Failed to read tuning results from %s\n", results_filename);
+                    hints = tune_local();
+                    std::ofstream os(results_filename);
+                    if (os && os << hints) {
+                        fprintf(stderr, "# Written tuning results to %s\n", results_filename);
+                    } else {
+                        fprintf(stderr, "# Failed to write tuning results to %s\n", results_filename);
+                    }
+                }
+            } else {
+                hints = tune_local();
+            }
+        }
 
         hints.share(0, P.comm);
 
