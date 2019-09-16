@@ -375,57 +375,75 @@ void tree_stats::end_plan_smallstep()
 
 void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back().second);
-    // At first thought, we never have two substeps of the same name at a given
-    // level. Alas, this is not always right. One example is at the mpi
-    // threshold in lingen. We have 2 gather and 2 scatter steps.
-    // In effect, the way we're proceeding sets the substep pointer to the
-    // current smallstep, so that it's counted as "in progress", although
-    // that does not properly acknowledge the fact that one instance of
-    // that sub-step has already run. In that situation:
-    //  - we're failing to list something for which we do have info.
-    //  - at the end of the day, the "number of calls" will consider both
-    //    instances as one single call.
-    //
-    // This is considered harmless, given that:
-    //  - the cut-off point (MPI threshold, in our current use) is early
-    //    enough that timings are displayed.
-    //  - it is possible to embed in the substep name some info hinting
-    //    at the fact that we have 2 substeps (e.g. "foo(1+2)" or
-    //    "foo(L+R)").
-    //
-    // ASSERT_ALWAYS(ssi.second);
-    step_time::steps_t * where = &s.steps;
-    if (!s.nested_substeps.empty())
-        where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
-    it->second.set_total_ncalls(s.total_ncalls());
-    s.nested_substeps.push_back(it);
-    step_time & S(s.current_substep());
-    S.items_pending += ncalls;
-    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
-    S.heat_up();
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        // At first thought, we never have two substeps of the same name at a given
+        // level. Alas, this is not always right. One example is at the mpi
+        // threshold in lingen. We have 2 gather and 2 scatter steps.
+        // In effect, the way we're proceeding sets the substep pointer to the
+        // current smallstep, so that it's counted as "in progress", although
+        // that does not properly acknowledge the fact that one instance of
+        // that sub-step has already run. In that situation:
+        //  - we're failing to list something for which we do have info.
+        //  - at the end of the day, the "number of calls" will consider both
+        //    instances as one single call.
+        //
+        // This is considered harmless, given that:
+        //  - the cut-off point (MPI threshold, in our current use) is early
+        //    enough that timings are displayed.
+        //  - it is possible to embed in the substep name some info hinting
+        //    at the fact that we have 2 substeps (e.g. "foo(1+2)" or
+        //    "foo(L+R)").
+        //
+        // ASSERT_ALWAYS(ssi.second);
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        it->second.set_total_ncalls(s.total_ncalls());
+        s.nested_substeps.push_back(it);
+        step_time & S(s.current_substep());
+        S.items_pending += ncalls;
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        S.heat_up();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at begin_smallstep({},{})\n", func, ncalls);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
 }
 
 void tree_stats::end_smallstep()
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back().second);
-    step_time & S(s.current_substep());
-    S.cool_down();
-    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
-    if (S.items_pending == S.items_per_call) {
-        S.ncalled++;
-        S.items_pending = 0;
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        step_time & S(s.current_substep());
+        S.cool_down();
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        if (S.items_pending == S.items_per_call) {
+            S.ncalled++;
+            S.items_pending = 0;
+        }
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at end_smallstep()\n");
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
     }
-    s.nested_substeps.pop_back();
 }
 
 void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
@@ -466,3 +484,71 @@ bool tree_stats::local_smallsteps_done() const
     }
     return true;
 }
+
+std::ostream& tree_stats::debug_print(std::ostream& os) const
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank) return os;
+    ASSERT_ALWAYS(!curstack.empty());
+    running_stats const & s(curstack.back().second);
+    s.debug_print(os, "");
+    return os;
+}
+
+std::ostream& tree_stats::step_time::debug_print(std::ostream& os, std::string indent) const {
+    os << indent << fmt::format("name={}\n", name);
+    os << indent << fmt::format("items_pending={}\n", items_pending);
+    os << indent << fmt::format("items_per_call={}\n", items_per_call);
+    os << indent << fmt::format("ncalled={}\n", ncalled);
+    os << indent << fmt::format("planned_calls={}\n", planned_calls);
+    os << indent << fmt::format("planned_time={}\n", planned_time);
+    os << indent << fmt::format("total_ncalls={}\n", total_ncalls());
+    os << indent << fmt::format("is_transition={}\n", is_transition_level());
+    os << indent << fmt::format("real={}\n", real);
+    for(auto const & s : steps) {
+        s.second.debug_print(os, indent + "  ");
+    }
+    return os;
+}
+
+
+tree_stats::step_time & tree_stats::step_time::operator+=(step_time const & x)
+{
+    try {
+        ASSERT_ALWAYS(!is_hot());
+        ASSERT_ALWAYS(_total_ncalls == 0 || _total_ncalls == x._total_ncalls);
+        _total_ncalls = x._total_ncalls;
+        ASSERT_ALWAYS(items_per_call == 1 || items_per_call == x.items_per_call);
+        ASSERT_ALWAYS(ncalled <= planned_calls);
+        ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
+        ASSERT_ALWAYS(x.ncalled <= x.planned_calls);
+        ASSERT_ALWAYS(x.ncalled + 1 >= x.planned_calls);
+        items_per_call = x.items_per_call;
+        if (!x.is_hot()) {
+            real += x.real;
+            ncalled += x.ncalled;
+        }
+        planned_time += x.planned_time;
+        planned_calls += x.planned_calls;
+        ASSERT_ALWAYS(ncalled <= planned_calls);
+        ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
+        for(auto const & s : x.steps) {
+            auto itb = steps.emplace(s);
+            step_time & N(itb.first->second);
+            ASSERT_ALWAYS(N.name == s.second.name);
+            if (!itb.second) N += s.second;
+            // steps[s.first] += s.second;
+        }
+        return *this;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << "Exception while adding counters with id " << name << "\n";
+        os << "State of *this\n";
+        debug_print(os, "(*this)  ");
+        os << "State of x\n";
+        x.debug_print(os, "(x)      ");
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+} 

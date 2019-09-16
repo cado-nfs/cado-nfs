@@ -177,33 +177,8 @@ class tree_stats {
             return find_pending_smallstep() != nullptr;
         }
 
-        step_time & operator+=(step_time const & x) {/*{{{*/
-            ASSERT_ALWAYS(!is_hot());
-            ASSERT_ALWAYS(_total_ncalls == 0 || _total_ncalls == x._total_ncalls);
-            _total_ncalls = x._total_ncalls;
-            ASSERT_ALWAYS(items_per_call == 1 || items_per_call == x.items_per_call);
-            ASSERT_ALWAYS(ncalled <= planned_calls);
-            ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
-            ASSERT_ALWAYS(x.ncalled <= x.planned_calls);
-            ASSERT_ALWAYS(x.ncalled + 1 >= x.planned_calls);
-            items_per_call = x.items_per_call;
-            if (!x.is_hot()) {
-                real += x.real;
-                ncalled += x.ncalled;
-            }
-            planned_time += x.planned_time;
-            planned_calls += x.planned_calls;
-            ASSERT_ALWAYS(ncalled <= planned_calls);
-            ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
-            for(auto const & s : x.steps) {
-                auto itb = steps.emplace(s);
-                step_time & N(itb.first->second);
-                ASSERT_ALWAYS(N.name == s.second.name);
-                if (!itb.second) N += s.second;
-                // steps[s.first] += s.second;
-            }
-            return *this;
-        }/*}}}*/
+        std::ostream& debug_print(std::ostream& s, std::string indent) const;
+        step_time & operator+=(step_time const & x);
     };/*}}}*/
 
     struct function_with_input_size {/*{{{*/
@@ -481,6 +456,7 @@ public:
     }
 
     void final_print();
+    std::ostream& debug_print(std::ostream&) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, tree_stats const & a)
