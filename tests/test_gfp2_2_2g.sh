@@ -77,7 +77,7 @@ tasks.sieve.qrange = 100
 tasks.sieve.rels_wanted = 200000
 
 # Due to the small size of the example, there are many sporadic vectors,
-# so that the linear algebra often does not ouput the appropriate kernel
+# so that the linear algebra often does not output the appropriate kernel
 # vector. The following disables many checks, but of course this
 # makes the test less useful :-(
 tasks.linalg.allow_zero_on_rhs = 1
