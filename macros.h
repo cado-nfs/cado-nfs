@@ -40,6 +40,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
                 (x),__func__,__FILE__,__LINE__,(y));			\
     } while (0)
 
+#ifdef __cplusplus
+#include <stdexcept>
+#define ASSERT_ALWAYS(x)						\
+    do {								\
+        if (!(x)) 							\
+            throw std::runtime_error("code BUG() : condition " #x " failed");   \
+    } while (0)
+#else
 #define ASSERT_ALWAYS(x)						\
     do {								\
         if (!(x)) {							\
@@ -48,6 +56,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
             abort();							\
         }								\
     } while (0)
+#endif
 #define FATAL_ERROR_CHECK(cond, msg)					\
     do {								\
       if (UNLIKELY((cond))) {                                           \
