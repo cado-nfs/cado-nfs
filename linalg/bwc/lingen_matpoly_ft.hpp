@@ -312,13 +312,13 @@ void add(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const_vi
 
     /* In a way, this is the only real API exported by this module */
 
-    static void mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
-    static void mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
-    static inline void mp_caching(matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
-        mp_caching_adj(c, a, b, UINT_MAX, M);
+    static void mp_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
+    static void mul_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
+    static inline void mp_caching(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+        mp_caching_adj(stats, c, a, b, UINT_MAX, M);
     }
-    static inline void mul_caching(matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
-        mul_caching_adj(c, a, b, UINT_MAX, M);
+    static inline void mul_caching(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+        mul_caching_adj(stats, c, a, b, UINT_MAX, M);
     }
 };
 

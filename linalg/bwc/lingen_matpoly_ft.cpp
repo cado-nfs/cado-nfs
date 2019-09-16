@@ -16,10 +16,11 @@
 #include "lingen_matpoly_bigmatpoly_ft_common.hpp"
 
 template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_base<matpoly> {
+    tree_stats & stats;
     typedef matpoly T;
     typedef fft_type FFT;
     template<typename... Args>
-    OP_CTX(Args&&... args) : OP_CTX_base<T>(args...) {}
+    OP_CTX(tree_stats & stats, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {}
     inline int a_irank() const { return 0; }
     inline int b_irank() const { return 0; }
     inline int a_jrank() const { return 0; }
@@ -36,10 +37,18 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
     inline matpoly & c_local() { return c; }
     inline void a_allgather(void *, int) const {}
     inline void b_allgather(void *, int) const {}
-    inline void begin_smallstep(std::string const &, unsigned int) const { }
-    inline void end_smallstep() const {}
-    inline void skip_smallstep(std::string const &, unsigned int) const { }
-    inline bool local_smallsteps_done() const { return true; }
+    inline void begin_smallstep(std::string const & func, unsigned int n) {
+        stats.begin_smallstep(func, n);
+    }
+    inline void end_smallstep() {
+        stats.end_smallstep();
+    }
+    inline void skip_smallstep(std::string const & func, unsigned int n) {
+        stats.skip_smallstep(func, n);
+    }
+    inline bool local_smallsteps_done() {
+        return stats.local_smallsteps_done();
+    }
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
         if (M && op.get_transform_ram() > M->per_transform_ram) {
             fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
@@ -64,17 +73,17 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
 template<typename fft_type> typename matpoly_ft<fft_type>::memory_pool_type matpoly_ft<fft_type>::memory;
 
 template<typename fft_type>
-void matpoly_ft<fft_type>::mp_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+void matpoly_ft<fft_type>::mp_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
     op_mp<fft_type> op(a, b, adj);
-    OP_CTX<matpoly, fft_type>(c, a, b).doit(op, M);
+    OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
 } /* }}} */
 
 template<typename fft_type>
-void matpoly_ft<fft_type>::mul_caching_adj(matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+void matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
     op_mul<fft_type> op(a, b, adj);
-    OP_CTX<matpoly, fft_type>(c, a, b).doit(op, M);
+    OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
 } /* }}} */
 
 #ifdef SELECT_MPFQ_LAYER_u64k1

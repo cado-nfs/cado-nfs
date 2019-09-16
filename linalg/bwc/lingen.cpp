@@ -904,21 +904,21 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
         /* smallstep planning is currently disabled in
          * OP_CTX<matpoly> */
         bm.stats.begin_plan_smallstep("MP", C.mp.tt);
-        // bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
-        // // bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
-        // bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
-        // // bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
-        // bm.stats.plan_smallstep("addmul", C.mp.t_conv);
-        // bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
+        bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
+        // bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
+        bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
+        // bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
+        bm.stats.plan_smallstep("addmul", C.mp.t_conv);
+        bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
         bm.stats.end_plan_smallstep();
 
         bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
-        // bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
-        // // bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
-        // bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
-        // // bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
-        // bm.stats.plan_smallstep("addmul", C.mul.t_conv);
-        // bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
+        bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
+        // bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
+        bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
+        // bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
+        bm.stats.plan_smallstep("addmul", C.mul.t_conv);
+        bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
         bm.stats.end_plan_smallstep();
     }
 
@@ -972,7 +972,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.get_size() - pi_left.get_size() + 1);
-        matpoly_ft<fft_type>::mp_caching(E_right, E, pi_left, & C.mp);
+        matpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
 
@@ -995,7 +995,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.get_size() + pi_right.get_size() - 1);
-        matpoly_ft<fft_type>::mul_caching(pi, pi_left, pi_right, & C.mul);
+        matpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
