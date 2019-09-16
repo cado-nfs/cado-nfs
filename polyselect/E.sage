@@ -31,6 +31,31 @@ def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
        E += v1
     return E/K
 
+# same as MurphyE, but takes alpha - stddev instead of alpha (both for f and g)
+def MurphyE_var(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
+    df = f.degree()
+    dg = g.degree()
+    alpha_f, v = dist_alpha(f,B)
+    alpha_f -= sqrt(v)
+    alpha_g, v = dist_alpha(g,B)
+    # alpha_g -= sqrt(v)
+    E = 0
+    sx = sqrt(area*s)
+    sy = sqrt(area/s)
+    for i in range(K):
+       theta_i = float(pi/K*(i+0.5))
+       xi = cos(theta_i)*sx
+       yi = sin(theta_i)*sy
+       fi = f(x=xi/yi)*yi^df/sq
+       gi = g(x=xi/yi)*yi^dg
+       ui = (log(abs(fi))+alpha_f)/log(Bf)
+       vi = (log(abs(gi))+alpha_g)/log(Bg)
+       v1 = dickman_rho(ui) * dickman_rho(vi)
+       if verbose:
+          print i, log(abs(fi))+alpha_f, log(abs(gi))+alpha_g, v1
+       E += v1
+    return E/K
+
 # same as MurphyE, but using numerical integration instead of sampling
 def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
@@ -276,7 +301,7 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
     return E
 
 # use sampling over the angles, numerical integration over alpha
-def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
+def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000,dist='chi2'):
     df = f.degree()
     dg = g.degree()
     cof = sum([log(1.0*p)/(p-1) for p in prime_range(B)])
@@ -316,7 +341,7 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        E += v1
-    if k >= 0:
+    if dist=='chi2' and k >= 0:
        return sum([E(t=tmin+j/h)*ncx2.pdf(tmin+j/h,k,lam) for j in srange(0.5,K)])/(h*K)
        # foo = lambda t: E(t=t)*ncx2.pdf(t,k,lam)/K
        # return numerical_integral(foo, tmin, tmax)[0]
@@ -324,7 +349,8 @@ def MurphyE_int_chi2(f,g,skew,Bf,Bg,area,K=1000,sq=1,verbose=false,B=2000):
        # alternate using the normal distribution
        # loc is the mean, scale is the standard deviation
        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html#scipy.stats.norm
-       print "Warning, k<0: using a normal distribution instead of non-central chi-squared"
+       if dist=='chi2':
+          print "Warning, k<0: using a normal distribution instead of non-central chi-squared"
        return sum([E(t=tmin+j/h)*norm.pdf(tmin+j/h,loc=cof-alpha0,scale=sqrt(v)) for j in srange(0.5,K)])/(h*K)
 
 # same as MurphyE_int_chi2, but also integrates for g
