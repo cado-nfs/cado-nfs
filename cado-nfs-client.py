@@ -35,8 +35,6 @@ from string import Template
 from io import BytesIO
 
 
-import re
-
 cado_python_libs_path="@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@/scripts/cadofactor"
 if not re.search("^/", cado_python_libs_path):
     cado_python_libs_path=os.path.join(os.path.dirname(sys.argv[0]),"scripts","cadofactor")
@@ -876,7 +874,7 @@ class WorkunitClient(object):
                 self.cleanup()
                 raise WorkunitParseError()
             if not force_reload and self.workunit.get("DEADLINE") and time.time() > float(self.workunit.get("DEADLINE")):
-                logging.warn("Old workunit file %s has passed deadline (%s), ignoring",
+                logging.warning("Old workunit file %s has passed deadline (%s), ignoring",
                         self.wu_filename, 
                         time.asctime(time.localtime(float(self.workunit.get("DEADLINE")))))
                 os.remove(self.wu_filename)
@@ -976,7 +974,8 @@ class WorkunitClient(object):
             except urllib_error.URLError as error:
                 conn = None
                 errorstr = "URL error: %s" % str(error)
-                current_error = error.errno
+                if error.args:
+                    current_error = error.args[0].errno
             except BadStatusLine as error:
                 conn = None
                 errorstr = "Bad Status line: %s" % str(error)
@@ -1426,37 +1425,30 @@ REQUIRED_SETTINGS = {"SERVER" : (None, "Base URL for WU server")}
 
 # Optional settings with defaults, overrideable on command line, 
 # and a help text
-OPTIONAL_SETTINGS = {"WU_FILENAME" : 
-                     (None, "Filename under which to store WU files"), 
-                     "CLIENTID" : (None, "Unique ID for this client. If not "
-                                   "specified, a default of "
-                                   "<hostname>.<random hex number> is used"), 
-                     "DLDIR" : ('download/', "Directory for downloading files"),
-                     "WORKDIR" : (None, "Directory for result files"),
-                     "BINDIR" : (None, "Directory with existing executable "
-                                       "files to use"),
-                     "BASEPATH" : (None, "Base directory for download and work "
-                                         "directories"),
-                     "GETWUPATH" : 
-                     ("/cgi-bin/getwu", 
-                      "Path segment of URL for requesting WUs from server"), 
-                     "POSTRESULTPATH" : 
-                     ("/cgi-bin/upload.py", 
-                      "Path segment of URL for reporting results to server"), 
-                     "DEBUG" : ("0", "Debugging verbosity"),
-                     "ARCH" : ("", "Architecture string for this client"),
-                     "DOWNLOADRETRY" : 
-                     ("10", "Time to wait before download retries"),
-                     "CERTSHA1" : (None, "SHA1 of server SSL certificate"),
-                     "SILENT_WAIT": (None, "Discard repeated messages about client waiting for work (does not affect uploads)"),
-                     "MAX_CONNECTION_FAILURES" : ("999999", "Maximum number of successive connection failures to tolerate"),
-                     "NICENESS" : 
-                     ("0", "Run subprocesses under this niceness"),
-                     "LOGLEVEL" : ("INFO", "Verbosity of logging"),
-                     "LOGFILE" : (None, "File to which to write log output. "
-                                  "In demon mode, if no file is specified, a "
-                                  "default of <workdir>/<clientid>.log is used")
-                     }
+OPTIONAL_SETTINGS = {
+    "WU_FILENAME" : (None, "Filename under which to store WU files"),
+    "CLIENTID" : (None, "Unique ID for this client. If not specified, "
+                        "a default of <hostname>.<random hex number> is used"),
+    "DLDIR" : ('download/', "Directory for downloading files"),
+    "WORKDIR" : (None, "Directory for result files"),
+    "BINDIR" : (None, "Directory with existing executable files to use"),
+    "BASEPATH" : (None, "Base directory for download and work directories"),
+    "GETWUPATH" : ("/cgi-bin/getwu",
+                   "Path segment of URL for requesting WUs from server"),
+    "POSTRESULTPATH" : ("/cgi-bin/upload.py",
+                        "Path segment of URL for reporting results to server"),
+    "DEBUG" : ("0", "Debugging verbosity"),
+    "ARCH" : ("", "Architecture string for this client"),
+    "DOWNLOADRETRY" : ("10", "Time to wait before download retries"),
+    "CERTSHA1" : (None, "SHA1 of server SSL certificate"),
+    "SILENT_WAIT": (None, "Discard repeated messages about client waiting for work (does not affect uploads)"),
+    "MAX_CONNECTION_FAILURES" : ("999999", "Maximum number of successive connection failures to tolerate"),
+    "NICENESS" : ("0", "Run subprocesses under this niceness"),
+    "LOGLEVEL" : ("INFO", "Verbosity of logging"),
+    "LOGFILE" : (None, "File to which to write log output. "
+                 "In daemon mode, if no file is specified, a "
+                 "default of <workdir>/<clientid>.log is used"),
+}
 # Merge the two, removing help string
 SETTINGS = dict([(a, b) for (a, (b, c)) in list(REQUIRED_SETTINGS.items()) + \
                                         list(OPTIONAL_SETTINGS.items())])
@@ -1492,6 +1484,8 @@ if __name__ == '__main__':
         parser.add_option("--override", nargs=2, action='append',
                           metavar=('REGEXP', 'VALUE'),
                           help="Modify command-line arguments which match ^-{1,2}REGEXP$ to take the given VALUE. Note that REGEXP cannot start with a dash")
+        parser.add_option("--logdate", default=True, action='store_true',
+                          help="Include ISO8601 format date in logging")
         # Parse command line
         (options, args) = parser.parse_args()
 
@@ -1570,7 +1564,12 @@ if __name__ == '__main__':
         logfilename = "%s/%s.log" % (SETTINGS["WORKDIR"], SETTINGS["CLIENTID"])
         SETTINGS["LOGFILE"] = logfilename
     logfile = None if logfilename is None else open(logfilename, "a")
-    logging.basicConfig(level=loglevel)
+    if options.logdate:
+        logging.basicConfig(
+            format='%(asctime)s - %(levelname)s:%(name)s:%(message)s',
+            level=loglevel)
+    else:
+        logging.basicConfig(level=loglevel)
     if logfile:
         logging.getLogger().addHandler(logging.StreamHandler(logfile))
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
@@ -1584,9 +1583,9 @@ if __name__ == '__main__':
     still_need_cert = False # This will be set to True if we need the certi-
                             # ficate, but could not download it right away
     if not SETTINGS["CERTSHA1"] is None and scheme != "https":
-        logging.warn("Option --certsha1 makes sense only with an https URL, ignoring it.")
+        logging.warning("Option --certsha1 makes sense only with an https URL, ignoring it.")
     elif SETTINGS["CERTSHA1"] is None and scheme == "https":
-        logging.warn("An https URL was given but no --certsha1 option, NO SSL VALIDATION WILL BE PERFORMED.")
+        logging.warning("An https URL was given but no --certsha1 option, NO SSL VALIDATION WILL BE PERFORMED.")
     elif not SETTINGS["CERTSHA1"] is None and scheme == "https":
         certfilename = os.path.join(SETTINGS["DLDIR"], "server.%s.pem" % SETTINGS["CERTSHA1"][0:8])
         SETTINGS["CERTFILE"] = certfilename

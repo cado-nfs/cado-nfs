@@ -40,13 +40,17 @@ class Cado_NFS_toplevel(object):
         ''' return the full path of the default hint file which
         is appropriate for the given dlp problem.'''
         assert self.parameters.get_or_set_default("dlp", False)
-        assert self.parameters.get_or_set_default("gfpext", 1) == 1
         assert self.parameters.get_or_set_default("N", 0) != 0
         default_param_dir = self.pathdict["data"]
         default_param_dir = os.path.join(default_param_dir, "dlp")
         size_of_n=len(repr(self.parameters.get_or_set_default("N", 0)))
         # also attempt nearest multiple of 5.
-        attempts=["p%d"%x for x in [size_of_n, ((size_of_n+2)//5)*5]]
+        if self.parameters.get_or_set_default("gfpext", 1) == 1:
+            attempts=["p%d"%x for x in [size_of_n, ((size_of_n+2)//5)*5]]
+        else:
+            prefix="p%ddd"%self.parameters.get_or_set_default("gfpext", 1)
+            attempts=["%s%d"%(prefix,x) for x in [size_of_n, ((size_of_n+2)//5)*5]]
+
         if attempts[1]==attempts[0]:
             attempts=attempts[:1]
         self.logger.debug("Looking for hint file"
@@ -1162,8 +1166,8 @@ class Cado_NFS_toplevel(object):
             if self.args.gfpext:
                 self.parameters.set_simple("gfpext", self.args.gfpext)
         # get default hint file if necessary
-        if self.parameters.get_or_set_default("dlp", False) and self.parameters.get_or_set_default("gfpext", 1) == 1:
-            if self.parameters.get_or_set_default("target", 0):
+        if self.parameters.get_or_set_default("dlp", False):
+            if self.parameters.get_or_set_default("target", ""):
                 hintfile = self.parameters.get_or_set_default("descent_hint", "")
                 if hintfile == "":
                     hintfile = self.find_default_hint_file()

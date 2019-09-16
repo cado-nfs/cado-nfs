@@ -1,0 +1,53 @@
+
+Adapting to hardware
+====================
+
+bwc.pl is regularly tested with OpenMPI, on clusters equipped with the
+following hardware:
+    - Mellanox Infiniband FDR (MCX-353A-FCBT)
+    - Intel Omni-Path HFI Silicon 100 Series
+
+For OpenMPI v2.0.2, it might be necessary to add the following option to the
+bwc.pl command line, at least in the omnipath case.
+
+   mpi_extra_args='--mca mtl ofi --mca pml ob1'
+
+In the infiniband situation, the following settings can be used to force
+the (old) verbs interface:
+    --mca btl openib and --mca btl_openib_allow_ib true.
+while in contrast, newer OpenMPI implementations (4.0.x or later) should
+use the ucx software stack (as of 2019, it seems to be hit and miss).
+
+We hope to make this document evolve so as to contain more usable
+documentation regarding the OpenMPI MCA parameter selection. At the
+moment (2019) we can't find authoritative documentation in the OpenMPI
+doc pages that tells what to do in a simple and usable form.
+
+Bugs:
+=====
+
+Be aware that as of openmpi-4.0.1, some --mca parameter choices are
+inconsistent, or at least cannot work. Worse, they sometimes don't warn,
+and just lead to mysterious segfaults, or silent data corruption.
+
+    https://www.mail-archive.com/users@lists.open-mpi.org/msg33345.html
+    https://www.mail-archive.com/users@lists.open-mpi.org/msg33397.html
+
+
+Passing scheduler-related info
+==============================
+
+Cado-nfs assumes that an ssh-like transport is used to launch processes
+on all nodes. Presently, for the OAR scheduler, the oarsh launcher is
+automatically selected. Otherwise, if plain ssh is not used, you are
+likely to need to add things such as the following to the mpiexec command
+line, via the mechanism of mpi_extra_args (used by bwc.pl)
+
+    mpi_extra_args='--mca plm rsh --mca plm_rsh_agent my_ssh_wrapper'
+
+Note that we have never tested OpenMPI with a PMI / PMIx enabled cluster.
+This being said, there is very shallow support for running with a PMI
+launcher. For this, you need to run the :srun:complete step instead of
+:complete (likewise, we also have :srun:krylov replacing krylov, and so
+on). Little to no auto-detection is done, which is why we presently need
+different step names.

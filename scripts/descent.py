@@ -55,14 +55,19 @@ import random
 from queue import Queue, Empty
 from threading import Thread
 
+has_hwloc = None
+
 # This gives the boring info about the file names for everything, and
 # the boilerplate arguments to be fed to binaries.
 class GeneralClass(object):
 
     def declare_args(parser):
-        parser.add_argument("--no-wipe",
-                help="Keep working files",
-                action="store_true")
+        # parser.add_argument("--no-wipe",
+        #         help="Keep working files",
+        #         action="store_true")
+        parser.add_argument("--sm-mode",
+                help="Select SM mode",
+                type=str)
         parser.add_argument("--datadir",
                 help="cadofactor working directory",
                 type=str)
@@ -96,6 +101,9 @@ class GeneralClass(object):
         parser.add_argument("--log",
                 help="File with known logs",
                 type=str)
+        parser.add_argument("--gfpext",
+                help="Degree of extension (default 1)",
+                type=int)
         parser.add_argument("--numbertheorydata",
                 help="File with numbertheory data",
                 type=str)
@@ -244,6 +252,17 @@ class GeneralClass(object):
     def p(self):
         d=self.poly_data()
         return int(d["n"])
+    def extdeg(self):
+        if args.gfpext:
+            return args.gfpext
+        else:
+            return 1
+
+    def target(self):
+        if self.extdeg() == 1:
+            return int(args.target)
+        else:
+            return [int(x) for x in args.target.split(",")]
     
     # short name for the target, to be used in filenames
     def short_target(self):
@@ -723,12 +742,13 @@ class DescentUpperClass(object):
                                 f.write("1 %d %d\n" % (p, r))
         return todofilename, [Num, Den, fnum, fden], descrelfile
 
-    def do_descent_for_real(self, z):
+    def do_descent_for_real(self, z, seed):
         p = general.p()
         bound = p.bit_length() // 2 + 20
         # make the randomness deterministic to be able to replay
         # interrupted computations.
-        random.seed(42)
+        random.seed(seed)
+        general.initrandomizer = random.randrange(p)
         while True:
             zz = pow(z, general.initrandomizer, p)
             gg = self.__myxgcd(zz, p, self.tkewness)
@@ -741,7 +761,7 @@ class DescentUpperClass(object):
             general.initrandomizer = random.randrange(p)
 
         tmpdir = general.tmpdir()
-        prefix = general.prefix() + ".descent.%s.init." % general.short_target()
+        prefix = general.prefix() + ".descent.%s.%s.init." % (general.short_target(), seed)
 
         polyfilename = os.path.join(tmpdir, prefix + "poly")
         with open(polyfilename, 'w') as f:
@@ -757,22 +777,35 @@ class DescentUpperClass(object):
         if os.path.exists(relsfilename):
             processes = [important_file(relsfilename,[])]
         else:
+            fbcfilename = os.path.join(tmpdir, prefix + "fbc")
+            call_common = [ general.las_bin(),
+                      "-poly", polyfilename,
+                      "-lim0", self.lim,
+                      "-lim1", self.lim,
+                      "-lpb0", self.lpb,
+                      "-lpb1", self.lpb,
+                      "-mfb0", self.mfb,
+                      "-mfb1", self.mfb,
+                      "-ncurves0", self.ncurves,
+                      "-ncurves1", self.ncurves,
+                      "-fbc", fbcfilename,
+                      "-I", self.I
+                ]
+            def fbc_call():
+                call_that = call_common + [
+                        "-q0", self.tkewness,
+                        "-q1", self.tkewness,
+                        "-nq", 0,
+                        "-t", "machine,1,pu" if has_hwloc else "4"
+                ]
+                call_that = [str(x) for x in call_that]
+                return call_that
             def construct_call(q0,q1):
-                call_that = [ general.las_bin(),
-                          "-poly", polyfilename,
-                          "-lim0", self.lim,
-                          "-lim1", self.lim,
-                          "-lpb0", self.lpb,
-                          "-lpb1", self.lpb,
-                          "-mfb0", self.mfb,
-                          "-mfb1", self.mfb,
-                          "-ncurves0", self.ncurves,
-                          "-ncurves1", self.ncurves,
-                          "-I", self.I,
+                call_that = call_common + [
                           "-q0", q0,
                           "-q1", q1,
                           "--exit-early", 2,
-                          "-t", 4
+                          "-t", "auto" if has_hwloc else "4"
                 ]
                 call_that = [str(x) for x in call_that]
                 return call_that
@@ -780,6 +813,25 @@ class DescentUpperClass(object):
             call_params = [(os.path.join(relsfilename+"."+str(i)), # outfile
                             self.tkewness+100000*i, #q0
                             self.tkewness+100000*(i+1)) for i in range(self.slaves)] #q1
+
+            if not os.path.exists(fbcfilename):
+                all_ok = True
+                for t in call_params:
+                    if not os.path.exists(t[0]):
+                        all_ok = False
+                        break
+
+                if all_ok:
+                    print (" - Using %s" % fbcfilename)
+                else:
+                    print (" - Factor base cache -")
+                    with open(os.devnull, 'w') as devnull:
+                        subprocess.check_call(fbc_call(), stdout=devnull)
+                    print (" - done -")
+
+            # Whether or not the output files are already present, this
+            # will do the right thing and run the new processes only if
+            # needed.
             processes = [important_file(outfile, construct_call(q0,q1)) for (outfile,q0,q1) in call_params]
 
         q = Queue()
@@ -828,7 +880,9 @@ class DescentUpperClass(object):
 
         sys.stdout.write('\n')
         if not rel:
-            raise NameError("No relation found!")
+            print("No relation found!")
+            print("Trying again with another random seed...")
+            return None, None, None
         print("Taking relation %s\n" % rel)
         rel = rel.split(':')
         a,b = [int(x) for x in rel[0].split(',')]
@@ -843,6 +897,14 @@ class DescentUpperClass(object):
 
         assert(abs(Num) == functools.reduce(lambda x,y:x*y,factNum,1))
         assert(abs(Den) == functools.reduce(lambda x,y:x*y,factDen,1))
+
+        lc_ratpol = int(general.poly_data()["Y"][1])
+        for q in factNum + factDen:
+            if not self.logDB.has(q,-1,0):
+                if lc_ratpol % q == 0:
+                    print("Would need to descend %s which divides the lc of the rational poly." % q)
+                    print("Trying again with a new seed.")
+                    return None, None, None
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
 
@@ -872,6 +934,10 @@ class DescentUpperClass(object):
         tmpdir = general.tmpdir()
         prefix = general.prefix() + ".descent.%s.upper." % general.short_target()
         polyfilename = os.path.join(tmpdir, prefix + "poly")
+        if general.extdeg() == 1:
+            zz = [ z ]
+        else:
+            zz = z
         call_that = [ general.descentinit_bin(),
                 "-poly", general.poly(),
                 "-mt", 4,
@@ -879,11 +945,11 @@ class DescentUpperClass(object):
                 "-mineff", self.mineff,
                 "-maxeff", self.maxeff,
                 "-side", self.side,
-                "-target", self.lpb,
+                "-extdeg", general.extdeg(),
+                "-lpb", self.lpb,
                 "-seed", 42,
                 "-jl",
-                p, z
-                ]
+                p ] + zz
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
         with important_file(initfilename, call_that) as f:
@@ -940,11 +1006,16 @@ class DescentUpperClass(object):
         return todofilename, [general.initU, general.initV,
                 general.initfacu, general.initfacv], None
 
-
     def do_descent(self, z):
         if not self.external:
             if general.has_rational_side():
-                return self.do_descent_for_real(z)
+                seed=42
+                while True:
+                    tdf, spl, frf = self.do_descent_for_real(z, seed)
+                    if tdf != None:
+                        return tdf, spl, frf
+                    else:
+                        seed += 1
             else:
                 return self.do_descent_nonlinear(z)
         else:
@@ -1028,6 +1099,7 @@ class DescentMiddleClass(object):
                 "--mfb0", self.args.mfb0,
                 "--lpb1", general.lpb1(),
                 "--mfb1", self.args.mfb1,
+                "-t", "machine,1,pu" if has_hwloc else "4"
              ]
         s += [ "--todo", todofile ]
         call_that=[str(x) for x in s]
@@ -1129,6 +1201,8 @@ class DescentLowerClass(object):
                         "-out", SMfile,
                         "-ell", general.ell()
                     ]
+        if self.args.sm_mode is not None:
+            call_that += [ "-sm-mode", self.args.sm_mode ]
         call_that = [str(x) for x in call_that]
         print("command line:\n" + " ".join(call_that))
         with open(os.devnull, 'w') as devnull:
@@ -1217,7 +1291,7 @@ class DescentLowerClass(object):
             print("log(3)=%d" % logDB.get_log(3, -1, 0))
             print("# target=%s" % args.target)
             print("log(target)=%d" % log_target)
-            check_result(2, logDB.get_log(2, -1, 0), args.target, log_target, p, ell)
+            check_result(2, logDB.get_log(2, -1, 0), int(args.target), log_target, p, ell)
         else:
             ## No rational side; more complicated.
             # We need to compute the SMs for U and V.
@@ -1313,7 +1387,7 @@ if __name__ == '__main__':
 
     # Required
     parser.add_argument("--target", help="Element whose DL is wanted",
-            type=int, required=True)
+            type=str, required=True)
     parser.add_argument("--timestamp",
             help="Prefix all lines with a time stamp",
             action="store_true")
@@ -1328,13 +1402,21 @@ if __name__ == '__main__':
 
     sys.stdout = drive_me_crazy(sys.stdout, args.timestamp)
 
+    las_bin = os.path.join(args.cadobindir, "sieve", "las")
+    cp = subprocess.Popen([ las_bin, "-help" ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+    if re.search("unused, needs hwloc", cp.stderr.read().decode()):
+        has_hwloc = False
+    else:
+        has_hwloc = True
 
     general = GeneralClass(args)
     init = DescentUpperClass(general, args)
     middle = DescentMiddleClass(general, args)
     lower = DescentLowerClass(general, args)
 
-    todofile, initial_split, firstrelsfile = init.do_descent(int(args.target))
+    todofile, initial_split, firstrelsfile = init.do_descent(general.target())
     relsfile = middle.do_descent(todofile)
     if firstrelsfile:
         lower.do_descent([firstrelsfile, relsfile], initial_split)

@@ -44,6 +44,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     unsigned int nq_pushed = 0;
 
     /*{{{*/
+    size_t size() const { return super::size(); }
     void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
         std::lock_guard<std::mutex> foo(mm);

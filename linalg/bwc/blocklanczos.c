@@ -239,17 +239,20 @@ void blstate_load(struct blstate * bl, unsigned int iter)
 
     rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_load(bl->V[i0], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(bl->V[i0], tmp, mmt->n0[bw->dir], 0);
+    ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_load(bl->V[i1], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(bl->V[i1], tmp, mmt->n0[bw->dir], 0);
+    ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_load(bl->V[i2], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(bl->V[i2], tmp, mmt->n0[bw->dir], 0);
+    ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
     if (tcan_print) { printf("done\n"); fflush(stdout); }
@@ -695,7 +698,9 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
              *  A * V_n         mcol->v
              */
 
-            AxA->dotprod(A, A, vav,
+            A->vec_set_zero(A, vav, nelts_for_nnmat);
+
+            AxA->add_dotprod(A, A, vav,
                     mmt_my_own_subvec(bl->V[i0]),
                     mmt_my_own_subvec(bl->y),
                     mmt_my_own_size_in_items(bl->y));
@@ -703,7 +708,9 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
             pi_allreduce(NULL, vav,
                     nelts_for_nnmat, bl->mmt->pitype, BWC_PI_SUM, pi->m);
 
-            AxA->dotprod(A, A, vaav,
+            A->vec_set_zero(A, vaav, nelts_for_nnmat);
+
+            AxA->add_dotprod(A, A, vaav,
                     mmt_my_own_subvec(bl->y),
                     mmt_my_own_subvec(bl->y),
                     mmt_my_own_size_in_items(bl->y));
@@ -875,8 +882,10 @@ int main(int argc, char * argv[])
     catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(bl_prog, pl, 0);

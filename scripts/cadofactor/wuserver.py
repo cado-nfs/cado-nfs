@@ -759,7 +759,7 @@ subjectAltName=@altnames
         self.httpd.server_name = self.name
 
         if self.address == "localhost" or self.httpd.server_address[0].startswith("127."):
-            self.logger.warn("Server is listening on the loopback device. "
+            self.logger.warning("Server is listening on the loopback device. "
                     "Clients on other hosts will not be able to connect.")
 
     def get_port(self):
@@ -769,7 +769,7 @@ subjectAltName=@altnames
         if origin is "localhost":
             return self.url_loc
         elif origin is not None:
-            self.logger.warn("Server address requested for origin=%s ; this is not understood, returning generic url %s instead" % (origin, self.url))
+            self.logger.warning("Server address requested for origin=%s ; this is not understood, returning generic url %s instead" % (origin, self.url))
         return self.url
 
     def get_cert_sha1(self):
@@ -781,7 +781,7 @@ subjectAltName=@altnames
         if os.path.isfile(self.cafile):
             return True
         if not HAVE_SSL:
-            self.logger.warn("ssl module not available, won't generate certificate")
+            self.logger.warning("ssl module not available, won't generate certificate")
             return False
 
         configuration_str = self.openssl_configuration_template.format(bits=2048, SAN=self.SAN)
@@ -816,7 +816,7 @@ subjectAltName=@altnames
         if self.cafile is None:
             return None
         if not HAVE_SSL:
-            self.logger.warn("ssl module not available, won't generate fingerprint")
+            self.logger.warning("ssl module not available, won't generate fingerprint")
             return None
         command = ['openssl', 'x509', '-in', self.cafile, '-fingerprint']
         try:

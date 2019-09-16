@@ -373,7 +373,7 @@ static inline
 void mpfq_u64k1_simd_add_ui_at(mpfq_u64k1_dst_field, mpfq_u64k1_dst_elt, mpfq_u64k1_src_elt, int, unsigned long);
 static inline
 void mpfq_u64k1_simd_set_ui_all(mpfq_u64k1_dst_field, mpfq_u64k1_dst_elt, unsigned long);
-void mpfq_u64k1_dotprod(mpfq_u64k1_dst_field, mpfq_u64k1_dst_vec, mpfq_u64k1_src_vec, mpfq_u64k1_src_vec, unsigned int);
+void mpfq_u64k1_add_dotprod(mpfq_u64k1_dst_field, mpfq_u64k1_dst_vec, mpfq_u64k1_src_vec, mpfq_u64k1_src_vec, unsigned int);
 
 /* Member templates related to SIMD operation */
 

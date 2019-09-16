@@ -1632,7 +1632,7 @@ print_cadopoly (FILE *fp, cado_poly p)
    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
-   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K);
+   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
    cado_poly_fprintf_MurphyE (fp, e, bound_f, bound_g, area, "");
 
    return e;
@@ -1683,7 +1683,7 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
        fflush(stdout);
      }
    else
-     e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K);
+     e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
 
    cado_poly_clear (cpoly);
    return e;

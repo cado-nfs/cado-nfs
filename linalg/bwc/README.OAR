@@ -1,0 +1,15 @@
+
+Host names
+==========
+
+For OAR, bwc.pl automatically recognizes the hostnames, thus there is no need
+to supply hosts=...
+
+Process launcher
+================
+
+OAR typically uses the oarsh wrapper as a connection means to run
+processes on other nodes. bwc.pl should auto-detect OAR properly, and
+tries its best to inform the underlying MPI implementation that oarsh
+should be used. This is at least tested regularly on OpenMPI (see also
+README.OpenMPI).

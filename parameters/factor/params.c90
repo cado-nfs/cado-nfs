@@ -292,6 +292,20 @@ tasks.sieve.qrange = 10000		# The size of an elementary sieving task
     # assigned as a workunit to a client. This parameter controls the size of
     # individual tasks.
 
+tasks.sieve.adjust_strategy = 0         # Sieving strategy
+    # The sieving strategy can be 0 (default), 1, or 2.
+    # Values 1 or 2 require more work than 0, but usually give more relations.
+
+#tasks.sieve.rels_wanted = 1
+    # This is the minimum number of raw (non-unique) relations needed
+    # for the filtering step. Setting it to 1 will start the filtering
+    # step at the very beginning. If the excess is less than keep after
+    # the filtering, a new value of rels_wanted is deduced from the
+    # value of keep - excess and the current rate of unique relations.
+    # If rels_wanted is not defined, it will be automatically computed
+    # from lpb0 and lpb1. Warning: if you change lpb0/lpb1, be careful
+    # to adjust rels_wanted if it is hard-coded.
+
 #tasks.sieve.threads = 2
     # The lattice siever program las may run in a multithreaded manner.
     # This keeps the amount of memory used constant, and just runs

@@ -26,7 +26,7 @@ gfpext = 2
 # imported polynomials, you might need to set to false. 
 # The available automorphisms are "1/y" (for reciprocal polynomials) and
 # "_y" (for polynomials with only even powers).
-tasks.galois = 1/y
+# tasks.galois = 1/y
 
 # If you don't want the "full column of 1", uncomment the following line.
 # In particular when both polynomials are not monic, this could help.
@@ -55,7 +55,7 @@ tasks.sieve.mfb0 = 34
 tasks.sieve.mfb1 = 34
 tasks.qmin = 20000
 tasks.sieve.qrange = 1000
-tasks.sieve.rels_wanted = 1
+tasks.sieve.rels_wanted = 50000
 # The polynomials selected by default put the "small polynomial" on side 0,
 # so we need to put the special-q on that side 
 tasks.sieve.sqside = 0
@@ -74,3 +74,18 @@ tasks.reconstructlog.partial = false
 # We do not have any easy way to check the result since there is no
 # rational side
 checkdlp = false
+
+tasks.descent.init_I = 11
+tasks.descent.init_ncurves = 10
+tasks.descent.init_lpb = 30
+tasks.descent.init_lim = 7000
+tasks.descent.init_mfb = 40
+tasks.descent.init_tkewness = 7000
+tasks.descent.init_side = 0
+tasks.descent.I = 11
+tasks.descent.lim0 = 20000
+tasks.descent.lim1 = 20000
+tasks.descent.lpb0 = 17
+tasks.descent.lpb1 = 17
+tasks.descent.mfb0 = 34
+tasks.descent.mfb1 = 34

@@ -125,8 +125,8 @@ if __name__ == '__main__':
     dlp = dlp_param["dlp"]
     checkdlp_param = parameters.myparams({"checkdlp": True ,}, "")
     checkdlp = checkdlp_param["checkdlp"]
-    target_param = parameters.myparams({"target": 0,}, "")
-    target = int(target_param["target"])
+    target_param = parameters.myparams({"target": "",}, "")
+    target = target_param["target"]
     if factors is None:
         toplevel_params.purge_temp_files(nopurge=True)
         sys.exit("Error occurred, terminating")
@@ -148,13 +148,13 @@ if __name__ == '__main__':
             logger.info("  log3 = " + str(log3))
             assert (p-1) % ell == 0
             assert pow(3, log2*((p-1) // ell), p) == pow(2, log3*((p-1) // ell), p)
-            if target != 0:
+            if target != "":
                 logtarget = int(factors[4])
                 logger.info("Also check log(target) vs log(2) ...")
-                assert pow(target, log2*((p-1) // ell), p) == pow(2, logtarget*((p-1) // ell), p)
+                assert pow(int(target), log2*((p-1) // ell), p) == pow(2, logtarget*((p-1) // ell), p)
         else:
             logger.info("No check was performed. Logarithms of the factor base elements are in %s" % factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
-        if target != 0:
+        if target != "":
             logtarget = int(factors[4])
             logger.info("target = " + str(target))
             logger.info("log(target) = " + str(logtarget))

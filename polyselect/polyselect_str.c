@@ -656,6 +656,7 @@ hash_grow (hash_t H)
   unsigned long j, old_alloc;
   slot_t *old_slot;
   mpz_t tmp;
+
   mpz_init (tmp);
   mpz_set_ui (tmp, 0);
 

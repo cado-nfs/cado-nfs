@@ -6,28 +6,27 @@
 #include "mpfq_gf2n_common.h"
 
 /* require all versions */
-#define  need_dotprod_64K_64
-#define  need_dotprod_64K_128
-#define  need_dotprod_64K_64L
+#define  need_add_dotprod_64K_64
+#define  need_add_dotprod_64K_128
+#define  need_add_dotprod_64K_64L
 #define  need_vaddmul_tiny_64K_64L
 #define  need_vtranspose_64K_64L
-#define  need_dotprod_64K_64
+#define  need_add_dotprod_64K_64
 
-#ifdef  need_dotprod_64K_64
+#ifdef  need_add_dotprod_64K_64
 #if     defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
 #include <emmintrin.h>
 /* u has n rows of 64K bits
  * v has n rows of 64 bits.
  * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 64 bits.
  */
-static inline void dotprod_64K_64(
+static inline void add_dotprod_64K_64(
         uint64_t * w,           // 64 at a time
         const uint64_t * u,     // 64K at a time
         const uint64_t * v,     // 64 at a time
         unsigned int n,
         unsigned int K)
 {
-    memset(w, 0, 64 * K * sizeof(uint64_t));
     for(unsigned int i = 0 ; i < n ; i++) {
         __m128i * w0 = (__m128i*) w;
         // TODO: It's possible to expand more, and use a __m128i
@@ -53,14 +52,12 @@ static inline void dotprod_64K_64(
     }
 }
 #else
-static inline void dotprod_64K_64(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
+static inline void add_dotprod_64K_64(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
 {
     uint64_t idx, i, rA;
     uint64_t rx;
 
     /* This has been tested once, seems to work ok */
-
-    memset(b, 0, 64 * K * sizeof(uint64_t));
     for(idx = 0; idx < ncol; idx++) {
         rx = x[idx];
         uint64_t* pb = b;
@@ -76,21 +73,20 @@ static inline void dotprod_64K_64(uint64_t * b, const uint64_t * A, const uint64
 #endif
 #endif
 
-#ifdef  need_dotprod_64K_128
+#ifdef  need_add_dotprod_64K_128
 #if     defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
 /* u has n rows of 64K bits
  * v has n rows of 128 bits.
  * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 128 bits.
  */
 #include <emmintrin.h>
-static inline void dotprod_64K_128(
+static inline void add_dotprod_64K_128(
         uint64_t * w,           // 128 at a time
         const uint64_t * u,     // 128 at a time
         const uint64_t * v,     // 128 at a time
         unsigned int n,
         unsigned int K)
 {
-    memset(w, 0, 64 * K * sizeof(__m128i));
     /* okay, we've casted the m128i* to u64* for interchange, and now
      * we're casting it back...  */
     __m128i * vv = (__m128i*) v;
@@ -117,14 +113,13 @@ static inline void dotprod_64K_128(
     }
 }
 #else
-static inline void dotprod_64K_128(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
+static inline void add_dotprod_64K_128(uint64_t * b, const uint64_t * A, const uint64_t * x, unsigned int ncol, unsigned int K)
 {
     uint64_t idx, i, rA;
     uint64_t rx[2];
 
     abort();    // untested.
 
-    memset(b, 0, 64 * K * sizeof(uint64_t));
     for(idx = 0; idx < ncol; idx++) {
         rx[0] = *x++;
         rx[1] = *x++;
@@ -142,7 +137,7 @@ static inline void dotprod_64K_128(uint64_t * b, const uint64_t * A, const uint6
 #endif
 #endif
 
-#ifdef  need_dotprod_64K_64L
+#ifdef  need_add_dotprod_64K_64L
 /* u has n rows of 64K bits
  * v has n rows of 64L bits.
  * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 64L bits.
@@ -151,7 +146,7 @@ static inline void dotprod_64K_128(uint64_t * b, const uint64_t * A, const uint6
  * as usual. We're not using sse-2 here because of lazyness -- and little
  * expected returns.
  */
-static inline void dotprod_64K_64L(
+static inline void add_dotprod_64K_64L(
         uint64_t * w,           // 64L at a time
         const uint64_t * u,     // 64K at a time
         const uint64_t * v,     // 64L at a time
@@ -159,7 +154,6 @@ static inline void dotprod_64K_64L(
         unsigned int K,
         unsigned int L)
 {
-    memset(w, 0, 64 * K * L * sizeof(uint64_t));
     for(unsigned int i = 0 ; i < n ; i++) {
         uint64_t * w0 = (uint64_t *) w;
         for(unsigned int l = 0 ; l < L ; l++) {

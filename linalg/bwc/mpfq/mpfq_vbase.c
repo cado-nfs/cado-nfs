@@ -303,248 +303,248 @@ void mpfq_vbase_oo_init_templates(mpfq_vbase_tmpl_ptr w, mpfq_vbase_ptr v0, mpfq
     if (0) {
 #if defined(COMPILE_MPFQ_BINARY_FIELD_m128)
     } else if (strcmp(s0, "m128") == 0 && strcmp(s1, "m128") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_m128_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_m128_m128_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_m128_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_m128_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_m128_m128_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_m128)
     } else if (strcmp(s0, "m128") == 0 && strcmp(s1, "u64k1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_m128_u64k1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_m128_u64k1_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_m128) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "m128") == 0 && strcmp(s1, "u64k2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_m128_u64k2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_m128_u64k2_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_m128)
     } else if (strcmp(s0, "m128") == 0 && strcmp(s1, "u64k3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_m128_u64k3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_m128_u64k3_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_m128) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "m128") == 0 && strcmp(s1, "u64k4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_m128_u64k4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_m128_u64k4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_m128_u64k4_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
     } else if (strcmp(s0, "u64k1") == 0 && strcmp(s1, "m128") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_m128_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k1_m128_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_m128_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_m128_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k1_m128_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
     } else if (strcmp(s0, "u64k1") == 0 && strcmp(s1, "u64k1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k1_u64k1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k1_u64k1_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k1") == 0 && strcmp(s1, "u64k2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k1_u64k2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k1_u64k2_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
     } else if (strcmp(s0, "u64k1") == 0 && strcmp(s1, "u64k3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k1_u64k3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k1_u64k3_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
     } else if (strcmp(s0, "u64k1") == 0 && strcmp(s1, "u64k4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k1_u64k4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k1_u64k4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k1_u64k4_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_m128)
+#if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k2") == 0 && strcmp(s1, "m128") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_m128_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k2_m128_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_m128_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_m128_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_m128_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_m128) */
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k2") == 0 && strcmp(s1, "u64k1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k2_u64k1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_u64k1_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k2") == 0 && strcmp(s1, "u64k2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k2_u64k2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_u64k2_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
     } else if (strcmp(s0, "u64k2") == 0 && strcmp(s1, "u64k3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k2_u64k3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_u64k3_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "u64k2") == 0 && strcmp(s1, "u64k4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k2_u64k4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k2_u64k4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k2_u64k4_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_m128)
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
+#if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
     } else if (strcmp(s0, "u64k3") == 0 && strcmp(s1, "m128") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_m128_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k3_m128_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_m128_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_m128_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k3_m128_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_m128) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
     } else if (strcmp(s0, "u64k3") == 0 && strcmp(s1, "u64k1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k3_u64k1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k3_u64k1_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k3") == 0 && strcmp(s1, "u64k2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k3_u64k2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k3_u64k2_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
     } else if (strcmp(s0, "u64k3") == 0 && strcmp(s1, "u64k3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k3_u64k3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k3_u64k3_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "u64k3") == 0 && strcmp(s1, "u64k4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k3_u64k4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k3_u64k4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k3_u64k4_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "u64k4") == 0 && strcmp(s1, "m128") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_m128_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k4_m128_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_m128_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_m128_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k4_m128_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_m128) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1)
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "u64k4") == 0 && strcmp(s1, "u64k1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k4_u64k1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k4_u64k1_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k1) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2)
     } else if (strcmp(s0, "u64k4") == 0 && strcmp(s1, "u64k2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k4_u64k2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k4_u64k2_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
-#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k2) */
+#if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3)
     } else if (strcmp(s0, "u64k4") == 0 && strcmp(s1, "u64k3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k4_u64k3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k4_u64k3_wrapper_transpose;
-#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
+#endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) && defined(COMPILE_MPFQ_BINARY_FIELD_u64k3) */
 #if defined(COMPILE_MPFQ_BINARY_FIELD_u64k4)
     } else if (strcmp(s0, "u64k4") == 0 && strcmp(s1, "u64k4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_u64k4_u64k4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_u64k4_u64k4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_u64k4_u64k4_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_BINARY_FIELD_u64k4) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_1)
     } else if (strcmp(s0, "p_1") == 0 && strcmp(s1, "p_1") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_1_p_1_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_1_p_1_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_1_p_1_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_1_p_1_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_1_p_1_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_1) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_10)
     } else if (strcmp(s0, "p_10") == 0 && strcmp(s1, "p_10") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_10_p_10_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_10_p_10_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_10_p_10_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_10_p_10_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_10_p_10_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_10) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_11)
     } else if (strcmp(s0, "p_11") == 0 && strcmp(s1, "p_11") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_11_p_11_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_11_p_11_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_11_p_11_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_11_p_11_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_11_p_11_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_11) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_12)
     } else if (strcmp(s0, "p_12") == 0 && strcmp(s1, "p_12") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_12_p_12_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_12_p_12_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_12_p_12_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_12_p_12_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_12_p_12_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_12) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_13)
     } else if (strcmp(s0, "p_13") == 0 && strcmp(s1, "p_13") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_13_p_13_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_13_p_13_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_13_p_13_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_13_p_13_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_13_p_13_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_13) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_14)
     } else if (strcmp(s0, "p_14") == 0 && strcmp(s1, "p_14") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_14_p_14_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_14_p_14_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_14_p_14_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_14_p_14_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_14_p_14_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_14) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_15)
     } else if (strcmp(s0, "p_15") == 0 && strcmp(s1, "p_15") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_15_p_15_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_15_p_15_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_15_p_15_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_15_p_15_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_15_p_15_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_15) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_2)
     } else if (strcmp(s0, "p_2") == 0 && strcmp(s1, "p_2") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_2_p_2_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_2_p_2_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_2_p_2_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_2_p_2_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_2_p_2_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_2) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_3)
     } else if (strcmp(s0, "p_3") == 0 && strcmp(s1, "p_3") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_3_p_3_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_3_p_3_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_3_p_3_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_3_p_3_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_3_p_3_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_3) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_4)
     } else if (strcmp(s0, "p_4") == 0 && strcmp(s1, "p_4") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_4_p_4_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_4_p_4_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_4_p_4_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_4_p_4_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_4_p_4_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_4) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_5)
     } else if (strcmp(s0, "p_5") == 0 && strcmp(s1, "p_5") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_5_p_5_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_5_p_5_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_5_p_5_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_5_p_5_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_5_p_5_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_5) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_6)
     } else if (strcmp(s0, "p_6") == 0 && strcmp(s1, "p_6") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_6_p_6_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_6_p_6_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_6_p_6_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_6_p_6_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_6_p_6_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_6) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_7)
     } else if (strcmp(s0, "p_7") == 0 && strcmp(s1, "p_7") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_7_p_7_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_7_p_7_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_7_p_7_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_7_p_7_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_7_p_7_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_7) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_8)
     } else if (strcmp(s0, "p_8") == 0 && strcmp(s1, "p_8") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_8_p_8_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_8_p_8_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_8_p_8_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_8_p_8_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_8_p_8_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_8) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_p_9)
     } else if (strcmp(s0, "p_9") == 0 && strcmp(s1, "p_9") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_9_p_9_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_p_9_p_9_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_9_p_9_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_9_p_9_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_p_9_p_9_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_p_9) */
 #if defined(COMPILE_MPFQ_PRIME_FIELD_pz)
     } else if (strcmp(s0, "pz") == 0 && strcmp(s1, "pz") == 0) {
-        w->dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_pz_pz_wrapper_dotprod;
-        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, void *, unsigned int)) mpfq_pz_pz_wrapper_addmul_tiny;
+        w->add_dotprod = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_pz_pz_wrapper_add_dotprod;
+        w->addmul_tiny = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_pz_pz_wrapper_addmul_tiny;
         w->transpose = (void (*) (mpfq_vbase_ptr, mpfq_vbase_ptr, void *, const void *)) mpfq_pz_pz_wrapper_transpose;
 #endif /* defined(COMPILE_MPFQ_PRIME_FIELD_pz) */
     } else {

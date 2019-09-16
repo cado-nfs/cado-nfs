@@ -221,7 +221,7 @@ class Sha1Cache(object):
         # Check whether the file on disk changed
         if realpath in self._sha1 and not self._sha1[realpath][1] == file_id:
             logger = logging.getLogger("Sha1Cache")
-            logger.warn("File %s changed! Discarding old SHA1 sum", realpath)
+            logger.warning("File %s changed! Discarding old SHA1 sum", realpath)
             del(self._sha1[realpath])
         if not realpath in self._sha1:
             logger = logging.getLogger("Sha1Cache")
@@ -691,6 +691,22 @@ class PolyselectRopt(Program):
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
+class Polyselect3(Program):
+    binary = "polyselect3"
+    name = binary
+    subdir = "polyselect"
+
+    def __init__(self, *,
+                 verbose : Toggle("v")=None,
+                 threads : Parameter("t", checktype=int)=None,
+                 num :  Parameter(checktype=int)=None,
+                 poly : Parameter(is_input_file=True),
+                 Bf : Parameter(checktype=float)=None,
+                 Bg : Parameter(checktype=float)=None,
+                 area : Parameter(checktype=float)=None,
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
 class PolyselectGFpn(Program):
     binary = "polyselect_gfpn"
     name = binary
@@ -824,6 +840,7 @@ class Las(Program):
                  allow_compsq: Toggle("allow-compsq")=None,
                  qfac_min: Parameter("qfac-min", checktype=int)=None,
                  qfac_max: Parameter("qfac-max", checktype=int)=None,
+                 adjust_strategy: Parameter("adjust-strategy", checktype=int)=None,
                  stats_stderr: Toggle("stats-stderr")=None,
                  # We have no checktype for parameters of the form <int>,<int>,
                  # so these are passed just as strings
@@ -1046,6 +1063,7 @@ class SM(Program):
                  ell: Parameter(),
                  nsm: Parameter()=None,
                  threads: Parameter("t")=None,
+                 sm_mode: Parameter("sm-mode")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
  
@@ -1065,6 +1083,7 @@ class ReconstructLog(Program):
                  relsdel: Parameter(),
                  nrels: Parameter(),
                  partial: Toggle()=None,
+                 sm_mode: Parameter("sm-mode")=None,
                  nsm: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
@@ -1075,6 +1094,7 @@ class Descent(Program):
     subdir = "scripts"
     def __init__(self, *,
                  target: Parameter(prefix="--"),
+                 gfpext: Parameter(prefix="--"),
                  prefix: Parameter(prefix="--"),
                  datadir: Parameter(prefix="--"),
                  cadobindir: Parameter(prefix="--"),
@@ -1086,6 +1106,8 @@ class Descent(Program):
                  init_lim: Parameter("init-lim", prefix="--"),
                  init_mfb: Parameter("init-mfb", prefix="--"),
                  init_tkewness: Parameter("init-tkewness", prefix="--"),
+                 init_side: Parameter("init-side", prefix="--")=None,
+                 sm_mode: Parameter("sm-mode", prefix="--")=None,
                  I: Parameter(prefix="--"),
                  lpb0: Parameter(prefix="--"),
                  lpb1: Parameter(prefix="--"),

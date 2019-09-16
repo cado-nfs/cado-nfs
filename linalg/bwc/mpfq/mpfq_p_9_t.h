@@ -158,19 +158,19 @@
 
 /* Object-oriented interface */
 #ifdef COMPILE_MPFQ_PRIME_FIELD_p_9
-void mpfq_p_9_p_9_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
+void mpfq_p_9_p_9_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_PRIME_FIELD_p_9 */
 
 #ifdef COMPILE_MPFQ_PRIME_FIELD_p_9
-void mpfq_p_9_p_9_dotprod(mpfq_p_9_dst_field, mpfq_p_9_dst_field, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
+void mpfq_p_9_p_9_add_dotprod(mpfq_p_9_dst_field, mpfq_p_9_dst_field, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_PRIME_FIELD_p_9 */
 
 #ifdef COMPILE_MPFQ_PRIME_FIELD_p_9
-void mpfq_p_9_p_9_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_dst_vec, unsigned int);
+void mpfq_p_9_p_9_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_PRIME_FIELD_p_9 */
 
 #ifdef COMPILE_MPFQ_PRIME_FIELD_p_9
-void mpfq_p_9_p_9_addmul_tiny(mpfq_p_9_dst_field, mpfq_p_9_dst_field, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_dst_vec, unsigned int);
+void mpfq_p_9_p_9_addmul_tiny(mpfq_p_9_dst_field, mpfq_p_9_dst_field, mpfq_p_9_dst_vec, mpfq_p_9_src_vec, mpfq_p_9_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_PRIME_FIELD_p_9 */
 
 #ifdef COMPILE_MPFQ_PRIME_FIELD_p_9

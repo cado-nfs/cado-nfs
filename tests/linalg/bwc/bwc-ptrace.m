@@ -26,12 +26,14 @@ KP<X>:=PolynomialRing(GF(p));
 
 if p eq 2 then
     g:=func<var|Transpose(Matrix([Vector(GF(2),Intseq(x,2,64)):x in var]))>;
+    ung:=func<M|[Seqint(Eltseq(x),2):x in Rows(Transpose(ChangeRing(M,Integers())))]>;
 else
     function group(nlimbs)
-        return func<var|[Seqint([x mod 2^64:x in var[i*k+1..i*k+k]],2^64):i in [0..#var div k - 1]] where k is nlimbs>;
+        return func<var|Vector([GF(p)|Seqint([x mod 2^64:x in var[i*k+1..i*k+k]],2^64):i in [0..#var div k - 1]] where k is nlimbs)>;
     end function;
     plimbs:=Ceiling(Log(2^64,p));
     g:=group(plimbs);
+    ung:=func<S|&cat[Intseq(x,2^64,plimbs):x in S]>;
 end if;
 
 splitwidth:=p eq 2 select 64 else 1;
@@ -198,11 +200,10 @@ end if;
 load "VV.m";
 RHS:=VV[1][1..nrhs];
 
-/* Only pick first X, since we only want to verify the check vector */
 load "x.m";
 nchecks:=splitwidth;
-Xt:=Matrix(GF(p),nchecks,nr_orig,[]);
-for i in [1..nchecks] do for u in var[i] do Xt[i,u] +:=1; end for; end for;
+Xt:=Matrix(GF(p),m,nr_orig,[]);
+for i in [1..m] do for u in var[i] do Xt[i,u] +:=1; end for; end for;
 
 function canvec(V,i) x:=V!0; x[i]:=1; return x; end function;
 
@@ -214,13 +215,20 @@ print "Dimension of the span of the vectors of X is", Dimension(sub<Universe(x0)
 xi:=[v*MM : v in x0];
 
 
-// if System("test -f C0.m") eq 0 then
-// magma can't do if (...) then load "..."; (sigh).
-load "C0.m";
+load "Ct.m";
 if Category(var) ne RngIntElt then
-    C0:=VS!g(var);
-elif assigned C0 then
-    delete C0;
+    Ct:=g(var);
+elif assigned Ct then
+    delete Ct;
+end if;
+
+// if System("test -f Cv0.m") eq 0 then
+// magma can't do if (...) then load "..."; (sigh).
+load "Cv0.m";
+if Category(var) ne RngIntElt then
+    Cv0:=VS!g(var);
+elif assigned Cv0 then
+    delete Cv0;
 end if;
 //load "C1.m";
 //if Category(var) ne RngIntElt then
@@ -316,22 +324,81 @@ end for;
 //end if;
 //// end if;
 
-load "Ci.m";
-if assigned C0 then
-    print "Checking consistency of check vector C.0";
-    assert C0 eq VS!Xt;
-    print "Checking consistency of check vector C.0: done";
-    printf "Checking consistency of check vector C.%o\n", interval;
-    if Category(var) ne RngIntElt then
-        Ci:=VS!g(var);
-    elif assigned Ci then
-        delete Ci;
-    end if;
-    foo:=C0;
-    for i in [1..interval] do foo *:= MM; end for;
-    assert Ci eq foo;
-    printf "Checking consistency of check vector C.%o: done\n", interval;
+if assigned Cv0 then
+    printf "Checking consistency of check vector Cv.0-%o.0\n", splitwidth;
+    /* Recall that what we think of as rows in the matrix, or also rows
+     * (consecutive bits) in the data file correspond to columns in the magma
+     * variable. Therefore Ct is rightly put non-transposed in the check below
+     *
+     * The "file" Ct represents a matrix with m rows and splitwidth columns.
+     * Which means that in magma, we're making it a matrix with splitwidth
+     * rows and m columns. This fits well with Xt which has m rows.
+     */
+    assert Cv0 eq Ct*Xt;
+    printf "Checking consistency of check vector Cv.0-%o.0: done\n", splitwidth;
 end if;
+
+load "Cvi.m";
+if Category(var) ne RngIntElt then
+    Cvi:=VS!g(var);
+elif assigned Cvi then
+    delete Cvi;
+end if;
+
+load "Cr.m";
+if Category(var) ne RngIntElt then
+    Cr:=[g(var[j..j+nchecks*plimbs-1]) : j in [1..#var by nchecks*plimbs]];
+    if p ne 2 then
+        assert #Eltseq(Cr[1]) eq 1;
+        Cr:=[x[1]:x in Cr];
+    end if;
+elif assigned Cr then
+    delete Cr;
+end if;
+
+load "Cdi.m";
+if Category(var) ne RngIntElt then
+    Cdi:=VS!g(var);
+elif assigned Cdi then
+    delete Cdi;
+end if;
+
+check_together:=[];
+if assigned Cvi then
+    Append(~check_together, Sprintf("Cv.0-%o.%o", splitwidth, interval));
+end if;
+if assigned Cdi and assigned Cr then
+    Append(~check_together, Sprintf("Cd.0-%o.%o", splitwidth, interval));
+    Append(~check_together, Sprintf("Cr.0-%o.%o", splitwidth, splitwidth));
+end if;
+if #check_together gt 0 then
+    printf "Checking consistency of check vectors %o\n", check_together;
+    foo:=Cv0;
+    bar:=VS!0;
+    for i in [1..interval] do
+        if assigned Cr then
+            bar +:= Cr[i]*foo;
+        end if;
+        foo *:= MM;
+    end for;
+    if assigned Cvi then assert Cvi eq foo; end if;
+    if assigned Cdi and assigned Cr then assert Cdi eq bar; end if;
+    printf "Checking consistency of check vectors %o: done\n", check_together;
+end if;
+
+
+/* Note that (below, "where i is 2" always means that the result holds for all
+ * i>=0 -- we just want something that is easy to copy-paste.
+ *
+    Cv0 eq Ct*Xt;
+    Cv0*MM^i eq Ct*Xt*MM^i                    where i is 2;
+
+    Xt*MM^i*Transpose(VV[1][1]) eq mcoeff(A,i)   where i is 2;
+
+    &+[Cr[1+i]*Ct*Xt*MM^i:i in [0..interval-1]] eq Cdi;
+
+    &+[Cr[1+i]*Ct*mcoeff(A,i):i in [0..interval-1]] eq Cdi * Transpose(VV[1][1]);
+*/
 
 print "Checking consistency of all vectors V_i";
 for i in [1..#VV-1] do
@@ -402,14 +469,15 @@ end function;
 
 load "A.m";
 function matpol_from_sequence(seq, m, n)
+    assert Nrows(seq)*Ncols(seq) mod m*n eq 0;
+    deg:=Nrows(seq)*Ncols(seq) div (m*n)-1;
     if p gt 2 then
-        assert #seq mod m*n eq 0;
-        deg:=#seq div (m*n)-1;
-        F:=&+[KP.1^i*      Matrix(KP,m,n,seq[i*m*n+1..(i+1)*m*n]):i in [0..deg]];
+        enum0:=func<s|[<i-1,s[i]>:i in [1..#s]]>;
+        smat:=Matrix(GF(p),deg+1,m*n,Eltseq(seq));
+        F:=&+[KP.1^i*Matrix(KP,m,n,Eltseq(r)) where i,r is Explode(ir) : ir in enum0(Rows(smat))];
+
         // Fr:= &+[KP.1^(deg-i)*Matrix(KP,m,n,seq[i*m*n+1..(i+1)*m*n]):i in [0..deg]];
     else
-        assert Nrows(seq)*Ncols(seq) mod m*n eq 0;
-        deg:=Nrows(seq)*Ncols(seq) div (m*n)-1;
         // it's quite messy...
         tmp:=Matrix((deg+1)*m, n, Eltseq(Transpose(seq)));
         F:=&+[KP.1^i*Matrix(KP,Submatrix(tmp,i*m+1,1,m,n)):i in [0..deg]];
@@ -438,15 +506,11 @@ F:=BlockMatrix(
             :i,j in [1..n div splitwidth]
         ]);
 // F:=Matrix(n,n,[Polynomial(GF(p),Fchunks[i][j]): i,j in [1..n]]);
-if p gt 2 then
-degsF:={#Fchunks[i][j] div splitwidth -1:i,j in [1..n div splitwidth]};
-else
 degsF:={Ncols(Fchunks[i][j]) div splitwidth -1:i,j in [1..n div splitwidth]};
-end if;
 assert #degsF eq 1;
 degF:=Setseq(degsF)[1];
 Fr:=Parent(F)![reciprocal(x,degF):x in Eltseq(F)];
-rhscoeffs:=Matrix(GF(p),#RHS,n,[Polynomial(Rchunks[i][j]):
+rhscoeffs:=Matrix(GF(p),#RHS,n,[Polynomial(Eltseq(Rchunks[i][j])):
 j in [1..n],
 i in [1..#RHS]
 ]);
@@ -696,7 +760,8 @@ for s in [0..nsols div splitwidth - 1] do
          */
     else
         /* Then it's simpler, because we have no RHS to mess things up */
-        assert IsZero(VerticalJoin(late)*Msmall);
+        // assert IsZero(VerticalJoin(late)*Msmall);
+        assert IsZero(late*Msmall);
     end if;
 end for;
 print "Checking that gather has computed what we expect: done";

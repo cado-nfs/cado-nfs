@@ -134,6 +134,9 @@ class PolynomialParseException(Exception):
     """ Exception class for signaling errors during polynomial parsing """
     pass
 
+class TaskException(Exception):
+    """ Exception class for signaling errors during task execution """
+    pass
 
 class Polynomials(object):
     r""" A class that represents a polynomial
@@ -161,10 +164,11 @@ class Polynomials(object):
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
     re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    # MurphyF is the refined value of MurphyE produced by polyselect3
+    re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
     re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
-    # the 'lognorm' variable now represents the expected E-value
-    re_lognorm = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
+    re_exp_E = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
     
     # Keys that can occur in a polynomial file, in their preferred ordering,
     # and whether the key is mandatory or not. The preferred ordering is used
@@ -181,10 +185,11 @@ class Polynomials(object):
             and polyselect_ropt
         """
         self.MurphyE = 0.
+        self.MurphyF = 0.
         self.skew = 0.
         self.MurphyParams = None
         self.revision = None
-        self.lognorm = 0.
+        self.exp_E = 0.
         self.params = {}
         polyf = Polynomial()
         polyg = Polynomial()
@@ -230,6 +235,13 @@ class Polynomials(object):
                 self.MurphyParams = match.group(1)
                 self.MurphyE = float(match.group(2))
                 continue
+            match = self.re_MurphyF.match(line)
+            if match:
+                if self.MurphyF:
+                    raise PolynomialParseException(
+                        "Line '%s' redefines Murphy F value" % line)
+                self.MurphyF = float(match.group(2))
+                continue
             match = self.re_skew.match(line)
             if match:
                 self.skew = float(match.group(1))
@@ -240,12 +252,12 @@ class Polynomials(object):
                 continue
             # If this is a comment line telling the expected E-value,
             # extract the value and store it
-            match = self.re_lognorm.match(line)
+            match = self.re_exp_E.match(line)
             if match:
-                if self.lognorm != 0:
+                if self.exp_E != 0:
                     raise PolynomialParseException(
                         "Line '%s' redefines exp_E value" % line)
-                self.lognorm = float(match.group(1))
+                self.exp_E = float(match.group(1))
                 continue
             # Drop comment, strip whitespace
             line2 = line.split('#', 1)[0].strip()
@@ -311,13 +323,13 @@ class Polynomials(object):
                     in enumerate(self.polyg) if not coeff == 0]
         if not self.MurphyE == 0.:
             if self.MurphyParams:
-                arr.append("# MurphyE (%s) = %g\n" % (self.MurphyParams, self.MurphyE))
+                arr.append("# MurphyE (%s) = %.3e\n" % (self.MurphyParams, self.MurphyE))
             else:
-                arr.append("# MurphyE = %g\n" % self.MurphyE)
+                arr.append("# MurphyE = %.3e\n" % self.MurphyE)
         if not self.revision == None:
             arr.append("# found by revision %s\n" % self.revision)
-        if not self.lognorm == 0.:
-            arr.append("# exp_E %g\n" % self.lognorm)
+        if not self.exp_E == 0.:
+            arr.append("# exp_E %g\n" % self.exp_E)
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
                 arr.append("# poly%d = %s\n" % (i, str(self.tabpoly[i])))
@@ -1125,7 +1137,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
     def run(self):
         if not self.params["run"]:
             self.logger.info("Stopping at %s", self.name)
-            raise Exception("Job aborted because of a forcibly disabled task")
+            raise TaskException("Job aborted because of a forcibly disabled task")
         self.logger.info("Starting")
         self.logger.debug("%s.run(): Task state: %s", self.name, self.state)
         super().run()
@@ -1824,7 +1836,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         stored in the heap must be at the specified index in the DB.
         """
         assert len(self.poly_heap) == len(self.best_polynomials)
-        for lognorm, (key, poly) in self.poly_heap:
+        for exp_E, (key, poly) in self.poly_heap:
             assert self.best_polynomials[key] == str(poly)
 
     def import_existing_polynomials(self):
@@ -1836,8 +1848,8 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
                 print("Adding old polynomial at DB index %s: %s" %
                       (oldkey, self.best_polynomials[oldkey]))
             poly = Polynomials(self.best_polynomials[oldkey].splitlines())
-            if not poly.lognorm:
-                self.logger.error("Polynomial at DB index %s has no lognorm", oldkey)
+            if not poly.exp_E:
+                self.logger.error("Polynomial at DB index %s has no exp_E", oldkey)
                 continue
             newkey = self._add_poly_heap(poly)
             if newkey is None:
@@ -1845,23 +1857,23 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
                 # the heap. Thus it did not get added and must be removed from
                 # the DB
                 if debug:
-                    print("Deleting polynomial lognorm=%f, key=%s" % 
-                          (poly.lognorm, oldkey))
+                    print("Deleting polynomial exp_E=%f, key=%s" %
+                          (poly.exp_E, oldkey))
                 del(self.best_polynomials[oldkey])
             elif newkey != oldkey:
                 # Heap is full, worst one in heap (with key=newkey) was
                 # overwritten and its DB entry gets replaced with poly from
                 # key=oldkey
                 if debug:
-                    print("Overwriting poly lognorm=%f, key=%s with poly "
-                          "lognorm=%f, key=%s" %
+                    print("Overwriting poly exp_E=%f, key=%s with poly "
+                          "exp_E=%f, key=%s" %
                           (self.poly_heap[0][0], newkey, poly, oldkey))
                 self.best_polynomials.clear(oldkey, commit=False)
                 self.best_polynomials.update({newkey: poly}, commit=True)
             else:
                 # Last case newkey == oldkey: nothing to do
                 if debug:
-                    print("Adding lognorm=%f, key=%s" % (poly.lognorm, oldkey))
+                    print("Adding exp_E=%f, key=%s" % (poly.exp_E, oldkey))
 
     def run(self):
         if self.send_request(Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL):
@@ -1882,7 +1894,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         if "import_sopt" in self.params:
             self.import_files(self.params["import_sopt"])
 
-        worstmsg = ", worst lognorm %f" % -self.poly_heap[0][0] \
+        worstmsg = ", worst exp_E %f" % -self.poly_heap[0][0] \
                 if self.poly_heap else ""
         self.logger.info("%d polynomials in queue from previous run%s", 
                          len(self.poly_heap), worstmsg)
@@ -1975,7 +1987,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         self.logger.info("Parsed %d polynomials, added %d to priority queue (has %s)",
                          totalparsed, totaladded, fullmsg)
         if totaladded:
-            self.logger.info("Worst polynomial in queue now has lognorm %f",
+            self.logger.info("Worst polynomial in queue now has exp_E %f",
                              -self.poly_heap[0][0])
                                      
     
@@ -1986,7 +1998,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
@@ -2002,8 +2014,8 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return (0, 0)
-        if not poly.lognorm:
-            self.logger.warn("Polynomial in file %s has no lognorm, skipping it",
+        if not poly.exp_E:
+            self.logger.warning("Polynomial in file %s has no exp_E, skipping it",
                              filename)
             return (0, 0)
         if self._add_poly_heap_db(poly):
@@ -2025,7 +2037,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         """ Add a polynomial to the heap
         
         If the heap is full (nrkeep), the worst polynomial (i.e., with the
-        largest lognorm) is replaced if the new one is better.
+        largest exp_E) is replaced if the new one is better.
         Returns the key (as a str) under which the polynomial was added,
         or None if it was not added.
         """
@@ -2039,33 +2051,33 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         if key == self.params["nrkeep"]:
             # Should we store this poly at all, i.e., is it better than
             # the worst one in the heap?
-            worstnorm = -self.poly_heap[0][0]
-            if worstnorm <= poly.lognorm:
+            worst_exp_E = -self.poly_heap[0][0]
+            if worst_exp_E <= poly.exp_E:
                 if debug:
-                    self.logger.debug("_add_poly_heap(): new poly lognorm %f, "
+                    self.logger.debug("_add_poly_heap(): new poly exp_E %f, "
                           "worst in heap has %f. Not adding",
-                          poly.lognorm, worstnorm)
+                           poly.exp_E, worst_exp_E)
                 return None
             # Pop the worst poly from heap and re-use its DB index
             key = heapq.heappop(self.poly_heap)[1][0]
             if debug:
-                self.logger.debug("_add_poly_heap(): new poly lognorm %f, "
+                self.logger.debug("_add_poly_heap(): new poly exp_E %f, "
                     "worst in heap has %f. Replacing DB index %s",
-                     poly.lognorm, worstnorm, key)
+                     poly.exp_E, worst_exp_E, key)
         else:
             # Heap was not full
             if debug:
                 self.logger.debug("_add_poly_heap(): heap was not full, adding "
-                    "poly with lognorm %f at DB index %s", poly.lognorm, key)
+                    "poly with exp_E %f at DB index %s", poly.exp_E, key)
 
         # The DB requires the key to be a string. In order to have
         # identical data in DB and heap, we store key as str everywhere.
         key = str(key)
 
         # Python heapq stores a minheap, so in order to have the worst
-        # polynomial (with largest norm) easily accessible, we use
-        # -lognorm as the heap key
-        new_entry = (-poly.lognorm, (key, poly))
+        # polynomial (with largest exp_E) easily accessible, we use
+        # -exp_E as the heap key
+        new_entry = (-poly.exp_E, (key, poly))
         heapq.heappush(self.poly_heap, new_entry)
         return key
 
@@ -2075,7 +2087,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             poly = Polynomials(text)
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2091,7 +2103,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         return [entry[1][1] for entry in self.poly_heap]
 
     def get_poly_rank(self, search_poly):
-        """ Return how many polynomnials with lognorm less than the lognorm
+        """ Return how many polynomnials with exp_E less than the exp_E
         of the size-optimized version of search_poly there are in the
         priority queue.
         
@@ -2103,7 +2115,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         # Search for the raw polynomial pair by comparing the leading
         # coefficients of both polynomials
         found = None
-        for (index, (lognorm, (key, poly))) in enumerate(self.poly_heap):
+        for (index, (exp_E, (key, poly))) in enumerate(self.poly_heap):
             if search_poly.polyg.same_lc(poly.polyg):
                if not found is None:
                    self.logger.warning("Found more than one match for:\n%s", search_poly)
@@ -2114,10 +2126,10 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             return None
         # print("search_poly: %s" % search_poly)
         # print("Poly found in heap: %s" % self.poly_heap[found][1][1])
-        search_lognorm = -self.poly_heap[found][0]
+        search_exp_E = -self.poly_heap[found][0]
         rank = 0
-        for (lognorm, (key, poly)) in self.poly_heap:
-            if -lognorm < search_lognorm:
+        for (exp_E, (key, poly)) in self.poly_heap:
+            if -exp_E < search_exp_E:
                 rank += 1
         return rank
 
@@ -2193,12 +2205,14 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         self.bestpoly = None
+        self.best_polys = []
         if "import" in self.params and "bestpoly" in self.state:
             self.logger.warning('Have "import" parameter, discarding '
                                 'previously found best polynomial')
-            self.state.clear(["bestpoly", "bestfile"])
+            self.state.clear(["bestpoly"])
         if "bestpoly" in self.state:
             self.bestpoly = Polynomials(self.state["bestpoly"].splitlines())
+            self.best_polys = [self.bestpoly]
         self.state.setdefault("nr_poly_submitted", 0)
         # I don't understand why the area is based on one particular side.
         self.progparams[0].setdefault("area", 2.**(2*self.params["I"]-1) \
@@ -2218,9 +2232,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
-            self.logger.info("Best polynomial previously found in %s has "
-                             "Murphy_E = %g",
-                             self.state["bestfile"], self.bestpoly.MurphyE)
+            self.logger.info("Best polynomial previously has Murphy_E = %.3e",
+                             self.bestpoly.MurphyE)
         
         if self.did_import() and "import_ropt" in self.params:
             self.logger.critical("The import and import_ropt parameters "
@@ -2243,7 +2256,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             # If the poly file got lost somehow, write it again
             filename = self.get_state_filename("polyfilename")
             if filename is None or not filename.isfile():
-                self.logger.warn("Polynomial file disappeared, writing again")
+                self.logger.warning("Polynomial file disappeared, writing again")
                 self.write_poly_file()
             return True
         
@@ -2254,13 +2267,56 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         # Wait for all the WUs to finish
         while self.get_number_outstanding_wus() > 0:
             self.wait()
+
+        # Print best polynomials found
+        if False:
+           for i in range(len(self.best_polys)):
+              self.logger.info("Best polynomial %d is\n%s", i,
+                               str(self.best_polys[i]))
+        else:
+           n = len(self.best_polys)
+           self.logger.info("Kept %d polynomials with MurphyE from %.3e to %.3e",
+                            n, self.best_polys[0].MurphyE,
+                            self.best_polys[n-1].MurphyE)
+
+        # save best polynomials in cxxx.poly.0, cxxx.poly.1, ...
+        # and run polyselect3
+        n = len(self.best_polys)
+        for i in range(n):
+           filename = self.workdir.make_filename("poly." + str(i))
+           self.best_polys[i].create_file(filename)
+        # remove ropteffort since polyselect3 does not use it
+        self.progparams[0].pop("ropteffort", None)
+        filename = self.workdir.make_filename("poly")
+        p = cadoprograms.Polyselect3(poly=filename, num=n,
+                                     **self.progparams[0])
+        process = cadocommand.Command(p)
+        (rc, stdout, stderr) = process.wait()
+
+        # select the polynomial pair with the largest Murphy-E
+        best_i = -1
+        best_MurphyF = 0.0
+        for i in range(n):
+           filename = self.workdir.make_filename("poly." + str(i))
+           f = open(str(filename), "r")
+           poly = Polynomials(f.read().splitlines())
+           f.close()
+           self.logger.info("Polynomial %s had MurphyE %.3e, refined to %.3e",
+                            filename, poly.MurphyE, poly.MurphyF)
+           if best_i == -1 or poly.MurphyF > best_MurphyF:
+              best_i = i
+              best_MurphyF = poly.MurphyF
+              self.bestpoly = poly
+        filename = self.workdir.make_filename("poly." + str(best_i))
+        self.logger.info("Best polynomial is %s", filename)
         
         if self.bestpoly is None:
             self.logger.error ("No polynomial found. Consider increasing the "
                                "search range bound admax")
             return False
-        self.logger.info("Finished, best polynomial from file %s has Murphy_E "
-                         "= %g", self.state["bestfile"] , self.bestpoly.MurphyE)
+        self.logger.info("Finished, best polynomial has Murphy_E = %.3e",
+                         self.bestpoly.MurphyE)
+        self.logger.info("Best polynomial is:\n%s", str(self.bestpoly))
         self.print_rank()
         self.write_poly_file()
         return True
@@ -2297,12 +2353,43 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not self.bestpoly is old_bestpoly:
             self.write_poly_file()
 
+    @staticmethod
+    def read_blocks(input):
+        """ Return blocks of consecutive non-empty lines from input
+        
+        Whitespace is stripped; a line containing only whitespace is
+        considered empty. An empty block is never returned.
+        
+        >>> list(Polysel1Task.read_blocks(['', 'a', 'b', '', 'c', '', '', 'd', 'e', '']))
+        [['a', 'b'], ['c'], ['d', 'e']]
+        """
+        block = []
+        for line in input:
+            line = line.strip()
+            if line:
+                block.append(line)
+            else:
+                if block:
+                    yield block
+                block = []
+        if block:
+            yield block
+
     def process_polyfile(self, filename, commit=True):
-        poly = self.parse_poly(filename)
-        if not poly is None:
-            self.bestpoly = poly
-            update = {"bestpoly": str(poly), "bestfile": filename}
-            self.state.update(update, commit=commit)
+        try:
+            polyfile = self.read_log_warning(filename)
+        except (OSError, IOError) as e:
+            if e.errno == 2: # No such file or directory
+                self.logger.error("File '%s' does not exist", filename)
+                return None
+            else:
+                raise
+        for block in self.read_blocks(polyfile):
+           poly = self.parse_poly(block, filename)
+           if not poly is None:
+               self.bestpoly = poly
+               update = {"bestpoly": str(poly)}
+               self.state.update(update, commit=commit)
     
     def read_log_warning(self, filename):
         """ Read lines from file. If a "# WARNING" line occurs, log it.
@@ -2311,14 +2398,14 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
-    def parse_poly(self, filename):
+    def parse_poly(self, text, filename):
         poly = None
         try:
-            poly = Polynomials(self.read_log_warning(filename))
+            poly = Polynomials(text)
         except (OSError, IOError) as e:
             if e.errno == 2: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
@@ -2327,7 +2414,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                 raise
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2335,15 +2422,29 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             return None
         
         if not poly:
-            self.logger.info('No polynomial found in %s', filename)
+            # This happens when all polynomials are parsed
             return None
         if poly.getN() != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return None
         if not poly.MurphyE:
-            self.logger.warn("Polynomial in file %s has no Murphy E value",
+            self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
+        margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
+        if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
+           self.best_polys.append(poly)
+        i = len(self.best_polys) - 1
+        while i > 0 and self.best_polys[i].MurphyE > self.best_polys[i-1].MurphyE:
+           t = self.best_polys[i]
+           self.best_polys[i] = self.best_polys[i-1]
+           self.best_polys[i-1] = t
+           i = i - 1
+        # remove polynomials with MurphyE < margin*bestMurphyE
+        i = len(self.best_polys) - 1
+        while self.best_polys[i].MurphyE < margin * self.best_polys[0].MurphyE:
+           del self.best_polys[i]
+           i = i - 1
         # in case poly.MurphyE = self.bestpoly.MurphyE (MurphyE is printed
         # only with 3 digits in the cxxx.poly file), we choose the polynomial
         # with the smallest skewness, to avoid non-determinism in polynomial
@@ -2353,12 +2454,12 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if self.bestpoly is None or (poly.MurphyE > self.bestpoly.MurphyE or
             poly.MurphyE == self.bestpoly.MurphyE and poly.skew < self.bestpoly.skew):
             self.logger.info("New best polynomial from file %s:"
-                             " Murphy E = %g" % (filename, poly.MurphyE))
+                             " Murphy E = %.3e" % (filename, poly.MurphyE))
             self.logger.debug("New best polynomial is:\n%s", poly)
             return poly
         else:
-            self.logger.info("Best polynomial from file %s with E=%g is "
-                             "no better than current best with E=%g",
+            self.logger.info("Best polynomial from file %s with E=%.3e is "
+                             "no better than current best with E=%.3e",
                              filename, poly.MurphyE, self.bestpoly.MurphyE)
         return None
     
@@ -2417,7 +2518,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     def get_will_import(self):
         return "import" in self.params
 
-class PolyselJLTask(ClientServerTask, patterns.Observer):
+class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
     """ Find a polynomial pair using Joux-Lercier for DL in GF(p), uses client/server """
     @property
     def name(self):
@@ -2442,6 +2543,8 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        if "import" in self.params:
+            self.logger.warning('Have "import" parameter')
         assert self.params["nrkeep"] > 0
         self.state["rnext"] = self.state.get("rnext", 0)
         qmin = self.params["qmin"]
@@ -2459,20 +2562,22 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
             
     def run(self):
         super().run()
+       
+        if not "import" in self.params:
+            if self.is_done():
+                self.logger.info("Already finished - nothing to do")
+                return True
+            
+            # Submit all the WUs we need to reach the final modr
+            while self.need_more_wus():
+                self.submit_one_wu()
+            
+            # Wait for all the WUs to finish
+            while self.get_number_outstanding_wus() > 0:
+                self.wait()
+            
+            self.logger.info("Finished")
 
-        if self.is_done():
-            self.logger.info("Already finished - nothing to do")
-            return True
-        
-        # Submit all the WUs we need to reach the final modr
-        while self.need_more_wus():
-            self.submit_one_wu()
-        
-        # Wait for all the WUs to finish
-        while self.get_number_outstanding_wus() > 0:
-            self.wait()
-        
-        self.logger.info("Finished")
         filename = self.workdir.make_filename("poly")
         self.bestpoly.create_file(filename)
         self.state["polyfilename"] = filename.get_wdir_relative()
@@ -2550,7 +2655,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
         with open(filename, "r") as inputfile:
             for line in inputfile:
                 if re_warning.match(line):
-                    self.logger.warn("File %s contains: %s",
+                    self.logger.warning("File %s contains: %s",
                                      filename, line.strip())
                 yield line
 
@@ -2563,7 +2668,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
                               poly)
             return 0
         if not poly.MurphyE:
-            self.logger.warn("Polynomial in file %s has no MurphyE, skipping it",
+            self.logger.warning("Polynomial in file %s has no MurphyE, skipping it",
                              filename)
             return 0
         if self.bestpoly is None or (self.bestpoly.MurphyE < poly.MurphyE or
@@ -2579,7 +2684,7 @@ class PolyselJLTask(ClientServerTask, patterns.Observer):
             poly = Polynomials(text)
         except PolynomialParseException as e:
             if str(e) != "No polynomials found":
-                self.logger.warn("Invalid polyselect file '%s': %s",
+                self.logger.warning("Invalid polyselect file '%s': %s",
                                   filename, e)
                 return None
         except UnicodeDecodeError as e:
@@ -2691,7 +2796,7 @@ class PolyselGFpnTask(Task, DoesImport):
         self.state.update(update)
 
     def get_poly(self):
-        return self.state["poly"];
+        return Polynomials(self.state["poly"].splitlines());
 
     def get_poly_filename(self):
         return self.get_state_filename("polyfilename")
@@ -2749,14 +2854,14 @@ class FactorBaseTask(Task):
         if "outputfile1" in self.state:
             prevpoly = Polynomials(self.state["poly"].splitlines())
             if poly != prevpoly:
-                self.logger.warn("Received different polynomial, "
+                self.logger.warning("Received different polynomial, "
                                  "discarding old factor base file")
                 del(self.state["outputfile1"])
                 del(self.state["outputfile0"])
             else:
                 for key in check_params:
                     if self.state[key] != check_params[key]:
-                        self.logger.warn("Parameter %s changed, discarding old "
+                        self.logger.warning("Parameter %s changed, discarding old "
                                          "factor base file", key)
                         del(self.state["outputfile1"])
                         del(self.state["outputfile0"])
@@ -2879,12 +2984,12 @@ class FreeRelTask(Task):
             discard = False
             prevpoly = Polynomials(self.state["poly"].splitlines())
             if poly != prevpoly:
-                self.logger.warn("Received different polynomial, discarding "
+                self.logger.warning("Received different polynomial, discarding "
                                  "old free relations file")
                 discard = True
             elif self.state["lpb1"] != self.progparams[0]["lpb1"] or \
                  self.state["lpb0"] != self.progparams[0]["lpb0"]:
-                self.logger.warn("Parameter lpb1/lpb0 changed, discarding old "
+                self.logger.warning("Parameter lpb1/lpb0 changed, discarding old "
                                  "free relations file")
                 discard = True
             if discard:
@@ -2972,7 +3077,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     def paramnames(self):
         return self.join_params(super().paramnames, {
             "qmin": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
-            "lim1": int, "gzip": True, "sqside": 1})
+            "lim1": int, "gzip": True, "sqside": 1, "adjust_strategy": 0})
 
     def combine_bkmult(*lists):
         d={}
@@ -3060,12 +3165,12 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             # For rsa140 with lpb[01]=29, using guess_factor = 0.91
             # gives an initial excess of about 13%, we estimate
             # guess_factor = 0.85 would be enough to get a square matrix.
-            # We use 0.80 which might yield some extra filtering attempts
+            # We use 0.81 which might yield some extra filtering attempts
             # in some cases, but which should avoid too much initial excess
             # (the cado-nfs linear algebra is so fast that we should avoid
             # oversieving if we want to optimize the total wall-clock time,
             # assuming we use as many cores for sieving and linear algebra).
-            guess_factor = 0.80
+            guess_factor = 0.81
             n0 = 2 ** self.progparams[0]["lpb0"]
             n1 =  2 ** self.progparams[0]["lpb1"]
             n01 = int(guess_factor * (n0 / log (n0) + n1 / log (n1)))
@@ -3120,7 +3225,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             return True
         output_files = message.get_output_files()
         if len(output_files) != 1:
-            self.logger.warn("Received output with %d files: %s" % (len(output_files), ", ".join(output_files)))
+            self.logger.warning("Received output with %d files: %s" % (len(output_files), ", ".join(output_files)))
             return False
         stderrfilename = message.get_stderrfile(0)
         ok = self.add_file(output_files[0], stderrfilename, commit=False)
@@ -3864,17 +3969,17 @@ class PurgeTask(Task):
         last_nrels = self.state.get("last_output_nrels", 0)
         last_nprimes = self.state.get("last_output_nprimes", 0)
         if last_input_nrels >= input_nrels:
-            self.logger.warn("Previously stored input nrels (%d) is no "
+            self.logger.warning("Previously stored input nrels (%d) is no "
                              "smaller than value from new run (%d)",
                              last_input_nrels, input_nrels)
             return
         if nrels <= last_nrels:
-            self.logger.warn("Previously stored nrels (%d) is no "
+            self.logger.warning("Previously stored nrels (%d) is no "
                              "smaller than value from new run (%d)",
                              last_nrels, nrels)
             return
         if nprimes <= last_nprimes:
-            self.logger.warn("Previously stored nprimes (%d) is no "
+            self.logger.warning("Previously stored nprimes (%d) is no "
                              "smaller than value from new run (%d)",
                              last_nprimes, nprimes)
             return
@@ -4315,7 +4420,7 @@ class LinAlgDLPTask(Task):
         super().run()
 
         if self.state["ran_already"] and self.params["force_wipeout"]:
-                self.logger.warn("Ran before, but force_wipeout is set. "
+                self.logger.warning("Ran before, but force_wipeout is set. "
                                  "Wiping out working directory.")
                 self.workdir.make_dirname(subdir="bwc").rmtree()
                 self.state["ran_already"] = False
@@ -4586,7 +4691,7 @@ class LinAlgTask(Task, HasStatistics):
         super().run()
 
         if self.state["ran_already"] and self.params["force_wipeout"]:
-                self.logger.warn("Ran before, but force_wipeout is set. "
+                self.logger.warning("Ran before, but force_wipeout is set. "
                                  "Wiping out working directory.")
                 self.workdir.make_dirname(subdir="bwc").rmtree()
                 self.state["ran_already"] = False
@@ -5035,7 +5140,7 @@ class DescentTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"target": int, "execpath": str})
+                {"target": str, "gfpext": int, "execpath": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5308,12 +5413,12 @@ class StartClientsTask(Task):
         # Check for old clients which we did not mean to start this run
         for cid in set(self.pids) - set(self.used_ids):
             if self.is_alive(cid):
-                self.logger.warn("Client id %s (Host %s, PID %d), launched "
+                self.logger.warning("Client id %s (Host %s, PID %d), launched "
                                  "in a previous run and not meant to be "
                                  "launched this time, is still running",
                                  cid, self.hosts[cid], self.pids[cid])
             else:
-                self.logger.warn("Client id %s (Host %s, PID %d), launched "
+                self.logger.warning("Client id %s (Host %s, PID %d), launched "
                                  "in a previous run and not meant to be "
                                  "launched this time, seems to have died. "
                                  "I'll forget about this client.",
@@ -5486,7 +5591,7 @@ class Request(Message):
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
         DoesLogging, cadoparams.UseParameters, patterns.Mediator):
-    """ The complete factorization, aggregate of the individual tasks """
+    """ The complete factorization / dlp, aggregate of the individual tasks """
     @property
     def name(self):
         return "tasks"
@@ -5498,10 +5603,11 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
         return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False, "target": 0}
+                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+                "target": ""}
     @property
     def title(self):
-        return "Complete Factorization"
+        return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
@@ -5777,6 +5883,10 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.fatal("Received KeyboardInterrupt. Terminating")
             had_interrupt = True
 
+        except TaskException as e:
+           self.stop_all_clients()
+           raise e
+
         self.stop_all_clients()
         self.servertask.shutdown()
         elapsed = self.end_elapsed_time()
@@ -5798,6 +5908,19 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         if last_task and not last_status:
             self.logger.fatal("Premature exit within %s. Bye.", last_task)
             return None
+
+        # Print the defining polynomial of the finite field used for
+        # representing elements.
+        # This assumes that the last line of the poly file contains this
+        # information. This is currently the case for polyselect_gfpn.c
+        # but of course, this won't be the case for a user-defined poly
+        # file that has been imported (anyway, in that case, the user
+        # should know what she is doing).
+        if self.params["dlp"] and self.params["gfpext"] > 1:
+            polyfile = self.request_map[Request.GET_POLYNOMIAL_FILENAME]()
+            with open(str(polyfile), "r") as ff:
+                s = ff.read().splitlines()[-1].split()[-1]
+                self.logger.info("The polynomial defining the finite field is %s", s)
 
         if self.params["dlp"]:
             ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()

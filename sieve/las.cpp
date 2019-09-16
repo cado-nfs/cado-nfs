@@ -67,6 +67,9 @@ size_t base_memory = 0;
 int recursive_descent = 0;
 int prepend_relation_time = 0;
 int exit_after_rel_found = 0;
+std::mutex protect_global_exit_semaphore;
+int global_exit_semaphore = 0;
+
 int allow_largesq = 0;
 int sync_at_special_q = 0;
 int trialdiv_first_side = 0;
@@ -1640,8 +1643,11 @@ void process_bucket_region_run::operator()() {/*{{{*/
         if (ws.las.tree.must_take_decision())
             return;
     } else if (exit_after_rel_found) {
-        if (rep.reports)
+        if (rep.reports) {
+            std::lock_guard<std::mutex> foo(protect_global_exit_semaphore);
+            global_exit_semaphore=1;
             return;
+        }
     }
 
     for (int side = 0; side < 2; side++) {
@@ -2353,7 +2359,7 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
                 int side = winner.outstanding[i].first;
                 relation::pr const & v(winner.outstanding[i].second);
                 unsigned int n = mpz_sizeinbase(v.p, 2);
-                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list\n", side, (mpz_srcptr) v.p, (mpz_srcptr) v.r, n, side);
+                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list (now size %zu)\n", side, (mpz_srcptr) v.p, (mpz_srcptr) v.r, n, side, todo.size() + 1);
                 todo.push_withdepth(v.p, v.r, side, doing.depth + 1);
             }
         }
@@ -2848,6 +2854,11 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
          * only if the todo list is empty. }}} */
 
         for(;;) {
+            {
+                std::lock_guard<std::mutex> foo(protect_global_exit_semaphore);
+                if (global_exit_semaphore)
+                    break;
+            }
             las_output.fflush();
             las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
             if (!doing_p) break;

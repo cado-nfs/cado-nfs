@@ -17,6 +17,9 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
+#include "fmt/printf.h"
+#include "fmt/format.h"
+using namespace fmt::literals;
 
 void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
@@ -118,7 +121,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     /* }}} */
 
-    /* {{{ For the vectors which we read from disk and which participate to
+    /* {{{ For the vectors which we read from disk and which participate in
      *   the coefficients which get added to the computation at each
      *   iteration: we need n vectors -- or n/64 for the binary case.
      */
@@ -276,17 +279,15 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         serialize(pi->m);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int ys[2] = { i * splitwidth, (i + 1) * splitwidth };
-            char * v_name = NULL;
-            int rc = asprintf(&v_name, "V%s.%u", "%u-%u", s);
-            ASSERT_ALWAYS(rc >= 0);
+            std::string v_name = "V%u-%u.{}"_format(s);
             if (fake) {
                 mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate, ys[0]);
             } else {
-                mmt_vec_load(vi[i], v_name, unpadded, ys[0]);
+                int ok = mmt_vec_load(vi[i], v_name, unpadded, ys[0]);
+                ASSERT_ALWAYS(ok);
                 mmt_vec_reduce_mod_p(vi[i]);
             }
             mmt_vec_twist(mmt, vi[i]);
-            free(v_name);
         }
 
         serialize(pi->m);
@@ -338,18 +339,17 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                                 buffer = fcoeff_tmp;
                             }
 
-                            char * tmp;
                             unsigned int sol0, sol1;
                             sol0 = (j * Af_multiplex + k) * Av_width;
                             sol0 += solutions[0];
                             sol1 = sol0 + Av_width;
-                            rc = asprintf(&tmp, "F.sols%u-%u.%u-%u",
+                            std::string f_name = "F.sols{}-{}.{}-{}"_format(
                                     sol0, sol1,
                                     i * Av_width, (i + 1) * Av_width);
 
                             // printf("[%d] reading from %s\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
-                            FILE * f = fopen(tmp, "rb");
-                            DIE_ERRNO_DIAG(f == NULL, "fopen", tmp);
+                            FILE * f = fopen(f_name.c_str(), "rb");
+                            DIE_ERRNO_DIAG(f == NULL, "fopen", f_name.c_str());
                             rc = fseek(f, one_fcoeff / Af_multiplex * s0, SEEK_SET);
                             if (rc >= 0) {
                                 /* Read everything in one go. We might want to
@@ -389,7 +389,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                             /* TODO: *maybe* transpose the F coefficients
                              * at this point */
                             fclose(f);
-                            free(tmp);
                         }
                     }
                 }
@@ -462,8 +461,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                                     (s1 - s0 - 1 - k) * Av->simd_groupsize(Av)),
                                 eblock);
                     }
+                    /* addmul_tiny degrades consistency ! */
                     ymy[0]->consistency = 1;
-
                     mmt_vec_broadcast(ymy[0]);
                     /* we're doing something which we normally avoid: write
                      * on the next input vector. This means a race condition
@@ -488,7 +487,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                         // if (tcan_print) printf("v:=M*v;\n");
                         matmul_top_mul(mmt, ymy, timing);
 
-                        timing_check(pi, timing, bw->start + sx - s1 + k + 1, tcan_print);
+                        timing_check(pi, timing, s + sx - s1 + k + 1, tcan_print);
                     }
                 }
 
@@ -498,7 +497,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                 pi_interleaving_flip(pi);
 
             // reached s + bw->interval. Count our time on cpu, and compute the sum.
-            timing_disp_collective_oneline(pi, timing, bw->start + sx - s0, tcan_print, "mksol");
+            timing_disp_collective_oneline(pi, timing, s + sx - s0, tcan_print, "mksol");
         }
 
         mmt_vec_untwist(mmt, ymy[0]);
@@ -508,15 +507,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
              * really (and As_multiplex == 1)
              */
             int j = 0;
-            char * s_name;
-            int rc = asprintf(&s_name, "S.sols%s.%u-%u",
-                    "%u-%u",
-                    s, s + bw->checkpoint_precious);
-            ASSERT_ALWAYS(rc >= 0);
+            std::string s_name = "S.sols%u-%u.{}-{}"_format(s, s + bw->checkpoint_precious);
             ASSERT_ALWAYS(ymy[0]->abase->simd_groupsize(ymy[0]->abase) == (int) As_width);
             mmt_vec_save(ymy[0], s_name, unpadded,
                     solutions[0] + j * As_width);
-            free(s_name);
         }
     }
 
@@ -585,8 +579,10 @@ int main(int argc, char * argv[])
     catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(mksol_prog, pl, 0);

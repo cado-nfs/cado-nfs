@@ -166,5 +166,5 @@ if __name__ == '__main__':
 
     logger = logging.getLogger()
     logger.info("An Info Center!")
-    logger.warn("Beware")
+    logger.warning("Beware")
     logger.error("All hope abandon", extra={"indent" : 4})

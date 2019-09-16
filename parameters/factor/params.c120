@@ -20,7 +20,7 @@ tasks.polyselect.admax = 1e5
 tasks.polyselect.adrange = 4e3
 tasks.polyselect.incr = 60
 tasks.polyselect.nq = 3125
-tasks.polyselect.nrkeep = 100
+tasks.polyselect.nrkeep = 200
 tasks.polyselect.ropteffort = 3.5
 
 ###########################################################################
@@ -39,6 +39,9 @@ tasks.I = 12
 tasks.qmin = 1000000
 
 tasks.sieve.qrange = 10000
+
+# with that value, most factorizations will need only one filtering attempt
+tasks.sieve.rels_wanted = 13419694
 
 ###########################################################################
 # Filtering

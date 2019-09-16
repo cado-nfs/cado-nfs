@@ -174,83 +174,83 @@
 
 /* Object-oriented interface */
 #ifdef COMPILE_MPFQ_BINARY_FIELD_m128
-void mpfq_m128_m128_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_m128_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_m128
-void mpfq_m128_m128_dotprod(mpfq_m128_dst_field, mpfq_m128_dst_field, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_m128_add_dotprod(mpfq_m128_dst_field, mpfq_m128_dst_field, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
-void mpfq_m128_u64k1_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k1_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k1_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k1_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
-void mpfq_m128_u64k1_dotprod(mpfq_m128_dst_field, mpfq_u64k1_dst_field, mpfq_m128_dst_vec, mpfq_u64k1_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k1_add_dotprod(mpfq_m128_dst_field, mpfq_u64k1_dst_field, mpfq_m128_dst_vec, mpfq_u64k1_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
-void mpfq_m128_u64k2_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k2_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k2_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k2_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
-void mpfq_m128_u64k2_dotprod(mpfq_m128_dst_field, mpfq_u64k2_dst_field, mpfq_m128_dst_vec, mpfq_u64k2_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k2_add_dotprod(mpfq_m128_dst_field, mpfq_u64k2_dst_field, mpfq_m128_dst_vec, mpfq_u64k2_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
-void mpfq_m128_u64k3_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k3_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k3_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k3_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
-void mpfq_m128_u64k3_dotprod(mpfq_m128_dst_field, mpfq_u64k3_dst_field, mpfq_m128_dst_vec, mpfq_u64k3_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k3_add_dotprod(mpfq_m128_dst_field, mpfq_u64k3_dst_field, mpfq_m128_dst_vec, mpfq_u64k3_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
-void mpfq_m128_u64k4_wrapper_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k4_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
-void mpfq_m128_u64k4_dotprod(mpfq_m128_dst_field, mpfq_u64k4_dst_field, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_src_vec, unsigned int);
+void mpfq_m128_u64k4_add_dotprod(mpfq_m128_dst_field, mpfq_u64k4_dst_field, mpfq_m128_dst_vec, mpfq_u64k4_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_m128
-void mpfq_m128_m128_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_dst_vec, unsigned int);
+void mpfq_m128_m128_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_m128
-void mpfq_m128_m128_addmul_tiny(mpfq_m128_dst_field, mpfq_m128_dst_field, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_dst_vec, unsigned int);
+void mpfq_m128_m128_addmul_tiny(mpfq_m128_dst_field, mpfq_m128_dst_field, mpfq_m128_dst_vec, mpfq_m128_src_vec, mpfq_m128_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_m128 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
-void mpfq_m128_u64k1_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k1_dst_vec, mpfq_m128_src_vec, mpfq_u64k1_dst_vec, unsigned int);
+void mpfq_m128_u64k1_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k1_dst_vec, mpfq_m128_src_vec, mpfq_u64k1_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k1
-void mpfq_m128_u64k1_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k1_dst_field, mpfq_u64k1_dst_vec, mpfq_m128_src_vec, mpfq_u64k1_dst_vec, unsigned int);
+void mpfq_m128_u64k1_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k1_dst_field, mpfq_u64k1_dst_vec, mpfq_m128_src_vec, mpfq_u64k1_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k1 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
-void mpfq_m128_u64k2_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_m128_src_vec, mpfq_u64k2_dst_vec, unsigned int);
+void mpfq_m128_u64k2_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k2_dst_vec, mpfq_m128_src_vec, mpfq_u64k2_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k2
-void mpfq_m128_u64k2_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k2_dst_field, mpfq_u64k2_dst_vec, mpfq_m128_src_vec, mpfq_u64k2_dst_vec, unsigned int);
+void mpfq_m128_u64k2_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k2_dst_field, mpfq_u64k2_dst_vec, mpfq_m128_src_vec, mpfq_u64k2_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k2 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
-void mpfq_m128_u64k3_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k3_dst_vec, mpfq_m128_src_vec, mpfq_u64k3_dst_vec, unsigned int);
+void mpfq_m128_u64k3_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k3_dst_vec, mpfq_m128_src_vec, mpfq_u64k3_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k3
-void mpfq_m128_u64k3_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k3_dst_field, mpfq_u64k3_dst_vec, mpfq_m128_src_vec, mpfq_u64k3_dst_vec, unsigned int);
+void mpfq_m128_u64k3_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k3_dst_field, mpfq_u64k3_dst_vec, mpfq_m128_src_vec, mpfq_u64k3_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k3 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
-void mpfq_m128_u64k4_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_dst_vec, unsigned int);
+void mpfq_m128_u64k4_wrapper_addmul_tiny(mpfq_vbase_ptr, mpfq_vbase_ptr, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_u64k4
-void mpfq_m128_u64k4_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k4_dst_field, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_dst_vec, unsigned int);
+void mpfq_m128_u64k4_addmul_tiny(mpfq_m128_dst_field, mpfq_u64k4_dst_field, mpfq_u64k4_dst_vec, mpfq_m128_src_vec, mpfq_u64k4_src_vec, unsigned int);
 #endif /* COMPILE_MPFQ_BINARY_FIELD_u64k4 */
 
 #ifdef COMPILE_MPFQ_BINARY_FIELD_m128

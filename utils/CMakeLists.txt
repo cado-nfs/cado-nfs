@@ -18,6 +18,7 @@ set (sources
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c
+        fmt/format.cc
 )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)

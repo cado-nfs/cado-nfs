@@ -39,8 +39,7 @@ dotest() {
     mt_args=()
     for x in "$@" ; do
         case "$x" in
-            *) args=("${args[@]}" "$x");
-                ;;
+            *) args+=("$x");;
         esac
     done
 

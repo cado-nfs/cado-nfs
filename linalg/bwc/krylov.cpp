@@ -1,5 +1,5 @@
 #include "cado.h"
-#include <stdio.h>
+#include <cstdio>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "matmul_top.h"
@@ -15,9 +15,13 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
+#include "fmt/printf.h"
+#include "fmt/format.h"
+using namespace fmt::literals;
 
 void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
+    int legacy_check_mode = 0;
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
@@ -117,9 +121,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     serialize(pi->m);
     char * v_name = NULL;
     if (!fake) {
-        int rc = asprintf(&v_name, "V%s.%u", "%u-%u", bw->start);
-        ASSERT_ALWAYS(rc >= 0);
-        mmt_vec_load(ymy[0], v_name, unpadded, ys[0]);
+        int ok = mmt_vec_load(ymy[0], "V%u-%u.{}"_format(bw->start), unpadded, ys[0]);
+        ASSERT_ALWAYS(ok);
         free(v_name);
         mmt_vec_reduce_mod_p(ymy[0]);
     } else {
@@ -169,6 +172,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
     mmt_vec check_vector;
+    void * Tdata = NULL;
     void * ahead = NULL;
 
     mpfq_vbase_tmpl AxAc;
@@ -181,14 +185,29 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
          */
         mmt_vec_init(mmt, Ac, Ac_pi,
                 check_vector, bw->dir, THREAD_SHARED_VECTOR, mmt->n[bw->dir]);
-        char * tmp;
-        int rc = asprintf(&tmp, "C%s.%u", "%u-%u", bw->interval);
-        ASSERT_ALWAYS(rc >= 0);
-        mmt_vec_load(check_vector, tmp,  mmt->n0[bw->dir], 0);
-        free(tmp);
-    }
+        std::string Cv_filename = "Cv%u-%u.{}"_format(bw->interval);
+        int ok = mmt_vec_load(check_vector, Cv_filename, mmt->n0[bw->dir], 0);
+        if (!ok) {
+            fmt::fprintf(stderr, "check file %s not found, trying legacy check mode\n", Cv_filename);
+            std::string C_filename = "C%u-%u.{}"_format(bw->interval);
+            ok = mmt_vec_load(check_vector, C_filename, mmt->n0[bw->dir], 0);
+            if (!ok) {
 
-    if (!bw->skip_online_checks) {
+                fmt::fprintf(stderr, "check file %s not found either\n", C_filename);
+                pi_abort(EXIT_FAILURE, pi->m);
+            }
+            legacy_check_mode = 1;
+        }
+        if (!legacy_check_mode) {
+            std::string Ct_filename = "Ct0-{}.0-{}"_format(nchecks, bw->m);
+            cheating_vec_init(Ac, &Tdata, bw->m);
+            FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
+            int rc = fread(Tdata, Ac->vec_elt_stride(Ac, bw->m), 1, Tfile);
+            ASSERT_ALWAYS(rc == 1);
+            fclose(Tfile);
+            if (tcan_print) fmt::printf("loaded %s\n", Ct_filename);
+        }
+
         cheating_vec_init(A, &ahead, nchecks);
     }
 
@@ -202,7 +221,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 A->vec_elt_stride(A, bw->m*bw->interval) >> 10);
     }
     cheating_vec_init(A, &xymats, bw->m*bw->interval);
-    
+   
 #if 0
     /* FIXME -- that's temporary ! only for debugging */
     pi_log_init(pi->m);
@@ -231,8 +250,18 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
          * memory */
 
         if (!bw->skip_online_checks) {
+            /* create a matrix of size nchecks * nbys with the dot
+             * product with Cv -- in the case where nbys != nchecks,
+             * dealing with that data will require some care.
+             *
+             */
             A->vec_set_zero(A, ahead, nchecks);
-            AxAc->dotprod(A, Ac, ahead,
+            /* The syntax of ->dotprod is a bit weird. We compute
+             * transpose(data-operand-0)*data-operand1, but data-operand0
+             * (check_vector here) actually refers to field-operand1 (Ac
+             * here).
+             */
+            AxAc->add_dotprod(A, Ac, ahead,
                     mmt_my_own_subvec(check_vector),
                     mmt_my_own_subvec(ymy[0]),
                     mmt_my_own_size_in_items(ymy[0]));
@@ -267,11 +296,30 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
         if (!bw->skip_online_checks) {
             /* Last dot product. This must cancel ! */
-            x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
+            if (legacy_check_mode) {
+                x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
+            } else {
+                void * tmp1 = NULL;
+                cheating_vec_init(A, &tmp1, nchecks);
+                for(int c = 0 ; c < bw->m ; c += nchecks) {
+                    /* First zero out the matrix of size nchecks * nbys.  */
+                    A->vec_set_zero(A, tmp1, nchecks);
+                    x_dotprod(tmp1, gxvecs + c * nx, nchecks, nx, ymy[0], -1);
+                    /* And now compute the product transpose(part of
+                     * T)*ahead_tmp, and subtract that from our check value
+                     */
+                    AxAc->add_dotprod(A, Ac,
+                            ahead,
+                            Ac->vec_subvec(Ac, Tdata, c),
+                            tmp1,
+                            nchecks);
+                }
+                cheating_vec_clear(A, &tmp1, nchecks);
+            }
 
             pi_allreduce(NULL, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
             if (!A->vec_is_zero(A, ahead, nchecks)) {
-                printf("Failed check at iteration %d\n", s + bw->interval);
+                printf("Failed %scheck at iteration %d\n", legacy_check_mode ? "(legacy) " : "", s + bw->interval);
                 exit(1);
             }
         }
@@ -284,33 +332,31 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 mmt->pitype, BWC_PI_SUM, pi->m);
 
         if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
-            char * tmp;
-            int rc = asprintf(&tmp, "A%u-%u.%u-%u", ys[0], ys[1], s, s+bw->interval);
-            FILE * f = fopen(tmp, "wb");
-            rc = fwrite(xymats, A->vec_elt_stride(A, 1), bw->m*bw->interval, f);
+            std::string tmp = "A{}-{}.{}-{}"_format(ys[0], ys[1], s, s+bw->interval);
+            std::string tmptmp = tmp + ".tmp";
+            FILE * f = fopen(tmptmp.c_str(), "wb");
+            int rc = fwrite(xymats, A->vec_elt_stride(A, 1), bw->m*bw->interval, f);
+            fclose(f);
             if (rc != bw->m*bw->interval) {
                 fprintf(stderr, "Ayee -- short write\n");
                 // make sure our input data won't be deleted -- this
                 // chunk will have to be redone later, maybe the disk
                 // failure is temporary (?)
+                // 
+                // anyway, better not rename the file immediately in this
+                // case.
+            } else {
+                rc = rename(tmptmp.c_str(), tmp.c_str());
+                ASSERT_ALWAYS(rc == 0);
             }
-            fclose(f);
-            free(tmp);
         }
 
         if (!fake) {
-            int rc = asprintf(&v_name, "V%s.%u", "%u-%u", s + bw->interval);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(ymy[0], v_name, unpadded, ys[0]);
-            free(v_name);
+            mmt_vec_save(ymy[0], "V%u-%u.{}"_format(s + bw->interval), unpadded, ys[0]);
         }
 
         if (pi->m->trank == 0 && pi->m->jrank == 0) {
-            char * v_stem;
-            int rc = asprintf(&v_stem, "V%u-%u", ys[0], ys[1]);
-            ASSERT_ALWAYS(rc >= 0);
-            keep_rolling_checkpoints(v_stem, s + bw->interval);
-            free(v_stem);
+            keep_rolling_checkpoints("V{}-{}"_format(ys[0], ys[1]), s + bw->interval);
         }
 
         serialize(pi->m);
@@ -337,6 +383,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     if (!bw->skip_online_checks) {
         mmt_vec_clear(mmt, check_vector);
         cheating_vec_clear(A, &ahead, nchecks);
+        cheating_vec_clear(Ac, &Tdata, bw->m);
     }
 
     free(gxvecs);
@@ -385,8 +432,10 @@ int main(int argc, char * argv[])
     catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(krylov_prog, pl, 0);

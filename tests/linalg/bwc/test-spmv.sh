@@ -62,7 +62,7 @@ while [ $# -gt 0 ] ; do
                 nh=$((x*nh))
                 x=`echo $1 | cut -d= -f2 | cut -dx -f2`
                 nv=$((x*nv))
-                bwc_extra=("${bwc_extra[@]}" "$1")
+                bwc_extra+=("$1")
                 shift
                 ;;
             *) echo "Unexpected arg: $1" >&2 ; usage;;
@@ -108,7 +108,7 @@ if [ $nrows != $ncols ] ; then
 else
     mf_bal_extra=(--reorder columns)
 fi
-# mf_bal_extra=("${mf_bal_extra[@]}" skip_decorrelating_permutation=true)
+# mf_bal_extra+=(skip_decorrelating_permutation=true)
 redirect_unless_debug $wdir/bal.out $bindir/linalg/bwc/mf_bal $nh $nv $wdir/mat.bin out=$wdir/bal.bin "${mf_bal_extra[@]}" "${extra_args_mf[@]}"
 B=$wdir/bal.bin
 

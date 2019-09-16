@@ -22,7 +22,7 @@ while [ $# -gt 0 ] ; do
         binary=$1
         shift
     else
-        tests=("${tests[@]}" "$1")
+        tests+=("$1")
         shift
     fi
 done

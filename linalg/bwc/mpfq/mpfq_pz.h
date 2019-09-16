@@ -426,7 +426,7 @@ static inline
 void mpfq_pz_simd_add_ui_at(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpfq_pz_src_elt, int, unsigned long);
 static inline
 void mpfq_pz_simd_set_ui_all(mpfq_pz_dst_field, mpfq_pz_dst_elt, unsigned long);
-void mpfq_pz_dotprod(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
+void mpfq_pz_add_dotprod(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
 
 /* Member templates related to SIMD operation */
 

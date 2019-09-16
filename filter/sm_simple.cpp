@@ -75,7 +75,7 @@ static void my_sm(const char *outfile, const char *infile,
     }
     for (int side = 0; side < nb_polys; ++side) {
       compute_sm_piecewise(smpol, pol, sm_info[side]);
-      print_sm(out, smpol, sm_info[side]->nsm, sm_info[side]->f->deg);
+      print_sm(out, sm_info[side], smpol);
       if (side == 0 && sm_info[0]->nsm > 0 && sm_info[1]->nsm > 0)
           fprintf(out, " ");
     }
@@ -94,6 +94,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "inp", "(required) input file containing relations");
   param_list_decl_usage(pl, "out", "output file");
   param_list_decl_usage(pl, "ell", "(required) group order");
+  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
   verbose_decl_usage(pl);
 }
 
@@ -169,6 +170,8 @@ int main (int argc, char **argv)
   for(int side = 0; side < pol->nb_polys; side++)
       F[side] = pol->pols[side];
 
+  const char * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
+
   if (param_list_warn_unused(pl))
     usage (argv0, NULL, pl);
   verbose_interpret_parameters(pl);
@@ -181,6 +184,7 @@ int main (int argc, char **argv)
 
   for(int side = 0 ; side < pol->nb_polys; side++) {
     sm_side_info_init(sm_info[side], F[side], ell);
+    sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
   for (int side = 0; side < pol->nb_polys; side++) {

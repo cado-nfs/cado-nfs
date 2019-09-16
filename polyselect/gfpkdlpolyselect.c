@@ -733,8 +733,15 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int
 	      mpz_poly_fprintf_cado_format_line (outputpoly, g[i], i+1, "g");
 	      fprintf_gfpn_poly_info (outputpoly, g[i], "g");
 	    }
-	    fprintf (outputpoly, "# gcd(f, g) = phi =\n# ");
-	    mpz_poly_fprintf_cado_format_line (outputpoly, phi, mnfs+1, NULL);
+	    fprintf (outputpoly, "# gcd(f, g) = phi = ");
+            for (int i = 0; i <= phi->deg; i++) {
+                gmp_fprintf(outputpoly, "%Zd", phi->coeff[i]);
+                if (i != phi->deg) {
+                    fprintf(outputpoly, ",");
+                } else {
+                    fprintf(outputpoly, "\n");
+                }
+            }
 
 	    fclose(outputpoly);
 	    return_code = 1;
@@ -762,7 +769,7 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int
 // print functions
 
 /* Print f of degree d with the following format
-    poly<i>: f0,f1,f2,...,fd\n
+    poly<j>: f0,f1,f2,...,fd\n
     (new format decided in 2015 for DL in GF(p^n))
 */
 void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, const int j, const char* label_poly)
@@ -772,7 +779,7 @@ void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, const int j, const
     fputs (label_poly, fp);
     fprintf (fp, "\n");
   }
-  fprintf (fp, "poly%d:", j);
+  fprintf (fp, "poly%d: ", j);
   for (int i = 0; i < f->deg; i++)
   {
     gmp_fprintf (fp, "%Zd,", f->coeff[i]);

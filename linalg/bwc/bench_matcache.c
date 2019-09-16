@@ -156,7 +156,8 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
     printf("T%d rowvec(%u): %08" PRIx32 "\n", tnum,
             nr, crc32((unsigned long*) p->rowvec, A->vec_elt_stride(A, nr0)));
 
-    A->dotprod(A, check0, p->rowvec, rowvec_bis, nr0);
+    A->vec_set_zero(A, check0, A->simd_groupsize(A));
+    A->add_dotprod(A, check0, p->rowvec, rowvec_bis, nr0);
 
     printf("T%d rowvec_bis(%u): %08" PRIx32 "\n", tnum,
             nr, crc32((unsigned long*) rowvec_bis, A->vec_elt_stride(A, nr0)));
@@ -164,7 +165,8 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
     printf("T%d colvec_bis(%u): %08" PRIx32 "\n", tnum,
             nc, crc32((unsigned long*) colvec_bis, A->vec_elt_stride(A, nc0)));
 
-    A->dotprod(A, check1, p->colvec, colvec_bis, nc0);
+    A->vec_set_zero(A, check1, A->simd_groupsize(A));
+    A->add_dotprod(A, check1, p->colvec, colvec_bis, nc0);
 
     if (A->vec_cmp(A, check0, check1, A->simd_groupsize(A)) != 0) {
         pthread_mutex_lock(&tg->mu);

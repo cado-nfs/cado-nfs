@@ -57,12 +57,14 @@ void HalfGcd(mpz_t a, mpz_t b, mpz_t u) {
   mpz_clear(r);
 }
 
-// Function and parameters to be passed to smooth_detect.
 typedef struct {
   mpz_t p;
-  mpz_t z;
-  mpz_poly f;   // used only in JL mode
-  mpz_t m;      // root of f mod p (the one common with g)
+  int n;          // extension degree
+  mpz_t z;        // element to descend (n=1)
+  mpz_poly zpol;  // element to descend (n>1)
+  mpz_poly f;     // used only in JL mode
+  mpz_poly phi;   // used only in the n>1 case
+  mpz_t m;        // root of f mod p (the one common with g) when n=1
 } Fp_param;
 
 int next_cand_Fp_hgcd(cand_t cand, void *params) {
@@ -184,7 +186,108 @@ int get_JL_candiate_from_e(unsigned long e, mpz_poly_ptr UU, mpz_poly_ptr VV,
   return fail;
 }
 
-int next_cand_Fp_jl(cand_t cand, void *params) {
+
+// GF(p^n) version.
+// Returns a boolean meaning "failure, try again".
+int get_Fpn_candiate_from_e(unsigned long e, mpz_poly_ptr UU, mpz_poly_ptr VV,
+    mpz_t u, mpz_t v, Fp_param * param)
+{
+  int d = param->f->deg;
+  int n = param->phi->deg;
+
+  mpz_poly ze;
+  mpz_poly_init(ze, d-1);
+  mpz_poly_pow_ui_mod_f_mod_mpz(ze, param->zpol, param->f, e, param->p);
+
+  mpz_poly y;           // y represents x^i
+  mpz_poly_init(y,0);
+  mpz_poly c;           // c represents ze*x^i mod f
+  mpz_poly_init(c, d-1);
+
+  //**** Create matrix (see Barbulescu's PhD thesis, section 8.4.2)
+  // Warning: the LLL code count indices starting with 1 and not 0.
+  // (this is a bug, imho)
+  mat_Z M;
+  LLL_init(&M, 2*d, 2*d);  // allocate and set to 0.
+
+  // Topleft d*d block
+  for (int i = 1; i < n+1; ++i)
+    mpz_set(M.coeff[i][i], param->p);
+  // Let phi be the degree n polynomial defining the extension field 
+  // put the coef of phi=phi[0]+phi[1]*x+...+phi[n-1]*x^(n-1)+x^n
+  for (int i = n+1; i < d+1; ++i) {
+    for (int j = 0; j < n+1; ++j)
+      mpz_set(M.coeff[i][i-n+j],param->phi->coeff[j]);
+  }
+
+  // Bottomleft d*d block
+  for (int i = 0; i < d; ++i) {
+    mpz_poly_set_xi(y,i);     // y is the polynomial alpha^i
+    mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param->f, param->p, NULL);
+    for (int j = 0; j < d; ++j) {
+      if (j > c->deg)
+        mpz_set_ui(M.coeff[d+i+1][j+1], 0);
+      else
+        mpz_set(M.coeff[d+i+1][j+1], c->coeff[j]);
+    }
+  }
+
+  // Bottomright d*d block
+  for (int i = 0; i < d; ++i) {
+    mpz_set_ui(M.coeff[d+i+1][d+i+1], 1);
+  }
+
+  //**** Apply LLL.
+  {
+    mpz_t det, a, b;
+    mpz_init(det);
+    mpz_init_set_ui (a, 1);
+    mpz_init_set_ui (b, 1);
+    LLL(det, M, NULL, a, b);
+    mpz_clear(det);
+    mpz_clear(a);
+    mpz_clear(b);
+  }
+
+  //**** Recover rational reconstruction
+  // z^e = U(alpha)/V(alpha) mod (p, x-m)
+  mpz_poly U, V;
+  mpz_poly_init(U, d-1);
+  mpz_poly_init(V, d-1);
+  for (int i = 0; i < d; ++i) {
+    mpz_poly_setcoeff(U, i, M.coeff[1][i+1]);
+    mpz_poly_setcoeff(V, i, M.coeff[1][d+i+1]);
+  }
+  mpz_poly_cleandeg(U, d-1);
+  mpz_poly_cleandeg(V, d-1);
+
+  //**** Compute norms
+  mpz_poly_resultant(u, U, param->f);
+  mpz_poly_resultant(v, V, param->f);
+  if (UU != NULL)
+    mpz_poly_set(UU, U);
+  if (VV != NULL)
+    mpz_poly_set(VV, V);
+  mpz_abs(u, u);
+  mpz_abs(v, v);
+  // TODO: we don't want to deal with ideals of degree > 1.
+  // The simplest way is to forbid squares at all. This is not optimal,
+  // and furthermore, we can do it only for small factors...
+  int fail = 0;
+  if (!is_probably_sqrfree(u) || !is_probably_sqrfree(v))
+    fail = 1;
+
+  LLL_clear(&M);
+  mpz_poly_clear(U);
+  mpz_poly_clear(V);
+  mpz_poly_clear(y);
+  mpz_poly_clear(c);
+  mpz_poly_clear(ze);
+  return fail;
+}
+
+
+int next_cand_nonrat(cand_t cand, void *params) {
   pthread_mutex_lock(&mut_die);
   int die = please_die;
   pthread_mutex_unlock(&mut_die);
@@ -200,7 +303,11 @@ int next_cand_Fp_jl(cand_t cand, void *params) {
   int fail;
   do {
     e = random();
-    fail = get_JL_candiate_from_e(e, NULL, NULL, u, v, param);
+    if (param->n == 1) {
+      fail = get_JL_candiate_from_e(e, NULL, NULL, u, v, param);
+    } else {
+      fail = get_Fpn_candiate_from_e (e, NULL, NULL, u, v, param);
+    }
   } while (fail); 
 
   cand_set_original_values(cand, u, v, e);
@@ -325,15 +432,24 @@ void print_fac(mpz_t *fac, mpz_t *roots, int nf) {
 
 
 void usage(char *argv0) {
-  fprintf(stderr, "./%s [-poly polfile] [-side xxx] [-jl] [-mt n] [-mineff e] [-maxeff E] [-seed s] [-target t] [-v] p z\n", argv0);
+  fprintf(stderr, "%s [-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n", argv0);
+  fprintf(stderr, "  If extdeg > 1, then z must be a white-separated sequence of coefs z0 z1 ... z_{k-1}\n");
   abort();
 }
 
+// Possible modes are
+//   MODE_RAT  (when there is a rational side)
+//   MODE_JL   (for GF(p), with Joux-Lercier)
+//   MODE_FPN  (for GF(p^n))
+#define MODE_RAT 1
+#define MODE_JL  2
+#define MODE_FPN 3
+ 
 typedef struct {
   Fp_param * params;
   const smooth_detect_param_s * smooth_param;
   unsigned long target;
-  int jl;
+  int mode;
   unsigned int id;
 } thparam_s;
 typedef thparam_s* thparam_t;
@@ -342,13 +458,14 @@ void * process_one_thread(void *thparams) {
   thparam_t thparam = (thparam_s*) thparams;
   cand_t C;
   cand_init(C);
-  if (!thparam->jl) {
+  if (thparam->mode == MODE_RAT) {
     smooth_detect(C, next_cand_Fp_hgcd, thparam->params, thparam->target,
         thparam->smooth_param);
-  } else {
-    smooth_detect(C, next_cand_Fp_jl, thparam->params, thparam->target,
+  } else if (thparam->mode == MODE_JL || thparam->mode == MODE_FPN) {
+    smooth_detect(C, next_cand_nonrat, thparam->params, thparam->target,
         thparam->smooth_param);
   }
+
   cand_s *winner = (cand_s*) malloc(sizeof(cand_s));
   cand_init(winner);
   cand_set(winner, C);
@@ -363,13 +480,14 @@ void * process_one_thread(void *thparams) {
 int main(int argc, char **argv) {
   char *argv0 = argv[0];
   unsigned long seed = 0;
-  unsigned long target = 0;
+  unsigned long target = 0; // the target smoothness
   unsigned long nthread = 1;
   double mineff = 2000.0;
   double maxeff = 1e20;
   double minB1 = 100.0;
   int verbose = 0;
   int jl = 0;
+  int ext = 1;  //extension degree
   int side = 1;
   cado_poly cpoly;
   int gotpoly = 0;
@@ -406,11 +524,15 @@ int main(int argc, char **argv) {
       verbose = 1;
       argc -= 1;
       argv += 1;
+    } else if (strcmp(argv[1], "-extdeg") == 0) {
+      ext = strtoul(argv[2], NULL, 10);
+      argc -= 2;
+      argv += 2;
     } else if (strcmp(argv[1], "-jl") == 0) {
       jl = 1;
       argc -= 1;
       argv += 1;
-    } else if (strcmp(argv[1], "-target") == 0) {
+    } else if (strcmp(argv[1], "-lpb") == 0) {
       target = strtoul(argv[2], NULL, 10);
       argc -= 2;
       argv += 2;
@@ -427,12 +549,17 @@ int main(int argc, char **argv) {
       usage(argv0);
     }
   }
-  if (argc != 3)
+  if (argc != 2 + ext)
     usage(argv0);
 
-  if (jl && !gotpoly) {
-    fprintf(stderr, "Error, must provide -poly when using -jl option\n");
+  if ((jl || (ext > 1)) && !gotpoly) {
+    fprintf(stderr, "Error, must provide -poly when extdeg > 1 or using -jl option\n");
     usage(argv0);
+  }
+
+  if (ext > 1 && jl) {
+    fprintf(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
+    jl = 0;
   }
 
   if (seed == 0)
@@ -441,13 +568,30 @@ int main(int argc, char **argv) {
 
   Fp_param params;
   mpz_init_set_str(params.p, argv[1], 10);
-  mpz_init_set_str(params.z, argv[2], 10);
-  if (jl) {
+  params.n = ext;
+  if (jl || ext > 1) {
     mpz_poly_init(params.f, cpoly->pols[side]->deg);
     mpz_poly_set(params.f, cpoly->pols[side]);
+  }
+  if (jl) {
     mpz_init(params.m);
     int ret = cado_poly_getm(params.m, cpoly, params.p);
     ASSERT_ALWAYS(ret);
+  }
+  if (ext > 1) {
+    mpz_poly_init(params.phi, 0);
+    mpz_poly_gcd_mpz(params.phi, cpoly->pols[0], cpoly->pols[1], params.p);
+    mpz_poly_init(params.zpol, ext-1);
+    for(int i = 0; i < ext; i ++) {
+      mpz_t tmp;
+      mpz_init_set_str(tmp, argv[i+2],10);
+      mpz_poly_setcoeff(params.zpol, i, tmp);
+      mpz_clear(tmp);
+    }
+  }
+
+  if (ext == 1) {
+    mpz_init_set_str(params.z, argv[2], 10);
   }
   
   const smooth_detect_param_s smooth_param = {mineff, maxeff, 10, verbose, minB1};
@@ -460,7 +604,14 @@ int main(int argc, char **argv) {
     thparam[i].params = &params;
     thparam[i].smooth_param = &smooth_param;
     thparam[i].target = target;
-    thparam[i].jl = jl;
+    if (ext > 1) {
+      thparam[i].mode = MODE_FPN;
+    } else {
+      if (jl)
+        thparam[i].mode = MODE_JL;
+      else
+        thparam[i].mode = MODE_RAT;
+    }
     thparam[i].id = i;
     int ret = pthread_create(&thid[i], NULL, process_one_thread, &thparam[i]);
     assert(ret == 0);
@@ -477,14 +628,18 @@ int main(int argc, char **argv) {
     cand_s *winner;
     int ret = pthread_join(thid[i], (void *)(&winner));
     ASSERT_ALWAYS(ret == 0);
-    if (jl) {
+    if (jl || ext > 1) {
       mpz_t u, v;
       mpz_init(u); mpz_init(v);
       mpz_poly U, V;
       mpz_poly_init(U, params.f->deg-1);
       mpz_poly_init(V, params.f->deg-1);
       // do again the LLL thing and print result.
-      int fail = get_JL_candiate_from_e(winner->id, U, V, u, v, &params);
+      int fail;
+      if (ext == 1)
+        fail = get_JL_candiate_from_e(winner->id, U, V, u, v, &params);
+      else
+        fail = get_Fpn_candiate_from_e(winner->id, U, V, u, v, &params);
       ASSERT_ALWAYS(!fail);
 
       mpz_t facu[50];
@@ -567,11 +722,18 @@ int main(int argc, char **argv) {
   free(thparam);
   if (gotpoly)
     cado_poly_clear(cpoly);
-  if (jl) {
+  if (jl || ext > 1) 
     mpz_poly_clear(params.f);
+  if (jl) {
     mpz_clear(params.m);
   }
+  if (ext > 1) {
+    mpz_poly_clear(params.phi);
+    mpz_poly_clear(params.zpol);
+  } else {
+    mpz_clear(params.z);
+  }
+
   mpz_clear(params.p);
-  mpz_clear(params.z);
   return EXIT_SUCCESS;
-}
+} 

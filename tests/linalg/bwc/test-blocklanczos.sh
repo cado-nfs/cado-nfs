@@ -42,7 +42,7 @@ while [ $# -gt 0 ] ; do
         shift
     elif [ "$1" = "--nullspace" ] ; then
         shift
-        bwc_extra=("${bwc_extra[@]}" "nullspace=$1")
+        bwc_extra+=("nullspace=$1")
         nullspace=$1
         shift
     else
@@ -52,8 +52,8 @@ while [ $# -gt 0 ] ; do
                 nh=$((x*nh))
                 x=`echo $1 | cut -d= -f2 | cut -dx -f2`
                 nv=$((x*nv))
-                mpithr_args=("${mpithr_args[@]}" "$1")
-                bwc_extra=("${bwc_extra[@]}" "$1")
+                mpithr_args+=("$1")
+                bwc_extra+=("$1")
                 shift
                 ;;
             *) usage;;

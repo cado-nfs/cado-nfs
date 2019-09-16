@@ -1,0 +1,55 @@
+
+Adapting to hardware
+====================
+
+bwc.pl is occasionally tested with Intel MPI, on clusters equipped with the
+following hardware:
+    - Intel Omni-Path HFI Silicon 100 Series
+    - Mellanox Infiniband ConnectX-5
+    - QLogic Corp. IBA7322 QDR InfiniBand HCA
+
+Versions 2017 of Intel MPI seem to need the following in order to work on
+Omni-Path:
+    I_MPI_FABRICS=shm:dapl
+
+As of versions 2019 of Intel MPI, in order to work properly on Omni-Path,
+it is important that the following environment variables are set
+correctly in your installation.  It should be the case by default, but
+you'd better be aware:
+
+    FI_PROVIDER_PATH
+    FI_PROVIDER
+    
+For example:
+    FI_PROVIDER_PATH=/cm/shared/apps/intel/composer_xe/2019.0-117/impi/2019.0.117/intel64/libfabric/lib/prov mpiexec 
+    FI_PROVIDER=sockets
+
+Note that FI_PROVIDER=verbs will crash on Omni-Path.
+
+We hope to make this document evolve so as to contain more usable
+documentation regarding the Intel MPI parameter selection.
+
+Bugs:
+=====
+
+We noticed failures under slurm when Intel MPI's mpiexec is parsing by
+itself the SLURM_NODELIST environment variable. As of version 2019.4.243,
+compressed node lists such as heavy-[042,043,084,085] lead to a segfault.
+Prefer passing the host list with -f instead.
+
+Passing scheduler-related info
+==============================
+
+Cado-nfs assumes that an ssh-like transport is used to launch processes
+on all nodes.
+If a non-standard ssh wrapper is used as a conduit, you are
+likely to need to add things such as the following to the mpiexec command
+line, via the mechanism of mpi_extra_args (used by bwc.pl)
+
+    mpi_extra_args='--launcher ssh --launcher-exec my_ssh_wrapper'
+
+There is very shallow support for running with a PMI launcher. For
+this, you need to run the :srun:complete step instead of :complete
+(likewise, we also have :srun:krylov replacing krylov, and so on). Little
+to no auto-detection is done, which is why we presently need different
+step names.

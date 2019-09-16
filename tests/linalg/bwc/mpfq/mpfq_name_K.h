@@ -258,11 +258,11 @@
 #define Ksimd_set_ui_at(a0,a1,a2)	Kcommon_name_(simd_set_ui_at) (K,a0,a1,a2)
 #define Ksimd_add_ui_at(a0,a1,a2,a3)	Kcommon_name_(simd_add_ui_at) (K,a0,a1,a2,a3)
 #define Ksimd_set_ui_all(a0,a1)	Kcommon_name_(simd_set_ui_all) (K,a0,a1)
-#define Kdotprod(a0,a1,a2,a3)	Kcommon_name_(dotprod) (K,a0,a1,a2,a3)
+#define Kadd_dotprod(a0,a1,a2,a3)	Kcommon_name_(add_dotprod) (K,a0,a1,a2,a3)
 #define Kmul_constant_ui(a0,a1,a2)	Kcommon_name_(mul_constant_ui) (K,a0,a1,a2)
 
 
-#define Kmember_template_dotprod(a0,a1,a2,a3,a4)	Kcommon_name_(member_template_dotprod) (K,a0,a1,a2,a3,a4)
+#define Kmember_template_add_dotprod(a0,a1,a2,a3,a4)	Kcommon_name_(member_template_add_dotprod) (K,a0,a1,a2,a3,a4)
 #define Kmember_template_addmul_tiny(a0,a1,a2,a3,a4)	Kcommon_name_(member_template_addmul_tiny) (K,a0,a1,a2,a3,a4)
 #define Kmember_template_transpose(a0,a1,a2)	Kcommon_name_(member_template_transpose) (K,a0,a1,a2)
 

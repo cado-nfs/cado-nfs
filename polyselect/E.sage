@@ -6,11 +6,11 @@ load alpha.sage
 # Bf = 1e11; Bg = 1e11; area = 1e18 # values used for RSA-768
 # area is the sieve area, about 2^(2*I-1)*q
 # sq is the value of the current special-q (experimental)
-def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False):
+def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000) # pol51opt.c uses alpha=0 for the linear polynomial
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B) # pol51opt.c uses alpha=0 for the linear polynomial
     E = 0
     sx = sqrt(area*s)
     sy = sqrt(area/s)
@@ -29,11 +29,11 @@ def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False):
     return E/K
 
 # same as MurphyE, but using numerical integration instead of sampling
-def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta')
@@ -52,15 +52,15 @@ def MurphyE_int(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
     return numerical_integral(v1, 0, pi, eps_abs=tol)
 
 # same as MurphyE_int, but integrates between roots of f and g
-def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
     l = (f*g).roots(ring=RR)
     l = [arccot(r/s) for r,_ in l]
     l = [x+(1-sign(x))*RR(pi)/2 for x in l]
     l.sort()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta')
@@ -85,11 +85,11 @@ def MurphyE_int_cut(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
 
 # instead of integrating on the half-circle, integrate on the disk
 # (this is supposed to give the probability to find a relation)
-def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1):
+def MurphyE_int2(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,sq=1,B=2000):
     df = f.degree()
     dg = g.degree()
-    alpha_f = alpha(f,2000)
-    alpha_g = alpha(g,2000)
+    alpha_f = alpha(f,B)
+    alpha_g = alpha(g,B)
     sx = sqrt(area*s)
     sy = sqrt(area/s)
     var('y,theta,r')
@@ -364,6 +364,19 @@ def check_rho(a,b,N):
       if err>maxerr:
          maxerr=err
          print x, err
+
+# given a rootsieve space of S points, estimate the best alpha value
+# which is the solution of f(x)^S = 1/2 for f(x) = 1/2*(1 - erf(x/sqrt(2)))
+def expected_alpha(S):
+   R = RealField(100)
+   y = R(1/2) # (1/2*(1 - erf(x/sqrt(2))))^S = y
+   y = y^(1/S) # 1/2*(1 - erf(x/sqrt(2))) = y
+   y = 2*y # 1 - erf(x/sqrt(2)) = y
+   # 1-erf(-t) ~ 2 - 1/sqrt(pi)/t/exp(t^2) for t -> +oo
+   y = 2 - y # 1/sqrt(pi)/t/exp(t^2) = y
+   t = x/sqrt(2)
+   eq = 1/sqrt(pi)/t/exp(t^2) == y
+   return -find_root(eq, 0, 20)
 
 def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
    s = skew_l2norm_tk_circular(f)

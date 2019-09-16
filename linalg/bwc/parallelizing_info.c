@@ -237,7 +237,7 @@ static void display_process_grid(parallelizing_info_ptr pi)
         unsigned int j = y * pi->wr[0]->njobs + x;
         if (j >= pi->m->njobs) {
             fprintf(stderr, "uh ?\n");
-            MPI_Abort(pi->m->pals, 42);
+            pi_abort(EXIT_FAILURE, pi->m);
         }
         memcpy(all_node_ids2 + j * PI_NAMELEN,
                 all_node_ids + i * PI_NAMELEN,
@@ -1069,6 +1069,10 @@ pi_datatype_ptr BWC_PI_UNSIGNED_LONG    = pi_predefined_types + 4;
 pi_datatype_ptr BWC_PI_UNSIGNED_LONG_LONG    = pi_predefined_types + 5;
 pi_datatype_ptr BWC_PI_LONG             = pi_predefined_types + 6;
 
+char statically_assert_that_size_t_is_either_ulong_or_ulonglong[((sizeof(size_t) == sizeof(unsigned long)) || (sizeof(size_t) == sizeof(unsigned long long))) ? 1 : -1];
+pi_datatype_ptr BWC_PI_SIZE_T = pi_predefined_types + 4 + (sizeof(size_t) == sizeof(unsigned long long));
+
+
 
 struct pi_op_s BWC_PI_MIN[1]	= { { .stock = MPI_MIN, } };
 struct pi_op_s BWC_PI_MAX[1]	= { { .stock = MPI_MAX, } };
@@ -1362,6 +1366,13 @@ void pi_bcast(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int j
     pi_thread_bcast(ptr, count, datatype, troot, wr);
 }
 
+void pi_abort(int err, pi_comm_ptr wr)
+{
+    /* This only exists because an MPI_Abort that is initiated by all
+     * threads is likely to clutter the output quite a lot */
+    if (wr->trank == 0)
+        MPI_Abort(wr->pals, err);
+}
 /* }}} */
 
 /* {{{ allreduce
@@ -1451,6 +1462,32 @@ void pi_allreduce(void *sendbuf, void *recvbuf, size_t count,
     }
     /* now it's just a matter of broadcasting to all threads */
     pi_thread_bcast(recvbuf, count, datatype, 0, wr);
+}
+
+extern void pi_allgather(void * sendbuf,
+        size_t sendcount, pi_datatype_ptr sendtype,
+        void *recvbuf,
+        size_t recvcount, pi_datatype_ptr recvtype,
+        pi_comm_ptr wr)
+{
+    ASSERT_ALWAYS(sendbuf == NULL);
+    ASSERT_ALWAYS(sendtype == NULL);
+    ASSERT_ALWAYS(sendcount == 0);
+    size_t per_thread = recvcount * recvtype->item_size;
+    /* share the adress of the leader's buffer with everyone */
+    void * recvbuf_leader = recvbuf;
+    pi_thread_bcast(&recvbuf_leader, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    /* Now everyone writes its data there. */
+    memcpy(recvbuf_leader + (wr->jrank * wr->ncores + wr->trank) * per_thread, recvbuf + (wr->jrank * wr->ncores + wr->trank) * per_thread, per_thread);
+    serialize_threads(wr);
+    if (wr->trank == 0) {
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                recvbuf, wr->ncores * per_thread, MPI_BYTE,
+                wr->pals);
+    }
+    serialize_threads(wr);
+    /* and copy back */
+    memcpy(recvbuf + (wr->jrank * wr->ncores + wr->trank) * per_thread, recvbuf_leader + (wr->jrank * wr->ncores + wr->trank) * per_thread, per_thread);
 }
 
 /* }}} */
@@ -1648,7 +1685,10 @@ void pi_hello(parallelizing_info_ptr pi)
  * function call, but requested for consistency with the pi_file_read and
  * pi_file_write calls.
  *
- * returns true on success, false on error.
+ * Return a globally consistent boolean indicating whether the operation
+ * was successful (1) or not (0). In the latter case, set errno
+ * (globally) to the value returned by the fopen function at the leader
+ * node.
  *
  * In multithreaded context, f must represent a different data area on
  * all threads.
@@ -1662,24 +1702,39 @@ int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, con
     f->f = NULL;
     f->name = strdup(name);
     f->mode = strdup(mode);
-    int rc = 1;
+    int failed = 0;
     if (f->pi->m->jrank == 0 && f->pi->m->trank == 0) {
+        errno = 0;
+        /* POSIX fopen is required to set errno
+         * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
+         */
         f->f = fopen(name, mode);
         if (f->f == NULL)
-            rc = 0;
+            failed = errno ? errno : EIO;;
     }
-    pi_bcast(&rc, 1, BWC_PI_INT, 0, 0, f->pi->m);
-    return rc;
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    if (failed) errno = failed;
+    return !failed;
 }
 
-/* close the file handle */
-void pi_file_close(pi_file_handle_ptr f)
+/* close the file handle. Return a globally consistent boolean indicating
+ * whether the operation was successful (1) or not (0). In the latter
+ * case, set errno (globally) to the value returned by the fclose
+ * function at the leader node. */
+int pi_file_close(pi_file_handle_ptr f)
 {
     free(f->name);
     free(f->mode);
-    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0)
-        fclose(f->f);
+    int failed = 0;
+    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0) {
+        errno = 0;
+        if (fclose(f->f) != 0)
+            failed = errno ? errno : EIO;;
+    }
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
     memset(f, 0, sizeof(pi_file_handle));
+    if (failed) errno = failed;
+    return !failed;
 }
 
 int area_is_zero(const void * src, ptrdiff_t offset0, ptrdiff_t offset1)
@@ -1722,6 +1777,10 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
  * file as being [chunksize] bytes long, and then we write specifically
  * bytes spos to epos of each of these chunks.
  *
+ * Return a globally consistent count of written items. A full read is when
+ * exactly (totalsize / chunksize) * (epos - spos) items are written.  When
+ * a short read occurs, set errno (globally) to the value returned by the
+ * fwrite function at the leader node.
  */
 ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
 {
@@ -1798,10 +1857,14 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
                             size_t wanna_write = MIN(nci * loc_size, loc_totalsize - res);
                             if (wanna_write < nci * loc_size)
                                 ASSERT_ALWAYS(area_is_zero(sbuf, wanna_write, nci * loc_size));
+                            /* POSIX fwrite is required to set errno
+                             * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fwrite.html
+                             */
+                            errno = 0;
                             ssize_t x = fwrite(sbuf, 1, wanna_write, f->f);
                             res += x;
                             if (x < (ssize_t) wanna_write)
-                                failed=1;
+                                failed = errno ? errno : EIO;
                         }
                     } else if (jm == xj) {
                         /* my turn to send data */
@@ -1814,6 +1877,8 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
     }
     shared_free(f->pi->m, sbuf);
     pi_bcast(&res, 1, BWC_PI_LONG, 0, 0, f->pi->m);
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    if (failed) errno = failed;
     return res;
 }
 
@@ -1822,6 +1887,12 @@ ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t total
     return pi_file_read_chunk(f, buf, size, totalsize, 1, 0, 1);
 }
 
+/*
+ * Return a globally consistent count of read items. A full read is when
+ * exactly (totalsize / chunksize) * (epos - spos) items are read.  When
+ * a short read occurs, set errno (globally) to the value returned by the
+ * fread function at the leader node.
+ */
 ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
 {
     ASSERT_ALWAYS(size <= ULONG_MAX);
@@ -1870,10 +1941,14 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                         memset(sbuf, 0, nci * loc_size);
                         if (!failed) {
                             size_t wanna_read = MIN(nci * loc_size, loc_totalsize - res);
+                            /* POSIX fread is required to set errno
+                             * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fread.html
+                             */
+                            errno = 0;
                             ssize_t x = fread(sbuf, 1, wanna_read, f->f);
                             res += x;
                             if (x < (ssize_t) wanna_read)
-                                failed=1;
+                                failed = errno ? errno : EIO;
                         }
                         if (xj) {       /* except to itself... */
                             MPI_Send(sbuf, loc_size * nci, MPI_BYTE,
@@ -1911,6 +1986,8 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
     }
     shared_free(f->pi->m, sbuf);
     pi_bcast(&res, 1, BWC_PI_LONG, 0, 0, f->pi->m);
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    if (failed) errno = failed;
     return res;
 }
 /*}}}*/

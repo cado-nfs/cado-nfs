@@ -530,7 +530,8 @@ struct rhs /*{{{*/ {
         mmt_vec_init(mmt,Av,Av_pi, vi,bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
+            int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
+            ASSERT_ALWAYS(ok);
 
             natural.templates(A)->addmul_tiny(Av, A, 
                     mmt_my_own_subvec(y),
@@ -541,6 +542,7 @@ struct rhs /*{{{*/ {
 
         mmt_vec_clear(mmt, vi);
 
+        /* addmul_tiny degrades consistency ! */
         y->consistency = 1;
         mmt_vec_broadcast(y);
         mmt_vec_reduce_mod_p(y);
@@ -1198,7 +1200,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                 printf("loading %s\n", sl[i].name);
             }
-            mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
+            int ok = mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
+            ASSERT_ALWAYS(ok);
 
             A->vec_add(A,
                     mmt_my_own_subvec(y), 
@@ -1479,8 +1482,10 @@ int main(int argc, char * argv[])
     param_list_lookup_string(pl, "rhscoeffs");
 
     if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(gather_prog, pl, 0);

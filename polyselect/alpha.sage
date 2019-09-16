@@ -554,3 +554,23 @@ def combined_alpha(f,g,B):
       assert lg[i][0] == 0
       s += min(lf[i][1],lg[i][1])*log(1.0*p)
    return s
+
+# KnuthSchroeppel function to evaluate the quality of the multiplier k for N
+# Cf The Multiple Polynomial Quadratic Sieve
+# By Robert D. Silverman
+# Mathematics of Computation, vol. 48, nb. 177, January 1987, pages 329-339
+def KnuthSchroeppel(k,N,B=2000):
+   s = 0
+   for p in prime_range(B):
+      if p == 2:
+         if N % 8 == 1:
+            g = 2
+         else:
+            g = 0
+      else:
+         if k % p == 0:
+            g = 1/p
+         else:
+            g = 2/p
+      s += g*log(1.0*p)
+   return s - 1/2*log(1.0*k)

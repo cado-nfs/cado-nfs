@@ -630,37 +630,49 @@ int mmt_vec_load(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
 
     int global_ok = 1;
 
-    for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
+    for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
         asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        double tt = -wct_seconds();
         if (tcan_print) {
             printf("Loading %s ...", filename);
             fflush(stdout);
         }
         pi_file_handle f;
         int ok = pi_file_open(f, v->pi, v->d, filename, "rb");
-        if (ok) {
+        /* "ok" is globally consistent after pi_file_open */
+        if (!ok) {
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to load %s: %s\n", filename, strerror(errno));
+            }
+        } else {
             ASSERT_ALWAYS(v != NULL);
             serialize(v->pi->m);
             ssize_t s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             int ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            /* "ok" is globally consistent after pi_file_read_chunk */
+            if (!ok) {
+                if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                    fprintf(stderr, "ERROR: failed to load %s: short read, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                }
+            }
             v->consistency = ok;
             /* not clear it's useful, but well. */
             if (ok) mmt_vec_broadcast(v);
             serialize_threads(v->pi->m);
             pi_file_close(f);
         }
-        if (!ok) {
-            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
-                fprintf(stderr, "ERROR: failed to load %s\n", filename);
-            }
-            if (v->pi->m->trank == 0)
-                MPI_Abort(v->pi->m->pals, EXIT_FAILURE);
-        }
         free(filename);
-        if (tcan_print) { printf(" done\n"); }
+        tt += wct_seconds();
+        if (ok && tcan_print) {
+            char buf[20], buf2[20];
+            printf(" done [%s in %.2fs, %s/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex, buf),
+                    tt,
+                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+        }
         global_ok = global_ok && ok;
     }
 
@@ -697,13 +709,22 @@ int mmt_vec_save(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
         asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        char * tmpfilename;
+        asprintf(&tmpfilename, "%s.tmp", filename);
+        double tt = -wct_seconds();
         if (tcan_print) {
             printf("Saving %s ...", filename);
             fflush(stdout);
         }
         pi_file_handle f;
-        int ok = pi_file_open(f, v->pi, v->d, filename, "wb");
-        if (ok) {
+        int ok = pi_file_open(f, v->pi, v->d, tmpfilename, "wb");
+        /* "ok" is globally consistent after pi_file_open */
+        if (!ok) {
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "WARNING: failed to save %s: %s\n", filename, strerror(errno));
+                unlink(tmpfilename);    // just in case
+            }
+        } else {
             ASSERT_ALWAYS(v != NULL);
             ASSERT_ALWAYS(v->consistency == 2);
             serialize_threads(v->pi->m);
@@ -711,16 +732,32 @@ int mmt_vec_save(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
                     bigstride, b * smallstride, (b+1) * smallstride);
             serialize_threads(v->pi->m);
             ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
-            pi_file_close(f);
-        }
-        if (!ok) {
-            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
-                fprintf(stderr, "WARNING: failed to save %s\n", filename);
-                unlink(filename);
+            /* "ok" is globally consistent after pi_file_write_chunk */
+            if (!ok && v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to save %s: short write, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }
+            ok = pi_file_close(f);
+            if (!ok && v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                fprintf(stderr, "ERROR: failed to save %s: failed fclose, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+            }
+            if (v->pi->m->trank == 0 && v->pi->m->jrank == 0) {
+                ok = rename(tmpfilename, filename) == 0;
+                if (!ok) {
+                    fprintf(stderr, "ERROR: failed to save %s: failed rename, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                }
+            }
+            pi_bcast(&ok, 1, BWC_PI_INT, 0, 0, v->pi->m);
         }
         free(filename);
-        if (tcan_print) { printf(" done\n"); }
+        free(tmpfilename);
+        tt += wct_seconds();
+        if (tcan_print) {
+            char buf[20], buf2[20];
+            printf(" done [%s in %.2fs, %s/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex, buf),
+                    tt,
+                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+        }
         global_ok = global_ok && ok;
     }
 
@@ -2280,6 +2317,7 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
             cheating_vec_init(A, &y, nitems);
             A->vec_set_zero(A, y, nitems);
             A->vec_random(A, y, nitems, rstate);
+            double tt = -wct_seconds();
             if (tcan_print) {
                 printf("Creating fake vector %s...", filename);
                 fflush(stdout);
@@ -2289,13 +2327,22 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
             int rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
             ASSERT_ALWAYS(rc == (int) loc_itemsondisk);
             fclose(f);
-            if (tcan_print) { printf(" done\n"); }
+            tt += wct_seconds();
+            if (tcan_print) {
+                size_t sizeondisk = A->vec_elt_stride(A, loc_itemsondisk);
+                char buf[20], buf2[20];
+                printf(" done [%s in %.2fs, %s/s]\n",
+                        size_disp(sizeondisk / Adisk_multiplex, buf),
+                        tt,
+                        size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+            }
             cheating_vec_clear(A, &y, v->n);
 
             free(filename);
         }
     }
-    mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
+    int ok = mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
+    ASSERT_ALWAYS(ok);
 }
 
 unsigned long mmt_vec_hamming_weight(mmt_vec_ptr y) {
@@ -2377,6 +2424,26 @@ void mmt_vec_set_x_indices(mmt_vec_ptr y, uint32_t * gxvecs, int m, unsigned int
                     A->simd_add_ui_at(A, x, x, j, 1);
                 }
             }
+        }
+    }
+    y->consistency=2;
+    if (shared)
+        serialize_threads(y->pi->wr[y->d]);
+}
+
+/* Set to the zero vector, except for the first n entries that are taken
+ * from the vector v
+ */
+void mmt_vec_set_expanded_copy_of_local_data(mmt_vec_ptr y, const void * v, unsigned int n)
+{
+    int shared = !y->siblings;
+    mpfq_vbase_ptr A = y->abase;
+    mmt_full_vec_set_zero(y);
+    if (!shared || y->pi->wr[y->d]->trank == 0) {
+        for(unsigned int i = y->i0 ; i < y->i1 && i < n ; i++) {
+            A->set(A,
+                    A->vec_coeff_ptr(A, y->v, i - y->i0),
+                    A->vec_coeff_ptr_const(A, v, i));
         }
     }
     y->consistency=2;
@@ -2921,14 +2988,38 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
             printf("Now trying to load matrix cache files\n");
         }
         if (sqread) {
-            for(unsigned int j = 0 ; j < mmt->pi->m->ncores ; j++) {
+            for(unsigned int j = 0 ; j < mmt->pi->m->ncores ; j += sqread) {
                 serialize_threads(mmt->pi->m);
-                if (j == mmt->pi->m->trank) {
+                double t_read = -wct_seconds();
+                if (j / sqread == mmt->pi->m->trank / sqread)
                     cache_loaded = matmul_reload_cache(Mloc->mm);
+                serialize(mmt->pi->m);
+                t_read += wct_seconds();
+                if (mmt->pi->m->jrank == 0 && mmt->pi->m->trank == j && cache_loaded) {
+                    printf("[%s] J%uT%u-%u: read cache %s (and others) in %.2fs (round %u/%u)\n",
+                    mmt->pi->nodenumber_s,
+                    mmt->pi->m->jrank,
+                    mmt->pi->m->trank,
+                    MIN(mmt->pi->m->ncores, mmt->pi->m->trank + sqread) - 1,
+                    Mloc->mm->cachefile_name,
+                    t_read,
+                    j / sqread, iceildiv(mmt->pi->m->ncores, sqread)
+                    );
                 }
             }
         } else {
+            double t_read = -wct_seconds();
             cache_loaded = matmul_reload_cache(Mloc->mm);
+            serialize(mmt->pi->m);
+            t_read += wct_seconds();
+            if (mmt->pi->m->jrank == 0 && mmt->pi->m->trank == 0 && cache_loaded) {
+                printf("[%s] J%u: read cache %s (and others) in %.2fs\n",
+                        mmt->pi->nodenumber_s,
+                        mmt->pi->m->jrank,
+                        Mloc->mm->cachefile_name,
+                        t_read
+                      );
+            }
         }
         if (!mmt->pi->m->trank) {
             printf("J%u %s done reading (result=%d)\n", mmt->pi->m->jrank, mmt->pi->nodename, cache_loaded);
@@ -3072,6 +3163,25 @@ void matmul_top_report(matmul_top_data_ptr mmt, double scale)
     for(int midx = 0 ; midx < mmt->nmatrices ; midx++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[midx];
         matmul_report(Mloc->mm, scale);
+        size_t max_report_size = 0;
+        pi_allreduce(&Mloc->mm->report_string_size, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX, mmt->pi->m);
+        char * all_reports = malloc(mmt->pi->m->totalsize * max_report_size);
+        memset(all_reports, 0, mmt->pi->m->totalsize * max_report_size);
+        memcpy(all_reports + max_report_size * (mmt->pi->m->jrank * mmt->pi->m->ncores + mmt->pi->m->trank), Mloc->mm->report_string, Mloc->mm->report_string_size);
+        pi_allgather(NULL, 0, 0,
+                all_reports, max_report_size, BWC_PI_BYTE, mmt->pi->m);
+
+        if (max_report_size > 1 && mmt->pi->m->jrank == 0 && mmt->pi->m->trank == 0) {
+            for(unsigned int j = 0 ; j < mmt->pi->m->njobs ; j++) {
+                for(unsigned int t = 0 ; t < mmt->pi->m->ncores ; t++) {
+                    char * locreport = all_reports + max_report_size * (j * mmt->pi->m->ncores + t);
+                    printf("##### J%uT%u timing report:\n%s",
+                            j, t, locreport);
+                }
+            }
+        }
+        serialize(mmt->pi->m);
+        free(all_reports);
     }
 }
 

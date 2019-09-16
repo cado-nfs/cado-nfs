@@ -1005,13 +1005,13 @@ void mpfq_p_5_poly_mod_pre(mpfq_p_5_dst_field K MAYBE_UNUSED, mpfq_p_5_dst_poly 
 
 
 /* Functions related to SIMD operation */
-/* *simd_gfp::code_for_dotprod */
-void mpfq_p_5_dotprod(mpfq_p_5_dst_field K MAYBE_UNUSED, mpfq_p_5_dst_vec xw, mpfq_p_5_src_vec xu1, mpfq_p_5_src_vec xu0, unsigned int n)
+/* *simd_gfp::code_for_add_dotprod */
+void mpfq_p_5_add_dotprod(mpfq_p_5_dst_field K MAYBE_UNUSED, mpfq_p_5_dst_vec xw, mpfq_p_5_src_vec xu1, mpfq_p_5_src_vec xu0, unsigned int n)
 {
         mpfq_p_5_elt_ur s,t;
         mpfq_p_5_elt_ur_init(K, &s);
         mpfq_p_5_elt_ur_init(K, &t);
-        mpfq_p_5_elt_ur_set_zero(K, s);
+        mpfq_p_5_elt_ur_set_elt(K, s, xw[0]);
         for(unsigned int i = 0 ; i < n ; i++) {
             mpfq_p_5_mul_ur(K, t, xu0[i], xu1[i]);
             mpfq_p_5_elt_ur_add(K, s, s, t);
@@ -1037,10 +1037,10 @@ static void mpfq_p_5_wrapper_oo_field_init(mpfq_vbase_ptr vbase MAYBE_UNUSED)
     mpfq_p_5_oo_field_init(vbase);
 }
 
-static void mpfq_p_5_wrapper_dotprod(mpfq_vbase_ptr, mpfq_p_5_dst_vec, mpfq_p_5_src_vec, mpfq_p_5_src_vec, unsigned int);
-static void mpfq_p_5_wrapper_dotprod(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_5_dst_vec xw MAYBE_UNUSED, mpfq_p_5_src_vec xu1 MAYBE_UNUSED, mpfq_p_5_src_vec xu0 MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
+static void mpfq_p_5_wrapper_add_dotprod(mpfq_vbase_ptr, mpfq_p_5_dst_vec, mpfq_p_5_src_vec, mpfq_p_5_src_vec, unsigned int);
+static void mpfq_p_5_wrapper_add_dotprod(mpfq_vbase_ptr vbase MAYBE_UNUSED, mpfq_p_5_dst_vec xw MAYBE_UNUSED, mpfq_p_5_src_vec xu1 MAYBE_UNUSED, mpfq_p_5_src_vec xu0 MAYBE_UNUSED, unsigned int n MAYBE_UNUSED)
 {
-    mpfq_p_5_dotprod(vbase->obj, xw, xu1, xu0, n);
+    mpfq_p_5_add_dotprod(vbase->obj, xw, xu1, xu0, n);
 }
 
 static void mpfq_p_5_wrapper_simd_set_ui_all(mpfq_vbase_ptr, mpfq_p_5_dst_elt, unsigned long);
@@ -2122,7 +2122,7 @@ void mpfq_p_5_oo_field_init(mpfq_vbase_ptr vbase)
     vbase->simd_set_ui_at = (void (*) (mpfq_vbase_ptr, void *, int, unsigned long)) mpfq_p_5_wrapper_simd_set_ui_at;
     vbase->simd_add_ui_at = (void (*) (mpfq_vbase_ptr, void *, const void *, int, unsigned long)) mpfq_p_5_wrapper_simd_add_ui_at;
     vbase->simd_set_ui_all = (void (*) (mpfq_vbase_ptr, void *, unsigned long)) mpfq_p_5_wrapper_simd_set_ui_all;
-    vbase->dotprod = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_5_wrapper_dotprod;
+    vbase->add_dotprod = (void (*) (mpfq_vbase_ptr, void *, const void *, const void *, unsigned int)) mpfq_p_5_wrapper_add_dotprod;
     vbase->oo_field_init = (void (*) (mpfq_vbase_ptr)) mpfq_p_5_wrapper_oo_field_init;
     vbase->oo_field_clear = (void (*) (mpfq_vbase_ptr)) mpfq_p_5_wrapper_oo_field_clear;
 }

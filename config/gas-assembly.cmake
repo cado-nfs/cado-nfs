@@ -1,6 +1,6 @@
 # gas-syntax assembly sources.
 message(STATUS "Trying to compile gas-syntax assembly sources")
-if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Intel")
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "(Intel|Clang)")
     # -x assembler below is gcc syntax, understood by icc as well. Do not
     # attempt to do the same with other compilers.
     #

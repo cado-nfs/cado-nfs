@@ -258,11 +258,11 @@
 #define absimd_set_ui_at(a0,a1,a2,a3)	abcommon_name_(simd_set_ui_at) (a0,a1,a2,a3)
 #define absimd_add_ui_at(a0,a1,a2,a3,a4)	abcommon_name_(simd_add_ui_at) (a0,a1,a2,a3,a4)
 #define absimd_set_ui_all(a0,a1,a2)	abcommon_name_(simd_set_ui_all) (a0,a1,a2)
-#define abdotprod(a0,a1,a2,a3,a4)	abcommon_name_(dotprod) (a0,a1,a2,a3,a4)
+#define abadd_dotprod(a0,a1,a2,a3,a4)	abcommon_name_(add_dotprod) (a0,a1,a2,a3,a4)
 #define abmul_constant_ui(a0,a1,a2,a3)	abcommon_name_(mul_constant_ui) (a0,a1,a2,a3)
 
 
-#define abmember_template_dotprod(a0,a1,a2,a3,a4,a5)	abcommon_name_(member_template_dotprod) (a0,a1,a2,a3,a4,a5)
+#define abmember_template_add_dotprod(a0,a1,a2,a3,a4,a5)	abcommon_name_(member_template_add_dotprod) (a0,a1,a2,a3,a4,a5)
 #define abmember_template_addmul_tiny(a0,a1,a2,a3,a4,a5)	abcommon_name_(member_template_addmul_tiny) (a0,a1,a2,a3,a4,a5)
 #define abmember_template_transpose(a0,a1,a2,a3)	abcommon_name_(member_template_transpose) (a0,a1,a2,a3)
 

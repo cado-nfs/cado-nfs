@@ -92,9 +92,9 @@ linalg/bwc/CMakeLists.txt
 linalg/bwc/GUIDED_TOUR_OF_SOURCES
 linalg/bwc/Makefile
 linalg/bwc/README
+linalg/bwc/README.OAR
 linalg/bwc/README.TORQUE
 linalg/bwc/TODO
-linalg/bwc/convert_magma.pl
 linalg/bwc/mpfq_layer.h
 linalg/bwc/acollect.c
 linalg/bwc/async.c
@@ -112,9 +112,10 @@ linalg/bwc/balancing_workhorse.c
 linalg/bwc/balancing_workhorse.h
 linalg/bwc/bw-common.c
 linalg/bwc/bw-common.h
-linalg/bwc/bwc-ptrace.m
-linalg/bwc/bwc-ptrace.sh
-linalg/bwc/bwc-trace.sh
+tests/linalg/bwc/convert_magma.pl
+tests/linalg/bwc/bwc-ptrace.m
+tests/linalg/bwc/bwc-ptrace.sh
+tests/linalg/bwc/bwc-test-secure-continuation.sh
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
 linalg/bwc/cleanup.c
@@ -311,6 +312,7 @@ polyselect/ropt_tree.h
 polyselect/ropt_main.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
+polyselect/polyselect3.c
 scripts/call_cmake.sh
 scripts/gdb.py
 scripts/install-cmake.sh
@@ -738,6 +740,7 @@ linalg/bwc/flint-fft/ulong_extras.h
 linalg/bwc/test-flint.c
 filter/filter_badideals.c
 parameters/dlp/params.p2dd20
+parameters/dlp/p2dd20.hint
 parameters/dlp/p155.hint
 parameters/dlp/params.p155
 parameters/dlp/params.p30
@@ -1342,3 +1345,15 @@ linalg/bwc/mpfq/mpfq_m128_t.c
 linalg/bwc/mpfq/mpfq_m128_t.h
 config/popcnt.c
 config/popcnt.cmake
+tests/linalg/bwc/test-parallelizing_info.cpp
+utils/fmt/LICENSE.rst
+utils/fmt/README.rst
+utils/fmt/core.h
+utils/fmt/format-inl.h
+utils/fmt/format.cc
+utils/fmt/format.h
+utils/fmt/ostream.h
+utils/fmt/printf.h
+scripts/resubmit-tools.sh
+linalg/bwc/README.IntelMPI
+linalg/bwc/README.OpenMPI
