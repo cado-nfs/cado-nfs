@@ -44,7 +44,7 @@ class mutex {
     LOG;
     pthread_mutex_init(&m, mutexattr);
   }
-  ~mutex() {LOG; ASSERT_ALWAYS(pthread_mutex_destroy(&m) == 0);}
+  ~mutex() {LOG; ASSERT_ALWAYS_NOTHROW(pthread_mutex_destroy(&m) == 0);}
   void lock(){LOG; ASSERT_ALWAYS(pthread_mutex_lock(&m) == 0);}
   bool try_lock() {
     LOG;

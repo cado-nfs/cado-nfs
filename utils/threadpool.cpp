@@ -39,7 +39,7 @@ worker_thread::~worker_thread() {
   // threads, at regular intervals, so that timer.self will be
   // insignificant.
   // pool.timer += timer;
-  ASSERT_ALWAYS(rc == 0);
+  ASSERT_ALWAYS_NOTHROW(rc == 0);
 }
 
 int worker_thread::rank() const { return this - &pool.threads.front(); }
@@ -112,9 +112,9 @@ thread_pool::~thread_pool() {
   leave();
   drain_all_queues();
   threads.clear();      /* does pthread_join */
-  for (auto const & T : tasks) ASSERT_ALWAYS(T.empty());
-  for (auto const & R : results) ASSERT_ALWAYS(R.empty());
-  for (auto const & E : exceptions) ASSERT_ALWAYS(E.empty());
+  for (auto const & T : tasks) ASSERT_ALWAYS_NOTHROW(T.empty());
+  for (auto const & R : results) ASSERT_ALWAYS_NOTHROW(R.empty());
+  for (auto const & E : exceptions) ASSERT_ALWAYS_NOTHROW(E.empty());
 }
 
 void *
