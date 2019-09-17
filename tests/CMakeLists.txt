@@ -483,7 +483,7 @@ cado_define_test(full_c30
         characters
         bwc_full
         sqrt)
-    if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+    if(HAVE_GCC_STYLE_AMD64_INLINE_ASM AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # see linalg/bwc/CMakeLists.txt for an explanation
         cado_define_test(full_p30
             SCRIPT
@@ -556,7 +556,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         )
-        if (BWC_GFP_ARITHMETIC_BACKENDS)
+    if (BWC_GFP_ARITHMETIC_BACKENDS AND pz in BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
 #        (quicker) tests cover everything covered by this test.
 #        cado_define_test(full_p59

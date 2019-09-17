@@ -12,16 +12,24 @@ set(CADO_DIST_ARCHIVE_NAME "cado-nfs-${CADO_VERSION_STRING}")
 #####################################################################
 
 # If you change the min version, also change scripts/call_cmake.sh
-cmake_minimum_required(VERSION 2.8.11)
-if(COMMAND cmake_policy)
-    cmake_policy(SET CMP0003 NEW)
-    # VERSION_GREATER_EQUAL is newish
-    if (NOT CMAKE_VERSION VERSION_LESS 3.1)
-        # does this get in the way with cmake tests ?? We used to have
-        # CMP0054 OLD at some point.
-        cmake_policy(SET CMP0054 NEW)
-    endif()
-endif()
+cmake_minimum_required(VERSION 3.4.0)
+
+cmake_policy(SET CMP0003 NEW)
+
+# does this get in the way with cmake tests ?? We used to have
+# CMP0054 OLD at some point.
+cmake_policy(SET CMP0054 NEW)
+
+# IN_LIST
+cmake_policy(SET CMP0057 NEW)
+
+# Here's how we set cmak policies that are unknown to old cmake
+# versions.
+#
+# VERSION_GREATER_EQUAL is for cmake 3.7+
+# if (NOT CMAKE_VERSION VERSION_LESS 3.8)
+#    cmake_policy(SET CMP1234 NEW)
+# endif()
 
 if (MINGW)
     # we could do this as well in other cases.
