@@ -66,7 +66,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         message(FATAL_ERROR "bad arithmetic backend ${gfp_layer}")
     endif()
     if(gfp_layer STREQUAL "pz")
-    else()
+    elseif("pz" IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         add_bwc_test(modp-inhomogeneous-${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
         add_dependencies(test-bwc-modp-inhomogeneous-${gfp_layer}_dependencies
             lingen_pz lingen_${gfp_layer})
