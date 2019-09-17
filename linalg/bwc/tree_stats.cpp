@@ -344,33 +344,51 @@ void tree_stats::final_print()
 
 void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double const & theory)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back().second);
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
 
-    step_time::steps_t * where = &s.steps;
-    if (!s.nested_substeps.empty())
-        where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
-    s.nested_substeps.push_back(it);
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        s.nested_substeps.push_back(it);
 
-    step_time & S(it->second);
-    S.set_total_ncalls(s.total_ncalls());
-    S.items_per_call = theory.n;
-    S.planned_time += theory.t * theory.n;
-    ASSERT_ALWAYS(S.ncalled == S.planned_calls);
-    S.planned_calls++;
+        step_time & S(it->second);
+        S.set_total_ncalls(s.total_ncalls());
+        S.items_per_call = theory.n;
+        S.planned_time += theory.t * theory.n;
+        ASSERT_ALWAYS(S.ncalled == S.planned_calls);
+        S.planned_calls++;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at end_smallstep()\n");
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
 }
 void tree_stats::end_plan_smallstep()
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back().second);
-    s.nested_substeps.pop_back();
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at end_smallstep()\n");
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
 }
 
 void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
@@ -448,41 +466,59 @@ void tree_stats::end_smallstep()
 
 void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back().second);
-    step_time::steps_t * where = &s.steps;
-    if (!s.nested_substeps.empty())
-        where = & s.current_substep().steps;
-    running_stats::steps_t::iterator it = where->insert({func, step_time(func)}).first;
-    it->second.set_total_ncalls(s.total_ncalls());
-    s.nested_substeps.push_back(it);
-    step_time & S(s.current_substep());
-    S.items_pending += ncalls;
-    ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
-    if (S.items_pending == S.items_per_call) {
-        S.ncalled++;
-        S.items_pending = 0;
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it = where->insert({func, step_time(func)}).first;
+        it->second.set_total_ncalls(s.total_ncalls());
+        s.nested_substeps.push_back(it);
+        step_time & S(s.current_substep());
+        S.items_pending += ncalls;
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        if (S.items_pending == S.items_per_call) {
+            S.ncalled++;
+            S.items_pending = 0;
+        }
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at end_smallstep()\n");
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
     }
-    s.nested_substeps.pop_back();
 }
 
 bool tree_stats::local_smallsteps_done() const
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return true;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats const & s(curstack.back().second);
-    step_time::steps_t const * where = &s.steps;
-    if (!s.nested_substeps.empty())
-        where = & s.current_substep().steps;
-    for(auto const & s : *where) {
-        if (s.second.items_pending) return false;
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return true;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats const & s(curstack.back().second);
+        step_time::steps_t const * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        for(auto const & s : *where) {
+            if (s.second.items_pending) return false;
+        }
+        return true;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at end_smallstep()\n");
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
     }
-    return true;
 }
 
 std::ostream& tree_stats::debug_print(std::ostream& os) const
