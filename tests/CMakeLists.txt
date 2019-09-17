@@ -556,7 +556,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         )
-    if (BWC_GFP_ARITHMETIC_BACKENDS AND pz in BWC_GFP_ARITHMETIC_BACKENDS)
+    if (BWC_GFP_ARITHMETIC_BACKENDS AND pz LIST_IN BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
 #        (quicker) tests cover everything covered by this test.
 #        cado_define_test(full_p59
