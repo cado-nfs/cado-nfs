@@ -459,7 +459,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     else()
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
-            # lingen_tune_cutoffs.cpp
+            lingen_tune_cutoffs.cpp
             lingen_qcode_prime.cpp
             )
         set(lingen_${v}_support_sources
@@ -472,7 +472,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
             # really, it should go. On the other hand, some of the
             # functionality in lingen_tune_cutoffs.cpp should probably be
             # made more of a first-class citizen
-            # lingen_polymat.cpp # deleted 20190116, maybe temporarily
+            lingen_polymat.cpp
             # lingen_bigpolymat.c # deleted 20150826
             lingen_matpoly.cpp
             lingen_bigmatpoly.cpp

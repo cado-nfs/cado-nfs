@@ -935,8 +935,9 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
              * (anyway the more important plingen_tuning code also needs
              * some update so that this change can happen).
              */
+            tree_stats stats;
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft<fft_type>::mul_caching_adj(xpi, xpiL, xpiR, adj, NULL);
+                matpoly_ft<fft_type>::mul_caching_adj(stats, xpi, xpiL, xpiR, adj, NULL);
                 x.set_since_last();
             }
 #endif
@@ -1158,8 +1159,9 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
 #endif
             /* see remark above about matpoly_mul_caching gaining a stats
              * argument someday */
+            tree_stats stats;
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft<fft_type>::mp_caching_adj(xER, xE, xpiL, adj, NULL);
+                matpoly_ft<fft_type>::mp_caching_adj(stats, xER, xE, xpiL, adj, NULL);
                 x.set_since_last();
             }
             if (xERref.get_size() == 0) {
