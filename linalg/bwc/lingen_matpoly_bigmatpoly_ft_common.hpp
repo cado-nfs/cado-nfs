@@ -16,6 +16,7 @@
 /* Use matpoly as imported from lingen_matpoly_ft.hpp */
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "logline.h"
 
 template<typename T>
 struct OP_CTX_base {
@@ -77,7 +78,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
 
         if (!M) return;
 
-        begin_plan_smallstep(OP.name, M->tt);
+        constexpr const char * opname = OP_T::name;
+
+        begin_plan_smallstep(opname, M->tt);
         plan_smallstep("dft_A", M->t_dft_A);
         if (CTX.uses_mpi) {
             begin_plan_smallstep("dft_A_comm", M->t_dft_A_comm);
@@ -274,12 +277,17 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Ratxx(0,   0,   ii1 - ii0, r*b1);
         submatrix_range Rbtxx(0,   0,   r*b1,      jj1 - jj0);
         submatrix_range Rct  (ii0, jj0, ii1 - ii0, jj1 - jj0);
+
+        /* we can't do much progress tracking, since we delve into openmp
+         * almost immediately anyway */
         matpoly_ft<fft_type>::addcompose(tc.view(Rct), ta.view(Ratxx), tb.view(Rbtxx));
 
         end_smallstep();
     }/*}}}*/
 
     void operator()() {
+        constexpr const char * opname = OP_T::name;
+        begin_smallstep(opname);
 
         CTX.alloc_c_if_needed(OP.csize);
 
@@ -348,10 +356,13 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     ASSERT_ALWAYS(loop0.nblocks() == 1);
                     ASSERT_ALWAYS(nrs0 == b0);
                     unsigned int iloop0 = 0;
+                    logline_printf(1, "dft_A (%u*%u)\n", b0, b1);
                     dft_A_for_block(i0, iloop0, iloop1);
                     for(unsigned int iloop2 = 0 ; iloop2 < loop2.nblocks() ; iloop2++) {
+                        logline_printf(1, "dft_B (%u*%u)\n", b1, b2);
                         dft_B_for_block(j0, iloop1, iloop2);
 
+                        logline_printf(1, "addmul\n");
                         addmul_for_block(iloop0, iloop2);
                     }
                     /* adjust counts */
@@ -370,10 +381,13 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     ASSERT_ALWAYS(loop2.nblocks() == 1);
                     ASSERT_ALWAYS(nrs2 == b2);
                     unsigned int iloop2 = 0;
+                    logline_printf(1, "dft_B (%u*%u)\n", b1, b2);
                     dft_B_for_block(j0, iloop1, iloop2);
                     for(unsigned int iloop0 = 0 ; iloop0 < loop0.nblocks() ; iloop0++) {
+                        logline_printf(1, "dft_A (%u*%u)\n", b0, b1);
                         dft_A_for_block(i0, iloop0, iloop1);
 
+                        logline_printf(1, "addmul\n");
                         addmul_for_block(iloop0, iloop2);
                     }
                     /* adjust counts */
@@ -397,10 +411,13 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
             ASSERT_ALWAYS(CTX.c_local().get_size() <= CTX.c_local().capacity());
             submatrix_range Rc(i0, j0, i1-i0, j1-j0);
             submatrix_range Rct(0,  0, i1-i0, j1-j0);
+            logline_printf(1, "ift_C (%u*%u)\n", nrs0, nrs2);
             matpoly_ft<fft_type>::ift(CTX.c_local().view(Rc), tc.view(Rct));
             end_smallstep();
         }
         ASSERT_ALWAYS(local_smallsteps_done());
+
+        end_smallstep();
     }
 };
 

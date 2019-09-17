@@ -930,7 +930,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
         return done;
     }
 
-    bm.stats.begin_smallstep("MP");
     ASSERT_ALWAYS(pi_left.get_size() <= pi_left_expect);
     ASSERT_ALWAYS(done || pi_left.get_size() >= pi_left_expect_lowerbound);
 
@@ -955,7 +954,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     }
 
     logline_end(&(bm.t_mp), "");
-    bm.stats.end_smallstep();
 
     unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
@@ -966,7 +964,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     /* stack is now pi_left, pi_right */
 
-    bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
             pi_left.get_size(), pi_right.get_size(), pi_left.get_size() + pi_right.get_size() - 1);
@@ -1007,7 +1004,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     ASSERT_ALWAYS(done || pisize >= pi_expect_lowerbound);
 
     logline_end(&bm.t_mul, "");
-    bm.stats.end_smallstep();
 
     return done;
 }/*}}}*/
@@ -1095,7 +1091,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
         return done;
     }
 
-    bm.stats.begin_smallstep("MP");
     ASSERT_ALWAYS(pi_left.get_size() <= pi_left_expect);
     ASSERT_ALWAYS(done || pi_left.get_size() >= pi_left_expect_lowerbound);
 
@@ -1125,7 +1120,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     }
 
     logline_end(&bm.t_mp, "");
-    bm.stats.end_smallstep();
 
     unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
@@ -1136,7 +1130,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     
     E_right = bigmatpoly(model);
 
-    bm.stats.begin_smallstep("MUL");
     logline_begin(stdout, z, "t=%u %*sMPI-MUL(%zu, %zu) -> %zu",
             bm.t, depth, "",
             pi_left.get_size(), pi_right.get_size(), pi_left.get_size() + pi_right.get_size() - 1);
@@ -1182,7 +1175,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     ASSERT_ALWAYS(done || pisize >= pi_expect_lowerbound);
 
     logline_end(&bm.t_mul, "");
-    bm.stats.end_smallstep();
 
     return done;
 }/*}}}*/

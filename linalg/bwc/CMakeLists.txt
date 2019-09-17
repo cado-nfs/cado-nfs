@@ -365,7 +365,7 @@ link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.c
+add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.cpp
     lingen_round_operand_size.cpp
     lingen_qcode_binary.cpp
     # matpoly isn't really used by the legacy lingen, but the basecase code in
@@ -421,7 +421,7 @@ endif()
 # put all of them in a common convenience library.
 add_library(lingen_common_support 
     lingen_memory_pool.cpp
-    logline.c
+    logline.cpp
     check_mpi_problems.c
     tree_stats.cpp
     lingen_round_operand_size.cpp

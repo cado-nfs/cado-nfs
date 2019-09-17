@@ -806,7 +806,7 @@ linalg/bwc/mpfq/mpfq_pz.c
 linalg/bwc/mpfq/mpfq_pz.h
 linalg/bwc/mpfq/mpfq_pz_t.c
 linalg/bwc/mpfq/mpfq_pz_t.h
-linalg/bwc/logline.c
+linalg/bwc/logline.cpp
 linalg/bwc/logline.h
 tests/linalg/bwc/CMakeLists.txt
 tests/linalg/CMakeLists.txt

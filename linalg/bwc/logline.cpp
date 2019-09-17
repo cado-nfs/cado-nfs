@@ -1,8 +1,12 @@
 #include "cado.h"
 
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 
+#include <string>
+#include <vector>
+
+#include "logline.h"
 #include "select_mpi.h"
 #include "utils.h"
 
@@ -27,21 +31,23 @@
 struct logline {
     /* Only log messages prefixed with <x> with x <= max will be printed
      */
-    int max;
+    int max = 0;
     /* Title string introducing this log set */
-    char * header;
+    std::string header;
     /* Did last print contain a trailing newline ? */
-    int eol;
+    bool eol = false;
     /* Last printed detail level */
-    int lastlevel;
+    int lastlevel = 0;
 
-    FILE * f;
+    FILE * f = NULL;
 
     /* Number of newlines seen (used to tell whether the title has to be
      * echoed again) */
-    int nnl;
+    int nnl = 0;
 
-    double start;
+    double start = 0;
+
+    std::vector<std::string> prefixes;
 };
 
 
@@ -110,17 +116,28 @@ static void logline_puts_raw(int level, const char * s)
     if (!current) return;
     if (level > current->max) return;
     if (level != current->lastlevel && !current->eol) {
-        fputs("\n", current->f);
+
+        fputs(" ...\n", current->f);
         current->nnl += (current->eol = 1);
     }
-    if (logline_timings && current->eol) {
-        char buf1[16];
-        char buf2[16];
-        size_disp_fine(1024UL * Memusage2(), buf1, 10000.0);
-        size_disp_fine(1024UL * PeakMemusage(), buf2, 10000.0);
-        fprintf(current->f, "[%.3f %.3f %s %s] ", wct_seconds() - start_time, seconds(), buf1, buf2);
+    for( ; current->prefixes.size() > (unsigned int) level ; current->prefixes.pop_back()) ;
+    if (current->eol) {
+        if (logline_timings) {
+            char buf1[16];
+            char buf2[16];
+            size_disp_fine(1024UL * Memusage2(), buf1, 10000.0);
+            size_disp_fine(1024UL * PeakMemusage(), buf2, 10000.0);
+            fprintf(current->f, "[%.3f %.3f %s %s] ", wct_seconds() - start_time, seconds(), buf1, buf2);
+        }
+        for(auto const & c : current->prefixes) {
+            fputs(c.c_str(), current->f);
+            fputc(' ', current->f);
+        }
+    } else if (level == current->lastlevel) {
+        fputc(' ', current->f);
     }
     fputs(s, current->f);
+    current->prefixes.push_back(s);
     size_t n = strlen(s);
     current->nnl += (current->eol = s[n-1] == '\n');
     current->lastlevel = level;
@@ -140,16 +157,18 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     for(level = 0 ; level < 10 && size >= logline_thresholds[level] ; level++);
     if (level == 0) return 0;
     level--;
-    current = malloc(sizeof(struct logline));
-    memset(current, 0, sizeof(struct logline));
+    current = new logline;
     current->max = level;
     current->lastlevel = 0;
     current->f = f;
     current->start = logline_timer();
-    int rc = vasprintf(&(current->header), fmt, ap);
+    char * tmp;
+    int rc = vasprintf(&(tmp), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
-    current->eol = 1;
-    logline_puts_raw(0, current->header);
+    current->header = tmp;
+    free(tmp);
+    current->eol = true;
+    logline_puts_raw(0, current->header.c_str());
     va_end(ap);
     return 1;
 }
@@ -161,18 +180,24 @@ int logline_end(double * rr, const char * fmt, ...)
     va_start(ap, fmt);
     char * text;
     char * text2;
-    int rc = vasprintf(&text, fmt, ap);
-    ASSERT_ALWAYS(rc >= 0);
+    int rc;
+    if (fmt) {
+        rc = vasprintf(&text, fmt, ap);
+        ASSERT_ALWAYS(rc >= 0);
+    }
     double tt = logline_timer() - current->start;
-    rc = asprintf(&text2, "%s [%.2f]\n", text, tt);
+    if (fmt && *text) {
+        rc = asprintf(&text2, "%s [%.2f]\n", text, tt);
+    } else {
+        rc = asprintf(&text2, "[%.2f]\n", tt);
+    }
     ASSERT_ALWAYS(rc >= 0);
     free(text);
     if (current->nnl)
-        logline_puts_raw(0, current->header);
+        logline_puts_raw(0, current->header.c_str());
     logline_puts_raw(0, text2);
     free(text2);
-    free(current->header);
-    free(current);
+    delete current;
     current = NULL;
     va_end(ap);
     if (rr) *rr += tt;

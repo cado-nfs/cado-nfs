@@ -9,7 +9,6 @@
 extern "C" {
 #endif
 
-
 void logline_decl_usage(param_list_ptr pl);
 void logline_init_timer();
 int logline_interpret_parameters(param_list pl);
