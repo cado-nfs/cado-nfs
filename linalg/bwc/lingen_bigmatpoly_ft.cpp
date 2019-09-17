@@ -76,18 +76,6 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
     inline void b_allgather(void * p, int n) {
         do_allgather(p, b.get_model().com[2], n);
     }
-    inline void begin_smallstep(std::string const & func, unsigned int n) {
-        stats.begin_smallstep(func, n);
-    }
-    inline void end_smallstep() {
-        stats.end_smallstep();
-    }
-    inline void skip_smallstep(std::string const & func, unsigned int n) {
-        stats.skip_smallstep(func, n);
-    }
-    inline bool local_smallsteps_done() {
-        return stats.local_smallsteps_done();
-    }
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
         if (M && op.get_transform_ram() > M->per_transform_ram) {
             fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
@@ -105,7 +93,7 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
             M->ram = ntransforms * M->per_transform_ram;
         }
         typename matpoly_ft<fft_type>::memory_guard dummy(M ? M->ram : SIZE_MAX);
-        mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M ? & M->S : NULL)();
+        mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M)();
     }
 };
 

@@ -3,6 +3,7 @@
 #include "lingen_matpoly_ft.hpp"
 #include "utils.h"
 #include "gmp_aux.h"
+#include "tree_stats.hpp"
 
 struct matpoly_checker_base {
     abfield ab;
@@ -353,14 +354,18 @@ struct matpoly_checker_base {
 
 template<typename fft_type>
 struct matpoly_checker_ft : public matpoly_checker_base {
+    tree_stats stats;
+    tree_stats::sentinel stats_sentinel;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
     matpoly_checker_ft(matpoly_checker_base const & base)
         : matpoly_checker_base(base)
+        , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
     {}
     matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
         : matpoly_checker_base(p, m, n, len1, len2, rstate0)
+        , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
     {}
     int mul_and_mul_caching_are_consistent() {
@@ -373,7 +378,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         Q.fill_random(len2, rstate);
 
         R0.mul(P, Q);
-        matpoly_ft<fft_type>::mul_caching(R1, P, Q, NULL);
+        matpoly_ft<fft_type>::mul_caching(stats, R1, P, Q, NULL);
         return (R0.cmp(R1) == 0);
     }
 
@@ -387,7 +392,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         Q.fill_random(len2, rstate);
 
         M0.mp(P, Q);
-        matpoly_ft<fft_type>::mp_caching(M1, P, Q, NULL);
+        matpoly_ft<fft_type>::mp_caching(stats, M1, P, Q, NULL);
         return M0.cmp(M1) == 0;
     }
 

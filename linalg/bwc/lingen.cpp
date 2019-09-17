@@ -900,28 +900,6 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
 
-    {
-        /* smallstep planning is currently disabled in
-         * OP_CTX<matpoly> */
-        bm.stats.begin_plan_smallstep("MP", C.mp.tt);
-        bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
-        // bm.stats.plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
-        bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
-        // bm.stats.plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
-        bm.stats.plan_smallstep("addmul", C.mp.t_conv);
-        bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
-        bm.stats.end_plan_smallstep();
-
-        bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
-        bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
-        // bm.stats.plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
-        bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
-        // bm.stats.plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
-        bm.stats.plan_smallstep("addmul", C.mul.t_conv);
-        bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
-        bm.stats.end_plan_smallstep();
-    }
-
     bw_dimensions & d = bm.d;
     int done;
 
@@ -1082,43 +1060,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     lingen_call_companion & C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
-
-    {
-        bm.stats.begin_plan_smallstep("MP", C.mp.tt);
-        bm.stats.plan_smallstep("dft_A", C.mp.t_dft_A);
-        bm.stats.begin_plan_smallstep("dft_A_comm", C.mp.t_dft_A_comm);
-        bm.stats.plan_smallstep("export", C.mp.t_dft_A_comm);
-        bm.stats.plan_smallstep("comm", C.mp.t_dft_A_comm);
-        bm.stats.plan_smallstep("import", C.mp.t_dft_A_comm);
-        bm.stats.end_plan_smallstep();
-        bm.stats.plan_smallstep("dft_B", C.mp.t_dft_B);
-        bm.stats.begin_plan_smallstep("dft_B_comm", C.mp.t_dft_B_comm);
-        bm.stats.plan_smallstep("export", C.mp.t_dft_B_comm);
-        bm.stats.plan_smallstep("comm", C.mp.t_dft_B_comm);
-        bm.stats.plan_smallstep("import", C.mp.t_dft_B_comm);
-        bm.stats.end_plan_smallstep();
-        bm.stats.plan_smallstep("addmul", C.mp.t_conv);
-        bm.stats.plan_smallstep("ift_C", C.mp.t_ift_C);
-        bm.stats.end_plan_smallstep();
-
-        bm.stats.begin_plan_smallstep("MUL", C.mul.tt);
-        bm.stats.plan_smallstep("dft_A", C.mul.t_dft_A);
-        bm.stats.begin_plan_smallstep("dft_A_comm", C.mul.t_dft_A_comm);
-        bm.stats.plan_smallstep("export", C.mul.t_dft_A_comm);
-        bm.stats.plan_smallstep("comm", C.mul.t_dft_A_comm);
-        bm.stats.plan_smallstep("import", C.mul.t_dft_A_comm);
-        bm.stats.end_plan_smallstep();
-        bm.stats.plan_smallstep("dft_B", C.mul.t_dft_B);
-        bm.stats.begin_plan_smallstep("dft_B_comm", C.mul.t_dft_B_comm);
-        bm.stats.plan_smallstep("export", C.mul.t_dft_B_comm);
-        bm.stats.plan_smallstep("comm", C.mul.t_dft_B_comm);
-        bm.stats.plan_smallstep("import", C.mul.t_dft_B_comm);
-        bm.stats.end_plan_smallstep();
-        bm.stats.plan_smallstep("addmul", C.mul.t_conv);
-        bm.stats.plan_smallstep("ift_C", C.mul.t_ift_C);
-        bm.stats.end_plan_smallstep();
-    }
-
 
     bw_dimensions & d = bm.d;
     int done;

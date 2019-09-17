@@ -35,6 +35,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     T & c;
     T const & a;
     T const & b;
+    const lingen_call_companion::mul_or_mp_times * M;
     unsigned int shrink0;
     unsigned int shrink2;
     subdivision mpi_split0;
@@ -47,14 +48,15 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
     matpoly_ft<fft_type> ta, tb, tc;
     mp_or_mul(OP_CTX_T & CTX, OP_T & OP,
-            const struct lingen_substep_schedule * S)
+            const lingen_call_companion::mul_or_mp_times * M)
         : CTX(CTX)
         , OP(OP)
         , c(CTX.c)
         , a(CTX.a)
         , b(CTX.b)
-        , shrink0(S ? S->shrink0 : 1)
-        , shrink2(S ? S->shrink2 : 1)
+        , M(M)
+        , shrink0(M ? M->S.shrink0 : 1)
+        , shrink2(M ? M->S.shrink2 : 1)
         , mpi_split0(a.m, CTX.mesh_inner_size())
         , mpi_split1(a.n, CTX.mesh_inner_size())
         , mpi_split2(b.n, CTX.mesh_inner_size())
@@ -64,15 +66,66 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         , nrs0(shrink_split0.block_size_upper_bound())
         , nrs2(shrink_split2.block_size_upper_bound())
         /* By default we use full batching, which costs some memory ! */
-        , b0(S ? S->batch[0] : nrs0)
-        , b1(S ? S->batch[1] : a.n)
-        , b2(S ? S->batch[2] : nrs2)
+        , b0(M ? M->S.batch[0] : nrs0)
+        , b1(M ? M->S.batch[1] : a.n)
+        , b2(M ? M->S.batch[2] : nrs2)
         , ta(b0, CTX.mesh_inner_size() * b1, OP.fti)
         , tb(CTX.mesh_inner_size() * b1, b2, OP.fti)
         , tc(nrs0, nrs2, OP.fti)
     {
         CTX.mesh_checks();
+
+        if (!M) return;
+
+        begin_plan_smallstep(OP.name, M->tt);
+        plan_smallstep("dft_A", M->t_dft_A);
+        if (CTX.uses_mpi) {
+            begin_plan_smallstep("dft_A_comm", M->t_dft_A_comm);
+            plan_smallstep("export", M->t_dft_A_comm);
+            plan_smallstep("comm", M->t_dft_A_comm);
+            plan_smallstep("import", M->t_dft_A_comm);
+            end_plan_smallstep();
+        }
+        plan_smallstep("dft_B", M->t_dft_B);
+        if (CTX.uses_mpi) {
+            begin_plan_smallstep("dft_B_comm", M->t_dft_B_comm);
+            plan_smallstep("export", M->t_dft_B_comm);
+            plan_smallstep("comm", M->t_dft_B_comm);
+            plan_smallstep("import", M->t_dft_B_comm);
+            end_plan_smallstep();
+        }
+        plan_smallstep("addmul", M->t_conv);
+        plan_smallstep("ift_C", M->t_ift_C);
+        end_plan_smallstep();
     }
+    template<typename... Args>
+    inline void begin_smallstep(Args&& ...args) {
+        if (M) CTX.stats.begin_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void skip_smallstep(Args&& ...args) {
+        if (M) CTX.stats.skip_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void end_smallstep(Args&& ...args) {
+        if (M) CTX.stats.end_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void begin_plan_smallstep(Args&& ...args) {
+        if (M) CTX.stats.begin_plan_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void plan_smallstep(Args&& ...args) {
+        if (M) CTX.stats.plan_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void end_plan_smallstep(Args&& ...args) {
+        if (M) CTX.stats.end_plan_smallstep(args...);
+    }
+    inline bool local_smallsteps_done() {
+        return M ? CTX.stats.local_smallsteps_done() : true;
+    }
+
 
     /* loop0 and loop2 depend on the exact output block. At most we're
      * iterating on, respectively, ceil(ceil(n0/r)/shrink0), and
@@ -130,10 +183,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
         submatrix_range Ratx(     0,   aj * b1,    ii1 - ii0, b1);
 
-        CTX.begin_smallstep("dft_A", b0 * b1);
+        begin_smallstep("dft_A", b0 * b1);
         ta.zero();  // for safety because of rounding.
         matpoly_ft<fft_type>::dft(ta.view(Rat), CTX.a_local().view(Ra));
-        CTX.end_smallstep();
+        end_smallstep();
 
         if (!CTX.uses_mpi) return;
 
@@ -141,23 +194,23 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Ratxx(0,   0,          ii1 - ii0, r*b1);
 
         // allgather ta among r nodes.
-        CTX.begin_smallstep("dft_A_comm", r * b0 * b1);
-        CTX.begin_smallstep("export", r * b0 * b1);
+        begin_smallstep("dft_A_comm", r * b0 * b1);
+        begin_smallstep("export", r * b0 * b1);
         ta.view(Ratx).to_export();
-        CTX.end_smallstep();
-        CTX.begin_smallstep("comm", r * b0 * b1);
+        end_smallstep();
+        begin_smallstep("comm", r * b0 * b1);
         /* The data isn't contiguous, so we have to do
          * several allgather operations.  */
         for(unsigned int i = 0 ; i < ii1 - ii0 ; i++) {
             CTX.a_allgather(ta.part(i, 0), b1);
         }
-        CTX.end_smallstep();
-        CTX.begin_smallstep("import", r * b0 * b1);
+        end_smallstep();
+        begin_smallstep("import", r * b0 * b1);
         /* we imported data from everywhere, we can now put
          * it back to local format */
         ta.view(Ratxx).to_import();
-        CTX.end_smallstep();
-        CTX.end_smallstep();
+        end_smallstep();
+        end_smallstep();
     }/*}}}*/
 
     void dft_B_for_block(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
@@ -183,10 +236,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
         submatrix_range Rbtx (bi * b1,      0,      b1,      jj1 - jj0);
 
-        CTX.begin_smallstep("dft_B", b1 * b2);
+        begin_smallstep("dft_B", b1 * b2);
         tb.zero();
         matpoly_ft<fft_type>::dft(tb.view(Rbt), CTX.b_local().view(Rb));
-        CTX.end_smallstep();
+        end_smallstep();
 
         if (!CTX.uses_mpi) return;
 
@@ -194,17 +247,17 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Rbtxx(0,            0, r*b1,    jj1 - jj0);
 
         // allgather tb among r nodes
-        CTX.begin_smallstep("dft_B_comm", r * b1 * b2);
-        CTX.begin_smallstep("export", r * b1 * b2);
+        begin_smallstep("dft_B_comm", r * b1 * b2);
+        begin_smallstep("export", r * b1 * b2);
         tb.view(Rbtx).to_export();
-        CTX.end_smallstep();
-        CTX.begin_smallstep("comm", r * b1 * b2);
+        end_smallstep();
+        begin_smallstep("comm", r * b1 * b2);
         CTX.b_allgather(tb.data, b1 * b2);
-        CTX.end_smallstep();
-        CTX.begin_smallstep("import", r * b1 * b2);
+        end_smallstep();
+        begin_smallstep("import", r * b1 * b2);
         tb.view(Rbtxx).to_import();
-        CTX.end_smallstep();
-        CTX.end_smallstep();
+        end_smallstep();
+        end_smallstep();
     }/*}}}*/
 
     void addmul_for_block(unsigned int iloop0, unsigned int iloop2)/*{{{*/
@@ -215,7 +268,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         std::tie(ii0, ii1) = loop0.nth_block(iloop0);
         std::tie(jj0, jj1) = loop2.nth_block(iloop2);
 
-        CTX.begin_smallstep("addmul", b0 * b1 * b2 * r);
+        begin_smallstep("addmul", b0 * b1 * b2 * r);
 
         // rounding might surprise us.
         submatrix_range Ratxx(0,   0,   ii1 - ii0, r*b1);
@@ -223,7 +276,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Rct  (ii0, jj0, ii1 - ii0, jj1 - jj0);
         matpoly_ft<fft_type>::addcompose(tc.view(Rct), ta.view(Ratxx), tb.view(Rbtxx));
 
-        CTX.end_smallstep();
+        end_smallstep();
     }/*}}}*/
 
     void operator()() {
@@ -304,15 +357,15 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     /* adjust counts */
                     unsigned int e2 = (iceildiv(nrs2, b2) - loop2.nblocks());
                     unsigned int x2 = e2 * b2;
-                    CTX.skip_smallstep("dft_B", b1 * x2);
+                    skip_smallstep("dft_B", b1 * x2);
                     if (CTX.uses_mpi) {
-                        CTX.begin_smallstep("dft_B_comm", r * b1 * x2);
-                        CTX.skip_smallstep("export", r * b1 * x2);
-                        CTX.skip_smallstep("comm", r * b1 * x2);
-                        CTX.skip_smallstep("import", r * b1 * x2);
-                        CTX.end_smallstep();
+                        begin_smallstep("dft_B_comm", r * b1 * x2);
+                        skip_smallstep("export", r * b1 * x2);
+                        skip_smallstep("comm", r * b1 * x2);
+                        skip_smallstep("import", r * b1 * x2);
+                        end_smallstep();
                     }
-                    CTX.skip_smallstep("addmul", b0 * b1 * x2 * r);
+                    skip_smallstep("addmul", b0 * b1 * x2 * r);
                 } else {
                     ASSERT_ALWAYS(loop2.nblocks() == 1);
                     ASSERT_ALWAYS(nrs2 == b2);
@@ -326,28 +379,28 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     /* adjust counts */
                     unsigned int e0 = (iceildiv(nrs0, b0) - loop0.nblocks());
                     unsigned int x0 = e0 * b0;
-                    CTX.skip_smallstep("dft_A", x0 * b1);
+                    skip_smallstep("dft_A", x0 * b1);
                     if (CTX.uses_mpi) {
-                        CTX.begin_smallstep("dft_A_comm", r * x0 * b1);
-                        CTX.skip_smallstep("export", r * x0 * b1);
-                        CTX.skip_smallstep("comm", r * x0 * b1);
-                        CTX.skip_smallstep("import", r * x0 * b1);
-                        CTX.end_smallstep();
+                        begin_smallstep("dft_A_comm", r * x0 * b1);
+                        skip_smallstep("export", r * x0 * b1);
+                        skip_smallstep("comm", r * x0 * b1);
+                        skip_smallstep("import", r * x0 * b1);
+                        end_smallstep();
                     }
-                    CTX.skip_smallstep("addmul", x0 * b1 * b2 * r);
+                    skip_smallstep("addmul", x0 * b1 * b2 * r);
                 }
             }
 
             CTX.c.set_size(OP.csize);
             /* tc.get_size()() <= nrs0 * nrs2 */
-            CTX.begin_smallstep("ift_C", nrs0 * nrs2);
+            begin_smallstep("ift_C", nrs0 * nrs2);
             ASSERT_ALWAYS(CTX.c_local().get_size() <= CTX.c_local().capacity());
             submatrix_range Rc(i0, j0, i1-i0, j1-j0);
             submatrix_range Rct(0,  0, i1-i0, j1-j0);
             matpoly_ft<fft_type>::ift(CTX.c_local().view(Rc), tc.view(Rct));
-            CTX.end_smallstep();
+            end_smallstep();
         }
-        ASSERT_ALWAYS(CTX.local_smallsteps_done());
+        ASSERT_ALWAYS(local_smallsteps_done());
     }
 };
 
