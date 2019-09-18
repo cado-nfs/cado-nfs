@@ -505,6 +505,12 @@ struct lingen_substep_characteristics {
         mul0 += nrs0*nrs2;
         unsigned int mul1 = nrs0 * nrs2;
         unsigned int mul12 = S.batch[0] * S.batch[2];
+
+        /* *IF* the pragma omp parallel statements go with an appropriate
+         * num_threads() clause, then yes, it makes sense to do this
+         * min(). Otherwise, the multipliers will be max_threads() in all
+         * cases.
+         */
         mul1 = std::min(mul1, (unsigned int) max_threads());
         mul12 = std::min(mul12, (unsigned int) max_threads());
 

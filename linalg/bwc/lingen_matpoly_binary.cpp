@@ -8,7 +8,7 @@
 #include "lingen_matpoly_binary.hpp"
 #include "gf2x.h"
 
-memory_pool_loose matpoly::memory;
+matpoly::memory_pool_type matpoly::memory;
 
 static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_limb_t != unsigned long");
 

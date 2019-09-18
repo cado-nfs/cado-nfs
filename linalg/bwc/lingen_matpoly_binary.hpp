@@ -29,10 +29,15 @@
 #include "mpfq_fake.hpp"
 
 class matpoly {
-    static memory_pool_loose memory;
-    friend decltype(memory)::guard<matpoly>;
+    typedef abdst_vec ptr;
+    typedef memory_pool_wrapper<ptr, true> memory_pool_type;
+    static memory_pool_type memory;
 public:
-    typedef decltype(memory)::guard<matpoly> memory_guard;
+    struct memory_guard : private memory_pool_type::guard_base {
+        memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
+    };
+
     static constexpr bool over_gf2 = true;
     // static void add_to_main_memory_pool(size_t s);
     abdst_field ab = NULL;

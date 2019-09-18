@@ -24,10 +24,11 @@ namespace memory_pool_details {
 template<bool loose = false>
 struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
     std::mutex mm;
-    public:
     size_t allowed=0;
     size_t allocated=0;
     size_t peak=0;
+    friend class guard_base;
+    public:
     void * alloc(size_t s)
     {
         std::lock_guard<std::mutex> dummy(mm);
@@ -58,6 +59,7 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
     private:
     void report_inaccuracy(size_t diff);
 
+    public:
     class guard_base {
         size_t oldsize;
         size_t mysize;
@@ -97,23 +99,18 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
             ASSERT_ALWAYS(memory.allocated <= memory.allowed);
         }
     };
-
-    public:
-    template<typename T>
-        struct guard : private guard_base {
-            guard(size_t s) : guard_base(T::memory, s) {}
-            ~guard() { guard_base::pre_dtor(T::memory); }
-        };
-
 };
 
 typedef memory_pool<true> memory_pool_loose;
 typedef memory_pool<false> memory_pool_strict;
 
-#if 0
-/* unused */
-/* must be explicitly instantiated */
-template<typename T> struct memory_guard;
-#endif
+template<typename ptr, bool is_loose>
+class memory_pool_wrapper : public memory_pool<is_loose> {
+    typedef memory_pool<is_loose> super;
+public:
+    inline ptr alloc(size_t s) { return (ptr) super::alloc(s); }
+    void free(ptr p, size_t s) { super::free((void*) p, s); }
+    ptr realloc(ptr p, size_t s, size_t ns) { return (ptr) super::realloc(p, s, ns); }
+};
 
 #endif	/* LINGEN_MEMORY_POOL_HPP_ */

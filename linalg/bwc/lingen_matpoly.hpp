@@ -24,10 +24,22 @@ struct polymat;
  */
 
 class matpoly {
+    /*
     static memory_pool_loose memory;
     friend decltype(memory)::guard<matpoly>;
 public:
     typedef decltype(memory)::guard<matpoly> memory_guard;
+    */
+
+    typedef abdst_vec ptr;
+    typedef memory_pool_wrapper<ptr, true> memory_pool_type;
+    static memory_pool_type memory;
+public:
+    struct memory_guard : private memory_pool_type::guard_base {
+        memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
+    };
+
     static constexpr bool over_gf2 = false;
     /* if we ever want the check binary to make sure that the
      * specification works correctly also wrt. pre-init state. Not sure

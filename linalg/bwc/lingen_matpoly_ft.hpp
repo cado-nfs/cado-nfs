@@ -16,16 +16,21 @@
 
 template<typename fft_type>
 class matpoly_ft {
-    typedef memory_pool_strict memory_pool_type;
+    typedef typename fft_type::ptr ptr;
+    typedef typename fft_type::srcptr srcptr;
+    typedef memory_pool_wrapper<ptr, false> memory_pool_type;
     static memory_pool_type memory;
-    friend memory_pool_type::guard<matpoly_ft>;
 public:
-    typedef memory_pool_type::guard<matpoly_ft> memory_guard;
+    struct memory_guard : private memory_pool_type::guard_base {
+        memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
+    };
+
     fft_type fti;
     unsigned int m = 0;
     unsigned int n = 0;
     std::array<size_t, 3> fft_alloc_sizes;
-    typename fft_type::ptr data = NULL;
+    ptr data = NULL;
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
 
@@ -40,7 +45,7 @@ public:
     {
         this->m = m;
         this->n = n;
-        data = (typename fft_type::ptr) memory.alloc(m * n * fft_alloc_sizes[0]);
+        data = memory.alloc(m * n * fft_alloc_sizes[0]);
         memset(data, 0, m * n * fft_alloc_sizes[0]);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for collapse(2)
@@ -80,11 +85,11 @@ public:
     }
     /* }}} */
     /* {{{ direct access interface */
-    inline typename fft_type::ptr part(unsigned int i, unsigned int j) {
-        return (typename fft_type::ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
+    inline ptr part(unsigned int i, unsigned int j) {
+        return (ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
-    inline typename fft_type::srcptr part(unsigned int i, unsigned int j) const {
-        return (typename fft_type::ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
+    inline srcptr part(unsigned int i, unsigned int j) const {
+        return (ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
     /* }}} */
     /* {{{ views -- some of the modifiers are implemented here only */
@@ -95,10 +100,10 @@ public:
         matpoly_ft & M;
         view_t(matpoly_ft & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly_ft & M) : submatrix_range(M), M(M) {}
-        inline typename fft_type::ptr part(unsigned int i, unsigned int j) {
+        inline ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline typename fft_type::srcptr part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero() { /*{{{*/
@@ -162,7 +167,7 @@ public:
         const_view_t(matpoly_ft const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly_ft const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline typename fft_type::srcptr part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         bool check() {/*{{{*/
@@ -209,22 +214,23 @@ public:
         ASSERT_ALWAYS(t.nrows() == nrows);
         ASSERT_ALWAYS(t.ncols() == ncols);
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+        unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
 #endif
         {
-            typename fft_type::ptr tt = (typename fft_type::ptr) malloc(t.M.fft_alloc_sizes[1]);
+            ptr tt = memory.alloc(t.M.fft_alloc_sizes[1]);
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
-                    typename fft_type::ptr tij = t.part(i, j);
+                    ptr tij = t.part(i, j);
                     absrc_vec aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.dft(tij, (const mp_limb_t *) aij, a.M.get_size(), tt);
                 }
             }
-            free(tt);
+            memory.free(tt, t.M.fft_alloc_sizes[1]);
         }
     }/*}}}*/
     static void ift(matpoly::view_t a, view_t t)/*{{{*/
@@ -234,22 +240,23 @@ public:
         ASSERT_ALWAYS(t.nrows() == nrows);
         ASSERT_ALWAYS(t.ncols() == ncols);
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+        unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
 #endif
         {
-            typename fft_type::ptr tt = (typename fft_type::ptr) malloc(t.M.fft_alloc_sizes[1]);
+            ptr tt = memory.alloc(t.M.fft_alloc_sizes[1]);
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
-                    typename fft_type::ptr tij = t.part(i,j);
+                    ptr tij = t.part(i,j);
                     abdst_vec aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.ift((mp_limb_t *) aij, a.M.get_size(), tij, tt);
                 }
             }
-            free(tt);
+            memory.free(tt, t.M.fft_alloc_sizes[1]);
         }
     }/*}}}*/
     static void addcompose(view_t t, const_view_t t0, const_view_t t1)/*{{{*/
@@ -265,11 +272,13 @@ public:
         ASSERT(t1.check());
         ASSERT(t.check());
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+        unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
 #endif
         {
-            typename fft_type::ptr qt = (typename fft_type::ptr) malloc(t.M.fft_alloc_sizes[1]);
-            typename fft_type::ptr tt = (typename fft_type::ptr) malloc(t.M.fft_alloc_sizes[2]);
+            ptr qt = memory.alloc(t.M.fft_alloc_sizes[1]);
+            ptr tt = memory.alloc(t.M.fft_alloc_sizes[2]);
+                
             memset(qt, 0, t.M.fft_alloc_sizes[1]);
 
 #ifdef HAVE_OPENMP
@@ -283,8 +292,8 @@ public:
                     }
                 }
             }
-            free(tt);
-            free(qt);
+            memory.free(tt, t.M.fft_alloc_sizes[2]);
+            memory.free(qt, t.M.fft_alloc_sizes[1]);
         }
     }/*}}}*/
 
@@ -348,13 +357,5 @@ template<> struct is_binary<fft_transform_info> {
     static constexpr const bool value = false;
 };
 #endif
-
-/*
- * unused
-template<typename fft_type> struct memory_guard<matpoly_ft<fft_type>> {
-    typedef memory_pool_strict::guard<matpoly_ft<fft_type>> type;
-};
- */
-
 
 #endif	/* LINGEN_MATPOLY_FT_HPP_ */

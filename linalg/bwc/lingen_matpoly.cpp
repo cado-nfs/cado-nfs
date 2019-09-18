@@ -8,7 +8,7 @@
 #include "lingen_matpoly.hpp"
 #include "flint-fft/fft.h"
 
-memory_pool_loose matpoly::memory;
+matpoly::memory_pool_type matpoly::memory;
 
 /* with the exception of matpoly_realloc, all functions here are exactly
  * identical to those in lingen-polymat.c */
