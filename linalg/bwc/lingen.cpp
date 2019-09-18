@@ -455,6 +455,8 @@ struct cp_info {
     char * sdatafile;
     char * gdatafile;
     const char * datafile;
+    /* be sure to change when needed */
+    static constexpr unsigned long format = 1;
     FILE * aux;
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
@@ -500,6 +502,7 @@ bool cp_info::save_aux_file(size_t pi_size, int done) const /*{{{*/
     unsigned int n = d.n;
     if (rank) return 1;
     std::ofstream os(auxfile);
+    os << "format " << format << "\n";
     os << pi_size << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.delta[i];
     os << "\n";
@@ -524,6 +527,18 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
     unsigned int n = d.n;
     if (rank) return 1;
     std::ifstream is(auxfile);
+    std::string hfstring;
+    unsigned long hformat;
+    is >> hfstring >> hformat;
+    if (hfstring != "format") {
+        fprintf(stderr, "Warning: checkpoint file cannot be used (version < %lu)\n", format);
+        return false;
+    }
+    if (hformat != format) {
+        fprintf(stderr, "Warning: checkpoint file cannot be used (version %lu < %lu)\n", hformat, format);
+        return false;
+    }
+
     is >> pi_size;
     for(unsigned int i = 0 ; i < m + n ; i++) {
         is >> nbm.delta[i];
@@ -537,22 +552,24 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
         if (!x.second.check()) {
             fprintf(stderr, "Warning: checkpoint contains invalid schedule information\n");
             is.setstate(std::ios::failbit);
-            break;
+            return false;
         }
     }
 
-    if (is.good() && bm.hints != nbm.hints) {
+    if (bm.hints != nbm.hints) {
         is.setstate(std::ios::failbit);
         fprintf(stderr, "Warning: checkpoint file cannot be used since it was made for another set of schedules (stats would be incorrect)\n");
         std::stringstream os;
         os << bm.hints;
         fprintf(stderr, "textual description of the schedule set that we expect to find:\n%s\n", os.str().c_str());
-    } else if (is.good()) {
-        is >> nbm.stats;
+        return false;
     }
-    if (is.good()) {
-        bm = std::move(nbm);
-    }
+
+    if (!(is >> nbm.stats))
+        return false;
+   
+    bm = std::move(nbm);
+
     return is.good();
 }/*}}}*/
 

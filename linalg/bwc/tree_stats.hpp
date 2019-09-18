@@ -119,6 +119,7 @@ class tree_stats {
             }
             os  << " " << ncalled
                 << " " << _total_ncalls
+                << " " << planned_time
                 << " " << planned_calls
                 << " " << items_per_call
                 << " " << items_pending;
@@ -148,6 +149,7 @@ class tree_stats {
             }
             is  >> ncalled
                 >> _total_ncalls
+                >> planned_time
                 >> planned_calls
                 >> items_per_call
                 >> items_pending;
