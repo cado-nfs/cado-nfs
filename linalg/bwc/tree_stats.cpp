@@ -365,7 +365,7 @@ void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double 
         S.planned_calls++;
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at end_smallstep()\n");
+        os << fmt::format("Exception at {}({}, {:.3g}, {})\n", __func__, func, theory.t, theory.n);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -383,7 +383,7 @@ void tree_stats::end_plan_smallstep()
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at end_smallstep()\n");
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -488,7 +488,7 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at end_smallstep()\n");
+        os << fmt::format("Exception at {}({}, {})\n", __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -513,7 +513,7 @@ bool tree_stats::local_smallsteps_done() const
         return true;
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at end_smallstep()\n");
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
