@@ -228,7 +228,7 @@ struct lingen_tuner {
      */
     double basecase_keep_until = 1.8;
 
-    unsigned int forced_lingen_mpi_threshold = UINT_MAX;
+    unsigned int forced_threshold = UINT_MAX;
 
     std::map<size_t, lingen_substep_schedule> schedules_mp, schedules_mul;
 
@@ -274,7 +274,19 @@ struct lingen_tuner {
         if (rank == 0)
             C.load(timing_cache_filename);
 
-        param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_lingen_mpi_threshold);
+        if (P.r > 1) {
+            /* Then we're tuning the MPI threshold, probably */
+            param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_threshold);
+        } else {
+            /* Otherwise it's likely to be the normal recursive
+             * threshold. Note that specifying both doesn't make sense
+             * anyway, so it's not that much of a problem.
+             *
+             * parse both just in case.
+             */
+            param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_threshold);
+            param_list_parse_uint(pl, "lingen_threshold", &forced_threshold);
+        }
     }
 
     ~lingen_tuner() {
@@ -596,19 +608,19 @@ struct lingen_tuner {
                         if (impose_hints) {
                             printf("# No stored schedule found, computing new one\n");
                         }
-                        forced = recursion_makes_sense(L) && forced_lingen_mpi_threshold != UINT_MAX;
+                        forced = recursion_makes_sense(L) && forced_threshold != UINT_MAX;
                         if (forced) {
-                            rwin = L >= forced_lingen_mpi_threshold;
+                            rwin = L >= forced_threshold;
                             if (rwin) {
                                 printf("# Forcing recursion at this level,"
                                         " since L=%zu>="
                                         "lingen_mpi_threshold=%u\n",
-                                        L, forced_lingen_mpi_threshold);
+                                        L, forced_threshold);
                             } else {
                                 printf("# Forcing basecase at this level,"
                                         " since L=%zu<"
                                         "lingen_mpi_threshold=%u\n",
-                                        L, forced_lingen_mpi_threshold);
+                                        L, forced_threshold);
                             }
                         }
                     }
@@ -643,11 +655,11 @@ struct lingen_tuner {
                         ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
 
                         size_t m;
-                        m = U.mp.ram + U.mp.reserved_ram;
+                        m = U.mp.ram() + U.mp.reserved_ram;
                         if (m > ram_mp) ram_mp = m;
                         if (m > peak) { ipeak = i; peak = m; }
 
-                        m = U.mul.ram + U.mul.reserved_ram;
+                        m = U.mul.ram() + U.mul.reserved_ram;
                         if (m > ram_mul) ram_mul = m;
                         if (m > peak) { ipeak = i; peak = m; }
                     }
@@ -784,7 +796,7 @@ struct lingen_tuner {
             }
         }
         printf("################################# Total ##################################\n");
-        if (forced_lingen_mpi_threshold != UINT_MAX) {
+        if (forced_threshold != UINT_MAX) {
             printf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
         } else {
             printf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);

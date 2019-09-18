@@ -5,6 +5,9 @@
 
 #include "gmp.h"
 #include "flint.h"
+#ifdef __cplusplus
+#include <array>
+#endif
 
 #define xxxDEBUG_FFT
 
@@ -150,12 +153,14 @@ struct fft_transform_info {
         return fti;
     }
     inline void adjust_depth(unsigned int adj) { fft_transform_info_adjust_depth(this, adj); }
-    inline void get_alloc_sizes(size_t sizes[3]) const {
-        fft_transform_info_get_alloc_sizes(this, sizes);
+    inline std::array<size_t, 3> get_alloc_sizes() const {
+        std::array<size_t, 3> sizes;
+        fft_transform_info_get_alloc_sizes(this, &sizes[0]);
+        return sizes;
     }
-    inline size_t size0_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[0]; }
-    inline size_t size1_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[1]; }
-    inline size_t size2_bytes() const { size_t sizes[3]; get_alloc_sizes(sizes); return sizes[2]; }
+    inline size_t size0_bytes() const { return get_alloc_sizes()[0]; }
+    inline size_t size1_bytes() const { return get_alloc_sizes()[1]; }
+    inline size_t size2_bytes() const { return get_alloc_sizes()[2]; }
     inline void prepare(ptr x) const { fft_prepare(this, x); }
     inline void dft(ptr y, const mp_limb_t * x, mp_size_t nx, ptr temp) const {
         fft_dft(this, y, x, nx, temp);

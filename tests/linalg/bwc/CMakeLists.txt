@@ -148,33 +148,33 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         TARGET_DEPENDENCIES lingen_${gfp_layer})
     # set_tests_properties(test-bwc-lingen_${gfp_layer} PROPERTIES WILL_FAIL 1)
 
-    # Note that the mpi and arguments here is used
+    # Note that the mpi and lingen_mpi_threshold arguments here are used
     # only in MPI context, and ignored otherwise (that is, the test runs
     # without mpi). This is not the same for lingen_mpi_threshold, which
-    # in reality is a bit of a misnomer. This flag is one of the means
-    # by which the automatic tuning of lingen can be forced to use a
-    # given threshold, and that also applies to the non-mpi case.
-    # In MPI context, this triggers the mpi portions of the
-    # code (actually the test gets run twice, once with the threads, once
-    # without. Both have to succeed, of course).
+    # in reality is a bit of a misnomer. This flag is one of the means by
+    # which the automatic tuning of lingen can be forced to use a given
+    # threshold, and that also applies to the non-mpi case.  In MPI
+    # context, this triggers the mpi portions of the code (actually the
+    # test gets run twice, once with the threads, once without. Both have
+    # to succeed, of course).
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_1")
         cado_divert_test(test-bwc-lingen_${gfp_layer} test0
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
-            lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
+            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             ${extra})
         cado_divert_test(test-bwc-lingen_${gfp_layer} test1
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
-            lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
+            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             ${extra})
         cado_divert_test(test-bwc-lingen_${gfp_layer} test2
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            lingen_mpi_threshold=10 mpi=3x3 thr=3x3 --ascii
+            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
             ${extra})
         cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
             SCRIPT
@@ -182,7 +182,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            lingen_mpi_threshold=10 mpi=3x3 thr=3x3 --ascii
+            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
             checkpoint_threshold=40
             ${extra}
             TARGET_DEPENDENCIES lingen_${gfp_layer})
@@ -194,7 +194,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${CADO_NFS_BINARY_DIR}
             00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
             1532495540865888858358347027150309183618739122183602191 1111
-            lingen_mpi_threshold=10 mpi=3x3 thr=3x3
+            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3
             ${extra})
     endif()
 

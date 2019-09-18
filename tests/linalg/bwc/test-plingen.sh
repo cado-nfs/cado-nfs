@@ -73,9 +73,7 @@ dotest() {
     for x in "$@" ; do
         case "$x" in
             lingen_program=*) eval "$x";;
-            # See comment about lingen_mpi_threshold in
-            # tests/linalg/bwc/CMakeLists.txt
-            lingen_mpi_threshold*) args+=("$x");;
+            lingen_mpi_threshold*) mpi_args+=("$x");;
             mpi*) mpi_args+=("$x"); mpi="${x#mpi=}";;
             *) args+=("$x");
                 if [[ "$x" =~ ascii ]] ; then

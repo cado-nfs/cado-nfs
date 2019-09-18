@@ -77,22 +77,27 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
         do_allgather(p, b.get_model().com[2], n);
     }
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
-        if (M && op.fti.size0_bytes() > M->per_transform_ram) {
-            fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
-                    OP::name,
-                    a.get_size(),
-                    b.get_size(),
-                    op.fti.size0_bytes(),
-                    M->per_transform_ram,
-                    M->asize,
-                    M->bsize
-                   );
-            size_t ntransforms = M->ram / M->per_transform_ram;
-            ASSERT_ALWAYS(M->ram % M->per_transform_ram == 0);
-            M->per_transform_ram = op.fti.size0_bytes();
-            M->ram = ntransforms * M->per_transform_ram;
+        size_t ram = SIZE_MAX;
+        if (M) {
+            std::array<size_t, 3> alloc_sizes = op.fti.get_alloc_sizes();
+            ram = M->ram(alloc_sizes);
+            if (ram > M->ram()) {
+                fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is (%zu,%zu,%zu), which exceeds expected (%zu,%zu,%zu) (anticipated for operand sizes (%zu, %zu). Adjusting memory\n",
+                        OP::name,
+                        a.get_size(),
+                        b.get_size(),
+                        alloc_sizes[0],
+                        alloc_sizes[1],
+                        alloc_sizes[2],
+                        M->fft_alloc_sizes[0],
+                        M->fft_alloc_sizes[1],
+                        M->fft_alloc_sizes[2],
+                        M->asize,
+                        M->bsize
+                       );
+            }
         }
-        typename matpoly_ft<fft_type>::memory_guard dummy(M ? M->ram : SIZE_MAX);
+        typename matpoly_ft<fft_type>::memory_guard dummy(ram);
         mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M)();
     }
 };

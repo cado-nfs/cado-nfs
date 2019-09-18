@@ -24,16 +24,17 @@ public:
     fft_type fti;
     unsigned int m = 0;
     unsigned int n = 0;
-    size_t fft_alloc_sizes[3];
+    std::array<size_t, 3> fft_alloc_sizes;
     typename fft_type::ptr data = NULL;
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
 
     bool check_pre_init() const { return data == NULL; }
     /* {{{ ctor / dtor */
-    matpoly_ft(fft_type const & fti) : fti(fti) {
-        fti.get_alloc_sizes(fft_alloc_sizes);
-    }
+    matpoly_ft(fft_type const & fti)
+        : fti(fti)
+        , fft_alloc_sizes(fti.get_alloc_sizes())
+    { }
     matpoly_ft(unsigned int m, unsigned int n, fft_type const & fti)
         : matpoly_ft(fti)
     {
@@ -53,15 +54,19 @@ public:
     matpoly_ft() = default;
     matpoly_ft(matpoly_ft const&) = delete;
     matpoly_ft& operator=(matpoly_ft const&) = delete;
-    matpoly_ft(matpoly_ft && a) : fti(a.fti), m(a.m), n(a.n) {
-        memcpy(fft_alloc_sizes, a.fft_alloc_sizes, sizeof(fft_alloc_sizes));
+    matpoly_ft(matpoly_ft && a)
+        : fti(a.fti)
+        , m(a.m)
+        , n(a.n)
+        , fft_alloc_sizes(a.fft_alloc_sizes)
+    {
         data=a.data;
         a.m=a.n=0;
         a.data=NULL;
     }
     matpoly_ft& operator=(matpoly_ft && a) {
         if (data) memory.free(data, m * n * fft_alloc_sizes[0]);
-        memcpy(fft_alloc_sizes, a.fft_alloc_sizes, sizeof(fft_alloc_sizes));
+        fft_alloc_sizes = a.fft_alloc_sizes;
         fti = a.fti;
         m=a.m;
         n=a.n;

@@ -41,12 +41,21 @@ struct lingen_call_companion {
             t_conv,
             t_ift_C;
         size_t reserved_ram;
-        size_t ram;
 
         /* we store the per-transform ram here, so that we can act
          * appropriately if we ever detect that it changes for one
          * specific call */
-        size_t per_transform_ram;
+        std::array<size_t, 3> fft_alloc_sizes;
+        std::array<unsigned int, 3> peak_ram_multipliers;
+        size_t ram(std::array<size_t, 3> fft_alloc_sizes) {
+            size_t r = 0;
+            for(unsigned int i = 0 ; i < 3 ; i++)
+                r += peak_ram_multipliers[i] * fft_alloc_sizes[i];
+            return r;
+        }
+        size_t ram() {
+            return ram(fft_alloc_sizes);
+        }
 
         size_t asize, bsize, csize;
         

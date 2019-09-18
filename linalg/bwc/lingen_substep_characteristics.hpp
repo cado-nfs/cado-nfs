@@ -48,7 +48,7 @@ struct lingen_substep_characteristics {
 
     private:
 
-    size_t fft_alloc_sizes[3];
+    std::array<size_t, 3> fft_alloc_sizes;
     OP op;
     typedef typename lingen_tuning_cache_key<OP>::key_type cache_key_type;
     typedef typename lingen_tuning_cache_key<OP>::value_type cache_value_type;
@@ -69,7 +69,7 @@ struct lingen_substep_characteristics {
         mpz_set(p, abfield_characteristic_srcptr(ab));
         op = OP(p, asize, bsize, n1);
 #endif
-        op.fti.get_alloc_sizes(fft_alloc_sizes);
+        fft_alloc_sizes = op.fti.get_alloc_sizes();
     }/*}}}*/
 
     bool has_cached_time(tc_t const & C) const {/*{{{*/
@@ -495,18 +495,43 @@ struct lingen_substep_characteristics {
     subdivision shrink_split2(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split2(P, S.shrink2);
     }/*}}}*/
-    size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
+    std::array<unsigned int, 3> get_peak_ram_multipliers(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        size_t live_transforms = get_transform_ram()
-            * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
+
+        unsigned int mul0 = 0;
+        mul0 += S.batch[1] * P.r * S.batch[0];
+        mul0 += S.batch[1] * P.r * S.batch[2];
+        mul0 += nrs0*nrs2;
+        unsigned int mul1 = nrs0 * nrs2;
+        unsigned int mul12 = S.batch[0] * S.batch[2];
+        mul1 = std::min(mul1, (unsigned int) max_threads());
+        mul12 = std::min(mul12, (unsigned int) max_threads());
+
+        /*
+        size_t live_transforms = fft_alloc_sizes[0] * mul0;
         size_t maxtemp_ft = std::min(nrs0 * nrs2,
                 (unsigned int) max_threads()) * fft_alloc_sizes[1];
         size_t maxtemp_addmul = std::min(S.batch[0] * S.batch[2],
                 (unsigned int) max_threads())
             * (fft_alloc_sizes[1] + fft_alloc_sizes[2]);
         return live_transforms + std::max(maxtemp_ft, maxtemp_addmul);
-    }/*}}}*/
+        */
+        if (mul1 * fft_alloc_sizes[1] < mul12 * (fft_alloc_sizes[1] + fft_alloc_sizes[2])) {
+            return { mul0, mul12, mul12 };
+        } else {
+            return { mul0, mul1, 0 };
+        }
+    }
+    /*}}}*/
+    size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
+        std::array<unsigned int, 3> multipliers = get_peak_ram_multipliers(P, S);
+        size_t r = 0;
+        for(unsigned int i = 0 ; i < 3 ; i++)
+            r += multipliers[i] * fft_alloc_sizes[i];
+        return r;
+    }
+    /*}}}*/
 
     private:
 
@@ -559,7 +584,8 @@ struct lingen_substep_characteristics {
         /* TODO: maybe include some model of latency... */
         parallelizable_timing T = get_transform_ram() / P.mpi_xput;
         T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
-        T *= mesh_inner_size(P);
+        /* allgather over n nodes */
+        T *= mesh_inner_size(P) - 1;
         parallelizable_timing T_comm0 = T;
         parallelizable_timing T_comm2 = T;
         T_comm0 *= S.batch[0] * iceildiv(nrs0, S.batch[0]);
@@ -593,8 +619,8 @@ struct lingen_substep_characteristics {
         D.t_ift_C = A[3];
         D.t_dft_A_comm = A[4];
         D.t_dft_B_comm = A[5];
-        D.per_transform_ram = get_transform_ram();
-        D.ram = get_peak_ram(P, S);
+        D.fft_alloc_sizes = fft_alloc_sizes;
+        D.peak_ram_multipliers = get_peak_ram_multipliers(P, S);
         D.asize = asize;
         D.bsize = bsize;
         D.csize = csize;

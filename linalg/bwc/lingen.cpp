@@ -456,7 +456,7 @@ struct cp_info {
     char * gdatafile;
     const char * datafile;
     /* be sure to change when needed */
-    static constexpr unsigned long format = 1;
+    static constexpr unsigned long format = 2;
     FILE * aux;
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
@@ -531,7 +531,7 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
     unsigned long hformat;
     is >> hfstring >> hformat;
     if (hfstring != "format") {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (version < %lu)\n", format);
+        fprintf(stderr, "Warning: checkpoint file cannot be used (version < 1)\n");
         return false;
     }
     if (hformat != format) {
