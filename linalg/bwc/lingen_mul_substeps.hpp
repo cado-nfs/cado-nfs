@@ -34,12 +34,6 @@ struct op_mul {
     op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
-
-    size_t get_transform_ram() const {
-        size_t fft_alloc_sizes[3];
-        fti.get_alloc_sizes(fft_alloc_sizes);
-        return fft_alloc_sizes[0];
-    }
 };
 
 template<typename fft_type>
@@ -73,12 +67,6 @@ struct op_mp {
         : op_mp(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
-
-    size_t get_transform_ram() const {
-        size_t fft_alloc_sizes[3];
-        fti.get_alloc_sizes(fft_alloc_sizes);
-        return fft_alloc_sizes[0];
-    }
 };
 
 

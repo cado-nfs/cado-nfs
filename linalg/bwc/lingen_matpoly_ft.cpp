@@ -38,19 +38,19 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
     inline void a_allgather(void *, int) const {}
     inline void b_allgather(void *, int) const {}
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
-        if (M && op.get_transform_ram() > M->per_transform_ram) {
+        if (M && op.fti.size0_bytes() > M->per_transform_ram) {
             fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is %zu, which exceeds expected %zu (anticipated for operand sizes (%zu, %zu). Updating\n",
                     OP::name,
                     a.get_size(),
                     b.get_size(),
-                    op.get_transform_ram(),
+                    op.fti.size0_bytes(),
                     M->per_transform_ram,
                     M->asize,
                     M->bsize
                    );
             size_t ntransforms = M->ram / M->per_transform_ram;
             ASSERT_ALWAYS(M->ram % M->per_transform_ram == 0);
-            M->per_transform_ram = op.get_transform_ram();
+            M->per_transform_ram = op.fti.size0_bytes();
             M->ram = ntransforms * M->per_transform_ram;
         }
         typename matpoly_ft<fft_type>::memory_guard dummy(M ? M->ram : SIZE_MAX);

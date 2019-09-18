@@ -48,7 +48,7 @@ struct lingen_substep_characteristics {
 
     private:
 
-    size_t transform_ram;
+    size_t fft_alloc_sizes[3];
     OP op;
     typedef typename lingen_tuning_cache_key<OP>::key_type cache_key_type;
     typedef typename lingen_tuning_cache_key<OP>::value_type cache_value_type;
@@ -69,7 +69,7 @@ struct lingen_substep_characteristics {
         mpz_set(p, abfield_characteristic_srcptr(ab));
         op = OP(p, asize, bsize, n1);
 #endif
-        transform_ram = op.get_transform_ram();
+        op.fti.get_alloc_sizes(fft_alloc_sizes);
     }/*}}}*/
 
     bool has_cached_time(tc_t const & C) const {/*{{{*/
@@ -242,8 +242,12 @@ struct lingen_substep_characteristics {
         static constexpr const char * name = "dft";
         microbench_dft(pc_t const& P, ch_t const & U) : P(P), U(U) {}
         unsigned int max_parallel() {
-            size_t R = U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
+            size_t R = 0;
+            /* storage for one input coeff and one output transform */
+            R += U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
             R += U.get_transform_ram();
+            /* plus the temp memory for the dft operation */
+            R += U.fft_alloc_sizes[1];
             unsigned int n = P.available_ram / R;
             /* TODO: we probably want to ask P about max_threads. */
             n = std::min(n, (unsigned int) max_threads());
@@ -265,8 +269,12 @@ struct lingen_substep_characteristics {
         static constexpr const char * name = "ift";
         microbench_ift(pc_t const& P, ch_t const & U) : P(P), U(U) {}
         unsigned int max_parallel() {
-            size_t R = U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
+            size_t R = 0;
+            /* storage for one input transform and one output coeff */
+            R += U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
             R += U.get_transform_ram();
+            /* plus the temp memory for the ift operation */
+            R += U.fft_alloc_sizes[1];
             unsigned int n = P.available_ram / R;
             /* TODO: we probably want to ask P about max_threads. */
             n = std::min(n, (unsigned int) max_threads());
@@ -292,7 +300,14 @@ struct lingen_substep_characteristics {
         microbench_conv(pc_t const& P, ch_t const & U) : P(P), U(U) {}
         unsigned int max_parallel() {
             /* for k = nparallel, we need 2k+1 transforms in ram */
-            unsigned int n = (P.available_ram / U.get_transform_ram() - 1) / 2;
+            size_t R = 0;
+            /* storage for two input transform */
+            R += 2 * U.get_transform_ram();
+            /* plus the temp memory for the addmul operation */
+            R += U.fft_alloc_sizes[1];
+            R += U.fft_alloc_sizes[2];
+            /* take into account the +1 transform */
+            unsigned int n = (P.available_ram - U.get_transform_ram()) / R;
             /* TODO: we probably want to ask P about max_threads. */
             n = std::min(n, (unsigned int) max_threads());
             if (n == 0) throw std::overflow_error("not enough RAM");
@@ -448,7 +463,7 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 
     public:
-    size_t get_transform_ram() const { return transform_ram; }
+    size_t get_transform_ram() const { return fft_alloc_sizes[0]; }
     /* {{{ std::tuple<size_t, size_t, size_t> get_operand_ram() const {
         return {
             n0 * n1 * asize * mpz_size(p) * sizeof(mp_limb_t),
@@ -483,7 +498,14 @@ struct lingen_substep_characteristics {
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
-        return get_transform_ram() * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
+        size_t live_transforms = get_transform_ram()
+            * (S.batch[1] * P.r * (S.batch[0] + S.batch[2]) + nrs0*nrs2);
+        size_t maxtemp_ft = std::min(nrs0 * nrs2,
+                (unsigned int) max_threads()) * fft_alloc_sizes[1];
+        size_t maxtemp_addmul = std::min(S.batch[0] * S.batch[2],
+                (unsigned int) max_threads())
+            * (fft_alloc_sizes[1] + fft_alloc_sizes[2]);
+        return live_transforms + std::max(maxtemp_ft, maxtemp_addmul);
     }/*}}}*/
 
     private:
@@ -652,12 +674,12 @@ struct lingen_substep_characteristics {
                 size_disp(asize*mpz_size(p)*sizeof(mp_limb_t), buf[0]),
                 size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t), buf[1]),
                 size_disp(csize*mpz_size(p)*sizeof(mp_limb_t), buf[2]),
-                size_disp(transform_ram, buf[3]));
+                size_disp(get_transform_ram(), buf[3]));
         printf("# %s (total for %u*%u * %u*%u): %s, transforms %s\n",
                 step,
                 n0,n1,n1,n2,
                 size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t), buf[0]),
-                size_disp((n0*n1+n1*n2+n0*n2)*transform_ram, buf[1]));
+                size_disp((n0*n1+n1*n2+n0*n2)*get_transform_ram(), buf[1]));
     }/*}}}*/
 };
 
