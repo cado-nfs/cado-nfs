@@ -459,8 +459,8 @@ struct cp_info {
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
     ~cp_info();
-    bool save_aux_file(lingen_hints const & hints, tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done);
-    bool load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done);
+    bool save_aux_file(size_t pi_size, int done) const;
+    bool load_aux_file(size_t & pi_size, int & done);
     int load_data_file(matpoly & pi, size_t pi_size);
     int save_data_file(matpoly const & pi, size_t pi_size);
 };
@@ -493,7 +493,7 @@ cp_info::~cp_info()
     free(auxfile);
 }
 
-bool cp_info::save_aux_file(lingen_hints const & hints, tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done)/*{{{*/
+bool cp_info::save_aux_file(size_t pi_size, int done) const /*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
@@ -501,23 +501,24 @@ bool cp_info::save_aux_file(lingen_hints const & hints, tree_stats const & stats
     if (rank) return 1;
     std::ofstream os(auxfile);
     os << pi_size << "\n";
-    for(unsigned int i = 0 ; i < m + n ; i++) os << " " << delta[i];
+    for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.delta[i];
     os << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.lucky[i];
     os << "\n";
     os << done;
     os << "\n";
-    os << hints;
+    os << bm.hints;
     os << "\n";
-    os << stats;
+    os << bm.stats;
     bool ok = os.good();
     if (!ok)
         unlink(auxfile);
     return ok;
 }/*}}}*/
 
-bool cp_info::load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done)/*{{{*/
+bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
 {
+    bmstatus nbm = bm;
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
     unsigned int n = d.n;
@@ -525,22 +526,24 @@ bool cp_info::load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & p
     std::ifstream is(auxfile);
     is >> pi_size;
     for(unsigned int i = 0 ; i < m + n ; i++) {
-        is >> delta[i];
+        is >> nbm.delta[i];
     }
     for(unsigned int i = 0 ; i < m + n ; i++) {
-        is >> bm.lucky[i];
+        is >> nbm.lucky[i];
     }
     is >> done;
-    lingen_hints stored_hints;
-    is >> stored_hints;
-    if (hints != stored_hints) {
+    is >> nbm.hints;
+    if (bm.hints != nbm.hints) {
         is.setstate(std::ios::failbit);
         fprintf(stderr, "Warning: checkpoint file cannot be used since it was made for another set of schedules (stats would be incorrect)\n");
         std::stringstream os;
-        os << hints;
+        os << bm.hints;
         fprintf(stderr, "textual description of the schedule set that we expect to find:\n%s\n", os.str().c_str());
     } else {
-        is >> stats;
+        is >> nbm.stats;
+    }
+    if (is.good()) {
+        bm = std::move(nbm);
     }
     return is.good();
 }/*}}}*/
@@ -588,7 +591,7 @@ cp_info_save_data_file_bailout:
     return 0;
 }/*}}}*/
 
-int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
+int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, int & done)/*{{{*/
 {
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
@@ -599,7 +602,7 @@ int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     size_t pi_size;
     /* Don't output a message just now, since after all it's not
      * noteworthy if the checkpoint file does not exist. */
-    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(pi_size, done);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
         ok = cp.load_data_file(pi, pi_size);
@@ -611,7 +614,7 @@ int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     return ok;
 }/*}}}*/
 
-int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, std::vector<unsigned int> const & delta, int done)/*{{{*/
+int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned int t1, int done)/*{{{*/
 {
     /* corresponding t is bm.t - E.size ! */
     if (!checkpoint_directory) return 0;
@@ -620,7 +623,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     logline_begin(stdout, SIZE_MAX, "Saving %s%s",
             cp.datafile,
             cp.mpi ? " (MPI, scattered)" : "");
-    int ok = cp.save_aux_file(bm.hints, bm.stats, pi.get_size(), delta, done);
+    int ok = cp.save_aux_file(pi.get_size(), done);
     if (ok) ok = cp.save_data_file(pi, pi.get_size());
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
@@ -629,7 +632,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
 }/*}}}*/
 
 #ifdef ENABLE_MPI_LINGEN
-int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
+int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, int & done)/*{{{*/
 {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -644,10 +647,10 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
     cp_info cp(bm, t0, t1, 1);
     ASSERT_ALWAYS(xpi.check_pre_init());
     size_t pi_size;
-    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(pi_size, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
-    MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
+    MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
@@ -684,7 +687,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
     return ok;
 }/*}}}*/
 
-int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> const & delta, int done)/*{{{*/
+int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, int done)/*{{{*/
 {
     /* corresponding t is bm.t - E.size ! */
     if (!checkpoint_directory) return 0;
@@ -692,7 +695,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, t0, t1, 1);
-    int ok = cp.save_aux_file(bm.hints, bm.stats, xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(xpi.get_size(), done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (!ok && !rank) unlink(cp.auxfile);
     if (ok) {
@@ -712,7 +715,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     return ok;
 }/*}}}*/
 
-int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
+int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, int & done)/*{{{*/
 {
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
@@ -725,10 +728,10 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
     cp_info cp(bm, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     size_t pi_size;
-    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(pi_size, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
-    MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
+    MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
@@ -781,7 +784,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
     return ok;
 }/*}}}*/
 
-int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> const & delta, int done)/*{{{*/
+int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, int done)/*{{{*/
 {
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
@@ -795,7 +798,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     cp.datafile = cp.gdatafile;
     logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
             cp.datafile);
-    int ok = cp.save_aux_file(bm.hints, bm.stats, xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(xpi.get_size(), done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {
@@ -844,7 +847,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     return ok;
 }/*}}}*/
 
-int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> & delta, int & done)/*{{{*/
+int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, unsigned int t1, int & done)/*{{{*/
 {
     /* read scattered checkpoint with higher priority if available,
      * because we like distributed I/O. Otherwise, read gathered
@@ -861,24 +864,24 @@ int load_mpi_checkpoint_file(bmstatus & bm, bigmatpoly & xpi, unsigned int t0, u
     int scattered_ok = aux_ok && sdata_ok;
     MPI_Allreduce(MPI_IN_PLACE, &scattered_ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (scattered_ok) {
-        ok = load_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, delta, done);
+        ok = load_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, done);
         if (ok) return ok;
     }
     int gdata_ok = rank || access(cp.gdatafile, R_OK) == 0;
     int gathered_ok = aux_ok && gdata_ok;
     MPI_Bcast(&gathered_ok, 1, MPI_INT, 0, bm.com[0]);
     if (gathered_ok) {
-        ok = load_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, delta, done);
+        ok = load_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, done);
     }
     return ok;
 }/*}}}*/
 
-int save_mpi_checkpoint_file(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, std::vector<unsigned int> const & delta, int done)/*{{{*/
+int save_mpi_checkpoint_file(bmstatus & bm, bigmatpoly const & xpi, unsigned int t0, unsigned int t1, int done)/*{{{*/
 {
     if (save_gathered_checkpoints) {
-        return save_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, delta, done);
+        return save_mpi_checkpoint_file_gathered(bm, xpi, t0, t1, done);
     } else {
-        return save_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, delta, done);
+        return save_mpi_checkpoint_file_scattered(bm, xpi, t0, t1, done);
     }
 }/*}}}*/
 #endif  /* ENABLE_MPI_LINGEN */
@@ -890,10 +893,10 @@ int save_mpi_checkpoint_file(bmstatus & bm, bigmatpoly const & xpi, unsigned int
 /*{{{ Main entry points and recursive algorithm (with and without MPI) */
 
 /* Forward declaration, it's used by the recursive version */
-int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta);
+int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E);
 
 #ifdef ENABLE_MPI_LINGEN
-int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta);
+int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E);
 #endif
 
 std::string sha1sum(matpoly const & X)
@@ -913,7 +916,7 @@ std::string sha1sum(matpoly const & X)
  * XXX Eventually we'll merge the two.
  */
 template<typename fft_type>
-int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
+int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 {
     int depth = bm.depth();
     size_t z = E.get_size();
@@ -930,9 +933,9 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<un
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
     size_t half = E.get_size() - (E.get_size() / 2);
-    unsigned int pi_expect = expected_pi_length(d, delta, E.get_size());
+    unsigned int pi_expect = expected_pi_length(d, bm.delta, E.get_size());
     unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
-    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
+    unsigned int pi_left_expect = expected_pi_length(d, bm.delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
@@ -945,7 +948,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<un
     E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
     // this (now) consumes E_left entirely.
-    done = bw_lingen_single(bm, pi_left, E_left, delta);
+    done = bw_lingen_single(bm, pi_left, E_left);
 
     ASSERT_ALWAYS(pi_left.get_size());
 
@@ -979,10 +982,10 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<un
 
     logline_end(&bm.t_mp, "");
 
-    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
+    unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
-    done = bw_lingen_single(bm, pi_right, E_right, delta);
+    done = bw_lingen_single(bm, pi_right, E_right);
     ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
@@ -1032,7 +1035,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<un
     return done;
 }/*}}}*/
 
-int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
+int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 {
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -1044,7 +1047,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 
     lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
 
-    if (load_checkpoint_file(bm, pi, t0, t1, delta, done))
+    if (load_checkpoint_file(bm, pi, t0, t1, done))
         return done;
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
@@ -1053,7 +1056,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
     if (!bm.recurse(E.get_size())) {
         tree_stats::transition_sentinel dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
-        done = bw_lingen_basecase(bm, pi, E, delta);
+        done = bw_lingen_basecase(bm, pi, E);
         bm.t_basecase += seconds();
     } else {
 #ifndef SELECT_MPFQ_LAYER_u64k1
@@ -1061,18 +1064,18 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsig
 #else
         typedef gf2x_cantor_fft_info fft_type;
 #endif
-        done = bw_lingen_recursive<fft_type>(bm, pi, E, delta);
+        done = bw_lingen_recursive<fft_type>(bm, pi, E);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
-    save_checkpoint_file(bm, pi, t0, t1, delta, done);
+    save_checkpoint_file(bm, pi, t0, t1, done);
 
     return done;
 }/*}}}*/
 
 #ifdef ENABLE_MPI_LINGEN
 template<typename fft_type>
-int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta) /*{{{*/
+int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{*/
 {
     int depth = bm.depth();
     size_t z = E.get_size();
@@ -1089,9 +1092,9 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     /* we have to start with something large enough to get
      * all coefficients of E_right correct */
     size_t half = E.get_size() - (E.get_size() / 2);
-    unsigned int pi_expect = expected_pi_length(d, delta, E.get_size());
+    unsigned int pi_expect = expected_pi_length(d, bm.delta, E.get_size());
     unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
-    unsigned int pi_left_expect = expected_pi_length(d, delta, half);
+    unsigned int pi_left_expect = expected_pi_length(d, bm.delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
@@ -1104,7 +1107,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
-    done = bw_biglingen_collective(bm, pi_left, E_left, delta);
+    done = bw_biglingen_collective(bm, pi_left, E_left);
 
     ASSERT_ALWAYS(pi_left.get_size());
     E_left = bigmatpoly(model);
@@ -1144,10 +1147,10 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
 
     logline_end(&bm.t_mp, "");
 
-    unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
+    unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
-    done = bw_biglingen_collective(bm, pi_right, E_right, delta);
+    done = bw_biglingen_collective(bm, pi_right, E_right);
     ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
     
@@ -1202,7 +1205,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     return done;
 }/*}}}*/
 
-int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::vector<unsigned int> & delta)/*{{{*/
+int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{*/
 {
     /* as for bw_lingen_single, we're tempted to say that we're just a
      * trampoline. In fact, it's not really satisfactory: we're really
@@ -1227,13 +1230,13 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     bool go_mpi = C.go_mpi;
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
-    if (load_mpi_checkpoint_file(bm, pi, t0, t1, delta, done))
+    if (load_mpi_checkpoint_file(bm, pi, t0, t1, done))
         return done;
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (go_mpi) {
         typedef fft_transform_info fft_type;
-        done = bw_biglingen_recursive<fft_type>(bm, pi, E, delta);
+        done = bw_biglingen_recursive<fft_type>(bm, pi, E);
     } else {
         /* Fall back to local code */
         /* This entails gathering E locally, computing pi locally, and
@@ -1252,7 +1255,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
 
         /* Only the master node does the local computation */
         if (!rank)
-            done = bw_lingen_single(bm, spi, sE, delta);
+            done = bw_lingen_single(bm, spi, sE);
 
         double expect1 = bm.hints.tt_scatter_per_unit * E.get_size();
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
@@ -1260,7 +1263,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
         pi = bigmatpoly(ab, E.get_model(), b, b, 0);
         pi.scatter_mat(spi);
         MPI_Bcast(&done, 1, MPI_INT, 0, bm.com[0]);
-        MPI_Bcast(&delta[0], b, MPI_UNSIGNED, 0, bm.com[0]);
+        MPI_Bcast(&bm.delta[0], b, MPI_UNSIGNED, 0, bm.com[0]);
         MPI_Bcast(&bm.lucky[0], b, MPI_UNSIGNED, 0, bm.com[0]);
         MPI_Bcast(&(bm.t), 1, MPI_UNSIGNED, 0, bm.com[0]);
         /* Don't forget to broadcast delta from root node to others ! */
@@ -1268,7 +1271,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std:
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
-    save_mpi_checkpoint_file(bm, pi, t0, t1, delta, done);
+    save_mpi_checkpoint_file(bm, pi, t0, t1, done);
 
     MPI_Barrier(bm.com[0]);
 
@@ -1316,7 +1319,7 @@ struct bm_io {/*{{{*/
         MPI_Comm_rank(bm.com[0], &rank);
         return rank == 0;
     }
-    unsigned int set_write_behind_size(std::vector<unsigned int> const & delta);
+    unsigned int set_write_behind_size();
     void zero1(unsigned int deg);
     unsigned int fetch_more_from_source(unsigned int io_window, unsigned int batch);
     bm_io(bm_io const&)=delete;
@@ -1328,11 +1331,11 @@ struct bm_io {/*{{{*/
     void compute_initial_F() ;
 
     template<class Consumer, class Sink>
-        void compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & delta);
+        void compute_final_F(Sink & S, Consumer& pi);
     template<class Producer>
         void compute_E(Producer& E, unsigned int expected, unsigned int allocated);
     template<typename T, typename Sink>
-        void output_flow(T & pi, std::vector<unsigned int> & delta);
+        void output_flow(T & pi);
 };
 /*}}}*/
 
@@ -1365,11 +1368,11 @@ struct bm_io {/*{{{*/
  * Therefore the maximum write-behind distance is (maxdelta-mindelta)+t0.
  * We need one coeff more (because offset goes from 0 to maxoffset).
  */
-unsigned int bm_io::set_write_behind_size(std::vector<unsigned int> const & delta)/*{{{*/
+unsigned int bm_io::set_write_behind_size()/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int mindelta, maxdelta;
-    std::tie(mindelta, maxdelta) = get_minmax_delta_on_solutions(bm, delta);
+    std::tie(mindelta, maxdelta) = bm.get_minmax_delta_on_solutions();
     unsigned int window = maxdelta - mindelta + t0 + 1;
     if (d.nrhs) {
         /* in sm-outside-matrix mode for DLP, we form the matrix F
@@ -1768,7 +1771,7 @@ void matpoly_extract_column(
 /* }}} */
 
 template<class Consumer, class Sink>
-void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & delta)/*{{{*/
+void bm_io::compute_final_F(Sink & S, Consumer& pi)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
@@ -1781,7 +1784,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
 
     /* We are not interested by pi.size, but really by the number of
      * coefficients for the columns which give solutions. */
-    unsigned int maxdelta = get_max_delta_on_solutions(bm, delta);
+    unsigned int maxdelta = bm.get_max_delta_on_solutions();
 
     if (leader) printf("Final f(X)=f0(X)pi(X) has degree %u\n", maxdelta);
 
@@ -1839,8 +1842,8 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                         offset = t0 - fdesc[ipi-n][0];
                     }
                     if (iF >= d.nrhs) continue;
-                    ASSERT_ALWAYS(delta[jpi] >= offset);
-                    unsigned kpi = delta[jpi] - offset;
+                    ASSERT_ALWAYS(bm.delta[jpi] >= offset);
+                    unsigned kpi = bm.delta[jpi] - offset;
 
                     ASSERT_ALWAYS(d.nrhs);
                     ASSERT_ALWAYS(iF < d.nrhs);
@@ -1961,11 +1964,11 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                      */
                     printf("Reduced solution column #%u from"
                             " delta=%u to delta=%u\n",
-                            sols[j], delta[sols[j]], delta[sols[j]]-1);
+                            sols[j], bm.delta[sols[j]], bm.delta[sols[j]]-1);
                     window++;
                     F.realloc(window);
                     F.set_size(window);
-                    delta[sols[j]]--;
+                    bm.delta[sols[j]]--;
                     /* shift this column */
                     for(unsigned int k = 1 ; k < window ; k++) {
                         F.extract_column(j, k-1, F, j, k);
@@ -2019,7 +2022,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                     iF = fdesc[ipi-n][1];
                     offset = t0 - fdesc[ipi-n][0];
                 }
-                unsigned int subtract = maxdelta - delta[jpi] + offset;
+                unsigned int subtract = maxdelta - bm.delta[jpi] + offset;
                 ASSERT(subtract < window);
                 if (maxdelta < kpi + subtract) continue;
                 unsigned int kF = (maxdelta - kpi) - subtract;
@@ -2031,7 +2034,7 @@ void bm_io::compute_final_F(Sink & S, Consumer& pi, std::vector<unsigned int> & 
                     continue;
                 }
                 absrc_elt src = pi.coeff_const_locked(ipi, jpi, kpi);
-                ASSERT_ALWAYS(kF <= delta[jpi] || abis_zero(ab, src));
+                ASSERT_ALWAYS(kF <= bm.delta[jpi] || abis_zero(ab, src));
                 F.coeff_accessor(iF, jF, kF1 % window) += src;
             }
         }
@@ -2470,7 +2473,7 @@ void bm_io::compute_initial_F() /*{{{ */
     }
     MPI_Bcast(fdesc, 2*m, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&(t0), 1, MPI_UNSIGNED, 0, bm.com[0]);
-    bm.t = t0;
+    bm.set_t0(t0);
 }				/*}}} */
 
 template<class Writer>
@@ -2601,8 +2604,8 @@ template<> struct matpoly_factory<bigmatpoly> {
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return bigmatpoly(ab, model, m, n, len);
     }
-    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
-        return bw_biglingen_collective(bm, pi, E, delta);
+    static int bw_lingen(bmstatus & bm, T & pi, T & E) {
+        return bw_biglingen_collective(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.my_cell().capacity(); }
 };
@@ -2616,14 +2619,14 @@ template<> struct matpoly_factory<matpoly> {
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return matpoly(ab, m, n, len);
     }
-    static int bw_lingen(bmstatus & bm, T & pi, T & E, std::vector<unsigned int> & delta) {
-        return bw_lingen_single(bm, pi, E, delta);
+    static int bw_lingen(bmstatus & bm, T & pi, T & E) {
+        return bw_lingen_single(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.capacity(); }
 };
 
 template<typename T, typename Sink>
-void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
+void bm_io::output_flow(T & pi)
 {
     unsigned int n = bm.d.n;
 
@@ -2639,13 +2642,13 @@ void bm_io::output_flow(T & pi, std::vector<unsigned int> & delta)
      */
     F = matpoly(bm.d.ab, n, n, t0 + 1);
 
-    set_write_behind_size(delta);
+    set_write_behind_size();
 
     Sink S(*this, F);
 
     typename matpoly_factory<T>::consumer_task pi_consumer(*this, pi);
 
-    compute_final_F(S, pi_consumer, delta);
+    compute_final_F(S, pi_consumer);
 
     /* We need this because we want all our deallocation to happen before
      * the guard's dtor gets called */
@@ -2714,58 +2717,6 @@ int check_luck_condition(bmstatus & bm)/*{{{*/
     }
 
     return 0;
-}/*}}}*/
-
-void display_deltas(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{*/
-{
-    bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
-
-    if (!rank) {
-        /*
-        printf("Final, t=%u: delta =", bm.t);
-        for(unsigned int j = 0; j < m + n; j++) {
-            printf(" %u", delta[j]);
-            if (bm.lucky[j] < 0) {
-                printf("(*)");
-            }
-        }
-        printf("\n");
-        */
-        printf("Final, t=%4u: delta =", bm.t);
-        unsigned int last = UINT_MAX;
-        unsigned int nrep = 0;
-        int overflow = INT_MAX;
-        for(unsigned int i = 0 ; i < m + n ; i++) {
-            unsigned int d = delta[i];
-            if (d == last && (bm.lucky[i] < 0) == overflow) {
-                nrep++;
-                continue;
-            }
-            // Flush the pending repeats
-            if (last != UINT_MAX) {
-                printf(" %u", last);
-                if (overflow)
-                    printf(" (*)");
-                if (nrep > 1)
-                    printf(" [%u]", nrep);
-            }
-            last = d;
-            overflow = bm.lucky[i] < 0;
-            nrep = 1;
-        }
-        ASSERT_ALWAYS(last != UINT_MAX);
-        printf(" %u", last);
-        if (overflow)
-            printf(" (*)");
-        if (nrep > 1)
-            printf(" [%u]", nrep);
-        printf("\n");
-    }
 }/*}}}*/
 
 void print_node_assignment(MPI_Comm comm)/*{{{*/
@@ -2912,9 +2863,6 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
     unsigned int guess = aa.guessed_length;
     size_t safe_guess = aa.ascii ? ceil(1.05 * guess) : guess;
 
-    std::vector<unsigned int> delta(m+n, bm.t);
-
-    
     /* c0 is (1+m/n) times the input size */
     size_t c0 = abvec_elt_stride(bm.d.ab,
                 iceildiv(m+n, bm.mpi_dims[0]) *
@@ -2939,19 +2887,19 @@ void lingen_main_code(matpoly_factory<T> & F, abdst_field ab, bm_io & aa)
     aa.compute_E(E_producer, guess, safe_guess);
     aa.end_read();
 
-    matpoly_factory<T>::bw_lingen(bm, pi, E, delta);
+    matpoly_factory<T>::bw_lingen(bm, pi, E);
     bm.stats.final_print();
 
-    display_deltas(bm, delta);
+    bm.display_deltas();
     if (!rank) printf("(pi.alloc = %zu)\n", matpoly_factory<T>::capacity(pi));
 
     if (check_luck_condition(bm)) {
         if (random_input_length) {
-            aa.output_flow<T, bm_output_checksum>(pi, delta);
+            aa.output_flow<T, bm_output_checksum>(pi);
         } else if (split_output_file) {
-            aa.output_flow<T, bm_output_splitfile>(pi, delta);
+            aa.output_flow<T, bm_output_splitfile>(pi);
         } else {
-            aa.output_flow<T, bm_output_singlefile>(pi, delta);
+            aa.output_flow<T, bm_output_singlefile>(pi);
         }
     }
 

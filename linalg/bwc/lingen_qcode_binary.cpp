@@ -519,7 +519,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)
     return 0;
 }
 
-int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)/*{{{*/
+int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
 {
     /* There's a nasty bug. Revealed by 32-bits, but can occur on larger
      * sizes too. Let W be the word size. When E has length W + epsilon,
@@ -554,7 +554,7 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector
         }
         unsigned int vdelta[E.ncols()];
         int vch[E.ncols()];
-        copy(delta.begin(), delta.end(), vdelta);
+        copy(bm.delta.begin(), bm.delta.end(), vdelta);
         copy(bm.lucky.begin(), bm.lucky.end(), vch);
         lingen_qcode_hook_delta(qq, vdelta);
         lingen_qcode_hook_chance_list(qq, vch);
@@ -569,7 +569,7 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector
                 maxlen = lingen_qcode_output_column_length(qq, j);
         }
         tmp_pi.truncate(maxlen);
-        copy(vdelta, vdelta + E.ncols(), delta.begin());
+        copy(vdelta, vdelta + E.ncols(), bm.delta.begin());
         copy(vch, vch + E.ncols(), bm.lucky.begin());
         lingen_qcode_clear(qq);
     }
@@ -577,14 +577,14 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E, std::vector
     return finished;
 } /* }}} */
 
-int bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)/*{{{*/
+int bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     
-    int finished = bw_lingen_basecase_raw(bm, pi, E, delta);
+    int finished = bw_lingen_basecase_raw(bm, pi, E);
     bm.stats.end_smallstep();
     E = matpoly();
     return finished;
@@ -594,10 +594,10 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
 {
     /* used by testing code */
     bmstatus bm(m,n);
-    unsigned int t0 = bm.t = iceildiv(m,n);
-    std::vector<unsigned int> delta(m+n, t0);
+    unsigned int t0 = iceildiv(m,n);
+    bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
     E.fill_random(L, rstate);
     matpoly pi;
-    bw_lingen_basecase_raw(bm, pi, E, delta);
+    bw_lingen_basecase_raw(bm, pi, E);
 }/*}}}*/

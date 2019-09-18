@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "lingen_bmstatus.hpp"
+#include "lingen_expected_pi_length.hpp"
 
 lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
 {
@@ -37,4 +38,73 @@ lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
     return it->second;
 }/*}}}*/
 
+
+void bmstatus::display_deltas() const /*{{{*/
+{
+    unsigned int m = d.m;
+    unsigned int n = d.n;
+
+    int rank;
+    MPI_Comm_rank(com[0], &rank);
+
+    if (!rank) {
+        /*
+        printf("Final, t=%u: delta =", t);
+        for(unsigned int j = 0; j < m + n; j++) {
+            printf(" %u", delta[j]);
+            if (lucky[j] < 0) {
+                printf("(*)");
+            }
+        }
+        printf("\n");
+        */
+        printf("Final, t=%4u: delta =", t);
+        unsigned int last = UINT_MAX;
+        unsigned int nrep = 0;
+        int overflow = INT_MAX;
+        for(unsigned int i = 0 ; i < m + n ; i++) {
+            unsigned int d = delta[i];
+            if (d == last && (lucky[i] < 0) == overflow) {
+                nrep++;
+                continue;
+            }
+            // Flush the pending repeats
+            if (last != UINT_MAX) {
+                printf(" %u", last);
+                if (overflow)
+                    printf(" (*)");
+                if (nrep > 1)
+                    printf(" [%u]", nrep);
+            }
+            last = d;
+            overflow = lucky[i] < 0;
+            nrep = 1;
+        }
+        ASSERT_ALWAYS(last != UINT_MAX);
+        printf(" %u", last);
+        if (overflow)
+            printf(" (*)");
+        if (nrep > 1)
+            printf(" [%u]", nrep);
+        printf("\n");
+    }
+}/*}}}*/
+
+std::tuple<unsigned int, unsigned int> bmstatus::get_minmax_delta_on_solutions() const /*{{{*/
+{
+    unsigned int maxdelta = 0;
+    unsigned int mindelta = UINT_MAX;
+    for(unsigned int j = 0 ; j < d.m + d.n ; j++) {
+        if (lucky[j] <= 0) continue;
+        if (delta[j] > maxdelta) maxdelta = delta[j];
+        if (delta[j] < mindelta) mindelta = delta[j];
+    }
+    return std::make_tuple(mindelta, maxdelta);
+}/*}}}*/
+unsigned int bmstatus::get_max_delta_on_solutions() const/*{{{*/
+{
+    unsigned int mindelta, maxdelta;
+    std::tie(mindelta, maxdelta) = get_minmax_delta_on_solutions();
+    return maxdelta;
+}/*}}}*/
 

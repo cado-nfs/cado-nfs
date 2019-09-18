@@ -27,24 +27,6 @@ unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
     std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
     return maxdelta;
 }/*}}}*/
-std::tuple<unsigned int, unsigned int> get_minmax_delta_on_solutions(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{*/
-{
-    unsigned int maxdelta = 0;
-    unsigned int mindelta = UINT_MAX;
-    for(unsigned int j = 0 ; j < bm.d.m + bm.d.n ; j++) {
-        if (bm.lucky[j] <= 0) continue;
-        if (delta[j] > maxdelta) maxdelta = delta[j];
-        if (delta[j] < mindelta) mindelta = delta[j];
-    }
-    return std::make_tuple(mindelta, maxdelta);
-}/*}}}*/
-unsigned int get_max_delta_on_solutions(bmstatus & bm, std::vector<unsigned int> const & delta)/*{{{*/
-{
-    unsigned int mindelta, maxdelta;
-    std::tie(mindelta, maxdelta) = get_minmax_delta_on_solutions(bm, delta);
-    return maxdelta;
-}/*}}}*/
-
 
 
 unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/

@@ -18,7 +18,7 @@
  * interface presently, but that is not a reason to have it exposed).
  */
 extern int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta);
+bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E);
 extern void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate);
 
 #ifdef LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE

@@ -10,6 +10,7 @@ struct bmstatus {
     bw_dimensions d;
     unsigned int t;
     std::vector<int> lucky;
+    std::vector<unsigned int> delta;
 
     double t_basecase;
     double t_mp;
@@ -30,19 +31,27 @@ struct bmstatus {
     int depth() const { return stats.non_transition_depth(); }
 
     bmstatus(unsigned int m, unsigned int n)/*{{{*/
+
     {
         memset(&d, 0, sizeof(bw_dimensions));
         d.m = m;
         d.n = n;
         lucky.assign(m+n, 0);
     }/*}}}*/
+    void set_t0(unsigned int t0) {
+        t = t0;
+        delta.assign(d.m + d.n, t);
+    }
     lingen_call_companion & companion(int depth, size_t L);
     bool recurse(int depth, size_t L) {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/
+    void display_deltas() const;
     bool recurse(size_t L) {/*{{{*/
         return companion(depth(), L).recurse;
     }/*}}}*/
+    std::tuple<unsigned int, unsigned int> get_minmax_delta_on_solutions() const;
+    unsigned int get_max_delta_on_solutions() const;
 };
 
 #endif	/* LINGEN_BMSTATUS_HPP_ */

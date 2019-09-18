@@ -42,7 +42,7 @@ static int lexcmp2(const int x[2], const int y[2])
 /*}}}*/
 
 int
-bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vector<unsigned int> & delta) /*{{{*/
+bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E) /*{{{*/
 {
     int generator_found = 0;
 
@@ -61,9 +61,9 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity. */
     unsigned int mi, ma;
-    std::tie(mi, ma) = get_minmax_delta(delta);
+    std::tie(mi, ma) = get_minmax_delta(bm.delta);
 
-    unsigned int pi_room_base = expected_pi_length(d, delta, E.get_size());
+    unsigned int pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
 
     pi = matpoly(ab, b, b, pi_room_base);
     pi.set_size(pi_room_base);
@@ -83,7 +83,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
          * something of large degree here. So we're bumping pi_length a
          * little bit to accomodate for this situation.
          */
-        pi_lengths[i] += delta[i] - mi;
+        pi_lengths[i] += bm.delta[i] - mi;
     }
 
     /* Keep a list of columns which have been used as pivots at the
@@ -206,7 +206,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
          * delta. So the delta[] array keeps referring to physical
          * indices, and we'll tune this in the end. */
         for(unsigned int j = 0; j < b; j++) {
-            ctable[j][0] = delta[j];
+            ctable[j][0] = bm.delta[j];
             ctable[j][1] = j;
         }
         qsort(ctable, b, 2 * sizeof(int), (sortfunc_t) & lexcmp2);
@@ -262,7 +262,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
                 abelt lambda;
                 abinit(ab, &lambda);
                 abmul(ab, lambda, inv, e.coeff(u, k, 0));
-                assert(delta[j] <= delta[k]);
+                assert(bm.delta[j] <= bm.delta[k]);
                 /* {{{ Apply on both e and pi */
                 abelt tmp;
                 abinit(ab, &tmp);
@@ -420,14 +420,14 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
                     bm.lucky[j] = -1;
                     pi_lengths[j]++;
                     pi_real_lengths[j]++;
-                    delta[j]++;
+                    bm.delta[j]++;
                     continue;
                 }
             }
             pi.multiply_column_by_x(j, pi_real_lengths[j]);
             pi_real_lengths[j]++;
             pi_lengths[j]++;
-            delta[j]++;
+            bm.delta[j]++;
         }
         /* }}} */
     }
@@ -457,13 +457,13 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vect
 
 /* wrap this up */
 int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta)
+bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E)
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    int done = bw_lingen_basecase_raw(bm, pi, E, delta);
+    int done = bw_lingen_basecase_raw(bm, pi, E);
     bm.stats.end_smallstep();
     E = matpoly();
     return done;
@@ -473,15 +473,13 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
 {
     /* used by testing code */
     bmstatus bm(m,n);
-    mpz_t p;
-    mpz_init(p);
+    cxx_mpz p;
     abfield_characteristic(ab, p);
-    abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, p);
-    unsigned int t0 = bm.t = iceildiv(m,n);
-    std::vector<unsigned int> delta(m+n, t0);
+    abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
+    unsigned int t0 = iceildiv(m,n);
+    bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
     E.fill_random(L, rstate);
     matpoly pi;
-    bw_lingen_basecase_raw(bm, pi, E, delta);
-    mpz_clear(p);
+    bw_lingen_basecase_raw(bm, pi, E);
 }/*}}}*/
