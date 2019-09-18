@@ -458,8 +458,8 @@ struct cp_info {
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
     ~cp_info();
-    bool save_aux_file(tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done);
-    bool load_aux_file(tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done);
+    bool save_aux_file(lingen_hints const & hints, tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done);
+    bool load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done);
     int load_data_file(matpoly & pi, size_t pi_size);
     int save_data_file(matpoly const & pi, size_t pi_size);
 };
@@ -492,7 +492,7 @@ cp_info::~cp_info()
     free(auxfile);
 }
 
-bool cp_info::save_aux_file(tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done)/*{{{*/
+bool cp_info::save_aux_file(lingen_hints const & hints, tree_stats const & stats, size_t pi_size, std::vector<unsigned int> const & delta, int done)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
@@ -506,6 +506,8 @@ bool cp_info::save_aux_file(tree_stats const & stats, size_t pi_size, std::vecto
     os << "\n";
     os << done;
     os << "\n";
+    os << hints;
+    os << "\n";
     os << stats;
     bool ok = os.good();
     if (!ok)
@@ -513,7 +515,7 @@ bool cp_info::save_aux_file(tree_stats const & stats, size_t pi_size, std::vecto
     return ok;
 }/*}}}*/
 
-bool cp_info::load_aux_file(tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done)/*{{{*/
+bool cp_info::load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & pi_size, std::vector<unsigned int> & delta, int & done)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int m = d.m;
@@ -528,7 +530,13 @@ bool cp_info::load_aux_file(tree_stats & stats, size_t & pi_size, std::vector<un
         is >> bm.lucky[i];
     }
     is >> done;
-    is >> stats;
+    lingen_hints stored_hints;
+    is >> stored_hints;
+    if (hints != stored_hints) {
+        is.setstate(std::ios::failbit);
+    } else {
+        is >> stats;
+    }
     return is.good();
 }/*}}}*/
 
@@ -586,7 +594,7 @@ int load_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     size_t pi_size;
     /* Don't output a message just now, since after all it's not
      * noteworthy if the checkpoint file does not exist. */
-    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
         ok = cp.load_data_file(pi, pi_size);
@@ -607,7 +615,7 @@ int save_checkpoint_file(bmstatus & bm, matpoly & pi, unsigned int t0, unsigned 
     logline_begin(stdout, SIZE_MAX, "Saving %s%s",
             cp.datafile,
             cp.mpi ? " (MPI, scattered)" : "");
-    int ok = cp.save_aux_file(bm.stats, pi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.hints, bm.stats, pi.get_size(), delta, done);
     if (ok) ok = cp.save_data_file(pi, pi.get_size());
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
@@ -631,7 +639,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
     cp_info cp(bm, t0, t1, 1);
     ASSERT_ALWAYS(xpi.check_pre_init());
     size_t pi_size;
-    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
@@ -677,7 +685,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly const & xpi, un
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, t0, t1, 1);
-    int ok = cp.save_aux_file(bm.stats, xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.hints, bm.stats, xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (!ok && !rank) unlink(cp.auxfile);
     if (ok) {
@@ -710,7 +718,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
     cp_info cp(bm, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     size_t pi_size;
-    int ok = cp.load_aux_file(bm.stats, pi_size, delta, done);
+    int ok = cp.load_aux_file(bm.hints, bm.stats, pi_size, delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&pi_size, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
@@ -778,7 +786,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
     cp.datafile = cp.gdatafile;
     logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
             cp.datafile);
-    int ok = cp.save_aux_file(bm.stats, xpi.get_size(), delta, done);
+    int ok = cp.save_aux_file(bm.hints, bm.stats, xpi.get_size(), delta, done);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {

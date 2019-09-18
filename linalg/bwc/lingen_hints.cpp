@@ -29,3 +29,22 @@ void lingen_hints::share(int root, MPI_Comm comm)
     MPI_Bcast(&tt_scatter_per_unit, 1, MPI_DOUBLE, root, comm);
 }
 
+std::istream& lingen_hints::unserialize(std::istream& is) {
+    size_t n;
+    for(is >> n ; is && n-- ; ) {
+        key_type K;
+        mapped_type M;
+        is >> K;
+        is >> M;
+        emplace(std::move(K), std::move(M));
+    }
+    return is;
+}
+
+std::ostream& lingen_hints::serialize(std::ostream& os) const {
+    os << size() << "\n";
+    for(auto const & x : *this) {
+        os << x.first << " " << x.second << "\n";
+    }
+    return os;
+}

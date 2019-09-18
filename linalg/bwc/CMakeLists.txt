@@ -428,6 +428,7 @@ add_library(lingen_common_support
     bw-common.c
     lingen_platform.cpp
     lingen_hints.cpp
+    lingen_call_companion.cpp
     )
 target_link_libraries(lingen_common_support ${gmp_libname} utils)
 set_target_properties(lingen_common_support PROPERTIES

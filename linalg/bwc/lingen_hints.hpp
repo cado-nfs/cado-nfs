@@ -12,24 +12,8 @@ struct lingen_hints : public std::map<lingen_call_companion::key, lingen_call_co
     int ipeak;
     size_t peak;
     void share(int root, MPI_Comm comm);
-    std::istream& unserialize(std::istream& is) {
-        size_t n;
-        for(is >> n ; is && n-- ; ) {
-            key_type K;
-            mapped_type M;
-            is >> K;
-            is >> M;
-            emplace(std::move(K), std::move(M));
-        }
-        return is;
-    }
-    std::ostream& serialize(std::ostream& os) const {
-        os << size() << "\n";
-        for(auto const & x : *this) {
-            os << x.first << " " << x.second << "\n";
-        }
-        return os;
-    }
+    std::istream& unserialize(std::istream& is);
+    std::ostream& serialize(std::ostream& os) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, lingen_hints const & c) {
