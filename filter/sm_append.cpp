@@ -201,7 +201,8 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
     fprintf(stderr, "# make sure you use \"--bind-to core\" or equivalent\n");
 
     double t0 = wct_seconds();
-    for(int turn = 0 ; eof <= 2 ; turn++, eof += !!eof) {
+    int turn;
+    for(turn = 0 ; eof <= 2 ; turn++, eof += !!eof) {
         double t = wct_seconds();
         debug_fprintf(stderr, "%.3f " CSI_BOLDRED "start turn %d" CSI_RESET "\n", t0, turn);
         for(int peer = 1; peer < size; peer++) {
@@ -237,6 +238,11 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
                     tg.nrels_out / (wct_seconds()-t0));
         }
     }
+    fprintf(stderr, "# final: printed %zu rels in %.1f s"
+            " (%.1f / batch, %.1f rels/s)\n",
+            tg.nrels_out, wct_seconds()-t0,
+            (wct_seconds()-t0) / turn,
+            tg.nrels_out / (wct_seconds()-t0));
 }
 
 static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
