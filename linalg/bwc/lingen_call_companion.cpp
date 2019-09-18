@@ -55,6 +55,15 @@ std::ostream& lingen_call_companion::serialize(std::ostream& os) const {
        */
     return os;
 }
+bool lingen_call_companion::operator==(lingen_call_companion const & o) const
+{
+    if (recurse != o.recurse) return false;
+    if (go_mpi != o.go_mpi) return false;
+    if (mp != o.mp) return false;
+    if (mul != o.mul) return false;
+    return true;
+}
+
 
 /* This unserializes only part of the data: the schedule S/
  * The rest is always recomputed.

@@ -80,7 +80,13 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
 
         constexpr const char * opname = OP_T::name;
 
-        begin_plan_smallstep(opname, M->tt);
+        /* The smallstep "MP" or "MUL" has already been planned since the
+         * first entry in the recursive function in lingen.cpp -- here
+         * we're only beginning the planning of the small steps. This
+         * used to be done together with the planning of MP and MUL
+         * themselves, but we prefer to do that closer to the code.
+         */
+        begin_plan_smallstep_microsteps(opname);
         plan_smallstep("dft_A", M->t_dft_A);
         if (CTX.uses_mpi) {
             begin_plan_smallstep("dft_A_comm", M->t_dft_A_comm);
@@ -114,12 +120,16 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         if (M) CTX.stats.end_smallstep(args...);
     }
     template<typename... Args>
-    inline void begin_plan_smallstep(Args&& ...args) {
-        if (M) CTX.stats.begin_plan_smallstep(args...);
-    }
-    template<typename... Args>
     inline void plan_smallstep(Args&& ...args) {
         if (M) CTX.stats.plan_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void begin_plan_smallstep_microsteps(Args&& ...args) {
+        if (M) CTX.stats.begin_plan_smallstep_microsteps(args...);
+    }
+    template<typename... Args>
+    inline void begin_plan_smallstep(Args&& ...args) {
+        if (M) CTX.stats.begin_plan_smallstep(args...);
     }
     template<typename... Args>
     inline void end_plan_smallstep(Args&& ...args) {

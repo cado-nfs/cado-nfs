@@ -51,11 +51,16 @@ struct lingen_call_companion {
         size_t asize, bsize, csize;
         
         /* This unserializes only part of the data: the schedule S/
-         * The rest is always recomputed.
+         * The rest is always recomputed. Even for operator== (which we
+         * chiefly use for compatibility checking), only the schedule
+         * matters.
          */
         std::istream& unserialize(std::istream& is);
         std::ostream& serialize(std::ostream& os) const;
-
+        bool operator==(mul_or_mp_times const & o) const {
+            return S == o.S;
+        }
+        inline bool operator!=(mul_or_mp_times const & o) const { return !(*this == o); }
     };/*}}}*/
     mul_or_mp_times mp, mul;
 
@@ -73,6 +78,8 @@ struct lingen_call_companion {
     public:
     std::istream& unserialize(std::istream& is);
     std::ostream& serialize(std::ostream& os) const;
+    bool operator==(lingen_call_companion const & o) const;
+    inline bool operator!=(lingen_call_companion const & o) const { return !(*this == o); }
     struct key {
         int depth;
         size_t L;
@@ -81,6 +88,9 @@ struct lingen_call_companion {
         }
         std::ostream& serialize(std::ostream& os) const {
             return os << " " << depth << " " << L;
+        }
+        bool operator==(key const & o) const {
+            return depth == o.depth && L == o.L;
         }
         bool operator<(key const& a) const {
             if (depth < a.depth) return true;

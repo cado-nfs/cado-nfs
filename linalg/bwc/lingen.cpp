@@ -21,6 +21,7 @@
 #endif
 #include <cassert>
 #include <fstream>
+#include <sstream>
 
 #include "portability.h"
 #include "macros.h"
@@ -534,6 +535,10 @@ bool cp_info::load_aux_file(lingen_hints & hints, tree_stats & stats, size_t & p
     is >> stored_hints;
     if (hints != stored_hints) {
         is.setstate(std::ios::failbit);
+        fprintf(stderr, "Warning: checkpoint file cannot be used since it was made for another set of schedules (stats would be incorrect)\n");
+        std::stringstream os;
+        os << hints;
+        fprintf(stderr, "textual description of the schedule set that we expect to find:\n%s\n", os.str().c_str());
     } else {
         is >> stats;
     }
@@ -672,6 +677,8 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, bigmatpoly & xpi, unsigned
             fprintf(stderr, "Warning: I/O error while reading %s\n",
                     cp.datafile);
         }
+    } else if (!rank) {
+        fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
     }
     if (ok) bm.t = t1;
     return ok;
@@ -767,6 +774,8 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
             fprintf(stderr, "Warning: I/O error while reading %s\n",
                     cp.datafile);
         }
+    } else if (!rank) {
+        fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
     }
     if (ok) bm.t = t1;
     return ok;

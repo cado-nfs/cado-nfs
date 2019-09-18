@@ -437,6 +437,7 @@ public:
 
 
     void begin_plan_smallstep(std::string const & func, weighted_double const &);
+    void begin_plan_smallstep_microsteps(std::string const & func);
     void end_plan_smallstep();
     struct plan_smallstep_sentinel {
         tree_stats & stats;

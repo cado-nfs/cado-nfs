@@ -391,6 +391,35 @@ void tree_stats::end_plan_smallstep()
     }
 }
 
+/* The only subtlety here is that we expect that the planning for the
+ * smallstep is already done, and that we're now interested in planning
+ * for the micro steps only.
+ */
+void tree_stats::begin_plan_smallstep_microsteps(std::string const & func)
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        s.nested_substeps.push_back(it);
+
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}({})\n", __func__);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
 void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
 {
     try {
