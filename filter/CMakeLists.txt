@@ -59,8 +59,9 @@ add_executable(sm_append sm_append.cpp)
 target_link_libraries(sm_append utils)
 if (${WITH_MPI})
 set_target_properties(sm_append PROPERTIES
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+  COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+  LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+  )
 endif()
 
 
