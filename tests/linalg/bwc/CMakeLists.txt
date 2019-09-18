@@ -41,14 +41,14 @@ endmacro()
 
 # the sha1sums here are from the time were we were transposing the
 # output. Now we no longer do that.
-# add_lingen_binary_test(test0 1dea0d8879d125aa280e26b8573f932f6bccea75,d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd 64 64 160 1 lingen_threshold=10)
+# add_lingen_binary_test(test0 1dea0d8879d125aa280e26b8573f932f6bccea75,d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd 64 64 160 1 lingen_mpi_threshold=10)
 
 # todo presumably, on 32 bit, we get something different for the sha1sum.
-add_lingen_binary_test(test0 expect_sha1_F=893801e0727d840353a35b2623430fb758e4d379 m=64 n=64 sequence_length=160 seed=1 -- lingen_threshold=10)
+add_lingen_binary_test(test0 expect_sha1_F=893801e0727d840353a35b2623430fb758e4d379 m=64 n=64 sequence_length=160 seed=1 -- lingen_mpi_threshold=10)
 
 # The test below fails on 32bit. This should be investigated.
 # add_lingen_binary_test(test1
-# expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_threshold=10)
+# expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
 endif()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
@@ -141,45 +141,60 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     # here does not have the require arguments, so it will fail (we avoid
     # NO_DEFAULT_RUN in this case, precisely because we want a phony
     # test).
-    cado_define_test(test-bwc-lingen-${gfp_layer} SCRIPT
+    cado_define_test(test-bwc-lingen_${gfp_layer} SCRIPT
+        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
         ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
         NO_DEFAULT_RUN
         TARGET_DEPENDENCIES lingen_${gfp_layer})
-    # set_tests_properties(test-bwc-lingen-${gfp_layer} PROPERTIES WILL_FAIL 1)
+    # set_tests_properties(test-bwc-lingen_${gfp_layer} PROPERTIES WILL_FAIL 1)
 
-    # Note that the mpi and lingen_mpi_threshold arguments here are used
+    # Note that the mpi and arguments here is used
     # only in MPI context, and ignored otherwise (that is, the test runs
-    # without mpi). In MPI context, this triggers the mpi portions of the
+    # without mpi). This is not the same for lingen_mpi_threshold, which
+    # in reality is a bit of a misnomer. This flag is one of the means
+    # by which the automatic tuning of lingen can be forced to use a
+    # given threshold, and that also applies to the non-mpi case.
+    # In MPI context, this triggers the mpi portions of the
     # code (actually the test gets run twice, once with the threads, once
     # without. Both have to succeed, of course).
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_1")
-        cado_divert_test(test-bwc-lingen-${gfp_layer} test0
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test0
+            APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
-            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
-            max_ram=0.0001
+            lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             ${extra})
-        cado_divert_test(test-bwc-lingen-${gfp_layer} test1
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test1
+            APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
-            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
-            max_ram=0.0001
+            lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
             ${extra})
-        cado_divert_test(test-bwc-lingen-${gfp_layer} test2
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test2
+            APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
-            max_ram=0.01
+            lingen_mpi_threshold=10 mpi=3x3 thr=3x3 --ascii
             ${extra})
+        cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
+            SCRIPT
+            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+            ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
+            ${CADO_NFS_BINARY_DIR}
+            b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
+            lingen_mpi_threshold=10 mpi=3x3 thr=3x3 --ascii
+            checkpoint_threshold=40
+            ${extra}
+            TARGET_DEPENDENCIES lingen_${gfp_layer})
     endif()
 
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
-        cado_divert_test(test-bwc-lingen-${gfp_layer} test4
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test4
+            APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
             1532495540865888858358347027150309183618739122183602191 1111
-            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3
-            max_ram=0.01
+            lingen_mpi_threshold=10 mpi=3x3 thr=3x3
             ${extra})
     endif()
 

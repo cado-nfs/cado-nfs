@@ -5,7 +5,7 @@
 #include "lingen_bmstatus.hpp"
 #include "lingen_expected_pi_length.hpp"
 
-lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
+lingen_call_companion bmstatus::companion(int depth, size_t L)/*{{{*/
 {
     lingen_hints::key_type K { depth, L };
 

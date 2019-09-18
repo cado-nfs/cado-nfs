@@ -533,13 +533,21 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
     }
     is >> done;
     is >> nbm.hints;
-    if (bm.hints != nbm.hints) {
+    for(auto const & x : nbm.hints) {
+        if (!x.second.check()) {
+            fprintf(stderr, "Warning: checkpoint contains invalid schedule information\n");
+            is.setstate(std::ios::failbit);
+            break;
+        }
+    }
+
+    if (is.good() && bm.hints != nbm.hints) {
         is.setstate(std::ios::failbit);
         fprintf(stderr, "Warning: checkpoint file cannot be used since it was made for another set of schedules (stats would be incorrect)\n");
         std::stringstream os;
         os << bm.hints;
         fprintf(stderr, "textual description of the schedule set that we expect to find:\n%s\n", os.str().c_str());
-    } else {
+    } else if (is.good()) {
         is >> nbm.stats;
     }
     if (is.good()) {
@@ -921,7 +929,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     int depth = bm.depth();
     size_t z = E.get_size();
 
-    lingen_call_companion & C = bm.companion(depth, z);
+    lingen_call_companion C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
     bm.stats.plan_smallstep("MP", C.mp.tt);
@@ -1045,7 +1053,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 
     int done;
 
-    lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
+    lingen_call_companion C = bm.companion(bm.depth(), E.get_size());
 
     if (load_checkpoint_file(bm, pi, t0, t1, done))
         return done;
@@ -1080,7 +1088,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
     int depth = bm.depth();
     size_t z = E.get_size();
 
-    lingen_call_companion & C = bm.companion(depth, z);
+    lingen_call_companion C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
     bm.stats.plan_smallstep("MP", C.mp.tt);
@@ -1226,7 +1234,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{
     unsigned int t0 = bm.t;
     unsigned int t1 = bm.t + E.get_size();
 
-    lingen_call_companion & C = bm.companion(bm.depth(), E.get_size());
+    lingen_call_companion C = bm.companion(bm.depth(), E.get_size());
     bool go_mpi = C.go_mpi;
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 

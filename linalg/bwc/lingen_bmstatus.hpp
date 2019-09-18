@@ -42,7 +42,7 @@ struct bmstatus {
         t = t0;
         delta.assign(d.m + d.n, t);
     }
-    lingen_call_companion & companion(int depth, size_t L);
+    lingen_call_companion companion(int depth, size_t L);
     bool recurse(int depth, size_t L) {/*{{{*/
         return companion(depth, L).recurse;
     }/*}}}*/

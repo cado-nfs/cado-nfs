@@ -82,6 +82,9 @@ struct lingen_substep_schedule {
             && shrink2 == o.shrink2
             && batch == o.batch;
     }
+    bool check() const {
+        return shrink0 && shrink2 && batch[0] && batch[1] && batch[2];
+    }
 };
 
 #endif	/* LINGEN_SUBSTEP_SCHEDULE_HPP_ */

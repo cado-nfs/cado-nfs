@@ -459,7 +459,7 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
         S.heat_up();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at begin_smallstep({},{})\n", func, ncalls);
+        os << fmt::format("Exception at {}({},{})\n", __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -485,7 +485,7 @@ void tree_stats::end_smallstep()
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format("Exception at end_smallstep()\n");
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";

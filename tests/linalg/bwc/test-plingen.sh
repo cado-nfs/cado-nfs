@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+# set -x
+
+if ! [ "$WDIR" ] ; then
+    echo "Want \$WDIR" >&2
+    exit 1
+fi
+
 # Create a fake sequence
 
 # Note that if we arrive here, we are 64-bit only, since the GFP backends
@@ -52,9 +58,6 @@ dotest() {
     REFERENCE_SHA1="$1"
     shift
 
-    : ${TMPDIR:=/tmp}
-    TMPDIR=`mktemp -d $TMPDIR/lingen-test.XXXXXXXXXX`
-
     m="$1"; shift
     n="$1"; shift
     kmax="$1"; shift
@@ -66,10 +69,13 @@ dotest() {
 
     args=()
     mpi_args=()
+    ONLY_TUNE=
     for x in "$@" ; do
         case "$x" in
             lingen_program=*) eval "$x";;
-            lingen_mpi_threshold*) mpi_args+=("$x");;
+            # See comment about lingen_mpi_threshold in
+            # tests/linalg/bwc/CMakeLists.txt
+            lingen_mpi_threshold*) args+=("$x");;
             mpi*) mpi_args+=("$x"); mpi="${x#mpi=}";;
             *) args+=("$x");
                 if [[ "$x" =~ ascii ]] ; then
@@ -78,6 +84,8 @@ dotest() {
                         exit 1
                     fi
                     ascii=1
+                elif [[ "$x" =~ --tune ]] ; then
+                    ONLY_TUNE=1
                 fi
                 ;;
         esac
@@ -88,7 +96,7 @@ dotest() {
 
     : ${lingen_program:=lingen_p_$nwords}
 
-    F="$TMPDIR/base"
+    F="$WDIR/base"
     if [ "$ascii" ] ; then
         # The perl code below generates ascii test cases which are good
         # provided that p is small. Otherwise, the smallish coefficients
@@ -139,22 +147,26 @@ EOF
         perl -e "$code" $m $n $((kmax/3)) $nwords $seed > $F
     fi
 
-    G="$TMPDIR/seq.txt"
+    G="$WDIR/seq.txt"
     cat $F $F $F > $G
     rm -f $F
 
     $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
+
+    if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
     [ -f "$G.gen" ]
+
     SHA1=$($SHA1BIN < $G.gen)
     SHA1="${SHA1%% *}"
 
     if [ "$REFERENCE_SHA1" ] ; then
         if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${TMPDIR}" >&2
+            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
             exit 1
         fi
+        echo "$SHA1 (as expected)"
     else
-        echo "========= $SHA1 ========"
+        echo "$SHA1"
     fi
     rm -f $G.gen
 
@@ -175,19 +187,16 @@ EOF
 
         if [ "$REFERENCE_SHA1" ] ; then
             if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${TMPDIR}" >&2
+                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
                 exit 1
             fi
+            echo "$SHA1 (as expected)"
             if ! [ "$CADO_DEBUG" ] ; then
                 rm -f $G.gen
             fi
         else
             echo "========= $SHA1 ========"
         fi
-    fi
-
-    if ! [ "$CADO_DEBUG" ] ; then
-        rm -rf "$TMPDIR"
     fi
 }
 

@@ -80,6 +80,9 @@ struct lingen_call_companion {
     std::ostream& serialize(std::ostream& os) const;
     bool operator==(lingen_call_companion const & o) const;
     inline bool operator!=(lingen_call_companion const & o) const { return !(*this == o); }
+    bool check() const {
+        return mul.S.check() && mp.S.check();
+    }
     struct key {
         int depth;
         size_t L;

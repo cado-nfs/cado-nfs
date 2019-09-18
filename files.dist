@@ -1427,3 +1427,4 @@ linalg/bwc/README.IntelMPI
 linalg/bwc/README.OpenMPI
 linalg/bwc/lingen_substep_characteristics.hpp
 linalg/bwc/lingen_call_companion.cpp
+tests/linalg/bwc/test-lingen-checkpoints.sh
