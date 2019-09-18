@@ -88,8 +88,8 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
         if (n) {
             if (th)
                 os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));
-            os << " " << fmt::sprintf("%.2g -> %.1f",
-                    t / n, t / n * (double) total_ncalls);
+            os << " " << fmt::format("{:.2g} -> {:.1f}",
+                    t / n / items_per_call, t / n * (double) total_ncalls);
         } else if (th) {
             /* Since n == 0, begin_smallstep has never been called.
              * We only had plan_smallstep, and we had it only once,
