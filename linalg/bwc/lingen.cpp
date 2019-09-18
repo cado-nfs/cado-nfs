@@ -889,9 +889,14 @@ std::string sha1sum(matpoly const & X)
     return std::string(checksum);
 }
 
+/* The degree of similarity between bw_lingen_recursive and
+ * bw_biglingen_recursive is close to 100%. The only unresolved issue is
+ * whether we pre-alloc before doing the caching operations.
+ *
+ * XXX Eventually we'll merge the two.
+ */
 template<typename fft_type>
-int
-bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
+int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsigned int> & delta) /*{{{*/
 {
     int depth = bm.depth();
     size_t z = E.get_size();
@@ -899,6 +904,8 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
     lingen_call_companion & C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
+    bm.stats.plan_smallstep("MP", C.mp.tt);
+    bm.stats.plan_smallstep("MUL", C.mul.tt);
 
     bw_dimensions & d = bm.d;
     int done;
@@ -953,7 +960,7 @@ bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E, std::vector<unsign
         E = matpoly();
     }
 
-    logline_end(&(bm.t_mp), "");
+    logline_end(&bm.t_mp, "");
 
     unsigned int pi_right_expect = expected_pi_length(d, delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
@@ -1056,12 +1063,11 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E, std::
     lingen_call_companion & C = bm.companion(depth, z);
 
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
+    bm.stats.plan_smallstep("MP", C.mp.tt);
+    bm.stats.plan_smallstep("MUL", C.mul.tt);
 
     bw_dimensions & d = bm.d;
     int done;
-
-    int rank;
-    MPI_Comm_rank(bm.com[0], &rank);
 
     /* we have to start with something large enough to get
      * all coefficients of E_right correct */
