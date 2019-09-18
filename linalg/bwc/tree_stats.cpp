@@ -301,14 +301,14 @@ void tree_stats::leave()
 
 #ifndef FORCE_PRINT_ALWAYS
     /* Is it any useful to print something new ? */
-    if (now < last_print_time + 2) return;
+    if (now < last_print_time + 5) return;
 
     int needprint = 0;
     for(unsigned int k = 0 ; !needprint && k < levels.size() ; k++) {
         level_stats & u(levels[k]);
         double t = u.projected_time();
         double t0 = u.last_printed_projected_time;
-        needprint = (t < 0.98 * t0) || (t > 1.02 * t0);
+        needprint = (t < 0.9 * t0) || (t > 1.1 * t0);
     }
 
     if (!needprint) return;

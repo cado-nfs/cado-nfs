@@ -57,6 +57,7 @@ void compose_inner<gf2x_fake_fft_info, strassen_default_selector>(
         gf2x_fake_fft_info& o, strassen_default_selector const& s)
 {
     typedef gf2x_fake_fft_info fft_type;
+    typedef fft_type::ptr ptr;
     tpolmat<fft_type> tmp(s1.nrows, s2.ncols, o);
     ASSERT(s1.ncols == s2.nrows);
     unsigned int nbits;
@@ -69,10 +70,8 @@ void compose_inner<gf2x_fake_fft_info, strassen_default_selector>(
 #pragma omp parallel
 #endif  /* HAVE_OPENMP */
         {
-            size_t sizes[3];
-            o.get_alloc_sizes(sizes);
-            fft_type::ptr temp1 = (fft_type::ptr) malloc(sizes[1]);
-            fft_type::ptr temp2 = (fft_type::ptr) malloc(sizes[2]);
+            ptr temp1 = (ptr) malloc(o.size1_bytes());
+            ptr temp2 = (ptr) malloc(o.size2_bytes());
 #ifdef  HAVE_OPENMP
 #pragma omp for collapse(2) schedule(static)
 #endif  /* HAVE_OPENMP */
@@ -1575,6 +1574,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
+    param_list_lookup_string(pl, "lingen_mpi_threshold");
     param_list_parse_uint(pl, "lingen_threshold", &lingen_threshold);
     param_list_parse_uint(pl, "cantor_threshold", &cantor_threshold);
     param_list_parse_uint(pl, "t", &nthreads);

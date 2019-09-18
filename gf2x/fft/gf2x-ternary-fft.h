@@ -336,6 +336,7 @@ extern int GF2X_FFT_EXPORTED gf2x_ternary_fft_addcompose(
 
 #ifdef __cplusplus
 #include <exception>
+#include <array>
 #endif
 
 /* End of automatically generated section */
@@ -414,25 +415,15 @@ struct gf2x_ternary_fft_info {
     inline int order() const {
         return gf2x_ternary_fft_info_order(this);
     }
-    inline void get_alloc_sizes(size_t sizes[3]) const {
-        gf2x_ternary_fft_info_get_alloc_sizes(this, sizes);
+    inline std::array<size_t, 3> get_alloc_sizes() const {
+        std::array<size_t, 3> sizes;
+        gf2x_ternary_fft_info_get_alloc_sizes(this, &sizes[0]);
+        return sizes;
     }
     /* This is equal to transform_size() * sizeof(elt) */
-    inline size_t size0_bytes() const {
-        size_t sizes[3];
-        gf2x_ternary_fft_info_get_alloc_sizes(this, sizes);
-        return sizes[0];
-    }
-    inline size_t size1_bytes() const {
-        size_t sizes[3];
-        gf2x_ternary_fft_info_get_alloc_sizes(this, sizes);
-        return sizes[1];
-    }
-    inline size_t size2_bytes() const {
-        size_t sizes[3];
-        gf2x_ternary_fft_info_get_alloc_sizes(this, sizes);
-        return sizes[2];
-    }
+    inline size_t size0_bytes() const { return get_alloc_sizes()[0]; }
+    inline size_t size1_bytes() const { return get_alloc_sizes()[1]; }
+    inline size_t size2_bytes() const { return get_alloc_sizes()[2]; }
     inline size_t transform_size() const { return gf2x_ternary_fft_transform_size(this); }
     inline ptr alloc(size_t n = 1) const { return gf2x_ternary_fft_alloc(this, n); }
     inline void free(ptr x, size_t n = 1) const { gf2x_ternary_fft_free(this, x, n); }

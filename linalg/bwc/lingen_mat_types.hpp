@@ -693,8 +693,6 @@ void transform(tpolmat<fft_type>& dst, polmat& src, fft_type& o, int d)
     tpolmat<fft_type> tmp(src.nrows, src.ncols, o);
     tmp.zero();
     src.clear_highbits();
-    size_t sizes[3];
-    o.get_alloc_sizes(sizes);
 #ifdef  HAVE_OPENMP
 #pragma omp parallel
 #endif  /* HAVE_OPENMP */
