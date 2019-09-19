@@ -2,6 +2,9 @@
 #define LINGEN_MATPOLY_FT_HPP_
 
 #include <mutex>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 #ifdef SELECT_MPFQ_LAYER_u64k1
 #include "lingen_matpoly_binary.hpp"
 #include "gf2x-fft.h"
