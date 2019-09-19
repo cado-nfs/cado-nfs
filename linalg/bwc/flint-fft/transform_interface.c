@@ -1206,7 +1206,7 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
     mp_limb_t ** tslot1 = ptrs + 4 * n + N;
     mp_limb_t * s1[N];
     for(int i = 0 ; i < N ; i++)
-        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1));
+        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1) * sizeof(mp_limb_t));
 
     if (fti->alg == 0) {
         fft_truncate_sqrt2(y, n, fti->w, tslot0, tslot1, s1, trunc);
@@ -1268,7 +1268,7 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
     mp_limb_t ** tslot1 = ptrs + 4 * n + N;
     mp_limb_t * s1[N];
     for(int i = 0 ; i < N ; i++)
-        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1));
+        s1[i] = (mp_limb_t *) VOID_POINTER_ADD(temp, i * (rsize0 + 1) * sizeof(mp_limb_t));
 
     /* TODO: do we have to have inputs reduced ? */
 
