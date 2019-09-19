@@ -17,6 +17,9 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
     set_target_properties(test-flint PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+    # The mul0 test should activate the MFA code. Presently it's buggy with
+    # openmp
+    cado_divert_test(test-flint mul0 mul0 -s 20000)
     cado_divert_test(test-flint mul mul)
     # cado_divert_test(test-flint mulmod mulmod)
     cado_divert_test(test-flint mul_fppol mul_fppol)
@@ -37,6 +40,7 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
                 ${CMAKE_CURRENT_BINARY_DIR}/test-flint-debug
             TARGET_DEPENDENCIES test-flint-debug
             NO_DEFAULT_RUN)
+    cado_divert_test(test-flint-debug-magma mul0 APPEND_ARGUMENTS mul0 -s 20000)
     cado_divert_test(test-flint-debug-magma mul APPEND_ARGUMENTS mul)
     # cado_divert_test(test-flint-debug-magma mulmod APPEND_ARGUMENTS mulmod)
     cado_divert_test(test-flint-debug-magma mul_fppol APPEND_ARGUMENTS mul_fppol)

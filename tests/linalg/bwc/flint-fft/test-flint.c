@@ -168,9 +168,11 @@ int ybits;
 mp_size_t nx;
 mp_size_t ny;
 mp_size_t nz;
+mp_size_t nz0;
 mp_limb_t * x;
 mp_limb_t * y;
 mp_limb_t * z;
+mp_limb_t * z0;
 struct fft_transform_info fti[1];
 size_t fft_alloc_sizes[3];
 void * tx;
@@ -184,6 +186,7 @@ static void alloc_everything()
     x = malloc(nx * sizeof(mp_limb_t));
     y = malloc(ny * sizeof(mp_limb_t));
     z = malloc(nz * sizeof(mp_limb_t));
+    if (nz0) z0 = malloc(nz0 * sizeof(mp_limb_t));
 }
 
 static void free_everything() {
@@ -195,6 +198,7 @@ static void free_everything() {
     free(x);
     free(y);
     free(z);
+    if (nz0) free(z0);
 }
 
 static void prepare_transforms() {
@@ -233,7 +237,7 @@ static void do_renames(const struct fft_transform_info * fti MAYBE_UNUSED, const
 }
 
 /* test multiplication of integers */
-int test_mul(gmp_randstate_t rstate) /*{{{*/
+int test_mul0(gmp_randstate_t rstate) /*{{{*/
 {
     int xbits, ybits;
     int nacc = 4;
@@ -250,10 +254,63 @@ int test_mul(gmp_randstate_t rstate) /*{{{*/
     nx = iceildiv(xbits, FLINT_BITS);
     ny = iceildiv(ybits, FLINT_BITS);
     nz = iceildiv(zbits, FLINT_BITS);
+    nz0 = nx + ny;
 
     alloc_everything();
+
     bitrandom(x, xbits, longstrings, rstate);
     bitrandom(y, ybits, longstrings, rstate);
+
+    prepare_transforms();
+
+    printf("check:=\"%s\";\n", __func__);
+    pint("A0", x, nx);
+    pint("A1", y, ny);
+    fft_dft(fti, tx, x, nx, tt); do_renames(fti, "dft", "P0");
+    fft_dft(fti, ty, y, ny, tt); do_renames(fti, "dft", "P1");
+    fft_compose(fti, tz, tx, ty, tt);
+    fft_ift(fti, z, nz, tz, tt); do_renames(fti, "ift", "P2");
+    pint("A2", z, nz);
+
+    if (nx >= ny)
+        mpn_mul(z0, x, nx, y, ny);
+    else
+        mpn_mul(z0, y, ny, x, nx);
+
+    if (memcmp(z, z0, nz * sizeof(mp_limb_t)) != 0) {
+        fprintf(stderr, "test_mul0 failed!!!\n");
+        abort();
+    }
+
+    free_everything();
+    return 0;
+}/*}}}*/
+int test_mul(gmp_randstate_t rstate) /*{{{*/
+{
+    /* compute 2xy+x+y */
+
+    int xbits, ybits;
+    int nacc = 4;
+    operand_sizes(&xbits, &ybits, s, rstate);
+
+    fprintf(stderr, "xbits:=%d; ybits:=%d;\n", xbits, ybits);
+    int zbits = xbits + ybits;
+
+    fft_transform_info_init(fti, xbits, ybits, nacc);
+    fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
+    fti_disp(stdout, fti);
+    fti_disp(stderr, fti);
+
+    nx = iceildiv(xbits, FLINT_BITS);
+    ny = iceildiv(ybits, FLINT_BITS);
+    nz = iceildiv(zbits, FLINT_BITS);
+    nz0 = 0;
+
+    alloc_everything();
+
+    bitrandom(x, xbits, longstrings, rstate);
+    bitrandom(y, ybits, longstrings, rstate);
+
     prepare_transforms();
 
     printf("check:=\"%s\";\n", __func__);
@@ -293,6 +350,7 @@ int test_mulmod(gmp_randstate_t rstate) /*{{{*/
     nx = iceildiv(xbits, FLINT_BITS);
     ny = iceildiv(ybits, FLINT_BITS);
     nz = fft_get_mulmod_output_minlimbs(fti);
+    nz0 = 0;
 
     alloc_everything();
     bitrandom(x, xbits, longstrings, rstate);
@@ -334,6 +392,7 @@ int test_mul_fppol(gmp_randstate_t rstate) /*{{{*/
     fti_disp(stderr, fti);
 
     nx = cx * np; ny = cy * np; nz = cz * np;
+    nz0 = 0;
 
     alloc_everything();
     bitrandom_fppol(y, cy, p, longstrings, rstate);
@@ -388,6 +447,7 @@ int test_mp_fppol(gmp_randstate_t rstate)/*{{{*/
     fti_disp(stderr, fti);
 
     nx = cx * np; ny = cy * np; nz = cz * np;
+    nz0 = 0;
     
     alloc_everything();
     bitrandom_fppol(y, cy, p, longstrings, rstate);
@@ -435,6 +495,7 @@ int main(int argc, char * argv[])
     printf("allocatemem(800000000)\n");
 #endif
 
+    int do_mul0 = 0;
     int do_mul = 0;
     int do_mulmod = 0;
     int do_mul_fppol = 0;
@@ -462,6 +523,7 @@ int main(int argc, char * argv[])
             continue;
         }
         if (strncmp(p, "test_", 5) == 0) p += 5;
+        if (strcmp(p, "mul0") == 0) { do_mul0++; continue; }
         if (strcmp(p, "mul") == 0) { do_mul++; continue; }
         if (strcmp(p, "mulmod") == 0) { do_mulmod++; continue; }
         if (strcmp(p, "mul_fppol") == 0) { do_mul_fppol++; continue; }
@@ -473,6 +535,7 @@ int main(int argc, char * argv[])
     fprintf(stderr, "seed:=%d; longstrings:=%d; */\n", seed, longstrings);
     gmp_randseed_ui(rstate, seed);
 
+    if (do_mul0) { test_mul0(rstate); done_tests++; }
     if (do_mul) { test_mul(rstate); done_tests++; }
     if (do_mulmod) {
         abort();
