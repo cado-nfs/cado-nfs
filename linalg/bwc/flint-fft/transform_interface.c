@@ -46,6 +46,10 @@
 #include "timing.h"
 #include "gmp_aux.h"
 
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 #ifndef iceildiv
 /* unfortunately this fails miserably if x+y-1 overflows */
 #define iceildiv(x,y)	(((x)+(y)-1)/(y))
@@ -63,7 +67,7 @@ static inline mp_size_t fti_trunc(const struct fft_transform_info * fti)
 {
     mp_size_t depth1 = fti->depth / 2;
     mp_size_t n = 1 << fti->depth;
-    mp_size_t n1 = 1 << depth1; /* for MFA */
+    mp_size_t n1 = 1 << depth1; /* for MFA ; called sqrt in the flint code. */
     mp_size_t trunc = fti->trunc0;
     if (trunc <= 2*n) trunc = 2*n+1;
     if (fti->alg == 0) {
@@ -1227,19 +1231,43 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
         /* outer */
         fft_mfa_truncate_sqrt2_outer(ptrs, n, fti->w, tslot0, tslot1, s1, n1, trunc);
 
-        /* inner layers */
-        for (mp_size_t s = 0; s < trunc2; s++) {
-            /* Truncation apparently appears only with bitrev semantics */
-            mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
-            fft_radix2(row, n1 / 2, fti->w * n2, tslot0, tslot1);
-            for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
-                mpn_normmod_2expp1(row[j], rsize0);
-        }
-        for (mp_size_t i = 0; i < n2; i++) {
-            mp_limb_t ** row = ptrs + i * n1;
-            fft_radix2(row, n1 / 2, fti->w * n2, tslot0, tslot1);
-            for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
-                mpn_normmod_2expp1(row[j], rsize0);
+        {
+            /* inner layers -- we have to copy code from
+             * fft_mfa_truncate_sqrt2_inner */
+
+            /* First the bottom half of the matrix */
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+            {
+                int k = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+                for (mp_size_t s = 0; s < trunc2; s++) {
+                    /* Truncation apparently appears only with bitrev semantics */
+                    mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
+                    fft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
+                    for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
+                        mpn_normmod_2expp1(row[j], rsize0);
+                }
+            }
+            /* Now the top half */
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+            {
+                int k = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+                for (mp_size_t i = 0; i < n2; i++) {
+                    mp_limb_t ** row = ptrs + i * n1;
+                    fft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
+                    for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
+                        mpn_normmod_2expp1(row[j], rsize0);
+                }
+            }
         }
         /* Continue following fft_mfa_truncate_sqrt2_inner. iffts follow,
          * and then outer steps */
@@ -1288,18 +1316,36 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
         /* The first n2 rows need no truncation. The rest is truncated at
          * (trunc), which means that we take only trunc2 rows. */
         mp_size_t trunc2 = (trunc - 2 * n) / n1;
-        
+
         /* Begin with inner steps (those which are intertwined with
          * convolution inside fft_mfa_truncate_sqrt2_inner), and finish
          * with outer steps */
-        for (mp_size_t s = 0; s < trunc2; s++) {
-            /* Truncation apparently appears only with bitrev semantics */
-            mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
-            ifft_radix2(row, n1 / 2, fti->w * n2, tslot0, tslot1);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            int k = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+            for (mp_size_t s = 0; s < trunc2; s++) {
+                /* Truncation apparently appears only with bitrev semantics */
+                mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
+                ifft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
+            }
         }
-        for (mp_size_t i = 0; i < n2; i++) {
-            mp_limb_t ** row = ptrs + i * n1;
-            ifft_radix2(row, n1 / 2, fti->w * n2, tslot0, tslot1);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            int k = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+            for (mp_size_t i = 0; i < n2; i++) {
+                mp_limb_t ** row = ptrs + i * n1;
+                ifft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
+            }
         }
 
         /* outer. Does the division and normalization. */
@@ -1468,22 +1514,47 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
          * (trunc), which means that we take only trunc2 rows. */
         mp_size_t trunc2 = (trunc - 2 * n) / n1;
 
-        /* convolutions on relevant rows */
-        for (mp_size_t s = 0; s < trunc2; s++) {
-            mp_size_t t = 2*n + n_revbin(s, depth2) * n1;
-            for (mp_size_t j = 0; j < n1; j++, t++) {
-                mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
-                q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp);
-                assert(q[t][rsize0] <= 1);
+        /* First the bottom half of the matrix */
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            int k = omp_get_thread_num();
+            size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
+            mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+            /* convolutions on relevant rows */
+            for (mp_size_t s = 0; s < trunc2; s++) {
+                mp_size_t t = 2*n + n_revbin(s, depth2) * n1;
+                for (mp_size_t j = 0; j < n1; j++, t++) {
+                    mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
+                    q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp_k);
+                    assert(q[t][rsize0] <= 1);
+                }
             }
         }
-        /* convolutions on rows */
-        for (mp_size_t i = 0; i < n2; i++) {
-            mp_size_t t = i * n1;
-            for (mp_size_t j = 0; j < n1; j++, t++) {
-                mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
-                q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp);
-                assert(q[t][rsize0] <= 1);
+        /* Now the top half */
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            int k = omp_get_thread_num();
+            size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
+            mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+            /* convolutions on rows */
+            for (mp_size_t i = 0; i < n2; i++) {
+                mp_size_t t = i * n1;
+                for (mp_size_t j = 0; j < n1; j++, t++) {
+                    mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
+                    q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp_k);
+                    assert(q[t][rsize0] <= 1);
+                }
             }
         }
     }
