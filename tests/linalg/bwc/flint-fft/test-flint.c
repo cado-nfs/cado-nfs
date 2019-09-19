@@ -80,6 +80,7 @@ int operand_sizes_fppol(int * cx, int * cy, mpz_t p, int s, gmp_randstate_t rsta
     int n;
     int rs;
     bits_of_p = 32 + gmp_urandomm_ui(rstate, 512);
+    // fprintf(stderr, "bits_of_p:=%zu;\n", bits_of_p);
 
     mp_size_t np;
 
@@ -95,12 +96,14 @@ int operand_sizes_fppol(int * cx, int * cy, mpz_t p, int s, gmp_randstate_t rsta
         *cy = n + gmp_urandomm_ui(rstate, 5 * s) - 2*s;
         if (*cx < 10) *cx = 10;
         if (*cy < 10) *cy = 10;
+        // fprintf(stderr, "cx:=%d; cy:=%d;\n", *cx, *cy);
     } while ((*cx+*cy-1) * np * FLINT_BITS < 4000);
 
     // finer-grain control can go here. But it does not change the
     // picture much.
     if (*cx > *cy) { int a; a = *cx; *cx = *cy; *cy = a; }
 
+    fprintf(stderr, "s:=%d;\n", s);
 #ifdef PARI
     gmp_printf("p=%Zd;\n", p);
 #else
@@ -112,13 +115,13 @@ int operand_sizes_fppol(int * cx, int * cy, mpz_t p, int s, gmp_randstate_t rsta
 }
 /*}}}*/
 
-void fti_disp(struct fft_transform_info* fti)
+void fti_disp(FILE * f, struct fft_transform_info* fti)
 {
-    printf("fti_bits:=%lu; fti_ks_coeff_bits:=%lu; fti_depth:=%zu;\n",
+    fprintf(f, "fti_bits:=%lu; fti_ks_coeff_bits:=%lu; fti_depth:=%zu;\n",
             fti->bits, fti->ks_coeff_bits, (size_t) fti->depth);
-    printf("fti_trunc0:=%lu;\n", fti->trunc0);
-    printf("fti_w:=%lu;\n", fti->w);
-    printf("fti_alg:=%d;\n", fti->alg);
+    fprintf(f, "fti_trunc0:=%lu;\n", fti->trunc0);
+    fprintf(f, "fti_w:=%lu;\n", fti->w);
+    fprintf(f, "fti_alg:=%d;\n", fti->alg);
 }
 
 /*{{{ setting entries to random */
@@ -241,7 +244,8 @@ int test_mul(gmp_randstate_t rstate) /*{{{*/
 
     fft_transform_info_init(fti, xbits, ybits, nacc);
     fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
-    fti_disp(fti);
+    fti_disp(stdout, fti);
+    fti_disp(stderr, fti);
 
     nx = iceildiv(xbits, FLINT_BITS);
     ny = iceildiv(ybits, FLINT_BITS);
@@ -283,7 +287,8 @@ int test_mulmod(gmp_randstate_t rstate) /*{{{*/
     fft_transform_info_init_mulmod(fti, xbits, ybits, nacc, minwrap);
 
     fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
-    fti_disp(fti);
+    fti_disp(stdout, fti);
+    fti_disp(stderr, fti);
 
     nx = iceildiv(xbits, FLINT_BITS);
     ny = iceildiv(ybits, FLINT_BITS);
@@ -325,7 +330,8 @@ int test_mul_fppol(gmp_randstate_t rstate) /*{{{*/
 
     fft_transform_info_init_fppol(fti, p, cx, cy, 5);
     fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
-    fti_disp(fti);
+    fti_disp(stdout, fti);
+    fti_disp(stderr, fti);
 
     nx = cx * np; ny = cy * np; nz = cz * np;
 
@@ -378,7 +384,8 @@ int test_mp_fppol(gmp_randstate_t rstate)/*{{{*/
 
     fft_transform_info_init_fppol_mp(fti, p, cx, cy, 4);
     fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
-    fti_disp(fti);
+    fti_disp(stdout, fti);
+    fti_disp(stderr, fti);
 
     nx = cx * np; ny = cy * np; nz = cz * np;
     
@@ -421,14 +428,17 @@ int main(int argc, char * argv[])
     // s=24; seed=6931; longstrings=0;
 
 
-    fprintf(stderr, "/* s=%d; seed=%d; longstrings=%d; */\n", s, seed, longstrings);
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
-    gmp_randseed_ui(rstate, seed);
 
 #ifdef PARI
     printf("allocatemem(800000000)\n");
 #endif
+
+    int do_mul = 0;
+    int do_mulmod = 0;
+    int do_mul_fppol = 0;
+    int do_mp_fppol = 0;
 
     int done_tests = 0;
     for(int i = 1 ; i < argc ; i++) {
@@ -437,32 +447,47 @@ int main(int argc, char * argv[])
             s = atoi(p + 2);
             continue;
         }
+        if (i + 1 < argc && strcmp(p, "-s") == 0) {
+            i++; p=argv[i];
+            s = atoi(p);
+            continue;
+        }
         if (strncmp(p, "seed=", 5) == 0) {
             seed = atol(p + 5);
-            gmp_randseed_ui(rstate, seed);
+            continue;
+        }
+        if (i + 1 < argc && strcmp(p, "-seed") == 0) {
+            i++; p=argv[i];
+            seed = atoi(p);
             continue;
         }
         if (strncmp(p, "test_", 5) == 0) p += 5;
-        if (strcmp(p, "mul") == 0) { test_mul(rstate); done_tests++; continue; }
-        if (strcmp(p, "mulmod") == 0) {
-            abort();
-            /* this test fails, currently. The bug is easy to reproduce
-             * by running this test over and over again. The faulty code
-             * is within
-             * fft_transform_info_adjust_depth, where we "refine bits" --
-             * this might kill minwrap
-             * most probably the whole fft_transform_info_adjust_depth
-             * should be scrutinized.
-             */
-            test_mulmod(rstate);
-            done_tests++;
-            continue;
-        }
-        if (strcmp(p, "mul_fppol") == 0) { test_mul_fppol(rstate); done_tests++; continue; }
-        if (strcmp(p, "mp_fppol") == 0) { test_mp_fppol(rstate); done_tests++; continue; }
+        if (strcmp(p, "mul") == 0) { do_mul++; continue; }
+        if (strcmp(p, "mulmod") == 0) { do_mulmod++; continue; }
+        if (strcmp(p, "mul_fppol") == 0) { do_mul_fppol++; continue; }
+        if (strcmp(p, "mp_fppol") == 0) { do_mp_fppol++; continue; }
         fprintf(stderr, "Unexpected argument: %s\n", p);
         exit(EXIT_FAILURE);
     }
+
+    fprintf(stderr, "seed:=%d; longstrings:=%d; */\n", seed, longstrings);
+    gmp_randseed_ui(rstate, seed);
+
+    if (do_mul) { test_mul(rstate); done_tests++; }
+    if (do_mulmod) {
+        abort();
+        /* this test fails, currently. The bug is easy to reproduce by
+         * running this test over and over again. The faulty code is
+         * within fft_transform_info_adjust_depth, where we "refine bits"
+         * -- this might kill minwrap most probably the whole
+         * fft_transform_info_adjust_depth should be scrutinized.
+         */
+        test_mulmod(rstate);
+        done_tests++;
+    }
+    if (do_mul_fppol) { test_mul_fppol(rstate); done_tests++; }
+    if (do_mp_fppol) { test_mp_fppol(rstate); done_tests++; }
+
     if (!done_tests) {
         fprintf(stderr, "Please supply at least one test name\n");
         exit(EXIT_FAILURE);
