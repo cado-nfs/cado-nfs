@@ -1523,16 +1523,21 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
             size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
 
+            mp_size_t t = 2 * n;
+            mp_size_t last_s = 0;
 #ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp for collapse(2)
 #endif
             /* convolutions on relevant rows */
             for (mp_size_t s = 0; s < trunc2; s++) {
-                mp_size_t t = 2*n + n_revbin(s, depth2) * n1;
-                for (mp_size_t j = 0; j < n1; j++, t++) {
-                    mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
-                    q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp_k);
-                    assert(q[t][rsize0] <= 1);
+                for (mp_size_t j = 0; j < n1; j++) {
+                    if (s != last_s) {
+                        t = 2*n + n_revbin(s, depth2) * n1;
+                        last_s = s;
+                    }
+                    mp_limb_t c = 2 * p0[t+j][rsize0] + p1[t+j][rsize0];
+                    q[t+j][rsize0] = mpn_mulmod_2expp1(q[t+j], p0[t+j], p1[t+j], c, nw, temp_k);
+                    assert(q[t+j][rsize0] <= 1);
                 }
             }
         }
@@ -1544,16 +1549,22 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
             int k = omp_get_thread_num();
             size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
+
+            mp_size_t t = 0;
+            mp_size_t last_i = 0;
 #ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp for collapse(2)
 #endif
             /* convolutions on rows */
             for (mp_size_t i = 0; i < n2; i++) {
-                mp_size_t t = i * n1;
-                for (mp_size_t j = 0; j < n1; j++, t++) {
-                    mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
-                    q[t][rsize0] = mpn_mulmod_2expp1(q[t], p0[t], p1[t], c, nw, temp_k);
-                    assert(q[t][rsize0] <= 1);
+                for (mp_size_t j = 0; j < n1; j++) {
+                    if (i != last_i) {
+                        t = i * n1;
+                        last_i = i;
+                    }
+                    mp_limb_t c = 2 * p0[t+j][rsize0] + p1[t+j][rsize0];
+                    q[t+j][rsize0] = mpn_mulmod_2expp1(q[t+j], p0[t+j], p1[t+j], c, nw, temp_k);
+                    assert(q[t+j][rsize0] <= 1);
                 }
             }
         }
