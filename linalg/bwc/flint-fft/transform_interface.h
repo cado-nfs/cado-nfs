@@ -57,25 +57,121 @@ struct fft_transform_info;
 extern "C" {
 #endif
 
+/* Initialize a transform type that is suitable to hold the sum of (nacc)
+ * products of integers of size (bits1) and (bits2)
+ */
 void fft_transform_info_init(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc);
+
+/* Initialize a transform type that is suitable to hold the sum of (nacc)
+ * products of integers of size (bits1) and (bits2), modulo some 2^n-1
+ * with n>=minwrap. (the actual value of n may be freely chosen by the
+ * implementation).
+ */
 void fft_transform_info_init_mulmod(struct fft_transform_info * fti, mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap);
+
+/* This can be used to provide an external means to tune the parameter
+ * choices of the implementation. It's called "adjust depth", but what
+ * this actually means is up to the choice of the implementation. The
+ * value adj==UINT_MAX means that no adjustment is to be done.
+ */
 void fft_transform_info_adjust_depth(struct fft_transform_info * fti, unsigned int adj);
+
+/* This can be used to somehow revert the effect of adjust_depth, and
+ * return to a default choice as chosen by one of the info_init
+ * functions. Note that it is mandatory that fti has already been
+ * initialized by one of the info_init functions !
+ */
 void fft_transform_info_set_first_guess(struct fft_transform_info * fti);
+
+/* Perform sanity checks on the fti structure */
 int fft_transform_info_check(const struct fft_transform_info * fti);
+
+/* This returns the needed temporary storage for the different steps of a
+ * fft multiplication process whose size corresponds
+ * to the info given in *fti.
+ * [0]: space to be allocated (size_t) for each transform.
+ * [1]: temp space to be passed alongside with each transform
+ *      (needs be allocated only once). This same amount is also needed
+ *      when calling fft_addcompose
+ * [2]: temp space to be passed alongside with each fft_compose or
+ *      fft_addcompose convolution (needs be allocated only once).
+ *
+ * spaces returned in [1] and [2] are independent and the same area may
+ * be used for both, but of course the caller must then ensure that they
+ * are not used concurrently.
+ *
+ * Note that the size returned in [0] for each transform entails slight
+ * overallocation due to pointer swap tricks here and there.
+ */
 void fft_transform_info_get_alloc_sizes(const struct fft_transform_info * fti, size_t sizes[3]);
 
+/* prepares the allocated memory area pointed by x to hold a transform.
+ * This might be a noop.
+ */
 void fft_prepare(const struct fft_transform_info * fti, void * x);
+
+/* Computes in y the DFT of the integer {x, nx}. temp must point to a
+ * memory are whose size is sizes[1], as returned by
+ * fft_transform_info_get_alloc_sizes
+ */
 void fft_dft(const struct fft_transform_info * fti, void * y, const mp_limb_t * x, mp_size_t nx, void * temp);
+
+/* Computes in {x, nx} the IFT of the transform y. temp must point to a
+ * memory whose size is sizes[1], as returned by
+ * fft_transform_info_get_alloc_sizes. Any data fast limb nx is
+ * truncated.
+ */
 void fft_ift(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t nx, void * y, void * temp);
+
+
+/* Computes in z the convolution product of the two transforms pointed to
+ * by y and y1.  temp must point to a memory area whose size is sizes[2],
+ * as returned by fft_transform_info_get_alloc_sizes
+ */
 void fft_compose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp);
+
+/* Adds to z the convolution product of the two transforms pointed to
+ * by y and y1.  temp must point to a memory area whose size is sizes[2],
+ * as returned by fft_transform_info_get_alloc_sizes qtemp must point to
+ * a memory area whose size is sizes[1], as returned by
+ * fft_transform_info_get_alloc_sizes
+ */
 void fft_addcompose(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1, void * temp, void * qtemp);
+
+/* z = y0 + y1 */
 void fft_add(const struct fft_transform_info * fti, void * z, const void * y0, const void * y1);
+
+/* zeroes out z. The are pointed to by z may be any sort of arbitrary
+ * garbage.
+ */
 void fft_zero(const struct fft_transform_info * fti, void * z);
+
+/* Fill z with random data from the random state (note that since random
+ * state is not MT-safe, it might be tricky to do this random filling in
+ * parallel).
+ */
 void fft_fill_random(const struct fft_transform_info * fti, void * z, gmp_randstate_t rstate);
 
-
+/* Provide the transform info necessary for accumulating nacc products of
+ * polynomials having respectively n1 and n2 coefficients, over GF(p),
+ * using Kronecker substitution.
+ * (we hare talking *length* n1 and n2, hence degrees n1-1 and n2-1).
+ *
+ * Up to nacc accumulated products should be supported by the
+ * returned transform type.
+ */
 void fft_transform_info_init_fppol(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc);
+
+/* middle product of two polynomials of length nmin and nmax, with nmin
+ * <= nmax.
+ * Up to nacc accumulated products should be supported by the
+ * returned transform type.
+ */
 void fft_transform_info_init_fppol_mp(struct fft_transform_info * fti, mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc);
+
+/* check that the area pointed to by x is a valid transform. if (diag) is
+ * true, print diagnostics on stderr.
+ */
 int fft_check(const struct fft_transform_info * fti, const void * x, int);
 
 /* fft_transform_export modifies the transform area in x and makes it
@@ -93,6 +189,18 @@ void fft_import(const struct fft_transform_info * fti, void * x);
  * B^n-a, with a=\pm1. Returns n, and sets a. If the result is known to
  * be valid in Z, then n is returned as 0.
  */
+
+/* In the mulmod case, return the integer so that the product is computed
+ * mod 2^n-1 (see fft_transform_info_init_mulmod)
+ */
+static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a);
+
+/* In the mulmod case, return the minimum number of limbs that are
+ * required to store the computed integer.  (see
+ * fft_transform_info_init_mulmod and fft_get_mulmod)
+ */
+static inline mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti);
+
 
 #ifdef __cplusplus
 }
