@@ -1,6 +1,4 @@
-#ifdef DEBUG_FFT
-#define _GNU_SOURCE     /* DEBUG_FFT wants asprintf */
-#endif
+#define _GNU_SOURCE     /* DEBUG_FFT wants asprintf. So does _explain */
 
 /* 
  * 
@@ -38,6 +36,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include "gmp.h"
 #include "flint.h"
 #include "fft.h"
@@ -1792,3 +1791,79 @@ void get_ft_hash(const struct fft_transform_info * fti, mpz_t h, int bits_per_co
         mpz_add_ui(h, h, v);
     }
 }
+
+char * fft_transform_info_explain(const struct fft_transform_info * fti)
+{
+    int rc;
+    char * line1a;
+    rc = asprintf(&line1a, "Tranform info for accumulating %u ", fti->nacc);
+    ASSERT_ALWAYS(rc >= 0);
+
+    char * line1b;
+    if (fti->minwrap)
+        rc = asprintf(&line1b, "modular products (%lu by %lu) mod 2^K\\pm 1 with K>=%lu", fti->bits1, fti->bits2, fti->minwrap);
+    else
+        rc = asprintf(&line1b, "integer products (%lu by %lu)", fti->bits1, fti->bits2);
+    ASSERT_ALWAYS(rc >= 0);
+
+    if (fti->ks_coeff_bits) {
+        char * line1x;
+        mp_size_t pbits = mpz_sizeinbase(fti->p, 2);
+        if (fti->mp_shift) {
+            rc = asprintf(&line1x, "middle products (terms [%u..%lu] of product %lu by %lu) of polynomials modulo a %lu-bit prime (internally using %s)",
+                    fti->mp_shift,
+                    fti->bits2 / fti->ks_coeff_bits - 1,
+                    fti->bits1 / fti->ks_coeff_bits,
+                    fti->bits2 / fti->ks_coeff_bits,
+                    pbits,
+                    line1b);
+        } else {
+            rc = asprintf(&line1x, "products (%lu by %lu) of polynomials modulo a %lu-bit prime (internally using %s)",
+                    fti->bits1 / fti->ks_coeff_bits,
+                    fti->bits2 / fti->ks_coeff_bits,
+                    pbits,
+                    line1b);
+        }
+        ASSERT_ALWAYS(rc >= 0);
+        free(line1b);
+        line1b = line1x;
+    }
+
+    char * line2;
+    rc = asprintf(&line2, "; inputs splits in %lu-bit pieces"
+        ", hence 2 polynomials"
+        " of length %lu and %lu, multiplied modulo X^%lu-1"
+        ", in the ring R=Z/(2^%lu+1)",
+        fti->bits,
+        iceildiv(fti->bits1, fti->bits),
+        iceildiv(fti->bits2, fti->bits),
+        (1UL << (fti->depth + 2)),
+        (fti->w << fti->depth));
+    ASSERT_ALWAYS(rc >= 0);
+
+    /* 2^w a n-th root of -1 mod 2^(nw)+1
+     * sqrt(2)^w a 4n-th root of 1
+     */
+    char * line3;
+    rc = asprintf(&line3, ", in which 2^(%lu/2) is a %lu-th root of 1",
+            fti->w, (1UL << (fti->depth+2)));
+    ASSERT_ALWAYS(rc >= 0);
+
+    char * line4;
+    rc = asprintf(&line4, ". Transform depth is %lu, using %s algorithm",
+            fti->depth,
+            fti->alg ? "matrix Fourier" : "plain radix-2");
+    ASSERT_ALWAYS(rc >= 0);
+
+    char * explanation;
+    rc = asprintf(&explanation, "%s%s%s%s%s.\n", line1a, line1b, line2, line3, line4);
+    ASSERT_ALWAYS(rc >= 0);
+    ASSERT_ALWAYS(fft_transform_info_check(fti));
+    free(line1a);
+    free(line1b);
+    free(line2);
+    free(line3);
+    free(line4);
+    return explanation;
+}
+
