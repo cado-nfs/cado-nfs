@@ -624,6 +624,7 @@ struct lingen_tuner {
                             }
                         }
                     }
+                    forceidx[idx] = forced;
 
                     if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
                         ttb = compute_and_report_basecase(L);
@@ -726,7 +727,7 @@ struct lingen_tuner {
                         time_b, time_b / 86400, isbest);
                 msg = msg2;
             }
-            if (!approx_same && recursion_makes_sense(L1) && !(forceidx[1] && !rec1)) {
+            if (!approx_same && recursion_makes_sense(L1) && !(forceidx[0] && rec0) && !(forceidx[1] && !rec1)) {
                 const char * isbest = (rec1 && !rec0) ? strbest : "";
                 std::ostringstream os2;
                 os2 << " mixed(threshold=" << L1 << "): ";
