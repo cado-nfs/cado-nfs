@@ -58,7 +58,8 @@ std::ostream& lingen_call_companion::serialize(std::ostream& os) const {
 bool lingen_call_companion::operator==(lingen_call_companion const & o) const
 {
     if (recurse != o.recurse) return false;
-    if (go_mpi != o.go_mpi) return false;
+    /* go_mpi doesn't make sense if we're not recursive */
+    if (recurse && (go_mpi != o.go_mpi)) return false;
     if (mp != o.mp) return false;
     if (mul != o.mul) return false;
     return true;

@@ -685,6 +685,8 @@ struct lingen_tuner {
                     U.go_mpi = rwin;
                     U.ttb = ttb;
 
+                    U.complete = true;
+
                     ASSERT_ALWAYS(hints.find(K) == hints.end());
                     hints[K] = U;
                 }

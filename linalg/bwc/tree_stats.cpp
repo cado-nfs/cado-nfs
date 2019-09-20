@@ -525,7 +525,7 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
     }
 }
 
-bool tree_stats::local_smallsteps_done() const
+bool tree_stats::local_smallsteps_done(bool compulsory) const
 {
     try {
         int rank;
@@ -537,7 +537,12 @@ bool tree_stats::local_smallsteps_done() const
         if (!s.nested_substeps.empty())
             where = & s.current_substep().steps;
         for(auto const & s : *where) {
-            if (s.second.items_pending) return false;
+            if (s.second.items_pending) {
+                if (compulsory) {
+                    throw std::runtime_error(s.second.name + " has pending items");
+                }
+                return false;
+            }
         }
         return true;
     } catch (std::runtime_error const & e) {

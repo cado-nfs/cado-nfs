@@ -527,6 +527,7 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
     unsigned int n = d.n;
     if (rank) return 1;
     std::ifstream is(auxfile);
+    if (!is.good()) return false;
     std::string hfstring;
     unsigned long hformat;
     is >> hfstring >> hformat;

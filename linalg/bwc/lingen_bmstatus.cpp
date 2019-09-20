@@ -35,6 +35,8 @@ lingen_call_companion bmstatus::companion(int depth, size_t L)/*{{{*/
 
     hints[K]=it->second;
 
+    ASSERT_ALWAYS(it->second.complete);
+
     return it->second;
 }/*}}}*/
 

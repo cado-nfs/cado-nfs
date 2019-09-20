@@ -157,7 +157,12 @@ class tree_stats {
             for(is >> n ; is && n-- ; ) {
                 std::string k;
                 is >> k;
-                steps.emplace(k, step_time(is));
+                auto it = steps.find(k);
+                if (it != steps.end()) {
+                    it->second = step_time(is);
+                } else {
+                    steps.emplace(k, step_time(is));
+                }
             }
         }/*}}}*/
         public:
@@ -435,7 +440,7 @@ public:
             : stats(stats) { stats.begin_smallstep(func, ncalls); }
         ~smallstep_sentinel() { stats.end_smallstep(); }
     };
-    bool local_smallsteps_done() const;
+    bool local_smallsteps_done(bool compulsory = false) const;
 
 
     void begin_plan_smallstep(std::string const & func, weighted_double const &);

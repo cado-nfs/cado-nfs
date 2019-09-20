@@ -13,6 +13,10 @@
  */
 
 struct lingen_call_companion {
+    /* This is a safeguard. Only the tuning code can create complete call
+     * companions.
+     */
+    bool complete = false;
     bool recurse;
     bool go_mpi;
     double ttb;

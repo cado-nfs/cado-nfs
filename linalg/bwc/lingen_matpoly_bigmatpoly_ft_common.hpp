@@ -135,8 +135,8 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     inline void end_plan_smallstep(Args&& ...args) {
         if (M) CTX.stats.end_plan_smallstep(args...);
     }
-    inline bool local_smallsteps_done() {
-        return M ? CTX.stats.local_smallsteps_done() : true;
+    inline bool local_smallsteps_done(bool compulsory = false) {
+        return M ? CTX.stats.local_smallsteps_done(compulsory) : true;
     }
 
 
@@ -425,7 +425,8 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
             matpoly_ft<fft_type>::ift(CTX.c_local().view(Rc), tc.view(Rct));
             end_smallstep();
         }
-        ASSERT_ALWAYS(local_smallsteps_done());
+        /* make it compulsory so that we gain some error reporting */
+        ASSERT_ALWAYS(local_smallsteps_done(true));
 
         end_smallstep();
     }

@@ -7,7 +7,9 @@ if ! [ "$WDIR" ] ; then
     exit 1
 fi
 
-args="$@"
+args=("$@")
+
+set -- "${args[@]}" tuning_schedule_filename="$WDIR/ts.txt"
 
 "`dirname $0`"/test-plingen.sh "$@" --tune
 cpdir="$WDIR/cp"

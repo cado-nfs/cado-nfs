@@ -33,10 +33,19 @@ std::istream& lingen_hints::unserialize(std::istream& is) {
     size_t n;
     for(is >> n ; is && n-- ; ) {
         key_type K;
-        mapped_type M;
         is >> K;
-        is >> M;
-        emplace(std::move(K), std::move(M));
+        auto it = find(K);
+        if (!is.good()) return is;
+        if (it != end()) {
+            is >> it->second;
+        } else {
+            /* This is very dangerous, as M is not complete at this point
+             * */
+            mapped_type M;
+            is >> M;
+            M.complete = false;
+            (*this)[K] = std::move(M);
+        }
     }
     return is;
 }
