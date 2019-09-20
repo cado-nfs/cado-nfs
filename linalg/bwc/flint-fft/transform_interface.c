@@ -1239,9 +1239,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
 #pragma omp parallel
 #endif
             {
-                int k = omp_get_thread_num();
 #ifdef HAVE_OPENMP
+                int k = omp_get_thread_num();
 #pragma omp for
+#else
+                int k = 0;
 #endif
                 for (mp_size_t s = 0; s < trunc2; s++) {
                     /* Truncation apparently appears only with bitrev semantics */
@@ -1256,9 +1258,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
 #pragma omp parallel
 #endif
             {
-                int k = omp_get_thread_num();
 #ifdef HAVE_OPENMP
+                int k = omp_get_thread_num();
 #pragma omp for
+#else
+                int k = 0;
 #endif
                 for (mp_size_t i = 0; i < n2; i++) {
                     mp_limb_t ** row = ptrs + i * n1;
@@ -1323,9 +1327,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
 #pragma omp parallel
 #endif
         {
-            int k = omp_get_thread_num();
 #ifdef HAVE_OPENMP
+                int k = omp_get_thread_num();
 #pragma omp for
+#else
+                int k = 0;
 #endif
             for (mp_size_t s = 0; s < trunc2; s++) {
                 /* Truncation apparently appears only with bitrev semantics */
@@ -1337,9 +1343,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
 #pragma omp parallel
 #endif
         {
-            int k = omp_get_thread_num();
 #ifdef HAVE_OPENMP
+                int k = omp_get_thread_num();
 #pragma omp for
+#else
+                int k = 0;
 #endif
             for (mp_size_t i = 0; i < n2; i++) {
                 mp_limb_t ** row = ptrs + i * n1;
@@ -1518,7 +1526,11 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 #pragma omp parallel
 #endif
         {
+#ifdef HAVE_OPENMP
             int k = omp_get_thread_num();
+#else
+            int k = 0;
+#endif
             size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
 
@@ -1545,7 +1557,11 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 #pragma omp parallel
 #endif
         {
+#ifdef HAVE_OPENMP
             int k = omp_get_thread_num();
+#else
+            int k = 0;
+#endif
             size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
 
