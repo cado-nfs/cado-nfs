@@ -69,6 +69,20 @@ wq
 EOF
 done
 
+ex -s flint-fft/ulong_extras.h >/dev/null <<EOF
+/n_primes_struct
+?typedef struct
+i
+#if 0
+.
+/n_randlimb
+i
+#endif
+
+.
+wq
+EOF
+
 ex -s flint-fft/fft.h >/dev/null <<EOF
 $
 ?ifdef.*__cplusplus

@@ -66,6 +66,7 @@ typedef struct {
 
 #define UWORD_HALF (UWORD_MAX / 2 + 1)
 
+#if 0
 typedef struct {
     slong small_i;
     slong small_num;
@@ -123,6 +124,8 @@ void n_cleanup_primes(void);
 
 const ulong *n_primes_arr_readonly(ulong n);
 const double *n_prime_inverses_arr_readonly(ulong n);
+
+#endif
 
 ulong n_randlimb(flint_rand_t state);
 
