@@ -82,6 +82,9 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
             std::array<size_t, 3> alloc_sizes = op.fti.get_alloc_sizes();
             ram = M->ram(alloc_sizes);
             if (ram > M->ram()) {
+                int rank;
+                MPI_Comm_rank(a.get_model().com[0], &rank);
+                if (rank == 0)
                 fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is (%zu,%zu,%zu), which exceeds expected (%zu,%zu,%zu) (anticipated for operand sizes (%zu, %zu). Adjusting memory\n",
                         OP::name,
                         a.get_size(),
@@ -95,6 +98,11 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
                         M->asize,
                         M->bsize
                        );
+                /* save it to the object. this means that we must pay
+                 * attention to taking it by reference in the calling
+                 * function.
+                 */
+                M->fft_alloc_sizes = alloc_sizes;
             }
         }
         typename matpoly_ft<fft_type>::memory_guard dummy(ram);

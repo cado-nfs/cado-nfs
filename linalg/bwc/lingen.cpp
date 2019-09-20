@@ -947,11 +947,14 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     int depth = bm.depth();
     size_t z = E.get_size();
 
-    lingen_call_companion C = bm.companion(depth, z);
+    /* C0 is a copy. We won't use it for long anyway. We'll take a
+     * reference _later_ */
+    lingen_call_companion C0 = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
-    bm.stats.plan_smallstep("MP", C.mp.tt);
-    bm.stats.plan_smallstep("MUL", C.mul.tt);
+    tree_stats::sentinel dummy(bm.stats, __func__, z, C0.total_ncalls);
+
+    bm.stats.plan_smallstep("MP", C0.mp.tt);
+    bm.stats.plan_smallstep("MUL", C0.mul.tt);
 
     bw_dimensions & d = bm.d;
     int done;
@@ -1002,6 +1005,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.get_size() - pi_left.get_size() + 1);
+        lingen_call_companion & C = bm.companion(depth, z);
         matpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
         E = matpoly();
     }
@@ -1023,6 +1027,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.get_size() + pi_right.get_size() - 1);
+        lingen_call_companion & C = bm.companion(depth, z);
         matpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
     }
 
@@ -1106,11 +1111,14 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
     int depth = bm.depth();
     size_t z = E.get_size();
 
-    lingen_call_companion C = bm.companion(depth, z);
+    /* C0 is a copy. We won't use it for long anyway. We'll take a
+     * reference _later_ */
+    lingen_call_companion C0 = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls);
-    bm.stats.plan_smallstep("MP", C.mp.tt);
-    bm.stats.plan_smallstep("MUL", C.mul.tt);
+    tree_stats::sentinel dummy(bm.stats, __func__, z, C0.total_ncalls);
+
+    bm.stats.plan_smallstep("MP", C0.mp.tt);
+    bm.stats.plan_smallstep("MUL", C0.mul.tt);
 
     bw_dimensions & d = bm.d;
     int done;
@@ -1165,6 +1173,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
         ASSERT_ALWAYS(E.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
+        lingen_call_companion & C = bm.companion(depth, z);
         bigmatpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, &C.mp);
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
@@ -1191,6 +1200,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
         ASSERT_ALWAYS(pi_right.ab);
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
+        lingen_call_companion & C = bm.companion(depth, z);
         bigmatpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul);
         ASSERT_ALWAYS(pi.ab);
         MPI_Barrier(bm.com[0]);

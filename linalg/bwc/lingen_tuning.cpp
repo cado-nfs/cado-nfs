@@ -799,6 +799,8 @@ struct lingen_tuner {
                 }
             }
             if (wct_seconds() > last_save + 10) {
+                int rank;
+                MPI_Comm_rank(P.comm, &rank);
                 if (rank == 0)
                     C.save(timing_cache_filename);
                 last_save = wct_seconds();

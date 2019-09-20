@@ -56,6 +56,11 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
                         M->asize,
                         M->bsize
                        );
+                /* save it to the object. this means that we must pay
+                 * attention to taking it by reference in the calling
+                 * function.
+                 */
+                M->fft_alloc_sizes = alloc_sizes;
             }
         }
         typename matpoly_ft<fft_type>::memory_guard dummy(ram);

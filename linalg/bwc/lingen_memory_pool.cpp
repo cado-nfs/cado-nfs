@@ -1,6 +1,7 @@
 #include "cado.h"
 #include "lingen_memory_pool.hpp"
 #include "misc.h"
+#include "select_mpi.h"
 
 void memory_pool_details::inaccuracy_handler<true>::handle_expand(size_t already_allocated, size_t asked, size_t & previously_allowed)
 {
@@ -20,6 +21,9 @@ void memory_pool_details::inaccuracy_handler<true>::handle_expand(size_t already
                }
                */
             cumulated_inaccuracy += d;
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            if (rank == 0)
             fprintf(stderr, "# Under-estimating the amount of reserved RAM by %s\n",
                     size_disp(cumulated_inaccuracy, buf));
         }
