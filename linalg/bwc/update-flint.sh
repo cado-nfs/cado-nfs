@@ -85,10 +85,14 @@ i
  */
 #define mpn_mulmod_2expp1 flint_mpn_mulmod_2expp1_basecase
 
-#include "transform_interface.h"
-
 /* end CADO-NFS addition */
 
+.
+/endif
++1
+i
+
+#include "transform_interface.h"
 .
 wq
 EOF

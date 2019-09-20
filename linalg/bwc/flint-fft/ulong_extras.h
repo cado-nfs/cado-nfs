@@ -66,7 +66,6 @@ typedef struct {
 
 #define UWORD_HALF (UWORD_MAX / 2 + 1)
 
-#if 0
 typedef struct {
     slong small_i;
     slong small_num;
@@ -116,7 +115,6 @@ extern FLINT_TLS_PREFIX double *_flint_prime_inverses[FLINT_BITS];
 extern FLINT_TLS_PREFIX int _flint_primes_used;
 #if defined(_OPENMP) && !defined(HAVE_TLS)
 #pragma omp threadprivate(_flint_primes, _flint_prime_inverses, _flint_primes_used)
-#endif
 #endif
 
 void n_compute_primes(ulong num_primes);
