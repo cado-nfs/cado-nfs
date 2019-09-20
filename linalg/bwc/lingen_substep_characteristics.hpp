@@ -527,9 +527,9 @@ struct lingen_substep_characteristics {
         return live_transforms + std::max(maxtemp_ft, maxtemp_addmul);
         */
         if (mul1 * fft_alloc_sizes[1] < mul12 * (fft_alloc_sizes[1] + fft_alloc_sizes[2])) {
-            return { mul0, mul12, mul12 };
+            return {{ mul0, mul12, mul12 }};
         } else {
-            return { mul0, mul1, 0 };
+            return {{ mul0, mul1, 0 }};
         }
     }
     /*}}}*/
