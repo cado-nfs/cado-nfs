@@ -686,6 +686,8 @@ struct lingen_substep_characteristics {
         bool cached = has_cached_time(C);
         char buf[20];
 
+        std::string explanation = op.fti.explain();
+        printf("# %s\n", explanation.c_str());
         printf("# %s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
                 step,
                 input_length,

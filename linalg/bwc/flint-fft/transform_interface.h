@@ -7,6 +7,7 @@
 #include "flint.h"
 #ifdef __cplusplus
 #include <array>
+#include <string>
 #endif
 
 #define xxxDEBUG_FFT
@@ -201,11 +202,14 @@ static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, 
  */
 static inline mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti);
 
+/* Returns a malloc()ed string (or NULL) providing explanation of what
+ * this transform type is doing.
+ */
+char * fft_transform_info_explain(const struct fft_transform_info * fti);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 struct fft_transform_info {
     mp_bitcnt_t bits1;
@@ -294,6 +298,7 @@ struct fft_transform_info {
     inline int check(srcptr x, int c) const { return fft_check(this, x, c); }
     inline void to_export(ptr x) const { fft_export(this, x); }
     inline void to_import(ptr x) const { fft_import(this, x); }
+    std::string explain() const { char * x = fft_transform_info_explain(this); std::string s = x; free(x); return s; }
 #endif
 };
 
