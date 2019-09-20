@@ -545,6 +545,9 @@ struct lingen_substep_characteristics {
     private:
 
     std::array<parallelizable_timing, 6> get_call_time_backend(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+        /* XXX Any change here must also be reflected in the mp_or_mul
+         * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
+         */
         auto ft = get_ft_times(P, C);
         /* These are just base values, we'll multiply them later on */
         parallelizable_timing T_dft0 = ft[0];

@@ -85,6 +85,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
          * we're only beginning the planning of the small steps. This
          * used to be done together with the planning of MP and MUL
          * themselves, but we prefer to do that closer to the code.
+         *
+         * XXX Note that any changes to the control flow below, in
+         * operator()() and the other functions, must be reflected in
+         * lingen_substep_characteristics::get_call_time_backend
          */
         begin_plan_smallstep_microsteps(opname);
         plan_smallstep("dft_A", M->t_dft_A);
@@ -207,18 +211,18 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Ratxx(0,   0,          ii1 - ii0, r*b1);
 
         // allgather ta among r nodes.
-        begin_smallstep("dft_A_comm", r * b0 * b1);
-        begin_smallstep("export", r * b0 * b1);
+        begin_smallstep("dft_A_comm", (r-1) * b0 * b1);
+        begin_smallstep("export", (r-1) * b0 * b1);
         ta.view(Ratx).to_export();
         end_smallstep();
-        begin_smallstep("comm", r * b0 * b1);
+        begin_smallstep("comm", (r-1) * b0 * b1);
         /* The data isn't contiguous, so we have to do
          * several allgather operations.  */
         for(unsigned int i = 0 ; i < ii1 - ii0 ; i++) {
             CTX.a_allgather(ta.part(i, 0), b1);
         }
         end_smallstep();
-        begin_smallstep("import", r * b0 * b1);
+        begin_smallstep("import", (r-1) * b0 * b1);
         /* we imported data from everywhere, we can now put
          * it back to local format */
         ta.view(Ratxx).to_import();
@@ -260,14 +264,14 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         submatrix_range Rbtxx(0,            0, r*b1,    jj1 - jj0);
 
         // allgather tb among r nodes
-        begin_smallstep("dft_B_comm", r * b1 * b2);
-        begin_smallstep("export", r * b1 * b2);
+        begin_smallstep("dft_B_comm", (r-1) * b1 * b2);
+        begin_smallstep("export", (r-1) * b1 * b2);
         tb.view(Rbtx).to_export();
         end_smallstep();
-        begin_smallstep("comm", r * b1 * b2);
+        begin_smallstep("comm", (r-1) * b1 * b2);
         CTX.b_allgather(tb.data, b1 * b2);
         end_smallstep();
-        begin_smallstep("import", r * b1 * b2);
+        begin_smallstep("import", (r-1) * b1 * b2);
         tb.view(Rbtxx).to_import();
         end_smallstep();
         end_smallstep();
@@ -380,10 +384,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     unsigned int x2 = e2 * b2;
                     skip_smallstep("dft_B", b1 * x2);
                     if (CTX.uses_mpi) {
-                        begin_smallstep("dft_B_comm", r * b1 * x2);
-                        skip_smallstep("export", r * b1 * x2);
-                        skip_smallstep("comm", r * b1 * x2);
-                        skip_smallstep("import", r * b1 * x2);
+                        begin_smallstep("dft_B_comm", (r-1) * b1 * x2);
+                        skip_smallstep("export", (r-1) * b1 * x2);
+                        skip_smallstep("comm", (r-1) * b1 * x2);
+                        skip_smallstep("import", (r-1) * b1 * x2);
                         end_smallstep();
                     }
                     skip_smallstep("addmul", b0 * b1 * x2 * r);
@@ -405,10 +409,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
                     unsigned int x0 = e0 * b0;
                     skip_smallstep("dft_A", x0 * b1);
                     if (CTX.uses_mpi) {
-                        begin_smallstep("dft_A_comm", r * x0 * b1);
-                        skip_smallstep("export", r * x0 * b1);
-                        skip_smallstep("comm", r * x0 * b1);
-                        skip_smallstep("import", r * x0 * b1);
+                        begin_smallstep("dft_A_comm", (r-1) * x0 * b1);
+                        skip_smallstep("export", (r-1) * x0 * b1);
+                        skip_smallstep("comm", (r-1) * x0 * b1);
+                        skip_smallstep("import", (r-1) * x0 * b1);
                         end_smallstep();
                     }
                     skip_smallstep("addmul", x0 * b1 * b2 * r);
