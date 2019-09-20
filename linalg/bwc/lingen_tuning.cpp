@@ -522,6 +522,7 @@ struct lingen_tuner {
 
         /* TODO: the control logic of this function is miserable. fix it.
          */
+        double last_save=wct_seconds();
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
@@ -796,6 +797,11 @@ struct lingen_tuner {
                     printf("# we expect lingen_mpi_threshold > %zu\n", L1);
                     upper_threshold = SIZE_MAX;
                 }
+            }
+            if (wct_seconds() > last_save + 10) {
+                if (rank == 0)
+                    C.save(timing_cache_filename);
+                last_save = wct_seconds();
             }
         }
         printf("################################# Total ##################################\n");
