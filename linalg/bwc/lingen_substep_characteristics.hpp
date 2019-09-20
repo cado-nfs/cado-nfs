@@ -418,6 +418,7 @@ struct lingen_substep_characteristics {
                 return parallelizable_timing(tvec);
             }
             std::cout << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
+            store.clear();
         }
 
         std::vector<double> tvec = fill_tvec(F);
