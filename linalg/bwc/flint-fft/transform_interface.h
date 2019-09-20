@@ -94,6 +94,10 @@ void fft_import(const struct fft_transform_info * fti, void * x);
  * be valid in Z, then n is returned as 0.
  */
 
+#ifdef __cplusplus
+}
+#endif
+
 
 struct fft_transform_info {
     mp_bitcnt_t bits1;
@@ -184,6 +188,10 @@ struct fft_transform_info {
     inline void to_import(ptr x) const { fft_import(this, x); }
 #endif
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a)
 {
