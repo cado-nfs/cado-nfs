@@ -30,6 +30,7 @@
 
 #include "gf2x/gf2x-config.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h> /* for uint64_t in Lshift */
 #include <stdlib.h>
@@ -1203,6 +1204,21 @@ void gf2x_ternary_fft_info_clear(gf2x_ternary_fft_info_ptr o)
     }
     memset(o, 0, sizeof(gf2x_ternary_fft_info_t));
 }
+
+char * gf2x_ternary_fft_info_explain(gf2x_ternary_fft_info_srcptr p)
+{
+    int rc;
+    char * line;
+    if (p->K == 0) {
+        rc = asprintf(&line, "invalid (Schoenhage ternary FFT but length 0)");
+    } else if (p->split) {
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %lu, doing products %lu by %lu.", p->K, p->bits_a, p->bits_b);
+    } else {
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %lu, split in two, doing products %lu by %lu.", p->K, p->bits_a, p->bits_b);
+    }
+    return rc >= 0 ? line : NULL;
+}
+
 
 /** gf2x_mul_fft merely wraps around the calls above **/
 

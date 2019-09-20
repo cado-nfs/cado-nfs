@@ -101,10 +101,10 @@ typedef const struct gf2x_cantor_fft_info * gf2x_cantor_fft_info_srcptr;
 extern "C" {
 #endif
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_info_init(
+extern int gf2x_cantor_fft_info_init(
         gf2x_cantor_fft_info_ptr p,
         size_t bits_a,
-        size_t bits_b);
+        size_t bits_b) GF2X_FFT_EXPORTED;
 /* Basic constructor. Used to multiply polynomials with the given number
  * of bits.
  *
@@ -113,10 +113,10 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_info_init(
  * Returns 0 if everything went well, and a negative number on error
  */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_info_init_mp(
+extern int gf2x_cantor_fft_info_init_mp(
         gf2x_cantor_fft_info_ptr p,
         size_t bits_a,
-        size_t bits_b);
+        size_t bits_b) GF2X_FFT_EXPORTED;
 /* Used to compute middle products of polynomials with the given number
  * of bits. That is, the result MP(a, b) consists of coefficients of
  * degrees MIN(bits_a, bits_b)-1 to MAX(bits_a, bits_b)-1 (inclusive),
@@ -168,9 +168,9 @@ static inline int gf2x_cantor_fft_info_order(
         gf2x_cantor_fft_info_srcptr p);
 /* Return the "order", whatever that means for the underlying info type.  */
 
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_info_get_alloc_sizes(
+extern void gf2x_cantor_fft_info_get_alloc_sizes(
         gf2x_cantor_fft_info_srcptr p,
-        size_t sizes[3]);
+        size_t sizes[3]) GF2X_FFT_EXPORTED;
 /* Fill the sizes array with three byte counts:
  *     sizes[0] : equivalent to gf2x_cantor_fft_transform_size(p) * sizeof(gf2x_cantor_fft_elt)
  *     sizes[1] : number of bytes of temp space that must be passed to each
@@ -179,6 +179,14 @@ extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_info_get_alloc_sizes(
  *                gf2x_cantor_fft_compose, gf2x_cantor_fft_addcompose, or gf2x_cantor_fft_addcompose_n call.
  *                Note that the addcompose variants need two temp
  *                buffers, of sizes sizes[2] and sizes[1], respectively.
+ */
+
+extern char * gf2x_cantor_fft_info_explain(
+        gf2x_cantor_fft_info_srcptr p) GF2X_FFT_EXPORTED;
+/* Returns a malloc()ed string that gives the description of what the
+ * transform type is doing. The returned pointer may also be NULL if the
+ * implementation does not provide that information. It should be freed
+ * by the caller eventually.
  */
 
 #ifdef __cplusplus
@@ -217,45 +225,45 @@ typedef const gf2x_cantor_fft_elt * gf2x_cantor_fft_srcptr;
 extern "C" {
 #endif
 
-extern size_t GF2X_FFT_EXPORTED gf2x_cantor_fft_transform_size(
-        gf2x_cantor_fft_info_srcptr o);
+extern size_t gf2x_cantor_fft_transform_size(
+        gf2x_cantor_fft_info_srcptr o) GF2X_FFT_EXPORTED;
 /* Number of gf2x_cantor_fft_elt objects it takes to allocate one transform. */
 
-extern gf2x_cantor_fft_ptr GF2X_FFT_EXPORTED gf2x_cantor_fft_alloc(
+extern gf2x_cantor_fft_ptr gf2x_cantor_fft_alloc(
         gf2x_cantor_fft_info_srcptr o,
-        size_t n);
+        size_t n) GF2X_FFT_EXPORTED;
 /* Allocate space for n transforms. Equivalent to (gf2x_cantor_fft_ptr) malloc(n *
  * gf2x_cantor_fft_transform_size(p) * sizeof(gf2x_cantor_fft_elt)); */
 
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_free(
+extern void gf2x_cantor_fft_free(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr ptr,
-        size_t n);
+        size_t n) GF2X_FFT_EXPORTED;
 /* Free space for n transforms. */
 
-extern gf2x_cantor_fft_ptr GF2X_FFT_EXPORTED gf2x_cantor_fft_get(
+extern gf2x_cantor_fft_ptr gf2x_cantor_fft_get(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr ptr,
-        size_t k);
+        size_t k) GF2X_FFT_EXPORTED;
 /* Get the k-th transform. */
 
-extern gf2x_cantor_fft_srcptr GF2X_FFT_EXPORTED gf2x_cantor_fft_get_const(
+extern gf2x_cantor_fft_srcptr gf2x_cantor_fft_get_const(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_srcptr ptr,
-        size_t k);
+        size_t k) GF2X_FFT_EXPORTED;
 /* Get the k-th transform. */
 
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_zero(
+extern void gf2x_cantor_fft_zero(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr ptr,
-        size_t n);
+        size_t n) GF2X_FFT_EXPORTED;
 /* Zero n consecutive transforms. */
 
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_cpy(
+extern void gf2x_cantor_fft_cpy(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr y,
         gf2x_cantor_fft_srcptr x,
-        size_t n);
+        size_t n) GF2X_FFT_EXPORTED;
 /* Copy n consecutive transforms (named "cpy" by analogy to memcpy)/ */
 
 static inline void gf2x_cantor_fft_export(
@@ -283,39 +291,39 @@ static inline void gf2x_cantor_fft_prepare(
  * conceivably simpler than gf2x_cantor_fft_zero. This is a noop if the transforms
  * are free of any pointers, which is always the case with gf2x. */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_check(
+extern int gf2x_cantor_fft_check(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_srcptr ptr,
         size_t n,
-        int printf_diagnostics);
+        int printf_diagnostics) GF2X_FFT_EXPORTED;
 /* Checks that the n consecutive transforms are valid (in particular,
  * pointer-correct if relevant). This might be a noop if the transforms
  * are free of any pointers, which is always the case with gf2x. */
 
 #if 0 && defined(__GNU_MP__) /* we don't want a gmp dependency... */
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_fill_random(
+extern void gf2x_cantor_fft_fill_random(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr ptr,
         size_t n,
-        gmp_randstate_t rstate);
+        gmp_randstate_t rstate) GF2X_FFT_EXPORTED;
 /* fill n consecutive transforms with random data from the provided
  * random state.
  */
 #endif
 
-extern void GF2X_FFT_EXPORTED gf2x_cantor_fft_add(
+extern void gf2x_cantor_fft_add(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr tc,
         gf2x_cantor_fft_srcptr ta,
-        gf2x_cantor_fft_srcptr tb);
+        gf2x_cantor_fft_srcptr tb) GF2X_FFT_EXPORTED;
 /* Add two transforms to tc. tc==ta or tc==tb are allowed. */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_dft(
+extern int gf2x_cantor_fft_dft(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr tr,
         const unsigned long * a,
         size_t bits_a,
-        gf2x_cantor_fft_ptr temp1);
+        gf2x_cantor_fft_ptr temp1) GF2X_FFT_EXPORTED;
 /* Compute the dft of the polynomial pointed to by a. Attention: the size
  * is given in number of *bits*, not in number of unsigned longs.  temp1
  * must point to storage of size sizes[1], with sizes[] filled as in the
@@ -325,12 +333,12 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_dft(
  * allocation is needed by some implementations).
  */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_ift(
+extern int gf2x_cantor_fft_ift(
         gf2x_cantor_fft_info_srcptr o,
         unsigned long * c,
         size_t bits_c,
         gf2x_cantor_fft_ptr tr,
-        gf2x_cantor_fft_ptr temp1);
+        gf2x_cantor_fft_ptr temp1) GF2X_FFT_EXPORTED;
 /* Compute the ift of the transform tr, to polynomial pointed to by c.
  * Attention: the size is given in number of *bits*, not in number of
  * unsigned longs.  temp1 must point to storage of size sizes[1], with
@@ -340,12 +348,12 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_ift(
  * allocation is needed by some implementations).
  */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_compose(
+extern int gf2x_cantor_fft_compose(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr tc,
         gf2x_cantor_fft_srcptr ta,
         gf2x_cantor_fft_srcptr tb,
-        gf2x_cantor_fft_ptr temp2);
+        gf2x_cantor_fft_ptr temp2) GF2X_FFT_EXPORTED;
 /* Compose two DFTs.  temp2 must point to storage of size sizes[2], with
  * sizes[] filled as in the gf2x_cantor_fft_info_get_alloc_sizes call.
  *
@@ -353,14 +361,14 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_compose(
  * allocation is needed by some implementations).
  */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_addcompose_n(
+extern int gf2x_cantor_fft_addcompose_n(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr tc,
         gf2x_cantor_fft_srcptr * ta,
         gf2x_cantor_fft_srcptr * tb,
         size_t n,
         gf2x_cantor_fft_ptr temp2,
-        gf2x_cantor_fft_ptr temp1);
+        gf2x_cantor_fft_ptr temp1) GF2X_FFT_EXPORTED;
 /* Compose 2n DFTs, and add the result to tc. temp1 and temp2 must point to
  * storage of size sizes[1] and sizes[2], respectively, with sizes[]
  * filled as in the gf2x_cantor_fft_info_get_alloc_sizes call.
@@ -369,13 +377,13 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_addcompose_n(
  * allocation is needed by some implementations).
  */
 
-extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_addcompose(
+extern int gf2x_cantor_fft_addcompose(
         gf2x_cantor_fft_info_srcptr o,
         gf2x_cantor_fft_ptr tc,
         gf2x_cantor_fft_srcptr ta,
         gf2x_cantor_fft_srcptr tb,
         gf2x_cantor_fft_ptr temp2,
-        gf2x_cantor_fft_ptr temp1);
+        gf2x_cantor_fft_ptr temp1) GF2X_FFT_EXPORTED;
 /* Compose 2 DFTs, and add the result to tc. temp1 and temp2 must point to
  * storage of size sizes[1] and sizes[2], respectively, with sizes[]
  * filled as in the gf2x_cantor_fft_info_get_alloc_sizes call.
@@ -391,6 +399,7 @@ extern int GF2X_FFT_EXPORTED gf2x_cantor_fft_addcompose(
 #ifdef __cplusplus
 #include <exception>
 #include <array>
+#include <string>
 #endif
 
 /* End of automatically generated section */
@@ -510,6 +519,7 @@ struct gf2x_cantor_fft_info {
     {
         return gf2x_cantor_fft_ift(this, H, Hl, h, temp1);
     }
+    std::string explain() const { char * x = gf2x_cantor_fft_info_explain(this); std::string s = x; ::free(x); return s; }
 #endif
 
     /* End of automatically generated section */

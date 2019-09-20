@@ -33,6 +33,8 @@
  * truncated and non-truncated case.
  */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -1559,6 +1561,14 @@ extern void GF2X_EXPORTED gf2x_cantor_fft_info_get_alloc_sizes(
     sizes[2] = 0;
 }
 
+char * GF2X_EXPORTED gf2x_cantor_fft_info_explain(gf2x_cantor_fft_info_srcptr p)
+{
+    int rc;
+    char * line;
+    rc = asprintf(&line, "Cantor ternary FFT of depth %u over GF(2^%u), truncated to length %lu.", p->k, CANTOR_BASE_FIELD_SIZE, p->n);
+    return rc >= 0 ? line : NULL;
+}
+
 /* nF is a number of coefficients */
 int gf2x_cantor_fft_dft(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, const unsigned long * F, size_t nF, gf2x_cantor_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
@@ -1746,4 +1756,5 @@ void gf2x_cantor_fft_zero(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x,
 {
     memset(x, 0, n * gf2x_cantor_fft_transform_size(p) * sizeof(Kelt));
 }
+
 /* vim: set sw=4 sta et: */

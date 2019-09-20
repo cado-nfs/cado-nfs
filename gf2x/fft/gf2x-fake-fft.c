@@ -26,6 +26,7 @@
 */
 
 #define _GNU_SOURCE
+#include <stdio.h>
 #include "gf2x.h"
 #include "gf2x/gf2x-config.h"
 #include "gf2x/gf2x-impl.h"
@@ -66,6 +67,15 @@ void gf2x_fake_fft_info_get_alloc_sizes(
     sizes[1] = 0;
     sizes[2] = 0;
 }
+
+char * GF2X_EXPORTED gf2x_fake_fft_info_explain(gf2x_fake_fft_info_srcptr p)
+{
+    int rc;
+    char * line;
+    rc = asprintf(&line, "fake FFT, doing products %lu by %lu.", p->n1, p->n2);
+    return rc >= 0 ? line : NULL;
+}
+
 
 /* n is a number of coefficients ! */
 int gf2x_fake_fft_dft(gf2x_fake_fft_info_srcptr p GF2X_MAYBE_UNUSED, gf2x_fake_fft_ptr dst, const unsigned long * src, size_t n, gf2x_fake_fft_ptr temp1 GF2X_MAYBE_UNUSED) {

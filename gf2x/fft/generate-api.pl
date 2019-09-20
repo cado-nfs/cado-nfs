@@ -60,13 +60,14 @@ while (defined($_=<F>)) {
             for my $func (@{$params->{'inline'}}) {
                 $ttext =~ s/^((?:\w+) XXX_info_${func})\b/static inline $1/mg;
             }
-            $ttext =~ s/^((?!typedef)(?:\w+)) (XXX_info_\w+)\b/extern $1 GF2X_FFT_EXPORTED $2/mg;
+            # sigh... https://gcc.gnu.org/ml/gcc-help/2014-06/msg00048.html
+            $ttext =~ s/^((?!typedef)(?:\w+(?:\s*\*)*)) (XXX_info_\w+)\b([^;]*);/extern $1 $2$3 GF2X_FFT_EXPORTED;/mg;
         } elsif ($blobnum == 1) {
             # print "Performing inline modifiations for ${impl}_info ; [" . join(", ", @{$params->{'inline'}}) . "\n";
             for my $func (@{$params->{'inline'}}) {
                 $ttext =~ s/^((?:\w+) XXX_${func})\b/static inline $1/mg;
             }
-            $ttext =~ s/^((?!typedef)(?:\w+)) (XXX_\w+)\b/extern $1 GF2X_FFT_EXPORTED $2/mg;
+            $ttext =~ s/^((?!typedef)(?:\w+(?:\s*\*)*)) (XXX_\w+)\b([^;]*);/extern $1 $2$3 GF2X_FFT_EXPORTED;/mg;
         } elsif ($blobnum == 2 && @{$params->{'pod'}} && $params->{'pod'}->[0] eq 'yes') {
             # print "Performing pod modifiations for ${impl}_info\n";
             $ttext =~ s/^(\s*(?:inline\s*)?~XXX_info)\(\)[^\}]*\}/$1() = default;/sm;

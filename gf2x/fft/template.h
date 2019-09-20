@@ -1,4 +1,4 @@
-#include <cstdlib>
+#include <stdlib.h>
 
 /* This file is not a C header file. It is used to query-replace the FFT
  * api into the gf2x-*-fft.h header files.
@@ -116,6 +116,14 @@ void XXX_info_get_alloc_sizes(
  *                XXX_compose, XXX_addcompose, or XXX_addcompose_n call.
  *                Note that the addcompose variants need two temp
  *                buffers, of sizes sizes[2] and sizes[1], respectively.
+ */
+
+char * XXX_info_explain(
+        XXX_info_srcptr p);
+/* Returns a malloc()ed string that gives the description of what the
+ * transform type is doing. The returned pointer may also be NULL if the
+ * implementation does not provide that information. It should be freed
+ * by the caller eventually.
  */
 
 #ifdef __cplusplus
@@ -311,6 +319,7 @@ int XXX_addcompose(
 #ifdef __cplusplus
 #include <exception>
 #include <array>
+#include <string>
 #endif
 
 /* END SECTION 2 */
@@ -439,6 +448,7 @@ struct XXX_info {
     {
         return XXX_ift(this, H, Hl, h, temp1);
     }
+    std::string explain() const { char * x = XXX_info_explain(this); std::string s = x; ::free(x); return s; }
 #endif
 
     /* END SECTION 3 */
