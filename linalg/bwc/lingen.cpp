@@ -3177,7 +3177,7 @@ int main(int argc, char *argv[])
     int go_mpi = aa.guessed_length >= bm.lingen_mpi_threshold;
 
     if (go_mpi && !rank) {
-        if (size) {
+        if (size > 1) {
             printf("Expected length %u exceeds MPI threshold %u, going MPI now.\n", aa.guessed_length, bm.lingen_mpi_threshold);
         } else {
             printf("Expected length %u exceeds MPI threshold %u, but the process is not running in an MPI context.\n", aa.guessed_length, bm.lingen_mpi_threshold);
