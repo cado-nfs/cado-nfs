@@ -35,7 +35,10 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
         memory_pool_details::inaccuracy_handler<loose>::handle_expand(allocated, s, allowed);
         allocated += s;
         if (allocated > peak) peak = allocated;
-        return malloc(s);
+        void * p = malloc(s);
+        if (!p)
+            throw std::bad_alloc();
+        return p;
     }
     void free(void * p, size_t s)
     {
@@ -53,7 +56,14 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
         memory_pool_details::inaccuracy_handler<loose>::handle_expand(allocated, ns - s, allowed);
         allocated -= s;
         allocated += ns;
-        return ::realloc(p, ns);
+        void * x = ::realloc(p, ns);
+        if (!x) {
+            // should we do that or not ? realloc itself won't, on
+            // failure. And we're going to die anyway, so...
+            // free(p);
+            throw std::bad_alloc();
+        }
+        return x;
     }
 
     private:
