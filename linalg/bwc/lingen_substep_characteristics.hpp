@@ -499,12 +499,15 @@ struct lingen_substep_characteristics {
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
 
+        unsigned int b0 = S.batch[0];
+        unsigned int b1 = S.batch[1];
+        unsigned int b2 = S.batch[2];
         unsigned int mul0 = 0;
-        mul0 += S.batch[1] * P.r * S.batch[0];
-        mul0 += S.batch[1] * P.r * S.batch[2];
+        mul0 += b1 * P.r * b0;
+        mul0 += b1 * P.r * b2;
         mul0 += nrs0*nrs2;
-        unsigned int mul1 = nrs0 * nrs2;
-        unsigned int mul12 = S.batch[0] * S.batch[2];
+        unsigned int mul1 = std::max(b0 * std::max(b1, b2), nrs0 * nrs2);
+        unsigned int mul12 = b0 * b2;
 
         /* *IF* the pragma omp parallel statements go with an appropriate
          * num_threads() clause, then yes, it makes sense to do this
