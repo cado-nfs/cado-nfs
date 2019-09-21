@@ -85,8 +85,8 @@ template<typename fft_type> struct lingen_tuning_cache_key<op_mp<fft_type>> {
     typedef lingen_tuning_cache::mp_value value_type;
 };
 template<typename fft_type> struct lingen_tuning_cache_key<op_mul<fft_type>> {
-    typedef lingen_tuning_cache::mp_key key_type;
-    typedef lingen_tuning_cache::mp_value value_type;
+    typedef lingen_tuning_cache::mul_key key_type;
+    typedef lingen_tuning_cache::mul_value value_type;
 };
 
 std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
