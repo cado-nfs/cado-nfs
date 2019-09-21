@@ -641,12 +641,25 @@ struct lingen_tuner {
                          * appropriate timings.
                          */
                         compute_schedules_for_mp(cw, true, reserved_mp);
-                        compute_schedules_for_mul(cw, true, reserved_mul);
-
+                        if (wct_seconds() > last_save + 10) {
+                            int rank;
+                            MPI_Comm_rank(P.comm, &rank);
+                            if (rank == 0)
+                                C.save(timing_cache_filename);
+                            last_save = wct_seconds();
+                        }
                         auto MP = mp_substep(cw);
                         U.mp = MP.get_companion(P, schedules_mp[L], C);
                         U.mp.reserved_ram = reserved_mp;
 
+                        compute_schedules_for_mul(cw, true, reserved_mul);
+                        if (wct_seconds() > last_save + 10) {
+                            int rank;
+                            MPI_Comm_rank(P.comm, &rank);
+                            if (rank == 0)
+                                C.save(timing_cache_filename);
+                            last_save = wct_seconds();
+                        }
                         auto MUL = mul_substep(cw);
                         U.mul = MUL.get_companion(P, schedules_mul[L], C);
                         U.mul.reserved_ram = reserved_mp;
@@ -797,13 +810,6 @@ struct lingen_tuner {
                     printf("# we expect lingen_mpi_threshold > %zu\n", L1);
                     upper_threshold = SIZE_MAX;
                 }
-            }
-            if (wct_seconds() > last_save + 10) {
-                int rank;
-                MPI_Comm_rank(P.comm, &rank);
-                if (rank == 0)
-                    C.save(timing_cache_filename);
-                last_save = wct_seconds();
             }
         }
         printf("################################# Total ##################################\n");
