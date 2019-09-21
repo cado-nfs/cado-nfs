@@ -138,6 +138,7 @@ int bigmatpoly::provisioned() const
     ASSERT_ALWAYS(np_col == 1 || np_col == m1);
     return (np_row>1)+((np_col>1)<<1);
 }
+#endif
 
 /* We are a left multiplicand. This is a no-op if space for our row has
  * already been allocated */
@@ -151,6 +152,7 @@ void bigmatpoly::provision_row()
     }
 }
 
+#if 0
 /* Rarely useful. We do need it because we resort to a kludgy
  * implementation of scatter_mat, which calls for provisioning on all
  * rows.
@@ -164,6 +166,7 @@ void bigmatpoly::unprovision_row()
             them = matpoly();
     }
 }
+#endif
 
 /* We are a right multiplicand. This is a no-op if space for our col has
  * already been allocated */
@@ -176,7 +179,6 @@ void bigmatpoly::provision_col() // bigmatpoly & p(*this)
             them = matpoly(ab, m0, n0, my_cell().capacity());
     }
 }
-#endif
 
 /* Set size to be large enough to receive the given number of
  * coefficients. If space is provisioned for other cells in row or
@@ -301,7 +303,6 @@ void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
     }									\
 } while (0)
 
-#if 0
 /* {{{ allgather operations */
 void bigmatpoly::allgather_row()
 {
@@ -309,10 +310,10 @@ void bigmatpoly::allgather_row()
     for(unsigned int k = 0 ; k < n1 ; k++) {
         matpoly & data = cell(irank(), k);
         /* XXX: Should we ensure earlier that we agree on the size ? */
-        unsigned long dsize = data.size;
+        unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[1]);
-        data.size = dsize;
-        ASSERT_ALWAYS(data.size <= data.capacity());
+        data.set_size(dsize);
+        ASSERT_ALWAYS(data.get_size() <= data.capacity());
         ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
                 data.m * data.n, data.capacity() * abvec_elt_stride(ab, 1),
@@ -327,10 +328,10 @@ void bigmatpoly::allgather_col()
     for(unsigned int k = 0 ; k < m1 ; k++) {
         matpoly & data = cell(k, jrank());
         /* XXX: Should we ensure earlier that we agree on the size ? */
-        unsigned long dsize = data.size;
+        unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[2]);
-        data.size = dsize;
-        ASSERT_ALWAYS(data.size <= data.capacity());
+        data.set_size(dsize);
+        ASSERT_ALWAYS(data.get_size() <= data.capacity());
         ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
                 data.m * data.n, data.capacity() * abvec_elt_stride(ab, 1),
@@ -358,7 +359,7 @@ void bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
 
     matpoly & lc = my_cell();
     lc.zero();
-    lc.size = size;
+    lc.set_size(size);
     ASSERT_ALWAYS(a.n == b.m);
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
         lc.addmul(a.cell(irank(), k), b.cell(k, jrank()));
@@ -381,14 +382,13 @@ void bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     matpoly & lb = my_cell();
     lb.zero();
     set_size(size);
-    ASSERT_ALWAYS(lb.size == size);
-    ASSERT_ALWAYS(lb.capacity() >= lb.size);
+    ASSERT_ALWAYS(lb.get_size() == size);
+    ASSERT_ALWAYS(lb.capacity() >= lb.get_size());
 
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
         lb.addmp(a.cell(irank(), k), c.cell(k, jrank()));
     }
 }/*}}}*/
-#endif
 
 /*
  * gather to node 0, or scatter from node 0, but use "partial" transfer

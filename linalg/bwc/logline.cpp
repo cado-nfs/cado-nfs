@@ -50,6 +50,8 @@ struct logline {
     std::vector<std::string> prefixes;
 };
 
+double logline_query_timer();
+void logline_reset_timer(double);
 
 static struct logline * current;
 
@@ -84,6 +86,18 @@ static double logline_timer()
 {
     return logline_report_wct ? wct_seconds() : seconds();
 }
+
+double logline_query_timer()
+{
+    double tt = logline_timer() - start_time;
+    return tt;
+}
+
+void logline_reset_timer(double tt)
+{
+    start_time = logline_timer() - tt;
+}
+
 
 void logline_decl_usage(param_list_ptr pl)
 {

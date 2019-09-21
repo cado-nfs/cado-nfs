@@ -85,10 +85,8 @@ struct bigmatpoly : public bigmatpoly_model {
     void truncate_loc(bigmatpoly & src, unsigned int size);
     void rshift(bigmatpoly & src, unsigned int k);
 
-#if 0
     void mul(bigmatpoly & a, bigmatpoly & b);
     void mp(bigmatpoly & a, bigmatpoly & b);
-#endif
 
     void scatter_mat(matpoly const & src);
     void gather_mat(matpoly & dst) const;
@@ -98,14 +96,14 @@ struct bigmatpoly : public bigmatpoly_model {
 
     bigmatpoly truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount);
 
-#if 0
     private:
+#if 0
     int provisioned() const;
+#endif
     void provision_row();
     void provision_col();
     void allgather_row();
     void allgather_col();
-#endif
 };
 
 #endif	/* BIGMATPOLY_HPP_ */

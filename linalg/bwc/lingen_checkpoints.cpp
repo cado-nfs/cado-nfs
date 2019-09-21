@@ -30,7 +30,7 @@ struct cp_info {
     char * gdatafile;
     const char * datafile;
     /* be sure to change when needed */
-    static constexpr unsigned long format = 2;
+    static constexpr unsigned long format = 3;
     FILE * aux;
     FILE * data;
     cp_info(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi);
@@ -108,9 +108,12 @@ bool cp_info::save_aux_file(size_t pi_size, int done) const /*{{{*/
     os << "\n";
     os << done;
     os << "\n";
+    os << logline_query_timer();
+    os << "\n";
     os << bm.hints;
     os << "\n";
     os << bm.stats;
+    os << "\n";
     bool ok = os.good();
     if (!ok)
         unlink(auxfile);
@@ -146,6 +149,9 @@ bool cp_info::load_aux_file(size_t & pi_size, int & done)/*{{{*/
         is >> nbm.lucky[i];
     }
     is >> done;
+    double tt;
+    is >> tt;
+    logline_reset_timer(tt);
     is >> nbm.hints;
     for(auto const & x : nbm.hints) {
         if (!x.second.check()) {

@@ -135,7 +135,6 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 /*{{{ Main entry points and recursive algorithm (with and without MPI) */
 
 /* Forward declaration, it's used by the recursive version */
-template<typename fft_type>
 int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E);
 
 #ifdef ENABLE_MPI_LINGEN
@@ -158,7 +157,6 @@ std::string sha1sum(matpoly const & X)
  *
  * XXX Eventually we'll merge the two.
  */
-template<typename fft_type>
 int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 {
     int depth = bm.depth();
@@ -194,7 +192,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
     // this (now) consumes E_left entirely.
-    done = bw_lingen_single<fft_type>(bm, pi_left, E_left);
+    done = bw_lingen_single(bm, pi_left, E_left);
 
     ASSERT_ALWAYS(pi_left.get_size());
 
@@ -223,7 +221,30 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     {
         E_right = matpoly(d.ab, d.m, d.m+d.n, E.get_size() - pi_left.get_size() + 1);
         lingen_call_companion & C = bm.companion(depth, z);
-        matpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+        switch (C.mp.S.fft_type) {
+            case lingen_substep_schedule::FFT_NONE:
+                E_right.mp(E, pi_left);
+                break;
+            case lingen_substep_schedule::FFT_FLINT:
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                matpoly_ft<fft_transform_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+#else
+                throw std::runtime_error("fft type \"flint\" does not make sense here");
+#endif
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            case lingen_substep_schedule::FFT_CANTOR:
+                matpoly_ft<gf2x_cantor_fft_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+            case lingen_substep_schedule::FFT_TERNARY:
+                matpoly_ft<gf2x_ternary_fft_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+#else
+            case lingen_substep_schedule::FFT_TERNARY:
+            case lingen_substep_schedule::FFT_CANTOR:
+                throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+#endif
+        }
         E = matpoly();
     }
 
@@ -232,7 +253,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
-    done = bw_lingen_single<fft_type>(bm, pi_right, E_right);
+    done = bw_lingen_single(bm, pi_right, E_right);
     ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
@@ -245,7 +266,30 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     {
         pi = matpoly(d.ab, d.m+d.n, d.m+d.n, pi_left.get_size() + pi_right.get_size() - 1);
         lingen_call_companion & C = bm.companion(depth, z);
-        matpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+        switch (C.mul.S.fft_type) {
+            case lingen_substep_schedule::FFT_NONE:
+                E_right.mul(E, pi_left);
+                break;
+            case lingen_substep_schedule::FFT_FLINT:
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                matpoly_ft<fft_transform_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+#else
+                throw std::runtime_error("fft type \"flint\" does not make sense here");
+#endif
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            case lingen_substep_schedule::FFT_CANTOR:
+                matpoly_ft<gf2x_cantor_fft_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+            case lingen_substep_schedule::FFT_TERNARY:
+                matpoly_ft<gf2x_ternary_fft_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+#else
+            case lingen_substep_schedule::FFT_TERNARY:
+            case lingen_substep_schedule::FFT_CANTOR:
+                throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+#endif
+        }
     }
 
     /* Note that the leading coefficients of pi_left and pi_right are not
@@ -283,7 +327,6 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     return done;
 }/*}}}*/
 
-template<typename fft_type>
 int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 {
     int rank;
@@ -308,7 +351,7 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
         done = bw_lingen_basecase(bm, pi, E);
         bm.t_basecase += seconds();
     } else {
-        done = bw_lingen_recursive<fft_type>(bm, pi, E);
+        done = bw_lingen_recursive(bm, pi, E);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
@@ -318,7 +361,6 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 }/*}}}*/
 
 #ifdef ENABLE_MPI_LINGEN
-template<typename fft_type>
 int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{*/
 {
     int depth = bm.depth();
@@ -387,7 +429,30 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
         lingen_call_companion & C = bm.companion(depth, z);
-        bigmatpoly_ft<fft_type>::mp_caching(bm.stats, E_right, E, pi_left, &C.mp);
+        switch(C.mp.S.fft_type) {
+            case lingen_substep_schedule::FFT_NONE:
+                E_right.mp(E, pi_left);
+                break;
+            case lingen_substep_schedule::FFT_FLINT:
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                bigmatpoly_ft<fft_transform_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+#else
+                throw std::runtime_error("fft type \"flint\" does not make sense here");
+#endif
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            case lingen_substep_schedule::FFT_CANTOR:
+                bigmatpoly_ft<gf2x_cantor_fft_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+            case lingen_substep_schedule::FFT_TERNARY:
+                bigmatpoly_ft<gf2x_ternary_fft_info>::mp_caching(bm.stats, E_right, E, pi_left, & C.mp);
+                break;
+#else
+            case lingen_substep_schedule::FFT_TERNARY:
+            case lingen_substep_schedule::FFT_CANTOR:
+                throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+#endif
+        }
         E = bigmatpoly(model);
         ASSERT_ALWAYS(E_right.ab);
         MPI_Barrier(bm.com[0]);
@@ -414,7 +479,30 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
         /* XXX should we pre-alloc ? We do that in the non-mpi case, but
          * that seems to be useless verbosity */
         lingen_call_companion & C = bm.companion(depth, z);
-        bigmatpoly_ft<fft_type>::mul_caching(bm.stats, pi, pi_left, pi_right, &C.mul);
+        switch(C.mul.S.fft_type) {
+            case lingen_substep_schedule::FFT_NONE:
+                E_right.mul(E, pi_left);
+                break;
+            case lingen_substep_schedule::FFT_FLINT:
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                bigmatpoly_ft<fft_transform_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+#else
+                throw std::runtime_error("fft type \"flint\" does not make sense here");
+#endif
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            case lingen_substep_schedule::FFT_CANTOR:
+                bigmatpoly_ft<gf2x_cantor_fft_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+            case lingen_substep_schedule::FFT_TERNARY:
+                bigmatpoly_ft<gf2x_ternary_fft_info>::mul_caching(bm.stats, pi, pi_left, pi_right, & C.mul);
+                break;
+#else
+            case lingen_substep_schedule::FFT_TERNARY:
+            case lingen_substep_schedule::FFT_CANTOR:
+                throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+#endif
+        }
         ASSERT_ALWAYS(pi.ab);
         MPI_Barrier(bm.com[0]);
     }
@@ -454,7 +542,6 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
     return done;
 }/*}}}*/
 
-template<typename fft_type>
 int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{*/
 {
     /* as for bw_lingen_single, we're tempted to say that we're just a
@@ -485,7 +572,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (go_mpi) {
-        done = bw_biglingen_recursive<fft_type>(bm, pi, E);
+        done = bw_biglingen_recursive(bm, pi, E);
     } else {
         /* Fall back to local code */
         /* This entails gathering E locally, computing pi locally, and
@@ -504,7 +591,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{
 
         /* Only the master node does the local computation */
         if (!rank)
-            done = bw_lingen_single<fft_type>(bm, spi, sE);
+            done = bw_lingen_single(bm, spi, sE);
 
         double expect1 = bm.hints.tt_scatter_per_unit * E.get_size();
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
@@ -1850,17 +1937,12 @@ template<> struct matpoly_factory<bigmatpoly> {
     typedef bigmatpoly_producer_task producer_task;
     typedef bigmatpoly_consumer_task consumer_task;
     bigmatpoly_model model;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    typedef fft_transform_info fft_type;
-#else
-    typedef gf2x_cantor_fft_info fft_type;
-#endif
     matpoly_factory(MPI_Comm * comm, unsigned int m, unsigned int n) : model(comm, m, n) {}
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return bigmatpoly(ab, model, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E) {
-        return bw_biglingen_collective<fft_type>(bm, pi, E);
+        return bw_biglingen_collective(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.my_cell().capacity(); }
 };
@@ -1870,17 +1952,12 @@ template<> struct matpoly_factory<matpoly> {
     typedef matpoly T;
     typedef matpoly_producer_task producer_task;
     typedef matpoly_consumer_task consumer_task;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    typedef fft_transform_info fft_type;
-#else
-    typedef gf2x_cantor_fft_info fft_type;
-#endif
     matpoly_factory() {}
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return matpoly(ab, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E) {
-        return bw_lingen_single<fft_type>(bm, pi, E);
+        return bw_lingen_single(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.capacity(); }
 };
@@ -2186,8 +2263,6 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    logline_init_timer();
-
     param_list_parse_int(pl, "allow_zero_on_rhs", &allow_zero_on_rhs);
     param_list_parse_uint(pl, "random-input-with-length", &random_input_length);
     param_list_parse_int(pl, "split-output-file", &split_output_file);
@@ -2377,6 +2452,7 @@ int main(int argc, char *argv[])
         typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
 #else
         typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
+        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
 #endif
         try {
             /* iceildiv(m,n) is t0. We subtract 1 because we usually work
@@ -2396,6 +2472,8 @@ int main(int argc, char *argv[])
         MPI_Finalize();
         exit(EXIT_SUCCESS);
     }
+
+    logline_init_timer();
 
     aa.compute_initial_F();
 
@@ -2431,6 +2509,7 @@ int main(int argc, char *argv[])
             typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
 #else
             typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
+            typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
 #endif
             lingen_main_code(F, d.ab, aa);
         } else {

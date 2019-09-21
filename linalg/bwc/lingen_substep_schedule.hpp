@@ -19,6 +19,8 @@ struct lingen_substep_schedule {
      *  for both MP and MUL) so as to save memory
      */
 
+    enum fft_type_t { FFT_NONE, FFT_FLINT, FFT_CANTOR, FFT_TERNARY } fft_type;
+
     /* shrink0 and shrink2 are important. Here, we restrict our operation
      * to shrink0*shrink2 multiplications of matrices of size
      * (n0/shrink0) times (n2/shrink2).
@@ -38,6 +40,10 @@ struct lingen_substep_schedule {
     private:
     static constexpr const char * io_token_shrink = "shrink";
     static constexpr const char * io_token_batch = "batch";
+    static constexpr const char * io_token_fft_none = "fft=none";
+    static constexpr const char * io_token_fft_flint = "fft=flint";
+    static constexpr const char * io_token_fft_cantor = "fft=cantor";
+    static constexpr const char * io_token_fft_ternary = "fft=ternary";
     public:
 
     lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
@@ -45,6 +51,12 @@ struct lingen_substep_schedule {
 
     std::ostream& serialize(std::ostream& os) const
     {
+        switch(fft_type) {
+            case FFT_NONE: os << " " << io_token_fft_none; break;
+            case FFT_FLINT: os << " " << io_token_fft_flint; break;
+            case FFT_CANTOR: os << " " << io_token_fft_cantor; break;
+            case FFT_TERNARY: os << " " << io_token_fft_ternary; break;
+        }
         os << " " << io_token_shrink << " " << shrink0 << " " << shrink2;
         os << " " << io_token_batch << " " << batch[0] << " " << batch[1] << " " << batch[2];
         return os;
@@ -53,6 +65,19 @@ struct lingen_substep_schedule {
     std::istream& unserialize(std::istream& is)
     {
         std::string s;
+        is >> s;
+        if (s == io_token_fft_none) {
+            fft_type = FFT_NONE;
+        } else if (s == io_token_fft_flint) {
+            fft_type = FFT_FLINT;
+        } else if (s == io_token_fft_cantor) {
+            fft_type = FFT_CANTOR;
+        } else if (s == io_token_fft_ternary) {
+            fft_type = FFT_TERNARY;
+        } else {
+            is.setstate(std::ios::failbit);
+            return is;
+        }
         is >> s;
         if (s != io_token_shrink) {
             is.setstate(std::ios::failbit);
@@ -69,6 +94,8 @@ struct lingen_substep_schedule {
     }
 
     bool operator<(lingen_substep_schedule const & o) const {
+        if (fft_type < o.fft_type) return true;
+        if (fft_type > o.fft_type) return false;
         if (shrink0 < o.shrink0) return true;
         if (shrink0 > o.shrink0) return false;
         if (shrink2 < o.shrink2) return true;
@@ -78,7 +105,8 @@ struct lingen_substep_schedule {
         return false;
     }
     bool operator==(lingen_substep_schedule const & o) const {
-        return shrink0 == o.shrink0
+        return fft_type == o.fft_type
+            && shrink0 == o.shrink0
             && shrink2 == o.shrink2
             && batch == o.batch;
     }

@@ -29,6 +29,8 @@
 #include "mpfq_fake.hpp"
 
 class matpoly {
+    friend class bigmatpoly;
+
     typedef abdst_vec ptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
     static memory_pool_type memory;

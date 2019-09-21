@@ -24,12 +24,11 @@ struct polymat;
  */
 
 class matpoly {
-    /*
-    static memory_pool_loose memory;
-    friend decltype(memory)::guard<matpoly>;
-public:
-    typedef decltype(memory)::guard<matpoly> memory_guard;
-    */
+    /* It's only exposed when we compile the mpi-enabled code, of course.
+     * But on the other hand it's harmless to keep the friend declaration
+     * in all cases.
+     */
+    friend class bigmatpoly;
 
     typedef abdst_vec ptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;

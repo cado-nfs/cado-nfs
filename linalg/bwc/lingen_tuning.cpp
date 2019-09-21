@@ -25,12 +25,7 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
-#ifndef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_qcode_prime.hpp"
-// #include "lingen_polymat.hpp"
-#else
-#include "lingen_qcode_binary.hpp"
-#endif
+#include "lingen_qcode_select.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
 
@@ -159,6 +154,44 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
 #endif
         }
     }
+#if 0
+    /* See comment on top of lingen_tuner; */
+    {
+        std::vector<lingen_substep_schedule> raw_schedules = std::move(all_schedules);
+        all_schedules.clear();
+#if 0
+        for(auto S : raw_schedules) {
+            S.fft_type = lingen_substep_schedule::FFT_NONE;
+            all_schedules.push_back(S);
+        }
+#endif
+#ifndef SELECT_MPFQ_LAYER_u64k1
+        for(auto S : raw_schedules) {
+            S.fft_type = lingen_substep_schedule::FFT_FLINT;
+            all_schedules.push_back(S);
+        }
+#else
+        for(auto S : raw_schedules) {
+            S.fft_type = lingen_substep_schedule::FFT_CANTOR;
+            all_schedules.push_back(S);
+        }
+        for(auto S : raw_schedules) {
+            S.fft_type = lingen_substep_schedule::FFT_TERNARY;
+            all_schedules.push_back(S);
+        }
+#endif
+    }
+#else
+    for(auto & S : all_schedules) {
+#ifndef SELECT_MPFQ_LAYER_u64k1
+        S.fft_type = lingen_substep_schedule::FFT_FLINT;
+#else
+        S.fft_type = lingen_substep_schedule::FFT_CANTOR;
+#endif
+    }
+#endif
+
+
     std::sort(all_schedules.begin(), all_schedules.end());
     auto it = std::unique(all_schedules.begin(), all_schedules.end());
     all_schedules.erase(it, all_schedules.end());
@@ -200,8 +233,17 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
 }
 /* }}} */
 
-template<typename fft_type>
 struct lingen_tuner {
+    /* XXX It's temporary. At some point we would like to test various
+     * FFT (and non FFT options) and see what performs best. But at the
+     * moment we have a stumbling block with
+     * lingen_substep_characteristics, which whould be redesigned.
+     */
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    typedef fft_transform_info fft_type;
+#else
+    typedef gf2x_cantor_fft_info fft_type;
+#endif
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
 
@@ -870,28 +912,16 @@ struct lingen_tuner {
 /* For the moment we're only hooking the fft_transform_info version */
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    return lingen_tuner<fft_transform_info>(d, L, comm, pl).tune();
-#else
-    return lingen_tuner<gf2x_cantor_fft_info>(d, L, comm, pl).tune();
-#endif
+    return lingen_tuner(d, L, comm, pl).tune();
 }
 
 void lingen_tuning_decl_usage(cxx_param_list & pl)
 {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    lingen_tuner<fft_transform_info>::declare_usage(pl);
-#else
-    lingen_tuner<gf2x_cantor_fft_info>::declare_usage(pl);
-#endif
+    lingen_tuner::declare_usage(pl);
 }
 
 void lingen_tuning_lookup_parameters(cxx_param_list & pl)
 {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    lingen_tuner<fft_transform_info>::lookup_parameters(pl);
-#else
-    lingen_tuner<gf2x_cantor_fft_info>::lookup_parameters(pl);
-#endif
+    lingen_tuner::lookup_parameters(pl);
 }
 
