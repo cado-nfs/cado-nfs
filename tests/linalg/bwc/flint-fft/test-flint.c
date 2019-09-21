@@ -221,14 +221,22 @@ static void do_renames(const struct fft_transform_info * fti MAYBE_UNUSED, const
     if (rc < 0) abort();
     rc = asprintf(&t, "%s/before_%s.m", fti->tmpdir, step);
     if (rc < 0) abort();
-    rename(t, s);
+    rc = rename(t, s);
+    if (rc < 0) {
+        fprintf(stderr, "rename(%s,%s) : %s\n", t, s, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     free(t);
     free(s);
     rc = asprintf(&s, "%s/%s_after_%s.m", fti->tmpdir, varname, step);
     if (rc < 0) abort();
     rc = asprintf(&t, "%s/after_%s.m", fti->tmpdir, step);
     if (rc < 0) abort();
-    rename(t, s);
+    rc = rename(t, s);
+    if (rc < 0) {
+        fprintf(stderr, "rename(%s,%s) : %s\n", t, s, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     free(t);
     free(s);
 #else
