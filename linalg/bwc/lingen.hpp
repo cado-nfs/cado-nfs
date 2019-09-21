@@ -10,14 +10,18 @@
 #include <cstdlib>
 #include <vector>
 
-#include "tree_stats.hpp"
+/* Really, this should be always on. XXX FIXME */
+#define ENABLE_MPI_LINGEN
+
 #ifndef SELECT_MPFQ_LAYER_u64k1
 #include "mpfq_layer.h"
 #else
 #include "mpfq_fake.hpp"
 #endif
+
 #include "select_mpi.h"
-#include "lingen_hints.hpp"
+
+#define MPI_MY_SIZE_T   MPI_UNSIGNED_LONG
 
 /* TODO: Rename ! */
 struct bw_dimensions {

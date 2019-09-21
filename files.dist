@@ -1428,3 +1428,9 @@ linalg/bwc/README.OpenMPI
 linalg/bwc/lingen_substep_characteristics.hpp
 linalg/bwc/lingen_call_companion.cpp
 tests/linalg/bwc/test-lingen-checkpoints.sh
+linalg/bwc/lingen_checkpoints.cpp
+linalg/bwc/lingen_checkpoints.hpp
+linalg/bwc/lingen_io_matpoly.cpp
+linalg/bwc/lingen_io_matpoly.hpp
+linalg/bwc/lingen_average_matsize.cpp
+linalg/bwc/lingen_average_matsize.hpp

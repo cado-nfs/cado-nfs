@@ -439,6 +439,9 @@ set_target_properties(lingen_common_support PROPERTIES
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
         lingen.cpp
+        lingen_io_matpoly.cpp
+        lingen_checkpoints.cpp
+        lingen_average_matsize.cpp
         lingen_tuning.cpp
         lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp

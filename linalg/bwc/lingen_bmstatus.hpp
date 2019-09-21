@@ -4,7 +4,11 @@
 #include <cstddef>
 #include <cstring>
 #include <vector>
+#include <tuple>
 #include "lingen.hpp"
+#include "lingen_hints.hpp"
+#include "lingen_call_companion.hpp"
+#include "tree_stats.hpp"
 
 struct bmstatus {
     bw_dimensions d;
