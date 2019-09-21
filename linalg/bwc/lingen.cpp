@@ -30,33 +30,30 @@
 
 #include "lingen.hpp"
 
+#include "lingen_bmstatus.hpp"
+#include "lingen_average_matsize.hpp"
+#include "logline.h"
+#include "tree_stats.hpp"
+
 #include "lingen_expected_pi_length.hpp"
 
+#include "lingen_matpoly_select.hpp"
+#include "lingen_io_matpoly.hpp"
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_matpoly_binary.hpp"
+#include "lingen_qcode_select.hpp"
+
 #include "lingen_matpoly_ft.hpp"
-#include "lingen_qcode_binary.hpp"
-#else
-/* lingen-matpoly is the default code. */
-#include "lingen_matpoly.hpp"
+
 #ifdef ENABLE_MPI_LINGEN        /* in lingen.hpp */
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_bigmatpoly_ft.hpp"
 #endif
-#include "lingen_qcode_prime.hpp"
-#endif
-
 
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */
+
 #include "lingen_checkpoints.hpp"
-#include "lingen_io_matpoly.hpp"
-#include "lingen_average_matsize.hpp"
-#include "lingen_bmstatus.hpp"
 #include "lingen_tuning.hpp"
-#include "logline.h"
-#include "tree_stats.hpp"
 #include "sha1.h"
 
 /* Call tree for methods within this program:
@@ -72,9 +69,6 @@
  *
  */
 
-static unsigned int display_threshold = 10;
-static int with_timings = 0;
-
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
 static unsigned int random_input_length = 0;
@@ -87,7 +81,6 @@ gmp_randstate_t rstate;
 static int allow_zero_on_rhs = 0;
 
 int rank0_exit_code = EXIT_SUCCESS;
-
 
 int global_flag_ascii = 0;
 int global_flag_tune = 0;
@@ -103,12 +96,12 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "allow_zero_on_rhs",
             "do not cry if the generator corresponds to a zero contribution on the RHS vectors");
 
-    /* we must be square ! And thr is not supported. */
+    /* we must be square ! */
     param_list_decl_usage(pl, "mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
     param_list_decl_usage(pl, "thr", "number of threads (on each node) for the program, with mesh dimensions");
 
     param_list_decl_usage(pl, "nrhs",
-            "number of columns to treat differently, as corresponding to rhs vectors");
+            "number of columns that correspond to rhs vectors");
     param_list_decl_usage(pl, "rhs",
             "file with rhs vectors (only the header is read)");
 
@@ -126,9 +119,6 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
             "output generator file");
 
 
-    param_list_decl_usage(pl, "display-threshold",
-            "threshold for outputting progress lines");
-
     param_list_decl_usage(pl, "lingen_mpi_threshold",
             "use MPI matrix operations above this size");
     param_list_decl_usage(pl, "lingen_threshold",
@@ -136,25 +126,16 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 
     param_list_configure_switch(pl, "--tune", &global_flag_tune);
     param_list_configure_switch(pl, "--ascii", &global_flag_ascii);
-    param_list_configure_switch(pl, "--timings", &with_timings);
     param_list_configure_alias(pl, "seed", "random_seed");
 
-    lingen_tuning_decl_usage(pl);
-    lingen_checkpoints_decl_usage(pl);
-    lingen_io_matpoly_decl_usage(pl);
-
-    tree_stats::declare_usage(pl);
 }/*}}}*/
-
-/*}}}*/
-
-/* }}} */
 
 /**********************************************************************/
 
 /*{{{ Main entry points and recursive algorithm (with and without MPI) */
 
 /* Forward declaration, it's used by the recursive version */
+template<typename fft_type>
 int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E);
 
 #ifdef ENABLE_MPI_LINGEN
@@ -213,7 +194,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
     // this (now) consumes E_left entirely.
-    done = bw_lingen_single(bm, pi_left, E_left);
+    done = bw_lingen_single<fft_type>(bm, pi_left, E_left);
 
     ASSERT_ALWAYS(pi_left.get_size());
 
@@ -251,7 +232,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
-    done = bw_lingen_single(bm, pi_right, E_right);
+    done = bw_lingen_single<fft_type>(bm, pi_right, E_right);
     ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
     ASSERT_ALWAYS(done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
@@ -302,6 +283,7 @@ int bw_lingen_recursive(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
     return done;
 }/*}}}*/
 
+template<typename fft_type>
 int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
 {
     int rank;
@@ -326,11 +308,6 @@ int bw_lingen_single(bmstatus & bm, matpoly & pi, matpoly & E) /*{{{*/
         done = bw_lingen_basecase(bm, pi, E);
         bm.t_basecase += seconds();
     } else {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-        typedef fft_transform_info fft_type;
-#else
-        typedef gf2x_cantor_fft_info fft_type;
-#endif
         done = bw_lingen_recursive<fft_type>(bm, pi, E);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
@@ -477,6 +454,7 @@ int bw_biglingen_recursive(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E) /*{{{
     return done;
 }/*}}}*/
 
+template<typename fft_type>
 int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{*/
 {
     /* as for bw_lingen_single, we're tempted to say that we're just a
@@ -507,7 +485,6 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (go_mpi) {
-        typedef fft_transform_info fft_type;
         done = bw_biglingen_recursive<fft_type>(bm, pi, E);
     } else {
         /* Fall back to local code */
@@ -527,7 +504,7 @@ int bw_biglingen_collective(bmstatus & bm, bigmatpoly & pi, bigmatpoly & E)/*{{{
 
         /* Only the master node does the local computation */
         if (!rank)
-            done = bw_lingen_single(bm, spi, sE);
+            done = bw_lingen_single<fft_type>(bm, spi, sE);
 
         double expect1 = bm.hints.tt_scatter_per_unit * E.get_size();
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
@@ -1873,12 +1850,17 @@ template<> struct matpoly_factory<bigmatpoly> {
     typedef bigmatpoly_producer_task producer_task;
     typedef bigmatpoly_consumer_task consumer_task;
     bigmatpoly_model model;
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    typedef fft_transform_info fft_type;
+#else
+    typedef gf2x_cantor_fft_info fft_type;
+#endif
     matpoly_factory(MPI_Comm * comm, unsigned int m, unsigned int n) : model(comm, m, n) {}
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return bigmatpoly(ab, model, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E) {
-        return bw_biglingen_collective(bm, pi, E);
+        return bw_biglingen_collective<fft_type>(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.my_cell().capacity(); }
 };
@@ -1888,12 +1870,17 @@ template<> struct matpoly_factory<matpoly> {
     typedef matpoly T;
     typedef matpoly_producer_task producer_task;
     typedef matpoly_consumer_task consumer_task;
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    typedef fft_transform_info fft_type;
+#else
+    typedef gf2x_cantor_fft_info fft_type;
+#endif
     matpoly_factory() {}
     T init(abdst_field ab, unsigned int m, unsigned int n, int len) {
         return matpoly(ab, m, n, len);
     }
     static int bw_lingen(bmstatus & bm, T & pi, T & E) {
-        return bw_lingen_single(bm, pi, E);
+        return bw_lingen_single<fft_type>(bm, pi, E);
     }
     static size_t capacity(T const & p) { return p.capacity(); }
 };
@@ -1930,14 +1917,6 @@ void bm_io::output_flow(T & pi)
 
 
 /*}}}*/
-
-void usage()
-{
-    fprintf(stderr, "Usage: ./lingen [options, to be documented]\n");
-    fprintf(stderr,
-            "General information about bwc options is in the README file\n");
-    exit(EXIT_FAILURE);
-}
 
 unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
 {
@@ -2191,6 +2170,10 @@ int main(int argc, char *argv[])
     bw_common_decl_usage(pl);
     lingen_decl_usage(pl);
     logline_decl_usage(pl);
+    lingen_tuning_decl_usage(pl);
+    lingen_checkpoints_decl_usage(pl);
+    lingen_io_matpoly_decl_usage(pl);
+    tree_stats::declare_usage(pl);
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
@@ -2263,7 +2246,6 @@ int main(int argc, char *argv[])
     bm.lingen_threshold = 10;
     bm.lingen_mpi_threshold = 1000;
     param_list_parse_uint(pl, "lingen_threshold", &(bm.lingen_threshold));
-    param_list_parse_uint(pl, "display-threshold", &(display_threshold));
     param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
     gmp_randseed_ui(rstate, bw->seed);
     if (bm.lingen_mpi_threshold < bm.lingen_threshold) {

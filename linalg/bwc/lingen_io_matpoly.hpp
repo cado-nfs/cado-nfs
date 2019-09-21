@@ -8,19 +8,7 @@
 #include <vector>
 #include "params.h"
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_matpoly_binary.hpp"
-#include "lingen_matpoly_ft.hpp"
-#else
-/* lingen-matpoly is the default code. */
-#include "lingen_matpoly.hpp"
-#if 0
-#ifdef ENABLE_MPI_LINGEN        /* in lingen.hpp */
-#include "lingen_bigmatpoly.hpp"
-#include "lingen_bigmatpoly_ft.hpp"
-#endif
-#endif
-#endif
+#include "lingen_matpoly_select.hpp"
 
 extern unsigned int io_matpoly_block_size;
 

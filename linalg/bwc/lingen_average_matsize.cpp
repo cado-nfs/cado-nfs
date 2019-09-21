@@ -3,11 +3,7 @@
 #include "cxx_mpz.hpp"
 #include <cmath>
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_matpoly_binary.hpp"
-#else
-#include "lingen_matpoly.hpp"
-#endif
+#include "lingen_matpoly_select.hpp"
 
 /*{{{ avg_matsize */
 template<bool over_gf2>

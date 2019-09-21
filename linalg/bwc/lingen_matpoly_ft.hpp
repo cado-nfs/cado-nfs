@@ -5,13 +5,8 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
-#ifdef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_matpoly_binary.hpp"
-#include "gf2x-fft.h"
-#else
-#include "lingen_matpoly.hpp"
-#include "flint-fft/fft.h"
-#endif
+#include "lingen_matpoly_select.hpp"
+#include "lingen_fft_select.hpp"
 #include "lingen_substep_schedule.hpp"
 #include "tree_stats.hpp"
 #include "misc.h"

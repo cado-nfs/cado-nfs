@@ -17,9 +17,9 @@ public:
 };
 
 #ifdef SELECT_MPFQ_LAYER_u64k1
-extern template class bigmatpoly_ft<gf2x_fake_fft>;
-extern template class bigmatpoly_ft<gf2x_cantor_fft>;
-extern template class bigmatpoly_ft<gf2x_ternary_fft>;
+extern template class bigmatpoly_ft<gf2x_fake_fft_info>;
+extern template class bigmatpoly_ft<gf2x_cantor_fft_info>;
+extern template class bigmatpoly_ft<gf2x_ternary_fft_info>;
 #else
 extern template class bigmatpoly_ft<fft_transform_info>;
 #endif

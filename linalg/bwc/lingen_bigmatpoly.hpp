@@ -3,11 +3,7 @@
 
 #include <vector>
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
-#include "lingen_matpoly_binary.hpp"
-#else
-#include "lingen_matpoly.hpp"
-#endif
+#include "lingen_matpoly_select.hpp"
 
 #include "select_mpi.h"
 
