@@ -15,7 +15,8 @@ set -- "${args[@]}" tuning_schedule_filename="$WDIR/ts.txt"
 cpdir="$WDIR/cp"
 mkdir "$cpdir"
 "`dirname $0`"/test-plingen.sh "$@" checkpoint_directory="$cpdir"
-find "$cpdir" -name 'pi.[012].*' | xargs -r rm -f
+# osx does not have -r option to xargs.
+find "$cpdir" -name 'pi.[012].*' | xargs rm -f || :
 nfiles=$(ls -rt "$cpdir/pi*" | wc -l)
-ls -rt "$cpdir/pi*" | head -n $((nfiles/3)) | xargs -r rm -f
+ls -rt "$cpdir/pi*" | head -n $((nfiles/3)) | xargs rm -f || :
 "`dirname $0`"/test-plingen.sh "$@" checkpoint_directory="$cpdir"

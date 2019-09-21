@@ -18,4 +18,7 @@ $magma -b binary_output.m $magmascript < /dev/null | tee magma_output.txt
 if grep -q 'Assertion failed' magma_output.txt ; then
     exit 1
 fi
+if grep -qi 'error' magma_output.txt ; then
+    exit 1
+fi
 
