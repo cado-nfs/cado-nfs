@@ -443,26 +443,17 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     size = csize;
 }/*}}}*/
 
-void matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
+matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
 
-    if (this == &a || this == &b) {
-        matpoly tc(a.ab, a.m, b.n, csize);
-        tc.mul(a, b);
-        *this = std::move(tc);
-        return;
-    }
+    matpoly tc(a.ab, a.m, b.n, csize);
+
     ASSERT_ALWAYS(a.n == b.m);
-    if (check_pre_init()) {
-        *this = matpoly(a.ab, a.m, b.n, csize);
-    }
-    ASSERT_ALWAYS(m == a.m);
-    ASSERT_ALWAYS(n == b.n);
-    ASSERT_ALWAYS(alloc >= csize);
-    size = csize;
-    abvec_set_zero(ab, x, m * n * size);
-    addmul(a, b);
+    tc.set_size(csize);
+    tc.zero();
+    tc.addmul(a, b);
+    return tc;
 }/*}}}*/
 
 void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
@@ -507,19 +498,15 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
     abvec_ur_clear(ab, &tmp[1], nb);
 }/*}}}*/
 
-void matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
+matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     unsigned int nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
-    if (check_pre_init()) {
-        *this = matpoly(a.ab, a.m, c.n, nb);
-    }
-    ASSERT_ALWAYS(m == a.m);
-    ASSERT_ALWAYS(n == c.n);
-    ASSERT_ALWAYS(alloc >= nb);
-    size = nb;
-    abvec_set_zero(ab, x, m * n * size);
-    addmp(a, c);
+    matpoly b(a.ab, a.m, c.n, nb);
+    b.zero();
+    b.set_size(nb);
+    b.addmp(a, c);
+    return b;
 }/*}}}*/
 
 

@@ -17,8 +17,8 @@
  * implementation of the future interface does build upon the legacy
  * interface presently, but that is not a reason to have it exposed).
  */
-extern int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E);
+extern matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E);
+
 extern void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate);
 
 #ifdef LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE

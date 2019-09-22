@@ -78,6 +78,8 @@ public:
     void realloc(size_t new_number_of_coeffs);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
+    void clear() { *this = matpoly(); }
+
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j) {
         unsigned int k = 0;
@@ -160,11 +162,8 @@ public:
     void add(matpoly const & a) { add(*this, a); }
     void sub(matpoly const & a) { sub(*this, a); }
 
-    /* It is probably wise to avoid the mul and mp functions below. The
-     * first-class citizens are the caching alternatives.
-     */
-    void mul(matpoly const & a, matpoly const & b);
-    void mp(matpoly const & a, matpoly const & c);
+    static matpoly mul(matpoly const & a, matpoly const & b);
+    static matpoly mp(matpoly const & a, matpoly const & c);
     void addmul(matpoly const & a, matpoly const & b);
     void addmp(matpoly const & a, matpoly const & c);
 

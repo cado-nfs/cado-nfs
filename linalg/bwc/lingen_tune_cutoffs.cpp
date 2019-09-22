@@ -877,7 +877,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                xpi.mul(xpiL, xpiR);
+                xpi = matpoly::mul(xpiL, xpiR);
                 x.set_since_last();
             }
             if (xpiref.get_size() == 0) {
@@ -937,7 +937,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
              */
             tree_stats stats;
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft<fft_type>::mul_caching_adj(stats, xpi, xpiL, xpiR, adj, NULL);
+                xpi = matpoly_ft<fft_type>::mul_caching_adj(stats, xpiL, xpiR, adj, NULL);
                 x.set_since_last();
             }
 #endif
@@ -1104,7 +1104,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                xER.mp(xE, xpiL);
+                xER = matpoly::mp(xE, xpiL);
                 x.set_since_last();
             }
             if (xERref.get_size() == 0) {
@@ -1161,7 +1161,7 @@ void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list 
              * argument someday */
             tree_stats stats;
             for(small_bench<timer_t> x = finder.micro_bench(3); !x.done(); ++x) {
-                matpoly_ft<fft_type>::mp_caching_adj(stats, xER, xE, xpiL, adj, NULL);
+                xER = matpoly_ft<fft_type>::mp_caching_adj(stats, xE, xpiL, adj, NULL);
                 x.set_since_last();
             }
             if (xERref.get_size() == 0) {

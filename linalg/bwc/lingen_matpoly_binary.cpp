@@ -490,22 +490,14 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     size = std::max(size, csize);
 }/*}}}*/
 
-void matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
+matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
-
-    if (this == &a || this == &b) {
-        matpoly tc(a.ab, a.m, b.n, csize);
-        tc.mul(a, b);
-        *this = std::move(tc);
-        return;
-    }
+    matpoly c(a.ab, a.m, b.n, csize);
     ASSERT_ALWAYS(a.n == b.m);
-    if (check_pre_init()) {
-        *this = matpoly(a.ab, a.m, b.n, csize);
-    }
-    zero();
-    addmul(a, b);
+    c.zero();
+    c.addmul(a, b);
+    return c;
 }/*}}}*/
 
 void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
@@ -543,15 +535,14 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
     size = std::max(size, nb);
 }/*}}}*/
 
-void matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
+matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     unsigned int nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
-    if (check_pre_init()) {
-        *this = matpoly(a.ab, a.m, c.n, nb);
-    }
-    zero();
-    addmp(a, c);
+    matpoly b(a.ab, a.m, c.n, nb);
+    b.zero();
+    b.addmp(a, c);
+    return b;
 }/*}}}*/
 
 int matpoly::coeff_is_zero(unsigned int k) const

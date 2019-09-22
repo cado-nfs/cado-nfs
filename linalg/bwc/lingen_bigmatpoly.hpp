@@ -73,6 +73,7 @@ struct bigmatpoly : public bigmatpoly_model {
     // void realloc(int newalloc);
     inline void shrink_to_fit() { my_cell().shrink_to_fit(); }
     void zero();
+    void clear() { *this = bigmatpoly(get_model()); }
 
     inline size_t get_size() const { return size; }
     void set_size(size_t size);
@@ -85,8 +86,8 @@ struct bigmatpoly : public bigmatpoly_model {
     void truncate_loc(bigmatpoly & src, unsigned int size);
     void rshift(bigmatpoly & src, unsigned int k);
 
-    void mul(bigmatpoly & a, bigmatpoly & b);
-    void mp(bigmatpoly & a, bigmatpoly & b);
+    static bigmatpoly mul(bigmatpoly & a, bigmatpoly & b);
+    static bigmatpoly mp(bigmatpoly & a, bigmatpoly & b);
 
     void scatter_mat(matpoly const & src);
     void gather_mat(matpoly & dst) const;

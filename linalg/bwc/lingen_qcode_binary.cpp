@@ -577,17 +577,17 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
     return finished;
 } /* }}} */
 
-int bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
+matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    
-    int finished = bw_lingen_basecase_raw(bm, pi, E);
+    matpoly pi;
+    bm.done = bw_lingen_basecase_raw(bm, pi, E);
     bm.stats.end_smallstep();
     E = matpoly();
-    return finished;
+    return pi;
 }/*}}}*/
 
 void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/

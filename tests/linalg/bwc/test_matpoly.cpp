@@ -371,28 +371,26 @@ struct matpoly_checker_ft : public matpoly_checker_base {
     int mul_and_mul_caching_are_consistent() {
         matpoly P(ab, n, n, len1);
         matpoly Q(ab, n, n, len2);
-        matpoly R0;
-        matpoly R1;
 
         P.fill_random(len1, rstate);
         Q.fill_random(len2, rstate);
 
-        R0.mul(P, Q);
-        matpoly_ft<fft_type>::mul_caching(stats, R1, P, Q, NULL);
+        matpoly R0 = matpoly::mul(P, Q);
+        matpoly R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, NULL);
+
         return (R0.cmp(R1) == 0);
     }
 
     int mp_and_mp_caching_are_consistent() {
         matpoly P(ab, m,   n, len1);
         matpoly Q(ab, n, n, len2);
-        matpoly M0;
-        matpoly M1;
 
         P.fill_random(len1, rstate);
         Q.fill_random(len2, rstate);
 
-        M0.mp(P, Q);
-        matpoly_ft<fft_type>::mp_caching(stats, M1, P, Q, NULL);
+        matpoly M0 = matpoly::mp(P, Q);
+        matpoly M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, NULL);
+
         return M0.cmp(M1) == 0;
     }
 

@@ -119,16 +119,20 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
 };
 
 template<typename fft_type>
-void bigmatpoly_ft<fft_type>::mp_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+bigmatpoly bigmatpoly_ft<fft_type>::mp_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
 {
     op_mp<fft_type> op(a, b, UINT_MAX);
+    bigmatpoly c(a.get_model());
     OP_CTX<bigmatpoly, fft_type>(stats, op.fti, c, a, b).doit(op, M);
+    return c;
 }
 template<typename fft_type>
-void bigmatpoly_ft<fft_type>::mul_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+bigmatpoly bigmatpoly_ft<fft_type>::mul_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
 {
     op_mul<fft_type> op(a, b, UINT_MAX);
+    bigmatpoly c(a.get_model());
     OP_CTX<bigmatpoly, fft_type>(stats, op.fti, c, a, b).doit(op, M);
+    return c;
 }
 
 #ifdef SELECT_MPFQ_LAYER_u64k1

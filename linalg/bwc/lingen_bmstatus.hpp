@@ -15,6 +15,7 @@ struct bmstatus {
     unsigned int t;
     std::vector<int> lucky;
     std::vector<unsigned int> delta;
+    int done = 0;
 
     double t_basecase;
     double t_mp;

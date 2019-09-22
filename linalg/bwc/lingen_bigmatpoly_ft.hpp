@@ -12,8 +12,8 @@
 template<typename fft_type>
 class bigmatpoly_ft : public matpoly_ft<fft_type> {
 public:
-    static void mp_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
-    static void mul_caching(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
+    static bigmatpoly mp_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
+    static bigmatpoly mul_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
 };
 
 #ifdef SELECT_MPFQ_LAYER_u64k1

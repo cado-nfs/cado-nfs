@@ -82,6 +82,8 @@ public:
     void realloc(size_t);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
+    void clear() { *this = matpoly(); }
+
     /* {{{ access interface for matpoly */
     inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
         return abvec_subvec(ab, x, (i*n+j)*alloc+k);
@@ -143,9 +145,9 @@ public:
     void sub(matpoly const & a, matpoly const & b);
     void sub(matpoly const & a) { sub(*this, a); }
     void addmul(matpoly const & a, matpoly const & b);
-    void mul(matpoly const & a, matpoly const & b);
+    static matpoly mul(matpoly const & a, matpoly const & b);
     void addmp(matpoly const & a, matpoly const & c);
-    void mp(matpoly const & a, matpoly const & c);
+    static matpoly mp(matpoly const & a, matpoly const & c);
 
     void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;

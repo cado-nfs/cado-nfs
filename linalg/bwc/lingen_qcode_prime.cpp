@@ -41,8 +41,8 @@ static int lexcmp2(const int x[2], const int y[2])
 
 /*}}}*/
 
-int
-bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E) /*{{{*/
+matpoly
+bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 {
     int generator_found = 0;
 
@@ -54,10 +54,6 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E) /*{{{*/
     ASSERT(E.m == m);
     ASSERT(E.n == b);
 
-    ASSERT(pi.m == 0);
-    ASSERT(pi.n == 0);
-    ASSERT(pi.capacity() == 0);
-
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity. */
     unsigned int mi, ma;
@@ -65,7 +61,7 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E) /*{{{*/
 
     unsigned int pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
 
-    pi = matpoly(ab, b, b, pi_room_base);
+    matpoly pi(ab, b, b, pi_room_base);
     pi.set_size(pi_room_base);
 
     /* Also keep track of the
@@ -451,22 +447,23 @@ bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E) /*{{{*/
         }
     }
 
-    return generator_found;
+    bm.done = generator_found;
+    return pi;
 }
 /* }}} */
 
 /* wrap this up */
-int
-bw_lingen_basecase(bmstatus & bm, matpoly & pi, matpoly & E)
+matpoly
+bw_lingen_basecase(bmstatus & bm, matpoly & E)
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
     tree_stats::sentinel dummy(bm.stats, __func__, E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    int done = bw_lingen_basecase_raw(bm, pi, E);
+    matpoly pi = bw_lingen_basecase_raw(bm, E);
     bm.stats.end_smallstep();
     E = matpoly();
-    return done;
+    return pi;
 }
 
 void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
@@ -480,6 +477,5 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
     E.fill_random(L, rstate);
-    matpoly pi;
-    bw_lingen_basecase_raw(bm, pi, E);
+    bw_lingen_basecase_raw(bm, E);
 }/*}}}*/

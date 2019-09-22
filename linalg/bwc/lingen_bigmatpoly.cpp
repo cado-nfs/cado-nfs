@@ -342,52 +342,48 @@ void bigmatpoly::allgather_col()
 }
 /* }}} */
 
-void bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
+bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
-
     ASSERT_ALWAYS(a.n == b.m);
     ASSERT_ALWAYS(a.n1 == b.m1);
-    if (check_pre_init())
-        finish_init(a.ab, a.m, b.n, csize);
-    ASSERT_ALWAYS(m == a.m);
-    ASSERT_ALWAYS(n == b.n);
+    bigmatpoly c(a.ab, a.get_model(), a.m, b.n, csize);
     a.allgather_row();
     a.allgather_col();
-    set_size(csize);
-    // ASSERT_ALWAYS(alloc >= size);
-
-    matpoly & lc = my_cell();
+    c.set_size(csize);
+    matpoly & lc = c.my_cell();
     lc.zero();
-    lc.set_size(size);
+    c.set_size(csize);
     ASSERT_ALWAYS(a.n == b.m);
+    unsigned int i = c.irank();
+    unsigned int j = c.jrank();
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
-        lc.addmul(a.cell(irank(), k), b.cell(k, jrank()));
+        lc.addmul(a.cell(i, k), b.cell(k, j));
     }
+    return c;
 }/*}}}*/
 
-void bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
+bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
 {
-    if (check_pre_init())
-        finish_init(a.ab, a.m, c.n, MAX(a.size, c.size) - MIN(a.size, c.size) + 1);
+    unsigned bsize = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
     ASSERT_ALWAYS(a.n1 == c.m1);
-    ASSERT_ALWAYS(m);
-    ASSERT_ALWAYS(m == a.m);
-    ASSERT_ALWAYS(n == c.n);
+    bigmatpoly b(a.ab, a.get_model(), a.m, c.n, bsize);
 
     a.allgather_row();
     c.allgather_col();
 
-    matpoly & lb = my_cell();
+    matpoly & lb = b.my_cell();
     lb.zero();
-    set_size(size);
-    ASSERT_ALWAYS(lb.get_size() == size);
+    b.set_size(bsize);
+    ASSERT_ALWAYS(lb.get_size() == bsize);
     ASSERT_ALWAYS(lb.capacity() >= lb.get_size());
-
+    unsigned int i = c.irank();
+    unsigned int j = c.jrank();
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
-        lb.addmp(a.cell(irank(), k), c.cell(k, jrank()));
+        lb.addmp(a.cell(i, k), c.cell(k, j));
     }
+    return b;
 }/*}}}*/
 
 /*

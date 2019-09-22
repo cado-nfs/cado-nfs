@@ -77,17 +77,21 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
 template<typename fft_type> typename matpoly_ft<fft_type>::memory_pool_type matpoly_ft<fft_type>::memory;
 
 template<typename fft_type>
-void matpoly_ft<fft_type>::mp_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+matpoly matpoly_ft<fft_type>::mp_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
     op_mp<fft_type> op(a, b, adj);
+    matpoly c;
     OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
+    return c;
 } /* }}} */
 
 template<typename fft_type>
-void matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly & c, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+matpoly matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
 {
     op_mul<fft_type> op(a, b, adj);
+    matpoly c;
     OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
+    return c;
 } /* }}} */
 
 #ifdef SELECT_MPFQ_LAYER_u64k1
