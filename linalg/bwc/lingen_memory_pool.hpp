@@ -4,13 +4,17 @@
 #include <mutex>
 #include <cstdlib>
 #include "macros.h"
+#include <exception>
+
+#define MEMORY_POOL_ALLOC_CHECK(X) memory_pool_details::alloc_check(#X, (X))
 
 namespace memory_pool_details {
+    void alloc_check(const char * text, bool condition);
     template<bool loose> struct inaccuracy_handler {};
     template<>
         struct inaccuracy_handler<false> {
             void handle_expand(size_t already_allocated, size_t asked, size_t & previously_allowed) {
-                ASSERT_ALWAYS(already_allocated + asked <= previously_allowed);
+                MEMORY_POOL_ALLOC_CHECK(already_allocated + asked <= previously_allowed);
             }
         };
     template<>
@@ -20,6 +24,12 @@ namespace memory_pool_details {
         };
 }
 
+class memory_pool_exception : public std::exception {
+    std::string message;
+public:
+    memory_pool_exception(std::string const & s);
+    virtual const char * what() const noexcept override { return message.c_str(); }
+};
 
 template<bool loose = false>
 struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
@@ -43,7 +53,7 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
     void free(void * p, size_t s)
     {
         std::lock_guard<std::mutex> dummy(mm);
-        ASSERT_ALWAYS(allocated >= s);
+        MEMORY_POOL_ALLOC_CHECK(allocated >= s);
         allocated -= s;
         ::free(p);
     }
@@ -82,12 +92,12 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
             else
                 memory.allowed += s;
             if (oldsize == 0)
-                ASSERT_ALWAYS(memory.allocated == 0);
+                MEMORY_POOL_ALLOC_CHECK(memory.allocated == 0);
             memory.peak = 0;
         }
         void pre_dtor(memory_pool & memory) {
             if (oldsize == 0)
-                ASSERT_ALWAYS(memory.allocated == 0);
+                MEMORY_POOL_ALLOC_CHECK(memory.allocated == 0);
             if (memory.allowed != SIZE_MAX)
                 memory.allowed -= mysize;
             else
@@ -106,7 +116,7 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
              *  provisioned, and the growth that happened since the ctor
              *  will continue to accumulate, which is what we want.
              */
-            ASSERT_ALWAYS(memory.allocated <= memory.allowed);
+            MEMORY_POOL_ALLOC_CHECK(memory.allocated <= memory.allowed);
         }
     };
 };

@@ -105,8 +105,16 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
                 M->fft_alloc_sizes = alloc_sizes;
             }
         }
-        typename matpoly_ft<fft_type>::memory_guard dummy(ram);
-        mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M)();
+        try {
+            typename matpoly_ft<fft_type>::memory_guard dummy(ram);
+            mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M)();
+        } catch (memory_pool_exception const & e) {
+            int rank;
+            MPI_Comm_rank(a.get_model().com[0], &rank);
+            fprintf(stderr, "Rank %d raised a memory pool exception: %s\n", rank, e.what());
+            typename matpoly_ft<fft_type>::memory_guard dummy(SIZE_MAX);
+            mp_or_mul<OP_CTX<bigmatpoly, fft_type>, OP>(*this, op, M)();
+        }
     }
 };
 

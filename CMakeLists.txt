@@ -162,6 +162,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
     endif()
+    set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Intel")

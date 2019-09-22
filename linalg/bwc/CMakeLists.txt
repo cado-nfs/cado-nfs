@@ -417,7 +417,7 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 endif()
 
-# These files are not dependent on the mpfq layer, therefore it's ok tu
+# These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
 add_library(lingen_common_support 
     lingen_memory_pool.cpp
