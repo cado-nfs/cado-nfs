@@ -134,7 +134,16 @@ public:
 
     void set_constant_ui(unsigned long e);
     void set_constant(absrc_elt e) { set_constant_ui(*e); }
-    void fill_random(unsigned int size, gmp_randstate_t rstate);
+
+    /* Note that this does not affect the size field */
+    void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
+
+    void clear_and_set_random(unsigned int len, gmp_randstate_t rstate)
+    {
+        realloc(len);
+        set_size(len);
+        fill_random(0, len, rstate);
+    }
     int cmp(matpoly const & b) const;
     void multiply_column_by_x(unsigned int j, unsigned int size);
     void divide_column_by_x(unsigned int j, unsigned int size);
@@ -150,7 +159,8 @@ private:
     bool high_word_is_clear() const;
     void clear_high_word();
 public:
-    void zero_pad(unsigned int nsize); /* changes size to nsize */
+    /* This changes size to nsize, and fills [size..nsize[ with zeroes */
+    void zero_pad(unsigned int nsize);
     void extract_column(
         unsigned int jdst, unsigned int kdst,
         matpoly const & src, unsigned int jsrc, unsigned int ksrc);

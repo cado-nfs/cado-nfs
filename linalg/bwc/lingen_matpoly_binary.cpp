@@ -137,24 +137,55 @@ void matpoly::set_constant_ui(unsigned long e) {
 }
 /* }}} */
 
-void matpoly::fill_random(unsigned int new_ncoeffs, gmp_randstate_t rstate)
+void matpoly::fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate)
 {
-    ASSERT_ALWAYS(b2w(new_ncoeffs) <= alloc_words);
-    size = new_ncoeffs;
-    size_t nw = b2w(size);
-    unsigned long nmask = ((1UL << (size % ULONG_BITS)) - 1);
-    if (nw == alloc_words) {
+    ASSERT_ALWAYS(b2w(k1) <= alloc_words);
+    size_t nw0 = b2w(k0);
+    size_t nw1 = b2w(k1);
+    unsigned long nmask1 = ((1UL << (k1 % ULONG_BITS)) - 1);
+    unsigned long nmask0 = ((1UL << (k0 % ULONG_BITS)) - 1);
+    if (k0 == 0 && k1 == size && nw1 == alloc_words) {
         mpn_randomb(x, rstate, m*n*alloc_words);
-    } else if (size) {
+        clear_high_word();
+    } else if (k0 >= k1) {
+        return;
+    } else {
+        if (k0 % ULONG_BITS) {
+            /* Then if nw1==nw0, then k0 can't be a multiple of ULONG_BITS.
+             * (but k1 could be)
+             */
+            unsigned long mask = ~nmask0;
+            if (nw1 == nw0 && (k1 % ULONG_BITS))
+                mask = mask & nmask1;
+            /* put random bits at the right place in the low words, not
+             * touching what might be there presently */
+            for(unsigned int i = 0 ; i < m ; i++) {
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    unsigned long * pa = part(i, j);
+                    pa[nw0-1] &= ~mask;
+                    pa[nw0-1] ^= gmp_urandomb_ui(rstate, ULONG_BITS) & mask;
+                }
+            }
+            k0 = nw0 * ULONG_BITS;
+        }
+        if (nw1 == nw0)
+            return;
+        if (nw0 < nw1-1) {
+            for(unsigned int i = 0 ; i < m ; i++) {
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    unsigned long * pa = part(i, j);
+                    mpn_randomb(pa + nw0, rstate, nw1 - 1 - nw0);
+                }
+            }
+        }
         for(unsigned int i = 0 ; i < m ; i++) {
             for(unsigned int j = 0 ; j < n ; j++) {
                 unsigned long * pa = part(i, j);
-                mpn_randomb(pa, rstate, nw);
-                if (nmask) pa[nw - 1] &= nmask;
+                pa[nw1-1] &= ~nmask1;
+                pa[nw1-1] ^= gmp_urandomb_ui(rstate, ULONG_BITS) & nmask1;
             }
         }
     }
-    clear_high_word();
 }
 
 int matpoly::cmp(matpoly const& b) const

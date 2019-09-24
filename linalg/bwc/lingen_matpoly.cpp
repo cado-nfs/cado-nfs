@@ -163,16 +163,15 @@ void matpoly::set_constant(absrc_elt e) {
 }
 /* }}} */
 
-void matpoly::fill_random(unsigned int nsize, gmp_randstate_t rstate)
+void matpoly::fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate)
 {
-    ASSERT_ALWAYS(nsize <= alloc);
-    size = nsize;
-    if (size == alloc) {
-        abvec_random(ab, x, m*n*size, rstate);
-    } else if (size) {
+    ASSERT_ALWAYS(k1 <= alloc);
+    if (k0 == 0 && k1 == alloc) {
+        abvec_random(ab, x, m*n*k1, rstate);
+    } else if (k0 < k1) {
         for(unsigned int i = 0 ; i < m ; i++) {
             for(unsigned int j = 0 ; j < n ; j++) {
-                abvec_random(ab, part(i, j), size, rstate);
+                abvec_random(ab, part(i, j, k0), k1 - k0, rstate);
             }
         }
     }

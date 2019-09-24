@@ -597,7 +597,8 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     unsigned int t0 = iceildiv(m,n);
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
-    E.fill_random(L, rstate);
+    E.zero_pad(L);
+    E.fill_random(0, L, rstate);
     matpoly pi;
     bw_lingen_basecase_raw(bm, pi, E);
 }/*}}}*/

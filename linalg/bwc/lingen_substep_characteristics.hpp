@@ -256,7 +256,8 @@ struct lingen_substep_characteristics {
         }
         double operator()(unsigned int nparallel) {
             matpoly a(U.ab, nparallel, 1, U.asize);
-            a.fill_random(U.asize, U.rstate);
+            a.zero_pad(U.asize);
+            a.fill_random(0, U.asize, U.rstate);
             matpoly_ft<typename OP::FFT> ta(a.m, a.n, U.op.fti);
             double tt = -wct_seconds();
             matpoly_ft<typename OP::FFT>::dft(ta, a);

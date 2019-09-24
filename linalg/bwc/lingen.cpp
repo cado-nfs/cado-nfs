@@ -1511,7 +1511,7 @@ void bm_io::compute_initial_F() /*{{{ */
             /*
              * k is the candidate for becoming the value t0.
              *
-             * coefficient of degree t0 of the initial A*F is in fact
+             * The initial constant coefficient of E is in fact the
              * coefficient of degree t0 of A'*F, where column j of A' is
              * column j of A, divided by X if j >= bm.d.nrhs.
              *

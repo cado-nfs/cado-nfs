@@ -56,7 +56,7 @@ struct matpoly_checker_base {
         if (!A.check_pre_init()) return 0;
         matpoly P;
         matpoly Q(ab, m, m+n, len1);
-        Q.fill_random(len1, rstate);
+        Q.clear_and_set_random(len1, rstate);
         return P.check_pre_init() && !Q.check_pre_init();
     }
 
@@ -68,17 +68,17 @@ struct matpoly_checker_base {
          * check that it holds
          */
         matpoly P(ab, m, m+n, len1);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q(std::move(P));
         matpoly R(ab, m, n, len1);
-        R.fill_random(len1, rstate);
+        R.clear_and_set_random(len1, rstate);
         R = matpoly();
         return P.check_pre_init() && !Q.check_pre_init() && R.check_pre_init();
     }
 
     int copy_ctor() {
         matpoly P(ab, m, n, len1);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         return P.cmp(Q) == 0;
@@ -87,8 +87,8 @@ struct matpoly_checker_base {
     int fill_random_is_deterministic() {
         matpoly P0(ab, n, n, len1);
         matpoly P1(ab, n, n, len1 + len2);
-        gmp_randseed_ui(rstate, seed); P0.fill_random(len1, rstate);
-        gmp_randseed_ui(rstate, seed); P1.fill_random(len1, rstate);
+        gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
+        gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
         return ok;
     }
@@ -97,8 +97,8 @@ struct matpoly_checker_base {
         /* begin like the previous test. In particular, we  */
         matpoly P0(ab, n, n, len1);
         matpoly P1(ab, n, n, len1 + len2);
-        gmp_randseed_ui(rstate, seed); P0.fill_random(len1, rstate);
-        gmp_randseed_ui(rstate, seed); P1.fill_random(len1, rstate);
+        gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
+        gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int ok;
         /* If data is shrunk at or above the previous value of 'size',
          * then old data is kept, and the 'size' field is unchanged.
@@ -121,7 +121,7 @@ struct matpoly_checker_base {
 
     int mulx_then_divx() {
         matpoly P(ab, m,   n, len1 + n);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         /* take some columns, do multiplies */
@@ -144,7 +144,7 @@ struct matpoly_checker_base {
         matpoly P(ab, m,   n, len1);
         unsigned int trmax = std::min(128u, len1 / 2);
         unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         for(unsigned int s = 0 ; s < tr ; s++) {
@@ -174,7 +174,7 @@ struct matpoly_checker_base {
         matpoly P(ab, m,   n, len1);
         unsigned int trmax = std::min(128u, len1 / 2);
         unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         for(unsigned int s = 0 ; s < tr ; s++) {
@@ -198,7 +198,7 @@ struct matpoly_checker_base {
     int test_extract_column() {
         unsigned int s = n;
         matpoly P(ab, m,   n, s+1);
-        P.fill_random(1, rstate);
+        P.clear_and_set_random(1, rstate);
         for(unsigned int k = 0 ; k < s ; k++)
             for(unsigned int j = 0 ; j < s ; j++)
                 P.extract_column((j+1)%s, k+1, P, j, k);
@@ -219,7 +219,7 @@ struct matpoly_checker_base {
         /* This is a bit like doing the mulx_then_divx test, but in
          * reverse order */
         matpoly P(ab, m,   n, len1 + n);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         /* take some columns, divide */
@@ -243,32 +243,32 @@ struct matpoly_checker_base {
     int add_and_sub() {
         matpoly P(ab, m,   n, len1);
         matpoly Q(ab, m,   n, len2);
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
         matpoly R;
         R.add(P, Q); P.add(Q);
         if (R.cmp(P) != 0) return 0;
 
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
         R.add(Q, P); P.add(Q, P);
         if (R.cmp(P) != 0) return 0;
         
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
         R.sub(P, Q); P.sub(Q);
         if (R.cmp(P) != 0) return 0;
 
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
         R.sub(Q, P); P.sub(Q, P);
         if (R.cmp(P) != 0) return 0;
         
         /* Also check that P + Q - Q == P, whether P is smaller or larger
          * than Q (hence we do Q + P - P == Q as well)
          */
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
         R.add(P, Q);
         R.sub(Q);
         R.truncate(P.get_size());
@@ -298,8 +298,8 @@ struct matpoly_checker_base {
         matpoly Q(ab, m, n, mlen2);
         matpoly R(ab, n, n, mlen2);
         matpoly PQ, PR, QR, PQ_R, PR_QR;
-        P.fill_random(mlen1, rstate);
-        Q.fill_random(mlen2, rstate);
+        P.clear_and_set_random(mlen1, rstate);
+        Q.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
         PR.mul(P, R);
         QR.mul(Q, R);
@@ -327,8 +327,8 @@ struct matpoly_checker_base {
         matpoly Q(ab, m, n, mlen2);
         matpoly R(ab, n, n, mlen2);
         matpoly PQ, PR, QR, PQ_R, PR_QR;
-        P.fill_random(mlen1, rstate);
-        Q.fill_random(mlen2, rstate);
+        P.clear_and_set_random(mlen1, rstate);
+        Q.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
         PR.mp(P, R);
         QR.mp(Q, R);
@@ -344,7 +344,7 @@ struct matpoly_checker_base {
     int coeff_is_zero_and_zero_column_agree()
     {
         matpoly P(ab, m,   n, len1 + 2);
-        P.fill_random(len1, rstate);
+        P.clear_and_set_random(len1, rstate);
         unsigned int k = P.get_size() / 2;
         for(unsigned int j = 0 ; j < n ; j++)
             P.zero_column(j, k);
@@ -372,8 +372,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         matpoly P(ab, n, n, len1);
         matpoly Q(ab, n, n, len2);
 
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
 
         matpoly R0 = matpoly::mul(P, Q);
         matpoly R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, NULL);
@@ -385,8 +385,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         matpoly P(ab, m,   n, len1);
         matpoly Q(ab, n, n, len2);
 
-        P.fill_random(len1, rstate);
-        Q.fill_random(len2, rstate);
+        P.clear_and_set_random(len1, rstate);
+        Q.clear_and_set_random(len2, rstate);
 
         matpoly M0 = matpoly::mp(P, Q);
         matpoly M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, NULL);
