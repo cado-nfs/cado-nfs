@@ -158,7 +158,7 @@ struct las_parallel_desc::helper {
         int k;
         if (parse_number(desc, k)) {
             ostringstream os;
-            os << "machine,1," << k;
+            os << "machine,1," << k; 
             desc = os.str();
             return;
         }
@@ -1114,6 +1114,7 @@ int las_parallel_desc::set_subjob_cpu_binding(int k MAYBE_UNUSED) const
     return 0;
 }
 
+#if 0
 int las_parallel_desc::number_of_threads_loose() const {
 #ifdef HAVE_HWLOC
     if (help->depth)
@@ -1122,6 +1123,7 @@ int las_parallel_desc::number_of_threads_loose() const {
 #endif
         return nthreads_per_subjob;
 }
+#endif
 
 #ifdef HAVE_HWLOC
 cxx_hwloc_nodeset las_parallel_desc::current_memory_binding() const {
