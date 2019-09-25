@@ -232,9 +232,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   fflush (stderr);
   pthread_mutex_unlock (&lock);
 
-  pthread_mutex_lock (&lock);
   accumulate_fast_end (prd, lprd);
-  pthread_mutex_unlock (&lock);
 
   /* we must divide by g1^ab_pairs: if the number of (a,b) pairs is odd, we
      multiply by g1, and divide by g1^(ab_pairs+1) */
