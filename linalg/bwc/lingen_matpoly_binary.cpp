@@ -21,13 +21,13 @@ matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(a
         return;
     }
     if (alloc_words) {
-        x = (unsigned long *) memory.alloc(alloc_size_words() * sizeof(unsigned long));
-        mpn_zero(x, alloc_size_words());
+        x = (unsigned long *) memory.alloc(data_alloc_size());
+        memset(x, 0, data_alloc_size());
     }
 }
 matpoly::~matpoly() {
     if (x)
-        memory.free(x, alloc_size_words() * sizeof(unsigned long));
+        memory.free(x, data_alloc_size());
 }
 matpoly::matpoly(matpoly && a)
     : ab(a.ab), m(a.m), n(a.n), alloc_words(a.alloc_words)
@@ -41,7 +41,7 @@ matpoly::matpoly(matpoly && a)
 matpoly& matpoly::operator=(matpoly&& a)
 {
     if (x)
-        memory.free(x, alloc_size_words() * sizeof(unsigned long));
+        memory.free(x, data_alloc_size());
     ab = a.ab;
     m = a.m;
     n = a.n;
@@ -56,15 +56,15 @@ matpoly& matpoly::operator=(matpoly&& a)
 matpoly& matpoly::set(matpoly const& a)
 {
     if (x)
-        memory.free(x, alloc_size_words() * sizeof(unsigned long));
+        memory.free(x, data_alloc_size());
     ab = a.ab;
     m = a.m;
     n = a.n;
     alloc_words = a.alloc_words;
     size = a.size;
     // abvec_init(ab, &(x), m*n*alloc);
-    x = (unsigned long *) memory.alloc(alloc_size_words() * sizeof(unsigned long));
-    mpn_copyi(x, a.x, alloc_size_words());
+    x = (unsigned long *) memory.alloc(data_alloc_size());
+    memcpy(x, a.x, data_alloc_size());
     return *this;
 }
 
@@ -121,7 +121,7 @@ void matpoly::realloc(size_t new_ncoeffs) {
 }
 void matpoly::zero() {
     size = 0;
-    mpn_zero(x, alloc_size_words());
+    memset(x, 0, data_alloc_size());
 }
 
 void matpoly::set_constant_ui(unsigned long e) {

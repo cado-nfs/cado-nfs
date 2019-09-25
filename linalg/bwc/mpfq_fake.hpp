@@ -26,7 +26,7 @@ static inline void abfield_clear(abdst_field) {}
 #define MPFQ_PRIME_MPZ 0
 static inline void abfield_specify(abdst_field, ...) {}
 static inline mpz_srcptr abfield_characteristic_srcptr(absrc_field) { return NULL; }
-static inline size_t abvec_elt_stride(abdst_field, size_t k) { return (k / 64) * sizeof(mp_limb_t); }
+// static inline size_t abvec_elt_stride(abdst_field, size_t k) { return (k / 64) * sizeof(mp_limb_t); }
 static inline bool abis_zero(abdst_field, absrc_elt x) { return *x==0; }
 static inline void abrandom(abdst_field, abdst_elt x, gmp_randstate_ptr rstate) { *x = gmp_urandomb_ui(rstate, 1); }
 

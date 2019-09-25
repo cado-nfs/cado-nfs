@@ -168,7 +168,7 @@ std::istream& mpfq_pz_cxx_in(mpfq_pz_dst_field k, std::istream& is, mpfq_pz_dst_
 
 /* Vector functions */
 /* *Mpfq::defaults::vec::io::code_for_vec_cxx_out, pz */
-std::ostream& mpfq_pz_vec_cxx_out(mpfq_pz_dst_field K MAYBE_UNUSED, std::ostream& os, mpfq_pz_src_vec w, unsigned int n)
+std::ostream& mpfq_pz_vec_cxx_out(mpfq_pz_dst_field K MAYBE_UNUSED, std::ostream& os, mpfq_pz_src_vec w, unsigned long n)
 {
     char *str;
     mpfq_pz_vec_asprint(K,&str,w,n);
@@ -178,7 +178,7 @@ std::ostream& mpfq_pz_vec_cxx_out(mpfq_pz_dst_field K MAYBE_UNUSED, std::ostream
 }
 
 /* *Mpfq::defaults::vec::io::code_for_vec_cxx_in, pz */
-std::istream& mpfq_pz_vec_cxx_in(mpfq_pz_dst_field K MAYBE_UNUSED, std::istream& is, mpfq_pz_vec * w, unsigned int * n)
+std::istream& mpfq_pz_vec_cxx_in(mpfq_pz_dst_field K MAYBE_UNUSED, std::istream& is, mpfq_pz_vec * w, unsigned long * n)
 {
     char *tmp;
     char c;

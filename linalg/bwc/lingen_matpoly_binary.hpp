@@ -54,13 +54,21 @@ private:
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
     static inline size_t b2w(size_t n) { return BITS_TO_WORDS(n, ULONG_BITS); }/*{{{*/
     // inline size_t colstride() const { return nrows() * stride(); }/*}}}*/
-    size_t alloc_size_words() const { return nrows() * ncols() * alloc_words; }
 public:
     inline size_t capacity() const { return alloc_words * ULONG_BITS; }
     const void * data_area() const { return x; }
     bool is_tight() const { return alloc_words == b2w(size); }
+    size_t data_entry_size() const {
+        return b2w(size) * sizeof(unsigned long);
+    }
     size_t data_size() const {
-        return m * n * b2w(size) * sizeof(unsigned long);
+        return m * n * data_entry_size();
+    }
+    size_t data_entry_alloc_size() const {
+        return alloc_words * sizeof(unsigned long);
+    }
+    size_t data_alloc_size() const {
+        return m * n * data_entry_alloc_size();
     }
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }

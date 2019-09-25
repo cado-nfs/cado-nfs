@@ -345,7 +345,13 @@ struct lingen_tuner {
          * threshold itself, in fact.
          */
         size_t data0 = m*(m+n)*(P.r*P.r-1);
-        data0 = data0 * L * abvec_elt_stride(ab, 1);
+        data0 = data0 * L;
+#ifdef SELECT_MPFQ_LAYER_u64k1
+        data0 = iceildiv(data0, ULONG_BITS) * sizeof(unsigned long);
+#else
+        data0 = abvec_elt_stride(ab, data0);
+#endif
+
         // We must **NOT** divide by r*r, because the problem is
         // precisely caused by the fact that gather() and scatter() all
         // imply one contention point which is the central node.

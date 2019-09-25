@@ -17,6 +17,7 @@ double avg_matsize<true>(abdst_field, unsigned int m, unsigned int n, int ascii)
     return ((m*n)/64) * sizeof(uint64_t);
 }
 
+#ifndef SELECT_MPFQ_LAYER_u64k1
 template<>
 double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int ascii)
 {
@@ -54,6 +55,7 @@ double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int as
     // printf("Expect roughly %.2f bytes for each sequence matrix.\n", matsize);
     return matsize;
 }
+#endif
 
 double average_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
 {

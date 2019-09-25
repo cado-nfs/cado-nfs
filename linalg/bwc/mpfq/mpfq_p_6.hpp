@@ -154,8 +154,8 @@ std::ostream& mpfq_p_6_cxx_out(mpfq_p_6_dst_field, std::ostream&, mpfq_p_6_src_e
 std::istream& mpfq_p_6_cxx_in(mpfq_p_6_dst_field, std::istream&, mpfq_p_6_dst_elt);
 
 /* Vector functions */
-std::ostream& mpfq_p_6_vec_cxx_out(mpfq_p_6_dst_field, std::ostream&, mpfq_p_6_src_vec, unsigned int);
-std::istream& mpfq_p_6_vec_cxx_in(mpfq_p_6_dst_field, std::istream&, mpfq_p_6_vec *, unsigned int *);
+std::ostream& mpfq_p_6_vec_cxx_out(mpfq_p_6_dst_field, std::ostream&, mpfq_p_6_src_vec, unsigned long);
+std::istream& mpfq_p_6_vec_cxx_in(mpfq_p_6_dst_field, std::istream&, mpfq_p_6_vec *, unsigned long *);
 
 /* Polynomial functions */
 /* *Mpfq::defaults::poly::code_for_poly_cxx_out, Mpfq::gfp */

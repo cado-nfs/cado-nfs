@@ -1437,3 +1437,5 @@ linalg/bwc/lingen_average_matsize.hpp
 linalg/bwc/lingen_fft_select.hpp
 linalg/bwc/lingen_matpoly_select.hpp
 linalg/bwc/lingen_qcode_select.hpp
+linalg/bwc/lingen_io_wrappers.cpp
+linalg/bwc/lingen_io_wrappers.hpp

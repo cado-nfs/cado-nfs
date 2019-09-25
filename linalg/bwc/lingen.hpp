@@ -10,11 +10,9 @@
 #include <cstdlib>
 #include <vector>
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
-/* Really, this should be always on. XXX FIXME
- * At the moment, the binary code doesn't totally cope with the mpi layer 
- */
 #define ENABLE_MPI_LINGEN
+
+#ifndef SELECT_MPFQ_LAYER_u64k1
 #include "mpfq_layer.h"
 #else
 #include "mpfq_fake.hpp"

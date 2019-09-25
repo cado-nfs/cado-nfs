@@ -156,8 +156,8 @@ std::ostream& mpfq_m128_cxx_out(mpfq_m128_dst_field, std::ostream&, mpfq_m128_sr
 std::istream& mpfq_m128_cxx_in(mpfq_m128_dst_field, std::istream&, mpfq_m128_dst_elt);
 
 /* Vector functions */
-std::ostream& mpfq_m128_vec_cxx_out(mpfq_m128_dst_field, std::ostream&, mpfq_m128_src_vec, unsigned int);
-std::istream& mpfq_m128_vec_cxx_in(mpfq_m128_dst_field, std::istream&, mpfq_m128_vec *, unsigned int *);
+std::ostream& mpfq_m128_vec_cxx_out(mpfq_m128_dst_field, std::ostream&, mpfq_m128_src_vec, unsigned long);
+std::istream& mpfq_m128_vec_cxx_in(mpfq_m128_dst_field, std::istream&, mpfq_m128_vec *, unsigned long *);
 
 /* Polynomial functions */
 

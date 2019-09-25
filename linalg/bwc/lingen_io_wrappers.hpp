@@ -1,0 +1,298 @@
+#ifndef LINGEN_IO_WRAPPERS_HPP_
+#define LINGEN_IO_WRAPPERS_HPP_
+
+#include "gmp_aux.h"
+#include "lingen_bigmatpoly.hpp"
+#include "lingen_matpoly_select.hpp"
+#include "sha1.h"
+#include <fstream>
+#include <gmp.h>
+#include <vector>
+#include <memory>
+
+/* This layer intends to absorb some 1400 lines of lingen.cpp, in a
+ * "pipes and fittings" approach. This should be more usable than the
+ * very intricated bm_io layer that we currently have. The price that we
+ * accept to pay in exchange is some caching matpoly's at some places
+ * (those will also bring the benefit of maximizing the performance for
+ * the binary case, and might even do good in the prime field case either).
+ *
+ * XXX Most of all this is still "not implemented yet". XXX
+ */
+struct lingen_io_wrapper_base
+{
+    abdst_field ab;
+    unsigned int m;
+    unsigned int n;
+
+    /* average_matsize is the size in bytes of the final storage target
+     * of the stream. Typically that means the bytes on disk. The base
+     * class has a method that determines this average matrix size from
+     * the ab layer. This corresponds to the in-memory size.
+     * However, streams that are tied to an actual file may
+     * also possess the information of whether the file is in ascii or
+     * not, in which case this function is overridden to represent the
+     * number of bytes of the on-disk data.
+     */
+    virtual double average_matsize() const;
+
+    /* This is an indicative size of the read batches that this layer
+     * feels is appropriate for I/O. Currently the only means to control
+     * that preferred window size is via the io_matpoly_block_size
+     * parameter.
+     *
+     * A priori this is only dependent on the average matrix size, and we
+     * can provide a default implementation in the base class.
+     */
+    virtual unsigned int preferred_window() const;
+
+    lingen_io_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
+      : ab(ab)
+      , m(m)
+      , n(n)
+    {}
+
+    protected:
+    ~lingen_io_wrapper_base() {}
+};
+
+struct lingen_input_wrapper_base : public lingen_io_wrapper_base
+{
+    lingen_input_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
+      : lingen_io_wrapper_base(ab, m, n)
+    {}
+    virtual ssize_t read_to_matpoly(matpoly& dst,
+                                    unsigned int k0,
+                                    unsigned int k1) = 0;
+    virtual size_t guessed_length() const = 0;
+
+    virtual ~lingen_input_wrapper_base() {}
+};
+
+struct lingen_output_wrapper_base : public lingen_io_wrapper_base
+{
+    lingen_output_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
+      : lingen_io_wrapper_base(ab, m, n)
+    {}
+    virtual ssize_t write_from_matpoly(matpoly const& src,
+                                       unsigned int k0,
+                                       unsigned int k1) = 0;
+
+    virtual ~lingen_output_wrapper_base() {}
+};
+
+class lingen_file_input : public lingen_input_wrapper_base
+{
+    FILE* f;
+    std::string filename;
+    bool ascii;
+    void open_file();
+    void close_file();
+
+    public:
+    lingen_file_input(abdst_field ab,
+                      unsigned int m,
+                      unsigned int n,
+                      std::string const& filename,
+                      bool ascii = false)
+      : lingen_input_wrapper_base(ab, m, n)
+      , filename(filename)
+      , ascii(ascii)
+    {
+        open_file();
+    }
+    ~lingen_file_input() override { close_file(); }
+    lingen_file_input(lingen_file_input const&) = delete;
+    double average_matsize() const override;
+    size_t guessed_length() const override;
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+struct lingen_random_input : public lingen_input_wrapper_base
+{
+    gmp_randstate_ptr rstate;
+    size_t length;
+    lingen_random_input(abdst_field ab,
+                        unsigned int m,
+                        unsigned int n,
+                        gmp_randstate_ptr rstate,
+                        size_t length)
+      : lingen_input_wrapper_base(ab, m, n)
+      , rstate(rstate)
+      , length(length)
+    {}
+
+    inline size_t guessed_length() const override { return length; }
+
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+struct lingen_F0
+{
+    // pairs are (exponent, column number)
+    std::vector<std::array<unsigned int, 2>> fdesc;
+    unsigned int t0;
+};
+
+class lingen_E_from_A
+  : public lingen_input_wrapper_base
+  , public lingen_F0
+{
+    void initial_read();
+    lingen_input_wrapper_base& A;
+
+    public:
+    lingen_E_from_A(lingen_input_wrapper_base& A)
+      : lingen_input_wrapper_base(A.ab, A.m, A.m + A.n)
+      , A(A)
+    {
+        initial_read();
+    }
+    inline size_t guessed_length() const override {
+        return A.guessed_length() - t0;
+    }
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+template<typename matpoly_type>
+class lingen_scatter : public lingen_output_wrapper_base
+{
+    matpoly_type& E;
+
+    public:
+    lingen_scatter(matpoly_type& E)
+      : lingen_output_wrapper_base(E.ab, E.m, E.n)
+      , E(E)
+    {}
+    ssize_t write_from_matpoly(matpoly const& src,
+                               unsigned int k0,
+                               unsigned int k1) override;
+};
+
+template class lingen_scatter<matpoly>;
+template class lingen_scatter<bigmatpoly>;
+
+template<typename matpoly_type>
+class lingen_gather : public lingen_input_wrapper_base
+{
+    matpoly_type& pi;
+
+    public:
+    lingen_gather(matpoly_type& pi)
+      : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      , pi(pi)
+    {}
+    inline size_t guessed_length() const override {
+        return pi.get_size();
+    }
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+template class lingen_gather<matpoly>;
+template class lingen_gather<bigmatpoly>;
+
+class lingen_F_from_PI
+  : public lingen_input_wrapper_base
+  , public lingen_F0
+{
+    lingen_input_wrapper_base& src;
+    matpoly cache_in;
+    matpoly cache_out;
+    unsigned int pos; /* relative to cache_out */
+    public:
+    lingen_F_from_PI(lingen_input_wrapper_base& src, lingen_F0 const& F0)
+      : lingen_input_wrapper_base(src.ab, src.n - src.m, src.n - src.m)
+      , lingen_F0(F0)
+      , src(src)
+      , cache_in(src.ab, src.m, src.n, src.preferred_window())
+      , cache_out(src.ab, n, n, src.preferred_window())
+    {}
+    inline size_t guessed_length() const override {
+        return src.guessed_length() + t0;
+    }
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+class lingen_output_to_singlefile : public lingen_output_wrapper_base
+{
+    std::string filename;
+    std::unique_ptr<std::ofstream> os;
+    bool ascii;
+    void open_file();
+    bool done_open = false;
+
+    public:
+    lingen_output_to_singlefile(abdst_field ab,
+                                unsigned int m,
+                                unsigned int n,
+                                std::string const& filename,
+                                bool ascii = false)
+      : lingen_output_wrapper_base(ab, m, n)
+      , filename(filename)
+      , ascii(ascii)
+    {
+    }
+
+    lingen_output_to_singlefile(lingen_output_to_singlefile const&) = delete;
+
+    ssize_t write_from_matpoly(matpoly const& src,
+                               unsigned int k0,
+                               unsigned int k1) override;
+};
+
+class lingen_output_to_splitfile : public lingen_output_wrapper_base
+{
+    std::string pattern;
+    std::vector<std::ofstream> fw;
+    bool ascii;
+    void open_file();
+    bool done_open = false;
+
+    public:
+    lingen_output_to_splitfile(abdst_field ab,
+                               unsigned int m,
+                               unsigned int n,
+                               std::string const& pattern,
+                               bool ascii = false);
+
+    ssize_t write_from_matpoly(matpoly const& src,
+                               unsigned int k0,
+                               unsigned int k1) override;
+};
+
+/* This just prints the checksum to stdout on the dtor */
+class lingen_output_to_sha1sum : public lingen_output_wrapper_base
+{
+    sha1_checksumming_stream f;
+    std::string who;
+
+    public:
+    lingen_output_to_sha1sum(abdst_field ab,
+                             unsigned int m,
+                             unsigned int n,
+                             std::string const& who)
+      : lingen_output_wrapper_base(ab, m, n)
+      , who(who)
+    {}
+    ~lingen_output_to_sha1sum() override;
+    ssize_t write_from_matpoly(matpoly const& src,
+                               unsigned int k0,
+                               unsigned int k1) override;
+};
+
+void
+pipe(lingen_input_wrapper_base& in,
+     lingen_output_wrapper_base& out,
+     bool print_progress);
+
+#endif /* LINGEN_IO_WRAPPERS_HPP_ */

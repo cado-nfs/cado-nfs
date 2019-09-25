@@ -22,18 +22,14 @@ matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(a
     }
     if (alloc) {
         // abvec_init(ab, &(x), m*n*alloc);
-        x = (abdst_vec) memory.alloc(alloc_size());
+        x = (abdst_vec) memory.alloc(data_alloc_size());
         abvec_set_zero(ab, x, m*n*alloc);
     }
-}
-size_t matpoly::alloc_size() const
-{
-    return abvec_elt_stride(ab, m*n*alloc);
 }
 
 matpoly::~matpoly() {
     if (x) {
-        memory.free(x, abvec_elt_stride(ab, m*n*alloc));
+        memory.free(x, data_alloc_size());
         // abvec_clear(ab, &(x), m*n*alloc);
     }
 }
@@ -49,7 +45,7 @@ matpoly::matpoly(matpoly && a)
 matpoly& matpoly::operator=(matpoly&& a)
 {
     if (x) {
-        memory.free(x, abvec_elt_stride(ab, m*n*alloc));
+        memory.free(x, data_alloc_size());
         // abvec_clear(ab, &(x), m*n*alloc);
     }
     ab = a.ab;
@@ -66,7 +62,7 @@ matpoly& matpoly::operator=(matpoly&& a)
 matpoly& matpoly::set(matpoly const& a)
 {
     if (x) {
-        memory.free(x, abvec_elt_stride(ab, m*n*alloc));
+        memory.free(x, data_alloc_size());
         // abvec_clear(ab, &(x), m*n*alloc);
     }
     ab = a.ab;
@@ -75,7 +71,7 @@ matpoly& matpoly::set(matpoly const& a)
     alloc = a.alloc;
     size = a.size;
     // abvec_init(ab, &(x), m*n*alloc);
-    x = (abdst_vec) memory.alloc(alloc_size());
+    x = (abdst_vec) memory.alloc(data_alloc_size());
     abvec_set(ab, x, a.x, m*n*alloc);
     return *this;
 }
@@ -92,8 +88,8 @@ matpoly& matpoly::set(matpoly const& a)
  */
 void matpoly::realloc(size_t newalloc) {
     ASSERT_ALWAYS(size <= alloc);
-    size_t oldmem = abvec_elt_stride(ab, m*n*alloc);
-    size_t newmem = abvec_elt_stride(ab, m*n*newalloc);
+    size_t oldmem = data_alloc_size();
+    size_t newmem = data_alloc_size(newalloc);
 
     /* zero out the newly added data */
     if (newalloc > alloc) {

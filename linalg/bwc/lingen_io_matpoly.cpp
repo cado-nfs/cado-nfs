@@ -117,19 +117,28 @@ int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int
 #endif
 /* }}} */
 
+#define VOID_POINTER_ADD(x, k) (((char*)(x))+(k))
 
 /* fw must be an array of ofstreams of exactly the same size as the
  * matrix to be written.
  */
-int matpoly_write_split(abdst_field ab, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
+int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
-    for(unsigned int k = k0 ; k < k1 ; k++) {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    ASSERT_ALWAYS(k0 % ULONG_BITS == 0);
+    ASSERT_ALWAYS(k1 % ULONG_BITS == 0);
+    unsigned int simd = ULONG_BITS;
+#else
+    unsigned int simd = 1;
+#endif
+    for(unsigned int k = k0 ; k < k1 ; k += simd) {
         int err = 0;
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < M.m ; i++) {
             for(unsigned int j = 0 ; !err && j < M.n ; j++) {
                 std::ostream& os = fw[i*M.n+j];
+#ifndef SELECT_MPFQ_LAYER_u64k1
                 absrc_elt x = M.coeff(i, j, k);
                 if (ascii) {
                     err = !(abcxx_out(ab, os, x));
@@ -137,6 +146,15 @@ int matpoly_write_split(abdst_field ab, std::vector<std::ofstream> & fw, matpoly
                 } else {
                     err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
                 }
+#else
+                absrc_elt x = M.part(i, j);
+                if (ascii) {
+                    abort();
+                } else {
+                    const void * from = VOID_POINTER_ADD(x, k / CHAR_BIT);
+                    err = !(os.write((const char *) from, simd / CHAR_BIT));
+                }
+#endif
                 if (!err) matnb++;
             }
         }

@@ -35,6 +35,8 @@ void SHA1(char *hash_out, const char *str, int len);
 /* end "SHA-1 in C" PD interface */
 
 #ifdef __cplusplus
+#include <streambuf>
+#include <ostream>
 /* mock streambuf implementation that just computes the sha-1 sum of what
  * it gets fed.
  *

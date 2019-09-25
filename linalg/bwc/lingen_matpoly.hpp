@@ -65,9 +65,15 @@ public:
 
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
-    size_t alloc_size() const;
     const void * data_area() const { return x; }
-    size_t data_size() const { return m * n * abvec_elt_stride(ab, size); }
+    size_t data_entry_size() const { return abvec_elt_stride(ab, size); }
+    size_t data_size() const { return m * n * data_entry_size(); }
+private:
+    size_t data_entry_alloc_size(size_t a) const { return abvec_elt_stride(ab, a); }
+    size_t data_alloc_size(size_t a) const { return m * n * data_entry_alloc_size(a); }
+public:
+    size_t data_entry_alloc_size() const { return data_entry_alloc_size(alloc); }
+    size_t data_alloc_size() const { return data_alloc_size(alloc); }
     bool is_tight() const { return alloc == size; }
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }

@@ -199,7 +199,7 @@ std::istream& mpfq_m128_cxx_in(mpfq_m128_dst_field k, std::istream& is, mpfq_m12
 
 /* Vector functions */
 /* *Mpfq::defaults::vec::io::code_for_vec_cxx_out, Mpfq::defaults::vec */
-std::ostream& mpfq_m128_vec_cxx_out(mpfq_m128_dst_field K MAYBE_UNUSED, std::ostream& os, mpfq_m128_src_vec w, unsigned int n)
+std::ostream& mpfq_m128_vec_cxx_out(mpfq_m128_dst_field K MAYBE_UNUSED, std::ostream& os, mpfq_m128_src_vec w, unsigned long n)
 {
     char *str;
     mpfq_m128_vec_asprint(K,&str,w,n);
@@ -209,7 +209,7 @@ std::ostream& mpfq_m128_vec_cxx_out(mpfq_m128_dst_field K MAYBE_UNUSED, std::ost
 }
 
 /* *Mpfq::defaults::vec::io::code_for_vec_cxx_in, Mpfq::defaults::vec */
-std::istream& mpfq_m128_vec_cxx_in(mpfq_m128_dst_field K MAYBE_UNUSED, std::istream& is, mpfq_m128_vec * w, unsigned int * n)
+std::istream& mpfq_m128_vec_cxx_in(mpfq_m128_dst_field K MAYBE_UNUSED, std::istream& is, mpfq_m128_vec * w, unsigned long * n)
 {
     char *tmp;
     char c;

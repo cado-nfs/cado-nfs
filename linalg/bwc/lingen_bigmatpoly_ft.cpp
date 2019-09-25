@@ -1,5 +1,4 @@
 #include "cado.h"
-#include "mpfq_layer.h"
 #include <cstdlib>
 #include "portability.h"
 #include "macros.h"
@@ -34,11 +33,8 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
     typedef bigmatpoly T;
     typedef fft_type FFT;
     template<typename... Args>
-    OP_CTX(tree_stats & stats, fft_transform_info const & fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
-        size_t fft_alloc_sizes[3];
-        fft_transform_info_get_alloc_sizes(&fti, fft_alloc_sizes);
-        size_t tsize = fft_alloc_sizes[0];
-        MPI_Type_contiguous(tsize, MPI_BYTE, &mpi_ft);
+    OP_CTX(tree_stats & stats, fft_type const & fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
+        MPI_Type_contiguous(fti.get_alloc_sizes()[0], MPI_BYTE, &mpi_ft);
         MPI_Type_commit(&mpi_ft);
     }
     ~OP_CTX() {
@@ -136,9 +132,9 @@ bigmatpoly bigmatpoly_ft<fft_type>::mul_caching(tree_stats & stats, bigmatpoly c
 }
 
 #ifdef SELECT_MPFQ_LAYER_u64k1
-template class bigmatpoly_ft<gf2x_fake_fft>;
-template class bigmatpoly_ft<gf2x_cantor_fft>;
-template class bigmatpoly_ft<gf2x_ternary_fft>;
+template class bigmatpoly_ft<gf2x_fake_fft_info>;
+template class bigmatpoly_ft<gf2x_cantor_fft_info>;
+template class bigmatpoly_ft<gf2x_ternary_fft_info>;
 #else
 template class bigmatpoly_ft<fft_transform_info>;
 #endif

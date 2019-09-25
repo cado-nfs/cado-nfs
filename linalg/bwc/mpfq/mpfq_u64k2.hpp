@@ -157,8 +157,8 @@ std::ostream& mpfq_u64k2_cxx_out(mpfq_u64k2_dst_field, std::ostream&, mpfq_u64k2
 std::istream& mpfq_u64k2_cxx_in(mpfq_u64k2_dst_field, std::istream&, mpfq_u64k2_dst_elt);
 
 /* Vector functions */
-std::ostream& mpfq_u64k2_vec_cxx_out(mpfq_u64k2_dst_field, std::ostream&, mpfq_u64k2_src_vec, unsigned int);
-std::istream& mpfq_u64k2_vec_cxx_in(mpfq_u64k2_dst_field, std::istream&, mpfq_u64k2_vec *, unsigned int *);
+std::ostream& mpfq_u64k2_vec_cxx_out(mpfq_u64k2_dst_field, std::ostream&, mpfq_u64k2_src_vec, unsigned long);
+std::istream& mpfq_u64k2_vec_cxx_in(mpfq_u64k2_dst_field, std::istream&, mpfq_u64k2_vec *, unsigned long *);
 
 /* Polynomial functions */
 

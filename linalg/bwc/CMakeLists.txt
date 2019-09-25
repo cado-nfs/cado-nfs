@@ -439,6 +439,7 @@ set_target_properties(lingen_common_support PROPERTIES
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_sources
         lingen.cpp
+        lingen_io_wrappers.cpp
         lingen_io_matpoly.cpp
         lingen_checkpoints.cpp
         lingen_average_matsize.cpp
@@ -450,6 +451,8 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     set(lingen_${v}_support_sources
             lingen_matpoly_ft.cpp
+            lingen_bigmatpoly.cpp
+            lingen_bigmatpoly_ft.cpp
             )
     if (v STREQUAL "u64k1")
         set(lingen_${v}_sources
@@ -479,8 +482,6 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
             lingen_polymat.cpp
             # lingen_bigpolymat.c # deleted 20150826
             lingen_matpoly.cpp
-            lingen_bigmatpoly.cpp
-            lingen_bigmatpoly_ft.cpp
             )
     endif()
 
