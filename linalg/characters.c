@@ -184,6 +184,7 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
                 fprintf (stderr, "Error, Jacobi symbol is 0 for a = %" PRId64 
                          ", b = %" PRIu64 ", p = %lu, r = %lu\n", 
                          a, b, ch->p, ch->r);
+                fprintf (stderr, "Please check lpb0/lpb1 are large enough\n");
                 ASSERT_ALWAYS(res != 0);
             }
             res = res < 0;   // -1->1, 1->0
