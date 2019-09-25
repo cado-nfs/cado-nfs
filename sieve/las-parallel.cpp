@@ -660,7 +660,7 @@ Syntax of the specifiers
 The cpu binding level may be omitted, and defaults to the same value as
 the machine binding level.
 
-All three (or four) main items may be set as integers. However this
+All three (or four) main items may be set as integers. However this is
 probably not the most useful, and certainly not the most portable way to
 set them.
 
@@ -776,7 +776,7 @@ Examples
     -t numa,fit,pu,strict
             -> binds jobs at the numa level. Set as many jobs as can fit,
             and then run each on exactly the number of pus (hyperthreaded
-            cores). Abort if it is not possible to fit on one numa node
+            cores). Abort if it is not possible to fit on one numa node.
 
     -t numa,core*2,fit,pu
             -> memory-bind at the numa level, and do cpu-bind on pairs of
@@ -786,7 +786,7 @@ Examples
             binding context of two cores).
 
     -t numa,fit,20
-            -> same, but force 20-thread jobs (no matter what)
+            -> same, but force 20-thread jobs (no matter what).
 
     -t auto -> resolves to )" << default_placement_with_auto << R"( = bind fractions of NUMA
             nodes, and put as many jobs in there as can fit. Then have
