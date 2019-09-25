@@ -1021,7 +1021,10 @@ create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
   // the product of primes up to B takes \log2(B)-\log\log 2 / \log 2
   // bits. The added constant is 0.5287.
   if (log2(B/GMP_LIMB_BITS) + 0.5287 >= 31) {
-      fprintf(stderr, "Gnu MP cannot deal with primes product that large (max 37 bits)\n");
+    /* mpz_t "size" field is an int, thus can hold up to 2^31-1:
+       on a 32-bit processor, this means up to 2^36 bits,
+       on a 64-bit processor, this means up to 2^37 bits */
+    fprintf(stderr, "Gnu MP cannot deal with prime products that large (maximum 2^%d bits)\n", 36 + (GMP_LIMB_BITS > 32));
       abort();
   } else if (log2(B) + 0.5287 >= 34) {
       fprintf(stderr, "Gnu MP's mpz_inp_raw and mpz_out_raw functions are limited to integers of at most 34 bits\n");
