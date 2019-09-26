@@ -637,7 +637,7 @@ def run_command(command, print_error=True, **kwargs):
 
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
-    # subprocess, too, so that the system is not kepy busy with
+    # subprocess, too, so that the system is not kept busy with
     # orphaned processes.
     # Python installs by default a signal handler for SIGINT which
     # raises the KeyboardInterrupt exception. This is convenient, as
