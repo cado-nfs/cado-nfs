@@ -82,8 +82,34 @@ def l2norm_tk(f,s):
     coeffs=[4/(2*i+1)/(2*(d-i)+1) for i in [0..d]]
     return sqrt(vector(g2.coeffs())*vector(coeffs)/ss)
 
+# see symbolic_l2 to generate formulas for larger degrees
 def l2norm_tk_circular(f,s):
-   if f.degree()==6:
+   if f.degree()==8: # symbolic_l2(8,0)[0](s).collect(pi).normalize()
+      a0 = f[0]
+      a1 = f[1] * s
+      a2 = f[2] * s^2
+      a3 = f[3] * s^3
+      a4 = f[4] * s^4
+      a5 = f[5] * s^5
+      a6 = f[6] * s^6
+      a7 = f[7] * s^7
+      a8 = f[8] * s^8
+      n = 6435*a0^2 + 429*a1^2 + 858*a0*a2 + 99*a2^2 + 198*a1*a3 + 45*a3^2 + 198*a0*a4 + 90*a2*a4 + 35*a4^2 + 90*a1*a5 + 70*a3*a5 + 45*a5^2 + 90*a0*a6 + 70*a2*a6 + 90*a4*a6 + 99*a6^2 + 70*a1*a7 + 90*a3*a7 + 198*a5*a7 + 429*a7^2 + 70*a0*a8 + 90*a2*a8 + 198*a4*a8 + 858*a6*a8 + 6435*a8^2
+      n = n * pi / 294912
+      return RealField(PRECISION)(1/2 * log(n / s^8))
+   elif f.degree()==7: # symbolic_l2(7,0)[0](s).collect(pi).normalize()
+      a0 = f[0]
+      a1 = f[1] * s
+      a2 = f[2] * s^2
+      a3 = f[3] * s^3
+      a4 = f[4] * s^4
+      a5 = f[5] * s^5
+      a6 = f[6] * s^6
+      a7 = f[7] * s^7
+      n = 429 * (a0^2 + a7^2) + 33 * (a1^2 + a6^2) + 66 * (a0*a2 + a5*a7) + 9 * (a2^2 + a5^2) + 18 * (a1*a3 + a0*a4 + a4*a6 + a3*a7) + 5 * (a3^2 + a4^2) + 10 * (a2*a4 + a1*a5 + a3*a5 + a0*a6 + a2*a6 + a1*a7)
+      n = n * pi / 16384
+      return RealField(PRECISION)(1/2 * log(n / s^7))
+   elif f.degree()==6: # symbolic_l2(6,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       a2 = f[2] * s^2
@@ -95,7 +121,7 @@ def l2norm_tk_circular(f,s):
       n = n * pi / 7168
       # return float(1/2 * log(n / (s * s * s * s * s * s)))
       return RealField(PRECISION)(1/2 * log(n / (s * s * s * s * s * s)))
-   elif f.degree()==5:
+   elif f.degree()==5: # symbolic_l2(5,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       a2 = f[2] * s^2
@@ -105,7 +131,7 @@ def l2norm_tk_circular(f,s):
       n = 6 * (a3 * a1 + a1 * a5 + a4 * a2 + a0 * a4) + 14 * (a0 * a2 + a3 * a5) + 63.0 * (a0 * a0 + a5 * a5) + 7 * (a4 * a4 + a1 * a1) + 3 * (a3 * a3 + a2 * a2)
       n = n * pi / 1536
       return RealField(PRECISION)(1/2 * log(n / (s * s * s * s * s)))
-   elif f.degree()==4:
+   elif f.degree()==4: # symbolic_l2(4,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       a2 = f[2] * s^2
@@ -114,7 +140,7 @@ def l2norm_tk_circular(f,s):
       n = 35 * (a4^2 + a0^2) + 10 * (a4*a2 + a2*a0) + 5 * (a3^2 + a1^2) + 6 * (a4*a0 + a3*a1) + 3 * a2^2
       n = n * pi / 640
       return RealField(PRECISION)(1/2 * log(n / (s * s * s * s)))
-   elif f.degree()==3:
+   elif f.degree()==3: # symbolic_l2(3,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       a2 = f[2] * s^2
@@ -122,18 +148,18 @@ def l2norm_tk_circular(f,s):
       n = 5 * (a3^2 + a0^2) + 2 * (a3*a1 + a0*a2) + a1^2 + a2^2
       n = n * pi / 64
       return RealField(PRECISION)(1/2 * log(n / (s * s * s)))
-   elif f.degree()==2:
+   elif f.degree()==2: # symbolic_l2(2,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       a2 = f[2] * s^2
       n = 3 * (a2 * a2 + a0 * a0) + 2 * a0 * a2 + a1 * a1
       n = n * pi / 24
       return RealField(PRECISION)(1/2 * log(n / (s * s)))
-   elif f.degree()==1:
+   elif f.degree()==1: # symbolic_l2(1,0)[0](s).collect(pi).normalize()
       a0 = f[0]
       a1 = f[1] * s
       n = a0 * a0 + a1 * a1
-      n = n * pi / 24
+      n = n * pi / 4
       return RealField(PRECISION)(1/2 * log(n / s))
    else:
       raise ValueError, "circular norm not yet implemented for degree %d" % \
@@ -235,7 +261,68 @@ def best_l2norm_tk_circular(f):
     return l2norm_tk_circular(f, skew_l2norm_tk_circular(f))
 
 def skew_l2norm_tk_circular(f, verbose=false):
-   if f.degree()==6:
+   if f.degree()==8: # symbolic_l2(8,0)[0](s).collect(pi).normalize()
+      R.<s> = RealField(PRECISION)[]
+      a0 = f[0]
+      a1 = f[1] * s
+      a2 = f[2] * s^2
+      a3 = f[3] * s^3
+      a4 = f[4] * s^4
+      a5 = f[5] * s^5
+      a6 = f[6] * s^6
+      a7 = f[7] * s^7
+      a8 = f[8] * s^8
+      d = (6435*a0^2 + 429*a1^2 + 858*a0*a2 + 99*a2^2 + 198*a1*a3 + 45*a3^2 + 198*a0*a4 + 90*a2*a4 + 35*a4^2 + 90*a1*a5 + 70*a3*a5 + 45*a5^2 + 90*a0*a6 + 70*a2*a6 + 90*a4*a6 + 99*a6^2 + 70*a1*a7 + 90*a3*a7 + 198*a5*a7 + 429*a7^2 + 70*a0*a8 + 90*a2*a8 + 198*a4*a8 + 858*a6*a8 + 6435*a8^2)/s^8
+      if verbose:
+         print "trying to minimize", d
+      # derivative of d wrt s (numerator, divided by 18)
+      e = -2860*a0^2 - 143*a1^2 - 286*a0*a2 - 22*a2^2 - 44*a1*a3 - 5*a3^2 - 44*a0*a4 - 10*a2*a4 - 10*a1*a5 + 5*a5^2 - 10*a0*a6 + 10*a4*a6 + 22*a6^2 + 10*a3*a7 + 44*a5*a7 + 143*a7^2 + 10*a2*a8 + 44*a4*a8 + 286*a6*a8 + 2860*a8^2
+      if verbose:
+         print "derivative is", e
+      r = e.real_roots()
+      root_pos=[s for s in r if s > 0]
+      if verbose:
+         print "positive real roots of derivative:", r
+      best_norm = infinity
+      for r in root_pos:
+         no = d(r)
+         if verbose:
+            print "value at r=", r, "is", no
+         if no < best_norm:
+            best_norm = no
+            best_root = r
+      return best_root
+   elif f.degree()==7: # symbolic_l2(7,0)[0](s).collect(pi).normalize()
+      R.<s> = RealField(PRECISION)[]
+      a0 = f[0]
+      a1 = f[1] * s
+      a2 = f[2] * s^2
+      a3 = f[3] * s^3
+      a4 = f[4] * s^4
+      a5 = f[5] * s^5
+      a6 = f[6] * s^6
+      a7 = f[7] * s^7
+      d = (429*a0^2 + 33*a1^2 + 66*a0*a2 + 9*a2^2 + 18*a1*a3 + 5*a3^2 + 18*a0*a4 + 10*a2*a4 + 5*a4^2 + 10*a1*a5 + 10*a3*a5 + 9*a5^2 + 10*a0*a6 + 10*a2*a6 + 18*a4*a6 + 33*a6^2 + 10*a1*a7 + 18*a3*a7 + 66*a5*a7 + 429*a7^2)/s^7
+      if verbose:
+         print "trying to minimize", d
+      # derivative of d wrt s (numerator)
+      e = -3003*a0^2 - 165*a1^2 - 330*a0*a2 - 27*a2^2 - 54*a1*a3 - 5*a3^2 - 54*a0*a4 - 10*a2*a4 + 5*a4^2 - 10*a1*a5 + 10*a3*a5 + 27*a5^2 - 10*a0*a6 + 10*a2*a6 + 54*a4*a6 + 165*a6^2 + 10*a1*a7 + 54*a3*a7 + 330*a5*a7 + 3003*a7^2
+      if verbose:
+         print "derivative is", e
+      r = e.real_roots()
+      root_pos=[s for s in r if s > 0]
+      if verbose:
+         print "positive real roots of derivative:", r
+      best_norm = infinity
+      for r in root_pos:
+         no = d(r)
+         if verbose:
+            print "value at r=", r, "is", no
+         if no < best_norm:
+            best_norm = no
+            best_root = r
+      return best_root
+   elif f.degree()==6:
       R.<s> = RealField(PRECISION)[]
       a0 = f[0]
       a1 = f[1] * s
@@ -247,7 +334,7 @@ def skew_l2norm_tk_circular(f, verbose=false):
       d = (231*a0^2+42*a0*a2+14*a0*a4+10*a0*a6+21*a1^2+14*a1*a3+10*a1*a5+7*a2^2+10*a2*a4+14*a2*a6+5*a3^2+14*a3*a5+7*a4^2+42*a4*a6+21*a5^2+231*a6^2)/s^6
       if verbose:
          print "trying to minimize", d
-      # derivative of d wrt s
+      # derivative of d wrt s (numerator divided by 14)
       e = -99*a0^2+12*a6*a4+2*a6*a2-2*a4*a0-12*a2*a0+6*a5^2-6*a1^2+99*a6^2+a4^2-a2^2+2*a5*a3-2*a3*a1
       if verbose:
          print "derivative is", e
@@ -838,28 +925,33 @@ def optimize(f,g,maxsteps=200,eps=0.001):
 ###################################################
 # 1. symbolically generate l2norm
 # usage sage: [f, fd, fd2] = symbolic_l2norm(6, 0)
-#             6 is the degree, 0 means ellipse region;
+#             6 is the degree, 0 means ellipse region (circular);
 #                              1 is rectangular region.
 ###################################################
 def symbolic_l2(d, method):
-    if ((d < 3) | (d > 6)):
+    if ((d < 1) | (d > 8)):
         return "Not Implemented"
-    a6, a5, a4, a3, a2, a1, a0 = var('a6 a5 a4 a3 a2 a1 a0')
+    a8, a7, a6, a5, a4, a3, a2, a1, a0 = var('a8 a7 a6 a5 a4 a3 a2 a1 a0')
     x, y, s, r, t = var('x, y, s, r, t')
-    if (d == 3):
-        a6 = 0
-        a5 = 0
+    if d <= 1:
+        a2 = 0
+    if d <= 2:
+        a3 = 0
+    if d <= 3:
         a4 = 0
-    if (d == 4):
-        a6 = 0
+    if d <= 4:
         a5 = 0
-    if (d == 5):
+    if d <= 5:
         a6 = 0
-    f = a6*x^6+a5*x^5+a4*x^4+a3*x^3+a2*x^2+a1*x+a0
+    if d <= 6:
+        a7 = 0
+    if d <= 7:
+        a8 = 0
+    f = a8*x^8+a7*x^7+a6*x^6+a5*x^5+a4*x^4+a3*x^3+a2*x^2+a1*x+a0
     g(x, y) = f(x=x/y)*y^d
 
-    # 0 means ellilpse, others means rectangular
-    if (method == 0):
+    # 0 means ellipse, others means rectangular
+    if method == 0:
         g(x=r*cos(t), y=r*sin(t))
         h(r,t,s)= g(x=s^(1/2)*r*cos(t), y=r/s^(1/2)*sin(t))
         l(t,s) = integrate(h^2*r, r, 0, 1)
