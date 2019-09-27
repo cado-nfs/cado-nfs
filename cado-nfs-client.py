@@ -634,6 +634,9 @@ def run_command(command, print_error=True, **kwargs):
         logging.critical("KeyboardInterrupt received, killing child "
                          "process with PID %d", child.pid)
         child.terminate()
+        (stdout, stderr) = child.communicate()
+        logging.error("Terminated command resulted in exit code %d",
+            child.returncode)
         raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
 
     # Un-install our handler and revert to the default handler
