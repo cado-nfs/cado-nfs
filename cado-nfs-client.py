@@ -613,6 +613,8 @@ def run_command(command, print_error=True, **kwargs):
                              close_fds=close_fds,
                              **kwargs)
 
+    logging.info ("Subprocess has PID %d", child.pid)
+
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
     # subprocess, too, so that the system is not kept busy with
