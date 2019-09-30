@@ -635,9 +635,11 @@ def run_command(command, print_error=True, **kwargs):
                              close_fds=close_fds,
                              **kwargs)
 
+    logging.info ("[%s] Subprocess has PID %d", time.asctime(), child.pid)
+
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
-    # subprocess, too, so that the system is not kepy busy with
+    # subprocess, too, so that the system is not kept busy with
     # orphaned processes.
     # Python installs by default a signal handler for SIGINT which
     # raises the KeyboardInterrupt exception. This is convenient, as
@@ -653,9 +655,12 @@ def run_command(command, print_error=True, **kwargs):
     try:
         (stdout, stderr) = child.communicate()
     except KeyboardInterrupt:
-        logging.critical("KeyboardInterrupt received, killing child "
-                         "process with PID %d", child.pid)
+        logging.critical("[%s] KeyboardInterrupt received, killing child "
+                         "process with PID %d", time.asctime(), child.pid)
         child.terminate()
+        (stdout, stderr) = child.communicate()
+        logging.error("[%s] Terminated command resulted in exit code %d",
+            time.asctime(), child.returncode)
         raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
     
     # Un-install our handler and revert to the default handler

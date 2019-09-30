@@ -245,6 +245,9 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef ATTR_PRINTF
 #define ATTR_PRINTF(a,b) __attribute__((format(printf,a,b)))
 #endif
+#ifndef CONSTANT_P
+#define CONSTANT_P(x) __builtin_constant_p(x)
+#endif
 #else
 /* mingw's gcc is apparently unaware that the c99 format strings _may_ be
  * recognized by the win32 printf, for who asks nicely... */
@@ -278,6 +281,9 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #ifndef ATTRIBUTE
 #define ATTRIBUTE(x)
+#ifndef CONSTANT_P
+#define CONSTANT_P(x) 0
+#endif
 #endif
 #endif /* if defined(__GNUC__) */
 

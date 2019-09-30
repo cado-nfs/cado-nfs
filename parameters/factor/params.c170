@@ -16,7 +16,7 @@ name = c170
 tasks.polyselect.degree = 5
 
 tasks.polyselect.P = 1500000
-tasks.polyselect.admax = 3e6
+tasks.polyselect.admax = 1e6
 tasks.polyselect.adrange = 1e3
 tasks.polyselect.incr = 60
 tasks.polyselect.nq = 3125

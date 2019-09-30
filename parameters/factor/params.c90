@@ -306,7 +306,7 @@ tasks.sieve.adjust_strategy = 0         # Sieving strategy
     # from lpb0 and lpb1. Warning: if you change lpb0/lpb1, be careful
     # to adjust rels_wanted if it is hard-coded.
 
-#tasks.sieve.threads = 2
+#tasks.sieve.las.threads = 2
     # The lattice siever program las may run in a multithreaded manner.
     # This keeps the amount of memory used constant, and just runs
     # faster.
