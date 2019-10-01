@@ -65,8 +65,8 @@ void
 random_vector (mpz_t *u, unsigned long n)
 {
   for (unsigned long i = 0; i < n; i++)
-    // mpz_urandomm (u[i], state, p);
-    mpz_set_ui (u[i], i == 0);
+    mpz_urandomm (u[i], state, p);
+  // mpz_set_ui (u[i], i == 0);
 }
 
 void
