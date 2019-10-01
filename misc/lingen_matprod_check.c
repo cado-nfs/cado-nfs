@@ -32,7 +32,7 @@ typedef struct
   unsigned long n;   /* matrix dimension */
   unsigned long k;   /* matrix is cut into k x k submatrices */
   unsigned long deg; /* degree of coefficients */
-  mpz_t ***coeff; /* coeff[i][j] is a polynomial of degree <= deg */
+  mpz_t **coeff;     /* coeff[i][j] is P(x=v) mod p */
 } matrix_struct;
 typedef matrix_struct matrix[1];
 
@@ -42,16 +42,12 @@ init_matrix (matrix M, unsigned long n, unsigned long k, unsigned long deg)
   M->n = n;
   M->k = k;
   M->deg = deg;
-  M->coeff = malloc (n * sizeof (mpz_t**));
+  M->coeff = malloc (n * sizeof (mpz_t*));
   for (unsigned long i = 0; i < n; i++)
     {
-      M->coeff[i] = malloc (n * sizeof (mpz_t*));
+      M->coeff[i] = malloc (n * sizeof (mpz_t));
       for (unsigned long j = 0; j < n; j++)
-        {
-          M->coeff[i][j] = malloc ((deg + 1) * sizeof (mpz_t));
-          for (unsigned long k = 0; k <= deg; k++)
-            mpz_init (M->coeff[i][j][k]);
-        }
+        mpz_init (M->coeff[i][j]);
     }
 }
 
@@ -87,15 +83,10 @@ void
 clear_matrix (matrix M)
 {
   unsigned long n = M->n;
-  unsigned long deg = M->deg;
   for (unsigned long i = 0; i < n; i++)
     {
       for (unsigned long j = 0; j < n; j++)
-        {
-          for (unsigned long k = 0; k <= deg; k++)
-            mpz_clear (M->coeff[i][j][k]);
-          free (M->coeff[i][j]);
-        }
+        mpz_clear (M->coeff[i][j]);
       free (M->coeff[i]);
     }
   free (M->coeff);
@@ -157,17 +148,21 @@ read_degree (char *s)
 #if FORMAT == 0
 void
 read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
-                unsigned long startj, unsigned long nj, unsigned long m)
+                unsigned long startj, unsigned long nj, unsigned long m,
+                mpz_t x)
 {
   unsigned long deg = M->deg;
   unsigned long i, j, k;
+  mpz_t *Buf;
+  Buf = init_vector (M->deg + 1);
   for (i = 0; i < m; i++)
     for (j = 0; j < m; j++)
       {
         if (i < ni && j < nj)
           {
             for (k = 0; k <= deg; k++)
-              read_coeff (fp, M->coeff[starti + i][startj + j][k]);
+              read_coeff (fp, Buf[k]);
+            eval_pol (M->coeff[i][j], Buf, x, M->deg);
           }
         else
           {
@@ -180,42 +175,67 @@ read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
 #endif
           }
       }
+  clear_vector (Buf);
 }
 #else
 void
 read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
-                unsigned long startj, unsigned long nj, unsigned long m)
+                unsigned long startj, unsigned long nj, unsigned long m,
+                mpz_t x)
 {
   unsigned long deg = M->deg;
   unsigned long i, j, k;
   char *T;
+  mpz_t x_power_k, tmp;
   T = malloc (m * m);
   memset (T, 0, m * m);
+  mpz_init (tmp);
+  mpz_init_set_ui (x_power_k, 1);
   for (k = 0; k <= deg; k++)
-    for (i = 0; i < m; i++)
-      for (j = 0; j < m; j++)
-        {
-          if (i < ni && j < nj)
-            read_coeff (fp, M->coeff[starti + i][startj + j][k]);
-          else
-            {
-              int ok = read_zero (fp);
-#ifdef WARNING
-              if (ok == 0 && T[m+i+j] == 0)
-                {
-                  fprintf (stderr, "Warning, padding coefficient %lu,%lu is not zero\n", i, j);
-                  T[m+i+j] = 1;
-                }
+    {
+      /* invariant: x_power_k = x^k mod p */
+      for (i = 0; i < m; i++)
+        for (j = 0; j < m; j++)
+          {
+            if (i < ni && j < nj)
+              {
+                // read_coeff (fp, M->coeff[starti + i][startj + j][k]);
+                if (k == 0)
+                  read_coeff (fp, M->coeff[starti + i][startj + j]);
+                else
+                  {
+                    read_coeff (fp, tmp);
+                    mpz_mul (tmp, tmp, x_power_k);
+                    mpz_add (tmp, tmp, M->coeff[starti + i][startj + j]);
+                    mpz_mod (M->coeff[starti + i][startj + j], tmp, p);
+                  }
+              }
+            else
+              {
+#ifndef WARNING
+                read_zero (fp);
+#else
+                int ok = read_zero (fp);
+                if (ok == 0 && T[m+i+j] == 0)
+                  {
+                    fprintf (stderr, "Warning, padding coefficient %lu,%lu is not zero\n", i, j);
+                    T[m+i+j] = 1;
+                  }
 #endif
-            }
-        }
+              }
+          }
+      mpz_mul (x_power_k, x_power_k, x);
+      mpz_mod (x_power_k, x_power_k, p);
+    }
+  mpz_clear (x_power_k);
+  mpz_clear (tmp);
   free (T);
 }
 #endif
 
 /* read a matrix of dimension n, divided into kxk submatrices */
 void
-read_matrix (matrix M, char *s, unsigned long n, unsigned long k)
+read_matrix (matrix M, char *s, unsigned long n, unsigned long k, mpz_t x)
 {
   unsigned long remi = n; /* it remains remi rows to read */
   unsigned long starti = 0;
@@ -244,7 +264,7 @@ read_matrix (matrix M, char *s, unsigned long n, unsigned long k)
 	      fprintf (stderr, "Error, unable to read file %s\n", t);
 	      exit (1);
 	    }
-          read_submatrix (M, fp, starti, ni, startj, nj, m);
+          read_submatrix (M, fp, starti, ni, startj, nj, m, x);
           // assert (feof (fp));
           fclose (fp);
           startj += nj;
@@ -270,10 +290,9 @@ eval_pol (mpz_t w, mpz_t *P, mpz_t v, unsigned long deg)
 
 /* w <- v*M evaluated at x and modulo p */
 void
-mul_left (mpz_t *w, mpz_t *v, matrix M, mpz_t x)
+mul_left (mpz_t *w, mpz_t *v, matrix M)
 {
   unsigned long n = M->n;
-  unsigned long deg = M->deg;
   mpz_t tmp;
   mpz_init (tmp);
   for (unsigned long j = 0; j < n; j++)
@@ -282,8 +301,7 @@ mul_left (mpz_t *w, mpz_t *v, matrix M, mpz_t x)
       for (unsigned long i = 0; i < n; i++)
         {
           /* w[j] += v[i]*M[i,j] */
-          eval_pol (tmp, M->coeff[i][j], x, deg);
-          mpz_mul (tmp, v[i], tmp);
+          mpz_mul (tmp, v[i], M->coeff[i][j]);
           mpz_add (w[j], w[j], tmp);
         }
       mpz_mod (w[j], w[j], p);
@@ -291,12 +309,11 @@ mul_left (mpz_t *w, mpz_t *v, matrix M, mpz_t x)
   mpz_clear (tmp);
 }
 
-/* w <- M*v evaluated at x */
+/* w <- M*v evaluated */
 void
-mul_right (mpz_t *w, matrix M, mpz_t *v, mpz_t x)
+mul_right (mpz_t *w, matrix M, mpz_t *v)
 {
   unsigned long n = M->n;
-  unsigned long deg = M->deg;
   mpz_t tmp;
   mpz_init (tmp);
   for (unsigned long i = 0; i < n; i++)
@@ -305,8 +322,7 @@ mul_right (mpz_t *w, matrix M, mpz_t *v, mpz_t x)
       for (unsigned long j = 0; j < n; j++)
         {
           /* w[i] += M[i,j]*v[j] */
-          eval_pol (tmp, M->coeff[i][j], x, deg);
-          mpz_mul (tmp, tmp, v[j]);
+          mpz_mul (tmp, M->coeff[i][j], v[j]);
           mpz_add (w[i], w[i], tmp);
         }
       mpz_mod (w[i], w[i], p);
@@ -331,25 +347,15 @@ print_vector (mpz_t *u, unsigned long n)
   printf ("\n");
 }
 
-int
-is_zero (mpz_t *coeff, unsigned long deg)
-{
-  for (unsigned long k = 0; k <= deg; k++)
-    if (mpz_cmp_ui (coeff[k], 0) != 0)
-      return 0;
-  return 1;
-}
-
 /* print a 0 for zero coefficients, otherwise 1 */
 void
 print_matrix (matrix M)
 {
   unsigned long n = M->n;
-  unsigned long deg = M->deg;
   for (unsigned long i = 0; i < n; i++)
     {
       for (unsigned long j = 0; j < n; j++)
-        if (is_zero (M->coeff[i][j], deg))
+        if (mpz_cmp_ui (M->coeff[i][j], 0) == 0)
           printf ("0 ");
         else
           printf ("1 ");
@@ -440,18 +446,18 @@ main (int argc, char *argv[])
     gmp_printf ("x=%Zd\n", x);
 
   mpz_t *u_times_piab = init_vector (n);
-  read_matrix (Mab, argv[1], dim, k);
-  mul_left (u_times_piab, u, Mab, x);
+  read_matrix (Mab, argv[1], dim, k, x);
+  mul_left (u_times_piab, u, Mab);
   clear_matrix (Mab);
 
   mpz_t *pibc_times_v = init_vector (n);
-  read_matrix (Mbc, argv[2], dim, k);
-  mul_right (pibc_times_v, Mbc, v, x);
+  read_matrix (Mbc, argv[2], dim, k, x);
+  mul_right (pibc_times_v, Mbc, v);
   clear_matrix (Mbc);
 
   mpz_t *piac_times_v = init_vector (n);
-  read_matrix (Mac, argv[3], dim, k);
-  mul_right (piac_times_v, Mac, v, x);
+  read_matrix (Mac, argv[3], dim, k, x);
+  mul_right (piac_times_v, Mac, v);
   clear_matrix (Mac);
 
   mpz_t res_left, res_right;
