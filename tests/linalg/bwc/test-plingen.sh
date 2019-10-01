@@ -69,12 +69,16 @@ dotest() {
 
     args=()
     mpi_args=()
+    mpi_extra_args=()
     ONLY_TUNE=
     for x in "$@" ; do
         case "$x" in
             lingen_program=*) eval "$x";;
+            skip_single=*) eval "$x";;
             lingen_mpi_threshold*) mpi_args+=("$x");;
-            mpi*) mpi_args+=("$x"); mpi="${x#mpi=}";;
+            mpi=*) mpi_args+=("$x"); mpi="${x#mpi=}";;
+            mpi_extra_args=*)
+                eval mpi_extra_args+=(${x#mpi_extra_args=});;
             *) args+=("$x");
                 if [[ "$x" =~ ascii ]] ; then
                     if [ "$p" -gt 1048576 ] ; then
@@ -149,24 +153,26 @@ EOF
     cat $F $F $F > $G
     rm -f $F
 
-    $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
+    if ! [ "$skip_single" ] ; then
+        $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
 
-    if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
-    [ -f "$G.gen" ]
+        if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
+        [ -f "$G.gen" ]
 
-    SHA1=$($SHA1BIN < $G.gen)
-    SHA1="${SHA1%% *}"
+        SHA1=$($SHA1BIN < $G.gen)
+        SHA1="${SHA1%% *}"
 
-    if [ "$REFERENCE_SHA1" ] ; then
-        if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
-            exit 1
-        fi
-        echo "$SHA1 (as expected)"
-    else
-        echo "$SHA1"
+        if [ "$REFERENCE_SHA1" ] ; then
+            if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
+                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
+                exit 1
+            fi
+            echo "$SHA1 (as expected)"
+        else
+            echo "$SHA1"
+            fi
+            rm -f $G.gen
     fi
-    rm -f $G.gen
 
     mpi_bindir=$(perl -ne '/HAVE_MPI\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
 
@@ -177,7 +183,18 @@ EOF
             exit 1
         fi
         njobs=$(($1*$2))
-        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mpi_args[@]}"
+        if [ "$ONLY_TUNE" ] ; then
+            # push --tune at the tail of the argument list, otherwise
+            # openmpi gobbles it...
+            nargs=()
+            for x in "${args[@]}" ; do
+                if [ "$x" = "--tune" ] ; then : ; fi
+                nargs+=("$x")
+            done
+            args=("${nargs[@]}" --tune)
+        fi
+        $mpi_bindir/mpiexec -n $njobs "${mpi_extra_args[@]}" -- $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${mpi_args[@]}" "${args[@]}"
+        if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
 
         [ -f "$G.gen" ]
         SHA1=$($SHA1BIN < $G.gen)
