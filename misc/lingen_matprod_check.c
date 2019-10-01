@@ -139,6 +139,11 @@ read_degree (char *s)
   sprintf (t + strlen (t), ".aux");
   FILE *fp;
   fp = fopen (t, "r");
+  if (fp == NULL)
+    {
+      fprintf (stderr, "Error, unable to read file %s\n", t);
+      exit (1);
+    }
   int format;
   int ret = fscanf (fp, "format %d\n", &format);
   assert (ret == 1);
@@ -234,6 +239,11 @@ read_matrix (matrix M, char *s, unsigned long n, unsigned long k)
           if (verbose)
             printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
           fp = fopen (t, "r");
+	  if (fp == NULL)
+	    {
+	      fprintf (stderr, "Error, unable to read file %s\n", t);
+	      exit (1);
+	    }
           read_submatrix (M, fp, starti, ni, startj, nj, m);
           // assert (feof (fp));
           fclose (fp);
@@ -412,7 +422,7 @@ main (int argc, char *argv[])
 
   lingen_p = mpz_size (p);
   if (verbose)
-    printf ("number of limbs: %zu\n", lingen_p);
+    printf ("Number of limbs: %zu\n", lingen_p);
 
   assert (argc == 4);
 
