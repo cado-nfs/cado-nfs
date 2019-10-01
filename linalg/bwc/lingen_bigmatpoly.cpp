@@ -392,8 +392,6 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
  * writing to file on node 0).
  */
 
-#define VOID_POINTER_ADD(x, k) (((char*)(x))+(k))
-
 /* The piece [offset, offset+length[ of the bigmatpoly source is gathered
  * in the matpoly dst on node 0.
  * We assume that all the data structures are already set up properly,
@@ -401,14 +399,24 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
  * don't realloc dst).
  */
 void bigmatpoly::gather_mat_partial(matpoly & dst,
-        size_t offset_bytes, size_t length_bytes) const
+        size_t offset, size_t length) const
 {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+    static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
+#endif
+
     /* sanity checks, because the code below assumes this. */
     ASSERT_ALWAYS(irank() * (int) n1 + jrank() == rank());
-    ASSERT_ALWAYS(length_bytes <= (size_t) INT_MAX);
+    ASSERT_ALWAYS(length <= (size_t) INT_MAX);
 
     MPI_Datatype mt;
-    MPI_Type_contiguous(length_bytes, MPI_BYTE, &mt);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+#else
+    ASSERT_ALWAYS(length % simd == 0);
+    MPI_Type_contiguous(length / simd, MPI_UNSIGNED LONG, &mt);
+#endif
     MPI_Type_commit(&mt);
 
     matpoly const & me = my_cell();
@@ -420,7 +428,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     if (!rank()) {
         ASSERT_ALWAYS(dst.m == m);
         ASSERT_ALWAYS(dst.n == n);
-        ASSERT_ALWAYS(dst.data_entry_alloc_size() >= length_bytes);
+        ASSERT_ALWAYS(dst.capacity() >= length);
         MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
         /* the master receives data from everyone */
@@ -435,11 +443,16 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                         abdst_vec to = dst.part(ii, jj);
                         if (peer == 0) {
                             /* talk to ourself */
-                            ASSERT_ALWAYS(offset_bytes + length_bytes <= me.data_entry_alloc_size());
-                            const void * from = VOID_POINTER_ADD(me.part(i0, j0), offset_bytes);
-                            memcpy(to, from, length_bytes);
+                            ASSERT_ALWAYS(offset + length <= me.capacity());
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                            absrc_vec from = me.part(i0, j0, offset);
+                            abvec_set(ab, to, from, length);
+#else
+                            absrc_vec from = me.part(i0, j0) + offset / simd;
+                            std::copy(from, from + length / simd, to);
+#endif
                         } else {
-                            MPI_Irecv((void*) to, 1, mt, peer, tag, com[0], req);
+                            MPI_Irecv(to, 1, mt, peer, tag, com[0], req);
                         }
                         req++;
                     }
@@ -471,9 +484,13 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                 unsigned int ii = R.flatten(irank(), i0);
                 unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
-                void * from = VOID_POINTER_ADD(me.part(i0, j0), offset_bytes);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                absrc_vec from = me.part(i0, j0, offset);
+#else
+                absrc_vec from = me.part(i0, j0) + offset / simd;
+#endif
                 /* battle const-deprived MPI prototypes... */
-                MPI_Isend(from, 1, mt, 0, tag, com[0], req);
+                MPI_Isend((void*)from, 1, mt, 0, tag, com[0], req);
                 req++;
             }
         }
@@ -499,11 +516,20 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
  */
 void bigmatpoly::scatter_mat_partial(
         matpoly const & src,
-        size_t offset_bytes, size_t length_bytes)
+        size_t offset, size_t length)
 {
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+    static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
+#endif
+
     MPI_Datatype mt;
-    ASSERT_ALWAYS(length_bytes <= (size_t) INT_MAX);
-    MPI_Type_contiguous(length_bytes, MPI_BYTE, &mt);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+#else
+    ASSERT_ALWAYS(length % simd == 0);
+    MPI_Type_contiguous(length / simd, MPI_UNSIGNED LONG, &mt);
+#endif
     MPI_Type_commit(&mt);
 
     /* sanity check, because the code below assumes this. */
@@ -530,8 +556,13 @@ void bigmatpoly::scatter_mat_partial(
 
                         if (peer == 0) {
                             /* talk to ourself */
-                            void * to = VOID_POINTER_ADD(me.part(i0, j0), offset_bytes);
-                            memcpy(to, from, length_bytes);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                            abdst_vec to = me.part(i0, j0, offset);
+                            abvec_set(ab, to, from, length);
+#else
+                            abdst_vec to = me.part(i0, j0) + (offset / simd);
+                            std::copy(from, from + length / simd, to);
+#endif
                         } else {
                             /* battle const-deprived MPI prototypes... */
                             MPI_Isend((void*) from, 1, mt, peer, tag, com[0], req);
@@ -564,7 +595,11 @@ void bigmatpoly::scatter_mat_partial(
                 unsigned int ii = R.flatten(irank(), i0);
                 unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
-                void * to = VOID_POINTER_ADD(me.part(i0, j0), offset_bytes);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                abdst_vec to = me.part(i0, j0, offset);
+#else
+                abdst_vec to = me.part(i0, j0) + offset / simd;
+#endif
                 MPI_Irecv(to, 1, mt, 0, tag, com[0], req);
                 req++;
             }
@@ -584,15 +619,11 @@ void bigmatpoly::scatter_mat_partial(
 /* Collect everything into node 0 */
 void bigmatpoly::gather_mat(matpoly & dst) const
 {
-    /* TODO: I don't understand why we have a temp matrix */
     matpoly dst_partial;
-
-#ifdef SELECT_MPFQ_LAYER_u64k1
-    size_t length_bytes = 128;
-    size_t length_elems = 2;
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    size_t length = 100;
 #else
-    size_t length_elems = 100;
-    size_t length_bytes = abvec_elt_stride(ab, length_elems);
+    size_t length = 1024;
 #endif
 
     if (!rank()) {
@@ -603,44 +634,38 @@ void bigmatpoly::gather_mat(matpoly & dst) const
         dst.set_size(size);
 
         // Leader creates a buffer matpoly of size length
-        dst_partial = matpoly(ab, m, n, length_elems);
-        dst_partial.set_size(length_elems);
-        ASSERT_ALWAYS(dst_partial.data_entry_alloc_size() == length_bytes);
+        dst_partial = matpoly(ab, m, n, length);
+        dst_partial.set_size(length);
     }
 
-    size_t size_bytes = my_cell().data_entry_size();
-    size_t offset_bytes = 0;
-    while (size_bytes > offset_bytes) {
-        size_t len_bytes = MIN(length_bytes, (size_bytes-offset_bytes));
-        gather_mat_partial(dst_partial, offset_bytes, len_bytes);
+    size_t offset = 0;
+    while (size > offset) {
+        size_t len = MIN(length, (size-offset));
+        gather_mat_partial(dst_partial, offset, len);
 
         // Copy the partial data into dst. This is the place where we
         // could write directly on disk if memory is a concern:
         if (!rank()) {
             for (unsigned int i = 0; i < dst.m; ++i) {
                 for (unsigned int j = 0; j < dst.n; ++j) {
-                    void * to = VOID_POINTER_ADD(dst.part(i, j), offset_bytes);
-                    absrc_vec from = dst_partial.part(i, j);
-                    memcpy(to, from, len_bytes);
+                    abdst_vec to = dst.part(i, j, offset);
+                    absrc_vec from = dst_partial.part(i, j, 0);
+                    abvec_set(ab, to, from, len);
                 }
             }
         }
-        offset_bytes += len_bytes;
+        offset += len;
     }
 }
 
 /* Exactly the converse of the previous function. */
 void bigmatpoly::scatter_mat(matpoly const & src)
 {
-    /* TODO: I don't understand why we have a temp matrix */
     matpoly src_partial;
-
-#ifdef SELECT_MPFQ_LAYER_u64k1
-    size_t length_bytes = 128;
-    size_t length_elems = 2;
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    size_t length = 100;
 #else
-    size_t length_elems = 100;
-    size_t length_bytes = abvec_elt_stride(ab, length_elems);
+    size_t length = 1024;
 #endif
 
     /* share allocation size. */
@@ -649,8 +674,7 @@ void bigmatpoly::scatter_mat(matpoly const & src)
         unsigned int n;
         size_t size;
         size_t alloc;
-        size_t size_bytes;
-    } shell { src.m, src.n, src.get_size(), src.capacity(), src.data_entry_size() };
+    } shell { src.m, src.n, src.get_size(), src.capacity() };
 
     MPI_Bcast(&shell, sizeof(shell), MPI_BYTE, 0, com[0]);
 
@@ -665,27 +689,26 @@ void bigmatpoly::scatter_mat(matpoly const & src)
 
     if (!rank()) {
         // Leader creates a buffer matpoly of size length
-        src_partial = matpoly(src.ab, src.m, src.n, length_elems);
-        src_partial.set_size(length_elems);
-        ASSERT_ALWAYS(src_partial.data_entry_alloc_size() == length_bytes);
+        src_partial = matpoly(src.ab, src.m, src.n, length);
+        src_partial.set_size(length);
     }
 
-    size_t offset_bytes = 0;
-    while (shell.size_bytes > offset_bytes) {
-        size_t len_bytes = MIN(length_bytes, (shell.size_bytes-offset_bytes));
+    size_t offset = 0;
+    while (shell.size > offset) {
+        size_t len = MIN(length, (shell.size-offset));
         // Copy the partial data into src_partial. This is the place where we
         // could read directly from disk if memory is a concern:
         if (!rank()) {
             for (unsigned int i = 0; i < src.m; ++i) {
                 for (unsigned int j = 0; j < src.n; ++j) {
-                    abdst_vec to = src_partial.part(i, j);
-                    const void * from = VOID_POINTER_ADD(src.part(i, j), offset_bytes);
-                    memcpy(to, from, len_bytes);
+                    abdst_vec to = src_partial.part(i, j, 0);
+                    absrc_vec from = src.part(i, j, offset);
+                    abvec_set(ab, to, from, len);
                 }
             }
         }
-        scatter_mat_partial(src_partial, offset_bytes, len_bytes);
-        offset_bytes += len_bytes;
+        scatter_mat_partial(src_partial, offset, len);
+        offset += len;
     }
 }
 
