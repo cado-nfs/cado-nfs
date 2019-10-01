@@ -268,7 +268,7 @@ eval_pol (mpz_t w, mpz_t *P, mpz_t v, unsigned long deg)
     }
 }
 
-/* w <- v*M evaluated at x */
+/* w <- v*M evaluated at x and modulo p */
 void
 mul_left (mpz_t *w, mpz_t *v, matrix M, mpz_t x)
 {
@@ -426,15 +426,7 @@ main (int argc, char *argv[])
 
   assert (argc == 4);
 
-  read_matrix (Mab, argv[1], dim, k);
-  // printf ("Mab=%s:\n", argv[1]); print_matrix (Mab);
-  read_matrix (Mbc, argv[2], dim, k);
-  // printf ("Mbc=%s:\n", argv[2]); print_matrix (Mbc);
-  read_matrix (Mac, argv[3], dim, k);
-  // printf ("Mac=%s:\n", argv[3]); print_matrix (Mac);
-
-  assert (Mab->n == Mbc->n && Mab->n == Mac->n);
-  unsigned long n = Mab->n;
+  unsigned long n = dim;
 
   mpz_t *u = init_vector (n);
   random_vector (u, n);
@@ -447,21 +439,25 @@ main (int argc, char *argv[])
   if (verbose)
     gmp_printf ("x=%Zd\n", x);
 
-  // printf ("u="); print_vector (u, n);
-
   mpz_t *u_times_piab = init_vector (n);
+  read_matrix (Mab, argv[1], dim, k);
   mul_left (u_times_piab, u, Mab, x);
+  clear_matrix (Mab);
+
   mpz_t *pibc_times_v = init_vector (n);
+  read_matrix (Mbc, argv[2], dim, k);
   mul_right (pibc_times_v, Mbc, v, x);
+  clear_matrix (Mbc);
+
   mpz_t *piac_times_v = init_vector (n);
+  read_matrix (Mac, argv[3], dim, k);
   mul_right (piac_times_v, Mac, v, x);
+  clear_matrix (Mac);
 
   mpz_t res_left, res_right;
   mpz_init (res_left);
   mpz_init (res_right);
 
-  // printf ("u_times_piab="); print_vector (u_times_piab, n);
-  
   scalar_product (res_left, u_times_piab, pibc_times_v, n);
   scalar_product (res_right, u, piac_times_v, n);
   int ret;
@@ -486,9 +482,6 @@ main (int argc, char *argv[])
   clear_vector (u_times_piab, n);
   clear_vector (pibc_times_v, n);
   clear_vector (piac_times_v, n);
-  clear_matrix (Mab);
-  clear_matrix (Mbc);
-  clear_matrix (Mac);
   mpz_clear (p);
   gmp_randclear (state);
 
