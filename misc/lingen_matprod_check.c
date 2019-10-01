@@ -2,6 +2,8 @@
    (as stored in the cp/ subdirectory).
 
    Example: check -p ... -dim 13 -k 3 pi.3.2.127 pi.3.127.251 pi.2.2.251
+
+   Optional arguments: [-seed xxx] [-v]
 */
 
 #include <stdio.h>
@@ -15,11 +17,15 @@
 // #define FORMAT 0 /* matrices of polynomials */
 #define FORMAT 1 /* polynomials of matrices */
 
+/* define WARNING to get warning for non-zero padding coefficients */
+// #define WARNING
+
 mpz_t p;                /* prime modulus */
 unsigned long lingen_p; /* number of limbs per coefficient */
 unsigned long dim = 0;  /* matrix dimension */
 int k = 0;              /* matrix is cut in k x k submatrices */
 gmp_randstate_t state;
+int verbose = 0;
 
 typedef struct
 {
@@ -163,11 +169,10 @@ read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
             int ok = 1;
             for (k = 0; k <= deg; k++)
               ok = ok &&  read_zero (fp);
+#ifdef WARNING
             if (ok == 0)
-              {
-                fprintf (stderr, "Warning, padding coefficient i=%lu,j=%lu is not zero\n", i, j);
-                // exit (1);
-              }
+              fprintf (stderr, "Warning, padding coefficient i=%lu,j=%lu is not zero\n", i, j);
+#endif
           }
       }
 }
@@ -190,12 +195,13 @@ read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
           else
             {
               int ok = read_zero (fp);
+#ifdef WARNING
               if (ok == 0 && T[m+i+j] == 0)
                 {
                   fprintf (stderr, "Warning, padding coefficient %lu,%lu is not zero\n", i, j);
                   T[m+i+j] = 1;
-                  // exit (1);
                 }
+#endif
             }
         }
   free (T);
@@ -225,7 +231,8 @@ read_matrix (matrix M, char *s, unsigned long n, unsigned long k)
           int nij = M->k * i + j;
           strcpy (t, s);
           sprintf (t + strlen (t), ".%d.data", nij);
-          printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
+          if (verbose)
+            printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
           fp = fopen (t, "r");
           read_submatrix (M, fp, starti, ni, startj, nj, m);
           // assert (feof (fp));
@@ -350,29 +357,35 @@ main (int argc, char *argv[])
 
   while (argc >= 2 && argv[1][0] == '-')
     {
-      if (argc >= 2 && strcmp (argv[1], "-p") == 0)
+      if (argc >= 3 && strcmp (argv[1], "-p") == 0)
         {
           mpz_set_str (p, argv[2], 10);
           argc -= 2;
           argv += 2;
         }
-      else if (argc >= 2 && strcmp (argv[1], "-dim") == 0)
+      else if (argc >= 3 && strcmp (argv[1], "-dim") == 0)
         {
           dim = strtoul (argv[2], NULL, 10);
           argc -= 2;
           argv += 2;
         }
-      else if (argc >= 2 && strcmp (argv[1], "-k") == 0)
+      else if (argc >= 3 && strcmp (argv[1], "-k") == 0)
         {
           k = atoi (argv[2]);
           argc -= 2;
           argv += 2;
         }
-      else if (argc >= 2 && strcmp (argv[1], "-seed") == 0)
+      else if (argc >= 3 && strcmp (argv[1], "-seed") == 0)
         {
           seed = strtoul (argv[2], NULL, 10);
           argc -= 2;
           argv += 2;
+        }
+      else if (argc >= 2 && strcmp (argv[1], "-v") == 0)
+        {
+          verbose ++;
+          argc -= 1;
+          argv += 1;
         }
     }
   
@@ -394,12 +407,12 @@ main (int argc, char *argv[])
       exit (1);
     }
 
-  printf ("Using seed %lu\n", seed);
   gmp_randinit_default (state);
   gmp_randseed_ui (state, seed);
 
   lingen_p = mpz_size (p);
-  printf ("number of limbs: %zu\n", lingen_p);
+  if (verbose)
+    printf ("number of limbs: %zu\n", lingen_p);
 
   assert (argc == 4);
 
@@ -420,7 +433,9 @@ main (int argc, char *argv[])
   mpz_t x;
   mpz_init (x);
   mpz_urandomm (x, state, p); /* random variable */
-  gmp_printf ("x=%Zd\n", x);
+  printf ("Using seed %lu\n", seed);
+  if (verbose)
+    gmp_printf ("x=%Zd\n", x);
 
   // printf ("u="); print_vector (u, n);
 
