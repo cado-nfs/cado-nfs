@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <omp.h>
 
 // #define FORMAT 0 /* matrices of polynomials */
 #define FORMAT 1 /* polynomials of matrices */
@@ -257,7 +258,8 @@ read_matrix (matrix M, char *s, unsigned long n, unsigned long k, mpz_t x)
           strcpy (t, s);
           sprintf (t + strlen (t), ".%d.data", nij);
           if (verbose)
-            printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
+#pragma omp critical
+	    printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
           fp = fopen (t, "r");
 	  if (fp == NULL)
 	    {
@@ -445,20 +447,33 @@ main (int argc, char *argv[])
   if (verbose)
     gmp_printf ("x=%Zd\n", x);
 
-  mpz_t *u_times_piab = init_vector (n);
-  read_matrix (Mab, argv[1], dim, k, x);
-  mul_left (u_times_piab, u, Mab);
-  clear_matrix (Mab);
+  mpz_t *u_times_piab, *pibc_times_v, *piac_times_v;
+#pragma omp parallel sections
+  {
+    #pragma omp section
+    {
+      u_times_piab = init_vector (n);
+      read_matrix (Mab, argv[1], dim, k, x);
+      mul_left (u_times_piab, u, Mab);
+      clear_matrix (Mab);
+    }
 
-  mpz_t *pibc_times_v = init_vector (n);
-  read_matrix (Mbc, argv[2], dim, k, x);
-  mul_right (pibc_times_v, Mbc, v);
-  clear_matrix (Mbc);
+    #pragma omp section
+    {
+      pibc_times_v = init_vector (n);
+      read_matrix (Mbc, argv[2], dim, k, x);
+      mul_right (pibc_times_v, Mbc, v);
+      clear_matrix (Mbc);
+    }
 
-  mpz_t *piac_times_v = init_vector (n);
-  read_matrix (Mac, argv[3], dim, k, x);
-  mul_right (piac_times_v, Mac, v);
-  clear_matrix (Mac);
+    #pragma omp section
+    {
+      piac_times_v = init_vector (n);
+      read_matrix (Mac, argv[3], dim, k, x);
+      mul_right (piac_times_v, Mac, v);
+      clear_matrix (Mac);
+    }
+  }
 
   mpz_t res_left, res_right;
   mpz_init (res_left);
