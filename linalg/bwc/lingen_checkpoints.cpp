@@ -393,7 +393,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly & xpi, unsigned 
                 if (!rank)
                     ok = matpoly_read(ab, data, pi, 0, nc, 0, 0) == (int) nc;
                 MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
-                xpi.scatter_mat_partial(pi, k, nc);
+                xpi.scatter_mat_partial(pi, 0, k, nc);
             }
 
             if (!rank) {
@@ -453,7 +453,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, bigmatpoly const & xpi, uns
 
             for(unsigned int k = 0 ; ok && k < xpi.get_size() ; k += B) {
                 unsigned int nc = MIN(B, xpi.get_size() - k);
-                xpi.gather_mat_partial(pi, k, nc);
+                xpi.gather_mat_partial(pi, 0, k, nc);
                 if (!rank)
                     ok = matpoly_write(ab, data, pi, 0, nc, 0, 0) == (int) nc;
                 MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);

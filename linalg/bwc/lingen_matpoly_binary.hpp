@@ -89,29 +89,31 @@ public:
     void clear() { *this = matpoly(); }
 
     /* {{{ access interface for matpoly */
+    /* part_head does not _promise_ to point to coefficient k exactly. In
+     * the simd case (lingen_matpoly_binary.hpp) it points to the word
+     * where coefficient k can be found */
     inline abdst_vec part(unsigned int i, unsigned int j) {
-        unsigned int k = 0;
-        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
-        return x + (i*n+j)*alloc_words+k / ULONG_BITS;
+        return x + (i*n+j)*alloc_words;
+    }
+    inline abdst_vec part_head(unsigned int i, unsigned int j, unsigned int k) {
+        return part(i, j) + k / ULONG_BITS;
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j) {
-        unsigned int k = 0;
-        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
-        return part(i,j) + k/ULONG_BITS;
+        return part(i, j);
     }
     inline absrc_vec part(unsigned int i, unsigned int j) const {
-        unsigned int k=0;
-        ASSERT_ALWAYS((k % ULONG_BITS) == 0);
-        return x + (i*n+j)*alloc_words+k / ULONG_BITS;
+        return x + (i*n+j)*alloc_words;
+    }
+    inline absrc_vec part_head(unsigned int i, unsigned int j, unsigned int k) const {
+        return part(i, j) + k / ULONG_BITS;
     }
     /* This one is a bit special, as it makes it possible to read one
      * coefficient exactly. It's R/O access, though. */
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
-        unsigned int kq = k / ULONG_BITS;
         unsigned int kr = k % ULONG_BITS;
         unsigned long km = 1UL << kr;
         static constexpr abelt coeffbits[2] = { {0}, {1} };
-        return coeffbits[((part(i,j)[kq] & km) != 0)];
+        return coeffbits[((*part_head(i, j, k) & km) != 0)];
     }
     struct coeff_accessor_proxy {
         unsigned long * p;
@@ -174,6 +176,7 @@ public:
         matpoly const & src, unsigned int jsrc, unsigned int ksrc);
     void zero_column(unsigned int jdst, unsigned int kdst);
     void rshift(matpoly const &, unsigned int k);
+    void rshift(unsigned int k);
 
     void add(matpoly const & a, matpoly const & b);
     void sub(matpoly const & a, matpoly const & b);

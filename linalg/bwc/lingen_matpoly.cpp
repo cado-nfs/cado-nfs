@@ -167,7 +167,7 @@ void matpoly::fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rsta
     } else if (k0 < k1) {
         for(unsigned int i = 0 ; i < m ; i++) {
             for(unsigned int j = 0 ; j < n ; j++) {
-                abvec_random(ab, part(i, j, k0), k1 - k0, rstate);
+                abvec_random(ab, part_head(i, j, k0), k1 - k0, rstate);
             }
         }
     }
@@ -205,7 +205,7 @@ void matpoly::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
 {
     ASSERT_ALWAYS((nsize + 1) <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
-        memmove(part(i, j, 1), part(i, j, 0), nsize * abvec_elt_stride(ab, 1));
+        memmove(part_head(i, j, 1), part(i, j), nsize * abvec_elt_stride(ab, 1));
         abset_ui(ab, coeff(i, j, 0), 0);
     }
 }/*}}}*/
@@ -213,7 +213,7 @@ void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
 {
     ASSERT_ALWAYS(nsize <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
-        memmove(part(i, j, 0), part(i, j, 1), 
+        memmove(part(i, j), part_head(i, j, 1), 
                 (nsize-1) * abvec_elt_stride(ab, 1));
         abset_ui(ab, coeff(i, j, nsize-1), 0);
     }
@@ -235,7 +235,7 @@ void matpoly::truncate(matpoly const & src, unsigned int nsize)/*{{{*/
     /* XXX Much more cumbersome here than for polymat, of course */
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
-            abvec_set(ab, part(i, j, 0), src.part(i, j, 0), nsize);
+            abvec_set(ab, part(i, j), src.part(i, j), nsize);
         }
     }
 }/*}}}*/
@@ -244,7 +244,7 @@ int matpoly::tail_is_zero(unsigned int size0)/*{{{*/
     ASSERT_ALWAYS(size0 <= size);
     for(unsigned int i = 0 ; i < m ; i++) {
         for(unsigned int j = 0 ; j < n ; j++) {
-            if (!abvec_is_zero(ab, part(i, j, size0), size - size0))
+            if (!abvec_is_zero(ab, part_head(i, j, size0), size - size0))
                 return 0;
         }
     }
@@ -257,7 +257,7 @@ void matpoly::zero_pad(unsigned int nsize)/*{{{*/
         realloc(nsize);
     for(unsigned int i = 0 ; i < m ; i++) {
         for(unsigned int j = 0 ; j < n ; j++) {
-            abvec_set_zero(ab, part(i, j, size), nsize - size);
+            abvec_set_zero(ab, part_head(i, j, size), nsize - size);
         }
     }
     size = nsize;
@@ -335,7 +335,22 @@ void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
     size = newsize;
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
-            abvec_set(ab, part(i, j, 0), src.part(i, j, k), newsize);
+            abvec_set(ab, part(i, j), src.part_head(i, j, k), newsize);
+        }
+    }
+}/*}}}*/
+void matpoly::rshift(unsigned int k)/*{{{*/
+{
+    ASSERT_ALWAYS(k <= size);
+    unsigned int newsize = size - k;
+    ASSERT_ALWAYS(newsize <= alloc);
+    size = newsize;
+    for(unsigned int i = 0 ; i < m ; i++) {
+        for(unsigned int j = 0 ; j < n ; j++) {
+            /* can't use abvec_set because memcpy does not accept overlap */
+            for(unsigned s = 0 ; s < newsize ; s++) {
+                abset(ab, coeff(i, j, s), coeff(i, j, s + k));
+            }
         }
     }
 }/*}}}*/
@@ -357,9 +372,9 @@ void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
             size_t s0 = std::min(a.size, b.size);
             abvec_add(ab, part(i, j), a.part(i, j), b.part(i, j), s0);
             if (a.size > s0)
-                abvec_set(ab, part(i, j, s0), a.part(i, j, s0), a.size - s0);
+                abvec_set(ab, part_head(i, j, s0), a.part_head(i, j, s0), a.size - s0);
             if (b.size > s0)
-                abvec_set(ab, part(i, j, s0), b.part(i, j, s0), b.size - s0);
+                abvec_set(ab, part_head(i, j, s0), b.part_head(i, j, s0), b.size - s0);
         }
     }
     size = csize;
@@ -381,9 +396,9 @@ void matpoly::sub(matpoly const & a, matpoly const & b)/*{{{*/
             size_t s0 = std::min(a.size, b.size);
             abvec_sub(ab, part(i, j), a.part(i, j), b.part(i, j), s0);
             if (a.size > s0)
-                abvec_set(ab, part(i, j, s0), a.part(i, j, s0), a.size - s0);
+                abvec_set(ab, part_head(i, j, s0), a.part_head(i, j, s0), a.size - s0);
             if (b.size > s0)
-                abvec_neg(ab, part(i, j, s0), b.part(i, j, s0), b.size - s0);
+                abvec_neg(ab, part_head(i, j, s0), b.part_head(i, j, s0), b.size - s0);
         }
     }
     size = csize;
@@ -410,7 +425,7 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
 
     for(unsigned int i = 0 ; i < m ; ++i) {
         for(unsigned int j = 0 ; j < n ; ++j) {
-            abvec_set_zero(ab, part(i, j, size), csize - size);
+            abvec_set_zero(ab, part_head(i, j, size), csize - size);
         }
     }
 
@@ -423,14 +438,14 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
 
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < b.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), csize);
+            abvec_ur_set_vec(ab, tmp[1], part(i, j), csize);
             for(unsigned int k = 0 ; k < a.n; k++) {
                 abvec_conv_ur(ab, tmp[0],
-                        a.part(i, k, 0), a.size,
-                        b.part(k, j, 0), b.size);
+                        a.part(i, k), a.size,
+                        b.part(k, j), b.size);
                 abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], csize);
             }
-            abvec_reduce(ab, part(i, j, 0), tmp[1], csize);
+            abvec_reduce(ab, part(i, j), tmp[1], csize);
         }
     }
     abvec_ur_clear(ab, &tmp[0], csize);
@@ -477,16 +492,16 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < c.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j, 0), nb);
+            abvec_ur_set_vec(ab, tmp[1], part(i, j), nb);
             for(unsigned int k = 0 ; k < a.n ; k++) {
                 abvec_conv_ur(ab, tmp[0],
-                        a.part(i, k, 0), a.size,
-                        c.part(k, j, 0), c.size);
+                        a.part(i, k), a.size,
+                        c.part(k, j), c.size);
                 abvec_ur_add(ab, tmp[1], tmp[1],
                         abvec_ur_subvec(ab, tmp[0], MIN(a.size, c.size) - 1),
                         nb);
             }
-            abvec_reduce(ab, part(i, j, 0), tmp[1], nb);
+            abvec_reduce(ab, part(i, j), tmp[1], nb);
         }
     }
     abvec_ur_clear(ab, &tmp[0], fullsize);

@@ -211,6 +211,8 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
     unsigned int n = M.n;
     ASSERT_ALWAYS(m % ULONG_BITS == 0);
     ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    ASSERT_ALWAYS(k0 % ULONG_BITS == 0);
+    ASSERT_ALWAYS(k1 % ULONG_BITS == 0);
     size_t ulongs_per_mat = m * n / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
     for(unsigned int k = k0 ; k < k1 ; k++) {

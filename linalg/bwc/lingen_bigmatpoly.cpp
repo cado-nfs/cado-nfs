@@ -399,6 +399,7 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
  * don't realloc dst).
  */
 void bigmatpoly::gather_mat_partial(matpoly & dst,
+        size_t dst_k,
         size_t offset, size_t length) const
 {
 #ifdef SELECT_MPFQ_LAYER_u64k1
@@ -415,7 +416,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
 #else
     ASSERT_ALWAYS(length % simd == 0);
-    MPI_Type_contiguous(length / simd, MPI_UNSIGNED LONG, &mt);
+    MPI_Type_contiguous(length / simd, MPI_UNSIGNED_LONG, &mt);
 #endif
     MPI_Type_commit(&mt);
 
@@ -428,7 +429,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     if (!rank()) {
         ASSERT_ALWAYS(dst.m == m);
         ASSERT_ALWAYS(dst.n == n);
-        ASSERT_ALWAYS(dst.capacity() >= length);
+        ASSERT_ALWAYS(dst.capacity() >= dst_k + length);
         MPI_Request * reqs = new MPI_Request[m * n];
         MPI_Request * req = reqs;
         /* the master receives data from everyone */
@@ -440,15 +441,14 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                         unsigned int jj = C.flatten(j1, j0);
                         unsigned int peer = i1 * n1 + j1;
                         unsigned int tag = ii * n + jj;
-                        abdst_vec to = dst.part(ii, jj);
+                        ASSERT_ALWAYS(offset + length <= me.capacity());
+                        abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_k);
+                        absrc_vec from = abvec_subvec_const(ab, me.part(i0, j0), offset);
                         if (peer == 0) {
                             /* talk to ourself */
-                            ASSERT_ALWAYS(offset + length <= me.capacity());
 #ifndef SELECT_MPFQ_LAYER_u64k1
-                            absrc_vec from = me.part(i0, j0, offset);
                             abvec_set(ab, to, from, length);
 #else
-                            absrc_vec from = me.part(i0, j0) + offset / simd;
                             std::copy(from, from + length / simd, to);
 #endif
                         } else {
@@ -484,11 +484,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                 unsigned int ii = R.flatten(irank(), i0);
                 unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                absrc_vec from = me.part(i0, j0, offset);
-#else
-                absrc_vec from = me.part(i0, j0) + offset / simd;
-#endif
+                absrc_vec from = abvec_subvec_const(ab, me.part(i0, j0), offset);
                 /* battle const-deprived MPI prototypes... */
                 MPI_Isend((void*)from, 1, mt, 0, tag, com[0], req);
                 req++;
@@ -516,6 +512,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
  */
 void bigmatpoly::scatter_mat_partial(
         matpoly const & src,
+        size_t src_k,
         size_t offset, size_t length)
 {
 #ifdef SELECT_MPFQ_LAYER_u64k1
@@ -528,7 +525,7 @@ void bigmatpoly::scatter_mat_partial(
     MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
 #else
     ASSERT_ALWAYS(length % simd == 0);
-    MPI_Type_contiguous(length / simd, MPI_UNSIGNED LONG, &mt);
+    MPI_Type_contiguous(length / simd, MPI_UNSIGNED_LONG, &mt);
 #endif
     MPI_Type_commit(&mt);
 
@@ -552,15 +549,14 @@ void bigmatpoly::scatter_mat_partial(
                         unsigned int jj = C.flatten(j1, j0);
                         unsigned int peer = i1 * n1 + j1;
                         unsigned int tag = ii * n + jj;
-                        absrc_vec from = src.part(ii, jj);
+                        absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_k);
+                        abdst_vec to = abvec_subvec(ab, me.part(i0, j0), offset);
 
                         if (peer == 0) {
                             /* talk to ourself */
 #ifndef SELECT_MPFQ_LAYER_u64k1
-                            abdst_vec to = me.part(i0, j0, offset);
                             abvec_set(ab, to, from, length);
 #else
-                            abdst_vec to = me.part(i0, j0) + (offset / simd);
                             std::copy(from, from + length / simd, to);
 #endif
                         } else {
@@ -595,11 +591,7 @@ void bigmatpoly::scatter_mat_partial(
                 unsigned int ii = R.flatten(irank(), i0);
                 unsigned int jj = C.flatten(jrank(), j0);
                 unsigned int tag = ii * n + jj;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                abdst_vec to = me.part(i0, j0, offset);
-#else
-                abdst_vec to = me.part(i0, j0) + offset / simd;
-#endif
+                abdst_vec to = abvec_subvec(ab, me.part(i0, j0), offset);
                 MPI_Irecv(to, 1, mt, 0, tag, com[0], req);
                 req++;
             }
@@ -641,15 +633,15 @@ void bigmatpoly::gather_mat(matpoly & dst) const
     size_t offset = 0;
     while (size > offset) {
         size_t len = MIN(length, (size-offset));
-        gather_mat_partial(dst_partial, offset, len);
+        gather_mat_partial(dst_partial, 0, offset, len);
 
         // Copy the partial data into dst. This is the place where we
         // could write directly on disk if memory is a concern:
         if (!rank()) {
             for (unsigned int i = 0; i < dst.m; ++i) {
                 for (unsigned int j = 0; j < dst.n; ++j) {
-                    abdst_vec to = dst.part(i, j, offset);
-                    absrc_vec from = dst_partial.part(i, j, 0);
+                    abdst_vec to = abvec_subvec(ab, dst.part(i, j), offset);
+                    absrc_vec from = abvec_subvec_const(ab, dst_partial.part(i, j), 0);
                     abvec_set(ab, to, from, len);
                 }
             }
@@ -701,13 +693,13 @@ void bigmatpoly::scatter_mat(matpoly const & src)
         if (!rank()) {
             for (unsigned int i = 0; i < src.m; ++i) {
                 for (unsigned int j = 0; j < src.n; ++j) {
-                    abdst_vec to = src_partial.part(i, j, 0);
-                    absrc_vec from = src.part(i, j, offset);
+                    abdst_vec to = abvec_subvec(ab, src_partial.part(i, j), 0);
+                    absrc_vec from = abvec_subvec_const(ab, src.part(i, j), offset);
                     abvec_set(ab, to, from, len);
                 }
             }
         }
-        scatter_mat_partial(src_partial, offset, len);
+        scatter_mat_partial(src_partial, 0, offset, len);
         offset += len;
     }
 }

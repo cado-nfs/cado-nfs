@@ -877,7 +877,7 @@ int main(int argc, char *argv[])
     }
 
     /* This will cause the initial read */
-    std::unique_ptr<lingen_E_from_A> E_series = std::unique_ptr<lingen_E_from_A>(new lingen_E_from_A(*A_series));
+    std::unique_ptr<lingen_E_from_A> E_series = std::unique_ptr<lingen_E_from_A>(new lingen_E_from_A(bm.d, *A_series));
 
     size_t L = E_series->guessed_length();
 
@@ -960,8 +960,8 @@ int main(int argc, char *argv[])
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.my_cell().capacity());
-        lingen_gather<bigmatpoly> read_PI(pi);
-        lingen_F_from_PI Fsrc(read_PI, F0);
+        lingen_gather_reverse<bigmatpoly> read_PI(pi);
+        lingen_F_from_PI Fsrc(bm, read_PI, F0);
         pipe(Fsrc, *Fdst, true);
     } else {
         /* We don't want to bother with memory problems in the non-mpi
@@ -984,8 +984,8 @@ int main(int argc, char *argv[])
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.capacity());
-        lingen_gather<matpoly> read_PI(pi);
-        lingen_F_from_PI Fsrc(read_PI, F0);
+        lingen_gather_reverse<matpoly> read_PI(pi);
+        lingen_F_from_PI Fsrc(bm, read_PI, F0);
         pipe(Fsrc, *Fdst, true);
     }
 

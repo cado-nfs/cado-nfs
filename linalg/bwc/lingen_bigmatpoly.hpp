@@ -45,6 +45,8 @@ struct bigmatpoly : public bigmatpoly_model {
      * not all entries in the local cell are relevant */
     unsigned int m0r() const { return subdivision(m, m1).nth_block_size(irank()); }
     unsigned int n0r() const { return subdivision(n, n1).nth_block_size(jrank()); }
+    inline unsigned int nrows() const { return m; }
+    inline unsigned int ncols() const { return n; }
     private:
     size_t size = 0;
     std::vector<matpoly> cells;
@@ -92,8 +94,8 @@ struct bigmatpoly : public bigmatpoly_model {
     void scatter_mat(matpoly const & src);
     void gather_mat(matpoly & dst) const;
 
-    void scatter_mat_partial(matpoly const & src, size_t offset, size_t length);
-    void gather_mat_partial(matpoly & dst, size_t offset, size_t length) const;
+    void scatter_mat_partial(matpoly const & src, size_t src_k, size_t offset, size_t length);
+    void gather_mat_partial(matpoly & dst, size_t dst_k, size_t offset, size_t length) const;
 
     bigmatpoly truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount);
 

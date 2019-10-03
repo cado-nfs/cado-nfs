@@ -4,6 +4,7 @@
 #include "gmp_aux.h"
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_matpoly_select.hpp"
+#include "lingen_bmstatus.hpp"
 #include "sha1.h"
 #include <fstream>
 #include <gmp.h>
@@ -22,8 +23,8 @@
 struct lingen_io_wrapper_base
 {
     abdst_field ab;
-    unsigned int m;
-    unsigned int n;
+    unsigned int nrows;
+    unsigned int ncols;
 
     /* average_matsize is the size in bytes of the final storage target
      * of the stream. Typically that means the bytes on disk. The base
@@ -46,10 +47,10 @@ struct lingen_io_wrapper_base
      */
     virtual unsigned int preferred_window() const;
 
-    lingen_io_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
+    lingen_io_wrapper_base(abdst_field ab, unsigned int nrows, unsigned int ncols)
       : ab(ab)
-      , m(m)
-      , n(n)
+      , nrows(nrows)
+      , ncols(ncols)
     {}
 
     protected:
@@ -58,9 +59,20 @@ struct lingen_io_wrapper_base
 
 struct lingen_input_wrapper_base : public lingen_io_wrapper_base
 {
-    lingen_input_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
-      : lingen_io_wrapper_base(ab, m, n)
+    lingen_input_wrapper_base(abdst_field ab,
+                              unsigned int nrows,
+                              unsigned int ncols)
+      : lingen_io_wrapper_base(ab, nrows, ncols)
     {}
+    /* The input source is regarded as a stream, with no possibility of
+     * random access. Here, k0 and k1 refer to positions within the
+     * destination matpoly. As far as the source is concerned, only
+     * the k1-k0 "next" coefficient matrices will be fetched.
+     *
+     * The concrete implementation of this class _may_ keep track of a
+     * position with respect to the concrete source, but that bit of
+     * information is not exposed in the interface.
+     */
     virtual ssize_t read_to_matpoly(matpoly& dst,
                                     unsigned int k0,
                                     unsigned int k1) = 0;
@@ -71,9 +83,20 @@ struct lingen_input_wrapper_base : public lingen_io_wrapper_base
 
 struct lingen_output_wrapper_base : public lingen_io_wrapper_base
 {
-    lingen_output_wrapper_base(abdst_field ab, unsigned int m, unsigned int n)
-      : lingen_io_wrapper_base(ab, m, n)
+    lingen_output_wrapper_base(abdst_field ab,
+                               unsigned int nrows,
+                               unsigned int ncols)
+      : lingen_io_wrapper_base(ab, nrows, ncols)
     {}
+    /* The output source is regarded as a stream, with no possibility of
+     * random access. Here, k0 and k1 refer to positions within the
+     * source matpoly. As far as the destination is concerned, we will
+     * only store k1-k0 coefficient matrices "after" the last one stored.
+     *
+     * The concrete implementation of this class _may_ keep track of a
+     * position with respect to the concrete destination, but that bit of
+     * information is not exposed in the interface.
+     */
     virtual ssize_t write_from_matpoly(matpoly const& src,
                                        unsigned int k0,
                                        unsigned int k1) = 0;
@@ -91,11 +114,11 @@ class lingen_file_input : public lingen_input_wrapper_base
 
     public:
     lingen_file_input(abdst_field ab,
-                      unsigned int m,
-                      unsigned int n,
+                      unsigned int nrows,
+                      unsigned int ncols,
                       std::string const& filename,
                       bool ascii = false)
-      : lingen_input_wrapper_base(ab, m, n)
+      : lingen_input_wrapper_base(ab, nrows, ncols)
       , filename(filename)
       , ascii(ascii)
     {
@@ -115,11 +138,11 @@ struct lingen_random_input : public lingen_input_wrapper_base
     gmp_randstate_ptr rstate;
     size_t length;
     lingen_random_input(abdst_field ab,
-                        unsigned int m,
-                        unsigned int n,
+                        unsigned int nrows,
+                        unsigned int ncols,
                         gmp_randstate_ptr rstate,
                         size_t length)
-      : lingen_input_wrapper_base(ab, m, n)
+      : lingen_input_wrapper_base(ab, nrows, ncols)
       , rstate(rstate)
       , length(length)
     {}
@@ -131,25 +154,54 @@ struct lingen_random_input : public lingen_input_wrapper_base
                             unsigned int k1) override;
 };
 
-struct lingen_F0
+struct lingen_F0 : protected bw_dimensions
 {
+    public:
     // pairs are (exponent, column number)
     std::vector<std::array<unsigned int, 2>> fdesc;
     unsigned int t0;
+    void share(int root, MPI_Comm comm);
+    lingen_F0(bw_dimensions const & d)
+        : bw_dimensions(d)
+    {}
+    /* This method is valid only once F0 is completely filled
+     *
+     * this returns a pair (degree kA, column number jA) meaning that
+     * column jE of E is actually X^{-kA}*column jA of A.
+     */
+    std::tuple<unsigned int, unsigned int> column_data_from_A(unsigned int jE) const;
+    /* This one does the same, but with respect to the matrix with column
+     * j shifted right if j >= nrhs
+     */
+    std::tuple<unsigned int, unsigned int> column_data_from_Aprime(unsigned int jE) const;
 };
 
 class lingen_E_from_A
-  : public lingen_input_wrapper_base
-  , public lingen_F0
+  : public lingen_F0
+  , public lingen_input_wrapper_base
 {
     void initial_read();
     lingen_input_wrapper_base& A;
 
+    /* cache contains degrees [cache_k0..cache_k1[ of A.
+     * the span cache_k1 - cache_k0 is not fixed a priori.
+     */
+    matpoly cache;
+    unsigned int cache_k0 = 0;
+    unsigned int cache_k1 = 0;
+    // unsigned int next_src_k = 0; // same as cache_k1, in fact !
+
+    void refresh_cache_upto(unsigned int k);
+
     public:
-    lingen_E_from_A(lingen_input_wrapper_base& A)
-      : lingen_input_wrapper_base(A.ab, A.m, A.m + A.n)
+    lingen_E_from_A(bw_dimensions const & d, lingen_input_wrapper_base& A)
+      : lingen_F0(d)
+      , lingen_input_wrapper_base(A.ab, d.m, d.m + d.n)
       , A(A)
+      , cache(A.ab, A.nrows, A.ncols, 0)
     {
+        ASSERT_ALWAYS(A.nrows == d.m);
+        ASSERT_ALWAYS(A.ncols == d.n);
         initial_read();
     }
     inline size_t guessed_length() const override {
@@ -164,6 +216,7 @@ template<typename matpoly_type>
 class lingen_scatter : public lingen_output_wrapper_base
 {
     matpoly_type& E;
+    unsigned int next_dst_k = 0;
 
     public:
     lingen_scatter(matpoly_type& E)
@@ -182,6 +235,7 @@ template<typename matpoly_type>
 class lingen_gather : public lingen_input_wrapper_base
 {
     matpoly_type& pi;
+    unsigned int next_src_k = 0;
 
     public:
     lingen_gather(matpoly_type& pi)
@@ -199,24 +253,59 @@ class lingen_gather : public lingen_input_wrapper_base
 template class lingen_gather<matpoly>;
 template class lingen_gather<bigmatpoly>;
 
-class lingen_F_from_PI
-  : public lingen_input_wrapper_base
-  , public lingen_F0
+template<typename matpoly_type>
+class lingen_gather_reverse : public lingen_input_wrapper_base
 {
-    lingen_input_wrapper_base& src;
-    matpoly cache_in;
-    matpoly cache_out;
-    unsigned int pos; /* relative to cache_out */
+    matpoly_type& pi;
+    /* Since the source is written in reverse order, it's a bit of a
+     * misnomer, really. We're really referring to the count which is 0
+     * when we're about to read the leading coefficient.
+     */
+    unsigned int next_src_k = 0;
+
     public:
-    lingen_F_from_PI(lingen_input_wrapper_base& src, lingen_F0 const& F0)
-      : lingen_input_wrapper_base(src.ab, src.n - src.m, src.n - src.m)
-      , lingen_F0(F0)
-      , src(src)
-      , cache_in(src.ab, src.m, src.n, src.preferred_window())
-      , cache_out(src.ab, n, n, src.preferred_window())
+    lingen_gather_reverse(matpoly_type& pi)
+      : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      , pi(pi)
     {}
     inline size_t guessed_length() const override {
-        return src.guessed_length() + t0;
+        return pi.get_size();
+    }
+    ssize_t read_to_matpoly(matpoly& dst,
+                            unsigned int k0,
+                            unsigned int k1) override;
+};
+
+template class lingen_gather_reverse<matpoly>;
+template class lingen_gather_reverse<bigmatpoly>;
+
+class lingen_F_from_PI
+  : public lingen_F0
+  , public lingen_input_wrapper_base
+{
+    lingen_input_wrapper_base& pi;
+    matpoly cache;
+    unsigned int cache_k0 = 0;
+    unsigned int cache_k1 = 0;
+    // unsigned int next_src_k = 0; // same as cache_k1, in fact !
+
+    matpoly rhs;
+    struct sol_desc
+    {
+        unsigned int j;
+        unsigned int shift;
+    };
+    std::vector<sol_desc> sols;
+    matpoly recompute_rhs();
+    void reorder_solutions();
+    /* This returns (iF, s), such that the reversal of pi_{ipi, jpi}
+     * contributes to entry (iF, jF), once shifted right by s.
+     */
+    std::tuple<unsigned int, unsigned int> get_shift_ij(unsigned int ipi, unsigned jF) const;
+    public:
+    lingen_F_from_PI(bmstatus const &, lingen_input_wrapper_base& pi, lingen_F0 const& F0);
+    inline size_t guessed_length() const override {
+        return pi.guessed_length() + t0;
     }
     ssize_t read_to_matpoly(matpoly& dst,
                             unsigned int k0,
@@ -233,11 +322,11 @@ class lingen_output_to_singlefile : public lingen_output_wrapper_base
 
     public:
     lingen_output_to_singlefile(abdst_field ab,
-                                unsigned int m,
-                                unsigned int n,
+                                unsigned int nrows,
+                                unsigned int ncols,
                                 std::string const& filename,
                                 bool ascii = false)
-      : lingen_output_wrapper_base(ab, m, n)
+      : lingen_output_wrapper_base(ab, nrows, ncols)
       , filename(filename)
       , ascii(ascii)
     {
@@ -260,8 +349,8 @@ class lingen_output_to_splitfile : public lingen_output_wrapper_base
 
     public:
     lingen_output_to_splitfile(abdst_field ab,
-                               unsigned int m,
-                               unsigned int n,
+                               unsigned int nrows,
+                               unsigned int ncols,
                                std::string const& pattern,
                                bool ascii = false);
 
@@ -278,10 +367,10 @@ class lingen_output_to_sha1sum : public lingen_output_wrapper_base
 
     public:
     lingen_output_to_sha1sum(abdst_field ab,
-                             unsigned int m,
-                             unsigned int n,
+                             unsigned int nrows,
+                             unsigned int ncols,
                              std::string const& who)
-      : lingen_output_wrapper_base(ab, m, n)
+      : lingen_output_wrapper_base(ab, nrows, ncols)
       , who(who)
     {}
     ~lingen_output_to_sha1sum() override;

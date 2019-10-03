@@ -28,7 +28,7 @@ class matpoly {
      * But on the other hand it's harmless to keep the friend declaration
      * in all cases.
      */
-    friend class bigmatpoly;
+    friend struct bigmatpoly;
 
     typedef abdst_vec ptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
@@ -91,11 +91,17 @@ public:
     void clear() { *this = matpoly(); }
 
     /* {{{ access interface for matpoly */
-    inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k=0) {
-        return abvec_subvec(ab, x, (i*n+j)*alloc+k);
+    /* part_head does not _promise_ to point to coefficient k exactly. In
+     * the simd case (lingen_matpoly_binary.hpp) it points to the word
+     * where coefficient k can be found */
+    inline abdst_vec part(unsigned int i, unsigned int j) {
+        return abvec_subvec(ab, x, (i*n+j)*alloc);
+    }
+    inline abdst_vec part_head(unsigned int i, unsigned int j, unsigned int k) {
+        return abvec_subvec(ab, part(i, j), k);
     }
     inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
-        return abvec_coeff_ptr(ab, part(i,j,k), 0);
+        return abvec_coeff_ptr(ab, part(i, j), k);
     }
     struct coeff_accessor_proxy {
         abdst_field ab;
@@ -113,11 +119,14 @@ public:
     inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
         return coeff_accessor_proxy(*this, i, j, k);
     }
-    inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return abvec_subvec_const(ab, x, (i*n+j)*alloc+k);
+    inline absrc_vec part(unsigned int i, unsigned int j) const {
+        return abvec_subvec_const(ab, x, (i*n+j)*alloc);
+    }
+    inline absrc_vec part_head(unsigned int i, unsigned int j, unsigned int k) const {
+        return abvec_subvec_const(ab, part(i, j), k);
     }
     inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return abvec_coeff_ptr_const(ab, part(i,j,k), 0);
+        return abvec_coeff_ptr_const(ab, part(i, j), k);
     }
     /* }}} */
     void set_constant_ui(unsigned long e);
@@ -153,6 +162,7 @@ public:
         unsigned int n);
 #endif
     void rshift(matpoly const &, unsigned int k);
+    void rshift(unsigned int k);
 
     /* It is probably wise to avoid the mul and mp functions below. The
      * first-class citizens are the caching alternatives.

@@ -29,5 +29,24 @@ static inline mpz_srcptr abfield_characteristic_srcptr(absrc_field) { return NUL
 // static inline size_t abvec_elt_stride(abdst_field, size_t k) { return (k / 64) * sizeof(mp_limb_t); }
 static inline bool abis_zero(abdst_field, absrc_elt x) { return *x==0; }
 static inline void abrandom(abdst_field, abdst_elt x, gmp_randstate_ptr rstate) { *x = gmp_urandomb_ui(rstate, 1); }
+/* Use these with care, as we're ignoring the remainder of the division
+ * n/ULONG_BITS ! */
+static inline abdst_vec abvec_subvec(abdst_field ab MAYBE_UNUSED, abdst_vec v, unsigned int n) {
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    return v + n / ULONG_BITS;
+}
+static inline absrc_vec abvec_subvec_const(abdst_field ab MAYBE_UNUSED, absrc_vec v, unsigned int n) {
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    return v + n / ULONG_BITS;
+}
+static inline void abvec_set(abdst_field ab MAYBE_UNUSED, abdst_vec to, absrc_vec from, size_t n) {
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    std::copy(from, from + n / ULONG_BITS, to);
+}
+static inline void abvec_add(abdst_field ab MAYBE_UNUSED, abdst_vec to, absrc_vec a, absrc_vec b, size_t n) {
+    ASSERT_ALWAYS(n % ULONG_BITS == 0);
+    for( ; (n -= ULONG_BITS) != 0 ; )
+        *to++ = *a++ ^ *b++;
+}
 
 #endif	/* MPFQ_FAKE_HPP_ */
