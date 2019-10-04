@@ -760,6 +760,7 @@ u64arith_invmod (const uint64_t n)
   /* Newton iteration */
   r = 2 * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
   r = 2 * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
+  r = 2 * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
 #if 0
   r = 2 * r - r * r * n;
 #else
@@ -777,6 +778,7 @@ u64arith_invmod (const uint64_t n)
   r = r - ((uint64_t)k << 32);
 #endif
 
+  ASSERT_EXPENSIVE(n * r == 1);
   return r;
 }
 
