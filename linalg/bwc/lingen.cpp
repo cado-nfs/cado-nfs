@@ -524,7 +524,9 @@ int check_luck_condition(bmstatus & bm)/*{{{*/
             printf("Random input: faking successful computation\n");
         }
         for(unsigned int j = 0 ; j < n ; j++) {
-            bm.lucky[(j * 1009) % (m+n)] = expected_pi_length(d);
+            unsigned int s = (j * 1009) % (m+n);
+            bm.lucky[s]  = expected_pi_length(d);
+            bm.delta[s] -= expected_pi_length(d);
         }
         return check_luck_condition(bm);
     }
@@ -954,15 +956,18 @@ int main(int argc, char *argv[])
         bigmatpoly E(bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<bigmatpoly> fill_E(E);
         lingen_F0 F0 = *E_series;
-        pipe(*E_series, fill_E, true);
+        pipe(*E_series, fill_E, "Read");
+        bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
         bigmatpoly pi = bw_biglingen_collective(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.my_cell().capacity());
-        lingen_gather_reverse<bigmatpoly> read_PI(pi);
-        lingen_F_from_PI Fsrc(bm, read_PI, F0);
-        pipe(Fsrc, *Fdst, true);
+        if (check_luck_condition(bm)) {
+            lingen_gather_reverse<bigmatpoly> read_PI(pi);
+            lingen_F_from_PI Fsrc(bm, read_PI, F0);
+            pipe(Fsrc, *Fdst, "Written");
+        }
     } else {
         /* We don't want to bother with memory problems in the non-mpi
          * case when the tuning was done for MPI: this is because the
@@ -978,15 +983,18 @@ int main(int argc, char *argv[])
         matpoly E(bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<matpoly> fill_E(E);
         lingen_F0 F0 = *E_series;
-        pipe(*E_series, fill_E, true);
+        pipe(*E_series, fill_E, "Read");
+        bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
         matpoly pi = bw_lingen_single(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.capacity());
-        lingen_gather_reverse<matpoly> read_PI(pi);
-        lingen_F_from_PI Fsrc(bm, read_PI, F0);
-        pipe(Fsrc, *Fdst, true);
+        if (check_luck_condition(bm)) {
+            lingen_gather_reverse<matpoly> read_PI(pi);
+            lingen_F_from_PI Fsrc(bm, read_PI, F0);
+            pipe(Fsrc, *Fdst, "Written");
+        }
     }
 
     if (!rank && random_input_length) {

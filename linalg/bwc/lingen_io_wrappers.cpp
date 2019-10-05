@@ -45,7 +45,7 @@ double lingen_file_input::average_matsize() const
 void lingen_file_input::open_file()
 {
     if (mpi_rank()) return;
-    fopen(filename.c_str(), ascii ? "r" : "rb");
+    f = fopen(filename.c_str(), ascii ? "r" : "rb");
 }
 
 void lingen_file_input::close_file()
@@ -100,8 +100,10 @@ ssize_t lingen_file_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsig
 
 ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    dst.fill_random(k0, k1, rstate);
-    return k1 - k0;
+    ssize_t nk = MIN(length, next_src_k + k1 - k0) - next_src_k;
+    dst.fill_random(k0, k0 + nk, rstate);
+    next_src_k += nk;
+    return nk;
 }
 
 /* pivots is a vector of length r <= M.n ;
@@ -198,6 +200,9 @@ lingen_F0::share(int root, MPI_Comm comm)
     MPI_Bcast(&fdesc.front(), 2 * m, MPI_UNSIGNED, 0, comm);
 }
 
+/* It's a bit tricky. F0 is the _reversal_ of what we get here. (with
+ * respect to t0).
+ */
 std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_Aprime(unsigned int jE) const
 {
     unsigned int kA, jA;
@@ -223,10 +228,7 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
     unsigned int next_k1 = simd * iceildiv(k, simd);
 
     if (next_k1 != cache_k1) {
-        /* data grows, the old data is kept, and the size field is
-         * unchanged.
-         */
-        cache.realloc(next_k1);
+        cache.zero_pad(next_k1);
         ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
         if (nk != next_k1 - cache_k1) {
             fprintf(stderr, "short read from A\n");
@@ -235,8 +237,7 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
                     m);
             exit(EXIT_FAILURE);
         }
-        next_k1 = cache_k1;
-        cache.set_size(cache_k1);
+        cache_k1 = next_k1;
     }
 }
 
@@ -340,7 +341,11 @@ lingen_E_from_A::initial_read()
                        pivots.size(),
                        (j < nrhs) ? " (column not shifted because of the RHS)"
                                   : "");
+
             }
+            /* Do this before we increase t0 */
+            if (pivots.size() == m)
+                break;
         }
 
         printf("Found satisfactory init data for t0=%d\n", t0);
@@ -348,95 +353,6 @@ lingen_E_from_A::initial_read()
     share(0, MPI_COMM_WORLD);
 }
 
-/* read k1-k0 new coefficients from the source (which is embedded in the
- * struct as a reference), starting at coefficient next_src_k, and write
- * them to the destination, starting at coefficient k0.
- */
-ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
-{
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    abdst_field ab = bw_dimensions::ab;
-#endif
-    /* The first n columns of F0 are the identity matrix, so that
-     * for (0 <= j < n),
-     * column j of E is actually X^{-t0-e}*column j=jA of A. Notice that we
-     * have in this case column_data_from_A(j) = { t0+e, j }. Here, e is
-     * (j >= bm.d.nrhs)
-     *
-     * The last m columns, namely for (n <= j < m+n), are as follows: if 
-     *      std::tie(kA, jA) = column_data_from_A(j);
-     * Then the entry at position (jA, j) is x^(t0-kA), so that 
-     * column j of E is actually X^{-kA}*column jA of A.
-     *
-     *
-     * the max value of kA is t0 + (n < rhs)
-     */
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
-    unsigned int lookback = cache_k1 - cache_k0;
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n)));
-    ASSERT_ALWAYS(cache.get_size() == lookback);
-    cache.zero_pad(lookback + nk);
-    ssize_t nread = A.read_to_matpoly(cache, lookback, lookback + nk);
-    cache_k1 += nread;
-    ssize_t produced;
-    if (nread > 0) {
-        ASSERT_ALWAYS(nread % simd == 0);
-        for(unsigned int j = 0; j < m + n; j++) {
-            unsigned int jA;
-            unsigned int kA;
-            std::tie(kA, jA) = column_data_from_A(j);
-            /* column j of E is actually X^{-kA}*column jA of A. */
-            for(unsigned int i = 0 ; i < m ; i++) {
-                abdst_vec to = dst.part_head(i, j, k0);
-                absrc_vec from = cache.part_head(i, jA, kA);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_set(ab, to, from, nread);
-#else
-                unsigned int sr = kA % simd;
-                unsigned int nq = nread / simd;
-                if (sr) {
-                    mpn_rshift(to, from, nq, sr);
-                    to[nq-1] ^= from[nq] << (simd - sr);
-                } else {
-                    memcpy(to, from, nq * sizeof(unsigned long));
-                }
-#endif
-            }
-        }
-    }
-    ASSERT_ALWAYS(nread >= 0);
-    for(produced = nread ; produced + k0 < k1 ; produced += simd) {
-        for(unsigned int j = 0; j < m + n; j++) {
-            unsigned int jA;
-            unsigned int kA;
-            std::tie(kA, jA) = column_data_from_A(j);
-            /* column j of E is actually X^{-kA}*column jA of A. */
-            if (produced + kA >= cache_k1 - cache_k0) break;
-            for(unsigned int i = 0 ; i < m ; i++) {
-                abdst_vec to = dst.part_head(i, j, k0 + produced);
-                absrc_vec from = cache.part_head(i, jA, kA + produced);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_set(ab, to, from, 1);
-#else
-                unsigned int sr = kA % simd;
-                if (sr) {
-                    *to = *from >> sr;
-                    if (((kA + produced) / simd+1) * simd < (cache_k1 - cache_k0))
-                        *to ^= from[1] << (simd - sr);
-                } else {
-                    *to = *from;
-                }
-#endif
-            }
-        }
-    }
-    cache.rshift(nread);
-    cache_k0 += nread;
-    cache_k1 += nread;
-    return produced;
-}
 
 /* read k1-k0 new coefficients from src, starting at coefficient k0,
  * write them to the destination (which is embedded in the struct as a
@@ -447,7 +363,7 @@ ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigne
 {
     ssize_t nk = MIN(k1, src.get_size()) - k0;
     ASSERT_ALWAYS(k1 <= src.get_size());
-    ASSERT_ALWAYS((size_t) next_dst_k + nk <= E.get_size());
+    E.zero_pad(next_dst_k + nk);
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
@@ -471,7 +387,7 @@ ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsi
 {
     ssize_t nk = MIN(k1, src.get_size()) - k0;
     ASSERT_ALWAYS(k1 <= src.get_size());
-    ASSERT_ALWAYS((size_t) next_dst_k + nk <= E.get_size());
+    E.zero_pad(next_dst_k + nk);
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
@@ -529,8 +445,7 @@ ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k
 ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
 {
     ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= dst.get_size());
-    ASSERT_ALWAYS((size_t) next_src_k + nk <= pi.get_size());
+    nk = MIN(nk, (ssize_t) pi.get_size() - next_src_k);
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
@@ -554,22 +469,22 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     }
 #else
     size_t ntemp = (k1-k0) / simd + 2;
+    unsigned int rk1 = next_src_k;
+    unsigned int rk0 = next_src_k - nk;
+    rk1 = d >= rk1 ? d - rk1 : 0;
+    rk0 = d >= rk0 ? d - rk0 : 0;
+    unsigned int n_rk = rk1 - rk0;
+    unsigned int q_rk = rk0 / simd;
+    unsigned int r_rk = rk0 % simd;
+    unsigned int nq = iceildiv(n_rk + r_rk, simd);
     unsigned long * temp = new unsigned long[ntemp];
     for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
         for(unsigned int j = 0; j < pi.ncols() ; j++) {
-            unsigned int rk1 = next_src_k;
-            unsigned int rk0 = next_src_k - nk;
-            rk1 = d >= rk1 ? d - rk1 : 0;
-            rk0 = d >= rk0 ? d - rk0 : 0;
             /* We'll read coefficients of degrees [rk0, rk1[, and
              * it might well be that rk0<0
              */
             memset(temp, 0, ntemp * sizeof(unsigned long));
 
-            unsigned int n_rk = rk1 - rk0;
-            unsigned int q_rk = rk0 / simd;
-            unsigned int r_rk = rk0 % simd;
-            unsigned int nq = iceildiv(n_rk + r_rk, simd);
             ASSERT_ALWAYS(nq <= ntemp);
             memcpy(temp, pi.part(i, j) + q_rk, nq * sizeof(unsigned long));
             if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
@@ -657,25 +572,39 @@ matpoly lingen_F_from_PI::recompute_rhs()
                 continue;
             /* Coefficient (iF, ipi) of F0 is x^kF (with 0<=kF<=t0).
              * Multiplied by coefficient (ipi, jpi) of pi, whose length
-             * is delta[jpi]+1-t0, this induces a contribution to column
-             * (iF, jF) of F.
+             * is <=delta[jpi]+1, this induces a contribution to
+             * coefficient
+             * (iF, jF) of F. (actually since the length of column jF is
+             * at most delta[jpi]+1, the length of column jpi of pi is at
+             * most delta[jpi]+1-kF)
              *
-             * The following formula gives the contribution of this
+             * The following formula gives the contribution C of this
              * coefficient (iF, ipi) of F0 to coefficient delta[j] + k of
              * A' * F:
              *
-             *   \sum_{s=0}^{delta[j]} A'_{iF,s+k} F_{iF,jF,delta[j]-s}
-             *   (we understand F_{iF,jF,...} as representing the
-             *   contribution of the coeff (iF, ipi) of F0 to this)
-             * = \sum_{s=0}^{delta[j]-kF} A'_{iF,s+k} PI_{ipi,jpi,delta[j]-s-kF}
+             * C = \sum_{s=0}^{delta[j]} A'_{iF,s+k} F_{iF,jF,delta[j]-s}
+             *     (we understand F_{iF,jF,...} as representing the
+             *     contribution of the coeff (iF, ipi) of F0 to this)
+             *
+             * C = \sum_{s=0}^{delta[j]} A'_{iF,s+k} Frev_{ipi,jpi,s}
+             *     with Frev = rev_{delta[j]}(F).
+             *
+             * Let F0rev = rev_{t0}(F0) ; F0rev_{iF, ipi} is x^{t0-kF}
+             *     pirev = rev_{G-1}(pi)  with G large enough. (>=pi.get_size())
+             *
+             * We have Frev{*,j} = (F0rev*pirev)_{*,j}  div (t0+G-1-delta[j])
+             *         Frev{*,j,s} = (F0rev*pirev)_{*,j,s+t0+G-1-delta[j]}
+             *                     = pirev_{*,j,s+G-1-delta[j]+kF}
+             *
+             * Let shift = G - 1 - delta[j]
+             *
+             * C = \sum_{s=0}^{delta[j]} A'_{iF,s+k} * pirev_{ipi,jpi,s+shift+kF}
              *
              * x^T*M^k*\sum_{s=0}^{delta[j]-kF} a_s c_s
              *
              * with a_s = M^s * Y_{iF}
-             * and  c_s = [x^{s+kF}](rev_{delta[j]}(pi))
-             *          = [x^{G - delta[j] + s + kF}](rev_{G}(pi))
-             *            (with G = guessed_length() + t0 - 1 >= delta[j])
-             *          = [x^{shift + s + kF}](rev_{G}(pi))
+             * and  c_s = [x^{shift + s + kF}](rev_{G}(pi))
+             *            (with shift = G - 1 - delta[j])
              *
              * and rev_G(pi) is precisely what we have in our source, and
              * cached in cache.
@@ -683,7 +612,7 @@ matpoly lingen_F_from_PI::recompute_rhs()
              * Now take this with s==0: we get the contribution of the
              * rhs.
              */
-            unsigned kpi = shift + kF;
+            unsigned int kpi = shift + kF;
 
             /* add coefficient (ipi, jpi, kpi) of the reversed pi to
              * coefficient (iF, jF, 0) of rhs */
@@ -711,7 +640,7 @@ void lingen_F_from_PI::reorder_solutions()
         sol_score.push_back({ s, jF });
     }
     std::sort(sol_score.begin(), sol_score.end());
-    if (sol_score.size() && !mpi_rank()) {
+    if (nrhs && sol_score.size() && !mpi_rank()) {
         printf("Reordered solutions:\n");
         for (unsigned int i = 0; i < n; i++) {
             printf(" %u (col %u in pi, weight %u on rhs vectors)\n",
@@ -735,7 +664,10 @@ std::tuple<unsigned int, unsigned int> lingen_F_from_PI::get_shift_ij(unsigned i
     unsigned int shift = sols[jF].shift;
     unsigned int iF, kF;
     std::tie(kF, iF) = column_data_from_Aprime(ipi);
-    return {iF, shift + (iF < nrhs) };
+    kF = t0 - kF;
+    unsigned int s0 = shift + kF + (iF < nrhs);
+
+    return {iF, s0 };
 }
 
 lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
@@ -792,12 +724,23 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
         if (bm.lucky[j] <= 0)
             continue;
         ASSERT_ALWAYS(bm.delta[j] >= t0);
-        ASSERT_ALWAYS(bm.delta[j] < guessed_length() + t0);
-        unsigned int s = guessed_length() + t0 - 1 - bm.delta[j];
+        /* Really any large enough G should do. We must strive to change
+         * in relevant places:
+         * - here
+         * - the comment in lingen_F_from_PI::recompute_rhs
+         * - in reverse_matpoly_to_matpoly
+         */
+        size_t G = pi.guessed_length();
+        ASSERT_ALWAYS(bm.delta[j] <= G);
+        unsigned int s = G - 1 - bm.delta[j];
         sols.push_back({ j, s });
         if (s + 1 >= lookback_needed)
             lookback_needed = s + 1;
     }
+
+    if (sols.size() != n)
+        throw std::runtime_error("Cannot compute F, too few solutions found\n");
+
     lookback_needed = iceildiv(lookback_needed, simd) * simd;
     cache.realloc(lookback_needed);
     cache.zero_pad(lookback_needed);
@@ -822,9 +765,23 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
  */
-ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     abdst_field ab = bw_dimensions::ab;
+    /* The first n columns of F0 are the identity matrix, so that
+     * for (0 <= j < n),
+     * column j of E is actually X^{-t0-e}*column j=jA of A. Notice that we
+     * have in this case column_data_from_A(j) = { t0+e, j }. Here, e is
+     * (j >= bm.d.nrhs)
+     *
+     * The last m columns, namely for (n <= j < m+n), are as follows: if 
+     *      std::tie(kA, jA) = column_data_from_A(j);
+     * Then the entry at position (jA, j) is x^(t0-kA), so that 
+     * column j of E is actually X^{-kA}*column jA of A.
+     *
+     *
+     * the max value of kA is t0 + (n < rhs)
+     */
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     unsigned int lookback = cache_k1 - cache_k0;
@@ -832,7 +789,109 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
     ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n)));
     ASSERT_ALWAYS(cache.get_size() == lookback);
     cache.zero_pad(lookback + nk);
+    ssize_t nread = A.read_to_matpoly(cache, lookback, lookback + nk);
+    cache.set_size(lookback + nread);
+    cache_k1 += nread;
+    ssize_t produced;
+    if (nread > 0) {
+        ASSERT_ALWAYS(nread % simd == 0);
+        for(unsigned int j = 0; j < m + n; j++) {
+            unsigned int jA;
+            unsigned int kA;
+            std::tie(kA, jA) = column_data_from_A(j);
+            /* column j of E is actually X^{-kA}*column jA of A. */
+            for(unsigned int i = 0 ; i < m ; i++) {
+                abdst_vec to = dst.part_head(i, j, k0);
+                absrc_vec from = cache.part_head(i, jA, kA);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                abvec_set(ab, to, from, nread);
+#else
+                unsigned int sr = kA % simd;
+                unsigned int nq = nread / simd;
+                if (sr) {
+                    mpn_rshift(to, from, nq, sr);
+                    to[nq-1] ^= from[nq] << (simd - sr);
+                } else {
+                    abvec_set(ab, to, from, nread);
+                }
+#endif
+            }
+        }
+    }
+    ASSERT_ALWAYS(nread >= 0);
+    /* At this point we have a choice to make.
+     * - Either we strive to perform the operation that is mathematically
+     *   unambiguous on our input, akin to polynomial multiplication.
+     * - Or we adapt to the true nature of the source we're dealing in
+     *   the first place: an infinite series, which we know only to some
+     *   precision.
+     * We do the latter, via the introduction of the boolean flag
+     * (has_noise).
+     */
+    for(produced = nread ; produced + k0 < k1 ; produced += simd) {
+        bool will_produce = false;
+        bool has_noise = false;
+        for(unsigned int j = 0; j < m + n; j++) {
+            unsigned int jA;
+            unsigned int kA;
+            std::tie(kA, jA) = column_data_from_A(j);
+            /* column j of E is actually X^{-kA}*column jA of A. */
+            if (produced + kA >= cache_k1 - cache_k0) {
+                has_noise = true;
+            } else {
+                will_produce = true;
+            }
+        }
+        if (has_noise) break;
+        if (!will_produce) break;
+        for(unsigned int j = 0; j < m + n; j++) {
+            unsigned int jA;
+            unsigned int kA;
+            std::tie(kA, jA) = column_data_from_A(j);
+            /* column j of E is actually X^{-kA}*column jA of A. */
+            if (produced + kA >= cache_k1 - cache_k0) continue;
+            for(unsigned int i = 0 ; i < m ; i++) {
+                abdst_vec to = dst.part_head(i, j, k0 + produced);
+                absrc_vec from = cache.part_head(i, jA, kA + produced);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                abvec_set(ab, to, from, 1);
+#else
+                unsigned int sr = kA % simd;
+                if (sr) {
+                    *to = *from >> sr;
+                    if (((kA + produced) / simd+1) * simd < (cache_k1 - cache_k0))
+                        *to ^= from[1] << (simd - sr);
+                } else {
+                    *to = *from;
+                }
+#endif
+            }
+        }
+    }
+    if (k0 + nread < k1) {
+        cache.clear();
+    } else {
+        cache.rshift(nread);
+        cache_k0 += nread;
+    }
+    return produced;
+}
+/* read k1-k0 new coefficients from the source (which is embedded in the
+ * struct as a reference), starting at coefficient next_src_k, and write
+ * them to the destination, starting at coefficient k0.
+ */
+ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+{
+    abdst_field ab = bw_dimensions::ab;
+    ASSERT_ALWAYS(k0 % simd == 0);
+    ASSERT_ALWAYS(k1 % simd == 0);
+    unsigned int lookback = cache_k1 - cache_k0;
+    ssize_t nk = MIN(k1, dst.get_size()) - k0;
+    ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n) - 1));
+    ASSERT_ALWAYS(cache.get_size() == lookback);
+    cache.zero_pad(lookback + nk);
     ssize_t nread = pi.read_to_matpoly(cache, lookback, lookback + nk);
+    cache.set_size(lookback + nread);
     cache_k1 += nread;
     ssize_t produced;
 
@@ -870,7 +929,23 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         }
     }
     ASSERT_ALWAYS(nread >= 0);
+    /* We've reached the end of our input stream. Now is time to drain
+     * the cache.
+     */
     for(produced = nread ; produced + k0 < k1 ; produced += simd) {
+        bool will_produce = false;
+        for(unsigned int jF = 0 ; jF < n ; jF++) {
+            for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
+                unsigned int s;
+                unsigned int iF;
+                std::tie(iF, s) = get_shift_ij(ipi, jF);
+                if (produced + s + simd <= cache_k1 - cache_k0) {
+                    will_produce = true;
+                    break;
+                }
+            }
+        }
+        if (!will_produce) break;
         for(unsigned int jF = 0 ; jF < n ; jF++) {
             unsigned int jpi = sols[jF].j;
             for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
@@ -896,9 +971,12 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         }
     }
 
-    cache.rshift(nread);
-    cache_k0 += nread;
-    cache_k1 += nread;
+    if (k0 + nread < k1) {
+        cache.clear();
+    } else {
+        cache.rshift(nread);
+        cache_k0 += nread;
+    }
     return produced;
 }
 
@@ -916,6 +994,8 @@ ssize_t lingen_output_to_singlefile::write_from_matpoly(matpoly const & src, uns
     /* This should be fixed. We seem to be used to writing this
      * transposed. That's slightly weird.
      */
+    if (!done_open)
+        open_file();
     return matpoly_write(ab, *os, src, k0, k1, ascii, 1);
 }
 
@@ -964,17 +1044,21 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
                                unsigned int k0,
                                unsigned int k1)
 {
-    return 0;
+    ASSERT_ALWAYS(k0 == 0);
+    ASSERT_ALWAYS(k1 == src.get_size());
+    f.write((const char *) src.data_area(), src.data_size());
+    return k1 - k0;
 }
 
 
-void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, bool print_progress)
+void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, const char * action)
 {
     unsigned int window = std::min(in.preferred_window(), out.preferred_window());
     if (window == UINT_MAX) {
         window=4096;
     }
     matpoly F(in.ab, in.nrows, in.ncols, window);
+    F.zero_pad(window);
 
     double tt0 = wct_seconds();
     double next_report_t = tt0;
@@ -982,6 +1066,8 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, bool
     size_t expected = in.guessed_length();
     for(size_t done = 0 ; ; ) {
         ssize_t n = in.read_to_matpoly(F, 0, window);
+        F.set_size(n);
+        bool is_last = n < window;
         if (n < 0) break;
         ssize_t nn = out.write_from_matpoly(F, 0, n);
         if (nn < n) {
@@ -989,18 +1075,20 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, bool
             exit(EXIT_FAILURE);
         }
         done += n;
-        if (!print_progress) continue;
-        if (done >= next_report_k) {
+        if (!action) continue;
+        if (done >= next_report_k || is_last) {
             double tt = wct_seconds();
             if (tt > next_report_t) {
                 printf(
-                        "Processed %zu coefficients (%.1f%%)"
+                        "%s %zu coefficients (%.1f%%)"
                         " in %.1f s (%.1f MB/s)\n",
+                        action,
                         done, 100.0 * done / expected,
                         tt-tt0, done * in.average_matsize() / (tt-tt0)/1.0e6);
                 next_report_t = tt + 10;
                 next_report_k = done + expected / 100;
             }
         }
+        if (is_last) break;
     }
 }

@@ -136,6 +136,7 @@ class lingen_file_input : public lingen_input_wrapper_base
 struct lingen_random_input : public lingen_input_wrapper_base
 {
     gmp_randstate_ptr rstate;
+    size_t next_src_k = 0;
     size_t length;
     lingen_random_input(abdst_field ab,
                         unsigned int nrows,
@@ -382,6 +383,6 @@ class lingen_output_to_sha1sum : public lingen_output_wrapper_base
 void
 pipe(lingen_input_wrapper_base& in,
      lingen_output_wrapper_base& out,
-     bool print_progress);
+     const char * action);
 
 #endif /* LINGEN_IO_WRAPPERS_HPP_ */

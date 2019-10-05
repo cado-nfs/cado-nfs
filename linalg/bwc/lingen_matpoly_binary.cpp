@@ -15,14 +15,20 @@ static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_li
 /* {{{ init/zero/clear interface for matpoly */
 matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc_words(b2w(len)) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
-    ASSERT(!m == !n);
-    if (!m) {
+    /* Note that because we want to handle homogenous and non-homogenous
+     * cases the same way, we support matrices of size 0*n, so that is
+     * not technically a pre-init state */
+    if (!m && !n) {
         ASSERT_ALWAYS(!len);
         return;
     }
     if (alloc_words) {
-        x = (unsigned long *) memory.alloc(data_alloc_size());
-        memset(x, 0, data_alloc_size());
+        if (data_alloc_size()) {
+            x = (unsigned long *) memory.alloc(data_alloc_size());
+            memset(x, 0, data_alloc_size());
+        } else {
+            x = NULL;
+        }
     }
 }
 matpoly::~matpoly() {

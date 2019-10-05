@@ -15,15 +15,20 @@ matpoly::memory_pool_type matpoly::memory;
 /* {{{ init/zero/clear interface for matpoly */
 matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc(len) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
-    ASSERT(!m == !n);
-    if (!m) {
+    /* Note that because we want to handle homogenous and non-homogenous
+     * cases the same way, we support matrices of size 0*n, so that is
+     * not technically a pre-init state */
+    if (!m && !n) {
         ASSERT_ALWAYS(!len);
         return;
     }
     if (alloc) {
-        // abvec_init(ab, &(x), m*n*alloc);
-        x = (abdst_vec) memory.alloc(data_alloc_size());
-        abvec_set_zero(ab, x, m*n*alloc);
+        if (data_alloc_size()) {
+            x = (abdst_vec) memory.alloc(data_alloc_size());
+            abvec_set_zero(ab, x, m*n*alloc);
+        } else {
+            x = NULL;
+        }
     }
 }
 

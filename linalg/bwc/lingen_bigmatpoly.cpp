@@ -204,6 +204,26 @@ void bigmatpoly::set_size(size_t nsize)
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
 }
+void bigmatpoly::zero_pad(size_t nsize)/*{{{*/
+{
+    matpoly & me = my_cell();
+    ASSERT_ALWAYS(nsize <= me.capacity());
+    me.zero_pad(nsize);
+    for(unsigned int j = 0 ; j < n1 ; j++) {
+        if (j == (unsigned int) jrank()) continue;
+        matpoly & them = cell(irank(), j);
+        if (them.check_pre_init()) continue;
+        them.zero_pad(nsize);
+        ASSERT_ALWAYS(nsize <= them.capacity());
+    }
+    for(unsigned int i = 0 ; i < m1 ; i++) {
+        if (i == (unsigned int) irank()) continue;
+        matpoly & them = cell(i, jrank());
+        if (them.check_pre_init()) continue;
+        them.zero_pad(nsize);
+        ASSERT_ALWAYS(nsize <= them.capacity());
+    }
+}
 
 /* If our row or col cells have already been allocated, then reallocate
  * them as well (XXX is it clear or not ?) */

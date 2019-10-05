@@ -84,7 +84,9 @@ public:
     matpoly(matpoly &&);
     matpoly& operator=(matpoly &&);
     ~matpoly();
-    bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT { return x == NULL; }
+    bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
+        return m == 0 && n == 0 && x == NULL;
+    }
     void realloc(size_t);
     inline void shrink_to_fit() { realloc(size); }
     void zero();
