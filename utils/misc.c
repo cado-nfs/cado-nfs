@@ -42,7 +42,7 @@ long get_arg_max(void)
      at least as much */
   arg_max = 4096;
 #endif
-  /* Linux since 2.6.23 does not allow more than MAX_ARG_STRLEN characers in a
+  /* Linux since 2.6.23 does not allow more than MAX_ARG_STRLEN characters in a
      single word on the command line. Since we need to be able to run
      "sh" "-c" "actual_command", this limit is effectively the limit on the
      command line length. */
