@@ -164,7 +164,7 @@ public:
     /* This checks that coefficients of degree k to size-1 are zero.
      */
     int tail_is_zero(unsigned int k) const;
-private:
+public:
     /* not to be confused with the former. a priori this is an
      * implementation detail. At times, we want to assert that.
      */

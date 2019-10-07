@@ -347,10 +347,14 @@ end if;
 
 load "Cr.m";
 if Category(var) ne RngIntElt then
-    Cr:=[g(var[j..j+nchecks*plimbs-1]) : j in [1..#var by nchecks*plimbs]];
-    if p ne 2 then
+    if p ne 2 and assigned plimbs then
+        Cr:=[g(var[j..j+nchecks*plimbs-1]) : j in [1..#var by nchecks*plimbs]];
         assert #Eltseq(Cr[1]) eq 1;
         Cr:=[x[1]:x in Cr];
+    else
+        Cr:=[g(var[j..j+nchecks*1-1]) : j in [1..#var by nchecks*1]];
+        assert Nrows(Cr[1]) eq nchecks;
+        assert Ncols(Cr[1]) eq nchecks;
     end if;
 elif assigned Cr then
     delete Cr;

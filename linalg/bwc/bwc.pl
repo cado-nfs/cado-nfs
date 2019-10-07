@@ -1939,35 +1939,31 @@ sub task_lingen {
     task_check_message 'missing', "lingen has not run yet. Running now.";
     # Now run lingen itself. Which binary we'll run is not totally
     # obvious though.
-    if ($prime == 2) {
-        my @args = @main_args;
-        push @args, "split-output-file=1";
-        my $t = $thr_split[0]*$thr_split[1];
-        push @args, "t=$t";
-        task_common_run("lingen", @args);
-    } else {
-        # NOTE: It may be worthwhile to run specifically this step, but
-        # with adapted mpi and thr parameters.
-        my @args;
-        my $lt = $param->{'lingen_threshold'} || 10;
-        my $lmt = $param->{'lingen_mpi_threshold'} || 100;
-        push @args, "lingen_threshold=$lt";
-        push @args, "lingen_mpi_threshold=$lt";
-        push @args, "split-output-file=1";
-        push @args, "afile=$concatenated_A";
-        push @args, "ffile=F";
-        push @args, grep { /^(?:mn|m|n|wdir|prime|rhs|lingen_mpi)=/ || /allow_zero_on_rhs/ } @main_args;
-        if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
-            print "## non-MPI build, avoiding multi-node lingen\n";
-            # We keep thr=
-            @args = grep { !/^(mpi)=/ } @args;
-        }
-        push @args, grep { /^verbose_flags=/ } @main_args;
-        if (! -f "$wdir/$concatenated_A.gen") {
-            task_common_run("lingen_pz", @args);
+    # NOTE: It may be worthwhile to run specifically this step, but
+    # with adapted mpi and thr parameters.
+    my @args;
+    my $lt = $param->{'lingen_threshold'} || 10;
+    my $lmt = $param->{'lingen_mpi_threshold'} || 100;
+    push @args, "lingen_threshold=$lt";
+    push @args, "lingen_mpi_threshold=$lt";
+    push @args, "split-output-file=1";
+    push @args, "afile=$concatenated_A";
+    push @args, "ffile=F";
+    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ } @main_args;
+    if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
+        print "## non-MPI build, avoiding multi-node lingen\n";
+        # We keep thr=
+        @args = grep { !/^(mpi)=/ } @args;
+    }
+    push @args, grep { /^verbose_flags=/ } @main_args;
+    if (! -f "$wdir/$concatenated_A.gen") {
+        if ($prime == 2) {
+            task_common_run("lingen_u64k1", @args);
         } else {
-            task_check_message 'ok', "lingen already has .gen file, good.";
+            task_common_run("lingen_pz", @args);
         }
+    } else {
+        task_check_message 'ok', "lingen already has .gen file, good.";
     }
 }
 # }}}

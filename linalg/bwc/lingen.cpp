@@ -881,6 +881,8 @@ int main(int argc, char *argv[])
     /* This will cause the initial read */
     std::unique_ptr<lingen_E_from_A> E_series = std::unique_ptr<lingen_E_from_A>(new lingen_E_from_A(bm.d, *A_series));
 
+    bm.t = E_series->t0;
+
     size_t L = E_series->guessed_length();
 
     {
@@ -963,6 +965,8 @@ int main(int argc, char *argv[])
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.my_cell().capacity());
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
             lingen_gather_reverse<bigmatpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
@@ -990,6 +994,8 @@ int main(int argc, char *argv[])
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) printf("(pi.alloc = %zu)\n", pi.capacity());
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
             lingen_gather_reverse<matpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);

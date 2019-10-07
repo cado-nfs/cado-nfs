@@ -85,7 +85,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)
 
 unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsigned int j)
 {
-    return qq->local_delta[j];
+    return qq->local_delta[j] + 1;
 }
 
 /* if SWAP_E is defined, put E[i,j] into E[j][i] */
@@ -531,11 +531,15 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
      *
      * (A priori we're not talking immense sizes at the recursive threshold anyway).
      */
-    matpoly tmp_pi(bm.d.ab, E.ncols(), E.ncols(), E.get_size()); // pi_deg_bound(deg) + 1);
 
-    /* (expected_pi_length would do as well, but E.get_size() is firmly on the safe side!)
+    /* (expected_pi_length should do as well, but 1+E.get_size() is
+     * firmly on the safe side !. Note that for E.get_size() == 0, we do
+     * need length 2.
      */
-    tmp_pi.zero_pad(E.get_size());
+    size_t exp_maxlen = 1 + E.get_size();
+
+    matpoly tmp_pi(bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
+    tmp_pi.zero_pad(exp_maxlen);
 
     bool finished = false;
 
@@ -587,6 +591,7 @@ matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
     bm.done = bw_lingen_basecase_raw(bm, pi, E);
     bm.stats.end_smallstep();
     E = matpoly();
+    ASSERT_ALWAYS(pi.high_word_is_clear());
     return pi;
 }/*}}}*/
 

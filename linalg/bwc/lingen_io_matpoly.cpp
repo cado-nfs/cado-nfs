@@ -128,16 +128,18 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
 #ifdef SELECT_MPFQ_LAYER_u64k1
     ASSERT_ALWAYS(k0 % ULONG_BITS == 0);
     ASSERT_ALWAYS(k1 % ULONG_BITS == 0);
+    size_t ulongs_per_mat = M.m * M.n / ULONG_BITS;
+    std::vector<unsigned long> buf(ulongs_per_mat);
     unsigned int simd = ULONG_BITS;
 #else
     unsigned int simd = 1;
 #endif
-    for(unsigned int k = k0 ; k < k1 ; k += simd) {
+    for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
-        for(unsigned int i = 0 ; !err && i < M.m ; i++) {
-            for(unsigned int j = 0 ; !err && j < M.n ; j++) {
-                std::ostream& os = fw[i*M.n+j];
+        for(unsigned int i = 0 ; !err && i < M.m ; i += simd) {
+            for(unsigned int j = 0 ; !err && j < M.n ; j += simd) {
+                std::ostream& os = fw[i/simd*M.n+j/simd];
 #ifndef SELECT_MPFQ_LAYER_u64k1
                 absrc_elt x = M.coeff(i, j, k);
                 if (ascii) {
@@ -147,13 +149,21 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
                     err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
                 }
 #else
-                absrc_elt x = M.part(i, j);
-                if (ascii) {
+                if (ascii)
                     abort();
-                } else {
-                    const void * from = VOID_POINTER_ADD(x, k / CHAR_BIT);
-                    err = !(os.write((const char *) from, simd / CHAR_BIT));
+                buf.assign(ulongs_per_mat, 0);
+                size_t kq = k / ULONG_BITS;
+                size_t kr = k % ULONG_BITS;
+                for(unsigned int i = 0 ; i < M.m ; i++) {
+                    unsigned long * v = &(buf[i * (M.n / ULONG_BITS)]);
+                    for(unsigned int j = 0 ; j < M.n ; j++) {
+                        unsigned int jq = j / ULONG_BITS;
+                        unsigned int jr = j % ULONG_BITS;
+                        unsigned long bit = (M.part(i, j)[kq] >> kr) & 1;
+                        v[jq] ^= bit << jr;
+                    }
                 }
+                err = !(os.write((const char *) &buf[0], ulongs_per_mat * sizeof(unsigned long)));
 #endif
                 if (!err) matnb++;
             }
@@ -215,6 +225,7 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
     ASSERT_ALWAYS(k1 % ULONG_BITS == 0);
     size_t ulongs_per_mat = m * n / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         if (ascii) {
             /* do we have an endian-robust wordsize-robust convention for
@@ -225,11 +236,10 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
              */
             abort();
         } else {
-            int rc = fwrite((const char*) &buf[0], sizeof(unsigned long), ulongs_per_mat, f);
+            int rc = fread(&buf[0], sizeof(unsigned long), ulongs_per_mat, f);
             if (rc != (int) ulongs_per_mat)
                 return k - k0;
         }
-        M.zero_pad(k + 1);
         size_t kq = k / ULONG_BITS;
         size_t kr = k % ULONG_BITS;
         if (!transpose) {
@@ -238,8 +248,8 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
                 for(unsigned int j = 0 ; j < n ; j++) {
                     unsigned int jq = j / ULONG_BITS;
                     unsigned int jr = j % ULONG_BITS;
-                    unsigned long jm = 1UL << jr;
-                    unsigned long bit = v[jq] & jm;
+                    unsigned long bit = (v[jq] >> jr) & 1;
+                    M.part(i, j)[kq] &= ~(1UL << kr);
                     M.part(i, j)[kq] |= bit << kr;
                 }
             }
@@ -249,8 +259,8 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
                 for(unsigned int i = 0 ; i < m ; i++) {
                     unsigned int iq = i / ULONG_BITS;
                     unsigned int ir = i % ULONG_BITS;
-                    unsigned long im = 1UL << ir;
-                    unsigned long bit = v[iq] & im;
+                    unsigned long bit = (v[iq] >> ir) & 1;
+                    M.part(i, j)[kq] &= ~(1UL << kr);
                     M.part(i, j)[kq] |= bit << kr;
                 }
             }

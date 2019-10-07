@@ -46,6 +46,7 @@ void lingen_file_input::open_file()
 {
     if (mpi_rank()) return;
     f = fopen(filename.c_str(), ascii ? "r" : "rb");
+    DIE_ERRNO_DIAG(!f, "open", filename.c_str());
 }
 
 void lingen_file_input::close_file()
@@ -230,7 +231,7 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
     if (next_k1 != cache_k1) {
         cache.zero_pad(next_k1);
         ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
-        if (nk != next_k1 - cache_k1) {
+        if (nk < k) {
             fprintf(stderr, "short read from A\n");
             printf("This amount of data is insufficient. "
                     "Cannot find %u independent cols within A\n",
@@ -450,8 +451,8 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
     unsigned int d = pi.get_size();
-#ifndef SELECT_MPFQ_LAYER_u64k1
     abdst_field ab = pi.ab;
+#ifndef SELECT_MPFQ_LAYER_u64k1
     for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
         for(unsigned int j = 0; j < pi.ncols() ; j++) {
             /* We'll read coefficients of degrees [d-k1, d-k0[, and
@@ -469,31 +470,35 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     }
 #else
     size_t ntemp = (k1-k0) / simd + 2;
-    unsigned int rk1 = next_src_k;
-    unsigned int rk0 = next_src_k - nk;
+    unsigned int rk0, rk1;
+    rk1 = next_src_k;
     rk1 = d >= rk1 ? d - rk1 : 0;
-    rk0 = d >= rk0 ? d - rk0 : 0;
+    rk0 = rk1 >= nk ? rk1 - nk : 0;
     unsigned int n_rk = rk1 - rk0;
     unsigned int q_rk = rk0 / simd;
     unsigned int r_rk = rk0 % simd;
     unsigned int nq = iceildiv(n_rk + r_rk, simd);
-    unsigned long * temp = new unsigned long[ntemp];
-    for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
-        for(unsigned int j = 0; j < pi.ncols() ; j++) {
-            /* We'll read coefficients of degrees [rk0, rk1[, and
-             * it might well be that rk0<0
-             */
-            memset(temp, 0, ntemp * sizeof(unsigned long));
+    if (nq) {
+        unsigned long * temp = new unsigned long[ntemp];
+        for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
+            for(unsigned int j = 0; j < pi.ncols() ; j++) {
+                /* We'll read coefficients of degrees [rk0, rk1[, and
+                 * it might well be that rk0<0
+                 */
+                memset(temp, 0, ntemp * sizeof(unsigned long));
 
-            ASSERT_ALWAYS(nq <= ntemp);
-            memcpy(temp, pi.part(i, j) + q_rk, nq * sizeof(unsigned long));
-            if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
-            /* Now we only have to bit-reverse temp */
-            bit_reverse(temp, temp, nq);
-            memcpy(dst.part(i, j) + k0 / simd, temp, iceildiv(nk, simd));
+                ASSERT_ALWAYS(nq <= ntemp);
+#define R(x, b) ((b)*iceildiv((x),(b)))
+                abvec_set(ab, temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
+                if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
+                /* Now we only have to bit-reverse temp */
+                bit_reverse(temp, temp, nq);
+                abvec_set(ab, dst.part_head(i, j, k0), temp, R(nk, simd));
+#undef R
+            }
         }
+        delete[] temp;
     }
-    delete[] temp;
 #endif
     next_src_k += nk;
     return nk;
@@ -786,6 +791,7 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
     ASSERT_ALWAYS(k1 % simd == 0);
     unsigned int lookback = cache_k1 - cache_k0;
     ssize_t nk = MIN(k1, dst.get_size()) - k0;
+    ASSERT_ALWAYS(nk % simd == 0);
     ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n)));
     ASSERT_ALWAYS(cache.get_size() == lookback);
     cache.zero_pad(lookback + nk);
@@ -793,8 +799,14 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
     cache.set_size(lookback + nread);
     cache_k1 += nread;
     ssize_t produced;
+
+    /* Do the bulk of the processing with an aligned count.
+     * Note that if nread is not already aligned, it means that we had a
+     * short read, since nk has to be aligned.
+     */
+    nread -= nread % simd;
+
     if (nread > 0) {
-        ASSERT_ALWAYS(nread % simd == 0);
         for(unsigned int j = 0; j < m + n; j++) {
             unsigned int jA;
             unsigned int kA;
@@ -887,6 +899,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
     ASSERT_ALWAYS(k1 % simd == 0);
     unsigned int lookback = cache_k1 - cache_k0;
     ssize_t nk = MIN(k1, dst.get_size()) - k0;
+    ASSERT_ALWAYS(nk % simd == 0);
     ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n) - 1));
     ASSERT_ALWAYS(cache.get_size() == lookback);
     cache.zero_pad(lookback + nk);
@@ -894,9 +907,9 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
     cache.set_size(lookback + nread);
     cache_k1 += nread;
     ssize_t produced;
+    nread -= nread % simd;
 
     if (nread > 0) {
-        ASSERT_ALWAYS(nread % simd == 0);
         for(unsigned int jF = 0 ; jF < n ; jF++) {
             unsigned int jpi = sols[jF].j;
             for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
@@ -939,7 +952,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                 unsigned int s;
                 unsigned int iF;
                 std::tie(iF, s) = get_shift_ij(ipi, jF);
-                if (produced + s + simd <= cache_k1 - cache_k0) {
+                if (produced + s < cache_k1 - cache_k0) {
                     will_produce = true;
                     break;
                 }
@@ -1015,9 +1028,9 @@ void lingen_output_to_splitfile::open_file()
     ASSERT_ALWAYS(!done_open);
     std::ios_base::openmode mode = std::ios_base::out;
     if (!ascii) mode |= std::ios_base::binary;
-    for(unsigned int i = 0 ; i < nrows ; i++) {
-        for(unsigned int j = 0 ; j < ncols ; j++) {
-            std::string s = fmt::format(pattern, i, i+1, j, j+1);
+    for(unsigned int i = 0 ; i < nrows ; i+=simd) {
+        for(unsigned int j = 0 ; j < ncols ; j+=simd) {
+            std::string s = fmt::format(pattern, i, i+simd, j, j+simd);
             fw.emplace_back(std::ofstream { s, mode });
             DIE_ERRNO_DIAG(!fw.back(), "open", s.c_str());
         }
