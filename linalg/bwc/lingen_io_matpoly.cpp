@@ -126,9 +126,9 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
 #ifdef SELECT_MPFQ_LAYER_u64k1
-    size_t ulongs_per_mat = M.m * M.n / ULONG_BITS;
-    std::vector<unsigned long> buf(ulongs_per_mat);
+    size_t ulongs_per_mat = ULONG_BITS;
     unsigned int simd = ULONG_BITS;
+    std::vector<unsigned long> buf(ulongs_per_mat);
 #else
     unsigned int simd = 1;
 #endif
@@ -137,7 +137,7 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < M.m ; i += simd) {
             for(unsigned int j = 0 ; !err && j < M.n ; j += simd) {
-                std::ostream& os = fw[i/simd*M.n+j/simd];
+                std::ostream& os = fw[i/simd*M.n/simd+j/simd];
 #ifndef SELECT_MPFQ_LAYER_u64k1
                 absrc_elt x = M.coeff(i, j, k);
                 if (ascii) {
@@ -152,13 +152,10 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
                 buf.assign(ulongs_per_mat, 0);
                 size_t kq = k / ULONG_BITS;
                 size_t kr = k % ULONG_BITS;
-                for(unsigned int i = 0 ; i < M.m ; i++) {
-                    unsigned long * v = &(buf[i * (M.n / ULONG_BITS)]);
-                    for(unsigned int j = 0 ; j < M.n ; j++) {
-                        unsigned int jq = j / ULONG_BITS;
-                        unsigned int jr = j % ULONG_BITS;
-                        unsigned long bit = (M.part(i, j)[kq] >> kr) & 1;
-                        v[jq] ^= bit << jr;
+                for(unsigned int di = 0 ; di < simd ; di++) {
+                    for(unsigned int dj = 0 ; dj < simd ; dj++) {
+                        unsigned long bit = (M.part(i + di, j + dj)[kq] >> kr) & 1;
+                        buf[di] ^= bit << dj;
                     }
                 }
                 err = !(os.write((const char *) &buf[0], ulongs_per_mat * sizeof(unsigned long)));

@@ -525,6 +525,7 @@ add_dependencies(bwc_matmul ${all_matmul_libs})
 
 add_custom_target(bwc_full)
 add_dependencies(bwc_full mf_bal random_matrix acollect lingen
+    lingen_u64k1
     cleanup prep krylov dispatch mksol gather secure bwc_base
     bwc_matmul bwccheck)
 

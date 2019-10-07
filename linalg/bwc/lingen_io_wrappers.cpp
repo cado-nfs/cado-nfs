@@ -34,7 +34,9 @@ double lingen_io_wrapper_base::average_matsize() const
 
 unsigned int lingen_io_wrapper_base::preferred_window() const
 {
-    return iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int nmats_pad = simd * iceildiv(nmats, simd);
+    return nmats_pad;
 }
 
 double lingen_file_input::average_matsize() const
@@ -231,7 +233,7 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
     if (next_k1 != cache_k1) {
         cache.zero_pad(next_k1);
         ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
-        if (nk < k) {
+        if (nk < (k - cache_k1)) {
             fprintf(stderr, "short read from A\n");
             printf("This amount of data is insufficient. "
                     "Cannot find %u independent cols within A\n",

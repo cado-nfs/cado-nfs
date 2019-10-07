@@ -944,13 +944,13 @@ int main(int argc, char *argv[])
     std::unique_ptr<lingen_output_wrapper_base> Fdst;
     
     if (random_input_length) {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.m, bm.d.n, "F"));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.n, bm.d.n, "F"));
     } else if (split_output_file) {
         std::string pattern = ffile;
         pattern += ".sols{2}-{3}.{0}-{1}";
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.m, bm.d.n, pattern, global_flag_ascii));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.n, bm.d.n, pattern, global_flag_ascii));
     } else {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.m, bm.d.n, ffile, global_flag_ascii));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
     }
 
     if (go_mpi && size > 1) {

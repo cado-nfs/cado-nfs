@@ -19,7 +19,7 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
 fi
 
 while [ $# -gt 0 ] ; do
-    if [[ "$1" =~ ^(seed|m|n|sequence_length|expect_sha1_F)=[0-9a-f]+$ ]] ; then
+    if [[ "$1" =~ ^(seed|m|n|sequence_length|expect_sha1_F)=[0-9a-f,]+$ ]] ; then
         eval "$1"
         shift
         continue
