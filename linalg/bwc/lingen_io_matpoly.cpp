@@ -126,8 +126,6 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
 #ifdef SELECT_MPFQ_LAYER_u64k1
-    ASSERT_ALWAYS(k0 % ULONG_BITS == 0);
-    ASSERT_ALWAYS(k1 % ULONG_BITS == 0);
     size_t ulongs_per_mat = M.m * M.n / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
     unsigned int simd = ULONG_BITS;

@@ -1063,31 +1063,51 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
     return k1 - k0;
 }
 
-
-void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, const char * action)
+void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, const char * action, bool skip_trailing_zeros)
 {
     unsigned int window = std::min(in.preferred_window(), out.preferred_window());
     if (window == UINT_MAX) {
         window=4096;
     }
     matpoly F(in.ab, in.nrows, in.ncols, window);
+    matpoly Z(in.ab, in.nrows, in.ncols, window);
     F.zero_pad(window);
 
     double tt0 = wct_seconds();
     double next_report_t = tt0;
     size_t next_report_k = 0;
     size_t expected = in.guessed_length();
+    size_t zq = 0;
     for(size_t done = 0 ; ; ) {
         ssize_t n = in.read_to_matpoly(F, 0, window);
         F.set_size(n);
+        ssize_t n1 = skip_trailing_zeros ? F.get_true_nonzero_size() : n;
         bool is_last = n < window;
-        if (n < 0) break;
-        ssize_t nn = out.write_from_matpoly(F, 0, n);
-        if (nn < n) {
+        if (n <= 0) break;
+        if (n1 == 0) {
+            zq += n;
+            continue;
+        }
+        /* write the good number of zeros */
+        for( ; zq ; ) {
+            Z.set_size(0);
+            unsigned int nz = MIN(zq, window);
+            Z.zero_pad(nz);
+            ssize_t nn = out.write_from_matpoly(Z, 0, nz);
+            if (nn < nz) {
+                fprintf(stderr, "short write\n");
+                exit(EXIT_FAILURE);
+            }
+            zq -= nz;
+            done += nz;
+        }
+        ssize_t nn = out.write_from_matpoly(F, 0, n1);
+        if (nn < n1) {
             fprintf(stderr, "short write\n");
             exit(EXIT_FAILURE);
         }
-        done += n;
+        zq = n - n1;
+        done += n1;
         if (!action) continue;
         if (done >= next_report_k || is_last) {
             double tt = wct_seconds();

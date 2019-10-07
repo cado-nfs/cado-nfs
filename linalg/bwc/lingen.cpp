@@ -970,7 +970,7 @@ int main(int argc, char *argv[])
         if (check_luck_condition(bm)) {
             lingen_gather_reverse<bigmatpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
-            pipe(Fsrc, *Fdst, "Written");
+            pipe(Fsrc, *Fdst, "Written", true);
         }
     } else {
         /* We don't want to bother with memory problems in the non-mpi
@@ -999,7 +999,7 @@ int main(int argc, char *argv[])
         if (check_luck_condition(bm)) {
             lingen_gather_reverse<matpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
-            pipe(Fsrc, *Fdst, "Written");
+            pipe(Fsrc, *Fdst, "Written", true);
         }
     }
 

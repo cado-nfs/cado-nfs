@@ -383,6 +383,6 @@ class lingen_output_to_sha1sum : public lingen_output_wrapper_base
 void
 pipe(lingen_input_wrapper_base& in,
      lingen_output_wrapper_base& out,
-     const char * action);
+     const char * action, bool skip_trailing_zeros = false);
 
 #endif /* LINGEN_IO_WRAPPERS_HPP_ */

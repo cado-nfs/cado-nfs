@@ -135,6 +135,25 @@ void matpoly::realloc(size_t newalloc) {
     // if (!size) abvec_set_zero(ab, x, m*n*alloc);
     alloc = newalloc;
 }
+
+size_t matpoly::get_true_nonzero_size() const
+{
+    size_t lb = 0;
+    size_t ub = get_size();
+    for(unsigned int ij = 0 ; ij < m*n && lb < ub ; ij++) {
+        unsigned int i = ij / n;
+        unsigned int j = ij % n;
+        /* Find the last nonzero in the range [lb, ub[ */
+        for(unsigned int k = ub ; k > lb ; k--) {
+            if (!abis_zero(ab, coeff(i, j, k-1))) {
+                lb = k;
+                break;
+            }
+        }
+    }
+    return lb;
+}
+
 void matpoly::zero() {
     size = 0;
     abvec_set_zero(ab, x, m*n*alloc);

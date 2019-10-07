@@ -62,6 +62,7 @@ public:
     inline size_t capacity() const { return alloc; }
     inline size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
+    size_t get_true_nonzero_size() const;
 
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
