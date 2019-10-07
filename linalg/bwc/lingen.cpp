@@ -271,7 +271,7 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
     size_t half = E.get_size() - (E.get_size() / 2);
-    unsigned int pi_expect = expected_pi_length(d, bm.delta, E.get_size());
+    // unsigned int pi_expect = expected_pi_length(d, bm.delta, E.get_size());
     unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
     unsigned int pi_left_expect = expected_pi_length(d, bm.delta, half);
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
@@ -332,14 +332,17 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
      * level.
      */
     unsigned int pisize = pi.get_size();
-#if 1
-    /* In fact, it's not entirely impossible that pi grows more than
-     * what we had expected on entry, e.g. if we have one early
-     * generator. So we can't just do this. Most of the time it will
-     * work, but we can't claim that it will always work.
+#if 0
+    /* The asserts below are bogus. In fact, it's not entirely impossible
+     * that pi grows more than what we had expected on entry, e.g. if we
+     * have one early generator. So we can't just do this. Most of the
+     * time it will work, but we can't claim that it will always work.
      *
      * One possible sign is when the entry deltas are somewhat even, and
      * the result deltas are unbalanced.
+     *
+     * It might also be worthwhile to do this check by column, and look
+     * at both degree and valuation.
      */
     for(; pisize > pi_expect ; pisize--) {
         /* These coefficients really must be zero */
