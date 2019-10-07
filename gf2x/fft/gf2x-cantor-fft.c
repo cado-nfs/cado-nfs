@@ -1293,7 +1293,7 @@ static void recomposeK_bits(unsigned long * F, size_t nF, Kelt * f, size_t shift
     size_t Q = I(shift);
     size_t cnt = R(shift);
     size_t tnc = WLEN - cnt;
-    assert((Q + Fl) < (1UL << k));
+    assert((Q + Fl) <= ((1UL << k) - (Q + Fl == words_full - 1)));
     F[0] = f[Q][0];  /* wr:0 to 64; rd:Q*64 to Q*64+64 */
     if (Q) F[0] ^= f[Q-1][1]; /* wr:0 to 64; rd:(Q-1)*64+64 to (Q-1)*64+64+64 */
     for (size_t i = 1; i < Fl ; ++i) {
