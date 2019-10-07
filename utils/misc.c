@@ -49,13 +49,14 @@ long get_arg_max(void)
 #ifdef MAX_ARG_STRLEN
   /* MAX_ARG_STRLEN may be defined in terms of PAGE_SIZE, but PAGE_SIZE may
      not actually be defined in any header.  */
-#ifndef PAGE_SIZE
-  const unsigned int PAGE_SIZE = pagesize();
-#endif
   if ((size_t) arg_max > (size_t) MAX_ARG_STRLEN)
     arg_max = MAX_ARG_STRLEN;
 #endif
-  return arg_max;
+  /* as discussed on
+     https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2019-October/001100.html
+     one should subtract from arg_max the length of the environment, but even this
+     seems not enough, so we divide arg_max by 2 */
+  return arg_max / 2;
 }
 
 int has_suffix(const char * path, const char * sfx)

@@ -91,6 +91,25 @@ FILE * cado_popen(const char * command, const char * mode)
                 command);
                 */
         execl("/bin/sh", "sh", "-c", command, NULL);
+        char const *error_name;
+        switch (errno)
+          {
+          case E2BIG: error_name = "E2BIG"; break;
+          case EACCES: error_name = "EACCES"; break;
+          case EFAULT: error_name = "EFAULT"; break;
+          case EIO: error_name = "EIO"; break;
+          case ELOOP: error_name = "ELOOP"; break;
+          case ENAMETOOLONG: error_name = "ENAMETOOLONG"; break;
+          case ENOENT: error_name = "ENOENT"; break;
+          case ENOEXEC: error_name = "ENOEXEC"; break;
+          case ENOMEM: error_name = "ENOMEM"; break;
+          case ENOTDIR: error_name = "ENOTDIR"; break;
+          case ETXTBSY: error_name = "ETXTBSY"; break;
+          default: error_name ="unknown"; break;
+          }
+        fprintf (stderr, "%s\n", error_name);
+        fprintf (stderr, "command size is %lu\n", strlen (command)
+                 + strlen ("/bin/sh -c "));
         perror("execve() failed");
         exit(1);
     }
