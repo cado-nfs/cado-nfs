@@ -509,7 +509,9 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
         zero_pad(nb);
 
     /* We are going to make it completely stupid for a beginning. */
-    /* XXX XXX XXX FIXME !!! */
+    /* Note that the caching code that is used for larger sizes does a
+     * _real_ middle product.
+     */
     abvec_ur tmp[2];
     abvec_ur_init(ab, &tmp[0], fullsize);
     abvec_ur_init(ab, &tmp[1], nb);

@@ -300,10 +300,11 @@ struct matpoly_checker_base {
         matpoly PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
+        R.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
-        PR.mul(P, R);
-        QR.mul(Q, R);
-        PQ_R.mul(PQ, R);
+        PR = matpoly::mul(P, R);
+        QR = matpoly::mul(Q, R);
+        PQ_R = matpoly::mul(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
         matpoly testz(ab, m, n, 0);
@@ -330,9 +331,9 @@ struct matpoly_checker_base {
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
-        PR.mp(P, R);
-        QR.mp(Q, R);
-        PQ_R.mp(PQ, R);
+        PR = matpoly::mp(P, R);
+        QR = matpoly::mp(Q, R);
+        PQ_R = matpoly::mp(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
         matpoly testz(ab, m, n, 0);

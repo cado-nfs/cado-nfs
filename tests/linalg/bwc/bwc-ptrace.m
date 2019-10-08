@@ -560,14 +560,18 @@ else
     assert Fx0 eq rhscoeffs + X*Submatrix(F, 1, 1, r, n);
     assert Fx1 eq Submatrix(F, r+1, 1, n-r, n);
 
-    Frx :=Parent(Fx)![reciprocal(x,degF):x in Eltseq(Fx)];
-    Frx0:=Parent(Fx0)![reciprocal(x,degF):x in Eltseq(Fx0)];
+    // we're a bit lazy here. The top coefficient in Fx0 (and then in Fx)
+    // actually only affects the RHS vectors. Therefore we should separate it
+    // in the equation AxFx.
+    Frx :=Parent(Fx)![reciprocal(x,1+degF):x in Eltseq(Fx)];
+    Frx0:=Parent(Fx0)![reciprocal(x,1+degF):x in Eltseq(Fx0)];
     Frx1:=Parent(Fx1)![reciprocal(x,degF):x in Eltseq(Fx1)];
     /* A has an inherent O(X^(degA+1)). Since we've shifted a few columns,
      * it's even O(X^degA).
      */
     AxFx:=mmod(Ax*Frx,degA);
     assert exists(e) { e : e in [0..4] | &and[IsZero(mdiv(mcol(AxFx,j),e+coldegs[j])):j in [1..n]]};
+    // when #RHS gt 0, we should always have e==1
     print "Degree offset for generator is", e;
 end if;
 print "Checking generator computed by lingen: done";

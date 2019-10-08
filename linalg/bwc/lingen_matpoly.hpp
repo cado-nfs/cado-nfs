@@ -86,7 +86,7 @@ public:
     matpoly& operator=(matpoly &&);
     ~matpoly();
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
-        return m == 0 && n == 0 && x == NULL;
+        return x == NULL;
     }
     void realloc(size_t);
     inline void shrink_to_fit() { realloc(size); }
@@ -138,9 +138,11 @@ public:
     void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
     void clear_and_set_random(unsigned int len, gmp_randstate_t rstate)
     {
-        realloc(len);
-        set_size(len);
+        if (len > capacity())
+            zero_pad(len);
+        zero_pad(capacity());
         fill_random(0, len, rstate);
+        set_size(len);
     }
 
     int cmp(matpoly const & b) const;
