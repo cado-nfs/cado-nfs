@@ -7,6 +7,7 @@ macro(add_bwc_test nm script)
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
         ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
         bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
+        AVOID_CONCURRENT
         TARGET_DEPENDENCIES bwc_full)
 endmacro()
 
@@ -36,7 +37,9 @@ macro(add_lingen_binary_test testname)
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
         ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
         bindir=${CADO_NFS_BINARY_DIR} ${ARGN}
-        TARGET_DEPENDENCIES lingen lingen_u64k1)
+        TARGET_DEPENDENCIES lingen lingen_u64k1
+        AVOID_CONCURRENT
+        )
 endmacro()
 
 # the sha1sums here are from the time were we were transposing the
@@ -150,7 +153,9 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
         ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
         NO_DEFAULT_RUN
-        TARGET_DEPENDENCIES lingen_${gfp_layer})
+        TARGET_DEPENDENCIES lingen_${gfp_layer}
+        AVOID_CONCURRENT
+        )
     # set_tests_properties(test-bwc-lingen_${gfp_layer} PROPERTIES WILL_FAIL 1)
 
     # Note that the mpi and lingen_mpi_threshold arguments here are used
@@ -182,6 +187,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
             ${extra})
         cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
+            AVOID_CONCURRENT
             SCRIPT
             ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
@@ -205,6 +211,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     if(gfp_layer STREQUAL "p_1")
         cado_define_test(test-bwc-lingen-21744
+            AVOID_CONCURRENT
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
@@ -212,6 +219,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             TARGET_DEPENDENCIES lingen_p_1)
 
         cado_define_test(test-bwc-lingen-21744-bis
+            AVOID_CONCURRENT
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
@@ -532,6 +540,7 @@ if (HAVE_MPI)
 endif()
 
 cado_define_test(TEST_NAME test-blocklanczos-staged
+    AVOID_CONCURRENT
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
@@ -541,6 +550,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
 
 if(HAVE_PERL_DIGEST_MD5)
 cado_define_test(TEST_NAME test-lingen-crc
+    AVOID_CONCURRENT
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/test-lingen-crc.sh

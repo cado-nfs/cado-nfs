@@ -38,6 +38,17 @@ add_custom_target(all_test_dependencies)
 # about X_dependencies (for adding extra dependencies late), or the
 # targets X (for setting compile time definitions).
 
+set(CADO_NFS_LOCK_TOOL)
+find_program(HAVE_LOCKF_TOOL NAMES flock DOC "locking tool lockf")
+if (HAVE_LOCKF_TOOL)
+    set(CADO_NFS_LOCK_TOOL ${HAVE_LOCKF_TOOL})
+else()
+    find_program(HAVE_LCKDO_TOOL NAMES flock DOC "locking tool lockf")
+    if (HAVE_LCKDO_TOOL)
+        set(CADO_NFS_LOCK_TOOL ${HAVE_LCKDO_TOOL} -w)
+    endif()
+endif()
+
 macro(cado_define_test)
     # This macro is appropriate for a test which consists in running a
     # binary. The different ways to call this macro are:
@@ -132,6 +143,7 @@ macro(cado_define_test)
     set(TEST_NAME)
     set(WORKING_DIRECTORY)
     set(NO_DEFAULT_RUN)
+    set(AVOID_CONCURRENT)
     set(current IMPLICIT)
     foreach(x ${ARGN})
         if (x STREQUAL "TEST_DEPENDENCIES")
@@ -158,6 +170,9 @@ macro(cado_define_test)
             SET(current NO_DEFAULT_RUN)
             # special, because it's a flag, really
             set(NO_DEFAULT_RUN 1)
+        elseif (x STREQUAL "AVOID_CONCURRENT")
+            SET(current AVOID_CONCURRENT)
+            set(AVOID_CONCURRENT 1)
         else()
             list(APPEND ${current} ${x})
         endif()
@@ -278,7 +293,11 @@ macro(cado_define_test)
 
     if(nTARGET_DEPENDENCIES GREATER 0)
         add_dependencies(${TEST_NAME}_dependencies ${TARGET_DEPENDENCIES})
+        if(CADO_NFS_LOCK_TOOL)
+            add_test(builddep_${TEST_NAME} ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/build-lock ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${TEST_NAME}_dependencies)
+        else()
         add_test(builddep_${TEST_NAME} ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${TEST_NAME}_dependencies)
+        endif()
     endif()
 
     if (nSCRIPT EQUAL 0)
@@ -295,13 +314,17 @@ macro(cado_define_test)
     set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
     set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
     set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
+    set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env)
         if (nENVIRONMENT GREATER 0)
             set(test_env env ${${TEST_NAME}_ENVIRONMENT})
         endif()
-        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_PRECOMMAND} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
+        if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
+            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock)
+        endif()
+        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${${TEST_NAME}_PRECOMMAND} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
         if(nWORKING_DIRECTORY GREATER 0)
             list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
@@ -360,6 +383,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
     set(NO_DEFAULT_RUN)
+    set(AVOID_CONCURRENT)
     set(current ARGUMENTS)
     foreach(x ${ARGN})
         if (x STREQUAL "ARGUMENTS")
@@ -382,6 +406,9 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             SET(current NO_DEFAULT_RUN)
             # special, because it's a flag, really
             set(NO_DEFAULT_RUN 1)
+        elseif (x STREQUAL "AVOID_CONCURRENT")
+            SET(current AVOID_CONCURRENT)
+            set(AVOID_CONCURRENT 1)
         else()
             list(APPEND ${current} ${x})
         endif()
@@ -422,6 +449,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         list(LENGTH PRECOMMAND nPRECOMMAND)
     endif()
 
+    if (NOT AVOID_CONCURRENT GREATER 0)
+        set(AVOID_CONCURRENT ${${TEST_BASE}_AVOID_CONCURRENT})
+    endif()
+
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
     add_custom_target(${TEST_NAME}_dependencies)
@@ -435,13 +466,17 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
     set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
     set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
+    set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env)
         if (nENVIRONMENT GREATER 0)
             set(test_env env ${${TEST_NAME}_ENVIRONMENT})
         endif()
-        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_PRECOMMAND} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
+        if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
+            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock)
+        endif()
+        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${${TEST_NAME}_PRECOMMAND} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
         set(${TEST_NAME}_TEST_EXISTS 1)
         # prepare a ;-separated list for set_tests_properties
         # note that we do not need to make the test depend on
@@ -482,7 +517,9 @@ cado_define_test(full_c30
         dup1 dup2 purge merge replay
         characters
         bwc_full
-        sqrt)
+        sqrt
+    AVOID_CONCURRENT
+        )
     if(HAVE_GCC_STYLE_AMD64_INLINE_ASM AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # see linalg/bwc/CMakeLists.txt for an explanation
         cado_define_test(full_p30
@@ -495,7 +532,9 @@ cado_define_test(full_c30
             3037544709654617415632521514287
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             lingen_pz sm sm_simple las_descent reconstructlog-dl
-            merge-dl replay-dl badideals)
+            merge-dl replay-dl badideals
+            AVOID_CONCURRENT
+            )
         # The following case was hitting the bug #21707
         cado_define_test(full_p30_JL
             SCRIPT
@@ -516,9 +555,12 @@ cado_define_test(full_c30
             tasks.sieve.qrange=100
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES
+            full_c30_dependencies debug_renumber
             lingen_pz sm sm_simple las_descent reconstructlog-dl
-            dlpolyselect merge-dl replay-dl badideals)
+            dlpolyselect merge-dl replay-dl badideals
+            AVOID_CONCURRENT
+            )
     endif()
 endif()
 if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -536,6 +578,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
+        AVOID_CONCURRENT
             )
     cado_define_test(full_c65_128
         SCRIPT
@@ -545,6 +588,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             tasks.linalg.m=128 tasks.linalg.n=128 --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
+        AVOID_CONCURRENT
             )
     cado_define_test(nonlinear_c59
         SCRIPT
@@ -555,6 +599,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/c59_nonlinear.poly
         TARGET_DEPENDENCIES
             full_c30_dependencies
+        AVOID_CONCURRENT
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
@@ -573,21 +618,27 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals)
+            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+        AVOID_CONCURRENT
+            )
         cado_define_test(test_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
-            filter_galois polyselect_gfpn)
+            filter_galois polyselect_gfpn
+        AVOID_CONCURRENT
+            )
         cado_define_test(test_gfp2_2_2g
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
             lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
-	    filter_galois)
+	    filter_galois
+        AVOID_CONCURRENT
+            )
     endif()
 endif()
 
