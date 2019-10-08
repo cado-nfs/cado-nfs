@@ -238,10 +238,11 @@ while (<>) {
         remove_from_live_slot($n, ($outcome =~ /Passed/ ? 'success' : 'failure'));
     } elsif (/^\s*\d+% tests/ || /The following/) {
         die "unexpected final text, some tests are still running: @live\n$_" if scalar grep { defined($_) } @live;
+        my $tailmsg = $_;
         print_all_outputs;
         if ($verbose >= 0) {
             print "\n";
-            print;
+            print $tailmsg;
             while (<>) {
                 print;
             }
