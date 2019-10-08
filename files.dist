@@ -1383,3 +1383,4 @@ linalg/bwc/README.OpenMPI
 sieve/las-output.cpp
 sieve/las-output.hpp
 tests/sieve/torture-redc.cpp
+scripts/filter-ctest.pl
