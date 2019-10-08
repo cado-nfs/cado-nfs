@@ -28,7 +28,7 @@ class matpoly {
      * But on the other hand it's harmless to keep the friend declaration
      * in all cases.
      */
-    friend struct bigmatpoly;
+    friend class bigmatpoly;
 
     typedef abdst_vec ptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;

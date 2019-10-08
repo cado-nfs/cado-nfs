@@ -34,7 +34,8 @@ struct bigmatpoly_model {
  * favor of just storing the local cell. This would simplify the
  * implementation significantly.
  */
-struct bigmatpoly : public bigmatpoly_model {
+class bigmatpoly : public bigmatpoly_model {
+    public:
     abdst_field ab = NULL;
     unsigned int m = 0;     /* total number of rows */
     unsigned int n = 0;     /* total number of cols */
