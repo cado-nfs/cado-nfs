@@ -136,9 +136,9 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
 #ifndef SELECT_MPFQ_LAYER_u64k1
             abmul(M.ab, tmp, M.coeff(i, v, 0), M.coeff(u, r, 0));
             abadd(M.ab, M.coeff(i, r, 0), M.coeff(i, r, 0), tmp);
-#else
             if (i == u)
                 continue;
+#else
             abelt x = { M.coeff(i, v, 0)[0] & M.coeff(u, r, 0)[0] };
             M.coeff_accessor(i, r, 0) += x;
 #endif
@@ -321,7 +321,7 @@ lingen_E_from_A::initial_read()
                      * coefficient, this means at least m/n matrices.
                      */
 
-                    if (t0 * n > m + 40) {
+                    if ((t0-1) * n > m + 40) {
                         printf("The choice of starting vectors was bad. "
                                "Cannot find %u independent cols within A\n",
                                m);
