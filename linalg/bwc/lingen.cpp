@@ -252,6 +252,48 @@ matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstat
 }
 
 template<typename matpoly_type>
+void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
+{
+    if (pi.get_size() > pi_expect) {
+        unsigned int nluck = 0;
+        unsigned int maxdelta_lucky = 0;
+        for(unsigned int j = 0 ; j < bm.d.m + bm.d.n ; j++) {
+            if (!bm.lucky[j]) continue;
+            nluck++;
+            if (bm.delta[j] >= maxdelta_lucky)
+                maxdelta_lucky = bm.delta[j];
+        }
+        printf("truncating excess cols\n"
+                "   pi has length %zu, we expected %u at most.\n"
+                "   max delta on the %u lucky columns: %u\n",
+                pi.get_size(),
+                pi_expect,
+                nluck,
+                maxdelta_lucky);
+        bm.display_deltas();
+        pi.set_size(pi_expect);
+        pi.clear_high_word();
+        /* in fact, there is really no reason to reach here. The expected
+         * pi length should be large enough so that the "luck" condition
+         * and eventually the "done"/"finished" flags are triggered
+         * before we reach the point where we overflow. This means a
+         * constant offset. Therefore, reaching here is a bug.
+         *
+         * Furthermore, while the idea of truncating is appealing, it
+         * doesn't quote solve the problem when we wish to keep iterating
+         * a bit more: because of the degree constraints, truncating will
+         * make the next E matrix cancel, as we're almost knowingly
+         * killing its rank...
+         *
+         * one of the better things to do could be to keep track of a
+         * shift vector. but again, what for...
+         */
+        ASSERT_ALWAYS(0);
+    }
+}
+
+
+template<typename matpoly_type>
 matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 {
     int depth = bm.depth();
@@ -288,7 +330,8 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
         return pi_left;
     }
 
-    ASSERT_ALWAYS(pi_left.get_size() <= pi_left_expect);
+    truncate_overflow(bm, pi_left, pi_left_expect);
+
     ASSERT_ALWAYS(bm.done || pi_left.get_size() >= pi_left_expect_lowerbound);
 
     /* XXX I don't understand why I need to do this. It seems to me that
@@ -315,7 +358,8 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 
     matpoly_type pi_right = matpoly_diverter<matpoly_type>::callback(bm, E_right);
 
-    ASSERT_ALWAYS(pi_right.get_size() <= pi_right_expect);
+    truncate_overflow(bm, pi_right, pi_right_expect);
+
     ASSERT_ALWAYS(bm.done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
     logline_begin(stdout, z, "t=%u %*s%sMUL(%zu, %zu) -> %zu",

@@ -83,10 +83,17 @@ struct bigmatpoly : public bigmatpoly_model {
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero_loc(unsigned int k);
     int bigmatpoly_coeff_is_zero(abdst_field ab, bigmatpoly const & pi, unsigned int k);
+    /* not to be confused with the former. the following two are in fact
+     * relevant only to the binary interface. They're noops in the prime
+     * field case. Here we're just agnostic, so we'll pass on the action
+     * to the underlying layer.
+     */
+    bool high_word_is_clear() const;
+    void clear_high_word();
     
     // void swap(bigmatpoly & b);
 
-    void truncate_loc(bigmatpoly & src, unsigned int size);
+    void truncate(bigmatpoly const & src, unsigned int size);
     void rshift(bigmatpoly & src, unsigned int k);
 
     static bigmatpoly mul(bigmatpoly & a, bigmatpoly & b);

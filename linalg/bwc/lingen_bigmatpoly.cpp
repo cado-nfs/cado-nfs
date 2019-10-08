@@ -268,7 +268,7 @@ void bigmatpoly::swap(bigmatpoly & a)
 #endif
 /* }}} */
 
-void bigmatpoly::truncate_loc(bigmatpoly & src, unsigned int nsize)/*{{{*/
+void bigmatpoly::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
 {
     // ASSERT_ALWAYS(src.provisioned());
     // ASSERT_ALWAYS(provisioned());
@@ -277,8 +277,65 @@ void bigmatpoly::truncate_loc(bigmatpoly & src, unsigned int nsize)/*{{{*/
     }
     my_cell().truncate(src.my_cell(), nsize);
     size = my_cell().get_size();
+    for(unsigned int j = 0 ; j < n1 ; j++) {
+        if (j == (unsigned int) jrank()) continue;
+        matpoly const & sthem = src.cell(irank(), j);
+        matpoly & dthem = cell(irank(), j);
+        if (sthem.check_pre_init()) {
+            dthem.clear();
+        } else if (dthem.check_pre_init()) {
+            continue;
+        } else {
+            dthem.truncate(sthem, nsize);
+        }
+    }
+    for(unsigned int i = 0 ; i < m1 ; i++) {
+        if (i == (unsigned int) irank()) continue;
+        matpoly const & sthem = src.cell(i, jrank());
+        matpoly & dthem = cell(i, jrank());
+        if (sthem.check_pre_init()) {
+            dthem.clear();
+        } else if (dthem.check_pre_init()) {
+            continue;
+        } else {
+            dthem.truncate(sthem, nsize);
+        }
+    }
 }
 /*}}}*/
+
+bool bigmatpoly::high_word_is_clear() const
+{
+    matpoly const & me = my_cell();
+    if (!me.high_word_is_clear()) return false;
+    for(unsigned int j = 0 ; j < n1 ; j++) {
+        if (j == (unsigned int) jrank()) continue;
+        if (!cell(irank(), j).high_word_is_clear()) return false;
+    }
+    for(unsigned int i = 0 ; i < m1 ; i++) {
+        if (i == (unsigned int) irank()) continue;
+        if (!cell(i, jrank()).high_word_is_clear()) return false;
+    }
+    return true;
+}
+
+void bigmatpoly::clear_high_word()
+{
+    matpoly & me = my_cell();
+    me.clear_high_word();
+    for(unsigned int j = 0 ; j < n1 ; j++) {
+        if (j == (unsigned int) jrank()) continue;
+        matpoly & them = cell(irank(), j);
+        if (them.check_pre_init()) continue;
+        them.clear_high_word();
+    }
+    for(unsigned int i = 0 ; i < m1 ; i++) {
+        if (i == (unsigned int) irank()) continue;
+        matpoly & them = cell(i, jrank());
+        if (them.check_pre_init()) continue;
+        them.clear_high_word();
+    }
+}
 
 void bigmatpoly::coeff_set_zero_loc(unsigned int k)
 {
@@ -728,7 +785,7 @@ bigmatpoly bigmatpoly::truncate_and_rshift(unsigned int truncated_size, unsigned
 {
     bigmatpoly other(ab, get_model(), m, n, size - shiftcount);
     other.rshift(*this, shiftcount);
-    truncate_loc(*this, truncated_size);
+    truncate(*this, truncated_size);
     shrink_to_fit();
     std::swap(*this, other);
     return other;

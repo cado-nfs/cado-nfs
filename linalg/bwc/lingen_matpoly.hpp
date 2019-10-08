@@ -151,6 +151,11 @@ public:
     void truncate(matpoly const & src, unsigned int size);
     void truncate(unsigned int size) { truncate(*this, size); }
     int tail_is_zero(unsigned int size);
+    /* not to be confused with the former. the following two are in fact
+     * relevant only to the binary interface. They're just noops here.
+     */
+    inline bool high_word_is_clear() const { return true; }
+    inline void clear_high_word() {}
 
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
     void zero_pad(unsigned int nsize); /* changes size to nsize */

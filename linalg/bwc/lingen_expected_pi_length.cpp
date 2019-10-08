@@ -72,6 +72,11 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
 #endif
     // unsigned int safety = iceildiv(abgroupsize(ab), m * sizeof(abelt));
     unsigned int safety = iceildiv(64, m * l);
+    // this +1 is here because I've sometimes seen the c30 fail in the
+    // lingen step because of the pi size check. I wonder whether I
+    // should have a +1 here, or maybe a +t0. Anyway. Quite sure that
+    // it's in the whereabouts of adding a small offset.
+    safety++;
     return res + safety;
 }/*}}}*/
 
