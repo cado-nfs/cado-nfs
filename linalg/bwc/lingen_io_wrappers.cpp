@@ -368,13 +368,12 @@ ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigne
     ASSERT_ALWAYS(k1 <= src.get_size());
     E.zero_pad(next_dst_k + nk);
     ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
     for(unsigned int i = 0 ; i < nrows ; i++) {
         for(unsigned int j = 0; j < ncols ; j++) {
             abdst_vec to = E.part_head(i, j, next_dst_k);
             absrc_vec from = src.part_head(i, j, k0);
-            abvec_set(ab, to, from, nk);
+            abvec_set(ab, to, from, simd * iceildiv(nk, simd));
         }
     }
     next_dst_k += nk;
@@ -392,7 +391,6 @@ ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsi
     ASSERT_ALWAYS(k1 <= src.get_size());
     E.zero_pad(next_dst_k + nk);
     ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
     E.scatter_mat_partial(src, k0, next_dst_k, nk);
     next_dst_k += nk;
@@ -850,19 +848,20 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
      */
     for(produced = nread ; produced + k0 < k1 ; produced += simd) {
         bool will_produce = false;
-        bool has_noise = false;
+        unsigned int noise_cut = simd;
         for(unsigned int j = 0; j < m + n; j++) {
             unsigned int jA;
             unsigned int kA;
             std::tie(kA, jA) = column_data_from_A(j);
             /* column j of E is actually X^{-kA}*column jA of A. */
             if (produced + kA >= cache_k1 - cache_k0) {
-                has_noise = true;
+                noise_cut = 0;
             } else {
+                noise_cut = MIN(cache_k1 - cache_k0 - (produced + kA), simd);
                 will_produce = true;
             }
         }
-        if (has_noise) break;
+        if (noise_cut == 0) break;
         if (!will_produce) break;
         for(unsigned int j = 0; j < m + n; j++) {
             unsigned int jA;
@@ -886,6 +885,10 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                 }
 #endif
             }
+        }
+        if (noise_cut < simd) {
+            produced += noise_cut;
+            break;
         }
     }
     if (k0 + nread < k1) {
