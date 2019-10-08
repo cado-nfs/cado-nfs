@@ -1038,7 +1038,6 @@ class BWC(Program):
                  bwc_bindir: ParameterEq()=None,
                  mm_impl: ParameterEq()=None,
                  cpubinding: ParameterEq()=None,
-                 cantor_threshold: ParameterEq()=2048,
                  lingen_threshold: ParameterEq()=None,
                  precmd: ParameterEq()=None,
                  # put None below for a random seed,

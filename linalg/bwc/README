@@ -281,9 +281,11 @@ Some more internal parameters.
     purposes, setting this parameter to a fixed value may be wise.
 
 * lingen_threshold=<number>
+* lingen_mpi_threshold=<number>
 
-    Threshold for recursive algorithm, only relevant for lingen. <number> is
-    currently 64.
+    Threshold for recursive algorithm, only relevant for lingen. The
+    default is to auto-tune these values, which should give fine
+    behavior. It is also possible to set them by hand.
 
 * Some cpu-level parameters, relevant for the low-level routines.
     - l1_cache_size=<number>
@@ -806,19 +808,6 @@ the keyword "cpubinding" should appear in cxxx.bwc.log.
 
 See cpubinding.conf for more information. In short, you just need to add on the
 cado-nfs.py command line: cpubinding=$(CADO)/parameters/misc/cpubinding.conf.
-
-Using Cantor's algorithm
-========================
-
-At the highest levels of the recursion tree of the 'lingen' program, one
-might use Cantor's algorithm to speed up the computations (see
-https://hal.inria.fr/inria-00188261). To use Cantor's algorithm, add for
-example tasks.linalg.bwc.cantor_threshold=128 to the cado-nfs.py command line;
-this means that Cantor's algorithm will be used to multiply matrices of
-polynomials of degree 128 or more. Note that Cantor's algorithm is faster
-for large degrees, but uses more memory. The default is
-tasks.linalg.bwc.cantor_threshold=2048. To disable Cantor's algorithm, use
-tasks.linalg.bwc.cantor_threshold=4294967295.
 
 Using several sequences
 =======================

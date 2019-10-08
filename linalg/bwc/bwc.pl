@@ -1493,7 +1493,6 @@ sub task_common_run {
     } else {
         @_ = grep !/^lingen_mpi?=/, @_;
     }
-    @_ = grep !/cantor_threshold/, @_ unless $program =~ /lingen/ && $prime == 2;
     @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
     @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
     @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^lingen/;
@@ -1942,10 +1941,6 @@ sub task_lingen {
     # NOTE: It may be worthwhile to run specifically this step, but
     # with adapted mpi and thr parameters.
     my @args;
-    my $lt = $param->{'lingen_threshold'} || 10;
-    my $lmt = $param->{'lingen_mpi_threshold'} || 100;
-    push @args, "lingen_threshold=$lt";
-    push @args, "lingen_mpi_threshold=$lt";
     push @args, "split-output-file=1";
     push @args, "afile=$concatenated_A";
     push @args, "ffile=F";

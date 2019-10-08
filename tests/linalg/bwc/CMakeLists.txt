@@ -172,19 +172,19 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
-            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
+            mpi=2x2 thr=2x2 --ascii
             ${extra})
         cado_divert_test(test-bwc-lingen_${gfp_layer} test1
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
-            lingen_threshold=10 lingen_mpi_threshold=10 mpi=2x2 thr=2x2 --ascii
+            mpi=2x2 thr=2x2 --ascii
             ${extra})
         cado_divert_test(test-bwc-lingen_${gfp_layer} test2
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
+            mpi=3x3 thr=3x3 --ascii
             ${extra})
         cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
             AVOID_CONCURRENT
@@ -193,7 +193,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3 --ascii
+            mpi=3x3 thr=3x3 --ascii
             checkpoint_threshold=40
             ${extra}
             TARGET_DEPENDENCIES lingen_${gfp_layer})
@@ -205,7 +205,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${CADO_NFS_BINARY_DIR}
             00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
             1532495540865888858358347027150309183618739122183602191 1111
-            lingen_threshold=10 lingen_mpi_threshold=40 mpi=3x3 thr=3x3
+            mpi=3x3 thr=3x3
             ${extra})
     endif()
 
