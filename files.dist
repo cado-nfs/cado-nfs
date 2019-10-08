@@ -1439,3 +1439,4 @@ linalg/bwc/lingen_matpoly_select.hpp
 linalg/bwc/lingen_qcode_select.hpp
 linalg/bwc/lingen_io_wrappers.cpp
 linalg/bwc/lingen_io_wrappers.hpp
+scripts/filter-ctest.pl
