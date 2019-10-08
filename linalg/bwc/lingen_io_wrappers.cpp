@@ -571,12 +571,13 @@ matpoly lingen_F_from_PI::recompute_rhs()
      */
     for (unsigned int jF = 0; jF < n; jF++) {
         unsigned int jpi = sols[jF].j;
-        unsigned int shift = sols[jF].shift;
         for (unsigned int ipi = 0; ipi < m + n; ipi++) {
-            unsigned int iF, kF;
-            std::tie(kF, iF) = column_data_from_Aprime(ipi);
+            unsigned int iF;
+            unsigned int s;
+            std::tie(iF, s) = get_shift_ij(ipi, jF);
             if (iF >= nrhs)
                 continue;
+            s--;
             /* Coefficient (iF, ipi) of F0 is x^kF (with 0<=kF<=t0).
              * Multiplied by coefficient (ipi, jpi) of pi, whose length
              * is <=delta[jpi]+1, this induces a contribution to
@@ -619,16 +620,15 @@ matpoly lingen_F_from_PI::recompute_rhs()
              * Now take this with s==0: we get the contribution of the
              * rhs.
              */
-            unsigned int kpi = shift + kF;
 
-            /* add coefficient (ipi, jpi, kpi) of the reversed pi to
+            /* add coefficient (ipi, jpi, s) of the reversed pi to
              * coefficient (iF, jF, 0) of rhs */
 #ifndef SELECT_MPFQ_LAYER_u64k1
-            absrc_elt src = cache.coeff(ipi, jpi, kpi);
+            absrc_elt src = cache.coeff(ipi, jpi, s);
             abdst_elt dst = rhs.coeff(iF, jF, 0);
             abadd(ab, dst, dst, src);
 #else
-            rhs.part(iF,jF)[0] ^= !abis_zero(ab, cache.coeff(ipi, jpi, kpi));
+            rhs.part(iF,jF)[0] ^= !abis_zero(ab, cache.coeff(ipi, jpi, s));
 #endif
         }
     }
@@ -745,6 +745,8 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
             lookback_needed = s + 1;
     }
 
+    lookback_needed += t0;
+
     if (sols.size() != n)
         throw std::runtime_error("Cannot compute F, too few solutions found\n");
 
@@ -762,11 +764,15 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
     /* recompute rhs. Same algorithm as above. */
     rhs = recompute_rhs();
 
-    /* We'll do this later on
-    lingen_output_to_splitfile Srhs(ab, nrhs, n, ".sols{2}-{3}.{0}-{1}.rhs");
-    Srhs.write_from_matpoly(rhs, 0, 1);
-    */
 }
+
+void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
+{
+    if (nrhs)
+        Srhs.write_from_matpoly(rhs, 0, 1);
+}
+
+    
 
 /* read k1-k0 new coefficients from the source (which is embedded in the
  * struct as a reference), starting at coefficient next_src_k, and write
@@ -1059,9 +1065,16 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
                                unsigned int k0,
                                unsigned int k1)
 {
-    ASSERT_ALWAYS(k0 == 0);
-    ASSERT_ALWAYS(k1 == src.get_size());
-    f.write((const char *) src.data_area(), src.data_size());
+    ASSERT_ALWAYS(k0 % simd == 0);
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    ASSERT_ALWAYS(src.high_word_is_clear());
+    size_t nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
+#else
+    size_t nbytes = abvec_elt_stride(src.ab, k1-k0);
+#endif
+    for(unsigned int i = 0 ; i < src.nrows() ; i++)
+        for(unsigned int j = 0; j < src.ncols() ; j++)
+            f.write((const char *) src.part_head(i, j, k0), nbytes);
     return k1 - k0;
 }
 

@@ -945,15 +945,18 @@ int main(int argc, char *argv[])
     }
 
     std::unique_ptr<lingen_output_wrapper_base> Fdst;
+    std::unique_ptr<lingen_output_wrapper_base> Fdst_rhs;
     
     if (random_input_length) {
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.n, bm.d.n, "F"));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
     } else if (split_output_file) {
         std::string pattern = ffile;
-        pattern += ".sols{2}-{3}.{0}-{1}";
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.n, bm.d.n, pattern, global_flag_ascii));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
     } else {
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.nrhs, bm.d.n, std::string(ffile) + ".rhs", global_flag_ascii));
     }
 
     if (go_mpi && size > 1) {
@@ -974,6 +977,7 @@ int main(int argc, char *argv[])
             lingen_gather_reverse<bigmatpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
             pipe(Fsrc, *Fdst, "Written", true);
+            Fsrc.write_rhs(*Fdst_rhs);
         }
     } else {
         /* We don't want to bother with memory problems in the non-mpi
@@ -1003,6 +1007,7 @@ int main(int argc, char *argv[])
             lingen_gather_reverse<matpoly> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
             pipe(Fsrc, *Fdst, "Written", true);
+            Fsrc.write_rhs(*Fdst_rhs);
         }
     }
 

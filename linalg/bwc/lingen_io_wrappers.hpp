@@ -311,6 +311,7 @@ class lingen_F_from_PI
     ssize_t read_to_matpoly(matpoly& dst,
                             unsigned int k0,
                             unsigned int k1) override;
+    void write_rhs(lingen_output_wrapper_base & Srhs);
 };
 
 class lingen_output_to_singlefile : public lingen_output_wrapper_base

@@ -1,5 +1,6 @@
 #include "cado.h"
 #include "lingen_io_matpoly.hpp"
+#include "gmp-hacks.h"
 
 /* {{{ I/O helpers */
 
@@ -189,6 +190,9 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
+    mpz_srcptr pz = abfield_characteristic_srcptr(ab);
+    std::vector<mp_limb_t> vbuf(SIZ(pz) + 1);
+    mp_limb_t * buf = &vbuf[0];
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -201,6 +205,10 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
                     err = abfscan(ab, f, x) == 0;
                 } else {
                     err = fread(x, abvec_elt_stride(ab, 1), 1, f) < 1;
+                    if (mpn_cmp(x, PTR(pz), SIZ(pz) >= 0)) {
+                        mpn_tdiv_qr(buf + SIZ(pz), buf, 0, x, SIZ(pz), PTR(pz), SIZ(pz));
+                        mpn_copyi(x, buf, SIZ(pz));
+                    }
                 }
                 if (!err) matnb++;
             }

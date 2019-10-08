@@ -899,15 +899,15 @@ int main(int argc, char * argv[])
 
         DO_ONE_TEST("vec_sscan o vec_asprint = id", {
                 /* Do this for vectors of length test_i */
-                unsigned int cap = test_i < length ? test_i : length;
+                unsigned long cap = test_i < length ? test_i : length;
                 Kvec_random2(w1, cap, rstate);
                 char * str;
                 Kvec_asprint(&str, w1, cap);
                 Kvec tvec;
-                unsigned int tlength = 0;
+                unsigned long tlength = 0;
                 Kvec_init(&tvec, tlength);
                 Kvec_sscan(&tvec, &tlength, str);
-                assert (tlength == (unsigned int) cap);
+                assert (tlength == cap);
                 Kvec_set(v1, w1, cap);
                 Kvec_set(v2, tvec, cap);
                 Kvec_clear(&tvec, tlength);
@@ -922,7 +922,7 @@ int main(int argc, char * argv[])
             FILE * f = fopen(filename, "w");
             if (f == NULL) abort();
             DO_ONE_TEST("vec_fprint", {
-                    for(unsigned int j = 0 ; j < (unsigned int) length ; j++) {
+                    for(unsigned long j = 0 ; j < (unsigned long) length ; j++) {
                         Kset_ui(a0, test_i * length + j);
                         Kinv(a0, a0);
                         Kset(Kvec_coeff_ptr(v1, j), a0);
@@ -934,16 +934,16 @@ int main(int argc, char * argv[])
             f = fopen(filename, "r");
             if (f == NULL) abort();
             DO_ONE_TEST("vec_fscan", {
-                    for(unsigned int j = 0 ; j < (unsigned int) length ; j++) {
+                    for(unsigned long j = 0 ; j < (unsigned long) length ; j++) {
                         Kset_ui(a0, test_i * length + j);
                         Kinv(a0, a0);
                         Kset(Kvec_coeff_ptr(v1, j), a0);
                     }
                     Kvec tvec;
-                    unsigned int tlength = 0;
+                    unsigned long tlength = 0;
                     Kvec_init(&tvec, tlength);
                     Kvec_fscan(f, &tvec, &tlength);
-                    TEST_ASSERT(tlength == (unsigned int) length);
+                    TEST_ASSERT(tlength == (unsigned long) length);
                     Kvec_set(v2, tvec, length);
                     Kvec_clear(&tvec, tlength);
                     });
@@ -956,7 +956,7 @@ int main(int argc, char * argv[])
         {
             int ntests = 1;
             DO_ONE_TEST("vec_sscan(garbage) returns 0", {
-                    unsigned int tlength = 0;
+                    unsigned long tlength = 0;
                     Kvec tvec;
                     Kvec_init(&tvec, tlength);
                     Kvec_random(v1, length, rstate);
@@ -968,7 +968,7 @@ int main(int argc, char * argv[])
                     Kvec_clear(&tvec, tlength);
                     });
             DO_ONE_TEST("vec_sscan(\"[garbage]\") returns 0", {
-                    unsigned int tlength = 0;
+                    unsigned long tlength = 0;
                     Kvec tvec;
                     Kvec_init(&tvec, tlength);
                     Kvec_random(v1, length, rstate);
@@ -980,7 +980,7 @@ int main(int argc, char * argv[])
                     Kvec_clear(&tvec, tlength);
                     });
             DO_ONE_TEST("vec_sscan(\"[1 2]\") returns 0", {
-                    unsigned int tlength = 0;
+                    unsigned long tlength = 0;
                     Kvec tvec;
                     Kvec_init(&tvec, tlength);
                     Kvec_random(v1, length, rstate);
@@ -1000,7 +1000,7 @@ int main(int argc, char * argv[])
             f = fopen(filename, "r");
             if (f == NULL) abort();
             DO_ONE_TEST("vec_fscan(empty file) returns 0", {
-                    unsigned int tlength = 0;
+                    unsigned long tlength = 0;
                     Kvec tvec;
                     Kvec_init(&tvec, tlength);
                     Kvec_random(v1, length, rstate);
@@ -1032,7 +1032,7 @@ int main(int argc, char * argv[])
             fclose(f);
             f = fopen(filename, "r");
             TEST_ASSERT(f);
-            unsigned int tlength = 0;
+            unsigned long tlength = 0;
             Kvec tvec;
             Kvec_init(&tvec, tlength);
             Kvec_random(v1, length, rstate);

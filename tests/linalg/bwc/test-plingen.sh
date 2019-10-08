@@ -94,6 +94,12 @@ dotest() {
 
     : ${lingen_program:=lingen_p_$nwords}
 
+    # The perl code for generating random data is using the seed argument
+    # in a weird way. seeds that are less than 1000 actually lead do
+    # random matrices that are likely to have some very non-random
+    # behaviour. It would be best to change that eventually, e.g. with
+    # the commented-out choices below. However that would entail changing
+    # all sha1sums in the tests, and I'm lazy.
     F="$WDIR/base"
     if [ "$ascii" ] ; then
         # The perl code below generates ascii test cases which are good
@@ -104,12 +110,14 @@ dotest() {
             my ($m, $n, $kmax, $p, $seed) = @ARGV;
             my $u = int($seed / 1000);
             my $v = $seed % 1000;
+            # my $u = 1 + ($seed & 0x55555555);
+            # my $v = 1 + ($seed & 0xaaaaaaaa);
             sub newx {
                     $u = ($u * 2) % 1048573;
                     $v = ($v * 3) % 1048573;
-                    return ($u + $v) % $p;
+                    return $u + $v;
+                    # + int(1000 * $u / 7);
                 }
-
             for my $kmax (1..$kmax) {
                 for my $i (1..$m) {
                     print join(" ", map { newx; } (1..$n)), "\n";
@@ -126,10 +134,13 @@ EOF
             my ($m, $n, $kmax, $nwords, $seed) = @ARGV;
             my $u = int($seed / 1000);
             my $v = $seed % 1000;
+            # my $u = 1 + ($seed & 0x55555555);
+            # my $v = 1 + ($seed & 0xaaaaaaaa);
             sub newx {
                     $u = ($u * 2) % 1048573;
                     $v = ($v * 3) % 1048573;
                     return $u + $v;
+                    # + int(1000 * $u / 7);
                 }
             for my $kmax (1..$kmax) {
                 for my $i (1..$m) {
@@ -166,7 +177,6 @@ EOF
     else
         echo "$SHA1"
     fi
-    rm -f $G.gen
 
     mpi_bindir=$(perl -ne '/HAVE_MPI\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
 
@@ -189,9 +199,6 @@ EOF
                 exit 1
             fi
             echo "$SHA1 (as expected)"
-            if ! [ "$CADO_DEBUG" ] ; then
-                rm -f $G.gen
-            fi
         else
             echo "========= $SHA1 ========"
         fi
