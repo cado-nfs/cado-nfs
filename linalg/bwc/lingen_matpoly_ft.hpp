@@ -16,7 +16,7 @@ template<typename fft_type>
 class matpoly_ft {
     typedef typename fft_type::ptr ptr;
     typedef typename fft_type::srcptr srcptr;
-    typedef memory_pool_wrapper<ptr, false> memory_pool_type;
+    typedef memory_pool_wrapper<ptr, true> memory_pool_type;
     static memory_pool_type memory;
 public:
     struct memory_guard : private memory_pool_type::guard_base {

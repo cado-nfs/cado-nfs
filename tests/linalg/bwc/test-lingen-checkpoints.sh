@@ -16,7 +16,9 @@ cpdir="$WDIR/cp"
 mkdir "$cpdir"
 "`dirname $0`"/test-plingen.sh "$@" checkpoint_directory="$cpdir"
 # osx does not have -r option to xargs.
-find "$cpdir" -name 'pi.[012].*' | xargs rm -f || :
-nfiles=$(ls -rt "$cpdir/pi*" | wc -l)
-ls -rt "$cpdir/pi*" | head -n $((nfiles/3)) | xargs rm -f || :
+ls -l "$cpdir"/pi*aux
+find "$cpdir" -name 'pi.0.*' | xargs rm -f || :
+nfiles=$(ls -rt "$cpdir"/pi*aux | wc -l)
+ls -t "$cpdir"/pi*aux | head -n $((2*nfiles/3)) | xargs rm -vf || :
+ls -l "$cpdir"/pi*aux
 "`dirname $0`"/test-plingen.sh "$@" checkpoint_directory="$cpdir"
