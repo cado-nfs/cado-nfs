@@ -2,6 +2,7 @@
 #define MPFQ_FAKE_HPP_
 
 #include <gmp.h>
+#include <algorithm>     // std::copy
 #include "gmp_aux.h"
 
 #if defined(MPFQ_FAKE_HPP_) && defined(MPFQ_LAYER_H_)
