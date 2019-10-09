@@ -3,8 +3,9 @@
 
 #include <mutex>
 #include <cstdlib>
-#include "macros.h"
 #include <exception>
+#include <string>
+#include "macros.h"
 
 #define MEMORY_POOL_ALLOC_CHECK(X) memory_pool_details::alloc_check(#X, (X))
 
