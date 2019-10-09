@@ -2,7 +2,7 @@
 #include "lingen_io_matpoly.hpp"
 #include "gmp-hacks.h"
 
-constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+// constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
 constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
 
 /* {{{ I/O helpers */
