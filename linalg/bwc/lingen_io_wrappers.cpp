@@ -16,6 +16,7 @@
 extern unsigned int io_matpoly_block_size;
 
 constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
 
 static int mpi_rank()
 {
@@ -1041,9 +1042,11 @@ void lingen_output_to_splitfile::open_file()
     ASSERT_ALWAYS(!done_open);
     std::ios_base::openmode mode = std::ios_base::out;
     if (!ascii) mode |= std::ios_base::binary;
-    for(unsigned int i = 0 ; i < nrows ; i+=simd) {
-        for(unsigned int j = 0 ; j < ncols ; j+=simd) {
-            std::string s = fmt::format(pattern, i, i+simd, j, j+simd);
+    for(unsigned int i = 0 ; i < nrows ; i+=splitwidth) {
+        for(unsigned int j = 0 ; j < ncols ; j+=splitwidth) {
+            std::string s = fmt::format(pattern,
+                    i, i+splitwidth,
+                    j, j+splitwidth);
             fw.emplace_back(std::ofstream { s, mode });
             DIE_ERRNO_DIAG(!fw.back(), "open", s.c_str());
         }

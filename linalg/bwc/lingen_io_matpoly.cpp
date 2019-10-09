@@ -2,6 +2,9 @@
 #include "lingen_io_matpoly.hpp"
 #include "gmp-hacks.h"
 
+constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+
 /* {{{ I/O helpers */
 
 /* This is an indication of the number of bytes we read at a time for A
@@ -127,18 +130,15 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
 #ifdef SELECT_MPFQ_LAYER_u64k1
-    size_t ulongs_per_mat = ULONG_BITS;
-    unsigned int simd = ULONG_BITS;
+    size_t ulongs_per_mat = splitwidth * splitwidth / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
-#else
-    unsigned int simd = 1;
 #endif
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
-        for(unsigned int i = 0 ; !err && i < M.m ; i += simd) {
-            for(unsigned int j = 0 ; !err && j < M.n ; j += simd) {
-                std::ostream& os = fw[i/simd*M.n/simd+j/simd];
+        for(unsigned int i = 0 ; !err && i < M.m ; i += splitwidth) {
+            for(unsigned int j = 0 ; !err && j < M.n ; j += splitwidth) {
+                std::ostream& os = fw[i/splitwidth*M.n/splitwidth+j/splitwidth];
 #ifndef SELECT_MPFQ_LAYER_u64k1
                 absrc_elt x = M.coeff(i, j, k);
                 if (ascii) {
@@ -153,10 +153,16 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
                 buf.assign(ulongs_per_mat, 0);
                 size_t kq = k / ULONG_BITS;
                 size_t kr = k % ULONG_BITS;
-                for(unsigned int di = 0 ; di < simd ; di++) {
-                    for(unsigned int dj = 0 ; dj < simd ; dj++) {
-                        unsigned long bit = (M.part(i + di, j + dj)[kq] >> kr) & 1;
-                        buf[di] ^= bit << dj;
+                for(unsigned int di = 0 ; di < splitwidth ; di++) {
+                    unsigned int ii = i + di;
+                    unsigned int ulongs_per_row = splitwidth / ULONG_BITS;
+                    for(unsigned int dj0 = 0 ; dj0 < ulongs_per_row ; dj0++) {
+                        for(unsigned int dj = 0 ; dj < ULONG_BITS ; dj++) {
+                            unsigned int jj = j + dj0 * ULONG_BITS + dj;
+                            const unsigned long * mij = M.part(ii, jj);
+                            unsigned long bit = (mij[kq] >> kr) & 1;
+                            buf[di * ulongs_per_row + dj0] ^= bit << dj;
+                        }
                     }
                 }
                 err = !(os.write((const char *) &buf[0], ulongs_per_mat * sizeof(unsigned long)));
