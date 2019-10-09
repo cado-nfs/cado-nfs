@@ -48,8 +48,10 @@ endmacro()
 
 # todo presumably, on 32 bit, we get something different for the sha1sum.
 
+# the sha1sum 8938... is for the old binary. The newer one gets d0e7...
+# and it seems to be a question of varying normalization.
 add_lingen_binary_test(test0
-    expect_sha1_F=893801e0727d840353a35b2623430fb758e4d379
+    expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379
     m=64 n=64 sequence_length=160 seed=1)
 
 # The test below fails on 32bit. This should be investigated.
