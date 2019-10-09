@@ -133,15 +133,22 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
          * referenced in the pivots[0] to pivots[v-1] indices).
          */
         /* add M[u,r]*column v of M to column r of M */
+#ifdef SELECT_MPFQ_LAYER_u64k1
+        if (abis_zero(M.ab, M.coeff(u, r, 0)))
+            continue;
+#endif
         for (unsigned int i = 0; i < M.m; i++) {
 #ifndef SELECT_MPFQ_LAYER_u64k1
             abmul(M.ab, tmp, M.coeff(i, v, 0), M.coeff(u, r, 0));
             abadd(M.ab, M.coeff(i, r, 0), M.coeff(i, r, 0), tmp);
+            /* don't touch coeff u,r right now, since we're still using
+             * it !
+             */
             if (i == u)
                 continue;
 #else
-            abelt x = { M.coeff(i, v, 0)[0] & M.coeff(u, r, 0)[0] };
-            M.coeff_accessor(i, r, 0) += x;
+            /* here, we know that coeff (u,r) is one */
+            M.coeff_accessor(i, r, 0) += M.coeff(i, v);
 #endif
         }
 #ifndef SELECT_MPFQ_LAYER_u64k1
