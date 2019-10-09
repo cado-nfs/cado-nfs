@@ -111,7 +111,7 @@ struct lingen_call_companion {
         bool operator<(key const& a) const {
             if (depth < a.depth) return true;
             if (depth > a.depth) return false;
-            return lingen_round_operand_size(L) < lingen_round_operand_size(a.L);
+            return lingen_round_operand_size(L) > lingen_round_operand_size(a.L);
         }
     };
 };

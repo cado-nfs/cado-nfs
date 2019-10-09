@@ -48,10 +48,11 @@ endmacro()
 
 # todo presumably, on 32 bit, we get something different for the sha1sum.
 
-# the sha1sum 8938... is for the old binary. The newer one gets 7cf3...
+# the sha1sum 8938... is for the old binary. The newer one gets 2531...
+# on 64-bit and 02f1... on 32-bit
 # and it seems to be a question of varying normalization.
 add_lingen_binary_test(test0
-    expect_sha1_F=7cf3944a6c9a30fc97e38fcbdcda9fec39ff4e7a,893801e0727d840353a35b2623430fb758e4d379
+    expect_sha1_F=02f1a15d393ad92888ee9b5cd8caef50d8fc2ed0,2531095d82a58efe67b59a3fdff60a3a59d9d553,893801e0727d840353a35b2623430fb758e4d379
     m=64 n=64 sequence_length=160 seed=1)
 
 # The test below fails on 32bit. This should be investigated.
@@ -193,14 +194,19 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
             mpi=3x3 thr=3x3 --ascii
             ${extra})
+        # We really _can't_ have ascii with the checkpoint test. ascii
+        # modifies the anticipation of the schedule, which in turns means
+        # that the list of cached schedules is modified in the course of
+        # the execution, and that eventually goes to the checkpoint file
+        # as well, wreaking obvious havoc.
         cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
             AVOID_CONCURRENT
             SCRIPT
             ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
             ${CADO_NFS_BINARY_DIR}
-            b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            mpi=3x3 thr=3x3 --ascii
+            c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
+            mpi=3x3 thr=3x3
             checkpoint_threshold=40
             ${extra}
             TARGET_DEPENDENCIES lingen_${gfp_layer})

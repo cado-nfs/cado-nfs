@@ -35,6 +35,7 @@
 #include "lingen_platform.hpp"
 #include "tree_stats.hpp"
 #include "fmt/format.h"
+#include "fmt/printf.h"
 #include "lingen_substep_schedule.hpp"
 #include "lingen_substep_characteristics.hpp"
 
@@ -563,7 +564,7 @@ struct lingen_tuner {
 
         /* with basecase_keep_until == 0, then we never measure basecase */
         bool basecase_eliminated = basecase_keep_until == 0;
-        std::map<size_t, std::tuple<bool, std::array<double, 3> >, lingen_tuning_cache::coarse_compare> best;
+        std::map<size_t, std::pair<bool, std::array<double, 3> >, lingen_tuning_cache::coarse_compare> best;
         size_t upper_threshold = SIZE_MAX;
         size_t peak = 0;
         int ipeak = -1;
@@ -714,8 +715,8 @@ struct lingen_tuner {
 
                         ttr = U.mp.tt.t + U.mul.tt.t;
                         ttrchildren = 0;
-                        ttrchildren += std::get<1>(best[Lleft])[std::get<0>(best[Lleft])];
-                        ttrchildren += std::get<1>(best[Lright])[std::get<0>(best[Lright])];
+                        ttrchildren += best[Lleft].second[best[Lleft].first];
+                        ttrchildren += best[Lright].second[best[Lright].first];
 
                         size_t m;
                         m = U.mp.ram() + U.mp.reserved_ram;
@@ -756,11 +757,11 @@ struct lingen_tuner {
                 ASSERT_ALWAYS(best.find(L) != best.end());
                 hints[K].total_ncalls += weight;
 
-                time_b += std::get<1>(best[L])[0] * weight;
-                time_r += std::get<1>(best[L])[1] * weight;
-                time_r_self += std::get<1>(best[L])[2] * weight;
-                time_m += std::get<1>(best[L])[idx] * weight;
-                time_m_self += std::get<1>(best[L])[2*idx] * weight;
+                time_b += best[L].second[0] * weight;
+                time_r += best[L].second[1] * weight;
+                time_r_self += best[L].second[2] * weight;
+                time_m += best[L].second[idx] * weight;
+                time_m_self += best[L].second[2*idx] * weight;
             }
 
             size_t L0 = std::get<0>(cws.front());
@@ -770,8 +771,8 @@ struct lingen_tuner {
             size_t L0r = lingen_round_operand_size(L0);
             size_t L1r = lingen_round_operand_size(L1);
             bool approx_same = L0r == L1r;
-            bool rec0 = std::get<0>(best[L0]);
-            bool rec1 = std::get<0>(best[L1]);
+            bool rec0 = best[L0].first;
+            bool rec1 = best[L1].first;
 
             std::ostringstream os;
             // os << "Depth " << i << ":";
@@ -860,6 +861,22 @@ struct lingen_tuner {
                 }
             }
         }
+        /* keys in the hint table are sorted as "top-level first" */
+        lingen_call_companion::key max_winning_basecase { INT_MAX, SIZE_MAX };
+        for(auto const & x : hints) {
+            if (!x.second.recurse) {
+                max_winning_basecase = x.first;
+                break;
+            }
+        }
+        for(auto & x : hints) {
+            if (x.second.recurse && !(x.first < max_winning_basecase)) {
+                std::cout << fmt::format("## forcing basecase at ({}) since basecase is known to win at ({})\n",
+                        x.first, max_winning_basecase);
+                x.second.recurse = false;
+            }
+        }
+
         printf("################################# Total ##################################\n");
         if (forced_threshold != UINT_MAX) {
             printf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
@@ -870,7 +887,7 @@ struct lingen_tuner {
         double tt_com0;
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
         printf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
-        double time_best = std::get<1>(best[L])[std::get<0>(best[L])];
+        double time_best = best[L].second[best[L].first];
         time_best += tt_com0;
         printf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
         hints.ipeak=ipeak;
