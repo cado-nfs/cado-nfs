@@ -109,6 +109,7 @@ class lingen_file_input : public lingen_input_wrapper_base
     FILE* f;
     std::string filename;
     bool ascii;
+    unsigned int length_hint;
     void open_file();
     void close_file();
 
@@ -117,10 +118,12 @@ class lingen_file_input : public lingen_input_wrapper_base
                       unsigned int nrows,
                       unsigned int ncols,
                       std::string const& filename,
-                      bool ascii = false)
+                      bool ascii,
+                      unsigned int length_hint)
       : lingen_input_wrapper_base(ab, nrows, ncols)
       , filename(filename)
       , ascii(ascii)
+      , length_hint(length_hint)
     {
         open_file();
     }

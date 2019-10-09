@@ -74,6 +74,7 @@
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
 static unsigned int random_input_length = 0;
+static unsigned int input_length = 0;
 
 static int split_input_file = 0;  /* unsupported ; do acollect by ourselves */
 static int split_output_file = 0; /* do split by ourselves */
@@ -109,6 +110,8 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 
     param_list_decl_usage(pl, "afile",
             "input sequence file");
+    param_list_decl_usage(pl, "input_length",
+            "input sequence length (defaults to auto-detect)");
     param_list_decl_usage(pl, "random-input-with-length",
             "use surrogate for input");
     param_list_decl_usage(pl, "split-input-file",
@@ -745,6 +748,7 @@ int main(int argc, char *argv[])
 
     param_list_parse_int(pl, "allow_zero_on_rhs", &allow_zero_on_rhs);
     param_list_parse_uint(pl, "random-input-with-length", &random_input_length);
+    param_list_parse_uint(pl, "input-length", &input_length);
     param_list_parse_int(pl, "split-output-file", &split_output_file);
     param_list_parse_int(pl, "split-input-file", &split_input_file);
 
@@ -909,7 +913,7 @@ int main(int argc, char *argv[])
     if (random_input_length) {
         A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_random_input(bm.d.ab, bm.d.m, bm.d.n, rstate, random_input_length));
     } else {
-        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_file_input(bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii));
+        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_file_input(bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii, input_length));
     }
 
 #ifdef SELECT_MPFQ_LAYER_u64k1

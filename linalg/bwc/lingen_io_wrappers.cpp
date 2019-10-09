@@ -62,6 +62,8 @@ size_t lingen_file_input::guessed_length() const
 {
     unsigned long guess;
 
+    if (length_hint) return length_hint;
+
     if (mpi_rank() == 0) {
         struct stat sbuf[1];
         int rc = fstat(fileno(f), sbuf);

@@ -131,6 +131,7 @@ dotest() {
             
 EOF
         perl -e "$code" $m $n $((kmax/3)) $p $seed > $F
+        args+=(--input-length $((3*(kmax/3))))
     else
         # generate $F with exactly ($kmax/3)*$m*$n*$nwords_per_gfp_elt
         # machine words of random data.
