@@ -230,10 +230,12 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
 {
     unsigned int next_k1 = simd * iceildiv(k, simd);
 
+    ASSERT_ALWAYS(next_k1 >= cache_k1);
+
     if (next_k1 != cache_k1) {
         cache.zero_pad(next_k1);
         ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
-        if (nk < (k - cache_k1)) {
+        if (nk < (ssize_t) (k - cache_k1)) {
             fprintf(stderr, "short read from A\n");
             printf("This amount of data is insufficient. "
                     "Cannot find %u independent cols within A\n",
@@ -446,7 +448,7 @@ ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k
 ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
 {
     ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    nk = MIN(nk, (ssize_t) pi.get_size() - next_src_k);
+    nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
@@ -473,7 +475,7 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     unsigned int rk0, rk1;
     rk1 = next_src_k;
     rk1 = d >= rk1 ? d - rk1 : 0;
-    rk0 = rk1 >= nk ? rk1 - nk : 0;
+    rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
     unsigned int n_rk = rk1 - rk0;
     unsigned int q_rk = rk0 / simd;
     unsigned int r_rk = rk0 % simd;
@@ -1100,7 +1102,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         ssize_t n = in.read_to_matpoly(F, 0, window);
         F.set_size(n);
         ssize_t n1 = skip_trailing_zeros ? F.get_true_nonzero_size() : n;
-        bool is_last = n < window;
+        bool is_last = n < (ssize_t) window;
         if (n <= 0) break;
         if (n1 == 0) {
             zq += n;
@@ -1112,7 +1114,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
             unsigned int nz = MIN(zq, window);
             Z.zero_pad(nz);
             ssize_t nn = out.write_from_matpoly(Z, 0, nz);
-            if (nn < nz) {
+            if (nn < (ssize_t) nz) {
                 fprintf(stderr, "short write\n");
                 exit(EXIT_FAILURE);
             }
