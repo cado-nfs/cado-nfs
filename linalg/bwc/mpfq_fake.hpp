@@ -46,7 +46,7 @@ static inline void abvec_set(abdst_field ab MAYBE_UNUSED, abdst_vec to, absrc_ve
 }
 static inline void abvec_add(abdst_field ab MAYBE_UNUSED, abdst_vec to, absrc_vec a, absrc_vec b, size_t n) {
     ASSERT_ALWAYS(n % ULONG_BITS == 0);
-    for( ; (n -= ULONG_BITS) != 0 ; )
+    for( ; n != 0 ; n -= ULONG_BITS)
         *to++ = *a++ ^ *b++;
 }
 
