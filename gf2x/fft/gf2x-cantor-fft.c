@@ -1390,13 +1390,13 @@ static void recomposeK(unsigned long * F, Kelt * f, size_t Fl, unsigned int k GF
     size_t i;
 
     assert(Fl <= (1UL << (k+1)));
-    F[0] = f[0][0];
-    F[1] = f[0][1];
+    if (Fl>0) F[0] = f[0][0];
+    if (Fl>1) F[1] = f[0][1];
     for (i = 2; i + 1 < Fl; i += 2) {
         F[i] = f[i/2][0] ^ f[i/2 - 1][2];
         F[i+1] = f[i/2][1] ^ f[i/2 - 1][3];
     }
-    if (Fl & 1) {
+    if (Fl >= 2 && (Fl & 1)) {
             F[i] = f[i/2][0] ^ f[i/2 - 1][2];
     }
 }
@@ -1411,8 +1411,10 @@ static void recomposeK_bits(unsigned long * F, size_t nF, Kelt * f, size_t shift
     assert((Q + Fl) <= (2UL << k));
     size_t Qq = Q/2;
     size_t Qr = Q&1;
-    F[0] = f[Qq][Qr];
-    if (Qq) F[0] ^= f[Qq-1][2+Qr];
+    if (Fl) {
+        F[0] = f[Qq][Qr];
+        if (Qq) F[0] ^= f[Qq-1][2+Qr];
+    }
     size_t i = 1, j;
     if (1 < Fl && Qr == 0) {
         F[1] = f[Qq][1];
