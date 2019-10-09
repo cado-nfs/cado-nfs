@@ -721,11 +721,10 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
 /* We don't have a header file for this one */
 extern "C" void check_for_mpi_problems();
 
-int main(int argc, char *argv[])
+int wrapped_main(int argc, char *argv[])
 {
-    cxx_param_list pl;
 
-    bw_common_init(bw, &argc, &argv);
+    cxx_param_list pl;
 
     bw_common_decl_usage(pl);
     lingen_decl_usage(pl);
@@ -1074,8 +1073,17 @@ int main(int argc, char *argv[])
 
     gmp_randclear(rstate);
 
-    bw_common_clear(bw);
+    return 0;   // ignored.
+}
 
+/* We do this so that the dtors of the data that gets allocated within
+ * main are allowed to use MPI_Comm_rank.
+ */
+int main(int argc, char *argv[])
+{
+    bw_common_init(bw, &argc, &argv);
+    wrapped_main(argc, argv);
+    bw_common_clear(bw);
     return rank0_exit_code;
 }
 
