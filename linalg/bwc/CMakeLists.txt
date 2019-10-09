@@ -486,7 +486,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 
     # make lingen_pz a default target, but not the others.
-    if(v STREQUAL "pz")
+    if(v STREQUAL "pz" OR v STREQUAL "u64k1")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
         add_executable(lingen_${v} ${lingen_${v}_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
