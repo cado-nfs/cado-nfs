@@ -2,6 +2,7 @@
 #define BIGMATPOLY_HPP_
 
 #include <vector>
+#include <cstring>     // memcmp
 
 #include "lingen_matpoly_select.hpp"
 
