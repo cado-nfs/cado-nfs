@@ -350,7 +350,7 @@ extern void bit_reverse(unsigned long * dst, const unsigned long * ptr, size_t n
 {
     unsigned int i = 0;
     unsigned int j = n-1;
-    for(unsigned int i = 0 ; i < j ; i++, j--) {
+    for(i = 0 ; i < j ; i++, j--) {
         unsigned long lo = ptr[i];
         unsigned long hi = ptr[j];
         dst[j] = bitrev1(lo);
