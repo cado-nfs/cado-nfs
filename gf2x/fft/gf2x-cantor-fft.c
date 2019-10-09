@@ -1565,7 +1565,7 @@ char * GF2X_EXPORTED gf2x_cantor_fft_info_explain(gf2x_cantor_fft_info_srcptr p)
 {
     int rc;
     char * line;
-    rc = asprintf(&line, "Cantor ternary FFT of depth %u over GF(2^%u), truncated to length %lu.", p->k, CANTOR_BASE_FIELD_SIZE, p->n);
+    rc = asprintf(&line, "Cantor ternary FFT of depth %u over GF(2^%u), truncated to length %zu.", p->k, CANTOR_BASE_FIELD_SIZE, p->n);
     return rc >= 0 ? line : NULL;
 }
 

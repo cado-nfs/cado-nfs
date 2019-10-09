@@ -1212,9 +1212,9 @@ char * gf2x_ternary_fft_info_explain(gf2x_ternary_fft_info_srcptr p)
     if (p->K == 0) {
         rc = asprintf(&line, "invalid (Schoenhage ternary FFT but length 0)");
     } else if (p->split) {
-        rc = asprintf(&line, "Schoenhage ternary FFT of length %lu, doing products %lu by %lu.", p->K, p->bits_a, p->bits_b);
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %zu, doing products %zu by %zu.", p->K, p->bits_a, p->bits_b);
     } else {
-        rc = asprintf(&line, "Schoenhage ternary FFT of length %lu, split in two, doing products %lu by %lu.", p->K, p->bits_a, p->bits_b);
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %zu, split in two, doing products %zu by %zu.", p->K, p->bits_a, p->bits_b);
     }
     return rc >= 0 ? line : NULL;
 }

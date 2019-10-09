@@ -72,7 +72,7 @@ char * GF2X_EXPORTED gf2x_fake_fft_info_explain(gf2x_fake_fft_info_srcptr p)
 {
     int rc;
     char * line;
-    rc = asprintf(&line, "fake FFT, doing products %lu by %lu.", p->n1, p->n2);
+    rc = asprintf(&line, "fake FFT, doing products %zu by %zu.", p->n1, p->n2);
     return rc >= 0 ? line : NULL;
 }
 
