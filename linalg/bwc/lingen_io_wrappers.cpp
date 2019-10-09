@@ -199,7 +199,7 @@ lingen_F0::share(int root, MPI_Comm comm)
                                std::array<unsigned int, 2>>::value,
                   "want unsigned ints");
     if (mpi_rank())
-        fdesc.assign(m, { 0, 0 });
+        fdesc.assign(m, {{ 0, 0 }});
     MPI_Bcast(&fdesc.front(), 2 * m, MPI_UNSIGNED, 0, comm);
 }
 
@@ -334,7 +334,7 @@ lingen_E_from_A::initial_read()
 
                 /* Bingo, it's a new independent col. */
 
-                fdesc.push_back( { t0 - 1, j } );
+                fdesc.push_back( {{ t0 - 1, j }} );
 #ifndef SELECT_MPFQ_LAYER_u64k1
                 normalize_column(M, pivots);
 #endif
@@ -644,7 +644,7 @@ void lingen_F_from_PI::reorder_solutions()
         unsigned int s = 0;
         for (unsigned int iF = 0; iF < nrhs; iF++)
             s += abis_zero(ab, rhs.coeff(iF, jF, 0));
-        sol_score.push_back({ s, jF });
+        sol_score.push_back({{ s, jF }});
     }
     std::sort(sol_score.begin(), sol_score.end());
     if (nrhs && sol_score.size() && !mpi_rank()) {
