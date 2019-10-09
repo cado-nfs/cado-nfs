@@ -168,6 +168,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     # test gets run twice, once with the threads, once without. Both have
     # to succeed, of course).
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_1")
+        # The --ascii here is annoying. It gets in the way of our
+        # automatic guess of the input sequence length.
+        #
+        # We should be able to drop it. However we have an
+        # annoying situation, since the sha1sum is computed on the
+        # generator as it is written on disk, of course, and that follows
+        # --ascii too.
         cado_divert_test(test-bwc-lingen_${gfp_layer} test0
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
