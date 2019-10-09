@@ -951,12 +951,12 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                 /* Add must at the same time do a right shift by sr */
                 unsigned int sr = s % simd;
                 if (sr) {
-                    unsigned long c = 0;
-                    for(unsigned int t = 0 ; t < nread / simd ; t++) {
-                        to[t] ^= (from[t] >> sr) ^ (c << (simd - sr));
-                        c = from[t];
+                    unsigned long cy = from[nread / simd] << (simd - sr);
+                    for(unsigned int i = nread / simd ; i-- ; ) {
+                        unsigned long t = (from[i] >> sr) ^ cy;
+                        cy = from[i] << (simd - sr);
+                        to[i] ^= t;
                     }
-                    to[nread / simd-1] ^= from[nread / simd] << (simd - sr);
                 } else {
                     abvec_add(ab, to, to, from, nread);
                 }
