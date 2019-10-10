@@ -208,6 +208,7 @@ void bigmatpoly::zero_pad(size_t nsize)/*{{{*/
 {
     matpoly & me = my_cell();
     ASSERT_ALWAYS(nsize <= me.capacity());
+    size = nsize;
     me.zero_pad(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;

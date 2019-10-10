@@ -324,6 +324,7 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 
     matpoly_type E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
+
     // this consumes E_left entirely.
     matpoly_type pi_left = matpoly_diverter<matpoly_type>::callback(bm, E_left);
 
