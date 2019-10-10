@@ -789,7 +789,7 @@ int wrapped_main(int argc, char *argv[])
             rhs_name = NULL;
         }
     }
-    if ((rhs_name != NULL) && param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs))) {
+    if (param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs)) && rhs_name) {
         fprintf(stderr, "the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);
     }

@@ -637,9 +637,8 @@ ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsign
         ASSERT_ALWAYS(k1 <= dst.get_size());
         unsigned int d = pi.get_size();
         unsigned int rk1 = next_src_k;
-        unsigned int rk0 = next_src_k - nk;
         rk1 = d >= rk1 ? d - rk1 : 0;
-        rk0 = d >= rk0 ? d - rk0 : 0;
+        unsigned int rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
         unsigned int n_rk = rk1 - rk0;
         unsigned int q_rk = rk0 / simd;
         unsigned int r_rk = rk0 % simd;
@@ -875,12 +874,15 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
     cache_k0 = 0;
     cache_k1 = lookback_needed;
 
-    rhs = recompute_rhs();
-
-    reorder_solutions();
+    if (!mpi_rank()) {
+        rhs = recompute_rhs();
+        reorder_solutions();
+    }
+    MPI_Bcast(&sols.front(), 2 * n, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
     /* recompute rhs. Same algorithm as above. */
-    rhs = recompute_rhs();
+    if (!mpi_rank())
+        rhs = recompute_rhs();
 }
 
 void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
