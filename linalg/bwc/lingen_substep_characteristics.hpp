@@ -5,6 +5,7 @@
 
 #include "cxx_mpz.hpp"
 #include "fmt/format.h"
+#include "fmt/printf.h"
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
 #include "lingen_tuning_cache.hpp"
@@ -354,11 +355,10 @@ struct lingen_substep_characteristics {
 
     public:
     template<typename T>
-    std::vector<double> fill_tvec(T F) const {/*{{{*/
+    std::vector<double> fill_tvec(std::ostream& os, T F) const {/*{{{*/
         /* can't make my mind as to whether I should just output that to
          * the terminal, or stow it in a string first...
          */
-        std::ostream& os(std::cout);
 
         /* does that count as non-odr-use ? */
         constexpr const char * Fname = F.name;
@@ -396,7 +396,7 @@ struct lingen_substep_characteristics {
 
     private:
     template<typename T>
-    parallelizable_timing get_ft_time_from_cache_or_recompute(T F, typename cache_value_type::value_type & store) const
+    parallelizable_timing get_ft_time_from_cache_or_recompute(std::ostream& os, T F, typename cache_value_type::value_type & store) const
     {
         if (!store.empty()) {
             /* what do we have in cache, to start with ? We need to know how
@@ -422,14 +422,14 @@ struct lingen_substep_characteristics {
             store.clear();
         }
 
-        std::vector<double> tvec = fill_tvec(F);
+        std::vector<double> tvec = fill_tvec(os, F);
         for(unsigned int i = 1 ; i < tvec.size() ; i++) {
             if (tvec[i] >= 0) store.push_back( { i, tvec[i] } );
         }
         return parallelizable_timing(tvec);
     }
 
-    std::array<parallelizable_timing, 4> get_ft_times(pc_t const& P, tc_t & C) const {/*{{{*/
+    std::array<parallelizable_timing, 4> get_ft_times(std::ostream& os, pc_t const& P, tc_t & C) const {/*{{{*/
         cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
         
         std::array<parallelizable_timing, 4> res;
@@ -440,19 +440,19 @@ struct lingen_substep_characteristics {
 
         {
             microbench_dft F(P, *this);
-            res[0] = get_ft_time_from_cache_or_recompute(F, cached_res[0]);
+            res[0] = get_ft_time_from_cache_or_recompute(os, F, cached_res[0]);
             res[1] = res[0];
             cached_res[1] = cached_res[0];
         }
 
         {
             microbench_ift F(P, *this);
-            res[2] = get_ft_time_from_cache_or_recompute(F, cached_res[2]);
+            res[2] = get_ft_time_from_cache_or_recompute(os, F, cached_res[2]);
         }
 
         {
             microbench_conv F(P, *this);
-            res[3] = get_ft_time_from_cache_or_recompute(F, cached_res[3]);
+            res[3] = get_ft_time_from_cache_or_recompute(os, F, cached_res[3]);
         }
 
         /* A priori this is either all-fresh or all-old. But nothing in
@@ -546,11 +546,11 @@ struct lingen_substep_characteristics {
 
     private:
 
-    std::array<parallelizable_timing, 6> get_call_time_backend(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    std::array<parallelizable_timing, 6> get_call_time_backend(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
-        auto ft = get_ft_times(P, C);
+        auto ft = get_ft_times(os, P, C);
         /* These are just base values, we'll multiply them later on */
         parallelizable_timing T_dft0 = ft[0];
         parallelizable_timing T_dft2 = ft[1];
@@ -620,10 +620,10 @@ struct lingen_substep_characteristics {
     public:
 
 
-    lingen_call_companion::mul_or_mp_times get_companion(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         lingen_call_companion::mul_or_mp_times D;
         D.S = S;
-        auto A = get_call_time_backend(P, S, C); 
+        auto A = get_call_time_backend(os, P, S, C); 
         double tt = 0;
         for(auto const & a : A) tt = tt + a;
         D.tt = { 1, tt };
@@ -640,8 +640,8 @@ struct lingen_substep_characteristics {
         D.csize = csize;
         return D;
     }/*}}}*/
-    double get_call_time(pc_t const & P, sc_t const & S, tc_t & C) const {/*{{{*/
-        auto A = get_call_time_backend(P, S, C);
+    double get_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const {/*{{{*/
+        auto A = get_call_time_backend(os, P, S, C);
         double tt = 0;
         for(auto const & a : A)
             tt = tt + a;
@@ -653,12 +653,13 @@ struct lingen_substep_characteristics {
         lingen_substep_characteristics const & U;
         lingen_platform const & P;
         lingen_tuning_cache & C;
-        schedule_sorter(lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C) :
-            U(U), P(P), C(C)
+        std::ostream& os;
+        schedule_sorter(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C) :
+            U(U), P(P), C(C), os(os)
         {}
         bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {/*{{{*/
-            double ta = U.get_call_time(P, a, C);
-            double tb = U.get_call_time(P, b, C);
+            double ta = U.get_call_time(os, P, a, C);
+            double tb = U.get_call_time(os, P, b, C);
             if (ta != tb) return ta < tb;
 #if 0
             /* Doesn't make much sense, since timing comparisons will
@@ -679,18 +680,18 @@ struct lingen_substep_characteristics {
     };/*}}}*/
 
     public:
-    void sort_schedules(std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, lingen_tuning_cache & C) const {/*{{{*/
-        sort(schedules.begin(), schedules.end(), schedule_sorter(*this, P, C));
+    void sort_schedules(std::ostream& os, std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, lingen_tuning_cache & C) const {/*{{{*/
+        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, C));
     }/*}}}*/
 
-    double get_and_report_call_time(pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    double get_and_report_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
         const char * step = OP::name;
         bool cached = has_cached_time(C);
         char buf[20];
 
         std::string explanation = op.fti.explain();
-        printf("# %s\n", explanation.c_str());
-        printf("# %s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+        os << fmt::sprintf("# %s\n", explanation.c_str());
+        os << fmt::sprintf("# %s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
                 step,
                 input_length,
                 S.shrink0,
@@ -699,25 +700,25 @@ struct lingen_substep_characteristics {
                 S.batch[1],
                 S.batch[2],
                 size_disp(get_peak_ram(P, S), buf));
-        fflush(stdout);
-        double tt = get_call_time(P, S, C);
-        printf("%.2f%s\n",
+        os << std::flush;
+        double tt = get_call_time(os, P, S, C);
+        os << fmt::sprintf("%.2f%s\n",
                 tt,
                 cached ? " [from cache]" : "");
         return tt;
     }/*}}}*/
 
-    void report_size_stats_human() const {/*{{{*/
+    void report_size_stats_human(std::ostream& os) const {/*{{{*/
         char buf[4][20];
         const char * step = OP::name;
 
-        printf("# %s (per op): %s+%s+%s, transforms 3*%s\n",
+        os << fmt::sprintf("# %s (per op): %s+%s+%s, transforms 3*%s\n",
                 step,
                 size_disp(asize*mpz_size(p)*sizeof(mp_limb_t), buf[0]),
                 size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t), buf[1]),
                 size_disp(csize*mpz_size(p)*sizeof(mp_limb_t), buf[2]),
                 size_disp(get_transform_ram(), buf[3]));
-        printf("# %s (total for %u*%u * %u*%u): %s, transforms %s\n",
+        os << fmt::sprintf("# %s (total for %u*%u * %u*%u): %s, transforms %s\n",
                 step,
                 n0,n1,n1,n2,
                 size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t), buf[0]),

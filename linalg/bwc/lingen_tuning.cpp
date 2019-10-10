@@ -45,6 +45,7 @@
 #include <map>
 #include <string>
 #include <ostream>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -80,7 +81,7 @@ std::vector<unsigned int> all_splits_of(unsigned int n)
 }
 
 template<typename OP>
-lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, lingen_platform const & P, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
+lingen_substep_schedule optimize(std::ostream& os, lingen_substep_characteristics<OP> const & U, lingen_platform const & P, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
     unsigned int nr0 = U.mpi_split0(P).block_size_upper_bound();
     unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
     unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
@@ -224,10 +225,11 @@ lingen_substep_schedule optimize(lingen_substep_characteristics<OP> const & U, l
 
     for(auto & S : all_schedules) {
         /* This should ensure that all timings are obtained from cache */
-        U.get_call_time(P, S, C);
+        /* This may print timing info to the output stream */
+        U.get_call_time(os, P, S, C);
     }
 
-    U.sort_schedules(all_schedules, P, C);
+    U.sort_schedules(os, all_schedules, P, C);
 
     lingen_substep_schedule S = all_schedules.front();
     return S;
@@ -265,6 +267,28 @@ struct lingen_tuner {
     const char * timing_cache_filename = NULL;
     const char * schedule_filename = NULL;
 
+    std::ostream& os;
+
+    struct output_info {
+        int quiet = 0;
+        const char * tuning_log_filename = NULL;
+        static void declare_usage(cxx_param_list & pl) {/*{{{*/
+            param_list_decl_usage(pl, "tuning_log_filename",
+                    "Output tuning log to this file\n");
+            param_list_decl_usage(pl, "tuning_quiet",
+                    "Silence tuning log\n");
+        }/*}}}*/
+        static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
+            lingen_platform::lookup_parameters(pl);
+            param_list_lookup_string(pl, "tuning_quiet");
+            param_list_lookup_string(pl, "tuning_log_filename");
+        }/*}}}*/
+        output_info(cxx_param_list & pl) {
+            tuning_log_filename = param_list_lookup_string(pl, "tuning_log_filename");
+            param_list_parse_int(pl, "tuning_quiet", &quiet);
+        }
+    };
+
     /* stop measuring the time taken by the basecase when it is
      * more than this number times the time taken by the other
      * alternatives
@@ -277,6 +301,7 @@ struct lingen_tuner {
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
         lingen_platform::declare_usage(pl);
+        output_info::declare_usage(pl);
         param_list_decl_usage(pl, "tuning_schedule_filename",
                 "Save (and re-load if it exists) tuning schedule from this file");
         param_list_decl_usage(pl, "tuning_timing_cache_filename",
@@ -287,14 +312,15 @@ struct lingen_tuner {
 
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
         lingen_platform::lookup_parameters(pl);
+        output_info::lookup_parameters(pl);
         param_list_lookup_string(pl, "tuning_schedule_filename");
         param_list_lookup_string(pl, "tuning_timing_cache_filename");
         param_list_lookup_string(pl, "basecase-keep-until");
     }/*}}}*/
 
-    lingen_tuner(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
+    lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
         ab(d.ab), 
-        m(d.m), n(d.n), L(L), P(comm, pl)
+        m(d.m), n(d.n), L(L), P(comm, pl), os(os)
     {
 #ifdef SELECT_MPFQ_LAYER_u64k1
         mpz_set_ui(p, 2);
@@ -307,7 +333,6 @@ struct lingen_tuner {
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
 
         schedule_filename = param_list_lookup_string(pl, "tuning_schedule_filename");
-
         /* only the leader will do the tuning, so only the leader cares
          * about loading/saving it...
          */
@@ -460,21 +485,21 @@ struct lingen_tuner {
         auto step = mp_substep(cw);
         bool print_here = print && !printed_mem_once++;
         if (print_here)
-            step.report_size_stats_human();
+            step.report_size_stats_human(os);
 
         lingen_substep_schedule S;
         if (schedules_mp.find(L) != schedules_mp.end()) {
-            printf("# Using imposed schedule from results file\n");
+            os << "# Using imposed schedule from results file\n";
             S = schedules_mp[L];
         } else {
             /* get the schedule by trying all possibilities */
-            S = optimize(step, P, C, reserved);
+            S = optimize(os, step, P, C, reserved);
         }
 
         if (print_here) {
-            step.get_and_report_call_time(P, S, C);
+            step.get_and_report_call_time(os, P, S, C);
         } else {
-            step.get_call_time(P, S, C);
+            step.get_call_time(os, P, S, C);
         }
         schedules_mp[L] = S;
     } /* }}} */
@@ -524,21 +549,21 @@ struct lingen_tuner {
         bool print_here = print && !printed_mem_once++;
 
         if (print_here)
-            step.report_size_stats_human();
+            step.report_size_stats_human(os);
 
         lingen_substep_schedule S;
         if (schedules_mul.find(L) != schedules_mul.end()) {
-            printf("# Using imposed schedule from results file\n");
+            os << "# Using imposed schedule from results file\n";
             S = schedules_mul[L];
         } else {
             /* get the schedule by trying all possibilities */
-            S = optimize(step, P, C, reserved);
+            S = optimize(os, step, P, C, reserved);
         }
 
         if (print_here) {
-            step.get_and_report_call_time(P, S, C);
+            step.get_and_report_call_time(os, P, S, C);
         } else {
-            step.get_call_time(P, S, C);
+            step.get_call_time(os, P, S, C);
         }
         schedules_mul[L] = S;
     } /* }}} */
@@ -546,18 +571,18 @@ struct lingen_tuner {
     lingen_hints tune_local(lingen_hints & stored_hints) {
         size_t N = m*n*L/(m+n);
         char buf[20];
-        printf("# Measuring lingen data for N ~ %zu m=%u n=%u for a %zu-bit prime p, using a %u*%u grid of %u-thread nodes [max target RAM = %s]\n",
+        os << fmt::sprintf("# Measuring lingen data for N ~ %zu m=%u n=%u for a %zu-bit prime p, using a %u*%u grid of %u-thread nodes [max target RAM = %s]\n",
                 N, m, n, mpz_sizeinbase(p, 2),
                 P.r, P.r, P.T,
                 size_disp(P.available_ram, buf));
 #ifdef HAVE_OPENMP
-        printf("# Note: non-cached basecase measurements are done using openmp as it is configured for the running code, that is, with %d threads\n", P.openmp_threads);
+        os << fmt::sprintf("# Note: non-cached basecase measurements are done using openmp as it is configured for the running code, that is, with %d threads\n", P.openmp_threads);
 #endif
         lingen_hints hints;
 
         bool impose_hints = !stored_hints.empty();
         if (impose_hints) {
-            printf("# While we are doing timings here, we'll take schedule decisions based on the hints found in %s when they apply\n", schedule_filename);
+            os << fmt::sprintf("# While we are doing timings here, we'll take schedule decisions based on the hints found in %s when they apply\n", schedule_filename);
         }
 
         int fl = log2(L) + 1;
@@ -575,7 +600,7 @@ struct lingen_tuner {
         for(int i = fl ; i>=0 ; i--) {
             auto cws = calls_and_weights_at_depth(i);
 
-            printf("####################### Measuring time at depth %d #######################\n", i);
+            os << fmt::sprintf("####################### Measuring time at depth %d #######################\n", i);
             /* For input length L, the reserved
              * storage at depth i is
              *   RMP'(i)  = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[2\alpha\ell_i]
@@ -593,8 +618,8 @@ struct lingen_tuner {
             reserved_mp += reserved_base;
             reserved_mul += reserved_base;
 
-            printf("# MP reserved storage = %s\n", size_disp(reserved_mp, buf));
-            printf("# MUL reserved storage = %s\n", size_disp(reserved_mul, buf));
+            os << fmt::sprintf("# MP reserved storage = %s\n", size_disp(reserved_mp, buf));
+            os << fmt::sprintf("# MUL reserved storage = %s\n", size_disp(reserved_mul, buf));
             double time_b = 0;
             double time_r = 0;
             double time_m = 0;
@@ -646,28 +671,28 @@ struct lingen_tuner {
                     bool rwin = false;
 
                     if (stored_hints.find(K) != stored_hints.end()) {
-                        printf("# Re-using stored schedule\n");
+                        os << ("# Re-using stored schedule\n");
                         forced = true;
                         rwin = stored_hints[K].recurse;
                         if (rwin) {
-                            printf("# Forcing recursion at this level\n");
+                            os << ("# Forcing recursion at this level\n");
                         } else {
-                            printf("# Forcing basecase at this level\n");
+                            os << ("# Forcing basecase at this level\n");
                         }
                     } else {
                         if (impose_hints) {
-                            printf("# No stored schedule found, computing new one\n");
+                            os << ("# No stored schedule found, computing new one\n");
                         }
                         forced = recursion_makes_sense(L) && forced_threshold != UINT_MAX;
                         if (forced) {
                             rwin = L >= forced_threshold;
                             if (rwin) {
-                                printf("# Forcing recursion at this level,"
+                                os << fmt::sprintf("# Forcing recursion at this level,"
                                         " since L=%zu>="
                                         "lingen_mpi_threshold=%u\n",
                                         L, forced_threshold);
                             } else {
-                                printf("# Forcing basecase at this level,"
+                                os << fmt::sprintf("# Forcing basecase at this level,"
                                         " since L=%zu<"
                                         "lingen_mpi_threshold=%u\n",
                                         L, forced_threshold);
@@ -698,7 +723,7 @@ struct lingen_tuner {
                             last_save = wct_seconds();
                         }
                         auto MP = mp_substep(cw);
-                        U.mp = MP.get_companion(P, schedules_mp[L], C);
+                        U.mp = MP.get_companion(os, P, schedules_mp[L], C);
                         U.mp.reserved_ram = reserved_mp;
 
                         compute_schedules_for_mul(cw, true, reserved_mul);
@@ -710,7 +735,7 @@ struct lingen_tuner {
                             last_save = wct_seconds();
                         }
                         auto MUL = mul_substep(cw);
-                        U.mul = MUL.get_companion(P, schedules_mul[L], C);
+                        U.mul = MUL.get_companion(os, P, schedules_mul[L], C);
                         U.mul.reserved_ram = reserved_mp;
 
                         ttr = U.mp.tt.t + U.mul.tt.t;
@@ -785,7 +810,7 @@ struct lingen_tuner {
                 strbest="";
             if (time_b < DBL_MAX) {
                 const char * isbest = (!rec0 && !rec1) ? strbest : "";
-                printf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n",
+                os << fmt::sprintf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n",
                         pad, msg, L1,
                         time_b, time_b / 86400, isbest);
                 msg = msg2;
@@ -795,7 +820,7 @@ struct lingen_tuner {
                 std::ostringstream os2;
                 os2 << " mixed(threshold=" << L1 << "): ";
                 std::string ss2 = os2.str();
-                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                os << fmt::sprintf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
                         pad, msg, ss2.c_str(),
                         time_m, time_m / 86400,
                         time_m_self, time_m_self / 86400, isbest);
@@ -804,12 +829,12 @@ struct lingen_tuner {
                 char buf[20];
                 char buf2[20];
                 if (ram_mp > ram_mul) {
-                    printf("#%*s(memory(MP): %s, incl %s reserved)\n",
+                    os << fmt::sprintf("#%*s(memory(MP): %s, incl %s reserved)\n",
                             pad2, msg,
                             size_disp(ram_mp, buf),
                             size_disp(reserved_mp, buf2));
                 } else {
-                    printf("#%*s(memory(MUL): %s, incl %s reserved)\n",
+                    os << fmt::sprintf("#%*s(memory(MUL): %s, incl %s reserved)\n",
                             pad2, msg,
                             size_disp(ram_mul, buf),
                             size_disp(reserved_mul, buf2));
@@ -821,19 +846,19 @@ struct lingen_tuner {
                 std::ostringstream os2;
                 os2 << " recursive(threshold<=" << L0 << "): ";
                 std::string ss2 = os2.str();
-                printf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
+                os << fmt::sprintf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
                         time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
                 msg = msg2;
                 int pad2 = pad + ss2.size();
                 char buf[20];
                 char buf2[20];
                 if (ram_mp > ram_mul) {
-                    printf("#%*s(memory(MP): %s, incl %s reserved)\n",
+                    os << fmt::sprintf("#%*s(memory(MP): %s, incl %s reserved)\n",
                             pad2, msg,
                             size_disp(ram_mp, buf),
                             size_disp(reserved_mp, buf2));
                 } else {
-                    printf("#%*s(memory(MUL): %s, incl %s reserved)\n",
+                    os << fmt::sprintf("#%*s(memory(MUL): %s, incl %s reserved)\n",
                             pad2, msg,
                             size_disp(ram_mul, buf),
                             size_disp(reserved_mul, buf2));
@@ -843,20 +868,20 @@ struct lingen_tuner {
             if (rec0) {
                 // theshold is <= L0
                 if (upper_threshold > L0) {
-                    printf("# We expect lingen_mpi_threshold <= %zu\n", L0);
+                    os << fmt::sprintf("# We expect lingen_mpi_threshold <= %zu\n", L0);
                     upper_threshold = L0;
                 }
             } else if (rec1 && !rec0) {
                 ASSERT_ALWAYS(cws.size() == 2);
                 // threshold is =L1
                 if (upper_threshold != L1) {
-                    printf("# We expect lingen_mpi_threshold = %zu\n", L1);
+                    os << fmt::sprintf("# We expect lingen_mpi_threshold = %zu\n", L1);
                     upper_threshold = L1;
                 }
             } else {
                 // threshold is > L1
                 if (upper_threshold <= L1) {
-                    printf("# we expect lingen_mpi_threshold > %zu\n", L1);
+                    os << fmt::sprintf("# we expect lingen_mpi_threshold > %zu\n", L1);
                     upper_threshold = SIZE_MAX;
                 }
             }
@@ -877,22 +902,22 @@ struct lingen_tuner {
             }
         }
 
-        printf("################################# Total ##################################\n");
+        os << ("################################# Total ##################################\n");
         if (forced_threshold != UINT_MAX) {
-            printf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
+            os << fmt::sprintf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
         } else {
-            printf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
+            os << fmt::sprintf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
         }
         size_t size_com0;
         double tt_com0;
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
-        printf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
+        os << fmt::sprintf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
         double time_best = best[L].second[best[L].first];
         time_best += tt_com0;
-        printf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
+        os << fmt::sprintf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
         hints.ipeak=ipeak;
         hints.peak=peak;
-        printf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
+        os << fmt::sprintf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
 
         /* This one is strictly linear anyway */
         hints.tt_gather_per_unit = tt_com0 / 2 / L;
@@ -910,18 +935,20 @@ struct lingen_tuner {
             if (schedule_filename) {
                 std::ifstream is(schedule_filename);
                 if (is && is >> stored_hints) {
-                    fprintf(stderr, "# Read tuning schedule from %s\n", schedule_filename);
+                    /* This one _always_ goes to stdout */
+                    std::cout << fmt::sprintf("# Read tuning schedule from %s\n", schedule_filename);
                 } else {
-                    fprintf(stderr, "# Failed to read tuning schedule from %s\n", schedule_filename);
+                    std::cerr << fmt::sprintf("# Failed to read tuning schedule from %s\n", schedule_filename);
                 }
             }
             hints = tune_local(stored_hints);
             if (schedule_filename && stored_hints.empty()) {
                 std::ofstream os(schedule_filename);
                 if (os && os << hints) {
-                    fprintf(stderr, "# Written tuning schedule to %s\n", schedule_filename);
+                    /* This one _always_ goes to stdout */
+                    std::cout << fmt::sprintf("# Written tuning schedule to %s\n", schedule_filename);
                 } else {
-                    fprintf(stderr, "# Failed to write tuning schedule to %s\n", schedule_filename);
+                    std::cerr << fmt::sprintf("# Failed to write tuning schedule to %s\n", schedule_filename);
                 }
             }
         }
@@ -935,7 +962,16 @@ struct lingen_tuner {
 /* For the moment we're only hooking the fft_transform_info version */
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-    return lingen_tuner(d, L, comm, pl).tune();
+    lingen_tuner::output_info O(pl);
+    if (O.quiet) {
+        std::ostringstream os;
+        return lingen_tuner(os, d, L, comm, pl).tune();
+    } else if (O.tuning_log_filename) {
+        std::ofstream os(O.tuning_log_filename, std::ios_base::out);
+        return lingen_tuner(os, d, L, comm, pl).tune();
+    } else {
+        return lingen_tuner(std::cout, d, L, comm, pl).tune();
+    }
 }
 
 void lingen_tuning_decl_usage(cxx_param_list & pl)

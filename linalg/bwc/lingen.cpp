@@ -925,9 +925,10 @@ int wrapped_main(int argc, char *argv[])
     /* run the mpi problem detection only if we're certain that we're at
      * least close to the ballpark where this sort of checks make sense.
      */
-    if (K_elts_to_bytes((size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
+    if (0 && K_elts_to_bytes((size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
         check_for_mpi_problems();
     }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     /* This will cause the initial read */
     std::unique_ptr<lingen_E_from_A> E_series = std::unique_ptr<lingen_E_from_A>(new lingen_E_from_A(bm.d, *A_series));

@@ -234,9 +234,12 @@ lingen_F0::share(int root, MPI_Comm comm)
     static_assert(std::is_same<typename decltype(fdesc)::value_type,
                                std::array<unsigned int, 2>>::value,
                   "want unsigned ints");
-    if (mpi_rank())
-        fdesc.assign(m, {{ 0, 0 }});
-    MPI_Bcast(&fdesc.front(), 2 * m, MPI_UNSIGNED, root, comm);
+    unsigned int fsize = fdesc.size();
+    MPI_Bcast(&fsize, 1, MPI_UNSIGNED, root, comm);
+    if (mpi_rank() != root)
+        fdesc.assign(fsize, {{ 0, 0 }});
+    if (fsize)
+        MPI_Bcast(&fdesc.front(), 2 * fsize, MPI_UNSIGNED, root, comm);
 }
 
 /* It's a bit tricky. F0 is the _reversal_ of what we get here. (with
@@ -286,6 +289,9 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
 void
 lingen_E_from_A::initial_read()
 {
+    /* This is called collectively, because _all_
+     * {read_to,write_from}_matpoly call are collective calls. */
+
     /* Our goal is to determine t0 and F0, and ultimately ensure that the
      * constant coefficient of E at t=t0 is a full-rank matrix.
      *
@@ -310,88 +316,103 @@ lingen_E_from_A::initial_read()
      * where k' is either k or k-1. Namely, k' is k - (rhs == n)
      */
 
-    if (!mpi_rank()) {
+    share(0, MPI_COMM_WORLD);
 
+    if (!mpi_rank())
         printf("Computing t0\n");
 
-        /* We want to create a full rank m*m matrix M, by extracting columns
-         * from the first coefficients of A */
+    /* We want to create a full rank m*m matrix M, by extracting columns
+     * from the first coefficients of A */
 
-        matpoly M(bw_dimensions::ab, m, m, 1);
-        M.zero_pad(1);
+    matpoly M(bw_dimensions::ab, m, m, 1);
+    M.zero_pad(1);
 
-        /* For each integer i between 0 and m-1, we have a column, picked
-         * from column fdesc[i][1] of coeff fdesc[i][0] of A' which, once
-         * reduced modulo the other ones, has coefficient at row
-         * pivots[i] unequal to zero.
+    /* For each integer i between 0 and m-1, we have a column, picked
+     * from column fdesc[i][1] of coeff fdesc[i][0] of A' which, once
+     * reduced modulo the other ones, has coefficient at row
+     * pivots[i] unequal to zero.
+     */
+    std::vector<unsigned int> pivots;
+
+    for (t0 = 1; pivots.size() < m; t0++) {
+        /* We are going to access coefficient k from A (perhaps
+         * coefficients k-1 and k) */
+        unsigned int k = t0 - (nrhs == n);
+
+        /* k + 1 because we're going to access coeff of degree k, of
+         * course.
+         * k + 2 is because of the leading identity block in F0. To
+         * form coefficient of degree t0, we'll need degree t0 in A',
+         * which means up to degree t0 + (nrhs < n) = k + 1 in A
          */
-        std::vector<unsigned int> pivots;
+        refresh_cache_upto(k + 2);
 
-        for (t0 = 1; pivots.size() < m; t0++) {
-            /* We are going to access coefficient k from A (perhaps
-             * coefficients k-1 and k) */
-            unsigned int k = t0 - (nrhs == n);
+        for (unsigned int j = 0; pivots.size() < m && j < n; j++) {
+            /* Extract a full column into M (column j, degree t0 or
+             * t0-1 in A) */
+            /* adjust the coefficient degree to take into account the
+             * fact that for SM columns, we might in fact be
+             * interested by the _previous_ coefficient */
 
-            /* k + 1 because we're going to access coeff of degree k, of
-             * course.
-             * k + 2 is because of the leading identity block in F0. To
-             * form coefficient of degree t0, we'll need degree t0 in A',
-             * which means up to degree t0 + (nrhs < n) = k + 1 in A
-             */
-            refresh_cache_upto(k + 2);
-
-            for (unsigned int j = 0; pivots.size() < m && j < n; j++) {
-                /* Extract a full column into M (column j, degree t0 or
-                 * t0-1 in A) */
-                /* adjust the coefficient degree to take into account the
-                 * fact that for SM columns, we might in fact be
-                 * interested by the _previous_ coefficient */
+            int inc;
+            if (!mpi_rank()) {
                 M.extract_column(pivots.size(), 0, cache, j, t0 - (j < nrhs));
+                inc = reduce_column_mod_previous(M, pivots);
+            }
+            MPI_Bcast(&inc, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            if (inc && mpi_rank()) {
+                // we only need to have pivots.size() right
+                pivots.push_back(0);
+            }
 
-                if (!reduce_column_mod_previous(M, pivots)) {
+            if (!inc) {
+                if (!mpi_rank())
                     printf(
-                      "[X^%d] A, col %d does not increase rank (still %zu)\n",
-                      t0 - (j < nrhs),
-                      j,
-                      pivots.size());
+                            "[X^%d] A, col %d does not increase rank (still %zu)\n",
+                            t0 - (j < nrhs),
+                            j,
+                            pivots.size());
 
-                    /* we need at least m columns to get as starting matrix
-                     * with full rank. Given that we have n columns per
-                     * coefficient, this means at least m/n matrices.
-                     */
+                /* we need at least m columns to get as starting matrix
+                 * with full rank. Given that we have n columns per
+                 * coefficient, this means at least m/n matrices.
+                 */
 
-                    if ((t0-1) * n > m + 40) {
+                if ((t0-1) * n > m + 40) {
+                    if (!mpi_rank())
                         printf("The choice of starting vectors was bad. "
-                               "Cannot find %u independent cols within A\n",
-                               m);
-                        exit(EXIT_FAILURE);
-                    }
-                    continue;
+                                "Cannot find %u independent cols within A\n",
+                                m);
+                    exit(EXIT_FAILURE);
                 }
+                continue;
+            }
 
-                /* Bingo, it's a new independent col. */
+            /* Bingo, it's a new independent col. */
 
-                fdesc.push_back( {{ t0 - 1, j }} );
+            fdesc.push_back( {{ t0 - 1, j }} );
 #ifndef SELECT_MPFQ_LAYER_u64k1
+            if (!mpi_rank())
                 normalize_column(M, pivots);
 #endif
 
-                // if (r == m)
+            if (!mpi_rank())
                 printf("[X^%d] A, col %d increases rank to %zu%s\n",
-                       t0 - (j < nrhs),
-                       j,
-                       pivots.size(),
-                       (j < nrhs) ? " (column not shifted because of the RHS)"
-                                  : "");
+                        t0 - (j < nrhs),
+                        j,
+                        pivots.size(),
+                        (j < nrhs) ? " (column not shifted because of the RHS)"
+                        : "");
 
-            }
-            /* Do this before we increase t0 */
-            if (pivots.size() == m)
-                break;
         }
-
-        printf("Found satisfactory init data for t0=%d\n", t0);
+        /* Do this before we increase t0 */
+        if (pivots.size() == m)
+            break;
     }
+
+    if (!mpi_rank())
+        printf("Found satisfactory init data for t0=%d\n", t0);
+
     share(0, MPI_COMM_WORLD);
 }
 
