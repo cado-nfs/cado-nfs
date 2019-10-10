@@ -46,10 +46,8 @@
 
 #include "lingen_matpoly_ft.hpp"
 
-#ifdef ENABLE_MPI_LINGEN        /* in lingen.hpp */
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_bigmatpoly_ft.hpp"
-#endif
 
 #include "bw-common.h"		/* Handy. Allows Using global functions
                                  * for recovering parameters */
@@ -142,9 +140,7 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 /* Forward declaration, it's used by the recursive version */
 matpoly bw_lingen_single(bmstatus & bm, matpoly & E);
 
-#ifdef ENABLE_MPI_LINGEN
 bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E);
-#endif
 
 std::string sha1sum(matpoly const & X)
 {
@@ -174,7 +170,6 @@ template<> struct matpoly_diverter<matpoly> {
 };
 constexpr const char * matpoly_diverter<matpoly>::prefix;
 
-#ifdef ENABLE_MPI_LINGEN
 template<typename fft_type>
 struct matching_ft_type<bigmatpoly, fft_type> {
     typedef bigmatpoly_ft<fft_type> type;
@@ -186,7 +181,6 @@ template<> struct matpoly_diverter<bigmatpoly> {
     }
 };
 constexpr const char * matpoly_diverter<bigmatpoly>::prefix;
-#endif
 
 
 template<typename matpoly_type>
@@ -424,7 +418,9 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
 
     lingen_call_companion C = bm.companion(bm.depth(), E.get_size());
 
-    if (load_checkpoint_file(bm, pi, t0, t1))
+    save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
+
+    if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
         return pi;
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
@@ -440,12 +436,10 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
-    save_checkpoint_file(bm, pi, t0, t1);
+    save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1);
 
     return pi;
 }/*}}}*/
-
-#ifdef ENABLE_MPI_LINGEN
 
 bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 {
@@ -476,7 +470,9 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 
     bigmatpoly pi(model);
 
-    if (load_mpi_checkpoint_file(bm, pi, t0, t1))
+    save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
+
+    if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
         return pi;
 
     // fprintf(stderr, "Enter %s\n", __func__);
@@ -517,13 +513,12 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
     }
     // fprintf(stderr, "Leave %s\n", __func__);
 
-    save_mpi_checkpoint_file(bm, pi, t0, t1);
+    save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1);
 
     MPI_Barrier(bm.com[0]);
 
     return pi;
 }/*}}}*/
-#endif  /* ENABLE_MPI_LINGEN */
 
 /*}}}*/
 
