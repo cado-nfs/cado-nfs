@@ -338,7 +338,10 @@ void tree_stats::final_print()
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        printf("lingen done at: %s\n", eta_string);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank)
+            printf("lingen done at: %s\n", eta_string);
     }
 }
 
