@@ -52,7 +52,6 @@
    ...
    fun:GOMP_parallel
    ...
-   fun:main
 }
 {
    another_openmp_leak
