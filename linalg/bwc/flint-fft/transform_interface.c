@@ -1846,7 +1846,7 @@ char * fft_transform_info_explain(const struct fft_transform_info * fti)
     }
 
     char * line2;
-    rc = asprintf(&line2, "; inputs splits in %lu-bit pieces"
+    rc = asprintf(&line2, "; inputs split in %lu-bit pieces"
         ", hence 2 polynomials"
         " of length %lu and %lu, multiplied modulo X^%lu-1"
         ", in the ring R=Z/(2^%lu+1)",
