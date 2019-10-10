@@ -1007,7 +1007,7 @@ int wrapped_main(int argc, char *argv[])
     }
 
     if (go_mpi && size > 1) {
-        bigmatpoly_model model(bm.com, bm.d.m, bm.d.m + bm.d.n);
+        bigmatpoly_model model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
         bigmatpoly E(bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<bigmatpoly> fill_E(E);
         lingen_F0 F0 = *E_series;
@@ -1026,7 +1026,11 @@ int wrapped_main(int argc, char *argv[])
             pipe(Fsrc, *Fdst, "Written", true);
             Fsrc.write_rhs(*Fdst_rhs);
         }
-    } else {
+    } else if (!rank) {
+        /* We do this only in the rank==0 case, since we have really
+         * nothing to do at the other ranks.
+         */
+
         /* We don't want to bother with memory problems in the non-mpi
          * case when the tuning was done for MPI: this is because the
          * per-transform ram was computed in the perspective of an MPI

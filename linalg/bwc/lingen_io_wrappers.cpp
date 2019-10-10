@@ -25,6 +25,27 @@ static int mpi_rank()
     return rank;
 }
 
+/* A note on MPI usage of these routines.
+ *
+ * All data is expected to follow these rules
+ *
+ *  - the matpoly arguments to {read_to,write_from}_matpoly are always
+ *    expected to be significant only at the root. What happens to this
+ *    data on non-zero ranks is largely unspecified, beyond the fact that
+ *    collective calls to the routines should work and not have divergent
+ *    behaviour. In practice we strive to just never access these
+ *    arguments at non-zero ranks. (the same holds for the caches that
+ *    are embedded in the i/o wrappers, with the exception that their
+ *    limits cache_k0 and cache_k1 are consistent at all ranks).
+ *
+ *  - the data embedded in the i/o wrappers is either meaningful only at
+ *    the root (in which case the {read_to,write_from} calls will do
+ *    close to nothing, or is of collective type, meaning that
+ *    {read_to,write_from} will engage in colective operations.
+ *
+ *  - all calls are implicit barriers, and their returned value is
+ *    identical at all ranks.
+ */
 
 /* XXX It seems likely that lingen_average_matsize.?pp will go away
  */
@@ -101,13 +122,18 @@ size_t lingen_file_input::guessed_length() const
 ssize_t lingen_file_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     /* This reads k1-k0 fresh coefficients from f into dst */
-    return matpoly_read(ab, f, dst, k0, k1, ascii, 0);
+    size_t ll;
+    if (!mpi_rank())
+        ll = matpoly_read(ab, f, dst, k0, k1, ascii, 0);
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    return ll;
 }
 
 ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     ssize_t nk = MIN(length, next_src_k + k1 - k0) - next_src_k;
-    dst.fill_random(k0, k0 + nk, rstate);
+    if (!mpi_rank())
+        dst.fill_random(k0, k0 + nk, rstate);
     next_src_k += nk;
     return nk;
 }
@@ -243,7 +269,8 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
     ASSERT_ALWAYS(next_k1 >= cache_k1);
 
     if (next_k1 != cache_k1) {
-        cache.zero_pad(next_k1);
+        if (!mpi_rank())
+            cache.zero_pad(next_k1);
         ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
         if (nk < (ssize_t) (k - cache_k1)) {
             fprintf(stderr, "short read from A\n");
@@ -368,6 +395,14 @@ lingen_E_from_A::initial_read()
     share(0, MPI_COMM_WORLD);
 }
 
+void lingen_E_from_A::share(int root, MPI_Comm comm)
+{
+    lingen_F0::share(root, comm);
+    MPI_Bcast(&cache_k0, 1, MPI_UNSIGNED, root, comm);
+    MPI_Bcast(&cache_k1, 1, MPI_UNSIGNED, root, comm);
+    if (!mpi_rank())
+        cache.zero_pad(cache_k1 - cache_k0);
+}
 
 /* read k1-k0 new coefficients from src, starting at coefficient k0,
  * write them to the destination (which is embedded in the struct as a
@@ -376,18 +411,22 @@ lingen_E_from_A::initial_read()
 template<>
 ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(k1, src.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= src.get_size());
-    E.zero_pad(next_dst_k + nk);
+    long long nk;
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
-    for(unsigned int i = 0 ; i < nrows ; i++) {
-        for(unsigned int j = 0; j < ncols ; j++) {
-            abdst_vec to = E.part_head(i, j, next_dst_k);
-            absrc_vec from = src.part_head(i, j, k0);
-            abvec_set(ab, to, from, simd * iceildiv(nk, simd));
+    if (!mpi_rank()) {
+        nk = MIN(k1, src.get_size()) - k0;
+        ASSERT_ALWAYS(k1 <= src.get_size());
+        E.zero_pad(next_dst_k + nk);
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0; j < ncols ; j++) {
+                abdst_vec to = E.part_head(i, j, next_dst_k);
+                absrc_vec from = src.part_head(i, j, k0);
+                abvec_set(ab, to, from, simd * iceildiv(nk, simd));
+            }
         }
     }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     next_dst_k += nk;
     return nk;
 }
@@ -399,11 +438,16 @@ ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigne
 template<>
 ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(k1, src.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= src.get_size());
-    E.zero_pad(next_dst_k + nk);
+    /* This one ***IS*** a collective call */
+    long long nk;
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(next_dst_k % simd == 0);
+    if (!mpi_rank()) {
+        nk = MIN(k1, src.get_size()) - k0;
+        ASSERT_ALWAYS(k1 <= src.get_size());
+    }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    E.zero_pad(next_dst_k + nk);
     E.scatter_mat_partial(src, k0, next_dst_k, nk);
     next_dst_k += nk;
     return nk;
@@ -416,19 +460,23 @@ ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsi
 template<>
 ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= dst.get_size());
-    ASSERT_ALWAYS((size_t) next_src_k + nk <= pi.get_size());
+    long long nk;
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
-    for(unsigned int i = 0 ; i < nrows ; i++) {
-        for(unsigned int j = 0; j < ncols ; j++) {
-            abdst_vec to = dst.part_head(i, j, k0);
-            absrc_vec from = pi.part_head(i, j, next_src_k);
-            abvec_set(ab, to, from, nk);
+    if (!mpi_rank()) {
+        nk = MIN(k1, dst.get_size()) - k0;
+        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+        ASSERT_ALWAYS(k1 <= dst.get_size());
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0; j < ncols ; j++) {
+                abdst_vec to = dst.part_head(i, j, k0);
+                absrc_vec from = pi.part_head(i, j, next_src_k);
+                abvec_set(ab, to, from, nk);
+            }
         }
     }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     next_src_k += nk;
     return nk;
 }
@@ -440,24 +488,31 @@ ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, 
 template<>
 ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= dst.get_size());
-    ASSERT_ALWAYS((size_t) next_src_k + nk <= pi.get_size());
+    /* This one ***IS*** a collective call */
+    long long nk;
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
+    if (!mpi_rank()) {
+        nk = MIN(k1, dst.get_size()) - k0;
+        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+        ASSERT_ALWAYS(k1 <= dst.get_size());
+    }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     pi.gather_mat_partial(dst, k0, next_src_k, nk);
     next_src_k += nk;
     return nk;
 }
 
-/* read k1-k0 new coefficients from the source (which is embedded in the
- * struct as a reference), starting at coefficient next_src_k, and write
- * them to the destination, starting at coefficient k0.
+/* read k1-k0 new coefficients from pi, starting at coefficient
+ * next_src_k, and write them to the destination, starting at coefficient
+ * k0.
  */
 ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
 {
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
+    ASSERT_ALWAYS(!mpi_rank());
+    ssize_t nk;
+    nk = MIN(k1, dst.get_size()) - k0;
     nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
@@ -516,6 +571,15 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     return nk;
 }
 
+#if 0
+shared_or_common_size<matpoly>::shared_or_common_size(matpoly const & pi)
+{
+    unsigned long s = pi.get_size();
+    MPI_Bcast(&s, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    shared = s;
+};
+#endif
+
 /* read k1-k0 new coefficients from the source (which is embedded in the
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
@@ -523,7 +587,11 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
 template<>
 ssize_t lingen_gather_reverse<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    return reverse_matpoly_to_matpoly(dst, k0, k1, pi, next_src_k);
+    long long ll;
+    if (!mpi_rank())
+        ll = reverse_matpoly_to_matpoly(dst, k0, k1, pi, next_src_k);
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    return ll;
 }
 
 /* read k1-k0 new coefficients from the source (which is embedded in the
@@ -533,25 +601,43 @@ ssize_t lingen_gather_reverse<matpoly>::read_to_matpoly(matpoly & dst, unsigned 
 template<>
 ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(k1 <= dst.get_size());
-    ASSERT_ALWAYS((size_t) next_src_k + nk <= pi.get_size());
+    /* This one ***IS*** a collective call */
+    long long nk;
+    unsigned int nq;
+    unsigned int offset;
+    long long dk;
+
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
-    unsigned int d = pi.get_size();
-    unsigned int rk1 = next_src_k;
-    unsigned int rk0 = next_src_k - nk;
-    rk1 = d >= rk1 ? d - rk1 : 0;
-    rk0 = d >= rk0 ? d - rk0 : 0;
-    unsigned int n_rk = rk1 - rk0;
-    unsigned int q_rk = rk0 / simd;
-    unsigned int r_rk = rk0 % simd;
-    unsigned int nq = iceildiv(n_rk + r_rk, simd);
+
+    if (!mpi_rank()) {
+        nk = MIN(k1, dst.get_size()) - k0;
+        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+        ASSERT_ALWAYS(k1 <= dst.get_size());
+        unsigned int d = pi.get_size();
+        unsigned int rk1 = next_src_k;
+        unsigned int rk0 = next_src_k - nk;
+        rk1 = d >= rk1 ? d - rk1 : 0;
+        rk0 = d >= rk0 ? d - rk0 : 0;
+        unsigned int n_rk = rk1 - rk0;
+        unsigned int q_rk = rk0 / simd;
+        unsigned int r_rk = rk0 % simd;
+        nq = iceildiv(n_rk + r_rk, simd);
+        offset = q_rk * simd;
+    }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nq, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&offset, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
     matpoly tpi(pi.ab, pi.nrows(), pi.ncols(), nq * simd);
     tpi.zero_pad(nq * simd);
     unsigned int zero = 0;
-    pi.gather_mat_partial(tpi, zero, q_rk * simd, nk);
-    ssize_t dk = reverse_matpoly_to_matpoly(dst, k0, k0 + nk, tpi, zero);
+    pi.gather_mat_partial(tpi, zero, offset, nk);
+
+    if (!mpi_rank())
+        dk = reverse_matpoly_to_matpoly(dst, k0, k0 + nk, tpi, zero);
+
+    MPI_Bcast(&dk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     ASSERT_ALWAYS(dk == nk);
     next_src_k += dk;
     return nk;
@@ -761,8 +847,9 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
         throw std::runtime_error("Cannot compute F, too few solutions found\n");
 
     lookback_needed = iceildiv(lookback_needed, simd) * simd;
-    cache.realloc(lookback_needed);
-    cache.zero_pad(lookback_needed);
+    if (!mpi_rank()) {
+        cache.zero_pad(lookback_needed);
+    }
     pi.read_to_matpoly(cache, 0, lookback_needed);
     cache_k0 = 0;
     cache_k1 = lookback_needed;
@@ -773,7 +860,6 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
 
     /* recompute rhs. Same algorithm as above. */
     rhs = recompute_rhs();
-
 }
 
 void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
@@ -791,6 +877,9 @@ void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
 ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     abdst_field ab = bw_dimensions::ab;
+    long long ll;       // used for MPI things.
+    ssize_t produced;
+
     /* The first n columns of F0 are the identity matrix, so that
      * for (0 <= j < n),
      * column j of E is actually X^{-t0-e}*column j=jA of A. Notice that we
@@ -808,19 +897,33 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     unsigned int lookback = cache_k1 - cache_k0;
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(nk % simd == 0);
     ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n)));
-    ASSERT_ALWAYS(cache.get_size() == lookback);
-    cache.zero_pad(lookback + nk);
+
+    long long nk;
+    if (!mpi_rank()) {
+        nk = MIN(k1, dst.get_size()) - k0;
+        ASSERT_ALWAYS(cache.get_size() == lookback);
+        cache.zero_pad(lookback + nk);
+    }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    ASSERT_ALWAYS(nk % simd == 0);
+
+    /* This may be a collective call. At any rate, the cache variable is
+     * meaningful only at the root. */
     ssize_t nread = A.read_to_matpoly(cache, lookback, lookback + nk);
-    cache.set_size(lookback + nread);
+
+    if (!mpi_rank()) {
+        cache.set_size(lookback + nread);
+    }
     cache_k1 += nread;
-    ssize_t produced;
+
+    if (mpi_rank()) goto lingen_E_from_A_exit;
 
     /* Do the bulk of the processing with an aligned count.
      * Note that if nread is not already aligned, it means that we had a
-     * short read, since nk has to be aligned.
+     * short read, since nk has to be aligned. And if we have a short
+     * read, we're going to clear the cache on exit, so that it doesn't
+     * matter if we lose the possibility to rotate the cache correctly.
      */
     nread -= nread % simd;
 
@@ -903,14 +1006,21 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
             break;
         }
     }
+    ll = produced;
+lingen_E_from_A_exit:
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    produced = ll;
+
     if (k0 + nread < k1) {
         cache.clear();
     } else {
-        cache.rshift(nread);
+        if (!mpi_rank())
+            cache.rshift(nread);
         cache_k0 += nread;
     }
     return produced;
 }
+
 /* read k1-k0 new coefficients from the source (which is embedded in the
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
@@ -918,18 +1028,41 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
 ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     abdst_field ab = bw_dimensions::ab;
+    long long ll;
+    ssize_t produced;
+
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     unsigned int lookback = cache_k1 - cache_k0;
-    ssize_t nk = MIN(k1, dst.get_size()) - k0;
-    ASSERT_ALWAYS(nk % simd == 0);
     ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n) - 1));
-    ASSERT_ALWAYS(cache.get_size() == lookback);
-    cache.zero_pad(lookback + nk);
+    
+    long long nk;
+    if (!mpi_rank()) {
+        nk = MIN(k1, dst.get_size()) - k0;
+        ASSERT_ALWAYS(nk % simd == 0);
+        ASSERT_ALWAYS(cache.get_size() == lookback);
+        cache.zero_pad(lookback + nk);
+    }
+    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    ASSERT_ALWAYS(nk % simd == 0);
+
+    /* This may be a collective call. At any rate, the cache variable is
+     * meaningful only at the root. */
     ssize_t nread = pi.read_to_matpoly(cache, lookback, lookback + nk);
-    cache.set_size(lookback + nread);
+
+    if (!mpi_rank()) {
+        cache.set_size(lookback + nread);
+    }
     cache_k1 += nread;
-    ssize_t produced;
+
+    if (mpi_rank()) goto lingen_F_from_PI_exit;
+
+    /* Do the bulk of the processing with an aligned count.
+     * Note that if nread is not already aligned, it means that we had a
+     * short read, since nk has to be aligned. And if we have a short
+     * read, we're going to clear the cache on exit, so that it doesn't
+     * matter if we lose the possibility to rotate the cache correctly.
+     */
     nread -= nread % simd;
 
     if (nread > 0) {
@@ -1007,10 +1140,16 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         }
     }
 
+    ll = produced;
+lingen_F_from_PI_exit:
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    produced = ll;
+    
     if (k0 + nread < k1) {
         cache.clear();
     } else {
-        cache.rshift(nread);
+        if (!mpi_rank())
+            cache.rshift(nread);
         cache_k0 += nread;
     }
     return produced;
@@ -1018,10 +1157,11 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
 
 void lingen_output_to_singlefile::open_file()
 {
-    if (mpi_rank()) return;
-    std::ios_base::openmode mode = std::ios_base::out;
-    if (!ascii) mode |= std::ios_base::binary;
-    os = std::unique_ptr<std::ofstream>(new std::ofstream(filename, mode));
+    if (!mpi_rank()) {
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (!ascii) mode |= std::ios_base::binary;
+        os = std::unique_ptr<std::ofstream>(new std::ofstream(filename, mode));
+    }
     done_open = true;
 }
 
@@ -1032,7 +1172,11 @@ ssize_t lingen_output_to_singlefile::write_from_matpoly(matpoly const & src, uns
      */
     if (!done_open)
         open_file();
-    return matpoly_write(ab, *os, src, k0, k1, ascii, 1);
+    ssize_t ll;
+    if (!mpi_rank())
+        ll = matpoly_write(ab, *os, src, k0, k1, ascii, 1);
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    return ll;
 }
 
 ssize_t lingen_output_to_splitfile::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
@@ -1042,22 +1186,27 @@ ssize_t lingen_output_to_splitfile::write_from_matpoly(matpoly const & src, unsi
      */
     if (!done_open)
         open_file();
-    return matpoly_write_split(ab, fw, src, k0, k1, ascii);
+    ssize_t ll;
+    if (!mpi_rank())
+        ll = matpoly_write_split(ab, fw, src, k0, k1, ascii);
+    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    return ll;
 }
 
 void lingen_output_to_splitfile::open_file()
 {
-    if (mpi_rank()) return;
-    ASSERT_ALWAYS(!done_open);
-    std::ios_base::openmode mode = std::ios_base::out;
-    if (!ascii) mode |= std::ios_base::binary;
-    for(unsigned int i = 0 ; i < nrows ; i+=splitwidth) {
-        for(unsigned int j = 0 ; j < ncols ; j+=splitwidth) {
-            std::string s = fmt::format(pattern,
-                    i, i+splitwidth,
-                    j, j+splitwidth);
-            fw.emplace_back(std::ofstream { s, mode });
-            DIE_ERRNO_DIAG(!fw.back(), "open", s.c_str());
+    if (!mpi_rank()) {
+        ASSERT_ALWAYS(!done_open);
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (!ascii) mode |= std::ios_base::binary;
+        for(unsigned int i = 0 ; i < nrows ; i+=splitwidth) {
+            for(unsigned int j = 0 ; j < ncols ; j+=splitwidth) {
+                std::string s = fmt::format(pattern,
+                        i, i+splitwidth,
+                        j, j+splitwidth);
+                fw.emplace_back(std::ofstream { s, mode });
+                DIE_ERRNO_DIAG(!fw.back(), "open", s.c_str());
+            }
         }
     }
     done_open = true;
@@ -1072,6 +1221,7 @@ lingen_output_to_splitfile::lingen_output_to_splitfile(abdst_field ab, unsigned 
 
 lingen_output_to_sha1sum::~lingen_output_to_sha1sum()
 {
+    if (!written || mpi_rank()) return;
     char out[41];
     f.checksum(out);
     printf("checksum(%s): %s\n", who.c_str(), out);
@@ -1089,9 +1239,12 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
 #else
     size_t nbytes = abvec_elt_stride(src.ab, k1-k0);
 #endif
-    for(unsigned int i = 0 ; i < src.nrows() ; i++)
-        for(unsigned int j = 0; j < src.ncols() ; j++)
-            f.write((const char *) src.part_head(i, j, k0), nbytes);
+    written += src.nrows() * src.ncols() * nbytes;
+    if (!mpi_rank()) {
+        for(unsigned int i = 0 ; i < src.nrows() ; i++)
+            for(unsigned int j = 0; j < src.ncols() ; j++)
+                f.write((const char *) src.part_head(i, j, k0), nbytes);
+    }
     return k1 - k0;
 }
 
@@ -1101,9 +1254,12 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
     if (window == UINT_MAX) {
         window=4096;
     }
-    matpoly F(in.ab, in.nrows, in.ncols, window);
-    matpoly Z(in.ab, in.nrows, in.ncols, window);
-    F.zero_pad(window);
+    matpoly F(in.ab, in.nrows, in.ncols, 0);
+    matpoly Z(in.ab, in.nrows, in.ncols, 0);
+    if (!mpi_rank()) {
+        F.zero_pad(window);
+        Z.zero_pad(window);
+    }
 
     double tt0 = wct_seconds();
     double next_report_t = tt0;
@@ -1112,10 +1268,16 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
     size_t zq = 0;
     for(size_t done = 0 ; ; ) {
         ssize_t n = in.read_to_matpoly(F, 0, window);
-        F.set_size(n);
-        ssize_t n1 = skip_trailing_zeros ? F.get_true_nonzero_size() : n;
         bool is_last = n < (ssize_t) window;
         if (n <= 0) break;
+        ssize_t n1;
+        long long ll;
+        if (!mpi_rank()) {
+            F.set_size(n);
+            ll = skip_trailing_zeros ? F.get_true_nonzero_size() : n;
+        }
+        MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        n1 = ll;
         if (n1 == 0) {
             zq += n;
             continue;
@@ -1124,7 +1286,8 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         for( ; zq ; ) {
             Z.set_size(0);
             unsigned int nz = MIN(zq, window);
-            Z.zero_pad(nz);
+            if (!mpi_rank())
+                Z.zero_pad(nz);
             ssize_t nn = out.write_from_matpoly(Z, 0, nz);
             if (nn < (ssize_t) nz) {
                 fprintf(stderr, "short write\n");
@@ -1140,8 +1303,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         }
         zq = n - n1;
         done += n1;
-        if (!action) continue;
-        if (done >= next_report_k || is_last) {
+        if (action && !mpi_rank() && (done >= next_report_k || is_last)) {
             double tt = wct_seconds();
             if (tt > next_report_t) {
                 printf(

@@ -195,6 +195,7 @@ class lingen_E_from_A
     unsigned int cache_k1 = 0;
     // unsigned int next_src_k = 0; // same as cache_k1, in fact !
 
+    void share(int root, MPI_Comm comm);
     void refresh_cache_upto(unsigned int k);
 
     public:
@@ -235,18 +236,40 @@ class lingen_scatter : public lingen_output_wrapper_base
 template class lingen_scatter<matpoly>;
 template class lingen_scatter<bigmatpoly>;
 
+#if 0
+template<typename matpoly_type>
+class shared_or_common_size {}
+
+template<>
+class shared_or_common_size<matpoly> {
+    size_t shared;
+public:
+    shared_or_common_size(matpoly const &);
+    inline size_t get_size(matpoly const &) const { return shared; }
+};
+template<>
+class shared_or_common_size<bigmatpoly> {
+    shared_or_common_size(bigmatpoly const &) {}
+    inline size_t get_size(bigmatpoly const & pi) const { return pi.get_size(); }
+};
+#endif
+
 template<typename matpoly_type>
 class lingen_gather : public lingen_input_wrapper_base
+                      // , private shared_or_common_size<matpoly_type>
 {
+    // typedef shared_or_common_size<matpoly_type> size_accessor;
     matpoly_type& pi;
     unsigned int next_src_k = 0;
 
     public:
     lingen_gather(matpoly_type& pi)
       : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      // , size_accessor(pi)
       , pi(pi)
     {}
     inline size_t guessed_length() const override {
+        // return size_accessor::get_size(pi);
         return pi.get_size();
     }
     ssize_t read_to_matpoly(matpoly& dst,
@@ -259,7 +282,9 @@ template class lingen_gather<bigmatpoly>;
 
 template<typename matpoly_type>
 class lingen_gather_reverse : public lingen_input_wrapper_base
+                              // , private shared_or_common_size<matpoly_type>
 {
+    // typedef shared_or_common_size<matpoly_type> size_accessor;
     matpoly_type& pi;
     /* Since the source is written in reverse order, it's a bit of a
      * misnomer, really. We're really referring to the count which is 0
@@ -270,9 +295,11 @@ class lingen_gather_reverse : public lingen_input_wrapper_base
     public:
     lingen_gather_reverse(matpoly_type& pi)
       : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      // , size_accessor(pi)
       , pi(pi)
     {}
     inline size_t guessed_length() const override {
+        // return size_accessor::get_size(pi);
         return pi.get_size();
     }
     ssize_t read_to_matpoly(matpoly& dst,
@@ -369,6 +396,7 @@ class lingen_output_to_sha1sum : public lingen_output_wrapper_base
 {
     sha1_checksumming_stream f;
     std::string who;
+    size_t written = 0;
 
     public:
     lingen_output_to_sha1sum(abdst_field ab,

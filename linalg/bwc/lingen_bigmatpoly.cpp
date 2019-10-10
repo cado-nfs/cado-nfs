@@ -754,7 +754,7 @@ void bigmatpoly::scatter_mat(matpoly const & src)
 
     /* Allocate enough space on each node */
     finish_init(ab, shell.m, shell.n, shell.alloc);
-    // bigmatpoly_set_size(dst, shell.size);
+    zero_pad(shell.size);
 
     if (!rank()) {
         // Leader creates a buffer matpoly of size length

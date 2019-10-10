@@ -166,7 +166,9 @@ EOF
     rm -f $F
 
     if ! [ "$skip_single" ] ; then
-        $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
+        run=($bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}")
+        echo "${run[@]}"
+        "${run[@]}"
 
         if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
         [ -f "$G.gen" ]
@@ -205,7 +207,10 @@ EOF
             done
             args=("${nargs[@]}" --tune)
         fi
-        $mpi_bindir/mpiexec -n $njobs "${mpi_extra_args[@]}" -- $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${mpi_args[@]}" "${args[@]}"
+        run=($mpi_bindir/mpiexec -n $njobs "${mpi_extra_args[@]}" -- $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${mpi_args[@]}" "${args[@]}")
+        echo "${run[@]}"
+        "${run[@]}"
+
         if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
 
         [ -f "$G.gen" ]
