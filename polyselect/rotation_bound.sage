@@ -396,9 +396,9 @@ def skew_l2norm_tk_circular(f, verbose=false):
          raise ValueError, "number of positive roots <> 1"
       return root_pos[0]
    elif f.degree()==2:
-      return float(sqrt(abs(f[0]/f[2])))
+      return RR(sqrt(abs(f[0]/f[2])))
    elif f.degree()==1:
-      return float(abs(f[0]/f[1]))
+      return RR(abs(f[0]/f[1]))
    else:
       raise ValueError, "skew_l2norm_tk_circular not yet implemented for degree %d" % f.degree()
 
@@ -410,11 +410,16 @@ def L2_combined_skewness (f, g, Bf, Bg, area, verbose=false):
    b = skew_l2norm_tk_circular (g)
    if verbose:
       print "optimal skewness(g) = ", b
-   if b < a:
-      a, b = b, a
+   # for SNFS polynomials, b might be huge, which will take
+   # many steps to converge, thus we search between a and 2^k*a
+   a = min(a,b)
+   b = 2*a
    # now a <= b
    va = MurphyE (f, g, a, Bf, Bg, area)
    vb = MurphyE (f, g, b, Bf, Bg, area)
+   while vb > va:
+      b = 2*b
+      vb = MurphyE (f, g, b, Bf, Bg, area)
    while b - a > a * 0.001:
       if verbose:
          print "a=", a, "va=", va, "b=", b, "vb=", vb
