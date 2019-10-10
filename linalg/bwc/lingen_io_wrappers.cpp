@@ -227,16 +227,16 @@ lingen_F0::share(int root, MPI_Comm comm)
     /* share the bw_dimensions structure, but I don't think it's even
      * remotely possible that nodes disagree on it.
      */
-    MPI_Bcast(&nrhs, 1, MPI_UNSIGNED, 0, comm);
-    MPI_Bcast(&m, 1, MPI_UNSIGNED, 0, comm);
-    MPI_Bcast(&n, 1, MPI_UNSIGNED, 0, comm);
-    MPI_Bcast(&t0, 1, MPI_UNSIGNED, 0, comm);
+    MPI_Bcast(&nrhs, 1, MPI_UNSIGNED, root, comm);
+    MPI_Bcast(&m, 1, MPI_UNSIGNED, root, comm);
+    MPI_Bcast(&n, 1, MPI_UNSIGNED, root, comm);
+    MPI_Bcast(&t0, 1, MPI_UNSIGNED, root, comm);
     static_assert(std::is_same<typename decltype(fdesc)::value_type,
                                std::array<unsigned int, 2>>::value,
                   "want unsigned ints");
     if (mpi_rank())
         fdesc.assign(m, {{ 0, 0 }});
-    MPI_Bcast(&fdesc.front(), 2 * m, MPI_UNSIGNED, 0, comm);
+    MPI_Bcast(&fdesc.front(), 2 * m, MPI_UNSIGNED, root, comm);
 }
 
 /* It's a bit tricky. F0 is the _reversal_ of what we get here. (with
