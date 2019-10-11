@@ -1440,3 +1440,4 @@ linalg/bwc/lingen_qcode_select.hpp
 linalg/bwc/lingen_io_wrappers.cpp
 linalg/bwc/lingen_io_wrappers.hpp
 scripts/filter-ctest.pl
+tests/linalg/bwc/guess_mpi_configs.sh

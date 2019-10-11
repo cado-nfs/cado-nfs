@@ -797,11 +797,12 @@ int wrapped_main(int argc, char *argv[])
     abfield_init(d.ab);
     abfield_specify(d.ab, MPFQ_PRIME_MPZ, bw->p);
 
-    bm.lingen_threshold = 10;
-    bm.lingen_mpi_threshold = 1000;
+    gmp_randseed_ui(rstate, bw->seed);
+
+    bm.lingen_threshold = UINT_MAX;
+    bm.lingen_mpi_threshold = UINT_MAX;
     param_list_parse_uint(pl, "lingen_threshold", &(bm.lingen_threshold));
     param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
-    gmp_randseed_ui(rstate, bw->seed);
     if (bm.lingen_mpi_threshold < bm.lingen_threshold) {
         bm.lingen_mpi_threshold = bm.lingen_threshold;
         fprintf(stderr, "Argument fixing: setting lingen_mpi_threshold=%u (because lingen_threshold=%u)\n",
@@ -971,18 +972,18 @@ int wrapped_main(int argc, char *argv[])
                 size_disp(bm.hints.peak, buf));
     }
 
-    int go_mpi = L >= bm.lingen_mpi_threshold;
+    int go_mpi = bm.companion(0, L).go_mpi;
 
     if (go_mpi) {
         if (!rank) {
             if (size > 1) {
-                printf("Expected length %zu exceeds MPI threshold %u,"
+                printf("Expected length %zu exceeds MPI threshold,"
                        " going MPI now.\n",
-                       L, bm.lingen_mpi_threshold);
+                       L);
             } else {
-                printf("Expected length %zu exceeds MPI threshold %u, "
+                printf("Expected length %zu exceeds MPI threshold, "
                        "but the process is not running in an MPI context.\n",
-                       L, bm.lingen_mpi_threshold);
+                       L);
             }
         }
         MPI_Barrier(bm.com[0]);

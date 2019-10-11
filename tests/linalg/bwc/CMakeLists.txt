@@ -175,40 +175,46 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         # annoying situation, since the sha1sum is computed on the
         # generator as it is written on disk, of course, and that follows
         # --ascii too.
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test0
+        set(mpiconfs _mpi_square1 _mpi_square2)
+        if (NOT HAVE_MPI)
+            set(mpiconfs)
+        endif()
+        foreach(mpiconf "" ${mpiconfs})
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test0${mpiconf}
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
-            mpi=2x2 thr=2x2 --ascii
+            mpi_magic=${mpiconf} thr=2x2 --ascii
             ${extra})
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test1
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test1${mpiconf}
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
-            mpi=2x2 thr=2x2 --ascii
+            mpi_magic=${mpiconf} thr=2x2 --ascii
             ${extra})
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test2
+        cado_divert_test(test-bwc-lingen_${gfp_layer} test2${mpiconf}
             APPEND_ARGUMENTS
             ${CADO_NFS_BINARY_DIR}
             b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            mpi=3x3 thr=3x3 --ascii
+            mpi_magic=${mpiconf} thr=3x3 --ascii
             ${extra})
         # We really _can't_ have ascii with the checkpoint test. ascii
         # modifies the anticipation of the schedule, which in turns means
         # that the list of cached schedules is modified in the course of
         # the execution, and that eventually goes to the checkpoint file
         # as well, wreaking obvious havoc.
-        cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints
-            AVOID_CONCURRENT
-            SCRIPT
-            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
-            ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
-            ${CADO_NFS_BINARY_DIR}
-            c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
-            mpi=3x3 thr=3x3
-            checkpoint_threshold=40
-            ${extra}
-            TARGET_DEPENDENCIES lingen_${gfp_layer})
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints${mpiconf}
+                AVOID_CONCURRENT
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
+                ${CADO_NFS_BINARY_DIR}
+                c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
+                mpi_magic=${mpiconf} thr=3x3
+                checkpoint_threshold=40
+                ${extra}
+                TARGET_DEPENDENCIES lingen_${gfp_layer})
+        endforeach()
     endif()
 
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
@@ -217,7 +223,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${CADO_NFS_BINARY_DIR}
             00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
             1532495540865888858358347027150309183618739122183602191 1111
-            mpi=3x3 thr=3x3
+            mpi_magic=sqrtest2 thr=3x3
             ${extra})
     endif()
 

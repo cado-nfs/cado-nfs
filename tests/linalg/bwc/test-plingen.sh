@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
-# set -x
+set -ex
 
 if ! [ "$WDIR" ] ; then
     echo "Want \$WDIR" >&2
@@ -68,15 +67,18 @@ dotest() {
     unset ascii
 
     args=()
-    mpi_args=()
+    mpi_specific_args=()
     mpi_extra_args=()
     ONLY_TUNE=
     for x in "$@" ; do
         case "$x" in
             lingen_program=*) eval "$x";;
             skip_single=*) eval "$x";;
-            lingen_mpi_threshold*) mpi_args+=("$x");;
-            mpi=*) mpi_args+=("$x"); mpi="${x#mpi=}";;
+            lingen_mpi_threshold*) mpi_specific_args+=("$x");;
+            # the mpi_magic= argument is interpreted by guess_mpi_configs.sh
+            mpi_magic=*) mpi_magic="${x#mpi_magic=}";;
+            # mpi_extra_args[@] is used by guess_mpi_configs.sh to form
+            # the mpirun[@] precommand
             mpi_extra_args=*)
                 eval mpi_extra_args+=(${x#mpi_extra_args=});;
             *) args+=("$x");
@@ -165,67 +167,60 @@ EOF
     cat $F $F $F > $G
     rm -f $F
 
-    if ! [ "$skip_single" ] ; then
-        run=($bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}")
-        echo "${run[@]}"
-        "${run[@]}"
+    # if $mpi_magic is set to something non-null, we'll rely on
+    # guess_mpi_configs.sh to give us the right mpirun[@] precommand.
+    # Note that $mpi and $mpirun[@] may have been exported by the caller.
+    . "`dirname $0`/guess_mpi_configs.sh"
+    set_mpi_derived_variables
 
-        if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
-        [ -f "$G.gen" ]
-
-        SHA1=$($SHA1BIN < $G.gen)
-        SHA1="${SHA1%% *}"
-
-        if [ "$REFERENCE_SHA1" ] ; then
-            if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
-                exit 1
-            fi
-            echo "$SHA1 (as expected)"
-        else
-            echo "$SHA1"
-            fi
-            rm -f $G.gen
+    if [ "$mpi_magic" ] && ! [ "$mpi" ] ; then
+        echo "Making test a successful no-op"
+        exit 0
     fi
 
-    mpi_bindir=$(perl -ne '/HAVE_MPI\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
-
-    if [ "$mpi_bindir" ] && [ "${mpi_args[*]}" ] && [ "$mpi" ] ; then
-        set `echo $mpi | tr 'x' ' '`
-        if ! [ "$1" ] || ! [ "$2" ] ; then
-            echo "Bad test configuration, mpi should be of the form \d+x\d+ for MPI test" >&2
-            exit 1
-        fi
-        njobs=$(($1*$2))
+    if [ "$mpi" ] ; then
+        args+=("${mpi_specific_args[@]}")
         if [ "$ONLY_TUNE" ] ; then
-            # push --tune at the tail of the argument list, otherwise
+            # push --tune at the very end of the argument list, otherwise
             # openmpi gobbles it...
             nargs=()
             for x in "${args[@]}" ; do
-                if [ "$x" = "--tune" ] ; then : ; fi
-                nargs+=("$x")
+                if [ "$x" = "--tune" ] ; then : ; else nargs+=("$x") ; fi
             done
-            args=("${nargs[@]}" --tune)
-        fi
-        run=($mpi_bindir/mpiexec -n $njobs "${mpi_extra_args[@]}" -- $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${mpi_args[@]}" "${args[@]}")
-        echo "${run[@]}"
-        "${run[@]}"
-
-        if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
-
-        [ -f "$G.gen" ]
-        SHA1=$($SHA1BIN < $G.gen)
-        SHA1="${SHA1%% *}"
-
-        if [ "$REFERENCE_SHA1" ] ; then
-            if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
-                exit 1
-            fi
-            echo "$SHA1 (as expected)"
+            args=("${nargs[@]}" tuning_mpi="$mpi" --tune)
+            set -- "${mpirun[@]}"
+            mpirun=()
+            while [ $# -gt 0 ] ; do
+                mpirun+=("$1")
+                if [ "$1" = "-n" ] ; then
+                    shift
+                    mpirun+=(1)
+                fi
+                shift
+            done
         else
-            echo "========= $SHA1 ========"
+            args+=(mpi="$mpi" tuning_quiet=1)
         fi
+    fi
+
+    run=("${mpirun[@]}" $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}")
+    echo "${run[@]}"
+    "${run[@]}"
+
+    if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
+
+    [ -f "$G.gen" ]
+    SHA1=$($SHA1BIN < $G.gen)
+    SHA1="${SHA1%% *}"
+
+    if [ "$REFERENCE_SHA1" ] ; then
+        if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
+            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
+            exit 1
+        fi
+        echo "$SHA1 (as expected)"
+    else
+        echo "========= $SHA1 ========"
     fi
 }
 
