@@ -53,6 +53,7 @@ detect_mpi_family()
 set_choices_from_n()
 {
     jobsize="$1"
+    nompi=1x1
     # it is also possible to set things such as _mpi_rect1_mpi_args=(foo bar)
     # in order to adjust the per-config parameters.
     if [ "$jobsize" -ge 6 ] ;   then mpi_rect1=2x3 ; mpi_rect2=3x2 ;
@@ -63,14 +64,8 @@ set_choices_from_n()
 
 set_mpi_derived_variables()
 {
-    if ! [ "$mpi_magic" ] || [ "$mpi_magic" = "nompi" ] ; then
-        # We typically expect some of our magic strings such as "mpi_rect1",
-        # "mpi_rect2", "mpi_square1", "mpi_square2"
-        return
-    fi
-
     case "$mpi_magic" in
-        nompi) return;;
+        nompi) ;;
         mpi_rect[12]|mpi_square[12]) : ;;
         *) echo "Unkown magic for mpi auto choice: $mpi_magic" >&2 ; return ;;
     esac
@@ -89,6 +84,8 @@ set_mpi_derived_variables()
     fi
 
     detect_mpi_family
+
+    unset mpi_args_common
 
     if [ "$OAR_NODEFILE" ] ; then
         nnodes=$(wc -l < $OAR_NODEFILE)
