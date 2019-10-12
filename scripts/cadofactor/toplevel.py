@@ -707,8 +707,6 @@ class Cado_NFS_toplevel(object):
 
         db_state.state["workdir"]=wdir
 
-
-
     def set_threads_and_client_threads(self):
         ''' This function processes the --client-threads argument and
         sets the parameters tasks.polyselect.threads and
@@ -935,9 +933,10 @@ class Cado_NFS_toplevel(object):
 
     def set_slaves_parameters(self):
         ''' sets slaves.nrclients and slaves.scriptpath to default values
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
         >>> p.get_or_set_default("slaves.nrclients", 0)
         0
@@ -945,17 +944,17 @@ class Cado_NFS_toplevel(object):
         If we are run with a non-default parameter file, then we end up
         running in pure server mode.
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
         >>> p.get_or_set_default("slaves.nrclients", 0)
         0
 
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
 
         We are cheating. In order to see what happens in the old
         "factor.sh"-like way, see what happens if we read the old
