@@ -483,6 +483,7 @@ class Cado_NFS_toplevel(object):
         self.parameters.
 
         >>> tempdir=tempfile.mkdtemp()
+        >>> slashtmp=tempfile.mkdtemp()
         >>> os.mkdir(os.path.join(tempdir, "factor"))
         >>> fd,name=tempfile.mkstemp(text=True)
         >>> c5=os.path.join(tempdir, "factor", "params.c5")
@@ -491,7 +492,8 @@ class Cado_NFS_toplevel(object):
         >>> f.close()
         >>> foo=os.path.join(tempdir, "foo")
         >>> f=open(foo, "w")
-        >>> f.writelines(['N=67890\\n', 'name=blabla\\n', 'a.b.c=32\\n', 'tasks.workdir=/tmp/somedirectory\\n'])
+        >>> tempdir2=tempfile.mkdtemp()
+        >>> f.writelines(['N=67890\\n', 'name=blabla\\n', 'a.b.c=32\\n', 'tasks.workdir='+tempdir2+'\\n'])
         >>> f.close()
 
         N given, no parameter file provided. We want to make sure that we
@@ -516,7 +518,7 @@ class Cado_NFS_toplevel(object):
         N given, no parameter file provided, but working directory
         override present. We want to make sure that we are going to read
         our default parameter file.
-        >>> t = Cado_NFS_toplevel(args=['12345', '/tmp'])
+        >>> t = Cado_NFS_toplevel(args=['12345', slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.setpath("data", tempdir)
         >>> t.parameters = cadoparams.Parameters()
@@ -528,8 +530,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("a.b.x.y.c", 0)
         32
 
-        >>> t.parameters.get_or_set_default("tasks.workdir")
-        '/tmp'
+        >>> t.parameters.get_or_set_default("tasks.workdir") == slashtmp
+        True
 
         >>> t.using_default_parameter_file
         True
@@ -559,8 +561,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("N", 0)
         67890
 
-        >>> t.parameters.get_or_set_default("tasks.workdir")
-        '/tmp/somedirectory'
+        >>> t.parameters.get_or_set_default("tasks.workdir") == tempdir2
+        True
 
         >>> t.using_default_parameter_file
         False
@@ -578,8 +580,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default('name')
         'blabla'
 
-        >>> t.parameters.get_or_set_default('tasks.workdir')
-        '/tmp/somedirectory'
+        >>> t.parameters.get_or_set_default('tasks.workdir') == tempdir2
+        True
 
         Parameter file with no N provided. Complain
         >>> t = Cado_NFS_toplevel(args=[c5])
@@ -594,19 +596,25 @@ class Cado_NFS_toplevel(object):
 
         Parameter file and workdir provided.
         >>> cadoparams.logger.setLevel(logging.CRITICAL)
-        >>> t = Cado_NFS_toplevel(args=[foo, '/tmp'])
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=[foo, slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.parameters = cadoparams.Parameters()
         >>> t.set_N_paramfile_workdir()
         >>> t.access_or_create_workdir_and_db()
-        >>> t.parameters.get_or_set_default('tasks.workdir')
-        '/tmp'
-
-        >>> os.unlink(c5)
-        >>> os.rmdir(os.path.join(tempdir, "factor"))
-        >>> os.unlink(foo)
-        >>> os.rmdir(tempdir)
+        >>> t.parameters.get_or_set_default('tasks.workdir') == slashtmp
+        True
         '''
+
+        # now we wrap everything with provide-wdir, it's much easier.
+        # >>> os.unlink(c5)
+        # >>> os.rmdir(os.path.join(tempdir, "factor"))
+        # >>> os.unlink(foo)
+        # >>> os.rmdir(tempdir)
+        # >>> os.unlink(t.db.path)
+        # >>> os.unlink(os.path.join(tempdir2, 'blabla.db'))
+        # >>> os.rmdir(tempdir2)
+
         # The top-level logic which depends on N, parameters, and workdir
         # is as follows.
         #
