@@ -16,7 +16,9 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
   # Add doctest of Python sources, e.g., doctest cadoparams.py under test
   # name cadoparams
   cado_define_test(TEST_NAME test_python_${basename}
-      PROGRAM python3 -m doctest ${doctest_source}
+      PROGRAM
+      ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
+      python3 -m doctest ${doctest_source}
       TEST_DEPENDENCIES)
   set_tests_properties(test_python_${basename} PROPERTIES RUN_SERIAL 1)
 endforeach (doctest_source)
