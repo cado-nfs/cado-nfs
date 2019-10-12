@@ -547,7 +547,7 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
              * it might well be that d-k1<0
              */
             for(unsigned int k = k0 ; k < k0 + nk ; k++) {
-                if (k < d)
+                if (next_src_k + k < d + k0)
                     abset(ab,
                             dst.coeff(i, j, k),
                             pi.coeff(i, j, d-1-next_src_k-(k-k0)));
