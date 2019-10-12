@@ -27,6 +27,7 @@ my @live=();
 my $tests_pending = 0;
 my $tests_passed = 0;
 my $tests_failed = 0;
+my $total_tests='?';
 
 my $csi = {
     alert => "\033[01;31m",     # bold red
@@ -93,7 +94,7 @@ sub print_live {
         }
         push @txs, $tx;
     }
-    my $tests = "[" . short_global_status . "]";
+    my $tests = "[" . short_global_status . " / $total_tests ]";
     $tests .= " " . join(" ", @txs);
     $tests .= "   $ex" if $ex;
     print "$tests\n" unless ($verbose < 0 && defined($color) && $color eq 'starting');
@@ -209,10 +210,11 @@ while (<>) {
         my $fh = $archive{$n}->{'fd'};
         print $fh $_;
         $fh->flush();
-    } elsif (/^\s*\d+\/\d+ Test\s+\#(\d+):\s+(\S+) \.*(.*)/) {
-        my $n = $1;
-        my $title = $2;
-        my $outcome = $3;
+    } elsif (/^\s*\d+\/(\d+) Test\s+\#(\d+):\s+(\S+) \.*(.*)/) {
+        $total_tests=$1;
+        my $n = $2;
+        my $title = $3;
+        my $outcome = $4;
         die "unexpected test number $n, not currently running:\n$_" unless $archive{$n};
         die "unexpected test title, does not match: \"$archive{$n}->{'title'}\"\n$_" unless $archive{$n}->{'title'} eq $title;
         $archive{$n}->{'outcome'}=$outcome;
