@@ -1137,19 +1137,24 @@ class Cado_NFS_toplevel(object):
         for processing by all the other parts of the python code.
         
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'tasks.workdir=/tmp/a', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> tempdir=tempfile.mkdtemp()
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'tasks.workdir='+tempdir, 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
-        >>> print(re.sub('(C:)?\\\\\\\\', '/', str(p)))
+        >>> px=str(re.sub('(C:)?\\\\\\\\', '/', str(p)))
+        >>> px=px.replace(tempdir, "TEMPDIR")
+        >>> px=px.replace(slashtmp, "SLASHTMP")
+        >>> print(px)
         N = 12345
-        slaves.basepath = /tmp/a/client
+        slaves.basepath = TEMPDIR/client
         slaves.hostnames = foo,bar
-        slaves.scriptpath = /tmp
-        tasks.execpath = /tmp
+        slaves.scriptpath = SLASHTMP
+        tasks.execpath = SLASHTMP
         tasks.threads = 4
-        tasks.workdir = /tmp/a
-        tasks.linalg.bwc.cpubinding = /tmp/misc/cpubinding.conf
+        tasks.workdir = TEMPDIR
+        tasks.linalg.bwc.cpubinding = SLASHTMP/misc/cpubinding.conf
         tasks.linalg.bwc.threads = 4
         tasks.polyselect.threads = 2
         tasks.sieve.las.threads = 2
