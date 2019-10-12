@@ -337,7 +337,8 @@ class Cado_NFS_toplevel(object):
 
         >>> fd,name=tempfile.mkstemp(text=True)
         >>> paramfile=os.fdopen(fd, 'w')
-        >>> paramfile.writelines(['tasks.workdir=/tmp\\n'])
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> paramfile.writelines(['tasks.workdir='+slashtmp+'\\n'])
         >>> paramfile.close()
         >>> t = Cado_NFS_toplevel(args=['12345', name])
         >>> t.filter_out_N_paramfile_workdir()
@@ -393,9 +394,9 @@ class Cado_NFS_toplevel(object):
         True
 
         Existing directory path understood as workdir
-        >>> t = Cado_NFS_toplevel(args=["/tmp"])
+        >>> t = Cado_NFS_toplevel(args=[slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
-        >>> t.args.workdir == "/tmp"
+        >>> t.args.workdir == slashtmp
         True
 
         >>> os.unlink(name)
