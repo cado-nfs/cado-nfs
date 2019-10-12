@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "gmp_aux.h"
 #include "tree_stats.hpp"
+#include "select_mpi.h"
 
 struct matpoly_checker_base {
     abfield ab;
@@ -413,6 +414,8 @@ void declare_usage(cxx_param_list & pl)
 
 int main(int argc, char * argv[])
 {
+    MPI_Init(&argc, &argv);
+
     cxx_mpz p;
     gmp_randstate_t rstate;
 
@@ -510,4 +513,6 @@ int main(int argc, char * argv[])
 #endif
 
     gmp_randclear(rstate);
+
+    MPI_Finalize();
 }

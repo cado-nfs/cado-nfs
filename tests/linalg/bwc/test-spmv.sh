@@ -9,12 +9,18 @@ nrows=100
 ncols=100
 density=10
 seed=1
-bindir=
+: ${bindir:=$PROJECT_BINARY_DIR}
 bwc_extra=()
 mf_bal_extra=()
 nh=1
 nv=1
 prime=2
+
+# inject the variables that were provided by guess_mpi_configs
+if [ "$mpi" ] ; then
+    eval "$exporter_mpirun"
+    eval "$exporter_mpi_extra_args"
+fi
 
 set -e
 

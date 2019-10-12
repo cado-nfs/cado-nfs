@@ -3,12 +3,23 @@
 # anything else than lingen_pz
 
 macro(add_bwc_test nm script)
-    cado_define_test(test-bwc-${nm} SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
-        ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
-        bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
-        AVOID_CONCURRENT
-        TARGET_DEPENDENCIES bwc_full)
+    set(mpiconfs mpi_rect1 mpi_rect2)
+    if (NOT HAVE_MPI)
+        set(mpiconfs)
+    endif()
+    foreach(mpiconf nompi ${mpiconfs})
+        set(suffix _${mpiconf})
+        if(suffix STREQUAL _nompi)
+            set(suffix)
+        endif()
+        cado_define_test(test-bwc-${nm}${suffix} SCRIPT
+            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
+            ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+            ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
+            bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
+            AVOID_CONCURRENT
+            TARGET_DEPENDENCIES bwc_full)
+    endforeach()
 endmacro()
 
 
@@ -36,7 +47,7 @@ macro(add_lingen_binary_test testname)
     cado_define_test(test-bwc-lingen-binary-${testname} SCRIPT
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
         ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
-        bindir=${CADO_NFS_BINARY_DIR} ${ARGN}
+        ${ARGN}
         TARGET_DEPENDENCIES lingen lingen_u64k1
         AVOID_CONCURRENT
         )
@@ -94,19 +105,6 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             add_dependencies(test-bwc-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
                 lingen_pz lingen_${gfp_layer})
 
-            if (HAVE_MPI)
-                add_bwc_test(mpi1-modp-inhomogeneous-minimal-2rhs-mn4 bwc-ptrace.sh
-                    prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
-                    mpi=2x3 lingen_mpi=2x2 ${mextra})
-                add_dependencies(test-bwc-mpi1-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
-                    lingen_pz lingen_${gfp_layer})
-                add_bwc_test(mpi2-modp-inhomogeneous-minimal-2rhs-mn4 bwc-ptrace.sh
-                    prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
-                    mpi=3x2 lingen_mpi=2x2 ${mextra})
-                add_dependencies(test-bwc-mpi2-modp-inhomogeneous-minimal-2rhs-mn4_dependencies
-                    lingen_pz lingen_${gfp_layer})
-            endif()
-
             if(DEFINED ENV{CHECKS_EXPENSIVE})
                 add_bwc_test(modp-inhomogeneous-minimal-2rhs-mn4-expensive bwc-ptrace.sh
                     prime=1237940039285380274899124357 random_matrix_size=200 nrhs=2 m=4 n=4 seed=1 ${mextra})
@@ -143,21 +141,6 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     # seed for random generation (entries are (2^k*(seed/1000) mod q) + (3^k*(seed%1000) mod q) mod p, with q=2^20-3).
     # arguments to be passed to lingen (including mpi arguments)
 
-    # we create a phony first test, so as to limit the risk of having
-    # several tests trigger the same build dependency on
-    # lingen_${gfp_layer} at the same time. Of course, the bare test
-    # here does not have the require arguments, so it will fail (we avoid
-    # NO_DEFAULT_RUN in this case, precisely because we want a phony
-    # test).
-    cado_define_test(test-bwc-lingen_${gfp_layer} SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
-        NO_DEFAULT_RUN
-        TARGET_DEPENDENCIES lingen_${gfp_layer}
-        AVOID_CONCURRENT
-        )
-    # set_tests_properties(test-bwc-lingen_${gfp_layer} PROPERTIES WILL_FAIL 1)
-
     # Note that the mpi and lingen_mpi_threshold arguments here are used
     # only in MPI context, and ignored otherwise (that is, the test runs
     # without mpi). This is not the same for lingen_mpi_threshold, which
@@ -175,56 +158,91 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         # annoying situation, since the sha1sum is computed on the
         # generator as it is written on disk, of course, and that follows
         # --ascii too.
-        set(mpiconfs _mpi_square1 _mpi_square2)
+        set(mpiconfs mpi_square1 mpi_square2)
         if (NOT HAVE_MPI)
             set(mpiconfs)
         endif()
-        foreach(mpiconf "" ${mpiconfs})
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test0${mpiconf}
-            APPEND_ARGUMENTS
-            ${CADO_NFS_BINARY_DIR}
-            2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
-            mpi_magic=${mpiconf} thr=2x2 --ascii
-            ${extra})
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test1${mpiconf}
-            APPEND_ARGUMENTS
-            ${CADO_NFS_BINARY_DIR}
-            f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
-            mpi_magic=${mpiconf} thr=2x2 --ascii
-            ${extra})
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test2${mpiconf}
-            APPEND_ARGUMENTS
-            ${CADO_NFS_BINARY_DIR}
-            b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
-            mpi_magic=${mpiconf} thr=3x3 --ascii
-            ${extra})
-        # We really _can't_ have ascii with the checkpoint test. ascii
-        # modifies the anticipation of the schedule, which in turns means
-        # that the list of cached schedules is modified in the course of
-        # the execution, and that eventually goes to the checkpoint file
-        # as well, wreaking obvious havoc.
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints${mpiconf}
-                AVOID_CONCURRENT
+        foreach(mpiconf nompi ${mpiconfs})
+            set(suffix _${mpiconf})
+            if(suffix STREQUAL _nompi)
+                set(suffix)
+            endif()
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test0${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
+                2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
+                mpi_magic=${mpiconf} thr=2x2 --ascii
+                ${extra}
+                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                AVOID_CONCURRENT
+                )
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test1${suffix}
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
+                f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
+                thr=2x2 --ascii
+                ${extra}
+                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                AVOID_CONCURRENT
+                )
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test2${suffix}
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
+                b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
+                thr=3x3 --ascii
+                ${extra}
+                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                AVOID_CONCURRENT
+                )
+            # We really _can't_ have ascii with the checkpoint test. ascii
+            # modifies the anticipation of the schedule, which in turns means
+            # that the list of cached schedules is modified in the course of
+            # the execution, and that eventually goes to the checkpoint file
+            # as well, wreaking obvious havoc.
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints${suffix}
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
-                ${CADO_NFS_BINARY_DIR}
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
-                mpi_magic=${mpiconf} thr=3x3
+                thr=3x3
                 checkpoint_threshold=40
                 ${extra}
-                TARGET_DEPENDENCIES lingen_${gfp_layer})
+                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                AVOID_CONCURRENT
+                )
         endforeach()
     endif()
 
     if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
-        cado_divert_test(test-bwc-lingen_${gfp_layer} test4
-            APPEND_ARGUMENTS
-            ${CADO_NFS_BINARY_DIR}
-            00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
-            1532495540865888858358347027150309183618739122183602191 1111
-            mpi_magic=sqrtest2 thr=3x3
-            ${extra})
+        set(mpiconfs mpi_square1 mpi_square2)
+        if (NOT HAVE_MPI)
+            set(mpiconfs)
+        endif()
+        foreach(mpiconf nompi ${mpiconfs})
+            set(suffix _${mpiconf})
+            if(suffix STREQUAL _nompi)
+                set(suffix)
+            endif()
+            cado_define_test(test-bwc-lingen_${gfp_layer}_test4${suffix}
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
+                00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
+                1532495540865888858358347027150309183618739122183602191 1111
+                thr=3x3
+                ${extra}
+                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                AVOID_CONCURRENT
+            )
+        endforeach()
     endif()
 
     if(gfp_layer STREQUAL "p_1")
@@ -324,14 +342,6 @@ add_dependencies(test-bwc-mod2-oddthr_dependencies mf_scan)
 add_bwc_test(mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5)
 add_dependencies(test-bwc-mod2-m-neq-n_dependencies mf_scan)
-if (HAVE_MPI)
-add_bwc_test(mpi1-mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
-    seed=1 thr=5 mpi=2x3 lingen_mpi=2x2)
-add_dependencies(test-bwc-mpi1-mod2-m-neq-n_dependencies mf_scan)
-add_bwc_test(mpi2-mod2-m-neq-n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
-    seed=1 thr=5 mpi=3x2 lingen_mpi=2x2)
-add_dependencies(test-bwc-mpi2-mod2-m-neq-n_dependencies mf_scan)
-endif()
 
 add_subdirectory(mpfq)
 
@@ -346,59 +356,60 @@ if(HAVE_CXX11 AND HAVE_HWLOC)
         LIBRARIES utils bwc_base)
 endif()
 
-cado_define_test(test-parallelizing_info.cpp
-    ARGUMENTS thr=2x2
-    LIBRARIES utils bwc_base
-    )
+#########################################################################
+
+add_executable(test-parallelizing_info test-parallelizing_info.cpp)
+target_link_libraries(test-parallelizing_info utils bwc_base)
 set_target_properties(test-parallelizing_info PROPERTIES
-            LINKER_LANGUAGE CXX
-            COMPILE_FLAGS "--mpi"
-            LINK_FLAGS "--mpi")
-if (HAVE_MPI)
-    # mimick what we did with test_hello (which, in a way, tests most of
-    # the same code anyway)
-    cado_define_test(test-parallelizing_info_mpi PROGRAM
+    COMPILE_FLAGS "--mpi"
+    LINK_FLAGS "--mpi")
+set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+if (NOT HAVE_MPI)
+    set(mpiconfs)
+endif()
+foreach(mpiconf nompi ${mpiconfs})
+    set(suffix _${mpiconf})
+    if(suffix STREQUAL _nompi)
+        set(suffix)
+    endif()
+    cado_define_test(test-parallelizing_info${suffix} PROGRAM
+        ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
         ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl
-        NO_DEFAULT_RUN
+        :mpirun
+        -- ${CMAKE_CURRENT_BINARY_DIR}/test-parallelizing_info -v
+        thr=2x2
         TARGET_DEPENDENCIES test-parallelizing_info
-        TEST_DEPENDENCIES test-parallelizing_info)
-    macro(test_parallelizing_info_mpi code)
-        cado_divert_test(test-parallelizing_info_mpi ${code} ARGUMENTS
-            :mpirun ${ARGN}
-            -- ${CMAKE_CURRENT_BINARY_DIR}/test-parallelizing_info -v ${ARGN}
-            TEST_DEPENDENCIES test-parallelizing_info)
-    endmacro()
-    test_parallelizing_info_mpi(2122 mpi=2x1 thr=2x2)
-    test_parallelizing_info_mpi(1322 mpi=1x3 thr=2x2)
-    test_parallelizing_info_mpi(3222 mpi=3x2 thr=2x2)
-endif()
+        )
+endforeach()
 
-macro(test_dispatch_matmul testname)
-    cado_define_test(${testname} SCRIPT
+#########################################################################
+
+set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+if (NOT HAVE_MPI)
+    set(mpiconfs)
+endif()
+foreach(mpiconf nompi ${mpiconfs})
+    set(suffix _${mpiconf})
+    if(suffix STREQUAL _nompi)
+        set(suffix)
+    endif()
+    cado_define_test(test-bwc-dispatch-matmul${suffix} SCRIPT
+        ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
         ${CMAKE_CURRENT_SOURCE_DIR}/bwc-dispatch-matmul.sh
-        bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc ${ARGN}
+        density=2
+        thr=2x2
         TARGET_DEPENDENCIES bwc_matmul dispatch mf_scan mf_bal
-        random_matrix)
-endmacro()
+        random_matrix
+        )
+endforeach()
 
-# mingw has antique bash (3.1) with different regexp syntax, and having
-# the script below work with both isn't a very funny perspective.
-if (NOT MINGW)
-test_dispatch_matmul(dispatch-matmul-65536-thr nrows=65536 density=2 thr=2x2)
-if (HAVE_MPI)
-test_dispatch_matmul(dispatch-matmul-65536-mpi nrows=65536 density=2 mpi=2x2)
-endif()
-endif()
+#########################################################################
 
 if (WITH_MPI)
 add_definitions(-DWITH_MPI)
 endif()
 
-cado_define_test(test_hello.c NO_DEFAULT_RUN LIBRARIES bwc_base)
-set_target_properties(test_hello PROPERTIES
-            LINKER_LANGUAGE CXX
-            COMPILE_FLAGS "--mpi"
-            LINK_FLAGS "--mpi")
+#########################################################################
 
 add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.c)
 set_target_properties(spmv_test PROPERTIES
@@ -412,44 +423,66 @@ target_link_libraries(short_matmul bwc_base)
 
 set(test-spmv-binary-u64k1_alltests YES)
 set(test-spmv-binary-u64k4_alltests YES)
+set(test-spmv-binary-m128_alltests YES)
 set(test-spmv-prime-p_3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
-if(HAVE_PERL_DIGEST_MD5)
-cado_define_test(
-    TEST_NAME test-spmv-${test_spmv_base}
-    SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
-    ARGUMENTS
-    --matrix-size 1000 --density 10 --bindir ${CADO_NFS_BINARY_DIR}
-    ${ARGN}
-    NO_DEFAULT_RUN
-    TARGET_DEPENDENCIES
-    random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul)
+    if(HAVE_PERL_DIGEST_MD5)
+        set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+        if (NOT HAVE_MPI)
+            set(mpiconfs)
+        endif()
+        foreach(mpiconf nompi ${mpiconfs})
+            set(suffix _${mpiconf})
+            if(suffix STREQUAL _nompi)
+                set(suffix)
+            endif()
+            cado_define_test(
+                TEST_NAME test-spmv-${test_spmv_base}${suffix}
+                SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
+                --matrix-size 1000 --density 10
+                ${ARGN}
+                NO_DEFAULT_RUN
+                TARGET_DEPENDENCIES
+                random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul)
 
 
-cado_divert_test(test-spmv-${test_spmv_base} 11 APPEND_ARGUMENTS thr=1x1)
-if(${test-spmv-${test_spmv_base}_alltests})
-cado_divert_test(test-spmv-${test_spmv_base} 12 APPEND_ARGUMENTS thr=1x2)
-cado_divert_test(test-spmv-${test_spmv_base} 22 APPEND_ARGUMENTS thr=2x2)
-cado_divert_test(test-spmv-${test_spmv_base} 13 APPEND_ARGUMENTS thr=1x3)
-cado_divert_test(test-spmv-${test_spmv_base} 32 APPEND_ARGUMENTS thr=3x2)
-cado_divert_test(test-spmv-${test_spmv_base} 23 APPEND_ARGUMENTS thr=2x3)
-if(HAVE_MPI)
-cado_divert_test(test-spmv-${test_spmv_base} 2122 APPEND_ARGUMENTS mpi=2x1 thr=2x2)
-cado_divert_test(test-spmv-${test_spmv_base} 1322 APPEND_ARGUMENTS mpi=1x3 thr=2x2)
-cado_divert_test(test-spmv-${test_spmv_base} 3222 APPEND_ARGUMENTS mpi=3x2 thr=2x2)
-endif()
-endif()
-else()
-    # Then this macro will expand to nothing, that's life.
-endif()
+            cado_divert_test(test-spmv-${test_spmv_base}${suffix} 11 APPEND_ARGUMENTS thr=1x1)
+            if(${test-spmv-${test_spmv_base}_alltests})
+                if(DEFINED ENV{CHECKS_EXPENSIVE})
+                    cado_divert_test(test-spmv-${test_spmv_base}${suffix} 12 APPEND_ARGUMENTS thr=1x2)
+                    cado_divert_test(test-spmv-${test_spmv_base}${suffix} 22 APPEND_ARGUMENTS thr=2x2)
+                    cado_divert_test(test-spmv-${test_spmv_base}${suffix} 13 APPEND_ARGUMENTS thr=1x3)
+                    cado_divert_test(test-spmv-${test_spmv_base}${suffix} 32 APPEND_ARGUMENTS thr=3x2)
+                endif()
+                cado_divert_test(test-spmv-${test_spmv_base}${suffix} 23 APPEND_ARGUMENTS thr=2x3)
+            endif()
+        endforeach()
+    else()
+        # Then this macro will expand to nothing, that's life.
+    endif()
 endmacro()
 
-cado_define_test(test_random_matrix
-    PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
-    TARGET_DEPENDENCIES bwc_full
-    )
-cado_divert_test(test_random_matrix thr22 APPEND_ARGUMENTS thr=2x2)
+#########################################################################
+
+set(mpiconfs mpi_rect1 mpi_rect2)
+if (NOT HAVE_MPI)
+    set(mpiconfs)
+endif()
+foreach(mpiconf nompi ${mpiconfs})
+    set(suffix _${mpiconf})
+    if(suffix STREQUAL _nompi)
+        set(suffix)
+    endif()
+    cado_define_test(test_random_matrix${suffix}
+        PROGRAM
+        ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
+        TARGET_DEPENDENCIES bwc_full
+        )
+    cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2)
+endforeach()
 
 
 foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
@@ -476,11 +509,14 @@ foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         --prime "${prime_${width}}")
 endforeach()
 
+#########################################################################
+
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
-    --matrix-size 1000 --density 10 --bindir
-    ${CADO_NFS_BINARY_DIR}/linalg/bwc
+    --matrix-size 1000 --density 10
     TARGET_DEPENDENCIES
     random_matrix build_matcache bench_matcache)
+
+#########################################################################
 
 cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
@@ -491,47 +527,50 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
     TARGET_DEPENDENCIES bwc_full)
 
-# Tests which use bwc_base will need nwc_config.h
+# Tests which use bwc_base will need bwc_config.h
 include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
 
-cado_divert_test(test_hello 11 ARGUMENTS -v thr=1x1)
-cado_divert_test(test_hello 12 ARGUMENTS -v thr=1x2)
-cado_divert_test(test_hello 23 ARGUMENTS -v thr=2x3)
+#########################################################################
 
-if (HAVE_MPI)
-    # yes, the mpi= and thr= arguments are given twice here. This is
-    # intentional, because our only logic for discovering the scheduling
-    # environment is within bwc.pl, so we have to use it.
-    cado_define_test(TEST_NAME test_hello_mpi PROGRAM
-        ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl
-        NO_DEFAULT_RUN
-        TARGET_DEPENDENCIES test_hello
-        TEST_DEPENDENCIES test_hello)
-    macro(test_hello_mpi code)
-        cado_divert_test(test_hello_mpi ${code} ARGUMENTS
-            :mpirun ${ARGN}
-            -- ${CMAKE_CURRENT_BINARY_DIR}/test_hello -v ${ARGN}
-            TEST_DEPENDENCIES test_hello)
-    endmacro()
-    test_hello_mpi(2122 mpi=2x1 thr=2x2)
-    test_hello_mpi(1322 mpi=1x3 thr=2x2)
-    test_hello_mpi(3222 mpi=3x2 thr=2x2)
-
-cado_define_test(test_random_matrix_mpi
-    PROGRAM
-    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
-    TARGET_DEPENDENCIES bwc_full
-    TEST_DEPENDENCIES test_random_matrix
-    )
-    cado_divert_test(test_random_matrix_mpi 22 APPEND_ARGUMENTS mpi=2x2)
-    cado_divert_test(test_random_matrix_mpi 23 APPEND_ARGUMENTS mpi=2x3)
+add_executable(test_hello test_hello.c)
+target_link_libraries(test_hello bwc_base)
+set_target_properties(test_hello PROPERTIES
+    LINKER_LANGUAGE CXX
+    COMPILE_FLAGS "--mpi"
+    LINK_FLAGS "--mpi")
+set(mpiconfs mpi_rect1 mpi_square1)
+if(DEFINED ENV{CHECKS_EXPENSIVE})
+    set(mpiconfs ${mpiconfs} mpi_rect2 mpi_square2)
 endif()
+foreach(mpiconf nompi ${mpiconfs})
+    set(suffix _${mpiconf})
+    if(suffix STREQUAL _nompi)
+        set(suffix)
+    endif()
+    cado_define_test(TEST_NAME test_hello${suffix}
+        TARGET_DEPENDENCIES test_hello
+        PROGRAM
+        ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+        ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl
+        :mpirun
+        -- ${CMAKE_CURRENT_BINARY_DIR}/test_hello -v
+        )
+    if(DEFINED ENV{CHECKS_EXPENSIVE})
+        cado_divert_test(test_hello${suffix} thr12 APPEND_ARGUMENTS thr=1x2)
+        cado_divert_test(test_hello${suffix} thr22 APPEND_ARGUMENTS thr=2x2)
+    endif()
+    cado_divert_test(test_hello${suffix} thr23 APPEND_ARGUMENTS thr=2x3)
+endforeach()
+
+#########################################################################
 
 cado_define_test(test_bl_extraction.c LIBRARIES bwc_base bitlinalg)
 set_target_properties(test_bl_extraction PROPERTIES
                 LINKER_LANGUAGE CXX
                 COMPILE_FLAGS "--mpi"
                 LINK_FLAGS "--mpi")
+
+#########################################################################
 
 cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
@@ -549,13 +588,7 @@ cado_divert_test(test-blocklanczos left-thr21
 cado_divert_test(test-blocklanczos left-thr12
     APPEND_ARGUMENTS --matrix-size "90,69" --nullspace left thr=1x2)
 cado_divert_test(test-blocklanczos left-thr23
-    APPEND_ARGUMENTS --matrix-size "1500,1000" --nullspace left thr=2x3)
-if (HAVE_MPI)
-    cado_divert_test(test-blocklanczos left-mpi1-thr23
-        APPEND_ARGUMENTS --matrix-size "2500,1500" --nullspace left mpi=2x3 thr=2x3)
-    cado_divert_test(test-blocklanczos left-mpi2-thr23
-        APPEND_ARGUMENTS --matrix-size "2500,1500" --nullspace left mpi=3x2 thr=2x3)
-endif()
+    APPEND_ARGUMENTS --matrix-size "2500,1000" --nullspace left thr=2x3)
 
 cado_define_test(TEST_NAME test-blocklanczos-staged
     AVOID_CONCURRENT
@@ -566,6 +599,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     no_save_cache=1 interval=10 nullspace=left
     TARGET_DEPENDENCIES test-blocklanczos_dependencies)
 
+#########################################################################
 if(HAVE_PERL_DIGEST_MD5)
 cado_define_test(TEST_NAME test-lingen-crc
     AVOID_CONCURRENT
@@ -580,6 +614,8 @@ cado_define_test(TEST_NAME test-lingen-crc
     expect_crc_pi=c29af350,af9c33a0 expect_crc_F=04f4e167,3aa047a4
     TARGET_DEPENDENCIES lingen)
 endif()
+
+#########################################################################
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
 

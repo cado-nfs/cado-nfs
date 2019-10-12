@@ -7,6 +7,16 @@ if ! [ "$WDIR" ] ; then
     exit 1
 fi
 
+: ${bindir:=$PROJECT_BINARY_DIR}
+: ${bindir?missing variable}
+
+# inject the variables that were provided by guess_mpi_configs
+if [ "$mpi" ] ; then
+    eval "$exporter_mpirun"
+    eval "$exporter_mpi_extra_args"
+    set -- "$@" mpi="$mpi"
+fi
+
 # Create a fake sequence
 
 # Note that if we arrive here, we are 64-bit only, since the GFP backends
@@ -22,9 +32,6 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
     echo "Could not find a SHA-1 checksumming binary !" >&2
     exit 1
 fi
-
-bindir="$1"
-shift
 
 # This is not accurate, unfortunately. There seems to be no way to do
 # long integer arithmetic in pure bash.
@@ -167,17 +174,8 @@ EOF
     cat $F $F $F > $G
     rm -f $F
 
-    # if $mpi_magic is set to something non-null, we'll rely on
-    # guess_mpi_configs.sh to give us the right mpirun[@] precommand.
-    # Note that $mpi and $mpirun[@] may have been exported by the caller.
-    . "`dirname $0`/guess_mpi_configs.sh"
-    set_mpi_derived_variables
-
-    if [ "$mpi_magic" ] && ! [ "$mpi" ] ; then
-        echo "Making test a successful no-op"
-        exit 0
-    fi
-
+    # For mpi uses of this script, we expect to be called from
+    # do_with_mpi.sh. In this case, $mpi and $mpirun[@] are set.
     if [ "$mpi" ] ; then
         args+=("${mpi_specific_args[@]}")
         if [ "$ONLY_TUNE" ] ; then
@@ -199,7 +197,7 @@ EOF
                 shift
             done
         else
-            args+=(mpi="$mpi" tuning_quiet=1)
+            args+=(mpi="$mpi")
         fi
     fi
 

@@ -4,6 +4,15 @@ set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 # Create a fake sequence
 
+: ${bindir:=$PROJECT_BINARY_DIR}
+
+# inject the variables that were provided by guess_mpi_configs
+if [ "$mpi" ] ; then
+    eval "$exporter_mpirun"
+    eval "$exporter_mpi_extra_args"
+    set -- "$@" mpi="$mpi"
+fi
+
 # Note that if we arrive here, we are 64-bit only, since the GFP backends
 # for bwc are explicitly disabled on i386 (for now -- most probably
 # forever too).

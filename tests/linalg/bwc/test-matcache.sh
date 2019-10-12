@@ -6,9 +6,10 @@
 N=100
 dens=10
 seed=1
-bindir=
 
 set -e
+
+: ${bindir:=$PROJECT_BINARY_DIR}
 
 usage() {
     echo "Usage: $0 <N>" >&2
@@ -37,6 +38,8 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
+: ${bindir?missing variable}
+
 if ! [ "$N" ] ; then usage ; fi
 
 SHA1BIN=sha1sum
@@ -53,9 +56,9 @@ wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado.XXXXXXXX)
 cleanup() { if ! [ "$CADO_DEBUG" ] ; then rm -rf $wdir ; fi ; }
 trap cleanup EXIT
 
-$bindir/random_matrix $N -d $dens  --binary -o $wdir/mat.bin -s $seed
+$bindir/linalg/bwc/random_matrix $N -d $dens  --binary -o $wdir/mat.bin -s $seed
 
-# $bindir/mf_scan mfile=$wdir/mat.bin --binary-in --freq
+# $bindir/linalg/bwc/mf_scan mfile=$wdir/mat.bin --binary-in --freq
 
 bench_arg_left=-t
 cachesuffix_left=T
@@ -68,7 +71,7 @@ for impl in basic sliced bucket ; do
         eval cachefiledirection=\$cachesuffix_${direction}
         cachefile=$wdir/mat-${impl}${cachefiledirection}.bin
 
-        $bindir/build_matcache --matrix-file $wdir/mat.bin -impl $impl -direction $direction -tmpdir $wdir > $wdir/build.$impl.$direction.out 2>&1
+        $bindir/linalg/bwc/build_matcache --matrix-file $wdir/mat.bin -impl $impl -direction $direction -tmpdir $wdir > $wdir/build.$impl.$direction.out 2>&1
         SHA1=$($SHA1BIN ${cachefile})
         SHA1="${SHA1%% *}"
         REFSHA1=$SHA1
@@ -78,7 +81,7 @@ for impl in basic sliced bucket ; do
         cachefile2=$wdir/mat.bin-${impl}${cachefiledirection}.bin
 
         eval argtail=\(\$bench_arg_${direction}\)
-        $bindir/bench_matcache -r $wdir/mat.bin  --nmax 100 -impl $impl "${argtail[@]}" > $wdir/bench$impl.$direction.out 2>&1
+        $bindir/linalg/bwc/bench_matcache -r $wdir/mat.bin  --nmax 100 -impl $impl "${argtail[@]}" > $wdir/bench$impl.$direction.out 2>&1
 
         SHA1=$($SHA1BIN ${cachefile2})
         SHA1="${SHA1%% *}"
