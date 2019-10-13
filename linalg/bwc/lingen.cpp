@@ -880,6 +880,22 @@ int wrapped_main(int argc, char *argv[])
         MPI_Comm_set_name(bm.com[2], commname);
 
         print_node_assignment(bm.com[0]);
+
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        if ((bm.d.m + bm.d.n) / simd < (unsigned int) mpi[0]) {
+            printf("########################################################\n");
+            printf("# Warning: this run will leave some resources idle:\n"
+                   "# the matrices of size %u*%u and %u*%u can be split into\n"
+                   "# chunks of minimal size %u, whence an mpi split over %d*%d is useless\n",
+                   bm.d.m,
+                   bm.d.m + bm.d.n,
+                   bm.d.m + bm.d.n,
+                   bm.d.m + bm.d.n,
+                   simd,
+                   mpi[0],
+                   mpi[0]);
+            printf("########################################################\n");
+        }
     }
     /* }}} */
 

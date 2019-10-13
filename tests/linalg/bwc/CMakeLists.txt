@@ -43,31 +43,44 @@ set(prime_15 3587529394207529311583750238555134000642444479930943876570251861211
 set(prime_z 69617318994479297159441705409245167921344429126717528237597542082203295398081625160307507496908132931192662194421301381083506846944815643283884602656894137393981852330936660004926669193667)
 
 if(HAVE_PERL_DIGEST_MD5)
-macro(add_lingen_binary_test testname)
-    cado_define_test(test-bwc-lingen-binary-${testname} SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
-        ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
-        ${ARGN}
-        TARGET_DEPENDENCIES lingen lingen_u64k1
-        AVOID_CONCURRENT
-        )
-endmacro()
+    macro(add_lingen_binary_test nm)
+        set(mpiconfs ${lingen_binary_${nm}_mpi_tests})
+        if (NOT HAVE_MPI)
+            set(mpiconfs)
+        endif()
+        foreach(mpiconf nompi ${mpiconfs})
+            set(suffix _${mpiconf})
+            if(suffix STREQUAL _nompi)
+                set(suffix)
+            endif()
+            cado_define_test(test_bwc_lingen_binary_${nm}${suffix} SCRIPT
+                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+                ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
+                ${ARGN}
+                TARGET_DEPENDENCIES lingen_u64k1
+                AVOID_CONCURRENT
+                )
+        endforeach()
+    endmacro()
 
-# the sha1sums here are from the time were we were transposing the
-# output. Now we no longer do that.
-# add_lingen_binary_test(test0 1dea0d8879d125aa280e26b8573f932f6bccea75,d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd 64 64 160 1 lingen_mpi_threshold=10)
+    # the sha1sums here are from the time were we were transposing the
+    # output. Now we no longer do that.
+    # add_lingen_binary_test(test0 1dea0d8879d125aa280e26b8573f932f6bccea75,d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd 64 64 160 1 lingen_mpi_threshold=10)
 
-# todo presumably, on 32 bit, we get something different for the sha1sum.
+    # todo presumably, on 32 bit, we get something different for the sha1sum.
 
-# the sha1sum 8938... is for the old binary. The newer one gets d0e7...
-# and it seems to be a question of varying normalization.
-add_lingen_binary_test(test0
-    expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379
-    m=64 n=64 sequence_length=160 seed=1)
+    # the sha1sum 8938... is for the old binary. The newer one gets d0e7...
+    # and it seems to be a question of varying normalization.
 
-# The test below fails on 32bit. This should be investigated.
-# add_lingen_binary_test(test1
-# expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
+    set(lingen_binary_test0_mpi_tests mpi_square1 mpi_square2)
+    add_lingen_binary_test(test0
+        expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379
+        m=64 n=64 sequence_length=160 seed=1)
+
+    # The test below fails on 32bit. This should be investigated.
+    # add_lingen_binary_test(test1
+    # expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
 endif()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
@@ -174,7 +187,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             if(suffix STREQUAL _nompi)
                 set(suffix)
             endif()
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test0${suffix}
+            cado_define_test(test_bwc_lingen_${gfp_layer}_test0${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
@@ -185,7 +198,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
                 )
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test1${suffix}
+            cado_define_test(test_bwc_lingen_${gfp_layer}_test1${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
@@ -196,7 +209,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
                 )
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test2${suffix}
+            cado_define_test(test_bwc_lingen_${gfp_layer}_test2${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
@@ -212,7 +225,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             # that the list of cached schedules is modified in the course of
             # the execution, and that eventually goes to the checkpoint file
             # as well, wreaking obvious havoc.
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test2_checkpoints${suffix}
+            cado_define_test(test_bwc_lingen_${gfp_layer}_test2_checkpoints${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
@@ -237,7 +250,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             if(suffix STREQUAL _nompi)
                 set(suffix)
             endif()
-            cado_define_test(test-bwc-lingen_${gfp_layer}_test4${suffix}
+            cado_define_test(test_bwc_lingen_${gfp_layer}_test4${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
@@ -253,7 +266,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 
     if(gfp_layer STREQUAL "p_1")
-        cado_define_test(test-bwc-lingen-21744
+        cado_define_test(test_bwc_lingen_21744
             AVOID_CONCURRENT
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
@@ -261,7 +274,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             prime=485263
             TARGET_DEPENDENCIES lingen_p_1)
 
-        cado_define_test(test-bwc-lingen-21744-bis
+        cado_define_test(test_bwc_lingen_21744_bis
             AVOID_CONCURRENT
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS

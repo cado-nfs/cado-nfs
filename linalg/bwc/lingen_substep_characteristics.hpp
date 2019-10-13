@@ -477,19 +477,26 @@ struct lingen_substep_characteristics {
         return P.r;
     }/*}}}*/
     subdivision mpi_split0(pc_t const & P) const {/*{{{*/
-        return subdivision(n0, mesh_inner_size(P));
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return subdivision(n0, mesh_inner_size(P), simd);
     }/*}}}*/
     subdivision mpi_split1(pc_t const & P) const {/*{{{*/
-        return subdivision(n1, mesh_inner_size(P));
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return subdivision(n1, mesh_inner_size(P), simd);
     }/*}}}*/
     subdivision mpi_split2(pc_t const & P) const {/*{{{*/
-        return subdivision(n2, mesh_inner_size(P));
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return subdivision(n2, mesh_inner_size(P), simd);
     }/*}}}*/
     subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {/*{{{*/
-        return subdivision(mpi_split0(P).block_size_upper_bound(), shrink0);
+        unsigned int nr0 = mpi_split0(P).block_size_upper_bound();
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return subdivision(nr0, shrink0, simd);
     }/*}}}*/
     subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {/*{{{*/
-        return subdivision(mpi_split2(P).block_size_upper_bound(), shrink2);
+        unsigned int nr2 = mpi_split2(P).block_size_upper_bound();
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return subdivision(nr2, shrink2, simd);
     }/*}}}*/
     subdivision shrink_split0(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split0(P, S.shrink0);

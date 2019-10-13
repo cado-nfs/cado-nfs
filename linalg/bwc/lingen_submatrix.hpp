@@ -12,26 +12,36 @@ class subdivision {
     unsigned int k = 0;
     unsigned int q = 0;
     unsigned int r = 0;
+    unsigned int scale = 1;
     public:
     unsigned int total_size() const { return n; }
     unsigned int nblocks() const { return k; }
     subdivision() {}
-    subdivision(unsigned int n, unsigned int k) : n(n), k(k), q(n/k), r(n%k) {}
+    subdivision(unsigned int n, unsigned int k, unsigned int scale = 1)
+        : n(n/scale), k(k), q(n/scale/k), r((n/scale)%k), scale(scale)
+    {}
     inline unsigned int nth_block_size(unsigned int i) const
     {
-        return q + (i < r);
+        return (q + (i < r)) * scale;
     }
     inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int i) const
     {
-        unsigned int i0 = i * q + std::min(i, r);
+        unsigned int i0 = (i * q + std::min(i, r)) * scale;
         return std::make_tuple(i0, i0 + nth_block_size(i));
     }
-    inline unsigned int block_size_upper_bound() const { return q + (r != 0); }
+    inline unsigned int block_size_upper_bound() const {
+        return (q + (r != 0)) * scale;
+    }
     inline unsigned int flatten(unsigned int idx, unsigned int pos) const {
-        return idx * q + std::min(idx, r) + pos;
+        return (idx * q + std::min(idx, r)) * scale + pos;
     }
     static subdivision by_block_size(unsigned int n, unsigned int b) {
         return subdivision(n, iceildiv(n, b));
+    }
+    subdivision operator*(unsigned int x) const {
+        subdivision res = *this;
+        res.scale = scale * x;
+        return res;
     }
 };
 
