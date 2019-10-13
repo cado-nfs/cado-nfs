@@ -78,6 +78,15 @@ if(HAVE_PERL_DIGEST_MD5)
         expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379
         m=64 n=64 sequence_length=160 seed=1)
 
+    # We have significant difficulties with tuning for the binary case.
+    # This test takes absurdly long.
+    if(DEFINED ENV{CHECKS_EXPENSIVE})
+        set(lingen_binary_test2_mpi_tests mpi_square1 mpi_square2)
+        add_lingen_binary_test(test2
+            expect_sha1_F=fefcefb595751b7120d593d6f10f0a5bb5466dfb
+            m=128 n=128 sequence_length=160 seed=1)
+    endif()
+
     # The test below fails on 32bit. This should be investigated.
     # add_lingen_binary_test(test1
     # expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
