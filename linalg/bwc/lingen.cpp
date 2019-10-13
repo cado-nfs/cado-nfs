@@ -121,11 +121,12 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ffile",
             "output generator file");
 
-
+#if 0
     param_list_decl_usage(pl, "lingen_mpi_threshold",
             "use MPI matrix operations above this size");
     param_list_decl_usage(pl, "lingen_threshold",
             "use recursive algorithm above this size");
+#endif
 
     param_list_configure_switch(pl, "--tune", &global_flag_tune);
     param_list_configure_switch(pl, "--ascii", &global_flag_ascii);
@@ -799,8 +800,9 @@ int wrapped_main(int argc, char *argv[])
 
     gmp_randseed_ui(rstate, bw->seed);
 
-    bm.lingen_threshold = UINT_MAX;
-    bm.lingen_mpi_threshold = UINT_MAX;
+#if 0
+    bm.lingen_threshold = 10;
+    bm.lingen_mpi_threshold = 1000;
     param_list_parse_uint(pl, "lingen_threshold", &(bm.lingen_threshold));
     param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
     if (bm.lingen_mpi_threshold < bm.lingen_threshold) {
@@ -812,6 +814,7 @@ int wrapped_main(int argc, char *argv[])
 
 #if defined(FAKEMPI_H_)
     bm.lingen_mpi_threshold = UINT_MAX;
+#endif
 #endif
 
     /* }}} */
