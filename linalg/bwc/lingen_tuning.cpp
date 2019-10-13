@@ -725,6 +725,7 @@ struct lingen_tuner {
                         auto MP = mp_substep(cw);
                         U.mp = MP.get_companion(os, P, schedules_mp[L], C);
                         U.mp.reserved_ram = reserved_mp;
+                        os << "#\n";
 
                         compute_schedules_for_mul(cw, true, reserved_mul);
                         if (wct_seconds() > last_save + 10) {
@@ -737,6 +738,7 @@ struct lingen_tuner {
                         auto MUL = mul_substep(cw);
                         U.mul = MUL.get_companion(os, P, schedules_mul[L], C);
                         U.mul.reserved_ram = reserved_mp;
+                        os << "#\n";
 
                         ttr = U.mp.tt.t + U.mul.tt.t;
                         ttrchildren = 0;
@@ -799,43 +801,29 @@ struct lingen_tuner {
             bool rec0 = best[L0].first;
             bool rec1 = best[L1].first;
 
-            std::ostringstream os;
-            // os << "Depth " << i << ":";
-            std::string oss = os.str();
-            int pad = oss.size();
-            const char * msg = oss.c_str();
-            const char * msg2 = "";
             const char * strbest = " [BEST]";
             if (basecase_was_eliminated || !recursion_makes_sense(L1))
                 strbest="";
             if (time_b < DBL_MAX) {
                 const char * isbest = (!rec0 && !rec1) ? strbest : "";
-                os << fmt::sprintf("#%*s basecase(threshold>%zu): %.2f [%.1fd]%s\n",
-                        pad, msg, L1,
+                os << fmt::sprintf("# basecase(threshold>%zu): %.2f [%.1fd]%s\n",
+                        L1,
                         time_b, time_b / 86400, isbest);
-                msg = msg2;
             }
             if (!approx_same && recursion_makes_sense(L1) && !(forceidx[0] && rec0) && !(forceidx[1] && !rec1)) {
                 const char * isbest = (rec1 && !rec0) ? strbest : "";
-                std::ostringstream os2;
-                os2 << " mixed(threshold=" << L1 << "): ";
-                std::string ss2 = os2.str();
-                os << fmt::sprintf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
-                        pad, msg, ss2.c_str(),
+                os << fmt::sprintf("# mixed(threshold=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                        L1,
                         time_m, time_m / 86400,
                         time_m_self, time_m_self / 86400, isbest);
-                msg = msg2;
-                int pad2 = pad + ss2.size();
                 char buf[20];
                 char buf2[20];
                 if (ram_mp > ram_mul) {
-                    os << fmt::sprintf("#%*s(memory(MP): %s, incl %s reserved)\n",
-                            pad2, msg,
+                    os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
                             size_disp(ram_mp, buf),
                             size_disp(reserved_mp, buf2));
                 } else {
-                    os << fmt::sprintf("#%*s(memory(MUL): %s, incl %s reserved)\n",
-                            pad2, msg,
+                    os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
                             size_disp(ram_mul, buf),
                             size_disp(reserved_mul, buf2));
                 }
@@ -846,20 +834,17 @@ struct lingen_tuner {
                 std::ostringstream os2;
                 os2 << " recursive(threshold<=" << L0 << "): ";
                 std::string ss2 = os2.str();
-                os << fmt::sprintf("#%*s%s%.2f [%.1fd] (self: %.2f [%.1fd])%s\n", pad, msg, ss2.c_str(),
+                os << fmt::sprintf("# recursive(threshold<=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                        L0,
                         time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
-                msg = msg2;
-                int pad2 = pad + ss2.size();
                 char buf[20];
                 char buf2[20];
                 if (ram_mp > ram_mul) {
-                    os << fmt::sprintf("#%*s(memory(MP): %s, incl %s reserved)\n",
-                            pad2, msg,
+                    os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
                             size_disp(ram_mp, buf),
                             size_disp(reserved_mp, buf2));
                 } else {
-                    os << fmt::sprintf("#%*s(memory(MUL): %s, incl %s reserved)\n",
-                            pad2, msg,
+                    os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
                             size_disp(ram_mul, buf),
                             size_disp(reserved_mul, buf2));
                 }
