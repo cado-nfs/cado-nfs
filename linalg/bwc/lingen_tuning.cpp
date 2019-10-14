@@ -295,7 +295,7 @@ struct lingen_tuner {
      */
     double basecase_keep_until = 1.8;
 
-    unsigned int forced_threshold = UINT_MAX;
+    std::map<std::string, unsigned int> tuning_thresholds;
 
     std::map<size_t, lingen_substep_schedule> schedules_mp, schedules_mul;
 
@@ -308,6 +308,8 @@ struct lingen_tuner {
                 "Save (and re-load) timings for individual transforms in this file\n");
         param_list_decl_usage(pl, "basecase-keep-until",
                 "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
+        param_list_decl_usage(pl, "tuning_thresholds",
+                "comma-separated list of threshols, given in the form <algorithm>:<threshold> value. Recognized values for <algorithm> are a subset of recursive,gfp_plain,flint,cantor,gf2x_plain. Thresholds are integers corresponding to the input size of E\n");
     }/*}}}*/
 
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
@@ -316,6 +318,7 @@ struct lingen_tuner {
         param_list_lookup_string(pl, "tuning_schedule_filename");
         param_list_lookup_string(pl, "tuning_timing_cache_filename");
         param_list_lookup_string(pl, "basecase-keep-until");
+        param_list_lookup_string(pl, "tuning_thresholds");
     }/*}}}*/
 
     lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
@@ -342,18 +345,27 @@ struct lingen_tuner {
         if (rank == 0)
             C.load(timing_cache_filename);
 
-        if (P.r > 1) {
-            /* Then we're tuning the MPI threshold, probably */
-            param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_threshold);
-        } else {
-            /* Otherwise it's likely to be the normal recursive
-             * threshold. Note that specifying both doesn't make sense
-             * anyway, so it's not that much of a problem.
-             *
-             * parse both just in case.
-             */
-            param_list_parse_uint(pl, "lingen_mpi_threshold", &forced_threshold);
-            param_list_parse_uint(pl, "lingen_threshold", &forced_threshold);
+        const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
+        if (tmp) {
+            std::string tlist = tmp;
+            for(size_t pos = 0 ; pos != string::npos ; ) {
+                size_t next = tlist.find(',', pos);
+                std::string tok;
+                if (next == string::npos) {
+                    tok = tlist.substr(pos);
+                    pos = next;
+                } else {
+                    tok = tlist.substr(pos, next - pos);
+                    pos = next + 1;
+                }
+                size_t colon = tok.find(':');
+                if (colon == string::npos)
+                    throw std::invalid_argument("tuning_thresholds is bad");
+                std::string algorithm = tok.substr(0, colon);
+                if (!(std::istringstream(tok.substr(colon + 1)) >> tuning_thresholds[algorithm])) {
+                    throw std::invalid_argument("tuning_thresholds is bad");
+                }
+            }
         }
     }
 
@@ -634,6 +646,10 @@ struct lingen_tuner {
 
             bool forceidx[2] = { false, false };
 
+            /* At the moment this only decides between basecase(single)
+             * and recursive+collective. And only one fft_type (see head
+             * of this struct) is covered. This is dumb.
+             */
             for(size_t idx = 0 ; idx < cws.size() ; idx++) {
                 auto const & cw(cws[idx]);
                 size_t L, Lleft, Lright;
@@ -683,19 +699,21 @@ struct lingen_tuner {
                         if (impose_hints) {
                             os << ("# No stored schedule found, computing new one\n");
                         }
-                        forced = recursion_makes_sense(L) && forced_threshold != UINT_MAX;
+                        std::string threshold_key = "recursive";
+                        forced = recursion_makes_sense(L) && tuning_thresholds.find(threshold_key) != tuning_thresholds.end();
                         if (forced) {
+                            unsigned int forced_threshold = tuning_thresholds.at(threshold_key);
                             rwin = L >= forced_threshold;
                             if (rwin) {
                                 os << fmt::sprintf("# Forcing recursion at this level,"
                                         " since L=%zu>="
-                                        "lingen_mpi_threshold=%u\n",
-                                        L, forced_threshold);
+                                        "tuning_threshold[%s]=%u\n",
+                                        L, threshold_key, forced_threshold);
                             } else {
                                 os << fmt::sprintf("# Forcing basecase at this level,"
                                         " since L=%zu<"
-                                        "lingen_mpi_threshold=%u\n",
-                                        L, forced_threshold);
+                                        "tuning_threshold[%s]=%u\n",
+                                        L, threshold_key, forced_threshold);
                             }
                         }
                     }
@@ -888,8 +906,13 @@ struct lingen_tuner {
         }
 
         os << ("################################# Total ##################################\n");
-        if (forced_threshold != UINT_MAX) {
-            os << fmt::sprintf("# Using explicit lingen_mpi_threshold=%zu (from command-line)\n", upper_threshold);
+        if (!tuning_thresholds.empty()) {
+            std::ostringstream ss;
+            for(auto const & x : tuning_thresholds) {
+                if (!ss.str().empty()) ss << ",";
+                ss << x.first << ':' << x.second;
+            }
+            os << fmt::sprintf("# Using explicit tuning_thresholds=%s (from command-line)\n", ss.str());
         } else {
             os << fmt::sprintf("# Automatically tuned lingen_mpi_threshold=%zu\n", upper_threshold);
         }
