@@ -84,8 +84,19 @@ set_mpi_derived_variables()
         return
     fi
 
-    # Note that even if we have an mpi build, we do intend to run the
-    # check if it's a nompi one !
+    # Note that even if we don't have an mpi build, we do intend to run the
+    # test if it's a nompi one !
+    if [ "$mpi_magic" = nompi ] && ! [ "$mpi_bindir" ] ; then
+        mpi=
+        mpirun=()
+        mpi_extra_args=()
+        export mpi
+        export exporter_mpirun="${mpirun[@]@A}"
+        export exporter_mpi_extra_args="${mpi_extra_args[@]@A}"
+        return
+    fi
+
+    # A nompi test with an mpi build will need mpirun detection anyway.
 
     detect_mpi_family
 
@@ -116,7 +127,7 @@ set_mpi_derived_variables()
             set_choices_from_n $nnodes
             ;;
         *)
-            echo "Script does not know which mpi tests to enable"
+            echo "Script does not know which mpi tests to enable (nnode=$nnodes ncores=$ncores mpi_family=$family)"
             ;;
     esac
     mpi="${!mpi_magic}"
