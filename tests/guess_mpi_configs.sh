@@ -78,11 +78,14 @@ set_mpi_derived_variables()
     mpiexec=$(perl -ne '/MPIEXEC\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
     mpicc=$(perl -ne '/MPI_C_COMPILER\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
 
-    if ! [ "$mpi_bindir" ] ; then
+    if [ "$mpi_magic" != nompi ] && ! [ "$mpi_bindir" ] ; then
         mpi=skip
         echo "Not an MPI build, mpi checks are disabled"
         return
     fi
+
+    # Note that even if we have an mpi build, we do intend to run the
+    # check if it's a nompi one !
 
     detect_mpi_family
 
@@ -117,20 +120,24 @@ set_mpi_derived_variables()
             ;;
     esac
     mpi="${!mpi_magic}"
-    if ! [ "$mpi" ] ; then
+    if [ "$mpi_magic" != nompi ] && ! [ "$mpi" ] ; then
         echo "No MPI run possible for magic choice $mpi_magic ; no-op exit" >&2
         mpi=skip
         return
     fi
-    _t="${mpi_magic}_mpi_args"[@]
-    set `echo $mpi | tr 'x' ' '`
-    if ! [ "$1" ] || ! [ "$2" ] ; then
-        # should never happen.
-        echo "Bad test configuration, mpi should be of the form \d+x\d+ for MPI test" >&2
-        exit 1
+    if [ "$mpi" ] ; then
+        set `echo $mpi | tr 'x' ' '`
+        if ! [ "$1" ] || ! [ "$2" ] ; then
+            # should never happen.
+            echo "Bad test configuration, mpi should be of the form \d+x\d+ for MPI test" >&2
+            exit 1
+        fi
+        njobs=$(($1*$2))
+    else
+        njobs=1
     fi
-    njobs=$(($1*$2))
     mpi_args_common+=(-n $njobs)
+    _t="${mpi_magic}_mpi_args"[@]
     mpirun=("$mpiexec" "${mpi_args_common[@]}" "${!_t}" "${mpi_extra_args[@]}")
     # pass on to subcalls
     export mpi
