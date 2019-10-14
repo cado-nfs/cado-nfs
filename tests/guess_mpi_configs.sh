@@ -79,6 +79,7 @@ set_mpi_derived_variables()
     mpicc=$(perl -ne '/MPI_C_COMPILER\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
 
     if ! [ "$mpi_bindir" ] ; then
+        mpi=skip
         echo "Not an MPI build, mpi checks are disabled"
         return
     fi
@@ -118,6 +119,7 @@ set_mpi_derived_variables()
     mpi="${!mpi_magic}"
     if ! [ "$mpi" ] ; then
         echo "No MPI run possible for magic choice $mpi_magic ; no-op exit" >&2
+        mpi=skip
         return
     fi
     _t="${mpi_magic}_mpi_args"[@]
