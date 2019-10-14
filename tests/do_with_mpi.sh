@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ "$CADO_DEBUG" ] ; then
+    set -x
+fi
+
 mpiconfs="$1"
 shift
 
@@ -22,19 +26,23 @@ for mpi_magic in "${mpiconfs[@]}" ; do
         exit 125
     fi
     if [[ "$1" =~ bwc.pl ]] ; then
-        set -- "$@" mpi="$mpi"
+        if [ "$mpi" ] ; then
+            set -- "$@" mpi="$mpi"
+        fi
         if [[ "$*" =~ :mpirun ]] ; then
-            # If :mpirun is found, we add the mpi= thing just
-            # after it _as well_.
-            nargs=()
-            for x in "$@" ; do
-                nargs+=("$x")
-                if [ "$x" = :mpirun ] ; then
-                    nargs+=(mpi="$mpi")
-                    nargs+=(mpi_extra_args="${mpi_extra_args[*]}")
-                fi
-            done
-            set -- "${nargs[@]}"
+            if [ "$mpi" ] ; then
+                # If :mpirun is found, we add the mpi= thing just
+                # after it _as well_.
+                nargs=()
+                for x in "$@" ; do
+                    nargs+=("$x")
+                    if [ "$x" = :mpirun ] ; then
+                        nargs+=(mpi="$mpi")
+                        nargs+=(mpi_extra_args="${mpi_extra_args[*]}")
+                    fi
+                done
+                set -- "${nargs[@]}"
+            fi
         else
             # we probably shouldn't pass mpi_extra_args at all,
             # in fact.
