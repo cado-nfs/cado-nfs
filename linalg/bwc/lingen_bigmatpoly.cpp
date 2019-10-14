@@ -475,16 +475,18 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
  */
 void bigmatpoly::gather_mat_partial(matpoly & dst,
         size_t dst_k,
-        size_t offset, size_t length) const
+        size_t offset, size_t length_raw) const
 {
-#ifdef SELECT_MPFQ_LAYER_u64k1
     constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+#ifdef SELECT_MPFQ_LAYER_u64k1
     static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
 #endif
 
     /* sanity checks, because the code below assumes this. */
     ASSERT_ALWAYS(irank() * (int) n1 + jrank() == rank());
-    ASSERT_ALWAYS(length <= (size_t) INT_MAX);
+    ASSERT_ALWAYS(length_raw <= (size_t) INT_MAX);
+
+    size_t length = simd * iceildiv(length_raw, simd);
 
     MPI_Datatype mt;
 #ifndef SELECT_MPFQ_LAYER_u64k1
@@ -521,11 +523,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
                         absrc_vec from = abvec_subvec_const(ab, me.part(i0, j0), offset);
                         if (peer == 0) {
                             /* talk to ourself */
-#ifndef SELECT_MPFQ_LAYER_u64k1
                             abvec_set(ab, to, from, length);
-#else
-                            std::copy(from, from + length / simd, to);
-#endif
                         } else {
                             MPI_Irecv(to, 1, mt, peer, tag, com[0], req);
                         }
@@ -588,18 +586,20 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
 void bigmatpoly::scatter_mat_partial(
         matpoly const & src,
         size_t src_k,
-        size_t offset, size_t length)
+        size_t offset, size_t length_raw)
 {
-#ifdef SELECT_MPFQ_LAYER_u64k1
     constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+#ifdef SELECT_MPFQ_LAYER_u64k1
     static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
 #endif
+    /* The length is not necessarily aligned on the simd width */
+    size_t length = simd * iceildiv(length_raw, simd);
 
     MPI_Datatype mt;
+
 #ifndef SELECT_MPFQ_LAYER_u64k1
     MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
 #else
-    ASSERT_ALWAYS(length % simd == 0);
     MPI_Type_contiguous(length / simd, MPI_UNSIGNED_LONG, &mt);
 #endif
     MPI_Type_commit(&mt);
@@ -629,11 +629,7 @@ void bigmatpoly::scatter_mat_partial(
 
                         if (peer == 0) {
                             /* talk to ourself */
-#ifndef SELECT_MPFQ_LAYER_u64k1
                             abvec_set(ab, to, from, length);
-#else
-                            std::copy(from, from + length / simd, to);
-#endif
                         } else {
                             /* battle const-deprived MPI prototypes... */
                             MPI_Isend((void*) from, 1, mt, peer, tag, com[0], req);
@@ -686,6 +682,7 @@ void bigmatpoly::scatter_mat_partial(
 /* Collect everything into node 0 */
 void bigmatpoly::gather_mat(matpoly & dst) const
 {
+    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
     matpoly dst_partial;
 #ifndef SELECT_MPFQ_LAYER_u64k1
     size_t length = 100;
@@ -707,7 +704,9 @@ void bigmatpoly::gather_mat(matpoly & dst) const
 
     size_t offset = 0;
     while (size > offset) {
-        size_t len = MIN(length, (size-offset));
+        size_t len_raw = MIN(length, (size-offset));
+        size_t len = simd * iceildiv(len_raw, simd);
+
         gather_mat_partial(dst_partial, 0, offset, len);
 
         // Copy the partial data into dst. This is the place where we
@@ -728,6 +727,7 @@ void bigmatpoly::gather_mat(matpoly & dst) const
 /* Exactly the converse of the previous function. */
 void bigmatpoly::scatter_mat(matpoly const & src)
 {
+    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
     matpoly src_partial;
 #ifndef SELECT_MPFQ_LAYER_u64k1
     size_t length = 100;
@@ -747,8 +747,6 @@ void bigmatpoly::scatter_mat(matpoly const & src)
 
     /* dst must be in pre-init mode */
     ASSERT_ALWAYS(check_pre_init());
-    ASSERT_ALWAYS(ab);
-    ASSERT_ALWAYS(!src.ab || ab == src.ab);
 
     /* Allocate enough space on each node */
     finish_init(ab, shell.m, shell.n, shell.alloc);
@@ -762,7 +760,8 @@ void bigmatpoly::scatter_mat(matpoly const & src)
 
     size_t offset = 0;
     while (shell.size > offset) {
-        size_t len = MIN(length, (shell.size-offset));
+        size_t len_raw = MIN(length, (shell.size-offset));
+        size_t len = simd * iceildiv(len_raw, simd);
         // Copy the partial data into src_partial. This is the place where we
         // could read directly from disk if memory is a concern:
         if (!rank()) {

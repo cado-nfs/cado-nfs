@@ -83,11 +83,10 @@ fi
 
 TMPDIR="$wdir"
 REFERENCE_SHA1="$expect_sha1_F"
-length="$sequence_length"
 
 dotest() {
     F="$TMPDIR/base"
-    "`dirname $0`"/perlrandom.pl $((m*n*length/8)) $seed > $F
+    "`dirname $0`"/perlrandom.pl $((m*n*(sequence_length/3)/8)) $seed > $F
     G="$TMPDIR/seq.bin"
     cat $F $F $F > $G
     rm -f $F
