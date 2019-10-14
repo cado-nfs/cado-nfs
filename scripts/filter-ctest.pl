@@ -26,6 +26,7 @@ my @live=();
 
 my $tests_pending = 0;
 my $tests_passed = 0;
+my $tests_skipped = 0;
 my $tests_failed = 0;
 my $total_tests='?';
 
@@ -34,6 +35,7 @@ my $csi = {
     failure => "\033[01;31m",   # bold red
     success => "\033[01;32m",   # bold green
     starting => "\033[01;33m",  # bold yellow
+    skipped => "\033[01;37m",   # bold gray
     normal => "\033[00;30m",    # black
 };
 
@@ -76,7 +78,8 @@ sub short_global_status {
                     } (
                         ['starting', $tests_pending],
                         ['success', $tests_passed],
-                        ['failure', $tests_failed]
+                        ['failure', $tests_failed],
+                        ['skipped', $tests_skipped]
                     );
     return join(" ", @tcounts);
 }
@@ -137,7 +140,8 @@ sub print_all_outputs {
     for my $n (sort { $a <=> $b } keys %archive) {
         my $outcome=$archive{$n}->{'outcome'};
         my $passed = defined($outcome) && $outcome =~ /Passed/;
-        if ($passed) {
+        my $skipped = defined($outcome) && $outcome =~ /Skipped/;
+        if ($passed || $skipped) {
             next if $interrupt && $print_outputs_on_interrupt <= 1;
             next if !$interrupt && $print_outputs_on_normal_exit <= 1;
         }
@@ -167,7 +171,8 @@ sub sigint {
         my $outcome=$archive{$n}->{'outcome'};
         my $title=$archive{$n}->{'title'};
         my $passed = defined($outcome) && $outcome =~ /Passed/;
-        next if $passed;
+        my $skipped = defined($outcome) && $outcome =~ /Skipped/;
+        next if $passed || $skipped;
         if ($outcome) {
             $all_failed .= sprintf("%3d", $n) . ": $title\n";
         } else {
@@ -232,12 +237,18 @@ while (<>) {
             close F;
         }
         $tests_pending--;
+        my $color;
         if ($outcome =~ /Passed/) {
             $tests_passed++;
+            $color='success';
+        } elsif ($outcome =~ /Skipped/) {
+            $tests_skipped++;
+            $color='skipped';
         } else {
             $tests_failed++;
+            $color='failure';
         }
-        remove_from_live_slot($n, ($outcome =~ /Passed/ ? 'success' : 'failure'));
+        remove_from_live_slot($n, $color);
     } elsif (/^\s*\d+% tests/ || /The following/) {
         die "unexpected final text, some tests are still running: @live\n$_" if scalar grep { defined($_) } @live;
         my $tailmsg = $_;
