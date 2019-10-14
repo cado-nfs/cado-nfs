@@ -2,6 +2,14 @@
 
 # This installs cmake if it is not found in the current system
 
+# minimal functionality is, it seems, provided by cmake 3.4+.
+
+# I wouldn't be extremely surprised to realize that cmake 3.7+ is needed
+# somehow, but I'm not sur.e
+
+# cmake 3.9 or later is needed in order to properly see the
+# "skipped tests"
+
 name=cmake
 version=3.4.3
 package=${name}-${version}.tar.gz

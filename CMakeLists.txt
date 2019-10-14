@@ -23,7 +23,7 @@ cmake_policy(SET CMP0054 NEW)
 # IN_LIST
 cmake_policy(SET CMP0057 NEW)
 
-# Here's how we set cmak policies that are unknown to old cmake
+# Here's how we set cmake policies that are unknown to old cmake
 # versions.
 #
 # VERSION_GREATER_EQUAL is for cmake 3.7+
