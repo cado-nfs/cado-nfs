@@ -51,7 +51,7 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
 fi
 
 
-wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado.XXXXXXXX)
+wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX)
 
 cleanup() { if ! [ "$CADO_DEBUG" ] ; then rm -rf $wdir ; fi ; }
 trap cleanup EXIT

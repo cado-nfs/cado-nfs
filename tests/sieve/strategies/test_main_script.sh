@@ -3,7 +3,7 @@
 CADO_NFS_SOURCE_DIR=$1
 CADO_NFS_BINARY_DIR=$2
 
-t=`mktemp -d ${TMPDIR-/tmp}/cado-check.XXXXXXX`
+t=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXXXX`
 cd $t
 
 cat > c120.poly <<EOF

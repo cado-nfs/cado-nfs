@@ -6,7 +6,7 @@
 
 SM="$1"
 SOURCE_TEST_DIR="`dirname "$0"`"
-WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cadotest.XXXXXXXX`
+WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX`
 # Make temp direcotry world-readable for easier debugging
 chmod a+rx "${WORKDIR}"
 

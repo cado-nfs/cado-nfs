@@ -932,7 +932,7 @@ if ($mpi_needed) {
         # on the list of nodes.
         push @mpi_precmd, "$mpi/mpiexec";
 
-        my $auto_hostfile_pattern="/tmp/hosts_XXXXXXXX";
+        my $auto_hostfile_pattern="/tmp/cado-nfs.hosts_XXXXXXXX";
 
         # Need hosts. Put that to the list @hosts first.
         if ($main =~ /^:srun/) {
@@ -940,11 +940,11 @@ if ($mpi_needed) {
         } elsif (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
             print STDERR "OAR environment detected, setting hostfile.\n";
             get_mpi_hosts_oar;
-            $auto_hostfile_pattern="/tmp/hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
+            $auto_hostfile_pattern="/tmp/cado-nfs.hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
         } elsif (exists($ENV{'PBS_JOBID'}) && !defined($hostfile) && !scalar @hosts ) {
             print STDERR "Torque/OpenPBS environment detected, setting hostfile.\n";
             get_mpi_hosts_torque;
-            $auto_hostfile_pattern="/tmp/hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
+            $auto_hostfile_pattern="/tmp/cado-nfs.hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
         } elsif (exists($ENV{'PE_HOSTFILE'}) && exists($ENV{'NSLOTS'}) && !defined($hostfile) && !scalar @hosts) {
             print STDERR "Oracle/SGE environment detected, setting hostfile.\n";
             get_mpi_hosts_sge;

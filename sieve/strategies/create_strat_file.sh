@@ -96,7 +96,7 @@ fi
 echo "### First selection of methods"
 x=0
 while read m b1min b1max b1step cmin cmax cstep; do
-    outfile=`mktemp -p . data_${m}_XXXXXXX`
+    outfile=`mktemp -p . cado-nfs.data_${m}_XXXXXXX`
     sleep 1
     cmd="$GFM -lb $fbb -ub $lpb  -m $m -b1min $b1min -b1max $b1max -b1step $b1step -cmin $cmin -cmax $cmax -cstep $cstep -out $outfile"
     echo $cmd

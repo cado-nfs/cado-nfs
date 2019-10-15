@@ -80,7 +80,7 @@ nh=$((thr1 * mpi1))
 nv=$((thr2 * mpi2))
 
 M=x$seed
-D=`mktemp -d ${TMPDIR-/tmp}/bwc.XXXXXXXXXXX`
+D=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.bwc.XXXXXXXXXXX`
 
 cleanup() {
     if ! [ "$CADO_DEBUG" ] ; then

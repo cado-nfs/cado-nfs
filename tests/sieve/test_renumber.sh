@@ -2,7 +2,7 @@
 
 SOURCE_TEST_DIR="`dirname "$0"`"
 BUILD_DIR="$1"
-WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cadotest.XXXXXXXX`
+WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.renumber.XXXXXXXXXX`
 # Make temp direcotry world-readable for easier debugging
 chmod a+rx "${WORKDIR}"
 

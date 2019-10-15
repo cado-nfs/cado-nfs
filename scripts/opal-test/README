@@ -5,7 +5,7 @@ Download NOMAD.zip from <http://sourceforge.net/projects/nomad-bb-opt/>
 Build it with:
 
 bash <<'EOF'
-  T=$(mktemp -d /tmp/XXXXXXXXX)
+  T=$(mktemp -d /tmp/cado-nfs.XXXXXXXXX)
   cleanup() { rm -rf "$T" ; }
   trap cleanup EXIT
   cd "$T"
@@ -25,7 +25,7 @@ Download OPAL from <https://github.com/dpo/opal>, or clone with the git
 command below. Then install OPAL into your user site directory:
 
 bash <<'EOF'
-  T=$(mktemp -d /tmp/XXXXXXXXX)
+  T=$(mktemp -d /tmp/cado-nfs.XXXXXXXXX)
   cd "$T"
   cleanup() { rm -rf "$T" ; }
   trap cleanup EXIT
