@@ -1442,3 +1442,4 @@ linalg/bwc/lingen_io_wrappers.hpp
 scripts/filter-ctest.pl
 tests/do_with_mpi.sh
 tests/guess_mpi_configs.sh
+linalg/bwc/lingen_verify_checkpoints.cpp

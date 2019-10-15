@@ -247,7 +247,9 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 thr=3x3
                 checkpoint_threshold=40
                 ${extra}
-                TARGET_DEPENDENCIES lingen_${gfp_layer}
+                TARGET_DEPENDENCIES
+                lingen_${gfp_layer}
+                lingen_verify_checkpoints
                 AVOID_CONCURRENT
                 )
         endforeach()

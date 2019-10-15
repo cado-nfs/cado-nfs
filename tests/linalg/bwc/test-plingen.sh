@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
 if ! [ "$WDIR" ] ; then
     echo "Want \$WDIR" >&2

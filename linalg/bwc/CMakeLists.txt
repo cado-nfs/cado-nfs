@@ -74,6 +74,14 @@ endmacro()
 
 ### bwc_base
 
+add_executable(lingen_verify_checkpoints lingen_verify_checkpoints.cpp)
+if (HAVE_OPENMP)
+set_target_properties(lingen_verify_checkpoints PROPERTIES
+    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+endif()
+target_link_libraries(lingen_verify_checkpoints utils ${gmp_libname})
+
 # Note that because the balancing code contains balancing_get_matrix_u32,
 # which calls the parallelizing_info layer, it's difficult to make them
 # two distinct libraries. So far it's the only stopper though.

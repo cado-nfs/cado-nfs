@@ -6,14 +6,21 @@
    Optional arguments: [-seed xxx] [-v]
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "cado.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
-#include <assert.h>
+#include <cassert>
 #include <sys/types.h>
 #include <unistd.h>
+#include "macros.h"
+#include "params.h"
+#include "cxx_mpz.hpp"
+
+#ifdef HAVE_OPENMP
 #include <omp.h>
+#endif
 
 // #define FORMAT 0 /* matrices of polynomials */
 #define FORMAT 1 /* polynomials of matrices */
@@ -21,12 +28,17 @@
 /* define WARNING to get warning for non-zero padding coefficients */
 // #define WARNING
 
-mpz_t p;                /* prime modulus */
+struct {
+    unsigned int m,n;
+} bw_parameters;
+
+cxx_mpz p;                /* prime modulus */
 unsigned long lingen_p; /* number of limbs per coefficient */
 unsigned long dim = 0;  /* matrix dimension */
-int k = 0;              /* matrix is cut in k x k submatrices */
+int k = 1;              /* matrix is cut in k x k submatrices */
 gmp_randstate_t state;
 int verbose = 0;
+unsigned long seed;
 
 typedef struct
 {
@@ -43,10 +55,10 @@ init_matrix (matrix M, unsigned long n, unsigned long k, unsigned long deg)
   M->n = n;
   M->k = k;
   M->deg = deg;
-  M->coeff = malloc (n * sizeof (mpz_t*));
+  M->coeff = (mpz_t **) malloc (n * sizeof (mpz_t*));
   for (unsigned long i = 0; i < n; i++)
     {
-      M->coeff[i] = malloc (n * sizeof (mpz_t));
+      M->coeff[i] = (mpz_t *) malloc (n * sizeof (mpz_t));
       for (unsigned long j = 0; j < n; j++)
         mpz_init (M->coeff[i][j]);
     }
@@ -57,7 +69,7 @@ mpz_t *
 init_vector (unsigned long n)
 {
   mpz_t *u;
-  u = malloc (n * sizeof (mpz_t));
+  u = (mpz_t *) malloc (n * sizeof (mpz_t));
   for (unsigned long i = 0; i < n; i++)
     mpz_init (u[i]);
   return u;
@@ -100,7 +112,7 @@ read_coeff (FILE *fp, mpz_t c)
   size_t size;
   mpz_realloc2 (c, lingen_p * mp_bits_per_limb);
   size = fread (c->_mp_d, sizeof (mp_limb_t), lingen_p, fp);
-  assert (size == lingen_p);
+  ASSERT_ALWAYS (size == lingen_p);
   n = lingen_p;
   while (n > 0 && c->_mp_d[n-1] == 0)
     n--;
@@ -113,18 +125,16 @@ read_zero (FILE *fp)
 {
   mp_limb_t buf[1];
   size_t size;
-  int ok;
   for (unsigned long i = 0; i < lingen_p; i++)
     {
       size = fread (buf, sizeof (mp_limb_t), 1, fp);
-      assert (size == 1);
-      ok = ok && buf == 0;
+      ASSERT_ALWAYS (size == 1);
     }
-  return ok;
+  return true;
 }
 
 unsigned long
-read_degree (char *s)
+read_degree (const char *s)
 {
   char t[1024];
   strcpy (t, s);
@@ -138,10 +148,10 @@ read_degree (char *s)
     }
   int format;
   int ret = fscanf (fp, "format %d\n", &format);
-  assert (ret == 1);
+  ASSERT_ALWAYS (ret == 1);
   unsigned long ncoeff;
   ret = fscanf (fp, "%lu\n", &ncoeff);
-  assert (ret == 1);
+  ASSERT_ALWAYS (ret == 1);
   fclose (fp);
   return ncoeff - 1;
 }
@@ -188,7 +198,7 @@ read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
   unsigned long i, j, k;
   char *T;
   mpz_t x_power_k, tmp;
-  T = malloc (m * m);
+  T = (char *) malloc (m * m);
   memset (T, 0, m * m);
   mpz_init (tmp);
   mpz_init_set_ui (x_power_k, 1);
@@ -236,7 +246,7 @@ read_submatrix (matrix M, FILE *fp, unsigned long starti, unsigned long ni,
 
 /* read a matrix of dimension n, divided into kxk submatrices */
 void
-read_matrix (matrix M, char *s, unsigned long n, unsigned long k, mpz_t x)
+read_matrix (matrix M, const char *s, unsigned long n, unsigned long k, mpz_t x)
 {
   unsigned long remi = n; /* it remains remi rows to read */
   unsigned long starti = 0;
@@ -256,10 +266,17 @@ read_matrix (matrix M, char *s, unsigned long n, unsigned long k, mpz_t x)
           char t[1024];
           int nij = M->k * i + j;
           strcpy (t, s);
-          sprintf (t + strlen (t), ".%d.data", nij);
-          if (verbose)
+          if (k > 1) {
+              sprintf (t + strlen (t), ".%d.data", nij);
+          } else {
+              sprintf (t + strlen (t), ".single.data");
+          }
+          if (verbose) {
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
 	    printf ("Reading %lux%lu matrix %s\n", ni, nj, t);
+          }
           fp = fopen (t, "r");
 	  if (fp == NULL)
 	    {
@@ -365,75 +382,35 @@ print_matrix (matrix M)
     }
 }
 
-int
-main (int argc, char *argv[])
+void declare_usage(cxx_param_list & pl)
 {
+  param_list_usage_header(pl,
+      "Usage: lingen_verify_checkpoints [options] -- [list of file names]\n"
+      "\n"
+      "The list of file names can have one of the following formats:\n"
+      " - pi0 pi1 pi2 : check that pi0*pi1==pi2\n"
+      " - E pi : check that E*pi=O(x^length(E))\n"
+      "Options are as follows.\n"
+      );
+  param_list_decl_usage(pl, "prime", "characteristic of the base field");
+  param_list_decl_usage(pl, "mpi", "mpi geometry");
+  param_list_decl_usage(pl, "seed", "random seed");
+  param_list_decl_usage(pl, "m", "block Wiedemann parameter m");
+  param_list_decl_usage(pl, "n", "block Wiedemann parameter n");
+  param_list_decl_usage(pl, "v", "More verbose output");
+}
+
+void lookup_parameters(cxx_param_list & pl)
+{
+  param_list_lookup_string(pl, "prime");
+  param_list_lookup_string(pl, "mpi");
+  param_list_lookup_string(pl, "seed");
+}
+
+int do_check_pi(const char * pi_left_filename, const char * pi_right_filename, const char * pi_filename)
+{
+  int ret;
   matrix Mab, Mbc, Mac;
-  unsigned long seed = getpid ();
-
-  mpz_init (p);
-
-  while (argc >= 2 && argv[1][0] == '-')
-    {
-      if (argc >= 3 && strcmp (argv[1], "-p") == 0)
-        {
-          mpz_set_str (p, argv[2], 10);
-          argc -= 2;
-          argv += 2;
-        }
-      else if (argc >= 3 && strcmp (argv[1], "-dim") == 0)
-        {
-          dim = strtoul (argv[2], NULL, 10);
-          argc -= 2;
-          argv += 2;
-        }
-      else if (argc >= 3 && strcmp (argv[1], "-k") == 0)
-        {
-          k = atoi (argv[2]);
-          argc -= 2;
-          argv += 2;
-        }
-      else if (argc >= 3 && strcmp (argv[1], "-seed") == 0)
-        {
-          seed = strtoul (argv[2], NULL, 10);
-          argc -= 2;
-          argv += 2;
-        }
-      else if (argc >= 2 && strcmp (argv[1], "-v") == 0)
-        {
-          verbose ++;
-          argc -= 1;
-          argv += 1;
-        }
-    }
-  
-  if (mpz_cmp_ui (p, 0) == 0)
-    {
-      fprintf (stderr, "Error, missing -p argument\n");
-      exit (1);
-    }
-
-  if (dim == 0)
-    {
-      fprintf (stderr, "Error, missing -dim argument\n");
-      exit (1);
-    }
-
-  if (k == 0)
-    {
-      fprintf (stderr, "Error, missing -k argument\n");
-      exit (1);
-    }
-
-  gmp_randinit_default (state);
-  gmp_randseed_ui (state, seed);
-
-  lingen_p = mpz_size (p);
-  if (verbose)
-    printf ("Number of limbs: %zu\n", lingen_p);
-
-  assert (argc == 4);
-
   unsigned long n = dim;
 
   mpz_t *u = init_vector (n);
@@ -448,28 +425,36 @@ main (int argc, char *argv[])
     gmp_printf ("x=%Zd\n", x);
 
   mpz_t *u_times_piab, *pibc_times_v, *piac_times_v;
+#ifdef HAVE_OPENMP
 #pragma omp parallel sections
+#endif
   {
-    #pragma omp section
+#ifdef HAVE_OPENMP
+#pragma omp section
+#endif
     {
       u_times_piab = init_vector (n);
-      read_matrix (Mab, argv[1], dim, k, x);
+      read_matrix (Mab, pi_left_filename, dim, k, x);
       mul_left (u_times_piab, u, Mab);
       clear_matrix (Mab);
     }
 
-    #pragma omp section
+#ifdef HAVE_OPENMP
+#pragma omp section
+#endif
     {
       pibc_times_v = init_vector (n);
-      read_matrix (Mbc, argv[2], dim, k, x);
+      read_matrix (Mbc, pi_right_filename, dim, k, x);
       mul_right (pibc_times_v, Mbc, v);
       clear_matrix (Mbc);
     }
 
-    #pragma omp section
+#ifdef HAVE_OPENMP
+#pragma omp section
+#endif
     {
       piac_times_v = init_vector (n);
-      read_matrix (Mac, argv[3], dim, k, x);
+      read_matrix (Mac, pi_filename, dim, k, x);
       mul_right (piac_times_v, Mac, v);
       clear_matrix (Mac);
     }
@@ -481,19 +466,18 @@ main (int argc, char *argv[])
 
   scalar_product (res_left, u_times_piab, pibc_times_v, n);
   scalar_product (res_right, u, piac_times_v, n);
-  int ret;
   if (mpz_cmp (res_left, res_right) != 0)
-      {
-        fprintf (stderr, "Error, results differ\n");
-        gmp_printf ("res_left  = %Zd\n", res_left);
-        gmp_printf ("res_right = %Zd\n", res_right);
-        ret = 1;
-      }
+  {
+    fprintf (stderr, "Error, results differ\n");
+    gmp_printf ("res_left  = %Zd\n", res_left);
+    gmp_printf ("res_right = %Zd\n", res_right);
+    ret = 0;
+  }
   else
-    {
-      printf ("Check is ok\n");
-      ret = 0; /* return 0 if ok */
-    }
+  {
+    printf ("Check is ok\n");
+    ret = 1;
+  }
 
   mpz_clear (res_left);
   mpz_clear (res_right);
@@ -503,8 +487,80 @@ main (int argc, char *argv[])
   clear_vector (u_times_piab, n);
   clear_vector (pibc_times_v, n);
   clear_vector (piac_times_v, n);
-  mpz_clear (p);
-  gmp_randclear (state);
 
   return ret;
 }
+
+int
+main (int argc, char *argv[])
+{
+  cxx_param_list pl;
+
+  seed = getpid ();
+
+  declare_usage(pl);
+
+  const char * argv0 = argv[0];
+
+  param_list_configure_switch(pl, "-v", &verbose);
+  for(argc--, argv++ ; argc ; ) {
+    if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+    if (strcmp(argv[0], "--") == 0) {
+      argc--,argv++;
+      break;
+    }
+    fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+    param_list_print_usage(pl, argv0, stderr);
+    exit(EXIT_FAILURE);
+  }
+
+  if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
+    fprintf(stderr, "Missing parameter: prime\n");
+    param_list_print_usage(pl, argv0, stderr);
+    exit(EXIT_FAILURE);
+  }
+  int mpi_dims[2]={0,0};
+  if (param_list_parse_int_and_int(pl, "mpi", mpi_dims, "x")) {
+    ASSERT_ALWAYS(mpi_dims[0] == mpi_dims[0]);
+    k = mpi_dims[0];
+  }
+  param_list_parse_ulong(pl, "seed", &seed);
+  if (!param_list_parse_uint(pl, "m", &bw_parameters.m)) {
+    fprintf(stderr, "Missing parameter: m\n");
+    param_list_print_usage(pl, argv0, stderr);
+    exit(EXIT_FAILURE);
+  }
+  if (!param_list_parse_uint(pl, "n", &bw_parameters.m)) {
+    fprintf(stderr, "Missing parameter: n\n");
+    param_list_print_usage(pl, argv0, stderr);
+    exit(EXIT_FAILURE);
+  }
+  if (param_list_warn_unused(pl)) {
+    param_list_print_usage(pl, argv0, stderr);
+    exit(EXIT_FAILURE);
+  }
+
+  gmp_randinit_default (state);
+  gmp_randseed_ui (state, seed);
+
+  lingen_p = mpz_size (p);
+  if (verbose)
+    printf ("Number of limbs: %zu\n", lingen_p);
+
+  int ret = 0;
+
+  if (argc == 3) {
+    ret = do_check_pi(argv[0], argv[1], argv[2]);
+  } else if (argc == 2) {
+    fprintf(stderr, "not implemented\n");
+    ret = 1;
+  } else {
+    fprintf(stderr, "bad argument list\n");
+    exit(EXIT_FAILURE);
+  }
+
+  gmp_randclear (state);
+
+  return ret ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+/* vim :sw=2 sta et: */

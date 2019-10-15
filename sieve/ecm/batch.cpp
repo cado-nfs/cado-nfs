@@ -803,7 +803,7 @@ factor_one (
              * have non-smooth values after all.
              */
             if (batchlpb[side] == lpb[side]) {
-#ifdef  HAVE_OPENMP
+#ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
                 {
