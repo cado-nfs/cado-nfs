@@ -465,11 +465,13 @@ void matpoly::rshift(unsigned int k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= size);
     unsigned int newsize = size - k;
-    for(unsigned int i = 0 ; i < m ; i++) {
-        for(unsigned int j = 0 ; j < n ; j++) {
-            const unsigned long * ps = part(i, j);
-            unsigned long * pd = part(i, j);
-            CopyBitsRsh(pd, ps, size - k, k);
+    if (newsize) {
+        for(unsigned int i = 0 ; i < m ; i++) {
+            for(unsigned int j = 0 ; j < n ; j++) {
+                const unsigned long * ps = part(i, j);
+                unsigned long * pd = part(i, j);
+                CopyBitsRsh(pd, ps, size - k, k);
+            }
         }
     }
     size = newsize;

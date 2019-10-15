@@ -425,10 +425,13 @@ mval:=func<M|Minimum([Valuation(x):x in Eltseq(M)])>;
 mdeg:=func<M|Maximum([Degree(x):x in Eltseq(M)])>;
 mcol:=func<M,j|Transpose(M)[j]>;
 mrow:=func<M,i|M[i]>;
+mrows:=func<M,L|Matrix(BaseRing(M),#L,Ncols(M),[mrow(M,i):i in L])>;
+mcols:=func<M,L|Transpose(mrows(Transpose(M),L))>;
 function reciprocal(P,k)
     assert k ge Degree(P);
     return Parent(P)![Coefficient(P, k-i):i in [0..k]];
 end function;
+mrev:=func<M,k|Parent(M)![reciprocal(x,k):x in Eltseq(M)]>;
 
 function mpol_eval(y,M,P)
     /* compute y * P(M) */

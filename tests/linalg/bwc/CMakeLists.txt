@@ -209,6 +209,8 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
                 )
+            cado_divert_test(test_bwc_lingen_${gfp_layer}_test0${suffix} frag
+                APPEND_ARGUMENTS io_block_size=1024)
             cado_define_test(test_bwc_lingen_${gfp_layer}_test1${suffix}
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR

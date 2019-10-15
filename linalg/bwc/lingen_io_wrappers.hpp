@@ -191,6 +191,7 @@ class lingen_E_from_A
      * the span cache_k1 - cache_k0 is not fixed a priori.
      */
     matpoly cache;
+    matpoly tail;
     unsigned int cache_k0 = 0;
     unsigned int cache_k1 = 0;
     // unsigned int next_src_k = 0; // same as cache_k1, in fact !
@@ -204,6 +205,7 @@ class lingen_E_from_A
       , lingen_input_wrapper_base(A.ab, d.m, d.m + d.n)
       , A(A)
       , cache(A.ab, A.nrows, A.ncols, 0)
+      , tail(A.ab, nrows, ncols, 0)
     {
         ASSERT_ALWAYS(A.nrows == d.m);
         ASSERT_ALWAYS(A.ncols == d.n);
@@ -316,6 +318,7 @@ class lingen_F_from_PI
 {
     lingen_input_wrapper_base& pi;
     matpoly cache;
+    matpoly tail;
     unsigned int cache_k0 = 0;
     unsigned int cache_k1 = 0;
     // unsigned int next_src_k = 0; // same as cache_k1, in fact !

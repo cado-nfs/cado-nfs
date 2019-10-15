@@ -799,6 +799,7 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
     , lingen_input_wrapper_base(pi.ab, n, n)
     , pi(pi)
     , cache(pi.ab, pi.nrows, pi.ncols, 0)
+    , tail(pi.ab, nrows, ncols, 0)
     , rhs(pi.ab, nrhs, n, 1)
 {
     /* The first n columns of F0 are the identity matrix, so that for (0
@@ -900,8 +901,6 @@ void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
 ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     abdst_field ab = bw_dimensions::ab;
-    long long ll;       // used for MPI things.
-    ssize_t produced;
 
     /* The first n columns of F0 are the identity matrix, so that
      * for (0 <= j < n),
@@ -919,128 +918,148 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
      */
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
-    unsigned int lookback = cache_k1 - cache_k0;
-    ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n)));
 
-    long long nk;
-    if (!mpi_rank()) {
-        nk = MIN(k1, dst.get_size()) - k0;
-        ASSERT_ALWAYS(cache.get_size() == lookback);
-        cache.zero_pad(lookback + nk);
-    }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    ASSERT_ALWAYS(nk % simd == 0);
+    ssize_t produced = 0;
 
-    /* This may be a collective call. At any rate, the cache variable is
-     * meaningful only at the root. */
-    ssize_t nread = A.read_to_matpoly(cache, lookback, lookback + nk);
+    if (cache_k1 != cache_k0) {
+        unsigned int F0_lookback = t0 + (nrhs < n);
+        unsigned int lookback = cache_k1 - cache_k0;
+        ASSERT_ALWAYS(lookback >= F0_lookback);
 
-    if (!mpi_rank()) {
-        cache.set_size(lookback + nread);
-    }
-    cache_k1 += nread;
+        long long nk;
+        if (!mpi_rank()) {
+            nk = MIN(k1, dst.get_size()) - k0;
+            ASSERT_ALWAYS(cache.get_size() == lookback);
+            cache.zero_pad(lookback + nk);
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        ASSERT_ALWAYS(nk % simd == 0);
 
-    if (mpi_rank()) goto lingen_E_from_A_exit;
+        /* This may be a collective call. At any rate, the cache variable is
+         * meaningful only at the root. */
+        ssize_t nread = A.read_to_matpoly(cache, lookback, lookback + nk);
 
-    /* Do the bulk of the processing with an aligned count.
-     * Note that if nread is not already aligned, it means that we had a
-     * short read, since nk has to be aligned. And if we have a short
-     * read, we're going to clear the cache on exit, so that it doesn't
-     * matter if we lose the possibility to rotate the cache correctly.
-     */
-    nread -= nread % simd;
+        if (!mpi_rank())
+            cache.set_size(lookback + nread);
 
-    if (nread > 0) {
-        for(unsigned int j = 0; j < m + n; j++) {
-            unsigned int jA;
-            unsigned int kA;
-            std::tie(kA, jA) = column_data_from_A(j);
-            /* column j of E is actually X^{-kA}*column jA of A. */
-            for(unsigned int i = 0 ; i < m ; i++) {
-                abdst_vec to = dst.part_head(i, j, k0);
-                absrc_vec from = cache.part_head(i, jA, kA);
+        cache_k1 += nread;
+
+        /* Do the bulk of the processing with an aligned count.
+         * Note that if nread is not already aligned, it means that we had a
+         * short read, since nk has to be aligned. And if we have a short
+         * read, we're going to clear the cache on exit, so that it doesn't
+         * matter if we lose the possibility to rotate the cache correctly.
+         */
+        nread -= nread % simd;
+
+        if (!mpi_rank()) {
+            /* process data at rank 0 */
+            if (nread > 0) {
+                for(unsigned int j = 0; j < m + n; j++) {
+                    unsigned int jA;
+                    unsigned int kA;
+                    std::tie(kA, jA) = column_data_from_A(j);
+                    /* column j of E is actually X^{-kA}*column jA of A. */
+                    for(unsigned int i = 0 ; i < m ; i++) {
+                        abdst_vec to = dst.part_head(i, j, k0);
+                        absrc_vec from = cache.part_head(i, jA, kA);
 #ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_set(ab, to, from, nread);
+                        abvec_set(ab, to, from, nread);
 #else
-                unsigned int sr = kA % simd;
-                unsigned int nq = nread / simd;
-                if (sr) {
-                    mpn_rshift(to, from, nq, sr);
-                    to[nq-1] ^= from[nq] << (simd - sr);
-                } else {
-                    abvec_set(ab, to, from, nread);
-                }
+                        unsigned int sr = kA % simd;
+                        unsigned int nq = nread / simd;
+                        if (sr) {
+                            mpn_rshift(to, from, nq, sr);
+                            to[nq-1] ^= from[nq] << (simd - sr);
+                        } else {
+                            abvec_set(ab, to, from, nread);
+                        }
 #endif
+                    }
+                }
             }
         }
-    }
-    ASSERT_ALWAYS(nread >= 0);
-    /* At this point we have a choice to make.
-     * - Either we strive to perform the operation that is mathematically
-     *   unambiguous on our input, akin to polynomial multiplication.
-     * - Or we adapt to the true nature of the source we're dealing in
-     *   the first place: an infinite series, which we know only to some
-     *   precision.
-     * We do the latter, via the introduction of the boolean flag
-     * (has_noise).
-     */
-    for(produced = nread ; produced + k0 < k1 ; produced += simd) {
-        bool will_produce = false;
-        unsigned int noise_cut = simd;
-        for(unsigned int j = 0; j < m + n; j++) {
-            unsigned int jA;
-            unsigned int kA;
-            std::tie(kA, jA) = column_data_from_A(j);
-            /* column j of E is actually X^{-kA}*column jA of A. */
-            if (produced + kA >= cache_k1 - cache_k0) {
-                noise_cut = 0;
-            } else {
-                noise_cut = MIN(cache_k1 - cache_k0 - (produced + kA), simd);
-                will_produce = true;
-            }
-        }
-        if (noise_cut == 0) break;
-        if (!will_produce) break;
-        for(unsigned int j = 0; j < m + n; j++) {
-            unsigned int jA;
-            unsigned int kA;
-            std::tie(kA, jA) = column_data_from_A(j);
-            /* column j of E is actually X^{-kA}*column jA of A. */
-            if (produced + kA >= cache_k1 - cache_k0) continue;
-            for(unsigned int i = 0 ; i < m ; i++) {
-                abdst_vec to = dst.part_head(i, j, k0 + produced);
-                absrc_vec from = cache.part_head(i, jA, kA + produced);
+
+        /* not that nread is agreed at all ranks */
+
+        produced = nread;
+
+        if (nread + k0 < k1) {
+            /* We need to handle the end of the input stream, and stow
+             * that to the (tail) field. This will be done at rank 0.
+             */
+
+            /* At this point we have a choice to make.
+             * - Either we strive to perform the operation that is
+             *   mathematically unambiguous on our input, akin to
+             *   polynomial multiplication.
+             * - Or we adapt to the true nature of the source we're
+             *   dealing in the first place: an infinite series, which we
+             *   know only to some precision.
+             * We do the latter, by using coefficients from the cache
+             * only until the point where some noise creeps in.
+             */
+            unsigned int cache_avail = cache_k1 - cache_k0;
+            unsigned int cache_access = nread + F0_lookback;
+
+            if (!mpi_rank()) {
+                /* This is the correct final size of the tail */
+                tail.zero_pad(cache_avail - MIN(cache_avail, cache_access));
+                for(unsigned int k = nread ; k + F0_lookback < cache_avail; k += simd) {
+                    for(unsigned int j = 0; j < m + n; j++) {
+                        unsigned int jA;
+                        unsigned int kA;
+                        std::tie(kA, jA) = column_data_from_A(j);
+                        /* column j of E is actually X^{-kA}*column jA of A. */
+                        if (k + kA >= cache_avail) continue;
+                        for(unsigned int i = 0 ; i < m ; i++) {
+                            abdst_vec to = tail.part_head(i, j, k - nread);
+                            absrc_vec from = cache.part_head(i, jA, kA + k);
 #ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_set(ab, to, from, 1);
+                            abvec_set(ab, to, from, 1);
 #else
-                unsigned int sr = kA % simd;
-                if (sr) {
-                    *to = *from >> sr;
-                    if (((kA + produced) / simd+1) * simd < (cache_k1 - cache_k0))
-                        *to ^= from[1] << (simd - sr);
-                } else {
-                    *to = *from;
-                }
+                            unsigned int sr = kA % simd;
+                            if (sr) {
+                                *to = *from >> sr;
+                                if (((kA + k) / simd+1) * simd < cache_avail)
+                                    *to ^= from[1] << (simd - sr);
+                            } else {
+                                *to = *from;
+                            }
 #endif
+                        }
+                    }
+                }
             }
-        }
-        if (noise_cut < simd) {
-            produced += noise_cut;
-            break;
+            cache.clear();
+            cache_k1 = cache_k0 = 0;
+        } else {
+            if (!mpi_rank())
+                cache.rshift(nread);
+            cache_k0 += nread;
         }
     }
-    ll = produced;
-lingen_E_from_A_exit:
+
+    if (!mpi_rank()) {
+        size_t extra;
+        for(extra = 0 ; extra < tail.get_size() ; ) {
+            for(unsigned int j = 0; j < ncols ; j++) {
+                for(unsigned int i = 0 ; i < nrows ; i++) {
+                    abdst_vec to = dst.part_head(i, j, k0 + produced + extra);
+                    absrc_vec from = tail.part_head(i, j, extra);
+                    abvec_set(ab, to, from, simd);
+                }
+            }
+            extra += MIN(simd, tail.get_size() - extra);
+        }
+        produced += MIN(extra, tail.get_size());
+        tail.rshift(MIN(extra, tail.get_size()));
+    }
+
+    long long ll = produced;
     MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     produced = ll;
 
-    if (k0 + nread < k1) {
-        cache.clear();
-    } else {
-        if (!mpi_rank())
-            cache.rshift(nread);
-        cache_k0 += nread;
-    }
     return produced;
 }
 
@@ -1051,130 +1070,161 @@ lingen_E_from_A_exit:
 ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
     abdst_field ab = bw_dimensions::ab;
-    long long ll;
-    ssize_t produced;
 
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
-    unsigned int lookback = cache_k1 - cache_k0;
-    ASSERT_ALWAYS(lookback >= (t0 + (nrhs < n) - 1));
+
+    ssize_t produced = 0;
+
+    if (cache_k1 != cache_k0) {
+        unsigned int F0_lookback = t0 + (nrhs < n);
+        unsigned int lookback = cache_k1 - cache_k0;
+        ASSERT_ALWAYS(lookback >= F0_lookback - 1);
     
-    long long nk;
-    if (!mpi_rank()) {
-        nk = MIN(k1, dst.get_size()) - k0;
+        long long nk;
+        if (!mpi_rank()) {
+            nk = MIN(k1, dst.get_size()) - k0;
+            ASSERT_ALWAYS(nk % simd == 0);
+            ASSERT_ALWAYS(cache.get_size() == lookback);
+            cache.zero_pad(lookback + nk);
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
         ASSERT_ALWAYS(nk % simd == 0);
-        ASSERT_ALWAYS(cache.get_size() == lookback);
-        cache.zero_pad(lookback + nk);
-    }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    ASSERT_ALWAYS(nk % simd == 0);
 
-    /* This may be a collective call. At any rate, the cache variable is
-     * meaningful only at the root. */
-    ssize_t nread = pi.read_to_matpoly(cache, lookback, lookback + nk);
+        /* This may be a collective call. At any rate, the cache variable is
+         * meaningful only at the root. */
+        ssize_t nread = pi.read_to_matpoly(cache, lookback, lookback + nk);
+
+        if (!mpi_rank())
+            cache.set_size(lookback + nread);
+
+        cache_k1 += nread;
+
+        /* Do the bulk of the processing with an aligned count.
+         * Note that if nread is not already aligned, it means that we had a
+         * short read, since nk has to be aligned. And if we have a short
+         * read, we're going to clear the cache on exit, so that it doesn't
+         * matter if we lose the possibility to rotate the cache correctly.
+         */
+        nread -= nread % simd;
+
+        if (!mpi_rank()) {
+            if (nread > 0) {
+                for(unsigned int jF = 0 ; jF < n ; jF++) {
+                    unsigned int jpi = sols[jF].j;
+                    for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
+                        unsigned int s;
+                        unsigned int iF;
+                        std::tie(iF, s) = get_shift_ij(ipi, jF);
+
+                        /* The reversal of pi_{ipi, jpi} contributes to entry (iF,
+                         * jF), once shifted right by s.  */
+
+                        abdst_vec to = dst.part_head(iF, jF, k0);
+                        absrc_vec from = cache.part_head(ipi, jpi, s);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                        abvec_add(ab, to, to, from, nread);
+#else
+                        /* Add must at the same time do a right shift by sr */
+                        unsigned int sr = s % simd;
+                        if (sr) {
+                            unsigned long cy = from[nread / simd] << (simd - sr);
+                            for(unsigned int i = nread / simd ; i-- ; ) {
+                                unsigned long t = (from[i] >> sr) ^ cy;
+                                cy = from[i] << (simd - sr);
+                                to[i] ^= t;
+                            }
+                        } else {
+                            abvec_add(ab, to, to, from, nread);
+                        }
+#endif
+                    }
+                }
+            }
+        }
+
+        /* not that nread is agreed at all ranks */
+
+        produced = nread;
+
+        if (nread + k0 < k1) {
+            /* We've reached the end of our input stream. Now is time to drain
+             * the cache. We'll first stow that in the (tail) field.
+             */
+            unsigned int cache_avail = cache_k1 - cache_k0;
+            unsigned int max_tail = 0;
+
+            for(unsigned int jF = 0 ; jF < n ; jF++) {
+                for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
+                    unsigned int s;
+                    unsigned int iF;
+                    std::tie(iF, s) = get_shift_ij(ipi, jF);
+                    if (nread + s < cache_avail) {
+                        unsigned int pr = cache_avail - (nread + s);
+                        if (pr >= max_tail)
+                            max_tail = pr;
+                    }
+                }
+            }
+
+            if (!mpi_rank()) {
+                tail.zero_pad(max_tail);
+
+                for(unsigned int k = nread ; k < nread + max_tail ; k += simd) {
+                    for(unsigned int jF = 0 ; jF < n ; jF++) {
+                        unsigned int jpi = sols[jF].j;
+                        for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
+                            unsigned int s;
+                            unsigned int iF;
+                            std::tie(iF, s) = get_shift_ij(ipi, jF);
+                            abdst_vec to = tail.part_head(iF, jF, k - nread);
+                            absrc_vec from = cache.part_head(ipi, jpi, k + s);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                            abvec_add(ab, to, to, from, 1);
+#else
+                            /* Add must at the same time do a right shift by sr */
+                            unsigned int sr = s % simd;
+                            if (sr) {
+                                to[0] ^= from[0] >> sr;
+                                if (((s + produced) / simd+1) * simd < (cache_k1 - cache_k0))
+                                    to[0] ^= from[1] << (simd - sr);
+                            } else {
+                                to[0] ^= from[0];
+                            }
+#endif
+                        }
+                    }
+                }
+            }
+            cache.clear();
+            cache_k1 = cache_k0 = 0;
+        } else {
+            if (!mpi_rank())
+                cache.rshift(nread);
+            cache_k0 += nread;
+        }
+    }
 
     if (!mpi_rank()) {
-        cache.set_size(lookback + nread);
-    }
-    cache_k1 += nread;
-
-    if (mpi_rank()) goto lingen_F_from_PI_exit;
-
-    /* Do the bulk of the processing with an aligned count.
-     * Note that if nread is not already aligned, it means that we had a
-     * short read, since nk has to be aligned. And if we have a short
-     * read, we're going to clear the cache on exit, so that it doesn't
-     * matter if we lose the possibility to rotate the cache correctly.
-     */
-    nread -= nread % simd;
-
-    if (nread > 0) {
-        for(unsigned int jF = 0 ; jF < n ; jF++) {
-            unsigned int jpi = sols[jF].j;
-            for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
-                unsigned int s;
-                unsigned int iF;
-                std::tie(iF, s) = get_shift_ij(ipi, jF);
-
-                /* The reversal of pi_{ipi, jpi} contributes to entry (iF,
-                 * jF), once shifted right by s.  */
-
-                abdst_vec to = dst.part_head(iF, jF, k0);
-                absrc_vec from = cache.part_head(ipi, jpi, s);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_add(ab, to, to, from, nread);
-#else
-                /* Add must at the same time do a right shift by sr */
-                unsigned int sr = s % simd;
-                if (sr) {
-                    unsigned long cy = from[nread / simd] << (simd - sr);
-                    for(unsigned int i = nread / simd ; i-- ; ) {
-                        unsigned long t = (from[i] >> sr) ^ cy;
-                        cy = from[i] << (simd - sr);
-                        to[i] ^= t;
-                    }
-                } else {
-                    abvec_add(ab, to, to, from, nread);
-                }
-#endif
-            }
-        }
-    }
-    ASSERT_ALWAYS(nread >= 0);
-    /* We've reached the end of our input stream. Now is time to drain
-     * the cache.
-     */
-    for(produced = nread ; produced + k0 < k1 ; produced += simd) {
-        bool will_produce = false;
-        for(unsigned int jF = 0 ; jF < n ; jF++) {
-            for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
-                unsigned int s;
-                unsigned int iF;
-                std::tie(iF, s) = get_shift_ij(ipi, jF);
-                if (produced + s < cache_k1 - cache_k0) {
-                    will_produce = true;
-                    break;
+        size_t extra;
+        for(extra = 0 ; extra < tail.get_size() ; ) {
+            for(unsigned int j = 0; j < ncols ; j++) {
+                for(unsigned int i = 0 ; i < nrows ; i++) {
+                    abdst_vec to = dst.part_head(i, j, k0 + produced + extra);
+                    absrc_vec from = tail.part_head(i, j, extra);
+                    abvec_set(ab, to, from, simd);
                 }
             }
+            extra += MIN(simd, tail.get_size() - extra);
         }
-        if (!will_produce) break;
-        for(unsigned int jF = 0 ; jF < n ; jF++) {
-            unsigned int jpi = sols[jF].j;
-            for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
-                unsigned int s;
-                unsigned int iF;
-                std::tie(iF, s) = get_shift_ij(ipi, jF);
-                abdst_vec to = dst.part_head(iF, jF, produced + k0);
-                absrc_vec from = cache.part_head(ipi, jpi, produced + s);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                abvec_add(ab, to, to, from, 1);
-#else
-                /* Add must at the same time do a right shift by sr */
-                unsigned int sr = s % simd;
-                if (sr) {
-                    to[0] ^= from[0] >> sr;
-                    if (((s + produced) / simd+1) * simd < (cache_k1 - cache_k0))
-                        to[0] ^= from[1] << (simd - sr);
-                } else {
-                    to[0] ^= from[0];
-                }
-#endif
-            }
-        }
+        produced += MIN(extra, tail.get_size());
+        tail.rshift(MIN(extra, tail.get_size()));
     }
 
-    ll = produced;
-lingen_F_from_PI_exit:
+    long long ll = produced;
     MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     produced = ll;
-    
-    if (k0 + nread < k1) {
-        cache.clear();
-    } else {
-        if (!mpi_rank())
-            cache.rshift(nread);
-        cache_k0 += nread;
-    }
+
     return produced;
 }
 
@@ -1290,6 +1340,8 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
     size_t expected = in.guessed_length();
     size_t zq = 0;
     for(size_t done = 0 ; ; ) {
+        F.set_size(0);
+        F.zero_pad(window);
         ssize_t n = in.read_to_matpoly(F, 0, window);
         bool is_last = n < (ssize_t) window;
         if (n <= 0) break;
@@ -1328,7 +1380,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         done += n1;
         if (action && !mpi_rank() && (done >= next_report_k || is_last)) {
             double tt = wct_seconds();
-            if (tt > next_report_t) {
+            if (tt > next_report_t || is_last) {
                 printf(
                         "%s %zu coefficients (%.1f%%)"
                         " in %.1f s (%.1f MB/s)\n",
