@@ -23,6 +23,7 @@ struct cp_info {
     int level;
     unsigned int t0;
     unsigned int t1;
+    unsigned int target_t;
     int mpi;
     int rank;
     char * auxfile;
@@ -30,7 +31,7 @@ struct cp_info {
     char * gdatafile;
     const char * datafile;
     /* be sure to change when needed */
-    static constexpr unsigned long format = 3;
+    static constexpr unsigned long format = 4;
     FILE * aux;
     FILE * data;
     cp_info(bmstatus & bm, cp_which which, unsigned int t0, unsigned int t1, int mpi);
@@ -116,7 +117,10 @@ bool cp_info::save_aux_file(size_t Xsize) const /*{{{*/
     if (rank) return 1;
     std::ofstream os(auxfile);
     os << "format " << format << "\n";
+    os << m << " " << n << "\n";
+    os << level << " " << t0 << " " << t1 << " " << bm.t << "\n";
     os << Xsize << "\n";
+    os << abfield_characteristic_srcptr(bm.d.ab) << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.delta[i];
     os << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.lucky[i];
@@ -155,8 +159,28 @@ bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
         fprintf(stderr, "Warning: checkpoint file cannot be used (version %lu < %lu)\n", hformat, format);
         return false;
     }
-
+    unsigned int xm,xn;
+    is >> xm >> xn;
+    if (xm != m || xn != n) {
+        fprintf(stderr, "Warning: checkpoint file cannot be used (made for (m,n)=(%u,%u)\n", xm, xn);
+        return false;
+    }
+    int xlevel;
+    unsigned int xt0, xt1;
+    is >> xlevel >> xt0 >> xt1 >> target_t;
+    if (xlevel != level || t0 != xt0 || t1 || xt1) {
+        fprintf(stderr, "Warning: checkpoint file cannot be used (made for depth=%d t0=%u t1=%u\n", xlevel, xt0, xt1);
+        return false;
+    }
+    ASSERT_ALWAYS(target_t <= t1);
     is >> Xsize;
+    cxx_mpz xp;
+    is >> xp;
+    if (mpz_cmp(xp, abfield_characteristic_srcptr(bm.d.ab)) != 0) {
+        fprintf(stderr, "Warning: checkpoint file cannot be used (made for wrong p)\n");
+        return false;
+    }
+
     for(unsigned int i = 0 ; i < m + n ; i++) {
         is >> nbm.delta[i];
     }
@@ -256,7 +280,7 @@ int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, un
         if (!ok)
             fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
     }
-    if (ok) bm.t = t1;
+    if (ok) bm.t = cp.target_t;
     return ok;
 }/*}}}*/
 
@@ -329,7 +353,8 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     } else if (!rank) {
         fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
     }
-    if (ok) bm.t = t1;
+    if (ok) bm.t = cp.target_t;
+    MPI_Bcast(&bm.t, 1, MPI_INT, 0, bm.com[0]);
     return ok;
 }/*}}}*/
 
@@ -426,7 +451,9 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     } else if (!rank) {
         fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
     }
-    if (ok) bm.t = t1;
+    if (ok) bm.t = cp.target_t;
+    MPI_Bcast(&bm.t, 1, MPI_INT, 0, bm.com[0]);
+
     return ok;
 }/*}}}*/
 
