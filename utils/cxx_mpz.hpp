@@ -11,19 +11,8 @@
 struct cxx_mpz {
     mpz_t x;
     cxx_mpz() { mpz_init(x); }
-    /* which overloads will cause an ambiguity, and which won't, is a bit
-     * unclear. clang insists that overloading int64_t over long on
-     * 64-bit is an error. But long over int on 32-bit is fine.
-     *
-     * Maybe I should templatize all that and enable_if based on traits
-     * such as is_signed, is_integral, or whatnot.
-     */
-    cxx_mpz(int p) { mpz_init_set_si(x, p); }
-    cxx_mpz(unsigned int p) { mpz_init_set_ui(x, p); }
-    cxx_mpz(long p) { mpz_init_set_si(x, p); }
     cxx_mpz(unsigned long p) { mpz_init_set_ui(x, p); }
 #if ULONG_BITS < 64
-    cxx_mpz(int64_t p) { mpz_init_set_int64(x, p); }
     cxx_mpz(uint64_t p) { mpz_init_set_uint64(x, p); }
 #endif
     ~cxx_mpz() { mpz_clear(x); }

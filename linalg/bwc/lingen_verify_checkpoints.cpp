@@ -679,6 +679,8 @@ main(int argc, char* argv[])
     gmp_randseed_ui(state, seed);
 
     lingen_p = mpz_size(prime);
+    if (verbose)
+        printf("Number of limbs: %zu\n", lingen_p);
 
     int ret = 0;
 
