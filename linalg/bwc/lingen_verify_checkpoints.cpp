@@ -45,23 +45,21 @@ gmp_randstate_t state;
 int verbose = 0;
 unsigned long seed;
 unsigned long global_batch = 128;
+unsigned int restrict_E = UINT_MAX;
 
 struct matrix
 {
     unsigned long nrows; /* matrix dimension */
     unsigned long ncols; /* matrix dimension */
     unsigned long k;     /* matrix is cut into k x k submatrices */
-    unsigned long deg;   /* degree of coefficients */
     std::vector<cxx_mpz> coeff;
 
     matrix(unsigned long nrows,
            unsigned int ncols,
-           unsigned long k,
-           unsigned long deg)
+           unsigned long k)
       : nrows(nrows)
       , ncols(ncols)
       , k(k)
-      , deg(deg)
       , coeff(nrows * ncols)
 
     {}
@@ -311,7 +309,7 @@ read_matrix(const char* s,
             cxx_mpz const& x)
 {
     unsigned long deg = read_cp_aux(s).deg;
-    matrix M(nrows, ncols, k, deg);
+    matrix M(nrows, ncols, k);
     matrix_reader R(nrows, ncols, k, deg, s, false);
     cxx_mpz x_power_k;
     mpz_set_ui(x_power_k, 1);
@@ -416,6 +414,7 @@ declare_usage(cxx_param_list& pl)
     param_list_decl_usage(pl, "m", "block Wiedemann parameter m");
     param_list_decl_usage(pl, "n", "block Wiedemann parameter n");
     param_list_decl_usage(pl, "v", "More verbose output");
+    param_list_decl_usage(pl, "restrict_E", "(E*pi check only) check only mod this power of X");
 }
 
 void
@@ -424,6 +423,9 @@ lookup_parameters(cxx_param_list& pl)
     param_list_lookup_string(pl, "prime");
     param_list_lookup_string(pl, "mpi");
     param_list_lookup_string(pl, "seed");
+    param_list_lookup_string(pl, "m");
+    param_list_lookup_string(pl, "n");
+    param_list_lookup_string(pl, "restrict_E");
 }
 
 int
@@ -589,20 +591,23 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     unsigned long t = cp.t;
     unsigned long t0 = cp.t0;
     unsigned long t1 = cp.t1;
+    unsigned long deg_E = t - t0 - 1;
+    deg_E = MIN(deg_E, (unsigned long) restrict_E);
 
     std::string check_name = fmt::sprintf(
-      "check (seed=%lu, depth %d, t=%u, E*pi=O(X^*))",
+      "check (seed=%lu, depth %d, t=%u, E*pi=O(X^%lu))",
                    seed,
                    cp.level,
-                   cp.t);
+                   cp.t,
+                   deg_E);
+
     if (t < t1)
         check_name += " [truncated cp at end]";
 
-    unsigned long deg_E = t - t0 - 1;
 
-    matrix pi(m + n, m + n, k, deg_pi);
+    matrix pi(m + n, m + n, k);
     matrix_reader Rpi(m + n, m + n, k, deg_pi, pi_filename, true);
-    matrix E(m, m + n, k, deg_E);
+    matrix E(m, m + n, k);
     matrix_reader RE(m, m + n, k, deg_E, E_filename, false);
 
     /* We'll compute the evaluation at x of the short product of E*pi,
@@ -635,15 +640,16 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 
     cxx_mpz x_inc;
     mpz_set_ui(x_inc, 1);
+
     const unsigned long batch = global_batch;
-    for (unsigned long k = 0; k < deg_E - deg_pi; k += batch) {
+    for (unsigned long k = 0; deg_pi + k < deg_E; k += batch) {
         /* invariant: x_power_k = x^k mod prime */
         RE.read_n_accumulate(E, x_inc, x, k, MIN(batch, deg_E - deg_pi- k));
     }
     cxx_mpz x_dec;
     mpz_set_ui(x_dec, 1);
     /* we don't really know how to batch this one, do we ? */
-    for (unsigned long k = 0; k <= deg_pi; k++) {
+    for (unsigned long k = deg_pi - MIN(deg_pi, deg_E); k <= deg_pi; k++) {
         RE.read1_accumulate(E, x_inc, x, deg_E - deg_pi + k);
         pi.zero();
         Rpi.read1_accumulate(pi, x_dec, xinv, k);
@@ -710,6 +716,8 @@ main(int argc, char* argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
+    param_list_parse_uint(pl, "restrict_E", &restrict_E);
+
     if (param_list_warn_unused(pl)) {
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
