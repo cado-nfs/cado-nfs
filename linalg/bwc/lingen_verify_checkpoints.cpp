@@ -67,7 +67,7 @@ struct matrix
     void zero()
     {
         for (auto& x : coeff)
-            x = 0;
+            mpz_set_ui(x, 0);
     }
 };
 
@@ -255,7 +255,8 @@ read_matrix(const char* s,
     unsigned long deg = read_cp_aux(s).deg;
     matrix M(nrows, ncols, k, deg);
     matrix_reader R(nrows, ncols, k, deg, s, false);
-    cxx_mpz x_power_k = 1;
+    cxx_mpz x_power_k;
+    mpz_set_ui(x_power_k, 1);
     for (k = 0; k <= deg; k++, mpz_mul(x_power_k, x_power_k, x)) {
         /* invariant: x_power_k = x^k mod prime */
         R.read1_accumulate(M, x_power_k, k);
@@ -333,7 +334,8 @@ cxx_mpz
 scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
 {
     ASSERT_ALWAYS(u.size() == v.size());
-    cxx_mpz res = 0;
+    cxx_mpz res;
+    mpz_set_ui(res, 0);
     add_scalar_product(res, u, v);
     return res;
 }
@@ -594,13 +596,15 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 
     cxx_mpz res;
 
-    cxx_mpz x_inc = 1;
+    cxx_mpz x_inc;
+    mpz_set_ui(x_inc, 1);
     for (unsigned long k = 0; k < deg_E - deg_pi; k++) {
         /* invariant: x_power_k = x^k mod prime */
         RE.read1_accumulate(E, x_inc, k);
         mpz_mul(x_inc, x_inc, x);
     }
-    cxx_mpz x_dec = 1;
+    cxx_mpz x_dec;
+    mpz_set_ui(x_dec, 1);
     for (unsigned long k = 0; k <= deg_pi; k++) {
         RE.read1_accumulate(E, x_inc, k);
         pi.zero();
