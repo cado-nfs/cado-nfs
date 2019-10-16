@@ -215,6 +215,7 @@ struct matrix_reader
 #endif
         {
             cxx_mpz xpriv;
+            bool adv = false;
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
@@ -222,14 +223,20 @@ struct matrix_reader
                 for (unsigned long j = 0; j < k; j++) {
                     xpriv = x;
                     read_n_accumulate(M, i, j, xpriv, cx, idx, n);
+                    adv = true;
                 }
 #ifdef HAVE_OPENMP
 #pragma omp barrier
-#pragma omp single
 #endif
-            {
-                /* only one thread stores the final value. */
-                x = xpriv;
+            if (adv) {
+                /* Can't do conditional single, apparently */
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+                {
+                    /* only one thread stores the final value. */
+                    x = std::move(xpriv);
+                }
             }
         }
     }
