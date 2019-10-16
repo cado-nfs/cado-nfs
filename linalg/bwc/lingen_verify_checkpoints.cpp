@@ -44,6 +44,7 @@ int k = 1;              /* matrix is cut in k x k submatrices */
 gmp_randstate_t state;
 int verbose = 0;
 unsigned long seed;
+unsigned long global_batch = 128;
 
 struct matrix
 {
@@ -73,6 +74,7 @@ struct matrix
 
 struct matrix_reader
 {
+    std::string stem;
     unsigned long nrows; /* matrix dimension */
     unsigned long ncols; /* matrix dimension */
     unsigned long k;     /* matrix is cut into k x k submatrices */
@@ -81,31 +83,37 @@ struct matrix_reader
     std::vector<std::ifstream> files;
     std::vector<bool> warned_padding;
     matrix_reader(unsigned long nrows,
-                  unsigned int ncols,
-                  unsigned long k,
-                  unsigned long deg,
-                  std::string const& stem,
-                  bool reverse)
-      : nrows(nrows)
-      , ncols(ncols)
-      , k(k)
-      , deg(deg)
-      , reverse(reverse)
-      , warned_padding(nrows * ncols, false)
+            unsigned int ncols,
+            unsigned long k,
+            unsigned long deg,
+            std::string const& stem,
+            bool reverse)
+        : stem(stem)
+          , nrows(nrows)
+          , ncols(ncols)
+          , k(k)
+          , deg(deg)
+          , reverse(reverse)
+          , warned_padding(nrows * ncols, false)
     {
         for (unsigned long i = 0; i < k; i++) {
             for (unsigned long j = 0; j < k; j++) {
-                int nij = k * i + j;
-                std::string filename;
-                if (k > 1) {
-                    filename = stem + fmt::format(".{}.data", nij);
-                } else {
-                    filename = stem + ".single.data";
-                }
+                std::string filename = get_filename_ij(i, j);
                 files.emplace_back(filename, std::ios_base::in);
-                ASSERT_ALWAYS(files.back().good());
+                if (!files.back().good())
+                    throw std::runtime_error("cannot open " + filename);
             }
         }
+    }
+    std::string get_filename_ij(unsigned long i, unsigned long j) {
+        int nij = k * i + j;
+        std::string filename;
+        if (k > 1) {
+            filename = stem + fmt::format(".{}.data", nij);
+        } else {
+            filename = stem + ".single.data";
+        }
+        return filename;
     }
 
     private:
@@ -113,11 +121,14 @@ struct matrix_reader
      * from block (block_i, block_j), multiply it by x, and accumulate to
      * M at the right place.
      */
-    void read1_accumulate(matrix& M,
-                          unsigned long block_i,
-                          unsigned long block_j,
-                          cxx_mpz const& x,
-                          unsigned int idx)
+    void read_n_accumulate(matrix& M,
+            unsigned long block_i,
+            unsigned long block_j,
+            cxx_mpz & x,
+            cxx_mpz const & cx,
+            unsigned int idx,
+            unsigned int n
+            )
     {
         int nij = k * block_i + block_j;
         ASSERT_ALWAYS(k == M.k);
@@ -134,36 +145,60 @@ struct matrix_reader
         cxx_mpz tmp;
         mpz_realloc2(tmp, lingen_p * mp_bits_per_limb);
         std::ifstream& F(files[nij]);
-        if (reverse) {
-            F.seekg((deg - idx) * nix * njx * lingen_p * sizeof(mp_limb_t));
-            ASSERT_ALWAYS(F.good());
-        }
-        for (unsigned int di = 0; di < nix; di++) {
-            for (unsigned int dj = 0; dj < njx; dj++) {
-                ASSERT_ALWAYS((unsigned long)ALLOC(tmp) >= lingen_p);
-                SIZ(tmp) = lingen_p;
-                size_t sz = lingen_p * sizeof(mp_limb_t);
-                ASSERT_ALWAYS(F.read((char*)PTR(tmp), sz));
-                MPN_NORMALIZE(PTR(tmp), SIZ(tmp));
-                if (i0 + di < i1 && j0 + dj < j1) {
-                    cxx_mpz& dst(M.coeff[(i0 + di) * ncols + j0 + dj]);
-                    mpz_mul(tmp, tmp, x);
-                    mpz_add(tmp, tmp, dst);
-                    mpz_mod(dst, tmp, prime);
-                } else {
-#ifdef WARNING
-                    if (SIZ(tmp) != 0 &&
-                        !warned_padding[(i0 + di) * ncols + j0 + dj]) {
-                        fprintf(
-                          stderr,
-                          "Warning, padding coefficient %lu,%lu is not zero\n",
-                          i0 + di,
-                          j0 + dj);
-                        warned_padding[(i0 + di) * ncols + j0 + dj] = true;
+        for(unsigned int s = 0 ; s < n && (idx + s <= deg) ; s++) {
+            unsigned long cidx = idx + s;
+            if (reverse)
+                cidx = deg - cidx;
+            if (reverse) {
+                F.seekg(cidx * nix * njx * lingen_p * sizeof(mp_limb_t));
+                ASSERT_ALWAYS(F.good());
+            }
+            for (unsigned int di = 0; di < nix; di++) {
+                for (unsigned int dj = 0; dj < njx; dj++) {
+                    ASSERT_ALWAYS((unsigned long) ALLOC(tmp) >= lingen_p);
+                    SIZ(tmp) = lingen_p;
+                    size_t sz = lingen_p * sizeof(mp_limb_t);
+                    {
+                    F.read((char*)PTR(tmp), sz);
+                    bool good_read = F.good();
+                    if (!good_read) {
+                        fmt::fprintf(stderr, "read error on file (%i,%i) [%s] when reading coefficient of degree %u, local position (%u,%u). File offset of coefficient is %zd\n",
+                                block_i,
+                                block_j,
+                                get_filename_ij(block_i, block_j),
+                                cidx,
+                                di,
+                                dj,
+                                cidx * nix * njx * lingen_p * sizeof(mp_limb_t)
+                                );
                     }
+                    ASSERT_ALWAYS(good_read);
+                    }
+                    MPN_NORMALIZE(PTR(tmp), SIZ(tmp));
+                    if (i0 + di < i1 && j0 + dj < j1) {
+                        cxx_mpz& dst(M.coeff[(i0 + di) * ncols + j0 + dj]);
+                        mpz_mul(tmp, tmp, x);
+                        mpz_add(tmp, tmp, dst);
+                        mpz_mod(dst, tmp, prime);
+                    } else {
+#ifdef WARNING
+                        if (SIZ(tmp) != 0 &&
+                                !warned_padding[(i0 + di) * ncols + j0 + dj]) {
+                            fprintf(
+                                    stderr,
+                                    "Warning, padding coefficient %lu,%lu is not zero\n",
+                                    i0 + di,
+                                    j0 + dj);
+                            warned_padding[(i0 + di) * ncols + j0 + dj] = true;
+                        }
 #endif
+                    }
                 }
             }
+            ASSERT(
+                F.tellg() == (ssize_t) ((cidx+1) * nix * njx * lingen_p * sizeof(mp_limb_t)));
+            mpz_mul(x, x, cx);
+            mpz_mod(x, x, prime);
         }
     }
 
@@ -171,11 +206,34 @@ struct matrix_reader
     /* read 1 coefficient (degree idx, or deg-idx in reverse case),
      * multiply it by x, and accumulate to M at the right place.
      */
-    void read1_accumulate(matrix& M, cxx_mpz const& x, unsigned int idx)
+    void read1_accumulate(matrix& M, cxx_mpz & x, cxx_mpz const & cx, unsigned int idx)
     {
-        for (unsigned long i = 0; i < k; i++)
-            for (unsigned long j = 0; j < k; j++)
-                read1_accumulate(M, i, j, x, idx);
+        read_n_accumulate(M, x, cx, idx, 1);
+    }
+    void read_n_accumulate(matrix& M, cxx_mpz & x, cxx_mpz const & cx, unsigned int idx, unsigned int n)
+    {
+#ifdef HAVE_OPENMP
+#pragma omp parallel 
+#endif
+        {
+            cxx_mpz xpriv;
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+            for (unsigned long i = 0; i < k; i++)
+                for (unsigned long j = 0; j < k; j++) {
+                    xpriv = x;
+                    read_n_accumulate(M, i, j, xpriv, cx, idx, n);
+                }
+#ifdef HAVE_OPENMP
+#pragma omp barrier
+#pragma omp single
+#endif
+            {
+                /* only one thread stores the final value. */
+                x = xpriv;
+            }
+        }
     }
 };
 
@@ -257,9 +315,10 @@ read_matrix(const char* s,
     matrix_reader R(nrows, ncols, k, deg, s, false);
     cxx_mpz x_power_k;
     mpz_set_ui(x_power_k, 1);
-    for (k = 0; k <= deg; k++, mpz_mul(x_power_k, x_power_k, x)) {
+    const unsigned long batch = global_batch;
+    for (k = 0; k <= deg; k += batch) {
         /* invariant: x_power_k = x^k mod prime */
-        R.read1_accumulate(M, x_power_k, k);
+        R.read_n_accumulate(M, x_power_k, x, k, batch);
     }
     return M;
 }
@@ -338,28 +397,6 @@ scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
     mpz_set_ui(res, 0);
     add_scalar_product(res, u, v);
     return res;
-}
-
-void
-print_vector(std::vector<cxx_mpz> const& u)
-{
-    for (auto const& x : u)
-        gmp_printf("%Zd ", (mpz_srcptr)x);
-    printf("\n");
-}
-
-/* print a 0 for zero coefficients, otherwise 1 */
-void
-print_matrix(matrix const& M)
-{
-    for (unsigned long i = 0; i < M.nrows; i++) {
-        for (unsigned long j = 0; j < M.ncols; j++)
-            if (mpz_cmp_ui(M.coeff[i * M.ncols + j], 0) == 0)
-                printf("0 ");
-            else
-                printf("1 ");
-        printf("\n");
-    }
 }
 
 void
@@ -598,19 +635,18 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 
     cxx_mpz x_inc;
     mpz_set_ui(x_inc, 1);
-    for (unsigned long k = 0; k < deg_E - deg_pi; k++) {
+    const unsigned long batch = global_batch;
+    for (unsigned long k = 0; k < deg_E - deg_pi; k += batch) {
         /* invariant: x_power_k = x^k mod prime */
-        RE.read1_accumulate(E, x_inc, k);
-        mpz_mul(x_inc, x_inc, x);
+        RE.read_n_accumulate(E, x_inc, x, k, MIN(batch, deg_E - deg_pi- k));
     }
     cxx_mpz x_dec;
     mpz_set_ui(x_dec, 1);
+    /* we don't really know how to batch this one, do we ? */
     for (unsigned long k = 0; k <= deg_pi; k++) {
-        RE.read1_accumulate(E, x_inc, k);
+        RE.read1_accumulate(E, x_inc, x, deg_E - deg_pi + k);
         pi.zero();
-        Rpi.read1_accumulate(pi, x_dec, k);
-        mpz_mul(x_inc, x_inc, x);
-        mpz_mul(x_dec, x_dec, xinv);
+        Rpi.read1_accumulate(pi, x_dec, xinv, k);
         std::vector<cxx_mpz> u_E = u * E;
         std::vector<cxx_mpz> pi_v = pi * v;
         add_scalar_product(res, u_E, pi_v);
