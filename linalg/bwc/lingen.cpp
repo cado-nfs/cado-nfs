@@ -317,8 +317,8 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
     unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
     unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
-    matpoly_type E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
+    matpoly_type E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
 
     // this consumes E_left entirely.
     matpoly_type pi_left = matpoly_diverter<matpoly_type>::callback(bm, E_left);
@@ -343,14 +343,18 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
          * minor adjustment. */
     }
 
-    logline_begin(stdout, z, "t=%u %*s%sMP(%zu, %zu) -> %zu",
-            bm.t, depth,"", matpoly_diverter<matpoly_type>::prefix,
-            E.get_size(), pi_left.get_size(), E.get_size() - pi_left.get_size() + 1);
+    matpoly_type E_right = E.similar_shell();
 
-    matpoly_type E_right = generic_mp(E, pi_left, bm, bm.companion(depth, z));
+    if (!load_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E_right, bm.t, bm.t+E.get_size()-pi_left.get_size()+1)) {
+        logline_begin(stdout, z, "t=%u %*s%sMP(%zu, %zu) -> %zu",
+                bm.t, depth,"", matpoly_diverter<matpoly_type>::prefix,
+                E.get_size(), pi_left.get_size(), E.get_size() - pi_left.get_size() + 1);
+
+        E_right = generic_mp(E, pi_left, bm, bm.companion(depth, z));
+        logline_end(&bm.t_mp, "");
+    }
     E.clear();
 
-    logline_end(&bm.t_mp, "");
 
     unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
     unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());

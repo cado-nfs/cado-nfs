@@ -85,6 +85,7 @@ public:
     matpoly(matpoly &&);
     matpoly& operator=(matpoly &&);
     ~matpoly();
+    matpoly similar_shell() const { return matpoly(ab, m, n, 0); }
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
         return x == NULL;
     }

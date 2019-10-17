@@ -219,7 +219,13 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
                 if (!err) matnb++;
             }
         }
-        if (err) return (matnb == 0) ? (int) (k - k0) : -1;
+        if (err) {
+            if (matnb == 0) 
+                return (int) (k - k0);
+            fprintf(stderr, "I/O error after %d,%d coefficients (matrix size %u*%u)\n",
+                    (int) (k-k0), matnb, m, n);
+            return -1;
+        }
     }
     return k1 - k0;
 }

@@ -56,6 +56,7 @@ class bigmatpoly : public bigmatpoly_model {
 
     bigmatpoly(bigmatpoly_model const &);
     bigmatpoly(abdst_field, bigmatpoly_model const &, unsigned int m, unsigned int n, int len);
+    bigmatpoly similar_shell() const { return bigmatpoly(ab, get_model(), m, n, 0); }
     bigmatpoly(bigmatpoly const&) = delete;
     bigmatpoly& operator=(bigmatpoly const&) = delete;
     bigmatpoly(bigmatpoly &&);

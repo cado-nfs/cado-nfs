@@ -9,6 +9,7 @@
 #include "lingen_io_matpoly.hpp"
 #include "lingen_average_matsize.hpp"
 #include "logline.h"
+#include "fmt/printf.h"
 
 /* Checkpoints */
 
@@ -38,8 +39,8 @@ struct cp_info {
     ~cp_info();
     bool save_aux_file(size_t Xsize) const;
     bool load_aux_file(size_t & Xsize);
-    int load_data_file(matpoly & X, size_t Xsize);
-    int save_data_file(matpoly const & X, size_t Xsize);
+    int load_data_file(matpoly & X);
+    int save_data_file(matpoly const & X);
 };
 
 void lingen_checkpoints_decl_usage(cxx_param_list & pl)
@@ -218,20 +219,16 @@ bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
 }/*}}}*/
 
 /* TODO: adapt for GF(2) */
-int cp_info::load_data_file(matpoly & X, size_t Xsize)/*{{{*/
+int cp_info::load_data_file(matpoly & X)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
     FILE * data = fopen(datafile, "rb");
     int rc;
     if (data == NULL) {
         fprintf(stderr, "Warning: cannot open %s\n", datafile);
         return 0;
     }
-    X = matpoly(ab, m+n, m+n, Xsize);
-    X.set_size(Xsize);
     rc = matpoly_read(ab, data, X, 0, X.get_size(), 0, 0);
     if (rc != (int) X.get_size()) { fclose(data); return 0; }
     rc = fclose(data);
@@ -241,7 +238,7 @@ int cp_info::load_data_file(matpoly & X, size_t Xsize)/*{{{*/
 /* TODO: adapt for GF(2) */
 /* I think we always have Xsize == X.size, the only questionable
  * situation is when we're saving part of a big matrix */
-int cp_info::save_data_file(matpoly const & X, size_t Xsize)/*{{{*/
+int cp_info::save_data_file(matpoly const & X)/*{{{*/
 {
     abdst_field ab = bm.d.ab;
     std::ofstream data(datafile, std::ios_base::out | std::ios_base::binary);
@@ -251,7 +248,7 @@ int cp_info::save_data_file(matpoly const & X, size_t Xsize)/*{{{*/
         unlink(auxfile);
         return 0;
     }
-    rc = matpoly_write(ab, data, X, 0, Xsize, 0, 0);
+    rc = matpoly_write(ab, data, X, 0, X.get_size(), 0, 0);
     if (rc != (int) X.get_size()) goto cp_info_save_data_file_bailout;
     if (data.good()) return 1;
 cp_info_save_data_file_bailout:
@@ -263,6 +260,11 @@ cp_info_save_data_file_bailout:
 template<>
 int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
+    bw_dimensions & d = bm.d;
+    abdst_field ab = d.ab;
+    unsigned int m = d.m;
+    unsigned int n = d.n;
+
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
 
@@ -275,7 +277,16 @@ int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, un
     int ok = cp.load_aux_file(Xsize);
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
-        ok = cp.load_data_file(X, Xsize);
+        switch (which) {
+            case LINGEN_CHECKPOINT_E:
+                X = matpoly(ab, m, m+n, Xsize);
+                break;
+            case LINGEN_CHECKPOINT_PI:
+                X = matpoly(ab, m+n, m+n, Xsize);
+                break;
+        }
+        X.set_size(Xsize);
+        ok = cp.load_data_file(X);
         logline_end(&bm.t_cp_io,"");
         if (!ok)
             fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
@@ -295,7 +306,7 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
             cp.datafile,
             cp.mpi ? " (MPI, scattered)" : "");
     int ok = cp.save_aux_file(X.get_size());
-    if (ok) ok = cp.save_data_file(X, X.get_size());
+    if (ok) ok = cp.save_data_file(X);
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
         fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
@@ -311,7 +322,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    abdst_field ab = bm.d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
     cp_info cp(bm, which, t0, t1, 1);
@@ -324,31 +335,25 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
+        int commsize;
+        MPI_Comm_size(bm.com[0], &commsize);
         logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
                 cp.datafile);
-        do {
-            FILE * data = fopen(cp.datafile, "rb");
-            int rc;
-            ok = data != NULL;
-            MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
-            if (!ok) {
-                if (!rank)
-                    fprintf(stderr, "Warning: cannot open %s\n", cp.datafile);
-                if (data) free(data);
+        switch (which) {
+            case LINGEN_CHECKPOINT_E:
+                X.finish_init(ab, m, m+n, Xsize);
                 break;
-            }
-            X.finish_init(ab, m+n, m+n, Xsize);
-            X.set_size(Xsize);
-            rc = matpoly_read(ab, data, X.my_cell(), 0, X.get_size(), 0, 0);
-            ok = ok && rc == (int) X.get_size();
-            rc = fclose(data);
-            ok = ok && (rc == 0);
-        } while (0);
+            case LINGEN_CHECKPOINT_PI:
+                X.finish_init(ab, m+n, m+n, Xsize);
+                break;
+        }
+        X.set_size(Xsize);
+        ok = cp.load_data_file(X.my_cell());
         MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
         logline_end(&bm.t_cp_io,"");
         if (!ok && !rank) {
-            fprintf(stderr, "Warning: I/O error while reading %s\n",
-                    cp.datafile);
+            fmt::fprintf(stderr, "\nWarning: I/O error while reading %s\n",
+                    cp.datafile, Xsize);
         }
     } else if (!rank) {
         fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
@@ -372,7 +377,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, scattered)",
                 cp.datafile);
-        ok = cp.save_data_file(X.my_cell(), X.get_size());
+        ok = cp.save_data_file(X.my_cell());
         logline_end(&bm.t_cp_io,"");
         MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
         if (!ok) {
@@ -419,7 +424,14 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
                 break;
             }
 
-            X.finish_init(ab, m+n, m+n, Xsize);
+            switch (which) {
+                case LINGEN_CHECKPOINT_E:
+                    X.finish_init(ab, m, m+n, Xsize);
+                    break;
+                case LINGEN_CHECKPOINT_PI:
+                    X.finish_init(ab, m+n, m+n, Xsize);
+                    break;
+            }
             X.set_size(Xsize);
 
             double avg = average_matsize(ab, m + n, m + n, 0);
