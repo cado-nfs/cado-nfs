@@ -168,7 +168,7 @@ bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
     int xlevel;
     unsigned int xt0, xt1;
     is >> xlevel >> xt0 >> xt1 >> target_t;
-    if (xlevel != level || t0 != xt0 || t1 || xt1) {
+    if (xlevel != level || t0 != xt0 || t1 != xt1) {
         fprintf(stderr, "Warning: checkpoint file cannot be used (made for depth=%d t0=%u t1=%u\n", xlevel, xt0, xt1);
         return false;
     }
