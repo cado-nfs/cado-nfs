@@ -108,7 +108,7 @@ FILE * cado_popen(const char * command, const char * mode)
           default: error_name ="unknown"; break;
           }
         fprintf (stderr, "%s\n", error_name);
-        fprintf (stderr, "command size is %lu\n", strlen (command)
+        fprintf (stderr, "command size is %zu\n", strlen (command)
                  + strlen ("/bin/sh -c "));
         perror("execve() failed");
         exit(1);
