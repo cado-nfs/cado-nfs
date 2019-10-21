@@ -463,7 +463,8 @@ main (int argc, char *argv[])
         compute_m (m, sqrtN, r, P);
         MontgomeryTwoQuadratics (f, g, skew_used, N, P, m, max_skewness);
         cado_poly_set2 (cur_poly, f, g, N, skew_used);
-        double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K);
+        double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K,
+            ALPHA_BOUND);
         if(E > cado_poly_extended_get_E(best_poly))
           cado_poly_extended_set (best_poly, f, g, N, P, skew_used, E, m);
         if (verbose >= 1)
