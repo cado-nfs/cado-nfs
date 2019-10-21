@@ -49,6 +49,12 @@ long get_arg_max(void)
 #ifdef MAX_ARG_STRLEN
   /* MAX_ARG_STRLEN may be defined in terms of PAGE_SIZE, but PAGE_SIZE may
      not actually be defined in any header.  */
+#if !defined(PAGE_SIZE) && defined(HAVE_SYSCONF)
+  /* If we have sysconf(), we can resolve any reference to PAGE_SIZE in
+     MAX_ARG_STRLEN to a variable */
+  const size_t PAGE_SIZE MAYBE_UNUSED = sysconf (_SC_PAGESIZE);
+  /* If we don't have sysconf(), either, we're pretty much out of options */
+#endif
   if ((size_t) arg_max > (size_t) MAX_ARG_STRLEN)
     arg_max = MAX_ARG_STRLEN;
 #endif
