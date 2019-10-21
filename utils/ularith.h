@@ -798,18 +798,16 @@ static inline unsigned long
 ularith_div2mod (const unsigned long n, const unsigned long m)
 {
 #if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  unsigned long s = n, t = m;
-  ASSERT_EXPENSIVE (m % 2UL != 0UL);
-
-  __asm__ __VOLATILE(
-	  "add %1, %0\n\t"
-	  "rcr $1, %0\n\t"
-	  "shr $1, %1\n\t"
-	  "cmovnc %1, %0\n"
-	  : "+&r" (t), "+&r" (s)
-	  : : "cc"
-	  );
-  return t;
+    unsigned long N = n, M = m/2, t = 0;
+    ASSERT_EXPENSIVE (m % 2 != 0);
+    __asm__ __VOLATILE(
+        "shr $1, %1\n\t" /* N /= 2 */
+        "cmovc %0, %2\n\t" /* if (cy) {t = M;} */
+        "adc %2, %1\n\t" /* N += t + cy */
+        : "+&r" (M), "+&r" (N), "+&r" (t)
+        : : "cc"
+    );
+  return N;
 #else
   ASSERT_EXPENSIVE (m % 2UL != 0UL);
   if (n % 2UL == 0UL)
