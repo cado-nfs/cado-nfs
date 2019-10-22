@@ -17,7 +17,7 @@ tasks.polyselect.degree = 5
 
 tasks.polyselect.P = 5000000
 tasks.polyselect.admax = 8e6
-tasks.polyselect.adrange = 4200
+tasks.polyselect.adrange = 1000
 tasks.polyselect.incr = 60
 tasks.polyselect.nq = 3125
 tasks.polyselect.nrkeep = 200
