@@ -54,6 +54,8 @@ config/mingw.cmake
 config/test-rand.c
 config/test-rand.cmake
 config/python.cmake
+config/int128.cmake
+config/int128.c
 filter/CMakeLists.txt
 filter/Makefile
 filter/filter_badideals.h
