@@ -338,6 +338,10 @@ u64arith_mul_1_1_2 (uint64_t *r1, uint64_t *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a), [b] "r" (b)
   );
+#elif defined(HAVE_INT128)
+    unsigned __int128 r = (unsigned __int128) a * b;
+    *r1 = r;
+    *r2 = r >> 64;
 #else
   const uint64_t mask = ((uint64_t)1 << 32) - 1;
   const uint64_t ah = a >> 32, al = a & mask, bh = b >> 32, bl = b & mask;
@@ -386,6 +390,10 @@ u64arith_sqr_1_2 (uint64_t *r1, uint64_t *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a)
   );
+#elif defined(HAVE_INT128)
+    unsigned __int128 r = (unsigned __int128) a * a;
+    *r1 = r;
+    *r2 = r >> 64;
 #else
   const uint64_t mask = ((uint64_t)1 << 32) - 1;
   const uint64_t ah = a >> 32, al = a & mask;

@@ -478,6 +478,14 @@ ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a), [b] "r" (b)
   );
+#elif LONG_BIT == 32
+    uint64_t r = (uint64_t) a * b;
+    *r1 = (unsigned long) r;
+    *r2 = (unsigned long) (r >> 32);
+#elif LONG_BIT == 64 && defined(HAVE_INT128)
+    unsigned __int128 r = (unsigned __int128) a * b;
+    *r1 = (unsigned long) r;
+    *r2 = (unsigned long) (r >> 64);
 #else
   const int half = LONG_BIT / 2;
   const unsigned long mask = (1UL << half) - 1UL;
@@ -526,6 +534,18 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a)
   );
+#elif LONG_BIT == 32
+    uint64_t r = (uint64_t) a * a;
+    *r1 = r;
+    *r2 = r >> 32;
+#elif LONG_BIT == 64 && defined(HAVE_INT128)
+  /* Unfortunately, gcc does not seem to recognize that the two input
+   * operands to MUL are identical and can therefore go in %rax. This
+   * increases register pressure and leads to less efficient code than
+   * the explicit __asm__ statement above. */
+    unsigned __int128 r = (unsigned __int128) a * a;
+    *r1 = r;
+    *r2 = r >> 64;
 #else
   const int half = LONG_BIT / 2;
   const unsigned long mask = (1UL << half) - 1UL;
