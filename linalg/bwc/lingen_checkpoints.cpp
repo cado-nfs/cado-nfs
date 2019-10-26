@@ -27,21 +27,24 @@ struct cp_info {
     unsigned int target_t;
     int mpi;
     int rank;
-    char * auxfile;
-    char * sdatafile;
-    char * gdatafile;
-    const char * datafile;
+    std::string auxfile;
+    std::string sdatafile;
+    std::string gdatafile;
+    std::string datafile; /* a copy of either sdatafile or gdatafile */
     /* be sure to change when needed */
     static constexpr unsigned long format = 4;
-    FILE * aux;
-    FILE * data;
     cp_info(bmstatus & bm, cp_which which, unsigned int t0, unsigned int t1, int mpi);
-    ~cp_info();
     bool save_aux_file(size_t Xsize) const;
     bool load_aux_file(size_t & Xsize);
+    bool checkpoint_already_present() const;
     int load_data_file(matpoly & X);
     int save_data_file(matpoly const & X);
+    struct invalid_aux_file : public std::runtime_error {
+        invalid_aux_file(std::string const & s) : std::runtime_error(s) {}
+    };
 };
+
+constexpr unsigned long cp_info::format;
 
 void lingen_checkpoints_decl_usage(cxx_param_list & pl)
 {
@@ -74,40 +77,26 @@ cp_info::cp_info(bmstatus & bm, cp_which which, unsigned int t0, unsigned int t1
         MPI_Comm_rank(bm.com[0], &(rank));
     else
         rank = 0;
-    int rc;
     level = bm.depth();
     switch(which) {
         case LINGEN_CHECKPOINT_E:
-            rc = asprintf(&auxfile, "%s/E.%d.%u.aux",
+            auxfile = fmt::sprintf("%s/E.%d.%u.aux",
                     checkpoint_directory, level, t0);
-            ASSERT_ALWAYS(rc >= 0);
-            rc = asprintf(&gdatafile, "%s/E.%d.%u.single.data",
+            gdatafile = fmt::sprintf("%s/E.%d.%u.single.data",
                     checkpoint_directory, level, t0);
-            ASSERT_ALWAYS(rc >= 0);
-            rc = asprintf(&sdatafile, "%s/E.%d.%u.%d.data",
+            sdatafile = fmt::sprintf("%s/E.%d.%u.%d.data",
                     checkpoint_directory, level, t0, rank);
-            ASSERT_ALWAYS(rc >= 0);
             break;
         case LINGEN_CHECKPOINT_PI:
-            rc = asprintf(&auxfile, "%s/pi.%d.%u.%u.aux",
+            auxfile = fmt::sprintf("%s/pi.%d.%u.%u.aux",
                     checkpoint_directory, level, t0, t1);
-            ASSERT_ALWAYS(rc >= 0);
-            rc = asprintf(&gdatafile, "%s/pi.%d.%u.%u.single.data",
+            gdatafile = fmt::sprintf("%s/pi.%d.%u.%u.single.data",
                     checkpoint_directory, level, t0, t1);
-            ASSERT_ALWAYS(rc >= 0);
-            rc = asprintf(&sdatafile, "%s/pi.%d.%u.%u.%d.data",
+            sdatafile = fmt::sprintf("%s/pi.%d.%u.%u.%d.data",
                     checkpoint_directory, level, t0, t1, rank);
-            ASSERT_ALWAYS(rc >= 0);
             break;
     }
     datafile = mpi ? sdatafile : gdatafile;
-}
-
-cp_info::~cp_info()
-{
-    free(sdatafile);
-    free(gdatafile);
-    free(auxfile);
 }
 
 bool cp_info::save_aux_file(size_t Xsize) const /*{{{*/
@@ -128,7 +117,7 @@ bool cp_info::save_aux_file(size_t Xsize) const /*{{{*/
     os << "\n";
     os << bm.done;
     os << "\n";
-    os << logline_query_timer();
+    os << logline_serialize();
     os << "\n";
     os << bm.hints;
     os << "\n";
@@ -136,8 +125,25 @@ bool cp_info::save_aux_file(size_t Xsize) const /*{{{*/
     os << "\n";
     bool ok = os.good();
     if (!ok)
-        unlink(auxfile);
+        unlink(auxfile.c_str());
     return ok;
+}/*}}}*/
+
+bool cp_info::checkpoint_already_present() const/*{{{*/
+{
+    cp_info test = *this;
+    size_t Xsize;
+    try {
+        if (!test.load_aux_file(Xsize))
+            return false;
+        int sdata_ok = access(sdatafile.c_str(), R_OK) == 0;
+        int gdata_ok = rank || access(gdatafile.c_str(), R_OK) == 0;
+        return sdata_ok || gdata_ok;
+    } catch (cp_info::invalid_aux_file const & inv) {
+        fmt::fprintf(stderr, "Overwriting bogus checkpoint file %s [%s]\n",
+                datafile, inv.what());
+        return false;
+    }
 }/*}}}*/
 
 bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
@@ -152,36 +158,25 @@ bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
     std::string hfstring;
     unsigned long hformat;
     is >> hfstring >> hformat;
-    if (hfstring != "format") {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (version < 1)\n");
-        return false;
-    }
-    if (hformat != format) {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (version %lu < %lu)\n", hformat, format);
-        return false;
-    }
+    if (hfstring != "format")
+        throw invalid_aux_file("checkpoint file cannot be used (version < 1)\n");
+    if (hformat != format)
+        throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (version %lu < %lu)\n", hformat, format));
     unsigned int xm,xn;
     is >> xm >> xn;
-    if (xm != m || xn != n) {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (made for (m,n)=(%u,%u)\n", xm, xn);
-        return false;
-    }
+    if (xm != m || xn != n)
+        throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for (m,n)=(%u,%u)\n", xm, xn));
     int xlevel;
     unsigned int xt0, xt1;
     is >> xlevel >> xt0 >> xt1 >> target_t;
-    if (xlevel != level || t0 != xt0 || t1 != xt1) {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (made for depth=%d t0=%u t1=%u\n", xlevel, xt0, xt1);
-        return false;
-    }
+    if (xlevel != level || t0 != xt0 || t1 != xt1)
+        throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for depth=%d t0=%u t1=%u\n", xlevel, xt0, xt1));
     ASSERT_ALWAYS(target_t <= t1);
     is >> Xsize;
     cxx_mpz xp;
     is >> xp;
-    if (mpz_cmp(xp, abfield_characteristic_srcptr(bm.d.ab)) != 0) {
-        fprintf(stderr, "Warning: checkpoint file cannot be used (made for wrong p)\n");
-        return false;
-    }
-
+    if (mpz_cmp(xp, abfield_characteristic_srcptr(bm.d.ab)) != 0)
+        throw invalid_aux_file("checkpoint file cannot be used (made for wrong p)\n");
     for(unsigned int i = 0 ; i < m + n ; i++) {
         is >> nbm.delta[i];
     }
@@ -191,27 +186,32 @@ bool cp_info::load_aux_file(size_t & Xsize)/*{{{*/
     is >> nbm.done;
     double tt;
     is >> tt;
-    logline_reset_timer(tt);
+    logline_unserialize(tt);
     is >> nbm.hints;
     for(auto const & x : nbm.hints) {
         if (!x.second.check()) {
-            fprintf(stderr, "Warning: checkpoint contains invalid schedule information\n");
             is.setstate(std::ios::failbit);
-            return false;
+            throw invalid_aux_file("checkpoint contains invalid schedule information\n");
         }
     }
 
     if (bm.hints != nbm.hints) {
         is.setstate(std::ios::failbit);
-        fprintf(stderr, "Warning: checkpoint file cannot be used since it was made for another set of schedules (stats would be incorrect)\n");
         std::stringstream os;
         os << bm.hints;
-        fprintf(stderr, "textual description of the schedule set that we expect to find:\n%s\n", os.str().c_str());
-        return false;
+        throw invalid_aux_file(
+                fmt::sprintf(
+                    "checkpoint file cannot be used since"
+                    " it was made for another set of schedules (stats"
+                    " would be incorrect)\n"
+                ) + "textual description of the schedule set that we"
+                    " expect to find:\n"
+                + os.str()
+                + "\n");
     }
 
     if (!(is >> nbm.stats))
-        return false;
+        throw invalid_aux_file("stats in checkpoint file cannot be merged with existing stats\n");
    
     bm = std::move(nbm);
 
@@ -223,10 +223,10 @@ int cp_info::load_data_file(matpoly & X)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
-    FILE * data = fopen(datafile, "rb");
+    FILE * data = fopen(datafile.c_str(), "rb");
     int rc;
     if (data == NULL) {
-        fprintf(stderr, "Warning: cannot open %s\n", datafile);
+        fmt::fprintf(stderr, "Warning: cannot open %s\n", datafile);
         return 0;
     }
     rc = matpoly_read(ab, data, X, 0, X.get_size(), 0, 0);
@@ -244,16 +244,16 @@ int cp_info::save_data_file(matpoly const & X)/*{{{*/
     std::ofstream data(datafile, std::ios_base::out | std::ios_base::binary);
     int rc;
     if (!data) {
-        fprintf(stderr, "Warning: cannot open %s\n", datafile);
-        unlink(auxfile);
+        fmt::fprintf(stderr, "Warning: cannot open %s\n", datafile);
+        unlink(auxfile.c_str());
         return 0;
     }
     rc = matpoly_write(ab, data, X, 0, X.get_size(), 0, 0);
     if (rc != (int) X.get_size()) goto cp_info_save_data_file_bailout;
     if (data.good()) return 1;
 cp_info_save_data_file_bailout:
-    unlink(datafile);
-    unlink(auxfile);
+    unlink(datafile.c_str());
+    unlink(auxfile.c_str());
     return 0;
 }/*}}}*/
 
@@ -274,24 +274,28 @@ int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, un
     size_t Xsize;
     /* Don't output a message just now, since after all it's not
      * noteworthy if the checkpoint file does not exist. */
-    int ok = cp.load_aux_file(Xsize);
-    if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile);
-        switch (which) {
-            case LINGEN_CHECKPOINT_E:
-                X = matpoly(ab, m, m+n, Xsize);
-                break;
-            case LINGEN_CHECKPOINT_PI:
-                X = matpoly(ab, m+n, m+n, Xsize);
-                break;
-        }
-        X.set_size(Xsize);
-        ok = cp.load_data_file(X);
-        logline_end(&bm.t_cp_io,"");
-        if (!ok)
-            fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
+    int ok = 1;
+    try {
+        ok = cp.load_aux_file(Xsize);
+    } catch (cp_info::invalid_aux_file const & inv) {
+        fmt::fprintf(stderr, "Error with checkpoint file %s:\n%s\n", cp.datafile, inv.what());
+        abort();
     }
-    if (ok) bm.t = cp.target_t;
+    logline_begin(stdout, SIZE_MAX, "Reading %s", cp.datafile.c_str());
+    switch (which) {
+        case LINGEN_CHECKPOINT_E:
+            X = matpoly(ab, m, m+n, Xsize);
+            break;
+        case LINGEN_CHECKPOINT_PI:
+            X = matpoly(ab, m+n, m+n, Xsize);
+            break;
+    }
+    X.set_size(Xsize);
+    ok = cp.load_data_file(X);
+    logline_end(&bm.t_cp_io,"");
+    if (!ok)
+        fmt::fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
+    bm.t = cp.target_t;
     return ok;
 }/*}}}*/
 
@@ -302,14 +306,16 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
     if (!checkpoint_directory) return 0;
     if ((t1 - t0) < checkpoint_threshold) return 0;
     cp_info cp(bm, which, t0, t1, 0);
+    if (cp.checkpoint_already_present())
+        return 1;
     logline_begin(stdout, SIZE_MAX, "Saving %s%s",
-            cp.datafile,
+            cp.datafile.c_str(),
             cp.mpi ? " (MPI, scattered)" : "");
     int ok = cp.save_aux_file(X.get_size());
     if (ok) ok = cp.save_data_file(X);
     logline_end(&bm.t_cp_io,"");
     if (!ok && !cp.rank)
-        fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
+        fmt::fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
     return ok;
 }/*}}}*/
 
@@ -328,37 +334,47 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     cp_info cp(bm, which, t0, t1, 1);
     ASSERT_ALWAYS(X.check_pre_init());
     size_t Xsize;
-    int ok = cp.load_aux_file(Xsize);
+    int ok = 1, error = 0;
+    try {
+        ok = cp.load_aux_file(Xsize);
+    } catch (cp_info::invalid_aux_file const & inv) {
+        if (!rank)
+            fmt::fprintf(stderr, "Error with checkpoint file %s:\n%s\n", cp.datafile, inv.what());
+        error = 1;
+    }
+    MPI_Bcast(&error, 1, MPI_INT, 0, bm.com[0]);
+    ASSERT_ALWAYS(!error);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+    if (!ok) {
+        if (!rank)
+            fmt::fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
+        return false;
+    }
     MPI_Bcast(&Xsize, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
-    if (ok) {
-        int commsize;
-        MPI_Comm_size(bm.com[0], &commsize);
-        logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
-                cp.datafile);
-        switch (which) {
-            case LINGEN_CHECKPOINT_E:
-                X.finish_init(ab, m, m+n, Xsize);
-                break;
-            case LINGEN_CHECKPOINT_PI:
-                X.finish_init(ab, m+n, m+n, Xsize);
-                break;
-        }
-        X.set_size(Xsize);
-        ok = cp.load_data_file(X.my_cell());
-        MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
-        logline_end(&bm.t_cp_io,"");
-        if (!ok && !rank) {
-            fmt::fprintf(stderr, "\nWarning: I/O error while reading %s\n",
-                    cp.datafile, Xsize);
-        }
-    } else if (!rank) {
-        fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
+    int commsize;
+    MPI_Comm_size(bm.com[0], &commsize);
+    logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
+            cp.datafile.c_str());
+    switch (which) {
+        case LINGEN_CHECKPOINT_E:
+            X.finish_init(ab, m, m+n, Xsize);
+            break;
+        case LINGEN_CHECKPOINT_PI:
+            X.finish_init(ab, m+n, m+n, Xsize);
+            break;
     }
-    if (ok) bm.t = cp.target_t;
+    X.set_size(Xsize);
+    ok = cp.load_data_file(X.my_cell());
+    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    logline_end(&bm.t_cp_io,"");
+    if (!ok && !rank) {
+        fmt::fprintf(stderr, "\nWarning: I/O error while reading %s\n",
+                cp.datafile, Xsize);
+    }
+    bm.t = cp.target_t;
     MPI_Bcast(&bm.t, 1, MPI_INT, 0, bm.com[0]);
     return ok;
 }/*}}}*/
@@ -371,22 +387,27 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, which, t0, t1, 1);
-    int ok = cp.save_aux_file(X.get_size());
+    int ok;
+    ok = cp.checkpoint_already_present();
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
-    if (!ok && !rank) unlink(cp.auxfile);
+    if (ok) return 1;
+
+    ok = cp.save_aux_file(X.get_size());
+    MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+    if (!ok && !rank) unlink(cp.auxfile.c_str());
     if (ok) {
         logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, scattered)",
-                cp.datafile);
+                cp.datafile.c_str());
         ok = cp.save_data_file(X.my_cell());
         logline_end(&bm.t_cp_io,"");
         MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
         if (!ok) {
-            if (cp.datafile) unlink(cp.datafile);
-            if (!rank) unlink(cp.auxfile);
+            if (!cp.datafile.empty()) unlink(cp.datafile.c_str());
+            if (!rank) unlink(cp.auxfile.c_str());
         }
     }
     if (!ok && !rank) {
-        fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
+        fmt::fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
     }
     return ok;
 }/*}}}*/
@@ -404,66 +425,74 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     cp_info cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     size_t Xsize;
-    int ok = cp.load_aux_file(Xsize);
+    int ok = 1, error = 0;
+    try {
+        cp.load_aux_file(Xsize);
+    } catch (cp_info::invalid_aux_file const & inv) {
+        error = 1;
+    }
+    MPI_Bcast(&error, 1, MPI_INT, 0, bm.com[0]);
+    ASSERT_ALWAYS(!error);
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+    if (!ok)
+        /* This can be a normal situation if the .aux file does not
+         * exist.
+         */
+        return false;
     MPI_Bcast(&Xsize, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
-    if (ok) {
-        logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
-                cp.datafile);
-        do {
-            FILE * data = NULL;
-            if (!rank) ok = (data = fopen(cp.datafile, "rb")) != NULL;
-            MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
-            if (!ok) {
-                if (!rank)
-                    fprintf(stderr, "Warning: cannot open %s\n", cp.datafile);
-                if (data) free(data);
-                break;
-            }
-
-            switch (which) {
-                case LINGEN_CHECKPOINT_E:
-                    X.finish_init(ab, m, m+n, Xsize);
-                    break;
-                case LINGEN_CHECKPOINT_PI:
-                    X.finish_init(ab, m+n, m+n, Xsize);
-                    break;
-            }
-            X.set_size(Xsize);
-
-            double avg = average_matsize(ab, m + n, m + n, 0);
-            unsigned int B = iceildiv(io_matpoly_block_size, avg);
-
-            /* This is only temp storage ! */
-            matpoly loc(ab, m + n, m + n, B);
-            loc.zero_pad(B);
-
-            for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
-                unsigned int nc = MIN(B, X.get_size() - k);
-                if (!rank)
-                    ok = matpoly_read(ab, data, loc, 0, nc, 0, 0) == (int) nc;
-                MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
-                X.scatter_mat_partial(loc, 0, k, nc);
-            }
-
-            if (!rank) {
-                int rc = fclose(data);
-                ok = ok && (rc == 0);
-            }
-        } while (0);
+    logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
+            cp.datafile.c_str());
+    do {
+        FILE * data = NULL;
+        if (!rank) ok = (data = fopen(cp.datafile.c_str(), "rb")) != NULL;
         MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
-        logline_end(&bm.t_cp_io,"");
-        if (!ok && !rank) {
-            fprintf(stderr, "Warning: I/O error while reading %s\n",
-                    cp.datafile);
+        if (!ok) {
+            if (!rank)
+                fprintf(stderr, "Warning: cannot open %s\n", cp.datafile.c_str());
+            if (data) free(data);
+            break;
         }
-    } else if (!rank) {
-        fprintf(stderr, "Warning: I/O error while reading %s\n", cp.datafile);
-    }
-    if (ok) bm.t = cp.target_t;
+
+        switch (which) {
+            case LINGEN_CHECKPOINT_E:
+                X.finish_init(ab, m, m+n, Xsize);
+                break;
+            case LINGEN_CHECKPOINT_PI:
+                X.finish_init(ab, m+n, m+n, Xsize);
+                break;
+        }
+        X.set_size(Xsize);
+
+        double avg = average_matsize(ab, m + n, m + n, 0);
+        unsigned int B = iceildiv(io_matpoly_block_size, avg);
+
+        /* This is only temp storage ! */
+        matpoly loc(ab, m + n, m + n, B);
+        loc.zero_pad(B);
+
+        for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
+            unsigned int nc = MIN(B, X.get_size() - k);
+            if (!rank)
+                ok = matpoly_read(ab, data, loc, 0, nc, 0, 0) == (int) nc;
+            MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+            X.scatter_mat_partial(loc, 0, k, nc);
+        }
+
+        if (!rank) {
+            int rc = fclose(data);
+            ok = ok && (rc == 0);
+        }
+    } while (0);
+    MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+    logline_end(&bm.t_cp_io,"");
+    if (ok)
+        bm.t = cp.target_t;
+    else if (!rank)
+            fmt::fprintf(stderr, "Warning: I/O error while reading %s\n",
+                    cp.datafile);
     MPI_Bcast(&bm.t, 1, MPI_INT, 0, bm.com[0]);
 
     return ok;
@@ -481,9 +510,13 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     unsigned int n = d.n;
     cp_info cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
+    int ok;
+    ok = cp.checkpoint_already_present();
+    MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
+    if (ok) return 1;
     logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
-            cp.datafile);
-    int ok = cp.save_aux_file(X.get_size());
+            cp.datafile.c_str());
+    ok = cp.save_aux_file(X.get_size());
     MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
     if (ok) {
         do {
@@ -495,7 +528,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
             MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
             if (!ok) {
                 if (!rank)
-                    fprintf(stderr, "Warning: cannot open %s\n", cp.datafile);
+                    fmt::fprintf(stderr, "Warning: cannot open %s\n", cp.datafile);
                 break;
             }
 
@@ -521,13 +554,13 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
         } while (0);
         MPI_Bcast(&ok, 1, MPI_INT, 0, bm.com[0]);
         if (!ok && !rank) {
-            if (cp.datafile) unlink(cp.datafile);
-            unlink(cp.auxfile);
+            if (!cp.datafile.empty()) unlink(cp.datafile.c_str());
+            unlink(cp.auxfile.c_str());
         }
     }
     logline_end(&bm.t_cp_io,"");
     if (!ok && !rank) {
-        fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
+        fmt::fprintf(stderr, "Warning: I/O error while saving %s\n", cp.datafile);
     }
     return ok;
 }/*}}}*/
@@ -545,15 +578,15 @@ int load_checkpoint_file<bigmatpoly>(bmstatus & bm, cp_which which, bigmatpoly &
     MPI_Comm_rank(bm.com[0], &rank);
     cp_info cp(bm, which, t0, t1, 1);
     int ok = 0;
-    int aux_ok = rank || access(cp.auxfile, R_OK) == 0;
-    int sdata_ok = access(cp.sdatafile, R_OK) == 0;
+    int aux_ok = rank || access(cp.auxfile.c_str(), R_OK) == 0;
+    int sdata_ok = access(cp.sdatafile.c_str(), R_OK) == 0;
     int scattered_ok = aux_ok && sdata_ok;
     MPI_Allreduce(MPI_IN_PLACE, &scattered_ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (scattered_ok) {
         ok = load_mpi_checkpoint_file_scattered(bm, which, X, t0, t1);
         if (ok) return ok;
     }
-    int gdata_ok = rank || access(cp.gdatafile, R_OK) == 0;
+    int gdata_ok = rank || access(cp.gdatafile.c_str(), R_OK) == 0;
     int gathered_ok = aux_ok && gdata_ok;
     MPI_Bcast(&gathered_ok, 1, MPI_INT, 0, bm.com[0]);
     if (gathered_ok) {

@@ -13,8 +13,8 @@ void logline_decl_usage(param_list_ptr pl);
 void logline_init_timer();
 /* This queries (or sets) the time since timer init. These two functions
  * may be useful in checkpoints */
-double logline_query_timer();
-void logline_reset_timer(double);
+double logline_serialize();
+void logline_unserialize(double);
 int logline_interpret_parameters(param_list pl);
 int logline_begin(FILE * f, size_t size, const char * fmt, ...) ATTR_PRINTF(3,4);
 int logline_end(double *, const char * fmt, ...);

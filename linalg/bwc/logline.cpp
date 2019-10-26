@@ -50,8 +50,8 @@ struct logline {
     std::vector<std::string> prefixes;
 };
 
-double logline_query_timer();
-void logline_reset_timer(double);
+double logline_serialize();
+void logline_unserialize(double);
 
 static struct logline * current;
 
@@ -87,15 +87,15 @@ static double logline_timer()
     return logline_report_wct ? wct_seconds() : seconds();
 }
 
-double logline_query_timer()
+double logline_serialize()
 {
-    double tt = logline_timer() - start_time;
+    double tt = wct_seconds() - start_time;
     return tt;
 }
 
-void logline_reset_timer(double tt)
+void logline_unserialize(double tt)
 {
-    start_time = logline_timer() - tt;
+    start_time = wct_seconds() - tt;
 }
 
 
