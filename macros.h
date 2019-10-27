@@ -147,8 +147,10 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
    FSF's GCC which can make it tricky to detect whether the compiler is
    genuine GCC. Thus we define GENUINE_GNUC by explicitly testing that
    the compiler is neither icc nor Clang. */
+#ifndef GENUINE_GNUC
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER) && !defined(__clang__)
 #define GENUINE_GNUC 1
+#endif
 #endif
 
 #ifndef MPI_VERSION_ATLEAST
