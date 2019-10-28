@@ -339,7 +339,7 @@ static void test_one_u64arith_div2mod(const uint64_t a, const uint64_t m) {
     r = u64arith_div2mod(a, m);
     u64arith_addmod_1_1(&t, r, r, m);
     if (t != a) {
-        printf("u64arith_div2mod(%lu, %lu) = %lu wrong\n", a, m, r);
+        printf("u64arith_div2mod(%" PRIu64 ", %" PRIu64 ") = %" PRIu64 " wrong\n", a, m, r);
         exit(EXIT_FAILURE);
     }
 }
