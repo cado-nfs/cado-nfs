@@ -21,7 +21,9 @@
 #define ASSERT_EXPENSIVE(x)
 #endif
 
+#if defined(HAVE_INT128)
 typedef union {uint64_t x[2]; unsigned __int128 y;} _u64arith_union2_t;
+#endif
 
 /** Test whether a1:a2 > b1:b2
  * 
@@ -34,7 +36,7 @@ static inline int
 u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
-#if defined(GENUINE_GCC) && __GNUC__ >= 8
+#if defined(GENUINE_GCC) && __GNUC__ >= 8 && defined(HAVE_INT128)
     _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
     return a > b;
 #else
@@ -53,7 +55,7 @@ static inline int
 u64arith_ge_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
-#if defined(GENUINE_GCC) && __GNUC__ >= 8
+#if defined(GENUINE_GCC) && __GNUC__ >= 8 && defined(HAVE_INT128)
     _u64arith_union2_t a = {{a1, a2}, b = {b1, b2}};
     return a >= b;
 #else
@@ -73,7 +75,7 @@ static inline int
 u64arith_lt_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
-#if defined(GENUINE_GCC) && __GNUC__ >= 8
+#if defined(GENUINE_GCC) && __GNUC__ >= 8 && defined(HAVE_INT128)
     _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
     return a < b;
 #else
@@ -93,7 +95,7 @@ static inline int
 u64arith_le_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
-#if defined(GENUINE_GCC) && __GNUC__ >= 8
+#if defined(GENUINE_GCC) && __GNUC__ >= 8 && defined(HAVE_INT128)
     _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
     return a <= b;
 #else
