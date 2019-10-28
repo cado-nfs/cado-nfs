@@ -784,13 +784,13 @@ int wrapped_main(int argc, char *argv[])
     const char * rhs_name = param_list_lookup_string(pl, "rhs");
     if (!global_flag_tune && !random_input_length) {
         if (!rhs_name) {
-            fprintf(stderr, "When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
+            fprintf(stderr, "# When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
         } else if (strcmp(rhs_name, "none") == 0) {
             rhs_name = NULL;
         }
     }
     if (param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs)) && rhs_name) {
-        fprintf(stderr, "the command line arguments rhs= and nrhs= are incompatible\n");
+        fprintf(stderr, "# the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);
     }
     if (rhs_name && strcmp(rhs_name, "none") != 0) {
