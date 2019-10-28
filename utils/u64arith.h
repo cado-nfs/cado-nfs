@@ -4,48 +4,118 @@
    function call that shows what registers/memory locations the operands 
    are in.
    Defining U64ARITH_NO_ASM avoids asm macros and uses the C fallback code
-   where available.
+   where available. This can be used for testing the fallback code.
 */
 
 #ifndef U64_ARITH_H__
 #define U64_ARITH_H__
 
-#include <assert.h>
 #include <stdint.h>
-#include <gmp.h>
 #include "macros.h"
 
 #ifdef WANT_ASSERT_EXPENSIVE
+#ifndef ASSERT_EXPENSIVE
 #define ASSERT_EXPENSIVE(x) ASSERT_ALWAYS(x)
+#endif
 #else
 #define ASSERT_EXPENSIVE(x)
 #endif
 
+typedef union {uint64_t x[2]; unsigned __int128 y;} _u64arith_union2_t;
 
-/* Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a > b,
-   and 0 if a <= b. */
+/** Test whether a1:a2 > b1:b2
+ * 
+ * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a > b,
+ * and 0 otherwise. 
+ */
 static inline int
-u64arith_gt_2_2(uint64_t, uint64_t, uint64_t, uint64_t) ATTRIBUTE((const));
+u64arith_gt_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
 static inline int
 u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
-  return a2 > b2 || (a2 == b2 && a1 > b1);
+#if defined(GENUINE_GCC) && __GNUC__ >= 8
+    _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
+    return a > b;
+#else
+    return a2 > b2 || (a2 == b2 && a1 > b1);
+#endif
 }
 
+/** Test whether a1:a2 >= b1:b2
+ * 
+ * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a >= b,
+ * and 0 otherwise. 
+ */
+static inline int
+u64arith_ge_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
+static inline int
+u64arith_ge_2_2(const uint64_t a1, const uint64_t a2,
+                const uint64_t b1, const uint64_t b2)
+{
+#if defined(GENUINE_GCC) && __GNUC__ >= 8
+    _u64arith_union2_t a = {{a1, a2}, b = {b1, b2}};
+    return a >= b;
+#else
+  return a2 > b2 || (a2 == b2 && a1 >= b1);
+#endif
+    
+}
 
-/* Add two uint64_t to two uint64_t with carry propagation from 
-   low word (r1) to high word (r2). Any carry out from high word is lost. */
+/** Test whether a1:a2 < b1:b2
+ * 
+ * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a < b,
+ * and 0 otherwise. 
+ */
+static inline int
+u64arith_lt_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
+static inline int
+u64arith_lt_2_2(const uint64_t a1, const uint64_t a2,
+                const uint64_t b1, const uint64_t b2)
+{
+#if defined(GENUINE_GCC) && __GNUC__ >= 8
+    _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
+    return a < b;
+#else
+  return a2 < b2 || (a2 == b2 && a1 < b1);
+#endif
+    
+}
 
+/** Test whether a1:a2 <= b1:b2
+ * 
+ * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a <= b,
+ * and 0 otherwise. 
+ */
+static inline int
+u64arith_le_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
+static inline int
+u64arith_le_2_2(const uint64_t a1, const uint64_t a2,
+                const uint64_t b1, const uint64_t b2)
+{
+#if defined(GENUINE_GCC) && __GNUC__ >= 8
+    _u64arith_union2_t a = {{a1, a2}}, b = {{b1, b2}};
+    return a <= b;
+#else
+  return a2 < b2 || (a2 == b2 && a1 <= b1);
+#endif
+    
+}
+
+/** Add r1:r2 += a1:a2 with carry propagation
+ * 
+ * Let r = r1 + 2^64 * r2, a = a1 + 2^64 * a2. Set r1:r2 := (r+a) mod 2^128.
+ */
 static inline void
 u64arith_add_2_2 (uint64_t *r1, uint64_t *r2, 
 		  const uint64_t a1, const uint64_t a2)
 {
+#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) \
+    && ( defined(GENUINE_GNUC) && __GNUC__ <= 7 || defined(__INTEL_COMPILER) )
 #ifdef U64ARITH_VERBOSE_ASM
   __asm__ ("# u64arith_add_2_2 (%0, %1, %2, %3)\n" : : 
            "X" (*r1), "X" (*r2), "X" (a1), "X" (a2));
 #endif
-#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__ __VOLATILE (
     "addq %2, %0\n\t"
     "adcq %3, %1\n"
@@ -53,14 +123,17 @@ u64arith_add_2_2 (uint64_t *r1, uint64_t *r2,
     : "rme" (a1), "rme" (a2)
     : "cc");
 #else
+  /* On x86_64, Clang 6.0, 7.0, 8.0, 9.0, gcc 8.0 and 9.0 produce good code
+   * from this. Intel icc however produces terrible code. */
   *r1 += a1;
   *r2 += a2 + (*r1 < a1);
 #endif
 }
 
-/* Add a uint64_t to two uint64_t with carry propagation from low word (r1)
-   to high word (r2). Any carry out from high word is lost. */
-
+/** Add r1:r2 += a with carry propagation
+ * 
+ * Let r = r1 + 2^64 * r2. Set r1:r2 := (r+a) mod 2^128.
+ */
 static inline void
 u64arith_add_1_2 (uint64_t *r1, uint64_t *r2, const uint64_t a)
 {
@@ -94,7 +167,7 @@ u64arith_add_2_2_cy (uint64_t *r1, uint64_t *r2,
     : "cc");
 #else
   uint64_t u1 = *r1 + a1,
-           u2 = *r2 + a2 + (u1 < *r1);
+           u2 = *r2 + a2 + (u1 < a1);
   /* Overflow occurred iff the sum is smaller than one of the summands */
   cy = u64arith_gt_2_2(a1, a2, u1, u2);
   *r1 = u1;
@@ -104,7 +177,10 @@ u64arith_add_2_2_cy (uint64_t *r1, uint64_t *r2,
 }
 
 
-/* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
+/** Compute r = (a + b) % m
+ * 
+ * Requires a < m and b <= m, then r == a+b (mod m) and r < m.
+ */
 static inline void
 u64arith_addmod_1_1 (uint64_t *r, const uint64_t a,
                      const uint64_t b, const uint64_t m)
@@ -133,38 +209,10 @@ u64arith_addmod_1_1 (uint64_t *r, const uint64_t a,
 }
 
 
-/* Subtract an uint64_t from two uint64_t with borrow propagation 
-   from low word (r1) to high word (r2). Any borrow out from high word is 
-   lost. */
-
-static inline void
-u64arith_sub_1_2 (uint64_t *r1, uint64_t *r2, 
-                  const uint64_t a)
-{
-#ifdef U64ARITH_VERBOSE_ASM
-  __asm__ ("# u64arith_sub_1_2  (%0, %1, %2)\n" : : 
-           "X" (*r1), "X" (*r2), "X" (a));
-#endif
-#if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  __asm__ __VOLATILE (
-    "subq %2, %0\n\t"
-    "sbbq $0, %1\n"
-    : "+&r" (*r1), "+r" (*r2)
-    : "rme" (a)
-    : "cc");
-#else
-  uint64_t u = *r1;
-  *r1 -= a;
-  if (*r1 > u)
-    (*r2)--;
-#endif
-}
-
-
-/* Subtract two uint64_t from two uint64_t with borrow propagation 
-   from low word (r1) to high word (r2). Any borrow out from high word is 
-   lost. */
-
+/** Add r1:r2 -= a1:a2 with borrow propagation
+ * 
+ * Let r = r1 + 2^64 * r2, a = a1 + 2^64 * a2. Set r1:r2 := (r-a) mod 2^128.
+ */
 static inline void
 u64arith_sub_2_2 (uint64_t *r1, uint64_t *r2, 
 		  const uint64_t a1, const uint64_t a2)
@@ -183,11 +231,22 @@ u64arith_sub_2_2 (uint64_t *r1, uint64_t *r2,
 #else
   uint64_t u = *r1;
   *r1 -= a1;
-  *r2 -= a2;
-  if (*r1 > u)
-    (*r2)--;
+  *r2 -= a2 + (*r1 > u);
 #endif
 }
+
+
+/** Add r1:r2 -= a with borrow propagation
+ * 
+ * Let r = r1 + 2^64 * r2. Set r1:r2 := (r-a) mod 2^128.
+ */
+static inline void
+u64arith_sub_1_2 (uint64_t *r1, uint64_t *r2, 
+                  const uint64_t a)
+{
+    u64arith_sub_2_2(r1, r2, a, 0);
+}
+
 
 /* Subtract two uint64_t from two uint64_t with borrow propagation 
    from low word (r1) to high word (r2). Returns 1 if there was a borrow out 
@@ -223,7 +282,6 @@ u64arith_sub_2_2_cy (uint64_t *r1, uint64_t *r2,
 
 
 /* Subtract only if result is non-negative */
-
 static inline void
 u64arith_sub_1_1_ge (uint64_t *r, const uint64_t a)
 {
@@ -246,7 +304,7 @@ u64arith_sub_1_1_ge (uint64_t *r, const uint64_t a)
 #endif
 }
 
-
+/* Subtract only if result is non-negative */
 static inline void
 u64arith_sub_2_2_ge (uint64_t *r1, uint64_t *r2, 
                      const uint64_t a1, const uint64_t a2)
@@ -275,13 +333,17 @@ u64arith_sub_2_2_ge (uint64_t *r1, uint64_t *r2,
 }
 
 
+/** Compute r = (a - b) % m
+ * 
+ * Requires a < m and b < m, then r == a+b (mod m) and r < m.
+ */
 static inline void
 u64arith_submod_1_1 (uint64_t *r, const uint64_t a,
                      const uint64_t b, const uint64_t m)
 {
-  ASSERT_EXPENSIVE (a < m && b < m);
+    ASSERT_EXPENSIVE (a < m && b < m);
 #if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  {
+    /* Could do tr = a+m-b; t = a-b; if (!carry) tr = t; */
     uint64_t tr, t = a;
     __asm__ __VOLATILE (
       "sub %2, %1\n\t"  /* t -= b ( = a - b) */
@@ -292,20 +354,17 @@ u64arith_submod_1_1 (uint64_t *r, const uint64_t a,
       : "cc"
     );
     r[0] = tr;
-  }
 #elif 1
   /* Seems to be faster than the one below */
-  {
     uint64_t t = 0, tr;
     if ((tr = a - b) > a)
       t = m;
     r[0] = tr + t;
-  }
 #else
-  r[0] = (a < b) ? (a - b + m) : (a - b);
+    r[0] = (a < b) ? (a - b + m) : (a - b);
 #endif
 
-  ASSERT_EXPENSIVE (r[0] < m);
+    ASSERT_EXPENSIVE (r[0] < m);
 }
 
 
@@ -326,20 +385,7 @@ u64arith_mul_1_1_2 (uint64_t *r1, uint64_t *r2,
     : "=a" (*r1), "=d" (*r2)
     : "%0" (a), "rm" (b)
     : "cc");
-#elif 0 && !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
-/*
-  This is the 32-bit code. Do not use.
-  TODO: use correct instruction for ARM64. Need an ARM64 system to test.
-  Raspberry Pi in principle has a 64-bit cpu, but Raspbian runs it in
-  32-bit mode. There are experimental 64-bit OS for the Pi, though. */
-*/
-  __asm__ __VOLATILE(
-   "umull   %[r1], %[r2], %[a], %[b]\n\t"
-  : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
-  : [a] "r" (a), [b] "r" (b)
-  );
 #elif defined(HAVE_INT128)
-    /* this code is useful for example on ARM processors (Raspberry Pi) */
     unsigned __int128 r = (unsigned __int128) a * b;
     *r1 = r;
     *r2 = r >> 64;
@@ -379,20 +425,7 @@ u64arith_sqr_1_2 (uint64_t *r1, uint64_t *r2,
     : "=a" (*r1), "=d" (*r2)
     : "0" (a)
     : "cc");
-#elif 0 && !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_ARM_INLINE_ASM)
-/*
-  This is the 32-bit code. Do not use.
-  TODO: use correct instruction for ARM64. Need an ARM64 system to test.
-  Raspberry Pi in principle has a 64-bit cpu, but Raspbian runs it in
-  32-bit mode. There are experimental 64-bit OS for the Pi, though. */
-*/
-  __asm__ __VOLATILE(
-   "umull   %[r1], %[r2], %[a], %[a]\n\t"
-  : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
-  : [a] "r" (a)
-  );
 #elif defined(HAVE_INT128)
-    /* this code is useful for example on ARM processors (Raspberry Pi) */
     unsigned __int128 r = (unsigned __int128) a * a;
     *r1 = r;
     *r2 = r >> 64;
@@ -457,11 +490,12 @@ u64arith_shrd (uint64_t *r, const uint64_t hi, const uint64_t lo,
 }
 
 
-/* Shift the 128-bit integer in lo:hi right by i bits */
+/* Shift the 128-bit integer in lo:hi right by i bits, 0 <= i < 64 */
 
 static inline void
 u64arith_shr_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 {
+  ASSERT_EXPENSIVE (i < 64);
   u64arith_shrd(lo, *hi, *lo, i);
   *hi >>= i;
 }
@@ -502,11 +536,12 @@ u64arith_shld (uint64_t *r, const uint64_t lo, const uint64_t hi,
 }
 
 
-/* Shift the 128-bit integer in lo:hi left by i bits */
+/* Shift the 128-bit integer in lo:hi left by i bitss, 0 <= i < 64 */
 
 static inline void
 u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 {
+  ASSERT_EXPENSIVE (i < 64);
   u64arith_shld(hi, *lo, *hi, i);
   *lo <<= i;
 }
@@ -553,7 +588,7 @@ u64arith_clz (const uint64_t a)
   else if (sizeof(uint64_t) == sizeof(unsigned long long))
     return __builtin_clzll(a);
   else
-    assert(sizeof(uint64_t) == sizeof(unsigned long) || sizeof(uint64_t) == sizeof(unsigned long long));
+    ASSERT_ALWAYS(sizeof(uint64_t) == sizeof(unsigned long) || sizeof(uint64_t) == sizeof(unsigned long long));
 #else
   uint64_t t = (uint64_t)1 << (64 - 1);
   int i;
@@ -607,7 +642,7 @@ u64arith_reciprocal_for_div(const uint64_t d)
 {
   /* Assumes 2^63 <= d <= 2^64-1 */
   const uint64_t one = 1;
-  assert(d >= (one << 63));
+  ASSERT(d >= (one << 63));
   /* lut[i] = (2^19 - 3 * 256) / (i + 256) */
   static const uint16_t lut[256] = {2045, 2037, 2029, 2021, 2013, 2005, 1998,
     1990, 1983, 1975, 1968, 1960, 1953, 1946, 1938, 1931, 1924, 1917, 1910,
@@ -654,6 +689,62 @@ u64arith_reciprocal_for_div(const uint64_t d)
   return v4;
 }
 
+static inline uint64_t
+u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1)
+{
+    uint64_t v = u64arith_reciprocal_for_div(d1);
+    uint64_t p = d1*v + d0;
+    if (p < d0) {
+        v--;
+        if (p >= d1) {
+            v--;
+            p -= d1;
+        }
+        p -= d1;
+    }
+    uint64_t t0, t1;
+    u64arith_mul_1_1_2(&t0, &t1, v, d0);
+    p += t1;
+    if (p < t1) {
+        v--;
+        if (u64arith_ge_2_2(t0, p, d0, d1)) {
+            v--;
+        }
+    }
+    return v;
+}
+
+
+static inline void
+u64arith_divqr_2_1_1_recip_precomp (uint64_t *q, uint64_t *r,
+		      const uint64_t a1, const uint64_t a2,
+		      const uint64_t d, const uint64_t v,
+		      const int s)
+{
+  uint64_t u0 = a1, u1 = a2;
+  /* Adjust dividend to match divisor */
+  ASSERT_EXPENSIVE(0 <= s && s < 64);
+  ASSERT_EXPENSIVE((u1 & ~(UINT64_MAX >> s)) == 0);
+  u64arith_shl_2(&u0, &u1, s);
+
+  uint64_t q0, q1;
+  u64arith_mul_1_1_2(&q0, &q1, v, u1);
+  u64arith_add_2_2(&q0, &q1, u0, u1);
+  q1++;
+  uint64_t r0 = u0 - q1*d;
+  if (r0 > q0) {
+    q1--;
+    r0 += d;
+  }
+  if (r0 >= d) {
+    q1++;
+    r0 -= d;
+  }
+  r0 >>= s;
+
+  *q = q1;
+  *r = r0;
+}
 
 /* Integer division of two uint64_t values a2:a1 by a uint64_t divisor b.
    Returns quotient and remainder. Uses the algorithm described in
@@ -672,35 +763,19 @@ u64arith_divqr_2_1_1_recip (uint64_t *q, uint64_t *r,
     return;
   }
 
-  uint64_t u0 = a1, u1 = a2, d = b;
-  /* Left-adjust dividend and divisor */
-  const int s = u64arith_clz(d);
-  u64arith_shl_2(&u0, &u1, s);
-  d <<= s;
+  const int s = u64arith_clz(b);
+  uint64_t d = b << s;
+  /* Left-adjust divisor */
   const uint64_t v = u64arith_reciprocal_for_div(d);
-  uint64_t q0, q1;
-  u64arith_mul_1_1_2(&q0, &q1, v, u1);
-  u64arith_add_2_2(&q0, &q1, u0, u1);
-  q1++;
-  uint64_t r0 = u0 - q1*d;
-  if (r0 > q0) {
-    q1--;
-    r0 += d;
-  }
-  if (r0 >= d) {
-    q1++;
-    r0 -= d;
-  }
-  r0 >>= s;
+  u64arith_divqr_2_1_1_recip_precomp(q, r, a1, a2, d, v, s);
+
 #ifdef WANT_ASSERT_EXPENSIVE
   uint64_t P1, P2;
-  u64arith_mul_1_1_2(&P1, &P2, q1, b);
-  u64arith_add_2_2(&P1, &P2, r0, 0);
+  u64arith_mul_1_1_2(&P1, &P2, *q, b);
+  unsigned char cy = u64arith_add_2_2_cy(&P1, &P2, *r, 0);
   // printf("a1=%lu, a2=%lu, b=%lu, s=%d, q1=%lu, r0=%lu\n", a1, a2, b, s, q1, r0);
-  ASSERT_EXPENSIVE(P1 == a1 && P2 == a2);
+  ASSERT_EXPENSIVE(P1 == a1 && P2 == a2 && cy == 0);
 #endif
-  *q = q1;
-  *r = r0;
 }
 
 
@@ -724,7 +799,6 @@ u64arith_divqr_2_1_1 (uint64_t *q, uint64_t *r,
     : "0" (a1), "1" (a2), "rm" (b)
     : "cc");
 #else 
-  /* TODO: Replace by Möller/Granlund "Improved Division by Invariant Integers" */
   u64arith_divqr_2_1_1_recip(q, r, a1, a2, b);
 #endif
 }
@@ -754,6 +828,57 @@ u64arith_divr_2_1_1 (uint64_t *r, uint64_t a1, const uint64_t a2,
 #endif
 }
 
+static inline void
+u64arith_divqr_3_2_1_recip_precomp (
+    uint64_t *q, uint64_t *R0, uint64_t *R1,
+    uint64_t u0, uint64_t u1, uint64_t u2,
+    const uint64_t d0, const uint64_t d1, const uint64_t v,
+    const int s)
+{
+    uint64_t q0, q1, t0, t1, r0, r1;
+    ASSERT((d1 & (UINT64_C(1) << 63)) != 0);
+    ASSERT(u64arith_lt_2_2(u1, u2, d0, d1));
+    ASSERT(0 <= s && s < 64);
+    ASSERT((u2 & ~(UINT64_MAX >> s)) == 0);
+
+    u64arith_shld(&u2, u1, u2, s);
+    u64arith_shld(&u1, u0, u1, s);
+    u0 <<= s;
+
+    u64arith_mul_1_1_2(&q0, &q1, u2, v);
+    u64arith_add_2_2(&q0, &q1, u1, u2);
+    r1 = u1 - q1*d1;
+    u64arith_mul_1_1_2(&t0, &t1, d0, q1);
+    r0 = u0;
+    u64arith_sub_2_2(&r0, &r1, t0, t1);
+    u64arith_sub_2_2(&r0, &r1, d0, d1);
+    q1++;
+    if (r1 >= q0) {
+        q1--;
+        u64arith_add_2_2(&r0, &r1, d0, d1);
+    }
+    if (u64arith_ge_2_2(r0, r1, d0, d1)) {
+        q1++;
+        u64arith_sub_2_2(&r0, &r1, d0, d1);
+    }
+    u64arith_shr_2(&r0, &r1, s);
+    *R0 = r0;
+    *R1 = r1;
+    *q = q1;
+}
+
+static inline void
+u64arith_divqr_3_2_1 (uint64_t *q, uint64_t *R0, uint64_t *R1,
+    uint64_t u0, uint64_t u1, uint64_t u2,
+    uint64_t d0, uint64_t d1)
+{
+    ASSERT(d1 != 0);
+    ASSERT(u64arith_lt_2_2(u1, u2, d0, d1));
+    int s = u64arith_clz(d1);
+    u64arith_shl_2(&d0, &d1, s);
+    const uint64_t v = u64arith_reciprocal_for_div_3by2(d0, d1);
+    u64arith_divqr_3_2_1_recip_precomp(q, R0, R1, u0, u1, u2, d0, d1, v, s);
+}
 
 /* Compute 1/n (mod 2^wordsize) */
 static inline uint64_t
@@ -821,6 +946,7 @@ u64arith_div2mod (const uint64_t n, const uint64_t m)
 static inline uint64_t
 u64arith_sqrt (const uint64_t n)
 {
+    /* TODO: use Hensel lifting instead */
   unsigned int i;
   uint64_t xs, c, d, s2;
   const unsigned int l = 63 - (unsigned int)__builtin_clzl(n);
