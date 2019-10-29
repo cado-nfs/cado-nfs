@@ -58,11 +58,11 @@ protected:
     Residue one;
 
     /* Methods used internally */
-    void assertValid(const Residue a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a.r < m);}
+    void assertValid(const Residue &a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a.r < m);}
     void assertValid(const uint64_t a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a < m);}
 
     /* Computes (a * 2^64) % m */
-    void tomontgomery (Residue &r, const Residue a) const {
+    void tomontgomery (Residue &r, const Residue &a) const {
         assertValid (a);
         int shift = u64arith_clz(m);
         uint64_t ml = m << shift, dummy;
@@ -80,7 +80,7 @@ protected:
       r = thigh + ((a != 0) ? 1 : 0);
     }
 
-    uint64_t get_u64 (const Residue s) const {
+    uint64_t get_u64 (const Residue &s) const {
         uint64_t r;
         assertValid (s);
         frommontgomery (r, s.r);
@@ -113,7 +113,7 @@ public:
 
     /* Methods for residues */
 
-    void set (Residue &r, const Residue s) const {assertValid(s); r = s;}
+    void set (Residue &r, const Residue &s) const {assertValid(s); r = s;}
     /* Puts in r the value of s * beta mod m, where beta is the word base.
        Note: s can be any uint64_t, in particular can be larger than m.
        When 0 <= s < m, use set_reduced for better efficiency. */
@@ -139,37 +139,37 @@ public:
     void set1 (Residue &r) const {r = one;}
     void swap (Residue &a, Residue &b) const {uint64_t t = a.r; a.r = b.r; b.r = t;}
 
-    void get (Integer &r, const Residue s) const {
+    void get (Integer &r, const Residue &s) const {
         assertValid (s);
         uint64_t t;
         frommontgomery (t, s.r);
         r = Integer(t);
     }
 
-    bool equal (const Residue a, const Residue b) const {assertValid(a); assertValid(b); return (a.r == b.r);}
-    bool is0 (const Residue a) const {assertValid(a); return (a.r == 0);}
-    bool is1 (const Residue a) const {return equal(a, one);}
-    void neg (Residue &r, const Residue a) const {
+    bool equal (const Residue &a, const Residue &b) const {assertValid(a); assertValid(b); return (a.r == b.r);}
+    bool is0 (const Residue &a) const {assertValid(a); return (a.r == 0);}
+    bool is1 (const Residue &a) const {return equal(a, one);}
+    void neg (Residue &r, const Residue &a) const {
         assertValid(a);
         if (a.r == 0)
             r.r = a.r;
         else
             r.r = m - a.r;
     }
-    void add (Residue &r, const Residue a, const Residue b) const {u64arith_addmod_1_1(&r.r, a.r, b.r, m);}
-    void add1 (Residue &r, const Residue a) const {add(r, a, one);}
-    void add (Residue &r, const Residue a, const uint64_t b) const {
+    void add (Residue &r, const Residue &a, const Residue &b) const {u64arith_addmod_1_1(&r.r, a.r, b.r, m);}
+    void add1 (Residue &r, const Residue &a) const {add(r, a, one);}
+    void add (Residue &r, const Residue &a, const uint64_t b) const {
         Residue t(*this);
 
         assertValid (a);
         set (t, b);
         add (r, a, t);
     }
-    void sub (Residue &r, const Residue a, const Residue b) const {
+    void sub (Residue &r, const Residue &a, const Residue &b) const {
         u64arith_submod_1_1(&r.r, a.r, b.r, m);
     }
-    void sub1 (Residue &r, const Residue a) const {sub(r, a, one);}
-    void sub (Residue &r, const Residue a, const uint64_t b) const {
+    void sub1 (Residue &r, const Residue &a) const {sub(r, a, one);}
+    void sub (Residue &r, const Residue &a, const uint64_t b) const {
         Residue t(*this);
 
         assertValid (a);
@@ -177,7 +177,7 @@ public:
         sub (r, a, t);
     }
 
-    void mul (Residue &r, const Residue a, const Residue b) const {
+    void mul (Residue &r, const Residue &a, const Residue &b) const {
         uint64_t plow, phigh;
 
         ASSERT_EXPENSIVE (m % 2 != 0);
@@ -189,7 +189,7 @@ public:
 
     /* For a residue class a (mod m) and non-negative integer b, set r to
        the smallest non-negative integer in the residue class a*b (mod m). */
-    void mul_u64_u64 (uint64_t &r, const Residue a, const uint64_t b) const {
+    void mul_u64_u64 (uint64_t &r, const Residue &a, const uint64_t b) const {
       uint64_t plow, phigh;
 
       ASSERT_EXPENSIVE (m % 2 != 0);
@@ -204,7 +204,7 @@ public:
     }
 
 
-    void sqr (Residue &r, const Residue a) const {
+    void sqr (Residue &r, const Residue &a) const {
         uint64_t plow, phigh;
 
         assertValid (a);
