@@ -20,6 +20,8 @@ public:
   ResidueStdOp(const Modulus &m, const Residue &s) : T(m), m(m) {m.set(*this, s);}
   ResidueStdOp(const Modulus &m, const Integer &s) : T(m), m(m) {m.set(*this, s);}
   ResidueStdOp(const Modulus &m, const uint64_t &s) : T(m), m(m) {m.set(*this, s);}
+  ResidueStdOp(const ResidueStdOp &s) : Residue(s.m), m(s.m) {*this = s;}
+  ResidueStdOp(ResidueStdOp &&s) : Residue(s.m), m(s.m) {*this = s;}
   
   ResidueStdOp &operator=(const ResidueStdOp &s) {assertValid(s); m.set(*this, s); return *this;}
   ResidueStdOp &operator=(const uint64_t s) {m.set(*this, s); return *this;}  
@@ -34,8 +36,8 @@ public:
   
   ResidueStdOp operator-() const {ResidueStdOp r = *this; m.neg(r, r); return r;}
   /* Prefix ++ and -- */
-  ResidueStdOp operator++() {m.add1(*this, *this); return *this;}
-  ResidueStdOp operator--() {m.sub1(*this, *this); return *this;}
+  ResidueStdOp &operator++() {m.add1(*this, *this); return *this;}
+  ResidueStdOp &operator--() {m.sub1(*this, *this); return *this;}
   /* Postfix ++ and -- */
   ResidueStdOp operator++(int) {ResidueStdOp r = *this; m.add1(*this, *this); return r;}
   ResidueStdOp operator--(int) {ResidueStdOp r = *this; m.sub1(*this, *this); return r;}
@@ -43,22 +45,22 @@ public:
   ResidueStdOp operator+(const ResidueStdOp &s) const {assertValid(s); ResidueStdOp r(m); m.add(r, *this, s); return r;}
   ResidueStdOp operator+(const uint64_t s) const {ResidueStdOp r(m, s); m.add(r, *this, r); return r;}
   ResidueStdOp operator+(const Integer &s) const {ResidueStdOp r(m, s); m.add(r, *this, r); return r;}
-  ResidueStdOp operator+=(const ResidueStdOp &s) {assertValid(s); m.add(*this, *this, s); return *this;}
-  ResidueStdOp operator+=(const uint64_t s) {ResidueStdOp t(m, s); m.add(*this, *this, t); return *this;}
-  ResidueStdOp operator+=(const Integer &s) {ResidueStdOp t(m, s); m.add(*this, *this, t); return *this;}
+  ResidueStdOp &operator+=(const ResidueStdOp &s) {assertValid(s); m.add(*this, *this, s); return *this;}
+  ResidueStdOp &operator+=(const uint64_t s) {ResidueStdOp t(m, s); m.add(*this, *this, t); return *this;}
+  ResidueStdOp &operator+=(const Integer &s) {ResidueStdOp t(m, s); m.add(*this, *this, t); return *this;}
   friend ResidueStdOp operator+(const uint64_t s, const ResidueStdOp &t) {return t + s;}
   friend ResidueStdOp operator+(const Integer &s, const ResidueStdOp &t) {return t + s;}
-  friend Integer operator+=(Integer &s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.add(r, r, t); return (Integer) r;}
+  friend Integer &operator+=(Integer &s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.add(r, r, t); s = (Integer) r; return s;}
 
   ResidueStdOp operator-(const ResidueStdOp &s) const {assertValid(s); ResidueStdOp r(m); m.sub(r, *this, s); return r;}
   ResidueStdOp operator-(const uint64_t s) const {ResidueStdOp r(m, s); m.sub(r, *this, r); return r;}
   ResidueStdOp operator-(const Integer &s) const {ResidueStdOp r(m, s); m.sub(r, *this, r); return r;}
-  ResidueStdOp operator-=(const ResidueStdOp &s) {assertValid(s); m.sub(*this, *this, s); return *this;}
-  ResidueStdOp operator-=(const uint64_t s) {ResidueStdOp t(m, s); m.sub(*this, *this, t); return *this;}
-  ResidueStdOp operator-=(const Integer &s) {ResidueStdOp t(m, s); m.sub(*this, *this, t); return *this;}
+  ResidueStdOp &operator-=(const ResidueStdOp &s) {assertValid(s); m.sub(*this, *this, s); return *this;}
+  ResidueStdOp &operator-=(const uint64_t s) {ResidueStdOp t(m, s); m.sub(*this, *this, t); return *this;}
+  ResidueStdOp &operator-=(const Integer &s) {ResidueStdOp t(m, s); m.sub(*this, *this, t); return *this;}
   friend ResidueStdOp operator-(const uint64_t s, const ResidueStdOp &t) {return ResidueStdOp(t.m, s) - t;}
   friend ResidueStdOp operator-(const Integer &s, const ResidueStdOp &t) {return ResidueStdOp(t.m, s) - t;}
-  friend Integer operator-=(Integer &s, const ResidueStdOp &t) {return s = (Integer) (ResidueStdOp(t.m, s) - t);}
+  friend Integer &operator-=(Integer &s, const ResidueStdOp &t) {return s = (Integer) (ResidueStdOp(t.m, s) - t);}
 
   ResidueStdOp operator*(const ResidueStdOp &s) const {
       assertValid(s);
@@ -72,15 +74,15 @@ public:
   }
   ResidueStdOp operator*(const uint64_t s) const {ResidueStdOp r(m, s); m.mul(r, *this, r); return r;}
   ResidueStdOp operator*(const Integer &s) const {ResidueStdOp r(m, s); m.mul(r, *this, r); return r;}
-  ResidueStdOp operator*=(const ResidueStdOp &s) {assertValid(s); m.mul(*this, *this, s); return *this;}
-  ResidueStdOp operator*=(const uint64_t s) {ResidueStdOp t(m, s); m.mul(*this, *this, t); return *this;}
-  ResidueStdOp operator*=(const Integer &s) {ResidueStdOp t(m, s); m.mul(*this, *this, t); return *this;}
+  ResidueStdOp &operator*=(const ResidueStdOp &s) {assertValid(s); m.mul(*this, *this, s); return *this;}
+  ResidueStdOp &operator*=(const uint64_t s) {ResidueStdOp t(m, s); m.mul(*this, *this, t); return *this;}
+  ResidueStdOp &operator*=(const Integer &s) {ResidueStdOp t(m, s); m.mul(*this, *this, t); return *this;}
   friend ResidueStdOp operator*(const uint64_t s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.mul(r, r, t); return r;}
   friend ResidueStdOp operator*(const Integer &s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.mul(r, r, t); return r;}
-  friend Integer operator*=(Integer &s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.mul(r, r, t); return (Integer) r;}
+  friend Integer &operator*=(Integer &s, const ResidueStdOp &t) {ResidueStdOp r(t.m, s); t.m.mul(r, r, t); s = r; return s;}
   
   ResidueStdOp operator/(const ResidueStdOp &s) const {assertValid(s); ResidueStdOp r(m); m.inv(r, s); m.mul(r, *this, r); return r;}
-  ResidueStdOp operator/=(const ResidueStdOp &s) {assertValid(s); ResidueStdOp i(m); m.inv(i, s); m.mul(*this, *this, i); return *this;}
+  ResidueStdOp &operator/=(const ResidueStdOp &s) {assertValid(s); ResidueStdOp i(m); m.inv(i, s); m.mul(*this, *this, i); return *this;}
   ResidueStdOp operator/(const uint64_t s) const {
       ResidueStdOp r(m);
       if (CONSTANT_P(s) && s == 2) {
@@ -103,7 +105,7 @@ public:
       }
       return r;
   }
-  ResidueStdOp operator/=(const uint64_t s) {return *this /= ResidueStdOp(m, s);}
+  ResidueStdOp &operator/=(const uint64_t s) {return *this /= ResidueStdOp(m, s);}
   friend ResidueStdOp operator/(const uint64_t s, const ResidueStdOp &t) {
       if (CONSTANT_P(s) && s == 1) { /* For 1/t, don't multiply by 1 */
           ResidueStdOp r(t.m);
@@ -114,9 +116,9 @@ public:
       }
   }
   ResidueStdOp operator/(const Integer &s) const {return *this / ResidueStdOp(m, s);}
-  ResidueStdOp operator/=(const Integer &s) {return *this /= ResidueStdOp(m, s);}
+  ResidueStdOp &operator/=(const Integer &s) {return *this /= ResidueStdOp(m, s);}
   friend ResidueStdOp operator/(const Integer &s, const ResidueStdOp &t) {return ResidueStdOp(t.m, s) / t;}
-  friend Integer operator/=(Integer &s, const ResidueStdOp &t) {return s = ResidueStdOp(t.m, s) / t;}
+  friend Integer &operator/=(Integer &s, const ResidueStdOp &t) {return s = (Integer) (ResidueStdOp(t.m, s) / t);}
   
   ResidueStdOp pow(const uint64_t e) {ResidueStdOp r(m); m.pow_u64(r, *this, e); return r;}
   ResidueStdOp pow(const Integer &e) {ResidueStdOp r(m); m.pow(r, *this, e); return r;}
