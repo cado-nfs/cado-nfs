@@ -222,18 +222,18 @@ ModulusREDC126::gcd (Integer &r, const Residue &A) const
 template <int M>
 static inline void
 simple_mul (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
-    ModulusREDC126::Residue &t, const ModulusREDC126 m);
+    ModulusREDC126::Residue &t, const ModulusREDC126 &m);
 template <>
 void
 simple_mul<2> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
-    ModulusREDC126::Residue &t MAYBE_UNUSED, const ModulusREDC126 m)
+    ModulusREDC126::Residue &t MAYBE_UNUSED, const ModulusREDC126 &m)
 {
     m.add (r, a, a); /* r = 2*a */
 }
 template <>
 void
 simple_mul<3> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
-    ModulusREDC126::Residue &t, const ModulusREDC126 m)
+    ModulusREDC126::Residue &t, const ModulusREDC126 &m)
 {
     m.add (t, a, a); /* t = 2*a */
     m.add (r, t, a); /* r = 3*a */
@@ -241,7 +241,7 @@ simple_mul<3> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
 template <>
 void
 simple_mul<5> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
-    ModulusREDC126::Residue &t, const ModulusREDC126 m)
+    ModulusREDC126::Residue &t, const ModulusREDC126 &m)
 {
     m.add (t, a, a); /* t = 2*a */
     m.add (t, t, t); /* t = 4*a */
@@ -250,7 +250,7 @@ simple_mul<5> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
 template <>
 void
 simple_mul<7> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
-    ModulusREDC126::Residue &t, const ModulusREDC126 m)
+    ModulusREDC126::Residue &t, const ModulusREDC126 &m)
 {
     m.add (t, a, a); /* r = 2*a */
     m.add (t, t, t); /* r = 4*a */
