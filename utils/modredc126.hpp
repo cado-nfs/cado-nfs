@@ -36,6 +36,7 @@ public:
         typedef bool IsResidueType;
         Residue() = delete;
         Residue(const Modulus &m MAYBE_UNUSED) : r{0,0} {}
+        Residue(const Residue &&s) : r{s.r[0], s.r[1]} {}
     protected:
         Residue &operator=(const Residue &s) {r[0] = s.r[0]; r[1] = s.r[1]; return *this;}
         Residue &operator=(const Integer &s) {r[1] = 0; s.get(r, 2); return *this;}
@@ -57,7 +58,7 @@ public:
     static bool valid(const Integer &m) {
         return getminmod() <= m && m <= getmaxmod() && m % 2 == 1;
     }
-    
+    ModulusREDC126(const ModulusREDC126 &s) : m{s.m[0], s.m[1]}, invm(s.invm), mrecip(s.mrecip), one(s) {one = s.one;}
     ModulusREDC126 (const Integer s) : one(*this) {
         ASSERT (valid(s));
         s.get (m, 2);

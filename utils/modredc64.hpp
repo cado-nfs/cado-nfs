@@ -42,6 +42,7 @@ public:
         typedef bool IsResidueType;
         Residue() = delete;
         Residue(const Modulus &m MAYBE_UNUSED) : r(0) {}
+        Residue(const Residue &&s) : r(s.r) {}
     protected:
         Residue &operator=(const Residue &s) {r = s.r; return *this;}
         Residue &operator=(const Integer &s) {r = 0; s.get(&r, 1); return *this;}
@@ -104,7 +105,7 @@ public:
         u64arith_divqr_2_1_1_recip_precomp(&dummy, &one.r, 0, 1, ml, mrecip,
                                            shift);
     }
-
+    ModulusREDC64(const ModulusREDC64 &s) : m(s.m), invm(s.invm), mrecip(s.mrecip), one(s) {one = s.one;}
     ModulusREDC64 (const Integer s) : ModulusREDC64(s.get()[0]) {}
     ~ModulusREDC64 () {}
 
