@@ -510,6 +510,7 @@ tests/utils/test_dllist.c
 tests/utils/test_verbose.c
 tests/utils/test_modredc2ul2_Q_to_Fp.c
 tests/utils/test_u64arith.cpp
+tests/utils/test_mod.cpp
 tests/test_iter.c
 tests/test_iter.h
 tests/tests_common.h
@@ -622,6 +623,16 @@ utils/modredc_ul_default.h
 utils/mod_mpz.h
 utils/mod_mpz.c
 utils/mod_mpz_default.h
+utils/mod64.cpp
+utils/mod64.hpp
+utils/mod64_common.cpp
+utils/mod_common.cpp
+utils/mod_stdop.hpp
+utils/modint.hpp
+utils/modredc126.cpp
+utils/modredc126.hpp
+utils/modredc64.cpp
+utils/modredc64.hpp
 utils/modul_poly.c
 utils/modul_poly.h
 utils/params.c
