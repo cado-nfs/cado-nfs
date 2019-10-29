@@ -476,9 +476,10 @@ public:
     
     bool
     test_one_batchinv(const Residue *a, const size_t len, const Residue *c, const Modulus &m) const {
-        std::vector<Residue> r(len, Residue(m));
+        ASSERT_ALWAYS(len <= 10);
+        Residue r[10]{m, m, m, m, m, m, m, m, m, m};
         Residue t(m);
-        const bool batchinv_valid = m.batchinv(r.data(), a, len, c);
+        const bool batchinv_valid = m.batchinv(r, a, len, c);
         bool only_trivial_gcds = true;
         
         Integer g;
