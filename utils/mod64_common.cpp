@@ -720,7 +720,7 @@ s_val(unsigned int s) {
 }
 
 static int
-Modulus::jacobi1 (const Residue a_par, const Modulus m_par)
+Modulus::jacobi1 (const Residue &a_par)
 {
   uint64_t x, m;
   unsigned int s, j;
@@ -802,7 +802,7 @@ Modulus::jacobi1 (const Residue a_par, const Modulus m_par)
 }
 
 int
-Modulus::jacobi (const Residue a_par, const Modulus m_par)
+Modulus::jacobi (const Residue &a)
 {
   uint64_t x, m;
   unsigned int s, j;

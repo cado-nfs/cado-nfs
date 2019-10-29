@@ -39,9 +39,9 @@ public:
 protected:
     uint64_t m;
     /* Methods used internally */
-    void assertValid(const Residue a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a.r < m);}
+    void assertValid(const Residue &a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a.r < m);}
     void assertValid(const uint64_t a MAYBE_UNUSED) const {ASSERT_EXPENSIVE (a < m);}
-    uint64_t get_u64 (const Residue s) const {assertValid(s); return s.r;}
+    uint64_t get_u64 (const Residue &s) const {assertValid(s); return s.r;}
 
     /* Methods of the API */
 public:
@@ -53,75 +53,75 @@ public:
     
     Modulus64(const uint64_t s) : m(s){}
     Modulus64(const Modulus64 &s) : m(s.m){}
-    Modulus64(const Integer s) {s.get(&m, 1);}
+    Modulus64(const Integer &s) {s.get(&m, 1);}
     ~Modulus64() {}
     uint64_t getmod_u64 () const {return m;}
     void getmod (Integer &r) const {r = m;}
 
     /* Methods for residues */
 
-    void set (Residue &r, const Residue s) const {assertValid(s); r = s;}
+    void set (Residue &r, const Residue &s) const {assertValid(s); r = s;}
     void set (Residue &r, const uint64_t s) const {r.r = s % m;}
-    void set (Residue &r, const Integer s) const {s.get(&r.r, 1); r.r %= m;}
+    void set (Residue &r, const Integer &s) const {s.get(&r.r, 1); r.r %= m;}
     /* Sets the Residue to the class represented by the integer s. Assumes that
        s is reduced (mod m), i.e. 0 <= s < m */
     void set_reduced (Residue &r, const uint64_t s) const {assertValid(s); r.r = s;}
-    void set_reduced (Residue &r, const Integer s) const {s.get(&r.r, 1); assertValid(r);}
+    void set_reduced (Residue &r, const Integer &s) const {s.get(&r.r, 1); assertValid(r);}
     void set_int64 (Residue &r, const int64_t s) {r.r = llabs(s) % m; if (s < 0) neg(r, r);}
     void set0 (Residue &r) const {r.r = 0;}
     void set1 (Residue &r) const {r.r = (m != 1);}
     /* Exchanges the values of the two arguments */
     void swap (Residue &a, Residue &b) const {uint64_t t = a.r; a.r = b.r; b.r = t;}
-    void get (Integer &r, const Residue s) const {assertValid(s); r = Integer(s.r);}
-    bool equal (const Residue a, const Residue b) const {assertValid(a); assertValid(b); return (a.r == b.r);}
-    bool is0 (const Residue a) const {assertValid(a); return (a.r == 0);}
-    bool is1 (const Residue a) const {assertValid(a); return (a.r == 1);}
-    void neg (Residue &r, const Residue a) const {
+    void get (Integer &r, const Residue &s) const {assertValid(s); r = Integer(s.r);}
+    bool equal (const Residue &a, const Residue &b) const {assertValid(a); assertValid(b); return (a.r == b.r);}
+    bool is0 (const Residue &a) const {assertValid(a); return (a.r == 0);}
+    bool is1 (const Residue &a) const {assertValid(a); return (a.r == 1);}
+    void neg (Residue &r, const Residue &a) const {
         assertValid(a);
         if (a.r == 0)
             r.r = a.r;
         else
             r.r = m - a.r;
     }
-  void add (Residue &r, const Residue a, const Residue b) const {u64arith_addmod_1_1(&r.r, a.r, b.r, m);}
-  void add1 (Residue &r, const Residue a) const {
+  void add (Residue &r, const Residue &a, const Residue &b) const {u64arith_addmod_1_1(&r.r, a.r, b.r, m);}
+  void add1 (Residue &r, const Residue &a) const {
     assertValid(a);
     r.r = a.r + 1;
     if (r.r == m)
       r.r = 0;
   }
-  void add (Residue &r, const Residue a, const uint64_t b) const {
+  void add (Residue &r, const Residue &a, const uint64_t b) const {
     u64arith_addmod_1_1(&r.r, a.r, b % m, m);
   }
-  void sub (Residue &r, const Residue a, const Residue b) const {
+  void sub (Residue &r, const Residue &a, const Residue &b) const {
     u64arith_submod_1_1(&r.r, a.r, b.r, m);
   }
-  void sub1 (Residue &r, const Residue a) const {
+  void sub1 (Residue &r, const Residue &a) const {
     u64arith_submod_1_1(&r.r, a.r, 1, m);
   }
-  void sub (Residue &r, const Residue a, const uint64_t b) const {
+  void sub (Residue &r, const Residue &a, const uint64_t b) const {
     u64arith_submod_1_1(&r.r, a.r, b % m, m);
   }
-  void mul (Residue &r, const Residue a, const Residue b) const {
+  void mul (Residue &r, const Residue &a, const Residue &b) const {
     uint64_t t1, t2;
     assertValid(a);
     assertValid(b);
     u64arith_mul_1_1_2 (&t1, &t2, a.r, b.r);
     u64arith_divr_2_1_1 (&r.r, t1, t2, m);
   }
-  void sqr (Residue &r, const Residue a) const {
+  void sqr (Residue &r, const Residue &a) const {
     uint64_t t1, t2;
     assertValid(a);
     u64arith_mul_1_1_2 (&t1, &t2, a.r, a.r);
     u64arith_divr_2_1_1 (&r.r, t1, t2, m);
   }
   /* Computes (a * 2^wordsize) % m */
-  void tomontgomery (Residue &r, const Residue a) const {
+  void tomontgomery (Residue &r, const Residue &a) const {
     assertValid(a);
     u64arith_divr_2_1_1 (&r.r, 0, a.r, m);
   }
   /* Computes (a / 2^wordsize) % m */
-  void frommontgomery (Residue &r, const Residue a, const uint64_t invm) const {
+  void frommontgomery (Residue &r, const Residue &a, const uint64_t invm) const {
     uint64_t tlow, thigh;
     assertValid(a);
     tlow = a.r * invm;
@@ -143,8 +143,8 @@ public:
          <= m */
   }
   bool next (Residue &r) const {return (++r.r == m);}
-  bool finished (const Residue r) const {return (r.r == m);}
-  bool div2 (Residue &r, const Residue a) const {
+  bool finished (const Residue &r) const {return (r.r == m);}
+  bool div2 (Residue &r, const Residue &a) const {
       if (m % 2 == 0)
           return false;
       else {
