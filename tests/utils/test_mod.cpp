@@ -8,7 +8,7 @@
 #include <typeinfo>
 #include <vector>
 #include "portability.h"
-#include <gmpxx.h>
+#include "cxx_mpz.hpp"
 #include "tests_common.h"
 #include "mod64.hpp"
 #include "modredc64.hpp"
@@ -38,10 +38,10 @@ public:
 
     Modulus randomModulus(bool odd = false) const;
     
-    static mpz_class modToMpz(const Modulus &m) {
+    static cxx_mpz modToMpz(const Modulus &m) {
         Integer n;
         m.getmod(n);
-        return (mpz_class) n;
+        return (cxx_mpz) n;
     }
 
     bool test_init(Integer n) const {
@@ -87,8 +87,12 @@ public:
             Integer r;
             m.get(r, t);
 
-            mpz_class N  = modToMpz(m), A = (mpz_class) a, R = (mpz_class) r;
-            if (A % N != R) {
+            cxx_mpz N  = modToMpz(m);
+            cxx_mpz A = (cxx_mpz) a;
+            cxx_mpz R = (cxx_mpz) r;
+            cxx_mpz R1;
+            mpz_mod(R1, A, N);
+            if (R1 != R) {
                 std::cerr << "tests<" << typeid(T).name() << ">::set(" << A << ") wrong for modulus " << N << std::endl;
                 return false;
             }
@@ -103,8 +107,11 @@ public:
         m.set(a, i);
         m.sqr(a, a);
         m.get(r, a);
-        mpz_class A = (mpz_class) i, N = (mpz_class) n, R = (A * A) % N;
-        if (R != (mpz_class) r) {
+        cxx_mpz A = (cxx_mpz) i, N = (cxx_mpz) n;
+        cxx_mpz R;
+        mpz_mul(R, A, A);
+        mpz_mod(R, R, N);
+        if (R != (cxx_mpz) r) {
             std::cerr << A << "^2 mod " << n << " wrong result: " << r << std::endl;
             return false;
         }
@@ -119,8 +126,11 @@ public:
         m.set(b, j);
         m.mul(a, a, b);
         m.get(r, a);
-        mpz_class A = (mpz_class) i, B = (mpz_class) j, N = (mpz_class) n, R = (A * B) % N;
-        if (R != (mpz_class) r) {
+        cxx_mpz A = (cxx_mpz) i, B = (cxx_mpz) j, N = (cxx_mpz) n;
+        cxx_mpz R;
+        mpz_mul(R, A, B);
+        mpz_mod(R, R, N);
+        if (R != (cxx_mpz) r) {
             std::cerr << A << " * " << B << " mod " << N << " wrong result: " << r << std::endl;
             return false;
         }
@@ -221,16 +231,16 @@ public:
         return ok;
     }
     
-    mpz_class compute_mpz_pow(const Integer &base, const Integer &exponent, const Integer &n) const {
-        mpz_class B = (mpz_class) base, E = (mpz_class) exponent, N = (mpz_class) n, R;
-        mpz_powm(R.get_mpz_t(), B.get_mpz_t(), E.get_mpz_t(), N.get_mpz_t());
+    cxx_mpz compute_mpz_pow(const Integer &base, const Integer &exponent, const Integer &n) const {
+        cxx_mpz B = (cxx_mpz) base, E = (cxx_mpz) exponent, N = (cxx_mpz) n, R;
+        mpz_powm(R, B, E, N);
         return R;
     }
 
-    mpz_class compute_mpz_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
-        mpz_class B = (mpz_class) base, E, R, N = (mpz_class) n;
-        mpz_import(E.get_mpz_t(), len, -1, sizeof(uint64_t), 0, 0, exponent);
-        mpz_powm(R.get_mpz_t(), B.get_mpz_t(), E.get_mpz_t(), N.get_mpz_t());
+    cxx_mpz compute_mpz_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
+        cxx_mpz B = (cxx_mpz) base, E, R, N = (cxx_mpz) n;
+        mpz_import(E, len, -1, sizeof(uint64_t), 0, 0, exponent);
+        mpz_powm(R, B, E, N);
         return R;
     }
 
@@ -240,20 +250,20 @@ public:
         Modulus m(n);
         Residue p(m), b(m);
         Integer r;
-        mpz_class R;
+        cxx_mpz R;
         R = compute_mpz_pow(base, exponent, len, n);
         
         m.set(b, base);
         m.pow(p, b, exponent, len);
         m.get(r, p);
-        if (R != (mpz_class) r) {
+        if (R != (cxx_mpz) r) {
             std::cerr << "pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
             return false;
         }
         if (len == 1) {
             m.pow(p, b, exponent[0]);
             m.get(r, p);
-            if (R != (mpz_class) r) {
+            if (R != (cxx_mpz) r) {
                 std::cerr << "pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << std::endl;
                 return false;
             }
@@ -261,14 +271,14 @@ public:
         if (base == Integer(2)) {
             m.pow2(p, exponent, len);
             m.get(r, p);
-            if (R != (mpz_class) r) {
+            if (R != (cxx_mpz) r) {
                 std::cerr << "pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
                 return false;
             }
             if (len == 1) {
                 m.pow2(p, exponent[0]);
                 m.get(r, p);
-                if (R != (mpz_class) r) {
+                if (R != (cxx_mpz) r) {
                     std::cerr << "pow2(" << exponent << ") mod " << n << " wrong result: " << r << std::endl;
                     return false;
                 }
@@ -323,7 +333,7 @@ public:
         bool ok = true;
         const char *prime_str[2] = {"composite", "prime"};
         if (m.sprp2() != isPrime) {
-            mpz_class N = modToMpz(m);
+            cxx_mpz N = modToMpz(m);
             std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp2()" << std::endl;
             ok = false;
         }
@@ -332,7 +342,7 @@ public:
             Residue r(m);
             m.set(r, b);
             if (m.sprp(r) != isPrime) {
-                mpz_class N = modToMpz(m);
+                cxx_mpz N = modToMpz(m);
                 std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp(" << b << ")" << std::endl;
                 ok = false;
             }
@@ -380,8 +390,8 @@ public:
         bool ok = true;
         for (unsigned long i = 0; i < iter; i++) {
             Modulus m = randomModulus();
-            mpz_class M = modToMpz(m);
-            bool gmpIsPrime = mpz_probab_prime_p(M.get_mpz_t(), 10);
+            cxx_mpz M = modToMpz(m);
+            bool gmpIsPrime = mpz_probab_prime_p(M, 10);
             ok &= test_one_isprime(m, gmpIsPrime);
         }
         if (ok) {
@@ -397,10 +407,10 @@ public:
         m.set(r, i);
         m.gcd(g, r);
         
-        mpz_class I = (mpz_class) i, M = modToMpz(m), G;
-        mpz_gcd(G.get_mpz_t(), I.get_mpz_t(), M.get_mpz_t());
+        cxx_mpz I = (cxx_mpz) i, M = modToMpz(m), G;
+        mpz_gcd(G, I, M);
         
-        if (G != (mpz_class) g) {
+        if (G != (cxx_mpz) g) {
             std::cerr << typeid(T).name() << "::gcd(" << I << ", " << M << ") = " << g << " wrong" << std::endl;
             ok = false;
         }
@@ -438,13 +448,13 @@ public:
         bool invExists1 = m.inv(ir, ar);
         m.get(i, ir);
         
-        mpz_class A = (mpz_class) a, M = modToMpz(m), I;
-        int invExists2 = mpz_invert(I.get_mpz_t(), A.get_mpz_t(), M.get_mpz_t());
+        cxx_mpz A = (cxx_mpz) a, M = modToMpz(m), I;
+        int invExists2 = mpz_invert(I, A, M);
 
         if (invExists1 != (invExists2 != 0)) {
             std::cerr << typeid(T).name() << "::inv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists1 ? "exists" : "does not exist") << std::endl;
             ok = false;
-        } else if (invExists1 && I != (mpz_class) i) {
+        } else if (invExists1 && I != (cxx_mpz) i) {
             std::cerr << typeid(T).name() << "::inv(" << A << ", " << M << ") = " << i << " wrong" << std::endl;
             ok = false;
         }
@@ -545,8 +555,8 @@ public:
         m.set(ar, a);
         int jacobi1 = m.jacobi(ar);
 
-        mpz_class A = (mpz_class) a, M = modToMpz(m);
-        int jacobi2 = mpz_jacobi(A.get_mpz_t(), M.get_mpz_t());
+        cxx_mpz A = (cxx_mpz) a, M = modToMpz(m);
+        int jacobi2 = mpz_jacobi(A, M);
 
         if (jacobi1 != jacobi2) {
             std::cerr << typeid(T).name() << "::jacobi(" << A << ", " << M << ") = " << jacobi1 << " wrong" << std::endl;

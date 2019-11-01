@@ -4,9 +4,9 @@
 #include <cassert>
 #include <iostream>
 #include <gmp.h>
-#include <gmpxx.h>
 #include "macros.h"
 #include "u64arith.h"
+#include "cxx_mpz.hpp"
 
 #ifndef ASSERT
 #define ASSERT(x)	assert(x)
@@ -149,27 +149,27 @@ public:
     /* r = v/a. We require a|v. */
     Integer64 divexact(const Integer64 &a) const {ASSERT_EXPENSIVE(v[0] % a.v[0] == 0); return Integer64(v[0] / a.v[0]);}
     
-    Integer64& operator=(const mpz_class &s) {
-        ASSERT_ALWAYS(mpz_sizeinbase(s.get_mpz_t(), 2) <= 64);
+    Integer64& operator=(const cxx_mpz &s) {
+        ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 64);
         const int ORDER = -1;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s.get_mpz_t());
+        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s);
         return *this;
     }
     
-    void get(mpz_class &r) const {
+    void get(cxx_mpz &r) const {
         const size_t COUNT = 1;
         const int ORDER = -1;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_import(r.get_mpz_t(), COUNT, ORDER, SIZE, ENDIAN, NAILS, &v[0]);
+        mpz_import(r, COUNT, ORDER, SIZE, ENDIAN, NAILS, &v[0]);
     }
     
-    explicit operator mpz_class () const {
-        mpz_class r;
+    explicit operator cxx_mpz () const {
+        cxx_mpz r;
         get(r);
         return r;
     }
@@ -418,25 +418,25 @@ public:
     Integer128& operator^=(const uint64_t a)   {v[0] ^= a; return *this;}
     Integer128  operator~ () const {return Integer128(~v[0], ~v[1]);}
 
-    Integer128 operator=(const mpz_class s) {
-        ASSERT_ALWAYS(mpz_sizeinbase(s.get_mpz_t(), 2) <= 128);
+    Integer128 operator=(const cxx_mpz s) {
+        ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 128);
         const int ORDER = -1;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s.get_mpz_t());
+        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s);
         return *this;
     }
-    void get(mpz_class &r) const {
+    void get(cxx_mpz &r) const {
         const size_t COUNT = 2;
         const int ORDER = -1;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_import(r.get_mpz_t(), COUNT, ORDER, SIZE, ENDIAN, NAILS, v);
+        mpz_import(r, COUNT, ORDER, SIZE, ENDIAN, NAILS, v);
     }
-    explicit operator mpz_class () const {
-        mpz_class r;
+    explicit operator cxx_mpz () const {
+        cxx_mpz r;
         get(r);
         return r;
     }
