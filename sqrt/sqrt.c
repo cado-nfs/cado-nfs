@@ -499,7 +499,9 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   mpz_poly A, *P;
   int v;
   int d = F->deg;
-  int k, lk, target_k, logk, logk0, K[32];
+  unsigned long k, target_k;
+  unsigned long K[32];
+  int lk, logk, logk0;
   size_t target_size; /* target bit size for Hensel lifting */
 
   /* The size of the coefficients of the square root of A should be about half
@@ -547,7 +549,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   /* Jason Papadopoulos's trick: since we will lift the square root of A to at
      most target_size bits, we can reduce A accordingly */
   double st = seconds ();
-  target_k = (int) ((double) target_size * log ((double) 2) / log((double) p));
+  target_k = (unsigned long) ((double) target_size * log ((double) 2) / log((double) p));
   mpz_ui_pow_ui (pk, p, target_k);
   while (mpz_sizeinbase (pk, 2) <= target_size)
     {
@@ -559,7 +561,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
     K[logk] = k;
   K[logk] = 1;
   pthread_mutex_lock (&lock);
-  fprintf (stderr, "Alg(%d): reducing A mod p^%d took %.2lfs\n", numdep,
+  fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2lfs\n", numdep,
 	   target_k, seconds () - st);
   fflush (stderr);
   pthread_mutex_unlock (&lock);
@@ -661,7 +663,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
       }
     k = K[logk];
     pthread_mutex_lock (&lock);
-    fprintf (stderr, "Alg(%d): start lifting mod p^%d (%lu bits) at %.2lfs\n",
+    fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2lfs\n",
              numdep, k, (unsigned long int) mpz_sizeinbase (pk, 2),
 	     seconds ());
     fflush (stderr);
