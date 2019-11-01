@@ -1060,6 +1060,7 @@ void print_nonsmall(mpz_t zx)
         } else
             gmp_printf("%Zd\n", zx);
     }
+    fflush (stdout);
 }
 
 void print_factor(mpz_t N)

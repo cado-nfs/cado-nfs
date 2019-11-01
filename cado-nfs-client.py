@@ -1130,7 +1130,7 @@ class WorkunitClient(object):
     
     def get_missing_file(self, urlpath, filename, checksum=None,
                          options=None, force_reload=False):
-        """ Downloads a file if it does not exit already.
+        """ Downloads a file if it does not exist already.
 
         Also checks the checksum, if specified; if the file already exists and
         has a wrong checksum, it is deleted an downloaded anew. If the

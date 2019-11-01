@@ -21,14 +21,18 @@
 
 #ifndef mpz_add_si
 #define mpz_add_si(a,b,c)                       \
-  if (c >= 0) mpz_add_ui (a, b, c);             \
-  else mpz_sub_ui (a, b, -(c))
+  do {                                          \
+    if (c >= 0) mpz_add_ui (a, b, c);           \
+    else mpz_sub_ui (a, b, -(c))                \
+  } while (0)
 #endif
 
 #ifndef mpz_submul_si
 #define mpz_submul_si(a,b,c)                    \
-  if (c >= 0) mpz_submul_ui (a, b, c);          \
-  else mpz_addmul_ui (a, b, -(c))
+  do {                                          \
+    if (c >= 0) mpz_submul_ui (a, b, c);        \
+    else mpz_addmul_ui (a, b, -(c))             \
+  } while (0)
 #endif
   
 #ifdef __cplusplus

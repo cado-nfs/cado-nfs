@@ -92,9 +92,9 @@ FILE * cado_popen(const char * command, const char * mode)
                 */
         execl("/bin/sh", "sh", "-c", command, NULL);
         perror("execl() failed");
-        fprintf (stderr, "execl command size is %lu\n",
+        fprintf (stderr, "execl command size is %zu\n",
                 strlen (command) + strlen ("sh -c "));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return NULL;
 }

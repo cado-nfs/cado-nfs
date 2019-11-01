@@ -25,10 +25,12 @@
 #define FACTORIZATION_NOT_COMPLETE 4UL
 #define FACTOR_ABOVE_LPB 8UL
 #define REL_FULLY_FIXED 16UL
+#define LESS_THAN_2_SIDES 32UL
 
 uint64_t nrels_read = 0, nrels_ok = 0, nrels_err = 0, nrels_fullyfixed = 0,
          nrels_donotdivide = 0, nrels_notprime = 0, nrels_notcomplete = 0,
-         nrels_abovelpb = 0, nrels_fullycompleted = 0, nrels_fixednotprime = 0;
+         nrels_abovelpb = 0, nrels_fullycompleted = 0, nrels_fixednotprime = 0,
+         nrels_less2sides = 0;
 cado_poly cpoly;
 unsigned long lpb[NB_POLYS_MAX] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned long lpb_max = 0;
@@ -143,6 +145,7 @@ more_job (mpz_t norm[], unsigned int nb_poly)
  *  i = 4: a factor is above a lpb
  *  i = 5: (only with fix_it != 0) non-prime factors were successfully factored
 /bin/bash: q: command not found
+ *  i = 6: less than 2 sides are used
  */
 unsigned long
 process_one_relation (earlyparsed_relation_ptr rel)
@@ -164,6 +167,19 @@ process_one_relation (earlyparsed_relation_ptr rel)
   /* Look for which sides are in use */
   for(weight_t i = 0; i < rel->nb ; i++)
     used[rel->primes[i].side] = 1;
+
+  int nb_side_used = 0;
+  for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+    if (used[side])
+       nb_side_used++;
+  }
+  if (nb_side_used < 2) {
+      if (verbose) {
+          fprintf(stderr, "   relation with less than 2 sides\n");
+          fflush(stderr);
+      }
+      err = LESS_THAN_2_SIDES;
+  }
 
   /* compute the norm on alg and rat sides */
   for(int side = 0 ; side < cpoly->nb_polys ; side++)
@@ -406,6 +422,9 @@ thread_callback (void * context_data, earlyparsed_relation_ptr rel)
   }
   if (ret & FACTOR_ABOVE_LPB)
     nrels_abovelpb++;
+  
+  if (ret & LESS_THAN_2_SIDES)
+    nrels_less2sides++;
 
   if (outfile && is_printable)
     print_relation (outfile, rel);
@@ -605,8 +624,9 @@ main (int argc, char * argv[])
       printf("Number of wrong relations: %" PRIu64 "\n", nrels_err);
       printf("   among which %" PRIu64 " had a factor not dividing the norm\n"
              "           and %" PRIu64 " could not be fully completed\n"
-             "           and %" PRIu64 " contained an ideal larger than a lpb\n",
-             nrels_donotdivide, nrels_notcomplete, nrels_abovelpb);
+             "           and %" PRIu64 " contained an ideal larger than a lpb\n"
+             "           and %" PRIu64 " contained less than 2 sides\n",
+             nrels_donotdivide, nrels_notcomplete, nrels_abovelpb, nrels_less2sides);
     }
     else
     {
@@ -614,9 +634,10 @@ main (int argc, char * argv[])
       printf("   among which %" PRIu64 " had a factor not dividing the norm\n"
              "           and %" PRIu64 " contained at least 1 non-prime factor\n"
              "           and %" PRIu64 " were not complete\n"
-             "           and %" PRIu64 " contained an ideal larger than a lpb\n",
+             "           and %" PRIu64 " contained an ideal larger than a lpb\n"
+             "           and %" PRIu64 " contained less than 2 sides\n",
              nrels_donotdivide, nrels_notprime, nrels_notcomplete,
-             nrels_abovelpb);
+             nrels_abovelpb, nrels_less2sides);
     }
 
     if (filelist)
