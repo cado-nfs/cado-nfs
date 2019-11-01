@@ -40,6 +40,8 @@ extern "C" {
 #endif
 
 /* gmp_aux */
+
+#if ULONG_MAX < UINT64_MAX
 extern void mpz_init_set_uint64 (mpz_ptr, uint64_t);
 extern void mpz_init_set_int64 (mpz_ptr, int64_t);
 extern void mpz_set_uint64 (mpz_ptr, uint64_t);
@@ -50,14 +52,34 @@ extern void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern int mpz_cmp_uint64 (mpz_srcptr a, uint64_t c);
 extern void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
-extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
-extern void mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern int mpz_fits_uint64_p(mpz_srcptr);
 extern int mpz_fits_int64_p(mpz_srcptr);
-extern unsigned long ulong_nextprime (unsigned long);
+extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern uint64_t uint64_nextprime (uint64_t);
+#else
+#define mpz_set_uint64 mpz_set_ui
+#define mpz_set_int64 mpz_set_si
+#define mpz_init_set_uint64 mpz_init_set_ui
+#define mpz_init_set_int64 mpz_init_set_si
+#define mpz_get_uint64 mpz_get_ui
+#define mpz_get_int64 mpz_get_si
+#define mpz_fits_uint64_p mpz_fits_ulong_p
+#define mpz_fits_int64_p mpz_fits_slong_p
+#define mpz_mul_uint64 mpz_mul_ui
+#define mpz_cmp_uint64 mpz_cmp_ui
+#define mpz_addmul_uint64 mpz_addmul_ui
+#define mpz_submul_uint64 mpz_submul_ui
+#define mpz_divexact_uint64 mpz_divexact_ui
+#define mpz_divisible_uint64_p mpz_divisible_ui_p
+#define mpz_mul_int64 mpz_mul_si
+#define uint64_nextprime ulong_nextprime
+#endif
+
+extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
+extern void mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
+extern unsigned long ulong_nextprime (unsigned long);
 extern int ulong_isprime (unsigned long);
 extern unsigned long ulong_nextcomposite (unsigned long, unsigned long);
 extern void mpz_ndiv_qr (mpz_ptr q, mpz_ptr r, mpz_srcptr n, mpz_srcptr d);
@@ -65,7 +87,6 @@ extern void mpz_ndiv_r (mpz_ptr r, mpz_srcptr n, mpz_srcptr d);
 extern void mpz_ndiv_qr_ui (mpz_ptr q, mpz_ptr r, mpz_srcptr n, unsigned long int d);
 extern void mpz_ndiv_q (mpz_ptr q, mpz_srcptr n, mpz_srcptr d);
 extern void mpz_ndiv_q_ui (mpz_ptr q, mpz_srcptr n, unsigned long int d);
-extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern int mpz_coprime_p (mpz_srcptr a, mpz_srcptr b);
 
 /* Put in r the smallest legitimate value that it at least s + diff (note
