@@ -12,6 +12,7 @@
 #include "fmt/printf.h"
 #include "gmp-hacks.h"
 #include "lingen_submatrix.hpp"
+#include "lingen_checkpoints.hpp"
 #include "macros.h"
 #include "params.h"
 #include <cassert>
@@ -25,6 +26,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <iostream>
 
 #ifdef HAVE_OPENMP
 #include <omp.h>
@@ -46,6 +48,7 @@ int verbose = 0;
 unsigned long seed;
 unsigned long global_batch = 128;
 unsigned int restrict_E = UINT_MAX;
+lingen_hints hints;
 
 struct matrix
 {
@@ -422,6 +425,9 @@ declare_usage(cxx_param_list& pl)
     param_list_decl_usage(pl, "n", "block Wiedemann parameter n");
     param_list_decl_usage(pl, "v", "More verbose output");
     param_list_decl_usage(pl, "restrict_E", "(E*pi check only) check only mod this power of X");
+    param_list_decl_usage(pl, "sanity-check", "Do sanity check on the checkpoint auxiliary file");
+    param_list_decl_usage(pl, "tuning_schedule_filename",
+                "load tuning schedule from this file (sanity checks only)");
 }
 
 void
@@ -433,6 +439,8 @@ lookup_parameters(cxx_param_list& pl)
     param_list_lookup_string(pl, "m");
     param_list_lookup_string(pl, "n");
     param_list_lookup_string(pl, "restrict_E");
+    param_list_lookup_string(pl, "sanity-check");
+    param_list_lookup_string(pl, "tuning_schedule_filename");
 }
 
 int
@@ -677,6 +685,32 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     return ret;
 }
 
+int sanity_check(std::string filename)
+{
+    cp_useful_info cp = read_cp_aux(filename);
+    bmstatus bm(bw_parameters.m,bw_parameters.n);
+    abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) prime);
+    bm.set_t0(cp.t0);
+    bm.hints= hints;
+    lingen_checkpoint lcp(bm, cp.t0, cp.t1, k, filename);
+    size_t Xsize;
+    try {
+        if (!lcp.load_aux_file(Xsize)) {
+            fmt::fprintf(stderr, "%s is missing\n", lcp.auxfile);
+            return false;
+        }
+        int sdata_ok = access(lcp.sdatafile.c_str(), R_OK) == 0;
+        int gdata_ok = lcp.rank || access(lcp.gdatafile.c_str(), R_OK) == 0;
+        fmt::fprintf(stderr, "scattered datafile %s: %s\n", lcp.sdatafile, sdata_ok ? "ok" : "not found");
+        fmt::fprintf(stderr, "gathered datafile %s: %s\n", lcp.gdatafile, gdata_ok ? "ok" : "not found");
+        return sdata_ok || gdata_ok;
+    } catch (lingen_checkpoint::invalid_aux_file const & inv) {
+        fmt::fprintf(stderr, "Invalid checkpoint aux file %s [%s]\n",
+                lcp.auxfile, inv.what());
+        return false;
+    }
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -724,6 +758,20 @@ main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
     param_list_parse_uint(pl, "restrict_E", &restrict_E);
+    param_list_lookup_string(pl, "sanity-check");
+
+    const char * tmp;
+
+    if ((tmp = param_list_lookup_string(pl, "tuning_schedule_filename")) != NULL) {
+        std::ifstream is(tmp);
+        if (is && is >> hints) {
+            /* This one _always_ goes to stdout */
+            std::cout << fmt::sprintf("# Read tuning schedule from %s\n", tmp);
+        } else {
+            std::cerr << fmt::sprintf("# Failed to read tuning schedule from %s\n", tmp);
+            hints = lingen_hints();
+        }
+    }
 
     if (param_list_warn_unused(pl)) {
         param_list_print_usage(pl, argv0, stderr);
@@ -745,7 +793,9 @@ main(int argc, char* argv[])
      * product of the two pi matrices at the level below, and that
      * the short product E_{level+1,t0}*pi_{level+1,t0} is also zero.
      */
-    if (argc == 3) {
+    if ((tmp = param_list_lookup_string(pl, "sanity-check")) != NULL) {
+        ret = sanity_check(tmp);
+    } else if (argc == 3) {
         ret = do_check_pi(argv[0], argv[1], argv[2]);
     } else if (argc == 2) {
         ret = do_check_E_short(argv[0], argv[1]);

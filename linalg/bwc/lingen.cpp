@@ -731,7 +731,7 @@ int wrapped_main(int argc, char *argv[])
     lingen_decl_usage(pl);
     logline_decl_usage(pl);
     lingen_tuning_decl_usage(pl);
-    lingen_checkpoints_decl_usage(pl);
+    lingen_checkpoint::decl_usage(pl);
     lingen_io_matpoly_decl_usage(pl);
     tree_stats::declare_usage(pl);
 
@@ -912,7 +912,7 @@ int wrapped_main(int argc, char *argv[])
     
     tree_stats::interpret_parameters(pl);
     logline_interpret_parameters(pl);
-    lingen_checkpoints_interpret_parameters(pl);
+    lingen_checkpoint::interpret_parameters(pl);
     lingen_io_matpoly_interpret_parameters(pl);
 
     if (param_list_warn_unused(pl)) {

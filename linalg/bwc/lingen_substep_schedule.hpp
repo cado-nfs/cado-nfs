@@ -56,6 +56,8 @@ struct lingen_substep_schedule {
             case FFT_FLINT: os << " " << io_token_fft_flint; break;
             case FFT_CANTOR: os << " " << io_token_fft_cantor; break;
             case FFT_TERNARY: os << " " << io_token_fft_ternary; break;
+            default:
+              throw std::runtime_error("invalid data (fft_type) when writing checkpoint");
         }
         os << " " << io_token_shrink << " " << shrink0 << " " << shrink2;
         os << " " << io_token_batch << " " << batch[0] << " " << batch[1] << " " << batch[2];

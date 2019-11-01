@@ -27,6 +27,36 @@ if [ "$mpi" ] ; then
     # set -- "$@" mpi="$mpi"
 fi
 
+# This is not accurate, unfortunately. There seems to be no way to do
+# long integer arithmetic in pure bash.
+sizeinbase2() {
+    a=$1
+    if [ "${#a}" -le 10 ] ; then 
+        x=$(printf '%x' $1)
+        len=$((4*${#x}))
+        case $x in
+            0) echo $len; return;;
+            1*) echo $((len-3)); return;;
+            [23]*) echo $((len-2)); return;;
+            [4567]*) echo $((len-1)); return;;
+            [89a-fA-F]*) echo $len; return;;
+        esac
+        echo "sizeinbase2 error $1 -> $x -> uh ?" >&2; exit 1
+    else
+        # a is M * 10^e, so log2(a) = log2(M) + e*log2(10), and too bad
+        # for the inaccuracy we get...
+        logM=$(sizeinbase2 "${a:0:10}")
+        elog10=$((332*(${#a}-10)/100))
+        loga=$((logM+elog10))
+        echo $loga
+        return
+    fi
+}
+# this is used only for GF(p) code, which is resolutely 64-bit only
+wordsize=64
+nbits_prime=$(sizeinbase2 $p)
+nwords=$((1+nbits_prime/wordsize))
+
 verify() {
     set -- "${mpirun[@]}"
     mpirun_single=()
@@ -48,7 +78,7 @@ verify() {
             for x in "${aa[@]}" ; do
                 bb+=("$cpdir/$x")
             done
-            verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints" "prime=$prime" m=$m n=$n)
+            verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints_p_$nwords" "prime=$prime" m=$m n=$n)
             if [ "$mpi" ] ; then
                 verifier+=(mpi=$mpi)
             fi

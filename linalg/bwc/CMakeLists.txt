@@ -74,14 +74,6 @@ endmacro()
 
 ### bwc_base
 
-add_executable(lingen_verify_checkpoints lingen_verify_checkpoints.cpp)
-if (HAVE_OPENMP)
-set_target_properties(lingen_verify_checkpoints PROPERTIES
-    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-endif()
-target_link_libraries(lingen_verify_checkpoints utils ${gmp_libname})
-
 # Note that because the balancing code contains balancing_get_matrix_u32,
 # which calls the parallelizing_info layer, it's difficult to make them
 # two distinct libraries. So far it's the only stopper though.
@@ -445,23 +437,24 @@ set_target_properties(lingen_common_support PROPERTIES
     )
 
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(lingen_${v}_sources
-        lingen.cpp
-        lingen_io_wrappers.cpp
+    set(lingen_${v}_support_sources
         lingen_io_matpoly.cpp
         lingen_checkpoints.cpp
         lingen_average_matsize.cpp
+        lingen_bmstatus.cpp
+        lingen_bigmatpoly.cpp
+        )
+
+    set(lingen_${v}_sources
+        lingen.cpp
+        lingen_io_wrappers.cpp
         lingen_tuning.cpp
         lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp
-        lingen_bmstatus.cpp
+            lingen_matpoly_ft.cpp
+            lingen_bigmatpoly_ft.cpp
         )
 
-    set(lingen_${v}_support_sources
-            lingen_matpoly_ft.cpp
-            lingen_bigmatpoly.cpp
-            lingen_bigmatpoly_ft.cpp
-            )
     if (v STREQUAL "u64k1")
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
@@ -477,6 +470,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
             lingen_tune_cutoffs.cpp
             lingen_qcode_prime.cpp
             )
+
         set(lingen_${v}_support_sources
             ${lingen_${v}_support_sources}
             mpfq/mpfq_${v}.c
@@ -493,6 +487,17 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
             )
     endif()
 
+    add_executable(lingen_verify_checkpoints_${v}
+        lingen_verify_checkpoints.cpp
+        )
+    if (HAVE_OPENMP)
+        set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
+            COMPILE_FLAGS "${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+            LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    endif()
+    target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
+
+
     # make lingen_pz a default target, but not the others.
     if(v STREQUAL "pz" OR v STREQUAL "u64k1")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
@@ -507,11 +512,12 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         add_dependencies(lingen_${v}_support gf2x-build)
         target_link_libraries(lingen_${v}_support gf2x-fft gf2x)
     else()
-        target_link_libraries(lingen_${v}_support flint-fft)
+        target_link_libraries(lingen_${v} flint-fft)
     endif()
 
     target_link_libraries(lingen_${v}_support lingen_common_support)
     target_link_libraries(lingen_${v} lingen_${v}_support)
+    target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.

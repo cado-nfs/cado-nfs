@@ -249,7 +249,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                 ${extra}
                 TARGET_DEPENDENCIES
                 lingen_${gfp_layer}
-                lingen_verify_checkpoints
+                lingen_verify_checkpoints_${gfp_layer}
                 AVOID_CONCURRENT
                 )
         endforeach()
