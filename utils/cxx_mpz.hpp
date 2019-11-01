@@ -34,10 +34,6 @@ struct cxx_mpz {
         return *this;
     }
 #endif
-    inline bool operator<(cxx_mpz const & o) const { return mpz_cmp(x, o.x) < 0; }
-    inline bool operator>(cxx_mpz const & o) const { return mpz_cmp(x, o.x) > 0; }
-    inline bool operator==(cxx_mpz const & o) const { return mpz_cmp(x, o.x) == 0; }
-    inline bool operator!=(cxx_mpz const & o) const { return mpz_cmp(x, o.x) != 0; }
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }
     mpz_ptr operator->() { return x; }
@@ -71,10 +67,6 @@ struct cxx_mpq{
         return *this;
     }
 #endif
-    inline bool operator<(cxx_mpq const & o) const { return mpq_cmp(x, o.x) < 0; }
-    inline bool operator>(cxx_mpq const & o) const { return mpq_cmp(x, o.x) > 0; }
-    inline bool operator==(cxx_mpq const & o) const { return mpq_cmp(x, o.x) == 0; }
-    inline bool operator!=(cxx_mpq const & o) const { return mpq_cmp(x, o.x) != 0; }
     operator mpq_ptr() { return x; }
     operator mpq_srcptr() const { return x; }
     mpq_ptr operator->() { return x; }
@@ -86,9 +78,13 @@ extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be 
 #endif
 
 inline bool operator==(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) == 0; }
-inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
+inline bool operator!=(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) != 0; }
 inline bool operator<(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) < 0; }
+inline bool operator>(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) > 0; }
+inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
+inline bool operator!=(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) != 0; }
 inline bool operator<(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) < 0; }
+inline bool operator>(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) > 0; }
 inline std::ostream& operator<<(std::ostream& os, cxx_mpz const& x) { return os << (mpz_srcptr) x; }
 inline std::ostream& operator<<(std::ostream& os, cxx_mpq const& x) { return os << (mpq_srcptr) x; }
 inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (mpz_ptr) x; }
