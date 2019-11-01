@@ -500,7 +500,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   int v;
   int d = F->deg;
   unsigned long k, target_k;
-  unsigned long K[32];
+  unsigned long K[65];
   int lk, logk, logk0;
   size_t target_size; /* target bit size for Hensel lifting */
 
