@@ -589,7 +589,8 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
 void
 test_mpz_poly_base_modp_init (unsigned long iter)
 {
-  int p, l, k, K[32], d, i;
+  int p, l, d, i;
+  unsigned long k, K[32];
   mpz_poly f, *P, g;
   mpz_t pk;
   size_t s;
