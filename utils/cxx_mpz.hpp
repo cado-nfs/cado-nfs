@@ -34,6 +34,10 @@ struct cxx_mpz {
         return *this;
     }
 #endif
+    inline bool operator<(cxx_mpz const & o) const { return mpz_cmp(x, o.x) < 0; }
+    inline bool operator>(cxx_mpz const & o) const { return mpz_cmp(x, o.x) > 0; }
+    inline bool operator==(cxx_mpz const & o) const { return mpz_cmp(x, o.x) == 0; }
+    inline bool operator!=(cxx_mpz const & o) const { return mpz_cmp(x, o.x) != 0; }
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }
     mpz_ptr operator->() { return x; }
@@ -67,6 +71,10 @@ struct cxx_mpq{
         return *this;
     }
 #endif
+    inline bool operator<(cxx_mpq const & o) const { return mpq_cmp(x, o.x) < 0; }
+    inline bool operator>(cxx_mpq const & o) const { return mpq_cmp(x, o.x) > 0; }
+    inline bool operator==(cxx_mpq const & o) const { return mpq_cmp(x, o.x) == 0; }
+    inline bool operator!=(cxx_mpq const & o) const { return mpq_cmp(x, o.x) != 0; }
     operator mpq_ptr() { return x; }
     operator mpq_srcptr() const { return x; }
     mpq_ptr operator->() { return x; }
