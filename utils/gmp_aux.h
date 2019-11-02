@@ -42,7 +42,7 @@ extern "C" {
 /* gmp_aux */
 extern unsigned long ulong_nextprime (unsigned long);
 
-#if LONG_BIT < 64
+#if ULONG_BITS < 64
 extern void mpz_init_set_uint64 (mpz_ptr, uint64_t);
 extern void mpz_init_set_int64 (mpz_ptr, int64_t);
 extern void mpz_set_uint64 (mpz_ptr, uint64_t);

@@ -46,7 +46,7 @@ mpn_copyd(mp_limb_t *rp, const mp_limb_t *up, mp_size_t n)
 }
 #endif
 
-#if LONG_BIT < 64
+#if ULONG_BITS < 64
 /* Set z to q. Warning: on 32-bit machines, we cannot use mpz_set_ui! */
 void
 mpz_set_uint64 (mpz_ptr z, uint64_t q)
