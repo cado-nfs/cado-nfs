@@ -119,7 +119,12 @@ mpz_fits_uint64_p (mpz_srcptr z)
 int64_t
 mpz_get_int64 (mpz_srcptr z)
 {
-    return mpz_get_uint64(z) * (int64_t) mpz_sgn(z);
+    const uint64_t l = mpz_get_uint64(z);
+    if (mpz_sgn(z) >= 0)
+        return l & (uint64_t) INT64_MAX;
+    /* We want 1 -> -1, 2 -> -2, ...,
+       2^63-1 -> -2^63+1, 2^63 -> -2^63, 2^63+1 -> -1 */
+    return -(((l - 1) & (uint64_t) INT64_MAX) + 1);
 }
 
 int
