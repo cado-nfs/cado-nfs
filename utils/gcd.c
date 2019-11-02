@@ -5,31 +5,10 @@
 #include "macros.h"
 #include "misc.h" /* for cado_ctzl */
 
-int64_t
-gcd_int64 (int64_t a, int64_t b)
+uint64_t
+gcd_int64 (const int64_t a, const int64_t b)
 {
-  int64_t t;
-
-  if (a < 0)
-    a = -a;
-  if (b == 0)
-    return a;
-
-  if (b < 0)
-    b = -b;
-  
-  if (a >= b)
-    a %= b;
-
-  while (a > 0)
-    {
-      /* Here 0 < a < b */
-      t = b % a; /* 0 <= t < a */
-      b = a;
-      a = t; /* 0 <= a < b */
-    }
-
-  return b;
+  return gcd_uint64(safe_abs64(a), safe_abs64(b));
 }
 
 uint64_t
@@ -95,19 +74,17 @@ invert_ul (unsigned long a, unsigned long p)
 }
 
 /* Binary gcd; any input allowed. */
-int64_t
-bin_gcd_int64_safe (int64_t a, int64_t b)
+uint64_t
+bin_gcd_int64_safe (const int64_t a, const int64_t b)
 {
+  uint64_t ua = safe_abs64(a), ub = safe_abs64(b);
   int s, t;
 
-  if (a == 0)
-    return llabs(b);
+  if (ua == 0)
+    return ub;
 
-  if (b == 0)
-    return llabs(a);
-
-  /* C99: long long has at least 64 bits */
-  uint64_t ua = (uint64_t) llabs(a), ub = (uint64_t) llabs(b);
+  if (ub == 0)
+    return ua;
 
   s = cado_ctz64 (ua);
   t = cado_ctz64 (ub);
