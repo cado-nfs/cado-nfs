@@ -225,6 +225,32 @@ static inline int cado_parity64(uint64_t x) { return cado_parityll(x); }
 #error "need proper equivalents for cado_ctz64 & friends"
 #endif
 /*}}}*/
+
+/* l{0,2}abs() are specified to result in undefined behaviour if the argument
+   is the most negative value. Our safe_l{0,2}abs() fix this.
+   Casting to an unsigned type and taking the minus then is valid as unary
+   minus of an unsigned type returns an unsigned type and arithmetic on
+   unsigned types is defined as working modulo [TYPE]_MAX+1 by C99 6.2.5c9 */
+static inline unsigned long long
+safe_llabs(const long long n) {
+    return (n < 0) ? -(unsigned long long)n : (unsigned long long)n;
+}
+
+static inline unsigned long
+safe_labs(const long n) {
+    return (n < 0) ? -(unsigned long)n : (unsigned long)n;
+}
+
+static inline unsigned int
+safe_abs(const int n) {
+    return (n < 0) ? -(unsigned int)n : (unsigned int)n;
+}
+
+static inline uint64_t
+safe_abs64(const int64_t n) {
+    return (n < 0) ? -(uint64_t)n : (uint64_t)n;
+}
+
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
 
