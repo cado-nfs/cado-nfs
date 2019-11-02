@@ -135,7 +135,7 @@ public:
       tomontgomery (r, r);
     }
     void set_reduced (Residue &r, const Integer s) const {set_reduced(r, s.get()[0]);}
-    void set_int64 (Residue &r, const int64_t s) {set(r, llabs(s)); if (s < 0) neg(r, r);}
+    void set_int64 (Residue &r, const int64_t s) const {set(r, llabs(s)); if (s < 0) neg(r, r);}
     void set0 (Residue &r) const {r.r = 0;}
     void set1 (Residue &r) const {r = one;}
     void swap (Residue &a, Residue &b) const {uint64_t t = a.r; a.r = b.r; b.r = t;}
