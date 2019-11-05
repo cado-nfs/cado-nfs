@@ -1552,8 +1552,10 @@ sub subtask_krylov_todo {
     my @ys;
     if (defined($random_matrix)) {
         my @ys=();
-        for(my $x = 0; $x < $n ; $x += $simd) {
-            my $y = $x + $simd;
+        my $dx = $simd;
+        $dx +=  $simd if $param->{'interleaving'};
+        for(my $x = 0; $x < $n ; $x += $dx) {
+            my $y = $x + $dx;
             push @ys, "ys=$x..$y";
         }
         return @ys;
