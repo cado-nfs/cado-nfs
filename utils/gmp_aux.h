@@ -21,14 +21,18 @@
 
 #ifndef mpz_add_si
 #define mpz_add_si(a,b,c)                       \
-  if (c >= 0) mpz_add_ui (a, b, c);             \
-  else mpz_sub_ui (a, b, -(c))
+  do {                                          \
+    if (c >= 0) mpz_add_ui (a, b, c);           \
+    else mpz_sub_ui (a, b, -(c))                \
+  } while (0)
 #endif
 
 #ifndef mpz_submul_si
 #define mpz_submul_si(a,b,c)                    \
-  if (c >= 0) mpz_submul_ui (a, b, c);          \
-  else mpz_addmul_ui (a, b, -(c))
+  do {                                          \
+    if (c >= 0) mpz_submul_ui (a, b, c);        \
+    else mpz_addmul_ui (a, b, -(c))             \
+  } while (0)
 #endif
   
 #ifdef __cplusplus
@@ -36,6 +40,9 @@ extern "C" {
 #endif
 
 /* gmp_aux */
+extern unsigned long ulong_nextprime (unsigned long);
+
+#if ULONG_BITS < 64
 extern void mpz_init_set_uint64 (mpz_ptr, uint64_t);
 extern void mpz_init_set_int64 (mpz_ptr, int64_t);
 extern void mpz_set_uint64 (mpz_ptr, uint64_t);
@@ -46,14 +53,33 @@ extern void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern int mpz_cmp_uint64 (mpz_srcptr a, uint64_t c);
 extern void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
-extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
-extern void mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern int mpz_fits_uint64_p(mpz_srcptr);
 extern int mpz_fits_int64_p(mpz_srcptr);
-extern unsigned long ulong_nextprime (unsigned long);
+extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern uint64_t uint64_nextprime (uint64_t);
+#else
+static inline void mpz_init_set_uint64 (mpz_ptr a, const uint64_t b) {mpz_init_set_ui(a, b);}
+static inline void mpz_init_set_int64 (mpz_ptr a, const int64_t b) {mpz_init_set_si(a, b);}
+static inline void mpz_set_uint64 (mpz_ptr a, const uint64_t b) {mpz_set_ui(a, b);}
+static inline void mpz_set_int64 (mpz_ptr a, const int64_t b) {mpz_set_si(a, b);}
+static inline uint64_t mpz_get_uint64 (mpz_srcptr a) {return (uint64_t) mpz_get_ui(a);}
+static inline int64_t mpz_get_int64 (mpz_srcptr a) {return (int64_t) mpz_get_si(a);}
+static inline void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_mul_ui(a, b, c);}
+static inline int mpz_cmp_uint64 (mpz_srcptr a, const uint64_t c) {return mpz_cmp_ui(a, c);}
+static inline void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_addmul_ui(a, b, c);}
+static inline void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_submul_ui(a, b, c);}
+static inline void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_divexact_ui(a, b, c);}
+static inline void mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_mul_si(a, b, c);}
+static inline int mpz_fits_uint64_p(mpz_srcptr a) {return mpz_fits_ulong_p(a);}
+static inline int mpz_fits_int64_p(mpz_srcptr a) {return mpz_fits_slong_p(a);}
+static inline int mpz_divisible_uint64_p (mpz_ptr a, const uint64_t c) {return mpz_divisible_ui_p(a, c);}
+static inline uint64_t uint64_nextprime (uint64_t a) {return (uint64_t) ulong_nextprime(a);}
+#endif
+
+extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
+extern void mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern int ulong_isprime (unsigned long);
 extern unsigned long ulong_nextcomposite (unsigned long, unsigned long);
 extern void mpz_ndiv_qr (mpz_ptr q, mpz_ptr r, mpz_srcptr n, mpz_srcptr d);
@@ -61,7 +87,6 @@ extern void mpz_ndiv_r (mpz_ptr r, mpz_srcptr n, mpz_srcptr d);
 extern void mpz_ndiv_qr_ui (mpz_ptr q, mpz_ptr r, mpz_srcptr n, unsigned long int d);
 extern void mpz_ndiv_q (mpz_ptr q, mpz_srcptr n, mpz_srcptr d);
 extern void mpz_ndiv_q_ui (mpz_ptr q, mpz_srcptr n, unsigned long int d);
-extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern int mpz_coprime_p (mpz_srcptr a, mpz_srcptr b);
 
 /* Put in r the smallest legitimate value that it at least s + diff (note

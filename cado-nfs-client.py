@@ -625,7 +625,10 @@ def run_command(command, print_error=True, **kwargs):
         command_str = " ".join(command)
         close_fds = False
     else:
-        close_fds = True
+        # changed close_fds from True to False, since otherwise the 'las'
+        # clients are not killed when merge starts
+        # see https://gforge.inria.fr/tracker/?func=detail&aid=21718
+        close_fds = False
 
     logging.info ("Running %s", command_str)
 
@@ -1127,7 +1130,7 @@ class WorkunitClient(object):
     
     def get_missing_file(self, urlpath, filename, checksum=None,
                          options=None, force_reload=False):
-        """ Downloads a file if it does not exit already.
+        """ Downloads a file if it does not exist already.
 
         Also checks the checksum, if specified; if the file already exists and
         has a wrong checksum, it is deleted an downloaded anew. If the

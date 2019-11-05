@@ -46,11 +46,12 @@ mpn_copyd(mp_limb_t *rp, const mp_limb_t *up, mp_size_t n)
 }
 #endif
 
+#if ULONG_BITS < 64
 /* Set z to q. Warning: on 32-bit machines, we cannot use mpz_set_ui! */
 void
 mpz_set_uint64 (mpz_ptr z, uint64_t q)
 {
-  if (sizeof (unsigned long) == 8)
+  if (q < ULONG_MAX)
     mpz_set_ui (z, (unsigned long) q);
   else
     {
@@ -118,7 +119,12 @@ mpz_fits_uint64_p (mpz_srcptr z)
 int64_t
 mpz_get_int64 (mpz_srcptr z)
 {
-    return mpz_get_uint64(z) * (int64_t) mpz_sgn(z);
+    const uint64_t l = mpz_get_uint64(z);
+    if (mpz_sgn(z) >= 0)
+        return l & (uint64_t) INT64_MAX;
+    /* We want 1 -> -1, 2 -> -2, ...,
+       2^63-1 -> -2^63+1, 2^63 -> -2^63, 2^63+1 -> -1 */
+    return -(((l - 1) & (uint64_t) INT64_MAX) + 1);
 }
 
 int
@@ -193,15 +199,6 @@ mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 }
 
 void
-mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
-{
-  if (c >= 0)
-    mpz_submul_uint64 (a, b, (uint64_t) c);
-  else
-    mpz_addmul_uint64 (a, b, (uint64_t) (-c));
-}
-
-void
 mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (sizeof (unsigned long) >= sizeof (uint64_t))
@@ -249,6 +246,31 @@ mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
     }
 }
 
+uint64_t
+uint64_nextprime (uint64_t q)
+{
+  mpz_t z;
+
+  mpz_init (z);
+  mpz_set_uint64 (z, q);
+  mpz_nextprime (z, z);
+  q = mpz_get_uint64 (z);
+  mpz_clear (z);
+  return q;
+}
+
+#endif
+
+
+void
+mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
+{
+  if (c >= 0)
+    mpz_submul_uint64 (a, b, (uint64_t) c);
+  else
+    mpz_addmul_uint64 (a, b, (uint64_t) (-c));
+}
+
 /* a <- a + b * c */
 void
 mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
@@ -290,19 +312,6 @@ ulong_nextprime (unsigned long q)
     }
   while (q == s[i]);
   mpz_clear (p);
-  return q;
-}
-
-uint64_t
-uint64_nextprime (uint64_t q)
-{
-  mpz_t z;
-
-  mpz_init (z);
-  mpz_set_uint64 (z, q);
-  mpz_nextprime (z, z);
-  q = mpz_get_uint64 (z);
-  mpz_clear (z);
   return q;
 }
 

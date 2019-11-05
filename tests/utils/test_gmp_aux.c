@@ -113,6 +113,32 @@ test_mpz_get_int64 (const unsigned long iter)
   unsigned long i;
 
   mpz_init (z);
+  
+  mpz_set_str(z, "0x7FFFFFFFFFFFFFFF", 0); /* 2^63-1 */
+  r = mpz_get_int64(z);
+  if (r != INT64_C(0x7FFFFFFFFFFFFFFF))
+    abort();
+  mpz_set_str(z, "0x8000000000000000", 0); /* 2^63 */
+  r = mpz_get_int64(z);
+  if (r != 0 )
+    abort();
+  mpz_set_str(z, "0x8000000000000001", 0); /* 2^63+1 */
+  r = mpz_get_int64(z);
+  if (r != 1)
+    abort();
+  mpz_set_str(z, "-0x7FFFFFFFFFFFFFFF", 0); /* -2^63+1 */
+  r = mpz_get_int64(z);
+  if (r != INT64_C(-0x7FFFFFFFFFFFFFFF))
+    abort();
+  mpz_set_str(z, "-0x8000000000000000", 0); /* -2^63 */
+  r = mpz_get_int64(z);
+  if (r != INT64_MIN)
+    abort();
+  mpz_set_str(z, "-0x8000000000000001", 0); /* -2^63-1 */
+  r = mpz_get_int64(z);
+  if (r != -1 )
+    abort();
+  
   for (i = 0; i < iter; i++)
     {
       q = mrand48 (); /* [-2^31, 2^31] */

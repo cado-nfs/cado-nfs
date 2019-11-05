@@ -323,6 +323,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/jevents.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/aligned_alloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 
 set(CADO_SHARED)
 

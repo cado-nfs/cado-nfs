@@ -4,7 +4,7 @@
 #include "macros.h"
 #include "tests_common.h"
 #include "test_iter.h"
-#include "u64arith.h"
+#include "utils/u64arith.h"
 
 void
 test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
@@ -198,17 +198,16 @@ test_one_u64arith_reciprocal_for_div(const uint64_t d) {
 
 void
 test_u64arith_reciprocal_for_div() {
-  const uint64_t one = 1;
+  const uint64_t msb = UINT64_C(1) << 63;
   unsigned long i, iter = 100;
   tests_common_get_iter(&iter);
   for (i = 0; i < iter; i++) {
-    test_one_u64arith_reciprocal_for_div((one << 63) + i);
+    test_one_u64arith_reciprocal_for_div(msb + i);
     test_one_u64arith_reciprocal_for_div(UINT64_MAX - 1);
-    test_one_u64arith_reciprocal_for_div((one << 63) + UINT64_MAX / 2 / iter);
-    test_one_u64arith_reciprocal_for_div((one << 63) | random_uint64());
+    test_one_u64arith_reciprocal_for_div(msb + UINT64_MAX / 2 / iter);
+    test_one_u64arith_reciprocal_for_div(msb | random_uint64());
   }
 }
-
 
 void
 test_one_u64arith_divqr_2_1_1(const uint64_t b, const uint64_t cq, const uint64_t cr)
@@ -225,24 +224,132 @@ test_one_u64arith_divqr_2_1_1(const uint64_t b, const uint64_t cq, const uint64_
   }
 }
 
-
 void
 test_u64arith_divqr_2_1_1()
 {
-  unsigned long i, iter = 100;
-
-  tests_common_get_iter(&iter);
   test_one_u64arith_divqr_2_1_1(123, 1, 0);
   test_one_u64arith_divqr_2_1_1(123, 1, 1);
   test_one_u64arith_divqr_2_1_1(123, UINT64_MAX, 122);
   test_one_u64arith_divqr_2_1_1(UINT64_MAX, UINT64_MAX, UINT64_MAX - 1);
+}
 
-  for (i = 0; i < iter; i++) {
-    uint64_t b = random_uint64(),
-      q = random_uint64(),
-      r = random_uint64() % b;
-      test_one_u64arith_divqr_2_1_1(b, q, r);
-  }
+void
+test_one_u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1) {
+    uint64_t t, p0, p1, p2;
+    const uint64_t v = u64arith_reciprocal_for_div_3by2(d0, d1);
+    /* Let D = d1*2^64+d0
+     * v + beta = floor((beta^3 - 1) / D)
+     * (beta^3 - 1) / D - 1 < v + beta <= (beta^3 - 1) / D
+     * beta^3 - 1 - D < v*D + beta*D <= beta^3 - 1
+     */
+    u64arith_mul_1_1_2(&p0, &p1, v, d0);
+    u64arith_mul_1_1_2(&t, &p2, v, d1);
+    bool cy = u64arith_add_2_2_cy(&p1, &p2, t, 0);
+    if (cy) {
+        printf("%s(%" PRIu64 ":%"  PRIu64 "): Error, overflow occurred, v = %" PRIu64 "\n",
+               __func__, d1, d0, v);
+        exit(EXIT_FAILURE);
+    }
+    /* Now p2:p1:p0 = v*D */
+    cy = u64arith_add_2_2_cy(&p1, &p2, d0, d1);
+    /* Now cy:p2:p1:p0 = v*D + beta*D <= beta^3 - 1 */
+    if (cy) {
+        printf("%s(%" PRIu64 ":%"  PRIu64"): Error, overflow occurred, v = %" PRIu64 "\n",
+               __func__, d1, d0, v);
+        exit(EXIT_FAILURE);
+    }
+    /* Now p2:p1:p0 = v*D + beta*D <= beta^3 - 1
+     * We still need to check beta^3 - 1 - D < p2:p1:p0  <=>
+     * beta^3 - 1 - p2:p1:p0 < D
+     * Compute beta^3 - 1 - (p2:p1:p0) */
+    p0 = ~p0;
+    p1 = ~p1;
+    p2 = ~p2;
+
+    if (p2 != 0 || u64arith_ge_2_2(p0, p1, d0, d1)) {
+        printf("%s(%" PRIu64 ":%"  PRIu64 "): Error, v = %" PRIu64 " incorrect\n",
+               __func__, d0, d1, v);
+        exit(EXIT_FAILURE);
+    }
+    /* printf("u64arith_reciprocal_for_div_3by2(" PRIu64 ":%" PRIu64 ") = %" PRIu64 "\n", __func__, d0, d1, v); */
+}
+
+void test_u64arith_reciprocal_for_div_3by2(const unsigned long iter) {
+    const uint64_t msb = UINT64_C(1) << 63;
+    test_one_u64arith_reciprocal_for_div_3by2(0, msb);
+    test_one_u64arith_reciprocal_for_div_3by2(0, UINT64_MAX);
+    test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, UINT64_MAX);
+    for (unsigned long i = 0; i < iter; i++) {
+        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), msb);
+        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), UINT64_MAX);
+        test_one_u64arith_reciprocal_for_div_3by2(0, random_uint64() | msb);
+        test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, random_uint64() | msb);
+        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), random_uint64() | msb);
+    }
+}
+
+void test_one_u64arith_divqr_3_2_1_recip_precomp(
+    const uint64_t q, const uint64_t d0, const uint64_t d1, const uint64_t r0, const uint64_t r1) 
+{
+    /* D = d0 + 2^64*d1, R = r0 + 2^64*r1 */
+    ASSERT_ALWAYS(d1 != 0);
+    ASSERT_ALWAYS(u64arith_lt_2_2(r0, r1, d0, d1));
+    uint64_t u0, u1, u2, t;
+    char cy;
+    u64arith_mul_1_1_2(&u0, &u1, d0, q);
+    u64arith_mul_1_1_2(&t, &u2, d1, q);
+    u64arith_add_1_2(&u1, &u2, t); /* U = u0 + 2^64*u1 + 2^128*u2 = D*q */
+    cy = u64arith_add_2_2_cy(&u0, &u1, r0, r1);
+    ASSERT_ALWAYS(u2 <= UINT64_MAX - cy);
+    u2 += cy; /* U = D*q + R */
+    /* D <= 2^128-1, q <= 2^64-1, R <= D-1 <= 2^128-2
+       D*q + R <= 2^192-2^64-1 */
+    
+    uint64_t q_new, r0_new, r1_new;
+    u64arith_divqr_3_2_1 (&q_new, &r0_new, &r1_new, u0, u1, u2, d0, d1);
+
+    if (q_new != q || r0_new != r0 || r1_new != r1) {
+        printf("test_one_u64arith_divqr_3_2_1_recip_precomp("
+               "q=%" PRIu64 ", d0=%" PRIu64 ", d1=%" PRIu64 ", r0=%" PRIu64 ", r1=%" PRIu64 "): "
+               "u0 = %" PRIu64 ", u1 = %" PRIu64 ", u2 = %" PRIu64
+               " Error, got result q=%" PRIu64 ", r0=%" PRIu64 ", r1=%" PRIu64 "\n",
+               q, d0, d1, r0, r1, u0, u1, u2, q_new, r0_new, r1_new);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void test_u64arith_divqr_3_2_1_recip_precomp(const unsigned long iter) {
+    test_one_u64arith_divqr_3_2_1_recip_precomp(1, 1, 1, 0, 1);
+    for (unsigned long i = 0; i < iter; i++) {
+        const uint64_t q = random_uint64(),
+                       d0 = random_uint64();
+        uint64_t d1 = random_uint64(),
+                 r0 = random_uint64(),
+                 r1 = random_uint64();
+        if (d1 == 0)
+            d1 = 1;
+        r1 %= d1;
+        test_one_u64arith_divqr_3_2_1_recip_precomp(q, d0, d1, r0, r1);
+    }
+}
+
+
+static void test_one_u64arith_div2mod(const uint64_t a, const uint64_t m) {
+    uint64_t r, t;
+    r = u64arith_div2mod(a, m);
+    u64arith_addmod_1_1(&t, r, r, m);
+    if (t != a) {
+        printf("u64arith_div2mod(%" PRIu64 ", %" PRIu64 ") = %" PRIu64 " wrong\n", a, m, r);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void test_u64arith_div2mod(unsigned long iter) {
+    for (unsigned long i = 0; i < iter; i++) {
+        const uint64_t a = random_uint64();
+        const uint64_t m = random_uint64() | 1;
+        test_one_u64arith_div2mod(a % m, m);
+    }
 }
 
 /* TODO: add tests for u64arith_divr_2_1_1() */
@@ -251,7 +358,6 @@ test_u64arith_divqr_2_1_1()
 /* TODO: add tests for u64arith_ctz() */
 /* TODO: add tests for u64arith_clz() */
 /* TODO: add tests for u64arith_invmod() */
-/* TODO: add tests for u64arith_div2mod() */
 /* TODO: add tests for u64arith_sqrt() */
 /* TODO: add tests for u64arith_post_process_inverse() */
 /* TODO: add tests for u64arith_redc() */
@@ -259,7 +365,9 @@ test_u64arith_divqr_2_1_1()
 int
 main (int argc, const char *argv[])
 {
+  unsigned long iter = 100;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+  tests_common_get_iter(&iter);
   test_u64arith_gt_2_2();
   test_u64arith_add_1_2();
   test_u64arith_add_2_2();
@@ -269,6 +377,9 @@ main (int argc, const char *argv[])
   test_u64arith_sqr_1_2();
   test_u64arith_divqr_2_1_1();
   test_u64arith_reciprocal_for_div();
+  test_u64arith_reciprocal_for_div_3by2(iter);
+  test_u64arith_divqr_3_2_1_recip_precomp(iter);
+  test_u64arith_div2mod(iter);
   tests_common_clear();
   exit (EXIT_SUCCESS);
 }

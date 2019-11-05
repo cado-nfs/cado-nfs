@@ -128,6 +128,7 @@
 #cmakedefine    HAVE_JEVENTS
 
 #cmakedefine    HAVE_GLIBC_VECTOR_INTERNALS
+#cmakedefine    HAVE_INT128
 
 #cmakedefine    HAVE_ALIGNED_ALLOC
 
