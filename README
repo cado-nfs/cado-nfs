@@ -74,7 +74,8 @@ Optionally:
 *) Support for hwloc (see parameters/misc/cpubinding.conf)
 *) Support for curl library, for a very specific use within an I/O bound
 subprogram in linear algebra.
-
+*) Support for GMP-ECM. Define the environment variable GMPECM if it is
+   installed in a non-standard place.
 
 Configure
 =========
