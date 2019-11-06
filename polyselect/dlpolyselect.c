@@ -887,7 +887,7 @@ main (int argc, char *argv[])
           gcd_uint64 (modm, 2 * bound + 1) != 1)
           {
             fprintf (stderr, "Error, modm should be coprime to "
-                     "2*bound(bound+1)(2*bound+1)\n");
+                     "2*bound*(bound+1)*(2*bound+1)\n");
             exit (1);
           }
         double maxtries_double = (double) bound;
