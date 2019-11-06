@@ -38,7 +38,6 @@ fi
 : ${qmin=800000}
 : ${qmax=1600000}
 : ${sqside=1}
-: ${maxlevel=25}
 : ${target_density=100}
 : ${allow_compsq=true}
 : ${qfac_min=200}
@@ -204,8 +203,8 @@ fi
 # merge
 if [ "$dlp" == "true" ]; then
    $CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz \
-      -maxlevel $maxlevel -keep 3 -skip 0 -target_density $target_density
+      -keep 3 -skip 0 -target_density $target_density
 else
    $CADO_BUILD/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz \
-      -maxlevel $maxlevel -keep 3 -skip 32 -target_density $target_density
+      -keep 160 -skip 32 -target_density $target_density
 fi

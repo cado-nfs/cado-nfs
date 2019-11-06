@@ -194,7 +194,7 @@ char_buffer_resize (char_buffer_ptr buf, size_t min_needed)
 static inline void
 char_buffer_clear (char_buffer_ptr buf)
 {
-  free (buf->begin);
+  free_aligned (buf->begin);
   buf->end = buf->cur = buf->begin;
 }
 

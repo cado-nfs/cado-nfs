@@ -331,4 +331,30 @@ static inline long pagesize ()
 #define sleep(seconds) Sleep((seconds)*1000) 
 #endif /* HAVE_MINGW */
 
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#else
+/* minimal stub */
+#ifdef __cplusplus
+extern "C" {
+#endif
+static inline int omp_get_max_threads()
+{
+  return 1;
+}
+
+static inline int omp_get_num_threads()
+{
+  return 1;
+}
+
+static inline int omp_get_thread_num()
+{
+  return 0;
+}
+#ifdef __cplusplus
+}
+#endif
+#endif /* HAVE_OPENMP */
+
 #endif /* ifndef CADO_PORTABILITY_H_ */

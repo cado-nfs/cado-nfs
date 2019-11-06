@@ -18,6 +18,8 @@ ATTRIBUTE((warn_unused_result)) void * realloc_aligned(void * p,
         const size_t old_size, const size_t new_size, const size_t alignment);
 extern void free_aligned(void * ptr);
 
+extern void * aligned_alloc (size_t alignment, size_t size);
+
 extern void * malloc_pagealigned(size_t sz) ATTR_ASSUME_ALIGNED(32);
 extern void free_pagealigned(void * ptr);
 

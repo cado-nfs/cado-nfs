@@ -11,6 +11,3 @@ typedef struct{
     int mark;
     int bufsize; // says it!
 } report_t;
-
-extern void report1(report_t *rep, index_signed_t i, index_t j);
-extern void reportn(report_t *rep, index_signed_t *ind, int n, index_t j);

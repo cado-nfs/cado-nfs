@@ -178,9 +178,9 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
     ASSERT_ALWAYS(all_null || none_null);
     if (none_null) {
         verbose_output_print(0, 1, "# [%d%c] Changing bucket allocation from %zu bytes to %zu bytes\n", LEVEL, HINT::rtti[0], size_b_align, new_size_b_align);
-        free(bucket_write);
-        free(bucket_start);
-        free(bucket_read);
+        free_pagealigned(bucket_write);
+        free_aligned(bucket_start);
+        free_aligned(bucket_read);
     }
     size_b_align = new_size_b_align;
     bucket_write = (update_t **) malloc_pagealigned (size_b_align);
@@ -217,7 +217,7 @@ template <int LEVEL, typename HINT>
 void
 bucket_array_t<LEVEL, HINT>::free_slice_start()
 {
-  free(slice_start); slice_start = NULL;
+  free_aligned(slice_start); slice_start = NULL;
   free(slice_index); slice_index = NULL;
   alloc_slices = 0;
 }

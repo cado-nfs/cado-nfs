@@ -76,6 +76,8 @@ tasks.sieve.mfb1 = 16
 tasks.sieve.qrange = 100
 tasks.sieve.rels_wanted = 200000
 
+tasks.filter.target_density = 50
+
 # Due to the small size of the example, there are many sporadic vectors,
 # so that the linear algebra often does not output the appropriate kernel
 # vector. The following disables many checks, but of course this

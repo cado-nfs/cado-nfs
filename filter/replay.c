@@ -370,7 +370,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
 // If i >= 0 then
 //     row[i] is to be added to rows i1...ik and destroyed at the end of
 //     the process.
-//     Works also is i is alone (hence: destroyed row).
+//     Works also if i is alone (hence: destroyed row).
 // If i < 0 then
 //     row[-i-1] is to be added to rows i1...ik and NOT destroyed.
 //
@@ -433,6 +433,7 @@ toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
 
     printf ("Sparse submatrix: nrows=%" PRIu64 " ncols=%" PRIu64 "\n",
             (uint64_t) small_nrows, (uint64_t) small_ncols);
+    ASSERT_ALWAYS(small_nrows >= small_ncols);
 
     double tt = seconds();
     printf("Writing sparse representation to %s\n", sparsename);
