@@ -436,7 +436,7 @@ static void
 declare_usage (param_list pl)
 {
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
-  param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
+  param_list_decl_usage(pl, "basepath", "path added to all files in filelist");
   param_list_decl_usage (pl, "poly", "polynomials file (mandatory)");
   param_list_decl_usage (pl, "abhexa", "read and write a and b as hexa "
                                         "(instead of decimal)");
