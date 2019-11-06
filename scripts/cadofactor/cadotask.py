@@ -4140,7 +4140,6 @@ class MergeDLPTask(Task):
             historyfile = self.workdir.make_filename("history" + use_gz)
             (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.MergeDLP.name)
             p = cadoprograms.MergeDLP(out=historyfile,
-                                   keep=keep,
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
