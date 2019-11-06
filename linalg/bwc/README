@@ -795,17 +795,21 @@ difficult. If you want to do several sequences, you have to split the
 moments. This also works, but requires you to know a bit what you're
 doing.
 
-Cpu binding (updated 20141002)
+Cpu binding (updated 20191106)
 ==============================
 
 If hwloc (Portable Hardware Locality,
 http://www.open-mpi.org/projects/hwloc/) is installed and you have a
 C++11 compiler, then bwc.pl might use it for cpu binding, which will
 improve the performance of the linear algebra step. When hwloc is used,
-the keyword "cpubinding" should appear in cxxx.bwc.log.
+the keyword "cpubinding" should appear in cxxx.bwc.stdout.1. If you find
+"no mapping found", it means your processor configuration is not recognized;
+try to add an entry in cpubinding.conf. If you find "config match", it might
+still be that the corresponding description is not optimal for your processor;
+you might try a different split (for example 4x8 instead of 8x4), and/or to
+add a new entry in cpubinding.conf.
 
-See cpubinding.conf for more information. In short, you just need to add on the
-cado-nfs.py command line: cpubinding=$(CADO)/parameters/misc/cpubinding.conf.
+See parameters/misc/cpubinding.conf for more information.
 
 Using Cantor's algorithm
 ========================

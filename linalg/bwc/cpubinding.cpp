@@ -225,7 +225,7 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
     hwloc_obj_t obj = hwloc_get_root_obj(topology);
 
     if (!obj->symmetric_subtree) {
-        throw invalid_argument("Cannot output assymetric topology in synthetic format.");
+        throw invalid_argument("Cannot output asymetric topology in synthetic format.");
     }
 
     synthetic_topology result;
