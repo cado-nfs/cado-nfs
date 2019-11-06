@@ -12,8 +12,10 @@ III) Using msieve linear algebra after CADO-NFS filtering
 I) Using CADO-NFS with relations computed with msieve (or ggnfs)
 
 The format of relations used by CADO-NFS is the same as the one used by ggnfs
-or msieve (except for free relations, corresponding to lines of the form
-268413487,0:..., which should not be included).
+or msieve.
+
+IMPORTANT NOTE: free relations should not be included. To remove them,
+first do: $ egrep -v '^[0-9]+,0$' relations > relations_fixed
 
 0) You need to work with a git checkout of CADO-NFS, as it contains
    utility code that is not present in tarballs (see main README for the
