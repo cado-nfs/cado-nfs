@@ -14,9 +14,17 @@
 #define BLOCK_IDEALMERGE_BYTES (BLOCK_SIZE * sizeof(ideal_merge_t))
 #define INIT_NB_BLOCK (1<<16)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 index_t * index_my_malloc (unsigned int);
 ideal_merge_t * idealmerge_my_malloc (unsigned int);
 void my_malloc_free_all ();
 size_t get_my_malloc_bytes ();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FILTER_MEMALLOC_H_ */

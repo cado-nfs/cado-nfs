@@ -35,7 +35,7 @@ add_executable(replay-dl replay.c sparse.c)
 target_link_libraries(replay-dl utils_with_io)
 set_target_properties(replay-dl PROPERTIES COMPILE_FLAGS "-DFOR_DL")
 
-add_executable(reconstructlog-dl reconstructlog.c)
+add_executable(reconstructlog-dl reconstructlog.cpp)
 target_link_libraries(reconstructlog-dl utils_with_io)
 
 add_executable(sm_simple sm_simple.cpp)
