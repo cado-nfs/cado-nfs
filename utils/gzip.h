@@ -68,6 +68,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
 extern const char * path_basename(const char * path);
 
 extern int is_supported_compression_format(const char * s);
+extern int filename_matches_one_compression_format(const char * path);
 
 /* Put in sfx the suffix in s (can be "" or NULL) */
 extern void get_suffix_from_filename (char *s, char const **sfx);

@@ -995,9 +995,19 @@ compute_log_from_rels (bit_vector needed_rels,
   /* When purged.gz and relsdel.gz both have SM info included, we may
    * have an advantage in having more threads for thread_insert. Note
    * though that we'll most probably be limited by gzip throughput */
+
+  int ni = 1;
+  int ns = nt;
+  
+  if (!filename_matches_one_compression_format(relspfilename) && !filename_matches_one_compression_format(relsdfilename)) {
+      printf("# Files %s and %s are uncompressed, limiting consumer threads\n",
+              relspfilename,
+              relsdfilename);
+      ns = 4;
+  }
   struct filter_rels_description desc[3] = {
-                   { .f = thread_insert, .arg=data, .n=1},
-                   { .f = thread_sm,     .arg=data, .n=nt},
+                   { .f = thread_insert, .arg=data, .n=ni},
+                   { .f = thread_sm,     .arg=data, .n=ns},
                    { .f = NULL,          .arg=0,    .n=0}
       };
   filter_rels2 (fic, desc,
