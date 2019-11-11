@@ -74,13 +74,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #define _FILE_OFFSET_BITS 64
 #define _BSD_SOURCE     /* M_LN2 gethostname strdup random */
-#define _ISOC99_SOURCE  /* Sometimes there's link trickery which causes fscanf to be linked in *only* when this is defined */
-#define _DEFAULT_SOURCE /* for glibc 2.20 and later. As per the man page
-                           (feature_test_macros(7) ), the compilation
-                           warning triggered by _BSD_SOURCE is silenced
-                           if _DEFAULT_SOURCE is there too, so maybe we
-                           can have both and not need a cmake-time check
-                           for the libc version. */
+#ifndef _ISOC99_SOURCE
+#define _ISOC99_SOURCE 1  /* Sometimes there's link trickery which causes fscanf to be linked in *only* when this is defined */
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE 1 /* for glibc 2.20 and later. As per the man page
+                             (feature_test_macros(7) ), the compilation
+                             warning triggered by _BSD_SOURCE is silenced
+                             if _DEFAULT_SOURCE is there too, so maybe we
+                             can have both and not need a cmake-time check
+                             for the libc version. */
+#endif
 #ifndef __cplusplus
 #define _GNU_SOURCE         /* asprintf vasprintf */
 #endif
