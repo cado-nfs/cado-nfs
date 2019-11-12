@@ -78,7 +78,7 @@ filter/mst.c
 filter/mst.h
 filter/purge.c
 filter/README.fileformat
-filter/reconstructlog.c
+filter/reconstructlog.cpp
 filter/replay.c
 filter/report.h
 filter/sparse.c
