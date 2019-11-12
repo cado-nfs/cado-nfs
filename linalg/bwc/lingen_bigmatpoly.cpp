@@ -3,8 +3,10 @@
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
+#include "logline.h"
 #include "lingen_matpoly_select.hpp"
 #include "lingen_bigmatpoly.hpp"
+#include "lingen_mul_substeps.hpp"
 
 int bigmatpoly_model::rank() const
 {
@@ -116,7 +118,7 @@ bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a)
     std::swap(cells, a.cells);
     return *this;
 }
-
+/* }}} */
 
 #if 0
 /* Return a bitmask indicating whether bigmatpoly_provision_{row,col} has
@@ -459,6 +461,378 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     }
     return b;
 }/*}}}*/
+
+struct OP_CTX {
+    bigmatpoly & c;
+    bigmatpoly const & a;
+    bigmatpoly const & b;
+    MPI_Datatype mpi_entry_a;
+    MPI_Datatype mpi_entry_b;
+    tree_stats & stats;
+    OP_CTX(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b)
+        : c(c), a(a), b(b), stats(stats)
+    {
+        MPI_Type_contiguous(a.my_cell().data_entry_alloc_size(), MPI_BYTE, &mpi_entry_a);
+        MPI_Type_contiguous(b.my_cell().data_entry_alloc_size(), MPI_BYTE, &mpi_entry_b);
+        MPI_Type_commit(&mpi_entry_a);
+        MPI_Type_commit(&mpi_entry_b);
+    }
+    ~OP_CTX() {
+        MPI_Type_free(&mpi_entry_a);
+        MPI_Type_free(&mpi_entry_b);
+    }
+    inline int a_irank() const { return a.irank(); }
+    inline int b_irank() const { return b.irank(); }
+    inline int a_jrank() const { return a.jrank(); }
+    inline int b_jrank() const { return b.jrank(); }
+    inline int mesh_inner_size() const { return a.n1; }
+    static const bool uses_mpi = true;
+    inline void mesh_checks() const {
+        ASSERT_ALWAYS(a.get_model().is_square());
+        ASSERT_ALWAYS(a.get_model() == b.get_model());
+        ASSERT_ALWAYS(a.irank() == b.irank());
+        ASSERT_ALWAYS(a.jrank() == b.jrank());
+    }
+    void alloc_c_if_needed(size_t size) const {
+        if (c.m != a.m || c.n != a.n || c.get_size() != size)
+            c = bigmatpoly(a.ab, a.get_model(), a.m, b.n, size);
+    }
+    inline matpoly const & a_local() { return a.my_cell(); }
+    inline matpoly const & b_local() { return b.my_cell(); }
+    inline matpoly & c_local() { return c.my_cell(); }
+    inline void a_allgather(void * p, int n) {
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+               p, n, mpi_entry_a, a.get_model().com[1]);
+    }
+    inline void b_allgather(void * p, int n) {
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+               p, n, mpi_entry_b, b.get_model().com[2]);
+    }
+};
+template<typename OP_T> struct mp_or_mul : public OP_CTX { 
+    OP_T & OP;
+    const lingen_call_companion::mul_or_mp_times * M;
+    subdivision mpi_split0;
+    subdivision mpi_split1;
+    subdivision mpi_split2;
+    unsigned int nrs0, nrs2;
+    unsigned int b0, b1, b2;
+    matpoly a_peers;
+    matpoly b_peers;
+    /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
+    mp_or_mul(OP_CTX & CTX, OP_T & OP,
+            const lingen_call_companion::mul_or_mp_times * M)
+        : OP_CTX(CTX)
+        , OP(OP)
+        , M(M)
+        , mpi_split0(a.m, mesh_inner_size())
+        , mpi_split1(a.n, mesh_inner_size())
+        , mpi_split2(b.n, mesh_inner_size())
+        /* first, upper bounds on output block dimensions */
+        , nrs0(mpi_split0.block_size_upper_bound())
+        , nrs2(mpi_split2.block_size_upper_bound())
+        /* By default we use full batching, which costs some memory ! */
+        , b0(M ? M->S.batch[0] : nrs0)
+        , b1(M ? M->S.batch[1] : a.n)
+        , b2(M ? M->S.batch[2] : nrs2)
+        , a_peers(a.ab, b0, mesh_inner_size() * b1, a.my_cell().capacity())
+        , b_peers(b.ab, mesh_inner_size() * b1, b2, b.my_cell().capacity())
+    {
+        mesh_checks();
+
+        if (!M) return;
+
+        constexpr const char * opname = OP_T::name;
+
+        /* The smallstep "MP" or "MUL" has already been planned since the
+         * first entry in the recursive function in lingen.cpp -- here
+         * we're only beginning the planning of the small steps. This
+         * used to be done together with the planning of MP and MUL
+         * themselves, but we prefer to do that closer to the code.
+         *
+         * XXX Note that any changes to the control flow below, in
+         * operator()() and the other functions, must be reflected in
+         * lingen_substep_characteristics::get_call_time_backend
+         */
+        begin_plan_smallstep_microsteps(opname);
+        plan_smallstep("gather_A", M->t_dft_A);
+        plan_smallstep("gather_B", M->t_dft_B);
+        plan_smallstep("addmul", M->t_conv);
+        plan_smallstep("ift_C", M->t_ift_C);
+        end_plan_smallstep();
+    }
+    template<typename... Args>
+    inline void begin_smallstep(Args&& ...args) {
+        if (M) stats.begin_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void skip_smallstep(Args&& ...args) {
+        if (M) stats.skip_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void end_smallstep(Args&& ...args) {
+        if (M) stats.end_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void plan_smallstep(Args&& ...args) {
+        if (M) stats.plan_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void begin_plan_smallstep_microsteps(Args&& ...args) {
+        if (M) stats.begin_plan_smallstep_microsteps(args...);
+    }
+    template<typename... Args>
+    inline void begin_plan_smallstep(Args&& ...args) {
+        if (M) stats.begin_plan_smallstep(args...);
+    }
+    template<typename... Args>
+    inline void end_plan_smallstep(Args&& ...args) {
+        if (M) stats.end_plan_smallstep(args...);
+    }
+    inline bool local_smallsteps_done(bool compulsory = false) {
+        return M ? stats.local_smallsteps_done(compulsory) : true;
+    }
+
+
+    /* loop0 and loop2 depend on the exact output block. At most we're
+     * iterating on, respectively, ceil(ceil(n0/r)), and
+     * ceil(ceil(n2/r)).
+     */
+    subdivision loop0;
+    subdivision loop1;
+    subdivision loop2;
+
+    /*
+     * 
+     * Entries in
+     * the output block are processed as blocks of size b0*b2. For each
+     * these, b1 pairs of input data are used at the same time
+     * (that is, b1*(b0+b2)), and it total we collect
+     * mesh_inner_size() as many from the MPI peers. The order in
+     * which the blocks of size b0*b2 are processed to cover the range of
+     * size of nrs0 * nrs2 output values controls the amount of input
+     * data we have to fetch in total, namely:
+     *  ceil(nrs0/b0)*(b0+b2)*b1 if we process blocks row-major.
+     *  ceil(nrs2/b2)*(b0+b2)*b1 if we process blocks col-major.
+     *
+     * Note though that this is a rather exaggerated notion: we *must*
+     * have either b0==nrs0 or n2==nrs2.
+     * Therefore, if we heed this adjustment, the number of transforms
+     * that are computed to process a block of size b0*b2 in the output
+     * is always (b0+b2)*b1, with the processing order being determined
+     * by which of b0==nrs0 or b2==nrs2 holds.
+     */
+    void gather_A(unsigned int i0, unsigned int iloop0, unsigned int iloop1)/*{{{*/
+    {
+        begin_smallstep("gather_A", b0 * b1);
+        unsigned int aj = a_jrank();
+        unsigned int ak0mpi, ak1mpi;
+        std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
+
+        unsigned int kk0,kk1;
+        std::tie(kk0, kk1) = loop1.nth_block(iloop1);
+        ASSERT_ALWAYS((kk1 - kk0) <= b1);
+        /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
+         * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
+         * In the non-mpi case, ak0==bk0 and ak1==bk1 */
+        unsigned int ak0 = ak0mpi + kk0;
+        unsigned int ak1 = std::min(ak1mpi, ak0 + b1);
+
+        unsigned int ii0, ii1;
+        std::tie(ii0, ii1) = loop0.nth_block(iloop0);
+
+        submatrix_range Ra  (i0 + ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
+        submatrix_range Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
+
+        /* This is the analogue of the "dft_A" step in the transform
+         * case.
+         */
+        a_peers.zero();  // for safety because of rounding.
+        matpoly::copy(a_peers.view(Rat), a_local().view(Ra));
+
+        // allgather ta among r nodes. No serialization needed here.
+        /* The data isn't contiguous, so we have to do
+         * several allgather operations.  */
+        for(unsigned int i = 0 ; i < ii1 - ii0 ; i++) {
+            a_allgather(a_peers.part(i, 0), b1);
+        }
+        end_smallstep();
+    }/*}}}*/
+
+    void gather_B(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
+    {
+        begin_smallstep("gather_A", b1 * b2);
+        unsigned int bi = b_irank();
+        unsigned int bk0mpi, bk1mpi;
+        std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
+
+        unsigned int kk0,kk1;
+        std::tie(kk0, kk1) = loop1.nth_block(iloop1);
+        ASSERT_ALWAYS((kk1 - kk0) <= b1);
+        /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
+         * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
+         * In the non-mpi case, ak0==bk0 and ak1==bk1 */
+        unsigned int bk0 = bk0mpi + kk0;
+        unsigned int bk1 = std::min(bk1mpi, bk0 + b1);
+
+        unsigned int jj0, jj1;
+        std::tie(jj0, jj1) = loop2.nth_block(iloop2);
+
+        submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
+        submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
+
+        b_peers.zero();
+        matpoly::copy(b_peers.view(Rbt), b_local().view(Rb));
+
+        // allgather tb among r nodes
+        b_allgather(b_peers.part(0, 0), b1 * b2);
+        end_smallstep();
+    }/*}}}*/
+
+    void addmul_for_block(matpoly::view_t & cdst, unsigned int iloop0, unsigned int iloop2)/*{{{*/
+    {
+        const unsigned int r = mesh_inner_size();
+        unsigned int ii0, ii1;
+        unsigned int jj0, jj1;
+        std::tie(ii0, ii1) = loop0.nth_block(iloop0);
+        std::tie(jj0, jj1) = loop2.nth_block(iloop2);
+
+        begin_smallstep("addmul", b0 * b1 * b2 * r);
+
+        // rounding might surprise us.
+        submatrix_range Ratxx(0,   0,   ii1 - ii0, r*b1);
+        submatrix_range Rbtxx(0,   0,   r*b1,      jj1 - jj0);
+        submatrix_range Rct  (cdst.i0 + ii0, cdst.j0 + jj0, ii1 - ii0, jj1 - jj0);
+
+        matpoly::view_t c_loc(cdst.M, Rct);
+        matpoly::view_t a_loc = a_peers.view(Ratxx);
+        matpoly::view_t b_loc = b_peers.view(Rbtxx);
+
+        OP_T::addcompose(c_loc, a_loc, b_loc);
+
+        end_smallstep();
+    }/*}}}*/
+
+    void operator()() {
+        constexpr const char * opname = OP_T::name;
+        begin_smallstep(opname);
+
+        alloc_c_if_needed(OP.csize);
+
+        const unsigned int r = mesh_inner_size();
+
+        /* The order in which we do the transforms is not really our main
+         * concern at this point. If sharing makes sense, then probably
+         * shrink0 and shrink2 do not. So they're serving opposite purposes.
+         */
+        const unsigned int nr1 = mpi_split1.block_size_upper_bound();
+        loop1 = subdivision::by_block_size(nr1, b1);
+
+        // unsigned int imax = mpi_split0.nth_block_size(a_irank());
+        // unsigned int jmax = mpi_split2.nth_block_size(b_jrank());
+
+        /* We must both count the number of transforms we really have to deal
+         * with, as well as the theoretical upper bound, because the latter
+         * was used to count the theoretical time.
+         *
+         * For the upper bounds, ak1-ak0 and bk1-bk0 are always replaced by
+         * batch.
+         */
+
+        /* In the non-mpi case, mpi_split1 has one chunk only, 
+         * rank==0, so that ak0mpi=bk0mpi=0 and ak1mpi=bk1mpi=a.n
+         */
+        unsigned int aj = a_jrank();
+        unsigned int bi = b_jrank();
+        unsigned int ak0mpi, ak1mpi;
+        unsigned int bk0mpi, bk1mpi;
+        std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
+        std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
+
+        /* Prepare the processing of the small blocks of size b0*b2
+        */
+        unsigned int i0 = 0, i1 = mpi_split0.block_size_upper_bound();
+        unsigned int j0 = 0, j1 = mpi_split2.block_size_upper_bound();
+        /* Note that i0, i1, j0, j1 are equal for all mpi jobs. Therefore
+         * the three loops below are synchronous for all jobs. */
+        ASSERT_ALWAYS((i1 - i0) <= nrs0);
+        ASSERT_ALWAYS((j1 - j0) <= nrs2);
+        loop0 = subdivision::by_block_size(i1 - i0, b0);
+        loop2 = subdivision::by_block_size(j1 - j0, b2);
+
+        ASSERT_ALWAYS(loop0.nblocks() == 1 || loop2.nblocks() == 1);
+        bool process_blocks_row_major = b0 == nrs0;
+
+        /* Now do a subblock */
+        submatrix_range Rc(i0, j0, i1-i0, j1-j0);
+        matpoly::view_t cdst = c_local().view(Rc);
+        cdst.zero();
+
+        for(unsigned int iloop1 = 0 ; iloop1 < loop1.nblocks() ; iloop1++) {
+            if (process_blocks_row_major) {
+                ASSERT_ALWAYS(loop0.nblocks() == 1);
+                ASSERT_ALWAYS(nrs0 == b0);
+                unsigned int iloop0 = 0;
+                logline_printf(1, "gather_A (%u*%u)\n", b0, b1);
+                gather_A(i0, iloop0, iloop1);
+                for(unsigned int iloop2 = 0 ; iloop2 < loop2.nblocks() ; iloop2++) {
+                    logline_printf(1, "gather_B (%u*%u)\n", b1, b2);
+                    gather_B(j0, iloop1, iloop2);
+
+                    logline_printf(1, "addmul\n");
+                    addmul_for_block(cdst, iloop0, iloop2);
+                }
+                /* adjust counts */
+                unsigned int e2 = (iceildiv(nrs2, b2) - loop2.nblocks());
+                unsigned int x2 = e2 * b2;
+                skip_smallstep("gather_B", b1 * x2);
+                skip_smallstep("addmul", b0 * b1 * x2 * r);
+            } else {
+                ASSERT_ALWAYS(loop2.nblocks() == 1);
+                ASSERT_ALWAYS(nrs2 == b2);
+                unsigned int iloop2 = 0;
+                logline_printf(1, "gather_B (%u*%u)\n", b1, b2);
+                gather_B(j0, iloop1, iloop2);
+                for(unsigned int iloop0 = 0 ; iloop0 < loop0.nblocks() ; iloop0++) {
+                    logline_printf(1, "gather_A (%u*%u)\n", b0, b1);
+                    gather_A(i0, iloop0, iloop1);
+
+                    logline_printf(1, "addmul\n");
+                    addmul_for_block(cdst, iloop0, iloop2);
+                }
+                /* adjust counts */
+                unsigned int e0 = (iceildiv(nrs0, b0) - loop0.nblocks());
+                unsigned int x0 = e0 * b0;
+                skip_smallstep("gather_A", x0 * b1);
+                skip_smallstep("addmul", x0 * b1 * b2 * r);
+            }
+        }
+
+        c.set_size(OP.csize);
+        /* make it compulsory so that we gain some error reporting */
+        ASSERT_ALWAYS(local_smallsteps_done(true));
+
+        end_smallstep();
+    }
+};
+
+bigmatpoly bigmatpoly::mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+{
+    op_mp<void> op(a, b, UINT_MAX);
+    bigmatpoly c(a.get_model());
+    OP_CTX CTX(stats, c, a, b);
+    mp_or_mul<op_mp<void>>(CTX, op, M)();
+    return c;
+}
+
+bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+{
+    op_mul<void> op(a, b, UINT_MAX);
+    bigmatpoly c(a.get_model());
+    OP_CTX CTX(stats, c, a, b);
+    mp_or_mul<op_mul<void>>(CTX, op, M)();
+    return c;
+}
 
 /*
  * gather to node 0, or scatter from node 0, but use "partial" transfer

@@ -189,7 +189,7 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            return matpoly_type::mp(E, pi_left);
+            return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1
             return matching_ft_type<matpoly_type,
@@ -221,7 +221,7 @@ matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstat
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            return matpoly_type::mul(pi_left, pi_right);
+            return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
             break;
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1

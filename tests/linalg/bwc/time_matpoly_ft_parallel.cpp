@@ -45,7 +45,7 @@ struct matpoly_checker_ft {
     }
     public:
 
-    void doit_mul(lingen_platform const & P) {
+    void doit_mul(lingen_platform const & P, std::ostream& os) {
         typedef lingen_substep_characteristics<op_mul<fft_type>> X_t;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
@@ -54,13 +54,13 @@ struct matpoly_checker_ft {
                            anyway */
                 m+n, m+n, m+n,
                 Lpi, Lpi, Lpi+Lpi-1);
-        X.report_size_stats_human();
-        X.fill_tvec(typename X_t::microbench_dft(P, X));
-        X.fill_tvec(typename X_t::microbench_ift(P, X));
-        X.fill_tvec(typename X_t::microbench_conv(P, X));
+        X.report_size_stats_human(os);
+        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
+        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
+        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
     }
 
-    void doit_mp(lingen_platform const & P) {
+    void doit_mp(lingen_platform const & P, std::ostream& os) {
         typedef lingen_substep_characteristics<op_mp<fft_type>> X_t;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
@@ -69,15 +69,15 @@ struct matpoly_checker_ft {
                            anyway */
                 m, m+n, m+n,
                 LE + Lpi, Lpi, LE + 1);
-        X.report_size_stats_human();
-        X.fill_tvec(typename X_t::microbench_dft(P, X));
-        X.fill_tvec(typename X_t::microbench_ift(P, X));
-        X.fill_tvec(typename X_t::microbench_conv(P, X));
+        X.report_size_stats_human(os);
+        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
+        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
+        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
     }
 
-    void doit(lingen_platform const & P) {
-        doit_mp(P);
-        doit_mul(P);
+    void doit(lingen_platform const & P, std::ostream& os) {
+        doit_mp(P, os);
+        doit_mul(P, os);
     }
 };
 
@@ -159,20 +159,20 @@ int main(int argc, char * argv[])
 #ifdef SELECT_MPFQ_LAYER_u64k1
     {
         matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(p, m, n, L, rstate);
-        checker_ft.doit(P);
+        checker_ft.doit(P, std::cout);
     }
     {
         matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(p, m, n, L, rstate);
-        checker_ft.doit(P);
+        checker_ft.doit(P, std::cout);
     }
     {
         matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(p, m, n, L, rstate);
-        checker_ft.doit(P);
+        checker_ft.doit(P, std::cout);
     }
 #else
     {
         matpoly_checker_ft<fft_transform_info> checker_ft(p, m, n, L, rstate);
-        checker_ft.doit(P);
+        checker_ft.doit(P, std::cout);
     }
 #endif
 

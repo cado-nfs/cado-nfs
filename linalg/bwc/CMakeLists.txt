@@ -365,35 +365,35 @@ link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.cpp
-    lingen_round_operand_size.cpp
-    lingen_qcode_binary.cpp
-    # matpoly isn't really used by the legacy lingen, but the basecase code in
-    # qcode_binary is shared between the two implementations now, and some of
-    # the interface there relies on matpoly being available.
-    # the two other files are just pulled by this.
-    lingen_matpoly_binary.cpp
-    lingen_memory_pool.cpp
-    lingen_bmstatus.cpp
-    lingen_expected_pi_length.cpp
-    )
+### add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.cpp
+###     lingen_round_operand_size.cpp
+###     lingen_qcode_binary.cpp
+###     # matpoly isn't really used by the legacy lingen, but the basecase code in
+###     # qcode_binary is shared between the two implementations now, and some of
+###     # the interface there relies on matpoly being available.
+###     # the two other files are just pulled by this.
+###     lingen_matpoly_binary.cpp
+###     lingen_memory_pool.cpp
+###     lingen_bmstatus.cpp
+###     lingen_expected_pi_length.cpp
+###     )
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
-set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
-    "-DCANTOR_BASE_FIELD_SIZE=128")
+### set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
+###     "-DCANTOR_BASE_FIELD_SIZE=128")
 # for debug only
 # set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
 # "-DCANTOR_BASE_FIELD_SIZE=128 -DLINGEN_BINARY_TRACE_MALLOCS=20")
-install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
-target_link_libraries(lingen bwc_base utils gf2x-fft gf2x)
-add_dependencies(lingen gf2x-build)
-# It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
-# required compile-time flags and required link-time flags...
-set_target_properties(lingen PROPERTIES
-    COMPILE_FLAGS
-    "-DSELECT_MPFQ_LAYER_u64k1 --mpi ${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+### install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
+### target_link_libraries(lingen bwc_base utils gf2x-fft gf2x)
+### add_dependencies(lingen gf2x-build)
+### # It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
+### # required compile-time flags and required link-time flags...
+### set_target_properties(lingen PROPERTIES
+###     COMPILE_FLAGS
+###     "-DSELECT_MPFQ_LAYER_u64k1 --mpi ${OpenMP_CXX_FLAGS}"
+###     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
 
 
@@ -443,6 +443,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen_average_matsize.cpp
         lingen_bmstatus.cpp
         lingen_bigmatpoly.cpp
+        lingen_matpoly_ft.cpp
         )
 
     set(lingen_${v}_sources
@@ -451,7 +452,6 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen_tuning.cpp
         lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp
-            lingen_matpoly_ft.cpp
             lingen_bigmatpoly_ft.cpp
         )
 
@@ -508,14 +508,18 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
     endif()
 
+    target_link_libraries(lingen_${v}_support lingen_common_support)
+
     if (v STREQUAL "u64k1")
         add_dependencies(lingen_${v}_support gf2x-build)
         target_link_libraries(lingen_${v}_support gf2x-fft gf2x)
     else()
-        target_link_libraries(lingen_${v} flint-fft)
+        # In fact the dependency could be put on lingen_${v} instead ;
+        # however time_matpoly_parallel relies on _support to provide the
+        # full thing.
+        target_link_libraries(lingen_${v}_support flint-fft)
     endif()
 
-    target_link_libraries(lingen_${v}_support lingen_common_support)
     target_link_libraries(lingen_${v} lingen_${v}_support)
     target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
 
@@ -538,7 +542,8 @@ add_custom_target(bwc_matmul)
 add_dependencies(bwc_matmul ${all_matmul_libs})
 
 add_custom_target(bwc_full)
-add_dependencies(bwc_full mf_bal random_matrix acollect lingen
+add_dependencies(bwc_full mf_bal random_matrix acollect
+    # lingen
     lingen_u64k1
     cleanup prep krylov dispatch mksol gather secure bwc_base
     bwc_matmul bwccheck)

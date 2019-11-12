@@ -2,6 +2,9 @@
 #include "mpfq_layer.h"
 #include <cstdlib>
 #include <gmp.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
@@ -346,6 +349,19 @@ void matpoly::extract_row_fragment(/*{{{*/
 }/*}}}*/
 #endif
 
+void matpoly::view_t::zero() { /*{{{*/
+    unsigned int nrows = this->nrows();
+    unsigned int ncols = this->ncols();
+#ifdef HAVE_OPENMP
+#pragma omp parallel for collapse(2)
+#endif
+    for(unsigned int i = 0 ; i < nrows ; i++) {
+        for(unsigned int j = 0 ; j < ncols ; j++) {
+            abvec_set_zero(M.ab, part(i,j), M.get_size());
+        }
+    }
+}/*}}}*/
+
 void matpoly::rshift(matpoly const & src, unsigned int k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= src.size);
@@ -456,26 +472,139 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     if (csize >= size)
         zero_pad(csize);
 
-    abvec_ur tmp[2];
-    abvec_ur_init(ab, &tmp[0], csize);
-    abvec_ur_init(ab, &tmp[1], csize);
+    matpoly::addmul(*this, a, b);
 
-    for(unsigned int i = 0 ; i < a.m ; i++) {
-        for(unsigned int j = 0 ; j < b.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j), csize);
-            for(unsigned int k = 0 ; k < a.n; k++) {
-                abvec_conv_ur(ab, tmp[0],
-                        a.part(i, k), a.size,
-                        b.part(k, j), b.size);
-                abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], csize);
-            }
-            abvec_reduce(ab, part(i, j), tmp[1], csize);
-        }
-    }
-    abvec_ur_clear(ab, &tmp[0], csize);
-    abvec_ur_clear(ab, &tmp[1], csize);
     size = csize;
 }/*}}}*/
+
+void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)/*{{{*/
+{
+    unsigned int nrows = a.nrows();
+    unsigned int ncols = a.ncols();
+    ASSERT_ALWAYS(t.nrows() == nrows);
+    ASSERT_ALWAYS(t.ncols() == ncols);
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
+#endif
+    {
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
+                ptr tij = t.part(i, j);
+                srcptr aij = a.part(i, j);
+                abvec_set(a.M.ab, tij, aij, a.M.get_size());
+            }
+        }
+    }
+}/*}}}*/
+
+void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+{
+    unsigned int nrows = t.nrows();
+    unsigned int ncols = t.ncols();
+    unsigned int nadd = t0.ncols();
+    ASSERT_ALWAYS(&t.M != &t0.M);
+    ASSERT_ALWAYS(&t.M != &t1.M);
+    ASSERT_ALWAYS(&t0.M != &t1.M);
+    ASSERT_ALWAYS(t0.nrows() == nrows);
+    ASSERT_ALWAYS(t1.ncols() == ncols);
+    ASSERT_ALWAYS(t0.ncols() == nadd);
+    ASSERT_ALWAYS(t1.nrows() == nadd);
+    // ASSERT(t0.check());
+    // ASSERT(t1.check());
+    // ASSERT(t.check());
+    size_t csize = t0.M.size + t1.M.size; csize -= (csize > 0);
+    abdst_field ab = t0.M.ab;
+    if (t0.M.size == 0 || t1.M.size == 0)
+        return;
+    /* Attention: we don't want to count on t.M.size being set yet. */
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
+#endif
+    {
+        abvec_ur tmp[2];
+        abvec_ur_init(ab, &tmp[0], csize);
+        abvec_ur_init(ab, &tmp[1], csize);
+
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
+                abvec_ur_set_vec(ab, tmp[1], t.part(i, j), csize);
+                for(unsigned int k = 0 ; k < nadd ; k++) {
+                    abvec_conv_ur(ab, tmp[0],
+                            t0.part(i, k), t0.M.size,
+                            t1.part(k, j), t1.M.size);
+                    abvec_ur_add(ab, tmp[1], tmp[1], tmp[0], csize);
+                }
+                abvec_reduce(ab, t.part(i, j), tmp[1], csize);
+            }
+        }
+        abvec_ur_clear(ab, &tmp[0], csize);
+        abvec_ur_clear(ab, &tmp[1], csize);
+    }
+}/*}}}*/
+void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+{
+    unsigned int nrows = t.nrows();
+    unsigned int ncols = t.ncols();
+    unsigned int nadd = t0.ncols();
+    ASSERT_ALWAYS(&t.M != &t0.M);
+    ASSERT_ALWAYS(&t.M != &t1.M);
+    ASSERT_ALWAYS(&t0.M != &t1.M);
+    ASSERT_ALWAYS(t0.nrows() == nrows);
+    ASSERT_ALWAYS(t1.ncols() == ncols);
+    ASSERT_ALWAYS(t0.ncols() == nadd);
+    ASSERT_ALWAYS(t1.nrows() == nadd);
+    // ASSERT(t0.check());
+    // ASSERT(t1.check());
+    // ASSERT(t.check());
+    size_t fullsize = t0.M.size + t1.M.size; fullsize -= (fullsize > 0);
+    unsigned int nb = MAX(t0.M.size, t1.M.size) - MIN(t0.M.size, t1.M.size) + 1;
+    abdst_field ab = t0.M.ab;
+    if (t0.M.size == 0 || t1.M.size == 0)
+        return;
+    /* Attention: we don't want to count on t.M.size being set yet. */
+
+    /* We are going to make it completely stupid for a beginning. */
+    /* Note that the caching code that is used for larger sizes does a
+     * _real_ middle product.
+     */
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
+#endif
+    {
+        abvec_ur tmp[2];
+        abvec_ur_init(ab, &tmp[0], fullsize);
+        abvec_ur_init(ab, &tmp[1], nb);
+
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
+            abvec_ur_set_vec(ab, tmp[1], t.part(i, j), nb);
+                for(unsigned int k = 0 ; k < nadd ; k++) {
+                    abvec_conv_ur(ab, tmp[0],
+                            t0.part(i, k), t0.M.size,
+                            t1.part(k, j), t1.M.size);
+                    abvec_ur_add(ab, tmp[1], tmp[1],
+                            abvec_ur_subvec(ab, tmp[0], MIN(t0.M.size, t1.M.size) - 1), nb);
+                }
+                    abvec_reduce(ab, t.part(i, j), tmp[1], nb);
+            }
+        }
+        abvec_ur_clear(ab, &tmp[0], fullsize);
+        abvec_ur_clear(ab, &tmp[1], nb);
+    }
+}/*}}}*/
+
 
 matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
 {
@@ -508,30 +637,7 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
     if (nb >= size)
         zero_pad(nb);
 
-    /* We are going to make it completely stupid for a beginning. */
-    /* Note that the caching code that is used for larger sizes does a
-     * _real_ middle product.
-     */
-    abvec_ur tmp[2];
-    abvec_ur_init(ab, &tmp[0], fullsize);
-    abvec_ur_init(ab, &tmp[1], nb);
-
-    for(unsigned int i = 0 ; i < a.m ; i++) {
-        for(unsigned int j = 0 ; j < c.n ; j++) {
-            abvec_ur_set_vec(ab, tmp[1], part(i, j), nb);
-            for(unsigned int k = 0 ; k < a.n ; k++) {
-                abvec_conv_ur(ab, tmp[0],
-                        a.part(i, k), a.size,
-                        c.part(k, j), c.size);
-                abvec_ur_add(ab, tmp[1], tmp[1],
-                        abvec_ur_subvec(ab, tmp[0], MIN(a.size, c.size) - 1),
-                        nb);
-            }
-            abvec_reduce(ab, part(i, j), tmp[1], nb);
-        }
-    }
-    abvec_ur_clear(ab, &tmp[0], fullsize);
-    abvec_ur_clear(ab, &tmp[1], nb);
+    matpoly::addmp(*this, a, c);
 }/*}}}*/
 
 matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/

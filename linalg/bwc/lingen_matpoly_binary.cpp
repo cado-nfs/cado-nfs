@@ -2,6 +2,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <gmp.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 #include "portability.h"
 #include "macros.h"
 #include "utils.h"
@@ -388,7 +391,6 @@ void matpoly::zero_pad(unsigned int k)/*{{{*/
     size = k;
 }/*}}}*/
 
-
 /* This takes coefficient ksrc of column jsrc, and copies it to
  * coefficient kdst of column jdst
  */
@@ -477,6 +479,19 @@ void matpoly::rshift(unsigned int k)/*{{{*/
     size = newsize;
 }/*}}}*/
 
+void matpoly::view_t::zero() { /*{{{*/
+    unsigned int nrows = this->nrows();
+    unsigned int ncols = this->ncols();
+#ifdef HAVE_OPENMP
+#pragma omp parallel for collapse(2)
+#endif
+    for(unsigned int i = 0 ; i < nrows ; i++) {
+        for(unsigned int j = 0 ; j < ncols ; j++) {
+            mpn_zero(part(i,j), M.data_entry_alloc_size());
+        }
+    }
+}/*}}}*/
+
 void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t new_ncoeffs = std::max(a.size, b.size);
@@ -545,19 +560,67 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     ASSERT_ALWAYS(a.high_word_is_clear());
     ASSERT_ALWAYS(b.high_word_is_clear());
 
-    unsigned long * tmp = (unsigned long *) malloc((b2w(a.size) + b2w(b.size)) * sizeof(unsigned long));
-    for(unsigned int i = 0 ; i < a.m ; i++) {
-        for(unsigned int j = 0 ; j < b.n ; j++) {
-            for(unsigned int k = 0 ; k < a.n; k++) {
-                gf2x_mul(tmp,
-                        a.part(i, k), b2w(a.size),
-                        b.part(k, j), b2w(b.size));
-                mpn_xor_n(part(i, j), part(i, j), tmp, b2w(csize));
+    matpoly::addmul(*this, a, b);
+
+    size = std::max(size, csize);
+}/*}}}*/
+
+void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)
+{
+    unsigned int nrows = a.nrows();
+    unsigned int ncols = a.ncols();
+    ASSERT_ALWAYS(t.nrows() == nrows);
+    ASSERT_ALWAYS(t.ncols() == ncols);
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), nrows*ncols);
+#pragma omp parallel num_threads(T)
+#endif
+    {
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
+                ptr tij = t.part(i, j);
+                srcptr aij = a.part(i, j);
+                mpn_copyi(tij, aij, a.M.data_entry_alloc_size());
             }
         }
     }
-    free(tmp);
-    size = std::max(size, csize);
+}
+
+void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+{
+    size_t csize = t0.M.size + t1.M.size; csize -= (csize > 0);
+    ASSERT_ALWAYS(t0.ncols() == t1.nrows());
+    ASSERT_ALWAYS(t.nrows() == t0.nrows());
+    ASSERT_ALWAYS(t.ncols() == t1.ncols());
+    ASSERT_ALWAYS(b2w(csize) <= t.M.alloc_words);
+
+    if (t0.M.size == 0 || t1.M.size == 0)
+        return;
+
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), t0.nrows() * t1.ncols());
+#pragma omp parallel num_threads(T)
+#endif
+    {
+        unsigned long * tmp = (unsigned long *) malloc((b2w(t0.M.size) + b2w(t1.M.size)) * sizeof(unsigned long));
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < t0.nrows() ; i++) {
+            for(unsigned int j = 0 ; j < t1.ncols() ; j++) {
+                for(unsigned int k = 0 ; k < t0.ncols() ; k++) {
+                    gf2x_mul(tmp,
+                            t0.part(i, k), b2w(t0.M.size),
+                            t1.part(k, j), b2w(t1.M.size));
+                    mpn_xor_n(t.part(i, j), t.part(i, j), tmp, b2w(csize));
+                }
+            }
+        }
+        free(tmp);
+    }
 }/*}}}*/
 
 matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
@@ -573,7 +636,6 @@ matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
 void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     size_t fullsize = a.size + c.size; fullsize -= (fullsize > 0);
-    size_t shift = MIN(a.size, c.size) - 1;
     size_t nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
     if (check_pre_init()) {
@@ -588,21 +650,46 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 
     if (nb >= size) zero_pad(nb);
 
-    unsigned long * tmp = (unsigned long *) malloc((b2w(a.size) + b2w(c.size)) * sizeof(unsigned long));
+    matpoly::addmp(*this, a, c);
 
-    for(unsigned int i = 0 ; i < a.m ; i++) {
-        for(unsigned int j = 0 ; j < c.n ; j++) {
-            for(unsigned int k = 0 ; k < a.n ; k++) {
-                gf2x_mul(tmp,
-                        a.part(i, k), b2w(a.size),
-                        c.part(k, j), b2w(c.size));
-                CopyBitsRsh(tmp, tmp, nb, shift);
-                mpn_xor_n(part(i, j), part(i, j), tmp, b2w(nb));
+    size = std::max(size, nb);
+}/*}}}*/
+
+void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+{
+    size_t fullsize = t0.M.size + t1.M.size; fullsize -= (fullsize > 0);
+    size_t shift = MIN(t0.M.size, t1.M.size) - 1;
+    size_t nb = MAX(t0.M.size, t1.M.size) - MIN(t0.M.size, t1.M.size) + 1;
+    ASSERT_ALWAYS(t0.ncols() == t1.nrows());
+    ASSERT_ALWAYS(t.nrows() == t0.nrows());
+    ASSERT_ALWAYS(t.ncols() == t1.ncols());
+    ASSERT_ALWAYS(b2w(nb) <= t.M.alloc_words);
+
+    if (t0.M.size == 0 || t1.M.size == 0)
+        return;
+
+#ifdef HAVE_OPENMP
+    unsigned int T = std::min((unsigned int) omp_get_max_threads(), t0.nrows() * t1.ncols());
+#pragma omp parallel num_threads(T)
+#endif
+    {
+        unsigned long * tmp = (unsigned long *) malloc((b2w(t0.M.size) + b2w(t1.M.size)) * sizeof(unsigned long));
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+        for(unsigned int i = 0 ; i < t0.nrows() ; i++) {
+            for(unsigned int j = 0 ; j < t1.ncols() ; j++) {
+                for(unsigned int k = 0 ; k < t0.ncols() ; k++) {
+                    gf2x_mul(tmp,
+                            t0.part(i, k), b2w(t0.M.size),
+                            t1.part(k, j), b2w(t1.M.size));
+                    CopyBitsRsh(tmp, tmp, nb, shift);
+                    mpn_xor_n(t.part(i, j), t.part(i, j), tmp, b2w(nb));
+                }
             }
         }
+        free(tmp);
     }
-    free(tmp);
-    size = std::max(size, nb);
 }/*}}}*/
 
 matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/

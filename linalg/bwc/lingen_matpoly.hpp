@@ -14,6 +14,8 @@ struct polymat;
 #include "lingen_polymat.hpp"
 #include "lingen_submatrix.hpp"
 #include "lingen_memory_pool.hpp"
+#include "tree_stats.hpp"
+#include "lingen_call_companion.hpp"
 
 /* This is used only for lingen. */
 
@@ -30,6 +32,7 @@ class matpoly {
      */
     friend class bigmatpoly;
 
+    typedef absrc_vec srcptr;
     typedef abdst_vec ptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
     static memory_pool_type memory;
@@ -187,6 +190,17 @@ public:
     void addmp(matpoly const & a, matpoly const & c);
     static matpoly mp(matpoly const & a, matpoly const & c);
 
+    /* We have nothing terrific to identify as substeps here, and there's
+     * no schedule information that we intend to exploit */
+    static matpoly mp(tree_stats &, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times *)
+    {
+        return mp(a, b);
+    }
+
+    static matpoly mul(tree_stats &, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times *) {
+        return mul(a, b);
+    }
+ 
     void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero(unsigned int k);
@@ -203,6 +217,7 @@ public:
         inline absrc_vec part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
+        void zero();
     };
 
     struct const_view_t : public submatrix_range {
@@ -218,6 +233,11 @@ public:
     const_view_t view(submatrix_range S) const { ASSERT_ALWAYS(S.valid(*this)); return const_view_t(*this, S); }
     view_t view() { return view_t(*this); }
     const_view_t view() const { return const_view_t(*this); }
+
+    static void copy(view_t t, const_view_t a);
+    static void addmul(view_t t, const_view_t t0, const_view_t t1);
+    static void addmp(view_t t, const_view_t t0, const_view_t t1);
+
     matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
 };
 

@@ -309,6 +309,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
         lingen_${gfp_layer}_support)
+
     set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
@@ -643,22 +644,22 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     TARGET_DEPENDENCIES test-blocklanczos_dependencies)
 
 #########################################################################
-if(HAVE_PERL_DIGEST_MD5)
-# This is testing the old binary.
-cado_define_test(TEST_NAME test-lingen-crc
-    AVOID_CONCURRENT
-    PROGRAM
-    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
-    ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/test-lingen-crc.sh
-    bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc
-    seed=0 m=64 n=64 random_stem=30000 sequence_length=200
-    # the two crcs below are produced by marginally different versions
-    # (76fbd81d8 and the one after 38c969cfe), but both seem to factor
-    # numbers correctly, so I'm not too worried.
-    expect_crc_pi=c29af350,af9c33a0 expect_crc_F=04f4e167,3aa047a4
-    TARGET_DEPENDENCIES lingen)
-endif()
-
+### if(HAVE_PERL_DIGEST_MD5)
+### # This is testing the old binary.
+### cado_define_test(TEST_NAME test-lingen-crc
+###     AVOID_CONCURRENT
+###     PROGRAM
+###     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+###     ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/test-lingen-crc.sh
+###     bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc
+###     seed=0 m=64 n=64 random_stem=30000 sequence_length=200
+###     # the two crcs below are produced by marginally different versions
+###     # (76fbd81d8 and the one after 38c969cfe), but both seem to factor
+###     # numbers correctly, so I'm not too worried.
+###     expect_crc_pi=c29af350,af9c33a0 expect_crc_F=04f4e167,3aa047a4
+###     TARGET_DEPENDENCIES lingen)
+### endif()
+### 
 #########################################################################
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)

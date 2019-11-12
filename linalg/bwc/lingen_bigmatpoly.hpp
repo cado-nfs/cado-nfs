@@ -5,6 +5,8 @@
 #include <cstring>     // memcmp
 
 #include "lingen_matpoly_select.hpp"
+#include "lingen_call_companion.hpp"
+#include "tree_stats.hpp"
 
 #include "select_mpi.h"
 
@@ -64,12 +66,14 @@ class bigmatpoly : public bigmatpoly_model {
     matpoly & my_cell() { return cell(irank(), jrank()); }
     matpoly const & my_cell() const { return cell(irank(), jrank()); }
     /* {{{ access interface for bigmatpoly */
+    private:
     inline matpoly & cell(unsigned int i, unsigned int j) {
         return cells[i*n1+j];
     }
     inline matpoly const & cell(unsigned int i, unsigned int j) const {
         return cells[i*n1+j];
     }
+    public:
     /* }}} */
 
     void finish_init(abdst_field ab, unsigned int m, unsigned int n, int len);
@@ -99,8 +103,11 @@ class bigmatpoly : public bigmatpoly_model {
     void truncate(bigmatpoly const & src, unsigned int size);
     void rshift(bigmatpoly & src, unsigned int k);
 
-    static bigmatpoly mul(bigmatpoly & a, bigmatpoly & b);
-    static bigmatpoly mp(bigmatpoly & a, bigmatpoly & b);
+    static bigmatpoly mul(bigmatpoly & a, bigmatpoly & b) ATTRIBUTE_DEPRECATED;
+    static bigmatpoly mp(bigmatpoly & a, bigmatpoly & b) ATTRIBUTE_DEPRECATED;
+
+    static bigmatpoly mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
+    static bigmatpoly mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
 
     void scatter_mat(matpoly const & src);
     void gather_mat(matpoly & dst) const;
