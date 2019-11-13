@@ -537,6 +537,11 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
   mp_limb_t aj, cj;
   int sub = 0, sh = GMP_NUMB_BITS - 1;
 
+  if (n == 0) {
+      mpz_set_ui (a, 0);
+      return;
+  }
+
   if (mpz_getlimbn (a, n-1) >= (mp_limb_t) 1 << sh)
     sub = 1;
   else
