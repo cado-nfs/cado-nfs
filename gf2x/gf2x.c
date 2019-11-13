@@ -148,7 +148,7 @@ int gf2x_mul_r(unsigned long * c,
 
     /* Note that dst aliasing a or b works with fft. */
 
-    if (sc >= GF2X_MUL_FFT_THRESHOLD && K && K != 1) {
+    if (sc >= GF2X_TERNARY_FFT_MINIMUM_SIZE && K && K != 1) {
         rc = gf2x_mul_fft(dst, a, sa, b, sb, K);
         goto end_of_gf2x_mul_r;
     }

@@ -54,12 +54,8 @@
    balanced operands of size <= 13 words.  Hence this threshhold. */
 
 
-#ifndef MUL_FFT_THRESHOLD
-#define MUL_FFT_THRESHOLD 28
-#endif
-
-#if (MUL_FFT_THRESHOLD < 28)
-#error "MUL_FFT_THRESHOLD too small, should be at least 28"
+#if (GF2X_TERNARY_FFT_MINIMUM_SIZE < 28)
+#error "GF2X_TERNARY_FFT_MINIMUM_SIZE too small, should be at least 28"
 #endif
 
 #if (defined(DEBUG) || defined(DEBUG_LSHIFT) || defined(DEBUG_MULMOD))
@@ -1101,7 +1097,7 @@ static int gf2x_ternary_fft_info_init_common(gf2x_ternary_fft_info_ptr o, size_t
     o->split = 0;
     o->perm = NULL;
 
-    if (nwa + nwb < MUL_FFT_THRESHOLD) {
+    if (nwa + nwb < GF2X_TERNARY_FFT_MINIMUM_SIZE) {
         // make this special.
         o->K = 0;
         o->M = 0;

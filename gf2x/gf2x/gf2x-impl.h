@@ -138,6 +138,10 @@ extern long gf2x_toomuspace(long);
  * code among the GF2X_ERROR_* constants defined in gf2x.h.
  */
 
+#include "gf2x-ternary-fft.h"
+
+#define GF2X_MUL_FFT_MINIMUM_SIZE GF2X_TERNARY_FFT_MINIMUM_SIZE
+
 extern int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
 		            const unsigned long *b, size_t bn, long K)
                         GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;

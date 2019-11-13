@@ -29,6 +29,8 @@
 #ifndef GF2X_TERNARY_FFT_H_
 #define GF2X_TERNARY_FFT_H_
 
+#define GF2X_TERNARY_FFT_MINIMUM_SIZE 28
+
 /* The section below is automatically generated */
 /* inline: init_empty order */
 
