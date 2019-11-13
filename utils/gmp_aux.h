@@ -8,31 +8,33 @@
 #include "getprime.h"
 
 /* the following function are missing in GMP */
-#ifndef mpz_addmul_si
-#define mpz_addmul_si(a, b, c)                  \
-  do {                                          \
-    if (c >= 0)                                 \
-      mpz_addmul_ui (a, b, c);                  \
-    else                                        \
-      mpz_submul_ui (a, b, -(c));               \
-  }                                             \
-  while (0)
+#ifndef mpz_add_si
+static inline void
+mpz_add_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_add_ui (a, b, (unsigned long) c);
+    else
+        mpz_sub_ui (a, b, -(unsigned long) c);
+}
 #endif
 
-#ifndef mpz_add_si
-#define mpz_add_si(a,b,c)                       \
-  do {                                          \
-    if (c >= 0) mpz_add_ui (a, b, c);           \
-    else mpz_sub_ui (a, b, -(c))                \
-  } while (0)
+#ifndef mpz_addmul_si
+static inline void
+mpz_addmul_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_addmul_ui (a, b, (unsigned long) c);
+    else
+        mpz_submul_ui (a, b, -(unsigned long) c);
+}
 #endif
 
 #ifndef mpz_submul_si
-#define mpz_submul_si(a,b,c)                    \
-  do {                                          \
-    if (c >= 0) mpz_submul_ui (a, b, c);        \
-    else mpz_addmul_ui (a, b, -(c))             \
-  } while (0)
+static inline void
+mpz_submul_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_submul_ui (a, b, (unsigned long) c);
+    else mpz_addmul_ui (a, b, -(unsigned long) c);
+}
 #endif
   
 #ifdef __cplusplus
