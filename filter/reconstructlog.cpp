@@ -121,17 +121,17 @@ struct logtab
             }
             if (mpz_cmp_ui (v, 0) < 0)
             {
-                fprintf (stderr, "Warning, log is negative for h = %" PRid "\n", h);
+                fprintf (stderr, "Warning, log is negative for h = %" PRIu64 "\n", h);
                 cxx_mpz vv;
                 mpz_mod(vv, v, log.ell);
                 return (*this) = vv;
             } else if (mpz_cmp (v, log.ell) >= 0) {
-                fprintf (stderr, "Warning, log >= ell for h = %" PRid "\n", h);
+                fprintf (stderr, "Warning, log >= ell for h = %" PRIu64 "\n", h);
                 cxx_mpz vv;
                 mpz_mod(vv, v, log.ell);
                 return (*this) = vv;
             } else if (mpz_cmp_ui (v, 0) == 0)
-                fprintf (stderr, "Warning, log is zero for h = %" PRid "\n", h);
+                fprintf (stderr, "Warning, log is zero for h = %" PRIu64 "\n", h);
             ASSERT_ALWAYS(mpz_size(v) <= mpz_size(log.ell));
             mpn_zero(PTR(ugly), mpz_size(log.ell));
             mpn_copyi(PTR(ugly), PTR(v), mpz_size(v));
