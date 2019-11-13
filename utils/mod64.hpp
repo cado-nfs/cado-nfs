@@ -68,7 +68,7 @@ public:
        s is reduced (mod m), i.e. 0 <= s < m */
     void set_reduced (Residue &r, const uint64_t s) const {assertValid(s); r.r = s;}
     void set_reduced (Residue &r, const Integer &s) const {s.get(&r.r, 1); assertValid(r);}
-    void set_int64 (Residue &r, const int64_t s) {r.r = llabs(s) % m; if (s < 0) neg(r, r);}
+    void set_int64 (Residue &r, const int64_t s) const {r.r = llabs(s) % m; if (s < 0) neg(r, r);}
     void set0 (Residue &r) const {r.r = 0;}
     void set1 (Residue &r) const {r.r = (m != 1);}
     /* Exchanges the values of the two arguments */

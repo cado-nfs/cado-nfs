@@ -51,7 +51,7 @@ mpn_copyd(mp_limb_t *rp, const mp_limb_t *up, mp_size_t n)
 void
 mpz_set_uint64 (mpz_ptr z, uint64_t q)
 {
-  if (q < ULONG_MAX)
+  if (q <= ULONG_MAX)
     mpz_set_ui (z, (unsigned long) q);
   else
     {
@@ -165,6 +165,36 @@ mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
       int r = mpz_cmp (a, d);
       mpz_clear (d);
       return r;
+    }
+}
+
+void
+mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
+{
+  if (c <= ULONG_MAX)
+    mpz_add_ui (a, b, (unsigned long) c);
+  else
+    {
+      mpz_t d;
+      mpz_init (d);
+      mpz_set_uint64 (d, c);
+      mpz_add (a, b, d);
+      mpz_clear (d);
+    }
+}
+
+void
+mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
+{
+  if (c <= ULONG_MAX)
+    mpz_sub_ui (a, b, (unsigned long) c);
+  else
+    {
+      mpz_t d;
+      mpz_init (d);
+      mpz_set_uint64 (d, c);
+      mpz_sub (a, b, d);
+      mpz_clear (d);
     }
 }
 
@@ -536,6 +566,11 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
   size_t n = mpz_size (c);
   mp_limb_t aj, cj;
   int sub = 0, sh = GMP_NUMB_BITS - 1;
+
+  if (n == 0) {
+      mpz_set_ui (a, 0);
+      return;
+  }
 
   if (mpz_getlimbn (a, n-1) >= (mp_limb_t) 1 << sh)
     sub = 1;
