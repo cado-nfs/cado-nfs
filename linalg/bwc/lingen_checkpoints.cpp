@@ -106,7 +106,13 @@ bool lingen_checkpoint::save_aux_file(size_t Xsize) const /*{{{*/
     os << "\n";
     os << logline_serialize();
     os << "\n";
-    os << bm.hints;
+    try {
+        os << bm.hints;
+    } catch (std::runtime_error const & e) {
+        std::string s = e.what();
+        s += " when writing checkpoint";
+        throw std::runtime_error(s);
+    }
     os << "\n";
     os << bm.stats;
     os << "\n";

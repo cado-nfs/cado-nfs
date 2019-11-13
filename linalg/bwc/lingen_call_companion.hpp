@@ -3,9 +3,11 @@
 
 #include <istream>
 #include <ostream>
+#include <array>
 #include "lingen_substep_schedule.hpp"
 #include "timing.h"     /* weighted_double */
 #include "lingen_round_operand_size.hpp"
+#include "lingen_mul_substeps_base.hpp"
 
 /* This object is passed as a companion info to a call of
  * bw_biglingen_recursive ; it is computed by the code in
@@ -29,6 +31,7 @@ struct lingen_call_companion {
      */
     size_t total_ncalls;
     struct mul_or_mp_times {/*{{{*/
+        op_mul_or_mp_base::op_type_t op_type;
         /* XXX This must be trivially copyable because we share it via
          * MPI... ! */
         lingen_substep_schedule S;
@@ -46,19 +49,37 @@ struct lingen_call_companion {
             t_ift_C;
         size_t reserved_ram;
 
+        mul_or_mp_times(op_mul_or_mp_base::op_type_t op_type) : op_type(op_type) {}
+
+        const char * fft_name() const { return S.fft_name(); }
+        std::string step_name() const {
+            std::string s = op_mul_or_mp_base::op_name(op_type);
+            s += ';';
+            s += fft_name();
+            return s;
+        }
         /* we store the per-transform ram here, so that we can act
          * appropriately if we ever detect that it changes for one
-         * specific call */
+         * specific call. This is supposed to be the "peak" of the
+         * recorded sizes.
+         */
         std::array<size_t, 3> fft_alloc_sizes;
-        std::array<unsigned int, 3> peak_ram_multipliers;
-        size_t ram(std::array<size_t, 3> fft_alloc_sizes) {
-            size_t r = 0;
-            for(unsigned int i = 0 ; i < 3 ; i++)
-                r += peak_ram_multipliers[i] * fft_alloc_sizes[i];
-            return r;
+        std::array<std::array<unsigned int, 3>, 2> peak_ram_multipliers;
+        size_t ram(std::array<size_t, 3> fft_alloc_sizes) const {
+            size_t rpeak = 0;
+            for(auto const & M : peak_ram_multipliers) {
+                size_t r = 0;
+                for(unsigned int i = 0 ; i < 3 ; i++)
+                    r += M[i] * fft_alloc_sizes[i];
+                if (r > rpeak) rpeak = r;
+            }
+            return rpeak;
         }
-        size_t ram() {
+        size_t ram() const {
             return ram(fft_alloc_sizes);
+        }
+        size_t ram_total() const {
+            return ram(fft_alloc_sizes) + reserved_ram;
         }
 
         size_t asize, bsize, csize;
@@ -75,7 +96,8 @@ struct lingen_call_companion {
         }
         inline bool operator!=(mul_or_mp_times const & o) const { return !(*this == o); }
     };/*}}}*/
-    mul_or_mp_times mp, mul;
+    mul_or_mp_times mp  { op_mul_or_mp_base::OP_MP };
+    mul_or_mp_times mul { op_mul_or_mp_base::OP_MUL };
 
     /* This unserializes only part of the data -- recurse, go_mpi,
      * and the schedules. The rest is always recomputed.
@@ -89,6 +111,7 @@ struct lingen_call_companion {
     static constexpr const char * io_token_MUL = "MUL";
     static constexpr const char * io_token_ignored = "-";
     public:
+
     std::istream& unserialize(std::istream& is);
     std::ostream& serialize(std::ostream& os) const;
     bool operator==(lingen_call_companion const & o) const;

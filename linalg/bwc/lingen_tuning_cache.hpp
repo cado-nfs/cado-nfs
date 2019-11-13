@@ -11,25 +11,21 @@
 #include "lingen_mul_substeps.hpp"
 
 struct lingen_tuning_cache {
-    struct basecase_key : public std::tuple<size_t, unsigned int, unsigned int, size_t, int> {
-        typedef std::tuple<size_t, unsigned int, unsigned int, size_t, int> super;
-        basecase_key() = default;
-        template<typename... Args>
-            basecase_key(Args&&... args) : super(args...) {}
+    struct basecase_key {
+        size_t np;
+        unsigned int m, n;
+        size_t length;
+        int nthreads;
     };
-    struct mul_key : public std::tuple<size_t, size_t, size_t> {
-        typedef std::tuple<size_t, size_t, size_t> super;
-        template<typename... Args>
-            mul_key(Args&&... args) : super(args...) {}
-    };
-    struct mp_key : public std::tuple<size_t, size_t, size_t> {
-        typedef std::tuple<size_t, size_t, size_t> super;
-        template<typename... Args>
-            mp_key(Args&&... args) : super(args...) {}
+    struct mul_or_mp_key {
+        op_mul_or_mp_base::op_type_t op_type;
+        lingen_substep_schedule::fft_type_t fft_type;
+        size_t np, na, nb;
     };
     typedef double basecase_value;
-    typedef std::array<std::list<std::pair<unsigned int, double>>, 4> mul_value;
-    typedef std::array<std::list<std::pair<unsigned int, double>>, 4> mp_value;
+    typedef std::array<std::list<std::pair<unsigned int, double>>, 4> mul_or_mp_value;
+    // typedef mul_or_mp_value mul_value;
+    // typedef mul_or_mp_value mp_value;
 
     struct coarse_compare {
         bool operator()(size_t const &a, size_t const& b) const {
@@ -38,62 +34,44 @@ struct lingen_tuning_cache {
             return ca < cb;
         }
         bool operator()(basecase_key const &a, basecase_key const& b) const {
-            basecase_key ca = a;
-            basecase_key cb = b;
-            std::get<3>(ca) = lingen_round_operand_size(std::get<3>(ca));
-            std::get<3>(cb) = lingen_round_operand_size(std::get<3>(cb));
-            return ca < cb;
+            size_t cla = lingen_round_operand_size(a.length);
+            size_t clb = lingen_round_operand_size(b.length);
+            return cla < clb;
         }
-        bool operator()(mul_key const &a, mul_key const& b) const {
-            mul_key ca = a;
-            mul_key cb = b;
-            std::get<1>(ca) = lingen_round_operand_size(std::get<1>(ca));
-            std::get<2>(ca) = lingen_round_operand_size(std::get<2>(ca));
-            std::get<1>(cb) = lingen_round_operand_size(std::get<1>(cb));
-            std::get<2>(cb) = lingen_round_operand_size(std::get<2>(cb));
-            return ca < cb;
-        }
-        bool operator()(mp_key const &a, mp_key const& b) const {
-            mp_key ca = a;
-            mp_key cb = b;
-            std::get<1>(ca) = lingen_round_operand_size(std::get<1>(ca));
-            std::get<2>(ca) = lingen_round_operand_size(std::get<2>(ca));
-            std::get<1>(cb) = lingen_round_operand_size(std::get<1>(cb));
-            std::get<2>(cb) = lingen_round_operand_size(std::get<2>(cb));
-            return ca < cb;
+        bool operator()(mul_or_mp_key const &a, mul_or_mp_key const& b) const {
+            if (a.op_type < b.op_type) return true;
+            if (a.op_type > b.op_type) return false;
+            if (a.fft_type < b.fft_type) return true;
+            if (a.fft_type > b.fft_type) return false;
+            size_t cana = lingen_round_operand_size(a.na);
+            size_t cbna = lingen_round_operand_size(b.na);
+            if (cana < cbna) return true;
+            if (cana > cbna) return false;
+            size_t canb = lingen_round_operand_size(a.nb);
+            size_t cbnb = lingen_round_operand_size(b.nb);
+            if (canb < cbnb) return true;
+            if (canb > cbnb) return false;
+            return false;
         }
     };
 
-    std::map<basecase_key, double, coarse_compare> basecase_cache;
-    std::map<mul_key, std::array<std::list<std::pair<unsigned int, double>>, 4>, coarse_compare> mul_cache;
-    std::map<mp_key, std::array<std::list<std::pair<unsigned int, double>>, 4>, coarse_compare> mp_cache;
+    std::map<basecase_key, basecase_value, coarse_compare> basecase_cache;
+    std::map<mul_or_mp_key, mul_or_mp_value, coarse_compare> mul_or_mp_cache;
 
     void load(const char * timing_cache_filename);
     void save(const char * timing_cache_filename);
 
     bool has(basecase_key const & K) const { return basecase_cache.find(K) != basecase_cache.end(); };
-    bool has(mul_key const & K) const { return mul_cache.find(K) != mul_cache.end(); };
-    bool has(mp_key const & K) const { return mp_cache.find(K) != mp_cache.end(); };
+    bool has(mul_or_mp_key const & K) const {
+        return mul_or_mp_cache.find(K) != mul_or_mp_cache.end();
+    };
     basecase_value & operator[](basecase_key const & K) { return basecase_cache[K]; }
-    mul_value & operator[](mul_key const & K) { return mul_cache[K]; }
-    mp_value & operator[](mp_key const & K) { return mp_cache[K]; }
-};
-
-template<typename T> struct lingen_tuning_cache_key {};
-template<typename fft_type> struct lingen_tuning_cache_key<op_mp<fft_type>> {
-    typedef lingen_tuning_cache::mp_key key_type;
-    typedef lingen_tuning_cache::mp_value value_type;
-};
-template<typename fft_type> struct lingen_tuning_cache_key<op_mul<fft_type>> {
-    typedef lingen_tuning_cache::mul_key key_type;
-    typedef lingen_tuning_cache::mul_value value_type;
+    mul_or_mp_value & operator[](mul_or_mp_key const & K) { return mul_or_mp_cache[K]; }
 };
 
 std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
-std::istream& operator>>(std::istream& is, lingen_tuning_cache::mul_key &);
-std::istream& operator>>(std::istream& is, lingen_tuning_cache::basecase_key &);
-std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::basecase_key const &);
-std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::mul_key const &);
-std::ostream& operator<<(std::ostream& is, lingen_tuning_cache::basecase_key const &);
+std::istream& operator>>(std::istream& is, lingen_tuning_cache::mul_or_mp_key &);
+std::ostream& operator<<(std::ostream& os, lingen_tuning_cache::basecase_key const &);
+std::ostream& operator<<(std::ostream& os, lingen_tuning_cache::mul_or_mp_key const &);
 
 #endif	/* LINGEN_TUNING_CACHE_HPP_ */

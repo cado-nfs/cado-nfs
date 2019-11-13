@@ -189,7 +189,10 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
+            {
+                tree_stats::smallstep_sentinel dummy(bm.stats, C.mp.step_name());
+                return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
+            }
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1
             return matching_ft_type<matpoly_type,
@@ -219,9 +222,12 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
 template<typename matpoly_type>
 matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus & bm, lingen_call_companion & C)
 {
-    switch (C.mp.S.fft_type) {
+    switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
+            {
+                tree_stats::smallstep_sentinel dummy(bm.stats, C.mul.step_name());
+                return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
+            }
             break;
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1
@@ -303,8 +309,8 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 
     tree_stats::sentinel dummy(bm.stats, __func__, z, C0.total_ncalls);
 
-    bm.stats.plan_smallstep("MP", C0.mp.tt);
-    bm.stats.plan_smallstep("MUL", C0.mul.tt);
+    bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
+    bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);
 
     bw_dimensions & d = bm.d;
 
@@ -346,8 +352,9 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
     matpoly_type E_right = E.similar_shell();
 
     if (!load_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E_right, bm.t, bm.t+E.get_size()-pi_left.get_size()+1)) {
-        logline_begin(stdout, z, "t=%u %*s%sMP(%zu, %zu) -> %zu",
+        logline_begin(stdout, z, "t=%u %*s%sMP(%s, %zu, %zu) -> %zu",
                 bm.t, depth,"", matpoly_diverter<matpoly_type>::prefix,
+                C0.mp.fft_name(),
                 E.get_size(), pi_left.get_size(), E.get_size() - pi_left.get_size() + 1);
 
         E_right = generic_mp(E, pi_left, bm, bm.companion(depth, z));
@@ -365,8 +372,9 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 
     ASSERT_ALWAYS(bm.done || pi_right.get_size() >= pi_right_expect_lowerbound);
 
-    logline_begin(stdout, z, "t=%u %*s%sMUL(%zu, %zu) -> %zu",
+    logline_begin(stdout, z, "t=%u %*s%sMUL(%s, %zu, %zu) -> %zu",
             bm.t, depth, "", matpoly_diverter<matpoly_type>::prefix,
+            C0.mul.fft_name(),
             pi_left.get_size(), pi_right.get_size(), pi_left.get_size() + pi_right.get_size() - 1);
 
     matpoly_type pi = generic_mul(pi_left, pi_right, bm, bm.companion(depth, z));

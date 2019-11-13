@@ -82,7 +82,7 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
                 MPI_Comm_rank(a.get_model().com[0], &rank);
                 if (rank == 0)
                 fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is (%zu,%zu,%zu), which exceeds expected (%zu,%zu,%zu) (anticipated for operand sizes (%zu, %zu). Adjusting memory\n",
-                        OP::name,
+                        op.op_name(),
                         a.get_size(),
                         b.get_size(),
                         alloc_sizes[0],

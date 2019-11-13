@@ -80,119 +80,72 @@ std::vector<unsigned int> all_splits_of(unsigned int n)
     return res;
 }
 
-template<typename OP>
-lingen_substep_schedule optimize(std::ostream& os, lingen_substep_characteristics<OP> const & U, lingen_platform const & P, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
+lingen_substep_schedule optimize(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
     unsigned int nr0 = U.mpi_split0(P).block_size_upper_bound();
     unsigned int nr1 = U.mpi_split1(P).block_size_upper_bound();
     unsigned int nr2 = U.mpi_split2(P).block_size_upper_bound();
     size_t min_my_ram = SIZE_MAX;
     lingen_substep_schedule S_lean;
     std::vector<lingen_substep_schedule> all_schedules;
-    for(unsigned int shrink0 : all_splits_of(nr0)) {
-        for(unsigned int shrink2 : all_splits_of(nr2)) {
-            unsigned int nrs0 = U.shrink_split0(P, shrink0).block_size_upper_bound();
-            unsigned int nrs2 = U.shrink_split2(P, shrink2).block_size_upper_bound();
-#if 1
-            /* first the splits with b0 == nrs0 */
-            {
-                unsigned int b0 = nrs0;
-                for(unsigned int b1 : all_splits_of(nr1)) {
-                    for(unsigned int b2 : all_splits_of(nrs2)) {
-                        lingen_substep_schedule S;
-                        S.shrink0 = shrink0;
-                        S.shrink2 = shrink2;
-                        S.batch = {{ b0, b1, b2 }};
-                        size_t my_ram = U.get_peak_ram(P, S);
-                        if (reserved + my_ram <= P.available_ram) {
-                            all_schedules.push_back(S);
-                        }
-                        if (my_ram < min_my_ram) {
-                            min_my_ram = my_ram;
-                            S_lean = S;
-                        }
-                    }
-                }
-            }
-            /* then the splits with b2 == nrs2 */
-            {
-                unsigned int b2 = nrs2;
-                for(unsigned int b1 : all_splits_of(nr1)) {
-                    for(unsigned int b0 : all_splits_of(nrs0)) {
-                        lingen_substep_schedule S;
-                        S.shrink0 = shrink0;
-                        S.shrink2 = shrink2;
-                        S.batch = {{ b0, b1, b2 }};
-                        size_t my_ram = U.get_peak_ram(P, S);
-                        if (reserved + my_ram <= P.available_ram) {
-                            all_schedules.push_back(S);
-                        }
-                        if (my_ram < min_my_ram) {
-                            min_my_ram = my_ram;
-                            S_lean = S;
-                        }
-                    }
-                }
-            }
-#else
-            /* replicate the old choices. */
-            for(unsigned int b1 : all_splits_of(nr1)) {
-                lingen_substep_schedule S;
-                S.shrink0 = shrink0;
-                S.shrink2 = shrink2;
-                if (nrs0 < nrs2) {
-                    S.batch = { nrs0, b1, 1 };
-                } else {
-                    S.batch = { 1, b1, nrs2 };
-                }
-                size_t my_ram = U.get_peak_ram(P, S);
-                if (reserved + my_ram <= P.available_ram) {
-                    all_schedules.push_back(S);
-                }
-                if (my_ram < min_my_ram) {
-                    min_my_ram = my_ram;
-                    S_lean = S;
-                }
-            }
-#endif
-        }
-    }
-#if 0
-    /* See comment on top of lingen_tuner; */
-    {
-        std::vector<lingen_substep_schedule> raw_schedules = std::move(all_schedules);
-        all_schedules.clear();
-#if 0
-        for(auto S : raw_schedules) {
-            S.fft_type = lingen_substep_schedule::FFT_NONE;
-            all_schedules.push_back(S);
-        }
-#endif
+    std::vector<lingen_substep_schedule::fft_type_t> allowed_ffts { lingen_substep_schedule::FFT_NONE };
 #ifndef SELECT_MPFQ_LAYER_u64k1
-        for(auto S : raw_schedules) {
-            S.fft_type = lingen_substep_schedule::FFT_FLINT;
-            all_schedules.push_back(S);
-        }
+    allowed_ffts.push_back(lingen_substep_schedule::FFT_FLINT);
 #else
-        for(auto S : raw_schedules) {
-            S.fft_type = lingen_substep_schedule::FFT_CANTOR;
-            all_schedules.push_back(S);
-        }
-        for(auto S : raw_schedules) {
-            S.fft_type = lingen_substep_schedule::FFT_TERNARY;
-            all_schedules.push_back(S);
-        }
-#endif
-    }
-#else
-    for(auto & S : all_schedules) {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-        S.fft_type = lingen_substep_schedule::FFT_FLINT;
-#else
-        S.fft_type = lingen_substep_schedule::FFT_CANTOR;
-#endif
-    }
+    allowed_ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+    allowed_ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
 #endif
 
+    for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
+        if (!U.fft_type_valid(fft)) continue;
+        for(unsigned int shrink0 : all_splits_of(nr0)) {
+            for(unsigned int shrink2 : all_splits_of(nr2)) {
+                unsigned int nrs0 = U.shrink_split0(P, shrink0).block_size_upper_bound();
+                unsigned int nrs2 = U.shrink_split2(P, shrink2).block_size_upper_bound();
+                /* first the splits with b0 == nrs0 */
+                {
+                    unsigned int b0 = nrs0;
+                    for(unsigned int b1 : all_splits_of(nr1)) {
+                        for(unsigned int b2 : all_splits_of(nrs2)) {
+                            lingen_substep_schedule S;
+                            S.fft_type = fft;
+                            S.shrink0 = shrink0;
+                            S.shrink2 = shrink2;
+                            S.batch = {{ b0, b1, b2 }};
+                            size_t my_ram = U.get_peak_ram(P, S);
+                            if (reserved + my_ram <= P.available_ram) {
+                                all_schedules.push_back(S);
+                            }
+                            if (my_ram < min_my_ram) {
+                                min_my_ram = my_ram;
+                                S_lean = S;
+                            }
+                        }
+                    }
+                }
+                /* then the splits with b2 == nrs2 */
+                {
+                    unsigned int b2 = nrs2;
+                    for(unsigned int b1 : all_splits_of(nr1)) {
+                        for(unsigned int b0 : all_splits_of(nrs0)) {
+                            lingen_substep_schedule S;
+                            S.fft_type = fft;
+                            S.shrink0 = shrink0;
+                            S.shrink2 = shrink2;
+                            S.batch = {{ b0, b1, b2 }};
+                            size_t my_ram = U.get_peak_ram(P, S);
+                            if (reserved + my_ram <= P.available_ram) {
+                                all_schedules.push_back(S);
+                            }
+                            if (my_ram < min_my_ram) {
+                                min_my_ram = my_ram;
+                                S_lean = S;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     std::sort(all_schedules.begin(), all_schedules.end());
     auto it = std::unique(all_schedules.begin(), all_schedules.end());
@@ -237,36 +190,18 @@ lingen_substep_schedule optimize(std::ostream& os, lingen_substep_characteristic
 /* }}} */
 
 struct lingen_tuner {
-    /* XXX It's temporary. At some point we would like to test various
-     * FFT (and non FFT options) and see what performs best. But at the
-     * moment we have a stumbling block with
-     * lingen_substep_characteristics, which whould be redesigned.
-     */
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    typedef fft_transform_info fft_type;
-#else
-    typedef gf2x_cantor_fft_info fft_type;
-#endif
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
 
-    /* imported from the dims struct */
-    abdst_field ab;
+    abdst_field ab; /* imported from the dims struct */
     cxx_mpz p;
-
     unsigned int m,n;
-
     size_t L;
-
     lingen_platform P;
-
     lingen_tuning_cache C;
-
     gmp_randstate_t rstate;
-
     const char * timing_cache_filename = NULL;
     const char * schedule_filename = NULL;
-
     std::ostream& os;
 
     struct output_info {
@@ -294,9 +229,7 @@ struct lingen_tuner {
      * alternatives
      */
     double basecase_keep_until = 1.8;
-
     std::map<std::string, unsigned int> tuning_thresholds;
-
     std::map<size_t, lingen_substep_schedule> schedules_mp, schedules_mul;
 
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
@@ -321,7 +254,7 @@ struct lingen_tuner {
         param_list_lookup_string(pl, "tuning_thresholds");
     }/*}}}*/
 
-    lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :
+    lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
         ab(d.ab), 
         m(d.m), n(d.n), L(L), P(comm, pl), os(os)
     {
@@ -367,15 +300,15 @@ struct lingen_tuner {
                 }
             }
         }
-    }
+    }/*}}}*/
 
-    ~lingen_tuner() {
+    ~lingen_tuner() {/*{{{*/
         int rank;
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)
             C.save(timing_cache_filename);
         gmp_randclear(rstate);
-    }
+    }/*}}}*/
 
     std::tuple<size_t, double> mpi_threshold_comm_and_time() {/*{{{*/
         /* This is the time taken by gather() and scatter() right at the
@@ -412,9 +345,11 @@ struct lingen_tuner {
         return C[K];
     }/*}}}*/
 
+    /* length(E), length(E_left), length(E_right), number of occurrences
+     */
     typedef std::tuple<size_t, size_t, size_t, unsigned int> weighted_call_t;
 
-    std::vector<weighted_call_t> calls_and_weights_at_depth(int i) {
+    std::vector<weighted_call_t> calls_and_weights_at_depth(int i) {/*{{{*/
         /*
          * Let L = (Q << (i+1)) + (u << i) + v, with u={0,1} and
          * 0<=v<(1<<i). We have L % (1 << i) = v. Note that u=(L>>i)%2.
@@ -462,9 +397,9 @@ struct lingen_tuner {
             std::vector<weighted_call_t> res {{ w0 }};
             return res;
         }
-    }
+    }/*}}}*/
 
-    lingen_substep_characteristics<op_mp<fft_type>> mp_substep(weighted_call_t const & cw) { /* {{{ */
+    lingen_substep_characteristics substep(weighted_call_t const & cw, op_mul_or_mp_base::op_type_t op) { /* {{{ */
         size_t length_E;
         size_t length_E_left;
         size_t length_E_right;
@@ -475,29 +410,41 @@ struct lingen_tuner {
         ASSERT_ALWAYS(length_E >= 2);
         ASSERT_ALWAYS(weight);
 
-        size_t csize = length_E_right;
-        /* pi is the identity matrix for zero coefficients, but the
-         * identity matrix already has length 1.
-         */
-        size_t bsize = 1 + iceildiv(m * length_E_left, m+n);
-        size_t asize = csize + bsize - 1;
+        size_t asize, bsize, csize;
+
+        if (op == op_mul_or_mp_base::OP_MP) {
+            csize = length_E_right;
+            /* pi is the identity matrix for zero coefficients, but the
+             * identity matrix already has length 1.
+             */
+            bsize = 1 + iceildiv(m * length_E_left, m+n);
+            asize = csize + bsize - 1;
+        } else {
+            asize = 1 + iceildiv(m * length_E_left, m+n);
+            bsize = 1 + iceildiv(m * length_E_right, m+n);
+            csize = asize + bsize - 1;
+        }
 
         ASSERT_ALWAYS(asize);
         ASSERT_ALWAYS(bsize);
 
-        return lingen_substep_characteristics<op_mp<fft_type>>(
+        return lingen_substep_characteristics(
                 ab, rstate, length_E,
-                m, m+n, m+n,
+                op,
+                op == op_mul_or_mp_base::OP_MP ? m : (m+n),
+                m+n, m+n,
                 asize, bsize, csize);
     } /* }}} */
     void compute_schedules_for_mp(weighted_call_t const & cw, bool print, size_t reserved=0) { /* {{{ */
         int printed_mem_once=0;
         size_t L = std::get<0>(cw);
         ASSERT_ALWAYS (recursion_makes_sense(L));
-        auto step = mp_substep(cw);
+        auto step = substep(cw, op_mul_or_mp_base::OP_MP);
         bool print_here = print && !printed_mem_once++;
+#if 0
         if (print_here)
             step.report_size_stats_human(os);
+#endif
 
         lingen_substep_schedule S;
         if (schedules_mp.find(L) != schedules_mp.end()) {
@@ -514,30 +461,6 @@ struct lingen_tuner {
             step.get_call_time(os, P, S, C);
         }
         schedules_mp[L] = S;
-    } /* }}} */
-    lingen_substep_characteristics<op_mul<fft_type>> mul_substep(weighted_call_t const & cw) { /* {{{ */
-        size_t length_E;
-        size_t length_E_left;
-        size_t length_E_right;
-        unsigned int weight;
-
-        std::tie(length_E, length_E_left, length_E_right, weight) = cw;
-
-        ASSERT_ALWAYS(length_E >= 2);
-        ASSERT_ALWAYS(weight);
-
-        size_t asize = 1 + iceildiv(m * length_E_left, m+n);
-        size_t bsize = 1 + iceildiv(m * length_E_right, m+n);
-        size_t csize = asize + bsize - 1;
-
-        ASSERT_ALWAYS(asize);
-        ASSERT_ALWAYS(bsize);
-
-        return lingen_substep_characteristics<op_mul<fft_type>>(
-                ab, rstate, length_E,
-                m+n, m+n, m+n,
-                asize, bsize, csize);
-
     } /* }}} */
     bool recursion_makes_sense(size_t L) const {
         return L >= 2;
@@ -557,11 +480,13 @@ struct lingen_tuner {
         int printed_mem_once=0;
         size_t L = std::get<0>(cw);
         ASSERT_ALWAYS (recursion_makes_sense(L));
-        auto step = mul_substep(cw);
+        auto step = substep(cw, op_mul_or_mp_base::OP_MUL);
         bool print_here = print && !printed_mem_once++;
 
+#if 0
         if (print_here)
             step.report_size_stats_human(os);
+#endif
 
         lingen_substep_schedule S;
         if (schedules_mul.find(L) != schedules_mul.end()) {
@@ -580,315 +505,411 @@ struct lingen_tuner {
         schedules_mul[L] = S;
     } /* }}} */
 
+    struct tuner_persistent_data {
+        typedef std::map<size_t, std::pair<bool, std::array<double, 3> >, lingen_tuning_cache::coarse_compare> level_strategy_map;
+        lingen_hints hints;
+        lingen_hints const & stored_hints;
+        level_strategy_map best;
+        bool basecase_eliminated;
+        double last_save = 0;
+        size_t peak = 0;
+        int ipeak = 0;
+        size_t upper_threshold = 0;
+        bool impose_hints;
+        tuner_persistent_data(lingen_hints const & stored_hints) : stored_hints(stored_hints) {
+            last_save = wct_seconds();
+            impose_hints = !stored_hints.empty();
+        }
+    };
+
+    lingen_call_companion::mul_or_mp_times tune_local_at_depth_mp(tuner_persistent_data & persist, weighted_call_t cw, int depth)
+    {
+        lingen_call_companion::mul_or_mp_times U { op_mul_or_mp_base::OP_MP };
+        lingen_hints const & stored_hints(persist.stored_hints);
+        double & last_save(persist.last_save);
+        size_t & peak(persist.peak);
+        int & ipeak(persist.ipeak);
+
+        /* For input length L, the reserved
+         * storage at depth i is
+         *   RMP'(i)  = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[2\alpha\ell_i]
+         *   RMUL'(i) = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[4\alpha\ell_i]
+         * with the notations \alpha=m/(m+n), \ell_i=L/2^(i+1), and
+         * [] denotes ceiling.
+         * The details of the computation are in the comments in
+         * lingen.cpp
+         */
+        size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        size_t reserved_base = base_E * iceildiv(L - (L >> depth), simd);
+        size_t reserved_mp  = base_pi * iceildiv(iceildiv(m * iceildiv(L, 1<<depth), m+n), simd);
+        reserved_mp += reserved_base;
+
+        os << fmt::sprintf("# MP reserved storage = %s\n", size_disp(reserved_mp));
+
+        size_t L, Lleft, Lright;
+        unsigned int weight;
+        std::tie(L, Lleft, Lright, weight) = cw;
+        lingen_call_companion::key K { depth, L };
+        ASSERT_ALWAYS(weight);
+
+        if (stored_hints.find(K) != stored_hints.end()) {
+            schedules_mp[L] = stored_hints.at(K).mp.S;
+        }
+        /* If we had something in stored_hints, the calls
+         * below will do less, but will still augment
+         * schedules_mp[L] and schedules_mul[L] with the
+         * appropriate timings.
+         */
+        compute_schedules_for_mp(cw, true, reserved_mp);
+        if (wct_seconds() > last_save + 10) {
+            int rank;
+            MPI_Comm_rank(P.comm, &rank);
+            if (rank == 0)
+                C.save(timing_cache_filename);
+            last_save = wct_seconds();
+        }
+        auto MP = substep(cw, op_mul_or_mp_base::OP_MP);
+        U = MP.get_companion(os, P, schedules_mp[L], C);
+        U.reserved_ram = reserved_mp;
+        os << "#\n";
+
+        size_t mm = U.ram_total();
+        if (mm > peak) { ipeak = depth; peak = mm; }
+
+        return U;
+    }
+    lingen_call_companion::mul_or_mp_times tune_local_at_depth_mul(tuner_persistent_data & persist, weighted_call_t cw, int depth)
+    {
+        lingen_call_companion::mul_or_mp_times U { op_mul_or_mp_base::OP_MUL };
+        lingen_hints const & stored_hints(persist.stored_hints);
+        double & last_save(persist.last_save);
+        size_t & peak(persist.peak);
+        int & ipeak(persist.ipeak);
+
+        /* For input length L, the reserved
+         * storage at depth i is
+         *   RMP'(i)  = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[2\alpha\ell_i]
+         *   RMUL'(i) = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[4\alpha\ell_i]
+         * with the notations \alpha=m/(m+n), \ell_i=L/2^(i+1), and
+         * [] denotes ceiling.
+         * The details of the computation are in the comments in
+         * lingen.cpp
+         */
+        size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        size_t reserved_base = base_E * iceildiv(L - (L >> depth), simd);
+        size_t reserved_mul = base_pi * iceildiv(iceildiv(m * iceildiv(2*L, 1<<depth), m+n), simd);
+        reserved_mul += reserved_base;
+
+        os << fmt::sprintf("# MUL reserved storage = %s\n", size_disp(reserved_mul));
+
+        size_t L, Lleft, Lright;
+        unsigned int weight;
+        std::tie(L, Lleft, Lright, weight) = cw;
+        lingen_call_companion::key K { depth, L };
+        ASSERT_ALWAYS(weight);
+
+        if (stored_hints.find(K) != stored_hints.end()) {
+            schedules_mul[L] = stored_hints.at(K).mul.S;
+        }
+        /* If we had something in stored_hints, the calls
+         * below will do less, but will still augment
+         * schedules_mp[L] and schedules_mul[L] with the
+         * appropriate timings.
+         */
+
+        compute_schedules_for_mul(cw, true, reserved_mul);
+        if (wct_seconds() > last_save + 10) {
+            int rank;
+            MPI_Comm_rank(P.comm, &rank);
+            if (rank == 0)
+                C.save(timing_cache_filename);
+            last_save = wct_seconds();
+        }
+        auto MUL = substep(cw, op_mul_or_mp_base::OP_MUL);
+        U = MUL.get_companion(os, P, schedules_mul[L], C);
+        U.reserved_ram = reserved_mul;
+        os << "#\n";
+
+        size_t mm = U.ram_total();
+        if (mm > peak) { ipeak = depth; peak = mm; }
+
+        return U;
+    }
+
+    void tune_local_at_depth(tuner_persistent_data & persist, int depth)
+    {
+        tuner_persistent_data::level_strategy_map & best(persist.best);
+        bool & basecase_eliminated(persist.basecase_eliminated);
+        lingen_hints & hints(persist.hints);
+        lingen_hints const & stored_hints(persist.stored_hints);
+        size_t & upper_threshold(persist.upper_threshold);
+        bool impose_hints(persist.impose_hints);
+
+        auto cws = calls_and_weights_at_depth(depth);
+
+        os << fmt::sprintf("####################### Measuring time at depth %d #######################\n", depth);
+
+        double time_b = 0;
+        double time_r = 0;
+        double time_m = 0;
+        double time_r_self = 0;
+        double time_m_self = 0;
+
+        bool basecase_was_eliminated = basecase_eliminated;
+
+        ASSERT_ALWAYS(cws.size() <= 2);
+
+        bool forceidx[2] = { false, false };
+
+        lingen_call_companion U_typical;
+
+        /* At the moment this only decides between basecase(single)
+         * and recursive+collective. And only one fft_type (see head
+         * of this struct) is covered. This is dumb.
+         */
+        for(size_t idx = 0 ; idx < cws.size() ; idx++) {
+            auto const & cw(cws[idx]);
+            size_t L, Lleft, Lright;
+            unsigned int weight;
+            std::tie(L, Lleft, Lright, weight) = cw;
+
+            /* the weight is the number of calls that must be made
+             * with this input length. The sum of weights at this
+             * depth must equal the total input length, whatever the
+             * level */
+            ASSERT_ALWAYS(weight);
+
+            if (!L) {
+                tuner_persistent_data::level_strategy_map::mapped_type v { false, {{ 0, 0, 0 }}};
+                best[L] = v;
+                continue;
+            }
+
+            lingen_call_companion::key K { depth, L };
+
+            /* We **MUST** create hints[K], at this point */
+
+            if (hints.find(K) == hints.end()) {
+                double ttb = DBL_MAX;
+                double ttr = DBL_MAX;
+                double ttrchildren = DBL_MAX;
+
+                lingen_call_companion U;
+                U.total_ncalls = 0;
+
+                bool forced = false;
+                /* the true value is initialized early if we happen
+                 * to set the "force" flag, or later.
+                 */
+                bool rwin = false;
+
+                if (stored_hints.find(K) != stored_hints.end()) {
+                    os << ("# Re-using stored schedule\n");
+                    forced = true;
+                    rwin = stored_hints.at(K).recurse;
+                    if (rwin) {
+                        os << ("# Forcing recursion at this level\n");
+                    } else {
+                        os << ("# Forcing basecase at this level\n");
+                    }
+                } else {
+                    if (impose_hints) {
+                        os << ("# No stored schedule found, computing new one\n");
+                    }
+                    std::string threshold_key = "recursive";
+                    forced = recursion_makes_sense(L) && tuning_thresholds.find(threshold_key) != tuning_thresholds.end();
+                    if (forced) {
+                        unsigned int forced_threshold = tuning_thresholds.at(threshold_key);
+                        rwin = L >= forced_threshold;
+                        if (rwin) {
+                            os << fmt::sprintf("# Forcing recursion at this level,"
+                                    " since L=%zu>="
+                                    "tuning_threshold[%s]=%u\n",
+                                    L, threshold_key, forced_threshold);
+                        } else {
+                            os << fmt::sprintf("# Forcing basecase at this level,"
+                                    " since L=%zu<"
+                                    "tuning_threshold[%s]=%u\n",
+                                    L, threshold_key, forced_threshold);
+                        }
+                    }
+                }
+                forceidx[idx] = forced;
+
+                if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
+                    ttb = compute_and_report_basecase(L);
+
+                if (recursion_makes_sense(L) && !(forced && !rwin)) {
+
+                    U.mp = tune_local_at_depth_mp(persist, cw, depth);
+
+                    U.mul = tune_local_at_depth_mul(persist, cw, depth);
+
+                    ttr = U.mp.tt.t + U.mul.tt.t;
+                    ttrchildren = 0;
+                    ttrchildren += best[Lleft].second[best[Lleft].first];
+                    ttrchildren += best[Lright].second[best[Lright].first];
+                }
+
+                if (ttb >= basecase_keep_until * (ttr + ttrchildren))
+                    basecase_eliminated = true;
+
+                if (!forced)
+                    rwin = ttb >= std::min(1.0, basecase_keep_until) * (ttr + ttrchildren);
+
+                /* if basecase_keep_until < 1, then we probably want
+                 * to prevent the basecase from being counted as
+                 * winning at this point.
+                 */
+                rwin = rwin || basecase_eliminated;
+                tuner_persistent_data::level_strategy_map::mapped_type vv { rwin, {{ttb, ttr + ttrchildren, ttr}} };
+                best[L] = vv;
+
+                U.recurse = rwin;
+                /* See comment in compute_schedules_for_mul.
+                 * Presently we don't identify cases where
+                 * lingen_threshold makes sense at all */
+                U.go_mpi = rwin;
+                U.ttb = ttb;
+
+                U.complete = true;
+
+                ASSERT_ALWAYS(hints.find(K) == hints.end());
+                hints[K] = U;
+                U_typical = U;
+            }
+            ASSERT_ALWAYS(best.find(L) != best.end());
+            hints[K].total_ncalls += weight;
+
+            time_b += best[L].second[0] * weight;
+            time_r += best[L].second[1] * weight;
+            time_r_self += best[L].second[2] * weight;
+            time_m += best[L].second[idx] * weight;
+            time_m_self += best[L].second[2*idx] * weight;
+        }
+
+        size_t L0 = std::get<0>(cws.front());
+        size_t L1 = std::get<0>(cws.back());
+        /* calls_and_weights_at_depth must return a sorted list */
+        ASSERT_ALWAYS(L0 <= L1);
+        size_t L0r = lingen_round_operand_size(L0);
+        size_t L1r = lingen_round_operand_size(L1);
+        bool approx_same = L0r == L1r;
+        bool rec0 = best[L0].first;
+        bool rec1 = best[L1].first;
+
+        const char * strbest = " [BEST]";
+        if (basecase_was_eliminated || !recursion_makes_sense(L1))
+            strbest="";
+        if (time_b < DBL_MAX) {
+            const char * isbest = (!rec0 && !rec1) ? strbest : "";
+            os << fmt::sprintf("# basecase(threshold>%zu): %.2f [%.1fd]%s\n",
+                    L1,
+                    time_b, time_b / 86400, isbest);
+        }
+        if (!approx_same && recursion_makes_sense(L1) && !(forceidx[0] && rec0) && !(forceidx[1] && !rec1)) {
+            const char * isbest = (rec1 && !rec0) ? strbest : "";
+            os << fmt::sprintf("# mixed(threshold=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                    L1,
+                    time_m, time_m / 86400,
+                    time_m_self, time_m_self / 86400, isbest);
+            lingen_call_companion U = U_typical;
+            if (U.mp.ram_total() > U.mul.ram_total()) {
+                os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
+                        size_disp(U.mp.ram_total()),
+                        size_disp(U.mp.reserved_ram));
+            } else {
+                os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
+                        size_disp(U.mul.ram_total()),
+                        size_disp(U.mul.reserved_ram));
+            }
+
+        }
+        if (recursion_makes_sense(L0) && !(forceidx[0] && !rec0)) {
+            const char * isbest = rec0 ? strbest : "";
+            std::ostringstream os2;
+            os2 << " recursive(threshold<=" << L0 << "): ";
+            std::string ss2 = os2.str();
+            os << fmt::sprintf("# recursive(threshold<=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
+                    L0,
+                    time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
+            lingen_call_companion U = U_typical;
+            if (U.mp.ram_total() > U.mul.ram_total()) {
+                os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
+                        size_disp(U.mp.ram_total()),
+                        size_disp(U.mp.reserved_ram));
+            } else {
+                os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
+                        size_disp(U.mul.ram_total()),
+                        size_disp(U.mul.reserved_ram));
+            }
+        }
+
+        if (rec0) {
+            // theshold is <= L0
+            if (upper_threshold > L0) {
+                os << fmt::sprintf("# We expect lingen_mpi_threshold <= %zu\n", L0);
+                upper_threshold = L0;
+            }
+        } else if (rec1 && !rec0) {
+            ASSERT_ALWAYS(cws.size() == 2);
+            // threshold is =L1
+            if (upper_threshold != L1) {
+                os << fmt::sprintf("# We expect lingen_mpi_threshold = %zu\n", L1);
+                upper_threshold = L1;
+            }
+        } else {
+            // threshold is > L1
+            if (upper_threshold <= L1) {
+                os << fmt::sprintf("# we expect lingen_mpi_threshold > %zu\n", L1);
+                upper_threshold = SIZE_MAX;
+            }
+        }
+    }
+
     lingen_hints tune_local(lingen_hints & stored_hints) {
         size_t N = m*n*L/(m+n);
         char buf[20];
-        os << fmt::sprintf("# Measuring lingen data for N ~ %zu m=%u n=%u for a %zu-bit prime p, using a %u*%u grid of %u-thread nodes [max target RAM = %s]\n",
+        os << fmt::sprintf("# Measuring lingen data"
+                " for N ~ %zu m=%u n=%u"
+                " for a %zu-bit prime p,"
+                " using a %u*%u grid of %u-thread nodes"
+                " [max target RAM = %s]\n",
                 N, m, n, mpz_sizeinbase(p, 2),
                 P.r, P.r, P.T,
                 size_disp(P.available_ram, buf));
 #ifdef HAVE_OPENMP
-        os << fmt::sprintf("# Note: non-cached basecase measurements are done using openmp as it is configured for the running code, that is, with %d threads\n", P.openmp_threads);
+        os << fmt::sprintf("# Note: non-cached basecase measurements"
+                " are done using openmp as it is configured"
+                " for the running code, that is, with %d threads\n",
+                P.openmp_threads);
 #endif
-        lingen_hints hints;
-
-        bool impose_hints = !stored_hints.empty();
-        if (impose_hints) {
-            os << fmt::sprintf("# While we are doing timings here, we'll take schedule decisions based on the hints found in %s when they apply\n", schedule_filename);
-        }
-
+        
         int fl = log2(L) + 1;
 
+        tuner_persistent_data persist(stored_hints);
         /* with basecase_keep_until == 0, then we never measure basecase */
-        bool basecase_eliminated = basecase_keep_until == 0;
-        std::map<size_t, std::pair<bool, std::array<double, 3> >, lingen_tuning_cache::coarse_compare> best;
-        size_t upper_threshold = SIZE_MAX;
-        size_t peak = 0;
-        int ipeak = -1;
-
-        /* TODO: the control logic of this function is miserable. fix it.
-         */
-        double last_save=wct_seconds();
-        for(int i = fl ; i>=0 ; i--) {
-            auto cws = calls_and_weights_at_depth(i);
-
-            os << fmt::sprintf("####################### Measuring time at depth %d #######################\n", i);
-            /* For input length L, the reserved
-             * storage at depth i is
-             *   RMP'(i)  = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[2\alpha\ell_i]
-             *   RMUL'(i) = [m/r][(m+n)/r][(1+\alpha)(L-2\ell_i)] + [(m+n)/r]^2*[4\alpha\ell_i]
-             * with the notations \alpha=m/(m+n), \ell_i=L/2^(i+1), and
-             * [] denotes ceiling.
-             * The details of the computation are in the comments in
-             * lingen.cpp
-             */
-            size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
-            size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
-            size_t reserved_base = base_E * (L - (L >> i));
-            size_t reserved_mp  = base_pi * iceildiv(m * iceildiv(L, 1<<i), m+n);
-            size_t reserved_mul = base_pi * iceildiv(m * iceildiv(2*L, 1<<i), m+n);
-            reserved_mp += reserved_base;
-            reserved_mul += reserved_base;
-
-            os << fmt::sprintf("# MP reserved storage = %s\n", size_disp(reserved_mp, buf));
-            os << fmt::sprintf("# MUL reserved storage = %s\n", size_disp(reserved_mul, buf));
-            double time_b = 0;
-            double time_r = 0;
-            double time_m = 0;
-            double time_r_self = 0;
-            double time_m_self = 0;
-            size_t ram_mp = 0;
-            size_t ram_mul = 0;
-
-            bool basecase_was_eliminated = basecase_eliminated;
-
-            ASSERT_ALWAYS(cws.size() <= 2);
-
-            bool forceidx[2] = { false, false };
-
-            /* At the moment this only decides between basecase(single)
-             * and recursive+collective. And only one fft_type (see head
-             * of this struct) is covered. This is dumb.
-             */
-            for(size_t idx = 0 ; idx < cws.size() ; idx++) {
-                auto const & cw(cws[idx]);
-                size_t L, Lleft, Lright;
-                unsigned int weight;
-                std::tie(L, Lleft, Lright, weight) = cw;
-
-                /* the weight is the number of calls that must be made
-                 * with this input length. The sum of weights at this
-                 * depth must equal the total input length, whatever the
-                 * level */
-                ASSERT_ALWAYS(weight);
-
-                if (!L) {
-                    decltype(best)::mapped_type v { false, {{ 0, 0, 0 }}};
-                    best[L] = v;
-                    continue;
-                }
-
-                lingen_call_companion::key K { i, L };
-
-                /* We **MUST** create hints[K], at this point */
-
-                if (hints.find(K) == hints.end()) {
-                    double ttb = DBL_MAX;
-                    double ttr = DBL_MAX;
-                    double ttrchildren = DBL_MAX;
-
-                    lingen_call_companion U;
-                    U.total_ncalls = 0;
-
-                    bool forced = false;
-                    /* the true value is initialized early if we happen
-                     * to set the "force" flag, or later.
-                     */
-                    bool rwin = false;
-
-                    if (stored_hints.find(K) != stored_hints.end()) {
-                        os << ("# Re-using stored schedule\n");
-                        forced = true;
-                        rwin = stored_hints[K].recurse;
-                        if (rwin) {
-                            os << ("# Forcing recursion at this level\n");
-                        } else {
-                            os << ("# Forcing basecase at this level\n");
-                        }
-                    } else {
-                        if (impose_hints) {
-                            os << ("# No stored schedule found, computing new one\n");
-                        }
-                        std::string threshold_key = "recursive";
-                        forced = recursion_makes_sense(L) && tuning_thresholds.find(threshold_key) != tuning_thresholds.end();
-                        if (forced) {
-                            unsigned int forced_threshold = tuning_thresholds.at(threshold_key);
-                            rwin = L >= forced_threshold;
-                            if (rwin) {
-                                os << fmt::sprintf("# Forcing recursion at this level,"
-                                        " since L=%zu>="
-                                        "tuning_threshold[%s]=%u\n",
-                                        L, threshold_key, forced_threshold);
-                            } else {
-                                os << fmt::sprintf("# Forcing basecase at this level,"
-                                        " since L=%zu<"
-                                        "tuning_threshold[%s]=%u\n",
-                                        L, threshold_key, forced_threshold);
-                            }
-                        }
-                    }
-                    forceidx[idx] = forced;
-
-                    if (!recursion_makes_sense(L) || (!(forced && rwin) && !basecase_eliminated))
-                        ttb = compute_and_report_basecase(L);
-
-                    if (recursion_makes_sense(L) && !(forced && !rwin)) {
-                        if (stored_hints.find(K) != stored_hints.end()) {
-                            schedules_mp[L] = stored_hints[K].mp.S;
-                            schedules_mul[L] = stored_hints[K].mul.S;
-                        }
-                        /* If we had something in stored_hints, the calls
-                         * below will do less, but will still augment
-                         * schedules_mp[L] and schedules_mul[L] with the
-                         * appropriate timings.
-                         */
-                        compute_schedules_for_mp(cw, true, reserved_mp);
-                        if (wct_seconds() > last_save + 10) {
-                            int rank;
-                            MPI_Comm_rank(P.comm, &rank);
-                            if (rank == 0)
-                                C.save(timing_cache_filename);
-                            last_save = wct_seconds();
-                        }
-                        auto MP = mp_substep(cw);
-                        U.mp = MP.get_companion(os, P, schedules_mp[L], C);
-                        U.mp.reserved_ram = reserved_mp;
-                        os << "#\n";
-
-                        compute_schedules_for_mul(cw, true, reserved_mul);
-                        if (wct_seconds() > last_save + 10) {
-                            int rank;
-                            MPI_Comm_rank(P.comm, &rank);
-                            if (rank == 0)
-                                C.save(timing_cache_filename);
-                            last_save = wct_seconds();
-                        }
-                        auto MUL = mul_substep(cw);
-                        U.mul = MUL.get_companion(os, P, schedules_mul[L], C);
-                        U.mul.reserved_ram = reserved_mp;
-                        os << "#\n";
-
-                        ttr = U.mp.tt.t + U.mul.tt.t;
-                        ttrchildren = 0;
-                        ttrchildren += best[Lleft].second[best[Lleft].first];
-                        ttrchildren += best[Lright].second[best[Lright].first];
-
-                        size_t m;
-                        m = U.mp.ram() + U.mp.reserved_ram;
-                        if (m > ram_mp) ram_mp = m;
-                        if (m > peak) { ipeak = i; peak = m; }
-
-                        m = U.mul.ram() + U.mul.reserved_ram;
-                        if (m > ram_mul) ram_mul = m;
-                        if (m > peak) { ipeak = i; peak = m; }
-                    }
-
-                    if (ttb >= basecase_keep_until * (ttr + ttrchildren))
-                        basecase_eliminated = true;
-
-                    if (!forced)
-                        rwin = ttb >= std::min(1.0, basecase_keep_until) * (ttr + ttrchildren);
-
-                    /* if basecase_keep_until < 1, then we probably want
-                     * to prevent the basecase from being counted as
-                     * winning at this point.
-                     */
-                    rwin = rwin || basecase_eliminated;
-                    decltype(best)::mapped_type vv { rwin, {{ttb, ttr + ttrchildren, ttr}} };
-                    best[L] = vv;
-
-                    U.recurse = rwin;
-                    /* See comment in compute_schedules_for_mul.
-                     * Presently we don't identify cases where
-                     * lingen_threshold makes sense at all */
-                    U.go_mpi = rwin;
-                    U.ttb = ttb;
-
-                    U.complete = true;
-
-                    ASSERT_ALWAYS(hints.find(K) == hints.end());
-                    hints[K] = U;
-                }
-                ASSERT_ALWAYS(best.find(L) != best.end());
-                hints[K].total_ncalls += weight;
-
-                time_b += best[L].second[0] * weight;
-                time_r += best[L].second[1] * weight;
-                time_r_self += best[L].second[2] * weight;
-                time_m += best[L].second[idx] * weight;
-                time_m_self += best[L].second[2*idx] * weight;
-            }
-
-            size_t L0 = std::get<0>(cws.front());
-            size_t L1 = std::get<0>(cws.back());
-            /* calls_and_weights_at_depth must return a sorted list */
-            ASSERT_ALWAYS(L0 <= L1);
-            size_t L0r = lingen_round_operand_size(L0);
-            size_t L1r = lingen_round_operand_size(L1);
-            bool approx_same = L0r == L1r;
-            bool rec0 = best[L0].first;
-            bool rec1 = best[L1].first;
-
-            const char * strbest = " [BEST]";
-            if (basecase_was_eliminated || !recursion_makes_sense(L1))
-                strbest="";
-            if (time_b < DBL_MAX) {
-                const char * isbest = (!rec0 && !rec1) ? strbest : "";
-                os << fmt::sprintf("# basecase(threshold>%zu): %.2f [%.1fd]%s\n",
-                        L1,
-                        time_b, time_b / 86400, isbest);
-            }
-            if (!approx_same && recursion_makes_sense(L1) && !(forceidx[0] && rec0) && !(forceidx[1] && !rec1)) {
-                const char * isbest = (rec1 && !rec0) ? strbest : "";
-                os << fmt::sprintf("# mixed(threshold=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
-                        L1,
-                        time_m, time_m / 86400,
-                        time_m_self, time_m_self / 86400, isbest);
-                char buf[20];
-                char buf2[20];
-                if (ram_mp > ram_mul) {
-                    os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
-                            size_disp(ram_mp, buf),
-                            size_disp(reserved_mp, buf2));
-                } else {
-                    os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
-                            size_disp(ram_mul, buf),
-                            size_disp(reserved_mul, buf2));
-                }
-
-            }
-            if (recursion_makes_sense(L0) && !(forceidx[0] && !rec0)) {
-                const char * isbest = rec0 ? strbest : "";
-                std::ostringstream os2;
-                os2 << " recursive(threshold<=" << L0 << "): ";
-                std::string ss2 = os2.str();
-                os << fmt::sprintf("# recursive(threshold<=%zu): %.2f [%.1fd] (self: %.2f [%.1fd])%s\n",
-                        L0,
-                        time_r, time_r / 86400, time_r_self, time_r_self / 86400, isbest);
-                char buf[20];
-                char buf2[20];
-                if (ram_mp > ram_mul) {
-                    os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
-                            size_disp(ram_mp, buf),
-                            size_disp(reserved_mp, buf2));
-                } else {
-                    os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
-                            size_disp(ram_mul, buf),
-                            size_disp(reserved_mul, buf2));
-                }
-            }
-
-            if (rec0) {
-                // theshold is <= L0
-                if (upper_threshold > L0) {
-                    os << fmt::sprintf("# We expect lingen_mpi_threshold <= %zu\n", L0);
-                    upper_threshold = L0;
-                }
-            } else if (rec1 && !rec0) {
-                ASSERT_ALWAYS(cws.size() == 2);
-                // threshold is =L1
-                if (upper_threshold != L1) {
-                    os << fmt::sprintf("# We expect lingen_mpi_threshold = %zu\n", L1);
-                    upper_threshold = L1;
-                }
-            } else {
-                // threshold is > L1
-                if (upper_threshold <= L1) {
-                    os << fmt::sprintf("# we expect lingen_mpi_threshold > %zu\n", L1);
-                    upper_threshold = SIZE_MAX;
-                }
-            }
+        persist.basecase_eliminated = basecase_keep_until == 0;
+        if (persist.impose_hints) {
+            os << fmt::sprintf("# While we are doing timings here,"
+                    " we'll take schedule decisions based on the hints"
+                    " found in %s when they apply\n", schedule_filename);
         }
+
+        for(int i = fl ; i>=0 ; i--) {
+            tune_local_at_depth(persist, i);
+        }
+
+        tuner_persistent_data::level_strategy_map & best(persist.best);
+        lingen_hints & hints(persist.hints);
+        size_t peak(persist.peak);
+        int ipeak(persist.ipeak);
+        size_t upper_threshold(persist.upper_threshold);
+
         /* keys in the hint table are sorted as "top-level first" */
         lingen_call_companion::key max_winning_basecase { INT_MAX, SIZE_MAX };
         for(auto const & x : hints) {
@@ -933,6 +954,7 @@ struct lingen_tuner {
 
         return hints;
     }
+
     lingen_hints tune() {
         int rank;
         MPI_Comm_rank(P.comm, &rank);
@@ -967,7 +989,6 @@ struct lingen_tuner {
     }
 };
 
-/* For the moment we're only hooking the fft_transform_info version */
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
     lingen_tuner::output_info O(pl);

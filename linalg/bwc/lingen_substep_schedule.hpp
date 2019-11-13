@@ -49,22 +49,32 @@ struct lingen_substep_schedule {
     lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
 
+    static const char * fft_name(fft_type_t fft_type) {
+        switch(fft_type) {
+            case FFT_NONE:   return io_token_fft_none;
+            case FFT_FLINT:  return io_token_fft_flint;
+            case FFT_CANTOR: return io_token_fft_cantor;
+            case FFT_TERNARY:return io_token_fft_ternary;
+            default:
+              throw std::runtime_error("invalid data (fft_type)");
+        }
+    }
+    const char * fft_name() const { return fft_name(fft_type); }
+
+    static std::ostream& fft_type_serialize(std::ostream& os, fft_type_t fft_type)
+    {
+        return os << fft_name(fft_type);
+    }
+
     std::ostream& serialize(std::ostream& os) const
     {
-        switch(fft_type) {
-            case FFT_NONE: os << " " << io_token_fft_none; break;
-            case FFT_FLINT: os << " " << io_token_fft_flint; break;
-            case FFT_CANTOR: os << " " << io_token_fft_cantor; break;
-            case FFT_TERNARY: os << " " << io_token_fft_ternary; break;
-            default:
-              throw std::runtime_error("invalid data (fft_type) when writing checkpoint");
-        }
+        os << " ";
+        fft_type_serialize(os, fft_type);
         os << " " << io_token_shrink << " " << shrink0 << " " << shrink2;
         os << " " << io_token_batch << " " << batch[0] << " " << batch[1] << " " << batch[2];
         return os;
     }
-
-    std::istream& unserialize(std::istream& is)
+    static std::istream& fft_type_unserialize(std::istream& is, fft_type_t & fft_type)
     {
         std::string s;
         is >> s;
@@ -80,6 +90,13 @@ struct lingen_substep_schedule {
             is.setstate(std::ios::failbit);
             return is;
         }
+        return is;
+    }
+    std::istream& unserialize(std::istream& is)
+    {
+        if (!fft_type_unserialize(is, fft_type))
+            return is;
+        std::string s;
         is >> s;
         if (s != io_token_shrink) {
             is.setstate(std::ios::failbit);
@@ -116,5 +133,27 @@ struct lingen_substep_schedule {
         return shrink0 && shrink2 && batch[0] && batch[1] && batch[2];
     }
 };
+
+#include "lingen_fft_select.hpp"
+template<typename T> lingen_substep_schedule::fft_type_t encode_fft_type();
+template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<void>()
+{
+    return lingen_substep_schedule::FFT_NONE;
+}
+#ifndef SELECT_MPFQ_LAYER_u64k1
+template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<fft_transform_info>()
+{
+    return lingen_substep_schedule::FFT_FLINT;
+}
+#else
+template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<gf2x_cantor_fft_info>()
+{
+    return lingen_substep_schedule::FFT_CANTOR;
+}
+template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<gf2x_ternary_fft_info>()
+{
+    return lingen_substep_schedule::FFT_TERNARY;
+}
+#endif
 
 #endif	/* LINGEN_SUBSTEP_SCHEDULE_HPP_ */

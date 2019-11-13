@@ -2,6 +2,7 @@
 #define LINGEN_SUBSTEP_CHARACTERISTICS_HPP_
 
 #include <iostream>
+#include <memory>
 
 #include "cxx_mpz.hpp"
 #include "fmt/format.h"
@@ -13,14 +14,19 @@
 #include "lingen_mul_substeps.hpp"
 #include "lingen_call_companion.hpp"
 
+
 /* This file is an offspring from lingen_tuning.cpp - some of it is not
  * really polished to the expected level of a usable interface. It
  * happens to be also used by the binary
  * time_matpoly_ft_parallel_${gfp_layer}
  */
-template<typename OP>
+
+template<typename OP> struct microbench_dft;
+template<typename OP> struct microbench_ift;
+template<typename OP> struct microbench_conv;
+
 struct lingen_substep_characteristics {
-    typedef lingen_substep_characteristics<OP> ch_t;
+    typedef lingen_substep_characteristics ch_t;
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
     typedef lingen_tuning_cache tc_t;
@@ -30,8 +36,13 @@ struct lingen_substep_characteristics {
     gmp_randstate_t & rstate;
 
     /* length of the input (E) for the call under consideration ; this is
-     * not the input length for the overall algorithm ! */
+     * not the input length for the overall algorithm !
+     *
+     * We only use it for printing.
+     * */
     size_t input_length;
+
+    op_mul_or_mp_base::op_type_t op_type;
 
     /* We're talking products (or any other bilinear operation that uses
      * transforms 1 by 1, e.g. MP) of matrices of size n0*n1 and n1*n2
@@ -47,38 +58,26 @@ struct lingen_substep_characteristics {
      */
     size_t asize, bsize, csize;
 
-    private:
-
-    std::array<size_t, 3> fft_alloc_sizes;
-    OP op;
-    typedef typename lingen_tuning_cache_key<OP>::key_type cache_key_type;
-    typedef typename lingen_tuning_cache_key<OP>::value_type cache_value_type;
-
     public:
 
-    lingen_substep_characteristics(abdst_field ab, gmp_randstate_t & rstate, size_t input_length, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
+    lingen_substep_characteristics(abdst_field ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
         input_length(input_length),
+        op_type(op_type),
         n0(n0), n1(n1), n2(n2),
         asize(asize), bsize(bsize), csize(csize)
     {
 #ifdef SELECT_MPFQ_LAYER_u64k1
         mpz_set_ui(p, 2);
-        op = OP(asize, bsize);
+        // op = OP(asize, bsize);
 #else
         mpz_set(p, abfield_characteristic_srcptr(ab));
-        op = OP(p, asize, bsize, n1);
+        // op = OP(p, asize, bsize, n1);
 #endif
-        fft_alloc_sizes = op.fti.get_alloc_sizes();
+        // fft_alloc_sizes = op.fti.get_alloc_sizes();
     }/*}}}*/
 
-    bool has_cached_time(tc_t const & C) const {/*{{{*/
-        cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
-        return C.has(K);
-    }/*}}}*/
-
-    private:
     static inline int max_threads() {
 #ifdef HAVE_OPENMP
         return omp_get_max_threads();
@@ -86,6 +85,12 @@ struct lingen_substep_characteristics {
         return 1;
 #endif
     }
+
+    private:
+    bool has_cached_time(tc_t const & C, lingen_substep_schedule::fft_type_t fft_type) const {/*{{{*/
+        lingen_tuning_cache::mul_or_mp_key K { op_type, fft_type, mpz_sizeinbase(p, 2), asize, bsize };
+        return C.has(K);
+    }/*}}}*/
 
     /* tl;dr: array of doubles is input, weighted_double is output.
      *
@@ -223,110 +228,10 @@ struct lingen_substep_characteristics {
      * "cache-cold" options are somewhat pessimistic.
      */
 
-#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+// #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
 
     public:
-    typedef double (lingen_substep_characteristics<OP>::*raw_timer_member)(unsigned int, unsigned int, unsigned int) const;
-
-    /* the three functions below return the WCT needed to do the
-     * operation named (name) doing it with (nparallel) threads working
-     * at the same time (at our level -- we don't preclude the use of
-     * more omp threads at the level below). The computation is repeated
-     * (n) times, and we work with allocated space that is (k) times
-     * bigger than what is necessary to accomodate the (nparallel)
-     * parallel calls.
-     */
-
-    struct microbench_dft { /*{{{*/
-        pc_t P;
-        ch_t const & U;
-        static constexpr const char * name = "dft";
-        microbench_dft(pc_t const& P, ch_t const & U) : P(P), U(U) {}
-        unsigned int max_parallel() {
-            size_t R = 0;
-            /* storage for one input coeff and one output transform */
-            R += U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
-            R += U.get_transform_ram();
-            /* plus the temp memory for the dft operation */
-            R += U.fft_alloc_sizes[1];
-            unsigned int n = P.available_ram / R;
-            /* TODO: we probably want to ask P about max_threads. */
-            n = std::min(n, (unsigned int) max_threads());
-            if (n == 0) throw std::overflow_error("not enough RAM");
-            return n;
-        }
-        double operator()(unsigned int nparallel) {
-            matpoly a(U.ab, nparallel, 1, U.asize);
-            a.zero_pad(U.asize);
-            a.fill_random(0, U.asize, U.rstate);
-            matpoly_ft<typename OP::FFT> ta(a.m, a.n, U.op.fti);
-            double tt = -wct_seconds();
-            matpoly_ft<typename OP::FFT>::dft(ta, a);
-            return tt + wct_seconds();
-        }
-    };/*}}}*/
-    struct microbench_ift { /*{{{*/
-        pc_t P;
-        ch_t const & U;
-        static constexpr const char * name = "ift";
-        microbench_ift(pc_t const& P, ch_t const & U) : P(P), U(U) {}
-        unsigned int max_parallel() {
-            size_t R = 0;
-            /* storage for one input transform and one output coeff */
-            R += U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
-            R += U.get_transform_ram();
-            /* plus the temp memory for the ift operation */
-            R += U.fft_alloc_sizes[1];
-            unsigned int n = P.available_ram / R;
-            /* TODO: we probably want to ask P about max_threads. */
-            n = std::min(n, (unsigned int) max_threads());
-            if (n == 0) throw std::overflow_error("not enough RAM");
-            return n;
-        }
-        double operator()(unsigned int nparallel) {
-            matpoly c(U.ab, nparallel, 1, U.csize);
-            matpoly_ft<typename OP::FFT> tc(c.m, c.n, U.op.fti);
-            /* This is important, since otherwise the inverse transform won't
-             * work */
-            c.set_size(U.csize);
-            tc.zero(); /* would be .fill_random(rstate) if we had it */
-            double tt = -wct_seconds();
-            matpoly_ft<typename OP::FFT>::ift(c, tc);
-            return tt + wct_seconds();
-        }
-    };/*}}}*/
-    struct microbench_conv { /*{{{*/
-        pc_t P;
-        ch_t const & U;
-        static constexpr const char * name = "conv";
-        microbench_conv(pc_t const& P, ch_t const & U) : P(P), U(U) {}
-        unsigned int max_parallel() {
-            /* for k = nparallel, we need 2k+1 transforms in ram */
-            size_t R = 0;
-            /* storage for two input transform */
-            R += 2 * U.get_transform_ram();
-            /* plus the temp memory for the addmul operation */
-            R += U.fft_alloc_sizes[1];
-            R += U.fft_alloc_sizes[2];
-            /* take into account the +1 transform */
-            unsigned int n = (P.available_ram - U.get_transform_ram()) / R;
-            /* TODO: we probably want to ask P about max_threads. */
-            n = std::min(n, (unsigned int) max_threads());
-            if (n == 0) throw std::overflow_error("not enough RAM");
-            return n;
-        }
-        double operator()(unsigned int nparallel) {
-            matpoly c(U.ab, nparallel, 1, U.csize);
-            matpoly_ft<typename OP::FFT> tc(c.m, c.n, U.op.fti);
-            /* This is important, since otherwise the inverse transform won't
-             * work */
-            c.set_size(U.csize);
-            tc.zero(); /* would be .fill_random(rstate) if we had it */
-            double tt = -wct_seconds();
-            matpoly_ft<typename OP::FFT>::ift(c, tc);
-            return tt + wct_seconds();
-        }
-    };/*}}}*/
+    // typedef double (lingen_substep_characteristics::*raw_timer_member)(unsigned int, unsigned int, unsigned int) const;
 
     private:
     template<typename T>
@@ -363,15 +268,25 @@ struct lingen_substep_characteristics {
         /* does that count as non-odr-use ? */
         constexpr const char * Fname = F.name;
 
-        os << "# wct for " << Fname << " by nthreads:";
-
         unsigned int TMAX = max_threads();
+
+        std::vector<double> tvec(TMAX + 1, -1);
+
+        if (Fname == NULL) {
+            tvec[1] = tvec[TMAX] = 0;
+            return tvec;
+        }
+
+        os << fmt::sprintf("# %s;%s wct for %s by nthreads:",
+                F.op.op_name(),
+                lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
+                Fname
+                );
+
         if (F.max_parallel() < TMAX) {
             TMAX = F.max_parallel();
             os << fmt::format(" [capped to {}]", TMAX);
         }
-
-        std::vector<double> tvec(TMAX + 1, -1);
 
         unsigned int kl = 1;
         double tl = F(kl);
@@ -396,7 +311,7 @@ struct lingen_substep_characteristics {
 
     private:
     template<typename T>
-    parallelizable_timing get_ft_time_from_cache_or_recompute(std::ostream& os, T F, typename cache_value_type::value_type & store) const
+    parallelizable_timing get_ft_time_from_cache_or_recompute(std::ostream& os, T F, tc_t::mul_or_mp_value::value_type & store) const
     {
         if (!store.empty()) {
             /* what do we have in cache, to start with ? We need to know how
@@ -429,8 +344,10 @@ struct lingen_substep_characteristics {
         return parallelizable_timing(tvec);
     }
 
-    std::array<parallelizable_timing, 4> get_ft_times(std::ostream& os, pc_t const& P, tc_t & C) const {/*{{{*/
-        cache_key_type K { mpz_sizeinbase(p, 2), asize, bsize };
+    template<typename OP>
+    std::array<parallelizable_timing, 4> get_ft_times(std::ostream& os, OP const & op, pc_t const& P, lingen_substep_schedule const & S, tc_t & C) const {/*{{{*/
+        lingen_tuning_cache::mul_or_mp_key K { op_type, S.fft_type, mpz_sizeinbase(p, 2), asize, bsize };
+        typedef lingen_tuning_cache::mul_or_mp_value cache_value_type;
         
         std::array<parallelizable_timing, 4> res;
         cache_value_type cached_res;
@@ -439,19 +356,19 @@ struct lingen_substep_characteristics {
             cached_res = C[K];
 
         {
-            microbench_dft F(P, *this);
+            microbench_dft<OP> F(op, P, *this);
             res[0] = get_ft_time_from_cache_or_recompute(os, F, cached_res[0]);
             res[1] = res[0];
             cached_res[1] = cached_res[0];
         }
 
         {
-            microbench_ift F(P, *this);
+            microbench_ift<OP> F(op, P, *this);
             res[2] = get_ft_time_from_cache_or_recompute(os, F, cached_res[2]);
         }
 
         {
-            microbench_conv F(P, *this);
+            microbench_conv<OP> F(op, P, *this);
             res[3] = get_ft_time_from_cache_or_recompute(os, F, cached_res[3]);
         }
 
@@ -465,7 +382,6 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 
     public:
-    size_t get_transform_ram() const { return fft_alloc_sizes[0]; }
     /* {{{ std::tuple<size_t, size_t, size_t> get_operand_ram() const {
         return {
             n0 * n1 * asize * mpz_size(p) * sizeof(mp_limb_t),
@@ -504,7 +420,7 @@ struct lingen_substep_characteristics {
     subdivision shrink_split2(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split2(P, S.shrink2);
     }/*}}}*/
-    std::array<unsigned int, 3> get_peak_ram_multipliers(pc_t const & P, sc_t const & S) const { /* {{{ */
+    std::array<std::array<unsigned int, 3>, 2> get_peak_ram_multipliers(pc_t const & P, sc_t const & S) const { /* {{{ */
         unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
 
@@ -535,34 +451,95 @@ struct lingen_substep_characteristics {
             * (fft_alloc_sizes[1] + fft_alloc_sizes[2]);
         return live_transforms + std::max(maxtemp_ft, maxtemp_addmul);
         */
-        if (mul1 * fft_alloc_sizes[1] < mul12 * (fft_alloc_sizes[1] + fft_alloc_sizes[2])) {
-            return {{ mul0, mul12, mul12 }};
-        } else {
-            return {{ mul0, mul1, 0 }};
+        return {{
+            // if (mul1 * op.get_alloc_sizes()[1] < mul12 *
+            // (op.get_alloc_sizes()[1] + op.get_alloc_sizes()[2])) then
+            // the largest amount of ram is with the first of the two
+            // options below.
+            {{ mul0, mul12, mul12 }},
+            {{ mul0, mul1, 0 }}
+        }};
+    }
+    /*}}}*/
+    size_t get_peak_ram(op_mul_or_mp_base const & op, pc_t const & P, sc_t const & S) const { /* {{{ */
+        auto multipliers = get_peak_ram_multipliers(P, S);
+        size_t rpeak = 0;
+        for(auto const & M : multipliers) {
+            size_t r = 0;
+            for(unsigned int i = 0 ; i < 3 ; i++)
+                r += M[i] * op.get_alloc_sizes()[i];
+            if (r > rpeak) rpeak = r;
         }
+        return rpeak;
     }
     /*}}}*/
     size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
-        std::array<unsigned int, 3> multipliers = get_peak_ram_multipliers(P, S);
-        size_t r = 0;
-        for(unsigned int i = 0 ; i < 3 ; i++)
-            r += multipliers[i] * fft_alloc_sizes[i];
-        return r;
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
+        return get_peak_ram(*op, P, S);
     }
     /*}}}*/
 
+    bool fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const {
+        try {
+            std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            {
+                auto x = dynamic_cast<op_mul<gf2x_ternary_fft_info> const *>(op.get());
+                if (x)
+                    return x->fti.K != 0;
+            }
+            {
+                auto x = dynamic_cast<op_mp<gf2x_ternary_fft_info> const *>(op.get());
+                if (x)
+                    return x->fti.K != 0;
+            }
+#endif
+        } catch (std::exception const &) {
+            return false;
+        }
+        return true;
+    }
+
+
     private:
 
-    std::array<parallelizable_timing, 6> get_call_time_backend(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    struct call_time_digest {
+        parallelizable_timing T_dft0;
+        parallelizable_timing T_dft2;
+        parallelizable_timing T_conv;
+        parallelizable_timing T_ift;
+        parallelizable_timing T_comm0;
+        parallelizable_timing T_comm2;
+        std::array<size_t, 3> fft_alloc_sizes;
+        double total() const {
+            double tt = 0;
+            tt += T_dft0;
+            tt += T_dft2;
+            tt += T_conv;
+            tt += T_ift;
+            tt += T_comm0;
+            tt += T_comm2;
+            return tt;
+        }
+    };
+
+    template<typename OP>
+    call_time_digest get_call_time_backend(
+            std::ostream& os,
+            OP const & op,
+            pc_t const & P,
+            sc_t const & S,
+            tc_t & C) const
+    { /* {{{ */
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
-        auto ft = get_ft_times(os, P, C);
+        auto ft = get_ft_times(os, op, P, S, C);
         /* These are just base values, we'll multiply them later on */
         parallelizable_timing T_dft0 = ft[0];
         parallelizable_timing T_dft2 = ft[1];
-        parallelizable_timing T_conv = ft[2];
-        parallelizable_timing T_ift = ft[3];
+        parallelizable_timing T_ift = ft[2];
+        parallelizable_timing T_conv = ft[3];
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
@@ -603,7 +580,8 @@ struct lingen_substep_characteristics {
 
         /* Now the communication time _per call_ */
         /* TODO: maybe include some model of latency... */
-        parallelizable_timing T = get_transform_ram() / P.mpi_xput;
+        /* FIXME: This is wrong with the non-caching approach */
+        parallelizable_timing T = op.get_alloc_sizes()[0] / P.mpi_xput;
         T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
         /* allgather over n nodes */
         T *= mesh_inner_size(P) - 1;
@@ -612,35 +590,118 @@ struct lingen_substep_characteristics {
         T_comm0 *= S.batch[0] * iceildiv(nrs0, S.batch[0]);
         T_comm2 *= S.batch[2] * iceildiv(nrs2, S.batch[2]);
 
-        T_dft0 *= S.shrink0 * S.shrink2;
-        T_dft2 *= S.shrink0 * S.shrink2;
-        T_conv *= S.shrink0 * S.shrink2;
-        T_ift  *= S.shrink0 * S.shrink2;
-        T_comm0 *= S.shrink0 * S.shrink2;
-        T_comm2 *= S.shrink0 * S.shrink2;
+        call_time_digest ret;
+
+        ret.T_dft0 = T_dft0 *= S.shrink0 * S.shrink2;
+        ret.T_dft2 = T_dft2 *= S.shrink0 * S.shrink2;
+        ret.T_conv = T_conv *= S.shrink0 * S.shrink2;
+        ret.T_ift  = T_ift  *= S.shrink0 * S.shrink2;
+        ret.T_comm0 = T_comm0 *= S.shrink0 * S.shrink2;
+        ret.T_comm2 = T_comm2 *= S.shrink0 * S.shrink2;
+        ret.fft_alloc_sizes = op.get_alloc_sizes();
 
         /* This is for _one_ call only (one node in the tree).
          * We must apply multiplier coefficients (typically 1<<depth) */
-        return {{ T_dft0, T_dft2, T_conv, T_ift, T_comm0, T_comm2 }};
+        return ret;
+    }/*}}}*/
+
+    std::shared_ptr<op_mul_or_mp_base> instantiate(lingen_substep_schedule::fft_type_t fft_type) const
+    {
+        /* must create the op type from the lingen_substep_schedule
+         * (a.k.a. sc_t) type */ 
+        switch(op_type) {
+            case op_mul_or_mp_base::OP_MP:
+                switch(fft_type) {
+                    case lingen_substep_schedule::FFT_NONE:
+                        return std::make_shared<op_mp<void>>(p, asize, bsize, n1);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                    case lingen_substep_schedule::FFT_FLINT:
+                        return std::make_shared<op_mp<fft_transform_info>>(p, asize, bsize, n1);
+#else
+                    case lingen_substep_schedule::FFT_CANTOR:
+                        return std::make_shared<op_mp<gf2x_cantor_fft_info>>(p, asize, bsize, n1);
+                    case lingen_substep_schedule::FFT_TERNARY:
+                        return std::make_shared<op_mp<gf2x_ternary_fft_info>>(p, asize, bsize, n1);
+#endif
+                    default:
+                        throw std::runtime_error("invalid data (fft_type)");
+                }
+            case op_mul_or_mp_base::OP_MUL:
+                switch(fft_type) {
+                    case lingen_substep_schedule::FFT_NONE:
+                        return std::make_shared<op_mul<void>>(p, asize, bsize, n1);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                    case lingen_substep_schedule::FFT_FLINT:
+                        return std::make_shared<op_mul<fft_transform_info>>(p, asize, bsize, n1);
+#else
+                    case lingen_substep_schedule::FFT_CANTOR:
+                        return std::make_shared<op_mul<gf2x_cantor_fft_info>>(p, asize, bsize, n1);
+                    case lingen_substep_schedule::FFT_TERNARY:
+                        return std::make_shared<op_mul<gf2x_ternary_fft_info>>(p, asize, bsize, n1);
+#endif
+                    default:
+                        throw std::runtime_error("invalid data (fft_type)");
+                }
+            default:
+                throw std::runtime_error("invalid data (op)");
+        }
+    }
+
+    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+        switch(op_type) {
+            case op_mul_or_mp_base::OP_MP:
+                switch(S.fft_type) {
+                    case lingen_substep_schedule::FFT_NONE:
+                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, S, C);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                    case lingen_substep_schedule::FFT_FLINT:
+                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, S, C);
+#else
+                    case lingen_substep_schedule::FFT_CANTOR:
+                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, S, C);
+                    case lingen_substep_schedule::FFT_TERNARY:
+                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, S, C);
+#endif
+                    default:
+                        throw std::runtime_error("invalid data (fft_type)");
+                }
+            case op_mul_or_mp_base::OP_MUL:
+                switch(S.fft_type) {
+                    case lingen_substep_schedule::FFT_NONE:
+                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, S, C);
+#ifndef SELECT_MPFQ_LAYER_u64k1
+                    case lingen_substep_schedule::FFT_FLINT:
+                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, S, C);
+#else
+                    case lingen_substep_schedule::FFT_CANTOR:
+                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, S, C);
+                    case lingen_substep_schedule::FFT_TERNARY:
+                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, S, C);
+#endif
+                    default:
+                        throw std::runtime_error("invalid data (fft_type)");
+                }
+            default:
+                throw std::runtime_error("invalid data (op)");
+        }
+
     }/*}}}*/
 
     public:
 
-
     lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
-        lingen_call_companion::mul_or_mp_times D;
+        lingen_call_companion::mul_or_mp_times D { op_type };
         D.S = S;
         auto A = get_call_time_backend(os, P, S, C); 
-        double tt = 0;
-        for(auto const & a : A) tt = tt + a;
+        double tt = A.total();
         D.tt = { 1, tt };
-        D.t_dft_A = A[0];
-        D.t_dft_B = A[1];
-        D.t_conv = A[2];
-        D.t_ift_C = A[3];
-        D.t_dft_A_comm = A[4];
-        D.t_dft_B_comm = A[5];
-        D.fft_alloc_sizes = fft_alloc_sizes;
+        D.t_dft_A = A.T_dft0;
+        D.t_dft_B = A.T_dft2;
+        D.t_conv = A.T_conv;
+        D.t_ift_C = A.T_ift;
+        D.t_dft_A_comm = A.T_comm0;
+        D.t_dft_B_comm = A.T_comm2;
+        D.fft_alloc_sizes = A.fft_alloc_sizes;
         D.peak_ram_multipliers = get_peak_ram_multipliers(P, S);
         D.asize = asize;
         D.bsize = bsize;
@@ -648,11 +709,7 @@ struct lingen_substep_characteristics {
         return D;
     }/*}}}*/
     double get_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const {/*{{{*/
-        auto A = get_call_time_backend(os, P, S, C);
-        double tt = 0;
-        for(auto const & a : A)
-            tt = tt + a;
-        return tt;
+        return get_call_time_backend(os, P, S, C).total();
     }/*}}}*/
 
     private:
@@ -692,21 +749,22 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 
     double get_and_report_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
-        const char * step = OP::name;
-        bool cached = has_cached_time(C);
-        char buf[20];
-
-        std::string explanation = op.fti.explain();
-        os << fmt::sprintf("# %s\n", explanation.c_str());
-        os << fmt::sprintf("# %s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
-                step,
+        bool cached = has_cached_time(C, S.fft_type);
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
+        os << fmt::sprintf("# %s;%s wins : %s\n",
+                op_mul_or_mp_base::op_name(op_type),
+                S.fft_name(),
+                op->explain());
+        os << fmt::sprintf("# %s;%s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+                op_mul_or_mp_base::op_name(op_type),
+                S.fft_name(),
                 input_length,
                 S.shrink0,
                 S.shrink2,
                 S.batch[0],
                 S.batch[1],
                 S.batch[2],
-                size_disp(get_peak_ram(P, S), buf));
+                size_disp(get_peak_ram(*op, P, S)));
         os << std::flush;
         double tt = get_call_time(os, P, S, C);
         os << fmt::sprintf("%.2f%s\n",
@@ -715,22 +773,190 @@ struct lingen_substep_characteristics {
         return tt;
     }/*}}}*/
 
-    void report_size_stats_human(std::ostream& os) const {/*{{{*/
-        char buf[4][20];
-        const char * step = OP::name;
-
+#if 0
+    void report_size_stats_human(std::ostream& os, sc_t const & S) const {/*{{{*/
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
         os << fmt::sprintf("# %s (per op): %s+%s+%s, transforms 3*%s\n",
-                step,
-                size_disp(asize*mpz_size(p)*sizeof(mp_limb_t), buf[0]),
-                size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t), buf[1]),
-                size_disp(csize*mpz_size(p)*sizeof(mp_limb_t), buf[2]),
-                size_disp(get_transform_ram(), buf[3]));
+                step_name(),
+                size_disp(asize*mpz_size(p)*sizeof(mp_limb_t)),
+                size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t)),
+                size_disp(csize*mpz_size(p)*sizeof(mp_limb_t)),
+                size_disp(op->get_alloc_sizes()[0]));
         os << fmt::sprintf("# %s (total for %u*%u * %u*%u): %s, transforms %s\n",
-                step,
+                step_name(),
                 n0,n1,n1,n2,
-                size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t), buf[0]),
-                size_disp((n0*n1+n1*n2+n0*n2)*get_transform_ram(), buf[1]));
+                size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t)),
+                size_disp((n0*n1+n1*n2+n0*n2)*op->get_alloc_sizes()[0]));
     }/*}}}*/
+#endif
 };
+
+/* the three structs below return the WCT needed to do the
+ * operation named (name) doing it with (nparallel) threads working
+ * at the same time (at our level -- we don't preclude the use of
+ * more omp threads at the level below). The computation is repeated
+ * (n) times, and we work with allocated space that is (k) times
+ * bigger than what is necessary to accomodate the (nparallel)
+ * parallel calls.
+ */
+
+template<typename OP_T>
+struct microbench_dft { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef OP_T OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = "dft";
+    microbench_dft(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() {
+        size_t R = 0;
+        /* storage for one input coeff and one output transform */
+        R += U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
+        R += op.get_alloc_sizes()[0];
+        /* plus the temp memory for the dft operation */
+        R += op.get_alloc_sizes()[1];
+        unsigned int n = P.available_ram / R;
+        /* TODO: we probably want to ask P about max_threads. */
+        n = std::min(n, (unsigned int) U.max_threads());
+        if (n == 0) throw std::overflow_error("not enough RAM");
+        return n;
+    }
+    double operator()(unsigned int nparallel)
+    {
+        matpoly a(U.ab, nparallel, 1, U.asize);
+        a.zero_pad(U.asize);
+        a.fill_random(0, U.asize, U.rstate);
+        matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
+        double tt = -wct_seconds();
+        matpoly_ft<typename OP::FFT>::dft(ta, a);
+        return tt + wct_seconds();
+    }
+};/*}}}*/
+template<typename OP_T>
+struct microbench_ift { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef OP_T OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = "ift";
+    microbench_ift(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() {
+        size_t R = 0;
+        /* storage for one input transform and one output coeff */
+        R += U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
+        R += op.get_alloc_sizes()[0];
+        /* plus the temp memory for the ift operation */
+        R += op.get_alloc_sizes()[1];
+        unsigned int n = P.available_ram / R;
+        /* TODO: we probably want to ask P about max_threads. */
+        n = std::min(n, (unsigned int) U.max_threads());
+        if (n == 0) throw std::overflow_error("not enough RAM");
+        return n;
+    }
+    double operator()(unsigned int nparallel) {
+        matpoly c(U.ab, nparallel, 1, U.csize);
+        matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
+        /* This is important, since otherwise the inverse transform won't
+         * work */
+        c.set_size(U.csize);
+        tc.zero(); /* would be .fill_random(rstate) if we had it */
+        double tt = -wct_seconds();
+        matpoly_ft<typename OP::FFT>::ift(c, tc);
+        return tt + wct_seconds();
+    }
+};/*}}}*/
+template<typename OP_T>
+struct microbench_conv { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef OP_T OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = "conv";
+    microbench_conv(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() {
+        /* for k = nparallel, we need 2k+1 transforms in ram */
+        size_t R = 0;
+        /* storage for two input transform */
+        R += 2 * op.get_alloc_sizes()[0];
+        /* plus the temp memory for the addmul operation */
+        R += op.get_alloc_sizes()[1];
+        R += op.get_alloc_sizes()[2];
+        /* take into account the +1 transform */
+        unsigned int n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
+        /* TODO: we probably want to ask P about max_threads. */
+        n = std::min(n, (unsigned int) U.max_threads());
+        if (n == 0) throw std::overflow_error("not enough RAM");
+        return n;
+    }
+    double operator()(unsigned int nparallel) {
+        matpoly c(U.ab, nparallel, 1, U.csize);
+        matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
+        /* This is important, since otherwise the inverse transform won't
+         * work */
+        c.set_size(U.csize);
+        tc.zero(); /* would be .fill_random(rstate) if we had it */
+        double tt = -wct_seconds();
+        matpoly_ft<typename OP::FFT>::ift(c, tc);
+        return tt + wct_seconds();
+    }
+};/*}}}*/
+template<template<typename> class META_OP>
+struct microbench_dft<META_OP<void>> { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef META_OP<void> OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = NULL;
+    microbench_dft(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() { return U.max_threads(); }
+    double operator()(unsigned int) { return 0; }
+};/*}}}*/
+template<template<typename> class META_OP>
+struct microbench_ift<META_OP<void>> { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef META_OP<void> OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = NULL;
+    microbench_ift(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() { return U.max_threads(); }
+    double operator()(unsigned int) { return 0; }
+};/*}}}*/
+template<template<typename> class META_OP>
+struct microbench_conv<META_OP<void>> { /*{{{*/
+    typedef lingen_substep_characteristics ch_t;
+    typedef lingen_platform pc_t;
+    typedef META_OP<void> OP;
+    OP op;
+    pc_t P;
+    ch_t const & U;
+    static constexpr const char * name = "product";
+    microbench_conv(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    unsigned int max_parallel() { return U.max_threads(); }
+    double operator()(unsigned int nparallel) {
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        matpoly a(U.ab, nparallel, splitwidth, U.asize);
+        matpoly b(U.ab, splitwidth, 1, U.asize);
+        a.zero_pad(U.asize);
+        a.fill_random(0, U.asize, U.rstate);
+        b.zero_pad(U.bsize);
+        b.fill_random(0, U.bsize, U.rstate);
+        matpoly c(U.ab, nparallel, 1, U.csize);
+        c.zero_pad(U.csize);
+        double tt = -wct_seconds();
+        OP::addcompose(c, a, b);
+        return (tt + wct_seconds()) / splitwidth;
+    }
+};/*}}}*/
 
 #endif	/* LINGEN_SUBSTEP_CHARACTERISTICS_HPP_ */

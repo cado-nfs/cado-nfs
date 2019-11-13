@@ -542,8 +542,6 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
 
         if (!M) return;
 
-        constexpr const char * opname = OP_T::name;
-
         /* The smallstep "MP" or "MUL" has already been planned since the
          * first entry in the recursive function in lingen.cpp -- here
          * we're only beginning the planning of the small steps. This
@@ -554,7 +552,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
          * operator()() and the other functions, must be reflected in
          * lingen_substep_characteristics::get_call_time_backend
          */
-        begin_plan_smallstep_microsteps(opname);
+        begin_plan_smallstep_microsteps(OP.op_name());
         plan_smallstep("gather_A", M->t_dft_A);
         plan_smallstep("gather_B", M->t_dft_B);
         plan_smallstep("addmul", M->t_conv);
@@ -714,8 +712,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     }/*}}}*/
 
     void operator()() {
-        constexpr const char * opname = OP_T::name;
-        begin_smallstep(opname);
+        begin_smallstep(OP.op_name());
 
         alloc_c_if_needed(OP.csize);
 
