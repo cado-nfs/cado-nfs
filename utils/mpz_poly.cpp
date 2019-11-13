@@ -2307,7 +2307,7 @@ mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P,
    Assume l > 0.
 */
 mpz_poly*
-mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, int *K, int l)
+mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
 {
   mpz_poly *P;
   int k, i, j;

@@ -62,7 +62,7 @@ the better, but then polynomial selection will last longer).
 For instance, the 30-digit example above can be done with JL polynomial
 selection with the following command-line:
 
-$ ./cado-nfs.py -dlp -ell 101538509534246169632617439 191907783019725260605646959711 jlpoly=true tasks.polyselect.bound=5 tasks.polyselect.modm=5 tasks.polyselect.degree=3 tasks.reconstructlog.checkdlp=false
+$ ./cado-nfs.py -dlp -ell 101538509534246169632617439 191907783019725260605646959711 jlpoly=true tasks.polyselect.bound=5 tasks.polyselect.modm=7 tasks.polyselect.degree=3 tasks.reconstructlog.checkdlp=false
 
 In that case, the individual logarithm phase implementation is based on
 GMP-ECM, so this is available only if this library is installed and

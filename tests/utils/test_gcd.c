@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <stdint.h>
+#include <inttypes.h>
 #include <time.h>
 #include <gmp.h>
 #include "gcd.h"
@@ -9,7 +10,7 @@
 #include "tests_common.h"
 
 static void
-cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const int64_t g)
+cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const uint64_t g)
 {
   mpz_t ma, mb, mg;
   mpz_init (ma);
@@ -19,11 +20,13 @@ cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const int64_t g)
   mpz_set_int64 (ma, a);
   mpz_set_int64 (mb, b);
   mpz_gcd (mg, ma, mb);
+  /* mpz_gcd() is specified to be non-negative for all argument pairs */
+  uint64_t r = mpz_get_uint64 (mg);
   
-  if (mpz_get_int64 (mg) != g) {
-    fprintf (stderr, "GCD(%lld, %lld) = %lld is incorrect, GMP has %lld",
-             (long long) a, (long long) b, (long long) g,
-             (long long) mpz_get_int64 (mg));
+  if (r != g) {
+    fprintf (stderr, "GCD(%" PRId64 ", %" PRId64 ") = %" PRIu64
+             " is incorrect, GMP has %" PRIu64 "\n",
+             a, b, g, r);
     abort();
   }
 
@@ -45,10 +48,9 @@ cmp_mpz_gcd_ui64(const uint64_t a, const uint64_t b, const uint64_t g)
   mpz_gcd (mg, ma, mb);
   
   if (mpz_get_uint64 (mg) != g) {
-    fprintf (stderr, "GCD(%llu, %llu) = %llu is incorrect, GMP has %llu",
-             (unsigned long long) a, (unsigned long long int) b,
-             (unsigned long long int) g,
-             (unsigned long long) mpz_get_uint64 (mg));
+    fprintf (stderr, "GCD(%" PRIu64 ", %" PRIu64 ") = %" PRIu64
+             " is incorrect, GMP has %" PRIu64 "\n",
+             a, b, g, mpz_get_uint64 (mg));
     abort();
   }
 
@@ -60,7 +62,8 @@ cmp_mpz_gcd_ui64(const uint64_t a, const uint64_t b, const uint64_t g)
 void
 test_gcd_int64 (const unsigned long iter)
 {
-  int64_t a, b, g;
+  int64_t a, b;
+  uint64_t g;
   unsigned long i;
   
   for (i = 0; i < iter; i++)
@@ -107,7 +110,7 @@ test_gcd_ul (const unsigned long iter)
 void
 test_bin_gcd_int64_safe_ab (const int64_t a, const int64_t b)
 {
-  const int64_t g = bin_gcd_int64_safe (a, b);
+  const uint64_t g = bin_gcd_int64_safe (a, b);
   cmp_mpz_gcd_i64 (a, b, g);
 }
 

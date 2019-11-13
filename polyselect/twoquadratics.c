@@ -72,6 +72,19 @@ cado_poly_extended_get_E (cado_poly_extended poly)
   return poly->E;
 }
 
+void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
+    mpz_srcptr N) {
+  mpz_poly_ptr f0 = poly->poly->pols[0];
+  mpz_poly_ptr f1 = poly->poly->pols[1];
+
+  gmp_fprintf(out, "n: %Zd\n", N);
+  for (int i = 0; i < 3; i++)
+    gmp_fprintf(out, "c%d: %Zd\n", i, f0->coeff[i]);
+  for (int i = 0; i < 3; i++)
+    gmp_fprintf(out, "Y%d: %Zd\n", i, f1->coeff[i]);
+  fprintf(out, "skew: %1.2f\n", L2_combined_skewness2(f0, f1, SKEWNESS_DEFAULT_PREC));
+}
+
 void
 cado_poly_extended_print (FILE *out, cado_poly_extended poly, char *pre)
 {
@@ -308,6 +321,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
   param_list_decl_usage(pl, "Bg", str);
+  param_list_decl_usage(pl, "print", "print in cado_poly format");
   verbose_decl_usage(pl);
 }
 
@@ -321,7 +335,7 @@ int
 main (int argc, char *argv[])
 {
   char *argv0 = argv[0];
-  int verbose = 0, quiet = 0;
+  int verbose = 0, quiet = 0, print = 0;
 
   mpz_t N, minP, maxP, max_skewness;
   mpz_init (N);
@@ -337,6 +351,7 @@ main (int argc, char *argv[])
 
   param_list_configure_switch (pl, "-v", &verbose);
   param_list_configure_switch (pl, "-q", &quiet);
+  param_list_configure_switch (pl, "-print", &print);
 
   if (argc == 1)
     usage (argv[0], pl);
@@ -463,7 +478,8 @@ main (int argc, char *argv[])
         compute_m (m, sqrtN, r, P);
         MontgomeryTwoQuadratics (f, g, skew_used, N, P, m, max_skewness);
         cado_poly_set2 (cur_poly, f, g, N, skew_used);
-        double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K);
+        double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K,
+            ALPHA_BOUND);
         if(E > cado_poly_extended_get_E(best_poly))
           cado_poly_extended_set (best_poly, f, g, N, P, skew_used, E, m);
         if (verbose >= 1)
@@ -478,8 +494,13 @@ main (int argc, char *argv[])
     mpz_nextprime(P, P);
   }
 
-  printf("### Best polynomials found:\n");
-  cado_poly_extended_print (stdout, best_poly, "");
+  if (print) {
+    cado_poly_extended_print_cado_format(stdout, best_poly, N);
+    cado_poly_extended_print (stdout, best_poly, "# ");
+  } else {
+    printf("### Best polynomials found:\n");
+    cado_poly_extended_print (stdout, best_poly, "");
+  }
 
   mpz_clear(P);
   mpz_clear(sqrtN);

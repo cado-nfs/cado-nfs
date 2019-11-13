@@ -86,6 +86,17 @@ int is_supported_compression_format(const char * s)
     return 0;
 }
 
+int filename_matches_one_compression_format(const char * path)
+{
+    const struct suffix_handler * r = supported_compression_formats;
+
+    for( ; r->suffix ; r++) {
+        if (!*r->suffix) continue;
+        if (has_suffix(path, r->suffix)) return 1;
+    }
+    return 0;
+}
+
 void get_suffix_from_filename (char *s, char const **sfx)
 {
   const struct suffix_handler * r = supported_compression_formats;

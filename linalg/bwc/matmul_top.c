@@ -34,11 +34,12 @@
 /* choices for reduce-scatter */
 #define RS_CHOICE_STOCK_RS           1
 #define RS_CHOICE_STOCK_RSBLOCK      (MPI_VERSION_ATLEAST(2,2) ? 2 : -2)
-#define RS_CHOICE_STOCK_IRSBLOCK     (MPI_VERSION_ATLEAST(3,0) ? 3 : -3)
-#define RS_CHOICE_MINE               4
-#define RS_CHOICE_MINE_DROP_IN       (MPI_VERSION_ATLEAST(3,0) ? 5 : -5)
-#define RS_CHOICE_MINE_PARALLEL      6
-#define RS_CHOICE_MINE_OVERLAPPING   7  /* TODO */
+#define RS_CHOICE_STOCK_IRS          (MPI_VERSION_ATLEAST(3,0) ? 3 : -3)
+#define RS_CHOICE_STOCK_IRSBLOCK     (MPI_VERSION_ATLEAST(3,0) ? 4 : -4)
+#define RS_CHOICE_MINE               5
+#define RS_CHOICE_MINE_DROP_IN       (MPI_VERSION_ATLEAST(3,0) ? 6 : -6)
+#define RS_CHOICE_MINE_PARALLEL      7
+#define RS_CHOICE_MINE_OVERLAPPING   8  /* TODO */
 /* choices for all-gather */
 #define AG_CHOICE_STOCK_AG           1
 #define AG_CHOICE_STOCK_IAG          (MPI_VERSION_ATLEAST(3,0) ? 2 : -2)
@@ -53,13 +54,14 @@
  * RS_CHOICE_MINE_DROP_IN  .48
  * RS_CHOICE_STOCK_RS      .77
  * RS_CHOICE_STOCK_RSBLOCK 1.63    
- * RS_CHOICE_STOCK_IRSBLOCK        => seg fault
+ * RS_CHOICE_STOCK_IRS        => not measured
+ * RS_CHOICE_STOCK_IRSBLOCK        => not measured
  * RS_CHOICE_MINE_OVERLAPPING      => to be implemented
  */
 
 /* _this_ part can be configured */
-// #define RS_CHOICE RS_CHOICE_STOCK_RS
-// #define AG_CHOICE AG_CHOICE_STOCK_AG
+// #define RS_CHOICE RS_CHOICE_STOCK_IRSBLOCK
+// #define AG_CHOICE AG_CHOICE_STOCK_IAG
 #define RS_CHOICE RS_CHOICE_MINE_PARALLEL
 #define AG_CHOICE (MPI_VERSION_ATLEAST(3,0) ? AG_CHOICE_STOCK_IAG : AG_CHOICE_STOCK_AG)
 
@@ -1294,15 +1296,39 @@ mmt_vec_reduce_inner(mmt_vec_ptr v)
             ASSERT_ALWAYS(!err);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
+#elif RS_CHOICE == RS_CHOICE_STOCK_IRS
+        void * dptr = mmt_vec_sibling(v, 0)->v;
+        MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
+            SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
+                int err = MPI_Ireduce_scatter_block(dptr, dptr,
+                        (v->i1 - v->i0) / wr->njobs,
+                        v->pitype->datatype,
+                        BWC_PI_SUM->custom,
+                        wr->pals, &req[t__]);
+            ASSERT_ALWAYS(!err);
+            pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
+        }
+        SEVERAL_THREADS_PLAY_MPI_END();
+        serialize_threads(xr);
+        if (xr->trank == 0) {
+            for(unsigned int t = 0 ; t < xr->ncores ; t++) {
+                MPI_Wait(&req[t], MPI_STATUS_IGNORE);
+            }
+        }
+        shared_free(xr, req);
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
         void * dptr = mmt_vec_sibling(v, 0)->v;
         MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
-        SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
-            int err = MPI_Ireduce_scatter(dptr, dptr,
-                    (v->i1 - v->i0) / wr->njobs,
-                    v->pitype->datatype,
-                    BWC_PI_SUM->custom,
-                    wr->pals, &req[t__]);
+            int * rc = malloc(wr->njobs * sizeof(int));
+            for(unsigned int k = 0 ; k < wr->njobs ; k++)
+                rc[k] = (v->i1 - v->i0) / wr->njobs;
+            SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
+                int err = MPI_Ireduce_scatter(dptr, dptr,
+                        rc,
+                        v->pitype->datatype,
+                        BWC_PI_SUM->custom,
+                        wr->pals, &req[t__]);
+                free(rc);
             ASSERT_ALWAYS(!err);
             pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
         }

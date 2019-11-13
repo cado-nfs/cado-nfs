@@ -136,6 +136,15 @@ void free_aligned(void * p)
 #endif
 }
 
+/* if aligned_alloc is not provided, define it */
+#ifndef HAVE_ALIGNED_ALLOC
+void*
+aligned_alloc (size_t alignment, size_t size)
+{
+  return malloc_aligned (size, alignment);
+}
+#endif
+
 void *malloc_pagealigned(size_t sz)
 {
     void *p = malloc_aligned (sz, pagesize ());

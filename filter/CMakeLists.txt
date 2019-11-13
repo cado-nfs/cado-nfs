@@ -18,12 +18,13 @@ target_link_libraries(filter_galois utils_with_io)
 add_executable(purge ${purge_sources})
 target_link_libraries(purge utils_with_io)
 
-add_executable(merge merge.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)
+
+add_executable(merge merge.c mst.c merge_replay_matrix.c sparse.c transpose.c)
 target_link_libraries(merge utils_with_io)
 set_target_properties(merge PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
-add_executable(merge-dl merge.c markowitz.c mst.c report.c merge_mono.c merge_replay_matrix.c sparse.c)
+add_executable(merge-dl merge.c mst.c merge_replay_matrix.c sparse.c transpose.c)
 target_link_libraries(merge-dl utils_with_io)
 set_target_properties(merge-dl PROPERTIES
   COMPILE_FLAGS "-DFOR_DL ${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
@@ -35,7 +36,7 @@ add_executable(replay-dl replay.c sparse.c)
 target_link_libraries(replay-dl utils_with_io)
 set_target_properties(replay-dl PROPERTIES COMPILE_FLAGS "-DFOR_DL")
 
-add_executable(reconstructlog-dl reconstructlog.c)
+add_executable(reconstructlog-dl reconstructlog.cpp)
 target_link_libraries(reconstructlog-dl utils_with_io)
 
 add_executable(sm_simple sm_simple.cpp)

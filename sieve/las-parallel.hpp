@@ -27,7 +27,8 @@ class las_parallel_desc {
     friend struct helper;
     std::shared_ptr<helper> help;
 public:
-    /* when we apply the "loose" cpu binding, we often do this to process
+#if 0
+    /* The "loose" cpu binding, is often used to process
      * or prepare data that is of interest to all cores, and we wish to
      * do that collectively. We wonder, however, how many threads this
      * means. The following rules are followed:
@@ -38,6 +39,13 @@ public:
      *  - with job replication: total number of PUs on the machine.
      */
     int number_of_threads_loose() const;
+#else
+    /* changed my mind. I don't see why number_of_threads_loose() and
+     * number_of_threads_total() would be different things.
+     */
+    inline int number_of_threads_loose() const { return number_of_threads_total();
+    }
+#endif
 
     int number_of_memory_binding_zones() const { return nmemory_binding_zones; }
     int number_of_subjobs_per_cpu_binding_zone() const { return nsubjobs_per_cpu_binding_zone; }

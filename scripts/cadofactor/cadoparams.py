@@ -3,28 +3,28 @@
 """
 Parameter file format
 
-Parameters for tasks and programs follow a hierarchical namespace, a tree 
-similar to a directory structure, but with segments separated by the period 
+Parameters for tasks and programs follow a hierarchical namespace, a tree
+similar to a directory structure, but with segments separated by the period
 character: "."
 E.g., the parameters of the task "foo" live under
 tasks.foo
-Any parameters specified in the path to a node are considered when looking 
-for a parameter in a node; parameters late in the path take precedence. 
+Any parameters specified in the path to a node are considered when looking
+for a parameter in a node; parameters late in the path take precedence.
 Hence with:
 
 threads = 2
 tasks.sieve.threads = 1
 
-the sieving task will use the value 1 for the threads parameter, while other 
-tasks use the value 2 (unless they specify a different value in their
-subtree).
+the sieving tasks (makefb, freerel, las) will use the value 1 for the threads
+parameter, while other tasks use the value 2 (unless they specify a different
+value in their subtree).
 
 Tasks run programs, and those have their own node in the parameter tree.
 For example, with
 threads = 2
 tasks.sieve.las.threads = 1
-the theads=1 parameter would apply only to the las program, but not to any 
-other programs run during the sieving tasks, if there were any. The name of 
+the threads=1 parameter would apply only to the las program, but not to any
+other programs run during the sieving tasks, if there were any. The name of
 the node of a program is usually equal to the name of the binary executable.
 """
 
@@ -83,7 +83,7 @@ class Parameters(object):
     # all parameters have been accessed, so that a warning can be printed
     # about parameters in the parameter file that are not used by anything,
     # which might indicate a misspelling, etc.
-    
+
     def __init__(self, verbose=False):
         self.data = {}
         self._have_read_defaults = False

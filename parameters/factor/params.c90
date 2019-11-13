@@ -306,7 +306,7 @@ tasks.sieve.adjust_strategy = 0         # Sieving strategy
     # from lpb0 and lpb1. Warning: if you change lpb0/lpb1, be careful
     # to adjust rels_wanted if it is hard-coded.
 
-#tasks.sieve.threads = 2
+#tasks.sieve.las.threads = 2
     # The lattice siever program las may run in a multithreaded manner.
     # This keeps the amount of memory used constant, and just runs
     # faster.
@@ -322,8 +322,6 @@ tasks.filter.add_ratio = 0.1
     # Number of additional required relations before next filtering step
     # expressed as a ratio of the number of unique relations already collected
     # Default value is 0.1 (i.e. number of additional relation is equal to 10% of number of unique relations)
-# tasks.filter.maxlevel = 20		# perform up to <maxlevel>-way merges
-                                        # (no need to define it anymore)
 tasks.filter.target_density = 170       # stop merging when the average density
 				        # per row attains target_density
 tasks.filter.required_excess=0.0        # Controls extra sieving:

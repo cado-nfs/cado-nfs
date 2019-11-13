@@ -625,7 +625,10 @@ def run_command(command, print_error=True, **kwargs):
         command_str = " ".join(command)
         close_fds = False
     else:
-        close_fds = True
+        # changed close_fds from True to False, since otherwise the 'las'
+        # clients are not killed when merge starts
+        # see https://gforge.inria.fr/tracker/?func=detail&aid=21718
+        close_fds = False
 
     logging.info ("Running %s", command_str)
 
@@ -635,9 +638,11 @@ def run_command(command, print_error=True, **kwargs):
                              close_fds=close_fds,
                              **kwargs)
 
+    logging.info ("[%s] Subprocess has PID %d", time.asctime(), child.pid)
+
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
-    # subprocess, too, so that the system is not kepy busy with
+    # subprocess, too, so that the system is not kept busy with
     # orphaned processes.
     # Python installs by default a signal handler for SIGINT which
     # raises the KeyboardInterrupt exception. This is convenient, as
@@ -653,9 +658,12 @@ def run_command(command, print_error=True, **kwargs):
     try:
         (stdout, stderr) = child.communicate()
     except KeyboardInterrupt:
-        logging.critical("KeyboardInterrupt received, killing child "
-                         "process with PID %d", child.pid)
+        logging.critical("[%s] KeyboardInterrupt received, killing child "
+                         "process with PID %d", time.asctime(), child.pid)
         child.terminate()
+        (stdout, stderr) = child.communicate()
+        logging.error("[%s] Terminated command resulted in exit code %d",
+            time.asctime(), child.returncode)
         raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
     
     # Un-install our handler and revert to the default handler
@@ -1122,7 +1130,7 @@ class WorkunitClient(object):
     
     def get_missing_file(self, urlpath, filename, checksum=None,
                          options=None, force_reload=False):
-        """ Downloads a file if it does not exit already.
+        """ Downloads a file if it does not exist already.
 
         Also checks the checksum, if specified; if the file already exists and
         has a wrong checksum, it is deleted an downloaded anew. If the
@@ -1308,7 +1316,7 @@ class WorkunitClient(object):
             # ret is false (if not ret).
             # Then we can search for a particular string in stderr as follows:
             # ret = processor.run_commands()
-            # if not ret and re.search("xyx", processor.stdio["stderr"][0]):
+            # if not ret and re.search("xyx", str(processor.stdio["stderr"][0])):
             #    output_something_to_some_log_file
             #    sys.exit(1)
             # this is useful if a given error always happens on a given machine
