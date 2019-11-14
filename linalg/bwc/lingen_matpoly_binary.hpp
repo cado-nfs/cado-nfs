@@ -201,12 +201,16 @@ public:
 
     /* We have nothing terrific to identify as substeps here, and there's
      * no schedule information that we intend to exploit */
-    static matpoly mp(tree_stats &, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times *)
+    static matpoly mp(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M)
     {
+        if (!M) return mp(a, b);
+        tree_stats::smallstep_sentinel dummy(stats, M->step_name());
         return mp(a, b);
     }
 
-    static matpoly mul(tree_stats &, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times *) {
+    static matpoly mul(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+        if (!M) return mul(a, b);
+        tree_stats::smallstep_sentinel dummy(stats, M->step_name());
         return mul(a, b);
     }
  

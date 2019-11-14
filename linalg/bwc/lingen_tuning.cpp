@@ -99,6 +99,8 @@ lingen_substep_schedule optimize(std::ostream& os, lingen_substep_characteristic
         if (!U.fft_type_valid(fft)) continue;
         for(unsigned int shrink0 : all_splits_of(nr0)) {
             for(unsigned int shrink2 : all_splits_of(nr2)) {
+                if (fft == lingen_substep_schedule::FFT_NONE)
+                    if (shrink0 > 1 || shrink2 > 1) continue;
                 unsigned int nrs0 = U.shrink_split0(P, shrink0).block_size_upper_bound();
                 unsigned int nrs2 = U.shrink_split2(P, shrink2).block_size_upper_bound();
                 /* first the splits with b0 == nrs0 */

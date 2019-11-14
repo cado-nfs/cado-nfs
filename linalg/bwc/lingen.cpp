@@ -55,19 +55,7 @@
 #include "lingen_checkpoints.hpp"
 #include "lingen_tuning.hpp"
 #include "sha1.h"
-
-/* Call tree for methods within this program:
- *
- * Two separate entry points.
- *
- * bw_biglingen_collective        when need to go collective
- *     |<--> bw_biglingen_recursive , loops to bw_biglingen_collective
- *     \->bw_lingen_single               when it makes sense to do this locally again
- * bw_lingen_single                      when computation can be done locally
- *    |<->bw_lingen_recursive
- *    |->bw_lingen_basecase
- *
- */
+#include "fmt/printf.h"
 
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
@@ -189,10 +177,7 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            {
-                tree_stats::smallstep_sentinel dummy(bm.stats, C.mp.step_name());
-                return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
-            }
+            return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1
             return matching_ft_type<matpoly_type,
@@ -224,11 +209,7 @@ matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstat
 {
     switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
-            {
-                tree_stats::smallstep_sentinel dummy(bm.stats, C.mul.step_name());
-                return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
-            }
-            break;
+            return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
         case lingen_substep_schedule::FFT_FLINT:
 #ifndef SELECT_MPFQ_LAYER_u64k1
             return matching_ft_type<matpoly_type,
@@ -307,7 +288,7 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
      * reference _later_ */
     lingen_call_companion C0 = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, __func__, z, C0.total_ncalls);
+    tree_stats::sentinel dummy(bm.stats, fmt::sprintf("%srecursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
 
     bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
     bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);

@@ -552,11 +552,10 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
          * operator()() and the other functions, must be reflected in
          * lingen_substep_characteristics::get_call_time_backend
          */
-        begin_plan_smallstep_microsteps(OP.op_name());
+        begin_plan_smallstep_microsteps(M->step_name());
         plan_smallstep("gather_A", M->t_dft_A);
         plan_smallstep("gather_B", M->t_dft_B);
         plan_smallstep("addmul", M->t_conv);
-        plan_smallstep("ift_C", M->t_ift_C);
         end_plan_smallstep();
     }
     template<typename... Args>
@@ -645,7 +644,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         /* This is the analogue of the "dft_A" step in the transform
          * case.
          */
-        a_peers.zero();  // for safety because of rounding.
+        a_peers.zero_pad(a.get_size());  // for safety because of rounding.
         matpoly::copy(a_peers.view(Rat), a_local().view(Ra));
 
         // allgather ta among r nodes. No serialization needed here.
@@ -659,7 +658,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
 
     void gather_B(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
     {
-        begin_smallstep("gather_A", b1 * b2);
+        begin_smallstep("gather_B", b1 * b2);
         unsigned int bi = b_irank();
         unsigned int bk0mpi, bk1mpi;
         std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
@@ -679,7 +678,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
         submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
 
-        b_peers.zero();
+        b_peers.zero_pad(b.get_size());
         matpoly::copy(b_peers.view(Rbt), b_local().view(Rb));
 
         // allgather tb among r nodes
@@ -712,7 +711,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     }/*}}}*/
 
     void operator()() {
-        begin_smallstep(OP.op_name());
+        begin_smallstep(M->step_name());
 
         alloc_c_if_needed(OP.csize);
 

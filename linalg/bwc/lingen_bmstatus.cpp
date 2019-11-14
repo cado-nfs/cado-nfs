@@ -13,9 +13,13 @@ lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
     if (hints.find(K) != hints.end())
         return hints[K];
 
-    fprintf(stderr, "# No tuned configuration for"
-            " depth=%d input_length=%zu\n",
-            depth, L);
+    int rank;
+    MPI_Comm_rank(com[0], &rank);
+
+    if (!rank)
+        fprintf(stderr, "# No tuned configuration for"
+                " depth=%d input_length=%zu\n",
+                depth, L);
 
     struct same_depth {
         int d;
@@ -26,13 +30,15 @@ lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
 
     auto it = std::find_if(hints.begin(), hints.end(), same_depth { depth } );
     if (it == hints.end()) {
-        fprintf(stderr, "# No tuned configuration for"
-                " depth=%d !!!\n", depth);
+        if (!rank)
+            fprintf(stderr, "# No tuned configuration for"
+                    " depth=%d !!!\n", depth);
         exit(EXIT_FAILURE);
     }
-    fprintf(stderr, "# Using nearby configuration for"
-            " depth=%d input_length=%zu\n",
-            it->first.depth, it->first.L);
+    if (!rank)
+        fprintf(stderr, "# Using nearby configuration for"
+                " depth=%d input_length=%zu\n",
+                it->first.depth, it->first.L);
 
     hints[K]=it->second;
 
