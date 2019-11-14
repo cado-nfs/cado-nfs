@@ -822,7 +822,7 @@ tests/linalg/bwc/CMakeLists.txt
 tests/linalg/CMakeLists.txt
 tests/linalg/bwc/mpfq/CMakeLists.txt
 tests/linalg/bwc/mpfq/mpfq_name_K.h
-tests/linalg/bwc/mpfq/mpfq_test.c.meta
+tests/linalg/bwc/mpfq/mpfq_test.cpp.meta
 tests/linalg/bwc/mpfq/mpfq_test_fixmp.c
 tests/linalg/bwc/test-plingen.sh
 tests/gf2x/CMakeLists.txt

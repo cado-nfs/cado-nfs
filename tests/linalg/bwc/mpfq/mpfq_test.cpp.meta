@@ -1,11 +1,13 @@
 /* toplevel include for features maybe */
 #define _DEFAULT_SOURCE /* glibc >= 2.20 */
+#ifndef __cplusplus
 #define _GNU_SOURCE     /* asprintf */
+#endif
 #define _BSD_SOURCE     /* asprintf sometimes (I think) */
 #define _POSIX_C_SOURCE 200809L
 //#define _DEFAULT_SOURCE /* asprintf in last versions */
-#line 7 "PATH_TO_SRC_TEST_DIRECTORYmpfq_test.c.meta"
-/* test_TAG.c is sed- generated from test.c.meta */
+#line 7 "PATH_TO_SRC_TEST_DIRECTORYmpfq_test.cpp.meta"
+/* test_TAG.c is sed- generated from test.cpp.meta */
 
 /* croaks if we -Werror, of course.
 #ifdef NDEBUG
@@ -59,6 +61,65 @@ Kfield K;
 #define DO_ONE_TEST_POLY(name, CODE) \
             DO_ONE_TEST_GENERIC(name, CODE, Kpoly_cmp(p1, p2) == 0)
 #endif
+
+struct generic_poly_test {
+    unsigned long seed;
+    gmp_randstate_t rstate;
+    long deg;
+    bool quiet;
+    Kelt  a0, a1, a2, a3, a4, a5;
+    Kpoly p1, p2;
+    Kpoly q1, q2, q3, q4;
+
+    generic_poly_test(unsigned long seed, unsigned long length, bool quiet)
+        : seed(seed)
+        , deg(length-1)
+        , quiet(quiet)
+    {
+        gmp_randinit_mt(rstate);
+        gmp_randseed_ui(rstate, seed);
+        Kpoly_init(p1, 2*deg);
+        Kpoly_init(p2, 2*deg);
+        Kpoly_init(q1, 2*deg);
+        Kpoly_init(q2, 2*deg);
+        Kpoly_init(q3, 2*deg);
+        Kpoly_init(q4, 2*deg);
+        Kinit(&a0);
+        Kinit(&a1);
+        Kinit(&a2);
+        Kinit(&a3);
+        Kinit(&a4);
+        Kinit(&a5);
+    }
+    generic_poly_test(generic_poly_test const&) = delete;
+    ~generic_poly_test() {
+        Kinit(&a0);
+        Kinit(&a1);
+        Kinit(&a2);
+        Kinit(&a3);
+        Kinit(&a4);
+        Kinit(&a5);
+        Kpoly_clear(p1);
+        Kpoly_clear(p2);
+        Kpoly_clear(q1);
+        Kpoly_clear(q2);
+        Kpoly_clear(q3);
+        Kpoly_clear(q4);
+        gmp_randclear(rstate);
+    }
+    virtual const char * name() const = 0;
+    virtual void operator()() = 0;
+    void do_test(int ntests) {
+        const char * test_name = name();
+        for(int test_i = 0 ; test_i < ntests ; test_i++) {
+            (*this)();
+            TEST_ASSERT(Kpoly_cmp(p1, p2) == 0);
+        }
+        if (!quiet)                                                 
+            fprintf(stderr, "ok - [%s], %d times\n",                
+                    test_name, ntests);                             
+    }
+};
 
 void usage() {
     fprintf(stderr, "usage: ./test [-q] [-N <nb_loops>] [-n <nb_tests>] [-s <seed>]\n");
@@ -848,7 +909,7 @@ int main(int argc, char * argv[])
         /*-----------------------------------------------------------*/
         /*          Tests related to vectors                         */
         /*-----------------------------------------------------------*/
-        const int length=7;
+        const unsigned long length=7;
 //        int test_length;
         Kvec_init(&v1, 2*length);
         Kvec_init(&v2, 2*length);
@@ -899,7 +960,7 @@ int main(int argc, char * argv[])
 
         DO_ONE_TEST("vec_sscan o vec_asprint = id", {
                 /* Do this for vectors of length test_i */
-                unsigned long cap = test_i < length ? test_i : length;
+                unsigned long cap = test_i < (int) length ? test_i : (int) length;
                 Kvec_random2(w1, cap, rstate);
                 char * str;
                 Kvec_asprint(&str, w1, cap);
@@ -922,7 +983,7 @@ int main(int argc, char * argv[])
             FILE * f = fopen(filename, "w");
             if (f == NULL) abort();
             DO_ONE_TEST("vec_fprint", {
-                    for(unsigned long j = 0 ; j < (unsigned long) length ; j++) {
+                    for(unsigned int j = 0 ; j < (unsigned int) length ; j++) {
                         Kset_ui(a0, test_i * length + j);
                         Kinv(a0, a0);
                         Kset(Kvec_coeff_ptr(v1, j), a0);
@@ -934,7 +995,7 @@ int main(int argc, char * argv[])
             f = fopen(filename, "r");
             if (f == NULL) abort();
             DO_ONE_TEST("vec_fscan", {
-                    for(unsigned long j = 0 ; j < (unsigned long) length ; j++) {
+                    for(unsigned int j = 0 ; j < (unsigned int) length ; j++) {
                         Kset_ui(a0, test_i * length + j);
                         Kinv(a0, a0);
                         Kset(Kvec_coeff_ptr(v1, j), a0);
@@ -943,7 +1004,7 @@ int main(int argc, char * argv[])
                     unsigned long tlength = 0;
                     Kvec_init(&tvec, tlength);
                     Kvec_fscan(f, &tvec, &tlength);
-                    TEST_ASSERT(tlength == (unsigned long) length);
+                    TEST_ASSERT(tlength == length);
                     Kvec_set(v2, tvec, length);
                     Kvec_clear(&tvec, tlength);
                     });
@@ -1061,7 +1122,7 @@ int main(int argc, char * argv[])
         /*-----------------------------------------------------------*/
 
 #ifndef RNS
-        const int deg = length - 1;
+        const long deg = length - 1;
 
         Kpoly_init(p1, 2*deg);
         Kpoly_init(p2, 2*deg);
@@ -1172,6 +1233,7 @@ int main(int argc, char * argv[])
                 Kpoly_mul(q1, q2, q3);
                 Kpoly_add(p2, q1, q4);
                 });
+#if 0
         DO_ONE_TEST_POLY("poly_gcd", {
                 /* make sure leading coefficients are invertible.
                  * Normally we're over a field, so we don't have to.
@@ -1196,6 +1258,35 @@ int main(int argc, char * argv[])
                 Kpoly_setmonic(p2, q3);
                 Kpoly_gcd(p1, q1, q2);
                 });
+#endif
+        /* Here's an example of how I could/should rewrite this whole
+         * test.c.meta nightmare into something better.
+         */
+        struct poly_gcd_test : public generic_poly_test {
+            const char * name() const override { return "poly gcd"; }
+            void operator()() override {
+                do {
+                    Kpoly_random(q1, deg, rstate);
+                    Kpoly_random(q2, deg, rstate);
+                    Kpoly_getcoeff(a1, q1, deg);
+                    if (!Kinv(a0, a1)) continue;
+                    Kpoly_getcoeff(a2, q2, deg);
+                    if (!Kinv(a0, a2)) continue;
+                    Kpoly_gcd(p1, q1, q2);
+                } while (Kpoly_deg(p1) != 0);
+                do {
+                    Kpoly_random(q3, deg,rstate);
+                    Kpoly_getcoeff(a3, q3, deg);
+                } while (!Kinv(a0, a3));
+                Kpoly_mul(q1, q1, q3);
+                Kpoly_mul(q2, q2, q3);
+                Kpoly_setmonic(p2, q3);
+                Kpoly_gcd(p1, q1, q2);
+            }
+            poly_gcd_test(unsigned long seed, unsigned long length, bool quiet) : generic_poly_test(seed, length, quiet) {}
+        };
+        poly_gcd_test(seed, length, quiet).do_test(ntests);
+
         DO_ONE_TEST_POLY("poly_xgcd", {
                 do {
                     Kpoly_random(q1, deg, rstate);
@@ -1409,4 +1500,4 @@ int main(int argc, char * argv[])
     }
 }
 
-/* vim:set ft=c: */
+/* vim:set ft=cpp: */
