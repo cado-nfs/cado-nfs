@@ -5,19 +5,19 @@ std::istream& lingen_call_companion::unserialize(std::istream& is) {
     std::string s;
     is >> s;
     if (s == io_token_recursive) {
-        recurse = true;
+        mesh = 1;
     } else if (s == io_token_quadratic) {
-        recurse = false;
+        mesh = 0;
     } else {
         is.setstate(std::ios::failbit);
         return is;
     }
-    if (recurse) {
+    if (recurse()) {
         is >> s;
         if (s == io_token_collective) {
-            go_mpi = true;
+            is >> mesh;
         } else if (s == io_token_single) {
-            go_mpi = false;
+            mesh = 1;
         } else {
             is.setstate(std::ios::failbit);
             return is;
@@ -42,9 +42,13 @@ std::istream& lingen_call_companion::unserialize(std::istream& is) {
     return is;
 }
 std::ostream& lingen_call_companion::serialize(std::ostream& os) const {
-    os << " " << (recurse ? io_token_recursive : io_token_quadratic);
-    if (recurse) {
-        os << " " << (go_mpi ? io_token_collective : io_token_single);
+    os << (recurse() ? io_token_recursive : io_token_quadratic);
+    if (recurse()) {
+        if (go_mpi()) {
+            os << " " << io_token_collective << " " << mesh;
+        } else {
+            os << " " << io_token_single;
+        }
         os << "\n";
         os << "\t" << io_token_MP;  mp.serialize(os); os << "\n";
         os << "\t" << io_token_MUL; mul.serialize(os); os << "\n";
@@ -57,9 +61,7 @@ std::ostream& lingen_call_companion::serialize(std::ostream& os) const {
 }
 bool lingen_call_companion::operator==(lingen_call_companion const & o) const
 {
-    if (recurse != o.recurse) return false;
-    /* go_mpi doesn't make sense if we're not recursive */
-    if (recurse && (go_mpi != o.go_mpi)) return false;
+    if (mesh != o.mesh) return false;
     if (mp != o.mp) return false;
     if (mul != o.mul) return false;
     return true;

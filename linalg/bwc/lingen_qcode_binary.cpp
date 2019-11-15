@@ -406,6 +406,9 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 #endif
 
     ASSERT_ALWAYS(qq->length <= (unsigned long) width * ULONG_BITS);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for collapse(2)
+#endif
     for (unsigned int i = 0; i < m; i++) {
         for(unsigned int j = 0 ; j < b ; j++) {
             E(i, j).copy_from(qq->iptrs[i * b + j]);
@@ -450,6 +453,9 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
              * far as detection of spontaneous zeros goes, of course we
              * must make sure that we don't take pivots into account ! */
             is_modified[pivot] |= 2;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
 	    for (unsigned int k = 0; k < m + n; k++) {
                 if (k == pivot) continue;
 		if (!(E(i, k)[e])) continue;
@@ -469,8 +475,14 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
                 if (qq->local_delta[pivot] > qq->local_delta[k])
                     qq->local_delta[k] = qq->local_delta[pivot];
 	    }
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
 	    for (unsigned int l = 0; l < m; l++)
                 E(l, pivot).lshift1();
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
 	    for (unsigned int l = 0; l < m + n; l++)
                 P(l, pivot).lshift1();
 	    qq->delta[pivot] += 1;
@@ -486,6 +498,9 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
             break;
     }
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for collapse(2)
+#endif
     for (unsigned int i = 0; i < b; i++) {
         for(unsigned int j = 0 ; j < b ; j++) {
             P(i, j).copy_to(qq->optrs[i * b + j]);

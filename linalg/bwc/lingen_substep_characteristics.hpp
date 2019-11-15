@@ -277,7 +277,8 @@ struct lingen_substep_characteristics {
             return tvec;
         }
 
-        os << fmt::sprintf("# %s;%s wct for %s by nthreads:",
+        os << fmt::sprintf("# %s%s;%s wct for %s by nthreads:",
+                F.mesh > 1 ? "MPI-" : "",
                 F.op.op_name(),
                 lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
                 Fname
@@ -333,7 +334,7 @@ struct lingen_substep_characteristics {
                 }
                 return parallelizable_timing(tvec);
             }
-            std::cout << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
+            os << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
             store.clear();
         }
 
@@ -345,7 +346,7 @@ struct lingen_substep_characteristics {
     }
 
     template<typename OP>
-    std::array<parallelizable_timing, 4> get_ft_times(std::ostream& os, OP const & op, pc_t const& P, lingen_substep_schedule const & S, tc_t & C) const {/*{{{*/
+    std::array<parallelizable_timing, 4> get_ft_times(std::ostream& os, OP const & op, pc_t const& P, unsigned int mesh, lingen_substep_schedule const & S, tc_t & C) const {/*{{{*/
         lingen_tuning_cache::mul_or_mp_key K { op_type, S.fft_type, mpz_sizeinbase(p, 2), asize, bsize };
         typedef lingen_tuning_cache::mul_or_mp_value cache_value_type;
         
@@ -356,19 +357,19 @@ struct lingen_substep_characteristics {
             cached_res = C[K];
 
         {
-            microbench_dft<OP> F(op, P, *this);
+            microbench_dft<OP> F(op, P, mesh, *this);
             res[0] = get_ft_time_from_cache_or_recompute(os, F, cached_res[0]);
             res[1] = res[0];
             cached_res[1] = cached_res[0];
         }
 
         {
-            microbench_ift<OP> F(op, P, *this);
+            microbench_ift<OP> F(op, P, mesh, *this);
             res[2] = get_ft_time_from_cache_or_recompute(os, F, cached_res[2]);
         }
 
         {
-            microbench_conv<OP> F(op, P, *this);
+            microbench_conv<OP> F(op, P, mesh, *this);
             res[3] = get_ft_time_from_cache_or_recompute(os, F, cached_res[3]);
         }
 
@@ -389,47 +390,44 @@ struct lingen_substep_characteristics {
             n0 * n2 * csize * mpz_size(p) * sizeof(mp_limb_t) };
     }
     *//*}}}*/
+#if 0
     int mesh_inner_size(pc_t const & P) const {/*{{{*/
         return P.r;
     }/*}}}*/
-    subdivision mpi_split0(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        return subdivision(n0, mesh_inner_size(P), splitwidth);
+#endif
+    subdivision mpi_split0(unsigned int mesh) const {/*{{{*/
+        return subdivision(n0, mesh);
     }/*}}}*/
-    subdivision mpi_split1(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        return subdivision(n1, mesh_inner_size(P), splitwidth);
+    subdivision mpi_split1(unsigned int mesh) const {/*{{{*/
+        return subdivision(n1, mesh);
     }/*}}}*/
-    subdivision mpi_split2(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        return subdivision(n2, mesh_inner_size(P), splitwidth);
+    subdivision mpi_split2(unsigned int mesh) const {/*{{{*/
+        return subdivision(n2, mesh);
     }/*}}}*/
-    subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {/*{{{*/
-        unsigned int nr0 = mpi_split0(P).block_size_upper_bound();
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        return subdivision(nr0, shrink0, splitwidth);
+    subdivision shrink_split0(unsigned int mesh, unsigned int shrink0) const {/*{{{*/
+        unsigned int nr0 = mpi_split0(mesh).block_size_upper_bound();
+        return subdivision(nr0, shrink0);
     }/*}}}*/
-    subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {/*{{{*/
-        unsigned int nr2 = mpi_split2(P).block_size_upper_bound();
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        return subdivision(nr2, shrink2, splitwidth);
+    subdivision shrink_split2(unsigned int mesh, unsigned int shrink2) const {/*{{{*/
+        unsigned int nr2 = mpi_split2(mesh).block_size_upper_bound();
+        return subdivision(nr2, shrink2);
     }/*}}}*/
-    subdivision shrink_split0(pc_t const & P, sc_t const & S) const {/*{{{*/
-        return shrink_split0(P, S.shrink0);
+    subdivision shrink_split0(unsigned int mesh, sc_t const & S) const {/*{{{*/
+        return shrink_split0(mesh, S.shrink0);
     }/*}}}*/
-    subdivision shrink_split2(pc_t const & P, sc_t const & S) const {/*{{{*/
-        return shrink_split2(P, S.shrink2);
+    subdivision shrink_split2(unsigned int mesh, sc_t const & S) const {/*{{{*/
+        return shrink_split2(mesh, S.shrink2);
     }/*}}}*/
-    std::array<std::array<unsigned int, 3>, 2> get_peak_ram_multipliers(pc_t const & P, sc_t const & S) const { /* {{{ */
-        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
-        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
+    std::array<std::array<unsigned int, 3>, 2> get_peak_ram_multipliers(unsigned int mesh, sc_t const & S) const { /* {{{ */
+        unsigned int nrs0 = shrink_split0(mesh, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(mesh, S).block_size_upper_bound();
 
         unsigned int b0 = S.batch[0];
         unsigned int b1 = S.batch[1];
         unsigned int b2 = S.batch[2];
         unsigned int mul0 = 0;
-        mul0 += b1 * P.r * b0;
-        mul0 += b1 * P.r * b2;
+        mul0 += b1 * mesh * b0;
+        mul0 += b1 * mesh * b2;
         mul0 += nrs0*nrs2;
         unsigned int mul1 = std::max(b0 * std::max(b1, b2), nrs0 * nrs2);
         unsigned int mul12 = b0 * b2;
@@ -461,8 +459,8 @@ struct lingen_substep_characteristics {
         }};
     }
     /*}}}*/
-    size_t get_peak_ram(op_mul_or_mp_base const & op, pc_t const & P, sc_t const & S) const { /* {{{ */
-        auto multipliers = get_peak_ram_multipliers(P, S);
+    size_t get_peak_ram(op_mul_or_mp_base const & op, unsigned int mesh, sc_t const & S) const { /* {{{ */
+        auto multipliers = get_peak_ram_multipliers(mesh, S);
         size_t rpeak = 0;
         for(auto const & M : multipliers) {
             size_t r = 0;
@@ -473,9 +471,9 @@ struct lingen_substep_characteristics {
         return rpeak;
     }
     /*}}}*/
-    size_t get_peak_ram(pc_t const & P, sc_t const & S) const { /* {{{ */
+    size_t get_peak_ram(unsigned int mesh, sc_t const & S) const { /* {{{ */
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        return get_peak_ram(*op, P, S);
+        return get_peak_ram(*op, mesh, S);
     }
     /*}}}*/
 
@@ -528,13 +526,14 @@ struct lingen_substep_characteristics {
             std::ostream& os,
             OP const & op,
             pc_t const & P,
+            unsigned int mesh,
             sc_t const & S,
             tc_t & C) const
     { /* {{{ */
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
-        auto ft = get_ft_times(os, op, P, S, C);
+        auto ft = get_ft_times(os, op, P, mesh, S, C);
         /* These are just base values, we'll multiply them later on */
         parallelizable_timing T_dft0 = ft[0];
         parallelizable_timing T_dft2 = ft[1];
@@ -544,13 +543,13 @@ struct lingen_substep_characteristics {
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
          * care more about the shrunk submatrices, though */
-        unsigned int nr1 = mpi_split1(P).block_size_upper_bound();
+        unsigned int nr1 = mpi_split1(mesh).block_size_upper_bound();
 
         /* The shrink parameters will divide the size of the local
          * matrices we consider by numbers shrink0 and shrink2. This
          * increases the time, and decreases the memory footprint */
-        unsigned int nrs0 = shrink_split0(P, S).block_size_upper_bound();
-        unsigned int nrs2 = shrink_split2(P, S).block_size_upper_bound();
+        unsigned int nrs0 = shrink_split0(mesh, S).block_size_upper_bound();
+        unsigned int nrs2 = shrink_split2(mesh, S).block_size_upper_bound();
 
         /* The 1-threaded timing will be obtained by setting T=batch=1.  */
 
@@ -571,7 +570,7 @@ struct lingen_substep_characteristics {
         T_dft2 *= iceildiv(nr1, S.batch[1]);
 
         T_conv.parallelize(S.batch[0] * S.batch[2], P.T);
-        T_conv *= mesh_inner_size(P);
+        T_conv *= mesh;
         T_conv *= iceildiv(nr1, S.batch[1]) * S.batch[1];
         T_conv *= iceildiv(nrs0, S.batch[0]);
         T_conv *= iceildiv(nrs2, S.batch[2]);
@@ -584,7 +583,7 @@ struct lingen_substep_characteristics {
         parallelizable_timing T = op.get_alloc_sizes()[0] / P.mpi_xput;
         T *= S.batch[1] * iceildiv(nr1, S.batch[1]);
         /* allgather over n nodes */
-        T *= mesh_inner_size(P) - 1;
+        T *= mesh - 1;
         parallelizable_timing T_comm0 = T;
         parallelizable_timing T_comm2 = T;
         T_comm0 *= S.batch[0] * iceildiv(nrs0, S.batch[0]);
@@ -647,20 +646,20 @@ struct lingen_substep_characteristics {
         }
     }
 
-    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
         switch(op_type) {
             case op_mul_or_mp_base::OP_MP:
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, mesh, S, C);
 #ifndef SELECT_MPFQ_LAYER_u64k1
                     case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C);
 #else
                     case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
                     case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
 #endif
                     default:
                         throw std::runtime_error("invalid data (fft_type)");
@@ -668,15 +667,15 @@ struct lingen_substep_characteristics {
             case op_mul_or_mp_base::OP_MUL:
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, mesh, S, C);
 #ifndef SELECT_MPFQ_LAYER_u64k1
                     case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C);
 #else
                     case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
                     case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, S, C);
+                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
 #endif
                     default:
                         throw std::runtime_error("invalid data (fft_type)");
@@ -689,10 +688,10 @@ struct lingen_substep_characteristics {
 
     public:
 
-    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
         lingen_call_companion::mul_or_mp_times D { op_type };
         D.S = S;
-        auto A = get_call_time_backend(os, P, S, C); 
+        auto A = get_call_time_backend(os, P, mesh, S, C); 
         double tt = A.total();
         D.tt = { 1, tt };
         D.t_dft_A = A.T_dft0;
@@ -702,28 +701,29 @@ struct lingen_substep_characteristics {
         D.t_dft_A_comm = A.T_comm0;
         D.t_dft_B_comm = A.T_comm2;
         D.fft_alloc_sizes = A.fft_alloc_sizes;
-        D.peak_ram_multipliers = get_peak_ram_multipliers(P, S);
+        D.peak_ram_multipliers = get_peak_ram_multipliers(mesh, S);
         D.asize = asize;
         D.bsize = bsize;
         D.csize = csize;
         return D;
     }/*}}}*/
-    double get_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const {/*{{{*/
-        return get_call_time_backend(os, P, S, C).total();
+    double get_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const {/*{{{*/
+        return get_call_time_backend(os, P, mesh, S, C).total();
     }/*}}}*/
 
     private:
     struct schedule_sorter {/*{{{*/
         lingen_substep_characteristics const & U;
         lingen_platform const & P;
+        unsigned int mesh;
         lingen_tuning_cache & C;
         std::ostream& os;
-        schedule_sorter(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, lingen_tuning_cache & C) :
-            U(U), P(P), C(C), os(os)
+        schedule_sorter(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, unsigned int mesh, lingen_tuning_cache & C) :
+            U(U), P(P), mesh(mesh), C(C), os(os)
         {}
         bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {/*{{{*/
-            double ta = U.get_call_time(os, P, a, C);
-            double tb = U.get_call_time(os, P, b, C);
+            double ta = U.get_call_time(os, P, mesh, a, C);
+            double tb = U.get_call_time(os, P, mesh, b, C);
             if (ta != tb) return ta < tb;
 #if 0
             /* Doesn't make much sense, since timing comparisons will
@@ -744,18 +744,15 @@ struct lingen_substep_characteristics {
     };/*}}}*/
 
     public:
-    void sort_schedules(std::ostream& os, std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, lingen_tuning_cache & C) const {/*{{{*/
-        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, C));
+    void sort_schedules(std::ostream& os, std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, unsigned int mesh, lingen_tuning_cache & C) const {/*{{{*/
+        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, mesh, C));
     }/*}}}*/
 
-    double get_and_report_call_time(std::ostream& os, pc_t const & P, sc_t const & S, tc_t & C) const { /* {{{ */
+    double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
         bool cached = has_cached_time(C, S.fft_type);
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        os << fmt::sprintf("# %s;%s wins : %s\n",
-                op_mul_or_mp_base::op_name(op_type),
-                S.fft_name(),
-                op->explain());
-        os << fmt::sprintf("# %s;%s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+        os << fmt::sprintf("# %s%s;%s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+                mesh > 1 ? "MPI-" : "",
                 op_mul_or_mp_base::op_name(op_type),
                 S.fft_name(),
                 input_length,
@@ -764,14 +761,23 @@ struct lingen_substep_characteristics {
                 S.batch[0],
                 S.batch[1],
                 S.batch[2],
-                size_disp(get_peak_ram(*op, P, S)));
+                size_disp(get_peak_ram(*op, mesh, S)));
         os << std::flush;
-        double tt = get_call_time(os, P, S, C);
+        double tt = get_call_time(os, P, mesh, S, C);
         os << fmt::sprintf("%.2f%s\n",
                 tt,
                 cached ? " [from cache]" : "");
         return tt;
     }/*}}}*/
+    void report_op_winner(std::ostream& os, unsigned int mesh, sc_t const & S) const
+    {
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
+        os << fmt::sprintf("# %s%s;%s wins : %s\n",
+                mesh > 1 ? "MPI-" : "",
+                op_mul_or_mp_base::op_name(op_type),
+                S.fft_name(),
+                op->explain());
+    }
 
 #if 0
     void report_size_stats_human(std::ostream& os, sc_t const & S) const {/*{{{*/
@@ -807,9 +813,10 @@ struct microbench_dft { /*{{{*/
     typedef OP_T OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "dft";
-    microbench_dft(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() {
         size_t R = 0;
         /* storage for one input coeff and one output transform */
@@ -818,10 +825,10 @@ struct microbench_dft { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the dft operation */
         R += op.get_alloc_sizes()[1];
-        unsigned int n = P.available_ram / R;
+        size_t n = P.available_ram / R;
         /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (unsigned int) U.max_threads());
-        if (n == 0) throw std::overflow_error("not enough RAM");
+        n = std::min(n, (size_t) U.max_threads());
+        if (n == 0) throw std::runtime_error("not enough RAM");
         return n;
     }
     double operator()(unsigned int nparallel)
@@ -842,9 +849,10 @@ struct microbench_ift { /*{{{*/
     typedef OP_T OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "ift";
-    microbench_ift(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() {
         size_t R = 0;
         /* storage for one input transform and one output coeff */
@@ -853,10 +861,10 @@ struct microbench_ift { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the ift operation */
         R += op.get_alloc_sizes()[1];
-        unsigned int n = P.available_ram / R;
+        size_t n = P.available_ram / R;
         /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (unsigned int) U.max_threads());
-        if (n == 0) throw std::overflow_error("not enough RAM");
+        n = std::min(n, (size_t) U.max_threads());
+        if (n == 0) throw std::runtime_error("not enough RAM");
         return n;
     }
     double operator()(unsigned int nparallel) {
@@ -878,9 +886,10 @@ struct microbench_conv { /*{{{*/
     typedef OP_T OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "conv";
-    microbench_conv(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() {
         /* for k = nparallel, we need 2k+1 transforms in ram */
         size_t R = 0;
@@ -890,10 +899,10 @@ struct microbench_conv { /*{{{*/
         R += op.get_alloc_sizes()[1];
         R += op.get_alloc_sizes()[2];
         /* take into account the +1 transform */
-        unsigned int n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
+        size_t n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
         /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (unsigned int) U.max_threads());
-        if (n == 0) throw std::overflow_error("not enough RAM");
+        n = std::min(n, (size_t) U.max_threads());
+        if (n == 0) throw std::runtime_error("not enough RAM");
         return n;
     }
     double operator()(unsigned int nparallel) {
@@ -915,9 +924,10 @@ struct microbench_dft<META_OP<void>> { /*{{{*/
     typedef META_OP<void> OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = NULL;
-    microbench_dft(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() { return U.max_threads(); }
     double operator()(unsigned int) { return 0; }
 };/*}}}*/
@@ -928,9 +938,10 @@ struct microbench_ift<META_OP<void>> { /*{{{*/
     typedef META_OP<void> OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = NULL;
-    microbench_ift(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() { return U.max_threads(); }
     double operator()(unsigned int) { return 0; }
 };/*}}}*/
@@ -941,9 +952,10 @@ struct microbench_conv<META_OP<void>> { /*{{{*/
     typedef META_OP<void> OP;
     OP op;
     pc_t P;
+    unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "product";
-    microbench_conv(OP const & op, pc_t const& P, ch_t const & U) : op(op), P(P), U(U) {}
+    microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
     unsigned int max_parallel() { return U.max_threads(); }
     double operator()(unsigned int nparallel) {
         constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;

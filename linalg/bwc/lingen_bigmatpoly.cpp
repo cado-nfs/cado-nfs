@@ -525,9 +525,9 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         : OP_CTX(CTX)
         , OP(OP)
         , M(M)
-        , mpi_split0(a.m, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
-        , mpi_split1(a.n, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
-        , mpi_split2(b.n, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
+        , mpi_split0(a.m, CTX.mesh_inner_size())
+        , mpi_split1(a.n, CTX.mesh_inner_size())
+        , mpi_split2(b.n, CTX.mesh_inner_size())
         /* first, upper bounds on output block dimensions */
         , nrs0(mpi_split0.block_size_upper_bound())
         , nrs2(mpi_split2.block_size_upper_bound())

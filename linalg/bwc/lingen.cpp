@@ -470,7 +470,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
     size_t z = E.get_size();
 
     lingen_call_companion C = bm.companion(depth, z);
-    bool go_mpi = C.go_mpi;
+    bool go_mpi = C.go_mpi();
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
     bigmatpoly pi(model);
@@ -995,7 +995,7 @@ int wrapped_main(int argc, char *argv[])
                 size_disp(bm.hints.peak, buf));
     }
 
-    int go_mpi = bm.companion(0, L).go_mpi;
+    int go_mpi = bm.companion(0, L).go_mpi();
 
     if (go_mpi) {
         if (!rank) {

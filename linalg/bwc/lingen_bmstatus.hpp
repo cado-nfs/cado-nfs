@@ -51,11 +51,11 @@ struct bmstatus {
     /* Attention: reloading a checkpoint invalidates this reference !! */
     lingen_call_companion & companion(int depth, size_t L);
     bool recurse(int depth, size_t L) {/*{{{*/
-        return companion(depth, L).recurse;
+        return companion(depth, L).recurse();
     }/*}}}*/
     void display_deltas() const;
     bool recurse(size_t L) {/*{{{*/
-        return companion(depth(), L).recurse;
+        return companion(depth(), L).recurse();
     }/*}}}*/
     std::tuple<unsigned int, unsigned int> get_minmax_delta_on_solutions() const;
     unsigned int get_max_delta_on_solutions() const;

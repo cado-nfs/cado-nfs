@@ -19,8 +19,11 @@ struct lingen_call_companion {
      * companions.
      */
     bool complete = false;
-    bool recurse;
-    bool go_mpi;
+
+    unsigned int mesh = 0;
+    bool recurse() const { return mesh > 0; }
+    bool go_mpi() const { return mesh > 1; }
+
     double ttb;
     /* total_ncalls is a priori a power of two, but not always.
      * It is the number of calls that correspond to identical
@@ -50,7 +53,6 @@ struct lingen_call_companion {
         size_t reserved_ram;
 
         mul_or_mp_times(op_mul_or_mp_base::op_type_t op_type) : op_type(op_type) {}
-
         const char * fft_name() const { return S.fft_name(); }
         std::string step_name() const {
             std::string s = op_mul_or_mp_base::op_name(op_type);
@@ -98,6 +100,15 @@ struct lingen_call_companion {
     };/*}}}*/
     mul_or_mp_times mp  { op_mul_or_mp_base::OP_MP };
     mul_or_mp_times mul { op_mul_or_mp_base::OP_MUL };
+
+    mul_or_mp_times operator[](op_mul_or_mp_base::op_type_t op_type) const {
+        switch(op_type) {
+            case op_mul_or_mp_base::OP_MP: return mp;
+            case op_mul_or_mp_base::OP_MUL: return mul;
+            default: throw std::runtime_error("bad op");
+        }
+    }
+
 
     /* This unserializes only part of the data -- recurse, go_mpi,
      * and the schedules. The rest is always recomputed.
