@@ -184,7 +184,10 @@ public:
      * implementation detail. At times, we want to assert that.
      */
     bool high_word_is_clear() const;
-    void clear_high_word();
+private:
+    void clear_high_word_common(unsigned int length);
+public:
+    inline void clear_high_word() { clear_high_word_common(size); }
 public:
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
     void zero_pad(unsigned int nsize);

@@ -280,6 +280,7 @@ void matpoly::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
         unsigned long * pa = part(i, j);
         mpn_lshift(pa, pa, kw, 1);
     }
+    clear_high_word_common(nsize + 1);
 }/*}}}*/
 
 void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
@@ -348,10 +349,11 @@ int matpoly::tail_is_zero(unsigned int k) const /*{{{*/
     }
     return 1;
 }/*}}}*/
-void matpoly::clear_high_word()/*{{{*/
+void matpoly::clear_high_word_common(unsigned int length)/*{{{*/
 {
-    size_t nw = b2w(size);
-    unsigned long nmask = ((1UL << (size % ULONG_BITS)) - 1);
+    ASSERT_ALWAYS(length <= capacity());
+    size_t nw = b2w(length);
+    unsigned long nmask = ((1UL << (length % ULONG_BITS)) - 1);
     if (nmask == 0) return;
     for(unsigned int i = 0 ; i < m ; i++) {
         for(unsigned int j = 0 ; j < n ; j++) {

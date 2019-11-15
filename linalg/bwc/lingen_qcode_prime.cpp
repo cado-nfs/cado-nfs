@@ -41,8 +41,7 @@ static int lexcmp2(const int x[2], const int y[2])
 
 /*}}}*/
 
-matpoly
-bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
+matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 {
     int generator_found = 0;
 

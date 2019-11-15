@@ -9,6 +9,18 @@
 #include "utils.h"
 
 #include "lingen_expected_pi_length.hpp"
+#include "gf2x.h"
+
+typedef int (*sortfunc_t) (const void*, const void*);
+
+static int lexcmp2(const int x[2], const int y[2])
+{
+    for(int i = 0 ; i < 2 ; i++) {
+        int d = x[i] - y[i];
+        if (d) return d;
+    }
+    return 0;
+}
 
 void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength)
 {
@@ -219,6 +231,12 @@ public:
         return bitarray<variable_width, unsigned long *>(m * width, x + (j * m) * width);
     }
     inline const unsigned long * column(unsigned int j) const { return (*this)(0, j); }
+    inline void lshift1_column(unsigned int j) {
+        unsigned long * c = x + (j * m) * width;
+        mpn_lshift(c, c, width, 1);
+        for(unsigned int i = 0 ; i < m ; i++)
+            c[i*width] &= ~1UL;
+    }
 };
 
 #if 0
@@ -463,18 +481,28 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 #if defined(SWAP_E)
                 E.column(k) ^= E.column(pivot);
 #else
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
                 for (unsigned int l = 0; l < m; l++)
                     E(l, k) ^= E(l, pivot);
 #endif
 #if defined(SWAP_PI)
                 P.column(k) ^= P.column(pivot);
 #else
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
                 for (unsigned int l = 0; l < m + n; l++)
                         P(l, k) ^= P(l, pivot);
 #endif
                 if (qq->local_delta[pivot] > qq->local_delta[k])
                     qq->local_delta[k] = qq->local_delta[pivot];
 	    }
+#if 0
+            E.lshift1_column(pivot);
+            P.lshift1_column(pivot);
+#else
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -485,10 +513,11 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 #endif
 	    for (unsigned int l = 0; l < m + n; l++)
                 P(l, pivot).lshift1();
+#endif
 	    qq->delta[pivot] += 1;
             qq->local_delta[pivot]++;
 	}
-        /* Columns which have not been changed here are those which
+        /* Columns that have not been changed here are those which
          * are magically zero. Count whether this happens often or
          * not.
          *
@@ -534,13 +563,13 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)
     return 0;
 }
 
-int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
+matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
 {
     /* There's a nasty bug. Revealed by 32-bits, but can occur on larger
      * sizes too. Let W be the word size. When E has length W + epsilon,
-     * pi_deg_bound(W+epsilon) may be < W. So that we may have tmp_pi and
+     * pi_deg_bound(W+epsilon) may be < W. So that we may have pi and
      * E have stride 1 and 2 respectively. However, in
-     * lingen_qcode_do_tmpl, we fill the pointers in tmp_pi (optrs[]
+     * lingen_qcode_do_tmpl, we fill the pointers in pi (optrs[]
      * there) using the stride of E. This is not proper. A kludge is to
      * make them compatible.
      *
@@ -553,14 +582,14 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
      */
     size_t exp_maxlen = 1 + E.get_size();
 
-    matpoly tmp_pi(bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
-    tmp_pi.zero_pad(exp_maxlen);
+    matpoly pi(bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
+    pi.zero_pad(exp_maxlen);
 
     bool finished = false;
 
     {
         lingen_qcode_data qq;
-        lingen_qcode_init(qq, E.nrows(), E.ncols(), E.get_size(), tmp_pi.get_size());
+        lingen_qcode_init(qq, E.nrows(), E.ncols(), E.get_size(), pi.get_size());
         for(unsigned int i = 0 ; i < E.nrows() ; i++) {
             for(unsigned int j = 0 ; j < E.ncols() ; j++) {
                 lingen_qcode_hook_input(qq, i, j, E.part(i,j));
@@ -568,7 +597,7 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
         }
         for(unsigned int i = 0 ; i < E.ncols() ; i++) {
             for(unsigned int j = 0 ; j < E.ncols() ; j++) {
-                lingen_qcode_hook_output(qq, i, j, tmp_pi.part(i,j));
+                lingen_qcode_hook_output(qq, i, j, pi.part(i,j));
             }
         }
         unsigned int vdelta[E.ncols()];
@@ -583,18 +612,414 @@ int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly & E)/*{{{*/
         finished = qq->t < bm.t + qq->length;
         bm.t = qq->t;
         size_t maxlen = 0;
-        for(unsigned int j = 0 ; j < tmp_pi.ncols() ; j++) {
+        for(unsigned int j = 0 ; j < pi.ncols() ; j++) {
             if (lingen_qcode_output_column_length(qq, j) > maxlen)
                 maxlen = lingen_qcode_output_column_length(qq, j);
         }
-        tmp_pi.truncate(maxlen);
+        pi.truncate(maxlen);
         copy(vdelta, vdelta + E.ncols(), bm.delta.begin());
         copy(vch, vch + E.ncols(), bm.lucky.begin());
         lingen_qcode_clear(qq);
     }
-    pi = std::move(tmp_pi);
-    return finished;
+    bm.done = finished;
+    return pi;
 } /* }}} */
+
+matpoly bw_lingen_basecase_raw_slow(bmstatus & bm, matpoly const & E) /*{{{*/
+{
+    int generator_found = 0;
+
+    bw_dimensions & d = bm.d;
+    unsigned int m = d.m;
+    unsigned int n = d.n;
+    unsigned int b = m + n;
+    abdst_field ab = d.ab;
+    ASSERT(E.m == m);
+    ASSERT(E.n == b);
+
+    /* Allocate something large enough for the result. This will be
+     * soon freed anyway. Set it to identity. */
+    unsigned int mi, ma;
+    std::tie(mi, ma) = get_minmax_delta(bm.delta);
+
+    unsigned int pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
+
+    matpoly pi(ab, b, b, pi_room_base);
+    pi.set_size(pi_room_base);
+
+    /* Also keep track of the
+     * number of coefficients for the columns of pi. Set pi to Id */
+
+    std::vector<unsigned int> pi_lengths(b, 1);
+    std::vector<unsigned int> pi_real_lengths(b, 1);
+    pi.set_constant_ui(1);
+
+    for(unsigned int i = 0 ; i < b ; i++) {
+        pi_lengths[i] = 1;
+        pi_lengths[i] += bm.delta[i] - mi;
+    }
+
+    /* Keep a list of columns which have been used as pivots at the
+     * previous iteration */
+    std::vector<unsigned int> pivots(m, 0);
+    std::vector<int> is_pivot(b, 0);
+
+    matpoly e(ab, m, b, 1);
+    e.set_size(1);
+
+    matpoly T(ab, b, b, 1);
+    int (*ctable)[2] = new int[b][2];
+
+    for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
+
+        /* {{{ Update the columns of e for degree t. Save computation
+         * time by not recomputing those which can easily be derived from
+         * previous iteration. Notice that the columns of e are exactly
+         * at the physical positions of the corresponding columns of pi.
+         */
+
+        std::vector<unsigned int> todo;
+        for(unsigned int j = 0 ; j < b ; j++) {
+            if (is_pivot[j]) continue;
+            /* We should never have to recompute from pi using discarded
+             * columns. Discarded columns should always correspond to
+             * pivots */
+            ASSERT_ALWAYS(bm.lucky[j] >= 0);
+            todo.push_back(j);
+        }
+        /* icc openmp doesn't grok todo.size() as being a constant
+         * loop bound */
+        unsigned int nj = todo.size();
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            size_t twords = 2 * iceildiv(t + 1, ULONG_BITS);
+            unsigned long * tmp = new unsigned long[twords];
+
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+            for(unsigned int jl = 0 ; jl < nj ; ++jl) {
+                for(unsigned int i = 0 ; i < m ; ++i) {
+                    unsigned int j = todo[jl];
+                    unsigned int lj = MIN(pi_real_lengths[j], t + 1);
+                    /* We want to multiply coefficients at bits
+                     * [ t - lj + 1 .. t ] of E
+                     * and
+                     * [ 0 to lj - 1 ] of pi
+                     * to form coefficient t of the input.
+                     */
+                    unsigned int chop = (t - lj + 1) / ULONG_BITS;
+                    unsigned int use_E = iceildiv(t + 1, ULONG_BITS) - chop;
+                    unsigned int use_pi = iceildiv(lj, ULONG_BITS);
+                    unsigned int q_read = t / ULONG_BITS - chop;
+                    unsigned int r_read = t % ULONG_BITS;
+                    ASSERT_ALWAYS(use_E + use_pi <= twords);
+                    unsigned long bit = 0;
+                    for(unsigned int k = 0 ; k < b ; ++k) {
+                        gf2x_mul(tmp, E.part(i, k) + chop, use_E, pi.part(k, j), use_pi);
+                        bit ^= tmp[q_read];
+                    }
+                    e.part(i, j)[0] = (bit >> r_read) & 1;
+                }
+            }
+            delete[] tmp;
+        }
+        /* }}} */
+
+        /* {{{ check for cancellations */
+
+        unsigned int newluck = 0;
+        for(unsigned int jl = 0 ; jl < todo.size() ; ++jl) {
+            unsigned int j = todo[jl];
+            unsigned int nz = 0;
+            for(unsigned int i = 0 ; i < m ; i++) {
+                nz += (e.part(i, j)[0] & 1) == 0;
+            }
+            if (nz == m) {
+                newluck++, bm.lucky[j]++;
+            } else if (bm.lucky[j] > 0) {
+                bm.lucky[j] = 0;
+            }
+        }
+
+
+        if (newluck) {
+            /* If newluck == n, then we probably have a generator. We add an
+             * extra guarantee. newluck==n, for a total of k iterations in a
+             * row, means m*n*k coefficients cancelling magically. We would
+             * like this to be impossible by mere chance. Thus we want n*k >
+             * luck_mini, which can easily be checked */
+
+            int luck_mini = expected_pi_length(d);
+            unsigned int luck_sure = 0;
+
+            printf("t=%d, canceled columns:", bm.t);
+            for(unsigned int j = 0 ; j < b ; j++) {
+                if (bm.lucky[j] > 0) {
+                    printf(" %u", j);
+                    luck_sure += bm.lucky[j] >= luck_mini;
+                }
+            }
+
+            if (newluck == n && luck_sure == n) {
+                if (!generator_found) {
+                    printf(", complete generator found, for sure");
+                }
+                generator_found = 1;
+            }
+            printf(".\n");
+        }
+        /* }}} */
+
+        if (generator_found) break;
+
+        /* {{{ Now see in which order I may look at the columns of pi, so
+         * as to keep the nominal degrees correct. In contrast with what
+         * we used to do before, we no longer apply the permutation to
+         * delta. So the delta[] array keeps referring to physical
+         * indices, and we'll tune this in the end. */
+        for(unsigned int j = 0; j < b; j++) {
+            ctable[j][0] = bm.delta[j];
+            ctable[j][1] = j;
+        }
+        qsort(ctable, b, 2 * sizeof(int), (sortfunc_t) & lexcmp2);
+        /* }}} */
+
+        /* {{{ Now do Gaussian elimination */
+
+        /*
+         * The matrix T is *not* used for actually storing the product of
+         * the transvections, just the *list* of transvections. Then,
+         * instead of applying them row-major, we apply them column-major
+         * (abiding by the ordering of pivots), so that we get a better
+         * opportunity to do lazy reductions.
+         */
+
+        T.set_constant_ui(1);
+
+        is_pivot.assign(b, 0);
+        unsigned int r = 0;
+
+        std::vector<unsigned int> pivot_columns;
+        /* Loop through logical indices */
+        for(unsigned int jl = 0; jl < b; jl++) {
+            unsigned int j = ctable[jl][1];
+            unsigned int u = 0;
+            /* {{{ Find the pivot */
+            for( ; u < m ; u++) {
+                unsigned long euj = e.coeff(u, j)[0] & 1;
+                if (euj)
+                    break;
+            }
+            if (u == m) continue;
+            assert(r < m);
+            /* }}} */
+            pivots[r++] = j;
+            is_pivot[j] = 1;
+            pivot_columns.push_back(j);
+            /* {{{ Cancel this coeff in all other columns. */
+            // abelt inv;
+            // abinit(ab, &inv);
+            // abneg(ab, inv, inv);
+            for (unsigned int kl = jl + 1; kl < b ; kl++) {
+                unsigned int k = ctable[kl][1];
+                unsigned long euk = e.coeff(u, k)[0] & 1;
+                if (euk == 0)
+                    continue;
+                // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
+                // abelt lambda;
+                // abinit(ab, &lambda);
+                // abmul(ab, lambda, inv, e.coeff(u, k, 0));
+                assert(bm.delta[j] <= bm.delta[k]);
+                /* {{{ Apply on both e and pi */
+                // abelt tmp;
+                // abinit(ab, &tmp);
+                for(unsigned int i = 0 ; i < m ; i++) {
+                    e.part(i,k)[0] ^= e.part(i,j)[0];
+                }
+                if (bm.lucky[k] < 0) {
+                    /* This column is already discarded, don't bother */
+                    continue;
+                }
+                if (bm.lucky[j] < 0) {
+                    /* This column is discarded. This is going to
+                     * invalidate another column of pi. Not a problem,
+                     * unless it's been marked as lucky previously ! */
+                    ASSERT_ALWAYS(bm.lucky[k] <= 0);
+                    printf("Column %u discarded from now on (through addition from column %u)\n", k, j);
+                    bm.lucky[k] = -1;
+                    continue;
+                }
+                /* We do *NOT* really update T. T is only used as
+                 * storage!
+                 */
+                T.coeff(j,k)[0] = 1;
+                // abset(ab, T.coeff(j, k, 0), lambda);
+                // abclear(ab, &tmp);
+                /* }}} */
+                // abclear(ab, &lambda);
+            }
+            // abclear(ab, &inv); /* }}} */
+        }
+        /* }}} */
+
+        /* {{{ apply the transformations, using the transvection
+         * reordering trick */
+
+        /* non-pivot columns are only added to and never read, so it does
+         * not really matter where we put their computation, provided
+         * that the columns that we do read are done at this point.
+         */
+        for(unsigned int jl = 0; jl < b; jl++) {
+            unsigned int j = ctable[jl][1];
+            if (!is_pivot[j])
+                pivot_columns.push_back(j);
+        }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+        {
+            // abelt_ur tmp_pi;
+            // abelt_ur tmp;
+            // abelt_ur_init(ab, &tmp);
+            // abelt_ur_init(ab, &tmp_pi);
+
+            for(unsigned int jl = 0 ; jl < b ; ++jl) {
+                unsigned int j = pivot_columns[jl];
+                /* compute column j completely. We may put this interface in
+                 * matpoly, but it's really special-purposed, to the point
+                 * that it really makes little sense IMO
+                 *
+                 * Beware: operations on the different columns are *not*
+                 * independent, here ! Operations on the different degrees,
+                 * on the other hand, are. As well of course as the
+                 * operations on the different entries in each column.
+                 */
+
+#ifndef NDEBUG
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+                {
+                    for(unsigned int kl = m ; kl < b ; kl++) {
+                        unsigned int k = pivot_columns[kl];
+                        unsigned long Tkj = T.part(k, j)[0];
+                        ASSERT_ALWAYS(Tkj == (k == j));
+                    }
+                    for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
+                        unsigned int k = pivot_columns[kl];
+                        unsigned long Tkj = T.part(k, j)[0];
+                        if (!Tkj) continue;
+                        ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+                        pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
+                    }
+                }
+#endif
+
+                /* Icc 2019 synthetizes a pragma omp single around
+                 * accesses to pi_real_lengths. I don't think it makes
+                 * sense in that particular case, it's fine enough here
+                 * to read the data now after the critical section above.
+                 */
+                unsigned int dummy = pi_real_lengths[j];
+
+#ifdef HAVE_OPENMP
+#pragma omp for collapse(2)
+#endif
+                for(unsigned int i = 0 ; i < b ; i++) {
+                    for(unsigned int s = 0 ; s < dummy ; s += ULONG_BITS) {
+
+                        unsigned long tmp = 0;
+
+                        for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
+                            unsigned int k = pivot_columns[kl];
+                            /* TODO: if column k was already a pivot on previous
+                             * turn (which could happen, depending on m and n),
+                             * then the corresponding entry is probably zero
+                             * (exact condition needs to be written more
+                             * accurately).
+                             */
+
+                            unsigned long Tkj = T.part(k, j)[0];
+                            if (!Tkj) continue;
+                            /* pi[i,k] has length pi_lengths[k]. Multiply
+                             * that by T[k,j], which is a constant. Add
+                             * to the unreduced thing. We don't have an
+                             * mpfq api call for that operation.
+                             */
+                            tmp ^= pi.part(i, k)[s / ULONG_BITS];
+                        }
+
+                        pi.part(i, j)[s / ULONG_BITS] ^= tmp;
+                    }
+                }
+            }
+            // abelt_ur_clear(ab, &tmp);
+            // abelt_ur_clear(ab, &tmp_pi);
+        }
+        /* }}} */
+
+        ASSERT_ALWAYS(r == m);
+
+        /* {{{ Now for all pivots, multiply column in pi by x */
+        for (unsigned int j = 0; j < b ; j++) {
+            if (!is_pivot[j]) continue;
+            if (pi_real_lengths[j] >= pi.capacity()) {
+                if (!generator_found) {
+                    pi.realloc(pi.capacity() + MAX(pi.capacity() / (m+n), 1));
+                    printf("t=%u, expanding allocation for pi (now %zu%%) ; lengths: ",
+                            bm.t,
+                            100 * pi.capacity() / pi_room_base);
+                    for(unsigned int j = 0; j < b; j++)
+                        printf(" %u", pi_real_lengths[j]);
+                    printf("\n");
+                } else {
+                    ASSERT_ALWAYS(bm.lucky[j] <= 0);
+                    if (bm.lucky[j] == 0)
+                        printf("t=%u, column %u discarded from now on\n",
+                                bm.t, j);
+                    bm.lucky[j] = -1;
+                    pi_lengths[j]++;
+                    pi_real_lengths[j]++;
+                    bm.delta[j]++;
+                    continue;
+                }
+            }
+            pi.multiply_column_by_x(j, pi_real_lengths[j]);
+            pi_real_lengths[j]++;
+            pi_lengths[j]++;
+            bm.delta[j]++;
+        }
+        /* }}} */
+    }
+
+    unsigned int pisize = 0;
+    for(unsigned int j = 0; j < b; j++) {
+        if (pi_real_lengths[j] > pisize)
+            pisize = pi_real_lengths[j];
+    }
+    /* Given the structure of the computation, there's no reason for the
+     * initial estimate to go wrong.
+     */
+    ASSERT_ALWAYS(pisize <= pi.capacity());
+    pi.set_size(pisize);
+
+    for(unsigned int j = 0; j < b; j++) {
+        for(unsigned int k = pi_real_lengths[j] ; k < pi.get_size() ; k++) {
+            for(unsigned int i = 0 ; i < b ; i++) {
+                ASSERT_ALWAYS(abis_zero(ab, pi.coeff(i, j, k)));
+            }
+        }
+    }
+
+    bm.done = generator_found;
+    return pi;
+}
+/* }}} */
 
 matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
 {
@@ -602,8 +1027,7 @@ matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
     tree_stats::sentinel dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    matpoly pi;
-    bm.done = bw_lingen_basecase_raw(bm, pi, E);
+    matpoly pi = bw_lingen_basecase_raw(bm, E);
     bm.stats.end_smallstep();
     E = matpoly();
     ASSERT_ALWAYS(pi.high_word_is_clear());
@@ -619,6 +1043,5 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     matpoly E(ab, m, m+n, L);
     E.zero_pad(L);
     E.fill_random(0, L, rstate);
-    matpoly pi;
-    bw_lingen_basecase_raw(bm, pi, E);
+    bw_lingen_basecase_raw(bm, E);
 }/*}}}*/
