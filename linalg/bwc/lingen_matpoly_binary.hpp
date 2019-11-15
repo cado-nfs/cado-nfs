@@ -62,17 +62,23 @@ public:
     inline size_t capacity() const { return alloc_words * ULONG_BITS; }
     const void * data_area() const { return x; }
     bool is_tight() const { return alloc_words == b2w(size); }
-    size_t data_entry_size() const {
+    size_t data_entry_size_in_bytes() const {
         return b2w(size) * sizeof(unsigned long);
     }
-    size_t data_size() const {
-        return m * n * data_entry_size();
+    size_t data_size_in_bytes() const {
+        return m * n * data_entry_size_in_bytes();
     }
-    size_t data_entry_alloc_size() const {
+    size_t data_entry_alloc_size_in_words() const {
+        return alloc_words;
+    }
+    size_t data_alloc_size_in_words() const {
+        return m * n * data_entry_alloc_size_in_words();
+    }
+    size_t data_entry_alloc_size_in_bytes() const {
         return alloc_words * sizeof(unsigned long);
     }
-    size_t data_alloc_size() const {
-        return m * n * data_entry_alloc_size();
+    size_t data_alloc_size_in_bytes() const {
+        return m * n * data_entry_alloc_size_in_bytes();
     }
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }

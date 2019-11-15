@@ -70,14 +70,14 @@ public:
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
     const void * data_area() const { return x; }
-    size_t data_entry_size() const { return abvec_elt_stride(ab, size); }
-    size_t data_size() const { return m * n * data_entry_size(); }
+    size_t data_entry_size_in_bytes() const { return abvec_elt_stride(ab, size); }
+    size_t data_size_in_bytes() const { return m * n * data_entry_size_in_bytes(); }
 private:
-    size_t data_entry_alloc_size(size_t a) const { return abvec_elt_stride(ab, a); }
-    size_t data_alloc_size(size_t a) const { return m * n * data_entry_alloc_size(a); }
+    size_t data_entry_alloc_size_in_bytes(size_t a) const { return abvec_elt_stride(ab, a); }
+    size_t data_alloc_size_in_bytes(size_t a) const { return m * n * data_entry_alloc_size_in_bytes(a); }
 public:
-    size_t data_entry_alloc_size() const { return data_entry_alloc_size(alloc); }
-    size_t data_alloc_size() const { return data_alloc_size(alloc); }
+    size_t data_entry_alloc_size_in_bytes() const { return data_entry_alloc_size_in_bytes(alloc); }
+    size_t data_alloc_size_in_bytes() const { return data_alloc_size_in_bytes(alloc); }
     bool is_tight() const { return alloc == size; }
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }

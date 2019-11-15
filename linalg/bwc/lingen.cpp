@@ -135,7 +135,7 @@ std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
     ASSERT_ALWAYS(X.is_tight());
-    S.write((const char *) X.data_area(), X.data_size());
+    S.write((const char *) X.data_area(), X.data_size_in_bytes());
     char checksum[41];
     S.checksum(checksum);
     return std::string(checksum);
@@ -401,21 +401,14 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 }/*}}}*/
 
 
-matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
+matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
 {
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     ASSERT_ALWAYS(!rank);
-    unsigned int t0 = bm.t;
-    unsigned int t1 = bm.t + E.get_size();
     matpoly pi;
 
     lingen_call_companion C = bm.companion(bm.depth(), E.get_size());
-
-    save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
-
-    if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
-        return pi;
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
@@ -429,6 +422,24 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
         pi = bw_lingen_recursive(bm, E);
     }
     // fprintf(stderr, "Leave %s\n", __func__);
+
+    return pi;
+}/*}}}*/
+matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
+{
+    int rank;
+    MPI_Comm_rank(bm.com[0], &rank);
+    ASSERT_ALWAYS(!rank);
+    unsigned int t0 = bm.t;
+    unsigned int t1 = bm.t + E.get_size();
+    matpoly pi;
+
+    save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
+
+    if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
+        return pi;
+
+    pi = bw_lingen_single_nocp(bm, E);
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1);
 
@@ -491,7 +502,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 
         /* Only the master node does the local computation */
         if (!rank)
-            spi = bw_lingen_single(bm, sE);
+            spi = bw_lingen_single_nocp(bm, sE);
 
         double expect1 = bm.hints.tt_scatter_per_unit * z;
         bm.stats.plan_smallstep("scatter(L+R)", expect1);

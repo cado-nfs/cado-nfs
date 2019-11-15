@@ -392,7 +392,7 @@ void bigmatpoly::allgather_row()
         ASSERT_ALWAYS(data.get_size() <= data.capacity());
         ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
-                data.m * data.n, data.data_entry_alloc_size(),
+                data.m * data.n, data.data_entry_alloc_size_in_bytes(),
                 MPI_BYTE,
                 MPI_Bcast(data.x, _datasize, _datatype, k, com[1])
         );
@@ -410,7 +410,7 @@ void bigmatpoly::allgather_col()
         ASSERT_ALWAYS(data.get_size() <= data.capacity());
         ASSERT_ALWAYS((data.m * data.n * data.capacity()) < (size_t) INT_MAX);
         CHECK_MPI_DATASIZE_FITS(
-                data.m * data.n, data.data_entry_alloc_size(),
+                data.m * data.n, data.data_entry_alloc_size_in_bytes(),
                 MPI_BYTE,
                 MPI_Bcast(data.x, _datasize, _datatype, k, com[2])
         );
@@ -472,8 +472,8 @@ struct OP_CTX {
     OP_CTX(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b)
         : c(c), a(a), b(b), stats(stats)
     {
-        MPI_Type_contiguous(a.my_cell().data_entry_alloc_size(), MPI_BYTE, &mpi_entry_a);
-        MPI_Type_contiguous(b.my_cell().data_entry_alloc_size(), MPI_BYTE, &mpi_entry_b);
+        MPI_Type_contiguous(a.my_cell().data_entry_alloc_size_in_bytes(), MPI_BYTE, &mpi_entry_a);
+        MPI_Type_contiguous(b.my_cell().data_entry_alloc_size_in_bytes(), MPI_BYTE, &mpi_entry_b);
         MPI_Type_commit(&mpi_entry_a);
         MPI_Type_commit(&mpi_entry_b);
     }
@@ -525,9 +525,9 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         : OP_CTX(CTX)
         , OP(OP)
         , M(M)
-        , mpi_split0(a.m, mesh_inner_size())
-        , mpi_split1(a.n, mesh_inner_size())
-        , mpi_split2(b.n, mesh_inner_size())
+        , mpi_split0(a.m, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
+        , mpi_split1(a.n, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
+        , mpi_split2(b.n, CTX.mesh_inner_size(), matpoly::over_gf2 ? 64 : 1)
         /* first, upper bounds on output block dimensions */
         , nrs0(mpi_split0.block_size_upper_bound())
         , nrs2(mpi_split2.block_size_upper_bound())
@@ -714,6 +714,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         begin_smallstep(M->step_name());
 
         alloc_c_if_needed(OP.csize);
+        c.zero_pad(OP.csize);
 
         const unsigned int r = mesh_inner_size();
 

@@ -26,9 +26,9 @@ matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(a
         return;
     }
     if (alloc_words) {
-        if (data_alloc_size()) {
-            x = (unsigned long *) memory.alloc(data_alloc_size());
-            memset(x, 0, data_alloc_size());
+        if (data_alloc_size_in_bytes()) {
+            x = (unsigned long *) memory.alloc(data_alloc_size_in_bytes());
+            memset(x, 0, data_alloc_size_in_bytes());
         } else {
             x = NULL;
         }
@@ -36,7 +36,7 @@ matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(a
 }
 matpoly::~matpoly() {
     if (x)
-        memory.free(x, data_alloc_size());
+        memory.free(x, data_alloc_size_in_bytes());
 }
 matpoly::matpoly(matpoly && a)
     : ab(a.ab), m(a.m), n(a.n), alloc_words(a.alloc_words)
@@ -50,7 +50,7 @@ matpoly::matpoly(matpoly && a)
 matpoly& matpoly::operator=(matpoly&& a)
 {
     if (x)
-        memory.free(x, data_alloc_size());
+        memory.free(x, data_alloc_size_in_bytes());
     ab = a.ab;
     m = a.m;
     n = a.n;
@@ -65,15 +65,15 @@ matpoly& matpoly::operator=(matpoly&& a)
 matpoly& matpoly::set(matpoly const& a)
 {
     if (x)
-        memory.free(x, data_alloc_size());
+        memory.free(x, data_alloc_size_in_bytes());
     ab = a.ab;
     m = a.m;
     n = a.n;
     alloc_words = a.alloc_words;
     size = a.size;
     // abvec_init(ab, &(x), m*n*alloc);
-    x = (unsigned long *) memory.alloc(data_alloc_size());
-    memcpy(x, a.x, data_alloc_size());
+    x = (unsigned long *) memory.alloc(data_alloc_size_in_bytes());
+    memcpy(x, a.x, data_alloc_size_in_bytes());
     return *this;
 }
 
@@ -130,7 +130,7 @@ void matpoly::realloc(size_t new_ncoeffs) {
 }
 void matpoly::zero() {
     size = 0;
-    memset(x, 0, data_alloc_size());
+    memset(x, 0, data_alloc_size_in_bytes());
 }
 size_t matpoly::get_true_nonzero_size() const
 {
@@ -487,7 +487,7 @@ void matpoly::view_t::zero() { /*{{{*/
 #endif
     for(unsigned int i = 0 ; i < nrows ; i++) {
         for(unsigned int j = 0 ; j < ncols ; j++) {
-            mpn_zero(part(i,j), M.data_entry_alloc_size());
+            memset(part(i,j), 0, M.data_entry_alloc_size_in_bytes());
         }
     }
 }/*}}}*/
@@ -583,7 +583,7 @@ void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)
             for(unsigned int j = 0 ; j < ncols ; j++) {
                 ptr tij = t.part(i, j);
                 srcptr aij = a.part(i, j);
-                mpn_copyi(tij, aij, a.M.data_entry_alloc_size());
+                memcpy(tij, aij, a.M.data_entry_alloc_size_in_bytes());
             }
         }
     }

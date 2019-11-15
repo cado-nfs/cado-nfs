@@ -393,26 +393,26 @@ struct lingen_substep_characteristics {
         return P.r;
     }/*}}}*/
     subdivision mpi_split0(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        return subdivision(n0, mesh_inner_size(P), simd);
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        return subdivision(n0, mesh_inner_size(P), splitwidth);
     }/*}}}*/
     subdivision mpi_split1(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        return subdivision(n1, mesh_inner_size(P), simd);
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        return subdivision(n1, mesh_inner_size(P), splitwidth);
     }/*}}}*/
     subdivision mpi_split2(pc_t const & P) const {/*{{{*/
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        return subdivision(n2, mesh_inner_size(P), simd);
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        return subdivision(n2, mesh_inner_size(P), splitwidth);
     }/*}}}*/
     subdivision shrink_split0(pc_t const & P, unsigned int shrink0) const {/*{{{*/
         unsigned int nr0 = mpi_split0(P).block_size_upper_bound();
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        return subdivision(nr0, shrink0, simd);
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        return subdivision(nr0, shrink0, splitwidth);
     }/*}}}*/
     subdivision shrink_split2(pc_t const & P, unsigned int shrink2) const {/*{{{*/
         unsigned int nr2 = mpi_split2(P).block_size_upper_bound();
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        return subdivision(nr2, shrink2, simd);
+        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
+        return subdivision(nr2, shrink2, splitwidth);
     }/*}}}*/
     subdivision shrink_split0(pc_t const & P, sc_t const & S) const {/*{{{*/
         return shrink_split0(P, S.shrink0);
@@ -813,7 +813,8 @@ struct microbench_dft { /*{{{*/
     unsigned int max_parallel() {
         size_t R = 0;
         /* storage for one input coeff and one output transform */
-        R += U.asize * mpz_size(U.p) * sizeof(mp_limb_t);
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        R += iceildiv(U.asize, simd) * mpz_size(U.p) * sizeof(mp_limb_t);
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the dft operation */
         R += op.get_alloc_sizes()[1];
@@ -847,7 +848,8 @@ struct microbench_ift { /*{{{*/
     unsigned int max_parallel() {
         size_t R = 0;
         /* storage for one input transform and one output coeff */
-        R += U.csize * mpz_size(U.p) * sizeof(mp_limb_t);
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        R += iceildiv(U.csize, simd) * mpz_size(U.p) * sizeof(mp_limb_t);
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the ift operation */
         R += op.get_alloc_sizes()[1];
