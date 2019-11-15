@@ -906,14 +906,13 @@ struct microbench_conv { /*{{{*/
         return n;
     }
     double operator()(unsigned int nparallel) {
-        matpoly c(U.ab, nparallel, 1, U.csize);
-        matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
-        /* This is important, since otherwise the inverse transform won't
-         * work */
-        c.set_size(U.csize);
-        tc.zero(); /* would be .fill_random(rstate) if we had it */
+        matpoly_ft<typename OP::FFT> tc( nparallel, 1, op.fti);
+        matpoly_ft<typename OP::FFT> tc0(nparallel, 1, op.fti);
+        matpoly_ft<typename OP::FFT> tc1(1, 1, op.fti);
+        tc0.zero(); /* would be .fill_random(rstate) if we had it */
+        tc1.zero(); /* would be .fill_random(rstate) if we had it */
         double tt = -wct_seconds();
-        matpoly_ft<typename OP::FFT>::ift(c, tc);
+        matpoly_ft<typename OP::FFT>::addcompose(tc, tc0, tc1);
         return tt + wct_seconds();
     }
 };/*}}}*/
