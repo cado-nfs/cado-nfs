@@ -70,10 +70,10 @@ mpz_set_int64 (mpz_ptr z, int64_t q)
   if (LONG_MIN <= q && q <= LONG_MAX)
     mpz_set_si (z, (long) q);
   else if (q >= 0)
-    mpz_set_uint64 (z, q);
+    mpz_set_uint64 (z, (uint64_t) q);
   else
     {
-      mpz_set_uint64 (z, -q);
+      mpz_set_uint64 (z, -(uint64_t)q);
       mpz_neg (z, z);
     }
 }
@@ -113,7 +113,7 @@ mpz_fits_uint64_p (mpz_srcptr z)
 {
     if (mpz_sgn(z) < 0)
         return 0;
-    int l = mpz_sizeinbase(z, 2);
+    size_t l = mpz_sizeinbase(z, 2);
     return (l <= 64);
 }
 
@@ -125,13 +125,13 @@ mpz_get_int64 (mpz_srcptr z)
         return l & (uint64_t) INT64_MAX;
     /* We want 1 -> -1, 2 -> -2, ...,
        2^63-1 -> -2^63+1, 2^63 -> -2^63, 2^63+1 -> -1 */
-    return -(((l - 1) & (uint64_t) INT64_MAX) + 1);
+    return (int64_t) -(((l - 1) & (uint64_t) INT64_MAX) + 1);
 }
 
 int
 mpz_fits_int64_p (mpz_srcptr z)
 {
-    int l = mpz_sizeinbase(z, 2);
+    size_t l = mpz_sizeinbase(z, 2);
     if (l <= 63) return 1;
     /* Also accept -2^63, which is INT64_MIN */
     if (mpz_sgn(z) < 0 && l == 64  && mpz_scan1(z, 0) == 63) return 1;
@@ -299,7 +299,7 @@ mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
   if (c >= 0)
     mpz_submul_uint64 (a, b, (uint64_t) c);
   else
-    mpz_addmul_uint64 (a, b, (uint64_t) (-c));
+    mpz_addmul_uint64 (a, b, -(uint64_t) c);
 }
 
 /* a <- a + b * c */
@@ -380,7 +380,7 @@ ulong_nextcomposite (unsigned long q, unsigned long pmin)
       if (ulong_isprime (q))
         continue;
       unsigned long p;
-      for (p = 2; p < pmin && q % p; p += 1 + (p > 2));
+      for (p = 2; p < pmin && q % p; p += 1UL + (p > 2));
       if (p >= pmin)
         break;
     }
@@ -564,7 +564,7 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
 {
   mpz_mod (a, b, c); /* now 0 <= a < c */
 
-  size_t n = mpz_size (c);
+  mp_size_t n = (mp_size_t) mpz_size (c);
   mp_limb_t aj, cj;
   int sub = 0, sh = GMP_NUMB_BITS - 1;
 

@@ -137,7 +137,7 @@ static inline void mpn_rrandom (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
     dummy->_mp_d = rp;
     dummy->_mp_alloc = N;
     dummy->_mp_size = N;
-    mpz_rrandomb(dummy, rstate, N * GMP_LIMB_BITS);
+    mpz_rrandomb(dummy, rstate, (mp_bitcnt_t) N * GMP_LIMB_BITS);
 }
 
 
@@ -147,7 +147,7 @@ static inline void mpn_randomb (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
     dummy->_mp_d = rp;
     dummy->_mp_alloc = N;
     dummy->_mp_size = N;
-    mpz_urandomb(dummy, rstate, N * GMP_LIMB_BITS);
+    mpz_urandomb(dummy, rstate, (mp_bitcnt_t) N * GMP_LIMB_BITS);
 }
 
 #endif
