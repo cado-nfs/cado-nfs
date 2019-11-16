@@ -67,7 +67,7 @@ mpz_set_uint64 (mpz_ptr z, uint64_t q)
 void
 mpz_set_int64 (mpz_ptr z, int64_t q)
 {
-  if (sizeof (long) == 8)
+  if (LONG_MIN <= q && q <= LONG_MAX)
     mpz_set_si (z, (long) q);
   else if (q >= 0)
     mpz_set_uint64 (z, q);
@@ -77,6 +77,7 @@ mpz_set_int64 (mpz_ptr z, int64_t q)
       mpz_neg (z, z);
     }
 }
+
 void mpz_init_set_uint64 (mpz_ptr z, uint64_t x)
 {
     mpz_init(z);
@@ -140,7 +141,7 @@ mpz_fits_int64_p (mpz_srcptr z)
 void
 mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_mul_ui (a, b, (unsigned long) c);
   else
     {
@@ -155,7 +156,7 @@ mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 int
 mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     return mpz_cmp_ui (a, (unsigned long) c);
   else
     {
@@ -201,7 +202,7 @@ mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 void
 mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_addmul_ui (a, b, (unsigned long) c);
   else
     {
@@ -216,7 +217,7 @@ mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 void
 mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_submul_ui (a, b, (unsigned long) c);
   else
     {
@@ -231,7 +232,7 @@ mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 void
 mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_divexact_ui (a, b, (unsigned long) c);
   else
     {
@@ -246,7 +247,7 @@ mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 int
 mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     return mpz_divisible_ui_p (a, (unsigned long) c);
   else
     {
@@ -264,7 +265,7 @@ mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
 void
 mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
-  if (sizeof (long) == 8)
+  if (LONG_MIN <= c && c <= LONG_MAX)
     mpz_mul_si (a, b, (long) c);
   else
     {
