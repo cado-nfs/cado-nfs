@@ -167,6 +167,21 @@ mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
     }
 }
 
+int
+mpz_cmp_int64 (mpz_srcptr a, int64_t c)
+{
+  if (LONG_MIN <= c && c <= LONG_MAX)
+    return mpz_cmp_si (a, (long) c);
+  else
+    {
+      mpz_t d;
+      mpz_init_set_int64 (d, c);
+      int r = mpz_cmp (a, d);
+      mpz_clear (d);
+      return r;
+    }
+}
+
 void
 mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
@@ -280,6 +295,48 @@ uint64_nextprime (uint64_t q)
   return q;
 }
 
+uint64_t
+mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_tdiv_qr (Q, R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_tdiv_qr_uint64 (Q, R, N, d);
+    mpz_clear (R);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_tdiv_r (R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_tdiv_r_uint64 (R, N, d);
+    mpz_clear (R);
+    return r;
+}
+
 #endif
 
 
@@ -296,16 +353,10 @@ mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 void
 mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
-  if (sizeof (long) == 8)
-    mpz_addmul_si (a, b, (long) c);
+  if (c >= 0)
+    mpz_addmul_uint64 (a, b, (uint64_t) c);
   else
-    {
-      mpz_t d;
-      mpz_init (d);
-      mpz_set_int64 (d, c);
-      mpz_addmul (a, b, d);
-      mpz_clear (d);
-    }
+    mpz_submul_uint64 (a, b, -(uint64_t) c);
 }
 
 /* returns the smallest prime p, q < p <= ULONG_MAX, or 0 if no such prime
