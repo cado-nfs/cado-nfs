@@ -80,13 +80,13 @@ mpz_set_int64 (mpz_ptr z, int64_t q)
 
 void mpz_init_set_uint64 (mpz_ptr z, uint64_t x)
 {
-    mpz_init(z);
+    mpz_init2(z, 64);
     mpz_set_uint64(z, x);
 }
 
 void mpz_init_set_int64 (mpz_ptr z, int64_t x)
 {
-    mpz_init(z);
+    mpz_init2(z, 64);
     mpz_set_int64(z, x);
 }
 
@@ -146,8 +146,7 @@ mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_mul (a, b, d);
       mpz_clear (d);
     }
@@ -161,8 +160,7 @@ mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       int r = mpz_cmp (a, d);
       mpz_clear (d);
       return r;
@@ -177,8 +175,7 @@ mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_add (a, b, d);
       mpz_clear (d);
     }
@@ -192,8 +189,7 @@ mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_sub (a, b, d);
       mpz_clear (d);
     }
@@ -207,8 +203,7 @@ mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_addmul (a, b, d);
       mpz_clear (d);
     }
@@ -222,8 +217,7 @@ mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_submul (a, b, d);
       mpz_clear (d);
     }
@@ -237,8 +231,7 @@ mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_divexact (a, b, d);
       mpz_clear (d);
     }
@@ -254,8 +247,7 @@ mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
       mpz_t d;
       int ret;
 
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       ret = mpz_divisible_p (a, d);
       mpz_clear (d);
       return ret;
@@ -270,8 +262,7 @@ mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_int64 (d, c);
+      mpz_init_set_int64 (d, c);
       mpz_mul (a, b, d);
       mpz_clear (d);
     }
@@ -282,8 +273,7 @@ uint64_nextprime (uint64_t q)
 {
   mpz_t z;
 
-  mpz_init (z);
-  mpz_set_uint64 (z, q);
+  mpz_init_set_uint64 (z, q);
   mpz_nextprime (z, z);
   q = mpz_get_uint64 (z);
   mpz_clear (z);
