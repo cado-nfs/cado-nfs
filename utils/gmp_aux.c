@@ -197,6 +197,15 @@ mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 }
 
 void
+mpz_add_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
+{
+  if (c >= 0)
+    mpz_add_uint64 (a, b, (uint64_t) c);
+  else
+    mpz_sub_uint64 (a, b, -(uint64_t) c);
+}
+
+void
 mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
   if (c <= ULONG_MAX)
@@ -208,6 +217,15 @@ mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
       mpz_sub (a, b, d);
       mpz_clear (d);
     }
+}
+
+void
+mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
+{
+  if (c >= 0)
+    mpz_sub_uint64 (a, b, (uint64_t) c);
+  else
+    mpz_add_uint64 (a, b, -(uint64_t) c);
 }
 
 void

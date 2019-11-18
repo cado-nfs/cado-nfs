@@ -18,6 +18,16 @@ mpz_add_si (mpz_ptr a, mpz_srcptr b, const long c) {
 }
 #endif
 
+#ifndef mpz_sub_si
+static inline void
+mpz_sub_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_sub_ui (a, b, (unsigned long) c);
+    else
+        mpz_add_ui (a, b, -(unsigned long) c);
+}
+#endif
+
 #ifndef mpz_addmul_si
 static inline void
 mpz_addmul_si (mpz_ptr a, mpz_srcptr b, const long c) {
@@ -55,7 +65,9 @@ extern void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern int mpz_cmp_uint64 (mpz_srcptr a, uint64_t c);
 extern int mpz_cmp_int64 (mpz_srcptr a, int64_t c);
 extern void mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
+extern void mpz_add_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
+extern void mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
@@ -83,7 +95,9 @@ static inline void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {m
 static inline int mpz_cmp_uint64 (mpz_srcptr a, const uint64_t c) {return mpz_cmp_ui(a, c);}
 static inline int mpz_cmp_int64 (mpz_srcptr a, const int64_t c) {return mpz_cmp_si(a, c);}
 static inline void mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_add_ui(a, b, c);}
+static inline void mpz_add_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_add_si(a, b, c);}
 static inline void mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_sub_ui(a, b, c);}
+static inline void mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_sub_si(a, b, c);}
 static inline void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_addmul_ui(a, b, c);}
 static inline void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_submul_ui(a, b, c);}
 static inline void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_divexact_ui(a, b, c);}
