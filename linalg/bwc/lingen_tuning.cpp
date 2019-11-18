@@ -525,26 +525,30 @@ struct lingen_tuner {
             step.report_size_stats_human(os);
 #endif
 
-        lingen_substep_schedule S;
+        std::vector<lingen_substep_schedule> SS;
+
         if (stored_hints.find(K) != stored_hints.end()) {
-            os << "# Using imposed schedule\n";
-            S = stored_hints.at(K)[op_type].S;
-            if (print_here) {
-                step.get_and_report_call_time(os, P, mesh, S, C);
+            lingen_substep_schedule S = stored_hints.at(K)[op_type].S;
+            if (step.is_valid_schedule(P, mesh, S)) {
+                os << "# Using imposed schedule " << S.serialize() << "\n";
+                SS.push_back(S);
             } else {
-                step.get_call_time(os, P, mesh, S, C);
+                os << "# IGNORING invalid schedule " << S.serialize() << "\n";
             }
-        } else {
-            /* get the schedule by trying all possibilities */
-            auto SS = optimize(os, step, P, mesh, C, reserved);
-            for(auto const & S : SS)
-                step.get_and_report_call_time(os, P, mesh, S, C);
-
-            S = SS.front();
-
-            if (print_here)
-                step.report_op_winner(os, mesh, S);
         }
+
+        if (SS.empty()) {
+            /* get the schedule by trying all possibilities */
+            SS = optimize(os, step, P, mesh, C, reserved);
+        }
+
+        for(auto const & S : SS)
+            step.get_and_report_call_time(os, P, mesh, S, C);
+
+        lingen_substep_schedule S = SS.front();
+
+        if (print_here)
+            step.report_op_winner(os, mesh, S);
 
         if (wct_seconds() > last_save + 10) {
             int rank;

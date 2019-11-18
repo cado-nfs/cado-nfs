@@ -3,6 +3,8 @@
 
 #include <array>
 #include <istream>
+#include <ostream>
+#include <sstream>
 
 struct lingen_substep_schedule {
     /* output characteristics -- the ones we have to choose */
@@ -74,6 +76,13 @@ struct lingen_substep_schedule {
         os << " " << io_token_batch << " " << batch[0] << " " << batch[1] << " " << batch[2];
         return os;
     }
+
+    std::string serialize() const {
+        std::stringstream ss;
+        serialize(ss);
+        return ss.str();
+    }
+
     static std::istream& fft_type_unserialize(std::istream& is, fft_type_t & fft_type)
     {
         std::string s;

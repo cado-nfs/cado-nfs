@@ -60,6 +60,52 @@ struct lingen_substep_characteristics {
 
     public:
 
+    bool is_valid_schedule(lingen_platform, unsigned int mesh, lingen_substep_schedule const & S) const
+    {
+        unsigned int shrink0 = S.shrink0;
+        unsigned int shrink2 = S.shrink2;
+        unsigned int r = mesh;
+        subdivision mpi_split0(n0, r);
+        subdivision mpi_split1(n1, r);
+        subdivision mpi_split2(n2, r);
+        subdivision shrink_split0(mpi_split0.block_size_upper_bound(), shrink0);
+        subdivision shrink_split2(mpi_split2.block_size_upper_bound(), shrink2);
+        unsigned int nrs0(shrink_split0.block_size_upper_bound());
+        unsigned int nrs2(shrink_split2.block_size_upper_bound());
+        const unsigned int nr1 = mpi_split1.block_size_upper_bound();
+        unsigned int b0 = S.batch[0];
+        unsigned int b1 = S.batch[1];
+        unsigned int b2 = S.batch[2];
+        subdivision loop1 = subdivision::by_block_size(nr1, b1);
+        for(unsigned int round = 0 ; round < shrink0 * shrink2 ; round++) {
+            unsigned round0 = round % shrink0;
+            unsigned round2 = round / shrink0;
+            unsigned int i0, i1;
+            unsigned int j0, j1;
+            std::tie(i0, i1) = shrink_split0.nth_block(round0);
+            std::tie(j0, j1) = shrink_split2.nth_block(round2);
+            ASSERT_ALWAYS((i1 - i0) <= nrs0);
+            ASSERT_ALWAYS((j1 - j0) <= nrs2);
+            subdivision loop0 = subdivision::by_block_size(i1 - i0, b0);
+            subdivision loop2 = subdivision::by_block_size(j1 - j0, b2);
+
+            if (loop0.nblocks() != 1 && loop2.nblocks() != 1)
+                return false;
+            bool process_blocks_row_major = b0 == nrs0;
+
+            for(unsigned int iloop1 = 0 ; iloop1 < loop1.nblocks() ; iloop1++) {
+                if (process_blocks_row_major) {
+                    if (loop0.nblocks() != 1) return false;
+                    if (nrs0 != b0) return false;
+                } else {
+                    if (loop2.nblocks() != 1) return false;
+                    if (nrs2 != b2) return false;
+                }
+            }
+        }
+        return true;
+    }
+
     lingen_substep_characteristics(abdst_field ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
