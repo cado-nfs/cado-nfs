@@ -11,16 +11,6 @@
 #include "lingen_expected_pi_length.hpp"
 #include "gf2x.h"
 
-typedef int (*sortfunc_t) (const void*, const void*);
-
-static int lexcmp2(const int x[2], const int y[2])
-{
-    for(int i = 0 ; i < 2 ; i++) {
-        int d = x[i] - y[i];
-        if (d) return d;
-    }
-    return 0;
-}
 
 void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength)
 {
@@ -99,12 +89,6 @@ unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsi
 {
     return qq->local_delta[j] + 1;
 }
-
-/* if SWAP_E is defined, put E[i,j] into E[j][i] */
-#define SWAP_E
-
-/* if SWAP_PI is defined, put pi[i,j] into pi[j][i] */
-#define SWAP_PI
 
 template<int WIDTH>
 struct constant_width {
@@ -234,79 +218,24 @@ public:
     inline void lshift1_column(unsigned int j) {
         unsigned long * c = x + (j * m) * width;
         mpn_lshift(c, c, width, 1);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
         for(unsigned int i = 0 ; i < m ; i++)
             c[i*width] &= ~1UL;
     }
-};
-
-#if 0
-bool report_spontaneous_zeros(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<int>const& is_modified)
-{
-    unsigned int m = qq->m;
-    unsigned int b = qq->b;
-    unsigned int n = b - m;
-    std::vector<std::pair<unsigned int, unsigned int> > magic;
-    bool changed = false;
-    for(unsigned int i = 0 ; i < m + n ; i++) {
-        if (is_modified[i]) {
-            qq->ch[i] = 0;
-            if (is_modified[i] & 1)
-                changed=true;
-        } else {
-            qq->ch[i]++;
-            magic.push_back( { i, qq->ch[i] } );
-        }
-    }
-
-    if (magic.empty()) {
-        ASSERT_ALWAYS(changed);
-        return changed;
-    }
-
-    printf("%-8u%zucols=0:", qq->t + dt, magic.size());
-
-    // Now print this out more nicely.
-    std::sort(magic.begin(),magic.end());
-    for( ; magic.size() ; ) {
-        unsigned int mi = UINT_MAX;
-        for(unsigned int i = 0 ; i < magic.size() ; i++) {
-            if (magic[i].second < mi) {
-                mi = magic[i].second;
-            }
-        }
-        printf(" [");
-        for(unsigned int i = 0 ; i < magic.size() ; ) {
-            unsigned int j;
-            for(j = i; j < magic.size() ; j++) {
-                if (magic[j].first-magic[i].first != j-i) break;
-            }
-            if (i) printf(",");
-            if (magic[i].first == magic[j-1].first - 1) {
-                printf("%u,%u", magic[i].first, magic[j-1].first);
-            } else if (magic[i].first < magic[j-1].first) {
-                printf("%u..%u", magic[i].first, magic[j-1].first);
-            } else {
-                printf("%u", magic[i].first);
-            }
-            i = j;
-        }
-        printf("]");
-        if (mi > 1)
-            printf("*%u",mi);
-
-        std::vector<std::pair<unsigned int, unsigned int> > zz2;
-        for(unsigned int i = 0 ; i < magic.size() ; i++) {
-            if (magic[i].second > mi) {
-                zz2.push_back( { magic[i].first,magic[i].second } );
-            }
-        }
-        magic.swap(zz2);
-    }
-    printf("\n");
-
-    return changed;
-}
+    inline void xor_column(unsigned int k, unsigned int pivot) {
+#if 1
+        column(k) ^= column(pivot);
+#else
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
 #endif
+        for (unsigned int l = 0; l < m; l++)
+            (*this)(l, k) ^= (*this)(l, pivot);
+#endif
+    }
+};
 
 /* This re-implementation is inspired from the one in
  * lingen_qcode_prime.cpp */
@@ -408,20 +337,12 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
     unsigned int m = qq->m;
     unsigned int b = qq->b;
     unsigned int n = b - m;
-
+    std::vector<unsigned int> kk(m+n, 0);
     int width = w.width;
 
-#ifdef  SWAP_E
     ulmat_colmajor<width_type> E(w, m, b);
-#else
-    ulmat_rowmajor<width_type> E(w, m, b);
-#endif
 
-#ifdef  SWAP_PI
     ulmat_colmajor<width_type> P(w, b, b);
-#else
-    ulmat_rowmajor<width_type> P(w, b, b);
-#endif
 
     ASSERT_ALWAYS(qq->length <= (unsigned long) width * ULONG_BITS);
 #ifdef HAVE_OPENMP
@@ -471,34 +392,66 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
              * far as detection of spontaneous zeros goes, of course we
              * must make sure that we don't take pivots into account ! */
             is_modified[pivot] |= 2;
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
+
+#if 1   /* prepare list of k's in advance ? */
+            kk.clear();
 	    for (unsigned int k = 0; k < m + n; k++) {
                 if (k == pivot) continue;
 		if (!(E(i, k)[e])) continue;
                 is_modified[k] |= 1;
-#if defined(SWAP_E)
-                E.column(k) ^= E.column(pivot);
-#else
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for (unsigned int l = 0; l < m; l++)
-                    E(l, k) ^= E(l, pivot);
-#endif
-#if defined(SWAP_PI)
-                P.column(k) ^= P.column(pivot);
-#else
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for (unsigned int l = 0; l < m + n; l++)
-                        P(l, k) ^= P(l, pivot);
-#endif
                 if (qq->local_delta[pivot] > qq->local_delta[k])
                     qq->local_delta[k] = qq->local_delta[pivot];
+                kk.push_back(k);
+            }
+
+#if 0   /* process k's by batches ? */
+            unsigned int ikbig = (kk.size() / 2) * 2;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+	    for (unsigned int ik = 0 ; ik < ikbig ; ik += 2) {
+                unsigned int k0 = kk[ik];
+                unsigned int k1 = kk[ik+1];
+                // unsigned int k2 = kk[ik+2];
+                // unsigned int k3 = kk[ik+3];
+                E.xor_column(k0, pivot);
+                E.xor_column(k1, pivot);
+                // E.xor_column(k2, pivot);
+                // E.xor_column(k3, pivot);
+                P.xor_column(k0, pivot);
+                P.xor_column(k1, pivot);
+                // P.xor_column(k2, pivot);
+                // P.xor_column(k3, pivot);
 	    }
+	    for (unsigned int ik = ikbig ; ik < kk.size() ; ik++) {
+                unsigned int k = kk[ik];
+                E.xor_column(k, pivot);
+                P.xor_column(k, pivot);
+            }
+#else   /* process k's by batches ? */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+	    for (unsigned int ik = 0 ; ik < kk.size() ; ik++) {
+                unsigned int k = kk[ik];
+                E.xor_column(k, pivot);
+                P.xor_column(k, pivot);
+            }
+#endif   /* process k's by batches ? */
+#else   /* prepare list of k's in advance ? */
+
+	    for (unsigned int k = 0; k < m + n; k++) {
+                if (k == pivot) continue;
+		if (!(E(i, k)[e])) continue;
+                is_modified[k] |= 1;
+                if (qq->local_delta[pivot] > qq->local_delta[k])
+                    qq->local_delta[k] = qq->local_delta[pivot];
+                E.xor_column(k, pivot);
+                P.xor_column(k, pivot);
+            }
+#endif  /* prepare list of k's in advance ? */
+
+
 #if 0
             E.lshift1_column(pivot);
             P.lshift1_column(pivot);
@@ -539,7 +492,7 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
     return e;
 }
 
-unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)
+unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)/*{{{*/
 {
     if (qq->length <= ULONG_BITS) {
         return lingen_qcode_do_tmpl(constant_width<1>(), qq);
@@ -561,7 +514,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)
         return lingen_qcode_do_tmpl(variable_width { iceildiv(qq->length, ULONG_BITS) }, qq);
     }
     return 0;
-}
+}/*}}}*/
 
 matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
 {
@@ -625,6 +578,17 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 } /* }}} */
 
+#if 0
+typedef int (*sortfunc_t) (const void*, const void*);
+
+static int lexcmp2(const int x[2], const int y[2])
+{
+    for(int i = 0 ; i < 2 ; i++) {
+        int d = x[i] - y[i];
+        if (d) return d;
+    }
+    return 0;
+}
 matpoly bw_lingen_basecase_raw_slow(bmstatus & bm, matpoly const & E) /*{{{*/
 {
     int generator_found = 0;
@@ -1020,6 +984,7 @@ matpoly bw_lingen_basecase_raw_slow(bmstatus & bm, matpoly const & E) /*{{{*/
     return pi;
 }
 /* }}} */
+#endif
 
 matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
 {
