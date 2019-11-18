@@ -7,6 +7,9 @@
 #include "lingen_io_matpoly.hpp"
 #include "fmt/format.h"
 #include "misc.h"
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -64,6 +67,19 @@ unsigned int lingen_io_wrapper_base::preferred_window() const
 double lingen_file_input::average_matsize() const
 {
     return ::average_matsize(ab, nrows, ncols, ascii);
+}
+
+unsigned int lingen_file_input::preferred_window() const
+{
+    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int nmats_pad = simd * iceildiv(nmats, simd);
+#ifdef HAVE_OPENMP
+    /* This might be a bit large */
+    nmats_pad *= omp_get_max_threads() * omp_get_max_threads() / 4;
+    /* limit to 32GB */
+    for( ; ((size_t) nmats_pad) * average_matsize() > (1UL << 35) ; nmats_pad /= 2);
+#endif
+    return nmats_pad;
 }
 
 void lingen_file_input::open_file()
@@ -137,6 +153,19 @@ ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, uns
     next_src_k += nk;
     return nk;
 }
+unsigned int lingen_random_input::preferred_window() const
+{
+    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int nmats_pad = simd * iceildiv(nmats, simd);
+#ifdef HAVE_OPENMP
+    /* This might be a bit large */
+    nmats_pad *= omp_get_max_threads() * omp_get_max_threads() / 4;
+    /* limit to 32GB */
+    for( ; ((size_t) nmats_pad) * average_matsize() > (1UL << 35) ; nmats_pad /= 2);
+#endif
+    return nmats_pad;
+}
+
 
 /* pivots is a vector of length r <= M.n ;
  * M is a square matrix ;
@@ -1323,7 +1352,7 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
 
 void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, const char * action, bool skip_trailing_zeros)
 {
-    unsigned int window = std::min(in.preferred_window(), out.preferred_window());
+    unsigned int window = std::max(in.preferred_window(), out.preferred_window());
     if (window == UINT_MAX) {
         window=4096;
     }

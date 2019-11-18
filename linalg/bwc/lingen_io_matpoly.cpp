@@ -1,6 +1,11 @@
 #include "cado.h"
 #include "lingen_io_matpoly.hpp"
 #include "gmp-hacks.h"
+#include <unistd.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 
 // constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
 constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
@@ -230,7 +235,7 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
     return k1 - k0;
 }
 #else
-int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+int matpoly_read_inner(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
 {
     unsigned int m = M.m;
     unsigned int n = M.n;
@@ -238,8 +243,11 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
     ASSERT_ALWAYS(m % ULONG_BITS == 0);
     ASSERT_ALWAYS(n % ULONG_BITS == 0);
     size_t ulongs_per_mat = m * n / ULONG_BITS;
-    std::vector<unsigned long> buf(ulongs_per_mat);
-    for(unsigned int k = k0 ; k < k1 ; k++) {
+    batch = MIN(batch, k1 - k0);
+    std::vector<unsigned long> buf(ulongs_per_mat * batch);
+    for(unsigned int k = k0 ; k < k1 ; k+=batch) {
+        if (k + batch > k1) batch = k1 - k;
+        unsigned int good;
         if (ascii) {
             /* do we have an endian-robust wordsize-robust convention for
              * printing bitstrings in hex ?
@@ -249,38 +257,115 @@ int matpoly_read(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned i
              */
             abort();
         } else {
-            int rc = fread(&buf[0], sizeof(unsigned long), ulongs_per_mat, f);
-            if (rc != (int) ulongs_per_mat)
-                return k - k0;
+            int rc;
+            if (base < 0) {
+                rc = fread(&buf[0], sizeof(unsigned long), ulongs_per_mat * batch, f);
+                if (rc != (int) (ulongs_per_mat * batch) && ferror(f))
+                    return k - k0;
+            } else {
+                /* use pread -- good for multithreading */
+                size_t one = ulongs_per_mat * sizeof(unsigned long);
+                off_t off = base + (k - k0) * one;
+                ssize_t r = pread(fileno(f), &buf[0], one * batch, off);
+                if (r < 0) rc = 0;
+                else rc = r / sizeof(unsigned long);
+            }
+            good = rc / ulongs_per_mat;
         }
-        size_t kq = k / ULONG_BITS;
-        size_t kr = k % ULONG_BITS;
-        if (!transpose) {
-            for(unsigned int i = 0 ; i < m ; i++) {
-                unsigned long * v = &(buf[i * (n / ULONG_BITS)]);
-                for(unsigned int j = 0 ; j < n ; j++) {
-                    unsigned int jq = j / ULONG_BITS;
-                    unsigned int jr = j % ULONG_BITS;
-                    unsigned long bit = (v[jq] >> jr) & 1;
-                    M.part(i, j)[kq] &= ~(1UL << kr);
-                    M.part(i, j)[kq] |= bit << kr;
-                }
-            }
-        } else {
-            for(unsigned int j = 0 ; j < n ; j++) {
-                unsigned long * v = &(buf[j * (m / ULONG_BITS)]);
+        for(unsigned int b = 0 ; b < good ; b++) {
+            size_t kq = (k + b) / ULONG_BITS;
+            size_t kr = (k + b) % ULONG_BITS;
+            if (!transpose) {
                 for(unsigned int i = 0 ; i < m ; i++) {
-                    unsigned int iq = i / ULONG_BITS;
-                    unsigned int ir = i % ULONG_BITS;
-                    unsigned long bit = (v[iq] >> ir) & 1;
-                    M.part(i, j)[kq] &= ~(1UL << kr);
-                    M.part(i, j)[kq] |= bit << kr;
+                    unsigned long * v = &(buf[b * ulongs_per_mat + i * (n / ULONG_BITS)]);
+                    for(unsigned int j = 0 ; j < n ; j++) {
+                        unsigned int jq = j / ULONG_BITS;
+                        unsigned int jr = j % ULONG_BITS;
+                        unsigned long bit = (v[jq] >> jr) & 1;
+                        M.part(i, j)[kq] &= ~(1UL << kr);
+                        M.part(i, j)[kq] |= bit << kr;
+                    }
+                }
+            } else {
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    unsigned long * v = &(buf[b * ulongs_per_mat + j * (m / ULONG_BITS)]);
+                    for(unsigned int i = 0 ; i < m ; i++) {
+                        unsigned int iq = i / ULONG_BITS;
+                        unsigned int ir = i % ULONG_BITS;
+                        unsigned long bit = (v[iq] >> ir) & 1;
+                        M.part(i, j)[kq] &= ~(1UL << kr);
+                        M.part(i, j)[kq] |= bit << kr;
+                    }
                 }
             }
+        }
+        if (good < batch) {
+            return k - k0 + good;
         }
     }
     return k1 - k0;
 }
+int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+{
+    int rc = 0;
+    if (k0 % ULONG_BITS) {
+        unsigned int fk0 = MIN(k1, k0 + ULONG_BITS - (k0 % ULONG_BITS));
+        rc += matpoly_read_inner(ab, f, M, k0, fk0, ascii, transpose, -1);
+        if (rc < (int) (fk0 - k0) || fk0 == k1)
+            return rc;
+        return rc + matpoly_read(ab, f, M, fk0, k1, ascii, transpose);
+    }
+    if (k1 % ULONG_BITS) {
+        unsigned int fk1 = MAX(k0, k1 - (k1 % ULONG_BITS));
+        if (k0 < fk1) {
+            /* recurse and to the bulk of the processing on aligned
+             * values */
+            rc += matpoly_read(ab, f, M, k0, fk1, ascii, transpose);
+            if (rc < (int) (fk1 - k0))
+                return rc;
+        }
+        return rc + matpoly_read_inner(ab, f, M, fk1, k1, ascii, transpose, -1);
+    }
+
+    ASSERT_ALWAYS(!(k0 % ULONG_BITS));
+    ASSERT_ALWAYS(!(k1 % ULONG_BITS));
+
+    off_t pos0 = ftell(f);
+    size_t ulongs_per_mat = M.m * M.n / ULONG_BITS;
+    size_t one = ulongs_per_mat * sizeof(unsigned long);
+
+    unsigned int nth = 1;
+#ifdef HAVE_OPENMP
+    nth = omp_get_max_threads();
+#endif
+    unsigned int dk = ((k1 - k0)/ULONG_BITS) / nth;
+    unsigned int mk = ((k1 - k0)/ULONG_BITS) % nth;
+#ifdef HAVE_OPENMP
+#pragma omp parallel num_threads(nth)
+#endif
+    {
+        unsigned int idx = 0;
+#ifdef HAVE_OPENMP
+        idx = omp_get_thread_num();
+#endif
+        unsigned int lk0 = k0 / ULONG_BITS + idx * dk + MIN(idx, mk);
+        unsigned int lk1 = lk0 + dk + (idx < mk);
+        lk0 *= ULONG_BITS;
+        lk1 *= ULONG_BITS;
+
+        off_t base = pos0 + (lk0 - k0) * one;
+        int my_rc = matpoly_read_inner(ab, f, M, lk0, lk1, ascii, transpose, base, UINT_MAX);
+
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+        rc += my_rc;
+    }
+
+    fseek(f, pos0 + rc * one, SEEK_SET);
+    return rc;
+}
+
 #endif
 /* }}} */
 

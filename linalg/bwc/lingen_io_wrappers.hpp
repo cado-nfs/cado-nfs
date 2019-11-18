@@ -127,6 +127,7 @@ class lingen_file_input : public lingen_input_wrapper_base
     {
         open_file();
     }
+    unsigned int preferred_window() const override;
     ~lingen_file_input() override { close_file(); }
     lingen_file_input(lingen_file_input const&) = delete;
     double average_matsize() const override;
@@ -151,6 +152,7 @@ struct lingen_random_input : public lingen_input_wrapper_base
       , length(length)
     {}
 
+    unsigned int preferred_window() const override;
     inline size_t guessed_length() const override { return length; }
 
     ssize_t read_to_matpoly(matpoly& dst,
@@ -210,6 +212,9 @@ class lingen_E_from_A
         ASSERT_ALWAYS(A.nrows == d.m);
         ASSERT_ALWAYS(A.ncols == d.n);
         initial_read();
+    }
+    unsigned int preferred_window() const override {
+        return A.preferred_window();
     }
     inline size_t guessed_length() const override {
         return A.guessed_length() - t0;
