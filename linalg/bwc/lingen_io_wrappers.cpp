@@ -425,6 +425,7 @@ lingen_E_from_A::initial_read()
                 normalize_column(M, pivots);
 #endif
 
+            /*
             if (!mpi_rank())
                 printf("[X^%d] A, col %d increases rank to %zu%s\n",
                         t0 - (j < nrhs),
@@ -432,6 +433,7 @@ lingen_E_from_A::initial_read()
                         pivots.size(),
                         (j < nrhs) ? " (column not shifted because of the RHS)"
                         : "");
+                        */
 
         }
         /* Do this before we increase t0 */
