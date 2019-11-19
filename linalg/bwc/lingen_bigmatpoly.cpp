@@ -64,7 +64,7 @@ bigmatpoly::bigmatpoly(bigmatpoly_model const & model)
 {
     m0 = n0 = 0;
     size = 0;
-    /* except that finish_init wants this allocated. We could, of course,
+    /* en0ept that finish_init wants this allocated. We could, of course,
      * do the reservation in finish_init, but better have both ctors
      * leave the same post-condition.
      */
@@ -838,6 +838,7 @@ bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly 
  * writing to file on node 0).
  */
 
+#if 0
 /* The piece [offset, offset+length[ of the bigmatpoly source is gathered
  * in the matpoly dst on node 0.
  * We assume that all the data structures are already set up properly,
@@ -946,72 +947,240 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     MPI_Type_free(&mt);
 }
 
-/* Exactly the converse of the previous function.
- * Take length element in the src matrix on node 0, and scatter it
- * in dst, with the given offset.
- * We assume that dst has been initialized: all the communicators, mn's,
- * are already set and enough space to accomodate length+offset elements
- * have been already allocated. The only non-data field of dst that is
- * modified is size.
- */
-void bigmatpoly::scatter_mat_partial(
-        matpoly const & src,
-        size_t src_k,
-        size_t offset, size_t length_raw)
+
+/* Collect everything into node 0 */
+void bigmatpoly::gather_mat(matpoly & dst) const
 {
     constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-#ifdef SELECT_MPFQ_LAYER_u64k1
-    static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
+    matpoly dst_partial;
+#ifndef SELECT_MPFQ_LAYER_u64k1
+    size_t length = 100;
+#else
+    size_t length = 1024;
 #endif
-    /* The length is not necessarily aligned on the simd width */
-    size_t length = simd * iceildiv(length_raw, simd);
+    length = simd * iceildiv(length, simd);
+
+    if (!rank()) {
+        // Leader should initialize the result matrix
+        if (dst.check_pre_init()) {
+            dst = matpoly(ab, m, n, size);
+        }
+        dst.set_size(size);
+    }
+
+    for(size_t offset = 0 ; offset < size ; ) {
+        size_t len = MIN(length, size - offset);
+        gather_mat_partial(dst, offset, offset, len);
+        offset += len;
+    }
+}
+#endif
+
+struct scatter_gather_base {/*{{{*/
+    protected:
+    /* These are just immediately derived from dst.get_model() and src,
+     * but we keep copies because they're handy to have */
+    abdst_field ab;
+
+    size_t batch_length;
+
+    bigmatpoly_model const & _model;
+
+    unsigned int m1;
+    unsigned int n1;
+
+    struct shell_t {
+        unsigned int m;
+        unsigned int n;
+        size_t size;
+        shell_t(unsigned int m, unsigned int n, size_t size, bigmatpoly_model const & model)
+            : m(m), n(n), size(size)
+        {
+            MPI_Bcast(this, sizeof(*this), MPI_BYTE, 0, model.com[0]);
+        }
+    } shell;
+
+    subdivision R;       /* Row split */
+    subdivision C;       /* Col split */
+    unsigned int m0 = R.block_size_upper_bound();
+    unsigned int n0 = C.block_size_upper_bound();
 
     MPI_Datatype mt;
 
+    MPI_Request * reqs;
+
+    bigmatpoly_model const & get_model() const { return _model; }
+    int rank() const { return get_model().rank(); }
+
+    /* This structure is initialized correctly at root first, and then
+     * the ctor bcasts the content to other nodes. This is the reason why
+     * we have to put the initialization very early on in the base class.
+     * In truth, it is only important for scatter_mat.
+     */
+    scatter_gather_base(abdst_field ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, size_t size)/*{{{*/
+          : ab(ab)
+          , _model(model)
+          , m1(model.m1)
+          , n1(model.n1)
+          , shell(m, n, size, model)
+          , R(shell.m, m1)
+          , C(shell.n, n1)
+          , m0(R.block_size_upper_bound())
+          , n0(C.block_size_upper_bound())
+    {
+        /* The batch length should normally not be an issue, as we expect
+         * that the call thresholds will be such that only smaller sizes will
+         * be used.
+         */
 #ifndef SELECT_MPFQ_LAYER_u64k1
-    MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+        batch_length = 100;
 #else
-    MPI_Type_contiguous(length / simd, MPI_UNSIGNED_LONG, &mt);
+        batch_length = 1024;
 #endif
-    MPI_Type_commit(&mt);
+        batch_length = roundup_simd(MIN(batch_length, size));
 
-    /* sanity check, because the code below assumes this. */
-    ASSERT_ALWAYS(irank() * (int) n1 + jrank() == rank());
+        MPI_Bcast(&batch_length, sizeof(batch_length), MPI_BYTE, 0, _model.com[0]);
 
-    matpoly & me = my_cell();
+        define_mpi_type();
 
-    subdivision R(m, m1);       /* Row split */
-    subdivision C(n, n1);       /* Col split */
+        reqs = new MPI_Request[rank() ? 1 : (m1 * n1)];
+    }/*}}}*/
 
-    if (!rank()) {
-        MPI_Request * reqs = new MPI_Request[m * n];
+    static inline size_t roundup_simd(size_t x) {
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        return simd * iceildiv(x, simd);
+    }
+
+    void define_mpi_type()/*{{{*/
+    {
+#ifndef SELECT_MPFQ_LAYER_u64k1
+        MPI_Type_contiguous(batch_length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+#else
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        MPI_Type_contiguous(batch_length / simd, MPI_UNSIGNED_LONG, &mt);
+#endif
+        MPI_Type_commit(&mt);
+    }/*}}}*/
+
+    void undefine_mpi_type()/*{{{*/
+    {
+        MPI_Type_free(&mt);
+    }/*}}}*/
+
+    ~scatter_gather_base()/*{{{*/
+    {
+        delete[] reqs;
+        undefine_mpi_type();
+    }/*}}}*/
+
+    /* use_intermediary_tight=true is especially important in the binary
+     * case, in order to avoid having very many small sends.
+     *
+     * use_intermediary_tight=false is the old code that used to work
+     * for the prime field case. At least we hope that the two
+     * options are equivalent.
+     *
+     * It might be that use_intermediary_tight=true is The Right
+     * Thing anyway. We need to find a way to elide copies in the
+     * important special case where src or dst is already tight.
+     * Shouldn't be too hard.
+     */
+    static constexpr const bool use_intermediary_tight = true;
+
+    /* blocking or non-blocking doesn't seem to make a whole lot of
+     * difference.
+     */
+    static constexpr const bool use_nonblocking = false;
+};/*}}}*/
+
+class gather_mat : public scatter_gather_base {/*{{{*/
+    bigmatpoly const & src;
+    matpoly & dst;
+
+    /* When use_intermediary_tight = trye, we want to communicate *full*
+     * cells from the gathered source matrix to the scattered one.
+     * Unfortunately we cannot guarantee that either has tight
+     * allocation. Furthermore, the layout in the source matrix does not
+     * have contiguous block mathcing the peer sub-blocks. For these two
+     * reasons (stride and layout), we need copies at both ends.
+     *
+     * We have therefore an intermediary source and an intermediary
+     * destination, both filled at each loop iteration.
+     *
+     */
+    bigmatpoly src_partial;
+    matpoly dst_partial;
+
+    public:
+    gather_mat(matpoly & dst, bigmatpoly const & src)/*{{{*/
+        : scatter_gather_base(src.ab, src.get_model(), src.m, src.n, src.get_size())
+       , src(src)
+       , dst(dst)
+       , src_partial(get_model())
+    {
+        if (use_intermediary_tight) {
+            /* the temporary source and destination */
+            if (!rank()) {
+                dst_partial = matpoly(ab, m1 * m0, n1 * n0, batch_length);
+                dst_partial.zero_pad(batch_length);
+                ASSERT_ALWAYS(dst_partial.is_tight());
+            }
+            src_partial = bigmatpoly(ab, src, shell.m, shell.n, batch_length);
+            src_partial.zero_pad(batch_length);
+            ASSERT_ALWAYS(src_partial.my_cell().is_tight());
+        }
+    }/*}}}*/
+
+    private:
+
+    /* {{{ building blocks for the old strategy, where we receive one
+     * polynomial at a time, avoiding some copies */
+    void mini_recv(size_t src_offset, size_t dst_offset, unsigned int i0, unsigned int i1, unsigned int j0, unsigned int j1, MPI_Request * & req)/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        unsigned int ii = R.flatten(i1, i0);
+        unsigned int jj = C.flatten(j1, j0);
+        unsigned int peer = i1 * n1 + j1;
+        unsigned int tag = ii * shell.n + jj;
+        abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_offset);
+        absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i0, j0), src_offset);
+
+        /* XXX There's a subtlety here. batch_length and mt are tinkered
+         * with by the main_loop code for the last iteration, so that the
+         * final write doesn't overflow. Yes it's kludgy.
+         */
+
+        if (peer == 0) {
+            /* talk to ourself */
+            abvec_set(ab, to, from, roundup_simd(batch_length));
+        } else {
+            if (use_nonblocking) {
+                MPI_Irecv((void*) to, 1, mt, peer, tag, get_model().com[0], req);
+            } else {
+                MPI_Recv((void*) to, 1, mt, peer, tag, get_model().com[0], MPI_STATUS_IGNORE);
+            }
+        }
+        req++;
+    }/*}}}*/
+    void post_mini_recvs(size_t src_offset, size_t dst_offset) {/*{{{*/
+        ASSERT_ALWAYS(!use_intermediary_tight);
         MPI_Request * req = reqs;
         /* the master sends data to everyone */
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
                     for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                        unsigned int ii = R.flatten(i1, i0);
-                        unsigned int jj = C.flatten(j1, j0);
-                        unsigned int peer = i1 * n1 + j1;
-                        unsigned int tag = ii * n + jj;
-                        absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_k);
-                        abdst_vec to = abvec_subvec(ab, me.part(i0, j0), offset);
-
-                        if (peer == 0) {
-                            /* talk to ourself */
-                            abvec_set(ab, to, from, length);
-                        } else {
-                            /* battle const-deprived MPI prototypes... */
-                            MPI_Isend((void*) from, 1, mt, peer, tag, com[0], req);
-                        }
-                        req++;
+                        mini_recv(src_offset, dst_offset, i0, i1, j0, j1, req);
                     }
                 }
             }
         }
-
-        req = reqs;
+    }/*}}}*/
+    void wait_mini_recvs()/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        if (!use_nonblocking) return;
+        MPI_Request * req = reqs;
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
@@ -1024,129 +1193,614 @@ void bigmatpoly::scatter_mat_partial(
                 }
             }
         }
-        delete[] reqs;
-    } else {
-        MPI_Request * reqs = new MPI_Request[m0r() * n0r()];
+    }/*}}}*/
+    void post_mini_sends(size_t src_offset)/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        ASSERT_ALWAYS(rank());
         MPI_Request * req = reqs;
-        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
-                unsigned int ii = R.flatten(irank(), i0);
-                unsigned int jj = C.flatten(jrank(), j0);
-                unsigned int tag = ii * n + jj;
-                abdst_vec to = abvec_subvec(ab, me.part(i0, j0), offset);
-                MPI_Irecv(to, 1, mt, 0, tag, com[0], req);
+        for(unsigned int i0 = 0 ; i0 < src.m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < src.n0r() ; j0++) {
+                unsigned int ii = R.flatten(src.irank(), i0);
+                unsigned int jj = C.flatten(src.jrank(), j0);
+                unsigned int tag = ii * shell.n + jj;
+                absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i0, j0), src_offset);
+                /* battle const-deprived MPI prototypes... */
+                if (use_nonblocking) {
+                    MPI_Isend((void*) from, 1, mt, 0, tag, get_model().com[0], req);
+                } else {
+                    MPI_Send((void*) from, 1, mt, 0, tag, get_model().com[0]);
+                }
                 req++;
             }
         }
-        req = reqs;
-        for(unsigned int i0 = 0 ; i0 < m0r() ; i0++) {
-            for(unsigned int j0 = 0 ; j0 < n0r() ; j0++) {
+    }/*}}}*/
+    void wait_mini_sends()/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        if (!use_nonblocking) return;
+        MPI_Request * req = reqs;
+        for(unsigned int i0 = 0 ; i0 < src.m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < src.n0r() ; j0++) {
                 MPI_Wait(req, MPI_STATUS_IGNORE);
                 req++;
             }
         }
-        delete[] reqs;
-    }
-    MPI_Type_free(&mt);
-}
+    }/*}}}*/
+    /* }}} */
 
-/* Collect everything into node 0 */
-void bigmatpoly::gather_mat(matpoly & dst) const
-{
-    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-    matpoly dst_partial;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    size_t length = 100;
-#else
-    size_t length = 1024;
-#endif
-
-    if (!rank()) {
-        // Leader should initialize the result matrix
-        if (dst.check_pre_init()) {
-            dst = matpoly(ab, m, n, size);
+    /* {{{ This alternative strategy, with use_intermediary_tight=true, adds
+     * extra copies, but uses much larger messages, which is a clear win
+     * in some cases (always ?) */
+    void copy_tight_to_dst(size_t dst_offset, size_t len, unsigned int i1, unsigned int j1)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        unsigned int peer = i1 * n1 + j1;
+        for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                /* position of the block in the big src
+                 * matrix */
+                unsigned int ii = R.flatten(i1, i0);
+                unsigned int jj = C.flatten(j1, j0);
+                abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_offset);
+                /* write to position v = peer*m0*n0+i0*n0+j0 */
+                unsigned int v = peer * m0 * n0 + (i0 * n0 + j0);
+                unsigned int vi = v / src_partial.n;
+                unsigned int vj = v % src_partial.n;
+                absrc_vec from = dst_partial.part(vi, vj);
+                abvec_set(ab, to, from, roundup_simd(len));
+            }
         }
-        dst.set_size(size);
+    }/*}}}*/
 
-        // Leader creates a buffer matpoly of size length
-        dst_partial = matpoly(ab, m, n, length);
-        dst_partial.set_size(length);
+    void post_block_recv(unsigned int i1, unsigned int j1, MPI_Request * & req)
+    {
+        unsigned int peer = i1 * n1 + j1;
+        abdst_vec rank0_to;
+        dst_partial.zero_pad(batch_length);
+
+        /* rank 0 receives m0*n0 fragments at position peer * m0 * n0.
+         */
+        {
+            unsigned int v = peer * m0 * n0;
+            unsigned int vi = v / dst_partial.n;
+            unsigned int vj = v % dst_partial.n;
+            rank0_to = dst_partial.part(vi, vj);
+        }
+
+        absrc_vec peer_from = src_partial.my_cell().part(0,0);
+
+        unsigned int tag = peer;
+
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        ASSERT_ALWAYS(batch_length % simd == 0);
+        if (peer == 0) {
+            /* talk to ourself */
+            abvec_set(ab, rank0_to, peer_from, m0*n0*batch_length);
+        } else {
+            /* battle const-deprived MPI prototypes... */
+            if (use_nonblocking) {
+                MPI_Irecv((void*) rank0_to, m0*n0, mt, peer, tag, get_model().com[0], req);
+            } else {
+                MPI_Recv((void*) rank0_to, m0*n0, mt, peer, tag, get_model().com[0], MPI_STATUS_IGNORE);
+            }
+        }
+        req++;
     }
 
-    size_t offset = 0;
-    while (size > offset) {
-        size_t len_raw = MIN(length, (size-offset));
-        size_t len = simd * iceildiv(len_raw, simd);
+    void post_recvs()/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        MPI_Request * req = reqs;
+        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
+            for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
+                post_block_recv(i1, j1, req);
+            }
+        }
+    }/*}}}*/
+    void wait_recvs_and_copy_tight_to_dst(size_t dst_offset, size_t len)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        MPI_Request * req = reqs;
+        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
+            for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
+                unsigned int peer = i1 * n1 + j1;
+                if (use_nonblocking) {
+                    if (peer) MPI_Wait(req, MPI_STATUS_IGNORE);
+                    req++;
+                }
+                copy_tight_to_dst(dst_offset, len, i1, j1);
+            }
+        }
+    }/*}}}*/
+    void post_sends()/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        ASSERT_ALWAYS (rank());
+        absrc_vec peer_to = src_partial.my_cell().part(0,0);
+        unsigned int tag = rank();
+        if (use_nonblocking) {
+            MPI_Request req[1];
+            MPI_Isend((void*) peer_to, m0*n0, mt, 0, tag, get_model().com[0], req);
+            MPI_Wait(req, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Send((void*) peer_to, m0*n0, mt, 0, tag, get_model().com[0]);
+        }
+    }/*}}}*/
+    void copy_src_to_tight(size_t src_offset, size_t len)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        /* The only difficult thing with these copies is that the stride
+         * is not necessarily the same in dst_partial (which has tight
+         * allocation) and in *this (which possible doesn't)
+         */
 
-        gather_mat_partial(dst_partial, 0, offset, len);
+        for (unsigned int i = 0; i < src.m0r(); ++i) {
+            for (unsigned int j = 0; j < src.n0r(); ++j) {
+                abdst_vec to = abvec_subvec(ab, src_partial.my_cell().part(i, j), 0);
+                absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i, j), src_offset);
+                abvec_set(ab, to, from, roundup_simd(len));
+            }
+        }
+    }/*}}}*/
+    /* }}} */
 
-        // Copy the partial data into dst. This is the place where we
-        // could write directly on disk if memory is a concern:
+    /* {{{ wrap it up */
+    void partial(size_t src_offset, size_t dst_offset, size_t len)/*{{{*/
+    {
+        if (!use_intermediary_tight && len < batch_length) {
+            /* XXX Yes this is an ugly hack.  Bear in mind that all
+             * transfers, always, have length batch_length. Since the
+             * mini- strategy does not have intermediary storage at
+             * both ends, it's difficult to avoid overflow. Hence the
+             * "len" argument can only be used safely for the other
+             * strategy. Here we have to resort to ugly stuff.
+             */
+            batch_length = roundup_simd(len);
+            undefine_mpi_type();
+            define_mpi_type();
+        }
+
+        ASSERT_ALWAYS(src_offset + len <= src.get_size());
+        ASSERT_ALWAYS(dst_offset + len <= dst.get_size() || rank());
+        /* post Isends (everywhere), and Irecvs (at root) */
+
+        if (use_intermediary_tight) {
+            ASSERT_ALWAYS(len <= dst_partial.get_size() || rank());
+            ASSERT_ALWAYS(len <= src_partial.get_size());
+            copy_src_to_tight(src_offset, len);
+            if (!rank()) {
+                post_recvs();
+                wait_recvs_and_copy_tight_to_dst(dst_offset, len);
+            } else {
+                post_sends();
+            }
+        } else {
+            ASSERT_ALWAYS(len == batch_length);
+            if (!rank()) {
+                post_mini_recvs(src_offset, dst_offset);
+                wait_mini_recvs();
+            } else {
+                post_mini_sends(src_offset);
+                wait_mini_sends();
+            }
+        }
+    }/*}}}*/
+
+    public:
+
+    void main_loop_shifted(size_t src_offset, size_t dst_offset, size_t len)/*{{{*/
+    {
+        for( ; len >= batch_length ; ) {
+            partial(src_offset, dst_offset, batch_length);
+            src_offset += batch_length;
+            dst_offset += batch_length;
+            len -= batch_length;
+        }
+
+        if (!len) return;
+
+        partial(src_offset, dst_offset, len);
+    }/*}}}*/
+
+    void main_loop()/*{{{*/
+    {
         if (!rank()) {
-            for (unsigned int i = 0; i < dst.m; ++i) {
-                for (unsigned int j = 0; j < dst.n; ++j) {
-                    abdst_vec to = abvec_subvec(ab, dst.part(i, j), offset);
-                    absrc_vec from = abvec_subvec_const(ab, dst_partial.part(i, j), 0);
-                    abvec_set(ab, to, from, len);
+            dst = matpoly(ab, shell.m, shell.n, shell.size);
+            dst.zero_pad(shell.size);
+        }
+
+        /* This one is quite simple, we have src_offset == dst_offset
+         * throughout.
+         */
+        for(size_t offset = 0 ; offset < shell.size ; ) {
+            size_t len = MIN(batch_length, shell.size - offset);
+
+            partial(offset, offset, len);
+
+            offset += len;
+        }
+    }/*}}}*/
+    /* }}} */
+};/*}}}*/
+class scatter_mat : public scatter_gather_base {/*{{{*/
+    matpoly const & src;
+    bigmatpoly & dst;
+
+    /* When use_intermediary_tight = trye, we want to communicate *full*
+     * cells from the gathered source matrix to the scattered one.
+     * Unfortunately we cannot guarantee that either has tight
+     * allocation. Furthermore, the layout in the source matrix does not
+     * have contiguous block mathcing the peer sub-blocks. For these two
+     * reasons (stride and layout), we need copies at both ends.
+     *
+     * We have therefore an intermediary source and an intermediary
+     * destination, both filled at each loop iteration.
+     *
+     */
+    matpoly src_partial;
+    bigmatpoly dst_partial;
+
+    public:
+    scatter_mat(bigmatpoly & dst, matpoly const & src)/*{{{*/
+        /* NOTE that src.ab is not relevant everywhere. We must rely on
+         * dst.ab, whence we must be sure that dst.ab != NULL */
+        : scatter_gather_base(dst.ab, dst.get_model(), src.m, src.n, src.get_size())
+       , src(src)
+       , dst(dst)
+       , dst_partial(get_model())
+    {
+#ifndef SELECT_MPFQ_LAYER_u64k1
+        ASSERT_ALWAYS(dst.ab != NULL);
+#endif
+        if (use_intermediary_tight) {
+            /* the temporary source and destination */
+            if (!rank()) {
+                src_partial = matpoly(ab, m1 * m0, n1 * n0, batch_length);
+                src_partial.zero_pad(batch_length);
+                ASSERT_ALWAYS(src_partial.is_tight());
+            }
+
+            dst_partial = bigmatpoly(ab, dst, shell.m, shell.n, batch_length);
+            dst_partial.zero_pad(batch_length);
+            ASSERT_ALWAYS(dst_partial.my_cell().is_tight());
+        }
+
+    }/*}}}*/
+
+    private:
+
+    /* {{{ building blocks for the old strategy, where we send one polynomial
+     * at a time, avoiding some copies */
+    void mini_send(size_t src_offset, size_t dst_offset, unsigned int i0, unsigned int i1, unsigned int j0, unsigned int j1, MPI_Request * & req)/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        unsigned int ii = R.flatten(i1, i0);
+        unsigned int jj = C.flatten(j1, j0);
+        unsigned int peer = i1 * n1 + j1;
+        unsigned int tag = ii * shell.n + jj;
+        absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_offset);
+        abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i0, j0), dst_offset);
+
+        /* XXX There's a subtlety here. batch_length and mt are tinkered
+         * with by the main_loop code for the last iteration, so that the
+         * final write doesn't overflow. Yes it's kludgy.
+         */
+
+        if (peer == 0) {
+            /* talk to ourself */
+            abvec_set(ab, to, from, roundup_simd(batch_length));
+        } else {
+            /* battle const-deprived MPI prototypes... */
+            if (use_nonblocking) {
+                MPI_Isend((void*) from, 1, mt, peer, tag, get_model().com[0], req);
+            } else {
+                MPI_Send((void*) from, 1, mt, peer, tag, get_model().com[0]);
+            }
+        }
+        req++;
+    }/*}}}*/
+    void post_mini_sends(size_t src_offset, size_t dst_offset) {/*{{{*/
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        MPI_Request * req = reqs;
+        /* the master sends data to everyone */
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                        mini_send(src_offset, dst_offset, i0, i1, j0, j1, req);
+                    }
                 }
             }
         }
-        offset += len;
+    }/*}}}*/
+    void wait_mini_sends()/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        if (!use_nonblocking) return;
+        MPI_Request * req = reqs;
+        for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
+            for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+                for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
+                    for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                        unsigned int peer = i1 * n1 + j1;
+                        if (peer)
+                            MPI_Wait(req, MPI_STATUS_IGNORE);
+                        req++;
+                    }
+                }
+            }
+        }
+    }/*}}}*/
+    void post_mini_recvs(size_t dst_offset)/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        ASSERT_ALWAYS(rank());
+        MPI_Request * req = reqs;
+        for(unsigned int i0 = 0 ; i0 < dst.m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < dst.n0r() ; j0++) {
+                unsigned int ii = R.flatten(dst.irank(), i0);
+                unsigned int jj = C.flatten(dst.jrank(), j0);
+                unsigned int tag = ii * shell.n + jj;
+                abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i0, j0), dst_offset);
+                if (use_nonblocking) {
+                    MPI_Irecv(to, 1, mt, 0, tag, get_model().com[0], req);
+                } else {
+                    MPI_Recv(to, 1, mt, 0, tag, get_model().com[0], MPI_STATUS_IGNORE);
+                }
+                req++;
+            }
+        }
+    }/*}}}*/
+    void wait_mini_recvs()/*{{{*/
+    {
+        ASSERT_ALWAYS(!use_intermediary_tight);
+        if (!use_nonblocking) return;
+        MPI_Request * req = reqs;
+        for(unsigned int i0 = 0 ; i0 < dst.m0r() ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < dst.n0r() ; j0++) {
+                MPI_Wait(req, MPI_STATUS_IGNORE);
+                req++;
+            }
+        }
+    }/*}}}*/
+    /* }}} */
+
+    /* {{{ This alternative strategy, with use_intermediary_tight=true, adds
+     * extra copies, but uses much larger messages, which is a clear win
+     * in some cases (always ?) */
+    void copy_src_to_tight(size_t src_offset, size_t len, unsigned int i1, unsigned int j1)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        unsigned int peer = i1 * n1 + j1;
+        for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
+            for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
+                /* position of the block in the big src
+                 * matrix */
+                unsigned int ii = R.flatten(i1, i0);
+                unsigned int jj = C.flatten(j1, j0);
+                absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_offset);
+                /* write to position v = peer*m0*n0+i0*n0+j0 */
+                unsigned int v = peer * m0 * n0 + (i0 * n0 + j0);
+                unsigned int vi = v / src_partial.n;
+                unsigned int vj = v % src_partial.n;
+                abdst_vec to = src_partial.part(vi, vj);
+                abvec_set(ab, to, from, roundup_simd(len));
+            }
+        }
+    }/*}}}*/
+
+    void post_block_send(unsigned int i1, unsigned int j1, MPI_Request * & req)
+    {
+        unsigned int peer = i1 * n1 + j1;
+        absrc_vec rank0_from;
+        src_partial.zero_pad(batch_length);
+
+        /* rank 0 fills m0*n0 fragments to position peer * m0 * n0.
+         * This will be made of several copies from scattered
+         * zones, to a common destination.
+         */
+        {
+            unsigned int v = peer * m0 * n0;
+            unsigned int vi = v / src_partial.n;
+            unsigned int vj = v % src_partial.n;
+            rank0_from = src_partial.part(vi, vj);
+        }
+
+        abdst_vec peer_to = dst_partial.my_cell().part(0,0);
+
+        /* We can send the data now */
+        unsigned int tag = peer;
+
+        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        ASSERT_ALWAYS(batch_length % simd == 0);
+        if (peer == 0) {
+            /* talk to ourself */
+            abvec_set(ab, peer_to, rank0_from, m0*n0*batch_length);
+        } else {
+            /* battle const-deprived MPI prototypes... */
+            if (use_nonblocking) {
+                MPI_Isend((void*) rank0_from, m0*n0, mt, peer, tag, get_model().com[0], req);
+            } else {
+                MPI_Send((void*) rank0_from, m0*n0, mt, peer, tag, get_model().com[0]);
+            }
+        }
+        req++;
+
     }
+    void copy_src_to_tight_and_send(size_t src_offset, size_t len)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        MPI_Request * req = reqs;
+        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
+            for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
+                copy_src_to_tight(src_offset, len, i1, j1);
+                post_block_send(i1, j1, req);
+            }
+        }
+    }/*}}}*/
+    void wait_sends()/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        if (!use_nonblocking) return;
+        MPI_Request * req = reqs;
+        for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
+            for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
+                unsigned int peer = i1 * n1 + j1;
+                if (peer) MPI_Wait(req, MPI_STATUS_IGNORE);
+                req++;
+            }
+        }
+    }/*}}}*/
+    void post_recvs()/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        ASSERT_ALWAYS (rank());
+        abdst_vec peer_to = dst_partial.my_cell().part(0,0);
+        unsigned int tag = rank();
+        if (use_nonblocking) {
+            MPI_Request req[1];
+            MPI_Irecv(peer_to, m0*n0, mt, 0, tag, get_model().com[0], req);
+            MPI_Wait(req, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Recv(peer_to, m0*n0, mt, 0, tag, get_model().com[0], MPI_STATUS_IGNORE);
+        }
+    }/*}}}*/
+    void copy_tight_to_dst(size_t dst_offset, size_t len)/*{{{*/
+    {
+        ASSERT_ALWAYS(use_intermediary_tight);
+        /* The only difficult thing with these copies is that the stride
+         * is not necessarily the same in dst_partial (which has tight
+         * allocation) and in *this (which possible doesn't)
+         */
+
+        for (unsigned int i = 0; i < dst.m0r(); ++i) {
+            for (unsigned int j = 0; j < dst.n0r(); ++j) {
+                absrc_vec from = abvec_subvec_const(ab, dst_partial.my_cell().part(i, j), 0);
+                abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i, j), dst_offset);
+                abvec_set(ab, to, from, roundup_simd(len));
+            }
+        }
+    }/*}}}*/
+    /* }}} */
+
+    public:
+
+    /* {{{ wrap it up */
+    /* 
+     * Take length element in the src matrix on node 0, and scatter it
+     * in dst, with the given src and dst offsets.
+     * We assume that dst has been initialized: all the communicators, mn's,
+     * are already set and enough space to accomodate length+dst_offset elements
+     * have been already allocated.
+     *
+     * dst.size is not modified by this function, we assume that the
+     * caller has called zero_pad() beforehand (for example).
+     */
+    void partial(size_t src_offset, size_t dst_offset, size_t len)/*{{{*/
+    {
+        if (!use_intermediary_tight && len < batch_length) {
+            /* XXX Yes this is an ugly hack.  Bear in mind that all
+             * transfers, always, have length batch_length. Since the
+             * mini- strategy does not have intermediary storage at
+             * both ends, it's difficult to avoid overflow. Hence the
+             * "len" argument can only be used safely for the other
+             * strategy. Here we have to resort to ugly stuff.
+             */
+            batch_length = roundup_simd(len);
+            undefine_mpi_type();
+            define_mpi_type();
+        }
+
+        ASSERT_ALWAYS(src_offset + len <= src.get_size() || rank());
+        ASSERT_ALWAYS(dst_offset + len <= dst.get_size());
+
+        /* post Isends (at root), and Irecvs (elsewhere) */
+        if (use_intermediary_tight) {
+            ASSERT_ALWAYS(len <= src_partial.get_size() || rank());
+            ASSERT_ALWAYS(len <= dst_partial.get_size());
+            if (!rank()) {
+                copy_src_to_tight_and_send(src_offset, len);
+                wait_sends();
+            } else {
+                post_recvs();
+            }
+            copy_tight_to_dst(dst_offset, len);
+        } else {
+            ASSERT_ALWAYS(len == batch_length);
+            if (!rank()) {
+                post_mini_sends(src_offset, dst_offset);
+                wait_mini_sends();
+            } else {
+                post_mini_recvs(dst_offset);
+                wait_mini_recvs();
+            }
+        }
+    }/*}}}*/
+
+    void main_loop_shifted(size_t src_offset, size_t dst_offset, size_t len)/*{{{*/
+    {
+        for( ; len >= batch_length ; ) {
+            partial(src_offset, dst_offset, batch_length);
+            src_offset += batch_length;
+            dst_offset += batch_length;
+            len -= batch_length;
+        }
+
+        if (!len) return;
+
+        partial(src_offset, dst_offset, len);
+    }/*}}}*/
+
+    void main_loop()/*{{{*/
+    {
+        /* dst must be in pre-init mode */
+        ASSERT_ALWAYS(dst.check_pre_init());
+
+        /* Allocate enough space on each node */
+        dst.finish_init(ab, shell.m, shell.n, shell.size);
+        dst.zero_pad(shell.size);
+
+        /* This one is quite simple, we have src_offset == dst_offset
+         * throughout.
+         */
+        for(size_t offset = 0 ; offset < shell.size ; ) {
+            size_t len = MIN(batch_length, shell.size - offset);
+
+            partial(offset, offset, len);
+
+            offset += len;
+        }
+    }/*}}}*/
+    /* }}} */
+};/*}}}*/
+
+void bigmatpoly::scatter_mat_partial(matpoly const & src, size_t src_offset, size_t dst_offset, size_t length)
+{
+    class scatter_mat OBJ(*this, src);
+    OBJ.main_loop_shifted(src_offset, dst_offset, length);
 }
+
 
 /* Exactly the converse of the previous function. */
 void bigmatpoly::scatter_mat(matpoly const & src)
 {
-    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-    matpoly src_partial;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    size_t length = 100;
-#else
-    size_t length = 1024;
-#endif
+    class scatter_mat OBJ(*this, src);
+    OBJ.main_loop();
+}
 
-    /* share allocation size. */
-    struct {
-        unsigned int m;
-        unsigned int n;
-        size_t size;
-        size_t alloc;
-    } shell { src.m, src.n, src.get_size(), src.capacity() };
+void bigmatpoly::gather_mat_partial(matpoly & dst, size_t dst_offset, size_t src_offset, size_t length) const
+{
+    class gather_mat OBJ(dst, *this);
+    OBJ.main_loop_shifted(src_offset, dst_offset, length);
+}
 
-    MPI_Bcast(&shell, sizeof(shell), MPI_BYTE, 0, com[0]);
 
-    /* dst must be in pre-init mode */
-    ASSERT_ALWAYS(check_pre_init());
-
-    /* Allocate enough space on each node */
-    finish_init(ab, shell.m, shell.n, shell.alloc);
-    zero_pad(shell.size);
-
-    if (!rank()) {
-        // Leader creates a buffer matpoly of size length
-        src_partial = matpoly(src.ab, src.m, src.n, length);
-        src_partial.set_size(length);
-    }
-
-    size_t offset = 0;
-    while (shell.size > offset) {
-        size_t len_raw = MIN(length, (shell.size-offset));
-        size_t len = simd * iceildiv(len_raw, simd);
-        // Copy the partial data into src_partial. This is the place where we
-        // could read directly from disk if memory is a concern:
-        if (!rank()) {
-            for (unsigned int i = 0; i < src.m; ++i) {
-                for (unsigned int j = 0; j < src.n; ++j) {
-                    abdst_vec to = abvec_subvec(ab, src_partial.part(i, j), 0);
-                    absrc_vec from = abvec_subvec_const(ab, src.part(i, j), offset);
-                    abvec_set(ab, to, from, len);
-                }
-            }
-        }
-        scatter_mat_partial(src_partial, 0, offset, len);
-        offset += len;
-    }
+/* Exactly the converse of the previous function. */
+void bigmatpoly::gather_mat(matpoly & dst) const
+{
+    class gather_mat OBJ(dst, *this);
+    OBJ.main_loop();
 }
 
 bigmatpoly bigmatpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
