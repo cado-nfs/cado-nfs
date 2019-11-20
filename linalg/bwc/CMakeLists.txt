@@ -490,11 +490,9 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     add_executable(lingen_verify_checkpoints_${v}
         lingen_verify_checkpoints.cpp
         )
-    if (HAVE_OPENMP)
-        set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
-            COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
-            LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-    endif()
+    set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
     target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
 
 
