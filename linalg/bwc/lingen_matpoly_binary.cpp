@@ -268,27 +268,38 @@ void matpoly::xmul_poly(unsigned int i, unsigned int j, unsigned long s)/*{{{*/
 }/*}}}*/
 
 /* shift by a multiplication by x all coefficients of degree less than
- * nsize in column j. What happens to coefficients of degree equal to or
- * greater than nsize is unspecified.
+ * colsize in column j. This results in a new column of length colsize+1.
+ * Allocation must be sufficient for this length to fit.  What happens to
+ * coefficients of degree larger than colsize in the result is unspecified.
+ *
+ * It is often relevant to "colsize++" right after this call, since the
+ * coefficient of degree colsize is well-defined on output
+ *
+ * Other columns are unaffected.
  */
-void matpoly::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
+void matpoly::multiply_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
 {
-    unsigned int k = nsize + 1;
+    unsigned int k = colsize + 1;
     size_t kw = b2w(k);
     ASSERT_ALWAYS(kw <= alloc_words);
     for(unsigned int i = 0 ; i < m ; i++) {
         unsigned long * pa = part(i, j);
         mpn_lshift(pa, pa, kw, 1);
     }
-    clear_high_word_common(nsize + 1);
 }/*}}}*/
 
-void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
+/* shift right (by a division by x) all coefficients of degree less than
+ * colsize in column j. This results in a new column of length colsize-1,
+ * with a zero coefficient shifted in at degree colsize-1.
+ *
+ * It is often relevant to "colsize--" right after this call.
+ */
+void matpoly::divide_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
 {
-    size_t nw = b2w(nsize);
+    size_t nw = b2w(colsize);
     ASSERT_ALWAYS(nw <= alloc_words);
-    ASSERT_ALWAYS(nsize);
-    unsigned int k = nsize - 1;
+    ASSERT_ALWAYS(colsize);
+    unsigned int k = colsize - 1;
     size_t kw = b2w(k);
     unsigned long kmask = ((1UL << (k % ULONG_BITS)) - 1);
     for(unsigned int i = 0 ; i < m ; i++) {
