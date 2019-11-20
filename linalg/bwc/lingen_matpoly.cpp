@@ -225,24 +225,35 @@ int matpoly::cmp(matpoly const& b) const
 }
 
 /* shift by a multiplication by x all coefficients of degree less than
- * nsize in column j. What happens to coefficients of degree equal to or
- * greater than nsize is unspecified.
+ * colsize in column j. This results in a new column of length colsize+1.
+ * Allocation must be sufficient for this length to fit.  What happens to
+ * coefficients of degree larger than colsize in the result is unspecified.
+ *
+ * It is often relevant to "colsize++" right after this call, since the
+ * coefficient of degree colsize is well-defined on output
  */
-void matpoly::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
+void matpoly::multiply_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
 {
-    ASSERT_ALWAYS((nsize + 1) <= alloc);
+    ASSERT_ALWAYS((colsize + 1) <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
-        memmove(part_head(i, j, 1), part(i, j), nsize * abvec_elt_stride(ab, 1));
+        memmove(part_head(i, j, 1), part(i, j), colsize * abvec_elt_stride(ab, 1));
         abset_ui(ab, coeff(i, j, 0), 0);
     }
 }/*}}}*/
-void matpoly::divide_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
+
+/* shift right (by a division by x) all coefficients of degree less than
+ * colsize in column j. This results in a new column of length colsize-1,
+ * with a zero coefficient shifted in at degree colsize-1.
+ *
+ * It is often relevant to "colsize--" right after this call.
+ */
+void matpoly::divide_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
 {
-    ASSERT_ALWAYS(nsize <= alloc);
+    ASSERT_ALWAYS(colsize <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
         memmove(part(i, j), part_head(i, j, 1), 
-                (nsize-1) * abvec_elt_stride(ab, 1));
-        abset_ui(ab, coeff(i, j, nsize-1), 0);
+                (colsize-1) * abvec_elt_stride(ab, 1));
+        abset_ui(ab, coeff(i, j, colsize-1), 0);
     }
 }/*}}}*/
 
