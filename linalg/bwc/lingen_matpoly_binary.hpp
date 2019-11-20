@@ -191,6 +191,9 @@ public:
 public:
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
     void zero_pad(unsigned int nsize);
+
+    void zero_with_size(size_t size) { set_size(0); zero_pad(size); }
+
     void extract_column(
         unsigned int jdst, unsigned int kdst,
         matpoly const & src, unsigned int jsrc, unsigned int ksrc);

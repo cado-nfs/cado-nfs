@@ -477,6 +477,7 @@ struct OP_CTX {
         MPI_Type_commit(&mpi_entry_a);
         MPI_Type_commit(&mpi_entry_b);
     }
+    OP_CTX(OP_CTX const&) = delete;
     ~OP_CTX() {
         MPI_Type_free(&mpi_entry_a);
         MPI_Type_free(&mpi_entry_b);
@@ -520,14 +521,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     matpoly a_peers;
     matpoly b_peers;
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
-    mp_or_mul(OP_CTX & CTX, OP_T & OP,
+    mp_or_mul(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, OP_T & OP,
             const lingen_call_companion::mul_or_mp_times * M)
-        : OP_CTX(CTX)
+        : OP_CTX(stats, c, a, b)
         , OP(OP)
         , M(M)
-        , mpi_split0(a.m, CTX.mesh_inner_size())
-        , mpi_split1(a.n, CTX.mesh_inner_size())
-        , mpi_split2(b.n, CTX.mesh_inner_size())
+        , mpi_split0(a.m, mesh_inner_size())
+        , mpi_split1(a.n, mesh_inner_size())
+        , mpi_split2(b.n, mesh_inner_size())
         /* first, upper bounds on output block dimensions */
         , nrs0(mpi_split0.block_size_upper_bound())
         , nrs2(mpi_split2.block_size_upper_bound())
@@ -644,7 +645,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         /* This is the analogue of the "dft_A" step in the transform
          * case.
          */
-        a_peers.zero_pad(a.get_size());  // for safety because of rounding.
+        a_peers.zero_with_size(a.get_size());  // for safety because of rounding.
         matpoly::copy(a_peers.view(Rat), a_local().view(Ra));
 
         // allgather ta among r nodes. No serialization needed here.
@@ -678,7 +679,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
         submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
 
-        b_peers.zero_pad(b.get_size());
+        b_peers.zero_with_size(b.get_size());
         matpoly::copy(b_peers.view(Rbt), b_local().view(Rb));
 
         // allgather tb among r nodes
@@ -714,7 +715,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         begin_smallstep(M->step_name());
 
         alloc_c_if_needed(OP.csize);
-        c.zero_pad(OP.csize);
+        c.zero_with_size(OP.csize);
 
         const unsigned int r = mesh_inner_size();
 
@@ -817,8 +818,7 @@ bigmatpoly bigmatpoly::mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly c
 {
     op_mp<void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    OP_CTX CTX(stats, c, a, b);
-    mp_or_mul<op_mp<void>>(CTX, op, M)();
+    mp_or_mul<op_mp<void>>(stats, c, a, b, op, M)();
     return c;
 }
 
@@ -826,8 +826,7 @@ bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly 
 {
     op_mul<void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    OP_CTX CTX(stats, c, a, b);
-    mp_or_mul<op_mul<void>>(CTX, op, M)();
+    mp_or_mul<op_mul<void>>(stats, c, a, b, op, M)();
     return c;
 }
 
@@ -1121,12 +1120,12 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         if (use_intermediary_tight) {
             /* the temporary source and destination */
             if (!rank()) {
-                dst_partial = matpoly(ab, m1 * m0, n1 * n0, batch_length);
-                dst_partial.zero_pad(batch_length);
+                dst_partial = matpoly(ab, shell.m, shell.n, batch_length);
+                dst_partial.zero_with_size(batch_length);
                 ASSERT_ALWAYS(dst_partial.is_tight());
             }
             src_partial = bigmatpoly(ab, src, shell.m, shell.n, batch_length);
-            src_partial.zero_pad(batch_length);
+            src_partial.zero_with_size(batch_length);
             ASSERT_ALWAYS(src_partial.my_cell().is_tight());
         }
     }/*}}}*/
@@ -1235,19 +1234,25 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void copy_tight_to_dst(size_t dst_offset, size_t len, unsigned int i1, unsigned int j1)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        unsigned int peer = i1 * n1 + j1;
+        /* dst_partial has the same size as dst, but a different layout,
+         * as blocks for all peers are stored contiguously. Our first
+         * task is to determine exactly where the block for the current
+         * peer starts.
+         */
+        unsigned int v = 0;
+        /* all peers with row index are stored before us */
+        v += R.nth_block_start(i1) * shell.n;
+        /* and then peers with the same row index, but lower col index */
+        v += R.nth_block_size(i1) * C.nth_block_start(j1);
         for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                /* position of the block in the big src
-                 * matrix */
                 unsigned int ii = R.flatten(i1, i0);
                 unsigned int jj = C.flatten(j1, j0);
                 abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_offset);
-                /* write to position v = peer*m0*n0+i0*n0+j0 */
-                unsigned int v = peer * m0 * n0 + (i0 * n0 + j0);
-                unsigned int vi = v / src_partial.n;
-                unsigned int vj = v % src_partial.n;
-                absrc_vec from = dst_partial.part(vi, vj);
+                unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
+                unsigned int wi = w / shell.n;
+                unsigned int wj = w % shell.n;
+                absrc_vec from = dst_partial.part(wi, wj);
                 abvec_set(ab, to, from, roundup_simd(len));
             }
         }
@@ -1257,16 +1262,16 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         unsigned int peer = i1 * n1 + j1;
         abdst_vec rank0_to;
-        dst_partial.zero_pad(batch_length);
 
-        /* rank 0 receives m0*n0 fragments at position peer * m0 * n0.
-         */
         {
-            unsigned int v = peer * m0 * n0;
-            unsigned int vi = v / dst_partial.n;
-            unsigned int vj = v % dst_partial.n;
+            unsigned int v = 0;
+            v += R.nth_block_start(i1) * shell.n;
+            v += R.nth_block_size(i1) * C.nth_block_start(j1);
+            unsigned int vi = v / shell.n;
+            unsigned int vj = v % shell.n;
             rank0_to = dst_partial.part(vi, vj);
         }
+        unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
         absrc_vec peer_from = src_partial.my_cell().part(0,0);
 
@@ -1276,13 +1281,13 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, rank0_to, peer_from, m0*n0*batch_length);
+            abvec_set(ab, rank0_to, peer_from, blocksize*batch_length);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
-                MPI_Irecv((void*) rank0_to, m0*n0, mt, peer, tag, get_model().com[0], req);
+                MPI_Irecv((void*) rank0_to, blocksize, mt, peer, tag, get_model().com[0], req);
             } else {
-                MPI_Recv((void*) rank0_to, m0*n0, mt, peer, tag, get_model().com[0], MPI_STATUS_IGNORE);
+                MPI_Recv((void*) rank0_to, blocksize, mt, peer, tag, get_model().com[0], MPI_STATUS_IGNORE);
             }
         }
         req++;
@@ -1319,25 +1324,25 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS (rank());
         absrc_vec peer_to = src_partial.my_cell().part(0,0);
         unsigned int tag = rank();
+        unsigned int blocksize = src.m0r() * src.n0r();
         if (use_nonblocking) {
             MPI_Request req[1];
-            MPI_Isend((void*) peer_to, m0*n0, mt, 0, tag, get_model().com[0], req);
+            MPI_Isend((void*) peer_to, blocksize, mt, 0, tag, get_model().com[0], req);
             MPI_Wait(req, MPI_STATUS_IGNORE);
         } else {
-            MPI_Send((void*) peer_to, m0*n0, mt, 0, tag, get_model().com[0]);
+            MPI_Send((void*) peer_to, blocksize, mt, 0, tag, get_model().com[0]);
         }
     }/*}}}*/
     void copy_src_to_tight(size_t src_offset, size_t len)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        /* The only difficult thing with these copies is that the stride
-         * is not necessarily the same in dst_partial (which has tight
-         * allocation) and in *this (which possible doesn't)
-         */
-
+        /* XXX in dst_partial, the data is stored contiguously ! */
         for (unsigned int i = 0; i < src.m0r(); ++i) {
             for (unsigned int j = 0; j < src.n0r(); ++j) {
-                abdst_vec to = abvec_subvec(ab, src_partial.my_cell().part(i, j), 0);
+                unsigned int v = i * src.n0r() + j;
+                unsigned int vi = v / n0;
+                unsigned int vj = v % n0;
+                abdst_vec to = abvec_subvec(ab, src_partial.my_cell().part(vi, vj), 0);
                 absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i, j), src_offset);
                 abvec_set(ab, to, from, roundup_simd(len));
             }
@@ -1363,6 +1368,10 @@ class gather_mat : public scatter_gather_base {/*{{{*/
 
         ASSERT_ALWAYS(src_offset + len <= src.get_size());
         ASSERT_ALWAYS(dst_offset + len <= dst.get_size() || rank());
+
+        if (!rank()) dst_partial.zero_with_size(batch_length);
+        src_partial.zero_with_size(batch_length);
+
         /* post Isends (everywhere), and Irecvs (at root) */
 
         if (use_intermediary_tight) {
@@ -1407,7 +1416,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         if (!rank()) {
             dst = matpoly(ab, shell.m, shell.n, shell.size);
-            dst.zero_pad(shell.size);
+            dst.zero_with_size(shell.size);
         }
 
         /* This one is quite simple, we have src_offset == dst_offset
@@ -1456,13 +1465,12 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         if (use_intermediary_tight) {
             /* the temporary source and destination */
             if (!rank()) {
-                src_partial = matpoly(ab, m1 * m0, n1 * n0, batch_length);
-                src_partial.zero_pad(batch_length);
+                src_partial = matpoly(ab, shell.m, shell.n, batch_length);
+                src_partial.zero_with_size(batch_length);
                 ASSERT_ALWAYS(src_partial.is_tight());
             }
-
             dst_partial = bigmatpoly(ab, dst, shell.m, shell.n, batch_length);
-            dst_partial.zero_pad(batch_length);
+            dst_partial.zero_with_size(batch_length);
             ASSERT_ALWAYS(dst_partial.my_cell().is_tight());
         }
 
@@ -1572,19 +1580,25 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     void copy_src_to_tight(size_t src_offset, size_t len, unsigned int i1, unsigned int j1)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        unsigned int peer = i1 * n1 + j1;
+        /* src_partial has the same size as src, but a different layout,
+         * as blocks for all peers are stored contiguously. Our first
+         * task is to determine exactly where the block for the current
+         * peer starts.
+         */
+        unsigned int v = 0;
+        /* all peers with row index are stored before us */
+        v += R.nth_block_start(i1) * shell.n;
+        /* and then peers with the same row index, but lower col index */
+        v += R.nth_block_size(i1) * C.nth_block_start(j1);
         for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                /* position of the block in the big src
-                 * matrix */
                 unsigned int ii = R.flatten(i1, i0);
                 unsigned int jj = C.flatten(j1, j0);
                 absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_offset);
-                /* write to position v = peer*m0*n0+i0*n0+j0 */
-                unsigned int v = peer * m0 * n0 + (i0 * n0 + j0);
-                unsigned int vi = v / src_partial.n;
-                unsigned int vj = v % src_partial.n;
-                abdst_vec to = src_partial.part(vi, vj);
+                unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
+                unsigned int wi = w / shell.n;
+                unsigned int wj = w % shell.n;
+                abdst_vec to = src_partial.part(wi, wj);
                 abvec_set(ab, to, from, roundup_simd(len));
             }
         }
@@ -1594,18 +1608,16 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         unsigned int peer = i1 * n1 + j1;
         absrc_vec rank0_from;
-        src_partial.zero_pad(batch_length);
 
-        /* rank 0 fills m0*n0 fragments to position peer * m0 * n0.
-         * This will be made of several copies from scattered
-         * zones, to a common destination.
-         */
         {
-            unsigned int v = peer * m0 * n0;
-            unsigned int vi = v / src_partial.n;
-            unsigned int vj = v % src_partial.n;
+            unsigned int v = 0;
+            v += R.nth_block_start(i1) * shell.n;
+            v += R.nth_block_size(i1) * C.nth_block_start(j1);
+            unsigned int vi = v / shell.n;
+            unsigned int vj = v % shell.n;
             rank0_from = src_partial.part(vi, vj);
         }
+        unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
         abdst_vec peer_to = dst_partial.my_cell().part(0,0);
 
@@ -1616,13 +1628,13 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, peer_to, rank0_from, m0*n0*batch_length);
+            abvec_set(ab, peer_to, rank0_from, blocksize*batch_length);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
-                MPI_Isend((void*) rank0_from, m0*n0, mt, peer, tag, get_model().com[0], req);
+                MPI_Isend((void*) rank0_from, blocksize, mt, peer, tag, get_model().com[0], req);
             } else {
-                MPI_Send((void*) rank0_from, m0*n0, mt, peer, tag, get_model().com[0]);
+                MPI_Send((void*) rank0_from, blocksize, mt, peer, tag, get_model().com[0]);
             }
         }
         req++;
@@ -1658,25 +1670,25 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS (rank());
         abdst_vec peer_to = dst_partial.my_cell().part(0,0);
         unsigned int tag = rank();
+        unsigned int blocksize = dst.m0r() * dst.n0r();
         if (use_nonblocking) {
             MPI_Request req[1];
-            MPI_Irecv(peer_to, m0*n0, mt, 0, tag, get_model().com[0], req);
+            MPI_Irecv(peer_to, blocksize, mt, 0, tag, get_model().com[0], req);
             MPI_Wait(req, MPI_STATUS_IGNORE);
         } else {
-            MPI_Recv(peer_to, m0*n0, mt, 0, tag, get_model().com[0], MPI_STATUS_IGNORE);
+            MPI_Recv(peer_to, blocksize, mt, 0, tag, get_model().com[0], MPI_STATUS_IGNORE);
         }
     }/*}}}*/
     void copy_tight_to_dst(size_t dst_offset, size_t len)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        /* The only difficult thing with these copies is that the stride
-         * is not necessarily the same in dst_partial (which has tight
-         * allocation) and in *this (which possible doesn't)
-         */
-
+        /* XXX in dst_partial, the data is stored contiguously ! */
         for (unsigned int i = 0; i < dst.m0r(); ++i) {
             for (unsigned int j = 0; j < dst.n0r(); ++j) {
-                absrc_vec from = abvec_subvec_const(ab, dst_partial.my_cell().part(i, j), 0);
+                unsigned int v = i * dst.n0r() + j;
+                unsigned int vi = v / n0;
+                unsigned int vj = v % n0;
+                absrc_vec from = abvec_subvec_const(ab, dst_partial.my_cell().part(vi, vj), 0);
                 abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i, j), dst_offset);
                 abvec_set(ab, to, from, roundup_simd(len));
             }
@@ -1695,7 +1707,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
      * have been already allocated.
      *
      * dst.size is not modified by this function, we assume that the
-     * caller has called zero_pad() beforehand (for example).
+     * caller has called zero_with_size() beforehand (for example).
      */
     void partial(size_t src_offset, size_t dst_offset, size_t len)/*{{{*/
     {
@@ -1714,6 +1726,9 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
 
         ASSERT_ALWAYS(src_offset + len <= src.get_size() || rank());
         ASSERT_ALWAYS(dst_offset + len <= dst.get_size());
+
+        dst_partial.zero_with_size(batch_length);
+        if (!rank()) src_partial.zero_with_size(batch_length);
 
         /* post Isends (at root), and Irecvs (elsewhere) */
         if (use_intermediary_tight) {
@@ -1759,7 +1774,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
 
         /* Allocate enough space on each node */
         dst.finish_init(ab, shell.m, shell.n, shell.size);
-        dst.zero_pad(shell.size);
+        dst.zero_with_size(shell.size);
 
         /* This one is quite simple, we have src_offset == dst_offset
          * throughout.
