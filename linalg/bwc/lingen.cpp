@@ -944,7 +944,7 @@ int wrapped_main(int argc, char *argv[])
     /* run the mpi problem detection only if we're certain that we're at
      * least close to the ballpark where this sort of checks make sense.
      */
-    if (0 && K_elts_to_bytes((size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
+    if (K_elts_to_bytes((size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
         check_for_mpi_problems();
     }
     MPI_Barrier(MPI_COMM_WORLD);
