@@ -16,6 +16,7 @@ struct op_mul_or_mp_base {
     const char * op_name() const { return op_name(op_type); }
     virtual std::array<size_t, 3> get_alloc_sizes() const = 0;
     virtual std::string explain() const = 0;
+    virtual ~op_mul_or_mp_base() = default;
 };
 
 
