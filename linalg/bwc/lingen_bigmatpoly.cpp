@@ -477,6 +477,7 @@ struct OP_CTX {
         MPI_Type_commit(&mpi_entry_a);
         MPI_Type_commit(&mpi_entry_b);
     }
+    OP_CTX(OP_CTX const&) = delete;
     ~OP_CTX() {
         MPI_Type_free(&mpi_entry_a);
         MPI_Type_free(&mpi_entry_b);
@@ -520,14 +521,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     matpoly a_peers;
     matpoly b_peers;
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
-    mp_or_mul(OP_CTX & CTX, OP_T & OP,
+    mp_or_mul(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, OP_T & OP,
             const lingen_call_companion::mul_or_mp_times * M)
-        : OP_CTX(CTX)
+        : OP_CTX(stats, c, a, b)
         , OP(OP)
         , M(M)
-        , mpi_split0(a.m, CTX.mesh_inner_size())
-        , mpi_split1(a.n, CTX.mesh_inner_size())
-        , mpi_split2(b.n, CTX.mesh_inner_size())
+        , mpi_split0(a.m, mesh_inner_size())
+        , mpi_split1(a.n, mesh_inner_size())
+        , mpi_split2(b.n, mesh_inner_size())
         /* first, upper bounds on output block dimensions */
         , nrs0(mpi_split0.block_size_upper_bound())
         , nrs2(mpi_split2.block_size_upper_bound())
@@ -817,8 +818,7 @@ bigmatpoly bigmatpoly::mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly c
 {
     op_mp<void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    OP_CTX CTX(stats, c, a, b);
-    mp_or_mul<op_mp<void>>(CTX, op, M)();
+    mp_or_mul<op_mp<void>>(stats, c, a, b, op, M)();
     return c;
 }
 
@@ -826,8 +826,7 @@ bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly 
 {
     op_mul<void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    OP_CTX CTX(stats, c, a, b);
-    mp_or_mul<op_mul<void>>(CTX, op, M)();
+    mp_or_mul<op_mul<void>>(stats, c, a, b, op, M)();
     return c;
 }
 
