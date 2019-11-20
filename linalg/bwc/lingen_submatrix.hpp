@@ -24,10 +24,17 @@ class subdivision {
     {
         return (q + (i < r)) * scale;
     }
+    inline unsigned int nth_block_start(unsigned int i) const {
+        return (i * q + std::min(i, r)) * scale;
+    }
+    inline unsigned int nth_block_end(unsigned int i) const {
+        return nth_block_start(i) + nth_block_size(i);
+    }
     inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int i) const
     {
-        unsigned int i0 = (i * q + std::min(i, r)) * scale;
-        return std::make_tuple(i0, i0 + nth_block_size(i));
+        unsigned int i0 = nth_block_start(i);
+        unsigned int i1 = nth_block_end(i);
+        return std::make_tuple(i0, i1);
     }
     inline unsigned int block_size_upper_bound() const {
         return (q + (r != 0)) * scale;

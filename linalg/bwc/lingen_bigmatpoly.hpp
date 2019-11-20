@@ -87,6 +87,7 @@ class bigmatpoly : public bigmatpoly_model {
     inline size_t get_size() const { return size; }
     void set_size(size_t size);
     void zero_pad(size_t size);
+    void zero_with_size(size_t size) { set_size(0); zero_pad(size); }
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero_loc(unsigned int k);
     int bigmatpoly_coeff_is_zero(abdst_field ab, bigmatpoly const & pi, unsigned int k);
