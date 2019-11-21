@@ -96,8 +96,7 @@ int next_cand_Fp_hgcd(cand_t cand, void *params) {
 int is_probably_sqrfree(mpz_t z)
 {
   unsigned long x;
-//  const int nb_p = 15;
-  const int nb_p = 1;
+  const int nb_p = 15;
   unsigned long tab_p[15] = {2,3,5,7,11,13,17,19,23,29,31,37,41,43,47};
 
   for (int i = 0; i < nb_p; ++i) {

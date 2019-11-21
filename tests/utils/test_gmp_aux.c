@@ -29,7 +29,7 @@ test_mpz_set_uint64 ()
   if (mpz_cmp_d (z, 4294967296.0) != 0)
     abort ();
 
-  q = (q-1) * (q-1) + 2 * (q-1); /* 2^64-1 */
+  q = UINT64_MAX; /* 2^64-1 */
   mpz_set_uint64 (z, q);
   mpz_add_ui (z, z, 1);
   if (mpz_cmp_d (z, 18446744073709551616.0) != 0)
@@ -70,13 +70,13 @@ test_mpz_set_int64 ()
   if (mpz_cmp_d (z, 2147483648.0) != 0)
     abort ();
 
-  q = ((q-1) << 32) + 2 * (q-1) + 1; /* 2^63-1 */
+  q = INT64_MAX; /* 2^63-1 */
   mpz_set_int64 (z, q);
   mpz_add_ui (z, z, 1);
   if (mpz_cmp_d (z, 9223372036854775808.0) != 0)
     abort ();
 
-  q = -q-1; /* -2^63 */
+  q = INT64_MIN; /* -2^63 */
   mpz_set_int64 (z, q);
   if (mpz_cmp_d (z, -9223372036854775808.0) != 0)
     abort ();

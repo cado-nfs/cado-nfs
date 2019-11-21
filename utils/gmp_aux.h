@@ -8,33 +8,45 @@
 #include "getprime.h"
 
 /* the following function are missing in GMP */
-#ifndef mpz_addmul_si
-#define mpz_addmul_si(a, b, c)                  \
-  do {                                          \
-    if (c >= 0)                                 \
-      mpz_addmul_ui (a, b, c);                  \
-    else                                        \
-      mpz_submul_ui (a, b, -(c));               \
-  }                                             \
-  while (0)
+#ifndef mpz_add_si
+static inline void
+mpz_add_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_add_ui (a, b, (unsigned long) c);
+    else
+        mpz_sub_ui (a, b, -(unsigned long) c);
+}
 #endif
 
-#ifndef mpz_add_si
-#define mpz_add_si(a,b,c)                       \
-  do {                                          \
-    if (c >= 0) mpz_add_ui (a, b, c);           \
-    else mpz_sub_ui (a, b, -(c))                \
-  } while (0)
+#ifndef mpz_sub_si
+static inline void
+mpz_sub_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_sub_ui (a, b, (unsigned long) c);
+    else
+        mpz_add_ui (a, b, -(unsigned long) c);
+}
+#endif
+
+#ifndef mpz_addmul_si
+static inline void
+mpz_addmul_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_addmul_ui (a, b, (unsigned long) c);
+    else
+        mpz_submul_ui (a, b, -(unsigned long) c);
+}
 #endif
 
 #ifndef mpz_submul_si
-#define mpz_submul_si(a,b,c)                    \
-  do {                                          \
-    if (c >= 0) mpz_submul_ui (a, b, c);        \
-    else mpz_addmul_ui (a, b, -(c))             \
-  } while (0)
+static inline void
+mpz_submul_si (mpz_ptr a, mpz_srcptr b, const long c) {
+    if (c >= 0)
+        mpz_submul_ui (a, b, (unsigned long) c);
+    else mpz_addmul_ui (a, b, -(unsigned long) c);
+}
 #endif
-  
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,8 +63,11 @@ extern uint64_t mpz_get_uint64 (mpz_srcptr);
 extern int64_t mpz_get_int64 (mpz_srcptr);
 extern void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern int mpz_cmp_uint64 (mpz_srcptr a, uint64_t c);
+extern int mpz_cmp_int64 (mpz_srcptr a, int64_t c);
 extern void mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
+extern void mpz_add_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
+extern void mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
@@ -61,6 +76,14 @@ extern int mpz_fits_uint64_p(mpz_srcptr);
 extern int mpz_fits_int64_p(mpz_srcptr);
 extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern uint64_t uint64_nextprime (uint64_t);
+static inline void mpz_uint64_sub (mpz_ptr a, const uint64_t b, mpz_srcptr c) {
+    mpz_sub_uint64 (a, c, b);
+    mpz_neg (a, a);
+}
+extern uint64_t mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d);
 #else
 static inline void mpz_init_set_uint64 (mpz_ptr a, const uint64_t b) {mpz_init_set_ui(a, b);}
 static inline void mpz_init_set_int64 (mpz_ptr a, const int64_t b) {mpz_init_set_si(a, b);}
@@ -70,8 +93,11 @@ static inline uint64_t mpz_get_uint64 (mpz_srcptr a) {return (uint64_t) mpz_get_
 static inline int64_t mpz_get_int64 (mpz_srcptr a) {return (int64_t) mpz_get_si(a);}
 static inline void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_mul_ui(a, b, c);}
 static inline int mpz_cmp_uint64 (mpz_srcptr a, const uint64_t c) {return mpz_cmp_ui(a, c);}
+static inline int mpz_cmp_int64 (mpz_srcptr a, const int64_t c) {return mpz_cmp_si(a, c);}
 static inline void mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_add_ui(a, b, c);}
+static inline void mpz_add_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_add_si(a, b, c);}
 static inline void mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_sub_ui(a, b, c);}
+static inline void mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_sub_si(a, b, c);}
 static inline void mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_addmul_ui(a, b, c);}
 static inline void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_submul_ui(a, b, c);}
 static inline void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_divexact_ui(a, b, c);}
@@ -80,6 +106,12 @@ static inline int mpz_fits_uint64_p(mpz_srcptr a) {return mpz_fits_ulong_p(a);}
 static inline int mpz_fits_int64_p(mpz_srcptr a) {return mpz_fits_slong_p(a);}
 static inline int mpz_divisible_uint64_p (mpz_ptr a, const uint64_t c) {return mpz_divisible_ui_p(a, c);}
 static inline uint64_t uint64_nextprime (uint64_t a) {return (uint64_t) ulong_nextprime(a);}
+static inline void mpz_uint64_sub(mpz_ptr a, const uint64_t b, mpz_srcptr c) {mpz_ui_sub(a, b, c);}
+
+static inline uint64_t mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d) {return mpz_tdiv_qr_ui(Q, R, N, d);}
+static inline uint64_t mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d) {return mpz_tdiv_q_ui(Q, N, d);}
+static inline uint64_t mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d) {return mpz_tdiv_r_ui(R, N, d);}
+static inline uint64_t mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d) {return mpz_tdiv_ui(N, d);}
 #endif
 
 extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
@@ -135,7 +167,7 @@ static inline void mpn_rrandom (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
     dummy->_mp_d = rp;
     dummy->_mp_alloc = N;
     dummy->_mp_size = N;
-    mpz_rrandomb(dummy, rstate, N * GMP_LIMB_BITS);
+    mpz_rrandomb(dummy, rstate, (mp_bitcnt_t) N * GMP_LIMB_BITS);
 }
 
 
@@ -145,7 +177,7 @@ static inline void mpn_randomb (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
     dummy->_mp_d = rp;
     dummy->_mp_alloc = N;
     dummy->_mp_size = N;
-    mpz_urandomb(dummy, rstate, N * GMP_LIMB_BITS);
+    mpz_urandomb(dummy, rstate, (mp_bitcnt_t) N * GMP_LIMB_BITS);
 }
 
 #endif
