@@ -594,6 +594,7 @@ utils/getprime.c
 utils/getprime.h
 utils/gmp_aux.c
 utils/gmp_aux.h
+utils/gmp_auxx.hpp
 utils/gmp_gcd.c
 utils/gzip.c
 utils/gzip.h
