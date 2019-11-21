@@ -67,25 +67,26 @@ mpz_set_uint64 (mpz_ptr z, uint64_t q)
 void
 mpz_set_int64 (mpz_ptr z, int64_t q)
 {
-  if (sizeof (long) == 8)
+  if (LONG_MIN <= q && q <= LONG_MAX)
     mpz_set_si (z, (long) q);
   else if (q >= 0)
-    mpz_set_uint64 (z, q);
+    mpz_set_uint64 (z, (uint64_t) q);
   else
     {
-      mpz_set_uint64 (z, -q);
+      mpz_set_uint64 (z, -(uint64_t)q);
       mpz_neg (z, z);
     }
 }
+
 void mpz_init_set_uint64 (mpz_ptr z, uint64_t x)
 {
-    mpz_init(z);
+    mpz_init2(z, 64);
     mpz_set_uint64(z, x);
 }
 
 void mpz_init_set_int64 (mpz_ptr z, int64_t x)
 {
-    mpz_init(z);
+    mpz_init2(z, 64);
     mpz_set_int64(z, x);
 }
 
@@ -112,7 +113,7 @@ mpz_fits_uint64_p (mpz_srcptr z)
 {
     if (mpz_sgn(z) < 0)
         return 0;
-    int l = mpz_sizeinbase(z, 2);
+    size_t l = mpz_sizeinbase(z, 2);
     return (l <= 64);
 }
 
@@ -124,13 +125,13 @@ mpz_get_int64 (mpz_srcptr z)
         return l & (uint64_t) INT64_MAX;
     /* We want 1 -> -1, 2 -> -2, ...,
        2^63-1 -> -2^63+1, 2^63 -> -2^63, 2^63+1 -> -1 */
-    return -(((l - 1) & (uint64_t) INT64_MAX) + 1);
+    return (int64_t) -(((l - 1) & (uint64_t) INT64_MAX) + 1);
 }
 
 int
 mpz_fits_int64_p (mpz_srcptr z)
 {
-    int l = mpz_sizeinbase(z, 2);
+    size_t l = mpz_sizeinbase(z, 2);
     if (l <= 63) return 1;
     /* Also accept -2^63, which is INT64_MIN */
     if (mpz_sgn(z) < 0 && l == 64  && mpz_scan1(z, 0) == 63) return 1;
@@ -140,13 +141,12 @@ mpz_fits_int64_p (mpz_srcptr z)
 void
 mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_mul_ui (a, b, (unsigned long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_mul (a, b, d);
       mpz_clear (d);
     }
@@ -155,13 +155,27 @@ mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 int
 mpz_cmp_uint64 (mpz_srcptr a, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     return mpz_cmp_ui (a, (unsigned long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
+      int r = mpz_cmp (a, d);
+      mpz_clear (d);
+      return r;
+    }
+}
+
+int
+mpz_cmp_int64 (mpz_srcptr a, int64_t c)
+{
+  if (LONG_MIN <= c && c <= LONG_MAX)
+    return mpz_cmp_si (a, (long) c);
+  else
+    {
+      mpz_t d;
+      mpz_init_set_int64 (d, c);
       int r = mpz_cmp (a, d);
       mpz_clear (d);
       return r;
@@ -176,11 +190,19 @@ mpz_add_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_add (a, b, d);
       mpz_clear (d);
     }
+}
+
+void
+mpz_add_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
+{
+  if (c >= 0)
+    mpz_add_uint64 (a, b, (uint64_t) c);
+  else
+    mpz_sub_uint64 (a, b, -(uint64_t) c);
 }
 
 void
@@ -191,23 +213,30 @@ mpz_sub_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_sub (a, b, d);
       mpz_clear (d);
     }
 }
 
 void
+mpz_sub_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
+{
+  if (c >= 0)
+    mpz_sub_uint64 (a, b, (uint64_t) c);
+  else
+    mpz_add_uint64 (a, b, -(uint64_t) c);
+}
+
+void
 mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_addmul_ui (a, b, (unsigned long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_addmul (a, b, d);
       mpz_clear (d);
     }
@@ -216,13 +245,12 @@ mpz_addmul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 void
 mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_submul_ui (a, b, (unsigned long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_submul (a, b, d);
       mpz_clear (d);
     }
@@ -231,13 +259,12 @@ mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 void
 mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     mpz_divexact_ui (a, b, (unsigned long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       mpz_divexact (a, b, d);
       mpz_clear (d);
     }
@@ -246,15 +273,14 @@ mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c)
 int
 mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
 {
-  if (sizeof (unsigned long) >= sizeof (uint64_t))
+  if (c <= ULONG_MAX)
     return mpz_divisible_ui_p (a, (unsigned long) c);
   else
     {
       mpz_t d;
       int ret;
 
-      mpz_init (d);
-      mpz_set_uint64 (d, c);
+      mpz_init_set_uint64 (d, c);
       ret = mpz_divisible_p (a, d);
       mpz_clear (d);
       return ret;
@@ -264,13 +290,12 @@ mpz_divisible_uint64_p (mpz_ptr a, uint64_t c)
 void
 mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
-  if (sizeof (long) == 8)
+  if (LONG_MIN <= c && c <= LONG_MAX)
     mpz_mul_si (a, b, (long) c);
   else
     {
       mpz_t d;
-      mpz_init (d);
-      mpz_set_int64 (d, c);
+      mpz_init_set_int64 (d, c);
       mpz_mul (a, b, d);
       mpz_clear (d);
     }
@@ -281,12 +306,53 @@ uint64_nextprime (uint64_t q)
 {
   mpz_t z;
 
-  mpz_init (z);
-  mpz_set_uint64 (z, q);
+  mpz_init_set_uint64 (z, q);
   mpz_nextprime (z, z);
   q = mpz_get_uint64 (z);
   mpz_clear (z);
   return q;
+}
+
+uint64_t
+mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_tdiv_qr (Q, R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_tdiv_qr_uint64 (Q, R, N, d);
+    mpz_clear (R);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_tdiv_r (R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_tdiv_r_uint64 (R, N, d);
+    mpz_clear (R);
+    return r;
 }
 
 #endif
@@ -298,23 +364,17 @@ mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
   if (c >= 0)
     mpz_submul_uint64 (a, b, (uint64_t) c);
   else
-    mpz_addmul_uint64 (a, b, (uint64_t) (-c));
+    mpz_addmul_uint64 (a, b, -(uint64_t) c);
 }
 
 /* a <- a + b * c */
 void
 mpz_addmul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c)
 {
-  if (sizeof (long) == 8)
-    mpz_addmul_si (a, b, (long) c);
+  if (c >= 0)
+    mpz_addmul_uint64 (a, b, (uint64_t) c);
   else
-    {
-      mpz_t d;
-      mpz_init (d);
-      mpz_set_int64 (d, c);
-      mpz_addmul (a, b, d);
-      mpz_clear (d);
-    }
+    mpz_submul_uint64 (a, b, -(uint64_t) c);
 }
 
 /* returns the smallest prime p, q < p <= ULONG_MAX, or 0 if no such prime
@@ -379,7 +439,7 @@ ulong_nextcomposite (unsigned long q, unsigned long pmin)
       if (ulong_isprime (q))
         continue;
       unsigned long p;
-      for (p = 2; p < pmin && q % p; p += 1 + (p > 2));
+      for (p = 2; p < pmin && q % p; p += 1UL + (p > 2));
       if (p >= pmin)
         break;
     }
@@ -563,7 +623,7 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
 {
   mpz_mod (a, b, c); /* now 0 <= a < c */
 
-  size_t n = mpz_size (c);
+  mp_size_t n = (mp_size_t) mpz_size (c);
   mp_limb_t aj, cj;
   int sub = 0, sh = GMP_NUMB_BITS - 1;
 
