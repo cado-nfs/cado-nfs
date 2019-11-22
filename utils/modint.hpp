@@ -32,6 +32,7 @@
 class Integer64 {
     uint64_t v[1];
 public:
+    typedef uint64_t WordType;
     Integer64() : v{0} {}
     Integer64(const uint64_t a) : v{a} {}
     /* Use default copy and move constructors */
@@ -71,13 +72,19 @@ public:
     const uint64_t *get() const {return v;}
     /* Return the size in uint64_ts that is required in the output for 
      * get(uint64_t *, size_t) */
-    size_t size() const {return 1;}
+    size_t size() const {return v[0] == 0 ? 0 : 1;}
+    /** Write the Integer to r. Exactly len words are written.
+     * If len is less than the required size as given by size(), output is
+     * truncated. If len is greater, output is padded with zeroes. */
     void get (uint64_t *r, const size_t len) const {
         if (len > 0)
             r[0] = v[0];
         for (size_t i = 1; i < len; i++)
             r[i] = 0;
     }
+    static int getWordSize() {return 64;}
+    size_t getWordCount() const {return size();}
+    WordType getWord(const size_t i) const {return (i < 1) ? v[i] : 0;}
 
     /* Typecast operators */
     explicit operator bool() const {return v[0] != 0;};
@@ -195,6 +202,7 @@ public:
 class Integer128 {
     uint64_t v[2]; /* Least significant word at index 0 */
 public:
+    typedef uint64_t WordType;
     Integer128() : v{0,0} {}
     Integer128(const uint64_t a) : v{a,0} {}
     Integer128(const uint64_t a0, const uint64_t a1) : v{a0,a1} {}
@@ -240,7 +248,7 @@ public:
     /* FIXME: this method is terrible and needs to go */
     const uint64_t *get() const {return v;}
     /* Return the size in uint64_ts that is required in the output for get() */
-    size_t size() const {return (v[1] != 0) ? 2 : 1;}
+    size_t size() const {return (v[1] != 0) ? 2 : (v[0] != 0) ? 1 : 0;}
     void get (uint64_t *r, const size_t len) const {
         if (len > 0)
             r[0] = v[0];
@@ -249,6 +257,9 @@ public:
         for (size_t i = 2; i < len; i++)
             r[i] = 0;
     }
+    static int getWordSize() {return 64;}
+    size_t getWordCount() const {return size();}
+    WordType getWord(const size_t i) const {return (i < 2) ? v[i] : 0;}
 
     /* Typecast operators */
     explicit operator bool() const {return v[0] != 0 || v[1] != 0;}

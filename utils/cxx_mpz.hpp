@@ -48,6 +48,46 @@ public:
     operator mpz_srcptr() const { return x; }
     mpz_ptr operator->() { return x; }
     mpz_srcptr operator->() const { return x; }
+    
+    /** Set the value of the cxx_mpz to that of the uint64_t array s,
+     * least significant word first. 
+     */
+    bool set(const uint64_t *s, const size_t len) {
+        mpz_import(x, len, -1, sizeof(uint64_t), 0, 0, s);
+        return true;
+    }
+
+    /** Return the size in uint64_ts that is required in the output for
+     * get(uint64_t *, size_t) */
+    size_t size() const {return iceildiv(mpz_sizeinbase(x, 2), 64);}
+
+    /** Write the absolute value of the cxx_mpz to r.
+     * The least significant word is written first. Exactly len words are
+     * written. If len is less than the required size as given by size(),
+     * output is truncated. If len is greater, output is padded with zeroes.
+     */
+    void get(uint64_t *r, const size_t len) const {
+        const bool useTemp = len < size();
+        size_t written;
+        uint64_t *t = (uint64_t *) mpz_export(useTemp ? NULL : r, &written,
+                                              -1, sizeof(uint64_t), 0, 0, x);
+        if (useTemp) {
+            /* Here, len < written. Write only the len least significant words
+             * to r */
+            for (size_t i = 0; i < len; i++)
+                r[i] = t[i];
+            free(t);
+        } else {
+            ASSERT_ALWAYS(written <= len);
+            for (size_t i = written; i < len; i++)
+                r[i] = 0;
+        }
+    }
+
+    /* Should use a C++ iterator instead? Would that be slower? */
+    static int getWordSize() {return GMP_NUMB_BITS;}
+    size_t getWordCount() const {return mpz_size(x);}
+    WordType getWord(const size_t i) const {return mpz_getlimbn(x, i);}
 };
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void mpz_init(cxx_mpz & pl) __attribute__((error("mpz_init must not be called on a mpz reference -- it is the caller's business (via a ctor)")));
