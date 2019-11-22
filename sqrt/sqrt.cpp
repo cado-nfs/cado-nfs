@@ -24,6 +24,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <pthread.h>
+#include "cxx_mpz.hpp"
+#include <vector>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #include "utils_with_io.h"
 #include "portability.h"
@@ -33,68 +38,90 @@ static int verbose = 0;
 /* mutual exclusion lock for output */
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
+struct cxx_mpz_polymod_scaled {
+  cxx_mpz_poly p;
+  int v;
+  cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
+  cxx_mpz_polymod_scaled() = default;
+  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = default;
+  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled &&) = default;
+  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = default;
+  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled &&) = default;
+};
+
+/* Pseudo-reduce a plain polynomial p modulo a non-monic polynomial F.
+   The result is of type cxx_mpz_polymod_scaled P, and satisfies:
+   P->p = lc(F)^P->v * p mod F.
+   WARNING: this function destroys its input p !!! */
+static void
+cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_mpz_poly const & F) {
+  int v = 0;
+
+  if (p->deg < F->deg) {
+    mpz_poly_set(P.p, p);
+    P.v = 0;
+    return;
+  }
+
+  const int d = F->deg;
+
+  while (p->deg >= d) {
+    const int k = p->deg;
+    int i;
+
+    /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
+       compute p - p[k]/F[d]*F. However this will happen rarely with
+       Kleinjung's polynomial selection, since lc(F) is large. */
+
+    /* FIXME: in msieve, Jason Papadopoulos reduces by F[d]^d*F(x/F[d])
+       instead of F(x). This might avoid one of the for-loops below. */
+
+    // temporary hack: account for the possibility that we're indeed
+    // using f_hat instead of f.
+    if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
+      v++; /* we consider p/F[d]^v */
+      for (i = 0; i < k; ++i)
+        mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
+    }
+
+    for (i = 0; i < d; ++i)
+      mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
+
+    mpz_poly_cleandeg (p, k-1);
+  }
+
+  mpz_poly_set(P.p, p);
+  P.v = v;
+}
+
+/* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
+void cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
+                   cxx_mpz_poly const & F) {
+  int v;
+
+  /* beware: if P1 and P2 are zero, P1.p->deg + P2.p->deg = -2 */
+  cxx_mpz_poly prd ((P1.p->deg == -1) ? -1 : P1.p->deg + P2.p->deg);
+
+  ASSERT_ALWAYS(mpz_poly_normalized_p (P1.p));
+  ASSERT_ALWAYS(mpz_poly_normalized_p (P2.p));
+
+  mpz_poly_mul (prd, P1.p, P2.p);
+  v = P1.v + P2.v;
+
+  cxx_mpz_polymod_scaled_reduce (Q, prd, F);
+  Q.v += v;
+}
+
 /********** RATSQRT **********/
 
 #define THRESHOLD 2 /* must be >= 2 */
-
-/* accumulate up to THRESHOLD products in prd[0], 2^i*THRESHOLD in prd[i].
-   nprd is the number of already accumulated values: if nprd = n0 +
-   n1 * THRESHOLD + n2 * THRESHOLD^2 + ..., then prd[0] has n0 entries,
-   prd[1] has n1*THRESHOLD entries, and so on.
-*/
-static mpz_t*
-accumulate_fast (mpz_t *prd, mpz_t a, unsigned long *lprd, unsigned long nprd)
-{
-  unsigned long i;
-
-  mpz_mul (prd[0], prd[0], a);
-  nprd ++;
-
-  for (i = 0; nprd % THRESHOLD == 0; i++, nprd /= 2)
-    {
-      /* need to access prd[i + 1], thus i+2 entries */
-      if (i + 2 > *lprd)
-        {
-          lprd[0] ++;
-          prd = (mpz_t*) realloc (prd, lprd[0] * sizeof (mpz_t));
-          ASSERT_ALWAYS(prd != NULL);
-          mpz_init_set_ui (prd[i + 1], 1);
-        }
-      mpz_mul (prd[i + 1], prd[i + 1], prd[i]);
-      mpz_set_ui (prd[i], 1);
-    }
-
-  return prd;
-}
-
-/* prd[0] <- prd[0] * prd[1] * ... * prd[lprd-1] */
-void
-accumulate_fast_end (mpz_t *prd, unsigned long lprd)
-{
-  unsigned long i;
-
-  for (i = 1; i < lprd; i++)
-    mpz_mul (prd[0], prd[0], prd[i]);
-}
-
-/* return the total size of prd[0], ..., prd[lprd-1] in bytes */
-static size_t
-stats (mpz_t *prd, unsigned long lprd)
-{
-  unsigned long i;
-  size_t s = 0;
-
-  for (i = 0; i < lprd; i++)
-    s += mpz_size (prd[i]);
-  return s * sizeof (mp_limb_t);
-}
 
 static char*
 get_depname (const char *prefix, const char *algrat, int numdep)
 {
   char *depname;
-  char* suffixes[] = {".gz", ".bz2", ".lzma", ""};
-  char *suffix;
+  const char* suffixes[] = {".gz", ".bz2", ".lzma", ""};
+  const char *suffix;
   char *prefix_base;
   int ret;
 
@@ -166,10 +193,6 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   FILE *resfile;
   int ret;
   unsigned long ab_pairs = 0, line_number, freerels = 0;
-  mpz_t v, *prd;
-  unsigned long lprd; /* number of elements in prd[] */
-  unsigned long nprd; /* number of accumulated products in prd[] */
-  unsigned long i;
 
   ASSERT_ALWAYS (pol->pols[side]->deg == 1);
 
@@ -184,21 +207,13 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   depfile = fopen_maybe_compressed_lock (depname, "rb");
   ASSERT_ALWAYS(depfile != NULL);
 
-  mpz_init (v);
-
-  lprd = 1;
-  nprd = 0;
-  prd = (mpz_t*) malloc (lprd * sizeof (mpz_t));
-  ASSERT_ALWAYS(prd != NULL);
-  mpz_init_set_ui (prd[0], 1);
-
   line_number = 2;
-  mpz_t a, b;
-  mpz_init (a);
-  mpz_init (b);
+  cxx_mpz a, b, v;
+  std::vector<cxx_mpz> prd;
+
   for (;;)
     {
-      ret = gmp_fscanf (depfile, "%Zd %Zd\n", a, b);
+      ret = gmp_fscanf (depfile, "%Zd %Zd\n", (mpz_ptr) a, (mpz_ptr) b);
 
       if (ret != 2)
         {
@@ -214,8 +229,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
       if (ab_pairs % 1000000 == 0)
         {
           pthread_mutex_lock (&lock);
-          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs, size %zuM (peak %luM)\n",
-                   numdep, ab_pairs, seconds (), stats (prd, lprd) >> 20,
+          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs, (peak %luM)\n",
+                   numdep, ab_pairs, seconds (),
                    PeakMemusage () >> 10);
 	  fflush (stderr);
           pthread_mutex_unlock (&lock);
@@ -228,13 +243,11 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
       mpz_mul (v, pol->pols[side]->coeff[1], a);
       mpz_addmul (v, pol->pols[side]->coeff[0], b);
 
-      prd = accumulate_fast (prd, v, &lprd, nprd++);
+      prd.emplace_back(std::move(v));
 
       if (feof (depfile))
         break;
     }
-  mpz_clear (a);
-  mpz_clear (b);
   fclose_maybe_compressed_lock (depfile, depname);
   free (depname);
 
@@ -244,7 +257,32 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   fflush (stderr);
   pthread_mutex_unlock (&lock);
 
-  accumulate_fast_end (prd, lprd);
+  for(int level = 0 ; prd.size() > 1 ; level++) {
+      pthread_mutex_lock (&lock);
+      fprintf (stderr, "Rat(%d): doing level %d, %zu integers to multiply\n",
+              numdep, level, prd.size());
+      fflush (stderr);
+      pthread_mutex_unlock (&lock);
+
+      size_t N = prd.size() - 1;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for(size_t j = 0 ; j < N ; j += 2) {
+          mpz_mul(prd[j], prd[j], prd[j+1]);
+          prd[j+1] = cxx_mpz();
+      }
+
+      /* shrink (not parallel) */
+      pthread_mutex_lock (&lock);
+      fprintf (stderr, "Rat(%d): shrinking level %d\n", numdep, level);
+      fflush (stderr);
+      pthread_mutex_unlock (&lock);
+      for(size_t j = 2 ; j < prd.size() ; j += 2) {
+          std::swap(prd[j], prd[j/2]);
+      }
+      prd.erase(prd.begin() + (prd.size() + 1) / 2, prd.end());
+  }
 
   /* we must divide by g1^ab_pairs: if the number of (a,b) pairs is odd, we
      multiply by g1, and divide by g1^(ab_pairs+1) */
@@ -338,21 +376,16 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   mpz_mul (prd[0], prd[0], v);
   mpz_mod (prd[0], prd[0], Np);
 
-  gmp_fprintf (resfile, "%Zd\n", prd[0]);
+  gmp_fprintf (resfile, "%Zd\n", (mpz_srcptr) prd[0]);
   fclose_maybe_compressed_lock (resfile, sidename);
   free (sidename);
 
   pthread_mutex_lock (&lock);
-  gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, prd[0]);
+  gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prd[0]);
   fprintf (stderr, "Rat(%d): square root time: %.2lfs\n", numdep, seconds ());
   fflush (stderr);
   pthread_mutex_unlock (&lock);
 
-  for (i = 0; i < lprd; i++)
-    mpz_clear (prd[i]);
-  free (prd);
-
-  mpz_clear (v);
   return 0;
 }
 
@@ -368,13 +401,21 @@ typedef struct
 typedef __tab_struct tab_t[1];
 
 /********** ALGSQRT **********/
-static void
-polymodF_from_ab (polymodF_t tmp, mpz_t a, mpz_t b)
+static cxx_mpz_polymod_scaled
+cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
 {
-  tmp->v = 0;
-  tmp->p->deg = mpz_cmp_ui (b, 0) ? 1 : 0;
-  mpz_neg (tmp->p->coeff[1], b);
-  mpz_set (tmp->p->coeff[0], a);
+    if (mpz_cmp_ui (b, 0) == 0) {
+        cxx_mpz_polymod_scaled tmp(0);
+        mpz_set (tmp.p->coeff[0], a);
+        mpz_poly_cleandeg(tmp.p, 0);
+        return tmp;
+    } else {
+        cxx_mpz_polymod_scaled tmp(1);
+        mpz_neg (tmp.p->coeff[1], b);
+        mpz_set (tmp.p->coeff[0], a);
+        mpz_poly_cleandeg(tmp.p, 1);
+        return tmp;
+    }
 }
 
 /* Reduce the coefficients of R in [-m/2, m/2) */
@@ -505,7 +546,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
 void
-polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
+cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scaled & AA, cxx_mpz_poly const & F, unsigned long p,
 	       int numdep)
 {
   mpz_poly A, *P;
@@ -525,7 +566,7 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
      twice as large, before reduction by f(x). The reduction modulo f(x)
      produces A(x), however that reduction should not decrease the size of
      the coefficients. */
-  target_size = mpz_poly_sizeinbase (AA->p, 2);
+  target_size = mpz_poly_sizeinbase (AA.p, 2);
   target_size = target_size / 2;
   target_size += target_size / 10;
   pthread_mutex_lock (&lock);
@@ -537,12 +578,12 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
   mpz_poly_init(A, d-1);
   // Clean up the mess with denominator: if it is an odd power of fd,
   // then multiply num and denom by fd to make it even.
-  if (((AA->v)&1) == 0) {
-    v = AA->v / 2;
-    mpz_poly_set(A, AA->p);
+  if (((AA.v)&1) == 0) {
+    v = AA.v / 2;
+    mpz_poly_set(A, AA.p);
   } else {
-    v = (1+AA->v) / 2;
-    mpz_poly_mul_mpz(A, AA->p, F->coeff[d]);
+    v = (1+AA.v) / 2;
+    mpz_poly_mul_mpz(A, AA.p, F->coeff[d]);
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -750,15 +791,15 @@ polymodF_sqrt (polymodF_t res, polymodF_t AA, mpz_poly F, unsigned long p,
 
   mpz_poly_base_modp_clear (P, logk0);
 
-  mpz_poly_set(res->p, tmp);
-  res->v = v;
+  mpz_poly_set(res.p, tmp);
+  res.v = v;
 
   mpz_clear (pk);
   mpz_poly_clear(tmp);
   mpz_poly_clear (invsqrtA);
   mpz_poly_clear (a);
 
-  size_t sqrt_size = mpz_poly_sizeinbase (res->p, 2);
+  size_t sqrt_size = mpz_poly_sizeinbase (res.p, 2);
   pthread_mutex_lock (&lock);
   fprintf (stderr, "Alg(%d): maximal sqrt bit-size = %zu (%.0f%% of target size)\n",
 	   numdep, sqrt_size, 100.0 * (double) sqrt_size / target_size);
@@ -854,13 +895,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
   char *depname, *sidename;
   FILE *depfile = NULL;
   FILE *resfile;
-  mpz_poly F;
-  polymodF_t prd, tmp;
   unsigned long p;
   double t0 = seconds ();
-  mpz_t algsqrt, aux;
-  int i, deg;
-  mpz_t *f;
   int nab = 0, nfree = 0;
 
   ASSERT_ALWAYS(side == 0 || side == 1);
@@ -870,40 +906,15 @@ calculateSqrtAlg (const char *prefix, int numdep,
   depfile = fopen_maybe_compressed_lock (depname, "rb");
   ASSERT_ALWAYS(depfile != NULL);
 
-  deg = pol->pols[side]->deg;
-  f = pol->pols[side]->coeff;
-
-  ASSERT_ALWAYS(deg > 1);
-
   // Init F to be the corresponding polynomial
-  mpz_poly_init (F, deg);
-  for (i = deg; i >= 0; --i)
-    mpz_poly_setcoeff (F, i, f[i]);
-
-  // Init prd to 1.
-  mpz_poly_init (prd->p, deg);
-  mpz_set_ui (prd->p->coeff[0], 1);
-  prd->p->deg = 0;
-  prd->v = 0;
-
-  // Allocate tmp
-  mpz_poly_init (tmp->p, 1);
+  cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz_polymod_scaled prod;
 
   // Accumulate product with a subproduct tree
-  mpz_t a, b;
-  mpz_init (a);
-  mpz_init (b);
   {
-      polymodF_t *prd_tab;
-      unsigned long lprd = 1; /* number of elements in prd_tab[] */
-      unsigned long nprd = 0; /* number of accumulated products in prd_tab[] */
-      prd_tab = (polymodF_t*) malloc (lprd * sizeof (polymodF_t));
-      ASSERT_ALWAYS(prd_tab != NULL);
-      mpz_poly_init (prd_tab[0]->p, F->deg);
-      mpz_set_ui (prd_tab[0]->p->coeff[0], 1);
-      prd_tab[0]->p->deg = 0;
-      prd_tab[0]->v = 0;
-      while (gmp_fscanf(depfile, "%Zd %Zd", a, b) != EOF)
+      cxx_mpz a, b;
+      std::vector<cxx_mpz_polymod_scaled> prd;
+      while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
         {
           if(!(nab % 1000000))
             {
@@ -915,14 +926,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
             }
           if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
             break;
-          polymodF_from_ab (tmp, a, b);
-          prd_tab = accumulate_fast_F (prd_tab, tmp, F, &lprd, nprd++);
+          prd.emplace_back(cxx_mpz_polymod_scaled_from_ab(a, b));
           nab++;
           if (mpz_cmp_ui (b, 0) == 0)
             nfree++;
         }
-      mpz_clear (a);
-      mpz_clear (b);
       pthread_mutex_lock (&lock);
       fprintf (stderr, "Alg(%d): read %d including %d free relations\n",
                numdep, nab, nfree);
@@ -950,44 +958,59 @@ calculateSqrtAlg (const char *prefix, int numdep,
        *    - this should finally give an even power of f_d in the
        *      denominator, and the algorithm can continue.
        */
-      accumulate_fast_F_end (prd_tab, F, lprd);
       fclose_maybe_compressed_lock (depfile, depname);
       free (depname);
 
-      mpz_poly_set(prd->p, prd_tab[0]->p);
-      prd->v = prd_tab[0]->v;
-      size_t s = 0;
-      for (i = 0; i < (long)lprd; ++i)
-        {
-          s += mpz_poly_totalsize (prd_tab[i]->p);
-          mpz_poly_clear(prd_tab[i]->p);
-        }
-      fprintf (stderr, "Alg(%d): product tree took %zuMb (peak %luM)\n",
-               numdep, s >> 20, PeakMemusage () >> 10);
-      fflush (stderr);
-      free(prd_tab);
+      for(int level = 0 ; prd.size() > 1 ; level++) {
+          pthread_mutex_lock (&lock);
+          fprintf (stderr, "Alg(%d): doing level %d, %zu integers to multiply\n",
+                  numdep, level, prd.size());
+          fflush (stderr);
+          pthread_mutex_unlock (&lock);
+
+          size_t N = prd.size() - 1;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for(size_t j = 0 ; j < N ; j += 2) {
+              cxx_mpz_polymod_scaled_mul(prd[j], prd[j], prd[j+1], F);
+              prd[j+1] = cxx_mpz_polymod_scaled();
+          }
+
+          /* shrink (not parallel) */
+          pthread_mutex_lock (&lock);
+          fprintf (stderr, "Rat(%d): shrinking level %d\n", numdep, level);
+          fflush (stderr);
+          pthread_mutex_unlock (&lock);
+          for(size_t j = 2 ; j < prd.size() ; j += 2) {
+              std::swap(prd[j], prd[j/2]);
+          }
+          prd.erase(prd.begin() + (prd.size() + 1) / 2, prd.end());
+      }
+      prod = std::move(prd[0]);
     }
 
     pthread_mutex_lock (&lock);
     fprintf (stderr, "Alg(%d): finished accumulating product at %.2lfs\n",
              numdep, seconds());
     fprintf (stderr, "Alg(%d): nab = %d, nfree = %d, v = %d\n", numdep,
-	     nab, nfree, prd->v);
+	     nab, nfree, prod.v);
     fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
-             (unsigned long) mpz_poly_sizeinbase (prd->p, 2));
+             (unsigned long) mpz_poly_sizeinbase (prod.p, 2));
     p = FindSuitableModP(F, Np);
     fprintf (stderr, "Alg(%d): using p=%lu for lifting\n", numdep, p);
     fflush (stderr);
     pthread_mutex_unlock (&lock);
 
     double tm = seconds();
-    polymodF_sqrt (prd, prd, F, p, numdep);
+    cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
     pthread_mutex_lock (&lock);
     fprintf (stderr, "Alg(%d): square root lifted in %.2lfs\n",
              numdep, seconds() - tm);
     fflush (stderr);
     pthread_mutex_unlock (&lock);
 
+    mpz_t algsqrt, aux;
     mpz_init(algsqrt);
     mpz_init(aux);
     mpz_t m;
@@ -1000,10 +1023,10 @@ calculateSqrtAlg (const char *prefix, int numdep,
             mpz_divexact(Np, Np, m);
         }
     } while (!ret);
-    mpz_poly_eval_mod_mpz(algsqrt, prd->p, m, Np);
+    mpz_poly_eval_mod_mpz(algsqrt, prod.p, m, Np);
     mpz_clear(m);
     mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
-    mpz_powm_ui(aux, aux, prd->v, Np);      // 1/fd^v mod n
+    mpz_powm_ui(aux, aux, prod.v, Np);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
     mpz_mod(algsqrt, algsqrt, Np);
 
@@ -1021,9 +1044,6 @@ calculateSqrtAlg (const char *prefix, int numdep,
     free (sidename);
     mpz_clear(aux);
     mpz_clear(algsqrt);
-    mpz_poly_clear(prd->p);
-    mpz_poly_clear(tmp->p);
-    mpz_poly_clear(F);
     return 0;
 }
 
@@ -1228,7 +1248,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    uint64_t * abs = malloc(nrows * sizeof(uint64_t));
+    uint64_t * abs = (uint64_t *) malloc(nrows * sizeof(uint64_t));
     ASSERT_ALWAYS(abs != NULL);
     memset(abs, 0, nrows * sizeof(uint64_t));
 
