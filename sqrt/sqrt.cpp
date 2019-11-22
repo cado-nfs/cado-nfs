@@ -26,6 +26,8 @@
 #include <pthread.h>
 #include "cxx_mpz.hpp"
 #include <vector>
+#include "fmt/format.h"
+#include "fmt/printf.h"
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -43,9 +45,9 @@ struct cxx_mpz_polymod_scaled {
   int v;
   cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
   cxx_mpz_polymod_scaled() = default;
-  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = default;
+  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = delete;
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled &&) = default;
-  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = default;
+  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = delete;
   cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled &&) = default;
 };
 
@@ -95,7 +97,8 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 }
 
 /* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
-void cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
+void
+cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
                    cxx_mpz_poly const & F) {
   int v;
 
@@ -182,6 +185,121 @@ check_dep (const char *prefix, int numdep)
   return 1;
 }
 
+/* replace the vector of elements of type T by
+ * the product of elements in the range. It's fairly trivial to do this
+ * in a DFS manner, but it's slightly less so for a BFS algorithm. The
+ * latter is more amenable to parallelization.
+ *
+ * The most balanced split is of course when the size of the vector v is a
+ * power of two. When the size of the vector v is N=2^k+r, the optimal way
+ * to fall back to the balanced case is as follows. Form a vector w of
+ * length 2^k by moving all elements of the vector v to the vector w, one
+ * by one, except that the i-th element of w is created from *two*
+ * consecutive elements of v whenever the bit-reversal of i is less than
+ * r.
+ *
+ * Of course we prefer to create w from v in place, which is done easily
+ * by having two pointers go through v.
+ */
+static inline uint64_t bitrev(uint64_t a)
+{
+    a = (a >> 32) ^ (a << 32);
+    uint64_t m;
+    m = UINT64_C(0x0000ffff0000ffff);
+    a = ((a >> 16) & m) ^ ((a << 16) & ~m);
+    m = UINT64_C(0x00ff00ff00ff00ff);
+    a = ((a >> 8) & m) ^ ((a << 8) & ~m);
+    m = UINT64_C(0x0f0f0f0f0f0f0f0f);
+    a = ((a >> 4) & m) ^ ((a << 4) & ~m);
+    m = UINT64_C(0x3333333333333333);
+    a = ((a >> 2) & m) ^ ((a << 2) & ~m);
+    m = UINT64_C(0x5555555555555555);
+    a = ((a >> 1) & m) ^ ((a << 1) & ~m);
+    return a;
+}
+
+cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
+{
+    mpz_mul(a, a, b);
+    return a;
+}
+
+template<typename T, typename M>
+T accumulate(std::vector<T> & v, M const & m, std::string const & message)
+{
+    size_t vs = v.size();
+
+    if (v.size() < 16) {
+        for(size_t j = 1 ; j < v.size() ; j++) {
+            m(v[0], v[0], v[j]);
+        }
+        v.erase(v.begin() + 1, v.end());
+    } else if ((vs & (vs - 1))) {
+        size_t n = 0;
+        for( ; vs >= 1UL << (n+1) ; n++) ;
+        uint64_t r = vs - (1UL << n);
+        pthread_mutex_lock (&lock);
+        fmt::fprintf (stderr, "%s: doing level 00, %zu -> 2^%zu+%zu\n",
+                message, vs, n, r);
+        fflush (stderr);
+        pthread_mutex_unlock (&lock);
+        /* Need to make v of size a power of two */
+        typename std::vector<T>::iterator read = v.begin(), write = v.begin();
+        std::vector<uint64_t> incrs;
+        for(uint64_t i = 0 ; i < 16 ; ++i) {
+            incrs.push_back(bitrev(i) >> (64-n));
+        }
+        size_t nvs = 1UL << n;
+        for(uint64_t i = 0 ; i < nvs ; i += 16) {
+            uint64_t ir = bitrev(i) >> (64 - n);
+            for(uint64_t j = 0 ; j < 16 && (i + j < nvs) ; j++) {
+                uint64_t jr = ir + incrs[j];
+                if (jr < r) {
+                    m(*write, read[0], read[1]);
+                    write++;
+                    read++;
+                    read++;
+                } else {
+                    std::swap(*read, *write);
+                    write++;
+                    read++;
+                }
+            }
+        }
+        v.erase(write, v.end());
+    }
+    vs = v.size();
+    ASSERT_ALWAYS(!(vs & (vs - 1)));
+
+  for(int level = 0 ; v.size() > 1 ; level++) {
+      pthread_mutex_lock (&lock);
+      fmt::fprintf (stderr, "%s: doing level %d, %zu values to multiply\n",
+              message, level, v.size());
+      fflush (stderr);
+      pthread_mutex_unlock (&lock);
+
+      size_t N = v.size() - 1;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for(size_t j = 0 ; j < N ; j += 2) {
+          m(v[j], v[j], v[j+1]);
+          v[j+1] = T();
+      }
+
+      /* shrink (not parallel) */
+      pthread_mutex_lock (&lock);
+      fmt::fprintf (stderr, "%s: shrinking level %d\n", message, level);
+      fflush (stderr);
+      pthread_mutex_unlock (&lock);
+      for(size_t j = 2 ; j < v.size() ; j += 2) {
+          std::swap(v[j], v[j/2]);
+      }
+      v.erase(v.begin() + (v.size() + 1) / 2, v.end());
+  }
+  return std::move(v.front());
+}
+
 int
 calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
         int side, mpz_t Np)
@@ -257,46 +375,27 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   fflush (stderr);
   pthread_mutex_unlock (&lock);
 
-  for(int level = 0 ; prd.size() > 1 ; level++) {
-      pthread_mutex_lock (&lock);
-      fprintf (stderr, "Rat(%d): doing level %d, %zu integers to multiply\n",
-              numdep, level, prd.size());
-      fflush (stderr);
-      pthread_mutex_unlock (&lock);
-
-      size_t N = prd.size() - 1;
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for(size_t j = 0 ; j < N ; j += 2) {
-          mpz_mul(prd[j], prd[j], prd[j+1]);
-          prd[j+1] = cxx_mpz();
+  struct multiplier {
+      void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b) const {
+          mpz_mul(res, a, b);
       }
+  };
 
-      /* shrink (not parallel) */
-      pthread_mutex_lock (&lock);
-      fprintf (stderr, "Rat(%d): shrinking level %d\n", numdep, level);
-      fflush (stderr);
-      pthread_mutex_unlock (&lock);
-      for(size_t j = 2 ; j < prd.size() ; j += 2) {
-          std::swap(prd[j], prd[j/2]);
-      }
-      prd.erase(prd.begin() + (prd.size() + 1) / 2, prd.end());
-  }
+  cxx_mpz prod = accumulate(prd, multiplier(), fmt::format("Rat({})", numdep));
 
   /* we must divide by g1^ab_pairs: if the number of (a,b) pairs is odd, we
      multiply by g1, and divide by g1^(ab_pairs+1) */
   if (ab_pairs & 1)
-    mpz_mul (prd[0], prd[0], pol->pols[side]->coeff[1]);
+    mpz_mul (prod, prod, pol->pols[side]->coeff[1]);
 
   pthread_mutex_lock (&lock);
   fprintf (stderr, "Rat(%d): size of product = %zu bits (peak %luM)\n",
-           numdep, mpz_sizeinbase (prd[0], 2),
+           numdep, mpz_sizeinbase (prod, 2),
 	   PeakMemusage () >> 10);
   fflush (stderr);
   pthread_mutex_unlock (&lock);
 
-  if (mpz_sgn (prd[0]) < 0)
+  if (mpz_sgn (prod) < 0)
     {
       fprintf (stderr, "Error, product is negative: try another dependency\n");
       exit (1);
@@ -309,7 +408,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   pthread_mutex_unlock (&lock);
 
   /* since we know we have a square, take the square root */
-  mpz_sqrtrem (prd[0], v, prd[0]);
+  mpz_sqrtrem (prod, v, prod);
 
   pthread_mutex_lock (&lock);
   fprintf (stderr, "Rat(%d): computed square root at %.2lfs\n",
@@ -324,21 +423,21 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
       mpz_init (pp);
       fprintf (stderr, "Error, rational square root remainder is not zero\n");
-      /* reconstruct the initial value of prd[0] to debug */
-      mpz_mul (prd[0], prd[0], prd[0]);
-      mpz_add (prd[0], prd[0], v);
+      /* reconstruct the initial value of prod to debug */
+      mpz_mul (prod, prod, prod);
+      mpz_add (prod, prod, v);
       prime_info pi;
       prime_info_init (pi);
-      while (mpz_cmp_ui (prd[0], 1) > 0)
+      while (mpz_cmp_ui (prod, 1) > 0)
         {
           e = 0;
           if (verbose)
             printf ("Removing p=%lu:", p);
           mpz_set_ui (pp, p);
-          e = mpz_remove (prd[0], prd[0], pp);
+          e = mpz_remove (prod, prod, pp);
           if (verbose)
             printf (" exponent=%lu, remaining %zu bits\n", e,
-                    mpz_sizeinbase (prd[0], 2));
+                    mpz_sizeinbase (prod, 2));
           if ((e % 2) != 0)
             {
               errors ++;
@@ -353,7 +452,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
       exit (EXIT_FAILURE);
     }
 
-  mpz_mod (prd[0], prd[0], Np);
+  mpz_mod (prod, prod, Np);
 
   pthread_mutex_lock (&lock);
   fprintf (stderr, "Rat(%d): reduced mod n at %.2lfs\n",
@@ -373,15 +472,15 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   resfile = fopen_maybe_compressed_lock (sidename, "wb");
 
   mpz_invert (v, v, Np);
-  mpz_mul (prd[0], prd[0], v);
-  mpz_mod (prd[0], prd[0], Np);
+  mpz_mul (prod, prod, v);
+  mpz_mod (prod, prod, Np);
 
-  gmp_fprintf (resfile, "%Zd\n", (mpz_srcptr) prd[0]);
+  gmp_fprintf (resfile, "%Zd\n", (mpz_srcptr) prod);
   fclose_maybe_compressed_lock (resfile, sidename);
   free (sidename);
 
   pthread_mutex_lock (&lock);
-  gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prd[0]);
+  gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prod);
   fprintf (stderr, "Rat(%d): square root time: %.2lfs\n", numdep, seconds ());
   fflush (stderr);
   pthread_mutex_unlock (&lock);
@@ -838,53 +937,6 @@ FindSuitableModP (mpz_poly F, mpz_t N)
   return p;
 }
 
-// Products are computed modulo the polynomial F.
-polymodF_t*
-accumulate_fast_F (polymodF_t *prd, const polymodF_t a, const mpz_poly F,
-                 unsigned long *lprd, unsigned long nprd)
-{
-  unsigned long i;
-
-  polymodF_mul (prd[0], prd[0], a, F);
-  nprd ++;
-
-  for (i = 0; nprd % THRESHOLD == 0; i++, nprd /= 2)
-    {
-      /* need to access prd[i + 1], thus i+2 entries */
-      if (i + 2 > *lprd)
-        {
-          lprd[0] ++;
-          prd = (polymodF_t*) realloc (prd, *lprd * sizeof (polymodF_t));
-          ASSERT_ALWAYS(prd != NULL);
-          mpz_poly_init(prd[i+1]->p, F->deg);
-          mpz_set_ui(prd[i + 1]->p->coeff[0], 1);
-          prd[i+1]->p->deg = 0;
-          prd[i+1]->v = 0;
-        }
-      polymodF_mul (prd[i+1], prd[i+1], prd[i], F);
-
-      /* we clear and re-init prd[i] to keep the memory usage minimal */
-      mpz_poly_clear (prd[i]->p);
-      mpz_poly_init (prd[i]->p, F->deg);
-      
-      mpz_set_ui (prd[i]->p->coeff[0], 1);
-      prd[i]->p->deg = 0;
-      prd[i]->v = 0;
-    }
-
-  return prd;
-}
-
-/* prd[0] <- prd[0] * prd[1] * ... * prd[lprd-1] */
-void
-accumulate_fast_F_end (polymodF_t *prd, const mpz_poly F, unsigned long lprd)
-{
-  unsigned long i;
-
-  for (i = 1; i < lprd; i++)
-    polymodF_mul (prd[0], prd[0], prd[i], F);
-}
-
 /* 
    Process dependencies numdep to numdep + nthreads - 1.
 */
@@ -961,33 +1013,15 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fclose_maybe_compressed_lock (depfile, depname);
       free (depname);
 
-      for(int level = 0 ; prd.size() > 1 ; level++) {
-          pthread_mutex_lock (&lock);
-          fprintf (stderr, "Alg(%d): doing level %d, %zu integers to multiply\n",
-                  numdep, level, prd.size());
-          fflush (stderr);
-          pthread_mutex_unlock (&lock);
-
-          size_t N = prd.size() - 1;
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-          for(size_t j = 0 ; j < N ; j += 2) {
-              cxx_mpz_polymod_scaled_mul(prd[j], prd[j], prd[j+1], F);
-              prd[j+1] = cxx_mpz_polymod_scaled();
+      struct multiplier {
+          cxx_mpz_poly const & F;
+          multiplier(cxx_mpz_poly & F) : F(F) {}
+          void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b) const {
+              cxx_mpz_polymod_scaled_mul(res, a, b, F);
           }
+      };
 
-          /* shrink (not parallel) */
-          pthread_mutex_lock (&lock);
-          fprintf (stderr, "Rat(%d): shrinking level %d\n", numdep, level);
-          fflush (stderr);
-          pthread_mutex_unlock (&lock);
-          for(size_t j = 2 ; j < prd.size() ; j += 2) {
-              std::swap(prd[j], prd[j/2]);
-          }
-          prd.erase(prd.begin() + (prd.size() + 1) / 2, prd.end());
-      }
-      prod = std::move(prd[0]);
+      prod = accumulate(prd, multiplier(F), fmt::format("Alg({})", numdep));
     }
 
     pthread_mutex_lock (&lock);
