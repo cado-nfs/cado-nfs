@@ -677,12 +677,12 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   mpz_poly_init(A, d-1);
   // Clean up the mess with denominator: if it is an odd power of fd,
   // then multiply num and denom by fd to make it even.
+  mpz_poly_swap(A, AA.p);
   if (((AA.v)&1) == 0) {
     v = AA.v / 2;
-    mpz_poly_set(A, AA.p);
   } else {
     v = (1+AA.v) / 2;
-    mpz_poly_mul_mpz(A, AA.p, F->coeff[d]);
+    mpz_poly_mul_mpz(A, A, F->coeff[d]);
   }
 
   // Now, we just have to take the square root of A (without denom) and
