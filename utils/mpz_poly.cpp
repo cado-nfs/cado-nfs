@@ -1145,22 +1145,18 @@ void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
    Note: f can be the same as g or h;
          g can be the same as h. */
 void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
-  int i, maxdeg;
-  mpz_t z;
-  mpz_init(z);
-  maxdeg = max(g->deg, h->deg);
+  int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
-  for (i = 0 ; i <= maxdeg ; i++) {
-    if (i <= g->deg)
-      mpz_set(z, g->coeff[i]);
+#pragma omp parallel for  
+  for (int i = 0 ; i <= maxdeg ; i++) {
+    if (i <= g->deg && i <= h->deg)
+        mpz_sub(f->coeff[i], g->coeff[i], h->coeff[i]);
+    else if (i <= g->deg)
+        mpz_set(f->coeff[i], g->coeff[i]);
     else
-      mpz_set_ui(z, 0);
-    if (i <= h->deg)
-      mpz_sub(z, z, h->coeff[i]);
-    mpz_set(f->coeff[i], z);
+        mpz_neg(f->coeff[i], h->coeff[i]);
   }
   f->deg = maxdeg;
-  mpz_clear(z);
   mpz_poly_cleandeg(f, maxdeg);
 }
 

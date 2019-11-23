@@ -523,6 +523,7 @@ mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
   int i;
 
+#pragma omp parallel for
   for (i=0; i <= R->deg; i++)
     mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
 }
