@@ -314,31 +314,28 @@ mpz_poly_mul_tc (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 
   /* store g(tc_points[i])*h(tc_points[i]) in f[i] for 0 <= i <= t */
 
-  /* the first evaluation point is 0 */
   ASSERT(tc_points[0] == 0);
-  //  mpz_mul (f[0], g[0], h[0]);
 
-#pragma omp parallel for
+#pragma omp parallel for  
   for (i = 0; i <= t; i++)
     {
-      if (i < t)
-	{
-      mpz_t tmp;
-      mpz_init (tmp);
-      /* f[i] <- g(i) */
-      mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
-      /* f[t] <- h(i) */
-      mpz_poly_mul_eval_si (tmp, h, s, tc_points[i]);
-      /* f[i] <- g(i)*h(i) */
-      mpz_mul (f[i], f[i], tmp);
-      mpz_clear (tmp);
-	}
-      else
+      if (i == 0) /* evaluate at 0 */
+	mpz_mul (f[0], g[0], h[0]);
+      else if (i == t) /* evaluate at infinity */
 	mpz_mul (f[t], g[r], h[s]);
+      else
+	{
+	  mpz_t tmp;
+	  mpz_init (tmp);
+	  /* f[i] <- g(i) */
+	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
+	  /* f[t] <- h(i) */
+	  mpz_poly_mul_eval_si (tmp, h, s, tc_points[i]);
+	  /* f[i] <- g(i)*h(i) */
+	  mpz_mul (f[i], f[i], tmp);
+	  mpz_clear (tmp);
+	}
     }
-
-  /* last evaluation point is infinity */
-  //  mpz_mul (f[t], g[r], h[s]);
 
   mpz_poly_mul_tc_interpolate (f, t);
 
@@ -516,25 +513,22 @@ mpz_poly_sqr_tc (mpz_t *f, mpz_t *g, int r)
 
   /* store g(tc_points[i])^2 in f[i] for 0 <= i <= t */
 
-  /* first evaluation point is 0 */
   ASSERT(tc_points[0] == 0);
-  // mpz_mul (f[0], g[0], g[0]);
 
 #pragma omp parallel for
   for (i = 0; i <= t; i++)
     {
-      /* f[i] <- g(i) */
-      if (i < t)
+      if (i == 0) /* evaluate at 0 */
+	mpz_mul (f[0], g[0], g[0]);
+      else if (i == t) /* evaluate at infinity */
+	mpz_mul (f[t], g[r], g[r]);
+      else
 	{
+	  /* f[i] <- g(i) */
 	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
 	  mpz_mul (f[i], f[i], f[i]);
 	}
-      else
-	mpz_mul (f[t], g[r], g[r]);
     }
-
-  /* last evaluation point is infinity */
-  // mpz_mul (f[t], g[r], g[r]);
 
   mpz_poly_mul_tc_interpolate (f, t);
 
@@ -1325,17 +1319,17 @@ void
 mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
   int i;
-  mpz_t aux;
 
-  mpz_init (aux);
   Q->deg = P->deg;
-#pragma omp parallel for
-  for (i = 0; i <= P->deg; ++i)
+#pragma omp parallel for  
+  for (i = 0; i <= P->deg; i++)
     {
+      mpz_t aux;
+      mpz_init (aux);
       mpz_mul (aux, P->coeff[i], a);
       mpz_poly_setcoeff (Q, i, aux);
+      mpz_clear (aux);
     }
-  mpz_clear (aux);
 }
 
 /* Set Q=P/a, where a is an mpz_t. Assume a divides the content of P (the
@@ -1881,7 +1875,7 @@ mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
 {
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
-#pragma omp parallel for
+#pragma omp parallel for  
   for (int i = 0; i <= A->deg; ++i)
     mpz_mod (R->coeff[i], A->coeff[i], m);
 
@@ -2339,7 +2333,7 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
   pk = (mpz_t*) malloc (l * sizeof (mpz_t));
   FATAL_ERROR_CHECK (pk == NULL, "not enough memory");
   mpz_init_set_ui (pk[0], p);
-  /* this loop cannot be parallelized, since pk[i] depends from pk[i-1] */
+  /* this loop cannot be parallelized, since pk[i] depends on pk[i-1] */
   for (i = 1; i < l; i++)
   {
     mpz_init (pk[i]);
@@ -2408,7 +2402,7 @@ mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
     mpz_addmul (a->coeff[i], P[k]->coeff[i], pk);
 
 #pragma omp parallel for
-  for (i = imax; i <= P[k]->deg; i++)
+  for (i = imax + 1; i <= P[k]->deg; i++)
     mpz_mul (a->coeff[i], P[k]->coeff[i], pk);
 
   mpz_poly_cleandeg (a, (a->deg >= P[k]->deg) ? a->deg : P[k]->deg);
