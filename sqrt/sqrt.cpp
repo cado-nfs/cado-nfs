@@ -1498,6 +1498,14 @@ int main(int argc, char *argv[])
     if (!(opt_ab || opt_side0 || opt_side1 || opt_gcd))
         opt_ab = opt_side0 = opt_side1 = opt_gcd = 1;
 
+#ifdef HAVE_OPENMP
+    /* when computing the product tree on the algebraic side, we want
+       nested parallelism: a first level of parallelism makes N/2 product
+       when the tree has width N, and a second level computes the polynomial
+       products in parallel */
+    omp_set_nested (1);
+#endif
+
     double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
