@@ -342,7 +342,7 @@ Modulus::pow3 (Residue &r, const uint64_t e) const
    (i.e. 2*2^w (mod m) must be passed. */
 
 void
-Modulus::pow2 (Residue &r, const uint64_t *e, const int e_nrwords) const
+Modulus::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) const
 {
   Residue t(*this), u(*this);
   uint64_t mask;

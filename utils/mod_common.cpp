@@ -42,7 +42,7 @@ Modulus::pow (Residue &r, const Residue &b, const uint64_t e) const
 */
 void
 Modulus::pow (Residue &r, const Residue &b, const uint64_t *e, 
-	    const int e_nrwords) const
+	    const size_t e_nrwords) const
 {
   uint64_t mask;
   Residue t(*this);

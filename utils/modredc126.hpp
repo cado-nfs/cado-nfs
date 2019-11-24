@@ -610,13 +610,13 @@ public:
     bool div13 (Residue &, const Residue &) const;
     void gcd (Integer &, const Residue &) const;
     void pow (Residue &, const Residue &, uint64_t) const;
-    void pow (Residue &, const Residue &, const uint64_t *, int) const ;
+    void pow (Residue &, const Residue &, const uint64_t *, size_t) const;
     void pow (Residue &r, const Residue &b, const Integer e) const {pow(r, b, e.get(), e.size());}
     void pow2 (Residue &, uint64_t) const;
-    void pow2 (Residue &, const uint64_t *, int) const;
+    void pow2 (Residue &, const uint64_t *, size_t) const;
     void pow2 (Residue &r, const Integer e) const {pow2(r, e.get(), e.size());}
     void V (Residue &, const Residue &, const uint64_t) const;
-    void V (Residue &, const Residue &, const uint64_t *, int) const;
+    void V (Residue &, const Residue &, const uint64_t *, size_t) const;
     void V (Residue &r, const Residue &b, const Integer e) const {V(r, b, e.get(), e.size());}
     bool sprp (const Residue &) const;
     bool sprp2 () const;

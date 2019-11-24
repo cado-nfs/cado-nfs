@@ -307,17 +307,20 @@ void ModulusREDC126::pow2 (Residue &r, const uint64_t e) const
 
 /* Compute r = b^e, where b is a small integer, currently b=2,3,5,7 are 
    implemented.  Here e is a multiple precision integer 
-   sum_{i=0}^{e_nrwords-1} e[i] * (machine word base)^i */
+   sum_{i=0}^{e_nrwords-1} e[i] * (machine word base)^i. e_nrwords must be
+   minimal, i.e., either e_nrwords == 0 or e[e_nrwords - 1] != 0. */
 template <int B>
 static inline void
 npow (ModulusREDC126::Residue &r, const uint64_t *e,
-      const int e_nrwords, const ModulusREDC126 &m)
+      const size_t e_nrwords, const ModulusREDC126 &m)
 {
     ModulusREDC126::Residue t(m), u(m);
-    int i = e_nrwords - 1;
-    uint64_t mask, ei;
+    size_t i = e_nrwords;
+    uint64_t mask;
 
-    if (e_nrwords == 0 || e[i] == 0) {
+    ASSERT(i == 0 || e[i - 1] != 0);
+    
+    if (i == 0) {
         m.set1 (r);
         return;
     }
@@ -325,12 +328,12 @@ npow (ModulusREDC126::Residue &r, const uint64_t *e,
     m.set1 (t);
     simple_mul<B> (t, t, u, m); /* t = b */
 
-    mask = (UINT64_C(1) << 63) >> u64arith_clz (e[i]);
+    mask = (UINT64_C(1) << 63) >> u64arith_clz (e[i - 1]);
     mask >>= 1;
 
-    for ( ; i >= 0; i--)
+    for ( ; i > 0; i--)
     {
-        npow_oneWord<B>(mask, e[i], t, u, m);
+        npow_oneWord<B>(mask, e[i - 1], t, u, m);
         mask = UINT64_C(1) << 63;
     }
     m.set (r, t);
@@ -349,7 +352,7 @@ npow (ModulusREDC126::Residue &r,
 /* Compute r = 2^e mod m.  Here e is a multiple precision integer 
    sum_{i=0}^{e_nrwords-1} e[i] * (machine word base)^i */
 void
-ModulusREDC126::pow2 (Residue &r, const uint64_t *e, const int e_nrwords) const
+ModulusREDC126::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) const
 {
   npow<2> (r, e, e_nrwords, *this);
 }
