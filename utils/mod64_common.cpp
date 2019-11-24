@@ -265,13 +265,26 @@ Modulus::gcd (Integer &g, const Residue &r) const
   g = Integer(b);
 }
 
+template <typename Modulus, typename WordType>
+static inline void pow2_oneWord(
+    WordType mask, const WordType word, typename Modulus::Residue &t,
+    const Modulus &m)
+{
+    while (mask > 0) {
+        m.sqr (t, t);
+        if (word & mask) {
+            m.add (t, t, t);
+        }
+        mask >>= 1;
+    }
+}
 
 /* Compute r = 2^e. Here, e is a uint64_t */
 void
 Modulus::pow2 (Residue &r, const uint64_t e) const
 {
   uint64_t mask;
-  Residue t(*this), u(*this);
+  Residue t(*this);
 
   if (e == 0)
     {
@@ -285,14 +298,8 @@ Modulus::pow2 (Residue &r, const uint64_t e) const
   add (t, t, t);
   mask >>= 1;
 
-  while (mask > 0)
-    {
-      sqr (t, t);
-      add (u, t, t);
-      if (e & mask)
-        set (t, u);
-      mask >>= 1;
-    }
+  pow2_oneWord(mask, e, t, *this);
+
   set (r, t);
 }
 
@@ -356,16 +363,8 @@ Modulus::pow2 (Residue &r, const uint64_t *e, const int e_nrwords) const
   add (t, t, t);
   mask >>= 1;
 
-  for ( ; i >= 0; i--)
-    {
-      while (mask > 0)
-        {
-          sqr (t, t);
-          add (u, t, t);
-          if (e[i] & mask)
-            set (t, u);
-          mask >>= 1;
-        }
+  for ( ; i >= 0; i--) {
+      pow2_oneWord(mask, e[i], t, *this);
       mask = (UINT64_C(1) << 63);
     }
 

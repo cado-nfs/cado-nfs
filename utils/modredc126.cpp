@@ -258,12 +258,25 @@ simple_mul<7> (ModulusREDC126::Residue &r, const ModulusREDC126::Residue &a,
     m.sub (r, t, a); /* r = 7*a */
 }
 
+template <int B, typename WordType>
+static inline void npow_oneWord(
+    WordType mask, const WordType word, typename ModulusREDC126::Residue &t,
+    typename ModulusREDC126::Residue &u, const ModulusREDC126 &m)
+{
+    while (mask > 0) {
+        m.sqr (t, t);
+        if (word & mask) {
+            simple_mul<B> (t, t, u, m);
+        }
+        mask >>= 1;
+    }
+}
+
 /* Compute r = b^e, where b is a small integer, currently b=2,3,5,7 are 
    implemented. Here, e is an uint64_t */
 template <int B>
 static inline void
-npow (ModulusREDC126::Residue &r, const uint64_t e, 
-	     const ModulusREDC126 &m)
+npow (ModulusREDC126::Residue &r, const uint64_t e, const ModulusREDC126 &m)
 {
     uint64_t mask;
     ModulusREDC126::Residue t(m), u(m);
@@ -280,14 +293,7 @@ npow (ModulusREDC126::Residue &r, const uint64_t e,
     ASSERT (e & mask);
     mask >>= 1;
 
-    while (mask > 0)
-    {
-        m.sqr (t, t);
-        if (e & mask) {
-            simple_mul<B> (t, t, u, m);
-        }
-        mask >>= 1;
-    }
+    npow_oneWord<B>(mask, e, t, u, m);
     m.set (r, t);
 }
 
@@ -324,16 +330,8 @@ npow (ModulusREDC126::Residue &r, const uint64_t *e,
 
     for ( ; i >= 0; i--)
     {
-        ei = e[i];
-        while (mask > 0)
-        {
-            m.sqr (t, t);
-            if (ei & mask) {
-                simple_mul<B> (t, t, u, m);
-            }
-            mask >>= 1;            /* (r^2)^(mask/2) * b^e = r^mask * b^e */
-        }
-        mask = ~UINT64_C(0) - (~UINT64_C(0) >> 1);
+        npow_oneWord<B>(mask, e[i], t, u, m);
+        mask = UINT64_C(1) << 63;
     }
     m.set (r, t);
 }
