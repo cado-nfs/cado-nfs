@@ -357,6 +357,11 @@ ModulusREDC126::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) con
   npow<2> (r, e, e_nrwords, *this);
 }
 
+void
+ModulusREDC126::pow2 (Residue &r, const Integer &e) const
+{
+  npow<2> (r, e, *this);
+}
 
 /* Returns 1 if m is a strong probable prime wrt base b, 0 otherwise.
    We assume m is odd. */

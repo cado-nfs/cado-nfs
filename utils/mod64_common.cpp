@@ -344,7 +344,7 @@ Modulus::pow3 (Residue &r, const uint64_t e) const
 void
 Modulus::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) const
 {
-  Residue t(*this), u(*this);
+  Residue t(*this);
   uint64_t mask;
   int i = e_nrwords;
 
@@ -371,6 +371,35 @@ Modulus::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) const
   set (r, t);
 }
 
+void
+Modulus::pow2 (Residue &r, const Integer &e) const
+{
+  size_t i = e.getWordCount();
+  const int bits = e.getWordSize();
+  const Integer::WordType msb = (Integer::WordType) 1 << (bits-1);
+  Integer::WordType word, mask;
+
+  while (i > 0 && e.getWord(i - 1) == 0)
+      i--;
+  
+  if (i == 0) {
+      set1(r);
+      return;
+  }
+
+  word = e.getWord(i - 1);
+  mask = msb >> u64arith_clz (word);
+
+  set1 (r);
+  add (r, r, r);
+  mask >>= 1;
+
+  for ( ; i > 0; i--) {
+      word = e.getWord(i - 1);
+      pow2_oneWord(mask, word, r, *this);
+      mask = msb;
+    }
+}
 
 /* Returns 1 if m is a strong probable prime wrt base b, 0 otherwise.
    We assume m is odd. */
