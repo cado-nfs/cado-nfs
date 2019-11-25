@@ -126,7 +126,8 @@ protected:
     void redc1 (Integer &r, const Integer &s) const
     {
         uint64_t t[2];
-        redc1(t, s.get());
+        s.get(t, 2);
+        redc1(t, t);
         r = Integer(t[0], t[1]);
     }
 

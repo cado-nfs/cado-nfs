@@ -288,7 +288,9 @@ public:
     }
 
     bool test_one_pow(const Integer &base, const Integer &exponent, const Integer &n) const {
-        return test_one_pow(base, exponent.get(), exponent.size(), n);
+        uint64_t e[exponent.size()];
+        exponent.get(e, exponent.size());
+        return test_one_pow(base, e, exponent.size(), n);
     }
 
     bool test_pow(const unsigned long iter) const {

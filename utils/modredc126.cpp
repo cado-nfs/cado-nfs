@@ -343,10 +343,15 @@ template <int B>
 static inline void
 npow (ModulusREDC126::Residue &r,
       const ModulusREDC126::Integer &e, const ModulusREDC126 &m) {
-    if (e.size() > 1)
-        npow<B> (r, e.get(), e.size(), m); /* r = b^e mod m */
-    else
-        npow<B> (r, e.get()[0], m);
+    if (e.size() == 2) {
+        uint64_t t[2];
+        e.get(t, 2);
+        npow<B> (r, t, e.size(), m); /* r = b^e mod m */
+    } else if (e.size() <= 1) {
+        npow<B> (r, e.getWord(0), m);
+    } else {
+      abort();
+    }
 }
 
 /* Compute r = 2^e mod m.  Here e is a multiple precision integer 
@@ -387,11 +392,7 @@ ModulusREDC126::sprp (const Residue &b) const
   neg (minusone, minusone);
 
   /* Exponentiate */
-  if (mm1.size() > 1)
-    pow (r, b, mm1.get(), 2);
-  else
-    pow (r, b, mm1.get()[0]);
-  
+  pow (r, b, mm1);
   i = find_minus1 (r, minusone, po2);
 
   return i;
@@ -420,11 +421,7 @@ ModulusREDC126::sprp2 () const
     neg (minusone, minusone);
 
     /* Exponentiate */
-    if (mm1.size() > 1)
-        pow2 (r, mm1.get(), 2);
-    else
-        pow2 (r, mm1.get()[0]);
-
+    pow2 (r, mm1);
     i = find_minus1 (r, minusone, po2);
 
     return i;
@@ -444,7 +441,7 @@ ModulusREDC126::isprime () const
     if (n == 1)
         return false;
 
-    if (n.get()[0] % 2 == 0)
+    if (n.getWord(0) % 2 == 0)
         return n == 2;
 
     /* Set mm1 to the odd part of m-1 */
@@ -456,22 +453,19 @@ ModulusREDC126::isprime () const
     neg (minusone, minusone);
 
     /* Do base 2 SPRP test */
-    if (mm1.size() > 1)
-        pow2 (r1, mm1.get(), 2);
-    else
-        pow2 (r1, mm1.get()[0]);
+    pow2 (r1, mm1);
     /* If n is prime and 1 or 7 (mod 8), then 2 is a square (mod n)
        and one fewer squarings must suffice. This does not strengthen the
        test but saves one squaring for composite input */
-    if (n.get()[0] % 8 == 7) {
+    if (n.getWord(0) % 8 == 7) {
         if (!is1 (r1))
             goto end;
-    } else if (!find_minus1 (r1, minusone, po2 - ((n.get()[0] % 8 == 7) ? 1 : 0)))
+    } else if (!find_minus1 (r1, minusone, po2 - ((n.getWord(0) % 8 == 7) ? 1 : 0)))
         goto end; /* Not prime */
 
     /* Base 3 is poor at identifying composites == 1 (mod 3), but good at
        identifying composites == 2 (mod 3). Thus we use it only for 2 (mod 3) */
-    i = n.get()[0] % 3 + n.get()[1] % 3;
+    i = n.getWord(0) % 3 + n.getWord(1) % 3;
     if (i == 1 || i == 4)
     {
         npow<7> (r1, mm1, *this); /* r = 7^mm1 mod m */
@@ -479,10 +473,7 @@ ModulusREDC126::isprime () const
             goto end; /* Not prime */
 
         set_reduced (b, 61); /* Use addition chain? */
-        if (mm1.size() > 1)
-            pow (r1, b, mm1.get(), 2); /* r = 61^mm1 mod m */
-        else
-            pow (r1, b, mm1.get()[0]);
+        pow (r1, b, mm1); /* r = 61^mm1 mod m */
         if (!find_minus1 (r1, minusone, po2))
             goto end; /* Not prime */
 
@@ -672,10 +663,10 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
 
     if (t > 0) {
         uint64_t s[5], k;
-        k = ((u.get()[0] * invm) & ((UINT64_C(1) << t) - 1)); /* tlow <= 2^t-1 */
+        k = ((u.getWord(0) * invm) & ((UINT64_C(1) << t) - 1)); /* tlow <= 2^t-1 */
         u64arith_mul_1_1_2 (&(s[0]), &(s[1]), k, m[0]);
         /* s[1]:s[0] <= (2^w-1)*(2^t-1) <= (2^w-1)*(2^(w-1)-1) */
-        u64arith_add_2_2 (&(s[0]), &(s[1]), u.get()[0], u.get()[1]);
+        u64arith_add_2_2 (&(s[0]), &(s[1]), u.getWord(0), u.getWord(1));
         /* s[1]:s[0] <= (2^w-1)*(2^(w-1)-1) + (m-1) < 2^(2w) */
         /* s[0] == 0 (mod 2^t) */
         ASSERT_EXPENSIVE ((s[0] & ((1UL << t) - 1)) == 0);
