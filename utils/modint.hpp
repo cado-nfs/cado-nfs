@@ -68,9 +68,7 @@ public:
         return (iter == end);
     }
 
-    /* FIXME: this method is terrible and needs to go */
-    const uint64_t *get() const {return v;}
-    /* Return the size in uint64_ts that is required in the output for 
+    /** Return the size in uint64_ts that is required in the output for
      * get(uint64_t *, size_t) */
     size_t size() const {return v[0] == 0 ? 0 : 1;}
     /** Write the Integer to r. Exactly len words are written.
@@ -245,10 +243,12 @@ public:
         return (iter == end);
     }
 
-    /* FIXME: this method is terrible and needs to go */
-    const uint64_t *get() const {return v;}
-    /* Return the size in uint64_ts that is required in the output for get() */
+    /** Return the size in uint64_ts that is required in the output for
+     * get(uint64_t *, size_t) */
     size_t size() const {return (v[1] != 0) ? 2 : (v[0] != 0) ? 1 : 0;}
+    /** Write the Integer to r. Exactly len words are written.
+     * If len is less than the required size as given by size(), output is
+     * truncated. If len is greater, output is padded with zeroes. */
     void get (uint64_t *r, const size_t len) const {
         if (len > 0)
             r[0] = v[0];
