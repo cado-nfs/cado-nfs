@@ -228,10 +228,14 @@ template<typename T, typename M>
 T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 {
     size_t vs = v.size();
+    unsigned int nthr;
+
+    #pragma omp parallel
+    nthr = omp_get_num_threads (); /* total number of threads */
 
     if (v.size() < 16) {
         for(size_t j = 1 ; j < v.size() ; j++) {
-	  m(v[0], v[0], v[j], nthreads);
+	  m(v[0], v[0], v[j], nthr);
         }
         v.erase(v.begin() + 1, v.end());
     } else if ((vs & (vs - 1))) {
@@ -255,7 +259,7 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
             for(uint64_t j = 0 ; j < 16 && (i + j < nvs) ; j++) {
                 uint64_t jr = ir + incrs[j];
                 if (jr < r) {
-		    m(*write, read[0], read[1], nthreads);
+		    m(*write, read[0], read[1], nthr);
                     write++;
                     read++;
                     read++;
@@ -279,14 +283,12 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
       pthread_mutex_unlock (&lock);
 
       size_t N = v.size() - 1;
-      int nthreads, local_nthreads;
-      #pragma omp parallel
-      nthreads = omp_get_num_threads (); /* total number of threads */
+      int local_nthreads;
       /* the loop below will compute N/2 products */
-      if ((size_t) nthreads < (N / 2))
+      if (nthr < (N / 2))
 	local_nthreads = 1;
       else
-	local_nthreads = nthreads / (N / 2);
+	local_nthreads = nthr / (N / 2);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -945,7 +947,7 @@ FindSuitableModP (mpz_poly F, mpz_t N)
   return p;
 }
 
-/* 
+/*
    Process dependencies numdep to numdep + nthreads - 1.
 */
 int
@@ -1163,7 +1165,7 @@ void print_factor(mpz_t N)
 int
 calculateGcd (const char *prefix, int numdep, mpz_t Np)
 {
-    char *sidename[2]; 
+    char *sidename[2];
     FILE *sidefile[2] = {NULL, NULL};
     mpz_t sidesqrt[2];
     int found = 0;
