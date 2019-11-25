@@ -231,7 +231,7 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 
     if (v.size() < 16) {
         for(size_t j = 1 ; j < v.size() ; j++) {
-            m(v[0], v[0], v[j]);
+	  m(v[0], v[0], v[j], nthreads);
         }
         v.erase(v.begin() + 1, v.end());
     } else if ((vs & (vs - 1))) {
@@ -255,7 +255,7 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
             for(uint64_t j = 0 ; j < 16 && (i + j < nvs) ; j++) {
                 uint64_t jr = ir + incrs[j];
                 if (jr < r) {
-                    m(*write, read[0], read[1]);
+		    m(*write, read[0], read[1], nthreads);
                     write++;
                     read++;
                     read++;
@@ -279,11 +279,19 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
       pthread_mutex_unlock (&lock);
 
       size_t N = v.size() - 1;
+      int nthreads, local_nthreads;
+      #pragma omp parallel
+      nthreads = omp_get_num_threads (); /* total number of threads */
+      /* the loop below will compute N/2 products */
+      if ((size_t) nthreads < (N / 2))
+	local_nthreads = 1;
+      else
+	local_nthreads = nthreads / (N / 2);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
       for(size_t j = 0 ; j < N ; j += 2) {
-          m(v[j], v[j], v[j+1]);
+	  m(v[j], v[j], v[j+1], local_nthreads);
           v[j+1] = T();
       }
 
@@ -376,7 +384,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   pthread_mutex_unlock (&lock);
 
   struct multiplier {
-      void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b) const {
+    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads) const {
           mpz_mul(res, a, b);
       }
   };
@@ -1016,8 +1024,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
       struct multiplier {
           cxx_mpz_poly const & F;
           multiplier(cxx_mpz_poly & F) : F(F) {}
-          void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b) const {
-              cxx_mpz_polymod_scaled_mul(res, a, b, F);
+	void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b, int nthreads) const {
+	  omp_set_num_threads (nthreads);
+	  cxx_mpz_polymod_scaled_mul(res, a, b, F);
           }
       };
 
