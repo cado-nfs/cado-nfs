@@ -234,7 +234,7 @@ cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
  * A.
  */
 template<typename T, typename M>
-void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m, unsigned int nthreads)
+void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m)
 {
     /* This is a single-threaded routine. We put the result in *vb, and
      * the caller is reponsible of freeeing the range [vb+1,ve[
@@ -243,7 +243,7 @@ void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typena
         /* Don't bother with very small vectors. Here we have a vector of
          * size less than 16*2*thr/2, so don't bother. */
         for(typename std::vector<T>::iterator vi = vb+1; vi < ve ; ++vi) {
-            m(*vb, *vb, *vi, nthreads);
+            m(*vb, *vb, *vi)
         }
         return;
     }
@@ -291,10 +291,10 @@ void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typena
     *vb = std::move(A.back());
 }
 template<typename T, typename M>
-void accumulate(typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m, unsigned int nthreads)
+void accumulate(typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m)
 {
     std::vector<T> A;
-    accumulate(A, vb, ve, m, nthreads);
+    accumulate(A, vb, ve, m);
 }
 template<typename T, typename M>
 void accumulate_level00(std::vector<T> & v, M const & m, std::string const & message)
@@ -320,7 +320,7 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
          * size less than 16*2*thr/2, so don't bother. */
         for(size_t j = 1 ; j < v.size() ; j++) {
             /* use the instance with no multithreading. This is on
-             * purpose, for small ranges.
+             * purpose, for small ranges and small objects.
              */
             m(v[0], v[0], v[j]);
         }
@@ -364,7 +364,7 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
         for(unsigned int i = 0 ; i < (1u << n) ; i++) {
             typename std::vector<T>::iterator vb = v.begin() + endpoints[i];
             typename std::vector<T>::iterator ve = v.begin() + endpoints[i+1];
-            accumulate(A, vb, ve, m, nthr);
+            accumulate(A, vb, ve, m);
         }
     }
     /* This puts pressure at the malloc level */
