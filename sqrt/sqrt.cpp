@@ -245,8 +245,8 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
         uint64_t r = vs - (1UL << n);
 #pragma omp critical
 	{
-	  fmt::fprintf (stderr, "%s: doing level 00, %zu -> 2^%zu+%zu\n",
-			message, vs, n, r);
+	  fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs, %zu -> 2^%zu+%zu\n",
+			message, wct_seconds () - wct0, vs, n, r);
 	  fflush (stderr);
 	}
         /* Need to make v of size a power of two */
@@ -280,8 +280,8 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
   for(int level = 0 ; v.size() > 1 ; level++) {
 #pragma omp critical
       {
-	fmt::fprintf (stderr, "%s: doing level %d, %zu values to multiply\n",
-		      message, level, v.size());
+	fmt::fprintf (stderr, "%s: starting level %d at wct=%1.2fs, %zu values to multiply\n",
+		      message, level, wct_seconds () - wct0, v.size());
 	fflush (stderr);
       }
 
@@ -299,7 +299,8 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
       /* shrink (not parallel) */
 #pragma omp critical
       {
-	fmt::fprintf (stderr, "%s: shrinking level %d\n", message, level);
+	fmt::fprintf (stderr, "%s: shrinking level %d at wct=%1.2fs\n",
+		      message, level, wct_seconds () - wct0);
 	fflush (stderr);
       }
       for(size_t j = 2 ; j < v.size() ; j += 2) {
