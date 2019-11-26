@@ -225,58 +225,183 @@ cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
     return a;
 }
 
+/* Modify the range [vb, ve[ so that in the end, *vb contains the product
+ * of the range, and [vb+1, ve[ contains only ones.
+ *
+ * The array A is used internally by this function, but we provide a
+ * prototype that exposes it because two consecutive calls to this
+ * function with similar-size ranges can profitably re-use the storage in
+ * A.
+ */
+template<typename T, typename M>
+void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m, unsigned int nthreads)
+{
+    /* This is a single-threaded routine. We put the result in *vb, and
+     * the caller is reponsible of freeeing the range [vb+1,ve[
+     */
+    if (ve - vb < 16) {
+        /* Don't bother with very small vectors. Here we have a vector of
+         * size less than 16*2*thr/2, so don't bother. */
+        for(typename std::vector<T>::iterator vi = vb+1; vi < ve ; ++vi) {
+            m(*vb, *vb, *vi, nthreads);
+        }
+        return;
+    }
+    constexpr const unsigned int ratio = 2; /* must be an integer > 1 */
+    /* create an array of products of exponentially growing size.
+     *
+     * after each input value considered, we maintain the property that
+     * the i-th cell in the vector A[] contains the product of at most
+     * ratio^i items in the original range [vb, ve[
+     *
+     * Hence with n cells int the table A, we can have up to
+     * (ratio^n-1)/(ratio-1) values stored.
+     */
+    size_t as = 1 + (ratio - 1) * (ve - vb);
+    unsigned int ncells = 0;
+    for(size_t s = 1 ; s < as ; s *= ratio, ncells++) ;
+    /* make sure A is large enough */
+    for(; A.size() < ncells; A.emplace_back());
+    for(auto& x: A) m.set1(x);
+
+    for(typename std::vector<T>::iterator vi = vb ; vi < ve ; ++vi) {
+        m(A[0], A[0], *vi);
+        /* We won't need *vi again. This frees indirect storage */
+        *vi = T();
+        /* now maintain the condition */
+        unsigned int nprd = vi + 1 - vb;
+        for(unsigned int i = 0 ; nprd % ratio == 0 ; ++i, nprd /= ratio) {
+            ASSERT_ALWAYS(i + 1 < A.size());
+            m(A[i+1], A[i+1], A[i]);
+            /* Do not replace by a fresh object. Prefer something that
+             * does not trigger a free() yet, since reallocation would
+             * occur eventually */
+            m.set1(A[i]);
+        }
+    }
+    /* final: accumulate everything in A.back(). Note that by doing it
+     * this way, we should normally not trigger reallocation. */
+    for(unsigned int i = 0 ; i + 1 < A.size() ; i++) {
+        m(A[i+1], A[i+1], A[i]);
+        // do not free A[i] yet, as we might want to reuse it for another
+        // block. Set it to 1 instead.
+        // A[i]=T();
+        m.set1(A[i]);
+    }
+    *vb = std::move(A.back());
+}
+template<typename T, typename M>
+void accumulate(typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m, unsigned int nthreads)
+{
+    std::vector<T> A;
+    accumulate(A, vb, ve, m, nthreads);
+}
+template<typename T, typename M>
+void accumulate_level00(std::vector<T> & v, M const & m, std::string const & message)
+{
+    unsigned int nthr;
+    /* We want to know the number of threads that we get when starting a
+     * parallel region -- but this is probably unneeded. I think that
+     * omp_get_max_threads would do an equally good job. */
+    #pragma omp parallel
+    #pragma omp critical
+    nthr = omp_get_num_threads (); /* total number of threads */
+
+    size_t N = v.size();
+    /* We're going to split the input in that 1<<n pieces exacly
+     * -- we want a power of two, that is a strict condition. We'll
+     *  strive to make pieces of balanced size.
+     */
+    unsigned int n = 1;
+    for( ; (1UL << n) < 2 * nthr ; n++) ;
+
+    if ((N >> n) < 16) {
+        /* Don't bother with very small vectors. Here we have a vector of
+         * size less than 16*2*thr/2, so don't bother. */
+        for(size_t j = 1 ; j < v.size() ; j++) {
+            /* use the instance with no multithreading. This is on
+             * purpose, for small ranges.
+             */
+            m(v[0], v[0], v[j]);
+        }
+        v.erase(v.begin() + 1, v.end());
+        return;
+    }
+
+    uint64_t r = N % (1UL << n);
+    {
+        fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs,"
+                " %zu -> 2^%zu*%zu+%zu\n",
+                message, wct_seconds () - wct0,
+                v.size(), n, N>>n, r);
+        fflush (stderr);
+    }
+
+    /* Interesting job: we want to compute the start and end points of
+     * the i-th part among 1<<n of a vector of size N.
+     *
+     * we know that this i-th part has size (N>>n)+1 if and only if the
+     * n-bit reversal of i is less than N mod (1<<n) (denoted by r)
+     */
+    std::vector<size_t> endpoints;
+    endpoints.push_back(0);
+    for(uint64_t i = 0 ; i < (UINT64_C(1) << n) ; i++) {
+        uint64_t ir = bitrev(i) >> (64 - n);
+        size_t fragment_size = (N>>n) + (ir < (uint64_t) r);
+        endpoints.push_back(endpoints.back() + fragment_size);
+    }
+    ASSERT_ALWAYS(endpoints.back() == v.size());
+
+    /* Now do the real job */
+#pragma omp parallel
+    {
+        /* This array is thread-private, and we're going to re-use it for
+         * all sub-ranges that we multiply. The goal at this point is to
+         * avoid hammering the malloc layer.
+         */
+        std::vector<T> A;
+#pragma omp for
+        for(unsigned int i = 0 ; i < (1u << n) ; i++) {
+            typename std::vector<T>::iterator vb = v.begin() + endpoints[i];
+            typename std::vector<T>::iterator ve = v.begin() + endpoints[i+1];
+            accumulate(A, vb, ve, m, nthr);
+        }
+    }
+    /* This puts pressure at the malloc level */
+    {
+        fmt::fprintf (stderr, "%s: shrinking level 00 at wct=%1.2fs\n",
+                message, wct_seconds () - wct0);
+        fflush (stderr);
+        typename std::vector<T>::iterator dst = v.begin();
+        endpoints.pop_back();
+        for(size_t z : endpoints)
+            std::swap(v[z], *dst++);
+        v.erase(dst, v.end());
+    }
+
+    N = v.size();
+
+    ASSERT_ALWAYS(!(N & (N-1)));
+}
+
+
 template<typename T, typename M>
 T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 {
-    size_t vs = v.size();
-    unsigned int nthr;
+    accumulate_level00(v, m, message);
 
+    unsigned int nthr;
+    /* We want to know the number of threads that we get when starting a
+     * parallel region -- but this is probably unneeded. I think that
+     * omp_get_max_threads would do an equally good job. */
     #pragma omp parallel
+    #pragma omp critical
     nthr = omp_get_num_threads (); /* total number of threads */
 
-    if (v.size() < 16) {
-        for(size_t j = 1 ; j < v.size() ; j++) {
-	  m(v[0], v[0], v[j], nthr);
-        }
-        v.erase(v.begin() + 1, v.end());
-    } else if ((vs & (vs - 1))) {
-        size_t n = 0;
-        for( ; vs >= 1UL << (n+1) ; n++) ;
-        uint64_t r = vs - (1UL << n);
-#pragma omp critical
-	{
-	  fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs, %zu -> 2^%zu+%zu\n",
-			message, wct_seconds () - wct0, vs, n, r);
-	  fflush (stderr);
-	}
-        /* Need to make v of size a power of two */
-        typename std::vector<T>::iterator read = v.begin(), write = v.begin();
-        std::vector<uint64_t> incrs;
-        for(uint64_t i = 0 ; i < 16 ; ++i) {
-            incrs.push_back(bitrev(i) >> (64-n));
-        }
-        size_t nvs = 1UL << n;
-        for(uint64_t i = 0 ; i < nvs ; i += 16) {
-            uint64_t ir = bitrev(i) >> (64 - n);
-            for(uint64_t j = 0 ; j < 16 && (i + j < nvs) ; j++) {
-                uint64_t jr = ir + incrs[j];
-                if (jr < r) {
-		    m(*write, read[0], read[1], nthr);
-                    write++;
-                    read++;
-                    read++;
-                } else {
-                    std::swap(*read, *write);
-                    write++;
-                    read++;
-                }
-            }
-        }
-        v.erase(write, v.end());
-    }
-    vs = v.size();
+    size_t vs = v.size();
     ASSERT_ALWAYS(!(vs & (vs - 1)));
 
+    /* At this point v has size a power of two */
   for(int level = 0 ; v.size() > 1 ; level++) {
 #pragma omp critical
       {
@@ -388,7 +513,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   }
 
   struct multiplier {
-    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads) const {
+      void set1(cxx_mpz & x) const { mpz_set_ui(x, 1); }
+    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads = 1) const {
           mpz_mul(res, a, b);
       }
   };
@@ -535,6 +661,19 @@ cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
         return tmp;
     }
 }
+
+/* On purpose, this does not free the resources. Doing so would be
+ * premature optimization. In this file we knowingly call this function
+ * when we do _not_ want reallocation to happen.
+ */
+void cxx_mpz_polymod_scaled_set_ui(cxx_mpz_polymod_scaled & P, unsigned long x)
+{
+    P.v = 0;
+    mpz_poly_realloc(P.p, 1);
+    mpz_set_ui (P.p->coeff[0], x);
+    mpz_poly_cleandeg(P.p, 0);
+}
+
 
 /* Reduce the coefficients of R in [-m/2, m/2) */
 static void
@@ -1035,8 +1174,14 @@ calculateSqrtAlg (const char *prefix, int numdep,
       struct multiplier {
           cxx_mpz_poly const & F;
           multiplier(cxx_mpz_poly & F) : F(F) {}
+          void set1(cxx_mpz_polymod_scaled & res) const {
+              cxx_mpz_polymod_scaled_set_ui(res, 1);
+          }
 	void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b, int nthreads) const {
 	  omp_set_num_threads (nthreads);
+	  cxx_mpz_polymod_scaled_mul(res, a, b, F);
+          }
+	void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b) const {
 	  cxx_mpz_polymod_scaled_mul(res, a, b, F);
           }
       };
