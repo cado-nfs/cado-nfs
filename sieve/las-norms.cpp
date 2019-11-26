@@ -1245,7 +1245,7 @@ int sieve_range_adjust::round_to_full_bucket_regions(const char * origin, std::s
 uint32_t sieve_range_adjust::get_minimum_J()
 {
     /* no longer dependent on the number of threads */
-    return 1 << MAX(0, (LOG_BUCKET_REGION - logI));
+    return 1 << MAX(1, (LOG_BUCKET_REGION - logI));
 }
 
 void sieve_range_adjust::set_minimum_J_anyway()
