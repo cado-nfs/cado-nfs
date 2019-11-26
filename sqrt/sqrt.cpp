@@ -382,8 +382,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): read %lu (a,b) pairs, including %lu free\n",
-	     numdep, ab_pairs, freerels);
+    fprintf (stderr, "Rat(%d): read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
+	     numdep, ab_pairs, freerels, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
 
@@ -1002,8 +1002,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
         }
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d): read %lu (a,b) pairs, including %lu free\n",
-		 numdep, nab, nfree);
+	fprintf (stderr, "Alg(%d): read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
+		 numdep, nab, nfree, seconds (), wct_seconds () - wct0);
 	fflush (stderr);
       }
       ASSERT_ALWAYS ((nab & 1) == 0);
