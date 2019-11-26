@@ -621,6 +621,8 @@ int main(int argc, char **argv)
     int nthreads = 1;
     unsigned long lpb[2] = {0,0};
     char *argv0 = argv[0];
+    double cpu0 = seconds ();
+    double wct0 = wct_seconds ();
 
     /* print the command line */
     fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
@@ -814,6 +816,9 @@ int main(int argc, char **argv)
 
     cado_poly_clear(pol);
     param_list_clear(pl);
+
+    /* print total time and memory usage */
+    print_timing_and_memory (stdout, cpu0, wct0);
 
     return 0;
 }
