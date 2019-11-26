@@ -613,7 +613,7 @@ int main(int argc, char **argv) {
     }
     thparam[i].id = i;
     int ret = pthread_create(&thid[i], NULL, process_one_thread, &thparam[i]);
-    assert(ret == 0);
+    ASSERT_ALWAYS(ret == 0);
   }
 
   // Wait for one thread to signal success.
