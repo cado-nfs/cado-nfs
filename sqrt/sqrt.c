@@ -214,7 +214,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
       if (ab_pairs % 1000000 == 0)
         {
           pthread_mutex_lock (&lock);
-          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs, size %zuM (peak %luM)\n",
+          fprintf (stderr, "Rat(%d): read %lu (a,b) pairs in %1.2fs, size %zuM (peak %luM)\n",
                    numdep, ab_pairs, seconds (), stats (prd, lprd) >> 20,
                    PeakMemusage () >> 10);
 	  fflush (stderr);
@@ -861,7 +861,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   mpz_t algsqrt, aux;
   int i, deg;
   mpz_t *f;
-  int nab = 0, nfree = 0;
+  unsigned long nab = 0, nfree = 0;
 
   ASSERT_ALWAYS(side == 0 || side == 1);
 
@@ -908,7 +908,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
           if(!(nab % 1000000))
             {
               pthread_mutex_lock (&lock);
-              fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2lfs (peak %luM)\n",
+              fprintf(stderr, "Alg(%d): read %lu (a,b) pairs in %.2lfs (peak %luM)\n",
                       numdep, nab, seconds (), PeakMemusage () >> 10);
               fflush (stderr);
               pthread_mutex_unlock (&lock);
@@ -924,7 +924,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
       mpz_clear (a);
       mpz_clear (b);
       pthread_mutex_lock (&lock);
-      fprintf (stderr, "Alg(%d): read %d including %d free relations\n",
+      fprintf (stderr, "Alg(%d): read %lu (a,b) pairs, including %lu free\n",
                numdep, nab, nfree);
       fflush (stderr);
       pthread_mutex_unlock (&lock);
@@ -971,7 +971,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     pthread_mutex_lock (&lock);
     fprintf (stderr, "Alg(%d): finished accumulating product at %.2lfs\n",
              numdep, seconds());
-    fprintf (stderr, "Alg(%d): nab = %d, nfree = %d, v = %d\n", numdep,
+    fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %d\n", numdep,
 	     nab, nfree, prd->v);
     fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
              (unsigned long) mpz_poly_sizeinbase (prd->p, 2));
