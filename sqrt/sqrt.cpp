@@ -41,6 +41,7 @@
 #include "portability.h"
 
 static int verbose = 0;
+static double wct0;
 
 struct cxx_mpz_polymod_scaled {
   cxx_mpz_poly p;
@@ -358,7 +359,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
         {
           fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs (wct %1.2fs, peak %luM)\n",
-                   numdep, ab_pairs, seconds (), wct_seconds (),
+                   numdep, ab_pairs, seconds (), wct_seconds () - wct0,
                    PeakMemusage () >> 10);
 	  fflush (stderr);
         }
@@ -415,7 +416,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): starting rational square root at %.2fs (wct %.2fs)\n",
-	     numdep, seconds (), wct_seconds ());
+	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
 
@@ -425,7 +426,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed square root at %.2fs (wct %.2fs)\n",
-	     numdep, seconds (), wct_seconds ());
+	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
 
@@ -470,7 +471,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): reduced mod n at %.2fs (wct %.2fs)\n",
-	     numdep, seconds (), wct_seconds ());
+	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
 
@@ -481,7 +482,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
-	     numdep, seconds (), wct_seconds ());
+	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
   resfile = fopen_maybe_compressed_lock (sidename, "wb");
@@ -498,7 +499,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   {
     gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prod);
     fprintf (stderr, "Rat(%d): square root time: %.2fs (wct %.2fs)\n",
-	     numdep, seconds (), wct_seconds ());
+	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
 
@@ -964,7 +965,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   FILE *depfile = NULL;
   FILE *resfile;
   unsigned long p;
-  int nab = 0, nfree = 0;
+  unsigned long nab = 0, nfree = 0;
 
   ASSERT_ALWAYS(side == 0 || side == 1);
 
@@ -986,8 +987,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
           if(!(nab % 1000000))
 #pragma omp critical
             {
-              fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2fs (wct %.2fs, peak %luM)\n",
-                      numdep, nab, seconds (), wct_seconds (),
+              fprintf(stderr, "Alg(%d): read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                      numdep, nab, seconds (), wct_seconds () - wct0,
 		      PeakMemusage () >> 10);
               fflush (stderr);
             }
@@ -1000,7 +1001,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
         }
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d): read %d including %d free relations\n",
+	fprintf (stderr, "Alg(%d): read %lu (a,b) pairs, including %lu free\n",
 		 numdep, nab, nfree);
 	fflush (stderr);
       }
@@ -1045,8 +1046,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
-	       numdep, seconds(), wct_seconds ());
-      fprintf (stderr, "Alg(%d): nab = %d, nfree = %d, v = %d\n", numdep,
+	       numdep, seconds(), wct_seconds () - wct0);
+      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %d\n", numdep,
 	       nab, nfree, prod.v);
       fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
 	       (unsigned long) mpz_poly_sizeinbase (prod.p, 2));
@@ -1058,7 +1059,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",
-	       numdep, seconds(), wct_seconds ());
+	       numdep, seconds(), wct_seconds () - wct0);
       fflush (stderr);
     }
 
@@ -1091,7 +1092,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
       gmp_fprintf (stderr, "Alg(%d): square root is: %Zd\n",
 		   numdep, algsqrt);
       fprintf (stderr, "Alg(%d): square root completed at %.2fs (wct %.2fs)\n",
-	       numdep, seconds(), wct_seconds ());
+	       numdep, seconds(), wct_seconds () - wct0);
       fflush (stderr);
     }
     free (sidename);
@@ -1522,7 +1523,7 @@ int main(int argc, char *argv[])
 #endif
 
     double cpu0 = seconds ();
-    double wct0 = wct_seconds();
+    wct0 = wct_seconds();
 
     /*
      * In the case where the number N to factor has a prime factor that
