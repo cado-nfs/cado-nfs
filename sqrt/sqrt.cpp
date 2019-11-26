@@ -357,8 +357,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
       if (ab_pairs % 1000000 == 0)
 #pragma omp critical
         {
-          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs, (peak %luM)\n",
-                   numdep, ab_pairs, seconds (),
+          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs (wct %1.2fs, peak %luM)\n",
+                   numdep, ab_pairs, seconds (), wct_seconds (),
                    PeakMemusage () >> 10);
 	  fflush (stderr);
         }
@@ -414,8 +414,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): starting rational square root at %.2lfs\n",
-	     numdep, seconds ());
+    fprintf (stderr, "Rat(%d): starting rational square root at %.2fs (wct %.2fs)\n",
+	     numdep, seconds (), wct_seconds ());
     fflush (stderr);
   }
 
@@ -424,8 +424,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): computed square root at %.2lfs\n",
-	     numdep, seconds ());
+    fprintf (stderr, "Rat(%d): computed square root at %.2fs (wct %.2fs)\n",
+	     numdep, seconds (), wct_seconds ());
     fflush (stderr);
   }
 
@@ -469,8 +469,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): reduced mod n at %.2lfs\n",
-	     numdep, seconds ());
+    fprintf (stderr, "Rat(%d): reduced mod n at %.2fs (wct %.2fs)\n",
+	     numdep, seconds (), wct_seconds ());
     fflush (stderr);
   }
 
@@ -480,8 +480,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   mpz_powm_ui (v, pol->pols[side]->coeff[1], (ab_pairs + 1) / 2, Np);
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2lfs\n",
-	     numdep, seconds ());
+    fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
+	     numdep, seconds (), wct_seconds ());
     fflush (stderr);
   }
   resfile = fopen_maybe_compressed_lock (sidename, "wb");
@@ -497,7 +497,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #pragma omp critical
   {
     gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prod);
-    fprintf (stderr, "Rat(%d): square root time: %.2lfs\n", numdep, seconds ());
+    fprintf (stderr, "Rat(%d): square root time: %.2fs (wct %.2fs)\n",
+	     numdep, seconds (), wct_seconds ());
     fflush (stderr);
   }
 
@@ -731,7 +732,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   K[logk] = 1;
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2lfs\n", numdep,
+    fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2fs\n", numdep,
 	     target_k, seconds () - st);
     fflush (stderr);
   }
@@ -744,7 +745,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   P = mpz_poly_base_modp_init (A, p, K, logk0 = logk);
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2lfs\n",
+    fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs\n",
 	     numdep, seconds () - st);
     if (verbose)
       {
@@ -815,7 +816,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     if (verbose)
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2lfs (peak %luM)\n", numdep, st, PeakMemusage () >> 10);
+	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (peak %luM)\n", numdep, st, PeakMemusage () >> 10);
 	fprintf (stderr, "Alg(%d):    a takes %zuMb\n", numdep,
 		 mpz_poly_totalsize (a) >> 20);
 	fflush (stderr);
@@ -834,7 +835,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     k = K[logk];
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2lfs\n",
+      fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs\n",
 	       numdep, k, (unsigned long int) mpz_sizeinbase (pk, 2),
 	       seconds ());
       fflush (stderr);
@@ -846,7 +847,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2lfs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
+        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
 	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
 		 mpz_poly_totalsize (tmp) >> 20);
         fflush (stderr);
@@ -860,7 +861,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2lfs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
 	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
 		 mpz_poly_totalsize (tmp) >> 20);
         fflush (stderr);
@@ -872,7 +873,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2lfs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
 	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
 		 mpz_poly_totalsize (tmp) >> 20);
         fflush (stderr);
@@ -895,7 +896,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   if (verbose)
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2lfs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
+      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
       fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
 	       mpz_poly_totalsize (tmp) >> 20);
       fflush (stderr);
@@ -963,7 +964,6 @@ calculateSqrtAlg (const char *prefix, int numdep,
   FILE *depfile = NULL;
   FILE *resfile;
   unsigned long p;
-  double t0 = seconds ();
   int nab = 0, nfree = 0;
 
   ASSERT_ALWAYS(side == 0 || side == 1);
@@ -986,8 +986,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
           if(!(nab % 1000000))
 #pragma omp critical
             {
-              fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2lfs (peak %luM)\n",
-                      numdep, nab, seconds (), PeakMemusage () >> 10);
+              fprintf(stderr, "Alg(%d): reading ab pair #%d at %.2fs (wct %.2fs, peak %luM)\n",
+                      numdep, nab, seconds (), wct_seconds (),
+		      PeakMemusage () >> 10);
               fflush (stderr);
             }
           if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
@@ -1043,8 +1044,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
     p = FindSuitableModP(F, Np);
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): finished accumulating product at %.2lfs\n",
-	       numdep, seconds());
+      fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
+	       numdep, seconds(), wct_seconds ());
       fprintf (stderr, "Alg(%d): nab = %d, nfree = %d, v = %d\n", numdep,
 	       nab, nfree, prod.v);
       fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
@@ -1053,12 +1054,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fflush (stderr);
     }
 
-    double tm = seconds();
     cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): square root lifted in %.2lfs\n",
-	       numdep, seconds() - tm);
+      fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",
+	       numdep, seconds(), wct_seconds ());
       fflush (stderr);
     }
 
@@ -1090,8 +1090,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
     {
       gmp_fprintf (stderr, "Alg(%d): square root is: %Zd\n",
 		   numdep, algsqrt);
-      fprintf (stderr, "Alg(%d): square root time is %.2lfs\n",
-	       numdep, seconds() - t0);
+      fprintf (stderr, "Alg(%d): square root completed at %.2fs (wct %.2fs)\n",
+	       numdep, seconds(), wct_seconds ());
       fflush (stderr);
     }
     free (sidename);
