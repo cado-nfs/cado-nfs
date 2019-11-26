@@ -286,11 +286,9 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 
       size_t N = v.size() - 1;
       int local_nthreads;
-      /* the loop below will compute N/2 products */
-      if (nthr < (N / 2))
-	local_nthreads = 1;
-      else
-	local_nthreads = nthr / (N / 2);
+      /* the loop below performs floor((N+1)/2) products */
+      size_t nloops = (N + 1) / 2;
+      local_nthreads = (nthr < nloops) ? 1 : nthr / nloops;
 #pragma omp parallel for
       for(size_t j = 0 ; j < N ; j += 2) {
 	  m(v[j], v[j], v[j+1], local_nthreads);
