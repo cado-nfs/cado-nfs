@@ -118,10 +118,6 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
   Q.v += v;
 }
 
-/********** RATSQRT **********/
-
-#define THRESHOLD 2 /* must be >= 2 */
-
 static char*
 get_depname (const char *prefix, const char *algrat, int numdep)
 {
@@ -186,6 +182,10 @@ check_dep (const char *prefix, int numdep)
   return 1;
 }
 
+/*************************************************************************/
+/* Function to handle the initial accumulation (rat & alg) */
+
+
 /* replace the vector of elements of type T by
  * the product of elements in the range. It's fairly trivial to do this
  * in a DFS manner, but it's slightly less so for a BFS algorithm. The
@@ -219,12 +219,6 @@ static inline uint64_t bitrev(uint64_t a)
     return a;
 }
 
-cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
-{
-    mpz_mul(a, a, b);
-    return a;
-}
-
 /* Modify the range [vb, ve[ so that in the end, *vb contains the product
  * of the range, and [vb+1, ve[ contains only ones.
  *
@@ -233,8 +227,8 @@ cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
  * function with similar-size ranges can profitably re-use the storage in
  * A.
  */
-template<typename T, typename M>
-void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m)
+template<typename M>
+void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
     /* This is a single-threaded routine. We put the result in *vb, and
      * the caller is reponsible of freeeing the range [vb+1,ve[
@@ -242,7 +236,7 @@ void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typena
     if (ve - vb < 16) {
         /* Don't bother with very small vectors. Here we have a vector of
          * size less than 16*2*thr/2, so don't bother. */
-        for(typename std::vector<T>::iterator vi = vb+1; vi < ve ; ++vi) {
+        for(typename std::vector<typename M::T>::iterator vi = vb+1; vi < ve ; ++vi) {
             m(*vb, *vb, *vi);
         }
         return;
@@ -264,10 +258,10 @@ void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typena
     for(; A.size() < ncells; A.emplace_back());
     for(auto& x: A) m.set1(x);
 
-    for(typename std::vector<T>::iterator vi = vb ; vi < ve ; ++vi) {
+    for(typename std::vector<typename M::T>::iterator vi = vb ; vi < ve ; ++vi) {
         m(A[0], A[0], *vi);
         /* We won't need *vi again. This frees indirect storage */
-        *vi = T();
+        *vi = typename M::T();
         /* now maintain the condition */
         unsigned int nprd = vi + 1 - vb;
         for(unsigned int i = 0 ; nprd % ratio == 0 ; ++i, nprd /= ratio) {
@@ -282,22 +276,32 @@ void accumulate(std::vector<T> & A, typename std::vector<T>::iterator vb, typena
     /* final: accumulate everything in A.back(). Note that by doing it
      * this way, we should normally not trigger reallocation. */
     for(unsigned int i = 0 ; i + 1 < A.size() ; i++) {
-        m(A[i+1], A[i+1], A[i]);
-        // do not free A[i] yet, as we might want to reuse it for another
-        // block. Set it to 1 instead.
-        // A[i]=T();
-        m.set1(A[i]);
+        if (m.is1(A[i+1])) {
+            std::swap(A[i], A[i+1]);
+        } else {
+            m(A[i+1], A[i+1], A[i]);
+            // do not free A[i] yet, as we might want to reuse it for another
+            // block. Set it to 1 instead.
+            // A[i]=T();
+            m.set1(A[i]);
+        }
     }
     *vb = std::move(A.back());
 }
-template<typename T, typename M>
-void accumulate(typename std::vector<T>::iterator vb, typename std::vector<T>::iterator ve, M const & m)
+/* not used, just to mention that the simplest prototype for the function
+ * above would be as follows, in a way */
+template<typename M>
+void accumulate(typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
-    std::vector<T> A;
+    std::vector<typename M::T> A;
     accumulate(A, vb, ve, m);
 }
-template<typename T, typename M>
-void accumulate_level00(std::vector<T> & v, M const & m, std::string const & message)
+/* This does the "floor" level. From a vector of T's or arbitrary size,
+ * return a modified vector whose size is a power of two, and whose
+ * elements are products of the original elements in sub-ranges of the
+ * initial vector */
+template<typename M>
+void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string const & message)
 {
     unsigned int nthr;
     /* We want to know the number of threads that we get when starting a
@@ -367,11 +371,11 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
          * all sub-ranges that we multiply. The goal at this point is to
          * avoid hammering the malloc layer.
          */
-        std::vector<T> A;
+        std::vector<typename M::T> A;
 #pragma omp for
         for(unsigned int i = 0 ; i < (1u << n) ; i++) {
-            typename std::vector<T>::iterator vb = v.begin() + endpoints[i];
-            typename std::vector<T>::iterator ve = v.begin() + endpoints[i+1];
+            typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
+            typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
 #pragma omp critical
             {
@@ -389,7 +393,7 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
         fmt::fprintf (stderr, "%s: shrinking level 00 at wct=%1.2fs\n",
                 message, wct_seconds () - wct0);
         fflush (stderr);
-        typename std::vector<T>::iterator dst = v.begin();
+        typename std::vector<typename M::T>::iterator dst = v.begin();
         endpoints.pop_back();
         for(size_t z : endpoints)
             std::swap(v[z], *dst++);
@@ -402,8 +406,8 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
 }
 
 
-template<typename T, typename M>
-T accumulate(std::vector<T> & v, M const & m, std::string const & message)
+template<typename M>
+typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::string const & message)
 {
     accumulate_level00(v, m, message);
 
@@ -435,7 +439,7 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 #pragma omp parallel for
       for(size_t j = 0 ; j < N ; j += 2) {
 	  m(v[j], v[j], v[j+1], local_nthreads);
-          v[j+1] = T();
+          v[j+1] = typename M::T();
       }
 
       /* shrink (not parallel) */
@@ -453,17 +457,160 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
   return std::move(v.front());
 }
 
+/*************************************************************************/
+/* Parallel I/O for reading the dep file */
+
+template<typename M>
+std::vector<typename M::T>
+read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
+{
+    nab = nfree = 0;
+    FILE * depfile = fopen_maybe_compressed_lock (depname, "rb");
+    ASSERT_ALWAYS(depfile != NULL);
+    std::vector<typename M::T> prd;
+
+    if (fseek(depfile, 0, SEEK_END) < 0) {
+        fmt::fprintf(stderr, "%s: cannot seek in dependency file, using single-thread I/O\n", message);
+        cxx_mpz a, b;
+        /* Cannot seek: we have to use serial i/o */
+        while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
+        {
+            if(!(nab % 1000000)) {
+                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                        message, nab, seconds (), wct_seconds () - wct0,
+                        PeakMemusage () >> 10);
+                fflush (stderr);
+            }
+            if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
+                break;
+            prd.emplace_back(m.from_ab(a, b));
+            nab++;
+            if (mpz_cmp_ui (b, 0) == 0)
+                nfree++;
+        }
+    } else {
+        /* We _can_ seek. Good news ! */
+        off_t endpos = ftell(depfile);
+        /* Find accurate starting positions for everyone */
+        unsigned int nthreads = omp_get_max_threads();
+        /* cap the number of I/O threads to 16 */
+        if (nthreads > 16)
+            nthreads = 16;
+        fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
+        std::vector<off_t> spos_tab;
+        for(unsigned int i = 0 ; i < nthreads ; i++)
+            spos_tab.push_back((endpos * i) / nthreads);
+        spos_tab.push_back(endpos);
+        /* All threads get their private reading head. */
+#pragma omp parallel num_threads(nthreads)
+        {
+            int i = omp_get_thread_num();
+            FILE * fi = fopen_maybe_compressed_lock (depname, "rb");
+            int rc = fseek(fi, spos_tab[i], SEEK_SET);
+            ASSERT_ALWAYS(rc == 0);
+            if (i > 0) {
+                /* Except when we're at the end of the stream, read until
+                 * we get a newline */
+                for( ; fgetc(fi) != '\n' ; ) ;
+            }
+            spos_tab[i] = ftell(fi);
+#pragma omp barrier
+            std::vector<typename M::T> loc_prd;
+            unsigned long loc_nab = 0;
+            unsigned long loc_nfree = 0;
+            cxx_mpz a, b;
+            for(off_t pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
+                int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
+                pos = ftell(fi);
+                /* We may be tricked by initial white space, since our
+                 * line parsing does not gobble whitespace at end of
+                 * line.
+                 * Therefore we must check the position _after_ the
+                 * parse.
+                 */
+                if ((rc != 2 && feof(fi)) || pos >= spos_tab[i+1])
+                    break;
+                ASSERT_ALWAYS(rc == 2);
+                if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
+                    ASSERT_ALWAYS(0);
+                loc_prd.emplace_back(m.from_ab(a, b));
+                loc_nab++;
+                loc_nfree += (mpz_cmp_ui (b, 0) == 0);
+
+                if(!(loc_nab % 100000))
+#pragma omp critical
+                {
+                    nab += loc_nab;
+                    nfree += loc_nfree;
+                    loc_nab = 0;
+                    loc_nfree = 0;
+                    /* in truth, a splice() would be best. */
+                    for(auto & x: loc_prd)
+                        prd.emplace_back(std::move(x));
+                    loc_prd.clear();
+                    if(!(nab % 1000000)) {
+                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                                message, nab, seconds (), wct_seconds () - wct0,
+                                PeakMemusage () >> 10);
+                        fflush (stderr);
+                    }
+                }
+            }
+#pragma omp critical
+            {
+                nab += loc_nab;
+                nfree += loc_nfree;
+                for(auto & x: loc_prd)
+                    prd.emplace_back(std::move(x));
+                loc_prd.clear();
+            }
+            fclose_maybe_compressed_lock (fi, depname);
+        }
+        {
+            fmt::fprintf (stderr, "%s read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
+                    message, nab, nfree, seconds (), wct_seconds () - wct0);
+            fflush (stderr);
+        }
+    }
+    fclose_maybe_compressed_lock (depfile, depname);
+    return prd;
+}
+
+/*************************************************************************/
+
+
+/********** RATSQRT **********/
+
+/* This is where we store side-relative functions for the rational square
+ * root. We deal with integers, here.
+ */
+struct cxx_mpz_functions {
+    cxx_mpz_poly const & P;
+    typedef cxx_mpz T;
+    void set1(cxx_mpz & x) const { mpz_set_ui(x, 1); }
+    bool is1(cxx_mpz & x) const { return mpz_cmp_ui(x, 1) == 0; }
+    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads = 1) const {
+        mpz_mul(res, a, b);
+    }
+    T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
+    {
+        cxx_mpz v;
+      /* accumulate g1*a+g0*b */
+      mpz_mul (v, P->coeff[1], a);
+      mpz_addmul (v, P->coeff[0], b);
+      return v;
+    }
+    cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
+};
+
+
 int
 calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
         int side, mpz_t Np)
 {
-  char *depname, *sidename;
-  depname = get_depname (prefix, "", numdep);
-  sidename = get_depsidename (prefix, numdep, side);
-  FILE *depfile = NULL;
+  char * sidename = get_depsidename (prefix, numdep, side);
   FILE *resfile;
-  int ret;
-  unsigned long ab_pairs = 0, line_number, freerels = 0;
+  unsigned long nab = 0, nfree = 0;
 
   ASSERT_ALWAYS (pol->pols[side]->deg == 1);
 
@@ -476,72 +623,25 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #endif
     fflush (stderr);
   }
-  depfile = fopen_maybe_compressed_lock (depname, "rb");
-  ASSERT_ALWAYS(depfile != NULL);
 
-  line_number = 2;
-  cxx_mpz a, b, v;
-  std::vector<cxx_mpz> prd;
+  cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz prod;
 
-  for (;;)
-    {
-      ret = gmp_fscanf (depfile, "%Zd %Zd\n", (mpz_ptr) a, (mpz_ptr) b);
-
-      if (ret != 2)
-        {
-          fprintf (stderr, "Invalid line %lu in file %s\n", line_number,
-                   depname);
-          fflush (stderr);
-          break;
-        }
-
-      ab_pairs ++;
-      line_number ++;
-
-      if (ab_pairs % 1000000 == 0)
-#pragma omp critical
-        {
-          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs (wct %1.2fs, peak %luM)\n",
-                   numdep, ab_pairs, seconds (), wct_seconds () - wct0,
-                   PeakMemusage () >> 10);
-	  fflush (stderr);
-        }
-
-      if (mpz_cmp_ui (b, 0) == 0)
-        freerels ++;
-
-      /* accumulate g1*a+g0*b */
-      mpz_mul (v, pol->pols[side]->coeff[1], a);
-      mpz_addmul (v, pol->pols[side]->coeff[0], b);
-
-      prd.emplace_back(std::move(v));
-
-      if (feof (depfile))
-        break;
-    }
-  fclose_maybe_compressed_lock (depfile, depname);
-  free (depname);
-
-#pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
-	     numdep, ab_pairs, freerels, seconds (), wct_seconds () - wct0);
-    fflush (stderr);
+      cxx_mpz_functions M(F);
+
+      std::string message = fmt::format("Rat({})", numdep);
+      char * depname = get_depname (prefix, "", numdep);
+      std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
+      free(depname);
+
+      prod = accumulate(prd, M, message);
   }
 
-  struct multiplier {
-      void set1(cxx_mpz & x) const { mpz_set_ui(x, 1); }
-    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads = 1) const {
-          mpz_mul(res, a, b);
-      }
-  };
-
-  cxx_mpz prod = accumulate(prd, multiplier(), fmt::format("Rat({})", numdep));
-
-  /* we must divide by g1^ab_pairs: if the number of (a,b) pairs is odd, we
-     multiply by g1, and divide by g1^(ab_pairs+1) */
-  if (ab_pairs & 1)
-    mpz_mul (prod, prod, pol->pols[side]->coeff[1]);
+  /* we must divide by g1^nab: if the number of (a,b) pairs is odd, we
+     multiply by g1, and divide by g1^(nab+1) */
+  if (nab & 1)
+    mpz_mul (prod, prod, F->coeff[1]);
 
 #pragma omp critical
   {
@@ -564,6 +664,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
     fflush (stderr);
   }
 
+  cxx_mpz v;
   /* since we know we have a square, take the square root */
   mpz_sqrtrem (prod, v, prod);
 
@@ -619,10 +720,10 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
     fflush (stderr);
   }
 
-  /* now divide by g1^(ab_pairs/2) if ab_pairs is even, and g1^((ab_pairs+1)/2)
-     if ab_pairs is odd */
+  /* now divide by g1^(nab/2) if nab is even, and g1^((nab+1)/2)
+     if nab is odd */
 
-  mpz_powm_ui (v, pol->pols[side]->coeff[1], (ab_pairs + 1) / 2, Np);
+  mpz_powm_ui (v, F->coeff[1], (nab + 1) / 2, Np);
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
@@ -690,6 +791,31 @@ void cxx_mpz_polymod_scaled_set_ui(cxx_mpz_polymod_scaled & P, unsigned long x)
     mpz_set_ui (P.p->coeff[0], x);
     mpz_poly_cleandeg(P.p, 0);
 }
+
+/* This is the analogue of cxx_mpz_functions for the algebraic square
+ * root. Here, the object must carry a reference to the field polynomial
+ */
+struct cxx_mpz_polymod_scaled_functions {
+    typedef cxx_mpz_polymod_scaled T;
+    cxx_mpz_poly const & F;
+    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F) : F(F) {}
+    T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
+        return cxx_mpz_polymod_scaled_from_ab(a, b);
+    }
+    bool is1(T & res) const {
+        return res.p.degree() == 0 && res.v == 0 && mpz_cmp_ui(res.p->coeff[0], 1) == 0;
+    }
+    void set1(T & res) const {
+        cxx_mpz_polymod_scaled_set_ui(res, 1);
+    }
+    void operator()(T &res, T const & a, T const & b, int nthreads) const {
+        omp_set_num_threads (nthreads);
+        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+    }
+    void operator()(T &res, T const & a, T const & b) const {
+        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+    }
+};
 
 
 /* Reduce the coefficients of R in [-m/2, m/2) */
@@ -1112,122 +1238,6 @@ FindSuitableModP (mpz_poly F, mpz_t N)
   return p;
 }
 
-template<typename M>
-std::vector<typename M::T>
-read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
-{
-    nab = nfree = 0;
-    FILE * depfile = fopen_maybe_compressed_lock (depname, "rb");
-    ASSERT_ALWAYS(depfile != NULL);
-    std::vector<typename M::T> prd;
-
-    if (fseek(depfile, 0, SEEK_END) < 0) {
-        fmt::fprintf(stderr, "%s: cannot seek in dependency file, using single-thread I/O\n", message);
-        cxx_mpz a, b;
-        /* Cannot seek: we have to use serial i/o */
-        while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
-        {
-            if(!(nab % 1000000)) {
-                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
-                        message, nab, seconds (), wct_seconds () - wct0,
-                        PeakMemusage () >> 10);
-                fflush (stderr);
-            }
-            if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
-                break;
-            prd.emplace_back(m.from_ab(a, b));
-            nab++;
-            if (mpz_cmp_ui (b, 0) == 0)
-                nfree++;
-        }
-    } else {
-        /* We _can_ seek. Good news ! */
-        off_t endpos = ftell(depfile);
-        /* Find accurate starting positions for everyone */
-        unsigned int nthreads = omp_get_max_threads();
-        /* cap the number of I/O threads to 16 */
-        if (nthreads > 16)
-            nthreads = 16;
-        fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
-        std::vector<off_t> spos_tab;
-        for(unsigned int i = 0 ; i < nthreads ; i++)
-            spos_tab.push_back((endpos * i) / nthreads);
-        spos_tab.push_back(endpos);
-        /* All threads get their private reading head. */
-#pragma omp parallel num_threads(nthreads)
-        {
-            int i = omp_get_thread_num();
-            FILE * fi = fopen_maybe_compressed_lock (depname, "rb");
-            int rc = fseek(fi, spos_tab[i], SEEK_SET);
-            ASSERT_ALWAYS(rc == 0);
-            if (i > 0) {
-                /* Except when we're at the end of the stream, read until
-                 * we get a newline */
-                for( ; fgetc(fi) != '\n' ; ) ;
-            }
-            spos_tab[i] = ftell(fi);
-#pragma omp barrier
-            std::vector<typename M::T> loc_prd;
-            unsigned long loc_nab = 0;
-            unsigned long loc_nfree = 0;
-            cxx_mpz a, b;
-            for(off_t pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
-                int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
-                pos = ftell(fi);
-                /* We may be tricked by initial white space, since our
-                 * line parsing does not gobble whitespace at end of
-                 * line.
-                 * Therefore we must check the position _after_ the
-                 * parse.
-                 */
-                if ((rc != 2 && feof(fi)) || pos >= spos_tab[i+1])
-                    break;
-                ASSERT_ALWAYS(rc == 2);
-                if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
-                    ASSERT_ALWAYS(0);
-                loc_prd.emplace_back(m.from_ab(a, b));
-                loc_nab++;
-                loc_nfree += (mpz_cmp_ui (b, 0) == 0);
-
-                if(!(loc_nab % 100000))
-#pragma omp critical
-                {
-                    nab += loc_nab;
-                    nfree += loc_nfree;
-                    loc_nab = 0;
-                    loc_nfree = 0;
-                    /* in truth, a splice() would be best. */
-                    for(auto & x: loc_prd)
-                        prd.emplace_back(std::move(x));
-                    loc_prd.clear();
-                    if(!(nab % 1000000)) {
-                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
-                                message, nab, seconds (), wct_seconds () - wct0,
-                                PeakMemusage () >> 10);
-                        fflush (stderr);
-                    }
-                }
-            }
-#pragma omp critical
-            {
-                nab += loc_nab;
-                nfree += loc_nfree;
-                for(auto & x: loc_prd)
-                    prd.emplace_back(std::move(x));
-                loc_prd.clear();
-            }
-            fclose_maybe_compressed_lock (fi, depname);
-        }
-        {
-            fmt::fprintf (stderr, "%s read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
-                    message, nab, nfree, seconds (), wct_seconds () - wct0);
-            fflush (stderr);
-        }
-    }
-    fclose_maybe_compressed_lock (depfile, depname);
-    return prd;
-}
-
 /*
    Process dependencies numdep to numdep + nthreads - 1.
 */
@@ -1247,28 +1257,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
   cxx_mpz_poly F(pol->pols[side]);
   cxx_mpz_polymod_scaled prod;
 
-  struct multiplier {
-      typedef cxx_mpz_polymod_scaled T;
-      cxx_mpz_poly const & F;
-      multiplier(cxx_mpz_poly & F) : F(F) {}
-      T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
-          return cxx_mpz_polymod_scaled_from_ab(a, b);
-      }
-      void set1(T & res) const {
-          cxx_mpz_polymod_scaled_set_ui(res, 1);
-      }
-      void operator()(T &res, T const & a, T const & b, int nthreads) const {
-          omp_set_num_threads (nthreads);
-          cxx_mpz_polymod_scaled_mul(res, a, b, F);
-      }
-      void operator()(T &res, T const & a, T const & b) const {
-          cxx_mpz_polymod_scaled_mul(res, a, b, F);
-      }
-  };
-
   // Accumulate product with a subproduct tree
   {
-      multiplier M(F);
+      cxx_mpz_polymod_scaled_functions M(F);
 
       std::string message = fmt::format("Alg({})", numdep);
       char * depname = get_depname (prefix, "", numdep);
