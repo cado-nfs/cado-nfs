@@ -277,7 +277,15 @@ void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M:
      * this way, we should normally not trigger reallocation. */
     for(unsigned int i = 0 ; i + 1 < A.size() ; i++) {
         if (m.is1(A[i+1])) {
-            std::swap(A[i], A[i+1]);
+            // it is tempting to *swap* here, but in fact it would be a
+            // terrible idea, since we're being careful to keep the
+            // *storage* of A[] grow exponentially. With swap's, we would
+            // in effect make all cells stabilize at the maximal storage,
+            // which would incur a significant increase of the total
+            // storage amount!
+            // std::swap(A[i], A[i+1]);
+            m.set(A[i+1], A[i]);
+            m.set1(A[i]);
         } else {
             m(A[i+1], A[i+1], A[i]);
             // do not free A[i] yet, as we might want to reuse it for another
@@ -589,18 +597,19 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
 struct cxx_mpz_functions {
     cxx_mpz_poly const & P;
     typedef cxx_mpz T;
-    void set1(cxx_mpz & x) const { mpz_set_ui(x, 1); }
-    bool is1(cxx_mpz & x) const { return mpz_cmp_ui(x, 1) == 0; }
-    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads = 1) const {
+    void set1(T & x) const { mpz_set_ui(x, 1); }
+    void set(T & y, T const & x) const { mpz_set(y, x); }
+    bool is1(T & x) const { return mpz_cmp_ui(x, 1) == 0; }
+    void operator()(T & res, T const & a, T const & b, int MAYBE_UNUSED nthreads = 1) const {
         mpz_mul(res, a, b);
     }
     T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
     {
         cxx_mpz v;
-      /* accumulate g1*a+g0*b */
-      mpz_mul (v, P->coeff[1], a);
-      mpz_addmul (v, P->coeff[0], b);
-      return v;
+        /* accumulate g1*a+g0*b */
+        mpz_mul (v, P->coeff[1], a);
+        mpz_addmul (v, P->coeff[0], b);
+        return v;
     }
     cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
 };
@@ -794,6 +803,12 @@ void cxx_mpz_polymod_scaled_set_ui(cxx_mpz_polymod_scaled & P, unsigned long x)
     mpz_poly_cleandeg(P.p, 0);
 }
 
+void cxx_mpz_polymod_scaled_set(cxx_mpz_polymod_scaled & y, cxx_mpz_polymod_scaled const & x)
+{
+    y.v = x.v;
+    mpz_poly_set(y.p, x.p);
+}
+
 /* This is the analogue of cxx_mpz_functions for the algebraic square
  * root. Here, the object must carry a reference to the field polynomial
  */
@@ -806,6 +821,9 @@ struct cxx_mpz_polymod_scaled_functions {
     }
     bool is1(T & res) const {
         return res.p.degree() == 0 && res.v == 0 && mpz_cmp_ui(res.p->coeff[0], 1) == 0;
+    }
+    void set(T & y, T const & x) const {
+        cxx_mpz_polymod_scaled_set(y, x);
     }
     void set1(T & res) const {
         cxx_mpz_polymod_scaled_set_ui(res, 1);
