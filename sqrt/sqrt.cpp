@@ -377,15 +377,16 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
             typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
             typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
+	    if (verbose)
 #pragma omp critical
-            {
+	      {
                 fmt::fprintf (stderr, "%s: fragment %u/%u"
-                        " of level 00 done by thread %u at wct=%1.2fs\n",
-                        message,
-                        i, 1u<<n, omp_get_thread_num(),
-                        wct_seconds () - wct0);
+			      " of level 00 done by thread %u at wct=%1.2fs\n",
+			      message,
+			      i, 1u<<n, omp_get_thread_num(),
+			      wct_seconds () - wct0);
                 fflush (stderr);
-            }
+	      }
         }
     }
     /* This puts pressure at the malloc level */
