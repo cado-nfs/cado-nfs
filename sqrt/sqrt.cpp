@@ -118,10 +118,6 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
   Q.v += v;
 }
 
-/********** RATSQRT **********/
-
-#define THRESHOLD 2 /* must be >= 2 */
-
 static char*
 get_depname (const char *prefix, const char *algrat, int numdep)
 {
@@ -186,6 +182,10 @@ check_dep (const char *prefix, int numdep)
   return 1;
 }
 
+/*************************************************************************/
+/* Function to handle the initial accumulation (rat & alg) */
+
+
 /* replace the vector of elements of type T by
  * the product of elements in the range. It's fairly trivial to do this
  * in a DFS manner, but it's slightly less so for a BFS algorithm. The
@@ -219,64 +219,210 @@ static inline uint64_t bitrev(uint64_t a)
     return a;
 }
 
-cxx_mpz& operator*=(cxx_mpz & a, cxx_mpz & b)
+/* Modify the range [vb, ve[ so that in the end, *vb contains the product
+ * of the range, and [vb+1, ve[ contains only ones.
+ *
+ * The array A is used internally by this function, but we provide a
+ * prototype that exposes it because two consecutive calls to this
+ * function with similar-size ranges can profitably re-use the storage in
+ * A.
+ */
+template<typename M>
+void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
-    mpz_mul(a, a, b);
-    return a;
+    /* This is a single-threaded routine. We put the result in *vb, and
+     * the caller is reponsible of freeeing the range [vb+1,ve[
+     */
+    if (ve - vb < 16) {
+        /* Don't bother with very small vectors. Here we have a vector of
+         * size less than 16*2*thr/2, so don't bother. */
+        for(typename std::vector<typename M::T>::iterator vi = vb+1; vi < ve ; ++vi) {
+            m(*vb, *vb, *vi);
+        }
+        return;
+    }
+    constexpr const unsigned int ratio = 2; /* must be an integer > 1 */
+    /* create an array of products of exponentially growing size.
+     *
+     * after each input value considered, we maintain the property that
+     * the i-th cell in the vector A[] contains the product of at most
+     * ratio^i items in the original range [vb, ve[
+     *
+     * Hence with n cells int the table A, we can have up to
+     * (ratio^n-1)/(ratio-1) values stored.
+     */
+    size_t as = 1 + (ratio - 1) * (ve - vb);
+    unsigned int ncells = 0;
+    for(size_t s = 1 ; s < as ; s *= ratio, ncells++) ;
+    /* make sure A is large enough */
+    for(; A.size() < ncells; A.emplace_back());
+    for(auto& x: A) m.set1(x);
+
+    for(typename std::vector<typename M::T>::iterator vi = vb ; vi < ve ; ++vi) {
+        m(A[0], A[0], *vi);
+        /* We won't need *vi again. This frees indirect storage */
+        *vi = typename M::T();
+        /* now maintain the condition */
+        unsigned int nprd = vi + 1 - vb;
+        for(unsigned int i = 0 ; nprd % ratio == 0 ; ++i, nprd /= ratio) {
+            ASSERT_ALWAYS(i + 1 < A.size());
+            m(A[i+1], A[i+1], A[i]);
+            /* Do not replace by a fresh object. Prefer something that
+             * does not trigger a free() yet, since reallocation would
+             * occur eventually */
+            m.set1(A[i]);
+        }
+    }
+    /* final: accumulate everything in A.back(). Note that by doing it
+     * this way, we should normally not trigger reallocation. */
+    for(unsigned int i = 0 ; i + 1 < A.size() ; i++) {
+        if (m.is1(A[i+1])) {
+            std::swap(A[i], A[i+1]);
+        } else {
+            m(A[i+1], A[i+1], A[i]);
+            // do not free A[i] yet, as we might want to reuse it for another
+            // block. Set it to 1 instead.
+            // A[i]=T();
+            m.set1(A[i]);
+        }
+    }
+    *vb = std::move(A.back());
 }
-
-template<typename T, typename M>
-T accumulate(std::vector<T> & v, M const & m, std::string const & message)
+/* not used, just to mention that the simplest prototype for the function
+ * above would be as follows, in a way */
+template<typename M>
+void accumulate(typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
-    size_t vs = v.size();
+    std::vector<typename M::T> A;
+    accumulate(A, vb, ve, m);
+}
+/* This does the "floor" level. From a vector of T's or arbitrary size,
+ * return a modified vector whose size is a power of two, and whose
+ * elements are products of the original elements in sub-ranges of the
+ * initial vector */
+template<typename M>
+void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string const & message)
+{
     unsigned int nthr;
-
+    /* We want to know the number of threads that we get when starting a
+     * parallel region -- but this is probably unneeded. I think that
+     * omp_get_max_threads would do an equally good job. */
     #pragma omp parallel
+    #pragma omp critical
     nthr = omp_get_num_threads (); /* total number of threads */
 
-    if (v.size() < 16) {
+    size_t N = v.size();
+    /* We're going to split the input in that 1<<n pieces exacly
+     * -- we want a power of two, that is a strict condition. We'll
+     *  strive to make pieces of balanced size.
+     */
+    /* min_pieces per_thread is there so that each thread at level 0 has
+     * at least that many pieces to work on. Increasing this parameter
+     * allows more progress reporting, but more importantly this acts on
+     * the balance of the computation. (having "2 or 3" pieces to handle
+     * per threads leads to longer idle wait than if we have "16 or 17"
+     * pieces to handle, of course)
+     */
+    constexpr const unsigned int min_pieces_per_thread = 8;
+    unsigned int n = 1;
+    for( ; (1UL << n) < min_pieces_per_thread * nthr ; n++) ;
+
+    if ((N >> n) < 16) {
+        /* Don't bother with very small vectors. Here we have a vector of
+         * size less than 16*min_pieces_per_thread*thr/2, so don't bother. */
         for(size_t j = 1 ; j < v.size() ; j++) {
-	  m(v[0], v[0], v[j], nthr);
+            /* use the instance with no multithreading. This is on
+             * purpose, for small ranges and small objects.
+             */
+            m(v[0], v[0], v[j]);
         }
         v.erase(v.begin() + 1, v.end());
-    } else if ((vs & (vs - 1))) {
-        size_t n = 0;
-        for( ; vs >= 1UL << (n+1) ; n++) ;
-        uint64_t r = vs - (1UL << n);
+        return;
+    }
+
+    uint64_t r = N % (1UL << n);
+    {
+        fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs,"
+                " %zu -> 2^%zu*%zu+%zu\n",
+                message, wct_seconds () - wct0,
+                v.size(), n, N>>n, r);
+        fflush (stderr);
+    }
+
+    /* Interesting job: we want to compute the start and end points of
+     * the i-th part among 1<<n of a vector of size N.
+     *
+     * we know that this i-th part has size (N>>n)+1 if and only if the
+     * n-bit reversal of i is less than N mod (1<<n) (denoted by r)
+     */
+    std::vector<size_t> endpoints;
+    endpoints.push_back(0);
+    for(uint64_t i = 0 ; i < (UINT64_C(1) << n) ; i++) {
+        uint64_t ir = bitrev(i) >> (64 - n);
+        size_t fragment_size = (N>>n) + (ir < (uint64_t) r);
+        endpoints.push_back(endpoints.back() + fragment_size);
+    }
+    ASSERT_ALWAYS(endpoints.back() == v.size());
+
+    /* Now do the real job */
+#pragma omp parallel
+    {
+        /* This array is thread-private, and we're going to re-use it for
+         * all sub-ranges that we multiply. The goal at this point is to
+         * avoid hammering the malloc layer.
+         */
+        std::vector<typename M::T> A;
+#pragma omp for
+        for(unsigned int i = 0 ; i < (1u << n) ; i++) {
+            typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
+            typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
+            accumulate(A, vb, ve, m);
 #pragma omp critical
-	{
-	  fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs, %zu -> 2^%zu+%zu\n",
-			message, wct_seconds () - wct0, vs, n, r);
-	  fflush (stderr);
-	}
-        /* Need to make v of size a power of two */
-        typename std::vector<T>::iterator read = v.begin(), write = v.begin();
-        std::vector<uint64_t> incrs;
-        for(uint64_t i = 0 ; i < 16 ; ++i) {
-            incrs.push_back(bitrev(i) >> (64-n));
-        }
-        size_t nvs = 1UL << n;
-        for(uint64_t i = 0 ; i < nvs ; i += 16) {
-            uint64_t ir = bitrev(i) >> (64 - n);
-            for(uint64_t j = 0 ; j < 16 && (i + j < nvs) ; j++) {
-                uint64_t jr = ir + incrs[j];
-                if (jr < r) {
-		    m(*write, read[0], read[1], nthr);
-                    write++;
-                    read++;
-                    read++;
-                } else {
-                    std::swap(*read, *write);
-                    write++;
-                    read++;
-                }
+            {
+                fmt::fprintf (stderr, "%s: fragment %u/%u"
+                        " of level 00 done by thread %u at wct=%1.2fs\n",
+                        message,
+                        i, 1u<<n, omp_get_thread_num(),
+                        wct_seconds () - wct0);
+                fflush (stderr);
             }
         }
-        v.erase(write, v.end());
     }
-    vs = v.size();
+    /* This puts pressure at the malloc level */
+    {
+        fmt::fprintf (stderr, "%s: shrinking level 00 at wct=%1.2fs\n",
+                message, wct_seconds () - wct0);
+        fflush (stderr);
+        typename std::vector<typename M::T>::iterator dst = v.begin();
+        endpoints.pop_back();
+        for(size_t z : endpoints)
+            std::swap(v[z], *dst++);
+        v.erase(dst, v.end());
+    }
+
+    N = v.size();
+
+    ASSERT_ALWAYS(!(N & (N-1)));
+}
+
+
+template<typename M>
+typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::string const & message)
+{
+    accumulate_level00(v, m, message);
+
+    unsigned int nthr;
+    /* We want to know the number of threads that we get when starting a
+     * parallel region -- but this is probably unneeded. I think that
+     * omp_get_max_threads would do an equally good job. */
+    #pragma omp parallel
+    #pragma omp critical
+    nthr = omp_get_num_threads (); /* total number of threads */
+
+    size_t vs = v.size();
     ASSERT_ALWAYS(!(vs & (vs - 1)));
 
+    /* At this point v has size a power of two */
   for(int level = 0 ; v.size() > 1 ; level++) {
     #pragma omp critical
       {
@@ -294,7 +440,7 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
 #pragma omp parallel for
       for(size_t j = 0 ; j < N ; j += 2) {
 	  m(v[j], v[j], v[j+1], local_nthreads);
-          v[j+1] = T();
+          v[j+1] = typename M::T();
       }
 
       /* shrink (not parallel), takes negligible time */
@@ -312,17 +458,160 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
   return std::move(v.front());
 }
 
+/*************************************************************************/
+/* Parallel I/O for reading the dep file */
+
+template<typename M>
+std::vector<typename M::T>
+read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
+{
+    nab = nfree = 0;
+    FILE * depfile = fopen_maybe_compressed_lock (depname, "rb");
+    ASSERT_ALWAYS(depfile != NULL);
+    std::vector<typename M::T> prd;
+
+    if (fseek(depfile, 0, SEEK_END) < 0) {
+        fmt::fprintf(stderr, "%s: cannot seek in dependency file, using single-thread I/O\n", message);
+        cxx_mpz a, b;
+        /* Cannot seek: we have to use serial i/o */
+        while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
+        {
+            if(!(nab % 1000000)) {
+                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                        message, nab, seconds (), wct_seconds () - wct0,
+                        PeakMemusage () >> 10);
+                fflush (stderr);
+            }
+            if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
+                break;
+            prd.emplace_back(m.from_ab(a, b));
+            nab++;
+            if (mpz_cmp_ui (b, 0) == 0)
+                nfree++;
+        }
+    } else {
+        /* We _can_ seek. Good news ! */
+        off_t endpos = ftell(depfile);
+        /* Find accurate starting positions for everyone */
+        unsigned int nthreads = omp_get_max_threads();
+        /* cap the number of I/O threads to 16 */
+        if (nthreads > 16)
+            nthreads = 16;
+        fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
+        std::vector<off_t> spos_tab;
+        for(unsigned int i = 0 ; i < nthreads ; i++)
+            spos_tab.push_back((endpos * i) / nthreads);
+        spos_tab.push_back(endpos);
+        /* All threads get their private reading head. */
+#pragma omp parallel num_threads(nthreads)
+        {
+            int i = omp_get_thread_num();
+            FILE * fi = fopen_maybe_compressed_lock (depname, "rb");
+            int rc = fseek(fi, spos_tab[i], SEEK_SET);
+            ASSERT_ALWAYS(rc == 0);
+            if (i > 0) {
+                /* Except when we're at the end of the stream, read until
+                 * we get a newline */
+                for( ; fgetc(fi) != '\n' ; ) ;
+            }
+            spos_tab[i] = ftell(fi);
+#pragma omp barrier
+            std::vector<typename M::T> loc_prd;
+            unsigned long loc_nab = 0;
+            unsigned long loc_nfree = 0;
+            cxx_mpz a, b;
+            for(off_t pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
+                int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
+                pos = ftell(fi);
+                /* We may be tricked by initial white space, since our
+                 * line parsing does not gobble whitespace at end of
+                 * line.
+                 * Therefore we must check the position _after_ the
+                 * parse.
+                 */
+                if ((rc != 2 && feof(fi)) || pos >= spos_tab[i+1])
+                    break;
+                ASSERT_ALWAYS(rc == 2);
+                if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
+                    ASSERT_ALWAYS(0);
+                loc_prd.emplace_back(m.from_ab(a, b));
+                loc_nab++;
+                loc_nfree += (mpz_cmp_ui (b, 0) == 0);
+
+                if(!(loc_nab % 100000))
+#pragma omp critical
+                {
+                    nab += loc_nab;
+                    nfree += loc_nfree;
+                    loc_nab = 0;
+                    loc_nfree = 0;
+                    /* in truth, a splice() would be best. */
+                    for(auto & x: loc_prd)
+                        prd.emplace_back(std::move(x));
+                    loc_prd.clear();
+                    if(!(nab % 1000000)) {
+                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                                message, nab, seconds (), wct_seconds () - wct0,
+                                PeakMemusage () >> 10);
+                        fflush (stderr);
+                    }
+                }
+            }
+#pragma omp critical
+            {
+                nab += loc_nab;
+                nfree += loc_nfree;
+                for(auto & x: loc_prd)
+                    prd.emplace_back(std::move(x));
+                loc_prd.clear();
+            }
+            fclose_maybe_compressed_lock (fi, depname);
+        }
+        {
+            fmt::fprintf (stderr, "%s read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
+                    message, nab, nfree, seconds (), wct_seconds () - wct0);
+            fflush (stderr);
+        }
+    }
+    fclose_maybe_compressed_lock (depfile, depname);
+    return prd;
+}
+
+/*************************************************************************/
+
+
+/********** RATSQRT **********/
+
+/* This is where we store side-relative functions for the rational square
+ * root. We deal with integers, here.
+ */
+struct cxx_mpz_functions {
+    cxx_mpz_poly const & P;
+    typedef cxx_mpz T;
+    void set1(cxx_mpz & x) const { mpz_set_ui(x, 1); }
+    bool is1(cxx_mpz & x) const { return mpz_cmp_ui(x, 1) == 0; }
+    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads = 1) const {
+        mpz_mul(res, a, b);
+    }
+    T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
+    {
+        cxx_mpz v;
+      /* accumulate g1*a+g0*b */
+      mpz_mul (v, P->coeff[1], a);
+      mpz_addmul (v, P->coeff[0], b);
+      return v;
+    }
+    cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
+};
+
+
 int
 calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
         int side, mpz_t Np)
 {
-  char *depname, *sidename;
-  depname = get_depname (prefix, "", numdep);
-  sidename = get_depsidename (prefix, numdep, side);
-  FILE *depfile = NULL;
+  char * sidename = get_depsidename (prefix, numdep, side);
   FILE *resfile;
-  int ret;
-  unsigned long ab_pairs = 0, line_number, freerels = 0;
+  unsigned long nab = 0, nfree = 0;
 
   ASSERT_ALWAYS (pol->pols[side]->deg == 1);
 
@@ -335,71 +624,25 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
 #endif
     fflush (stderr);
   }
-  depfile = fopen_maybe_compressed_lock (depname, "rb");
-  ASSERT_ALWAYS(depfile != NULL);
 
-  line_number = 2;
-  cxx_mpz a, b, v;
-  std::vector<cxx_mpz> prd;
+  cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz prod;
 
-  for (;;)
-    {
-      ret = gmp_fscanf (depfile, "%Zd %Zd\n", (mpz_ptr) a, (mpz_ptr) b);
-
-      if (ret != 2)
-        {
-          fprintf (stderr, "Invalid line %lu in file %s\n", line_number,
-                   depname);
-          fflush (stderr);
-          break;
-        }
-
-      ab_pairs ++;
-      line_number ++;
-
-      if (ab_pairs % 1000000 == 0)
-#pragma omp critical
-        {
-          fprintf (stderr, "Rat(%d): read %lu pairs in %1.2fs (wct %1.2fs, peak %luM)\n",
-                   numdep, ab_pairs, seconds (), wct_seconds () - wct0,
-                   PeakMemusage () >> 10);
-	  fflush (stderr);
-        }
-
-      if (mpz_cmp_ui (b, 0) == 0)
-        freerels ++;
-
-      /* accumulate g1*a+g0*b */
-      mpz_mul (v, pol->pols[side]->coeff[1], a);
-      mpz_addmul (v, pol->pols[side]->coeff[0], b);
-
-      prd.emplace_back(std::move(v));
-
-      if (feof (depfile))
-        break;
-    }
-  fclose_maybe_compressed_lock (depfile, depname);
-  free (depname);
-
-#pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
-	     numdep, ab_pairs, freerels, seconds (), wct_seconds () - wct0);
-    fflush (stderr);
+      cxx_mpz_functions M(F);
+
+      std::string message = fmt::format("Rat({})", numdep);
+      char * depname = get_depname (prefix, "", numdep);
+      std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
+      free(depname);
+
+      prod = accumulate(prd, M, message);
   }
 
-  struct multiplier {
-    void operator()(cxx_mpz & res, cxx_mpz const & a, cxx_mpz const & b, int MAYBE_UNUSED nthreads) const {
-          mpz_mul(res, a, b);
-      }
-  };
-
-  cxx_mpz prod = accumulate(prd, multiplier(), fmt::format("Rat({})", numdep));
-
-  /* we must divide by g1^ab_pairs: if the number of (a,b) pairs is odd, we
-     multiply by g1, and divide by g1^(ab_pairs+1) */
-  if (ab_pairs & 1)
-    mpz_mul (prod, prod, pol->pols[side]->coeff[1]);
+  /* we must divide by g1^nab: if the number of (a,b) pairs is odd, we
+     multiply by g1, and divide by g1^(nab+1) */
+  if (nab & 1)
+    mpz_mul (prod, prod, F->coeff[1]);
 
 #pragma omp critical
   {
@@ -422,6 +665,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
     fflush (stderr);
   }
 
+  cxx_mpz v;
   /* since we know we have a square, take the square root */
   mpz_sqrtrem (prod, v, prod);
 
@@ -477,10 +721,10 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
     fflush (stderr);
   }
 
-  /* now divide by g1^(ab_pairs/2) if ab_pairs is even, and g1^((ab_pairs+1)/2)
-     if ab_pairs is odd */
+  /* now divide by g1^(nab/2) if nab is even, and g1^((nab+1)/2)
+     if nab is odd */
 
-  mpz_powm_ui (v, pol->pols[side]->coeff[1], (ab_pairs + 1) / 2, Np);
+  mpz_powm_ui (v, F->coeff[1], (nab + 1) / 2, Np);
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
@@ -537,12 +781,51 @@ cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
     }
 }
 
+/* On purpose, this does not free the resources. Doing so would be
+ * premature optimization. In this file we knowingly call this function
+ * when we do _not_ want reallocation to happen.
+ */
+void cxx_mpz_polymod_scaled_set_ui(cxx_mpz_polymod_scaled & P, unsigned long x)
+{
+    P.v = 0;
+    mpz_poly_realloc(P.p, 1);
+    mpz_set_ui (P.p->coeff[0], x);
+    mpz_poly_cleandeg(P.p, 0);
+}
+
+/* This is the analogue of cxx_mpz_functions for the algebraic square
+ * root. Here, the object must carry a reference to the field polynomial
+ */
+struct cxx_mpz_polymod_scaled_functions {
+    typedef cxx_mpz_polymod_scaled T;
+    cxx_mpz_poly const & F;
+    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F) : F(F) {}
+    T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
+        return cxx_mpz_polymod_scaled_from_ab(a, b);
+    }
+    bool is1(T & res) const {
+        return res.p.degree() == 0 && res.v == 0 && mpz_cmp_ui(res.p->coeff[0], 1) == 0;
+    }
+    void set1(T & res) const {
+        cxx_mpz_polymod_scaled_set_ui(res, 1);
+    }
+    void operator()(T &res, T const & a, T const & b, int nthreads) const {
+        omp_set_num_threads (nthreads);
+        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+    }
+    void operator()(T &res, T const & a, T const & b) const {
+        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+    }
+};
+
+
 /* Reduce the coefficients of R in [-m/2, m/2) */
 static void
 mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
   int i;
 
+#pragma omp parallel for
   for (i=0; i <= R->deg; i++)
     mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
 }
@@ -963,18 +1246,13 @@ int
 calculateSqrtAlg (const char *prefix, int numdep,
                   cado_poly_ptr pol, int side, mpz_t Np)
 {
-  char *depname, *sidename;
-  FILE *depfile = NULL;
   FILE *resfile;
   unsigned long p;
   unsigned long nab = 0, nfree = 0;
 
   ASSERT_ALWAYS(side == 0 || side == 1);
 
-  depname = get_depname (prefix, "", numdep);
-  sidename = get_depsidename (prefix, numdep, side);
-  depfile = fopen_maybe_compressed_lock (depname, "rb");
-  ASSERT_ALWAYS(depfile != NULL);
+  char * sidename = get_depsidename (prefix, numdep, side);
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(pol->pols[side]);
@@ -982,31 +1260,13 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Accumulate product with a subproduct tree
   {
-      cxx_mpz a, b;
-      std::vector<cxx_mpz_polymod_scaled> prd;
-      while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
-        {
-          if(!(nab % 1000000))
-#pragma omp critical
-            {
-              fprintf(stderr, "Alg(%d): read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
-                      numdep, nab, seconds (), wct_seconds () - wct0,
-		      PeakMemusage () >> 10);
-              fflush (stderr);
-            }
-          if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
-            break;
-          prd.emplace_back(cxx_mpz_polymod_scaled_from_ab(a, b));
-          nab++;
-          if (mpz_cmp_ui (b, 0) == 0)
-            nfree++;
-        }
-#pragma omp critical
-      {
-	fprintf (stderr, "Alg(%d): read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
-		 numdep, nab, nfree, seconds (), wct_seconds () - wct0);
-	fflush (stderr);
-      }
+      cxx_mpz_polymod_scaled_functions M(F);
+
+      std::string message = fmt::format("Alg({})", numdep);
+      char * depname = get_depname (prefix, "", numdep);
+      std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
+      free(depname);
+
       ASSERT_ALWAYS ((nab & 1) == 0);
       ASSERT_ALWAYS ((nfree & 1) == 0);
       /* nfree being even is forced by a specific character column added
@@ -1029,20 +1289,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
        *    - this should finally give an even power of f_d in the
        *      denominator, and the algorithm can continue.
        */
-      fclose_maybe_compressed_lock (depfile, depname);
-      free (depname);
 
-      struct multiplier {
-          cxx_mpz_poly const & F;
-          multiplier(cxx_mpz_poly & F) : F(F) {}
-	void operator()(cxx_mpz_polymod_scaled &res, cxx_mpz_polymod_scaled const & a, cxx_mpz_polymod_scaled const & b, int nthreads) const {
-	  omp_set_num_threads (nthreads);
-	  cxx_mpz_polymod_scaled_mul(res, a, b, F);
-          }
-      };
-
-      prod = accumulate(prd, multiplier(F), fmt::format("Alg({})", numdep));
-    }
+      prod = accumulate(prd, M, message);
+  }
 
     p = FindSuitableModP(F, Np);
 #pragma omp critical
