@@ -312,12 +312,20 @@ void accumulate_level00(std::vector<T> & v, M const & m, std::string const & mes
      * -- we want a power of two, that is a strict condition. We'll
      *  strive to make pieces of balanced size.
      */
+    /* min_pieces per_thread is there so that each thread at level 0 has
+     * at least that many pieces to work on. Increasing this parameter
+     * allows more progress reporting, but more importantly this acts on
+     * the balance of the computation. (having "2 or 3" pieces to handle
+     * per threads leads to longer idle wait than if we have "16 or 17"
+     * pieces to handle, of course)
+     */
+    constexpr const unsigned int min_pieces_per_thread = 8;
     unsigned int n = 1;
-    for( ; (1UL << n) < 2 * nthr ; n++) ;
+    for( ; (1UL << n) < min_pieces_per_thread * nthr ; n++) ;
 
     if ((N >> n) < 16) {
         /* Don't bother with very small vectors. Here we have a vector of
-         * size less than 16*2*thr/2, so don't bother. */
+         * size less than 16*min_pieces_per_thread*thr/2, so don't bother. */
         for(size_t j = 1 ; j < v.size() ; j++) {
             /* use the instance with no multithreading. This is on
              * purpose, for small ranges and small objects.
