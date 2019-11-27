@@ -278,13 +278,14 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
     ASSERT_ALWAYS(!(vs & (vs - 1)));
 
   for(int level = 0 ; v.size() > 1 ; level++) {
-#pragma omp critical
+    #pragma omp critical
       {
-	fmt::fprintf (stderr, "%s: starting level %d at wct=%1.2fs, %zu values to multiply\n",
-		      message, level, wct_seconds () - wct0, v.size());
+	fmt::fprintf (stderr, "%s: starting level %d at cpu=%1.2fs (wct=%1.2fs), %zu values to multiply\n",
+		      message, level, seconds (), wct_seconds () - wct0, v.size());
 	fflush (stderr);
       }
 
+      double st = seconds (), wct = wct_seconds ();
       size_t N = v.size() - 1;
       int local_nthreads;
       /* the loop below performs floor((N+1)/2) products */
@@ -296,17 +297,17 @@ T accumulate(std::vector<T> & v, M const & m, std::string const & message)
           v[j+1] = T();
       }
 
-      /* shrink (not parallel) */
-#pragma omp critical
-      {
-	fmt::fprintf (stderr, "%s: shrinking level %d at wct=%1.2fs\n",
-		      message, level, wct_seconds () - wct0);
-	fflush (stderr);
-      }
+      /* shrink (not parallel), takes negligible time */
       for(size_t j = 2 ; j < v.size() ; j += 2) {
           std::swap(v[j], v[j/2]);
       }
       v.erase(v.begin() + (v.size() + 1) / 2, v.end());
+    #pragma omp critical
+      {
+	fmt::fprintf (stderr, "%s: level %d took cpu=%1.2fs (wct=%1.2fs)\n",
+		      message, level, seconds () - st, wct_seconds () - wct);
+	fflush (stderr);
+      }
   }
   return std::move(v.front());
 }
