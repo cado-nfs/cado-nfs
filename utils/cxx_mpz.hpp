@@ -15,7 +15,7 @@ public:
     typedef mp_limb_t WordType;
     mpz_t x;
     cxx_mpz() { mpz_init(x); }
-    template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
     cxx_mpz (const T & rhs) {
         gmp_auxx::mpz_init_set(x, rhs);
     }
@@ -28,7 +28,7 @@ public:
         mpz_set(x, o.x);
         return *this;
     }
-    template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
     cxx_mpz & operator=(const T a) {
         gmp_auxx::mpz_set(x, a);
         return *this;
@@ -129,9 +129,9 @@ extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be 
 
 #define CXX_MPZ_DEFINE_CMP(OP) \
 inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >   \
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
 inline bool operator OP(cxx_mpz const & a, const T b) { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >   \
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
 inline bool operator OP(const T a, cxx_mpz const & b) { return 0 OP gmp_auxx::mpz_cmp(b, a); }
 
 CXX_MPZ_DEFINE_CMP(==)
@@ -142,49 +142,49 @@ CXX_MPZ_DEFINE_CMP(<=)
 CXX_MPZ_DEFINE_CMP(>=)
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator+(cxx_mpz const & a, const T b) { cxx_mpz r; gmp_auxx::mpz_add(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator+(const T a, cxx_mpz const & b) { cxx_mpz r; gmp_auxx::mpz_add(r, b, a); return r; }
 
 inline cxx_mpz & operator+=(cxx_mpz & a, cxx_mpz const & b) { mpz_add(a, a, b); return a; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz & operator+=(cxx_mpz & a, const T b) { gmp_auxx::mpz_add(a, a, b); return a; }
 
 inline cxx_mpz operator-(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_sub(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator-(cxx_mpz const & a, const T b) { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator-(const T a, cxx_mpz const & b) { cxx_mpz r; gmp_auxx::mpz_sub(r, b, a); mpz_neg(r, r); return r; }
 
 inline cxx_mpz & operator-=(cxx_mpz & a, cxx_mpz const & b) { mpz_sub(a, a, b); return a; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz & operator-=(cxx_mpz & a, const T b)  { gmp_auxx::mpz_sub(a, a, b); return a; }
 
 inline cxx_mpz operator*(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_mul(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator*(cxx_mpz const & a, const T b)  { cxx_mpz r; gmp_auxx::mpz_mul(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator*(const T a, cxx_mpz const & b)  { cxx_mpz r; gmp_auxx::mpz_mul(r, b, a); return r; }
 
 inline cxx_mpz & operator*=(cxx_mpz & a, cxx_mpz const & b) { mpz_mul(a, a, b); return a; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz & operator*=(cxx_mpz & a, const T b)  { gmp_auxx::mpz_mul(a, a, b); return a; }
 
 inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_tdiv_q(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
 inline cxx_mpz operator/(cxx_mpz const & a, const T b)  { cxx_mpz r; mpz_tdiv_q_uint64(r, a, b); return r; }
 
 inline cxx_mpz & operator/=(cxx_mpz & a, cxx_mpz const & b) { mpz_tdiv_q(a, a, b); return a; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
 inline cxx_mpz & operator/=(cxx_mpz & a, const T b)  { mpz_tdiv_q_uint64(a, a, b); return a; }
 
 inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
 inline cxx_mpz operator%(cxx_mpz const & a, const T b)  { cxx_mpz r; mpz_tdiv_r_uint64(r, a, b); return r; }
 
 inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
-template <typename T, typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value, int>::type = 0 >
+template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
 inline cxx_mpz & operator%=(cxx_mpz & a, const T b)   { mpz_tdiv_r_uint64(a, a, b); return a; }
 
 inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
