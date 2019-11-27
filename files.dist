@@ -620,6 +620,8 @@ utils/modredc_ul.h
 utils/modredc_ul_default.h
 utils/mod_mpz.h
 utils/mod_mpz.c
+utils/mod_mpz_new.hpp
+utils/mod_mpz_new.cpp
 utils/mod_mpz_default.h
 utils/mod64.cpp
 utils/mod64.hpp

@@ -3,7 +3,7 @@ set (sources
         cado_poly.c timing.cpp getprime.c mod_ul.c relation.cpp
         relation-tools.c
         modredc_ul.c modredc_15ul.c modredc_2ul2.c modul_poly.c gmp_aux.c
-        mod64.cpp modredc64.cpp modredc126.cpp
+        mod64.cpp modredc64.cpp modredc126.cpp mod_mpz_new.cpp
         double_poly.cpp rootfinder.cpp params.c gcd.c
         gzip.c misc.c
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c

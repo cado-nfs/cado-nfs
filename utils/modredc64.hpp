@@ -106,7 +106,7 @@ public:
                                            shift);
     }
     ModulusREDC64(const ModulusREDC64 &s) : m(s.m), invm(s.invm), mrecip(s.mrecip), one(s) {one = s.one;}
-    ModulusREDC64 (const Integer s) : ModulusREDC64(s.get()[0]) {}
+    ModulusREDC64 (const Integer &s) : ModulusREDC64(s.getWord(0)) {}
     ~ModulusREDC64 () {}
 
     uint64_t getmod_u64 () const {return m;}
@@ -125,7 +125,7 @@ public:
       u64arith_redc (&r.r, plow, phigh, m, invm);
       tomontgomery (r, r);
     }
-    void set (Residue &r, const Integer s) const {set(r, s.get()[0]);}
+    void set (Residue &r, const Integer &s) const {set(r, s.getWord(0));}
 
     /* Sets the residue_t to the class represented by the integer s. Assumes that
        s is reduced (mod m), i.e. 0 <= s < m */
@@ -134,7 +134,7 @@ public:
       r.r = s;
       tomontgomery (r, r);
     }
-    void set_reduced (Residue &r, const Integer s) const {set_reduced(r, s.get()[0]);}
+    void set_reduced (Residue &r, const Integer &s) const {set_reduced(r, s.getWord(0));}
     void set_int64 (Residue &r, const int64_t s) const {set(r, llabs(s)); if (s < 0) neg(r, r);}
     void set0 (Residue &r) const {r.r = 0;}
     void set1 (Residue &r) const {r = one;}
