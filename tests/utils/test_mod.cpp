@@ -13,6 +13,7 @@
 #include "mod64.hpp"
 #include "modredc64.hpp"
 #include "modredc126.hpp"
+#include "mod_mpz_new.hpp"
 
 template <typename T>
 T randomInteger();
@@ -27,7 +28,18 @@ Integer128 randomInteger<Integer128>() {
     return Integer128(random_uint64(), random_uint64());
 }
 
- 
+template<>
+cxx_mpz randomInteger<cxx_mpz>() {
+    cxx_mpz r;
+    uint64_t randomWords[10];
+    size_t len = random_uint64() % 10 + 1;
+    for (size_t i = 0; i < len; i++)
+        randomWords[i] = random_uint64();
+    const bool ok = r.set(randomWords, len);
+    ASSERT_ALWAYS(ok);
+    return r;
+}
+
 template <class T, typename = typename T::Residue>
 class Tests {
 public:
@@ -44,7 +56,7 @@ public:
         return (cxx_mpz) n;
     }
 
-    bool test_init(Integer n) const {
+    bool test_one_init(Integer n) const {
         if (!T::valid(n))
             return true;
         Modulus m(n);
@@ -54,7 +66,7 @@ public:
         Integer one;
         m.get(one, r);
         if (one != 1){
-            std::cerr << "Precomputed constant 1 wrong for modulus " << n << std::endl;
+            std::cerr << typeid(T).name() << " Precomputed constant 1 wrong for modulus " << n << std::endl;
             std::cerr << one << std::endl;
             return false;
         } else {
@@ -62,15 +74,15 @@ public:
         }
     }
 
-    bool tests_init() const {
+    bool test_init() const {
         bool ok = true;
-        ok &= test_init(Integer(727));
+        ok &= test_one_init(Integer(727));
 
         const uint64_t a[] = {1, 1};
         Integer n;
         if (n.set(a, 2)) {
             for (uint64_t i = 0; i < 10; i++)
-                ok &= test_init(n + 2*i);
+                ok &= test_one_init(n + 2*i);
         }
         if (ok) {
             std::cout << "tests<" << typeid(T).name() << ">::tests_init() passed" << std::endl;
@@ -93,7 +105,7 @@ public:
             cxx_mpz R1;
             mpz_mod(R1, A, N);
             if (R1 != R) {
-                std::cerr << "tests<" << typeid(T).name() << ">::set(" << A << ") wrong for modulus " << N << std::endl;
+                std::cerr << typeid(T).name() << "::set(" << A << ") wrong for modulus " << N << std::endl;
                 return false;
             }
         }
@@ -112,7 +124,7 @@ public:
         mpz_mul(R, A, A);
         mpz_mod(R, R, N);
         if (R != (cxx_mpz) r) {
-            std::cerr << A << "^2 mod " << n << " wrong result: " << r << std::endl;
+            std::cerr << typeid(T).name() << "::sqr(" << A << ") mod " << n << " wrong result: " << r << std::endl;
             return false;
         }
         return true;
@@ -131,7 +143,7 @@ public:
         mpz_mul(R, A, B);
         mpz_mod(R, R, N);
         if (R != (cxx_mpz) r) {
-            std::cerr << A << " * " << B << " mod " << N << " wrong result: " << r << std::endl;
+            std::cerr << typeid(T).name() << "::mul(" << A << ", " << B << ") mod " << N << " wrong result: " << r << std::endl;
             return false;
         }
         return true;
@@ -239,7 +251,7 @@ public:
 
     cxx_mpz compute_mpz_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
         cxx_mpz B = (cxx_mpz) base, E, R, N = (cxx_mpz) n;
-        mpz_import(E, len, -1, sizeof(uint64_t), 0, 0, exponent);
+        E.set(exponent, len);
         mpz_powm(R, B, E, N);
         return R;
     }
@@ -249,22 +261,32 @@ public:
             return true;
         Modulus m(n);
         Residue p(m), b(m);
-        Integer r;
+        Integer r, e;
         cxx_mpz R;
         R = compute_mpz_pow(base, exponent, len, n);
+        
+        const bool eFitsInt = e.set(exponent, len);
         
         m.set(b, base);
         m.pow(p, b, exponent, len);
         m.get(r, p);
         if (R != (cxx_mpz) r) {
-            std::cerr << "pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
+            std::cerr << typeid(T).name() << "::pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
             return false;
+        }
+        if (eFitsInt) {
+            m.pow(p, b, e);
+            m.get(r, p);
+            if (R != (cxx_mpz) r) {
+                std::cerr << typeid(T).name() << "::pow(" << base << ", " << e << ") mod " << n << " wrong result: " << r << std::endl;
+                return false;
+            }
         }
         if (len == 1) {
             m.pow(p, b, exponent[0]);
             m.get(r, p);
             if (R != (cxx_mpz) r) {
-                std::cerr << "pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << std::endl;
+                std::cerr << typeid(T).name() << "::pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << std::endl;
                 return false;
             }
         }
@@ -272,14 +294,22 @@ public:
             m.pow2(p, exponent, len);
             m.get(r, p);
             if (R != (cxx_mpz) r) {
-                std::cerr << "pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
+                std::cerr << typeid(T).name() << "::pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << std::endl;
                 return false;
+            }
+            if (eFitsInt) {
+                m.pow2(p, e);
+                m.get(r, p);
+                if (R != (cxx_mpz) r) {
+                    std::cerr << typeid(T).name() << "::pow2(" << e << ") mod " << n << " wrong result: " << r << std::endl;
+                    return false;
+                }
             }
             if (len == 1) {
                 m.pow2(p, exponent[0]);
                 m.get(r, p);
                 if (R != (cxx_mpz) r) {
-                    std::cerr << "pow2(" << exponent << ") mod " << n << " wrong result: " << r << std::endl;
+                    std::cerr << typeid(T).name() << "::pow2(" << exponent << ") mod " << n << " wrong result: " << r << std::endl;
                     return false;
                 }
             }
@@ -287,42 +317,39 @@ public:
         return true;
     }
 
-    bool test_one_pow(const Integer &base, const Integer &exponent, const Integer &n) const {
-        uint64_t e[exponent.size()];
-        exponent.get(e, exponent.size());
-        return test_one_pow(base, e, exponent.size(), n);
-    }
-
     bool test_pow(const unsigned long iter) const {
         Integer n;
+        uint64_t e = 3;
         bool ok = true;
-        ok &= test_one_pow(Integer(2), Integer(3), Integer(727));
-        for (uint64_t e = 0; e < 20; e++) {
+        ok &= test_one_pow(Integer(2), &e, 1, Integer(727));
+        for (e = 0; e < 20; e++) {
             for (uint64_t b = 2; b < 20; b++) {
-                ok &= test_one_pow(Integer(b), Integer(e), Integer(727));
+                ok &= test_one_pow(Integer(b), &e, 1, Integer(727));
             }
         }
         uint64_t a1[] = {1,1};
         if (n.set(a1, 2)) {
-            ok &= test_one_pow(Integer(2), Integer(3), n);
+            e = 3;
+            ok &= test_one_pow(Integer(2), &e, 1, n);
         }
 
         for (unsigned long i = 0; i < iter; i++) {
             Modulus m = randomModulus();
-            Integer b = randomInteger<Integer>(),
-                    e = randomInteger<Integer>();
-            Integer e1 = Integer(random_uint64()); /* Always < 2^64 */
+            Integer b = randomInteger<Integer>();
             m.getmod(n);
             
-            ok &= test_one_pow(Integer(2), e, n);
-            ok &= test_one_pow(b, e, n);
-            ok &= test_one_pow(Integer(2), e1, n);
-            ok &= test_one_pow(b, e1, n);
             const size_t maxlen = 10;
             uint64_t e2[maxlen];
             size_t len = random_uint64() % (maxlen - 1) + 1;
             for (size_t i = 0; i < len; i++)
                 e2[i] = random_uint64();
+            ok &= test_one_pow(Integer(2), e2, 1, n);
+            ok &= test_one_pow(b, e2, 1, n);
+            if (len >= 2) {
+                ok &= test_one_pow(Integer(2), e2, 2, n);
+                ok &= test_one_pow(b, e2, 2, n);
+            }
+            ok &= test_one_pow(Integer(2), e2, len, n);
             ok &= test_one_pow(b, e2, len, n);
         }
         
@@ -633,7 +660,7 @@ public:
     
     bool runTests(const unsigned long iter) const {
         bool ok = true;
-        ok &= tests_init();
+        ok &= test_init();
         ok &= test_set(iter);
         ok &= test_mul();
         ok &= test_divn(iter);
@@ -665,6 +692,15 @@ ModulusREDC126 Tests<ModulusREDC126>::randomModulus(const bool odd MAYBE_UNUSED)
     return ModulusREDC126(m);
 }
 
+template<>
+ModulusMPZ Tests<ModulusMPZ>::randomModulus(const bool odd) const {
+    ModulusMPZ::Integer i = randomInteger<ModulusMPZ::Integer>();
+    if (odd && mpz_even_p(i))
+        i += 1;
+    ModulusMPZ m(i);
+    return m;
+}
+
 int main(int argc, const char **argv) {
     unsigned long iter = 100;
     bool ok = true;
@@ -681,6 +717,8 @@ int main(int argc, const char **argv) {
     Tests<ModulusREDC126> test3;
     ok &= test3.runTests(iter);
     
+    Tests<ModulusMPZ> test4;
+    ok &= test4.runTests(iter);
   
     tests_common_clear();
     exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);

@@ -41,30 +41,33 @@ using enable_if_t = typename std::enable_if<B, T>::type;
 
    In particular, both T and U must be integral types, must have the same
    signedness, and the maximal permissible value of type T must be no greater
-   that that of U. (We assume value ranges of signed types to be symmetric
-   around 0).
+   that that of U. (We assume value ranges of signed types to be essentially
+   symmetric around 0).
 
    Example use:
 
-   template <typename T, typename integral_fits_t<T, long>::type = 0 >
+   template <typename T, integral_fits_t<T, long> = 0 >
    void print(T v) {printf("%ld\n", (long) v);}
-   template <typename T, typename integral_fits_t<T, unsigned long>::type = 0 >
+   template <typename T, integral_fits_t<T, unsigned long> = 0 >
    void print(T v) {printf("%lu\n", (unsigned long) v);}
 */
 
 template <typename T, typename U>
-struct integral_fits {
+struct integral_fits_ {
     static constexpr bool value = std::is_integral<T>::value && std::is_integral<U>::value &&
                                   std::is_signed<T>::value == std::is_signed<U>::value &&
                                   std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
 };
 
 template <typename T, typename U, typename = void>
-struct integral_fits_t : std::false_type {};
+struct integral_fits : std::false_type {};
 
 template <typename T, typename U >
-struct integral_fits_t<T, U, std::enable_if_t<integral_fits<T, U>::value, void>> : std::true_type {
+struct integral_fits<T, U, std::enable_if_t<integral_fits_<T, U>::value, void>> : std::true_type {
     typedef bool type;
 };
+
+template <typename T, typename U >
+using integral_fits_t = typename integral_fits<T, U>::type;
 
 #endif	/* CXX_MISC_HPP_ */
