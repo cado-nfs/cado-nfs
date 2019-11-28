@@ -311,6 +311,11 @@ tasks.sieve.adjust_strategy = 0         # Sieving strategy
     # This keeps the amount of memory used constant, and just runs
     # faster.
 
+#tasks.sieve.fbcache = ...
+    # Gives the location of the factor-base cache file. Using such a cache
+    # speeds up the sieving initialization. If the file does not exists,
+    # it is created.
+
 ###########################################################################
 # Filtering task
 ###########################################################################
