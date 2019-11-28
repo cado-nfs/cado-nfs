@@ -313,7 +313,7 @@ tasks.sieve.adjust_strategy = 0         # Sieving strategy
 
 #tasks.sieve.fbcache = ...
     # Gives the location of the factor-base cache file. Using such a cache
-    # speeds up the sieving initialization. If the file does not exists,
+    # speeds up the sieving initialization. If the file does not exist,
     # it is created.
 
 ###########################################################################
