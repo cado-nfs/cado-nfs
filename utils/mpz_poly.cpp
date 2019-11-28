@@ -30,6 +30,7 @@
 #include "usp.h"
 #include "double_poly.h"
 #include "cxx_mpz.hpp"
+#include "timing.h"
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
@@ -1921,7 +1922,7 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
 			mpz_srcptr invf)
 {
   mpz_t aux, c;
-  size_t size_m, size_f;
+  size_t size_f, size_R;
 
   if (f == NULL)
     goto reduce_R;
@@ -1933,8 +1934,8 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
       mpz_invert (aux, m, f->coeff[f->deg]);
     }
 
-  size_m = mpz_size (m);
   size_f = mpz_poly_size (f);
+  size_R = mpz_poly_size (R);
 
   mpz_init (c);
   // FIXME: write a subquadratic variant
@@ -1955,8 +1956,10 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
 	 2n here. However, in the equal-degree factorization, even if f[deg]
 	 = O(1), the lower coefficients of f might have n bits. Thus we decide
 	 to reduce whenever the total size exceeds 2n. */
-      if (mpz_size (c) + size_f > 2 * size_m)
+      size_t size_c = mpz_size (c);
+      if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);
+#pragma omp parallel for      
       for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
 	mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
       R->deg--;
