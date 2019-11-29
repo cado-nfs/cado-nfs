@@ -97,6 +97,17 @@ GMP_AUXX_DEFINE_FUNC3_U(submul)
 GMP_AUXX_DEFINE_FUNC3_S(submul)
 GMP_AUXX_DEFINE_FUNC3_U(divexact)
 
+template <typename T, integral_fits_t<T, unsigned long> = 0 >
+static inline void
+mpz_sub (mpz_ptr a, T b, mpz_srcptr c) {
+    return mpz_ui_sub(a, b, c);
+}
+
+static inline void
+mpz_sub (mpz_ptr a, uint64_t b, mpz_srcptr c) {
+    return mpz_uint64_sub(a, b, c);
+}
+
 static inline int mpz_divisible_p (mpz_ptr a, mpz_srcptr c) {
     return ::mpz_divisible_p(a, c);
 }
