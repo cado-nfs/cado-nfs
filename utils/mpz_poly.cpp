@@ -1872,19 +1872,83 @@ mpz_poly_makemonic_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr m)
   mpz_clear(aux);
 }
 
+/* Algorithm 2.5 from "Modern Computer Arithmetic" */
+static void
+barrett_precompute_inverse (mpz_ptr invm, mpz_srcptr m)
+{
+  size_t n = mpz_sizeinbase (m, 2);
+  ASSERT_ALWAYS(mpz_cmp_ui (m, 0) > 0);
+  /* with B = 2^n, we have B/2 <= m < B */
+  mpz_set_ui (invm, 0);
+  mpz_setbit (invm, 2 * n); /* invm = B^2 */
+  mpz_tdiv_q (invm, invm, m); /* floor(B^2/m) */
+}
+
+/* r <- a mod m */
+static void
+mpz_mod_barrett (mpz_ptr r, mpz_srcptr a, mpz_srcptr m, mpz_srcptr invm)
+{
+  size_t n = mpz_sizeinbase (m, 2);
+  mpz_srcptr r_or_a = a;
+
+  while (mpz_sizeinbase (r_or_a, 2) > n + 1)
+    {
+      mpz_t a1;
+      size_t sr = mpz_sizeinbase (r_or_a, 2);
+      mpz_init (a1);
+      /* if sr <= 2n we consider the sr-n most significant bits of r,
+	 otherwise we take the n most significant bits */
+      mpz_tdiv_q_2exp (a1, r_or_a, (sr <= 2 * n) ? n : sr - n);
+      mpz_mul (a1, a1, invm);
+      mpz_tdiv_q_2exp (a1, a1, n);
+      mpz_mul (a1, a1, m);
+      /* if sr > 2*n we have to multiply by 2^(sr-2n) */
+      if (sr >= 2 * n)
+	mpz_mul_2exp (a1, a1, sr - 2 * n);
+      mpz_sub (r, r_or_a, a1);
+      r_or_a = r;
+      mpz_clear (a1);
+    }
+  /* now r_or_a has at most n bits */
+  while (mpz_cmpabs (r_or_a, m) >= 0)
+    {
+      if (mpz_cmp_ui (r_or_a, 0) > 0)
+	mpz_sub (r, r_or_a, m);
+      else
+	mpz_add (r, r_or_a, m);
+      r_or_a = r;
+    }
+  /* now |r_or_a| < m */
+  if (mpz_cmp_ui (r_or_a, 0) < 0)
+    {
+      mpz_add (r, r_or_a, m);
+      r_or_a = r;
+    }
+  /* now 0 <= r_or_a < m */
+  if (r_or_a == a && r != a)
+    mpz_set (r, r_or_a);
+}
+
 /* Coefficients of A need not be reduced mod m
  * Coefficients of R are reduced mod m
  */
 int
 mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
 {
+  mpz_t invm;
+
+  mpz_init (invm);
+  barrett_precompute_inverse (invm, m);
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
   for (int i = 0; i <= A->deg; ++i)
-    mpz_mod (R->coeff[i], A->coeff[i], m);
+    mpz_mod_barrett (R->coeff[i], A->coeff[i], m, invm);
+    // mpz_mod (R->coeff[i], A->coeff[i], m);
+
+  mpz_clear (invm);
 
   mpz_poly_cleandeg(R, A->deg);
   return R->deg;
