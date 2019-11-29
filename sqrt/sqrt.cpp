@@ -950,7 +950,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_poly_pow_mod_f_mod_ui(D, delta, F, t, p);
     for (i = 0; i <= s-1; ++i) {
       mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
-      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL);
+      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
       mpz_ui_pow_ui(aux, 2, (s-1-i));
       mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
       if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
@@ -962,7 +962,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_divexact_ui(m, m, 2);
     mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
 
-    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL);
+    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL, NULL);
     mpz_poly_clear(D);
     mpz_poly_clear(A);
     mpz_clear(m);
@@ -1042,7 +1042,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz (A, A, pk);
+  mpz_poly_mod_mpz (A, A, pk, NULL);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -1102,6 +1102,8 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   // of A computed modulo p.
 
   mpz_poly tmp;
+  mpz_t invpk;
+  mpz_init (invpk);
   mpz_poly_init (tmp, 2*d-1);
   do {
     double st;
@@ -1141,6 +1143,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         mpz_div_ui (pk, pk, p);
         k --;
       }
+    barrett_precompute_inverse (invpk, pk);
     k = K[logk];
 #pragma omp critical
     {
@@ -1153,7 +1156,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL); /* tmp = invsqrtA^2 */
+    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1168,7 +1171,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL); /* tmp=a*invsqrtA^2 */
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1181,7 +1184,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL);
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
     if (verbose)
 #pragma omp critical
       {
@@ -1193,12 +1196,14 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
     mpz_poly_sub_mod_mpz (invsqrtA, invsqrtA, tmp, pk);
 
+
   } while (k < target_k);
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
   wct = wct_seconds ();
-  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL);
+  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
     {
