@@ -1212,7 +1212,7 @@ class WorkunitProcessor(object):
                 mangled.append(repl)
         # apply the overrides even to flags which were *NOT* present in
         # the initial command line.
-        for f,v in self.settings["override"]:
+        for f,v in self.settings["OVERRIDE"]:
             if f in used_overrides:
                 continue
             mangled.append('-' + f)
