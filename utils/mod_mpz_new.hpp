@@ -54,10 +54,11 @@ protected:
         uint64_t t = s;
         for (size_t i = 0; i < limbsToWrite; i++) {
             r[i] = t & GMP_NUMB_MASK;
-            if (GMP_NUMB_BITS < 64)
+#if GMP_NUMB_BITS < 64
                 t >>= GMP_NUMB_BITS;
-            else
+#else
                 t = 0;
+#endif
         }
         ASSERT_ALWAYS(t == 0);
     }
