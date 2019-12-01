@@ -4835,8 +4835,12 @@ class SqrtTask(Task):
             (stdoutpath, stderrpath) = \
                 self.make_std_paths(cadoprograms.Sqrt.name)
             self.logger.info("Creating file of (a,b) values")
+            purged = self.merged_args[0].pop("purged", None)
+            index = self.merged_args[0].pop("index", None)
+            kernel = self.merged_args[0].pop("kernel", None)
             p = cadoprograms.Sqrt(ab=True,
-                    prefix=prefix, stdout=str(stdoutpath),
+                    prefix=prefix, purged=purged, index=index, kernel=kernel,
+                    stdout=str(stdoutpath),
                     stderr=str(stderrpath), **self.merged_args[0])
             message = self.submit_command(p, "", log_errors=True)
             if message.get_exitcode(0) != 0:

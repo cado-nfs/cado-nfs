@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
+#include <omp.h>
 #include "portability.h"
 #include "mpz_poly.h"
 #include "lll.h"
@@ -313,22 +314,30 @@ mpz_poly_mul_tc (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 
   /* store g(tc_points[i])*h(tc_points[i]) in f[i] for 0 <= i <= t */
 
-  /* the first evaluation point is 0 */
   ASSERT(tc_points[0] == 0);
-  mpz_mul (f[0], g[0], h[0]);
 
-  for (i = 1; i < t; i++)
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = 0; i <= t; i++)
     {
-      /* f[i] <- g(i) */
-      mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
-      /* f[t] <- h(i) */
-      mpz_poly_mul_eval_si (f[t], h, s, tc_points[i]);
-      /* f[i] <- g(i)*h(i) */
-      mpz_mul (f[i], f[i], f[t]);
+      if (i == 0) /* evaluate at 0 */
+	mpz_mul (f[0], g[0], h[0]);
+      else if (i == t) /* evaluate at infinity */
+	mpz_mul (f[t], g[r], h[s]);
+      else
+	{
+	  mpz_t tmp;
+	  mpz_init (tmp);
+	  /* f[i] <- g(i) */
+	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
+	  /* f[t] <- h(i) */
+	  mpz_poly_mul_eval_si (tmp, h, s, tc_points[i]);
+	  /* f[i] <- g(i)*h(i) */
+	  mpz_mul (f[i], f[i], tmp);
+	  mpz_clear (tmp);
+	}
     }
-
-  /* last evaluation point is infinity */
-  mpz_mul (f[t], g[r], h[s]);
 
   mpz_poly_mul_tc_interpolate (f, t);
 
@@ -506,19 +515,24 @@ mpz_poly_sqr_tc (mpz_t *f, mpz_t *g, int r)
 
   /* store g(tc_points[i])^2 in f[i] for 0 <= i <= t */
 
-  /* first evaluation point is 0 */
   ASSERT(tc_points[0] == 0);
-  mpz_mul (f[0], g[0], g[0]);
 
-  for (i = 1; i < t; i++)
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = 0; i <= t; i++)
     {
-      /* f[i] <- g(i) */
-      mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
-      mpz_mul (f[i], f[i], f[i]);
+      if (i == 0) /* evaluate at 0 */
+	mpz_mul (f[0], g[0], g[0]);
+      else if (i == t) /* evaluate at infinity */
+	mpz_mul (f[t], g[r], g[r]);
+      else
+	{
+	  /* f[i] <- g(i) */
+	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
+	  mpz_mul (f[i], f[i], f[i]);
+	}
     }
-
-  /* last evaluation point is infinity */
-  mpz_mul (f[t], g[r], g[r]);
 
   mpz_poly_mul_tc_interpolate (f, t);
 
@@ -1131,22 +1145,18 @@ void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
    Note: f can be the same as g or h;
          g can be the same as h. */
 void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
-  int i, maxdeg;
-  mpz_t z;
-  mpz_init(z);
-  maxdeg = max(g->deg, h->deg);
+  int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
-  for (i = 0 ; i <= maxdeg ; i++) {
-    if (i <= g->deg)
-      mpz_set(z, g->coeff[i]);
+#pragma omp parallel for  
+  for (int i = 0 ; i <= maxdeg ; i++) {
+    if (i <= g->deg && i <= h->deg)
+        mpz_sub(f->coeff[i], g->coeff[i], h->coeff[i]);
+    else if (i <= g->deg)
+        mpz_set(f->coeff[i], g->coeff[i]);
     else
-      mpz_set_ui(z, 0);
-    if (i <= h->deg)
-      mpz_sub(z, z, h->coeff[i]);
-    mpz_set(f->coeff[i], z);
+        mpz_neg(f->coeff[i], h->coeff[i]);
   }
   f->deg = maxdeg;
-  mpz_clear(z);
   mpz_poly_cleandeg(f, maxdeg);
 }
 
@@ -1309,16 +1319,19 @@ void
 mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
   int i;
-  mpz_t aux;
 
-  mpz_init (aux);
   Q->deg = P->deg;
-  for (i = 0; i <= P->deg; ++i)
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = 0; i <= P->deg; i++)
     {
+      mpz_t aux;
+      mpz_init (aux);
       mpz_mul (aux, P->coeff[i], a);
       mpz_poly_setcoeff (Q, i, aux);
+      mpz_clear (aux);
     }
-  mpz_clear (aux);
 }
 
 /* Set Q=P/a, where a is an mpz_t. Assume a divides the content of P (the
@@ -1658,6 +1671,9 @@ void mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m)
 
   mpz_poly_realloc (f, g->deg + 1);
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (i = g->deg; i >= 0; --i)
     {
       if (mpz_scan1 (g->coeff[i], 0) == 0) /* g[i] is odd */
@@ -1863,6 +1879,9 @@ mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
 {
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (int i = 0; i <= A->deg; ++i)
     mpz_mod (R->coeff[i], A->coeff[i], m);
 
@@ -2320,6 +2339,7 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
   pk = (mpz_t*) malloc (l * sizeof (mpz_t));
   FATAL_ERROR_CHECK (pk == NULL, "not enough memory");
   mpz_init_set_ui (pk[0], p);
+  /* this loop cannot be parallelized, since pk[i] depends on pk[i-1] */
   for (i = 1; i < l; i++)
   {
     mpz_init (pk[i]);
@@ -2338,12 +2358,19 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
      thus l+2 polynomials */
   P = (mpz_poly*) malloc ((l + 2) * sizeof(mpz_poly));
   FATAL_ERROR_CHECK (P == NULL, "not enough memory");
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (i = 0; i < l + 2; i++)
     mpz_poly_init (P[i], P0->deg);
   /* P[l+1] is initialized to 0 by mpz_poly_init */
 
   /* initialize P[k], and put remainder in P[k-1] */
-  for (k = l, i = 0; i <= P0->deg; i++)
+  k = l;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = 0; i <= P0->deg; i++)
     mpz_tdiv_qr (P[k]->coeff[i], P[k-1]->coeff[i], P0->coeff[i], pk[k-1]);
   mpz_poly_cleandeg (P[k], P0->deg);
 
@@ -2351,6 +2378,9 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
   for (j = l-1; j >= 1; j--)
   {
     /* reduce P[j] into P[j] and P[j-1] */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
     for (i = 0; i <= P0->deg; i++)
       mpz_tdiv_qr (P[j]->coeff[i], P[j-1]->coeff[i], P[j]->coeff[i],
                    pk[j-1]);
@@ -2358,6 +2388,9 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
   }
   mpz_poly_cleandeg (P[0], P0->deg);
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for (i = 0; i < l; i++)
     mpz_clear (pk[i]);
   free (pk);
@@ -2377,10 +2410,17 @@ mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
 
   mpz_poly_realloc (a, P[k]->deg + 1);
 
-  for (i = 0; i <= P[k]->deg && i <= a->deg; i++)
+  int imax = (P[k]->deg < a->deg) ? P[k]->deg : a->deg;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = 0; i <= imax; i++)
     mpz_addmul (a->coeff[i], P[k]->coeff[i], pk);
 
-  for (; i <= P[k]->deg; i++)
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (i = imax + 1; i <= P[k]->deg; i++)
     mpz_mul (a->coeff[i], P[k]->coeff[i], pk);
 
   mpz_poly_cleandeg (a, (a->deg >= P[k]->deg) ? a->deg : P[k]->deg);
