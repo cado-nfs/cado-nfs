@@ -278,9 +278,10 @@ tasks.I = 11
     # Thus -I 11 corresponds to -A 21, -I 12 corresponds to -A 23.
     # Even values allow a finer tuning, for example -A 22 would correspond
     # to -I 11.5 (which is not allowed).
-    # The sieving area is split depending on the adjust_strategy option,
-    # for example with -A 20 it might be split in 2^10 times 2^10 for a
-    # given special-q, and in 2^11 times 2^9 for another one.
+    # The sieving area is split depending on the adjust_strategy option.
+    # For example with -adjust-strategy 2 and -A 20 it might be split in
+    # 2^10 times 2^10 for a given special-q, and in 2^11 times 2^9 for
+    # another one.
 
 
 tasks.sieve.sqside = 1
@@ -302,7 +303,12 @@ tasks.sieve.qrange = 10000		# The size of an elementary sieving task
     # individual tasks.
 
 tasks.sieve.adjust_strategy = 0         # Sieving strategy
-    # The sieving strategy can be 0 (default), 1, or 2.
+    # The sieving strategy can be 0 (default), 1, or 2 ; this controls
+    # the shape of the sieving area in the (i,j) plane (which
+    # incorporates a change of basis that depends on the special-q).
+    # adjust_strategy = 0 : constant width and adaptive height.
+    # adjust_strategy = 1 : constant width and fixed height. Usually a bad idea.
+    # adjust_strategy = 2 : adaptive width and height, constant area.
     # Values 1 or 2 require more work than 0, but usually give more relations.
 
 #tasks.sieve.rels_wanted = 1
