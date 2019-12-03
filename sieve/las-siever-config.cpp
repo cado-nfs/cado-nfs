@@ -12,8 +12,8 @@
 
 void siever_config::declare_usage(param_list_ptr pl)
 {
-    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
-    param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
+    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -I (2*x-1)");
+    param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
     param_list_decl_usage(pl, "lim0", "factor base bound on side 0");
     param_list_decl_usage(pl, "lim1", "factor base bound on side 1");
     param_list_decl_usage(pl, "lpb0", "set large prime bound on side 0 to 2^lpb0");
