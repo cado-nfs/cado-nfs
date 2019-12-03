@@ -272,6 +272,15 @@ tasks.I = 11
     # Note: now I is used also in the polynomial selection (for the computation
     # of Murphy's E value) thus we define it at the "tasks" level, not at the
     # "tasks.sieve" level.
+# tasks.A = 21
+    # Instead of -I 11, the lattice siever also accepts -A 21 to set the
+    # sieving area. The option -A nnn sets the sieving area to 2^nnn.
+    # Thus -I 11 corresponds to -A 21, -I 12 corresponds to -A 23.
+    # Even values allow a finer tuning, for example -A 22 would correspond
+    # to -I 11.5 (which is not allowed).
+    # The sieving area is split depending on the adjust_strategy option,
+    # for example with -A 20 it might be split in 2^10 times 2^10 for a
+    # given special-q, and in 2^11 times 2^9 for another one.
 
 
 tasks.sieve.sqside = 1
