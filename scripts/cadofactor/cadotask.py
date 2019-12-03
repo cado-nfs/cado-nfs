@@ -2172,7 +2172,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
-            "N": int, "I": int, "qmin": int, "lpb1": int, "lpb0": int,
+            "N": int, "I": [int], "A": [int], "qmin": int, "lpb1": int, "lpb0": int,
             "batch": [int], "import_ropt": [str]})
     @property
     def stat_conversions(self):
@@ -2215,7 +2215,17 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             self.best_polys = [self.bestpoly]
         self.state.setdefault("nr_poly_submitted", 0)
         # I don't understand why the area is based on one particular side.
-        self.progparams[0].setdefault("area", 2.**(2*self.params["I"]-1) \
+        if "I" in self.params:
+            areabits=2*self.params["I"]-1
+        elif "A" in self.params:
+            areabits=self.params["A"]
+        else:
+            msg = "Required parameter I or A not found " \
+                  "for polyselects's area, under %s ; " \
+                  "consider setting tasks.I or tasks.A" % path
+            logger.critical(msg)
+            raise KeyError(msg)
+        self.progparams[0].setdefault("area", 2.**areabits \
                 * self.params["qmin"])
         # on Sep 26, 2018, changed Bf,Bg from lim1/lim0 to 2^lpb1/2^lpb0
         self.progparams[0].setdefault("Bf", float(2**self.params["lpb1"]))
@@ -2534,7 +2544,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         return self.join_params(super().paramnames, {
             "N": int, "modr": 0, "nrkeep": 20,
             "bound": int, "modm": int, "degree": int,
-            "I": int,
+            "I": [int],
+            "A": [int],
             "lim1": int, "lim0": int,
             "lpb0": int, "lpb1": int,
             "qmin": 0, "ell": int, "fastSM" : False
@@ -2550,8 +2561,17 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         qmin = self.params["qmin"]
         if qmin == 0:
             qmin = max(self.params["lim0"], self.params["lim1"])
-        self.progparams[0].setdefault("area", 2.**(2*self.params["I"]-1) \
-                * qmin)
+        if "I" in self.params:
+            areabits=2*self.params["I"]-1
+        elif "A" in self.params:
+            areabits=self.params["A"]
+        else:
+            msg = "Required parameter I or A not found " \
+                  "for polyselects's area, under %s ; " \
+                  "consider setting tasks.I or tasks.A" % path
+            logger.critical(msg)
+            raise KeyError(msg)
+        self.progparams[0].setdefault("area", 2.**areabits * qmin)
         self.progparams[0].setdefault("Bf", float(2**self.params["lpb1"]))
         self.progparams[0].setdefault("Bg", float(2**self.params["lpb0"]))
         if self.params["fastSM"]:
@@ -2822,7 +2842,7 @@ class FactorBaseTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"gzip": True, "I": int, "lim0": int, "lim1": int})
+                {"gzip": True, "I": [int], "A": [int], "lim0": int, "lim1": int})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -2834,7 +2854,16 @@ class FactorBaseTask(Task):
             assert "poly" in self.state
             assert "lim1" in self.state
             # The target file must correspond to the polynomial "poly"
-        self.progparams[0].setdefault("maxbits", self.params["I"])
+        if "I" in self.params:
+            self.progparams[0].setdefault("maxbits", self.params["I"])
+        elif "A" in self.params:
+            self.progparams[0].setdefault("maxbits", (self.params["A"]+1)//2)
+        else:
+            msg = "Required parameter I or A not found " \
+                  "for makefb's maxbits under %s ; " \
+                  "consider setting tasks.I or tasks.A" % path
+            logger.critical(msg)
+            raise KeyError(msg)
     
     def run(self):
         super().run()

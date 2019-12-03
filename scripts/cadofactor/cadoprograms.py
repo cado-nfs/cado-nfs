@@ -797,9 +797,10 @@ class Las(Program):
     name = binary
     subdir = "sieve"
     def __init__(self,
-                 I: Parameter(checktype=int),
                  poly: Parameter(is_input_file=True),
                  q0: Parameter(checktype=int),
+                 I: Parameter(checktype=int)=None,
+                 A: Parameter(checktype=int)=None,
                  q1: Parameter(checktype=int)=None,
                  rho: Parameter(checktype=int)=None,
                  skipped: Parameter(checktype=int)=None,
@@ -853,6 +854,10 @@ class Las(Program):
                  fbcache: Parameter("fbc")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+        if "I" not in self.parameters and "A" not in self.parameters:
+            raise KeyError("Lattice siever requires either I or A be set -- consider setting tasks.I or tasks.A")
+            
+
 
 
 class Duplicates1(Program):
