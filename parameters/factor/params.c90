@@ -307,7 +307,7 @@ tasks.sieve.adjust_strategy = 0         # Sieving strategy
     # the shape of the sieving area in the (i,j) plane (which
     # incorporates a change of basis that depends on the special-q).
     # adjust_strategy = 0 : constant width and adaptive height.
-    # adjust_strategy = 1 : constant width and fixed height. Usually a bad idea.
+    # adjust_strategy = 1 : same, but adapt height differently. Rarely pays off
     # adjust_strategy = 2 : adaptive width and height, constant area.
     # Values 1 or 2 require more work than 0, but usually give more relations.
 
