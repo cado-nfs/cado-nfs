@@ -89,6 +89,19 @@ typedef struct {
 } facul_strategies_t;
 
 
+/*  Required functionality:
+    From an integer of any class/bitlength, initialise the fastest Modulus class and return a pointer to it or its base class.
+    - need base class for Modulus classes
+    - need base class for Integer classes with virtual size()/get()
+    - need Factory method to generate the Modulus class: Modulus *initModulus(Integer i);
+    From the Modulus class, call the correct facul implementation
+    What is performance effect of having a virtual method in a base class? Does it add overhead when calling the final method in the final class?
+
+    With templates:
+    Need modset_t(Integer i) for each Integer class.
+*/
+
+
 struct modset_t {
   /* The arith variable tells which modulus type has been initialised for 
      arithmetic. It has a value of CHOOSE_NONE if no modulus currently 
@@ -105,12 +118,26 @@ struct modset_t {
   modulusredc15ul_t m_15ul;
   modulusredc2ul2_t m_2ul2;
   modulusmpz_t m_mpz;
+  void clear ();
+  void get_z (mpz_t) const;
+
+  /* Run the relevant mod_isprime() function, using the arithmetic selected in the modset */
+  int isprime () const
+  {
+    switch (arith) {
+    case CHOOSE_UL:
+      return modredcul_isprime (m_ul);
+    case CHOOSE_15UL:
+      return modredc15ul_isprime (m_15ul);
+    case CHOOSE_2UL2:
+      return modredc2ul2_isprime (m_2ul2);
+    case CHOOSE_MPZ:
+      return modmpz_isprime (m_mpz);
+    default:
+      abort();
+    }
+  }
 };
-
-
-void
-modset_clear (struct modset_t *);
-
 
 facul_method_t* facul_make_default_strategy (int, const int);
 void facul_clear_methods (facul_method_t*);
@@ -132,11 +159,6 @@ void facul_clear_strategies (facul_strategies_t*);
 int
 facul_fprint_strategies (FILE*, facul_strategies_t* );
 
-
-void
-modset_clear (struct modset_t *modset);
-
-void modset_get_z (mpz_t, const struct modset_t*);
 
 std::array<int,2>
 facul_both (std::array<std::vector<cxx_mpz>, 2>&, std::array<cxx_mpz, 2> & ,

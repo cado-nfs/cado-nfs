@@ -734,7 +734,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 
             /* fm is a non-trivial composite factor */
             cxx_mpz t;
-            modset_get_z (t, &fm[j]);
+            fm[j].get_z (t);
 
             /* t should be composite, i.e., t >= BB */
             ASSERT(mpz_cmp_d (t, BB) >= 0);

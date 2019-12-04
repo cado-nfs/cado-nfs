@@ -1081,26 +1081,26 @@ facul_fprint_strategies (FILE* file, facul_strategies_t* strategies)
 }
 
 void
-modset_get_z (mpz_t z, const struct modset_t *modset)
+modset_t::get_z (mpz_t z) const
 {
-  ASSERT_ALWAYS(modset->arith != modset_t::CHOOSE_NONE);
-  switch (modset->arith)
+  ASSERT_ALWAYS(arith != CHOOSE_NONE);
+  switch (arith)
     {
-    case modset_t::CHOOSE_UL:
-      mpz_set_ui (z, modset->m_ul->m);
+    case CHOOSE_UL:
+      mpz_set_ui (z, m_ul->m);
       break;
-    case modset_t::CHOOSE_15UL:
-      mpz_set_ui (z, modset->m_15ul->m[1]);
+    case CHOOSE_15UL:
+      mpz_set_ui (z, m_15ul->m[1]);
       mpz_mul_2exp (z, z, LONG_BIT);
-      mpz_add_ui (z, z, modset->m_15ul->m[0]);
+      mpz_add_ui (z, z, m_15ul->m[0]);
       break;
-    case modset_t::CHOOSE_2UL2:
-      mpz_set_ui (z, modset->m_2ul2->m[1]);
+    case CHOOSE_2UL2:
+      mpz_set_ui (z, m_2ul2->m[1]);
       mpz_mul_2exp (z, z, LONG_BIT);
-      mpz_add_ui (z, z, modset->m_2ul2->m[0]);
+      mpz_add_ui (z, z, m_2ul2->m[0]);
       break;
-    case modset_t::CHOOSE_MPZ:
-      mpz_set (z, modset->m_mpz);
+    case CHOOSE_MPZ:
+      mpz_set (z, m_mpz);
       break;
     default:
       ASSERT_ALWAYS(0);
@@ -1202,13 +1202,13 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
           if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
 	    {
 	      found = FACUL_NOT_SMOOTH;
-	      modset_clear (&cfm);
-	      modset_clear (&fm);
+	      cfm.clear ();
+	      fm.clear ();
 	      break;
 	    }
 	  else
 	    found += found2;
-	  modset_clear (&fm);
+	  fm.clear ();
 	}
       if (cfm.arith != modset_t::CHOOSE_NONE)
 	{
@@ -1220,7 +1220,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
           }
 	  else
 	    found += found2;
-	  modset_clear (&cfm);
+	  cfm.clear ();
 	  break;
 	}
       break;
@@ -1395,10 +1395,10 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
 	  }
 
  clean_up:
-  modset_clear (&f[0][0]);
-  modset_clear (&f[0][1]);
-  modset_clear (&f[1][0]);
-  modset_clear (&f[1][1]);
+  f[0][0].clear ();
+  f[0][1].clear ();
+  f[1][0].clear ();
+  f[1][1].clear ();
   return found;
 }
 
@@ -1492,8 +1492,8 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
     }
 
   // Free
-  modset_clear (&n[0]);
-  modset_clear (&n[1]);
+  n[0].clear ();
+  n[1].clear ();
 
   return found;
 }
@@ -1505,25 +1505,26 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
 
 
 void
-modset_clear (modset_t *modset)
+modset_t::clear ()
 {
-  switch (modset->arith) {
-      case modset_t::CHOOSE_NONE: /* already clear */
+  switch (arith) {
+      case CHOOSE_NONE: /* already clear */
     break;
-      case modset_t::CHOOSE_UL:
-    modredcul_clearmod (modset->m_ul);
+      case CHOOSE_UL:
+    modredcul_clearmod (m_ul);
     break;
-      case modset_t::CHOOSE_15UL:
-    modredc15ul_clearmod (modset->m_15ul);
+      case CHOOSE_15UL:
+    modredc15ul_clearmod (m_15ul);
     break;
-      case modset_t::CHOOSE_2UL2:
-    modredc2ul2_clearmod (modset->m_2ul2);
+      case CHOOSE_2UL2:
+    modredc2ul2_clearmod (m_2ul2);
     break;
-      case modset_t::CHOOSE_MPZ:
-    modmpz_clearmod (modset->m_mpz);
+      case CHOOSE_MPZ:
+    modmpz_clearmod (m_mpz);
     break;
   default:
     ASSERT_ALWAYS(0);
   }
-  modset->arith = modset_t::CHOOSE_NONE;
+  arith = CHOOSE_NONE;
 }
+
