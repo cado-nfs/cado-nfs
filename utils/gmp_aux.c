@@ -46,6 +46,14 @@ mpn_copyd(mp_limb_t *rp, const mp_limb_t *up, mp_size_t n)
 }
 #endif
 
+#if !GMP_VERSION_ATLEAST(6,1,0)
+int mpn_zero_p(const mp_limb_t *rp, mp_size_t n)
+{
+    for( ; n-- ; ) if (rp[n]) return 0;
+    return 1;
+}
+#endif
+
 #if ULONG_BITS < 64
 /* Set z to q. Warning: on 32-bit machines, we cannot use mpz_set_ui! */
 void
@@ -712,4 +720,3 @@ int mpz_p_valuation_ui(mpz_srcptr a, unsigned long p)
     mpz_clear(c);
     return v;
 }
-

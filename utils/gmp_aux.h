@@ -158,6 +158,10 @@ void mpn_copyi(mp_limb_t *rp, const mp_limb_t * up, mp_size_t n);
 void mpn_copyd(mp_limb_t *rp, const mp_limb_t * up, mp_size_t n);
 #endif
 
+#if !GMP_VERSION_ATLEAST(6,1,0)
+int mpn_zero_p(const mp_limb_t *rp, mp_size_t n);
+#endif
+
 #ifndef HAVE_MPIR
 
 /* Yes, it's a bit ugly of course. */
