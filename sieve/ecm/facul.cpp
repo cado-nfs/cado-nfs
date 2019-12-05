@@ -1256,10 +1256,6 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
     return found;
 
   modset_t f[2][2];
-  f[0][0].arith = modset_t::CHOOSE_NONE;
-  f[0][1].arith = modset_t::CHOOSE_NONE;
-  f[1][0].arith = modset_t::CHOOSE_NONE;
-  f[1][1].arith = modset_t::CHOOSE_NONE;
 #ifdef ENABLE_UNSAFE_FACUL_STATS
   int stats_nb_side = 0, stats_index_transition = 0;
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
@@ -1418,8 +1414,6 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
   found.fill(0);
 
   modset_t n[2];
-  n[0].arith = modset_t::CHOOSE_NONE;
-  n[1].arith = modset_t::CHOOSE_NONE;
 
 #ifdef PARI
   gmp_fprintf (stderr, "(%Zd %Zd)", N[0], N[1]);

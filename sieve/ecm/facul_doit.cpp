@@ -114,8 +114,6 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
   mod_intinit (f);
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
-  fm.arith = modset_t::CHOOSE_NONE;
-  cfm.arith = modset_t::CHOOSE_NONE;
   
   for (i = method_start; strategy->methods[i].method != 0; i++)
     {

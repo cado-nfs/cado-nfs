@@ -118,6 +118,10 @@ struct modset_t {
   modulusredc15ul_t m_15ul;
   modulusredc2ul2_t m_2ul2;
   modulusmpz_t m_mpz;
+  
+  modset_t() : arith(CHOOSE_NONE) {}
+  ~modset_t() {clear();}
+  
   void clear ();
   void get_z (mpz_t) const;
 
