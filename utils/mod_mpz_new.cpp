@@ -123,7 +123,12 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
     for (size_t i = 1; i < sz; i++) {
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
-        u64arith_mul_1_1_2(&t1, &t2, t0, b);
+        // while sizeof(mp_limb_t) == sizeof(uint64_t), it does not mean
+        // that mp_limb_t and uint64_t are typedef'ed to the same type.
+        // One might be unsigned long, and the other unsigned long long,
+        // in which case we need pointer casts to avoid a compiler
+        // warning.
+        u64arith_mul_1_1_2((uint64_t *) &t1, (uint64_t *) &t2, t0, b);
 #elif GMP_LIMB_BITS == ULONG_BITS
         ularith_mul_ul_ul_2ul(&t1, &t2, t0, b);
 #else
@@ -144,7 +149,8 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
     if (1) {
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
-        u64arith_mul_1_1_2(&t1, &t2, t0, b);
+        // see remark above.
+        u64arith_mul_1_1_2((uint64_t *) &t1, (uint64_t *) &t2, t0, b);
 #elif GMP_LIMB_BITS == ULONG_BITS
         ularith_mul_ul_ul_2ul(&t1, &t2, t0, b);
 #else
