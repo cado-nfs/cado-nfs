@@ -52,11 +52,33 @@ using enable_if_t = typename std::enable_if<B, T>::type;
    void print(T v) {printf("%lu\n", (unsigned long) v);}
 */
 
+/* Note: with gcc 9.2.1, a debug build can't instantiate the full check
+ * "both integral + same sign + compatible maxval" lazily, and therefore
+ * we get a warning. So we have to resort to an ugly workaround.
+ */
+
+template <typename T, typename U>
+struct integral_fits_pre_ {
+    static constexpr bool value = std::is_integral<T>::value && std::is_integral<U>::value &&
+                                  std::is_signed<T>::value == std::is_signed<U>::value;
+};
+
+template<bool pre_flag, typename T, typename U>
+struct integral_fits_post;
+
+template<typename T, typename U>
+struct integral_fits_post<true, T, U> {
+    static constexpr bool value = std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
+};
+template<typename T, typename U>
+struct integral_fits_post<false, T, U> {
+    static constexpr bool value = false;
+};
+
 template <typename T, typename U>
 struct integral_fits_ {
-    static constexpr bool value = std::is_integral<T>::value && std::is_integral<U>::value &&
-                                  std::is_signed<T>::value == std::is_signed<U>::value &&
-                                  std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
+    static constexpr bool value_pre = integral_fits_pre_<T, U>::value;
+    static constexpr bool value = integral_fits_post<value_pre, T, U>::value;
 };
 
 template <typename T, typename U, typename = void>
