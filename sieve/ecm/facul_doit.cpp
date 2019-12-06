@@ -31,50 +31,8 @@ cxx_mpz mod_intget_cxx_mpz(const modint_t x) {
 static inline void 
 modset_init (struct modset_t *modset, modint_t m)
 {
-  const size_t bits = mod_intbits (m);
-  ASSERT(bits <= MOD_MAXBITS);
-  ASSERT_ALWAYS(modset->arith == modset_t::CHOOSE_NONE);
-  if (bits <= MODREDCUL_MAXBITS)
-    {
-      modset->arith = modset_t::CHOOSE_UL;
-      modredcul_initmod_ul (modset->m_ul, mod_intget_ul(m));
-    }
-#if     MOD_MAXBITS > MODREDCUL_MAXBITS
-  else if (bits <= MODREDC15UL_MAXBITS)
-    {
-      unsigned long t1[2];
-      modintredc15ul_t t2;
-      size_t nr_words = mod_intget_uls(t1, m);
-      ASSERT_ALWAYS(nr_words <= 2);
-      modredc15ul_intset_uls (t2, t1, nr_words);
-      modset->arith = modset_t::CHOOSE_15UL;
-      modredc15ul_initmod_int (modset->m_15ul, t2);
-    }
-#endif
-#if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-  else if (bits <= MODREDC2UL2_MAXBITS)
-    {
-      unsigned long t1[2];
-      modintredc2ul2_t t2;
-      size_t nr_words = mod_intget_uls(t1, m);
-      ASSERT_ALWAYS(nr_words <= 2);
-      modredc2ul2_intset_uls (t2, t1, nr_words);
-      modset->arith = modset_t::CHOOSE_2UL2;
-      modredc2ul2_initmod_int (modset->m_2ul2, t2);
-    }
-#endif
-#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-  else if (bits <= MODMPZ_MAXBITS)
-    {
-      /* We assume for now that m is a modintmpz_t */
-      modset->arith = modset_t::CHOOSE_MPZ;
-      modmpz_initmod_int (modset->m_mpz, m);
-    }
-#endif
-  else
-      abort();
+  modset->MOD_APPEND_TYPE(init)(m);
 }
-
 
 static inline int 
 modset_call_facul(std::vector<cxx_mpz> & factors, const struct modset_t *modset, 

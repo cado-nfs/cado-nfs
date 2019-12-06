@@ -1452,8 +1452,8 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
 	  mpz_export (t, &written, -1, sizeof(unsigned long), 0, 0, N[side]);
 	  ASSERT_ALWAYS(written <= 2);
 	  modredc15ul_intset_uls (m, t, written);
-	  modredc15ul_initmod_int (n[side].m_15ul, m);
 	  n[side].arith = modset_t::CHOOSE_15UL;
+	  modredc15ul_initmod_int (n[side].m_15ul, m);
 	}
       else if (bits <= MODREDC2UL2_MAXBITS)
 	{
@@ -1520,5 +1520,115 @@ modset_t::clear ()
     ASSERT_ALWAYS(0);
   }
   arith = CHOOSE_NONE;
+}
+
+/* This should be overloaded, but all the mod_int types are passed as
+ * pointers to unsigned long, so they are indistinguishable in the
+ * function signature. Thus we cannot use a function template, either,
+ * as all the instances of the template would have the same signature. */
+
+void
+modset_t::init_ul (modintredcul_t m)
+{
+  ASSERT_ALWAYS(arith == CHOOSE_NONE);
+  arith = CHOOSE_UL;
+  modredcul_initmod_int (m_ul, m);
+}
+
+void
+modset_t::init_15ul (modintredc15ul_t m)
+{
+  const size_t bits = modredc15ul_intbits (m);
+  ASSERT_ALWAYS(arith == CHOOSE_NONE);
+  if (bits <= MODREDCUL_MAXBITS)
+    {
+      unsigned long t1[1];
+      size_t nr_words = modredc15ul_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 1);
+      arith = modset_t::CHOOSE_UL;
+      modredcul_initmod_ul (m_ul, t1[0]);
+    }
+  else if (bits <= MODREDC15UL_MAXBITS)
+    {
+      arith = CHOOSE_15UL;
+      modredc15ul_initmod_int (m_15ul, m);
+    }
+  else
+      abort();
+}
+
+void
+modset_t::init_2ul2 (modintredc2ul2_t m)
+{
+  const size_t bits = modredc2ul2_intbits (m);
+  ASSERT_ALWAYS(arith == CHOOSE_NONE);
+  if (bits <= MODREDCUL_MAXBITS)
+    {
+      unsigned long t1[1];
+      size_t nr_words = modredc2ul2_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 1);
+      arith = CHOOSE_UL;
+      modredcul_initmod_ul (m_ul, t1[0]);
+    }
+  else if (bits <= MODREDC15UL_MAXBITS)
+    {
+      unsigned long t1[2];
+      modintredc15ul_t t2;
+      size_t nr_words = modredc2ul2_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 2);
+      modredc15ul_intset_uls (t2, t1, nr_words);
+      arith = CHOOSE_15UL;
+      modredc15ul_initmod_int (m_15ul, t2);
+    }
+  else if (bits <= MODREDC2UL2_MAXBITS)
+    {
+      arith = CHOOSE_2UL2;
+      modredc2ul2_initmod_int (m_2ul2, m);
+    }
+  else
+      abort();
+}
+
+void
+modset_t::init_mpz (modintmpz_t m)
+{
+  const size_t bits = modmpz_intbits (m);
+  ASSERT_ALWAYS(arith == CHOOSE_NONE);
+  if (bits <= MODREDCUL_MAXBITS)
+    {
+      unsigned long t1[1];
+      size_t nr_words = modmpz_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 1);
+      arith = CHOOSE_UL;
+      modredcul_initmod_ul (m_ul, t1[0]);
+    }
+  else if (bits <= MODREDC15UL_MAXBITS)
+    {
+      unsigned long t1[2];
+      modintredc15ul_t t2;
+      size_t nr_words = modmpz_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 2);
+      modredc15ul_intset_uls (t2, t1, nr_words);
+      arith = CHOOSE_15UL;
+      modredc15ul_initmod_int (m_15ul, t2);
+    }
+  else if (bits <= MODREDC2UL2_MAXBITS)
+    {
+      unsigned long t1[2];
+      modintredc2ul2_t t2;
+      size_t nr_words = modmpz_intget_uls(t1, m);
+      ASSERT_ALWAYS(nr_words <= 2);
+      modredc2ul2_intset_uls (t2, t1, nr_words);
+      arith = CHOOSE_2UL2;
+      modredc2ul2_initmod_int (m_2ul2, t2);
+    }
+  else if (bits <= MODMPZ_MAXBITS)
+    {
+      /* We assume for now that m is a modintmpz_t */
+      arith = CHOOSE_MPZ;
+      modmpz_initmod_int (m_mpz, m);
+    }
+  else
+      abort();
 }
 

@@ -123,6 +123,11 @@ struct modset_t {
   ~modset_t() {clear();}
   
   void clear ();
+  void init_ul (modintredcul_t m);
+  void init_15ul (modintredc15ul_t m);
+  void init_2ul2 (modintredc2ul2_t m);
+  void init_mpz (modintmpz_t m);
+
   void get_z (mpz_t) const;
 
   /* Run the relevant mod_isprime() function, using the arithmetic selected in the modset */
