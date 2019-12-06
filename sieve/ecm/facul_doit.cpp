@@ -1,5 +1,6 @@
 #include "cado.h"
 #include "facul_doit.hpp"
+#include "modset.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"

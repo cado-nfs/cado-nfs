@@ -8,6 +8,7 @@
 #include <list>
 #include <sstream>
 #include "batch.hpp"
+#include "modset.hpp"
 #include "utils.h"
 
 /* This function is useful in the openmp context. This segment goes

@@ -367,12 +367,15 @@ sieve/ecm/ec_arith_Weierstrass.h
 sieve/ecm/ec_parameterization.h
 sieve/ecm/facul.cpp
 sieve/ecm/facul.hpp
+sieve/ecm/facul_fwd.hpp
 sieve/ecm/facul_doit.cpp
 sieve/ecm/facul_doit.hpp
 sieve/ecm/facul_doit_15ul.cpp
 sieve/ecm/facul_doit_2ul2.cpp
 sieve/ecm/facul_doit_mpz.cpp
 sieve/ecm/facul_doit_ul.cpp
+sieve/ecm/modset.hpp
+sieve/ecm/modset.cpp
 sieve/ecm/makeplan.c
 sieve/ecm/pm1.c
 sieve/ecm/pm1.h
