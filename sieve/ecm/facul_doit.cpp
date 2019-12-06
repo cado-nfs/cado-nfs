@@ -34,32 +34,6 @@ modset_init (struct modset_t *modset, modint_t m)
   modset->MOD_APPEND_TYPE(init)(m);
 }
 
-static inline int 
-modset_call_facul(std::vector<cxx_mpz> & factors, const struct modset_t *modset, 
-                  const facul_strategy_t *strategy, const int method_start)
-{
-  switch (modset->arith) {
-      case modset_t::CHOOSE_UL:
-          return facul_doit_ul (factors, modset->m_ul, strategy, method_start);
-#if     MOD_MAXBITS > MODREDCUL_MAXBITS
-      case modset_t::CHOOSE_15UL:
-          return facul_doit_15ul (factors, modset->m_15ul, strategy, method_start);
-          break;
-#endif
-#if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-      case modset_t::CHOOSE_2UL2:
-          return facul_doit_2ul2 (factors, modset->m_2ul2, strategy, method_start);
-          break;
-#endif
-#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-      case modset_t::CHOOSE_MPZ:
-          return facul_doit_mpz (factors, modset->m_mpz, strategy, method_start);
-          break;
-#endif
-      default: abort();
-  }
-}
-
 int
 facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m, 
 	    const facul_strategy_t *strategy, const int method_start)
@@ -268,7 +242,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
           int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite factor. Use the same method again so that
 	     backtracking can separate the factors */
-          found2 = modset_call_facul (factors, &fm, strategy, i);
+          found2 = fm.call_facul (factors, strategy, i);
 	  fm.clear ();
 	  if (found2 == FACUL_NOT_SMOOTH) {
             found = FACUL_NOT_SMOOTH;
@@ -287,7 +261,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 	{
 	  int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite cofactor */
-	  found2 = modset_call_facul (factors, &cfm, strategy, i + 1);
+	  found2 = cfm.call_facul (factors, strategy, i + 1);
 	  cfm.clear ();
 	  if (found2 == FACUL_NOT_SMOOTH)
 	    {

@@ -1632,3 +1632,23 @@ modset_t::init_mpz (modintmpz_t m)
       abort();
 }
 
+int 
+modset_t::call_facul(std::vector<cxx_mpz> & factors, 
+    const facul_strategy_t *strategy, const int method_start) const
+{
+  switch (arith) {
+      case CHOOSE_UL:
+          return facul_doit_ul (factors, m_ul, strategy, method_start);
+      case CHOOSE_15UL:
+          return facul_doit_15ul (factors, m_15ul, strategy, method_start);
+          break;
+      case CHOOSE_2UL2:
+          return facul_doit_2ul2 (factors, m_2ul2, strategy, method_start);
+          break;
+      case CHOOSE_MPZ:
+          return facul_doit_mpz (factors, m_mpz, strategy, method_start);
+          break;
+      default: abort();
+  }
+}
+

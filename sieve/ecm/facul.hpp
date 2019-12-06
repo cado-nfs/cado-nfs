@@ -89,16 +89,9 @@ typedef struct {
 } facul_strategies_t;
 
 
-/*  Required functionality:
-    From an integer of any class/bitlength, initialise the fastest Modulus class and return a pointer to it or its base class.
-    - need base class for Modulus classes
-    - need base class for Integer classes with virtual size()/get()
-    - need Factory method to generate the Modulus class: Modulus *initModulus(Integer i);
-    From the Modulus class, call the correct facul implementation
-    What is performance effect of having a virtual method in a base class? Does it add overhead when calling the final method in the final class?
-
-    With templates:
-    Need modset_t(Integer i) for each Integer class.
+/* This is kind of a poor man's runtime polymorphism. It's like a base class
+ * of Modulus classes with a factory method that initialises the most
+ * efficient modular arithmetic for a given modulus.
 */
 
 
@@ -129,6 +122,8 @@ struct modset_t {
   void init_mpz (modintmpz_t m);
 
   void get_z (mpz_t) const;
+  int call_facul(std::vector<cxx_mpz> & factors,
+    const facul_strategy_t *strategy, const int method_start) const;
 
   /* Run the relevant mod_isprime() function, using the arithmetic selected in the modset */
   int isprime () const
