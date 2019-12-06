@@ -78,7 +78,7 @@
 #
 # Example values:
 # CFLAGS=-O2
-# CFLAGS="-O3 -funroll-loops -DNDEBUG"
+# CFLAGS="-O3 -march=native -funroll-loops -DNDEBUG"
 # CFLAGS=-g
 # CFLAGS="-O2 -DNDEBUG"
 #
@@ -98,7 +98,7 @@
 # CXXFLAGS=-O2
 # CXXFLAGS=-g
 # CXXFLAGS="-O2 -DNDEBUG"
-# CXXFLAGS="-O3 -funroll-loops -DNDEBUG"
+# CXXFLAGS="-O3 -march=native -funroll-loops -DNDEBUG"
 # CXXFLAGS="-O3 -funroll-loops -DNDEBUG -Wno-empty-body"
 #
 # Important note: CXXFLAGS lives totally independently of CFLAGS.
