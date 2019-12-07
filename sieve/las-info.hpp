@@ -203,13 +203,5 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 };
 /* }}} */
 
-enum {
-  OUTPUT_CHANNEL,
-  ERROR_CHANNEL,
-  STATS_CHANNEL,
-  TRACE_CHANNEL,
-  NR_CHANNELS /* This must be the last element of the enum */
-};
-
 
 #endif	/* LAS_INFO_HPP_ */

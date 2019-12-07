@@ -38,7 +38,7 @@ class fb_slice_weight_estimator {
     }
     inline double mertens(sl_t const & sl) const { return mertens(sl, sl._begin, sl._end); }
 
-/* Compute weight exactly with a sum over all entries */
+    /* Compute weight exactly with a sum over all entries */
     inline double exact(sl_t const &, it_t a, it_t b) const {
         double s = 0;
         for(it_t x = a ; x != b ; ++x) s += x->weight();
