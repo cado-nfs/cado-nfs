@@ -1,5 +1,5 @@
 #include "cado.h"
-#include "las-output-channel.hpp"
+#include "las-output.hpp"
 #include "utils.h"
 #include "las-config.h"
 
@@ -35,14 +35,14 @@ static void las_verbose_leave()
 
 /*{{{ stuff related to las output: -out, -stats-stderr, and so on. */
 
-void las_output_channel::fflush()
+void las_output::fflush()
 {
     verbose_output_start_batch();
     ::fflush(output);
     verbose_output_end_batch();
 }
 
-void las_output_channel::set(cxx_param_list & pl)
+void las_output::set(cxx_param_list & pl)
 {
     ASSERT_ALWAYS(output == NULL);
     output = stdout;
@@ -65,7 +65,7 @@ void las_output_channel::set(cxx_param_list & pl)
  * references to pl which is local -- Thus we want to control the exact
  * time where fclose is called.
  */
-void las_output_channel::release()
+void las_output::release()
 {
     if (outputname)
         fclose_maybe_compressed(output, outputname);
@@ -74,13 +74,13 @@ void las_output_channel::release()
 }
 
 
-void las_output_channel::configure_switches(cxx_param_list & pl)
+void las_output::configure_switches(cxx_param_list & pl)
 {
     param_list_configure_switch(pl, "-stats-stderr", NULL);
     param_list_configure_switch(pl, "-v", NULL);
 }
 
-void las_output_channel::declare_usage(cxx_param_list & pl)
+void las_output::declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "v",    "verbose mode, also prints sieve-area checksums");
     param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");

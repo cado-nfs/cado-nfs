@@ -1,10 +1,10 @@
-#ifndef LAS_OUTPUT_CHANNEL_HPP_
-#define LAS_OUTPUT_CHANNEL_HPP_
+#ifndef LAS_output_HPP_
+#define LAS_output_HPP_
 
 #include "params.h"
 #include <cstdio>
 
-struct las_output_channel {
+struct las_output {
     int verbose = 1;
     /* outputname is owned by pl, and output by the libc. We want to
      * control when these get released, with the release() function */
@@ -24,11 +24,11 @@ struct las_output_channel {
  * pointers. This should be fixed. (_channel_outputs in verbose.c)
  */
 enum {
-  OUTPUT_CHANNEL,
+  output,
   ERROR_CHANNEL,
   STATS_CHANNEL,
   TRACE_CHANNEL,
   NR_CHANNELS /* This must be the last element of the enum */
 };
 
-#endif	/* LAS_OUTPUT_CHANNEL_HPP_ */
+#endif	/* LAS_output_HPP_ */

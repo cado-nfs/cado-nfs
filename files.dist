@@ -1372,5 +1372,5 @@ utils/fmt/printf.h
 scripts/resubmit-tools.sh
 linalg/bwc/README.IntelMPI
 linalg/bwc/README.OpenMPI
-sieve/las-output-channel.cpp
-sieve/las-output-channel.hpp
+sieve/las-output.cpp
+sieve/las-output.hpp

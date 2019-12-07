@@ -51,7 +51,7 @@
 #include "las-process-bucket-region.hpp"
 #include "las-galois.hpp"
 #include "las-parallel.hpp"
-#include "las-output-channel.hpp"
+#include "las-output.hpp"
 
 #include "memusage.h"
 #include "tdict.hpp"
@@ -79,7 +79,7 @@ double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
 
 double tt_qstart;
 
-las_output_channel las_output;
+las_output main_output;
 
 /*****************************/
 
@@ -1578,7 +1578,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
         BOOKKEEPING_TIMER(timer);
     }
 
-    if (las_output.verbose >= 2)
+    if (main_output.verbose >= 2)
         taux.update_checksums(tws);
 
     /* rep.ttf does not count the asynchronous time spent in
@@ -1644,14 +1644,14 @@ static void configure_aliases(cxx_param_list & pl)
 {
     las_info::configure_aliases(pl);
     param_list_configure_alias(pl, "log-bucket-region", "B");
-    las_output_channel::configure_aliases(pl);
+    las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }
 
 static void configure_switches(cxx_param_list & pl)
 {
     las_info::configure_switches(pl);
-    las_output_channel::configure_switches(pl);
+    las_output::configure_switches(pl);
     tdict::configure_switches(pl);
 
     param_list_configure_switch(pl, "-allow-largesq", &allow_largesq);
@@ -1678,7 +1678,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     las_info::declare_usage(pl);
     las_parallel_desc::declare_usage(pl);
     las_todo_list::declare_usage(pl);
-    las_output_channel::declare_usage(pl);
+    las_output::declare_usage(pl);
     tdict::declare_usage(pl);
 
     param_list_decl_usage(pl, "trialdiv-first-side", "begin trial division on this side");
@@ -2164,7 +2164,7 @@ size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & sc0, la
             max_memory = memory;
         }
     }
-    if (logImin != logImax || las_output.verbose < 2 + hush)
+    if (logImin != logImax || main_output.verbose < 2 + hush)
         verbose_output_print(0, 0 + hush,
                 "# Expected memory use per subjob (max reached for logI=%d):"
                 " %s\n",
@@ -2372,11 +2372,11 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
     where_am_I & w(aux.w);
 
     /* essentially update the fij polynomials and the max log bounds */
-    if (las_output.verbose >= 2) {
+    if (main_output.verbose >= 2) {
         verbose_output_print (0, 1, "# f_0'(x) = ");
-        mpz_poly_fprintf(las_output.output, ws.sides[0].lognorms.fij);
+        mpz_poly_fprintf(main_output.output, ws.sides[0].lognorms.fij);
         verbose_output_print (0, 1, "# f_1'(x) = ");
-        mpz_poly_fprintf(las_output.output, ws.sides[1].lognorms.fij);
+        mpz_poly_fprintf(main_output.output, ws.sides[1].lognorms.fij);
     }
 
 #ifdef TRACE_K
@@ -2760,7 +2760,7 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
                 if (global_exit_semaphore)
                     break;
             }
-            las_output.fflush();
+            main_output.fflush();
             las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
             if (!doing_p) break;
             las_todo_entry& doing(*doing_p);
@@ -2778,9 +2778,9 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
                 if (las.tree.depth() == 0) {
                     if (recursive_descent) {
                         /* BEGIN TREE / END TREE are for the python script */
-                        fprintf(las_output.output, "# BEGIN TREE\n");
-                        las.tree.display_last_tree(las_output.output);
-                        fprintf(las_output.output, "# END TREE\n");
+                        fprintf(main_output.output, "# BEGIN TREE\n");
+                        las.tree.display_last_tree(main_output.output);
+                        fprintf(main_output.output, "# END TREE\n");
                     }
                     las.tree.visited.clear();
                 }
@@ -3009,7 +3009,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
     set_LOG_BUCKET_REGION();
 
-    las_output.set(pl);
+    main_output.set(pl);
 
     las_info las(pl);    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
@@ -3032,7 +3032,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                     (mpz_srcptr) doing.p,
                     (mpz_srcptr) doing.r);
         }
-        las_output.release();
+        main_output.release();
         return EXIT_SUCCESS;
     }
 
@@ -3150,7 +3150,7 @@ int main (int argc0, char *argv0[])/*{{{*/
 #ifdef DLP_DESCENT
     if (recursive_descent) {
         verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
-        las.tree.display_all_trees(las_output.output);
+        las.tree.display_all_trees(main_output.output);
     }
 #endif
 
@@ -3188,7 +3188,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                     sc0.sides[side].lim,
                     1UL << las.batchlpb[side],
                     las.cpoly->pols[side],
-                    las_output.output,
+                    main_output.output,
                     las.number_of_threads_loose(),
                     extra_time);
         }
@@ -3202,7 +3202,7 @@ int main (int argc0, char *argv0[])/*{{{*/
          */
 	find_smooth (las.L,
                 batchP, las.batchlpb, lpb, las.batchmfb,
-                las_output.output,
+                main_output.output,
                 las.number_of_threads_loose(),
                 extra_time);
 
@@ -3227,7 +3227,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 las.batchlpb,
                 lpb,
                 ncurves,
-		las_output.output,
+		main_output.output,
                 las.number_of_threads_loose(),
                 extra_time);
         verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
@@ -3293,8 +3293,8 @@ int main (int argc0, char *argv0[])/*{{{*/
     global_rt.rep.display_survivor_counters();
 
 
-    if (las_output.verbose)
-        facul_print_stats (las_output.output);
+    if (main_output.verbose)
+        facul_print_stats (main_output.output);
 
     /*{{{ Display tally */
 #ifdef HAVE_RUSAGE_THREAD
@@ -3337,7 +3337,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                  wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);
 
     /* memory usage */
-    if (las_output.verbose >= 1 && las.config_pool.default_config_ptr) {
+    if (main_output.verbose >= 1 && las.config_pool.default_config_ptr) {
         expected_memory_usage(las.config_pool.base, las, true, base_memory);
     }
     const long peakmem = PeakMemusage();
@@ -3359,7 +3359,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     las.cofac_stats.print();
 
     /* In essence, almost a dtor, but we want it to be before the pl dtor */
-    las_output.release();
+    main_output.release();
 
     return EXIT_SUCCESS;
 }/*}}}*/
