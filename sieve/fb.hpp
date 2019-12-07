@@ -757,7 +757,4 @@ unsigned char   fb_log (double x, double y, double z);
 unsigned char	fb_log_delta (fbprime_t, unsigned long, unsigned long, double);
 fbprime_t       fb_is_power (fbprime_t, unsigned long *);
 
-/* This is defined in fb-slice-weight.cpp */
-void print_slice_weight_estimator_stats();
-
 #endif  /* FB_HPP_ */

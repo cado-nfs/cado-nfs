@@ -23,7 +23,7 @@ set (las_sources
     las-choose-sieve-area.cpp
     las-auxiliary-data.cpp
     las-output-channel.cpp
-    las.cpp fb.cpp fb-slice-weight.cpp las-todo-list.cpp las-galois.cpp
+    las.cpp fb.cpp las-todo-list.cpp las-galois.cpp
   las-debug.cpp las-report-stats.cpp las-duplicate.cpp
   las-config.c bucket.cpp las-smallsieve.cpp las-unsieve.cpp
   las-sieve2357.cpp las-unsieve-sse2.cpp

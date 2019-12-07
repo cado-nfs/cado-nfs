@@ -1304,8 +1304,6 @@ utils/multityped_array.hpp
 sieve/las-sieve-shared-data.cpp
 sieve/las-sieve-shared-data.hpp
 utils/cxx_misc.hpp
-sieve/fb-slice-weight.cpp
-sieve/fb-slice-weight.hpp
 config/glibc_vector_internals.cmake
 config/check_uint64_type.cmake
 config/posix_memalign.cmake

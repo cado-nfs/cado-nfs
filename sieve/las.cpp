@@ -3354,8 +3354,6 @@ int main (int argc0, char *argv0[])/*{{{*/
             100*t0/wct);
 
 
-    print_slice_weight_estimator_stats();
-
     /*}}}*/
 
     las.cofac_stats.print();
