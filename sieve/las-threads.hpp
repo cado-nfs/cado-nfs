@@ -11,6 +11,7 @@
 #include "las-report-stats.hpp"
 #include "las-base.hpp"
 #include "las-memory.hpp"
+#include "las-output.hpp"
 #include "tdict.hpp"
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one

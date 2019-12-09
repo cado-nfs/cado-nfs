@@ -5,16 +5,16 @@
  * pull stuff that is dependent on this flag.
  */
 #include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h> /* for PRIx64 macro and strtoumax */
+#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes> /* for PRIx64 macro and strtoumax */
 #include <cmath>   // for ceiling, floor in cfrac
-#include <ctype.h>
-#include <float.h>
+#include <cctype>
+#include <cfloat>
 #include <fcntl.h>  /* for _O_BINARY */
-#include <stdarg.h> /* Required so that GMP defines gmp_vfprintf() */
+#include <cstdarg> /* Required so that GMP defines gmp_vfprintf() */
 #include <algorithm>
 #include <vector>
 #include <sstream>  /* for c++ string handling */
@@ -757,6 +757,12 @@ void process_bucket_region_run::apply_buckets(int side)
     } else {
         apply_buckets_inner<false>(side);
     }
+}
+
+void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
+{
+    for(int side = 0 ; side < 2 ; side++)
+        taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
 void process_bucket_region_run::small_sieve(int side)/*{{{*/
@@ -1579,7 +1585,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     }
 
     if (main_output.verbose >= 2)
-        taux.update_checksums(tws);
+        update_checksums(tws, taux);
 
     /* rep.ttf does not count the asynchronous time spent in
      * detached_cofac. */
@@ -2792,6 +2798,9 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
 
             las.tree.new_node(doing);
 #endif
+
+            /* maybe examine what we have here in the todo list, and
+             * decide on the relevance of creating a new output object */
 
             /* (non-blocking) join results from detached cofac */
             for(task_result * r ; (r = pool.get_result(1, false)) ; delete r);
