@@ -402,7 +402,19 @@ struct las_parallel_desc::helper {
            exit(EXIT_FAILURE);
        }
        /* This means subjobs can't be smaller than this: */
-       return computed_min_pu_fit = iceildiv(number_of(-1, 0), how_many);
+       computed_min_pu_fit = iceildiv(number_of(-1, 0), how_many);
+       verbose_output_start_batch();
+       char buf[20];
+       std::string s = textual_description_for_binding(computed_min_pu_fit);
+       verbose_output_print(0, 1,
+               "# Given our estimate of %s RAM per subjob, the \"fit\" binding\n"
+               "# corresponds to a minimum size of %d covered PUs in the hwloc hierarchy,\n"
+               "# i.e. no less than \"%s\"\n",
+               size_disp(jobram * (1<<30), buf),
+               computed_min_pu_fit, s.c_str());
+       verbose_output_end_batch();
+
+       return computed_min_pu_fit;
    }/*}}}*/
     void compute_binding_bitmaps() {/*{{{*/
         subjob_binding_cpusets = all_cpu_bitmaps(cpu_binding_size, nsubjobs_per_cpu_binding_zone);
@@ -596,10 +608,13 @@ struct las_parallel_desc::helper {
        }
        if (cpu_binding_size % objsize)
            throw bad_specification("cannot place jobs according to",
-                   " the ", jobs_within_cpu_binding_string, " rule,",
+                   " the ", jobs_within_cpu_binding_string, " rule",
+                   " (which resolves to: ",
+                   textual_description_for_binding(objsize), "),"
                    " as there is not an integer number of these",
-                   " in the binding ",
-                   textual_description_for_binding(cpu_binding_size));
+                   " in the imposed binding ",
+                   textual_description_for_binding(cpu_binding_size),
+                   " [HINT: are you using -t auto and running out of RAM on NUMA nodes?]");
        return nsubjobs_per_cpu_binding_zone = cpu_binding_size / objsize;
 #else
        throw bad_specification("hwloc being disabled, the only accepted specifiers for the number of jobs are integers");
