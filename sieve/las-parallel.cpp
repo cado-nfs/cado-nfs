@@ -172,9 +172,7 @@ struct las_parallel_desc::helper {
             return;
         }
     }/*}}}*/
-    void parse(const char * desc_c) { /* {{{ */
-        std::string desc(desc_c);
-
+    void parse(std::string & desc) { /* {{{ */
         replace_aliases(desc);
 
         std::vector<std::string> tokens = tokenize(desc);
@@ -822,9 +820,9 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     : las_parallel_desc()
 {
     jobram = jobram_arg;
-    desc_c = param_list_lookup_string(pl, "t");
+    const char * desc_c0 = param_list_lookup_string(pl, "t");
 
-    if (!desc_c) {
+    if (!desc_c0) {
         verbose_output_start_batch();
         verbose_output_print(0, 1, "# No -t option found, running single-threaded.");
 #ifdef HAVE_HWLOC
@@ -833,36 +831,52 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
         verbose_output_print(0, 1, "\n");
         verbose_output_end_batch();
         /* feed a constant string */
-        desc_c = "1";
+        description_string = "1";
+    } else {
+        description_string = desc_c0;
     }
 
-    if (desc_c) {
-        if (strcmp(desc_c, "help") == 0) {/*{{{*/
-            extended_usage();
-            exit(EXIT_SUCCESS);
-        }/*}}}*/
+    if (description_string == "help") {/*{{{*/
+        extended_usage();
+        exit(EXIT_SUCCESS);
+    }/*}}}*/
+
+    help->replace_aliases(description_string);
 
 #ifdef HAVE_HWLOC
-        param_list_parse_double(pl, "memory-margin", &help->total_ram_margin);
-        /* The --job-memory argument will **ALWAYS** win */
-        param_list_parse_double(pl, "job-memory", &jobram);
-        if (jobram != -1)
-            help->min_pu_fit(jobram);
+    param_list_parse_double(pl, "memory-margin", &help->total_ram_margin);
+    /* The --job-memory argument will **ALWAYS** win */
+    param_list_parse_double(pl, "job-memory", &jobram);
+    if (jobram != -1)
+        help->min_pu_fit(jobram);
 #endif
 
-        try {
-            help->parse(desc_c);
-        } catch (bad_specification & b) {
-            throw bad_specification("Cannot interpret specification -t ",
-                    desc_c,
-                    ": ", b.what(), "."
-                    " See -t help for extended documentation");
-        }
-        help->interpret_memory_binding_specifier();
-        help->interpret_cpu_binding_specifier();
-        help->interpret_njobs_specifier();
-        help->interpret_nthreads_specifier();
+    try {
+        help->parse(description_string);
+    } catch (bad_specification & b) {
+        throw bad_specification("Cannot interpret specification -t ",
+                description_string,
+                ": ", b.what(), "."
+                " See -t help for extended documentation");
     }
+    verbose_output_start_batch();
+#ifdef HAVE_HWLOC
+    verbose_output_print(0, 1, "# Applying binding %s"
+            " on a machine with topology %s"
+            " (%" PRIu64 " GB RAM)\n",
+            description_string.c_str(),
+            help->synthetic_topology_string.c_str(),
+            help->total_ram() >> 30);
+#else
+    verbose_output_print(0, 1, "# Applying binding %s"
+            " with hwloc disabled\n",
+            description_string.c_str());
+#endif
+    verbose_output_end_batch();
+    help->interpret_memory_binding_specifier();
+    help->interpret_cpu_binding_specifier();
+    help->interpret_njobs_specifier();
+    help->interpret_nthreads_specifier();
 
     nsubjobs_per_cpu_binding_zone = help->nsubjobs_per_cpu_binding_zone;
     nthreads_per_subjob = help->nthreads_per_subjob;
@@ -892,19 +906,8 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
 
 void las_parallel_desc::display_binding_info() const /*{{{*/
 {
-    std::string desc;
-    if (!desc_c) return;
-    if (desc_c) desc = desc_c;
-    help->replace_aliases(desc);
-
     verbose_output_start_batch();
 #ifdef HAVE_HWLOC
-    verbose_output_print(0, 1, "# Applying binding %s"
-            " on a machine with topology %s"
-            " (%" PRIu64 " GB RAM)\n",
-            desc.c_str(),
-            help->synthetic_topology_string.c_str(),
-            help->total_ram() >> 30);
     verbose_output_print(0, 1, "# %d memory binding zones\n", nmemory_binding_zones);
     verbose_output_print(0, 1, "# %d cpu binding zones within each memory binding\n", ncpu_binding_zones_per_memory_binding_zone);
     verbose_output_print(0, 1, "# %d jobs within each binding context (hence %d in total)\n",
@@ -920,9 +923,6 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
                 jobram, all, ratio, physical);
     }
 #else
-    verbose_output_print(0, 1, "# Applying binding %s"
-            " with hwloc disabled\n",
-            desc.c_str());
     verbose_output_print(0, 1, "# %d jobs in parallel\n", number_of_subjobs_total());
     verbose_output_print(0, 1, "# %d threads per job\n", nthreads_per_subjob);
 #endif

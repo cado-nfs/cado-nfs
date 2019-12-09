@@ -9,7 +9,7 @@
 #include "params.h"
 
 class las_parallel_desc {
-    const char * desc_c = NULL;
+    std::string description_string;
     double jobram = -1;
 
 
