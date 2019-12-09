@@ -10,6 +10,7 @@
 #include <gmp.h>
 #ifdef __cplusplus
 #include <type_traits>
+#include <string>
 #endif
 #include "macros.h"
 #include "portability.h"
@@ -253,8 +254,15 @@ safe_abs64(const int64_t n) {
 
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
+static inline std::string size_disp(size_t s) {
+    char buf[16];
+    size_disp(s, buf);
+    return std::string(buf);
 }
 #endif
 
