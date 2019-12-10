@@ -12,6 +12,7 @@
 # {{{ libs
 import sys
 import os
+import random
 import errno
 import stat
 import optparse
@@ -1537,6 +1538,10 @@ class InputDownloader(object):
         max_loops = self.server_pool.number_of_active_servers()
         cap = is_wu and (self.wu_backlog or self.wu_backlog_alt)
         spin = 0
+        if dlpath is None:
+            dlpath_tmp = None
+        else:
+            dlpath_tmp = "%s%d" % (dlpath, random.randint(0,2**30)^os.getpid())
         while True:
             logging.info("spin=%d is_wu=%s blog=%d", spin, is_wu,
                     len(self.wu_backlog)+len(self.wu_backlog_alt))
@@ -1549,9 +1554,9 @@ class InputDownloader(object):
             url = current_server.get_url().rstrip("/") + "/" + urlpath
             cafile = current_server.get_cafile()
             logging.info("Downloading %s to %s (cafile = %s)",
-                         url, dlpath, cafile)
+                         url, dlpath_tmp, cafile)
             error_str, hard_error = self.connector.get_file(url,
-                                                            dlpath,
+                                                            dlpath_tmp,
                                                             cafile=cafile,
                                                             wait=wait)
             if error_str is None:
@@ -1607,6 +1612,11 @@ class InputDownloader(object):
         if waiting_since > 0:
             logging.info("Opened URL %s after %s seconds wait",
                          url, waiting_since)
+
+        if dlpath_tmp is not None:
+            # We can't atomically rename-unless-dst-does-not-exist-yet.
+            os.rename(dlpath_tmp, dlpath)
+
         return current_server
 
     def get_missing_file(self, urlpath, filename,
