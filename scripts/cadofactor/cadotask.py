@@ -5173,7 +5173,7 @@ class DescentTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"target": str, "gfpext": int, "execpath": str})
+                {"target": [str], "gfpext": int, "execpath": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5181,6 +5181,10 @@ class DescentTask(Task):
     
     def run(self):
         super().run()
+
+        if self.params["target"] is None:
+            self.logger.info("Skipping descent, as no target= argument was passed");
+            return
 
         (stdoutpath, stderrpath) = \
                 self.make_std_paths(cadoprograms.Descent.name)
@@ -5764,11 +5768,10 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                                      db=db,
                                      parameters=self.parameters,
                                      path_prefix=reconstructlogpath)
-            if self.params["target"]:
-                self.descent = DescentTask(mediator=self,
-                                         db=db,
-                                         parameters=self.parameters,
-                                         path_prefix=descentpath)
+            self.descent = DescentTask(mediator=self,
+                                     db=db,
+                                     parameters=self.parameters,
+                                     path_prefix=descentpath)
         else:
             ## Tasks specific to factorization
             self.merge = MergeTask(mediator=self,
