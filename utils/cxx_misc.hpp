@@ -41,7 +41,7 @@ using enable_if_t = typename std::enable_if<B, T>::type;
 
    In particular, both T and U must be integral types, must have the same
    signedness, and the maximal permissible value of type T must be no greater
-   that that of U. (We assume value ranges of signed types to be essentially
+   than that of U. (We assume value ranges of signed types to be essentially
    symmetric around 0).
 
    Example use:
