@@ -621,6 +621,8 @@ int main(int argc, char **argv)
     int nthreads = 1;
     unsigned long lpb[2] = {0,0};
     char *argv0 = argv[0];
+    double cpu0 = seconds ();
+    double wct0 = wct_seconds ();
 
     /* print the command line */
     fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
@@ -700,15 +702,14 @@ int main(int argc, char **argv)
     struct worker_threads_group * g = worker_threads_init (nthreads);
     chars = create_characters (nch, pol, lpb);
     int nchars2 = iceildiv(nch[0] + nch[1], 64) * 64;
-    double tt=wct_seconds();
     blockmatrix bcmat = big_character_matrix(chars, nchars2, purgedname, pol, g);
     free(chars);
     worker_threads_clear(g);
 
-    fprintf(stderr, "done building big character matrix at %.1f\n", wct_seconds()-tt);
+    fprintf(stderr, "done building big character matrix at wct=%.1fs\n", wct_seconds()-wct0);
 
     blockmatrix scmat = small_character_matrix(bcmat, indexname);
-    fprintf(stderr, "done building small character matrix at %.1f\n", wct_seconds()-tt);
+    fprintf(stderr, "done building small character matrix at wct=%.1fs\n", wct_seconds()-wct0);
 
     blockmatrix_free(bcmat);
     
@@ -719,8 +720,8 @@ int main(int argc, char **argv)
     blockmatrix h = read_heavyblock_matrix(heavyblockname);
     if (h->ncols == 0) { h->nrows = small_nrows; }
     if (h->ncols)
-          fprintf(stderr, "done reading heavy block of size %u x %u at %.1f\n",
-                  h->nrows, h->ncols, wct_seconds()-tt);
+          fprintf(stderr, "done reading heavy block of size %u x %u at wct=%.1fs\n",
+                  h->nrows, h->ncols, wct_seconds()-wct0);
     ASSERT_ALWAYS(h->nrows == small_nrows);
 
     /* Now do dot products of these matrices by the kernel vectors
@@ -746,8 +747,8 @@ int main(int argc, char **argv)
     int j0 = 0;
     blockmatrix_read_from_flat_file(k, 0, j0, bw_kernel_file, small_nrows, kncols);
 
-    fprintf(stderr, "done reading %u kernel vectors at %.1f\n",
-            total_kernel_cols, wct_seconds() - tt);
+    fprintf(stderr, "done reading %u kernel vectors at wct=%.1fs\n",
+            total_kernel_cols, wct_seconds() - wct0);
 
     blockmatrix k2 = blockmatrix_column_reduce(k, 4096);
     blockmatrix_free(k);
@@ -764,7 +765,7 @@ int main(int argc, char **argv)
     blockmatrix_mul_Ta_b(tc, k, scmat);
     blockmatrix_mul_Ta_b(th, k, h);
 
-    fprintf(stderr, "done multiplying matrices at %.1f\n", wct_seconds() - tt);
+    fprintf(stderr, "done multiplying matrices at wct=%.1fs\n", wct_seconds() - wct0);
 
     free(tc);
     free(th);
@@ -814,6 +815,9 @@ int main(int argc, char **argv)
 
     cado_poly_clear(pol);
     param_list_clear(pl);
+
+    /* print total time and memory usage */
+    print_timing_and_memory (stdout, cpu0, wct0);
 
     return 0;
 }

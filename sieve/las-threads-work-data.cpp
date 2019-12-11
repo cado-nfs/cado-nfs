@@ -1,6 +1,7 @@
 #include "cado.h"
 #include "las-info.hpp"
 #include "las-threads-work-data.hpp"
+#include "las-auxiliary-data.hpp"
 
 nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
 {

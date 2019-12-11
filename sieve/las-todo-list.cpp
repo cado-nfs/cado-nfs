@@ -333,6 +333,8 @@ bool las_todo_list::feed_qlist()
     char line[1024];
     char * x;
     for( ; ; ) {
+        /* We should consider the blocking case as well. (e.g. we're
+         * reading from a pipe.)  */
         x = fgets(line, sizeof(line), todo_list_fd);
         /* Tolerate comments and blank lines */
         if (x == NULL) return 0;

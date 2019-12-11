@@ -9,9 +9,9 @@
 #include "las-report-stats.hpp"
 #include "utils/tdict.hpp"
 #include "utils/timing.h"
-#include "las-threads-work-data.hpp"
 #include "ecm/facul.hpp"
 #include "lock_guarded_container.hpp"
+#include "las-output.hpp"
 
 /* Compute a checksum over the bucket region.
  *
@@ -75,6 +75,15 @@ class nfs_aux {/*{{{*/
     public:
     las_todo_entry const & doing;
 
+    /* we rarely have ownership, if ever, of course. In the typical case,
+     * there just one output file and that's it.
+     * However in client-server file we may want several output files. In
+     * that case, the caller that reads the todo list will create a
+     * dedicated output file, and its dtor will do the final work,
+     * whenever it gets called.
+     */
+    std::shared_ptr<las_output> output_p;
+
     typedef std::pair< int64_t, uint64_t> abpair_t;
 
     struct abpair_hash_t {
@@ -118,7 +127,9 @@ class nfs_aux {/*{{{*/
         std::array<sieve_checksum,2> checksum_post_sieve;
         where_am_I w;
         //thread_data(nfs_aux & t) : common(t) {}
-        void update_checksums(nfs_work::thread_data & tws);
+        void update_checksums(int side, const unsigned char *data, const size_t len) {
+            checksum_post_sieve[side].update(data, len);
+        }
     };/*}}}*/
 
     std::vector<thread_data> th;

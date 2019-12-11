@@ -7,12 +7,6 @@
 /* in las.cpp */
 extern int sync_at_special_q;
 
-void nfs_aux::thread_data::update_checksums(nfs_work::thread_data & tws)
-{
-    for(int side = 0 ; side < 2 ; side++)
-        checksum_post_sieve[side].update(tws.sides[side].bucket_region, BUCKET_REGION);
-}
-
 void
 sieve_checksum::update(const unsigned int other)
 {

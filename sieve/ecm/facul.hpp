@@ -4,15 +4,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
-//{{to define modset_t
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "mod_mpz.h"
-//}}
 #include "cxx_mpz.hpp"
 #include <vector>
 #include <array>
+#include "facul_fwd.hpp"
 
 #define PM1_METHOD 1
 #define PP1_27_METHOD 2
@@ -35,18 +30,12 @@
  */
 #define NB_MAX_METHODS 400
 
-typedef struct {
-  long method; /* Which method to use (P-1, P+1 or ECM) */
-  void *plan;  /* Parameters for that method */
-} facul_method_t;
-
-
 /* All prime factors in the input number must be > fb. A factor of the 
    input number is assumed to be prime if it is < fb^2.
    The input number is taken to be not smooth if it has a 
    prime factor > 2^lpb. */
 
-typedef struct {
+typedef struct facul_strategy_s {
   unsigned long lpb;        /* Large prime bound 2^lpb */
   double assume_prime_thresh; /* The factor base bound squared.
                                We assume that primes <= fbb have already been 
@@ -55,8 +44,6 @@ typedef struct {
   double BBB;               /* The factor base bound cubed. */
   facul_method_t *methods;  /* List of methods to try */
 } facul_strategy_t;
-
-
 
 typedef struct {
   facul_method_t* method;
@@ -89,28 +76,6 @@ typedef struct {
 } facul_strategies_t;
 
 
-struct modset_t {
-  /* The arith variable tells which modulus type has been initialised for 
-     arithmetic. It has a value of CHOOSE_NONE if no modulus currently 
-     initialised. */
-  enum {
-      CHOOSE_NONE,
-      CHOOSE_UL,
-      CHOOSE_15UL,
-      CHOOSE_2UL2,
-      CHOOSE_MPZ,
-  } arith;
-
-  modulusredcul_t m_ul;
-  modulusredc15ul_t m_15ul;
-  modulusredc2ul2_t m_2ul2;
-  modulusmpz_t m_mpz;
-};
-
-
-void
-modset_clear (struct modset_t *);
-
 
 facul_method_t* facul_make_default_strategy (int, const int);
 void facul_clear_methods (facul_method_t*);
@@ -132,11 +97,6 @@ void facul_clear_strategies (facul_strategies_t*);
 int
 facul_fprint_strategies (FILE*, facul_strategies_t* );
 
-
-void
-modset_clear (struct modset_t *modset);
-
-void modset_get_z (mpz_t, const struct modset_t*);
 
 std::array<int,2>
 facul_both (std::array<std::vector<cxx_mpz>, 2>&, std::array<cxx_mpz, 2> & ,

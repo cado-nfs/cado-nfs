@@ -254,6 +254,7 @@ parameters/factor/params.c200
 parameters/factor/params.c210
 parameters/factor/params.c220
 parameters/factor/params.c230
+parameters/factor/params.c240
 parameters/factor/params.c270
 parameters/factor/params.c310
 parameters/factor/params.c320
@@ -366,12 +367,15 @@ sieve/ecm/ec_arith_Weierstrass.h
 sieve/ecm/ec_parameterization.h
 sieve/ecm/facul.cpp
 sieve/ecm/facul.hpp
+sieve/ecm/facul_fwd.hpp
 sieve/ecm/facul_doit.cpp
 sieve/ecm/facul_doit.hpp
 sieve/ecm/facul_doit_15ul.cpp
 sieve/ecm/facul_doit_2ul2.cpp
 sieve/ecm/facul_doit_mpz.cpp
 sieve/ecm/facul_doit_ul.cpp
+sieve/ecm/modset.hpp
+sieve/ecm/modset.cpp
 sieve/ecm/makeplan.c
 sieve/ecm/pm1.c
 sieve/ecm/pm1.h
@@ -594,6 +598,7 @@ utils/getprime.c
 utils/getprime.h
 utils/gmp_aux.c
 utils/gmp_aux.h
+utils/gmp_auxx.hpp
 utils/gmp_gcd.c
 utils/gzip.c
 utils/gzip.h
@@ -619,6 +624,8 @@ utils/modredc_ul.h
 utils/modredc_ul_default.h
 utils/mod_mpz.h
 utils/mod_mpz.c
+utils/mod_mpz_new.hpp
+utils/mod_mpz_new.cpp
 utils/mod_mpz_default.h
 utils/mod64.cpp
 utils/mod64.hpp
@@ -1285,8 +1292,6 @@ utils/multityped_array.hpp
 sieve/las-sieve-shared-data.cpp
 sieve/las-sieve-shared-data.hpp
 utils/cxx_misc.hpp
-sieve/fb-slice-weight.cpp
-sieve/fb-slice-weight.hpp
 config/glibc_vector_internals.cmake
 config/check_uint64_type.cmake
 config/posix_memalign.cmake
@@ -1456,3 +1461,5 @@ tests/guess_mpi_configs.sh
 linalg/bwc/lingen_verify_checkpoints.cpp
 linalg/bwc/list_lingen_checkpoints.sh
 linalg/bwc/lingen_mul_substeps_base.hpp
+sieve/las-output.cpp
+sieve/las-output.hpp

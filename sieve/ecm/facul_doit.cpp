@@ -1,5 +1,6 @@
 #include "cado.h"
 #include "facul_doit.hpp"
+#include "modset.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
@@ -28,102 +29,10 @@ cxx_mpz mod_intget_cxx_mpz(const modint_t x) {
     return c;
 }
 
-static inline void 
-modset_init (struct modset_t *modset, modint_t m)
+static inline const FaculModulusBase *
+modset_init (modint_t m)
 {
-  const size_t bits = mod_intbits (m);
-  ASSERT(bits <= MOD_MAXBITS);
-  ASSERT_ALWAYS(modset->arith == modset_t::CHOOSE_NONE);
-  if (bits <= MODREDCUL_MAXBITS)
-    {
-      modset->arith = modset_t::CHOOSE_UL;
-      modredcul_initmod_ul (modset->m_ul, mod_intget_ul(m));
-    }
-#if     MOD_MAXBITS > MODREDCUL_MAXBITS
-  else if (bits <= MODREDC15UL_MAXBITS)
-    {
-      unsigned long t1[2];
-      modintredc15ul_t t2;
-      size_t nr_words = mod_intget_uls(t1, m);
-      ASSERT_ALWAYS(nr_words <= 2);
-      modredc15ul_intset_uls (t2, t1, nr_words);
-      modset->arith = modset_t::CHOOSE_15UL;
-      modredc15ul_initmod_int (modset->m_15ul, t2);
-    }
-#endif
-#if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-  else if (bits <= MODREDC2UL2_MAXBITS)
-    {
-      unsigned long t1[2];
-      modintredc2ul2_t t2;
-      size_t nr_words = mod_intget_uls(t1, m);
-      ASSERT_ALWAYS(nr_words <= 2);
-      modredc2ul2_intset_uls (t2, t1, nr_words);
-      modset->arith = modset_t::CHOOSE_2UL2;
-      modredc2ul2_initmod_int (modset->m_2ul2, t2);
-    }
-#endif
-#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-  else if (bits <= MODMPZ_MAXBITS)
-    {
-      /* We assume for now that m is a modintmpz_t */
-      modset->arith = modset_t::CHOOSE_MPZ;
-      modmpz_initmod_int (modset->m_mpz, m);
-    }
-#endif
-  else
-      abort();
-}
-
-
-/* Run the relevant mod_isprime() function, using the arithmetic selected in the modset */
-static inline int 
-modset_isprime (struct modset_t *modset)
-{
-  switch (modset->arith) {
-      case modset_t::CHOOSE_UL:
-      return modredcul_isprime (modset->m_ul);
-#if     MOD_MAXBITS > MODREDCUL_MAXBITS
-      case modset_t::CHOOSE_15UL:
-      return modredc15ul_isprime (modset->m_15ul);
-#endif
-#if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-      case modset_t::CHOOSE_2UL2:
-        return modredc2ul2_isprime (modset->m_2ul2);
-#endif
-#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-      case modset_t::CHOOSE_MPZ:
-        return modmpz_isprime (modset->m_mpz);
-#endif
-    default:
-        abort();
-  }
-}
-
-static inline int 
-modset_call_facul(std::vector<cxx_mpz> & factors, const struct modset_t *modset, 
-                  const facul_strategy_t *strategy, const int method_start)
-{
-  switch (modset->arith) {
-      case modset_t::CHOOSE_UL:
-          return facul_doit_ul (factors, modset->m_ul, strategy, method_start);
-#if     MOD_MAXBITS > MODREDCUL_MAXBITS
-      case modset_t::CHOOSE_15UL:
-          return facul_doit_15ul (factors, modset->m_15ul, strategy, method_start);
-          break;
-#endif
-#if     MOD_MAXBITS > MODREDC15UL_MAXBITS
-      case modset_t::CHOOSE_2UL2:
-          return facul_doit_2ul2 (factors, modset->m_2ul2, strategy, method_start);
-          break;
-#endif
-#if     MOD_MAXBITS > MODREDC2UL2_MAXBITS
-      case modset_t::CHOOSE_MPZ:
-          return facul_doit_mpz (factors, modset->m_mpz, strategy, method_start);
-          break;
-#endif
-      default: abort();
-  }
+  return FaculModulusBase::MOD_APPEND_TYPE(init)(m);
 }
 
 int
@@ -131,15 +40,13 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 	    const facul_strategy_t *strategy, const int method_start)
 {
   modint_t n, f;
-  struct modset_t fm, cfm;
+  const FaculModulusBase *fm = NULL, *cfm = NULL;
   int i, found = 0, bt, fprime, cfprime;
   
   mod_intinit (n);
   mod_intinit (f);
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
-  fm.arith = modset_t::CHOOSE_NONE;
-  cfm.arith = modset_t::CHOOSE_NONE;
   
   for (i = method_start; strategy->methods[i].method != 0; i++)
     {
@@ -296,10 +203,12 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
       /* Determine for certain if the factor is prime */
       if (!fprime)
 	{
-	  modset_init (&fm, f);
-	  fprime = modset_isprime (&fm);
-          if (fprime) 
-            modset_clear (&fm);
+          fm = modset_init (f);
+	  fprime = fm->isprime ();
+          if (fprime) {
+            delete fm;
+            fm = NULL;
+          }
 	  if (fprime && mod_intbits (f) > strategy->lpb)
 	    {
 	      found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
@@ -310,15 +219,19 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
       /* Determine for certain if the cofactor is prime */
       if (!cfprime)
 	{
-	  modset_init (&cfm, n);
-	  cfprime = modset_isprime (&cfm);
+	  cfm = modset_init (n);
+	  cfprime = cfm->isprime ();
 
-          if (cfprime)
-            modset_clear (&cfm);
+          if (cfprime) {
+            delete cfm;
+            cfm = NULL;
+          }
 	  if (cfprime && mod_intbits (n) > strategy->lpb)
 	    {
-	      if (!fprime)
-	        modset_clear (&fm);
+	      if (!fprime) {
+	        delete fm;
+                fm = NULL;
+              }
 	      found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
 	      break;
 	    }
@@ -336,12 +249,15 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
           int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite factor. Use the same method again so that
 	     backtracking can separate the factors */
-          found2 = modset_call_facul (factors, &fm, strategy, i);
-	  modset_clear (&fm);
+          found2 = fm->call_facul (factors, strategy, i);
+	  delete fm;
+          fm = NULL;
 	  if (found2 == FACUL_NOT_SMOOTH) {
             found = FACUL_NOT_SMOOTH;
-            if (!cfprime)
-              modset_clear (&cfm);
+            if (!cfprime) {
+              delete cfm;
+              cfm = NULL;
+            }
             break;
           }
           found += found2;
@@ -355,8 +271,9 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 	{
 	  int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite cofactor */
-	  found2 = modset_call_facul (factors, &cfm, strategy, i + 1);
-	  modset_clear (&cfm);
+	  found2 = cfm->call_facul (factors, strategy, i + 1);
+          delete cfm;
+          cfm = NULL;
 	  if (found2 == FACUL_NOT_SMOOTH)
 	    {
 	      found = FACUL_NOT_SMOOTH;
@@ -367,13 +284,13 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
       /* We found a non-trivial factorization and any composite 
 	 factors/cofactors have been treated in recursive calls, 
 	 so we can stop here */
-      ASSERT_ALWAYS(fm.arith == modset_t::CHOOSE_NONE);
-      ASSERT_ALWAYS(cfm.arith == modset_t::CHOOSE_NONE);
+      ASSERT_ALWAYS(fm == NULL);
+      ASSERT_ALWAYS(cfm == NULL);
       break;
     }
   
-  ASSERT_ALWAYS(fm.arith == modset_t::CHOOSE_NONE);
-  ASSERT_ALWAYS(cfm.arith == modset_t::CHOOSE_NONE);
+  ASSERT_ALWAYS(fm == NULL);
+  ASSERT_ALWAYS(cfm == NULL);
   
   mod_intclear (n);
   mod_intclear (f);
@@ -399,8 +316,8 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 int
 facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
 		  const facul_method_t method,
-		  struct modset_t* fm, struct modset_t* cfm, unsigned long lpb,
-		  double assume_prime_thresh, double BBB)
+		  const FaculModulusBase* &fm, const FaculModulusBase* &cfm,
+                  unsigned long lpb, double assume_prime_thresh, double BBB)
 {
   residue_t r;
   modint_t n, f;
@@ -412,8 +329,6 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
   mod_init (r, m);
-  fm->arith = modset_t::CHOOSE_NONE;
-  cfm->arith = modset_t::CHOOSE_NONE;
   
   if (method.method == PM1_METHOD)
     bt = pm1 (f, m, (pm1_plan_t *) (method.plan));
@@ -555,10 +470,12 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
   /* Determine for certain if the factor is prime */
   if (!fprime)
     {
-      modset_init (fm, f);
-      fprime = modset_isprime (fm);
-      if (fprime)
-        modset_clear (fm);
+      fm = modset_init (f);
+      fprime = fm->isprime ();
+      if (fprime) {
+        delete fm;
+        fm = NULL;
+      }
       if (fprime && mod_intbits (f) > lpb)
 	{
 	  found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
@@ -569,14 +486,18 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
   /* Determine for certain if the cofactor is prime */
   if (!cfprime)
     {
-      modset_init (cfm, n);
-      cfprime = modset_isprime (cfm);
-      if (cfprime)
-        modset_clear (cfm);
+      cfm = modset_init (n);
+      cfprime = cfm->isprime ();
+      if (cfprime) {
+        delete cfm;
+        cfm = NULL;
+      }
       if (cfprime && mod_intbits (n) > lpb)
         {
-          if (!fprime)
-            modset_clear (fm);
+          if (!fprime) {
+            delete fm;
+            fm = NULL;
+          }
           found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
           goto clean_up;
         }

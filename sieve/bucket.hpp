@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <limits>
 #include <string>
+#include <functional>
 #include "portability.h"
 #endif
 #include "misc.h"
@@ -22,6 +23,7 @@
 #include "las-debug.hpp"
 #include "threadpool.hpp"
 #include "las-memory.hpp"
+#include "las-output.hpp"
 
 // #include "electric_alloc.h"
 
@@ -296,6 +298,10 @@ struct bucket_slice_alloc_defaults<LEVEL, logphint_t> {
 
 template <int LEVEL, typename HINT>
 class bucket_array_t : private NonCopyable {
+    /* We want to be able to reseat the reference in the course of the
+     * computation.
+     */
+    las_output * output_p = nullptr;
     public:
   static const int level = LEVEL;
   typedef bucket_update_t<LEVEL, HINT> update_t;
@@ -354,6 +360,8 @@ public:
   /* Destructor frees memory, if memory was allocated. If it wasn't, it's
      basically a no-op, except for destroying the bucket_array_t itself. */
   ~bucket_array_t();
+
+  void reseat_output(las_output & o) { output_p = &o; }
 
   /* Lacking a move constructor before C++11, we make a fake one. We use this
      to store the bucket_array_t on the stack in fill_in_buckets(), to remove

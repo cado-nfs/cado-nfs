@@ -265,13 +265,26 @@ Modulus::gcd (Integer &g, const Residue &r) const
   g = Integer(b);
 }
 
+template <typename Modulus, typename WordType>
+static inline void pow2_oneWord(
+    WordType mask, const WordType word, typename Modulus::Residue &t,
+    const Modulus &m)
+{
+    while (mask > 0) {
+        m.sqr (t, t);
+        if (word & mask) {
+            m.add (t, t, t);
+        }
+        mask >>= 1;
+    }
+}
 
 /* Compute r = 2^e. Here, e is a uint64_t */
 void
 Modulus::pow2 (Residue &r, const uint64_t e) const
 {
   uint64_t mask;
-  Residue t(*this), u(*this);
+  Residue t(*this);
 
   if (e == 0)
     {
@@ -285,14 +298,8 @@ Modulus::pow2 (Residue &r, const uint64_t e) const
   add (t, t, t);
   mask >>= 1;
 
-  while (mask > 0)
-    {
-      sqr (t, t);
-      add (u, t, t);
-      if (e & mask)
-        set (t, u);
-      mask >>= 1;
-    }
+  pow2_oneWord(mask, e, t, *this);
+
   set (r, t);
 }
 
@@ -335,9 +342,9 @@ Modulus::pow3 (Residue &r, const uint64_t e) const
    (i.e. 2*2^w (mod m) must be passed. */
 
 void
-Modulus::pow2 (Residue &r, const uint64_t *e, const int e_nrwords) const
+Modulus::pow2 (Residue &r, const uint64_t *e, const size_t e_nrwords) const
 {
-  Residue t(*this), u(*this);
+  Residue t(*this);
   uint64_t mask;
   int i = e_nrwords;
 
@@ -356,22 +363,43 @@ Modulus::pow2 (Residue &r, const uint64_t *e, const int e_nrwords) const
   add (t, t, t);
   mask >>= 1;
 
-  for ( ; i >= 0; i--)
-    {
-      while (mask > 0)
-        {
-          sqr (t, t);
-          add (u, t, t);
-          if (e[i] & mask)
-            set (t, u);
-          mask >>= 1;
-        }
+  for ( ; i >= 0; i--) {
+      pow2_oneWord(mask, e[i], t, *this);
       mask = (UINT64_C(1) << 63);
     }
 
   set (r, t);
 }
 
+void
+Modulus::pow2 (Residue &r, const Integer &e) const
+{
+  size_t i = e.getWordCount();
+  const int bits = e.getWordSize();
+  const Integer::WordType msb = (Integer::WordType) 1 << (bits-1);
+  Integer::WordType word, mask;
+
+  while (i > 0 && e.getWord(i - 1) == 0)
+      i--;
+  
+  if (i == 0) {
+      set1(r);
+      return;
+  }
+
+  word = e.getWord(i - 1);
+  mask = msb >> u64arith_clz (word);
+
+  set1 (r);
+  add (r, r, r);
+  mask >>= 1;
+
+  for ( ; i > 0; i--) {
+      word = e.getWord(i - 1);
+      pow2_oneWord(mask, word, r, *this);
+      mask = msb;
+    }
+}
 
 /* Returns 1 if m is a strong probable prime wrt base b, 0 otherwise.
    We assume m is odd. */

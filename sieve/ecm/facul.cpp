@@ -19,6 +19,7 @@
 #include "facul_ecm.h"
 #include "facul.hpp"
 #include "facul_doit.hpp"
+#include "modset.hpp"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -1080,42 +1081,19 @@ facul_fprint_strategies (FILE* file, facul_strategies_t* strategies)
   return 1;
 }
 
-void
-modset_get_z (mpz_t z, const struct modset_t *modset)
-{
-  ASSERT_ALWAYS(modset->arith != modset_t::CHOOSE_NONE);
-  switch (modset->arith)
-    {
-    case modset_t::CHOOSE_UL:
-      mpz_set_ui (z, modset->m_ul->m);
-      break;
-    case modset_t::CHOOSE_15UL:
-      mpz_set_ui (z, modset->m_15ul->m[1]);
-      mpz_mul_2exp (z, z, LONG_BIT);
-      mpz_add_ui (z, z, modset->m_15ul->m[0]);
-      break;
-    case modset_t::CHOOSE_2UL2:
-      mpz_set_ui (z, modset->m_2ul2->m[1]);
-      mpz_mul_2exp (z, z, LONG_BIT);
-      mpz_add_ui (z, z, modset->m_2ul2->m[0]);
-      break;
-    case modset_t::CHOOSE_MPZ:
-      mpz_set (z, modset->m_mpz);
-      break;
-    default:
-      ASSERT_ALWAYS(0);
-    }
-}
-
 /*
  * This is our auxiliary factorization.
  * It applies a bunch of ECM curves with larger bounds to find
  * a factor with high probability. It returns -1 if the factor
  * is not smooth, otherwise the number of
  * factors.
+ * 
+ * It tries the factoring methods in "methods", starting at the
+ * "method_start"-th one. If any factor is found, then we try to factor any
+ * composite factor or cofactor by recursively calling facul_aux.
  */
 static int
-facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
+facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 	   const facul_strategies_t *strategies,
 	   facul_method_side_t *methods, int method_start, int side)
 {
@@ -1132,45 +1110,16 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
       if (i < STATS_LEN)
 	stats_called_aux[i]++;
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
-      modset_t fm, cfm;
+      const FaculModulusBase *fm = NULL, *cfm = NULL;
 
-      int res_fac = 0;
-
-      switch (m.arith) {
-          case modset_t::CHOOSE_UL:
-	res_fac = facul_doit_onefm_ul(factors, m.m_ul,
-				      *methods[i].method, &fm, &cfm,
-				      strategies->lpb[side],
-				      strategies->assume_prime_thresh[side],
-				      strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_15UL:
-	res_fac = facul_doit_onefm_15ul(factors, m.m_15ul,
-					*methods[i].method, &fm, &cfm,
-					strategies->lpb[side],
-					strategies->assume_prime_thresh[side],
-					strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_2UL2:
-	res_fac = facul_doit_onefm_2ul2 (factors, m.m_2ul2,
-					 *methods[i].method, &fm, &cfm,
-					 strategies->lpb[side],
-					 strategies->assume_prime_thresh[side],
-					 strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_MPZ:
-	res_fac = facul_doit_onefm_mpz (factors, m.m_mpz,
-					*methods[i].method, &fm, &cfm,
-					strategies->lpb[side],
-					strategies->assume_prime_thresh[side],
-					strategies->BBB[side]);
-	break;
-      default:
-	ASSERT_ALWAYS(0);
-      }
+      int res_fac = m->facul_doit_onefm(factors,
+            *methods[i].method, fm, cfm,
+            strategies->lpb[side],
+            strategies->assume_prime_thresh[side],
+            strategies->BBB[side]);
       // check our result
       // res_fac contains the number of factors found
-      if (res_fac == -1)
+      if (res_fac == FACUL_NOT_SMOOTH)
 	{
 	  /*
 	    The cofactor m is not smooth. So, one stops the
@@ -1181,7 +1130,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
 	}
       if (res_fac == 0)
 	{
-	  /* Zero factor found. If it was the last method for this
+	  /* Zero factors found. If it was the last method for this
 	     side, then one stops the cofactorization. Otherwise, one
 	     tries with an other method */
 	    continue;
@@ -1195,22 +1144,25 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
 	res_fac == 1  Only one factor has been found. Hence, our
 	factorization is not finished.
       */
-      if (fm.arith != modset_t::CHOOSE_NONE)
+      if (fm != NULL)
 	{
 	  int found2 = facul_aux (factors, fm, strategies,
 				  methods, i+1, side);
           if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
 	    {
 	      found = FACUL_NOT_SMOOTH;
-	      modset_clear (&cfm);
-	      modset_clear (&fm);
+	      delete cfm;
+              cfm = NULL;
+	      delete fm;
+              fm = NULL;
 	      break;
 	    }
 	  else
 	    found += found2;
-	  modset_clear (&fm);
+	  delete fm;
+          fm = NULL;
 	}
-      if (cfm.arith != modset_t::CHOOSE_NONE)
+      if (cfm != NULL)
 	{
 	  int found2 = facul_aux (factors, cfm, strategies,
 				  methods, i+1, side);
@@ -1220,7 +1172,8 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
           }
 	  else
 	    found += found2;
-	  modset_clear (&cfm);
+	  delete cfm;
+          cfm = NULL;
 	  break;
 	}
       break;
@@ -1243,7 +1196,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const modset_t m,
 */
 
 static std::array<int, 2>
-facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m,
+facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const FaculModulusBase** m,
 		const facul_strategies_t *strategies, int* cof,
 		int* is_smooth)
 {
@@ -1255,11 +1208,7 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
   if (methods == NULL)
     return found;
 
-  modset_t f[2][2];
-  f[0][0].arith = modset_t::CHOOSE_NONE;
-  f[0][1].arith = modset_t::CHOOSE_NONE;
-  f[1][0].arith = modset_t::CHOOSE_NONE;
-  f[1][1].arith = modset_t::CHOOSE_NONE;
+  const FaculModulusBase *f[2][2] = {{NULL, NULL}, {NULL, NULL}};
 #ifdef ENABLE_UNSAFE_FACUL_STATS
   int stats_nb_side = 0, stats_index_transition = 0;
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
@@ -1296,38 +1245,9 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
       int res_fac = 0;
       last_i[side] = i;
-      switch (m[side].arith) {
-          case modset_t::CHOOSE_UL:
-	res_fac = facul_doit_onefm_ul(factors[side], m[side].m_ul,
-				      *methods[i].method, &f[side][0], &f[side][1],
-				      strategies->lpb[side],
-				      strategies->assume_prime_thresh[side],
-				      strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_15UL:
-	res_fac = facul_doit_onefm_15ul(factors[side], m[side].m_15ul,
-					*methods[i].method, &f[side][0], &f[side][1],
-					strategies->lpb[side],
-					strategies->assume_prime_thresh[side],
-					strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_2UL2:
-	res_fac = facul_doit_onefm_2ul2 (factors[side], m[side].m_2ul2,
-					 *methods[i].method, &f[side][0], &f[side][1],
-					 strategies->lpb[side],
-					 strategies->assume_prime_thresh[side],
-					 strategies->BBB[side]);
-	break;
-          case modset_t::CHOOSE_MPZ:
-	res_fac = facul_doit_onefm_mpz (factors[side], m[side].m_mpz,
-					*methods[i].method, &f[side][0], &f[side][1],
-					strategies->lpb[side],
-					strategies->assume_prime_thresh[side],
-					strategies->BBB[side]);
-	break;
-      default:
-	ASSERT_ALWAYS(0);
-      }
+      res_fac = m[side]->facul_doit_onefm (factors[side], *methods[i].method,
+        f[side][0], f[side][1], strategies->lpb[side],
+        strategies->assume_prime_thresh[side], strategies->BBB[side]);
       // check our result
       // res_fac contains the number of factors found, or -1 if not smooth
       if (res_fac == -1)
@@ -1375,7 +1295,7 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
 	for (int ind_cof = 0; ind_cof < 2; ind_cof++)
 	  {
 	    // factor f[side][0] or/and f[side][1]
-	    if (f[side][ind_cof].arith != modset_t::CHOOSE_NONE)
+	    if (f[side][ind_cof] != NULL)
 	      {
 		int found2 = facul_aux (factors[side],
 					f[side][ind_cof], strategies,
@@ -1395,10 +1315,10 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const modset_t* m
 	  }
 
  clean_up:
-  modset_clear (&f[0][0]);
-  modset_clear (&f[0][1]);
-  modset_clear (&f[1][0]);
-  modset_clear (&f[1][1]);
+  delete f[0][0];
+  delete f[0][1];
+  delete f[1][0];
+  delete f[1][1];
   return found;
 }
 
@@ -1417,9 +1337,7 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
   std::array<int, 2> found;
   found.fill(0);
 
-  modset_t n[2];
-  n[0].arith = modset_t::CHOOSE_NONE;
-  n[1].arith = modset_t::CHOOSE_NONE;
+  const FaculModulusBase *n[2];
 
 #ifdef PARI
   gmp_fprintf (stderr, "(%Zd %Zd)", N[0], N[1]);
@@ -1444,40 +1362,7 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
 
       /* Use the fastest modular arithmetic that's large enough for
 	 this input */
-      if (bits <= MODREDCUL_MAXBITS)
-	{
-	  ASSERT(mpz_fits_ulong_p(N[side]));
-	  modredcul_initmod_ul (n[side].m_ul, mpz_get_ui(N[side]));
-	  n[side].arith = modset_t::CHOOSE_UL;
-	}
-      else if (bits <= MODREDC15UL_MAXBITS)
-	{
-	  unsigned long t[2];
-	  modintredc15ul_t m;
-	  size_t written;
-	  mpz_export (t, &written, -1, sizeof(unsigned long), 0, 0, N[side]);
-	  ASSERT_ALWAYS(written <= 2);
-	  modredc15ul_intset_uls (m, t, written);
-	  modredc15ul_initmod_int (n[side].m_15ul, m);
-	  n[side].arith = modset_t::CHOOSE_15UL;
-	}
-      else if (bits <= MODREDC2UL2_MAXBITS)
-	{
-	  unsigned long t[2];
-	  modintredc2ul2_t m;
-	  size_t written;
-	  mpz_export (t, &written, -1, sizeof(unsigned long), 0, 0, N[side]);
-	  ASSERT_ALWAYS(written <= 2);
-	  modredc2ul2_intset_uls (m, t, written);
-	  modredc2ul2_initmod_int (n[side].m_2ul2, m);
-	  n[side].arith = modset_t::CHOOSE_2UL2;
-	}
-      else
-	{
-	  modmpz_initmod_int (n[side].m_mpz, N[side]);
-	  n[side].arith = modset_t::CHOOSE_MPZ;
-	}
-      ASSERT (n[side].arith != modset_t::CHOOSE_NONE);
+      n[side] = FaculModulusBase::init_mpz(N[side]);
     }
 
   found = facul_both_src (factors, n, strategies, cof, is_smooth);
@@ -1492,38 +1377,8 @@ facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
     }
 
   // Free
-  modset_clear (&n[0]);
-  modset_clear (&n[1]);
+  delete n[0];
+  delete n[1];
 
   return found;
-}
-
-
-/********************************************/
-/*            modset_t                      */
-/********************************************/
-
-
-void
-modset_clear (modset_t *modset)
-{
-  switch (modset->arith) {
-      case modset_t::CHOOSE_NONE: /* already clear */
-    break;
-      case modset_t::CHOOSE_UL:
-    modredcul_clearmod (modset->m_ul);
-    break;
-      case modset_t::CHOOSE_15UL:
-    modredc15ul_clearmod (modset->m_15ul);
-    break;
-      case modset_t::CHOOSE_2UL2:
-    modredc2ul2_clearmod (modset->m_2ul2);
-    break;
-      case modset_t::CHOOSE_MPZ:
-    modmpz_clearmod (modset->m_mpz);
-    break;
-  default:
-    ASSERT_ALWAYS(0);
-  }
-  modset->arith = modset_t::CHOOSE_NONE;
 }

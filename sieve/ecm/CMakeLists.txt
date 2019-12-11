@@ -57,7 +57,7 @@ add_library(facul
         facul_doit_mpz.cpp
         stage2.c
         bytecode.c
-        makeplan.c facul.cpp
+        makeplan.c facul.cpp modset.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
         batch.cpp)
 

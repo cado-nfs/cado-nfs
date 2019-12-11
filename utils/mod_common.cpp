@@ -42,7 +42,7 @@ Modulus::pow (Residue &r, const Residue &b, const uint64_t e) const
 */
 void
 Modulus::pow (Residue &r, const Residue &b, const uint64_t *e, 
-	    const int e_nrwords) const
+	    const size_t e_nrwords) const
 {
   uint64_t mask;
   Residue t(*this);
@@ -79,6 +79,45 @@ Modulus::pow (Residue &r, const Residue &b, const uint64_t *e,
 }
 #endif /* MOD_NO_SHARED_MOD_POW_MP */
 
+#ifndef MOD_NO_SHARED_MOD_POW_INT
+void
+Modulus::pow (Residue &r, const Residue &b, const Integer &e) const
+{
+  size_t i = e.getWordCount();
+  const int bits = e.getWordSize();
+  const Integer::WordType msb = (Integer::WordType) 1 << (bits-1);
+  Integer::WordType word, mask;
+  Residue t(*this);
+
+  while (i > 0 && e.getWord(i - 1) == 0)
+      i--;
+  
+  if (i == 0) {
+      set1(r);
+      return;
+  }
+
+  word = e.getWord(i - 1);
+  mask = msb >> u64arith_clz (word);
+
+  /* Exponentiate */
+
+  set (t, b);
+  mask >>= 1;
+
+    for ( ; i > 0; i--) {
+        word = e.getWord(i - 1);
+        while (mask > 0) {
+            sqr (t, t);
+            if (word & mask)
+                mul (t, t, b);
+            mask >>= 1;
+        }
+        mask = msb;
+    }
+    set (r, t);
+}
+#endif
 
 /* Returns 1 if r1 == 1 (mod m) or if r1 == -1 (mod m) or if
    one of r1^(2^1), r1^(2^2), ..., r1^(2^(po2-1)) == -1 (mod m),
