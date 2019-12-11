@@ -7,10 +7,6 @@
 #include "mod_mpz.h"
 #include "facul.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 int facul_doit_ul (std::vector<cxx_mpz> &, const modulusredcul_t, 
 		   const facul_strategy_t *, const int);
 int facul_doit_15ul (std::vector<cxx_mpz> &, const modulusredc15ul_t, 
@@ -40,9 +36,5 @@ facul_doit_onefm_mpz (std::vector<cxx_mpz> &, const modulusmpz_t,
 /* int* */
 /* facul_both (unsigned long**, mpz_t* , */
 /* 	    const facul_strategies_t *); */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FACUL_DOIT_H */
