@@ -2103,8 +2103,10 @@ def merge_two_dicts(x, y):
     z.update(y)
     return z
 
-SETTINGS = {a:b for (a, (b,c)) in
-            merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()}
+# This syntax is weird, but { a:b for [....] } won't work with python 2.6
+# -- which I'm not sure we really strive to support, though.
+SETTINGS = dict([(a,b) for (a, (b,c)) in
+            merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()])
 
 BAD_WU_MAX = 3 # Maximum allowed number of bad WUs
 
