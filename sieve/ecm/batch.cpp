@@ -677,7 +677,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
     if (mpz_cmp_ui(cofac, 1) > 0)
         composites.push_back(std::make_pair(std::move(cofac), methods));
 
-    struct modset_t fm[2];
+    const FaculModulusBase *fm[2] = {NULL, NULL};
 
     for (; !composites.empty() ; ) {
         cxx_mpz & n0 = composites.front().first;
@@ -694,13 +694,11 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
             return false;
         }
 
-        /* If fm[j].arith is still CHOOSE_NONE after the call to
+        /* If fm[j] is still NULL after the call to
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
-        fm[0].arith = modset_t::CHOOSE_NONE;
-        fm[1].arith = modset_t::CHOOSE_NONE;
 
         std::vector<cxx_mpz> temp;
-        int nf = facul_doit_onefm_mpz (temp, n0, *pm, &fm[0], &fm[1], lpb, BB, BBB);
+        int nf = facul_doit_onefm_mpz (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch
@@ -713,8 +711,8 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         /* In this case, no prime factor was stored, no composite was
          * stored: the input number has not been changed, we move on to
          * the next method */
-        if (nf == 0 && fm[0].arith == modset_t::CHOOSE_NONE
-	            && fm[1].arith == modset_t::CHOOSE_NONE) {
+        if (nf == 0 && fm[0] == NULL
+	            && fm[1] == NULL) {
             composites.front().second = pm;
             continue;
         }
@@ -731,11 +729,13 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 
         /* we may also have composites */
         for (int j = 0; j < 2; j++) {
-            if (fm[j].arith == modset_t::CHOOSE_NONE) continue;
+            if (fm[j] == NULL) continue;
 
             /* fm is a non-trivial composite factor */
             cxx_mpz t;
-            fm[j].get_z (t);
+            fm[j]->get_z (t);
+            delete fm[j];
+            fm[j] = NULL;
 
             /* t should be composite, i.e., t >= BB */
             ASSERT(mpz_cmp_d (t, BB) >= 0);

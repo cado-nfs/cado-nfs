@@ -22,20 +22,20 @@ int facul_doit_mpz (std::vector<cxx_mpz> &, const modulusmpz_t,
 
 int
 facul_doit_onefm_ul (std::vector<cxx_mpz> &, const modulusredcul_t,
-		     const facul_method_t, struct modset_t*,
-		     struct modset_t*, unsigned long, double, double);
+		     const facul_method_t, const FaculModulusBase * &,
+		     const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm_15ul (std::vector<cxx_mpz> &, const modulusredc15ul_t,
-		       const facul_method_t, struct modset_t*,
-		       struct modset_t*, unsigned long, double, double);
+		       const facul_method_t, const FaculModulusBase * &,
+		       const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm_2ul2 (std::vector<cxx_mpz> &, const modulusredc2ul2_t,
-		       const facul_method_t, struct modset_t*,
-		       struct modset_t*, unsigned long, double, double);
+		       const facul_method_t, const FaculModulusBase * &,
+		       const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm_mpz (std::vector<cxx_mpz> &, const modulusmpz_t,
-		      const facul_method_t, struct modset_t*,
-		      struct modset_t*, unsigned long, double, double);
+		      const facul_method_t, const FaculModulusBase * &,
+		      const FaculModulusBase * &, unsigned long, double, double);
 
 /* int* */
 /* facul_both (unsigned long**, mpz_t* , */

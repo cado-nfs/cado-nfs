@@ -9,58 +9,82 @@
 #include "mod_mpz.h"
 #include "facul_fwd.hpp"
 
-/* This is kind of a poor man's runtime polymorphism. It's like a base class
- * of Modulus classes with a factory method that initialises the most
- * efficient modular arithmetic for a given modulus.
-*/
 
+class FaculModulusBase {
+public:
+  FaculModulusBase() {}
+  virtual ~FaculModulusBase() {}
 
-struct modset_t {
-  /* The arith variable tells which modulus type has been initialised for 
-     arithmetic. It has a value of CHOOSE_NONE if no modulus currently 
-     initialised. */
-  enum {
-      CHOOSE_NONE,
-      CHOOSE_UL,
-      CHOOSE_15UL,
-      CHOOSE_2UL2,
-      CHOOSE_MPZ,
-  } arith;
+  /* Factory methods that initialise the subclass with the fastest modular
+   * arithmetic that's large enough for the integer n*/
+  static const FaculModulusBase *init_ul (const modintredcul_t n);
+  static const FaculModulusBase *init_15ul (const modintredc15ul_t n);
+  static const FaculModulusBase *init_2ul2 (const modintredc2ul2_t n);
+  static const FaculModulusBase *init_mpz (const modintmpz_t n);
 
-  modulusredcul_t m_ul;
-  modulusredc15ul_t m_15ul;
-  modulusredc2ul2_t m_2ul2;
-  modulusmpz_t m_mpz;
-  
-  modset_t() : arith(CHOOSE_NONE) {}
-  ~modset_t() {clear();}
-  
-  void clear ();
-  void init_ul (modintredcul_t m);
-  void init_15ul (modintredc15ul_t m);
-  void init_2ul2 (modintredc2ul2_t m);
-  void init_mpz (modintmpz_t m);
+  virtual void get_z (mpz_t) const = 0;
+  virtual int call_facul(std::vector<cxx_mpz> &, const facul_strategy_t *,
+    const int) const = 0;
+  virtual int facul_doit_onefm (std::vector<cxx_mpz> &,
+    const facul_method_t, const FaculModulusBase * &,
+    const FaculModulusBase * &, unsigned long, double, double) const = 0;
+  virtual int isprime () const = 0;
+};
 
-  void get_z (mpz_t) const;
-  int call_facul(std::vector<cxx_mpz> & factors,
-    const facul_strategy_t *strategy, const int method_start) const;
+class FaculModulusUl : public FaculModulusBase {
+    modulusredcul_t m;
+public:
+    FaculModulusUl(const modintredcul_t n) {modredcul_initmod_int(m, n);}
+    ~FaculModulusUl() {modredcul_clearmod(m);}
+    int isprime () const {return modredcul_isprime (m);}
+    void get_z (mpz_t) const;
+    int call_facul(std::vector<cxx_mpz> & factors,
+        const facul_strategy_t *strategy, const int method_start) const;
+    int facul_doit_onefm (std::vector<cxx_mpz> &,
+        const facul_method_t, const FaculModulusBase * &,
+        const FaculModulusBase * &, unsigned long, double, double) const;
+};
 
-  /* Run the relevant mod_isprime() function, using the arithmetic selected in the modset */
-  int isprime () const
-  {
-    switch (arith) {
-    case CHOOSE_UL:
-      return modredcul_isprime (m_ul);
-    case CHOOSE_15UL:
-      return modredc15ul_isprime (m_15ul);
-    case CHOOSE_2UL2:
-      return modredc2ul2_isprime (m_2ul2);
-    case CHOOSE_MPZ:
-      return modmpz_isprime (m_mpz);
-    default:
-      abort();
-    }
-  }
+class FaculModulus15Ul : public FaculModulusBase {
+    modulusredc15ul_t m;
+public:
+    FaculModulus15Ul(const modintredc15ul_t n) {modredc15ul_initmod_int(m, n);}
+    ~FaculModulus15Ul() {modredc15ul_clearmod(m);}
+    int isprime () const {return modredc15ul_isprime (m);}
+    void get_z (mpz_t) const;
+    int call_facul(std::vector<cxx_mpz> & factors,
+        const facul_strategy_t *strategy, const int method_start) const;
+    int facul_doit_onefm (std::vector<cxx_mpz> &,
+        const facul_method_t, const FaculModulusBase * &,
+        const FaculModulusBase * &, unsigned long, double, double) const;
+};
+
+class FaculModulus2Ul2 : public FaculModulusBase {
+    modulusredc2ul2_t m;
+public:
+    FaculModulus2Ul2(const modintredc2ul2_t n) {modredc2ul2_initmod_int(m, n);}
+    ~FaculModulus2Ul2() {modredc2ul2_clearmod(m);}
+    int isprime () const {return modredc2ul2_isprime (m);}
+    void get_z (mpz_t) const;
+    int call_facul(std::vector<cxx_mpz> & factors,
+        const facul_strategy_t *strategy, const int method_start) const;
+    int facul_doit_onefm (std::vector<cxx_mpz> &,
+        const facul_method_t, const FaculModulusBase * &,
+        const FaculModulusBase * &, unsigned long, double, double)const ;
+};
+
+class FaculModulusMpz : public FaculModulusBase {
+    modulusmpz_t m;
+public:
+    FaculModulusMpz(const modintmpz_t n) {modmpz_initmod_int(m, n);}
+    ~FaculModulusMpz() {modmpz_clearmod(m);}
+    int isprime () const {return modmpz_isprime (m);}
+    void get_z (mpz_t) const;
+    int call_facul(std::vector<cxx_mpz> & factors,
+        const facul_strategy_t *strategy, const int method_start) const;
+    int facul_doit_onefm (std::vector<cxx_mpz> &,
+        const facul_method_t, const FaculModulusBase * &,
+        const FaculModulusBase * &, unsigned long, double, double) const;
 };
 
 #endif

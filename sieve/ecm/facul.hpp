@@ -30,12 +30,6 @@
  */
 #define NB_MAX_METHODS 400
 
-typedef struct {
-  long method; /* Which method to use (P-1, P+1 or ECM) */
-  void *plan;  /* Parameters for that method */
-} facul_method_t;
-
-
 /* All prime factors in the input number must be > fb. A factor of the 
    input number is assumed to be prime if it is < fb^2.
    The input number is taken to be not smooth if it has a 
