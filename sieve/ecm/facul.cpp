@@ -326,7 +326,6 @@ int
 facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, const facul_strategy_t *strategy)
 {
   int found = 0;
-  size_t bits;
   
     /* XXX ATTENTION: This function may be called recursively. In
      * particular it may happen that the factors[] vector is not empty. */
@@ -342,54 +341,17 @@ facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, const facul_strategy_t
   if (mpz_cmp_ui (N, 1UL) == 0)
     return 0;
   
+  /* Use the fastest modular arithmetic that's large enough for this input */
+  const FaculModulusBase *m = FaculModulusBase::init_mpz(N);
   /* If the composite does not fit into our modular arithmetic, return
      no factor */
-  bits = mpz_sizeinbase (N, 2);
-  if (bits > MODMPZ_MAXBITS)
+  if (m == NULL)
     return 0;
-  
-  /* Use the fastest modular arithmetic that's large enough for this input */
-  if (bits <= MODREDCUL_MAXBITS)
-    {
-      modulusredcul_t m;
-      ASSERT(mpz_fits_ulong_p(N));
-      modredcul_initmod_ul (m, mpz_get_ui(N));
-      found = facul_doit_ul (factors, m, strategy, 0);
-      modredcul_clearmod (m);
-    }
-  else if (bits <= MODREDC15UL_MAXBITS)
-    {
-      modulusredc15ul_t m;
-      unsigned long t[2];
-      modintredc15ul_t n;
-      size_t written;
-      mpz_export (t, &written, -1, sizeof(unsigned long), 0, 0, N);
-      ASSERT_ALWAYS(written <= 2);
-      modredc15ul_intset_uls (n, t, written);
-      modredc15ul_initmod_int (m, n);
-      found = facul_doit_15ul (factors, m, strategy, 0);
-      modredc15ul_clearmod (m);
-    }
-  else if (bits <= MODREDC2UL2_MAXBITS)
-    {
-      modulusredc2ul2_t m;
-      unsigned long t[2];
-      modintredc2ul2_t n;
-      size_t written;
-      mpz_export (t, &written, -1, sizeof(unsigned long), 0, 0, N);
-      ASSERT_ALWAYS(written <= 2);
-      modredc2ul2_intset_uls (n, t, written);
-      modredc2ul2_initmod_int (m, n);
-      found = facul_doit_2ul2 (factors, m, strategy, 0);
-      modredc2ul2_clearmod (m);
-    } 
-  else 
-    {
-      modulusmpz_t m;
-      modmpz_initmod_int (m, N);
-      found = facul_doit_mpz (factors, m, strategy, 0);
-      modmpz_clearmod (m);
-    }
+
+  found = m->call_facul(factors, strategy, 0);
+
+  delete m;
+  m = NULL;
 
   if (found > 1)
     {
