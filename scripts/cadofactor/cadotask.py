@@ -5173,7 +5173,7 @@ class DescentTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"target": [str], "gfpext": int, "execpath": str})
+                {"target": [str], "gfpext": [int,1], "execpath": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
