@@ -94,13 +94,43 @@ struct logtab
     public:
     struct mpz_ro_accessor {
         /* This is a ***NON-OWNING*** mpz-like accessor for an integer
-         * stored somewhere */
+         * stored somewhere.
+         *
+         * A typical construct might be to use this as in:
+         *
+         * mpz_addmul(foo, log[i], bar);
+         *
+         * here log[i] would create an mpz_ro_accessor object, and then
+         * call its mpz_srcptr converter (member function below) to
+         * return an mpz_srcptr that is appropriate to pass to
+         * mpz_addmul.
+         *
+         * The fine point is whether the dtor for the temporary
+         * mpz_ro_accessor object is called before or after entering the
+         * mpz_addmul function.
+         *
+         * The C++ standard says: after. [C++11 § 12.2.3] Namely:
+         *
+         *      When an implementation introduces a temporary object of a
+         *      class that has a non-trivial constructor (12.1, 12.8), it
+         *      shall ensure that a constructor is called for the
+         *      temporary object. Similarly, the destructor shall be
+         *      called for a temporary with a non-trivial destructor
+         *      (12.4). Temporary objects are destroyed as the last step
+         *      in evaluating the full-expression (1.9) that (lexically)
+         *      contains the point where they were created.
+         *
+         * Bottom line: the construct mpz_addmul(foo, log[i], bar) is
+         * safe. (However mpz_srcptr z = log[i]; followed by
+         * mpz_addmul(foo, z, bar) is not !)
+         */
         protected:
         mpz_t ugly;
         public:
         mpz_ro_accessor(logtab const & log, mp_limb_t * place) {
             PTR(ugly) = place;
             ALLOC(ugly) = SIZ(ugly) = mpz_size(log.ell);
+            MPN_NORMALIZE(PTR(ugly), SIZ(ugly));
         }
         operator mpz_srcptr() const { return ugly; }
     };
@@ -116,7 +146,9 @@ struct logtab
         }
         mpz_rw_accessor& operator=(mpz_srcptr v) {
             if (is_known()) {
-                ASSERT_ALWAYS (mpz_cmp (*this, v) == 0);
+                gmp_fprintf (stderr, "ERROR, inconsistent log for h = %" PRIu64 " ; we previously had %Zd in the database, now we want to store %Zd\n", h,
+                        (mpz_srcptr) *this, v);
+                ASSERT_ALWAYS (mpz_cmp ((mpz_srcptr) *this, v) == 0);
                 return *this;
             }
             if (mpz_cmp_ui (v, 0) < 0)
@@ -124,19 +156,24 @@ struct logtab
                 fprintf (stderr, "Warning, log is negative for h = %" PRIu64 "\n", h);
                 cxx_mpz vv;
                 mpz_mod(vv, v, log.ell);
-                return (*this) = vv;
+                (*this) = vv;
             } else if (mpz_cmp (v, log.ell) >= 0) {
                 fprintf (stderr, "Warning, log >= ell for h = %" PRIu64 "\n", h);
                 cxx_mpz vv;
                 mpz_mod(vv, v, log.ell);
-                return (*this) = vv;
-            } else if (mpz_cmp_ui (v, 0) == 0)
-                fprintf (stderr, "Warning, log is zero for h = %" PRIu64 "\n", h);
-            ASSERT_ALWAYS(mpz_size(v) <= mpz_size(log.ell));
-            mpn_zero(PTR(ugly), mpz_size(log.ell));
-            mpn_copyi(PTR(ugly), PTR(v), mpz_size(v));
-            if (h < log.nprimes) // log of SM columns are not taken into account
-            log.nknown++;
+                (*this) = vv;
+            } else {
+                ASSERT_ALWAYS(mpz_size(v) <= mpz_size(log.ell));
+                mpn_zero(PTR(ugly), mpz_size(log.ell));
+                if (mpz_cmp_ui (v, 0) == 0) {
+                    fprintf (stderr, "Warning, log is zero for h = %" PRIu64 "\n", h);
+                } else {
+                    mpn_copyi(PTR(ugly), PTR(v), mpz_size(v));
+                }
+                // log of SM columns are not taken into account
+                if (h < log.nprimes)
+                    log.nknown++;
+            }
             return *this;
         }
     };
@@ -149,8 +186,13 @@ struct logtab
         return h + idx_sm;
     }
     public:
+    bool is_zero(uint64_t h) const {
+        mpz_ro_accessor z = (*this)[h];
+        return mpz_cmp_ui ((mpz_srcptr) z, 0) == 0;
+    }
     bool is_known(uint64_t h) const {
-        return mpz_cmp ((*this)[h], ell) < 0;
+        mpz_ro_accessor z = (*this)[h];
+        return mpz_cmp ((mpz_srcptr) z, ell) < 0;
     }
     mpz_ro_accessor operator[](uint64_t h) const {
         return mpz_ro_accessor(*this, data + h * mpz_size(ell));
@@ -304,11 +346,13 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                 compute_sm_piecewise(u, u, S);
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 if (S->mode == SM_MODE_LEGACY_PRE2018) {
-                    for(int i = S->f->deg-1-u->deg; i < S->nsm; i++)
+                    for(int i = S->f->deg-1-u->deg; i < S->nsm; i++) {
                         mpz_addmul (l, data.log.smlog(side, i), u->coeff[S->f->deg-1-i]);
+                    }
                 } else {
-                    for(int i = 0; i < S->nsm; i++)
+                    for(int i = 0; i < S->nsm; i++) {
                         mpz_addmul (l, data.log.smlog(side, i), u->coeff[i]);
+                    }
                 }
                 mpz_mod(l, l, ell);
                 mpz_poly_clear(u);
@@ -371,7 +415,7 @@ nb_unknown_log (read_data & data, uint64_t i)
       j++;
     } else { // We know this log, add it to log_know_part
       mpz_addmul_si(lrel->log_known_part, data.log[p[k].id], p[k].e);
-        c++;
+      c++;
     }
   }
   if (c) mpz_mod(lrel->log_known_part, lrel->log_known_part, data.log.ell);
@@ -902,6 +946,7 @@ write_log (const char *filename, logtab & log, renumber_t tab,
   for (i = 0; i < log.nprimes + log.nbsm; i++)
   {
     if (!log.is_known(i)) continue;
+    if (log.is_zero(i)) continue;
 
       if (!base_already_set)
       {
@@ -929,7 +974,6 @@ write_log (const char *filename, logtab & log, renumber_t tab,
       nknown++;
       if (tab->table[i] == RENUMBER_SPECIAL_VALUE)
       {
-        ASSERT_ALWAYS (mpz_cmp (log[i], log.ell) < 0);
         if (renumber_is_additional_column (tab, i))
           gmp_fprintf (f, "%" PRid " added column %Zd\n", i, (mpz_srcptr) log[i]);
         else
@@ -937,7 +981,6 @@ write_log (const char *filename, logtab & log, renumber_t tab,
       }
       else
       {
-        ASSERT_ALWAYS (mpz_cmp (log[i], log.ell) < 0);
         p_r_values_t p, r;
         int side;
         renumber_get_p_r_from_index (tab, &p, &r, &side, i, poly);
@@ -954,7 +997,6 @@ write_log (const char *filename, logtab & log, renumber_t tab,
   stats_print_progress (stats, nknown, tab->size, 0, 1);
   for (unsigned int nsm = 0, i = tab->size; nsm < log.nbsm; nsm++)
   {
-    ASSERT_ALWAYS (log.is_known(i+nsm));
     // compute side
     int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
     for(side = 0; ((int)nsm) >= nsm_tot; side++){
@@ -962,7 +1004,13 @@ write_log (const char *filename, logtab & log, renumber_t tab,
 	jnsm -= sm_info[side]->nsm;
     }
     ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side]->nsm));
-    gmp_fprintf (f, "%" PRid " SM %d %d %Zd\n", i+nsm, side, jnsm, (mpz_srcptr) log[i+nsm]);
+    if (log.is_zero(i+nsm)) {
+        printf("# Note: on side %d, log of SM number %d is zero\n", side, jnsm);
+    } else {
+        ASSERT_ALWAYS (log.is_known(i+nsm));
+    }
+    gmp_fprintf (f, "%" PRid " SM %d %d %Zd\n", i+nsm, side, jnsm,
+            (mpz_srcptr) log[i+nsm]);
   }
 
   uint64_t missing = tab->size - nknown;
