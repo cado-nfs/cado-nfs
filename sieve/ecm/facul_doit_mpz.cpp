@@ -5,7 +5,5 @@
 #define pp1_65 pp1_65_mpz
 #define ecm ecm_mpz
 #define mpqs mpqs_mpz
-#define facul_doit facul_doit_mpz
-#define facul_doit_onefm facul_doit_onefm_mpz
 
 #include "facul_doit.cpp"

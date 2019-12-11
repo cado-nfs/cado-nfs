@@ -249,7 +249,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
           int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite factor. Use the same method again so that
 	     backtracking can separate the factors */
-          found2 = fm->call_facul (factors, strategy, i);
+          found2 = fm->facul_doit (factors, strategy, i);
 	  delete fm;
           fm = NULL;
 	  if (found2 == FACUL_NOT_SMOOTH) {
@@ -271,7 +271,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 	{
 	  int found2 = FACUL_NOT_SMOOTH;    /* placate gcc (!) */
 	  /* Factor the composite cofactor */
-	  found2 = cfm->call_facul (factors, strategy, i + 1);
+	  found2 = cfm->facul_doit (factors, strategy, i + 1);
           delete cfm;
           cfm = NULL;
 	  if (found2 == FACUL_NOT_SMOOTH)

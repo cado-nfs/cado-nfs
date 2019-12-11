@@ -7,31 +7,31 @@
 #include "mod_mpz.h"
 #include "facul.hpp"
 
-int facul_doit_ul (std::vector<cxx_mpz> &, const modulusredcul_t, 
-		   const facul_strategy_t *, const int);
-int facul_doit_15ul (std::vector<cxx_mpz> &, const modulusredc15ul_t, 
-		     const facul_strategy_t *, const int);
-int facul_doit_2ul2 (std::vector<cxx_mpz> &, const modulusredc2ul2_t, 
-		     const facul_strategy_t *, const int);
-int facul_doit_mpz (std::vector<cxx_mpz> &, const modulusmpz_t, 
-		    const facul_strategy_t *, const int);
+int facul_doit (std::vector<cxx_mpz> &, const modulusredcul_t, 
+		const facul_strategy_t *, const int);
+int facul_doit (std::vector<cxx_mpz> &, const modulusredc15ul_t, 
+		const facul_strategy_t *, const int);
+int facul_doit (std::vector<cxx_mpz> &, const modulusredc2ul2_t, 
+		const facul_strategy_t *, const int);
+int facul_doit (std::vector<cxx_mpz> &, const modulusmpz_t, 
+		const facul_strategy_t *, const int);
 
 int
-facul_doit_onefm_ul (std::vector<cxx_mpz> &, const modulusredcul_t,
-		     const facul_method_t, const FaculModulusBase * &,
-		     const FaculModulusBase * &, unsigned long, double, double);
+facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredcul_t,
+		  const facul_method_t, const FaculModulusBase * &,
+		  const FaculModulusBase * &, unsigned long, double, double);
 int
-facul_doit_onefm_15ul (std::vector<cxx_mpz> &, const modulusredc15ul_t,
-		       const facul_method_t, const FaculModulusBase * &,
-		       const FaculModulusBase * &, unsigned long, double, double);
+facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredc15ul_t,
+		  const facul_method_t, const FaculModulusBase * &,
+		  const FaculModulusBase * &, unsigned long, double, double);
 int
-facul_doit_onefm_2ul2 (std::vector<cxx_mpz> &, const modulusredc2ul2_t,
-		       const facul_method_t, const FaculModulusBase * &,
-		       const FaculModulusBase * &, unsigned long, double, double);
+facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredc2ul2_t,
+		  const facul_method_t, const FaculModulusBase * &,
+		  const FaculModulusBase * &, unsigned long, double, double);
 int
-facul_doit_onefm_mpz (std::vector<cxx_mpz> &, const modulusmpz_t,
-		      const facul_method_t, const FaculModulusBase * &,
-		      const FaculModulusBase * &, unsigned long, double, double);
+facul_doit_onefm (std::vector<cxx_mpz> &, const modulusmpz_t,
+		  const facul_method_t, const FaculModulusBase * &,
+		  const FaculModulusBase * &, unsigned long, double, double);
 
 /* int* */
 /* facul_both (unsigned long**, mpz_t* , */

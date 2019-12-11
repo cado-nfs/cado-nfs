@@ -707,7 +707,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
 
         std::vector<cxx_mpz> temp;
-        int nf = facul_doit_onefm_mpz (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
+        int nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch

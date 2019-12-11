@@ -23,7 +23,7 @@ public:
   static const FaculModulusBase *init_mpz (const modintmpz_t n);
 
   virtual void get_z (mpz_t) const = 0;
-  virtual int call_facul(std::vector<cxx_mpz> &, const facul_strategy_t *,
+  virtual int facul_doit(std::vector<cxx_mpz> &, const facul_strategy_t *,
     const int) const = 0;
   virtual int facul_doit_onefm (std::vector<cxx_mpz> &,
     const facul_method_t, const FaculModulusBase * &,
@@ -38,7 +38,7 @@ public:
     ~FaculModulusUl() {modredcul_clearmod(m);}
     int isprime () const {return modredcul_isprime (m);}
     void get_z (mpz_t) const;
-    int call_facul(std::vector<cxx_mpz> & factors,
+    int facul_doit(std::vector<cxx_mpz> & factors,
         const facul_strategy_t *strategy, const int method_start) const;
     int facul_doit_onefm (std::vector<cxx_mpz> &,
         const facul_method_t, const FaculModulusBase * &,
@@ -52,7 +52,7 @@ public:
     ~FaculModulus15Ul() {modredc15ul_clearmod(m);}
     int isprime () const {return modredc15ul_isprime (m);}
     void get_z (mpz_t) const;
-    int call_facul(std::vector<cxx_mpz> & factors,
+    int facul_doit(std::vector<cxx_mpz> & factors,
         const facul_strategy_t *strategy, const int method_start) const;
     int facul_doit_onefm (std::vector<cxx_mpz> &,
         const facul_method_t, const FaculModulusBase * &,
@@ -66,7 +66,7 @@ public:
     ~FaculModulus2Ul2() {modredc2ul2_clearmod(m);}
     int isprime () const {return modredc2ul2_isprime (m);}
     void get_z (mpz_t) const;
-    int call_facul(std::vector<cxx_mpz> & factors,
+    int facul_doit(std::vector<cxx_mpz> & factors,
         const facul_strategy_t *strategy, const int method_start) const;
     int facul_doit_onefm (std::vector<cxx_mpz> &,
         const facul_method_t, const FaculModulusBase * &,
@@ -80,7 +80,7 @@ public:
     ~FaculModulusMpz() {modmpz_clearmod(m);}
     int isprime () const {return modmpz_isprime (m);}
     void get_z (mpz_t) const;
-    int call_facul(std::vector<cxx_mpz> & factors,
+    int facul_doit(std::vector<cxx_mpz> & factors,
         const facul_strategy_t *strategy, const int method_start) const;
     int facul_doit_onefm (std::vector<cxx_mpz> &,
         const facul_method_t, const FaculModulusBase * &,

@@ -348,7 +348,7 @@ facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, const facul_strategy_t
   if (m == NULL)
     return 0;
 
-  found = m->call_facul(factors, strategy, 0);
+  found = m->facul_doit(factors, strategy, 0);
 
   delete m;
   m = NULL;
