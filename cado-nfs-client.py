@@ -828,7 +828,7 @@ class HTTP_connector(object):
         if cafile:
             command += ["--cacert", cafile]
         if wait is not None:
-            command += ["--connect-timeout", "%f" % wait]
+            command += ["--connect-timeout", "%d" % int(wait)]
         command.append(url)
         (rc, stdout, stderr) = run_command(command)
         if rc == 0:

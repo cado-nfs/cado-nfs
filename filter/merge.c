@@ -26,7 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>  /* for _O_BINARY */
+#include <fcntl.h>         /* for _O_BINARY */
+#include "filter_config.h" /* for USE_HEAD */
 
 int pass = 0;
 
@@ -48,8 +49,6 @@ unsigned long cancel_rows = 0;
 unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #endif
 
-/* define USE_HEAP for custom memory management */
-#define USE_HEAP
 #define GC_MAX_GARBAGE_RATIO   0.33    /* only run the collection when there is this much garbage */
 #define GC_COLLECTION_LATENCY   5     /* wait before collecting */
 
@@ -2061,10 +2060,7 @@ main (int argc, char *argv[])
     free (mat->Rq);
     free (mat->Rqinv);
 
-#ifndef USE_HEAP
-    /* We don't free the heap. It's pointless, long and complicated */
     clearMat (mat);
-#endif
 
     param_list_clear (pl);
 
