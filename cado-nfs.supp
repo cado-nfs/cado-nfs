@@ -36,8 +36,21 @@
    ...
    fun:lt_dlopenadvise
    ...
-   fun:hwloc_topology_init
    fun:_ZN17las_parallel_desc6helperC1Ev
+   ...
+}
+{
+   hwloc_still_same_leak_with_topology_init
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:lt_dlopenadvise
+   ...
+   fun:cpubinder
+   fun:cpubinding_get_info
+   fun:pi_init_mpilevel
+   fun:pi_go_inner_not_interleaved
    ...
 }
 {
