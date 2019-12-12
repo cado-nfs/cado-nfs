@@ -19,7 +19,9 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
+#ifdef HAVE_OPENMP
 #include <omp.h>
+#endif
 #include "portability.h"
 #include "mpz_poly.h"
 #include "lll.h"
