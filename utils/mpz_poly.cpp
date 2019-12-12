@@ -10,9 +10,9 @@
 
 
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
 #include <sstream>
 #include <vector>
@@ -1318,20 +1318,24 @@ mpz_poly_mul (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
 void
 mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
-  int i;
-
-  Q->deg = P->deg;
+    mpz_poly_realloc (Q, P->deg + 1);
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel
 #endif
-  for (i = 0; i <= P->deg; i++)
     {
-      mpz_t aux;
-      mpz_init (aux);
-      mpz_mul (aux, P->coeff[i], a);
-      mpz_poly_setcoeff (Q, i, aux);
-      mpz_clear (aux);
+        mpz_t aux;
+        mpz_init (aux);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+        for (int i = 0; i <= P->deg; i++)
+        {
+            mpz_mul (aux, P->coeff[i], a);
+            mpz_set (Q->coeff[i], aux);
+        }
+        mpz_clear (aux);
     }
+    mpz_poly_cleandeg (Q, P->deg);
 }
 
 /* Set Q=P/a, where a is an mpz_t. Assume a divides the content of P (the
@@ -1339,15 +1343,24 @@ mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 void
 mpz_poly_divexact_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
-  mpz_t aux;
-  mpz_init (aux);
-  Q->deg = P->deg;
-  for (int i = 0; i <= P->deg; ++i)
+    mpz_poly_realloc (Q, P->deg + 1);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
     {
-      mpz_divexact (aux, P->coeff[i], a);
-      mpz_poly_setcoeff (Q, i, aux);
+        mpz_t aux;
+        mpz_init (aux);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+        for (int i = 0; i <= P->deg; i++)
+        {
+            mpz_divexact (aux, P->coeff[i], a);
+            mpz_set (Q->coeff[i], aux);
+        }
+        mpz_clear (aux);
     }
-  mpz_clear (aux);
+    mpz_poly_cleandeg (Q, P->deg);
 }
 
 /* Test whether a divides P, where a is an mpz_t. */
