@@ -53,10 +53,10 @@ FILE * cado_popen(const char * command, const char * mode)
     pid_t child = fork();
     if (child < 0) { perror("fork"); return NULL; }
     if (child) {
-        pthread_mutex_unlock(popenlist->m);
         /* I'm the father. I only want to use pipefd[imode]. */
         close(pipefd[!imode]);
         *kid = child;
+        pthread_mutex_unlock(popenlist->m);
         /*
         fprintf(stderr, "%s child %d (%s) through fd %d\n",
                 imode ?  "Writing to" : "Reading from",
