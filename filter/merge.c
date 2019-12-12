@@ -2061,10 +2061,7 @@ main (int argc, char *argv[])
     free (mat->Rq);
     free (mat->Rqinv);
 
-#ifndef USE_HEAP
-    /* We don't free the heap. It's pointless, long and complicated */
     clearMat (mat);
-#endif
 
     param_list_clear (pl);
 
