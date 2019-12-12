@@ -58,7 +58,7 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
         } else {
             ASSERT_ALWAYS(mpz_cmp_ui(g->coeff[1], 1) == 0);
             mpz_poly_set(chunks[j], u);
-            mpz_poly_mod_f_mod_mpz(chunks[j], g, sm->ell2, NULL);
+            mpz_poly_mod_f_mod_mpz(chunks[j], g, sm->ell2, NULL, NULL);
             ASSERT_ALWAYS(chunks[j]->deg == 0);
             mpz_ptr c = chunks[j]->coeff[0];
             mpz_powm(c, c, sm->exponents[j], sm->ell2);
@@ -275,7 +275,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
                     mpz_set(matrix[s * f->deg + k], h->coeff[k]);
             }
             mpz_poly_mul_xi(h, h, 1);
-            mpz_poly_mod_f_mod_mpz(h, f, ell, NULL);
+            mpz_poly_mod_f_mod_mpz(h, f, ell, NULL, NULL);
         }
         mpz_poly_clear(b);
         mpz_poly_clear(a);
