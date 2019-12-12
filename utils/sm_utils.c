@@ -200,7 +200,7 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
         if (F[s] == NULL) continue;
         mpz_poly_pow_mod_f_mod_mpz (tmp[s], abpolys[r[k]], F[s], ee, ell2);
         mpz_poly_mul_mod_f_mod_mpz (rel->num[s], rel->num[s], tmp[s], F[s],
-                                    ell2, NULL);
+                                    ell2, NULL, NULL);
       }
     }
     else
@@ -211,7 +211,7 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
         if (F[s] == NULL) continue;
         mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]], F[s], ee, ell2);
         mpz_poly_mul_mod_f_mod_mpz(rel->denom[s], rel->denom[s], tmp[s], F[s],
-                                   ell2, NULL);
+                                   ell2, NULL, NULL);
       }
     }
   }
@@ -266,7 +266,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
         mpz_poly_xgcd_mpz(d, g, h, a, b, ell);
 
         /* we now have the complete cofactor */
-        mpz_poly_mul_mod_f_mod_mpz(h, b, h, f, ell, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(h, b, h, f, ell, NULL, NULL);
         for(int j = 0 ; j < g->deg ; j++, s++) {
             /* store into the matrix the coefficients of x^j*h
              * modulo f */

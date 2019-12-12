@@ -56,7 +56,7 @@ struct cxx_mpz_polymod_scaled {
 
 /* Pseudo-reduce a plain polynomial p modulo a non-monic polynomial F.
    The result is of type cxx_mpz_polymod_scaled P, and satisfies:
-   P->p = lc(F)^P->v * p mod F.
+   P->p = lc(F)^(P->v) * p mod F.
    WARNING: this function destroys its input p !!! */
 static void
 cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_mpz_poly const & F) {
@@ -85,10 +85,12 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
     // using f_hat instead of f.
     if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
       v++; /* we consider p/F[d]^v */
+#pragma omp parallel for
       for (i = 0; i < k; ++i)
         mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
     }
 
+#pragma omp parallel for
     for (i = 0; i < d; ++i)
       mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
 
@@ -385,22 +387,20 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
             typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
             typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
+	    if (verbose > 1)
 #pragma omp critical
-            {
+	      {
                 fmt::fprintf (stderr, "%s: fragment %u/%u"
-                        " of level 00 done by thread %u at wct=%1.2fs\n",
-                        message,
-                        i, 1u<<n, omp_get_thread_num(),
-                        wct_seconds () - wct0);
+			      " of level 00 done by thread %u at wct=%1.2fs\n",
+			      message,
+			      i, 1u<<n, omp_get_thread_num(),
+			      wct_seconds () - wct0);
                 fflush (stderr);
-            }
+	      }
         }
     }
-    /* This puts pressure at the malloc level */
+    /* This puts pressure at the malloc level, but takes negligible time */
     {
-        fmt::fprintf (stderr, "%s: shrinking level 00 at wct=%1.2fs\n",
-                message, wct_seconds () - wct0);
-        fflush (stderr);
         typename std::vector<typename M::T>::iterator dst = v.begin();
         endpoints.pop_back();
         for(size_t z : endpoints)
@@ -432,35 +432,52 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
 
     /* At this point v has size a power of two */
   for(int level = 0 ; v.size() > 1 ; level++) {
-#pragma omp critical
+    #pragma omp critical
       {
-	fmt::fprintf (stderr, "%s: starting level %d at wct=%1.2fs, %zu values to multiply\n",
-		      message, level, wct_seconds () - wct0, v.size());
+	fmt::fprintf (stderr, "%s: starting level %d at cpu=%1.2fs (wct=%1.2fs), %zu values to multiply\n",
+		      message, level, seconds (), wct_seconds () - wct0, v.size());
 	fflush (stderr);
       }
 
+      double st = seconds (), wct = wct_seconds ();
       size_t N = v.size() - 1;
       int local_nthreads;
       /* the loop below performs floor((N+1)/2) products */
       size_t nloops = (N + 1) / 2;
-      local_nthreads = (nthr < nloops) ? 1 : nthr / nloops;
+      if (nthr < 2 * nloops)
+	{
+	  omp_set_nested (0);
+	  local_nthreads = 1;
+	}
+      else
+	{
+	  /* we have to set omp_set_nested here and not at the beginning of
+	     main(), since it seems that the pthreads reset OpenMP's "nested"
+	     value to 0 */
+	  omp_set_nested (1);
+	  local_nthreads = nthr / nloops;
+	}
 #pragma omp parallel for
       for(size_t j = 0 ; j < N ; j += 2) {
-	  m(v[j], v[j], v[j+1], local_nthreads);
+	  omp_set_num_threads (local_nthreads);
+	  m(v[j], v[j], v[j+1]);
           v[j+1] = typename M::T();
       }
 
-      /* shrink (not parallel) */
-#pragma omp critical
-      {
-	fmt::fprintf (stderr, "%s: shrinking level %d at wct=%1.2fs\n",
-		      message, level, wct_seconds () - wct0);
-	fflush (stderr);
-      }
+      /* reset "nested" to 0 */
+      omp_set_nested (0);
+
+      /* shrink (not parallel), takes negligible time */
       for(size_t j = 2 ; j < v.size() ; j += 2) {
           std::swap(v[j], v[j/2]);
       }
       v.erase(v.begin() + (v.size() + 1) / 2, v.end());
+    #pragma omp critical
+      {
+	fmt::fprintf (stderr, "%s: level %d took cpu=%1.2fs (wct=%1.2fs)\n",
+		      message, level, seconds () - st, wct_seconds () - wct);
+	fflush (stderr);
+      }
   }
   return std::move(v.front());
 }
@@ -598,7 +615,7 @@ struct cxx_mpz_functions {
     void set1(T & x) const { mpz_set_ui(x, 1); }
     void set(T & y, T const & x) const { mpz_set(y, x); }
     bool is1(T & x) const { return mpz_cmp_ui(x, 1) == 0; }
-    void operator()(T & res, T const & a, T const & b, int MAYBE_UNUSED nthreads = 1) const {
+    void operator()(T & res, T const & a, T const & b) const {
         mpz_mul(res, a, b);
     }
     T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
@@ -826,10 +843,6 @@ struct cxx_mpz_polymod_scaled_functions {
     void set1(T & res) const {
         cxx_mpz_polymod_scaled_set_ui(res, 1);
     }
-    void operator()(T &res, T const & a, T const & b, int nthreads) const {
-        omp_set_num_threads (nthreads);
-        cxx_mpz_polymod_scaled_mul(res, a, b, F);
-    }
     void operator()(T &res, T const & a, T const & b) const {
         cxx_mpz_polymod_scaled_mul(res, a, b, F);
     }
@@ -937,7 +950,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_poly_pow_mod_f_mod_ui(D, delta, F, t, p);
     for (i = 0; i <= s-1; ++i) {
       mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
-      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL);
+      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
       mpz_ui_pow_ui(aux, 2, (s-1-i));
       mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
       if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
@@ -949,7 +962,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_divexact_ui(m, m, 2);
     mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
 
-    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL);
+    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL, NULL);
     mpz_poly_clear(D);
     mpz_poly_clear(A);
     mpz_clear(m);
@@ -1021,7 +1034,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 
   /* Jason Papadopoulos's trick: since we will lift the square root of A to at
      most target_size bits, we can reduce A accordingly */
-  double st = seconds ();
+  double st = seconds (), wct = wct_seconds ();
   target_k = (unsigned long) ((double) target_size * log ((double) 2) / log((double) p));
   mpz_ui_pow_ui (pk, p, target_k);
   while (mpz_sizeinbase (pk, 2) <= target_size)
@@ -1029,14 +1042,14 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz (A, A, pk);
+  mpz_poly_mod_mpz (A, A, pk, NULL);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2fs\n", numdep,
-	     target_k, seconds () - st);
+    fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2fs (wct %.2fs)\n",
+	     numdep, target_k, seconds () - st, wct_seconds () - wct);
     fflush (stderr);
   }
 
@@ -1045,19 +1058,12 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   k = 1; /* invariant: pk = p^k */
   lk = 0; /* k = 2^lk */
   st = seconds ();
+  wct = wct_seconds ();
   P = mpz_poly_base_modp_init (A, p, K, logk0 = logk);
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs\n",
-	     numdep, seconds () - st);
-    if (verbose)
-      {
-	int i;
-	size_t s = 0;
-	for (i = 0; i <= logk; i++)
-	  s += mpz_poly_totalsize (P[i]);
-	fprintf (stderr, "Alg(%d): P takes %zuMb\n", numdep, s >> 20);
-      }
+    fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs (wct %.2fs)\n",
+	     numdep, seconds () - st, wct_seconds () - wct);
     fflush (stderr);
   }
 
@@ -1096,6 +1102,8 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   // of A computed modulo p.
 
   mpz_poly tmp;
+  mpz_t invpk;
+  mpz_init (invpk);
   mpz_poly_init (tmp, 2*d-1);
   do {
     double st;
@@ -1111,17 +1119,17 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 
     lk += 1;
     st = seconds ();
+    wct = wct_seconds ();
     /* a <- a + pk*P[lk] */
     mpz_poly_base_modp_lift (a, P, lk, pk);
     /* free P[lk] which is no longer needed */
     mpz_poly_clear (P[lk]);
-    st = seconds () - st;
     if (verbose)
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (peak %luM)\n", numdep, st, PeakMemusage () >> 10);
-	fprintf (stderr, "Alg(%d):    a takes %zuMb\n", numdep,
-		 mpz_poly_totalsize (a) >> 20);
+	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (wct %.2fs, peak %luM)\n",
+		 numdep, seconds () - st, wct_seconds () - wct,
+		 PeakMemusage () >> 10);
 	fflush (stderr);
       }
 
@@ -1135,24 +1143,26 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         mpz_div_ui (pk, pk, p);
         k --;
       }
+    barrett_precompute_inverse (invpk, pk);
     k = K[logk];
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs\n",
+      fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs (wct %.2fs)\n",
 	       numdep, k, (unsigned long int) mpz_sizeinbase (pk, 2),
-	       seconds ());
+	       seconds (), wct_seconds () - wct0);
       fflush (stderr);
     }
 
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL); /* tmp = invsqrtA^2 */
+    wct = wct_seconds ();
+    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
-	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
-		 mpz_poly_totalsize (tmp) >> 20);
+        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+		 numdep, seconds () - st, wct_seconds () - wct,
+		 PeakMemusage () >> 10);
         fflush (stderr);
       }
 
@@ -1160,48 +1170,46 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
        However I don't see how to use the fact that the coefficients
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL); /* tmp=a*invsqrtA^2 */
+    wct = wct_seconds ();
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
-	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
-		 mpz_poly_totalsize (tmp) >> 20);
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+		 numdep, seconds () - st, wct_seconds () - wct,
+		 PeakMemusage () >> 10);
         fflush (stderr);
       }
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
     mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL);
+    wct = wct_seconds ();
+    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
-	fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
-		 mpz_poly_totalsize (tmp) >> 20);
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+		 numdep, seconds () - st, wct_seconds () - wct,
+		 PeakMemusage () >> 10);
         fflush (stderr);
       }
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
     mpz_poly_sub_mod_mpz (invsqrtA, invsqrtA, tmp, pk);
-    if (verbose)
-#pragma omp critical
-      {
-	fprintf (stderr, "Alg(%d):    invsqrtA takes %zuMb\n", numdep,
-		 mpz_poly_totalsize (invsqrtA) >> 20);
-        fflush (stderr);
-      }
+
 
   } while (k < target_k);
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
-  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL);
+  wct = wct_seconds ();
+  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (peak %luM)\n", numdep, seconds () - st, PeakMemusage () >> 10);
-      fprintf (stderr, "Alg(%d):    tmp takes %zuMb\n", numdep,
-	       mpz_poly_totalsize (tmp) >> 20);
+      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+	       numdep, seconds () - st, wct_seconds () - wct,
+	       PeakMemusage () >> 10);
       fflush (stderr);
     }
   mpz_poly_mod_center (tmp, pk);
@@ -1781,14 +1789,6 @@ int main(int argc, char *argv[])
     /* if no options then -ab -side0 -side1 -gcd */
     if (!(opt_ab || opt_side0 || opt_side1 || opt_gcd))
         opt_ab = opt_side0 = opt_side1 = opt_gcd = 1;
-
-#ifdef HAVE_OPENMP
-    /* when computing the product tree on the algebraic side, we want
-       nested parallelism: a first level of parallelism makes N/2 product
-       when the tree has width N, and a second level computes the polynomial
-       products in parallel */
-    omp_set_nested (1);
-#endif
 
     double cpu0 = seconds ();
     wct0 = wct_seconds();
