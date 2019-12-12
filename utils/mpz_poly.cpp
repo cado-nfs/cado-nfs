@@ -1323,6 +1323,8 @@ mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 
   Q->deg = P->deg;
 #ifdef HAVE_OPENMP
+  mpz_poly_realloc (Q, P->deg + 1); /* to avoid a race
+				       in mpz_poly_setcoeff below */
 #pragma omp parallel for
 #endif
   for (i = 0; i <= P->deg; i++)
@@ -1343,6 +1345,9 @@ mpz_poly_divexact_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
   mpz_t aux;
   mpz_init (aux);
   Q->deg = P->deg;
+  /* warning: in case we parallelize this loop, first call
+     mpz_poly_realloc (Q, P->deg + 1) to avoid a race
+     in mpz_poly_setcoeff (Q, i, aux) */
   for (int i = 0; i <= P->deg; ++i)
     {
       mpz_divexact (aux, P->coeff[i], a);
