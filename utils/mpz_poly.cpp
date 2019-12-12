@@ -2189,7 +2189,7 @@ mpz_poly_sqr_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f
     END_TIMER (TIMER_SQR);
     // reduce mod f
     RESTART_TIMER;
-    mpz_poly_mod_f_mod_mpz (R, f, m, invf);
+    mpz_poly_mod_f_mod_mpz (R, f, m, invf, invm);
     END_TIMER (TIMER_RED);
   }else
 #endif

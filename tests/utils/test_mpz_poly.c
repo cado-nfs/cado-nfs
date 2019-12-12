@@ -330,10 +330,10 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
       else
         P->deg = -1; /* P=0 */
       mpz_poly_init (Q, d - 1);
-      mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, NULL);
+      mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, NULL, NULL);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
-      mpz_poly_mul_mod_f_mod_mpz (Q, P, P, f, m, NULL);
+      mpz_poly_mul_mod_f_mod_mpz (Q, P, P, f, m, NULL, NULL);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
       mpz_poly_clear (f);
@@ -651,7 +651,7 @@ void test_mpz_poly_is_root(unsigned long iter)
         mpz_poly_setcoeff_si(ell, 1, 1);
         mpz_neg(ell->coeff[0], r);
         mpz_poly_mul(f, f, ell);
-        mpz_poly_mod_mpz(f, f, p);
+        mpz_poly_mod_mpz(f, f, p, NULL);
         mpz_mod(r, r, p);
     }
 
@@ -812,7 +812,7 @@ void test_mpz_poly_factor(unsigned long iter)
         mpz_rrandomb(p, state, 20);
         mpz_nextprime(p, p);
         mpz_poly_random(f, 10, 10);
-        mpz_poly_mod_mpz(f, f, p);
+        mpz_poly_mod_mpz(f, f, p, NULL);
         // mpz_poly_fprintf(stderr, f);
         mpz_poly_factor(lf, f, p, state);
         mpz_poly g;
@@ -822,7 +822,7 @@ void test_mpz_poly_factor(unsigned long iter)
             mpz_poly_with_m_ptr fx = lf->factors[i];
             mpz_poly_pow_ui_mod_f_mod_mpz(fx->f, fx->f, NULL, fx->m, p); 
             mpz_poly_mul(g, g, fx->f);
-            mpz_poly_mod_mpz(g, g, p);
+            mpz_poly_mod_mpz(g, g, p, NULL);
         }
         mpz_poly_makemonic_mod_mpz(f, f, p);
         ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
