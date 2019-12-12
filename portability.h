@@ -354,6 +354,10 @@ static inline void omp_set_num_threads(int n MAYBE_UNUSED)
 {
 }
 
+static inline void omp_set_nested(int n MAYBE_UNUSED)
+{
+}
+
 static inline int omp_get_thread_num()
 {
   return 0;
