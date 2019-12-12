@@ -36,12 +36,15 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
+#include <mutex>
 
 #include "utils_with_io.h"
 #include "portability.h"
 
 static int verbose = 0;
 static double wct0;
+
+std::mutex stdio_guard;
 
 struct cxx_mpz_polymod_scaled {
   cxx_mpz_poly p;
@@ -151,21 +154,15 @@ get_depsidename (const char *prefix, int numdep, int side)
 static FILE*
 fopen_maybe_compressed_lock (const char * name, const char * mode)
 {
-  FILE *fp;
-
-#pragma omp critical
-  fp = fopen_maybe_compressed (name, mode);
-  return fp;
+  std::lock_guard<std::mutex> dummy(stdio_guard);
+  return fopen_maybe_compressed (name, mode);
 }
 
 static int
 fclose_maybe_compressed_lock (FILE * f, const char * name)
 {
-  int ret;
-
-#pragma omp critical
-  ret = fclose_maybe_compressed (f, name);
-  return ret;
+  std::lock_guard<std::mutex> dummy(stdio_guard);
+  return fclose_maybe_compressed (f, name);
 }
 
 /* this function is run sequentially, thus no need to be thread-safe */
@@ -388,8 +385,8 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
             typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
 	    if (verbose > 1)
-#pragma omp critical
 	      {
+                std::lock_guard<std::mutex> dummy(stdio_guard);
                 fmt::fprintf (stderr, "%s: fragment %u/%u"
 			      " of level 00 done by thread %u at wct=%1.2fs\n",
 			      message,
@@ -432,8 +429,8 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
 
     /* At this point v has size a power of two */
   for(int level = 0 ; v.size() > 1 ; level++) {
-    #pragma omp critical
       {
+        std::lock_guard<std::mutex> dummy(stdio_guard);
 	fmt::fprintf (stderr, "%s: starting level %d at cpu=%1.2fs (wct=%1.2fs), %zu values to multiply\n",
 		      message, level, seconds (), wct_seconds () - wct0, v.size());
 	fflush (stderr);
@@ -472,8 +469,8 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
           std::swap(v[j], v[j/2]);
       }
       v.erase(v.begin() + (v.size() + 1) / 2, v.end());
-    #pragma omp critical
       {
+        std::lock_guard<std::mutex> dummy(stdio_guard);
 	fmt::fprintf (stderr, "%s: level %d took cpu=%1.2fs (wct=%1.2fs)\n",
 		      message, level, seconds () - st, wct_seconds () - wct);
 	fflush (stderr);
@@ -1430,7 +1427,6 @@ void print_nonsmall(mpz_t zx)
 void print_factor(mpz_t N)
 {
     unsigned long xx = mpz_get_ui(N);
-#pragma omp critical
     if (mpz_cmp_ui(N, xx) == 0) {
         xx = trialdivide_print(xx, 1000000);
         if (xx != 1) {
@@ -1459,6 +1455,7 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
         sidefile[side] = fopen_maybe_compressed_lock (sidename[side], "rb");
         mpz_init(sidesqrt[side]);
         if (sidefile[side] == NULL) {
+            std::lock_guard<std::mutex> dummy(stdio_guard);
             fprintf(stderr, "Error, cannot open file %s for reading\n",
                     sidename[side]);
             exit(EXIT_FAILURE);
@@ -1484,6 +1481,7 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     mpz_mod(g2, g2, Np);
 
     if (mpz_cmp(g1, g2)!=0) {
+      std::lock_guard<std::mutex> dummy(stdio_guard);
       fprintf(stderr, "Bug: the squares do not agree modulo n!\n");
       ASSERT_ALWAYS(0);
       //      gmp_printf("g1:=%Zd;\ng2:=%Zd;\n", g1, g2);
@@ -1494,6 +1492,7 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     if (mpz_cmp(g1,Np)) {
       if (mpz_cmp_ui(g1,1)) {
         found = 1;
+        std::lock_guard<std::mutex> dummy(stdio_guard);
         print_factor(g1);
       }
     }
@@ -1503,15 +1502,17 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     if (mpz_cmp(g2,Np)) {
       if (mpz_cmp_ui(g2,1)) {
         found = 1;
+        std::lock_guard<std::mutex> dummy(stdio_guard);
         print_factor(g2);
       }
     }
     mpz_clear(g1);
     mpz_clear(g2);
 
-    if (!found)
-#pragma omp critical
+    if (!found) {
+      std::lock_guard<std::mutex> dummy(stdio_guard);
       printf ("Failed\n");
+    }
 
     mpz_clear(sidesqrt[0]);
     mpz_clear(sidesqrt[1]);
@@ -1664,6 +1665,8 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
   pthread_t *tid;
   tab_t *T;
   int j;
+
+  omp_set_num_threads(iceildiv(omp_get_max_threads(), nthreads));
 
   tid = (pthread_t*) malloc (nthreads * sizeof (pthread_t));
   ASSERT_ALWAYS(tid != NULL);
