@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #error cado_config.h must be included before portability.h
 #endif
 
+#include "macros.h"
+
 #ifndef HAVE_STRDUP
 #include <stdlib.h>
 #include <string.h>
@@ -346,6 +348,10 @@ static inline int omp_get_max_threads()
 static inline int omp_get_num_threads()
 {
   return 1;
+}
+
+static inline void omp_set_num_threads(int n MAYBE_UNUSED)
+{
 }
 
 static inline int omp_get_thread_num()
