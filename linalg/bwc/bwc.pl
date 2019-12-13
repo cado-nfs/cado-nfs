@@ -1493,8 +1493,8 @@ sub task_common_run {
     } else {
         @_ = grep !/^lingen_mpi?=/, @_;
     }
-    @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
-    @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
+    # @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
+    # @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
     @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^lingen/;
     @_ = grep !/^save_submatrices?=/, @_ unless $program =~ /^(prep|krylov|mksol|gather)$/;
     # are we absolutely sure that lingen needs no matrix ?
@@ -1955,8 +1955,10 @@ sub task_lingen {
     push @args, grep { /^verbose_flags=/ } @main_args;
     if (! -f "$wdir/$concatenated_A.gen") {
         if ($prime == 2) {
+            push @args, "tuning_thresholds=recursive:128,ternary:6400,cantor:6400,notiming:0";
             task_common_run("lingen_u64k1", @args);
         } else {
+            push @args, "tuning_thresholds=recursive:10,flint:10,notiming:0";
             task_common_run("lingen_pz", @args);
         }
     } else {
