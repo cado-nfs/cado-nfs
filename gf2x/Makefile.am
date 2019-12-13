@@ -118,8 +118,14 @@ dist-LGPL: distdir
 	mv $(distdir)-LGPL/ $(distdir)/
 	$(am__post_remove_distdir)
 
+if HAVE_NONCONSTANT_CLOCK
 tune-lowlevel tune-toom tune-fft: all
 	cd src; $(MAKE) $@
+else
+tune-lowlevel tune-toom tune-fft:
+	@echo "Tuning cannot run since clock() apparently returns constant values"
+endif
+
 
 distclean-local:
 	-find already_tuned/tuned -maxdepth 1 -name "gf2x*" | xargs -r rm -f

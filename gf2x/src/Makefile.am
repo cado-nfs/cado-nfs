@@ -29,7 +29,7 @@
 AUTOMAKE_OPTIONS=subdir-objects
 # note that most automatic targets have their own CPPFLAGS, which
 # override this one.
-AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir)
+AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/fft
 AM_LDFLAGS = -no-install
 
 EXTRA_PROGRAMS=

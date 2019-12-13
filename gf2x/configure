@@ -645,6 +645,8 @@ GF2X_32BIT_SOURCES_TRUE
 WORDSIZE_IS_64_FALSE
 WORDSIZE_IS_64_TRUE
 GF2X_WORDSIZE
+HAVE_NONCONSTANT_CLOCK_FALSE
+HAVE_NONCONSTANT_CLOCK_TRUE
 HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_FALSE
 HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE
 EXEEXT_FOR_BUILD
@@ -17478,7 +17480,7 @@ EXEEXT_FOR_BUILD=$gf2x_cv_prog_exeext_for_build
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for __attribute__((visibility(\"hidden\")))" >&5
 $as_echo_n "checking for __attribute__((visibility(\"hidden\")))... " >&6; }
-if ${ac_cv_hidden_visibility_attribute+:} false; then :
+if ${gf2x_cv_hidden_visibility_attribute+:} false; then :
   $as_echo_n "(cached) " >&6
 else
 
@@ -17487,7 +17489,7 @@ int __attribute__ ((visibility ("hidden"))) foo (void) { return 1; }
 int __attribute__ ((visibility ("default"))) bar (void) { return 1; }
 int baz (void) { return 1; }
 EOF
-    ac_cv_hidden_visibility_attribute=no
+    gf2x_cv_hidden_visibility_attribute=no
     if { ac_try='${CC-cc} -fvisibility=hidden -Werror -S conftest.c -o conftest.s 1>&5'
   { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
   (eval $ac_try) 2>&5
@@ -17497,26 +17499,90 @@ EOF
     then
         if (grep '\.hidden.*foo' conftest.s && grep '\.hidden.*baz' conftest.s && ! grep '\.hidden.*bar' conftest.s) >/dev/null;
         then
-            ac_cv_hidden_visibility_attribute=yes
+            gf2x_cv_hidden_visibility_attribute=yes
         fi
     fi
     rm -f conftest.*
 
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_hidden_visibility_attribute" >&5
-$as_echo "$ac_cv_hidden_visibility_attribute" >&6; }
-if test $ac_cv_hidden_visibility_attribute = yes;
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gf2x_cv_hidden_visibility_attribute" >&5
+$as_echo "$gf2x_cv_hidden_visibility_attribute" >&6; }
+if test $gf2x_cv_hidden_visibility_attribute = yes;
 then
 
 $as_echo "#define HAVE_HIDDEN_VISIBILITY_ATTRIBUTE 1" >>confdefs.h
 
 fi
- if test "x$ac_cv_hidden_visibility_attribute" = xyes; then
+ if test "x$gf2x_cv_hidden_visibility_attribute" = xyes; then
   HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE=
   HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_FALSE='#'
 else
   HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE='#'
   HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_FALSE=
+fi
+
+
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking that clock() returns non-constant values" >&5
+$as_echo_n "checking that clock() returns non-constant values... " >&6; }
+if ${gf2x_cv_clock_is_not_constant+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+        if test "$cross_compiling" = yes; then :
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: check skipped because of cross-compiling" >&5
+$as_echo "$as_me: check skipped because of cross-compiling" >&6;}
+            gf2x_cv_clock_is_not_constant=dontknow
+
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <time.h>
+#include <sys/types.h>
+int main()
+{
+    clock_t c0 = clock(), c1;
+    long count = 0;
+    for( ; count < 1000000 ; count++) {
+        if ((c1 = clock()) != c0)
+            return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+}
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+
+            gf2x_cv_clock_is_not_constant=yes
+
+else
+
+            gf2x_cv_clock_is_not_constant=no
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gf2x_cv_clock_is_not_constant" >&5
+$as_echo "$gf2x_cv_clock_is_not_constant" >&6; }
+    if test $gf2x_cv_clock_is_not_constant = yes;
+    then
+
+$as_echo "#define HAVE_NONCONSTANT_CLOCK 1" >>confdefs.h
+
+    fi
+     if test "x$gf2x_cv_clock_is_not_constant" = xyes; then
+  HAVE_NONCONSTANT_CLOCK_TRUE=
+  HAVE_NONCONSTANT_CLOCK_FALSE='#'
+else
+  HAVE_NONCONSTANT_CLOCK_TRUE='#'
+  HAVE_NONCONSTANT_CLOCK_FALSE=
 fi
 
 
@@ -19263,6 +19329,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE}" && test -z "${HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_HIDDEN_VISIBILITY_ATTRIBUTE\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_NONCONSTANT_CLOCK_TRUE}" && test -z "${HAVE_NONCONSTANT_CLOCK_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_NONCONSTANT_CLOCK\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${WORDSIZE_IS_64_TRUE}" && test -z "${WORDSIZE_IS_64_FALSE}"; then
