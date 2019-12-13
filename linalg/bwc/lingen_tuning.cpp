@@ -15,6 +15,7 @@
 #include <cfloat>
 #include <stdexcept>
 #include <algorithm>
+#include <functional>
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
@@ -79,21 +80,22 @@ std::vector<unsigned int> all_splits_of(unsigned int n)
     return res;
 }
 
-std::vector<lingen_substep_schedule> 
-optimize(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, unsigned int mesh, lingen_tuning_cache & C, size_t reserved) { /* {{{ */
+std::vector<lingen_substep_schedule> optimize(
+        std::ostream& os,
+        lingen_substep_characteristics const & U,
+        lingen_platform const & P,
+        unsigned int mesh,
+        std::vector<lingen_substep_schedule::fft_type_t> const & allowed_ffts,
+        bool do_timings,
+        lingen_tuning_cache & C,
+        size_t reserved)
+{ /* {{{ */
     unsigned int nr0 = U.mpi_split0(mesh).block_size_upper_bound();
     unsigned int nr1 = U.mpi_split1(mesh).block_size_upper_bound();
     unsigned int nr2 = U.mpi_split2(mesh).block_size_upper_bound();
     size_t min_my_ram = SIZE_MAX;
     lingen_substep_schedule S_lean;
     std::vector<lingen_substep_schedule> all_schedules;
-    std::vector<lingen_substep_schedule::fft_type_t> allowed_ffts { lingen_substep_schedule::FFT_NONE };
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    allowed_ffts.push_back(lingen_substep_schedule::FFT_FLINT);
-#else
-    allowed_ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-    allowed_ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-#endif
 
     for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
         if (!U.fft_type_valid(fft)) continue;
@@ -185,10 +187,10 @@ optimize(std::ostream& os, lingen_substep_characteristics const & U, lingen_plat
     for(auto & S : all_schedules) {
         /* This should ensure that all timings are obtained from cache */
         /* This may print timing info to the output stream */
-        U.get_call_time(os, P, mesh, S, C);
+        U.get_call_time(os, P, mesh, S, C, do_timings);
     }
 
-    U.sort_schedules(os, all_schedules, P, mesh, C);
+    U.sort_schedules(os, all_schedules, P, mesh, C, do_timings);
 
     std::map<std::string, lingen_substep_schedule> families;
     std::vector<lingen_substep_schedule> res;
@@ -229,9 +231,87 @@ struct lingen_tuner {
      */
     double basecase_keep_until = 1.8;
 
-    std::map<std::string, unsigned int> tuning_thresholds;
-    /* length(E), length(E_left), length(E_right), number of occurrences
-     */
+    struct tuning_thresholds_t : public std::map<std::string, unsigned int> {/*{{{*/
+        typedef std::map<std::string, unsigned int> super;
+        static constexpr const char * recursive = "recursive";
+        static constexpr const char * collective = "collective";
+        static constexpr const char * ternary = "ternary";
+        static constexpr const char * cantor = "cantor";
+        static constexpr const char * flint = "flint";
+        static constexpr const char * notiming = "notiming";
+        static const std::vector<const char *> known;
+        static const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> code_to_key;
+
+        bool has(std::string const & key) const {
+            return find(key) != end();
+        }
+        private:
+        unsigned int& getref(std::string const & key) {
+            return ((super&)(*this))[key];
+        }
+        public:
+        unsigned int operator[](std::string const & key) const {
+            return has(key) ? at(key) : UINT_MAX;
+        }
+        tuning_thresholds_t(cxx_param_list & pl, std::ostream& os, lingen_platform const & P) {/*{{{*/
+            const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
+            if (!tmp) return;
+            std::string tlist = tmp;
+            for(size_t pos = 0 ; pos != string::npos ; ) {
+                size_t next = tlist.find(',', pos);
+                std::string tok;
+                if (next == string::npos) {
+                    tok = tlist.substr(pos);
+                    pos = next;
+                } else {
+                    tok = tlist.substr(pos, next - pos);
+                    pos = next + 1;
+                }
+                auto error = [&tok](std::string const& reason) {
+                    std::string base = fmt::format(
+                            "tuning_thresholds is bad:"
+                            " pair \"{}\" ", tok);
+                    throw std::invalid_argument(base + reason);
+                };
+
+                size_t colon = tok.find(':');
+                if (colon == string::npos)
+                    error("has no colon");
+
+                std::string algorithm = tok.substr(0, colon);
+                if (std::find(known.begin(), known.end(), algorithm) == known.end()) {
+                    std::ostringstream os;
+                    for(auto const & x : known)
+                        os << " " << x;
+                    error(fmt::format(
+                                "uses unrecognized key \"{}\""
+                                " (recognized keys:{})",
+                                algorithm, os.str()));
+                }
+
+                unsigned int & dst(getref(algorithm));
+                if (!(std::istringstream(tok.substr(colon + 1)) >> dst))
+                    error("has no understandable integer threshold");
+            }
+            if (has(collective) && P.r == 1) {
+                const char * what = "interpreted as \"recursive\"";
+                if (!has(recursive)) {
+                    getref(recursive) = getref(collective);
+                } else if (getref(collective) < getref(recursive)) {
+                    getref(recursive) = getref(collective);
+                } else {
+                    what = "ignored";
+                }
+                erase(find(collective));
+                os << "# Note: the tuning threshold \"collective\" is "
+                    << what << " here, since we have a non-MPI run\n";
+            }
+        }/*}}}*/
+    };/*}}}*/
+
+    tuning_thresholds_t tuning_thresholds;
+
+    /* length(E), length(E_left), length(E_right), number of occurrences */
     typedef std::tuple<size_t, size_t, size_t, unsigned int> weighted_call_t;
     std::vector<unsigned int> mesh_all;
     std::map<unsigned int, std::string> strat_name;
@@ -276,9 +356,11 @@ struct lingen_tuner {
         param_list_lookup_string(pl, "basecase-keep-until");
         param_list_lookup_string(pl, "tuning_thresholds");
     }/*}}}*/
+
     lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
         ab(d.ab), 
-        m(d.m), n(d.n), L(L), P(comm, pl), os(os)
+        m(d.m), n(d.n), L(L), P(comm, pl), os(os),
+        tuning_thresholds(pl, os, P)
     {
 #ifdef SELECT_MPFQ_LAYER_u64k1
         mpz_set_ui(p, 2);
@@ -299,29 +381,6 @@ struct lingen_tuner {
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)
             C.load(timing_cache_filename);
-
-        const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
-        if (tmp) {
-            std::string tlist = tmp;
-            for(size_t pos = 0 ; pos != string::npos ; ) {
-                size_t next = tlist.find(',', pos);
-                std::string tok;
-                if (next == string::npos) {
-                    tok = tlist.substr(pos);
-                    pos = next;
-                } else {
-                    tok = tlist.substr(pos, next - pos);
-                    pos = next + 1;
-                }
-                size_t colon = tok.find(':');
-                if (colon == string::npos)
-                    throw std::invalid_argument("tuning_thresholds is bad");
-                std::string algorithm = tok.substr(0, colon);
-                if (!(std::istringstream(tok.substr(colon + 1)) >> tuning_thresholds[algorithm])) {
-                    throw std::invalid_argument("tuning_thresholds is bad");
-                }
-            }
-        }
     }/*}}}*/
     ~lingen_tuner() {/*{{{*/
         int rank;
@@ -479,7 +538,14 @@ struct lingen_tuner {
             impose_hints = !stored_hints.empty();
         }
     };/*}}}*/
-    lingen_call_companion::mul_or_mp_times tune_local_at_depth_mp_or_mul(tuner_persistent_data & persist, weighted_call_t cw, int depth, unsigned int mesh, op_mul_or_mp_base::op_type_t op_type)/*{{{*/
+    lingen_call_companion::mul_or_mp_times tune_local_at_depth_mp_or_mul(
+            tuner_persistent_data & persist,
+            weighted_call_t cw,
+            int depth,
+            unsigned int mesh,
+            std::vector<lingen_substep_schedule::fft_type_t> const & allowed_ffts,
+            bool do_timings,
+            op_mul_or_mp_base::op_type_t op_type)/*{{{*/
     {
         lingen_call_companion::mul_or_mp_times U { op_type };
         lingen_hints const & stored_hints(persist.stored_hints);
@@ -507,7 +573,7 @@ struct lingen_tuner {
 
         size_t reserved = op_type == op_mul_or_mp_base::OP_MP ? reserved_mp : reserved_mul;
 
-        os << fmt::sprintf("# %s reserved storage = %s\n",
+        os << fmt::format("# {} reserved storage = {}\n",
                 op_mul_or_mp_base::op_name(op_type),
                 size_disp(reserved));
 
@@ -538,26 +604,31 @@ struct lingen_tuner {
         }
 
         if (SS.empty()) {
-            /* get the schedule by trying all possibilities */
-            SS = optimize(os, step, P, mesh, C, reserved);
+            /* get the schedule by trying all possibilities for the
+             * shrink and batch options. */
+            SS = optimize(os, step, P, mesh,
+                    allowed_ffts, do_timings, C, reserved);
         }
 
         for(auto const & S : SS)
-            step.get_and_report_call_time(os, P, mesh, S, C);
+            step.get_and_report_call_time(os, P, mesh, S, C, do_timings);
 
         lingen_substep_schedule S = SS.front();
 
         if (print_here)
             step.report_op_winner(os, mesh, S);
 
-        if (wct_seconds() > last_save + 10) {
-            int rank;
-            MPI_Comm_rank(P.comm, &rank);
-            if (rank == 0)
-                C.save(timing_cache_filename);
-            last_save = wct_seconds();
+        if (do_timings) {
+            if (wct_seconds() > last_save + 10) {
+                int rank;
+                MPI_Comm_rank(P.comm, &rank);
+                if (rank == 0)
+                    C.save(timing_cache_filename);
+                last_save = wct_seconds();
+            }
         }
-        U = step.get_companion(os, P, mesh, S, C);
+
+        U = step.get_companion(os, P, mesh, S, C, do_timings);
         U.reserved_ram = reserved;
         os << "#\n";
 
@@ -566,17 +637,294 @@ struct lingen_tuner {
 
         return U;
     }/*}}}*/
+    struct configurations_to_test {/*{{{*/
+        /* This is the list of dimensions or the MPI mesh that
+         * we're going to try. For the moment, it's limited to
+         * either {1*1, r*r}, or only one of them. In principle,
+         * the framework could be extended to support further
+         * mesh sizes, but that requires support in scatter_mat
+         * and gather_mat to dispatch from m nodes to n nodes.
+         */
+        std::vector<unsigned int> mesh_sizes;
+        std::vector<lingen_substep_schedule::fft_type_t> ffts;
+        /* The various choices for the "shrink" and "batch" options are
+         * not listed here, but are rather computed on the fly in the
+         * optimize() function. This seems more convenient there, as it's
+         * easier to do pruning based on the mesh sizes and such.
+         */
+        bool do_timings = true;
+        configurations_to_test() {
+            ffts = { lingen_substep_schedule::FFT_NONE };
+#ifndef SELECT_MPFQ_LAYER_u64k1
+            ffts.push_back(lingen_substep_schedule::FFT_FLINT);
+#else
+            ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+            ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+#endif
+        }
+        bool from_stored_hints(lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
+            std::ostream& os(tuner.os);
+            lingen_hints const & stored_hints(persist.stored_hints);
+            lingen_platform const & P(tuner.P);
+
+            if (stored_hints.find(K) == stored_hints.end())
+                return false;
+            os << ("# Re-using stored schedule\n");
+            /* This is _not_ a complete set ! We still must compute the
+             * timings, the RAM, and so on.
+             *
+             * This is done via tune_local_at_depth_mp_or_mul, which
+             * reads stored_hints a second time. In particular, it
+             * fetches the info of the previously selected fft types for
+             * both operations, and eventually sets U.mp and U.mul. This
+             * implies that we do not need to restrict the list of
+             * allowed ffts here.
+             */
+            unsigned int mesh = stored_hints.at(K).mesh;
+
+            if (mesh == UINT_MAX) mesh = P.r;
+            if (mesh > 1 && mesh != P.r) {
+                throw std::runtime_error(
+                        fmt::sprintf(
+                            "stored schedule is invalid,"
+                            " we cannot (yet) run on a %d*%d grid"
+                            " a schedule meant for a %d*%d grid\n",
+                            P.r, P.r,
+                            mesh, mesh));
+            }
+
+            mesh_sizes = { mesh };
+            os << fmt::format("# Forcing {} at depth {} L={}\n",
+                    tuner.strat_name[mesh], K.depth, K.L);
+
+            return true;
+        }/* }}} */
+        std::string explain(tuning_thresholds_t const & T, std::string const & k) {
+            if (T.has(k)) {
+                return fmt::format(" tuning_threshold[{}]={}", k, T[k]);
+            } else {
+                return fmt::format(" tuning_threshold[{}]=undef", k);
+            }
+        }
+        typedef tuning_thresholds_t T_t;
+        bool from_thresholds_mesh_level(lingen_tuner & tuner, lingen_call_companion::key const & K) {/*{{{*/
+            std::ostream& os(tuner.os);
+            T_t const & T(tuner.tuning_thresholds);
+            lingen_platform const & P(tuner.P);
+            unsigned int L = K.L;
+            /* first decision: do we force recursion. There are various
+             * reasons to do so, since we have various thresholds that
+             * implicitly enable recursion */
+            std::vector<std::pair<unsigned int, const char *>> all_rec;
+            for(auto k : T_t::known) {
+                if (k == T_t::notiming) continue;
+                if (T.has(k))
+                    all_rec.push_back(std::make_pair(T[k], k));
+            }
+
+            if (all_rec.empty()) {
+                mesh_sizes = { 0, 1 };
+                if (P.r != 1) { mesh_sizes.push_back(P.r); }
+                return true;
+            }
+            std::sort(all_rec.begin(), all_rec.end());
+
+            mesh_sizes.clear();
+            unsigned int next_mesh = 1;
+            std::string explainer;
+            for(auto const & tk : all_rec) {
+                if (L < tk.first)
+                    break;
+                if (tk.second == T_t::collective)
+                    next_mesh = P.r;
+
+                mesh_sizes = { next_mesh };
+                explainer = tk.second;
+            }
+            std::ostringstream explanation;
+            bool done = false;
+            if (mesh_sizes.empty()) {
+                /* Given that we have identified at least one threshold
+                 * that says "go recursive" and that we decided that we
+                 * _don't_ go recursive, the conclusion is here that we
+                 * want to do basecase only.
+                 */
+                mesh_sizes = { 0 };
+                explanation << explain(T, all_rec.front().second);
+                done = true;
+            } else {
+                explanation << explain(T, explainer);
+                constexpr const char * ck = T_t::collective;
+                if (!T.has(ck) && P.r > 1) {
+                    mesh_sizes.push_back(P.r);
+                    explanation << explain(T, ck);
+                }
+            }
+
+            os << "# Testing only";
+            for(auto mesh : mesh_sizes)
+                os << " " << tuner.strat_name[mesh];
+            os << fmt::format(" at depth {} L={} since", K.depth, K.L)
+                << explanation.str()
+                << "\n";
+            return done;
+        }/*}}}*/
+        bool from_thresholds_fft_level(lingen_tuner & tuner, lingen_call_companion::key const & K) {/*{{{*/
+            std::ostream& os(tuner.os);
+            T_t const & T(tuner.tuning_thresholds);
+            /* second decision: should we restrict the set of ffts ? */
+            /* In the following, we rely on the fact that the asymptotic
+             * ordering is known in advance. If we add more cases, this
+             * assumption will likely not hold anymore
+             *
+             * Note that by design, if we arrive here, we completed the
+             * function find_configurations_mesh_level and got a true value,
+             * meaning that L is larger than at least one of the recursive
+             * thresholds. Therefore, checking against "recursive" or
+             * "collective" doesn't make sense.
+             */
+            unsigned int L = K.L;
+            ffts.clear();
+            /* Okay, it's a bit of spaghetti, but the small and concise
+             * loop would not be easier to understand.
+             */
+            std::ostringstream explanation;
+#ifdef SELECT_MPFQ_LAYER_u64k1
+            bool hc = T.has(T_t::cantor);
+            bool ht = T.has(T_t::ternary);
+            unsigned int tc = T[T_t::cantor];
+            unsigned int tt = T[T_t::ternary];
+            if (hc && ht) {
+                if (tc >= tt) {
+                    if (L >= tc) {
+                        ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                        explanation << explain(T, T_t::cantor);
+                    } else if (L >= tt) {
+                        ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                        explanation << explain(T, T_t::ternary);
+                        explanation << explain(T, T_t::cantor);
+                    } else {
+                        ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                        explanation << explain(T, T_t::recursive);
+                        explanation << explain(T, T_t::ternary);
+                    }
+                } else if (tt >= tc) {
+                    /* quite unlikely except for ridiculously small
+                     * matrices perhaps */
+                    if (L >= tt) {
+                        ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                        explanation << explain(T, T_t::ternary);
+                    } else if (L >= tc) {
+                        ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                        explanation << explain(T, T_t::cantor);
+                        explanation << explain(T, T_t::ternary);
+                    } else {
+                        ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                        explanation << explain(T, T_t::recursive);
+                        explanation << explain(T, T_t::cantor);
+                    }
+                }
+            } else if (hc) {
+                if (L >= tc) {
+                    ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                    explanation << explain(T, T_t::cantor);
+                } else {
+                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                    ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                    explanation << explain(T, T_t::recursive);
+                    explanation << explain(T, T_t::cantor);
+                }
+            } else if (ht) {
+                if (L >= tt) {
+                    ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                    ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                    explanation << explain(T, T_t::ternary);
+                } else {
+                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                    explanation << explain(T, T_t::recursive);
+                    explanation << explain(T, T_t::ternary);
+                }
+            } else {
+                ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                explanation << explain(T, T_t::recursive);
+            }
+#else
+            bool hf = T.has(T_t::flint);
+            bool tf = T[T_t::flint];
+            if (hf) {
+                if (L >= tf) {
+                    ffts.push_back(lingen_substep_schedule::FFT_FLINT);
+                    explanation << explain(T, T_t::flint);
+                } else {
+                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                    explanation << explain(T, T_t::recursive);
+                    explanation << explain(T, T_t::flint);
+                }
+            } else {
+                ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                ffts.push_back(lingen_substep_schedule::FFT_FLINT);
+                explanation << explain(T, T_t::recursive);
+            }
+#endif
+            os << "# Testing only";
+            for(auto fft : ffts)
+                os << " " << lingen_substep_schedule::fft_name(fft);
+            os << fmt::format(" at depth {} L={} since", K.depth, K.L)
+                << explanation.str()
+                << "\n";
+            return true;
+        }/*}}}*/
+    };/*}}}*/
+
+    /* Determine which configurations will undergo testing. This covers
+     * the single/collective, basecase/recursive choices, as well as the
+     * fft choice. This does NOT cover the shrink and batch setting,
+     * which are covered in tune_local_at_depth_mp_or_mul() and optimize()
+     */
+    configurations_to_test find_configurations_to_test(std::ostream & os,  tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
+        unsigned int L = K.L;
+        configurations_to_test C;
+        bool impose_hints(persist.impose_hints);
+
+        if (C.from_stored_hints(*this, persist, K))
+            return C;
+
+        if (L >= tuning_thresholds[tuning_thresholds_t::notiming])
+            C.do_timings = false;
+
+        if (!recursion_makes_sense(L)) {
+            C.mesh_sizes = { 0 };
+            return C;
+        }
+
+        if (impose_hints) {
+            os << "# No stored schedule found in provided file,"
+                " computing new one\n";
+        }
+        /* Try with the tuning_thresholds */
+
+        if (C.from_thresholds_mesh_level(*this, K)) {
+            /* then the decision was trivial because lingen_thresholds
+             * told us nothing. No need to bother with fft types either.
+             */
+            return C;
+        }
+
+        C.from_thresholds_fft_level(*this, K);
+        return C;
+    }/*}}}*/
+
     void tune_local_at_depth(tuner_persistent_data & persist, int depth)/*{{{*/
     {
         tuner_persistent_data::level_strategy_map & best(persist.best);
         int & minimum_mesh(persist.minimum_mesh);
         lingen_hints & hints(persist.hints);
-        lingen_hints const & stored_hints(persist.stored_hints);
-        bool impose_hints(persist.impose_hints);
 
         auto cws = calls_and_weights_at_depth(depth);
 
-        os << fmt::sprintf("####################### Measuring time at depth %d #######################\n", depth);
+        os << fmt::format("####################### Measuring time at depth {} #######################\n", depth);
 
         ASSERT_ALWAYS(cws.size() <= 2);
 
@@ -595,6 +943,8 @@ struct lingen_tuner {
                     L, weight, 100*ratio);
         }
         os << "#\n";
+
+        bool do_all_timings = true;
 
         for(size_t idx = 0 ; idx < cws.size() ; idx++) {
             auto const & cw(cws[idx]);
@@ -621,150 +971,95 @@ struct lingen_tuner {
              * thresholds passed on the command line, but in any case we
              * will have to recompute the timings and the RAM usage */
 
-            if (hints.find(K) == hints.end()) {
-                unsigned int mesh = 0;
-                bool forced = false;
+            if (hints.find(K) != hints.end())
+                hints[K].total_ncalls += weight;
 
-                if (stored_hints.find(K) != stored_hints.end()) {
-                    os << ("# Re-using stored schedule\n");
-                    /* This is _not_ a complete set ! We still must
-                     * compute the timings, the RAM, and so on. 
-                     *
-                     * And anyway, U.mp and U.mul are set by
-                     * tune_local_at_depth_mp and
-                     * tune_local_at_depth_mul, which read stored_hints
-                     * again.
-                     */
-                    mesh = stored_hints.at(K).mesh;
-                    forced = true;
-                    if (mesh == UINT_MAX) mesh = P.r;
-                    if (mesh > 1 && mesh != P.r) {
-                        throw std::runtime_error(
-                                fmt::sprintf(
-                                    "stored schedule is invalid,"
-                                    " we cannot (yet) run"
-                                    " on a %d*%d grid"
-                                    " a schedule meant"
-                                    " for a %d*%d grid\n",
-                                    P.r, P.r,
-                                    mesh, mesh));
-                    }
+            configurations_to_test CF = find_configurations_to_test(os, persist, K);
 
-                    os << fmt::sprintf("# Forcing %s at this level\n",
-                            strat_name[mesh]);
-                } else if (recursion_makes_sense(L)) {
-                    if (impose_hints) {
-                        os << "# No stored schedule found in provided file,"
-                            " computing new one\n";
-                    }
-                    std::string key_rec = "recursive";
-                    std::string key_coll = "collective";
-                    auto e = tuning_thresholds.end();
-                    bool r = tuning_thresholds.find(key_rec)  != e;
-                    bool c = tuning_thresholds.find(key_coll) != e;
+            std::map<unsigned int, lingen_call_companion> mesh_res;
+            std::map<unsigned int, double> mesh_tt;
+            std::map<unsigned int, double> mesh_tt_children;
 
-                    size_t tr = r ? tuning_thresholds.at(key_rec)  : SIZE_MAX;
-                    size_t tc = c ? tuning_thresholds.at(key_coll) : SIZE_MAX;
-                    if (r && !c) tc = 0;
-                    if (tc < tr) tc = tr;
+            if (!CF.do_timings) do_all_timings = false;
 
-                    if (r || c) {
-                        forced = true;
-                        mesh = L >= tc ? P.r : (L >= tr ? 1 : 0);
+            if (!CF.do_timings && CF.mesh_sizes.size() != 1)
+                throw std::invalid_argument("Cannot have \"notiming\" in tuning_thresholds without specified thresholds for all choices");
 
-                        os << fmt::sprintf("# Forcing %s at this level,"
-                                " since L=%zu"
-                                ", tuning_threshold[%s]=%s"
-                                ", tuning_threshold[%s]=%s"
-                                "\n",
-                                strat_name[mesh],
-                                L,
-                                key_rec,  r ? fmt::sprintf("%u", tr) : "undef",
-                                key_coll, c ? fmt::sprintf("%u", tc) : "undef");
-                    }
-                }
-
-                std::vector<unsigned int> mesh_try;
-                std::map<unsigned int, lingen_call_companion> mesh_res;
-                std::map<unsigned int, double> mesh_tt;
-                std::map<unsigned int, double> mesh_tt_children;
-
-                if (forced) {
-                    mesh_try.push_back(mesh);
+            for(auto mesh : CF.mesh_sizes) {
+                lingen_call_companion U;
+                U.mesh = mesh;
+                if (mesh == 0) {
+                    U.ttb = compute_and_report_basecase(L);
+                    mesh_res[mesh] = U;
+                    if (!CF.do_timings) continue;
+                    mesh_tt[mesh] = U.ttb;
+                    mesh_tt_weighted[mesh].first += weight;
+                    mesh_tt_weighted[mesh].second += mesh_tt[mesh] * weight;
                 } else {
-                    if (minimum_mesh <= 0)
-                        mesh_try.push_back(0);
-                    if (recursion_makes_sense(L)) {
-                        if (minimum_mesh <= 1)
-                            mesh_try.push_back(1);
-                        if (P.r > 1)
-                            mesh_try.push_back(P.r);
-                    }
+                    U.mp = tune_local_at_depth_mp_or_mul(
+                            persist, cw, depth, mesh,
+                            CF.ffts, CF.do_timings,
+                            op_mul_or_mp_base::OP_MP);
+                    U.mul = tune_local_at_depth_mp_or_mul(
+                            persist, cw, depth, mesh,
+                            CF.ffts, CF.do_timings,
+                            op_mul_or_mp_base::OP_MUL);
+                    mesh_res[mesh] = U;
+                    if (!CF.do_timings) continue;
+                    mesh_tt[mesh] = U.mp.tt.t + U.mul.tt.t;
+                    mesh_tt_children[mesh] += best[Lleft].second;
+                    mesh_tt_children[mesh] += best[Lright].second;
+                    mesh_tt[mesh] += mesh_tt_children[mesh];
+                    mesh_tt_weighted[mesh].first += weight;
+                    mesh_tt_weighted[mesh].second += mesh_tt[mesh] * weight;
                 }
-                for(auto mesh : mesh_try) {
-                    lingen_call_companion U;
-                    U.mesh = mesh;
-                    if (mesh == 0) {
-                        U.ttb = compute_and_report_basecase(L);
-                        mesh_res[mesh] = U;
-                        mesh_tt[mesh] = U.ttb;
-                        mesh_tt_weighted[mesh].first += weight;
-                        mesh_tt_weighted[mesh].second += mesh_tt[mesh] * weight;
-                    } else {
-                        U.mp = tune_local_at_depth_mp_or_mul(
-                                persist, cw, depth, mesh,
-                                op_mul_or_mp_base::OP_MP);
-                        U.mul = tune_local_at_depth_mp_or_mul(
-                                persist, cw, depth, mesh,
-                                op_mul_or_mp_base::OP_MUL);
-                        mesh_res[mesh] = U;
-                        mesh_tt[mesh] = U.mp.tt.t + U.mul.tt.t;
-                        mesh_tt_children[mesh] += best[Lleft].second;
-                        mesh_tt_children[mesh] += best[Lright].second;
-                        mesh_tt[mesh] += mesh_tt_children[mesh];
-                        mesh_tt_weighted[mesh].first += weight;
-                        mesh_tt_weighted[mesh].second += mesh_tt[mesh] * weight;
-                    }
-                }
+            }
 
-                /* find the best mesh value */
-                double ttbest = DBL_MAX;
+            /* find the best mesh value */
+            unsigned int meshbest = UINT_MAX;
+            double ttbest = DBL_MAX;
+            if (CF.do_timings) {
                 for(auto x : mesh_tt) {
                     if (x.second < ttbest) {
-                        mesh = x.first;
+                        meshbest = x.first;
                         ttbest = x.second;
                     }
                 }
+            } else {
+                meshbest = CF.mesh_sizes.front();
+            }
 
-                lingen_call_companion U = mesh_res[mesh];
-                U.total_ncalls = 0;
-                U.complete = true;
-                /* we no longer store ttb in the call companions which
-                 * are intended for recursion */
-                hints[K] = U;
-                U_typical = U;
+            lingen_call_companion U = mesh_res[meshbest];
+            U.total_ncalls = 0;
+            U.complete = true;
+            /* we no longer store ttb in the call companions which
+             * are intended for recursion */
+            hints[K] = U;
+            U_typical = U;
 
+            if (CF.do_timings) {
                 /* discard mesh values that are less than the winner and
                  * appear to be slow enough that we don't think they'll
                  * ever catch up.
                  */
                 for(auto x : mesh_tt) {
-                    if (x.first == mesh || x.first > mesh)
+                    if (x.first == meshbest || x.first > meshbest)
                         continue;
-                    if (x.second >= basecase_keep_until * mesh_tt[mesh]) {
+                    if (x.second >= basecase_keep_until * mesh_tt[meshbest]) {
                         os << fmt::sprintf("# Discarding %s from now on\n",
                                 strat_name[x.first]);
                         minimum_mesh = x.first + 1;
                     }
                 }
-                /* At this point, we started using collective operations,
-                 * which means that we don't want to go back. A priori.
-                 * But it's quite difficult indeed because we might see
-                 * some spurious results at small sizes. */
-                // if (mesh > 1 && minimum_mesh <= 1) minimum_mesh = 2;
-
-                best[L] = { mesh, mesh_tt[mesh] };
             }
+
+            /* At this point, we started using collective operations,
+             * which means that we don't want to go back. A priori.
+             * But it's quite difficult indeed because we might see
+             * some spurious results at small sizes. */
+            // if (mesh > 1 && minimum_mesh <= 1) minimum_mesh = 2;
+
+            best[L] = { meshbest, CF.do_timings ? mesh_tt[meshbest] : -1 };
 
             hints[K].total_ncalls += weight;
         }
@@ -778,33 +1073,36 @@ struct lingen_tuner {
         unsigned int mesh0 = best[L0].first;
         unsigned int mesh1 = best[L1].first;
 
-        for(auto mesh : mesh_all) {
-            if (mesh_tt_weighted.find(mesh) != mesh_tt_weighted.end()) {
-                double tt = mesh_tt_weighted[mesh].second;
-                std::string rescaled;
-                if (mesh_tt_weighted[mesh].first != (1U << depth)) {
-                    double ratio = mesh_tt_weighted[mesh].first / (double) (1U << depth);
-                    rescaled = fmt::sprintf("[rescaled from %.1f%%] ", 100*ratio);
-                    tt /= ratio;
+        if (do_all_timings) {
+            for(auto mesh : mesh_all) {
+                if (mesh_tt_weighted.find(mesh) != mesh_tt_weighted.end()) {
+                    double tt = mesh_tt_weighted[mesh].second;
+                    // std::string rescaled;
+                    if (mesh_tt_weighted[mesh].first != (1U << depth)) {
+                        double ratio = mesh_tt_weighted[mesh].first / (double) (1U << depth);
+                        // rescaled = fmt::sprintf("[rescaled from %.1f%%] ", 100*ratio);
+                        tt /= ratio;
+                    }
+                    os << fmt::sprintf("# %s: %.2f [%.1fd]\n",
+                            strat_name[mesh],
+                            // rescaled,
+                            tt, tt / 86400);
                 }
-                os << fmt::sprintf("# %s: %s%.2f [%.1fd]\n",
-                        strat_name[mesh],
-                        rescaled, tt, tt / 86400);
             }
-        }
 
-        double tt_total = best[L0].second * std::get<3>(cws.front())
-                        + best[L1].second * std::get<3>(cws.back());
+            double tt_total = best[L0].second * std::get<3>(cws.front())
+                            + best[L1].second * std::get<3>(cws.back());
 
-        if (mesh0 == mesh1) {
-            os << fmt::sprintf("# BEST: %s: %.2f [%.1fd]\n",
-                    strat_name[mesh0],
-                    tt_total, tt_total / 86400);
-        } else {
-            os << fmt::sprintf("# BEST: mix of %s and %s: %.2f [%.1fd]\n",
-                    strat_name[mesh0],
-                    strat_name[mesh1],
-                    tt_total, tt_total / 86400);
+            if (mesh0 == mesh1) {
+                os << fmt::sprintf("# BEST: %s: %.2f [%.1fd]\n",
+                        strat_name[mesh0],
+                        tt_total, tt_total / 86400);
+            } else {
+                os << fmt::sprintf("# BEST: mix of %s and %s: %.2f [%.1fd]\n",
+                        strat_name[mesh0],
+                        strat_name[mesh1],
+                        tt_total, tt_total / 86400);
+            }
         }
 
         if (mesh0 || mesh1) {
@@ -871,7 +1169,7 @@ struct lingen_tuner {
         /*****************************************************************/
         /* make the mesh sizes monotonic. In truth, we can only do this
          * safely for mesh size 0 (basecase), since otherwise we would
-         * ave an inconsistency in the sub-block sizes, which would make
+         * have an inconsistency in the sub-block sizes, which would make
          * the batch values invalid. */
         /* keys in the hint table are sorted as "top-level first" */
         std::map<unsigned int, lingen_call_companion::key> max_win_per_mesh;
@@ -905,8 +1203,10 @@ struct lingen_tuner {
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
         os << fmt::sprintf("# Communication time at lingen_mpi_threshold (%s): %.2f [%.1fd]\n", size_disp(size_com0, buf), tt_com0, tt_com0/86400);
         double time_best = best[L].second;
-        time_best += tt_com0;
-        os << fmt::sprintf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
+        if (time_best != -1) {
+            time_best += tt_com0;
+            os << fmt::sprintf("# Expected total time: %.2f [%.1fd], peak memory %s (at depth %d)\n", time_best, time_best / 86400, size_disp(peak, buf), ipeak);
+        }
         hints.ipeak=ipeak;
         hints.peak=peak;
         os << fmt::sprintf("(%u,%u,%u,%.1f,%1.f)\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
@@ -950,6 +1250,39 @@ struct lingen_tuner {
         return hints;
     }/*}}}*/
 };
+
+const std::vector<const char *>
+lingen_tuner::tuning_thresholds_t::known
+{
+    recursive,
+    collective,
+    // "collective" should allow finer grain, so as to allow
+    // multiple mesh sizes.
+    // "plain" makes no sense per se, as it's the base thing
+    // to use as soon as we go recursive
+#ifdef SELECT_MPFQ_LAYER_u64k1
+    ternary,
+    cantor,
+#else
+    flint,
+#endif
+    notiming,
+};
+
+const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> lingen_tuner::tuning_thresholds_t::code_to_key
+#ifdef SELECT_MPFQ_LAYER_u64k1
+{
+    { lingen_substep_schedule::FFT_NONE, recursive, },
+    { lingen_substep_schedule::FFT_TERNARY, ternary, },
+    { lingen_substep_schedule::FFT_CANTOR, cantor },
+};
+#else
+{
+    { lingen_substep_schedule::FFT_NONE, recursive, },
+    { lingen_substep_schedule::FFT_FLINT, flint, },
+};
+#endif
+
 
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {

@@ -1872,7 +1872,7 @@ char * fft_transform_info_explain(const struct fft_transform_info * fti)
     ASSERT_ALWAYS(rc >= 0);
 
     char * explanation;
-    rc = asprintf(&explanation, "%s%s%s%s%s.\n", line1a, line1b, line2, line3, line4);
+    rc = asprintf(&explanation, "%s%s%s%s%s.", line1a, line1b, line2, line3, line4);
     ASSERT_ALWAYS(rc >= 0);
     ASSERT_ALWAYS(fft_transform_info_check(fti));
     free(line1a);

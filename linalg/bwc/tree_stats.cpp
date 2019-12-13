@@ -86,11 +86,11 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
                     items_per_call * (size_t) n,
                     items_per_call * (size_t) total_ncalls);
         if (n) {
-            if (th)
+            if (th > 0)
                 os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));
             os << " " << fmt::format("{:.2g} -> {:.1f}",
                     t / n / items_per_call, t / n * (double) total_ncalls);
-        } else if (th) {
+        } else if (th > 0) {
             /* Since n == 0, begin_smallstep has never been called.
              * We only had plan_smallstep, and we had it only once,
              * so that th corresponds t 
@@ -117,6 +117,7 @@ void tree_stats::print(unsigned int)
 
     double sum = 0;
     double time_to_go = 0;
+    bool has_untimed = false;
 
     std::ostringstream os;
 
@@ -190,7 +191,10 @@ void tree_stats::print(unsigned int)
                 double th = y.second.planned_time;
                 unsigned int n = y.second.ncalled;
                 level_th += n ? t : th;
-                time_to_go += th * (r.total_ncalls() - n);
+                if (th > 0)
+                    time_to_go += th * (r.total_ncalls() - n);
+                else
+                    has_untimed = true;
             }
             if (!r.is_transition_level()) {
                 os << k-total_transition_levels;
@@ -198,13 +202,18 @@ void tree_stats::print(unsigned int)
             } else {
                 os << "--";
             }
-            sum += level_th * r.total_ncalls();
-            os << fmt::sprintf("* [%u, %s] 0/%u %.2g -> %.1f (total: %.1f)\n",
+            os << fmt::sprintf("* [%u, %s] 0/%u",
                     r.inputsize,
                     fi.func,
-                    r.total_ncalls(),
-                    level_th, level_th * r.total_ncalls(),
-                    sum);
+                    r.total_ncalls()
+                    );
+            if (level_th > 0) {
+                sum += level_th * r.total_ncalls();
+                os << fmt::sprintf(" %.2g -> %.1f (total: %.1f)",
+                        level_th, level_th * r.total_ncalls(),
+                        sum);
+            }
+            os << "\n";
             recursively_print_substeps_at_depth(os, r.steps, 1, r.total_ncalls(), 0);
         }
         if (all_functions_are_transitions) total_transition_levels++;
@@ -217,14 +226,16 @@ void tree_stats::print(unsigned int)
 
     {
         /* print ETA */
-        time_t eta[1];
         char eta_string[32] = "not available yet\n";
-        *eta = wct_seconds() + time_to_go;
+        if (!has_untimed) {
+            time_t eta[1];
+            *eta = wct_seconds() + time_to_go;
 #ifdef HAVE_CTIME_R
-        ctime_r(eta, eta_string);
+            ctime_r(eta, eta_string);
 #else
-        strncpy(eta_string, ctime(eta), sizeof(eta_string));
+            strncpy(eta_string, ctime(eta), sizeof(eta_string));
 #endif
+        }
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 

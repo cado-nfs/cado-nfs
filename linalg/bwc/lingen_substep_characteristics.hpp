@@ -186,14 +186,12 @@ struct lingen_substep_characteristics {
                 kl = i;
                 tl = concurrent_timings[i];
             }
-            for(unsigned int i = max_threads() ; i >= k ; i--) {
+            for(unsigned int i = max_parallel() ; i >= k ; i--) {
                 if (concurrent_timings[i] < 0) continue;
                 kh = i;
                 th = concurrent_timings[i];
             }
             if (kl == kh) return tl;
-            ASSERT_ALWAYS(tl >= 0);
-            ASSERT_ALWAYS(th >= 0);
             return tl + (th-tl)*(k-kl)/(kh-kl);
         }
         public:
@@ -210,7 +208,10 @@ struct lingen_substep_characteristics {
          */
         parallelizable_timing(double d)
             : weighted_double { 1, d }
-            , concurrent_timings { d } {}
+            , concurrent_timings { 0, d }
+        {
+        }
+
         parallelizable_timing() : weighted_double { 0, 0 } {}
 
         parallelizable_timing& operator*=(unsigned int x) {
@@ -574,17 +575,25 @@ struct lingen_substep_characteristics {
             pc_t const & P,
             unsigned int mesh,
             sc_t const & S,
-            tc_t & C) const
+            tc_t & C,
+            bool do_timings) const
     { /* {{{ */
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
-        auto ft = get_ft_times(os, op, P, mesh, S, C);
-        /* These are just base values, we'll multiply them later on */
-        parallelizable_timing T_dft0 = ft[0];
-        parallelizable_timing T_dft2 = ft[1];
-        parallelizable_timing T_ift = ft[2];
-        parallelizable_timing T_conv = ft[3];
+        parallelizable_timing T_dft0 { -1 };
+        parallelizable_timing T_dft2 { -1 };
+        parallelizable_timing T_ift  { -1 };
+        parallelizable_timing T_conv { -1 };
+
+        if (do_timings) {
+            auto ft = get_ft_times(os, op, P, mesh, S, C);
+            /* These are just base values, we'll multiply them later on */
+            T_dft0 = ft[0];
+            T_dft2 = ft[1];
+            T_ift = ft[2];
+            T_conv = ft[3];
+        }
 
         /* Each of the r*r nodes has local matrices size (at most)
          * nr0*nr1, nr1*nr2, and nr0*nr2. For the actual computations, we
@@ -692,20 +701,20 @@ struct lingen_substep_characteristics {
         }
     }
 
-    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
+    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
         switch(op_type) {
             case op_mul_or_mp_base::OP_MP:
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #ifndef SELECT_MPFQ_LAYER_u64k1
                     case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #else
                     case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
                     case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #endif
                     default:
                         throw std::runtime_error("invalid data (fft_type)");
@@ -713,15 +722,15 @@ struct lingen_substep_characteristics {
             case op_mul_or_mp_base::OP_MUL:
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #ifndef SELECT_MPFQ_LAYER_u64k1
                     case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #else
                     case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
                     case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C);
+                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #endif
                     default:
                         throw std::runtime_error("invalid data (fft_type)");
@@ -734,10 +743,10 @@ struct lingen_substep_characteristics {
 
     public:
 
-    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
+    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
         lingen_call_companion::mul_or_mp_times D { op_type };
         D.S = S;
-        auto A = get_call_time_backend(os, P, mesh, S, C); 
+        auto A = get_call_time_backend(os, P, mesh, S, C, do_timings); 
         double tt = A.total();
         D.tt = { 1, tt };
         D.t_dft_A = A.T_dft0;
@@ -753,24 +762,38 @@ struct lingen_substep_characteristics {
         D.csize = csize;
         return D;
     }/*}}}*/
-    double get_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const {/*{{{*/
-        return get_call_time_backend(os, P, mesh, S, C).total();
+    double get_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const {/*{{{*/
+        return get_call_time_backend(os, P, mesh, S, C, do_timings).total();
     }/*}}}*/
 
     private:
     struct schedule_sorter {/*{{{*/
+        std::ostream& os;
         lingen_substep_characteristics const & U;
         lingen_platform const & P;
         unsigned int mesh;
         lingen_tuning_cache & C;
-        std::ostream& os;
-        schedule_sorter(std::ostream& os, lingen_substep_characteristics const & U, lingen_platform const & P, unsigned int mesh, lingen_tuning_cache & C) :
-            U(U), P(P), mesh(mesh), C(C), os(os)
+        bool do_timings;
+        schedule_sorter(
+                std::ostream& os,
+                lingen_substep_characteristics const & U,
+                lingen_platform const & P,
+                unsigned int mesh,
+                lingen_tuning_cache & C,
+                bool do_timings)
+            : os(os)
+            , U(U)
+            , P(P)
+            , mesh(mesh)
+            , C(C)
+            , do_timings(do_timings)
         {}
         bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {/*{{{*/
-            double ta = U.get_call_time(os, P, mesh, a, C);
-            double tb = U.get_call_time(os, P, mesh, b, C);
-            if (ta != tb) return ta < tb;
+            if (do_timings) {
+                double ta = U.get_call_time(os, P, mesh, a, C, do_timings);
+                double tb = U.get_call_time(os, P, mesh, b, C, do_timings);
+                if (ta != tb) return ta < tb;
+            }
 #if 0
             /* Doesn't make much sense, since timing comparisons will
              * almost certainly always return unequal. But well, who
@@ -790,11 +813,18 @@ struct lingen_substep_characteristics {
     };/*}}}*/
 
     public:
-    void sort_schedules(std::ostream& os, std::vector<lingen_substep_schedule>& schedules, lingen_platform const & P, unsigned int mesh, lingen_tuning_cache & C) const {/*{{{*/
-        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, mesh, C));
+    void sort_schedules(
+            std::ostream& os,
+            std::vector<lingen_substep_schedule>& schedules,
+            lingen_platform const & P,
+            unsigned int mesh,
+            lingen_tuning_cache & C,
+            bool do_timings) const
+    {/*{{{*/
+        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, mesh, C, do_timings));
     }/*}}}*/
 
-    double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C) const { /* {{{ */
+    double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
         bool cached = has_cached_time(C, S.fft_type);
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
         os << fmt::sprintf("# %s%s;%s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
@@ -809,10 +839,15 @@ struct lingen_substep_characteristics {
                 S.batch[2],
                 size_disp(get_peak_ram(*op, mesh, S)));
         os << std::flush;
-        double tt = get_call_time(os, P, mesh, S, C);
-        os << fmt::sprintf("%.2f%s\n",
-                tt,
-                cached ? " [from cache]" : "");
+        double tt = get_call_time(os, P, mesh, S, C, do_timings);
+        if (do_timings) {
+            os << fmt::sprintf("%.2f%s\n",
+                    tt,
+                    cached ? " [from cache]" : "");
+        } else {
+            os << "not timed\n";
+            tt = -1;
+        }
         return tt;
     }/*}}}*/
     void report_op_winner(std::ostream& os, unsigned int mesh, sc_t const & S) const
