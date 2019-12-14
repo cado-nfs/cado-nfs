@@ -1292,6 +1292,14 @@ const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> 
 };
 #endif
 
+/* Need this for conformance */
+constexpr const char * lingen_tuner::tuning_thresholds_t::recursive;
+constexpr const char * lingen_tuner::tuning_thresholds_t::collective;
+constexpr const char * lingen_tuner::tuning_thresholds_t::ternary;
+constexpr const char * lingen_tuner::tuning_thresholds_t::cantor;
+constexpr const char * lingen_tuner::tuning_thresholds_t::flint;
+constexpr const char * lingen_tuner::tuning_thresholds_t::notiming;
+
 
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
