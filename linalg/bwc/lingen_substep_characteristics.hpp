@@ -528,12 +528,12 @@ struct lingen_substep_characteristics {
         try {
             std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
 #ifdef SELECT_MPFQ_LAYER_u64k1
-            {
+            if (op_type == op_mul_or_mp_base::OP_MUL) {
                 auto x = dynamic_cast<op_mul<gf2x_ternary_fft_info> const *>(op.get());
                 if (x)
                     return x->fti.K != 0;
             }
-            {
+            if (op_type == op_mul_or_mp_base::OP_MP) {
                 auto x = dynamic_cast<op_mp<gf2x_ternary_fft_info> const *>(op.get());
                 if (x)
                     return x->fti.K != 0;
