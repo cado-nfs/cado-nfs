@@ -97,6 +97,15 @@ std::vector<lingen_substep_schedule> optimize(
     lingen_substep_schedule S_lean;
     std::vector<lingen_substep_schedule> all_schedules;
 
+    unsigned int nvalid = 0;
+    for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
+        if (!U.fft_type_valid(fft)) continue;
+        nvalid++;
+    }
+    if (!nvalid) {
+        throw std::invalid_argument("FFT choice restricted to zero valid FFTs, tuning_thresholds is probably wrong");
+    }
+
     for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
         if (!U.fft_type_valid(fft)) continue;
         for(unsigned int shrink0 : all_splits_of(nr0)) {
