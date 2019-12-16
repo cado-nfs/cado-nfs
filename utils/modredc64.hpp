@@ -214,6 +214,25 @@ public:
         u64arith_redc (&r.r, plow, phigh, m, invm);
     }
 
+    /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
+     * r can be the same variable as a or b but must not be the same variable as d.
+     */
+    void V_dadd (Residue &r, const Residue &a, const Residue &b,
+                     const Residue &d) const {
+        ASSERT (&r != &d);
+        mul (r, a, b);
+        sub (r, r, d);
+    }
+
+    /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
+     * r can be the same variable as a but must not be the same variable as two.
+     */
+    void V_dbl (Residue &r, const Residue &a, const Residue &two) const {
+        ASSERT (&r != &two);
+        sqr (r, a);
+        sub (r, r, two);
+    }
+
     bool next (Residue &r) const {return (++r.r == m);}
     bool finished (const Residue &r) const {return (r.r == m);}
     bool div2 (Residue &r, const Residue &a) const {r.r = u64arith_div2mod(a.r, m); return 1;}
@@ -230,9 +249,8 @@ public:
     void pow2 (Residue &, const uint64_t *, const size_t) const;
     void pow2 (Residue &r, const Integer &) const;
     void pow3 (Residue &, const uint64_t) const;
-    void V (Residue &, const Residue &, const uint64_t) const;
-    void V (Residue &, const Residue &, const uint64_t *, const size_t) const;
-    void V (Residue &, const Residue &, const Integer &) const;
+    void V (Residue &r, Residue *rp1, const Residue &b,
+            const uint64_t k) const;
     bool sprp (const Residue &) const;
     bool sprp2 () const;
     bool isprime () const;

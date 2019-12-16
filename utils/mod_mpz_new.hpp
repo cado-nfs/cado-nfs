@@ -370,6 +370,26 @@ public:
         }
     }
 
+    /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
+     * r can be the same variable as a or b but must not be the same variable as d.
+     */
+    void V_dadd (Residue &r, const Residue &a, const Residue &b,
+                     const Residue &d) const {
+        ASSERT (&r != &d);
+        mul (r, a, b);
+        sub (r, r, d);
+    }
+
+    /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
+     * r can be the same variable as a but must not be the same variable as two.
+     */
+    void V_dbl (Residue &r, const Residue &a, const Residue &two) const {
+        ASSERT (&r != &two);
+        sqr (r, a);
+        sub (r, r, two);
+    }
+
+
     /* prototypes of non-inline functions */
     bool div3 (Residue &, const Residue &) const;
     bool div5 (Residue &, const Residue &) const;
@@ -388,6 +408,8 @@ public:
     void V (Residue &, const Residue &, const uint64_t) const;
     void V (Residue &, const Residue &, const uint64_t *, const int) const;
     void V (Residue &r, const Residue &b, const Integer &e) const;
+    void V (Residue &r, Residue *rp1, const Residue &b,
+            const uint64_t k) const;
     bool sprp (const Residue &) const;
     bool sprp2 () const;
     bool isprime () const;
