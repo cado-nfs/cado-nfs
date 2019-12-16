@@ -114,6 +114,15 @@ public:
 
     /* Methods for residues */
 
+    Residue *newArray(const size_t len) {
+        void *t = operator new[](len * sizeof(Residue));
+        Residue *ptr = static_cast<Residue *>(t);
+        for(size_t i = 0; i < len; i++) {
+            new(&ptr[i]) Residue(*this);
+        }
+        return ptr;
+    }
+
     void set (Residue &r, const Residue &s) const {assertValid(s); r = s;}
     /* Puts in r the value of s * beta mod m, where beta is the word base.
        Note: s can be any uint64_t, in particular can be larger than m.

@@ -61,6 +61,15 @@ public:
 
     /* Methods for residues */
 
+    Residue *newArray(const size_t len) {
+        void *t = operator new[](len * sizeof(Residue));
+        Residue *ptr = static_cast<Residue *>(t);
+        for(size_t i = 0; i < len; i++) {
+            new(&ptr[i]) Residue(*this);
+        }
+        return ptr;
+    }
+
     void set (Residue &r, const Residue &s) const {assertValid(s); r = s;}
     void set (Residue &r, const uint64_t s) const {r.r = s % m;}
     void set (Residue &r, const Integer &s) const {s.get(&r.r, 1); r.r %= m;}
