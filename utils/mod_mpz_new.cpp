@@ -41,7 +41,8 @@ void ModulusMPZ::pow (Residue &r, const Residue &b, const uint64_t *e, const siz
 
 void ModulusMPZ::pow2 (Residue &r, const uint64_t e) const
 {
-    cxx_mpz R, B(2);
+    cxx_mpz R;
+    cxx_mpz B(2);
     if (ULONG_BITS == 64) {
         mpz_powm_ui(R, B, e, m);
     } else {

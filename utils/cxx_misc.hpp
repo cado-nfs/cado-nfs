@@ -81,13 +81,12 @@ struct integral_fits_ {
     static constexpr bool value = integral_fits_post<value_pre, T, U>::value;
 };
 
-template <typename T, typename U, typename = void>
-struct integral_fits : std::false_type {};
 
-template <typename T, typename U >
-struct integral_fits<T, U, std::enable_if_t<integral_fits_<T, U>::value, void>> : std::true_type {
-    typedef bool type;
-};
+template<bool> struct integral_fits_final : std::false_type {};
+template<> struct integral_fits_final<true> : std::true_type { typedef bool type; };
+
+template <typename T, typename U>
+struct integral_fits : integral_fits_final<integral_fits_<T, U>::value> {};
 
 template <typename T, typename U >
 using integral_fits_t = typename integral_fits<T, U>::type;

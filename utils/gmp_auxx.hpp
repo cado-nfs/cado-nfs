@@ -1,6 +1,7 @@
 #ifndef GMP_AUXX_HPP_
 #define GMP_AUXX_HPP_
 
+#include <type_traits>
 #include "cxx_misc.hpp"
 #include "gmp_aux.h"
 
@@ -13,13 +14,26 @@ static inline void mpz_set (mpz_ptr a, mpz_srcptr b) {
     ::mpz_set(a, b);
 }
 
-template <typename T, integral_fits_t<T, long> = 0>
-static inline void mpz_set (mpz_ptr a, const T b) {
+#define GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, ret, fit)      \
+    template <typename T>       \
+    static inline       \
+    typename std::enable_if<integral_fits_<T, fit>::value, ret>::type
+
+/* This is not accepted by gcc-9.2.0, however it seems correct as far as
+ * I can tell. See bug #21817
+ *
+ */
+#define ALT_GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, ret, fit)      \
+    template <typename T, integral_fits_t<T, fit> = false > \
+    static inline ret
+
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, long)
+mpz_set (mpz_ptr a, const T b) {
     mpz_set_si(a, b);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline void mpz_set (mpz_ptr a, const T b) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)
+mpz_set (mpz_ptr a, const T b) {
     mpz_set_ui(a, b);
 }
 
@@ -35,13 +49,13 @@ static inline void mpz_init_set (mpz_ptr a, mpz_srcptr b) {
     ::mpz_init_set(a, b);
 }
 
-template <typename T, integral_fits_t<T, long> = 0 >
-static inline void mpz_init_set (mpz_ptr a, const T b) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, long)
+mpz_init_set (mpz_ptr a, const T b) {
     mpz_init_set_si(a, b);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline void mpz_init_set (mpz_ptr a, const T b) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)
+mpz_init_set (mpz_ptr a, const T b) {
     mpz_init_set_ui(a, b);
 }
 
@@ -57,13 +71,13 @@ static inline int mpz_cmp (mpz_srcptr a, mpz_srcptr b) {
     return ::mpz_cmp(a, b);
 }
 
-template <typename T, integral_fits_t<T, long> = 0 >
-static inline int mpz_cmp (mpz_srcptr a, const T b) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, long)
+mpz_cmp (mpz_srcptr a, const T b) {
     return mpz_cmp_si(a, b);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline int mpz_cmp (mpz_srcptr a, const T b) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, unsigned long)
+mpz_cmp (mpz_srcptr a, const T b) {
     return mpz_cmp_ui(a, b);
 }
 
@@ -77,13 +91,13 @@ inline int mpz_cmp (mpz_srcptr a, const uint64_t b) {
 
 #define GMP_AUXX_DEFINE_FUNC3_U(OP) \
 static inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, mpz_srcptr c) { ::mpz_##OP(a, b, c); } \
-template <typename T, integral_fits_t<T, unsigned long> = 0 > \
-static inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) { mpz_##OP##_ui(a, b, c); } \
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)    \
+mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) { mpz_##OP##_ui(a, b, c); } \
 inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const uint64_t c) { mpz_##OP##_uint64(a, b, c); }
 #define GMP_AUXX_DEFINE_FUNC3_S(OP) \
-template <typename T, integral_fits_t<T, long> = 0 > \
-static inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) { mpz_##OP##_si(a, b, c); } \
-inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const int64_t c) { mpz_##OP##_int64(a, b, c); } \
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, long)    \
+mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) { mpz_##OP##_si(a, b, c); } \
+inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const int64_t c) { mpz_##OP##_int64(a, b, c); }
 
 GMP_AUXX_DEFINE_FUNC3_U(add)
 GMP_AUXX_DEFINE_FUNC3_S(add)
@@ -97,8 +111,7 @@ GMP_AUXX_DEFINE_FUNC3_U(submul)
 GMP_AUXX_DEFINE_FUNC3_S(submul)
 GMP_AUXX_DEFINE_FUNC3_U(divexact)
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline void
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)    \
 mpz_sub (mpz_ptr a, T b, mpz_srcptr c) {
     return mpz_ui_sub(a, b, c);
 }
@@ -112,8 +125,8 @@ static inline int mpz_divisible_p (mpz_ptr a, mpz_srcptr c) {
     return ::mpz_divisible_p(a, c);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline int mpz_divisible_p (mpz_ptr a, const T c) {
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, unsigned long)    \
+mpz_divisible_p (mpz_ptr a, const T c) {
     return mpz_divisible_ui_p(a, c);
 }
 
@@ -121,8 +134,7 @@ inline int mpz_divisible_p (mpz_ptr a, const uint64_t c) {
     return mpz_divisible_uint64_p(a, c);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline T
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, T, unsigned long)    \
 mpz_tdiv_qr (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, T d) {
     return (T) mpz_tdiv_qr_ui(Q, R, N, d);
 }
@@ -137,8 +149,7 @@ mpz_tdiv_q (mpz_ptr Q, mpz_srcptr N, mpz_srcptr D) {
     return ::mpz_tdiv_q(Q, N, D);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline T
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, T, unsigned long)    \
 mpz_tdiv_q (mpz_ptr Q, mpz_srcptr N, T d) {
     return (T) mpz_tdiv_q_ui(Q, N, d);
 }
@@ -153,8 +164,7 @@ mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, mpz_srcptr D) {
     return ::mpz_tdiv_r(R, N, D);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline T
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, T, unsigned long)    \
 mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, T d) {
     return (T) mpz_tdiv_r_ui(R, N, d);
 }
@@ -164,8 +174,7 @@ mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, uint64_t d) {
     return mpz_tdiv_r_uint64(R, N, d);
 }
 
-template <typename T, integral_fits_t<T, unsigned long> = 0 >
-static inline T
+GMP_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, T, unsigned long)    \
 mpz_tdiv (mpz_srcptr N, T d) {
     return (T) mpz_tdiv_ui(N, d);
 }
