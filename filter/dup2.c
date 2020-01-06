@@ -85,6 +85,7 @@ unsigned long sanity_collisions = 0;
 static double factor = 1.0;
 
 static int is_for_dl; /* Do we reduce mod 2 or not */
+static int nthreads_for_roots = 4;
 
 /* For debugging */
 //#define TRACE_HASH_TABLE
@@ -557,6 +558,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "badidealinfo", "file containing info about bad ideals");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
+  param_list_decl_usage(pl, "t", "number of threads for roots mod p (default 4)");
   verbose_decl_usage(pl);
 }
 
@@ -610,6 +612,7 @@ main (int argc, char *argv[])
     const char * badidealinfofile = param_list_lookup_string(pl, "badidealinfo");
     const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
     param_list_parse_ulong(pl, "nrels", &nrels_expected);
+    param_list_parse_int(pl, "t", &nthreads_for_roots);
 
     if (param_list_warn_unused(pl))
     {
@@ -735,7 +738,7 @@ main (int argc, char *argv[])
 
   {
       struct filter_rels_description desc[3] = {
-          { .f = thread_root, .arg=0, .n=4, },
+          { .f = thread_root, .arg=0, .n=nthreads_for_roots, },
           { .f = thread_dup2, .arg=0, .n=1, },
           { .f = NULL, },
       };
