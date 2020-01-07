@@ -3105,7 +3105,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
-            "qmin": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
+            "qmin": 0, "qmax": 0, "qrange": int, "rels_wanted": 0, "lim0": int,
             "lim1": int, "gzip": True, "sqside": 1, "adjust_strategy": 0})
 
     def combine_bkmult(*lists):
@@ -3213,10 +3213,19 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             fb0 = self.send_request(Request.GET_FACTORBASE0_FILENAME)
 
         self.logger.info("We want %d relation(s)", self.state["rels_wanted"])
+        qmax = self.params["qmax"]
+        maxwu = self.params["maxwu"]
+        qrange = self.params["qrange"]
         while self.get_nrels() < self.state["rels_wanted"]:
             q0 = self.state["qnext"]
-            q1 = q0 + self.params["qrange"]
-            q1 = q1 - (q1 % self.params["qrange"])
+            # When qmax is defined (qmax = 0 means no limit), we try to stop
+            # at qmax. Warning: this is not perfect since we are not sure that
+            # all WUs for q < qmax are finished. Also this should be used with
+            # care since it will loop if there are not enough relations.
+            if qmax > 0 and q0 >= qmax + maxwu * qrange:
+                break
+            q1 = q0 + qrange
+            q1 = q1 - (q1 % qrange)
             assert q1 > q0
             # We use .gzip by default, unless set to no in parameters
             use_gz = ".gz" if self.params["gzip"] else ""
@@ -3237,8 +3246,12 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                                      **self.merged_args[0])
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
             self.state.update({"qnext": q1}, commit=True)
-        self.logger.info("Reached target of %d relations, now have %d",
-                         self.state["rels_wanted"], self.get_nrels())
+        if self.get_nrels() >= self.state["rels_wanted"]:
+            self.logger.info("Reached target of %d relations, now have %d",
+                             self.state["rels_wanted"], self.get_nrels())
+        else:
+            self.logger.info("Reached qmax=%d relations, with %d relations",
+                             qmax, self.get_nrels())
         self.logger.debug("Exit SievingTask.run(" + self.name + ")")
         return True
     
