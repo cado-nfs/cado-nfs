@@ -3706,7 +3706,6 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
             (stdoutpath, stderrpath) = \
                 self.make_std_paths(name, do_increment=(i == 0))
              
-
             if len(files) <= 10:
                 p = cadoprograms.Duplicates2(*files,
                                              rel_count=rel_count,
