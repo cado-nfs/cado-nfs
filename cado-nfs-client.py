@@ -1574,7 +1574,7 @@ class InputDownloader(object):
                               error_str)
                 if waiting_since > 0:
                     logging.error("Waiting %s seconds before retrying"
-                                  " (I have been waiting since %s seconds)",
+                                  " (I have been waiting for %s seconds)",
                                   wait, waiting_since)
                 else:
                     logging.error("Waiting %s seconds before retrying", wait)
@@ -1955,7 +1955,7 @@ class ResultUploader(object):
                     logging.error("Upload failed, %s", error_str)
                     if waiting_since > 0:
                         logging.error("Waiting %s seconds before retrying"
-                                      " (I have been waiting since %s seconds)",
+                                      " (I have been waiting for %s seconds)",
                                       wait, waiting_since)
                     else:
                         logging.error("Waiting %s seconds before retrying",

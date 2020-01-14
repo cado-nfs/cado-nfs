@@ -1547,7 +1547,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
     def submit_command(self, command, identifier, commit=True, log_errors=False):
         ''' Submit a workunit to the database. '''
         
-        while self.get_number_available_wus() >= self.params["maxwu"] or ("qnext" in self.state and self.state["qnext"] >= self.params["qmax"]):
+        while self.get_number_available_wus() >= self.params["maxwu"]:
             self.wait()
         wuid = self.make_wuname(identifier)
         wutext = command.make_wu(wuid)
@@ -3105,7 +3105,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
-            "qmin": 0, "qmax": 4294967295, "qrange": int, "rels_wanted": 0,
+            "qmin": 0, "qmax": [int], "qrange": int, "rels_wanted": 0,
             "lim0": int, "lim1": int, "gzip": True, "sqside": 1,
             "adjust_strategy": 0})
 
@@ -3190,6 +3190,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             self.state["qnext"] = qmin if qmin > 0 else int(self.params["lim1"]/2) if self.params["sqside"] == 1 else int(self.params["lim0"]/2)
         
         self.state.setdefault("rels_found", 0)
+        self.logger.info("param rels_wanted is %d", self.params["rels_wanted"])
         self.state["rels_wanted"] = self.params["rels_wanted"]
         if self.state["rels_wanted"] == 0:
             # For rsa140 with lpb[01]=29, using guess_factor = 0.91
@@ -3206,6 +3207,18 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             n01 = int(guess_factor * (n0 / log (n0) + n1 / log (n1)))
             self.state["rels_wanted"] = n01
     
+    def enough_relations(self):
+        return self.get_nrels() >= self.state["rels_wanted"]
+    def reached_qmax(self):
+        if "qmax" not in self.params:
+            return False
+        qnext = self.state["qnext"]
+        qmax = self.params["qmax"]
+        return qnext >= qmax
+
+    def should_schedule_more_work(self):
+        return not self.enough_relations() and not self.reached_qmax()
+
     def run(self):
         super().run()
         have_two_alg = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
@@ -3216,7 +3229,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
         self.logger.info("We want %d relation(s)", self.state["rels_wanted"])
         maxwu = self.params["maxwu"]
         qrange = self.params["qrange"]
-        while self.get_nrels() < self.state["rels_wanted"]:
+        while self.should_schedule_more_work():
             q0 = self.state["qnext"]
             q1 = q0 + qrange
             q1 = q1 - (q1 % qrange)
@@ -3240,9 +3253,40 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                                      **self.merged_args[0])
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
             self.state.update({"qnext": q1}, commit=True)
-        if self.get_nrels() >= self.state["rels_wanted"]:
+
+        if self.reached_qmax():
+            self.logger.info("Reached maximum q-range value %d -- not scheduling any further WUs.", self.params["qmax"])
+            waitloop=0
+            nextwaitmsg=1
+            while self.get_number_outstanding_wus() > 0:
+                if self.enough_relations():
+                    break
+                waitloop = waitloop + 1
+                if waitloop >= nextwaitmsg:
+                    self.logger.info("There are still %d outstanding WUs.  Server waiting (relations: %d/%d -- we have been waiting for %d seconds)",
+                            self.get_number_outstanding_wus(),
+                            self.get_nrels(),
+                            self.state["rels_wanted"],
+                            waitloop)
+                    if nextwaitmsg < 30:
+                        nextwaitmsg = nextwaitmsg + 1
+                    elif nextwaitmsg < 300:
+                        nextwaitmsg = nextwaitmsg + 10
+                    elif nextwaitmsg < 600:
+                        nextwaitmsg = nextwaitmsg + 60
+                    elif nextwaitmsg < 3600:
+                        nextwaitmsg = nextwaitmsg + 300
+                    else:
+                        nextwaitmsg = nextwaitmsg + 3600
+                self.wait()
+            if self.get_number_outstanding_wus() == 0:
+                self.logger.info("No outstanding WUs. Sieving stops")
+        if self.enough_relations():
             self.logger.info("Reached target of %d relations, now have %d",
                              self.state["rels_wanted"], self.get_nrels())
+        else:
+            self.logger.critical("Could not reach target of %d relations, we only have %d -- sieving has failed", self.state["rels_wanted"], self.get_nrels())
+            return False
         self.logger.debug("Exit SievingTask.run(" + self.name + ")")
         return True
     
