@@ -33,7 +33,7 @@
 /*********/
 
 /* define USE_HEAP for custom memory management */
-#define USE_HEAP
+// #define USE_HEAP
 
 /* Maximum level for a merge. */
 #define MERGE_LEVEL_MAX 32

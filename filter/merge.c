@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>         /* for _O_BINARY */
-#include "filter_config.h" /* for USE_HEAD */
+#include "filter_config.h" /* for definition of USE_HEAP */
 
 int pass = 0;
 
