@@ -112,6 +112,30 @@ public:
         return true;
     }
     
+    bool test_neg() const {
+        Modulus m = randomModulus();
+        Integer a, M;
+        Residue r(m);
+        m.neg(r, r);
+        m.get(a, r);
+        if (a != 0) {
+            cxx_mpz N  = modToMpz(m);
+            std::cerr << typeid(T).name() << "::neg(0) wrong for modulus " << N << std::endl;
+            return false;
+        }
+        m.getmod(M);
+        a = 1;
+        m.set(r, a);
+        m.neg(r, r);
+        m.get(a, r);
+        if (a != M - 1) {
+            cxx_mpz N  = modToMpz(m);
+            std::cerr << typeid(T).name() << "::neg(1) wrong for modulus " << N << std::endl;
+            return false;
+        }
+        return true;
+    }
+
     bool test_one_sqr(Integer i, Integer &n) const {
         Modulus m(n);
         Residue a(m);
@@ -662,6 +686,7 @@ public:
         bool ok = true;
         ok &= test_init();
         ok &= test_set(iter);
+        ok &= test_neg();
         ok &= test_mul();
         ok &= test_divn(iter);
         ok &= test_pow(iter);
