@@ -220,7 +220,7 @@ public:
     }
     void neg (Residue &r, const Residue &a) const {
         assertValid(a);
-        if (is0(a) == 0) {
+        if (is0(a) != 0) {
             if (&r != &a)
                 set0(r);
         } else {
