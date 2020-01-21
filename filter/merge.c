@@ -49,8 +49,8 @@ unsigned long cancel_rows = 0;
 unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #endif
 
-#define GC_MAX_GARBAGE_RATIO   0.33    /* only run the collection when there is this much garbage */
-#define GC_COLLECTION_LATENCY   5     /* wait before collecting */
+#define GC_MAX_GARBAGE_RATIO   0.165  /* only run the collection when there is this much garbage */
+#define GC_COLLECTION_LATENCY   0     /* wait before collecting */
 
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
