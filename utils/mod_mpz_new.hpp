@@ -32,6 +32,10 @@ public:
             r = new mp_limb_t[mpz_size(m.m) + 1];
             mpn_zero(r, mpz_size(m.m) + 1);
         }
+        Residue(const Modulus &m, const Residue &s) {
+            r = new mp_limb_t[mpz_size(m.m) + 1];
+            mpn_copyi(r, s.r, mpz_size(m.m));
+        }
         ~Residue() {
             delete[] r;
         }

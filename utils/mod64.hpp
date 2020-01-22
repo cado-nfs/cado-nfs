@@ -27,6 +27,7 @@ public:
         typedef bool IsResidueType;
         Residue() = delete;
         Residue(const Modulus &m MAYBE_UNUSED) : r(0) {}
+        Residue(const Modulus &m MAYBE_UNUSED, const Residue &s) : r(s.r) {}
         Residue(const Residue &&s) : r(s.r) {}
     protected:
         Residue &operator=(const Residue &s) {r = s.r; return *this;}
