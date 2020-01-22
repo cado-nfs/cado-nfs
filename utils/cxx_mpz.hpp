@@ -48,6 +48,7 @@ public:
     operator mpz_srcptr() const { return x; }
     mpz_ptr operator->() { return x; }
     mpz_srcptr operator->() const { return x; }
+    explicit operator uint64_t() const {return mpz_get_uint64(x);}
     
     /** Set the value of the cxx_mpz to that of the uint64_t array s,
      * least significant word first. 
