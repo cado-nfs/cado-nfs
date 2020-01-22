@@ -604,10 +604,12 @@ void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)
 
 void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
 {
+    unsigned int nrows = t0.nrows();
+    unsigned int ncols = t1.ncols();
     size_t csize = t0.M.size + t1.M.size; csize -= (csize > 0);
     ASSERT_ALWAYS(t0.ncols() == t1.nrows());
-    ASSERT_ALWAYS(t.nrows() == t0.nrows());
-    ASSERT_ALWAYS(t.ncols() == t1.ncols());
+    ASSERT_ALWAYS(t.nrows() == nrows);
+    ASSERT_ALWAYS(t.ncols() == ncols);
     ASSERT_ALWAYS(b2w(csize) <= t.M.alloc_words);
 
     if (t0.M.size == 0 || t1.M.size == 0)
@@ -622,8 +624,8 @@ void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
-        for(unsigned int i = 0 ; i < t0.nrows() ; i++) {
-            for(unsigned int j = 0 ; j < t1.ncols() ; j++) {
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
                 for(unsigned int k = 0 ; k < t0.ncols() ; k++) {
                     gf2x_mul(tmp,
                             t0.part(i, k), b2w(t0.M.size),
@@ -670,12 +672,14 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 
 void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
 {
+    unsigned int nrows = t0.nrows();
+    unsigned int ncols = t1.ncols();
     size_t fullsize = t0.M.size + t1.M.size; fullsize -= (fullsize > 0);
     size_t shift = MIN(t0.M.size, t1.M.size) - 1;
     size_t nb = MAX(t0.M.size, t1.M.size) - MIN(t0.M.size, t1.M.size) + 1;
     ASSERT_ALWAYS(t0.ncols() == t1.nrows());
-    ASSERT_ALWAYS(t.nrows() == t0.nrows());
-    ASSERT_ALWAYS(t.ncols() == t1.ncols());
+    ASSERT_ALWAYS(t.nrows() == nrows);
+    ASSERT_ALWAYS(t.ncols() == ncols);
     ASSERT_ALWAYS(b2w(nb) <= t.M.alloc_words);
 
     if (t0.M.size == 0 || t1.M.size == 0)
@@ -690,8 +694,8 @@ void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
-        for(unsigned int i = 0 ; i < t0.nrows() ; i++) {
-            for(unsigned int j = 0 ; j < t1.ncols() ; j++) {
+        for(unsigned int i = 0 ; i < nrows ; i++) {
+            for(unsigned int j = 0 ; j < ncols ; j++) {
                 for(unsigned int k = 0 ; k < t0.ncols() ; k++) {
                     gf2x_mul(tmp,
                             t0.part(i, k), b2w(t0.M.size),
