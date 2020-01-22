@@ -1264,9 +1264,9 @@ void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_
     random_matrix_ddata_adjust(F, r, pi, padded_nrows, padded_ncols);
 
     if (F->print) {
-        printf("Each of the %u jobs on %u nodes creates a matrix with %lu rows %lu cols, and %d coefficients per row on average. Seed for rank 0 is %lu.\n",
+        printf("Each of the %u jobs on %u nodes creates a matrix with %lu rows %lu cols, and %.2f coefficients per row on average. Seed for rank 0 is %lu.\n",
                 pi->m->totalsize, pi->m->njobs,
-                F->nrows, F->ncols, r->density / pi->wr[0]->totalsize, r->seed);
+                F->nrows, F->ncols, (double) r->density / pi->wr[0]->totalsize, r->seed);
     }
 
     gmp_randstate_t rstate;
