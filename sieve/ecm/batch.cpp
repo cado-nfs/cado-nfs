@@ -1,3 +1,12 @@
+/* Batch cofactorization.
+
+   References:
+   [1] Daniel J. Bernstein, How to find small factors of integers,
+       http://cr.yp.to/papers.html#sf, 2002.
+   We implement Algorithm 7.1 from [1] here, except that once the smooth
+   cofactors have been detected, instead of using another remainder tree
+   approach to factor them, we factor them naively. */
+
 #include "cado.h"
 #include <stdio.h>
 #include <math.h>

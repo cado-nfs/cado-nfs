@@ -157,10 +157,14 @@ public:
     Integer64& operator=(const cxx_mpz &s) {
         ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 64);
         const int ORDER = -1;
+        size_t COUNT;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s);
+        mpz_export(&v, &COUNT, ORDER, SIZE, ENDIAN, NAILS, s);
+        ASSERT_ALWAYS(COUNT <= 1);
+        if (COUNT == 0)
+            v[0] = 0;
         return *this;
     }
     
@@ -431,11 +435,16 @@ public:
 
     Integer128 operator=(const cxx_mpz s) {
         ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 128);
+        size_t COUNT;
         const int ORDER = -1;
         const size_t SIZE = sizeof(v[0]);
         const int ENDIAN = 0;
         const size_t NAILS = 0;
-        mpz_export(&v, NULL, ORDER, SIZE, ENDIAN, NAILS, s);
+        mpz_export(&v, &COUNT, ORDER, SIZE, ENDIAN, NAILS, s);
+        ASSERT_ALWAYS(COUNT <= 2);
+        for (size_t i = COUNT; i < 2; i++) {
+            v[i] = 0;
+        }
         return *this;
     }
     void get(cxx_mpz &r) const {
