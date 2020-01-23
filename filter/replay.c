@@ -888,6 +888,12 @@ main(int argc, char *argv[])
 
   /* Read number of rows and cols on first line of purged file */
   purgedfile_read_firstline (purgedname, &nrows, &ncols);
+  if (nrows >= 4294967296UL)
+    {
+      fprintf (stderr, "Error, cannot handle 2^32 rows or more after purge\n");
+      fprintf (stderr, "change ind_row from uint32_t to uint64_t in sparse.h\n");
+      exit (EXIT_FAILURE);
+    }
   printf("Sparse matrix has %" PRIu64 " rows and %" PRIu64 " cols\n",
          nrows, ncols);
   fflush(stdout);

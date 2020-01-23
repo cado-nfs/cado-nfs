@@ -31,7 +31,8 @@ void compressRow (index_t *row, index_t *buf, int n);
 // shared by merge and replay, and needs to know about it.
 
 typedef struct {
-    index_t ind_row;
+    /* we assume the number of rows at the end of purge is < 2^32 */
+    uint32_t ind_row;
 #ifdef FOR_DL
     int32_t e;
 #endif
