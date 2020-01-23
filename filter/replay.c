@@ -484,6 +484,8 @@ typedef struct
 {
   typerow_t **mat;
   index_t ncols;
+  index_t col0;
+  index_t colmax;
 } replay_read_data_t;
 
 void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
@@ -491,28 +493,31 @@ void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
   replay_read_data_t *data = (replay_read_data_t *) context_data;
   typerow_t buf[UMAX(weight_t)];
 
+  unsigned int nb = 0;
   for (unsigned int j = 0; j < rel->nb; j++)
   {
     index_t h = rel->primes[j].h;
+    if (h < data->col0 || h >= data->colmax) continue;
+    nb++;
 #ifdef FOR_DL
     exponent_t e = rel->primes[j].e;
-    buf[j+1] = (ideal_merge_t) {.id = h, .e = e};
+    buf[nb] = (ideal_merge_t) {.id = h, .e = e};
 #else
     ASSERT_ALWAYS (rel->primes[j].e == 1);
-    buf[j+1] = h;
+    buf[nb] = h;
 #endif
     ASSERT (h < data->ncols);
   }
 #ifdef FOR_DL
-  buf[0].id = rel->nb;
+  buf[0].id = nb;
 #else
-  buf[0] = rel->nb;
+  buf[0] = nb;
 #endif
 
-  qsort (&(buf[1]), rel->nb, sizeof(typerow_t), cmp_typerow_t);
+  qsort (&(buf[1]), nb, sizeof(typerow_t), cmp_typerow_t);
 
-  data->mat[rel->num] = mallocRow (rel->nb + 1);
-  compressRow (data->mat[rel->num], buf, rel->nb);
+  data->mat[rel->num] = mallocRow (nb + 1);
+  compressRow (data->mat[rel->num], buf, nb);
 
   return NULL;
 }
@@ -532,7 +537,7 @@ void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
 
 static void
 read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
-                 index_t ncols, int for_msieve)
+                 index_t ncols, index_t col0, index_t colmax, int for_msieve)
 {
   index_t nread;
   if (for_msieve == 0)
@@ -540,7 +545,12 @@ read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
     printf("Reading sparse matrix from %s\n", filename);
     fflush(stdout);
     char *fic[2] = {(char *) filename, NULL};
-    replay_read_data_t tmp = (replay_read_data_t) {.mat= mat, .ncols = ncols};
+    replay_read_data_t tmp = (replay_read_data_t) {
+        .mat= mat,
+        .ncols = ncols,
+        .col0 = col0,
+        .colmax = colmax,
+    };
     nread = filter_rels(fic, (filter_rels_callback_t) &fill_in_rows, &tmp,
                         EARLYPARSE_NEED_INDEX, NULL, NULL);
     ASSERT_ALWAYS (nread == nrows);
@@ -777,6 +787,10 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "for_msieve", "output matrix in msieve format");
   param_list_decl_usage(pl, "Nmax", "stop at Nmax number of rows (default 0)");
+#ifndef FOR_DL
+  param_list_decl_usage(pl, "col0", "print only columns with index >= col0");
+  param_list_decl_usage(pl, "colmax", "print only columns with index < colmax");
+#endif
   verbose_decl_usage(pl);
 }
 
@@ -842,6 +856,14 @@ main(int argc, char *argv[])
 #endif
     param_list_parse_uint64(pl, "Nmax", &Nmax);
     const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
+
+    index_t col0 = 0;
+    index_t colmax = UMAX(index_t);
+
+#ifndef FOR_DL
+    { uint64_t c; if (param_list_parse_uint64(pl, "col0", &c))   col0 = c; }
+    { uint64_t c; if (param_list_parse_uint64(pl, "colmax", &c)) colmax = c; }
+#endif
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
@@ -910,7 +932,7 @@ main(int argc, char *argv[])
   ASSERT_ALWAYS(newrows != NULL);
 
   /* Read the matrix from purgedfile */
-  read_purgedfile (newrows, purgedname, nrows, ncols, for_msieve);
+  read_purgedfile (newrows, purgedname, nrows, ncols, col0, colmax, for_msieve);
   printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
   fflush(stdout);
 #if DEBUG >=1
