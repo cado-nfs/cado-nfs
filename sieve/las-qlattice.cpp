@@ -135,10 +135,10 @@ SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
     mpz_init_set_ui (b[0], 0);
     mpz_init_set_ui (b[1], 1);
     generic_skew_gauss (a, b, skewness);
-    fits = mpz_fits_int64_p (a[0]);
-    fits = fits && mpz_fits_int64_p (b[0]);
-    fits = fits && mpz_fits_int64_p (a[1]);
-    fits = fits && mpz_fits_int64_p (b[1]);
+    fits = mpz_fits_sint64_p (a[0]);
+    fits = fits && mpz_fits_sint64_p (b[0]);
+    fits = fits && mpz_fits_sint64_p (a[1]);
+    fits = fits && mpz_fits_sint64_p (b[1]);
     if (fits)
       {
         basis.a0 = mpz_get_int64 (a[0]);

@@ -152,7 +152,7 @@ test_mpz_get_int64 (const unsigned long iter)
 }
 
 void
-test_mpz_fits_int64_p ()
+test_mpz_fits_sint64_p ()
 {
   mpz_t z;
 
@@ -161,18 +161,18 @@ test_mpz_fits_int64_p ()
   /* check 2^63-1 fits but not 2^63 */
   mpz_set_ui (z, 1);
   mpz_mul_2exp (z, z, 63);
-  if (mpz_fits_int64_p (z))
+  if (mpz_fits_sint64_p (z))
     abort();
   mpz_sub_ui (z, z, 1);
-  if (mpz_fits_int64_p (z) == 0)
+  if (mpz_fits_sint64_p (z) == 0)
     abort();
   /* check -2^63 fits but not -2^63-1 */
   mpz_add_ui (z, z, 1);
   mpz_neg (z, z);
-  if (mpz_fits_int64_p (z) == 0)
+  if (mpz_fits_sint64_p (z) == 0)
     abort();
   mpz_sub_ui (z, z, 1);
-  if (mpz_fits_int64_p (z))
+  if (mpz_fits_sint64_p (z))
     abort();
   mpz_clear (z);
 }
@@ -415,7 +415,7 @@ main (int argc, const char *argv[])
   test_mpz_set_int64 ();
   test_mpz_get_uint64 (iter);
   test_mpz_get_int64 (iter);
-  test_mpz_fits_int64_p ();
+  test_mpz_fits_sint64_p ();
   test_mpz_mul_uint64 (iter);
   test_mpz_mul_int64 (iter);
   test_mpz_addmul_int64 (iter);
