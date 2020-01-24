@@ -673,6 +673,14 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
   newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
   ASSERT_ALWAYS (newrows != NULL);
 
+  /* if we only print the index, we can free the matrix now */
+  if (sparsename == NULL)
+    {
+      for (index_t i = 0; i < small_nrows; i++)
+        free (newrows[i]);
+      free (newrows);
+    }
+
   /* if index was asked: crunch the empty rows as above, create the index and
    * free index_data before calling toFlush(), in order to decrease the total
    * memory usage */
@@ -694,6 +702,9 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
       free (index_data[i].rels);
     free (index_data);
   }
+
+  if (sparsename == NULL)
+    goto close_and_exit;
 
   /* compute column weights */
   colweight = (index_t*) malloc (ncols * sizeof(index_t));
@@ -746,7 +757,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
         }
       generate_cyc (sparsename, newrows, small_nrows);
     }
-  else
+  else if (sparsename != NULL)
     /* renumber columns after sorting them by decreasing weight */
     toFlush (sparsename, newrows, colweight, ncols, small_nrows, small_ncols,
              skip, bin, idealsfilename);
@@ -757,6 +768,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
     free (newrows[i]);
   free (newrows);
 
+ close_and_exit:
   fclose_maybe_compressed (hisfile, hisname);
 }
 
@@ -814,7 +826,7 @@ main(int argc, char *argv[])
   uint64_t Nmax = 0;
   uint64_t nrows, ncols;
   typerow_t **newrows;
-  int bin, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
+  int bin = -1, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
   double cpu0 = seconds ();
   double wct0 = wct_seconds ();
 
@@ -877,16 +889,16 @@ main(int argc, char *argv[])
       fprintf(stderr, "Error, missing -purged command line argument\n");
       usage(pl, argv0);
     }
-    if (sparsename == NULL)
-    {
-      fprintf(stderr, "Error, missing -out command line argument\n");
-      usage(pl, argv0);
-    }
     if (hisname == NULL)
     {
       fprintf(stderr, "Error, missing -his command line argument\n");
       usage(pl, argv0);
     }
+    if (sparsename == NULL && indexname == NULL)
+      {
+        fprintf(stderr, "Error, at least one of -out and -index is required\n");
+        usage(pl, argv0);
+      }
 #ifdef FOR_DL
     if (idealsfilename == NULL)
     {
@@ -895,16 +907,19 @@ main(int argc, char *argv[])
     }
     ASSERT_ALWAYS (skip == 0);
 #endif
-    if (has_suffix(sparsename, ".bin") || has_suffix(sparsename, ".bin.gz"))
-    {
-      bin = 1;
-      printf ("# Output matrices will be written in binary format\n");
-    }
-    else
-    {
-      bin = 0;
-      printf ("# Output matrices will be written in text format\n");
-    }
+    if (sparsename != NULL)
+      {
+        if (has_suffix(sparsename, ".bin") || has_suffix(sparsename, ".bin.gz"))
+          {
+            bin = 1;
+            printf ("# Output matrices will be written in binary format\n");
+          }
+        else
+          {
+            bin = 0;
+            printf ("# Output matrices will be written in text format\n");
+          }
+      }
 
     set_antebuffer_path (argv0, path_antebuffer);
 
