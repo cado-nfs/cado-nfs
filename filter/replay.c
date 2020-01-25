@@ -375,6 +375,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
 //     row[-i-1] is to be added to rows i1...ik and NOT destroyed.
 //
 // If given, j is the index of the column used for pivoting (used in DL).
+// If newrows=NULL, we only compute the index.
 static void
 doAllAdds(typerow_t **newrows, char *str, index_data_t index_data)
 {
@@ -404,8 +405,11 @@ doAllAdds(typerow_t **newrows, char *str, index_data_t index_data)
   if(destroy)
     {
       //destroy initial row!
-      free(newrows[i0]);
-      newrows[i0] = NULL;
+      if (newrows != NULL)
+        {
+          free(newrows[i0]);
+          newrows[i0] = NULL;
+        }
 
       if (index_data != NULL) // ie we want an index
       {
@@ -444,6 +448,7 @@ toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
     fflush(stdout);
 }
 
+/* If newrows = NULL, only compute the index */
 static void
 build_newrows_from_file(typerow_t **newrows, FILE *hisfile,
                         index_data_t index_data, index_t nrows, index_t Nmax)
@@ -662,7 +667,8 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
     index_data = NULL;
 
   /* read merges in the *.merge.his file and replay them */
-  build_newrows_from_file (newrows, hisfile, index_data, nrows, Nmax);
+  build_newrows_from_file ((sparsename != NULL) ? newrows : NULL,
+                           hisfile, index_data, nrows, Nmax);
 
   /* crunch empty rows first to save memory and compute small_nrows */
   index_t j = 0;
