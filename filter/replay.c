@@ -640,7 +640,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
 {
   FILE *hisfile = NULL;
   index_t *colweight = NULL;
-  index_t small_nrows, small_ncols;
+  index_t small_nrows = 0, small_ncols;
   index_data_t index_data = NULL;
 
   hisfile = fopen_maybe_compressed (hisname, "r");
@@ -667,24 +667,18 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
     index_data = NULL;
 
   /* read merges in the *.merge.his file and replay them */
-  build_newrows_from_file ((sparsename != NULL) ? newrows : NULL,
-                           hisfile, index_data, nrows, Nmax);
+  build_newrows_from_file (newrows, hisfile, index_data, nrows, Nmax);
 
-  /* crunch empty rows first to save memory and compute small_nrows */
-  index_t j = 0;
-  for (index_t i = 0; i < nrows; i++)
-    if (newrows[i] != NULL)
-      newrows[j++] = newrows[i]; /* we always have j <= i */
-  small_nrows = j;
-  newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
-  ASSERT_ALWAYS (newrows != NULL);
-
-  /* if we only print the index, we can free the matrix now */
-  if (sparsename == NULL)
+  if (sparsename != NULL)
     {
-      for (index_t i = 0; i < small_nrows; i++)
-        free (newrows[i]);
-      free (newrows);
+      /* crunch empty rows first to save memory and compute small_nrows */
+      index_t j = 0;
+      for (index_t i = 0; i < nrows; i++)
+        if (newrows[i] != NULL)
+          newrows[j++] = newrows[i]; /* we always have j <= i */
+      small_nrows = j;
+      newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
+      ASSERT_ALWAYS (newrows != NULL);
     }
 
   /* if index was asked: crunch the empty rows as above, create the index and
@@ -692,7 +686,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
    * memory usage */
   if (indexname != NULL)
   {
-    j = 0;
+    index_t j = 0;
     for (index_t i = 0; i < nrows; i++)
     {
       if (index_data[i].n > 0)
@@ -700,7 +694,10 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
       else
         free(index_data[i].rels);
     }
-    ASSERT (j == small_nrows);
+    if (sparsename != NULL)
+      ASSERT_ALWAYS (j == small_nrows);
+    else
+      small_nrows = j;
 
     writeIndex (indexname, index_data, small_nrows);
 
@@ -949,21 +946,29 @@ main(int argc, char *argv[])
 #endif
 
   /* Allocate memory for rows of the matrix */
-  newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
-  ASSERT_ALWAYS(newrows != NULL);
+  if (sparsename != NULL)
+    {
+      newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
+      ASSERT_ALWAYS(newrows != NULL);
+    }
+  else
+    newrows = NULL;
 
   /* Read the matrix from purgedfile */
-  read_purgedfile (newrows, purgedname, nrows, ncols, col0, colmax, for_msieve);
-  printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
-  fflush(stdout);
+  if (sparsename != NULL)
+    {
+      read_purgedfile (newrows, purgedname, nrows, ncols, col0, colmax, for_msieve);
+      printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
+      fflush(stdout);
 #if DEBUG >=1
-  for (index_t i = 0; i < nrows; i++)
-  {
-    fprintf(stderr, "row[%" PRIu64 "] :", i);
-    fprintRow(stderr, newrows[i]);
-    fprintf(stderr, "\n");
-  }
+      for (index_t i = 0; i < nrows; i++)
+        {
+          fprintf(stderr, "row[%" PRIu64 "] :", i);
+          fprintRow(stderr, newrows[i]);
+          fprintf(stderr, "\n");
+        }
 #endif
+    }
 
   fasterVersion (newrows, sparsename, indexname, hisname, nrows, ncols, skip,
                  bin, idealsfilename, for_msieve, Nmax);
