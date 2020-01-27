@@ -134,6 +134,30 @@
 
 #cmakedefine    UINT64_T_IS_UNSIGNED_LONG
 #cmakedefine    UINT64_T_IS_UNSIGNED_LONG_LONG
+#cmakedefine    INT64_T_IS_LONG
+#cmakedefine    INT64_T_IS_LONG_LONG
+#cmakedefine    UINT32_T_IS_UNSIGNED_LONG
+#cmakedefine    UINT32_T_IS_UNSIGNED_INT
+#cmakedefine    INT32_T_IS_LONG
+#cmakedefine    INT32_T_IS_INT
+#cmakedefine    MP_LIMB_T_IS_UNSIGNED_LONG
+#cmakedefine    MP_LIMB_T_IS_UNSIGNED_LONG_LONG
+#cmakedefine    MP_SIZE_T_IS_LONG_LONG
+#cmakedefine    MP_SIZE_T_IS_LONG
+#cmakedefine    MP_SIZE_T_IS_INT
+#cmakedefine    MPZ_INTERNAL_SIZE_T_IS_LONG_LONG
+#cmakedefine    MPZ_INTERNAL_SIZE_T_IS_LONG
+#cmakedefine    MPZ_INTERNAL_SIZE_T_IS_INT
+
+#define CADO_MPI_SIZE_T    @CADO_MPI_SIZE_T@
+#define CADO_MPI_SSIZE_T   @CADO_MPI_SSIZE_T@
+#define CADO_MPI_UINT32_T  @CADO_MPI_UINT32_T@
+#define CADO_MPI_UINT64_T  @CADO_MPI_UINT64_T@
+#define CADO_MPI_INT32_T   @CADO_MPI_INT32_T@
+#define CADO_MPI_INT64_T   @CADO_MPI_INT64_T@
+#define CADO_MPI_MP_LIMB_T   @CADO_MPI_MP_LIMB_T@
+#define CADO_MPI_MP_SIZE_T   @CADO_MPI_MP_SIZE_T@
+#define CADO_MPI_MPZ_INTERNAL_SIZE_T   @CADO_MPI_MPZ_INTERNAL_SIZE_T@
 
 /* vim:set ft=c: */
 #endif  /* CADO_CONFIG_H_ */

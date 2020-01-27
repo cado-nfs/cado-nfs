@@ -143,24 +143,19 @@ void print_all_sm(FILE *out, sm_side_info *sm_info, int nb_polys,
 
 // Basic MPI communications
 
-#define MPI_MY_MP_SIZE_T        MPI_LONG
-#define MPI_MY_MP_LIMB_T        MPI_UNSIGNED_LONG
-#define MPI_MY_GMP_INTERNAL_SIZE_FIELD_T MPI_INT
-#define MPI_MY_UINT64_T         MPI_UNSIGNED_LONG
-
 void MPI_Send_mpz(mpz_ptr z, int dst) {
   mp_size_t nlimbs = mpz_size(z);
-  MPI_Send(&nlimbs, 1, MPI_MY_MP_SIZE_T, dst, 0, MPI_COMM_WORLD);
-  MPI_Send(&z->_mp_size, 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, dst, 0, MPI_COMM_WORLD);
-  MPI_Send(z->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, dst, 0, MPI_COMM_WORLD);
+  MPI_Send(&nlimbs, 1, CADO_MPI_MP_SIZE_T, dst, 0, MPI_COMM_WORLD);
+  MPI_Send(&z->_mp_size, 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, dst, 0, MPI_COMM_WORLD);
+  MPI_Send(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, dst, 0, MPI_COMM_WORLD);
 }
 
 void MPI_Recv_mpz(mpz_ptr z, int src) {
   mp_size_t nlimbs;
-  MPI_Recv(&nlimbs, 1, MPI_MY_MP_SIZE_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&nlimbs, 1, CADO_MPI_MP_SIZE_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   _mpz_realloc(z, nlimbs);
-  MPI_Recv(&z->_mp_size, 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(z->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&z->_mp_size, 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 
@@ -497,7 +492,7 @@ int main (int argc, char **argv)
         " relation-sets.\n", nb_relsets);
     fflush(stdout);
   }
-  MPI_Bcast(&nb_relsets, 1, MPI_MY_UINT64_T, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&nb_relsets, 1, CADO_MPI_UINT64_T, 0, MPI_COMM_WORLD);
 
   ///////////////////////
   // Send a share of the rel sets to each process (round Robin)

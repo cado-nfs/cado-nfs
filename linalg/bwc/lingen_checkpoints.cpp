@@ -344,7 +344,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     if (!ok) {
         return false;
     }
-    MPI_Bcast(&Xsize, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
+    MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
@@ -433,7 +433,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
          * exist.
          */
         return false;
-    MPI_Bcast(&Xsize, 1, MPI_MY_SIZE_T, 0, bm.com[0]);
+    MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
     MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);

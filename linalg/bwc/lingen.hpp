@@ -18,8 +18,6 @@
 
 #include "select_mpi.h"
 
-#define MPI_MY_SIZE_T   MPI_UNSIGNED_LONG
-
 /* TODO: Rename ! */
 struct bw_dimensions {
     unsigned int m,n,nrhs;

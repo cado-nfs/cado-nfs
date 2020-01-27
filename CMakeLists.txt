@@ -38,6 +38,8 @@ if (MINGW)
     set(CMAKE_COLOR_MAKEFILE OFF)
 endif()
 
+set(CMAKE_REQUIRED_QUIET 1)
+
 #####################################################################
 # What are we building ?
 
@@ -244,7 +246,7 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
-include(${CADO_NFS_SOURCE_DIR}/config/check_uint64_type.cmake)
+include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
 
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
