@@ -56,9 +56,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
     uint32_t k1, k2, k, len;
     typerow_t *tmp;
 
-    if (rows == NULL)
-      goto update_index_data;
-
     ASSERT(i1 != i2);
 
     ASSERT(rows[i1] != NULL);
@@ -69,8 +66,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
     fprintf(stderr, "R[%d] =", i2); fprintRow(stderr, rows[i2]);
     fprintf(stderr, "\n");
 #endif
-    len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
-    tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
 #ifdef FOR_DL /* look for the exponents of j in i1 i2*/
     int e1 = 0, e2 = 0;
@@ -101,6 +96,11 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
 
 #endif
 
+    if (rows == NULL)
+      goto update_index_data;
+
+    len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
+    tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
     // loop while everybody is here
     k = k1 = k2 = 1;
