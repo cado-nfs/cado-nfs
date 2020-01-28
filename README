@@ -80,8 +80,6 @@ Optionally:
 *) Support for OpenMP (at least version 3.0)
 *) Support for MPI (see local.sh.example and linalg/bwc/README)
 *) Support for hwloc (see parameters/misc/cpubinding.conf)
-*) Support for curl library, for a very specific use within an I/O bound
-subprogram in linear algebra.
 *) Support for GMP-ECM. Define the environment variable GMPECM if it is
    installed in a non-standard place.
 

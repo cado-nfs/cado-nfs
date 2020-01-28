@@ -14,10 +14,6 @@
 #include "gmp-hacks.h"
 #include "gmp_aux.h"
 #include "macros.h"
-#ifdef  HAVE_CURL
-#include "balancing_curl_source.h"
-#endif
-#include "balancing_file_source.h"
 
 /* This is a stupid program for checking a matrix-times-vector product:
  *
@@ -66,14 +62,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
     memset(vec, 0, ncols * sizeof(uint64_t));
     assert(vec);
 
-    data_source_ptr m;
-#ifdef  HAVE_CURL
-    int is_curl;
-    if ((is_curl = (strstr(uri, "://") != NULL)))
-        m = curl_source_alloc(uri, 0);
-    else
-#endif  /* HAVE_CURL */
-    m = file_source_alloc(uri, 0);
+    FILE * m = fopen(uri, "rb");
 
     if (mul_left == 0) {
         unsigned long l = fread(vec, sizeof(uint64_t), ncols, v);
@@ -84,10 +73,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
         fclose(v);
         for( ; ; ) {
             uint32_t x;
-            uint32_t * ptr = &x;
-            int k;
-            k = m->get(m, &ptr, 1);
-            ASSERT_ALWAYS(ptr == &x);
+            int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {
                 if (k) {
@@ -98,8 +84,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
             }
             uint64_t w = 0;
             for(uint32_t i = 0 ; i < rowlen ; i++) {
-                k = m->get(m, &ptr, 1);
-                ASSERT_ALWAYS(ptr == &x);
+                int k = fread(&x, sizeof(uint32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
@@ -114,9 +99,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
         unsigned long rrows;
         for(rrows = 0 ; ; rrows++) {
             uint32_t x;
-            uint32_t * ptr = &x;
-            int k;
-            k = m->get(m, &ptr, 1);
+            int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {
                 if (k) {
@@ -132,8 +115,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
                 exit(1);
             }
             for(uint32_t i = 0 ; i < rowlen ; i++) {
-                k = m->get(m, &ptr, 1);
-                ASSERT_ALWAYS(ptr == &x);
+                k = fread(&x, sizeof(uint32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
@@ -158,12 +140,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
         }
     }
 
-#ifdef  HAVE_CURL
-    if (is_curl)
-        curl_source_free(m);
-    else
-#endif
-    file_source_free(m);
+    fclose(m);
     free(vec);
 }
 
@@ -196,14 +173,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
     assert(varea);
     memset(varea, 0, coeffsize);
 
-    data_source_ptr m;
-#ifdef  HAVE_CURL
-    int is_curl;
-    if ((is_curl = (strstr(uri, "://") != NULL)))
-        m = curl_source_alloc(uri, 0);
-    else
-#endif  /* HAVE_CURL */
-    m = file_source_alloc(uri, 0);
+    FILE * m = fopen(uri, "rb");
 
     mpz_t tmp, w;
     mpz_init(tmp);
@@ -217,12 +187,8 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         fclose(v);
         for( ; ; ) {
             uint32_t x;
-            uint32_t * ptr = &x;
             int32_t c;
-            uint32_t * sptr = (uint32_t*)&c;
-            int k;
-            k = m->get(m, &ptr, 1);
-            ASSERT_ALWAYS(ptr == &x);
+            int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {
                 if (k) {
@@ -233,14 +199,12 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
             }
             mpz_set_ui(w, 0);
             for(uint32_t i = 0 ; i < rowlen ; i++) {
-                k = m->get(m, &ptr, 1);
-                ASSERT_ALWAYS(ptr == &x);
+                k = fread(&x, sizeof(uint32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
                 }
-                k = m->get(m, &sptr, 1);
-                ASSERT_ALWAYS((int32_t*) sptr == &c);
+                k = fread(&c, sizeof(int32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
@@ -258,11 +222,8 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         unsigned long rrows;
         for(rrows = 0 ; ; rrows++) {
             uint32_t x;
-            uint32_t * ptr = &x;
             int32_t c;
-            uint32_t * sptr = (uint32_t*)&c;
-            int k;
-            k = m->get(m, &ptr, 1);
+            int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {
                 if (k) {
@@ -278,14 +239,12 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
             }
             MPZ_SET_MPN(w, varea, mpz_size(p));
             for(uint32_t i = 0 ; i < rowlen ; i++) {
-                k = m->get(m, &ptr, 1);
-                ASSERT_ALWAYS(ptr == &x);
+                k = fread(&x, sizeof(uint32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
                 }
-                k = m->get(m, &sptr, 1);
-                ASSERT_ALWAYS((int32_t*) sptr == &c);
+                k = fread(&c, sizeof(int32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
@@ -315,12 +274,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
     mpz_clear(tmp);
     mpz_clear(w);
 
-#ifdef  HAVE_CURL
-    if (is_curl)
-        curl_source_free(m);
-    else
-#endif
-        file_source_free(m);
+    fclose(m);
     free(varea);
     free(vec);
 }

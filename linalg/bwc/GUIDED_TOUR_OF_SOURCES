@@ -80,14 +80,7 @@ linalg/bwc/balancing.c
 linalg/bwc/balancing.h
 linalg/bwc/intersections.c
 linalg/bwc/intersections.h
-linalg/bwc/balancing_curl_source.c
-linalg/bwc/balancing_curl_source.h
-linalg/bwc/balancing_data_source.h
-linalg/bwc/balancing_file_source.c
-linalg/bwc/balancing_file_source.h
-linalg/bwc/balancing_mpi_source.c
-linalg/bwc/balancing_mpi_source.h
-linalg/bwc/balancing_workhorse.c
+linalg/bwc/balancing_workhorse.cpp
 linalg/bwc/balancing_workhorse.h
 linalg/bwc/raw_matrix_u32.h
 linalg/bwc/mf.c
@@ -99,9 +92,8 @@ linalg/bwc/mf_scan.c
 linalg/bwc/mf_scan2.cpp
 
     => code that implements the dispatching of matrix data to several
-    nodes. The balancing_curl_source code is mostly outdated. The mf_
-    files define some auxiliary binaries that are useful, even used in
-    test scripts.
+    nodes. The mf_ files define some auxiliary binaries that are useful,
+    even used in test scripts.
 
 
 linalg/bwc/random_matrix.c

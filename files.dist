@@ -19,7 +19,6 @@ portability.h
 typecast.h
 config/asm_sample.c
 config/ccwrap.pl.in
-config/curl.cmake
 config/cxxwrap.pl.in
 config/gas-assembly.cmake
 config/gcc-inline-assembly.cmake
@@ -103,14 +102,7 @@ linalg/bwc/async.c
 linalg/bwc/async.h
 linalg/bwc/balancing.c
 linalg/bwc/balancing.h
-linalg/bwc/balancing_curl_source.c
-linalg/bwc/balancing_curl_source.h
-linalg/bwc/balancing_data_source.h
-linalg/bwc/balancing_file_source.c
-linalg/bwc/balancing_file_source.h
-linalg/bwc/balancing_mpi_source.c
-linalg/bwc/balancing_mpi_source.h
-linalg/bwc/balancing_workhorse.c
+linalg/bwc/balancing_workhorse.cpp
 linalg/bwc/balancing_workhorse.h
 linalg/bwc/bw-common.c
 linalg/bwc/bw-common.h
@@ -1403,6 +1395,7 @@ utils/fmt/format.cc
 utils/fmt/format.h
 utils/fmt/ostream.h
 utils/fmt/printf.h
+utils/subdivision.hpp
 scripts/resubmit-tools.sh
 linalg/bwc/check_mpi_problems.c
 linalg/bwc/lingen_hints.cpp

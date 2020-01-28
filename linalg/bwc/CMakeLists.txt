@@ -74,19 +74,6 @@ endmacro()
 
 ### bwc_base
 
-# Note that because the balancing code contains balancing_get_matrix_u32,
-# which calls the parallelizing_info layer, it's difficult to make them
-# two distinct libraries. So far it's the only stopper though.
-set(balancing_sources
-    balancing.c
-    balancing_workhorse.c
-    balancing_file_source.c
-    balancing_mpi_source.c)
-
-if (HAVE_CURL)
-set(balancing_sources ${balancing_sources} balancing_curl_source.c)
-endif()
-
 set(bwc_base_sources
     parallelizing_info.c
     intersections.c
@@ -100,7 +87,8 @@ set(bwc_base_sources
     mf.c 
     mf_bal.c
     ../rowset_heap.cpp
-    ${balancing_sources}
+    balancing.c
+    balancing_workhorse.cpp
 )
 
 if(HAVE_CXX11 AND HAVE_HWLOC)

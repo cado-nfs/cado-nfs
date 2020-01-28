@@ -9,7 +9,7 @@
 #include "portability.h"
 #include "misc.h"
 
-typedef int MPI_Status;
+typedef struct { int MPI_SOURCE; int c; } MPI_Status;
 typedef int MPI_Datatype;
 typedef int MPI_Comm;
 typedef int MPI_Op;
@@ -65,6 +65,7 @@ typedef int MPI_Request;
 #define MPI_STATUSES_IGNORE       0
 
 #define MPI_ANY_TAG     -1
+#define MPI_ANY_SOURCE  -1
 
 /* Adding this pragma would yield the benefit of removing all the
  * MAYBE_UNUSED clutter which is inherent to this file. Unfortunately
@@ -77,14 +78,27 @@ typedef int MPI_Request;
 #endif
 */
 
+static inline int MPI_Get_count(MPI_Status * status, MPI_Datatype datatype, int * c)
+{
+    *c = status->c / fakempi_sizeof_type(datatype);
+    return 0;
+}
+static inline int MPI_Probe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); return 0; }
 static inline int MPI_Wait(MPI_Request *request MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { return 0; }
 static inline int MPI_Waitall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, MPI_Status *statuses MAYBE_UNUSED) { return 0; }
+static inline int MPI_Testall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, int * flag, MPI_Status *statuses MAYBE_UNUSED) { *flag = 1; return 0; }
+static inline int MPI_Testsome(int n_in, MPI_Request *request MAYBE_UNUSED, int * n_out, int * indices, MPI_Status *statuses MAYBE_UNUSED) { 
+    *n_out = n_in;
+    for(int i = 0; i < n_in; i++) { indices[i] = i; }
+    return 0;
+}
 static inline int MPI_Abort(MPI_Comm comm MAYBE_UNUSED, int s) { exit(s); }
 static inline int MPI_Comm_rank(int s MAYBE_UNUSED, int  * p) { *p=0; return 0;}
 static inline int MPI_Comm_size(int s MAYBE_UNUSED, int  * p) { *p=1; return 0;}
 static inline int MPI_Initialized(int  * p) { *p=1; return 0; }
 static inline int MPI_Init(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED) { return 0; }
 static inline int MPI_Init_thread(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED, int req, int * prov) { if (prov) *prov=req; return 0; }
+static inline int MPI_Query_thread(int * prov) { *prov=MPI_THREAD_MULTIPLE; return 0; }
 static inline int MPI_Finalize() {return 0;}
 static inline int MPI_Op_create( MPI_User_function *function MAYBE_UNUSED, int commute MAYBE_UNUSED, MPI_Op *op MAYBE_UNUSED ){return 0;}
 static inline int MPI_Op_free(MPI_Op *op MAYBE_UNUSED ){return 0;}
