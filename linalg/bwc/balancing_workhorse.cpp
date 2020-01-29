@@ -83,13 +83,13 @@ struct dispatcher {/*{{{*/
             param_list_ptr pl,
             matrix_u32_ptr * args_per_thread)
         : pi(pi)
-          , mfile(args_per_thread[0]->mfile)
-          , bfile(args_per_thread[0]->bfile)
-          , check_vector_filename(param_list_lookup_string(pl, "sanity_check_vector"))
-          , withcoeffs(args_per_thread[0]->withcoeffs)
-          , transpose(args_per_thread[0]->transpose)
-          , args_per_thread(args_per_thread)
-          , is_reader_map(pi->m->njobs, 0)
+        , mfile(args_per_thread[0]->mfile)
+        , bfile(args_per_thread[0]->bfile)
+        , check_vector_filename(param_list_lookup_string(pl, "sanity_check_vector"))
+        , withcoeffs(args_per_thread[0]->withcoeffs)
+        , transpose(args_per_thread[0]->transpose)
+        , args_per_thread(args_per_thread)
+        , is_reader_map(pi->m->njobs, 0)
     {
         // Assume we are reading an N-rows matrix.  Assume we have n0*n1
         // nodes, t0*t1 threads.
@@ -151,6 +151,8 @@ struct dispatcher {/*{{{*/
 
     /* MPI send from readers to endpoints */
     std::vector<MPI_Request> outstanding;
+    std::vector<std::vector<uint32_t>> outstanding_queues;
+    std::vector<std::vector<uint32_t>> avail_queues;
     std::vector<int> indices;
     // std::vector<MPI_Status> statuses;
     void post_send(std::vector<uint32_t> &, unsigned int);
@@ -206,15 +208,27 @@ void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list pl,
 }
 /* }}} */
 
+/* This sends the data in vector Q, and replaces Q with a fresh vector of
+ * size zero, which might be drawn from a pool of queues that were
+ * attached to recently completed sends.
+ */
 void dispatcher::post_send(std::vector<uint32_t> & Q, unsigned int k)/*{{{*/
 {
     if (k == pi->m->jrank) {
         endpoint_handle_incoming(Q);
+        Q.clear();
         return;
     }
     MPI_Request req;
     MPI_Isend(&Q[0], Q.size(), CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
     outstanding.push_back(req);
+    outstanding_queues.emplace_back(std::move(Q));
+    if (!avail_queues.empty()) {
+        /* Do this to allow re-use of queues that we used recently, and
+         * that might have useful allocation to re-use */
+        Q = std::move(avail_queues.back());
+        avail_queues.pop_back();
+    }
 }/*}}}*/
 
 void dispatcher::post_semaphore(unsigned int k)/*{{{*/
@@ -233,6 +247,9 @@ void dispatcher::progress(bool wait)/*{{{*/
     if (!n_in) return;
     if (wait) {
         MPI_Waitall(n_in, &outstanding[0], MPI_STATUSES_IGNORE);
+        outstanding.clear();
+        outstanding_queues.clear();
+        avail_queues.clear();
         return;
     }
     indices.assign(n_in, 0);
@@ -240,13 +257,27 @@ void dispatcher::progress(bool wait)/*{{{*/
     MPI_Testsome(n_in, &outstanding[0],
             &n_out, &indices[0],
             MPI_STATUSES_IGNORE);
-    // &statuses[0]);
-    int j = 0;
-    for(int i = 0 ; i < n_out ; i++) {
-        ASSERT_ALWAYS(indices[i] >= j);
-        outstanding[j++]=outstanding[indices[i]];
+    for(int i = 0, j = 0 ; i < n_in ; i++) {
+        if (j >= (int) indices.size() || i < indices[j]) {
+            /* request has not completed */
+            if (j == 0) continue;
+            outstanding[i-j] = outstanding[i];
+            std::swap(outstanding_queues[i-j], outstanding_queues[i]);
+        } else {
+            ASSERT_ALWAYS(i == indices[j]);
+            /* request *has* completed. Do nothing, then. We'll keep the
+             * completed request and associated queues at the end, and
+             * trim then in one go when we're done */
+            j++;
+        }
     }
-    outstanding.erase(outstanding.begin() + j, outstanding.end());
+    for(int j = n_out ; j < n_in ; j++) {
+        auto & Q = outstanding_queues[j];
+        Q.clear();
+        avail_queues.emplace_back(std::move(Q));
+    }
+    outstanding.erase(outstanding.begin() + n_out, outstanding.end());
+    outstanding_queues.erase(outstanding_queues.begin() + n_out, outstanding_queues.end());
 }/*}}}*/
 
 void dispatcher::reader_compute_offsets()/*{{{*/
@@ -307,10 +338,10 @@ void dispatcher::reader_thread()/*{{{*/
     ASSERT_ALWAYS(rc == 0);
 
     std::vector<uint32_t> row;
-    std::vector<std::vector<uint32_t>> noderows(nvjobs);
+    std::vector<std::vector<uint32_t>> nodedata(transpose ? nhjobs : nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
-    size_t queue_size_per_peer = 1 << 20;
+    size_t queue_size_per_peer = 1 << 10;
 
     std::vector<uint64_t> check_vector;
     if (pass_number == 2 && !check_vector_filename.empty())
@@ -328,30 +359,43 @@ void dispatcher::reader_thread()/*{{{*/
         ASSERT_ALWAYS(rc == ww);
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
-            uint32_t c = row[j];
-            uint32_t cc = fw_colperm[c];
-            noderows[cc / cols_chunk_big].push_back(cc);
+            uint32_t cc = fw_colperm[row[j]];
+            if (!transpose) {
+                nodedata[cc / cols_chunk_big].push_back(cc);
+            } else {
+                /* This "cc" is effectively interpreted as a row index as
+                 * far as destination is concerned.
+                 */
+                nodedata[cc / rows_chunk_big].push_back(cc);
+            }
             if (pass_number == 2 && !check_vector_filename.empty()) {
-                uint32_t q = balancing_pre_shuffle(bal, c);
+                uint32_t q = balancing_pre_shuffle(bal, row[j]);
                 check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(q);
             }
         }
 
         // Queues to all nodes are filled
-        for(unsigned int k = 0 ; k < nvjobs ; k++) {
-            auto & C = noderows[k];
+        for(unsigned int k = 0 ; k < nodedata.size() ; k++) {
+            auto & C = nodedata[k];
             if (C.empty()) continue;
 
-            auto & Q = queues[rr / rows_chunk_big * nvjobs + k];
+            unsigned int group;
+            if (!transpose) {
+                group = rr / rows_chunk_big * nvjobs + k;
+            } else {
+                group = k * nhjobs + rr / cols_chunk_big;
+            }
+            auto & Q = queues[group];
             Q.push_back(rr);
             Q.push_back(C.size());
             Q.insert(Q.end(), C.begin(), C.end());
+
             /* very important */
             C.clear();
 
             // and sends are posted every once in a while.
             if (Q.size() >= queue_size_per_peer)
-                post_send(Q, rr / rows_chunk_big * nvjobs + k);
+                post_send(Q, group);
         }
         progress();
     }
@@ -522,7 +566,8 @@ void dispatcher::prepare_pass()/*{{{*/
     if (pass_number == 1) {
         // Each node allocates a local row weight info for each of its
         // theads.
-        decltype(thread_row_weights)::value_type v(rows_chunk_small, 0);
+        decltype(thread_row_weights)::value_type v;
+        v.assign(transpose ? cols_chunk_small : rows_chunk_small, 0);
         thread_row_weights = { pi->m->ncores, v };
     } else if (pass_number == 2) {
         for(unsigned int i = 0 ; i < pi->m->ncores ; i++) {
@@ -558,105 +603,117 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
 {
     std::lock_guard<std::mutex> dummy(incoming_mutex);
 
-    for(auto next = Q.begin() ; next != Q.end() ; ) {
-        uint32_t rr = *next++;
-        uint32_t rs = *next++;
-        if (!transpose && pass_number == 2) {
-            if (!withcoeffs) {
-                std::sort(next, next + rs);
-            } else {
-                /* ugly */
-                struct cv {
-                    uint32_t c;
-                    int32_t v;
-                    bool operator<(cv const & a) const { return c < a.c; }
-                };
-                cv * Q0 = (cv *) &next[0];
-                cv * Q1 = (cv *) &next[2*rs];
-                std::sort(Q0, Q1);
+    if (!transpose) {
+        for(auto next = Q.begin() ; next != Q.end() ; ) {
+            uint32_t rr = *next++;
+            uint32_t rs = *next++;
+            /* Does it make sense anyway ? In the non-transposed case we
+             * don't do this...
+             */
+            if (!transpose && pass_number == 2) {
+                if (!withcoeffs) {
+                    std::sort(next, next + rs);
+                } else {
+                    /* ugly */
+                    struct cv {
+                        uint32_t c;
+                        int32_t v;
+                        bool operator<(cv const & a) const { return c < a.c; }
+                    };
+                    cv * Q0 = (cv *) &next[0];
+                    cv * Q1 = (cv *) &next[2*rs];
+                    std::sort(Q0, Q1);
+                }
             }
-        }
 
-        unsigned int n_row_groups = pi->wr[1]->ncores;
-        unsigned int n_col_groups = pi->wr[0]->ncores;
-        unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
-        unsigned int row_index = rr % rows_chunk_small;
-        if (pass_number == 1) {
-            for(unsigned int j = 0 ; j < rs ; j ++) {
-                uint32_t c = *next++;
-                unsigned int col_group = (c / cols_chunk_small) % n_col_groups;
-                unsigned int col_index = c % cols_chunk_small;
-                if (!transpose) {
+            unsigned int n_row_groups = pi->wr[1]->ncores;
+            unsigned int n_col_groups = pi->wr[0]->ncores;
+            unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
+            unsigned int row_index = rr % rows_chunk_small;
+            if (pass_number == 1) {
+                for(unsigned int j = 0 ; j < rs ; j ++) {
+                    uint32_t cc = *next++;
+                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
+                    // unsigned int col_index = cc % cols_chunk_small;
                     unsigned int group = row_group * n_col_groups + col_group;
                     thread_row_weights[group][row_index]++;
-                } else {
-                    /* then this goes to (c, rr) -- take appropriate
-                     * action. The position
-                     * (row_group,row_index,col_group,col_index)
-                     * that we computed has roles swapped.
-                     */
-                    // unsigned int tcol_index = row_index;
-                    unsigned int tcol_group = row_group;
-                    unsigned int trow_index = col_index;
-                    unsigned int trow_group = col_group;
-                    unsigned int tgroup = trow_group * n_col_groups + tcol_group;
-                    thread_row_weights[tgroup][trow_index]++;
+                    if (withcoeffs) next++;
                 }
-                if (withcoeffs) next++;
-            }
-        } else if (!transpose && pass_number == 2) {
-            std::vector<uint32_t *> pointers;
-            pointers.reserve(n_col_groups);
-            for(unsigned int i = 0 ; i < n_col_groups ; i++) {
-                unsigned int col_group = i;
-                uint32_t group = row_group * n_col_groups + col_group;
-                uint32_t * matrix = args_per_thread[group]->p;
-                size_t pos0 = thread_row_positions[group][row_index];
-                uint32_t * p0 = matrix + pos0;
-                pointers.push_back(p0);
-            }
-            for(unsigned int j = 0 ; j < rs ; j ++) {
-                uint32_t c = *next++;
-                unsigned int col_group = (c / cols_chunk_small) % n_col_groups;
-                uint32_t * & p = pointers[col_group];
-                ASSERT(*p == 0);
-                *p++ = c % cols_chunk_small;
-                if (withcoeffs) {
+            } else if (pass_number == 2) {
+                std::vector<uint32_t *> pointers;
+                pointers.reserve(n_col_groups);
+                for(unsigned int i = 0 ; i < n_col_groups ; i++) {
+                    unsigned int col_group = i;
+                    uint32_t group = row_group * n_col_groups + col_group;
+                    uint32_t * matrix = args_per_thread[group]->p;
+                    size_t pos0 = thread_row_positions[group][row_index];
+                    uint32_t * p0 = matrix + pos0;
+                    pointers.push_back(p0);
+                }
+                for(unsigned int j = 0 ; j < rs ; j ++) {
+                    uint32_t cc = *next++;
+                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
+                    uint32_t * & p = pointers[col_group];
                     ASSERT(*p == 0);
-                    *p++ = *next++;
+                    *p++ = cc % cols_chunk_small;
+                    if (withcoeffs) {
+                        ASSERT(*p == 0);
+                        *p++ = *next++;
+                    }
+                }
+                for(unsigned int i = 0 ; i < n_col_groups ; i++) {
+                    unsigned int col_group = i;
+                    uint32_t group = row_group * n_col_groups + col_group;
+                    uint32_t * matrix = args_per_thread[group]->p;
+                    size_t pos0 = thread_row_positions[group][row_index];
+                    uint32_t * p0 = matrix + pos0;
+                    /* verify consistency with the first pass */
+                    ASSERT_ALWAYS((pointers[col_group] - p0) == (1 + withcoeffs) * p0[-1]);
                 }
             }
-            for(unsigned int i = 0 ; i < n_col_groups ; i++) {
-                unsigned int col_group = i;
-                uint32_t group = row_group * n_col_groups + col_group;
-                uint32_t * matrix = args_per_thread[group]->p;
-                size_t pos0 = thread_row_positions[group][row_index];
-                uint32_t * p0 = matrix + pos0;
-                /* verify consistency with the first pass */
-                ASSERT_ALWAYS((pointers[col_group] - p0) == (1 + withcoeffs) * p0[-1]);
-            }
-        } else if (transpose && pass_number == 2) {
-            /* Then it's slightly harder. We'll adjust the
-             * thread_row_positions each time we receive new stuff, and
-             * there's little sanity checking that we can effectively do.
-             */
-            /* for clarity -- we might as well do a swap() */
-            unsigned int tcol_index = row_index;
-            unsigned int tcol_group = row_group;
-            for(unsigned int j = 0 ; j < rs ; j ++) {
-                uint32_t c = *next++;
-                unsigned int col_group = (c / cols_chunk_small) % n_col_groups;
-                unsigned int col_index = c % cols_chunk_small;
-                unsigned int trow_index = col_index;
-                unsigned int trow_group = col_group;
-                unsigned int tgroup = trow_group * n_col_groups + tcol_group;
-                uint32_t * matrix = args_per_thread[tgroup]->p;
-                size_t & x = thread_row_positions[tgroup][trow_index];
-                ASSERT(matrix[x] == 0);
-                matrix[x++] = tcol_index;
-                if (withcoeffs) {
+        }
+    } else {
+        /* We're transposing, hence we're receiving fragments of columns,
+         * which begin with a _column_ index. No real point in sorting
+         * what we put in the rows (if done, it must be at the end).
+         */
+        for(auto next = Q.begin() ; next != Q.end() ; ) {
+            uint32_t rr = *next++;
+            uint32_t rs = *next++;
+
+            unsigned int n_row_groups = pi->wr[1]->ncores;
+            unsigned int n_col_groups = pi->wr[0]->ncores;
+            unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
+            unsigned int row_index = rr % rows_chunk_small;
+            if (pass_number == 1) {
+                for(unsigned int j = 0 ; j < rs ; j ++) {
+                    uint32_t cc = *next++;
+                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
+                    unsigned int col_index = cc % cols_chunk_small;
+                    unsigned int group = row_group * n_col_groups + col_group;
+                    thread_row_weights[group][col_index]++;
+                    if (withcoeffs) next++;
+                }
+            } else if (pass_number == 2) {
+                /* It's slightly harder than in the non-transposed case.
+                 * We'll adjust the thread_row_positions each time we
+                 * receive new stuff, and there's little sanity checking
+                 * that we can effectively do.
+                 */
+                /* for clarity -- we might as well do a swap() */
+                for(unsigned int j = 0 ; j < rs ; j ++) {
+                    uint32_t cc = *next++;
+                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
+                    unsigned int col_index = cc % cols_chunk_small;
+                    unsigned int group = row_group * n_col_groups + col_group;
+                    uint32_t * matrix = args_per_thread[group]->p;
+                    size_t & x = thread_row_positions[group][col_index];
                     ASSERT(matrix[x] == 0);
-                    matrix[x++] = *next++;
+                    matrix[x++] = row_index;
+                    if (withcoeffs) {
+                        ASSERT(matrix[x] == 0);
+                        matrix[x++] = *next++;
+                    }
                 }
             }
         }
@@ -668,9 +725,12 @@ void dispatcher::endpoint_thread()/*{{{*/
     int Qs;
     std::vector<uint32_t> Q;
 
-    if (pi->m->njobs == 1) return;
-
-    for(;;) {
+    /* We must loop as long as there are active readers that want to talk
+     * to us. */
+    int active_peers = nreaders;
+    if (is_reader())
+        active_peers--;
+    for(;active_peers;) {
         // On pass 1, endpoint threads do Recv from any source, and update the
         // local row weight for all threads.
         MPI_Status status;
@@ -678,9 +738,10 @@ void dispatcher::endpoint_thread()/*{{{*/
         MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
         Q.assign(Qs, 0);
         MPI_Recv(&Q[0], Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
-        if (Qs == 1 && Q[0] == UINT32_MAX)
-            break;
-
+        if (Qs == 1 && Q[0] == UINT32_MAX) {
+            active_peers--;
+            continue;
+        }
         endpoint_handle_incoming(Q);
     }
 }/*}}}*/
