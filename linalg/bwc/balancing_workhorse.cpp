@@ -50,6 +50,7 @@ struct dispatcher {/*{{{*/
     std::string bfile;
     std::string check_vector_filename;
     int withcoeffs;
+    int transpose;
     /* one matrix_u32_ptr per thread of this endpoint */
     matrix_u32_ptr * args_per_thread;
     std::vector<int> is_reader_map;
@@ -86,6 +87,7 @@ struct dispatcher {/*{{{*/
           , bfile(args_per_thread[0]->bfile)
           , check_vector_filename(param_list_lookup_string(pl, "sanity_check_vector"))
           , withcoeffs(args_per_thread[0]->withcoeffs)
+          , transpose(args_per_thread[0]->transpose)
           , args_per_thread(args_per_thread)
           , is_reader_map(pi->m->njobs, 0)
     {
@@ -175,10 +177,10 @@ struct dispatcher {/*{{{*/
  *      arg->mfile
  *      arg->bfile
  *      arg->withcoeffs
+ *      arg->transpose  (abide by the preference of the inner mm layer)
  * On output, we set:
  *      arg->size
  *      arg->p
- * Finally arg->transpose is currently ignored, maybe it's a bug.
  */
 void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list pl,
         matrix_u32_ptr arg)
@@ -555,7 +557,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
     for(auto next = Q.begin() ; next != Q.end() ; ) {
         uint32_t rr = *next++;
         uint32_t rs = *next++;
-        if (pass_number == 2) {
+        if (!transpose && pass_number == 2) {
             if (!withcoeffs) {
                 std::sort(next, next + rs);
             } else {
@@ -579,11 +581,26 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
             for(unsigned int j = 0 ; j < rs ; j ++) {
                 uint32_t c = *next++;
                 unsigned int col_group = (c / cols_chunk_small) % n_col_groups;
-                unsigned int group = row_group * n_col_groups + col_group;
-                thread_row_weights[group][row_index]++;
+                unsigned int col_index = c % cols_chunk_small;
+                if (!transpose) {
+                    unsigned int group = row_group * n_col_groups + col_group;
+                    thread_row_weights[group][row_index]++;
+                } else {
+                    /* then this goes to (c, rr) -- take appropriate
+                     * action. The position
+                     * (row_group,row_index,col_group,col_index)
+                     * that we computed has roles swapped.
+                     */
+                    // unsigned int tcol_index = row_index;
+                    unsigned int tcol_group = row_group;
+                    unsigned int trow_index = col_index;
+                    unsigned int trow_group = col_group;
+                    unsigned int tgroup = trow_group * n_col_groups + tcol_group;
+                    thread_row_weights[tgroup][trow_index]++;
+                }
                 if (withcoeffs) next++;
             }
-        } else if (pass_number == 2) {
+        } else if (!transpose && pass_number == 2) {
             std::vector<uint32_t *> pointers;
             pointers.reserve(n_col_groups);
             for(unsigned int i = 0 ; i < n_col_groups ; i++) {
@@ -613,6 +630,30 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                 uint32_t * p0 = matrix + pos0;
                 /* verify consistency with the first pass */
                 ASSERT_ALWAYS((pointers[col_group] - p0) == (1 + withcoeffs) * p0[-1]);
+            }
+        } else if (transpose && pass_number == 2) {
+            /* Then it's slightly harder. We'll adjust the
+             * thread_row_positions each time we receive new stuff, and
+             * there's little sanity checking that we can effectively do.
+             */
+            /* for clarity -- we might as well do a swap() */
+            unsigned int tcol_index = row_index;
+            unsigned int tcol_group = row_group;
+            for(unsigned int j = 0 ; j < rs ; j ++) {
+                uint32_t c = *next++;
+                unsigned int col_group = (c / cols_chunk_small) % n_col_groups;
+                unsigned int col_index = c % cols_chunk_small;
+                unsigned int trow_index = col_index;
+                unsigned int trow_group = col_group;
+                unsigned int tgroup = trow_group * n_col_groups + tcol_group;
+                uint32_t * matrix = args_per_thread[tgroup]->p;
+                size_t & x = thread_row_positions[tgroup][trow_index];
+                ASSERT(matrix[x] == 0);
+                matrix[x++] = tcol_index;
+                if (withcoeffs) {
+                    ASSERT(matrix[x] == 0);
+                    matrix[x++] = *next++;
+                }
             }
         }
     }
