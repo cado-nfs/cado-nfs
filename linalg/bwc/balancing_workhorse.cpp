@@ -201,6 +201,8 @@ void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list pl,
     }
 
     serialize_threads(pi->m);
+
+    shared_free(pi->m, args_per_thread);
 }
 /* }}} */
 
