@@ -485,4 +485,21 @@ public:
     }
     
 };
+
+/* Make these types known to gmp_auxx::mpz_fits(). This also makes these types
+   known to cxx_mpz::fits(). */
+namespace gmp_auxx {
+
+template <>
+inline bool mpz_fits<Integer64> (mpz_srcptr v) {
+    return mpz_fits_uint64_p(v);
+}
+
+template <>
+inline bool mpz_fits<Integer128> (mpz_srcptr v) {
+    return mpz_sizeinbase(v, 2) <= 128;
+}
+
+}
+
 #endif

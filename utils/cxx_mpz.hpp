@@ -89,7 +89,18 @@ public:
     static int getWordSize() {return GMP_NUMB_BITS;}
     size_t getWordCount() const {return mpz_size(x);}
     WordType getWord(const size_t i) const {return mpz_getlimbn(x, i);}
+
+    template <typename T>
+    bool fits() const {
+        return gmp_auxx::mpz_fits<T>(x);
+    }
 };
+
+template <>
+inline bool cxx_mpz::fits<cxx_mpz>() const {
+    return true;
+}
+
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void mpz_init(cxx_mpz & pl) __attribute__((error("mpz_init must not be called on a mpz reference -- it is the caller's business (via a ctor)")));
 extern void mpz_clear(cxx_mpz & pl) __attribute__((error("mpz_clear must not be called on a mpz reference -- it is the caller's business (via a dtor)")));
