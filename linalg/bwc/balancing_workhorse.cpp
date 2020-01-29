@@ -85,12 +85,13 @@ struct dispatcher {/*{{{*/
         : pi(pi)
         , mfile(args_per_thread[0]->mfile)
         , bfile(args_per_thread[0]->bfile)
-        , check_vector_filename(param_list_lookup_string(pl, "sanity_check_vector"))
         , withcoeffs(args_per_thread[0]->withcoeffs)
         , transpose(args_per_thread[0]->transpose)
         , args_per_thread(args_per_thread)
         , is_reader_map(pi->m->njobs, 0)
     {
+        const char * tmp = param_list_lookup_string(pl, "sanity_check_vector");
+        if (tmp) check_vector_filename = tmp;
         // Assume we are reading an N-rows matrix.  Assume we have n0*n1
         // nodes, t0*t1 threads.
         //
@@ -360,14 +361,10 @@ void dispatcher::reader_thread()/*{{{*/
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
             uint32_t cc = fw_colperm[row[j]];
-            if (!transpose) {
-                nodedata[cc / cols_chunk_big].push_back(cc);
-            } else {
-                /* This "cc" is effectively interpreted as a row index as
-                 * far as destination is concerned.
-                 */
-                nodedata[cc / rows_chunk_big].push_back(cc);
-            }
+            unsigned int group = cc / (transpose ? rows_chunk_big : cols_chunk_big);
+            nodedata[group].push_back(cc);
+            if (pass_number == 2 && withcoeffs)
+                nodedata[group].push_back(row[j+1]);
             if (pass_number == 2 && !check_vector_filename.empty()) {
                 uint32_t q = balancing_pre_shuffle(bal, row[j]);
                 check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(q);
@@ -607,6 +604,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
         for(auto next = Q.begin() ; next != Q.end() ; ) {
             uint32_t rr = *next++;
             uint32_t rs = *next++;
+            if (pass_number == 2 && withcoeffs) rs/=2;
             /* Does it make sense anyway ? In the non-transposed case we
              * don't do this...
              */
@@ -637,7 +635,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                     // unsigned int col_index = cc % cols_chunk_small;
                     unsigned int group = row_group * n_col_groups + col_group;
                     thread_row_weights[group][row_index]++;
-                    if (withcoeffs) next++;
+                    /* on pass 1 we don't do next++ */
                 }
             } else if (pass_number == 2) {
                 std::vector<uint32_t *> pointers;
@@ -680,6 +678,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
         for(auto next = Q.begin() ; next != Q.end() ; ) {
             uint32_t rr = *next++;
             uint32_t rs = *next++;
+            if (pass_number == 2 && withcoeffs) rs/=2;
 
             unsigned int n_row_groups = pi->wr[1]->ncores;
             unsigned int n_col_groups = pi->wr[0]->ncores;
@@ -692,7 +691,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                     unsigned int col_index = cc % cols_chunk_small;
                     unsigned int group = row_group * n_col_groups + col_group;
                     thread_row_weights[group][col_index]++;
-                    if (withcoeffs) next++;
+                    /* on pass 1 we don't do next++ */
                 }
             } else if (pass_number == 2) {
                 /* It's slightly harder than in the non-transposed case.
