@@ -331,8 +331,10 @@ void dispatcher::reader_thread()/*{{{*/
             uint32_t c = row[j];
             uint32_t cc = fw_colperm[c];
             noderows[cc / cols_chunk_big].push_back(cc);
-            if (pass_number == 2 && !check_vector_filename.empty())
-                check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(c);
+            if (pass_number == 2 && !check_vector_filename.empty()) {
+                uint32_t q = balancing_pre_shuffle(bal, c);
+                check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(q);
+            }
         }
 
         // Queues to all nodes are filled
