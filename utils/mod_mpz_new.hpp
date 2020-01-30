@@ -158,14 +158,29 @@ public:
     }
 
     /* Methods for residues */
-    Residue *newArray(const size_t len) {
+
+    /** Allocate an array of len residues.
+     *
+     * Must be freed with deleteArray(), not with delete[].
+     */
+    Residue *newArray(const size_t len) const {
         void *t = operator new[](len * sizeof(Residue));
+        if (t == NULL)
+            return NULL;
         Residue *ptr = static_cast<Residue *>(t);
         for(size_t i = 0; i < len; i++) {
             new(&ptr[i]) Residue(*this);
         }
         return ptr;
     }
+
+    void deleteArray(Residue *ptr, const size_t len) const {
+        for(size_t i = len; i > 0; i++) {
+            ptr[i - 1].~Residue();
+        }
+        operator delete[](ptr);
+    }
+
 
     void set (Residue &r, const Residue &s) const {
         assertValid(s);
