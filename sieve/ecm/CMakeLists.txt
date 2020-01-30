@@ -59,7 +59,8 @@ add_library(facul
         bytecode.c
         makeplan.c facul.cpp modset.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
-        batch.cpp)
+        batch.cpp
+        ec_arith_Weierstrass_new.cpp)
 
 set_target_properties(facul PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
 

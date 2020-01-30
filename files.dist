@@ -364,6 +364,8 @@ sieve/ecm/ec_arith_common.h
 sieve/ecm/ec_arith_Edwards.h
 sieve/ecm/ec_arith_Montgomery.h
 sieve/ecm/ec_arith_Weierstrass.h
+sieve/ecm/ec_arith_Weierstrass_new.hpp
+sieve/ecm/ec_arith_Weierstrass_new.cpp
 sieve/ecm/ec_parameterization.h
 sieve/ecm/facul.cpp
 sieve/ecm/facul.hpp
