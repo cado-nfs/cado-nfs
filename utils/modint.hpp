@@ -42,7 +42,7 @@ public:
      * value fits in an Integer64 and false if not. If it does not fit, the
        contents of the Integer64 are undefined. */
     bool set(const uint64_t *s, const size_t n) {
-        if(n > maxsize()) {
+        if (n > maxsize()) {
             return false;
         }
         if (n == 0)
@@ -57,9 +57,7 @@ public:
     bool set(const uint64_t *begin, const uint64_t *end) {
         size_t i = 0;
         const uint64_t *iter;
-        for (iter = begin; iter != end; iter++) {
-            if (i >= maxsize())
-                break;
+        for (iter = begin; iter != end && i < maxsize(); iter++) {
             v[i++] = *iter;
         }
         for ( ; i < maxsize(); i++) {
@@ -155,16 +153,7 @@ public:
     Integer64 divexact(const Integer64 &a) const {ASSERT_EXPENSIVE(v[0] % a.v[0] == 0); return Integer64(v[0] / a.v[0]);}
     
     Integer64& operator=(const cxx_mpz &s) {
-        ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 64);
-        const int ORDER = -1;
-        size_t COUNT;
-        const size_t SIZE = sizeof(v[0]);
-        const int ENDIAN = 0;
-        const size_t NAILS = 0;
-        mpz_export(&v, &COUNT, ORDER, SIZE, ENDIAN, NAILS, s);
-        ASSERT_ALWAYS(COUNT <= 1);
-        if (COUNT == 0)
-            v[0] = 0;
+        v[0] = mpz_get_uint64(s);
         return *this;
     }
     
@@ -434,17 +423,7 @@ public:
     Integer128  operator~ () const {return Integer128(~v[0], ~v[1]);}
 
     Integer128 operator=(const cxx_mpz s) {
-        ASSERT_ALWAYS(mpz_sizeinbase(s, 2) <= 128);
-        size_t COUNT;
-        const int ORDER = -1;
-        const size_t SIZE = sizeof(v[0]);
-        const int ENDIAN = 0;
-        const size_t NAILS = 0;
-        mpz_export(&v, &COUNT, ORDER, SIZE, ENDIAN, NAILS, s);
-        ASSERT_ALWAYS(COUNT <= 2);
-        for (size_t i = COUNT; i < 2; i++) {
-            v[i] = 0;
-        }
+        s.get(v, 2);
         return *this;
     }
     void get(cxx_mpz &r) const {
