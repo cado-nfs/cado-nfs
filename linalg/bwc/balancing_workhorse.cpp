@@ -281,8 +281,8 @@ void dispatcher::progress(bool wait)/*{{{*/
         Q.clear();
         avail_queues.emplace_back(std::move(Q));
     }
-    outstanding.erase(outstanding.begin() + n_out, outstanding.end());
-    outstanding_queues.erase(outstanding_queues.begin() + n_out, outstanding_queues.end());
+    outstanding.erase(outstanding.begin() + n_in-n_out, outstanding.end());
+    outstanding_queues.erase(outstanding_queues.begin() + n_in-n_out, outstanding_queues.end());
 }/*}}}*/
 
 void dispatcher::reader_compute_offsets()/*{{{*/
