@@ -513,16 +513,8 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
             fw_rowperm[j] = i;
         }
     }
-    subdivision readers_rows(bal->h->nrows, nreaders);
-    unsigned int row0 = readers_rows.nth_block_start(pi->m->jrank);
-    unsigned int row1 = readers_rows.nth_block_end(pi->m->jrank);
-    fw_rowperm.erase(fw_rowperm.begin() + row1, fw_rowperm.end());
-    fw_rowperm.erase(fw_rowperm.begin(), fw_rowperm.begin() + row0);
-
     /* one more check. The cost is tiny compared to what we do in other
-     * parts of the code. */
-    printf("Consistency check ...");
-    fflush(stdout);
+     * parts of the code. This does not deserve output. */
     std::vector<uint32_t> ttab(xbal->h->nh, 0);
     for (uint32_t j = 0; j < xbal->trows; j++) {
         ttab[fw_rowperm[j] / rows_chunk_small]++;
@@ -531,7 +523,13 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
     for (uint32_t k = 0; k < xbal->h->nh; k++) {
         ASSERT_ALWAYS(ttab[k] == quo_r);
     }
-    printf(" ok\n");
+
+    subdivision readers_rows(bal->h->nrows, nreaders);
+    unsigned int row0 = readers_rows.nth_block_start(pi->m->jrank);
+    unsigned int row1 = readers_rows.nth_block_end(pi->m->jrank);
+    fw_rowperm.erase(fw_rowperm.begin() + row1, fw_rowperm.end());
+    fw_rowperm.erase(fw_rowperm.begin(), fw_rowperm.begin() + row0);
+
 
 #if 0
     char buf[16];
