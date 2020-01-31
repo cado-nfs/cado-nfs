@@ -100,30 +100,29 @@ void ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
 template <typename MODULUS>
 void ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const
 {
-  uint64_t i;
-  Point T(curve);
+    if (e == 0) {
+        R.set0();
+    } else if (e == 1) {
+        R = *this;
+    } else {
+        uint64_t i;
+        Point T(curve);
 
-  if (e == 0) {
-      R.set0();
-      return;
-  }
+        i = UINT64_C(1) << 63;
+        while ((i & e) == 0)
+            i >>= 1;
 
-  i = (uint64_t)1 << 63;
-  while ((i & e) == 0)
-    i >>= 1;
+        T = *this;
+        i >>= 1;
 
-  T = *this;
-  i >>= 1;
+        for (; i > 0; i >>= 1) {
+            T.dbl (T);
+            if (e & i)
+                T.add (T, *this);
+        }
 
-  while (i > 0)
-  {
-    T.dbl (T);
-    if (e & i)
-        T.add (T, *this);
-    i >>= 1;
-  }
-
-  R = T;
+        R = T;
+    }
 }
 
 /* Return the order of the point P on the Weierstrass curve defined by the curve
@@ -426,35 +425,31 @@ void ECWeierstrassProjectivePoint<MODULUS>::add (Point &R, const Point &Q) const
  *    - a : curve coefficient
  */
 template <typename MODULUS>
-void
-ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const unsigned long e) const
+void ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const uint64_t e) const
 {
-  ASSERT_EXPENSIVE(curve.is_same(R.curve));
-  if (e == 0) {
-    R.set0 ();
-  } else if (e == 1) {
-    R = *this;
-  } else {
-    unsigned long i;
-    Point T(curve);
+    if (e == 0) {
+        R.set0();
+    } else if (e == 1) {
+        R = *this;
+    } else {
+        uint64_t i;
+        Point T(curve);
 
-    i = ~(0UL);
-    i -= i/2;   /* Now the most significant bit of i is set */
-    while ((i & e) == 0)
-      i >>= 1;
+        i = UINT64_C(1) << 63;
+        while ((i & e) == 0)
+            i >>= 1;
 
-    T = *this;
-    i >>= 1; /* skip most significant bit of e */
+        T = *this;
+        i >>= 1;
 
-    for (; i > 0; i >>= 1)
-    {
-      T.dbl (T);
-      if (e & i)
-        T.add (T, *this);
+        for (; i > 0; i >>= 1) {
+            T.dbl (T);
+            if (e & i)
+                T.add (T, *this);
+        }
+
+        R = T;
     }
-
-    R = T;
-  }
 }
 
 template

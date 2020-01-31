@@ -98,13 +98,13 @@ public:
         return *this;
     }
 
-    Point operator*(const unsigned long e) const {
+    Point operator*(const uint64_t e) const {
         Point R(curve);
         smul(R, e);
         return R;
     }
 
-    Point & operator*=(const unsigned long e) {
+    Point & operator*=(const uint64_t e) {
         smul(*this, e);
         return *this;
     }
@@ -213,13 +213,13 @@ class ECWeierstrassProjectivePoint
         return *this;
     }
 
-    Point operator*(const unsigned long e) const {
+    Point operator*(const uint64_t e) const {
         Point R(curve);
         smul(R, e);
         return R;
     }
 
-    Point & operator*=(const unsigned long e) {
+    Point & operator*=(const uint64_t e) {
         smul(*this, e);
         return *this;
     }
@@ -259,7 +259,7 @@ class ECWeierstrassProjectivePoint
 
     void dbl (Point &R) const;
     void add (Point &R, const Point &Q) const;
-    void smul (Point &R, const unsigned long e) const;
+    void smul (Point &R, const uint64_t e) const;
 };
 
 
