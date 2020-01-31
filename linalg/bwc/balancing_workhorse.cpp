@@ -412,7 +412,7 @@ void dispatcher::reader_thread()/*{{{*/
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
             uint32_t cc = fw_colperm[row[j]];
-            unsigned int group = cc / (transpose ? rows_chunk_big : cols_chunk_big);
+            unsigned int group = cc / (transpose ? cols_chunk_big : rows_chunk_big);
             nodedata[group].push_back(cc);
             if (pass_number == 2 && withcoeffs)
                 nodedata[group].push_back(row[j+1]);
@@ -429,9 +429,9 @@ void dispatcher::reader_thread()/*{{{*/
 
             unsigned int group;
             if (!transpose) {
-                group = rr / rows_chunk_big * nvjobs + k;
+                group = rr / cols_chunk_big * nvjobs + k;
             } else {
-                group = k * nvjobs + rr / cols_chunk_big;
+                group = k * nvjobs + rr / rows_chunk_big;
             }
             auto & Q = queues[group];
             Q.push_back(rr);
