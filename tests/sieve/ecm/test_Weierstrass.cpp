@@ -16,7 +16,7 @@ public:
     typedef typename MODULUS::Residue Residue;
     typedef typename MODULUS::Integer Integer;
     typedef ECWeierstrass<MODULUS> Curve;
-    typedef ECWeierstrassAffinePoint<MODULUS> Point;
+    typedef typename ECWeierstrass<MODULUS>::AffinePoint Point;
     
     TestWeierstrassAffine(int verbose) : verbose(verbose) {}
     

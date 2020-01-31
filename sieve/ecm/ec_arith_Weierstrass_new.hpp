@@ -3,7 +3,6 @@
 
 #include <iostream>
 
-
 /* Short Weierstrass elliptic curves
  *
  * Affine coordinates, with equation
@@ -39,232 +38,229 @@ public:
         return os;
     }
 
-};
-
-template <typename MODULUS>
-class ECWeierstrassAffinePoint
-{
-    typedef MODULUS Modulus;
-    typedef ECWeierstrass<MODULUS> ECurve;
-    typedef ECWeierstrassAffinePoint Point;
-    typedef typename Modulus::Residue Residue;
-    typedef typename Modulus::Integer Integer;
-    const ECurve &curve;
-    Residue x,y;
-    bool finite; /* If finite is false, then the point is the point at
+    class AffinePoint
+    {
+        typedef ECWeierstrass ECurve;
+        typedef typename Modulus::Residue Residue;
+        typedef typename Modulus::Integer Integer;
+        const ECurve &curve;
+        Residue x,y;
+        bool finite; /* If finite is false, then the point is the point at
                     infinity and the x, y coordinates are not considered
                     for any arithmetic. */
 
-public:    
-    ECWeierstrassAffinePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), finite(true) {}
-    ECWeierstrassAffinePoint(const ECurve &c, const Residue &_x, const Residue &_y) 
-    : curve(c), x(curve.m, _x), y(curve.m, _y) {finite = true;}
-    ECWeierstrassAffinePoint(const ECWeierstrassAffinePoint &s)
-    : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), finite(s.finite) {}
-    ECWeierstrassAffinePoint(ECWeierstrassAffinePoint &&) = default;
-    ~ECWeierstrassAffinePoint() {}
-
-    Point &operator=(const Point &other) {
-        ASSERT_EXPENSIVE(&curve == &other.curve);
-        if (this != &other) {
-            curve.m.set(x, other.x);
-            curve.m.set(y, other.y);
-            finite = other.finite;
+    public:
+        AffinePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), finite(true) {}
+        AffinePoint(const ECurve &c, const Residue &_x, const Residue &_y)
+            : curve(c), x(curve.m, _x), y(curve.m, _y) {
+            finite = true;
         }
-        return *this;
-    }
+        AffinePoint(const AffinePoint &s)
+            : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), finite(s.finite) {}
+        AffinePoint(AffinePoint &&) = default;
+        ~AffinePoint() {}
 
-    Point &operator=(Point &&) = default;
+        AffinePoint &operator=(const AffinePoint &other) {
+            ASSERT_EXPENSIVE(&curve == &other.curve);
+            if (this != &other) {
+                curve.m.set(x, other.x);
+                curve.m.set(y, other.y);
+                finite = other.finite;
+            }
+            return *this;
+        }
 
-    bool operator==(const Point &other) const {
-        ASSERT_EXPENSIVE(&curve == &other.curve);
-        if (finite != other.finite)
-            return false;
-        if (!finite)
+        AffinePoint &operator=(AffinePoint &&) = default;
+
+        bool operator==(const AffinePoint &other) const {
+            ASSERT_EXPENSIVE(&curve == &other.curve);
+            if (finite != other.finite)
+                return false;
+            if (!finite)
+                return true;
+            return curve.m.equal(x, other.x) && curve.m.equal(y, other.y);
+        }
+
+        bool operator!=(const AffinePoint &other) const {
+            return !(*this == other);
+        }
+
+        AffinePoint operator+(const AffinePoint &Q) const {
+            AffinePoint R(curve);
+            add(R, Q);
+            return R;
+        }
+
+        AffinePoint & operator+=(const AffinePoint &Q) {
+            add(*this, Q);
+            return *this;
+        }
+
+        AffinePoint operator*(const uint64_t e) const {
+            AffinePoint R(curve);
+            smul(R, e);
+            return R;
+        }
+
+        AffinePoint & operator*=(const uint64_t e) {
+            smul(*this, e);
+            return *this;
+        }
+
+        void set(const Residue &_x, const Residue &_y) {
+            curve.m.set(x, _x);
+            curve.m.set(y, _y);
+            finite = true;
+        }
+
+        void set0() {
+            finite = false;
+        }
+
+        bool is0() const {
+            return !finite;
+        }
+
+        void swap(AffinePoint &other) {
+            ASSERT_EXPENSIVE(&curve == &other.curve);
+            curve.m.swap (x, other.x);
+            curve.m.swap (y, other.y);
+            std::swap(finite, other.finite);
+        }
+
+        void print(std::ostream &os) const {
+            if (finite) {
+                Integer X, Y;
+
+                curve.m.get (X, x);
+                curve.m.get (Y, y);
+                os << "(" << X << " : " << Y << ")";
+            } else {
+                os << "(point at infinity)";
+            }
+        }
+
+        void dbl (AffinePoint &R) const;
+        void add (AffinePoint &R, const AffinePoint &Q) const;
+        void smul (AffinePoint &R, const uint64_t e) const;
+        uint64_t point_order (uint64_t known_m, uint64_t known_r, int verbose) const;
+
+        friend std::ostream & operator<<(std::ostream &os, const AffinePoint &p) {
+            p.print(os);
+            return os;
+        }
+    };
+
+    class ProjectivePoint
+    {
+        typedef MODULUS Modulus;
+        typedef ECWeierstrass<MODULUS> ECurve;
+        typedef typename Modulus::Residue Residue;
+        typedef typename Modulus::Integer Integer;
+        const ECurve &curve;
+        Residue x, y, z;
+
+        ProjectivePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), z(curve.m) {}
+        ProjectivePoint(const ECurve &c, const Residue &_x, const Residue &_y, const Residue &_z)
+            : curve(c), x(curve.m), y(curve.m), z(curve.m) {
+            curve.m.set(x, _x);
+            curve.m.set(y, _y);
+            curve.m.set(z, _z);
+        }
+        ProjectivePoint(const ProjectivePoint &s)
+            : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), z(curve.m, s.z) {}
+        ProjectivePoint(ProjectivePoint &&) = default;
+        ~ProjectivePoint() {}
+
+        ProjectivePoint &operator=(const ProjectivePoint &other) {
+            ASSERT_EXPENSIVE(&curve == &other.curve);
+            if (this != &other) {
+                curve.m.set(x, other.x);
+                curve.m.set(y, other.y);
+                curve.m.set(z, other.z);
+            }
+            return *this;
+        }
+
+        ProjectivePoint &operator=(ProjectivePoint &&) = default;
+
+        bool operator==(const ProjectivePoint &other) const {
+            Residue t1(curve.m), t2(curve.m);
+            curve.m.mul(t1, x, other.z);
+            curve.m.mul(t2, z, other.x);
+            if (!curve.m.equal(t1, t2))
+                return false;
+            curve.m.mul(t1, y, other.z);
+            curve.m.mul(t2, z, other.y);
+            if (!curve.m.equal(t1, t2))
+                return false;
             return true;
-        return curve.m.equal(x, other.x) && curve.m.equal(y, other.y);
-    }
+        }
 
-    bool operator!=(const Point &other) const {
-        return !(*this == other);
-    }
+        bool operator!=(const ProjectivePoint &other) const {
+            return !(*this == other);
+        }
 
-    Point operator+(const Point &Q) const {
-        Point R(curve);
-        add(R, Q);
-        return R;
-    }
+        ProjectivePoint operator+(const ProjectivePoint &Q) const {
+            ProjectivePoint R(curve);
+            add(R, Q);
+            return R;
+        }
 
-    Point & operator+=(const Point &Q) {
-        add(*this, Q);
-        return *this;
-    }
+        ProjectivePoint & operator+=(const ProjectivePoint &Q) {
+            add(*this, Q);
+            return *this;
+        }
 
-    Point operator*(const uint64_t e) const {
-        Point R(curve);
-        smul(R, e);
-        return R;
-    }
+        ProjectivePoint operator*(const uint64_t e) const {
+            ProjectivePoint R(curve);
+            smul(R, e);
+            return R;
+        }
 
-    Point & operator*=(const uint64_t e) {
-        smul(*this, e);
-        return *this;
-    }
+        ProjectivePoint & operator*=(const uint64_t e) {
+            smul(*this, e);
+            return *this;
+        }
 
-    void set(const Residue &_x, const Residue &_y) {
-        curve.m.set(x, _x);
-        curve.m.set(y, _y);
-        finite = true;
-    }
-    
-    void set0() {
-        finite = false;
-    }
-    
-    bool is0() const {
-        return !finite;
-    }
-    
-    void swap(Point &other) {
-        ASSERT_EXPENSIVE(&curve == &other.curve);
-        curve.m.swap (x, other.x);
-        curve.m.swap (y, other.y);
-        std::swap(finite, other.finite);
-    }
+        void set(const Residue &_x, const Residue &_y, const Residue &_z) {
+            curve.m.set(x, _x);
+            curve.m.set(y, _y);
+            curve.m.set(z, _z);
+        }
 
-    void print(std::ostream &os) const {
-        if (finite) {
-            Integer X, Y;
+        void swap(ProjectivePoint &other) {
+            ASSERT_EXPENSIVE(&curve == &other.curve);
+            curve.m.swap (x, other.x);
+            curve.m.swap (y, other.y);
+            curve.m.swap (z, other.z);
+        }
+
+        void print(std::ostream &os) const {
+            Integer X, Y, Z;
 
             curve.m.get (X, x);
             curve.m.get (Y, y);
-            os << "(" << X << " : " << Y << ")";
-        } else {
-            os << "(point at infinity)";
+            curve.m.get (Z, z);
+            os << "(" << X << " : " << Y << " : " << Z << ")";
         }
-    }
 
-    void dbl (Point &R) const;
-    void add (Point &R, const Point &Q) const;
-    void smul (Point &R, const uint64_t e) const;
-    uint64_t point_order (uint64_t known_m, uint64_t known_r, int verbose) const;
-
-    friend std::ostream & operator<<(std::ostream &os, const ECWeierstrassAffinePoint<MODULUS> &p) {
-        p.print(os);
-        return os;
-    }
-};
-
-template <typename MODULUS>
-class ECWeierstrassProjectivePoint
-{
-    typedef MODULUS Modulus;
-    typedef ECWeierstrass<MODULUS> ECurve;
-    typedef ECWeierstrassProjectivePoint Point;
-    typedef typename Modulus::Residue Residue;
-    typedef typename Modulus::Integer Integer;
-    const ECurve &curve;
-    Residue x, y, z;
-
-    ECWeierstrassProjectivePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), z(curve.m) {}
-    ECWeierstrassProjectivePoint(const ECurve &c, const Residue &_x, const Residue &_y, const Residue &_z) 
-    : curve(c), x(curve.m), y(curve.m), z(curve.m) {
-        curve.m.set(x, _x);
-        curve.m.set(y, _y);
-        curve.m.set(z, _z);
-    }
-    ECWeierstrassProjectivePoint(const ECWeierstrassProjectivePoint &s)
-    : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), z(curve.m, s.z) {}
-    ECWeierstrassProjectivePoint(ECWeierstrassProjectivePoint &&) = default;
-    ~ECWeierstrassProjectivePoint() {}
-
-    Point &operator=(const Point &other) {
-        ASSERT_EXPENSIVE(&curve == &other.curve);
-        if (this != &other) {
-            curve.m.set(x, other.x);
-            curve.m.set(y, other.y);
-            curve.m.set(z, other.z);
+        /* Set P to zero (the neutral point): (0:1:0) */
+        void set0 () {
+            curve.m.set0 (x);
+            curve.m.set1 (y);
+            curve.m.set0 (z);
         }
-        return *this;
-    }
 
-    Point &operator=(Point &&) = default;
+        bool is0() const {
+            return curve.m.is0(x) && curve.m.is1 (y) && curve.m.is0 (z);
+        }
 
-    bool operator==(const Point &other) const {
-        Residue t1(curve.m), t2(curve.m);
-        curve.m.mul(t1, x, other.z);
-        curve.m.mul(t2, z, other.x);
-        if (!curve.m.equal(t1, t2))
-            return false;
-        curve.m.mul(t1, y, other.z);
-        curve.m.mul(t2, z, other.y);
-        if (!curve.m.equal(t1, t2))
-            return false;
-        return true;
-    }
+        void dbl (ProjectivePoint &R) const;
+        void add (ProjectivePoint &R, const ProjectivePoint &Q) const;
+        void smul (ProjectivePoint &R, const uint64_t e) const;
+    };
 
-    bool operator!=(const Point &other) const {
-        return !(*this == other);
-    }
-
-    Point operator+(const Point &Q) const {
-        Point R(curve);
-        add(R, Q);
-        return R;
-    }
-
-    Point & operator+=(const Point &Q) {
-        add(*this, Q);
-        return *this;
-    }
-
-    Point operator*(const uint64_t e) const {
-        Point R(curve);
-        smul(R, e);
-        return R;
-    }
-
-    Point & operator*=(const uint64_t e) {
-        smul(*this, e);
-        return *this;
-    }
-
-    void set(const Residue &_x, const Residue &_y, const Residue &_z) {
-        curve.m.set(x, _x);
-        curve.m.set(y, _y);
-        curve.m.set(z, _z);
-    }
-    
-    void swap(Point &other) {
-        ASSERT_EXPENSIVE(&curve == &other.curve);
-        curve.m.swap (x, other.x);
-        curve.m.swap (y, other.y);
-        curve.m.swap (z, other.z);
-    }
-
-    void print(std::ostream &os) const {
-        Integer X, Y, Z;
-
-        curve.m.get (X, x);
-        curve.m.get (Y, y);
-        curve.m.get (Z, z);
-        os << "(" << X << " : " << Y << " : " << Z << ")";
-    }
-
-    /* Set P to zero (the neutral point): (0:1:0) */
-    void set0 () {
-        curve.m.set0 (x);
-        curve.m.set1 (y);
-        curve.m.set0 (z);
-    }
-
-    bool is0() const {
-        return curve.m.is0(x) && curve.m.is1 (y) && curve.m.is0 (z);
-    }
-
-    void dbl (Point &R) const;
-    void add (Point &R, const Point &Q) const;
-    void smul (Point &R, const uint64_t e) const;
 };
 
 

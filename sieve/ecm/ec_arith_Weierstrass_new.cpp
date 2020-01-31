@@ -16,7 +16,7 @@
  * It is permissible to let *this and R use the same memory.
  */
 template <typename MODULUS>
-void ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
+void ECWeierstrass<MODULUS>::AffinePoint::dbl (AffinePoint &R) const {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
 
@@ -56,7 +56,7 @@ void ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
  * It is permissible to let R and P (or R and Q) use the same memory.
  */
 template <typename MODULUS>
-void ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
+void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint &Q) const {
     ASSERT_EXPENSIVE(curve.is_same(Q.curve));
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
@@ -98,7 +98,7 @@ void ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
  * value is returned in R.x.
  */
 template <typename MODULUS>
-void ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const
+void ECWeierstrass<MODULUS>::AffinePoint::smul (AffinePoint &R, const uint64_t e) const
 {
     if (e == 0) {
         R.set0();
@@ -106,7 +106,7 @@ void ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const
         R = *this;
     } else {
         uint64_t i;
-        Point T(curve);
+        AffinePoint T(curve);
 
         i = UINT64_C(1) << 63;
         while ((i & e) == 0)
@@ -134,10 +134,10 @@ void ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const
  * 64-bit version is defined.
  */
 template <typename MODULUS>
-uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
+uint64_t ECWeierstrass<MODULUS>::AffinePoint::point_order (const uint64_t known_m,
     const uint64_t known_r, const int verbose) const
 {
-  Point Pi(curve), Pg(curve), Q(curve);
+  AffinePoint Pi(curve), Pg(curve), Q(curve);
   Residue x(curve.m), d(curve.m);
   uint64_t min, max, i, j, order, cof, p;
   uint64_t giant_step, giant_min, baby_len;
@@ -180,7 +180,7 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
             "giant_min = %" PRIu64 "\n", known_m, known_r, giant_step, giant_min);
 
   baby_len = giant_step / known_m / 2 + 1;
-  std::vector<Point> baby(baby_len, Pi);
+  std::vector<AffinePoint> baby(baby_len, Pi);
 
   i = known_m;
   smul (Pg, i); /* Pg = m*P for now */
@@ -336,7 +336,7 @@ found_inf:
  * It is permissible to let P and Q use the same memory.
  */
 template <typename MODULUS>
-void ECWeierstrassProjectivePoint<MODULUS>::dbl (Point &R) const
+void ECWeierstrass<MODULUS>::ProjectivePoint::dbl (ProjectivePoint &R) const
 {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue xx(curve.m), zz(curve.m), w(curve.m), u(curve.m), s(curve.m),
@@ -382,7 +382,7 @@ void ECWeierstrassProjectivePoint<MODULUS>::dbl (Point &R) const
  * It is permissible to let R and P (or R and Q) use the same memory.
  */
 template <typename MODULUS>
-void ECWeierstrassProjectivePoint<MODULUS>::add (Point &R, const Point &Q) const
+void ECWeierstrass<MODULUS>::ProjectivePoint::add (ProjectivePoint &R, const ProjectivePoint &Q) const
 {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     ASSERT_EXPENSIVE(curve.is_same(Q.curve));
@@ -425,7 +425,7 @@ void ECWeierstrassProjectivePoint<MODULUS>::add (Point &R, const Point &Q) const
  *    - a : curve coefficient
  */
 template <typename MODULUS>
-void ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const uint64_t e) const
+void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const uint64_t e) const
 {
     if (e == 0) {
         R.set0();
@@ -433,7 +433,7 @@ void ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const uint64_t e) co
         R = *this;
     } else {
         uint64_t i;
-        Point T(curve);
+        ProjectivePoint T(curve);
 
         i = UINT64_C(1) << 63;
         while ((i & e) == 0)
@@ -453,19 +453,10 @@ void ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const uint64_t e) co
 }
 
 template
-class ECWeierstrassAffinePoint<Modulus64>;
+class ECWeierstrass<Modulus64>;
 template
-class ECWeierstrassAffinePoint<ModulusREDC64>;
+class ECWeierstrass<ModulusREDC64>;
 template
-class ECWeierstrassAffinePoint<ModulusREDC126>;
+class ECWeierstrass<ModulusREDC126>;
 template
-class ECWeierstrassAffinePoint<ModulusMPZ>;
-
-template
-class ECWeierstrassProjectivePoint<Modulus64>;
-template
-class ECWeierstrassProjectivePoint<ModulusREDC64>;
-template
-class ECWeierstrassProjectivePoint<ModulusREDC126>;
-template
-class ECWeierstrassProjectivePoint<ModulusMPZ>;
+class ECWeierstrass<ModulusMPZ>;
