@@ -100,12 +100,14 @@ struct dispatcher {/*{{{*/
         // nodes have read access from the matrix.
 
         is_reader_map[pi->m->jrank] = access(mfile.c_str(), R_OK) == 0;
+#ifdef RELY_ON_MPI_THREAD_MULTIPLE
         if (!has_mpi_thread_multiple()) {
             if (pi->m->jrank > 0)
                 is_reader_map[pi->m->jrank] = 0;
             else
                 ASSERT_ALWAYS(is_reader_map[pi->m->jrank]);
         }
+#endif
 
         MPI_Allgather(MPI_IN_PLACE, 0, 0, &is_reader_map[0], 1, MPI_INT, pi->m->pals);
         readers_index = is_reader_map;
@@ -167,7 +169,8 @@ struct dispatcher {/*{{{*/
     // std::vector<MPI_Status> statuses;
     void post_send(std::vector<uint32_t> &, unsigned int);
     void progress(bool wait = false);
-    void post_semaphore(unsigned int k);
+    void post_semaphore_blocking(unsigned int k);
+    void post_semaphore_nonblocking(unsigned int k);
 
     /* endpoint stuff */
 
@@ -180,6 +183,7 @@ struct dispatcher {/*{{{*/
     void prepare_pass();
     std::mutex incoming_mutex;
     void endpoint_handle_incoming(std::vector<uint32_t> & Q);
+    void watch_incoming_on_reader(int & active_peers);
     void endpoint_thread();
 };/*}}}*/
 
@@ -242,7 +246,7 @@ void dispatcher::post_send(std::vector<uint32_t> & Q, unsigned int k)/*{{{*/
     }
 }/*}}}*/
 
-void dispatcher::post_semaphore(unsigned int k)/*{{{*/
+void dispatcher::post_semaphore_blocking(unsigned int k)/*{{{*/
 {
     if (k != pi->m->jrank) {
         /* we might as well do it in a blocking way */
@@ -250,12 +254,29 @@ void dispatcher::post_semaphore(unsigned int k)/*{{{*/
         MPI_Send(&z, 1, CADO_MPI_UINT32_T, k, 0, pi->m->pals);
     }
 }/*}}}*/
+void dispatcher::post_semaphore_nonblocking(unsigned int k)/*{{{*/
+{
+    if (k == pi->m->jrank) return;
+    /* do it non-blocking */
+    uint32_t z = UINT32_MAX;
+    MPI_Request req;
+    MPI_Isend(&z, 1, CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
+    outstanding.push_back(req);
+    /* just for the show. We need progress() to find data that is
+     * compatible with what it expects */
+    outstanding_queues.emplace_back();
+}/*}}}*/
 
 void dispatcher::progress(bool wait)/*{{{*/
 {
     int n_in, n_out;
     n_in = n_out = outstanding.size();
     if (!n_in) return;
+#ifndef RELY_ON_MPI_THREAD_MULTIPLE
+    /* If we're supposed to deal with progress by ourselves, then it's
+     * handled in the caller */
+    ASSERT_ALWAYS(!wait);
+#endif
     if (wait) {
         MPI_Waitall(n_in, &outstanding[0], MPI_STATUSES_IGNORE);
         outstanding.clear();
@@ -355,7 +376,7 @@ void dispatcher::reader_thread()/*{{{*/
     std::vector<std::vector<uint32_t>> nodedata(transpose ? nhjobs : nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
-    size_t queue_size_per_peer = 1 << 10;
+    size_t queue_size_per_peer = 0;
 
     std::vector<uint64_t> check_vector;
     if (pass_number == 2 && !check_vector_filename.empty())
@@ -365,7 +386,12 @@ void dispatcher::reader_thread()/*{{{*/
     size_t last_z = 0;
     double t0 = wct_seconds();
 
+    int active_peers = nreaders-1;
+
     for(unsigned int i = row0 ; i < row1 ; i++) {
+#ifndef RELY_ON_MPI_THREAD_MULTIPLE
+        watch_incoming_on_reader(active_peers);
+#endif
         uint32_t rr = fw_rowperm[i - row0];
         // Readers read full lines from the matrix.
         uint32_t w;
@@ -419,7 +445,7 @@ void dispatcher::reader_thread()/*{{{*/
             if (Q.size() >= queue_size_per_peer)
                 post_send(Q, group);
         }
-        if ((z - last_z) > (1 << 14) && ridx == 0) {
+        if ((z - last_z) > (1 << 25) && ridx == 0) {
             double dt = wct_seconds()-t0;
             if (dt <= 0) dt = 1e-9;
             fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s\n",
@@ -440,10 +466,24 @@ void dispatcher::reader_thread()/*{{{*/
         if (!Q.empty())
             post_send(Q, kk);
     }
+#ifdef RELY_ON_MPI_THREAD_MULTIPLE
     progress(true);
     for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
-        post_semaphore(kk);
+        post_semaphore_blocking(kk);
     }
+#else   /* RELY_ON_MPI_THREAD_MULTIPLE */
+    for( ; outstanding.size() ; ) {
+        watch_incoming_on_reader(active_peers);
+        progress();
+    }
+    for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
+        post_semaphore_nonblocking(kk);
+    }
+    for( ; outstanding.size() || active_peers ; )  {
+        watch_incoming_on_reader(active_peers);
+        progress();
+    }
+#endif  /* RELY_ON_MPI_THREAD_MULTIPLE */
     fclose(f);
     if (pass_number == 2 && !check_vector_filename.empty()) {
         /* Allocate a full vector on the leader node */
@@ -639,6 +679,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
 
     if (!transpose) {
         for(auto next = Q.begin() ; next != Q.end() ; ) {
+            ASSERT_ALWAYS(next < Q.end());
             uint32_t rr = *next++;
             uint32_t rs = *next++;
             if (pass_number == 2 && withcoeffs) rs/=2;
@@ -713,6 +754,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
          * what we put in the rows (if done, it must be at the end).
          */
         for(auto next = Q.begin() ; next != Q.end() ; ) {
+            ASSERT_ALWAYS(next < Q.end());
             uint32_t rr = *next++;
             uint32_t rs = *next++;
             if (pass_number == 2 && withcoeffs) rs/=2;
@@ -781,6 +823,31 @@ void dispatcher::endpoint_thread()/*{{{*/
         endpoint_handle_incoming(Q);
     }
 }/*}}}*/
+
+void dispatcher::watch_incoming_on_reader(int &active_peers)
+{
+    if (!active_peers) return;
+
+    MPI_Status status;
+    int flag = 0;
+    MPI_Iprobe(MPI_ANY_SOURCE, 0, pi->m->pals, &flag, &status);
+    if (!flag) return;
+
+    int Qs;
+    std::vector<uint32_t> Q;
+
+    // On pass 1, endpoint threads do Recv from any source, and update the
+    // local row weight for all threads.
+    MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
+    Q.assign(Qs, 0);
+    MPI_Recv(&Q[0], Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
+    if (Qs == 1 && Q[0] == UINT32_MAX) {
+        active_peers--;
+        return;
+    }
+    endpoint_handle_incoming(Q);
+}
+
 
 void dispatcher::stats()
 {
@@ -864,6 +931,7 @@ void dispatcher::main() {
 
     for(pass_number = 1 ; pass_number <= 2 ; pass_number++) {
         prepare_pass();
+#ifdef RELY_ON_MPI_THREAD_MULTIPLE
         /* Note that if we don't have MPI_THREAD_MULTIPLE, then we always
          * have nreaders==1 no matter what
          */
@@ -883,5 +951,14 @@ void dispatcher::main() {
             reader.join();
             endpoint.join();
         }
+#else   /* RELY_ON_MPI_THREAD_MULTIPLE */
+        /* then the reader thread has to incorporate special code so as
+         * to play both roles
+         */
+            if (is_reader())
+                reader_thread();
+            else
+                endpoint_thread();
+#endif  /* RELY_ON_MPI_THREAD_MULTIPLE */
     }
 }

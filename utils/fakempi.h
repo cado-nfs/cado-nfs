@@ -84,6 +84,7 @@ static inline int MPI_Get_count(MPI_Status * status, MPI_Datatype datatype, int 
     return 0;
 }
 static inline int MPI_Probe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); return 0; }
+static inline int MPI_Iprobe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, int * flag, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); *flag = 0; return 0; }
 static inline int MPI_Wait(MPI_Request *request MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { return 0; }
 static inline int MPI_Waitall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, MPI_Status *statuses MAYBE_UNUSED) { return 0; }
 static inline int MPI_Testall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, int * flag, MPI_Status *statuses MAYBE_UNUSED) { *flag = 1; return 0; }

@@ -248,53 +248,37 @@ static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 }
 /*}}}*/
 
+int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag,
+        int req, const char * reqname)
+{
+    int prov;
+    MPI_Init_thread(p_argc, p_argv, req, &prov);
+    if (req != prov) {
+        fprintf(stderr, "Cannot init mpi with %s ;"
+                " got %d != req %d\n"
+                "Proceeding anyway\n",
+                reqname,
+                prov, req);
+        return 0;
+    } else {
+#ifndef FAKEMPI_H_
+        int rc = asprintf(pmpiinit_diag, "Successfully initialized MPI with MPI_THREAD_MULTIPLE\n");
+        ASSERT_ALWAYS(rc >= 0);
+#endif
+        return 1;
+    }
+}
+
 int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
 {
     char * mpiinit_diag = NULL;
-    /* First do MPI_Init */
-#if defined(MPI_LIBRARY_MT_CAPABLE)
-    int req = MPI_THREAD_MULTIPLE;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        fprintf(stderr, "Cannot init mpi with MPI_THREAD_MULTIPLE ;"
-                " got %d != req %d\n",
-                prov, req);
-        exit(EXIT_FAILURE);
-    }
-#if 0   /* was: elif OMPI_VERSION_ATLEAST(1,8,2) */
-    /* This is just a try, right. In practice, we do rely on the
-     * SERIALIZED model, so let's at least do as we cared about telling
-     * the MPI implementation about it.
-     */
-    int req = MPI_THREAD_SERIALIZED;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        fprintf(stderr, "Cannot init mpi with MPI_THREAD_SERIALIZED ;"
-                " got %d != req %d\n",
-                prov, req);
-        exit(EXIT_FAILURE);
-    }
-#endif  /* #if 0 */
-#else
-    int req = MPI_THREAD_SERIALIZED;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        int rc = asprintf(&mpiinit_diag, "Cannot init mpi with MPI_THREAD_SERIALIZED ;"
-                " got %d != req %d\n"
-                "Proceeding anyway\n",
-                prov, req);
-        ASSERT_ALWAYS(rc >= 0);
-    } else {
-#ifndef FAKEMPI_H_
-        int rc = asprintf(&mpiinit_diag, "Successfully initialized MPI with MPI_THREAD_SERIALIZED\n");
-        ASSERT_ALWAYS(rc >= 0);
-#endif
-    }
+    int init_done = 0;
+    
+    // init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_MULTIPLE, "MPI_THREAD_MULTIPLE");
+    init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_SERIALIZED, "MPI_THREAD_SERIALIZED");
+
     // MPI_Init(p_argc, p_argv);
-#endif
+    
     int rank;
     int size;
 
@@ -311,7 +295,7 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
     if (bw->can_print) {
         if (mpiinit_diag) {
             fputs(mpiinit_diag, stdout);
-            if (req != prov) {
+            if (!init_done) {
                 fputs(mpiinit_diag, stderr);
             }
         }
