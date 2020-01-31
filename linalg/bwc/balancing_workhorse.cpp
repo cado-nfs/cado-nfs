@@ -19,6 +19,7 @@
 #include "balancing.h"
 #include "balancing_workhorse.h"
 #include "subdivision.hpp"
+#include "fmt/printf.h"
 
 /* The entry point of this code is balancing_get_matrix_u32 ; called in a
  * parallel context, it fills the provided matrix_u32 parameter with the
@@ -99,6 +100,13 @@ struct dispatcher {/*{{{*/
         // nodes have read access from the matrix.
 
         is_reader_map[pi->m->jrank] = access(mfile.c_str(), R_OK) == 0;
+        if (!has_mpi_thread_multiple()) {
+            if (pi->m->jrank > 0)
+                is_reader_map[pi->m->jrank] = 0;
+            else
+                ASSERT_ALWAYS(is_reader_map[pi->m->jrank]);
+        }
+
         MPI_Allgather(MPI_IN_PLACE, 0, 0, &is_reader_map[0], 1, MPI_INT, pi->m->pals);
         readers_index = is_reader_map;
         nreaders = integrate(readers_index);
@@ -139,6 +147,7 @@ struct dispatcher {/*{{{*/
     }/*}}}*/
 
     void main();
+    void stats();
 
     int pass_number;
 
@@ -201,6 +210,7 @@ void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list pl,
     if (pi->m->trank == 0) {
         dispatcher D(pi, pl, args_per_thread);
         D.main();
+        D.stats();
     }
 
     serialize_threads(pi->m);
@@ -310,9 +320,9 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     int r = fread(&rw[0], sizeof(uint32_t), row1-row0, frw);
     ASSERT_ALWAYS(r == (int) (row1 - row0));
     fclose(frw);
-    std::vector<size_t> bytes_per_reader(pi->m->njobs, 0);
+    std::vector<size_t> bytes_per_reader(nreaders, 0);
     for(unsigned int i = row0 ; i < row1 ; i++) {
-        bytes_per_reader[pi->m->jrank] += sizeof(uint32_t) * (1 + rw[i - row0] * (1 + withcoeffs));
+        bytes_per_reader[ridx] += sizeof(uint32_t) * (1 + rw[i - row0] * (1 + withcoeffs));
     }
 
     // This data is then allgathered into an array of R integers. Each
@@ -321,7 +331,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     //
     MPI_Allgather(MPI_IN_PLACE, 0, 0,
             &bytes_per_reader[0], 1, CADO_MPI_SIZE_T,
-            pi->m->pals);
+            reader_comm);
 
     offset_per_reader = bytes_per_reader;
     integrate(offset_per_reader);
@@ -338,7 +348,7 @@ void dispatcher::reader_thread()/*{{{*/
 
     FILE * f = fopen(mfile.c_str(), "rb");
     ASSERT_ALWAYS(f);
-    int rc = fseek(f, offset_per_reader[pi->m->jrank], SEEK_SET);
+    int rc = fseek(f, offset_per_reader[ridx], SEEK_SET);
     ASSERT_ALWAYS(rc == 0);
 
     std::vector<uint32_t> row;
@@ -351,16 +361,28 @@ void dispatcher::reader_thread()/*{{{*/
     if (pass_number == 2 && !check_vector_filename.empty())
         check_vector.assign(row1 - row0, 0);
 
+    size_t z = 0;
+    size_t last_z = 0;
+    double t0 = wct_seconds();
+
     for(unsigned int i = row0 ; i < row1 ; i++) {
         uint32_t rr = fw_rowperm[i - row0];
         // Readers read full lines from the matrix.
         uint32_t w;
         rc = fread(&w, sizeof(uint32_t), 1, f);
-        ASSERT_ALWAYS(rc == 1);
+        if (rc != 1) {
+            fprintf(stderr, "%s: short read\n", mfile.c_str());
+            exit(EXIT_FAILURE);
+        }
+        z += rc * sizeof(uint32_t);
         row.assign(w * (1 + withcoeffs), 0);
         int ww = w * (1 + withcoeffs);
         rc = fread(&row[0], sizeof(uint32_t), ww, f);
-        ASSERT_ALWAYS(rc == ww);
+        if (rc != ww) {
+            fprintf(stderr, "%s: short read\n", mfile.c_str());
+            exit(EXIT_FAILURE);
+        }
+        z += ww * sizeof(uint32_t);
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
             uint32_t cc = fw_colperm[row[j]];
@@ -397,7 +419,21 @@ void dispatcher::reader_thread()/*{{{*/
             if (Q.size() >= queue_size_per_peer)
                 post_send(Q, group);
         }
+        if ((z - last_z) > (1 << 14) && ridx == 0) {
+            double dt = wct_seconds()-t0;
+            if (dt <= 0) dt = 1e-9;
+            fmt::printf("pass %d, J%u (reader 0): %s in %.1fs, %s/s\n",
+                    pass_number, pi->m->jrank, size_disp(z), dt, size_disp(z / dt));
+            fflush(stdout);
+            last_z = z;
+        }
         progress();
+    }
+    {
+        double dt = wct_seconds()-t0;
+        fmt::printf("J%u (reader 0): %s in %.1fs, %s/s (done)\n",
+                pi->m->jrank, size_disp(z), dt, size_disp(z / dt));
+        fflush(stdout);
     }
     for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
         auto & Q = queues[kk];
@@ -746,6 +782,66 @@ void dispatcher::endpoint_thread()/*{{{*/
     }
 }/*}}}*/
 
+void dispatcher::stats()
+{
+    if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER)) return;
+    uint32_t quo_r = bal->trows / bal->h->nh;
+    for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
+        printf("[J%uT%u] N=%" PRIu32 " W=%zu\n",
+                pi->m->jrank, k,
+                quo_r,
+                (args_per_thread[k]->size-quo_r)/(1+withcoeffs));
+    }
+    /*
+    uint32_t * row_weights = s->row_weights;
+    uint32_t my_nrows = s->s->my_nrows;
+    uint32_t * col_weights = s->col_weights;
+    uint32_t my_ncols = s->s->my_ncols;
+    // some stats
+    double s1 = 0;
+    double s2 = 0;
+    uint64_t tw = 0;
+    uint32_t row_min = UINT32_MAX, row_max = 0;
+    double row_avg, row_dev;
+    s1 = s2 = 0;
+    for (uint32_t i = 0; i < my_nrows; i++) {
+       double d = row_weights[i];
+       if (row_weights[i] > row_max)
+           row_max = row_weights[i];
+       if (row_weights[i] < row_min)
+           row_min = row_weights[i];
+       s1 += d;
+       s2 += d * d;
+       tw += row_weights[i];
+    }
+    row_avg = s1 / my_nrows;
+    row_dev = sqrt(s2 / my_nrows - row_avg * row_avg);
+
+    uint32_t col_min = UINT32_MAX, col_max = 0;
+    double col_avg, col_dev;
+    s1 = s2 = 0;
+    for (uint32_t j = 0; j < my_ncols; j++) {
+       double d = col_weights[j];
+       if (col_weights[j] > col_max)
+           col_max = col_weights[j];
+       if (col_weights[j] < col_min)
+           col_min = col_weights[j];
+       s1 += d;
+       s2 += d * d;
+    }
+    col_avg = s1 / my_ncols;
+    col_dev = sqrt(s2 / my_ncols - col_avg * col_avg);
+
+    printf("[J%uT%u] N=%" PRIu32 " W=%" PRIu64 " "
+          "R[%" PRIu32 "..%" PRIu32 "],%.1f~%.1f "
+          "C[%" PRIu32 "..%" PRIu32 "],%.1f~%.1f.\n",
+          s->s->pi->m->jrank, s->s->pi->m->trank,
+           my_nrows, tw,
+          row_min, row_max, row_avg, row_dev,
+          col_min, col_max, col_avg, col_dev);
+    */
+}
+
 
 //
 // Once this is all done, the reading threads adjust pointers for the
@@ -768,14 +864,24 @@ void dispatcher::main() {
 
     for(pass_number = 1 ; pass_number <= 2 ; pass_number++) {
         prepare_pass();
-        // Each reader spawns a writing (to MPI) thread (reading from disk).
-        // (non-readers exit immediately)
-        std::thread reader([this] { reader_thread(); });
+        /* Note that if we don't have MPI_THREAD_MULTIPLE, then we always
+         * have nreaders==1 no matter what
+         */
+        if (nreaders == 1) {
+            if (is_reader())
+                reader_thread();
+            else
+                endpoint_thread();
+        } else {
+            // Each reader spawns a writing (to MPI) thread (reading from disk).
+            // (non-readers exit immediately)
+            std::thread reader([this] { reader_thread(); });
 
-        // Each node spawns a reading (from MPI) thread.
-        std::thread endpoint([this] { endpoint_thread(); });
+            // Each node spawns a reading (from MPI) thread.
+            std::thread endpoint([this] { endpoint_thread(); });
 
-        reader.join();
-        endpoint.join();
+            reader.join();
+            endpoint.join();
+        }
     }
 }
