@@ -98,6 +98,17 @@ public:
         return *this;
     }
 
+    Point operator*(const unsigned long e) const {
+        Point R(curve);
+        smul(R, e);
+        return R;
+    }
+
+    Point & operator*=(const unsigned long e) {
+        smul(*this, e);
+        return *this;
+    }
+
     void set(const Residue &_x, const Residue &_y) {
         curve.m.set(x, _x);
         curve.m.set(y, _y);
@@ -199,6 +210,17 @@ class ECWeierstrassProjectivePoint
 
     Point & operator+=(const Point &Q) {
         add(*this, Q);
+        return *this;
+    }
+
+    Point operator*(const unsigned long e) const {
+        Point R(curve);
+        smul(R, e);
+        return R;
+    }
+
+    Point & operator*=(const unsigned long e) {
+        smul(*this, e);
         return *this;
     }
 
