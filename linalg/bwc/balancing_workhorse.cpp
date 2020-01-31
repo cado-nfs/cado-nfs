@@ -255,9 +255,11 @@ void dispatcher::progress(bool wait)/*{{{*/
     }
     indices.assign(n_in, 0);
     // statuses.assign(n_in, 0);
-    MPI_Testsome(n_in, &outstanding[0],
+    int err = MPI_Testsome(n_in, &outstanding[0],
             &n_out, &indices[0],
             MPI_STATUSES_IGNORE);
+    ASSERT_ALWAYS(!err);
+    ASSERT_ALWAYS(n_out != MPI_UNDEFINED);
     indices.erase(indices.begin()+n_out, indices.end());
     std::sort(indices.begin(), indices.end());
     for(int i = 0, j = 0 ; i < n_in ; i++) {
