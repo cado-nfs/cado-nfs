@@ -51,13 +51,16 @@ class ECWeierstrassAffinePoint
     typedef typename Modulus::Integer Integer;
     const ECurve &curve;
     Residue x,y;
+    bool finite; /* If finite is false, then the point is the point at
+                    infinity and the x, y coordinates are not considered
+                    for any arithmetic. */
 
 public:    
-    ECWeierstrassAffinePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m) {}
+    ECWeierstrassAffinePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), finite(true) {}
     ECWeierstrassAffinePoint(const ECurve &c, const Residue &_x, const Residue &_y) 
-    : curve(c), x(curve.m, _x), y(curve.m, _y) {}
+    : curve(c), x(curve.m, _x), y(curve.m, _y) {finite = true;}
     ECWeierstrassAffinePoint(const ECWeierstrassAffinePoint &s)
-    : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y) {}
+    : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), finite(s.finite) {}
     ECWeierstrassAffinePoint(ECWeierstrassAffinePoint &&p) = default;
     ~ECWeierstrassAffinePoint() {}
 
@@ -66,12 +69,17 @@ public:
         if (this != &other) {
             curve.m.set(x, other.x);
             curve.m.set(y, other.y);
+            finite = other.finite;
         }
         return *this;
     }
 
     bool operator==(const Point &other) const {
         ASSERT_EXPENSIVE(&curve == &other.curve);
+        if (finite != other.finite)
+            return false;
+        if (!finite)
+            return true;
         return curve.m.equal(x, other.x) && curve.m.equal(y, other.y);
     }
 
@@ -79,30 +87,53 @@ public:
         return !(*this == other);
     }
 
-    /* No operator+ or operator+= as that would lose the return value of add() */
+    Point operator+(const Point &Q) const {
+        Point R(curve);
+        add(R, Q);
+        return R;
+    }
+
+    Point & operator+=(const Point &Q) {
+        add(*this, Q);
+        return *this;
+    }
 
     void set(const Residue &_x, const Residue &_y) {
         curve.m.set(x, _x);
         curve.m.set(y, _y);
+        finite = true;
+    }
+    
+    void set0() {
+        finite = false;
+    }
+    
+    bool is0() const {
+        return !finite;
     }
     
     void swap(Point &other) {
         ASSERT_EXPENSIVE(&curve == &other.curve);
         curve.m.swap (x, other.x);
         curve.m.swap (y, other.y);
+        std::swap(finite, other.finite);
     }
 
     void print(std::ostream &os) const {
-        Integer X, Y;
+        if (finite) {
+            Integer X, Y;
 
-        curve.m.get (X, x);
-        curve.m.get (Y, y);
-        os << "(" << X << " : " << Y << ")";
+            curve.m.get (X, x);
+            curve.m.get (Y, y);
+            os << "(" << X << " : " << Y << ")";
+        } else {
+            os << "(point at infinity)";
+        }
     }
 
-    bool dbl (Point &R) const;
-    bool add (Point &R, const Point &Q) const;
-    bool smul (Point &R, const uint64_t e) const;
+    void dbl (Point &R) const;
+    void add (Point &R, const Point &Q) const;
+    void smul (Point &R, const uint64_t e) const;
     uint64_t point_order (uint64_t known_m, uint64_t known_r, int verbose) const;
 
     friend std::ostream & operator<<(std::ostream &os, const ECWeierstrassAffinePoint<MODULUS> &p) {
@@ -194,10 +225,14 @@ class ECWeierstrassProjectivePoint
     }
 
     /* Set P to zero (the neutral point): (0:1:0) */
-    void set_zero () {
+    void set0 () {
         curve.m.set0 (x);
         curve.m.set1 (y);
         curve.m.set0 (z);
+    }
+
+    bool is0() const {
+        return curve.m.is0(x) && curve.m.is1 (y) && curve.m.is0 (z);
     }
 
     void dbl (Point &R) const;

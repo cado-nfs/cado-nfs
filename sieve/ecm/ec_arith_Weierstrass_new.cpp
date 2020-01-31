@@ -11,16 +11,20 @@
 
 /* Computes R=2P, with 1 inv, 4 muls (2 muls and 2 squares) and 8 add/sub.
  *
- * Return true if it worked, false if a modular inverse failed.
- * If modular inverse failed, return non-invertible value in R.x.
+ * If result is point at infinity, return non-invertible value in R.x.
  *
  * It is permissible to let *this and R use the same memory.
  */
 template <typename MODULUS>
-bool ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
+void ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
 
+    if (is0()) {
+        R.set0();
+        return;
+    }
+    
     curve.m.sqr (u, x);
     curve.m.add (v, u, u);
     curve.m.add (v, v, u);
@@ -39,8 +43,7 @@ bool ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
     } else {
         curve.m.set (R.x, u);
     }
-
-    return ret;
+    R.finite = ret;
 }
 
 /* Computes R=P+Q, with 1 inv, 3 muls (2 muls and 1 square) and 6 add/sub.
@@ -53,11 +56,20 @@ bool ECWeierstrassAffinePoint<MODULUS>::dbl (Point &R) const {
  * It is permissible to let R and P (or R and Q) use the same memory.
  */
 template <typename MODULUS>
-bool ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
+void ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
     ASSERT_EXPENSIVE(curve.is_same(Q.curve));
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
 
+    if (is0()) {
+        R = Q;
+        return;
+    }
+
+    if (Q.is0()) {
+        R = *this;
+    }
+    
     curve.m.sub (u, Q.x, x);
     bool ret = curve.m.inv (v, u);
     if (ret) {
@@ -70,62 +82,48 @@ bool ECWeierstrassAffinePoint<MODULUS>::add (Point &R, const Point &Q) const {
         curve.m.mul (v, v, lambda);
         curve.m.sub (R.y, v, y);
         curve.m.set (R.x, u);
-    }
-    else if (curve.m.equal (x, Q.x) && curve.m.equal (y, Q.y))
-        ret = dbl (R);
-    else
+        R.finite = true;
+    } else if (*this == Q) {
+        dbl (R);
+    } else {
         curve.m.set (R.x, u);
+        R.finite = false;
+    }
 
-    return ret;
 }
 
 /* Computes R<-eP, with double-and-add algorithm.
  *
- * Return false if e*P is the point at infinity, else return true.
  * If the point at infinity is due to a failed inversion, the non-invertible
  * value is returned in R.x.
  */
 template <typename MODULUS>
-bool ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const 
+void ECWeierstrassAffinePoint<MODULUS>::smul (Point &R, const uint64_t e) const
 {
   uint64_t i;
   Point T(curve);
-  bool tfinite; /* true iff T is NOT point at infinity */
 
-  if (e == 0)
-    return 0; /* signal point at infinity */
+  if (e == 0) {
+      R.set0();
+      return;
+  }
 
   i = (uint64_t)1 << 63;
   while ((i & e) == 0)
     i >>= 1;
 
   T = *this;
-  tfinite = 1;
   i >>= 1;
 
   while (i > 0)
   {
-    if (tfinite)
-      tfinite = T.dbl (T);
+    T.dbl (T);
     if (e & i)
-    {
-      if (tfinite)
-        tfinite = T.add (T, *this);
-      else
-      {
-        T = *this;
-        tfinite = 1;
-      }
-    }
+        T.add (T, *this);
     i >>= 1;
   }
 
-  if (tfinite)
-    R = T;
-  else
-    curve.m.set (R.x, T.x);
-
-  return tfinite;
+  R = T;
 }
 
 /* Return the order of the point P on the Weierstrass curve defined by the curve
@@ -148,6 +146,9 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
 
   ASSERT (known_r < known_m);
 
+  if (is0())
+      return 1;
+  
   curve.m.getmod (tm);
 
   if (verbose >= 2)
@@ -183,7 +184,8 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
   std::vector<Point> baby(baby_len, Pi);
 
   i = known_m;
-  if (smul (Pg, i) == 0) /* Pg = m*P for now */
+  smul (Pg, i); /* Pg = m*P for now */
+  if (Pg.is0())
     goto found_inf;
 
   if (1 < baby_len)
@@ -191,7 +193,8 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
 
   if (2 < baby_len)
     {
-      if (Pg.dbl (Pi) == 0)
+      Pg.dbl (Pi);
+      if (Pi.is0())
         {
           i = 2 * known_m;
           goto found_inf;
@@ -201,7 +204,8 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
 
   for (i = 3; i < baby_len; i++)
     {
-      if (Pi.add (Pi, Pg) == 0)
+      Pi.add (Pi, Pg);
+      if (Pi.is0())
         {
           i *= known_m;
           goto found_inf;
@@ -211,11 +215,13 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
 
   /* Now compute the giant steps in [giant_min, giant_max] */
   i = giant_step;
-  if (smul (Pg, i) == 0)
+  smul (Pg, i);
+  if (Pg.is0())
     goto found_inf;
 
   i = giant_min;
-  if (smul (Pi, i) == 0)
+  smul (Pi, i);
+  if (Pi.is0())
     goto found_inf;
 
   while (i <= max + giant_step - 1)
@@ -243,7 +249,8 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
           }
 
       i += giant_step;
-      if (!Pi.add (Pi, Pg))
+      Pi.add (Pi, Pg);
+      if (Pi.is0())
         goto found_inf;
     }
 
@@ -258,7 +265,8 @@ uint64_t ECWeierstrassAffinePoint<MODULUS>::point_order (const uint64_t known_m,
 
 found_inf:
   /* Check that i is a multiple of the order */
-  if (smul (Pi, i) != 0)
+  smul (Pi, i);
+  if (!Pi.is0())
     {
       Integer tx1, ty1;
       curve.m.get (tx1, x);
@@ -292,24 +300,24 @@ found_inf:
 
         /* Add factors of p again one by one, stopping when we hit
            point at infinity */
-        if (smul (Pi, order) != 0)
-          {
+        smul (Pi, order);
+        while (!Pi.is0()) {
             order *= p;
-            while (Pi.smul (Pi, p) != 0)
-              order *= p;
-          }
+            Pi.smul (Pi, p);
+        }
       }
   /* Now cof is 1 or a prime */
   if (cof > 1)
     {
       ASSERT (order % cof == 0);
-      if (smul (Pi, order / cof) == 0)
+      smul (Pi, order / cof);
+      if (Pi.is0())
         order /= cof;
     }
 
-
   /* One last check that order divides real order */
-  if (smul (Pi, order) != 0)
+  smul (Pi, order);
+  if (!Pi.is0())
     {
       Integer tx1, ty1;
       curve.m.get (tx1, x);
@@ -423,7 +431,7 @@ ECWeierstrassProjectivePoint<MODULUS>::smul (Point &R, const unsigned long e) co
 {
   ASSERT_EXPENSIVE(curve.is_same(R.curve));
   if (e == 0) {
-    R.set_zero ();
+    R.set0 ();
   } else if (e == 1) {
     R = *this;
   } else {
