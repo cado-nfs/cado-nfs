@@ -422,8 +422,8 @@ void dispatcher::reader_thread()/*{{{*/
         if ((z - last_z) > (1 << 14) && ridx == 0) {
             double dt = wct_seconds()-t0;
             if (dt <= 0) dt = 1e-9;
-            fmt::printf("pass %d, J%u (reader 0): %s in %.1fs, %s/s\n",
-                    pass_number, pi->m->jrank, size_disp(z), dt, size_disp(z / dt));
+            fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s\n",
+                    pass_number, pi->m->jrank, nreaders, size_disp(z), dt, size_disp(z / dt));
             fflush(stdout);
             last_z = z;
         }
@@ -431,8 +431,8 @@ void dispatcher::reader_thread()/*{{{*/
     }
     {
         double dt = wct_seconds()-t0;
-        fmt::printf("J%u (reader 0): %s in %.1fs, %s/s (done)\n",
-                pi->m->jrank, size_disp(z), dt, size_disp(z / dt));
+        fmt::printf("J%u (reader 0/%d): %s in %.1fs, %s/s (done)\n",
+                pi->m->jrank, nreaders, size_disp(z), dt, size_disp(z / dt));
         fflush(stdout);
     }
     for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
