@@ -116,7 +116,7 @@ set_mpi_derived_variables()
         nnodes=1
     fi
 
-    ncores=$(egrep -c '^processor[[:space:]]+:' /proc/cpuinfo)
+    ncores=$(egrep '^core[[:space:]]+id[[:space:]]+:' /proc/cpuinfo | sort -u | wc -l)
 
     case "$nnodes,$ncores,$family" in
         1,*,openmpi) 
