@@ -312,8 +312,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     fclose(frw);
     std::vector<size_t> bytes_per_reader(pi->m->njobs, 0);
     for(unsigned int i = row0 ; i < row1 ; i++) {
-        size_t coeff_size = (1 + withcoeffs) * sizeof(uint32_t);
-        bytes_per_reader[pi->m->jrank] += (1 + rw[i - row0]) * coeff_size;
+        bytes_per_reader[pi->m->jrank] += sizeof(uint32_t) * (1 + rw[i - row0] * (1 + withcoeffs));
     }
 
     // This data is then allgathered into an array of R integers. Each
