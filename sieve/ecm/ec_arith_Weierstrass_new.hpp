@@ -74,6 +74,8 @@ public:
         return *this;
     }
 
+    Point &operator=(Point &&) = default;
+
     bool operator==(const Point &other) const {
         ASSERT_EXPENSIVE(&curve == &other.curve);
         if (finite != other.finite)
@@ -185,6 +187,9 @@ class ECWeierstrassProjectivePoint
         }
         return *this;
     }
+
+    Point &operator=(Point &&) = default;
+
     bool operator==(const Point &other) const {
         Residue t1(curve.m), t2(curve.m);
         curve.m.mul(t1, x, other.z);
