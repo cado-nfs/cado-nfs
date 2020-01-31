@@ -258,6 +258,8 @@ void dispatcher::progress(bool wait)/*{{{*/
     MPI_Testsome(n_in, &outstanding[0],
             &n_out, &indices[0],
             MPI_STATUSES_IGNORE);
+    indices.erase(indices.begin()+n_out, indices.end());
+    std::sort(indices.begin(), indices.end());
     for(int i = 0, j = 0 ; i < n_in ; i++) {
         if (j >= (int) indices.size() || i < indices[j]) {
             /* request has not completed */
