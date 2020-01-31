@@ -61,7 +61,7 @@ public:
     : curve(c), x(curve.m, _x), y(curve.m, _y) {finite = true;}
     ECWeierstrassAffinePoint(const ECWeierstrassAffinePoint &s)
     : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), finite(s.finite) {}
-    ECWeierstrassAffinePoint(ECWeierstrassAffinePoint &&p) = default;
+    ECWeierstrassAffinePoint(ECWeierstrassAffinePoint &&p MAYBE_UNUSED) = default;
     ~ECWeierstrassAffinePoint() {}
 
     Point &operator=(const Point &other) {
