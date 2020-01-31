@@ -383,7 +383,7 @@ void dispatcher::reader_thread()/*{{{*/
             if (!transpose) {
                 group = rr / rows_chunk_big * nvjobs + k;
             } else {
-                group = k * nhjobs + rr / cols_chunk_big;
+                group = k * nvjobs + rr / cols_chunk_big;
             }
             auto & Q = queues[group];
             Q.push_back(rr);
