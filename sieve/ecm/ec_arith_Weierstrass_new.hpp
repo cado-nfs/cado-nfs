@@ -173,7 +173,7 @@ class ECWeierstrassProjectivePoint
     }
     ECWeierstrassProjectivePoint(const ECWeierstrassProjectivePoint &s)
     : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), z(curve.m, s.z) {}
-    ECWeierstrassProjectivePoint(ECWeierstrassProjectivePoint &&p) = default;
+    ECWeierstrassProjectivePoint(ECWeierstrassProjectivePoint &&p MAYBE_UNUSED) = default;
     ~ECWeierstrassProjectivePoint() {}
 
     Point &operator=(const Point &other) {
