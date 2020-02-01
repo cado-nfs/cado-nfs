@@ -12,6 +12,12 @@ struct matrix_u32_s {
     // input arguments.
     const char * mfile;    // matrix file name
     const char * bfile;    // balancing file name ; NULL will mean auto-detect
+    /* The 'transpose' flag just tells that the in-memory representation
+     * of the sparse matrix below is given by columns and not by rows.
+     * This is sometimes the format that is preferred by some MM layers,
+     * and cado-nfs decides to present the local matrices to the MM
+     * layers precisely in their preferred format.
+     */
     int transpose;
     int withcoeffs;
     // output arguments.

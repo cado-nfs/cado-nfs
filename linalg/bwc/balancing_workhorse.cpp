@@ -21,6 +21,8 @@
 #include "subdivision.hpp"
 #include "fmt/printf.h"
 
+#define xxxRELY_ON_MPI_THREAD_MULTIPLE
+
 /* The entry point of this code is balancing_get_matrix_u32 ; called in a
  * parallel context, it fills the provided matrix_u32 parameter with the
  * sub-matrix that is relevant for the required balancing (also passed
@@ -307,7 +309,7 @@ void dispatcher::progress(bool wait)/*{{{*/
             j++;
         }
     }
-    for(int j = n_out ; j < n_in ; j++) {
+    for(int j = n_in - n_out ; j < n_in ; j++) {
         auto & Q = outstanding_queues[j];
         Q.clear();
         avail_queues.emplace_back(std::move(Q));
@@ -373,7 +375,7 @@ void dispatcher::reader_thread()/*{{{*/
     ASSERT_ALWAYS(rc == 0);
 
     std::vector<uint32_t> row;
-    std::vector<std::vector<uint32_t>> nodedata(transpose ? nhjobs : nvjobs);
+    std::vector<std::vector<uint32_t>> nodedata(nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
     size_t queue_size_per_peer = 0;
@@ -386,7 +388,9 @@ void dispatcher::reader_thread()/*{{{*/
     size_t last_z = 0;
     double t0 = wct_seconds();
 
+#ifndef RELY_ON_MPI_THREAD_MULTIPLE
     int active_peers = nreaders-1;
+#endif
 
     for(unsigned int i = row0 ; i < row1 ; i++) {
 #ifndef RELY_ON_MPI_THREAD_MULTIPLE
@@ -412,10 +416,11 @@ void dispatcher::reader_thread()/*{{{*/
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
             uint32_t cc = fw_colperm[row[j]];
-            unsigned int group = cc / (transpose ? cols_chunk_big : rows_chunk_big);
-            nodedata[group].push_back(cc);
+            unsigned int k = cc / cols_chunk_big;
+            ASSERT_ALWAYS(k < nodedata.size());
+            nodedata[k].push_back(cc);
             if (pass_number == 2 && withcoeffs)
-                nodedata[group].push_back(row[j+1]);
+                nodedata[k].push_back(row[j+1]);
             if (pass_number == 2 && !check_vector_filename.empty()) {
                 uint32_t q = balancing_pre_shuffle(bal, row[j]);
                 check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(q);
@@ -427,12 +432,7 @@ void dispatcher::reader_thread()/*{{{*/
             auto & C = nodedata[k];
             if (C.empty()) continue;
 
-            unsigned int group;
-            if (!transpose) {
-                group = rr / cols_chunk_big * nvjobs + k;
-            } else {
-                group = k * nvjobs + rr / rows_chunk_big;
-            }
+            unsigned int group = rr / rows_chunk_big * nvjobs + k;
             auto & Q = queues[group];
             Q.push_back(rr);
             Q.push_back(C.size());
@@ -677,45 +677,54 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
 {
     std::lock_guard<std::mutex> dummy(incoming_mutex);
 
-    if (!transpose) {
-        for(auto next = Q.begin() ; next != Q.end() ; ) {
-            ASSERT_ALWAYS(next < Q.end());
-            uint32_t rr = *next++;
-            uint32_t rs = *next++;
-            if (pass_number == 2 && withcoeffs) rs/=2;
-            /* Does it make sense anyway ? In the non-transposed case we
-             * don't do this...
-             */
-            if (!transpose && pass_number == 2) {
-                if (!withcoeffs) {
-                    std::sort(next, next + rs);
-                } else {
-                    /* ugly */
-                    struct cv {
-                        uint32_t c;
-                        int32_t v;
-                        bool operator<(cv const & a) const { return c < a.c; }
-                    };
-                    cv * Q0 = (cv *) &next[0];
-                    cv * Q1 = (cv *) &next[2*rs];
-                    std::sort(Q0, Q1);
-                }
-            }
+    for(auto next = Q.begin() ; next != Q.end() ; ) {
+        ASSERT_ALWAYS(next < Q.end());
+        uint32_t rr = *next++;
+        uint32_t rs = *next++;
+        if (pass_number == 2 && withcoeffs) rs/=2;
 
-            unsigned int n_row_groups = pi->wr[1]->ncores;
-            unsigned int n_col_groups = pi->wr[0]->ncores;
-            unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
-            unsigned int row_index = rr % rows_chunk_small;
-            if (pass_number == 1) {
-                for(unsigned int j = 0 ; j < rs ; j ++) {
-                    uint32_t cc = *next++;
-                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
-                    // unsigned int col_index = cc % cols_chunk_small;
-                    unsigned int group = row_group * n_col_groups + col_group;
+        unsigned int n_row_groups = pi->wr[1]->ncores;
+        unsigned int n_col_groups = pi->wr[0]->ncores;
+        unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
+        unsigned int row_index = rr % rows_chunk_small;
+
+        /* Does it make sense anyway ? In the transposed case we
+         * don't do this...
+         * When transposing, we're receiving fragments of columns,
+         * which begin with a _column_ index. No real point in sorting
+         * what we put in the rows (if done, it must be at the end).
+         */
+
+        if (!transpose && pass_number == 2) {
+            if (!withcoeffs) {
+                std::sort(next, next + rs);
+            } else {
+                /* ugly */
+                struct cv {
+                    uint32_t c;
+                    int32_t v;
+                    bool operator<(cv const & a) const { return c < a.c; }
+                };
+                cv * Q0 = (cv *) &next[0];
+                cv * Q1 = (cv *) &next[2*rs];
+                std::sort(Q0, Q1);
+            }
+        }
+
+        if (pass_number == 1) {
+            for(unsigned int j = 0 ; j < rs ; j ++) {
+                uint32_t cc = *next++;
+                unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
+                unsigned int col_index = cc % cols_chunk_small;
+                unsigned int group = row_group * n_col_groups + col_group;
+                if (!transpose)
                     thread_row_weights[group][row_index]++;
-                    /* on pass 1 we don't do next++ */
-                }
-            } else if (pass_number == 2) {
+                else
+                    thread_row_weights[group][col_index]++;
+                /* on pass 1 we don't do next++ */
+            }
+        } else if (pass_number == 2) {
+            if (!transpose) {
                 std::vector<uint32_t *> pointers;
                 pointers.reserve(n_col_groups);
                 for(unsigned int i = 0 ; i < n_col_groups ; i++) {
@@ -746,33 +755,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                     /* verify consistency with the first pass */
                     ASSERT_ALWAYS((pointers[col_group] - p0) == (1 + withcoeffs) * p0[-1]);
                 }
-            }
-        }
-    } else {
-        /* We're transposing, hence we're receiving fragments of columns,
-         * which begin with a _column_ index. No real point in sorting
-         * what we put in the rows (if done, it must be at the end).
-         */
-        for(auto next = Q.begin() ; next != Q.end() ; ) {
-            ASSERT_ALWAYS(next < Q.end());
-            uint32_t rr = *next++;
-            uint32_t rs = *next++;
-            if (pass_number == 2 && withcoeffs) rs/=2;
-
-            unsigned int n_row_groups = pi->wr[1]->ncores;
-            unsigned int n_col_groups = pi->wr[0]->ncores;
-            unsigned int row_group = (rr / rows_chunk_small) % n_row_groups;
-            unsigned int row_index = rr % rows_chunk_small;
-            if (pass_number == 1) {
-                for(unsigned int j = 0 ; j < rs ; j ++) {
-                    uint32_t cc = *next++;
-                    unsigned int col_group = (cc / cols_chunk_small) % n_col_groups;
-                    unsigned int col_index = cc % cols_chunk_small;
-                    unsigned int group = row_group * n_col_groups + col_group;
-                    thread_row_weights[group][col_index]++;
-                    /* on pass 1 we don't do next++ */
-                }
-            } else if (pass_number == 2) {
+            } else {
                 /* It's slightly harder than in the non-transposed case.
                  * We'll adjust the thread_row_positions each time we
                  * receive new stuff, and there's little sanity checking

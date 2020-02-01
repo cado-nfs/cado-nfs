@@ -126,8 +126,6 @@ double ram_gb = 3.0;    // Number of gigabytes. Note that this is the
 // considerably larger due to FFT allocation (by
 // a constant factor, though).
 
-#define CADO_MPI_MPZ_INTERNAL_SIZE_T MPI_INT
-
 static void usage()
 {
     fprintf(stderr, "usage: crtalgsqrt algdepfile ratdepfile polyfile\n");
