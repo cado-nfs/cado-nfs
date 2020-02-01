@@ -248,7 +248,7 @@ static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 }
 /*}}}*/
 
-int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag,
+int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
         int req, const char * reqname)
 {
     int prov;

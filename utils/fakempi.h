@@ -66,6 +66,7 @@ typedef int MPI_Request;
 
 #define MPI_ANY_TAG     -1
 #define MPI_ANY_SOURCE  -1
+#define MPI_UNDEFINED   -1
 
 /* Adding this pragma would yield the benefit of removing all the
  * MAYBE_UNUSED clutter which is inherent to this file. Unfortunately
