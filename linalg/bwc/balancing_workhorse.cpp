@@ -371,21 +371,32 @@ void dispatcher::reader_thread()/*{{{*/
 
     FILE * f = fopen(mfile.c_str(), "rb");
     ASSERT_ALWAYS(f);
+    struct stat sbuf[1];
     int rc = fseek(f, offset_per_reader[ridx], SEEK_SET);
+    ASSERT_ALWAYS(rc == 0);
+    rc = stat(mfile.c_str(), sbuf);
     ASSERT_ALWAYS(rc == 0);
 
     std::vector<uint32_t> row;
     std::vector<std::vector<uint32_t>> nodedata(nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
-    size_t queue_size_per_peer = 0;
+    size_t queue_size_per_peer = 1 << 16;
 
     std::vector<uint64_t> check_vector;
     if (pass_number == 2 && !check_vector_filename.empty())
         check_vector.assign(row1 - row0, 0);
 
+    /* display logarithmically-spaced reports until 1/100-th, and then
+     * split that evenly so that we print at most 20+log_2(size/nreaders/2^14)
+     * lines
+     */
     size_t z = 0;
     size_t last_z = 0;
+    size_t disp_z = 1 << 14;
+    for( ; disp_z * 20 < ((size_t) sbuf->st_size / nreaders) ; disp_z <<= 1);
+    size_t disp_zx = 1 << 14;
+
     double t0 = wct_seconds();
 
 #ifndef RELY_ON_MPI_THREAD_MULTIPLE
@@ -445,13 +456,17 @@ void dispatcher::reader_thread()/*{{{*/
             if (Q.size() >= queue_size_per_peer)
                 post_send(Q, group);
         }
-        if ((z - last_z) > (1 << 25) && ridx == 0) {
+        if ((z - last_z) > disp_zx && ridx == 0) {
             double dt = wct_seconds()-t0;
             if (dt <= 0) dt = 1e-9;
             fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s\n",
                     pass_number, pi->m->jrank, nreaders, size_disp(z), dt, size_disp(z / dt));
             fflush(stdout);
-            last_z = z;
+            if (disp_zx < disp_z) {
+                disp_zx <<= 1;
+            } else {
+                last_z = z;
+            }
         }
         progress();
     }
