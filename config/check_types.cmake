@@ -1,11 +1,36 @@
-# We need to know what exact type uint64_t is typedef'd to. The reason is
-# that some templates would otherwise resolve ambiguously if we define
-# both.
+# check_type_equality does _two_ things.
+#
+# 1 - check if the given type is exactly equal to one of the provided
+# types, and define the corresponding macro FOO_IS_EXACTLY_BAR. It is
+# not required that any of these succeeds. This is used to avoid
+# exposing templates that would be ambiguous.
+#
+# 2 - check if the given type is compatible (size and
+# signedness-wise) to one of the provided types, and define the
+# corresponding macro FOO_IS_COMPATIBLE_WITH_BAR.  It *is* required
+# that one of these succeeds. This is chiefly used to define MPI type
+# aliases.
+
 
 # include(CheckCXXSourceCompiles)
 include(${CADO_NFS_SOURCE_DIR}/config/cado_check_cxx_source_compiles.cmake)
 
-macro(testcode_type_eq type1 type2)
+macro(testcode_type_exact_eq type1 type2)
+    set(test_code "
+#include <type_traits>
+#include <stdint.h>
+#include <stdio.h>
+#include <gmp.h>
+int main()
+{
+    static_assert(std::is_same<${type1}, ${type2}>::value, \"not this type\");
+    return 0;
+}
+"
+)
+endmacro()
+
+macro(testcode_type_compatible_eq type1 type2)
     set(test_code "
 #include <type_traits>
 #include <stdint.h>
@@ -23,149 +48,68 @@ int main()
 )
 endmacro()
 
+set(CADO_C_NAME_UINT64_T "uint64_t")
+set(CADO_C_NAME_UINT32_T "uint32_t")
+set(CADO_C_NAME_INT64_T "int64_t")
+set(CADO_C_NAME_INT32_T "int32_t")
+set(CADO_C_NAME_UNSIGNED "unsigned int")
+set(CADO_C_NAME_INT "int")
+set(CADO_C_NAME_UNSIGNED_LONG "unsigned long")
+set(CADO_C_NAME_UNSIGNED_LONG_LONG "unsigned long long")
+set(CADO_C_NAME_LONG "long")
+set(CADO_C_NAME_LONG_LONG "long long")
+set(CADO_C_NAME_SIZE_T "size_t")
+set(CADO_C_NAME_SSIZE_T "ssize_t")
+set(CADO_C_NAME_MP_LIMB_T "mp_limb_t")
+set(CADO_C_NAME_MP_SIZE_T "mp_size_t")
+set(CADO_C_NAME_MPZ_INTERNAL_SIZE_T "decltype(__mpz_struct::_mp_size)")
+
 set(CMAKE_REQUIRED_LINK_OPTIONS)
 set(CMAKE_REQUIRED_LIBDIRS ${GMP_LIBDIR})
 set(CMAKE_REQUIRED_DEFINITIONS)
 set(CMAKE_REQUIRED_INCLUDES ${GMP_INCDIR})
 set(CMAKE_REQUIRED_LIBRARIES ${gmp_libname})
 
-testcode_type_eq("uint64_t" "unsigned long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" UINT64_T_IS_UNSIGNED_LONG)
-testcode_type_eq("uint64_t" "unsigned long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" UINT64_T_IS_UNSIGNED_LONG_LONG)
-if (UINT64_T_IS_UNSIGNED_LONG)
-    message(STATUS "uint64_t == unsigned long")
-    set(CADO_MPI_UINT64_T MPI_UNSIGNED_LONG)
-elseif (UINT64_T_IS_UNSIGNED_LONG_LONG)
-    message(STATUS "uint64_t == unsigned long long")
-    set(CADO_MPI_UINT64_T MPI_UNSIGNED_LONG_LONG)
-else()
-    message(FATAL_ERROR "uint64_t should be either unsigned long or unsigned long long")
-endif()
+macro(check_type_equality basetype)
+    set(found_compatible)
+    set(found_exact)
+    set(must_list)
+    foreach(t ${ARGN})
+        testcode_type_exact_eq("${CADO_C_NAME_${basetype}}" "${CADO_C_NAME_${t}}")
+        CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" ${basetype}_IS_EXACTLY_${t})
+        if(${basetype}_IS_EXACTLY_${t})
+            message(STATUS "${CADO_C_NAME_${basetype}} == ${CADO_C_NAME_${t}} (exact match)")
+            if(NOT found_compatible)
+                set(${basetype}_IS_COMPATIBLE_WITH_${t})
+                set(found_compatible 1)
+                set(CADO_MPI_${basetype} MPI_${t})
+            endif()
+        else()
+            testcode_type_compatible_eq("${CADO_C_NAME_${basetype}}" "${CADO_C_NAME_${t}}")
+            CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" ${basetype}_IS_COMPATIBLE_WITH_${t})
+            if(${basetype}_IS_COMPATIBLE_WITH_${t})
+                message(STATUS "${CADO_C_NAME_${basetype}} == ${CADO_C_NAME_${t}} (compatibility match)")
+                if(NOT found_compatible)
+                    # keep only the first match.
+                    set(found_compatible 1)
+                    set(CADO_MPI_${basetype} MPI_${t})
+                endif()
+            endif()
+        endif()
+        list(APPEND must_list "${CADO_C_NAME_${t}}")
+    endforeach()
+    if(NOT found_compatible)
+        string(JOIN " or " must ${must_list})
+        message(FATAL_ERROR "${CADO_C_NAME_${basetype}} must be either unsigned long or unsigned long long")
+    endif()
+endmacro()
 
-
-testcode_type_eq("uint32_t" "unsigned long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" UINT32_T_IS_UNSIGNED_LONG)
-testcode_type_eq("uint32_t" "unsigned int")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" UINT32_T_IS_UNSIGNED_INT)
-if (UINT32_T_IS_UNSIGNED_LONG)
-    message(STATUS "uint32_t == unsigned long")
-    set(CADO_MPI_UINT32_T MPI_UNSIGNED_LONG)
-elseif (UINT32_T_IS_UNSIGNED_INT)
-    message(STATUS "uint32_t == unsigned int")
-    set(CADO_MPI_UINT32_T MPI_UNSIGNED)
-else()
-    message(FATAL_ERROR "uint32_t should be either unsigned long or unsigned int")
-endif()
-
-testcode_type_eq("int64_t" "long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" INT64_T_IS_LONG_LONG)
-testcode_type_eq("int64_t" "long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" INT64_T_IS_LONG)
-if (INT64_T_IS_LONG)
-    message(STATUS "int64_t == long")
-    set(CADO_MPI_INT64_T MPI_LONG)
-elseif (INT64_T_IS_LONG_LONG)
-    message(STATUS "int64_t == long long")
-    set(CADO_MPI_INT64_T MPI_LONG_LONG)
-else()
-    message(FATAL_ERROR "int64_t should be either long or long long")
-endif()
-
-
-testcode_type_eq("int32_t" "long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" INT32_T_IS_LONG)
-testcode_type_eq("int32_t" "int")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" INT32_T_IS_INT)
-if (INT32_T_IS_LONG)
-    message(STATUS "int32_t == long")
-    set(CADO_MPI_INT32_T MPI_LONG)
-elseif (INT32_T_IS_INT)
-    message(STATUS "int32_t == int")
-    set(CADO_MPI_INT32_T MPI_INT)
-else()
-    message(FATAL_ERROR "int32_t should be either long or int")
-endif()
-
-
-testcode_type_eq("size_t" "unsigned long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" SIZE_T_IS_UNSIGNED_LONG)
-testcode_type_eq("size_t" "unsigned long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" SIZE_T_IS_UNSIGNED_LONG_LONG)
-if (SIZE_T_IS_UNSIGNED_LONG)
-    message(STATUS "size_t == unsigned long")
-    set(CADO_MPI_SIZE_T MPI_UNSIGNED_LONG)
-elseif (SIZE_T_IS_UNSIGNED_LONG_LONG)
-    message(STATUS "size_t == unsigned long long")
-    set(CADO_MPI_SIZE_T MPI_UNSIGNED_LONG_LONG)
-else()
-    message(FATAL_ERROR "size_t should be either unsigned long or unsigned long long")
-endif()
-
-testcode_type_eq("ssize_t" "long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" SSIZE_T_IS_LONG)
-testcode_type_eq("ssize_t" "long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" SSIZE_T_IS_LONG_LONG)
-if (SSIZE_T_IS_LONG)
-    message(STATUS "ssize_t == long")
-    set(CADO_MPI_SSIZE_T MPI_LONG)
-elseif (SSIZE_T_IS_LONG_LONG)
-    message(STATUS "ssize_t == long long")
-    set(CADO_MPI_SSIZE_T MPI_LONG_LONG)
-else()
-    message(FATAL_ERROR "ssize_t should be either long or long long")
-endif()
-
-testcode_type_eq("mp_limb_t" "unsigned long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MP_LIMB_T_IS_UNSIGNED_LONG)
-testcode_type_eq("mp_limb_t" "unsigned long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MP_LIMB_T_IS_UNSIGNED_LONG_LONG)
-if (MP_LIMB_T_IS_UNSIGNED_LONG)
-    message(STATUS "mp_limb_t == unsigned long")
-    set(CADO_MPI_MP_LIMB_T MPI_UNSIGNED_LONG)
-elseif (MP_LIMB_T_IS_UNSIGNED_LONG_LONG)
-    message(STATUS "mp_limb_t == unsigned long long")
-    set(CADO_MPI_MP_LIMB_T MPI_UNSIGNED_LONG_LONG)
-else()
-    message(FATAL_ERROR "mp_limb_t should be either unsigned long or unsigned long long")
-endif()
-
-
-testcode_type_eq("mp_size_t" "long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MP_SIZE_T_IS_LONG_LONG)
-testcode_type_eq("mp_size_t" "long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MP_SIZE_T_IS_LONG)
-testcode_type_eq("mp_size_t" "int")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MP_SIZE_T_IS_INT)
-if (MP_SIZE_T_IS_LONG)
-    message(STATUS "mp_size_t == long")
-    set(CADO_MPI_MP_SIZE_T MPI_LONG)
-elseif (MP_SIZE_T_IS_LONG_LONG)
-    message(STATUS "mp_size_t == long long")
-    set(CADO_MPI_MP_SIZE_T MPI_LONG_LONG)
-elseif (MP_SIZE_T_IS_INT)
-    message(STATUS "mp_size_t == int")
-    set(CADO_MPI_MP_SIZE_T MPI_INT)
-else()
-    message(FATAL_ERROR "mp_size_t should be either long or int")
-endif()
-
-testcode_type_eq("decltype(__mpz_struct::_mp_size)" "long long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MPZ_INTERNAL_SIZE_T_IS_LONG_LONG)
-testcode_type_eq("decltype(__mpz_struct::_mp_size)" "long")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MPZ_INTERNAL_SIZE_T_IS_LONG)
-testcode_type_eq("decltype(__mpz_struct::_mp_size)" "int")
-CADO_CHECK_CXX_SOURCE_COMPILES("${test_code}" MPZ_INTERNAL_SIZE_T_IS_INT)
-if (MP_SIZE_T_IS_LONG)
-    message(STATUS "decltype(__mpz_struct::_mp_size) == long")
-    set(CADO_MPI_MPZ_INTERNAL_SIZE_T MPI_LONG)
-elseif (MP_SIZE_T_IS_LONG_LONG)
-    message(STATUS "decltype(__mpz_struct::_mp_size) == long long")
-    set(CADO_MPI_MPZ_INTERNAL_SIZE_T MPI_LONG_LONG)
-elseif (MP_SIZE_T_IS_INT)
-    message(STATUS "decltype(__mpz_struct::_mp_size) == int")
-    set(CADO_MPI_MPZ_INTERNAL_SIZE_T MPI_INT)
-else()
-    message(FATAL_ERROR "decltype(__mpz_struct::_mp_size) should be either long or int")
-endif()
-
+check_type_equality(UINT64_T  UNSIGNED_LONG UNSIGNED_LONG_LONG)
+check_type_equality(SIZE_T    UNSIGNED_LONG UNSIGNED_LONG_LONG)
+check_type_equality(MP_LIMB_T UNSIGNED_LONG UNSIGNED_LONG_LONG)
+check_type_equality(UINT32_T UNSIGNED_LONG UNSIGNED)
+check_type_equality(INT64_T LONG LONG_LONG)
+check_type_equality(SSIZE_T LONG LONG_LONG)
+check_type_equality(INT32_T LONG INT)
+check_type_equality(MP_SIZE_T           LONG_LONG LONG INT)
+check_type_equality(MPZ_INTERNAL_SIZE_T LONG_LONG LONG INT)
