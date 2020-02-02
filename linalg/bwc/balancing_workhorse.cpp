@@ -239,7 +239,7 @@ void dispatcher::post_send(std::vector<uint32_t> & Q, unsigned int k)/*{{{*/
         Q.clear();
         return;
     }
-    MPI_Request req;
+    MPI_Request req MAYBE_UNUSED;      /* compiler sees it unused in the non-mpi case */
     MPI_Isend(&Q[0], Q.size(), CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
     outstanding.push_back(req);
     outstanding_queues.emplace_back(std::move(Q));
@@ -264,7 +264,7 @@ void dispatcher::post_semaphore_nonblocking(unsigned int k)/*{{{*/
     if (k == pi->m->jrank) return;
     /* do it non-blocking */
     uint32_t z = UINT32_MAX;
-    MPI_Request req;
+    MPI_Request req MAYBE_UNUSED;      /* compiler sees it unused in the non-mpi case */
     MPI_Isend(&z, 1, CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
     outstanding.push_back(req);
     /* just for the show. We need progress() to find data that is
