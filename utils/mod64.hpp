@@ -27,6 +27,7 @@ public:
         typedef bool IsResidueType;
         Residue() = delete;
         Residue(const Modulus &m MAYBE_UNUSED) : r(0) {}
+        Residue(const Modulus &m MAYBE_UNUSED, const Residue &s) : r(s.r) {}
         Residue(const Residue &&s) : r(s.r) {}
     protected:
         Residue &operator=(const Residue &s) {r = s.r; return *this;}
@@ -60,6 +61,28 @@ public:
     void getmod (Integer &r) const {r = m;}
 
     /* Methods for residues */
+
+    /** Allocate an array of len residues.
+     *
+     * Must be freed with deleteArray(), not with delete[].
+     */
+    Residue *newArray(const size_t len) const {
+        void *t = operator new[](len * sizeof(Residue));
+        if (t == NULL)
+            return NULL;
+        Residue *ptr = static_cast<Residue *>(t);
+        for(size_t i = 0; i < len; i++) {
+            new(&ptr[i]) Residue(*this);
+        }
+        return ptr;
+    }
+
+    void deleteArray(Residue *ptr, const size_t len) const {
+        for(size_t i = len; i > 0; i++) {
+            ptr[i - 1].~Residue();
+        }
+        operator delete[](ptr);
+    }
 
     void set (Residue &r, const Residue &s) const {assertValid(s); r = s;}
     void set (Residue &r, const uint64_t s) const {r.r = s % m;}
@@ -154,6 +177,25 @@ public:
       }
     }
 
+  /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
+   * r can be the same variable as a or b but must not be the same variable as d.
+   */
+  void V_dadd (Residue &r, const Residue &a, const Residue &b,
+               const Residue &d) const {
+    ASSERT (&r != &d);
+    mul (r, a, b);
+    sub (r, r, d);
+  }
+
+  /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
+   * r can be the same variable as a but must not be the same variable as two.
+   */
+  void V_dbl (Residue &r, const Residue &a, const Residue &two) const {
+    ASSERT (&r != &two);
+    sqr (r, a);
+    sub (r, r, two);
+  }
+
   /* prototypes of non-inline functions */
   bool div3 (Residue &, const Residue &) const;
   bool div5 (Residue &, const Residue &) const;
@@ -171,6 +213,8 @@ public:
   void V (Residue &, const Residue &, const uint64_t) const;
   void V (Residue &, const Residue &, const uint64_t *, const size_t) const;
   void V (Residue &, const Residue &, const Integer &) const;
+  void V (Residue &r, Residue *rp1, const Residue &b,
+          const uint64_t k) const;
   bool sprp (const Residue &) const;
   bool sprp2 () const;
   bool isprime () const;

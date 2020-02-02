@@ -137,7 +137,7 @@ mpz_get_int64 (mpz_srcptr z)
 }
 
 int
-mpz_fits_int64_p (mpz_srcptr z)
+mpz_fits_sint64_p (mpz_srcptr z)
 {
     size_t l = mpz_sizeinbase(z, 2);
     if (l <= 63) return 1;

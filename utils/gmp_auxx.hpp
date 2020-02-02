@@ -67,6 +67,53 @@ inline void mpz_init_set (mpz_ptr a, const uint64_t b) {
     mpz_init_set_uint64(a, b);
 }
 
+/* Template parameter U is just for SFINAE */
+template <typename T, typename U = void>
+inline bool mpz_fits (mpz_srcptr);
+
+template <>
+inline bool mpz_fits<short> (mpz_srcptr v) {
+    return mpz_fits_sshort_p(v);
+}
+
+template <>
+inline bool mpz_fits<unsigned short> (mpz_srcptr v) {
+    return mpz_fits_ushort_p(v);
+}
+
+template <>
+inline bool mpz_fits<int> (mpz_srcptr v) {
+    return mpz_fits_sint_p(v);
+}
+
+template <>
+inline bool mpz_fits<unsigned int> (mpz_srcptr v) {
+    return mpz_fits_uint_p(v);
+}
+
+template <>
+inline bool mpz_fits<long> (mpz_srcptr v) {
+    return mpz_fits_slong_p(v);
+}
+
+template <>
+inline bool mpz_fits<unsigned long> (mpz_srcptr v) {
+    return mpz_fits_ulong_p(v);
+}
+
+/* Avoid redefinition in case uint64_t is typedefined to unsigned long. 
+ * We can't use overloading to handle this case as uint64_t does not
+ * actually appear anywhere in the function signature. */
+template <>
+inline bool mpz_fits<uint64_t, std::enable_if<!integral_fits<uint64_t, unsigned long>::value, bool> > (mpz_srcptr v) {
+    return mpz_fits_uint64_p(v);
+}
+
+template <>
+inline bool mpz_fits<int64_t, std::enable_if<!integral_fits<int64_t, long>::value, bool> > (mpz_srcptr v) {
+    return mpz_fits_sint64_p(v);
+}
+
 static inline int mpz_cmp (mpz_srcptr a, mpz_srcptr b) {
     return ::mpz_cmp(a, b);
 }

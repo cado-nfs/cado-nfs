@@ -48,6 +48,7 @@ fprintRow(FILE *file, typerow_t *row)
 //
 // Also update the data for the index file, if needed (i.e. if the given
 // pointer is not NULL).
+// If rows = NULL, do not update the matrix.
 void
 addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
                    index_t i1, index_t i2, MAYBE_UNUSED index_t j)
@@ -65,8 +66,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
     fprintf(stderr, "R[%d] =", i2); fprintRow(stderr, rows[i2]);
     fprintf(stderr, "\n");
 #endif
-    len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
-    tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
 #ifdef FOR_DL /* look for the exponents of j in i1 i2*/
     int e1 = 0, e2 = 0;
@@ -97,6 +96,11 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
 
 #endif
 
+    if (rows == NULL)
+      goto update_index_data;
+
+    len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
+    tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
     // loop while everybody is here
     k = k1 = k2 = 1;
@@ -156,7 +160,7 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
         rows[i2][l].e /= e1;
 #endif
 
-
+ update_index_data:
     // Now, deal with the index_data.
     if (index_data != NULL) {
         k = k1 = k2 = 0;   // in index_data_t, we count from 0...

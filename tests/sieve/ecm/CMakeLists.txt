@@ -67,3 +67,6 @@ add_order_test(em12 4 1000000000 1000001000)
 cado_define_test(test_mpqs.c LIBRARIES tests facul utils)
 
 cado_define_test(test_chains.c LIBRARIES tests facul utils)
+
+cado_define_test(test_Weierstrass.cpp LIBRARIES tests facul utils
+                 ARGUMENTS ${CADO_NFS_SOURCE_DIR}/tests/sieve/ecm/test_Weierstrass.input)

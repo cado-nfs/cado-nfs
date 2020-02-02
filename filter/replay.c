@@ -375,6 +375,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
 //     row[-i-1] is to be added to rows i1...ik and NOT destroyed.
 //
 // If given, j is the index of the column used for pivoting (used in DL).
+// If newrows=NULL, we only compute the index.
 static void
 doAllAdds(typerow_t **newrows, char *str, index_data_t index_data)
 {
@@ -404,8 +405,11 @@ doAllAdds(typerow_t **newrows, char *str, index_data_t index_data)
   if(destroy)
     {
       //destroy initial row!
-      free(newrows[i0]);
-      newrows[i0] = NULL;
+      if (newrows != NULL)
+        {
+          free(newrows[i0]);
+          newrows[i0] = NULL;
+        }
 
       if (index_data != NULL) // ie we want an index
       {
@@ -444,6 +448,7 @@ toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
     fflush(stdout);
 }
 
+/* If newrows = NULL, only compute the index */
 static void
 build_newrows_from_file(typerow_t **newrows, FILE *hisfile,
                         index_data_t index_data, index_t nrows, index_t Nmax)
@@ -484,6 +489,8 @@ typedef struct
 {
   typerow_t **mat;
   index_t ncols;
+  index_t col0;
+  index_t colmax;
 } replay_read_data_t;
 
 void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
@@ -491,28 +498,31 @@ void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
   replay_read_data_t *data = (replay_read_data_t *) context_data;
   typerow_t buf[UMAX(weight_t)];
 
+  unsigned int nb = 0;
   for (unsigned int j = 0; j < rel->nb; j++)
   {
     index_t h = rel->primes[j].h;
+    if (h < data->col0 || h >= data->colmax) continue;
+    nb++;
 #ifdef FOR_DL
     exponent_t e = rel->primes[j].e;
-    buf[j+1] = (ideal_merge_t) {.id = h, .e = e};
+    buf[nb] = (ideal_merge_t) {.id = h, .e = e};
 #else
     ASSERT_ALWAYS (rel->primes[j].e == 1);
-    buf[j+1] = h;
+    buf[nb] = h;
 #endif
     ASSERT (h < data->ncols);
   }
 #ifdef FOR_DL
-  buf[0].id = rel->nb;
+  buf[0].id = nb;
 #else
-  buf[0] = rel->nb;
+  buf[0] = nb;
 #endif
 
-  qsort (&(buf[1]), rel->nb, sizeof(typerow_t), cmp_typerow_t);
+  qsort (&(buf[1]), nb, sizeof(typerow_t), cmp_typerow_t);
 
-  data->mat[rel->num] = mallocRow (rel->nb + 1);
-  compressRow (data->mat[rel->num], buf, rel->nb);
+  data->mat[rel->num] = mallocRow (nb + 1);
+  compressRow (data->mat[rel->num], buf, nb);
 
   return NULL;
 }
@@ -532,7 +542,7 @@ void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
 
 static void
 read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
-                 index_t ncols, int for_msieve)
+                 index_t ncols, index_t col0, index_t colmax, int for_msieve)
 {
   index_t nread;
   if (for_msieve == 0)
@@ -540,7 +550,12 @@ read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
     printf("Reading sparse matrix from %s\n", filename);
     fflush(stdout);
     char *fic[2] = {(char *) filename, NULL};
-    replay_read_data_t tmp = (replay_read_data_t) {.mat= mat, .ncols = ncols};
+    replay_read_data_t tmp = (replay_read_data_t) {
+        .mat= mat,
+        .ncols = ncols,
+        .col0 = col0,
+        .colmax = colmax,
+    };
     nread = filter_rels(fic, (filter_rels_callback_t) &fill_in_rows, &tmp,
                         EARLYPARSE_NEED_INDEX, NULL, NULL);
     ASSERT_ALWAYS (nread == nrows);
@@ -625,7 +640,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
 {
   FILE *hisfile = NULL;
   index_t *colweight = NULL;
-  index_t small_nrows, small_ncols;
+  index_t small_nrows = 0, small_ncols;
   index_data_t index_data = NULL;
 
   hisfile = fopen_maybe_compressed (hisname, "r");
@@ -654,21 +669,24 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
   /* read merges in the *.merge.his file and replay them */
   build_newrows_from_file (newrows, hisfile, index_data, nrows, Nmax);
 
-  /* crunch empty rows first to save memory and compute small_nrows */
-  index_t j = 0;
-  for (index_t i = 0; i < nrows; i++)
-    if (newrows[i] != NULL)
-      newrows[j++] = newrows[i]; /* we always have j <= i */
-  small_nrows = j;
-  newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
-  ASSERT_ALWAYS (newrows != NULL);
+  if (sparsename != NULL)
+    {
+      /* crunch empty rows first to save memory and compute small_nrows */
+      index_t j = 0;
+      for (index_t i = 0; i < nrows; i++)
+        if (newrows[i] != NULL)
+          newrows[j++] = newrows[i]; /* we always have j <= i */
+      small_nrows = j;
+      newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
+      ASSERT_ALWAYS (newrows != NULL);
+    }
 
   /* if index was asked: crunch the empty rows as above, create the index and
    * free index_data before calling toFlush(), in order to decrease the total
    * memory usage */
   if (indexname != NULL)
   {
-    j = 0;
+    index_t j = 0;
     for (index_t i = 0; i < nrows; i++)
     {
       if (index_data[i].n > 0)
@@ -676,7 +694,10 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
       else
         free(index_data[i].rels);
     }
-    ASSERT (j == small_nrows);
+    if (sparsename != NULL)
+      ASSERT_ALWAYS (j == small_nrows);
+    else
+      small_nrows = j;
 
     writeIndex (indexname, index_data, small_nrows);
 
@@ -684,6 +705,9 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
       free (index_data[i].rels);
     free (index_data);
   }
+
+  if (sparsename == NULL)
+    goto close_and_exit;
 
   /* compute column weights */
   colweight = (index_t*) malloc (ncols * sizeof(index_t));
@@ -736,7 +760,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
         }
       generate_cyc (sparsename, newrows, small_nrows);
     }
-  else
+  else if (sparsename != NULL)
     /* renumber columns after sorting them by decreasing weight */
     toFlush (sparsename, newrows, colweight, ncols, small_nrows, small_ncols,
              skip, bin, idealsfilename);
@@ -747,6 +771,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
     free (newrows[i]);
   free (newrows);
 
+ close_and_exit:
   fclose_maybe_compressed (hisfile, hisname);
 }
 
@@ -777,6 +802,10 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "for_msieve", "output matrix in msieve format");
   param_list_decl_usage(pl, "Nmax", "stop at Nmax number of rows (default 0)");
+#ifndef FOR_DL
+  param_list_decl_usage(pl, "col0", "print only columns with index >= col0");
+  param_list_decl_usage(pl, "colmax", "print only columns with index < colmax");
+#endif
   verbose_decl_usage(pl);
 }
 
@@ -800,7 +829,7 @@ main(int argc, char *argv[])
   uint64_t Nmax = 0;
   uint64_t nrows, ncols;
   typerow_t **newrows;
-  int bin, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
+  int bin = -1, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
   double cpu0 = seconds ();
   double wct0 = wct_seconds ();
 
@@ -843,6 +872,14 @@ main(int argc, char *argv[])
     param_list_parse_uint64(pl, "Nmax", &Nmax);
     const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
 
+    index_t col0 = 0;
+    index_t colmax = UMAX(index_t);
+
+#ifndef FOR_DL
+    { uint64_t c; if (param_list_parse_uint64(pl, "col0", &c))   col0 = c; }
+    { uint64_t c; if (param_list_parse_uint64(pl, "colmax", &c)) colmax = c; }
+#endif
+
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
     {
@@ -855,16 +892,16 @@ main(int argc, char *argv[])
       fprintf(stderr, "Error, missing -purged command line argument\n");
       usage(pl, argv0);
     }
-    if (sparsename == NULL)
-    {
-      fprintf(stderr, "Error, missing -out command line argument\n");
-      usage(pl, argv0);
-    }
     if (hisname == NULL)
     {
       fprintf(stderr, "Error, missing -his command line argument\n");
       usage(pl, argv0);
     }
+    if (sparsename == NULL && indexname == NULL)
+      {
+        fprintf(stderr, "Error, at least one of -out and -index is required\n");
+        usage(pl, argv0);
+      }
 #ifdef FOR_DL
     if (idealsfilename == NULL)
     {
@@ -873,21 +910,30 @@ main(int argc, char *argv[])
     }
     ASSERT_ALWAYS (skip == 0);
 #endif
-    if (has_suffix(sparsename, ".bin") || has_suffix(sparsename, ".bin.gz"))
-    {
-      bin = 1;
-      printf ("# Output matrices will be written in binary format\n");
-    }
-    else
-    {
-      bin = 0;
-      printf ("# Output matrices will be written in text format\n");
-    }
+    if (sparsename != NULL)
+      {
+        if (has_suffix(sparsename, ".bin") || has_suffix(sparsename, ".bin.gz"))
+          {
+            bin = 1;
+            printf ("# Output matrices will be written in binary format\n");
+          }
+        else
+          {
+            bin = 0;
+            printf ("# Output matrices will be written in text format\n");
+          }
+      }
 
     set_antebuffer_path (argv0, path_antebuffer);
 
   /* Read number of rows and cols on first line of purged file */
   purgedfile_read_firstline (purgedname, &nrows, &ncols);
+  if (nrows >= 4294967296UL)
+    {
+      fprintf (stderr, "Error, cannot handle 2^32 rows or more after purge\n");
+      fprintf (stderr, "change ind_row from uint32_t to uint64_t in sparse.h\n");
+      exit (EXIT_FAILURE);
+    }
   printf("Sparse matrix has %" PRIu64 " rows and %" PRIu64 " cols\n",
          nrows, ncols);
   fflush(stdout);
@@ -900,21 +946,29 @@ main(int argc, char *argv[])
 #endif
 
   /* Allocate memory for rows of the matrix */
-  newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
-  ASSERT_ALWAYS(newrows != NULL);
+  if (sparsename != NULL)
+    {
+      newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
+      ASSERT_ALWAYS(newrows != NULL);
+    }
+  else
+    newrows = NULL;
 
   /* Read the matrix from purgedfile */
-  read_purgedfile (newrows, purgedname, nrows, ncols, for_msieve);
-  printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
-  fflush(stdout);
+  if (sparsename != NULL)
+    {
+      read_purgedfile (newrows, purgedname, nrows, ncols, col0, colmax, for_msieve);
+      printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
+      fflush(stdout);
 #if DEBUG >=1
-  for (index_t i = 0; i < nrows; i++)
-  {
-    fprintf(stderr, "row[%" PRIu64 "] :", i);
-    fprintRow(stderr, newrows[i]);
-    fprintf(stderr, "\n");
-  }
+      for (index_t i = 0; i < nrows; i++)
+        {
+          fprintf(stderr, "row[%" PRIu64 "] :", i);
+          fprintRow(stderr, newrows[i]);
+          fprintf(stderr, "\n");
+        }
 #endif
+    }
 
   fasterVersion (newrows, sparsename, indexname, hisname, nrows, ncols, skip,
                  bin, idealsfilename, for_msieve, Nmax);

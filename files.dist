@@ -356,6 +356,8 @@ sieve/ecm/ec_arith_common.h
 sieve/ecm/ec_arith_Edwards.h
 sieve/ecm/ec_arith_Montgomery.h
 sieve/ecm/ec_arith_Weierstrass.h
+sieve/ecm/ec_arith_Weierstrass_new.hpp
+sieve/ecm/ec_arith_Weierstrass_new.cpp
 sieve/ecm/ec_parameterization.h
 sieve/ecm/facul.cpp
 sieve/ecm/facul.hpp
@@ -565,6 +567,8 @@ tests/sieve/ecm/test_mpqs.c
 tests/sieve/ecm/test_testbench.sh
 tests/sieve/ecm/generate_test_files.sage
 tests/sieve/ecm/test_chains.c
+tests/sieve/ecm/test_Weierstrass.cpp
+tests/sieve/ecm/test_Weierstrass.input
 tests/polyselect/CMakeLists.txt
 tests/polyselect/test_auxiliary.c
 tests/polyselect/test_rho.c

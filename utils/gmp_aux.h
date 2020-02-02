@@ -73,7 +73,7 @@ extern void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern void mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
 extern int mpz_fits_uint64_p(mpz_srcptr);
-extern int mpz_fits_int64_p(mpz_srcptr);
+extern int mpz_fits_sint64_p(mpz_srcptr);
 extern int mpz_divisible_uint64_p (mpz_ptr a, uint64_t c);
 extern uint64_t uint64_nextprime (uint64_t);
 static inline void mpz_uint64_sub (mpz_ptr a, const uint64_t b, mpz_srcptr c) {
@@ -103,7 +103,7 @@ static inline void mpz_submul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c)
 static inline void mpz_divexact_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_divexact_ui(a, b, c);}
 static inline void mpz_mul_int64 (mpz_ptr a, mpz_srcptr b, const int64_t c) {mpz_mul_si(a, b, c);}
 static inline int mpz_fits_uint64_p(mpz_srcptr a) {return mpz_fits_ulong_p(a);}
-static inline int mpz_fits_int64_p(mpz_srcptr a) {return mpz_fits_slong_p(a);}
+static inline int mpz_fits_sint64_p(mpz_srcptr a) {return mpz_fits_slong_p(a);}
 static inline int mpz_divisible_uint64_p (mpz_ptr a, const uint64_t c) {return mpz_divisible_ui_p(a, c);}
 static inline uint64_t uint64_nextprime (uint64_t a) {return (uint64_t) ulong_nextprime(a);}
 static inline void mpz_uint64_sub(mpz_ptr a, const uint64_t b, mpz_srcptr c) {mpz_ui_sub(a, b, c);}
