@@ -829,7 +829,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                     size_t pos0 = thread_row_positions[group][row_index];
                     uint32_t * p0 = matrix + pos0;
                     /* verify consistency with the first pass */
-                    ASSERT_ALWAYS((pointers[col_group] - p0) == (1 + withcoeffs) * p0[-1]);
+                    ASSERT_ALWAYS((pointers[col_group] - p0) == (ptrdiff_t) ((1 + withcoeffs) * p0[-1]));
                 }
             } else {
                 /* It's slightly harder than in the non-transposed case.
