@@ -78,7 +78,8 @@ Check if given C++ source compiles and links into an executable.
 
 #]=======================================================================]
 
-include_guard(GLOBAL)
+# we want this to work with oldish cmake, so no include_guard
+# include_guard(GLOBAL)
 
 macro(CADO_CHECK_CXX_SOURCE_COMPILES SOURCE VAR)
   if(NOT DEFINED "${VAR}")
