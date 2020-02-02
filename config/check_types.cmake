@@ -13,8 +13,8 @@ macro(testcode_type_eq type1 type2)
 int main()
 {
     static_assert(std::is_same<${type1}, ${type2}>::value ||
-        sizeof(${type1}) == sizeof(${type2})
-        && std::is_signed<${type1}>::value == std::is_signed<${type2}>::value
+        (sizeof(${type1}) == sizeof(${type2})
+        && std::is_signed<${type1}>::value == std::is_signed<${type2}>::value)
         , \"not this type\");
     return 0;
 }
@@ -22,9 +22,9 @@ int main()
 )
 endmacro()
 
-set(CMAKE_REQUIRED_FLAGS)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L${GMP_LIBDIR})
 set(CMAKE_REQUIRED_DEFINITIONS)
-set(CMAKE_REQUIRED_INCLUDES)
+set(CMAKE_REQUIRED_INCLUDES ${GMP_INCDIR})
 set(CMAKE_REQUIRED_LIBRARIES ${gmp_libname})
 
 testcode_type_eq("uint64_t" "unsigned long")
@@ -34,7 +34,7 @@ CHECK_CXX_SOURCE_COMPILES("${test_code}" UINT64_T_IS_UNSIGNED_LONG_LONG)
 if (UINT64_T_IS_UNSIGNED_LONG)
     message(STATUS "uint64_t == unsigned long")
     set(CADO_MPI_UINT64_T MPI_UNSIGNED_LONG)
-elseif (SIZE_T_IS_UNSIGNED_LONG_LONG)
+elseif (UINT64_T_IS_UNSIGNED_LONG_LONG)
     message(STATUS "uint64_t == unsigned long long")
     set(CADO_MPI_UINT64_T MPI_UNSIGNED_LONG_LONG)
 else()
@@ -63,7 +63,7 @@ CHECK_CXX_SOURCE_COMPILES("${test_code}" INT64_T_IS_LONG)
 if (INT64_T_IS_LONG)
     message(STATUS "int64_t == long")
     set(CADO_MPI_INT64_T MPI_LONG)
-elseif (SIZE_T_IS_LONG_LONG)
+elseif (INT64_T_IS_LONG_LONG)
     message(STATUS "int64_t == long long")
     set(CADO_MPI_INT64_T MPI_LONG_LONG)
 else()
