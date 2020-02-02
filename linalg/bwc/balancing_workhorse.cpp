@@ -156,10 +156,13 @@ struct dispatcher {/*{{{*/
     int pass_number;
 
     /* reader stuff */
+    std::vector<size_t> bytes_per_reader;
     std::vector<size_t> offset_per_reader;
+    std::vector<uint32_t> row0_per_reader;
     std::vector<uint32_t> fw_rowperm; // fragmented among all readers.
     std::vector<uint32_t> fw_colperm; // identical at all nodes
     void reader_compute_offsets();
+    unsigned int row0, row1;
     void reader_fill_index_maps();
     void reader_thread();
 
@@ -320,10 +323,8 @@ void dispatcher::progress(bool wait)/*{{{*/
 
 void dispatcher::reader_compute_offsets()/*{{{*/
 {
-    subdivision readers_rows(bal->h->nrows, nreaders);
+    ASSERT_ALWAYS(is_reader());
     unsigned int ridx = readers_index[pi->m->jrank];
-    unsigned int row0 = readers_rows.nth_block_start(ridx);
-    unsigned int row1 = readers_rows.nth_block_end(ridx);
 
     // Let R == nreaders.
     // All R nodes read from the rw file and deduce the byte size of the
@@ -335,6 +336,15 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         free(tmp);
     }
     bool can_read_rw = access(rwfile.c_str(), R_OK) == 0;
+
+    bytes_per_reader.assign(nreaders, 0);
+
+#if 0
+    /* This the naive-optimistic approach where we expect all row
+     * fragments in the matrix to have equal size */
+    subdivision readers_rows(bal->h->nrows, nreaders);
+    unsigned int row0 = readers_rows.nth_block_start(ridx);
+    unsigned int row1 = readers_rows.nth_block_end(ridx);
     ASSERT_ALWAYS(!is_reader() || can_read_rw);
     FILE * frw = fopen(rwfile.c_str(), "rb");
     ASSERT_ALWAYS(frw);
@@ -343,11 +353,9 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     int r = fread(&rw[0], sizeof(uint32_t), row1-row0, frw);
     ASSERT_ALWAYS(r == (int) (row1 - row0));
     fclose(frw);
-    std::vector<size_t> bytes_per_reader(nreaders, 0);
     for(unsigned int i = row0 ; i < row1 ; i++) {
         bytes_per_reader[ridx] += sizeof(uint32_t) * (1 + rw[i - row0] * (1 + withcoeffs));
     }
-
     // This data is then allgathered into an array of R integers. Each
     // node thus determines at which offset it should read from the main
     // matrix.
@@ -355,6 +363,68 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     MPI_Allgather(MPI_IN_PLACE, 0, 0,
             &bytes_per_reader[0], 1, CADO_MPI_SIZE_T,
             reader_comm);
+#else
+
+    row0_per_reader.assign(nreaders, 0);
+    row0_per_reader.push_back(bal->h->nrows);
+
+    if (ridx == 0) {
+        int rc;
+        struct stat sbuf[1];
+        rc = stat(mfile.c_str(), sbuf);
+        ASSERT_ALWAYS(rc == 0);
+        size_t matsize = sbuf->st_size;
+        ASSERT_ALWAYS(can_read_rw);
+        FILE * frw = fopen(rwfile.c_str(), "rb");
+        ASSERT_ALWAYS(frw);
+        rc = fseek(frw, 0, SEEK_END);
+        ASSERT_ALWAYS(rc == 0);
+        long endpos = ftell(frw);
+        ASSERT_ALWAYS(endpos >= 0);
+        ASSERT_ALWAYS((size_t) endpos == bal->h->nrows * sizeof(uint32_t));
+        rc = fseek(frw, 0, SEEK_SET);
+        ASSERT_ALWAYS(rc == 0);
+        std::vector<uint32_t> rw(bal->h->nrows,0);
+        rc = fread(&rw[0], sizeof(uint32_t), bal->h->nrows, frw);
+        ASSERT_ALWAYS(rc == (int) bal->h->nrows);
+        fclose(frw);
+
+        uint32_t r = 0;
+        size_t s = 0;
+        size_t last_s = 0;
+        size_t qsize = matsize / nreaders;
+        int rsize = matsize % nreaders;
+        for(int i = 1 ; i < nreaders ; i++) {
+            /* want to find first row for reader i */
+            size_t want = i * qsize + (i < rsize);
+            for( ; r < bal->h->nrows && s < want ; )
+                s += sizeof(uint32_t) * (1 + rw[r++] * (1 + withcoeffs));
+            /* start it at row r */
+            row0_per_reader[i] = r;
+            bytes_per_reader[i-1] = s-last_s;
+            last_s = s;
+        }
+        /* finish the table for consistency */
+        for( ; r < bal->h->nrows ; )
+            s += sizeof(uint32_t) * (1 + rw[r++] * (1 + withcoeffs));
+        ASSERT_ALWAYS(s == matsize);
+        bytes_per_reader[nreaders-1] = matsize-last_s;
+
+        for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
+            if (!is_reader(i)) continue;
+            int r = readers_index[i];
+            fmt::printf("Job %d (reader number %d) reads rows %" PRIu32 " to %" PRIu32 " and expects %s\n",
+                    i, r,
+                    row0_per_reader[r],
+                    row0_per_reader[r+1],
+                    size_disp(bytes_per_reader[r]));
+        }
+    }
+    MPI_Bcast(&row0_per_reader[0], row0_per_reader.size(), CADO_MPI_UINT32_T, 0, reader_comm);
+    MPI_Bcast(&bytes_per_reader[0], bytes_per_reader.size(), CADO_MPI_SIZE_T, 0, reader_comm);
+    row0 = row0_per_reader[ridx];
+    row1 = row0_per_reader[ridx+1];
+#endif
 
     offset_per_reader = bytes_per_reader;
     integrate(offset_per_reader);
@@ -364,10 +434,7 @@ void dispatcher::reader_thread()/*{{{*/
 {
     if (!is_reader()) return;
 
-    subdivision readers_rows(bal->h->nrows, nreaders);
     unsigned int ridx = readers_index[pi->m->jrank];
-    unsigned int row0 = readers_rows.nth_block_start(ridx);
-    unsigned int row1 = readers_rows.nth_block_end(ridx);
 
     FILE * f = fopen(mfile.c_str(), "rb");
     ASSERT_ALWAYS(f);
@@ -378,14 +445,22 @@ void dispatcher::reader_thread()/*{{{*/
     std::vector<std::vector<uint32_t>> nodedata(nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
-    size_t queue_size_per_peer = 0;
+    size_t queue_size_per_peer = 1 << 16;
 
     std::vector<uint64_t> check_vector;
     if (pass_number == 2 && !check_vector_filename.empty())
         check_vector.assign(row1 - row0, 0);
 
+    /* display logarithmically-spaced reports until 1/100-th, and then
+     * split that evenly so that we print at most 20+log_2(size/nreaders/2^14)
+     * lines
+     */
     size_t z = 0;
     size_t last_z = 0;
+    size_t disp_z = 1 << 14;
+    for( ; disp_z * 20 < bytes_per_reader[0] ; disp_z <<= 1);
+    size_t disp_zx = 1 << 14;
+
     double t0 = wct_seconds();
 
 #ifndef RELY_ON_MPI_THREAD_MULTIPLE
@@ -445,20 +520,26 @@ void dispatcher::reader_thread()/*{{{*/
             if (Q.size() >= queue_size_per_peer)
                 post_send(Q, group);
         }
-        if ((z - last_z) > (1 << 25) && ridx == 0) {
+        if ((z - last_z) > disp_zx && ridx == 0) {
             double dt = wct_seconds()-t0;
             if (dt <= 0) dt = 1e-9;
             fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s\n",
-                    pass_number, pi->m->jrank, nreaders, size_disp(z), dt, size_disp(z / dt));
+                    pass_number, pi->m->jrank, nreaders,
+                    size_disp(z), dt, size_disp(z / dt));
             fflush(stdout);
-            last_z = z;
+            if (disp_zx < disp_z) {
+                disp_zx <<= 1;
+            } else {
+                last_z = z;
+            }
         }
         progress();
     }
     {
         double dt = wct_seconds()-t0;
-        fmt::printf("J%u (reader 0/%d): %s in %.1fs, %s/s (done)\n",
-                pi->m->jrank, nreaders, size_disp(z), dt, size_disp(z / dt));
+        fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s (done)\n",
+                pass_number, pi->m->jrank, nreaders,
+                size_disp(z), dt, size_disp(z / dt));
         fflush(stdout);
     }
     for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
@@ -491,10 +572,8 @@ void dispatcher::reader_thread()/*{{{*/
         full.assign(bal->trows, 0);
         std::vector<int> sizes(nreaders, 0);
         std::vector<int> displs(nreaders, 0);
-        for(int i = 0, d = 0 ; i < nreaders ; i++) {
-            if (!is_reader(i)) continue;
-            unsigned int ridx = readers_index[i];
-            sizes[ridx] = readers_rows.nth_block_size(ridx);
+        for(int ridx = 0, d = 0 ; ridx < nreaders ; ridx++) {
+            sizes[ridx] = row0_per_reader[ridx+1]-row0_per_reader[ridx];
             displs[ridx] = d;
             d += sizes[ridx];
         }
@@ -601,9 +680,6 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
         ASSERT_ALWAYS(ttab[k] == quo_r);
     }
 
-    subdivision readers_rows(bal->h->nrows, nreaders);
-    unsigned int row0 = readers_rows.nth_block_start(pi->m->jrank);
-    unsigned int row1 = readers_rows.nth_block_end(pi->m->jrank);
     fw_rowperm.erase(fw_rowperm.begin() + row1, fw_rowperm.end());
     fw_rowperm.erase(fw_rowperm.begin(), fw_rowperm.begin() + row0);
 

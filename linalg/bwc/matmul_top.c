@@ -2345,7 +2345,7 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
             A->vec_random(A, y, nitems, rstate);
             double tt = -wct_seconds();
             if (tcan_print) {
-                printf("Creating fake vector %s...", filename);
+                printf("Creating random vector %s...", filename);
                 fflush(stdout);
             }
             FILE * f = fopen(filename, "wb");
