@@ -68,6 +68,7 @@ void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint
 
     if (Q.is0()) {
         R = *this;
+        return;
     }
     
     curve.m.sub (u, Q.x, x);
