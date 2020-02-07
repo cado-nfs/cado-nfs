@@ -160,13 +160,11 @@ std::vector<lingen_substep_schedule> optimize(
         }
     }
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
-    os << fmt::sprintf("# %zu possible schedules to sort\n", all_schedules.size());
-#endif
-
     std::sort(all_schedules.begin(), all_schedules.end());
-    auto it = std::unique(all_schedules.begin(), all_schedules.end());
-    all_schedules.erase(it, all_schedules.end());
+
+    all_schedules.erase(
+            std::unique(all_schedules.begin(), all_schedules.end()),
+            all_schedules.end());
 
     if (all_schedules.empty()) {
         char buf[20];
@@ -191,12 +189,6 @@ std::vector<lingen_substep_schedule> optimize(
             << "]\n";
         fputs(os.str().c_str(), stderr);
         throw std::overflow_error(os.str());
-    }
-
-    for(auto & S : all_schedules) {
-        /* This should ensure that all timings are obtained from cache */
-        /* This may print timing info to the output stream */
-        U.get_call_time(os, P, mesh, S, C, do_timings);
     }
 
     U.sort_schedules(os, all_schedules, P, mesh, C, do_timings);
@@ -570,9 +562,15 @@ struct lingen_tuner {
          * [] denotes ceiling.
          * The details of the computation are in the comments in
          * lingen.cpp
+         *
+         * Note that here, we're using P.r and not the mesh parameter,
+         * because what matters is what we're reserving at the _upper_
+         * levels.  And most importantly, chances are that the largest
+         * share of the reserved memory comes from the topmost levels
+         * anyway, so we surmise that P.r is appropriate there.
          */
-        size_t base_E  = iceildiv(m,mesh)*iceildiv(m+n,mesh)*mpz_size(p)*sizeof(mp_limb_t);
-        size_t base_pi = iceildiv(m+n,mesh)*iceildiv(m+n,mesh)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         size_t reserved_base = base_E * iceildiv(L - (L >> depth), simd);
         size_t reserved_mp  = base_pi * iceildiv(iceildiv(m * iceildiv(L, 1<<depth), m+n), simd);

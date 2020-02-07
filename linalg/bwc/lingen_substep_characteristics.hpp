@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <memory>
+#include <tuple>
 
 #include "cxx_mpz.hpp"
 #include "fmt/format.h"
@@ -767,50 +768,14 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 
     private:
-    struct schedule_sorter {/*{{{*/
-        std::ostream& os;
-        lingen_substep_characteristics const & U;
-        lingen_platform const & P;
-        unsigned int mesh;
-        lingen_tuning_cache & C;
-        bool do_timings;
-        schedule_sorter(
-                std::ostream& os,
-                lingen_substep_characteristics const & U,
-                lingen_platform const & P,
-                unsigned int mesh,
-                lingen_tuning_cache & C,
-                bool do_timings)
-            : os(os)
-            , U(U)
-            , P(P)
-            , mesh(mesh)
-            , C(C)
-            , do_timings(do_timings)
-        {}
-        bool operator()(lingen_substep_schedule const & a, lingen_substep_schedule const & b) const {/*{{{*/
-            if (do_timings) {
-                double ta = U.get_call_time(os, P, mesh, a, C, do_timings);
-                double tb = U.get_call_time(os, P, mesh, b, C, do_timings);
-                if (ta != tb) return ta < tb;
-            }
-#if 0
-            /* Doesn't make much sense, since timing comparisons will
-             * almost certainly always return unequal. But well, who
-             * knows...
-             */
-            size_t za = U.get_peak_ram(P, a);
-            size_t zb = U.get_peak_ram(P, b);
-            return za < zb;
-#endif
-            /* Favor more batching instead */
-            unsigned int Ba = a.batch[1] * std::min(a.batch[0], a.batch[2]);
-            unsigned int Bb = b.batch[1] * std::min(b.batch[0], b.batch[2]);
-            if (Ba != Bb)
-                return Ba > Bb;
-            return false;
-        }/*}}}*/
-    };/*}}}*/
+    struct sortop {
+        bool operator()(std::tuple<double, unsigned int, lingen_substep_schedule> const & a, std::tuple<double, unsigned int, lingen_substep_schedule> const & b) const {
+            if (std::get<0>(a) != std::get<0>(b))
+                return std::get<0>(a) < std::get<0>(b);
+            else
+                return std::get<1>(a) > std::get<1>(b);
+        }
+    };
 
     public:
     void sort_schedules(
@@ -821,7 +786,19 @@ struct lingen_substep_characteristics {
             lingen_tuning_cache & C,
             bool do_timings) const
     {/*{{{*/
-        sort(schedules.begin(), schedules.end(), schedule_sorter(os, *this, P, mesh, C, do_timings));
+        std::vector<std::tuple<double, unsigned int, lingen_substep_schedule>> precomp;
+        for(auto & S : schedules) {
+            /* This should ensure that all timings are obtained from cache */
+            /* This may print timing info to the output stream */
+            double t = do_timings ? get_call_time(os, P, mesh, S, C, do_timings) : 0;
+            unsigned int B = S.batch[1] * std::min(S.batch[0], S.batch[2]);
+            precomp.emplace_back(t, B, std::move(S));
+        }
+        sort(precomp.begin(), precomp.end(), sortop());
+        schedules.clear();
+        for(auto & P : precomp) {
+            schedules.emplace_back(std::move(std::get<2>(P)));
+        }
     }/*}}}*/
 
     double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
