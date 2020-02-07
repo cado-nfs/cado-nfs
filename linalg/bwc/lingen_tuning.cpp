@@ -54,7 +54,8 @@
 
 using namespace std;
 
-/* Given n>=1 return the list of all integers k (1<=k<=n) such
+/* {{{ all_splits_of
+ * Given n>=1 return the list of all integers k (1<=k<=n) such
  * that it is possible to divide n into k blocks (not necessarily of
  * equal size) but such that all the splits that are obtained this way
  * have different maximal block sizes.
@@ -79,6 +80,7 @@ std::vector<unsigned int> all_splits_of(unsigned int n)
     for( ; j-- ; ) res.push_back(iceildiv(n, res[j]));
     return res;
 }
+/* }}} */
 
 std::vector<lingen_substep_schedule> optimize(
         std::ostream& os,
@@ -240,7 +242,7 @@ struct lingen_tuner {
         static constexpr const char * cantor = "cantor";
         static constexpr const char * flint = "flint";
         static constexpr const char * notiming = "notiming";
-        static const std::vector<const char *> known;
+        static const std::vector<const char *> thresholds_verbs;
         static const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> code_to_key;
 
         bool has(std::string const & key) const {
@@ -280,9 +282,9 @@ struct lingen_tuner {
                     error("has no colon");
 
                 std::string algorithm = tok.substr(0, colon);
-                if (std::find(known.begin(), known.end(), algorithm) == known.end()) {
+                if (std::find(thresholds_verbs.begin(), thresholds_verbs.end(), algorithm) == thresholds_verbs.end()) {
                     std::ostringstream os;
-                    for(auto const & x : known)
+                    for(auto const & x : thresholds_verbs)
                         os << " " << x;
                     error(fmt::format(
                                 "uses unrecognized key \"{}\""
@@ -728,7 +730,7 @@ struct lingen_tuner {
              * reasons to do so, since we have various thresholds that
              * implicitly enable recursion */
             std::vector<std::pair<unsigned int, const char *>> all_rec;
-            for(auto k : T_t::known) {
+            for(auto k : T_t::thresholds_verbs) {
                 if (k == T_t::notiming) continue;
                 if (T.has(k))
                     all_rec.push_back(std::make_pair(T[k], k));
@@ -1265,7 +1267,7 @@ struct lingen_tuner {
 };
 
 const std::vector<const char *>
-lingen_tuner::tuning_thresholds_t::known
+lingen_tuner::tuning_thresholds_t::thresholds_verbs
 {
     recursive,
     collective,
