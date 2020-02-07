@@ -992,6 +992,8 @@ struct lingen_tuner {
 
         bool do_all_timings = true;
 
+        unsigned int ncalls_at_depth = 0;
+
         for(size_t idx = 0 ; idx < cws.size() ; idx++) {
             auto const & cw(cws[idx]);
             size_t L, Lleft, Lright;
@@ -1026,8 +1028,15 @@ struct lingen_tuner {
              * thresholds passed on the command line, but in any case we
              * will have to recompute the timings and the RAM usage */
 
-            if (hints.find(K) != hints.end())
+            if (hints.find(K) != hints.end()) {
+                /* Then we only have to adjust, I think. At any rate, if
+                 * we end up doing hints[K]=U here, we're going to
+                 * overwrite the previously computed data, which sounds a
+                 * bad idea. */
                 hints[K].total_ncalls += weight;
+                ncalls_at_depth += weight;
+                continue;
+            }
 
             configurations_to_test CF = find_configurations_to_test(os, persist, K);
 
@@ -1117,6 +1126,7 @@ struct lingen_tuner {
             best[L] = { meshbest, CF.do_timings ? mesh_tt[meshbest] : -1 };
 
             hints[K].total_ncalls += weight;
+            ncalls_at_depth += weight;
         }
 
         /* Now give a summary at this level */
@@ -1140,7 +1150,7 @@ struct lingen_tuner {
                     }
                     os << fmt::sprintf("# %s (%u calls): %.2f [%.1fd]\n",
                             strat_name[mesh],
-                            mesh_tt_weighted[mesh].first,
+                            ncalls_at_depth,
                             // rescaled,
                             tt, tt / 86400);
                 }

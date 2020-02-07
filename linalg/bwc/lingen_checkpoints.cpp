@@ -44,11 +44,13 @@ void lingen_checkpoint::interpret_parameters(cxx_param_list & pl)
     param_list_parse_uint(pl, "checkpoint-threshold", &lingen_checkpoint::threshold);
     param_list_parse_int(pl, "lingen_checkpoint::save_gathered", &lingen_checkpoint::save_gathered);
     if (lingen_checkpoint::directory && access(lingen_checkpoint::directory, X_OK) != 0) {
-        printf("# Checkpoint directory %s/ does not exist, checkpoint settings ignored\n", lingen_checkpoint::directory);
+        if (!rank)
+            printf("# Checkpoint directory %s/ does not exist, checkpoint settings ignored\n", lingen_checkpoint::directory);
         lingen_checkpoint::directory = NULL;
     }
 }
 
+int lingen_checkpoint::rank;
 
 lingen_checkpoint::lingen_checkpoint(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi, std::string base)
     : bm(bm), t0(t0), t1(t1), mpi(mpi)

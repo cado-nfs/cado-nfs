@@ -18,6 +18,10 @@ struct lingen_platform {
 
     /* Assume we output something like one gigabyte per second. This is
      * rather conservative for HPC networks */
+    /*
+     * Note that is the reason for one of the inaccuracies in the timing
+     * estimations for lingen.
+     */
     double mpi_xput = 1e9;
 
     static void lookup_parameters(cxx_param_list & pl);

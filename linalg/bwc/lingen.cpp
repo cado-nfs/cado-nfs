@@ -965,7 +965,7 @@ int wrapped_main(int argc, char *argv[])
         typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
 #endif
         try {
-            bm.hints = lingen_tuning(bm.d, L, bm.com[0], pl);
+            bm.hints = lingen_tuning(bm.d, L - bm.t, bm.com[0], pl);
         } catch (std::overflow_error const & e) {
             fputs(e.what(), stderr);
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);

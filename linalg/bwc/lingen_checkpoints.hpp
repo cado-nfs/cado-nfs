@@ -35,7 +35,7 @@ struct lingen_checkpoint {
     unsigned int t1;
     unsigned int target_t;
     int mpi;
-    int rank;
+    static int rank;
     std::string auxfile;
     std::string sdatafile;
     std::string gdatafile;
