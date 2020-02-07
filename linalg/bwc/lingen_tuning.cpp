@@ -580,15 +580,6 @@ struct lingen_tuner {
         reserved_mp += reserved_base;
         reserved_mul += reserved_base;
 
-        /* kludge. Currently, we compute the reserved size as if the mesh
-         * size that we're trying was used all the way up to the top,
-         * which makes no sense at all.
-         *
-         * We need to find a better way to do this.
-         */
-        reserved_mp = 0;
-        reserved_mul = 0;
-
         size_t reserved = op_type == op_mul_or_mp_base::OP_MP ? reserved_mp : reserved_mul;
 
         os << fmt::format("# {} reserved storage = {}\n",
