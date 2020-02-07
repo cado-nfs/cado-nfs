@@ -415,11 +415,16 @@ struct lingen_tuner {
 
         lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
+        os << "# basecase (per call): ";
         if (!C.has(K)) {
+            os << std::flush;
             tt = wct_seconds();
             test_basecase(ab, m, n, length, rstate);
             tt = wct_seconds() - tt;
             C[K] = { tt };
+            os << fmt::sprintf("%.2f [from cache]\n", tt);
+        } else {
+            os << fmt::sprintf("%.2f\n", C[K]);
         }
         return C[K];
     }/*}}}*/
@@ -1090,8 +1095,9 @@ struct lingen_tuner {
                         // rescaled = fmt::sprintf("[rescaled from %.1f%%] ", 100*ratio);
                         tt /= ratio;
                     }
-                    os << fmt::sprintf("# %s: %.2f [%.1fd]\n",
+                    os << fmt::sprintf("# %s (%u calls): %.2f [%.1fd]\n",
                             strat_name[mesh],
+                            mesh_tt_weighted[mesh].first,
                             // rescaled,
                             tt, tt / 86400);
                 }
