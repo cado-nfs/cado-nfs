@@ -417,7 +417,7 @@ struct lingen_tuner {
 
         lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
-        os << "# basecase (per call): ";
+        os << fmt::format("# basecase (@{}): ", length);
         if (!C.has(K)) {
             os << std::flush;
             tt = wct_seconds();
@@ -468,7 +468,24 @@ struct lingen_tuner {
         size_t u = (L >> i) & 1;
         size_t v = L % (1 << i);
 
-        if (v) {
+        /* at i == floor level, we have (1<<(i-1)) < L <= (1<<i), Q = 0, and:
+         *
+         * if v, then u=0 and v=L. we have v calls with size 1 and (1<<i)-v
+         * with size 0 on the first read, but the calls with size 0 don't
+         * really exist, so that in fact we're seeing leftovers of calls
+         * with size 1 at the level above. So we actually have _at depth
+         * i proper_ 2*v-(1<<i) calls with size 1, and that's all.
+         *
+         * if v==0, then u=1. we have all calls with size 1, code below
+         * is fine
+         */
+
+        if (v && !((L-1)>>i)) {
+            ASSERT_ALWAYS(Q == 0 && u == 0);
+            weighted_call_t w1 { 2*Q + u + 1, Q + 1, Q + u, 2*v - (1 << i) };
+            std::vector<weighted_call_t> res {{ w1 }};
+            return res;
+        } else if (v) {
             weighted_call_t w0 { 2*Q + u,     Q + u, Q,     (1 << i) - v };
             weighted_call_t w1 { 2*Q + u + 1, Q + 1, Q + u, v };
             std::vector<weighted_call_t> res {{ w0, w1 }};
@@ -535,7 +552,7 @@ struct lingen_tuner {
          * 1-n and n-1 conversions, we transition to single- to
          * multi-node all in one go.
          */
-        int minimum_mesh = 0;
+        unsigned int minimum_mesh = 0;
         double last_save = 0;
         size_t peak = 0;
         int ipeak = 0;
@@ -721,7 +738,7 @@ struct lingen_tuner {
             }
         }
         typedef tuning_thresholds_t T_t;
-        bool from_thresholds_mesh_level(lingen_tuner & tuner, lingen_call_companion::key const & K) {/*{{{*/
+        bool from_thresholds_mesh_level(lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             std::ostream& os(tuner.os);
             T_t const & T(tuner.tuning_thresholds);
             lingen_platform const & P(tuner.P);
@@ -735,10 +752,21 @@ struct lingen_tuner {
                 if (T.has(k))
                     all_rec.push_back(std::make_pair(T[k], k));
             }
-
+            /* If no threshold talks about being recursive, then it's
+             * left to our decision. We keep all possible mesh sizes a
+             * priori. However, we must pay attention to the fact that we
+             * may know already that some mesh sizes should be discarded
+             * (this can only happen if at an earlier level, the current mesh
+             * size X was beaten by a larger one Y, which means that the
+             * minimum mesh size was at most X for the previous size, and
+             * is not at most Y, not more).
+             */
             if (all_rec.empty()) {
-                mesh_sizes = { 0, 1 };
-                if (P.r != 1) { mesh_sizes.push_back(P.r); }
+                mesh_sizes.clear();
+                if (persist.minimum_mesh <= 0) mesh_sizes.push_back(0);
+                if (persist.minimum_mesh <= 1) mesh_sizes.push_back(1);
+                if (P.r != 1 && persist.minimum_mesh <= P.r)
+                    mesh_sizes.push_back(P.r);
                 return true;
             }
             std::sort(all_rec.begin(), all_rec.end());
@@ -910,6 +938,7 @@ struct lingen_tuner {
 
         if (!recursion_makes_sense(L)) {
             C.mesh_sizes = { 0 };
+            C.ffts.clear();
             return C;
         }
 
@@ -919,7 +948,7 @@ struct lingen_tuner {
         }
         /* Try with the tuning_thresholds */
 
-        if (C.from_thresholds_mesh_level(*this, K)) {
+        if (C.from_thresholds_mesh_level(*this, persist, K)) {
             /* then the decision was trivial because lingen_thresholds
              * told us nothing. No need to bother with fft types either.
              */
@@ -933,7 +962,7 @@ struct lingen_tuner {
     void tune_local_at_depth(tuner_persistent_data & persist, int depth)/*{{{*/
     {
         tuner_persistent_data::level_strategy_map & best(persist.best);
-        int & minimum_mesh(persist.minimum_mesh);
+        unsigned int & minimum_mesh(persist.minimum_mesh);
         lingen_hints & hints(persist.hints);
 
         auto cws = calls_and_weights_at_depth(depth);
@@ -942,6 +971,9 @@ struct lingen_tuner {
 
         ASSERT_ALWAYS(cws.size() <= 2);
 
+        /* Given a mesh size (or 0 to mean "basecase"), this returns a
+         * pair (number of calls, sum of the time over all calls)
+         */
         std::map<unsigned int, std::pair<unsigned int, double>> mesh_tt_weighted;
 
         lingen_call_companion U_typical;
@@ -973,8 +1005,17 @@ struct lingen_tuner {
             ASSERT_ALWAYS(weight);
 
             if (!L) {
+                /* This is a non-call. It's only here in situations where
+                 * at depth D, we have x calls of size 1, and then
+                 * ((1<<D)-x) calls of size 0, which obviously correspond
+                 * to nothing.
+                 *
+                 * One may question the meaning of the "weight" of these
+                 * non-calls. I'd hazard the idea that 0 is most
+                 * appropriate.
+                 */
                 best[L] = { 0, 0 };
-                mesh_tt_weighted[0].first += weight;
+                mesh_tt_weighted[0].first = 0; // += weight ?
                 continue;
             }
 

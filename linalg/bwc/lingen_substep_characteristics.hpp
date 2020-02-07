@@ -325,10 +325,11 @@ struct lingen_substep_characteristics {
             return tvec;
         }
 
-        os << fmt::sprintf("# %s%s;%s wct for %s by nthreads:",
+        os << fmt::sprintf("# %s%s;%s (@%d) wct for %s by nthreads:",
                 F.mesh > 1 ? "MPI-" : "",
                 F.op.op_name(),
                 lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
+                input_length,
                 Fname
                 );
 
@@ -804,7 +805,7 @@ struct lingen_substep_characteristics {
     double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
         bool cached = has_cached_time(C, S.fft_type);
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        os << fmt::sprintf("# %s%s;%s(@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+        os << fmt::sprintf("# %s%s;%s (@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
                 mesh > 1 ? "MPI-" : "",
                 op_mul_or_mp_base::op_name(op_type),
                 S.fft_name(),
