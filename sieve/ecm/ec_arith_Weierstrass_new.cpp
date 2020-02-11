@@ -90,7 +90,6 @@ void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint
         curve.m.set (R.x, u);
         R.finite = false;
     }
-
 }
 
 /* Computes R<-eP, with double-and-add algorithm.
@@ -158,8 +157,8 @@ uint64_t ECWeierstrass<MODULUS>::AffinePoint::point_order (const uint64_t known_
     print(std::cout);
   }
 
-  /* XXX Here we assume m fits in an unsigned long */
-  i = (unsigned long) (2. * sqrt((double) (uint64_t)tm));
+  /* XXX Here we assume m fits in a uint64_t */
+  i = (uint64_t) (2. * sqrt((double) (uint64_t)tm));
   min = (uint64_t) tm - i;
   max = (uint64_t) tm + i;
 
@@ -331,8 +330,6 @@ found_inf:
 }
 
 /* Computes R=2P, with ? muls (? muls and ? squares) and ? add/sub.
- *    - m : modulus
- *    - a : curve coefficient
  *
  * It is permissible to let P and Q use the same memory.
  */
@@ -377,8 +374,6 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::dbl (ProjectivePoint &R) const
 }
 
 /* Computes R=P+Q, with 14 muls (12 muls and 2 squares) and 7 add/sub.
- *    - m : modulus
- *    - a : curve coefficient
  *
  * It is permissible to let R and P (or R and Q) use the same memory.
  */

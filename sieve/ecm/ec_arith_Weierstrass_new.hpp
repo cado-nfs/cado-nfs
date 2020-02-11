@@ -78,11 +78,10 @@ public:
 
         bool operator==(const AffinePoint &other) const {
             ASSERT_EXPENSIVE(&curve == &other.curve);
-            if (finite != other.finite)
-                return false;
-            if (!finite)
-                return true;
-            return curve.m.equal(x, other.x) && curve.m.equal(y, other.y);
+            if (finite && other.finite) {
+                return curve.m.equal(x, other.x) && curve.m.equal(y, other.y);
+            }
+            return finite == other.finite;
         }
 
         bool operator!=(const AffinePoint &other) const {
@@ -355,7 +354,6 @@ public:
         void smul (ProjectivePoint &R, const uint64_t e) const;
         uint64_t point_order (uint64_t known_m MAYBE_UNUSED, uint64_t known_r MAYBE_UNUSED, int verbose MAYBE_UNUSED) const {return 0;};
     };
-
 };
 
 
