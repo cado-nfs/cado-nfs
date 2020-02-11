@@ -327,6 +327,19 @@ public:
             return !curve.m.is0(z) || (curve.m.is0(x) && curve.m.is1(y));
         }
 
+        /* Normalize the z-coordinate to 1. Returns true if it worked and 
+         * false if z is not invertible. */
+        bool normalize () {
+            Residue iz(curve.m);
+            if (!curve.m.inv(iz, z)) {
+                return false;
+            }
+            curve.m.mul(x, x, iz);
+            curve.m.mul(y, y, iz);
+            curve.m.set1(z);
+            return true;
+        }
+
         /* It would be nice to have a conversion operator to AffinePoint here,
          * but the conversion can fail if the z-coordinate is not invertible.
          * Not sure how to signal an error in this case. Throwing an exception
