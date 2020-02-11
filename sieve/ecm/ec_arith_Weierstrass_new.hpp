@@ -353,6 +353,7 @@ public:
         void dbl (ProjectivePoint &R) const;
         void add (ProjectivePoint &R, const ProjectivePoint &Q) const;
         void smul (ProjectivePoint &R, const uint64_t e) const;
+        uint64_t point_order (uint64_t known_m MAYBE_UNUSED, uint64_t known_r MAYBE_UNUSED, int verbose MAYBE_UNUSED) const {return 0;};
     };
 
 };
