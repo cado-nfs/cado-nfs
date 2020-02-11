@@ -106,13 +106,12 @@ void ECWeierstrass<MODULUS>::AffinePoint::smul (AffinePoint &R, const uint64_t e
         R = *this;
     } else {
         uint64_t i;
-        AffinePoint T(curve);
+        AffinePoint T(*this);
 
         i = UINT64_C(1) << 63;
         while ((i & e) == 0)
             i >>= 1;
 
-        T = *this;
         i >>= 1;
 
         for (; i > 0; i >>= 1) {
@@ -429,13 +428,12 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const ui
         R = *this;
     } else {
         uint64_t i;
-        ProjectivePoint T(curve);
+        ProjectivePoint T(*this);
 
         i = UINT64_C(1) << 63;
         while ((i & e) == 0)
             i >>= 1;
 
-        T = *this;
         i >>= 1;
 
         for (; i > 0; i >>= 1) {
