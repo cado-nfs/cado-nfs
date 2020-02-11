@@ -203,6 +203,9 @@ public:
         }
         ProjectivePoint(const ProjectivePoint &s)
             : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), z(curve.m, s.z) {}
+        ProjectivePoint(const AffinePoint &s) : curve(s.curve), x(curve.m, s.getX()), y(curve.m, s.getY()), z(curve.m) {
+            curve.m.set1(z);
+        }
         ProjectivePoint(ProjectivePoint &&) = default;
         ~ProjectivePoint() {}
 
@@ -323,6 +326,11 @@ public:
              * the point at infinity here. */
             return !curve.m.is0(z) || (curve.m.is0(x) && curve.m.is1(y));
         }
+
+        /* It would be nice to have a conversion operator to AffinePoint here,
+         * but the conversion can fail if the z-coordinate is not invertible.
+         * Not sure how to signal an error in this case. Throwing an exception
+         * would work, but do we want to handle exceptions? */
 
         void dbl (ProjectivePoint &R) const;
         void add (ProjectivePoint &R, const ProjectivePoint &Q) const;
