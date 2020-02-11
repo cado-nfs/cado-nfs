@@ -345,6 +345,11 @@ public:
          * Not sure how to signal an error in this case. Throwing an exception
          * would work, but do we want to handle exceptions? */
 
+        friend std::ostream & operator<<(std::ostream &os, const ProjectivePoint &p) {
+            p.print(os);
+            return os;
+        }
+
         void dbl (ProjectivePoint &R) const;
         void add (ProjectivePoint &R, const ProjectivePoint &Q) const;
         void smul (ProjectivePoint &R, const uint64_t e) const;
