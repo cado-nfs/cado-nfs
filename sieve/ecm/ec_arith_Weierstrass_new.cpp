@@ -336,6 +336,14 @@ template <typename MODULUS>
 void ECWeierstrass<MODULUS>::ProjectivePoint::dbl (ProjectivePoint &R) const
 {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
+
+    /* If input is the point at infinity or a point of order 2,  then result
+     * is point at infinity. */
+    if (is0() || curve.m.is0(y)) {
+        R.set0();
+        return;
+    }
+
     Residue xx(curve.m), zz(curve.m), w(curve.m), u(curve.m), s(curve.m),
             ss(curve.m), sss(curve.m), r(curve.m), rr(curve.m), B(curve.m),
             t(curve.m), h(curve.m);
@@ -384,6 +392,26 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::add (ProjectivePoint &R, const Pro
     Residue t1(curve.m), t2(curve.m), t3(curve.m), u(curve.m), uu(curve.m),
               v(curve.m), vv(curve.m), vvv(curve.m), r(curve.m), A(curve.m);
     /* TODO reduce number of var */
+
+    if (is0()) {
+        R = Q;
+        return;
+    }
+
+    if (Q.is0()) {
+        R = *this;
+        return;
+    }
+
+    if (*this ==  Q) {
+        dbl(R);
+        return;
+    }
+
+    if (*this == -Q) {
+        R.set0();
+        return;
+    }
 
     curve.m.mul (t1, x, Q.z);
     curve.m.mul (t2, y, Q.z);
