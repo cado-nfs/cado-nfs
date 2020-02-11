@@ -24,7 +24,7 @@ public:
 protected:
     Residue a;
 public:
-    ECWeierstrass(const Modulus &m, Residue &_a) : m(m), a(m) {m.set(a, _a);}
+    ECWeierstrass(const Modulus &m, const Residue &_a) : m(m), a(m) {m.set(a, _a);}
 
     void print (std::ostream &os, const char *prefix) const
     {
