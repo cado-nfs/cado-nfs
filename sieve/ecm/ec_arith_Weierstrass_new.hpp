@@ -96,6 +96,13 @@ public:
             return *this;
         }
 
+        AffinePoint operator-() const {
+            AffinePoint R(*this);
+            if (!R.is0())
+                curve.m.neg(R.y, R.y);
+            return R;
+        }
+
         AffinePoint operator*(const uint64_t e) const {
             AffinePoint R(curve);
             smul(R, e);
@@ -210,6 +217,13 @@ public:
         ProjectivePoint & operator+=(const ProjectivePoint &Q) {
             add(*this, Q);
             return *this;
+        }
+        
+        ProjectivePoint operator-() const {
+            ProjectivePoint R(*this);
+            if (!R.is0())
+                curve.m.neg(R.y, R.y);
+            return R;
         }
 
         ProjectivePoint operator*(const uint64_t e) const {
