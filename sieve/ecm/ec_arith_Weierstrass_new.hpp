@@ -21,7 +21,9 @@ public:
     typedef typename Modulus::Residue Residue;
     typedef typename Modulus::Integer Integer;
     const Modulus &m;
+protected:
     Residue a;
+public:
     ECWeierstrass(const Modulus &m, Residue &_a) : m(m), a(m) {m.set(a, _a);}
 
     void print (std::ostream &os, const char *prefix) const
@@ -40,11 +42,13 @@ public:
 
     class AffinePoint
     {
+    public:
         typedef ECWeierstrass ECurve;
         typedef typename Modulus::Residue Residue;
         typedef typename Modulus::Integer Integer;
         const ECurve &curve;
-        Residue x,y;
+    protected:
+        Residue x, y;
         bool finite; /* If finite is false, then the point is the point at
                     infinity and the x, y coordinates are not considered
                     for any arithmetic. */
@@ -140,6 +144,14 @@ public:
             return true;
         }
 
+        const Residue &getX() const {
+            return x;
+        }
+
+        const Residue &getY() const {
+            return y;
+        }
+
         void swap(AffinePoint &other) {
             ASSERT_EXPENSIVE(&curve == &other.curve);
             curve.m.swap (x, other.x);
@@ -172,13 +184,16 @@ public:
 
     class ProjectivePoint
     {
+    public:
+        friend class AffinePoint;
         typedef MODULUS Modulus;
         typedef ECWeierstrass<MODULUS> ECurve;
         typedef typename Modulus::Residue Residue;
         typedef typename Modulus::Integer Integer;
         const ECurve &curve;
+    protected:
         Residue x, y, z;
-
+    public:
         ProjectivePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), z(curve.m) {}
         ProjectivePoint(const ECurve &c, const Residue &_x, const Residue &_y, const Residue &_z)
             : curve(c), x(curve.m), y(curve.m), z(curve.m) {
@@ -253,6 +268,18 @@ public:
             curve.m.set(x, _x);
             curve.m.set(y, _y);
             curve.m.set(z, _z);
+        }
+
+        const Residue &getX() const {
+            return x;
+        }
+
+        const Residue &getY() const {
+            return y;
+        }
+
+        const Residue &getZ() const {
+            return z;
         }
 
         void swap(ProjectivePoint &other) {
