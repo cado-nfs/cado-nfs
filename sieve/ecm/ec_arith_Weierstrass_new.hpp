@@ -128,6 +128,18 @@ public:
             return !finite;
         }
 
+        /** Check that internal representation of point is valid.
+         *
+         * In particular, checks that the point at infinity has the correct
+         * representation.
+         * @return true if valid, false if not.
+         */
+        bool isValid() const {
+            /* For affine points, there is no representation of the point
+             * at infinity, so we always return true. */
+            return true;
+        }
+
         void swap(AffinePoint &other) {
             ASSERT_EXPENSIVE(&curve == &other.curve);
             curve.m.swap (x, other.x);
@@ -268,6 +280,21 @@ public:
 
         bool is0() const {
             return curve.m.is0(x) && curve.m.is1 (y) && curve.m.is0 (z);
+        }
+
+        /** Check that internal representation of point is valid.
+         *
+         * In particular, checks that the point at infinity has the correct
+         * representation.
+         * @return true if valid, false if not.
+         */
+        bool isValid() const {
+            /* Incorrect handling of the point at infinity in the curve 
+             * arithmetic can result in x=y=z=0 which unfortunately compares
+             * equal to any and every point in operator=, making tests wrongly
+             * pass. Thus we explicitly check for correct representation of
+             * the point at infinity here. */
+            return !curve.m.is0(z) || (curve.m.is0(x) && curve.m.is1(y));
         }
 
         void dbl (ProjectivePoint &R) const;
