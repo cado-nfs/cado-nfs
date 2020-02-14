@@ -364,7 +364,7 @@ public:
         return *this;
     }
     Integer128 operator%(const Integer128 &a) const {Integer128 r = *this; r %= a; return r;}
-    Integer128 operator%(const uint64_t a) const {Integer128 r = *this; r %= a; return r;}
+    uint64_t operator%(const uint64_t a) const {Integer128 r = *this; r %= a; return (uint64_t) r;}
     /* r = v/a. We require a|v. */
     Integer128 divexact(const Integer128 &a) const {
         Integer128 n1, d1, r;
