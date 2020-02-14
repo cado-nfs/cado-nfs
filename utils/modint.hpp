@@ -328,10 +328,9 @@ public:
     Integer128  operator*(const Integer128 &a) const {Integer128 r = *this; r *= a; return r;}
     Integer128  operator*(const uint64_t a) const {Integer128 r = *this; r *= a; return r;}
     Integer128& operator/=(const uint64_t a) {
-        uint64_t q, r;
-        u64arith_divqr_2_1_1 (&q, &v[1], v[1], 0, a);
-        u64arith_divqr_2_1_1 (&v[0], &r, v[0], v[1], a);
-        v[1] = q;
+        uint64_t r;
+        u64arith_divqr_2_1_1 (&v[1], &r, v[1], 0, a);
+        u64arith_divqr_2_1_1 (&v[0], &r, v[0], r, a);
         return *this;
     }
     Integer128& operator/=(const Integer128 &a) {

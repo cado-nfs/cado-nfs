@@ -553,7 +553,6 @@ public:
         return (finished (r));
     }
 
-
     bool finished (const Residue &r) const {
         return (r.r[0] == m[0] && r.r[1] == m[1]);
     }
