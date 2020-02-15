@@ -2,6 +2,7 @@
 #include "tests_common.h"
 #include <cstdint>
 #include <cinttypes>
+#include <typeinfo>
 #include "mod64.hpp"
 #include "modredc64.hpp"
 #include "modredc126.hpp"
