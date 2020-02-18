@@ -103,13 +103,13 @@ nfs_aux::~nfs_aux()
     int dont_print_tally = 1;
 #endif
     if (dont_print_tally && las.number_of_threads_total() > 1) {
-        verbose_output_print(0, 2, "# Time for this special-q: %1.4fs [tally available only in mono-thread] in %1.4f elapsed s\n", qt0, wct_qt0);
+        verbose_output_vfprint(0, 2, gmp_vfprintf, "# Time for side-%d q=%Zd r=%Zd : %1.4fs [tally available only in mono-thread] in %1.4f elapsed s\n", doing.side, (mpz_srcptr) doing.p, (mpz_srcptr) doing.r, qt0, wct_qt0);
     } else {
         const char * fmt_always[2] = {
             /* for default, special-q-overlapping mode: */
-            "# Time for this special-q: *%1.4fs",
+            "# Time for side-%d q=%Zd r=%Zd : *%1.4fs",
             /* for legacy synchronous mode: */
-            "# Time for this special-q: %1.4fs"
+            "# Time for side-%d q=%Zd r=%Zd : %1.4fs"
         };
         const char * fmt[2] = {
             /* for default, special-q-overlapping mode: */
@@ -124,8 +124,12 @@ nfs_aux::~nfs_aux()
                 " factor %1.4f (%1.4f + %1.4f)]"
                 " in %1.4f elapsed s"
         };
-        verbose_output_print(0, 1, fmt_always[sync_at_special_q != 0], qt0);
-        verbose_output_print(0, 2, fmt[sync_at_special_q != 0],
+        verbose_output_vfprint(0, 1, gmp_vfprintf, fmt_always[sync_at_special_q != 0],
+                doing.side,
+                (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,  qt0);
+        verbose_output_vfprint(0, 2, gmp_vfprintf, fmt[sync_at_special_q != 0],
+                doing.side,
+                (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,
                 rt.rep.tn[0],
                 rt.rep.tn[1],
                 qtts,
