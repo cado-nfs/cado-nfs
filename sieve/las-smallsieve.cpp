@@ -877,7 +877,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
                 const fbprime_t q = psp[i - 1].q, pos = psp[i - 1].idx;
                 const unsigned char logp = psp[i - 1].logp;
                 if (0) {
-                    printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%"FBPRIME_FORMAT", %"FBPRIME_FORMAT", %hhu}, from  ",
+                    printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%" FBPRIME_FORMAT", %" FBPRIME_FORMAT", %hhu}, from  ",
                         w.side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp);
                     ssp.print(stdout);
                     printf("\n");
