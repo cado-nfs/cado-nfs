@@ -1296,7 +1296,7 @@ mmt_vec_reduce_inner(mmt_vec_ptr v)
             ASSERT_ALWAYS(!err);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
-#elif RS_CHOICE == RS_CHOICE_STOCK_IRS
+#elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
         void * dptr = mmt_vec_sibling(v, 0)->v;
         MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
             SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
@@ -1316,7 +1316,7 @@ mmt_vec_reduce_inner(mmt_vec_ptr v)
             }
         }
         shared_free(xr, req);
-#elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
+#elif RS_CHOICE == RS_CHOICE_STOCK_IRS
         void * dptr = mmt_vec_sibling(v, 0)->v;
         MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
             int * rc = malloc(wr->njobs * sizeof(int));
