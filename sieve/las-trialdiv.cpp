@@ -48,9 +48,11 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
             if (pp.k > 1) continue;
             trialdiv_primes.push_back(pp.p);
         }
-        cxx_mpz zz(trialdiv_primes.back());
-        mpz_nextprime(zz, zz);
-        pmax_sofar = MIN(pmax, mpz_get_ui(zz));
+        if (!trialdiv_primes.empty()) {
+            cxx_mpz zz(trialdiv_primes.back());
+            mpz_nextprime(zz, zz);
+            pmax_sofar = MIN(pmax, mpz_get_ui(zz));
+        }
     }
     if (pmax_sofar < pmax) {
         /* we need some more. */
