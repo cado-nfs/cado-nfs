@@ -96,8 +96,6 @@ static inline fbprime_t
 fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
-    if (p == 73679)
-        printf("Hello, world\n");
     return fb_root_in_qlattice_31bits(p, R, invp, basis);
 }
 #endif
