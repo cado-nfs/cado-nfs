@@ -1462,3 +1462,4 @@ linalg/bwc/lingen_mul_substeps_base.hpp
 sieve/las-output.cpp
 sieve/las-output.hpp
 config/cado_check_cxx_source_compiles.cmake
+tests/sieve/torture-redc.cpp

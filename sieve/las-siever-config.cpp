@@ -93,9 +93,9 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
         verbose_output_print(0, 1, "# Interpreting -I %d as meaning -A %d\n", I, sc.logA);
     }
 
-    if (sc.sides[0].lim > 2147483647UL || sc.sides[1].lim > 2147483647UL)
+    if (sc.sides[0].lim > 4294967295UL || sc.sides[1].lim > 4294967295UL)
     {
-        fprintf (stderr, "Error, lim0/lim1 must be < 2^31 (bug #21094)\n");
+        fprintf (stderr, "Error, lim0/lim1 must be < 2^32\n");
         exit (EXIT_FAILURE);
     }
 

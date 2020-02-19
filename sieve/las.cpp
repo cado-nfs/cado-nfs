@@ -21,6 +21,7 @@
 #include <iterator> /* ostream_iterator */
 #include <thread>   /* we use std::thread for las sub-jobs */
 #include <iomanip>  /* std::setprecision, std::fixed */
+#include <mutex>
 #include "threadpool.hpp"
 #include "fb.hpp"
 #include "portability.h"
@@ -1427,7 +1428,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
         } else {
-            ASSERT_ALWAYS(ws.las.batch || ws.las.batch_print_survivors_filename);
+            ASSERT_ALWAYS(ws.las.batch || ws.las.batch_print_survivors.filename);
 
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
@@ -1504,7 +1505,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         rep.survivors.enter_cofactoring++;
 
         // we'll do the printing later.
-        if (ws.las.batch || ws.las.batch_print_survivors_filename)
+        if (ws.las.batch || ws.las.batch_print_survivors.filename)
         {
             /* see above */
             rep.reports++;
@@ -2379,10 +2380,12 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
 
     /* essentially update the fij polynomials and the max log bounds */
     if (main_output.verbose >= 2) {
+        verbose_output_start_batch();
         verbose_output_print (0, 1, "# f_0'(x) = ");
         mpz_poly_fprintf(main_output.output, ws.sides[0].lognorms.fij);
         verbose_output_print (0, 1, "# f_1'(x) = ");
         mpz_poly_fprintf(main_output.output, ws.sides[1].lognorms.fij);
+        verbose_output_end_batch();
     }
 
 #ifdef TRACE_K
@@ -2588,7 +2591,7 @@ bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> au
     /* Currently we assume that we're doing sieving + resieving on
      * both sides, or we're not. In the latter case, we expect to
      * complete the factoring work with batch cofactorization */
-    ASSERT_ALWAYS(las.batch || las.batch_print_survivors_filename || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
+    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
@@ -2672,55 +2675,53 @@ struct ps_params {
     ps_params(std::shared_ptr<cofac_list> M, las_info & las) : M(M), las(las) {}
 };
 
-void *print_survivors_internal(void * arg)
+void las_info::batch_print_survivors_t::doit()
 {
-    struct ps_params *params = (struct ps_params *)arg;
-    cofac_list const & M = * params->M;
-    las_info &las = params->las;
-        
-    std::string filename = las.batch_print_survivors_filename;
-    filename.append(".");
-    filename.append(std::to_string(las.batch_print_survivors_counter));
-    std::string filename_part = filename;
-    filename_part.append(".part");
+    for(std::unique_lock<std::mutex> foo(mm);!todo.empty() || !done;) {
+        cv.wait(foo);
 
-    las.batch_print_survivors_counter++;
-    FILE * out = fopen(filename_part.c_str(), "w");
-    las_todo_entry const * curr_sq = NULL;
-    for (auto const &s : M) {
-        if (s.doing_p != curr_sq) {
-            curr_sq = s.doing_p;
-            gmp_fprintf(out,
-                    "# q = (%Zd, %Zd, %d)\n",
-                    (mpz_srcptr) s.doing_p->p, (mpz_srcptr) s.doing_p->r, s.doing_p->side);
+        /* This is both for spurious wakeups and for the finish condition */
+        for( ; !todo.empty() ; ) {
+
+            /* We have the lock held at this point */
+
+            std::string f = std::string(filename) + "." + std::to_string(counter++);
+            std::string f_part = f + ".part";
+
+            cofac_list M = std::move(todo.front());
+
+            todo.pop_front();
+
+            /* Now we temporarily unlock foo. */
+            foo.unlock();
+
+            FILE * out = fopen(f_part.c_str(), "w");
+            las_todo_entry const * curr_sq = NULL;
+            for (auto const &s : M) {
+                if (s.doing_p != curr_sq) {
+                    curr_sq = s.doing_p;
+                    gmp_fprintf(out,
+                            "# q = (%Zd, %Zd, %d)\n",
+                            (mpz_srcptr) s.doing_p->p,
+                            (mpz_srcptr) s.doing_p->r,
+                            s.doing_p->side);
+                }
+                gmp_fprintf(out,
+                        "%" PRId64 " %" PRIu64 " %Zd %Zd\n", s.a, s.b,
+                        (mpz_srcptr) s.cofactor[0],
+                        (mpz_srcptr) s.cofactor[1]);
+            }
+            fclose(out);
+            rename(f_part.c_str(), f.c_str());
+
+            foo.lock();
         }
-        gmp_fprintf(out,
-                "%" PRId64 " %" PRIu64 " %Zd %Zd\n", s.a, s.b,
-                (mpz_srcptr) s.cofactor[0],
-                (mpz_srcptr) s.cofactor[1]);
     }
-    fclose(out);
-    rename(filename_part.c_str(), filename.c_str());
-    delete params; // was newed by caller.
-    return NULL;
 }
 
-void print_survivors(std::shared_ptr<cofac_list> M, las_info & las)
+void print_survivors_job(las_info & las)
 {
-    // first, wait for the previous IO job to finish writing (if any)
-    if (las.batch_print_survivors_thid) {
-        pthread_join(*las.batch_print_survivors_thid, NULL);
-    } else {
-        // we are the first writing instance.
-        las.batch_print_survivors_thid = (pthread_t *)malloc(sizeof(pthread_t));
-        // this will be freed by the dtor of las_info
-    }
-
-    auto params = new struct ps_params(M, las);
-    // will be deleted by the tread
-
-    pthread_create(las.batch_print_survivors_thid, NULL,
-            &print_survivors_internal, params);
+    las.batch_print_survivors.doit();
 }
 
 void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
@@ -2879,18 +2880,37 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
                             /* we can release the mutex now */
 #else
                             las.L.splice(las.L.end(), workspaces.cofac_candidates);
-                            if (las.batch_print_survivors_filename) {
-                                while (las.L.size() >= las.batch_print_survivors_filesize) {
+                            if (las.batch_print_survivors.filename) {
+                                while (las.L.size() >= las.batch_print_survivors.filesize) {
                                     // M is another list containing the
                                     // elements that are going to be printed
                                     // by another thread.
-                                    auto M = std::make_shared<cofac_list>();
+                                    cofac_list M;
                                     auto it = las.L.begin();
-                                    for (uint64_t i = 0; i < las.batch_print_survivors_filesize; ++i) {
+                                    for (uint64_t i = 0; i < las.batch_print_survivors.filesize; ++i) {
                                         ++it;
                                     }
-                                    M->splice(M->end(), las.L, las.L.begin(), it);
+                                    M.splice(M.end(), las.L, las.L.begin(), it);
+                                    {
+                                    std::lock_guard<std::mutex> dummy(las.batch_print_survivors.mm);
+                                    las.batch_print_survivors.todo.push_back(std::move(M));
+                                    }
+                                    las.batch_print_survivors.cv.notify_one();
+
+#if 0
+                                    /* temporarily release the lock while
+                                     * we're doing print_survivors, and
+                                     * especially while we're waiting for
+                                     * the previous print_survivors to
+                                     * complete. */
+                                    struct bar {
+                                        std::mutex& m;
+                                        bar(std::mutex & m) : m(m) { m.unlock(); }
+                                        ~bar() { m.lock(); }
+                                    };
+                                    bar dummy2(las.L.mutex());
                                     print_survivors(M, las);
+#endif
                                 }
                             }
 #endif
@@ -3129,6 +3149,13 @@ int main (int argc0, char *argv0[])/*{{{*/
     t0 = seconds ();
     wct = wct_seconds();
 
+    if (las.batch_print_survivors.filename) {
+        for(int i = 0 ; i < las.batch_print_survivors.number_of_printers ; i++) {
+            las.batch_print_survivors.printers.push_back(
+                    std::thread(print_survivors_job, std::ref(las)));
+        }
+    }
+
     std::vector<std::thread> subjobs;
 #ifdef DLP_DESCENT
     /* In theory we would be able to to multiple descents in parallel, of
@@ -3165,12 +3192,14 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     las.set_loose_binding();
 
-    if (las.batch_print_survivors_filename) {
-        auto M = std::make_shared<cofac_list>();
-        M->splice(M->end(), las.L);
-        print_survivors(M, las);
-        // this is the last writing. We need to wait for it to finish.
-        pthread_join(*las.batch_print_survivors_thid, NULL);
+    if (las.batch_print_survivors.filename) {
+        las.batch_print_survivors.mm.lock();
+        las.batch_print_survivors.done = true;
+        las.batch_print_survivors.todo.push_back(std::move(las.L));
+        las.batch_print_survivors.mm.unlock();
+        las.batch_print_survivors.cv.notify_all();
+        for(auto & x : las.batch_print_survivors.printers)
+            x.join();
     }
 
     if (las.batch)

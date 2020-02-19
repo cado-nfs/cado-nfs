@@ -1,6 +1,6 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 #include <gmp.h>
 #include "las-info.hpp"
 #include "las-config.h"
@@ -62,6 +62,7 @@ void las_info::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
     param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
     param_list_decl_usage(pl, "batch-print-survivors-filesize", "write that many survivors per file");
+    param_list_decl_usage(pl, "batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
 
 
     param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
@@ -213,12 +214,13 @@ las_info::las_info(cxx_param_list & pl)
     }
 
 
-    batch_print_survivors_filename = param_list_lookup_string(pl, "batch-print-survivors");
-    if (batch_print_survivors_filename) {
-        batch_print_survivors_counter = 0;
-        batch_print_survivors_thid = NULL;
-        batch_print_survivors_filesize = 1000000;
-        param_list_parse_uint64(pl, "batch-print-survivors-filesize", &batch_print_survivors_filesize);
+    batch_print_survivors.filename = param_list_lookup_string(pl, "batch-print-survivors");
+    if (batch_print_survivors.filename) {
+        batch_print_survivors.counter = 0;
+        batch_print_survivors.number_of_printers = 1;
+        batch_print_survivors.filesize = 1000000;
+        param_list_parse_uint64(pl, "batch-print-survivors-filesize", &batch_print_survivors.filesize);
+        param_list_parse_int(pl, "batch-print-survivors-number-of-printers", &batch_print_survivors.number_of_printers);
     }
     // }}} 
 
@@ -232,10 +234,6 @@ las_info::~las_info()/*{{{*/
     // ----- general operational flags {{{
     gmp_randclear(rstate);
 
-    // ----- batch_print_survivors
-    if (batch_print_survivors_filename) {
-        free(batch_print_survivors_thid);
-    }
     // }}}
 
 }/*}}}*/

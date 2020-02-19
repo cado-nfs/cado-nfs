@@ -1,7 +1,7 @@
 #ifndef LAS_INFO_HPP_
 #define LAS_INFO_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 #include "las-config.h"
 #include "las-base.hpp"
 #include "cado_poly.h"
@@ -21,6 +21,8 @@
 #include <vector>
 #include <stack>
 #include <mutex>
+#include <condition_variable>
+#include <thread>
 #include "cxx_mpz.hpp"
 #include "lock_guarded_container.hpp"
 #include "las-memory.hpp"
@@ -163,10 +165,32 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
-    const char *batch_print_survivors_filename; // basename for the files
-    uint64_t    batch_print_survivors_filesize; // number of survivors per file
-    int         batch_print_survivors_counter;  // current index of filename
-    pthread_t  *batch_print_survivors_thid;     // id of the thread doing writing (if any)
+
+    /* the batch_print_survivors holds several variables that are
+     * attached to the process of printing the survivors to files. This
+     * is activated by the batch_print_survivors option, and only if the
+     * batch_print_survivors_filename option is set (otherwise printing
+     * just goes to stdout, period). Printing
+     * is typically handled by one or maybe several print-dedicated
+     * threads. In most normal cases, one printing thread should be
+     * enough. Most fields in here are accessed with mm acquired. cv is
+     * here for printing threads waiting for new work notifications.
+     */
+    struct batch_print_survivors_t {
+        mutable std::mutex mm;
+        mutable std::condition_variable cv;
+        bool done = false;
+        std::list<cofac_list> todo;
+
+        const char *filename; // basename for the files
+        uint64_t    filesize; // number of survivors per file
+        int         counter;  // current index of filename
+        int number_of_printers;
+        std::vector<std::thread>  printers;     // id of the thread doing writing (if any)
+        operator bool() const { return filename != NULL; }
+
+        void doit();
+    } batch_print_survivors;
 
     const char *batch_file[2];
     int batchlpb[2];

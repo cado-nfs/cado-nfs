@@ -199,6 +199,13 @@ inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, 
 template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
 inline cxx_mpz & operator%=(cxx_mpz & a, const T b)   { mpz_tdiv_r_uint64(a, a, b); return a; }
 
+inline cxx_mpz & operator<<=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_mul_2exp(a, a, s); return a; }
+inline cxx_mpz operator<<(cxx_mpz & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }
+
+inline cxx_mpz & operator>>=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_tdiv_q_2exp(a, a, s); return a; }
+inline cxx_mpz operator>>(cxx_mpz & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
+
+
 #if 0
 inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
 inline cxx_mpz operator|(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_ior(r, a, cxx_mpz(b)); return r; }

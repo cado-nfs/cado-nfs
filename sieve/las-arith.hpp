@@ -1,17 +1,25 @@
 #ifndef LAS_ARITH_HPP_
 #define LAS_ARITH_HPP_
 
-#include <stdint.h>
-#include <inttypes.h>
+#include <cstdint>
+#include <cinttypes>
 
 #include "fb-types.h"
 #include "utils.h"
 #include "las-config.h"
 #include "utils/misc.h" /* cado_ctzl */
 
+/* This header file is also #include'd by tests/sieve/torture-redc.cpp,
+ * which (as its name says) checks that redc_32 and redc_u32 hold to
+ * their promises.
+ */
+
+static inline uint64_t
+redc_64(const int64_t x, const uint32_t p, const uint64_t invp);
+
 // Redc_32 based on 64-bit arithmetic
 // Assume:
-//   * p is an odd prime < 2^32. FIXME: p < 2^31? (see below)
+//   * p is an odd number < 2^32.
 //   * invp is -1/p mod 2^32.
 //   * x is some integer in [0, 2^32*p[
 // Compute:
@@ -19,38 +27,96 @@
 static inline uint32_t
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
-  uint32_t t = (uint32_t) x * invp;                            /* t = x * invp mod 2^32 */
-  uint32_t u = (x + (uint64_t)t * (uint64_t)p) >> 32;
-  /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p:
-     we might want p < 2^31 so that there is no overflow */
-  t = u - p;
-  if ((int32_t) t >= 0) u = t;
+  uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
+  /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
+   * therefore, we must pay attention to the carry flag while doing the
+   * addition.
+   */
+  uint64_t tp = (uint64_t)t * (uint64_t)p;
+  uint64_t xtp = x;
+  int cf;
+  /* do xtp += tp, get carry out in cf */
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+#else
+  uint64_t xtp0 = xtp;
+  xtp += tp;
+  cf = xtp < xtp0;
+#endif
+  uint32_t u = xtp >> 32;
+  // by construction, xtp is divisible by 2^32. u is such that
+  // 0 <= u < 2*p ; however the representative that we have is capped to
+  // 2^32, and may wrap around.
+  /* if cf is true, then u is a truncated representative of something in
+   * [2^32, 2*p[ -- so this means in particular that we must understand
+   * it as u > p */
+
+  t = u;
+  if (cf || t >= p)
+      u = t - p;
+  if (UNLIKELY((uint32_t) u >= p))
+      return redc_64 (x, p, invp);
   return u;
 }
 
-static inline uint64_t
-redc_64(const int64_t x, const uint32_t p, const uint64_t invp);
-
 // Signed redc_32 based on 64-bit arithmetic
 // Assume:
-//   * p is an odd prime < 2^32.
+//   * p is an odd number < 2^32.
 //   * invp is -1/p mod 2^32.
-//   * x is some signed integer in ]-2^32*p, 2^32*p[
+//   * x is some signed integer in ]-2^32*p, 2^32*p[ (or [-2^63, 2^63[ if
+//   that happens to be a narrower range).
 // Compute:
 //   * x/2^32 mod p as an integer in [0, p[
 static inline uint32_t
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
-  uint32_t u = (x + (uint64_t)t * (uint64_t)p) >> 32;
-  // might be too large by p, or too small by p.
+  /* must pay attention to the carry flag here */
+  uint64_t tp = (uint64_t)t * (uint64_t)p;
+  uint64_t xtp = x,cf;
+  /* if x >= 0,
+   * x + t*p is bounded by min(2^63,2^32*p)-1+(2^32-1)*p <
+   * min(2^63+2^32*p,2*2^32*p) -- so that it may well overflow.
+   *
+   * if x < 0, the interval is
+   * [max(-2^63,-2^32*p+1), (2^32-1*p)-1] -- meaning that the sign may
+   * change when adding t*p.
+   *
+   * Hence in both cases, we are interested by the carry flag.
+   */
+  /* do xtp += tp, get carry out in cf */
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+#else
+  uint64_t xtp0 = xtp;
+  xtp += tp;
+  cf = xtp < xtp0;
+#endif
+  int32_t u = xtp >> 32;
+  // by construction, xtp is divisible by 2^32.
+  //
+  // if x > 0, u is such that 
+  // 0 <= xtp < 2*p ; however the representative that we have is capped to
+  // 2^32, and may wrap around.
+  /* if cf is true, then u is a truncated representative of something in
+   * [2^32, 2*p[ -- so this means in particular that we must understand
+   * it as u > p */
+  // if x > 0, u might be too large by p,
+  // if x < 0, u might be too small by p.
   t = u;
-  u += p;
-  if ((int32_t) t >= 0) u = t;
-  t -= p;
-  if ((int32_t) t >= 0) u = t;
-  if (UNLIKELY(u >= p))
-    return redc_64 (x, p, invp);
+  /* The test (int32_t) t < 0 below is't be necessary: if the carry
+   * flag from the addition is off, then certainly t is still negative.
+   * However, this seems to help gcc a little bit. clang doesn't care */
+#ifdef __GNUC__
+  if (x < 0 && !cf && (int32_t) t < 0) u = t + p;
+#else
+  if (x < 0 && !cf                   ) u = t + p;
+#endif
+  /* Two obvious cases where we know for sure that we must subtract p.
+   * Note that t is uint32_t here */
+  if (x > 0 && (cf || t >= p)) u = t - p;
+  if (UNLIKELY((uint32_t) u >= p))
+      return redc_64 (x, p, invp);
   return u;
 }
 

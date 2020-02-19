@@ -436,7 +436,7 @@ no longer supported by cado-nfs anyway)
   in GMP (https://gmplib.org/list-archives/gmp-bugs/2015-March/003607.html).
   Workaround: use tasks.sqrt.threads=1 or GMP >= 6.1.0.
 * GCC 4.1.2 is known to miscompile CADO-NFS (see
-  https://gforge.inria.fr/tracker/index.php?func=detail&aid=14490),
+  http://cado-nfs.gforge.inria.fr/bug.php?14490),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
   work, please use -t 1 option in cado-nfs.py or tasks.linalg.threads=1x1.
@@ -452,7 +452,10 @@ The website of the project is hosted at:
    http://cado-nfs.gforge.inria.fr/
 
 You can get the latest development version with:
-   git clone git://scm.gforge.inria.fr/cado-nfs/cado-nfs.git
+   git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+or
+   git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+(use the latter if you have an account on inria gitlab)
 
 There are two mailing-lists associated to Cado-nfs:
   - cado-nfs-commits: if you want to receive an email each time a
@@ -466,9 +469,9 @@ If you find a bug, if you have a problem to compile, if you want to
 factor a large number and seek for advice for tuning the parameters, then
 the cado-nfs-discuss list is the right place to ask.
 
-On the https://gforge.inria.fr/projects/cado-nfs/ web page you will also find
-some forums and a bug tracker. We recommend *not to use* the forum: we don't
-read it. As for the bug tracker, this is an important piece of the
-cado-nfs development cycle. Submitting bugs there is welcome (you need a
-gforge account), although if you are unsure, it might be better to speak
-up on the cado-nfs-discuss mailing list first.
+On the https://gitlab.inria.fr/cado-nfs/cado-nfs web page you can also
+find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
+an important piece of the cado-nfs development cycle.  Submitting bugs
+there is welcome (you need an inria gitlab account), although if you are
+unsure, it might be better to speak up on the cado-nfs-discuss mailing
+list first.

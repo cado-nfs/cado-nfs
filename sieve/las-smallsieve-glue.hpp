@@ -377,7 +377,7 @@ struct small_sieve_base {/*{{{*/
             const int i = fix_sublat_i(ii, ssp.get_q());
             int64_t x = (i - i0) % (uint64_t)ssp.get_q();
             if (x < 0) x += ssp.get_q();
-            ASSERT_ALWAYS(0 <= x && x < ssp.get_q());
+            ASSERT_ALWAYS(0 <= x && x < int64_t(ssp.get_q()));
             return (fbroot_t) x;
         } else {
             /* Affine roots hit in every line, but not necessarily in every line fragment */
@@ -385,7 +385,7 @@ struct small_sieve_base {/*{{{*/
             const int i = fix_sublat_i(ii, ssp.get_p());
             int64_t x = (i - i0) % (uint64_t)ssp.get_p();
             if (x < 0) x += ssp.get_p();
-            ASSERT_ALWAYS(0 <= x && x < ssp.get_p());
+            ASSERT_ALWAYS(0 <= x && x < int64_t(ssp.get_p()));
             return (fbroot_t) x;
         }
     }

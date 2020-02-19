@@ -2,6 +2,7 @@
 #include "tests_common.h"
 #include <cstdint>
 #include <cinttypes>
+#include <typeinfo>
 #include "mod64.hpp"
 #include "modredc64.hpp"
 #include "modredc126.hpp"
@@ -9,16 +10,17 @@
 #include "sieve/ecm/ec_arith_Weierstrass_new.hpp"
 
 template <typename MODULUS>
-class TestWeierstrassAffine {
+class TestWeierstrass {
     int verbose;
 public:
     typedef MODULUS Modulus;
     typedef typename MODULUS::Residue Residue;
     typedef typename MODULUS::Integer Integer;
     typedef ECWeierstrass<MODULUS> Curve;
-    typedef ECWeierstrassAffinePoint<MODULUS> Point;
+    typedef typename ECWeierstrass<MODULUS>::AffinePoint AffinePoint;
+    typedef typename ECWeierstrass<MODULUS>::ProjectivePoint ProjectivePoint;
     
-    TestWeierstrassAffine(int verbose) : verbose(verbose) {}
+    TestWeierstrass(int verbose) : verbose(verbose) {}
     
     Modulus *initMod(const cxx_mpz &s) const {
         Integer i;
@@ -43,53 +45,54 @@ public:
     }
 
     bool
-    setPoint ( Point &p, const Modulus &m, const cxx_mpz &_x, const cxx_mpz &_y ) const
+    setPoint ( AffinePoint &p, const Modulus &m, const cxx_mpz &_x, const cxx_mpz &_y ) const
     {
         Residue x ( m ), y ( m );
-
+        if (_x == 0 && _y == 0) {
+            p.set0();
+            return true;
+        }
         if (!setResidue ( x, m, _x ) || !setResidue ( y, m, _y ))
             return false;
         p.set ( x, y );
         return true;
     }
 
-    bool oneTest ( const cxx_mpz &M, const cxx_mpz &A,
-        const int operation, const cxx_mpz &x1, const cxx_mpz &y1, const cxx_mpz &x2,
-        const cxx_mpz &y2, const uint64_t mult, const cxx_mpz &xReference, const cxx_mpz &yReference,
-        const bool expectedIsFinite, const uint64_t expectedOrderexpectedIsFinite ) const;
+    bool
+    setPoint ( ProjectivePoint &p, const Modulus &m, const cxx_mpz &_x, const cxx_mpz &_y, const cxx_mpz &_z ) const
+    {
+        Residue x ( m ), y ( m ), z ( m );
+
+        if (!setResidue ( x, m, _x ) || !setResidue ( y, m, _y ) || !setResidue ( z, m, _z ) )
+            return false;
+        p.set ( x, y, z );
+        return true;
+    }
+
+    template <typename Point>
+    bool oneTest ( const Curve &c,
+        const int operation, const Point &p1, const Point &p2,
+        const uint64_t mult, const Point &pReference,
+        const uint64_t expectedOrder ) const;
 
     bool parseLine(const char *line) const;
 
 };
 
 template<typename MODULUS>
+template <typename Point>
 bool
-TestWeierstrassAffine<MODULUS>::oneTest ( const cxx_mpz &M, const cxx_mpz &A,
-        const int operation, const cxx_mpz &x1, const cxx_mpz &y1, const cxx_mpz &x2,
-        const cxx_mpz &y2, const uint64_t mult, const cxx_mpz &xReference, const cxx_mpz &yReference,
-        const bool expectedIsFinite, const uint64_t expectedOrder ) const
+TestWeierstrass<MODULUS>::oneTest ( const Curve &c,
+        const int operation,  const Point &p1, const Point &p2,
+        const uint64_t mult, const Point &pReference,
+        const uint64_t expectedOrder ) const
 {
     const char *operationNames[4] = {"add", "dbl", "mul", "ord"};
     bool ok = true;
     Integer order;
-    Modulus *m = initMod(M);
-    if (m == NULL) {
-        if (verbose) {
-            std::cout << "Could not process modulus " << M << std::endl;
-        }
-        return true; /* This Modulus type can't test this value. This is not an error. */
-    }
-    Residue a ( *m ), x ( *m ), y ( *m );
-    setResidue(a, *m, A);
-    Curve c ( *m, a );
-    Point p1 ( c ), p2 ( c ), pReference ( c ), pResult ( c );
+    Point pResult ( c );
 
-    setPoint ( p1, *m, x1, y1 );
-    setPoint ( p2, *m, x2, y2 );
-    setPoint ( pReference, *m, xReference, yReference );
-
-    if (operation < 0 || operation > 3)
-        abort();
+    ASSERT_ALWAYS(0 <= operation && operation < 4);
 
     if (operation == 0) {
         pResult = p1 + p2;
@@ -107,63 +110,114 @@ TestWeierstrassAffine<MODULUS>::oneTest ( const cxx_mpz &M, const cxx_mpz &A,
     } else {
         abort();
     }
-    
-    if ( (!pResult.is0()) != expectedIsFinite ) {
-        std::cerr << "Expected point " << ( expectedIsFinite ? "not " : "" ) << "at infinity" << std::endl;
-        std::cerr << "but result is " << (pResult.is0() ? "" : "not ") << "point at infinity" << std::endl;
+
+    if ( !pResult.isValid() || pReference != pResult ) {
         ok = false;
-    } else if ( (!pResult.is0()) && pReference != pResult ) {
         std::cerr << "Computed point is wrong" << std::endl;
-        ok = false;
-    }
-    if ( !ok ) {
-        std::cerr << "Testing TestWeierstrassAffine<MODULUS>::" << operationNames[operation] << ":" << std::endl;
+        std::cerr << "Testing " << typeid(*this).name() << "::" << operationNames[operation] << ":" << std::endl;
         std::cerr << c << std::endl;
         std::cerr << "p1 = " << p1 << std::endl;
         if (operation == 0)
             std::cerr << "p2 = " << p2 << std::endl;
-        if (operation == 3)
+        if (operation == 2)
             std::cerr << "mult = " << mult << std::endl;
         std::cerr << "pReference = " << pReference << std::endl;
         std::cerr << "pResult = " << pResult << std::endl;
     }
-    delete m;
     return ok;
 }
 
 template<typename MODULUS>
 bool
-TestWeierstrassAffine<MODULUS>::parseLine(const char *line) const {
-    cxx_mpz M, A, P1x, P1y, P2x, P2y, PReferencex, PReferencey;
+TestWeierstrass<MODULUS>::parseLine(const char *line) const {
+    cxx_mpz M, A, P1x, P1y, P1z, P2x, P2y, P2z, PReferencex, PReferencey, PReferencez;
     uint64_t mult = 0, order = 0;
     int operation;
+    bool affine;
 
     if (gmp_sscanf(line, "add M %Zd A %Zd P1 %Zd:%Zd P2 %Zd:%Zd RESULT %Zd:%Zd",
-                   (mpz_ptr) M, (mpz_ptr) A, (mpz_ptr) P1x, (mpz_ptr) P1y, (mpz_ptr) P2x, (mpz_ptr) P2y, (mpz_ptr) PReferencex, (mpz_ptr) PReferencey) == 8) {
+                   (mpz_ptr) M, (mpz_ptr) A, (mpz_ptr) P1x, (mpz_ptr) P1y, 
+                   (mpz_ptr) P2x, (mpz_ptr) P2y, (mpz_ptr) PReferencex, (mpz_ptr) PReferencey) == 8) {
         operation = 0;
+        affine = true;
+    } else if (gmp_sscanf(line, "add M %Zd A %Zd P1 %Zd:%Zd:%Zd P2 %Zd:%Zd:%Zd RESULT %Zd:%Zd:%Zd",
+                   (mpz_ptr) M, (mpz_ptr) A, (mpz_ptr) P1x, (mpz_ptr) P1y, (mpz_ptr) P1z,
+                   (mpz_ptr) P2x, (mpz_ptr) P2y, (mpz_ptr) P2z, 
+                   (mpz_ptr) PReferencex, (mpz_ptr) PReferencey, (mpz_ptr) PReferencez) == 11) {
+        operation = 0;
+        affine = false;
     } else if (gmp_sscanf(line, "dbl M %Zd A %Zd P1 %Zd:%Zd RESULT %Zd:%Zd",
                           &M, &A, &P1x, &P1y, &PReferencex, &PReferencey) == 6) {
         operation = 1;
+        affine = true;
+    } else if (gmp_sscanf(line, "dbl M %Zd A %Zd P1 %Zd:%Zd:%Zd RESULT %Zd:%Zd:%Zd",
+                          &M, &A, &P1x, &P1y, &P1z, &PReferencex, &PReferencey, &PReferencez) == 8) {
+        operation = 1;
+        affine = false;
     } else if (gmp_sscanf(line, "mul M %Zd A %Zd P1 %Zd:%Zd MULT %" SCNu64 " RESULT %Zd:%Zd",
                           &M, &A, &P1x, &P1y, &mult, &PReferencex, &PReferencey) == 7) {
         operation = 2;
+        affine = true;
+    } else if (gmp_sscanf(line, "mul M %Zd A %Zd P1 %Zd:%Zd:%Zd MULT %" SCNu64 " RESULT %Zd:%Zd:%Zd",
+                          &M, &A, &P1x, &P1y, &P1z, &mult, &PReferencex, &PReferencey, &PReferencez) == 9) {
+        operation = 2;
+        affine = false;
     } else if (gmp_sscanf(line, "ord M %Zd A %Zd P1 %Zd:%Zd ORDER %" SCNu64,
                           &M, &A, &P1x, &P1y, &order) == 5) {
         operation = 3;
+        affine = true;
     } else {
         std::cerr << "Did not understand line:" << std::endl << line << std::endl;
         return false;
     }
-    const bool expectedIsFinite = (PReferencex != 0 || PReferencey != 0);
-    return oneTest(M, A, operation, P1x, P1y, P2x, P2y, mult, PReferencex, PReferencey, expectedIsFinite, order);
+
+    Modulus *m = initMod(M);
+    if (m == NULL) {
+        if (verbose) {
+            std::cout << "Could not process modulus " << M << std::endl;
+        }
+        return true; /* This Modulus type can't test this value. This is not an error. */
+    }
+    Residue a ( *m );
+    bool ok = true;
+    if (!setResidue(a, *m, A)) {
+        std::cerr << "Could not set point" << std::endl;
+        ok = false;
+    }
+    Curve c ( *m, a );
+
+    if (affine) {
+        AffinePoint p1 ( c ), p2 ( c ), pReference ( c );
+
+        if (!setPoint ( p1, *m, P1x, P1y ) ||
+            !setPoint ( p2, *m, P2x, P2y ) ||
+            !setPoint ( pReference, *m, PReferencex, PReferencey )) {
+            std::cerr << "Could not set point" << std::endl;
+            ok = false;
+        } else {
+            ok &= oneTest(c, operation, p1, p2, mult, pReference, order);
+        }
+    } else {
+        ProjectivePoint p1 ( c ), p2 ( c ), pReference ( c );
+
+        if (!setPoint ( p1, *m, P1x, P1y, P1z ) ||
+            !setPoint ( p2, *m, P2x, P2y, P2z ) ||
+            !setPoint ( pReference, *m, PReferencex, PReferencey, PReferencez )) {
+            std::cerr << "Could not set point" << std::endl;
+            ok = false;
+        } else {
+            ok &= oneTest(c, operation, p1, p2, mult, pReference, order);
+        }
+    }
+    delete m;
+    return ok;
 }
 
 
 int main(int argc, const char *argv[]) {
     bool ok = true;
-    int verbose = 0;
     tests_common_cmdline (&argc, &argv, PARSE_VERBOSE);
-    verbose = tests_common_get_verbose ();
+    int verbose = tests_common_get_verbose ();
 
     if (argc < 2) {
         fprintf(stderr, "Input file missing\n");
@@ -175,10 +229,10 @@ int main(int argc, const char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    TestWeierstrassAffine<Modulus64> test1(verbose);
-    TestWeierstrassAffine<ModulusREDC64> test2(verbose);
-    TestWeierstrassAffine<ModulusREDC126> test3(verbose);
-    TestWeierstrassAffine<ModulusMPZ> test4(verbose);
+    TestWeierstrass<Modulus64> test1(verbose);
+    TestWeierstrass<ModulusREDC64> test2(verbose);
+    TestWeierstrass<ModulusREDC126> test3(verbose);
+    TestWeierstrass<ModulusMPZ> test4(verbose);
 
     constexpr size_t buflen = 1024;
     char line[buflen];

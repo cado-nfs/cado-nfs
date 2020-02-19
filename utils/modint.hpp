@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <iomanip>
 #include <gmp.h>
 #include "macros.h"
 #include "u64arith.h"
@@ -328,10 +329,9 @@ public:
     Integer128  operator*(const Integer128 &a) const {Integer128 r = *this; r *= a; return r;}
     Integer128  operator*(const uint64_t a) const {Integer128 r = *this; r *= a; return r;}
     Integer128& operator/=(const uint64_t a) {
-        uint64_t q, r;
-        u64arith_divqr_2_1_1 (&q, &v[1], v[1], 0, a);
-        u64arith_divqr_2_1_1 (&v[0], &r, v[0], v[1], a);
-        v[1] = q;
+        uint64_t r;
+        u64arith_divqr_2_1_1 (&v[1], &r, v[1], 0, a);
+        u64arith_divqr_2_1_1 (&v[0], &r, v[0], r, a);
         return *this;
     }
     Integer128& operator/=(const Integer128 &a) {
@@ -365,7 +365,7 @@ public:
         return *this;
     }
     Integer128 operator%(const Integer128 &a) const {Integer128 r = *this; r %= a; return r;}
-    Integer128 operator%(const uint64_t a) const {Integer128 r = *this; r %= a; return r;}
+    uint64_t operator%(const uint64_t a) const {Integer128 r = *this; r %= a; return (uint64_t) r;}
     /* r = v/a. We require a|v. */
     Integer128 divexact(const Integer128 &a) const {
         Integer128 n1, d1, r;
@@ -458,9 +458,27 @@ public:
         }
         return u64arith_ctz(v[0]);
     }
-    friend std::ostream & operator << (std::ostream &out, const Integer128 &i) {
-        out << i.v[0] << ":" << i.v[1];
-        return out;
+    friend std::ostream & operator << (std::ostream &out, const Integer128 &s) {
+        if (s == 0) {
+            return out << "0";
+        } else if (s.v[1] == 0) {
+            return out << s.v[0];
+        }
+        constexpr uint64_t ten19 = UINT64_C(10000000000000000000);
+        Integer128 t{s};
+        const uint64_t lower19 = t % ten19;
+        t -= lower19;
+        t /= ten19;
+        const uint64_t upper19 = t % ten19;
+        t -= upper19;
+
+        if (t != 0) {
+            t /= ten19;
+            ASSERT_ALWAYS(t < 4);
+            return out << t.v[0] << std::setfill('0') << std::setw(19) << upper19 << std::setfill('0') << std::setw(19) << lower19;
+        } else {
+            return out << upper19 << std::setfill('0') << std::setw(19) << lower19;
+        }
     }
     
 };

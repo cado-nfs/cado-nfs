@@ -2,6 +2,7 @@
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdlib>
 #include <climits>
+#include <sstream>
 #include "modint.hpp"
 #include "tests_common.h"
 
@@ -27,10 +28,32 @@ class Tests {
         }
         return true;
     }
+    
+    bool test_stream_operator() {
+        cxx_mpz V;
+        Integer v;
+        bool ok = true;
+        for (int i = 0; i < 256; i++) {
+            V = 1;
+            V <<= i;
+            if (!V.fits<Integer>())
+                break;
+            v = V;
+            std::stringstream V_str, v_str;
+            V_str << V;
+            v_str << v;
+            if (V_str.str() != v_str.str()) {
+                std::cerr << "GMP output: " << V << ", Integer output: " << v << std::endl;
+                ok = false;;
+            }
+        }
+        return ok;
+    }
 public:
     bool runTests() {
         bool ok = true;
         ok &= test_operator_assign_cxx_mpz();
+        ok &= test_stream_operator();
         return ok;
     }
 };

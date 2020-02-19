@@ -183,6 +183,8 @@ tasks.polyselect.P = 10000		# choose lc(g) with two prime factors in [P,2P]
 
 tasks.polyselect.admin = 0          # min value for leading coefficient of f(x)
     # If not set, the default is 0.
+    # Warning: to ensure lc(f) is divisible by incr (defined below), admin
+    # should be divisible by incr too.
 
 tasks.polyselect.admax = 100e3      # max value for leading coefficient of f(x)
 
