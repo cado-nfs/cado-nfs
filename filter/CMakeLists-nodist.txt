@@ -1,4 +1,0 @@
-
-add_executable(replay_dblemat EXCLUDE_FROM_ALL replay_dblemat.c sparse.c)
-target_link_libraries(replay_dblemat utils_with_io)
-

@@ -1,9 +1,0 @@
-1) convert a polynomial from CADO format to Franke-Kleinjung format:
-
-% $CADO/misc/convert_poly -if cado -of fk < rsa100.poly > rsa100
-
-2) convert relations from CADO format to Franke-Kleinjung format
-(warning you have to specify the degree of the algebraic polynomial):
-
-% $CADO/misc/convert_rels -if cado -of fk -deg 5 rsa100.rels > part1
-

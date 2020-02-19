@@ -1,9 +1,0 @@
-The polynomials in this directory are:
-
-(a) either polynomials used to factor a given number (rsa155.poly, rsa704.poly,
-    rsa768.poly). In that case some additional information might be provided
-    (factor base bounds, ...)
-
-(b) or reference polynomials used to tune CADO-NFS (c60.poly, c65.poly, ...)
-    In that case those polynomials should be those found by CADO-NFS polynomial
-    selection when run on the corresponding input 'n'.

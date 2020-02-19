@@ -1,4 +1,0 @@
-add_executable(lift EXCLUDE_FROM_ALL lift.c powers_of_p.cpp)
-target_link_libraries(lift utils m)
-
-# vim: set ft=cmake:

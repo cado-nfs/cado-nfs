@@ -1,9 +1,0 @@
---- .badideals data ---
-2,0:0: 2
---- .badidealinfo data ---
-# bad ideals for poly0=-76-18*x+44*x^2-7*x^3-71*x^4-43*x^5+43*x^6-17*x^7-11*x^8
-# p=2, r=0 : 2 ideals among 4 are bad
-# I0:=ideal<O|2,(121*alpha^2+1331*alpha^3+14641*alpha^4+161051*alpha^5+5314683*alpha^6+19487171*alpha^7)/2>; // f=1 e=1
-# I1:=ideal<O|2,(2+121*alpha^2+3993*alpha^3+14641*alpha^4+161051*alpha^5+5314683*alpha^6+19487171*alpha^7)/2>; // f=1 e=2
-# 1 branch found
-2 1 0 0 -1 1

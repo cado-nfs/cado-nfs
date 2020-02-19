@@ -1,3 +1,0 @@
-
-- Find some way to test whether inlining helps or not. For the moment the
-  GF2X_STORAGE_CLASS_* macros are static, which is not very good.

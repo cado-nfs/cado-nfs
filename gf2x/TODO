@@ -1,9 +1,0 @@
-
-- the top-level multiplication routine is fairly dumb, in that the
-  algorithm for handling unbalanced multiplications is sub-optimal. One
-  should consider implementing several unbalanced toom alternatives, and
-  use them as building blocks for the unbalanced multiplications.
-
-- there is no addmul_2 routine, and when sse-2 registers are available,
-  there could be a clear win in using it. (or addmul_4 on 32-bit
-  machines). It's even quite easy.
