@@ -1010,7 +1010,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                 unsigned int x = ((size_t) (j-j0) << logI) + i;
                 if (resieve_very_verbose) {
                     verbose_output_print(0, 1, "resieve_small_bucket_region: root %"
-                            FBROOT_FORMAT ",%"FBPRIME_FORMAT" divides at x = "
+                            FBROOT_FORMAT ",%" FBPRIME_FORMAT" divides at x = "
                             "%d = %u * %u + %d\n",
                             p, r, x, j, I, i);
                 }
