@@ -42,6 +42,22 @@ int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp
     return 1;
 }
 
+template<typename T>
+int redc_32_reference(const T x, const uint32_t p)
+{
+    cxx_mpz xx(x);
+    cxx_mpz pp(p);
+    cxx_mpz B = 1;
+    B <<= 32;
+    cxx_mpz iB;
+    mpz_invert(iB, B, pp);
+    xx = xx % pp;
+    xx = xx * iB;
+    xx = xx % pp;
+    return mpz_get_uint64(xx);
+}
+
+
 /* x is at most B*p */
 int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
@@ -133,8 +149,10 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
     us.reserve(N);
 
     for(size_t i = 0 ; i < N ; i++) {
+        /* number of bits in [10..32] */
+        size_t pbits = 10 + gmp_urandomb_ui(rstate, 10) % 23;
         cxx_mpz p;
-        mpz_rrandomb(p, rstate, 32);
+        mpz_rrandomb(p, rstate, pbits);
         uint64_t pi = mpz_get_uint64(p);
         if (!pi)
             pi++;
@@ -152,7 +170,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
         ips.push_back(mpz_get_uint64(ip));
 
         cxx_mpz xmax = B * p;
-        if (signed_x && (xmax >> 63)) {
+        if (signed_x && (xmax >> 63 != 0)) {
             /* XXX XXX XXX This is quite ugly. The constraints written in
              * redc_32 for the x interval are obviously quite loose when
              * 2^32*p exceeds 2^63. In practice, we expect that we'll
@@ -189,11 +207,37 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
     clock_t clk1 = clock();
 
     if (signed_x) {
-        for(size_t i = 0 ; i < N ; i++)
-            ASSERT_ALWAYS(redc_32_postconditions(us[i], xs[i], ps[i], ips[i]));
+        for(size_t i = 0 ; i < N ; i++) {
+            if (!redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
+                fprintf(stderr, "ERROR: redc_32("
+                        "%" PRId64 ", "
+                        "%" PRIu32 ", "
+                        "%" PRIu32 ") "
+                        "returns "
+                        "%" PRIu32
+                        " instead of expected %" PRIu32 "\n",
+                        xs[i], ps[i], ips[i], us[i],
+                        redc_32_reference(xs[i], ps[i])
+                       );
+                exit(EXIT_FAILURE);
+            }
+        }
     } else {
-        for(size_t i = 0 ; i < N ; i++)
-            ASSERT_ALWAYS(redc_u32_postconditions(us[i], xs[i], ps[i], ips[i]));
+        for(size_t i = 0 ; i < N ; i++) {
+            if (!redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
+                fprintf(stderr, "ERROR: redc_u32("
+                        "%" PRIu64 ", "
+                        "%" PRIu32 ", "
+                        "%" PRIu32 ") "
+                        "returns "
+                        "%" PRIu32
+                        " instead of expected %" PRIu32 "\n",
+                        (uint64_t) xs[i], ps[i], ips[i], us[i],
+                        redc_32_reference(xs[i], ps[i])
+                       );
+                exit(EXIT_FAILURE);
+            }
+        }
     }
 
     const char * fname[2] = { "redc_u32", "redc_32" };

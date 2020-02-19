@@ -52,7 +52,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * it as u > p */
 
   t = u;
-  if (cf || t > p)
+  if (cf || t >= p)
       u = t - p;
   if (UNLIKELY((uint32_t) u >= p))
       return redc_64 (x, p, invp);
@@ -114,7 +114,7 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 #endif
   /* Two obvious cases where we know for sure that we must subtract p.
    * Note that t is uint32_t here */
-  if (x > 0 && (cf || t > p)) u = t - p;
+  if (x > 0 && (cf || t >= p)) u = t - p;
   if (UNLIKELY((uint32_t) u >= p))
       return redc_64 (x, p, invp);
   return u;
