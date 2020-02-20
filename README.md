@@ -221,8 +221,9 @@ machine).
 
 For a larger factorization (distributed on several machines, possibly
 with different parameters for different machines), please use the
-`--server` mode (see [scripts/cadofactor/README](scripts/cadofactor/README) and
-[scripts/cadofactor/parameters](scripts/cadofactor/parameters)).
+`--server` mode (see
+[`scripts/cadofactor/README`](scripts/cadofactor/README) and
+[`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
 
 Check that your network configuration is correct:
 =================================================
@@ -318,39 +319,42 @@ for that:
 $ cado-nfs.py parameters/factor/parameters.F9 slaves.hostnames=localhost
 ```
 
-Note in particular that you can force the special-q to be on
-the rational side if this is more appropriate for your number, with
-`tasks.sieve.sqside=0` on the cado-nfs.py command line or in the parameter
-file (assuming side 0 is the rational side).
+Note in particular that you can force the special-q to be on the rational
+side if this is more appropriate for your number, with
+`tasks.sieve.sqside=0` on the cado-nfs.py command line or in the
+parameter file (assuming side 0 is the rational side).
 
 The default square root algorithm does not work in some very rare cases
 that could possibly occur with SNFS polynomials (a degree 4 polynomial
-with Galois group $Z/2 \times Z/2$ is the only reasonable example, next case is
-for degree 8). The CRT approach is a workaround. See
-[sqrt/crtaglsqrt.c](sqrt/crtaglsqrt.c) .
+with Galois group $Z/2 \times Z/2$ is the only reasonable example, next
+case is for degree 8). The CRT approach is a workaround. See
+[`sqrt/crtaglsqrt.c`](sqrt/crtaglsqrt.c) .
 
 Big factorization (200 digits and more):
 ========================================
 
-By default, to decrease memory usage, it is assumed than less than $2^32$ (~ four
-billion) relations or ideals are needed and that the ideals will be less than
-$2^32$ (i.e., the lpb0/lpb1 parameters are less or equal to 32). In the case of
-factorizations of numbers of 200 digits and more, these assumptions may not
-hold. In this case, you have to set some variables in your local.sh script
-(see Configure section above for more information on local.sh and section on
-big factorizations in local.sh.example).
+By default, to decrease memory usage, it is assumed than less than $2^32$
+(~ four billion) relations or ideals are needed and that the ideals will
+be less than $2^32$ (i.e., the lpb0/lpb1 parameters are less or equal to
+32). In the case of factorizations of numbers of 200 digits and more,
+these assumptions may not hold. In this case, you have to set some
+variables in your local.sh script (see Configure section above for more
+information on local.sh and section on big factorizations in
+local.sh.example).
 
 Factoring with two non-linear polynomials:
 ==========================================
 
-You can find a bit of information on this topic in the development version,
-in the GIT repository (see file [README.nonlinear](README.nonlinear)).
+You can find a bit of information on this topic in the development
+version, in the GIT repository (see file
+[`README.nonlinear`](README.nonlinear)).
 
 Importing polynomials or relations:
 ===================================
 
 If you have already computed a good polynomial and/or relations, you can
-tell CADO-NFS to use them, see [scripts/cadofactor/README](scripts/cadofactor/README).
+tell CADO-NFS to use them, see
+[`scripts/cadofactor/README`](scripts/cadofactor/README).
 
 Using CADO-NFS under Windows:
 =============================
@@ -375,7 +379,7 @@ some extent, but the general message is that you're on your own.
   under Windows. Those instructions should work for CADO-NFS too.
   See [`dev_docs/howto-MinGW.txt`](dev_docs/howto-MinGW.txt).
 
-* you might try to use MPIR ([mpir.org](mpir.org)) instead of GMP. MPIR
+* you might try to use MPIR (<http://mpir.org/>) instead of GMP. MPIR
   is a fork of GMP, which claims to be more portable under Windows.
 
 * you might succeed in compiling the cado-nfs binaries with a
