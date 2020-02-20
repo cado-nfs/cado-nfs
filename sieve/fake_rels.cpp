@@ -261,10 +261,10 @@ void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
     vector<uint64_t> facq;
     unsigned int nr = 0;
 
-    char line[1024];
+    char line[8192];
 
     do {
-        char * ret = fgets(line, 1024, file);
+        char * ret = fgets(line, 8192, file);
         if (ret == NULL) {
             nrels.push_back(nr);
             break;
