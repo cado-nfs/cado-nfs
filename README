@@ -4,3 +4,51 @@ As of 20200219, Cado-NFS development is now at:
 
     https://gitlab.inria.fr/cado-nfs/cado-nfs
 
+To clone the Cado-NFS sources, do:
+
+    git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+
+or
+
+    git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+
+(use the latter if you have commit access).
+
+If you have an existing git checkout, you must arrange so that it points
+to the new location. There are three cases:
+
+    case 1: you have no local commits and no pending changes
+    case 2: you have uncommitted pending changes
+    case 3: you have local commits that have not yet been pushed
+
+Case 1, if you have no local commits and no pending changes, you can do:
+
+    git pull    # from the old repo. presumably this is how you got this
+                # file in the first place !
+    git remote set-url origin https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+    git remote set-url origin git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+                # choose one of the two lines above.
+    git pull
+
+Case 2, if you have uncommitted pending changes, a "git pull" will certainly
+complain as follows:
+
+    error: Your local changes to the following files would be overwritten by merge:
+            CMakeLists.txt
+    Please commit your changes or stash them before you merge.
+
+So you're bound to do what the comment says, and then you reach the next
+situation.
+
+Case 3, if you have local commits, a "git pull" will now *FAIL* with a conflict:
+
+    Automatic merge failed; fix conflicts and then commit the result.
+
+You must then do
+
+    git merge --abort
+    git remote set-url origin https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+    git remote set-url origin git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+                # choose one of the two lines above.
+    git pull
+    git push    # push your local commits, if appropriate.
