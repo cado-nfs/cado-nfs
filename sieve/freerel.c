@@ -207,7 +207,7 @@ struct th_buf_s
   /* protected by roots_full/roots_empty */
   char_buffer_t roots_char; /* The local renumbering table is kept as a char*. */
   uint64_t nroots_tot; /* nb of entry in the local renumbering table */
-  uint64_t nprimes_out; /* nb of treated primes */
+  uint64_t nprimes_out; /* nb of processed primes */
   uint64_t nfreerels;
   unsigned long freerels_p[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
   uint64_t freerels_first_index[(NB_POLYS_MAX-1)*NB_PRIMES_PER_BUFFER];
@@ -508,7 +508,7 @@ generate_renumber_and_freerels (const char *outfilename,
   stats_data_t stats; /* struct for printing progress */
   /* will print report at 2^10, 2^11, ... 2^23 computed primes and every
    * 2^23 primes after that */
-  stats_init (stats, stdout, &nprimes_total, 23, "Treated", "primes", "", "p");
+  stats_init (stats, stdout, &nprimes_total, 23, "Processed", "primes", "", "p");
 
   /* Init threads and threads data */
   freerel_th_data_t *th_data = NULL; /* data of the threads */

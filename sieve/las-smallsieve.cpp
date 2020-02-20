@@ -877,7 +877,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
                 const fbprime_t q = psp[i - 1].q, pos = psp[i - 1].idx;
                 const unsigned char logp = psp[i - 1].logp;
                 if (0) {
-                    printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%"FBPRIME_FORMAT", %"FBPRIME_FORMAT", %hhu}, from  ",
+                    printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%" FBPRIME_FORMAT", %" FBPRIME_FORMAT", %hhu}, from  ",
                         w.side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp);
                     ssp.print(stdout);
                     printf("\n");
@@ -1010,7 +1010,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                 unsigned int x = ((size_t) (j-j0) << logI) + i;
                 if (resieve_very_verbose) {
                     verbose_output_print(0, 1, "resieve_small_bucket_region: root %"
-                            FBROOT_FORMAT ",%"FBPRIME_FORMAT" divides at x = "
+                            FBROOT_FORMAT ",%" FBPRIME_FORMAT" divides at x = "
                             "%d = %u * %u + %d\n",
                             p, r, x, j, I, i);
                 }

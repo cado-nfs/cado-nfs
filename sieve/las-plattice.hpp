@@ -255,7 +255,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
 #else
   const int32_t hI = (int32_t) I;
 #endif
-  int32_t a0 = - (int32_t) p, b0 = (int32_t) r, a1, b1;
+  int64_t a0 = - (int64_t) p, b0 = (int64_t) r, a1, b1;
 
   /* Mac OS X 10.8 embarks a version of llvm which crashes on the code
    * below (could be that the constraints are exerting too much of the
@@ -263,7 +263,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
    *
    * See tracker #16540
    */
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#if 0 // def HAVE_GCC_STYLE_AMD64_INLINE_ASM
 #if defined(__APPLE_CC__) && defined(__llvm__)
 #if __APPLE_CC__ == 5621
 #define AVOID_ASM_REDUCE_PLATTICE
@@ -384,7 +384,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
 #define RPA do {							\
     a0 += b0; a1 += b1;							\
     if (LIKELY(a0 + b0 * 4 > 0)) {					\
-      int32_t c0 = a0, c1 = a1;						\
+      int64_t c0 = a0, c1 = a1;						\
       c0 += b0; c1 += b1; if (LIKELY(c0 <= 0)) { a0 = c0; a1 = c1; }	\
       c0 += b0; c1 += b1; if (LIKELY(c0 <= 0)) { a0 = c0; a1 = c1; }	\
       c0 += b0; c1 += b1; if (LIKELY(c0 <= 0)) { a0 = c0; a1 = c1; }	\
@@ -394,7 +394,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
 #define RPB do {							\
     b0 += a0; b1 += a1;							\
     if (LIKELY(b0 + a0 * 4 < 0)) {					\
-      int32_t c0 = b0, c1 = b1;						\
+      int64_t c0 = b0, c1 = b1;						\
       c0 += a0; c1 += a1; if (LIKELY(c0 >= 0)) { b0 = c0; b1 = c1; }	\
       c0 += a0; c1 += a1; if (LIKELY(c0 >= 0)) { b0 = c0; b1 = c1; }	\
       c0 += a0; c1 += a1; if (LIKELY(c0 >= 0)) { b0 = c0; b1 = c1; }	\
@@ -402,10 +402,10 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
       RPD;								\
     } while (0)
 #define RPC do {					\
-    int32_t k = a0 / b0; a0 %= b0; a1 -= k * b1;	\
+    int64_t k = a0 / b0; a0 %= b0; a1 -= k * b1;	\
   } while (0)
 #define RPD do {					\
-    int32_t k = b0 / a0; b0 %= a0; b1 -= k * a1;	\
+    int64_t k = b0 / a0; b0 %= a0; b1 -= k * a1;	\
   } while (0)
 
   /* This code seems odd (looks after the a0 <= mhI loop),
@@ -429,7 +429,7 @@ reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, cons
   }
 #endif /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
-  int32_t k = b0 - hI - a0;
+  int64_t k = b0 - hI - a0;
   if (b0 > -a0) {
     if (UNLIKELY(!a0)) return 0;
     k /= a0; b0 -= k * a0; b1 -= k * a1;

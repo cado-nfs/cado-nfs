@@ -2380,10 +2380,12 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
 
     /* essentially update the fij polynomials and the max log bounds */
     if (main_output.verbose >= 2) {
+        verbose_output_start_batch();
         verbose_output_print (0, 1, "# f_0'(x) = ");
         mpz_poly_fprintf(main_output.output, ws.sides[0].lognorms.fij);
         verbose_output_print (0, 1, "# f_1'(x) = ");
         mpz_poly_fprintf(main_output.output, ws.sides[1].lognorms.fij);
+        verbose_output_end_batch();
     }
 
 #ifdef TRACE_K

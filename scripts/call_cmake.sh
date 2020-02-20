@@ -167,4 +167,15 @@ fi
 # env | grep -i make
 unset MAKELEVEL
 absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
-(cd "$absolute_path_of_build_tree$relative_path_of_cwd" ; ${MAKE} "$@")
+
+callit_args=("$@")
+callit() {
+(cd "$absolute_path_of_build_tree$relative_path_of_cwd" ; ${MAKE} "${callit_args[@]}")
+}
+if [ "$1" = "check" ] && ! [ "$ctest_filter" = "no" ] ; then
+    set -o pipefail
+    # the ctest_filter groks -nc, -q, -v
+    callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter
+else
+    callit
+fi
