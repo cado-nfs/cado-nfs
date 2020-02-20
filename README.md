@@ -482,13 +482,13 @@ The website of the project is hosted at:
    <http://cado-nfs.gforge.inria.fr/>
 
 You can get the latest development version with:
-```
-   git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
-```
+    ```
+    git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+    ```
 or
-```
-   git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
-```
+    ```
+    git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+    ```
 (use the latter if you have an account on inria gitlab)
 
 There are two mailing-lists associated to Cado-nfs:
