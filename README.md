@@ -1,3 +1,4 @@
+
 Quick install:
 ==============
 
@@ -18,28 +19,31 @@ are in [`parameters/factor/params.c90`](parameters/factor/params.c90) and
 Supported platforms
 ===================
 
-The primary development platform is x86_64 linux with gcc 4.7 or newer,
+The primary development platform is x86_64 linux with gcc 5 or newer,
 the most common processor being Intel core2-like or more recent.
 
 Other architectures are checked regularly, and should work. Please refer
 to the CI page for the list of regularly tested platforms, and their
-current status. Those machines, compared to the base install, are equipped
-with the necessary dependencies (see below). The console outputs for the
-different builds contain information related to the compiler versions
-being used.
+current status:
+
+<https://cado-nfs-ci.loria.fr/ci/job/master>
+
+Those machines, compared to the base install, are equipped with the
+necessary dependencies (see below). The console outputs for the different
+builds contain information related to the compiler versions being used.
 
 Anything beyond that set of regularly tested machines perhaps works,
 perhaps does not:
 
- * Older gcc versions, but no older than gcc-4.4, should work, but are
-   not considered as important build targets.
  * x86_64 with icc 14, 15, 16, 17, and 18 did work once, but are not checked
-   regularly (part of cado-nfs uses C++11, and is not available with icc
-   <= 14)
- * Mac OS X Mavericks have been successfully tested with both Apple's gcc
-   and clang. (see local.sh.macosx.x86_64)
- * Max OS X Leopard and Snow Leopard used to work, but are no longer
-   supported.
+   regularly (cado-nfs uses C++11, which is not available with icc <=
+   14).  Compilation with icc 19 has undergone more testing.
+ * Mac OS X is used for CI routine compilation checks, using the
+   default compiler from XCode. All version from 10.5 onwards were part
+   of the CI routine checks at some point in time, and worked
+   successfully. However we do not commit to continued support for old
+   versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
+   cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
  * Windows used to be partly supported, but this has been abandoned for
    some time now (see a longer note at the end of README).
 
@@ -52,13 +56,19 @@ Required software tools
    default). Note: make sure to configure GMP with `--enable-shared` so
    that a shared library is installed (`libgmp.so` under Linux) otherwise
    CADO-NFS might not compile.
- * C and C++ compilers, with C99 support. For C++, as of release
-   cado-nfs-2.3.0, only C++98 is required. However all tested platforms
-   automatically enable C++11. If you have only a C++98 compiler, you
-   will need the boost libraries installed.
-   In practice, your probability of success is best with either GCC
-   version 4.7 or newer, LLVM Clang 4.0.0 or newer, Apple Clang 6.0.0 or
-   newer, or ICC version 14 or newer.
+ * As of cado-nfs-3.0.0, a C/C++ compiler and C/C++ standard library that
+   conform to the C99 and C++11 standards are required. (cado-nfs-2.3.0
+   only needed C99 and C++98).  The dependency on C++11 is now
+   substantial enough that an "almost conformant" compiler is not
+   guaranteed to work.  The minimal required versions for various
+   compilers are as follows.  Not all old compiler versions are part of
+   our routine checks, so that a break for an old compiler is possible.
+   The only thing that we're quite certain of is that versions _older_
+   than below are a no-go.
+   * GCC: the minimal required version is >= 5
+   * LLVM Clang: the minimal required version is >= 4.0.0
+   * Apple Clang: the minimal required version is >= 6.0.0
+   * Intel ICC: the minimal required version is >= 14
  * GNU make and CMake (cmake 3.4 or later) for building (CMake is
    installed on the fly if missing. This feature requires an Internet
    connection.)
@@ -464,6 +474,9 @@ This command works with: xxxx = polyselect, sieve, filter, linalg
 
 Known problems:
 ===============
+
+(some of these problems refer to versions or operating systems that are
+no longer supported by cado-nfs anyway)
 
 * when running the square root step in multi-thread mode (tasks.sqrt.threads=2
   or larger) with GMP <= 6.0, you might encounter an issue due to a "buglet"
