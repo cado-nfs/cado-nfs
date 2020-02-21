@@ -710,10 +710,8 @@ int mpfq_pz_vec_asprint(mpfq_pz_dst_field k, char * * pstr, mpfq_pz_src_vec v, u
         int len = 0;
         *pstr = (char *) malloc(alloc);
         if (!*pstr) abort();
-        char *str = *pstr;
-        *str++ = '[';
-        *str++ = ' ';
-        len = 2;
+        (*pstr)[len++] = '[';
+        (*pstr)[len++] = ' ';
         for (unsigned int i = 0; i < n; ++i) {
         if (i) {
             (*pstr)[len++] = ',';
@@ -726,7 +724,14 @@ int mpfq_pz_vec_asprint(mpfq_pz_dst_field k, char * * pstr, mpfq_pz_src_vec v, u
             alloc = len + ltmp + 100;
             *pstr = (char *) realloc(*pstr, alloc);
         }
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
         strncpy(*pstr + len, tmp, ltmp + 4);
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic pop
+#endif
         len += ltmp;
         free(tmp);
         }

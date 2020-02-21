@@ -521,10 +521,8 @@ int mpfq_p_4_vec_asprint(mpfq_p_4_dst_field K MAYBE_UNUSED, char * * pstr, mpfq_
     int alloc = 100;
     int len = 0;
     *pstr = (char *)mpfq_malloc_check(alloc);
-    char *str = *pstr;
-    *str++ = '[';
-    *str++ = ' ';
-    len = 2;
+    (*pstr)[len++] = '[';
+    (*pstr)[len++] = ' ';
     unsigned int i;
     for(i = 0; i < n; i+=1) {
         if (i) {
