@@ -260,6 +260,9 @@ int test_redc_u32(gmp_randstate_t rstate, size_t N)
 
 int main(int argc, char * argv[])
 {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+
     size_t Nmax = 1e5;
     for( ; argc > 1 ; argv++,argc--) {
         if (strcmp(argv[1], "--minimum-p-bits") == 0) {
