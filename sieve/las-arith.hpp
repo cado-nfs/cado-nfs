@@ -14,6 +14,10 @@
  * their promises.
  */
 
+/* define STAT to get statistics on the frequency of carries in redc_u32 and
+   redc_32 */
+// #define STAT
+
 static inline uint64_t
 redc_64(const int64_t x, const uint32_t p, const uint64_t invp);
 
@@ -45,9 +49,15 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
      assembly: redc_u32: 8388608 tests in 0.0760s
      C code  : redc_u32: 8388608 tests in 0.0743s
   */
-  uint64_t xtp0 = xtp;
   xtp += tp;
-  cf = xtp < xtp0;
+  cf = xtp < tp;
+#endif
+#ifdef STAT
+  static int count = 0, carry = 0;
+  count ++;
+  carry += cf != 0;
+  if ((count % 1000000) == 0)
+    printf ("redc_u32: count=%d carry=%d\n", count, carry);
 #endif
   uint32_t u = xtp >> 32;
   // by construction, xtp is divisible by 2^32. u is such that
@@ -65,8 +75,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 // Assume:
 //   * p is an odd number < 2^32.
 //   * invp is -1/p mod 2^32.
-//   * x is some signed integer in ]-2^32*p, 2^32*p[ (or [-2^63, 2^63[ if
-//   that happens to be a narrower range).
+//   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
 // Compute:
 //   * x/2^32 mod p as an integer in [0, p[
 static inline uint32_t
@@ -77,11 +86,11 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   uint64_t tp = (uint64_t)t * (uint64_t)p;
   uint64_t xtp = x,cf;
   /* if x >= 0,
-   * x + t*p is bounded by min(2^63,2^32*p)-1+(2^32-1)*p <
-   * min(2^63+2^32*p,2*2^32*p) -- so that it may well overflow.
+   * x + t*p might overflow (for example for p = 2147635297 = 2^31 + 151649,
+   * invp = 240735, x = 2^63-1)
    *
-   * if x < 0, the interval is
-   * [max(-2^63,-2^32*p+1), (2^32-1*p)-1] -- meaning that the sign may
+   * if x < 0, the interval for x is
+   * [max(-2^63,-2^32*p)+1, -1] -- meaning that the sign may
    * change when adding t*p.
    *
    * Hence in both cases, we are interested by the carry flag.
@@ -90,25 +99,50 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
-  uint64_t xtp0 = xtp;
+  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
+     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     torture-redc 10000000:
+     assembly: redc_32: 8388608 tests in 0.0926s
+     C code  : redc_32: 8388608 tests in 0.0917s
+  */
   xtp += tp;
-  cf = xtp < xtp0;
+  cf = xtp < tp;
 #endif
   int32_t u = xtp >> 32;
   // by construction, xtp is divisible by 2^32.
   //
-  // if x > 0, u is such that 
+  // if x >= 0, u is such that
   // 0 <= xtp < 2*p ; however the representative that we have is capped to
   // 2^32, and may wrap around.
   /* if cf is true, then u is a truncated representative of something in
    * [2^32, 2*p[ -- so this means in particular that we must understand
    * it as u > p */
-  // if x > 0, u might be too large by p,
+  // if x >= 0, u might be too large by p,
   // if x < 0, u might be too small by p.
+  /* More precisely we have:
+                 carry in xtp = x     carry in xtp += tp       u
+     x >= 0           no                     no              exact
+     x >= 0           no                    yes            should add 2^32
+     x < 0           yes                     no            should subtract 2^32
+     x < 0           yes                    yes              exact
+     In the case x >= 0 and we should add 2^32 to u, then we know we
+     have to subtract p from u, and the borrow will compensate for the carry
+     in xtp += tp (same analysis than for redc_u32).
+     In the case x < 0 and we should subtract 2^32 from u, since
+     -2^32*p < x < 0, then -2^32*p < x+t*p < 2^32*p, thus
+     -p < (x+t*p)/2^32 < p, then adding p will give the wanted result. */
   t = u;
-  /* The test (int32_t) t < 0 below is't be necessary: if the carry
+  /* The test (int32_t) t < 0 below isn't necessary: if the carry
    * flag from the addition is off, then certainly t is still negative.
    * However, this seems to help gcc a little bit. clang doesn't care */
+#ifdef STAT
+  static int count = 0, carry = 0, borrow = 0;
+  count ++;
+  carry += x >= 0 && cf != 0;
+  borrow += x < 0 && cf == 0;
+  if ((count % 1000000) == 0)
+    printf ("redc_32: count=%d carry=%d borrow=%d\n", count, carry, borrow);
+#endif
 #ifdef __GNUC__
   if (x < 0 && !cf && (int32_t) t < 0) u = t + p;
 #else
@@ -117,8 +151,6 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   /* Two obvious cases where we know for sure that we must subtract p.
    * Note that t is uint32_t here */
   if (x > 0 && (cf || t >= p)) u = t - p;
-  if (UNLIKELY((uint32_t) u >= p))
-      return redc_64 (x, p, invp);
   return u;
 }
 
