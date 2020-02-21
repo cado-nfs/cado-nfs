@@ -273,7 +273,7 @@ int main(int argc, char * argv[])
         }
     }
     if (minimum_p_bits > 32) {
-        fprintf(stderr, "--minimum_p_bits accepts at most 32 bits\n");
+        fprintf(stderr, "--minimum_p_bits accepts at most 32\n");
         exit(EXIT_FAILURE);
     }
 
