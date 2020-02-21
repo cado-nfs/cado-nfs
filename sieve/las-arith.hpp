@@ -39,6 +39,12 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
+  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
+     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     torture-redc 10000000:
+     assembly: redc_u32: 8388608 tests in 0.0760s
+     C code  : redc_u32: 8388608 tests in 0.0743s
+  */
   uint64_t xtp0 = xtp;
   xtp += tp;
   cf = xtp < xtp0;
