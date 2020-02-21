@@ -47,16 +47,12 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   // by construction, xtp is divisible by 2^32. u is such that
   // 0 <= u < 2*p ; however the representative that we have is capped to
   // 2^32, and may wrap around.
-  /* if cf is true, then u is a truncated representative of something in
-   * [2^32, 2*p[ -- so this means in particular that we must understand
-   * it as u > p */
+  /* if cf is true, then with u' := 2^32 + u, we have 2^32 <= u' < 2*p,
+   * thus u' - p < p, which ensures that (1) a borrow will occur in the
+   * subtraction u - p, which will compensate for the carry in x + t*p,
+   * and (2) the final result will be < p as wanted */
 
-  t = u;
-  if (cf || t >= p)
-      u = t - p;
-  if (UNLIKELY((uint32_t) u >= p))
-      return redc_64 (x, p, invp);
-  return u;
+  return (cf || u >= p) ? u - p : u;
 }
 
 // Signed redc_32 based on 64-bit arithmetic
