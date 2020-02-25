@@ -304,10 +304,10 @@ main (int argc, char *argv[])
 
   N = (argc == 1) ? 1000 : strtoul (argv[1], NULL, 10);
 
-  bug20200225 ();
-
   test_fb_root_in_qlattice_31bits (N);
   test_fb_root_in_qlattice_127bits (N);
+
+  bug20200225 ();
 
   return 0;
 }
