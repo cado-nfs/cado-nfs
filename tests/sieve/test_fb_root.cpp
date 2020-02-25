@@ -274,6 +274,25 @@ bug20200225 (void)
       fprintf (stderr, "Got      %lu\n", got);
       exit (1);
     }
+
+  p = 3725310689;
+  R = 2661839516;
+  invp = 1066179678986106591UL;
+  basis[0].a0 = 3008222006914909739L;
+  basis[0].b0 = 877054135;
+  basis[0].a1 = 3170231873717741170L;
+  basis[0].b1 = 932375769;
+  expected = 2956728450;
+  got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
+  if (got != expected)
+    {
+      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p=%u R=%u "
+	       "a0=%ld b0=%ld a1=%ld b1=%ld\n",
+	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
+      fprintf (stderr, "Expected %lu\n", expected);
+      fprintf (stderr, "Got      %lu\n", got);
+      exit (1);
+    }
 }
 
 int
