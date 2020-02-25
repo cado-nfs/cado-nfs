@@ -2144,7 +2144,6 @@ main (int argc, char *argv[])
 #pragma omp parallel for schedule(dynamic,1)
   for (unsigned long idx = 0; idx < idx_max; idx ++)
     {
-      if (verbose > 0)
       newAlgo (N, d, idx);
       if (verbose > 0)
 #pragma omp critical
