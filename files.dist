@@ -458,7 +458,7 @@ sqrt/knapsack.h
 utils/polyroots.c
 sqrt/powers_of_p.cpp
 sqrt/powers_of_p.h
-sqrt/sqrt.c
+sqrt/sqrt.cpp
 utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h
