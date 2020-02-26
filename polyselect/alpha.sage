@@ -257,16 +257,18 @@ def average_alpha_projective(ad,degree,K,verbose=true):
    else:
       return s/K
 
+# gives the record values of the parameter 'incr' of polyselect1
+# degree and K are only used with conjecture=false
 def stats_alpha_projective_records(degree,K,conjecture=false):
    best = 1
    T = dict() # records value for p^k
-   ad = 1
+   incr = 1
    while true:
-      ad += 1
+      incr += 1
       s = 0
-      l = prime_divisors(ad)
+      l = prime_divisors(incr)
       for p in l:
-         k = ad.valuation(p)
+         k = incr.valuation(p)
          if not T.has_key(p^k):
             if conjecture:
                T[p^k] = -log(1.0*p)*(1-1/p^k)/(p-1)
@@ -275,7 +277,7 @@ def stats_alpha_projective_records(degree,K,conjecture=false):
          s += T[p^k]
       if s < best:
          best = s
-         print ad, s
+         print incr, s
 
 # Assuming that alpha_projective for a leading coefficient p^k is
 # -log(p) * (1/p + ... + 1/p^k), the record values of alpha_projective are
