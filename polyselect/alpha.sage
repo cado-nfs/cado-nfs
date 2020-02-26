@@ -219,7 +219,25 @@ def alpha_affine(f,B):
 # return the average projective alpha for K random irreducible polynomials of
 # degree 'degree', and coefficients in -10^10..10^10
 # for ad=p^k, we conjecture it is -log(p)*(1/p+1/p^2+...+1/p^k)
-def average_alpha_projective(ad,degree,K):
+# average_alpha_projective(1,6,10^5) got 0 expected 0
+# average_alpha_projective(2,6,10^5) got -0.348447 expected -0.346574
+# average_alpha_projective(2^2,6,10^5) got -0.519379 expected -0.519860
+# average_alpha_projective(2^3,6,10^5) got -0.603654 expected -0.606504
+# average_alpha_projective(3,6,10^5) got -0.366334 expected -0.366204
+# average_alpha_projective(3^2,6,10^5) got -0.487743 expected -0.488272
+# average_alpha_projective(3^3,6,10^5) got -0.528848 expected -0.528961
+# average_alpha_projective(5,6,10^5) got -0.321744 expected -0.321888
+# average_alpha_projective(5^2,6,10^5) got -0.386876 expected -0.386265
+# average_alpha_projective(5^3,6,10^5) got -0.399913 expected -0.399141
+# average_alpha_projective(7,6,10^5) got -0.278007 expected -0.277987
+# average_alpha_projective(7^2,6,10^5) got -0.317601 expected -0.317700
+# average_alpha_projective(7^3,6,10^5) got -0.323254 expected -0.323373
+# RSA-240:
+# average_alpha_projective(110880,6,10^5) got -1.97338 expected -1.97762
+# average_alpha_projective(1801800,6,10^5) got -2.17147 expected -2.17432
+# average_alpha_projective(36756720,6,10^5) got -2.35752 expected -2.36062
+def average_alpha_projective(ad,degree,K,verbose=true):
+   set_random_seed(1) # to get deterministic results
    s = 0
    R.<x> = ZZ[]
    lp = prime_divisors(ad)
@@ -230,7 +248,14 @@ def average_alpha_projective(ad,degree,K):
             break
       disc = f.discriminant()
       s += sum([alpha_p_projective(f,disc,p) for p in lp])
-   return s/K
+   if verbose:
+      t = 0
+      for p in lp:
+         k = ad.valuation(p)
+         t -= log(p)*sum(1/p^i for i in [1..k])
+      print "got", n(s/K,24), "expected", n(t,24)
+   else:
+      return s/K
 
 def stats_alpha_projective_records(degree,K,conjecture=false):
    best = 1
@@ -246,7 +271,7 @@ def stats_alpha_projective_records(degree,K,conjecture=false):
             if conjecture:
                T[p^k] = -log(1.0*p)*(1-1/p^k)/(p-1)
             else:
-               T[p^k] = average_alpha_projective(p^k,degree,K)
+               T[p^k] = average_alpha_projective(p^k,degree,K,verbose=false)
          s += T[p^k]
       if s < best:
          best = s
