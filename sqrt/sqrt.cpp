@@ -41,6 +41,12 @@
 #include "utils_with_io.h"
 #include "portability.h"
 
+/* frequency of messages "read xxx (a,b) pairs" */
+#define REPORT 10000000
+
+/* maximal number of threads when reading dependency files */
+#define MAX_IO_THREADS 16
+
 static int verbose = 0;
 static double wct0;
 
@@ -496,7 +502,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         /* Cannot seek: we have to use serial i/o */
         while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
         {
-            if(!(nab % 1000000)) {
+            if(!(nab % REPORT)) {
                 fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
                         message, nab, seconds (), wct_seconds () - wct0,
                         PeakMemusage () >> 10);
@@ -514,9 +520,9 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         off_t endpos = ftell(depfile);
         /* Find accurate starting positions for everyone */
         unsigned int nthreads = omp_get_max_threads();
-        /* cap the number of I/O threads to 16 */
-        if (nthreads > 16)
-            nthreads = 16;
+        /* cap the number of I/O threads */
+        if (nthreads > MAX_IO_THREADS)
+            nthreads = MAX_IO_THREADS;
         fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
         std::vector<off_t> spos_tab;
         for(unsigned int i = 0 ; i < nthreads ; i++)
@@ -569,7 +575,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
                     for(auto & x: loc_prd)
                         prd.emplace_back(std::move(x));
                     loc_prd.clear();
-                    if(!(nab % 1000000)) {
+                    if(!(nab % REPORT)) {
                         fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
                                 message, nab, seconds (), wct_seconds () - wct0,
                                 PeakMemusage () >> 10);
