@@ -87,7 +87,7 @@ void tree_stats::print(unsigned int level)
                 function_stats const& F(x.second);
                 sum += F.projected_time;
                 time_to_go += F.projected_time - F.spent;
-                printf("%s%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f)\n",
+                printf("%s%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f wct)\n",
                         prefix,
                         k, (const char*) code,
                         F.min_inputsize, F.max_inputsize,
