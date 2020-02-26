@@ -100,6 +100,13 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   return (cf || u >= p) ? u - p : u;
 }
 
+// Signed redc_64
+// Assume:
+//   * p is an odd number < 2^32.
+//   * invp is -1/p mod 2^64.
+//   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
+// Compute:
+//   * x/2^64 mod p as an integer in [0, p[
 #define HAVE_redc_64
 /* This does a full mul, and should grok slightly larger bounds than the
  * version above. Presumably, as long as x fits within 64 bits, (63 bits,
@@ -381,8 +388,9 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   return u;
 }
 
-/* Only used for together with redc_64 */
-NOPROFILE_INLINE int
+/* Only used for together with redc_64:
+   return 2^64/a mod b */
+NOPROFILE_INLINE uint64_t
 invmod_redc_64(uint64_t a, uint64_t b)
 {
   ASSERT (a < b);
@@ -444,8 +452,8 @@ invmod_redc_64(uint64_t a, uint64_t b)
 
   if (UNLIKELY(a != 1)) return 0;
   const uint64_t fix = (p+1)>>1;
-  
-  // Here, the inverse of a is u/2^t mod b.  
+
+  // Here, the inverse of a is u/2^t mod b, thus 2^t/a = u mod b
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
 #define T3 "shr %2\n    lea (%2,%3,1),%0\n      cmovc   %0,%2\n "
 #define T4 "add %2,%2\n mov %2,%0\n sub %4,%2\n cmovl   %0,%2\n "
@@ -472,6 +480,8 @@ invmod_redc_64(uint64_t a, uint64_t b)
 #define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
 #define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
 #if 0 /* Original code */
+  /* if t > 64, since 2^t/a = u mod b, we must divide u by 2^(t-64);
+     if t < 64, we must multiply u by 2^(t-64) */
   if (t > 64)
     do T3; while (--t > 64);
   else

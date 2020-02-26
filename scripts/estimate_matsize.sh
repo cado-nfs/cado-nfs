@@ -203,8 +203,8 @@ fi
 # merge
 if [ "$dlp" == "true" ]; then
    $CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz \
-      -keep 3 -skip 0 -target_density $target_density
+      -skip 0 -target_density $target_density -t $threads
 else
    $CADO_BUILD/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz \
-      -keep 160 -skip 32 -target_density $target_density
+      -skip 32 -target_density $target_density -t $threads
 fi

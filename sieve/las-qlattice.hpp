@@ -135,9 +135,15 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
       aux1 = basis.b1 - (int64_t)(R - p) * basis.a1;
       aux2 = (int64_t)(R - p) * basis.a0 - basis.b0;
     }
+//#define USE_NATIVE_MOD
+#ifdef USE_NATIVE_MOD
+  u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
+  v = (aux2 >= 0) ? aux2 % p : p - ((-aux2) % p);
+#else
   u = redc_32(aux1, p, invp); /* 0 <= u < p */
   v = redc_32(aux2, p, invp); /* 0 <= v < p */
-  
+#endif
+
   aux2 = invmod_redc_32(v, p);
   if (LIKELY(aux2)) {
     aux1 = 0;
@@ -197,7 +203,13 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   aux2 = invmod_redc_64(v, p);
   if (LIKELY(aux2)) {
     aux1 = 0;
-    aux2 *= u;
+    /* Warning: since 0 <= u < p and 0 <= aux2 < p, we have
+       0 <= aux2 < p^2, which might overflow the int64_t range
+       if p >= 3037000507. To avoid this, we subtract p if aux2 >= 2^31:
+       * if aux2 < 2^31, then aux2 * u < 2^31*p < 2^63
+       * if aux2 >= 2^31, this implies that p >= 2^31 since aux2 < p,
+       then (aux2 - p) * u > (2^31-p) * u > -2^31*p > -2^63 */
+    aux2 = (aux2 < 2147483648L) ? aux2 * u : (aux2 - p) * u;
   }
   else 
     {
@@ -209,6 +221,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
 	  ASSERT_ALWAYS(0);
 	}
       aux1 = p;
+      /* Warning: we have the same overflow problem as above. */
       aux2 *= v;
     }
   return (fbprime_t) (redc_64 (aux2, p, invp) + aux1);
