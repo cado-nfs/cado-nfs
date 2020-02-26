@@ -15,8 +15,10 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             -e 's,PATH_TO_SRC_TEST_DIRECTORY,${CMAKE_CURRENT_SOURCE_DIR}/,'
             -e 's/^\#warning.*//'
             -e 's/^\#define _POSIX_C_SOURCE.*//'
+            -e 's/^\#define _GNU_SOURCE.*//'
+            -e 's/^\#define _BSD_SOURCE.*//'
             -e 's/^\#define _DEFAULT_SOURCE.*//'
-            < mpfq_test.cpp.meta
+            < mpfq_test.c.meta
             > ${CMAKE_CURRENT_BINARY_DIR}/mpfq_test_${gfp_layer}.cpp
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS mpfq_test.cpp.meta

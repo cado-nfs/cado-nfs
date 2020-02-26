@@ -2031,11 +2031,12 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
       mpz_submul (R->coeff[R->deg], m, c);  /* lc(R) - m * (lc(R) / m mod lc(f)) */
       ASSERT (mpz_divisible_p (R->coeff[R->deg], f->coeff[f->deg]));
       mpz_divexact (c, R->coeff[R->deg], f->coeff[f->deg]);
-      /* In the square root for NFS, the coefficients of R have size up to 2n,
-	 where n is the size of m, and coefficients of f are O(1), then c has
-	 size 2n here. However, in the equal-degree factorization, even if
-	 f[deg] = O(1), the lower coefficients of f might have n bits.
-	 Thus we decide to reduce whenever the total size exceeds 2n. */
+      /* If R[deg] has initially size 2n, and f[deg] = O(1), then c has size
+	 2n here. However, in the equal-degree factorization, even if f[deg]
+	 = O(1), the lower coefficients of f might have n bits. Thus we decide
+	 to reduce whenever the total size exceeds 2n. */
+      /* FIXME: commit a85444984 changed the line below but not the
+       * comment above. */
       size_t size_c = mpz_size (c);
       if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);

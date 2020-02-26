@@ -1947,12 +1947,11 @@ int
 main (int argc, char *argv[])
 {
   char **argv0 = argv;
-  double st0 = seconds ();
+  double st0 = seconds (), wct0 = wct_seconds ();
   mpz_t N;
   unsigned int d = 0;
   unsigned long P = 0;
   int quiet = 0, nthreads = 1, st;
-  tab_t *T;
   unsigned long idx_max = 0; /* ad = admin+idx*incr, for 0 <= idx < idx_max */
 
   mpz_init (N);
@@ -2033,7 +2032,7 @@ main (int argc, char *argv[])
 
   param_list_parse_int (pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
-    omp_set_num_threads (nthreads);
+  omp_set_num_threads (nthreads);
 #endif
   param_list_parse_ulong (pl, "nq", &nq);
   param_list_parse_uint (pl, "degree", &d);
@@ -2103,21 +2102,6 @@ main (int argc, char *argv[])
            * (sizeof(uint32_t) + sizeof(uint64_t)) / 1024 / 1024),
            nthreads, BATCH_SIZE);
 
-  /* initialize tab_t for threads */
-  T = malloc (nthreads * sizeof (tab_t));
-  if (T == NULL)
-  {
-    fprintf (stderr, "Error, cannot allocate memory in main\n");
-    exit (1);
-  }
-  for (int i = 0; i < nthreads ; i++)
-  {
-    mpz_init_set (T[i]->N, N);
-    T[i]->d = d;
-    mpz_init (T[i]->ad);
-    T[i]->thread = i;
-  }
-
   if (incr <= 0)
   {
     fprintf (stderr, "Error, incr should be positive\n");
@@ -2159,7 +2143,17 @@ main (int argc, char *argv[])
 
 #pragma omp parallel for schedule(dynamic,1)
   for (unsigned long idx = 0; idx < idx_max; idx ++)
-    newAlgo (N, d, idx);
+    {
+      newAlgo (N, d, idx);
+      if (verbose > 0)
+#pragma omp critical
+        {
+          printf ("# thread %d completed ad=%.0f at time=%.2fs\n",
+                  omp_get_thread_num (), get_ad_double (idx),
+                  wct_seconds () - wct0);
+          fflush (stdout);
+        }
+    }
 
   /* finishing up statistics */
   if (verbose >= 0)
@@ -2202,12 +2196,6 @@ main (int argc, char *argv[])
   printf ("# Stat: tried %lu ad-value(s), found %d polynomial(s), %d size-optimized, %d rootsieved\n",
           idx_max, tot_found, opt_found, ros_found);
 
-  for (int i = 0; i < nthreads ; i++)
-    {
-      mpz_clear (T[i]->N);
-      mpz_clear (T[i]->ad);
-    }
-  free (T);
   clearPrimes (&Primes);
 
   /* print best keep values of logmu */

@@ -2,11 +2,17 @@
 #include "macros.h"
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 #include <ctime>
 #include "gmp.h"
 #include "utils/cxx_mpz.hpp"
 #include "las-arith.hpp"
+
+/* smaller p bits are good to spot some corner cases that happen only with
+ * probability 1/p
+ * */
+int minimum_p_bits = 10;
 
 /*
  *
@@ -149,8 +155,8 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
     us.reserve(N);
 
     for(size_t i = 0 ; i < N ; i++) {
-        /* number of bits in [10..32] */
-        size_t pbits = 10 + gmp_urandomb_ui(rstate, 10) % 23;
+        /* number of bits in [minimum_p_bits..32] */
+        size_t pbits = minimum_p_bits + gmp_urandomb_ui(rstate, minimum_p_bits) % (32+1-minimum_p_bits);
         cxx_mpz p;
         mpz_rrandomb(p, rstate, pbits);
         uint64_t pi = mpz_get_uint64(p);
@@ -254,9 +260,22 @@ int test_redc_u32(gmp_randstate_t rstate, size_t N)
 
 int main(int argc, char * argv[])
 {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+
     size_t Nmax = 1e5;
-    if (argc > 1)
-        Nmax = atol(argv[1]);
+    for( ; argc > 1 ; argv++,argc--) {
+        if (strcmp(argv[1], "--minimum-p-bits") == 0) {
+            argv++,argc--;
+            minimum_p_bits = atoi(argv[1]);
+        } else {
+            Nmax = atol(argv[1]);
+        }
+    }
+    if (minimum_p_bits > 32) {
+        fprintf(stderr, "--minimum_p_bits accepts at most 32\n");
+        exit(EXIT_FAILURE);
+    }
 
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);

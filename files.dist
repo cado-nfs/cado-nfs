@@ -1454,7 +1454,6 @@ linalg/bwc/lingen_matpoly_select.hpp
 linalg/bwc/lingen_qcode_select.hpp
 linalg/bwc/lingen_io_wrappers.cpp
 linalg/bwc/lingen_io_wrappers.hpp
-scripts/filter-ctest.pl
 tests/do_with_mpi.sh
 tests/guess_mpi_configs.sh
 linalg/bwc/lingen_verify_checkpoints.cpp
@@ -1464,3 +1463,5 @@ sieve/las-output.cpp
 sieve/las-output.hpp
 config/cado_check_cxx_source_compiles.cmake
 tests/sieve/torture-redc.cpp
+tests/sieve/test_fb_root.cpp
+scripts/filter-ctest.pl

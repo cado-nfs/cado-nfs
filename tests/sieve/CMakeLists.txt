@@ -544,5 +544,7 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.sh
 
 cado_define_test(torture-redc.cpp LIBRARIES utils)
 
+cado_define_test(test_fb_root.cpp LIBRARIES utils)
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)

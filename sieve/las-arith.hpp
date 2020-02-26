@@ -14,6 +14,10 @@
  * their promises.
  */
 
+/* define STAT to get statistics on the frequency of carries in redc_u32 and
+   redc_32 */
+// #define STAT
+
 static inline uint64_t
 redc_64(const int64_t x, const uint32_t p, const uint64_t invp);
 
@@ -39,87 +43,70 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
-  uint64_t xtp0 = xtp;
+  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
+     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     torture-redc 10000000:
+     assembly: redc_u32: 8388608 tests in 0.0760s
+     C code  : redc_u32: 8388608 tests in 0.0743s
+  */
   xtp += tp;
-  cf = xtp < xtp0;
+  cf = xtp < tp;
+#endif
+#ifdef STAT
+  static int count = 0, carry = 0;
+  count ++;
+  carry += cf != 0;
+  if ((count % 1000000) == 0)
+    printf ("redc_u32: count=%d carry=%d\n", count, carry);
 #endif
   uint32_t u = xtp >> 32;
   // by construction, xtp is divisible by 2^32. u is such that
   // 0 <= u < 2*p ; however the representative that we have is capped to
   // 2^32, and may wrap around.
-  /* if cf is true, then u is a truncated representative of something in
-   * [2^32, 2*p[ -- so this means in particular that we must understand
-   * it as u > p */
+  /* if cf is true, then with u' := 2^32 + u, we have 2^32 <= u' < 2*p,
+   * thus u' - p < p, which ensures that (1) a borrow will occur in the
+   * subtraction u - p, which will compensate for the carry in x + t*p,
+   * and (2) the final result will be < p as wanted */
 
-  t = u;
-  if (cf || t >= p)
-      u = t - p;
-  if (UNLIKELY((uint32_t) u >= p))
-      return redc_64 (x, p, invp);
-  return u;
+  return (cf || u >= p) ? u - p : u;
 }
 
 // Signed redc_32 based on 64-bit arithmetic
 // Assume:
 //   * p is an odd number < 2^32.
 //   * invp is -1/p mod 2^32.
-//   * x is some signed integer in ]-2^32*p, 2^32*p[ (or [-2^63, 2^63[ if
-//   that happens to be a narrower range).
+//   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
 // Compute:
 //   * x/2^32 mod p as an integer in [0, p[
 static inline uint32_t
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
-  /* must pay attention to the carry flag here */
   uint64_t tp = (uint64_t)t * (uint64_t)p;
-  uint64_t xtp = x,cf;
-  /* if x >= 0,
-   * x + t*p is bounded by min(2^63,2^32*p)-1+(2^32-1)*p <
-   * min(2^63+2^32*p,2*2^32*p) -- so that it may well overflow.
-   *
-   * if x < 0, the interval is
-   * [max(-2^63,-2^32*p+1), (2^32-1*p)-1] -- meaning that the sign may
-   * change when adding t*p.
-   *
-   * Hence in both cases, we are interested by the carry flag.
-   */
-  /* do xtp += tp, get carry out in cf */
+  uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
+  /* the following does the same without any branch, but seems slightly
+     worse with GCC 9.2.1 */
+  // uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
+  /* now xtp >= 0, and we are in the same case as redc_u32,
+     thus the same analysis as redc_u32 applies here */
+  int cf;
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
-  uint64_t xtp0 = xtp;
   xtp += tp;
-  cf = xtp < xtp0;
+  cf = xtp < tp;
 #endif
-  int32_t u = xtp >> 32;
-  // by construction, xtp is divisible by 2^32.
-  //
-  // if x > 0, u is such that 
-  // 0 <= xtp < 2*p ; however the representative that we have is capped to
-  // 2^32, and may wrap around.
-  /* if cf is true, then u is a truncated representative of something in
-   * [2^32, 2*p[ -- so this means in particular that we must understand
-   * it as u > p */
-  // if x > 0, u might be too large by p,
-  // if x < 0, u might be too small by p.
-  t = u;
-  /* The test (int32_t) t < 0 below is't be necessary: if the carry
-   * flag from the addition is off, then certainly t is still negative.
-   * However, this seems to help gcc a little bit. clang doesn't care */
-#ifdef __GNUC__
-  if (x < 0 && !cf && (int32_t) t < 0) u = t + p;
-#else
-  if (x < 0 && !cf                   ) u = t + p;
-#endif
-  /* Two obvious cases where we know for sure that we must subtract p.
-   * Note that t is uint32_t here */
-  if (x > 0 && (cf || t >= p)) u = t - p;
-  if (UNLIKELY((uint32_t) u >= p))
-      return redc_64 (x, p, invp);
-  return u;
+  uint32_t u = xtp >> 32;
+  return (cf || u >= p) ? u - p : u;
 }
 
+// Signed redc_64
+// Assume:
+//   * p is an odd number < 2^32.
+//   * invp is -1/p mod 2^64.
+//   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
+// Compute:
+//   * x/2^64 mod p as an integer in [0, p[
 #define HAVE_redc_64
 /* This does a full mul, and should grok slightly larger bounds than the
  * version above. Presumably, as long as x fits within 64 bits, (63 bits,
@@ -401,8 +388,9 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   return u;
 }
 
-/* Only used for together with redc_64 */
-NOPROFILE_INLINE int
+/* Only used for together with redc_64:
+   return 2^64/a mod b */
+NOPROFILE_INLINE uint64_t
 invmod_redc_64(uint64_t a, uint64_t b)
 {
   ASSERT (a < b);
@@ -464,8 +452,8 @@ invmod_redc_64(uint64_t a, uint64_t b)
 
   if (UNLIKELY(a != 1)) return 0;
   const uint64_t fix = (p+1)>>1;
-  
-  // Here, the inverse of a is u/2^t mod b.  
+
+  // Here, the inverse of a is u/2^t mod b, thus 2^t/a = u mod b
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
 #define T3 "shr %2\n    lea (%2,%3,1),%0\n      cmovc   %0,%2\n "
 #define T4 "add %2,%2\n mov %2,%0\n sub %4,%2\n cmovl   %0,%2\n "
@@ -492,6 +480,8 @@ invmod_redc_64(uint64_t a, uint64_t b)
 #define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
 #define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
 #if 0 /* Original code */
+  /* if t > 64, since 2^t/a = u mod b, we must divide u by 2^(t-64);
+     if t < 64, we must multiply u by 2^(t-64) */
   if (t > 64)
     do T3; while (--t > 64);
   else

@@ -27,8 +27,6 @@ void usage()
     exit(EXIT_FAILURE);
 }
 
-struct bw_params bw[1];
-
 int remove_old = 0;
 int bits_per_coeff = 1;
 
