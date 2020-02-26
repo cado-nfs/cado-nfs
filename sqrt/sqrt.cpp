@@ -384,7 +384,6 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
             typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
             typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
-	    if (verbose > 1)
 	      {
                 std::lock_guard<std::mutex> dummy(stdio_guard);
                 fmt::fprintf (stderr, "%s: fragment %u/%u"
