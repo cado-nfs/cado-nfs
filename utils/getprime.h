@@ -1,6 +1,10 @@
 #ifndef CADO_UTILS_GETPRIME_H_
 #define CADO_UTILS_GETPRIME_H_
+#ifndef MAIN
 #include "macros.h"
+#else
+#define ATTRIBUTE_DEPRECATED
+#endif
 
 struct prime_info_s {
   unsigned long offset;  /* offset for current primes */
