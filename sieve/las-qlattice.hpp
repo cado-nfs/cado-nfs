@@ -136,7 +136,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
       aux2 = (int64_t)(R - p) * basis.a0 - basis.b0;
     }
   /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
-     test_fb_root 10000 takes 14.31s instead of 13.17s */
+     test_fb_root 10000 reports 14.49s instead of 13.26s */
 //#define USE_NATIVE_MOD
 #ifdef USE_NATIVE_MOD
   u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
@@ -199,8 +199,15 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
    * (note that p is not necessarily a prime, it may be a prime power
    */
   /* Do a full 64-bit redc */
+  /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
+     test_fb_root 10000 reports 15.87s instead of 14.12s */
+#ifdef USE_NATIVE_MOD
+  u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
+  v = (aux2 >= 0) ? aux2 % p : p - ((-aux2) % p);
+#else
   u = redc_64(aux1, p, invp); /* 0 <= u < p */
   v = redc_64(aux2, p, invp); /* 0 <= v < p */
+#endif
   
   aux2 = invmod_redc_64(v, p);
   if (LIKELY(aux2)) {
