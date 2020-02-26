@@ -135,6 +135,8 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
       aux1 = basis.b1 - (int64_t)(R - p) * basis.a1;
       aux2 = (int64_t)(R - p) * basis.a0 - basis.b0;
     }
+  /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
+     test_fb_root 10000 takes 14.31s instead of 13.17s */
 //#define USE_NATIVE_MOD
 #ifdef USE_NATIVE_MOD
   u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);

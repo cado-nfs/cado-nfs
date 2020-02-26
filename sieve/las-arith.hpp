@@ -191,7 +191,7 @@ invmod_po2 (fbprime_t n)
   return r;
 }
 
-// Compute in place 1/x mod p, return if modular inverse exists,
+// Compute in place 1/x mod p, return non-zero if modular inverse exists,
 // for uint64_t.
 // Fallback function for 32-bit archis.
 static inline int
@@ -209,6 +209,8 @@ fallback_invmod_64(uint64_t *x, uint64_t p)
     return rc;
 }
 
+/* put in pa[0] the value of 1/pa[0] mod b and return non-zero if the inverse
+   exists, otherwise return 0 */
 NOPROFILE_INLINE int
 invmod_32 (uint32_t *pa, uint32_t b)
 {
@@ -226,6 +228,8 @@ invmod_32 (uint32_t *pa, uint32_t b)
   return rc;
 }
 
+/* put in pa[0] the value of 1/pa[0] mod b and return non-zero if the inverse
+   exists, otherwise return 0 */
 NOPROFILE_INLINE int
 invmod_64 (uint64_t *pa, uint64_t b)
 {

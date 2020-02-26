@@ -255,6 +255,20 @@ bug20200225 (void)
       exit (1);
     }
 
+  /* exercises bug in assembly part of invmod_redc_32 (starting around line
+     326 with 2nd #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
+  a = 8088625;
+  b = 2163105767;
+  expected = 2062858318;
+  got = invmod_redc_32 (a, b);
+  if (got != expected)
+    {
+      fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
+      fprintf (stderr, "Expected %lu\n", expected);
+      fprintf (stderr, "Got      %lu\n", got);
+      exit (1);
+    }
+
   fbprime_t p = 3628762957;
   fbprime_t R = 1702941053;
   uint64_t invp = 5839589727713490555UL;
@@ -268,6 +282,27 @@ bug20200225 (void)
   if (got != expected)
     {
       fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p=%u R=%u "
+	       "a0=%ld b0=%ld a1=%ld b1=%ld\n",
+	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
+      fprintf (stderr, "Expected %lu\n", expected);
+      fprintf (stderr, "Got      %lu\n", got);
+      exit (1);
+    }
+
+  /* exercises bug in invmod_redc_32, already tested directly above */
+  p = 2163105767;
+  R = 1743312141;
+  invp = 3235101737;
+  basis[0].a0 = -30118114923155082L;
+  basis[0].b0 = 749622022;
+  basis[0].a1 = 2851499432479966615L;
+  basis[0].b1 = 443074848;
+  expected = 1879080852;
+  got = fb_root_in_qlattice_31bits (p, R, invp, basis[0]);
+  printf ("got %lu\n", got);
+  if (got != expected)
+    {
+      fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%u R=%u "
 	       "a0=%ld b0=%ld a1=%ld b1=%ld\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
       fprintf (stderr, "Expected %lu\n", expected);
