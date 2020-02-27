@@ -1278,10 +1278,10 @@ static task_result * process_one_task(worker_thread *, task_parameters *_param, 
 
 // Prepare a new task. Return 0 if there are no new task to schedule.
 // Otherwise, return the number of ideals put in the task.
-static int get_new_task(task_info_t &T, fbprime_t &next_prime, prime_info& pi, const fbprime_t maxp, size_t &next_pow, std::vector<fb_power_t> const & powers)
+static int get_new_task(task_info_t &T, uint64_t &next_prime, prime_info& pi, const fbprime_t maxp, size_t &next_pow, std::vector<fb_power_t> const & powers)
 {
     unsigned int i;
-    for (i = 0; i < GROUP && next_prime <= maxp; ++i) {
+    for (i = 0; i < GROUP && next_prime <= uint64_t(maxp); ++i) {
         if (next_pow < powers.size() && powers[next_pow].q <= next_prime) {
             ASSERT_ALWAYS(powers[next_pow].q < next_prime);
             T.q[i] = powers[next_pow].q;
@@ -1348,8 +1348,12 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
         params[i].T = &T[i];
     }
 
+    // maxp is of type fbprime_t because it corresponds to a value that
+    // will really be in the factor base. However, next_prime must be 64
+    // bit to avoid problems with overflows when computing
+    // next_prime(previous_prime(maxp)).
     fbprime_t maxp = lim;
-    fbprime_t next_prime = 2;
+    uint64_t next_prime = 2;
 
     prime_info pi;
     prime_info_init(pi);
