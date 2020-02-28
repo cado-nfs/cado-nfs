@@ -641,7 +641,10 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
   check_divexact (t, t, "t", l, "l");
   mpz_set (f[0], t);
 
-  /* If the coefficient of degree d-2 is of the same sign as the leading
+  /* As noticed by Min Yang, Qingshu Meng, Zhangyi Wang, Lina Wang and
+     Huanguo Zhang in "Polynomial Selection for the Number Field Sieve in an
+     Elementary Geometric View" (https://eprint.iacr.org/2013/583),
+     if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
   if (mpz_sgn (f[d]) * mpz_sgn (f[d-2]) > 0)
