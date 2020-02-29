@@ -323,32 +323,9 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   const uint32_t fix = (p+1)>>1;
   
   // Here, the inverse of a is u/2^t mod b.  
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-#define T3 "shr %2\n    lea (%2,%3,1),%0\n      cmovc   %0,%2\n "
-#define T4 "add %2,%2\n mov %2,%0\n sub %4,%2\n cmovl   %0,%2\n "
-  __asm__ ( "    cmp $0x20, %1\n je 30f\n       jb 19f\n"		\
-	    ""								\
-	    "    sub $0x26, %1\n                je 16f\n   js  17f\n"	\
-	    ".balign 8\n 10:\n" T3 T3 T3 T3 T3 T3			\
-	    "    sub $0x6,  %1\n ja 10b\n       je 16f\n"		\
-	    "17: cmp $0xfc, %1\n je 12f\n       jb 11f\n"		\
-	    "    cmp $0xfe, %1\n je 14f\n       jb 13f\n   jmp 15f\n"	\
-	    "16: " T3 "15: " T3 "14: " T3 "13: " T3 "12: " T3 "11: " T3 \
-	    "    jmp 30f\n"						\
-	    ""								\
-	    "19: neg %1\n        add $0x1a,%1\n je 26f\n   js  27f\n"	\
-	    ".balign 8\n 20:\n" T4 T4 T4 T4 T4 T4			\
-	    "    sub $0x6,  %1\n ja 20b\n       je 26f\n"		\
-	    "27: cmp $0xfc, %1\n je 22f\n       jb 21f\n"		\
-	    "    cmp $0xfe, %1\n je 24f\n       jb 23f\n   jmp 25f\n"	\
-	    "26: " T4 "25: " T4 "24: " T4 "23: " T4 "22: " T4 "21: " T4 \
-	    ""								\
-	    "30:\n"							\
-	    : "=&r" (v), "+r" (t), "+r" (u) : "r" (fix), "r" (p));
-#else
 #define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
 #define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
-#if 0 /* Original code */
+#if 1 /* Original code */
   if (t > 32)
     do T3; while (--t > 32);
   else
@@ -385,7 +362,6 @@ invmod_redc_32(uint32_t a, uint32_t b) {
       }
     }
   }
-#endif
 #endif
 #undef T3
 #undef T4
