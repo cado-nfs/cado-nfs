@@ -267,7 +267,8 @@ def stats_alpha_projective_records(degree,K,conjecture=false,bias=false):
    incr = 1
    d = degree
    if bias:
-      print "bias exponent:", 2*(d-1)/(d^3-d^2+2*d)
+      e = 2*(d-1)/(d^3-d^2+2*d)
+      print "bias exponent:", e
    L = [1]
    delta_incr = 1
    while true:
@@ -275,7 +276,7 @@ def stats_alpha_projective_records(degree,K,conjecture=false,bias=false):
       if bias == false:
          s = 0
       else:
-         s = float(incr^(2*(d-1)/(d^3-d^2+2*d)))
+         s = float(e*log(incr))
       l = prime_divisors(incr)
       for p in l:
          k = incr.valuation(p)
