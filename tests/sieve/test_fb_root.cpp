@@ -97,7 +97,7 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
           for (i = 0; i < N; i++)
               r += fb_root_in_qlattice_31bits (p[i], R[i], invp[i], basis[j]);
       st = seconds () - st;
-      printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%u)\n",
+      printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
   } else {
       /* correctness test */
@@ -108,10 +108,10 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
               rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
               if (r != rref)
               {
-                  fprintf (stderr, "Error for p:=%u; R:=%u; a0:=%ld; b0:=%ld; a1:=%ld; b1:=%ld;\n",
+                  fprintf (stderr, "Error for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
                           p[i], R[i], basis[j].a0, basis[j].b0, basis[j].a1, basis[j].b1);
-                  fprintf (stderr, "fb_root_in_qlattice_31bits gives %u\n", r);
-                  fprintf (stderr, "ref_fb_root_in_qlattice gives %u\n", rref);
+                  fprintf (stderr, "fb_root_in_qlattice_31bits gives %" FBPRIME_FORMAT "\n", r);
+                  fprintf (stderr, "ref_fb_root_in_qlattice gives %" FBPRIME_FORMAT "\n", rref);
                   exit (1);
               }
           }
@@ -196,7 +196,7 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
           for (i = 0; i < N; i++)
               r += fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
       st = seconds () - st;
-      printf ("fb_root_in_qlattice_127bits: %lu tests took %.2fs (r=%u)\n",
+      printf ("fb_root_in_qlattice_127bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
   } else {
       /* correctness test */
@@ -207,19 +207,19 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
               r31 = fb_root_in_qlattice_31bits (p[i], R[i], invp32[i], basis[j]);
               if (r != r31)
               {
-                  fprintf (stderr, "Error for p:=%u; R:=%u; a0:=%ld; b0:=%ld; a1:=%ld; b1:=%ld;\n",
+                  fprintf (stderr, "Error for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
                           p[i], R[i], basis[j].a0, basis[j].b0, basis[j].a1, basis[j].b1);
-                  fprintf (stderr, "fb_root_in_qlattice_127bits gives %u\n", r);
-                  fprintf (stderr, "fb_root_in_qlattice_31bits  gives %u\n", r31);
+                  fprintf (stderr, "fb_root_in_qlattice_127bits gives %" FBPRIME_FORMAT "\n", r);
+                  fprintf (stderr, "fb_root_in_qlattice_31bits  gives %" FBPRIME_FORMAT "\n", r31);
                   exit (1);
               }
               rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
               if (r != rref)
               {
-                  fprintf (stderr, "Error for p:=%u; R:=%u; a0:=%ld; b0:=%ld; a1:=%ld; b1:=%ld;\n",
+                  fprintf (stderr, "Error for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
                           p[i], R[i], basis[j].a0, basis[j].b0, basis[j].a1, basis[j].b1);
-                  fprintf (stderr, "fb_root_in_qlattice_127bits gives %u\n", r);
-                  fprintf (stderr, "ref_fb_root_in_qlattice gives %u\n", rref);
+                  fprintf (stderr, "fb_root_in_qlattice_127bits gives %" FBPRIME_FORMAT "\n", r);
+                  fprintf (stderr, "ref_fb_root_in_qlattice gives %" FBPRIME_FORMAT "\n", rref);
                   exit (1);
               }
           }
@@ -282,8 +282,8 @@ bug20200225 (void)
   got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
   if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%u; R:=%u; "
-	       "a0:=%ld; b0:=%ld; a1:=%ld; b1:=%ld;\n",
+      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
+	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
       fprintf (stderr, "Expected %lu\n", expected);
       fprintf (stderr, "Got      %lu\n", got);
@@ -302,8 +302,8 @@ bug20200225 (void)
   got = fb_root_in_qlattice_31bits (p, R, invp, basis[0]);
   if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%u R=%u "
-	       "a0=%ld b0=%ld a1=%ld b1=%ld\n",
+      fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%" FBPRIME_FORMAT " R=%" FBPRIME_FORMAT " "
+	       "a0=%" PRId64 " b0=%" PRId64 " a1=%" PRId64 " b1=%" PRId64 "\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
       fprintf (stderr, "Expected %lu\n", expected);
       fprintf (stderr, "Got      %lu\n", got);
@@ -321,8 +321,8 @@ bug20200225 (void)
   got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
   if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%u; R:=%u; "
-	       "a0:=%ld; b0:=%ld; a1:=%ld; b1:=%ld;\n",
+      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
+	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
       fprintf (stderr, "Expected %lu\n", expected);
       fprintf (stderr, "Got      %lu\n", got);
