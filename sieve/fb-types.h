@@ -21,15 +21,7 @@ typedef uint32_t slice_index_t;
 /* Each factor base entry withing a slice has a unique offset */
 typedef uint16_t slice_offset_t;
 
-/* If SUPPORT_LARGE_Q is defined, 64-bit redc is used in the function that
-   converts roots to the p-lattice, and the redc code needs a 64-bit
-   precomputed inverse. If SUPPORT_LARGE_Q is not defined, we store only a
-   32-bit inverse to conserve memory. */
-#if defined(SUPPORT_LARGE_Q)
-typedef uint64_t redc_invp_t;
-#else
 typedef uint32_t redc_invp_t;
-#endif
 
 // FIXME: could probably go somewhere else...
 // Small struct for sublattice info:

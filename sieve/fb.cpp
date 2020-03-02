@@ -97,6 +97,8 @@ uint64_invmod(const uint64_t n)
 static inline redc_invp_t
 compute_invq(fbprime_t q)
 {
+  /* FIXME in most cases, we're wasting time here, since we really only
+   * ever do redc_32, at least as long as p does not grow above 2^32 */
   if (q % 2 != 0) {
     if (sizeof(unsigned long) >= sizeof(redc_invp_t)) {
         return (redc_invp_t) (- ularith_invmod (q));
