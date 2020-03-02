@@ -252,8 +252,8 @@ bug20200225 (void)
   if (got != expected)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
-      fprintf (stderr, "Expected %lu\n", expected);
-      fprintf (stderr, "Got      %lu\n", got);
+      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
 
@@ -265,8 +265,8 @@ bug20200225 (void)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
 	       a, b);
-      fprintf (stderr, "Expected %lu\n", expected);
-      fprintf (stderr, "Got      %lu\n", got);
+      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
 
@@ -285,8 +285,8 @@ bug20200225 (void)
       fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
 	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %lu\n", expected);
-      fprintf (stderr, "Got      %lu\n", got);
+      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
 
@@ -305,8 +305,8 @@ bug20200225 (void)
       fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%" FBPRIME_FORMAT " R=%" FBPRIME_FORMAT " "
 	       "a0=%" PRId64 " b0=%" PRId64 " a1=%" PRId64 " b1=%" PRId64 "\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %lu\n", expected);
-      fprintf (stderr, "Got      %lu\n", got);
+      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
 
@@ -324,8 +324,8 @@ bug20200225 (void)
       fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
 	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %lu\n", expected);
-      fprintf (stderr, "Got      %lu\n", got);
+      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
 }
