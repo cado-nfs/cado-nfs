@@ -215,7 +215,7 @@ mpz_poly_mul_eval_si (mpz_t v, mpz_t *g, int r, long i)
 static int
 mpz_poly_mul_tc (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 {
-  int t, i;
+  int t;
 
   if ((r == -1) || (s == -1)) /* g or h is 0 */
     return -1;
@@ -227,7 +227,7 @@ mpz_poly_mul_tc (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 
   if (s == 0)
     {
-      for (i = 0; i <= r; i++)
+      for (int i = 0; i <= r; i++)
 	mpz_mul (f[i], g[i], h[0]);
       return r;
     }
@@ -322,7 +322,7 @@ mpz_poly_mul_tc (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for (i = 0; i <= t; i++)
+  for (int i = 0; i <= t; i++)
     {
       if (i == 0) /* evaluate at 0 */
 	mpz_mul (f[0], g[0], h[0]);
@@ -480,7 +480,7 @@ mpz_poly_sqr_tc4 (mpz_t *f, mpz_t *g)
 static int
 mpz_poly_sqr_tc (mpz_t *f, mpz_t *g, int r)
 {
-  int t, i;
+  int t;
   size_t nbits;
 
   if (r == -1) /* g is 0 */
@@ -523,7 +523,7 @@ mpz_poly_sqr_tc (mpz_t *f, mpz_t *g, int r)
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for (i = 0; i <= t; i++)
+  for (int i = 0; i <= t; i++)
     {
       if (i == 0) /* evaluate at 0 */
 	mpz_mul (f[0], g[0], g[0]);
@@ -1681,8 +1681,6 @@ mpz_poly_divexact (mpz_poly_ptr q, mpz_poly_srcptr h, mpz_poly_srcptr f, mpz_src
  */
 void mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m)
 {
-  int i;
-
   ASSERT_ALWAYS(mpz_scan1 (m, 0) == 0);
 
   mpz_poly_realloc (f, g->deg + 1);
@@ -1690,7 +1688,7 @@ void mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m)
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for (i = g->deg; i >= 0; --i)
+  for (int i = g->deg; i >= 0; --i)
     {
       if (mpz_scan1 (g->coeff[i], 0) == 0) /* g[i] is odd */
         {
@@ -2487,8 +2485,6 @@ mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
 void
 mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
 {
-  int i;
-
   /* first check P[k] exists and is not zero */
   if (P[k]->deg == -1)
     return;
@@ -2499,13 +2495,13 @@ mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for (i = 0; i <= imax; i++)
+  for (int i = 0; i <= imax; i++)
     mpz_addmul (a->coeff[i], P[k]->coeff[i], pk);
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for (i = imax + 1; i <= P[k]->deg; i++)
+  for (int i = imax + 1; i <= P[k]->deg; i++)
     mpz_mul (a->coeff[i], P[k]->coeff[i], pk);
 
   mpz_poly_cleandeg (a, (a->deg >= P[k]->deg) ? a->deg : P[k]->deg);

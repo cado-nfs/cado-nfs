@@ -81,7 +81,6 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 
   while (p->deg >= d) {
     const int k = p->deg;
-    int i;
 
     /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
        compute p - p[k]/F[d]*F. However this will happen rarely with
@@ -95,12 +94,12 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
     if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
       v++; /* we consider p/F[d]^v */
 #pragma omp parallel for
-      for (i = 0; i < k; ++i)
+      for (int i = 0; i < k; ++i)
         mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
     }
 
 #pragma omp parallel for
-    for (i = 0; i < d; ++i)
+    for (int i = 0; i < d; ++i)
       mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
 
     mpz_poly_cleandeg (p, k-1);
@@ -855,10 +854,8 @@ struct cxx_mpz_polymod_scaled_functions {
 static void
 mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
-  int i;
-
 #pragma omp parallel for
-  for (i=0; i <= R->deg; i++)
+  for (int i=0; i <= R->deg; i++)
     mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
 }
 
