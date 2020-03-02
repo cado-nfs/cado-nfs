@@ -4,6 +4,7 @@
 #include "macros.h"
 #include "gmp.h"
 #include "las-qlattice.hpp"
+#include <vector>
 
 /* return (R*b1-a1)/(a0-R*b0) % p */
 static fbprime_t
@@ -38,7 +39,7 @@ test_fb_root_in_qlattice_31bits (unsigned long N)
   gmp_randstate_t rstate;
   unsigned long i, j;
   mpz_t t, u;
-  qlattice_basis *basis;
+  std::vector<qlattice_basis> basis;
   double st;
   unsigned long Nsmall = N / 10; /* use a smaller set for correctness test */
 
@@ -52,7 +53,7 @@ test_fb_root_in_qlattice_31bits (unsigned long N)
   ASSERT_ALWAYS(R != NULL);
   invp = (uint32_t*) malloc (N * sizeof (uint32_t));
   ASSERT_ALWAYS(invp != NULL);
-  basis = (qlattice_basis*) malloc (N * sizeof (qlattice_basis));
+  basis.assign(N, qlattice_basis());
 
   /* generate p[i], R[i], invp[i] for 0 <= i < N */
   for (i = 0; i < N; i++)
@@ -120,7 +121,6 @@ test_fb_root_in_qlattice_31bits (unsigned long N)
   free (p);
   free (R);
   free (invp);
-  free (basis);
 
   gmp_randclear (rstate);
   mpz_clear (t);
@@ -136,7 +136,7 @@ test_fb_root_in_qlattice_127bits (unsigned long N)
   gmp_randstate_t rstate;
   unsigned long i, j;
   mpz_t t, u;
-  qlattice_basis *basis;
+  std::vector<qlattice_basis> basis;
   double st;
   unsigned long Nsmall = N; /* use a smaller set for correctness test */
 
@@ -152,7 +152,7 @@ test_fb_root_in_qlattice_127bits (unsigned long N)
   ASSERT_ALWAYS(invp32 != NULL);
   invp64 = (uint64_t*) malloc (N * sizeof (uint64_t));
   ASSERT_ALWAYS(invp64 != NULL);
-  basis = (qlattice_basis*) malloc (N * sizeof (qlattice_basis));
+  basis.assign(N, qlattice_basis());
 
   /* generate p[i], R[i], invp32[i], invp64[i] for 0 <= i < N */
   for (i = 0; i < N; i++)
@@ -232,7 +232,6 @@ test_fb_root_in_qlattice_127bits (unsigned long N)
   free (R);
   free (invp32);
   free (invp64);
-  free (basis);
 
   gmp_randclear (rstate);
   mpz_clear (t);
