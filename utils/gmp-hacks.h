@@ -8,12 +8,12 @@
 /* TODO: remove this. It's only here by lack of something better for the
  * needs of crtalgsqrt. */
 
-#if GMP_VERSION_ATMOST(5, 99, 99)
 /* GMP field access macros from gmp-impl.h */
 /* Starting with gmp-6.0.0 there is a better interface that we can use.
  * Actually we _have_ to use it from gmp-6.2.0 onwards.
- * As a consequence, we define the ugly macros only when we happen to
- * need them.
+ *
+ * At some point we'll get rid of these ugly macros for good (i.e. when
+ * we safely assume that we have gmp-6+)
  */
 #ifndef PTR
 #define PTR(x) ((x)->_mp_d)
@@ -43,7 +43,6 @@
 
 #ifndef	MPN_ZERO
 #define	MPN_ZERO(dst, n)	memset((dst), 0, (n) * sizeof(mp_limb_t))
-#endif
 #endif
 
 /* Useful for the lazy boyz */
