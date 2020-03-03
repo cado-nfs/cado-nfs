@@ -37,7 +37,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   uint64_t xtp = x;
   int cf;
   /* do xtp += tp, get carry out in cf */
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
   /* With GCC 9.2.1 the following code is as fast as the above assembly code.
@@ -91,7 +91,7 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
   int cf;
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
   xtp += tp;
