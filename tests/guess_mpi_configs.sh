@@ -126,6 +126,13 @@ set_mpi_derived_variables()
         *,openmpi) 
             set_choices_from_n $nnodes
             ;;
+        # this works only when impi is configured to used mpiexec. If we
+        # are in a configuration that requires PMI / PMIx (and in fact,
+        # the same question holds for openmpi), then we must do something
+        # different.
+        *,impi) 
+            set_choices_from_n $nnodes
+            ;;
         *)
             echo "Script does not know which mpi tests to enable (nnode=$nnodes ncores=$ncores mpi_family=$family)"
             ;;
