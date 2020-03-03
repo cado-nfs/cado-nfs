@@ -552,8 +552,7 @@ u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 static inline int
 u64arith_ctz (const uint64_t a)
 {
-#if !defined (U64ARITH_NO_ASM) && defined(__GNUC__) && \
-    (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
+#if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)
   ASSERT_EXPENSIVE (a != 0);
   return __builtin_ctzll(a);
 #else
@@ -582,15 +581,13 @@ u64arith_ctz (const uint64_t a)
 static inline int
 u64arith_clz (const uint64_t a)
 {
-#if !defined (U64ARITH_NO_ASM) && defined(__GNUC__) && \
-    (__GNUC__ >= 4 || __GNUC__ >= 3 && __GNUC_MINOR__ >= 4)
+#if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)
   ASSERT_EXPENSIVE (a != 0);
+  STATIC_ASSERT(sizeof(uint64_t) == sizeof(unsigned long) || sizeof(uint64_t) == sizeof(unsigned long long), please_implement_me);
   if (sizeof(uint64_t) == sizeof(unsigned long))
     return __builtin_clzl(a);
-  else if (sizeof(uint64_t) == sizeof(unsigned long long))
-    return __builtin_clzll(a);
   else
-    ASSERT_ALWAYS(sizeof(uint64_t) == sizeof(unsigned long) || sizeof(uint64_t) == sizeof(unsigned long long));
+    return __builtin_clzll(a);
 #else
   uint64_t t = (uint64_t)1 << (64 - 1);
   int i;
