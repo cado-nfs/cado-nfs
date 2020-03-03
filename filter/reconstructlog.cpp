@@ -124,14 +124,12 @@ struct logtab
          * safe. (However mpz_srcptr z = log[i]; followed by
          * mpz_addmul(foo, z, bar) is not !)
          */
-#if GMP_VERSION_ATLEAST(6, 0, 0)
         private:
         static inline int mpz_normalized_size(mp_limb_t * p, mp_size_t n) {
             for( ; n && p[n-1] == 0 ; n--);
             return n;
         }
         protected:
-#endif
         mpz_t ugly;
         public:
         /* The following construct would be valid with gmp-6+
