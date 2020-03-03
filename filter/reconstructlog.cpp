@@ -124,13 +124,26 @@ struct logtab
          * safe. (However mpz_srcptr z = log[i]; followed by
          * mpz_addmul(foo, z, bar) is not !)
          */
+#if GMP_VERSION_ATLEAST(6, 0, 0)
+        private:
+        static inline int mpz_normalized_size(mp_limb_t * p, mp_size_t n) {
+            for( ; n && p[n-1] == 0 ; n--);
+            return n;
+        }
         protected:
+#endif
         mpz_t ugly;
         public:
+        /* The following construct would be valid with gmp-6+
+         * MPZ_ROINIT_N function, but unfortunately MPZ_ROINIT_N sets the
+         * _mp_alloc field to zero, which gets in the way of our usage in
+         * the rw_accessor below.
+        mpz_ro_accessor(logtab const & log, mp_limb_t * place) : ugly MPZ_ROINIT_N(place, mpz_normalized_size(place, mpz_size(log.ell))) {}
+         */
         mpz_ro_accessor(logtab const & log, mp_limb_t * place) {
-            PTR(ugly) = place;
-            ALLOC(ugly) = SIZ(ugly) = mpz_size(log.ell);
-            MPN_NORMALIZE(PTR(ugly), SIZ(ugly));
+            ugly->_mp_d = place;
+            ugly->_mp_alloc = mpz_size(log.ell);
+            ugly->_mp_size = mpz_normalized_size(place, mpz_size(log.ell));
         }
         operator mpz_srcptr() const { return ugly; }
     };
@@ -164,11 +177,11 @@ struct logtab
                 (*this) = vv;
             } else {
                 ASSERT_ALWAYS(mpz_size(v) <= mpz_size(log.ell));
-                mpn_zero(PTR(ugly), mpz_size(log.ell));
+                mpn_zero(ugly->_mp_d, mpz_size(log.ell));
                 if (mpz_cmp_ui (v, 0) == 0) {
                     fprintf (stderr, "Warning, log is zero for h = %" PRIu64 "\n", h);
                 } else {
-                    mpn_copyi(PTR(ugly), PTR(v), mpz_size(v));
+                    mpn_copyi(ugly->_mp_d, v->_mp_d, mpz_size(v));
                 }
                 // log of SM columns are not taken into account
                 if (h < log.nprimes)
@@ -211,7 +224,7 @@ struct logtab
         mp_limb_t * p = data + h * mpz_size(ell);
         ASSERT_ALWAYS(mpz_size(v) <= mpz_size(ell));
         mpn_zero(p, mpz_size(ell));
-        mpn_copyi(p, PTR(v), mpz_size(v));
+        mpn_copyi(p, v->_mp_d, mpz_size(v));
     }
 
     logtab(cado_poly_srcptr poly, sm_side_info * sm_info, uint64_t nprimes, mpz_srcptr ell)
