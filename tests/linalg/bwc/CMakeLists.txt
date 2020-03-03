@@ -343,8 +343,9 @@ macro(create_test_spmv test_spmv_base)
 if(HAVE_PERL_DIGEST_MD5)
 cado_define_test(
     TEST_NAME test-spmv-${test_spmv_base}
-    SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
-    ARGUMENTS
+    SCRIPT
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
+    ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
     --matrix-size 1000 --density 10 --bindir ${CADO_NFS_BINARY_DIR}
     ${ARGN}
     NO_DEFAULT_RUN
@@ -482,6 +483,7 @@ endif()
 cado_define_test(TEST_NAME test-blocklanczos-staged
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
     random_matrix=1200,1000,80,seed=1 m=64 n=64 ys=0..64
     no_save_cache=1 interval=10 nullspace=left
