@@ -1035,9 +1035,7 @@ struct sqrt_globals {
     barrier_t barrier[1];
 };
 
-struct sqrt_globals glob = { .lll_maxdim=50, .ncores = 2 };
-
-
+static struct sqrt_globals glob = { .lll_maxdim=50, .ncores = 2 };
 
 // {{{ TODO: Now that the v field is gone, replace the polymodF layer.
 // Here's the only fragments which need to remain.
