@@ -520,6 +520,8 @@ foreach(mpiconf nompi ${mpiconfs})
     cado_define_test(test_random_matrix${suffix}
         SCRIPT
         ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+        ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun
+        --
         ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
         TARGET_DEPENDENCIES bwc_full
         )
