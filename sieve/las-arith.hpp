@@ -41,10 +41,11 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
 #else
   /* With GCC 9.2.1 the following code is as fast as the above assembly code.
-     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
+     (revision 8de5fc9):
      torture-redc 10000000:
-     assembly: redc_u32: 8388608 tests in 0.0760s
-     C code  : redc_u32: 8388608 tests in 0.0743s
+     assembly: redc_u32: 8388608 tests in 0.0659s
+     C code  : redc_u32: 8388608 tests in 0.0658s
   */
   xtp += tp;
   cf = xtp < tp;
@@ -80,10 +81,13 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
+#if 0
   uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
   /* the following does the same without any branch, but seems slightly
-     worse with GCC 9.2.1 */
-  // uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
+     worse with GCC 9.2.1. */
+#else
+  uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
+#endif
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
   int cf;
@@ -93,12 +97,18 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   xtp += tp;
   cf = xtp < tp;
 #endif
+  /* Timings with revision 8de5fc9
+     on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     torture-redc 10000000:
+     assembly: redc_32: 8388608 tests in 0.0668s
+     C code  : redc_32: 8388608 tests in 0.0679s
+     assembly+(if 0 instead of if 1): redc_32: 8388608 tests in 0.0680s */
   uint32_t u = xtp >> 32;
   return (cf || u >= p) ? u - p : u;
 }
 
-/* NOTE: we used to have redc_64 and invmod_redc_64 ; actually we never
- * really needed these functions, and they're gone since b9a4cbb40 ;
+/* NOTE: we used to have redc_64, invmod_redc_64, and invmod_64 ; actually we
+ * never really needed these functions, and they're gone since b9a4cbb40 ;
  * maybe temporarily.
  */
 
@@ -118,24 +128,6 @@ invmod_po2 (fbprime_t n)
   return r;
 }
 
-// Compute in place 1/x mod p, return non-zero if modular inverse exists,
-// for uint64_t.
-// Fallback function for 32-bit archis.
-static inline int
-fallback_invmod_64(uint64_t *x, uint64_t p)
-{
-    mpz_t xx, pp;
-    mpz_init(xx);
-    mpz_init(pp);
-    mpz_set_uint64(xx, *x);
-    mpz_set_uint64(pp, p);
-    int rc = mpz_invert(xx, xx, pp);
-    *x = mpz_get_uint64(xx);
-    mpz_clear(xx);
-    mpz_clear(pp);
-    return rc;
-}
-
 /* put in pa[0] the value of 1/pa[0] mod b and return non-zero if the inverse
    exists, otherwise return 0 */
 NOPROFILE_INLINE int
@@ -153,29 +145,6 @@ invmod_32 (uint32_t *pa, uint32_t b)
   modul_clear (r, m);
   modul_clearmod (m);
   return rc;
-}
-
-/* put in pa[0] the value of 1/pa[0] mod b and return non-zero if the inverse
-   exists, otherwise return 0 */
-NOPROFILE_INLINE int
-invmod_64 (uint64_t *pa, uint64_t b)
-{
-#if LONG_BIT == 64
-  ASSERT (sizeof(unsigned long) >= 8);
-  modulusul_t m;
-  residueul_t r;
-  int rc;
-  modul_initmod_ul (m, b);
-  modul_init (r, m);
-  modul_set_ul (r, *pa, m); /* With mod reduction */
-  if ((rc = modul_inv(r, r, m)))
-    *pa = modul_get_ul (r, m);
-  modul_clear (r, m);
-  modul_clearmod (m);
-  return rc;
-#else
-  return fallback_invmod_64(pa, b);
-#endif
 }
 
 /* TODO: this is a close cousin of modredcul_inv, but the latter does
