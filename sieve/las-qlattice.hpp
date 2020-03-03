@@ -93,16 +93,16 @@ fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
 }
 #endif
 
-/* The version fb_root_in_qlattice_31bits mandates that the coordinates
- * of the q-lattice are at most 31 bits, so that combinations such as
- * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[
- */
-
 /* This helper function is used for powers of 2. See below */
 static inline fbprime_t
 fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R,
         const qlattice_basis &basis);
 
+/* The version fb_root_in_qlattice_31bits mandates that the coordinates
+ * of the q-lattice are at most 31 bits, so that combinations such as
+ * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
+ * It makes 3 calls to redc_32 and 1 to invmod_redc_32.
+ */
 static inline fbprime_t
 fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
         const uint32_t invp, const qlattice_basis &basis)
@@ -163,8 +163,8 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
 /* This one is slower, but should be correct under the relaxed condition
  * that q be at most 127 bits or so, so that the coordinates of the
- * Q-lattice can be as large as 63 bits. We call redc 7 times instead of
- * 3 here...
+ * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
+ * of 3 for fb_root_in_qlattice_31bits.
  */
 static inline fbprime_t
 fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
