@@ -97,6 +97,7 @@ std::vector<lingen_substep_schedule> optimize(
     unsigned int nr2 = U.mpi_split2(mesh).block_size_upper_bound();
     size_t min_my_ram = SIZE_MAX;
     lingen_substep_schedule S_lean;
+    S_lean.fft_type = lingen_substep_schedule::FFT_NONE; /* placate compiler */
     std::vector<lingen_substep_schedule> all_schedules;
 
     unsigned int nvalid = 0;
