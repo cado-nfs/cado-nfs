@@ -1028,9 +1028,7 @@ struct sqrt_globals {
     barrier_t barrier[1];
 };
 
-struct sqrt_globals glob = { .lll_maxdim=50, .ncores = 2 };
-
-
+static struct sqrt_globals glob = { .lll_maxdim=50, .ncores = 2 };
 
 // {{{ TODO: Now that the v field is gone, replace the polymodF layer.
 // Here's the only fragments which need to remain.
@@ -3202,7 +3200,7 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
         mpz_mul(tb, tb, Hxm);
         mpz_mod(tb, tb, glob.pol->n);
         mp_size_t sN = mpz_size(glob.pol->n);
-        ASSERT_ALWAYS(SIZ(tb) > 0);
+        ASSERT_ALWAYS(mpz_sgn(tb) > 0);
         MPN_SET_MPZ(cN + k * sN, sN, tb);
     }
 
@@ -3358,7 +3356,7 @@ void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data
             mpz_mul(tb, tb, Hxm);
             mpz_mod(tb, tb, glob.pol->n);
             mp_size_t sN = mpz_size(glob.pol->n);
-            ASSERT_ALWAYS(SIZ(tb) > 0);
+            ASSERT_ALWAYS(mpz_sgn(tb) > 0);
             MPN_SET_MPZ(cN + (j*glob.n+k) * sN, sN, tb);
         }
     }

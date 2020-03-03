@@ -58,8 +58,7 @@ double maxtime = DBL_MAX;
 
 /* read-write global variables */
 int tot_found = 0; /* total number of polynomials */
-int opt_found = 0; /* number of size-optimized polynomials */
-int ros_found = 0; /* number of rootsieved polynomials */
+unsigned long opt_found = 0; /* number of size-optimized polynomials */
 double potential_collisions = 0.0, aver_raw_lognorm = 0.0,
   var_raw_lognorm = 0.0;
 #define LOGNORM_MAX 999.99
@@ -67,6 +66,8 @@ double min_raw_lognorm = LOGNORM_MAX, max_raw_lognorm = 0.0;
 data_t data_opt_lognorm, data_exp_E, data_beta, data_eta;
 data_t raw_proj_alpha, opt_proj_alpha;
 unsigned long collisions = 0;
+unsigned long discarded1 = 0; /* f[d] * f[d-2] > 0 */
+unsigned long discarded2 = 0; /* f[d-1] * f[d-3] > 0 */
 unsigned long collisions_good = 0;
 double *best_opt_logmu, *best_exp_E;
 double optimize_time = 0.0;
@@ -317,8 +318,7 @@ static double
 expected_collisions (uint32_t twoP)
 {
   double m = (lenPrimes << 1) / (double) twoP;
-  /* we multiply by 0.5 here because we only keep collisions for which
-     a[d] * a[d-2] < 0 */
+  /* we multiply by 0.5 because we discard collisions with f[d] * f[d-2] > 0 */
   return 0.5 * m * m;
 }
 
@@ -385,18 +385,6 @@ output_polynomials (mpz_t *fold, const unsigned long d, mpz_t *gold,
     free (str);
 }
 
-static void
-output_skipped_poly (const mpz_t ad, const mpz_t l, const mpz_t g0)
-{
-  mpz_t m;
-  mpz_init(m);
-  mpz_neg(m, g0);
-#pragma omp critical
-  gmp_printf ("# Skip polynomial: %.2f, ad: %Zd, l: %Zd, m: %Zd\n", ad, l, m);
-  mpz_clear(m);
-}
-
-
 /* Insert a value into a sorted array of length len.
    Returns 1 if element was inserted, 0 if it was too big */
 static int
@@ -448,6 +436,16 @@ optimize_raw_poly (mpz_poly F, mpz_t *g)
   optimize_time += st;
 #pragma omp atomic update
   opt_found ++;
+
+  /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
+     give worse exp_E values */
+  int d = F->deg;
+  if (mpz_sgn (F->coeff[d-1]) * mpz_sgn (F->coeff[d-3]) > 0)
+    {
+#pragma omp atomic update
+      discarded2 ++;
+      return 0;
+    }
 
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   logmu = L2_lognorm (F, skew);
@@ -641,11 +639,18 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
   check_divexact (t, t, "t", l, "l");
   mpz_set (f[0], t);
 
-  /* If the coefficient of degree d-2 is of the same sign as the leading
+  /* As noticed by Min Yang, Qingshu Meng, Zhangyi Wang, Lina Wang and
+     Huanguo Zhang in "Polynomial Selection for the Number Field Sieve in an
+     Elementary Geometric View" (https://eprint.iacr.org/2013/583),
+     if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
   if (mpz_sgn (f[d]) * mpz_sgn (f[d-2]) > 0)
-    goto end;
+    {
+#pragma omp atomic update
+      discarded1 ++;
+      goto end;
+    }
 
   /* save unoptimized polynomial to fold */
   for (unsigned long j = d + 1; j -- != 0; )
@@ -679,9 +684,6 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
       unsigned long idx = get_idx (ad);
       output_polynomials (fold, d, gold, N, F->coeff, g, idx);
     }
-
-  if (!did_optimize && verbose >= 1)
-    output_skipped_poly (ad, l, g[0]);
 
  end:
   mpz_clear (l);
@@ -846,9 +848,6 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
       unsigned long idx = get_idx (ad);
       output_polynomials (fold, d, gold, N, F->coeff, g, idx);
     }
-
-  if (!did_optimize && verbose >= 1)
-    output_skipped_poly (ad, l, g[0]);
 
   mpz_clear (tmp);
   mpz_clear (l);
@@ -2171,6 +2170,8 @@ main (int argc, char *argv[])
                   sqrt (var_raw_lognorm / collisions - rawmean * rawmean));
           printf ("# Stat: raw proj. alpha (nr/min/av/max/std): %lu/%1.3f/%1.3f/%1.3f/%1.3f\n",
                   collisions, raw_proj_alpha->min, data_mean (raw_proj_alpha), raw_proj_alpha->max, sqrt (data_var (raw_proj_alpha)));
+	  printf ("# Stat: discarded %lu polynomials because f[d]*f[d-2] > 0\n",
+		  discarded1);
           if (collisions_good > 0)
             {
               double mean = data_mean (data_opt_lognorm);
@@ -2186,6 +2187,8 @@ main (int argc, char *argv[])
                  is given by:
                  m - s*(sqrt(2log(K))-(log(log(K))+1.377)/(2*sqrt(2log(K))))
               */
+	      printf ("# Stat: discarded %lu polynomials because f[d-1]*f[d-3] > 0\n",
+		  discarded2);
               printf ("# Stat: exp_E (nr/min/av/max/std): %lu/%1.2f/%1.2f/%1.2f/%1.3f\n",
                       collisions_good, data_exp_E->min, Emean,
                       data_exp_E->max, sqrt (data_var (data_exp_E)));
@@ -2193,8 +2196,8 @@ main (int argc, char *argv[])
         }
     }
 
-  printf ("# Stat: tried %lu ad-value(s), found %d polynomial(s), %d size-optimized, %d rootsieved\n",
-          idx_max, tot_found, opt_found, ros_found);
+  printf ("# Stat: tried %lu ad-value(s), %lu size-optimized polynomials, kept %lu\n",
+          idx_max, opt_found, collisions_good);
 
   clearPrimes (&Primes);
 

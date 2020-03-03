@@ -167,7 +167,7 @@ void tree_stats::print(unsigned int)
                << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls())
                << " " << fmt::sprintf("%.2g -> %.1f",
                        F.real / F.ncalled, F.projected_time())
-               << " " << fmt::sprintf(" (total: %.1f)", sum)
+               << " " << fmt::sprintf(" (total: %.1f wct)", sum)
                << "\n";
 
             step_time FS = F;
@@ -209,7 +209,7 @@ void tree_stats::print(unsigned int)
                     );
             if (level_th > 0) {
                 sum += level_th * r.total_ncalls();
-                os << fmt::sprintf(" %.2g -> %.1f (total: %.1f)",
+                os << fmt::sprintf(" %.2g -> %.1f (total: %.1f wct)",
                         level_th, level_th * r.total_ncalls(),
                         sum);
             }

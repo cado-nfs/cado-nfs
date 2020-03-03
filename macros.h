@@ -236,6 +236,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif
 
+#if __STDC_VERSION__ >= 201112L
+#define STATIC_ASSERT(COND,MSG) _Static_assert(COND, #MSG)
+#else
+/* Does not work in structs */
+#define STATIC_ASSERT(COND,MSG)                                         \
+    typedef char static_assertion_##MSG[(COND)?1:-1] MAYBE_UNUSED
+#endif
+
 #ifndef ATTRIBUTE_WARN_UNUSED_RESULT
 /* https://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/Function-Attributes.html#Function-Attributes
  * https://gcc.gnu.org/onlinedocs/gcc-3.4.6/gcc/Function-Attributes.html#Function-Attributes

@@ -213,8 +213,6 @@ linalg/gauss.h
 linalg/rowset_heap.cpp
 linalg/rowset_heap.h
 local.sh.example
-local.sh.macosx.x86_32
-local.sh.macosx.x86_64
 macros.h
 misc/CMakeLists.txt
 misc/check_rels.c

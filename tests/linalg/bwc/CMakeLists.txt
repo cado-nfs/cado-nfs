@@ -638,6 +638,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     AVOID_CONCURRENT
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
     random_matrix=1200,1000,80,seed=1 m=64 n=64 ys=0..64
     no_save_cache=1 interval=10 nullspace=left

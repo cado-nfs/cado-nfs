@@ -183,16 +183,20 @@ tasks.polyselect.P = 10000		# choose lc(g) with two prime factors in [P,2P]
 
 tasks.polyselect.admin = 0          # min value for leading coefficient of f(x)
     # If not set, the default is 0.
-    # Warning: to ensure lc(f) is divisible by incr (defined below), admin
-    # should be divisible by incr too.
+    # Note: admin is not necessarily a multiple of incr (defined below).
 
 tasks.polyselect.admax = 100e3      # max value for leading coefficient of f(x)
+    # In fact the maximal value is admax-1, so that we can run for example:
+    # polyselect -admin 1000 -admax 2000 and polyselect -admin 2000 -admax 3000
+    # without duplicating the value 2000.
 
 tasks.polyselect.incr = 60	    # increment for leading coefficient of f(x)
     # This factor is usually a smooth number, which forces projective roots in
     # the algebraic polynomial. 60 is a good start, 210 is popular as well.
-    # Warning: to ensure lc(f) is divisible by incr, admin should be divisible
-    # by incr too.
+    # Note: admin and admax are not necessarily multiples of incr, for
+    # example polyselect -incr 60 -admin 0 -admax 200 will deal with 60, 120,
+    # and 180, while polyselect -incr 60 -admin 200 -admax 400 will deal with
+    # 240, 300, and 360.
 
     # The polynomial selection search time is proportional to the
     # length of the search interval, i.e., (admax-admin)/incr.

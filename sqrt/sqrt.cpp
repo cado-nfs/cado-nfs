@@ -41,6 +41,12 @@
 #include "utils_with_io.h"
 #include "portability.h"
 
+/* frequency of messages "read xxx (a,b) pairs" */
+#define REPORT 10000000
+
+/* maximal number of threads when reading dependency files */
+#define MAX_IO_THREADS 16
+
 static int verbose = 0;
 static double wct0;
 
@@ -75,7 +81,6 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 
   while (p->deg >= d) {
     const int k = p->deg;
-    int i;
 
     /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
        compute p - p[k]/F[d]*F. However this will happen rarely with
@@ -89,12 +94,12 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
     if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
       v++; /* we consider p/F[d]^v */
 #pragma omp parallel for
-      for (i = 0; i < k; ++i)
+      for (int i = 0; i < k; ++i)
         mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
     }
 
 #pragma omp parallel for
-    for (i = 0; i < d; ++i)
+    for (int i = 0; i < d; ++i)
       mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
 
     mpz_poly_cleandeg (p, k-1);
@@ -496,7 +501,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         /* Cannot seek: we have to use serial i/o */
         while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
         {
-            if(!(nab % 1000000)) {
+            if(!(nab % REPORT)) {
                 fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
                         message, nab, seconds (), wct_seconds () - wct0,
                         PeakMemusage () >> 10);
@@ -514,9 +519,9 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         off_t endpos = ftell(depfile);
         /* Find accurate starting positions for everyone */
         unsigned int nthreads = omp_get_max_threads();
-        /* cap the number of I/O threads to 16 */
-        if (nthreads > 16)
-            nthreads = 16;
+        /* cap the number of I/O threads */
+        if (nthreads > MAX_IO_THREADS)
+            nthreads = MAX_IO_THREADS;
         fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
         std::vector<off_t> spos_tab;
         for(unsigned int i = 0 ; i < nthreads ; i++)
@@ -569,7 +574,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
                     for(auto & x: loc_prd)
                         prd.emplace_back(std::move(x));
                     loc_prd.clear();
-                    if(!(nab % 1000000)) {
+                    if(!(nab % REPORT)) {
                         fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
                                 message, nab, seconds (), wct_seconds () - wct0,
                                 PeakMemusage () >> 10);
@@ -849,10 +854,8 @@ struct cxx_mpz_polymod_scaled_functions {
 static void
 mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
-  int i;
-
 #pragma omp parallel for
-  for (i=0; i <= R->deg; i++)
+  for (int i=0; i <= R->deg; i++)
     mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
 }
 

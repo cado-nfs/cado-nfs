@@ -4,14 +4,17 @@
 /* Elementary data types for the factor base */
 
 #include <stdint.h>
+#include <inttypes.h>
 #include "las-config.h"
 
-typedef unsigned int fbprime_t; /* 32 bits should be enough for everyone */
-#define FBPRIME_FORMAT "u"
-#define FBPRIME_MAX UINT_MAX
+typedef uint32_t fbprime_t; /* 32 bits should be enough for everyone */
+#define FBPRIME_FORMAT PRIu32
+#define FBPRIME_MAX UINT32_MAX
 #define FBPRIME_BITS 32
 typedef fbprime_t fbroot_t;
-#define FBROOT_FORMAT "u"
+#define FBROOT_FORMAT PRIu32
+typedef fbprime_t redc_invp_t;
+
 
 
 /* Within one factor base, there is exactly one (index, offset) tuple per
@@ -20,16 +23,6 @@ typedef fbprime_t fbroot_t;
 typedef uint32_t slice_index_t;
 /* Each factor base entry withing a slice has a unique offset */
 typedef uint16_t slice_offset_t;
-
-/* If SUPPORT_LARGE_Q is defined, 64-bit redc is used in the function that
-   converts roots to the p-lattice, and the redc code needs a 64-bit
-   precomputed inverse. If SUPPORT_LARGE_Q is not defined, we store only a
-   32-bit inverse to conserve memory. */
-#if defined(SUPPORT_LARGE_Q)
-typedef uint64_t redc_invp_t;
-#else
-typedef uint32_t redc_invp_t;
-#endif
 
 // FIXME: could probably go somewhere else...
 // Small struct for sublattice info:

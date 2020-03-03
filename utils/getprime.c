@@ -234,11 +234,8 @@ main (int argc, char *argv[])
 
   for (pi = 0, p = 2; p <= B; pi++) {
       unsigned long newp = getprime_mt (i);
-      if (newp-p > diff) {
-          for( ; diff < newp - p ; diff++) {
-              printf ("firstdiff(%d)=%lu\n", diff, p);
-          }
-      }
+      if (newp - p > diff)
+        printf ("firstdiff(%d)=%lu\n", diff = newp - p, p);
       p = newp;
   }
   printf ("pi(%lu)=%lu, maxdiff=%d\n", B, pi, diff);

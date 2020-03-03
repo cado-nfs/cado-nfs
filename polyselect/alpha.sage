@@ -259,13 +259,24 @@ def average_alpha_projective(ad,degree,K,verbose=true):
 
 # gives the record values of the parameter 'incr' of polyselect1
 # degree and K are only used with conjecture=false
-def stats_alpha_projective_records(degree,K,conjecture=false):
+# with bias=true, also take into account that when the leading coefficient
+# increases by c, the norm increases by c^(2*(d-1)/(d^3-d^2+2*d))
+def stats_alpha_projective_records(degree,K,conjecture=false,bias=false):
    best = 1
    T = dict() # records value for p^k
    incr = 1
+   d = degree
+   if bias:
+      e = 2*(d-1)/(d^3-d^2+2*d)
+      print "bias exponent:", e
+   L = [1]
+   delta_incr = 1
    while true:
-      incr += 1
-      s = 0
+      incr += delta_incr
+      if bias == false:
+         s = 0
+      else:
+         s = float(e*log(incr))
       l = prime_divisors(incr)
       for p in l:
          k = incr.valuation(p)
@@ -278,6 +289,12 @@ def stats_alpha_projective_records(degree,K,conjecture=false):
       if s < best:
          best = s
          print incr, s
+         L.append(incr)
+         # conjecture: the next records are multiples of the gcd of the last
+         # 7 records
+         g = gcd(L[-7:])
+         if g > delta_incr:
+            delta_incr = g
 
 # Assuming that alpha_projective for a leading coefficient p^k is
 # -log(p) * (1/p + ... + 1/p^k), the record values of alpha_projective are
@@ -325,6 +342,11 @@ def stats_alpha_projective_records(degree,K,conjecture=false):
 # 232792560 -2.474897
 # 465585120 -2.496558
 # 698377680 -2.515586
+# 1163962800 -2.53927423034155
+# 2327925600 -2.56093507973405
+# 2677114440 -2.56790085053437
+# 3491888400 -2.57996357436629
+# 5354228880 -2.61122254931937
 def alpha_projective(f,B):
     """
     Computes the projective part of the alpha value of f, up to prime bound B.
