@@ -63,14 +63,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     }							        	\
 } while (0)
 
-#if __STDC_VERSION__ >= 201112L
-#define STATIC_ASSERT(COND,MSG) _Static_assert(COND, #MSG)
-#else
-/* Does not work in structs */
-#define STATIC_ASSERT(COND,MSG)                                         \
-    typedef char static_assertion_##MSG[(COND)?1:-1]
-#endif
-
 /*********************************************************************/
 /* Helper macros */
 /* See README.macro_usage */
@@ -216,6 +208,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #else
 #define MAYBE_UNUSED
 #endif
+#endif
+
+#if __STDC_VERSION__ >= 201112L
+#define STATIC_ASSERT(COND,MSG) _Static_assert(COND, #MSG)
+#else
+/* Does not work in structs */
+#define STATIC_ASSERT(COND,MSG)                                         \
+    typedef char static_assertion_##MSG[(COND)?1:-1] MAYBE_UNUSED
 #endif
 
 #ifndef ATTRIBUTE_WARN_UNUSED_RESULT
