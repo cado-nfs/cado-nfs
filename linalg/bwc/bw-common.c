@@ -262,7 +262,7 @@ int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
         return 0;
     } else {
 #ifndef FAKEMPI_H_
-        int rc = asprintf(pmpiinit_diag, "Successfully initialized MPI with MPI_THREAD_MULTIPLE\n");
+        int rc = asprintf(pmpiinit_diag, "Successfully initialized MPI with %s\n", reqname);
         ASSERT_ALWAYS(rc >= 0);
 #endif
         return 1;
