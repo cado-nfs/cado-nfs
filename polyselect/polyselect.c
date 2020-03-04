@@ -63,7 +63,7 @@ double potential_collisions = 0.0, aver_raw_lognorm = 0.0,
   var_raw_lognorm = 0.0;
 #define LOGNORM_MAX 999.99
 double min_raw_lognorm = LOGNORM_MAX, max_raw_lognorm = 0.0;
-data_t data_opt_lognorm, data_exp_E, data_beta, data_eta;
+data_t data_opt_lognorm, data_exp_E, data_beta, data_eta, data_best_exp_E;
 data_t raw_proj_alpha, opt_proj_alpha;
 unsigned long collisions = 0;
 unsigned long discarded1 = 0; /* f[d] * f[d-2] > 0 */
@@ -181,7 +181,7 @@ estimate_weibull_moments2 (double *beta, double *eta, data_t s)
     {
       for (j = i, min = DBL_MAX; j < i + k; j++)
         {
-          u = (p * j) % n;
+	  u = (p * j) % n;
           if (s->x[u] < min)
             min = s->x[u];
         }
@@ -249,62 +249,51 @@ print_poly_info ( char *buf,
   np += snprintf (buf + np, size - np, " %1.2f, lognorm %1.2f, skew %1.2f, %u rroots\n",
            exp_E, logmu, skew, nroots);
 
-  /* estimate the parameters of a Weibull distribution for E */
-  if (!raw_option && target_E != 0.0)
+  if (!raw_option && (target_E != 0.0 || maxtime < DBL_MAX))
     {
       double beta, eta, prob;
 
+      /* estimate the parameters of a Weibull distribution for E */
       estimate_weibull_moments2 (&beta, &eta, data_exp_E);
-      /* since the estimation using extreme values has a high variability
-         in terms of the sample size, we permute the elements at each try,
-         and we take the median of the beta/eta values */
-      if (!isnan (beta) && !isinf (beta))
-        {
-#pragma	omp critical
-          data_add (data_beta, beta);
-          beta = data_median (data_beta);
-        }
-      if (!isnan (eta) && !isinf (eta))
-        {
-#pragma	omp critical
-          data_add (data_eta, eta);
-          eta = data_median (data_eta);
-        }
-      prob = 1.0 - exp (- pow (target_E / eta, beta));
-      if (prob == 0) /* for x small, exp(x) ~ 1+x */
-        prob = pow (target_E / eta, beta);
-      np += snprintf (buf + np, size - np,
-               "# E: %lu, min %.2f, avg %.2f, max %.2f, stddev %.2f\n",
-               data_exp_E->size, data_exp_E->min, data_mean (data_exp_E),
-               data_exp_E->max, sqrt (data_var (data_exp_E)));
-      np += snprintf (buf + np, size - np,
-              "# target_E=%.2f: collisions=%.2e, time=%.2e"
-               " (beta=%.2f,eta=%.2f)\n",
-               target_E, 1.0 / prob, seconds () / (prob * collisions_good),
-               beta, eta);
-    }
 
-  /* Estimate the minimal E-value, assuming a normal distribution for E.
-     This assumes -maxtime is given. */
-  if (!raw_option && verbose && maxtime < DBL_MAX)
-    {
-      unsigned long n = data_exp_E->size; /* #polynomials found so far */
-      double time_so_far = seconds ();
-      double time_per_poly = time_so_far / n; /* average time per poly */
-      double mu = data_mean (data_exp_E); /* average E, taking into account
-					     the projective alpha */
-      double sigma = sqrt (data_var (data_exp_E)); /* stddev(E) */
-      double K = maxtime / time_per_poly;
-      /* minimal order statistics */
-      double x = sqrt (2.0 * log (K));
-      double y  = log (log (K)) + 1.377;
-      double best_exp_E = mu - sigma * (x - y / (2.0 * x));
-      double admin_d = mpz_get_d (admin);
-      double ad_d = get_ad_double (idx);
-      double adrange = (ad_d - admin_d) * (maxtime / time_so_far);
-      np += snprintf (buf + np, size - np,
-                      "# %.2fs/poly, mu %.2f, sigma %.3f, admax = %.2e, best exp_E %.2f\n",
-                      time_per_poly, mu, sigma, admin_d + adrange, best_exp_E);
+      if (target_E != 0.0)
+	{
+	  prob = 1.0 - exp (- pow (target_E / eta, beta));
+	  if (prob == 0) /* for x small, exp(x) ~ 1+x */
+	    prob = pow (target_E / eta, beta);
+	  np += snprintf (buf + np, size - np,
+		  "# E: %lu, min %.2f, avg %.2f, max %.2f, stddev %.2f\n",
+		  data_exp_E->size, data_exp_E->min, data_mean (data_exp_E),
+		  data_exp_E->max, sqrt (data_var (data_exp_E)));
+	  np += snprintf (buf + np, size - np,
+		  "# target_E=%.2f: collisions=%.2e, time=%.2e"
+		  " (beta %.2f,eta %.2f)\n",
+		  target_E, 1.0 / prob, seconds () / (prob * collisions_good),
+		  beta, eta);
+	}
+      else /* maxtime < DBL_MAX */
+	{
+	  /* time = seconds () / (prob * collisions_good)
+	     where  prob = 1 - exp (-(E/eta)^beta) */
+	  unsigned long n = collisions_good; /* #polynomials found so far */
+	  double time_so_far = seconds ();
+	  double time_per_poly = time_so_far / n; /* average time per poly */
+	  double admin_d = mpz_get_d (admin);
+	  double ad_d = get_ad_double (idx);
+	  double adrange = (ad_d - admin_d) * (maxtime / time_so_far);
+	  adrange = 2.00e+15 - 99900000000000.0;
+	  prob = time_so_far / (maxtime * n);
+	  double E = eta * pow (-log (1 - prob), 1.0 / beta);
+#pragma omp critical
+	  data_add (data_best_exp_E, E);
+	  /* since the values of (eta,beta) fluctuate a lot, because
+	     they depend on the random samples in estimate_weibull_moments2,
+	     we take the average value for best_exp_E */
+	  E = data_mean (data_best_exp_E);
+	  np += snprintf (buf + np, size - np,
+			  "# %.2fs/poly, eta %.2f, beta %.3f, admax %.2e, best exp_E %.2f\n",
+			  time_per_poly, eta, beta, admin_d + adrange, E);
+	}
     }
 
   if (!raw_option)
@@ -1905,7 +1894,7 @@ newAlgo (mpz_t N, unsigned long d, unsigned long idx)
 static void
 declare_usage(param_list pl)
 {
-  param_list_decl_usage(pl, "degree", "(required, alias d) polynomial degree (max=6)");
+  param_list_decl_usage(pl, "degree", "(required, alias d) polynomial degree");
   param_list_decl_usage(pl, "n", "(required, alias N) input number");
   param_list_decl_usage(pl, "P", "(required) deg-1 coeff of g(x) has two prime factors in [P,2P]\n");
 
@@ -1960,6 +1949,7 @@ main (int argc, char *argv[])
   cado_poly_init (curr_poly);
   data_init (data_opt_lognorm);
   data_init (data_exp_E);
+  data_init (data_best_exp_E);
   data_init (data_beta);
   data_init (data_eta);
   data_init (raw_proj_alpha);
@@ -2056,6 +2046,13 @@ main (int argc, char *argv[])
 
   /* check degree */
   if (d <= 0) usage(argv0[0], "degree", pl);
+
+  /* maxtime and target_E are incompatible */
+  if (maxtime != DBL_MAX && target_E != 0.0)
+    {
+      fprintf (stderr, "Options -maxtime and -target_E are incompatible\n");
+      exit (1);
+    }
 
   /* quiet mode */
   if (quiet == 1)
@@ -2229,6 +2226,7 @@ main (int argc, char *argv[])
   param_list_clear (pl);
   data_clear (data_opt_lognorm);
   data_clear (data_exp_E);
+  data_clear (data_best_exp_E);
   data_clear (data_beta);
   data_clear (data_eta);
   data_clear (raw_proj_alpha);
