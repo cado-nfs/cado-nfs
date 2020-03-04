@@ -49,6 +49,13 @@ else()
     endif()
 endif()
 
+math(EXPR test_index 0)
+
+# openmp jobs really don't like competing with eachother, so we must be
+# cautious. Setting OMP_DYNAMIC=true seems to alleviate this problem
+# significantly
+math(EXPR test_concurrency_tolerance 8)
+
 macro(cado_define_test)
     # This macro is appropriate for a test which consists in running a
     # binary. The different ways to call this macro are:
@@ -321,8 +328,10 @@ macro(cado_define_test)
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
+        MATH(EXPR test_index "${test_index}+1")
         if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
-            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock)
+            MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
         endif()
         set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${${TEST_NAME}_PRECOMMAND} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
         if(nWORKING_DIRECTORY GREATER 0)
@@ -474,8 +483,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
+        MATH(EXPR test_index "${test_index}+1")
         if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
-            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock)
+            MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
         endif()
         add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${${TEST_NAME}_PRECOMMAND} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
         set(${TEST_NAME}_TEST_EXISTS 1)
