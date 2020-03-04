@@ -27,7 +27,7 @@ void lingen_checkpoint::decl_usage(cxx_param_list & pl)
             "where to save checkpoints");
     param_list_decl_usage(pl, "checkpoint-threshold",
             "threshold for saving checkpoints");
-    param_list_decl_usage(pl, "lingen_checkpoint::save_gathered",
+    param_list_decl_usage(pl, "lingen_checkpoint_save_gathered",
             "save global checkpoints files, instead of per-job files");
 }
 
@@ -35,22 +35,39 @@ void lingen_checkpoint::lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "checkpoint-directory");
     param_list_lookup_string(pl, "checkpoint-threshold");
-    param_list_lookup_string(pl, "lingen_checkpoint::save_gathered");
+    param_list_lookup_string(pl, "lingen_checkpoint_save_gathered");
 }
 
 void lingen_checkpoint::interpret_parameters(cxx_param_list & pl)
 {
     lingen_checkpoint::directory = param_list_lookup_string(pl, "checkpoint-directory");
     param_list_parse_uint(pl, "checkpoint-threshold", &lingen_checkpoint::threshold);
-    param_list_parse_int(pl, "lingen_checkpoint::save_gathered", &lingen_checkpoint::save_gathered);
-    if (lingen_checkpoint::directory && access(lingen_checkpoint::directory, X_OK) != 0) {
-        if (!rank)
-            printf("# Checkpoint directory %s/ does not exist, checkpoint settings ignored\n", lingen_checkpoint::directory);
-        lingen_checkpoint::directory = NULL;
+    param_list_parse_int(pl, "lingen_checkpoint_save_gathered", &lingen_checkpoint::save_gathered);
+
+    if (!lingen_checkpoint::directory) return;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (!lingen_checkpoint::save_gathered) {
+        int ok = access(lingen_checkpoint::directory, X_OK) == 0;
+        MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        if (!ok) {
+            if (!rank)
+                printf("# Checkpoint directory %s/ does not exist at all ranks, falling back to gathered checkpoints\n", lingen_checkpoint::directory);
+            lingen_checkpoint::save_gathered = 1;
+        }
+    }
+    if (lingen_checkpoint::save_gathered) {
+        int ok = access(lingen_checkpoint::directory, X_OK) == 0;
+        MPI_Bcast(&ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if (!ok) {
+            if (!rank)
+                printf("# Checkpoint directory %s/ does not exist at rank zero, checkpoint settings ignored\n", lingen_checkpoint::directory);
+            lingen_checkpoint::directory = NULL;
+        }
     }
 }
-
-int lingen_checkpoint::rank;
 
 lingen_checkpoint::lingen_checkpoint(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi, std::string base)
     : bm(bm), t0(t0), t1(t1), mpi(mpi)
