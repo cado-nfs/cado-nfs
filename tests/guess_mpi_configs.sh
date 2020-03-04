@@ -62,6 +62,18 @@ set_choices_from_n()
     if [ "$jobsize" -ge 4 ] ;   then mpi_square1=2x2 ; fi
 }
 
+create_exporters() {
+    export mpi
+    # only bash5 can do that.
+    if (set -e ; a=(false) ; eval "${a[@]@A}") ; then
+        export exporter_mpirun="${mpirun[@]@A}"
+        export exporter_mpi_extra_args="${mpi_extra_args[@]@A}"
+    else
+        export exporter_mpirun="mpirun=(${mpirun[*]})"
+        export exporter_mpi_extra_args="mpi_extra_args=(${mpi_extra_args[*]})"
+    fi
+}
+
 set_mpi_derived_variables()
 {
     case "$mpi_magic" in
@@ -90,9 +102,7 @@ set_mpi_derived_variables()
         mpi=
         mpirun=()
         mpi_extra_args=()
-        export mpi
-        export exporter_mpirun="${mpirun[@]@A}"
-        export exporter_mpi_extra_args="${mpi_extra_args[@]@A}"
+        create_exporters
         return
     fi
 
@@ -158,7 +168,5 @@ set_mpi_derived_variables()
     _t="${mpi_magic}_mpi_args"[@]
     mpirun=("$mpiexec" "${mpi_args_common[@]}" "${!_t}" "${mpi_extra_args[@]}")
     # pass on to subcalls
-    export mpi
-    export exporter_mpirun="${mpirun[@]@A}"
-    export exporter_mpi_extra_args="${mpi_extra_args[@]@A}"
+    create_exporters
 }
