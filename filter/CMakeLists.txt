@@ -51,9 +51,11 @@ endif()
 add_executable(sm sm.c)
 target_link_libraries(sm utils_with_io)
 if (${WITH_MPI})
-set_target_properties(sm PROPERTIES
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+    set_target_properties(sm PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}" LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+else()
+    set_target_properties(sm PROPERTIES
+        COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 endif()
 
 add_executable(sm_append sm_append.cpp)
@@ -62,6 +64,11 @@ if (${WITH_MPI})
 set_target_properties(sm_append PROPERTIES
   COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
   LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+  )
+else()
+set_target_properties(sm_append PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}"
+  LINK_FLAGS "${OpenMP_C_FLAGS}"
   )
 endif()
 

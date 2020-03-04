@@ -1067,7 +1067,6 @@ class SM(Program):
                  out: Parameter(),
                  ell: Parameter(),
                  nsm: Parameter()=None,
-                 threads: Parameter("t")=None,
                  sm_mode: Parameter("sm-mode")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)

@@ -36,6 +36,10 @@ Output
 #include <pthread.h>
 #include <errno.h>
 
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 #include "macros.h"
 #include "utils_with_io.h"
 #include "filter_config.h"
@@ -213,62 +217,6 @@ void MPI_Recv_res(mpz_poly * res, int src, sm_side_info * sm_info,
 
 // Pthread part: on each node, we use shared memory instead of mpi
 
-struct th_info_s {
-  sm_side_info * sm_info;
-  sm_relset_ptr rels;
-  mpz_poly ** dst;
-  uint64_t tot_relset;
-  int nb_polys;
-};
-typedef struct th_info_s th_info_t;
-
-uint64_t next_relset = 0; // All relsets below this are done, or being processed
-uint64_t count_processed_sm = 0; // Number of already computed relsets.
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
-
-void * thread_process(void *th_arg) {
-  th_info_t * args = (th_info_t *)th_arg;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  fprintf(stderr, "Starting thread on mpi job %d\n", rank);
-
-  const uint64_t BLOCK = 10;
-
-  while(1) {
-    // get a new block of relsets to compute
-    pthread_mutex_lock(&mutex);
-    if (next_relset >= args->tot_relset) {
-      pthread_mutex_unlock(&mutex);
-      fprintf(stderr, "Finishing thread on mpi job %d\n", rank);
-      return NULL;
-    }
-    uint64_t first = next_relset;
-    uint64_t last = MIN(first + BLOCK, args->tot_relset);
-    next_relset = last;
-    pthread_mutex_unlock(&mutex);
-
-    // Process the relsets
-    for (uint64_t i = first; i < last; ++i) {
-      for(int side = 0 ; side < args->nb_polys ; side++) {
-        if (args->sm_info[side]->nsm == 0)
-          continue;
-        mpz_poly_reduce_frac_mod_f_mod_mpz(
-            args->rels[i].num[side],
-            args->rels[i].denom[side],
-            args->sm_info[side]->f0,
-            args->sm_info[side]->ell2);
-        compute_sm_piecewise(args->dst[i][side],
-            args->rels[i].num[side],
-            args->sm_info[side]);
-      }
-    }
-    pthread_mutex_lock(&mutex);
-    count_processed_sm += BLOCK;
-    pthread_mutex_unlock(&mutex);
-  }
-}
-
-
 static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "poly", "(required) poly file");
@@ -303,7 +251,6 @@ int main (int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   int idoio = (rank == 0); // Am I the job allowed to do I/O ?
-  int mt = 1;
   double t0 = seconds();
 
   char *argv0 = argv[0];
@@ -381,15 +328,6 @@ int main (int argc, char **argv)
   if (!param_list_parse_mpz(pl, "ell", ell)) {
     if (idoio) {
       fprintf(stderr, "Error: parameter -ell is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-    }
-    exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_int(pl, "t", &mt);
-  if (mt < 1) {
-    if (idoio) {
-      fprintf(stderr, "Error: parameter -mt must be at least 1\n");
       param_list_print_usage(pl, argv0, stderr);
     }
     exit(EXIT_FAILURE);
@@ -486,10 +424,15 @@ int main (int argc, char **argv)
 
   ///////////////////////
   // Only process 0 constructs the relation sets.
+#ifdef HAVE_OPENMP
+      unsigned int thmax = omp_get_max_threads();
+#else
+      const unsigned int thmax = 1;
+#endif
   if (rank == 0) {
     rels = build_rel_sets(purgedfile, indexfile, &nb_relsets, F, pol->nb_polys, ell2);
     fprintf(stdout, "\n# Computing Shirokauer maps for %" PRIu64
-        " relation-sets.\n", nb_relsets);
+        " relation-sets, using %d threads and %d jobs.\n", nb_relsets, thmax, size);
     fflush(stdout);
   }
   MPI_Bcast(&nb_relsets, 1, CADO_MPI_UINT64_T, 0, MPI_COMM_WORLD);
@@ -538,39 +481,49 @@ int main (int argc, char **argv)
     }
   }
 
-  // parameters for the threads (same for all).
-  th_info_t th_args;
-  th_args.sm_info = sm_info;
-  th_args.rels = part_rels;
-  th_args.dst = dst;
-  th_args.nb_polys = pol->nb_polys;
-  th_args.tot_relset = nb_parts;
-  if ((nb_parts-1)*size + rank > nb_relsets)
-    th_args.tot_relset = nb_parts - 1;
-  // start the threads
-  next_relset = 0;
-  pthread_t *th_id;
-  th_id = (pthread_t *) malloc(mt*sizeof(pthread_t));
-  ASSERT_ALWAYS(th_id != NULL);
-  for (int i = 0; i < mt; ++i) {
-    int ret;
-    ret = pthread_create(&th_id[i], NULL, &thread_process, (void *)&th_args);
-    ASSERT_ALWAYS(ret == 0);
-  }
-
+  /* updated only by thread 0 */
+  uint64_t count_processed_sm = 0;
   stats_init(stats, stdout, &count_processed_sm, nbits(nb_relsets)-5,
-      "Computed", "SMs", "", "SMs");
-  while (count_processed_sm < nb_parts) {
-    if (stats_test_progress(stats))
-      stats_print_progress (stats, count_processed_sm, 0, 0, 0);
-    usleep(1);
+          "Computed", "SMs", "", "SMs");
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+  {
+#ifdef HAVE_OPENMP
+      unsigned int thid = omp_get_thread_num();
+      unsigned int thnb = omp_get_num_threads();
+#else
+      const unsigned int thid = 0;
+      const unsigned int thnb = 1;
+#endif
+#ifdef HAVE_OPENMP
+#pragma omp for schedule(static)
+#endif
+      for(uint64_t i = 0 ; i < nb_relsets ; i++) {
+          for(int side = 0 ; side < pol->nb_polys ; side++) {
+              if (sm_info[side]->nsm == 0)
+                  continue;
+              mpz_poly_reduce_frac_mod_f_mod_mpz(
+                      part_rels[i].num[side],
+                      part_rels[i].denom[side],
+                      sm_info[side]->f0,
+                      sm_info[side]->ell2);
+              compute_sm_piecewise(dst[i][side],
+                      part_rels[i].num[side],
+                      sm_info[side]);
+          }
+          if (thid == 0) {
+              /* Static schedule, all threads can reasonably be expected
+               * to progress at the same speed */
+              count_processed_sm+=thnb;
+              if (stats_test_progress(stats))
+                  stats_print_progress (stats, count_processed_sm, 0, 0, 0);
+          }
+      }
   }
   stats_print_progress (stats, nb_parts, 0, 0, 1);
 
-  // join the threads.
-  for (int i = 0; i < mt; ++i)
-    pthread_join(th_id[i], NULL);
-  free(th_id);
   fprintf(stderr, "Job %d: processed all relsets in %f s\n",
       rank, seconds()-t0);
 
