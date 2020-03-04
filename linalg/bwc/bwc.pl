@@ -1012,6 +1012,10 @@ if ($mpi_needed) {
                     if (!$param->{'only_mpi'}) {
                         # with only_mpi=1, the default policy works fine.
                         push @mpi_precmd, qw/--map-by node/;
+
+                        # I don't exactly when the --bind-to argument
+                        # appeared.
+                        push @mpi_precmd, qw/--bind-to none/;
                     }
                 }
             } elsif ($mpi_ver =~ /^mpich2/ || $mpi_ver =~ /^mvapich2/) {
@@ -1026,7 +1030,7 @@ if ($mpi_needed) {
         my @a = split(' ', $mpi_extra_args);
         my @b;
         while (defined($_=shift(@a))) {
-            if (/^--map-by$/) {
+            if (/^(--map-by|bind-to)$/) {
                 shift @a;
                 next;
             }
