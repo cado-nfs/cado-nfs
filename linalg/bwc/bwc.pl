@@ -1011,7 +1011,7 @@ if ($mpi_needed) {
                     # which doesn't work too well.
                     if (!$param->{'only_mpi'}) {
                         # with only_mpi=1, the default policy works fine.
-                        push @mpi_precmd, qw/--mca rmaps_base_mapping_policy/, 'node';
+                        push @mpi_precmd, qw/--map-by node/;
                     }
                 }
             } elsif ($mpi_ver =~ /^mpich2/ || $mpi_ver =~ /^mvapich2/) {
@@ -1023,7 +1023,23 @@ if ($mpi_needed) {
         # that mpiexec reaches the desired nodes correctly.
     }
     if (defined($mpi_extra_args)) {
-        push @mpi_precmd, split(' ', $mpi_extra_args);
+        my @a = split(' ', $mpi_extra_args);
+        my @b;
+        while (defined($_=shift(@a))) {
+            if (/^--map-by$/) {
+                shift @a;
+                next;
+            }
+            if (/^plm_rsh_agent$/) {
+                pop @b;
+                shift @a;
+                next;
+            }
+            push @b, $_;
+        }
+        # filter out stuff that we already provide (there are cases where
+        # we supply this information redundantly).
+        push @mpi_precmd, @b;
     }
     push @mpi_precmd, split(' ', $mpiexec_extra_stanzas);
     push @mpi_precmd, split(' ', $ENV{'MPI_EXTRA_ARGS'}) if $ENV{'MPI_EXTRA_ARGS'};
