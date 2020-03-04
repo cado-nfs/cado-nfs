@@ -593,25 +593,16 @@ def run_command(command, print_error=True, **kwargs):
     """
 
     command_str = command if isinstance(command, str) else " ".join(command)
+    command_list = command if isinstance(command, list) else command.split(" ")
 
-    if os.name == "nt":
-        # We need to call bash explicitly as the WU COMMAND assumes POSIX
-        # syntax which the Windows command line shell does not implement.
-        # Turn command into an array so that "bash -c" gets the WU command
-        # as a single parameter, i.e., we defer propery quoting command_str
-        # to to the subprocess module.
-        command = ["bash", "-c", command_str]
-        command_str = " ".join(command)
-        close_fds = False
-    else:
-        # changed close_fds from True to False, since otherwise the 'las'
-        # clients are not killed when merge starts
-        # see https://gforge.inria.fr/tracker/?func=detail&aid=21718
-        close_fds = False
+    # changed close_fds from True to False, since otherwise the 'las'
+    # clients are not killed when merge starts
+    # see https://gforge.inria.fr/tracker/?func=detail&aid=21718
+    close_fds = False
 
     logging.info("Running %s", command_str)
 
-    child = subprocess.Popen(command,
+    child = subprocess.Popen(command_list,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              close_fds=close_fds,
@@ -1273,7 +1264,7 @@ class WorkunitProcessor(object):
 
             command = self.apply_overrides(command)
 
-            rc, stdout, stderr = run_command(command, shell=True,
+            rc, stdout, stderr = run_command(command,
                                              preexec_fn=renice_func)
 
             self.stdio["stdout"].append(stdout)

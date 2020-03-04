@@ -125,7 +125,6 @@ typedef struct
   double sum;          /* sum = x[0] + ... + x[size-1] */
   double var;          /* var = x[0]^2 + ... + x[size-1]^2 */
   double min, max;     /* minimum and maximum values */
-  double beta, eta;    /* parameters for Weibull distribution */
 } data_struct;
 typedef data_struct data_t[1];
 
@@ -187,6 +186,5 @@ void data_clear (data_t);
 void data_add (data_t, double);
 double data_mean (data_t);
 double data_var (data_t);
-double data_median (data_t);
 
 #endif
