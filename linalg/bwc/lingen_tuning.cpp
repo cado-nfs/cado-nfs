@@ -1211,7 +1211,7 @@ struct lingen_tuner {
             strat_name[P.r] = fmt::sprintf("recursive(%d*%d-nodes)", P.r, P.r);
         }
 
-        int fl = log2(L) + 1;
+        int fl = log2(L-1) + 1; /* ceil(log_2(L)) */
 
         tuner_persistent_data persist(stored_hints);
 
