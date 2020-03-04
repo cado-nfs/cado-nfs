@@ -617,6 +617,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #        )
         cado_define_test(test_gfp3
             SCRIPT
+                ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
