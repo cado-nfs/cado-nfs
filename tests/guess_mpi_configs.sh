@@ -116,7 +116,7 @@ set_mpi_derived_variables()
         nnodes=$(wc -l < $OAR_NODEFILE)
         if [ "$family" = openmpi ] ; then
             mpi_args_common=(-machinefile $OAR_NODEFILE)
-            mpi_extra_args+=(--map-by node --mca plm_rsh_agent oarsh)
+            mpi_extra_args+=(--map-by node --bind-to none --mca plm_rsh_agent oarsh)
         fi
         # maybe auto-detect some hardware and decide on the right config
         # options ? should we really have to do that ?

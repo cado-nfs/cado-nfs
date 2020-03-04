@@ -73,19 +73,23 @@ if(HAVE_PERL_DIGEST_MD5)
     # the sha1sum 8938... is for the old binary. The newer one gets d0e7...
     # and it seems to be a question of varying normalization.
 
-    set(lingen_binary_test0_mpi_tests mpi_square1 mpi_square2)
+    # square2 is too large for this tiny test
+    set(lingen_binary_test0_mpi_tests mpi_square1)
     add_lingen_binary_test(test0
         expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379
-        m=64 n=64 sequence_length=480 seed=1)
+        m=64 n=64 sequence_length=480 seed=1
+        tuning_thresholds=recursive:16,notiming:16,collective:16
+        )
 
     # We have significant difficulties with tuning for the binary case.
     # This test takes absurdly long.
     if(DEFINED ENV{CHECKS_EXPENSIVE})
-        set(lingen_binary_test2_mpi_tests mpi_square1 mpi_square2)
+        # square2 is too large for this tiny test
+        set(lingen_binary_test2_mpi_tests mpi_square1)
         add_lingen_binary_test(test2
             expect_sha1_F=fefcefb595751b7120d593d6f10f0a5bb5466dfb
             m=128 n=128 sequence_length=480 seed=1
-            tuning_thresholds=recursive:128
+            tuning_thresholds=recursive:128,notiming:16,collective:128
             )
     endif()
 

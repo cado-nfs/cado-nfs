@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <vector>
 #include <iostream>
+#include "select_mpi.h"
 
 #ifdef HAVE_OPENMP
 #include <omp.h>
@@ -714,6 +715,8 @@ int sanity_check(std::string filename)
 int
 main(int argc, char* argv[])
 {
+    /* We're not really mpi, but we link code that _is_ mpi */
+    MPI_Init(&argc, &argv);
     cxx_param_list pl;
 
     seed = getpid();
@@ -722,6 +725,8 @@ main(int argc, char* argv[])
 
     const char* argv0 = argv[0];
 
+    std::vector<std::pair<char **, int> > todo;
+
     param_list_configure_switch(pl, "-v", &verbose);
     for (argc--, argv++; argc;) {
         if (param_list_update_cmdline(pl, &argc, &argv)) {
@@ -729,7 +734,24 @@ main(int argc, char* argv[])
         }
         if (strcmp(argv[0], "--") == 0) {
             argc--, argv++;
-            break;
+            if (argc == 2 || argc == 3) {
+                todo.emplace_back(argv, argc);
+                break;
+            } else if (argc >= 3 && strcmp(argv[2], "--") == 0) {
+                todo.emplace_back(argv, 2);
+                argc--, argv++;
+                argc--, argv++;
+                continue;
+            } else if (argc >= 4 && strcmp(argv[3], "--") == 0) {
+                todo.emplace_back(argv, 3);
+                argc--, argv++;
+                argc--, argv++;
+                argc--, argv++;
+                continue;
+            } else {
+                fprintf(stderr, "bad argument list\n");
+                exit(EXIT_FAILURE);
+            }
         }
         fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
         param_list_print_usage(pl, argv0, stderr);
@@ -795,16 +817,21 @@ main(int argc, char* argv[])
      */
     if ((tmp = param_list_lookup_string(pl, "sanity-check")) != NULL) {
         ret = sanity_check(tmp);
-    } else if (argc == 3) {
-        ret = do_check_pi(argv[0], argv[1], argv[2]);
-    } else if (argc == 2) {
-        ret = do_check_E_short(argv[0], argv[1]);
     } else {
-        fprintf(stderr, "bad argument list\n");
-        exit(EXIT_FAILURE);
+        for(auto const & x : todo) {
+            argv = x.first;
+            argc = x.second;
+            if (argc == 3) {
+                ret = do_check_pi(argv[0], argv[1], argv[2]);
+            } else if (argc == 2) {
+                ret = do_check_E_short(argv[0], argv[1]);
+            }
+            if (!ret) break;
+        }
     }
 
     gmp_randclear(state);
+    MPI_Finalize();
 
     return ret ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# just to be sure
+unset DISPLAY
+
 set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 # Create a fake sequence

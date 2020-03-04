@@ -1,5 +1,8 @@
 #!/usr/bin/env bash 
 
+# just to be sure
+unset DISPLAY
+
 set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
@@ -69,21 +72,39 @@ verify() {
         shift
     done
     if [ "$prime" ] && [ "$prime" != 2 ] ; then
+        verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints_p_$nwords" "prime=$prime" m=$m n=$n)
+        verifier_args_nompi=()
+        verifier_args_mpi=()
         list_tool="`dirname $0`"/../../../linalg/bwc/list_lingen_checkpoints.sh
         checks=()
         while read x ; do checks+=("$x") ; done < <("$list_tool" "$cpdir")
         for c in "${checks[@]}" ; do
             aa=($c)
             bb=()
+            gathered_data=()
+            scattered_data=()
             for x in "${aa[@]}" ; do
                 bb+=("$cpdir/$x")
+                gathered_data+=(`find "$cpdir" -name "$x.single.data"`)
+                scattered_data+=(`find "$cpdir" -name "$x.[0-9]*.data"`)
             done
-            verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints_p_$nwords" "prime=$prime" m=$m n=$n)
-            if [ "$mpi" ] ; then
-                verifier+=(mpi=$mpi)
+            if [ "${#gathered_data[@]}" -gt 0 ] ; then
+                verifier_args_nompi+=(-- "${bb[@]}")
             fi
-            "${mpirun_single[@]}" "${verifier[@]}" -- "${bb[@]}"
+            if [ "${#scattered_data[@]}" -gt 0 ] ; then
+                verifier_args_mpi+=(-- "${bb[@]}")
+            fi
+            if [ "${#gathered_data[@]}" -eq 0 ] && [ "${#scattered_data[@]}" -eq 0 ] ; then
+                echo "No checkpoints found in $cpdir for ${aa[*]}"
+                exit 1
+            fi
         done
+        if [ "${#verifier_args_nompi[@]}" -gt 0 ] ; then
+            "${mpirun_single[@]}" "${verifier[@]}" "${verifier_args_nompi[@]}"
+        fi
+        if [ "${#verifier_args_mpi[@]}" -gt 0 ] ; then
+            "${mpirun_single[@]}" "${verifier[@]}" mpi=$mpi "${verifier_args_mpi[@]}"
+        fi
     fi
 }
 

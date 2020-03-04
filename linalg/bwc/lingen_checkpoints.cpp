@@ -141,21 +141,43 @@ bool lingen_checkpoint::save_aux_file(size_t Xsize) const /*{{{*/
     return ok;
 }/*}}}*/
 
+/* See load_mpi_checkpoint_file_* for the way we reconcile the aux file
+ * that is read at rank 0 and the in-memory structure at all ranks.
+ */
+
 bool lingen_checkpoint::checkpoint_already_present() const/*{{{*/
 {
     lingen_checkpoint test = *this;
     size_t Xsize;
+    int ok=0;
+    int exc=0;
+
+    /* Do we have an aux file at rank 0 ? */
     try {
-        if (!test.load_aux_file(Xsize))
-            return false;
-        int sdata_ok = access(sdatafile.c_str(), R_OK) == 0;
-        int gdata_ok = rank || access(gdatafile.c_str(), R_OK) == 0;
-        return sdata_ok || gdata_ok;
+        ok = test.load_aux_file(Xsize);     /* rank>0 always returns 1 */
     } catch (lingen_checkpoint::invalid_aux_file const & inv) {
+        if (!rank)
         fmt::fprintf(stderr, "Overwriting bogus checkpoint file %s [%s]\n",
                 datafile, inv.what());
-        return false;
+        exc = 1;
     }
+    MPI_Allreduce(MPI_IN_PLACE, &exc, 1, MPI_INT, MPI_MAX, bm.com[0]);
+    if (exc) return false;
+
+    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (!ok) return false;
+
+    /* Do we have a scattered file set (preferred) ? */
+    ok = access(sdatafile.c_str(), R_OK) == 0;
+    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (ok) return true;
+
+    /* Do we have a gathered file ? */
+    ok = rank || access(gdatafile.c_str(), R_OK) == 0;
+    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (ok) return true;
+
+    return false;
 }/*}}}*/
 
 bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
@@ -334,6 +356,20 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
     return ok;
 }/*}}}*/
 
+/* At some point the aux file, which is read at rank 0 only, must bcast
+ * its data to other ranks. We list here the fields of interest.
+ *
+ * Maybe a function that is dedicated to sharing this structure info
+ * would be a good idea.
+    target_t
+    Xsize
+    bm.delta[0]@(m+n)
+    bm.lucky[0]@(m+n)
+    bm.done
+    bm.hints -- should match the expected stuff. no need to share !
+    bm.stats -- not needed at rank>0
+ */
+
 int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     int size;
@@ -402,7 +438,6 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     int ok;
     ok = cp.checkpoint_already_present();
-    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (ok) return 1;
 
     ok = cp.save_aux_file(X.get_size());
@@ -479,11 +514,11 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
         }
         X.set_size(Xsize);
 
-        double avg = average_matsize(ab, m + n, m + n, 0);
+        double avg = average_matsize(ab, X.m, X.n, 0);
         unsigned int B = iceildiv(io_matpoly_block_size, avg);
 
         /* This is only temp storage ! */
-        matpoly loc(ab, m + n, m + n, B);
+        matpoly loc(ab, X.m, X.n, B);
         loc.zero_pad(B);
 
         for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
@@ -519,12 +554,9 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
     abdst_field ab = d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     int ok = cp.checkpoint_already_present();
-    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (ok) return 1;
     logline_begin(stdout, SIZE_MAX, "Saving %s (MPI, gathered)",
             cp.datafile.c_str());
@@ -544,11 +576,11 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
                 break;
             }
 
-            double avg = average_matsize(ab, m + n, m + n, 0);
+            double avg = average_matsize(ab, X.m, X.n, 0);
             unsigned int B = iceildiv(io_matpoly_block_size, avg);
 
             /* This is only temp storage ! */
-            matpoly loc(ab, m + n, m + n, B);
+            matpoly loc(ab, X.m, X.n, B);
             loc.zero_pad(B);
 
             for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
