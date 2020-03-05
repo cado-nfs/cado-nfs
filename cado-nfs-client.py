@@ -582,7 +582,7 @@ def close_exclusive(fileobj):
 # }}}
 
 # {{{ run shell command, capture std streams
-def run_command(command, print_error=True, **kwargs):
+def run_command(command, stdin=None, print_error=True, **kwargs):
     """ Run command, wait for it to finish, return exit status, stdout
     and stderr
 
@@ -603,6 +603,7 @@ def run_command(command, print_error=True, **kwargs):
     logging.info("Running %s", command_str)
 
     child = subprocess.Popen(command_list,
+                             stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              close_fds=close_fds,
@@ -1237,7 +1238,11 @@ class WorkunitProcessor(object):
 
         # To which directory do workunit files map?
         dirs = {"FILE": self.settings["DLDIR"],
-                "RESULT": self.settings["WORKDIR"]}
+                "RESULT": self.settings["WORKDIR"],
+                "STDOUT": self.settings["WORKDIR"],
+                "STDERR": self.settings["WORKDIR"],
+                "STDIN": self.settings["WORKDIR"],
+                }
 
         for key in dirs:
             for (index, filename) in enumerate(self.workunit.get(key, [])):
@@ -1255,6 +1260,10 @@ class WorkunitProcessor(object):
         for (counter, command) in enumerate(self.workunit.get("COMMAND", [])):
             command = Template(command).safe_substitute(files)
 
+            my_stdin_filename = "STDIN%d" % (counter+1)
+            my_stdout_filename = "STDOUT%d" % (counter+1)
+            my_stderr_filename = "STDERR%d" % (counter+1)
+
             # If niceness command line parameter was set, call self.renice()
             # in child process, before executing command
             if int(self.settings["NICENESS"]) > 0:
@@ -1264,10 +1273,28 @@ class WorkunitProcessor(object):
 
             command = self.apply_overrides(command)
 
-            rc, stdout, stderr = run_command(command,
-                                             preexec_fn=renice_func)
+            stdin = None
+            if my_stdin_filename in files:
+                with open(files[my_stdin_filename], "r") as f:
+                    stdin=f.read()
 
+            rc, stdout, stderr = run_command(command,
+                                            stdin=stdin,
+                                            preexec_fn=renice_func)
+
+            # steal stdout/stderr, put them to files.
+            if my_stdout_filename in files:
+                if stdout is not None:
+                    with open(files[my_stdout_filename], "w") as f:
+                        f.write(stdout)
+                stdout = None
             self.stdio["stdout"].append(stdout)
+
+            if my_stderr_filename in files:
+                if stderr is not None:
+                    with open(files[my_stderr_filename], "w") as f:
+                        f.write(stderr)
+                stderr = None
             self.stdio["stderr"].append(stderr)
 
             if rc != 0:
