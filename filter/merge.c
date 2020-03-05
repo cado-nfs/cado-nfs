@@ -308,11 +308,10 @@ heap_setup()
         active_page = malloc(T * sizeof(*active_page));
         heap_waste = malloc(T * sizeof(*heap_waste));
 
-        #pragma omp parallel
-        {
-                int t = omp_get_thread_num();
-                active_page[t] = heap_get_free_page();
-                heap_waste[t] = 0;
+        #pragma omp parallel for
+        for(int t = 0 ; t < T ; t++) {
+            active_page[t] = heap_get_free_page();
+            heap_waste[t] = 0;
         }
 }
 
@@ -580,66 +579,71 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
         /* new column weights */
         col_weight_t *nwt = malloc(mat->rem_ncols * sizeof(*nwt));
 
-	/* compute the number of non-empty columns */
-	int T = omp_get_max_threads();
-	index_t tm[T]; /* #non-empty columns seen by thread t */
-	#pragma omp parallel
-	{
-		int T = omp_get_num_threads();
-		int t = omp_get_thread_num();
-		index_t m = 0;
-		#pragma omp for schedule(static) nowait
-		for (index_t j = 0; j < ncols; j++)
-			if (0 < mat->wt[j])
-				m++;
-		tm[t] = m;
+        /* compute the number of non-empty columns */
+        {
+            /* need an array that is visible to all threads in order to do the
+             * prefix sum. Wish I knew another way.
+             */
+            int T = omp_get_max_threads();
+            index_t tm[T]; /* #non-empty columns seen by thread t */
+#pragma omp parallel
+            {
+                int T = omp_get_num_threads();
+                int t = omp_get_thread_num();
+                index_t m = 0;
+#pragma omp for schedule(static) nowait
+                for (index_t j = 0; j < ncols; j++)
+                    if (0 < mat->wt[j])
+                        m++;
+                tm[t] = m;
 
-		#pragma omp barrier
+#pragma omp barrier
 
-		/* prefix-sum over the T threads (sequentially) */
-		#pragma omp master
-		{
-			index_t s = 0;
-			for (int t = 0; t < T; t++) {
-				index_t m = tm[t];
-				tm[t] = s;
-				s += m;
-			}
-                        /* we should have s = mat->rem_ncols now, thus no need
-                           to copy s into mat->rem_ncols, but it appears in
-                           some cases it does not hold (cf
-                           https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-testing-amd64-large-pr/147/) */
-                        mat->rem_ncols = s;
-		}
+                /* prefix-sum over the T threads (sequentially) */
+#pragma omp master
+                {
+                    index_t s = 0;
+                    for (int t = 0; t < T; t++) {
+                        index_t m = tm[t];
+                        tm[t] = s;
+                        s += m;
+                    }
+                    /* we should have s = mat->rem_ncols now, thus no need
+                       to copy s into mat->rem_ncols, but it appears in
+                       some cases it does not hold (cf
+https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-testing-amd64-large-pr/147/) */
+                    mat->rem_ncols = s;
+                }
 
-		#pragma omp barrier
+#pragma omp barrier
 
-		/* compute the new column indices */
-		m = tm[t];
-		#pragma omp for schedule(static)
-		for (index_t j = 0; j < ncols; j++) {
-			ASSERT(m <= j);
-			p[j] = m;
-			if (0 < mat->wt[j])
-				m++;
-		}
+                /* compute the new column indices */
+                m = tm[t];
+#pragma omp for schedule(static)
+                for (index_t j = 0; j < ncols; j++) {
+                    ASSERT(m <= j);
+                    p[j] = m;
+                    if (0 < mat->wt[j])
+                        m++;
+                }
 
-		/* rewrite the row indices */
-		#pragma omp for schedule(dynamic, 128)
-		for (uint64_t i = 0; i < nrows; i++) {
-			if (mat->rows[i] == NULL) 	/* row was discarded */
-				continue;
-			for (index_t l = 1; l <= matLengthRow(mat, i); l++)
-				matCell(mat, i, l) = p[matCell(mat, i, l)];
-		}
+                /* rewrite the row indices */
+#pragma omp for schedule(dynamic, 128)
+                for (uint64_t i = 0; i < nrows; i++) {
+                    if (mat->rows[i] == NULL) 	/* row was discarded */
+                        continue;
+                    for (index_t l = 1; l <= matLengthRow(mat, i); l++)
+                        matCell(mat, i, l) = p[matCell(mat, i, l)];
+                }
 
-		/* update mat->wt */
-		#pragma omp for schedule(static)
-		for (index_t j = 0; j < ncols; j++)
-                        if (0 < mat->wt[j])
-                                nwt[p[j]] = mat->wt[j];
+                /* update mat->wt */
+#pragma omp for schedule(static)
+                for (index_t j = 0; j < ncols; j++)
+                    if (0 < mat->wt[j])
+                        nwt[p[j]] = mat->wt[j];
 
-	} /* end parallel section */
+            } /* end parallel section */
+        }
 
         #ifdef FOR_DL
         /* For the discrete logarithm, we keep the inverse of p, to print the
@@ -703,36 +707,40 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 static void
 compute_jmin (filter_matrix_t *mat, index_t *jmin)
 {
-  /* unfortunately, reduction on array sections requires OpenMP >= 4.5,
-     which is not yet THAT widespread. We work around the problem */
-  index_t tjmin[omp_get_max_threads()][MERGE_LEVEL_MAX + 1];
+    {
+        /* unfortunately, reduction on array sections requires OpenMP >= 4.5,
+           which is not yet THAT widespread. We work around the problem */
+        /* TODO: I wonder which openmp level we require anyway. Maybe
+         * it's already 4.5+ */
+        index_t tjmin[omp_get_max_threads()][MERGE_LEVEL_MAX + 1];
 
-  #pragma omp parallel /* reduction(min: jmin[1:MERGE_LEVEL_MAX]) */
-  {
-    int T = omp_get_num_threads();
-    int tid = omp_get_thread_num();
+#pragma omp parallel /* reduction(min: jmin[1:MERGE_LEVEL_MAX]) */
+        {
+            int T = omp_get_num_threads();
+            int tid = omp_get_thread_num();
 
-    index_t *local = tjmin[tid];
+            index_t *local = tjmin[tid];
 
-    /* first initialize to ncols */
-    for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
-      local[w] = mat->ncols;
+            /* first initialize to ncols */
+            for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
+                local[w] = mat->ncols;
 
-    #pragma omp for schedule(static)
-    for (index_t j = 0; j < mat->ncols; j++) {
-      col_weight_t w = mat->wt[j];
-      if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
-	local[w] = j;
+#pragma omp for schedule(static)
+            for (index_t j = 0; j < mat->ncols; j++) {
+                col_weight_t w = mat->wt[j];
+                if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
+                    local[w] = j;
+            }
+
+#pragma omp for schedule(static)
+            for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
+                jmin[w] = mat->ncols;
+                for (int t = 0; t < T; t++)
+                    if (jmin[w] > tjmin[t][w])
+                        jmin[w] = tjmin[t][w];
+            }
+        }
     }
-
-    #pragma omp for schedule(static)
-    for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
-      jmin[w] = mat->ncols;
-      for (int t = 0; t < T; t++)
-	if (jmin[w] > tjmin[t][w])
-	  jmin[w] = tjmin[t][w];
-    }
-  }
 
   jmin[0] = 1; /* to tell that jmin was initialized */
 
@@ -761,59 +769,61 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
-  col_weight_t *Wt[omp_get_max_threads()];
-  #pragma omp parallel
   {
-    int T = omp_get_num_threads();
-    int tid = omp_get_thread_num();
+      col_weight_t *Wt[omp_get_max_threads()];
+#pragma omp parallel
+      {
+          int T = omp_get_num_threads();
+          int tid = omp_get_thread_num();
 
-    /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
-    if (tid == 0)
-	Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
-    else
-	Wt[tid] = malloc (mat->ncols * sizeof (col_weight_t));
-    memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (col_weight_t));
+          /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
+          if (tid == 0)
+              Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
+          else
+              Wt[tid] = malloc (mat->ncols * sizeof (col_weight_t));
+          memset (Wt[tid] + j0, 0, (mat->ncols - j0) * sizeof (col_weight_t));
 
-    /* Thread k accumulates weights in Wt[k].
-     We only consider ideals of index >= j0, and put the weight of ideal j,
-     j >= j0, in Wt[k][j]. */
+          /* Thread k accumulates weights in Wt[k].
+             We only consider ideals of index >= j0, and put the weight of ideal j,
+             j >= j0, in Wt[k][j]. */
 
-    /* using a dynamic schedule here is crucial, since during merge,
-     the distribution of row lengths is no longer uniform (including
-     discarded rows) */
-    col_weight_t *Wtk = Wt[tid];
-    #pragma omp for schedule(dynamic, 128)
-    for (index_t i = 0; i < mat->nrows; i++) {
-      if (mat->rows[i] == NULL) /* row was discarded */
-	continue;
-      for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
-	index_t j = matCell (mat, i, l);
-	if (j < j0) /* assume ideals are sorted by increasing order */
-	  break;
-	else if (Wtk[j] <= cwmax)      /* (*) HERE */
-	  Wtk[j]++;
+          /* using a dynamic schedule here is crucial, since during merge,
+             the distribution of row lengths is no longer uniform (including
+             discarded rows) */
+          col_weight_t *Wtk = Wt[tid];
+#pragma omp for schedule(dynamic, 128)
+          for (index_t i = 0; i < mat->nrows; i++) {
+              if (mat->rows[i] == NULL) /* row was discarded */
+                  continue;
+              for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
+                  index_t j = matCell (mat, i, l);
+                  if (j < j0) /* assume ideals are sorted by increasing order */
+                      break;
+                  else if (Wtk[j] <= cwmax)      /* (*) HERE */
+                      Wtk[j]++;
+              }
+          }
+
+          /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
+             saturating at cwmax + 1:
+             Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
+          col_weight_t *Wt0 = Wt[0];
+#pragma omp for schedule(static)
+          for (index_t i = j0; i < mat->ncols; i++) {
+              col_weight_t val = Wt0[i];
+              for (int t = 1; t < T; t++)
+                  if (val + Wt[t][i] <= cwmax)
+                      val += Wt[t][i];
+                  else {
+                      val = cwmax + 1;
+                      break;
+                  }
+              Wt0[i] = val;
+          }
+
+          if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
+              free (Wt[tid]);
       }
-    }
-
-    /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
-       saturating at cwmax + 1:
-       Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
-    col_weight_t *Wt0 = Wt[0];
-    #pragma omp for schedule(static)
-    for (index_t i = j0; i < mat->ncols; i++) {
-      col_weight_t val = Wt0[i];
-      for (int t = 1; t < T; t++)
-	if (val + Wt[t][i] <= cwmax)
-	  val += Wt[t][i];
-	else {
-	  val = cwmax + 1;
-	  break;
-	}
-      Wt0[i] = val;
-    }
-
-    if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
-      free (Wt[tid]);
   }
 
   if (jmin[0] == 0) /* jmin was not initialized */
@@ -841,66 +851,68 @@ compute_R (filter_matrix_t *mat, index_t j0)
   int cwmax = mat->cwmax;
 
   /* compute the number of rows, the indices of the rowd and the row pointers */
-  int T = omp_get_max_threads();
-  index_t tRnz[T];
-  index_t tRn[T];
-  #pragma omp parallel
   {
-    int T = omp_get_num_threads();
-    int tid = omp_get_thread_num();
-    index_t Rnz = 0;
-    index_t Rn = 0;
-    #pragma omp for schedule(static) nowait
-    for (index_t j = j0; j < ncols; j++) {
-      col_weight_t w = mat->wt[j];
-      if (0 < w && w <= cwmax) {
-	Rnz += w;
-	Rn++;
-      }
-    }
-    tRnz[tid] = Rnz;
-    tRn[tid] = Rn;
+      int T = omp_get_max_threads();
+      index_t tRnz[T];
+      index_t tRn[T];
+#pragma omp parallel
+      {
+          int T = omp_get_num_threads();
+          int tid = omp_get_thread_num();
+          index_t Rnz = 0;
+          index_t Rn = 0;
+#pragma omp for schedule(static) nowait
+          for (index_t j = j0; j < ncols; j++) {
+              col_weight_t w = mat->wt[j];
+              if (0 < w && w <= cwmax) {
+                  Rnz += w;
+                  Rn++;
+              }
+          }
+          tRnz[tid] = Rnz;
+          tRn[tid] = Rn;
 
-    #pragma omp barrier
+#pragma omp barrier
 
-    /* prefix-sum over the T threads (sequentially) */
-    #pragma omp master
-    {
-      index_t r = 0;
-      index_t s = 0;
-      for (int t = 0; t < T; t++) {
-	index_t w = tRnz[t];
-	index_t n = tRn[t];
-	tRnz[t] = r;
-	tRn[t] = s;
-	r += w;
-	s += n;
-      }
-      mat->Rn = s;
-      Rp[s] = r; /* set the last row pointer */
-    }
+          /* prefix-sum over the T threads (sequentially) */
+#pragma omp master
+          {
+              index_t r = 0;
+              index_t s = 0;
+              for (int t = 0; t < T; t++) {
+                  index_t w = tRnz[t];
+                  index_t n = tRn[t];
+                  tRnz[t] = r;
+                  tRn[t] = s;
+                  r += w;
+                  s += n;
+              }
+              mat->Rn = s;
+              Rp[s] = r; /* set the last row pointer */
+          }
 
-    #pragma omp barrier
-    Rnz = tRnz[tid];
-    Rn = tRn[tid];
+#pragma omp barrier
+          Rnz = tRnz[tid];
+          Rn = tRn[tid];
 
-    #pragma omp for schedule(static)
-    for (index_t j = j0; j < ncols; j++) {
-      col_weight_t w = mat->wt[j];
-      if (0 < w && w <= cwmax) {
-	Rq[j] = Rn;
-	Rqinv[Rn] = j;
-	#ifdef TRANSPOSE_EASY_WAY
-	Rnz += w;
-	Rp[Rn] = Rnz;
-	#else
-	Rp[Rn] = Rnz;
-	Rnz += w;
-	#endif
-	Rn++;
-      }
-    }
-  } /* end parallel section */
+#pragma omp for schedule(static)
+          for (index_t j = j0; j < ncols; j++) {
+              col_weight_t w = mat->wt[j];
+              if (0 < w && w <= cwmax) {
+                  Rq[j] = Rn;
+                  Rqinv[Rn] = j;
+#ifdef TRANSPOSE_EASY_WAY
+                  Rnz += w;
+                  Rp[Rn] = Rnz;
+#else
+                  Rp[Rn] = Rnz;
+                  Rnz += w;
+#endif
+                  Rn++;
+              }
+          }
+      } /* end parallel section */
+  }
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
@@ -1418,8 +1430,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   double cpu = seconds(), wct = wct_seconds();
   index_t Rn = mat->Rn;
   int * cost = malloc(Rn * sizeof(*cost));
-  int T = omp_get_max_threads();
-  index_t count[T][cbound + 1];
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
@@ -1431,46 +1441,57 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
 
-  /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
-  #pragma omp parallel
+  int s;
+
   {
-    int tid = omp_get_thread_num();
-    index_t *tcount = &count[tid][0];
+      /* need an array that is visible to all threads in order to do the
+       * prefix sum. Wish I knew another way.
+       */
+      int T = omp_get_max_threads();
+      index_t count[T][cbound + 1];
+      /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
+#pragma omp parallel
+      {
+          int tid = omp_get_thread_num();
+          index_t *tcount = &count[tid][0];
 
-    memset(tcount, 0, (cbound + 1) * sizeof(index_t));
+          memset(tcount, 0, (cbound + 1) * sizeof(index_t));
 
-    #pragma omp for
-    for (index_t i = 0; i < Rn; i++) {
-	int c = cost[i];
-	if (c <= cbound)
-	  tcount[c]++;
-    }
-  } /* end parallel section */
+#pragma omp for
+          for (index_t i = 0; i < Rn; i++) {
+              int c = cost[i];
+              if (c <= cbound)
+                  tcount[c]++;
+          }
 
-  /* prefix-sum */
-  int s = 0;
-  for (int c = 0; c <= cbound; c++) {
-     // Lp[c] = s;                     /* global row pointer in L */
-     for (int t = 0; t < T; t++) {
-	index_t w = count[t][c];       /* per-thread row pointer in L */
-	count[t][c] = s;
-	s += w;
-     }
+          /* We need to do this because if OMP_DYNAMIC=true we can't be certain
+           * that omp_get_num_threads() == T
+           */
+#pragma omp barrier
+#pragma omp single
+          {
+              /* prefix-sum */
+              s = 0;
+              for (int c = 0; c <= cbound; c++) {
+                  // Lp[c] = s;                     /* global row pointer in L */
+                  for (int t = 0; t < omp_get_num_threads(); t++) {
+                      index_t w = count[t][c];       /* per-thread row pointer in L */
+                      count[t][c] = s;
+                      s += w;
+                  }
+              }
+          }
+#pragma omp barrier
+
+#pragma omp for
+          for (index_t i = 0; i < Rn; i++) {
+              int c = cost[i];
+              if (c > cbound)
+                  continue;
+              L[tcount[c]++] = i;
+          }
+      } /* end parallel section */
   }
-
- #pragma omp parallel
-  {
-    int tid = omp_get_thread_num();
-    index_t *tcount = &count[tid][0];
-
-    #pragma omp for
-    for (index_t i = 0; i < Rn; i++) {
-      int c = cost[i];
-      if (c > cbound)
-	continue;
-      L[tcount[c]++] = i;
-    }
-  } /* end parallel section */
 
   free(cost);
 
