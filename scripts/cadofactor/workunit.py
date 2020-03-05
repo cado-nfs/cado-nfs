@@ -20,7 +20,12 @@ class Workunit(object):
         ("EXECFILE", _ChecksummedKey),
         ("SUGGEST_EXECFILE", _ScalarKey),
         ("DEADLINE", _ScalarKey),
-        ("COMMAND", _ListKey), ("RESULT", _ListKey), ("DELETE", _ListKey), 
+        ("COMMAND", _ListKey),
+        ("RESULT", _ListKey),
+        ("STDIN", _ChecksummedKey),
+        ("STDOUT", _ListKey),
+        ("STDERR", _ListKey),
+        ("DELETE", _ListKey), 
         ("CHECKSUM", _ListKey))
     # The type for CHECKSUM does not really matter so long as it's not 
     # _SignalKey, as we don't add the value of CHECKSUMs to the dict directly

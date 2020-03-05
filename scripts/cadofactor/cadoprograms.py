@@ -581,33 +581,35 @@ class Program(object, metaclass=InspectType):
                 command += ann.map(value)
         return command
 
-    def make_command_line(self, quote=True, filenametrans=None):
+    def make_command_line(self, in_wu=False, quote=True, filenametrans=None):
         """ Make a shell command line for this program.
 
         If files are given for stdio redirection, the corresponding redirection
         tokens are added to the command line.
         """
+        assert not (in_wu and quote)
+
         cmdarr = self.make_command_array(filenametrans=filenametrans)
         if quote:
             cmdline = " ".join(map(cadocommand.shellquote, cmdarr))
         else:
             cmdline = " ".join(cmdarr)
 
-        if isinstance(self.stdin, str):
+        if not in_wu and isinstance(self.stdin, str):
             assert quote
             translated = self.translate_path(self.stdin,
                                              filenametrans=filenametrans)
             cmdline += ' < ' + cadocommand.shellquote(translated)
-        if isinstance(self.stdout, str):
+        if not in_wu and isinstance(self.stdout, str):
             assert quote
             redir = ' >> ' if self.append_stdout else ' > '
             translated = self.translate_path(self.stdout,
                                              filenametrans=filenametrans)
             cmdline += redir + cadocommand.shellquote(translated)
-        if not self.stderr is None and self.stderr is self.stdout:
+        if not in_wu and not self.stderr is None and self.stderr is self.stdout:
             assert quote
             cmdline += ' 2>&1'
-        elif isinstance(self.stderr, str):
+        elif not in_wu and isinstance(self.stderr, str):
             assert quote
             redir = ' 2>> ' if self.append_stderr else ' 2> '
             translated = self.translate_path(self.stderr,
@@ -620,10 +622,17 @@ class Program(object, metaclass=InspectType):
 
     def make_wu(self, wuname):
         filenametrans = {}
-        counters = {"FILE": 1, "EXECFILE": 1, "RESULT": 1}
+        counters = {    "FILE": 1,
+                        "EXECFILE": 1,
+                        "RESULT": 1,
+                        "STDOUT": 1,
+                        "STDERR": 1,
+                        "STDIN": 1,
+                   }
         def append_file(wu, key, filename, with_checksum=True):
-            assert not filename in filenametrans
-            filenametrans[filename] = "${%s%d}" % (key, counters[key])
+            if not key.startswith("STD"):
+                assert filename not in filenametrans
+                filenametrans[filename] = "${%s%d}" % (key, counters[key])
             counters[key] += 1
             wu.append('%s %s' % (key, os.path.basename(filename)))
             if with_checksum:
@@ -638,11 +647,14 @@ class Program(object, metaclass=InspectType):
             append_file(workunit, 'EXECFILE', str(filename))
         for filename in self.get_output_files():
             append_file(workunit, 'RESULT', str(filename), with_checksum=False)
-        # in WUs, we don't want to spawn a shell at the remote end, so
-        # there's no point in creating a shell-like command line.
-        assert self.stdout is None
-        assert self.stderr is None
-        cmdline = self.make_command_line(filenametrans=filenametrans, quote=False)
+        if self.stdout is not None:
+            append_file(workunit, 'STDOUT', str(self.stdout), with_checksum=False)
+        if self.stderr is not None:
+            append_file(workunit, 'STDERR', str(self.stdout), with_checksum=False)
+        if self.stdin is not None:
+            append_file(workunit, 'STDIN', str(self.stdin))
+
+        cmdline = self.make_command_line(filenametrans=filenametrans, in_wu=True, quote=False)
         workunit.append('COMMAND %s' % cmdline)
         workunit.append("") # Make a trailing newline
         return '\n'.join(workunit)

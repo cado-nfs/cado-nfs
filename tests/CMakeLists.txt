@@ -603,7 +603,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             full_c30_dependencies
         AVOID_CONCURRENT
             )
-    cado_define_test(nonlinear_c59
+    cado_define_test(full_c59_nonlinear
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
@@ -626,7 +626,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
 #            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
 #        )
-        cado_define_test(test_gfp3
+        cado_define_test(full_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
@@ -635,7 +635,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
         AVOID_CONCURRENT
             )
-        cado_define_test(test_gfp2
+        cado_define_test(full_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
@@ -645,7 +645,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         AVOID_CONCURRENT
             )
 # see bug http://cado-nfs.gforge.inria.fr/bug.php?21767
-#         cado_define_test(test_gfp2_2_2g
+#         cado_define_test(full_gfp2_2_2g
 #             SCRIPT
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
 #                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
