@@ -517,8 +517,8 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     endif()
 endmacro()
 
-
-if(NOT MINGW)
+# MPI binaries are not properly launched by cado-nfs.py (see #21819)
+if(NOT MINGW AND NOT HAVE_MPI)
 cado_define_test(full_c30
     SCRIPT
         ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
@@ -576,7 +576,8 @@ cado_define_test(full_c30
             )
     endif()
 endif()
-if(DEFINED ENV{CHECKS_EXPENSIVE})
+# MPI binaries are not properly launched by cado-nfs.py (see #21819)
+if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
     # we used to test separaterly with and without a user-supplied
     # workdir. We no longer do that, given that we rely first and
     # foremost on the shell wrapper to be a better safety net and catch
