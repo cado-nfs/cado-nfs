@@ -214,7 +214,7 @@ and sieving steps) can run multithreaded. It is better to have them
 run with a capped number of threads (say, 2), and run several clients per
 node. By default, programs in this step are limited to 2 threads. When
 running the computation on the local machine, the number of clients is
-set so that the number of cores specified by -t are kept busy.
+set so that the number of cores specified by `-t` are kept busy.
 
 Run a larger factorization on several machines:
 ===============================================
@@ -230,7 +230,23 @@ three modes as follows.
    machines, via SSH. Some of the documentation here is specific to this
    mode of operation (see in particular
    [there](#check-that-your-network-configuration-is-correct) or
-   [there](#check-that-your-SSH-configuration-is-correct)).
+   [there](#check-that-your-ssh-configuration-is-correct)). If you get it
+   right, you may manage to run factorizations as follows. However be
+   aware that this mode of operation is fragile, and we advise not to use
+   it beyond trivial testing.
+
+    ```
+    ./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
+    ```
+
+    This starts 4 clients per host on the hosts `hostname1`, `hostname2`,
+    and `hostname3`, and each client uses two cpus (threads). For
+    hostnames that are not localhost, ssh is used to connect to the host
+    and start a client there.  To configure ssh, see the [next
+    section](#check-that-your-ssh-configuration-is-correct). For tasks
+    which use the local machine only (not massively distributed tasks),
+    the number of threads used is the one given by `-t` (which defaults to
+    all threads on the local machine).
 
  * For larger computations where work distribution is an important point
    (distribution on several machines, possibly with different parameters
@@ -505,7 +521,7 @@ no longer supported by cado-nfs anyway)
   <http://cado-nfs.gforge.inria.fr/bug.php?14490>),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
-  work, please use -t 1 option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
+  work, please use `-t 1` option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
 * under AIX, if GMP is compiled in 64-bit mode, you should set the
   environment variable `OBJECT_MODE`, for example:
   export `OBJECT_MODE=64`
