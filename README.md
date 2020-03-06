@@ -235,30 +235,31 @@ three modes as follows.
    aware that this mode of operation is fragile, and we advise not to use
    it beyond trivial testing.
 
-    ```
-    ./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
-    ```
+   ```
+   ./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
+   ```
 
-    This starts 4 clients per host on the hosts `hostname1`, `hostname2`,
-    and `hostname3`, and each client uses two cpus (threads). For
-    hostnames that are not localhost, ssh is used to connect to the host
-    and start a client there.  To configure ssh, see the [next
-    section](#check-that-your-ssh-configuration-is-correct). For tasks
-    which use the local machine only (not massively distributed tasks),
-    the number of threads used is the one given by `-t` (which defaults to
-    all threads on the local machine).
+   This starts 4 clients per host on the hosts `hostname1`, `hostname2`,
+   and `hostname3`, and each client uses two cpus (threads). For
+   hostnames that are not `localhost`, ssh is used to connect to the host
+   and start a client there.  To configure ssh, see the [next
+   section](#check-that-your-ssh-configuration-is-correct). For tasks
+   that use the local machine only (not massively distributed tasks), the
+   number of threads used is the one given by `-t` (which defaults to all
+   threads on the local machine).
 
  * For larger computations where work distribution is an important point
    (distribution on several machines, possibly with different parameters
    for different machines), it is considerably more flexible to let the
    server be _just_ a server, and start clients separately, that will be
    used to offload the distributed tasks (polynomial selection and
-   relation collection).
+   relation collection). Clients can come and go. The server has plenty
+   of timeout provisions to deal with such events.
 
    This is called the `--server` mode (see
    [`scripts/cadofactor/README`](scripts/cadofactor/README) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
-   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list.
+   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
