@@ -45,7 +45,8 @@ perhaps does not:
    versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
    cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
  * Windows used to be partly supported, but this has been abandoned for
-   some time now (see a longer note at the end of README).
+   some time now (see a longer note [there](#using-cado-nfs-under
+   windows) at the end of this file).
 
 Required software tools
 =======================
@@ -209,7 +210,7 @@ Parts of the Number Field Sieve computation are massively distributed. In
 this mode, client scripts (namely, `cado-nfs-client.py`) are run on many
 nodes, connect to a central server, and run programs according to which
 computations need to be done.  The programs (for the polynomial selection
-and sieving steps) can run multithreaded, but it is better to have them
+and sieving steps) can run multithreaded. It is better to have them
 run with a capped number of threads (say, 2), and run several clients per
 node. By default, programs in this step are limited to 2 threads. When
 running the computation on the local machine, the number of clients is
@@ -222,10 +223,14 @@ CADO-NFS has several ways of operation, which can be roughly split into
 three modes as follows.
 
  * For small computations, or for tests where it is important to have a
-   single command line, the `cado-nfs.py` script arranges so that the
-   binaries for all steps of the computation are run on the machines, or
-   possibly on other machines, via SSH. Some of the documentation here
-   is specific to this mode of operation.
+   single command line, the strategy
+   [above](#run-a-factorization-on-the-current-machine) works. The
+   `cado-nfs.py` script can arrange so that the binaries for all steps of
+   the computation are run on the current machine, or possibly on other
+   machines, via SSH. Some of the documentation here is specific to this
+   mode of operation (see in particular
+   [there](#check-that-your-network-configuration-is-correct) or
+   [there](#check-that-your-SSH-configuration-is-correct)).
 
  * For larger computations where work distribution is an important point
    (distribution on several machines, possibly with different parameters
@@ -237,7 +242,7 @@ three modes as follows.
    This is called the `--server` mode (see
    [`scripts/cadofactor/README`](scripts/cadofactor/README) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
-   For more details, see [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html).
+   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
@@ -333,7 +338,8 @@ Factoring with SNFS:
 ====================
 
 It is possible to take advantage of the special form of an integer and
-use the Special Number Field Sieve. See parameters/factor/parameters.F9
+use the Special Number Field Sieve. See
+[`parameters/factor/parameters.F9`](parameters/factor/parameters.F9)
 for that:
 
 ```
@@ -359,9 +365,9 @@ By default, to decrease memory usage, it is assumed that less than $2^32$
 be less than $2^32$ (i.e., the `lpb0` and `lpb1` parameters are less or
 equal to 32). In the case of factorizations of numbers of 200 digits and
 more, these assumptions may not hold. In this case, you have to set some
-variables in your local.sh script (see Configure section above for more
-information on local.sh and section on big factorizations in
-local.sh.example).
+variables in your `local.sh` script (see Configure section above for more
+information on `local.sh` and section on big factorizations in
+`local.sh.example`).
 
 Factoring with two non-linear polynomials:
 ==========================================
@@ -523,20 +529,19 @@ git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
 to cado-nfs)
 
 There are two mailing-lists associated to Cado-nfs:
-  * cado-nfs-commits: if you want to receive an email each time a
-    modification to the development version is committed to the
-    repository.
-  * cado-nfs-discuss: for general discussions about cado-nfs.
-Instructions about how to subscribe are available at
-   <http://gforge.inria.fr/mail/?group_id=2065>
+  * [cado-nfs-commits](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-commits):
+    if you want to receive an email each time a modification to the
+    development version is committed to the repository. (Alternatively,
+    you can set a watch on gitlab if you have an account.)
+  * [cado-nfs-discuss`](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-discuss): for general discussions about cado-nfs.
 
-If you find a bug, if you have a problem to compile, if you want to
+If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
 the cado-nfs-discuss list is the right place to ask.
 
 On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
-there is welcome (you need an inria gitlab account), although if you are
-unsure, it might be better to speak up on the cado-nfs-discuss mailing
-list first.
+and merge requests there is welcome (you need an inria gitlab account),
+although if you are unsure, it might be better to speak up on the
+cado-nfs-discuss mailing list first.
