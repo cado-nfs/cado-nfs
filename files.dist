@@ -335,7 +335,7 @@ scripts/cadofactor/verify.py
 scripts/cadofactor/workunit.py
 scripts/cadofactor/wudb.py
 scripts/cadofactor/wuserver.py
-scripts/cadofactor/README
+scripts/cadofactor/README.md
 scripts/cadofactor/parameters
 scripts/cadofactor/CMakeLists.txt
 sieve/CMakeLists.txt

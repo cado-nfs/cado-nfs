@@ -1,6 +1,8 @@
-The cadofactor Python script is generally run with
+The `cado-nfs.py` Python script is generally run with
 
+```
 ./cado-nfs.py parameterfile
+```
 
 All the parameters for the factorization are read from the parameter file,
 but it is possible to specify such parameters on the command line, after
@@ -8,26 +10,30 @@ parameterfile.
 
 For example, running
 
+```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 server.whitelist=0.0.0.0/0 --server
 
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 tasks.execpath=$HOME/build/cado-nfs/normal server.whitelist=0.0.0.0/0 --server
+```
 
-starts the cadofactor script, which also starts the server. It does not
+starts the `cado-nfs.py` script, which also starts the server. It does not
 start any clients with this command line, so those would have to be
-started manually. This is caused by the --server flag, which enforces the
-``do not start clients'' feature. The version above with tasks.execpath
+started manually. This is caused by the `--server flag`, which enforces the
+"do not start clients" feature. The version above with `tasks.execpath`
 gives you control over the place where the binaries will be found.
 
-The ./cado-nfs.py, when not instructed to start clients explicitly (with
-slaves.hostnames set), decides nevertheless to do so when it chose a
-default parameter file. If provided with an explicit parameter file, the
-default is to obey what is in there, and therefore not start clients
-unless slaves.hostnames is set.
+The `./cado-nfs.py` script, when not instructed to start clients
+explicitly (that is, with `slaves.hostnames` not set), decides
+nevertheless to do so when it chose a default parameter file. If provided
+with an explicit parameter file, the default is to obey what is in there,
+and therefore not start clients unless `slaves.hostnames` is set.
 
 To start additional clients, do (following the command line given in the
 output of the server):
 
+```
 ./cado-nfs-client.py --server=https://quiche.loria.fr:8001 --certsha1=[Certificate SHA1] --bindir=...
+```
 
 where the --server and --certsha1 parameters should be given the URL and
 certificate SHA1 value of the server, respectively, as printed by the
@@ -47,8 +53,8 @@ to let it start two clients on localhost. The second version gives you
 more control power, but should hardly be needed.  The scriptpath
 parameter must be the path to the directory on the client machine which
 contains cado-nfs-client.py and workunit.py. The latter can also be
-fetched from scriptpath+"/scripts/cadofactor", whence giving the path to
-the source tree as scriptpath should be fine.
+fetched from `scriptpath+"/scripts/cadofactor"`, whence giving the path to
+the source tree as `scriptpath` should be fine.
 
 
 For complex set-ups, it is preferable to write a parameter file. Some
@@ -56,7 +62,7 @@ examples are in "parameters", "parameters.oar", and
 "parameters.rsa512.oar".  The params/params.c90 file contains extensive
 comments describing the most common parameters.
 
-The .oar parameter files are meant for cadofactor scripts that run
+The .oar parameter files are meant for `cado-nfs.py` scripts that run
 *inside* an OAR submission on clusters that use OAR as the job scheduler,
 such as Grid5000, as they read the list of slave hostnames from the OAR
 node file.
@@ -118,7 +124,7 @@ This imports the polynomial and prevents any additional polynomial selection
 from running, i.e., the imported polynomial is used unconditionally.
 
 
-The polynomial selection run by cadofactor is performed in two phases:
+The polynomial selection run by `cado-nfs.py` is performed in two phases:
 the first phase searches for polynomials with good size property and keeps
 in a priority queue the "nrkeep" most promising ones, then the second phase
 root-optimizes these to find the overall best polynomial by Murphy E value.
@@ -255,7 +261,7 @@ end
 File locking when using sqlite3 as a database backend
 =====================================================
 
-The SqLite database used by cadofactor by default makes extensive use of
+The SqLite database used by `cado-nfs.py` by default makes extensive use of
 file locking.  This requires that the underlying file system properly
 implements POSIX file locking. One example of a file system that claims
 to, but does not, is glusterfs, which leads to random SqLite errors. See

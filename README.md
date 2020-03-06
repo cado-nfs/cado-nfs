@@ -12,7 +12,7 @@ More details follow.
 
 Important note: For a larger factorization (distributed on several
 machines), the command line to be used is a priori more involved. Please
-refer to [`scripts/cadofactor/README`](scripts/cadofactor/README).
+refer to [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md).
 Documented example parameter files are in
 [`parameters/factor/params.c90`](parameters/factor/params.c90) and
 [`scripts/cadofactor/parameters*`](scripts/cadofactor/).
@@ -258,7 +258,7 @@ three modes as follows.
    of timeout provisions to deal with such events.
 
    This is called the `--server` mode (see
-   [`scripts/cadofactor/README`](scripts/cadofactor/README) and
+   [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
    See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
 
@@ -399,7 +399,7 @@ Importing polynomials or relations:
 
 If you have already computed a good polynomial and/or relations, you can
 tell CADO-NFS to use them, see
-[`scripts/cadofactor/README`](scripts/cadofactor/README).
+[`scripts/cadofactor/README.md`](scripts/cadofactor/README.md).
 
 Using CADO-NFS under Windows:
 =============================
