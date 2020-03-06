@@ -235,6 +235,9 @@ with different parameters for different machines), please use the
 [`scripts/cadofactor/README`](scripts/cadofactor/README) and
 [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
 
+For more details:
+https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html
+
 Check that your network configuration is correct:
 =================================================
 
