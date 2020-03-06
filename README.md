@@ -12,8 +12,9 @@ More details follow.
 
 Important note: For a larger factorization (distributed on several
 machines), the command line to be used is a priori more involved. Please
-refer to scripts/cadofactor/README. Documented example parameter files
-are in [`parameters/factor/params.c90`](parameters/factor/params.c90) and
+refer to [`scripts/cadofactor/README`](scripts/cadofactor/README).
+Documented example parameter files are in
+[`parameters/factor/params.c90`](parameters/factor/params.c90) and
 [`scripts/cadofactor/parameters*`](scripts/cadofactor/).
 
 Supported platforms
