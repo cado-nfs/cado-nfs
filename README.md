@@ -214,20 +214,8 @@ node. By default, programs in this step are limited to 2 threads. When
 running the computation on the local machine, the number of clients is
 set so that the number of cores specified by -t are kept busy.
 
-Run a factorization on several machines:
-=======================================
-
-```
-./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
-```
-
-This starts 4 clients each on hosts hostname1, hostname2, and hostname3,
-where each client uses two cpus (threads). For hostnames that are not
-localhost, ssh is used to connect to the host and start a client there.
-To configure ssh, see the next section. For tasks which use the local
-machine only (not massively distributed tasks), the number of threads
-used is the one given by -t (which defaults to all threads on the local
-machine).
+Run a larger factorization on several machines:
+===============================================
 
 For a larger factorization (distributed on several machines, possibly
 with different parameters for different machines), please use the
