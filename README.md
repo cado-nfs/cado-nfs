@@ -45,8 +45,8 @@ perhaps does not:
    versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
    cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
  * Windows used to be partly supported, but this has been abandoned for
-   some time now (see a longer note [there](#using-cado-nfs-under
-   windows) at the end of this file).
+   some time now (see a longer note
+   [there](#using-cado-nfs-under-windows) at the end of this file).
 
 Required software tools
 =======================
