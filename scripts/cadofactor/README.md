@@ -69,8 +69,8 @@ examples are in
 [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters),
 [`scripts/cadofactor/parameters.oar`](scripts/cadofactor/parameters.oar),
 [`scripts/cadofactor/parameters.rsa512.oar`](scripts/cadofactor/parameters.rsa512.oar),
-The [`params/params.c91`](params/params.c91) file contains extensive
-comments describing the most common parameters.
+The [`parameters/factor/params.c90`](parameters/factor/params.c90) file
+contains extensive comments describing the most common parameters.
 
 The `.oar` parameter files are meant for `cado-nfs.py` scripts that run
 *inside* an OAR submission on clusters that use OAR as the job scheduler,
@@ -143,16 +143,18 @@ from running, i.e., the imported polynomial is used unconditionally.
 
 
 The polynomial selection run by `cado-nfs.py` is performed in two phases:
-the first phase searches for polynomials with good size property and keeps
-in a priority queue the `nrkeep` most promising ones, then the second phase
-root-optimizes these to find the overall best polynomial by Murphy E value.
+the first phase searches for polynomials with good size property and
+keeps in a priority queue the `nrkeep` most promising ones, then the
+second phase root-optimizes these to find the overall best polynomial by
+Murphy E value.
 
-You can import files that were previously produced by phase 1 (resp. phase 2)
-into phase 1 (resp. phase 2) again; the imported files will be processed as if
-phase 1 (resp. phase 2) had generated them by itself. Phase 1 will add any
-polynomials from the imported files into its priority queue and forward the kept
-ones to phase 2, while phase 2 will choose the best polynomial by Murphy E from
-the imported ones and the ones it computes by itself.
+You can import files that were previously produced by phase 1 (resp.
+phase 2) into phase 1 (resp. phase 2) again; the imported files will be
+processed as if phase 1 (resp. phase 2) had generated them by itself.
+Phase 1 will add any polynomials from the imported files into its
+priority queue and forward the kept ones to phase 2, while phase 2 will
+choose the best polynomial by Murphy E from the imported ones and the
+ones it computes by itself.
 
 
 If you want to import size-optimized polynomials into phase 1 of polynomial
@@ -179,12 +181,12 @@ resume the search from there, you could use
 tasks.polyselect.import_sopt=@list_of_existing_files tasks.polyselect.admin=200000
 ```
 
-which imports the existing files, then resumes searching at `ad=200000` up to
-the `admax` value given in the parameter file.
+which imports the existing files, then resumes searching at `ad=200000`
+up to the `admax` value given in the parameter file.
 
 
-If you want to import root-optimized polynomials into phase 2 of polynomial
-selection and then continue polynomial search, use
+If you want to import root-optimized polynomials into phase 2 of
+polynomial selection and then continue polynomial search, use
 
 ```
 tasks.polyselect.import_ropt=file
@@ -196,14 +198,14 @@ or
 tasks.polyselect.import_ropt=@file
 ```
 
-This reads the polynomial(s) in the given file(s), then root-optimizes any
-polynomials found in phase 1; the best polynomial (rated by the Murphy E
-value) will be used for the sieving.
+This reads the polynomial(s) in the given file(s), then root-optimizes
+any polynomials found in phase 1; the best polynomial (rated by the
+Murphy E value) will be used for the sieving.
 
 Warning: if a polynomial file does not specify a Murphy E value and is
-imported into phase 2, its Murphy E value is set to 0 by default. Since any
-polynomials found by the polynomial search have positive Murphy E, the
-imported one will always "lose". To import, e.g., an SNFS polynomial
+imported into phase 2, its Murphy E value is set to 0 by default. Since
+any polynomials found by the polynomial search have positive Murphy E,
+the imported one will always "lose". To import, e.g., an SNFS polynomial
 without Murphy E, use `tasks.polyselect.import`, and not `import_ropt`.
 
 Sieving with composite special-q's
@@ -218,13 +220,14 @@ tasks.sieve.qfac_min = 50
 tasks.sieve.qfac_max = 100000
 ```
 
-This will allow composite special-q's with smallest prime factor at least 50,
-and largest prime factor at most 100000.
+This will allow composite special-q's with smallest prime factor at least
+50, and largest prime factor at most 100000.
 
-If `tasks.sieve.qfac_max` is not set, it is considered as infinite, which means
-that prime special-q's will always be used (in addition to composite s-q's).
+If `tasks.sieve.qfac_max` is not set, it is considered as infinite, which
+means that prime special-q's will always be used (in addition to
+composite s-q's).
 
-If sieving over $[q0,q1]$, with `tasks.sieve.qfac_max < q0`, then all
+If sieving over [q0,q1], with `tasks.sieve.qfac_max < q0`, then all
 special-q's will be composite.
 
 Sieving with large special-q's
@@ -299,10 +302,10 @@ relations in the file, which has to match the following format:
 Here is an example of how to produce such files:
 
 ```
-#!/bin/csh
-foreach f (`ls $workdir/cxx.upload/cxx*gz`)
-   zcat $f | tail -1 > $f.stats.txt
-end
+#!/usr/bin/env bash
+find $workdir/*.upload/ -name '*.gz' | while read f ; do
+   zcat $f | tail -n 1 > $f.stats.txt
+done
 ```
 
 File locking when using sqlite3 as a database backend
@@ -325,8 +328,8 @@ place (see next)
 Storing the database elsewhere, or using a different database back-end
 ======================================================================
 
-The database which stores the computation state can be backed by a mysql
-server. This is optional, and requires the python3-mysql.connector
+The database which that the computation state can be backed by a mysql
+server. This is optional, and requires the `python3-mysql.connector`
 package (on Debian linux -- actual package name depends on your OS
 distribution).
   
@@ -343,47 +346,61 @@ Controlling the filtering stage
 By default CADO-NFS requires an initial excess (after the first singleton
 removal step) of 0% more relations than ideals. This is controlled by:
 
+```
 tasks.filter.required_excess=0.0
+```
 
 If you want a larger excess, say 20%, just add on the cado-nfs.py command
 line (or in the parameter file):
 
+```
 tasks.filter.required_excess=0.2
+```
 
 It also requires that the initial excess is at least some given value. If you
 want to modify it:
 
+```
 tasks.filter.purge.keep=1000
+```
 
-Note that the merge step also has a minimal excess, which by default is the
-one for the "purge" step. You can override it as follows:
+Note that the `merge` step also has a minimal excess, which by default is the
+one for the `purge` step. You can override it as follows:
 
+```
 tasks.filter.merge.keep=160
+```
 
-Thus by default CADO-NFS discards all the excess (larger than keep) during the
+Thus by default CADO-NFS discards all the excess (larger than `keep`) during the
 purge step. If you want to keep some excess for the merge step:
 
-$ ./cado-nfs.py ... tasks.filter.purge.keep=1000 tasks.filter.merge.keep=160
+$ ./cado-nfs.py ... `tasks.filter.purge.keep=1000` `tasks.filter.merge.keep=160`
 
 If your factorization already started the linear algebra step, and you
-want to do more sieving, you can restart it with a larger "rels_wanted" than
+want to do more sieving, you can restart it with a larger `rels_wanted` than
 the current number of relations. For example if you have say 1000000 relations
 (grep "is now" in the log file), just add in the cado-nfs.py line:
 
+```
 tasks.sieve.rels_wanted=1000001
+```
 
 If on the contrary you want to start filtering as soon as you have a positive
 excess (or you know you have enough relations in case of imported relations), use:
 
+```
 tasks.sieve.rels_wanted=1
+```
 
 If not enough relations are collected after the filtering step, the sieve
 is executed again with an additional number of wanted relations.  The
-parameter tasks.filter.add_ratio controls the number of additional
+parameter `tasks.filter.add_ratio` controls the number of additional
 required relations as a ratio of the number of unique relations already
 collected:
 
+```
 tasks.filter.add_ratio=0.05
+```
 
 specifies that you want 5% more relations before next filtering step.
 The default value is 0.01 (i.e. 1% more relations).
@@ -391,32 +408,40 @@ The default value is 0.01 (i.e. 1% more relations).
 Printing and manipulating the database
 ======================================
 
-The wudb.py script can be used to print info on the workunits. For example,
+The `wudb.py` script can be used to print info on the workunits. For example,
 
+```
 ./wudb.py -dbfile /tmp/work/testrun.db -dump -assigned
+```
 
 prints all currently assigned work units.
 
 To cancel a workunit:
 
+```
 ./wudb.py -dbfile /tmp/work/testrun.db -cancel -wuid wuname
+```
 
-where "wuname" appears after "Workunit" in the "-dump -assigned" call.
+where `wuname` appears after `Workunit` in the `-dump -assigned` call.
 
 This script can also be used to manipulate the database, for example:
 
+```
 ./wudb.py -dbfile /tmp/work/testrun.db -setdict sqrt next_dep int 0
+```
 
-sets the "next_dep" variable in the SqrtTask's state to the integer value 0.
+sets the `next_dep` variable in the `SqrtTask`'s state to the integer value 0.
 
 Using several threads for the square root step
 ==============================================
 
-By default the given number of threads (-t option of cado-nfs.py, or
-tasks.threads) is used in the square root step. To use say
-16 threads in parallel, add the following to the cado-nfs.py command line:
+By default the given number of threads (`-t` option of `cado-nfs.py`, or
+`tasks.threads`) is used in the square root step. To use say
+16 threads in parallel, add the following to the `cado-nfs.py` command line:
 
+```
 tasks.sqrt.threads = 16
+```
 
 Re-running the linear algebra step
 ==================================
@@ -428,14 +453,18 @@ from scratch, then you need to add the following to the cado-nfs.py
 command line, in order to force the previous linear algebra subdirectory
 to be removed:
 
+```
 tasks.linalg.force_wipeout = True
+```
 
 Debugging
 =========
 
-For debugging the cado-nfs.py script, you might use:
+For debugging the `cado-nfs.py` script, you might use:
 
+```
 $ ./cado-nfs.py ... --filelog DEBUG
+```
 
-and this will print more information in the cxxx.log file.
+and this will print more information in the `cxxx.log` file.
 
