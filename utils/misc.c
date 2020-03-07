@@ -105,46 +105,6 @@ static void chomp(char *s) {
 }
 
 
-#ifndef HAVE_STRLCPY
-size_t
-strlcpy(char *dst, const char *src, const size_t size)
-{
-  strncpy (dst, src, size); /* Copy at most 'size' bytes from src to dst;
-                               if strlen(src) < size, then dst is null-
-                               terminated, otherwise it may not be */
-  if (size > 0)
-      dst[size - 1] = '\0'; /* Guarantee null-termination; thus 
-                               strlen(dst) < size */
-  return strlen(src);
-}
-#endif
-
-#ifndef HAVE_STRLCAT
-size_t
-strlcat(char *dst, const char *src, const size_t size)
-{
-  const size_t dst_len = strnlen(dst, size); /* 0 <= dst_len <= size */
-  const size_t src_len = strlen(src);
-
-  /* From man page: Note however, that if strlcat() traverses size characters
-     without finding a NUL, the length of the string is considered to be size
-     and the destination string will not be NUL-terminated (since there was 
-     no space for the NUL). */
-  if (dst_len == size)
-      return dst_len + src_len;
-
-  /* Here, 0 <= dst_len < size, thus no underflow */
-  strncpy(dst + dst_len, src, size - dst_len - 1);
-  
-  /* If dst_len + src_len < size, then string is 0-terminated. Otherwise
-     we need to put '\0' in dst[size-1] to truncate the string to length
-     size-1. */
-  dst[size-1] = '\0';
-  
-  return dst_len + src_len;
-}
-#endif
-
 /* Return a NULL-terminated list of file names read from filename.
    Empty lines and comment lines (starting with '#') are skipped.
    If basepath != NULL, it is used as path before each read filename

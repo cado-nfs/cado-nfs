@@ -78,6 +78,7 @@
 #cmakedefine    HAVE_LRAND48
 #cmakedefine    HAVE_STRDUP
 #cmakedefine    HAVE_STRNDUP
+#cmakedefine    HAVE_STRNLEN
 // #cmakedefine HAVE_SIGACTION
 #cmakedefine    HAVE_WAITPID
 #cmakedefine    HAVE_CTIME_R
