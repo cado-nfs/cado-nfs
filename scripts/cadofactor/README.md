@@ -35,55 +35,69 @@ output of the server):
 ./cado-nfs-client.py --server=https://quiche.loria.fr:8001 --certsha1=[Certificate SHA1] --bindir=...
 ```
 
-where the --server and --certsha1 parameters should be given the URL and
+where the `--server` and `--certsha1` parameters should be given the URL and
 certificate SHA1 value of the server, respectively, as printed by the
-cado-nfs.py script. You can start an arbitrary number of client scripts,
+`cado-nfs.py` script. You can start an arbitrary number of client scripts,
 on any machines that can connect to the server via HTTP.
 
-The (optional) --bindir parameter tells where to find the binaries to use
-instead of having them downloaded from the server.
+The (optional) `--bindir` parameter tells where to find the binaries to use
+instead of having them downloaded from the server. It is possible to pass
+the root of the build tree as `--bindir`, for example with
 
-If you want to let the server automatically start clients, you need to supply a list of hostnames on which to start clients, e.g.,
+```
+--bindir $(eval `make show` ; echo $build_tree)
+```
 
+If you want to let the server automatically start clients, you need to supply a list of hostnames on which to start clients, using constructs similar to the following two examples.
+
+```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 slaves.nrclients=2 slaves.hostnames=localhost
 
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 tasks.workdir=/tmp/c59 slaves.nrclients=2 slaves.hostnames=localhost tasks.execpath=$HOME/build/cado-nfs/normal slaves.scriptpath=$HOME/git/cado-nfs/
+```
 
 to let it start two clients on localhost. The second version gives you
-more control power, but should hardly be needed.  The scriptpath
+more control power, but should hardly be needed.  The `slaves.scriptpath`
 parameter must be the path to the directory on the client machine which
-contains cado-nfs-client.py and workunit.py. The latter can also be
+contains `cado-nfs-client.py` and `workunit.py`. The latter can also be
 fetched from `scriptpath+"/scripts/cadofactor"`, whence giving the path to
 the source tree as `scriptpath` should be fine.
 
 
 For complex set-ups, it is preferable to write a parameter file. Some
-examples are in "parameters", "parameters.oar", and
-"parameters.rsa512.oar".  The params/params.c90 file contains extensive
+examples are in
+[`scripts/cadofactor/parameters`](scripts/cadofactor/parameters),
+[`scripts/cadofactor/parameters.oar`](scripts/cadofactor/parameters.oar),
+[`scripts/cadofactor/parameters.rsa512.oar`](scripts/cadofactor/parameters.rsa512.oar),
+The [`params/params.c91`](params/params.c91) file contains extensive
 comments describing the most common parameters.
 
-The .oar parameter files are meant for `cado-nfs.py` scripts that run
+The `.oar` parameter files are meant for `cado-nfs.py` scripts that run
 *inside* an OAR submission on clusters that use OAR as the job scheduler,
 such as Grid5000, as they read the list of slave hostnames from the OAR
 node file.
 
 For example,
 
+```
 oarsub -I
 ./cado-nfs.py parameters.oar
+```
 
 factors the usual c59 test number using the nodes reserved via OAR, in
-this case one node.  The parameters.oar file contains the line
-slaves.catrel.nrclients = 8 which tells the script to launch 8 clients on
-each unique host name (=node); the parameter threads=2 causes all the
-programs to use two threads, resulting in 16 threads per node.
+this case one node.  The
+[`scripts/cadofactor/parameters.oar`](scripts/cadofactor/parameters.oar),
+file contains the line `slaves.catrel.nrclients = 8` which tells the
+script to launch 8 clients on each unique host name (=node); the
+parameter `threads=2` causes all the programs to use two threads,
+resulting in 16 threads per node.
 
 If a factorization is interrupted, it is usually possible to resume it where
-it left off, simply by running cado-nfs.py again with the same command
+it left off, simply by running `cado-nfs.py` again with the same command
 line parameters, or the latest parameter file snapshot from the work
-directory (found at [[work directory]]/XXXX.parameters_snapshot.YYY.
+directory (found at `[[work directory]]/XXXX.parameters_snapshot.YYY`).
 These command line parameters are printed to the screen and
-written to the .log file in the factorization's working directory on each
+written to the `.log` file in the factorization's working directory on each
 run.
 
 If a factorization cannot be resumed for whatever reason, it is often
@@ -97,6 +111,7 @@ Running with several groups of machines
 You can define several groups of machines slaves.xxx, slaves.yyy, ...
 Here is an example:
 
+```
 slaves.big.hostnames = fondue,berthoud
 slaves.big.nrclients = 4
 slaves.big.scriptpath = /users/caramel/zimmerma/svn/cado-nfs
@@ -105,6 +120,7 @@ slaves.small.hostnames = sel,poivre
 slaves.small.nrclients = 2
 slaves.small.scriptpath = /users/caramel/zimmerma/svn/cado-nfs
 slaves.small.basepath = /tmp/nfs
+```
 
 This will run 4 clients (with by default 2 threads each) on the "big" machines
 fondue and berthoud, and 2 clients (with by default 2 threads each) on the
@@ -116,9 +132,11 @@ Importing a polynomial file
 If you want to import a polynomial file (either an SNFS polynomial, or
 if polynomial selection was already completed in an earlier run), use:
 
+```
 tasks.polyselect.import=xxx.poly
+```
 
-where xxx.poly is the name of the polynomial file (in CADO-NFS format).
+where `xxx.poly` is the name of the polynomial file (in CADO-NFS format).
 
 This imports the polynomial and prevents any additional polynomial selection
 from running, i.e., the imported polynomial is used unconditionally.
@@ -126,7 +144,7 @@ from running, i.e., the imported polynomial is used unconditionally.
 
 The polynomial selection run by `cado-nfs.py` is performed in two phases:
 the first phase searches for polynomials with good size property and keeps
-in a priority queue the "nrkeep" most promising ones, then the second phase
+in a priority queue the `nrkeep` most promising ones, then the second phase
 root-optimizes these to find the overall best polynomial by Murphy E value.
 
 You can import files that were previously produced by phase 1 (resp. phase 2)
@@ -140,29 +158,43 @@ the imported ones and the ones it computes by itself.
 If you want to import size-optimized polynomials into phase 1 of polynomial
 selection and then continue polynomial search, use
 
+```
 tasks.polyselect.import_sopt=file
+```
+
 or
+
+```
 tasks.polyselect.import_sopt=@file
+```
 
-With @file, file should contain a list of files to import, one file name
-per line. All polynomials from the given file(s) are imported and added to
-the phase 1 priority queue, keeping the nrkeep best ones. Polynomial
-selection phase 1 then continues normally. For example, if an earlier run
-completed ad values up to ad=200000 and you want to resume the search from
-there, you could use
+With `@file`, the file `file` should contain a list of files to import,
+one file name per line. All polynomials from the given file(s) are
+imported and added to the phase 1 priority queue, keeping the nrkeep best
+ones. Polynomial selection phase 1 then continues normally. For example,
+if an earlier run completed ad values up to `ad=200000` and you want to
+resume the search from there, you could use
 
+```
 tasks.polyselect.import_sopt=@list_of_existing_files tasks.polyselect.admin=200000
+```
 
-which imports the existing files, then resumes searching at ad=200000 up to
-the admax value given in the parameter file.
+which imports the existing files, then resumes searching at `ad=200000` up to
+the `admax` value given in the parameter file.
 
 
 If you want to import root-optimized polynomials into phase 2 of polynomial
 selection and then continue polynomial search, use
 
+```
 tasks.polyselect.import_ropt=file
+```
+
 or
+
+```
 tasks.polyselect.import_ropt=@file
+```
 
 This reads the polynomial(s) in the given file(s), then root-optimizes any
 polynomials found in phase 1; the best polynomial (rated by the Murphy E
@@ -172,39 +204,45 @@ Warning: if a polynomial file does not specify a Murphy E value and is
 imported into phase 2, its Murphy E value is set to 0 by default. Since any
 polynomials found by the polynomial search have positive Murphy E, the
 imported one will always "lose". To import, e.g., an SNFS polynomial
-without Murphy E, use "tasks.polyselect.import", and not "import_ropt".
+without Murphy E, use `tasks.polyselect.import`, and not `import_ropt`.
 
 Sieving with composite special-q's
 ==================================
 
 By default the sieving only uses prime special-q's. To allow composite
-special-q's you have to set tasks.sieve.allow_compsq to true, for example:
+special-q's you have to set `tasks.sieve.allow_compsq` to true, for example:
 
+```
 tasks.sieve.allow_compsq = true
 tasks.sieve.qfac_min = 50
 tasks.sieve.qfac_max = 100000
+```
 
 This will allow composite special-q's with smallest prime factor at least 50,
 and largest prime factor at most 100000.
 
-If tasks.sieve.qfac_max is not set, it is considered as infinite, which means
+If `tasks.sieve.qfac_max` is not set, it is considered as infinite, which means
 that prime special-q's will always be used (in addition to composite s-q's).
 
-If sieving over [q0,q1], with tasks.sieve.qfac_max < q0, then all special-q's
-will be composite.
+If sieving over $[q0,q1]$, with `tasks.sieve.qfac_max < q0`, then all
+special-q's will be composite.
 
 Sieving with large special-q's
 ==============================
 
 If you get an error like the following:
 
+```
    The special q (27 bits) is larger than the large prime bound on side 1 (26 bits).
    You can disable this check with the -allow-largesq argument,
    It is for instance useful for the descent.
+```
 
 then you can solve it as follows:
 
+```
 tasks.sieve.allow_largesq = true
+```
 
 Importing relations
 ===================
@@ -215,22 +253,26 @@ against that polynomial). If no polynomial is imported, anything can happen.
 
 If you want to import already computed relations, use:
 
+```
 tasks.sieve.import=foo
+```
 
-where "foo" is the name of the relation file to be imported (in CADO-NFS
+where `foo` is the name of the relation file to be imported (in CADO-NFS
 format). Alternatively you can do:
 
+```
 tasks.sieve.import=@foo
+```
 
-where "foo" is a file containing several names of relation files, one file
+where `foo` is a file containing several names of relation files, one file
 name per line.
 
-Adjust the tasks.qmin parameter accordingly to prevent
+Adjust the `tasks.qmin` parameter accordingly to prevent
 already-sieved special-q ranges from being sieved again. To do that:
 
-* go into the cxx.upload directory
-* list the cxx.xxx-yyy.*.gz files
-* find the largest yyy value, and use it as new qmin
+* go into the `cxx.upload/` directory
+* list the `cxx.xxx-yyy.*.gz` files
+* find the largest `yyy` value, and use it as new `qmin`
 
 Be aware that importing relation files that were not produced by
 CADO-NFS's siever (for instance, handcrafted relations) is not supported:
@@ -241,22 +283,27 @@ so we don't even try to list them here.
 When importing relations, some statistics are gathered by parsing the
 relation files. This is a costly operation, especially when relations
 from a large number of files are gathered. An expedient for this problem
-is to create, for each file cxx.xxx-yyy.zzzzzzz.gz, a file
-cxx.xxx-yyy.zzzzzzz.gz.stats.txt, which contain the relevant
+is to create, for each file `cxx.xxx-yyy.zzzzzzz.gz`, a file
+`cxx.xxx-yyy.zzzzzzz.gz.stats.txt`, which contain the relevant
 statistics. The format of this file should match the format of the
-statistics files produced by the cado-nfs siever with the -stats-stderr
+statistics files produced by the cado-nfs siever with the `-stats-stderr`
 option. Examples of such statistics files are found as the files
-*.stderr0 in the $name.upload/ directory for a cado-nfs factorization.
+`*.stderr0` in the `$name.upload/` directory for a cado-nfs factorization.
 The only crucial bit information is the line which gives the number of
 relations in the file, which has to match the following format:
+
+```
 # Total $nrels reports [%.2fs/r, %.2fr/sq]
+```
 
 Here is an example of how to produce such files:
 
+```
 #!/bin/csh
 foreach f (`ls $workdir/cxx.upload/cxx*gz`)
    zcat $f | tail -1 > $f.stats.txt
 end
+```
 
 File locking when using sqlite3 as a database backend
 =====================================================
@@ -265,11 +312,9 @@ The SqLite database used by `cado-nfs.py` by default makes extensive use of
 file locking.  This requires that the underlying file system properly
 implements POSIX file locking. One example of a file system that claims
 to, but does not, is glusterfs, which leads to random SqLite errors. See
-the thread
+[this thread](http://gluster.org/pipermail/gluster-users/2011-September/031720.html)
 
-http://gluster.org/pipermail/gluster-users/2011-September/031720.html
-
-If you encounter "Database corrupted" or similar errors, try if storing the
+If you encounter `Database corrupted` or similar errors, try if storing the
 working directory on a local (not network-mounted) file system resolves the
 problem.
 
@@ -286,11 +331,11 @@ package (on Debian linux -- actual package name depends on your OS
 distribution).
   
 To activate this feature, pass the database URI as an extra parameter to
-cado-nfs.py, e.g.  "database=db:mysql://USER:PASS@host:port/foobar",
-where port, PASS, and USER are optional.
+`cado-nfs.py`, e.g.  `database=db:mysql://USER:PASS@host:port/foobar`,
+where `port`, `PASS`, and `USER` are optional.
 
 The same syntax can be used to force the use of an externally located
-sqlite3 database, e.g. with "database=db:sqlite3:///home/john/rsa1024.db"
+sqlite3 database, e.g. with `database=db:sqlite3:///home/john/rsa1024.db`
 
 Controlling the filtering stage
 ===============================
