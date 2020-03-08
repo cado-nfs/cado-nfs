@@ -54,7 +54,6 @@ tasks.filter.target_density = 200
 # Linear algebra
 ###########################################################################
 
-tasks.linalg.bwc.interval = 1000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64
 tasks.linalg.n = 64

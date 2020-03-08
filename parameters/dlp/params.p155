@@ -78,7 +78,8 @@ tasks.sieve.rels_wanted = 40000000
 # Linalg 
 ###########################################################################
 
-tasks.linalg.bwc.interval=10000
+# the default setting should be reasonable
+# tasks.linalg.bwc.interval=10000
 
 ###########################################################################
 # Reconstructlog

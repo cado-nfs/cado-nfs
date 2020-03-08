@@ -12,8 +12,9 @@ More details follow.
 
 Important note: For a larger factorization (distributed on several
 machines), the command line to be used is a priori more involved. Please
-refer to scripts/cadofactor/README. Documented example parameter files
-are in [`parameters/factor/params.c90`](parameters/factor/params.c90) and
+refer to [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md).
+Documented example parameter files are in
+[`parameters/factor/params.c90`](parameters/factor/params.c90) and
 [`scripts/cadofactor/parameters*`](scripts/cadofactor/).
 
 Supported platforms
@@ -45,18 +46,20 @@ perhaps does not:
    versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
    cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
  * Windows used to be partly supported, but this has been abandoned for
-   some time now (see a longer note at the end of README).
+   some time now (see a longer note
+   [there](#using-cado-nfs-under-windows) at the end of this file).
 
 Required software tools
 =======================
 
- * GMP, version 5 or newer: usually installed in most Linux distributions
-   (on some Linux distributions you need to install the `libgmp*-dev` or
-   `gmp-devel` package that includes `gmp.h`. It is often not installed by
-   default). Note: make sure to configure GMP with `--enable-shared` so
-   that a shared library is installed (`libgmp.so` under Linux) otherwise
-   CADO-NFS might not compile.
- * As of cado-nfs-3.0.0, a C/C++ compiler and C/C++ standard library that
+ * [GMP](http://gmplib.org/), version 5 or newer: usually installed in
+   most Linux distributions (on some Linux distributions you need to
+   install the `libgmp*-dev` or `gmp-devel` package that includes
+   `gmp.h`. It is often not installed by default). Note: make sure to
+   configure GMP with `--enable-shared` so that a shared library is
+   installed (`libgmp.so` under Linux) otherwise CADO-NFS might not
+   compile.
+ * As of `cado-nfs-3.0.0`, a C/C++ compiler and C/C++ standard library that
    conform to the C99 and C++11 standards are required. (cado-nfs-2.3.0
    only needed C99 and C++98).  The dependency on C++11 is now
    substantial enough that an "almost conformant" compiler is not
@@ -69,19 +72,19 @@ Required software tools
    * LLVM Clang: the minimal required version is >= 4.0.0
    * Apple Clang: the minimal required version is >= 6.0.0
    * Intel ICC: the minimal required version is >= 14
- * GNU make and CMake (cmake 3.4 or later) for building (CMake is
+ * GNU make and CMake (`cmake 3.4` or later) for building (CMake is
    installed on the fly if missing. This feature requires an Internet
    connection.)
- * Support for posix threads.
- * The main cado-nfs.py script uses a lot of unix tools: Python, Python3,
-   ssh, rsync, gzip to mention but a few.
+ * Support for POSIX threads.
+ * The main `cado-nfs.py` script uses a lot of unix tools: Python, Python3,
+   `ssh`, `rsync`, `gzip` to mention but a few.
  * For a large computation, MySQL is recommended.
 
 Optionally, cado-nfs can use the following additional software.
 
 * Support for OpenMP (at least version 3.0)
-* Support for MPI (see local.sh.example and linalg/bwc/README)
-* Support for hwloc (see parameters/misc/cpubinding.conf)
+* Support for MPI (see [`local.sh.example`](local.sh.example) and [`linalg/bwc/README`](linalg/bwc/README))
+* Support for hwloc (see [`parameters/misc/cpubinding.conf`](parameters/misc/cpubinding.conf))
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
 
@@ -186,8 +189,8 @@ MacOS X:
     install, and include in these environment variables the directory
     `$PREFIX/lib/cado-nfs-x.y.z`.
 
-Run a factorization on current machine:
-=======================================
+Run a factorization on the current machine:
+===========================================
 
 ```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 -t 2
@@ -208,32 +211,63 @@ Parts of the Number Field Sieve computation are massively distributed. In
 this mode, client scripts (namely, `cado-nfs-client.py`) are run on many
 nodes, connect to a central server, and run programs according to which
 computations need to be done.  The programs (for the polynomial selection
-and sieving steps) can run multithreaded, but it is better to have them
+and sieving steps) can run multithreaded. It is better to have them
 run with a capped number of threads (say, 2), and run several clients per
 node. By default, programs in this step are limited to 2 threads. When
 running the computation on the local machine, the number of clients is
-set so that the number of cores specified by -t are kept busy.
+set so that the number of cores specified by `-t` are kept busy.
 
-Run a factorization on several machines:
-=======================================
+Run a larger factorization on several machines:
+===============================================
 
-```
-./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
-```
+CADO-NFS has several ways of operation, which can be roughly split into
+three modes as follows.
 
-This starts 4 clients each on hosts hostname1, hostname2, and hostname3,
-where each client uses two cpus (threads). For hostnames that are not
-localhost, ssh is used to connect to the host and start a client there.
-To configure ssh, see the next section. For tasks which use the local
-machine only (not massively distributed tasks), the number of threads
-used is the one given by -t (which defaults to all threads on the local
-machine).
+ * For small computations, or for tests where it is important to have a
+   single command line, the strategy
+   [above](#run-a-factorization-on-the-current-machine) works. The
+   `cado-nfs.py` script can arrange so that the binaries for all steps of
+   the computation are run on the current machine, or possibly on other
+   machines, via SSH. Some of the documentation here is specific to this
+   mode of operation (see in particular
+   [there](#check-that-your-network-configuration-is-correct) or
+   [there](#check-that-your-ssh-configuration-is-correct)). If you get it
+   right, you may manage to run factorizations as follows. However be
+   aware that this mode of operation is fragile, and we advise not to use
+   it beyond trivial testing.
 
-For a larger factorization (distributed on several machines, possibly
-with different parameters for different machines), please use the
-`--server` mode (see
-[`scripts/cadofactor/README`](scripts/cadofactor/README) and
-[`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
+   ```
+   ./cado-nfs.py 353493749731236273014678071260920590602836471854359705356610427214806564110716801866803409 slaves.hostnames=hostname1,hostname2,hostname3 --slaves 4 --client-threads 2
+   ```
+
+   This starts 4 clients per host on the hosts `hostname1`, `hostname2`,
+   and `hostname3`, and each client uses two cpus (threads). For
+   hostnames that are not `localhost`, ssh is used to connect to the host
+   and start a client there.  To configure ssh, see the [next
+   section](#check-that-your-ssh-configuration-is-correct). For tasks
+   that use the local machine only (not massively distributed tasks), the
+   number of threads used is the one given by `-t` (which defaults to all
+   threads on the local machine).
+
+ * For larger computations where work distribution is an important point
+   (distribution on several machines, possibly with different parameters
+   for different machines), it is considerably more flexible to let the
+   server be _just_ a server, and start clients separately, that will be
+   used to offload the distributed tasks (polynomial selection and
+   relation collection). Clients can come and go. The server has plenty
+   of timeout provisions to deal with such events.
+
+   This is called the `--server` mode (see
+   [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
+   [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
+   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
+
+ * For much larger computations, the `cado-nfs.py` is only of moderate
+   use. The individual cado-nfs binaries and internal scripts are the
+   most flexible entry points, and should be used in order to adapt to
+   the specificities of the platform being used (e.g. to deal with
+   various requirements such as memory for filtering, interconnect for
+   linear algebra, and so on).
 
 Check that your network configuration is correct:
 =================================================
@@ -256,15 +290,15 @@ agent.
 
 The SSH keys are usually installed in the files `~/.ssh/id_rsa` and
 `~/.ssh/id_rsa.pub`; if you don't have them yet, you can create them with the
-ssh-keygen command. See the man page ssh-keygen(1) for details. The private
+`ssh-keygen` command. See the man page `ssh-keygen(1)` for details. The private
 key should be protected with a passphrase, which you can enter when you
 create the keys. Normally ssh will ask for the key's passphrase when you log
 on to a machine, but this can be avoided by using ssh-agent, see the man
-page ssh-agent(1), and providing the passphrase to the agent with ssh-add.
-Public-key authenticaton together with an ssh-agent will allow cadofactor
+page `ssh-agent(1)`, and providing the passphrase to the agent with `ssh-add`.
+Public-key authenticaton together with an ssh-agent will allow `cadofactor`
 to use ssh to run commands on slave machines automatically.
 
-Most of the recent Linux distributions will run an ssh-agent for you. But
+Most of the recent Linux distributions will run an `ssh-agent` for you. But
 if this is not the case with your distribution, or if you are running
 `cado-nfs.py` inside a `screen` in order to logout from your desktop, you
 will need to run the `ssh-agent` by hand. As a short recipe, you can type:
@@ -301,7 +335,7 @@ If you have started a factorization with the `cado-nfs.py` script, and it was
 interrupted (for example because of a power failure) you can restart in
 any of these two ways:
 
- * with the same cado-nfs.py command line if a work directory was
+ * with the same `cado-nfs.py` command line if a work directory was
    explicitly provided on the command line:
 
    ```
@@ -322,7 +356,8 @@ Factoring with SNFS:
 ====================
 
 It is possible to take advantage of the special form of an integer and
-use the Special Number Field Sieve. See parameters/factor/parameters.F9
+use the Special Number Field Sieve. See
+[`parameters/factor/parameters.F9`](parameters/factor/parameters.F9)
 for that:
 
 ```
@@ -331,7 +366,7 @@ $ cado-nfs.py parameters/factor/parameters.F9 slaves.hostnames=localhost
 
 Note in particular that you can force the special-q to be on the rational
 side if this is more appropriate for your number, with
-`tasks.sieve.sqside=0` on the cado-nfs.py command line or in the
+`tasks.sieve.sqside=0` on the `cado-nfs.py` command line or in the
 parameter file (assuming side 0 is the rational side).
 
 The default square root algorithm does not work in some very rare cases
@@ -343,14 +378,14 @@ case is for degree 8). The CRT approach is a workaround. See
 Big factorization (200 digits and more):
 ========================================
 
-By default, to decrease memory usage, it is assumed than less than $2^32$
+By default, to decrease memory usage, it is assumed that less than $2^32$
 (~ four billion) relations or ideals are needed and that the ideals will
-be less than $2^32$ (i.e., the lpb0/lpb1 parameters are less or equal to
-32). In the case of factorizations of numbers of 200 digits and more,
-these assumptions may not hold. In this case, you have to set some
-variables in your local.sh script (see Configure section above for more
-information on local.sh and section on big factorizations in
-local.sh.example).
+be less than $2^32$ (i.e., the `lpb0` and `lpb1` parameters are less or
+equal to 32). In the case of factorizations of numbers of 200 digits and
+more, these assumptions may not hold. In this case, you have to set some
+variables in your `local.sh` script (see Configure section above for more
+information on `local.sh` and section on big factorizations in
+`local.sh.example`).
 
 Factoring with two non-linear polynomials:
 ==========================================
@@ -364,7 +399,7 @@ Importing polynomials or relations:
 
 If you have already computed a good polynomial and/or relations, you can
 tell CADO-NFS to use them, see
-[`scripts/cadofactor/README`](scripts/cadofactor/README).
+[`scripts/cadofactor/README.md`](scripts/cadofactor/README.md).
 
 Using CADO-NFS under Windows:
 =============================
@@ -377,17 +412,19 @@ some extent, but the general message is that you're on your own.
 * if you only need the siever to run on Windows, then you only need to compile
   the `las` program on Windows.
 
-* CygWin provides a Unix-like environment, where compilation should be easy.
-  However the binary requires a cygwin.dll file. We have been told of problems
-  with shared libraries, the following solves this problem:
+* [Cygwin](http://www.cygwin.com/) provides a Unix-like environment,
+  where compilation should be easy.  However the binary requires a
+  `cygwin.dll` file. We have been told of problems with shared libraries,
+  which the following seems to address:
   ```
   PATH="installed/lib/cado-nfs-x.y.z:$PATH" ./cado-nfs.py [...]
   ```
 
-* if you want a binary without any dependency, you might try MinGW. The INSTALL
-  file from GNU MPFR contains detailed instructions on how to compile MPFR
-  under Windows. Those instructions should work for CADO-NFS too.
-  See [`dev_docs/howto-MinGW.txt`](dev_docs/howto-MinGW.txt).
+* if you want a binary without any dependency, you might try
+  [MinGW](http://www.mingw.org/). The INSTALL file from GNU MPFR contains
+  detailed instructions on how to compile MPFR under Windows. Those
+  instructions should work for CADO-NFS too.  See
+  [`dev_docs/howto-MinGW.txt`](dev_docs/howto-MinGW.txt).
 
 * you might try to use MPIR (<http://mpir.org/>) instead of GMP. MPIR
   is a fork of GMP, which claims to be more portable under Windows.
@@ -411,9 +448,9 @@ Examples of basic usage:
 * Run a full factorization on the local machine, using all available
   cores, but with a slightly modified set of default parameters.
 
-  The difficulty here is that when cado-nfs.py uses a parameter file
+  The difficulty here is that when `cado-nfs.py` uses a parameter file
   supplied on the command line, it does not automatically insert into the
-  parameter set the options which are necessary for running jobs.
+  parameter set the options that are necessary for running jobs.
   Therefore, we need to add these options:
 
 ```
@@ -437,7 +474,7 @@ Examples of basic usage:
 ./cado-nfs.py /tmp/myfacto/c60.parameters_snapshot.0
 ```
 
-* Run a server on machine1, and a slave on machine2, disabling ssl:
+* Run a server on `machine1`, and a slave on `machine2`, disabling ssl:
 
 ```
 machine1$ ./cado-nfs.py --server 90377629292003121684002147101760858109247336549001090677693 server.port=4242 server.ssl=no server.whitelist=machine2
@@ -446,18 +483,18 @@ machine2$ ./cado-nfs-client.py --server=http://machine1:4242 --bindir=...
 
 Note: if you are on an insecure network, you'll have to activate ssl, and
 then pass the appropriate sha1 certificate to the client (the server
-prints the appropriate command-line to be copy-pasted on machine2).
+prints the appropriate command-line to be copy-pasted on `machine2`).
 
-* Run a factorization on machine1, and have it start automatically a
-  slave on machine2 via SSH:
+* Run a factorization on `machine1`, and have it start automatically a
+  slave on `machine2` via SSH:
 
 ```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 slaves.hostnames=machine1,machine2
 ```
 
-Note that, in that case, you have to specify machine1 as well in the list
-of hostnames if you want it to contribute to the polynomial selection and
+Note that, in that case, you have to specify `machine1` as well in the list
+of `hostnames` if you want it to contribute to the polynomial selection and
 the sieving.
 
 
@@ -486,7 +523,7 @@ no longer supported by cado-nfs anyway)
   <http://cado-nfs.gforge.inria.fr/bug.php?14490>),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
-  work, please use -t 1 option in cado-nfs.py or tasks.linalg.threads=1x1.
+  work, please use `-t 1` option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
 * under AIX, if GMP is compiled in 64-bit mode, you should set the
   environment variable `OBJECT_MODE`, for example:
   export `OBJECT_MODE=64`
@@ -506,23 +543,23 @@ or
 ```
 git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
 ```
-(use the latter if you have an account on inria gitlab)
+(use the latter if you have an account on inria gitlab, and commit access
+to cado-nfs)
 
 There are two mailing-lists associated to Cado-nfs:
-  * cado-nfs-commits: if you want to receive an email each time a
-    modification to the development version is committed to the
-    repository.
-  * cado-nfs-discuss: for general discussions about cado-nfs.
-Instructions about how to subscribe are available at
-   <http://gforge.inria.fr/mail/?group_id=2065>
+  * [cado-nfs-commits](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-commits):
+    if you want to receive an email each time a modification to the
+    development version is committed to the repository. (Alternatively,
+    you can set a watch on gitlab if you have an account.)
+  * [cado-nfs-discuss`](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-discuss): for general discussions about cado-nfs.
 
-If you find a bug, if you have a problem to compile, if you want to
+If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
 the cado-nfs-discuss list is the right place to ask.
 
 On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
-there is welcome (you need an inria gitlab account), although if you are
-unsure, it might be better to speak up on the cado-nfs-discuss mailing
-list first.
+and merge requests there is welcome (you need an inria gitlab account),
+although if you are unsure, it might be better to speak up on the
+cado-nfs-discuss mailing list first.
