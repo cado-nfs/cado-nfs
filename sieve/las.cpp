@@ -712,9 +712,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
     int N = first_region0_index + already_done + bucket_relative_index;
 
-    rep.tn[side] -= seconds_thread ();
     ws.sides[side].lognorms.fill(S[side], N);
-    rep.tn[side] += seconds_thread ();
 
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w.N))
@@ -729,7 +727,6 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
 
     typedef typename hints_proxy<with_hints>::l my_longhint_t;
     typedef typename hints_proxy<with_hints>::s my_shorthint_t;
-    rep.ttbuckets_apply -= seconds_thread();
     {
         CHILD_TIMER(timer, "apply buckets");
         TIMER_CATEGORY(timer, sieving(side));
@@ -749,7 +746,6 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
             apply_one_bucket(SS, BAd, already_done + bucket_relative_index, wss.fbs->get_part(2), w);
         }
     }
-    rep.ttbuckets_apply += seconds_thread();
 }/*}}}*/
 void process_bucket_region_run::apply_buckets(int side)
 {
@@ -1157,10 +1153,8 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
     SIBLING_TIMER(timer, "cofactoring"); // aka factor_both_leftover_norms
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    rep.ttcof -= seconds_thread ();
     int pass = cur.factor_both_leftover_norms(wc);
     rep.survivors.cofactored += (pass != 0);
-    rep.ttcof += seconds_thread ();
 
     auto res = new detached_cofac_result;
 
@@ -1588,10 +1582,6 @@ void process_bucket_region_run::operator()() {/*{{{*/
     if (main_output.verbose >= 2)
         update_checksums(tws, taux);
 
-    /* rep.ttf does not count the asynchronous time spent in
-     * detached_cofac. */
-    rep.ttf -= seconds_thread ();
-
     auto survivors = search_survivors();
 
     /* The "do_resieve" flag (set above in the ctor) checks if one of the
@@ -1625,23 +1615,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     }
 #endif
 
-#ifdef  DLP_DESCENT
-    /* we're doing detached_cofac right away in the descent case, so we
-     * must untangle the ttf and ttcof timings.
-     */
-    double tt = rep.ttcof;
-#endif
-
     cofactoring_sync(survivors);
-
-    rep.ttf += seconds_thread ();
-#ifdef  DLP_DESCENT
-    /* hack, see above. The situation where cofactoring_sync also induces
-     * ttcof is now exceptional, and taken care of here.
-     */
-    rep.ttf -= rep.ttcof - tt;
-#endif
-
 }/*}}}*/
 /*}}}*/
 
@@ -2375,7 +2349,6 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
 {
     nfs_aux & aux(*aux_p);
     timetree_t & timer_special_q(aux.rt.timer);
-    las_report& rep(aux.rt.rep);
     where_am_I & w(aux.w);
 
     /* essentially update the fij polynomials and the max log bounds */
@@ -2397,9 +2370,6 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
     multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice;
 
     {
-        rep.ttbuckets_fill -= seconds();
-        auto dummy = call_dtor([&rep]() { rep.ttbuckets_fill += seconds(); });
-
         {
             /* allocate_bucket_regions is probably ridiculously cheap in
              * comparison to allocate_buckets */
@@ -2470,10 +2440,6 @@ void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p
         auto exc = pool.get_exceptions<buckets_are_full>(0);
         if (!exc.empty())
             throw *std::max_element(exc.begin(), exc.end());
-
-        /* trigger the increase of ttbuckets_fill, even if we encountered an
-         * exception. See the dummy object above.
-         */
     }
 
     {
@@ -2743,7 +2709,7 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
          * queue 2: things that we join almost immediately, but are
          * multithreaded nevertheless: alloc buckets, ...
          */
-        thread_pool pool(las.number_of_threads_per_subjob(), 3);
+        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3);
         nfs_work workspaces(las);
 
         /* {{{ Doc on todo list handling
@@ -2974,7 +2940,6 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
 
         /* we delete the "pool" and "workspaces" variables at this point. */
         /* The dtor for "pool" is a synchronization point */
-        cumulated_wait_time = pool.cumulated_wait_time;
     }
 
     {
@@ -2982,14 +2947,8 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
 
         global_rt.rep.nr_sq_processed += nq;
         global_rt.rep.nwaste += nwaste;
-        global_rt.rep.waste += botched.rep.tn[0];
-        global_rt.rep.waste += botched.rep.tn[1];
-        global_rt.rep.waste += botched.rep.ttbuckets_fill;
-        global_rt.rep.waste += botched.rep.ttbuckets_apply;
-        global_rt.rep.waste += botched.rep.ttf;
-        global_rt.rep.waste += botched.rep.ttcof;
         global_rt.rep.cumulated_wait_time += cumulated_wait_time;
-
+        global_rt.rep.waste += botched.timer.total_counted_time();
     }
 
     verbose_output_print(0, 1, "# subjob %d done (%d special-q's), now waiting for other jobs\n", subjob, nq);
@@ -2997,7 +2956,7 @@ void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_tim
 
 int main (int argc0, char *argv0[])/*{{{*/
 {
-    double t0, tts, wct;
+    double t0, wct;
     int argc = argc0;
     char **argv = argv0;
 
@@ -3181,8 +3140,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
     for(auto & t : subjobs) t.join();
 
-    verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
-
 #ifdef DLP_DESCENT
     if (recursive_descent) {
         verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
@@ -3293,7 +3250,6 @@ int main (int argc0, char *argv0[])/*{{{*/
         global_rt.rep.reports = nondup;
 
 	tcof_batch = seconds () - tcof_batch;
-	global_rt.rep.ttcof += tcof_batch;
       }
 
     t0 = seconds () - t0;
@@ -3309,15 +3265,14 @@ int main (int argc0, char *argv0[])/*{{{*/
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %u pushed\n",
             global_rt.rep.nr_sq_discarded, todo.nq_pushed);
 
-    if (tdict::global_enable >= 1) {
+    auto D = global_rt.timer.filter_by_category();
+    timetree_t::timer_data_type tcpu = global_rt.timer.total_counted_time();
+
+    if (tdict::global_enable >= 2) {
         verbose_output_print (0, 1, "#\n# Hierarchical timings:\n%s", global_rt.timer.display().c_str());
 
-        timetree_t::timer_data_type t = 0;
-        auto D = global_rt.timer.filter_by_category();
-        for(auto const &c : D)
-            t += c.second;
         std::ostringstream os;
-        os << std::fixed << std::setprecision(2) << t;
+        os << std::fixed << std::setprecision(2) << tcpu;
         verbose_output_print (0, 1, "#\n# Categorized timings (total counted time %s):\n", os.str().c_str());
         for(auto const &c : D) {
             std::ostringstream xos;
@@ -3335,11 +3290,6 @@ int main (int argc0, char *argv0[])/*{{{*/
         facul_print_stats (main_output.output);
 
     /*{{{ Display tally */
-#ifdef HAVE_RUSAGE_THREAD
-    int dont_print_tally = 0;
-#else
-    int dont_print_tally = 1;
-#endif
     if (bucket_prime_stats) {
         verbose_output_print(2, 1, "# nr_bucket_primes = %lu, nr_div_tests = %lu, nr_composite_tests = %lu, nr_wrap_was_composite = %lu\n",
                  nr_bucket_primes, nr_div_tests, nr_composite_tests, nr_wrap_was_composite);
@@ -3347,29 +3297,38 @@ int main (int argc0, char *argv0[])/*{{{*/
 
 
     verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_rt.rep.nwaste, global_rt.rep.waste);
+    verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
+    verbose_output_print (2, 1, "# Total cpu time %1.2fs, useful %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
+            " (%1.1f+%1.1f + %1.1f),"
+            " factor %1.1f (%1.1f+%1.1f + %1.1f),"
+            " rest %1.1f], wasted+waited %1.2fs, rest %1.2fs\n",
+            t0,
+            tcpu,
+            D[coarse_las_timers::norms(0)],
+            D[coarse_las_timers::norms(1)],
 
-    t0 -= global_rt.rep.waste;
+            D[coarse_las_timers::sieving(0)]+
+            D[coarse_las_timers::sieving(1)]+
+            D[coarse_las_timers::search_survivors()]+
+            D[coarse_las_timers::sieving_mixed()],
 
-    tts = t0;
-    tts -= global_rt.rep.tn[0];
-    tts -= global_rt.rep.tn[1];
-    tts -= global_rt.rep.ttf;
-    tts -= global_rt.rep.ttcof;
+            D[coarse_las_timers::sieving(0)],
+            D[coarse_las_timers::sieving(1)],
+            D[coarse_las_timers::search_survivors()]+
+            D[coarse_las_timers::sieving_mixed()],
 
-    if (dont_print_tally && las.number_of_threads_total() > 1) 
-        verbose_output_print (2, 1, "# Total cpu time %1.2fs [tally available only in mono-thread]\n", t0);
-    else
-        verbose_output_print (2, 1, "# Total cpu time %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
-                " (%1.1f + %1.1f + %1.1f),"
-                " factor %1.1f (%1.1f + %1.1f)] (not incl wasted time)\n",
-                t0,
-                global_rt.rep.tn[0],
-                global_rt.rep.tn[1],
-                tts,
-                global_rt.rep.ttbuckets_fill,
-                global_rt.rep.ttbuckets_apply,
-                tts-global_rt.rep.ttbuckets_fill-global_rt.rep.ttbuckets_apply,
-		global_rt.rep.ttf + global_rt.rep.ttcof, global_rt.rep.ttf, global_rt.rep.ttcof);
+            D[coarse_las_timers::cofactoring(0)]+
+            D[coarse_las_timers::cofactoring(1)]+
+            D[coarse_las_timers::cofactoring_mixed()],
+
+            D[coarse_las_timers::cofactoring(0)],
+            D[coarse_las_timers::cofactoring(1)],
+            D[coarse_las_timers::cofactoring_mixed()],
+
+            D[coarse_las_timers::bookkeeping()],
+            global_rt.rep.waste+global_rt.rep.cumulated_wait_time,
+            t0-tcpu-global_rt.rep.waste-global_rt.rep.cumulated_wait_time
+            );
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
                  wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);

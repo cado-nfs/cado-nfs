@@ -86,60 +86,51 @@ nfs_aux::~nfs_aux()
     if (las.suppress_duplicates)
         verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rt.rep.duplicates);
 
-    qt0 = seconds() - qt0;
     wct_qt0 = wct_seconds() - wct_qt0;
 
-    /* qt0 also aggregates time that was spent while we were processing
-     * stuff asynchronously. Other thread might have been processing
-     * other special-qs during that time.
-     */
-    double qtts = qt0 - rt.rep.tn[0] - rt.rep.tn[1] - rt.rep.ttf - rt.rep.ttcof;
     if (rt.rep.survivors.after_sieve != rt.rep.survivors.not_both_even) {
         verbose_output_print(0, 1, "# Warning: found %ld hits with i,j both even (not a bug, but should be very rare)\n", rt.rep.survivors.after_sieve - rt.rep.survivors.not_both_even);
     }
-#ifdef HAVE_RUSAGE_THREAD
-    int dont_print_tally = 0;
-#else
-    int dont_print_tally = 1;
-#endif
-    if (dont_print_tally && las.number_of_threads_total() > 1) {
-        verbose_output_vfprint(0, 2, gmp_vfprintf, "# Time for side-%d q=%Zd r=%Zd : %1.4fs [tally available only in mono-thread] in %1.4f elapsed s\n", doing.side, (mpz_srcptr) doing.p, (mpz_srcptr) doing.r, qt0, wct_qt0);
-    } else {
-        const char * fmt_always[2] = {
-            /* for default, special-q-overlapping mode: */
-            "# Time for side-%d q=%Zd r=%Zd : *%1.4fs",
-            /* for legacy synchronous mode: */
-            "# Time for side-%d q=%Zd r=%Zd : %1.4fs"
-        };
-        const char * fmt[2] = {
-            /* for default, special-q-overlapping mode: */
-                " [norm %1.4f+%1.4f, sieving *%1.4f"
-                " (%1.4f + %1.4f + *%1.4f),"
-                " factor %1.4f (%1.4f + %1.4f)]"
-                " in %1.4f elapsed s"
-                " [*: incl overlap time]",
-            /* for legacy synchronous mode: */
-                " [norm %1.4f+%1.4f, sieving %1.4f"
-                " (%1.4f + %1.4f + %1.4f),"
-                " factor %1.4f (%1.4f + %1.4f)]"
-                " in %1.4f elapsed s"
-        };
-        verbose_output_vfprint(0, 1, gmp_vfprintf, fmt_always[sync_at_special_q != 0],
-                doing.side,
-                (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,  qt0);
-        verbose_output_vfprint(0, 2, gmp_vfprintf, fmt[sync_at_special_q != 0],
-                doing.side,
-                (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,
-                rt.rep.tn[0],
-                rt.rep.tn[1],
-                qtts,
-                rt.rep.ttbuckets_fill,
-                rt.rep.ttbuckets_apply,
-                qtts-rt.rep.ttbuckets_fill-rt.rep.ttbuckets_apply,
-                rt.rep.ttf + rt.rep.ttcof, rt.rep.ttf, rt.rep.ttcof,
-                wct_qt0);
-        verbose_output_print(0, 1, "\n");
-    }
+
+    auto D = rt.timer.filter_by_category();
+    timetree_t::timer_data_type qtcpu = rt.timer.total_counted_time();
+
+    verbose_output_vfprint (0, 1, gmp_vfprintf,
+            "# Time for side-%d q=%Zd r=%Zd:"
+            " %1.2fs",
+            doing.side,
+            (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,
+            qtcpu
+            );
+    verbose_output_print (0, 2,
+            " [norm %1.2f+%1.1f, sieving %1.1f"
+            " (%1.1f+%1.1f + %1.1f),"
+            " factor %1.1f (%1.1f+%1.1f + %1.1f),"
+            " rest %1.1f]",
+            D[coarse_las_timers::norms(0)],
+            D[coarse_las_timers::norms(1)],
+
+            D[coarse_las_timers::sieving(0)]+
+            D[coarse_las_timers::sieving(1)]+
+            D[coarse_las_timers::search_survivors()]+
+            D[coarse_las_timers::sieving_mixed()],
+
+            D[coarse_las_timers::sieving(0)],
+            D[coarse_las_timers::sieving(1)],
+            D[coarse_las_timers::search_survivors()]+
+            D[coarse_las_timers::sieving_mixed()],
+
+            D[coarse_las_timers::cofactoring(0)]+
+            D[coarse_las_timers::cofactoring(1)]+
+            D[coarse_las_timers::cofactoring_mixed()],
+
+            D[coarse_las_timers::cofactoring(0)],
+            D[coarse_las_timers::cofactoring(1)],
+            D[coarse_las_timers::cofactoring_mixed()],
+
+            D[coarse_las_timers::bookkeeping()]
+            );
+    verbose_output_print (0, 1, "\n");
 
     verbose_output_end_batch();
 
