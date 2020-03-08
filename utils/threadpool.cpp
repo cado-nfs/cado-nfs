@@ -91,12 +91,13 @@ class exceptions_queue : public std::queue<clonable_exception *>, private NonCop
 };
 
 
-thread_pool::thread_pool(const size_t nr_threads, const size_t nr_queues)
+thread_pool::thread_pool(const size_t nr_threads, double & store_wait_time, const size_t nr_queues)
   :
       monitor_or_synchronous(nr_threads == 1),
       tasks(nr_queues), results(nr_queues), exceptions(nr_queues),
       created(nr_queues, 0), joined(nr_queues, 0),
-      kill_threads(false)
+      kill_threads(false),
+      store_wait_time(store_wait_time)
 {
     /* Threads start accessing the queues as soon as they run */
     threads.reserve(nr_threads);
@@ -115,6 +116,7 @@ thread_pool::~thread_pool() {
   for (auto const & T : tasks) ASSERT_ALWAYS_NOTHROW(T.empty());
   for (auto const & R : results) ASSERT_ALWAYS_NOTHROW(R.empty());
   for (auto const & E : exceptions) ASSERT_ALWAYS_NOTHROW(E.empty());
+  store_wait_time += cumulated_wait_time;
 }
 
 void *
@@ -136,26 +138,26 @@ thread_pool::thread_work_on_tasks(worker_thread & I)
    *
    */
   ASSERT_ALWAYS(!is_synchronous());
-  double tt = -wct_seconds();
+  double tt = -seconds_thread();
   while (1) {
       size_t queue = I.preferred_queue;
       thread_task task = get_task(queue);
       if (task.is_terminal())
           break;
       try {
-          tt += wct_seconds();
+          tt += seconds_thread();
           task_result *result = task(&I);
-          tt -= wct_seconds();
+          tt -= seconds_thread();
           if (result != NULL)
               add_result(queue, result);
       } catch (clonable_exception const& e) {
-          tt -= wct_seconds();
+          tt -= seconds_thread();
           add_exception(queue, e.clone());
           /* We need to wake the listener... */
           add_result(queue, NULL);
       }
   }
-  tt += wct_seconds();
+  tt += seconds_thread();
   /* tt is now the wall-clock time spent really within this function,
    * waiting for mutexes and condition variables...  */
   std::lock_guard<std::mutex> dummy(mm_cumulated_wait_time);

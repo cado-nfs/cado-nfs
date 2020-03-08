@@ -1359,8 +1359,9 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
 
     prime_info pi;
     prime_info_init(pi);
+    double wait_time = 0;
 
-    thread_pool pool(nb_threads);
+    thread_pool pool(nb_threads, wait_time);
 
     // Stage 0: prepare tasks
     unsigned int active_task = 0;

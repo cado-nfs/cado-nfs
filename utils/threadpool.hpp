@@ -153,6 +153,7 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
   std::vector<size_t> joined;
 
   bool kill_threads; /* If true, hands out kill tasks once work queues are empty */
+  double & store_wait_time;
 
   static void * thread_work_on_tasks_static(void *worker);
   void thread_work_on_tasks(worker_thread &);
@@ -165,7 +166,7 @@ public:
   double cumulated_wait_time = 0;
   std::mutex mm_cumulated_wait_time;
 
-  thread_pool(size_t _nr_threads, size_t nr_queues = 1);
+  thread_pool(size_t _nr_threads, double & store_wait_time, size_t nr_queues = 1);
   ~thread_pool();
   task_result *get_result(size_t queue = 0, bool blocking = true);
   void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);

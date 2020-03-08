@@ -420,7 +420,12 @@ public:
                 filter_by_category(res, -1);
                 return res;
             }
-
+            double total_counted_time() const {
+                double t = self;
+                for(auto const & a : M)
+                    t += a.second.total_counted_time();
+                return t;
+            }
             std::string display(double bookkeeping_cutoff = 1e-5) const {
                 ASSERT_ALWAYS(!running());
                 std::ostringstream ss;

@@ -5,7 +5,8 @@
 
 namespace tdict {
 
-int global_enable = 0;
+/* default value is set in configure_switches */ 
+int global_enable;
 
 #ifndef DISABLE_TIMINGS
 
@@ -23,6 +24,8 @@ void configure_aliases(cxx_param_list &)
 void configure_switches(cxx_param_list & pl)
 {
     param_list_configure_switch(pl, "-T", &global_enable);
+    /* We now rely on fine-grain switches to provide _all_ timings */
+    global_enable = 1;
 }
 
 std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a) {
