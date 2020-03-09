@@ -1185,7 +1185,7 @@ class WorkunitProcessor(object):
             return command
 
         mangled = []
-        orig = re.split(' *', command)
+        orig = re.split(' +', command)
         used_overrides = {}
         while orig:
             a = orig.pop(0)
