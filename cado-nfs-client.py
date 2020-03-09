@@ -1687,7 +1687,7 @@ class InputDownloader(object):
 
         # print('get_missing_file(%s, %s, %s)' % (urlpath, filename, checksum))
         if os.path.isfile(filename):
-            if self.server_pool.nservers > 0 and is_wu:
+            if self.server_pool.nservers > 1 and is_wu:
                 # can't reuse WUs on disk if multiple servers are
                 # specified.
                 logging.info("%s already exists,"
