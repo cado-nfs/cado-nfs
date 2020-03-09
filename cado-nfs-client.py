@@ -1278,9 +1278,19 @@ class WorkunitProcessor(object):
                 with open(files[my_stdin_filename], "r") as f:
                     stdin=f.read()
 
+            if sys.version_info[0] == 3:
+                if stdin is not None:
+                    stdin=stdin.encode()
+
             rc, stdout, stderr = run_command(command,
                                             stdin=stdin,
                                             preexec_fn=renice_func)
+
+            if sys.version_info[0] == 3:
+                if stdout is not None:
+                    stdout=stdout.decode()
+                if stderr is not None:
+                    stderr=stderr.decode()
 
             # steal stdout/stderr, put them to files.
             if my_stdout_filename in files:
