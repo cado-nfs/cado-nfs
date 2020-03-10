@@ -1744,9 +1744,9 @@ fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_pol
     for(size_t header_offset = 0, index = 0 ; header_offset != fbc_size ; index++) {
         /* Read header block starting at position "header_offset" */
         std::vector<char> area(fbc_header::header_block_size);
-        int rc = lseek(fbc, header_offset, SEEK_SET);
+        off_t rc = lseek(fbc, header_offset, SEEK_SET);
         ASSERT_ALWAYS(rc >= 0);
-        int nr = ::read(fbc, &area.front(), area.size());
+        ssize_t nr = ::read(fbc, &area.front(), area.size());
         ASSERT_ALWAYS(nr >= 0 && (size_t) nr == area.size());
         imemstream is(&area.front(), area.size());
         fbc_header hdr;
@@ -1870,8 +1870,12 @@ struct helper_functor_write_to_fbc_file {
             lseek(fbc, header_block_offset + next->offset, SEEK_SET);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
-            ssize_t m = ::write(fbc, &x.front(), n);
-            ASSERT_ALWAYS (m == (ssize_t)n);
+            while (n > 0) {
+                ssize_t m = ::write(fbc, &x.front(), n);
+                ASSERT_ALWAYS (m != -1);
+                ASSERT_ALWAYS (m <= (ssize_t)n);
+                n -= m;
+            }
             next++;
         }
 };
@@ -1886,8 +1890,12 @@ struct helper_functor_write_to_fbc_file_weight_part {
             if (next == chunks.end()) return;
             lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
             size_t n = sizeof(double) * (x.size() + 1);
-            ssize_t m = ::write(fbc, &*x.weight_begin(), n);
-            ASSERT_ALWAYS (m == (ssize_t)n);
+            while (n > 0) {
+                ssize_t m = ::write(fbc, &*x.weight_begin(), n);
+                ASSERT_ALWAYS (m != -1);
+                ASSERT_ALWAYS (m <= (ssize_t)n);
+                n -= m;
+            }
             next++;
         }
 };
