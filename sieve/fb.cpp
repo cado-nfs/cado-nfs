@@ -1870,11 +1870,13 @@ struct helper_functor_write_to_fbc_file {
             lseek(fbc, header_block_offset + next->offset, SEEK_SET);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
+            size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, &x.front(), n);
+                ssize_t m = ::write(fbc, (char *)(&x.front())+written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;
+                written += m;
             }
             next++;
         }
@@ -1890,11 +1892,13 @@ struct helper_functor_write_to_fbc_file_weight_part {
             if (next == chunks.end()) return;
             lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
             size_t n = sizeof(double) * (x.size() + 1);
+            size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, &*x.weight_begin(), n);
+                ssize_t m = ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;
+                written += m;
             }
             next++;
         }
