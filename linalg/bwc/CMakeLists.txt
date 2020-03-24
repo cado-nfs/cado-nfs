@@ -440,7 +440,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen_tuning.cpp
         lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp
-            lingen_bigmatpoly_ft.cpp
+        lingen_bigmatpoly_ft.cpp
         )
 
     if (v STREQUAL "u64k1")

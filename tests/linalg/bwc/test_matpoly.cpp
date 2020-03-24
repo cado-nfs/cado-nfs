@@ -5,6 +5,8 @@
 #include "gmp_aux.h"
 #include "tree_stats.hpp"
 #include "select_mpi.h"
+#include "lingen_qcode_select.hpp"
+#include "timing.h"
 
 struct matpoly_checker_base {
     abfield ab;
@@ -352,6 +354,14 @@ struct matpoly_checker_base {
             P.zero_column(j, k);
         return P.coeff_is_zero(k);
     }
+
+    int test_basecase()
+    {
+        double tt = seconds();
+        ::test_basecase(ab, m, n, len1, rstate);
+        printf("%.3f\n", seconds()-tt);
+        return 1;
+    }
 };
 
 template<typename fft_type>
@@ -410,6 +420,7 @@ void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "len1", "length 1");
     param_list_decl_usage(pl, "len2", "length 2");
     param_list_decl_usage(pl, "seed", "random seed");
+    param_list_decl_usage(pl, "test-basecase", "test (and bench) the lingen basecase operation");
 }
 
 int main(int argc, char * argv[])
@@ -424,8 +435,11 @@ int main(int argc, char * argv[])
     unsigned int len1 = 1000;
     unsigned int len2 = 600;
     unsigned long seed = 0;
+    int test_basecase = 0;
 
     cxx_param_list pl;
+
+    param_list_configure_switch(pl, "--test-basecase", &test_basecase);
 
     const char * argv0 = argv[0];
     argv++,argc--;
@@ -473,44 +487,48 @@ int main(int argc, char * argv[])
 
     matpoly_checker_base checker(p, m, n, len1, len2, rstate);
 
-    ASSERT_ALWAYS(checker.ctor_and_pre_init());
-    ASSERT_ALWAYS(checker.move_ctor());
-    ASSERT_ALWAYS(checker.copy_ctor());
-    ASSERT_ALWAYS(checker.fill_random_is_deterministic());
-    ASSERT_ALWAYS(checker.realloc_does_what_it_says());
-    ASSERT_ALWAYS(checker.mulx_then_divx());
-    ASSERT_ALWAYS(checker.truncate_is_like_mulx_then_divx_everywhere());
-    ASSERT_ALWAYS(checker.rshift_is_like_divx_everywhere());
-    ASSERT_ALWAYS(checker.test_extract_column());
-    ASSERT_ALWAYS(checker.divx_then_mulx_is_like_zero_column());
-    ASSERT_ALWAYS(checker.add_and_sub());
-    ASSERT_ALWAYS(checker.mul_is_distributive());
-    ASSERT_ALWAYS(checker.mp_is_distributive());
-    ASSERT_ALWAYS(checker.coeff_is_zero_and_zero_column_agree());
+    if (!test_basecase) {
+        ASSERT_ALWAYS(checker.ctor_and_pre_init());
+        ASSERT_ALWAYS(checker.move_ctor());
+        ASSERT_ALWAYS(checker.copy_ctor());
+        ASSERT_ALWAYS(checker.fill_random_is_deterministic());
+        ASSERT_ALWAYS(checker.realloc_does_what_it_says());
+        ASSERT_ALWAYS(checker.mulx_then_divx());
+        ASSERT_ALWAYS(checker.truncate_is_like_mulx_then_divx_everywhere());
+        ASSERT_ALWAYS(checker.rshift_is_like_divx_everywhere());
+        ASSERT_ALWAYS(checker.test_extract_column());
+        ASSERT_ALWAYS(checker.divx_then_mulx_is_like_zero_column());
+        ASSERT_ALWAYS(checker.add_and_sub());
+        ASSERT_ALWAYS(checker.mul_is_distributive());
+        ASSERT_ALWAYS(checker.mp_is_distributive());
+        ASSERT_ALWAYS(checker.coeff_is_zero_and_zero_column_agree());
 
 #ifdef SELECT_MPFQ_LAYER_u64k1
-    {
-        matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
-        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-    }
-    {
-        matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
-        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-    }
-    {
-        matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
-        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-    }
+        {
+            matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
+            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+        }
+        {
+            matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
+            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+        }
+        {
+            matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
+            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+        }
 #else
-    {
-        matpoly_checker_ft<fft_transform_info> checker_ft(checker);
-        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-    }
+        {
+            matpoly_checker_ft<fft_transform_info> checker_ft(checker);
+            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+        }
 #endif
+    } else {
+        checker.test_basecase();
+    }
 
     gmp_randclear(rstate);
 
