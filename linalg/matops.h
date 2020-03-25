@@ -45,6 +45,8 @@ extern void mat64_copy(mat64_ptr a, mat64_srcptr b);
  * tuning is static).
  */
 extern void transp_6464(mat64_ptr dst, mat64_srcptr src);
+extern void transp_6464_simple(mat64_ptr dst, mat64_srcptr src);
+extern void transp_6464_recursive(mat64_ptr dst, mat64_srcptr src);
 extern void copy_6464(mat64_ptr dst, mat64_srcptr src);
 extern void mul_6464_6464(mat64 C, mat64 A, mat64 B);
 extern void add_6464_6464(mat64_ptr C, mat64_srcptr A, mat64_srcptr B);
@@ -127,6 +129,11 @@ extern void m64pol_scalmul_gf2_64_bitslice2(m64pol_ptr r, m64pol_srcptr a, uint6
 extern void m64pol_scalmul_gf2_64_nobitslice(uint64_t * r, uint64_t * a, uint64_t * scalar);
 extern void m64pol_scalmul_gf2_128_bitslice(m64pol_ptr r, m64pol_srcptr a, uint64_t * s);
 extern void m64pol_scalmul_gf2_128_nobitslice(uint64_t * r, uint64_t * a, uint64_t * scalar);
+
+extern void binary_matpoly_to_polmat(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
+extern void binary_polmat_to_matpoly(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
+extern void binary_matpoly_to_polmat_t(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
+extern void binary_polmat_to_matpoly_t(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
 
 #ifdef __cplusplus
 }

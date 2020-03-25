@@ -550,6 +550,45 @@ int main(int argc, char * argv[])
     printf("## ULONG_BITS=%d\n", ULONG_BITS);
 
     if (1) {
+        size_t n = 512;
+        unsigned int K = 16;
+        unsigned int L = 8;
+        mat64 * A = (mat64 *) malloc(n * K * L * sizeof(mat64));
+        mat64 * B = (mat64 *) malloc(n * K * L * sizeof(mat64));
+        size_t datasize = K * 64 * L * 64 * iceildiv(n, 64);
+        uint64_t * data = (uint64_t *) malloc(datasize * sizeof(uint64_t));
+        uint64_t * data_t = (uint64_t *) malloc(datasize * sizeof(uint64_t));
+        memfill_random(A, n * K * L * sizeof(mat64));
+        printf("-- expand %u*%u*%zu bit matrices into %u*%u %zu-bit polynomials\n",
+                K, L, n, K * 64, L * 64, n);
+        TIME1(5, binary_polmat_to_matpoly, (data, A, K * 64, L * 64, n));
+        TIME1(5, binary_polmat_to_matpoly_t, (data_t, A, K * 64, L * 64, n));
+        ASSERT_ALWAYS(memcmp(data, data_t, datasize * sizeof(uint64_t)) == 0);
+        printf("-- retrieve %u*%u*%zu bit matrices from %u*%u %zu-bit polynomials\n",
+                K, L, n, K * 64, L * 64, n);
+        TIME1(5, binary_matpoly_to_polmat, (B, data, K * 64, L * 64, n));
+        for(unsigned int i = 0 ; i < K ; i++ ) {
+            for(unsigned int j = 0 ; j < L ; j++ ) {
+                for(size_t k = 0 ; k < n ; k++) {
+                    ASSERT_ALWAYS(mat64_eq(A[(k*K+i)*L+j], B[(k*K+i)*L+j]));
+                }
+            }
+        }
+        TIME1(5, binary_matpoly_to_polmat_t, (B, data, K * 64, L * 64, n));
+        for(unsigned int i = 0 ; i < K ; i++ ) {
+            for(unsigned int j = 0 ; j < L ; j++ ) {
+                for(size_t k = 0 ; k < n ; k++) {
+                    ASSERT_ALWAYS(mat64_eq(A[(k*K+i)*L+j], B[(k*K+i)*L+j]));
+                }
+            }
+        }
+        free(data);
+        free(data_t);
+        free(A);
+        free(B);
+    }
+
+    if (1) {
         uint64_t * r = (uint64_t *) malloc(64 * sizeof(uint64_t));
         uint64_t a = rand64();
         uint64_t w = rand64();
@@ -788,7 +827,7 @@ m64pol_mul_gf2_128_nobitslice   158 times in 31.8354 ms each
     if (1) {
         printf("-- 64x64 matrices over GF(2^64) using M4RIE --\n");
         /* Now try to see if m4rie can improve these timings */
-        /* Unfortunately as of version 20111203, m4rie supporst only
+        /* Unfortunately as of version 20111203, m4rie supports only
          * GF(2^n) up until n==10. Which cleary won't do, for our
          * objectives. So the following code aborts with segmentation
          * fault. */

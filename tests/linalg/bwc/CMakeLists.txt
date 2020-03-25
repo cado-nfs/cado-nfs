@@ -304,6 +304,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
         SOURCES test_matpoly.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_prime.cpp
+        ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         ARGUMENTS --prime ${p}
         LIBRARIES lingen_${gfp_layer}_support)
 

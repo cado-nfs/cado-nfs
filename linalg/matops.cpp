@@ -163,7 +163,6 @@ static inline uint64_t MAYBE_UNUSED nibrev(uint64_t a)
     return a;
 }/*}}}*/
 
-
 /* level 1 */
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
@@ -345,17 +344,48 @@ void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64_srcptr b)
    *w = XMIX1(e1, e0);
 }
 
-
-void transp_6464(mat64_ptr dst, mat64_srcptr src)
+/* from hacker's delight */
+void
+transp_6464_recursive_inplace(mat64_ptr a)
 {
-    int i, j;
+    uint64_t m = UINT64_C(0x00000000FFFFFFFF);
+
+    for (int j = 32 ; j ; j >>= 1, m ^= m << j) {
+        for (int k = 0; k < 64; k = ((k | j) + 1) & ~j) {
+            /* a big-endian-thinking version would be
+             *
+            uint64_t t = (a[k] ^ (a[k | j] >> j)) & m;
+            a[k] ^= t;
+            a[k | j] ^= t << j;
+            */
+            uint64_t t = (a[k] >> j ^ (a[k | j])) & m;
+            a[k] ^= t << j;
+            a[k | j] ^= t;
+        }
+    }
+}
+
+/* not in place ! */
+void transp_6464_simple(mat64_ptr dst, mat64_srcptr src)
+{
     ASSERT_ALWAYS(dst != src);
-    for (i = 0; i < 64; i++) {
+    for (int i = 0; i < 64; i++) {
 	dst[i] = 0;
-	for (j = 0; j < 64; j++) {
+	for (int j = 0; j < 64; j++) {
 	    dst[i] ^= ((src[j] >> i) & UINT64_C(1)) << j;
 	}
     }
+}
+
+void transp_6464_recursive(mat64_ptr dst, mat64_srcptr src)
+{
+    memcpy(dst, src, sizeof(mat64));
+    transp_6464_recursive_inplace(dst);
+}
+
+void transp_6464(mat64_ptr dst, mat64_srcptr src)
+{
+    transp_6464_recursive(dst, src);
 }
 
 void copy_6464(mat64_ptr dst, mat64_srcptr src)
@@ -2209,4 +2239,168 @@ int PLUQ128(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m)
 }
 
 /* }}} */
+
+/* TODO: TRSM */
+/* TODO: PLE, not PLUQ. */
+
+
+
+/* more stuff */
+
+void binary_matpoly_to_polmat(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)
+{
+    /* dst must have room for len mat64's. */
+    /* src is assumed row-major */
+    ASSERT_ALWAYS((n%64)==0);
+    ASSERT_ALWAYS((m%64)==0);
+    size_t stride = iceildiv(len, 64);
+    memset(dst, 0, (m/64) * (n/64) * len * sizeof(mat64));
+    uint64_t * q0 = dst[0];
+    uint64_t const * p0 = src;
+    uint64_t mk = 1;
+    for(unsigned int k = 0 ; k < len ; k++) {
+        uint64_t mj = 1;
+        uint64_t const * p = p0;
+        for(unsigned int i = 0 ; i < m ; i++) {
+            uint64_t * q = q0 + (i % 64) + (i / 64) * (n / 64) * 64;
+            for(unsigned int j = 0 ; j < n ; j++) {
+                *q ^= mj & -((*p&mk) != 0);
+                mj <<= 1;
+                q  += (mj == 0) * 64;
+                mj += mj == 0;
+                p += stride;
+            }
+        }
+        mk <<= 1;
+        p0 += (mk == 0);
+        q0 += (m/64) * (n/64) * 64;
+        mk += (mk == 0);
+    }
+}
+void binary_polmat_to_matpoly(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len)
+{
+    /* dst must have room for len mat64's. */
+    /* src is assumed row-major */
+    ASSERT_ALWAYS((n%64)==0);
+    ASSERT_ALWAYS((m%64)==0);
+    size_t stride = iceildiv(len, 64);
+    memset(dst, 0, m * n * stride * sizeof(uint64_t));
+    uint64_t const * q0 = src[0];
+    uint64_t * p0 = dst;
+    uint64_t mk = 1;
+    for(unsigned int k = 0 ; k < len ; k++) {
+        uint64_t mj = 1;
+        uint64_t * p = p0;
+        for(unsigned int i = 0 ; i < m ; i++) {
+            uint64_t const * q = q0 + (i % 64) + (i / 64) * (n / 64) * 64;
+            for(unsigned int j = 0 ; j < n ; j++) {
+                *p ^= mk & -((*q&mj) != 0);
+                mj <<= 1;
+                q  += (mj == 0) * 64;
+                mj += mj == 0;
+                p += stride;
+            }
+        }
+        mk <<= 1;
+        p0 += (mk == 0);
+        q0 += (m/64) * (n/64) * 64;
+        mk += (mk == 0);
+    }
+}
+
+/* transform n0*n1*n2*n3 words into n0*n2*n1*n3 words */
+void generic_transpose_words(uint64_t * dst, uint64_t const * src, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3)
+{
+    ASSERT_ALWAYS(dst != src);
+    if (n1 == 1 || n2 == 1) {
+        memcpy(dst, src, n0*n1*n2*n3*sizeof(uint64_t));
+        return;
+    }
+    for(unsigned int i0 = 0 ; i0 < n0 ; i0++) {
+        uint64_t * q = dst + i0 * n1 * n2 * n3;
+        uint64_t const * p = src + i0 * n1 * n2 * n3;
+        for(unsigned int i2 = 0 ; i2 < n2 ; i2++) {
+            for(unsigned int i1 = 0 ; i1 < n1 ; i1++) {
+                memcpy(q, p + (i1 * n2 + i2) * n3, n3 * sizeof(uint64_t));
+                q += n3;
+            }
+        }
+    }
+}
+
+/* temp needs n1 * n2 * n3 words.
+*/
+void generic_transpose_words_inplace(uint64_t * x, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3, uint64_t * temp)
+{
+    if (n1 == 1 || n2 == 1) return;
+    for(unsigned int i0 = 0 ; i0 < n0 ; i0++) {
+        uint64_t * q = x + i0 * n1 * n2 * n3;
+        uint64_t * t = temp;
+        for(unsigned int i2 = 0 ; i2 < n2 ; i2++) {
+            for(unsigned int i1 = 0 ; i1 < n1 ; i1++) {
+                memcpy(t, q + (i1 * n2 + i2) * n3, n3 * sizeof(uint64_t));
+                t += n3;
+            }
+        }
+        memcpy(q, temp, n1 * n2 * n3 * sizeof(uint64_t));
+    }
+}
+
+void binary_matpoly_to_polmat_t(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)
+{
+    unsigned int M = m / 64;
+    unsigned int N = n / 64;
+    unsigned int L = iceildiv(len, 64);
+
+    uint64_t * temp = (uint64_t *) malloc(m*n*L * sizeof(uint64_t));
+
+    uint64_t * q = (uint64_t *) dst;
+
+    /* We have (M*64*N)*(64)*(L)*(1) 64-bit words */
+    generic_transpose_words(q, src, m * N, 64, L, 1);
+    /* We have (M*64*N)*(L)*(64)*(1) 64-bit words */
+    for(unsigned int k = 0 ; k < m*N*L ; k++) {
+        transp_6464(temp, q + 64 * k);
+        memcpy(q + 64 * k, temp, sizeof(mat64));
+    }
+    /* We have (M*64*N)*(L)*(64)*(1) 64-bit words */
+    /* We have 1*(M*64*N)*(L*64)*(1) 64-bit words */
+    generic_transpose_words_inplace(q, 1, m * N, L * 64, 1, temp);
+    /* We have (L*64)*(M)*(64)*(N) 64-bit words */
+    generic_transpose_words_inplace(q, L * 64 * M, 64, N, 1, temp);
+    /* We have (L*64)*(M*N)*64 64-bit words */
+
+    free(temp);
+}
+
+
+void binary_polmat_to_matpoly_t(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len)
+{
+    unsigned int M = m / 64;
+    unsigned int N = n / 64;
+    unsigned int L = iceildiv(len, 64);
+
+    uint64_t * temp = (uint64_t *) malloc(m*n*L * sizeof(uint64_t));
+
+    /* We have (L*64)*(M*N)*64 64-bit words */
+    /* We have (L*64*M)*(N)*(64)*1 64-bit words */
+    generic_transpose_words(dst, (uint64_t const *) src, L * 64 * M, N, 64, 1);
+
+    /* We have (L*64*M)*(64)*(N)*1 64-bit words */
+    /* We have 1*(L*64)*(M*64*N)*1 64-bit words */
+    generic_transpose_words_inplace(dst, 1, L*64, m * N, 1, temp);
+
+    /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
+    for(unsigned int k = 0 ; k < m*N*L ; k++) {
+        transp_6464(temp, dst + 64 * k);
+        memcpy(dst + 64 * k, temp, sizeof(mat64));
+    }
+    /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
+
+    /* We have (M*64*N)*(L)*(64)*1 64-bit words */
+    generic_transpose_words_inplace(dst, m * N, L, 64, 1, temp);
+    /* We have (M*64*N)*(64)*(L)*1 64-bit words */
+
+    free(temp);
+}
 
