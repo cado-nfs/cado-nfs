@@ -134,6 +134,8 @@ extern void binary_matpoly_to_polmat(m64pol_ptr dst, uint64_t const * src, unsig
 extern void binary_polmat_to_matpoly(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
 extern void binary_matpoly_to_polmat_t(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
 extern void binary_polmat_to_matpoly_t(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
+extern void trsm64(mat64_ptr U, mat64_srcptr L);
+extern void trsm64_short(mat64_ptr U, mat64_srcptr L, unsigned int n);
 
 #ifdef __cplusplus
 }

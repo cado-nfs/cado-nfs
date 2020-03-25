@@ -1427,6 +1427,72 @@ void mzd_check_memT(mzd_t * M, uint64_t * s, unsigned int n)
 
 /* level 3 -- linear systems */
 
+/* trsm takes a unit lower triangular matrix L, and computes L^-1*U. The
+ * version with "count" does the same with an n-row matrix (and therefore
+ * changes only the first n rows of U)
+ */
+void trsm64_main(mat64_ptr U, mat64_srcptr L, unsigned int n)
+{
+    ASSERT(n >= 4);
+    for(unsigned int b = 0 ; b < 64 ; b += 4) {
+        uint64_t c[16];
+        uint64_t * uu = U + b;
+        uint64_t const * ll = L + b;
+        c[0]=0;
+        c[1]=uu[0];
+        c[2]=uu[1]^=c[(ll[1]>>b)&1];
+        c[3]=uu[1]^uu[0];
+        c[4]=uu[2]^=c[(ll[2]>>b)&3];
+        c[5]=uu[2]^c[1];
+        c[6]=uu[2]^c[2];
+        c[7]=uu[2]^c[3];
+        c[8]=uu[3]^=c[(ll[3]>>b)&7];
+        /* we might break here if b == 60 */
+        c[9]=uu[3]^c[1];
+        c[10]=uu[3]^c[2];
+        c[11]=uu[3]^c[3];
+        c[12]=uu[3]^c[4];
+        c[13]=uu[3]^c[5];
+        c[14]=uu[3]^c[6];
+        c[15]=uu[3]^c[7];
+        for(unsigned int i = b + 4 ; i < n ; i++) U[i] ^= c[(L[i] >> b)&15];
+    }
+}
+
+void trsm64_short(mat64_ptr U, mat64_srcptr L, unsigned int n)
+{
+    ASSERT(mat64_is_lowertriangular(L));
+    ASSERT(mat64_triangular_is_unit(L));
+    if (n >= 4) {
+        trsm64_main(U, L, n);
+    } else {
+        if (n <= 1) return;
+        uint64_t c[8];
+        uint64_t * uu = U;
+        uint64_t const * ll= L;
+        c[0]=0;
+        c[1]=uu[0];
+        c[2]=uu[1]^=c[ll[1]&1];
+        if (n <= 2) return;
+        c[3]=uu[1]^uu[0];
+        c[4]=uu[2]^=c[ll[2]&3];
+        if (n <= 3) return;
+        c[5]=uu[2]^c[1];
+        c[6]=uu[2]^c[2];
+        c[7]=uu[2]^c[3];
+             uu[3]^=c[ll[3]&7];
+    }
+}
+
+void trsm64(mat64_ptr U, mat64_srcptr L)
+{
+    ASSERT(mat64_is_lowertriangular(L));
+    ASSERT(mat64_triangular_is_unit(L));
+    trsm64_main(U, L, 64);
+}
+
+
+
 int gauss_6464_C(mat64 mm, mat64 e, mat64 m)
 {
     memcpy(mm,m,sizeof(mat64));
@@ -2240,7 +2306,6 @@ int PLUQ128(pmat_ptr p, mat64 * l, mat64 * u, pmat_ptr q, mat64 * m)
 
 /* }}} */
 
-/* TODO: TRSM */
 /* TODO: PLE, not PLUQ. */
 
 

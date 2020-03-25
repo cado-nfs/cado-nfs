@@ -550,6 +550,24 @@ int main(int argc, char * argv[])
     printf("## ULONG_BITS=%d\n", ULONG_BITS);
 
     if (1) {
+        printf("-- solve unit lower triangular systems\n");
+        mat64 L, U0, Li, U1;
+        memfill_random(L, (64) * sizeof(uint64_t));
+        for(unsigned int i = 0 ; i < 64 ; i++) {
+            L[i] &= (UINT64_C(1) << i) - 1;
+            L[i] |=  UINT64_C(1) << i;
+        }
+        full_echelon_6464_imm(U0, Li, L);
+        memfill_random(U0, (64) * sizeof(uint64_t));
+        mat64_copy(U1, U0);
+        TIME1(1, trsm64, (U0, L));
+        mat64_copy(U0, U1);
+        trsm64(U0, L);
+        trsm64(U1, L);
+        ASSERT_ALWAYS(mat64_eq(U0, U1));
+    }
+
+    if (1) {
         size_t n = 512;
         unsigned int K = 16;
         unsigned int L = 8;
