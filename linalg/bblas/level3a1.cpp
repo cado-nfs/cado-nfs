@@ -128,7 +128,7 @@ void binary_matpoly_to_polmat_nested_transpositions(m64pol_ptr dst, uint64_t con
     unsigned int N = n / 64;
     unsigned int L = iceildiv(len, 64);
 
-    uint64_t * temp = (uint64_t *) malloc(m*n*L * sizeof(uint64_t));
+    uint64_t * temp = new uint64_t[m*n*L];
 
     uint64_t * q = (uint64_t *) dst;
 
@@ -146,7 +146,7 @@ void binary_matpoly_to_polmat_nested_transpositions(m64pol_ptr dst, uint64_t con
     generic_transpose_words_inplace(q, L * 64 * M, 64, N, 1, temp);
     /* We have (L*64)*(M*N)*64 64-bit words */
 
-    free(temp);
+    delete[] temp;
 }/*}}}*/
 
 /* implements binary_polmat_to_matpoly */
@@ -156,7 +156,7 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, m64pol_srcpt
     unsigned int N = n / 64;
     unsigned int L = iceildiv(len, 64);
 
-    uint64_t * temp = (uint64_t *) malloc(m*n*L * sizeof(uint64_t));
+    uint64_t * temp = new uint64_t[m*n*L];
 
     /* We have (L*64)*(M*N)*64 64-bit words */
     /* We have (L*64*M)*(N)*(64)*1 64-bit words */
@@ -177,7 +177,7 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, m64pol_srcpt
     generic_transpose_words_inplace(dst, m * N, L, 64, 1, temp);
     /* We have (M*64*N)*(64)*(L)*1 64-bit words */
 
-    free(temp);
+    delete[] temp;
 }/*}}}*/
 
 /* {{{ final choices -- these are really clear-cut */

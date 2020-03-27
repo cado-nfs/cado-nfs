@@ -12,9 +12,9 @@ void test_bblas_level4::m4ri_plu_tests(int n)
     M = mzd_init(n, n);
 #if 0
     mzd_set_mem(M, m, n);
-    uint64_t * m = (uint64_t *) malloc((n*n/64)*sizeof(uint64_t));
+    uint64_t * m = new uint64_t[n*n/64];
     memfill_random(m, (64) * sizeof(uint64_t), rstate);
-    free(m);
+    delete[] m;
 #else
     my_mzd_randomize(M);
 #endif

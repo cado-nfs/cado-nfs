@@ -8,42 +8,42 @@
 test_bblas_base::tags_t test_bblas_level5::polmul_tags { "polmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::polmul() {
     size_t n = 64;
-    mat64 * A = (mat64 *) malloc(n * sizeof(mat64));
-    mat64 * B = (mat64 *) malloc(n * sizeof(mat64));
-    mat64 * C = (mat64 *) malloc(2 *n * sizeof(mat64));
+    mat64 * A = new mat64[n];
+    mat64 * B = new mat64[n];
+    mat64 * C = new mat64[2 * n];
     memfill_random(A, n * sizeof(mat64), rstate);
     memfill_random(B, n * sizeof(mat64), rstate);
     printf("-- polynomials (N=%zu) --\n", n);
     TIME1(5, m64pol_mul, C,A,B,n,n);
     TIME1(5, m64pol_mul_kara, C,A,B,n,n);
-    free(A);
-    free(B);
-    free(C);
+    delete[] A;
+    delete[] B;
+    delete[] C;
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level5::polblockmul_tags { "polblockmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::polblockmul() {
     size_t n = 64;
     unsigned int K = 2;
-    mat64 * A = (mat64 *) malloc(K * K * n * sizeof(mat64));
-    mat64 * B = (mat64 *) malloc(K * K * n * sizeof(mat64));
-    mat64 * C = (mat64 *) malloc(K * K * 2 *n * sizeof(mat64));
+    mat64 * A = new mat64[K * K * n];
+    mat64 * B = new mat64[K * K * n];
+    mat64 * C = new mat64[K * K * 2 * n];
     memfill_random(A, K * K * n * sizeof(mat64), rstate);
     memfill_random(B, K * K * n * sizeof(mat64), rstate);
     printf("-- polynomials, larger matrices (K=%u, N=%zu) --\n", K, n);
     TIME1(5, m64polblock_mul, C,A,B,n,n,2);
     TIME1(5, m64polblock_mul_kara, C,A,B,n,n,K);
-    free(A);
-    free(B);
-    free(C);
+    delete[] A;
+    delete[] B;
+    delete[] C;
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level5::matpolmul_tags = { "matpolmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::matpolmul() {
     size_t n = 128;
-    mat64 * A = (mat64 *) malloc(n * sizeof(mat64));
-    mat64 * B = (mat64 *) malloc(n * sizeof(mat64));
-    mat64 * C = (mat64 *) malloc(n * sizeof(mat64));
+    mat64 * A = new mat64[n];
+    mat64 * B = new mat64[n];
+    mat64 * C = new mat64[n];
     uint64_t * Al = (uint64_t *) A;
     uint64_t * Bl = (uint64_t *) B;
     uint64_t * Cl = (uint64_t *) C;
@@ -55,9 +55,9 @@ void test_bblas_level5::matpolmul() {
     printf("-- 64x64 matrices over GF(2^128) --\n");
     TIME1(5, m64pol_mul_gf2_128_bitslice, C,A,B);
     TIME1(5, m64pol_mul_gf2_128_nobitslice, Cl,Al,Bl);
-    free(A);
-    free(B);
-    free(C);
+    delete[] A;
+    delete[] B;
+    delete[] C;
     /* On Core i5 (magret), it's almost a tie between the two
      * options... */
 #if 0

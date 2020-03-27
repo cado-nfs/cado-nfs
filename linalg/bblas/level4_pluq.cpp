@@ -115,7 +115,7 @@ int PLUQ64_n(int * phi, mat64 l, mat64 * u, mat64 * a, int n)
     int rank = 0;
     int b = 0;
 #ifdef ALLOC_LS
-    mat64 ** ls = (mat64**) malloc(nb * sizeof(mat64*));
+    mat64 ** ls = new mat64*[nb];
 #else
     mat64 ls[nb] ATTRIBUTE((aligned(64)));
 #endif
@@ -140,7 +140,7 @@ int PLUQ64_n(int * phi, mat64 l, mat64 * u, mat64 * a, int n)
         mul_6464_6464(tl, *ls[c], tl);
         free_aligned(ls[c]);
     }
-    free(ls);
+    delete[] ls;
 #else
     for(int c = b-2 ; c >= 0 ; c--) {
         mul_6464_6464(u[c], tl, u[c]);

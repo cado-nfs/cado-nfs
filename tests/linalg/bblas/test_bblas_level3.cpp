@@ -70,11 +70,11 @@ void test_bblas_level3::matpoly_polmat() {
         K = 3;
         L = 2;
     }
-    mat64 * A = (mat64 *) malloc(n * K * L * sizeof(mat64));
-    mat64 * B = (mat64 *) malloc(n * K * L * sizeof(mat64));
+    mat64 * A = new mat64[n * K * L];
+    mat64 * B = new mat64[n * K * L];
     size_t datasize = K * 64 * L * 64 * iceildiv(n, 64);
-    uint64_t * data = (uint64_t *) malloc(datasize * sizeof(uint64_t));
-    uint64_t * data_t = (uint64_t *) malloc(datasize * sizeof(uint64_t));
+    uint64_t * data = new uint64_t[datasize];
+    uint64_t * data_t = new uint64_t[datasize];
     memfill_random(A, n * K * L * sizeof(mat64), rstate);
     printf(" -- conversion of %u*%u*%zu bit matrices to/from %u*%u %zu-bit polynomials\n", 
             K, L, n, K * 64, L * 64, n);
@@ -98,10 +98,10 @@ void test_bblas_level3::matpoly_polmat() {
             }
         }
     }
-    free(data);
-    free(data_t);
-    free(A);
-    free(B);
+    delete[] data;
+    delete[] data_t;
+    delete[] A;
+    delete[] B;
 }
 /*}}}*/
 

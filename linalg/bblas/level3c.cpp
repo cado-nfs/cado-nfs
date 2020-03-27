@@ -391,10 +391,9 @@ void mul_N64_6464_transB(uint64_t *C,/*{{{*/
                    const uint64_t *A,
                    const uint64_t *B, size_t m)
 {
-    uint64_t *tb = (uint64_t *) malloc(64 * sizeof(uint64_t));
+    mat64 tb;
     mat64_transpose(tb, B);
     mul_N64_T6464(C, A, tb, m);
-    free(tb);
 }/*}}}*/
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
@@ -459,10 +458,9 @@ void mul_N64_T6464_transB(uint64_t *C,/*{{{*/
                    const uint64_t *A,
                    const uint64_t *B, size_t m)
 {
-    uint64_t *tb = (uint64_t *) malloc(64 * sizeof(uint64_t));
+    mat64 tb;
     mat64_transpose(tb, B);
     mul_N64_6464(C, A, tb, m);
-    free(tb);
 }/*}}}*/
 
 ///////////////////////////////////////////////////////////////////////
