@@ -1508,3 +1508,5 @@ tests/linalg/bblas/time_bblas_common.hpp
 linalg/bblas/CMakeLists.txt
 tests/linalg/bblas/CMakeLists.txt
 tests/linalg/bblas/test_bblas_base.cpp
+linalg/bblas/level4_ple_internal.hpp
+tests/linalg/bblas/test_bblas_level4_ple.cpp

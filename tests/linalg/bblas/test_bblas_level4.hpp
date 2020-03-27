@@ -15,6 +15,12 @@ struct test_bblas_level4 : public test_bblas_base
     static tags_t gauss_tags;
     void gauss();
 
+    /* in test_bblas_level4_ple.cpp */
+    static tags_t ple_tags;
+    void ple();
+
+    int test_PLE_find_pivot(unsigned int m, unsigned int n);
+
 #ifdef  HAVE_M4RI
     void m4ri_plu_tests(int n);
 #endif
@@ -26,6 +32,7 @@ struct test_bblas_level4 : public test_bblas_base
             bool match = false;
             if (matches(s, pluq_tags, match)) pluq();
             if (matches(s, gauss_tags, match)) gauss();
+            if (matches(s, ple_tags, match)) ple();
             if (match) seen.insert(s);
         }
     }
