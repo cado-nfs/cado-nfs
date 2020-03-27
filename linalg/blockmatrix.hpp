@@ -1,7 +1,7 @@
 #ifndef BLOCKMATRIX_H_
 #define BLOCKMATRIX_H_
 
-#include "matops.h"
+#include "bblas.hpp"
 #include "macros.h"
 
 struct blockmatrix {

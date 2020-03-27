@@ -13,7 +13,7 @@
 #include "async.h"
 #include "xdotprod.h"
 #include "rolling.h"
-#include "matops.h"
+#include "bblas.hpp"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
@@ -316,7 +316,7 @@ void blstate_save(struct blstate * bl, unsigned int iter)
 int mmt_vec_echelon(mat64_ptr m, mmt_vec_ptr v0)
 {
     mat64_set_identity(m);
-    uint64_t * v = mmt_my_own_subvec(v0);
+    uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
     size_t eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
     size_t n = v0->n;
@@ -470,8 +470,8 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
     }
     /* Now set y = m1 * V */
     mmt_full_vec_set(bl->y, bl->V[i0]);
-    mul_N64_T6464(mmt_my_own_subvec(bl->y),
-            mmt_my_own_subvec(bl->y),
+    mul_N64_T6464((uint64_t *) mmt_my_own_subvec(bl->y),
+            (uint64_t *) mmt_my_own_subvec(bl->y),
             m1,
             mmt_my_own_size_in_items(bl->y));
     bl->y->consistency = 1;
@@ -497,12 +497,12 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
     serialize(mmt->pi->m);
     /* Now apply m2*m1 to v, for real */
     mmt_full_vec_set(bl->y, bl->V[i0]);
-    mul_N64_T6464(mmt_my_own_subvec(bl->y),
-            mmt_my_own_subvec(bl->y),
+    mul_N64_T6464((uint64_t *) mmt_my_own_subvec(bl->y),
+            (uint64_t *) mmt_my_own_subvec(bl->y),
             m1,
             mmt_my_own_size_in_items(bl->y));
-    mul_N64_T6464(mmt_my_own_subvec(bl->y),
-            mmt_my_own_subvec(bl->y),
+    mul_N64_T6464((uint64_t *) mmt_my_own_subvec(bl->y),
+            (uint64_t *) mmt_my_own_subvec(bl->y),
             m2,
             mmt_my_own_size_in_items(bl->y));
 
@@ -736,11 +736,11 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
 
                 // we set up X in mcol->v
 
-                uint64_t * V0 = mmt_my_own_subvec(bl->V[i0]);
-                uint64_t * V1 = mmt_my_own_subvec(bl->V[i1]);
-                uint64_t * V2 = mmt_my_own_subvec(bl->V[i2]);
-                uint64_t * VA  = mmt_my_own_subvec(bl->y);
-                uint64_t * X   = mmt_my_own_subvec(bl->y);
+                uint64_t * V0 = (uint64_t *) mmt_my_own_subvec(bl->V[i0]);
+                uint64_t * V1 = (uint64_t *) mmt_my_own_subvec(bl->V[i1]);
+                uint64_t * V2 = (uint64_t *) mmt_my_own_subvec(bl->V[i2]);
+                uint64_t * VA  = (uint64_t *) mmt_my_own_subvec(bl->y);
+                uint64_t * X   = (uint64_t *) mmt_my_own_subvec(bl->y);
                 uint64_t D0;
                 uint64_t D1 = bl->D[i1]->p[0];
                 mat64_ptr mvav = (mat64_ptr) vav;

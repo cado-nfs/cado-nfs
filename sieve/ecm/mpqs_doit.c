@@ -35,7 +35,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <float.h> /* for DBL_MAX */
-#include "gmp.h"
+#include <gmp.h>
 #include "timing.h"
 #include "macros.h"
 #include "mod_ul_default.h"

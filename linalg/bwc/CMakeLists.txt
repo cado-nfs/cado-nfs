@@ -1,5 +1,5 @@
 
-include_directories(. ..)
+include_directories(. .. ../bblas)
 # include_directories(mpfq)
 
 # Use with care. Normally, binaries not needing MPI for real should not
@@ -340,7 +340,7 @@ bwc_program(dispatch dispatch.cpp xdotprod.c)
 bwc_program(mksol mksol.cpp xdotprod.c)
 bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
-bwc_program(blocklanczos blocklanczos.c)
+bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION

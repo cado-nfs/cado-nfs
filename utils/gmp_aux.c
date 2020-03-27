@@ -720,3 +720,13 @@ int mpz_p_valuation_ui(mpz_srcptr a, unsigned long p)
     mpz_clear(c);
     return v;
 }
+
+void memfill_random(void *p, size_t s, gmp_randstate_t rstate)
+{
+    size_t w = sizeof(mp_limb_t);
+    mp_limb_t * pw = (mp_limb_t *)p;
+    for( ; s >= w ; pw++, s -= w) *pw = gmp_urandomb_ui(rstate, GMP_LIMB_BITS);
+    char * pc = (char*) pw;
+    for( ; s ; pc++, s--) *pc = gmp_urandomb_ui(rstate, CHAR_BIT);
+}
+

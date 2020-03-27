@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 #include <ctime>
-#include "gmp.h"
+#include <gmp.h>
 #include "utils/cxx_mpz.hpp"
 #include "las-arith.hpp"
 

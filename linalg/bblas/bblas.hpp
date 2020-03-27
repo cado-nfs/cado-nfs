@@ -1,37 +1,30 @@
-#ifndef MATOPS_H_
-#define MATOPS_H_
+#ifndef BBLAS_HPP_
+#define BBLAS_HPP_
 
-#include <stdint.h>
 #include "macros.h"
 
-typedef uint64_t mat64[64] ATTRIBUTE((aligned(64)));
-typedef uint64_t * mat64_ptr;
-typedef const uint64_t * mat64_srcptr;
+/* bblas is **only** for 64 * 64 matrices */
+#define BBLAS_WBITS   64
 
-struct pmat_s {
-    int * v;
-    int n;
-};
-typedef struct pmat_s pmat[1];
-typedef struct pmat_s * pmat_ptr;
-typedef const struct pmat_s * pmat_srcptr;
+#include "mat64.hpp"
+#include "m64pol.hpp"
 
-typedef uint64_t (*m64pol_ptr)[64];
-typedef uint64_t (*const m64pol_srcptr)[64];
+#include "level2a.hpp"
+#include "level2b.hpp"
+#include "level3a.hpp"
+#include "level3a1.hpp"
+#include "level3b.hpp"
+#include "level3c.hpp"
+#include "level3d.hpp"
+#include "level4.hpp"
+#include "level5.hpp"
+
+#if 0
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-extern void pmat_init(pmat_ptr x, int n);
-extern void pmat_clear(pmat_ptr x);
-extern void pmat_transpose(pmat_ptr x, pmat_srcptr y);
-extern void pmat_get_matrix(mat64 * qm, pmat_ptr qp);
-extern void pmattab_complete(int * phi, uint64_t * bits, int nbits);
-extern void pqperms_from_phi(pmat_ptr p, pmat_ptr q, int * phi, int m, int n);
-static inline int pmat_get(pmat_srcptr x, int k) { return x->v[k]; }
-static inline void pmat_set(pmat_srcptr x, int k, int w) { x->v[k]=w; }
 
 extern void mat64_set_identity(mat64_ptr m);
 extern int mat64_is_uppertriangular(mat64_srcptr u);
@@ -45,7 +38,7 @@ extern void mat64_copy(mat64_ptr a, mat64_srcptr b);
  * tuning is static).
  */
 extern void transp_6464(mat64_ptr dst, mat64_srcptr src);
-extern void transp_6464_simple(mat64_ptr dst, mat64_srcptr src);
+extern void transp_6464_simple_and_stupid(mat64_ptr dst, mat64_srcptr src);
 extern void transp_6464_recursive(mat64_ptr dst, mat64_srcptr src);
 extern void copy_6464(mat64_ptr dst, mat64_srcptr src);
 extern void mul_6464_6464(mat64 C, mat64 A, mat64 B);
@@ -103,7 +96,7 @@ extern void addmul_To64_o64_lsb(uint64_t * r, uint64_t a, uint64_t w);
 extern void addmul_To64_o64_msb(uint64_t * r, uint64_t a, uint64_t w);
 extern void addmul_To64_o64_lsb_packof2(uint64_t * r, uint64_t a, uint64_t w);
 extern void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w);
-extern void mul_64N_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, size_t n);
+extern void mul_TN64_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, size_t n);
 extern void mul_TN32_N64_C(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol);
 extern void addmul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
 extern void mul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
@@ -134,11 +127,13 @@ extern void binary_matpoly_to_polmat(m64pol_ptr dst, uint64_t const * src, unsig
 extern void binary_polmat_to_matpoly(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
 extern void binary_matpoly_to_polmat_t(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
 extern void binary_polmat_to_matpoly_t(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len);
-extern void trsm64(mat64_ptr U, mat64_srcptr L);
-extern void trsm64_short(mat64_ptr U, mat64_srcptr L, unsigned int n);
+extern void trsm64(mat64_srcptr L, mat64_ptr U);
+extern void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n1);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* MATOPS_H_ */
+#endif
+
+#endif	/* BBLAS_HPP_ */

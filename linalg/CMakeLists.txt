@@ -1,9 +1,14 @@
 
-include_directories(bwc) # for worker-threads.[ch] and matops
+add_subdirectory(bblas)
 
-include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft)
-include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft/mpfq)
-add_library(bitlinalg blockmatrix.cpp matops.cpp gauss.c)
+include_directories(bwc) # for worker-threads.[ch]
+
+include_directories(bblas)
+
+# the bitlinalg library will almost surely go away at some point, or
+# possibly be incorporated in bblas
+add_library(bitlinalg blockmatrix.cpp)
+target_link_libraries(bitlinalg bblas)
 add_dependencies(bitlinalg gf2x-build)
 
 

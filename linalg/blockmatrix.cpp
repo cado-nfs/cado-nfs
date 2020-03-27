@@ -6,7 +6,7 @@
 #include <cinttypes>
 #include <gmp.h>
 #include "blockmatrix.hpp"
-#include "matops.h"
+#include "bblas.hpp"
 #include "macros.h"
 #include "portability.h"
 #include "cado-endian.h"
@@ -249,7 +249,7 @@ void blockmatrix::copy_transpose_to_flat(uint64_t * tiny, unsigned int flat_stri
     for(unsigned int i = 0 ; i < nrblocks ; i++) {
         for(unsigned int j = 0 ; j < ncblocks ; j++) {
             mat64 tm;
-            transp_6464(tm, mb[i + j * stride]);
+            mat64_transpose(tm, mb[i + j * stride]);
             uint64_t * tp = tiny + (i0+j*64) * flat_stride + j0/64 + i;
             /* Note that the tiny matrix must have space allocated for rows and
              * cols multiples of 64, otherwise disaster will occur */
@@ -307,7 +307,7 @@ void blockmatrix::copy_transpose_from_flat(uint64_t * tiny, unsigned int stride,
             uint64_t * tp = tiny + (i0+j*64) * stride + j0/64 + i;
             for(unsigned int k = 0 ; k < 64 ; k++)
                 tm[k] = tp[k*stride];
-            transp_6464(mb[i + j * stride], tm);
+            mat64_transpose(mb[i + j * stride], tm);
         }
     }
 }
@@ -374,7 +374,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
             }
         }
         for(unsigned int s = 0 ; s < fncols ; s+=64) {
-            transp_6464(mb[s/64 + (g/64) * stride], tmp[s/64]);
+            mat64_transpose(mb[s/64 + (g/64) * stride], tmp[s/64]);
         }
     }
     free(tmp);
@@ -408,12 +408,12 @@ void blockmatrix::transpose(blockmatrix const & a)
     ASSERT_ALWAYS(nrows == a.ncols);
     ASSERT_ALWAYS(a.nrows == ncols);
     for(unsigned int i = 0 ; i < a.nrblocks ; i++) {
-        transp_6464(mb[i + i * stride], a.mb[i + i * a.stride]);
+        mat64_transpose(mb[i + i * stride], a.mb[i + i * a.stride]);
         for(unsigned int j = i + 1 ; j < a.ncblocks ; j++) {
             mat64 tmp;
-            transp_6464(tmp, a.mb[i + j * a.stride]);
-            transp_6464(mb[i + j * stride], a.mb[j + i * a.stride]);
-            copy_6464(mb[j + i * stride], tmp);
+            mat64_transpose(tmp, a.mb[i + j * a.stride]);
+            mat64_transpose(mb[i + j * stride], a.mb[j + i * a.stride]);
+            mat64_copy(mb[j + i * stride], tmp);
         }
     }
 }

@@ -1,6 +1,6 @@
 #include "cado.h"
 #define BL_TESTING
-#include "blocklanczos.c"
+#include "blocklanczos.cpp"
 
 struct extraction_check_data {
     uint64_t A[64];

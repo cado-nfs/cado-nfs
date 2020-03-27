@@ -41,7 +41,7 @@ command line is faster than the current code:
 
 
 #include "../utils/gzip.h"
-#include "gmp.h"
+#include <gmp.h>
 #include "portability.h"
 #include "utils_with_io.h"
 

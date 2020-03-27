@@ -57,7 +57,7 @@ If just the dimension of kernel is wanted, set ker=NULL.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "gmp.h"   /* only used for setting a random matrix */
+#include <gmp.h>   /* only used for setting a random matrix */
 #include "portability.h"
 #include "utils.h"  /* for seconds() */
 #include "gauss.h"

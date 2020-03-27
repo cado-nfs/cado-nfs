@@ -2,6 +2,8 @@
 # and caused by the fact that bwc.pl is for the moment unable to call
 # anything else than lingen_pz
 
+include_directories(${PROJECT_SOURCE_DIR}/linalg/bblas)
+
 macro(add_bwc_test nm script)
     set(mpiconfs ${${nm}_mpi_tests})
     if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
@@ -628,7 +630,7 @@ endforeach()
 
 #########################################################################
 
-cado_define_test(test_bl_extraction.c LIBRARIES bwc_base bitlinalg)
+cado_define_test(test_bl_extraction.cpp LIBRARIES bwc_base bitlinalg)
 set_target_properties(test_bl_extraction PROPERTIES
                 LINKER_LANGUAGE CXX
                 COMPILE_FLAGS "--mpi"

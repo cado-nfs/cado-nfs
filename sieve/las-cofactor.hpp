@@ -1,7 +1,7 @@
 #ifndef LAS_COFACTOR_HPP_
 #define LAS_COFACTOR_HPP_
 
-#include "gmp.h"
+#include <gmp.h>
 #include "las-siever-config.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm/facul.hpp"

@@ -2,7 +2,7 @@
 
 #include "cado.h"
 #include "macros.h"
-#include "gmp.h"
+#include <gmp.h>
 #include "las-qlattice.hpp"
 #include <vector>
 
