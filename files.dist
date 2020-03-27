@@ -1507,3 +1507,4 @@ tests/linalg/bblas/test_gauss.c
 tests/linalg/bblas/time_bblas_common.hpp
 linalg/bblas/CMakeLists.txt
 tests/linalg/bblas/CMakeLists.txt
+tests/linalg/bblas/test_bblas_base.cpp

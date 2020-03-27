@@ -23,13 +23,16 @@ struct test_bblas_level3 : public test_bblas_base
     void rank_n_update();
 
     static tags_t level3c_tags;
+    void level3c_list();
     void level3c();
 
     static tags_t trsm_tags;
     void trsm();
 
-    bool operator()(std::string const & s)
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
     {
+        printf("-- level-3 tests (operations on matrices) --\n");
+        for(auto const & s : tests) {
             bool match = false;
             if (matches(s, level3a_tags, match)) level3a();
             if (matches(s, transpose_tags, match)) transpose();
@@ -38,7 +41,8 @@ struct test_bblas_level3 : public test_bblas_base
             if (matches(s, rank_n_update_tags, match)) rank_n_update();
             if (matches(s, level3c_tags, match)) level3c();
             if (matches(s, trsm_tags, match)) trsm();
-            return match;
+            if (match) seen.insert(s);
+        }
     }
 };
 

@@ -112,8 +112,8 @@ void test_bblas_level5::matpolscale() {
     size_t n = 128;
     /* random values with average hamming weight. */
     uint64_t scalar[2] = { UINT64_C(0x8d5511cbd7f0d885), UINT64_C(0x2073a477a8b5dd8a) };
-    mat64 * A = (mat64 *) malloc(n * sizeof(mat64));
-    mat64 * B = (mat64 *) malloc(n * sizeof(mat64));
+    mat64 * A = new mat64[n];
+    mat64 * B = new mat64[n];
     uint64_t * Al = (uint64_t *) A;
     uint64_t * Bl = (uint64_t *) B;
     memfill_random(A, n * sizeof(mat64), rstate);
@@ -125,8 +125,8 @@ void test_bblas_level5::matpolscale() {
     printf("-- 64x64 matrix over GF(2^128), multiplication by scalar --\n");
     TIME1(5, m64pol_scalmul_gf2_128_bitslice, B,A,scalar);
     TIME1(5, m64pol_scalmul_gf2_128_nobitslice, Bl,Al,scalar);
-    free(A);
-    free(B);
+    delete[] A;
+    delete[] B;
     /* The bitsliced version sucks. Really.
      * TODO: See if we can do something. Abandon L1 cache focus, and
      * be content with L2 ? */

@@ -14,17 +14,16 @@ test_bblas_base::tags_t test_bblas_level2::level2a_tags { "rank_1_update", "l2a"
 void test_bblas_level2::level2a() {
     /* BLAS level 2 analogue: cblas_dger (rank-1 update) */
     /* TODO: check correctness */
-    uint64_t * r = (uint64_t *) malloc(64 * sizeof(uint64_t));
-    uint64_t a = uint64_random(rstate);
-    uint64_t w = uint64_random(rstate);
-    TIME1(1, addmul_To64_o64_lsb, r, a, w);
-    TIME1(1, addmul_To64_o64_msb, r, a, w);
-    TIME1(1, addmul_To64_o64_lsb_packof2, r, a, w);
+    printf(" -- rank-1 updates --\n");
+
+    TIME1(1, addmul_To64_o64, r, *a, *b);
+
+    TIME1(1, addmul_To64_o64_lsb, r, *a, *b);
+    TIME1(1, addmul_To64_o64_msb, r, *a, *b);
+    TIME1(1, addmul_To64_o64_lsb_packof2, r, *a, *b);
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-    TIME1(1, addmul_To64_o64_lsb_sse_v1, r, a, w);
+    TIME1(1, addmul_To64_o64_lsb_sse_v1, r, *a, *b);
 #endif
-    TIME1(1, addmul_To64_o64, r, a, w);
-    free(r);
 } /*}}}*/
 
 test_bblas_base::tags_t test_bblas_level2::level2_tags { "vecmul", "l2b", "l2" };
@@ -32,7 +31,10 @@ test_bblas_base::tags_t test_bblas_level2::level2_tags { "vecmul", "l2b", "l2" }
 void test_bblas_level2::level2() {
     unsigned int n = 1;
 
+    printf(" -- vector times (transpose of) matrix --\n");
     /* BLAS level 2 analogue: cblas_dgemv */
+    TIME1(1, mul_o64_6464, r, *a, wt);
+    TIME1(1, mul_o64_T6464, r, *a, wt);
 
     /* reference */
     mul_o64_6464(r, *a, w);
@@ -58,5 +60,5 @@ void test_bblas_level2::level2() {
     TIME1(1, mul_o64_T6464_C_parity3, r, *a, wt);
 
     /* Functions which can do any n can also do n=1 */
-    test_bblas_level3(1).level3c();
+    test_bblas_level3(1).level3c_list();
 }/*}}}*/

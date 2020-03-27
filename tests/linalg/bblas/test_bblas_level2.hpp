@@ -13,12 +13,15 @@ struct test_bblas_level2 : public test_bblas_base
     static tags_t level2_tags;
     void level2();
 
-    bool operator()(std::string const & s)
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
     {
+        printf("-- level-2 tests (inputs + outputs = 2 vectors + 1 matrix) --\n");
+        for(auto const & s : tests) {
             bool match = false;
             if (matches(s, level2a_tags, match)) level2a();
             if (matches(s, level2_tags, match)) level2();
-            return match;
+            if (match) seen.insert(s);
+        }
     }
 };
 

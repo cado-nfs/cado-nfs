@@ -19,12 +19,15 @@ struct test_bblas_level4 : public test_bblas_base
     void m4ri_plu_tests(int n);
 #endif
 
-    bool operator()(std::string const & s)
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
     {
-        bool match = false;
-        if (matches(s, pluq_tags, match)) pluq();
-        if (matches(s, gauss_tags, match)) gauss();
-        return match;
+        printf("-- level-4 tests (reductions / factorizations of matrices) --\n");
+        for(auto const & s : tests) {
+            bool match = false;
+            if (matches(s, pluq_tags, match)) pluq();
+            if (matches(s, gauss_tags, match)) gauss();
+            if (match) seen.insert(s);
+        }
     }
 };
 

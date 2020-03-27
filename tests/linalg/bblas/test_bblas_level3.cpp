@@ -10,6 +10,7 @@
 test_bblas_base::tags_t test_bblas_level3::level3a_tags { "basic", "l3a", "l3"};/*{{{ */ 
 void test_bblas_level3::level3a()
 {
+    printf(" -- straightforward operations --\n");
     /* copy */
     mat64_copy(r, a);
     mat64_copy(xr, r);
@@ -41,6 +42,7 @@ void test_bblas_level3::level3a()
 
 test_bblas_base::tags_t test_bblas_level3::transpose_tags { "transpose", "matpoly_polmat", "poly", "l3a", "l3" };/*{{{*/
 void test_bblas_level3::transpose() {
+    printf(" -- transposition --\n");
     /* There is no BLAS analogue, but it seems that it should be
      * categorized together with the other 3a things.
      */
@@ -63,19 +65,23 @@ void test_bblas_level3::matpoly_polmat() {
     size_t n = 512;
     unsigned int K = 16;
     unsigned int L = 8;
+    if (test_accel) {
+        n = 128;
+        K = 3;
+        L = 2;
+    }
     mat64 * A = (mat64 *) malloc(n * K * L * sizeof(mat64));
     mat64 * B = (mat64 *) malloc(n * K * L * sizeof(mat64));
     size_t datasize = K * 64 * L * 64 * iceildiv(n, 64);
     uint64_t * data = (uint64_t *) malloc(datasize * sizeof(uint64_t));
     uint64_t * data_t = (uint64_t *) malloc(datasize * sizeof(uint64_t));
     memfill_random(A, n * K * L * sizeof(mat64), rstate);
-    printf("-- expand %u*%u*%zu bit matrices into %u*%u %zu-bit polynomials\n", 
+    printf(" -- conversion of %u*%u*%zu bit matrices to/from %u*%u %zu-bit polynomials\n", 
             K, L, n, K * 64, L * 64, n);
     TIME1(5, binary_polmat_to_matpoly_simple_and_stupid, data, A, K * 64, L * 64, n);
     TIME1(5, binary_polmat_to_matpoly_nested_transpositions, data_t, A, K * 64, L * 64, n);
     ASSERT_ALWAYS(memcmp(data, data_t, datasize * sizeof(uint64_t)) == 0);
-    printf("-- retrieve %u*%u*%zu bit matrices from %u*%u %zu-bit polynomials\n", 
-            K, L, n, K * 64, L * 64, n);
+
     TIME1(5, binary_matpoly_to_polmat_simple_and_stupid, B, data, K * 64, L * 64, n);
     for(unsigned int i = 0 ; i < K ; i++ ) {
         for(unsigned int j = 0 ; j < L ; j++ ) {
@@ -103,7 +109,10 @@ test_bblas_base::tags_t test_bblas_level3::matmul_tags { "matmul", "l3b", "l3" }
 void test_bblas_level3::matmul() {
     unsigned int n = 64;
 
+    printf(" -- matrix products --\n");
     /* BLAS level 3 analogue: cblas_dgemm */
+
+    TIME1(1, mul_6464_6464, r, a, w);
 
     /* multiplicate of two 64x64 matrices */
     mul_6464_6464(r, a, w);
@@ -120,19 +129,20 @@ void test_bblas_level3::matmul() {
     TIME1(1, mul_6464_6464_v2, r, a, w);
 
     /* Functions which can do any n can also do n=64 */
-    test_bblas_level3(64).level3c();
+    test_bblas_level3(64).level3c_list();
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level3::rank_n_update_tags { "rank_n_update", "l3c", "l3", };/*{{{*/
 void test_bblas_level3::rank_n_update() {
     unsigned int n = nmax;
+    printf(" -- rank-n updates --\n");
     TIME1N(1, mul_TN64_N64_addmul, r, a, b, n);
     TIME1N(5, mul_TN32_N64_C, r, (uint32_t*)a, b, n);
     TIME1N(5, mul_TN64_N64_C, r, a, b, n);
 }/* }}} */
 
 test_bblas_base::tags_t test_bblas_level3::level3c_tags { "l3c", "l3" };/*{{{*/
-void test_bblas_level3::level3c()
+void test_bblas_level3::level3c_list()
 {
     unsigned int n = nmax;
     /* multiplication of a vector by a matrix */
@@ -186,12 +196,17 @@ void test_bblas_level3::level3c()
     mzd_check_mem(R, xr, n);
     TIME1(1, _mzd_mul_m4rm, R, A, W, 0, 1);
 #endif /* HAVE_M4RI */
+}
+void test_bblas_level3::level3c()
+{
+    printf(" -- matrix column times matrix --\n");
+    level3c_list();
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level3::trsm_tags { "trsm", "l3d", "l3" };/*{{{*/
 void test_bblas_level3::trsm() {
     /* BLAS level 3 analogue: cblas_dtrsm */
-    printf("-- solve unit lower triangular systems\n");
+    printf(" -- solve unit lower triangular systems\n");
     mat64 L, U0, Li, U1;
     memfill_random(L, (64) * sizeof(uint64_t), rstate);
     for(unsigned int i = 0 ; i < 64 ; i++) {

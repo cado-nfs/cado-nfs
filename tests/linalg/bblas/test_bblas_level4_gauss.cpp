@@ -47,7 +47,6 @@ void test_bblas_level4::gauss() {
     // printf("-- for reference: best matrix mult, 64x64 --\n");
     // TIME1(2, mul_6464_6464, mm, e, m);
     // TIME1(2, mul_N64_T6464, mm, e, m, 64);
-    printf("-- level-3 (reduction) benches, n=64 --\n");
     // TIME1(2, gauss_6464_C, mm, e, m);
     // TIME1(2, gauss_6464_imm, mm, e, m);
     // TIME1(2, PLUQ64_inner, NULL, l, u, m, 0);
@@ -68,7 +67,7 @@ void test_bblas_level4::gauss() {
     TIME1N_SPINS(memfill_random(m4, n*sizeof(mat64), rstate), 2, PLUQ64_n, phi, l, u4, m4, 64*n);
     TIME1(2, LUP64_imm, l, u, p, m);
     TIME1(2, full_echelon_6464_imm, mm, e, m);
-    TIME1(2, gauss_128128_C, m);
+    TIME1(2, gauss_128128_C, m4[0]);
 #ifdef  HAVE_M4RI
     m4ri_plu_tests(64);
     m4ri_plu_tests(128);
