@@ -28,9 +28,9 @@ int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n)
 int PLE::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
     const unsigned int B = 64;
-    mat64 & Y = X[bi * n + bj];
     uint64_t mask = UINT64_C(1) << j;
     for( ; bi < m ; bi++) {
+        mat64 & Y = X[bi * n + bj];
         for( ; i < B ; i++) {
             if (Y[i] & mask)
                 return bi * B + i;
