@@ -49,20 +49,20 @@ struct bblas_timer {
             get_unit();
         }
     template<typename T, typename... Args>
-        void time1(T const & f, Args... args)
+        void time1(T const & f, Args&&... args)
         {
             time1_common(f, std::forward<Args>(args)...);
             printf("%s \t%d times in %.4f %s each\n", name, j, t, unit);
         }
     template<typename T, typename... Args>
-        void time1n(int n, T const & f, Args... args)
+        void time1n(int n, T const & f, Args&&... args)
         {
             time1_common(f, std::forward<Args>(args)...);
             printf("%s(n=%d) \t%d times in %.4f %s each\n", name, n, j, t, unit);
         }
 
     template<typename R, typename T, typename... Args>
-        void time1n_classify(int n, R const & rr, T const & f, Args... args) {
+        void time1n_classify(int n, R const & rr, T const & f, Args&&... args) {
             // typedef decltype(std::declval<T>()(f(std::declval<Args>()...))) U;
             std::map<int, std::pair<int, clock_t>> ts;
             t0 = clock();

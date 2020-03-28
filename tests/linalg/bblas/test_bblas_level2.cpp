@@ -16,13 +16,15 @@ void test_bblas_level2::level2a() {
     /* TODO: check correctness */
     printf(" -- rank-1 updates --\n");
 
-    TIME1(1, addmul_To64_o64, r, *a, *b);
+    mat64 & R = * (mat64 *) r;
 
-    TIME1(1, addmul_To64_o64_lsb, r, *a, *b);
-    TIME1(1, addmul_To64_o64_msb, r, *a, *b);
-    TIME1(1, addmul_To64_o64_lsb_packof2, r, *a, *b);
+    TIME1(1, addmul_To64_o64, R, *a, *b);
+
+    TIME1(1, addmul_To64_o64_lsb, R, *a, *b);
+    TIME1(1, addmul_To64_o64_msb, R, *a, *b);
+    TIME1(1, addmul_To64_o64_lsb_packof2, R, *a, *b);
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-    TIME1(1, addmul_To64_o64_lsb_sse_v1, r, *a, *b);
+    TIME1(1, addmul_To64_o64_lsb_sse_v1, R, *a, *b);
 #endif
 } /*}}}*/
 

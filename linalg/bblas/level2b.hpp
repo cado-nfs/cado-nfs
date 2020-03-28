@@ -15,13 +15,13 @@
  */
 
 /* implementation details, variants */
-void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64_srcptr w);
-void mul_o64_6464_C_msb(uint64_t *r, uint64_t a, mat64_srcptr w);
-void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64_srcptr b);
-void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64_srcptr b);
+void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64 const & w);
+void mul_o64_6464_C_msb(uint64_t *r, uint64_t a, mat64 const & w);
+void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64 const & b);
+void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64 const & b);
 
 /* final exported choices. */
-void mul_o64_6464(uint64_t * r, uint64_t a, mat64_srcptr w);
-void mul_o64_T6464(uint64_t * w, uint64_t a, mat64_srcptr b);
+void mul_o64_6464(uint64_t * r, uint64_t a, mat64 const & w);
+void mul_o64_T6464(uint64_t * w, uint64_t a, mat64 const & b);
 
 #endif	/* BBLAS_LEVEL2B_HPP_ */

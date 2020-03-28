@@ -117,10 +117,10 @@ void blockmatrix::print(const char *vname) const
 void blockmatrix::set_zero()
 {
     if (owner) {
-        memset(mb, 0, nrblocks * ncblocks * sizeof(mat64));
+        std::fill_n(mb, nrblocks * ncblocks, 0);
     } else {
         for(unsigned int j = 0 ; j < ncblocks ; j++)  
-            memset(mb + j * stride, 0, nrblocks * sizeof(mat64));
+            std::fill_n(mb + j * stride, nrblocks, 0);
     }
 }
 
@@ -364,7 +364,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
     ASSERT_ALWAYS(tmp);
     for(unsigned int g = 0 ; g < fnrows ; g+=64) {
         /* Fill next block. */
-        memset(tmp, 0, (fncols/64) * sizeof(mat64));
+        std::fill_n(tmp, fncols/64, 0);
         for(unsigned int i = 0 ; g + i < fnrows && i < 64 ; i++) {
             for(unsigned int s = 0 ; s < fncols ; s+=64) {
                 uint64_t v;
@@ -413,7 +413,7 @@ void blockmatrix::transpose(blockmatrix const & a)
             mat64 tmp;
             mat64_transpose(tmp, a.mb[i + j * a.stride]);
             mat64_transpose(mb[i + j * stride], a.mb[j + i * a.stride]);
-            mat64_copy(mb[j + i * stride], tmp);
+            mb[j + i * stride] = tmp;
         }
     }
 }

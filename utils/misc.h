@@ -50,13 +50,6 @@ char * strdup(const char *s);
 char * strndup(const char * a, size_t n);
 #endif
 
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
-#endif
-#ifndef HAVE_STRLCAT
-size_t strlcat(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
-#endif
-
 /* strtoul(), but with const char ** for second argument.
    Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is
    of type const char *

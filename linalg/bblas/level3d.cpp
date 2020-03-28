@@ -14,7 +14,7 @@
  *      whose diagonal indices are in the given integer interval.
  */
 
-void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n1)/*{{{*/
+void trsm64_general(mat64 const & L, mat64 & U, unsigned int n0, unsigned int n1)/*{{{*/
 {
     ASSERT(mat64_is_lowertriangular(L));
     ASSERT(mat64_triangular_is_unit(L));
@@ -24,8 +24,8 @@ void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n
     if (n0 % 4) {
         uint64_t c[8];
         unsigned int n0b = std::max(n0 + 4 - (n0 % 4), n1);
-        uint64_t * uu = U + n0;
-        uint64_t const * ll= L + n0;
+        uint64_t * uu = U.data() + n0;
+        uint64_t const * ll= L.data() + n0;
         unsigned int d = n0b - n0;
         c[0] = 0;
         c[1] = uu[0];
@@ -49,8 +49,8 @@ void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n
     if (n1 == n0 + 1) return;
     for(unsigned int b = n0 ; b < 64 ; b += 4) {
         uint64_t c[16];
-        uint64_t * uu = U + b;
-        uint64_t const * ll = L + b;
+        uint64_t * uu = U.data() + b;
+        uint64_t const * ll = L.data() + b;
         c[0]=0;
         c[1]=uu[0];
         c[2]=uu[1]^=c[(ll[1]>>b)&1];
@@ -73,7 +73,7 @@ void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n
     }
 }/*}}}*/
 
-void trsm64(mat64_srcptr L, mat64_ptr U)/*{{{*/
+void trsm64(mat64 const & L, mat64 & U)/*{{{*/
 {
     trsm64_general(L, U, 0, 64);
 }/*}}}*/

@@ -1487,7 +1487,6 @@ linalg/bblas/level4_ple.cpp
 linalg/bblas/level4_pluq.cpp
 linalg/bblas/level5.cpp
 linalg/bblas/level5.hpp
-linalg/bblas/m64pol.hpp
 linalg/bblas/mat64.hpp
 linalg/bblas/perm_matrix.cpp
 linalg/bblas/perm_matrix.hpp

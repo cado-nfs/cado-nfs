@@ -3,18 +3,18 @@
 #include <cstring>
 #include "gauss.h"
 
-int gauss_6464_C(mat64 mm, mat64 e, mat64 m)
+int gauss_6464_C(mat64 & mm, mat64 & e, mat64 const & m)
 {
-    memcpy(mm,m,sizeof(mat64));
+    mm = m;
     uint64_t * ee[64];
     for(int j = 0 ; j < 64 ; j++) ee[j] = &(e[j]);
-    int r = kernel((mp_limb_t *) mm, (mp_limb_t **) ee, 64, 64, 64/ULONG_BITS, 64/ULONG_BITS);
+    int r = kernel((mp_limb_t *) mm.data(), (mp_limb_t **) ee, 64, 64, 64/ULONG_BITS, 64/ULONG_BITS);
     return r;
 }
 
-int gauss_6464_imm(mat64 mm, mat64 e, mat64 m)
+int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
 {
-    memcpy(mm,m,sizeof(mat64));
+    mm = m;
     uint64_t mask=1;
     uint64_t taken=0;
     uint64_t cancelled_cols=0;
@@ -40,7 +40,7 @@ int gauss_6464_imm(mat64 mm, mat64 e, mat64 m)
     return r;
 }
 
-int gauss_128128_C(uint64_t * m)
+int gauss_128128_C(mat64 * m)
 {
     mat64 mm[4] ATTRIBUTE((aligned(64))); /* handy, even though it does not properly reflect how data is used */
     memcpy(mm,m,4*sizeof(mat64));

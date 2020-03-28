@@ -16,8 +16,8 @@
  *      whose diagonal indices are in the given integer interval.
  */
 
-void trsm64_general(mat64_srcptr L, mat64_ptr U, unsigned int n0, unsigned int n1);
+void trsm64_general(mat64 const & L, mat64 & U, unsigned int n0, unsigned int n1);
 
-void trsm64(mat64_srcptr L, mat64_ptr U);
+void trsm64(mat64 const & L, mat64 & U);
 
 #endif	/* BBLAS_LEVEL3D_HPP_ */

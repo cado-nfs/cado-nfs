@@ -19,39 +19,39 @@
  */
 
 /* implements binary_matpoly_to_polmat */
-void binary_matpoly_to_polmat_simple_and_stupid(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     /* dst must have room for len mat64's. */
     /* src is assumed row-major */
     ASSERT_ALWAYS((n%64)==0);
     ASSERT_ALWAYS((m%64)==0);
     size_t stride = iceildiv(len, 64);
-    memset(dst, 0, (m/64) * (n/64) * len * sizeof(mat64));
-    uint64_t * q0 = dst[0];
+    memset((void *) dst, 0, (m/64) * (n/64) * len * sizeof(mat64));
+    mat64 * q0 = dst;
     uint64_t const * p0 = src;
     uint64_t mk = 1;
     for(unsigned int k = 0 ; k < len ; k++) {
         uint64_t mj = 1;
         uint64_t const * p = p0;
         for(unsigned int i = 0 ; i < m ; i++) {
-            uint64_t * q = q0 + (i % 64) + (i / 64) * (n / 64) * 64;
+            mat64 * q = q0 + (i / 64) * (n / 64);
             for(unsigned int j = 0 ; j < n ; j++) {
-                *q ^= mj & -((*p&mk) != 0);
+                (*q)[i%64] ^= mj & -((*p&mk) != 0);
                 mj <<= 1;
-                q  += (mj == 0) * 64;
+                q  += (mj == 0);
                 mj += mj == 0;
                 p += stride;
             }
         }
         mk <<= 1;
         p0 += (mk == 0);
-        q0 += (m/64) * (n/64) * 64;
+        q0 += (m/64) * (n/64);
         mk += (mk == 0);
     }
 }/*}}}*/
 
 /* implements binary_polmat_to_matpoly */
-void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     /* dst must have room for len mat64's. */
     /* src is assumed row-major */
@@ -59,25 +59,25 @@ void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, m64pol_srcptr sr
     ASSERT_ALWAYS((m%64)==0);
     size_t stride = iceildiv(len, 64);
     memset(dst, 0, m * n * stride * sizeof(uint64_t));
-    uint64_t const * q0 = src[0];
+    mat64 const * q0 = src;
     uint64_t * p0 = dst;
     uint64_t mk = 1;
     for(unsigned int k = 0 ; k < len ; k++) {
         uint64_t mj = 1;
         uint64_t * p = p0;
         for(unsigned int i = 0 ; i < m ; i++) {
-            uint64_t const * q = q0 + (i % 64) + (i / 64) * (n / 64) * 64;
+            mat64 const * q = q0 + (i / 64) * (n / 64);
             for(unsigned int j = 0 ; j < n ; j++) {
-                *p ^= mk & -((*q&mj) != 0);
+                *p ^= mk & -(((*q)[i%64]&mj) != 0);
                 mj <<= 1;
-                q  += (mj == 0) * 64;
+                q  += (mj == 0);
                 mj += mj == 0;
                 p += stride;
             }
         }
         mk <<= 1;
         p0 += (mk == 0);
-        q0 += (m/64) * (n/64) * 64;
+        q0 += (m/64) * (n/64);
         mk += (mk == 0);
     }
 }/*}}}*/
@@ -122,22 +122,21 @@ void generic_transpose_words_inplace(uint64_t * x, unsigned int n0, unsigned int
 /* }}} */
 
 /* implements binary_matpoly_to_polmat */
-void binary_matpoly_to_polmat_nested_transpositions(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, uint64_t const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
     unsigned int L = iceildiv(len, 64);
 
-    uint64_t * temp = new uint64_t[m*n*L];
+    uint64_t* temp = new uint64_t[m * n * L];
 
-    uint64_t * q = (uint64_t *) dst;
+    uint64_t* q = (uint64_t*)dst;
 
     /* We have (M*64*N)*(64)*(L)*(1) 64-bit words */
     generic_transpose_words(q, src, m * N, 64, L, 1);
     /* We have (M*64*N)*(L)*(64)*(1) 64-bit words */
-    for(unsigned int k = 0 ; k < m*N*L ; k++) {
-        mat64_transpose(temp, q + 64 * k);
-        memcpy(q + 64 * k, temp, sizeof(mat64));
+    for (unsigned int k = 0; k < m * N * L; k++) {
+        mat64_transpose(dst[k], dst[k]);
     }
     /* We have (M*64*N)*(L)*(64)*(1) 64-bit words */
     /* We have 1*(M*64*N)*(L*64)*(1) 64-bit words */
@@ -147,10 +146,10 @@ void binary_matpoly_to_polmat_nested_transpositions(m64pol_ptr dst, uint64_t con
     /* We have (L*64)*(M*N)*64 64-bit words */
 
     delete[] temp;
-}/*}}}*/
+} /*}}}*/
 
 /* implements binary_polmat_to_matpoly */
-void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
@@ -168,8 +167,8 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, m64pol_srcpt
 
     /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
     for(unsigned int k = 0 ; k < m*N*L ; k++) {
-        mat64_transpose(temp, dst + 64 * k);
-        memcpy(dst + 64 * k, temp, sizeof(mat64));
+        mat64 & t = * (mat64 *) (dst + 64 * k);
+        mat64_transpose(t, t);
     }
     /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
 
@@ -181,12 +180,12 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, m64pol_srcpt
 }/*}}}*/
 
 /* {{{ final choices -- these are really clear-cut */
-void binary_polmat_to_matpoly(uint64_t * dst, m64pol_srcptr src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_polmat_to_matpoly_nested_transpositions(dst, src, m, n, len);
 }
 /*}}}*/
-void binary_matpoly_to_polmat(m64pol_ptr dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_matpoly_to_polmat_nested_transpositions(dst, src, m, n, len);
 }

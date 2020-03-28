@@ -7,7 +7,6 @@
 #define BBLAS_WBITS   64
 
 #include "mat64.hpp"
-#include "m64pol.hpp"
 
 #include "level2a.hpp"
 #include "level2b.hpp"

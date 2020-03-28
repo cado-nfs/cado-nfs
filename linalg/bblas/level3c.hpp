@@ -32,86 +32,86 @@
  *    - mul_TN64K_N64: rank-N update, but creates a matrix of size 64K*N
  */
 
-void copy_N64(uint64_t * dst, const uint64_t * src, size_t m);
+void copy_N64(uint64_t * dst, uint64_t const * src, size_t m);
 
-int cmp_N64(const uint64_t * dst, const uint64_t * src, size_t m);
+int cmp_N64(uint64_t const * dst, uint64_t const * src, size_t m);
 
 /* implementation details, variants */
 //
 ///////////////////////////////////////////////////////////////////////
 void mul_N64_6464_lookup4(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 void mul_N64_6464_lookup8(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 void mul_N64_6464_vec(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 void mul_N64_6464_transB(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 void mul_N64_6464_sse(uint64_t *C,
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m);
+		 uint64_t const *A,
+		 mat64 const & B, size_t m);
 #endif
 
 ///////////////////////////////////////////////////////////////////////
 
 void mul_N64_T6464_vec(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 void mul_N64_T6464_transB(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 
 ///////////////////////////////////////////////////////////////////////
 
 void addmul_N64_6464_lookup4(uint64_t *C, 
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 void addmul_N64_6464_sse(uint64_t *C,
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m);
+		 uint64_t const *A,
+		 mat64 const & B, size_t m);
 #endif
 
 ///////////////////////////////////////////////////////////////////////
 
-void mul_TN64_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, size_t n);
-void mul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
+void mul_TN64_N64_addmul(mat64 & r, uint64_t const * a, uint64_t const * w, size_t n);
+void mul_TN64_N64_C(mat64 &  b, uint64_t const * A, uint64_t const * x, unsigned int ncol);
 
 ///////////////////////////////////////////////////////////////////////
 
-void addmul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
+void addmul_TN64_N64_C(mat64 &  b, uint64_t const * A, uint64_t const * x, unsigned int ncol);
 
 ///////////////////////////////////////////////////////////////////////
 
-void mul_TN32_N64_C(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol);
+void mul_TN32_N64_C(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned int ncol);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, unsigned int n, unsigned int K);
+void mul_TN64K_N64_sse2(mat64 * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K);
 #endif
 
-void mul_TN64K_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K);
+void mul_TN64K_N64_C(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K);
 
 ///////////////////////////////////////////////////////////////////////
 
 /* final exported choices */
 void mul_N64_6464(uint64_t *C,
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m);
+		 uint64_t const *A,
+		 mat64 const & B, size_t m);
 void addmul_N64_6464(uint64_t *C,
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m);
+		 uint64_t const *A,
+		 mat64 const & B, size_t m);
 void mul_N64_T6464(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m);
-void mul_TN64_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
-void addmul_TN64_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol);
-void mul_TN32_N64(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol);
-void mul_TN64K_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K);
+                   uint64_t const *A,
+                   mat64 const & B, size_t m);
+void mul_TN64_N64(mat64 &  b, uint64_t const * A, uint64_t const * x, unsigned int ncol);
+void addmul_TN64_N64(mat64 &  b, uint64_t const * A, uint64_t const * x, unsigned int ncol);
+void mul_TN32_N64(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned int ncol);
+void mul_TN64K_N64(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K);
 
 #endif	/* BBLAS_LEVEL3C_HPP_ */

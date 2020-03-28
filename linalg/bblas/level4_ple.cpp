@@ -23,12 +23,12 @@
  * is sufficient to recover the list of pivot rows.
  */
 
-int binary_blas_PLE(unsigned int * p, mat64_ptr X, unsigned int m, unsigned int n);
+int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n);
 
 int PLE::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
     const unsigned int B = 64;
-    mat64_ptr Y = X + bi * n + bj;
+    mat64 & Y = X[bi * n + bj];
     uint64_t mask = UINT64_C(1) << j;
     for( ; bi < m ; bi++) {
         for( ; i < B ; i++) {
@@ -46,7 +46,7 @@ void PLE::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsi
      * right after the pivot */
 
     const unsigned int B = 64;
-    mat64_ptr Y = X + bi * n + bj;
+    mat64 & Y = X[bi * n + bj];
     if (j == B-1) return;
     uint64_t mask = UINT64_C(1) << j;
     uint64_t c = Y[i] & ((-mask) << 1);
@@ -71,8 +71,8 @@ void PLE::propagate_permutations(unsigned int ii0, unsigned int bj0, unsigned in
             unsigned int i  = ii & (B - 1);
             unsigned int pbi = *q / B;
             unsigned int pi  = *q & (B - 1);
-            mat64_ptr Y = X + bi * n + bj;
-            mat64_ptr pY = X + pbi * n + bj;
+            mat64 & Y  = X[ bi * n + bj];
+            mat64 & pY = X[pbi * n + bj];
             uint64_t c = Y[i] ^ pY[pi];
             Y[i]   ^= c;
             pY[pi] ^= c;
@@ -124,9 +124,9 @@ void PLE::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & 
              * which on all accounts should still be in the same block.
              */
             ASSERT((yi + warmup) / B == ybi);
-            uint64_t c = ((X + ybi * n + zbj)[yi + warmup] >> zj) & mask;
-            (X + ybi * n + ybi)[yi + warmup] ^= (c << yi);
-            (X + ybi * n + zbj)[yi + warmup] ^= (c << zj);
+            uint64_t c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
             /* is there a simpler way ? mask += mask + 1 ? */
             mask |= mask << 1;
         }
@@ -135,9 +135,9 @@ void PLE::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & 
         if (ti == B) { tbi++; ti = 0; }
         for( ; tbi < m ; tbi++) {
             for( ; ti < B ; ti++) {
-                uint64_t c = ((X + tbi * n + zbj)[ti] >> zj) & mask;
-                (X + tbi * n + tbi)[ti] ^= (c << ti);
-                (X + tbi * n + zbj)[ti] ^= (c << zj);
+                uint64_t c = (X[tbi * n + zbj][ti] >> zj) & mask;
+                X[tbi * n + tbi][ti] ^= (c << ti);
+                X[tbi * n + zbj][ti] ^= (c << zj);
             }
         }
     }
@@ -149,10 +149,8 @@ void PLE::trsm(unsigned int bi,/*{{{*/
         unsigned int yi1) const
 {
     /* trsm is fairly trivial */
-    mat64_ptr L = (X + bi * n + bi);
     for(unsigned int s = bj + 1 ; s < n ; s++) {
-        mat64_ptr U = (X + bi * n + s);
-        trsm64_general(L, U, yi0, yi1);
+        trsm64_general(X[bi * n + bi], X[bi * n + s], yi0, yi1);
     }
 }/*}}}*/
 
@@ -172,9 +170,9 @@ void PLE::sub(unsigned int bi,/*{{{*/
              * rows [yi0..yi1-1] of block (bi,sbj), and add that to
              * block (sbi,sbj)
              */
-            addmul_6464_6464_fragment_lookup4(X + sbi * n + sbj,
-                    X + sbi * n + bj,
-                    X + bi * n + sbj,
+            addmul_6464_6464_fragment_lookup4(X[sbi * n + sbj],
+                    X[sbi * n + bj],
+                    X[bi * n + sbj],
                     si, 64, yi0, yi1);
         }
         si = 0;
@@ -218,8 +216,8 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
                 for(unsigned s = 0 ; s < n ; s++)
 #endif
                 {
-                    mat64_ptr Y = X + bi * n + s;
-                    mat64_ptr piv_Y = X + piv_bi * n + s;
+                    mat64 & Y = X[bi * n + s];
+                    mat64 & piv_Y = X[piv_bi * n + s];
                     uint64_t c = Y[i] ^ piv_Y[piv_i];
                     Y[i]   ^= c;
                     piv_Y[piv_i] ^= c;
@@ -271,7 +269,7 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
     return p - p0;
 }/*}}}*/
 
-int binary_blas_PLE(unsigned int * p, mat64_ptr X, unsigned int m, unsigned int n)
+int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n)
 {
     return PLE(X, m, n)(p);
 }

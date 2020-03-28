@@ -31,21 +31,21 @@
  */
 
 /* lengths of a1 and a2 are n1 and n2 */
-void m64pol_add(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n)/*{{{*/
+void m64pol_add(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n)/*{{{*/
 {
     for(unsigned int i = 0 ; i < n ; i++) {
         mat64_add(r[i], a1[i], a2[i]);
     }
 }/*}}}*/
 
-void m64pol_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)/*{{{*/
+void m64pol_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
     ASSERT_ALWAYS(r != a1 && r != a2);
-    memset(r, 0, (n1 + n2 - 1) * sizeof(mat64));
+    memset((void *) r, 0, (n1 + n2 - 1) * sizeof(mat64));
     m64pol_addmul(r, a1, a2, n1, n2);
 }/*}}}*/
 
-void m64pol_addmul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)/*{{{*/
+void m64pol_addmul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
     assert(r != a1 && r != a2);
     for(unsigned int i = 0 ; i < n1 ; i++) {
@@ -57,7 +57,7 @@ void m64pol_addmul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned in
     }
 }/*}}}*/
 
-void m64pol_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)/*{{{*/
+void m64pol_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
     assert(r != a1 && r != a2);
     assert(n1 == n2);
@@ -69,7 +69,7 @@ void m64pol_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned 
         return;
     }
     unsigned int h = n1 >> 1;
-    memset(r, 0, (n1 + n2 - 1) * sizeof(mat64));
+    memset((void *) r, 0, (n1 + n2 - 1) * sizeof(mat64));
 
     m64pol_add(r, a1, a1 + h, h);
     m64pol_add(r + 2 * h, a2, a2 + h, h);
@@ -85,7 +85,7 @@ void m64pol_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned 
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_addmul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)/*{{{*/
+void m64pol_addmul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     m64pol_mul_kara(t, a1, a2, n1, n2);
@@ -93,7 +93,7 @@ void m64pol_addmul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsign
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_mul_gf2_64_bitslice(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2)/*{{{*/
+void m64pol_mul_gf2_64_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*{{{*/
 {
     unsigned int n1 = 64;
     unsigned int n2 = 64;
@@ -106,16 +106,16 @@ void m64pol_mul_gf2_64_bitslice(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2
         mat64_add(t[i-64+1], t[i-64+1], t[i]);
         mat64_add(t[i-64  ], t[i-64  ], t[i]);
     }
-    memcpy(r, t, 64 * sizeof(mat64));
+    memcpy((void *) r, t, 64 * sizeof(mat64));
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_scalmul_gf2_64_bitslice(m64pol_ptr r, m64pol_srcptr a, uint64_t * s)/*{{{*/
+void m64pol_scalmul_gf2_64_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
 {
     unsigned int n1 = 64;
     unsigned int n2 = 64;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
-    memset(t, 0, (n1 + n2 -1) * sizeof(mat64));
+    memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 64 ; i++) {
         if (((s[0]>>i)&UINT64_C(1))==0) continue;
         m64pol_add(t+i, t+i, a, 64);
@@ -128,18 +128,18 @@ void m64pol_scalmul_gf2_64_bitslice(m64pol_ptr r, m64pol_srcptr a, uint64_t * s)
         mat64_add(t[i-64+1], t[i-64+1], t[i]);
         mat64_add(t[i-64  ], t[i-64  ], t[i]);
     }
-    memcpy(r, t, 64 * sizeof(mat64));
+    memcpy((void *) r, t, 64 * sizeof(mat64));
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_scalmul_gf2_64_bitslice2(m64pol_ptr r, m64pol_srcptr a, uint64_t * s)/*{{{*/
+void m64pol_scalmul_gf2_64_bitslice2(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
 {
     /* Now try with precomputation of multiples. We'll do only four of
      * them to start with. */
     unsigned int n1 = 64;
     unsigned int n2 = 64;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
-    memset(t, 0, (n1 + n2 -1) * sizeof(mat64));
+    memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
 
     /* Precompute multiples of a */
     /* The best value for NMULTS depends of course on the cache size. 2
@@ -154,12 +154,12 @@ void m64pol_scalmul_gf2_64_bitslice2(m64pol_ptr r, m64pol_srcptr a, uint64_t * s
         am[i] = am_area + i * (64 + NMULTS - 1);
     }
 
-    memset(am_area, 0, (1 << NMULTS) * (64 + NMULTS - 1) * sizeof(mat64));
-    memcpy(am[1], a, 64 * sizeof(mat64));
+    memset((void *) am_area, 0, (1 << NMULTS) * (64 + NMULTS - 1) * sizeof(mat64));
+    memcpy((void *) am[1], a, 64 * sizeof(mat64));
     for(unsigned int j = 1 ; j < NMULTS ; j++) {
         /* Duplicate all stuff having msb set from level below */
         for(unsigned int i = (1u << (j-1)) ; i < (1u << j) ; i++) {
-            memcpy(am[(i<<1)] + 1, am[i], (64 + j - 1) * sizeof(mat64));
+            memcpy((void *) (am[(i<<1)] + 1), am[i], (64 + j - 1) * sizeof(mat64));
             m64pol_add(am[(i<<1)+1], am[(i<<1)+1], am[1], 64);
         }
     }
@@ -177,7 +177,7 @@ void m64pol_scalmul_gf2_64_bitslice2(m64pol_ptr r, m64pol_srcptr a, uint64_t * s
         mat64_add(t[i-64+1], t[i-64+1], t[i]);
         mat64_add(t[i-64  ], t[i-64  ], t[i]);
     }
-    memcpy(r, t, 64 * sizeof(mat64));
+    memcpy((void *) r, t, 64 * sizeof(mat64));
     free_aligned(t);
 }/*}}}*/
 
@@ -214,7 +214,7 @@ void m64pol_scalmul_gf2_64_nobitslice(uint64_t * r, uint64_t * a, uint64_t * sca
     }
 }/*}}}*/
 
-void m64pol_mul_gf2_128_bitslice(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2)/*{{{*/
+void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*{{{*/
 {
     unsigned int n1 = 128;
     unsigned int n2 = 128;
@@ -227,16 +227,16 @@ void m64pol_mul_gf2_128_bitslice(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a
         mat64_add(t[i-128+1], t[i-128+1], t[i]);
         mat64_add(t[i-128  ], t[i-128  ], t[i]);
     }
-    memcpy(r, t, 128 * sizeof(mat64));
+    memcpy((void *) r, t, 128 * sizeof(mat64));
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_scalmul_gf2_128_bitslice(m64pol_ptr r, m64pol_srcptr a, uint64_t * s)/*{{{*/
+void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
 {
     unsigned int n1 = 128;
     unsigned int n2 = 128;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
-    memset(t, 0, (n1 + n2 -1) * sizeof(mat64));
+    memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 128 ; i++) {
         if (((s[i/64]>>(i&63))&UINT64_C(1))==0) continue;
         for(unsigned int j = 0 ; j < 64 ; j++) {
@@ -250,7 +250,7 @@ void m64pol_scalmul_gf2_128_bitslice(m64pol_ptr r, m64pol_srcptr a, uint64_t * s
         mat64_add(t[i-128+1], t[i-128+1], t[i]);
         mat64_add(t[i-128  ], t[i-128  ], t[i]);
     }
-    memcpy(r, t, 128 * sizeof(mat64));
+    memcpy((void *) r, t, 128 * sizeof(mat64));
     free_aligned(t);
 }/*}}}*/
 
@@ -287,7 +287,7 @@ void m64pol_scalmul_gf2_128_nobitslice(uint64_t * r, uint64_t * a, uint64_t * sc
     }
 }/*}}}*/
 
-void m64polblock_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
+void m64polblock_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
 {
     /* Same spirit, but treat multiplication of 64K by 64K matrices (of
      * polynomials).
@@ -300,35 +300,35 @@ void m64polblock_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned 
      * lengths n1, resp n2).
      */
     assert(r != a1 && r != a2);
-    memset(r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
+    memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
-        m64pol_srcptr ra1 = a1 + i * n1 * K;
-        m64pol_srcptr rr = r + i * (n1 + n2 - 1) * K;
-    for(unsigned int j = 0 ; j < K ; j++) {
-        m64pol_srcptr ca2 = a2 + j * n2;
-        m64pol_srcptr pr = rr + j * (n1 + n2 - 1);
-    for(unsigned int k = 0 ; k < K ; k++) {
-        m64pol_srcptr pa1 = ra1 + k * n1;
-        m64pol_srcptr pa2 = ca2 + k * n2 * K;
-        m64pol_addmul(pr, pa1, pa2, n1, n2);
-    }
-    }
+        mat64 const * ra1 = a1 + i * n1 * K;
+        mat64 * rr = r + i * (n1 + n2 - 1) * K;
+        for(unsigned int j = 0 ; j < K ; j++) {
+            mat64 const * ca2 = a2 + j * n2;
+            mat64 * pr = rr + j * (n1 + n2 - 1);
+            for(unsigned int k = 0 ; k < K ; k++) {
+                mat64 const * pa1 = ra1 + k * n1;
+                mat64 const * pa2 = ca2 + k * n2 * K;
+                m64pol_addmul(pr, pa1, pa2, n1, n2);
+            }
+        }
     }
 }/*}}}*/
 
-void m64polblock_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
+void m64polblock_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
 {
     assert(r != a1 && r != a2);
-    memset(r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
+    memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
-        m64pol_srcptr ra1 = a1 + i * n1 * K;
-        m64pol_srcptr rr = r + i * (n1 + n2 - 1) * K;
+        mat64 const * ra1 = a1 + i * n1 * K;
+        mat64 * rr = r + i * (n1 + n2 - 1) * K;
         for(unsigned int j = 0 ; j < K ; j++) {
-            m64pol_srcptr ca2 = a2 + j * n2;
-            m64pol_srcptr pr = rr + j * (n1 + n2 - 1);
+            mat64 const * ca2 = a2 + j * n2;
+            mat64 * pr = rr + j * (n1 + n2 - 1);
             for(unsigned int k = 0 ; k < K ; k++) {
-                m64pol_srcptr pa1 = ra1 + k * n1;
-                m64pol_srcptr pa2 = ca2 + k * n2 * K;
+                mat64 const * pa1 = ra1 + k * n1;
+                mat64 const * pa2 = ca2 + k * n2 * K;
                 m64pol_addmul_kara(pr, pa1, pa2, n1, n2);
             }
         }

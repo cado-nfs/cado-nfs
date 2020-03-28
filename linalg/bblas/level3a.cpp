@@ -1,6 +1,7 @@
 #include "cado.h"
 #include "level3a.hpp"
 #include <cstring>
+#include "utils.h"
 
 /**********************************************************************/
 /* level 3a: basic operations on 64*64 matrices.
@@ -17,19 +18,23 @@
 
 /* implemented here: see above. names are self-explanatory. */
 
-int mat64_eq(mat64_srcptr a, mat64_srcptr b)/*{{{*/
+int mat64_eq(mat64 const & a, mat64 const & b)/*{{{*/
 {
-    return memcmp(a, b, sizeof(mat64)) == 0;
+    return a == b;
 }
 /*}}}*/
-void mat64_add_C(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)/*{{{*/
+void mat64_fill_random(mat64 & w, gmp_randstate_t rstate)
+{
+    memfill_random(w.data(), (64) * sizeof(uint64_t), rstate);
+}
+void mat64_add_C(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 {
     for (int j = 0; j < 64; j++) {
         C[j] = A[j] ^ B[j];
     }
 }
 /*}}}*/
-int mat64_is_uppertriangular(mat64_srcptr u)/*{{{*/
+int mat64_is_uppertriangular(mat64 const & u)/*{{{*/
 {
     uint64_t mask = 1;
     for(int k =0 ; k < 64 ; k++,mask<<=1) {
@@ -37,7 +42,7 @@ int mat64_is_uppertriangular(mat64_srcptr u)/*{{{*/
     }
     return 1;
 }/*}}}*/
-int mat64_is_lowertriangular(mat64_srcptr u)/*{{{*/
+int mat64_is_lowertriangular(mat64 const & u)/*{{{*/
 {
     uint64_t mask = -2;
     for(int k =0 ; k < 64 ; k++,mask<<=1) {
@@ -45,7 +50,7 @@ int mat64_is_lowertriangular(mat64_srcptr u)/*{{{*/
     }
     return 1;
 }/*}}}*/
-int mat64_triangular_is_unit(mat64_srcptr u)/*{{{*/
+int mat64_triangular_is_unit(mat64 const & u)/*{{{*/
 {
     uint64_t mask = 1;
     for(int k =0 ; k < 64 ; k++,mask<<=1) {
@@ -53,23 +58,10 @@ int mat64_triangular_is_unit(mat64_srcptr u)/*{{{*/
     }
     return 1;
 }/*}}}*/
-void mat64_set_identity(mat64_ptr m)/*{{{*/
-{
-    uint64_t mask = 1;
-    for(int j = 0 ; j < 64 ; j++, mask<<=1) m[j]=mask;
-}/*}}}*/
-void mat64_copy(mat64_ptr b, mat64_srcptr a)/*{{{*/
-{
-    memcpy(b,a,sizeof(mat64));
-}/*}}}*/
-void mat64_set_zero(mat64_ptr m)/*{{{*/
-{
-    memset(m,0,sizeof(mat64));
-}/*}}}*/
 
 
 /* from hacker's delight */
-void mat64_transpose_recursive_inplace(mat64_ptr a)/*{{{*/
+void mat64_transpose_recursive_inplace(mat64 & a)/*{{{*/
 {
     uint64_t m = UINT64_C(0x00000000FFFFFFFF);
 
@@ -89,9 +81,9 @@ void mat64_transpose_recursive_inplace(mat64_ptr a)/*{{{*/
 }/*}}}*/
 
 /* not in place ! */
-void mat64_transpose_simple_and_stupid(mat64_ptr dst, mat64_srcptr src)/*{{{*/
+void mat64_transpose_simple_and_stupid(mat64 & dst, mat64 const & src)/*{{{*/
 {
-    ASSERT_ALWAYS(dst != src);
+    ASSERT_ALWAYS(&dst != &src);
     for (int i = 0; i < 64; i++) {
 	dst[i] = 0;
 	for (int j = 0; j < 64; j++) {
@@ -100,20 +92,20 @@ void mat64_transpose_simple_and_stupid(mat64_ptr dst, mat64_srcptr src)/*{{{*/
     }
 }/*}}}*/
 
-void mat64_transpose_recursive(mat64_ptr dst, mat64_srcptr src)/*{{{*/
+void mat64_transpose_recursive(mat64 & dst, mat64 const & src)/*{{{*/
 {
-    memcpy(dst, src, sizeof(mat64));
+    if (&dst != &src) dst = src;
     mat64_transpose_recursive_inplace(dst);
 }/*}}}*/
 
 /* {{{ final choices. These are static choices at this point, but it should
  * be the result of some tuning, ideally */
-void mat64_add(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)
+void mat64_add(mat64 & C, mat64 const & A, mat64 const & B)
 {
     mat64_add_C(C,A,B);
 }
 
-void mat64_transpose(mat64_ptr dst, mat64_srcptr src)
+void mat64_transpose(mat64 & dst, mat64 const & src)
 {
     mat64_transpose_recursive(dst, src);
 }

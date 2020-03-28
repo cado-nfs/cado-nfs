@@ -199,7 +199,7 @@ void blstate_set_start(struct blstate * bl)
     /* D = identity, L too, and V = 0 */
     for(int i = 0 ; i < 3 ; i++) {
         bit_vector_set(bl->D[i], 1);
-        mat64_set_identity(bl->L[i]);
+        bl->L[i] = 1;
     }
     /* matmul_top_vec_init has already set V to zero */
     /* for bw->dir=0, mmt->n0[0] is the number of rows. */
@@ -229,9 +229,9 @@ void blstate_load(struct blstate * bl, unsigned int iter)
         FILE * f = fopen(tmp, "rb");
         bit_vector_read_from_stream(bl->D[i1], f);
         size_t rc;
-        rc = fread(bl->L[i1], sizeof(mat64), 1, f);
+        rc = fread(bl->L[i1].data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
-        rc = fread(bl->L[i2], sizeof(mat64), 1, f);
+        rc = fread(bl->L[i2].data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -281,7 +281,7 @@ void blstate_save(struct blstate * bl, unsigned int iter)
         FILE * f = fopen(tmp, "wb");
         bit_vector_write_to_stream(bl->D[i1], f);
         size_t rc;
-        rc = fwrite(bl->L[i1], sizeof(mat64), 1, f);
+        rc = fwrite(bl->L[i1].data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -313,9 +313,9 @@ void blstate_save(struct blstate * bl, unsigned int iter)
  *
  * This is a collective operation.
  */
-int mmt_vec_echelon(mat64_ptr m, mmt_vec_ptr v0)
+int mmt_vec_echelon(mat64 & m, mmt_vec_ptr v0)
 {
-    mat64_set_identity(m);
+    m = 1;
     uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
     size_t eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
@@ -371,8 +371,8 @@ int mmt_vec_echelon(mat64_ptr m, mmt_vec_ptr v0)
      * that non-zero rows are before zero rows. */
     mat64 Z, N;
     int nZ = 0, nN = 0;
-    memset(Z, 0, sizeof(mat64));
-    memset(N, 0, sizeof(mat64));
+    Z = 0;
+    N = 0;
     for(int i = 0 ; i < 64 ; i++) {
         uint64_t mi = UINT64_C(1) << i;
         if (usedrows & mi) {
@@ -383,8 +383,8 @@ int mmt_vec_echelon(mat64_ptr m, mmt_vec_ptr v0)
     }
     ASSERT_ALWAYS(nN == rank);
     ASSERT_ALWAYS(nZ == 64 - rank);
-    memcpy(m, N, rank * sizeof(uint64_t));
-    memcpy(m + rank, Z, (64 - rank) * sizeof(uint64_t));
+    memcpy(m.data(), N.data(), rank * sizeof(uint64_t));
+    memcpy(m.data() + rank, Z.data(), (64 - rank) * sizeof(uint64_t));
 
     return rank;
 }
@@ -448,7 +448,7 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
     r = mmt_vec_echelon(m0, bl->y);
     if (tcan_print) printf("\trank(V) == %d\n", r);
     /* m1 will be largest rank matrix such that m1*V*M == 0 */
-    r = mmt_vec_echelon(m1,bl-> my);
+    r = mmt_vec_echelon(m1, bl-> my);
     if (tcan_print) printf("\trank(V*M) == %d\n", r);
 
     /* good, so now let's look for real nullspace elements. Since
@@ -463,7 +463,7 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m1, sizeof(mat64), 1, f);
+        size_t rc = fwrite(m1.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -489,7 +489,7 @@ void blstate_save_result(struct blstate * bl, unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m2, sizeof(mat64), 1, f);
+        size_t rc = fwrite(m2.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -743,17 +743,17 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
                 uint64_t * X   = (uint64_t *) mmt_my_own_subvec(bl->y);
                 uint64_t D0;
                 uint64_t D1 = bl->D[i1]->p[0];
-                mat64_ptr mvav = (mat64_ptr) vav;
-                mat64_ptr mvaav = (mat64_ptr) vaav;
-                mat64_ptr mL0 = bl->L[i0];
-                mat64_ptr mL1 = bl->L[i1];
-                mat64_ptr mL2 = bl->L[i2];
+                mat64 & mvav = *(mat64*) vav;
+                mat64 & mvaav = *(mat64*) vaav;
+                mat64 & mL0 = bl->L[i0];
+                mat64 & mL1 = bl->L[i1];
+                mat64 & mL2 = bl->L[i2];
                 mat64 m0, m1, m2, t;
 
                 /* We need to save vav for use a wee bit later in this loop. */
-                memcpy(t, mvav, sizeof(mat64));
+                t = mvav;
 
-                D0 = bl->D[i0]->p[0] = extraction_step(mL0, t, D1);
+                D0 = bl->D[i0]->p[0] = extraction_step(mL0.data(), t.data(), D1);
 
                 int Ni = bit_vector_popcount(bl->D[i0]);
                 sum_Ni += Ni;

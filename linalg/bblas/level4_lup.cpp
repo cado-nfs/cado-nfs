@@ -14,9 +14,9 @@
  *  -   up[k]==0 iff up[k,k] == 0
  *  -   rank(up)=rank(a)=# of diagonal 1's in up.
  */
-int LUP64_imm(mat64 l, mat64 u, mat64 p, mat64 a)
+int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
 {
-    memcpy(u,a,sizeof(mat64));
+    u = a;
     uint64_t mask=1;
     uint64_t todo=~UINT64_C(0);
     int r = 0;
@@ -53,8 +53,8 @@ int LUP64_imm(mat64 l, mat64 u, mat64 p, mat64 a)
         __m128i vv = _cado_mm_set1_epi64(v);
         __m128i pp = _cado_mm_set1_epi64(pr);
         __m128i ee = _cado_mm_set1_epi64(l[j]);
-        __m128i * uu = (__m128i*) (u+k);
-        __m128i * ll = (__m128i*) (l+k);
+        __m128i * uu = (__m128i*) (u.data()+k);
+        __m128i * ll = (__m128i*) (l.data()+k);
         for( ; k < 64 ; k+=2 ) {
             __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));

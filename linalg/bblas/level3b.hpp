@@ -17,24 +17,24 @@
 
 /* implementation details, variants */
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B);
+void mul_6464_6464_sse(mat64 & C, mat64 const & A, mat64 const & B);
 #endif
 
-void mul_6464_6464_v2(mat64_ptr C, mat64_srcptr A, mat64_srcptr B);
+void mul_6464_6464_v2(mat64 & C, mat64 const & A, mat64 const & B);
 
-void addmul_6464_6464_fragment_lookup4(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B,
+void addmul_6464_6464_fragment_lookup4(mat64 & C,
+                   mat64 const & A,
+                   mat64 const & B,
                    unsigned int i0,
                    unsigned int i1,
                    unsigned int yi0,
                    unsigned int yi1);
 
 /* final exported choices */
-void mul_6464_6464(mat64 C, mat64 A, mat64 B);
-void addmul_6464_6464_fragment(uint64_t *C,
-                   const uint64_t *A,
-                   const uint64_t *B,
+void mul_6464_6464(mat64 & C, mat64 const & A, mat64 const & B);
+void addmul_6464_6464_fragment(mat64 & C,
+                   mat64 const & A,
+                   mat64 const & B,
                    unsigned int i0,
                    unsigned int i1,
                    unsigned int yi0,

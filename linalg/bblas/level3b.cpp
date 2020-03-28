@@ -16,13 +16,13 @@
  */
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)/*{{{*/
+void mul_6464_6464_sse(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 {
     int i;
-    memset(C, 0, sizeof(mat64));
+    C = 0;
  
-    __m128i *Cw = (__m128i *) C;
-    __m128i *Aw = (__m128i *) A;
+    __m128i *Cw = (__m128i *) C.data();
+    __m128i *Aw = (__m128i *) A.data();
 
     for (int j = 0; j < 64; j += 2) {
 	__m128i c = _mm_setzero_si128();
@@ -40,21 +40,21 @@ void mul_6464_6464_sse(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)/*{{{*/
 }/*}}}*/
 #endif
 
-void mul_6464_6464_v2(mat64_ptr C, mat64_srcptr A, mat64_srcptr B)/*{{{*/
+void mul_6464_6464_v2(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 {
-    memset(C, 0, sizeof(mat64));
- 
+    C = 0;
+
     for (int i = 0; i < 64; i++) {
-    for (int j = 0; j < 64; j++) {
-        if ((A[i]>>j)&1)
-            C[i]^=B[j];
-    }
+        for (int j = 0; j < 64; j++) {
+            if ((A[i]>>j)&1)
+                C[i]^=B[j];
+        }
     }
 }/*}}}*/
 
-void MAYBE_UNUSED addmul_6464_6464_fragment_lookup4(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B,
+void addmul_6464_6464_fragment_lookup4(mat64 & C,/*{{{*/
+                   mat64 const & A,
+                   mat64 const & B,
                    unsigned int i0,
                    unsigned int i1,
                    unsigned int yi0,
@@ -64,7 +64,7 @@ void MAYBE_UNUSED addmul_6464_6464_fragment_lookup4(uint64_t *C,/*{{{*/
     unsigned int j0 = yi0 / 4;
     unsigned int j1 = (yi1 + 3) / 4;
     for(unsigned int j = j0 ; j < j1 ; j++) {
-        const uint64_t * bb = B + 4 * j;
+        const uint64_t * bb = B.data() + 4 * j;
         uint64_t w = 0;
         Bx[j][0]  = w; w ^= bb[0];
         Bx[j][1]  = w; w ^= bb[1];
@@ -94,14 +94,14 @@ void MAYBE_UNUSED addmul_6464_6464_fragment_lookup4(uint64_t *C,/*{{{*/
 
 /* {{{ final choices. These are static choices at this point, but it should
  * be the result of some tuning, ideally */
-void mul_6464_6464(mat64 C, mat64 A, mat64 B)
+void mul_6464_6464(mat64 & C, mat64 const & A, mat64 const & B)
 {
-    mul_N64_6464_lookup4(C,A,B,64);
+    mul_N64_6464_lookup4(C.data(), A.data(), B, 64);
 }
 /*}}}*/
-void MAYBE_UNUSED addmul_6464_6464_fragment(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B,
+void MAYBE_UNUSED addmul_6464_6464_fragment(mat64 & C,/*{{{*/
+                   mat64 const & A,
+                   mat64 const & B,
                    unsigned int i0,
                    unsigned int i1,
                    unsigned int yi0,

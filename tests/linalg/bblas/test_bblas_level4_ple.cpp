@@ -7,7 +7,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)
 {
     const unsigned int B = 64;
     mat64 * X = new mat64[(m/B)*(n/B)];
-    PLE ple((mat64_ptr) X, m/B, n/B);
+    PLE ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 10 ; k++) {
         std::vector<unsigned int> f;
@@ -16,7 +16,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)
             f.push_back(gmp_urandomb_ui(rstate, 30));
             u.push_back(1 + gmp_urandomm_ui(rstate, 3*m-1));
         }
-        memset(X, 0, (m/B) * (n/B) * sizeof(mat64));
+        memset((void *) X, 0, (m/B) * (n/B) * sizeof(mat64));
         for(unsigned int j = 0 ; j < n ; j++) {
             for(unsigned int i = 0 ; i < m ; i++) {
                 uint64_t b = (f[j]+i) % u[j] == 0;

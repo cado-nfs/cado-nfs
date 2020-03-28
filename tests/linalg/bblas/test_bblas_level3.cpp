@@ -11,14 +11,6 @@ test_bblas_base::tags_t test_bblas_level3::level3a_tags { "basic", "l3a", "l3"};
 void test_bblas_level3::level3a()
 {
     printf(" -- straightforward operations --\n");
-    /* copy */
-    mat64_copy(r, a);
-    mat64_copy(xr, r);
-
-    mat64_copy(r, a);
-    ASSERT_ALWAYS(mat64_eq(xr, r));
-    TIME1(1, mat64_copy, r, a);
-
 #ifdef  HAVE_M4RI
     mzd_copy(R, A);
     mzd_check_mem(R, xr, 64);
@@ -26,12 +18,15 @@ void test_bblas_level3::level3a()
 #endif				/* HAVE_M4RI */
 
     /* add */
-    mat64_add(r, a, w);
-    mat64_copy(xr, r);
+    mat64 & R = * (mat64 *) r;
+    mat64 & XR = * (mat64 *) xr;
+    mat64 & A = * (mat64 *) a;
+    mat64_add(R, A, w);
+    XR = R;
 
-    mat64_add_C(r, a, w);
-    ASSERT_ALWAYS(mat64_eq(xr, r));
-    TIME1(1, mat64_add_C, r, a, w);
+    mat64_add_C(R, A, w);
+    ASSERT_ALWAYS(XR == R);
+    TIME1(1, mat64_add_C, R, A, w);
 
 #ifdef  HAVE_M4RI
     mzd_add(R, A, W);
@@ -46,12 +41,16 @@ void test_bblas_level3::transpose() {
     /* There is no BLAS analogue, but it seems that it should be
      * categorized together with the other 3a things.
      */
-    mat64_transpose(r, a);
-    mat64_transpose(xr, r);
-    ASSERT_ALWAYS (mat64_eq(xr, a));
-    TIME1(1, mat64_transpose_simple_and_stupid, r, a);
-    TIME1(1, mat64_transpose_recursive, r, a);
-    TIME1(1, mat64_transpose, r, a);
+    mat64 & R = * (mat64 *) r;
+    mat64 & XR = * (mat64 *) xr;
+    mat64 & A = * (mat64 *) a;
+
+    mat64_transpose(R, A);
+    mat64_transpose(XR, R);
+    ASSERT_ALWAYS(XR == A);
+    TIME1(1, mat64_transpose_simple_and_stupid, R, A);
+    TIME1(1, mat64_transpose_recursive, R, A);
+    TIME1(1, mat64_transpose, R, A);
 
 #ifdef  HAVE_M4RI
     mzd_transpose(R, A);
@@ -86,7 +85,7 @@ void test_bblas_level3::matpoly_polmat() {
     for(unsigned int i = 0 ; i < K ; i++ ) {
         for(unsigned int j = 0 ; j < L ; j++ ) {
             for(size_t k = 0 ; k < n ; k++) {
-                ASSERT_ALWAYS(mat64_eq(A[(k*K+i)*L+j], B[(k*K+i)*L+j]));
+                ASSERT_ALWAYS(A[(k*K+i)*L+j] == B[(k*K+i)*L+j]);
             }
         }
     }
@@ -94,7 +93,7 @@ void test_bblas_level3::matpoly_polmat() {
     for(unsigned int i = 0 ; i < K ; i++ ) {
         for(unsigned int j = 0 ; j < L ; j++ ) {
             for(size_t k = 0 ; k < n ; k++) {
-                ASSERT_ALWAYS(mat64_eq(A[(k*K+i)*L+j], B[(k*K+i)*L+j]));
+                ASSERT_ALWAYS(A[(k*K+i)*L+j] == B[(k*K+i)*L+j]);
             }
         }
     }
@@ -107,26 +106,28 @@ void test_bblas_level3::matpoly_polmat() {
 
 test_bblas_base::tags_t test_bblas_level3::matmul_tags { "matmul", "l3b", "l3" };/*{{{*/
 void test_bblas_level3::matmul() {
-    unsigned int n = 64;
-
     printf(" -- matrix products --\n");
     /* BLAS level 3 analogue: cblas_dgemm */
 
-    TIME1(1, mul_6464_6464, r, a, w);
+    mat64 & R = * (mat64 *) r;
+    mat64 & XR = * (mat64 *) xr;
+    mat64 & A = * (mat64 *) a;
+
+    TIME1(1, mul_6464_6464, R, A, w);
 
     /* multiplicate of two 64x64 matrices */
-    mul_6464_6464(r, a, w);
-    memcpy(xr, r, n * sizeof(uint64_t));
+    mul_6464_6464(R, A, w);
+    XR = R;
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-    mul_6464_6464_sse(r, a, w);
-    ASSERT_ALWAYS(memcmp(xr, r, n * sizeof(uint64_t)) == 0);
-    TIME1(1, mul_6464_6464_sse, r, a, w);
+    mul_6464_6464_sse(R, A, w);
+    ASSERT_ALWAYS(XR == R);
+    TIME1(1, mul_6464_6464_sse, R, A, w);
 #endif
 
-    mul_6464_6464_v2(r, a, w);
-    ASSERT_ALWAYS(memcmp(xr, r, n * sizeof(uint64_t)) == 0);
-    TIME1(1, mul_6464_6464_v2, r, a, w);
+    mul_6464_6464_v2(R, A, w);
+    ASSERT_ALWAYS(XR == R);
+    TIME1(1, mul_6464_6464_v2, R, A, w);
 
     /* Functions which can do any n can also do n=64 */
     test_bblas_level3(64).level3c_list();
@@ -136,9 +137,12 @@ test_bblas_base::tags_t test_bblas_level3::rank_n_update_tags { "rank_n_update",
 void test_bblas_level3::rank_n_update() {
     unsigned int n = nmax;
     printf(" -- rank-n updates --\n");
-    TIME1N(1, mul_TN64_N64_addmul, r, a, b, n);
+
+    mat64 & R = * (mat64 *) r;
+
+    TIME1N(1, mul_TN64_N64_addmul, R, a, b, n);
     TIME1N(5, mul_TN32_N64_C, r, (uint32_t*)a, b, n);
-    TIME1N(5, mul_TN64_N64_C, r, a, b, n);
+    TIME1N(5, mul_TN64_N64_C, R, a, b, n);
 }/* }}} */
 
 test_bblas_base::tags_t test_bblas_level3::level3c_tags { "l3c", "l3" };/*{{{*/
@@ -208,16 +212,16 @@ void test_bblas_level3::trsm() {
     /* BLAS level 3 analogue: cblas_dtrsm */
     printf(" -- solve unit lower triangular systems\n");
     mat64 L, U0, Li, U1;
-    memfill_random(L, (64) * sizeof(uint64_t), rstate);
+    mat64_fill_random(L, rstate);
     for(unsigned int i = 0 ; i < 64 ; i++) {
         L[i] &= (UINT64_C(1) << i) - 1;
         L[i] |=  UINT64_C(1) << i;
     }
     full_echelon_6464_imm(U0, Li, L);
-    memfill_random(U0, (64) * sizeof(uint64_t), rstate);
-    mat64_copy(U1, U0);
+    mat64_fill_random(U0, rstate);
+    U1 = U0;
     TIME1(1, trsm64, L, U0);
-    mat64_copy(U0, U1);
+    U0 = U1;
     trsm64(L, U0);
     trsm64(L, U1);
     ASSERT_ALWAYS(mat64_eq(U0, U1));

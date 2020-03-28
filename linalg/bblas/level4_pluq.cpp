@@ -16,7 +16,7 @@
  * non-zero coefficient, then phi[i] < 0.
  * In column phi[i]-col_offset of u, entries of row index >i are zero.
  */
-int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
+int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offset)
 {
     const int m = 64;
     const int n = 64;
@@ -26,8 +26,8 @@ int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
         for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
     }
 
-    mat64_copy(u, a);
-    mat64_set_identity(l);
+    u = a;
+    l = 1;
     int rank = 0;
     uint64_t todo=~((uint64_t)0);
     for(int i = 0 ; i < m ; i++) {
@@ -56,8 +56,8 @@ int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
         __m128i vv = _cado_mm_set1_epi64(v);
         __m128i pp = _cado_mm_set1_epi64(r);
         __m128i ee = _cado_mm_set1_epi64(l[i]);
-        __m128i * uu = (__m128i*) (u+k);
-        __m128i * ll = (__m128i*) (l+k);
+        __m128i * uu = (__m128i*) (u.data() + k);
+        __m128i * ll = (__m128i*) (l.data() + k);
         for( ; k < n ; k+=2 ) {
             __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));
@@ -92,11 +92,11 @@ int PLUQ64_inner(int * phi, mat64 l, mat64 u, mat64 a, int col_offset)
  * triangular matrix, whose diagonal has r one and n-r zeros.
  */
 /* outer routine */
-int PLUQ64(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m)
+int PLUQ64(perm_matrix_ptr p, mat64 & l, mat64 & u, perm_matrix_ptr q, mat64 const & m)
 {
     int phi[64];
     for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
-    int r = PLUQ64_inner(phi,l[0],u[0],m[0],0);
+    int r = PLUQ64_inner(phi,l,u,m,0);
     /* l*m = u */
     /* p*u*transpose(q) = diagonal.
      * p*l*m*transpose(q) = diagonal.
@@ -105,12 +105,12 @@ int PLUQ64(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m
     return r;
 }
 
-int PLUQ64_n(int * phi, mat64 l, mat64 * u, mat64 * a, int n)
+int PLUQ64_n(int * phi, mat64 & l, mat64 * u, mat64 const * a, int n)
 {
     const int m = 64;
     ASSERT_ALWAYS(n % 64 == 0);
     int nb = n/m;
-    mat64_set_identity(l);
+    l = 1;
     for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
     int rank = 0;
     int b = 0;
@@ -127,9 +127,9 @@ int PLUQ64_n(int * phi, mat64 l, mat64 * u, mat64 * a, int n)
         mul_6464_6464(l, tl, l);
 #ifdef  ALLOC_LS
         ls[b]=(mat64*) malloc_aligned(sizeof(mat64), 64);
-        mat64_copy(*ls[b], tl);
+        *ls[b] = tl;
 #else
-        mat64_copy(ls[b], tl);
+        ls[b] = tl;
 #endif
     }
     int nspins = b;
@@ -152,7 +152,7 @@ int PLUQ64_n(int * phi, mat64 l, mat64 * u, mat64 * a, int n)
     return nspins*m+b;
 }
 
-static inline void bli_64x64N_clobber(mat64 h, mat64 * us, int * phi, int nb)
+static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
 {
     /* problem: we're modifying U here. So either we do a copy of U,
      * which can be probelmatic memory-wise, or we do an extraction ;
@@ -160,7 +160,7 @@ static inline void bli_64x64N_clobber(mat64 h, mat64 * us, int * phi, int nb)
      * and U', merely with a product (_if ever_ we care about U, in
      * fact). However this latter option seems messy.
      */
-    mat64_set_identity(h);
+    h = 1;
     const int m = 64;
     for(int i = 0 ; i < m ; i++) {
         int j = phi[i];
@@ -172,15 +172,15 @@ static inline void bli_64x64N_clobber(mat64 h, mat64 * us, int * phi, int nb)
         int k = 0;
 #if defined(HAVE_SSE41) && !defined(VALGRIND)
         __m128i mm = _cado_mm_set1_epi64(m);
-        __m128i * uu = (__m128i*) us[d];
-        __m128i * hh = (__m128i*) h;
+        __m128i * uu = (__m128i*) us[d].data();
+        __m128i * hh = (__m128i*) h.data();
         __m128i hi = _cado_mm_set1_epi64(h[i]);
         int ii=i/2;
         for( ; k < ii ; k++) {
             __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu++,mm),mm);
             for(int b = 0 ; b < nb ; b++) {
                 // ((__m128i*)us[b])[k] ^= ww & _cado_mm_set1_epi64(us[b][i]);
-                __m128i * z = ((__m128i*)us[b]) + k;
+                __m128i * z = ((__m128i*)us[b].data()) + k;
                 *z = _mm_xor_si128(*z, _mm_and_si128(ww, _cado_mm_set1_epi64(us[b][i])));
             }
             hh[k] = _mm_xor_si128(hh[k], _mm_and_si128(ww, hi));
@@ -207,14 +207,14 @@ static inline void bli_64x64N_clobber(mat64 h, mat64 * us, int * phi, int nb)
  * distinct, compute a matrix H such that H*U has exactly one non-zero
  * entry in each column whose index is a value taken by phi.
  */
-void bli_64x128(mat64 h, mat64 * us, int * phi)
+void bli_64x128(mat64 & h, mat64 * us, int * phi)
 {
     mat64 uc[2] ATTRIBUTE((aligned(64)));
     memcpy(uc,us,2*sizeof(mat64));
     bli_64x64N_clobber(h,uc,phi,2);
 }
 
-void extract_cols_64_from_128(mat64 t, mat64 * m, int * phi)
+void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
 {
     // given the list of 64 integers phi, all in the range {-1} union
     // {0..127}, constitute a 64x64 matrix whose column of index j is
@@ -225,7 +225,7 @@ void extract_cols_64_from_128(mat64 t, mat64 * m, int * phi)
         if (phi[j]<0) continue;
         s[phi[j]/64][j]=((uint64_t)1)<<(phi[j]%64);
     }
-    memset(t, 0, sizeof(mat64));
+    t = 0;
     uint64_t mask = 1;
     for(int j = 0 ; j < 64 ; j++, mask<<=1) {
 #if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
@@ -237,8 +237,8 @@ void extract_cols_64_from_128(mat64 t, mat64 * m, int * phi)
         __m128i ss[2] = {
             _cado_mm_set1_epi64(s[0][j]),
             _cado_mm_set1_epi64(s[1][j]) };
-        __m128i * mm[2] = {(__m128i*)m[0],(__m128i*)m[1]};
-        __m128i * tt = (__m128i*)t;
+        __m128i * mm[2] = {(__m128i*)m[0].data(),(__m128i*)m[1].data()};
+        __m128i * tt = (__m128i*)t.data();
         __m128i mmk = _cado_mm_set1_epi64(mask);
         for(int i = 0 ; i < 64 ; i+=2) {
             // *tt ^= mmk & _mm_cmpeq_epi64((*mm[0]&ss[0])^(*mm[1]&ss[1]),ss[0]^ss[1]);
@@ -282,7 +282,7 @@ void extract_cols_64_from_128(mat64 t, mat64 * m, int * phi)
  * here for PLUQ and such have never been put in production, so I'm
  * pretty sure they're quite fragile.
  */
-int PLUQ128(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m)
+int PLUQ128(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 const * m)
 {
     /* This is really an outer routine. An inner routine will not have p
      * and q, but rather both merged as a phi argument, in the manner of
@@ -292,10 +292,10 @@ int PLUQ128(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * 
     int phi[128];
     for(int i = 0 ; i < 128 ; i++) phi[i]=-1;
 
-    mat64_set_zero(l[0]);
-    mat64_set_zero(l[1]);
-    mat64_set_zero(l[2]);
-    mat64_set_identity(l[3]);
+    l[0] = 0;
+    l[1] = 0;
+    l[2] = 0;
+    l[3] = 1;
 
     int r1 = PLUQ64_n(phi,l[0],u,m,128);
     r1 = r1 % 64;
@@ -309,7 +309,7 @@ int PLUQ128(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * 
     /* h * u is "sort of" identity, at least up to permutation */
 
     mat64 l21;
-    mat64_ptr S = l21;
+    mat64 & S = l21;
 
     /* This is __very__ expensive w.r.t. what it really does :-(( */
     extract_cols_64_from_128(S, m+2, phi);

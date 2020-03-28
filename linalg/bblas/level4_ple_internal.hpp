@@ -5,7 +5,7 @@
 #include <vector>
 
 struct PLE {/*{{{*/
-    mat64_ptr X;
+    mat64 * X;
     unsigned int m;
     unsigned int n;
 
@@ -28,7 +28,7 @@ struct PLE {/*{{{*/
             unsigned int yi1,
             unsigned int ii) const;
 
-    PLE(mat64_ptr X, unsigned int m, unsigned int n) : X(X), m(m), n(n) {}
+    PLE(mat64 * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) {}
 
     int operator()(unsigned int * p0);
 };/*}}}*/

@@ -86,7 +86,7 @@ void test_bblas_level4::pluq() {
         perm_matrix_init(p, 64);
         perm_matrix_init(q, 64);
         memfill_random(m, sizeof(mat64), rstate);
-        PLUQ64(p,l,u,q,m);
+        PLUQ64(p,l[0],u[0],q,m[0]);
         check_pluq(p,l,u,q,m,64);
         perm_matrix_clear(p);
         perm_matrix_clear(q);

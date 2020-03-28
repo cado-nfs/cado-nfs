@@ -15,15 +15,15 @@
  */
 
 /* implementation details, variants */
-void addmul_To64_o64_lsb(uint64_t * r, uint64_t a, uint64_t w);
-void addmul_To64_o64_msb(uint64_t * r, uint64_t a, uint64_t w);
-void addmul_To64_o64_lsb_packof2(uint64_t * r, uint64_t a, uint64_t w);
+void addmul_To64_o64_lsb(mat64 & r, uint64_t a, uint64_t w);
+void addmul_To64_o64_msb(mat64 & r, uint64_t a, uint64_t w);
+void addmul_To64_o64_lsb_packof2(mat64 & r, uint64_t a, uint64_t w);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w);
+void addmul_To64_o64_lsb_sse_v1(mat64 & r, uint64_t a, uint64_t w);
 #endif
 
 /* final exported choices */
-void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w);
+void addmul_To64_o64(mat64 & r, uint64_t a, uint64_t w);
 
 #endif	/* BBLAS_LEVEL2A_HPP_ */

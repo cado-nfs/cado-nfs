@@ -38,9 +38,9 @@ void test_bblas_level4::gauss() {
     mat64 e;
     mat64 mm;
     mat64 l, u, p;
-    memfill_random(m, sizeof(mat64), rstate);
-    memfill_random(e, sizeof(mat64), rstate);
-    memfill_random(mm, sizeof(mat64), rstate);
+    mat64_fill_random(m, rstate);
+    mat64_fill_random(e, rstate);
+    mat64_fill_random(mm, rstate);
     mat64 m4[4];
     mat64 u4[4];
     memfill_random(m4, 4 * sizeof(mat64), rstate);
@@ -67,7 +67,7 @@ void test_bblas_level4::gauss() {
     TIME1N_SPINS(memfill_random(m4, n*sizeof(mat64), rstate), 2, PLUQ64_n, phi, l, u4, m4, 64*n);
     TIME1(2, LUP64_imm, l, u, p, m);
     TIME1(2, full_echelon_6464_imm, mm, e, m);
-    TIME1(2, gauss_128128_C, m4[0]);
+    TIME1(2, gauss_128128_C, m4);
 #ifdef  HAVE_M4RI
     m4ri_plu_tests(64);
     m4ri_plu_tests(128);

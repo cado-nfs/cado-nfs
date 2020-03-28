@@ -32,12 +32,12 @@
  *    - mul_TN64K_N64: rank-N update, but creates a matrix of size 64K*N
  */
 
-void copy_N64(uint64_t * dst, const uint64_t * src, size_t m)/*{{{*/
+void copy_N64(uint64_t * dst, uint64_t const * src, size_t m)/*{{{*/
 {
     memcpy(dst, src, m * sizeof(uint64_t));
 }/*}}}*/
 
-int cmp_N64(const uint64_t * dst, const uint64_t * src, size_t m)/*{{{*/
+int cmp_N64(uint64_t const * dst, uint64_t const * src, size_t m)/*{{{*/
 {
     return memcmp(dst, src, m * sizeof(uint64_t));
 }/*}}}*/
@@ -47,12 +47,12 @@ int cmp_N64(const uint64_t * dst, const uint64_t * src, size_t m)/*{{{*/
 /* implements mul_N64_6464 */
 /* This can work in place (C==A, or C==B, or both) */
 void mul_N64_6464_lookup4(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     uint64_t Bx[16][16];
     for(int j = 0 ; j < 16 ; j++) {
-        const uint64_t * bb = B + 4 * j;
+        uint64_t const * bb = B.data() + 4 * j;
         uint64_t w = 0;
         Bx[j][0]  = w; w ^= bb[0];
         Bx[j][1]  = w; w ^= bb[1];
@@ -96,12 +96,12 @@ void mul_N64_6464_lookup4(uint64_t *C,/*{{{*/
 
 /* implements mul_N64_6464 */
 void mul_N64_6464_lookup8(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     uint64_t Bx[8][256];
     for(int j = 0 ; j < 8 ; j++) {
-        const uint64_t * bb = B + 8 * j;
+        uint64_t const * bb = B.data() + 8 * j;
         uint64_t w = 0;
         Bx[j][0] = w; w ^= bb[0];
         Bx[j][1] = w; w ^= bb[1];
@@ -376,8 +376,8 @@ void mul_N64_6464_lookup8(uint64_t *C,/*{{{*/
 
 /* implements mul_N64_6464 */
 void mul_N64_6464_vec(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
 
     memset(C, 0, m * sizeof(uint64_t));
@@ -388,8 +388,8 @@ void mul_N64_6464_vec(uint64_t *C,/*{{{*/
 
 /* implements mul_N64_6464 */
 void mul_N64_6464_transB(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     mat64 tb;
     mat64_transpose(tb, B);
@@ -399,8 +399,8 @@ void mul_N64_6464_transB(uint64_t *C,/*{{{*/
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements mul_N64_6464 */
 void mul_N64_6464_sse(uint64_t *C,/*{{{*/
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m)
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
 {
     /* can work in place, so not simply memset0 + addmul (the ^= have been
      * changed to =)
@@ -442,8 +442,8 @@ void mul_N64_6464_sse(uint64_t *C,/*{{{*/
 
 /* implements mul_N64_T6464 */
 void mul_N64_T6464_vec(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
 
     memset(C, 0, m * sizeof(uint64_t));
@@ -455,8 +455,8 @@ void mul_N64_T6464_vec(uint64_t *C,/*{{{*/
 
 /* implements mul_N64_T6464 */
 void mul_N64_T6464_transB(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     mat64 tb;
     mat64_transpose(tb, B);
@@ -468,12 +468,12 @@ void mul_N64_T6464_transB(uint64_t *C,/*{{{*/
 /* implements addmul_N64_6464 */
 /* This can work in place (C==A, or C==B, or both) */
 void MAYBE_UNUSED addmul_N64_6464_lookup4(uint64_t *C, /*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     uint64_t Bx[16][16];
     for(int j = 0 ; j < 16 ; j++) {
-        const uint64_t * bb = B + 4 * j;
+        uint64_t const * bb = B.data() + 4 * j;
         uint64_t w = 0;
         Bx[j][0]  = w; w ^= bb[0];
         Bx[j][1]  = w; w ^= bb[1];
@@ -516,8 +516,8 @@ void MAYBE_UNUSED addmul_N64_6464_lookup4(uint64_t *C, /*{{{*/
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements addmul_N64_6464 */
 void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m)
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
 {
     size_t j;
     __m128i *Cw = (__m128i *) C;
@@ -556,25 +556,25 @@ void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
 ///////////////////////////////////////////////////////////////////////
 
 /* implements mul_TN64_N64 */
-void mul_TN64_N64_addmul(uint64_t *r, uint64_t *a, uint64_t *w, size_t n)/*{{{*/
+void mul_TN64_N64_addmul(mat64 & r, uint64_t const *a, uint64_t const *w, size_t n)/*{{{*/
 {
-    memset(r, 0, 64 * sizeof(uint64_t));
+    r = 0;
     for (size_t i = 0; i < n; i++) {
         addmul_To64_o64(r, a[i], w[i]);
     }
 }/*}}}*/
 
 /* implements mul_TN64_N64 */
-void mul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void mul_TN64_N64_C(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
-    memset(b, 0, 64 * sizeof(uint64_t));
+    b = 0;
     addmul_TN64_N64_C(b, A, x, ncol);
 }/*}}}*/
 
 ///////////////////////////////////////////////////////////////////////
 
 /* implements addmul_TN64_N64 */
-void addmul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void addmul_TN64_N64_C(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
     uint64_t idx, i, rA;
     uint64_t rx;
@@ -592,7 +592,7 @@ void addmul_TN64_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int nc
 ///////////////////////////////////////////////////////////////////////
 
 /* implements mul_TN32_N64 */
-void mul_TN32_N64_C(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void mul_TN32_N64_C(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
     uint32_t idx, i, rA;
     uint64_t rx;
@@ -609,9 +609,9 @@ void mul_TN32_N64_C(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol)
 }/*}}}*/
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void MAYBE_UNUSED mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, unsigned int n, unsigned int K)/*{{{*/
+void mul_TN64K_N64_sse2(mat64 * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K)/*{{{*/
 {
-    memset(w, 0, 64 * K * sizeof(uint64_t));
+    memset((void *) w, 0, K * sizeof(mat64));
     for(unsigned int i = 0 ; i < n ; i++) {
         __m128i * w0 = (__m128i*) w;
         // TODO: It's possible to expand more, and use a __m128i
@@ -638,15 +638,15 @@ void MAYBE_UNUSED mul_TN64K_N64_sse2(uint64_t * w, uint64_t * u, uint64_t * v, u
 }/*}}}*/
 #endif
 
-void MAYBE_UNUSED mul_TN64K_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K)/*{{{*/
+void mul_TN64K_N64_C(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
 {
     uint64_t idx, i, rA;
     uint64_t rx;
 
-    memset(b, 0, 64 * K * sizeof(uint64_t));
+    memset((void *) b, 0, 64 * K * sizeof(uint64_t));
     for(idx = 0; idx < ncol; idx++) {
         rx = x[idx];
-        uint64_t* pb = b;
+        uint64_t * pb = (uint64_t *) b;
         for(unsigned int j = 0 ; j < K ; j++) {
             rA = *A++;
             for(i = 0; i < 64; i++) {
@@ -663,8 +663,8 @@ void MAYBE_UNUSED mul_TN64K_N64_C(uint64_t * b, uint64_t * A, uint64_t * x, unsi
 /* {{{ final choices. These are static choices at this point, but it should
  * be the result of some tuning, ideally */
 void mul_N64_6464(uint64_t *C,/*{{{*/
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m)
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
 {
 /* The chosen function is optimal (among the ones here) for N about
  * 20000. At N=2000000, a twice faster version can be obtained. However,
@@ -677,8 +677,8 @@ void mul_N64_6464(uint64_t *C,/*{{{*/
 #endif
 }/*}}}*/
 void addmul_N64_6464(uint64_t *C,/*{{{*/
-		 const uint64_t *A,
-		 const uint64_t *B, size_t m)
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
 {
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     addmul_N64_6464_sse(C,A,B,m);
@@ -687,25 +687,25 @@ void addmul_N64_6464(uint64_t *C,/*{{{*/
 #endif
 }/*}}}*/
 void mul_N64_T6464(uint64_t *C,/*{{{*/
-                   const uint64_t *A,
-                   const uint64_t *B, size_t m)
+                   uint64_t const *A,
+                   mat64 const & B, size_t m)
 {
     mul_N64_T6464_transB(C,A,B,m);
 }/*}}}*/
-void mul_TN64_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void mul_TN64_N64(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
     mul_TN64_N64_C(b, A, x, ncol);
 }/*}}}*/
-void addmul_TN64_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void addmul_TN64_N64(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
     addmul_TN64_N64_C(b, A, x, ncol);
 }/*}}}*/
-void mul_TN32_N64(uint64_t * b, uint32_t * A, uint64_t * x, unsigned int ncol)/*{{{*/
+void mul_TN32_N64(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
     mul_TN32_N64_C(b, A, x, ncol);
 }
 /*}}}*/
-void mul_TN64K_N64(uint64_t * b, uint64_t * A, uint64_t * x, unsigned int ncol, unsigned int K)/*{{{*/
+void mul_TN64K_N64(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
 {
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     mul_TN64K_N64_sse2(b, A, x, ncol, K);

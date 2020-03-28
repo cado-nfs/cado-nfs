@@ -14,7 +14,7 @@
  */
 
 /* implements mul_o64_6464 */
-void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64_srcptr w)/*{{{*/
+void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64 const & w)/*{{{*/
 {
     uint64_t c = 0;
     for (unsigned int i = 0; i < BBLAS_WBITS; i++) {
@@ -25,7 +25,7 @@ void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64_srcptr w)/*{{{*/
 }/*}}}*/
 
 /* implements mul_o64_6464 */
-void mul_o64_6464_C_msb(uint64_t *r, uint64_t a, mat64_srcptr w)/*{{{*/
+void mul_o64_6464_C_msb(uint64_t *r, uint64_t a, mat64 const & w)/*{{{*/
 {
     uint64_t c = 0;
     for (int i = 64 - 1; i >= 0; i--) {
@@ -36,7 +36,7 @@ void mul_o64_6464_C_msb(uint64_t *r, uint64_t a, mat64_srcptr w)/*{{{*/
 }/*}}}*/
 
 /* implements mul_o64_T6464 */
-void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64_srcptr b)/*{{{*/
+void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64 const & b)/*{{{*/
 {
     // Uses unoptimized __builtin_parityl function -- maybe better with gcc 4.3
     // note that popcnt is faster in asm than the more restricted parity
@@ -85,16 +85,16 @@ static inline uint64_t _parity64_helper2(const uint64_t* buf, uint64_t a)
    return XMIX4(c1, c0);
 }
 
-void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64_srcptr b)
+void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64 const & b)
 {
    uint64_t d0, d1, e0, e1;
 
-   d0 = _parity64_helper2(b, a);
-   d1 = _parity64_helper2(b + 2, a);
+   d0 = _parity64_helper2(b.data(), a);
+   d1 = _parity64_helper2(b.data() + 2, a);
    e0 = XMIX2(d1, d0);
 
-   d0 = _parity64_helper2(b + 1, a);
-   d1 = _parity64_helper2(b + 3, a);
+   d0 = _parity64_helper2(b.data() + 1, a);
+   d1 = _parity64_helper2(b.data() + 3, a);
    e1 = XMIX2(d1, d0);
 
    *w = XMIX1(e1, e0);
@@ -106,11 +106,11 @@ void mul_o64_T6464_C_parity3(uint64_t * w, uint64_t a, mat64_srcptr b)
  *
  * With respect to endianness, we match a&1 with w[0]
  */
-void mul_o64_6464(uint64_t * r, uint64_t a, mat64_srcptr w)
+void mul_o64_6464(uint64_t * r, uint64_t a, mat64 const & w)
 {
     mul_o64_6464_C_lsb(r,a,w);
 }
-void mul_o64_T6464(uint64_t * w, uint64_t a, mat64_srcptr b)
+void mul_o64_T6464(uint64_t * w, uint64_t a, mat64 const & b)
 {
     mul_o64_T6464_C_parity(w,a,b);
 }

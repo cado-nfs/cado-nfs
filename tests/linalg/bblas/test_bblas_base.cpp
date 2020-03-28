@@ -9,8 +9,6 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
     r =  new uint64_t[nmax];
     a =  new uint64_t[nmax];
     b =  new uint64_t[nmax];
-    w =  new uint64_t[64];
-    wt = new uint64_t[64];
 #ifdef  HAVE_M4RI
     R = mzd_init(nmax, 64);
     A = mzd_init(nmax, 64);
@@ -20,7 +18,7 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
 
     /* a, w, wt are assumed constant */
     memfill_random(a, (nmax) * sizeof(uint64_t), rstate);
-    memfill_random(w, (64) * sizeof(uint64_t), rstate);
+    mat64_fill_random(w, rstate);
     mat64_transpose(wt, w);
 
 #ifdef  HAVE_M4RI
@@ -35,8 +33,6 @@ test_bblas_base::~test_bblas_base() {/*{{{*/
     delete[] r;
     delete[] a;
     delete[] b;
-    delete[] w;
-    delete[] wt;
 #ifdef  HAVE_M4RI
     mzd_free(D->R);
     mzd_free(D->A);

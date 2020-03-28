@@ -26,8 +26,8 @@ struct test_bblas_base {
     uint64_t * r;
     uint64_t * a;
     uint64_t * b;
-    uint64_t * w;
-    uint64_t * wt;
+    mat64 w;
+    mat64 wt;
 
 #ifdef  HAVE_M4RI
     mzd_t *R;

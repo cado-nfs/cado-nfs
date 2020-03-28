@@ -39,7 +39,7 @@ void perm_matrix_get_matrix(mat64 * qm, perm_matrix_ptr qp)
     int n = qp->n;
     ASSERT_ALWAYS((n%64)==0);
     int nb = n/64;
-    memset(qm, 0, n*nb*sizeof(uint64_t));
+    memset((void *) qm, 0, nb*nb*sizeof(mat64));
     uint64_t * qq = (uint64_t*) qm;
     for(int k = 0 ; k < n ; ) {
         for(int jq = 0 ; jq < 64 ; jq++, k++, qq++) {

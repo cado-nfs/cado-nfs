@@ -14,46 +14,49 @@
  */
 
 /* compatible implementation for addmul_To64_o64 */
-void addmul_To64_o64_lsb(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
+void addmul_To64_o64_lsb(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* One way... */
+    mat64::datatype * rr = r.data();
     for (unsigned int i = 0; i < 64; i++) {
-	*r++ ^= w & -(a & 1);
+	*rr++ ^= w & -(a & 1);
 	a >>= 1;
     }
 }/*}}}*/
 
 /* compatible implementation for addmul_To64_o64 */
-void addmul_To64_o64_msb(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
+void addmul_To64_o64_msb(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* ... and the other. weird enough, it seems a bit faster in some
      * cases.
      */
+    mat64::datatype * rr = r.data();
     for (unsigned int i = 0; i < 64; i++) {
-	*r++ ^= w & (((int64_t) a) >> 63);
+	*rr++ ^= w & (((int64_t) a) >> 63);
 	a <<= 1;
     }
 }/*}}}*/
 
 /* compatible implementation for addmul_To64_o64 */
-void addmul_To64_o64_lsb_packof2(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
+void addmul_To64_o64_lsb_packof2(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* À peu près comme la méthode 1, mais pas mieux */
     typedef uint64_t mvec_t[2];
     mvec_t mb[4] = {
 	{0, 0}, {w, 0}, {0, w}, {w, w},
     };
+    mat64::datatype * rr = r.data();
     for (int i = 0; i < 64; i += 2) {
 	const uint64_t *y = mb[a & 3];
-	*r++ ^= y[0];
-	*r++ ^= y[1];
+	*rr++ ^= y[0];
+	*rr++ ^= y[1];
 	a >>= 2;
     }
 }/*}}}*/
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* compatible implementation for addmul_To64_o64 */
-void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
+void addmul_To64_o64_lsb_sse_v1(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* Using sse-2 */
     __m128i mb[4] = {
@@ -62,7 +65,7 @@ void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
 	_cado_mm_setr_epi64(0, w),
 	_cado_mm_set1_epi64(w),
     };
-    __m128i *sr = (__m128i *) r;
+    __m128i *sr = (__m128i *) r.data();
     for (int i = 0; i < 64; i += 2) {
 	*sr = _mm_xor_si128(*sr, mb[a & 3]);
         sr++;
@@ -74,7 +77,7 @@ void addmul_To64_o64_lsb_sse_v1(uint64_t * r, uint64_t a, uint64_t w)/*{{{*/
 
 /* final choice. This is a static choice at this point, but it should be
  * the result of some tuning, ideally */
-void addmul_To64_o64(uint64_t * r, uint64_t a, uint64_t w)
+void addmul_To64_o64(mat64 & r, uint64_t a, uint64_t w)
 {
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     addmul_To64_o64_lsb_sse_v1(r,a,w);
