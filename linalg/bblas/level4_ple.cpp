@@ -65,14 +65,21 @@ void PLE::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsi
     }
 }/*}}}*/
 
-void PLE::propagate_permutations(unsigned int ii0, unsigned int bj0, unsigned int const * q0, unsigned int const * q1) const/*{{{*/
+void PLE::propagate_permutations(unsigned int ii1, unsigned int bj0, unsigned int const * q0, unsigned int const * q1) const/*{{{*/
 {
+    /* This propagates the pending permutations outside the current block
+     * column.
+     * Permutations are given by the range [q0..q1). More precisely,
+     * the starting index is given by ii0 = ii1 - (q1 - q0), and the
+     * image of index ii is given by
+     *          *(q0 + ii - ii0) = *(q1 + ii - ii1)
+     */
     const unsigned int B = 64;
     for(unsigned bj = 0 ; bj < n ; bj++) {
         if (bj == bj0) continue;
-        unsigned int ii = ii0 - (q1 - q0);
+        unsigned int ii = ii1 - (q1 - q0);
         for(unsigned int const * q = q0 ; q != q1 ; q++, ii++) {
-            if (ii == *q0) continue;
+            if (ii == *q) continue;
             unsigned int bi = ii / B;
             unsigned int i  = ii & (B - 1);
             unsigned int pbi = *q / B;

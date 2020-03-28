@@ -13,7 +13,7 @@ struct PLE {/*{{{*/
 
     void propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
 
-    void propagate_permutations(unsigned int ii0, unsigned int bj0, unsigned int const * q0, unsigned int const * q1) const;
+    void propagate_permutations(unsigned int ii1, unsigned int bj0, unsigned int const * q0, unsigned int const * q1) const;
 
     void move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const;
 

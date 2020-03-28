@@ -50,7 +50,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)
     mat64 * X = new mat64[(m/B)*(n/B)];
     PLE ple(X, m/B, n/B);
 
-    for(unsigned int k = 0 ; k < 10 ; k++) {
+    for(unsigned int k = 0 ; k < 1000 ; k++) {
         unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
         unsigned int kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
         unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
@@ -94,11 +94,66 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)
     return 0;
 }
 
+int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)
+{
+    const unsigned int B = 64;
+    mat64 * X = new mat64[(m/B)*(n/B)];
+    PLE ple(X, m/B, n/B);
+
+    for(unsigned int k = 1 ; k <= 100 ; k++) {
+    for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
+        for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
+            unsigned int  bi =  ii / B;
+            unsigned int   i =  ii % B;
+            X[bi * n/B + bj][i] = kk;
+        }
+    }
+
+    unsigned int ii0 = gmp_urandomm_ui(rstate, m);
+    unsigned int ii1 = std::min((mp_limb_t) k, gmp_urandomm_ui(rstate, m + 1 - ii0)) + ii0;
+    unsigned int bj0 = gmp_urandomm_ui(rstate, n/B);
+    
+    unsigned int q[ii1 - ii0];
+
+    unsigned int * q0 = q;
+    unsigned int * q1 = q0 + ii1 - ii0;
+
+    for(unsigned int ii = ii0 ; ii < ii1 ; ii++) {
+        unsigned int pii = gmp_urandomm_ui(rstate, m - ii) + ii;
+        q[ii - ii0] = pii;
+        if (ii == pii) continue;
+        unsigned int  bi =  ii / B;
+        unsigned int   i =  ii % B;
+        unsigned int pbi = pii / B;
+        unsigned int  pi = pii % B;
+        mat64 & Y = X[bi * n/B + bj0];
+        mat64 & pY = X[pbi * n/B + bj0];
+        uint64_t c = Y[i] ^ pY[pi];
+        Y[i] ^= c;
+        pY[pi] ^= c;
+    }
+
+    ple.propagate_permutations(ii1, bj0, q0, q1);
+
+    for(unsigned int ii = 0 ; ii < m ; ii++) {
+        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+            unsigned int  bi =  ii / B;
+            unsigned int   i =  ii % B;
+            ASSERT_ALWAYS(X[bi * n/B + bj][i] - X[bi * n/B][i] == bj);
+        }
+    }
+    }
+
+    return 0;
+}
+
 test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
 void test_bblas_level4::ple()
 {
     test_PLE_find_pivot(64, 64);
-    test_PLE_find_pivot(128, 192);
     test_PLE_propagate_pivot(64, 64);
+    test_PLE_propagate_permutations(64, 64);
+    test_PLE_find_pivot(128, 192);
     test_PLE_propagate_pivot(128, 192);
+    test_PLE_propagate_permutations(128, 192);
 }
