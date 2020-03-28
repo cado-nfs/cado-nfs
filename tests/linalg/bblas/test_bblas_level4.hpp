@@ -20,6 +20,7 @@ struct test_bblas_level4 : public test_bblas_base
     void ple();
 
     int test_PLE_find_pivot(unsigned int m, unsigned int n);
+    int test_PLE_propagate_pivot(unsigned int m, unsigned int n);
 
 #ifdef  HAVE_M4RI
     void m4ri_plu_tests(int n);

@@ -42,20 +42,26 @@ int PLE::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned i
 
 void PLE::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
-    /* row ii to all rows below, but only for bits that are
-     * right after the pivot */
+    /* pivot row ii=bi*B+i to all rows below, but only for bits that are
+     * right after column jj=bj*B+j.
+     *
+     *
+     * This is done _only for the current column block bj !!!_
+     */
 
     const unsigned int B = 64;
-    mat64 & Y = X[bi * n + bj];
     if (j == B-1) return;
     uint64_t mask = UINT64_C(1) << j;
-    uint64_t c = Y[i] & ((-mask) << 1);
+    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
+    uint64_t c = X[bi * n + bj][i] & ((-mask) << 1);
     i++;
     if (i == B) { i = 0 ; bi++; }
     for( ; bi < m ; bi++) {
+        mat64 & Y = X[bi * n + bj];
         for( ; i < B ; i++) {
             Y[i] ^= c & -((Y[i] & mask) != 0);
         }
+        i = 0;
     }
 }/*}}}*/
 
