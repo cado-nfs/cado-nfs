@@ -104,17 +104,25 @@ void PLE::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & 
      * we want to put the multipliers in the right positions. All multiplier
      * columns referenced by the list Q, with logical leading
      * coordinates (yyi0+x, Q[x]) must move to column
-     * yyi0+x so that thaye are part of the unit lower triangular
+     * yyi0+x so that they are part of the unit lower triangular
      * matrix that we expect to find eventually.
-     * Note that by construction, (yii0+x)/B is constant as x runs
-     * through [0..Q.size()-1], and so is Q[x]/B.
+     * Note 1: the multiplier column is _under_ the leading coordinate
+     * (yyi0+x, Q[x]): only coordinates (yyi0+x+1, Q[x]) and downwards
+     * are moved).
+     * Note 2: by construction, (yii0+x)/B is constant as x runs through
+     * [0..Q.size()-1], and so is Q[x]/B.
+     *
+     * This function assumes that the matrix coefficients that receive
+     * coefficients from moved columns are set to zero beforehand, and
+     * ensures that matrix entries from moved columns are set to zero
+     * after the move (if they don't receive new column entries).
      */
     const unsigned int B = 64;
     unsigned int ybi = yii0 / B;
     unsigned int yi  = yii0 & (B-1);
     unsigned int k = Q.size();
     unsigned int yii = yii0;
-    ASSERT(!Q.size());
+    ASSERT(!Q.empty());
     /* move the L fragments */
     unsigned int zbj = Q[0] / B;
     for(unsigned int dy = 0, dz ; dy < k ; dy+=dz, yi+=dz, yii+=dz) {
@@ -136,22 +144,26 @@ void PLE::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & 
              *                     <= yii1 - 1
              * which on all accounts should still be in the same block.
              */
-            ASSERT((yi + warmup) / B == ybi);
+            ASSERT((yii + warmup) / B == ybi);
             uint64_t c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
             X[ybi * n + ybi][yi + warmup] ^= (c << yi);
             X[ybi * n + zbj][yi + warmup] ^= (c << zj);
             /* is there a simpler way ? mask += mask + 1 ? */
             mask |= mask << 1;
         }
+        /* we now move the part that comes _after_ the leading unit lower
+         * triangular block.
+         */
         unsigned int tbi = ybi;
         unsigned int ti = yi + dz;
         if (ti == B) { tbi++; ti = 0; }
         for( ; tbi < m ; tbi++) {
             for( ; ti < B ; ti++) {
                 uint64_t c = (X[tbi * n + zbj][ti] >> zj) & mask;
-                X[tbi * n + tbi][ti] ^= (c << ti);
+                X[tbi * n + ybi][ti] ^= (c << yi);
                 X[tbi * n + zbj][ti] ^= (c << zj);
             }
+            ti = 0;
         }
     }
 }/*}}}*/
