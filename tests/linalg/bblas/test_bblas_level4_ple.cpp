@@ -4,7 +4,7 @@
 #include <cstring>
 #include <algorithm>
 
-int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)
+int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
     mat64 * X = new mat64[(m/B)*(n/B)];
@@ -43,9 +43,9 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)
     delete[] X;
 
     return 0;
-}
+}/*}}}*/
 
-int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)
+int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
     mat64 * X = new mat64[(m/B)*(n/B)];
@@ -93,9 +93,9 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)
     delete[] X;
 
     return 0;
-}
+}/*}}}*/
 
-int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)
+int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
     mat64 * X = new mat64[(m/B)*(n/B)];
@@ -148,9 +148,9 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
     delete[] X;
 
     return 0;
-}
+}/*}}}*/
 
-int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
+int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
     mat64 * X = new mat64[(m/B)*(n/B)];
@@ -288,7 +288,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
             mpz_divexact_ui(NN,NN,3);
             for(unsigned int bj = 0 ; bj < n/B ; bj++, z -= B) {
-                unsigned int c = X[(ii/B)*(n/B)+bj][ii%B];
+                uint64_t c = X[(ii/B)*(n/B)+bj][ii%B];
                 c ^= mpz_get_uint64(NN);
                 if (z < B) c &= (UINT64_C(1) << z) - 1;
                 mpz_fdiv_q_2exp(NN, NN, 64);
@@ -301,7 +301,91 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
     delete[] X;
 
     return 0;
+}/*}}}*/
+
+int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
+{
+    const unsigned int B = 64;
+    std::vector<mat64> X ((m/B)*(n/B), 0);
+    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+            mat64_fill_random(X[bi*(n/B)+bj], rstate);
+        }
+    }
+    std::vector<mat64> Xc = X;
+
+    std::vector<unsigned int> pivs = binary_blas_PLE(&X[0], m/B, n/B);
+
+    /* apply the permutations to Xc */
+    /* it's also possible to use PLE::propagate_permutations for that as
+     * well (create a temp PLE object, call the method with appropriate
+     * arguments)
+     */
+    for(unsigned int ii = 0 ; ii < pivs.size() ; ii++) {
+        unsigned int pii = pivs[ii];
+        if (ii == pii) continue;
+        unsigned int bi = ii / B;
+        unsigned int i = ii % B;
+        unsigned int pbi = pii / B;
+        unsigned int pi = pii % B;
+        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+            mat64 & Y  = Xc[ bi * n/B + bj];
+            mat64 & pY = Xc[pbi * n/B + bj];
+            uint64_t c = Y[i] ^ pY[pi];
+            Y[i] ^= c;
+            pY[pi] ^= c;
+        }
+    }
+
+    /* extract below the diagonal */
+    std::vector<mat64> LL((m/B)*(m/B), 0);
+    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+        for(unsigned int bj = 0 ; bj < bi ; bj++) {
+            LL[bi*(m/B)+bj] = X[bi*(n/B)+bj];
+        }
+        if (bi < n/B) {
+            for(unsigned int i = 0 ; i < B ; i++) {
+                uint64_t c = X[bi*(n/B)+bi][i];
+                c &= (UINT64_C(1) << i) - 1;
+                c ^= (UINT64_C(1) << i);
+                LL[bi*(m/B)+bi][i] = c;
+            }
+        } else {
+            LL[bi*(m/B)+bi] = 1;
+        }
+    }
+
+    /* extract above the diagonal */
+    std::vector<mat64> UU((m/B)*(n/B), 0);
+    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+        if (bi < n/B) {
+            for(unsigned int i = 0 ; i < B ; i++) {
+                uint64_t c = X[bi*(n/B)+bi][i];
+                c &= -(UINT64_C(1) << i);
+                UU[bi*(n/B)+bi][i] = c;
+            }
+        }
+        for(unsigned int bj = bi + 1 ; bj < n/B ; bj++) {
+            UU[bi*(n/B)+bj] = X[bi*(n/B)+bj];
+        }
+    }
+
+    /* and now, multiply and check consistency */
+    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+            mat64 C = 0;
+            for(unsigned int bk = 0 ; bk < m/B ; bk++) {
+                addmul_6464_6464(C, LL[bi*(m/B)+bk], UU[bk*(n/B)+bj]);
+            }
+            ASSERT_ALWAYS(Xc[bi*(n/B)+bj] == C);
+        }
+    }
+
+
+    return 0;
 }
+
+
 
 test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
 void test_bblas_level4::ple()
@@ -310,8 +394,11 @@ void test_bblas_level4::ple()
     test_PLE_propagate_pivot(64, 64);
     test_PLE_propagate_permutations(64, 64);
     test_PLE_move_L_fragments(64, 64);
+    test_PLE(64, 64);
+
     test_PLE_find_pivot(128, 192);
     test_PLE_propagate_pivot(128, 192);
     test_PLE_propagate_permutations(128, 192);
     test_PLE_move_L_fragments(128, 192);
+    test_PLE(128, 192);
 }

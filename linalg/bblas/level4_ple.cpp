@@ -267,7 +267,7 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
         /* Time to increase ii and jj */
         ii += (piv_ii >= 0);
 
-        ASSERT_ALWAYS((q0 - p) + Lcols_pending.size() == ii);
+        ASSERT_ALWAYS((q0 - p0) + Lcols_pending.size() == ii);
 
         if (!finishing_block) continue;
 
@@ -276,10 +276,10 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
         propagate_permutations(ii, bj, q0, p);
 #endif
 
-        unsigned int yii0 = q0 - p;
+        unsigned int yii0 = q0 - p0;
         unsigned int yii1 = ii;
         unsigned int yi0 = yii0 & (B-1);
-        unsigned int yi1 = yii1 & (B-1);
+        unsigned int yi1 = yi0 + (yii1 - yii0);
 
         move_L_fragments(yii0, Lcols_pending);
 
