@@ -12,12 +12,16 @@
  *      triangular, replace U by L^-1*U.
  *    - trsm64_general: same, but apply only the square submatrix of L
  *      whose diagonal indices are in the given integer interval.
+ *
+ * Note that these functions do _not_ check that L is indeed unit lower
+ * triangular. The coefficients at positions j>=i are simply not looked
+ * up.
  */
 
 void trsm64_general(mat64 const & L, mat64 & U, unsigned int n0, unsigned int n1)/*{{{*/
 {
-    ASSERT(mat64_is_lowertriangular(L));
-    ASSERT(mat64_triangular_is_unit(L));
+    // ASSERT(mat64_is_lowertriangular(L));
+    // ASSERT(mat64_triangular_is_unit(L));
     ASSERT(n0 < n1);
     if (n1 == n0 + 1) return;
     /* need to determine the very first fragment before we can align */
