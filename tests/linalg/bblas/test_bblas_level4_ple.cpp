@@ -114,14 +114,11 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
         unsigned int ii1 = std::min((mp_limb_t) k, gmp_urandomm_ui(rstate, m + 1 - ii0)) + ii0;
         unsigned int bj0 = gmp_urandomm_ui(rstate, n/B);
 
-        unsigned int q[ii1 - ii0];
-
-        unsigned int * q0 = q;
-        unsigned int * q1 = q0 + ii1 - ii0;
+        std::vector<unsigned int> q;
 
         for(unsigned int ii = ii0 ; ii < ii1 ; ii++) {
             unsigned int pii = gmp_urandomm_ui(rstate, m - ii) + ii;
-            q[ii - ii0] = pii;
+            q.push_back(pii);
             if (ii == pii) continue;
             unsigned int  bi =  ii / B;
             unsigned int   i =  ii % B;
@@ -134,7 +131,9 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
             pY[pi] ^= c;
         }
 
-        ple.propagate_permutations(ii1, bj0, q0, q1);
+        ASSERT_ALWAYS(q.size() == (unsigned int) (ii1 - ii0));
+
+        ple.propagate_permutations(ii1, bj0, q.begin(), q.end());
 
         for(unsigned int ii = 0 ; ii < m ; ii++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
@@ -306,81 +305,32 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
 int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 {
     const unsigned int B = 64;
-    std::vector<mat64> X ((m/B)*(n/B), 0);
-    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-            mat64_fill_random(X[bi*(n/B)+bj], rstate);
-        }
-    }
-    std::vector<mat64> Xc = X;
-
-    std::vector<unsigned int> pivs = binary_blas_PLE(&X[0], m/B, n/B);
-
-    /* apply the permutations to Xc */
-    /* it's also possible to use PLE::propagate_permutations for that as
-     * well (create a temp PLE object, call the method with appropriate
-     * arguments)
-     */
-    for(unsigned int ii = 0 ; ii < pivs.size() ; ii++) {
-        unsigned int pii = pivs[ii];
-        if (ii == pii) continue;
-        unsigned int bi = ii / B;
-        unsigned int i = ii % B;
-        unsigned int pbi = pii / B;
-        unsigned int pi = pii % B;
-        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-            mat64 & Y  = Xc[ bi * n/B + bj];
-            mat64 & pY = Xc[pbi * n/B + bj];
-            uint64_t c = Y[i] ^ pY[pi];
-            Y[i] ^= c;
-            pY[pi] ^= c;
-        }
-    }
-
-    /* extract below the diagonal */
-    std::vector<mat64> LL((m/B)*(m/B), 0);
-    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-        for(unsigned int bj = 0 ; bj < bi ; bj++) {
-            LL[bi*(m/B)+bj] = X[bi*(n/B)+bj];
-        }
-        if (bi < n/B) {
-            for(unsigned int i = 0 ; i < B ; i++) {
-                uint64_t c = X[bi*(n/B)+bi][i];
-                c &= (UINT64_C(1) << i) - 1;
-                c ^= (UINT64_C(1) << i);
-                LL[bi*(m/B)+bi][i] = c;
-            }
-        } else {
-            LL[bi*(m/B)+bi] = 1;
-        }
-    }
-
-    /* extract above the diagonal */
-    std::vector<mat64> UU((m/B)*(n/B), 0);
-    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-        if (bi < n/B) {
-            for(unsigned int i = 0 ; i < B ; i++) {
-                uint64_t c = X[bi*(n/B)+bi][i];
-                c &= -(UINT64_C(1) << i);
-                UU[bi*(n/B)+bi][i] = c;
+    for(unsigned int k = 0 ; k < 100 ; k++) {
+        std::vector<mat64> X ((m/B)*(n/B), 0);
+        for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+            for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+                mat64_fill_random(X[bi*(n/B)+bj], rstate);
             }
         }
-        for(unsigned int bj = bi + 1 ; bj < n/B ; bj++) {
-            UU[bi*(n/B)+bj] = X[bi*(n/B)+bj];
-        }
-    }
+        std::vector<mat64> Xc = X;
 
-    /* and now, multiply and check consistency */
-    for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-        for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-            mat64 C = 0;
-            for(unsigned int bk = 0 ; bk < m/B ; bk++) {
-                addmul_6464_6464(C, LL[bi*(m/B)+bk], UU[bk*(n/B)+bj]);
-            }
-            ASSERT_ALWAYS(Xc[bi*(n/B)+bj] == C);
-        }
-    }
+        /* The main importaant thing is the fact of enabling the
+         * debug_stuff object, which does invariant checks throughout the
+         * PLE computation. As a matter of fact, the final test that
+         * we do here is not even needed, since it's already one of those
+         * checks triggered by debug_stuff.
+         */
+        PLE ple(&X[0], m/B, n/B);
+        PLE::debug_stuff D(ple);
+        std::vector<unsigned int> pivs = ple(&D);
 
+        D.start_check(X);
+        D.apply_permutations(pivs);
+        unsigned int r = pivs.size();
+        auto LL = D.get_LL(r);
+        auto UU = D.get_UU(r);
+        ASSERT_ALWAYS(D.complete_check(LL, UU));
+    }
 
     return 0;
 }
@@ -390,15 +340,21 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
 void test_bblas_level4::ple()
 {
-    test_PLE_find_pivot(64, 64);
-    test_PLE_propagate_pivot(64, 64);
-    test_PLE_propagate_permutations(64, 64);
-    test_PLE_move_L_fragments(64, 64);
-    test_PLE(64, 64);
+    std::vector<std::pair<unsigned int, unsigned int>> mns
+    {{
+         {64,128},
+         {64,64},
+         {64,192},
+         {128,64},
+         {128,128},
+         {128,192},
+     }};
 
-    test_PLE_find_pivot(128, 192);
-    test_PLE_propagate_pivot(128, 192);
-    test_PLE_propagate_permutations(128, 192);
-    test_PLE_move_L_fragments(128, 192);
-    test_PLE(128, 192);
+    for(auto x : mns) {
+        test_PLE_find_pivot(x.first, x.second);
+        test_PLE_propagate_pivot(x.first, x.second);
+        test_PLE_propagate_permutations(x.first, x.second);
+        test_PLE_move_L_fragments(x.first, x.second);
+        test_PLE(x.first, x.second);   // pass
+    }
 }

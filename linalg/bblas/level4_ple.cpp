@@ -64,7 +64,7 @@ void PLE::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsi
     }
 }/*}}}*/
 
-void PLE::propagate_permutations(unsigned int ii1, unsigned int bj0, unsigned int const * q0, unsigned int const * q1) const/*{{{*/
+void PLE::propagate_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const/*{{{*/
 {
     /* This propagates the pending permutations outside the current block
      * column.
@@ -77,7 +77,7 @@ void PLE::propagate_permutations(unsigned int ii1, unsigned int bj0, unsigned in
     for(unsigned bj = 0 ; bj < n ; bj++) {
         if (bj == bj0) continue;
         unsigned int ii = ii1 - (q1 - q0);
-        for(unsigned int const * q = q0 ; q != q1 ; q++, ii++) {
+        for(auto q = q0 ; q != q1 ; q++, ii++) {
             if (ii == *q) continue;
             unsigned int bi = ii / B;
             unsigned int i  = ii & (B - 1);
@@ -190,12 +190,15 @@ void PLE::sub(unsigned int bi,/*{{{*/
     for( ; sbi < m ; sbi++) {
         // i
         for(unsigned int sbj = bj + 1 ; sbj < n ; sbj++) {
-            /* multiply columns [yi0..yi1-1] of block (sbi,bj) by
+            /* multiply columns [yi0..yi1-1] of block (sbi,bi) by
              * rows [yi0..yi1-1] of block (bi,sbj), and add that to
              * block (sbi,sbj)
+             *
+             * yes, we really mean block (sbi,bi). The indices [yi0..yi1)
+             * are _really_ relative to that block.
              */
             addmul_6464_6464_fragment_lookup4(X[sbi * n + sbj],
-                    X[sbi * n + bj],
+                    X[sbi * n + bi],
                     X[bi * n + sbj],
                     si, 64, yi0, yi1);
         }
@@ -203,11 +206,126 @@ void PLE::sub(unsigned int bi,/*{{{*/
     }
 }/*}}}*/
 
-int PLE::operator()(unsigned int * p0)/*{{{*/
+void PLE::debug_stuff::apply_permutations(std::vector<unsigned int>::const_iterator p0, std::vector<unsigned int>::const_iterator p1)
+{
+    const unsigned int B = 64;
+    /* apply the permutations to Xcc */
+    for(unsigned int xii = 0 ; xii < (unsigned int) (p1 - p0) ; xii++) {
+        unsigned int pii = p0[xii];
+        if (xii == pii) continue;
+        unsigned int xbi = xii / B;
+        unsigned int xi = xii % B;
+        unsigned int pbi = pii / B;
+        unsigned int pi = pii % B;
+        for(unsigned int bj = 0 ; bj < n ; bj++) {
+            mat64 & xY = X_target[xbi * n + bj];
+            mat64 & pY = X_target[pbi * n + bj];
+            uint64_t c = xY[xi] ^ pY[pi];
+            xY[xi] ^= c;
+            pY[pi] ^= c;
+        }
+    }
+}
+
+/* extract below the diagonal, only up to rank rr. The X field is
+ * modified. */
+std::vector<mat64> PLE::debug_stuff::get_LL(unsigned int rr)/*{{{*/
+{
+    const unsigned int B = 64;
+    std::vector<mat64> LL((m)*(m), 0);
+    for(unsigned int bi = 0 ; bi < m ; bi++) {
+        unsigned int bj = 0;
+        for( ; bj <= bi && bj < iceildiv(rr, B) ; bj++) {
+            for(unsigned int i = 0 ; i < B ; i++) {
+                uint64_t c = X[bi*(n)+bj][i];
+                unsigned int z = rr - bj * B;
+                if (bj == bi && i < z)
+                    z = i;
+                if (z < B)
+                    c &= (UINT64_C(1) << z) - 1;
+                LL[bi*(m)+bj][i] = c;
+            }
+        }
+    }
+    /* clear the blocks that we have just taken */
+    for(unsigned int bi = 0 ; bi < m ; bi++) {
+        for(unsigned int bj = 0 ; bj < n && bj < m ; bj++) {
+            mat64_add(X[bi*n+bj], X[bi*n+bj], LL[bi*m+bj]);
+        }
+    }
+
+    /* add implicit identity to L */
+    for(unsigned int bi = 0 ; bi < m ; bi++) {
+        for(unsigned int i = 0 ; i < B ; i++) {
+            LL[bi*(m)+bi][i] ^= UINT64_C(1) << i;
+        }
+    }
+
+    return LL;
+}/*}}}*/
+
+std::vector<mat64> PLE::debug_stuff::get_UU(unsigned int rr)/*{{{*/
+{
+    const unsigned int B = 64;
+    /* extract above the diagonal, only up to rank rr */
+    std::vector<mat64> UU((m)*(n), 0);
+    for(unsigned int bi = 0 ; bi < m && bi < iceildiv(rr, B); bi++) {
+        if (bi < n) {
+            for(unsigned int i = 0 ; i < std::min(B, rr - bi * B) ; i++) {
+                uint64_t c = X[bi*(n)+bi][i];
+                c &= -(UINT64_C(1) << i);
+                UU[bi*(n)+bi][i] = c;
+            }
+        }
+        for(unsigned int bj = bi + 1 ; bj < n ; bj++) {
+            UU[bi*(n)+bj] = X[bi*(n)+bj];
+            for(unsigned int i = rr - bi * B ; i < B ; i++) {
+                UU[bi*(n)+bj][i] = 0;
+            }
+        }
+    } 
+    /* Finally, clear everything in Xcc that we haven't taken yet *//*{{{*/
+    for(unsigned int bi = 0 ; bi < m ; bi++) {
+        for(unsigned int bj = 0 ; bj < n ; bj++) {
+            mat64_add(X[bi*n+bj], X[bi*n+bj], UU[bi*n+bj]);
+        }
+    }/*}}}*/
+    return UU;
+}/*}}}*/
+
+bool PLE::debug_stuff::complete_check(std::vector<mat64> const & LL, std::vector<mat64> const & UU)
+{
+    /* check that LL*UU + (remaining block in X) is equal to X_target */
+
+    for(unsigned int bi = 0 ; bi < m ; bi++) {
+        for(unsigned int bj = 0 ; bj < n ; bj++) {
+            mat64 C = X[bi*(n)+bj];
+            for(unsigned int bk = 0 ; bk < m ; bk++) {
+                addmul_6464_6464(C, LL[bi*(m)+bk], UU[bk*(n)+bj]);
+            }
+            ASSERT_ALWAYS(X_target[bi*(n)+bj] == C);
+            if (X_target[bi*(n)+bj] != C) return false;
+        }
+    }
+    return true;
+}
+
+bool PLE::debug_stuff::check(mat64 const * X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii)
+{
+    start_check(X0);
+    apply_permutations(p0, p0 + ii);
+    auto LL = get_LL(ii);
+    auto UU = get_UU(ii);
+    return complete_check(LL, UU);
+}
+
+
+
+std::vector<unsigned int> PLE::operator()(debug_stuff * D)/*{{{*/
 {
     std::vector<unsigned int> Lcols_pending;
-    unsigned int * p = p0;
-    unsigned int const * q0 = p;
+    std::vector<unsigned int> pivs;
+    size_t pos_q0 = 0;
     const unsigned int B = 64;
 
     unsigned int ii = 0;
@@ -231,7 +349,7 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
              * current block column. Here I'm not sure that it makes a
              * lot of sense to defer the swaps. Maybe a bit for locality.
              */
-            *p++ = piv_ii;
+            pivs.push_back(piv_ii);
 
             if ((unsigned int) piv_ii != ii) {
 #ifndef ACT_RIGHT_AWAY
@@ -264,39 +382,50 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
 
         bool finishing_block = (i == B-1) || (j == B-1);
 
+        // for debugging. We don't do this by default because it slows
+        // down debugging, and changes the course of the computation
+        // anyway. But enabling this makes it possible to check the loop
+        // invariant in simpler cases.
+        // if (D) finishing_block = true;
+
         /* Time to increase ii and jj */
         ii += (piv_ii >= 0);
 
-        ASSERT_ALWAYS((q0 - p0) + Lcols_pending.size() == ii);
+        ASSERT_ALWAYS(pos_q0 + Lcols_pending.size() == ii);
 
         if (!finishing_block) continue;
+        if (Lcols_pending.empty()) {
+            ASSERT_ALWAYS(pos_q0 == pivs.size());
+            continue;
+        }
 
 #ifndef ACT_RIGHT_AWAY
         /* Note that we haven't increased bj yet, and that's on purpose */
-        propagate_permutations(ii, bj, q0, p);
+        propagate_permutations(ii, bj, pivs.begin() + pos_q0, pivs.end());
 #endif
 
-        unsigned int yii0 = q0 - p0;
+        unsigned int yii0 = pos_q0;
         unsigned int yii1 = ii;
         unsigned int yi0 = yii0 & (B-1);
         unsigned int yi1 = yi0 + (yii1 - yii0);
 
         move_L_fragments(yii0, Lcols_pending);
 
-        q0 = p;
+        pos_q0 = pivs.size();
         Lcols_pending.clear();
 
         trsm(bi, bj, yi0, yi1);
 
         sub(bi, bj, yi0, yi1, ii);
+
+        ASSERT_ALWAYS(D->check(X, pivs.begin(), ii));
     }
-    return p - p0;
+    ASSERT_ALWAYS(Lcols_pending.empty());
+    return pivs;
 }/*}}}*/
 
 std::vector<unsigned int> binary_blas_PLE(mat64 * X, unsigned int m, unsigned int n)
 {
-    std::vector<unsigned int> res(std::min(m, n)*64, UINT_MAX);
-    int r = PLE(X, m, n)(&res[0]);
-    res.erase(res.begin() + r, res.end());
-    return res;
+    auto ple = PLE(X, m, n);
+    return ple();
 }

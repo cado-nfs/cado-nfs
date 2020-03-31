@@ -50,6 +50,7 @@ class bitmat
     {
         return memcmp(x, a.x, sizeof(x)) == 0;
     }
+    inline bool operator!=(bitmat const& a) const { return !operator==(a); }
     bitmat() {}
     inline bitmat(bitmat const& a) { memcpy(x, a.x, sizeof(x)); }
     inline bitmat& operator=(bitmat const& a)

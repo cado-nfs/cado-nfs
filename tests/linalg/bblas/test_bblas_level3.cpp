@@ -211,20 +211,35 @@ test_bblas_base::tags_t test_bblas_level3::trsm_tags { "trsm", "l3d", "l3" };/*{
 void test_bblas_level3::trsm() {
     /* BLAS level 3 analogue: cblas_dtrsm */
     printf(" -- solve unit lower triangular systems\n");
-    mat64 L, U0, Li, U1;
-    mat64_fill_random(L, rstate);
-    for(unsigned int i = 0 ; i < 64 ; i++) {
-        L[i] &= (UINT64_C(1) << i) - 1;
-        L[i] |=  UINT64_C(1) << i;
+    mat64 L, U0, U1;
+
+    /* test consistency first. Extract L from a matrix full of garbage.
+     * We'll feed the garbage matrix to trsm64_general, to verify that it
+     * copes with intervals well */
+
+    for(unsigned int k = 0 ; k < 1000 ; k++) {
+        mat64 Lr;
+        unsigned int n0 = gmp_urandomm_ui(rstate, 64);
+        unsigned int n1 = gmp_urandomm_ui(rstate, 65 - n0) + n0;
+        mat64_fill_random(Lr, rstate);
+        L = 1;
+        for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
+            /* import bits [n0..i-1] from Lr */
+            uint64_t m = (-(UINT64_C(1) << n0)) & ((UINT64_C(1) << i)-1);
+            L[i] ^= Lr[i] & m;
+        }
+
+        mat64_fill_random(U0, rstate);
+        U1 = U0;
+        trsm64_general(Lr, U0, n0, n1);     /* U0 is now L^-1 * U1 */
+        mul_6464_6464(U0, L, U0);
+        ASSERT_ALWAYS(U0 == U1);
     }
-    full_echelon_6464_imm(U0, Li, L);
+
+
+    mat64_fill_random(L, rstate);
     mat64_fill_random(U0, rstate);
-    U1 = U0;
     TIME1(1, trsm64, L, U0);
-    U0 = U1;
-    trsm64(L, U0);
-    trsm64(L, U1);
-    ASSERT_ALWAYS(mat64_eq(U0, U1));
 }
 /*}}}*/
 
