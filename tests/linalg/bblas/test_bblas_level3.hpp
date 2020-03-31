@@ -29,18 +29,44 @@ struct test_bblas_level3 : public test_bblas_base
     static tags_t trsm_tags;
     void trsm();
 
-    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    void banner()
     {
         printf("-- level-3 tests (operations on matrices) --\n");
+    }
+
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    {
+        int has_banner = 0;
         for(auto const & s : tests) {
             bool match = false;
-            if (matches(s, level3a_tags, match)) level3a();
-            if (matches(s, transpose_tags, match)) transpose();
-            if (matches(s, matpoly_polmat_tags, match)) matpoly_polmat();
-            if (matches(s, matmul_tags, match)) matmul();
-            if (matches(s, rank_n_update_tags, match)) rank_n_update();
-            if (matches(s, level3c_tags, match)) level3c();
-            if (matches(s, trsm_tags, match)) trsm();
+            if (matches(s, level3a_tags, match)) {
+                if (!has_banner++) banner();
+                level3a();
+            }
+            if (matches(s, transpose_tags, match)) {
+                if (!has_banner++) banner();
+                transpose();
+            }
+            if (matches(s, matpoly_polmat_tags, match)) {
+                if (!has_banner++) banner();
+                matpoly_polmat();
+            }
+            if (matches(s, matmul_tags, match)) {
+                if (!has_banner++) banner();
+                matmul();
+            }
+            if (matches(s, rank_n_update_tags, match)) {
+                if (!has_banner++) banner();
+                rank_n_update();
+            }
+            if (matches(s, level3c_tags, match)) {
+                if (!has_banner++) banner();
+                level3c();
+            }
+            if (matches(s, trsm_tags, match)) {
+                if (!has_banner++) banner();
+                trsm();
+            }
             if (match) seen.insert(s);
         }
     }

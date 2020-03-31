@@ -19,15 +19,31 @@ struct test_bblas_level5 : public test_bblas_base
     static tags_t matpolscale_tags;
     void matpolscale();
 
-    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    void banner()
     {
         printf("-- level-5 tests (polynomials) --\n");
+    }
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    {
+        int has_banner = 0;
         for(auto const & s : tests) {
             bool match = false;
-            if (matches(s, polmul_tags, match)) polmul();
-            if (matches(s, polblockmul_tags, match)) polblockmul();
-            if (matches(s, matpolmul_tags, match)) matpolmul();
-            if (matches(s, matpolscale_tags, match)) matpolscale();
+            if (matches(s, polmul_tags, match)) {
+                if (!has_banner++) banner();
+                polmul();
+            }
+            if (matches(s, polblockmul_tags, match)) {
+                if (!has_banner++) banner();
+                polblockmul();
+            }
+            if (matches(s, matpolmul_tags, match)) {
+                if (!has_banner++) banner();
+                matpolmul();
+            }
+            if (matches(s, matpolscale_tags, match)) {
+                if (!has_banner++) banner();
+                matpolscale();
+            }
             if (match) seen.insert(s);
         }
     }

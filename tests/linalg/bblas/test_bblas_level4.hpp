@@ -19,6 +19,7 @@ struct test_bblas_level4 : public test_bblas_base
     static tags_t ple_tags;
     void ple();
 
+    /* unit tests for the internal ops of PLE */
     int test_PLE_find_pivot(unsigned int m, unsigned int n);
     int test_PLE_propagate_pivot(unsigned int m, unsigned int n);
     int test_PLE_propagate_permutations(unsigned int m, unsigned int n);
@@ -28,14 +29,27 @@ struct test_bblas_level4 : public test_bblas_base
     void m4ri_plu_tests(int n);
 #endif
 
-    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    void banner()
     {
         printf("-- level-4 tests (reductions / factorizations of matrices) --\n");
+    }
+    void operator()(std::vector<std::string> const & tests, std::set<std::string> & seen)
+    {
+        int has_banner = 0;
         for(auto const & s : tests) {
             bool match = false;
-            if (matches(s, pluq_tags, match)) pluq();
-            if (matches(s, gauss_tags, match)) gauss();
-            if (matches(s, ple_tags, match)) ple();
+            if (matches(s, pluq_tags, match)) {
+                if (!has_banner++) banner();
+                pluq();
+            }
+            if (matches(s, gauss_tags, match)) {
+                if (!has_banner++) banner();
+                gauss();
+            }
+            if (matches(s, ple_tags, match)) {
+                if (!has_banner++) banner();
+                ple();
+            }
             if (match) seen.insert(s);
         }
     }
