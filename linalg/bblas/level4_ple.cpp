@@ -23,7 +23,6 @@
  * is sufficient to recover the list of pivot rows.
  */
 
-int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n);
 
 int PLE::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
@@ -294,8 +293,10 @@ int PLE::operator()(unsigned int * p0)/*{{{*/
     return p - p0;
 }/*}}}*/
 
-int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n)
+std::vector<unsigned int> binary_blas_PLE(mat64 * X, unsigned int m, unsigned int n)
 {
-    return PLE(X, m, n)(p);
+    std::vector<unsigned int> res(std::min(m, n)*64, UINT_MAX);
+    int r = PLE(X, m, n)(&res[0]);
+    res.erase(res.begin() + r, res.end());
+    return res;
 }
-

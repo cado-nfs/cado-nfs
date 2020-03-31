@@ -3,6 +3,7 @@
 
 #include "bblas.hpp"
 #include "perm_matrix.hpp"
+#include <vector>
 
 /**********************************************************************/
 /* level 4: factorizations and reductions of matrices
@@ -65,7 +66,6 @@ int full_echelon_6464_imm(mat64 & mm, mat64 & e, mat64 const & m);
  * is sufficient to recover the list of pivot rows.
  */
 
-int binary_blas_PLE(unsigned int * p, mat64 * X, unsigned int m, unsigned int n);
-
+std::vector<unsigned int> binary_blas_PLE(mat64 * X, unsigned int m, unsigned int n);
 
 #endif	/* BBLAS_LEVEL4_HPP_ */
