@@ -39,6 +39,9 @@ void addmul_6464_6464_fragment(mat64 & C,
                    unsigned int i1,
                    unsigned int yi0,
                    unsigned int yi1);
+void addmul_6464_6464(mat64 & C,
+                   mat64 const & A,
+                   mat64 const & B);
 
 
 #endif	/* BBLAS_LEVEL3B_HPP_ */

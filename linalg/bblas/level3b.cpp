@@ -84,6 +84,8 @@ void addmul_6464_6464_fragment_lookup4(mat64 & C,/*{{{*/
         Bx[j][8]  = w;
     }
     uint64_t mask = (UINT64_C(1) << yi1) - (UINT64_C(1) << yi0);
+    if (yi1 == 64)
+        mask = - (UINT64_C(1) << yi0);
     for (size_t i = i0; i < i1; i++) {
         uint64_t aa = (A[i] & mask) >> (4 * j0);
         for(unsigned int j = j0 ; j < j1 ; j++) {
@@ -97,6 +99,14 @@ void addmul_6464_6464_fragment_lookup4(mat64 & C,/*{{{*/
 void mul_6464_6464(mat64 & C, mat64 const & A, mat64 const & B)
 {
     mul_N64_6464_lookup4(C.data(), A.data(), B, 64);
+}
+/*}}}*/
+
+void MAYBE_UNUSED addmul_6464_6464(mat64 & C,/*{{{*/
+                   mat64 const & A,
+                   mat64 const & B)
+{
+    addmul_6464_6464_fragment_lookup4(C, A, B, 0, 64, 0, 64);
 }
 /*}}}*/
 void MAYBE_UNUSED addmul_6464_6464_fragment(mat64 & C,/*{{{*/
