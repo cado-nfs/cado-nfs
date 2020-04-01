@@ -1,16 +1,16 @@
 #include "cado.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
 #include <gmp.h>
-#include <string.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "portability.h"
 #include "utils.h"
-#include "blockmatrix.h"
+#include "blockmatrix.hpp"
 #include "gauss.h"
 
 void usage()
@@ -40,14 +40,11 @@ int main(int argc, char **argv)
 
         ASSERT_ALWAYS(ncols % 64 == 0);
 
-    blockmatrix S = NULL;
-    blockmatrix T = NULL;
-    blockmatrix ST = NULL;
-    S = blockmatrix_alloc(ncols, ncols);
-    ST = blockmatrix_alloc(ncols, ncols);
-    T = blockmatrix_alloc(ncols, ncols);
-    blockmatrix_set_identity(S);
-    uint64_t * kzone = malloc(FLAT_BYTES_WITH_READAHEAD(ncols, ncols));
+    blockmatrix S(ncols, ncols);
+    blockmatrix ST(ncols, ncols);
+    blockmatrix T(ncols, ncols);
+    S.set_identity();
+    uint64_t * kzone = (uint64_t *) malloc(FLAT_BYTES_WITH_READAHEAD(ncols, ncols));
     int limbs_per_row = iceildiv(ncols, 64);
 
     unsigned int common_nrows = 0;
@@ -70,12 +67,12 @@ int main(int argc, char **argv)
         common_nrows = nrows;
     }
 
-    blockmatrix k = blockmatrix_alloc(nrows, ncols);
-    blockmatrix kprev = blockmatrix_alloc(nrows, ncols);
-    blockmatrix kfinal = blockmatrix_alloc(nrows, ncols);
-    blockmatrix_set_zero(kfinal);
-    blockmatrix kS = blockmatrix_alloc(nrows, ncols);
-    uint64_t * zone = malloc(FLAT_BYTES_WITH_READAHEAD(ncols, nrows));
+    blockmatrix k(nrows, ncols);
+    blockmatrix kprev(nrows, ncols);
+    blockmatrix kfinal(nrows, ncols);
+    kfinal.set_zero();
+    blockmatrix kS(nrows, ncols);
+    uint64_t * zone = (uint64_t *) malloc(FLAT_BYTES_WITH_READAHEAD(ncols, nrows));
     int limbs_per_col = iceildiv(nrows, 64);
     int prevrank = ncols;
     int rank0 = 0;
@@ -90,15 +87,15 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: %u x %u\n", argv[i], nrows, ncols);
         ASSERT_ALWAYS(common_nrows == nrows);
 
-        blockmatrix_read_from_flat_file(k, 0, 0, argv[i], nrows, ncols);
+        k.read_from_flat_file(0, 0, argv[i], nrows, ncols);
 
         /* we would like to have an in-place multiply. Trivial to do for
          * ncols==64, harder to get it right as well for >1 column
          * blocks. Therefore, we stick to simple and stupid code.
          */
-        blockmatrix_mul_smallb(k, k, S);
+        k.mul_smallb(k, S);
 
-        blockmatrix_copy_transpose_to_flat(zone, limbs_per_col, 0, 0, k);
+        k.copy_transpose_to_flat(zone, limbs_per_col, 0, 0);
         int rank = spanned_basis(
                 (mp_limb_t *) kzone,
                 (mp_limb_t *) zone,
@@ -109,17 +106,17 @@ int main(int argc, char **argv)
                 NULL);
         // kzone*transpose(kS) is reduced
         // kS*transpose(kzone) is reduced (equivalent formulation)
-        blockmatrix_copy_transpose_from_flat(T, kzone, limbs_per_row, 0, 0);
+        T.copy_transpose_from_flat(kzone, limbs_per_row, 0, 0);
         // blockmatrix_reverse_columns(T, T);
 
         /* multiply kprev, k, and S by T */
         /* same comment as above applies, btw. */
-        blockmatrix_mul_smallb(S, S, T);
-        blockmatrix_mul_smallb(k, k, T);
+        S.mul_smallb(S, T);
+        k.mul_smallb(k, T);
         /* only columns [0..rank-1] in T are non-zero */
 
         if (i) {
-            blockmatrix_mul_smallb(kprev, kprev, T);
+            kprev.mul_smallb(kprev, T);
         }
 
         if (i) {
@@ -129,7 +126,7 @@ int main(int argc, char **argv)
                 /* bits [rank..prevrank[ of kprev are kernel vectors.
                  * They can be added to bits [rank..prevrank[ of kfinal
                  */
-                blockmatrix_copy_colrange(kfinal, kprev, rank, prevrank);
+                kfinal.copy_colrange(kprev, rank, prevrank);
             }
         } else {
             printf("%s: rank %d\n", argv[i], rank);
@@ -139,13 +136,13 @@ int main(int argc, char **argv)
         //printf("%s: rank %d\n", argv[i], r);
 
         prevrank = rank;
-        blockmatrix_swap(kprev, k);
+        k.swap(kprev);
     }
     // finish assuming rank 0.
-    blockmatrix_copy_colrange(kfinal, kprev, 0, prevrank);
+    kfinal.copy_colrange(kprev, 0, prevrank);
 
     /* Oh, now we need to check the combined rank of all these */
-    blockmatrix_copy_transpose_to_flat(zone, limbs_per_col, 0, 0, kfinal);
+    kfinal.copy_transpose_to_flat(zone, limbs_per_col, 0, 0);
     int rankf = spanned_basis(
             (mp_limb_t *) kzone,
             (mp_limb_t *) zone,
@@ -154,21 +151,14 @@ int main(int argc, char **argv)
             sizeof(uint64_t) / sizeof(mp_limb_t) * limbs_per_col,
             sizeof(uint64_t) / sizeof(mp_limb_t) * limbs_per_row,
             NULL);
-    blockmatrix_copy_transpose_from_flat(T, kzone, limbs_per_row, 0, 0);
-    blockmatrix_mul_smallb(kfinal, kfinal, T);
+    T.copy_transpose_from_flat(kzone, limbs_per_row, 0, 0);
+    kfinal.mul_smallb(kfinal, T);
     if (rankf < rank0) {
         printf("final adjustment: rank drops from %d to %d\n", rank0, rankf);
     }
 
-    blockmatrix_write_to_flat_file(outfile, kfinal, 0, 0, common_nrows, ncols);
+    kfinal.write_to_flat_file(outfile, 0, 0, common_nrows, ncols);
     printf("%s: written %d kernel vectors\n", outfile, rankf);
-    blockmatrix_free(k);
-    blockmatrix_free(kprev);
-    blockmatrix_free(kfinal);
-    blockmatrix_free(kS);
-    blockmatrix_free(S);
-    blockmatrix_free(ST);
-    blockmatrix_free(T);
     free(zone);
     free(kzone);
     param_list_clear(pl);

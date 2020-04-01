@@ -386,7 +386,7 @@ set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
 
 
 
-add_executable(cleanup cleanup.c)
+add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)

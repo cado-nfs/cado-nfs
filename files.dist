@@ -88,8 +88,8 @@ filter/sm_simple.cpp
 filter/filter_galois.c
 linalg/CMakeLists.txt
 linalg/Makefile
-linalg/blockmatrix.c
-linalg/blockmatrix.h
+linalg/blockmatrix.cpp
+linalg/blockmatrix.hpp
 linalg/bwc/CMakeLists.txt
 linalg/bwc/GUIDED_TOUR_OF_SOURCES
 linalg/bwc/Makefile
@@ -113,7 +113,7 @@ tests/linalg/bwc/bwc-ptrace.sh
 tests/linalg/bwc/bwc-test-secure-continuation.sh
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
-linalg/bwc/cleanup.c
+linalg/bwc/cleanup.cpp
 linalg/bwc/dispatch.cpp
 linalg/bwc/gather.cpp
 linalg/bwc/intersections.c
@@ -207,7 +207,7 @@ linalg/bwc/xdotprod.c
 linalg/bwc/xdotprod.h
 linalg/bwc/xvectors.c
 linalg/bwc/xvectors.h
-linalg/characters.c
+linalg/characters.cpp
 linalg/gauss.c
 linalg/gauss.h
 linalg/rowset_heap.cpp

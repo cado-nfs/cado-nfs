@@ -76,12 +76,12 @@
 
 #include "cado.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <gmp.h>
-#include <string.h>
-#include <ctype.h>
-#include <limits.h>
+#include <cstring>
+#include <cctype>
+#include <climits>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -91,7 +91,7 @@
 #include "portability.h"
 #include "utils.h"
 #include "utils_with_io.h"
-#include "blockmatrix.h"
+#include "blockmatrix.hpp"
 #include "gauss.h"
 #include "worker-threads.h"
 
@@ -99,7 +99,7 @@
 typedef struct {
     unsigned long p;      /* algebraic prime */
     unsigned long r;      /* corresponding root: r = a/b mod p */
-    int e;                /* exponent (may want negative exponent in sqrt) */
+    // int e;                /* exponent (may want negative exponent in sqrt) */
 } alg_prime_t;
 
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
@@ -227,10 +227,10 @@ static alg_prime_t * create_characters(int nchars[2],
     int nchars2 = iceildiv(nchars[0] + nchars[1], 64) * 64;
 
     mpz_init (pp);
-    roots = malloc(MAX(pol->pols[0]->deg, pol->pols[1]->deg)
+    roots = (unsigned long *) malloc(MAX(pol->pols[0]->deg, pol->pols[1]->deg)
             * sizeof(unsigned long));
 
-    alg_prime_t * chars = malloc(nchars2 * sizeof(alg_prime_t));
+    alg_prime_t * chars = (alg_prime_t *) malloc(nchars2 * sizeof(alg_prime_t));
 
     int nspecchar = 2;
     /* force parity */
@@ -320,8 +320,8 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     int64_t  *all_A = (int64_t *)  malloc (nrows * sizeof(int64_t));
     uint64_t *all_B = (uint64_t *) malloc (nrows * sizeof(uint64_t));
     ASSERT_ALWAYS(all_A != NULL && all_B != NULL);
-    blockmatrix res = blockmatrix_alloc(nrows, nchars2);
-    blockmatrix_set_zero(res);
+    blockmatrix res(nrows, nchars2);
+    res.set_zero();
 
     /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
     fprintf(stderr, "Reading %" PRIu64 " (a,b) pairs from %s\n", nrows,
@@ -335,22 +335,22 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
             nchars2, nrows);
 
     for(uint64_t i = 0 ; i < nrows; ) {
-        static const int batchsize = 16384;
+        static const unsigned int batchsize = 16384;
         int64_t A[batchsize];
         uint64_t B[batchsize];
         uint64_t W[batchsize];
-        int bs = 0;
+        unsigned int bs = 0;
         while (bs < batchsize && i+bs < nrows) {
             A[bs] = all_A[i+bs];
             B[bs] = all_B[i+bs];
             bs++;
         }
-        struct charbatch ss = { .W=W,.A=A,.B=B,.pol=pol,.n=bs };
+        struct charbatch ss = { .W=W,.A=A,.B=B,.n=bs,.chars=NULL,.pol=pol };
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
             ss.chars = chars + cg;
             worker_threads_do(g, eval_64chars_batch_thread, &ss);
-            for(int z = 0 ; z < bs ; z++) {
-                *blockmatrix_subrow_ptr(res, i+z, cg) = W[z];
+            for(unsigned int z = 0 ; z < bs ; z++) {
+                *res.subrow_ptr(i+z, cg) = W[z];
             }
         }
         i += bs;
@@ -363,7 +363,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
 
 /* The small character matrix has only (number of relation-sets) rows -- its
  * number of cols is still (number of characters) */
-static blockmatrix small_character_matrix(blockmatrix bcmat, const char * indexname)
+static blockmatrix small_character_matrix(blockmatrix & bcmat, const char * indexname)
 {
     FILE * ix = fopen_maybe_compressed(indexname, "r");
     uint64_t small_nrows;
@@ -372,23 +372,23 @@ static blockmatrix small_character_matrix(blockmatrix bcmat, const char * indexn
     ret = fscanf(ix, "%" SCNu64 "\n", &small_nrows);
     ASSERT(ret == 1);
 
-    unsigned int nchars2 = bcmat->ncols;
+    unsigned int nchars2 = bcmat.ncols;
 
-    blockmatrix res = blockmatrix_alloc(small_nrows, nchars2);
+    blockmatrix res(small_nrows, nchars2);
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
         int nc;
         ret = fscanf(ix, "%d", &nc); ASSERT_ALWAYS(ret == 1);
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
-            res->mb[(i/64) + (cg/64) * res->nrblocks][i%64] = 0;
+            res.mb[(i/64) + (cg/64) * res.nrblocks][i%64] = 0;
         }
         for(int k = 0 ; k < nc ; k++) {
             unsigned int col;
             ret = fscanf(ix, "%x", &col); ASSERT_ALWAYS(ret == 1);
-            ASSERT_ALWAYS(col < bcmat->nrows);
+            ASSERT_ALWAYS(col < bcmat.nrows);
             for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
-                res->mb[(i/64) + (cg/64) * res->nrblocks][i%64] ^=
-                    bcmat->mb[(col/64) + (cg/64) * bcmat->nrblocks][col%64];
+                res.mb[(i/64) + (cg/64) * res.nrblocks][i%64] ^=
+                    bcmat.mb[(col/64) + (cg/64) * bcmat.nrblocks][col%64];
             }
         }
     }
@@ -405,7 +405,7 @@ read_heavyblock_matrix_binary(const char * heavyblockname)
 
     if (f == NULL) {
         fprintf(stderr, "Warning: %s not found, assuming empty\n", heavyblockname);
-        return blockmatrix_alloc(0,0);
+        return blockmatrix(0,0);
     }
 
     unsigned int nrows, ncols;
@@ -430,11 +430,11 @@ read_heavyblock_matrix_binary(const char * heavyblockname)
         free(cwname);
     }
 
-    blockmatrix res = blockmatrix_alloc(nrows, ncols);
+    blockmatrix res(nrows, ncols);
 
     /* Sometimes the heavy block width is not a multiple of 64. Thus we pad
      * with zeros */
-    blockmatrix_set_zero(res);
+    res.set_zero();
 
     for(unsigned int i = 0 ; i < nrows ; i++) {
         uint32_t len;
@@ -443,7 +443,7 @@ read_heavyblock_matrix_binary(const char * heavyblockname)
         for( ; len-- ; ) {
             uint32_t v;
             r = fread32_little(&v, 1, f); ASSERT_ALWAYS(r == 1);
-            res->mb[(i/64) + (v/64) * res->nrblocks][i%64] ^= ((uint64_t)1) << (v%64);
+            res.mb[(i/64) + (v/64) * res.nrblocks][i%64] ^= ((uint64_t)1) << (v%64);
         }
     }
     fclose (f);
@@ -457,18 +457,18 @@ read_heavyblock_matrix_ascii(const char * heavyblockname)
 
     if (f == NULL) {
         fprintf(stderr, "Warning: %s not found, assuming empty\n", heavyblockname);
-        return NULL;
+        return blockmatrix(0,0);
     }
 
     unsigned int nrows, ncols;
     int rc = fscanf(f,"%u %u", &nrows, &ncols);
     ASSERT_ALWAYS(rc == 2);
 
-    blockmatrix res = blockmatrix_alloc(nrows, ncols);
+    blockmatrix res(nrows, ncols);
 
     /* Sometimes the heavy block width is not a multiple of 64. Thus we pad
      * with zeros */
-    blockmatrix_set_zero(res);
+    res.set_zero();
 
     for(unsigned int i = 0 ; i < nrows ; i++) {
         uint32_t len;
@@ -476,7 +476,7 @@ read_heavyblock_matrix_ascii(const char * heavyblockname)
         for( ; len-- ; ) {
             uint32_t v;
             r = fscanf(f, "%" SCNu32, &v); ASSERT_ALWAYS(r == 1);
-            res->mb[(i/64) + (v/64) * res->nrblocks][i%64] ^= ((uint64_t)1) << (v%64);
+            res.mb[(i/64) + (v/64) * res.nrblocks][i%64] ^= ((uint64_t)1) << (v%64);
         }
     }
     fclose (f);
@@ -487,40 +487,40 @@ static blockmatrix
 read_heavyblock_matrix (const char * heavyblockname)
 {
   if (heavyblockname == NULL)
-    return blockmatrix_alloc (0, 0);
+    return blockmatrix(0, 0);
   else if (has_suffix(heavyblockname, ".bin"))
     return read_heavyblock_matrix_binary(heavyblockname);
   else
     return read_heavyblock_matrix_ascii(heavyblockname);
 }
 
-int compute_transpose_of_blockmatrix_kernel(blockmatrix kb, blockmatrix t)
+int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
 {
     /* gauss.c's kernel() function takes its input with a different ordering.
      * It's tiny data anyway. */
 
     fprintf(stderr, "Computing left nullspace of %u x %u matrix\n",
-            t->nrows, t->ncols);
-    unsigned int tiny_nrows = t->nrows;
-    unsigned int tiny_ncols = t->ncols;
+            t.nrows, t.ncols);
+    unsigned int tiny_nrows = t.nrows;
+    unsigned int tiny_ncols = t.ncols;
     unsigned int tiny_limbs_per_row = iceildiv(tiny_ncols, 64);
     unsigned int tiny_limbs_per_col = iceildiv(tiny_nrows, 64);
-    unsigned int tiny_chars = FLAT_BYTES_WITH_READAHEAD(t->nrows, t->ncols);
+    unsigned int tiny_chars = FLAT_BYTES_WITH_READAHEAD(t.nrows, t.ncols);
     unsigned int tiny_64bit_words = tiny_chars / sizeof(uint64_t);
 
     /* we need some readahead zones because of the block matrix structure */
-    uint64_t * tiny = malloc (tiny_chars);
+    uint64_t * tiny = (uint64_t *) malloc (tiny_chars);
     memset(tiny, 0, tiny_chars);
     
-    blockmatrix_copy_to_flat(tiny, tiny_limbs_per_row, 0, 0, t);
+    t.copy_to_flat(tiny, tiny_limbs_per_row, 0, 0);
 
     /* The kernel matrix is essentially a square matrix of tiny_nrows rows and
      * columns (tiny_nrows is the same as the number of kernel vectors)
      */
     /* we need some readahead zones because of the block matrix structure */
-    uint64_t * kerdata = malloc(FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows));
-    memset(kerdata, 0, FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows));
-    unsigned int kerdata_64bit_words = FLAT_BYTES_WITH_READAHEAD(t->nrows, t->nrows) / sizeof(uint64_t);
+    uint64_t * kerdata = (uint64_t *) malloc(FLAT_BYTES_WITH_READAHEAD(t.nrows, t.nrows));
+    memset(kerdata, 0, FLAT_BYTES_WITH_READAHEAD(t.nrows, t.nrows));
+    unsigned int kerdata_64bit_words = FLAT_BYTES_WITH_READAHEAD(t.nrows, t.nrows) / sizeof(uint64_t);
 
 
     uint64_t ** myker = (uint64_t **) malloc(tiny_nrows * sizeof(uint64_t *));
@@ -529,48 +529,45 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix kb, blockmatrix t)
         myker[i] = kerdata + i * tiny_limbs_per_col;
     /* gauss.c knows about mp_limb_t's only */
     ASSERT_ALWAYS(sizeof(uint64_t) % sizeof(mp_limb_t) == 0);
-    swap_words_if_needed (tiny, tiny_64bit_words);
+    blockmatrix::swap_words_if_needed (tiny, tiny_64bit_words);
     int dim = kernel((mp_limb_t *) tiny,
             (mp_limb_t **) myker,
             tiny_nrows, tiny_ncols,
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_row,
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_col);
-    swap_words_if_needed (tiny, tiny_64bit_words); /* FIXME: this is maybe not
+    blockmatrix::swap_words_if_needed (tiny, tiny_64bit_words); /* FIXME: this is maybe not
                                                       needed since tiny is
                                                       destroyed, but keep it
                                                       for debugging */
-    swap_words_if_needed(kerdata, kerdata_64bit_words);
+    blockmatrix::swap_words_if_needed(kerdata, kerdata_64bit_words);
     free(tiny);
     /* Now take back our kernel to block format, and multiply. Exciting. */
-    if (kb)
-      blockmatrix_copy_transpose_from_flat(kb, kerdata, tiny_limbs_per_col,
-                                           0, 0);
+    kb.copy_transpose_from_flat(kerdata, tiny_limbs_per_col, 0, 0);
     free(myker);
     free(kerdata);
     return dim;
 }
 
 /* This only builds a basis, not an echelonized basis */
-blockmatrix blockmatrix_column_reduce(blockmatrix m, unsigned int max_rows_to_consider)
+blockmatrix blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_consider)
 {
-    blockmatrix t = blockmatrix_submatrix(m, 0, 0, MIN(max_rows_to_consider, m->nrows), m->ncols);
+    blockmatrix t(m, 0, 0, MIN(max_rows_to_consider, m.nrows), m.ncols);
 
-    unsigned int tiny_nrows = t->ncols;
-    unsigned int tiny_ncols = t->nrows;
+    unsigned int tiny_nrows = t.ncols;
+    unsigned int tiny_ncols = t.nrows;
     unsigned int tiny_limbs_per_row = iceildiv(tiny_ncols, 64);
     unsigned int tiny_limbs_per_col = iceildiv(tiny_nrows, 64);
 
     unsigned int tiny_nlimbs = tiny_nrows * tiny_limbs_per_row;
-    uint64_t * tiny = malloc(tiny_nlimbs * sizeof(uint64_t));
+    uint64_t * tiny = (uint64_t *) malloc(tiny_nlimbs * sizeof(uint64_t));
     memset(tiny, 0, tiny_nlimbs * sizeof(uint64_t));
-    blockmatrix_copy_transpose_to_flat(tiny, tiny_limbs_per_row, 0, 0, t);
+    t.copy_transpose_to_flat(tiny, tiny_limbs_per_row, 0, 0);
 
     uint64_t * sdata = (uint64_t *) malloc(tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
     memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t *));
     unsigned int sdata_64bit_words = tiny_nrows * tiny_limbs_per_col;
-    free(t);
 
-    swap_words_if_needed (tiny, tiny_nlimbs);
+    blockmatrix::swap_words_if_needed (tiny, tiny_nlimbs);
     int rank = spanned_basis(
             (mp_limb_t *) sdata,
             (mp_limb_t *) tiny,
@@ -580,15 +577,14 @@ blockmatrix blockmatrix_column_reduce(blockmatrix m, unsigned int max_rows_to_co
             sizeof(uint64_t) / sizeof(mp_limb_t) * tiny_limbs_per_col,
             NULL
             );
-    swap_words_if_needed (tiny, tiny_nlimbs);
-    swap_words_if_needed (sdata, sdata_64bit_words);
+    blockmatrix::swap_words_if_needed (tiny, tiny_nlimbs);
+    blockmatrix::swap_words_if_needed (sdata, sdata_64bit_words);
     free(tiny);
 
-    blockmatrix s = blockmatrix_alloc(m->ncols, rank);
-    blockmatrix_copy_transpose_from_flat(s, sdata, tiny_limbs_per_col, 0, 0);
-    blockmatrix k2 = blockmatrix_alloc(m->nrows, rank);
-    blockmatrix_mul_smallb(k2, m, s);
-    blockmatrix_free(s);
+    blockmatrix s(m.ncols, rank);
+    s.copy_transpose_from_flat(sdata, tiny_limbs_per_col, 0, 0);
+    blockmatrix k2(m.nrows, rank);
+    k2.mul_smallb(m, s);
     free(sdata);
     return k2;
 }
@@ -711,18 +707,16 @@ int main(int argc, char **argv)
     blockmatrix scmat = small_character_matrix(bcmat, indexname);
     fprintf(stderr, "done building small character matrix at wct=%.1fs\n", wct_seconds()-wct0);
 
-    blockmatrix_free(bcmat);
-    
-    unsigned int small_nrows = scmat->nrows;
+    unsigned int small_nrows = scmat.nrows;
 
     /* It's ok if heavyblockname == 0. After all sufficiently many
      * characters should be enough */
     blockmatrix h = read_heavyblock_matrix(heavyblockname);
-    if (h->ncols == 0) { h->nrows = small_nrows; }
-    if (h->ncols)
+    if (h.ncols == 0) { h.nrows = small_nrows; }
+    if (h.ncols)
           fprintf(stderr, "done reading heavy block of size %u x %u at wct=%.1fs\n",
-                  h->nrows, h->ncols, wct_seconds()-wct0);
-    ASSERT_ALWAYS(h->nrows == small_nrows);
+                  h.nrows, h.ncols, wct_seconds()-wct0);
+    ASSERT_ALWAYS(h.nrows == small_nrows);
 
     /* Now do dot products of these matrices by the kernel vectors
      * supplied on input */
@@ -743,57 +737,57 @@ int main(int argc, char **argv)
     fprintf(stderr, "Total: %u kernel vectors\n", total_kernel_cols);
 
     /* kmat is the join of all kernel vectors */
-    blockmatrix k = blockmatrix_alloc(small_nrows, total_kernel_cols);
+    blockmatrix k(small_nrows, total_kernel_cols);
     int j0 = 0;
-    blockmatrix_read_from_flat_file(k, 0, j0, bw_kernel_file, small_nrows, kncols);
+    k.read_from_flat_file(0, j0, bw_kernel_file, small_nrows, kncols);
 
     fprintf(stderr, "done reading %u kernel vectors at wct=%.1fs\n",
             total_kernel_cols, wct_seconds() - wct0);
 
-    blockmatrix k2 = blockmatrix_column_reduce(k, 4096);
-    blockmatrix_free(k);
-    k = k2;
-    total_kernel_cols = k->ncols;
+    {
+        blockmatrix k2 = blockmatrix_column_reduce(k, 4096);
+        k.swap(k2);
+    }
+    total_kernel_cols = k.ncols;
     fprintf(stderr, "Info: input kernel vectors reduced to dimension %u\n",
             total_kernel_cols);
 
     /* tmat is the product of the character matrices times the kernel vector */
-    blockmatrix t = blockmatrix_alloc(total_kernel_cols, scmat->ncols + h->ncols);
-    blockmatrix tc = blockmatrix_submatrix(t, 0, 0, total_kernel_cols, scmat->ncols);
-    blockmatrix th = blockmatrix_submatrix(t, 0, scmat->ncols, total_kernel_cols, h->ncols);
+    blockmatrix t(total_kernel_cols, scmat.ncols + h.ncols);
+    blockmatrix tc(t, 0, 0, total_kernel_cols, scmat.ncols);
+    blockmatrix th(t, 0, scmat.ncols, total_kernel_cols, h.ncols);
 
-    blockmatrix_mul_Ta_b(tc, k, scmat);
-    blockmatrix_mul_Ta_b(th, k, h);
+    tc.mul_Ta_b(k, scmat);
+    th.mul_Ta_b(k, h);
 
     fprintf(stderr, "done multiplying matrices at wct=%.1fs\n", wct_seconds() - wct0);
 
-    free(tc);
-    free(th);
-    blockmatrix_free(scmat);
-    blockmatrix_free(h);
+    // blockmatrix_free(scmat);
+    // blockmatrix_free(h);
 
 
-    blockmatrix kb = blockmatrix_alloc(k->ncols, k->ncols);
-    blockmatrix_set_zero(kb);
+    blockmatrix kb(k.ncols, k.ncols);
+    kb.set_zero();
     int dim = compute_transpose_of_blockmatrix_kernel(kb, t);
-    blockmatrix_free(t);
+    // blockmatrix_free(t);
+    
     fprintf(stderr, "dim of ker = %d\n", dim);
 
-    blockmatrix kbsub = blockmatrix_submatrix(kb, 0, 0, kb->nrows, dim);
+    blockmatrix kbsub(kb, 0, 0, kb.nrows, dim);
 
-    blockmatrix nk = blockmatrix_alloc(small_nrows, kbsub->ncols);
-    blockmatrix_mul_smallb(nk, k, kbsub);
-    free(kbsub);
-    blockmatrix_free(k);
-    blockmatrix_free(kb);
+    blockmatrix nk(small_nrows, kbsub.ncols);
+    nk.mul_smallb(k, kbsub);
+    // free(kbsub);
+    // blockmatrix_free(k);
+    // blockmatrix_free(kb);
 
     /* Sanity check: count the number of zero dependencies */
     unsigned int nonzero_deps = 0;
-    for(unsigned int j = 0 ; j < nk->ncblocks ; j++) {
+    for(unsigned int j = 0 ; j < nk.ncblocks ; j++) {
         uint64_t sanity = 0 ;
-        for(unsigned int i = 0 ; i < nk->nrows ; i+=64) {
-            for(unsigned int ii = 0 ; ii < 64 && i + ii < nk->nrows ; ii++)
-                sanity |= nk->mb[j*nk->stride + ii/64][i];
+        for(unsigned int i = 0 ; i < nk.nrows ; i+=64) {
+            for(unsigned int ii = 0 ; ii < 64 && i + ii < nk.nrows ; ii++)
+                sanity |= nk.mb[j*nk.stride + ii/64][i];
         }
         // do popcount.
         for( ; sanity ; sanity>>=1) nonzero_deps += sanity&1UL;
@@ -802,16 +796,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error, all dependencies are zero !\n");
         exit(1);
     }
-    blockmatrix_write_to_flat_file(outname, nk, 0, 0, nk->nrows, nk->ncols);
+    nk.write_to_flat_file(outname, 0, 0, nk.nrows, nk.ncols);
 
     fprintf(stderr, "Wrote %d non-zero dependencies to %s\n",
             nonzero_deps, outname);
-    if (nonzero_deps < (unsigned int) dim || nk->ncols % 64) {
+    if (nonzero_deps < (unsigned int) dim || nk.ncols % 64) {
         fprintf(stderr, "This includes %u discarded zero dependencies, as well as %u padding zeros\n",
                 dim - nonzero_deps,
-                nk->ncblocks * 64 - dim);
+                nk.ncblocks * 64 - dim);
     }
-    blockmatrix_free(nk);
+    // blockmatrix_free(nk);
 
     cado_poly_clear(pol);
     param_list_clear(pl);
