@@ -3,6 +3,9 @@
 
 #include <cstdint>
 #include <cstring>
+#include <vector>
+#include "macros.h"
+#include "memory.h"     // malloc_aligned in utils
 
 namespace bblas_bitmat_details {
 
@@ -37,11 +40,20 @@ class bitmat
     public:
     static constexpr const int width = S::width;
     typedef T datatype;
+    // typedef std::vector<bitmat, aligned_allocator<bitmat, 64>> vector_type;
+    typedef std::vector<bitmat> vector_type;
 
     private:
-    T x[width];
+    T x[width];// ATTRIBUTE((aligned(64))) ;
 
     public:
+    static inline bitmat * alloc(size_t n) {
+        return (bitmat *) malloc_aligned(n * sizeof(bitmat), 64);
+    }
+    static inline void free(bitmat * p) {
+        free_aligned(p);
+    }
+
     inline T* data() { return x; }
     inline const T* data() const { return x; }
     T& operator[](int i) { return x[i]; }
@@ -72,7 +84,6 @@ class bitmat
     }
 };
 
-typedef bitmat<uint64_t> mat64;
-// ATTRIBUTE((aligned(64)); somewhere
+typedef bitmat<uint64_t> mat64;// ATTRIBUTE((aligned(64)));
 
 #endif	/* BBLAS_MAT64_HPP_ */

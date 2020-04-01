@@ -6,6 +6,7 @@
 // #include <type_traits>
 #include <utility>
 #include <map>
+#include <string>
 
 /* We used to do this with C macros. It's not harder to do the same with
  * C++ templates.
@@ -15,10 +16,10 @@ struct bblas_timer {
     clock_t t0, t1;
     int j;
     double maxtime;
-    const char * name;
+    std::string const & name;
     double t;
     const char * unit;
-    bblas_timer(double maxtime, const char * name)
+    bblas_timer(double maxtime, std::string const & name)
         : maxtime(maxtime)
           , name(name)
     {
@@ -52,13 +53,13 @@ struct bblas_timer {
         void time1(T const & f, Args&&... args)
         {
             time1_common(f, std::forward<Args>(args)...);
-            printf("%s \t%d times in %.4f %s each\n", name, j, t, unit);
+            printf("%s \t%d times in %.4f %s each\n", name.c_str(), j, t, unit);
         }
     template<typename T, typename... Args>
         void time1n(int n, T const & f, Args&&... args)
         {
             time1_common(f, std::forward<Args>(args)...);
-            printf("%s(n=%d) \t%d times in %.4f %s each\n", name, n, j, t, unit);
+            printf("%s(n=%d) \t%d times in %.4f %s each\n", name.c_str(), n, j, t, unit);
         }
 
     template<typename R, typename T, typename... Args>
@@ -82,7 +83,7 @@ struct bblas_timer {
             int nch=0;
             for(auto const & s : ts) {
                 int key = s.first;
-                if (nch == 0) nch=printf("%s(n=%d)", name, n);
+                if (nch == 0) nch=printf("%s(n=%d)", name.c_str(), n);
                 else for(int k = nch ; k-- ; putchar(' '));		
                 j  = s.second.first;
                 t1 = s.second.second;

@@ -229,10 +229,10 @@ void PLE::debug_stuff::apply_permutations(std::vector<unsigned int>::const_itera
 
 /* extract below the diagonal, only up to rank rr. The X field is
  * modified. */
-std::vector<mat64> PLE::debug_stuff::get_LL(unsigned int rr)/*{{{*/
+mat64::vector_type PLE::debug_stuff::get_LL(unsigned int rr)/*{{{*/
 {
     const unsigned int B = 64;
-    std::vector<mat64> LL((m)*(m), 0);
+    mat64::vector_type LL((m)*(m), 0);
     for(unsigned int bi = 0 ; bi < m ; bi++) {
         unsigned int bj = 0;
         for( ; bj <= bi && bj < iceildiv(rr, B) ; bj++) {
@@ -264,11 +264,11 @@ std::vector<mat64> PLE::debug_stuff::get_LL(unsigned int rr)/*{{{*/
     return LL;
 }/*}}}*/
 
-std::vector<mat64> PLE::debug_stuff::get_UU(unsigned int rr)/*{{{*/
+mat64::vector_type PLE::debug_stuff::get_UU(unsigned int rr)/*{{{*/
 {
     const unsigned int B = 64;
     /* extract above the diagonal, only up to rank rr */
-    std::vector<mat64> UU((m)*(n), 0);
+    mat64::vector_type UU((m)*(n), 0);
     for(unsigned int bi = 0 ; bi < m && bi < iceildiv(rr, B); bi++) {
         if (bi < n) {
             for(unsigned int i = 0 ; i < std::min(B, rr - bi * B) ; i++) {
@@ -293,7 +293,7 @@ std::vector<mat64> PLE::debug_stuff::get_UU(unsigned int rr)/*{{{*/
     return UU;
 }/*}}}*/
 
-bool PLE::debug_stuff::complete_check(std::vector<mat64> const & LL, std::vector<mat64> const & UU)
+bool PLE::debug_stuff::complete_check(mat64::vector_type const & LL, mat64::vector_type const & UU)
 {
     /* check that LL*UU + (remaining block in X) is equal to X_target */
 
@@ -418,7 +418,7 @@ std::vector<unsigned int> PLE::operator()(debug_stuff * D)/*{{{*/
 
         sub(bi, bj, yi0, yi1, ii);
 
-        ASSERT_ALWAYS(D->check(X, pivs.begin(), ii));
+        if (D) ASSERT_ALWAYS(D->check(X, pivs.begin(), ii));
     }
     ASSERT_ALWAYS(Lcols_pending.empty());
     return pivs;

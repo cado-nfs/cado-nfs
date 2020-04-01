@@ -1,14 +1,15 @@
 #include "cado.h"
 #include "test_bblas_base.hpp"
+#include "memory.h"
 
 int test_bblas_base::test_accel;
 
 test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
     gmp_randinit_default(rstate);
-    xr = new uint64_t[nmax];
-    r =  new uint64_t[nmax];
-    a =  new uint64_t[nmax];
-    b =  new uint64_t[nmax];
+    xr = (uint64_t *) malloc_aligned(nmax * sizeof(uint64_t), 64);
+    r =  (uint64_t *) malloc_aligned(nmax * sizeof(uint64_t), 64);
+    a =  (uint64_t *) malloc_aligned(nmax * sizeof(uint64_t), 64);
+    b =  (uint64_t *) malloc_aligned(nmax * sizeof(uint64_t), 64);
 #ifdef  HAVE_M4RI
     R = mzd_init(nmax, 64);
     A = mzd_init(nmax, 64);
@@ -29,10 +30,10 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
 }/*}}}*/
 
 test_bblas_base::~test_bblas_base() {/*{{{*/
-    delete[] xr;
-    delete[] r;
-    delete[] a;
-    delete[] b;
+    free_aligned(xr);
+    free_aligned(r);
+    free_aligned(a);
+    free_aligned(b);
 #ifdef  HAVE_M4RI
     mzd_free(D->R);
     mzd_free(D->A);

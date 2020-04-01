@@ -3,11 +3,12 @@
 #include "level4_ple_internal.hpp"
 #include <cstring>
 #include <algorithm>
+#include "time_bblas_common.hpp"
 
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
-    mat64 * X = new mat64[(m/B)*(n/B)];
+    mat64 * X = mat64::alloc((m/B)*(n/B));
     PLE ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
@@ -40,7 +41,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             }
         }
     }
-    delete[] X;
+    mat64::free(X);
 
     return 0;
 }/*}}}*/
@@ -48,7 +49,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
 int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
-    mat64 * X = new mat64[(m/B)*(n/B)];
+    mat64 * X = mat64::alloc((m/B)*(n/B));
     PLE ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
@@ -90,7 +91,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
             ASSERT_ALWAYS(X[(ii/B)*(n/B)+bj][ii%B] == a);
         }
     }
-    delete[] X;
+    mat64::free(X);
 
     return 0;
 }/*}}}*/
@@ -98,7 +99,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
 int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
-    mat64 * X = new mat64[(m/B)*(n/B)];
+    mat64 * X = mat64::alloc((m/B)*(n/B));
     PLE ple(X, m/B, n/B);
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
@@ -144,7 +145,7 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
         }
     }
 
-    delete[] X;
+    mat64::free(X);
 
     return 0;
 }/*}}}*/
@@ -152,7 +153,7 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
 int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)/*{{{*/
 {
     const unsigned int B = 64;
-    mat64 * X = new mat64[(m/B)*(n/B)];
+    mat64 * X = mat64::alloc((m/B)*(n/B));
     PLE ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
@@ -188,7 +189,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         std::sort(pivs.begin(), pivs.end());
         for(unsigned int k = 0 ; k < r ; k++)
             pivs[k] += k;
-        mat64 * tX = new mat64[(n/B)*(m/B)];
+        mat64 * tX = mat64::alloc((n/B)*(m/B));
         std::fill_n(tX, (n/B)*(m/B), 0);
         auto ppiv = pivs.begin();
         unsigned int rr = 0;
@@ -247,6 +248,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
                 mat64_transpose(X[bi * (n/B) + bj], tX[bi + bj * (m/B)]);
             }
         }
+        mat64::free(tX);
         
         /* Now pivs is the set of _columns_ that we have to move. Let's
          * do that. As per the specification of move_L_fragments, we'll
@@ -297,7 +299,8 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             mpz_clear(NN);
         }
     }
-    delete[] X;
+
+    mat64::free(X);
 
     return 0;
 }/*}}}*/
@@ -306,13 +309,13 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 {
     const unsigned int B = 64;
     for(unsigned int k = 0 ; k < 100 ; k++) {
-        std::vector<mat64> X ((m/B)*(n/B), 0);
+        mat64::vector_type X ((m/B)*(n/B), 0);
         for(unsigned int bi = 0 ; bi < m/B ; bi++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
                 mat64_fill_random(X[bi*(n/B)+bj], rstate);
             }
         }
-        std::vector<mat64> Xc = X;
+        mat64::vector_type Xc = X;
 
         /* The main importaant thing is the fact of enabling the
          * debug_stuff object, which does invariant checks throughout the
@@ -342,8 +345,8 @@ void test_bblas_level4::ple()
 {
     std::vector<std::pair<unsigned int, unsigned int>> mns
     {{
-         {64,128},
          {64,64},
+         {64,128},
          {64,192},
          {128,64},
          {128,128},
@@ -351,10 +354,27 @@ void test_bblas_level4::ple()
      }};
 
     for(auto x : mns) {
-        test_PLE_find_pivot(x.first, x.second);
-        test_PLE_propagate_pivot(x.first, x.second);
-        test_PLE_propagate_permutations(x.first, x.second);
-        test_PLE_move_L_fragments(x.first, x.second);
-        test_PLE(x.first, x.second);   // pass
+        unsigned int m = x.first;
+        unsigned int n = x.second;
+        test_PLE_find_pivot(m, n);
+        test_PLE_propagate_pivot(m, n);
+        test_PLE_propagate_permutations(m, n);
+        test_PLE_move_L_fragments(m, n);
+        test_PLE(m, n);   // pass
+
+        const unsigned int B = 64;
+        mat64::vector_type X ((m/B)*(n/B), 0);
+
+        auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(mat64), rstate); };
+        auto do_ple = [&](mat64 * X, unsigned int mm, unsigned int nn) {
+            return PLE(X, mm, nn)().size();
+        };
+
+        printf(" -- PLE(m=%u, n=%u)\n", m, n);
+
+        // TIME1N_SPINS(randomize(), 2, do_ple, &X[0], m/B, n/B);
+        std::string what = "PLE";       // complete me
+
+        bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
     }
 }

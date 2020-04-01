@@ -69,8 +69,8 @@ void test_bblas_level3::matpoly_polmat() {
         K = 3;
         L = 2;
     }
-    mat64 * A = new mat64[n * K * L];
-    mat64 * B = new mat64[n * K * L];
+    mat64 * A = mat64::alloc(n * K * L);
+    mat64 * B = mat64::alloc(n * K * L);
     size_t datasize = K * 64 * L * 64 * iceildiv(n, 64);
     uint64_t * data = new uint64_t[datasize];
     uint64_t * data_t = new uint64_t[datasize];
@@ -99,8 +99,8 @@ void test_bblas_level3::matpoly_polmat() {
     }
     delete[] data;
     delete[] data_t;
-    delete[] A;
-    delete[] B;
+    mat64::free(A);
+    mat64::free(B);
 }
 /*}}}*/
 

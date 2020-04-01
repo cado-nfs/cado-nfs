@@ -31,8 +31,8 @@ struct PLE {/*{{{*/
     struct debug_stuff {
     unsigned int m;
     unsigned int n;
-        std::vector<mat64> X_orig;
-        std::vector<mat64> X, X_target;
+        mat64::vector_type X_orig;
+        mat64::vector_type X, X_target;
         debug_stuff(PLE const & ple)
             : m(ple.m)
             , n(ple.n)
@@ -40,10 +40,10 @@ struct PLE {/*{{{*/
         {}
         void start_check(mat64 const * X0)
         {
-            X = std::vector<mat64>(X0, X0 + m * n);
+            X = mat64::vector_type(X0, X0 + m * n);
             X_target = X_orig;
         }
-        void start_check(std::vector<mat64> const & X0)
+        void start_check(mat64::vector_type const & X0)
         {
             ASSERT_ALWAYS(X0.size() == m * n);
             start_check(&X0[0]);
@@ -53,9 +53,9 @@ struct PLE {/*{{{*/
         {
             apply_permutations(V.begin(), V.end());
         }
-        std::vector<mat64> get_LL(unsigned int rr);
-        std::vector<mat64> get_UU(unsigned int rr);
-        bool complete_check(std::vector<mat64> const & LL, std::vector<mat64> const & UU) ;
+        mat64::vector_type get_LL(unsigned int rr);
+        mat64::vector_type get_UU(unsigned int rr);
+        bool complete_check(mat64::vector_type const & LL, mat64::vector_type const & UU) ;
         bool check(mat64 const * X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii);
     };
 
