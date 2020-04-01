@@ -121,4 +121,26 @@ void MAYBE_UNUSED addmul_6464_6464_fragment(mat64 & C,/*{{{*/
 }
 /*}}}*/
 
-
+namespace bblas_bitmat_details {
+    void bitmat_ops<mat64>::add(mat64 & C, mat64 const & A, mat64 const & B) {
+        mat64_add(C, A, B);
+    }
+    void bitmat_ops<mat64>::transpose(mat64 & C, mat64 const & A) {
+        mat64_transpose(C, A);
+    }
+    void bitmat_ops<mat64>::mul(mat64 & C, mat64 const & A, mat64 const & B) {
+        mul_6464_6464(C, A, B);
+    }
+    void bitmat_ops<mat64>::addmul(mat64 & C, mat64 const & A, mat64 const & B) {
+        addmul_6464_6464(C, A, B);
+    }
+    void bitmat_ops<mat64>::addmul(mat64 & C,
+            mat64 const & A,
+            mat64 const & B,
+            unsigned int i0,
+            unsigned int i1,
+            unsigned int yi0,
+            unsigned int yi1) {
+        addmul_6464_6464_fragment_lookup4(C, A, B, i0, i1, yi0, yi1);
+    }
+}

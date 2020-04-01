@@ -1509,3 +1509,7 @@ tests/linalg/bblas/CMakeLists.txt
 tests/linalg/bblas/test_bblas_base.cpp
 linalg/bblas/level4_ple_internal.hpp
 tests/linalg/bblas/test_bblas_level4_ple.cpp
+linalg/bblas/bblas_bitmat.hpp
+linalg/bblas/level4_ple_internal_inl.hpp
+linalg/bblas/mat8.cpp
+linalg/bblas/mat8.hpp

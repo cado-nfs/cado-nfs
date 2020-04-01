@@ -7,6 +7,9 @@ struct test_bblas_level3 : public test_bblas_base
 {
     test_bblas_level3(unsigned int n) : test_bblas_base(n) {}
 
+    static tags_t m8_tags;
+    void m8();
+
     static tags_t level3a_tags;
     void level3a();
 
@@ -66,6 +69,10 @@ struct test_bblas_level3 : public test_bblas_base
             if (matches(s, trsm_tags, match)) {
                 if (!has_banner++) banner();
                 trsm();
+            }
+            if (matches(s, m8_tags, match)) {
+                if (!has_banner++) banner();
+                m8();
             }
             if (match) seen.insert(s);
         }

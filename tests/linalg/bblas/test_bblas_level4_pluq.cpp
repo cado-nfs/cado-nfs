@@ -71,7 +71,7 @@ void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat6
         ASSERT_ALWAYS(mat64_is_lowertriangular(l[i*(n/64)+i]));
         ASSERT_ALWAYS(mat64_triangular_is_unit(l[i*(n/64)+i]));
         for(int j = 0 ; j < (n/64) ; j++ ) {
-            ASSERT_ALWAYS(mat64_eq(lm[i*(n/64)+j], u[i*(n/64)+j]));
+            ASSERT_ALWAYS(lm[i*(n/64)+j] == u[i*(n/64)+j]);
         }
     }
     perm_matrix_clear(qt);

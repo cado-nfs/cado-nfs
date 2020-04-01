@@ -4,8 +4,11 @@
 #include "level4.hpp"
 #include <vector>
 
+template<typename matrix>
 struct PLE {/*{{{*/
-    mat64 * X;
+    static constexpr const unsigned int B = matrix::width;
+    typedef typename matrix::datatype U;
+    matrix * X;
     unsigned int m;
     unsigned int n;
 
@@ -31,19 +34,19 @@ struct PLE {/*{{{*/
     struct debug_stuff {
     unsigned int m;
     unsigned int n;
-        mat64::vector_type X_orig;
-        mat64::vector_type X, X_target;
+        typename matrix::vector_type X_orig;
+        typename matrix::vector_type X, X_target;
         debug_stuff(PLE const & ple)
             : m(ple.m)
             , n(ple.n)
             , X_orig(ple.X, ple.X + m * n)
         {}
-        void start_check(mat64 const * X0)
+        void start_check(matrix const * X0)
         {
-            X = mat64::vector_type(X0, X0 + m * n);
+            X = typename matrix::vector_type(X0, X0 + m * n);
             X_target = X_orig;
         }
-        void start_check(mat64::vector_type const & X0)
+        void start_check(typename matrix::vector_type const & X0)
         {
             ASSERT_ALWAYS(X0.size() == m * n);
             start_check(&X0[0]);
@@ -53,16 +56,18 @@ struct PLE {/*{{{*/
         {
             apply_permutations(V.begin(), V.end());
         }
-        mat64::vector_type get_LL(unsigned int rr);
-        mat64::vector_type get_UU(unsigned int rr);
-        bool complete_check(mat64::vector_type const & LL, mat64::vector_type const & UU) ;
-        bool check(mat64 const * X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii);
+        typename matrix::vector_type get_LL(unsigned int rr);
+        typename matrix::vector_type get_UU(unsigned int rr);
+        bool complete_check(typename matrix::vector_type const & LL, typename matrix::vector_type const & UU) ;
+        bool check(matrix const * X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii);
     };
 
 
-    PLE(mat64 * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) {}
+    PLE(matrix * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) {}
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
+
+#include "level4_ple_internal_inl.hpp"
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

@@ -19,11 +19,18 @@ struct test_bblas_level4 : public test_bblas_base
     static tags_t ple_tags;
     void ple();
 
+    template<typename matrix>
+    void meta_ple();
     /* unit tests for the internal ops of PLE */
+    template<typename matrix>
     int test_PLE_find_pivot(unsigned int m, unsigned int n);
+    template<typename matrix>
     int test_PLE_propagate_pivot(unsigned int m, unsigned int n);
+    template<typename matrix>
     int test_PLE_propagate_permutations(unsigned int m, unsigned int n);
+    template<typename matrix>
     int test_PLE_move_L_fragments(unsigned int m, unsigned int n);
+    template<typename matrix>
     int test_PLE(unsigned int m, unsigned int n);
 
 #ifdef  HAVE_M4RI

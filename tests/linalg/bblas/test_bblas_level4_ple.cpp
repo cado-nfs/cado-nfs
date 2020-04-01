@@ -4,12 +4,15 @@
 #include <cstring>
 #include <algorithm>
 #include "time_bblas_common.hpp"
+#include "mat8.hpp"
 
+template<typename matrix>
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
-    const unsigned int B = 64;
-    mat64 * X = mat64::alloc((m/B)*(n/B));
-    PLE ple(X, m/B, n/B);
+    constexpr const unsigned int B = matrix::width;
+    typedef typename matrix::datatype U;
+    matrix * X = matrix::alloc((m/B)*(n/B));
+    PLE<matrix> ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         std::vector<unsigned int> f;
@@ -18,10 +21,10 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             f.push_back(gmp_urandomb_ui(rstate, 30));
             u.push_back(1 + gmp_urandomm_ui(rstate, 3*m-1));
         }
-        memset((void *) X, 0, (m/B) * (n/B) * sizeof(mat64));
+        memset((void *) X, 0, (m/B) * (n/B) * sizeof(matrix));
         for(unsigned int j = 0 ; j < n ; j++) {
             for(unsigned int i = 0 ; i < m ; i++) {
-                uint64_t b = (f[j]+i) % u[j] == 0;
+                U b = (f[j]+i) % u[j] == 0;
                 X[(i/B)*(n/B)+(j/B)][i%B] ^= (b << (j%B));
             }
         }
@@ -41,41 +44,43 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             }
         }
     }
-    mat64::free(X);
+    matrix::free(X);
 
     return 0;
 }/*}}}*/
 
+template<typename matrix>
 int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
-    const unsigned int B = 64;
-    mat64 * X = mat64::alloc((m/B)*(n/B));
-    PLE ple(X, m/B, n/B);
+    constexpr const unsigned int B = matrix::width;
+    typedef typename matrix::datatype U;
+    matrix * X = matrix::alloc((m/B)*(n/B));
+    PLE<matrix> ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
         unsigned int kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
         unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
         unsigned int pii = gmp_urandomm_ui(rstate, m);
-        memset((void *) X, 0, (m/B) * (n/B) * sizeof(mat64));
-        uint64_t examples[n/B][4];
+        memset((void *) X, 0, (m/B) * (n/B) * sizeof(matrix));
+        U examples[n/B][4];
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-            uint64_t a = 0;
+            U a = 0;
             if (kjj0 / B < bj)
-                a ^= ~UINT64_C(0);
+                a ^= ~U(0);
             else if (kjj0 / B == bj)
-                a ^= -(UINT64_C(1) << (kjj0 % B));
+                a ^= -(U(1) << (kjj0 % B));
             if (kjj1 / B < bj)
-                a ^= ~UINT64_C(0);
+                a ^= ~U(0);
             else if (kjj1 / B == bj)
-                a ^= -(UINT64_C(1) << (kjj1 % B));
+                a ^= -(U(1) << (kjj1 % B));
             examples[bj][0] = a;
             examples[bj][1] = a;
             examples[bj][2 + (pii & 1)] = 0;
             examples[bj][2 + (1 ^ (pii & 1))] = a;
             if (pjj / B == bj) {
-                examples[bj][pii & 1] ^= UINT64_C(1) << (pjj % B);
-                examples[bj][2 + (pii & 1)] ^= UINT64_C(1) << (pjj % B);
+                examples[bj][pii & 1] ^= U(1) << (pjj % B);
+                examples[bj][2 + (pii & 1)] ^= U(1) << (pjj % B);
             }
         }
 
@@ -87,20 +92,22 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
         ple.propagate_pivot(pii / B, pjj / B, pii % B, pjj % B);
         unsigned int bj = pjj / B;
         for(unsigned int ii = 0 ; ii < m ; ii++) {
-            uint64_t a = examples[bj][2 * (ii > pii) + (ii & 1)];
+            U a = examples[bj][2 * (ii > pii) + (ii & 1)];
             ASSERT_ALWAYS(X[(ii/B)*(n/B)+bj][ii%B] == a);
         }
     }
-    mat64::free(X);
+    matrix::free(X);
 
     return 0;
 }/*}}}*/
 
+template<typename matrix>
 int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
-    const unsigned int B = 64;
-    mat64 * X = mat64::alloc((m/B)*(n/B));
-    PLE ple(X, m/B, n/B);
+    constexpr const unsigned int B = matrix::width;
+    typedef typename matrix::datatype U;
+    matrix * X = matrix::alloc((m/B)*(n/B));
+    PLE<matrix> ple(X, m/B, n/B);
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
         for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
@@ -125,9 +132,9 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
             unsigned int   i =  ii % B;
             unsigned int pbi = pii / B;
             unsigned int  pi = pii % B;
-            mat64 & Y = X[bi * n/B + bj0];
-            mat64 & pY = X[pbi * n/B + bj0];
-            uint64_t c = Y[i] ^ pY[pi];
+            matrix & Y = X[bi * n/B + bj0];
+            matrix & pY = X[pbi * n/B + bj0];
+            U c = Y[i] ^ pY[pi];
             Y[i] ^= c;
             pY[pi] ^= c;
         }
@@ -140,21 +147,23 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
                 unsigned int  bi =  ii / B;
                 unsigned int   i =  ii % B;
-                ASSERT_ALWAYS(X[bi * n/B + bj][i] - X[bi * n/B][i] == bj);
+                ASSERT_ALWAYS(X[bi * n/B + bj][i] == X[bi * n/B][i] + bj);
             }
         }
     }
 
-    mat64::free(X);
+    matrix::free(X);
 
     return 0;
 }/*}}}*/
 
+template<typename matrix>
 int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)/*{{{*/
 {
-    const unsigned int B = 64;
-    mat64 * X = mat64::alloc((m/B)*(n/B));
-    PLE ple(X, m/B, n/B);
+    constexpr const unsigned int B = matrix::width;
+    typedef typename matrix::datatype U;
+    matrix * X = matrix::alloc((m/B)*(n/B));
+    PLE<matrix> ple(X, m/B, n/B);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         /* first generate the transpose of the matrix that we will
@@ -189,7 +198,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         std::sort(pivs.begin(), pivs.end());
         for(unsigned int k = 0 ; k < r ; k++)
             pivs[k] += k;
-        mat64 * tX = mat64::alloc((n/B)*(m/B));
+        matrix * tX = matrix::alloc((n/B)*(m/B));
         std::fill_n(tX, (n/B)*(m/B), 0);
         auto ppiv = pivs.begin();
         unsigned int rr = 0;
@@ -237,18 +246,19 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
                 mpz_clear(PP);
                 rr++;
             }
+            static_assert(B <= 64, "we need B<=64 since we use mpz_get_uint64");
             for(unsigned int bi = 0 ; bi < m/B ; bi++) {
                 tX[bi + bj * (m/B)][jj % B] = mpz_get_uint64(NN);
-                mpz_fdiv_q_2exp(NN, NN, 64);
+                mpz_fdiv_q_2exp(NN, NN, B);
             }
             mpz_clear(NN);
         }
         for(unsigned int bi = 0 ; bi < m/B ; bi++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                mat64_transpose(X[bi * (n/B) + bj], tX[bi + bj * (m/B)]);
+                matrix::transpose(X[bi * (n/B) + bj], tX[bi + bj * (m/B)]);
             }
         }
-        mat64::free(tX);
+        matrix::free(tX);
         
         /* Now pivs is the set of _columns_ that we have to move. Let's
          * do that. As per the specification of move_L_fragments, we'll
@@ -289,10 +299,10 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
             mpz_divexact_ui(NN,NN,3);
             for(unsigned int bj = 0 ; bj < n/B ; bj++, z -= B) {
-                uint64_t c = X[(ii/B)*(n/B)+bj][ii%B];
+                U c = X[(ii/B)*(n/B)+bj][ii%B];
                 c ^= mpz_get_uint64(NN);
-                if (z < B) c &= (UINT64_C(1) << z) - 1;
-                mpz_fdiv_q_2exp(NN, NN, 64);
+                if (z < B) c &= (U(1) << z) - 1;
+                mpz_fdiv_q_2exp(NN, NN, B);
                 ASSERT_ALWAYS(c == 0);
                 if (z < B) break;
             }
@@ -300,31 +310,32 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         }
     }
 
-    mat64::free(X);
+    matrix::free(X);
 
     return 0;
 }/*}}}*/
 
+template<typename matrix>
 int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 {
-    const unsigned int B = 64;
+    constexpr const unsigned int B = matrix::width;
     for(unsigned int k = 0 ; k < 100 ; k++) {
-        mat64::vector_type X ((m/B)*(n/B), 0);
+        typename matrix::vector_type X ((m/B)*(n/B), 0);
         for(unsigned int bi = 0 ; bi < m/B ; bi++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                mat64_fill_random(X[bi*(n/B)+bj], rstate);
+                matrix::fill_random(X[bi*(n/B)+bj], rstate);
             }
         }
-        mat64::vector_type Xc = X;
+        typename matrix::vector_type Xc = X;
 
-        /* The main importaant thing is the fact of enabling the
+        /* The main important thing is the fact of enabling the
          * debug_stuff object, which does invariant checks throughout the
          * PLE computation. As a matter of fact, the final test that
          * we do here is not even needed, since it's already one of those
          * checks triggered by debug_stuff.
          */
-        PLE ple(&X[0], m/B, n/B);
-        PLE::debug_stuff D(ple);
+        PLE<matrix> ple(&X[0], m/B, n/B);
+        typename PLE<matrix>::debug_stuff D(ple);
         std::vector<unsigned int> pivs = ple(&D);
 
         D.start_check(X);
@@ -338,36 +349,34 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
     return 0;
 }
 
-
-
-test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
-void test_bblas_level4::ple()
+template<typename matrix>
+void test_bblas_level4::meta_ple()
 {
+    constexpr const unsigned int B = matrix::width;
     std::vector<std::pair<unsigned int, unsigned int>> mns
     {{
-         {64,64},
-         {64,128},
-         {64,192},
-         {128,64},
-         {128,128},
-         {128,192},
+         {B,B},
+         {B,2*B},
+         {B,3*B},
+         {2*B,B},
+         {2*B,2*B},
+         {2*B,3*B},
      }};
 
     for(auto x : mns) {
         unsigned int m = x.first;
         unsigned int n = x.second;
-        test_PLE_find_pivot(m, n);
-        test_PLE_propagate_pivot(m, n);
-        test_PLE_propagate_permutations(m, n);
-        test_PLE_move_L_fragments(m, n);
-        test_PLE(m, n);   // pass
+        test_PLE_find_pivot<matrix>(m, n);
+        test_PLE_propagate_pivot<matrix>(m, n);
+        test_PLE_propagate_permutations<matrix>(m, n);
+        test_PLE_move_L_fragments<matrix>(m, n);
+        test_PLE<matrix>(m, n);   // pass
 
-        const unsigned int B = 64;
-        mat64::vector_type X ((m/B)*(n/B), 0);
+        typename matrix::vector_type X ((m/B)*(n/B), 0);
 
-        auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(mat64), rstate); };
-        auto do_ple = [&](mat64 * X, unsigned int mm, unsigned int nn) {
-            return PLE(X, mm, nn)().size();
+        auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(matrix), rstate); };
+        auto do_ple = [&](matrix * X, unsigned int mm, unsigned int nn) {
+            return PLE<matrix>(X, mm, nn)().size();
         };
 
         printf(" -- PLE(m=%u, n=%u)\n", m, n);
@@ -377,4 +386,11 @@ void test_bblas_level4::ple()
 
         bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
     }
+}
+
+test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
+void test_bblas_level4::ple()
+{
+    meta_ple<mat64>();
+    meta_ple<mat8>();
 }

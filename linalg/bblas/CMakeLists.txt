@@ -20,6 +20,7 @@ add_library(bblas
         level5.cpp
         perm_matrix.cpp
         gauss.c
+        mat8.cpp
 )
 
 add_dependencies(bblas gf2x-build)

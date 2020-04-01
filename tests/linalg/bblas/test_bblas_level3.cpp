@@ -2,6 +2,7 @@
 #include "test_bblas_level3.hpp"
 #include "time_bblas_common.hpp"
 #include <cstring>
+#include "mat8.hpp"
 
 /* level-3 combine matrices together. Most of our focus is on
  * fixed-size matrices, while blas do not fix the matrix size a
@@ -240,6 +241,60 @@ void test_bblas_level3::trsm() {
     mat64_fill_random(L, rstate);
     mat64_fill_random(U0, rstate);
     TIME1(1, trsm64, L, U0);
+}
+/*}}}*/
+
+test_bblas_base::tags_t test_bblas_level3::m8_tags { "m8", "l3"};/* */ 
+void test_bblas_level3::m8()
+{
+    printf(" -- straightforward operations --\n");
+
+    /* add */
+    mat8 & R = * (mat8 *) r;
+    mat8 & XR = * (mat8 *) xr;
+    mat8 & A = * (mat8 *) a;
+    mat8 & w = * (mat8 *) &this->w;
+    TIME1(1, mat8::add, R, A, w);
+
+    mat8::transpose(R, A);
+    mat8::transpose(XR, R);
+    ASSERT_ALWAYS(XR == A);
+    TIME1(1, mat8::transpose, R, A);
+
+    TIME1(1, mat8::mul, R, A, w);
+
+    mat8 L, U0, U1;
+
+    /* test consistency first. Extract L from a matrix full of garbage.
+     * We'll feed the garbage matrix to trsm8_general, to verify that it
+     * copes with intervals well */
+
+    for(unsigned int k = 0 ; k < 1000 ; k++) {
+        mat8 Lr;
+        unsigned int n0 = gmp_urandomm_ui(rstate, mat8::width);
+        unsigned int n1 = gmp_urandomm_ui(rstate, mat8::width + 1 - n0) + n0;
+        mat8::fill_random(Lr, rstate);
+        L = 1;
+        for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
+            /* import bits [n0..i-1] from Lr */
+            uint8_t m = (-(UINT8_C(1) << n0)) & ((UINT8_C(1) << i)-1);
+            L[i] ^= Lr[i] & m;
+        }
+
+        mat8::fill_random(U0, rstate);
+        U1 = U0;
+        mat8::trsm(Lr, U0, n0, n1);     /* U0 is now L^-1 * U1 */
+        mat8::mul(U0, L, U0);
+        ASSERT_ALWAYS(U0 == U1);
+    }
+    mat8::fill_random(L, rstate);
+    mat8::fill_random(U0, rstate);
+    /* since mat8::trsm is an overloaded function, the templates in TIME1
+     * can't infer the type. It's a bit of a pity, but working around it
+     * is easy enough
+     */
+    auto mat8trsm = [&](mat8 const &L, mat8 & U) { mat8::trsm(L, U); };
+    TIME1(1, mat8trsm, L, U0);
 }
 /*}}}*/
 

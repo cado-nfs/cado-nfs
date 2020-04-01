@@ -27,6 +27,12 @@ void mat64_fill_random(mat64 & w, gmp_randstate_t rstate)
 {
     memfill_random(w.data(), (64) * sizeof(uint64_t), rstate);
 }
+namespace bblas_bitmat_details {
+    void bitmat_ops<mat64>::fill_random(mat64 & w, gmp_randstate_t rstate)
+    {
+        mat64_fill_random(w, rstate);
+    }
+}
 void mat64_add_C(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 {
     for (int j = 0; j < 64; j++) {
