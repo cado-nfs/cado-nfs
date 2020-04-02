@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "test_bblas_level4.hpp"
-#include "perm_matrix.hpp"
+#include "bblas_perm_matrix.hpp"
 #include <cstring>
 
 /* PLUQ helpers -- well we're not computing exactly PLUQ 

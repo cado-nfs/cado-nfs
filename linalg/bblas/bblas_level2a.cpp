@@ -1,5 +1,6 @@
 #include "cado.h"
 #include "bblas.hpp"
+#include "bblas_level2a.hpp"
 #include "bblas_sse2.hpp"
 
 /**********************************************************************/

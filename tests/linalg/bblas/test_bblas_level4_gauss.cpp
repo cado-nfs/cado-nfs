@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "test_bblas_level4.hpp"
-#include "perm_matrix.hpp"
+#include "bblas_perm_matrix.hpp"
 #include "time_bblas_common.hpp"
 
 #ifdef  HAVE_M4RI

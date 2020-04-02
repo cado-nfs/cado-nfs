@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "bblas.hpp"
-#include "mat8.hpp"
+#include "bblas_mat8.hpp"
 #include "utils.h"      // memfill_random
 
 using namespace bblas_bitmat_details;

@@ -1,10 +1,10 @@
 #include "cado.h"
 #include "test_bblas_level4.hpp"
-#include "level4_ple_internal.hpp"
+#include "bblas_level4_ple_internal.hpp"
 #include <cstring>
 #include <algorithm>
 #include "time_bblas_common.hpp"
-#include "mat8.hpp"
+#include "bblas_mat8.hpp"
 
 template<typename matrix>
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/

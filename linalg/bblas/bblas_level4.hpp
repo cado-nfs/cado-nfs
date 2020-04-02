@@ -2,7 +2,8 @@
 #define BBLAS_LEVEL4_HPP_
 
 #include "bblas.hpp"
-#include "perm_matrix.hpp"
+#include "bblas_mat64.hpp"
+#include "bblas_perm_matrix.hpp"
 #include <vector>
 
 /**********************************************************************/

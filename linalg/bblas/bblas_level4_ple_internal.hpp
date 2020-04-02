@@ -1,7 +1,7 @@
 #ifndef LEVEL4_PLE_INTERNAL_HPP_
 #define LEVEL4_PLE_INTERNAL_HPP_
 
-#include "level4.hpp"
+#include "bblas_level4.hpp"
 #include <vector>
 
 template<typename matrix>
@@ -68,6 +68,6 @@ struct PLE {/*{{{*/
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
 
-#include "level4_ple_internal_inl.hpp"
+#include "bblas_level4_ple_internal_inl.hpp"
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

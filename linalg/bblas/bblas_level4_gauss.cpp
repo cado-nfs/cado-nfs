@@ -1,7 +1,7 @@
 #include "cado.h"
-#include "level5.hpp"
+#include "bblas_level4.hpp"
 #include <cstring>
-#include "gauss.h"
+#include "bblas_gauss.h"
 
 int gauss_6464_C(mat64 & mm, mat64 & e, mat64 const & m)
 {

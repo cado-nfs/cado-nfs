@@ -13,9 +13,6 @@
  */
 typedef bitmat<uint8_t> mat8;
 
-#include "level3a.hpp"
-#include "level3b.hpp"
-
 namespace bblas_bitmat_details {
 
     template<> struct bblas_bitmat_type_supported<uint8_t> {

@@ -5,9 +5,6 @@
 
 typedef bitmat<uint64_t> mat64; // ATTRIBUTE((aligned(64)));
 
-#include "level3a.hpp"
-#include "level3b.hpp"
-
 namespace bblas_bitmat_details {
 
     template<> struct bblas_bitmat_type_supported<uint64_t> {
@@ -37,5 +34,8 @@ namespace bblas_bitmat_details {
                 mat64 & U);
     };
 }
+
+#include "bblas_level3a.hpp"
+#include "bblas_level3b.hpp"
 
 #endif	/* BBLAS_MAT64_HPP_ */

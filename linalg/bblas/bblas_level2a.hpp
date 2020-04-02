@@ -3,6 +3,8 @@
 
 #include "bblas.hpp"
 
+#include "bblas_mat64.hpp"
+
 /**********************************************************************/
 /* level 2a: rank-1 updates.
  *      addmul_To64_o64 (several variants)

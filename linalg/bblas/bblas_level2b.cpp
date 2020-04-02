@@ -1,5 +1,5 @@
 #include "cado.h"
-#include "level2a.hpp"
+#include "bblas_level2a.hpp"
 #include "utils.h"      // cado_parity64
 
 /**********************************************************************/
@@ -17,7 +17,7 @@
 void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64 const & w)/*{{{*/
 {
     uint64_t c = 0;
-    for (unsigned int i = 0; i < BBLAS_WBITS; i++) {
+    for (unsigned int i = 0; i < 64; i++) {
 	c ^= (w[i] & -(a & UINT64_C(1)));
 	a >>= 1;
     }
@@ -42,7 +42,7 @@ void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64 const & b)/*{{{*/
     // note that popcnt is faster in asm than the more restricted parity
     // functions. So if it's available, it should be tested.
     uint64_t c = 0;
-    for (unsigned int i = 0; i < BBLAS_WBITS; i++) {
+    for (unsigned int i = 0; i < 64; i++) {
         uint64_t p = cado_parity64(a & b[i]);
 	c ^= p << i;
     }

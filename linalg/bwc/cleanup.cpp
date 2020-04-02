@@ -11,7 +11,7 @@
 #include "portability.h"
 #include "utils.h"
 #include "blockmatrix.hpp"
-#include "gauss.h"
+#include "bblas_gauss.h"
 
 void usage()
 {

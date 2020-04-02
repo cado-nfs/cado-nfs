@@ -1,7 +1,7 @@
 #include "cado.h"
-#include "level4.hpp"
+#include "bblas_level4.hpp"
 #include "bblas_sse2.hpp"
-#include "perm_matrix.hpp"
+#include "bblas_perm_matrix.hpp"
 #include "utils.h"      // cado_ctz64
 
 #ifdef  HAVE_SSE41

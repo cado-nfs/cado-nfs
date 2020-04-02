@@ -2,7 +2,7 @@
 #include "test_bblas_level3.hpp"
 #include "time_bblas_common.hpp"
 #include <cstring>
-#include "mat8.hpp"
+#include "bblas_mat8.hpp"
 
 /* level-3 combine matrices together. Most of our focus is on
  * fixed-size matrices, while blas do not fix the matrix size a

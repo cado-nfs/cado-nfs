@@ -92,7 +92,7 @@
 #include "utils.h"
 #include "utils_with_io.h"
 #include "blockmatrix.hpp"
-#include "gauss.h"
+#include "bblas_gauss.h"
 #include "worker-threads.h"
 
 

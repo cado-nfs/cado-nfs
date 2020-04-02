@@ -2,6 +2,7 @@
 #define BBLAS_LEVEL3A_HPP_
 
 #include "bblas.hpp"
+#include "bblas_mat64.hpp"
 #include <gmp.h>
 
 /**********************************************************************/
@@ -32,6 +33,10 @@ void mat64_transpose_simple_and_stupid(mat64 & dst, mat64 const & src);
 void mat64_transpose_recursive(mat64 & dst, mat64 const & src);
 
 /* final exported choices. */
+/* TODO: expose these choices as inline implementations of the bitmat_ops
+ * struct ? Do we even need to name them mat64_foo ? Supposedly
+ * mat64::foo should work just as well...
+ */
 void mat64_add(mat64 & C, mat64 const & A, mat64 const & B);
 void mat64_transpose(mat64 & dst, mat64 const & src);
 

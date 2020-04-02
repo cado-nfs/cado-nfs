@@ -1,5 +1,6 @@
 #include "cado.h"
-#include "level3d.hpp"
+#include "bblas_mat64.hpp"
+#include "bblas_level3d.hpp"
 
 /**********************************************************************/
 /* level 3d: solution of triangular linear systems

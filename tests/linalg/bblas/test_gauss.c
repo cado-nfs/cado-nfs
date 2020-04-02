@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "macros.h"
-#include "gauss.h"
+#include "bblas_gauss.h"
 
 #ifndef NB_TEST
 #define NB_TEST 100

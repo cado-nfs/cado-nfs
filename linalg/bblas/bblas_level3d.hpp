@@ -2,6 +2,7 @@
 #define BBLAS_LEVEL3D_HPP_
 
 #include "bblas.hpp"
+#include "bblas_mat64.hpp"
 
 /**********************************************************************/
 /* level 3d: solution of triangular linear systems

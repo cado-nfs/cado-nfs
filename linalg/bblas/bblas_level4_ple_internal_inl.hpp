@@ -1,7 +1,7 @@
 #ifndef LEVEL4_PLE_INTERNAL_INL_HPP_
 #define LEVEL4_PLE_INTERNAL_INL_HPP_
 
-#include "level4_ple_internal.hpp"
+#include "bblas_level4_ple_internal.hpp"
 
 template<typename matrix>
 int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/

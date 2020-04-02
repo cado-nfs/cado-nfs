@@ -2,6 +2,7 @@
 #define BBLAS_LEVEL3C_HPP_
 
 #include "bblas.hpp"
+#include "bblas_mat64.hpp"
 
 /**********************************************************************/
 /* level 3c: operations on matrices with one arbitrary length (sometimes 2)

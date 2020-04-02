@@ -19,7 +19,7 @@ blockmatrix::blockmatrix(unsigned int nrows, unsigned int ncols)
     ncblocks = iceildiv(ncols, 64);
     stride = nrblocks;
     if (nrblocks || ncblocks) {
-        mb = (mat64 *) malloc(nrblocks * ncblocks * sizeof(mat64));
+        mb = mat64::alloc(nrblocks * ncblocks);
     } else {
         mb = NULL;
     }
@@ -28,7 +28,7 @@ blockmatrix::blockmatrix(unsigned int nrows, unsigned int ncols)
 
 blockmatrix::~blockmatrix()
 {
-    if (owner && mb) free(mb);
+    if (owner && mb) mat64::free(mb);
     nrblocks = 0;
     ncblocks = 0;
     nrows = 0;
@@ -360,7 +360,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
     ASSERT_ALWAYS(j0 % 64 == 0);
     ASSERT_ALWAYS(fncols % 64 == 0);
     set_zero();
-    mat64 * tmp = (mat64 *) malloc((fncols/64) * sizeof(mat64));
+    mat64 * tmp = mat64::alloc(fncols/64);
     ASSERT_ALWAYS(tmp);
     for(unsigned int g = 0 ; g < fnrows ; g+=64) {
         /* Fill next block. */
@@ -377,7 +377,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
             mat64_transpose(mb[s/64 + (g/64) * stride], tmp[s/64]);
         }
     }
-    free(tmp);
+    mat64::free(tmp);
     fclose(f);
 }
 #endif

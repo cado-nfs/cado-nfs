@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "bblas.hpp"
-#include "perm_matrix.hpp"
+#include "bblas_perm_matrix.hpp"
 #include <cstring>
 #include "utils.h"      // cado_ctz64
 

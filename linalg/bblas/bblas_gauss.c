@@ -60,7 +60,7 @@ If just the dimension of kernel is wanted, set ker=NULL.
 #include <gmp.h>   /* only used for setting a random matrix */
 #include "portability.h"
 #include "utils.h"  /* for seconds() */
-#include "gauss.h"
+#include "bblas_gauss.h"
 
 #ifndef MULTI_ROW
 #define MULTI_ROW 3
@@ -110,7 +110,7 @@ static inline int getPivot(mp_limb_t **ptr, mp_limb_t mask);
 /*===========================================================================*/
 
 static void check_soundness(){
-#ifndef NDEBUG
+#if 0 // ndef NDEBUG
   mp_limb_t x = 2342326;
   int i;
   ASSERT (LIMBS_PER_ROW*ULONG_BITS >= NCOLS);

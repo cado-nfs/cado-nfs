@@ -2,6 +2,7 @@
 #define BBLAS_LEVEL3B_HPP_
 
 #include "bblas.hpp"
+#include "bblas_mat64.hpp"
 
 /**********************************************************************/
 /* level 3b: matrix multiplications
