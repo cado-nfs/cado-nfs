@@ -469,7 +469,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     if (v STREQUAL "u64k1")
         add_dependencies(lingen_${v}_support gf2x-build)
-        target_link_libraries(lingen_${v}_support gf2x-fft gf2x)
+        target_link_libraries(lingen_${v}_support gf2x-fft gf2x bblas)
     else()
         # In fact the dependency could be put on lingen_${v} instead ;
         # however time_matpoly_parallel relies on _support to provide the

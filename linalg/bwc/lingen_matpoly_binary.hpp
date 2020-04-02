@@ -65,6 +65,9 @@ public:
     size_t data_entry_size_in_bytes() const {
         return b2w(size) * sizeof(unsigned long);
     }
+    size_t data_entry_size_in_words() const {
+        return b2w(size);
+    }
     size_t data_size_in_bytes() const {
         return m * n * data_entry_size_in_bytes();
     }

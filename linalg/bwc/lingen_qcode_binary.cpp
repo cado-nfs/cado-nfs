@@ -10,6 +10,7 @@
 
 #include "lingen_expected_pi_length.hpp"
 #include "gf2x.h"
+#include "bblas.hpp"
 
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
@@ -1077,4 +1078,51 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     E.zero_pad(L);
     E.fill_random(0, L, rstate);
     bw_lingen_basecase_raw(bm, E);
+}/*}}}*/
+
+void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+{
+    constexpr const unsigned int B = mat64::width;
+    // typedef mat64::datatype U;
+
+    /* used by testing code */
+    bmstatus bm(m,n);
+    unsigned int t0 = iceildiv(m,n);
+    bm.set_t0(t0);
+    matpoly E(ab, m, m+n, L);
+    E.zero_pad(L);
+    E.fill_random(0, L, rstate);
+
+    ASSERT_ALWAYS(E.data_entry_size_in_bytes() == E.data_entry_alloc_size_in_bytes());
+    ASSERT_ALWAYS(E.data_entry_size_in_words() == iceildiv(L,B));
+
+    unsigned int b = m + n;
+    unsigned int bb = iceildiv(b, B);
+    unsigned int bX = bb * B;
+    unsigned int mb = iceildiv(m, B);
+    unsigned int mX = mb * B;
+    unsigned int Lb = iceildiv(L, B);
+    unsigned int LX = Lb * B;
+    unsigned int Db = iceildiv(iceildiv(m * L, b), B);
+    unsigned int DX = Db * B;
+
+    std::vector<mat64> XE(bb*mb*LX);
+
+    double tt = wct_seconds();
+    binary_matpoly_to_polmat(&XE[0], (uint64_t const *) E.data_area(),
+            bX, mX, LX);
+    E.clear();
+
+    std::vector<unsigned int> d(bX, 0);
+
+    std::vector<mat64> Xpi(bb * bb * DX);
+    for(unsigned int i = 0 ; i < b ; i++)
+        Xpi[bb * i + i] = 1;
+
+    for(unsigned int t = 0 ; t < L ; t++) {
+
+    }
+
+    printf("%.3f\n", wct_seconds()-tt);
+    // bw_lingen_basecase_raw(bm, E);
 }/*}}}*/

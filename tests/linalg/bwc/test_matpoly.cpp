@@ -357,9 +357,16 @@ struct matpoly_checker_base {
 
     int test_basecase()
     {
-        double tt = seconds();
+        double tt = wct_seconds();
         ::test_basecase(ab, m, n, len1, rstate);
-        printf("%.3f\n", seconds()-tt);
+        printf("%.3f\n", wct_seconds()-tt);
+#if 0
+#ifdef SELECT_MPFQ_LAYER_u64k1
+        tt = wct_seconds();
+        ::test_basecase_bblas(ab, m, n, len1, rstate);
+        printf("%.3f\n", wct_seconds()-tt);
+#endif
+#endif
         return 1;
     }
 };
@@ -527,6 +534,7 @@ int main(int argc, char * argv[])
         }
 #endif
     } else {
+        printf("test basecase m=%u n=%u len1=%u\n", m, n, len1);
         checker.test_basecase();
     }
 
