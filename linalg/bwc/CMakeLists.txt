@@ -353,38 +353,9 @@ link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-### add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.cpp
-###     lingen_round_operand_size.cpp
-###     lingen_qcode_binary.cpp
-###     # matpoly isn't really used by the legacy lingen, but the basecase code in
-###     # qcode_binary is shared between the two implementations now, and some of
-###     # the interface there relies on matpoly being available.
-###     # the two other files are just pulled by this.
-###     lingen_matpoly_binary.cpp
-###     lingen_memory_pool.cpp
-###     lingen_bmstatus.cpp
-###     lingen_expected_pi_length.cpp
-###     )
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
-### set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
-###     "-DCANTOR_BASE_FIELD_SIZE=128")
-# for debug only
-# set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
-# "-DCANTOR_BASE_FIELD_SIZE=128 -DLINGEN_BINARY_TRACE_MALLOCS=20")
-### install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
-### target_link_libraries(lingen bwc_base utils gf2x-fft gf2x)
-### add_dependencies(lingen gf2x-build)
-### # It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
-### # required compile-time flags and required link-time flags...
-### set_target_properties(lingen PROPERTIES
-###     COMPILE_FLAGS
-###     "-DSELECT_MPFQ_LAYER_u64k1 --mpi ${OpenMP_CXX_FLAGS}"
-###     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-
-
-
 
 add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)

@@ -119,7 +119,6 @@ linalg/bwc/gather.cpp
 linalg/bwc/intersections.c
 linalg/bwc/intersections.h
 linalg/bwc/krylov.cpp
-linalg/bwc/lingen_binary.cpp
 linalg/bwc/lingen_mat_types.hpp
 linalg/bwc/matmul-basic.c
 linalg/bwc/matmul-basicp.cpp
