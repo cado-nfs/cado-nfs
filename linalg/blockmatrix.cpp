@@ -11,12 +11,12 @@
 #include "portability.h"
 #include "cado-endian.h"
 
-blockmatrix::blockmatrix(unsigned int nrows, unsigned int ncols)
+blockmatrix::blockmatrix(unsigned int _nrows, unsigned int _ncols)
 {
-    this->nrows = nrows;
-    this->ncols = ncols;
-    nrblocks = iceildiv(nrows, 64);
-    ncblocks = iceildiv(ncols, 64);
+    this->_nrows = _nrows;
+    this->_ncols = _ncols;
+    nrblocks = iceildiv(_nrows, 64);
+    ncblocks = iceildiv(_ncols, 64);
     stride = nrblocks;
     if (nrblocks || ncblocks) {
         mb = mat64::alloc(nrblocks * ncblocks);
@@ -31,35 +31,30 @@ blockmatrix::~blockmatrix()
     if (owner && mb) mat64::free(mb);
     nrblocks = 0;
     ncblocks = 0;
-    nrows = 0;
-    ncols = 0;
+    _nrows = 0;
+    _ncols = 0;
     stride = 0;
 }
 
-blockmatrix::blockmatrix(blockmatrix & k, int i0, int j0, unsigned int nrows, unsigned int ncols)
+blockmatrix::blockmatrix(blockmatrix & k, int i0, int j0, unsigned int _nrows, unsigned int _ncols)
 {
     ASSERT_ALWAYS(i0 % 64 == 0);
     ASSERT_ALWAYS(j0 % 64 == 0);
-    ASSERT_ALWAYS(i0 + nrows <= k.nrows);
-    ASSERT_ALWAYS(j0 + ncols <= k.ncols);
-    this->nrows = nrows;
-    this->ncols = ncols;
+    ASSERT_ALWAYS(i0 + _nrows <= k._nrows);
+    ASSERT_ALWAYS(j0 + _ncols <= k._ncols);
+    this->_nrows = _nrows;
+    this->_ncols = _ncols;
     stride = k.nrblocks;
-    nrblocks = iceildiv(nrows, 64);
-    ncblocks = iceildiv(ncols, 64);
+    nrblocks = iceildiv(_nrows, 64);
+    ncblocks = iceildiv(_ncols, 64);
     mb = k.mb + (i0/64) + (j0/64) * k.stride;
-    if (nrows == 0 || ncols == 0) mb = NULL;
+    if (_nrows == 0 || _ncols == 0) mb = NULL;
     owner = false;
-}
-uint64_t * blockmatrix::subrow_ptr(int i, int j)
-{
-    ASSERT_ALWAYS(j % 64 == 0);
-    return &(mb[(i/64) + (j/64) * stride][i%64]);
 }
 void blockmatrix::copy_colrange(blockmatrix const & A, int j0, int j1)
 {
-    ASSERT_ALWAYS(nrows == A.nrows);
-    ASSERT_ALWAYS(ncols == A.ncols);
+    ASSERT_ALWAYS(_nrows == A._nrows);
+    ASSERT_ALWAYS(_ncols == A._ncols);
     ASSERT_ALWAYS(ncblocks == A.ncblocks);
 
     int block0 = j0 / 64;
@@ -74,8 +69,8 @@ void blockmatrix::copy_colrange(blockmatrix const & A, int j0, int j1)
         if (z1>=0) mask &= ((uint64_t)-1) >> z1;
         masks[b] = mask;
     }
-    for(unsigned int i0 = 0 ; i0 < A.nrows ; i0 += 64) {
-        for(unsigned int i = 0 ; i0 + i < A.nrows && i < 64 ; i++) {
+    for(unsigned int i0 = 0 ; i0 < A._nrows ; i0 += 64) {
+        for(unsigned int i = 0 ; i0 + i < A._nrows && i < 64 ; i++) {
             for(int b = block0 ; b*64 < j1 ; b++) {
                 uint64_t m = masks[b];
                 uint64_t v = A.mb[i0/64 + b*A.stride][i];
@@ -95,14 +90,14 @@ void blockmatrix::print(const char *vname) const
         fprintf(stderr, "Cannot append to /tmp/debug");
         return;
     }
-    fprintf(f,"%s:=Matrix(GF(2),%u,%u,[\n", vname, nrows, ncols);
-    for (unsigned int i = 0; i < nrows; i += 64) {
-	for (unsigned int ii = 0; ii < 64 && i + ii < nrows; ii++) {
+    fprintf(f,"%s:=Matrix(GF(2),%u,%u,[\n", vname, _nrows, _ncols);
+    for (unsigned int i = 0; i < _nrows; i += 64) {
+	for (unsigned int ii = 0; ii < 64 && i + ii < _nrows; ii++) {
 	    if (i + ii)
 		fprintf(f,",\n");
-	    for (unsigned int j = 0; j < ncols; j += 64) {
+	    for (unsigned int j = 0; j < _ncols; j += 64) {
                 mat64 & bl = mb[i / 64 + (j / 64) * stride];
-		for (unsigned int jj = 0; jj < 64 && j + jj < ncols; jj++) {
+		for (unsigned int jj = 0; jj < 64 && j + jj < _ncols; jj++) {
 		    if (j + jj)
 			fprintf(f,",");
 		    fprintf(f,"%" PRIu64, (bl[ii] >> jj) & ((uint64_t)1));
@@ -127,7 +122,7 @@ void blockmatrix::set_zero()
 void blockmatrix::set_identity()
 {
     set_zero();
-    for(unsigned int i = 0 ; i < ncols ; i++)
+    for(unsigned int i = 0 ; i < _ncols ; i++)
         mb[i/64 + (i/64)*stride][i%64] ^= ((uint64_t)1) << (i%64);
 }
 
@@ -136,12 +131,12 @@ void blockmatrix::mul_Ta_b(
         blockmatrix const & a,
         blockmatrix const & b)
 {
-    ASSERT_ALWAYS(  nrows == a.ncols);
-    ASSERT_ALWAYS(  ncols == b.ncols);
-    ASSERT_ALWAYS(a.nrows == b.nrows);
+    ASSERT_ALWAYS(  _nrows == a._ncols);
+    ASSERT_ALWAYS(  _ncols == b._ncols);
+    ASSERT_ALWAYS(a._nrows == b._nrows);
 
     if (this == &a || this == &b) {
-        blockmatrix tc(a.ncols, b.ncols);
+        blockmatrix tc(a._ncols, b._ncols);
         tc.mul_Ta_b(a, b);
         tc.swap(*this);
         return;
@@ -157,7 +152,7 @@ void blockmatrix::mul_Ta_b(
             addmul_TN64_N64(mb[i + j * stride],
                     (uint64_t *) (a.mb + i * a.stride),
                     (uint64_t *) (b.mb + j * b.stride),
-                    a.nrows);
+                    a._nrows);
         }
     }
 }
@@ -166,12 +161,12 @@ void blockmatrix::mul_smallb(
         blockmatrix const & a,
         blockmatrix const & b)
 {
-    ASSERT_ALWAYS(  nrows == a.nrows);
-    ASSERT_ALWAYS(  ncols == b.ncols);
-    ASSERT_ALWAYS(a.ncols == b.nrows);
+    ASSERT_ALWAYS(  _nrows == a._nrows);
+    ASSERT_ALWAYS(  _ncols == b._ncols);
+    ASSERT_ALWAYS(a._ncols == b._nrows);
 
     if (this == &a || this == &b) {
-        blockmatrix tc(a.nrows, b.ncols);
+        blockmatrix tc(a._nrows, b._ncols);
         tc.mul_smallb(a, b);
         tc.swap(*this);
         return;
@@ -187,20 +182,20 @@ void blockmatrix::mul_smallb(
             addmul_N64_6464(
                     (uint64_t *) (  mb + j *   stride),
                     (uint64_t *) (a.mb + i * a.stride),
-                    b.mb[i + j * b.stride], a.nrows);
+                    b.mb[i + j * b.stride], a._nrows);
         }
     }
 }
 
 void blockmatrix::reverse_columns()
 {
-    if (nrows == ncols) {
+    if (_nrows == _ncols) {
         transpose(*this);
         reverse_rows();
         transpose(*this);
     } else {
         /* different stride. Better to allocate */
-        blockmatrix ta(ncols, nrows);
+        blockmatrix ta(_ncols, _nrows);
         ta.transpose(*this);
         ta.reverse_rows();
         transpose(ta);
@@ -332,8 +327,8 @@ blockmatrix::read_from_flat_file (int i0, int j0,
 {
     FILE * f = fopen(name, "rb");
     ASSERT_ALWAYS(f);
-    ASSERT_ALWAYS(i0 + fnrows <= nrows);
-    ASSERT_ALWAYS(j0 + fncols <= ncols);
+    ASSERT_ALWAYS(i0 + fnrows <= _nrows);
+    ASSERT_ALWAYS(j0 + fncols <= _ncols);
     ASSERT_ALWAYS(j0 % 64 == 0);
     ASSERT_ALWAYS(fncols % 64 == 0);
     set_zero();
@@ -354,8 +349,8 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
 {
     FILE * f = fopen(name, "rb");
     ASSERT_ALWAYS(f);
-    ASSERT_ALWAYS(i0 + fncols <= nrows);
-    ASSERT_ALWAYS(j0 + fnrows <= ncols);
+    ASSERT_ALWAYS(i0 + fncols <= _nrows);
+    ASSERT_ALWAYS(j0 + fnrows <= _ncols);
     ASSERT_ALWAYS(i0 % 64 == 0);
     ASSERT_ALWAYS(j0 % 64 == 0);
     ASSERT_ALWAYS(fncols % 64 == 0);
@@ -386,8 +381,8 @@ void blockmatrix::write_to_flat_file(const char * name, int i0, int j0, unsigned
 {
     FILE * f = fopen(name, "wb");
     ASSERT_ALWAYS(f);
-    ASSERT_ALWAYS(i0 + fnrows <= nrows);
-    ASSERT_ALWAYS(j0 + fncols <= ncols);
+    ASSERT_ALWAYS(i0 + fnrows <= _nrows);
+    ASSERT_ALWAYS(j0 + fncols <= _ncols);
     ASSERT_ALWAYS(j0 % 64 == 0);
     // for our convenience, we allow larger files.
     // ASSERT_ALWAYS(fncols % 64 == 0);
@@ -405,8 +400,8 @@ void blockmatrix::write_to_flat_file(const char * name, int i0, int j0, unsigned
 
 void blockmatrix::transpose(blockmatrix const & a)
 {
-    ASSERT_ALWAYS(nrows == a.ncols);
-    ASSERT_ALWAYS(a.nrows == ncols);
+    ASSERT_ALWAYS(_nrows == a._ncols);
+    ASSERT_ALWAYS(a._nrows == _ncols);
     for(unsigned int i = 0 ; i < a.nrblocks ; i++) {
         mat64_transpose(mb[i + i * stride], a.mb[i + i * a.stride]);
         for(unsigned int j = i + 1 ; j < a.ncblocks ; j++) {
