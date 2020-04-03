@@ -1,9 +1,8 @@
 #include "cado.h"
 #include "bblas_level4.hpp"
 #include "bblas_level4_ple_internal.hpp"
-
-template<typename T>
-constexpr const unsigned int PLE<T>::B;
+#include "bblas_mat64.hpp"
+#include "bblas_mat8.hpp"
 
 /**********************************************************************/
 /* level 4: factorizations and reductions of matrices

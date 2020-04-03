@@ -402,6 +402,7 @@ add_dependencies(test_bwc_mod2_m_neq_n_dependencies mf_scan)
 add_subdirectory(mpfq)
 
 # some tests below use the bwc include files.
+include_directories(${PROJECT_SOURCE_DIR}/linalg)
 include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc)
 include_directories(${PROJECT_SOURCE_DIR}/utils)
 

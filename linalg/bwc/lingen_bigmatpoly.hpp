@@ -7,6 +7,7 @@
 #include "lingen_matpoly_select.hpp"
 #include "lingen_call_companion.hpp"
 #include "tree_stats.hpp"
+#include "subdivision.hpp"
 
 #include "select_mpi.h"
 

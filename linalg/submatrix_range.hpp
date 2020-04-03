@@ -1,10 +1,10 @@
-#ifndef LINGEN_SUBMATRIX_HPP_
-#define LINGEN_SUBMATRIX_HPP_
+#ifndef SUBMATRIX_HPP_
+#define SUBMATRIX_HPP_
 
-#include <cstdlib>
-#include <algorithm>
-#include "subdivision.hpp"
-
+/* This is only an abstract description of a submatrix range. It can be
+ * used on any matrix type that has methods .nrows() and .ncols()
+ */
+#include "macros.h"
 
 struct submatrix_range {
     unsigned int i0=0,j0=0;
@@ -20,7 +20,7 @@ struct submatrix_range {
     submatrix_range(T const & M) : i0(0), j0(0), i1(M.nrows()), j1(M.ncols()) {}
     template<typename T>
     inline bool valid(T const & a) const {
-        return i0 <= i1 && i1 <= a.m && j0 <= j1 && j1 <= a.n;
+        return i0 <= i1 && i1 <= a.nrows() && j0 <= j1 && j1 <= a.ncols();
     }
     submatrix_range operator*(submatrix_range const & a) const {
         ASSERT_ALWAYS(ncols() == a.nrows());
@@ -29,4 +29,4 @@ struct submatrix_range {
 };
 
 
-#endif	/* LINGEN_SUBMATRIX_HPP_ */
+#endif	/* SUBMATRIX_HPP_ */

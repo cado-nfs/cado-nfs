@@ -68,6 +68,13 @@ struct PLE {/*{{{*/
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
 
+/* Is it sufficient to meet the ODR requirement ? There are places where
+ * we do std::min(B, foo). That requires that a definition of B be
+ * available somewhere. It's not clear to me that the following kind of
+ * template constexpr definition does the trick.
+ */
+template<typename matrix> constexpr const unsigned int PLE<matrix>::B;
+
 #include "bblas_level4_ple_internal_inl.hpp"
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

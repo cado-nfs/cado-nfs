@@ -1415,7 +1415,7 @@ gf2x/fft/mpfq/remove_mpfq_malloc_calls.patch
 gf2x/fft/gf2x-fft.c
 gf2x/fft/gf2x-fft.h.in
 gf2x/fft/mpfq/mpfq-api.pl
-linalg/bwc/lingen_submatrix.hpp
+linalg/submatrix_range.hpp
 linalg/bwc/mpfq_fake.hpp
 linalg/bwc/lingen_matpoly_binary.cpp
 linalg/bwc/lingen_matpoly_binary.hpp

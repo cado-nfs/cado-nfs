@@ -11,10 +11,10 @@
 #include "fmt/format.h"
 #include "fmt/printf.h"
 #include "gmp-hacks.h"
-#include "lingen_submatrix.hpp"
 #include "lingen_checkpoints.hpp"
 #include "macros.h"
 #include "params.h"
+#include "subdivision.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>

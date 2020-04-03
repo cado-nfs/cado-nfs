@@ -16,6 +16,7 @@
 /* Use matpoly as imported from lingen_matpoly_ft.hpp */
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "subdivision.hpp"
 #include "logline.h"
 
 template<typename T>

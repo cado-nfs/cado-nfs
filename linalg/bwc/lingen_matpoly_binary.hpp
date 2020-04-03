@@ -25,7 +25,7 @@
 #include "cado_config.h"
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
-#include "lingen_submatrix.hpp"
+#include "submatrix_range.hpp"
 #include "mpfq_fake.hpp"
 #include "tree_stats.hpp"
 #include "lingen_call_companion.hpp"

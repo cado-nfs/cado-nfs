@@ -1,8 +1,9 @@
 #ifndef BLOCKMATRIX_H_
 #define BLOCKMATRIX_H_
 
-#include "bblas.hpp"
 #include "macros.h"
+#include "bblas.hpp"
+#include "submatrix_range.hpp"
 
 struct blockmatrix {
     mat64 * mb;
@@ -38,7 +39,13 @@ struct blockmatrix {
 
     void set_zero();
     void set_identity();
+
+    /* used to store 64 entries simultaneously. This is used in
+     * characters.cpp only.
+     */
     uint64_t * subrow_ptr(int i, int j);
+
+
     void copy_colrange(blockmatrix const & A, int j0, int j1);
 
     void mul_Ta_b(blockmatrix const & a, blockmatrix const & b);

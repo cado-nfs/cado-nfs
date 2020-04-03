@@ -8,6 +8,7 @@
 #include "cxx_mpz.hpp"
 #include "fmt/format.h"
 #include "fmt/printf.h"
+#include "subdivision.hpp"
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
 #include "lingen_tuning_cache.hpp"

@@ -12,7 +12,7 @@ class matpoly;
 struct polymat;
 
 #include "lingen_polymat.hpp"
-#include "lingen_submatrix.hpp"
+#include "submatrix_range.hpp"
 #include "lingen_memory_pool.hpp"
 #include "tree_stats.hpp"
 #include "lingen_call_companion.hpp"
