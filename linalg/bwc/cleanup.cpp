@@ -93,9 +93,9 @@ int main(int argc, char **argv)
          * ncols==64, harder to get it right as well for >1 column
          * blocks. Therefore, we stick to simple and stupid code.
          */
-        k.mul_smallb(k, S);
+        blockmatrix::mul_smallb(k, S);
 
-        k.copy_transpose_to_flat(zone, limbs_per_col, 0, 0);
+        blockmatrix::copy_transpose_to_flat(zone, limbs_per_col, k);
         int rank = spanned_basis(
                 (mp_limb_t *) kzone,
                 (mp_limb_t *) zone,
@@ -106,17 +106,17 @@ int main(int argc, char **argv)
                 NULL);
         // kzone*transpose(kS) is reduced
         // kS*transpose(kzone) is reduced (equivalent formulation)
-        T.copy_transpose_from_flat(kzone, limbs_per_row, 0, 0);
+        blockmatrix::copy_transpose_from_flat(T, kzone, limbs_per_row);
         // blockmatrix_reverse_columns(T, T);
 
         /* multiply kprev, k, and S by T */
         /* same comment as above applies, btw. */
-        S.mul_smallb(S, T);
-        k.mul_smallb(k, T);
+        blockmatrix::mul_smallb(S, T);
+        blockmatrix::mul_smallb(k, T);
         /* only columns [0..rank-1] in T are non-zero */
 
         if (i) {
-            kprev.mul_smallb(kprev, T);
+            blockmatrix::mul_smallb(kprev, T);
         }
 
         if (i) {
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
     kfinal.copy_colrange(kprev, 0, prevrank);
 
     /* Oh, now we need to check the combined rank of all these */
-    kfinal.copy_transpose_to_flat(zone, limbs_per_col, 0, 0);
+    blockmatrix::copy_transpose_to_flat(zone, limbs_per_col, kfinal);
     int rankf = spanned_basis(
             (mp_limb_t *) kzone,
             (mp_limb_t *) zone,
@@ -151,8 +151,8 @@ int main(int argc, char **argv)
             sizeof(uint64_t) / sizeof(mp_limb_t) * limbs_per_col,
             sizeof(uint64_t) / sizeof(mp_limb_t) * limbs_per_row,
             NULL);
-    T.copy_transpose_from_flat(kzone, limbs_per_row, 0, 0);
-    kfinal.mul_smallb(kfinal, T);
+    blockmatrix::copy_transpose_from_flat(T, kzone, limbs_per_row);
+    blockmatrix::mul_smallb(kfinal, T);
     if (rankf < rank0) {
         printf("final adjustment: rank drops from %d to %d\n", rank0, rankf);
     }

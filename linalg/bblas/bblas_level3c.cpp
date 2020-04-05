@@ -515,6 +515,7 @@ void MAYBE_UNUSED addmul_N64_6464_lookup4(uint64_t *C, /*{{{*/
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements addmul_N64_6464 */
+/* C == A seems to work ok */
 void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
 		 uint64_t const *A,
 		 mat64 const & B, size_t m)

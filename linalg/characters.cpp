@@ -515,7 +515,7 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
     uint64_t * tiny = (uint64_t *) malloc (tiny_chars);
     memset(tiny, 0, tiny_chars);
     
-    t.copy_to_flat(tiny, tiny_limbs_per_row, 0, 0);
+    blockmatrix::copy_to_flat(tiny, tiny_limbs_per_row, t);
 
     /* The kernel matrix is essentially a square matrix of tiny_nrows rows and
      * columns (tiny_nrows is the same as the number of kernel vectors)
@@ -545,16 +545,16 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
     blockmatrix::swap_words_if_needed(kerdata, kerdata_64bit_words);
     free(tiny);
     /* Now take back our kernel to block format, and multiply. Exciting. */
-    kb.copy_transpose_from_flat(kerdata, tiny_limbs_per_col, 0, 0);
+    blockmatrix::copy_transpose_from_flat(kb, kerdata, tiny_limbs_per_col);
     free(myker);
     free(kerdata);
     return dim;
 }
 
 /* This only builds a basis, not an echelonized basis */
-blockmatrix blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_consider)
+void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_consider)
 {
-    blockmatrix t(m, 0, 0, MIN(max_rows_to_consider, m.nrows()), m.ncols());
+    auto t = m.view(submatrix_range(0, 0, MIN(max_rows_to_consider, m.nrows()), m.ncols()));
 
     unsigned int tiny_nrows = t.ncols();
     unsigned int tiny_ncols = t.nrows();
@@ -564,7 +564,7 @@ blockmatrix blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_
     unsigned int tiny_nlimbs = tiny_nrows * tiny_limbs_per_row;
     uint64_t * tiny = (uint64_t *) malloc(tiny_nlimbs * sizeof(uint64_t));
     memset(tiny, 0, tiny_nlimbs * sizeof(uint64_t));
-    t.copy_transpose_to_flat(tiny, tiny_limbs_per_row, 0, 0);
+    blockmatrix::copy_transpose_to_flat(tiny, tiny_limbs_per_row, t);
 
     uint64_t * sdata = (uint64_t *) malloc(tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
     memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t *));
@@ -585,11 +585,11 @@ blockmatrix blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_
     free(tiny);
 
     blockmatrix s(m.ncols(), rank);
-    s.copy_transpose_from_flat(sdata, tiny_limbs_per_col, 0, 0);
+    blockmatrix::copy_transpose_from_flat(s, sdata, tiny_limbs_per_col);
     blockmatrix k2(m.nrows(), rank);
-    k2.mul_smallb(m, s);
+    blockmatrix::mul_smallb(k2, m, s);
+    std::swap(k2, m);
     free(sdata);
-    return k2;
 }
 
 static void
@@ -747,8 +747,7 @@ int main(int argc, char **argv)
             total_kernel_cols, wct_seconds() - wct0);
 
     {
-        blockmatrix k2 = blockmatrix_column_reduce(k, 4096);
-        k.swap(k2);
+        blockmatrix_column_reduce(k, 4096);
     }
     total_kernel_cols = k.ncols();
     fprintf(stderr, "Info: input kernel vectors reduced to dimension %u\n",
@@ -756,12 +755,8 @@ int main(int argc, char **argv)
 
     /* tmat is the product of the character matrices times the kernel vector */
     blockmatrix t(total_kernel_cols, scmat.ncols() + h.ncols());
-    blockmatrix tc(t, 0, 0, total_kernel_cols, scmat.ncols());
-    blockmatrix th(t, 0, scmat.ncols(), total_kernel_cols, h.ncols());
-
-    tc.mul_Ta_b(k, scmat);
-    th.mul_Ta_b(k, h);
-
+    blockmatrix::mul_Ta_b(t.view(submatrix_range(0, 0, total_kernel_cols, scmat.ncols())), k, scmat);
+    blockmatrix::mul_Ta_b(t.view(submatrix_range(0, scmat.ncols(), total_kernel_cols, h.ncols())), k, h);
     fprintf(stderr, "done multiplying matrices at wct=%.1fs\n", wct_seconds() - wct0);
 
     // blockmatrix_free(scmat);
@@ -775,20 +770,22 @@ int main(int argc, char **argv)
     
     fprintf(stderr, "dim of ker = %d\n", dim);
 
-    blockmatrix kbsub(kb, 0, 0, kb.nrows(), dim);
+    auto kbsub = kb.view(submatrix_range(0, 0, kb.nrows(), dim));
 
-    blockmatrix nk(small_nrows, kbsub.ncols());
-    nk.mul_smallb(k, kbsub);
+    blockmatrix::mul_smallb(k, kbsub);
+
+    // blockmatrix nk(small_nrows, kbsub.ncols());
+    // blockmatrix::mul_smallb(nk, k, kbsub);
     // free(kbsub);
     // blockmatrix_free(k);
     // blockmatrix_free(kb);
 
     /* Sanity check: count the number of zero dependencies */
     unsigned int nonzero_deps = 0;
-    for(unsigned int j = 0 ; j < nk.ncols() ; j+=64) {
+    for(unsigned int j = 0 ; j < k.ncols() ; j+=64) {
         uint64_t sanity = 0 ;
-        for(unsigned int i = 0 ; i < nk.nrows() ; i+=64) {
-                sanity |= nk[i][j];
+        for(unsigned int i = 0 ; i < k.nrows() ; i+=64) {
+                sanity |= k[i][j];
         }
         // do popcount.
         for( ; sanity ; sanity>>=1) nonzero_deps += sanity&1UL;
@@ -797,16 +794,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error, all dependencies are zero !\n");
         exit(1);
     }
-    nk.write_to_flat_file(outname, 0, 0, nk.nrows(), nk.ncols());
+    k.write_to_flat_file(outname, 0, 0, k.nrows(), k.ncols());
 
     fprintf(stderr, "Wrote %d non-zero dependencies to %s\n",
             nonzero_deps, outname);
-    if (nonzero_deps < (unsigned int) dim || nk.ncols() % 64) {
+    if (nonzero_deps < (unsigned int) dim || k.ncols() % 64) {
         fprintf(stderr, "This includes %u discarded zero dependencies, as well as %u padding zeros\n",
                 dim - nonzero_deps,
-                nk.ncols_padded() - dim);
+                k.ncols_padded() - dim);
     }
-    // blockmatrix_free(nk);
+    // blockmatrix_free(k);
 
     cado_poly_clear(pol);
     param_list_clear(pl);
