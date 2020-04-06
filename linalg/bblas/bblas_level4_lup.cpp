@@ -1,11 +1,7 @@
 #include "cado.h"
 #include "bblas_level4.hpp"
 #include <cstring>
-#include "bblas_sse2.hpp"
-
-#ifdef  HAVE_SSE41
-#include <smmintrin.h>  // sse 4.1 _mm_cmpeq_epi64
-#endif  /* HAVE_SSE41 */
+#include "bblas_simd.hpp"
 
 /* Computes l,u,p, such that:
  *  - l is unit lower triangular

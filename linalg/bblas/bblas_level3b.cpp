@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "bblas_level3b.hpp"
-#include "bblas_sse2.hpp"
+#include "bblas_simd.hpp"
 #include <cstring>
 
 /**********************************************************************/

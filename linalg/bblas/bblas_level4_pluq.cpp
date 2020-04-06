@@ -1,12 +1,8 @@
 #include "cado.h"
 #include "bblas_level4.hpp"
-#include "bblas_sse2.hpp"
+#include "bblas_simd.hpp"
 #include "bblas_perm_matrix.hpp"
 #include "utils.h"      // cado_ctz64
-
-#ifdef  HAVE_SSE41
-#include <smmintrin.h>  // sse 4.1 _mm_cmpeq_epi64
-#endif  /* HAVE_SSE41 */
 
 /*  PLUQ stuff -- well we're not computing exactly PLUQ */
 

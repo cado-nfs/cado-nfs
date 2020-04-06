@@ -162,6 +162,12 @@ void test_bblas_level3::level3c_list()
     ASSERT_ALWAYS(memcmp(xr, r, n * sizeof(uint64_t)) == 0);
     TIME1N(2, mul_N64_6464_transB, r, a, w, n);
 
+#if defined(HAVE_AVX2)
+    mul_N64_6464_avx2(r, a, w, n);
+    ASSERT_ALWAYS(memcmp(xr, r, n * sizeof(uint64_t)) == 0);
+    TIME1N(2, mul_N64_6464_avx2, r, a, w, n);
+#endif
+
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     mul_N64_6464_sse(r, a, w, n);
     ASSERT_ALWAYS(memcmp(xr, r, n * sizeof(uint64_t)) == 0);

@@ -1,7 +1,7 @@
 #include "cado.h"
 #include "bblas.hpp"
 #include "bblas_level2a.hpp"
-#include "bblas_sse2.hpp"
+#include "bblas_simd.hpp"
 
 /**********************************************************************/
 /* level 2a: rank-1 updates.

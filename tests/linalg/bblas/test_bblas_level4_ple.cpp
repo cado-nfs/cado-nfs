@@ -399,6 +399,9 @@ void test_bblas_level4::meta_ple()
         } else {
             bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
         }
+#ifdef TIME_PLE
+        PLE<matrix>::print_and_flush_stats();
+#endif
     }
 
 }

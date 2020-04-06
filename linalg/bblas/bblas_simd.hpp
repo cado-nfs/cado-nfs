@@ -1,5 +1,5 @@
-#ifndef BBLAS_SSE2_HPP_
-#define BBLAS_SSE2_HPP_
+#ifndef BBLAS_SIMD_HPP_
+#define BBLAS_SIMD_HPP_
 
 #include "bblas.hpp"
 
@@ -53,6 +53,12 @@
 /* }}} */
 /*  */
 #endif
+#ifdef HAVE_SSE41
+#include <smmintrin.h>
+#endif
+#ifdef HAVE_AVX2
+#include <immintrin.h>
+#endif
 
 
-#endif	/* BBLAS_SSE2_HPP_ */
+#endif	/* BBLAS_SIMD_HPP_ */

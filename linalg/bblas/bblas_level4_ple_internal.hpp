@@ -2,7 +2,17 @@
 #define LEVEL4_PLE_INTERNAL_HPP_
 
 #include "bblas_level4.hpp"
+#include "bblas_mat64.hpp"
+#include "bblas_mat8.hpp"
 #include <vector>
+
+/* Activate this to get extra timings for the lower-level steps of PLE.
+ * The summary isn't very surprising.
+ *  - for PLE on square matrices, sub dominates
+ *  - for PLE on tall, skinny matrices, propagate_pivot dominates
+ *  - for PLE on long flat matrices, trsm dominates.
+ */
+#define xxxTIME_PLE
 
 template<typename matrix>
 struct PLE {/*{{{*/
@@ -11,6 +21,17 @@ struct PLE {/*{{{*/
     matrix * X;
     unsigned int m;
     unsigned int n;
+#ifdef TIME_PLE
+    static unsigned long ncalls;
+    static double t_find_pivot;
+    static double t_propagate_pivot;
+    static double t_propagate_permutation;
+    static double t_move_l_fragments;
+    static double t_trsm;
+    static double t_sub;
+    static double t_total;
+    static void print_and_flush_stats();
+#endif
 
     int find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
 
@@ -63,7 +84,7 @@ struct PLE {/*{{{*/
     };
 
 
-    PLE(matrix * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) {}
+    PLE(matrix * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) { }
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
@@ -74,7 +95,20 @@ struct PLE {/*{{{*/
  * template constexpr definition does the trick.
  */
 template<typename matrix> constexpr const unsigned int PLE<matrix>::B;
+#ifdef TIME_PLE
+template<typename matrix> unsigned long PLE<matrix>::ncalls = 0;
+template<typename matrix> double PLE<matrix>::t_find_pivot = 0;
+template<typename matrix> double PLE<matrix>::t_propagate_pivot = 0;
+template<typename matrix> double PLE<matrix>::t_propagate_permutation = 0;
+template<typename matrix> double PLE<matrix>::t_move_l_fragments = 0;
+template<typename matrix> double PLE<matrix>::t_trsm = 0;
+template<typename matrix> double PLE<matrix>::t_sub = 0;
+template<typename matrix> double PLE<matrix>::t_total = 0;
+#endif
 
 #include "bblas_level4_ple_internal_inl.hpp"
+
+// extern template struct PLE<mat64>;
+// extern template struct PLE<mat8>;
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

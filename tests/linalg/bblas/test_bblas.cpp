@@ -41,6 +41,9 @@ print_features() /*{{{*/
 #ifdef HAVE_SSE41
     printf("## HAVE_SSE41\n");
 #endif /* HAVE_SSE41 */
+#ifdef HAVE_AVX2
+    printf("## HAVE_AVX2\n");
+#endif /* HAVE_AVX2 */
 #ifdef VALGRIND
     printf("## VALGRIND\n");
 #endif /* VALGRIND */

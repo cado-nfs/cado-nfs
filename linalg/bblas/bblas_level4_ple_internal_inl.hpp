@@ -3,20 +3,26 @@
 
 #include "cado_config.h"
 #include "bblas_level4_ple_internal.hpp"
-#include "bblas_sse2.hpp"
+#include "bblas_simd.hpp"
 #include "bblas_mat64.hpp"
 #include "bblas_mat8.hpp"
 
-#ifdef HAVE_SSE41
-#include <smmintrin.h>
-#endif
-#ifdef HAVE_AVX2
-#include <immintrin.h>
+#ifdef TIME_PLE
+#include "timing.h"
+struct timer_ple {
+    double & t;
+    timer_ple(double & t) : t(t) { t -= seconds(); }
+    ~timer_ple() { t += seconds(); }
+};
+#define TIMER_PLE(t) timer_ple dummy(t)
+#else
+#define TIMER_PLE(t)    /**/
 #endif
 
 template<typename matrix>
 int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
+    TIMER_PLE(t_find_pivot);
     U mask = U(1) << j;
     for( ; bi < m ; bi++) {
         matrix & Y = X[bi * n + bj];
@@ -32,6 +38,7 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
 template<typename matrix>
 void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
+    TIMER_PLE(t_propagate_pivot);
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -59,6 +66,7 @@ void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int
 template<>
 void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
+    TIMER_PLE(t_propagate_pivot);
     typedef mat64 matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
@@ -96,6 +104,7 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 template<>
 void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
+    TIMER_PLE(t_propagate_pivot);
     typedef mat64 matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
@@ -134,6 +143,7 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 template<>
 void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
 {
+    TIMER_PLE(t_propagate_pivot);
     typedef mat8 matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
@@ -172,6 +182,7 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
 template<typename matrix>
 void PLE<matrix>::propagate_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const/*{{{*/
 {
+    TIMER_PLE(t_propagate_permutation);
     /* This propagates the pending permutations outside the current block
      * column.
      * Permutations are given by the range [q0..q1). More precisely,
@@ -200,6 +211,7 @@ void PLE<matrix>::propagate_permutations(unsigned int ii1, unsigned int bj0, std
 template<typename matrix>
 void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
 {
+    TIMER_PLE(t_move_l_fragments);
     /* This function receives the (yii0,yii0) coordinate of the first
      * item in the unit lower triangular part that we haven't completed
      * yet (or that we aren't sure that we have completed -- maybe we
@@ -276,6 +288,7 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
 template<>
 void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
 {
+    TIMER_PLE(t_move_l_fragments);
     unsigned int ybi = yii0 / B;
     unsigned int yi  = yii0 & (B-1);
     unsigned int k = Q.size();
@@ -336,6 +349,7 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
 template<>
 void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
 {
+    TIMER_PLE(t_move_l_fragments);
     unsigned int ybi = yii0 / B;
     unsigned int yi  = yii0 & (B-1);
     unsigned int k = Q.size();
@@ -400,6 +414,7 @@ void PLE<matrix>::trsm(unsigned int bi,/*{{{*/
         unsigned int yi0,
         unsigned int yi1) const
 {
+    TIMER_PLE(t_trsm);
     /* trsm is fairly trivial */
     for(unsigned int s = bj + 1 ; s < n ; s++) {
         matrix::trsm(X[bi * n + bi], X[bi * n + s], yi0, yi1);
@@ -413,6 +428,7 @@ void PLE<matrix>::sub(unsigned int bi,/*{{{*/
         unsigned int yi1,
         unsigned int ii) const
 {
+    TIMER_PLE(t_sub);
     unsigned int sbi = ii / B;
     unsigned int si  = ii & (B-1);
     for( ; sbi < m ; sbi++) {
@@ -556,6 +572,11 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
     std::vector<unsigned int> pivs;
     size_t pos_q0 = 0;
 
+#ifdef TIME_PLE
+    ncalls++;
+#endif
+    TIMER_PLE(t_total);
+
     unsigned int ii = 0;
     for(unsigned int jj = 0 ; jj < n * B ; jj++) {
         if (ii >= m * B) break;
@@ -652,5 +673,27 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
     return pivs;
 }/*}}}*/
 
+#ifdef TIME_PLE
+template<typename matrix>
+void PLE<matrix>::print_and_flush_stats()
+{
+    printf("PLE stats over %lu calls:\n", ncalls);
+    printf("t_find_pivot: %g s (%.1f%%)\n", t_find_pivot / ncalls, 100.0 * t_find_pivot / t_total);
+    printf("t_propagate_pivot: %g s (%.1f%%)\n", t_propagate_pivot / ncalls, 100.0 * t_propagate_pivot / t_total);
+    printf("t_propagate_permutation: %g s (%.1f%%)\n", t_propagate_permutation / ncalls, 100.0 * t_propagate_permutation / t_total);
+    printf("t_move_l_fragments: %g s (%.1f%%)\n", t_move_l_fragments / ncalls, 100.0 * t_move_l_fragments / t_total);
+    printf("t_trsm: %g s (%.1f%%)\n", t_trsm / ncalls, 100.0 * t_trsm / t_total);
+    printf("t_sub: %g s (%.1f%%)\n", t_sub / ncalls, 100.0 * t_sub / t_total);
+    printf("t_total: %g s\n", t_total / ncalls);
+    t_find_pivot = 0;
+    t_propagate_pivot = 0;
+    t_propagate_permutation = 0;
+    t_move_l_fragments = 0;
+    t_trsm = 0;
+    t_sub = 0;
+    t_total = 0;
+    ncalls = 0;
+}
+#endif
 
 #endif	/* LEVEL4_PLE_INTERNAL_INL_HPP_ */

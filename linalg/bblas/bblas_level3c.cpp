@@ -1,7 +1,7 @@
 #include "cado.h"
 #include "bblas_level3c.hpp"
 #include <cstring>
-#include "bblas_sse2.hpp"
+#include "bblas_simd.hpp"
 
 /**********************************************************************/
 /* level 3c: operations on matrices with one arbitrary length (sometimes 2)
@@ -396,6 +396,49 @@ void mul_N64_6464_transB(uint64_t *C,/*{{{*/
     mul_N64_T6464(C, A, tb, m);
 }/*}}}*/
 
+#if defined(HAVE_AVX2)
+/* implements mul_N64_6464 */
+void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
+{
+    /* can work in place, so not simply memset0 + addmul (the ^= have been
+     * changed to =)
+     */
+    size_t j;
+    constexpr const unsigned int SIMD = 4;
+    __m256i *Cw = (__m256i *) C;
+    __m256i *Aw = (__m256i *) A;
+
+    /* If m is odd, then we can't do sse all the way through because of
+     * data width */
+    for (j = 0; j + (SIMD - 1) < m ; j += SIMD) {
+        __m256i c = _mm256_setzero_si256();
+	__m256i a = *Aw++;
+
+        __m256i one = _mm256_set1_epi64x(INT64_C(1));
+	for (int i = 0; i < 64; i++) {
+	    __m256i bw = _mm256_set1_epi64x(B[i]);
+            // c ^= (bw & -(a & one));
+            c = _mm256_xor_si256(c, _mm256_and_si256(bw, _mm256_sub_epi64(_mm256_setzero_si256(), _mm256_and_si256(a, one))));
+	    a = _mm256_srli_epi64(a, 1);
+	}
+	*Cw++ = c;
+    }
+    C += j;
+    A += j;
+    for (; j < m; j++) {
+	uint64_t c = UINT64_C(0);
+	uint64_t a = *A++;
+	for (int i = 0; i < 64; i++) {
+	    c ^= (B[i] & -(a & UINT64_C(1)));
+	    a >>= UINT64_C(1);
+	}
+	*C++ = c;
+    }
+}/*}}}*/
+#endif
+
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements mul_N64_6464 */
 void mul_N64_6464_sse(uint64_t *C,/*{{{*/
@@ -406,12 +449,13 @@ void mul_N64_6464_sse(uint64_t *C,/*{{{*/
      * changed to =)
      */
     size_t j;
+    constexpr const unsigned int SIMD = 2;
     __m128i *Cw = (__m128i *) C;
     __m128i *Aw = (__m128i *) A;
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
-    for (j = 0; j < m - 1; j += 2) {
+    for (j = 0; j + (SIMD - 1) < m ; j += SIMD) {
         __m128i c = _mm_setzero_si128();
 	__m128i a = *Aw++;
 
@@ -513,6 +557,47 @@ void MAYBE_UNUSED addmul_N64_6464_lookup4(uint64_t *C, /*{{{*/
     }
 }/*}}}*/
 
+#if defined(HAVE_AVX2)
+/* implements addmul_N64_6464 */
+/* C == A seems to work ok */
+void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
+		 uint64_t const *A,
+		 mat64 const & B, size_t m)
+{
+    size_t j;
+    __m256i *Cw = (__m256i *) C;
+    __m256i *Aw = (__m256i *) A;
+
+    /* If m is odd, then we can't do sse all the way through because of
+     * data width */
+    constexpr const unsigned int SIMD = 4;
+    for (j = 0; j + (SIMD - 1) < m ; j += SIMD) {
+        __m256i c = _mm256_setzero_si256();
+	__m256i a = *Aw++;
+
+        __m256i one = _mm256_set1_epi64x(INT64_C(1));
+	for (int i = 0; i < 64; i++) {
+	    __m256i bw = _mm256_set1_epi64x(B[i]);
+	    // c ^= (bw & -(a & one));
+            c = _mm256_xor_si256(c, _mm256_and_si256(bw, _mm256_sub_epi64(_mm256_setzero_si256(), _mm256_and_si256(a, one))));
+	    a = _mm256_srli_epi64(a, 1);
+	}
+	*Cw = _mm256_xor_si256(*Cw, c);
+        Cw++;
+    }
+    C += j;
+    A += j;
+    for (; j < m; j++) {
+	uint64_t c = UINT64_C(0);
+	uint64_t a = *A++;
+	for (int i = 0; i < 64; i++) {
+	    c ^= (B[i] & -(a & UINT64_C(1)));
+	    a >>= UINT64_C(1);
+	}
+	*C++ ^= c;
+    }
+}/*}}}*/
+#endif
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 /* implements addmul_N64_6464 */
 /* C == A seems to work ok */
@@ -526,7 +611,8 @@ void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
-    for (j = 0; j < m - 1; j += 2) {
+    constexpr const unsigned int SIMD = 2;
+    for (j = 0; j + (SIMD - 1) < m ; j += SIMD) {
         __m128i c = _mm_setzero_si128();
 	__m128i a = *Aw++;
 
@@ -671,7 +757,9 @@ void mul_N64_6464(uint64_t *C,/*{{{*/
  * 20000. At N=2000000, a twice faster version can be obtained. However,
  * it's not critical for cado, so we stick with the slower version.
  */
-#if defined(HAVE_SSE2) && ULONG_BITS == 64
+#if defined(HAVE_AVX2)
+    mul_N64_6464_avx2(C,A,B,m);
+#elif defined(HAVE_SSE2) && ULONG_BITS == 64
     mul_N64_6464_sse(C,A,B,m);
 #else
     mul_N64_6464_lookup4(C,A,B,m);
@@ -681,7 +769,9 @@ void addmul_N64_6464(uint64_t *C,/*{{{*/
 		 uint64_t const *A,
 		 mat64 const & B, size_t m)
 {
-#if defined(HAVE_SSE2) && ULONG_BITS == 64
+#if defined(HAVE_AVX2)
+    addmul_N64_6464_avx2(C,A,B,m);
+#elif defined(HAVE_SSE2) && ULONG_BITS == 64
     addmul_N64_6464_sse(C,A,B,m);
 #else
     addmul_N64_6464_lookup4(C,A,B,m);
