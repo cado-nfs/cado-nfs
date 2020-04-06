@@ -272,7 +272,7 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
     }
 }/*}}}*/
 
-#ifdef HAVE_SSE41
+#ifdef HAVE_AVX2
 template<>
 void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
 {
@@ -307,21 +307,81 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
         }
         unsigned int tbi = ybi;
         unsigned int ti = yi + dz;
-        if (ti & 1 && tbi < m) {
+        constexpr const unsigned int SIMD = 4;
+        for ( ; (ti & (SIMD - 1)) && tbi < m ; ti++) {
             U c = (X[tbi * n + zbj][ti] >> zj) & mask;
             X[tbi * n + ybi][ti] ^= (c << yi);
             X[tbi * n + zbj][ti] ^= (c << zj);
-            ti++;
+        }
+        if (ti == B) { tbi++; ti = 0; }
+        __m256i mmask = _mm256_set1_epi64x(mask);
+        unsigned int tiw = ti / SIMD;
+        __m128i zjw = _mm_set1_epi64x(zj); // only lower 64 used
+        __m128i yiw = _mm_set1_epi64x(yi); // only lower 64 used
+        for( ; tbi < m ; tbi++) {
+            __m256i *Xzjw = (__m256i *) X[tbi * n + zbj].data();
+            __m256i *Xyiw = (__m256i *) X[tbi * n + ybi].data();
+            for( ; tiw < B / SIMD ; tiw++) {
+                __m256i & Xjw = Xzjw[tiw];
+                __m256i & Xiw = Xyiw[tiw];
+                __m256i cc = _mm256_and_si256(_mm256_srl_epi64(Xjw, zjw), mmask);
+                Xiw = _mm256_xor_si256(Xiw, _mm256_sll_epi64(cc, yiw));
+                Xjw = _mm256_xor_si256(Xjw, _mm256_sll_epi64(cc, zjw));
+            }
+            tiw = 0;
+        }
+    }
+}/*}}}*/
+#elif defined(HAVE_SSE41)
+template<>
+void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
+{
+    unsigned int ybi = yii0 / B;
+    unsigned int yi  = yii0 & (B-1);
+    unsigned int k = Q.size();
+    unsigned int yii = yii0;
+    ASSERT(!Q.empty());
+    unsigned int zbj = Q[0] / B;
+    for(unsigned int dy = 0, dz ; dy < k ; dy+=dz, yi+=dz, yii+=dz) {
+        unsigned int zjj = Q[dy];
+        ASSERT(zjj / B == zbj);
+        unsigned int zj  = zjj & (B-1);
+        dz = 1;
+        for( ; dy + dz < k && (Q[dy+dz] == Q[dy] + dz) ; dz++);
+        if (yii == zjj) continue;
+        U mask = 1;
+        for(unsigned int warmup = 1 ; warmup < dz ; warmup++) {
+            /* we have yi + warmup = yii0 + dy + warmup
+             *                     < yii0 + dy + dz
+             *                     <= yii0 + dy + dz - 1
+             *                     <= yii0 + k - 1
+             *                     <= yii1 - 1
+             * which on all accounts should still be in the same block.
+             */
+            ASSERT((yii + warmup) / B == ybi);
+            U c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
+            /* is there a simpler way ? mask += mask + 1 ? */
+            mask |= mask << 1;
+        }
+        unsigned int tbi = ybi;
+        unsigned int ti = yi + dz;
+        constexpr const unsigned int SIMD = 2;
+        for ( ; (ti & (SIMD - 1)) && tbi < m ; ti++) {
+            U c = (X[tbi * n + zbj][ti] >> zj) & mask;
+            X[tbi * n + ybi][ti] ^= (c << yi);
+            X[tbi * n + zbj][ti] ^= (c << zj);
         }
         if (ti == B) { tbi++; ti = 0; }
         __m128i mmask = _cado_mm_set1_epi64(mask);
-        unsigned int tiw = ti / 2;
+        unsigned int tiw = ti / SIMD;
         __m128i zjw = _cado_mm_set1_epi64(zj); // only lower 64 used
         __m128i yiw = _cado_mm_set1_epi64(yi); // only lower 64 used
         for( ; tbi < m ; tbi++) {
             __m128i *Xzjw = (__m128i *) X[tbi * n + zbj].data();
             __m128i *Xyiw = (__m128i *) X[tbi * n + ybi].data();
-            for( ; tiw < B/2 ; tiw++) {
+            for( ; tiw < B / SIMD ; tiw++) {
                 __m128i & Xjw = Xzjw[tiw];
                 __m128i & Xiw = Xyiw[tiw];
                 __m128i cc = _mm_and_si128(_mm_srl_epi64(Xjw, zjw), mmask);
