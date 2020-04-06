@@ -147,7 +147,7 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
                 unsigned int  bi =  ii / B;
                 unsigned int   i =  ii % B;
-                ASSERT_ALWAYS(X[bi * n/B + bj][i] == X[bi * n/B][i] + bj);
+                ASSERT_ALWAYS(X[bi * n/B + bj][i] == U(X[bi * n/B][i] + bj));
             }
         }
     }
