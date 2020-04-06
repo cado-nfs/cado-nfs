@@ -367,6 +367,7 @@ void test_bblas_level4::meta_ple()
          {100*B,2*B},
          {2*B,1000*B},
          {1000*B,2*B},
+         {32*B,32*B},
      }};
 
     for(auto x : mns) {

@@ -28,11 +28,11 @@ class bitmat : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
     public:
     static constexpr const int width = S::width;
     typedef T datatype;
-    // typedef std::vector<bitmat, aligned_allocator<bitmat, S::alignment>> vector_type;
-    typedef std::vector<bitmat> vector_type;
+    typedef std::vector<bitmat, aligned_allocator<bitmat, S::alignment>> vector_type;
+    // typedef std::vector<bitmat> vector_type;
 
     private:
-    T x[width];// ATTRIBUTE((aligned(64))) ;
+    T x[width]; // ATTRIBUTE((aligned(64))) ;
 
     public:
     static inline bitmat * alloc(size_t n) {

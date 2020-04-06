@@ -2,10 +2,15 @@
 #define CADO_LINALG_GAUSS_H_
 
 #include <gmp.h>
+#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* TODO: I'd like to deprecate this code and rely on block-level
+ * operations only.
+ */
 
 /* Compute the right nullspace of the nrows times ncols matrix given by
  * mat. The matrix is given as a flat array of mp_limb_t, with the
@@ -17,14 +22,15 @@ extern "C" {
  * The dimension of the kernel is given by the return value. If ker ==
  * NULL, this is the only thing computed (and limbs_per_col is unused).
  *
- * limbs_per_row (and accordingly limbs_per_col) must of course being
- * larger than or equal to ceiling(nrows/GMP_LIMB_BITS). We allow this
+ * limbs_per_row (and accordingly limbs_per_col) must of course be
+ * larger than or equal to ceiling(ncols/GMP_LIMB_BITS). We allow this
  * value to be exceeded so as to allow some padding.
  *
  * In case you wonder, this function is not reentrant at all. Sorry.
  */
 extern int kernel(mp_limb_t* mat, mp_limb_t** ker, int nrows, int ncols,
 		  int limbs_per_row, int limbs_per_col);
+
 /* This is the dual function. It returns into lmat an extraction matrix
  * such that the first rows of lmat*mat are linearly independent, while
  * the rest is zero. lmat is full rank. Of course the number of

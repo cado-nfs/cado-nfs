@@ -1,7 +1,18 @@
 #ifndef LEVEL4_PLE_INTERNAL_INL_HPP_
 #define LEVEL4_PLE_INTERNAL_INL_HPP_
 
+#include "cado_config.h"
 #include "bblas_level4_ple_internal.hpp"
+#include "bblas_sse2.hpp"
+#include "bblas_mat64.hpp"
+#include "bblas_mat8.hpp"
+
+#ifdef HAVE_SSE41
+#include <smmintrin.h>
+#endif
+#ifdef HAVE_AVX2
+#include <immintrin.h>
+#endif
 
 template<typename matrix>
 int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
@@ -40,6 +51,121 @@ void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int
             Y[i] ^= c & -((Y[i] & mask) != 0);
         }
         i = 0;
+    }
+}/*}}}*/
+
+/* These two specializations are very significant improvements.  */
+#ifdef HAVE_AVX2
+template<>
+void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
+{
+    typedef mat64 matrix;
+    /* pivot row ii=bi*B+i to all rows below, but only for bits that are
+     * right after column jj=bj*B+j.
+     *
+     *
+     * This is done _only for the current column block bj !!!_
+     */
+
+    if (j == B-1) return;
+    U mask = U(1) << j;
+    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
+    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    i++;
+    constexpr const unsigned int SIMD = 4;
+    for( ; (i & (SIMD-1)) && bi < m ; i++) {
+        matrix & Y = X[bi * n + bj];
+        Y[i] ^= c & -((Y[i] & mask) != 0);
+    }
+    if (i == B) { i = 0 ; bi++; }
+    unsigned int iw = i / SIMD;
+    __m256i mmask = _mm256_set1_epi64x(mask);
+    __m256i cc = _mm256_set1_epi64x(c);
+    for( ; bi < m ; bi++) {
+        matrix & Y = X[bi * n + bj];
+        __m256i *Yw = (__m256i *) Y.data();
+        for( ; iw < B / SIMD ; iw++) {
+            __m256i select = _mm256_and_si256(Yw[iw], mmask);
+            select = _mm256_cmpeq_epi64(select, mmask);
+            Yw[iw] = _mm256_xor_si256(Yw[iw], _mm256_and_si256(cc, select));
+        }
+        iw = 0;
+    }
+}/*}}}*/
+#elif defined(HAVE_SSE41)
+template<>
+void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
+{
+    typedef mat64 matrix;
+    /* pivot row ii=bi*B+i to all rows below, but only for bits that are
+     * right after column jj=bj*B+j.
+     *
+     *
+     * This is done _only for the current column block bj !!!_
+     */
+
+    if (j == B-1) return;
+    U mask = U(1) << j;
+    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
+    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    i++;
+    constexpr const unsigned int SIMD = 2;
+    for( ; (i & (SIMD-1)) && bi < m ; i++) {
+        matrix & Y = X[bi * n + bj];
+        Y[i] ^= c & -((Y[i] & mask) != 0);
+    }
+    if (i == B) { i = 0 ; bi++; }
+    unsigned int iw = i / SIMD;
+    __m128i mmask = _cado_mm_set1_epi64(mask);
+    __m128i cc = _cado_mm_set1_epi64(c);
+    for( ; bi < m ; bi++) {
+        matrix & Y = X[bi * n + bj];
+        __m128i *Yw = (__m128i *) Y.data();
+        for( ; iw < B / SIMD ; iw++) {
+            __m128i select = _mm_and_si128(Yw[iw], mmask);
+            select = _mm_cmpeq_epi64(select, mmask);
+            Yw[iw] = _mm_xor_si128(Yw[iw], _mm_and_si128(cc, select));
+        }
+        iw = 0;
+    }
+}/*}}}*/
+#endif
+
+template<>
+void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
+{
+    typedef mat8 matrix;
+    /* pivot row ii=bi*B+i to all rows below, but only for bits that are
+     * right after column jj=bj*B+j.
+     *
+     *
+     * This is done _only for the current column block bj !!!_
+     */
+
+    if (j == B-1) return;
+    U mask = U(1) << j;
+    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
+    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    i++;
+    if (i == B) { i = 0 ; bi++; }
+    __m64 mmask = _mm_set1_pi8(mask);
+    __m64 cc = _mm_set1_pi8(c);
+    if (i && bi < m) {
+        matrix & Y = X[bi * n + bj];
+        __m64 & Yw = * (__m64 *) Y.data();
+        __m64 select = _mm_and_si64(Yw, mmask);
+        select = _mm_cmpeq_pi8(select, mmask);
+        /* Make sure we don't touch rows before i ! */
+        select = _mm_and_si64(select, _mm_cvtsi64_m64(-(uint64_t(1) << (8*i))));
+        Yw = _mm_xor_si64(Yw, _mm_and_si64(cc, select));
+        bi++;
+    }
+    for( ; bi < m ; bi++) {
+        matrix & Y = X[bi * n + bj];
+        __m64 & Yw = * (__m64 *) Y.data();
+        __m64 select = _mm_and_si64(Yw, mmask);
+        select = _mm_cmpeq_pi8(select, mmask);
+        Yw = _mm_xor_si64(Yw, _mm_and_si64(cc, select));
     }
 }/*}}}*/
 
@@ -145,6 +271,68 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
         }
     }
 }/*}}}*/
+
+#ifdef HAVE_SSE41
+template<>
+void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const/*{{{*/
+{
+    unsigned int ybi = yii0 / B;
+    unsigned int yi  = yii0 & (B-1);
+    unsigned int k = Q.size();
+    unsigned int yii = yii0;
+    ASSERT(!Q.empty());
+    unsigned int zbj = Q[0] / B;
+    for(unsigned int dy = 0, dz ; dy < k ; dy+=dz, yi+=dz, yii+=dz) {
+        unsigned int zjj = Q[dy];
+        ASSERT(zjj / B == zbj);
+        unsigned int zj  = zjj & (B-1);
+        dz = 1;
+        for( ; dy + dz < k && (Q[dy+dz] == Q[dy] + dz) ; dz++);
+        if (yii == zjj) continue;
+        U mask = 1;
+        for(unsigned int warmup = 1 ; warmup < dz ; warmup++) {
+            /* we have yi + warmup = yii0 + dy + warmup
+             *                     < yii0 + dy + dz
+             *                     <= yii0 + dy + dz - 1
+             *                     <= yii0 + k - 1
+             *                     <= yii1 - 1
+             * which on all accounts should still be in the same block.
+             */
+            ASSERT((yii + warmup) / B == ybi);
+            U c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
+            /* is there a simpler way ? mask += mask + 1 ? */
+            mask |= mask << 1;
+        }
+        unsigned int tbi = ybi;
+        unsigned int ti = yi + dz;
+        if (ti & 1 && tbi < m) {
+            U c = (X[tbi * n + zbj][ti] >> zj) & mask;
+            X[tbi * n + ybi][ti] ^= (c << yi);
+            X[tbi * n + zbj][ti] ^= (c << zj);
+            ti++;
+        }
+        if (ti == B) { tbi++; ti = 0; }
+        __m128i mmask = _cado_mm_set1_epi64(mask);
+        unsigned int tiw = ti / 2;
+        __m128i zjw = _cado_mm_set1_epi64(zj); // only lower 64 used
+        __m128i yiw = _cado_mm_set1_epi64(yi); // only lower 64 used
+        for( ; tbi < m ; tbi++) {
+            __m128i *Xzjw = (__m128i *) X[tbi * n + zbj].data();
+            __m128i *Xyiw = (__m128i *) X[tbi * n + ybi].data();
+            for( ; tiw < B/2 ; tiw++) {
+                __m128i & Xjw = Xzjw[tiw];
+                __m128i & Xiw = Xyiw[tiw];
+                __m128i cc = _mm_and_si128(_mm_srl_epi64(Xjw, zjw), mmask);
+                Xiw = _mm_xor_si128(Xiw, _mm_sll_epi64(cc, yiw));
+                Xjw = _mm_xor_si128(Xjw, _mm_sll_epi64(cc, zjw));
+            }
+            tiw = 0;
+        }
+    }
+}/*}}}*/
+#endif
 
 template<typename matrix>
 void PLE<matrix>::trsm(unsigned int bi,/*{{{*/

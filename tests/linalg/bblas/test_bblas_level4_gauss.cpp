@@ -87,6 +87,7 @@ void test_bblas_level4::gauss() {
     TIME1(2, gauss_MN_C, 2, 100, rstate);
     TIME1(2, gauss_MN_C, 1000, 2, rstate);
     TIME1(2, gauss_MN_C, 2, 1000, rstate);
+    TIME1(2, gauss_MN_C, 32, 32, rstate);
 #ifdef  HAVE_M4RI
     m4ri_plu_tests(64);
     m4ri_plu_tests(128);
