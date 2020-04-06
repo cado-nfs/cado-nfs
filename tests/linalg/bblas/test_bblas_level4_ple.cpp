@@ -361,16 +361,24 @@ void test_bblas_level4::meta_ple()
          {2*B,B},
          {2*B,2*B},
          {2*B,3*B},
+         {2*B,10*B},
+         {10*B,2*B},
+         {2*B,100*B},
+         {100*B,2*B},
+         {2*B,1000*B},
+         {1000*B,2*B},
      }};
 
     for(auto x : mns) {
         unsigned int m = x.first;
         unsigned int n = x.second;
-        test_PLE_find_pivot<matrix>(m, n);
-        test_PLE_propagate_pivot<matrix>(m, n);
-        test_PLE_propagate_permutations<matrix>(m, n);
-        test_PLE_move_L_fragments<matrix>(m, n);
-        test_PLE<matrix>(m, n);   // pass
+        if (m + n < 10*B) {
+            test_PLE_find_pivot<matrix>(m, n);
+            test_PLE_propagate_pivot<matrix>(m, n);
+            test_PLE_propagate_permutations<matrix>(m, n);
+            test_PLE_move_L_fragments<matrix>(m, n);
+            test_PLE<matrix>(m, n);
+        }
 
         typename matrix::vector_type X ((m/B)*(n/B), 0);
 
@@ -384,8 +392,14 @@ void test_bblas_level4::meta_ple()
         // TIME1N_SPINS(randomize(), 2, do_ple, &X[0], m/B, n/B);
         std::string what = "PLE";       // complete me
 
-        bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
+        if (m + n >= 10 * B) {
+            randomize();
+            TIME1(2, do_ple, &X[0], m/B, n/B);
+        } else {
+            bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
+        }
     }
+
 }
 
 test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };

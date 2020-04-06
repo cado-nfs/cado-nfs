@@ -1,4 +1,5 @@
 #include "cado.h"
+#include "bblas_gauss.h"
 #include "test_bblas_level4.hpp"
 #include "bblas_perm_matrix.hpp"
 #include "time_bblas_common.hpp"
@@ -30,6 +31,18 @@ void test_bblas_level4::m4ri_plu_tests(int n)
     mzp_free(Q);
 }
 #endif
+
+int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
+{
+    constexpr const unsigned int B = mat64::width;
+    unsigned int M = B * bM;
+    unsigned int N = B * bN;
+    mat64 * mm = mat64::alloc(bM * bN);
+    memfill_random(mm, bM * bN * sizeof(mat64), rstate);
+    int r = kernel((mp_limb_t*)mm, NULL, M, N, N/ULONG_BITS, M/ULONG_BITS);
+    mat64::free(mm);
+    return r;
+}
 
 
 test_bblas_base::tags_t test_bblas_level4::gauss_tags { "gauss", "l4" };
@@ -68,6 +81,12 @@ void test_bblas_level4::gauss() {
     TIME1(2, LUP64_imm, l, u, p, m);
     TIME1(2, full_echelon_6464_imm, mm, e, m);
     TIME1(2, gauss_128128_C, m4);
+    TIME1(2, gauss_MN_C, 10, 2, rstate);
+    TIME1(2, gauss_MN_C, 2, 10, rstate);
+    TIME1(2, gauss_MN_C, 100, 2, rstate);
+    TIME1(2, gauss_MN_C, 2, 100, rstate);
+    TIME1(2, gauss_MN_C, 1000, 2, rstate);
+    TIME1(2, gauss_MN_C, 2, 1000, rstate);
 #ifdef  HAVE_M4RI
     m4ri_plu_tests(64);
     m4ri_plu_tests(128);
