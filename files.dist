@@ -1384,3 +1384,4 @@ sieve/las-output.hpp
 tests/sieve/torture-redc.cpp
 tests/sieve/test_fb_root.cpp
 scripts/filter-ctest.pl
+config/xcode.cmake
