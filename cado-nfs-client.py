@@ -890,7 +890,7 @@ class HTTP_connector(object):
                     why = "External tools requested for HTTPS"
                 logging.critical("%s"
                                  " and can't find working wget or curl"
-                                 " as fall-back. Aborting.", reason)
+                                 " as fall-back. Aborting.", why)
                 sys.exit(1)
 
 # }}}
