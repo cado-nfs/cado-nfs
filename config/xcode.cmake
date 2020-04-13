@@ -2,7 +2,6 @@
 
 if(CMAKE_HOST_APPLE)
 
-	message(STATUS "World")
     macro(_query_xcrun compiler_name result_var_keyword result_var)
 	if(NOT "x${result_var_keyword}" STREQUAL "xRESULT_VAR")
 	    message(FATAL_ERROR "Bad arguments to macro")
@@ -19,8 +18,12 @@ if(CMAKE_HOST_APPLE)
 	    set(xcrun_result)
 	    _query_xcrun("${compiler_name}" RESULT_VAR xcrun_result)
 	    if (CMAKE_${lang}_COMPILER STREQUAL xcrun_result)
-		message(STATUS "rewriting CMAKE_${lang}_COMPILER=${CMAKE_${lang}_COMPILER} to CMAKE_${lang}_COMPILER=\"xcrun ${compiler_name}\"")
-		set_property(CACHE CMAKE_${lang}_COMPILER PROPERTY VALUE "xcrun ${compiler_name}")
+		    find_program(xcrun_path xcrun)
+		    execute_process(COMMAND
+			    ${CMAKE_COMMAND} -E create_symlink ${xcrun_path} ${PROJECT_BINARY_DIR}/${compiler_name})
+		    message(STATUS "rewriting CMAKE_${lang}_COMPILER=${CMAKE_${lang}_COMPILER} to CMAKE_${lang}_COMPILER=\"${PROJECT_BINARY_DIR}/${compiler_name}\" (pointing to ${xcrun_path})")
+		    set_property(CACHE CMAKE_${lang}_COMPILER PROPERTY VALUE "${PROJECT_BINARY_DIR}/${compiler_name}")
+		    set(CMAKE_${lang}_COMPILER "${PROJECT_BINARY_DIR}/${compiler_name}" CACHE STRING "" FORCE)
 	    endif()
 	endif()
     endmacro()
