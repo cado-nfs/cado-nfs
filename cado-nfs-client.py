@@ -664,6 +664,7 @@ class HTTP_connector(object):
         try:
             return run_command(["wget", "-V"])[0] == 0
         except OSError:
+            logging.warning("Cannot find wget")
             return False
 
     @staticmethod
