@@ -12,6 +12,9 @@ if(CMAKE_HOST_APPLE)
 	set("${result_var}" "${_xcrun_out}")
     endmacro()
 
+    # We'll do a rewrite, _BUT_ not change the cache variable. After all, this
+    # wrapping is only plumbing of ours.
+
     macro(rewrite_xcrun lang)
 	if (CMAKE_${lang}_COMPILER MATCHES "^.*/usr/bin/(.+)$")
 	    set(compiler_name "${CMAKE_MATCH_1}")
@@ -22,8 +25,8 @@ if(CMAKE_HOST_APPLE)
 		    execute_process(COMMAND
 			    ${CMAKE_COMMAND} -E create_symlink ${xcrun_path} ${PROJECT_BINARY_DIR}/${compiler_name})
 		    message(STATUS "rewriting CMAKE_${lang}_COMPILER=${CMAKE_${lang}_COMPILER} to CMAKE_${lang}_COMPILER=\"${PROJECT_BINARY_DIR}/${compiler_name}\" (pointing to ${xcrun_path})")
-		    set_property(CACHE CMAKE_${lang}_COMPILER PROPERTY VALUE "${PROJECT_BINARY_DIR}/${compiler_name}")
-		    set(CMAKE_${lang}_COMPILER "${PROJECT_BINARY_DIR}/${compiler_name}" CACHE STRING "" FORCE)
+		    # set_property(CACHE CMAKE_${lang}_COMPILER PROPERTY VALUE "${PROJECT_BINARY_DIR}/${compiler_name}")
+		    set(CMAKE_${lang}_COMPILER "${PROJECT_BINARY_DIR}/${compiler_name}")
 	    endif()
 	endif()
     endmacro()
