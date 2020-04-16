@@ -816,6 +816,7 @@ parameters/dlp/p85.hint
 parameters/dlp/p90.hint
 parameters/dlp/p95.hint
 parameters/dlp/p100.hint
+parameters/dlp/README
 filter/filter_badideals.c
 linalg/bwc/lingen-matpoly-ft.h
 linalg/bwc/lingen-matpoly-ft.cpp
