@@ -2,6 +2,7 @@
 #include "bblas_level3a1.hpp"
 
 #include <cstring>
+#include <algorithm>
 
 /**********************************************************************/
 /* level 3a (extension, matpoly_polmat): conversions.
@@ -82,21 +83,25 @@ void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, mat64 const * sr
     }
 }/*}}}*/
 
-/* {{{ generic transposition utilities -- these could have wider use */
+/* {{{ generic transposition utilities -- these could have wider use.
+ * However the code below has really nothing clever. Maybe it makes
+ * just as much sense to copy and adapt it where appropriate...
+ */
 /* transform n0*n1*n2*n3 words into n0*n2*n1*n3 words */
-void generic_transpose_words(uint64_t * dst, uint64_t const * src, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3)/*{{{*/
+template<typename T>
+void generic_transpose_words(T * dst, T const * src, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3)/*{{{*/
 {
     ASSERT_ALWAYS(dst != src);
     if (n1 == 1 || n2 == 1) {
-        memcpy(dst, src, n0*n1*n2*n3*sizeof(uint64_t));
+        std::copy_n(src, n0*n1*n2*n3, dst);
         return;
     }
     for(unsigned int i0 = 0 ; i0 < n0 ; i0++) {
-        uint64_t * q = dst + i0 * n1 * n2 * n3;
-        uint64_t const * p = src + i0 * n1 * n2 * n3;
+        T * q = dst + i0 * n1 * n2 * n3;
+        T const * p = src + i0 * n1 * n2 * n3;
         for(unsigned int i2 = 0 ; i2 < n2 ; i2++) {
             for(unsigned int i1 = 0 ; i1 < n1 ; i1++) {
-                memcpy(q, p + (i1 * n2 + i2) * n3, n3 * sizeof(uint64_t));
+                std::copy_n(p + (i1 * n2 + i2) * n3, n3, q);
                 q += n3;
             }
         }
@@ -104,19 +109,20 @@ void generic_transpose_words(uint64_t * dst, uint64_t const * src, unsigned int 
 }/*}}}*/
 
 /* temp needs n1 * n2 * n3 words.  */
-void generic_transpose_words_inplace(uint64_t * x, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3, uint64_t * temp) /*{{{*/
+template<typename T>
+void generic_transpose_words_inplace(T * x, unsigned int n0, unsigned int n1, unsigned int n2, unsigned int n3, T * temp) /*{{{*/
 {
     if (n1 == 1 || n2 == 1) return;
     for(unsigned int i0 = 0 ; i0 < n0 ; i0++) {
-        uint64_t * q = x + i0 * n1 * n2 * n3;
-        uint64_t * t = temp;
+        T * q = x + i0 * n1 * n2 * n3;
+        T * t = temp;
         for(unsigned int i2 = 0 ; i2 < n2 ; i2++) {
             for(unsigned int i1 = 0 ; i1 < n1 ; i1++) {
-                memcpy(t, q + (i1 * n2 + i2) * n3, n3 * sizeof(uint64_t));
+                std::copy_n(q + (i1 * n2 + i2) * n3, n3, t);
                 t += n3;
             }
         }
-        memcpy(q, temp, n1 * n2 * n3 * sizeof(uint64_t));
+        std::copy_n(temp, n1*n2*n3, q);
     }
 }/*}}}*/
 /* }}} */
