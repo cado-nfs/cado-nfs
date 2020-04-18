@@ -13,6 +13,8 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
 #ifdef  HAVE_M4RI
     R = mzd_init(nmax, 64);
     A = mzd_init(nmax, 64);
+    R64 = mzd_init(64, 64);
+    A64 = mzd_init(64, 64);
     W = mzd_init(64, 64);
     WT = mzd_init(64, 64);
 #endif  /* HAVE_M4RI */
@@ -24,8 +26,9 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
 
 #ifdef  HAVE_M4RI
     mzd_set_mem(A, a, nmax);
-    mzd_set_mem(W, w, 64);
-    mzd_set_mem(WT, wt, 64);
+    mzd_set_mem(A64, a, 64);
+    mzd_set_mem(W, w.data(), 64);
+    mzd_set_mem(WT, wt.data(), 64);
 #endif  /* HAVE_M4RI */
 }/*}}}*/
 
@@ -35,10 +38,12 @@ test_bblas_base::~test_bblas_base() {/*{{{*/
     free_aligned(a);
     free_aligned(b);
 #ifdef  HAVE_M4RI
-    mzd_free(D->R);
-    mzd_free(D->A);
-    mzd_free(D->W);
-    mzd_free(D->WT);
+    mzd_free(R);
+    mzd_free(A);
+    mzd_free(R64);
+    mzd_free(A64);
+    mzd_free(W);
+    mzd_free(WT);
 #endif  /* HAVE_M4RI */
     gmp_randclear(rstate);
 }/*}}}*/

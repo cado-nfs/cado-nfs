@@ -1,6 +1,14 @@
 #include "cado.h"
 #include "test_bblas_level5.hpp"
 #include "time_bblas_common.hpp"
+#ifdef HAVE_M4RIE
+/* To test against m4rie routines, include a checkout of
+ * https://bitbucket.org/malb/m4rie.git under linalg/m4rie, and run
+ * "autoreconf -i" there ; cado-nfs cmake logic then detects it and
+ * enables the corresponding code here (and in a few other places in
+ * test_bblas). */
+#include "m4rie/m4rie.h"
+#endif
 
     /* We also have a completely different set of routines that deal with
      * polynomials of matrices */
@@ -80,16 +88,19 @@ void test_bblas_level5::matpolmul() {
 
 #endif
 #ifdef HAVE_M4RIE
-        if (1) {
+        if (0) {
             printf("-- 64x64 matrices over GF(2^64) using M4RIE --\n");
             /* Now try to see if m4rie can improve these timings */
             /* Unfortunately as of version 20111203, m4rie supports only
-             * GF(2^n) up until n==10. Which cleary won't do, for our
-             * objectives. So the following code aborts with segmentation
-             * fault. */
-            GFqDom<int> GF = GFqDom<int>(2,64);
-            FiniteField *F = (FiniteField*)&GF;
-            gf2e * ff = gf2e_init_givgfq(F);
+             * GF(2^n) up until n==160. Which cleary won't do, for our
+             * objectives.
+             * Even the interface for the defining polynomial only sets
+             * it via a uint64_t, degree included. So it seems that we
+             * cannot do degree 64, period...
+             * Bottom line, the only thing that the code below does is a
+             * nifty segfault...
+             */
+            gf2e * ff = gf2e_init(/* 2^64 + ... */ UINT64_C(0x0000000247F43CB7));
             mzed_t *Az = mzed_init(ff, 64, 64);
             mzed_t *Bz = mzed_init(ff, 64, 64);
             mzed_t *Cz = mzed_init(ff, 64, 64);

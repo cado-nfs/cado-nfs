@@ -317,6 +317,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/aligned_alloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 
 set(CADO_SHARED)
 
@@ -338,8 +339,6 @@ if("$ENV{ENABLE_SHARED}")
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()
-
-
 
 
 ######################################################################
@@ -407,8 +406,6 @@ include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
 
 ############################################################
 
-
-
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
     COMMAND echo Configuring gf2x with options ${GF2X_CONFIGURE_FLAGS}
@@ -422,11 +419,6 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
-
-# set(GF2X_LIB_FILE  ${CADO_NFS_BINARY_DIR}/gf2x/.libs/libgf2x.a)
-# set(GF2X-FFT_LIB_FILE ${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs/libgf2x-fft.a)
-# set(CANTOR128_LIB_FILE ${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs/libcantor128.a)
-
 
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)

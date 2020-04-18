@@ -13,26 +13,33 @@ void test_bblas_level3::level3a()
 {
     printf(" -- straightforward operations --\n");
 #ifdef  HAVE_M4RI
-    mzd_copy(R, A);
-    mzd_check_mem(R, xr, 64);
-    TIME1(1, mzd_copy, R, A);
+    {
+        mat64 & XR = * (mat64 *) xr;
+        mat64 & A = * (mat64 *) a;
+        XR = A;
+    }
+    mzd_copy(R64, A64);
+    mzd_check_mem(R64, xr, 64);
+    TIME1(1, mzd_copy, R64, A64);
 #endif				/* HAVE_M4RI */
 
     /* add */
-    mat64 & R = * (mat64 *) r;
-    mat64 & XR = * (mat64 *) xr;
-    mat64 & A = * (mat64 *) a;
-    mat64_add(R, A, w);
-    XR = R;
+    {
+        mat64 & R = * (mat64 *) r;
+        mat64 & XR = * (mat64 *) xr;
+        mat64 & A = * (mat64 *) a;
+        mat64_add(R, A, w);
+        XR = R;
 
-    mat64_add_C(R, A, w);
-    ASSERT_ALWAYS(XR == R);
-    TIME1(1, mat64_add_C, R, A, w);
+        mat64_add_C(R, A, w);
+        ASSERT_ALWAYS(XR == R);
+        TIME1(1, mat64_add_C, R, A, w);
+    }
 
 #ifdef  HAVE_M4RI
-    mzd_add(R, A, W);
-    mzd_check_mem(R, xr, 64);
-    TIME1(1, mzd_add, R, A, W);
+    mzd_add(R64, A64, W);
+    mzd_check_mem(R64, xr, 64);
+    TIME1(1, mzd_add, R64, A64, W);
 #endif				/* HAVE_M4RI */
 }				/*}}} */
 
@@ -42,21 +49,24 @@ void test_bblas_level3::transpose() {
     /* There is no BLAS analogue, but it seems that it should be
      * categorized together with the other 3a things.
      */
-    mat64 & R = * (mat64 *) r;
-    mat64 & XR = * (mat64 *) xr;
-    mat64 & A = * (mat64 *) a;
+    {
+        mat64 & R = * (mat64 *) r;
+        mat64 & XR = * (mat64 *) xr;
+        mat64 & A = * (mat64 *) a;
 
-    mat64_transpose(R, A);
-    mat64_transpose(XR, R);
-    ASSERT_ALWAYS(XR == A);
-    TIME1(1, mat64_transpose_simple_and_stupid, R, A);
-    TIME1(1, mat64_transpose_recursive, R, A);
-    TIME1(1, mat64_transpose, R, A);
+        mat64_transpose(R, A);
+        mat64_transpose(XR, R);
+        ASSERT_ALWAYS(XR == A);
+        TIME1(1, mat64_transpose_simple_and_stupid, R, A);
+        TIME1(1, mat64_transpose_recursive, R, A);
+        TIME1(1, mat64_transpose, R, A);
+    }
 
 #ifdef  HAVE_M4RI
-    mzd_transpose(R, A);
-    mzd_check_mem(R, xr, 64);
-    TIME1(1, mzd_transpose, R, A);
+    mzd_transpose(R64, A64);
+    mzd_transpose(R64, R64);
+    mzd_check_mem(R64, xr, 64);
+    TIME1(1, mzd_transpose, R64, A64);
 #endif  /* HAVE_M4RI */
 }/*}}}*/
 

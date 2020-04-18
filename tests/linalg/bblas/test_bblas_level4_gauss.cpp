@@ -4,34 +4,6 @@
 #include "bblas_perm_matrix.hpp"
 #include "time_bblas_common.hpp"
 
-#ifdef  HAVE_M4RI
-void test_bblas_level4::m4ri_plu_tests(int n)
-{
-    mzd_t * M;
-    mzd_t * LU;
-    mzp_t * P, *Q;
-    M = mzd_init(n, n);
-#if 0
-    mzd_set_mem(M, m, n);
-    uint64_t * m = new uint64_t[n*n/64];
-    memfill_random(m, (64) * sizeof(uint64_t), rstate);
-    delete[] m;
-#else
-    my_mzd_randomize(M);
-#endif
-    LU = mzd_init(n, n);
-    P = mzp_init(n);
-    Q = mzp_init(n);
-    TIME1N(2, mzd_mypluq, LU, M, P, Q, 0);
-    TIME1N(2, mzd_myechelonize_m4ri, LU, M, 0, 0);
-    TIME1N(2, mzd_myechelonize_pluq, LU, M, 0);
-    mzd_free(M);
-    mzd_free(LU);
-    mzp_free(P);
-    mzp_free(Q);
-}
-#endif
-
 int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
 {
     constexpr const unsigned int B = mat64::width;

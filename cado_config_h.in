@@ -126,6 +126,9 @@
 #define EXECUTABLE_SUFFIX "@CMAKE_EXECUTABLE_SUFFIX@"
 #endif
 
+#cmakedefine    HAVE_M4RI
+#cmakedefine    HAVE_M4RIE
+
 #cmakedefine    HAVE_JEVENTS
 
 #cmakedefine    HAVE_GLIBC_VECTOR_INTERNALS

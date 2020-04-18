@@ -3,7 +3,6 @@ include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft)
 include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft/mpfq)
 
 add_library(bblas
-        bblas_m4ri.cpp
         bblas_debug.cpp
         bblas_level2a.cpp
         bblas_level2b.cpp
