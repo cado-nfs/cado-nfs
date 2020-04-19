@@ -6,6 +6,7 @@
 #include "bblas_mat8.hpp"
 #include <vector>
 
+
 /* Activate this to get extra timings for the lower-level steps of PLE.
  * The summary isn't very surprising.
  *  - for PLE on square matrices, sub dominates
@@ -15,12 +16,12 @@
 #define xxxTIME_PLE
 
 template<typename matrix>
-struct PLE {/*{{{*/
-    static constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
-    matrix * X;
-    unsigned int m;
-    unsigned int n;
+struct PLE : public bpack<matrix> {/*{{{*/
+    using typename bpack<matrix>::U;
+    using bpack<matrix>::B;
+    using bpack<matrix>::m;
+    using bpack<matrix>::n;
+    using bpack<matrix>::X;
 #ifdef TIME_PLE
     static unsigned long ncalls;
     static double t_find_pivot;
@@ -37,7 +38,7 @@ struct PLE {/*{{{*/
 
     void propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
 
-    void propagate_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const;
+    void propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const;
 
     void move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const;
 
@@ -84,7 +85,7 @@ struct PLE {/*{{{*/
     };
 
 
-    PLE(matrix * X, unsigned int m, unsigned int n) : X(X), m(m), n(n) { }
+    PLE(bpack<matrix> b) : bpack<matrix>(b) {}
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
@@ -94,7 +95,6 @@ struct PLE {/*{{{*/
  * available somewhere. It's not clear to me that the following kind of
  * template constexpr definition does the trick.
  */
-template<typename matrix> constexpr const unsigned int PLE<matrix>::B;
 #ifdef TIME_PLE
 template<typename matrix> unsigned long PLE<matrix>::ncalls = 0;
 template<typename matrix> double PLE<matrix>::t_find_pivot = 0;
@@ -106,9 +106,15 @@ template<typename matrix> double PLE<matrix>::t_sub = 0;
 template<typename matrix> double PLE<matrix>::t_total = 0;
 #endif
 
-#include "bblas_level4_ple_internal_inl.hpp"
-
 // extern template struct PLE<mat64>;
 // extern template struct PLE<mat8>;
+
+// must forward-declare the few specializations that we have.
+template<> void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
+template<> void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
+template<> void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const;
+
+extern template struct PLE<mat64>;
+extern template struct PLE<mat8>;
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

@@ -17,6 +17,7 @@ set(test_bblas_sources
         test_bblas_base.cpp
         test_bblas_level2.cpp
         test_bblas_level3.cpp
+        test_bpack.cpp
         test_bblas_level4_pluq.cpp
         test_bblas_level4_ple.cpp
         test_bblas_level4_gauss.cpp

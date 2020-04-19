@@ -27,7 +27,7 @@ struct test_bblas_level4 : public test_bblas_base
     template<typename matrix>
     int test_PLE_propagate_pivot(unsigned int m, unsigned int n);
     template<typename matrix>
-    int test_PLE_propagate_permutations(unsigned int m, unsigned int n);
+    int test_PLE_propagate_row_permutations(unsigned int m, unsigned int n);
     template<typename matrix>
     int test_PLE_move_L_fragments(unsigned int m, unsigned int n);
     template<typename matrix>

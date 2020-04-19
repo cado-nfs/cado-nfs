@@ -25,8 +25,7 @@
  * is sufficient to recover the list of pivot rows.
  */
 
-std::vector<unsigned int> binary_blas_PLE(mat64 * X, unsigned int m, unsigned int n)
-{
-    auto ple = PLE<mat64>(X, m, n);
-    return ple();
-}
+/* Code is in bblas_level4_ple_internal.hpp and
+ * bblas_level4_ple_internal_inl.hpp.
+ * It gets exposed only via bpack.cpp
+ */

@@ -1479,6 +1479,8 @@ linalg/bblas/bblas_level3c.hpp
 linalg/bblas/bblas_level3d.cpp
 linalg/bblas/bblas_level3d.hpp
 linalg/bblas/bblas_level4.hpp
+linalg/bblas/bpack.hpp
+linalg/bblas/bpack.cpp
 linalg/bblas/bblas_level4_echelon.cpp
 linalg/bblas/bblas_level4_gauss.cpp
 linalg/bblas/bblas_level4_lup.cpp
@@ -1495,6 +1497,8 @@ tests/linalg/bblas/test_bblas_level2.cpp
 tests/linalg/bblas/test_bblas_level2.hpp
 tests/linalg/bblas/test_bblas_level3.cpp
 tests/linalg/bblas/test_bblas_level3.hpp
+tests/linalg/bblas/test_bpack.hpp
+tests/linalg/bblas/test_bpack.cpp
 tests/linalg/bblas/test_bblas_level4.hpp
 tests/linalg/bblas/test_bblas_level4_gauss.cpp
 tests/linalg/bblas/test_bblas_level4_pluq.cpp

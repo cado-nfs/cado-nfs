@@ -180,7 +180,7 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
 }/*}}}*/
 
 template<typename matrix>
-void PLE<matrix>::propagate_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const/*{{{*/
+void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const/*{{{*/
 {
     TIMER_PLE(t_propagate_permutation);
     /* This propagates the pending permutations outside the current block
@@ -650,7 +650,7 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
 
 #ifndef ACT_RIGHT_AWAY
         /* Note that we haven't increased bj yet, and that's on purpose */
-        propagate_permutations(ii, bj, pivs.begin() + pos_q0, pivs.end());
+        propagate_row_permutations(ii, bj, pivs.begin() + pos_q0, pivs.end());
 #endif
 
         unsigned int yii0 = pos_q0;

@@ -11,6 +11,7 @@ add_library(bblas
         bblas_level3b.cpp
         bblas_level3c.cpp
         bblas_level3d.cpp
+        bpack.cpp
         bblas_level4_echelon.cpp
         bblas_level4_gauss.cpp
         bblas_level4_lup.cpp

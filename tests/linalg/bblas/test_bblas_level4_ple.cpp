@@ -12,7 +12,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
     matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(X, m/B, n/B);
+    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         std::vector<unsigned int> f;
@@ -55,7 +55,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
     matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(X, m/B, n/B);
+    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
@@ -102,12 +102,12 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
 }/*}}}*/
 
 template<typename matrix>
-int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned int n)/*{{{*/
+int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
     matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(X, m/B, n/B);
+    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
         for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
@@ -141,7 +141,7 @@ int test_bblas_level4::test_PLE_propagate_permutations(unsigned int m, unsigned 
 
         ASSERT_ALWAYS(q.size() == (unsigned int) (ii1 - ii0));
 
-        ple.propagate_permutations(ii1, bj0, q.begin(), q.end());
+        ple.propagate_row_permutations(ii1, bj0, q.begin(), q.end());
 
         for(unsigned int ii = 0 ; ii < m ; ii++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
@@ -163,7 +163,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
     matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(X, m/B, n/B);
+    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         /* first generate the transpose of the matrix that we will
@@ -334,7 +334,7 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
          * we do here is not even needed, since it's already one of those
          * checks triggered by debug_stuff.
          */
-        PLE<matrix> ple(&X[0], m/B, n/B);
+        PLE<matrix> ple(bpack<matrix>(&X[0], m/B, n/B));
         typename PLE<matrix>::debug_stuff D(ple);
         std::vector<unsigned int> pivs = ple(&D);
 
@@ -376,7 +376,7 @@ void test_bblas_level4::meta_ple()
         if (m + n < 10*B) {
             test_PLE_find_pivot<matrix>(m, n);
             test_PLE_propagate_pivot<matrix>(m, n);
-            test_PLE_propagate_permutations<matrix>(m, n);
+            test_PLE_propagate_row_permutations<matrix>(m, n);
             test_PLE_move_L_fragments<matrix>(m, n);
             test_PLE<matrix>(m, n);
         }
@@ -385,7 +385,7 @@ void test_bblas_level4::meta_ple()
 
         auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(matrix), rstate); };
         auto do_ple = [&](matrix * X, unsigned int mm, unsigned int nn) {
-            return PLE<matrix>(X, mm, nn)().size();
+            return bpack<matrix>(X, mm, nn).ple().size();
         };
 
         printf(" -- PLE(m=%u, n=%u)\n", m, n);
@@ -412,3 +412,4 @@ void test_bblas_level4::ple()
     meta_ple<mat64>();
     meta_ple<mat8>();
 }
+
