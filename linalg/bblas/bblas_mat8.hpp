@@ -39,6 +39,16 @@ namespace bblas_bitmat_details {
                 unsigned int yi0,
                 unsigned int yi1);
         static void trsm(mat8 const & L, mat8 & U);
+        static bool is_lowertriangular(mat8 const & A);
+        static bool is_uppertriangular(mat8 const & A);
+        static bool triangular_is_unit(mat8 const & A);
+        static void extract_uppertriangular(mat8 & a, mat8 const & b);
+        static void extract_lowertriangular(mat8 & a, mat8 const & b);
+        static void make_uppertriangular(mat8 & u);
+        static void make_lowertriangular(mat8 & u);
+        static void make_unit_uppertriangular(mat8 & u);
+        static void make_unit_lowertriangular(mat8 & u);
+        static void triangular_make_unit(mat8 & u);
     };
 }
 

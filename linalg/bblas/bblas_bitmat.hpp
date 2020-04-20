@@ -48,6 +48,8 @@ class bitmat : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
     T operator[](int i) const { return x[i]; }
     inline bool operator==(bitmat const& a) const
     {
+        /* anyway we're not going to do it any smarter in instantiations,
+         * so let's rather keep this as a simple and stupid inline */
         return memcmp(x, a.x, sizeof(x)) == 0;
     }
     inline bool operator!=(bitmat const& a) const { return !operator==(a); }
