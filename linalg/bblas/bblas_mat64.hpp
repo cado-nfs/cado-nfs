@@ -13,39 +13,25 @@ namespace bblas_bitmat_details {
         static constexpr const int alignment = 64;  // in bytes
     };
 
-    template<> struct bitmat_ops<mat64> {
-        static void fill_random(mat64 &, gmp_randstate_t rstate);
-        static void add(mat64 & C, mat64 const & A, mat64 const & B);
-        static void transpose(mat64 & C, mat64 const & A);
-        static void mul(mat64 & C, mat64 const & A, mat64 const & B);
-        static void addmul(mat64 & C, mat64 const & A, mat64 const & B);
-        static void addmul(mat64 & C,
-                   mat64 const & A,
-                   mat64 const & B,
-                   unsigned int i0,
-                   unsigned int i1,
-                   unsigned int yi0,
-                   unsigned int yi1);
-        static void trsm(mat64 const & L,
-                mat64 & U,
-                unsigned int yi0,
-                unsigned int yi1);
-        static void trsm(mat64 const & L,
-                mat64 & U);
-        static bool is_lowertriangular(mat64 const & A);
-        static bool is_uppertriangular(mat64 const & A);
-        static bool triangular_is_unit(mat64 const & A);
-        static void extract_uppertriangular(mat64 & a, mat64 const & b);
-        static void extract_lowertriangular(mat64 & a, mat64 const & b);
-        static void make_uppertriangular(mat64 & u);
-        static void make_lowertriangular(mat64 & u);
-        static void make_unit_uppertriangular(mat64 & u);
-        static void make_unit_lowertriangular(mat64 & u);
-        static void triangular_make_unit(mat64 & u);
-    };
-}
+    /* warn the compiler that we have some specializations */
+    template<> void bitmat_ops<mat64>::add(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<mat64>::transpose(mat64 & C, mat64 const & A);
+    template<> void bitmat_ops<mat64>::mul(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<mat64>::mul_lt_ge(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<mat64>::addmul(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<mat64>::addmul(mat64 & C,
+            mat64 const & A,
+            mat64 const & B,
+            unsigned int i0,
+            unsigned int i1,
+            unsigned int yi0,
+            unsigned int yi1);
+    template<> void bitmat_ops<mat64>::trsm(mat64 const & L,
+            mat64 & U,
+            unsigned int yi0,
+            unsigned int yi1);
 
-#include "bblas_level3a.hpp"
-#include "bblas_level3b.hpp"
+    extern template struct bitmat_ops<mat64>;
+}
 
 #endif	/* BBLAS_MAT64_HPP_ */

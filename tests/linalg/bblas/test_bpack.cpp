@@ -6,24 +6,12 @@
 template<typename matrix>
 int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/
 {
-    constexpr const unsigned int B = matrix::width;
-    // typedef typename matrix::datatype U;
-    matrix * X = matrix::alloc((m/B)*(n/B));
-    bpack<matrix> P(X, m/B, n/B);
+    bpack<matrix> P(m, n);
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
-        memfill_random((void *) X, (m/B) * (n/B) * sizeof(matrix), rstate);
-        for(unsigned int j = 0 ; j < n ; j++) {
-            for(unsigned int i = 0 ; i < m ; i++) {
-                if (j > i)
-                    X[(i/B)*(n/B)+(j/B)] = 0;
-                else if (j == i) {
-                    // X[(i/B)*(n/B)+(j/B)].make_unit_lower_triangular();
-                }
-            }
-        }
+        P.fill_random(rstate);
+        P.make_unit_lowertriangular();
     }
-    matrix::free(X);
 
     return 0;
 }/*}}}*/

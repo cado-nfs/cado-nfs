@@ -43,6 +43,9 @@ int cmp_N64(uint64_t const * dst, uint64_t const * src, size_t m);
 void mul_N64_6464_lookup4(uint64_t *C,
                    uint64_t const *A,
                    mat64 const & B, size_t m);
+void mul_6464lt_6464_lookup4(uint64_t *C,
+                   uint64_t const *A,
+                   mat64 const & B);
 void mul_N64_6464_lookup8(uint64_t *C,
                    uint64_t const *A,
                    mat64 const & B, size_t m);

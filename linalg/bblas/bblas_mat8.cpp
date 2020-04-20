@@ -1,15 +1,12 @@
 #include "cado.h"
 #include "bblas.hpp"
 #include "bblas_mat8.hpp"
+#include "bblas_bitmat_inl.hpp"
 #include "utils.h"      // memfill_random
 
 using namespace bblas_bitmat_details;
 
-void bitmat_ops<mat8>::fill_random(mat8 & w, gmp_randstate_t rstate)
-{
-    memfill_random(w.data(), sizeof(uint8_t), rstate);
-}
-
+template<>
 void bitmat_ops<mat8>::add(mat8 & C, mat8 const & A, mat8 const & B)
 {
     uint64_t & Cx = * (uint64_t *) C.data();
@@ -18,6 +15,7 @@ void bitmat_ops<mat8>::add(mat8 & C, mat8 const & A, mat8 const & B)
     Cx = Ax ^ Bx;
 }
 
+template<>
 void bitmat_ops<mat8>::transpose(mat8 & C, mat8 const & A)
 {
     uint64_t aa = * (uint64_t const *) A.data();
@@ -35,18 +33,13 @@ void bitmat_ops<mat8>::transpose(mat8 & C, mat8 const & A)
     * (uint64_t *) C.data() = aa;
 }
 
+template<>
 void bitmat_ops<mat8>::mul(mat8 & C, mat8 const & A, mat8 const & B)
 {
     mat8 AB = 0;
     addmul(AB, A, B);
     C = AB;
 }
-
-void bitmat_ops<mat8>::addmul(mat8 & C, mat8 const & A, mat8 const & B)
-{
-    addmul(C, A, B, 0, 8, 0, 8);
-}
-
 
 void addmul8_naive(mat8 & C,
         mat8 const & A,
@@ -92,6 +85,8 @@ void addmul8_naive(mat8 & C,
         }
     }
 }
+
+template<>
 void bitmat_ops<mat8>::addmul(mat8 & C,
         mat8 const & A,
         mat8 const & B,
@@ -181,6 +176,8 @@ void trsm8_naive(mat8 const & L,
         }
     }
 }
+
+template<>
 void bitmat_ops<mat8>::trsm(mat8 const & L,
         mat8 & U,
         unsigned int n0,
@@ -188,10 +185,7 @@ void bitmat_ops<mat8>::trsm(mat8 const & L,
 {
     trsm8_naive(L, U, n0, n1);
 }
-void bitmat_ops<mat8>::trsm(mat8 const & L, mat8 & U)
-{
-    trsm8_naive(L, U, 0, 8);
-}
+
 void mat8_add_C(mat8 & C, mat8 const & A, mat8 const & B)/*{{{*/
 {
     for(unsigned int j = 0 ; j < mat8::width ; j++) {
@@ -199,81 +193,5 @@ void mat8_add_C(mat8 & C, mat8 const & A, mat8 const & B)/*{{{*/
     }
 }
 /*}}}*/
-int mat8_is_uppertriangular(mat8 const & u)/*{{{*/
-{
-    mat8::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        if (u[k]&(mask-1)) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat8_extract_uppertriangular(mat8 & a, mat8 const & b)/*{{{*/
-{
-    mat8::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        a[k] = b[k] & ~(mask-1);
-    }
-}/*}}}*/
-int mat8_is_lowertriangular(mat8 const & u)/*{{{*/
-{
-    mat8::datatype mask = ~(mat8::datatype) 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        if (u[k] & mask) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat8_extract_lowertriangular(mat8 & a, mat8 const & b)/*{{{*/
-{
-    mat8::datatype mask = ~(mat8::datatype) 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        a[k] = b[k] & ~mask;
-    }
-}/*}}}*/
-int mat8_triangular_is_unit(mat8 const & u)/*{{{*/
-{
-    mat8::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        if (!(u[k]&mask)) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat8_triangular_make_unit(mat8 & u)/*{{{*/
-{
-    mat8::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat8::width ; k++, mask<<=1) {
-        u[k] |= mask;
-    }
-}
-/*}}}*/
-bool bitmat_ops<mat8>::is_lowertriangular(mat8 const & A) {
-    return mat8_is_lowertriangular(A);
-}
-bool bitmat_ops<mat8>::is_uppertriangular(mat8 const & A) {
-    return mat8_is_uppertriangular(A);
-}
-bool bitmat_ops<mat8>::triangular_is_unit(mat8 const & A) {
-    return mat8_triangular_is_unit(A);
-}
-void bitmat_ops<mat8>::extract_uppertriangular(mat8 & a, mat8 const & b) {
-    mat8_extract_uppertriangular(a, b);
-}
-void bitmat_ops<mat8>::extract_lowertriangular(mat8 & a, mat8 const & b) {
-    mat8_extract_lowertriangular(a, b);
-}
-void bitmat_ops<mat8>::make_uppertriangular(mat8 & u) {
-    extract_uppertriangular(u, u);
-}
-void bitmat_ops<mat8>::make_lowertriangular(mat8 & u) {
-    extract_lowertriangular(u, u);
-}
-void bitmat_ops<mat8>::make_unit_uppertriangular(mat8 & u) {
-    make_uppertriangular(u);
-    triangular_make_unit(u);
-}
-void bitmat_ops<mat8>::make_unit_lowertriangular(mat8 & u) {
-    make_lowertriangular(u);
-    triangular_make_unit(u);
-}
-void bitmat_ops<mat8>::triangular_make_unit(mat8 & u) {
-    mat8_triangular_make_unit(u);
-}
+
+template struct bblas_bitmat_details::bitmat_ops<mat8>;

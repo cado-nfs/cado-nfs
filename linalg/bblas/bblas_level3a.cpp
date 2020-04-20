@@ -34,52 +34,6 @@ void mat64_add_C(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
     }
 }
 /*}}}*/
-int mat64_is_uppertriangular(mat64 const & u)/*{{{*/
-{
-    mat64::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        if (u[k]&(mask-1)) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat64_extract_uppertriangular(mat64 & a, mat64 const & b)/*{{{*/
-{
-    mat64::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        a[k] = b[k] & ~(mask-1);
-    }
-}/*}}}*/
-int mat64_is_lowertriangular(mat64 const & u)/*{{{*/
-{
-    mat64::datatype mask = ~(mat64::datatype) 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        if (u[k] & mask) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat64_extract_lowertriangular(mat64 & a, mat64 const & b)/*{{{*/
-{
-    mat64::datatype mask = ~(mat64::datatype) 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        a[k] = b[k] & ~mask;
-    }
-}/*}}}*/
-int mat64_triangular_is_unit(mat64 const & u)/*{{{*/
-{
-    mat64::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        if (!(u[k]&mask)) return 0;
-    }
-    return 1;
-}/*}}}*/
-void mat64_triangular_make_unit(mat64 & u)/*{{{*/
-{
-    mat64::datatype mask = 1;
-    for(unsigned int k = 0 ; k < mat64::width ; k++, mask<<=1) {
-        u[k] |= mask;
-    }
-}
-/*}}}*/
 
 /* from hacker's delight */
 void mat64_transpose_recursive_inplace(mat64 & a)/*{{{*/
@@ -132,47 +86,3 @@ void mat64_transpose(mat64 & dst, mat64 const & src)
 }
 /*}}}*/
 
-namespace bblas_bitmat_details {
-    void bitmat_ops<mat64>::fill_random(mat64 & w, gmp_randstate_t rstate)
-    {
-        mat64_fill_random(w, rstate);
-    }
-    void bitmat_ops<mat64>::add(mat64 & C, mat64 const & A, mat64 const & B) {
-        mat64_add(C, A, B);
-    }
-    void bitmat_ops<mat64>::transpose(mat64 & C, mat64 const & A) {
-        mat64_transpose(C, A);
-    }
-    bool bitmat_ops<mat64>::is_lowertriangular(mat64 const & A) {
-        return mat64_is_lowertriangular(A);
-    }
-    bool bitmat_ops<mat64>::is_uppertriangular(mat64 const & A) {
-        return mat64_is_uppertriangular(A);
-    }
-    bool bitmat_ops<mat64>::triangular_is_unit(mat64 const & A) {
-        return mat64_triangular_is_unit(A);
-    }
-    void bitmat_ops<mat64>::extract_uppertriangular(mat64 & a, mat64 const & b) {
-        mat64_extract_uppertriangular(a, b);
-    }
-    void bitmat_ops<mat64>::extract_lowertriangular(mat64 & a, mat64 const & b) {
-        mat64_extract_lowertriangular(a, b);
-    }
-    void bitmat_ops<mat64>::make_uppertriangular(mat64 & u) {
-        extract_uppertriangular(u, u);
-    }
-    void bitmat_ops<mat64>::make_lowertriangular(mat64 & u) {
-        extract_lowertriangular(u, u);
-    }
-    void bitmat_ops<mat64>::make_unit_uppertriangular(mat64 & u) {
-        make_uppertriangular(u);
-        triangular_make_unit(u);
-    }
-    void bitmat_ops<mat64>::make_unit_lowertriangular(mat64 & u) {
-        make_lowertriangular(u);
-        triangular_make_unit(u);
-    }
-    void bitmat_ops<mat64>::triangular_make_unit(mat64 & u) {
-        mat64_triangular_make_unit(u);
-    }
-}

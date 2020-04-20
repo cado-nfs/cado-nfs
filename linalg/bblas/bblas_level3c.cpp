@@ -94,6 +94,43 @@ void mul_N64_6464_lookup4(uint64_t *C,/*{{{*/
     }
 }/*}}}*/
 
+void mul_6464lt_6464_lookup4(uint64_t *C,/*{{{*/
+                   uint64_t const *A,
+                   mat64 const & B)
+{
+    constexpr const size_t m = 64;
+    uint64_t Bx[16][16];
+    for(int j = 0 ; j < 16 ; j++) {
+        uint64_t const * bb = B.data() + 4 * j;
+        uint64_t w = 0;
+        Bx[j][0]  = w; w ^= bb[0];
+        Bx[j][1]  = w; w ^= bb[1];
+        Bx[j][3]  = w; w ^= bb[0];
+        Bx[j][2]  = w; w ^= bb[2];
+        Bx[j][6]  = w; w ^= bb[0];
+        Bx[j][7]  = w; w ^= bb[1];
+        Bx[j][5]  = w; w ^= bb[0];
+        Bx[j][4]  = w; w ^= bb[3];
+        Bx[j][12] = w; w ^= bb[0];
+        Bx[j][13] = w; w ^= bb[1];
+        Bx[j][15] = w; w ^= bb[0];
+        Bx[j][14] = w; w ^= bb[2];
+        Bx[j][10] = w; w ^= bb[0];
+        Bx[j][11] = w; w ^= bb[1];
+        Bx[j][9]  = w; w ^= bb[0];
+        Bx[j][8]  = w;
+    }
+    /* We don't zero out C before the computation, but rather at the
+     * moment we read A[i], so that A==C is supported */
+    for (size_t i = 0; i < m; i++) {
+        uint64_t aa = A[i];
+        C[i] = 0;
+        for(size_t j = 0 ; 4*j <= i ; j++) {
+            C[i] ^= Bx[j][aa & 15]; aa>>=4;
+        }
+    }
+}/*}}}*/
+
 /* implements mul_N64_6464 */
 void mul_N64_6464_lookup8(uint64_t *C,/*{{{*/
                    uint64_t const *A,

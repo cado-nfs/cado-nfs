@@ -26,7 +26,9 @@ test_bblas_base::test_bblas_base(unsigned int nmax) : nmax(nmax) {/*{{{*/
 
 #ifdef  HAVE_M4RI
     mzd_set_mem(A, a, nmax);
-    mzd_set_mem(A64, a, 64);
+    if (nmax >= 64) {
+        mzd_set_mem(A64, a, 64);
+    }
     mzd_set_mem(W, w.data(), 64);
     mzd_set_mem(WT, wt.data(), 64);
 #endif  /* HAVE_M4RI */

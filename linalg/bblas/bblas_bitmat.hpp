@@ -15,13 +15,47 @@ namespace bblas_bitmat_details {
     template<typename T> struct bblas_bitmat_type_supported {
         static constexpr const bool value = false;
     };
-    template<typename D> struct bitmat_ops;
+    template<typename matrix> struct bitmat_ops {
+        static void fill_random(matrix & w, gmp_randstate_t rstate);
+        static void add(matrix & C, matrix const & A, matrix const & B);
+        static void transpose(matrix & C, matrix const & A);
+        static void mul(matrix & C, matrix const & A, matrix const & B);
+        static void mul_lt_ge(matrix & C, matrix const & A, matrix const & B) {
+            mul(C, A, B);
+        }
+        static void addmul(matrix & C, matrix const & A, matrix const & B);
+        static void addmul(matrix & C,
+                   matrix const & A,
+                   matrix const & B,
+                   unsigned int i0,
+                   unsigned int i1,
+                   unsigned int yi0,
+                   unsigned int yi1);
+        static void trsm(matrix const & L,
+                matrix & U,
+                unsigned int yi0,
+                unsigned int yi1);
+        static void trsm(matrix const & L, matrix & U);
+        static void extract_uppertriangular(matrix & a, matrix const & b);
+        static void extract_lowertriangular(matrix & a, matrix const & b);
+        protected:
+        /* these are accessed as _member functions_ in the matrix type */
+        static bool is_lowertriangular(matrix const & a);
+        static bool is_uppertriangular(matrix const & a);
+        static bool triangular_is_unit(matrix const & a);
+        static void make_uppertriangular(matrix & a);
+        static void make_lowertriangular(matrix & a);
+        static void make_unit_uppertriangular(matrix & a);
+        static void make_unit_lowertriangular(matrix & a);
+        static void triangular_make_unit(matrix & a);
+    };
 }
 
-
 template<typename T>
-class bitmat : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
+class bitmat
+    : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
 {
+    typedef bblas_bitmat_details::bitmat_ops<bitmat<T>> ops;
     typedef bblas_bitmat_details::bblas_bitmat_type_supported<T> S;
     static_assert(S::value, "bblas bitmap must be built on uintX_t");
 
@@ -72,6 +106,28 @@ class bitmat : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
         }
         return *this;
     }
+    inline bool operator==(int a) const
+    {
+        if (a&1) {
+            T mask = a&1;
+            for (int j = 0; j < width; j++, mask <<= 1)
+                if (x[j]&~mask) return false;
+        } else {
+            for (int j = 0; j < width; j++)
+                if (x[j]) return false;
+        }
+        return true;
+    }
+    inline bool operator!=(int a) const { return !operator==(a); }
+
+    inline bool is_lowertriangular() const { return ops::is_lowertriangular(*this); }
+    inline bool is_uppertriangular() const { return ops::is_uppertriangular(*this); }
+    inline bool triangular_is_unit() const { return ops::triangular_is_unit(*this); }
+    inline void make_uppertriangular() { ops::make_uppertriangular(*this); }
+    inline void make_lowertriangular() { ops::make_lowertriangular(*this); }
+    inline void make_unit_uppertriangular() { ops::make_unit_uppertriangular(*this); }
+    inline void make_unit_lowertriangular() { ops::make_unit_lowertriangular(*this); }
+    inline void triangular_make_unit() { ops::triangular_make_unit(*this); }
 };
 
 #endif	/* BBLAS_BITMAT_HPP_ */

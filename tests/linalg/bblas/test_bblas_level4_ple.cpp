@@ -11,8 +11,8 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
 {
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
-    matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
+    bpack<matrix> A(m, n);
+    PLE<matrix> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         std::vector<unsigned int> f;
@@ -21,11 +21,11 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             f.push_back(gmp_urandomb_ui(rstate, 30));
             u.push_back(1 + gmp_urandomm_ui(rstate, 3*m-1));
         }
-        memset((void *) X, 0, (m/B) * (n/B) * sizeof(matrix));
+        A.set_zero();
         for(unsigned int j = 0 ; j < n ; j++) {
             for(unsigned int i = 0 ; i < m ; i++) {
                 U b = (f[j]+i) % u[j] == 0;
-                X[(i/B)*(n/B)+(j/B)][i%B] ^= (b << (j%B));
+                A.X[(i/B)*(n/B)+(j/B)][i%B] ^= (b << (j%B));
             }
         }
         for(unsigned int ell = 0 ; ell < 100 ; ell++) {
@@ -44,7 +44,6 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             }
         }
     }
-    matrix::free(X);
 
     return 0;
 }/*}}}*/
@@ -54,15 +53,15 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
 {
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
-    matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
+    bpack<matrix> A(m, n);
+    PLE<matrix> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
         unsigned int kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
         unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
         unsigned int pii = gmp_urandomm_ui(rstate, m);
-        memset((void *) X, 0, (m/B) * (n/B) * sizeof(matrix));
+        A.set_zero();
         U examples[n/B][4];
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
             U a = 0;
@@ -86,17 +85,16 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
 
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
             for(unsigned int ii = 0 ; ii < m ; ii++) {
-                X[(ii/B)*(n/B)+bj][ii%B] = examples[bj][ii & 1];
+                A.X[(ii/B)*(n/B)+bj][ii%B] = examples[bj][ii & 1];
             }
         }
         ple.propagate_pivot(pii / B, pjj / B, pii % B, pjj % B);
         unsigned int bj = pjj / B;
         for(unsigned int ii = 0 ; ii < m ; ii++) {
             U a = examples[bj][2 * (ii > pii) + (ii & 1)];
-            ASSERT_ALWAYS(X[(ii/B)*(n/B)+bj][ii%B] == a);
+            ASSERT_ALWAYS(A.X[(ii/B)*(n/B)+bj][ii%B] == a);
         }
     }
-    matrix::free(X);
 
     return 0;
 }/*}}}*/
@@ -106,14 +104,14 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
 {
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
-    matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
+    bpack<matrix> A(m, n);
+    PLE<matrix> ple(A.view());
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
         for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
             unsigned int  bi =  ii / B;
             unsigned int   i =  ii % B;
-            X[bi * n/B + bj][i] = kk;
+            A.X[bi * n/B + bj][i] = kk;
         }
     }
 
@@ -132,8 +130,8 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
             unsigned int   i =  ii % B;
             unsigned int pbi = pii / B;
             unsigned int  pi = pii % B;
-            matrix & Y = X[bi * n/B + bj0];
-            matrix & pY = X[pbi * n/B + bj0];
+            matrix & Y = A.X[bi * n/B + bj0];
+            matrix & pY = A.X[pbi * n/B + bj0];
             U c = Y[i] ^ pY[pi];
             Y[i] ^= c;
             pY[pi] ^= c;
@@ -147,12 +145,10 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
                 unsigned int  bi =  ii / B;
                 unsigned int   i =  ii % B;
-                ASSERT_ALWAYS(X[bi * n/B + bj][i] == U(X[bi * n/B][i] + bj));
+                ASSERT_ALWAYS(A.X[bi * n/B + bj][i] == U(A.X[bi * n/B][i] + bj));
             }
         }
     }
-
-    matrix::free(X);
 
     return 0;
 }/*}}}*/
@@ -162,8 +158,8 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
 {
     constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
-    matrix * X = matrix::alloc((m/B)*(n/B));
-    PLE<matrix> ple(bpack<matrix>(X, m/B, n/B));
+    bpack<matrix> A(m, n);
+    PLE<matrix> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         /* first generate the transpose of the matrix that we will
@@ -198,67 +194,68 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         std::sort(pivs.begin(), pivs.end());
         for(unsigned int k = 0 ; k < r ; k++)
             pivs[k] += k;
-        matrix * tX = matrix::alloc((n/B)*(m/B));
-        std::fill_n(tX, (n/B)*(m/B), 0);
-        auto ppiv = pivs.begin();
-        unsigned int rr = 0;
-        for(unsigned int jj = 0 ; jj < n ; jj++) {
-            bool is_piv= false;
-            unsigned int bj = jj / B;
-            if (ppiv < pivs.end() && jj == *ppiv) {
-                is_piv = true;
-                ppiv++;
-            }
-            /* generate rr bits of 1010/0101 pattern, depending on jj.
-             * and then:
-             * if is_piv, m-rr bits of 1010/0101 pattern, depending on rr, 
-             * if !is_piv, m-rr bits of 0's
-             */
-            mpz_t NN,PP;
-            mpz_init(NN);
-            mpz_init(PP);
-            /* jj even: rr bits of 101010 (starting with 1) is NN, with:
-             *      if rr is even, 3NN+1=(1<<rr)
-             *      if rr is odd, 3NN+1=(2<<rr)
-             * jj odd: rr bits of 010101 (starting with 0) is NN, with:
-             *      if rr is even, 3NN+2=(2<<rr)
-             *      if rr is odd, 3NN+2=(1<<rr)
-             *
-             * so that it's 3NN+1+(jj&1) = 1 << (rr + ((rr^jj)&1))
-             */
-            if (jj < r) {
-                mpz_ui_pow_ui(NN, 2, rr + ((rr ^ jj) & 1));
-                mpz_sub_ui(NN,NN,1 + (jj & 1));
-                ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
-                mpz_divexact_ui(NN,NN,3);
-            } else {
-                mpz_set_ui(NN, 0);
-            }
-            if (is_piv) {
-                /* rest: we'll make an m-bit mask of 1010..., i.e. 3NN+1=(1<<m)
+        {
+            bpack<matrix> tA(n, m);
+            tA.set_zero();
+            auto ppiv = pivs.begin();
+            unsigned int rr = 0;
+            for(unsigned int jj = 0 ; jj < n ; jj++) {
+                bool is_piv= false;
+                unsigned int bj = jj / B;
+                if (ppiv < pivs.end() && jj == *ppiv) {
+                    is_piv = true;
+                    ppiv++;
+                }
+                /* generate rr bits of 1010/0101 pattern, depending on jj.
+                 * and then:
+                 * if is_piv, m-rr bits of 1010/0101 pattern, depending on rr, 
+                 * if !is_piv, m-rr bits of 0's
                  */
-                mpz_ui_pow_ui(PP, 2, m);
-                mpz_sub_ui(PP, PP, 1);
-                ASSERT_ALWAYS(mpz_divisible_ui_p(PP, 3));
-                mpz_divexact_ui(PP,PP,3);
-                mpz_mul_2exp(PP, PP, rr);
-                mpz_add(NN, NN, PP);
-                mpz_clear(PP);
-                rr++;
+                mpz_t NN,PP;
+                mpz_init(NN);
+                mpz_init(PP);
+                /* jj even: rr bits of 101010 (starting with 1) is NN, with:
+                 *      if rr is even, 3NN+1=(1<<rr)
+                 *      if rr is odd, 3NN+1=(2<<rr)
+                 * jj odd: rr bits of 010101 (starting with 0) is NN, with:
+                 *      if rr is even, 3NN+2=(2<<rr)
+                 *      if rr is odd, 3NN+2=(1<<rr)
+                 *
+                 * so that it's 3NN+1+(jj&1) = 1 << (rr + ((rr^jj)&1))
+                 */
+                if (jj < r) {
+                    mpz_ui_pow_ui(NN, 2, rr + ((rr ^ jj) & 1));
+                    mpz_sub_ui(NN,NN,1 + (jj & 1));
+                    ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
+                    mpz_divexact_ui(NN,NN,3);
+                } else {
+                    mpz_set_ui(NN, 0);
+                }
+                if (is_piv) {
+                    /* rest: we'll make an m-bit mask of 1010..., i.e. 3NN+1=(1<<m)
+                    */
+                    mpz_ui_pow_ui(PP, 2, m);
+                    mpz_sub_ui(PP, PP, 1);
+                    ASSERT_ALWAYS(mpz_divisible_ui_p(PP, 3));
+                    mpz_divexact_ui(PP,PP,3);
+                    mpz_mul_2exp(PP, PP, rr);
+                    mpz_add(NN, NN, PP);
+                    mpz_clear(PP);
+                    rr++;
+                }
+                static_assert(B <= 64, "we need B<=64 since we use mpz_get_uint64");
+                for(unsigned int bi = 0 ; bi < m/B ; bi++) {
+                    tA.X[bi + bj * (m/B)][jj % B] = mpz_get_uint64(NN);
+                    mpz_fdiv_q_2exp(NN, NN, B);
+                }
+                mpz_clear(NN);
             }
-            static_assert(B <= 64, "we need B<=64 since we use mpz_get_uint64");
             for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-                tX[bi + bj * (m/B)][jj % B] = mpz_get_uint64(NN);
-                mpz_fdiv_q_2exp(NN, NN, B);
-            }
-            mpz_clear(NN);
-        }
-        for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-            for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                matrix::transpose(X[bi * (n/B) + bj], tX[bi + bj * (m/B)]);
+                for(unsigned int bj = 0 ; bj < n/B ; bj++) {
+                    matrix::transpose(A.X[bi * (n/B) + bj], tA.X[bi + bj * (m/B)]);
+                }
             }
         }
-        matrix::free(tX);
         
         /* Now pivs is the set of _columns_ that we have to move. Let's
          * do that. As per the specification of move_L_fragments, we'll
@@ -299,7 +296,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
             mpz_divexact_ui(NN,NN,3);
             for(unsigned int bj = 0 ; bj < n/B ; bj++, z -= B) {
-                U c = X[(ii/B)*(n/B)+bj][ii%B];
+                U c = A.X[(ii/B)*(n/B)+bj][ii%B];
                 c ^= mpz_get_uint64(NN);
                 if (z < B) c &= (U(1) << z) - 1;
                 mpz_fdiv_q_2exp(NN, NN, B);
@@ -310,23 +307,15 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         }
     }
 
-    matrix::free(X);
-
     return 0;
 }/*}}}*/
 
 template<typename matrix>
 int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 {
-    constexpr const unsigned int B = matrix::width;
     for(unsigned int k = 0 ; k < 100 ; k++) {
-        typename matrix::vector_type X ((m/B)*(n/B), 0);
-        for(unsigned int bi = 0 ; bi < m/B ; bi++) {
-            for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                matrix::fill_random(X[bi*(n/B)+bj], rstate);
-            }
-        }
-        typename matrix::vector_type Xc = X;
+        bpack<matrix> A(m, n);
+        A.fill_random(rstate);
 
         /* The main important thing is the fact of enabling the
          * debug_stuff object, which does invariant checks throughout the
@@ -334,11 +323,11 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
          * we do here is not even needed, since it's already one of those
          * checks triggered by debug_stuff.
          */
-        PLE<matrix> ple(bpack<matrix>(&X[0], m/B, n/B));
+        PLE<matrix> ple(A.view());
         typename PLE<matrix>::debug_stuff D(ple);
         std::vector<unsigned int> pivs = ple(&D);
 
-        D.start_check(X);
+        D.start_check(ple.X);
         D.apply_permutations(pivs);
         unsigned int r = pivs.size();
         auto LL = D.get_LL(r);
@@ -385,7 +374,7 @@ void test_bblas_level4::meta_ple()
 
         auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(matrix), rstate); };
         auto do_ple = [&](matrix * X, unsigned int mm, unsigned int nn) {
-            return bpack<matrix>(X, mm, nn).ple().size();
+            return bpack_view<matrix>(X, mm, nn).ple().size();
         };
 
         printf(" -- PLE(m=%u, n=%u)\n", m, n);

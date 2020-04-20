@@ -1516,3 +1516,5 @@ linalg/bblas/bblas_bitmat.hpp
 linalg/bblas/bblas_level4_ple_internal_inl.hpp
 linalg/bblas/bblas_mat8.cpp
 linalg/bblas/bblas_mat8.hpp
+linalg/bblas/bblas_bitmat_inl.hpp
+linalg/bblas/bblas_mat64.cpp

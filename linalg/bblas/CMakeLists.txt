@@ -21,6 +21,7 @@ add_library(bblas
         bblas_perm_matrix.cpp
         bblas_gauss.c
         bblas_mat8.cpp
+        bblas_mat64.cpp
 )
 
 add_dependencies(bblas gf2x-build)

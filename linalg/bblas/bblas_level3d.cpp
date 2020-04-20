@@ -102,16 +102,3 @@ void trsm64(mat64 const & L, mat64 & U)/*{{{*/
     trsm64_general(L, U, 0, 64);
 }/*}}}*/
 
-namespace bblas_bitmat_details {
-    void bitmat_ops<mat64>::trsm(mat64 const & L,
-            mat64 & U,
-            unsigned int yi0,
-            unsigned int yi1)
-    {
-        trsm64_general(L, U, yi0, yi1);
-    }
-    void bitmat_ops<mat64>::trsm(mat64 const & L, mat64 & U)
-    {
-        trsm64_general(L, U, 0, 64);
-    }
-}

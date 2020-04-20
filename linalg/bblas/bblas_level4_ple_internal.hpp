@@ -16,12 +16,12 @@
 #define xxxTIME_PLE
 
 template<typename matrix>
-struct PLE : public bpack<matrix> {/*{{{*/
-    using typename bpack<matrix>::U;
-    using bpack<matrix>::B;
-    using bpack<matrix>::m;
-    using bpack<matrix>::n;
-    using bpack<matrix>::X;
+struct PLE : public bpack_view<matrix> {/*{{{*/
+    using typename bpack_view<matrix>::U;
+    using bpack_view<matrix>::B;
+    using bpack_view<matrix>::mblocks;
+    using bpack_view<matrix>::nblocks;
+    using bpack_view<matrix>::X;
 #ifdef TIME_PLE
     static unsigned long ncalls;
     static double t_find_pivot;
@@ -54,23 +54,23 @@ struct PLE : public bpack<matrix> {/*{{{*/
             unsigned int ii) const;
 
     struct debug_stuff {
-    unsigned int m;
-    unsigned int n;
+    unsigned int mblocks;
+    unsigned int nblocks;
         typename matrix::vector_type X_orig;
         typename matrix::vector_type X, X_target;
         debug_stuff(PLE const & ple)
-            : m(ple.m)
-            , n(ple.n)
-            , X_orig(ple.X, ple.X + m * n)
+            : mblocks(ple.mblocks)
+            , nblocks(ple.nblocks)
+            , X_orig(ple.X, ple.X + mblocks * nblocks)
         {}
         void start_check(matrix const * X0)
         {
-            X = typename matrix::vector_type(X0, X0 + m * n);
+            X = typename matrix::vector_type(X0, X0 + mblocks * nblocks);
             X_target = X_orig;
         }
         void start_check(typename matrix::vector_type const & X0)
         {
-            ASSERT_ALWAYS(X0.size() == m * n);
+            ASSERT_ALWAYS(X0.size() == mblocks * nblocks);
             start_check(&X0[0]);
         }
         void apply_permutations(std::vector<unsigned int>::const_iterator, std::vector<unsigned int>::const_iterator);
@@ -85,7 +85,7 @@ struct PLE : public bpack<matrix> {/*{{{*/
     };
 
 
-    PLE(bpack<matrix> b) : bpack<matrix>(b) {}
+    PLE(bpack_view<matrix> b) : bpack_view<matrix>(b) {}
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/

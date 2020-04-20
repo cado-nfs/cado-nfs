@@ -33,6 +33,7 @@ void addmul_6464_6464_fragment_lookup4(mat64 & C,
 
 /* final exported choices */
 void mul_6464_6464(mat64 & C, mat64 const & A, mat64 const & B);
+void mul_6464lt_6464(mat64 & C, mat64 const & A, mat64 const & B);
 void addmul_6464_6464_fragment(mat64 & C,
                    mat64 const & A,
                    mat64 const & B,

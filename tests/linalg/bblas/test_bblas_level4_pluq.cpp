@@ -17,61 +17,56 @@
  */
 void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m, int n) /*{{{*/
 {
-    mat64 pm[(n/64)*(n/64)];
+    constexpr const unsigned int B = mat64::width;
+    mat64 pm[(n/B)*(n/B)];
     perm_matrix_get_matrix(pm, p);
 
     perm_matrix qt;
     perm_matrix_init(qt, n);
     perm_matrix_transpose(qt, q);
 
-    mat64 qmt[(n/64)*(n/64)];
+    mat64 qmt[(n/B)*(n/B)];
     perm_matrix_get_matrix(qmt, qt);
 
     /* compute p*u*transpose(q) */
-    mat64 pu[(n/64)*(n/64)];
-    memset(pu, 0, (n/64)*(n/64)*sizeof(mat64));
+    mat64 pu[(n/B)*(n/B)];
+    std::fill_n(pu, (n/B)*(n/B), 0);
 
-    for(int i = 0 ; i < (n/64) ; i++ )
-    for(int j = 0 ; j < (n/64) ; j++ )
-    for(int k = 0 ; k < (n/64) ; k++ ) {
-        mat64 tmp;
-        mul_6464_6464(tmp, pm[i*(n/64)+k], u[k*(n/64)+j]);
-        mat64_add(pu[i*(n/64)+j], pu[i*(n/64)+j], tmp);
+    for(unsigned int i = 0 ; i < (n/B) ; i++ )
+    for(unsigned int j = 0 ; j < (n/B) ; j++ )
+    for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
+        mat64::addmul(pu[i*(n/B)+j], pm[i*(n/B)+k], u[k*(n/B)+j]);
     }
 
-    mat64 puq[(n/64)*(n/64)];
-    memset(puq, 0, (n/64)*(n/64)*sizeof(mat64));
+    mat64 puq[(n/B)*(n/B)];
+    std::fill_n(puq, (n/B)*(n/B), 0);
 
-    for(int i = 0 ; i < (n/64) ; i++ )
-    for(int j = 0 ; j < (n/64) ; j++ )
-    for(int k = 0 ; k < (n/64) ; k++ ) {
-        mat64 tmp;
-        mul_6464_6464(tmp, pu[i*(n/64)+k], qmt[k*(n/64)+j]);
-        mat64_add(puq[i*(n/64)+j], puq[i*(n/64)+j], tmp);
+    for(unsigned int i = 0 ; i < (n/B) ; i++ )
+    for(unsigned int j = 0 ; j < (n/B) ; j++ )
+    for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
+        mul_6464_6464(puq[i*(n/B)+j], pu[i*(n/B)+k], qmt[k*(n/B)+j]);
     }
     
     /* at this point puq = p*u*transpose(q) should be a upper triangular,
      * with normalized diagonal. */
-    for(int i = 0 ; i < (n/64) ; i++ ) {
-        ASSERT_ALWAYS(mat64_is_uppertriangular(puq[i*(n/64)+i]));
+    for(unsigned int i = 0 ; i < (n/B) ; i++ ) {
+        ASSERT_ALWAYS(puq[i*(n/B)+i].is_uppertriangular());
     }
 
-    mat64 lm[(n/64)*(n/64)];
-    memset(lm, 0, (n/64)*(n/64)*sizeof(mat64));
+    mat64 lm[(n/B)*(n/B)];
+    std::fill_n(lm, (n/B)*(n/B), 0);
 
-    for(int i = 0 ; i < (n/64) ; i++ )
-    for(int j = 0 ; j < (n/64) ; j++ )
-    for(int k = 0 ; k <= i ; k++ ) {
-        mat64 tmp;
-        mul_6464_6464(tmp, l[i*(n/64)+k], m[k*(n/64)+j]);
-        mat64_add(lm[i*(n/64)+j], lm[i*(n/64)+j], tmp);
+    for(unsigned int i = 0 ; i < (n/B) ; i++ )
+    for(unsigned int j = 0 ; j < (n/B) ; j++ )
+    for(unsigned int k = 0 ; k <= i ; k++ ) {
+        mat64::addmul(lm[i*(n/B)+j], l[i*(n/B)+k], m[k*(n/B)+j]);
     }
 
-    for(int i = 0 ; i < (n/64) ; i++ ) {
-        ASSERT_ALWAYS(mat64_is_lowertriangular(l[i*(n/64)+i]));
-        ASSERT_ALWAYS(mat64_triangular_is_unit(l[i*(n/64)+i]));
-        for(int j = 0 ; j < (n/64) ; j++ ) {
-            ASSERT_ALWAYS(lm[i*(n/64)+j] == u[i*(n/64)+j]);
+    for(unsigned int i = 0 ; i < (n/B) ; i++ ) {
+        ASSERT_ALWAYS(l[i*(n/B)+i].is_lowertriangular());
+        ASSERT_ALWAYS(l[i*(n/B)+i].triangular_is_unit());
+        for(unsigned int j = 0 ; j < (n/B) ; j++ ) {
+            ASSERT_ALWAYS(lm[i*(n/B)+j] == u[i*(n/B)+j]);
         }
     }
     perm_matrix_clear(qt);

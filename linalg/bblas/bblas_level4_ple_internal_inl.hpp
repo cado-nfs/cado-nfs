@@ -24,8 +24,8 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
 {
     TIMER_PLE(t_find_pivot);
     U mask = U(1) << j;
-    for( ; bi < m ; bi++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; bi < mblocks ; bi++) {
+        matrix & Y = X[bi * nblocks + bj];
         for( ; i < B ; i++) {
             if (Y[i] & mask)
                 return bi * B + i;
@@ -48,12 +48,12 @@ void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int
 
     if (j == B-1) return;
     U mask = U(1) << j;
-    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
-    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    ASSERT_ALWAYS(X[bi * nblocks + bj][i] & mask);
+    U c = X[bi * nblocks + bj][i] & ((-mask) << 1);
     i++;
     if (i == B) { i = 0 ; bi++; }
-    for( ; bi < m ; bi++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; bi < mblocks ; bi++) {
+        matrix & Y = X[bi * nblocks + bj];
         for( ; i < B ; i++) {
             Y[i] ^= c & -((Y[i] & mask) != 0);
         }
@@ -77,20 +77,20 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 
     if (j == B-1) return;
     U mask = U(1) << j;
-    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
-    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    ASSERT_ALWAYS(X[bi * nblocks + bj][i] & mask);
+    U c = X[bi * nblocks + bj][i] & ((-mask) << 1);
     i++;
     constexpr const unsigned int SIMD = 4;
-    for( ; (i & (SIMD-1)) && bi < m ; i++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; (i & (SIMD-1)) && bi < mblocks ; i++) {
+        matrix & Y = X[bi * nblocks + bj];
         Y[i] ^= c & -((Y[i] & mask) != 0);
     }
     if (i == B) { i = 0 ; bi++; }
     unsigned int iw = i / SIMD;
     __m256i mmask = _mm256_set1_epi64x(mask);
     __m256i cc = _mm256_set1_epi64x(c);
-    for( ; bi < m ; bi++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; bi < mblocks ; bi++) {
+        matrix & Y = X[bi * nblocks + bj];
         __m256i *Yw = (__m256i *) Y.data();
         for( ; iw < B / SIMD ; iw++) {
             __m256i select = _mm256_and_si256(Yw[iw], mmask);
@@ -115,20 +115,20 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 
     if (j == B-1) return;
     U mask = U(1) << j;
-    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
-    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    ASSERT_ALWAYS(X[bi * nblocks + bj][i] & mask);
+    U c = X[bi * nblocks + bj][i] & ((-mask) << 1);
     i++;
     constexpr const unsigned int SIMD = 2;
-    for( ; (i & (SIMD-1)) && bi < m ; i++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; (i & (SIMD-1)) && bi < mblocks ; i++) {
+        matrix & Y = X[bi * nblocks + bj];
         Y[i] ^= c & -((Y[i] & mask) != 0);
     }
     if (i == B) { i = 0 ; bi++; }
     unsigned int iw = i / SIMD;
     __m128i mmask = _cado_mm_set1_epi64(mask);
     __m128i cc = _cado_mm_set1_epi64(c);
-    for( ; bi < m ; bi++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; bi < mblocks ; bi++) {
+        matrix & Y = X[bi * nblocks + bj];
         __m128i *Yw = (__m128i *) Y.data();
         for( ; iw < B / SIMD ; iw++) {
             __m128i select = _mm_and_si128(Yw[iw], mmask);
@@ -154,14 +154,14 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
 
     if (j == B-1) return;
     U mask = U(1) << j;
-    ASSERT_ALWAYS(X[bi * n + bj][i] & mask);
-    U c = X[bi * n + bj][i] & ((-mask) << 1);
+    ASSERT_ALWAYS(X[bi * nblocks + bj][i] & mask);
+    U c = X[bi * nblocks + bj][i] & ((-mask) << 1);
     i++;
     if (i == B) { i = 0 ; bi++; }
     __m64 mmask = _mm_set1_pi8(mask);
     __m64 cc = _mm_set1_pi8(c);
-    if (i && bi < m) {
-        matrix & Y = X[bi * n + bj];
+    if (i && bi < mblocks) {
+        matrix & Y = X[bi * nblocks + bj];
         __m64 & Yw = * (__m64 *) Y.data();
         __m64 select = _mm_and_si64(Yw, mmask);
         select = _mm_cmpeq_pi8(select, mmask);
@@ -170,8 +170,8 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
         Yw = _mm_xor_si64(Yw, _mm_and_si64(cc, select));
         bi++;
     }
-    for( ; bi < m ; bi++) {
-        matrix & Y = X[bi * n + bj];
+    for( ; bi < mblocks ; bi++) {
+        matrix & Y = X[bi * nblocks + bj];
         __m64 & Yw = * (__m64 *) Y.data();
         __m64 select = _mm_and_si64(Yw, mmask);
         select = _mm_cmpeq_pi8(select, mmask);
@@ -190,7 +190,7 @@ void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0,
      * image of index ii is given by
      *          *(q0 + ii - ii0) = *(q1 + ii - ii1)
      */
-    for(unsigned bj = 0 ; bj < n ; bj++) {
+    for(unsigned bj = 0 ; bj < nblocks ; bj++) {
         if (bj == bj0) continue;
         unsigned int ii = ii1 - (q1 - q0);
         for(auto q = q0 ; q != q1 ; q++, ii++) {
@@ -199,8 +199,8 @@ void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0,
             unsigned int i  = ii & (B - 1);
             unsigned int pbi = *q / B;
             unsigned int pi  = *q & (B - 1);
-            matrix & Y  = X[ bi * n + bj];
-            matrix & pY = X[pbi * n + bj];
+            matrix & Y  = X[ bi * nblocks + bj];
+            matrix & pY = X[pbi * nblocks + bj];
             U c = Y[i] ^ pY[pi];
             Y[i]   ^= c;
             pY[pi] ^= c;
@@ -261,9 +261,9 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
              * which on all accounts should still be in the same block.
              */
             ASSERT((yii + warmup) / B == ybi);
-            U c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
-            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
-            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
+            U c = (X[ybi * nblocks + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * nblocks + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * nblocks + zbj][yi + warmup] ^= (c << zj);
             /* is there a simpler way ? mask += mask + 1 ? */
             mask |= mask << 1;
         }
@@ -273,11 +273,11 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
         unsigned int tbi = ybi;
         unsigned int ti = yi + dz;
         if (ti == B) { tbi++; ti = 0; }
-        for( ; tbi < m ; tbi++) {
+        for( ; tbi < mblocks ; tbi++) {
             for( ; ti < B ; ti++) {
-                U c = (X[tbi * n + zbj][ti] >> zj) & mask;
-                X[tbi * n + ybi][ti] ^= (c << yi);
-                X[tbi * n + zbj][ti] ^= (c << zj);
+                U c = (X[tbi * nblocks + zbj][ti] >> zj) & mask;
+                X[tbi * nblocks + ybi][ti] ^= (c << yi);
+                X[tbi * nblocks + zbj][ti] ^= (c << zj);
             }
             ti = 0;
         }
@@ -312,28 +312,28 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
              * which on all accounts should still be in the same block.
              */
             ASSERT((yii + warmup) / B == ybi);
-            U c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
-            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
-            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
+            U c = (X[ybi * nblocks + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * nblocks + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * nblocks + zbj][yi + warmup] ^= (c << zj);
             /* is there a simpler way ? mask += mask + 1 ? */
             mask |= mask << 1;
         }
         unsigned int tbi = ybi;
         unsigned int ti = yi + dz;
         constexpr const unsigned int SIMD = 4;
-        for ( ; (ti & (SIMD - 1)) && tbi < m ; ti++) {
-            U c = (X[tbi * n + zbj][ti] >> zj) & mask;
-            X[tbi * n + ybi][ti] ^= (c << yi);
-            X[tbi * n + zbj][ti] ^= (c << zj);
+        for ( ; (ti & (SIMD - 1)) && tbi < mblocks ; ti++) {
+            U c = (X[tbi * nblocks + zbj][ti] >> zj) & mask;
+            X[tbi * nblocks + ybi][ti] ^= (c << yi);
+            X[tbi * nblocks + zbj][ti] ^= (c << zj);
         }
         if (ti == B) { tbi++; ti = 0; }
         __m256i mmask = _mm256_set1_epi64x(mask);
         unsigned int tiw = ti / SIMD;
         __m128i zjw = _mm_set1_epi64x(zj); // only lower 64 used
         __m128i yiw = _mm_set1_epi64x(yi); // only lower 64 used
-        for( ; tbi < m ; tbi++) {
-            __m256i *Xzjw = (__m256i *) X[tbi * n + zbj].data();
-            __m256i *Xyiw = (__m256i *) X[tbi * n + ybi].data();
+        for( ; tbi < mblocks ; tbi++) {
+            __m256i *Xzjw = (__m256i *) X[tbi * nblocks + zbj].data();
+            __m256i *Xyiw = (__m256i *) X[tbi * nblocks + ybi].data();
             for( ; tiw < B / SIMD ; tiw++) {
                 __m256i & Xjw = Xzjw[tiw];
                 __m256i & Xiw = Xyiw[tiw];
@@ -373,28 +373,28 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
              * which on all accounts should still be in the same block.
              */
             ASSERT((yii + warmup) / B == ybi);
-            U c = (X[ybi * n + zbj][yi + warmup] >> zj) & mask;
-            X[ybi * n + ybi][yi + warmup] ^= (c << yi);
-            X[ybi * n + zbj][yi + warmup] ^= (c << zj);
+            U c = (X[ybi * nblocks + zbj][yi + warmup] >> zj) & mask;
+            X[ybi * nblocks + ybi][yi + warmup] ^= (c << yi);
+            X[ybi * nblocks + zbj][yi + warmup] ^= (c << zj);
             /* is there a simpler way ? mask += mask + 1 ? */
             mask |= mask << 1;
         }
         unsigned int tbi = ybi;
         unsigned int ti = yi + dz;
         constexpr const unsigned int SIMD = 2;
-        for ( ; (ti & (SIMD - 1)) && tbi < m ; ti++) {
-            U c = (X[tbi * n + zbj][ti] >> zj) & mask;
-            X[tbi * n + ybi][ti] ^= (c << yi);
-            X[tbi * n + zbj][ti] ^= (c << zj);
+        for ( ; (ti & (SIMD - 1)) && tbi < mblocks ; ti++) {
+            U c = (X[tbi * nblocks + zbj][ti] >> zj) & mask;
+            X[tbi * nblocks + ybi][ti] ^= (c << yi);
+            X[tbi * nblocks + zbj][ti] ^= (c << zj);
         }
         if (ti == B) { tbi++; ti = 0; }
         __m128i mmask = _cado_mm_set1_epi64(mask);
         unsigned int tiw = ti / SIMD;
         __m128i zjw = _cado_mm_set1_epi64(zj); // only lower 64 used
         __m128i yiw = _cado_mm_set1_epi64(yi); // only lower 64 used
-        for( ; tbi < m ; tbi++) {
-            __m128i *Xzjw = (__m128i *) X[tbi * n + zbj].data();
-            __m128i *Xyiw = (__m128i *) X[tbi * n + ybi].data();
+        for( ; tbi < mblocks ; tbi++) {
+            __m128i *Xzjw = (__m128i *) X[tbi * nblocks + zbj].data();
+            __m128i *Xyiw = (__m128i *) X[tbi * nblocks + ybi].data();
             for( ; tiw < B / SIMD ; tiw++) {
                 __m128i & Xjw = Xzjw[tiw];
                 __m128i & Xiw = Xyiw[tiw];
@@ -416,8 +416,8 @@ void PLE<matrix>::trsm(unsigned int bi,/*{{{*/
 {
     TIMER_PLE(t_trsm);
     /* trsm is fairly trivial */
-    for(unsigned int s = bj + 1 ; s < n ; s++) {
-        matrix::trsm(X[bi * n + bi], X[bi * n + s], yi0, yi1);
+    for(unsigned int s = bj + 1 ; s < nblocks ; s++) {
+        matrix::trsm(X[bi * nblocks + bi], X[bi * nblocks + s], yi0, yi1);
     }
 }/*}}}*/
 
@@ -431,9 +431,9 @@ void PLE<matrix>::sub(unsigned int bi,/*{{{*/
     TIMER_PLE(t_sub);
     unsigned int sbi = ii / B;
     unsigned int si  = ii & (B-1);
-    for( ; sbi < m ; sbi++) {
+    for( ; sbi < mblocks ; sbi++) {
         // i
-        for(unsigned int sbj = bj + 1 ; sbj < n ; sbj++) {
+        for(unsigned int sbj = bj + 1 ; sbj < nblocks ; sbj++) {
             /* multiply columns [yi0..yi1-1] of block (sbi,bi) by
              * rows [yi0..yi1-1] of block (bi,sbj), and add that to
              * block (sbi,sbj)
@@ -441,9 +441,9 @@ void PLE<matrix>::sub(unsigned int bi,/*{{{*/
              * yes, we really mean block (sbi,bi). The indices [yi0..yi1)
              * are _really_ relative to that block.
              */
-            matrix::addmul(X[sbi * n + sbj],
-                    X[sbi * n + bi],
-                    X[bi * n + sbj],
+            matrix::addmul(X[sbi * nblocks + sbj],
+                    X[sbi * nblocks + bi],
+                    X[bi * nblocks + sbj],
                     si, B, yi0, yi1);
         }
         si = 0;
@@ -461,9 +461,9 @@ void PLE<matrix>::debug_stuff::apply_permutations(std::vector<unsigned int>::con
         unsigned int xi = xii % B;
         unsigned int pbi = pii / B;
         unsigned int pi = pii % B;
-        for(unsigned int bj = 0 ; bj < n ; bj++) {
-            matrix & xY = X_target[xbi * n + bj];
-            matrix & pY = X_target[pbi * n + bj];
+        for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
+            matrix & xY = X_target[xbi * nblocks + bj];
+            matrix & pY = X_target[pbi * nblocks + bj];
             U c = xY[xi] ^ pY[pi];
             xY[xi] ^= c;
             pY[pi] ^= c;
@@ -476,32 +476,32 @@ void PLE<matrix>::debug_stuff::apply_permutations(std::vector<unsigned int>::con
 template<typename matrix>
 typename matrix::vector_type PLE<matrix>::debug_stuff::get_LL(unsigned int rr)/*{{{*/
 {
-    typename matrix::vector_type LL((m)*(m), 0);
-    for(unsigned int bi = 0 ; bi < m ; bi++) {
+    typename matrix::vector_type LL(mblocks*mblocks, 0);
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         unsigned int bj = 0;
         for( ; bj <= bi && bj < iceildiv(rr, B) ; bj++) {
             for(unsigned int i = 0 ; i < B ; i++) {
-                U c = X[bi*(n)+bj][i];
+                U c = X[bi*nblocks+bj][i];
                 unsigned int z = rr - bj * B;
                 if (bj == bi && i < z)
                     z = i;
                 if (z < B)
                     c &= (U(1) << z) - 1;
-                LL[bi*(m)+bj][i] = c;
+                LL[bi*mblocks+bj][i] = c;
             }
         }
     }
     /* clear the blocks that we have just taken */
-    for(unsigned int bi = 0 ; bi < m ; bi++) {
-        for(unsigned int bj = 0 ; bj < n && bj < m ; bj++) {
-            matrix::add(X[bi*n+bj], X[bi*n+bj], LL[bi*m+bj]);
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
+        for(unsigned int bj = 0 ; bj < nblocks && bj < mblocks ; bj++) {
+            matrix::add(X[bi*nblocks+bj], X[bi*nblocks+bj], LL[bi*mblocks+bj]);
         }
     }
 
     /* add implicit identity to L */
-    for(unsigned int bi = 0 ; bi < m ; bi++) {
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         for(unsigned int i = 0 ; i < B ; i++) {
-            LL[bi*(m)+bi][i] ^= U(1) << i;
+            LL[bi*mblocks+bi][i] ^= U(1) << i;
         }
     }
 
@@ -512,26 +512,26 @@ template<typename matrix>
 typename matrix::vector_type PLE<matrix>::debug_stuff::get_UU(unsigned int rr)/*{{{*/
 {
     /* extract above the diagonal, only up to rank rr */
-    typename matrix::vector_type UU((m)*(n), 0);
-    for(unsigned int bi = 0 ; bi < m && bi < iceildiv(rr, B); bi++) {
-        if (bi < n) {
+    typename matrix::vector_type UU(mblocks*nblocks, 0);
+    for(unsigned int bi = 0 ; bi < mblocks && bi < iceildiv(rr, B); bi++) {
+        if (bi < nblocks) {
             for(unsigned int i = 0 ; i < std::min(B, rr - bi * B) ; i++) {
-                U c = X[bi*(n)+bi][i];
+                U c = X[bi*nblocks+bi][i];
                 c &= -(U(1) << i);
-                UU[bi*(n)+bi][i] = c;
+                UU[bi*nblocks+bi][i] = c;
             }
         }
-        for(unsigned int bj = bi + 1 ; bj < n ; bj++) {
-            UU[bi*(n)+bj] = X[bi*(n)+bj];
+        for(unsigned int bj = bi + 1 ; bj < nblocks ; bj++) {
+            UU[bi*nblocks+bj] = X[bi*nblocks+bj];
             for(unsigned int i = rr - bi * B ; i < B ; i++) {
-                UU[bi*(n)+bj][i] = 0;
+                UU[bi*nblocks+bj][i] = 0;
             }
         }
     } 
     /* Finally, clear everything in Xcc that we haven't taken yet *//*{{{*/
-    for(unsigned int bi = 0 ; bi < m ; bi++) {
-        for(unsigned int bj = 0 ; bj < n ; bj++) {
-            matrix::add(X[bi*n+bj], X[bi*n+bj], UU[bi*n+bj]);
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
+        for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
+            matrix::add(X[bi*nblocks+bj], X[bi*nblocks+bj], UU[bi*nblocks+bj]);
         }
     }/*}}}*/
     return UU;
@@ -542,14 +542,14 @@ bool PLE<matrix>::debug_stuff::complete_check(typename matrix::vector_type const
 {
     /* check that LL*UU + (remaining block in X) is equal to X_target */
 
-    for(unsigned int bi = 0 ; bi < m ; bi++) {
-        for(unsigned int bj = 0 ; bj < n ; bj++) {
-            matrix C = X[bi*(n)+bj];
-            for(unsigned int bk = 0 ; bk < m ; bk++) {
-                matrix::addmul(C, LL[bi*(m)+bk], UU[bk*(n)+bj]);
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
+        for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
+            matrix C = X[bi*nblocks+bj];
+            for(unsigned int bk = 0 ; bk < mblocks ; bk++) {
+                matrix::addmul(C, LL[bi*mblocks+bk], UU[bk*nblocks+bj]);
             }
-            ASSERT_ALWAYS(X_target[bi*(n)+bj] == C);
-            if (X_target[bi*(n)+bj] != C) return false;
+            ASSERT_ALWAYS(X_target[bi*nblocks+bj] == C);
+            if (X_target[bi*nblocks+bj] != C) return false;
         }
     }
     return true;
@@ -578,8 +578,8 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
     TIMER_PLE(t_total);
 
     unsigned int ii = 0;
-    for(unsigned int jj = 0 ; jj < n * B ; jj++) {
-        if (ii >= m * B) break;
+    for(unsigned int jj = 0 ; jj < nblocks * B ; jj++) {
+        if (ii >= mblocks * B) break;
         unsigned int bi = ii / B;
         unsigned int i  = ii & (B-1);
         unsigned int bj = jj / B;
@@ -604,11 +604,11 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
 #ifndef ACT_RIGHT_AWAY
                 unsigned int s = bj;
 #else
-                for(unsigned s = 0 ; s < n ; s++)
+                for(unsigned s = 0 ; s < nblocks ; s++)
 #endif
                 {
-                    matrix & Y = X[bi * n + s];
-                    matrix & piv_Y = X[piv_bi * n + s];
+                    matrix & Y = X[bi * nblocks + s];
+                    matrix & piv_Y = X[piv_bi * nblocks + s];
                     U c = Y[i] ^ piv_Y[piv_i];
                     Y[i]   ^= c;
                     piv_Y[piv_i] ^= c;

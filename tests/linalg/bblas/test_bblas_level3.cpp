@@ -124,11 +124,11 @@ void test_bblas_level3::matmul() {
     mat64 & XR = * (mat64 *) xr;
     mat64 & A = * (mat64 *) a;
 
-    TIME1(1, mul_6464_6464, R, A, w);
-
     /* multiplicate of two 64x64 matrices */
     mul_6464_6464(R, A, w);
     XR = R;
+
+    TIME1(1, mul_6464_6464, R, A, w);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     mul_6464_6464_sse(R, A, w);
@@ -142,6 +142,15 @@ void test_bblas_level3::matmul() {
 
     /* Functions which can do any n can also do n=64 */
     test_bblas_level3(64).level3c_list();
+
+    mat64 L = A;
+    L.make_lowertriangular();
+    mul_6464_6464(R, L, w);
+    XR = R;
+    mul_6464lt_6464(R, L, w);
+    ASSERT_ALWAYS(XR == R);
+    TIME1(1, mul_6464lt_6464, R, L, w);
+
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level3::rank_n_update_tags { "rank_n_update", "l3c", "l3", };/*{{{*/
