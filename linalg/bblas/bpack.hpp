@@ -6,6 +6,7 @@
 #include "bblas_mat8.hpp"
 #include <vector>
 #include <type_traits>
+#include <algorithm>
 
 /* a bpack_view is *non-owning* view on a bit matrix, made of bit
  * matrices stored in row major order, the base type being the template
@@ -18,10 +19,13 @@ template<typename matrix> struct bpack_view;
 
 template<typename matrix>
 struct bpack_ops {
+    static void mul(bpack_view<matrix> C, bpack_const_view<matrix> A, bpack_const_view<matrix> B);
+    static void mul(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B) {
+        mul(C.view(), A.view(), B.view());
+    }
     /*
     static void add(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B);
     static void transpose(bpack<matrix> & C, bpack<matrix> const & A);
-    static void mul(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B);
     static void mul_lt_ge(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B) {
         mul(C, A, B);
     }
@@ -47,7 +51,15 @@ template<typename matrix_pointer> struct bpack_view_base {
     typedef typename std::remove_pointer<matrix_pointer>::type matrix;
     static constexpr const unsigned int B = matrix::width;
     typedef typename matrix::datatype U;
+    protected:
     matrix_pointer X;
+    public:
+    matrix & cell(unsigned int bi, unsigned int bj) {
+        return X[bi * nblocks + bj];
+    }
+    matrix const & cell(unsigned int bi, unsigned int bj) const {
+        return X[bi * nblocks + bj];
+    }
     unsigned int mblocks;
     unsigned int nblocks;
     inline unsigned int nrows() const { return mblocks * B; }
@@ -64,11 +76,20 @@ struct bpack_const_view : public bpack_view_base<matrix const *>
     using super::B;
     using super::mblocks;
     using super::nblocks;
+    private:
     using super::X;
+    public:
+    using super::cell;
     bpack_const_view(matrix const * X, unsigned int mblocks, unsigned int nblocks) : super(X, mblocks, nblocks) {}
     bool is_lowertriangular() const;
     bool is_uppertriangular() const;
     bool triangular_is_unit() const;
+    bool operator==(int a) const;
+    inline bool overlaps(bpack_const_view<matrix> v) {
+        if (v.X <= X && (v.X + v.mblocks + v.nblocks) > X) return true;
+        if (X <= v.X && (X + mblocks + nblocks) > v.X) return true;
+        return false;
+    }
 };
 
 template<typename matrix>
@@ -77,10 +98,16 @@ struct bpack_view : bpack_view_base<matrix *> {
     using super::B;
     using super::mblocks;
     using super::nblocks;
+    private:
     using super::X;
+    public:
+    using super::cell;
     bpack_view(matrix * X, unsigned int mblocks, unsigned int nblocks) : super(X, mblocks, nblocks) {}
     typedef bpack_const_view<matrix> const_view_t;
-    const_view_t const_view() const { return const_view_t(X, mblocks, nblocks); }
+    typedef bpack_view<matrix> view_t;
+    const_view_t const_view() const { return const_view_t(super::X, mblocks, nblocks); }
+    const_view_t view() const { return const_view_t(super::X, mblocks, nblocks); }
+    view_t view() { return *this; }
     /* Goal: obtain a PLE decomposition of the matrix X, together with a list
      * of the pivot rows.
      *
@@ -108,13 +135,20 @@ struct bpack_view : bpack_view_base<matrix *> {
     void make_unit_uppertriangular();
     void make_unit_lowertriangular();
     void triangular_make_unit();
+    bpack_view<matrix>& set(int a);
+    bpack_view<matrix>& set(bpack_const_view<matrix> v);
+    inline bpack_view<matrix>& set(bpack_view<matrix> v) { return set(v.const_view()); }
+    inline bpack_view<matrix>& set(bpack<matrix> const & v) { return set(v.view()); }
+    inline bool operator==(int a) const { return const_view() == a; }
+    inline bool overlaps(bpack_view<matrix> v) { return const_view().overlaps(v.const_view()); }
+    inline bool overlaps(bpack_const_view<matrix> v) { return const_view().overlaps(v); }
 };
 
 template<typename matrix>
 struct bpack : public bpack_ops<matrix> {
     typedef bpack_ops<matrix> ops;
     static constexpr const unsigned int B = matrix::width;
-    std::vector<matrix> X;
+    typename matrix::vector_type X;
     unsigned int mblocks;
     unsigned int nblocks;
     inline unsigned int nrows() const { return mblocks * B; }
@@ -124,12 +158,22 @@ struct bpack : public bpack_ops<matrix> {
     bpack(unsigned int m, unsigned int n) : X((m/B)*(n/B)), mblocks(m/B), nblocks(n/B) {
         ASSERT_ALWAYS(m % B == 0);
         ASSERT_ALWAYS(n % B == 0);
+        *this = 0;
     }
-    void set_zero();
     typedef bpack_view<matrix> view_t;
     view_t view() { return view_t(&X[0], mblocks, nblocks); }
     typedef bpack_const_view<matrix> const_view_t;
     const_view_t view() const { return const_view_t(&X[0], mblocks, nblocks); }
+
+    matrix & cell(unsigned int bi, unsigned int bj) { return view().cell(bi, bj); }
+    matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }
+    inline bpack<matrix>& operator=(int a) { view().set(a); return *this; }
+    inline bool operator==(int a) const { return view() == a; }
+    inline bpack<matrix>(const_view_t a)
+        : bpack(a.nrows(), a.ncols())
+    {
+        std::copy_n(&a.cell(0,0), a.nrowblocks() * a.ncolblocks(), &cell(0,0));
+    }
 
     /* Most member functions are done at the view() or const_view() level
      */

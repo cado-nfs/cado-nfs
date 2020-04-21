@@ -10,6 +10,7 @@
  * template constexpr definition does the trick.
  */
 template<typename matrix> constexpr const unsigned int bpack_view_base<matrix>::B;
+template<typename matrix> constexpr const unsigned int bpack<matrix>::B;
 
 template<typename matrix>
 void bpack_view<matrix>::fill_random(gmp_randstate_t rstate) {
@@ -40,7 +41,7 @@ void bpack_view<matrix>::propagate_row_permutations(std::vector<unsigned int> co
 }
 
 /* This replaces, in-place, the blocks of the lower triangular part of
- * the matrix X, by the inverse. Blocks X[i*nblocks+j] with j>i are not
+ * the matrix X, by the inverse. Blocks cell(i, j) with j>i are not
  * touched. Blocks with j>nblocks do not exist in X, but are implicitly assumed
  * to correspond to a fragment of the identity matrix (and need not be
  * touched anyway)
@@ -53,27 +54,63 @@ void bpack_view<matrix>::invert_lower_triangular()
 {
     for(unsigned int j = 0 ; j < nblocks && j < mblocks ; j++) {
         matrix Ljj_inv = 1;
-        matrix::trsm(X[j * nblocks + j], Ljj_inv);
-        X[j * nblocks + j] = Ljj_inv;
+        matrix::trsm(cell(j, j), Ljj_inv);
+        cell(j, j) = Ljj_inv;
     }
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = j + 1 ; i < mblocks ; i++) {
             // we have i > j
             matrix S = 0;
             // L_{i,j} * R_{j,j} + L_{i,j+1} * R{j+1,j} + ... + L_{i,i} * R_{i,j} = 0
-            for(unsigned int k = j ; k < i ; k++) {
-                matrix::addmul(S, X[i * nblocks + k], X[k * nblocks + k]);
+            for(unsigned int k = j ; k < i && k < nblocks ; k++) {
+                /* if k > nblocks, cell(i, k) is zero */
+                matrix::addmul(S, cell(i, k), cell(k, j));
             }
-            /* yes, X[i*nblocks+i] is lower triangular. maybe we could save a
-             * few cycles here */
-            matrix::mul(X[i * nblocks + j], X[i * nblocks + i], S);
+            if (i < nblocks) {
+                /* mul_lt_ge is a very shallow win. */
+                matrix::mul_lt_ge(cell(i, j), cell(i, i), S);
+            } else {
+                cell(i, j) = S;
+            }
         }
     }
 }
 
 template<typename matrix>
-void bpack<matrix>::set_zero() {
-    std::fill_n(X.begin(), mblocks * nblocks, 0);
+bpack_view<matrix>& bpack_view<matrix>::set(int a)
+{
+    std::fill_n(X, mblocks * nblocks, 0);
+    if (a&1)
+        triangular_make_unit();
+    return *this;
+}
+
+template<typename matrix>
+bpack_view<matrix>& bpack_view<matrix>::set(bpack_const_view<matrix> v)
+{
+    ASSERT_ALWAYS(mblocks == v.mblocks);
+    ASSERT_ALWAYS(nblocks == v.nblocks);
+    for(unsigned int j = 0 ; j < nblocks ; j++) {
+        for(unsigned int i = 0 ; i < mblocks ; i++) {
+            cell(i, j) = v.cell(i, j);
+        }
+    }
+    return *this;
+}
+
+
+template<typename matrix>
+bool bpack_const_view<matrix>::operator==(int a) const {
+    for(unsigned int j = 0 ; j < nblocks ; j++) {
+        for(unsigned int i = 0 ; i < mblocks ; i++) {
+            if (j > i) {
+                if (cell(i, j) != 0) return false;
+            } else {
+                if (cell(j, j) != a) return false;
+            }
+        }
+    }
+    return true;
 }
 /*
 template<typename matrix>
@@ -87,9 +124,9 @@ bool bpack_const_view<matrix>::is_lowertriangular() const {
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = 0 ; i < mblocks ; i++) {
             if (j > i) {
-                if (X[i*nblocks+j] != 0) return false;
+                if (cell(i, j) != 0) return false;
             } else if (j == i) {
-                if (!X[i*nblocks+j].is_lowertriangular()) return false;
+                if (!cell(i, j).is_lowertriangular()) return false;
             }
         }
     }
@@ -101,9 +138,9 @@ bool bpack_const_view<matrix>::is_uppertriangular() const {
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = 0 ; i < mblocks ; i++) {
             if (j < i) {
-                if (X[i*nblocks+j] != 0) return false;
+                if (cell(i, j) != 0) return false;
             } else if (j == i) {
-                if (!X[i*nblocks+j].is_uppertriangular()) return false;
+                if (!cell(i, j).is_uppertriangular()) return false;
             }
         }
     }
@@ -113,7 +150,7 @@ bool bpack_const_view<matrix>::is_uppertriangular() const {
 template<typename matrix>
 bool bpack_const_view<matrix>::triangular_is_unit() const {
     for(unsigned int j = 0 ; j < nblocks && j < mblocks ; j++) {
-        if (!X[j*nblocks+j].triangular_is_unit()) return false;
+        if (!cell(j, j).triangular_is_unit()) return false;
     }
     return true;
 }
@@ -123,9 +160,9 @@ void bpack_view<matrix>::make_lowertriangular() {
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = 0 ; i < mblocks ; i++) {
             if (j > i)
-                X[i*nblocks+j] = 0;
+                cell(i, j) = 0;
             else if (j == i) {
-                X[i*nblocks+j].make_lowertriangular();
+                cell(i, j).make_lowertriangular();
             }
         }
     }
@@ -136,9 +173,9 @@ void bpack_view<matrix>::make_uppertriangular() {
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = 0 ; i < mblocks ; i++) {
             if (j < i)
-                X[i*nblocks+j] = 0;
+                cell(i, j) = 0;
             else if (j == i) {
-                X[i*nblocks+j].make_uppertriangular();
+                cell(i, j).make_uppertriangular();
             }
         }
     }
@@ -159,10 +196,34 @@ void bpack_view<matrix>::make_unit_uppertriangular() {
 template<typename matrix>
 void bpack_view<matrix>::triangular_make_unit() {
     for(unsigned int j = 0 ; j < nblocks && j < mblocks ; j++) {
-        X[j*nblocks+j].triangular_make_unit();
+        cell(j, j).triangular_make_unit();
     }
 }
 
+template<typename matrix>
+void bpack_ops<matrix>::mul(bpack_view<matrix> C, bpack_const_view<matrix> A, bpack_const_view<matrix> B)
+{
+    if (C.overlaps(A) || C.overlaps(B)) {
+        bpack<matrix> CC(A.nrows(), B.ncols());
+        mul(CC.view(), A, B);
+        C.set(CC);
+        return;
+    }
+    C.set(0);
+    ASSERT_ALWAYS(C.nrowblocks() == A.nrowblocks());
+    ASSERT_ALWAYS(C.ncolblocks() == B.ncolblocks());
+    ASSERT_ALWAYS(A.ncolblocks() == B.nrowblocks());
+    for(unsigned int bi = 0 ; bi < A.nrowblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < B.ncolblocks() ; bj++) {
+            for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
+                matrix::addmul(C.cell(bi, bj), A.cell(bi, bk), B.cell(bk, bj));
+            }
+        }
+    }
+}
+
+template struct bpack_ops<mat64>;
+template struct bpack_ops<mat8>;
 template struct bpack_view<mat64>;
 template struct bpack_view<mat8>;
 template struct bpack_const_view<mat64>;

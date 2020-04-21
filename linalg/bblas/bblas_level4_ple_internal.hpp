@@ -21,7 +21,10 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
     using bpack_view<matrix>::B;
     using bpack_view<matrix>::mblocks;
     using bpack_view<matrix>::nblocks;
-    using bpack_view<matrix>::X;
+    // using bpack_view<matrix>::X;
+    using bpack_view<matrix>::cell;
+    using bpack_view<matrix>::view;
+    using bpack_view<matrix>::const_view;
 #ifdef TIME_PLE
     static unsigned long ncalls;
     static double t_find_pivot;
@@ -36,52 +39,45 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
 
     int find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
 
-    void propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
+    void propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
 
-    void propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1) const;
+    void propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1);
 
-    void move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const;
+    void move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q);
 
     void trsm(unsigned int bi,
             unsigned int bj,
             unsigned int yi0,
-            unsigned int yi1) const;
+            unsigned int yi1);
 
     void sub(unsigned int bi,
             unsigned int bj,
             unsigned int yi0,
             unsigned int yi1,
-            unsigned int ii) const;
+            unsigned int ii);
 
-    struct debug_stuff {
-    unsigned int mblocks;
-    unsigned int nblocks;
-        typename matrix::vector_type X_orig;
-        typename matrix::vector_type X, X_target;
+    struct debug_stuff : public bpack<matrix> {
+        /* orig == target ? */
+        using bpack<matrix>::nrows;
+        using bpack<matrix>::ncols;
+        bpack<matrix> orig, target;
         debug_stuff(PLE const & ple)
-            : mblocks(ple.mblocks)
-            , nblocks(ple.nblocks)
-            , X_orig(ple.X, ple.X + mblocks * nblocks)
+            : bpack<matrix>(ple.nrows(), ple.ncols())
+            , orig(ple.view())
+            , target(orig)
         {}
-        void start_check(matrix const * X0)
-        {
-            X = typename matrix::vector_type(X0, X0 + mblocks * nblocks);
-            X_target = X_orig;
-        }
-        void start_check(typename matrix::vector_type const & X0)
-        {
-            ASSERT_ALWAYS(X0.size() == mblocks * nblocks);
-            start_check(&X0[0]);
-        }
         void apply_permutations(std::vector<unsigned int>::const_iterator, std::vector<unsigned int>::const_iterator);
-        void apply_permutations(std::vector<unsigned int> const & V)
-        {
-            apply_permutations(V.begin(), V.end());
+        bpack<matrix> get_LL(unsigned int rr);
+        bpack<matrix> get_UU(unsigned int rr);
+        bool complete_check(bpack<matrix> const & LL, bpack<matrix> const & UU) ;
+        bool check(bpack_const_view<matrix> X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii) {
+            (bpack<matrix>&) *this = X0;
+            target = orig;
+            apply_permutations(p0, p0 + ii);
+            auto LL = get_LL(ii);
+            auto UU = get_UU(ii);
+            return complete_check(LL, UU);
         }
-        typename matrix::vector_type get_LL(unsigned int rr);
-        typename matrix::vector_type get_UU(unsigned int rr);
-        bool complete_check(typename matrix::vector_type const & LL, typename matrix::vector_type const & UU) ;
-        bool check(matrix const * X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii);
     };
 
 
@@ -110,9 +106,9 @@ template<typename matrix> double PLE<matrix>::t_total = 0;
 // extern template struct PLE<mat8>;
 
 // must forward-declare the few specializations that we have.
-template<> void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
-template<> void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const;
-template<> void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q) const;
+template<> void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
+template<> void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
+template<> void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q);
 
 extern template struct PLE<mat64>;
 extern template struct PLE<mat8>;

@@ -21,6 +21,7 @@
 #include "test_bblas_level3.hpp"
 #include "test_bblas_level4.hpp"
 #include "test_bblas_level5.hpp"
+#include "test_bpack.hpp"
 
 void
 print_features() /*{{{*/
@@ -118,6 +119,10 @@ main(int argc, char* argv[])
     test_bblas_level5 A5(n);
     A5.set_seed(seed);
     A5(tests, seen);
+
+    test_bpack A6(n);
+    A6.set_seed(seed);
+    A6(tests, seen);
 
     for (auto const& s : tests) {
         if (seen.find(s) == seen.end())

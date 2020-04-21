@@ -21,7 +21,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             f.push_back(gmp_urandomb_ui(rstate, 30));
             u.push_back(1 + gmp_urandomm_ui(rstate, 3*m-1));
         }
-        A.set_zero();
+        A = 0;
         for(unsigned int j = 0 ; j < n ; j++) {
             for(unsigned int i = 0 ; i < m ; i++) {
                 U b = (f[j]+i) % u[j] == 0;
@@ -61,7 +61,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
         unsigned int kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
         unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
         unsigned int pii = gmp_urandomm_ui(rstate, m);
-        A.set_zero();
+        A = 0;
         U examples[n/B][4];
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
             U a = 0;
@@ -196,7 +196,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             pivs[k] += k;
         {
             bpack<matrix> tA(n, m);
-            tA.set_zero();
+            tA = 0;
             auto ppiv = pivs.begin();
             unsigned int rr = 0;
             for(unsigned int jj = 0 ; jj < n ; jj++) {
@@ -327,12 +327,7 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
         typename PLE<matrix>::debug_stuff D(ple);
         std::vector<unsigned int> pivs = ple(&D);
 
-        D.start_check(ple.X);
-        D.apply_permutations(pivs);
-        unsigned int r = pivs.size();
-        auto LL = D.get_LL(r);
-        auto UU = D.get_UU(r);
-        ASSERT_ALWAYS(D.complete_check(LL, UU));
+        D.check(ple.const_view(), pivs.begin(), pivs.size());
     }
 
     return 0;
