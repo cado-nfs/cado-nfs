@@ -17,6 +17,8 @@ namespace bblas_bitmat_details {
     template<> void bitmat_ops<mat64>::add(mat64 & C, mat64 const & A, mat64 const & B);
     template<> void bitmat_ops<mat64>::transpose(mat64 & C, mat64 const & A);
     template<> void bitmat_ops<mat64>::mul(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<mat64>::addmul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t block_stride);
+    template<> void bitmat_ops<mat64>::mul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t block_stride);
     template<> void bitmat_ops<mat64>::mul_lt_ge(mat64 & C, mat64 const & A, mat64 const & B);
     template<> void bitmat_ops<mat64>::addmul(mat64 & C, mat64 const & A, mat64 const & B);
     template<> void bitmat_ops<mat64>::addmul(mat64 & C,

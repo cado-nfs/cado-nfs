@@ -3,6 +3,9 @@
 #include "bblas_level4_ple_internal.hpp"
 #include "bblas_level4_ple_internal_inl.hpp"
 #include "gmp_aux.h"
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 /* Is it sufficient to meet the ODR requirement ? There are places where
  * we do std::min(B, foo). That requires that a definition of B be
@@ -220,6 +223,67 @@ void bpack_ops<matrix>::mul(bpack_view<matrix> C, bpack_const_view<matrix> A, bp
             }
         }
     }
+}
+
+template<typename matrix>
+void bpack_ops<matrix>::mul_lt_ge(bpack_const_view<matrix> A, bpack_view<matrix> X)
+{
+    /* A is considered an an implicitly square matrix. It is
+     * completed to the right to as many blocks as is necessary
+     * to match the number of row blocks of X
+     */
+    ASSERT_ALWAYS(A.nrowblocks() == X.nrowblocks());
+    ASSERT_ALWAYS(A.ncolblocks() <= A.nrowblocks());
+#if 0
+    for(unsigned int bi = X.nrowblocks() ; bi-- ; ) {
+// #ifdef HAVE_OPENMP
+// #pragma omp parallel for
+// #endif
+        for(unsigned int cbj = 0 ; cbj < X.ncolblocks() ; cbj++) {
+            unsigned int bj = X.ncolblocks() - 1 - cbj;
+            /* (AX)_{i,j} is the sum for 0<=k<=i of A_{i,k}X_{k,j}
+             * (when X is also lt we even have j<=k).
+             *
+             * except for bi>=A.ncolblocks, where it is:
+             * X_{i,j}+sum for 0<=k<A.ncolblocks A_{i,k}X_{k,j}
+             *
+             */
+            matrix & S = X.cell(bi, bj);
+            if (bi < A.ncolblocks())
+                matrix::mul(S, A.cell(bi, bi), S);
+            for(unsigned int bk = 0 ; bk < bi && bk < A.ncolblocks() ; bk++) {
+                matrix::addmul(S, A.cell(bi, bk), X.cell(bk, bj));
+            }
+        }
+    }
+#else
+    /* This approach is significantly faster when the multiplication code
+     * benefits from doing precomputations on its right-hand side.
+     * Note that openmp does not seem to help a great deal here (pretty
+     * much the opposite, in fact).
+     */
+    /* The assertion below is only because mul_blocks has only one stride
+     * parameter */
+    size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
+    size_t X_stride = &X.cell(1,0) - &X.cell(0,0);
+    ASSERT_ALWAYS(A_stride == X_stride);
+    bpack<matrix> T(X.nrows(), X.ncols());
+    for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
+        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
+            matrix::addmul_blocks(&T.cell(0,bj), &A.cell(0, bk), X.cell(bk, bj), A.nrowblocks(), A_stride);
+        }
+    }
+    for(unsigned int bi = 0 ; bi < A.ncolblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
+            X.cell(bi, bj) = T.cell(bi, bj);
+        }
+    }
+    for(unsigned int bi = A.ncolblocks() ; bi < X.nrowblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
+            matrix::add(X.cell(bi, bj), X.cell(bi, bj), T.cell(bi, bj));
+        }
+    }
+#endif
 }
 
 template struct bpack_ops<mat64>;

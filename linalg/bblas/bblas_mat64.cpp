@@ -34,6 +34,20 @@ bitmat_ops<mat64>::trsm(mat64 const& L,
 
 template<>
 void
+bitmat_ops<mat64>::addmul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t block_stride)
+{
+    addmul_6464_blocks(C, A, B, nblocks, block_stride);
+}
+
+template<>
+void
+bitmat_ops<mat64>::mul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t block_stride)
+{
+    mul_6464_blocks(C, A, B, nblocks, block_stride);
+}
+
+template<>
+void
 bitmat_ops<mat64>::mul(mat64& C, mat64 const& A, mat64 const& B)
 {
     mul_6464_6464(C, A, B);

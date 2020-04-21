@@ -23,6 +23,9 @@ namespace bblas_bitmat_details {
         static void mul_lt_ge(matrix & C, matrix const & A, matrix const & B) {
             mul(C, A, B);
         }
+        /* do C[0] = A[0]*B, C[block_stride]=A[block_stride]*B, etc */
+        static void mul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t block_stride);
+        static void addmul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t block_stride);
         static void addmul(matrix & C, matrix const & A, matrix const & B);
         static void addmul(matrix & C,
                    matrix const & A,

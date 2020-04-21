@@ -113,6 +113,12 @@ void mul_TN64K_N64_C(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned
 void mul_N64_6464(uint64_t *C,
 		 uint64_t const *A,
 		 mat64 const & B, size_t m);
+void addmul_6464_blocks(mat64 *C,
+                   mat64 const *A,
+                   mat64 const & B, size_t nblocks, size_t blockstride);
+void mul_6464_blocks(mat64 *C,
+                   mat64 const *A,
+                   mat64 const & B, size_t nblocks, size_t blockstride);
 void addmul_N64_6464(uint64_t *C,
 		 uint64_t const *A,
 		 mat64 const & B, size_t m);

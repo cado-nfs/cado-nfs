@@ -41,6 +41,21 @@ void bitmat_ops<mat8>::mul(mat8 & C, mat8 const & A, mat8 const & B)
     C = AB;
 }
 
+template<>
+void bitmat_ops<mat8>::addmul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t block_stride)
+{
+    for(size_t i = 0 ; i < nblocks ; i++) {
+        addmul(C[i * block_stride], A[i * block_stride], B);
+    }
+}
+template<>
+void bitmat_ops<mat8>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t block_stride)
+{
+    for(size_t i = 0 ; i < nblocks ; i++) {
+        mul(C[i * block_stride], A[i * block_stride], B);
+    }
+}
+
 void addmul8_naive(mat8 & C,
         mat8 const & A,
         mat8 const & B,

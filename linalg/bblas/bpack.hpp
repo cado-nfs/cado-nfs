@@ -23,6 +23,13 @@ struct bpack_ops {
     static void mul(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B) {
         mul(C.view(), A.view(), B.view());
     }
+    /* This works in place on the matrix X. A is considered "implicitly
+     * lower triangular". */
+    static void mul_lt_ge(bpack_const_view<matrix> A, bpack_view<matrix> X);
+    static void mul_lt_ge(bpack<matrix> const & A, bpack<matrix> & X) {
+        mul_lt_ge(A.view(), X.view());
+    }
+
     /*
     static void add(bpack<matrix> & C, bpack<matrix> const & A, bpack<matrix> const & B);
     static void transpose(bpack<matrix> & C, bpack<matrix> const & A);
