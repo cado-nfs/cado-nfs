@@ -88,6 +88,7 @@ public:
     inline size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
     size_t get_true_nonzero_size() const;
+    unsigned int valuation() const;
 
     matpoly() { m=n=0; size=0; alloc_words=0; ab=NULL; x=NULL; }
     matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);

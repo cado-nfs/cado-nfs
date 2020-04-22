@@ -357,16 +357,15 @@ struct matpoly_checker_base {
 
     int test_basecase()
     {
-        double tt = wct_seconds();
-        ::test_basecase(ab, m, n, len1, rstate);
-        printf("%.3f\n", wct_seconds()-tt);
-#if 0
+        double tt;
 #ifdef SELECT_MPFQ_LAYER_u64k1
         tt = wct_seconds();
-        ::test_basecase_bblas(ab, m, n, len1, rstate);
+        test_basecase_bblas(ab, m, n, len1, rstate);
         printf("%.3f\n", wct_seconds()-tt);
 #endif
-#endif
+        tt = wct_seconds();
+        ::test_basecase(ab, m, n, len1, rstate);
+        printf("%.3f\n", wct_seconds()-tt);
         return 1;
     }
 };
@@ -445,6 +444,9 @@ int main(int argc, char * argv[])
     int test_basecase = 0;
 
     cxx_param_list pl;
+
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
 
     param_list_configure_switch(pl, "--test-basecase", &test_basecase);
 

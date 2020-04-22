@@ -106,10 +106,10 @@ template<typename matrix>
 bool bpack_const_view<matrix>::operator==(int a) const {
     for(unsigned int j = 0 ; j < nblocks ; j++) {
         for(unsigned int i = 0 ; i < mblocks ; i++) {
-            if (j > i) {
-                if (cell(i, j) != 0) return false;
-            } else {
+            if (j == i) {
                 if (cell(j, j) != a) return false;
+            } else {
+                if (cell(i, j) != 0) return false;
             }
         }
     }
@@ -262,15 +262,13 @@ void bpack_ops<matrix>::mul_lt_ge(bpack_const_view<matrix> A, bpack_view<matrix>
      * Note that openmp does not seem to help a great deal here (pretty
      * much the opposite, in fact).
      */
-    /* The assertion below is only because mul_blocks has only one stride
-     * parameter */
-    size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
-    size_t X_stride = &X.cell(1,0) - &X.cell(0,0);
-    ASSERT_ALWAYS(A_stride == X_stride);
+    /* TODO: skinny T, loop on bj out */
     bpack<matrix> T(X.nrows(), X.ncols());
+    size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
+    size_t T_stride = &X.cell(1,0) - &X.cell(0,0);
     for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
         for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
-            matrix::addmul_blocks(&T.cell(0,bj), &A.cell(0, bk), X.cell(bk, bj), A.nrowblocks(), A_stride);
+            matrix::addmul_blocks(&T.cell(0,bj), &A.cell(0, bk), X.cell(bk, bj), A.nrowblocks(), T_stride, A_stride);
         }
     }
     for(unsigned int bi = 0 ; bi < A.ncolblocks() ; bi++) {
@@ -284,6 +282,73 @@ void bpack_ops<matrix>::mul_lt_ge(bpack_const_view<matrix> A, bpack_view<matrix>
         }
     }
 #endif
+}
+
+template<typename matrix>
+void bpack_ops<matrix>::extract_uppertriangular(bpack_view<matrix> a, bpack_const_view<matrix> const b)
+{
+    ASSERT_ALWAYS(a.nrowblocks() == b.nrowblocks());
+    ASSERT_ALWAYS(a.ncolblocks() == b.ncolblocks());
+    for(unsigned int bi = 0 ; bi < b.nrowblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < b.ncolblocks() ; bj++) {
+            if (bi > bj)
+                a.cell(bi, bj) = 0;
+            else if (bi == bj)
+                matrix::extract_uppertriangular(a.cell(bi, bj), b.cell(bi, bj));
+            else
+                a.cell(bi, bj) = b.cell(bi, bj);
+        }
+    }
+}
+
+template<typename matrix>
+void bpack_ops<matrix>::extract_lowertriangular(bpack_view<matrix> a, bpack_const_view<matrix> const b)
+{
+    ASSERT_ALWAYS(a.nrowblocks() == b.nrowblocks());
+    ASSERT_ALWAYS(a.ncolblocks() == b.ncolblocks());
+    for(unsigned int bi = 0 ; bi < b.nrowblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < b.ncolblocks() ; bj++) {
+            if (bi < bj)
+                a.cell(bi, bj) = 0;
+            else if (bi == bj)
+                matrix::extract_lowertriangular(a.cell(bi, bj), b.cell(bi, bj));
+            else
+                a.cell(bi, bj) = b.cell(bi, bj);
+        }
+    }
+}
+
+template<typename matrix>
+void bpack_ops<matrix>::extract_LU(bpack_view<matrix> L, bpack_view<matrix> U)
+{
+    ASSERT_ALWAYS(L.nrowblocks() == U.nrowblocks());
+    ASSERT_ALWAYS(L.ncolblocks() == U.ncolblocks());
+    for(unsigned int bi = 0 ; bi < U.nrowblocks() ; bi++) {
+        for(unsigned int bj = 0 ; bj < U.ncolblocks() ; bj++) {
+            if (bi < bj) {
+                L.cell(bi, bj) = 0;
+                /* U unchanged */
+            } else if (bi == bj) {
+                matrix::extract_LU(L.cell(bi, bj), U.cell(bi, bj));
+            } else {
+                L.cell(bi, bj) = U.cell(bi, bj);
+                U.cell(bi, bj) = 0;
+            }
+        }
+    }
+}
+
+template<typename matrix>
+bool bpack_const_view<matrix>::operator==(bpack_const_view<matrix> v) const
+{
+    if (mblocks != v.mblocks) return false;
+    if (nblocks != v.nblocks) return false;
+    for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
+        for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
+            if (cell(bi, bj) != v.cell(bi, bj)) return false;
+        }
+    }
+    return true;
 }
 
 template struct bpack_ops<mat64>;

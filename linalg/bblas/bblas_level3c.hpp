@@ -115,10 +115,10 @@ void mul_N64_6464(uint64_t *C,
 		 mat64 const & B, size_t m);
 void addmul_6464_blocks(mat64 *C,
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride);
+                   mat64 const & B, size_t nblocks, size_t Cstride, size_t Astride);
 void mul_6464_blocks(mat64 *C,
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride);
+                   mat64 const & B, size_t nblocks, size_t Cstride, size_t Astride);
 void addmul_N64_6464(uint64_t *C,
 		 uint64_t const *A,
 		 mat64 const & B, size_t m);

@@ -1089,12 +1089,9 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
     bmstatus bm(m,n);
     unsigned int t0 = iceildiv(m,n);
     bm.set_t0(t0);
-    matpoly E(ab, m, m+n, L);
-    E.zero_pad(L);
-    E.fill_random(0, L, rstate);
 
-    ASSERT_ALWAYS(E.data_entry_size_in_bytes() == E.data_entry_alloc_size_in_bytes());
-    ASSERT_ALWAYS(E.data_entry_size_in_words() == iceildiv(L,B));
+    // ASSERT_ALWAYS(m % B == 0);
+    // ASSERT_ALWAYS(n % B == 0);
 
     unsigned int b = m + n;
     unsigned int bb = iceildiv(b, B);
@@ -1106,23 +1103,180 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
     unsigned int Db = iceildiv(iceildiv(m * L, b), B);
     unsigned int DX = Db * B;
 
-    std::vector<mat64> XE(bb*mb*LX);
 
-    double tt = wct_seconds();
-    binary_matpoly_to_polmat(&XE[0], (uint64_t const *) E.data_area(),
+    mat64::vector_type E(bb*mb*LX);
+    auto E_coeff=[&](unsigned int k) {
+        return bpack_view<mat64>(&E[k*bb*mb], bb, mb);
+    };
+
+    matpoly mp_E(ab, m+n, m, L);
+    mp_E.zero_pad(L);
+    mp_E.fill_random(0, L, rstate);
+
+    double tt;
+
+    tt = wct_seconds();
+    ASSERT_ALWAYS(mp_E.data_entry_size_in_bytes() == mp_E.data_entry_alloc_size_in_bytes());
+    ASSERT_ALWAYS(mp_E.data_entry_size_in_words() == iceildiv(L,B));
+    binary_matpoly_to_polmat(&E[0],
+            (uint64_t const *) mp_E.data_area(),
             bX, mX, LX);
-    E.clear();
+
+    mat64::vector_type pi(bb * bb * DX);
+    std::fill_n(std::begin(pi), pi.size(), 0);
+    auto pi_coeff=[&](unsigned int k) {
+        return bpack_view<mat64>(&pi[k*bb*bb], bb, bb);
+    };
+    pi_coeff(0).set(1);
 
     std::vector<unsigned int> d(bX, 0);
 
-    std::vector<mat64> Xpi(bb * bb * DX);
-    for(unsigned int i = 0 ; i < b ; i++)
-        Xpi[bb * i + i] = 1;
-
     for(unsigned int t = 0 ; t < L ; t++) {
+        /* invariant: pi * E_orig = X^t * E */
+        /*
+        {
+            tt += wct_seconds();
+            matpoly mp_pi(ab, m+n, m+n, DX);
+            binary_polmat_to_matpoly(
+                    (uint64_t *) mp_pi.data_area(),
+                    &pi[0],
+                    bX, bX, DX);
 
+            unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+            mp_pi.set_size(pi_len);
+            matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
+
+            printf("t=%u val=%u\n", t, mp_Epi.valuation());
+            tt -= wct_seconds();
+        }
+        */
+        bpack_view<mat64> E_t = E_coeff(t);
+        /*
+        bpack<mat64> E_t_copy(E_t.nrows(), E_t.ncols());
+        E_t_copy.view().set(E_t);
+        */
+        std::vector<unsigned int> p = E_t.ple();
+        unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+
+        for(unsigned int k = 0 ; k < pi_len ; k++)
+            pi_coeff(k).propagate_row_permutations(p);
+        for(unsigned int k = t + 1 ; k < L ; k++)
+            E_coeff(k).propagate_row_permutations(p);
+        for(unsigned int ii = 0 ; ii < p.size() ; ii++)
+            std::swap(d[ii], d[p[ii]]);
+
+        /*
+        E_t_copy.propagate_row_permutations(p);
+        */
+
+        bpack<mat64> LL(bX, mX);
+        bpack<mat64>::extract_LU(LL.view(), E_t.view());
+        LL.invert_lower_triangular();
+
+        /*
+        bpack<mat64> UU(bX, mX);
+        UU.view().set(E_t);
+        bpack<mat64>::mul_lt_ge(LL, E_t_copy);
+        ASSERT_ALWAYS(E_t_copy == UU);
+        */
+
+        /* This is really the expensive part */
+        for(unsigned int k = 0 ; k < pi_len ; k++)
+            bpack<mat64>::mul_lt_ge(LL.const_view(), pi_coeff(k));
+        for(unsigned int k = t + 1 ; k < L ; k++)
+            bpack<mat64>::mul_lt_ge(LL.const_view(), E_coeff(k));
+        
+        /* multiply the first p.size() rows by X */
+        unsigned int bi0 = p.size() / 64;
+        int full = pi_len == DX;
+        if (bi0) {
+            /* we can move complete blocks */
+            for(unsigned int d = pi_len - full ; d-- ; ) {
+                std::copy(
+                        &pi_coeff(d).cell(0,0),
+                        &pi_coeff(d).cell(bi0,0),
+                        &pi_coeff(d+1).cell(0,0));
+            }
+            std::fill_n(&pi_coeff(0).cell(0,0), bi0 * bb, 0);
+            for(unsigned int d = L - 1 ; d-- > t ; ) {
+                std::copy(
+                        &E_coeff(d).cell(0,0),
+                        &E_coeff(d).cell(bi0,0),
+                        &E_coeff(d+1).cell(0,0));
+            }
+            std::fill_n(&E_coeff(t).cell(0,0), bi0 * mb, 0);
+        }
+        unsigned int di = p.size() % 64;
+        if (di) {
+            /* we can move complete blocks */
+            for(unsigned int bj = 0 ; bj < mb ; bj++) {
+                for(unsigned int d = pi_len - full ; d-- ; ) {
+                    std::copy(
+                            &pi_coeff(d).cell(bi0,bj)[0],
+                            &pi_coeff(d).cell(bi0,bj)[di],
+                            &pi_coeff(d+1).cell(bi0,bj)[0]);
+                }
+                std::fill_n(&pi_coeff(0).cell(bi0,bj)[0], di, 0);
+            }
+            for(unsigned int bj = 0 ; bj < bb ; bj++) {
+                for(unsigned int d = L - 1 ; d-- > t ; ) {
+                    std::copy(
+                            &E_coeff(d).cell(bi0,bj)[0],
+                            &E_coeff(d).cell(bi0,bj)[di],
+                            &E_coeff(d+1).cell(bi0,bj)[0]);
+                }
+                std::fill_n(&E_coeff(t).cell(bi0,bj)[0], di, 0);
+            }
+        }
+        for(unsigned int k = 0 ; k < p.size() ; k++) {
+            d[k]++;
+            if (d[k] == DX) d[k]--;
+        }
+        /*
+        {
+            tt += wct_seconds();
+            matpoly mp_pi(ab, m+n, m+n, DX);
+            binary_polmat_to_matpoly(
+                    (uint64_t *) mp_pi.data_area(),
+                    &pi[0],
+                    bX, bX, DX);
+
+            unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+            mp_pi.set_size(pi_len);
+            matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
+            mp_Epi.realloc(pi_len + LX);
+            mp_Epi.zero_pad(pi_len + LX);
+            mp_Epi.set_size(LX);
+            mp_Epi.shrink_to_fit();
+
+            mat64::vector_type F(bb*mb*LX);
+            binary_matpoly_to_polmat(&F[0],
+                    (uint64_t const *) mp_Epi.data_area(),
+                    bX, mX, LX);
+            for(unsigned int s = 0 ; s <= t ; s++) {
+                ASSERT_ALWAYS(bpack_view<mat64>(&F[s*bb*mb], bb, mb) == 0);
+            }
+            printf("t=%u val=%u\n", t, mp_Epi.valuation());
+            tt -= wct_seconds();
+        }
+        */
     }
 
-    printf("%.3f\n", wct_seconds()-tt);
+
+    matpoly mp_pi(ab, m+n, m+n, DX);
+    binary_polmat_to_matpoly(
+            (uint64_t *) mp_pi.data_area(),
+            &pi[0],
+            bX, bX, DX);
+    unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+    mp_pi.set_size(pi_len);
+
+    tt = wct_seconds() - tt;
+    printf("%.3f\n", tt);
+
+    if (0) {
+        matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
+        printf("valuation check: %u\n", mp_Epi.valuation());
+    }
     // bw_lingen_basecase_raw(bm, E);
 }/*}}}*/

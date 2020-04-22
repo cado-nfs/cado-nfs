@@ -95,7 +95,9 @@ void mul_N64_6464_lookup4(uint64_t *C,/*{{{*/
 }/*}}}*/
 void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride)
+                   mat64 const & B,
+                   size_t nblocks,
+                   size_t Cstride, size_t Astride)
 {
     uint64_t Bx[16][16];
     for(int j = 0 ; j < 16 ; j++) {
@@ -121,8 +123,8 @@ void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
     /* We don't zero out C before the computation, but rather at the
      * moment we read A[i], so that A==C is supported */
     for (size_t b = 0 ; b < nblocks ; b++) {
-        mat64 const & AA = A[b * blockstride];
-        mat64 & CC = C[b * blockstride];
+        mat64 const & AA = A[b * Astride];
+        mat64 & CC = C[b * Cstride];
         for (size_t i = 0 ; i < 64; i++) {
             uint64_t aa = AA[i];
             CC[i] = Bx[0][aa & 15]; aa>>=4;
@@ -146,7 +148,9 @@ void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
 }/*}}}*/
 void addmul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride)
+                   mat64 const & B,
+                   size_t nblocks,
+                   size_t Cstride, size_t Astride)
 {
     uint64_t Bx[16][16];
     for(int j = 0 ; j < 16 ; j++) {
@@ -172,8 +176,8 @@ void addmul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
     /* We don't zero out C before the computation, but rather at the
      * moment we read A[i], so that A==C is supported */
     for (size_t b = 0 ; b < nblocks ; b++) {
-        mat64 const & AA = A[b * blockstride];
-        mat64 & CC = C[b * blockstride];
+        mat64 const & AA = A[b * Astride];
+        mat64 & CC = C[b * Cstride];
         for (size_t i = 0 ; i < 64; i++) {
             uint64_t aa = AA[i];
             CC[i]^= Bx[0][aa & 15]; aa>>=4;
@@ -924,16 +928,16 @@ void mul_N64_6464(uint64_t *C,/*{{{*/
 }/*}}}*/
 void addmul_6464_blocks(mat64 *C,
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride)
+                   mat64 const & B, size_t nblocks, size_t Cstride, size_t Astride)
 {
-    addmul_N64_6464_lookup4_blocks(C, A, B, nblocks, blockstride);
+    addmul_N64_6464_lookup4_blocks(C, A, B, nblocks, Cstride, Astride);
 }
 
 void mul_6464_blocks(mat64 *C,
                    mat64 const *A,
-                   mat64 const & B, size_t nblocks, size_t blockstride)
+                   mat64 const & B, size_t nblocks, size_t Cstride, size_t Astride)
 {
-    mul_N64_6464_lookup4_blocks(C, A, B, nblocks, blockstride);
+    mul_N64_6464_lookup4_blocks(C, A, B, nblocks, Cstride, Astride);
 }
 
 void addmul_N64_6464(uint64_t *C,/*{{{*/

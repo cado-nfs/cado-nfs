@@ -58,8 +58,11 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
 
     struct debug_stuff : public bpack<matrix> {
         /* orig == target ? */
+        using bpack<matrix>::mblocks;
+        using bpack<matrix>::nblocks;
         using bpack<matrix>::nrows;
         using bpack<matrix>::ncols;
+        using bpack<matrix>::cell;
         bpack<matrix> orig, target;
         debug_stuff(PLE const & ple)
             : bpack<matrix>(ple.nrows(), ple.ncols())

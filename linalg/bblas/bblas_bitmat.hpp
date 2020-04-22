@@ -24,8 +24,8 @@ namespace bblas_bitmat_details {
             mul(C, A, B);
         }
         /* do C[0] = A[0]*B, C[block_stride]=A[block_stride]*B, etc */
-        static void mul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t block_stride);
-        static void addmul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t block_stride);
+        static void mul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t Cstride, size_t Astride);
+        static void addmul_blocks(matrix * C, matrix const * A, matrix const& B, size_t nblocks, size_t Cstride, size_t Astride);
         static void addmul(matrix & C, matrix const & A, matrix const & B);
         static void addmul(matrix & C,
                    matrix const & A,
@@ -41,6 +41,9 @@ namespace bblas_bitmat_details {
         static void trsm(matrix const & L, matrix & U);
         static void extract_uppertriangular(matrix & a, matrix const & b);
         static void extract_lowertriangular(matrix & a, matrix const & b);
+        /* Keeps only the upper triangular part in U, and copy the lower
+         * triangular, together with a unit block, to L */
+        static void extract_LU(matrix & L, matrix & U);
         protected:
         /* these are accessed as _member functions_ in the matrix type */
         static bool is_lowertriangular(matrix const & a);

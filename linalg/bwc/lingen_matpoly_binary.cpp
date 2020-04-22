@@ -491,6 +491,31 @@ void matpoly::rshift(unsigned int k)/*{{{*/
     }
     size = newsize;
 }/*}}}*/
+unsigned int matpoly::valuation() const /*{{{*/
+{
+    auto isnz = [this](unsigned int k) {
+        for(unsigned int i = 0 ; i < m ; ++i) {
+            for(unsigned int j = 0 ; j < n ; ++j) {
+                const mp_limb_t * z = part(i, j);
+                if (z[k]) return 1;
+            }
+        }
+        return 0;
+    };
+    unsigned int k = 0;
+    for( ; k < size ; k++) {
+        if (isnz(k)) break;
+    }
+    if (k >= size) return UINT_MAX;
+    mp_limb_t x = 0;
+    for(unsigned int i = 0 ; i < m ; ++i) {
+        for(unsigned int j = 0 ; j < n ; ++j) {
+            const mp_limb_t * z = part(i, j);
+            x |= z[k];
+        }
+    }
+    return k * ULONG_BITS + cado_ctzl(x);
+}/*}}}*/
 
 void matpoly::view_t::zero() { /*{{{*/
     unsigned int nrows = this->nrows();

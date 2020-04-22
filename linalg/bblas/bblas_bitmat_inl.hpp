@@ -51,6 +51,15 @@ namespace bblas_bitmat_details {
         }
     }
     template<typename matrix>
+    void bitmat_ops<matrix>::extract_LU(matrix & L, matrix & U) {
+        typename matrix::datatype mask = 1;
+        for(unsigned int k = 0 ; k < matrix::width ; k++, mask<<=1) {
+            L[k] = (U[k] & (mask-1));
+            U[k] ^= L[k];
+            L[k] ^= mask;
+        }
+    }
+    template<typename matrix>
     void bitmat_ops<matrix>::make_uppertriangular(matrix & u) {
         extract_uppertriangular(u, u);
     }

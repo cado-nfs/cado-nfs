@@ -49,9 +49,25 @@ struct bpack_ops {
             unsigned int yi0,
             unsigned int yi1);
     static void trsm(bpack<matrix> const & L, bpack<matrix> & U);
-    static void extract_uppertriangular(bpack<matrix> & a, bpack<matrix> const & b);
-    static void extract_lowertriangular(bpack<matrix> & a, bpack<matrix> const & b);
     */
+    /* Keeps only the upper triangular part in U, and copy the lower
+     * triangular, together with a unit block, to L */
+    static void extract_LU(bpack_view<matrix> L, bpack_view<matrix> U);
+    static void extract_uppertriangular(bpack_view<matrix> a, bpack_const_view<matrix> const b);
+    static void extract_lowertriangular(bpack_view<matrix> a, bpack_const_view<matrix> const b);
+
+    static void extract_LU(bpack<matrix> & L, bpack<matrix> & U)
+    {
+        extract_LU(L.view(), U.view());
+    }
+    static void extract_uppertriangular(bpack<matrix> & a, bpack<matrix> const & b)
+    {
+        extract_uppertriangular(a.view(), b.view());
+    }
+    static void extract_lowertriangular(bpack<matrix> & a, bpack<matrix> const & b)
+    {
+        extract_lowertriangular(a.view(), b.view());
+    }
 };
 
 template<typename matrix_pointer> struct bpack_view_base {
@@ -87,6 +103,8 @@ struct bpack_const_view : public bpack_view_base<matrix const *>
     using super::X;
     public:
     using super::cell;
+    typedef bpack_const_view<matrix> const_view_t;
+    typedef bpack_view<matrix> view_t;
     bpack_const_view(matrix const * X, unsigned int mblocks, unsigned int nblocks) : super(X, mblocks, nblocks) {}
     bool is_lowertriangular() const;
     bool is_uppertriangular() const;
@@ -97,6 +115,8 @@ struct bpack_const_view : public bpack_view_base<matrix const *>
         if (X <= v.X && (X + mblocks + nblocks) > v.X) return true;
         return false;
     }
+    bool operator==(const_view_t) const;
+    inline bool operator==(view_t v) const { return *this == v.const_view(); }
 };
 
 template<typename matrix>
@@ -149,6 +169,8 @@ struct bpack_view : bpack_view_base<matrix *> {
     inline bool operator==(int a) const { return const_view() == a; }
     inline bool overlaps(bpack_view<matrix> v) { return const_view().overlaps(v.const_view()); }
     inline bool overlaps(bpack_const_view<matrix> v) { return const_view().overlaps(v); }
+    inline bool operator==(const_view_t v) const { return const_view() == v; }
+    inline bool operator==(view_t v) const { return const_view() == v.const_view(); }
 };
 
 template<typename matrix>
@@ -171,6 +193,7 @@ struct bpack : public bpack_ops<matrix> {
     view_t view() { return view_t(&X[0], mblocks, nblocks); }
     typedef bpack_const_view<matrix> const_view_t;
     const_view_t view() const { return const_view_t(&X[0], mblocks, nblocks); }
+    const_view_t const_view() const { return const_view_t(&X[0], mblocks, nblocks); }
 
     matrix & cell(unsigned int bi, unsigned int bj) { return view().cell(bi, bj); }
     matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }
@@ -200,6 +223,9 @@ struct bpack : public bpack_ops<matrix> {
     inline void make_unit_uppertriangular() { view().make_unit_uppertriangular(); }
     inline void make_unit_lowertriangular() { view().make_unit_lowertriangular(); }
     inline void triangular_make_unit() { view().triangular_make_unit(); }
+    inline bool operator==(const_view_t v) const { return const_view() == v; }
+    inline bool operator==(view_t v) const { return const_view() == v.const_view(); }
+    inline bool operator==(bpack<matrix> const & v) const { return const_view() == v.const_view(); }
 };
 
 /* The code is in bpack.cpp ; presently there are no specializations, but
