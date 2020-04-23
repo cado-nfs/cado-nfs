@@ -664,6 +664,7 @@ class HTTP_connector(object):
         try:
             return run_command(["wget", "-V"])[0] == 0
         except OSError:
+            logging.warning("Cannot find wget")
             return False
 
     @staticmethod
@@ -890,7 +891,7 @@ class HTTP_connector(object):
                     why = "External tools requested for HTTPS"
                 logging.critical("%s"
                                  " and can't find working wget or curl"
-                                 " as fall-back. Aborting.", reason)
+                                 " as fall-back. Aborting.", why)
                 sys.exit(1)
 
 # }}}
@@ -1185,7 +1186,7 @@ class WorkunitProcessor(object):
             return command
 
         mangled = []
-        orig = re.split(' *', command)
+        orig = re.split(' +', command)
         used_overrides = {}
         while orig:
             a = orig.pop(0)
@@ -1278,9 +1279,19 @@ class WorkunitProcessor(object):
                 with open(files[my_stdin_filename], "r") as f:
                     stdin=f.read()
 
+            if sys.version_info[0] == 3:
+                if stdin is not None:
+                    stdin=stdin.encode()
+
             rc, stdout, stderr = run_command(command,
                                             stdin=stdin,
                                             preexec_fn=renice_func)
+
+            if sys.version_info[0] == 3:
+                if stdout is not None:
+                    stdout=stdout.decode()
+                if stderr is not None:
+                    stderr=stderr.decode()
 
             # steal stdout/stderr, put them to files.
             if my_stdout_filename in files:
@@ -1677,7 +1688,7 @@ class InputDownloader(object):
 
         # print('get_missing_file(%s, %s, %s)' % (urlpath, filename, checksum))
         if os.path.isfile(filename):
-            if self.server_pool.nservers > 0 and is_wu:
+            if self.server_pool.nservers > 1 and is_wu:
                 # can't reuse WUs on disk if multiple servers are
                 # specified.
                 logging.info("%s already exists,"
