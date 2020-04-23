@@ -149,6 +149,7 @@ struct bpack_view : bpack_view_base<matrix *> {
      * is sufficient to recover the list of pivot rows.
      */
     std::vector<unsigned int> ple();
+    std::vector<unsigned int> ple(std::vector<unsigned int> const &);
     void propagate_row_permutations(std::vector<unsigned int> const &);
     void invert_lower_triangular();
 
@@ -208,6 +209,7 @@ struct bpack : public bpack_ops<matrix> {
     /* Most member functions are done at the view() or const_view() level
      */
     std::vector<unsigned int> ple() { return view().ple(); }
+    std::vector<unsigned int> ple(std::vector<unsigned int> const & d) { return view().ple(d); }
     void propagate_row_permutations(std::vector<unsigned int> const & p){
         return view().propagate_row_permutations(p);
     }

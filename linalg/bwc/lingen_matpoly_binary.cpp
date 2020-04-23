@@ -503,10 +503,10 @@ unsigned int matpoly::valuation() const /*{{{*/
         return 0;
     };
     unsigned int k = 0;
-    for( ; k < size ; k++) {
+    for( ; k < b2w(size) ; k++) {
         if (isnz(k)) break;
     }
-    if (k >= size) return UINT_MAX;
+    if (k >= b2w(size)) return UINT_MAX;
     mp_limb_t x = 0;
     for(unsigned int i = 0 ; i < m ; ++i) {
         for(unsigned int j = 0 ; j < n ; ++j) {
@@ -514,7 +514,9 @@ unsigned int matpoly::valuation() const /*{{{*/
             x |= z[k];
         }
     }
-    return k * ULONG_BITS + cado_ctzl(x);
+    k = k * ULONG_BITS + cado_ctzl(x);
+    if (k >= size) return UINT_MAX;
+    return k;
 }/*}}}*/
 
 void matpoly::view_t::zero() { /*{{{*/

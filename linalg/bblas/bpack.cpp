@@ -22,6 +22,13 @@ void bpack_view<matrix>::fill_random(gmp_randstate_t rstate) {
 
 /* propose implementation for the PLE front-ends */
 template<typename matrix>
+std::vector<unsigned int> bpack_view<matrix>::ple(std::vector<unsigned int> const & d)
+{
+    auto ple = PLE<matrix>(*this, d);
+    return ple();
+}
+
+template<typename matrix>
 std::vector<unsigned int> bpack_view<matrix>::ple()
 {
     auto ple = PLE<matrix>(*this);

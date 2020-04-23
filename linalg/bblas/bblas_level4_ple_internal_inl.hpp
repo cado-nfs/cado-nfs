@@ -20,10 +20,11 @@ struct timer_ple {
 #endif
 
 template<typename matrix>
-int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j) const/*{{{*/
+int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_find_pivot);
     U mask = U(1) << j;
+#if 0
     for( ; bi < mblocks ; bi++) {
         matrix const & Y = cell(bi, bj);
         for( ; i < B ; i++) {
@@ -33,6 +34,148 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
         i = 0;
     }
     return -1;
+#elif 0
+    /* untested. seems to be slighlty too much work for something that
+     * should really be amortized constant, not log.
+     */
+    /* We have nn0 to choose from, and the iterator to the row that we
+     * select will eventually be put last (unless we fail to find a
+     * pivot).
+     */
+    unsigned int ii0 = bi * B + i;
+    unsigned int nn0 = mblocks * B - ii0;
+    unsigned int nn = nn0;
+    unsigned int ii;
+    std::vector<unsigned int>::iterator it;
+    for( ; nn ; nn--) {
+        it = prio[0];
+        ii = it - weights.begin();
+        std::pop_heap(weights.begin(), weights.begin() + nn);
+        if (cell(ii / B, bj)[ii y% B] & mask)
+            break;
+    }
+    /* the iterator to the chosen row is it, and it is found at
+     * prio[nn-1], if nn>0
+     */
+
+    if (nn) {
+        /* remove the chosen row completely (= put it at position nn0-1) */
+        std::swap(prio[nn-1], prio[nn0-1]);
+        std::pop_heap(weights.begin(), weights.begin() + nn);
+        /* and sort the remaining entries */
+        for(nn--, nn0-- ; nn < nn0 ; nn++)
+            std::push_heap(weights.begin(), weights.begin() + nn);
+        return ii;
+    } else {
+        std::make_heap(weights.begin(), weights.begin() + nn0);
+        return -1;
+    }
+#else
+    /* This implementation makes use of the fact that expected
+     * discrepancy between the min and max weight is constant. Therefore
+     * we strive to do as few permutations as we can.
+     */
+    std::vector<unsigned int> steps;
+    unsigned int ii0 = bi * B + i;
+    unsigned int w = weights[prio_to_data[ii0]];
+    unsigned int ii = ii0;
+
+    for( ; ii < mblocks * B ; ii++) {
+        unsigned int zii = prio_to_data[ii];
+        if (cell(zii / B, bj)[zii % B] & mask)
+            break;
+        if (weights[zii] != w) {
+            steps.push_back(ii);
+            w = weights[zii];
+        }
+    }
+    if (ii == mblocks * B)
+        return -1;
+    /* We'll swap row zii and row ii0, for sure (this might entail a
+     * change even if ii = ii0 !). The swap doesn't happen right now, but
+     * the changes to the prio_to_data list do, se we do them ahead of
+     * time.
+     *
+     * The post-condition is that
+     *  row ii0 is a pivot
+     *  prio_to_data[ii0] = data_to_prio[ii0] = ii0
+     *  prio_to_data[ii] >= ii0 for all ii >= ii0
+     *  data_to_prio[ii] >= ii0 for all ii >= ii0
+     *  data_to_prio[prio_to_data[ii]] == ii for all ii >= ii0
+     *  weights[prio_to_data[ii0+1:end]] is sorted 
+     *
+     */
+
+    unsigned int ii1  = data_to_prio[ii0];
+    unsigned int zii  = prio_to_data[ii];
+
+    /* There are actually two operations.
+     * 1. change the physical position of two rows (rows zii and ii0)
+     */
+
+    prio_to_data[ii]  = ii0;
+    prio_to_data[ii1] = zii;
+    data_to_prio[ii0] = ii;
+    data_to_prio[zii] = ii1;
+    std::swap(weights[ii0], weights[zii]);
+
+    unsigned int zii0 = prio_to_data[ii0];
+    /*
+     * 2. change the priority position of the rows (indices ii and ii0)
+     *
+     * We do this in several steps, since it might be a cycle.
+     */
+    prio_to_data[ii0] = ii0;
+    prio_to_data[ii] = UINT_MAX;
+    data_to_prio[ii0] = ii0;
+    data_to_prio[zii0] = UINT_MAX;
+
+    /*
+     * This leaves open the question of whether we resolve the situation
+     * by prio_to_data[ii] = zii0 and data_to_prio[zii0] = ii ; it's probably
+     * slightly more complicated.
+     *
+     * When we entered this function, w=weights[zii0=prio_to_data[ii0]] was
+     * the minimum of all weights. But if we schedule this row zii0 at
+     * position ii in the priority list, it may well be too light, and
+     * could have to go earlier.
+     *
+     * This is where we remember all the increasing values of the weight.
+     * Each of them entails an ordering change in the priority list.
+     */
+
+    unsigned int pos_hole = ii;
+    /* make sure now that weights[prio[ii0+1:end]] is sorted */
+    for(auto it = steps.rbegin() ; it != steps.rend() ; ++it) {
+        unsigned int ii2 = *it;
+        /* position ii2 in the priority list points to a row that is
+         * heavier than w. Hence we want to place this row at position ii
+         * in the priority least, and use position ii2 as the next
+         * preferred position.
+         */
+        data_to_prio[prio_to_data[ii2]] = pos_hole;
+        prio_to_data[pos_hole] = prio_to_data[ii2];
+        pos_hole = ii2;
+    }
+    data_to_prio[zii0] = pos_hole;
+    prio_to_data[pos_hole] = zii0;
+#ifndef NDEBUG
+    // check all post-conditions.
+    ASSERT(cell(zii / B, bj)[zii % B] & mask);
+    ASSERT(prio_to_data[ii0] == ii0);
+    ASSERT(data_to_prio[ii0] == ii0);
+    w = 0;
+    for(ii = ii0 + 1 ; ii < mblocks * B ; ii++) {
+        ASSERT(prio_to_data[ii] > ii0);
+        ASSERT(data_to_prio[ii] > ii0);
+        ASSERT(prio_to_data[data_to_prio[ii]] == ii);
+        ASSERT(weights[prio_to_data[ii]] >= w);
+        w = weights[prio_to_data[ii]];
+    }
+#endif
+    /* return this only so that the actual permutation takes place */
+    return zii;
+#endif
 }/*}}}*/
 
 template<typename matrix>

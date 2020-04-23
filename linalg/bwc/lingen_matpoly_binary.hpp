@@ -52,7 +52,7 @@ public:
     /* alloc_words is the number of unsigned longs used to store each
      * coefficient */
 private:
-    size_t size = 0;
+    size_t size = 0;    /* in bits */
     size_t alloc_words = 0;
     unsigned long * x = NULL;
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))

@@ -1150,13 +1150,29 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
             tt -= wct_seconds();
         }
         */
+
+        unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+
+        /* order the candidates by increasing degree.
+         */
+        std::vector<unsigned int> pd;
+        for(unsigned int ii = 0 ; ii < bX ; ii++) {
+            auto m = std::min_element(std::begin(d) + ii, std::end(d));
+            pd.push_back(m - std::begin(d));
+            std::swap(d[ii], d[pd[ii]]);
+        }
+        for(unsigned int k = 0 ; k < pi_len ; k++)
+            pi_coeff(k).propagate_row_permutations(pd);
+        for(unsigned int k = t ; k < L ; k++)
+            E_coeff(k).propagate_row_permutations(pd);
+
+
         bpack_view<mat64> E_t = E_coeff(t);
         /*
         bpack<mat64> E_t_copy(E_t.nrows(), E_t.ncols());
         E_t_copy.view().set(E_t);
         */
-        std::vector<unsigned int> p = E_t.ple();
-        unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
+        std::vector<unsigned int> p = E_t.ple(d);
 
         for(unsigned int k = 0 ; k < pi_len ; k++)
             pi_coeff(k).propagate_row_permutations(p);
