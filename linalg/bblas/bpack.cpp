@@ -259,27 +259,45 @@ void bpack_ops<matrix>::mul_lt_ge(bpack_const_view<matrix> A, bpack_view<matrix>
 #else
     /* This approach is significantly faster when the multiplication code
      * benefits from doing precomputations on its right-hand side.
-     * Note that openmp does not seem to help a great deal here (pretty
-     * much the opposite, in fact).
      */
-    /* TODO: skinny T, loop on bj out */
-    bpack<matrix> T(X.nrows(), X.ncols());
-    size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
-    size_t T_stride = &X.cell(1,0) - &X.cell(0,0);
-    for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
-        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
-            matrix::addmul_blocks(&T.cell(0,bj), &A.cell(0, bk), X.cell(bk, bj), A.nrowblocks(), T_stride, A_stride);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+    {
+        constexpr const unsigned int B = matrix::width;
+        /* We may adjust the number of columns to our liking, but it
+         * seems that the fewer the better.
+         */
+        bpack<matrix> T(X.nrows(), B);
+        size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
+        size_t T_stride = &T.cell(1,0) - &T.cell(0,0);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj += T.ncolblocks()) {
+        T = 0;
+        unsigned int ndbj = std::min(T.ncolblocks(), X.ncolblocks() - bj);
+        for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
+            for(unsigned int dbj = 0 ; dbj < ndbj ; dbj++) {
+                matrix::addmul_blocks(&T.cell(0,dbj), &A.cell(0, bk), X.cell(bk, bj + dbj), A.nrowblocks(), T_stride, A_stride);
+            }
+        }
+        /* We could conceivably parallelize the loops below, but openmp
+         * won't let us do it, and I don't know how I can work around
+         * this limitation (it would require cooperation from the
+         * enclosing loop)
+         */
+        for(unsigned int bi = 0 ; bi < A.ncolblocks() ; bi++) {
+            for(unsigned int dbj = 0 ; dbj < ndbj ; dbj++) {
+                X.cell(bi, bj + dbj) = T.cell(bi, dbj);
+            }
+        }
+        for(unsigned int bi = A.ncolblocks() ; bi < X.nrowblocks() ; bi++) {
+            for(unsigned int dbj = 0 ; dbj < ndbj ; dbj++) {
+                matrix::add(X.cell(bi, bj + dbj), X.cell(bi, bj + dbj), T.cell(bi, dbj));
+            }
         }
     }
-    for(unsigned int bi = 0 ; bi < A.ncolblocks() ; bi++) {
-        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
-            X.cell(bi, bj) = T.cell(bi, bj);
-        }
-    }
-    for(unsigned int bi = A.ncolblocks() ; bi < X.nrowblocks() ; bi++) {
-        for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj++) {
-            matrix::add(X.cell(bi, bj), X.cell(bi, bj), T.cell(bi, bj));
-        }
     }
 #endif
 }
