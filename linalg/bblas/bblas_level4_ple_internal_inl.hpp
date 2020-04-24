@@ -20,57 +20,61 @@ struct timer_ple {
 #endif
 
 template<typename matrix>
+PLE<matrix>::PLE(bpack_view<matrix> b) : bpack_view<matrix>(b), weights(std::vector<unsigned int>(b.nrows(), 0))
+{
+    prio_to_data.reserve(b.nrows());
+    data_to_prio.reserve(b.nrows());
+    for(unsigned int ii = 0 ; ii < b.nrows() ; ii++) {
+        data_to_prio[ii] = ii;
+        prio_to_data[ii] = ii;
+    }
+}
+
+template<typename matrix>
+PLE<matrix>::PLE(bpack_view<matrix> b, std::vector<unsigned int> d) : bpack_view<matrix>(b), weights(d)
+{
+    ASSERT_ALWAYS(d.size() == b.nrows());
+    /* We need to create a priority list. We'll try to maximize the
+     * number of rows whose priority order matches their position.
+     */
+    struct prio_cmp {
+        std::vector<unsigned int> const & v;
+        prio_cmp(std::vector<unsigned int> const & v) : v(v) {}
+        bool operator()(unsigned int a, unsigned int b) const {
+            return v[a] < v[b];
+        }
+    };
+
+    prio_to_data.reserve(d.size());
+    data_to_prio.assign(d.size(), UINT_MAX);
+    /* First sort all rows by weight */
+    for(unsigned int ii = 0 ; ii < d.size() ; ii++)
+        prio_to_data.push_back(ii);
+    std::sort(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights));
+    std::vector<unsigned int> sort_again;
+    for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
+        if (weights[prio_to_data[ii]] == weights[ii]) {
+            prio_to_data[ii] = ii;
+        } else {
+            sort_again.push_back(ii);
+            prio_to_data[ii] = UINT_MAX;
+        }
+    }
+    std::sort(sort_again.begin(), sort_again.end(), prio_cmp(weights));
+    auto it = sort_again.begin();
+    for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
+        if (prio_to_data[ii] == UINT_MAX)
+            prio_to_data[ii] = *it++;
+        data_to_prio[prio_to_data[ii]] = ii;
+    }
+    ASSERT_ALWAYS(std::is_sorted(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights)));
+}
+
+template<typename matrix>
 int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_find_pivot);
     U mask = U(1) << j;
-#if 0
-    for( ; bi < mblocks ; bi++) {
-        matrix const & Y = cell(bi, bj);
-        for( ; i < B ; i++) {
-            if (Y[i] & mask)
-                return bi * B + i;
-        }
-        i = 0;
-    }
-    return -1;
-#elif 0
-    /* untested. seems to be slighlty too much work for something that
-     * should really be amortized constant, not log.
-     */
-    /* We have nn0 to choose from, and the iterator to the row that we
-     * select will eventually be put last (unless we fail to find a
-     * pivot).
-     */
-    unsigned int ii0 = bi * B + i;
-    unsigned int nn0 = mblocks * B - ii0;
-    unsigned int nn = nn0;
-    unsigned int ii;
-    std::vector<unsigned int>::iterator it;
-    for( ; nn ; nn--) {
-        it = prio[0];
-        ii = it - weights.begin();
-        std::pop_heap(weights.begin(), weights.begin() + nn);
-        if (cell(ii / B, bj)[ii y% B] & mask)
-            break;
-    }
-    /* the iterator to the chosen row is it, and it is found at
-     * prio[nn-1], if nn>0
-     */
-
-    if (nn) {
-        /* remove the chosen row completely (= put it at position nn0-1) */
-        std::swap(prio[nn-1], prio[nn0-1]);
-        std::pop_heap(weights.begin(), weights.begin() + nn);
-        /* and sort the remaining entries */
-        for(nn--, nn0-- ; nn < nn0 ; nn++)
-            std::push_heap(weights.begin(), weights.begin() + nn);
-        return ii;
-    } else {
-        std::make_heap(weights.begin(), weights.begin() + nn0);
-        return -1;
-    }
-#else
     /* This implementation makes use of the fact that expected
      * discrepancy between the min and max weight is constant. Therefore
      * we strive to do as few permutations as we can.
@@ -91,6 +95,7 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
     }
     if (ii == mblocks * B)
         return -1;
+    
     /* We'll swap row zii and row ii0, for sure (this might entail a
      * change even if ii = ii0 !). The swap doesn't happen right now, but
      * the changes to the prio_to_data list do, se we do them ahead of
@@ -132,7 +137,7 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
 
     /*
      * This leaves open the question of whether we resolve the situation
-     * by prio_to_data[ii] = zii0 and data_to_prio[zii0] = ii ; it's probably
+     * by prio_to_data[ii] = zii0 and data_to_prio[zii0] = ii ; it's 
      * slightly more complicated.
      *
      * When we entered this function, w=weights[zii0=prio_to_data[ii0]] was
@@ -175,7 +180,6 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
 #endif
     /* return this only so that the actual permutation takes place */
     return zii;
-#endif
 }/*}}}*/
 
 template<typename matrix>

@@ -1083,7 +1083,6 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
 void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
 {
     constexpr const unsigned int B = mat64::width;
-    // typedef mat64::datatype U;
 
     /* used by testing code */
     bmstatus bm(m,n);
@@ -1133,45 +1132,11 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
 
     for(unsigned int t = 0 ; t < L ; t++) {
         /* invariant: pi * E_orig = X^t * E */
-        /*
-        {
-            tt += wct_seconds();
-            matpoly mp_pi(ab, m+n, m+n, DX);
-            binary_polmat_to_matpoly(
-                    (uint64_t *) mp_pi.data_area(),
-                    &pi[0],
-                    bX, bX, DX);
-
-            unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
-            mp_pi.set_size(pi_len);
-            matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
-
-            printf("t=%u val=%u\n", t, mp_Epi.valuation());
-            tt -= wct_seconds();
-        }
-        */
 
         unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
 
-        /* order the candidates by increasing degree.
-         */
-        std::vector<unsigned int> pd;
-        for(unsigned int ii = 0 ; ii < bX ; ii++) {
-            auto m = std::min_element(std::begin(d) + ii, std::end(d));
-            pd.push_back(m - std::begin(d));
-            std::swap(d[ii], d[pd[ii]]);
-        }
-        for(unsigned int k = 0 ; k < pi_len ; k++)
-            pi_coeff(k).propagate_row_permutations(pd);
-        for(unsigned int k = t ; k < L ; k++)
-            E_coeff(k).propagate_row_permutations(pd);
-
 
         bpack_view<mat64> E_t = E_coeff(t);
-        /*
-        bpack<mat64> E_t_copy(E_t.nrows(), E_t.ncols());
-        E_t_copy.view().set(E_t);
-        */
         std::vector<unsigned int> p = E_t.ple(d);
 
         for(unsigned int k = 0 ; k < pi_len ; k++)
@@ -1181,20 +1146,9 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
         for(unsigned int ii = 0 ; ii < p.size() ; ii++)
             std::swap(d[ii], d[p[ii]]);
 
-        /*
-        E_t_copy.propagate_row_permutations(p);
-        */
-
         bpack<mat64> LL(bX, mX);
         bpack<mat64>::extract_LU(LL.view(), E_t.view());
         LL.invert_lower_triangular();
-
-        /*
-        bpack<mat64> UU(bX, mX);
-        UU.view().set(E_t);
-        bpack<mat64>::mul_lt_ge(LL, E_t_copy);
-        ASSERT_ALWAYS(E_t_copy == UU);
-        */
 
         /* This is really the expensive part */
         for(unsigned int k = 0 ; k < pi_len ; k++)
@@ -1248,34 +1202,6 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
             d[k]++;
             if (d[k] == DX) d[k]--;
         }
-        /*
-        {
-            tt += wct_seconds();
-            matpoly mp_pi(ab, m+n, m+n, DX);
-            binary_polmat_to_matpoly(
-                    (uint64_t *) mp_pi.data_area(),
-                    &pi[0],
-                    bX, bX, DX);
-
-            unsigned int pi_len = 1 + *std::max_element(std::begin(d), std::end(d));
-            mp_pi.set_size(pi_len);
-            matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
-            mp_Epi.realloc(pi_len + LX);
-            mp_Epi.zero_pad(pi_len + LX);
-            mp_Epi.set_size(LX);
-            mp_Epi.shrink_to_fit();
-
-            mat64::vector_type F(bb*mb*LX);
-            binary_matpoly_to_polmat(&F[0],
-                    (uint64_t const *) mp_Epi.data_area(),
-                    bX, mX, LX);
-            for(unsigned int s = 0 ; s <= t ; s++) {
-                ASSERT_ALWAYS(bpack_view<mat64>(&F[s*bb*mb], bb, mb) == 0);
-            }
-            printf("t=%u val=%u\n", t, mp_Epi.valuation());
-            tt -= wct_seconds();
-        }
-        */
     }
 
 
@@ -1294,5 +1220,4 @@ void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t 
         matpoly mp_Epi = matpoly::mul(mp_pi, mp_E);
         printf("valuation check: %u\n", mp_Epi.valuation());
     }
-    // bw_lingen_basecase_raw(bm, E);
 }/*}}}*/

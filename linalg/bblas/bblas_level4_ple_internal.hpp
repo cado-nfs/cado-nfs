@@ -40,24 +40,8 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
     static void print_and_flush_stats();
 #endif
     std::vector<unsigned int> weights;
-#if 0
-    struct prio_cmp {
-        typedef std::vector<unsigned int>::iterator T;
-        /* priority queue selects the "largest" in the sense of the
-         * comparison operator */
-        bool operator()(T a, T b) const {
-            if (*a != *b) return *a > *b;
-            return a > b;
-        }
-    };
-    /* We're managing the make_heap etc by ourselves */
-    std::vector<std::vector<unsigned int>::iterator> prio;
-#elif 0
-    indexed_priority_queue<unsigned int, unsigned int, std::greater<unsigned int>> prio;
-#else
     std::vector<unsigned int> prio_to_data;
     std::vector<unsigned int> data_to_prio;
-#endif
 
     int find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
 
@@ -106,22 +90,8 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
     };
 
 
-    PLE(bpack_view<matrix> b, std::vector<unsigned int> d) : bpack_view<matrix>(b), weights(d) {
-        ASSERT_ALWAYS(d.size() == b.nrows());
-#if 0
-        prio.reserve(d.size());
-        for(auto it = weights.begin() ; it != weights.end() ; ++it)
-            prio.push_back(it);
-        std::sort(prio.begin(), prio.end(), prio_cmp());
-#else
-        std::is_sorted(weights.begin(), weights.end());
-        for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
-            prio_to_data.push_back(ii);
-            data_to_prio.push_back(ii);
-        }
-#endif
-    }
-    PLE(bpack_view<matrix> b) : PLE(b, std::vector<unsigned int>(b.nrows(), 0)) {}
+    PLE(bpack_view<matrix> b, std::vector<unsigned int> d);
+    PLE(bpack_view<matrix> b);
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
