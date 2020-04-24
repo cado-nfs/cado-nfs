@@ -185,6 +185,68 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, mat64 const 
     delete[] temp;
 }/*}}}*/
 
+/* implements binary_matpoly_transpose_to_polmat */
+void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, uint64_t const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
+{
+    unsigned int M = m / 64;
+    unsigned int N = n / 64;
+    unsigned int L = iceildiv(len, 64);
+
+    uint64_t* temp = new uint64_t[m * n * L];
+
+    uint64_t* q = (uint64_t*)dst;
+
+    /* We have 1*(M*64)*(N*64)*(L) 64-bit words */
+    generic_transpose_words(q, src, 1, m, n, L);
+    /* We have (N*64*M)*(64)*(L)*(1) 64-bit words */
+    generic_transpose_words_inplace(q, n * M, 64, L, 1, temp);
+    /* We have (N*64*M)*(L)*(64)*(1) 64-bit words */
+    for (unsigned int k = 0; k < n * M * L; k++) {
+        mat64_transpose(dst[k], dst[k]);
+    }
+    /* We have (N*64*M)*(L)*(64)*(1) 64-bit words */
+    /* We have 1*(N*64*M)*(L*64)*(1) 64-bit words */
+    generic_transpose_words_inplace(q, 1, n * M, L * 64, 1, temp);
+    /* We have (L*64)*(N)*(64)*(M) 64-bit words */
+    generic_transpose_words_inplace(q, L * 64 * N, 64, M, 1, temp);
+    /* We have (L*64)*(N*M)*64 64-bit words */
+
+    delete[] temp;
+} /*}}}*/
+
+/* implements binary_polmat_to_matpoly_transpose */
+void binary_polmat_to_matpoly_transpose_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+{
+    unsigned int M = m / 64;
+    unsigned int N = n / 64;
+    unsigned int L = iceildiv(len, 64);
+
+    uint64_t * temp = new uint64_t[m*n*L];
+
+    /* We have (L*64)*(M*N)*64 64-bit words */
+    /* We have (L*64*M)*(N)*(64)*1 64-bit words */
+    generic_transpose_words(dst, (uint64_t const *) src, L * 64 * M, N, 64, 1);
+
+    /* We have (L*64*M)*(64)*(N)*1 64-bit words */
+    /* We have 1*(L*64)*(M*64*N)*1 64-bit words */
+    generic_transpose_words_inplace(dst, 1, L*64, m * N, 1, temp);
+
+    /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
+    for(unsigned int k = 0 ; k < m*N*L ; k++) {
+        mat64 & t = * (mat64 *) (dst + 64 * k);
+        mat64_transpose(t, t);
+    }
+    /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
+
+    /* We have (M*64*N)*(L)*(64)*1 64-bit words */
+    generic_transpose_words_inplace(dst, m * N, L, 64, 1, temp);
+    /* We have (M*64*N)*(64)*(L)*1 64-bit words */
+
+    generic_transpose_words_inplace(dst, 1, m, n, L, temp);
+
+    delete[] temp;
+}/*}}}*/
+
 /* {{{ final choices -- these are really clear-cut */
 void binary_polmat_to_matpoly(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
@@ -194,6 +256,16 @@ void binary_polmat_to_matpoly(uint64_t * dst, mat64 const * src, unsigned int m,
 void binary_matpoly_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_matpoly_to_polmat_nested_transpositions(dst, src, m, n, len);
+}
+/*}}}*/
+void binary_polmat_to_matpoly_transpose(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+{
+    binary_polmat_to_matpoly_transpose_nested_transpositions(dst, src, m, n, len);
+}
+/*}}}*/
+void binary_matpoly_transpose_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+{
+    binary_matpoly_transpose_to_polmat_nested_transpositions(dst, src, m, n, len);
 }
 /*}}}*/
 /*}}}*/

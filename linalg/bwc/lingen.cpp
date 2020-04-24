@@ -416,6 +416,7 @@ matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
     if (!bm.recurse(E.get_size())) {
         tree_stats::transition_sentinel dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
+        E.clear_high_word();
         pi = bw_lingen_basecase(bm, E);
         bm.t_basecase += seconds();
     } else {

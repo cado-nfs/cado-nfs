@@ -23,9 +23,13 @@ void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, uint64_t const * sr
 void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len);
 void binary_matpoly_to_polmat_nested_transpositions(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
 void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len);
+void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
+void binary_polmat_to_matpoly_transpose_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len);
 
 /* final exported choices */
 void binary_polmat_to_matpoly(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len);
 void binary_matpoly_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
+void binary_polmat_to_matpoly_transpose(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len);
+void binary_matpoly_transpose_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len);
 
 #endif	/* BBLAS_LEVEL3A1_HPP_ */
