@@ -3,6 +3,7 @@
 
 #include "bblas.hpp"
 
+#include <mmintrin.h>
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 #include <emmintrin.h>
 /*  helper macros for sse-2. Copied from gf2x */
