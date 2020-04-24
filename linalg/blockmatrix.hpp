@@ -5,6 +5,11 @@
 #include "bblas.hpp"
 #include "submatrix_range.hpp"
 
+/* This interface is old. We most probably want to use bpack<mat64>
+ * instead, as provided in bblas/bpack.hpp ; however we have more things
+ * here. We might find it interesting to augment the (primitive) bpack
+ * interface to include the features from here.
+ */
 // template<typename matrix>
 struct blockmatrix {
     typedef mat64 matrix;
