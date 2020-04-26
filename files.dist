@@ -782,6 +782,7 @@ parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
 parameters/dlp/params.p100
+parameters/dlp/params.p2dd30
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
@@ -816,6 +817,7 @@ parameters/dlp/p85.hint
 parameters/dlp/p90.hint
 parameters/dlp/p95.hint
 parameters/dlp/p100.hint
+parameters/dlp/p2dd30.hint
 parameters/dlp/README
 filter/filter_badideals.c
 linalg/bwc/lingen-matpoly-ft.h
