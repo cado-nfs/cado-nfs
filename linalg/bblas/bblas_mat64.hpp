@@ -3,7 +3,11 @@
 
 #include "bblas_bitmat.hpp"
 
-typedef bitmat<uint64_t> mat64; // ATTRIBUTE((aligned(64)));
+/* The attribute seems to be really necessary, and actually abided by by
+ * clang at least for stack-defined variables. On freebsd, this matters,
+ * too.
+ */
+typedef bitmat<uint64_t> mat64 ATTRIBUTE((aligned(64)));
 
 namespace bblas_bitmat_details {
 
