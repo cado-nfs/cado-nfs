@@ -110,39 +110,20 @@ int PLUQ64_n(int * phi, mat64 & l, mat64 * u, mat64 const * a, int n)
     for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
     int rank = 0;
     int b = 0;
-#ifdef ALLOC_LS
-    mat64 ** ls = new mat64*[nb];
-#else
-    mat64 ls[nb] ATTRIBUTE((aligned(64)));
-#endif
+    mat64::vector_type ls(nb);
     mat64 tl;
     for( ; b < nb && rank < m ; b++) {
         mat64 ta;
         mul_6464_6464(ta, l, a[b]);
         rank += PLUQ64_inner(phi, tl, u[b], ta, b*m);
         mul_6464_6464(l, tl, l);
-#ifdef  ALLOC_LS
-        ls[b]=(mat64*) malloc_aligned(sizeof(mat64), 64);
-        *ls[b] = tl;
-#else
         ls[b] = tl;
-#endif
     }
     int nspins = b;
-#ifdef  ALLOC_LS
-    free(ls[b-1]);
-    for(int c = b-2 ; c >= 0 ; c--) {
-        mul_6464_6464(u[c], tl, u[c]);
-        mul_6464_6464(tl, *ls[c], tl);
-        free_aligned(ls[c]);
-    }
-    delete[] ls;
-#else
     for(int c = b-2 ; c >= 0 ; c--) {
         mul_6464_6464(u[c], tl, u[c]);
         mul_6464_6464(tl, ls[c], tl);
     }
-#endif
     for( ; b < nb ; b++)
         mul_6464_6464(u[b], l, a[b]);
     return nspins*m+b;
