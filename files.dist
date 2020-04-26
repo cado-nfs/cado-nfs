@@ -753,7 +753,6 @@ linalg/bwc/flint-fft/split_bits.c
 linalg/bwc/flint-fft/transform_interface.c
 linalg/bwc/flint-fft/transform_interface.h
 linalg/bwc/flint-fft/ulong_extras.h
-filter/filter_badideals.c
 parameters/dlp/params.p2dd20
 parameters/dlp/p2dd20.hint
 parameters/dlp/p155.hint
@@ -773,6 +772,7 @@ parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
 parameters/dlp/params.p100
+parameters/dlp/params.p2dd30
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
 parameters/dlp/Joux-Lercier/params.p40
@@ -806,6 +806,9 @@ parameters/dlp/p85.hint
 parameters/dlp/p90.hint
 parameters/dlp/p95.hint
 parameters/dlp/p100.hint
+parameters/dlp/p2dd30.hint
+parameters/dlp/README
+filter/filter_badideals.c
 linalg/bwc/lingen_matpoly_ft.hpp
 linalg/bwc/lingen_matpoly_ft.cpp
 linalg/bwc/lingen_bigmatpoly_ft.cpp
