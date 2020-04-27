@@ -693,8 +693,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     unsigned int Db = iceildiv(D, B);
     unsigned int DX = Db * B;
 
-    ASSERT_ALWAYS(mp_E.data_entry_size_in_bytes() == mp_E.data_entry_alloc_size_in_bytes());
-    ASSERT_ALWAYS(mp_E.data_entry_size_in_words() == iceildiv(L, 64) * (64 / ULONG_BITS));
+    ASSERT_ALWAYS(Lb * sizeof(uint64_t) == mp_E.data_entry_alloc_size_in_bytes());
 
     mat64::vector_type E(bb*mb*LX);
     auto E_coeff=[&](unsigned int k) {

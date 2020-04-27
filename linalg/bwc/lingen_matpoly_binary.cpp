@@ -16,7 +16,7 @@ matpoly::memory_pool_type matpoly::memory;
 static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_limb_t != unsigned long");
 
 /* {{{ init/zero/clear interface for matpoly */
-matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc_words(b2w(len)) {
+matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc_words(b2w_x(len)) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     /* Note that because we want to handle homogenous and non-homogenous
      * cases the same way, we support matrices of size 0*n, so that is
@@ -88,7 +88,7 @@ matpoly& matpoly::set(matpoly const& a)
  * The contents of the data area above 'size' on return is unspecified.
  */
 void matpoly::realloc(size_t new_ncoeffs) {
-    size_t newalloc_words = b2w(new_ncoeffs);
+    size_t newalloc_words = b2w_x(new_ncoeffs);
     ASSERT_ALWAYS(b2w(size) <= alloc_words);
     size_t oldmem = m * n * alloc_words * sizeof(unsigned long);
     size_t newmem = m * n * newalloc_words * sizeof(unsigned long);
@@ -96,6 +96,9 @@ void matpoly::realloc(size_t new_ncoeffs) {
     /* zero out the newly added data */
     if (newalloc_words > alloc_words) {
         newalloc_words = MAX(newalloc_words, alloc_words + alloc_words / 8);
+        if (newalloc_words % (64 / ULONG_BITS)) {
+            newalloc_words = b2w_x(newalloc_words * ULONG_BITS);
+        }
         /* allocate new space, then inflate */
         x = (unsigned long *) memory.realloc(x, oldmem, newmem);
         const unsigned long * rhead = x + m * n * alloc_words;
@@ -322,10 +325,11 @@ void matpoly::truncate(matpoly const & src, unsigned int new_ncoeffs)/*{{{*/
     ASSERT_ALWAYS(b2w(new_ncoeffs) <= alloc_words);
     ASSERT_ALWAYS(new_ncoeffs <= src.size);
     size = new_ncoeffs;
-    if (this == &src) return;
-    for(unsigned int i = 0 ; i < src.m ; i++) {
-        for(unsigned int j = 0 ; j < src.n ; j++) {
-            mpn_copyi(part(i, j), src.part(i, j), b2w(new_ncoeffs));
+    if (this != &src) {
+        for(unsigned int i = 0 ; i < src.m ; i++) {
+            for(unsigned int j = 0 ; j < src.n ; j++) {
+                mpn_copyi(part(i, j), src.part(i, j), b2w(new_ncoeffs));
+            }
         }
     }
     clear_high_word();
