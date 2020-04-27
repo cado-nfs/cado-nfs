@@ -22,24 +22,24 @@ namespace bblas_bitmat_details {
     };
 
     /* warn the compiler that we have some specializations */
-    template<> void bitmat_ops<mat8>::add(mat8 & C, mat8 const & A, mat8 const & B);
-    template<> void bitmat_ops<mat8>::transpose(mat8 & C, mat8 const & A);
-    template<> void bitmat_ops<mat8>::mul(mat8 & C, mat8 const & A, mat8 const & B);
-    template<> void bitmat_ops<mat8>::addmul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride);
-    template<> void bitmat_ops<mat8>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride);
-    template<> void bitmat_ops<mat8>::addmul(mat8 & C,
+    template<> void bitmat_ops<uint8_t>::add(mat8 & C, mat8 const & A, mat8 const & B);
+    template<> void bitmat_ops<uint8_t>::transpose(mat8 & C, mat8 const & A);
+    template<> void bitmat_ops<uint8_t>::mul(mat8 & C, mat8 const & A, mat8 const & B);
+    template<> void bitmat_ops<uint8_t>::addmul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride);
+    template<> void bitmat_ops<uint8_t>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride);
+    template<> void bitmat_ops<uint8_t>::addmul(mat8 & C,
             mat8 const & A,
             mat8 const & B,
             unsigned int i0,
             unsigned int i1,
             unsigned int yi0,
             unsigned int yi1);
-    template<> void bitmat_ops<mat8>::trsm(mat8 const & L,
+    template<> void bitmat_ops<uint8_t>::trsm(mat8 const & L,
             mat8 & U,
             unsigned int yi0,
             unsigned int yi1);
 
-    extern template struct bitmat_ops<mat8>;
+    extern template struct bitmat_ops<uint8_t>;
 }
 
 #endif	/* BBLAS_MAT8_HPP_ */

@@ -7,7 +7,7 @@
 using namespace bblas_bitmat_details;
 
 template<>
-void bitmat_ops<mat8>::add(mat8 & C, mat8 const & A, mat8 const & B)
+void bitmat_ops<uint8_t>::add(mat8 & C, mat8 const & A, mat8 const & B)
 {
     uint64_t & Cx = * (uint64_t *) C.data();
     uint64_t const & Ax = * (uint64_t const *) A.data();
@@ -16,7 +16,7 @@ void bitmat_ops<mat8>::add(mat8 & C, mat8 const & A, mat8 const & B)
 }
 
 template<>
-void bitmat_ops<mat8>::transpose(mat8 & C, mat8 const & A)
+void bitmat_ops<uint8_t>::transpose(mat8 & C, mat8 const & A)
 {
     uint64_t aa = * (uint64_t const *) A.data();
 
@@ -34,7 +34,7 @@ void bitmat_ops<mat8>::transpose(mat8 & C, mat8 const & A)
 }
 
 template<>
-void bitmat_ops<mat8>::mul(mat8 & C, mat8 const & A, mat8 const & B)
+void bitmat_ops<uint8_t>::mul(mat8 & C, mat8 const & A, mat8 const & B)
 {
     mat8 AB = 0;
     addmul(AB, A, B);
@@ -42,14 +42,14 @@ void bitmat_ops<mat8>::mul(mat8 & C, mat8 const & A, mat8 const & B)
 }
 
 template<>
-void bitmat_ops<mat8>::addmul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride)
+void bitmat_ops<uint8_t>::addmul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride)
 {
     for(size_t i = 0 ; i < nblocks ; i++) {
         addmul(C[i * Cstride], A[i * Astride], B);
     }
 }
 template<>
-void bitmat_ops<mat8>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride)
+void bitmat_ops<uint8_t>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, size_t nblocks, size_t Cstride, size_t Astride)
 {
     for(size_t i = 0 ; i < nblocks ; i++) {
         mul(C[i * Cstride], A[i * Astride], B);
@@ -102,7 +102,7 @@ void addmul8_naive(mat8 & C,
 }
 
 template<>
-void bitmat_ops<mat8>::addmul(mat8 & C,
+void bitmat_ops<uint8_t>::addmul(mat8 & C,
         mat8 const & A,
         mat8 const & B,
         unsigned int i0,
@@ -193,7 +193,7 @@ void trsm8_naive(mat8 const & L,
 }
 
 template<>
-void bitmat_ops<mat8>::trsm(mat8 const & L,
+void bitmat_ops<uint8_t>::trsm(mat8 const & L,
         mat8 & U,
         unsigned int n0,
         unsigned int n1)
@@ -209,4 +209,4 @@ void mat8_add_C(mat8 & C, mat8 const & A, mat8 const & B)/*{{{*/
 }
 /*}}}*/
 
-template struct bblas_bitmat_details::bitmat_ops<mat8>;
+template struct bblas_bitmat_details::bitmat_ops<uint8_t>;

@@ -10,12 +10,15 @@
 #include "macros.h"
 #include "memory.h"     // malloc_aligned in utils
 
+template<typename T> class bitmat;
+
 namespace bblas_bitmat_details {
 
     template<typename T> struct bblas_bitmat_type_supported {
         static constexpr const bool value = false;
     };
-    template<typename matrix> struct bitmat_ops {
+    template<typename T> struct bitmat_ops {
+        typedef bitmat<T> matrix;
         static void fill_random(matrix & w, gmp_randstate_t rstate);
         static void add(matrix & C, matrix const & A, matrix const & B);
         static void transpose(matrix & C, matrix const & A);
@@ -59,9 +62,9 @@ namespace bblas_bitmat_details {
 
 template<typename T>
 class bitmat
-    : public bblas_bitmat_details::bitmat_ops<bitmat<T>>
+    : public bblas_bitmat_details::bitmat_ops<T>
 {
-    typedef bblas_bitmat_details::bitmat_ops<bitmat<T>> ops;
+    typedef bblas_bitmat_details::bitmat_ops<T> ops;
     typedef bblas_bitmat_details::bblas_bitmat_type_supported<T> S;
     static_assert(S::value, "bblas bitmap must be built on uintX_t");
 

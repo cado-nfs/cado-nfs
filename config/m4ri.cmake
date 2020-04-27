@@ -1,10 +1,20 @@
-if (IS_DIRECTORY ${CADO_NFS_SOURCE_DIR}/linalg/m4ri)
-    if (EXISTS ${CADO_NFS_SOURCE_DIR}/linalg/m4ri/configure)
-        message(STATUS "Found linalg/m4ri source tree, enabling external component")
-        set(HAVE_M4RI 1)
+if (ULONG_BITS EQUAL 64)
+    # m4ri pulls dependencies on some external libs only based on the
+    # existence of some headers (-lz, -lpng16). This is mostly a
+    # nuisance.
+    if (IS_DIRECTORY ${CADO_NFS_SOURCE_DIR}/linalg/m4ri)
+        if (EXISTS ${CADO_NFS_SOURCE_DIR}/linalg/m4ri/configure)
+            message(STATUS "Found linalg/m4ri source tree, enabling external component")
+            set(HAVE_M4RI 1)
+        else()
+            message(STATUS "Found linalg/m4ri source tree, but no ./configure there. Run autoreconf ?")
+            set(HAVE_M4RI 0)
+        endif()
     else()
-        message(STATUS "Found linalg/m4ri source tree, but no ./configure there. Run autoreconf ?")
+        set(HAVE_M4RI 0)
     endif()
+else()
+    set(HAVE_M4RI 0)
 endif()
 
 if (HAVE_M4RI)
@@ -17,6 +27,3 @@ if (HAVE_M4RI)
         endif()
     endif()
 endif()
-
-
-

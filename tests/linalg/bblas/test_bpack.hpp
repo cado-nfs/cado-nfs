@@ -14,11 +14,11 @@ struct test_bpack : public test_bblas_base
     static tags_t do_bpack_tags;
     void do_bpack();
 
-    template<typename matrix>
+    template<typename T>
     void meta_bpack();
 
     /* internal tests */
-    template<typename matrix>
+    template<typename T>
     int test_invert_triangular(unsigned int m, unsigned int n);
 
     void banner()

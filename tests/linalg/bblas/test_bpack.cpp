@@ -4,13 +4,13 @@
 #include <cstring>
 #include <algorithm>
 
-template<typename matrix>
+template<typename T>
 int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/
 {
     if (n > m) return 0;
 
-    bpack<matrix> P(m, n);
-    bpack<matrix> U(m, n);
+    bpack<T> P(m, n);
+    bpack<T> U(m, n);
 
     P.fill_random(rstate);
     P.make_unit_lowertriangular();
@@ -24,7 +24,7 @@ int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/
     /* must now do some sort of mul_lt_ge U*P ; we'll do P*U, in
      * fact, so that we can work on U and not on P.
      */
-    bpack<matrix>::mul_lt_ge(P, U);
+    bpack<T>::mul_lt_ge(P, U);
 
     for(unsigned int bi = U.nrowblocks() ; bi-- ; ) {
         for(unsigned int bj = U.ncolblocks() ; bj-- ; ) {
@@ -32,10 +32,10 @@ int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/
         }
     }
 
-    auto do_mul_lt_ge = [](bpack<matrix> & U, bpack<matrix> const & P) {
-        bpack<matrix>::mul_lt_ge(P, U);
+    auto do_mul_lt_ge = [](bpack<T> & U, bpack<T> const & P) {
+        bpack<T>::mul_lt_ge(P, U);
     };
-    auto do_ilt = [](bpack<matrix> & U, bpack<matrix> const & P) {
+    auto do_ilt = [](bpack<T> & U, bpack<T> const & P) {
         U = P;
         U.invert_lower_triangular();
     };
@@ -45,10 +45,10 @@ int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/
     return 0;
 }/*}}}*/
 
-template<typename matrix>
+template<typename T>
 void test_bpack::meta_bpack()
 {
-    constexpr const unsigned int B = matrix::width;
+    constexpr const unsigned int B = bitmat<T>::width;
     std::vector<std::pair<unsigned int, unsigned int>> mns
     {{
          {B,B},
@@ -72,7 +72,7 @@ void test_bpack::meta_bpack()
         unsigned int n = x.second;
         if (n > m) continue;
         printf(" -- ILT(m=%u, n=%u)\n", m, n);
-        test_invert_triangular<matrix>(m, n);
+        test_invert_triangular<T>(m, n);
     }
 
 }
@@ -80,7 +80,7 @@ void test_bpack::meta_bpack()
 test_bblas_base::tags_t test_bpack::do_bpack_tags { "bpack", "l4" };
 void test_bpack::do_bpack()
 {
-    meta_bpack<mat64>();
-    meta_bpack<mat8>();
+    meta_bpack<uint64_t>();
+    meta_bpack<uint8_t>();
 }
 

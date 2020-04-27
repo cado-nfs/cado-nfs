@@ -2,6 +2,7 @@
 #define LEVEL4_PLE_INTERNAL_HPP_
 
 #include "bblas_level4.hpp"
+#include <cstdint>
 #include "bblas_mat64.hpp"
 #include "bblas_mat8.hpp"
 #include <algorithm>
@@ -18,16 +19,16 @@
 #define xxxTIME_PLE
 
 
-template<typename matrix>
-struct PLE : public bpack_view<matrix> {/*{{{*/
-    using typename bpack_view<matrix>::U;
-    using bpack_view<matrix>::B;
-    using bpack_view<matrix>::mblocks;
-    using bpack_view<matrix>::nblocks;
-    // using bpack_view<matrix>::X;
-    using bpack_view<matrix>::cell;
-    using bpack_view<matrix>::view;
-    using bpack_view<matrix>::const_view;
+template<typename T>
+struct PLE : public bpack_view<T> {/*{{{*/
+    using typename bpack_view<T>::U;
+    using bpack_view<T>::B;
+    using bpack_view<T>::mblocks;
+    using bpack_view<T>::nblocks;
+    // using bpack_view<T>::X;
+    using bpack_view<T>::cell;
+    using bpack_view<T>::view;
+    using bpack_view<T>::const_view;
 #ifdef TIME_PLE
     static unsigned long ncalls;
     static double t_find_pivot;
@@ -62,25 +63,25 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
             unsigned int yi1,
             unsigned int ii);
 
-    struct debug_stuff : public bpack<matrix> {
+    struct debug_stuff : public bpack<T> {
         /* orig == target ? */
-        using bpack<matrix>::mblocks;
-        using bpack<matrix>::nblocks;
-        using bpack<matrix>::nrows;
-        using bpack<matrix>::ncols;
-        using bpack<matrix>::cell;
-        bpack<matrix> orig, target;
+        using bpack<T>::mblocks;
+        using bpack<T>::nblocks;
+        using bpack<T>::nrows;
+        using bpack<T>::ncols;
+        using bpack<T>::cell;
+        bpack<T> orig, target;
         debug_stuff(PLE const & ple)
-            : bpack<matrix>(ple.nrows(), ple.ncols())
+            : bpack<T>(ple.nrows(), ple.ncols())
             , orig(ple.view())
             , target(orig)
         {}
         void apply_permutations(std::vector<unsigned int>::const_iterator, std::vector<unsigned int>::const_iterator);
-        bpack<matrix> get_LL(unsigned int rr);
-        bpack<matrix> get_UU(unsigned int rr);
-        bool complete_check(bpack<matrix> const & LL, bpack<matrix> const & UU) ;
-        bool check(bpack_const_view<matrix> X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii) {
-            (bpack<matrix>&) *this = X0;
+        bpack<T> get_LL(unsigned int rr);
+        bpack<T> get_UU(unsigned int rr);
+        bool complete_check(bpack<T> const & LL, bpack<T> const & UU) ;
+        bool check(bpack_const_view<T> X0, std::vector<unsigned int>::const_iterator p0, unsigned int ii) {
+            (bpack<T>&) *this = X0;
             target = orig;
             apply_permutations(p0, p0 + ii);
             auto LL = get_LL(ii);
@@ -90,8 +91,8 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
     };
 
 
-    PLE(bpack_view<matrix> b, std::vector<unsigned int> d);
-    PLE(bpack_view<matrix> b);
+    PLE(bpack_view<T> b, std::vector<unsigned int> d);
+    PLE(bpack_view<T> b);
 
     std::vector<unsigned int> operator()(debug_stuff * D = NULL);
 };/*}}}*/
@@ -102,25 +103,29 @@ struct PLE : public bpack_view<matrix> {/*{{{*/
  * template constexpr definition does the trick.
  */
 #ifdef TIME_PLE
-template<typename matrix> unsigned long PLE<matrix>::ncalls = 0;
-template<typename matrix> double PLE<matrix>::t_find_pivot = 0;
-template<typename matrix> double PLE<matrix>::t_propagate_pivot = 0;
-template<typename matrix> double PLE<matrix>::t_propagate_permutation = 0;
-template<typename matrix> double PLE<matrix>::t_move_l_fragments = 0;
-template<typename matrix> double PLE<matrix>::t_trsm = 0;
-template<typename matrix> double PLE<matrix>::t_sub = 0;
-template<typename matrix> double PLE<matrix>::t_total = 0;
+template<typename T> unsigned long PLE<T>::ncalls = 0;
+template<typename T> double PLE<T>::t_find_pivot = 0;
+template<typename T> double PLE<T>::t_propagate_pivot = 0;
+template<typename T> double PLE<T>::t_propagate_permutation = 0;
+template<typename T> double PLE<T>::t_move_l_fragments = 0;
+template<typename T> double PLE<T>::t_trsm = 0;
+template<typename T> double PLE<T>::t_sub = 0;
+template<typename T> double PLE<T>::t_total = 0;
 #endif
 
-// extern template struct PLE<mat64>;
-// extern template struct PLE<mat8>;
+// extern template struct PLE<uint64_t>;
+// extern template struct PLE<uint8_t>;
 
 // must forward-declare the few specializations that we have.
-template<> void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
-template<> void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
-template<> void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q);
+#if defined(HAVE_AVX2) || defined(HAVE_SSE41)
+template<> void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
+#endif
+template<> void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
+#if defined(HAVE_AVX2) || defined(HAVE_SSE41)
+template<> void PLE<uint64_t>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q);
+#endif
 
-extern template struct PLE<mat64>;
-extern template struct PLE<mat8>;
+extern template struct PLE<uint64_t>;
+extern template struct PLE<uint8_t>;
 
 #endif	/* LEVEL4_PLE_INTERNAL_HPP_ */

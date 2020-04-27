@@ -1,18 +1,19 @@
 #include "cado.h"
 #include "test_bblas_level4.hpp"
 #include "bblas_level4_ple_internal.hpp"
+#include <cstdint>
 #include <cstring>
 #include <algorithm>
 #include "time_bblas_common.hpp"
 #include "bblas_mat8.hpp"
 
-template<typename matrix>
+template<typename T>
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
+    typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
-    bpack<matrix> A(m, n);
-    PLE<matrix> ple(A.view());
+    bpack<T> A(m, n);
+    PLE<T> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         std::vector<unsigned int> f;
@@ -24,7 +25,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
         A = 0;
         for(unsigned int j = 0 ; j < n ; j++) {
             for(unsigned int i = 0 ; i < m ; i++) {
-                U b = (f[j]+i) % u[j] == 0;
+                T b = (f[j]+i) % u[j] == 0;
                 A.X[(i/B)*(n/B)+(j/B)][i%B] ^= (b << (j%B));
             }
         }
@@ -48,13 +49,13 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
     return 0;
 }/*}}}*/
 
-template<typename matrix>
+template<typename T>
 int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
+    typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
-    bpack<matrix> A(m, n);
-    PLE<matrix> ple(A.view());
+    bpack<T> A(m, n);
+    PLE<T> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
@@ -62,24 +63,24 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
         unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
         unsigned int pii = gmp_urandomm_ui(rstate, m);
         A = 0;
-        U examples[n/B][4];
+        T examples[n/B][4];
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-            U a = 0;
+            T a = 0;
             if (kjj0 / B < bj)
-                a ^= ~U(0);
+                a ^= ~T(0);
             else if (kjj0 / B == bj)
-                a ^= -(U(1) << (kjj0 % B));
+                a ^= -(T(1) << (kjj0 % B));
             if (kjj1 / B < bj)
-                a ^= ~U(0);
+                a ^= ~T(0);
             else if (kjj1 / B == bj)
-                a ^= -(U(1) << (kjj1 % B));
+                a ^= -(T(1) << (kjj1 % B));
             examples[bj][0] = a;
             examples[bj][1] = a;
             examples[bj][2 + (pii & 1)] = 0;
             examples[bj][2 + (1 ^ (pii & 1))] = a;
             if (pjj / B == bj) {
-                examples[bj][pii & 1] ^= U(1) << (pjj % B);
-                examples[bj][2 + (pii & 1)] ^= U(1) << (pjj % B);
+                examples[bj][pii & 1] ^= T(1) << (pjj % B);
+                examples[bj][2 + (pii & 1)] ^= T(1) << (pjj % B);
             }
         }
 
@@ -91,7 +92,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
         ple.propagate_pivot(pii / B, pjj / B, pii % B, pjj % B);
         unsigned int bj = pjj / B;
         for(unsigned int ii = 0 ; ii < m ; ii++) {
-            U a = examples[bj][2 * (ii > pii) + (ii & 1)];
+            T a = examples[bj][2 * (ii > pii) + (ii & 1)];
             ASSERT_ALWAYS(A.X[(ii/B)*(n/B)+bj][ii%B] == a);
         }
     }
@@ -99,13 +100,13 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
     return 0;
 }/*}}}*/
 
-template<typename matrix>
+template<typename T>
 int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
+    typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
-    bpack<matrix> A(m, n);
-    PLE<matrix> ple(A.view());
+    bpack<T> A(m, n);
+    PLE<T> ple(A.view());
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
         for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
@@ -130,9 +131,9 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
             unsigned int   i =  ii % B;
             unsigned int pbi = pii / B;
             unsigned int  pi = pii % B;
-            matrix & Y = A.X[bi * n/B + bj0];
-            matrix & pY = A.X[pbi * n/B + bj0];
-            U c = Y[i] ^ pY[pi];
+            bitmat<T> & Y = A.X[bi * n/B + bj0];
+            bitmat<T> & pY = A.X[pbi * n/B + bj0];
+            T c = Y[i] ^ pY[pi];
             Y[i] ^= c;
             pY[pi] ^= c;
         }
@@ -145,7 +146,7 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
                 unsigned int  bi =  ii / B;
                 unsigned int   i =  ii % B;
-                ASSERT_ALWAYS(A.X[bi * n/B + bj][i] == U(A.X[bi * n/B][i] + bj));
+                ASSERT_ALWAYS(A.X[bi * n/B + bj][i] == T(A.X[bi * n/B][i] + bj));
             }
         }
     }
@@ -153,16 +154,16 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
     return 0;
 }/*}}}*/
 
-template<typename matrix>
+template<typename T>
 int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)/*{{{*/
 {
+    typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
-    bpack<matrix> A(m, n);
-    PLE<matrix> ple(A.view());
+    bpack<T> A(m, n);
+    PLE<T> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
-        /* first generate the transpose of the matrix that we will
+        /* first generate the transpose of the bitmat<T> that we will
          * reduce.
          * We'll generate matrices with the following shape. The space is
          * only here as an extra information indicating the diagonal
@@ -176,7 +177,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
          * where the right part of some rows is intentionally shifted
          * down. The number of pivot rows generated is r, which is less
          * than min(m,n). We check that the lower triangular part of the
-         * output matrix has the expected shape, which is:
+         * output bitmat<T> has the expected shape, which is:
          *
          * --------..
          * 0-------..
@@ -195,7 +196,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         for(unsigned int k = 0 ; k < r ; k++)
             pivs[k] += k;
         {
-            bpack<matrix> tA(n, m);
+            bpack<T> tA(n, m);
             tA = 0;
             auto ppiv = pivs.begin();
             unsigned int rr = 0;
@@ -252,7 +253,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             }
             for(unsigned int bi = 0 ; bi < m/B ; bi++) {
                 for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                    matrix::transpose(A.X[bi * (n/B) + bj], tA.X[bi + bj * (m/B)]);
+                    bitmat<T>::transpose(A.X[bi * (n/B) + bj], tA.X[bi + bj * (m/B)]);
                 }
             }
         }
@@ -296,9 +297,9 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
             mpz_divexact_ui(NN,NN,3);
             for(unsigned int bj = 0 ; bj < n/B ; bj++, z -= B) {
-                U c = A.X[(ii/B)*(n/B)+bj][ii%B];
+                T c = A.X[(ii/B)*(n/B)+bj][ii%B];
                 c ^= mpz_get_uint64(NN);
-                if (z < B) c &= (U(1) << z) - 1;
+                if (z < B) c &= (T(1) << z) - 1;
                 mpz_fdiv_q_2exp(NN, NN, B);
                 ASSERT_ALWAYS(c == 0);
                 if (z < B) break;
@@ -310,11 +311,11 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
     return 0;
 }/*}}}*/
 
-template<typename matrix>
+template<typename T>
 int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 {
     for(unsigned int k = 0 ; k < 100 ; k++) {
-        bpack<matrix> A(m, n);
+        bpack<T> A(m, n);
         A.fill_random(rstate);
 
         /* The main important thing is the fact of enabling the
@@ -323,8 +324,8 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
          * we do here is not even needed, since it's already one of those
          * checks triggered by debug_stuff.
          */
-        PLE<matrix> ple(A.view());
-        typename PLE<matrix>::debug_stuff D(ple);
+        PLE<T> ple(A.view());
+        typename PLE<T>::debug_stuff D(ple);
         std::vector<unsigned int> pivs = ple(&D);
 
         D.check(ple.const_view(), pivs.begin(), pivs.size());
@@ -333,9 +334,10 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
     return 0;
 }
 
-template<typename matrix>
+template<typename T>
 void test_bblas_level4::meta_ple()
 {
+    typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
     std::vector<std::pair<unsigned int, unsigned int>> mns
     {{
@@ -359,18 +361,18 @@ void test_bblas_level4::meta_ple()
         unsigned int m = x.first;
         unsigned int n = x.second;
         if (m + n < 10*B) {
-            test_PLE_find_pivot<matrix>(m, n);
-            test_PLE_propagate_pivot<matrix>(m, n);
-            test_PLE_propagate_row_permutations<matrix>(m, n);
-            test_PLE_move_L_fragments<matrix>(m, n);
-            test_PLE<matrix>(m, n);
+            test_PLE_find_pivot<T>(m, n);
+            test_PLE_propagate_pivot<T>(m, n);
+            test_PLE_propagate_row_permutations<T>(m, n);
+            test_PLE_move_L_fragments<T>(m, n);
+            test_PLE<T>(m, n);
         }
 
         typename matrix::vector_type X ((m/B)*(n/B), 0);
 
-        auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(matrix), rstate); };
-        auto do_ple = [&](matrix * X, unsigned int mm, unsigned int nn) {
-            return bpack_view<matrix>(X, mm, nn).ple().size();
+        auto randomize = [&]() { memfill_random(&X[0], m/B*n/B*sizeof(bitmat<T>), rstate); };
+        auto do_ple = [&](bitmat<T> * X, unsigned int mm, unsigned int nn) {
+            return bpack_view<T>(X, mm, nn).ple().size();
         };
 
         printf(" -- PLE(m=%u, n=%u)\n", m, n);
@@ -385,7 +387,7 @@ void test_bblas_level4::meta_ple()
             bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
         }
 #ifdef TIME_PLE
-        PLE<matrix>::print_and_flush_stats();
+        PLE<T>::print_and_flush_stats();
 #endif
     }
 
@@ -394,7 +396,7 @@ void test_bblas_level4::meta_ple()
 test_bblas_base::tags_t test_bblas_level4::ple_tags { "ple", "l4" };
 void test_bblas_level4::ple()
 {
-    meta_ple<mat64>();
-    meta_ple<mat8>();
+    meta_ple<uint64_t>();
+    meta_ple<uint8_t>();
 }
 

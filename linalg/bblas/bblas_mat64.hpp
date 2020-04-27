@@ -18,26 +18,26 @@ namespace bblas_bitmat_details {
     };
 
     /* warn the compiler that we have some specializations */
-    template<> void bitmat_ops<mat64>::add(mat64 & C, mat64 const & A, mat64 const & B);
-    template<> void bitmat_ops<mat64>::transpose(mat64 & C, mat64 const & A);
-    template<> void bitmat_ops<mat64>::mul(mat64 & C, mat64 const & A, mat64 const & B);
-    template<> void bitmat_ops<mat64>::addmul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t Cstride, size_t Astride);
-    template<> void bitmat_ops<mat64>::mul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t Cstride, size_t Astride);
-    template<> void bitmat_ops<mat64>::mul_lt_ge(mat64 & C, mat64 const & A, mat64 const & B);
-    template<> void bitmat_ops<mat64>::addmul(mat64 & C, mat64 const & A, mat64 const & B);
-    template<> void bitmat_ops<mat64>::addmul(mat64 & C,
+    template<> void bitmat_ops<uint64_t>::add(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<uint64_t>::transpose(mat64 & C, mat64 const & A);
+    template<> void bitmat_ops<uint64_t>::mul(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<uint64_t>::addmul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t Cstride, size_t Astride);
+    template<> void bitmat_ops<uint64_t>::mul_blocks(mat64 * C, mat64 const * A, mat64 const& B, size_t nblocks, size_t Cstride, size_t Astride);
+    template<> void bitmat_ops<uint64_t>::mul_lt_ge(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<uint64_t>::addmul(mat64 & C, mat64 const & A, mat64 const & B);
+    template<> void bitmat_ops<uint64_t>::addmul(mat64 & C,
             mat64 const & A,
             mat64 const & B,
             unsigned int i0,
             unsigned int i1,
             unsigned int yi0,
             unsigned int yi1);
-    template<> void bitmat_ops<mat64>::trsm(mat64 const & L,
+    template<> void bitmat_ops<uint64_t>::trsm(mat64 const & L,
             mat64 & U,
             unsigned int yi0,
             unsigned int yi1);
 
-    extern template struct bitmat_ops<mat64>;
+    extern template struct bitmat_ops<uint64_t>;
 }
 
 #endif	/* BBLAS_MAT64_HPP_ */

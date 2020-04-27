@@ -2,6 +2,7 @@
 #define LEVEL4_PLE_INTERNAL_INL_HPP_
 
 #include "cado_config.h"
+#include <cstdint>
 #include "bblas_level4_ple_internal.hpp"
 #include "bblas_simd.hpp"
 #include "bblas_mat64.hpp"
@@ -19,8 +20,8 @@ struct timer_ple {
 #define TIMER_PLE(t)    /**/
 #endif
 
-template<typename matrix>
-PLE<matrix>::PLE(bpack_view<matrix> b) : bpack_view<matrix>(b), weights(std::vector<unsigned int>(b.nrows(), 0))
+template<typename T>
+PLE<T>::PLE(bpack_view<T> b) : bpack_view<T>(b), weights(std::vector<unsigned int>(b.nrows(), 0))
 {
     prio_to_data.reserve(b.nrows());
     data_to_prio.reserve(b.nrows());
@@ -30,8 +31,8 @@ PLE<matrix>::PLE(bpack_view<matrix> b) : bpack_view<matrix>(b), weights(std::vec
     }
 }
 
-template<typename matrix>
-PLE<matrix>::PLE(bpack_view<matrix> b, std::vector<unsigned int> d) : bpack_view<matrix>(b), weights(d)
+template<typename T>
+PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), weights(d)
 {
     ASSERT_ALWAYS(d.size() == b.nrows());
     /* We need to create a priority list. We'll try to maximize the
@@ -70,8 +71,8 @@ PLE<matrix>::PLE(bpack_view<matrix> b, std::vector<unsigned int> d) : bpack_view
     ASSERT_ALWAYS(std::is_sorted(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights)));
 }
 
-template<typename matrix>
-int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
+template<typename T>
+int PLE<T>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_find_pivot);
     U mask = U(1) << j;
@@ -182,8 +183,8 @@ int PLE<matrix>::find_pivot(unsigned int bi, unsigned int bj, unsigned int i, un
     return zii;
 }/*}}}*/
 
-template<typename matrix>
-void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
+template<typename T>
+void PLE<T>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
@@ -200,7 +201,7 @@ void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int
     i++;
     if (i == B) { i = 0 ; bi++; }
     for( ; bi < mblocks ; bi++) {
-        matrix & Y = cell(bi, bj);
+        bitmat<T> & Y = cell(bi, bj);
         for( ; i < B ; i++) {
             Y[i] ^= c & -((Y[i] & mask) != 0);
         }
@@ -211,10 +212,11 @@ void PLE<matrix>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int
 /* These two specializations are very significant improvements.  */
 #ifdef HAVE_AVX2
 template<>
-void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
+void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
-    typedef mat64 matrix;
+    typedef uint64_t T;
+    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -249,10 +251,11 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 }/*}}}*/
 #elif defined(HAVE_SSE41)
 template<>
-void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
+void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
-    typedef mat64 matrix;
+    typedef uint64_t T;
+    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -267,7 +270,7 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
     i++;
     constexpr const unsigned int SIMD = 2;
     for( ; (i & (SIMD-1)) && bi < mblocks ; i++) {
-        matrix & Y = cell(bi, bj);
+        bitmat<T> & Y = cell(bi, bj);
         Y[i] ^= c & -((Y[i] & mask) != 0);
     }
     if (i == B) { i = 0 ; bi++; }
@@ -275,7 +278,7 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
     __m128i mmask = _cado_mm_set1_epi64(mask);
     __m128i cc = _cado_mm_set1_epi64(c);
     for( ; bi < mblocks ; bi++) {
-        matrix & Y = cell(bi, bj);
+        bitmat<T> & Y = cell(bi, bj);
         __m128i *Yw = (__m128i *) Y.data();
         for( ; iw < B / SIMD ; iw++) {
             __m128i select = _mm_and_si128(Yw[iw], mmask);
@@ -288,10 +291,11 @@ void PLE<mat64>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int 
 #endif
 
 template<>
-void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
+void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
-    typedef mat8 matrix;
+    typedef uint8_t T;
+    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -313,7 +317,13 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
         __m64 select = _mm_and_si64(Yw, mmask);
         select = _mm_cmpeq_pi8(select, mmask);
         /* Make sure we don't touch rows before i ! */
-        select = _mm_and_si64(select, _mm_cvtsi64_m64(-(uint64_t(1) << (8*i))));
+        /* Note that the deal about _mm_cvtsi64_m64 versus
+         * _mm_cvtsi64x_m64 is ultimately very boring. The former is
+         * exposed by gcc only on x86_64. The latter is a microsoft
+         * intrinsic. Both boil down to a simple cast. Let's just do the
+         * cast ourselves, and be done with it.
+         */
+        select = _mm_and_si64(select, (__m64) (-(uint64_t(1) << (8*i))));
         Yw = _mm_xor_si64(Yw, _mm_and_si64(cc, select));
         bi++;
     }
@@ -326,8 +336,8 @@ void PLE<mat8>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i
     }
 }/*}}}*/
 
-template<typename matrix>
-void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1)/*{{{*/
+template<typename T>
+void PLE<T>::propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1)/*{{{*/
 {
     TIMER_PLE(t_propagate_permutation);
     /* This propagates the pending permutations outside the current block
@@ -346,8 +356,8 @@ void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0,
             unsigned int i  = ii & (B - 1);
             unsigned int pbi = *q / B;
             unsigned int pi  = *q & (B - 1);
-            matrix & Y  = cell(bi, bj);
-            matrix & pY = cell(pbi, bj);
+            bitmat<T> & Y  = cell(bi, bj);
+            bitmat<T> & pY = cell(pbi, bj);
             U c = Y[i] ^ pY[pi];
             Y[i]   ^= c;
             pY[pi] ^= c;
@@ -355,8 +365,8 @@ void PLE<matrix>::propagate_row_permutations(unsigned int ii1, unsigned int bj0,
     }
 }/*}}}*/
 
-template<typename matrix>
-void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
+template<typename T>
+void PLE<T>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
 {
     TIMER_PLE(t_move_l_fragments);
     /* This function receives the (yii0,yii0) coordinate of the first
@@ -369,16 +379,16 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
      * columns referenced by the list Q, with logical leading
      * coordinates (yyi0+x, Q[x]) must move to column
      * yyi0+x so that they are part of the unit lower triangular
-     * matrix that we expect to find eventually.
+     * bitmat<T> that we expect to find eventually.
      * Note 1: the multiplier column is _under_ the leading coordinate
      * (yyi0+x, Q[x]): only coordinates (yyi0+x+1, Q[x]) and downwards
      * are moved).
      * Note 2: by construction, (yii0+x)/B is constant as x runs through
      * [0..Q.size()-1], and so is Q[x]/B.
      *
-     * This function assumes that the matrix coefficients that receive
+     * This function assumes that the bitmat<T> coefficients that receive
      * coefficients from moved columns are set to zero beforehand, and
-     * ensures that matrix entries from moved columns are set to zero
+     * ensures that bitmat<T> entries from moved columns are set to zero
      * after the move (if they don't receive new column entries).
      */
     unsigned int ybi = yii0 / B;
@@ -433,7 +443,7 @@ void PLE<matrix>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> 
 
 #ifdef HAVE_AVX2
 template<>
-void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
+void PLE<uint64_t>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
 {
     TIMER_PLE(t_move_l_fragments);
     unsigned int ybi = yii0 / B;
@@ -494,7 +504,7 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
 }/*}}}*/
 #elif defined(HAVE_SSE41)
 template<>
-void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
+void PLE<uint64_t>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q)/*{{{*/
 {
     TIMER_PLE(t_move_l_fragments);
     unsigned int ybi = yii0 / B;
@@ -555,8 +565,8 @@ void PLE<mat64>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> c
 }/*}}}*/
 #endif
 
-template<typename matrix>
-void PLE<matrix>::trsm(unsigned int bi,/*{{{*/
+template<typename T>
+void PLE<T>::trsm(unsigned int bi,/*{{{*/
         unsigned int bj,
         unsigned int yi0,
         unsigned int yi1)
@@ -564,12 +574,12 @@ void PLE<matrix>::trsm(unsigned int bi,/*{{{*/
     TIMER_PLE(t_trsm);
     /* trsm is fairly trivial */
     for(unsigned int s = bj + 1 ; s < nblocks ; s++) {
-        matrix::trsm(cell(bi, bi), cell(bi, s), yi0, yi1);
+        bitmat<T>::trsm(cell(bi, bi), cell(bi, s), yi0, yi1);
     }
 }/*}}}*/
 
-template<typename matrix>
-void PLE<matrix>::sub(unsigned int bi,/*{{{*/
+template<typename T>
+void PLE<T>::sub(unsigned int bi,/*{{{*/
         unsigned int bj,
         unsigned int yi0,
         unsigned int yi1,
@@ -588,7 +598,7 @@ void PLE<matrix>::sub(unsigned int bi,/*{{{*/
              * yes, we really mean block (sbi,bi). The indices [yi0..yi1)
              * are _really_ relative to that block.
              */
-            matrix::addmul(cell(sbi, sbj),
+            bitmat<T>::addmul(cell(sbi, sbj),
                     cell(sbi, bi),
                     cell(bi, sbj),
                     si, B, yi0, yi1);
@@ -597,8 +607,8 @@ void PLE<matrix>::sub(unsigned int bi,/*{{{*/
     }
 }/*}}}*/
 
-template<typename matrix>
-void PLE<matrix>::debug_stuff::apply_permutations(std::vector<unsigned int>::const_iterator p0, std::vector<unsigned int>::const_iterator p1)/*{{{*/
+template<typename T>
+void PLE<T>::debug_stuff::apply_permutations(std::vector<unsigned int>::const_iterator p0, std::vector<unsigned int>::const_iterator p1)/*{{{*/
 {
     /* apply the permutations to Xcc */
     for(unsigned int xii = 0 ; xii < (unsigned int) (p1 - p0) ; xii++) {
@@ -609,8 +619,8 @@ void PLE<matrix>::debug_stuff::apply_permutations(std::vector<unsigned int>::con
         unsigned int pbi = pii / B;
         unsigned int pi = pii % B;
         for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
-            matrix & xY = target.cell(xbi, bj);
-            matrix & pY = target.cell(pbi, bj);
+            bitmat<T> & xY = target.cell(xbi, bj);
+            bitmat<T> & pY = target.cell(pbi, bj);
             U c = xY[xi] ^ pY[pi];
             xY[xi] ^= c;
             pY[pi] ^= c;
@@ -620,10 +630,10 @@ void PLE<matrix>::debug_stuff::apply_permutations(std::vector<unsigned int>::con
 
 /* extract below the diagonal, only up to rank rr. The X field is
  * modified. */
-template<typename matrix>
-bpack<matrix> PLE<matrix>::debug_stuff::get_LL(unsigned int rr)/*{{{*/
+template<typename T>
+bpack<T> PLE<T>::debug_stuff::get_LL(unsigned int rr)/*{{{*/
 {
-    bpack<matrix> LL(nrows(), nrows());
+    bpack<T> LL(nrows(), nrows());
     for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         unsigned int bj = 0;
         for( ; bj <= bi && bj < iceildiv(rr, B) ; bj++) {
@@ -641,7 +651,7 @@ bpack<matrix> PLE<matrix>::debug_stuff::get_LL(unsigned int rr)/*{{{*/
     /* clear the blocks that we have just taken */
     for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         for(unsigned int bj = 0 ; bj < nblocks && bj < mblocks ; bj++) {
-            matrix::add(cell(bi, bj), cell(bi, bj), LL.cell(bi, bj));
+            bitmat<T>::add(cell(bi, bj), cell(bi, bj), LL.cell(bi, bj));
         }
     }
 
@@ -655,11 +665,11 @@ bpack<matrix> PLE<matrix>::debug_stuff::get_LL(unsigned int rr)/*{{{*/
     return LL;
 }/*}}}*/
 
-template<typename matrix>
-bpack<matrix> PLE<matrix>::debug_stuff::get_UU(unsigned int rr)/*{{{*/
+template<typename T>
+bpack<T> PLE<T>::debug_stuff::get_UU(unsigned int rr)/*{{{*/
 {
     /* extract above the diagonal, only up to rank rr */
-    bpack<matrix> UU(nrows(), ncols());
+    bpack<T> UU(nrows(), ncols());
     for(unsigned int bi = 0 ; bi < mblocks && bi < iceildiv(rr, B); bi++) {
         if (bi < nblocks) {
             for(unsigned int i = 0 ; i < std::min(B, rr - bi * B) ; i++) {
@@ -678,22 +688,22 @@ bpack<matrix> PLE<matrix>::debug_stuff::get_UU(unsigned int rr)/*{{{*/
     /* Finally, clear everything in Xcc that we haven't taken yet *//*{{{*/
     for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
-            matrix::add(cell(bi, bj), cell(bi, bj), UU.cell(bi, bj));
+            bitmat<T>::add(cell(bi, bj), cell(bi, bj), UU.cell(bi, bj));
         }
     }/*}}}*/
     return UU;
 }/*}}}*/
 
-template<typename matrix>
-bool PLE<matrix>::debug_stuff::complete_check(bpack<matrix> const & LL, bpack<matrix> const & UU)/*{{{*/
+template<typename T>
+bool PLE<T>::debug_stuff::complete_check(bpack<T> const & LL, bpack<T> const & UU)/*{{{*/
 {
     /* check that LL*UU + (remaining block in X) is equal to X_target */
 
     for(unsigned int bi = 0 ; bi < mblocks ; bi++) {
         for(unsigned int bj = 0 ; bj < nblocks ; bj++) {
-            matrix C = cell(bi, bj);
+            bitmat<T> C = cell(bi, bj);
             for(unsigned int bk = 0 ; bk < mblocks ; bk++) {
-                matrix::addmul(C, LL.cell(bi, bk), UU.cell(bk, bj));
+                bitmat<T>::addmul(C, LL.cell(bi, bk), UU.cell(bk, bj));
             }
             ASSERT_ALWAYS(target.cell(bi, bj) == C);
             if (target.cell(bi, bj) != C) return false;
@@ -702,8 +712,8 @@ bool PLE<matrix>::debug_stuff::complete_check(bpack<matrix> const & LL, bpack<ma
     return true;
 }/*}}}*/
 
-template<typename matrix>
-std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
+template<typename T>
+std::vector<unsigned int> PLE<T>::operator()(debug_stuff * D)/*{{{*/
 {
     std::vector<unsigned int> Lcols_pending;
     std::vector<unsigned int> pivs;
@@ -744,8 +754,8 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
                 for(unsigned s = 0 ; s < nblocks ; s++)
 #endif
                 {
-                    matrix & Y = cell(bi, s);
-                    matrix & piv_Y = cell(piv_bi, s);
+                    bitmat<T> & Y = cell(bi, s);
+                    bitmat<T> & piv_Y = cell(piv_bi, s);
                     U c = Y[i] ^ piv_Y[piv_i];
                     Y[i]   ^= c;
                     piv_Y[piv_i] ^= c;
@@ -811,8 +821,8 @@ std::vector<unsigned int> PLE<matrix>::operator()(debug_stuff * D)/*{{{*/
 }/*}}}*/
 
 #ifdef TIME_PLE
-template<typename matrix>
-void PLE<matrix>::print_and_flush_stats()
+template<typename T>
+void PLE<T>::print_and_flush_stats()
 {
     printf("PLE stats over %lu calls:\n", ncalls);
     printf("t_find_pivot: %g s (%.1f%%)\n", t_find_pivot / ncalls, 100.0 * t_find_pivot / t_total);
