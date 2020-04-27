@@ -20,20 +20,20 @@
  */
 
 /* implements binary_matpoly_to_polmat */
-void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, unsigned long const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     /* dst must have room for len mat64's. */
     /* src is assumed row-major */
     ASSERT_ALWAYS((n%64)==0);
     ASSERT_ALWAYS((m%64)==0);
-    size_t stride = iceildiv(len, 64);
+    size_t stride = iceildiv(len, ULONG_BITS);
     memset((void *) dst, 0, (m/64) * (n/64) * len * sizeof(mat64));
     mat64 * q0 = dst;
-    uint64_t const * p0 = src;
-    uint64_t mk = 1;
+    unsigned long const * p0 = src;
+    unsigned long mk = 1;
     for(unsigned int k = 0 ; k < len ; k++) {
         uint64_t mj = 1;
-        uint64_t const * p = p0;
+        unsigned long const * p = p0;
         for(unsigned int i = 0 ; i < m ; i++) {
             mat64 * q = q0 + (i / 64) * (n / 64);
             for(unsigned int j = 0 ; j < n ; j++) {
@@ -52,20 +52,20 @@ void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, uint64_t const * sr
 }/*}}}*/
 
 /* implements binary_polmat_to_matpoly */
-void binary_polmat_to_matpoly_simple_and_stupid(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_simple_and_stupid(unsigned long * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     /* dst must have room for len mat64's. */
     /* src is assumed row-major */
     ASSERT_ALWAYS((n%64)==0);
     ASSERT_ALWAYS((m%64)==0);
-    size_t stride = iceildiv(len, 64);
-    memset(dst, 0, m * n * stride * sizeof(uint64_t));
+    size_t stride = iceildiv(len, ULONG_BITS);
+    memset(dst, 0, m * n * stride * sizeof(unsigned long));
     mat64 const * q0 = src;
-    uint64_t * p0 = dst;
-    uint64_t mk = 1;
+    unsigned long * p0 = dst;
+    unsigned long mk = 1;
     for(unsigned int k = 0 ; k < len ; k++) {
         uint64_t mj = 1;
-        uint64_t * p = p0;
+        unsigned long * p = p0;
         for(unsigned int i = 0 ; i < m ; i++) {
             mat64 const * q = q0 + (i / 64) * (n / 64);
             for(unsigned int j = 0 ; j < n ; j++) {
@@ -128,18 +128,21 @@ void generic_transpose_words_inplace(T * x, unsigned int n0, unsigned int n1, un
 /* }}} */
 
 /* implements binary_matpoly_to_polmat */
-void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, uint64_t const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
+void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, unsigned long const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
-    unsigned int L = iceildiv(len, 64);
+    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
+    ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
+    unsigned int L = Lu / (64 / ULONG_BITS);
 
     uint64_t* temp = new uint64_t[m * n * L];
 
     uint64_t* q = (uint64_t*)dst;
 
-    /* We have (M*64*N)*(64)*(L)*(1) 64-bit words */
-    generic_transpose_words(q, src, m * N, 64, L, 1);
+    /* We have (M*64*N)*(64)*(L)*(1) U-bit words */
+    generic_transpose_words(q, (uint64_t const *) src, m * N, 64, L, 1);
     /* We have (M*64*N)*(L)*(64)*(1) 64-bit words */
     for (unsigned int k = 0; k < m * N * L; k++) {
         mat64_transpose(dst[k], dst[k]);
@@ -155,13 +158,18 @@ void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, uint64_t const* 
 } /*}}}*/
 
 /* implements binary_polmat_to_matpoly */
-void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_nested_transpositions(unsigned long * dst_u, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
-    unsigned int L = iceildiv(len, 64);
+    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
+    ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
+    unsigned int L = Lu / (64 / ULONG_BITS);
 
     uint64_t * temp = new uint64_t[m*n*L];
+
+    uint64_t * dst = (uint64_t *) dst_u;
 
     /* We have (L*64)*(M*N)*64 64-bit words */
     /* We have (L*64*M)*(N)*(64)*1 64-bit words */
@@ -186,18 +194,21 @@ void binary_polmat_to_matpoly_nested_transpositions(uint64_t * dst, mat64 const 
 }/*}}}*/
 
 /* implements binary_matpoly_transpose_to_polmat */
-void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, uint64_t const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
+void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, unsigned long const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
-    unsigned int L = iceildiv(len, 64);
+    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
+    ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
+    unsigned int L = Lu / (64 / ULONG_BITS);
 
     uint64_t* temp = new uint64_t[m * n * L];
 
-    uint64_t* q = (uint64_t*)dst;
+    uint64_t* q = (uint64_t *) dst;
 
     /* We have 1*(M*64)*(N*64)*(L) 64-bit words */
-    generic_transpose_words(q, src, 1, m, n, L);
+    generic_transpose_words(q, (uint64_t const *) src, 1, m, n, L);
     /* We have (N*64*M)*(64)*(L)*(1) 64-bit words */
     generic_transpose_words_inplace(q, n * M, 64, L, 1, temp);
     /* We have (N*64*M)*(L)*(64)*(1) 64-bit words */
@@ -215,13 +226,17 @@ void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, uint64
 } /*}}}*/
 
 /* implements binary_polmat_to_matpoly_transpose */
-void binary_polmat_to_matpoly_transpose_nested_transpositions(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_transpose_nested_transpositions(unsigned long * dst_u, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     unsigned int M = m / 64;
     unsigned int N = n / 64;
-    unsigned int L = iceildiv(len, 64);
+    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
+    ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
+    unsigned int L = Lu / (64 / ULONG_BITS);
 
     uint64_t * temp = new uint64_t[m*n*L];
+    uint64_t * dst = (uint64_t *) dst_u;
 
     /* We have (L*64)*(M*N)*64 64-bit words */
     /* We have (L*64*M)*(N)*(64)*1 64-bit words */
@@ -248,22 +263,22 @@ void binary_polmat_to_matpoly_transpose_nested_transpositions(uint64_t * dst, ma
 }/*}}}*/
 
 /* {{{ final choices -- these are really clear-cut */
-void binary_polmat_to_matpoly(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly(unsigned long * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_polmat_to_matpoly_nested_transpositions(dst, src, m, n, len);
 }
 /*}}}*/
-void binary_matpoly_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_to_polmat(mat64 * dst, unsigned long const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_matpoly_to_polmat_nested_transpositions(dst, src, m, n, len);
 }
 /*}}}*/
-void binary_polmat_to_matpoly_transpose(uint64_t * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_polmat_to_matpoly_transpose(unsigned long * dst, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_polmat_to_matpoly_transpose_nested_transpositions(dst, src, m, n, len);
 }
 /*}}}*/
-void binary_matpoly_transpose_to_polmat(mat64 * dst, uint64_t const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
+void binary_matpoly_transpose_to_polmat(mat64 * dst, unsigned long const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
     binary_matpoly_transpose_to_polmat_nested_transpositions(dst, src, m, n, len);
 }

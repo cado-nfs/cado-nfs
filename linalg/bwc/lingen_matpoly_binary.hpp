@@ -56,7 +56,16 @@ private:
     size_t alloc_words = 0;
     unsigned long * x = NULL;
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
-    static inline size_t b2w(size_t n) { return BITS_TO_WORDS(n, ULONG_BITS); }/*{{{*/
+    static inline size_t b2w(size_t n) {
+        /* We always use an even number of words. It seems stupid, but
+         * some of the routines that play an important role in
+         * block-based lingen basecase really want 64*64 matrices of
+         * 64-bit word-based polynomials. In a way it's a shortcoming,
+         * yes.
+         */
+        static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
+        return BITS_TO_WORDS(n, 64) * (64 / ULONG_BITS);
+    }/*{{{*/
     // inline size_t colstride() const { return nrows() * stride(); }/*}}}*/
 public:
     inline size_t capacity() const { return alloc_words * ULONG_BITS; }

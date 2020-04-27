@@ -82,15 +82,15 @@ void test_bblas_level3::matpoly_polmat() {
     }
     mat64 * A = mat64::alloc(n * K * L);
     mat64 * B = mat64::alloc(n * K * L);
-    size_t datasize = K * 64 * L * 64 * iceildiv(n, 64);
-    uint64_t * data = new uint64_t[datasize];
-    uint64_t * data_t = new uint64_t[datasize];
+    size_t datasize = K * 64 * L * 64 * iceildiv(n, ULONG_BITS) * (64 / ULONG_BITS);
+    unsigned long * data = new unsigned long[datasize];
+    unsigned long * data_t = new unsigned long[datasize];
     memfill_random(A, n * K * L * sizeof(mat64), rstate);
     printf(" -- conversion of %u*%u*%zu bit matrices to/from %u*%u %zu-bit polynomials\n", 
             K, L, n, K * 64, L * 64, n);
     TIME1(5, binary_polmat_to_matpoly_simple_and_stupid, data, A, K * 64, L * 64, n);
     TIME1(5, binary_polmat_to_matpoly_nested_transpositions, data_t, A, K * 64, L * 64, n);
-    ASSERT_ALWAYS(memcmp(data, data_t, datasize * sizeof(uint64_t)) == 0);
+    ASSERT_ALWAYS(memcmp(data, data_t, datasize * sizeof(unsigned long)) == 0);
 
     TIME1(5, binary_matpoly_to_polmat_simple_and_stupid, B, data, K * 64, L * 64, n);
     for(unsigned int i = 0 ; i < K ; i++ ) {

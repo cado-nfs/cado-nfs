@@ -676,7 +676,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     unsigned int n = d.n;
     unsigned int b = m + n;
     unsigned int L = mp_E.get_size();
-    /* (expected_pi_length should do as well, but 1+E.get_size() is
+    /* expected_pi_length should do as well, but 1+E.get_size() is
      * firmly on the safe side !. Note that for E.get_size() == 0, we do
      * need length 2.
      */
@@ -688,13 +688,13 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     unsigned int bX = bb * B;
     unsigned int mb = iceildiv(m, B);
     unsigned int mX = mb * B;
-    unsigned int Lb = iceildiv(L, B);
-    unsigned int LX = Lb * B;
+    unsigned int Lb = iceildiv(L, 64);
+    unsigned int LX = Lb * 64;
     unsigned int Db = iceildiv(D, B);
     unsigned int DX = Db * B;
 
     ASSERT_ALWAYS(mp_E.data_entry_size_in_bytes() == mp_E.data_entry_alloc_size_in_bytes());
-    ASSERT_ALWAYS(mp_E.data_entry_size_in_words() == iceildiv(L,B));
+    ASSERT_ALWAYS(mp_E.data_entry_size_in_words() == iceildiv(L, 64) * (64 / ULONG_BITS));
 
     mat64::vector_type E(bb*mb*LX);
     auto E_coeff=[&](unsigned int k) {
@@ -705,7 +705,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     ASSERT_ALWAYS(bX == b);
 
     binary_matpoly_transpose_to_polmat(&E[0],
-            (uint64_t const *) mp_E.data_area(),
+            (unsigned long const *) mp_E.data_area(),
             mX, bX, LX);
 
     mat64::vector_type pi(bb * bb * DX);
@@ -810,7 +810,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
 
     matpoly mp_pi(ab, m+n, m+n, DX);
     binary_polmat_to_matpoly_transpose(
-            (uint64_t *) mp_pi.data_area(),
+            (unsigned long *) mp_pi.data_area(),
             &pi[0],
             bX, bX, DX);
     mp_pi.set_size(pi_len);
