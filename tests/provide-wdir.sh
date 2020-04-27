@@ -74,7 +74,7 @@ while [ $# -gt 0 ] ; do
         esac
         shift
     elif [ "$1" = "--other" ] ; then
-        t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`
+        t=`mktemp -d $TMPDIR/cado-nfs.XXXXXXXXXXXXXX`
         temps+=("$t")
         if [ "$CADO_DEBUG" ] ; then
             echo "debug mode, data will be left in $t (in addition to other temp directories above)"
