@@ -27,6 +27,8 @@
 
 // #cmakedefine HAVE_KNOWN_GMP_RANDOM_BEHAVIOUR
 
+#cmakedefine    HAVE_MMX
+
 #cmakedefine    HAVE_SSE2
 
 #cmakedefine    HAVE_SSE3

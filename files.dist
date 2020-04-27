@@ -1521,3 +1521,5 @@ linalg/bblas/bblas_mat8.cpp
 linalg/bblas/bblas_mat8.hpp
 linalg/bblas/bblas_bitmat_inl.hpp
 linalg/bblas/bblas_mat64.cpp
+config/mmx.c
+config/mmx.cmake
