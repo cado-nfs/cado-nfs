@@ -584,7 +584,7 @@ matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 } /* }}} */
 
-bool generator_found(unsigned int t, bpack_view<mat64> E_t, std::vector<int> & lucky, unsigned int luck_mini)
+bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> & lucky, unsigned int luck_mini)
 {
     unsigned int b = E_t.nrows();
     unsigned int m = E_t.ncols();
@@ -698,7 +698,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
 
     mat64::vector_type E(bb*mb*LX);
     auto E_coeff=[&](unsigned int k) {
-        return bpack_view<mat64>(&E[k*bb*mb], bb, mb);
+        return bpack_view<uint64_t>(&E[k*bb*mb], bb, mb);
     };
 
     ASSERT_ALWAYS(mX == m);
@@ -711,7 +711,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     mat64::vector_type pi(bb * bb * DX);
     std::fill_n(std::begin(pi), pi.size(), 0);
     auto pi_coeff=[&](unsigned int k) {
-        return bpack_view<mat64>(&pi[k*bb*bb], bb, bb);
+        return bpack_view<uint64_t>(&pi[k*bb*bb], bb, bb);
     };
     pi_coeff(0).set(1);
     // std::vector<unsigned int> pi_row_deg(b, 0);
@@ -726,7 +726,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     for( ; t < L ; t++, bm.t++) {
         /* invariant: pi * E_orig = X^t * E */
 
-        bpack_view<mat64> E_t = E_coeff(t);
+        bpack_view<uint64_t> E_t = E_coeff(t);
         
         if (generator_found(bm.t, E_t, lucky, luck_mini))
             break;
@@ -741,15 +741,15 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
             std::swap(lucky[ii], lucky[p[ii]]);
         }
 
-        bpack<mat64> LL(bX, mX);
-        bpack<mat64>::extract_LU(LL.view(), E_t.view());
+        bpack<uint64_t> LL(bX, mX);
+        bpack<uint64_t>::extract_LU(LL.view(), E_t.view());
         LL.invert_lower_triangular();
 
         /* This is really the expensive part */
         for(unsigned int k = 0 ; k < pi_len ; k++)
-            bpack<mat64>::mul_lt_ge(LL.const_view(), pi_coeff(k));
+            bpack<uint64_t>::mul_lt_ge(LL.const_view(), pi_coeff(k));
         for(unsigned int k = t + 1 ; k < L ; k++)
-            bpack<mat64>::mul_lt_ge(LL.const_view(), E_coeff(k));
+            bpack<uint64_t>::mul_lt_ge(LL.const_view(), E_coeff(k));
         
         /* multiply the first p.size() rows by X */
         unsigned int bi0 = p.size() / 64;

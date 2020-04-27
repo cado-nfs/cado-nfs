@@ -215,8 +215,6 @@ template<>
 void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
-    typedef uint64_t T;
-    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -255,7 +253,6 @@ void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned i
 {
     TIMER_PLE(t_propagate_pivot);
     typedef uint64_t T;
-    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
@@ -294,8 +291,6 @@ template<>
 void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
     TIMER_PLE(t_propagate_pivot);
-    typedef uint8_t T;
-    typedef bitmat<T> matrix;
     /* pivot row ii=bi*B+i to all rows below, but only for bits that are
      * right after column jj=bj*B+j.
      *
