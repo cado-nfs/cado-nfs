@@ -76,8 +76,10 @@ unsigned int lingen_file_input::preferred_window() const
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
     nmats_pad *= omp_get_max_threads() * omp_get_max_threads() / 4;
+#if ULONG_BITS != 32
     /* limit to 32GB */
     for( ; ((size_t) nmats_pad) * average_matsize() > (1UL << 35) ; nmats_pad /= 2);
+#endif
 #endif
     return nmats_pad;
 }
@@ -160,8 +162,10 @@ unsigned int lingen_random_input::preferred_window() const
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
     nmats_pad *= omp_get_max_threads() * omp_get_max_threads() / 4;
+#if ULONG_BITS != 32
     /* limit to 32GB */
     for( ; ((size_t) nmats_pad) * average_matsize() > (1UL << 35) ; nmats_pad /= 2);
+#endif
 #endif
     return nmats_pad;
 }
