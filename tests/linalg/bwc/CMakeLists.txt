@@ -87,11 +87,14 @@ if(HAVE_PERL_DIGEST_MD5)
 
     # We have significant difficulties with tuning for the binary case.
     # This test takes absurdly long.
+    # 
+    # 3fd4e3439ad7f76145329bb631c78ccfbf939a90 is the new hash obtained
+    # by the block-based lingen basecase
     if(DEFINED ENV{CHECKS_EXPENSIVE})
         # square2 is too large for this tiny test
         set(lingen_binary_test2_mpi_tests mpi_square1)
         add_lingen_binary_test(test2
-            expect_sha1_F=fefcefb595751b7120d593d6f10f0a5bb5466dfb
+            expect_sha1_F=fefcefb595751b7120d593d6f10f0a5bb5466dfb,3fd4e3439ad7f76145329bb631c78ccfbf939a90
             m=128 n=128 sequence_length=480 seed=1
             tuning_thresholds=recursive:128,notiming:16,collective:128
             )
