@@ -40,9 +40,16 @@ PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), we
      */
     struct prio_cmp {
         std::vector<unsigned int> const & v;
-        prio_cmp(std::vector<unsigned int> const & v) : v(v) {}
+        bool use_row_index;
+        prio_cmp(std::vector<unsigned int> const & v, bool use_row_index)
+            : v(v)
+            , use_row_index(use_row_index)
+        {}
         bool operator()(unsigned int a, unsigned int b) const {
-            return v[a] < v[b];
+            int r;
+            r = (v[b] < v[a]) - (v[a] < v[b]);
+            if (r || !use_row_index) return r < 0;
+            return a < b;
         }
     };
 
@@ -51,7 +58,7 @@ PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), we
     /* First sort all rows by weight */
     for(unsigned int ii = 0 ; ii < d.size() ; ii++)
         prio_to_data.push_back(ii);
-    std::sort(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights));
+    std::sort(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights, true));
     std::vector<unsigned int> sort_again;
     for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
         if (weights[prio_to_data[ii]] == weights[ii]) {
@@ -61,14 +68,14 @@ PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), we
             prio_to_data[ii] = UINT_MAX;
         }
     }
-    std::sort(sort_again.begin(), sort_again.end(), prio_cmp(weights));
+    std::sort(sort_again.begin(), sort_again.end(), prio_cmp(weights, true));
     auto it = sort_again.begin();
     for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
         if (prio_to_data[ii] == UINT_MAX)
             prio_to_data[ii] = *it++;
         data_to_prio[prio_to_data[ii]] = ii;
     }
-    ASSERT_ALWAYS(std::is_sorted(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights)));
+    ASSERT_ALWAYS(std::is_sorted(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights, false)));
 }
 
 template<typename T>

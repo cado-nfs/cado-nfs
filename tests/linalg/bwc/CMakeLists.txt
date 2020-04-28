@@ -75,12 +75,12 @@ if(HAVE_PERL_DIGEST_MD5)
     # the sha1sum 8938... is for the old binary. The newer one gets d0e7...
     # and it seems to be a question of varying normalization.
 
-    # the block-based version gets 3cb7e785dcad43eb9cb1385c43dbbe2555a6207e
+    # the block-based version gets 5917486028cd96a5d0c55c7caef89cc48b70d1b1
 
     # square2 is too large for this tiny test
     set(lingen_binary_test0_mpi_tests mpi_square1)
     add_lingen_binary_test(test0
-        expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379,3cb7e785dcad43eb9cb1385c43dbbe2555a6207e
+        expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379,5917486028cd96a5d0c55c7caef89cc48b70d1b1
         m=64 n=64 sequence_length=480 seed=1
         tuning_thresholds=recursive:16,notiming:16,collective:16
         )
