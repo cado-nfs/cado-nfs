@@ -18,19 +18,19 @@
 void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m, int n) /*{{{*/
 {
     constexpr const unsigned int B = mat64::width;
-    mat64 pm[(n/B)*(n/B)];
-    perm_matrix_get_matrix(pm, p);
+    mat64::vector_type pm((n/B)*(n/B));
+    perm_matrix_get_matrix(&pm[0], p);
 
     perm_matrix qt;
     perm_matrix_init(qt, n);
     perm_matrix_transpose(qt, q);
 
-    mat64 qmt[(n/B)*(n/B)];
-    perm_matrix_get_matrix(qmt, qt);
+    mat64::vector_type qmt((n/B)*(n/B));
+    perm_matrix_get_matrix(&qmt[0], qt);
 
     /* compute p*u*transpose(q) */
-    mat64 pu[(n/B)*(n/B)];
-    std::fill_n(pu, (n/B)*(n/B), 0);
+    mat64::vector_type pu((n/B)*(n/B));
+    std::fill_n(pu.begin(), (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
     for(unsigned int j = 0 ; j < (n/B) ; j++ )
@@ -38,8 +38,8 @@ void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat6
         mat64::addmul(pu[i*(n/B)+j], pm[i*(n/B)+k], u[k*(n/B)+j]);
     }
 
-    mat64 puq[(n/B)*(n/B)];
-    std::fill_n(puq, (n/B)*(n/B), 0);
+    mat64::vector_type puq((n/B)*(n/B));
+    std::fill_n(&puq[0], (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
     for(unsigned int j = 0 ; j < (n/B) ; j++ )
@@ -53,8 +53,8 @@ void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat6
         ASSERT_ALWAYS(puq[i*(n/B)+i].is_uppertriangular());
     }
 
-    mat64 lm[(n/B)*(n/B)];
-    std::fill_n(lm, (n/B)*(n/B), 0);
+    mat64::vector_type lm((n/B)*(n/B));
+    std::fill_n(&lm[0], (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
     for(unsigned int j = 0 ; j < (n/B) ; j++ )
