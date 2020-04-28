@@ -114,6 +114,19 @@
    ...
 }
 {
+   another_one_quite_similar_to_the_previous_leak
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+   ...
+   fun:_ZN11thread_poolC1EmRdm
+   ...
+}
+{
    ok_there_is_an_annoying_error_with_glibc_2_22_which_seems_hard_to_reproduce_but_let_us_write_a_suppression_for_it
    Memcheck:Cond
    fun:index
