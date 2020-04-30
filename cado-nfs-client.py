@@ -1259,6 +1259,7 @@ class WorkunitProcessor(object):
             files["%s%d" % (key, index + 1)] = binfile
 
         for (counter, command) in enumerate(self.workunit.get("COMMAND", [])):
+            command = command.replace("'", "") # 21827
             command = Template(command).safe_substitute(files)
 
             my_stdin_filename = "STDIN%d" % (counter+1)
