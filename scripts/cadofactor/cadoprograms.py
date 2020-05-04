@@ -854,7 +854,7 @@ class Las(Program):
                  factorbase0: Parameter("fb0", is_input_file=True)=None,
                  factorbase1: Parameter("fb1", is_input_file=True)=None,
                  out: Parameter(is_output_file=True)=None,
-                 threads: Parameter("t", checktype=int)=None,
+                 threads: Parameter("t")=None,
                  batch: Toggle()=None,
                  batch0: Parameter("batch0", is_input_file=True)=None,
                  batch1: Parameter("batch1", is_input_file=True)=None,

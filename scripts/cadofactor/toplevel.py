@@ -983,11 +983,15 @@ class Cado_NFS_toplevel(object):
             # for.
             t = self.parameters.get_or_set_default("tasks.threads", 0)
             tp = self.parameters.get_or_set_default("tasks.polyselect.threads", 0)
-            ts = self.parameters.get_or_set_default("tasks.sieve.las.threads", 0)
+            ts = self.parameters.get_or_set_default("tasks.sieve.las.threads")
             if t:
-                ct = max(tp,ts)
-                nrclients=int((t+ct-1)//ct)
-                self.parameters.set_if_unset("slaves.nrclients", nrclients)
+                if isinstance(ts, int):
+                    ct = max(tp,ts)
+                    nrclients=int((t+ct-1)//ct)
+                    self.parameters.set_if_unset("slaves.nrclients", nrclients)
+                else:
+                    self.logger.info("since tasks.sieve.las.threads = %s, we use only 1 client per slave" % ts)
+                    self.parameters.set_if_unset("slaves.nrclients", 1)
             else:
                 self.parameters.set_if_unset("slaves.nrclients", 1)
         self.parameters.set_if_unset("slaves.basepath",
