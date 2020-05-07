@@ -531,6 +531,8 @@ no longer supported by cado-nfs anyway)
 * under AIX, if GMP is compiled in 64-bit mode, you should set the
   environment variable `OBJECT_MODE`, for example:
   export `OBJECT_MODE=64`
+* if you encounter the error "Exceeded maximum number of failed workunits,
+  maxfailed=100", you can restart the factorization with tasks.maxfailed=200
 
 
 Contact, links:

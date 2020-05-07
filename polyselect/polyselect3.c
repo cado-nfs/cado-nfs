@@ -9,10 +9,15 @@
 
 #include "cado.h"
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
-   OpenMP pragma. It should come after cado.h, which sets -Werror=all. */
+   OpenMP pragma. It should come after cado.h, which sets -Werror=all.
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
+ *
+ * unfortunately, while it looks like a reasonable thing to do in theory,
+ * it's gcc specific. We can't expect such a thing to work with other
+ * compilers.
+ */
 #include "utils.h"
 #include "murphyE.h"
 #include "auxiliary.h"
@@ -102,7 +107,9 @@ main (int argc, char *argv[])
       exit (EXIT_FAILURE);
    }
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (int i = 0; i < num; i++)
     {
       cado_poly cpoly;

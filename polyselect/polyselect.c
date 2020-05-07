@@ -16,10 +16,16 @@
 
 #include "cado.h"
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
-   OpenMP pragma. It should come after cado.h, which sets -Werror=all. */
+ * OpenMP pragma. It should come after cado.h, which sets -Werror=all.
+ *
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
+ *
+ * unfortunately, while it looks like a reasonable thing to do in theory,
+ * it's gcc specific. We can't expect such a thing to work with other
+ * compilers.
+ */
 #include <stdio.h>
 #include <limits.h> /* for CHAR_BIT */
 #include "portability.h"
@@ -223,13 +229,17 @@ print_poly_info ( char *buf,
   if (raw_option)
     {
       np += snprintf (buf + np, size - np, "# Raw polynomial:\n");
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
       data_add (raw_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
   else
     {
       snprintf (buf + np, size - np, "# Size-optimized polynomial:\n");
+#ifdef HAVE_OPENMP
 #pragma	omp critical
+#endif
       data_add (opt_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
     }
 
@@ -284,7 +294,9 @@ print_poly_info ( char *buf,
 	  adrange = 2.00e+15 - 99900000000000.0;
 	  prob = time_so_far / (maxtime * n);
 	  double E = eta * pow (-log (1 - prob), 1.0 / beta);
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
 	  data_add (data_best_exp_E, E);
 	  /* since the values of (eta,beta) fluctuate a lot, because
 	     they depend on the random samples in estimate_weibull_moments2,
@@ -358,7 +370,9 @@ output_polynomials (mpz_t *fold, const unsigned long d, mpz_t *gold,
   if (str != NULL)
     print_poly_info (str, length, f, d, g, N, 0, "", 0, idx);
 
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
   {
     if (fold != NULL && gold != NULL)
       if (str_old != NULL)
@@ -383,7 +397,9 @@ sorted_insert_double(double *array, const size_t len, const double value)
   int result = 0;
   if (len == 0)
     return 0;
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
   if (value < array[len - 1]) {
     for (k = len - 1; k > 0 && value < array[k-1]; k--)
       array[k] = array[k-1];
@@ -421,9 +437,13 @@ optimize_raw_poly (mpz_poly F, mpz_t *g)
   st = seconds_thread ();
   size_optimization (F, G, F, G, sopt_effort, verbose);
   st = seconds_thread () - st;
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
   optimize_time += st;
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
   opt_found ++;
 
   /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
@@ -431,7 +451,9 @@ optimize_raw_poly (mpz_poly F, mpz_t *g)
   int d = F->deg;
   if (mpz_sgn (F->coeff[d-1]) * mpz_sgn (F->coeff[d-3]) > 0)
     {
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
       discarded2 ++;
       return 0;
     }
@@ -444,7 +466,9 @@ optimize_raw_poly (mpz_poly F, mpz_t *g)
   sorted_insert_double (best_opt_logmu, keep, logmu);
   sorted_insert_double (best_exp_E, keep, exp_E);
 
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
   {
     collisions_good ++;
     data_add (data_opt_lognorm, logmu);
@@ -636,7 +660,9 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
      discard those polynomials. */
   if (mpz_sgn (f[d]) * mpz_sgn (f[d-2]) > 0)
     {
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
       discarded1 ++;
       goto end;
     }
@@ -651,7 +677,9 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_t m0,
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   logmu = L2_lognorm (F, skew);
 
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
   {
     /* information on all polynomials */
     collisions ++;
@@ -815,7 +843,9 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   logmu = L2_lognorm (F, skew);
 
+#ifdef HAVE_OPENMP
 #pragma	omp critical
+#endif
   {
     /* information on all polynomials */
     collisions ++;
@@ -951,7 +981,9 @@ collision_on_p (header_t header, proots_t R, shash_t H)
 
   mpz_clear (zero);
 
+#ifdef HAVE_OPENMP
 #pragma	omp atomic update
+#endif
   potential_collisions ++;
   return c;
 }
@@ -1157,7 +1189,9 @@ collision_on_each_sq ( header_t header,
   fprintf (stderr, "# hash table coll: %lu, all_coll: %lu\n", H->coll, H->coll_all);
 #endif
 
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
   potential_collisions ++;
 }
 
@@ -1577,7 +1611,9 @@ gmp_collision_on_p ( header_t header, proots_t R )
   free (rp);
   mpz_clear (zero);
 
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
   potential_collisions ++;
   return c;
 }
@@ -1639,7 +1675,9 @@ gmp_collision_on_each_sq ( header_t header,
 
   hash_clear (H);
 
+#ifdef HAVE_OPENMP
 #pragma omp atomic update
+#endif
   potential_collisions ++;
 }
 
@@ -2137,12 +2175,16 @@ main (int argc, char *argv[])
       mpz_clear (t);
     }
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,1)
+#endif
   for (unsigned long idx = 0; idx < idx_max; idx ++)
     {
       newAlgo (N, d, idx);
       if (verbose > 0)
+#ifdef HAVE_OPENMP
 #pragma omp critical
+#endif
         {
           printf ("# thread %d completed ad=%.0f at time=%.2fs\n",
                   omp_get_thread_num (), get_ad_double (idx),
