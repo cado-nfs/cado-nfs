@@ -1,9 +1,17 @@
-#include "cado.h"
-#include "memory.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <memory>                  // for allocator_traits<>::value_type
+
 #include "las-threads.hpp"
-#include "las-info.hpp"
-#include "las-config.h"
-#include "las-auxiliary-data.hpp"
+
+#include "macros.h"                // for ASSERT_ALWAYS
+#include "utils.h"
+
+#include "las-report-stats.hpp"    // for TIMER_CATEGORY
+#include "las-auxiliary-data.hpp"         // for nfs_aux
+#include "tdict.hpp"               // for timetree_t, slot
+class las_memory_accessor;
+
 
 template <typename T>
 void

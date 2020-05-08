@@ -1,12 +1,23 @@
-#include "cado.h"
-#include <cstdio>
-#include <cstdarg>
-#include <gmp.h>
+#include "cado.h" // IWYU pragma: keep
+#include <algorithm>              // for max
+#include <cmath>                  // for isfinite, INFINITY
+#include <memory>                 // for allocator_traits<>::value_type
+#include <utility>                // for pair, make_pair
+#include <vector>                 // for vector
+#include <cstdio>              // IWYU pragma: keep
+#include <cstdarg>             // IWYU pragma: keep
+#include <gmp.h>                  // for mpz_srcptr, gmp_vfprintf, mpz_sizei...
 #include "las-descent.hpp"
-#include "las-globals.hpp"
-#include "las-report-stats.hpp"
+#include "las-descent-trees.hpp"  // for descent_tree::candidate_relation
+#include "las-dlog-base.hpp"      // for las_dlog_base
+#include "las-globals.hpp"        // for general_grace_time_ratio, recursive...
+#include "las-report-stats.hpp"   // for TIMER_CATEGORY
+#include "las-siever-config.hpp"  // for siever_config_pool, siever_config_p...
+#include "las-todo-entry.hpp"     // for las_todo_entry
+#include "las-todo-list.hpp"      // for las_todo_list
+#include "relation.hpp"           // for relation::pr, relation
+#include "utils.h"                // for cxx_mpz, verbose_output_print, verb...
 
-#ifdef  DLP_DESCENT
 /* This returns true only if this descent node is now done, either based
  * on the new relation we have registered, or because the previous
  * relation is better anyway */
@@ -62,9 +73,7 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
 
     return las.tree.new_candidate_relation(contender);
 }/*}}}*/
-#endif /* DLP_DESCENT */
 
-#ifdef  DLP_DESCENT
 void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo_entry const & doing, timetree_t & timer_special_q)/*{{{*/
 {
     SIBLING_TIMER(timer_special_q, "descent");
@@ -131,5 +140,3 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
         todo.push_withdepth(doing.p, doing.r, doing.side, doing.depth + 1, doing.iteration + 1);
     }
 }/*}}}*/
-#endif  /* DLP_DESCENT */
-

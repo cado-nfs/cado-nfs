@@ -1,11 +1,16 @@
 #ifndef LAS_TODO_ENTRY_HPP_
 #define LAS_TODO_ENTRY_HPP_
 
-#include <vector>
-#include <stdint.h>
-#include <gmp.h>
-#include "las-base.hpp"
-#include "cxx_mpz.hpp"
+#include <cstdint>      // for uint64_t
+#include <iosfwd>       // for ostream
+#include <vector>       // for vector
+
+#include <gmp.h>        // for mpz_cmp, mpz_cmp_ui, mpz_mul_ui, mpz_set_ui
+
+#include "macros.h"     // for ASSERT_ALWAYS
+
+#include "utils.h"  // for cxx_mpz
+
 
 struct las_todo_entry {
     cxx_mpz p; /* this is the 'special-q', despite the 'p' name... */

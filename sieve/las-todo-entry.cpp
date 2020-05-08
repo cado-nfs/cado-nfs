@@ -1,7 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <ostream>     // for operator<<, ostream, basic_ostream, basic_ostr...
+
 #include "las-todo-entry.hpp"
-#include "getprime.h"
-#include "gmp_aux.h"
+
+#include "utils.h"
 
 void las_todo_entry::find_prime_factors()
 {

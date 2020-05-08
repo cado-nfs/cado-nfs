@@ -1,7 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include "las-globals.hpp"
-#include "las-output.hpp"
+
 #include "las-config.h"
+#include "las-output.hpp"
 
 
 size_t base_memory = 0;

@@ -1,16 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cerrno>      // for errno
+#include <cstdlib>     // for exit, free, strtoul, EXIT_FAILURE
+#include <cstring>     // for strdup
+#include <cctype>      // for isspace
+#include <cstdint>     // for uint64_t
+#include <cstdio>      // for fprintf, NULL, stderr, fclose, fgets, fopen, FILE
 #include "las-dlog-base.hpp"
-#include "las-info.hpp"
+#include "las-multiobj-globals.hpp"
+#include "macros.h"    // for ASSERT_ALWAYS
+#include "typedefs.h"  // for index_t
+#include "utils.h"     // for cxx_param_list, param_list_decl_usage, verbose...
 
-#include <cstdio>
-#include <stdint.h>     /* cstdint is c++11-only */
-#include <cctype>
-
-
-#include "utils.h"
-
-void las_dlog_base::declare_usage(param_list pl)
+void las_dlog_base::declare_usage(cxx_param_list & pl)
 {
+    if (!dlp_descent) return;
     param_list_decl_usage(pl, "renumber", "renumber table (for the descent)");
     param_list_decl_usage(pl, "log", "log table, as built by reconstructlog");
     /* These belong to las-siever-config of course. But we do a lookup
@@ -20,8 +23,12 @@ void las_dlog_base::declare_usage(param_list pl)
     param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
 }
 
-void las_dlog_base::lookup_parameters(param_list pl)
+las_dlog_base::las_dlog_base(cxx_param_list & pl)
 {
+    if (!dlp_descent) return;
+    renumberfilename = NULL;
+    logfilename = NULL;
+    renumber_init_for_reading(renumber_table);
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "renumber")) != NULL) {
         renumberfilename = strdup(tmp);
@@ -41,25 +48,20 @@ void las_dlog_base::lookup_parameters(param_list pl)
         fprintf(stderr, "In descent mode, want lpb1 for the final descent\n");
         exit(EXIT_FAILURE);
     }
-}
-
-las_dlog_base::las_dlog_base(param_list_ptr pl)
-{
-    renumberfilename = NULL;
-    logfilename = NULL;
-    renumber_init_for_reading(renumber_table);
-    lookup_parameters(pl);
     read();
 }
 
 las_dlog_base::~las_dlog_base()
 {
+    if (!dlp_descent) return;
     renumber_clear (renumber_table);
     free(renumberfilename);
     free(logfilename);
 }
 
-bool las_dlog_base::is_known(int side, uint64_t p, uint64_t r) const {
+bool las_dlog_base::is_known(int side, uint64_t p, uint64_t r) const
+{
+    ASSERT_ALWAYS(dlp_descent);
     // if p is above large prime bound,  its log is not known.
     if (lpb[side] >= 64)
         return false;
@@ -82,6 +84,7 @@ bool las_dlog_base::is_known(int side, uint64_t p, uint64_t r) const {
 
 void las_dlog_base::read()
 {
+    ASSERT_ALWAYS(dlp_descent);
     if (!renumberfilename) {
         verbose_output_print(0, 1, "# Descent: no access to renumber table given, using lpb(%lu/%lu) to decide what are the supposedly known logs\n",
                 lpb[0], lpb[1]);

@@ -1,6 +1,9 @@
 #ifndef BIT_VECTOR_H_
 #define BIT_VECTOR_H_
 
+// IWYU pragma: private, include "utils.h"
+
+#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 

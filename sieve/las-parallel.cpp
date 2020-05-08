@@ -1,13 +1,27 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <hwloc/bitmap.h>
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <regex.h>
-#include <mutex>
-#include "utils.h"
+#include <errno.h>             // for EXDEV, errno
+#include <inttypes.h>          // for PRIu64
+#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
+#include <sstream>      // IWYU pragma: keep
+#include <stdint.h>            // for uint64_t
+#include <stdio.h>             // for fprintf, stderr, size_t, fputs
+#include <stdlib.h>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <strings.h>           // for strcasecmp
+#include <mutex>               // for mutex, lock_guard
+#include <string>              // for string, operator<<, char_traits, opera...
+#include <tuple>               // for tie, get, make_tuple, tuple
+#include <vector>              // for vector, vector<>::iterator
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
+
 #include "las-parallel.hpp"
+
+#include "utils.h"
+
 
 const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
 

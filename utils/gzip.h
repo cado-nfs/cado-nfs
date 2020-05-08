@@ -1,6 +1,8 @@
 #ifndef GZIP_H_
 #define GZIP_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
 #include <libgen.h>
 #include <sys/time.h>

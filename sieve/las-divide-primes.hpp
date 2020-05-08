@@ -1,13 +1,16 @@
 #ifndef LAS_DIVIDE_PRIMES_HPP_
 #define LAS_DIVIDE_PRIMES_HPP_
 
-#include <cstdio>
-#include <cstdint>
-#include <vector>
-#include "cxx_mpz.hpp"
-#include "bucket.hpp"
-#include "trialdiv.hpp"
-#include "fb.hpp"
+#include <algorithm>  // for max
+#include <cstdint>    // for uint64_t, int64_t
+#include <cstdio>     // for FILE
+#include <vector>     // for vector
+#include "fb.hpp"     // for fb_factorbase
+class bucket_array_complete;
+class bucket_primes_t;
+struct cxx_mpz;
+struct trialdiv_data;
+
 
 typedef std::vector<uint64_t> factor_list_t;
 extern void display_bucket_prime_stats();

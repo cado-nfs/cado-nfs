@@ -1,6 +1,8 @@
 #ifndef MPZ_POLY_BIVARIATE_H
 #define MPZ_POLY_BIVARIATE_H 
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>

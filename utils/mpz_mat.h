@@ -1,8 +1,9 @@
 #ifndef MPZ_MAT_H_
 #define MPZ_MAT_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
-#include <stdint.h>
 #include <gmp.h>
 #include "macros.h"
 #include "mpz_poly.h"
@@ -227,6 +228,8 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 #endif
 
 #ifdef __cplusplus
+
+#include <iosfwd>      // for ostream
 
 struct cxx_mpz_mat {
     mpz_mat x;

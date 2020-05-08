@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <list>
 #include <map>
@@ -6,8 +6,9 @@
 // #include <iostream>
 #include <sstream>
 
-#include "las-info.hpp"
 #include "las-descent-trees.hpp"
+
+#include "utils.h"  // for strlcpy
 
 using namespace std;
 

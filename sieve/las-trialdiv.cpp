@@ -1,6 +1,24 @@
-#include "cado.h"
-#include <iterator>
-#include "las-info.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <gmp.h>                       // for mpz_divisible_ui_p, mpz_get_ui
+#include <stddef.h>                    // for NULL, size_t
+#include <algorithm>                   // for is_sorted, min
+#include <array>                       // for array
+#include <iterator>                    // for back_insert_iterator, back_ins...
+#include <map>                         // for map, operator!=, _Rb_tree_iter...
+#include <mutex>                       // for lock_guard, mutex
+#include <utility>                     // for swap, pair
+#include <vector>                      // for vector, vector<>::iterator
+
+#include "trialdiv.hpp"                // for trialdiv_data, trialdiv_data::...
+
+#include "macros.h"                    // for MIN, ASSERT, ASSERT_ALWAYS
+#include "utils.h"
+
+#include "fb-types.h"                  // for fbprime_t
+#include "fb.hpp"                      // for fb_factorbase::key_type, fb_en...
+#include "las-sieve-shared-data.hpp"   // for sieve_shared_data::side_data
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+
 
 template<typename T>
 static unsigned long

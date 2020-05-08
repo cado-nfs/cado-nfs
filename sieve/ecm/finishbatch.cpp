@@ -1,14 +1,24 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* for strcmp() */
-#include <pthread.h>
-#include <sstream>
-#include "portability.h"
-#include "utils.h"
-#include "memusage.h"
-#include "batch.hpp"
+#include "cado.h" // IWYU pragma: keep
 
+#include <inttypes.h>          // for PRIi64, PRIu64
+#include <limits.h>            // for ULONG_MAX
+#include <stdio.h>             // for fprintf, stderr, printf, stdout, NULL
+#include <stdlib.h>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <array>               // for array, array<>::value_type
+#include <cstdint>             // for uint64_t
+#include <list>                // for list
+#include <sstream>             // for operator<<, ostringstream, ostream
+#include <string>              // for basic_string
+#include <vector>              // for vector
+
+#include <gmp.h>               // for gmp_sscanf, mpz_ptr, mpz_srcptr, gmp_p...
+
+#include "macros.h"            // for ASSERT_ALWAYS
+#include "utils.h"
+
+#include "batch.hpp"           // for cofac_candidate, cofac_list, create_ba...
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "relation.hpp"        // for operator<<, relation
 
 static void declare_usage(param_list pl)
 {

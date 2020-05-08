@@ -1,6 +1,8 @@
 #ifndef VERBOSE_H_
 #define VERBOSE_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include "params.h"

@@ -1,31 +1,36 @@
-#include "cado.h"
-#include <string.h>
-#include <limits.h>
-#include <cmath>               /* ceil signbit */
-#include <iomanip>
-#include <pthread.h>
-#include <algorithm>
-#include <stdarg.h> /* Required so that GMP defines gmp_vfprintf() */
-#include <sstream>
+#include "cado.h" // IWYU pragma: keep
 
-#ifdef HAVE_SSE41
-#include <smmintrin.h>
-#elif defined(HAVE_SSSE3)
+#include <cinttypes>              // for PRId64, PRIu32
+#include <climits>                // for UCHAR_MAX
+#include <cstdlib>                // for free, malloc, abs
+#include <cstring>                // for memset, size_t, NULL
+#include <algorithm>              // for min, max
+#include <cmath>                  // for fabs, log2, sqrt, pow, trunc, ceil
+#include <cstdint>                // for int64_t, uint32_t
+#include <cstdarg>             // IWYU pragma: keep
+#include <iomanip>                // for operator<<, setprecision
+#include <list>                   // for _List_const_iterator, list
+#include <sstream>                // IWYU pragma: keep
+#include <utility>                // for swap, pair
+#include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
+
+/*
+ * actually I no longer see _any_ compiler intrinsic in this file...
+#if defined(HAVE_SSSE3)
 #include <tmmintrin.h>
 #elif defined(HAVE_SSE3)
 #include <pmmintrin.h>
 #elif defined(HAVE_SSE2)
 #include <emmintrin.h>
 #endif
+*/
 
-#include "portability.h"
-
-#include "las-config.h"
-#include "las-siever-config.hpp"
-// #include "las-debug.hpp"
 #include "las-norms.hpp"
+#include "fb-types.h"             // for sublat_t
+#include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
+#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
+#include "las-todo-entry.hpp"     // for las_todo_entry
 #include "utils.h"
-#include "verbose.h"
 
 using namespace std;
 

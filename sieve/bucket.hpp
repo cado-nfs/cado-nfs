@@ -23,7 +23,7 @@
 #include "threadpool.hpp"
 #include "las-memory.hpp"
 #include "las-output.hpp"
-#include "las-trace-proxy.hpp"
+#include "las-where-am-i-proxy.hpp"
 
 // #include "electric_alloc.h"
 

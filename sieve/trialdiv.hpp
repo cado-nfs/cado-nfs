@@ -1,10 +1,10 @@
 #ifndef TRIALDIV_HPP_
 #define TRIALDIV_HPP_
 
-#include <gmp.h>
-#include <vector>
-#include <cmath>
-#include "cxx_mpz.hpp"
+#include <cstddef>   // for size_t
+#include <cstdint>   // for uint64_t, SIZE_MAX
+#include <vector>    // for vector
+struct cxx_mpz;
 
 /* The maximum number of words in the numbers to be trial-divided.
    The $l$ value from the thesis text is equal to TRIALDIV_MAXLEN - 1 */

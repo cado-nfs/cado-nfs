@@ -1,31 +1,36 @@
-#include "cado.h"
-#include <cstdlib>
-#include <cstdio>
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
-#include <cctype>
-#include <gmp.h>
-#include <pthread.h>
-#include <streambuf>
-#include <istream>
-#include <iomanip>
+#include "cado.h" // IWYU pragma: keep
+
+#include <errno.h>         // for errno
+#include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
+#include <limits.h>        // for ULONG_MAX
+#include <stdint.h>        // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
+#include <string.h>        // for strchr, strerror, strlen
+#include <algorithm>       // for max, lower_bound, sort, is_sorted
+#include <cctype>          // for isspace
+#include <cmath>           // for fabs, floor, log2, pow, trunc
+#include <cstdlib>         // for exit, EXIT_FAILURE
+#include <iomanip>         // for operator<<, setprecision
+#include <istream>         // for operator<<, basic_ostream, ostringstream
+#include <memory>          // for allocator_traits<>::value_type
+#include <queue>           // for priority_queue
+#include <stdexcept>       // for runtime_error
+#include <string>          // for basic_string, string
+#include <type_traits>     // for is_same
 #ifdef HAVE_GLIBC_VECTOR_INTERNALS
 /* need all that for mmap() stuff */
-#include <sys/types.h>
+// #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+// #include <sys/mman.h>
 #include <unistd.h>
 #endif
+
 #include "fb.hpp"
-#include "mod_ul.h"
-#include "verbose.h"
-#include "getprime.h"
-#include "gmp_aux.h"
-#include "gzip.h"
-#include "threadpool.hpp"
-#include "misc.h"
+#include "las-fbroot-qlattice.hpp"     // for fb_root_in_qlattice
+#include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
+#include "ularith.h"       // for ularith_invmod
+#include "utils.h"
+struct qlattice_basis;
 
 /* {{{ fb_log fb_pow and friends */
 /* Returns floor(log_2(n)) for n > 0, and 0 for n == 0 */
@@ -146,6 +151,14 @@ fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
   proj = fb_linear_root (r, poly, q);
 }
 
+
+void fb_general_root::transform(fb_general_root &result, const fbprime_t q,
+        const redc_invp_t invq,
+        const qlattice_basis &basis) const {
+    unsigned long long t = to_old_format(q);
+    t = fb_root_in_qlattice(q, t, invq, basis);
+    result = fb_general_root(t, q, exp, oldexp);
+}
 
 /* Allow assignment-construction of general entries from simple entries */
 template <int Nr_roots>

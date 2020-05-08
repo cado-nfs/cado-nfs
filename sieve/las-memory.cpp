@@ -1,32 +1,22 @@
-#include "cado.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <limits.h>
-#include "misc.h"
+#include "cado.h" // IWYU pragma: keep
 
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
 #endif
-
+#include <errno.h>                        // for EAGAIN
+#include <stdio.h>                        // for perror
 #ifdef HAVE_SYS_MMAN_H
+// IWYU pragma: no_include <bits/mman-map-flags-generic.h>
 #include <sys/mman.h>
 #endif
+#include <mutex>                          // for lock_guard, mutex
 
-#include "portability.h"
+#include "las-memory.hpp"
+#include "utils.h"
 
 #ifndef LARGE_PAGE_SIZE
 #define LARGE_PAGE_SIZE (2UL*1024*1024)
 #endif
-
-#include "utils.h"
-#include "las-memory.hpp"
-
-// memory.h provides some back-ends that we use here.
-#include "memory.h"
 
 const size_t small_size_cutoff = 4096;
 

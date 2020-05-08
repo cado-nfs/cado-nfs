@@ -1,6 +1,8 @@
 #ifndef CRC_H_
 #define CRC_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdint.h>
 
 struct cado_crc_lfsr_s {

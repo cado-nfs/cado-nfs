@@ -1,6 +1,8 @@
 #ifndef FIX_ENDIANNESS_H_
 #define FIX_ENDIANNESS_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

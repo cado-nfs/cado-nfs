@@ -1,7 +1,9 @@
 #ifndef LAS_GLOBALS_HPP_
 #define LAS_GLOBALS_HPP_
 
+#include <cstddef>
 #include <mutex>
+
 #include "las-output.hpp"
 
 /* these are influenced by las's command line parameters, for example.

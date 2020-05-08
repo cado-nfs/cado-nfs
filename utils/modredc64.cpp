@@ -121,9 +121,6 @@ Modulus::inv (Residue &r, const Residue &A) const
 }
 
 
-// #undef ASSERT_EXPENSIVE
-// #define ASSERT_EXPENSIVE ASSERT
-
 /* same as inv, but for classical representation (not Montgomery).
    FIXME: should the operands be Integer type? */
 bool

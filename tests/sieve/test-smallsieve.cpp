@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -13,7 +13,7 @@
 #include <x86intrin.h>
 #include "utils.h"
 #include "macros.h"
-#include "las-debug.hpp"
+#include "las-where-am-i.hpp"
 
 #define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
 

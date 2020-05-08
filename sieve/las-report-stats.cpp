@@ -1,7 +1,9 @@
-#include "cado.h"
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
+
 #include "las-report-stats.hpp"
-#include "verbose.h"
+
+#include "utils.h"  // for verbose_output_print
+
 
 /* declared in las.cpp */
 extern int trialdiv_first_side;

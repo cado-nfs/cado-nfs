@@ -1,6 +1,8 @@
 #ifndef STATS_H_
 #define STATS_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #define MIN_LOG_REPORT 10
 
 struct stats_struct_s {

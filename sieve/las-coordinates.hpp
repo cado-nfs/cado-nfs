@@ -1,8 +1,10 @@
 #ifndef LAS_COORDINATES_HPP_
 #define LAS_COORDINATES_HPP_
 
-#include <cstdint>
-#include "las-info.hpp"
+#include <gmp.h>             // for mpz_mul_si, mpz_ptr, mpz_clear, mpz_t
+#include <cstdint>       // for uint64_t, int64_t
+#include "fb-types.h"    // for sublat_t
+#include "las-config.h"  // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"
 
 /*  Forward declarations of conversion functions */
@@ -33,7 +35,9 @@ static inline void NxToAB(int64_t & a, uint64_t & b, const unsigned int N, const
     xToAB(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
 }
 
-#ifdef SUPPORT_LARGE_Q
+// this is only used with SUPPORT_LARGE_Q, obviously, but having them
+// doesn't hurt
+// #ifdef SUPPORT_LARGE_Q
 /* Warning: b might be negative, in which case we return (-a,-b) */
 static inline void xToABmpz(mpz_ptr a, mpz_ptr b,
         const uint64_t x,
@@ -73,6 +77,6 @@ static inline void NxToABmpz(mpz_ptr a, mpz_ptr b,
 {
     xToABmpz(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
 }
-#endif
+// #endif
 
 #endif	/* LAS_COORDINATES_HPP_ */

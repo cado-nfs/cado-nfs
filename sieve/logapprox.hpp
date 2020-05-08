@@ -1,7 +1,7 @@
-#include <vector>
-#include <math.h>
-#include <list>
-#include "double_poly.h"
+#include <list>     // for list
+#include <utility>  // for pair
+#include <vector>   // for vector
+#include "utils.h"  // for cxx_double_poly
 
 struct piecewise_linear_function {
     std::list<double> endpoints;

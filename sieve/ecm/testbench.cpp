@@ -34,22 +34,29 @@ To test the mpz arithmetic on a 64-bit processor:
 
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <limits.h>
-#include <gmp.h>
-#include "facul.hpp"
-#include "pm1.h"
-#include "pp1.h"
-#include "facul_ecm.h"
-#include "modredc_ul.h"
-#include "modredc_ul_default.h"
-#include "getprime.h"
-#include "timing.h"
-#include "portability.h"
+#include <limits.h>              // for ULONG_MAX
+#include <stdio.h>               // for printf, NULL, fprintf, stderr, fclose
+#include <stdlib.h>              // for strtoul, malloc, exit, free, strtol
+#include <string.h>              // for strcmp, strncmp
+#include <memory>                // for allocator_traits<>::value_type
+#include <vector>                // for vector
+
+#include <gmp.h>                 // for gmp_printf, mpz_srcptr, mpz_get_ui
+
+#include "macros.h"              // for ASSERT
+#include "utils.h"
+
+#include "facul.hpp"             // for facul_strategy_t, facul, facul_clear...
+#include "facul_ecm.h"           // for ec_parameter_is_valid, BRENT12, ec_p...
+#include "facul_fwd.hpp"         // for facul_method_t
+#include "modredc_ul.h"          // for modredcul_clearmod, modredcul_initmo...
+#include "modredc_ul_default.h"  // for modulus_t
+#include "pm1.h"                 // for pm1_make_plan, pm1_plan_t
+#include "pp1.h"                 // for pp1_make_plan, pp1_plan_t
 
 #define MAX_METHODS 20
 

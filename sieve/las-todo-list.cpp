@@ -1,9 +1,18 @@
-#include "cado.h"
-#include <stdarg.h>
-#include <gmp.h>
-#include "las-info.hpp"
-#include "las-galois.hpp"
-#include "cxx_mpz.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cctype>          // for isspace, isdigit
+#include <cerrno>          // for errno
+#include <climits>         // for UINT_MAX
+#include <cstdlib>         // for exit, EXIT_FAILURE, strtoul
+#include <cstring>         // for strerror
+#include <cstdarg>         // IWYU pragma: keep
+#include <algorithm>       // for find, min
+#include <memory>          // for allocator_traits<>::value_type
+#include <vector>          // for vector, vector<>::iterator
+#include <gmp.h>           // for mpz_set, mpz_cmp_ui, mpz_t, mpz_cmp, gmp_r...
+#include "las-todo-list.hpp"
+#include "las-galois.hpp"  // for skip_galois_roots
+#include "macros.h"        // for ASSERT_ALWAYS
 
 /* Put in r the smallest legitimate special-q value that it at least
  * s + diff (note that if s+diff is already legitimate, then r = s+diff

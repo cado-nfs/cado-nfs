@@ -1,11 +1,12 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* for strcmp() */
-#include <pthread.h>
-#include "portability.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <limits.h>     // for ULONG_MAX
+#include <stdio.h>      // for fprintf, stderr, NULL, fclose, fopen, stdout
+#include <stdlib.h>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
+
 #include "utils.h"
-#include "batch.hpp"
+
+#include "batch.hpp"    // for create_batch_file
 
 
 static void declare_usage(param_list pl)

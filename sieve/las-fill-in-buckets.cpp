@@ -4,32 +4,46 @@
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include "fb.hpp"
-#include "utils.h"           /* lots of stuff */
-#include "bucket.hpp"
-#include "modredc_ul.h"
-#include "modredc_2ul2.h"
-#include "threadpool.hpp"
-#include "las-config.h"
-#include "las-info.hpp"
-#include "las-coordinates.hpp"
-#include "las-debug.hpp"
-#include "las-arith.hpp"
-#include "las-qlattice.hpp"
-#include "las-fill-in-buckets.hpp"
-#include "las-norms.hpp"
-#include "las-smallsieve.hpp"
-#include "las-plattice.hpp"
-#include "las-threads.hpp"
-#include "las-process-bucket-region.hpp"
-#include "bucket-push-update.hpp"
+#include <stddef.h>                       // for size_t, NULL
+#include <stdint.h>                       // for uint32_t, uint64_t
+#include <xmmintrin.h>                    // for _MM_HINT_T0, _mm_prefetch
+#include <algorithm>                      // for max_element, min
+#include <array>                          // for array
+#include <limits>                         // for numeric_limits
+#include <memory>                         // for shared_ptr, allocator, __sh...
+#include <utility>                        // for move
+#include <vector>                         // for vector, vector<>::iterator
 
+#include "macros.h"                       // for CADO_CONCATENATE, ASSERT_AL...
+#include "utils.h"
+
+#include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
+
+#include "bucket-push-update.hpp"         // for bucket_array_t::push_update
+#include "bucket.hpp"                     // for longhint_t (ptr only), buck...
 #ifdef USE_CACHEBUFFER
 #include "cachebuf.h"
 #endif
+#include "fb-types.h"                     // for sublat_t, slice_offset_t
+#include "fb.hpp"                         // for fb_slice, fb_factorbase
+#include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data
+#include "las-bkmult.hpp"                 // for buckets_are_full
+#include "las-config.h"                   // for FB_MAX_PARTS, BUCKET_REGIONS
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-plattice.hpp"               // for plattice_info_t, plattice_e...
+#include "las-process-bucket-region.hpp"  // for process_many_bucket_regions
+#include "las-qlattice.hpp"               // for qlattice_basis
+#include "las-report-stats.hpp"           // for TIMER_CATEGORY
+#include "las-siever-config.hpp"          // for siever_config, siever_confi...
+#include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
+#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
+#include "las-where-am-i-proxy.hpp"            // for where_am_I
+#include "multityped_array.hpp"           // for multityped_array (ptr only)
+#include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
+#include "threadpool.hpp"                 // for thread_pool, worker_thread
 
 /* is this in the std library or not ? */
 template<typename T> static inline T const& const_ref(T& x) { return x; }

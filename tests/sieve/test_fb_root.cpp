@@ -4,6 +4,7 @@
 #include "macros.h"
 #include "gmp.h"
 #include "las-qlattice.hpp"
+#include "las-fbroot-qlattice.hpp"
 #include <vector>
 
 /* return (R*b1-a1)/(a0-R*b0) % p */

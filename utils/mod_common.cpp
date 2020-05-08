@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "u64arith.h"
 
 /* Some methods that are implemented entirely via existing class methods,

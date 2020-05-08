@@ -7,18 +7,33 @@
    cofactors have been detected, instead of using another remainder tree
    approach to factor them, we factor them naively. */
 
-#include "cado.h"
-#include <stdio.h>
-#include <math.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
+#include <cmath>               // for ceil, pow, log2
+#include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
+#include <cstdlib>             // for free, malloc, exit, abort, realloc
+
+#include <iterator>            // for begin, end
+#include <list>                // for list, operator!=, _List_iterator, list...
+#include <memory>              // for allocator_traits<>::value_type
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
-#include <vector>
-#include <list>
-#include <sstream>
-#include "batch.hpp"
-#include "modset.hpp"
-#include "utils.h"
+#include <sstream>             // for operator<<, ostringstream, basic_ostream
+#include <string>              // for basic_string
+#include <type_traits>         // for remove_reference<>::type
+#include <vector>              // for vector
+
+#include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
+
+#include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
+#include "facul_doit.hpp"      // for facul_doit_onefm
+#include "facul_fwd.hpp"       // for facul_method_t
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "modset.hpp"          // for FaculModulusBase
+#include "relation.hpp"        // for relation
+#include "utils.h"             // for getprime_mt, prime_info_clear, prime_i...
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their

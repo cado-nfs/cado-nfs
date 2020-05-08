@@ -1,37 +1,47 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#ifndef TRACE_K
+#error "This file *must* be compiled with TRACE_K defined"
+#define TRACE_K 1
+#endif
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <climits>
-#include <cinttypes>
-#include <cstring>
-#include <cstdarg>
-#include <array>
-#include <memory>
-
-#include "las-config.h"
-#include "cxx_mpz.hpp"
-#include "las-info.hpp"
-#include "las-debug.hpp"
-#include "las-trace-proxy.hpp"
-#include "las-coordinates.hpp"
-#include "las-threads-work-data.hpp"    /* trace_per_sq_init needs this */
-#include "portability.h"
-
-using namespace std;
-#if defined(__GLIBC__)
-#include <execinfo.h>   /* For backtrace. Since glibc 2.1 */
-#include <signal.h>     /* we use it only with glibc */
-#endif
+#include <array>                         // for array, array<>::value_type
+#include <cinttypes>                     // for PRId64, PRIu64, SCNd64, SCNu64
+#include <climits>                       // for UINT_MAX
+#include <cstdio>                       // for fprintf, sscanf, stderr
+#include <cstdlib>                      // for exit, EXIT_FAILURE
+#include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
+#include <memory>                        // for unique_ptr, operator!=
+#include <string>                        // for string
 #ifdef HAVE_CXXABI_H
 /* We use that to demangle C++ names */
-#include <cxxabi.h>
+#include <cxxabi.h> // IWYU pragma: keep
 #endif
+#ifdef HAVE_GLIBC
+#include <execinfo.h>                    // for backtrace, backtrace_symbols
+#endif
+
+#include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
+
+#include "las-where-am-i.hpp"
+#include "las-where-am-i-debug.hpp"
+
+#include "las-config.h"                  // for LOG_BUCKET_REGION
+#include "las-coordinates.hpp"           // for IJToAB, IJToNx, ABToIJ, NxToIJ
+#include "las-norms.hpp"                 // for lognorm_smart
+#include "las-qlattice.hpp"              // for qlattice_basis
+#include "las-siever-config.hpp"         // for siever_config
+#include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
+#include "las-where-am-i-proxy.hpp"           // for where_am_I, where_am_I::pimpl_t
+#include "macros.h"                      // for ASSERT_ALWAYS
+#include "utils.h"
 
 int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
     return trace_on_spot_ab(a, b);
@@ -47,39 +57,12 @@ where_am_I & where_am_I::operator=(where_am_I const & x) {
     return *this;
 }
 
-
-#if defined(__GLIBC__)
-static void signal_handling (int signum)/*{{{*/
+void where_am_I::decl_usage(cxx_param_list & pl)
 {
-   fprintf (stderr, "*** Error: caught signal \"%s\"\n", strsignal (signum));
-
-   int sz = 100, i;
-   void *buffer [sz];
-   char** text;
-
-   sz = backtrace (buffer, sz);
-   text = backtrace_symbols (buffer, sz);
-
-   fprintf(stderr, "======= Backtrace: =========\n");
-   for (i = 0; i < sz; i++)
-       fprintf (stderr, "%s\n", text [i]);
-
-   signal (signum, SIG_DFL);
-   raise (signum);
-}/*}}}*/
-#endif
-
-void las_install_sighandlers()
-{
-#ifdef __GLIBC__
-    signal (SIGABRT, signal_handling);
-    signal (SIGSEGV, signal_handling);
-#else
-    verbose_output_print(0, 0, "# Cannot catch signals, lack glibc support\n");
-#endif
+    param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
+    param_list_decl_usage(pl, "traceij", "Relation to trace, in i,j format");
+    param_list_decl_usage(pl, "traceNx", "Relation to trace, in N,x format");
 }
-
-
 
 /* The trivial calls for when TRACE_K is *not* defined are inlines in
  * las-debug.h */
@@ -102,7 +85,7 @@ int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
 /* two norms of the traced (a,b) pair */
 std::array<cxx_mpz, 2> traced_norms;
 
-void init_trace_k(cxx_param_list & pl)
+void where_am_I::interpret_parameters(cxx_param_list & pl)
 {
     struct trace_ab_t ab;
     struct trace_ij_t ij;
@@ -149,20 +132,12 @@ void init_trace_k(cxx_param_list & pl)
 /* This fills all the trace_* structures from the main one. The main
  * structure is the one for which a non-NULL pointer is passed.
  */
-void trace_per_sq_init(nfs_work const & ws)
+void where_am_I::begin_special_q(nfs_work const & ws)
 {
     int logI = ws.conf.logI;
     unsigned int J = ws.J;
     qlattice_basis const & Q(ws.Q);
 
-#ifndef TRACE_K
-    if (pl_Nx || pl_ab || pl_ij) {
-        fprintf (stderr, "Error, relation tracing requested but this siever "
-                 "was compiled without TRACE_K.\n");
-        exit(EXIT_FAILURE);
-    }
-    return;
-#endif
     /* At most one of the three coordinates must be specified */
     ASSERT_ALWAYS((pl_Nx != NULL) + (pl_ab != NULL) + (pl_ij != NULL) <= 1);
 
@@ -226,7 +201,6 @@ void trace_per_sq_init(nfs_work const & ws)
     }
 }
 
-#ifdef TRACE_K
 int test_divisible(where_am_I const & w)
 {
     /* we only check divisibility for the given (N,x) value */
@@ -264,7 +238,8 @@ int test_divisible(where_am_I const & w)
 
 /* {{{ helper: sieve_increase */
 
-static string remove_trailing_address_suffix(string const& a, string& suffix)
+#if defined(HAVE_CXXABI_H) && defined(HAVE_GLIBC)
+static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t pos = a.find('+');
     if (pos == a.npos) {
@@ -275,24 +250,25 @@ static string remove_trailing_address_suffix(string const& a, string& suffix)
     return a.substr(0, pos);
 }
 
-static string get_parenthesized_arg(string const& a, string& prefix, string& suffix)
+static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
     size_t pos = a.find('(');
     if (pos == a.npos) {
         prefix=a;
         suffix.clear();
-        return string();
+        return std::string();
     }
     size_t pos2 = a.find(')', pos + 1);
     if (pos2 == a.npos) {
         prefix=a;
         suffix.clear();
-        return string();
+        return std::string();
     }
     prefix = a.substr(0, pos);
     suffix = a.substr(pos2 + 1);
     return a.substr(pos+1, pos2-pos-1);
 }
+#endif
 
 /* Do this so that the _real_ caller is always 2 floors up. Must *NOT* be
  * a static function, for this very reason ! */
@@ -303,9 +279,9 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
 
     ASSERT_ALWAYS(test_divisible(w));
 
-    string caller;
+    std::string caller;
 
-#ifdef __GLIBC__
+#ifdef HAVE_GLIBC
     {
         void * callers_addresses[3];
         char ** callers = NULL;
@@ -315,7 +291,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
         free(callers);
     }
 
-    string xx,yy,zz;
+    std::string xx,yy,zz;
     yy = get_parenthesized_arg(caller, xx, zz);
     if (!yy.empty()) caller = yy;
 
@@ -323,7 +299,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
         caller="<no symbol (static?)>";
     } else {
 #ifdef HAVE_CXXABI_H
-        string address_suffix;
+        std::string address_suffix;
         caller = remove_trailing_address_suffix(caller, address_suffix);
         int demangle_status;
         {
@@ -374,7 +350,6 @@ void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const
     *S += logp;
 }
 
-#endif  /* TRACE_K */
 
 /* This function is useful both with and without TRACE_K, as the flag
  * controlling it is CHECK_UNDERFLOW

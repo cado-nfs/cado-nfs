@@ -1,6 +1,8 @@
 #ifndef DOUBLE_POLY_H_
 #define DOUBLE_POLY_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
 #include <limits.h>
 

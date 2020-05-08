@@ -1,6 +1,16 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <limits.h>        // for LONG_BIT
+#include <stdlib.h>        // for abort, size_t
+
 #include "modset.hpp"
-#include "facul_doit.hpp"
+
+#include "macros.h"        // for ASSERT_ALWAYS
+
+#include "facul.hpp"       // for facul_strategy_t
+#include "facul_doit.hpp"  // for facul_doit, facul_doit_onefm
+struct cxx_mpz;
+
 
 /* This should be overloaded, but all the mod_int types are passed as
  * pointers to unsigned long, so they are indistinguishable in the

@@ -1,14 +1,16 @@
 #ifndef MODSET_HPP_
 #define MODSET_HPP_
 
-#include <vector>
-#include "cxx_mpz.hpp"
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "mod_mpz.h"
-#include "facul_fwd.hpp"
+#include <vector>          // for vector
+#include <gmp.h>           // for mpz_t
 
+#include "facul.hpp"       // for facul_strategy_t
+#include "facul_fwd.hpp"   // for facul_method_t
+#include "mod_mpz.h"       // for modmpz_clearmod, modmpz_initmod_int, modmp...
+#include "modredc_15ul.h"  // for modredc15ul_clearmod, modredc15ul_initmod_int
+#include "modredc_2ul2.h"  // for modredc2ul2_clearmod, modredc2ul2_initmod_int
+#include "modredc_ul.h"    // for modredcul_clearmod, modredcul_initmod_int
+struct cxx_mpz;
 
 class FaculModulusBase {
 public:

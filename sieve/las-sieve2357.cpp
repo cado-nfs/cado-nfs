@@ -1,11 +1,24 @@
-#include "cado.h"
-#include <cstddef>
-#include <cstdint>
+#include "cado.h" // IWYU pragma: keep
 
-#include "ularith.h"
-#include "cado-endian.h"
+#include <stdlib.h>        // for abort
+#include <cstddef>         // for size_t
+#include <cstdint>         // for uint8_t, uint32_t, uint64_t
+#ifdef HAVE_SSSE3
+#include <emmintrin.h>
+#include <tmmintrin.h>  // IWYU pragma: keep
+#endif
+#ifdef HAVE_AVX2
+#include <immintrin.h>
+#endif
+#ifdef HAVE_ARM_NEON
+#include <arm_neon.h>
+#endif
+
+#include "intrinsics.hpp"  // for adds, andnot, loadu, set1, _and, set0
+#include "macros.h"        // for ATTRIBUTE, ATTRIBUTE_ARTIFICIAL, ASSERT
+#include "ularith.h"       // for ularith_submod_ul_ul
+
 #include "las-sieve2357.hpp"
-#include "intrinsics.hpp"
 
 /* Specialize adds() for use in sieve2357, assuming that sieving very small
    primes does not overflow an element */

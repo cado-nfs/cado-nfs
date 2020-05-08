@@ -1,0 +1,47 @@
+#include "cado.h" // IWYU pragma: keep
+
+#ifdef TRACE_K
+#error "This file *must not* be compiled with TRACE_K defined"
+#undef TRACE_K
+#endif
+
+#include <cstdint>                    // for int64_t, uint64_t
+#include <memory>                     // for unique_ptr
+#include "las-where-am-i-proxy.hpp"   // for where_am_I, where_am_I::pimpl_t
+#include "las-where-am-i.hpp"         // for where_am_I::impl
+struct cxx_param_list;
+class nfs_work;
+
+
+int extern_trace_on_spot_ab(int64_t, uint64_t) {
+    return 0;
+}
+
+
+where_am_I::where_am_I() : pimpl{ new impl{} } { }
+where_am_I::~where_am_I() = default;
+where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) {
+}
+where_am_I & where_am_I::operator=(where_am_I const & x) {
+    *pimpl = *x.pimpl;
+    return *this;
+}
+
+
+void where_am_I::decl_usage(cxx_param_list &)
+{
+}
+
+void where_am_I::interpret_parameters(cxx_param_list &)
+{
+}
+
+/* This fills all the trace_* structures from the main one. The main
+ * structure is the one for which a non-NULL pointer is passed.
+ */
+void where_am_I::begin_special_q(nfs_work const &)
+{
+    return;
+}
+
+/* }}} */

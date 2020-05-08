@@ -1,14 +1,21 @@
-#include "cado.h"
-#include <pthread.h>
-#include <vector>
-#include <utility>
+#include "cado.h" // IWYU pragma: keep
 
-#include "utils.h"
+#include <inttypes.h>      // for PRIu32
+#include <stdlib.h>        // for exit, EXIT_FAILURE
+#include <algorithm>       // for max
+#include <cstdint>         // for uint32_t
+#include <memory>          // for allocator_traits<>::value_type
+#include <vector>          // for vector
+
 #include "las-cofactor.hpp"
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "las-info.hpp"
+
+#include "macros.h"        // for ASSERT_ALWAYS, ASSERT
+
+#include "ecm/facul.hpp"       // for FACUL_SMOOTH, facul_both, FACUL_MAYBE, FAC...
+#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
+#include "modredc_15ul.h"  // for modredc15ul_clearmod, modredc15ul_initmod_int
+#include "modredc_2ul2.h"  // for modredc2ul2_clearmod, modredc2ul2_initmod_int
+#include "modredc_ul.h"    // for modredcul_clearmod, modredcul_initmod_ul
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 {

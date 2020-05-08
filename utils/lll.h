@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_LLL_H_
 #define CADO_UTILS_LLL_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <gmp.h>
 
 #ifdef __cplusplus

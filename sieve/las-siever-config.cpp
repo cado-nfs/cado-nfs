@@ -1,12 +1,20 @@
-#include "cado.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <gmp.h>
-#include <cctype>
-#include <cerrno>
-#include <sstream>
+#include "cado.h" // IWYU pragma: keep
+
+#include <limits.h>            // for ULONG_MAX
+#include <stdio.h>             // for fprintf, stderr, fclose, fgets, fopen
+#include <stdlib.h>            // for exit, strtoul, strtod, EXIT_FAILURE
+#include <cctype>              // for isspace, isdigit
+#include <cerrno>              // for errno
+
+#include <gmp.h>               // for mpz_sizeinbase
+
 #include "las-siever-config.hpp"
-#include "verbose.h"
+
+#include "fb-types.h"          // for fbprime_t
+#include "las-multiobj-globals.hpp"     // for dlp_descent
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "macros.h"            // for ASSERT_ALWAYS, MAYBE_UNUSED
+#include "utils.h"
 
 /* siever_config stuff */
 
@@ -249,9 +257,8 @@ void
 siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "hint-table", "filename with per-special q sieving data");
-#ifdef  DLP_DESCENT
-    param_list_decl_usage(pl, "descent-hint-table", "Alias to hint-table");
-#endif
+    if (dlp_descent)
+        param_list_decl_usage(pl, "descent-hint-table", "Alias to hint-table");
 }
 /*}}}*/
 
@@ -264,20 +271,20 @@ siever_config_pool::siever_config_pool(cxx_param_list & pl)/*{{{*/
     /* support both, since we've got to realize it's not that much
      * attached to sieving. */
     const char * filename = param_list_lookup_string(pl, "hint-table");
-#if DLP_DESCENT
-    const char * filename2 = param_list_lookup_string(pl, "descent-hint-table");
-    if (!filename) {
-        filename = filename2;
-    }
-    if (!filename) {
-        if (!default_config_ptr) {
-            fprintf(stderr,
-                    "Error: no default config set, and no hint table either\n");
-            exit(EXIT_FAILURE);
+    if (dlp_descent) {
+        const char * filename2 = param_list_lookup_string(pl, "descent-hint-table");
+        if (!filename) {
+            filename = filename2;
         }
-        return;
+        if (!filename) {
+            if (!default_config_ptr) {
+                fprintf(stderr,
+                        "Error: no default config set, and no hint table either\n");
+                exit(EXIT_FAILURE);
+            }
+            return;
+        }
     }
-#endif
     if (!filename) return;
 
     char line[1024];

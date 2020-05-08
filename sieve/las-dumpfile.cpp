@@ -1,6 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstdlib>             // for free
+#include <gmp.h>               // for mpz_srcptr, gmp_asprintf
 
 #include "las-dumpfile.hpp"
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "macros.h"
+#include "utils.h"
 
 dumpfile_t::~dumpfile_t() {
     if (f) fclose(f);

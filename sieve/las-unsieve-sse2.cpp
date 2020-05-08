@@ -1,24 +1,30 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
 #ifdef HAVE_SSE2
 
-#include <cstdlib>
-#include <cstring>
+#include <algorithm>        // for max
+#include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
+#include <math.h>           // for abs
+#include <cstdint>          // for uint32_t
+#include <cstdlib>          // for size_t, abs
+#include <vector>           // for vector
 
-#include "las-info.hpp"
-#include "las-unsieve.hpp"
-#include "ularith.h"
-#include "las-norms.hpp"
-#include "las-debug.hpp"
-#include "gcd.h"
-#include "memory.h"
+#ifdef TRACE_K
+#include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-output.hpp"   // IWYU pragma: keep
+#endif
+
+#include "las-unsieve.hpp"  // for extract_j_div, j_divisibility_helper, sea...
+#include "macros.h"         // for ASSERT_ALWAYS, MAYBE_UNUSED, no_break
+#include "utils.h"
+#include "ularith.h"        // for ularith_ctz
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
 static const __m128i sign_conversion = _mm_set1_epi8(-128);

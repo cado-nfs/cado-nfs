@@ -1,6 +1,8 @@
 #ifndef MODUL_POLY_H_
 #define MODUL_POLY_H_
 
+// IWYU pragma: private, include "utils.h"
+
 /* This file provides polynomial arithmetic using the mod_ul layer.
  * mod_ul is rather tightly bound to providing arithmetic on unsigned
  * longs (hence the name), so on first approximation, we're also

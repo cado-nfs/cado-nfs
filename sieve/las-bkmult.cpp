@@ -1,7 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstddef>
 #include <sstream>
 
 #include "las-bkmult.hpp"
+
 #include "macros.h"
 
 buckets_are_full::buckets_are_full(bkmult_specifier::key_type const& key, int b, int r, int t) : key(key), bucket_number(b), reached_size(r), theoretical_max_size(t) {
@@ -9,6 +12,11 @@ buckets_are_full::buckets_are_full(bkmult_specifier::key_type const& key, int b,
     os << "Fullest level-"<<bkmult_specifier::printkey(key)<<" bucket #"<<b<<", wrote "<<reached_size<<"/"<<theoretical_max_size<<"";
     message = os.str();
 }
+
+/* provide these here in order to avoid emitting this code for all users.
+ */
+buckets_are_full::~buckets_are_full() = default;
+buckets_are_full::buckets_are_full(buckets_are_full const &) = default;
 
 bkmult_specifier::bkmult_specifier(const char * specifier)
 {

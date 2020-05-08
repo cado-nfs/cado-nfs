@@ -3,7 +3,7 @@
 # The following is needed for some SSE stuff
 # set (CMAKE_C_FLAGS   "-flax-vector-conversions ${CMAKE_C_FLAGS}")
 
-include_directories (. ecm)
+include_directories (.)
 #include_directories (${CMAKE_CURRENT_BINARY_DIR})
 link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
 
@@ -17,11 +17,16 @@ set (las_sources
     las-arith.cpp
     las-bkmult.cpp
     las-descent.cpp
+    las-cofac-standalone.cpp
     las-detached-cofac.cpp
+    las-sighandlers.cpp
     las-divide-primes.cpp
+    las-dlog-base.cpp
     las-dumpfile.cpp
     las-process-bucket-region.cpp
+    las-multiobj-globals.cpp
     las-globals.cpp
+    las-plattice.cpp
     las-qlattice.cpp
     las-norms.cpp logapprox.cpp
     las-coordinates.cpp
@@ -31,7 +36,7 @@ set (las_sources
     las-auxiliary-data.cpp
     las-output.cpp
     las.cpp fb.cpp las-todo-list.cpp las-galois.cpp
-  las-debug.cpp las-report-stats.cpp las-duplicate.cpp
+  las-report-stats.cpp las-duplicate.cpp
   las-config.c bucket.cpp las-smallsieve.cpp las-unsieve.cpp
   las-sieve2357.cpp las-unsieve-sse2.cpp
   las-trialdiv.cpp
@@ -43,11 +48,12 @@ set (las_sources
 set (las_libraries trialdiv facul utils ${pthread_libs})
 # set (las_libraries trialdiv facul utils ${pthread_libs})
 
-add_executable (las ${las_sources})
+add_executable (las ${las_sources} las-where-am-i-prod)
 target_link_libraries (las ${las_libraries})
 set_target_properties(las PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
-add_executable (las_tracek EXCLUDE_FROM_ALL ${las_sources})
+add_executable (las_tracek EXCLUDE_FROM_ALL ${las_sources}
+    las-where-am-i-debug.cpp)
 set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 set_target_properties(las_tracek PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries (las_tracek ${las_libraries})
@@ -56,7 +62,7 @@ add_executable (fb_test EXCLUDE_FROM_ALL fb.cpp)
 set_property(TARGET fb_test PROPERTY COMPILE_DEFINITIONS TESTDRIVE=1)
 target_link_libraries (fb_test utils)
 
-add_executable (las_descent ${las_sources} las-dlog-base.cpp)
+add_executable (las_descent ${las_sources} las-where-am-i-prod.cpp)
 set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 set_target_properties(las_descent PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries (las_descent ${las_libraries})
@@ -72,6 +78,8 @@ add_subdirectory(strategies)
 add_executable(dupsup
     las-bkmult.cpp
     las-globals.cpp
+    las-multiobj-globals.cpp
+    las-dlog-base.cpp
     las-todo-entry.cpp
     las-siever-config.cpp
     las-sieve-shared-data.cpp
@@ -92,7 +100,7 @@ add_executable(dupsup
     las-unsieve-sse2.cpp
     las-smallsieve.cpp
     las-trialdiv.cpp
-    las-debug.cpp
+    las-where-am-i-prod.cpp
     las-sieve2357.cpp
     trialdiv.cpp
     )

@@ -1,9 +1,14 @@
-#include "cado.h"
-#include <math.h>       /* rint etc */
-#include "las-info.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <math.h>       // for frexp, ldexp
+#include <ostream>      // for operator<<, basic_ostream, char_traits, ostream
+
+#include <gmp.h>        // for mpz_t, mpz_clear, mpz_mul, mpz_mul_2exp, mpz_...
+
 #include "las-qlattice.hpp"
-#include "las-arith.hpp"
-#include "gmp_aux.h"
+
+#include "macros.h"
+#include "utils.h"
 
 /* check that the double x fits into an int32_t */
 #define fits_int32_t(x) \

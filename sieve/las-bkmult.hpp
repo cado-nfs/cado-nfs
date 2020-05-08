@@ -1,10 +1,10 @@
 #ifndef LAS_BKMULT_HPP_
 #define LAS_BKMULT_HPP_
 
-#include <map>
-#include <string>
-#include "clonable-exception.hpp"
-
+#include <map>                     // for map<>::key_type, operator!=, _Rb_t...
+#include <string>                  // for string, allocator
+#include <utility>                 // for pair
+#include "clonable-exception.hpp"  // for clonable_exception
 
 class bkmult_specifier {
     double base = 1.0;
@@ -44,6 +44,8 @@ struct buckets_are_full : public clonable_exception {
     int reached_size;
     int theoretical_max_size;
     std::string message;
+    ~buckets_are_full();
+    buckets_are_full(buckets_are_full const &);
     buckets_are_full(bkmult_specifier::key_type const&, int b, int r, int t);
     virtual const char * what() const noexcept { return message.c_str(); }
     bool operator<(buckets_are_full const& o) const {

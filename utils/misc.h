@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_MISC_H_
 #define CADO_UTILS_MISC_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>

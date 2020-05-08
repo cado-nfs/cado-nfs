@@ -1,6 +1,8 @@
 #ifndef UTILS_CXX_HPP_
 #define UTILS_CXX_HPP_
 
+// IWYU pragma: private, include "utils.h"
+
 /* Base class with private copy-constructor and assignment operator.
    Classes which are not copy-constructible can inherit this with:
    private NonCopyable.

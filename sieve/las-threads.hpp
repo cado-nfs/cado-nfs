@@ -1,19 +1,15 @@
 #ifndef LAS_THREADS_HPP_
 #define LAS_THREADS_HPP_
 
-#include <pthread.h>
-#include <algorithm>
-#include <vector>
-#include "threadpool.hpp"
-#include "las-forwardtypes.hpp"
-#include "bucket.hpp"
-#include "fb.hpp"
-#include "las-report-stats.hpp"
-#include "las-base.hpp"
-#include "las-memory.hpp"
-#include "las-output.hpp"
-#include "tdict.hpp"
-#include "las-bkmult.hpp"
+#include <stddef.h>        // for size_t
+#include <array>           // for array
+#include <vector>          // for vector
+#include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
+#include "las-bkmult.hpp"  // for bkmult_specifier
+#include "las-config.h"    // for FB_MAX_PARTS
+#include "threadpool.hpp"  // for thread_pool (ptr only), condition_variable
+class las_memory_accessor;
+class nfs_aux;
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
@@ -54,8 +50,6 @@ public:
   T &reserve(int);
   void release(T &BA);
 };
-
-class nfs_work;
 
 /* A group of reservation arrays, one for each possible update type.
    Also defines a getter function, templated by the desired type of

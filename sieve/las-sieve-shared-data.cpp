@@ -1,8 +1,13 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>            // for fclose, fopen, fprintf, NULL, FILE, stderr
+#include <cstdlib>           // for abort
+#include <mutex>             // for lock_guard, mutex
 #include "las-sieve-shared-data.hpp"
-#include "las-cofactor.hpp"     // proxy facul_make_strategies
-
+#include "ecm/facul.hpp"         // for facul_clear_strategies, facul_strategies_t
+#include "las-cofactor.hpp"  // for facul_make_strategies
+#include "las-unsieve.hpp"   // for j_divisibility_helper, unsieve_data
+#include "macros.h"          // for ASSERT, ASSERT_ALWAYS
+#include "utils.h"
 
 void sieve_shared_data::declare_usage(cxx_param_list & pl)
 {
@@ -13,14 +18,13 @@ void sieve_shared_data::declare_usage(cxx_param_list & pl)
 }
 
 sieve_shared_data::side_data::side_data(int side,
-        cxx_cado_poly const & cpoly,
-        cxx_param_list & pl,
-        int nthreads)
-    :
-        f(cpoly->pols[side]),
-        fb(cpoly, side, pl, param_list_lookup_string(pl, "fbc"), nthreads)
-{
-}
+                                        cxx_cado_poly const& cpoly,
+                                        cxx_param_list& pl,
+                                        int nthreads)
+  : f(cpoly->pols[side])
+  , fb(cpoly, side, pl, param_list_lookup_string(pl, "fbc"), nthreads)
+{}
+
 
 /* FIXME: get_trialdiv_data is currently in las-trialdiv.cpp ; it belongs
  * here (that is, the bulk should stay there, but the interaction with

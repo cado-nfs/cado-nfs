@@ -1,26 +1,46 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <pthread.h>
-#if defined(HAVE_SSE2)
-#include <emmintrin.h>
-#endif
-#include "las-config.h"
-#include "las-smallsieve.hpp"
-#include "las-debug.hpp"
-#include "las-qlattice.hpp"
-#include "misc.h"
-#include "portability.h"
-#include "verbose.h"
-#include "las-smallsieve-glue.hpp"
-#include "las-sieve2357.hpp"
-#include "bucket-push-update.hpp"
+#include <inttypes.h>                   // for PRIi64
+#include <stdarg.h>                     // for va_arg, va_list
+#include <stdint.h>                     // for uint64_t, uint8_t, int64_t
+#include <stdio.h>                      // for fprintf, size_t, FILE, asprintf
+#include <stdlib.h>                     // for free
+#include <algorithm>                    // for is_sorted, sort
+#include <array>                        // for array
+#include <initializer_list>             // for initializer_list
+#include <memory>                       // for allocator_traits<>::value_type
+#include <vector>                       // for vector<>::iterator, vector, swap
+
+#include "las-smallsieve.hpp"           // for resieve_small_bucket_region
+
+#include "macros.h"                     // for ASSERT, ASSERT_ALWAYS, MAYBE_...
+#include "utils.h"
+
+#include "bucket-push-update.hpp"       // for bucket_single::push_update
+#include "bucket.hpp"                   // for bucket_update_t, bucket_primes_t
+#include "fb-types.h"                   // for fbprime_t, FBROOT_FORMAT, FBP...
+#include "fb.hpp"                       // for fb_entry_general, fb_factorba...
+#include "las-arith.hpp"                // for invmod_32
+#include "las-config.h"                 // for LOG_BUCKET_REGION
+#include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-forwardtypes.hpp"         // for spos_t, long_spos_t
+#include "las-fbroot-qlattice.hpp"      // for fb_root_in_qlattice
+#include "las-qlattice.hpp"             // for qlattice...
+#include "las-sieve2357.hpp"            // for sieve2357base::prime_t, sieve...
+#include "las-smallsieve-glue.hpp"      // for small_sieve, small_sieve::super
+#include "las-smallsieve-lowlevel.hpp"  // for SMALLSIEVE_COMMON_DEFS
+#include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
+#include "las-todo-entry.hpp"           // for las_todo_entry
+#include "las-where-am-i-proxy.hpp"          // for where_am_I
+
 
 /* small sieve and resieving */
 

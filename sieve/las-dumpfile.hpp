@@ -1,9 +1,8 @@
 #ifndef LAS_DUMPFILE_HPP_
 #define LAS_DUMPFILE_HPP_
 
-#include <cstdio>
-#include <cstdlib>
-#include "las-todo-entry.hpp"
+#include <cstdio>  // for size_t, FILE, NULL
+struct las_todo_entry;
 
 /* If -dumpregion is given, dump sieve region to a file to be able to
    compare new sieving code with a known good reference. Beware of

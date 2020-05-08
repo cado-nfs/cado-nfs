@@ -3,10 +3,6 @@
 
 #include <stddef.h>
 
-#ifdef HAVE_SSE2
-#define SSE_NORM_INIT
-#endif
-
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
  * each survivor. Appears slower than default. This code has always been
  * #ifdef'd out, but maybe can be improved enough to make it worthwhile
@@ -14,10 +10,6 @@
 #define xxxUNSIEVE_NOT_COPRIME  /* see las-unsieve.c */
 
 #define FB_MAX_PARTS 4
-
-#define VARIABLE_BUCKET_REGION
-
-#ifdef VARIABLE_BUCKET_REGION
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,32 +32,17 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 }
 #endif
 
-#else   /* !VARIABLE_BUCKET_REGION */
-/* Optimal bucket region: 2^16 = 64K == close to L1 size.
- * It is possible to put a higher value, in order to set I > 16.
- * However, this will have a bad impact on the memory usage, and on
- * efficiency, due to worse memory access. See bucket.h .
-*/
-#ifndef LOG_BUCKET_REGION
-#define LOG_BUCKET_REGION 16
-#endif
-
-#define NB_BUCKETS_2 256
-#define NB_BUCKETS_3 256
-
-#define BUCKET_REGION (UINT64_C(1) << LOG_BUCKET_REGION)
-
-#define BUCKET_REGION_1 BUCKET_REGION
-#define BUCKET_REGION_2 NB_BUCKETS_2*BUCKET_REGION_1
-#define BUCKET_REGION_3 NB_BUCKETS_3*BUCKET_REGION_2
-
-#define BUCKET_REGIONS { 0, BUCKET_REGION_1, BUCKET_REGION_2, BUCKET_REGION_3 }
-#endif  /* VARIABLE_BUCKET_REGION */
-
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 
 /* (Re-)define this to support larger q. This is almost mandatory for the
- * descent. */
+ * descent.
+ *
+ * Modify the flag here **ONLY** if you intend to produce a custom las
+ * siever that supports large q. The "normal" use case for this flag is
+ * the las_descent binary, which is anyway _compiled_ with -DDLP_DESCENT
+ * -DSUPPORT_LARGE_Q
+ */
+
 #ifndef SUPPORT_LARGE_Q
 #define xxxSUPPORT_LARGE_Q
 #endif
@@ -91,7 +68,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #define NOPROFILE_STATIC static
 #endif
 
-/* A memset with less than MEMSET_MIN bytes is slower than an fixed
+/* A memset with less than MEMSET_MIN bytes is slower than a fixed
  * memset (which is inlined with special code). So, if possible, it is
  * worthwhile to write:
  *   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i, ts);

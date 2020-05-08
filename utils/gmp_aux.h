@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_GMP_AUX_H_
 #define CADO_UTILS_GMP_AUX_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <gmp.h>
 #include <stdint.h>
 #include <macros.h>

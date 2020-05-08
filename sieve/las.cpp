@@ -4,73 +4,74 @@
  * first, because it may well be that one of the intermediary headers
  * pull stuff that is dependent on this flag.
  */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <cstdio>
-#include <cstdlib>
-// #include <cstring>
-// #include <cinttypes> /* for PRIx64 macro and strtoumax */
-// #include <cmath>   // for ceiling, floor in cfrac
-// #include <cctype>
-// #include <cfloat>
-#include <cstdarg> /* Required so that GMP defines gmp_vfprintf() */
-// #include <algorithm>
-// #include <vector>
-// #include <sstream>  /* for c++ string handling */
-// #include <iterator> /* ostream_iterator */
-#include <thread>   /* we use std::thread for las sub-jobs */
-#include <iomanip>  /* std::setprecision, std::fixed */
-// #include <mutex>
-#include <gmp.h>
-// #include "threadpool.hpp"
-// #include "fb.hpp"
-#include "portability.h"
-#include "utils.h"           /* lots of stuff */
-// #include "relation.hpp"
-// #include "ecm/facul.hpp"
-// #include "bucket.hpp"
-// #include "trialdiv.hpp"
-// #include "las-config.h"
-#include "las-info.hpp"
-// #include "las-coordinates.hpp"
-#include "las-debug.hpp"
-// #include "las-duplicate.hpp"
-// #include "las-report-stats.hpp"
-// #include "las-norms.hpp"
-// #include "las-unsieve.hpp"
-// #include "las-arith.hpp"
-// #include "las-plattice.hpp"
-// #include "las-qlattice.hpp"
-#include "las-smallsieve.hpp"
-// #include "las-descent-trees.hpp"
-// #include "las-cofactor.hpp"
-#include "las-fill-in-buckets.hpp"
-// #include "las-threads.hpp"
-// #include "las-todo-entry.hpp"
-#include "las-choose-sieve-area.hpp"
-#include "las-threads-work-data.hpp"
-// #include "las-auxiliary-data.hpp"
-#include "las-process-bucket-region.hpp"
-// #include "las-galois.hpp"
-// #include "las-parallel.hpp"
-// #include "las-output.hpp"
-#include "las-divide-primes.hpp"
- 
-#include "memusage.h"
-#include "tdict.hpp"
+#include <cinttypes>                      // for PRId64, PRIu64
+#include <climits>                        // for ULONG_MAX
+#include <cmath>                          // for log, pow, sqrt
+#include <algorithm>                      // for min, max, max_element
+#include <array>                          // for array, array<>::value_type
+#include <condition_variable>             // for condition_variable
+#include <cstdio>                         // for size_t, fprintf, stderr
+#include <cstdlib>                        // for exit, EXIT_FAILURE, EXIT_SU...
+#include <cstdarg>             // IWYU pragma: keep
+#include <functional>                     // for ref
+#include <iomanip>                        // for operator<<, setprecision
+#include <list>                           // for list, _List_iterator
+#include <map>                            // for map
+#include <memory>                         // for allocator, shared_ptr, make...
+#include <mutex>                          // for mutex, lock_guard, unique_lock
+#include <ostream>                        // for operator<<, ostringstream
+#include <string>                         // for string, basic_string, opera...
+#include <thread>                         // for thread
+#include <type_traits>                    // for remove_reference<>::type
+#include <utility>                        // for move, pair
+#include <vector>                         // for vector<>::iterator, vector
 
-#include "las-descent.hpp"
+#include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
 
-#ifdef  DLP_DESCENT
-#include "las-dlog-base.hpp"
-#endif
+#include "macros.h"                       // for ASSERT_ALWAYS, MAX, iceildiv
+#include "utils.h"
 
-#ifdef HAVE_SSE41
-/* #define SSE_SURVIVOR_SEARCH 1 */
-#include <smmintrin.h>
-#endif
-
-#include "las-globals.hpp"
+#include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
+#include "bucket.hpp"                     // for bucket_slice_alloc_defaults
+#include "ecm/facul.hpp"                      // for facul_print_stats
+#include "fb-types.h"                     // for fbprime_t, sublat_t, slice_...
+#include "fb.hpp"                         // for fb_factorbase::key_type
+#include "las-auxiliary-data.hpp"         // for report_and_timer, nfs_aux
+#include "las-bkmult.hpp"                 // for buckets_are_full, bkmult_sp...
+#include "las-choose-sieve-area.hpp"      // for choose_sieve_area, never_di...
+#include "las-cofactor.hpp"               // for cofactorization_statistics
+#include "las-config.h"                   // for LOG_BUCKET_REGIONS, BUCKET_...
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-divide-primes.hpp"          // for display_bucket_prime_stats
+#include "las-descent.hpp"                // for postprocess_specialq_descent
+#include "las-descent-trees.hpp"          // descent_tree
+#include "las-dlog-base.hpp"              // IWYU pragma: keep
+#include "las-fill-in-buckets.hpp"        // for downsort_tree, fill_in_buck...
+#include "las-globals.hpp"                // for main_output, base_memory
+#include "las-info.hpp"                   // for las_info, las_info::batch_p...
+#include "las-multiobj-globals.hpp"       // for dlp_descent
+#include "las-norms.hpp"                  // for lognorm_smart, ADJUST_STRAT...
+#include "las-output.hpp"                 // for las_output
+#include "las-parallel.hpp"               // for las_parallel_desc, las_para...
+#include "las-plattice.hpp"               // for plattice_enumerator
+#include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
+#include "las-qlattice.hpp"               // for qlattice_basis, operator<<
+#include "las-report-stats.hpp"           // for las_report, coarse_las_timers
+#include "las-siever-config.hpp"          // for siever_config::side_config
+#include "las-sighandlers.hpp"
+#include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
+#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
+#include "las-todo-entry.hpp"             // for las_todo_entry
+#include "las-todo-list.hpp"              // for las_todo_list
+#include "las-where-am-i-proxy.hpp"            // for where_am_I
+#include "lock_guarded_container.hpp"     // for lock_guarded_container
+#include "multityped_array.hpp"           // for multityped_array
+#include "relation.hpp"                   // for relation, operator<<
+#include "tdict.hpp"                      // for timetree_t, slot, SIBLING_T...
+#include "threadpool.hpp"                 // for thread_pool, thread_pool::s...
 
 
 /*************************** main program ************************************/
@@ -90,9 +91,8 @@ static void configure_switches(cxx_param_list & pl)
     tdict::configure_switches(pl);
 
     param_list_configure_switch(pl, "-allow-largesq", &allow_largesq);
-#ifdef  DLP_DESCENT
-    param_list_configure_switch(pl, "-recursive-descent", &recursive_descent);
-#endif
+    if (dlp_descent)
+        param_list_configure_switch(pl, "-recursive-descent", &recursive_descent);
 
     param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
@@ -129,16 +129,12 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "file-cofact", "provide file with strategies for the cofactorization step");
     param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
     param_list_decl_usage(pl, "sync", "synchronize all threads at each special-q");
-#ifdef TRACE_K
-    param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
-    param_list_decl_usage(pl, "traceij", "Relation to trace, in i,j format");
-    param_list_decl_usage(pl, "traceNx", "Relation to trace, in N,x format");
-#endif
-#ifdef  DLP_DESCENT
-    param_list_decl_usage(pl, "recursive-descent", "descend primes recursively");
-    param_list_decl_usage(pl, "grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
+    where_am_I::decl_usage(pl);
+    if (dlp_descent) {
+        param_list_decl_usage(pl, "recursive-descent", "descend primes recursively");
+        param_list_decl_usage(pl, "grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
 
-#endif /* DLP_DESCENT */
+    }
     /* given that this option is dangerous, we used to enable it only for
      * las_descent
      */
@@ -268,7 +264,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     size_t memory = 0;
     size_t more;
 
-#if 0 && defined(__linux__) && defined(__GLIBC__) && defined(__x86_64__)
+#if 0 && defined(__linux__) && defined(HAVE_GLIBC) && defined(__x86_64__)
     /* count threads. Each costs 8M+4k for the stack, 64MB for the
      * private heap. However, this is only virtual address space.
      * Therefore it's not really clear how we should count it. Maybe "not
@@ -746,9 +742,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
         verbose_output_end_batch();
     }
 
-#ifdef TRACE_K
-    trace_per_sq_init(ws);
-#endif
+    where_am_I::begin_special_q(ws);
 
     /* TODO: is there a way to share this in sublat mode ? */
 
@@ -1123,33 +1117,33 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
             if (!doing_p) break;
             las_todo_entry& doing(*doing_p);
 
-#ifdef DLP_DESCENT
-            /* If the next special-q to try is a special marker, it means
-             * that we're done with a special-q we started before, including
-             * all its spawned sub-special-q's. Indeed, each time we start a
-             * special-q from the todo list, we replace it by a special
-             * marker. But newer special-q's may enver the todo list in turn
-             * (pushed with las_todo_push_withdepth).
-             */
-            if (todo.is_closing_brace(doing)) {
-                las.tree.done_node();
-                if (las.tree.depth() == 0) {
-                    if (recursive_descent) {
-                        /* BEGIN TREE / END TREE are for the python script */
-                        fprintf(main_output.output, "# BEGIN TREE\n");
-                        las.tree.display_last_tree(main_output.output);
-                        fprintf(main_output.output, "# END TREE\n");
+            if (dlp_descent) {
+                /* If the next special-q to try is a special marker, it means
+                 * that we're done with a special-q we started before, including
+                 * all its spawned sub-special-q's. Indeed, each time we start a
+                 * special-q from the todo list, we replace it by a special
+                 * marker. But newer special-q's may enver the todo list in turn
+                 * (pushed with las_todo_push_withdepth).
+                 */
+                if (todo.is_closing_brace(doing)) {
+                    las.tree.done_node();
+                    if (las.tree.depth() == 0) {
+                        if (recursive_descent) {
+                            /* BEGIN TREE / END TREE are for the python script */
+                            fprintf(main_output.output, "# BEGIN TREE\n");
+                            las.tree.display_last_tree(main_output.output);
+                            fprintf(main_output.output, "# END TREE\n");
+                        }
+                        las.tree.visited.clear();
                     }
-                    las.tree.visited.clear();
+                    continue;
                 }
-                continue;
+
+                /* pick a new entry from the stack, and do a few sanity checks */
+                todo.push_closing_brace(doing.depth);
+
+                las.tree.new_node(doing);
             }
-
-            /* pick a new entry from the stack, and do a few sanity checks */
-            todo.push_closing_brace(doing.depth);
-
-            las.tree.new_node(doing);
-#endif
 
             /* maybe examine what we have here in the todo list, and
              * decide on the relevance of creating a new output object */
@@ -1210,9 +1204,8 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     /* At this point we no longer risk an exception,
                      * therefore it is safe to tinker with the todo list
                      */
-#ifdef DLP_DESCENT
-                    postprocess_specialq_descent(las, todo, doing, timer_special_q);
-#endif
+                    if (dlp_descent)
+                        postprocess_specialq_descent(las, todo, doing, timer_special_q);
 
                     if (!workspaces.cofac_candidates.empty()) {
                         {
@@ -1349,7 +1342,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     setbuf(stderr, NULL);
 
     cxx_param_list pl;
-    las_install_sighandlers();
+    las_sighandlers_install();
 
     declare_usage(pl);
     configure_switches(pl);
@@ -1373,9 +1366,8 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     param_list_parse_int(pl, "trialdiv-first-side", &trialdiv_first_side);
     param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
-#if DLP_DESCENT
-    param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
-#endif
+    if (dlp_descent)
+        param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
     param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
     set_LOG_BUCKET_REGION();
 
@@ -1415,9 +1407,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     if (todo.sqside >= 0 && las.dupqmin[todo.sqside] == ULONG_MAX)
         las.dupqmin[todo.sqside] = las.config_pool.base.sides[todo.sqside].lim;
 
-#ifdef TRACE_K
-    init_trace_k(pl);
-#endif
+    where_am_I::interpret_parameters(pl);
 
     base_memory = Memusage() << 10;
 
@@ -1498,15 +1488,11 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
 
     std::vector<std::thread> subjobs;
-#ifdef DLP_DESCENT
     /* In theory we would be able to to multiple descents in parallel, of
      * course, but how we should proceed with the todo list, our brace
      * mechanism, and the descent tree thing is altogether not obvious
      */
-    int nsubjobs = 1;
-#else
-    int nsubjobs = las.number_of_subjobs_total();
-#endif
+    int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
     for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
         /* when references are passed through variadic template arguments
          * as for the std::thread ctor, we have automatic decaying unless
@@ -1522,12 +1508,10 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
     for(auto & t : subjobs) t.join();
 
-#ifdef DLP_DESCENT
-    if (recursive_descent) {
+    if (dlp_descent && recursive_descent) {
         verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
         las.tree.display_all_trees(main_output.output);
     }
-#endif
 
     las.set_loose_binding();
 

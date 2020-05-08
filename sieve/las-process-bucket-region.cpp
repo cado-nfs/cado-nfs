@@ -1,21 +1,62 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include "las-process-bucket-region.hpp"
-#include "las-debug.hpp"
-#include "las-smallsieve.hpp"
-#include "las-divide-primes.hpp"
-#include "las-descent.hpp"
-#include "las-detached-cofac.hpp"
-#include "las-coordinates.hpp"
-#include "las-globals.hpp"
-#include "las-apply-buckets.hpp"
+#ifdef HAVE_SSE2
+#include <emmintrin.h>                    // for __m128i, _mm_setzero_si128
+#endif
+#include <cinttypes>                      // for PRId64, PRIu64
+#include <cmath>                          // for log2
+#include <cstdarg>             // IWYU pragma: keep
+#include <cstring>                        // for size_t, NULL, memset
+#include <sys/types.h>                    // for ssize_t
+#include <array>                          // for array, array<>::value_type
+#include <cstdint>                        // for uint32_t, uint8_t
+#include <iterator>                       // for begin, end
+#include <memory>                         // for allocator, __shared_ptr_access
+#include <mutex>                          // for lock_guard, mutex
+#include <utility>                        // for move
+#include <vector>                         // for vector
+#include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
+#include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
+#include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
+#include "fb-types.h"                     // for fbprime_t
+#include "fb.hpp"                         // for fb_factorbase::slicing, fb_...
+#include "las-apply-buckets.hpp"          // for apply_one_bucket
+#include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data
+#include "las-cofac-standalone.hpp"       // for cofac_standalone
+#include "las-cofactor.hpp"               // for check_leftover_norm
+#include "las-config.h"                   // for LOG_BUCKET_REGION, BUCKET_R...
+#include "las-coordinates.hpp"            // for NxToIJ, adjustIJsublat
+#include "las-descent-trees.hpp"          // for descent_tree
+#include "las-descent.hpp"                // for register_contending_relation
+#include "las-detached-cofac.hpp"         // for cofac_standalone, detached_...
+#include "las-divide-primes.hpp"          // for divide_known_primes, factor...
+#include "las-dumpfile.hpp"               // for dumpfile_t
+#include "las-globals.hpp"                // for exit_after_rel_found, globa...
+#include "las-info.hpp"                   // for las_info, las_info::batch_p...
+#include "las-multiobj-globals.hpp"       // for dlp_descent
+#include "las-norms.hpp"                  // for lognorm_smart
+#include "las-output.hpp"                 // for TRACE_CHANNEL, las_output
+#include "las-qlattice.hpp"               // for qlattice_basis
+#include "las-report-stats.hpp"           // for TIMER_CATEGORY, las_report
+#include "las-siever-config.hpp"          // for siever_config, siever_confi...
+#include "las-smallsieve-types.hpp"       // for small_sieve_data_t
+#include "las-smallsieve.hpp"             // for resieve_small_bucket_region
+#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
+#include "las-todo-entry.hpp"             // for las_todo_entry
+#include "las-unsieve.hpp"                // for search_survivors_in_line
+#include "las-where-am-i-proxy.hpp"            // for where_am_I
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
+#include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
+#include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
+#include "threadpool.hpp"                 // for worker_thread, thread_pool
+#include "utils.h"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
 {
@@ -464,10 +505,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
 
     for (size_t i_surv = 0 ; i_surv < survivors.size(); i_surv++) {
-#ifdef DLP_DESCENT
-        if (ws.las.tree.must_take_decision())
+        if (dlp_descent && ws.las.tree.must_take_decision())
             break;
-#endif
         const size_t x = survivors[i_surv];
         ASSERT_ALWAYS (Sx[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
@@ -689,23 +728,23 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
-#ifndef  DLP_DESCENT
-        /* We must make sure that we join the async threads at some
-         * point, otherwise we'll leak memory. It seems more appropriate
-         * to batch-join only, so this is done at the las_subjob level */
-        // worker->get_pool().get_result(1, false);
-        worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
-#else
-        /* We must proceed synchronously for the descent */
-        auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D, N));
-        bool cc = false;
-        if (res->rel_p) {
-            cc = register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
+        if (!dlp_descent) {
+            /* We must make sure that we join the async threads at some
+             * point, otherwise we'll leak memory. It seems more appropriate
+             * to batch-join only, so this is done at the las_subjob level */
+            // worker->get_pool().get_result(1, false);
+            worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
+        } else {
+            /* We must proceed synchronously for the descent */
+            auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D, N));
+            bool cc = false;
+            if (res->rel_p) {
+                cc = register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
+            }
+            delete res;
+            if (cc)
+                break;
         }
-        delete res;
-        if (cc)
-            break;
-#endif  /* DLP_DESCENT */
     }
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/

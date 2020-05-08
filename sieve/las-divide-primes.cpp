@@ -1,16 +1,23 @@
-#include "cado.h"
-#include <cstdint>
-#include <cstdio>
-#include <cstdarg>
-#include <cinttypes>
-#include <algorithm>
-#include <gmp.h>
-#include "las-divide-primes.hpp"
-#include "verbose.h"
-#include "bucket.hpp"
-#include "trialdiv.hpp"
+#include "cado.h" // IWYU pragma: keep
 
-/* {{{ Trial division */
+#include <cstdlib>              // for abort
+#include <algorithm>            // for find, max
+#include <cinttypes>            // for PRId64, PRIu64, PRIx64
+#include <cstdint>              // for uint64_t, int64_t
+#include <cstdio>               // for fprintf, size_t, FILE
+#include <ostream>              // for operator<<, basic_ostream, ostringstream
+#include <string>               // for char_traits, basic_string
+#include <cstdarg>             // IWYU pragma: keep
+#include <gmp.h>                // for gmp_vfprintf, mpz_divisible_ui_p, mpz...
+#include "las-divide-primes.hpp"
+#include "bucket.hpp"           // for bucket_update_t, bucket_array_complete
+#include "las-output.hpp"       // for TRACE_CHANNEL
+#include "las-where-am-i-proxy.hpp"  // for extern_trace_on_spot_ab
+#include "macros.h"             // for UNLIKELY
+#include "trialdiv.hpp"         // for trialdiv_data, (anonymous)
+#include "utils.h"
+
+/*  Trial division */
 
 static void 
 factor_list_add(factor_list_t & fl, const uint64_t p)
@@ -237,5 +244,5 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
     if (trial_div_very_verbose)
         verbose_output_end_batch();
 }
-/* }}} */
+/*  */
 

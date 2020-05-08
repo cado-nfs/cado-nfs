@@ -1,6 +1,8 @@
 #ifndef SM_UTILS_H_
 #define SM_UTILS_H_
 
+// IWYU pragma: private, include "utils.h"
+
 /* Which SMs are used ?
  * There have been several choices during time. We keep track of the old
  * choices, in case there are still parts of the code that make reference

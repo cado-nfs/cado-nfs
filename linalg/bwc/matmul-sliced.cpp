@@ -21,8 +21,6 @@
 #include "bwc_config.h"
 using namespace std;
 
-#include "cado_config.h"
-
 #include "portability.h"
 
 #include "mpfq_layer.h"

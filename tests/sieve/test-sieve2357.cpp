@@ -24,7 +24,7 @@
 #include "utils.h"
 #include "tests_common.h"
 #include "las-sieve2357.hpp"
-#include "las-debug.hpp"
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 
 template<typename T>
 class gettypename {

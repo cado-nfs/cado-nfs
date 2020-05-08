@@ -1,32 +1,40 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
  * on the value of TRACK_CODE_PATH.
- * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes>
-#include <cstdlib>   // for malloc and friends
-#include <cstring>   // for memcpy
-#include <new>        // for std::bad_alloc
-#include <type_traits> // for std::is_same (C++11)
-#include <gmp.h>
-#if defined(HAVE_SSE2)
-#include <emmintrin.h>
+#include <cmath>                   // for sqrt
+#include <cstdint>                 // for uint32_t, uint64_t, UINT32_C
+#include <cinttypes>               // for PRIu32
+#include <cstdlib>                 // for size_t, NULL, free, realloc
+#include <cstring>                 // for memset
+#include <new>                     // for bad_alloc
+#ifdef TRACE_K
+#include <type_traits>             // for is_same
 #endif
-#include "las-info.hpp"
-#include "bucket.hpp"
-#include "portability.h"
-#include "memory.h"
-#include "las-config.h"
-#include "iqsort.h"
-#include "verbose.h"
-#include "ularith.h"
-#include "smallset.hpp"
-#include "las-debug.hpp"
-#include "bucket-push-update.hpp"
+
+#include "bucket.hpp"              // for bucket_array_t, bucket_update_t
+
+#include "bucket-push-update.hpp"  // for bucket_single::push_update
+#include "fb-types.h"              // for slice_index_t, FBPRIME_FORMAT, fbp...
+#include "fb.hpp"                  // for fb_factorbase, fb_factorbase::slicing
+#include "iqsort.h"                // for QSORT
+#include "las-config.h"            // for BUCKET_REGIONS, LOG_BUCKET_REGIONS
+#include "las-where-am-i.hpp"      // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-memory.hpp"          // for las_memory_accessor
+#include "las-where-am-i-proxy.hpp" // IWYU pragma: keep    // for where_am_I
+#include "macros.h"                // for MAYBE_UNUSED, ASSERT_ALWAYS, UNLIKELY
+#include "utils.h"
+#ifdef TRACE_K
+#include "las-output.hpp"          // for TRACE_CHANNEL
+#endif
+
+template <int LEVEL, typename HINT> struct bucket_update_t;
+
 
 static size_t
 bucket_misalignment(const size_t sz, const size_t sr MAYBE_UNUSED) {

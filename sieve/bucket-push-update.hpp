@@ -2,6 +2,7 @@
 #define BUCKET_PUSH_UPDATE_HPP_
 
 #include "bucket.hpp"
+#include "las-where-am-i.hpp"
 
 template<int LEVEL, typename HINT>
 void

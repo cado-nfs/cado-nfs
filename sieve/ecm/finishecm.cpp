@@ -1,12 +1,15 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* for strcmp() */
-#include <pthread.h>
-#include "portability.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdio.h>      // for fprintf, stderr, fclose, fgets, fopen, printf
+#include <stdlib.h>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <vector>       // for vector
+
+#include <gmp.h>        // for mpz_ptr, mpz_sizeinbase, gmp_printf, gmp_sscanf
+
+#include "macros.h"     // for ASSERT_ALWAYS
 #include "utils.h"
-#include "batch.hpp"
-#include "facul.hpp"
+
+#include "facul.hpp"    // for facul, facul_clear_strategy, facul_make_strategy
 
 static void declare_usage(param_list pl)
 {

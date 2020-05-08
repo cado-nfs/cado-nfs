@@ -424,6 +424,7 @@ cado_define_test(test_init_norms.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-siever-config.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-todo-entry.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-qlattice.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-multiobj-globals.cpp
     NO_DEFAULT_RUN
     LIBRARIES utils tests
 )
@@ -522,7 +523,7 @@ cado_divert_test(test_init_norms bug21684b
 # bother.
 if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
 cado_define_test(test-smallsieve.cpp 
-                ${PROJECT_SOURCE_DIR}/sieve/las-debug.cpp
+                ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
                 LIBRARIES utils ${gmplib}
     ARGUMENTS -q -C -A 18 -I 14 -B 14)
 cado_divert_test(test-smallsieve line_fragments1 # bucket region = half line
@@ -538,7 +539,7 @@ else()
 endif()
 cado_define_test(test-sieve2357.cpp
                  ${PROJECT_SOURCE_DIR}/sieve/las-sieve2357.cpp
-                 ${PROJECT_SOURCE_DIR}/sieve/las-debug.cpp
+                 ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
                  LIBRARIES utils tests ${jevents_lib})
 
 # test renumber

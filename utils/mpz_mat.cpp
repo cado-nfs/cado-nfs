@@ -1,4 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +7,7 @@
 #include <limits.h>     /* for INT_MAX */
 #include <ostream>
 #include "mpz_mat.h"
+#include "gmpxx.hpp"
 #include "portability.h"
 #include "utils.h"
 
