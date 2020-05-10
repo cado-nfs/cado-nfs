@@ -835,3 +835,82 @@ void process_bucket_region_run::operator()() {/*{{{*/
 }/*}}}*/
 
 
+void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w)/*{{{*/
+{
+    /* first_region0_index is always 0 when toplevel == 1, but the
+     * present function is also called from within downsort_tree when
+     * toplevel > 1, and then first_region0_index may be larger.
+     */
+    auto P = thread_pool::make_shared_task<process_bucket_region_spawn>(ws, wc_p, aux_p, w);
+
+    /* Make sure we don't schedule too many tasks when J was truncated
+     * anyway */
+
+    int first_skipped_br = ws.J;
+
+    if (ws.conf.logI >= LOG_BUCKET_REGION)
+        first_skipped_br <<= ws.conf.logI - LOG_BUCKET_REGION;
+    else
+        first_skipped_br >>= LOG_BUCKET_REGION - ws.conf.logI;
+
+    size_t small_sieve_regions_ready = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]);
+
+    for(int done = 0, ready = small_sieve_regions_ready ; done < ws.nb_buckets[1] ; ) {
+
+        /* yes, it's a bit ugly */
+        P->first_region0_index = first_region0_index;
+        P->already_done = done;
+
+        for(int i = 0 ; i < ready ; i++) {
+            if (first_region0_index + done + i >= first_skipped_br) {
+                /* Hmm, then we should also make sure that we truncated
+                 * fill_in_buckets, right ? */
+                break;
+            }
+            pool.add_shared_task(P, i, 0);
+        }
+
+        /* it's only really done when we do drain_queue(0), of course */
+        done += ready;
+
+        if (done < ws.nb_buckets[1]) {
+
+            /* We need to compute more init positions */
+            int more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
+
+            for(int side = 0 ; side < 2 ; side++) {
+                nfs_work::side_data & wss(ws.sides[side]);
+                if (wss.no_fb()) continue;
+                pool.add_task_lambda([=,&ws](worker_thread * worker, int){
+                        timetree_t & timer(aux_p->get_timer(worker));
+                        ENTER_THREAD_TIMER(timer);
+                        MARK_TIMER_FOR_SIDE(timer, side);
+                        SIBLING_TIMER(timer, "prepare small sieve");
+                        nfs_work::side_data & wss(ws.sides[side]);
+                        // if (wss.no_fb()) return;
+                        SIBLING_TIMER(timer, "small sieve start positions");
+                        /* When we're doing 2-level sieving, there is probably
+                         * no real point in doing ssdpos initialization in
+                         * several passes.
+                         */
+                        small_sieve_prepare_many_start_positions(
+                                wss.ssd,
+                                first_region0_index + done,
+                                more,
+                                ws.conf.logI, ws.Q.sublat);
+                        },0);
+            }
+
+            pool.drain_queue(0);
+
+            ready = more;
+
+            /* Now these new start positions are ready to be used */
+            for(int side = 0 ; side < 2 ; side++) {
+                nfs_work::side_data & wss(ws.sides[side]);
+                if (wss.no_fb()) continue;
+                small_sieve_activate_many_start_positions(wss.ssd);
+            }
+        }
+    }
+}/*}}}*/

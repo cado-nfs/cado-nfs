@@ -11,8 +11,6 @@
 
 /* process_many_bucket_regions is found in las.cpp, currently */
 
-extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w);
-
 /* {{{ process_one_bucket_region */
 
 struct process_bucket_region_spawn {
@@ -48,5 +46,7 @@ struct process_bucket_region_spawn {
 };
 
 /*}}}*/
+
+extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w);
 
 #endif	/* LAS_PROCESS_BUCKET_REGION_HPP_ */
