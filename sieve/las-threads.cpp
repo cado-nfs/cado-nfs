@@ -352,4 +352,3 @@ template class reservation_array<bucket_array_t<2, emptyhint_t> >;
 template class reservation_array<bucket_array_t<3, emptyhint_t> >;
 template class reservation_array<bucket_array_t<1, logphint_t> >;
 template class reservation_array<bucket_array_t<2, logphint_t> >;
-

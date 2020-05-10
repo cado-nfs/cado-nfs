@@ -86,4 +86,14 @@ public:
           bool);
 };
 
+extern template class reservation_array<bucket_array_t<1, shorthint_t> >;
+extern template class reservation_array<bucket_array_t<2, shorthint_t> >;
+extern template class reservation_array<bucket_array_t<3, shorthint_t> >;
+extern template class reservation_array<bucket_array_t<1, longhint_t> >;
+extern template class reservation_array<bucket_array_t<2, longhint_t> >;
+extern template class reservation_array<bucket_array_t<1, emptyhint_t> >;
+extern template class reservation_array<bucket_array_t<2, emptyhint_t> >;
+extern template class reservation_array<bucket_array_t<3, emptyhint_t> >;
+extern template class reservation_array<bucket_array_t<1, logphint_t> >;
+extern template class reservation_array<bucket_array_t<2, logphint_t> >;
 #endif
