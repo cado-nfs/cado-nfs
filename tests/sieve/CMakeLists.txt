@@ -353,7 +353,7 @@ cado_divert_test(F9 descent
             q0=235086167414177 rho=46506392392611
             REFERENCE_SHA1=4d64b69f37672b2109441c52f0a57f16f08d813d
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
-            descent_hint=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.hint
+            descent_hint_table=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.hint
             ncurves0=10 ncurves1=10
             CHECKSUM_FILE=
             LAS_BINARY=${las_descent_path}
