@@ -12,8 +12,8 @@
 
 #include "las-config.h"    // for las_display_config_flags
 
-#include <stdio.h>         // for NULL, stderr, fflush, fopen, fprintf, setvbuf
-#include <stdlib.h>        // for exit, EXIT_FAILURE
+#include <cstdio>          // for NULL, stderr, fflush, fopen, fprintf, setvbuf
+#include <cstdlib>         // for exit, EXIT_FAILURE
 
 #include "las-output.hpp"  // for las_output, NR_CHANNELS, TRACE_CHANNEL
 

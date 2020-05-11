@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
@@ -7,8 +7,8 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <stddef.h>                       // for size_t, NULL
-#include <stdint.h>                       // for uint32_t, uint64_t
+#include <cstddef>                        // for size_t, NULL
+#include <cstdint>                        // for uint32_t, uint64_t
 #include <xmmintrin.h>                    // for _MM_HINT_T0, _mm_prefetch
 #include <algorithm>                      // for max_element, min
 #include <array>                          // for array

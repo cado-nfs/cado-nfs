@@ -8,11 +8,11 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <inttypes.h>                   // for PRIi64
-#include <stdarg.h>                     // for va_arg, va_list
-#include <stdint.h>                     // for uint64_t, uint8_t, int64_t
-#include <stdio.h>                      // for fprintf, size_t, FILE, asprintf
-#include <stdlib.h>                     // for free
+#include <cinttypes>                    // for PRIi64
+#include <cstdarg>                      // for va_arg, va_list
+#include <cstdint>                      // for uint64_t, uint8_t, int64_t
+#include <cstdio>                       // for fprintf, size_t, FILE, asprintf
+#include <cstdlib>                      // for free
 #include <algorithm>                    // for is_sorted, sort
 #include <array>                        // for array
 #include <initializer_list>             // for initializer_list

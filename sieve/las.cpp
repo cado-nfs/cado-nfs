@@ -6,6 +6,13 @@
  */
 #include "cado.h" // IWYU pragma: keep
 
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cinttypes>                      // for PRId64, PRIu64
 #include <climits>                        // for ULONG_MAX

@@ -8,8 +8,8 @@
  */
 
 #include <algorithm>        // for max
-#include <limits.h>         // for UINT_MAX
-#include <math.h>           // for abs
+#include <climits>          // for UINT_MAX
+#include <cmath>            // for abs
 #include <cstdint>          // for uint32_t
 #include <cstdlib>          // for abs, abort, size_t, NULL
 #include <cstring>          // for memcpy, memset

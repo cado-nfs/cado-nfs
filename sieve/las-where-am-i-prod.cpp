@@ -5,6 +5,13 @@
 #undef TRACE_K
 #endif
 
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
 #include <cstdint>                    // for int64_t, uint64_t
 #include <memory>                     // for unique_ptr
 #include "las-where-am-i-proxy.hpp"   // for where_am_I, where_am_I::pimpl_t
