@@ -1,6 +1,8 @@
 #ifndef RENUMBER_H_
 #define RENUMBER_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
 #include <string.h>

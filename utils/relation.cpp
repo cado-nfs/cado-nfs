@@ -14,7 +14,6 @@
 #include "timing.h"
 #include "portability.h"
 #include "relation-tools.h"
-#include "relation.hpp"
 
 using namespace std;
 
@@ -161,7 +160,7 @@ void relation::fixup_r(bool also_rational)
     }
 }
 
-inline bool operator==(relation::pr const& a, relation::pr const& b) {
+static inline bool operator==(relation::pr const& a, relation::pr const& b) {
     return mpz_cmp(a.p, b.p) == 0 && mpz_cmp(a.r, b.r) == 0;
 }
 

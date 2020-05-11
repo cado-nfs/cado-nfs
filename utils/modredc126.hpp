@@ -14,14 +14,6 @@
 #include "modint.hpp"
 #include "mod_stdop.hpp"
 
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 class ModulusREDC126 {
     /* Type definitions */
 public:

@@ -1,6 +1,6 @@
-#include "cado.h"
-#include "u64arith.h"
-#include "ularith.h"
+#include "cado.h" // IWYU pragma: keep
+#include "u64arith.h"      // for u64arith_mul_1_1_2
+#include "ularith.h"    // IWYU pragma: keep
 #include "mod_mpz_new.hpp"
 
 #define MOD_NO_SHARED_MOD_POW_UL 1

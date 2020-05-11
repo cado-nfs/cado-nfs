@@ -7,7 +7,6 @@
 
 #include "macros.h"
 #include "rootfinder.h"
-#include "mpz_poly.h"
 #include "modul_poly.h"
 #include "gmp_aux.h"
 #include "getprime.h"

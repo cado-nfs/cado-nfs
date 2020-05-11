@@ -1,5 +1,8 @@
 #ifndef PURGEDFILE_H_
 #define PURGEDFILE_H_
+
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
 #include <stdint.h>
 

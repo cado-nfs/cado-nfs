@@ -2,8 +2,9 @@
 #define LAS_GALOIS_HPP_
 
 #include <ostream>
-#include <stdint.h>
-#include "relation.hpp"
+
+#include <gmp.h>    // for mpz_t
+struct relation;
 
 int skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 		  const char *galois_autom);

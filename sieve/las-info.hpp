@@ -1,38 +1,39 @@
 #ifndef LAS_INFO_HPP_
 #define LAS_INFO_HPP_
 
-#include <cstdint>
-#include "las-config.h"
-#include "las-base.hpp"
-#include "cado_poly.h"
-#include "las-todo-entry.hpp"
-#include "las-siever-config.hpp"
-#ifdef DLP_DESCENT
-#include "las-dlog-base.hpp"
-#endif
-#include "sieve/bucket.hpp"     // bkmult
-#include "ecm/batch.hpp"          // cofac_list
-#include "las-forwardtypes.hpp"
-#include "las-sieve-shared-data.hpp"
-#include "las-todo-list.hpp"
-#include "las-cofactor.hpp"     // cofactorization_statistics
-#include "las-parallel.hpp"
-#include <list>
-#include <vector>
-#include <stack>
-#include <mutex>
-#include <condition_variable>
-#include <thread>
-#include "cxx_mpz.hpp"
-#include "lock_guarded_container.hpp"
-#include "las-memory.hpp"
+#include "cado_config.h"               // for HAVE_HWLOC
 
-#include <memory>
-#ifdef HAVE_BOOST_SHARED_PTR
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-namespace std { using boost::shared_ptr; using boost::make_shared; }
-#endif
+#include <cstddef>                    // for NULL
+#include <array>                       // for array
+#include <condition_variable>          // for condition_variable
+#include <cstdint>                     // for uint64_t, UINT64_MAX
+#include <list>                        // for list
+#include <map>                         // for map
+#include <mutex>                       // for mutex, lock_guard
+#include <thread>                      // for thread
+#include <utility>                     // for forward
+#include <vector>                      // for vector
+
+#include <gmp.h>
+
+#include "utils.h"
+
+#include "ecm/batch.hpp"               // for cofac_list
+#include "ecm/facul.hpp"                   // for facul_strategies_t
+#include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#include "las-bkmult.hpp"              // for bkmult_specifier, bkmult_speci...
+#include "las-cofactor.hpp"            // for cofactorization_statistics
+#include "las-dlog-base.hpp"
+#include "las-memory.hpp"              // for las_memory_accessor
+#include "las-parallel.hpp"            // for las_parallel_desc
+#include "las-sieve-shared-data.hpp"   // for sieve_shared_data, sieve_share...
+#include "las-siever-config.hpp"       // for siever_config (ptr only), siev...
+/* forward decls of j_divisibility_helperand unsieve_data are not
+ * sufficient.
+ */
+#include "las-unsieve.hpp"      // IWYU pragma: keep
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+struct trialdiv_data;
 
 /* This one wants to have siever_config defined */
 #include "las-descent-trees.hpp"
@@ -156,9 +157,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     int * hint_lookups[2]; /* quick access indices into hint_table */
     /* This is an opaque pointer to C++ code. */
     void * descent_helper;
-#ifdef  DLP_DESCENT
     las_dlog_base dlog_base;
-#endif
     mutable descent_tree tree;
     void init_hint_table(param_list_ptr);
     void clear_hint_table();

@@ -13,14 +13,6 @@
 #include <stdint.h>
 #include "macros.h"
 
-#ifdef WANT_ASSERT_EXPENSIVE
-#ifndef ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT_ALWAYS(x)
-#endif
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 #if defined(HAVE_INT128)
 typedef union {uint64_t x[2]; unsigned __int128 y;} _u64arith_union2_t;
 #endif

@@ -1,19 +1,28 @@
-#include "cado.h"
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <pthread.h>
-#include <errno.h>
-#include <sys/types.h>
+#include "cado.h" // IWYU pragma: keep
+
+#include <sys/resource.h>              // for rusage
+#include <errno.h>                     // for errno
+#include <limits.h>                    // for INT_MAX
+#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
+#include <stdio.h>                     // for fprintf, stderr, stdout, FILE
+#include <stdlib.h>                    // for abort, malloc, realloc, free
+#include <string.h>                    // for memset, memcpy, strcmp, strerror
+#include <sys/types.h>                 // for int8_t
+#include <time.h>                      // for size_t, NULL, nanosleep, timespec
+#include <unistd.h>                    // for ssize_t
 #ifdef HAVE_WAIT_H
 #include <sys/wait.h>
 #endif
-          
-#include "portability.h"
+
+#include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
 #include "utils_with_io.h"
-#include "ringbuf.h"
-#include "barrier.h"
+#include "portability.h"
+
+#include "barrier.h"                   // for barrier_destroy, barrier_init
+#include "cado_popen.h"                // for cado_pclose2, cado_popen
+#include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
+
+#include "filter_io.h"
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)

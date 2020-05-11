@@ -6,6 +6,7 @@
    element type. */
 
 #include <limits>
+#include "macros.h"
 
 #ifdef HAVE_SSE
 #include "xmmintrin.h"
@@ -58,7 +59,7 @@ template <typename SIMDTYPE, typename ELEMTYPE>
 static SIMDTYPE loadu(const ELEMTYPE *);
 
 template<typename SIMDTYPE, typename ELEMTYPE>
-inline SIMDTYPE ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline SIMDTYPE ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 adds(const SIMDTYPE a, const SIMDTYPE b)
 {
   const size_t N = sizeof(SIMDTYPE) / sizeof(ELEMTYPE);
@@ -77,14 +78,14 @@ adds(const SIMDTYPE a, const SIMDTYPE b)
 }
 
 template<typename SIMDTYPE, typename ELEMTYPE>
-inline SIMDTYPE ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline SIMDTYPE ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set0()
 {
   return 0;
 }
 
 template<>
-inline uint32_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint32_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<uint32_t, uint8_t>(const uint8_t c)
 {
   uint32_t r = (uint32_t) c;
@@ -94,7 +95,7 @@ set1<uint32_t, uint8_t>(const uint8_t c)
 }
 
 template<>
-inline uint64_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint64_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<uint64_t, uint8_t>(const uint8_t c)
 {
   uint64_t r = (uint32_t) c;
@@ -105,21 +106,21 @@ set1<uint64_t, uint8_t>(const uint8_t c)
 }
 
 template<typename SIMDTYPE, typename ELEMTYPE>
-inline SIMDTYPE ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline SIMDTYPE ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 _and(const SIMDTYPE a, const SIMDTYPE b)
 {
   return a & b;
 }
 
 template<typename SIMDTYPE, typename ELEMTYPE>
-inline SIMDTYPE ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline SIMDTYPE ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 andnot(const SIMDTYPE a, const SIMDTYPE b)
 {
   return (~a) & b;
 }
 
 template<typename SIMDTYPE, typename ELEMTYPE>
-inline SIMDTYPE ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline SIMDTYPE ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 loadu(const ELEMTYPE *p)
 {
   return * (const SIMDTYPE *)p;
@@ -128,14 +129,14 @@ loadu(const ELEMTYPE *p)
 #ifdef HAVE_SSE2
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set0<__m128i, uint8_t>()
 {
   return _mm_setzero_si128 ();
 }
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<__m128i, uint8_t>(const uint8_t c)
 {
   return _mm_set1_epi8(c);
@@ -143,28 +144,28 @@ set1<__m128i, uint8_t>(const uint8_t c)
 
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 adds<__m128i, uint8_t>(const __m128i a, const __m128i b)
 {
   return _mm_adds_epu8(a, b);
 }
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 _and<__m128i, uint8_t>(const __m128i a, const __m128i b)
 {
   return _mm_and_si128(a, b);
 }
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 andnot<__m128i, uint8_t>(const __m128i a, const __m128i b)
 {
   return _mm_andnot_si128(a, b);
 }
 
 template<>
-inline __m128i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m128i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 loadu<__m128i, uint8_t>(const uint8_t *p)
 {
   return _mm_loadu_si128((const __m128i *) p);
@@ -175,14 +176,14 @@ loadu<__m128i, uint8_t>(const uint8_t *p)
 #ifdef HAVE_AVX
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set0<__m256i, uint8_t>()
 {
   return _mm256_setzero_si256 ();
 }
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 loadu<__m256i>(const uint8_t *p)
 {
   return _mm256_loadu_si256((const __m256i *) p);
@@ -193,7 +194,7 @@ loadu<__m256i>(const uint8_t *p)
 #ifdef HAVE_AVX2
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<__m256i, uint8_t>(const uint8_t c)
 {
   __m128i t = _mm_cvtsi64_si128(c);
@@ -201,21 +202,21 @@ set1<__m256i, uint8_t>(const uint8_t c)
 }
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 adds<__m256i, uint8_t>(const __m256i a, const __m256i b)
 {
   return _mm256_adds_epu8(a, b);
 }
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 _and<__m256i, uint8_t>(const __m256i a, const __m256i b)
 {
   return _mm256_and_si256(a, b);
 }
 
 template<>
-inline __m256i ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline __m256i ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 andnot<__m256i, uint8_t>(const __m256i a, const __m256i b)
 {
   return _mm256_andnot_si256(a, b);
@@ -226,42 +227,42 @@ andnot<__m256i, uint8_t>(const __m256i a, const __m256i b)
 #ifdef HAVE_ARM_NEON
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set0<uint8x16_t, uint8_t>()
 {
   return vdupq_n_u8(0);
 }
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<uint8x16_t, uint8_t>(const uint8_t c)
 {
    return vdupq_n_u8(c);
 }
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 adds<uint8x16_t, uint8_t>(const uint8x16_t a, const uint8x16_t b)
 {
   return vqaddq_u8(a, b);
 }
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 _and<uint8x16_t, uint8_t>(const uint8x16_t a, const uint8x16_t b)
 {
   return vandq_u8(a, b);
 }
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 andnot<uint8x16_t, uint8_t>(const uint8x16_t a, const uint8x16_t b)
 {
   return vandq_u8(vmvnq_u8(a), b);
 }
 
 template<>
-inline uint8x16_t ATTRIBUTE((__always_inline__)) ATTRIBUTE_ARTIFICIAL
+inline uint8x16_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 loadu<uint8x16_t>(const uint8_t *p)
 {
   return vld1q_u8(p);

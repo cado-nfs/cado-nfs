@@ -1,6 +1,8 @@
 #ifndef MEMUSAGE_H_
 #define MEMUSAGE_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

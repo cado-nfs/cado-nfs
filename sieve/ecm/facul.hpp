@@ -1,13 +1,12 @@
 #ifndef FACUL_HPP_
 #define FACUL_HPP_
 
-#include <stdio.h>
-#include <stdint.h>
-#include <gmp.h>
-#include "cxx_mpz.hpp"
-#include <vector>
-#include <array>
+#include <stdio.h>        // for FILE
+#include <array>          // for array
+#include <vector>         // for vector
 #include "facul_fwd.hpp"
+struct cxx_mpz;
+
 
 #define PM1_METHOD 1
 #define PP1_27_METHOD 2

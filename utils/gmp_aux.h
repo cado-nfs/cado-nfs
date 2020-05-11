@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_GMP_AUX_H_
 #define CADO_UTILS_GMP_AUX_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <gmp.h>
 #include <stdint.h>
 #include <macros.h>
@@ -124,6 +126,8 @@ extern void mpz_ndiv_qr_ui (mpz_ptr q, mpz_ptr r, mpz_srcptr n, unsigned long in
 extern void mpz_ndiv_q (mpz_ptr q, mpz_srcptr n, mpz_srcptr d);
 extern void mpz_ndiv_q_ui (mpz_ptr q, mpz_srcptr n, unsigned long int d);
 extern int mpz_coprime_p (mpz_srcptr a, mpz_srcptr b);
+
+extern int mpz_rdiv_q(mpz_ptr q, mpz_srcptr a, mpz_srcptr b);
 
 /* Put in r the smallest legitimate value that it at least s + diff (note
    that if s+diff is already legitimate, then r = s+diff will result.

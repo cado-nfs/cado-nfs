@@ -1,17 +1,46 @@
-#include "cado.h"
-#include <pthread.h>
-#if defined(HAVE_SSE2)
-#include <emmintrin.h>
-#endif
-#include "las-config.h"
-#include "las-smallsieve.hpp"
-#include "las-debug.hpp"
-#include "las-qlattice.hpp"
-#include "misc.h"
-#include "portability.h"
-#include "verbose.h"
-#include "las-smallsieve-glue.hpp"
-#include "las-sieve2357.hpp"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
+#include <cinttypes>                    // for PRIi64
+#include <cstdarg>                      // for va_arg, va_list
+#include <cstdint>                      // for uint64_t, uint8_t, int64_t
+#include <cstdio>                       // for fprintf, size_t, FILE, asprintf
+#include <cstdlib>                      // for free
+#include <algorithm>                    // for is_sorted, sort
+#include <array>                        // for array
+#include <initializer_list>             // for initializer_list
+#include <memory>                       // for allocator_traits<>::value_type
+#include <vector>                       // for vector<>::iterator, vector, swap
+
+#include "las-smallsieve.hpp"           // for resieve_small_bucket_region
+
+#include "macros.h"                     // for ASSERT, ASSERT_ALWAYS, MAYBE_...
+#include "utils.h"
+
+#include "bucket-push-update.hpp"       // for bucket_single::push_update
+#include "bucket.hpp"                   // for bucket_update_t, bucket_primes_t
+#include "fb-types.h"                   // for fbprime_t, FBROOT_FORMAT, FBP...
+#include "fb.hpp"                       // for fb_entry_general, fb_factorba...
+#include "las-arith.hpp"                // for invmod_32
+#include "las-config.h"                 // for LOG_BUCKET_REGION
+#include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-forwardtypes.hpp"         // for spos_t, long_spos_t
+#include "las-fbroot-qlattice.hpp"      // for fb_root_in_qlattice
+#include "las-qlattice.hpp"             // for qlattice...
+#include "las-sieve2357.hpp"            // for sieve2357base::prime_t, sieve...
+#include "las-smallsieve-glue.hpp"      // for small_sieve, small_sieve::super
+#include "las-smallsieve-lowlevel.hpp"  // for SMALLSIEVE_COMMON_DEFS
+#include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
+#include "las-todo-entry.hpp"           // for las_todo_entry
+#include "las-where-am-i-proxy.hpp"          // for where_am_I
+
 
 /* small sieve and resieving */
 
@@ -645,141 +674,128 @@ void small_sieve_prepare_many_start_positions(
 
 /* }}} */
 
-/*{{{ ugliness that will go away soon. */
-/* This adds extra logging for pattern sieving. Very slow.
- */
-#define xxxUGLY_DEBUGGING
+void small_sieve::handle_projective_prime(ssp_t const & ssp, where_am_I & w MAYBE_UNUSED) {/*{{{*/
+    /* This code also covers projective powers of 2 */
+    const fbprime_t q = ssp.get_q();
+    const fbprime_t g = ssp.get_g();
+    const size_t gI = (size_t)ssp.get_g() << logI;
+    const fbprime_t U = ssp.get_U();
+    const fbprime_t p MAYBE_UNUSED = g * q;
+    WHERE_AM_I_UPDATE(w, p, p);
+    const unsigned char logp = ssp.logp;
+    /* Sieve the projective primes. We have
+     *         p^index | fij(i,j)
+     * for i,j such that
+     *         i * g == j * U (mod p^index)
+     * where g = p^l and gcd(U, p) = 1.
+     * This hits only for g|j, then j = j' * g, and
+     *         i == j' * U (mod p^(index-l)).
+     * In every g-th line, we sieve the entries with
+     *         i == (j/g)*U (mod q).
+     * In ssd we have stored g, q = p^(index-l), U, and ssdpos so
+     * that S + ssdpos is the next sieve entry that needs to be
+     * sieved.  So if S + ssdpos is in the current bucket region,
+     * we update all  S + ssdpos + n*q  where ssdpos + n*q < I,
+     * then set ssdpos = ((ssdpos % I) + U) % q) + I * g.  */
+    if (!test_divisibility && ssp.get_q() == 1)
+    {
+        /* q = 1, therefore U = 0, and we sieve all entries in lines
+           with g|j, beginning with the line starting at S[ssdpos] */
+        unsigned long logps;
+        long_spos_t pos = super::first_position_projective_prime(ssp);
 
-/* #define exactly one of these */
-// #define xxxSMALLSIEVE_CRITICAL_UGLY_ASSEMBLY
-// #define xxxSMALLSIEVE_CRITICAL_MANUAL_UNROLL
-// #define SMALLSIEVE_CRITICAL_PLAIN
+        // The following is for the case where p divides the norm
+        // at the position (i,j) = (1,0).
+        if (UNLIKELY(super::has_origin && pos == (long_spos_t) gI)) {
+#ifdef TRACE_K
+            if (trace_on_spot_Nx(w->N, (1-i0))) {
+                WHERE_AM_I_UPDATE(w, x, trace_Nx.x);
+                unsigned int v = logp;
+                sieve_increase_logging(S + w->x, v, w);
+            }
+#endif
+            S[1 - i0] += logp;
+        }
+        // The event SSP_DISCARD might have occurred due to
+        // the first row to sieve being larger than J. The row
+        // number 0 must still be sieved in that case, but once
+        // it's done, we can indeed skip the next part of
+        // sieving.
+        if (ssp.is_discarded_proj())
+            return;
+        ASSERT (ssp.get_U() == 0);
+        ASSERT (pos % F() == 0);
+        ASSERT (F() % (4 * sizeof (unsigned long)) == 0);
+        for (size_t x = 0; x < sizeof (unsigned long); x++)
+            ((unsigned char *)&logps)[x] = logp;
+        unsigned int j = j0 + (pos >> logI);
+        for( ; j < j1 ; j += g) {
+            /* our loop is over line fragments that have a hit,
+             * and by the condition q=1 above we'll sieve them
+             * completely */
+            unsigned long *S_ptr = (unsigned long *) (S + pos);
+            unsigned long *S_end = (unsigned long *) (S + pos + F());
+            unsigned long logps2 = logps;
+            if (!(j&1)) {
+                /* j is even. We update only odd i-coordinates */
+                /* Use array indexing to avoid endianness issues. */
+                for (size_t x = 0; x < sizeof (unsigned long); x += 2)
+                    ((unsigned char *)&logps2)[x] = 0;
+            }
+#ifdef TRACE_K
+            if (trace_on_range_Nx(w->N, pos, pos + F())) {
+                WHERE_AM_I_UPDATE(w, x, trace_Nx.x);
+                unsigned int x = trace_Nx.x;
+                unsigned int index = x % I();
+                unsigned int v = (((unsigned char *)(&logps2))[index%sizeof(unsigned long)]);
+                sieve_increase_logging(S + w->x, v, w);
+            }
+#endif
+            for( ; S_ptr < S_end ; S_ptr += 4) {
+                S_ptr[0] += logps2;
+                S_ptr[1] += logps2;
+                S_ptr[2] += logps2;
+                S_ptr[3] += logps2;
+            }
+            pos += gI;
+        }
+#if 0
+        ssdpos[index] = pos - (1U << LOG_BUCKET_REGION);
+#endif
+    } else {
+        /* q > 1, more general sieving code. */
+        spos_t pos = super::first_position_projective_prime(ssp);
+        const fbprime_t evenq = (q % 2 == 0) ? q : 2 * q;
+        unsigned char * S_ptr = S;
+        S_ptr += pos - (pos & (I() - 1U));
+        unsigned int j = j0 + (pos >> logI);
+        pos = pos & (I() - 1U);
+        ASSERT (U < q);
+        for( ; j < j1 ; S_ptr += gI, j+=g) {
+            WHERE_AM_I_UPDATE(w, j, j - j0);
+            unsigned int q_or_2q = q;
+            int i = pos;
+            if (!(j&1)) {
+                /* j even: sieve only odd i values */
+                if (i % 2 == 0) /* Make i odd */
+                    i += q;
+                q_or_2q = evenq;
+            }
+            if ((i|j) & 1) { /* odd j, or not i and q both even */
+                for ( ; i < F(); i += q_or_2q) {
+                    WHERE_AM_I_UPDATE(w, x, (S_ptr - S) + i);
+                    sieve_increase (S_ptr + i, logp, w);
+                }
+            }
 
-/* on an rsa155 test with I=14, the UGLY_ASSEMBLY version gains
- * practically nothing over the plain C version. The MANUAL_UNROLL
- * version is slower.
- *
- * On an rsa220 test with I=16, the UGLY_ASSEMBLY version gains about 3%
- * on the small sieve part strictly speaking, and then less than 1%
- * overall.
- */
-#if 1
-#if defined( HAVE_SSE2 ) && !defined( TRACK_CODE_PATH ) /* x86 optimized code */
-#define SMALLSIEVE_CRITICAL_UGLY_ASSEMBLY
-#else
-#define SMALLSIEVE_CRITICAL_MANUAL_UNROLL
+            pos += U;
+            if (pos >= (spos_t) q) pos -= q;
+        }
+#if 0
+        ssdpos[index] = linestart + lineoffset - (1U << LOG_BUCKET_REGION);
 #endif
-#else
-#warning "using plain C code for critical part of small sieve"
-#define SMALLSIEVE_CRITICAL_PLAIN
-#endif
-
-
-/* {{{ critical part of the small sieve */
-#ifdef SMALLSIEVE_CRITICAL_UGLY_ASSEMBLY
-      /* Some defines for the critical part of small sieve.
-         0. The C code and the asm X86 code have the same algorithm.
-         Read first the C code to understand easily the asm code.
-         1. If there are less than 12 "T" in the line, the goal is to do
-         only one jump (pipe-line breaks) and of course the instructions
-         minimal number.
-         2. 12 "T" seems the best in the critical loop. Before, gcc tries
-         to optimize in a bad way the loop. For gcc generated code, the
-         best is here a systematic code (12*2 instructions), like the C code.
-         3. The asm X86 optimization uses addb logp,(pi+p_or_2p*[0,1,2])
-         & three_p_or_2p = 3 * p_or_2p; the lea (add simulation) & real
-         add interlace seems a bit interesting.
-         So, the loop is smaller & faster (19 instructions versus 27 for
-         gcc best X86 asm).
-         4. Of course, the gain between the 2 versions is light, because
-         the main problem is the access time of the L0 cache: read + write
-         with sieve_increase(pi,logp,w), or *pi += logp in fact.
-      */
-#define U1                                                              \
-        "addb %4,(%1)\n"                /* sieve_increase(pi,logp,w) */ \
-        "addb %4,(%1,%3,1)\n"   /* sieve_increase(p_or_2p+pi,logp,w) */ \
-        "addb %4,(%1,%3,2)\n" /* sieve_increase(p_or_2p*2+pi,logp,w) */ \
-        "lea (%1,%2,1),%1\n"                    /* pi += p_or_2p * 3 */
-#define U2                                                              \
-        "cmp %5, %1\n"                    /* if (pi >= S1) break; */    \
-        "jae 2f\n"                                                      \
-        "addb %4,(%1)\n"                /* sieve_increase(pi,logp,w) */ \
-        "lea (%1,%3,1),%1\n"                        /* pi += p_or_2p */
-#define U do {                                                          \
-        unsigned char *pi_end;                                          \
-        size_t three_p_or_2p;                                           \
-        __asm__ __volatile__ (                                          \
-        "lea (%3,%3,2), %2\n"         /* three_p_or_2p = p_or_2p * 3 */ \
-        "lea (%1,%2,4), %0\n"            /* pi_end = pi + p_or_2p*12 */ \
-        "cmp %5, %0\n"                /* if (pi_end > S1) no loop */    \
-        "jbe 0f\n"                                                      \
-        "1:\n"                                                          \
-        U2 U2 U2 U2 U2 U2 U2 U2 U2 U2 U2                                \
-        "cmp %5, %1\n"                                                  \
-        "jae 2f\n"                                                      \
-        "addb %4,(%1)\n"                                                \
-        "jmp 2f\n"                                                      \
-        ".balign 8\n 0:\n"                              /* Main loop */ \
-        U1 U1           /* sieve_increase(p_or_2p*[0..11]+pi,logp,w) */ \
-        U1 U1                                    /* pi += p_or_2p*12 */ \
-        "lea (%1,%2,4), %0\n"    /* if (pi+p_or_2p*12 > S1) break */    \
-        "cmp %5, %0\n"                                                  \
-        "jbe 0b\n"                                                      \
-        "jmp 1b\n"                                                      \
-        ".balign 8\n 2:\n"                                              \
-        : "=&r"(pi_end), "+&r"(pi), "=&r"(three_p_or_2p)                \
-        : "r"(p_or_2p), "q"(logp), "r"(S1) : "cc");                     \
-        pi = pi_end;                                                    \
-      } while (0)
-#endif
-
-#ifdef SMALLSIEVE_CRITICAL_MANUAL_UNROLL
-#define T do {                                                          \
-    WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);                              \
-    sieve_increase (pi, logp, w); pi += p_or_2p;                        \
-} while(0)
-#endif
-
-inline size_t sieve_full_line(unsigned char * S0, unsigned char * S1, size_t x0 MAYBE_UNUSED, size_t pos, size_t p_or_2p, unsigned char logp, where_am_I w MAYBE_UNUSED)
-{
-    unsigned char * pi = S0 + pos;
-#ifdef SMALLSIEVE_CRITICAL_UGLY_ASSEMBLY
-    U;
-#endif
-#ifdef SMALLSIEVE_CRITICAL_MANUAL_UNROLL
-    while (UNLIKELY(pi + p_or_2p * 12 <= S1))
-    { T; T; T; T; T; T; T; T; T; T; T; T; }
-    do {
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-        if (pi >= S1) break; T; if (pi >= S1) break; T;
-    } while (0);
-#endif
-#ifdef SMALLSIEVE_CRITICAL_PLAIN
-    for ( ; pi <= S1 ; pi += p_or_2p) {
-        WHERE_AM_I_UPDATE(w, x, x0 + pi - S0);
-        sieve_increase (pi, logp, w);
     }
-#endif
-    return pi - S1;
-}
-
-#ifdef SMALLSIEVE_CRITICAL_UGLY_ASSEMBLY
-#undef U1
-#undef U2
-#undef U
-#undef T
-#endif
-#ifdef SMALLSIEVE_CRITICAL_MANUAL_UNROLL
-#undef T
-#endif
-
-/* }}} */
-/*}}}*/
-
+}/*}}}*/
 
 /* {{{ Pattern-sieve primes with the is_pattern_sieved flag */
 void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
@@ -878,7 +894,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
                 const unsigned char logp = psp[i - 1].logp;
                 if (0) {
                     printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%" FBPRIME_FORMAT", %" FBPRIME_FORMAT", %hhu}, from  ",
-                        w.side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp);
+                        w->side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp);
                     ssp.print(stdout);
                     printf("\n");
                 }

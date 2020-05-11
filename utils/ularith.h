@@ -39,16 +39,6 @@
 #endif /* elif defined __LONG_MAX__ else */
 #endif /* ifndef LONG_BIT */
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 /* On 32 bit x86, the general constraint for, e.g., the source operand
    of add is "g". For x86_64, it is "rme", since immediate constants
    must be 32 bit. */

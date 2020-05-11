@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_MISC_H_
 #define CADO_UTILS_MISC_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -40,15 +42,6 @@ static inline void* pointer_arith(void * a, ptrdiff_t q) {
 static inline const void* pointer_arith_const(const void * a, ptrdiff_t q) {
     return (const void*)(((const char*)a)+q);
 }
-
-/* MinGW's string.h does not declare a prototype for strdup if __STRICT_ANSI__
-   is defined */
-#if !defined(HAVE_STRDUP) || (defined(__MINGW32__) && defined(__STRICT_ANSI__))
-char * strdup(const char *s);
-#endif
-#ifndef HAVE_STRNDUP
-char * strndup(const char * a, size_t n);
-#endif
 
 /* strtoul(), but with const char ** for second argument.
    Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is

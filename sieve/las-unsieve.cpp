@@ -1,16 +1,31 @@
-#include "cado.h"
-#include <stdlib.h>
-#include <string.h>
+#include "cado.h" // IWYU pragma: keep
 
-#include "las-config.h"
-#include "las-info.hpp"
-#include "las-unsieve.hpp"
-#include "ularith.h"
-#include "las-norms.hpp"
-#include "las-debug.hpp"
-#include "gcd.h"
-#include "gpf.h"
-#include "memory.h"
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
+#include <algorithm>        // for max
+#include <climits>          // for UINT_MAX
+#include <cmath>            // for abs
+#include <cstdint>          // for uint32_t
+#include <cstdlib>          // for abs, abort, size_t, NULL
+#include <cstring>          // for memcpy, memset
+#include <vector>           // for vector
+
+#include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
+
+#include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
+#include "utils.h"
+
+#include "fb-types.h"       // for sublat_t
+#ifdef TRACE_K
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-output.hpp"   // IWYU pragma: keep
+#endif
+#include "ularith.h"        // for ularith_invmod
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
 

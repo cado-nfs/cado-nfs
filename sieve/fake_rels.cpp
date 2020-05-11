@@ -39,10 +39,10 @@
 using namespace std;
 
 // A global mutex for I/O
-pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // A global variable for the number of relations printed
-unsigned long rels_printed = 0;
+static unsigned long rels_printed = 0;
 
 // We need a re-entrant random. Let's take GMP.
 static inline uint64_t long_random(gmp_randstate_t buf) {
@@ -55,8 +55,9 @@ static inline uint64_t long_random(gmp_randstate_t buf) {
 #endif
 }
 
-gmp_randstate_t global_rstate_non_mt;
-long myrandom_non_mt() {
+static gmp_randstate_t global_rstate_non_mt;
+
+static long myrandom_non_mt() {
     return long_random(global_rstate_non_mt);
 }
 
@@ -143,7 +144,7 @@ struct indexrange {
 // gathering indices in two arrays, one for each side.
 // In case of composite special-qs, also fill-in the list of the
 // corresponding primes on the sqside.
-void prepare_indexrange(indexrange *Ind, renumber_t ren_tab, 
+static void prepare_indexrange(indexrange *Ind, renumber_t ren_tab, 
         cado_poly cpoly, int sqside, int compsq) {
     Ind[0].init();
     Ind[1].init();
@@ -183,7 +184,7 @@ bool operator<(fake_rel const& x, fake_rel const& y) {
     return x.b < y.b;
 }
 
-int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
+static int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
     if (facq.size() == 0) {
         return q != p;
     } else {
@@ -196,7 +197,7 @@ int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
 }
 
 
-void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
+static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
         int sqside, const char *str, renumber_t ren_tab) {
     rel.nb_ind[0] = 0;
     rel.nb_ind[1] = 0;
@@ -251,7 +252,7 @@ void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
     }
 }
 
-void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
+static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
         int sqside, const char *filename, renumber_t ren_tab, int compsq)
 {
     FILE * file;
@@ -323,7 +324,7 @@ int index_cmp(const void *p1, const void *p2)
     return 1;
 }
 
-void reduce_mod_2(index_t *frel, int *nf) {
+static void reduce_mod_2(index_t *frel, int *nf) {
     int i = 1;
     index_t curr = frel[0];
     int nb = 1;
@@ -346,7 +347,7 @@ void reduce_mod_2(index_t *frel, int *nf) {
     *nf = j;
 }
 
-void shrink_indices(index_t *frel, int nf, int shrink_factor) {
+static void shrink_indices(index_t *frel, int nf, int shrink_factor) {
     // Indices below this threshold are not shrunk
     // FIXME: I am not sure we should keep the heavy weight columns
     // un-shrunk. The answer might be different in DL and in facto...
@@ -360,7 +361,7 @@ void shrink_indices(index_t *frel, int nf, int shrink_factor) {
     }
 }
 
-void print_fake_rel_manyq(
+static void print_fake_rel_manyq(
         vector<index_t>::iterator list_q, int nfacq, uint64_t nq,
         vector<fake_rel> *rels, vector<unsigned int> *nrels,
         indexrange *Ind, int dl, int shrink_factor,
@@ -474,7 +475,7 @@ struct th_args {
 };
 
 
-void * do_thread(void * rgs) {
+static void * do_thread(void * rgs) {
     struct th_args * args = (struct th_args *) rgs;
     if (args->nq > 0)
         print_fake_rel_manyq(args->list_q_prime, 1, args->nq, args->rels,
@@ -494,7 +495,7 @@ void * do_thread(void * rgs) {
     return NULL;
 }
 
-void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
+static void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
         cado_poly cpoly, int sqside, prime_info pdata)
 {
     int nr;
@@ -511,7 +512,7 @@ void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
 
 // All composite special-q in [q0, q1] with 2 prime factors in the range
 // [qfac_min, qfac_max] in Ind.
-vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
+static vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
         uint64_t qfac_max, indexrange &Ind)
 {
     vector<index_t> list;
@@ -546,7 +547,7 @@ vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
 
 // All composite special-q in [q0, q1] with 3 prime factors in the range
 // [qfac_min, qfac_max] in Ind.
-vector<index_t> all_comp_sq_3(uint64_t q0, uint64_t q1, uint64_t qfac_min,
+static vector<index_t> all_comp_sq_3(uint64_t q0, uint64_t q1, uint64_t qfac_min,
         uint64_t qfac_max, indexrange &Ind)
 {
     vector<index_t> list;

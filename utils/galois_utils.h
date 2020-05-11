@@ -1,6 +1,10 @@
 #ifndef GALOIS_UTILS_H_
 #define GALOIS_UTILS_H_
 
+// IWYU pragma: private, include "utils.h"
+
+#include "mod_ul.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

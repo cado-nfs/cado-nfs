@@ -1,19 +1,22 @@
 #ifndef LAS_FORWARDTYPES_HPP_
 #define LAS_FORWARDTYPES_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 
 /* These must be forward-declared, because various header files use them */
-/* TODO: still true ? */
+/* TODO: still true ?
+ *
+ * Quite often, the forward declarations are just put as they are. It's
+ * not totally clear to me which solution is better, between having this
+ * "forwardtypes" header, and declaring them one by one when needed.
+ */
 
 class bucket_primes_t;
 struct las_info;
 struct where_am_I;;
 // struct siever_config;;
-#ifdef  DLP_DESCENT
 // struct las_dlog_base;
 struct descent_tree;
-#endif
 class nfs_work;
 class nfs_work_cofac;
 class nfs_aux;

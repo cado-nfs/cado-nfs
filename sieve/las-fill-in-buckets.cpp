@@ -1,30 +1,52 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include "fb.hpp"
-#include "utils.h"           /* lots of stuff */
-#include "bucket.hpp"
-#include "modredc_ul.h"
-#include "modredc_2ul2.h"
-#include "threadpool.hpp"
-#include "las-config.h"
-#include "las-info.hpp"
-#include "las-coordinates.hpp"
-#include "las-debug.hpp"
-#include "las-arith.hpp"
-#include "las-qlattice.hpp"
-#include "las-fill-in-buckets.hpp"
-#include "las-norms.hpp"
-#include "las-smallsieve.hpp"
-#include "las-plattice.hpp"
-#include "las-threads.hpp"
-#include "las-process-bucket-region.hpp"
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
 
+#include <cstddef>                        // for size_t, NULL
+#include <cstdint>                        // for uint32_t, uint64_t
+#include <xmmintrin.h>                    // for _MM_HINT_T0, _mm_prefetch
+#include <algorithm>                      // for max_element, min
+#include <array>                          // for array
+#include <limits>                         // for numeric_limits
+#include <memory>                         // for shared_ptr, allocator, __sh...
+#include <utility>                        // for move
+#include <vector>                         // for vector, vector<>::iterator
+
+#include "macros.h"                       // for CADO_CONCATENATE, ASSERT_AL...
+#include "utils.h"
+
+#include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
+
+#include "bucket-push-update.hpp"         // for bucket_array_t::push_update
+#include "bucket.hpp"                     // for longhint_t (ptr only), buck...
 #ifdef USE_CACHEBUFFER
 #include "cachebuf.h"
 #endif
+#include "fb-types.h"                     // for sublat_t, slice_offset_t
+#include "fb.hpp"                         // for fb_slice, fb_factorbase
+#include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data
+#include "las-bkmult.hpp"                 // for buckets_are_full
+#include "las-config.h"                   // for FB_MAX_PARTS, BUCKET_REGIONS
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-plattice.hpp"               // for plattice_info_t, plattice_e...
+#include "las-process-bucket-region.hpp"  // for process_many_bucket_regions
+#include "las-qlattice.hpp"               // for qlattice_basis
+#include "las-report-stats.hpp"           // for TIMER_CATEGORY
+#include "las-siever-config.hpp"          // for siever_config, siever_confi...
+#include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
+#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
+#include "las-where-am-i-proxy.hpp"            // for where_am_I
+#include "multityped_array.hpp"           // for multityped_array (ptr only)
+#include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
+#include "threadpool.hpp"                 // for thread_pool, worker_thread
 
 /* is this in the std library or not ? */
-template<typename T> inline T const& const_ref(T& x) { return x; }
+template<typename T> static inline T const& const_ref(T& x) { return x; }
 
 /***************************************************************************/
 /********        Main bucket sieving functions                    **********/
@@ -282,7 +304,7 @@ transform_n_roots(unsigned long *p, unsigned long *r, fb_iterator t,
  * )
  * }}} */
 template<class FB_ENTRY_TYPE>
-inline bool discard_power_for_bucket_sieving(FB_ENTRY_TYPE const &) {
+static inline bool discard_power_for_bucket_sieving(FB_ENTRY_TYPE const &) {
     return false;
 }
 template<>
@@ -325,7 +347,7 @@ struct make_lattice_bases_parameters : public make_lattice_bases_parameters_base
 };
 
 template <int LEVEL, class FB_ENTRY_TYPE>
-task_result *
+static task_result *
 make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
         task_parameters * _param, int)
 {
@@ -458,7 +480,7 @@ void fill_in_buckets_prepare_plattices(nfs_work & ws, thread_pool &pool, int sid
 // But putting if() in critical loops can kill performance (I tried...)
 
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-void
+static void
 fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                 nfs_work & ws,
                 fb_slice<FB_ENTRY_TYPE> const & slice,
@@ -677,7 +699,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 /* {{{ */
 /* TARGET_HINT is shorthint_t or void */
 template <int LEVEL, typename TARGET_HINT>
-  void
+  static void
 fill_in_buckets_lowlevel(
     bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
     nfs_work & ws,
@@ -714,7 +736,7 @@ fill_in_buckets_lowlevel(
 #ifdef TRACE_K
     /* this is a bit expensive, since we're scanning all parts.
      * Fortunately it's only a debug call anyway. */
-    fb_slice_interface const & slice = (*w.sides[w.side].fbs)[slice_index];
+    fb_slice_interface const & slice = (*w->sides[w->side].fbs)[slice_index];
     const fbprime_t p = slice.get_prime(hint); 
     WHERE_AM_I_UPDATE(w, p, p);
 #else
@@ -781,7 +803,7 @@ public:
           plattices_vector_t<LEVEL> * _platt,
           plattices_dense_vector_t<LEVEL> * _dplatt,
           const uint32_t _reg0,
-          where_am_I const& w)
+          where_am_I const & w)
   : ws(_ws), aux(aux), side(_side), slice(_slice),
     plattices_vector(_platt),
     plattices_dense_vector(_dplatt),
@@ -833,7 +855,7 @@ PREPARE_TEMPLATE_INST_NAMES(downsort_tree, " (dispatcher only)");
 // For internal levels, the fill-in is not exactly the same as for
 // top-level, since the plattices have already been precomputed.
 template<int LEVEL, typename TARGET_HINT>
-task_result *
+static task_result *
 fill_in_buckets_one_slice_internal(worker_thread * worker, task_parameters * _param, int)
 {
     fill_in_buckets_parameters<LEVEL> *param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
@@ -897,7 +919,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker, task_parameters * _pa
 // Hence the ugly de-templatization.
 // At some point, the code should be re-organized, I'm afraid.
 template<int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-task_result *
+static task_result *
 fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED, task_parameters * _param, int)
 {
     fill_in_buckets_parameters<LEVEL> *param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
@@ -948,7 +970,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED, task_param
 }
 /* same for sublat */
 template<int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-task_result *
+static task_result *
 fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker MAYBE_UNUSED, task_parameters * _param, int)
 {
     fill_in_buckets_parameters<LEVEL> *param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
@@ -1142,7 +1164,7 @@ void fill_in_buckets_toplevel(nfs_work &ws, nfs_aux & aux, thread_pool &pool, in
  * 3 presently.
  */
 template<int LEVEL>
-void downsort_aux(
+static void downsort_aux(
     fb_factorbase::slicing const & fbs,
     nfs_work &ws,
     nfs_aux &aux,
@@ -1168,7 +1190,7 @@ void downsort_aux(
     }
 }
 template<>
-void downsort_aux<2>(fb_factorbase::slicing const &, nfs_work &, nfs_aux&, thread_pool &, int, uint32_t, where_am_I&) {}
+void downsort_aux<2>(fb_factorbase::slicing const &, nfs_work &, nfs_aux&, thread_pool &, int, uint32_t, where_am_I &) {}
 
 // first_region0_index is a way to remember where we are in the tree.
 // The depth-first is a way to process all the the regions of level 0 in
@@ -1177,7 +1199,7 @@ void downsort_aux<2>(fb_factorbase::slicing const &, nfs_work &, nfs_aux&, threa
 // where we are. This is what is called N by WHERE_AM_I and friends.
 
 template <int LEVEL, bool WITH_HINTS>
-void
+static void
 downsort_tree_inner(
     nfs_work &ws,
     std::shared_ptr<nfs_work_cofac> wc_p,

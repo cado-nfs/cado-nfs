@@ -465,6 +465,12 @@ public:
 // typedef tdict::tree<tdict::timer_seconds_thread_and_wct> timetree_t;
 typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
 
+extern template struct tdict::tree<tdict::timer_seconds_thread>;
+extern template struct std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
+extern template struct std::map<tdict::key, tdict::slot_base const *>;
+// extern template struct std::pair<tdict::key const, tdict::slot_base const *>;
+extern template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;
+
 #if 0
 
 // an example. In fact this one is already covered by tdict::parametric

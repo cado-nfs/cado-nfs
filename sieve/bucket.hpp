@@ -5,13 +5,13 @@
  * Bucket sieving: radix-sort sieve updates as they are created.
  */
 
-#include <stdint.h>
+#include <cstdint>
 #include "cado-endian.h"
 #define xxxSAFE_BUCKETS_SINGLE
 #define xxxSAFE_BUCKET_ARRAYS
 #if defined(SAFE_BUCKETS_SINGLE) || defined(SAFE_BUCKET_ARRAYS)
 #include <exception>
-#include <stdio.h>
+#include <cstdio>
 #include <limits>
 #include <string>
 #include <functional>
@@ -20,10 +20,10 @@
 #include "misc.h"
 #include "fb-types.h"
 #include "fb.hpp"
-#include "las-debug.hpp"
 #include "threadpool.hpp"
 #include "las-memory.hpp"
 #include "las-output.hpp"
+#include "las-where-am-i-proxy.hpp"
 
 // #include "electric_alloc.h"
 
@@ -344,7 +344,7 @@ private:
   void free_slice_start();
   void realloc_slice_start(size_t);
   void log_this_update (const update_t update, uint64_t offset,
-                        uint64_t bucket_number, where_am_I& w) const;
+                        uint64_t bucket_number, where_am_I & w) const;
 public:
   size_t nb_of_updates(const int i) const {
       ASSERT((uint32_t) i < n_bucket);
@@ -437,35 +437,17 @@ public:
   double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKET_ARRAYS is defined. */
-  void push_update(const int i, const update_t &update) {
-#ifdef SAFE_BUCKET_ARRAYS
-      if (bucket_write[i] >= bucket_start[i + 1]) {
-          fprintf(stderr, "# Warning: hit end of bucket nb %d\n", i);
-          ASSERT_ALWAYS(0);
-          return;
-      }
-#endif
-      *bucket_write[i]++ = update;
-  }
+  void push_update(const int i, const update_t &update);
+
   /* Create an update for a hit at location offset and push it to the
      coresponding bucket */
   void push_update(const uint64_t offset, const fbprime_t p,
       const slice_offset_t slice_offset, const slice_index_t slice_index,
-      where_am_I& w MAYBE_UNUSED)
-  {
-      int logB = LOG_BUCKET_REGIONS[LEVEL];
-      const uint64_t bucket_number = offset >> logB;
-      ASSERT_EXPENSIVE(bucket_number < n_bucket);
-      update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset, slice_index);
-      WHERE_AM_I_UPDATE(w, i, slice_index);
-#if defined(TRACE_K)
-      log_this_update(update, offset, bucket_number, w);
-#endif
-      push_update(bucket_number, update);
-  }
+      where_am_I & w);
+
   template<typename hh = HINT>
   typename std::enable_if<std::is_same<hh,emptyhint_t>::value, void>::type
-  push_update(const uint64_t offset, where_am_I& w MAYBE_UNUSED)
+  push_update(const uint64_t offset, where_am_I & w MAYBE_UNUSED)
   {
       int logB = LOG_BUCKET_REGIONS[LEVEL];
       const uint64_t bucket_number = offset >> logB;
@@ -475,7 +457,7 @@ public:
   }
   template<typename hh = HINT>
   typename std::enable_if<std::is_same<hh,logphint_t>::value, void>::type
-  push_update(const uint64_t offset, logphint_t const & logp, where_am_I& w MAYBE_UNUSED)
+  push_update(const uint64_t offset, logphint_t const & logp, where_am_I & w MAYBE_UNUSED)
   {
       int logB = LOG_BUCKET_REGIONS[LEVEL];
       const uint64_t bucket_number = offset >> logB;
@@ -494,14 +476,14 @@ void
 downsort(fb_factorbase::slicing const &,
         bucket_array_t<INPUT_LEVEL - 1, longhint_t> &BA_out,
         const bucket_array_t<INPUT_LEVEL, shorthint_t> &BA_in,
-        uint32_t bucket_index, where_am_I& w);
+        uint32_t bucket_index, where_am_I & w);
 
 template <int INPUT_LEVEL>
 void
 downsort(fb_factorbase::slicing const &,
         bucket_array_t<INPUT_LEVEL - 1, longhint_t> &BA_out,
         const bucket_array_t<INPUT_LEVEL, longhint_t> &BA_in,
-        uint32_t bucket_index, where_am_I& w);
+        uint32_t bucket_index, where_am_I & w);
 
 /* And then we have the "other" downsort, that disregards the hints
  * completely. This is for the "no resieve" case.
@@ -512,14 +494,14 @@ void
 downsort(fb_factorbase::slicing const &,
         bucket_array_t<INPUT_LEVEL - 1, logphint_t> &BA_out,
         const bucket_array_t<INPUT_LEVEL, emptyhint_t> &BA_in,
-        uint32_t bucket_index, where_am_I& w);
+        uint32_t bucket_index, where_am_I & w);
 
 template <int INPUT_LEVEL>
 void
 downsort(fb_factorbase::slicing const &,
         bucket_array_t<INPUT_LEVEL - 1, logphint_t> &BA_out,
         const bucket_array_t<INPUT_LEVEL, logphint_t> &BA_in,
-        uint32_t bucket_index, where_am_I& w);
+        uint32_t bucket_index, where_am_I & w);
 
 /* A class that stores updates in a single "bucket".
    It's really just a container class with pre-allocated array for storage,
@@ -566,23 +548,8 @@ public:
    * enough room for the update. This could lead to a segfault, with the
    * current implementation!
    */
-  void push_update (const update_t &update)
-  {
-#ifdef SAFE_BUCKETS_SINGLE
-      if (start + _size <= write) {
-          fprintf(stderr, "# Warning: hit end of bucket\n");
-          ASSERT_ALWAYS(0);
-          write--;
-      }
-#endif
-      *(write++) = update;
-  }
-  const update_t &get_next_update () {
-#ifdef SAFE_BUCKETS_SINGLE
-    ASSERT_ALWAYS (read < write);
-#endif
-    return *read++; 
-  }
+  void push_update (const update_t &update);
+  const update_t &get_next_update ();
   void rewind_by_1() {if (read > start) read--;}
   bool is_end() const { return read == write; }
 
@@ -618,51 +585,15 @@ private:
 #endif
 };
 
-
-class bkmult_specifier {
-    double base = 1.0;
-    typedef std::map<std::pair<int, char>, double> dict_t;
-    dict_t dict;
-    public:
-    typedef dict_t::key_type key_type;
-    static std::string printkey(dict_t::key_type const& key) {
-        char c[3] = { (char) ('0' + key.first), key.second, '\0' };
-        return std::string(c);
-    }
-    template<typename T> static dict_t::key_type getkey() {
-        return dict_t::key_type(T::level(), T::rtti[0]);
-    }
-    template<typename T> double get() const { return get(getkey<T>()); }
-    double const & get(dict_t::key_type const& key) const {
-        auto xx = dict.find(key);
-        if (xx != dict.end()) return xx->second;
-        return base;
-    }
-    double grow(dict_t::key_type const& key, double d) {
-        double v = get(key) * d;
-        return dict[key] = v;
-    }
-    template<typename T> double get(T const &) const { return get<T>(); }
-    template<typename T> double operator()(T const &) const { return get<T>(); }
-    template<typename T> double operator()() const { return get<T>(); }
-    bkmult_specifier() = default;
-    bkmult_specifier(double x) : base(x) {}
-    bkmult_specifier(const char * specifier);
-    std::string print_all() const;
-};
-
-struct buckets_are_full : public clonable_exception {
-    bkmult_specifier::key_type key;
-    int bucket_number;
-    int reached_size;
-    int theoretical_max_size;
-    std::string message;
-    buckets_are_full(bkmult_specifier::key_type const&, int b, int r, int t);
-    virtual const char * what() const noexcept { return message.c_str(); }
-    bool operator<(buckets_are_full const& o) const {
-        return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
-    }
-    virtual clonable_exception * clone() const { return new buckets_are_full(*this); }
-};
+extern template class bucket_array_t<1, shorthint_t>;
+extern template class bucket_array_t<2, shorthint_t>;
+extern template class bucket_array_t<3, shorthint_t>;
+extern template class bucket_array_t<1, longhint_t>;
+extern template class bucket_array_t<2, longhint_t>;
+extern template class bucket_array_t<1, emptyhint_t>;
+extern template class bucket_array_t<2, emptyhint_t>;
+extern template class bucket_array_t<3, emptyhint_t>;
+extern template class bucket_array_t<1, logphint_t>;
+extern template class bucket_array_t<2, logphint_t>;
 
 #endif	/* BUCKET_HPP_ */

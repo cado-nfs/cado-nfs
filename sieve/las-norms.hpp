@@ -1,13 +1,21 @@
 #ifndef LAS_NORMS_HPP_
 #define LAS_NORMS_HPP_
 
-#include <stdint.h>
-#include "las-siever-config.hpp"
-#include "las-qlattice.hpp"
-#include "mpz_poly.h"
-#include "double_poly.h"
-#include "cado_poly.h"
-#include "logapprox.hpp"
+#include <cstdint>               // for uint32_t
+#include <cstring>               // for memset
+#include <ostream>                // for operator<<, ostream
+#include <string>                 // for string
+
+#include <gmp.h>                  // for mpz_ptr
+
+#include "las-config.h"           // for LOG_BUCKET_REGION
+#include "las-qlattice.hpp"       // for qlattice_basis
+#include "las-siever-config.hpp"  // for siever_config
+#include "logapprox.hpp"          // for piecewise_linear_function
+#include "macros.h"               // for MAYBE_UNUSED
+#include "utils.h"                // for cxx_cado_poly, cado_poly_srcptr
+
+struct las_todo_entry;
 
 /* Only relevant with --adjust-strategy 2 */
 #define ADJUST_STRATEGY2_MIN_SQUEEZE 0
@@ -194,5 +202,8 @@ private:
     int round_to_full_bucket_regions(const char *, std::string const & s = std::string());
     double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
 };/*}}}*/
+
+extern sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
+extern qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
 
 #endif	/* LAS_NORMS_HPP_ */

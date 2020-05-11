@@ -1,6 +1,8 @@
 #ifndef VERSION_INFO_H_
 #define VERSION_INFO_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #ifdef  __cplusplus
 extern "C" {
 #endif

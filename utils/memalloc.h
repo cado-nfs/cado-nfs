@@ -1,6 +1,10 @@
 #ifndef FILTER_MEMALLOC_H_
 #define FILTER_MEMALLOC_H_
 
+// IWYU pragma: private, include "utils.h"
+
+#include "typedefs.h"
+
 /********************** own memory allocation routines ***********************/
 
 /* Rationale: calling one malloc() for each read relation is expensive, since 

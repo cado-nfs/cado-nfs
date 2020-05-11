@@ -1,6 +1,8 @@
 #ifndef MPZ_VECTOR_H_
 #define MPZ_VECTOR_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,6 +1,8 @@
 #ifndef HWLOC_AUX_H_
 #define HWLOC_AUX_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <hwloc.h>
 
 #ifdef __cplusplus

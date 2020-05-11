@@ -1,8 +1,9 @@
 #ifndef MPZ_MAT_H_
 #define MPZ_MAT_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
-#include <stdint.h>
 #include <gmp.h>
 #include "macros.h"
 #include "mpz_poly.h"
@@ -93,6 +94,7 @@ void mpq_mat_trace(mpq_ptr t, mpq_mat_srcptr M);
 // We assume that M is triangular (and square)
 void mpq_mat_determinant_triangular(mpq_ptr d, mpq_mat_srcptr M);
 void mpz_mat_transpose(mpz_mat_ptr D, mpz_mat_srcptr M);
+void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M);
 void mpz_mat_reverse_rows(mpz_mat_ptr B, mpz_mat_srcptr A);
 void mpz_mat_reverse_columns(mpz_mat_ptr B, mpz_mat_srcptr A);
 
@@ -141,13 +143,6 @@ void mpz_mat_mulrow_mod(mpz_mat_ptr M, unsigned int i0, mpz_srcptr lambda, mpz_s
 /* multiply row i0 by lambda */
 void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda);
 
-/*{{{ conversion of rows and columns to polynomials*/
-void mpz_mat_row_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
-void mpz_mat_row_to_poly_rev(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
-void mpz_mat_column_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int j);
-void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int i);
-void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f, mpz_srcptr denom);
-void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int j);
 
 /* multiplication */
 void mpz_mat_mul(mpz_mat_ptr D, mpz_mat_srcptr A, mpz_mat_srcptr B);
@@ -233,6 +228,8 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 #endif
 
 #ifdef __cplusplus
+
+#include <iosfwd>      // for ostream
 
 struct cxx_mpz_mat {
     mpz_mat x;

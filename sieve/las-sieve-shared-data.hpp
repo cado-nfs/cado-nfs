@@ -1,27 +1,21 @@
 #ifndef LAS_SIEVE_SHARED_DATA_HPP_
 #define LAS_SIEVE_SHARED_DATA_HPP_
 
+#include <array>                       // for array
+#include <map>                         // for map, swap
+#include <memory>                      // for shared_ptr
+#include <utility>                     // for pair
 
-/* various includes that are needed to define the sieve_shared_data type */
-#include "cado_poly.h"
-#include "las-siever-config.hpp"
-#include "bucket.hpp"  /* for bkmult_specifier */
-#include "las-todo-entry.hpp"
-#include "las-qlattice.hpp"
-#include "las-norms.hpp"
-#include "trialdiv.hpp"
-#include "fb.hpp"
-#include "las-smallsieve-types.hpp"
-#include "las-unsieve.hpp"
-#include "ecm/facul.hpp"
-#include "lock_guarded_container.hpp"
+#include "ecm/facul.hpp"                   // for facul_strategies_t
+#include "fb-types.h"                  // for fbprime_t
+#include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#include "las-siever-config.hpp"       // for siever_config, siever_config::...
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+#include "trialdiv.hpp"                // for trialdiv_data
+#include "utils.h"                     // for cxx_cado_poly, cxx_mpz_poly
 
-#include <memory>
-#ifdef HAVE_BOOST_SHARED_PTR
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-namespace std { using boost::shared_ptr; using boost::make_shared; }
-#endif
+struct j_divisibility_helper;
+struct unsieve_data;
 
 /*
  * A sieve_shared_data struct is only a thin layer above the factor base. It

@@ -1,3 +1,8 @@
+#ifndef GMPXX_HPP_
+#define GMPXX_HPP_
+
+// IWYU pragma: private, include "utils.h"
+
 #include <gmp.h>
 #include <istream>
 #include <ostream>
@@ -16,3 +21,4 @@ extern std::istream& operator>>(std::istream& is, mpz_ptr x);
 extern std::istream& operator>>(std::istream& is, mpq_ptr x);
 // #endif
 
+#endif	/* GMPXX_HPP_ */

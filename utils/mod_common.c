@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ularith.h"
 
 /* Some functions that are implemented entirely on mod_*() functions, and which 

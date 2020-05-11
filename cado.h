@@ -135,7 +135,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #pragma GCC diagnostic error "-Wall"
 #endif
 
-#include "cado_config.h"
+#include "cado_config.h"        // IWYU pragma: export
 
 /* some stuff that we wish to enable only after we read our config-time
  * defines...

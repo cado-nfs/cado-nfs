@@ -35,6 +35,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define ASSERT(x)	assert(x)
 
+/* Even simple assertions are relatively expensive in very simple functions.
+   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
+#ifdef WANT_ASSERT_EXPENSIVE
+#define ASSERT_EXPENSIVE(x) ASSERT(x)
+#else
+#define ASSERT_EXPENSIVE(x)
+#endif
+
 #ifndef CPP_STRINGIFY
 #define CPP_STRINGIFY0(x) #x
 #define CPP_STRINGIFY(x) CPP_STRINGIFY0(x)
@@ -250,6 +258,12 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
  */
 #if GNUC_VERSION_ATLEAST(3,4,0)
 #define ATTRIBUTE_WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
+#elif defined(__clang__)
+#if __has_attribute(warn_unused_result)
+#define ATTRIBUTE_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define ATTRIBUTE_WARN_UNUSED_RESULT
+#endif
 #else
 #define ATTRIBUTE_WARN_UNUSED_RESULT
 #endif
@@ -258,6 +272,12 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef ATTRIBUTE_DEPRECATED
 #if GNUC_VERSION_ATLEAST(3,1,1)
 #define ATTRIBUTE_DEPRECATED __attribute__ ((deprecated))
+#elif defined(__clang__)
+#if __has_attribute(deprecated)
+#define ATTRIBUTE_DEPRECATED __attribute__((deprecated))
+#else
+#define ATTRIBUTE_DEPRECATED
+#endif
 #else
 #define ATTRIBUTE_DEPRECATED
 #endif
@@ -266,8 +286,28 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef ATTRIBUTE_ARTIFICIAL
 #if GNUC_VERSION_ATLEAST(4,3,0)
 #define ATTRIBUTE_ARTIFICIAL __attribute__ ((__artificial__))
+#elif defined(__clang__)
+#if __has_attribute(artificial)
+#define ATTRIBUTE_ARTIFICIAL __attribute__((artificial))
 #else
 #define ATTRIBUTE_ARTIFICIAL
+#endif
+#else
+#define ATTRIBUTE_ARTIFICIAL
+#endif
+#endif
+
+#ifndef ATTRIBUTE_ALWAYS_INLINE
+#if GNUC_VERSION_ATLEAST(3,1,0)
+#define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((__always_inline__))
+#elif defined(__clang__)
+#if __has_attribute(always_inline)
+#define ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define ATTRIBUTE_ALWAYS_INLINE
+#endif
+#else
+#define ATTRIBUTE_ALWAYS_INLINE
 #endif
 #endif
 

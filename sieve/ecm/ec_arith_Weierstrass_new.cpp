@@ -1,12 +1,19 @@
-#include "cado.h"
-#include "macros.h"
-#include "cmath"
-#include <cinttypes>
-#include <vector>
-#include "mod64.hpp"
-#include "modredc64.hpp"
-#include "modredc126.hpp"
-#include "mod_mpz_new.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdlib.h>        // for abort, NULL
+#include <cinttypes>       // for PRIu64
+#include <cmath>           // for sqrt, ceil
+#include <vector>          // for vector
+
+#include "macros.h"        // for ASSERT
+#include "utils.h"
+
+// #include "modint.hpp"      // for operator<<
+
+#include "mod64.hpp"    // IWYU pragma: keep
+#include "modredc64.hpp"        // IWYU pragma: keep
+#include "modredc126.hpp"       // IWYU pragma: keep
+#include "mod_mpz_new.hpp"      // IWYU pragma: keep
 #include "ec_arith_Weierstrass_new.hpp"
 
 /* Computes R=2P, with 1 inv, 4 muls (2 muls and 2 squares) and 8 add/sub.
@@ -474,11 +481,7 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const ui
     }
 }
 
-template
-class ECWeierstrass<Modulus64>;
-template
-class ECWeierstrass<ModulusREDC64>;
-template
-class ECWeierstrass<ModulusREDC126>;
-template
-class ECWeierstrass<ModulusMPZ>;
+template class ECWeierstrass<Modulus64>;
+template class ECWeierstrass<ModulusREDC64>;
+template class ECWeierstrass<ModulusREDC126>;
+template class ECWeierstrass<ModulusMPZ>;

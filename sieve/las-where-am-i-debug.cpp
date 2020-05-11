@@ -1,62 +1,68 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdarg.h>
-#include <array>
-#include <memory>
-
-#include "las-config.h"
-#include "cxx_mpz.hpp"
-#include "las-info.hpp"
-#include "las-debug.hpp"
-#include "las-coordinates.hpp"
-#include "las-threads-work-data.hpp"    /* trace_per_sq_init needs this */
-#include "portability.h"
-
-using namespace std;
-#if defined(__GLIBC__)
-#include <execinfo.h>   /* For backtrace. Since glibc 2.1 */
-#include <signal.h>     /* we use it only with glibc */
+#ifndef TRACE_K
+#error "This file *must* be compiled with TRACE_K defined"
+#define TRACE_K 1
 #endif
+
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
+#include <array>                         // for array, array<>::value_type
+#include <cinttypes>                     // for PRId64, PRIu64, SCNd64, SCNu64
+#include <climits>                       // for UINT_MAX
+#include <cstdio>                       // for fprintf, sscanf, stderr
+#include <cstdlib>                      // for exit, EXIT_FAILURE
+#include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
+#include <memory>                        // for unique_ptr, operator!=
+#include <string>                        // for string
 #ifdef HAVE_CXXABI_H
 /* We use that to demangle C++ names */
-#include <cxxabi.h>
+#include <cxxabi.h> // IWYU pragma: keep
+#endif
+#ifdef HAVE_GLIBC
+#include <execinfo.h>                    // for backtrace, backtrace_symbols
 #endif
 
-#if defined(__GLIBC__)
-static void signal_handling (int signum)/*{{{*/
-{
-   fprintf (stderr, "*** Error: caught signal \"%s\"\n", strsignal (signum));
+#include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
 
-   int sz = 100, i;
-   void *buffer [sz];
-   char** text;
+#include "las-where-am-i.hpp"
+#include "las-where-am-i-debug.hpp"
 
-   sz = backtrace (buffer, sz);
-   text = backtrace_symbols (buffer, sz);
+#include "las-config.h"                  // for LOG_BUCKET_REGION
+#include "las-coordinates.hpp"           // for IJToAB, IJToNx, ABToIJ, NxToIJ
+#include "las-norms.hpp"                 // for lognorm_smart
+#include "las-qlattice.hpp"              // for qlattice_basis
+#include "las-siever-config.hpp"         // for siever_config
+#include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
+#include "las-where-am-i-proxy.hpp"           // for where_am_I, where_am_I::pimpl_t
+#include "macros.h"                      // for ASSERT_ALWAYS
+#include "utils.h"
 
-   fprintf(stderr, "======= Backtrace: =========\n");
-   for (i = 0; i < sz; i++)
-       fprintf (stderr, "%s\n", text [i]);
-
-   signal (signum, SIG_DFL);
-   raise (signum);
-}/*}}}*/
-#endif
-
-void las_install_sighandlers()
-{
-#ifdef __GLIBC__
-    signal (SIGABRT, signal_handling);
-    signal (SIGSEGV, signal_handling);
-#else
-    verbose_output_print(0, 0, "# Cannot catch signals, lack glibc support\n");
-#endif
+int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
+    return trace_on_spot_ab(a, b);
 }
 
 
+where_am_I::where_am_I() : pimpl{ new impl{} } { }
+where_am_I::~where_am_I() = default;
+where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) {
+}
+where_am_I & where_am_I::operator=(where_am_I const & x) {
+    *pimpl = *x.pimpl;
+    return *this;
+}
+
+void where_am_I::decl_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
+    param_list_decl_usage(pl, "traceij", "Relation to trace, in i,j format");
+    param_list_decl_usage(pl, "traceNx", "Relation to trace, in N,x format");
+}
 
 /* The trivial calls for when TRACE_K is *not* defined are inlines in
  * las-debug.h */
@@ -79,7 +85,7 @@ int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
 /* two norms of the traced (a,b) pair */
 std::array<cxx_mpz, 2> traced_norms;
 
-void init_trace_k(cxx_param_list & pl)
+void where_am_I::interpret_parameters(cxx_param_list & pl)
 {
     struct trace_ab_t ab;
     struct trace_ij_t ij;
@@ -126,20 +132,12 @@ void init_trace_k(cxx_param_list & pl)
 /* This fills all the trace_* structures from the main one. The main
  * structure is the one for which a non-NULL pointer is passed.
  */
-void trace_per_sq_init(nfs_work const & ws)
+void where_am_I::begin_special_q(nfs_work const & ws)
 {
     int logI = ws.conf.logI;
     unsigned int J = ws.J;
     qlattice_basis const & Q(ws.Q);
 
-#ifndef TRACE_K
-    if (pl_Nx || pl_ab || pl_ij) {
-        fprintf (stderr, "Error, relation tracing requested but this siever "
-                 "was compiled without TRACE_K.\n");
-        exit(EXIT_FAILURE);
-    }
-    return;
-#endif
     /* At most one of the three coordinates must be specified */
     ASSERT_ALWAYS((pl_Nx != NULL) + (pl_ab != NULL) + (pl_ij != NULL) <= 1);
 
@@ -203,22 +201,21 @@ void trace_per_sq_init(nfs_work const & ws)
     }
 }
 
-#ifdef TRACE_K
-int test_divisible(where_am_I& w)
+int test_divisible(where_am_I const & w)
 {
     /* we only check divisibility for the given (N,x) value */
-    if (!trace_on_spot_Nx(w.N, w.x))
+    if (!trace_on_spot_Nx(w->N, w->x))
         return 1;
 
     /* Note that when we are reaching here through apply_one_bucket, we
      * do not know the prime number. */
-    fbprime_t p = w.p;
+    fbprime_t p = w->p;
     if (p==0) return 1;
 
-    const unsigned int logI = w.logI;
+    const unsigned int logI = w->logI;
     const unsigned int I = 1U << logI;
 
-    const unsigned long X = w.x + (w.N << LOG_BUCKET_REGION);
+    const unsigned long X = w->x + (w->N << LOG_BUCKET_REGION);
     long i = (long) (X & (I-1)) - (long) (I/2);
     unsigned long j = X >> logI;
     fbprime_t q;
@@ -227,21 +224,22 @@ int test_divisible(where_am_I& w)
     if (q == 0)
         q = p;
 
-    int rc = mpz_divisible_ui_p (traced_norms[w.side], (unsigned long) q);
+    int rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
 
     if (rc)
-        mpz_divexact_ui (traced_norms[w.side], traced_norms[w.side], (unsigned long) q);
+        mpz_divexact_ui (traced_norms[w->side], traced_norms[w->side], (unsigned long) q);
     else
         verbose_output_vfprint(3 /* TRACE_CHANNEL */, 0, gmp_vfprintf, "# FAILED test_divisible(p=%" FBPRIME_FORMAT
                 ", N=%d, x=%u, side %d): i = %ld, j = %u, norm = %Zd\n",
-                w.p, w.N, w.x, w.side, (long) i, j, (mpz_srcptr) traced_norms[w.side]);
+                w->p, w->N, w->x, w->side, (long) i, j, (mpz_srcptr) traced_norms[w->side]);
 
     return rc;
 }
 
 /* {{{ helper: sieve_increase */
 
-string remove_trailing_address_suffix(string const& a, string& suffix)
+#if defined(HAVE_CXXABI_H) && defined(HAVE_GLIBC)
+static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t pos = a.find('+');
     if (pos == a.npos) {
@@ -252,36 +250,38 @@ string remove_trailing_address_suffix(string const& a, string& suffix)
     return a.substr(0, pos);
 }
 
-string get_parenthesized_arg(string const& a, string& prefix, string& suffix)
+static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
     size_t pos = a.find('(');
     if (pos == a.npos) {
         prefix=a;
         suffix.clear();
-        return string();
+        return std::string();
     }
     size_t pos2 = a.find(')', pos + 1);
     if (pos2 == a.npos) {
         prefix=a;
         suffix.clear();
-        return string();
+        return std::string();
     }
     prefix = a.substr(0, pos);
     suffix = a.substr(pos2 + 1);
     return a.substr(pos+1, pos2-pos-1);
 }
+#endif
 
-/* Do this so that the _real_ caller is always 2 floors up */
-void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I& w)
+/* Do this so that the _real_ caller is always 2 floors up. Must *NOT* be
+ * a static function, for this very reason ! */
+void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
-    if (!trace_on_spot_Nx(w.N, w.x))
+    if (!trace_on_spot_Nx(w->N, w->x))
         return;
 
     ASSERT_ALWAYS(test_divisible(w));
 
-    string caller;
+    std::string caller;
 
-#ifdef __GLIBC__
+#ifdef HAVE_GLIBC
     {
         void * callers_addresses[3];
         char ** callers = NULL;
@@ -291,7 +291,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
         free(callers);
     }
 
-    string xx,yy,zz;
+    std::string xx,yy,zz;
     yy = get_parenthesized_arg(caller, xx, zz);
     if (!yy.empty()) caller = yy;
 
@@ -299,7 +299,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
         caller="<no symbol (static?)>";
     } else {
 #ifdef HAVE_CXXABI_H
-        string address_suffix;
+        std::string address_suffix;
         caller = remove_trailing_address_suffix(caller, address_suffix);
         int demangle_status;
         {
@@ -321,19 +321,19 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
 #endif
     }
 #endif
-    if (w.p) 
+    if (w->p) 
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Add log(%" FBPRIME_FORMAT ",side %d) = %hhu to "
             "S[%u] = %hhu, from BA[%u] -> %hhu [%s]\n",
-            w.p, w.side, logp, w.x, *S, w.N, (unsigned char)(*S+logp), caller.c_str());
+            w->p, w->side, logp, w->x, *S, w->N, (unsigned char)(*S+logp), caller.c_str());
     else
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Add log(hint=%lu,side %d) = %hhu to "
             "S[%u] = %hhu, from BA[%u] -> %hhu [%s]\n",
-            (unsigned long) w.h, w.side, logp, w.x, *S, w.N, (unsigned char)(*S+logp), caller.c_str());
+            (unsigned long) w->h, w->side, logp, w->x, *S, w->N, (unsigned char)(*S+logp), caller.c_str());
 }
 
 /* Produce logging as sieve_increase() does, but don't actually update
    the sieve array. */
-void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     sieve_increase_logging_backend(S, logp, w);
 }
@@ -341,7 +341,7 @@ void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am
 /* Increase the sieve array entry *S by logp, with underflow checking
  * and tracing if desired. w is used only for trace test and output */
 
-void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     sieve_increase_logging_backend(S, logp, w);
 #ifdef CHECK_UNDERFLOW
@@ -350,13 +350,12 @@ void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w)
     *S += logp;
 }
 
-#endif  /* TRACE_K */
 
 /* This function is useful both with and without TRACE_K, as the flag
  * controlling it is CHECK_UNDERFLOW
  */
 #ifdef CHECK_UNDERFLOW
-void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     int i;
     unsigned int j;
@@ -364,15 +363,15 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
     uint64_t b;
     static unsigned char maxdiff = ~0;
 
-    NxToIJ(&i, &j, w.N, w.x, w.logI);
-    IJToAB(&a, &b, i, j, *w.Q);
+    NxToIJ(&i, &j, w->N, w->x, w->logI);
+    IJToAB(&a, &b, i, j, *w->Q);
     if ((unsigned int) logp + *S > maxdiff)
       {
         maxdiff = logp - *S;
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Error, underflow at (N,x)=(%u, %u), "
                 "(i,j)=(%d, %u), (a,b)=(%ld, %lu), S[x] = %hhu, log(%"
                 FBPRIME_FORMAT ") = %hhu\n",
-                w.N, w.x, i, j, a, b, *S, w.p, logp);
+                w->N, w->x, i, j, a, b, *S, w->p, logp);
       }
     /* arrange so that the unconditional increase which comes next
      * has the effect of taking the result to maxdiff */
@@ -381,39 +380,4 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
 #endif
 
 
-dumpfile_t::~dumpfile_t() {
-    if (f) fclose(f);
-}
-
-void dumpfile_t::close() {
-    if (f) fclose(f);
-}
-
-void dumpfile_t::open(const char *filename_stem, las_todo_entry const & doing, int side)
-{
-    ASSERT_ALWAYS(!f);
-    if (filename_stem != NULL) {
-        char *filename;
-        int rc = gmp_asprintf(&filename, "%s.%d.sq%Zd.rho%Zd.side%d.dump",
-            filename_stem,
-            doing.side,
-            (mpz_srcptr) doing.p, 
-            (mpz_srcptr) doing.r, 
-            side);
-        ASSERT_ALWAYS(rc > 0);
-        f = fopen(filename, "w");
-        if (f == NULL) {
-            perror("Error opening dumpfile");
-        }
-        free(filename);
-    }
-}
-
-size_t dumpfile_t::write(const unsigned char * const data, const size_t size) const {
-    if (!f) return 0;
-
-    size_t rc = fwrite(data, sizeof(unsigned char), size, f);
-    ASSERT_ALWAYS(rc == size);
-    return rc;
-}
 /* }}} */

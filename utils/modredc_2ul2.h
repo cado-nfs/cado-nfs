@@ -25,18 +25,6 @@
 #include "macros.h"
 #include "ularith.h"
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 // #define MODTRACE 1
 
 /*********************************************************************/

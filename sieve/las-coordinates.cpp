@@ -1,8 +1,17 @@
-#include "cado.h"
-#include "las-config.h"
-#include "las-info.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdio.h>             // for fprintf, stderr
+
+#include <gmp.h>               // for mpz_clear, mpz_init, mpz_t, mpz_sgn
+
 #include "las-coordinates.hpp"
-#include "gmp_aux.h"
+
+#include "utils.h"
+
+#include "las-config.h"        // for LOG_BUCKET_REGION
+#include "las-qlattice.hpp"    // for qlattice_basis
+#include "las-todo-entry.hpp"  // for las_todo_entry
+
 
 /*  Conversions between different representations for sieve locations:
  *

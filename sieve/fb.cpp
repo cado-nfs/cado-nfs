@@ -1,31 +1,36 @@
-#include "cado.h"
-#include <cstdlib>
-#include <cstdio>
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
-#include <cctype>
-#include <gmp.h>
-#include <pthread.h>
-#include <streambuf>
-#include <istream>
-#include <iomanip>
+#include "cado.h" // IWYU pragma: keep
+
+#include <errno.h>         // for errno
+#include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
+#include <limits.h>        // for ULONG_MAX
+#include <stdint.h>        // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
+#include <string.h>        // for strchr, strerror, strlen
+#include <algorithm>       // for max, lower_bound, sort, is_sorted
+#include <cctype>          // for isspace
+#include <cmath>           // for fabs, floor, log2, pow, trunc
+#include <cstdlib>         // for exit, EXIT_FAILURE
+#include <iomanip>         // for operator<<, setprecision
+#include <istream>         // for operator<<, basic_ostream, ostringstream
+#include <memory>          // for allocator_traits<>::value_type
+#include <queue>           // for priority_queue
+#include <stdexcept>       // for runtime_error
+#include <string>          // for basic_string, string
+#include <type_traits>     // for is_same
 #ifdef HAVE_GLIBC_VECTOR_INTERNALS
 /* need all that for mmap() stuff */
-#include <sys/types.h>
+// #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+// #include <sys/mman.h>
 #include <unistd.h>
 #endif
+
 #include "fb.hpp"
-#include "mod_ul.h"
-#include "verbose.h"
-#include "getprime.h"
-#include "gmp_aux.h"
-#include "gzip.h"
-#include "threadpool.hpp"
-#include "misc.h"
+#include "las-fbroot-qlattice.hpp"     // for fb_root_in_qlattice
+#include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
+#include "ularith.h"       // for ularith_invmod
+#include "utils.h"
+struct qlattice_basis;
 
 /* {{{ fb_log fb_pow and friends */
 /* Returns floor(log_2(n)) for n > 0, and 0 for n == 0 */
@@ -38,7 +43,7 @@ fb_log_2 (fbprime_t n)
 }
 
 /* Return p^e. Trivial exponentiation for small e, no check for overflow */
-fbprime_t
+static fbprime_t
 fb_pow (const fbprime_t p, const unsigned long e)
 {
     fbprime_t r = 1;
@@ -146,6 +151,14 @@ fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
   proj = fb_linear_root (r, poly, q);
 }
 
+
+void fb_general_root::transform(fb_general_root &result, const fbprime_t q,
+        const redc_invp_t invq,
+        const qlattice_basis &basis) const {
+    unsigned long long t = to_old_format(q);
+    t = fb_root_in_qlattice(q, t, invq, basis);
+    result = fb_general_root(t, q, exp, oldexp);
+}
 
 /* Allow assignment-construction of general entries from simple entries */
 template <int Nr_roots>
@@ -1302,7 +1315,7 @@ static int get_new_task(task_info_t &T, uint64_t &next_prime, prime_info& pi, co
 
 typedef std::pair<unsigned int, task_info_t *> pending_result_t;
 /* priority queue is for lowest index first, here */
-bool operator<(pending_result_t const & a, pending_result_t const& b)
+static bool operator<(pending_result_t const & a, pending_result_t const& b)
 {
     return a.first > b.first;
 }
@@ -1454,7 +1467,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
    Return length in characters or remaining line, without trailing '\0'
    character.
 */
-size_t
+static size_t
 read_strip_comment (char *const line)
 {
     size_t linelen, i;
@@ -1694,12 +1707,12 @@ struct fbc_header {
         base_offset = header_offset;
     }
 };
-std::istream& operator>>(std::istream& in, fbc_header & hdr)
+static std::istream& operator>>(std::istream& in, fbc_header & hdr)
 {
     return hdr.parse(in);
 }
 
-std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
+static std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
 {
     return hdr.print(out);
 }
@@ -1719,7 +1732,7 @@ struct imemstream: virtual membuf, std::istream {
     }
 };
 
-fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
+static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
 {
     /* The cached file header must absolutely be seekable (asking it to
      * be mmap-able is anyway an even stricter requirement as far as I

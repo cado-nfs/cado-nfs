@@ -1,12 +1,17 @@
 #ifndef LAS_PARALLEL_HPP_
 #define LAS_PARALLEL_HPP_
+// IWYU pragma: no_include <bits/exception.h>
 
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
-#include <exception>
-#include <memory>
-#include "params.h"
+#include "cado_config.h"     // for HAVE_HWLOC
+
+#include <exception> // IWYU pragma: keep  // for exception
+#include <memory>            // for shared_ptr
+#include <string>            // for string
+#include <sstream>           // IWYU pragma: keep
+
+#include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
+
+#include "utils.h"           // for param_list_decl_usage, cxx_param_list
 
 class las_parallel_desc {
     std::string description_string;

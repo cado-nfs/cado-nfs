@@ -61,19 +61,35 @@ Thus the function to check for duplicates needs the following information:
 
 */
 
+#include "cado.h" // IWYU pragma: keep
 
-#include "cado.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include <gmp.h>
-#include <string.h>
-#include "gmp_aux.h"
+#include <algorithm>
+#include <cinttypes>                  // for PRId8, PRId64, PRIu64
+#include <climits>                    // for ULONG_MAX
+#include <cstdio>                     // for size_t
+#include <array>                      // for array, array<>::value_type
+#include <cstdint>                    // for uint64_t, uint8_t, int64_t, uin...
+#include <iosfwd>                     // for ostringstream, ostream
+#include <memory>                     // for allocator_traits<>::value_type
+#include <string>                     // for basic_string
+#include <vector>                     // for vector
+#include <cstdarg>             // IWYU pragma: keep
+#include <gmp.h>                      // for mpz_srcptr, gmp_vfprintf, mpz_g...
+
 #include "las-duplicate.hpp"
-#include "las-qlattice.hpp"
-#include "las-coordinates.hpp"
-#include "las-norms.hpp"
-#include "las-cofactor.hpp"
-#include "las-choose-sieve-area.hpp"
+#include "ecm/facul.hpp"                  // for facul_strategies_t
+#include "fb.hpp"                     // for fb_log
+#include "las-choose-sieve-area.hpp"  // for choose_sieve_area
+#include "las-cofactor.hpp"           // for check_leftover_norm, factor_bot...
+#include "las-coordinates.hpp"        // for ABToIJ
+#include "las-norms.hpp"              // for lognorm_smart
+#include "las-qlattice.hpp"           // for operator<<, qlattice_basis
+#include "las-siever-config.hpp"      // for siever_config::side_config, sie...
+#include "las-todo-entry.hpp"         // for las_todo_entry
+#include "macros.h"                   // for ASSERT_ALWAYS
+#include "relation.hpp"               // for relation
+#include "utils.h"      // IWYU pragma: export
+
 
 /* default verbose level of # DUPECHECK lines */
 #define VERBOSE_LEVEL 2
@@ -96,7 +112,7 @@ struct sq_with_fac {
 // down the line, we stumble on the fact that just a plain integer isn't
 // appropriate to represent elements of P1(Z/qZ) when q is composite.
 //
-las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
+static las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
 {
     cxx_mpz p, r;
 
@@ -339,7 +355,7 @@ sq_was_previously_sieved (las_info const & las, const uint64_t sq, int side, las
 //   - it destroys its argument along the way
 //   - it allocates the result it returns; the caller must free it.
 // Keep only products that fit in 64 bits.
-std::vector<sq_with_fac>
+static std::vector<sq_with_fac>
 all_multiples(std::vector<uint64_t> & prime_list) {
   if (prime_list.empty()) {
     std::vector<sq_with_fac> res;

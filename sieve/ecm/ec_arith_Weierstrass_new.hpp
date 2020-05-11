@@ -1,7 +1,11 @@
 #ifndef EC_ARITH_WEIERSTRASS_H_
 #define EC_ARITH_WEIERSTRASS_H_
 
-#include <iostream>
+#include <cstdint>         // for uint64_t
+#include <cstdio>          // for fprintf, NULL
+#include <iostream>        // for operator<<, ostream, basic_ostream, endl
+#include <utility>         // for swap
+#include "macros.h"        // for MAYBE_UNUSED
 
 /* Short Weierstrass elliptic curves
  *

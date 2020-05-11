@@ -120,9 +120,6 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
 }
 
 
-// #undef ASSERT_EXPENSIVE
-// #define ASSERT_EXPENSIVE ASSERT
-
 /* same as modredcul_inv, but for classical representation (not Montgomery) */
 int
 modredcul_intinv (residueredcul_t r, const residueredcul_t A,

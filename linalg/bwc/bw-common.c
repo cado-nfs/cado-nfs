@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <gmp.h>
 #include "bwc_config.h"
-#include "cado_config.h"
 #include "bw-common.h"
 #include "params.h"
 #include "utils.h"

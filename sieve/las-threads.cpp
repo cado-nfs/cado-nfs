@@ -1,9 +1,17 @@
-#include "cado.h"
-#include "memory.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <memory>                  // for allocator_traits<>::value_type
+
 #include "las-threads.hpp"
-#include "las-info.hpp"
-#include "las-config.h"
-#include "las-auxiliary-data.hpp"
+
+#include "macros.h"                // for ASSERT_ALWAYS
+#include "utils.h"
+
+#include "las-report-stats.hpp"    // for TIMER_CATEGORY
+#include "las-auxiliary-data.hpp"         // for nfs_aux
+#include "tdict.hpp"               // for timetree_t, slot
+class las_memory_accessor;
+
 
 template <typename T>
 void
@@ -114,17 +122,6 @@ void reservation_array<T>::release(T &BA) {
   signal(cv);
   leave();
 }
-
-template class reservation_array<bucket_array_t<1, shorthint_t> >;
-template class reservation_array<bucket_array_t<2, shorthint_t> >;
-template class reservation_array<bucket_array_t<3, shorthint_t> >;
-template class reservation_array<bucket_array_t<1, longhint_t> >;
-template class reservation_array<bucket_array_t<2, longhint_t> >;
-template class reservation_array<bucket_array_t<1, emptyhint_t> >;
-template class reservation_array<bucket_array_t<2, emptyhint_t> >;
-template class reservation_array<bucket_array_t<3, emptyhint_t> >;
-template class reservation_array<bucket_array_t<1, logphint_t> >;
-template class reservation_array<bucket_array_t<2, logphint_t> >;
 
 /* Reserve the required number of bucket arrays. For shorthint BAs, we
  * need at least as many as there are threads filling them (or more, for
@@ -344,3 +341,14 @@ reservation_group::cget<3, logphint_t>() const
 {
     ASSERT_ALWAYS(0);
 }
+
+template class reservation_array<bucket_array_t<1, shorthint_t> >;
+template class reservation_array<bucket_array_t<2, shorthint_t> >;
+template class reservation_array<bucket_array_t<3, shorthint_t> >;
+template class reservation_array<bucket_array_t<1, longhint_t> >;
+template class reservation_array<bucket_array_t<2, longhint_t> >;
+template class reservation_array<bucket_array_t<1, emptyhint_t> >;
+template class reservation_array<bucket_array_t<2, emptyhint_t> >;
+template class reservation_array<bucket_array_t<3, emptyhint_t> >;
+template class reservation_array<bucket_array_t<1, logphint_t> >;
+template class reservation_array<bucket_array_t<2, logphint_t> >;

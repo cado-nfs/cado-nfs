@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <pthread.h>
 #include "tdict.hpp"
 #include "params.h"
@@ -44,3 +44,9 @@ void configure_switches(cxx_param_list &) {}
 #endif
 
 };
+
+template struct tdict::tree<tdict::timer_seconds_thread>;
+template struct std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
+template struct std::map<tdict::key, tdict::slot_base const *>;
+// template struct std::pair<tdict::key const, tdict::slot_base const *>;
+template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;

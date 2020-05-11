@@ -1,32 +1,18 @@
-#include "cado.h"
-#include <math.h>       /* rint etc */
-#include "las-info.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <math.h>       // for frexp, ldexp
+#include <ostream>      // for operator<<, basic_ostream, char_traits, ostream
+
+#include <gmp.h>        // for mpz_t, mpz_clear, mpz_mul, mpz_mul_2exp, mpz_...
+
 #include "las-qlattice.hpp"
-#include "las-arith.hpp"
+
+#include "macros.h"
+#include "utils.h"
 
 /* check that the double x fits into an int32_t */
 #define fits_int32_t(x) \
   ((double) INT32_MIN <= (x)) && ((x) <= (double) INT32_MAX)
-
-int mpz_rdiv_q(mpz_ptr q, mpz_t a, mpz_t b)
-{
-    /* Return the relative integer q which is closest to a/b. We
-     * guarantee -1/2<=a/b-q<1/2.
-     * It's a pity that this is not supported directly by gmp... */
-    mpz_t r;
-    mpz_init(r);
-
-    mpz_fdiv_qr(q,r,a,b);
-    /* b>0: We want -b/2 <= a-bq < b/2 */
-    /* b<0: We want  b/2 < a-bq <= -b/2 */
-    mpz_mul_2exp(r,r,1);
-    if (mpz_cmp(r,b) * mpz_sgn(b) >= 0) {
-        mpz_add_ui(q, q, 1);
-    }
-    mpz_clear(r);
-
-    return 1;
-}
 
 /* We work with two vectors v0=(a0,b0) and v1=(a1,b1). The quadratic form
  * is proportional to a0^2+skewness^2*b0^2 */

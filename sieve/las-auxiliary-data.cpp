@@ -1,11 +1,24 @@
-#include "cado.h"
-#include "las-auxiliary-data.hpp"
-#include "las-threads.hpp"
-#include "las-info.hpp"
-#include <iomanip>
+#include "cado.h" // IWYU pragma: keep
 
-/* in las.cpp */
-extern int sync_at_special_q;
+#include <iomanip>             // for operator<<, setprecision, fixed
+#include <map>                 // for map
+#include <ostream>             // for ostringstream, basic_ostream, basic_os...
+#include <string>              // for allocator, basic_string, string
+#include <cstdio>              // IWYU pragma: keep
+#include <cstdarg>             // IWYU pragma: keep
+
+#include <gmp.h>               // for gmp_vfprintf, mpz_srcptr, mpz_import
+
+#include "las-auxiliary-data.hpp"
+
+#include "macros.h"            // for ASSERT_ALWAYS_NOTHROW
+#include "utils.h"
+
+#include "las-info.hpp"        // for las_info
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "tdict.hpp"           // for timetree_t, slot, global_enable, slot_...
+#include "ularith.h"           // for ularith_addmod_ul_ul
+
 
 void
 sieve_checksum::update(const unsigned int other)

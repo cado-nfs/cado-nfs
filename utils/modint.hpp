@@ -9,24 +9,6 @@
 #include "u64arith.h"
 #include "cxx_mpz.hpp"
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-#ifndef ASSERT_ALWAYS
-#define ASSERT_ALWAYS(x)	assert(x)
-#endif
-
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
-#ifndef ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT_ALWAYS(x)
-#endif
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 /* Integers of 64 bits. We want additional conversion function from/to
    arrays of uint64_t and mpz_ts. Unfortunately, we can't inherit from
    standard integer types, so there's a lot of clutter here. */

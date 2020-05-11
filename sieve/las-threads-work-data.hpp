@@ -1,18 +1,34 @@
 #ifndef LAS_THREADS_WORK_DATA_HPP_
 #define LAS_THREADS_WORK_DATA_HPP_
 
-#include "las-forwardtypes.hpp"
-#include "las-info.hpp"
-#include "las-threads.hpp"
-#include "las-plattice.hpp"
-#include "las-smallsieve-types.hpp"
-#include "las-norms.hpp"
-#include "las-unsieve.hpp"
-#include "ecm/facul.hpp"
-#include "ecm/batch.hpp"
-#include "multityped_array.hpp"
-#include "las-memory.hpp"
-#include "lock_guarded_container.hpp"
+#include <cstddef>                     // for NULL
+#include <cstdint>                     // for uint32_t
+#include <array>                       // for array
+#include <vector>                      // for vector
+#include "ecm/batch.hpp"                   // for cofac_list
+#include "ecm/facul.hpp"                   // for facul_strategies_t
+#include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#include "las-bkmult.hpp"              // for bkmult_specifier
+#include "las-config.h"                // for FB_MAX_PARTS
+#include "las-dumpfile.hpp"            // for dumpfile_t
+#include "las-norms.hpp"               // for lognorm_smart
+#include "las-plattice.hpp"            // for precomp_plattice_dense_t
+#include "las-qlattice.hpp"            // for qlattice_basis
+#include "las-siever-config.hpp"       // for siever_config
+#include "las-smallsieve-types.hpp"    // for small_sieve_data_t
+#include "las-threads.hpp"             // for reservation_group
+#include "las-todo-entry.hpp"          // for las_todo_entry
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+#include "multityped_array.hpp"        // for multityped_array
+
+class las_memory_accessor;
+class nfs_aux;
+class thread_pool;
+struct j_divisibility_helper;
+struct las_info;
+struct trialdiv_data;
+struct unsieve_data;
+template <int LEVEL, typename HINT> class bucket_array_t;
 
 #define NUMBER_OF_BAS_FOR_THREADS(n)    ((n) == 1 ? 1 : ((n) + 2))
 

@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
+// IWYU pragma: private, include "utils.h"
+
 /* This header file defines macros (and perhaps static functions) to improve 
  * portability of the CADO code. They aim to provide a wrapper for some C99
  * and POSIX functionality for systems that lack those.
@@ -128,6 +130,8 @@ extern "C" {
  */
 static inline size_t strlcpy(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
 static inline size_t
+strlcpy(char *dst, const char *src, size_t siz) ATTRIBUTE_WARN_UNUSED_RESULT;
+static inline size_t
 strlcpy(char *dst, const char *src, size_t siz)
 {
 	char *d = dst;
@@ -191,8 +195,10 @@ extern "C" {
  * Returns strlen(src) + MIN(dsize, strlen(initial dst)).
  * If retval >= dsize, truncation occurred.
  */
-static inline size_t strlcat(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
-static inline size_t strlcat(char *dst, const char *src, size_t dsize)
+static inline size_t
+strlcat(char *dst, const char *src, size_t dsize) ATTRIBUTE_WARN_UNUSED_RESULT;
+static inline size_t
+strlcat(char *dst, const char *src, size_t dsize)
 {
 	const char *odst = dst;
 	const char *osrc = src;

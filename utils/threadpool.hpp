@@ -13,6 +13,7 @@
 #include "macros.h"
 #include "utils_cxx.hpp"
 #include "tdict.hpp"
+#include "clonable-exception.hpp"
 
 #if 0
 /* Verbosely log all mutex and condition variable operations */
@@ -105,10 +106,6 @@ class task_parameters {
 class task_result {
   public:
   virtual ~task_result(){};
-};
-
-struct clonable_exception : public std::exception {
-    virtual clonable_exception * clone() const = 0;
 };
 
 class thread_task;

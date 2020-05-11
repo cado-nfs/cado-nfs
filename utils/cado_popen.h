@@ -1,6 +1,8 @@
 #ifndef CADO_POPEN_H_
 #define CADO_POPEN_H_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #ifdef HAVE_GETRUSAGE

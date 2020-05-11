@@ -1,4 +1,5 @@
 include_directories (utils_st)
+include_directories (../ecm)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
 set (SUF_UTILS utils_st/)

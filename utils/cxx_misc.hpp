@@ -1,6 +1,8 @@
 #ifndef CXX_MISC_HPP_
 #define CXX_MISC_HPP_
 
+// IWYU pragma: private, include "utils.h"
+
 #include <limits>
 #include <type_traits>
 

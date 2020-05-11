@@ -1,14 +1,15 @@
 #ifndef LAS_REPORT_STATS_HPP_
 #define LAS_REPORT_STATS_HPP_
 
-#include <string>
-#include <array>
-#include <memory>
-#include <cstring>
-#include <string>
-#include <sstream>
-#include "tdict.hpp"
-#include "las-base.hpp"
+#include <stdint.h>      // for uint8_t
+#include <cstring>       // for memset, size_t
+#include <memory>        // for shared_ptr, allocator, make_shared, __shared...
+#include <sstream>       // for basic_ostream::operator<<, operator<<, ostri...
+#include <string>        // for string, operator<<
+
+#include "macros.h"      // for ASSERT_ALWAYS
+
+#include "las-base.hpp"  // for _padded_pod
 
 /* las_report: Structure for gathering reports and stats on sieving */
 

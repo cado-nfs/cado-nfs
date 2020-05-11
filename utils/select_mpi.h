@@ -5,7 +5,10 @@
 
 #if !(defined(__OpenBSD__) || defined(__FreeBSD__))
 #if !(defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
-#if _POSIX_C_SOURCE == 199506L && defined(_GNU_SOURCE) && defined(__GLIBC__) && LEXLE2(__GLIBC__,__GLIBC_MINOR__,2,4)
+#ifdef HAVE_GLIBC
+#include <features.h>   // we must be sure to include something from the glibc...
+#endif
+#if _POSIX_C_SOURCE == 199506L && defined(_GNU_SOURCE) && defined(HAVE_GLIBC) && LEXLE2(__GLIBC__,__GLIBC_MINOR__,2,4)
 /* With glibc 2.4, if _GNU_SOURCE is defined, then _POSIX_C_SOURCE is set
  * to 199506L unconditionally, and there's nothing we can do about it
  * (see /usr/include/features.h). Then the compilation will fail on

@@ -353,7 +353,7 @@ cado_divert_test(F9 descent
             q0=235086167414177 rho=46506392392611
             REFERENCE_SHA1=4d64b69f37672b2109441c52f0a57f16f08d813d
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
-            descent_hint=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.hint
+            descent_hint_table=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.hint
             ncurves0=10 ncurves1=10
             CHECKSUM_FILE=
             LAS_BINARY=${las_descent_path}
@@ -394,7 +394,8 @@ cado_define_test(F9_fakereltest
 
 # Try with default TRIALDIV_MAXLEN, whatever it may be
 cado_define_test(test_trialdiv.cpp
-    ${CADO_NFS_SOURCE_DIR}/sieve/trialdiv.cpp LIBRARIES utils tests trialdiv)
+    $<TARGET_OBJECTS:trialdiv>
+    LIBRARIES utils tests)
 
 macro (add_trialdiv_test MAXLEN)
     cado_define_test(test_trialdiv_${MAXLEN} SOURCES test_trialdiv.cpp
@@ -424,6 +425,7 @@ cado_define_test(test_init_norms.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-siever-config.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-todo-entry.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-qlattice.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-multiobj-globals.cpp
     NO_DEFAULT_RUN
     LIBRARIES utils tests
 )
@@ -521,7 +523,9 @@ cado_divert_test(test_init_norms bug21684b
 # we have no pretense to have optimized code for these cases, so don't
 # bother.
 if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-cado_define_test(test-smallsieve.cpp LIBRARIES utils ${gmplib}
+cado_define_test(test-smallsieve.cpp 
+                ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
+                LIBRARIES utils ${gmplib}
     ARGUMENTS -q -C -A 18 -I 14 -B 14)
 cado_divert_test(test-smallsieve line_fragments1 # bucket region = half line
     ARGUMENTS -q -C -A 18 -I 14 -B 13)
@@ -536,6 +540,7 @@ else()
 endif()
 cado_define_test(test-sieve2357.cpp
                  ${PROJECT_SOURCE_DIR}/sieve/las-sieve2357.cpp
+                 ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
                  LIBRARIES utils tests ${jevents_lib})
 
 # test renumber
