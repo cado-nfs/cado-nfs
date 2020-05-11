@@ -5,6 +5,7 @@
 #include <algorithm>    // for min
 #include <climits>      // for ULONG_MAX
 #include <cstdint>      // for uint64_t
+#include <cmath>        // IWYU pragma: keep // std::sqrt (albeit in constexpr)
 #include <gmp.h>        // for __mpz_struct, mp_limb_t, mp_ptr, mpz_cmp_ui
 
 #if VERBOSE
