@@ -985,8 +985,8 @@ class Cado_NFS_toplevel(object):
             tp = self.parameters.get_or_set_default("tasks.polyselect.threads", 0)
             ts = self.parameters.get_or_set_default("tasks.sieve.las.threads")
             if t:
-                if isinstance(ts, int):
-                    ct = max(tp,ts)
+                if isinstance(ts, int) or isinstance(ts, str) and re.match('^\d+', ts):
+                    ct = max(tp,int(ts))
                     nrclients=int((t+ct-1)//ct)
                     self.parameters.set_if_unset("slaves.nrclients", nrclients)
                 else:
